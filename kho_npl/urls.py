@@ -10,6 +10,7 @@ from . import views_settings
 from . import views_stocktake
 from . import views_disposal
 from . import views_transfer
+from . import views_supplier
 
 app_name = 'kho_npl'
 
@@ -18,23 +19,29 @@ urlpatterns = [
     path('tong-quan/', views.overview, name='overview'),
     path('tong-quan/xuat-excel/', views.overview_export, name='overview_export'),
     path('the-kho/', views.stock_cards, name='stock_cards'),
-    path('the-kho/xuat-excel/', views.stock_cards_export, name='stock_cards_export'),
     path('canh-bao/', views.stock_alerts, name='stock_alerts'),
     path('danh-muc/', views_material.material_list, name='material_list'),
     path('danh-muc/xuat-excel/', views_material.material_export, name='material_export'),
     path('danh-muc/mau-excel/', views_material.material_import_template, name='material_import_template'),
     path('danh-muc/nhap-excel/', views_material.material_import, name='material_import'),
     path('ton-kho-npl/', views_material.material_stock_list, name='material_stock'),
+    path('ton-kho-npl/<int:pk>/', views_material.material_stock_detail, name='material_stock_detail'),
     path('ton-kho-npl/xuat-excel/', views_material.material_stock_export, name='material_stock_export'),
     path('danh-muc/them/', views_material.material_create, name='material_create'),
     path('danh-muc/<int:pk>/', views_material.material_detail, name='material_detail'),
     path('danh-muc/<int:pk>/sua/', views_material.material_edit, name='material_edit'),
     path('danh-muc/<int:pk>/ngung/', views_material.material_deactivate, name='material_deactivate'),
     path('api/tim-npl/', views_material.material_search, name='material_search'),
+    path('api/tim-ma-sp/', views_issue.product_code_search, name='product_code_search'),
+    path('api/tim-nhan-vien/', views_issue.recipient_search, name='recipient_search'),
+    path('api/tim-ncc/', views_supplier.supplier_search, name='supplier_search'),
+    path('api/them-ncc/', views_supplier.supplier_quick_create, name='supplier_quick_create'),
     path('api/ton-npl/', views_material.balance_lookup, name='balance_lookup'),
     path('phieu-nhap/', views_receipt.receipt_list, name='receipt_list'),
     path('phieu-nhap/them/', views_receipt.receipt_create, name='receipt_create'),
     path('phieu-nhap/<int:pk>/', views_receipt.receipt_detail, name='receipt_detail'),
+    path('phieu-nhap/<int:pk>/ghi-chu/', views_receipt.receipt_update_notes, name='receipt_update_notes'),
+    path('phieu-nhap/<int:pk>/ghi-chu-dong/', views_receipt.receipt_update_line_notes, name='receipt_update_line_notes'),
     path('phieu-nhap/<int:pk>/sua/', views_receipt.receipt_edit, name='receipt_edit'),
     path('phieu-nhap/<int:pk>/ghi-so/', views_receipt.receipt_post, name='receipt_post'),
     path('phieu-nhap/<int:pk>/huy/', views_receipt.receipt_cancel, name='receipt_cancel'),
@@ -43,6 +50,7 @@ urlpatterns = [
     path('phieu-xuat/<int:pk>/', views_issue.issue_detail, name='issue_detail'),
     path('phieu-xuat/<int:pk>/sua/', views_issue.issue_edit, name='issue_edit'),
     path('phieu-xuat/<int:pk>/ghi-chu/', views_issue.issue_update_notes, name='issue_update_notes'),
+    path('phieu-xuat/<int:pk>/ghi-chu-dong/', views_issue.issue_update_line_notes, name='issue_update_line_notes'),
     path('phieu-xuat/<int:pk>/ghi-so/', views_issue.issue_post, name='issue_post'),
     path('phieu-xuat/<int:pk>/huy/', views_issue.issue_cancel, name='issue_cancel'),
     path('chuyen-kho/', views_transfer.transfer_hub, name='transfer_hub'),

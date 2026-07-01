@@ -103,11 +103,10 @@ if mat:
 
 print('=== HTTP POST — Phiếu xuất + ghi sổ ===')
 if mat:
-    from kho_npl.choices import ISSUE_TYPE_PRODUCTION
     issue = StockIssue.objects.create(
         number=f'PX-HQ-{TS}',
         issue_date=timezone.localdate(),
-        issue_type=ISSUE_TYPE_PRODUCTION,
+        issue_type='Xuất cho sản xuất',
         created_by=ductn,
         status='draft',
     )

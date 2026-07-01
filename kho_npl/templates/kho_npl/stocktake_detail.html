@@ -16,7 +16,7 @@
             </h2>
             <p class="jp-npl-stk-detail-subtitle mb-0">
                 {{ stocktake.name }}
-                · Kho <strong>{{ stocktake.location.code }}</strong>
+                · Kho <strong>{{ stocktake.location.name }}</strong>
                 · {{ stocktake.get_status_display }}
                 · {{ stocktake.stocktake_date|date:'d/m/Y' }}
                 {% if line_count %} · {{ line_count }} dòng{% endif %}
@@ -32,7 +32,7 @@
             {% if can_count and can_update %}
             {% if stocktake.status == 'draft' %}
             <form method="post" action="{% url 'kho_npl:stocktake_start' stocktake.pk %}"
-                  data-loading-message="Đang tải tồn kho {{ stocktake.location.code }}…">{% csrf_token %}
+                  data-loading-message="Đang tải tồn kho {{ stocktake.location.name }}…">{% csrf_token %}
                 <button type="submit" class="btn btn-hm btn-sm fw-bold">
                     <i class="bi bi-play me-1"></i>Bắt đầu kiểm (tải tồn)
                 </button>
@@ -44,7 +44,7 @@
             </a>
             {% if stocktake.status == 'counting' %}
             <form method="post" action="{% url 'kho_npl:stocktake_reload' stocktake.pk %}"
-                  data-loading-message="Đang tải lại tồn kho {{ stocktake.location.code }}…">{% csrf_token %}
+                  data-loading-message="Đang tải lại tồn kho {{ stocktake.location.name }}…">{% csrf_token %}
                 <button type="submit" class="btn btn-outline-secondary btn-sm fw-bold">
                     <i class="bi bi-arrow-clockwise me-1"></i>Tải lại tồn
                 </button>
@@ -126,7 +126,7 @@
                     {% empty %}
                     <tr>
                         <td colspan="{{ line_columns|length }}" class="text-center text-muted py-4">
-                            Chưa có dòng — bấm «Bắt đầu kiểm» để tải tồn kho {{ stocktake.location.code }}.
+                            Chưa có dòng — bấm «Bắt đầu kiểm» để tải tồn kho {{ stocktake.location.name }}.
                         </td>
                     </tr>
                     {% endfor %}

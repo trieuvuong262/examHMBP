@@ -9,7 +9,7 @@ from hrm.module_permissions import MODULE_KHO_NPL
 from PortalJustPlay.list_search import get_search_query
 from PortalJustPlay.pagination import paginate_queryset
 
-from kho_npl.choices import DOC_STATUS_DRAFT, WAREHOUSE_SCRAP_CODE
+from kho_npl.choices import DOC_STATUS_DRAFT
 from kho_npl.forms import StockDisposalForm, StockDisposalLineFormSet
 from kho_npl.models import StockDisposal
 from kho_npl.services.disposals import (
@@ -25,7 +25,12 @@ from kho_npl.doc_list_columns import (
     DISPOSAL_LIST_TOTAL_COL_WEIGHT,
 )
 from kho_npl.doc_list_utils import DOC_STATUS_FILTER_CHOICES, doc_list_sort, doc_status_filter
+from kho_npl.services.scrap_warehouse import get_scrap_location
 from kho_npl.view_utils import nav_context, perm_context
+
+
+def _scrap_warehouse_context() -> dict:
+    return {'scrap_warehouse_label': get_scrap_location().display_label()}
 
 
 def _save_disposal_form(request, disposal, *, is_create: bool):
@@ -57,7 +62,7 @@ def disposal_list(request):
     if search_query:
         qs = qs.filter(
             Q(number__icontains=search_query)
-            | Q(from_location__code__icontains=search_query)
+            | Q(from_location__name__icontains=search_query)
             | Q(notes__icontains=search_query)
         )
     qs = qs.order_by(order, '-pk')
@@ -75,7 +80,7 @@ def disposal_list(request):
         'total_col_weight': DISPOSAL_LIST_TOTAL_COL_WEIGHT,
         'sort_key': sort_key,
         'sort_dir': sort_dir,
-        'scrap_warehouse_code': WAREHOUSE_SCRAP_CODE,
+        **_scrap_warehouse_context(),
     })
 
 
@@ -91,7 +96,7 @@ def disposal_detail(request, pk):
         **perm_context(request.user, 'disposals'),
         'disposal': disposal,
         'is_editable': disposal_is_editable(disposal),
-        'scrap_warehouse_code': WAREHOUSE_SCRAP_CODE,
+        **_scrap_warehouse_context(),
     })
 
 
@@ -107,7 +112,7 @@ def disposal_create(request):
                     post_stock_disposal(doc, request.user)
                     messages.success(
                         request,
-                        f'Đã ghi sổ phiếu {doc.number} — hàng chuyển sang kho {WAREHOUSE_SCRAP_CODE}.',
+                        f'Đã ghi sổ phiếu {doc.number} — hàng chuyển sang {get_scrap_location().display_label()}.',
                     )
                 except DisposalWorkflowError as exc:
                     messages.error(request, str(exc))
@@ -125,7 +130,7 @@ def disposal_create(request):
         'formset': formset,
         'is_edit': False,
         'disposal': disposal,
-        'scrap_warehouse_code': WAREHOUSE_SCRAP_CODE,
+        **_scrap_warehouse_context(),
         'cancel_url': reverse('kho_npl:disposal_list'),
     })
 
@@ -160,7 +165,7 @@ def disposal_edit(request, pk):
         'formset': formset,
         'is_edit': True,
         'disposal': disposal,
-        'scrap_warehouse_code': WAREHOUSE_SCRAP_CODE,
+        **_scrap_warehouse_context(),
         'cancel_url': reverse('kho_npl:disposal_detail', args=[disposal.pk]),
     })
 

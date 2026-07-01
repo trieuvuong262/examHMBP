@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 from django.contrib.auth.models import User
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -56,6 +57,33 @@ class StockTransferWorkflowTests(TestCase):
         self.client.login(username='npl_xfer', password='test')
 
     _xfer_seq = 0
+
+
+    def _transfer_form_payload(self, **overrides):
+        line_id = overrides.pop('line_id', None)
+        data = {
+            'transfer_date': timezone.localdate().isoformat(),
+            'from_location': self.from_loc.pk,
+            'to_location': self.to_loc.pk,
+            'notes': 'Ghi chu phieu test',
+            'lines-TOTAL_FORMS': '1',
+            'lines-INITIAL_FORMS': '0',
+            'lines-MIN_NUM_FORMS': '0',
+            'lines-MAX_NUM_FORMS': '1000',
+            'lines-0-material': self.material.pk,
+            'lines-0-quantity': '3',
+            'lines-0-notes': 'Ghi chu dong test',
+        }
+        if line_id is not None:
+            data['lines-INITIAL_FORMS'] = '1'
+            data['lines-0-id'] = line_id
+        data.update(overrides)
+        return data
+
+    def _transfer_form_files(self):
+        return {
+            'attachment': SimpleUploadedFile('pc.pdf', b'%PDF-1.4', content_type='application/pdf'),
+        }
 
     def _draft_transfer(self, qty=Decimal('10'), *, number=None):
         StockTransferWorkflowTests._xfer_seq += 1
@@ -150,19 +178,9 @@ class StockTransferWorkflowTests(TestCase):
         self.assertEqual(get_resp.status_code, 302)
         self.assertIn('tab=nhap', get_resp.url)
 
-        response = self.client.post(url, {
-            'transfer_date': timezone.localdate().isoformat(),
-            'from_location': self.from_loc.pk,
-            'to_location': self.to_loc.pk,
-            'notes': '',
-            'lines-TOTAL_FORMS': '1',
-            'lines-INITIAL_FORMS': '0',
-            'lines-MIN_NUM_FORMS': '0',
-            'lines-MAX_NUM_FORMS': '1000',
-            'lines-0-material': self.material.pk,
-            'lines-0-quantity': '3',
-            'lines-0-notes': '',
-        })
+        payload = self._transfer_form_payload()
+        payload.update(self._transfer_form_files())
+        response = self.client.post(url, payload)
         self.assertEqual(response.status_code, 302)
         self.assertIn('tab=chuyen', response.url)
         self.assertEqual(StockTransfer.objects.filter(status=TRANSFER_STATUS_DRAFT).count(), 1)
@@ -171,20 +189,13 @@ class StockTransferWorkflowTests(TestCase):
         transfer = self._draft_transfer()
         url = reverse('kho_npl:transfer_edit', args=[transfer.pk])
         other_loc = WarehouseLocation.objects.create(code='ALT', name='Kho khác', is_active=True)
-        response = self.client.post(url, {
-            'transfer_date': timezone.localdate().isoformat(),
-            'from_location': other_loc.pk,
-            'to_location': self.to_loc.pk,
-            'notes': '',
-            'lines-TOTAL_FORMS': '1',
-            'lines-INITIAL_FORMS': '1',
-            'lines-MIN_NUM_FORMS': '0',
-            'lines-MAX_NUM_FORMS': '1000',
-            'lines-0-id': transfer.lines.first().pk,
-            'lines-0-material': self.material.pk,
-            'lines-0-quantity': '10',
-            'lines-0-notes': '',
-        })
+        payload = self._transfer_form_payload(
+            from_location=other_loc.pk,
+            line_id=transfer.lines.first().pk,
+        )
+        payload['lines-0-quantity'] = '10'
+        payload.update(self._transfer_form_files())
+        response = self.client.post(url, payload)
         self.assertEqual(response.status_code, 302)
         transfer.refresh_from_db()
         self.assertEqual(transfer.from_location_id, self.from_loc.pk)

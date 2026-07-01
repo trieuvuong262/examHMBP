@@ -52,12 +52,11 @@
                             <span class="jp-mat-col-resizer" aria-hidden="true"></span>
                         </th>
                         {% endfor %}
-                        <th class="npl-col jp-mat-th text-end" data-col="actions" style="width:3rem;"></th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for receipt in page_obj %}
-                    <tr>
+                    <tr class="jp-npl-catalog-row" data-href="{% url 'kho_npl:receipt_detail' receipt.pk %}">
                         <td class="npl-col jp-mat-code" data-col="number">
                             <a href="{% url 'kho_npl:receipt_detail' receipt.pk %}" class="text-decoration-none fw-semibold">{{ receipt.number }}</a>
                         </td>
@@ -66,15 +65,10 @@
                         <td class="npl-col" data-col="po_number">{{ receipt.po_number|default:'—' }}</td>
                         <td class="npl-col" data-col="status">{{ receipt.get_status_display }}</td>
                         <td class="npl-col" data-col="created_by">{% if receipt.created_by %}{{ receipt.created_by.get_full_name|default:receipt.created_by.username }}{% else %}—{% endif %}</td>
-                        <td class="text-end text-nowrap npl-col" data-col="actions">
-                            {% if can_update and receipt.status == 'draft' %}
-                            <a href="{% url 'kho_npl:receipt_edit' receipt.pk %}" class="jp-mat-edit-btn" title="Sửa"><i class="bi bi-pencil" aria-hidden="true"></i></a>
-                            {% endif %}
-                        </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="{{ list_columns|length|add:1 }}" class="text-center text-muted py-4">
+                        <td colspan="{{ list_columns|length }}" class="text-center text-muted py-4">
                             {% if has_filters %}Không có kết quả.{% else %}Chưa có phiếu nhập kho.{% if can_create %} <a href="{% url 'kho_npl:receipt_create' %}">Tạo phiếu đầu tiên</a>{% endif %}{% endif %}
                         </td>
                     </tr>
@@ -92,4 +86,15 @@
 
 {% block scripts %}
 {% include 'kho_npl/includes/catalog_grid_scripts.html' with table_id='npl-receipt-table' storage_key='kho_npl_receipt_visible_cols' col_btn_id='npl-rc-col-btn' col_toggle_class='npl-rc-col-toggle' default_sort_key='receipt_date' %}
+<script>
+(function () {
+    document.querySelectorAll('#npl-receipt-table .jp-npl-catalog-row[data-href]').forEach(function (row) {
+        row.addEventListener('click', function (e) {
+            if (e.target.closest('a, button, form, input')) return;
+            var href = row.getAttribute('data-href');
+            if (href) window.location.href = href;
+        });
+    });
+})();
+</script>
 {% endblock %}

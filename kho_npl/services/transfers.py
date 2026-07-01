@@ -50,7 +50,7 @@ def send_stock_transfer(transfer: StockTransfer, user) -> StockTransfer:
         available = balance.quantity if balance else Decimal('0')
         if available < line.quantity:
             raise TransferWorkflowError(
-                f'Tồn không đủ tại {transfer.from_location.code}: {line.material.code} '
+                f'Tồn không đủ tại {transfer.from_location.display_label()}: {line.material.code} '
                 f'(có {available}, cần {line.quantity}).'
             )
         balance.quantity -= line.quantity
@@ -64,7 +64,7 @@ def send_stock_transfer(transfer: StockTransfer, user) -> StockTransfer:
             ref_id=transfer.pk,
             ref_number=transfer.number,
             created_by=user,
-            notes=f'Chuyển đi {transfer.number} → {transfer.to_location.code}',
+            notes=f'Chuyển đi {transfer.number} → {transfer.to_location.display_label()}',
         )
 
     transfer.status = TRANSFER_STATUS_IN_TRANSIT
@@ -97,7 +97,7 @@ def receive_stock_transfer(transfer: StockTransfer, user) -> StockTransfer:
             ref_id=transfer.pk,
             ref_number=transfer.number,
             created_by=user,
-            notes=f'Nhận chuyển {transfer.number} từ {transfer.from_location.code}',
+            notes=f'Nhận chuyển {transfer.number} từ {transfer.from_location.display_label()}',
         )
 
     transfer.status = TRANSFER_STATUS_RECEIVED

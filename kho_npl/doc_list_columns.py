@@ -22,7 +22,6 @@ ISSUE_LIST_COLUMNS = [
     {'key': 'number', 'label': 'Số phiếu', 'default': True, 'required': True, 'weight': 100},
     {'key': 'issue_date', 'label': 'Ngày xuất', 'default': True, 'required': False, 'weight': 100},
     {'key': 'issue_type', 'label': 'Lý do', 'default': True, 'required': False, 'weight': 120},
-    {'key': 'production_ref', 'label': 'LSX / SP', 'default': True, 'required': False, 'weight': 130},
     {'key': 'status', 'label': 'Trạng thái', 'default': True, 'required': False, 'weight': 100},
     {'key': 'issued_by', 'label': 'Người xuất', 'default': True, 'required': False, 'weight': 120},
 ]
@@ -31,7 +30,6 @@ ISSUE_LIST_SORT_FIELDS = {
     'number': 'number',
     'issue_date': 'issue_date',
     'issue_type': 'issue_type',
-    'production_ref': 'production_order',
     'status': 'status',
     'issued_by': 'issued_by__username',
 }
@@ -48,7 +46,7 @@ DISPOSAL_LIST_TOTAL_COL_WEIGHT = sum(c['weight'] for c in DISPOSAL_LIST_COLUMNS)
 DISPOSAL_LIST_SORT_FIELDS = {
     'number': 'number',
     'disposal_date': 'disposal_date',
-    'from_location': 'from_location__code',
+    'from_location': 'from_location__name',
     'reason': 'reason',
     'status': 'status',
     'created_by': 'created_by__username',
@@ -66,7 +64,7 @@ STOCKTAKE_LIST_TOTAL_COL_WEIGHT = sum(c['weight'] for c in STOCKTAKE_LIST_COLUMN
 STOCKTAKE_LIST_SORT_FIELDS = {
     'number': 'number',
     'name': 'name',
-    'location': 'location__code',
+    'location': 'location__name',
     'stocktake_date': 'stocktake_date',
     'status': 'status',
     'created_by': 'created_by__username',
@@ -100,8 +98,8 @@ TRANSFER_LIST_TOTAL_COL_WEIGHT_WITH_STATUS = sum(c['weight'] for c in TRANSFER_L
 TRANSFER_LIST_SORT_FIELDS = {
     'number': 'number',
     'transfer_date': 'transfer_date',
-    'from_location': 'from_location__code',
-    'to_location': 'to_location__code',
+    'from_location': 'from_location__name',
+    'to_location': 'to_location__name',
     'status': 'status',
     'created_by': 'created_by__username',
 }

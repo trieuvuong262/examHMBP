@@ -62,16 +62,19 @@ class Command(BaseCommand):
 
         pages = [
             ('Danh mục', reverse('kho_npl:material_list'), [
-                'data-col="category_parent"', 'bi-pencil', 'jp-npl-color-swatch',
+                'data-col="category_parent"', 'jp-npl-catalog-row', 'jp-npl-color-swatch',
                 'Nhóm cấp 1', 'Nhóm cấp 2', '<optgroup',
             ]),
             ('Tồn kho', reverse('kho_npl:material_stock'), [
+                'npl-stock-table', 'jp-npl-stock-row', 'data-col="image"', 'data-col="code"',
+                'data-col="stock_status"', 'Đang tải chi tiết tồn kho', 'jp-npl-stock-detail-btn',
                 'data-col="category_parent"', 'Nhóm cấp 1', '<optgroup',
             ]),
-            ('Phieu nhap', reverse('kho_npl:receipt_list'), ['npl-receipt-table', 'jp-mat-edit-btn']),
-            ('Phieu xuat', reverse('kho_npl:issue_list'), ['npl-issue-table', 'jp-mat-edit-btn']),
-            ('Phieu huy', reverse('kho_npl:disposal_list'), ['npl-disposal-table', 'jp-mat-edit-btn']),
-            ('Kiem ke', reverse('kho_npl:stocktake_list'), ['jp-mat-edit-btn']),
+            ('Phieu nhap', reverse('kho_npl:receipt_list'), ['npl-receipt-table', 'jp-npl-catalog-row']),
+            ('Phieu xuat', reverse('kho_npl:issue_list'), ['npl-issue-table', 'jp-npl-catalog-row']),
+            ('Phieu huy', reverse('kho_npl:disposal_list'), ['npl-disposal-table', 'jp-npl-catalog-row', 'jp-mat-edit-btn']),
+            ('Dieu chinh', reverse('kho_npl:adjustment_list'), ['npl-adjustment-table', 'jp-npl-catalog-row', 'jp-mat-edit-btn']),
+            ('Kiem ke', reverse('kho_npl:stocktake_list'), ['npl-stocktake-table', 'jp-npl-catalog-row', 'jp-mat-edit-btn']),
             ('Thiet lap mau', reverse('kho_npl:settings_list', kwargs={'section': 'mau'}), ['jp-npl-color-swatch', 'Mã hex']),
             ('Thiết lập quy cách', reverse('kho_npl:settings_list', kwargs={'section': 'quy-cach'}), ['Quy cách']),
             ('Thiết lập nhóm', reverse('kho_npl:settings_list', kwargs={'section': 'nhom'}), ['Nhóm cấp 1']),
@@ -101,7 +104,7 @@ class Command(BaseCommand):
                     errors.append(f'{label}: thieu "{needle}" trong HTML')
 
         # Ghi chú phiếu xuất đã ghi sổ
-        issue = StockIssue.objects.filter(status=DOC_STATUS_POSTED).order_by('-pk').first()
+        issue = StockIssue.objects.filter(status=DOC_STATUS_POSTED).prefetch_related('lines').order_by('-pk').first()
         if issue:
             url = reverse('kho_npl:issue_update_notes', kwargs={'pk': issue.pk})
             resp = client.post(url, {'notes': 'Smoke test ghi chu'}, follow=True, **extra)
@@ -112,6 +115,29 @@ class Command(BaseCommand):
                 errors.append('Ghi chú phiếu xuất: không lưu được notes')
             else:
                 self.stdout.write(f'  Ghi chú phiếu xuất #{issue.pk}: OK')
+
+            line = issue.lines.first()
+            if line:
+                line_url = reverse('kho_npl:issue_update_line_notes', kwargs={'pk': issue.pk})
+                line_payload = {
+                    'lines-TOTAL_FORMS': issue.lines.count(),
+                    'lines-INITIAL_FORMS': issue.lines.count(),
+                    'lines-MIN_NUM_FORMS': 0,
+                    'lines-MAX_NUM_FORMS': 1000,
+                }
+                for idx, row in enumerate(issue.lines.order_by('pk')):
+                    line_payload[f'lines-{idx}-id'] = row.pk
+                    line_payload[f'lines-{idx}-notes'] = (
+                        'Smoke ghi chu dong' if row.pk == line.pk else (row.notes or '')
+                    )
+                lresp = client.post(line_url, line_payload, follow=True, **extra)
+                if lresp.status_code != 200:
+                    errors.append(f'Ghi chú dòng phiếu xuất: HTTP {lresp.status_code}')
+                line.refresh_from_db()
+                if line.notes != 'Smoke ghi chu dong':
+                    errors.append('Ghi chú dòng phiếu xuất: không lưu được notes')
+                else:
+                    self.stdout.write(f'  Ghi chú dòng phiếu xuất #{issue.pk}: OK')
         else:
             self.stdout.write(self.style.WARNING('  Bỏ qua test ghi chú — chưa có phiếu xuất đã ghi sổ.'))
 

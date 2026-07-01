@@ -1,0 +1,237 @@
+{% if can_create_supplier %}
+<div class="modal fade" id="nplSupplierModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold">Thêm nhà cung cấp</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body">
+                <div id="npl-supplier-modal-errors" class="alert alert-danger d-none small mb-3"></div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold small" for="npl-supplier-code">Mã NCC</label>
+                    <input type="text" class="form-control" id="npl-supplier-code" maxlength="40" placeholder="VD: NCC-VAI-DN" autocomplete="off">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold small" for="npl-supplier-name">Tên NCC</label>
+                    <input type="text" class="form-control" id="npl-supplier-name" maxlength="200" autocomplete="off">
+                </div>
+                <div class="mb-0">
+                    <label class="form-label fw-bold small" for="npl-supplier-phone">Điện thoại</label>
+                    <input type="text" class="form-control" id="npl-supplier-phone" maxlength="40" autocomplete="off">
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Huỷ</button>
+                <button type="button" class="btn btn-hm fw-bold" id="npl-supplier-save-btn">
+                    <i class="bi bi-check2 me-1"></i>Lưu NCC
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<script>
+(function () {
+    if (typeof TomSelect === 'undefined') return;
+
+    const form = document.getElementById('receipt-form');
+    if (!form) return;
+
+    const searchUrl = form.dataset.supplierSearchUrl || '';
+    const createUrl = form.dataset.supplierCreateUrl || '';
+    const supplierSelect = form.querySelector('select.jp-npl-supplier-select');
+    let supplierTomSelect = null;
+
+    function getCsrfToken() {
+        const input = form.querySelector('input[name="csrfmiddlewaretoken"]');
+        return input ? input.value : '';
+    }
+
+    function initSupplierSelect(select) {
+        if (!select || select.tomselect) return;
+
+        const initialValue = (select.value || '').trim();
+        const initialLabel = select.options[select.selectedIndex]
+            ? select.options[select.selectedIndex].textContent.trim()
+            : '';
+
+        supplierTomSelect = new TomSelect(select, {
+            maxOptions: null,
+            maxItems: 1,
+            valueField: 'id',
+            labelField: 'text',
+            searchField: ['text', 'name', 'code', 'phone'],
+            placeholder: select.dataset.placeholder || 'Gõ tên hoặc mã NCC...',
+            allowEmptyOption: !select.required,
+            dropdownParent: 'body',
+            openOnFocus: true,
+            loadThrottle: 220,
+            preload: 'focus',
+            score: function () {
+                return function () { return 1; };
+            },
+            load: function (query, callback) {
+                if (!searchUrl) {
+                    callback();
+                    return;
+                }
+                fetch(searchUrl + '?q=' + encodeURIComponent(query || ''), {
+                    headers: { 'Accept': 'application/json' },
+                })
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) { callback(data.results || []); })
+                    .catch(function () { callback(); });
+            },
+            render: {
+                option: function (data, escape) {
+                    const name = escape(data.name || data.text || '');
+                    const code = (data.code || '').trim();
+                    const phone = (data.phone || '').trim();
+                    let html = '<div class="jp-npl-supplier-option"><strong>' + name + '</strong>';
+                    if (code) {
+                        html += '<span class="text-muted small"> · ' + escape(code) + '</span>';
+                    }
+                    if (phone) {
+                        html += '<span class="text-muted small d-block">' + escape(phone) + '</span>';
+                    }
+                    html += '</div>';
+                    return html;
+                },
+                item: function (data, escape) {
+                    return '<div>' + escape(data.text || data.name || '') + '</div>';
+                },
+            },
+            onInitialize: function () {
+                if (!initialValue) return;
+                if (!this.options[initialValue]) {
+                    this.addOption({
+                        id: initialValue,
+                        text: initialLabel || initialValue,
+                        name: initialLabel || initialValue,
+                    });
+                }
+                this.setValue(initialValue, true);
+            },
+            onDropdownOpen: function () {
+                const query = (this.control_input.value || '').trim();
+                this.load(query);
+            },
+        });
+    }
+
+    function setSupplierValue(supplier) {
+        if (!supplierTomSelect || !supplier) return;
+        const id = String(supplier.id);
+        if (!supplierTomSelect.options[id]) {
+            supplierTomSelect.addOption(supplier);
+        }
+        supplierTomSelect.setValue(id, true);
+    }
+
+    function showModalErrors(errors) {
+        const box = document.getElementById('npl-supplier-modal-errors');
+        if (!box) return;
+        const messages = [];
+        if (errors && typeof errors === 'object') {
+            Object.keys(errors).forEach(function (key) {
+                const items = errors[key];
+                if (Array.isArray(items)) {
+                    items.forEach(function (msg) { messages.push(msg); });
+                } else if (items) {
+                    messages.push(String(items));
+                }
+            });
+        }
+        if (!messages.length) {
+            messages.push('Không thể lưu nhà cung cấp.');
+        }
+        box.textContent = messages.join(' ');
+        box.classList.remove('d-none');
+    }
+
+    function clearModalErrors() {
+        const box = document.getElementById('npl-supplier-modal-errors');
+        if (!box) return;
+        box.textContent = '';
+        box.classList.add('d-none');
+    }
+
+    function resetModalFields() {
+        ['npl-supplier-code', 'npl-supplier-name', 'npl-supplier-phone'].forEach(function (id) {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+        });
+    }
+
+    if (supplierSelect) {
+        initSupplierSelect(supplierSelect);
+    }
+
+    const addBtn = document.getElementById('add-supplier-btn');
+    const modalEl = document.getElementById('nplSupplierModal');
+    const saveBtn = document.getElementById('npl-supplier-save-btn');
+
+    if (addBtn && modalEl) {
+        addBtn.addEventListener('click', function () {
+            clearModalErrors();
+            resetModalFields();
+            bootstrap.Modal.getOrCreateInstance(modalEl).show();
+            window.setTimeout(function () {
+                const codeInput = document.getElementById('npl-supplier-code');
+                if (codeInput) codeInput.focus();
+            }, 200);
+        });
+    }
+
+    if (modalEl) {
+        modalEl.addEventListener('hidden.bs.modal', function () {
+            clearModalErrors();
+            resetModalFields();
+        });
+    }
+
+    if (saveBtn && createUrl) {
+        saveBtn.addEventListener('click', function () {
+            clearModalErrors();
+            const payload = {
+                code: (document.getElementById('npl-supplier-code') || {}).value || '',
+                name: (document.getElementById('npl-supplier-name') || {}).value || '',
+                phone: (document.getElementById('npl-supplier-phone') || {}).value || '',
+            };
+            saveBtn.disabled = true;
+            fetch(createUrl, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCsrfToken(),
+                },
+                body: JSON.stringify(payload),
+            })
+                .then(function (r) {
+                    return r.json().then(function (data) {
+                        return { ok: r.ok, data: data };
+                    });
+                })
+                .then(function (result) {
+                    if (!result.ok || !result.data.ok) {
+                        showModalErrors(result.data.errors);
+                        return;
+                    }
+                    setSupplierValue(result.data.supplier);
+                    if (modalEl) {
+                        bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+                    }
+                })
+                .catch(function () {
+                    showModalErrors({ '__all__': ['Không thể kết nối máy chủ.'] });
+                })
+                .finally(function () {
+                    saveBtn.disabled = false;
+                });
+        });
+    }
+})();
+</script>

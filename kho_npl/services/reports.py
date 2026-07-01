@@ -4,7 +4,7 @@ from decimal import Decimal
 from django.db.models import Q
 from django.utils import timezone
 
-from kho_npl.choices import DOC_STATUS_POSTED, STOCK_STATUS_LOW, STOCK_STATUS_OUT
+from kho_npl.choices import DOC_STATUS_POSTED, STOCK_STATUS_LOW, STOCK_STATUS_OUT, issue_type_display
 from kho_npl.models import StockIssue, StockIssueLine, StockLedger, Stocktake, StocktakeLine
 from kho_npl.services.stock import material_stock_rows
 
@@ -72,7 +72,7 @@ def report_movement_rows(date_from: date | None, date_to: date | None, material_
             'Thời gian': timezone.localtime(entry.created_at).strftime('%d/%m/%Y %H:%M'),
             'Mã NPL': entry.material.code,
             'Tên NPL': entry.material.name,
-            'Vị trí': entry.location.code,
+            'Vị trí': entry.location.display_label(),
             'Loại': ref_labels.get(entry.ref_type, entry.ref_type),
             'Số chứng từ': entry.ref_number,
             'Biến động': float(entry.qty_delta),
@@ -103,10 +103,10 @@ def report_issue_by_lsx_rows(date_from: date | None, date_to: date | None, lsx: 
             'Số phiếu': line.issue.number,
             'LSX': line.issue.production_order,
             'Mã SP': line.issue.product_code,
-            'Lý do': line.issue.get_issue_type_display(),
+            'Lý do': issue_type_display(line.issue.issue_type),
             'Mã NPL': line.material.code,
             'Tên NPL': line.material.name,
-            'Vị trí': line.location.code,
+            'Vị trí': line.location.display_label(),
             'Số lượng': float(line.quantity),
         })
     return rows
@@ -153,7 +153,7 @@ def stocktake_variance_detail(stocktake_id: int):
             'Mã kỳ': line.stocktake.number,
             'Mã NPL': line.material.code,
             'Tên NPL': line.material.name,
-            'Vị trí': line.location.code,
+            'Vị trí': line.location.display_label(),
             'Tồn HT': float(line.system_qty),
             'Tồn TT': float(line.actual_qty),
             'Chênh': float(variance),

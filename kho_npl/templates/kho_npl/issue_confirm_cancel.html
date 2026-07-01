@@ -5,7 +5,7 @@
     <div class="card border-0 shadow-sm">
         <div class="card-body p-4">
             <h2 class="fw-bold text-hm h5 mb-3">Hủy phiếu xuất?</h2>
-            <p class="mb-4">Phiếu <strong>{{ issue.number }}</strong> đang ở trạng thái nháp. Hủy sẽ không ảnh hưởng tồn kho.</p>
+            <p class="mb-4">Phiếu <strong>{{ issue.number }}</strong> đang ở trạng thái đã tạo. Hủy sẽ không ảnh hưởng tồn kho.</p>
             <form method="post" class="d-flex gap-2">
                 {% csrf_token %}
                 <button type="submit" class="btn btn-danger fw-bold">Xác nhận hủy</button>

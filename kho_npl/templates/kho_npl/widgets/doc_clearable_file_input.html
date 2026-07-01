@@ -1,0 +1,14 @@
+{% if widget.is_initial %}
+<div class="jp-npl-doc-attachment-current d-flex flex-wrap align-items-center gap-2 mb-2">
+    <span class="text-muted small">{{ widget.initial_text }}:</span>
+    <a href="{{ widget.value.url }}" target="_blank" rel="noopener" class="small text-break">{{ widget.value.name }}</a>
+    <button type="button" class="btn btn-outline-danger btn-sm jp-npl-doc-attachment-clear-btn">
+        <i class="bi bi-trash me-1" aria-hidden="true"></i>Xóa
+    </button>
+</div>
+<input type="checkbox" name="{{ widget.checkbox_name }}" id="{{ widget.checkbox_id }}" class="visually-hidden jp-npl-doc-attachment-clear"{% if widget.attrs.disabled %} disabled{% endif %}{% if widget.attrs.checked %} checked{% endif %}>
+<div class="jp-npl-doc-attachment-change">
+    <span class="text-muted small d-block mb-1">{{ widget.input_text }}</span>
+{% endif %}
+<input type="{{ widget.type }}" name="{{ widget.name }}"{% include "django/forms/widgets/attrs.html" %}>
+{% if widget.is_initial %}</div>{% endif %}

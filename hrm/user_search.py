@@ -334,6 +334,53 @@ def user_display_label(user: User) -> str:
     return f'{full_name} · {code} · {user.username}'
 
 
+def issue_recipient_org_name(profile) -> str:
+    """Bộ phận (division) hoặc phòng ban nếu không có bộ phận."""
+    if not profile:
+        return ''
+    if profile.division_id and profile.division:
+        return profile.division.name
+    if profile.department_id and profile.department:
+        return profile.department.name
+    return ''
+
+
+def issue_recipient_label(user: User) -> str:
+    """Nhãn người nhận phiếu xuất: Tên - Bộ phận."""
+    profile = getattr(user, 'profile', None)
+    full_name = profile.full_name if profile and profile.full_name else user.get_full_name() or user.username
+    org = issue_recipient_org_name(profile)
+    if org:
+        return f'{full_name} - {org}'
+    return full_name
+
+
+def search_issue_recipients(query: str, *, limit: int = 50) -> list[dict]:
+    """Tìm NV đang làm việc cho TomSelect người nhận phiếu xuất."""
+    qs = exclude_hidden_hrm_users(
+        User.objects.filter(is_active=True, profile__is_employed=True),
+    ).select_related('profile', 'profile__department', 'profile__division')
+    if (query or '').strip():
+        qs = filter_users_by_search(qs, query.strip())
+    qs = qs.order_by('profile__full_name', 'username')[:limit]
+    results = []
+    for user in qs:
+        profile = getattr(user, 'profile', None)
+        full_name = profile.full_name if profile and profile.full_name else user.get_full_name() or user.username
+        code = profile.employee_code if profile and profile.employee_code else ''
+        division = profile.division.name if profile and profile.division_id else ''
+        department = profile.department.name if profile and profile.department_id else ''
+        results.append({
+            'id': user.pk,
+            'text': issue_recipient_label(user),
+            'name': full_name,
+            'code': code,
+            'division': division,
+            'department': department,
+        })
+    return results
+
+
 def _pk_or_none(value) -> int | None:
     if value is None or value == '':
         return None

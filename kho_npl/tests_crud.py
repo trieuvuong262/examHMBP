@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 from django.contrib.auth.models import User
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -20,6 +21,12 @@ from kho_npl.models import (
     Unit,
     WarehouseLocation,
 )
+
+
+
+
+def _sample_doc_attachment():
+    return SimpleUploadedFile('chung-tu.pdf', b'%PDF-1.4', content_type='application/pdf')
 
 
 class KhoNplCrudTests(TestCase):
@@ -76,6 +83,7 @@ class KhoNplCrudTests(TestCase):
             receipt_date=timezone.localdate(),
             created_by=self.user,
             status=DOC_STATUS_DRAFT,
+            attachment=_sample_doc_attachment(),
         )
         receipt.lines.create(
             material=material,
@@ -116,6 +124,7 @@ class KhoNplCrudTests(TestCase):
             issue_type=ISSUE_TYPE_PRODUCTION,
             created_by=self.user,
             status=DOC_STATUS_DRAFT,
+            attachment=_sample_doc_attachment(),
         )
         issue.lines.create(material=material, quantity=Decimal('30'), location=self.location)
         response = self.client.post(reverse('kho_npl:issue_post', args=[issue.pk]))

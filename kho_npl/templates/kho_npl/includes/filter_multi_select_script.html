@@ -1,6 +1,20 @@
 <script>
 (function () {
     if (typeof TomSelect === 'undefined') return;
+
+    function syncTomSelect(el) {
+        if (!el || !el.tomselect) return;
+        if (typeof el.tomselect.sync === 'function') {
+            el.tomselect.sync();
+            return;
+        }
+        var values = el.tomselect.getValue();
+        var selected = Array.isArray(values) ? values : (values ? [values] : []);
+        Array.from(el.options).forEach(function (opt) {
+            opt.selected = selected.indexOf(opt.value) !== -1;
+        });
+    }
+
     document.querySelectorAll('select.jp-npl-multi-select[data-placeholder]').forEach(function (el) {
         if (el.tomselect) return;
         new TomSelect(el, {
@@ -10,6 +24,12 @@
             hideSelected: false,
             closeAfterSelect: false,
             dropdownParent: 'body',
+        });
+    });
+
+    document.querySelectorAll('form').forEach(function (form) {
+        form.addEventListener('submit', function () {
+            form.querySelectorAll('select.jp-npl-multi-select').forEach(syncTomSelect);
         });
     });
 })();

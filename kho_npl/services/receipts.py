@@ -19,10 +19,12 @@ def receipt_is_editable(receipt: StockReceipt) -> bool:
 def post_stock_receipt(receipt: StockReceipt, user) -> StockReceipt:
     receipt = StockReceipt.objects.select_for_update().get(pk=receipt.pk)
     if receipt.status != DOC_STATUS_DRAFT:
-        raise ReceiptWorkflowError('Chỉ phiếu nháp mới được ghi sổ.')
+        raise ReceiptWorkflowError('Chỉ phiếu đã tạo mới được nhập kho.')
     lines = list(receipt.lines.select_related('material', 'location').all())
     if not lines:
         raise ReceiptWorkflowError('Phiếu nhập chưa có dòng chi tiết.')
+    if not receipt.attachment:
+        raise ReceiptWorkflowError('Vui lòng đính kèm chứng từ trước khi nhập kho.')
     for line in lines:
         if line.received_qty <= Decimal('0'):
             raise ReceiptWorkflowError(f'Số lượng nhập của {line.material.code} phải lớn hơn 0.')
@@ -54,7 +56,7 @@ def post_stock_receipt(receipt: StockReceipt, user) -> StockReceipt:
 def cancel_stock_receipt(receipt: StockReceipt) -> StockReceipt:
     receipt = StockReceipt.objects.select_for_update().get(pk=receipt.pk)
     if receipt.status != DOC_STATUS_DRAFT:
-        raise ReceiptWorkflowError('Chỉ phiếu nháp mới được hủy.')
+        raise ReceiptWorkflowError('Chỉ phiếu đã tạo mới được hủy.')
     receipt.status = DOC_STATUS_CANCELLED
     receipt.save(update_fields=['status'])
     return receipt

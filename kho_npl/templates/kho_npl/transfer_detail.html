@@ -28,7 +28,7 @@
             {% if can_receive and can_update %}
             <form method="post" action="{% url 'kho_npl:transfer_receive' transfer.pk %}" class="d-inline">
                 {% csrf_token %}
-                <button type="submit" class="btn btn-success btn-sm fw-bold" onclick="return confirm('Nhận hàng vào kho {{ transfer.to_location.code }}?');">
+                <button type="submit" class="btn btn-success btn-sm fw-bold" onclick="return confirm('Nhận hàng vào kho {{ transfer.to_location.name }}?');">
                     <i class="bi bi-box-arrow-in-down me-1"></i>Nhận vào kho
                 </button>
             </form>
@@ -70,8 +70,7 @@
                     <h6 class="text-muted text-uppercase small fw-bold mb-3">Kho gửi</h6>
                     <div class="d-flex align-items-center gap-3">
                         <div>
-                            <div class="fw-bold fs-5">{{ transfer.from_location.code }}</div>
-                            <div class="text-muted small">{{ transfer.from_location.name }}</div>
+                            <div class="fw-bold fs-5">{{ transfer.from_location.name }}</div>
                         </div>
                     </div>
                 </div>
@@ -83,8 +82,7 @@
                     <h6 class="text-muted text-uppercase small fw-bold mb-3">Kho nhận</h6>
                     <div class="d-flex align-items-center gap-3">
                         <div>
-                            <div class="fw-bold fs-5">{{ transfer.to_location.code }}</div>
-                            <div class="text-muted small">{{ transfer.to_location.name }}</div>
+                            <div class="fw-bold fs-5">{{ transfer.to_location.name }}</div>
                         </div>
                     </div>
                 </div>

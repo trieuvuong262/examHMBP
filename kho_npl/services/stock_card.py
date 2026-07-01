@@ -82,23 +82,20 @@ def ledger_matches_stock(
 
 def _scope_label(location_ids: list[int] | None, location_id: int | None) -> tuple[str, bool]:
     if location_ids:
-        codes = list(
+        names = list(
             WarehouseLocation.objects.filter(pk__in=location_ids)
-            .order_by('code')
-            .values_list('code', flat=True),
+            .order_by('name', 'code')
+            .values_list('name', flat=True),
         )
-        if len(codes) == 1:
-            return codes[0], True
-        if len(codes) <= 3:
-            return ', '.join(codes), True
-        return f'{len(codes)} kệ đã chọn', True
+        labels = [(n or '').strip() for n in names if (n or '').strip()]
+        if len(labels) == 1:
+            return labels[0], True
+        if len(labels) <= 3:
+            return ', '.join(labels), True
+        return f'{len(labels)} kệ đã chọn', True
     if location_id:
-        code = (
-            WarehouseLocation.objects.filter(pk=location_id)
-            .values_list('code', flat=True)
-            .first()
-        ) or 'Vị trí'
-        return code, True
+        loc = WarehouseLocation.objects.filter(pk=location_id).first()
+        return (loc.display_label() if loc else 'Vị trí'), True
     return 'Tổng mọi kệ', False
 
 
@@ -116,11 +113,15 @@ def build_material_stock_card(
     all_entries = list(_ledger_qs(material, location_id, location_ids))
 
     opening = Decimal('0')
+    running_by_loc: dict[int, Decimal] = {}
     period_entries = []
     for entry in all_entries:
         entry_date = timezone.localtime(entry.created_at).date()
         if date_from and entry_date < date_from:
             opening += entry.qty_delta
+            running_by_loc[entry.location_id] = (
+                running_by_loc.get(entry.location_id, Decimal('0')) + entry.qty_delta
+            )
             continue
         if date_to and entry_date > date_to:
             continue
@@ -145,8 +146,10 @@ def build_material_stock_card(
         })
 
     for entry in period_entries:
-        balance_before = entry.balance_after - entry.qty_delta
-        rows.append(_txn_row(entry, balance_before, entry.balance_after))
+        balance_before = running_by_loc.get(entry.location_id, Decimal('0'))
+        balance_after = balance_before + entry.qty_delta
+        running_by_loc[entry.location_id] = balance_after
+        rows.append(_txn_row(entry, balance_before, balance_after))
 
     totals_in = sum((r['qty_in'] for r in rows if r['kind'] == 'txn'), Decimal('0'))
     totals_out = sum((r['qty_out'] for r in rows if r['kind'] == 'txn'), Decimal('0'))
@@ -157,9 +160,9 @@ def build_material_stock_card(
     scope_label, scope_is_location = _scope_label(location_ids, location_id)
 
     if location_id and not location_ids:
-        closing = period_entries[-1].balance_after if period_entries else opening
+        closing = running_by_loc.get(location_id, opening)
     elif location_ids and len(location_ids) == 1:
-        closing = period_entries[-1].balance_after if period_entries else opening
+        closing = running_by_loc.get(location_ids[0], opening)
     else:
         closing = ledger_total
 
@@ -178,6 +181,26 @@ def build_material_stock_card(
         'scope_is_location': scope_is_location,
         'unit': material.unit,
     }
+
+
+def recalculate_ledger_balances(material: Material, *, location_id: int | None = None) -> int:
+    """Tính lại balance_after trên sổ theo thứ tự created_at, id từng vị trí."""
+    qs = StockLedger.objects.filter(material=material)
+    if location_id:
+        qs = qs.filter(location_id=location_id)
+    location_ids = qs.values_list('location_id', flat=True).distinct()
+    updated = 0
+    for loc_id in location_ids:
+        running = Decimal('0')
+        for entry in StockLedger.objects.filter(
+            material=material,
+            location_id=loc_id,
+        ).order_by('created_at', 'id'):
+            running += entry.qty_delta
+            if entry.balance_after != running:
+                StockLedger.objects.filter(pk=entry.pk).update(balance_after=running)
+                updated += 1
+    return updated
 
 
 def diagnose_stock_mismatch(material: Material) -> dict:
@@ -215,7 +238,7 @@ def diagnose_stock_mismatch(material: Material) -> dict:
             continue
         location_rows.append({
             'location_id': loc.id,
-            'location_code': loc.code,
+            'location_code': loc.display_label(),
             'location_name': loc.name,
             'balance_qty': balance_qty,
             'ledger_sum': ledger_sum,
@@ -248,7 +271,7 @@ def _txn_row(entry: StockLedger, balance_before: Decimal, balance_after: Decimal
         'ref_number': entry.ref_number,
         'ref_type': entry.ref_type,
         'ref_type_label': REF_LABELS.get(entry.ref_type, entry.ref_type),
-        'location_code': entry.location.code,
+        'location_code': entry.location.display_label(),
         'qty_in': delta if delta > 0 else Decimal('0'),
         'qty_out': abs(delta) if delta < 0 else Decimal('0'),
         'qty_delta': delta,

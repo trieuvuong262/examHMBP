@@ -16,7 +16,7 @@ def stocktake_list_export_response(qs):
         rows.append({
             'Mã kỳ': st.number,
             'Tên kỳ': st.name,
-            'Kho': st.location.code,
+            'Kho': st.location.display_label(),
             'Tên kho': st.location.name or '',
             'Ngày kiểm kê': st.stocktake_date.strftime('%d/%m/%Y'),
             'Trạng thái': STOCKTAKE_STATUS_LABELS.get(st.status, st.status),
@@ -31,7 +31,7 @@ def stocktake_detail_export_response(stocktake):
     header_df = pd.DataFrame([{
         'Mã kỳ': stocktake.number,
         'Tên kỳ': stocktake.name,
-        'Kho': stocktake.location.code,
+        'Kho': stocktake.location.display_label(),
         'Tên kho': stocktake.location.name or '',
         'Ngày kiểm kê': stocktake.stocktake_date.strftime('%d/%m/%Y'),
         'Trạng thái': STOCKTAKE_STATUS_LABELS.get(stocktake.status, stocktake.status),

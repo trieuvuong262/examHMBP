@@ -110,7 +110,6 @@ class KhoNplMenuPermissionMatrixTests(TestCase):
         'overview': 'kho_npl:overview_export',
         'materials': 'kho_npl:material_export',
         'material_stock': 'kho_npl:material_stock_export',
-        'stock_cards': 'kho_npl:stock_cards_export',
         'stocktakes': 'kho_npl:stocktake_list_export',
         'reports': 'kho_npl:report_stock_export',
     }

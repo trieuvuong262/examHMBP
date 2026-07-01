@@ -10,9 +10,9 @@
                 {{ issue.number }}
             </h2>
             <p class="text-muted mb-0">
-                {{ issue.get_status_display }} · {{ issue.get_issue_type_display }}
+                {{ issue.get_status_display }} · {{ issue.issue_type|default:"—" }}
                 · {{ issue.issue_date|date:'d/m/Y' }}
-                {% if issue.posted_at %}· Ghi sổ {{ issue.posted_at|date:'d/m/Y H:i' }}{% endif %}
+                {% if issue.posted_at %}· Xuất kho {{ issue.posted_at|date:'d/m/Y H:i' }}{% endif %}
             </p>
         </div>
         <div class="d-flex flex-wrap gap-2">
@@ -20,8 +20,8 @@
             <a href="{% url 'kho_npl:issue_edit' issue.pk %}" class="btn btn-hm btn-sm"><i class="bi bi-pencil me-1"></i>Sửa</a>
             <form method="post" action="{% url 'kho_npl:issue_post' issue.pk %}" class="d-inline">
                 {% csrf_token %}
-                <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('Ghi sổ phiếu và trừ tồn kho?');">
-                    <i class="bi bi-check2-circle me-1"></i>Ghi sổ
+                <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('Xuất kho phiếu và trừ tồn?');">
+                    <i class="bi bi-check2-circle me-1"></i>Xuất kho
                 </button>
             </form>
             {% endif %}
@@ -35,10 +35,16 @@
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-body">
             <dl class="row mb-0">
-                <dt class="col-sm-3 text-muted">LSX</dt><dd class="col-sm-9">{{ issue.production_order|default:'—' }}</dd>
-                <dt class="col-sm-3 text-muted">Mã SP</dt><dd class="col-sm-9">{{ issue.product_code|default:'—' }}</dd>
-                <dt class="col-sm-3 text-muted">Bộ phận nhận</dt><dd class="col-sm-9">{{ issue.recipient_department|default:'—' }}</dd>
-                <dt class="col-sm-3 text-muted">Người nhận</dt><dd class="col-sm-9">{{ issue.recipient_name|default:'—' }}</dd>
+                <dt class="col-sm-3 text-muted">Người nhận</dt>
+                <dd class="col-sm-9">
+                    {% if issue.recipient %}
+                    {{ issue.recipient_name|default:issue.recipient.username }}{% if issue.recipient_department %} - {{ issue.recipient_department }}{% endif %}
+                    {% elif issue.recipient_name %}
+                    {{ issue.recipient_name }}{% if issue.recipient_department %} - {{ issue.recipient_department }}{% endif %}
+                    {% else %}
+                    —
+                    {% endif %}
+                </dd>
                 <dt class="col-sm-3 text-muted">Người xuất</dt>
                 <dd class="col-sm-9">{% if issue.issued_by %}{{ issue.issued_by.get_full_name|default:issue.issued_by.username }}{% else %}—{% endif %}</dd>
                 <dt class="col-sm-3 text-muted">Người tạo</dt>
@@ -56,7 +62,6 @@
                             <i class="bi bi-save me-1"></i>Lưu ghi chú
                         </button>
                     </form>
-                    <p class="text-muted small mb-0 mt-2">Phiếu đã ghi sổ — chỉ sửa được ghi chú, không đổi số lượng hay NPL.</p>
                     {% elif issue.notes %}
                     {{ issue.notes|linebreaksbr }}
                     {% else %}
@@ -70,6 +75,53 @@
 
     <div class="card border-0 shadow-sm">
         <div class="card-header bg-white border-bottom py-3"><h5 class="mb-0 fw-bold">Chi tiết xuất</h5></div>
+        {% if can_edit_notes and line_notes_formset %}
+        <form method="post" action="{% url 'kho_npl:issue_update_line_notes' issue.pk %}" class="jp-npl-issue-line-notes-form">
+            {% csrf_token %}
+            {{ line_notes_formset.management_form }}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Mã NPL</th>
+                            <th>Tên</th>
+                            <th class="text-end">Số lượng</th>
+                            <th>Vị trí</th>
+                            <th>Ghi chú</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for line_form in line_notes_formset %}
+                        {% with line=line_form.instance %}
+                        <tr>
+                            <td class="fw-semibold">{{ line.material.code }}</td>
+                            <td>{{ line.material.name }}</td>
+                            <td class="text-end">{{ line.quantity|npl_qty_with_unit:line.material.unit }}</td>
+                            <td>{{ line.location.name }}</td>
+                            <td>
+                                {{ line_form.id }}
+                                {{ line_form.notes }}
+                                {% if line_form.notes.errors %}
+                                <div class="text-danger small mt-1">{{ line_form.notes.errors }}</div>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endwith %}
+                        {% empty %}
+                        <tr><td colspan="5" class="text-center text-muted py-4">Chưa có dòng chi tiết.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% if line_notes_formset.forms %}
+            <div class="card-footer bg-white border-top py-3 text-end">
+                <button type="submit" class="btn btn-outline-hm btn-sm">
+                    <i class="bi bi-save me-1"></i>Lưu ghi chú
+                </button>
+            </div>
+            {% endif %}
+        </form>
+        {% else %}
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
                 <thead class="table-light">
@@ -87,7 +139,7 @@
                         <td class="fw-semibold">{{ line.material.code }}</td>
                         <td>{{ line.material.name }}</td>
                         <td class="text-end">{{ line.quantity|npl_qty_with_unit:line.material.unit }}</td>
-                        <td>{{ line.location.code }}</td>
+                        <td>{{ line.location.name }}</td>
                         <td>{{ line.notes|default:'—' }}</td>
                     </tr>
                     {% empty %}
@@ -96,6 +148,7 @@
                 </tbody>
             </table>
         </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

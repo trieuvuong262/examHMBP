@@ -63,7 +63,7 @@ def _stocktake_filtered_qs(search_query, status):
         qs = qs.filter(
             Q(number__icontains=search_query)
             | Q(name__icontains=search_query)
-            | Q(location__code__icontains=search_query)
+            | Q(location__name__icontains=search_query)
             | Q(location__name__icontains=search_query),
         )
     return qs
@@ -200,7 +200,7 @@ def stocktake_create(request):
         stocktake.save()
         messages.success(
             request,
-            f'Đã tạo kỳ kiểm kê {stocktake.number} — kho {stocktake.location.code}.',
+            f'Đã tạo kỳ kiểm kê {stocktake.number} — kho {stocktake.location.display_label()}.',
         )
         return redirect('kho_npl:stocktake_detail', pk=stocktake.pk)
     return render(request, 'kho_npl/stocktake_form.html', {
@@ -219,7 +219,7 @@ def stocktake_start(request, pk):
             start_stocktake_counting(stocktake)
             messages.success(
                 request,
-                f'Đã tải tồn kho {stocktake.location.code} — bắt đầu kiểm kê.',
+                f'Đã tải tồn kho {stocktake.location.display_label()} — bắt đầu kiểm kê.',
             )
             return redirect('kho_npl:stocktake_count', pk=pk)
         except StocktakeWorkflowError as exc:
@@ -278,7 +278,7 @@ def stocktake_reload(request, pk):
     if request.method == 'POST':
         try:
             count = populate_stocktake_lines(stocktake)
-            messages.success(request, f'Đã tải {count} dòng tồn tại kho {stocktake.location.code}.')
+            messages.success(request, f'Đã tải {count} dòng tồn tại kho {stocktake.location.display_label()}.')
         except StocktakeWorkflowError as exc:
             messages.error(request, str(exc))
     return redirect('kho_npl:stocktake_detail', pk=pk)

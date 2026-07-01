@@ -97,6 +97,56 @@
 .jp-npl-material-catalog-page .jp-mat-th-sort:hover,
 .jp-npl-material-catalog-page .jp-mat-th-sort.is-active { color: var(--hm-red, #dc2626); }
 .jp-npl-material-catalog-page .jp-mat-sort-icon { font-size: 0.65rem; flex-shrink: 0; }
+.jp-npl-material-catalog-page .jp-npl-mat-avatar-btn {
+    display: inline-flex;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    border-radius: 50%;
+    line-height: 0;
+    cursor: zoom-in;
+    vertical-align: middle;
+}
+.jp-npl-material-catalog-page .jp-npl-mat-avatar {
+    width: 2.25rem;
+    height: 2.25rem;
+    object-fit: cover;
+    border-radius: 50%;
+    border: 2px solid var(--bs-border-color);
+    display: block;
+    background: var(--bs-light);
+    transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.jp-npl-material-catalog-page .jp-npl-mat-avatar-btn:hover .jp-npl-mat-avatar,
+.jp-npl-material-catalog-page .jp-npl-mat-avatar-btn:focus-visible .jp-npl-mat-avatar {
+    border-color: rgba(220, 38, 38, 0.55);
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
+    transform: scale(1.06);
+}
+.jp-npl-material-catalog-page .jp-npl-mat-avatar--empty {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 50%;
+    border: 2px dashed var(--bs-border-color-translucent, var(--bs-border-color));
+    font-size: 0.95rem;
+    color: var(--bs-secondary-color);
+    background: var(--bs-light);
+    opacity: 0.75;
+    vertical-align: middle;
+}
+.jp-npl-material-catalog-page #npl-stock-table td[data-col="image"] {
+    overflow: visible;
+    white-space: normal;
+    width: 3rem;
+    padding-left: 0.5rem;
+    padding-right: 0.35rem;
+}
+.jp-npl-material-catalog-page #npl-stock-table th[data-col="image"] {
+    width: 3rem !important;
+}
 .jp-npl-material-catalog-page .jp-mat-col-resizer {
     position: absolute; top: 0; right: 0; width: 6px; height: 100%;
     cursor: col-resize; user-select: none; z-index: 2;
@@ -106,11 +156,109 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page .jp-mat-col-resizer {
     background: rgba(220, 38, 38, 0.35);
 }
 .jp-npl-material-catalog-page #npl-stock-table td.npl-col {
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    overflow: hidden;
+    max-width: 0;
+}
+.jp-npl-material-catalog-page #npl-stock-table td.npl-col[data-col="image"],
+.jp-npl-material-catalog-page #npl-stock-table td.npl-col[data-col="detail"],
+.jp-npl-material-catalog-page #npl-stock-table td.npl-col[data-col="stock_status"],
+.jp-npl-material-catalog-page #npl-stock-table td.npl-col[data-col="color"] {
+    max-width: none;
+    overflow: visible;
+}
+.jp-npl-material-catalog-page #npl-stock-table .jp-npl-stock-cell-clip {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+}
+.jp-npl-material-catalog-page #npl-stock-table td.text-end .jp-npl-stock-cell-clip {
+    text-align: end;
+}
+.jp-npl-material-catalog-page #npl-stock-table th[data-col="unit"],
+.jp-npl-material-catalog-page #npl-stock-table td[data-col="unit"] {
+    width: 3.25rem !important;
+    max-width: 4rem;
+}
+.jp-npl-material-catalog-page #npl-stock-table th[data-col="total_qty"],
+.jp-npl-material-catalog-page #npl-stock-table td[data-col="total_qty"] {
+    min-width: 6.5rem;
+}
+.jp-npl-material-catalog-page #npl-stock-table th[data-col="min_stock"],
+.jp-npl-material-catalog-page #npl-stock-table td[data-col="min_stock"] {
+    min-width: 5.5rem;
+}
+.jp-npl-material-catalog-page #npl-stock-table th[data-col="stock_status"],
+.jp-npl-material-catalog-page #npl-stock-table td[data-col="stock_status"] {
+    min-width: 6.75rem;
 }
 .jp-npl-material-catalog-page #npl-stock-table .jp-mat-code {
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     font-size: 0.9em;
+}
+.jp-npl-material-catalog-page #npl-stock-table .jp-npl-stock-detail-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.2rem 0.55rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+.jp-npl-material-catalog-page #npl-stock-table .jp-npl-stock-detail-btn .bi {
+    font-size: 0.75rem;
+}
+.jp-npl-material-catalog-page #npl-stock-table tr.jp-npl-stock-row-expandable {
+    cursor: pointer;
+}
+.jp-npl-material-catalog-page #npl-stock-table tr.jp-npl-stock-row-expandable.is-expanded {
+    background: rgba(220, 38, 38, 0.04);
+}
+.jp-npl-material-catalog-page #npl-stock-table tr.jp-npl-stock-loc-row td {
+    background: rgba(15, 23, 42, 0.03);
+    font-size: 0.875rem;
+}
+.jp-npl-material-catalog-page #npl-stock-table tr.jp-npl-stock-loc-row td:not([data-col="name"]) {
+    max-width: none;
+    overflow: visible;
+    white-space: normal;
+}
+.jp-npl-material-catalog-page #npl-stock-table tr.jp-npl-stock-loc-row td[data-col="name"] {
+    overflow: visible;
+    max-width: none;
+}
+.jp-npl-material-catalog-page #npl-stock-table tr.jp-npl-stock-loc-row.is-collapsed {
+    display: none;
+}
+.jp-npl-material-catalog-page #npl-stock-table tr.jp-npl-stock-loc-row {
+    display: table-row;
+}
+.jp-npl-material-catalog-page #npl-stock-table .jp-npl-stock-loc-label {
+    padding-left: 2rem;
+    color: var(--bs-body-color);
+    font-size: 0.875rem;
+    white-space: nowrap;
+    overflow: visible;
+    line-height: 1.35;
+}
+.jp-npl-material-catalog-page #npl-stock-table .jp-npl-stock-loc-label::before {
+    content: '↳';
+    margin-right: 0.35rem;
+    color: var(--hm-red, #dc2626);
+    font-weight: 700;
+}
+.jp-npl-material-catalog-page #npl-stock-table .jp-npl-stock-loc-code {
+    font-weight: 600;
+}
+.jp-npl-material-catalog-page #npl-stock-table .jp-mat-th-label {
+    display: inline-block;
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    color: inherit;
 }
 @media (max-width: 767.98px) {
     .jp-npl-material-catalog-page .jp-npl-mat-topbar-search {
@@ -136,7 +284,7 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page .jp-mat-col-resizer {
                             data-placeholder="Vị trí kho" aria-label="Vị trí kho">
                         {% for loc in locations %}
                         <option value="{{ loc.id }}" {% if loc.id in selected_locations %}selected{% endif %}>
-                            {{ loc.code }} — {{ loc.name }}
+                            {{ loc.name }}
                         </option>
                         {% endfor %}
                     </select>
@@ -193,8 +341,11 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page .jp-mat-col-resizer {
                 <thead class="table-light">
                     <tr>
                         {% for col in list_columns %}
-                        <th class="npl-col jp-mat-th{% if col.key == 'total_qty' or col.key == 'min_stock' %} text-end{% endif %}"
+                        <th class="npl-col jp-mat-th{% if col.key == 'total_qty' or col.key == 'min_stock' %} text-end{% elif col.key == 'detail' or col.key == 'image' %} text-center{% endif %}"
                             data-col="{{ col.key }}" style="width:{% widthratio col.weight total_col_weight 100 %}%">
+                            {% if col.sortable == False %}
+                            <span class="jp-mat-th-label">{{ col.label }}</span>
+                            {% else %}
                             <button type="button" class="jp-mat-th-sort{% if sort_key == col.key %} is-active{% endif %}"
                                     data-sort="{{ col.key }}" title="Sắp xếp theo {{ col.label }}">
                                 {{ col.label }}
@@ -202,6 +353,7 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page .jp-mat-col-resizer {
                                 <i class="bi bi-caret-{% if sort_dir == 'asc' %}up{% else %}down{% endif %}-fill jp-mat-sort-icon"></i>
                                 {% endif %}
                             </button>
+                            {% endif %}
                             <span class="jp-mat-col-resizer" aria-hidden="true"></span>
                         </th>
                         {% endfor %}
@@ -209,24 +361,63 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page .jp-mat-col-resizer {
                 </thead>
                 <tbody>
                     {% for row in page_obj %}
-                    <tr>
-                        <td class="npl-col jp-mat-code" data-col="code">
-                            <a href="{% url 'kho_npl:material_detail' row.material.pk %}" class="text-decoration-none fw-semibold">{{ row.material.code }}</a>
+                    <tr class="jp-npl-stock-row{% if row.can_expand %} jp-npl-stock-row-expandable{% endif %}"
+                        {% if row.can_expand %}data-expand-target="{{ row.material.pk }}"{% endif %}>
+                        <td class="npl-col text-center" data-col="image">
+                            {% include 'kho_npl/includes/material_image_thumb.html' with material=row.material %}
                         </td>
-                        <td class="npl-col" data-col="name" title="{{ row.material.name }}">{{ row.material.name }}</td>
+                        <td class="npl-col jp-mat-code" data-col="code" title="{{ row.material.code }}">
+                            <a href="{% url 'kho_npl:material_detail' row.material.pk %}"
+                               class="text-decoration-none fw-semibold jp-npl-stock-cell-clip"
+                               data-loading-message="Đang tải chi tiết NPL…">{{ row.material.code }}</a>
+                        </td>
+                        <td class="npl-col" data-col="name" title="{{ row.material.name }}">
+                            <span class="jp-npl-stock-cell-clip">{{ row.material.name }}</span>
+                        </td>
                         <td class="npl-col" data-col="category_parent" title="{% if row.material.category.parent %}{{ row.material.category.parent.name }}{% endif %}">
-                            {% if row.material.category.parent %}{{ row.material.category.parent.name }}{% else %}<span class="text-muted">—</span>{% endif %}
+                            {% if row.material.category.parent %}
+                            <span class="jp-npl-stock-cell-clip">{{ row.material.category.parent.name }}</span>
+                            {% else %}<span class="text-muted">—</span>{% endif %}
                         </td>
-                        <td class="npl-col" data-col="category" title="{{ row.material.category.name }}">{{ row.material.category.name }}</td>
+                        <td class="npl-col" data-col="category" title="{{ row.material.category.name }}">
+                            <span class="jp-npl-stock-cell-clip">{{ row.material.category.name }}</span>
+                        </td>
                         <td class="npl-col" data-col="color">{% include 'kho_npl/includes/material_color_chip.html' with color=row.material.color %}</td>
-                        <td class="npl-col" data-col="unit">{{ row.material.unit.name }}</td>
-                        <td class="text-end npl-col jp-mat-code fw-semibold" data-col="total_qty">{{ row.total_qty|npl_qty_with_unit:row.material.unit }}</td>
-                        <td class="text-end npl-col jp-mat-code" data-col="min_stock">{{ row.material.min_stock|npl_qty_with_unit:row.material.unit }}</td>
-                        <td class="npl-col" data-col="primary_location">{{ row.primary_location|default:'—' }}</td>
+                        <td class="npl-col" data-col="unit" title="{{ row.material.unit.name }}">
+                            <span class="jp-npl-stock-cell-clip">{{ row.material.unit.name }}</span>
+                        </td>
+                        <td class="text-end npl-col jp-mat-code fw-semibold" data-col="total_qty" title="{{ row.total_qty|npl_qty_with_unit:row.material.unit }}">
+                            <span class="jp-npl-stock-cell-clip">{{ row.total_qty|npl_qty_with_unit:row.material.unit }}</span>
+                        </td>
+                        <td class="text-end npl-col jp-mat-code" data-col="min_stock" title="{{ row.material.min_stock|npl_qty_with_unit:row.material.unit }}">
+                            <span class="jp-npl-stock-cell-clip">{{ row.material.min_stock|npl_qty_with_unit:row.material.unit }}</span>
+                        </td>
                         <td class="npl-col" data-col="stock_status">
                             <span class="badge text-bg-{{ row.status_badge }}">{{ row.status_label }}</span>
                         </td>
+                        <td class="npl-col text-center" data-col="detail">
+                            <a href="{% url 'kho_npl:material_stock_detail' row.material.pk %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}"
+                               class="btn btn-outline-secondary btn-sm jp-npl-stock-detail-btn"
+                               data-loading-message="Đang tải chi tiết tồn kho…"
+                               title="Xem tồn theo vị trí kho">
+                                <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>Chi tiết
+                            </a>
+                        </td>
                     </tr>
+                    {% if row.can_expand %}
+                    {% for lb in row.location_balances %}
+                    <tr class="jp-npl-stock-loc-row is-collapsed" data-stock-expand="{{ row.material.pk }}">
+                        <td class="npl-col" data-col="image"></td>
+                        <td class="npl-col jp-npl-stock-loc-label" data-col="name" colspan="6" title="{{ lb.location.name }}">
+                            <span class="jp-npl-stock-loc-name">{{ lb.location.name }}</span>
+                        </td>
+                        <td class="text-end npl-col jp-mat-code fw-semibold" data-col="total_qty">{{ lb.quantity|npl_qty_with_unit:row.material.unit }}</td>
+                        <td class="npl-col" data-col="min_stock"></td>
+                        <td class="npl-col" data-col="stock_status"></td>
+                        <td class="npl-col" data-col="detail"></td>
+                    </tr>
+                    {% endfor %}
+                    {% endif %}
                     {% empty %}
                     <tr>
                         <td colspan="{{ list_columns|length }}" class="text-center text-muted py-4">
@@ -245,6 +436,7 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page .jp-mat-col-resizer {
     </div>
     {% endif %}
 </div>
+{% include 'kho_npl/includes/material_image_modal.html' %}
 {% endblock %}
 
 {% block scripts %}
@@ -286,6 +478,10 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page .jp-mat-col-resizer {
             const parsed = JSON.parse(raw);
             if (!Array.isArray(parsed)) return new Set(DEFAULT_COLS);
             const set = new Set(parsed);
+            if (set.has('primary_location')) {
+                set.delete('primary_location');
+                set.add('detail');
+            }
             REQUIRED.forEach(function (k) { set.add(k); });
             return set;
         } catch (e) { return new Set(DEFAULT_COLS); }
@@ -294,7 +490,7 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page .jp-mat-col-resizer {
     function applyColumns(visible) {
         document.querySelectorAll('#npl-stock-table .npl-col').forEach(function (el) {
             const key = el.getAttribute('data-col');
-            if (!key || key === 'code') { el.classList.remove('d-none'); return; }
+            if (key === 'code' || key === 'image') { el.classList.remove('d-none'); return; }
             el.classList.toggle('d-none', !visible.has(key));
         });
     }
@@ -313,6 +509,29 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page .jp-mat-col-resizer {
         });
     });
     applyColumns(visible);
+})();
+(function () {
+    var table = document.getElementById('npl-stock-table');
+    if (!table) return;
+
+    function toggleStockExpand(materialId, forceOpen) {
+        if (!materialId) return;
+        var expanded = table.querySelector('tr.jp-npl-stock-row-expandable.is-expanded[data-expand-target="' + materialId + '"]');
+        var isExpanded = !!expanded;
+        var next = typeof forceOpen === 'boolean' ? forceOpen : !isExpanded;
+        var parentRow = table.querySelector('tr.jp-npl-stock-row-expandable[data-expand-target="' + materialId + '"]');
+        if (parentRow) parentRow.classList.toggle('is-expanded', next);
+        table.querySelectorAll('tr.jp-npl-stock-loc-row[data-stock-expand="' + materialId + '"]').forEach(function (row) {
+            row.classList.toggle('is-collapsed', !next);
+        });
+    }
+
+    table.addEventListener('click', function (e) {
+        if (e.target.closest('.jp-mat-th-sort, .jp-mat-col-resizer, a, input, select, .jp-npl-mat-avatar-btn, [data-npl-material-image]')) return;
+        var row = e.target.closest('tr.jp-npl-stock-row-expandable');
+        if (!row) return;
+        toggleStockExpand(row.getAttribute('data-expand-target'));
+    });
 })();
 (function () {
     var table = document.getElementById('npl-stock-table');

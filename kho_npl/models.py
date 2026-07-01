@@ -11,8 +11,8 @@ from kho_npl.choices import (
     DISPOSAL_REASON_DAMAGED,
     DOC_STATUS_DRAFT,
     DOC_STATUS_LABELS,
-    ISSUE_TYPE_CHOICES,
-    ISSUE_TYPE_PRODUCTION,
+    ISSUE_STATUS_LABELS,
+    RECEIPT_STATUS_LABELS,
     STOCKTAKE_STATUS_DRAFT,
     STOCKTAKE_STATUS_LABELS,
     TRANSFER_STATUS_DRAFT,
@@ -110,8 +110,13 @@ class WarehouseLocation(models.Model):
         verbose_name = 'Vị trí kho'
         verbose_name_plural = 'Vị trí kho'
 
+    def display_label(self) -> str:
+        """Tên hiển thị ngoài Thiết lập — không kèm mã."""
+        name = (self.name or '').strip()
+        return name or self.code
+
     def __str__(self):
-        return f'{self.code} — {self.name}'
+        return self.display_label()
 
 
 class Supplier(models.Model):
@@ -265,7 +270,7 @@ class StockReceipt(models.Model):
     )
     status = models.CharField(
         max_length=20,
-        choices=[(k, v) for k, v in DOC_STATUS_LABELS.items()],
+        choices=[(k, v) for k, v in RECEIPT_STATUS_LABELS.items()],
         default=DOC_STATUS_DRAFT,
         verbose_name='Trạng thái',
     )
@@ -325,15 +330,23 @@ class StockIssue(models.Model):
     number = models.CharField(max_length=30, unique=True, verbose_name='Mã phiếu xuất')
     issue_date = models.DateField(verbose_name='Ngày xuất')
     issue_type = models.CharField(
-        max_length=30,
-        choices=ISSUE_TYPE_CHOICES,
-        default=ISSUE_TYPE_PRODUCTION,
+        max_length=120,
+        blank=True,
+        default='',
         verbose_name='Lý do xuất',
     )
     production_order = models.CharField(max_length=60, blank=True, verbose_name='Lệnh sản xuất')
     product_code = models.CharField(max_length=60, blank=True, verbose_name='Mã sản phẩm')
     recipient_department = models.CharField(max_length=120, blank=True, verbose_name='Bộ phận nhận')
     recipient_name = models.CharField(max_length=120, blank=True, verbose_name='Người nhận')
+    recipient = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='npl_issues_received',
+        verbose_name='Người nhận',
+    )
     issued_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -357,7 +370,7 @@ class StockIssue(models.Model):
     )
     status = models.CharField(
         max_length=20,
-        choices=[(k, v) for k, v in DOC_STATUS_LABELS.items()],
+        choices=[(k, v) for k, v in ISSUE_STATUS_LABELS.items()],
         default=DOC_STATUS_DRAFT,
         verbose_name='Trạng thái',
     )

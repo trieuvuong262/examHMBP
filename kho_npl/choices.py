@@ -26,6 +26,18 @@ DOC_STATUS_LABELS = {
     DOC_STATUS_CANCELLED: 'Đã hủy',
 }
 
+RECEIPT_STATUS_LABELS = {
+    **DOC_STATUS_LABELS,
+    DOC_STATUS_DRAFT: 'Đã tạo',
+    DOC_STATUS_POSTED: 'Đã nhập kho',
+}
+
+ISSUE_STATUS_LABELS = {
+    **DOC_STATUS_LABELS,
+    DOC_STATUS_DRAFT: 'Đã tạo',
+    DOC_STATUS_POSTED: 'Đã xuất kho',
+}
+
 ISSUE_TYPE_PRODUCTION = 'production'
 ISSUE_TYPE_SAMPLE = 'sample'
 ISSUE_TYPE_WASTE = 'waste'
@@ -41,6 +53,16 @@ ISSUE_TYPE_CHOICES = [
     (ISSUE_TYPE_SCRAP, 'Xuất hủy / hư hỏng'),
     (ISSUE_TYPE_TRANSFER, 'Xuất điều chuyển kho'),
 ]
+
+ISSUE_TYPE_LEGACY_LABELS = dict(ISSUE_TYPE_CHOICES)
+
+
+def issue_type_display(value):
+    """Hiển thị lý do xuất: text tự do hoặc nhãn cũ nếu còn mã legacy."""
+    text = (value or '').strip()
+    if not text:
+        return ''
+    return ISSUE_TYPE_LEGACY_LABELS.get(text, text)
 
 ADJUST_STATUS_PENDING = 'pending'
 ADJUST_STATUS_APPROVED = 'approved'

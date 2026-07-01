@@ -23,6 +23,7 @@ from kho_npl.services.material_specifications import resolve_material_specificat
 from kho_npl.category_tree import ensure_material_category_tree
 from kho_npl.choices import (
     DISPOSAL_REASON_DAMAGED,
+    ISSUE_TYPE_LEGACY_LABELS,
     ISSUE_TYPE_PRODUCTION,
     ISSUE_TYPE_SAMPLE,
     ISSUE_TYPE_WASTE,
@@ -212,7 +213,7 @@ DEMO_RECEIPTS = [
 
 DEMO_ISSUES = [
     (
-        f'PX-{DEMO_TAG}-2026-001', 20, ISSUE_TYPE_PRODUCTION, 'LSX-JP-2601', 'JP-TSH-001',
+        f'PX-{DEMO_TAG}-2026-001', 20, ISSUE_TYPE_LEGACY_LABELS[ISSUE_TYPE_PRODUCTION], 'LSX-JP-2601', 'JP-TSH-001',
         'Xưởng may 1', 'Nguyễn Văn Hùng',
         [
             ('VAI-COT180-WHT', 180, 'KE-A1'),
@@ -224,7 +225,7 @@ DEMO_ISSUES = [
         ],
     ),
     (
-        f'PX-{DEMO_TAG}-2026-002', 18, ISSUE_TYPE_PRODUCTION, 'LSX-JP-2602', 'JP-HOD-020',
+        f'PX-{DEMO_TAG}-2026-002', 18, ISSUE_TYPE_LEGACY_LABELS[ISSUE_TYPE_PRODUCTION], 'LSX-JP-2602', 'JP-HOD-020',
         'Xưởng may 2', 'Trần Thị Lan',
         [
             ('VAI-FRT-280-NVY', 95, 'KE-A1'),
@@ -235,7 +236,7 @@ DEMO_ISSUES = [
         ],
     ),
     (
-        f'PX-{DEMO_TAG}-2026-003', 15, ISSUE_TYPE_PRODUCTION, 'LSX-JP-2603', 'JP-PAN-030',
+        f'PX-{DEMO_TAG}-2026-003', 15, ISSUE_TYPE_LEGACY_LABELS[ISSUE_TYPE_PRODUCTION], 'LSX-JP-2603', 'JP-PAN-030',
         'Xưởng may 1', 'Lê Minh Tuấn',
         [
             ('VAI-PES4W-220-BLK', 120, 'KE-A1'),
@@ -245,7 +246,7 @@ DEMO_ISSUES = [
         ],
     ),
     (
-        f'PX-{DEMO_TAG}-2026-004', 12, ISSUE_TYPE_SAMPLE, '', 'JP-POLO-010',
+        f'PX-{DEMO_TAG}-2026-004', 12, ISSUE_TYPE_LEGACY_LABELS[ISSUE_TYPE_SAMPLE], '', 'JP-POLO-010',
         'Phòng R&D mẫu', 'Phạm Thu Hà',
         [
             ('VAI-PIQ-200-WHT', 8, 'KE-A1'),
@@ -254,7 +255,7 @@ DEMO_ISSUES = [
         ],
     ),
     (
-        f'PX-{DEMO_TAG}-2026-005', 10, ISSUE_TYPE_PRODUCTION, 'LSX-JP-2604', 'JP-JER-040',
+        f'PX-{DEMO_TAG}-2026-005', 10, ISSUE_TYPE_LEGACY_LABELS[ISSUE_TYPE_PRODUCTION], 'LSX-JP-2604', 'JP-JER-040',
         'Xưởng may 2', 'Hoàng Quốc Bảo',
         [
             ('VAI-INT-200-RED', 65, 'KE-A1'),
@@ -264,7 +265,7 @@ DEMO_ISSUES = [
         ],
     ),
     (
-        f'PX-{DEMO_TAG}-2026-006', 8, ISSUE_TYPE_WASTE, '', '',
+        f'PX-{DEMO_TAG}-2026-006', 8, ISSUE_TYPE_LEGACY_LABELS[ISSUE_TYPE_WASTE], '', '',
         'Xưởng cắt', 'Võ Đức Anh',
         [
             ('VAI-COT180-BLK', 12, 'KE-A1'),
@@ -272,7 +273,7 @@ DEMO_ISSUES = [
         ],
     ),
     (
-        f'PX-{DEMO_TAG}-2026-007', 5, ISSUE_TYPE_PRODUCTION, 'LSX-JP-2605', 'JP-SHR-060',
+        f'PX-{DEMO_TAG}-2026-007', 5, ISSUE_TYPE_LEGACY_LABELS[ISSUE_TYPE_PRODUCTION], 'LSX-JP-2605', 'JP-SHR-060',
         'Xưởng may 1', 'Đặng Thị Mai',
         [
             ('VAI-MES-150-BLK', 45, 'KE-A1'),

@@ -17,12 +17,10 @@
         </a>
     </div>
 
-    <form method="post" action="{{ form_action_url }}" id="transfer-form" enctype="multipart/form-data" novalidate
-          data-material-search-url="{% url 'kho_npl:material_search' %}"
-          data-warehouse-locked="{{ warehouse_locked|yesno:'1,0' }}">
+    <form method="post" action="{{ form_action_url }}" id="transfer-form" class="jp-npl-doc-form" enctype="multipart/form-data" novalidate
+          {% include 'kho_npl/includes/transfer_form_doc_line_attrs.html' %}>
         {% csrf_token %}
         <input type="hidden" name="wh_lock_from" id="wh-lock-from" value="">
-        <input type="hidden" name="wh_lock_to" id="wh-lock-to" value="">
         {% include 'kho_npl/includes/transfer_form_fields.html' %}
         <div class="card border-0 shadow-sm jp-npl-transfer-form-actions">
             <div class="card-body d-flex flex-wrap gap-2">
@@ -40,7 +38,8 @@
         <tr class="line-row">
             {% for hidden in line_form.hidden_fields %}{{ hidden }}{% endfor %}
             <td class="jp-npl-material-cell"><div class="jp-npl-material-field">{{ line_form.material }}</div></td>
-            <td class="jp-npl-qty-cell">{{ line_form.quantity }}</td>
+            <td class="jp-npl-stock-cell text-end"><span class="jp-npl-stock-qty text-muted small">—</span></td>
+            <td class="jp-npl-qty-cell text-end">{{ line_form.quantity }}</td>
             <td class="jp-npl-line-notes-cell">{{ line_form.notes }}</td>
         <td class="text-center">
             <div class="d-none">{{ line_form.DELETE }}</div>
@@ -49,5 +48,5 @@
     </tr>
     {% endwith %}
 </template>
-{% include 'kho_npl/includes/transfer_form_scripts.html' %}
+{% include 'kho_npl/includes/npl_doc_line_scripts.html' %}
 {% endblock %}

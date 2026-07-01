@@ -17,7 +17,7 @@
                             data-placeholder="Kho" aria-label="Kho">
                         {% for loc in locations %}
                         <option value="{{ loc.id }}" {% if loc.id in selected_warehouse_ids %}selected{% endif %}>
-                            {{ loc.code }} — {{ loc.name }}
+                            {{ loc.name }}
                         </option>
                         {% endfor %}
                     </select>
@@ -46,7 +46,7 @@
             {% endif %}
             {% if can_create %}
             <a href="{% url 'kho_npl:stocktake_create' %}{% if selected_location %}?wh={{ selected_location.pk }}{% endif %}" class="btn btn-hm btn-sm fw-bold">
-                <i class="bi bi-plus-lg me-1"></i>{% if selected_location %}Kỳ mới — {{ selected_location.code }}{% else %}Thêm kỳ{% endif %}
+                <i class="bi bi-plus-lg me-1"></i>{% if selected_location %}Kỳ mới — {{ selected_location.name }}{% else %}Thêm kỳ{% endif %}
             </a>
             {% endif %}
             {% include 'kho_npl/includes/doc_list_col_picker.html' with col_btn_id='npl-stkt-col-btn' col_prefix='npl-stkt-col' col_toggle_class='npl-stkt-col-toggle' %}
@@ -82,7 +82,7 @@
                         </td>
                         <td class="npl-col" data-col="name" title="{{ st.name }}">{{ st.name }}</td>
                         {% if not selected_location %}
-                        <td class="npl-col" data-col="location">{{ st.location.code }}</td>
+                        <td class="npl-col" data-col="location">{{ st.location.name }}</td>
                         {% endif %}
                         <td class="npl-col" data-col="stocktake_date">{{ st.stocktake_date|date:'d/m/Y' }}</td>
                         <td class="npl-col" data-col="status">{{ st.get_status_display }}</td>

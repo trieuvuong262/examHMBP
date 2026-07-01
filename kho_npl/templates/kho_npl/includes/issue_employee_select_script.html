@@ -1,0 +1,87 @@
+<script>
+(function () {
+    if (typeof TomSelect === 'undefined') return;
+    const form = document.getElementById('issue-form') || document.getElementById('receipt-form');
+    const searchUrl = form && form.dataset.employeeSearchUrl ? form.dataset.employeeSearchUrl : '';
+
+    function initEmployeeSelect(select) {
+        if (!select || select.tomselect) return;
+
+        const initialValue = (select.value || '').trim();
+        const initialLabel = select.options[select.selectedIndex]
+            ? select.options[select.selectedIndex].textContent.trim()
+            : '';
+        const browseOnOpen = select.dataset.browseOnOpen === '1';
+
+        const tsOptions = {
+            maxOptions: browseOnOpen ? null : 50,
+            maxItems: 1,
+            valueField: 'id',
+            labelField: 'text',
+            searchField: ['text', 'name', 'code', 'division', 'department'],
+            placeholder: select.dataset.placeholder || 'Gõ tên hoặc mã nhân viên...',
+            allowEmptyOption: !select.required,
+            dropdownParent: 'body',
+            openOnFocus: true,
+            loadThrottle: 220,
+            load: function (query, callback) {
+                if (!searchUrl) {
+                    callback();
+                    return;
+                }
+                fetch(searchUrl + '?q=' + encodeURIComponent(query || ''), {
+                    headers: { 'Accept': 'application/json' },
+                })
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) { callback(data.results || []); })
+                    .catch(function () { callback(); });
+            },
+            render: {
+                option: function (data, escape) {
+                    const name = escape(data.name || data.text || '');
+                    const code = (data.code || '').trim();
+                    const org = escape(data.division || data.department || '');
+                    let html = '<div class="jp-npl-employee-option"><strong>' + name + '</strong>';
+                    if (code) {
+                        html += '<span class="text-muted small"> · ' + escape(code) + '</span>';
+                    }
+                    if (org) {
+                        html += '<span class="text-muted small d-block">' + org + '</span>';
+                    }
+                    html += '</div>';
+                    return html;
+                },
+                item: function (data, escape) {
+                    return '<div>' + escape(data.text || data.name || '') + '</div>';
+                },
+            },
+            onInitialize: function () {
+                if (!initialValue) return;
+                if (!this.options[initialValue]) {
+                    this.addOption({
+                        id: initialValue,
+                        text: initialLabel || initialValue,
+                        name: initialLabel || initialValue,
+                    });
+                }
+                this.setValue(initialValue, true);
+            },
+        };
+
+        if (browseOnOpen) {
+            tsOptions.preload = 'focus';
+            tsOptions.score = function () {
+                return function () { return 1; };
+            };
+            tsOptions.onDropdownOpen = function () {
+                const query = (this.control_input.value || '').trim();
+                this.load(query);
+            };
+        }
+
+        new TomSelect(select, tsOptions);
+    }
+
+    document.querySelectorAll('.jp-npl-employee-select').forEach(initEmployeeSelect);
+})();
+</script>

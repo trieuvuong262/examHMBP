@@ -13,19 +13,23 @@
                 
                 {% if is_edit %}Sửa phiếu xuất {{ issue.number }}{% else %}Tạo phiếu xuất kho{% endif %}
             </h2>
-            <p class="text-muted small mb-0">Chọn vị trí trước — NPL hiển thị <strong>tên hàng — tồn HT</strong>; cột Tồn HT cập nhật khi chọn hàng.</p>
         </div>
         <a href="{{ cancel_url }}" class="btn btn-outline-secondary btn-sm">
             <i class="bi bi-arrow-left me-1"></i>Quay lại
         </a>
     </div>
 
-    <form method="post" id="issue-form" enctype="multipart/form-data" novalidate
+    <form method="post" id="issue-form" class="jp-npl-doc-form" enctype="multipart/form-data" novalidate
           data-npl-doc-lines
           data-material-search-url="{% url 'kho_npl:material_search' %}"
+          data-material-in-stock-only="1"
+          data-material-display="name-stock"
+          data-material-browse-on-open="1"
           data-balance-url="{% url 'kho_npl:balance_lookup' %}"
+          data-employee-search-url="{% url 'kho_npl:recipient_search' %}"
           data-location-mode="row"
-          data-stock-target="text">
+          data-stock-target="text"
+          data-validate-qty-stock="1">
         {% csrf_token %}
         {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
 
@@ -33,38 +37,30 @@
             <div class="card-body p-3 p-md-4">
                 <div class="row g-3">
                     <div class="col-md-3">
-                        <label class="form-label fw-bold small">Ngày xuất</label>
+                        <label class="form-label fw-bold small">Ngày xuất <span class="text-danger">*</span></label>
                         {{ form.issue_date }}
+                        {% if form.issue_date.errors %}<div class="text-danger small">{{ form.issue_date.errors }}</div>{% endif %}
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label fw-bold small">Lý do xuất</label>
+                        <label class="form-label fw-bold small">Lý do xuất <span class="text-danger">*</span></label>
                         {{ form.issue_type }}
+                        {% if form.issue_type.errors %}<div class="text-danger small">{{ form.issue_type.errors }}</div>{% endif %}
                     </div>
                     <div class="col-md-5">
-                        <label class="form-label fw-bold small">Người xuất</label>
+                        <label class="form-label fw-bold small" for="{{ form.issued_by.id_for_label }}">Người xuất</label>
                         {{ form.issued_by }}
+                        {% if form.issued_by.errors %}<div class="text-danger small">{{ form.issued_by.errors }}</div>{% endif %}
                     </div>
-                    <div class="col-md-4">
-                        <label class="form-label fw-bold small">Lệnh sản xuất</label>
-                        {{ form.production_order }}
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small" for="{{ form.recipient.id_for_label }}">Người nhận</label>
+                        {{ form.recipient }}
+                        {% if form.recipient.errors %}<div class="text-danger small">{{ form.recipient.errors }}</div>{% endif %}
                     </div>
-                    <div class="col-md-4">
-                        <label class="form-label fw-bold small">Mã sản phẩm</label>
-                        {{ form.product_code }}
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label fw-bold small">Bộ phận nhận</label>
-                        {{ form.recipient_department }}
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label fw-bold small">Người nhận</label>
-                        {{ form.recipient_name }}
-                    </div>
+                    {% include 'kho_npl/includes/doc_attachment_field.html' with field=form.attachment required=True col_class='col-md-6' %}
                     <div class="col-12">
                         <label class="form-label fw-bold small">Ghi chú</label>
                         {{ form.notes }}
                     </div>
-                    {% include 'kho_npl/includes/doc_attachment_field.html' with field=form.attachment %}
                 </div>
             </div>
         </div>
@@ -72,7 +68,7 @@
         {{ formset.management_form }}
         <div class="card border-0 shadow-sm overflow-hidden mb-3">
             <div class="card-header bg-white border-bottom py-3">
-                <h5 class="mb-0 fw-bold">Chi tiết xuất</h5>
+                <h5 class="mb-0 fw-bold">Chi tiết xuất <span class="text-danger">*</span></h5>
             </div>
             <div class="table-responsive">
                 <table class="table table-sm align-middle mb-0">
@@ -80,7 +76,7 @@
                         <tr>
                             <th style="min-width:130px">Vị trí</th>
                             <th style="min-width:260px">Nguyên phụ liệu</th>
-                            <th style="width:110px" class="text-end">Tồn HT</th>
+                            <th style="width:110px" class="text-end">Tồn</th>
                             <th style="width:120px" class="text-end">Số lượng xuất</th>
                             <th>Ghi chú</th>
                             <th style="width:40px"></th>
@@ -122,7 +118,7 @@
                 <i class="bi bi-save me-1"></i>Lưu nháp
             </button>
             <button type="submit" name="action" value="post" class="btn btn-hm fw-bold px-4">
-                <i class="bi bi-check2-circle me-1"></i>Ghi sổ & trừ tồn
+                <i class="bi bi-check2-circle me-1"></i>Xuất kho
             </button>
             <a href="{{ cancel_url }}" class="btn btn-outline-secondary">Huỷ</a>
         </div>
@@ -147,4 +143,6 @@
 </template>
 
 {% include 'kho_npl/includes/npl_doc_line_scripts.html' %}
+{% include 'kho_npl/includes/material_form_search_select_script.html' %}
+{% include 'kho_npl/includes/issue_employee_select_script.html' %}
 {% endblock %}

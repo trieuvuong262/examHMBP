@@ -20,7 +20,7 @@
             <form method="post" action="{% url 'kho_npl:disposal_post' disposal.pk %}" class="d-inline">
                 {% csrf_token %}
                 <button type="submit" class="btn btn-success btn-sm"
-                        onclick="return confirm('Ghi sổ và chuyển hàng sang kho {{ scrap_warehouse_code }}?');">
+                        onclick="return confirm('Ghi sổ và chuyển hàng sang {{ scrap_warehouse_label }}?');">
                     <i class="bi bi-check2-circle me-1"></i>Ghi sổ
                 </button>
             </form>
@@ -36,9 +36,9 @@
         <div class="card-body">
             <dl class="row mb-0">
                 <dt class="col-sm-3 text-muted">Kho nguồn</dt>
-                <dd class="col-sm-9">{{ disposal.from_location.code }} — {{ disposal.from_location.name }}</dd>
+                <dd class="col-sm-9">{{ disposal.from_location.name }}</dd>
                 <dt class="col-sm-3 text-muted">Kho đích</dt>
-                <dd class="col-sm-9">{{ scrap_warehouse_code }} — Kho hủy</dd>
+                <dd class="col-sm-9">{{ scrap_warehouse_label }}</dd>
                 <dt class="col-sm-3 text-muted">Người tạo</dt>
                 <dd class="col-sm-9">{% if disposal.created_by %}{{ disposal.created_by.get_full_name|default:disposal.created_by.username }}{% else %}—{% endif %}</dd>
                 {% if disposal.posted_by %}

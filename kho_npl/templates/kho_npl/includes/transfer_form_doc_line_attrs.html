@@ -1,0 +1,13 @@
+data-npl-doc-lines
+data-transfer-warehouse-lock
+data-material-search-url="{% url 'kho_npl:material_search' %}"
+data-material-in-stock-only="1"
+data-material-display="name-stock"
+data-material-browse-on-open="1"
+data-balance-url="{% url 'kho_npl:balance_lookup' %}"
+data-location-mode="header"
+data-location-selector="#id_from_location"
+data-stock-target="text"
+data-validate-qty-stock="1"
+data-validate-qty-zero="1"
+data-warehouse-locked="{{ warehouse_locked|yesno:'1,0' }}"

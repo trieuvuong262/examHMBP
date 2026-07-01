@@ -1,16 +1,17 @@
 """Cột bảng tồn kho — hiển thị và localStorage."""
 
 STOCK_LIST_COLUMNS = [
+    {'key': 'image', 'label': 'Ảnh', 'default': True, 'required': True, 'weight': 40, 'sortable': False},
     {'key': 'code', 'label': 'Mã', 'default': True, 'required': True, 'weight': 100},
     {'key': 'name', 'label': 'Tên NPL', 'default': True, 'required': False, 'weight': 150},
     {'key': 'category_parent', 'label': 'Nhóm cấp 1', 'default': True, 'required': False, 'weight': 100},
     {'key': 'category', 'label': 'Nhóm cấp 2', 'default': True, 'required': False, 'weight': 100},
     {'key': 'color', 'label': 'Màu', 'default': True, 'required': False, 'weight': 100},
-    {'key': 'unit', 'label': 'ĐVT', 'default': True, 'required': False, 'weight': 50},
-    {'key': 'total_qty', 'label': 'Tồn hiện tại', 'default': True, 'required': False, 'weight': 100},
-    {'key': 'min_stock', 'label': 'Tối thiểu', 'default': True, 'required': False, 'weight': 50},
-    {'key': 'primary_location', 'label': 'Vị trí chính', 'default': True, 'required': False, 'weight': 100},
-    {'key': 'stock_status', 'label': 'Trạng thái', 'default': True, 'required': False, 'weight': 50},
+    {'key': 'unit', 'label': 'ĐVT', 'default': True, 'required': False, 'weight': 35},
+    {'key': 'total_qty', 'label': 'Tồn hiện tại', 'default': True, 'required': False, 'weight': 120},
+    {'key': 'min_stock', 'label': 'Tối thiểu', 'default': True, 'required': False, 'weight': 80},
+    {'key': 'stock_status', 'label': 'Trạng thái', 'default': True, 'required': False, 'weight': 90},
+    {'key': 'detail', 'label': 'Chi tiết', 'default': True, 'required': False, 'weight': 80, 'sortable': False},
 ]
 
 STOCK_LIST_TOTAL_COL_WEIGHT = sum(c['weight'] for c in STOCK_LIST_COLUMNS)
@@ -24,6 +25,5 @@ STOCK_LIST_SORT_FIELDS = {
     'unit': lambda r: (r['material'].unit.name or '').lower(),
     'total_qty': lambda r: r['total_qty'],
     'min_stock': lambda r: r['material'].min_stock,
-    'primary_location': lambda r: (r['primary_location'] or '').lower(),
     'stock_status': lambda r: r['status'],
 }

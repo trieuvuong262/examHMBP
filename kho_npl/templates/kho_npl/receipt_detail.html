@@ -12,7 +12,7 @@
             <p class="text-muted mb-0">
                 {{ receipt.get_status_display }}
                 · {{ receipt.receipt_date|date:'d/m/Y' }}
-                {% if receipt.posted_at %}· Ghi sổ {{ receipt.posted_at|date:'d/m/Y H:i' }}{% endif %}
+                {% if receipt.posted_at %}· Nhập kho {{ receipt.posted_at|date:'d/m/Y H:i' }}{% endif %}
             </p>
         </div>
         <div class="d-flex flex-wrap gap-2">
@@ -22,8 +22,8 @@
             </a>
             <form method="post" action="{% url 'kho_npl:receipt_post' receipt.pk %}" class="d-inline">
                 {% csrf_token %}
-                <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('Ghi sổ phiếu và cập nhật tồn kho?');">
-                    <i class="bi bi-check2-circle me-1"></i>Ghi sổ
+                <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('Nhập kho phiếu và cập nhật tồn?');">
+                    <i class="bi bi-check2-circle me-1"></i>Nhập kho
                 </button>
             </form>
             {% endif %}
@@ -49,9 +49,25 @@
                 <dd class="col-sm-9">{% if receipt.checked_by %}{{ receipt.checked_by.get_full_name|default:receipt.checked_by.username }}{% else %}—{% endif %}</dd>
                 <dt class="col-sm-3 text-muted">Người tạo</dt>
                 <dd class="col-sm-9">{% if receipt.created_by %}{{ receipt.created_by.get_full_name|default:receipt.created_by.username }}{% else %}—{% endif %}</dd>
-                {% if receipt.notes %}
-                <dt class="col-sm-3 text-muted">Ghi chú</dt><dd class="col-sm-9">{{ receipt.notes|linebreaksbr }}</dd>
-                {% endif %}
+                <dt class="col-sm-3 text-muted">Ghi chú</dt>
+                <dd class="col-sm-9">
+                    {% if can_edit_notes and notes_form %}
+                    <form method="post" action="{% url 'kho_npl:receipt_update_notes' receipt.pk %}" class="jp-npl-receipt-notes-form">
+                        {% csrf_token %}
+                        {{ notes_form.notes }}
+                        {% if notes_form.notes.errors %}
+                        <div class="text-danger small mt-1">{{ notes_form.notes.errors }}</div>
+                        {% endif %}
+                        <button type="submit" class="btn btn-outline-hm btn-sm mt-2">
+                            <i class="bi bi-save me-1"></i>Lưu ghi chú
+                        </button>
+                    </form>
+                    {% elif receipt.notes %}
+                    {{ receipt.notes|linebreaksbr }}
+                    {% else %}
+                    —
+                    {% endif %}
+                </dd>
                 {% include 'kho_npl/includes/doc_attachment_display.html' with attachment=receipt.attachment %}
             </dl>
         </div>
@@ -61,14 +77,65 @@
         <div class="card-header bg-white border-bottom py-3">
             <h5 class="mb-0 fw-bold">Chi tiết nhập</h5>
         </div>
+        {% if can_edit_notes and line_notes_formset %}
+        <form method="post" action="{% url 'kho_npl:receipt_update_line_notes' receipt.pk %}" class="jp-npl-receipt-line-notes-form">
+            {% csrf_token %}
+            {{ line_notes_formset.management_form }}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Mã NPL</th>
+                            <th>Tên</th>
+                            <th class="text-end">SL nhập</th>
+                            <th>ĐVT</th>
+                            <th>Vị trí</th>
+                            <th>Ghi chú</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for line_form in line_notes_formset %}
+                        {% with line=line_form.instance %}
+                        <tr>
+                            <td class="fw-semibold">{{ line.material.code }}</td>
+                            <td>{{ line.material.name }}</td>
+                            <td class="text-end">{{ line.received_qty|npl_qty }}</td>
+                            <td>{{ line.material.unit.name }}</td>
+                            <td>{{ line.location.name }}</td>
+                            <td>
+                                {{ line_form.id }}
+                                {{ line_form.notes }}
+                                {% if line_form.notes.errors %}
+                                <div class="text-danger small mt-1">{{ line_form.notes.errors }}</div>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endwith %}
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center text-muted py-4">Chưa có dòng chi tiết.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% if line_notes_formset.forms %}
+            <div class="card-footer bg-white border-top py-3 text-end">
+                <button type="submit" class="btn btn-outline-hm btn-sm">
+                    <i class="bi bi-save me-1"></i>Lưu ghi chú
+                </button>
+            </div>
+            {% endif %}
+        </form>
+        {% else %}
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
                 <thead class="table-light">
                     <tr>
                         <th>Mã NPL</th>
                         <th>Tên</th>
-                        <th class="text-end">SL đặt</th>
                         <th class="text-end">SL nhập</th>
+                        <th>ĐVT</th>
                         <th>Vị trí</th>
                         <th>Ghi chú</th>
                     </tr>
@@ -78,9 +145,9 @@
                     <tr>
                         <td class="fw-semibold">{{ line.material.code }}</td>
                         <td>{{ line.material.name }}</td>
-                        <td class="text-end">{{ line.ordered_qty|npl_qty_with_unit:line.material.unit }}</td>
-                        <td class="text-end">{{ line.received_qty|npl_qty_with_unit:line.material.unit }}</td>
-                        <td>{{ line.location.code }}</td>
+                        <td class="text-end">{{ line.received_qty|npl_qty }}</td>
+                        <td>{{ line.material.unit.name }}</td>
+                        <td>{{ line.location.name }}</td>
                         <td>{{ line.notes|default:'—' }}</td>
                     </tr>
                     {% empty %}
@@ -91,6 +158,7 @@
                 </tbody>
             </table>
         </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

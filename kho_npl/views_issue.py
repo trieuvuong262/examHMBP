@@ -1,16 +1,23 @@
 from django.contrib import messages
 from django.db import transaction
 from django.db.models import Q
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
 from assessment.decorators import module_perm_required, module_perm_required_methods
 from hrm.module_permissions import MODULE_KHO_NPL
+from hrm.user_search import search_issue_recipients
 from PortalJustPlay.list_search import get_search_query
 from PortalJustPlay.pagination import paginate_queryset
 
 from kho_npl.choices import DOC_STATUS_DRAFT, DOC_STATUS_POSTED
-from kho_npl.forms import StockIssueForm, StockIssueLineFormSet, StockIssueNotesForm
+from kho_npl.forms import (
+    StockIssueForm,
+    StockIssueLineFormSet,
+    StockIssueLineNotesFormSet,
+    StockIssueNotesForm,
+)
 from kho_npl.models import StockIssue
 from kho_npl.services.doc_numbers import next_issue_number
 from kho_npl.services.issues import (
@@ -24,12 +31,17 @@ from kho_npl.doc_list_columns import (
     ISSUE_LIST_SORT_FIELDS,
     ISSUE_LIST_TOTAL_COL_WEIGHT,
 )
-from kho_npl.doc_list_utils import DOC_STATUS_FILTER_CHOICES, doc_list_sort, doc_status_filter
+from kho_npl.doc_list_utils import ISSUE_STATUS_FILTER_CHOICES, doc_list_sort, doc_status_filter
+from kho_npl.doc_prefill import (
+    issue_line_prefill_initial,
+    parse_doc_location_id,
+    parse_doc_material_id,
+)
 from kho_npl.view_utils import nav_context, perm_context
 
 
 def _save_issue_form(request, issue, *, is_create: bool):
-    form = StockIssueForm(request.POST, request.FILES, instance=issue)
+    form = StockIssueForm(request.POST, request.FILES, instance=issue, operator=request.user)
     formset = StockIssueLineFormSet(request.POST, instance=issue, prefix='lines')
     if not (form.is_valid() and formset.is_valid()):
         return form, formset, None
@@ -47,19 +59,33 @@ def _save_issue_form(request, issue, *, is_create: bool):
 
 
 @module_perm_required(MODULE_KHO_NPL, 'view')
+def product_code_search(request):
+    q = (request.GET.get('q') or '').strip()
+    return JsonResponse({'results': search_product_codes(q)})
+
+
+@module_perm_required(MODULE_KHO_NPL, 'view')
+def recipient_search(request):
+    q = (request.GET.get('q') or '').strip()
+    limit = 1000 if not q else 50
+    return JsonResponse({'results': search_issue_recipients(q, limit=limit)})
+
+
+@module_perm_required(MODULE_KHO_NPL, 'view')
 def issue_list(request):
     search_query = get_search_query(request)
-    status = doc_status_filter(request, choices=DOC_STATUS_FILTER_CHOICES)
+    status = doc_status_filter(request, choices=ISSUE_STATUS_FILTER_CHOICES)
     sort_key, sort_dir, order = doc_list_sort(request, ISSUE_LIST_SORT_FIELDS, default_key='issue_date')
-    qs = StockIssue.objects.select_related('issued_by', 'created_by')
+    qs = StockIssue.objects.select_related('issued_by', 'created_by', 'recipient', 'recipient__profile')
     if status:
         qs = qs.filter(status=status)
     if search_query:
         qs = qs.filter(
             Q(number__icontains=search_query)
-            | Q(production_order__icontains=search_query)
-            | Q(product_code__icontains=search_query)
             | Q(recipient_name__icontains=search_query)
+            | Q(recipient__username__icontains=search_query)
+            | Q(recipient__profile__full_name__icontains=search_query)
+            | Q(recipient__profile__employee_code__icontains=search_query)
         )
     qs = qs.order_by(order, '-pk')
     page_obj, query_string = paginate_queryset(request, qs)
@@ -70,7 +96,7 @@ def issue_list(request):
         'query_string': query_string,
         'search_query': search_query,
         'selected_status': status,
-        'status_choices': DOC_STATUS_FILTER_CHOICES,
+        'status_choices': ISSUE_STATUS_FILTER_CHOICES,
         'has_filters': bool(search_query or status),
         'list_columns': ISSUE_LIST_COLUMNS,
         'total_col_weight': ISSUE_LIST_TOTAL_COL_WEIGHT,
@@ -86,13 +112,14 @@ def issue_notes_editable(issue: StockIssue) -> bool:
 @module_perm_required(MODULE_KHO_NPL, 'view')
 def issue_detail(request, pk):
     issue = get_object_or_404(
-        StockIssue.objects.select_related('issued_by', 'created_by')
+        StockIssue.objects.select_related('issued_by', 'created_by', 'recipient', 'recipient__profile')
         .prefetch_related('lines__material', 'lines__location'),
         pk=pk,
     )
     perms = perm_context(request.user, 'issues')
     can_edit_notes = issue_notes_editable(issue) and perms.get('can_update')
     notes_form = StockIssueNotesForm(instance=issue) if can_edit_notes else None
+    line_notes_formset = StockIssueLineNotesFormSet(instance=issue) if can_edit_notes else None
     return render(request, 'kho_npl/issue_detail.html', {
         **nav_context('issues', user=request.user),
         **perms,
@@ -100,6 +127,7 @@ def issue_detail(request, pk):
         'is_editable': issue_is_editable(issue),
         'can_edit_notes': can_edit_notes,
         'notes_form': notes_form,
+        'line_notes_formset': line_notes_formset,
     })
 
 
@@ -113,7 +141,7 @@ def issue_create(request):
             if action == 'post':
                 try:
                     post_stock_issue(doc, request.user)
-                    messages.success(request, f'Đã ghi sổ phiếu {doc.number} và trừ tồn kho.')
+                    messages.success(request, f'Phiếu {doc.number} đã xuất kho và trừ tồn.')
                 except IssueWorkflowError as exc:
                     messages.error(request, str(exc))
                     return redirect('kho_npl:issue_edit', pk=doc.pk)
@@ -121,8 +149,14 @@ def issue_create(request):
                 messages.success(request, f'Đã lưu nháp phiếu {doc.number}.')
             return redirect('kho_npl:issue_detail', pk=doc.pk)
     if request.method != 'POST':
-        form = StockIssueForm(instance=issue)
-        formset = StockIssueLineFormSet(instance=issue, prefix='lines')
+        form = StockIssueForm(instance=issue, operator=request.user)
+        material_id = parse_doc_material_id(request)
+        location_id = parse_doc_location_id(request, 'location')
+        formset = StockIssueLineFormSet(
+            instance=issue,
+            prefix='lines',
+            initial=issue_line_prefill_initial(material_id, location_id),
+        )
     return render(request, 'kho_npl/issue_form.html', {
         **nav_context('issues', user=request.user),
         **perm_context(request.user, 'issues'),
@@ -139,7 +173,7 @@ def issue_update_notes(request, pk):
     if request.method != 'POST':
         return redirect('kho_npl:issue_detail', pk=pk)
     if not issue_notes_editable(issue):
-        messages.error(request, 'Chỉ phiếu đã ghi sổ mới được sửa ghi chú tại đây.')
+        messages.error(request, 'Chỉ phiếu đã xuất kho mới được sửa ghi chú tại đây.')
         return redirect('kho_npl:issue_detail', pk=pk)
     form = StockIssueNotesForm(request.POST, instance=issue)
     if form.is_valid():
@@ -151,11 +185,28 @@ def issue_update_notes(request, pk):
     return redirect('kho_npl:issue_detail', pk=pk)
 
 
+@module_perm_required_methods(MODULE_KHO_NPL, post='update')
+def issue_update_line_notes(request, pk):
+    issue = get_object_or_404(StockIssue, pk=pk)
+    if request.method != 'POST':
+        return redirect('kho_npl:issue_detail', pk=pk)
+    if not issue_notes_editable(issue):
+        messages.error(request, 'Chỉ phiếu đã xuất kho mới được sửa ghi chú dòng tại đây.')
+        return redirect('kho_npl:issue_detail', pk=pk)
+    formset = StockIssueLineNotesFormSet(request.POST, instance=issue)
+    if formset.is_valid():
+        formset.save()
+        messages.success(request, f'Đã cập nhật ghi chú dòng phiếu {issue.number}.')
+    else:
+        messages.error(request, 'Không lưu được ghi chú dòng — kiểm tra lại nội dung.')
+    return redirect('kho_npl:issue_detail', pk=pk)
+
+
 @module_perm_required_methods(MODULE_KHO_NPL, get='update', post='update')
 def issue_edit(request, pk):
     issue = get_object_or_404(StockIssue, pk=pk)
     if not issue_is_editable(issue):
-        messages.error(request, 'Phiếu đã ghi sổ hoặc đã hủy — không thể sửa.')
+        messages.error(request, 'Phiếu đã xuất kho hoặc đã hủy — không thể sửa.')
         return redirect('kho_npl:issue_detail', pk=pk)
     if request.method == 'POST':
         action = request.POST.get('action', 'save')
@@ -164,7 +215,7 @@ def issue_edit(request, pk):
             if action == 'post':
                 try:
                     post_stock_issue(doc, request.user)
-                    messages.success(request, f'Đã ghi sổ phiếu {doc.number} và trừ tồn kho.')
+                    messages.success(request, f'Phiếu {doc.number} đã xuất kho và trừ tồn.')
                 except IssueWorkflowError as exc:
                     messages.error(request, str(exc))
                     return redirect('kho_npl:issue_edit', pk=doc.pk)
@@ -172,7 +223,7 @@ def issue_edit(request, pk):
                 messages.success(request, f'Đã lưu nháp phiếu {doc.number}.')
             return redirect('kho_npl:issue_detail', pk=doc.pk)
     if request.method != 'POST':
-        form = StockIssueForm(instance=issue)
+        form = StockIssueForm(instance=issue, operator=request.user)
         formset = StockIssueLineFormSet(instance=issue, prefix='lines')
     return render(request, 'kho_npl/issue_form.html', {
         **nav_context('issues', user=request.user),
@@ -191,7 +242,7 @@ def issue_post(request, pk):
     if request.method == 'POST':
         try:
             post_stock_issue(issue, request.user)
-            messages.success(request, f'Đã ghi sổ phiếu {issue.number}.')
+            messages.success(request, f'Phiếu {issue.number} đã xuất kho.')
         except IssueWorkflowError as exc:
             messages.error(request, str(exc))
     return redirect('kho_npl:issue_detail', pk=pk)

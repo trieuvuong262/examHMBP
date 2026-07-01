@@ -23,9 +23,17 @@ def parse_int_ids(request, param: str) -> list[int]:
     return ids
 
 
-def append_filter_params(params: list[str], *, locations: list[int] | None = None, categories: list[int] | None = None):
+def append_filter_params(
+    params: list[str],
+    *,
+    locations: list[int] | None = None,
+    categories: list[int] | None = None,
+    category_parent: int | None = None,
+):
     for loc_id in locations or []:
         params.append(f'location={loc_id}')
+    if category_parent:
+        params.append(f'category_parent={category_parent}')
     for cat_id in categories or []:
         params.append(f'category={cat_id}')
 

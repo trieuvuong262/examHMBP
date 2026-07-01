@@ -16,12 +16,18 @@
         '/kho-npl/phieu-xuat/': 'Đang tải phiếu xuất…',
         '/kho-npl/chuyen-kho/': 'Đang tải phiếu chuyển…',
         '/kho-npl/phieu-huy/': 'Đang tải phiếu hủy…',
+        '/kho-npl/dieu-chinh/': 'Đang tải phiếu điều chỉnh…',
         '/kho-npl/kiem-ke/': 'Đang tải phiếu kiểm kê…',
     };
 
     const STOCKTAKE_ROUTE_PATTERNS = [
         [/^\/kho-npl\/kiem-ke\/\d+\/nhap-so\/$/, 'Đang tải bảng kiểm kê…'],
         [/^\/kho-npl\/kiem-ke\/\d+\/$/, 'Đang tải chi tiết kiểm kê…'],
+    ];
+
+    const DOC_DETAIL_ROUTE_PATTERNS = [
+        [/^\/kho-npl\/dieu-chinh\/\d+\/$/, 'Đang tải chi tiết điều chỉnh…'],
+        [/^\/kho-npl\/danh-muc\/\d+\/$/, 'Đang tải chi tiết NPL…'],
     ];
 
     let shownAt = 0;
@@ -57,6 +63,10 @@
     function stocktakeRouteMessage(path) {
         for (let i = 0; i < STOCKTAKE_ROUTE_PATTERNS.length; i += 1) {
             const pattern = STOCKTAKE_ROUTE_PATTERNS[i];
+            if (pattern[0].test(path)) return pattern[1];
+        }
+        for (let j = 0; j < DOC_DETAIL_ROUTE_PATTERNS.length; j += 1) {
+            const pattern = DOC_DETAIL_ROUTE_PATTERNS[j];
             if (pattern[0].test(path)) return pattern[1];
         }
         return null;
@@ -163,7 +173,20 @@
 
             const catalogRow = e.target.closest('.jp-npl-catalog-row[data-href]');
             if (catalogRow) {
-                markNavigating(pageMessage());
+                if (e.target.closest('a, button, form, input, select, textarea')) return;
+                const href = (catalogRow.getAttribute('data-href') || '').trim();
+                if (!href || href === '#' || href.startsWith('javascript:')) return;
+                let url;
+                try {
+                    url = new URL(href, window.location.origin);
+                } catch (err) {
+                    return;
+                }
+                if (url.origin !== window.location.origin) return;
+                e.preventDefault();
+                const msg = stocktakeRouteMessage(normalizePath(url.pathname)) || pageMessage();
+                markNavigating(msg);
+                window.location.href = url.href;
                 return;
             }
 

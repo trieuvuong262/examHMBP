@@ -17,6 +17,50 @@ def material_total_qty(material: Material) -> Decimal:
     return total or Decimal('0')
 
 
+def sync_balances_from_ledger(material: Material | None = None) -> int:
+    """Đồng bộ bảng tồn kho từ tổng biến động sổ theo từng NPL × vị trí."""
+    from kho_npl.models import StockLedger
+
+    ledger_qs = StockLedger.objects.all()
+    balance_qs = StockBalance.objects.all()
+    if material is not None:
+        ledger_qs = ledger_qs.filter(material=material)
+        balance_qs = balance_qs.filter(material=material)
+
+    updated = 0
+    seen: set[tuple[int, int]] = set()
+    pairs = ledger_qs.values('material_id', 'location_id').distinct()
+    for pair in pairs:
+        key = (pair['material_id'], pair['location_id'])
+        if key in seen:
+            continue
+        seen.add(key)
+        total = ledger_qs.filter(
+            material_id=pair['material_id'],
+            location_id=pair['location_id'],
+        ).aggregate(total=Sum('qty_delta'))['total'] or Decimal('0')
+        bal, _created = StockBalance.objects.update_or_create(
+            material_id=pair['material_id'],
+            location_id=pair['location_id'],
+            defaults={'quantity': total},
+        )
+        if bal.quantity != total:
+            bal.quantity = total
+            bal.save(update_fields=['quantity', 'updated_at'])
+            updated += 1
+
+    for bal in balance_qs:
+        key = (bal.material_id, bal.location_id)
+        if key in seen:
+            continue
+        if bal.quantity != Decimal('0'):
+            bal.quantity = Decimal('0')
+            bal.save(update_fields=['quantity', 'updated_at'])
+            updated += 1
+
+    return updated
+
+
 def stock_status_for_qty(quantity: Decimal, min_stock: Decimal) -> str:
     qty = quantity or Decimal('0')
     minimum = min_stock or Decimal('0')
@@ -39,11 +83,24 @@ def material_stock_rows(queryset=None, location_ids: list[int] | None = None):
         if loc_set:
             balances = [b for b in balances if b.location_id in loc_set]
         total = sum((b.quantity for b in balances), Decimal('0'))
+        location_balances = sorted(
+            [
+                {
+                    'location': b.location,
+                    'quantity': b.quantity,
+                }
+                for b in balances
+            ],
+            key=lambda item: (item['location'].display_label() or '').lower(),
+        )
         primary_location = ''
-        if balances:
-            top = max(balances, key=lambda b: b.quantity)
-            if top.quantity > 0:
-                primary_location = top.location.code
+        if location_balances:
+            top = max(location_balances, key=lambda item: item['quantity'])
+            if top['quantity'] > 0:
+                primary_location = top['location'].display_label()
+            elif location_balances:
+                primary_location = location_balances[0]['location'].display_label()
+        can_expand = len(location_balances) >= 1
         status = stock_status_for_qty(total, material.min_stock)
         rows.append({
             'material': material,
@@ -52,6 +109,9 @@ def material_stock_rows(queryset=None, location_ids: list[int] | None = None):
             'status_label': STOCK_STATUS_LABELS[status],
             'status_badge': STOCK_STATUS_BADGE[status],
             'primary_location': primary_location,
+            'location_balances': location_balances,
+            'can_expand': can_expand,
+            'location_count': len(location_balances),
         })
     return rows
 

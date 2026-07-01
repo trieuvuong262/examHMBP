@@ -1,3 +1,4 @@
+import json
 from datetime import date
 
 import pandas as pd
@@ -15,6 +16,7 @@ from kho_npl.choices import (
     STOCK_STATUS_OK,
     STOCK_STATUS_OUT,
 )
+from kho_npl.category_tree import active_category_roots, category_cascade_for_filter, category_children_for_parent
 from kho_npl.filter_utils import append_filter_params, parse_int_ids
 from kho_npl.models import Material, MaterialCategory, WarehouseLocation
 from kho_npl.overview_list_columns import (
@@ -178,13 +180,13 @@ def _stock_card_catalog_sort(request):
 
 
 def _stock_card_catalog_qs(request, location_ids):
-    catalog_qs, search_query, category_ids, _ = _material_catalog_qs(request)
+    catalog_qs, search_query, category_ids, category_parent_id, _ = _material_catalog_qs(request)
     stock_sum = Sum('balances__quantity')
     if location_ids:
         stock_sum = Sum('balances__quantity', filter=Q(balances__location_id__in=location_ids))
     sort_key, sort_dir, order = _stock_card_catalog_sort(request)
     catalog_qs = catalog_qs.annotate(stock_total=stock_sum).order_by(order)
-    return catalog_qs, search_query, category_ids, sort_key, sort_dir
+    return catalog_qs, search_query, category_ids, category_parent_id, sort_key, sort_dir
 
 
 def _stock_card_sort_filter_params(sort_key, sort_dir):
@@ -220,13 +222,18 @@ def _stock_card_card_filter_qs(
 def _stock_card_catalog_only_filter_qs(
     *,
     category_ids,
+    category_parent_id,
     search_query,
     sort_key,
     sort_dir,
     show_diagnosis=False,
 ):
     filter_params = []
-    append_filter_params(filter_params, categories=category_ids)
+    append_filter_params(
+        filter_params,
+        categories=category_ids,
+        category_parent=category_parent_id,
+    )
     if search_query:
         filter_params.append(f'q={search_query}')
     filter_params.extend(_stock_card_sort_filter_params(sort_key, sort_dir))
@@ -241,6 +248,7 @@ def _stock_card_catalog_filter_qs(
     date_to,
     location_ids,
     category_ids,
+    category_parent_id,
     search_query,
     sort_key,
     sort_dir,
@@ -251,7 +259,12 @@ def _stock_card_catalog_filter_qs(
         filter_params.append(f'date_from={date_from.isoformat()}')
     if date_to:
         filter_params.append(f'date_to={date_to.isoformat()}')
-    append_filter_params(filter_params, locations=location_ids, categories=category_ids)
+    append_filter_params(
+        filter_params,
+        locations=location_ids,
+        categories=category_ids,
+        category_parent=category_parent_id,
+    )
     if search_query:
         filter_params.append(f'q={search_query}')
     filter_params.extend(_stock_card_sort_filter_params(sort_key, sort_dir))
@@ -262,17 +275,23 @@ def _stock_card_catalog_filter_qs(
 
 @module_perm_required(MODULE_KHO_NPL, 'view')
 def stock_cards(request):
+    if request.GET.get('page') and not request.GET.get('cat_page'):
+        params = request.GET.copy()
+        params['cat_page'] = params['page']
+        del params['page']
+        return redirect(f'{request.path}?{params.urlencode()}')
+
     location_ids = parse_int_ids(request, 'location')
     material_id = request.GET.get('material', '').strip()
     date_from = _parse_optional_date(request.GET.get('date_from'))
     date_to = _parse_optional_date(request.GET.get('date_to'))
     show_diagnosis = request.GET.get('diagnose') == '1'
 
-    catalog_qs, search_query, category_ids, sort_key, sort_dir = _stock_card_catalog_qs(
+    catalog_qs, search_query, category_ids, category_parent_id, sort_key, sort_dir = _stock_card_catalog_qs(
         request, location_ids,
     )
     catalog_page, catalog_query_string = paginate_queryset(
-        request, catalog_qs, per_page=20, page_param='cat_page',
+        request, catalog_qs, per_page=5, page_param='cat_page',
     )
 
     selected_material = None
@@ -302,6 +321,7 @@ def stock_cards(request):
     )
     catalog_only_filter_qs = _stock_card_catalog_only_filter_qs(
         category_ids=category_ids,
+        category_parent_id=category_parent_id,
         search_query=search_query,
         sort_key=sort_key,
         sort_dir=sort_dir,
@@ -312,13 +332,22 @@ def stock_cards(request):
         date_to=date_to,
         location_ids=location_ids,
         category_ids=category_ids,
+        category_parent_id=category_parent_id,
         search_query=search_query,
         sort_key=sort_key,
         sort_dir=sort_dir,
         show_diagnosis=show_diagnosis,
     )
+    catalog_clear_qs = _stock_card_card_filter_qs(
+        date_from=date_from,
+        date_to=date_to,
+        location_ids=location_ids,
+        sort_key=sort_key,
+        sort_dir=sort_dir,
+        show_diagnosis=show_diagnosis,
+    )
     has_card_filters = bool(date_from or date_to or location_ids)
-    has_catalog_filters = bool(search_query or category_ids)
+    has_catalog_filters = bool(search_query or category_ids or category_parent_id)
     has_filters = has_card_filters or has_catalog_filters
 
     return render(request, 'kho_npl/stock_cards.html', {
@@ -326,9 +355,12 @@ def stock_cards(request):
         **perm_context(request.user, 'stock_cards'),
         'search_query': search_query,
         'locations': WarehouseLocation.objects.filter(is_active=True),
-        'categories': MaterialCategory.objects.filter(is_active=True),
+        'category_roots': active_category_roots(),
+        'category_children': category_children_for_parent(category_parent_id),
+        'category_cascade_json': json.dumps(category_cascade_for_filter()),
         'selected_locations': location_ids,
         'selected_categories': category_ids,
+        'selected_category_parent': category_parent_id,
         'selected_material': selected_material,
         'card': card,
         'mismatch_diagnosis': mismatch_diagnosis,
@@ -341,6 +373,7 @@ def stock_cards(request):
         'catalog_filter_qs': catalog_filter_qs,
         'card_filter_qs': card_filter_qs,
         'catalog_only_filter_qs': catalog_only_filter_qs,
+        'catalog_clear_qs': catalog_clear_qs,
         'list_columns': STOCK_CARD_CATALOG_COLUMNS,
         'total_col_weight': STOCK_CARD_CATALOG_TOTAL_COL_WEIGHT,
         'sort_key': sort_key,
@@ -349,24 +382,6 @@ def stock_cards(request):
         'has_card_filters': has_card_filters,
         'has_catalog_filters': has_catalog_filters,
     })
-
-
-@module_perm_required(MODULE_KHO_NPL, 'export')
-def stock_cards_export(request):
-    location_ids = parse_int_ids(request, 'location')
-    catalog_qs, _, _, _, _ = _stock_card_catalog_qs(request, location_ids)
-    data = []
-    for material in catalog_qs:
-        data.append({
-            'Mã NPL': material.code,
-            'Tên NPL': material.name,
-            'Nhóm': material.category.name,
-            'Quy cách': material.specification.name if material.specification_id else '',
-            'Tồn': float(material.stock_total or 0),
-            'ĐVT': material.unit.name,
-        })
-    df = pd.DataFrame(data)
-    return dataframe_to_xlsx_response(df, 'The_kho_danh_muc', 'The_kho')
 
 
 @module_perm_required(MODULE_KHO_NPL, 'view')

@@ -29,8 +29,15 @@ from kho_npl.models import (
     Unit,
     WarehouseLocation,
 )
-from kho_npl.category_tree import active_category_leaves
-from kho_npl.doc_attachment import DOC_ATTACHMENT_ACCEPT, validate_doc_attachment
+from hrm.user_search import exclude_hidden_hrm_users, issue_recipient_label, issue_recipient_org_name
+from kho_npl.category_tree import material_form_category_queryset
+from kho_npl.doc_attachment import (
+    DOC_ATTACHMENT_ACCEPT,
+    IMAGE_ATTACHMENT_EXTENSIONS,
+    DocClearableFileInput,
+    clean_required_doc_attachment,
+    validate_doc_attachment,
+)
 from kho_npl.services.scrap_warehouse import source_locations_qs
 from kho_npl.services.adjustments import balance_qty
 
@@ -39,19 +46,73 @@ User = get_user_model()
 FORM_CONTROL = {'class': 'form-control'}
 FORM_SELECT = {'class': 'form-select'}
 FORM_SEARCH_SELECT = {'class': 'form-select jp-npl-search-select'}
+ISSUE_EMPLOYEE_SELECT = {
+    **FORM_SEARCH_SELECT,
+    'class': 'form-select jp-npl-search-select jp-npl-employee-select',
+    'data-placeholder': 'Gõ tên hoặc mã nhân viên...',
+}
+DOC_EMPLOYEE_SELECT = ISSUE_EMPLOYEE_SELECT
+SUPPLIER_SELECT = {
+    **FORM_SEARCH_SELECT,
+    'class': 'form-select jp-npl-search-select jp-npl-supplier-select',
+    'data-placeholder': 'Gõ tên hoặc mã NCC...',
+    'data-browse-on-open': '1',
+}
+DOC_EMPLOYEE_SELECT_BROWSE = {
+    **DOC_EMPLOYEE_SELECT,
+    'data-browse-on-open': '1',
+}
+LOCATION_ROW_SELECT = {
+    **FORM_SEARCH_SELECT,
+    'class': 'form-select jp-npl-search-select jp-npl-location-select',
+    'data-placeholder': 'Gõ mã hoặc tên vị trí...',
+}
 FORM_TEXTAREA = {'class': 'form-control', 'rows': 3}
-FORM_ATTACHMENT = forms.ClearableFileInput(attrs={
+FORM_ATTACHMENT = DocClearableFileInput(attrs={
     'class': 'form-control',
     'accept': DOC_ATTACHMENT_ACCEPT,
 })
+DOC_DATE_DISPLAY_FORMAT = '%d/%m/%Y'
+DOC_DATE_INPUT_FORMATS = ['%d/%m/%Y', '%d-%m-%Y', '%Y-%m-%d']
+DOC_DATE_INPUT = {
+    **FORM_CONTROL,
+    'class': 'form-control jp-npl-date-input',
+    'placeholder': 'dd/mm/yyyy',
+    'autocomplete': 'off',
+    'inputmode': 'numeric',
+}
 
 
 def _employed_users_qs():
-    return (
-        User.objects.filter(profile__is_employed=True)
-        .select_related('profile')
-        .order_by('profile__full_name', 'username')
+    return exclude_hidden_hrm_users(
+        User.objects.filter(is_active=True, profile__is_employed=True),
+    ).select_related('profile', 'profile__department', 'profile__division').order_by(
+        'profile__full_name', 'username',
     )
+
+
+def _configure_employee_select_field(field, *, selected_id=None, required=False):
+    field.queryset = (
+        _employed_users_qs().filter(pk=selected_id)
+        if selected_id
+        else User.objects.none()
+    )
+    field.label_from_instance = issue_recipient_label
+    field.required = required
+    field.empty_label = None
+
+
+def _configure_supplier_select_field(field, *, selected_id=None, required=False):
+    field.queryset = (
+        Supplier.objects.filter(pk=selected_id, is_active=True)
+        if selected_id
+        else Supplier.objects.none()
+    )
+    field.label_from_instance = lambda obj: (
+        f'{obj.name} ({obj.code})' + (f' — {obj.phone}' if obj.phone else '')
+    )
+    field.required = required
+    field.empty_label = None
 
 
 class MaterialForm(forms.ModelForm):
@@ -79,7 +140,10 @@ class MaterialForm(forms.ModelForm):
             'unit': forms.Select(attrs=FORM_SELECT),
             'supplier': forms.Select(attrs={**FORM_SEARCH_SELECT, 'data-placeholder': 'Tìm NCC...'}),
             'min_stock': forms.NumberInput(attrs={**FORM_CONTROL, 'step': '0.001', 'min': '0'}),
-            'image': forms.ClearableFileInput(attrs={'class': 'form-control'}),
+            'image': DocClearableFileInput(attrs={
+                'class': 'form-control',
+                'accept': 'image/*,.jpg,.jpeg,.png,.gif,.webp',
+            }),
             'notes': forms.Textarea(attrs=FORM_TEXTAREA),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
@@ -87,8 +151,14 @@ class MaterialForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['category'].label = 'Nhóm cấp 2'
-        self.fields['category'].queryset = active_category_leaves()
-        self.fields['category'].label_from_instance = lambda obj: f'{obj.parent.name} › {obj.name}'
+        self.fields['category'].queryset = material_form_category_queryset(
+            self.instance if self.instance.pk else None,
+        )
+        self.fields['category'].label_from_instance = lambda obj: (
+            f'{obj.parent.name} › {obj.name}'
+            if obj.parent_id
+            else f'{obj.name} (nhóm cấp 1 — nên chọn nhóm con)'
+        )
         self.fields['color'].queryset = MaterialColor.objects.filter(is_active=True).order_by('sort_order', 'name')
         self.fields['color'].label_from_instance = lambda obj: f'{obj.name} ({obj.hex_code})'
         self.fields['color'].required = False
@@ -117,6 +187,19 @@ class MaterialForm(forms.ModelForm):
             raise ValidationError('Mã NPL đã tồn tại.')
         return code
 
+    def clean_image(self):
+        uploaded = self.cleaned_data.get('image')
+        if uploaded is False:
+            return False
+        if uploaded:
+            ext = (uploaded.name or '').rsplit('.', 1)[-1].lower()
+            if f'.{ext}' not in IMAGE_ATTACHMENT_EXTENSIONS:
+                raise ValidationError('Chỉ chấp nhận file ảnh JPG, PNG, GIF hoặc WebP.')
+            return validate_doc_attachment(uploaded)
+        if self.instance.pk and self.instance.image:
+            return self.instance.image
+        return None
+
 
 class StockReceiptForm(forms.ModelForm):
     class Meta:
@@ -131,45 +214,105 @@ class StockReceiptForm(forms.ModelForm):
             'attachment',
         ]
         widgets = {
-            'receipt_date': forms.DateInput(attrs={**FORM_CONTROL, 'type': 'date'}),
-            'supplier': forms.Select(attrs=FORM_SELECT),
+            'receipt_date': forms.DateInput(attrs=DOC_DATE_INPUT, format=DOC_DATE_DISPLAY_FORMAT),
+            'supplier': forms.Select(attrs=SUPPLIER_SELECT),
             'po_number': forms.TextInput(attrs=FORM_CONTROL),
-            'received_by': forms.Select(attrs=FORM_SELECT),
-            'checked_by': forms.Select(attrs=FORM_SELECT),
+            'received_by': forms.Select(attrs=DOC_EMPLOYEE_SELECT),
+            'checked_by': forms.Select(attrs=DOC_EMPLOYEE_SELECT_BROWSE),
             'notes': forms.Textarea(attrs=FORM_TEXTAREA),
             'attachment': FORM_ATTACHMENT,
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, operator=None, **kwargs):
+        instance = kwargs.get('instance')
+        if (
+            instance is not None
+            and not instance.pk
+            and not args
+            and not kwargs.get('data')
+        ):
+            if not instance.receipt_date:
+                instance.receipt_date = timezone.localdate()
+            if operator and not instance.received_by_id:
+                instance.received_by = operator
         super().__init__(*args, **kwargs)
-        self.fields['supplier'].queryset = Supplier.objects.filter(is_active=True)
-        self.fields['supplier'].required = False
-        self.fields['received_by'].queryset = _employed_users_qs()
-        self.fields['checked_by'].queryset = _employed_users_qs()
-        self.fields['received_by'].required = False
-        self.fields['checked_by'].required = False
-        self.fields['attachment'].required = False
-        if not self.instance.pk:
-            self.initial.setdefault('receipt_date', timezone.localdate())
+        selected_supplier_id = None
+        if self.instance.pk and self.instance.supplier_id:
+            selected_supplier_id = self.instance.supplier_id
+        elif self.data.get('supplier'):
+            raw = str(self.data.get('supplier') or '').strip()
+            if raw.isdigit():
+                selected_supplier_id = int(raw)
+        _configure_supplier_select_field(
+            self.fields['supplier'],
+            selected_id=selected_supplier_id,
+            required=True,
+        )
+        selected_received_id = None
+        if self.instance.pk and self.instance.received_by_id:
+            selected_received_id = self.instance.received_by_id
+        elif self.data.get('received_by'):
+            raw = str(self.data.get('received_by') or '').strip()
+            if raw.isdigit():
+                selected_received_id = int(raw)
+        elif operator and not args and not kwargs.get('data'):
+            selected_received_id = operator.pk
+        _configure_employee_select_field(
+            self.fields['received_by'],
+            selected_id=selected_received_id,
+            required=True,
+        )
+        selected_checked_id = None
+        if self.instance.pk and self.instance.checked_by_id:
+            selected_checked_id = self.instance.checked_by_id
+        elif self.data.get('checked_by'):
+            raw = str(self.data.get('checked_by') or '').strip()
+            if raw.isdigit():
+                selected_checked_id = int(raw)
+        _configure_employee_select_field(
+            self.fields['checked_by'],
+            selected_id=selected_checked_id,
+            required=False,
+        )
+        self.fields['attachment'].required = True
+        self.fields['receipt_date'].input_formats = DOC_DATE_INPUT_FORMATS
 
     def clean_attachment(self):
-        return validate_doc_attachment(self.cleaned_data.get('attachment'))
+        return clean_required_doc_attachment(self.cleaned_data, self.instance)
+
+    def full_clean(self):
+        if self.data:
+            raw_supplier = str(self.data.get('supplier') or '').strip()
+            if raw_supplier.isdigit():
+                self.fields['supplier'].queryset = Supplier.objects.filter(
+                    pk=int(raw_supplier),
+                    is_active=True,
+                )
+            for field_name in ('received_by', 'checked_by'):
+                raw = str(self.data.get(field_name) or '').strip()
+                if raw.isdigit():
+                    self.fields[field_name].queryset = _employed_users_qs().filter(pk=int(raw))
+        super().full_clean()
 
 
 class StockReceiptLineForm(forms.ModelForm):
     class Meta:
         model = StockReceiptLine
-        fields = ['material', 'ordered_qty', 'received_qty', 'location', 'notes']
+        fields = ['material', 'received_qty', 'location', 'notes']
         widgets = {
             'material': forms.Select(attrs={
                 **FORM_SELECT,
                 'class': 'form-select jp-npl-material-select',
-                'data-placeholder': 'Gõ tên hoặc mã NPL...',
+                'data-placeholder': 'Gõ tên NPL...',
             }),
-            'ordered_qty': forms.NumberInput(attrs={**FORM_CONTROL, 'step': '0.001', 'min': '0'}),
-            'received_qty': forms.NumberInput(attrs={**FORM_CONTROL, 'step': '0.001', 'min': '0'}),
-            'location': forms.Select(attrs=FORM_SELECT),
-            'notes': forms.TextInput(attrs=FORM_CONTROL),
+            'received_qty': forms.NumberInput(attrs={
+                **FORM_CONTROL,
+                'step': '0.001',
+                'min': '0',
+                'inputmode': 'decimal',
+            }),
+            'location': forms.Select(attrs=LOCATION_ROW_SELECT),
+            'notes': forms.TextInput(attrs={**FORM_CONTROL, 'class': 'form-control jp-npl-line-notes'}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -183,15 +326,22 @@ class StockReceiptLineForm(forms.ModelForm):
             self.fields['material'].queryset = (
                 Material.objects.filter(pk=material_id).select_related('unit')
             )
+            self.fields['material'].label_from_instance = lambda material: material.name
         else:
             self.fields['material'].queryset = Material.objects.none()
-        self.fields['material'].empty_label = 'Gõ tên hoặc mã để tìm...'
-        self.fields['location'].queryset = WarehouseLocation.objects.filter(is_active=True)
-        self.fields['ordered_qty'].required = False
+        self.fields['material'].empty_label = None
+        self.fields['location'].queryset = WarehouseLocation.objects.filter(is_active=True).order_by('code')
+        self.fields['location'].label_from_instance = lambda obj: obj.display_label()
         self.fields['notes'].required = False
         default_location = WarehouseLocation.objects.filter(code='MAIN', is_active=True).first()
         if default_location and not self.instance.pk:
             self.initial.setdefault('location', default_location.pk)
+
+    def clean_received_qty(self):
+        qty = self.cleaned_data.get('received_qty')
+        if qty is not None and qty <= 0:
+            raise ValidationError('Số lượng nhập phải lớn hơn 0.')
+        return qty
 
     def full_clean(self):
         if self.data:
@@ -227,8 +377,47 @@ StockReceiptLineFormSet = inlineformset_factory(
     StockReceiptLine,
     form=StockReceiptLineForm,
     formset=BaseStockReceiptLineFormSet,
-    extra=2,
+    extra=1,
     can_delete=True,
+)
+
+
+class StockReceiptNotesForm(forms.ModelForm):
+    """Chỉ sửa ghi chú phiếu nhập đã ghi sổ — không đổi tồn hay chi tiết."""
+
+    class Meta:
+        model = StockReceipt
+        fields = ['notes']
+        widgets = {
+            'notes': forms.Textarea(attrs={**FORM_TEXTAREA, 'placeholder': 'Ghi chú bổ sung sau khi nhập...'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['notes'].required = False
+
+
+class StockReceiptLineNotesForm(forms.ModelForm):
+    """Chỉ sửa ghi chú từng dòng phiếu nhập đã ghi sổ."""
+
+    class Meta:
+        model = StockReceiptLine
+        fields = ['notes']
+        widgets = {
+            'notes': forms.TextInput(attrs={**FORM_CONTROL, 'placeholder': 'Nhập ghi chú'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['notes'].required = False
+
+
+StockReceiptLineNotesFormSet = inlineformset_factory(
+    StockReceipt,
+    StockReceiptLine,
+    form=StockReceiptLineNotesForm,
+    extra=0,
+    can_delete=False,
 )
 
 
@@ -238,40 +427,100 @@ class StockIssueForm(forms.ModelForm):
         fields = [
             'issue_date',
             'issue_type',
-            'production_order',
-            'product_code',
-            'recipient_department',
-            'recipient_name',
             'issued_by',
+            'recipient',
             'notes',
             'attachment',
         ]
         widgets = {
-            'issue_date': forms.DateInput(attrs={**FORM_CONTROL, 'type': 'date'}),
-            'issue_type': forms.Select(attrs=FORM_SELECT),
-            'production_order': forms.TextInput(attrs=FORM_CONTROL),
-            'product_code': forms.TextInput(attrs=FORM_CONTROL),
-            'recipient_department': forms.TextInput(attrs=FORM_CONTROL),
-            'recipient_name': forms.TextInput(attrs=FORM_CONTROL),
-            'issued_by': forms.Select(attrs=FORM_SELECT),
+            'issue_date': forms.DateInput(attrs=DOC_DATE_INPUT, format=DOC_DATE_DISPLAY_FORMAT),
+            'issue_type': forms.TextInput(attrs={
+                **FORM_CONTROL,
+                'placeholder': 'VD: Xuất cho sản xuất, làm mẫu...',
+            }),
+            'issued_by': forms.Select(attrs=ISSUE_EMPLOYEE_SELECT),
+            'recipient': forms.Select(attrs=ISSUE_EMPLOYEE_SELECT),
             'notes': forms.Textarea(attrs=FORM_TEXTAREA),
             'attachment': FORM_ATTACHMENT,
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, operator=None, **kwargs):
+        instance = kwargs.get('instance')
+        if (
+            instance is not None
+            and not instance.pk
+            and not args
+            and not kwargs.get('data')
+        ):
+            if not instance.issue_date:
+                instance.issue_date = timezone.localdate()
+            if operator and not instance.issued_by_id:
+                instance.issued_by = operator
         super().__init__(*args, **kwargs)
-        self.fields['issued_by'].queryset = _employed_users_qs()
-        self.fields['issued_by'].required = False
-        self.fields['production_order'].required = False
-        self.fields['product_code'].required = False
-        self.fields['recipient_department'].required = False
-        self.fields['recipient_name'].required = False
-        self.fields['attachment'].required = False
-        if not self.instance.pk:
-            self.initial.setdefault('issue_date', timezone.localdate())
+        selected_recipient_id = None
+        if self.instance.pk and self.instance.recipient_id:
+            selected_recipient_id = self.instance.recipient_id
+        elif self.data.get('recipient'):
+            raw = str(self.data.get('recipient') or '').strip()
+            if raw.isdigit():
+                selected_recipient_id = int(raw)
+        _configure_employee_select_field(
+            self.fields['recipient'],
+            selected_id=selected_recipient_id,
+            required=False,
+        )
+        selected_issued_id = None
+        if self.instance.pk and self.instance.issued_by_id:
+            selected_issued_id = self.instance.issued_by_id
+        elif self.data.get('issued_by'):
+            raw = str(self.data.get('issued_by') or '').strip()
+            if raw.isdigit():
+                selected_issued_id = int(raw)
+        elif operator and not args and not kwargs.get('data'):
+            selected_issued_id = operator.pk
+        _configure_employee_select_field(
+            self.fields['issued_by'],
+            selected_id=selected_issued_id,
+            required=True,
+        )
+        self.fields['issue_type'].required = True
+        self.fields['attachment'].required = True
+        self.fields['issue_date'].input_formats = DOC_DATE_INPUT_FORMATS
+
+    def clean_issue_type(self):
+        value = (self.cleaned_data.get('issue_type') or '').strip()
+        if not value:
+            raise ValidationError('Vui lòng nhập lý do xuất.')
+        return value
 
     def clean_attachment(self):
-        return validate_doc_attachment(self.cleaned_data.get('attachment'))
+        return clean_required_doc_attachment(self.cleaned_data, self.instance)
+
+    def full_clean(self):
+        if self.data:
+            for field_name in ('recipient', 'issued_by'):
+                raw = str(self.data.get(field_name) or '').strip()
+                if raw.isdigit():
+                    self.fields[field_name].queryset = _employed_users_qs().filter(pk=int(raw))
+        super().full_clean()
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        recipient = self.cleaned_data.get('recipient')
+        instance.recipient_department = ''
+        if recipient:
+            profile = getattr(recipient, 'profile', None)
+            instance.recipient_name = (
+                profile.full_name
+                if profile and profile.full_name
+                else recipient.get_full_name() or recipient.username
+            )
+            instance.recipient_department = issue_recipient_org_name(profile)
+        else:
+            instance.recipient_name = ''
+        if commit:
+            instance.save()
+        return instance
 
 
 class StockIssueNotesForm(forms.ModelForm):
@@ -289,6 +538,30 @@ class StockIssueNotesForm(forms.ModelForm):
         self.fields['notes'].required = False
 
 
+class StockIssueLineNotesForm(forms.ModelForm):
+    """Chỉ sửa ghi chú từng dòng phiếu xuất đã ghi sổ."""
+
+    class Meta:
+        model = StockIssueLine
+        fields = ['notes']
+        widgets = {
+            'notes': forms.TextInput(attrs={**FORM_CONTROL, 'placeholder': 'Nhập ghi chú'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['notes'].required = False
+
+
+StockIssueLineNotesFormSet = inlineformset_factory(
+    StockIssue,
+    StockIssueLine,
+    form=StockIssueLineNotesForm,
+    extra=0,
+    can_delete=False,
+)
+
+
 class StockIssueLineForm(forms.ModelForm):
     class Meta:
         model = StockIssueLine
@@ -297,11 +570,11 @@ class StockIssueLineForm(forms.ModelForm):
             'material': forms.Select(attrs={
                 **FORM_SELECT,
                 'class': 'form-select jp-npl-material-select',
-                'data-placeholder': 'Gõ tên hoặc mã NPL...',
+                'data-placeholder': 'Gõ tên NPL...',
             }),
             'quantity': forms.NumberInput(attrs={**FORM_CONTROL, 'step': '0.001', 'min': '0.001'}),
-            'location': forms.Select(attrs=FORM_SELECT),
-            'notes': forms.TextInput(attrs=FORM_CONTROL),
+            'location': forms.Select(attrs=LOCATION_ROW_SELECT),
+            'notes': forms.TextInput(attrs={**FORM_CONTROL, 'class': 'form-control jp-npl-line-notes'}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -315,14 +588,32 @@ class StockIssueLineForm(forms.ModelForm):
             self.fields['material'].queryset = (
                 Material.objects.filter(pk=material_id).select_related('unit')
             )
+            self.fields['material'].label_from_instance = lambda material: material.name
         else:
             self.fields['material'].queryset = Material.objects.none()
-        self.fields['material'].empty_label = 'Gõ tên hoặc mã để tìm...'
-        self.fields['location'].queryset = WarehouseLocation.objects.filter(is_active=True)
+        self.fields['material'].empty_label = None
+        self.fields['location'].queryset = WarehouseLocation.objects.filter(is_active=True).order_by('code')
+        self.fields['location'].label_from_instance = lambda obj: obj.display_label()
         self.fields['notes'].required = False
         default_location = WarehouseLocation.objects.filter(code='MAIN', is_active=True).first()
         if default_location and not self.instance.pk:
             self.initial.setdefault('location', default_location.pk)
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if cleaned_data.get('DELETE'):
+            return cleaned_data
+        material = cleaned_data.get('material')
+        location = cleaned_data.get('location')
+        qty = cleaned_data.get('quantity')
+        if material and location and qty is not None:
+            available = balance_qty(material, location)
+            if qty > available:
+                self.add_error(
+                    'quantity',
+                    f'Số lượng xuất vượt tồn tại vị trí (tồn {available}).',
+                )
+        return cleaned_data
 
     def full_clean(self):
         if self.data:
@@ -358,7 +649,7 @@ StockIssueLineFormSet = inlineformset_factory(
     StockIssueLine,
     form=StockIssueLineForm,
     formset=BaseStockIssueLineFormSet,
-    extra=2,
+    extra=1,
     can_delete=True,
 )
 
@@ -380,7 +671,10 @@ class StockAdjustmentForm(forms.ModelForm):
             self.initial.setdefault('adjust_date', timezone.localdate())
 
     def clean_attachment(self):
-        return validate_doc_attachment(self.cleaned_data.get('attachment'))
+        uploaded = self.cleaned_data.get('attachment')
+        if uploaded is False:
+            return None
+        return validate_doc_attachment(uploaded)
 
 
 class StockAdjustmentLineForm(forms.ModelForm):
@@ -483,7 +777,7 @@ class BaseStockAdjustmentLineFormSet(BaseInlineFormSet):
             key = (material.pk, location.pk)
             if key in seen:
                 raise ValidationError(
-                    f'Trùng NPL + vị trí: {material.code} tại {location.code}.'
+                    f'Trùng NPL + vị trí: {material.code} tại {location.display_label()}.'
                 )
             seen.add(key)
             actual_qty = line.get('actual_qty')
@@ -525,7 +819,10 @@ class StocktakeForm(forms.ModelForm):
                 self.initial.setdefault('location', default.pk)
 
     def clean_attachment(self):
-        return validate_doc_attachment(self.cleaned_data.get('attachment'))
+        uploaded = self.cleaned_data.get('attachment')
+        if uploaded is False:
+            return None
+        return validate_doc_attachment(uploaded)
 
 
 class StocktakeLineForm(forms.ModelForm):
@@ -571,30 +868,24 @@ class StockTransferForm(forms.ModelForm):
             'transfer_date': forms.DateInput(attrs={**FORM_CONTROL, 'type': 'date'}),
             'from_location': forms.Select(attrs=FORM_SELECT),
             'to_location': forms.Select(attrs=FORM_SELECT),
-            'notes': forms.TextInput(attrs={
-                **FORM_CONTROL,
-                'placeholder': 'Ghi chú (tuỳ chọn)',
-                'maxlength': '255',
-            }),
+            'notes': forms.Textarea(attrs=FORM_TEXTAREA),
             'attachment': FORM_ATTACHMENT,
         }
 
     def __init__(self, *args, **kwargs):
         self.warehouse_locked = kwargs.pop('warehouse_locked', False)
         super().__init__(*args, **kwargs)
-        self.fields['notes'].required = False
-        self.fields['attachment'].required = False
+        self.fields['notes'].required = True
+        self.fields['attachment'].required = True
         locations = WarehouseLocation.objects.filter(is_active=True)
         self.fields['from_location'].queryset = locations
         self.fields['to_location'].queryset = locations
         if self.warehouse_locked and self.instance.pk:
-            for name in ('from_location', 'to_location'):
-                field = self.fields[name]
-                field.disabled = True
-                css = field.widget.attrs.get('class', '')
-                field.widget.attrs['class'] = f'{css} jp-wh-locked'.strip()
+            field = self.fields['from_location']
+            field.disabled = True
+            css = field.widget.attrs.get('class', '')
+            field.widget.attrs['class'] = f'{css} jp-wh-locked'.strip()
             self.initial.setdefault('from_location', self.instance.from_location_id)
-            self.initial.setdefault('to_location', self.instance.to_location_id)
         if not self.instance.pk:
             self.initial.setdefault('transfer_date', timezone.localdate())
             default = locations.filter(code='MAIN').first()
@@ -605,7 +896,6 @@ class StockTransferForm(forms.ModelForm):
         cleaned = super().clean()
         if self.warehouse_locked and self.instance.pk:
             cleaned['from_location'] = self.instance.from_location
-            cleaned['to_location'] = self.instance.to_location
         from_loc = cleaned.get('from_location')
         to_loc = cleaned.get('to_location')
         if from_loc and to_loc and from_loc.pk == to_loc.pk:
@@ -616,15 +906,10 @@ class StockTransferForm(forms.ModelForm):
                     'from_location',
                     'Đã có dòng hàng — không thể đổi kho gửi. Xóa hết dòng NPL trước.',
                 )
-            if to_loc and to_loc.pk != self.instance.to_location_id:
-                self.add_error(
-                    'to_location',
-                    'Đã có dòng hàng — không thể đổi kho nhận. Xóa hết dòng NPL trước.',
-                )
         return cleaned
 
     def clean_attachment(self):
-        return validate_doc_attachment(self.cleaned_data.get('attachment'))
+        return clean_required_doc_attachment(self.cleaned_data, self.instance)
 
 
 class StockTransferLineForm(forms.ModelForm):
@@ -635,10 +920,15 @@ class StockTransferLineForm(forms.ModelForm):
             'material': forms.Select(attrs={
                 **FORM_SELECT,
                 'class': 'form-select jp-npl-material-select',
-                'data-placeholder': 'Gõ mã hoặc tên NPL...',
+                'data-placeholder': 'Gõ tên NPL...',
             }),
-            'quantity': forms.NumberInput(attrs={**FORM_CONTROL, 'step': '0.001', 'min': '0.001'}),
-            'notes': forms.TextInput(attrs=FORM_CONTROL),
+            'quantity': forms.NumberInput(attrs={
+                **FORM_CONTROL,
+                'step': '0.001',
+                'min': '0.001',
+                'inputmode': 'decimal',
+            }),
+            'notes': forms.TextInput(attrs={**FORM_CONTROL, 'class': 'form-control jp-npl-line-notes'}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -652,10 +942,42 @@ class StockTransferLineForm(forms.ModelForm):
             self.fields['material'].queryset = (
                 Material.objects.filter(pk=material_id).select_related('unit')
             )
+            self.fields['material'].label_from_instance = lambda material: material.name
         else:
             self.fields['material'].queryset = Material.objects.none()
-        self.fields['material'].empty_label = 'Gõ mã hoặc tên để tìm...'
-        self.fields['notes'].required = False
+        self.fields['material'].empty_label = None
+
+    def _from_location_id_for_stock(self) -> str:
+        lock = (self.data.get('wh_lock_from') or '').strip()
+        if lock.isdigit():
+            return lock
+        if self.instance.pk and self.instance.transfer_id:
+            return str(self.instance.transfer.from_location_id)
+        return (self.data.get('from_location') or '').strip()
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get('DELETE'):
+            return cleaned
+        material = cleaned.get('material')
+        qty = cleaned.get('quantity')
+        notes = (cleaned.get('notes') or '').strip()
+        if material and not notes:
+            self.add_error('notes', 'Vui lòng nhập ghi chú dòng.')
+        from_location_id = self._from_location_id_for_stock()
+        if material and qty is not None and from_location_id.isdigit():
+            location = WarehouseLocation.objects.filter(
+                pk=int(from_location_id),
+                is_active=True,
+            ).first()
+            if location:
+                available = balance_qty(material, location)
+                if qty > available:
+                    self.add_error(
+                        'quantity',
+                        f'Số lượng chuyển vượt tồn tại kho gửi (tồn {available}).',
+                    )
+        return cleaned
 
     def full_clean(self):
         if self.data:
@@ -701,16 +1023,10 @@ class BaseStockTransferLineFormSet(BaseInlineFormSet):
                 raise ValidationError('Số lượng chuyển phải lớn hơn 0 cho mỗi dòng NPL.')
         if self.data and active_lines:
             lock_from = (self.data.get('wh_lock_from') or '').strip()
-            lock_to = (self.data.get('wh_lock_to') or '').strip()
             post_from = (self.data.get('from_location') or '').strip()
-            post_to = (self.data.get('to_location') or '').strip()
             if lock_from and post_from and lock_from != post_from:
                 raise ValidationError(
                     'Không thể đổi kho gửi sau khi đã nhập dòng hàng. Xóa hết dòng NPL để đổi kho.',
-                )
-            if lock_to and post_to and lock_to != post_to:
-                raise ValidationError(
-                    'Không thể đổi kho nhận sau khi đã nhập dòng hàng. Xóa hết dòng NPL để đổi kho.',
                 )
 
 
@@ -719,7 +1035,7 @@ StockTransferLineFormSet = inlineformset_factory(
     StockTransferLine,
     form=StockTransferLineForm,
     formset=BaseStockTransferLineFormSet,
-    extra=2,
+    extra=1,
     can_delete=True,
 )
 
@@ -747,7 +1063,10 @@ class StockDisposalForm(forms.ModelForm):
         self.fields['attachment'].required = False
 
     def clean_attachment(self):
-        return validate_doc_attachment(self.cleaned_data.get('attachment'))
+        uploaded = self.cleaned_data.get('attachment')
+        if uploaded is False:
+            return None
+        return validate_doc_attachment(uploaded)
 
 
 class StockDisposalLineForm(forms.ModelForm):
@@ -957,6 +1276,29 @@ class WarehouseLocationForm(forms.ModelForm):
     def clean_code(self):
         code = (self.cleaned_data.get('code') or '').strip().upper()
         return _clean_unique_code(WarehouseLocation, 'code', code, self.instance)
+
+
+class SupplierQuickCreateForm(forms.ModelForm):
+    class Meta:
+        model = Supplier
+        fields = ['code', 'name', 'phone']
+        widgets = {
+            'code': forms.TextInput(attrs={**FORM_CONTROL, 'placeholder': 'VD: NCC-VAI-DN'}),
+            'name': forms.TextInput(attrs=FORM_CONTROL),
+            'phone': forms.TextInput(attrs=FORM_CONTROL),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['phone'].required = False
+
+    def clean_code(self):
+        code = (self.cleaned_data.get('code') or '').strip().upper()
+        return _clean_unique_code(Supplier, 'code', code, self.instance)
+
+    def save(self, commit=True):
+        self.instance.is_active = True
+        return super().save(commit=commit)
 
 
 class SupplierForm(forms.ModelForm):

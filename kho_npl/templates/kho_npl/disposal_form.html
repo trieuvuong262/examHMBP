@@ -46,7 +46,7 @@
                     </div>
                     <div class="col-md-4">
                         <label class="form-label fw-bold small text-muted">Kho đích</label>
-                        <input type="text" class="form-control" value="{{ scrap_warehouse_code }} — Kho hủy" readonly disabled>
+                        <input type="text" class="form-control" value="{{ scrap_warehouse_label }}" readonly disabled>
                     </div>
                     <div class="col-12">
                         <label class="form-label fw-bold small">Ghi chú</label>
@@ -110,7 +110,7 @@
                 <i class="bi bi-save me-1"></i>Lưu nháp
             </button>
             <button type="submit" name="action" value="post" class="btn btn-hm fw-bold px-4"
-                    onclick="return confirm('Ghi sổ và chuyển hàng sang kho {{ scrap_warehouse_code }}?');">
+                    onclick="return confirm('Ghi sổ và chuyển hàng sang {{ scrap_warehouse_label }}?');">
                 <i class="bi bi-check2-circle me-1"></i>Ghi sổ
             </button>
             <a href="{{ cancel_url }}" class="btn btn-outline-secondary">Huỷ</a>

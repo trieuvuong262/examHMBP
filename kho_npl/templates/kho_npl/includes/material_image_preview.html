@@ -6,7 +6,9 @@
             title="Phóng to ảnh">
         <img src="{{ material.image.url }}" alt="{{ material.name }}" class="jp-npl-mat-preview-img">
     </button>
+    {% if show_hint != False %}
     <div class="small text-muted mt-2">Bấm ảnh để xem lớn</div>
+    {% endif %}
 </div>
 {% else %}
 <div class="jp-npl-mat-preview-empty text-muted">

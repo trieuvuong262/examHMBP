@@ -34,14 +34,20 @@ from kho_npl.services.material_import_export import (
     import_materials_from_excel,
     sample_template_xlsx,
 )
-from kho_npl.services.stock import material_stock_rows, material_total_qty
+from kho_npl.services.stock import material_stock_rows
 from kho_npl.stock_list_columns import (
     STOCK_LIST_COLUMNS,
     STOCK_LIST_SORT_FIELDS,
     STOCK_LIST_TOTAL_COL_WEIGHT,
 )
-from kho_npl.category_tree import active_category_roots, category_filter_q
+from kho_npl.category_tree import (
+    active_category_roots,
+    category_filter_q,
+    parse_category_cascade_filter,
+    resolve_category_filter_q,
+)
 from kho_npl.filter_utils import parse_int_ids
+from kho_npl.doc_prefill import stock_doc_action_urls, stock_doc_prefill_location
 from kho_npl.view_utils import nav_context, perm_context
 
 
@@ -57,6 +63,14 @@ def _material_stock_label(material: Material, qty: Decimal) -> str:
     return f'{material.name} — {qty_text}'
 
 
+def _material_qty_label(material: Material, qty: Decimal) -> str:
+    unit = unit_label(material.unit)
+    qty_text = format_npl_qty(qty)
+    if unit:
+        return f'{qty_text} {unit}'
+    return qty_text
+
+
 def _parse_positive_int(value):
     try:
         parsed = int(value)
@@ -69,27 +83,57 @@ def _parse_positive_int(value):
 def material_search(request):
     q = (request.GET.get('q') or '').strip()
     location_id = _parse_positive_int(request.GET.get('location_id'))
-    qs = Material.objects.filter(is_active=True).select_related('unit', 'color', 'specification')
-    if q:
-        qs = qs.filter(
-            Q(code__icontains=q)
-            | Q(name__icontains=q)
-            | Q(color__name__icontains=q)
-            | Q(specification__name__icontains=q),
+    in_stock_only = (request.GET.get('in_stock_only') or '').strip().lower() in ('1', 'true', 'yes')
+    if location_id and in_stock_only:
+        qs = (
+            Material.objects.filter(
+                is_active=True,
+                balances__location_id=location_id,
+                balances__quantity__gt=0,
+            )
+            .select_related('unit', 'color', 'specification')
+            .distinct()
         )
-    materials = list(qs.order_by('code')[:40])
-    balance_map = {}
-    if location_id and materials:
-        material_ids = [m.pk for m in materials]
-        for balance in StockBalance.objects.filter(
-            location_id=location_id,
-            material_id__in=material_ids,
-        ):
-            balance_map[balance.material_id] = balance.quantity
+        if q:
+            qs = qs.filter(
+                Q(code__icontains=q)
+                | Q(name__icontains=q)
+                | Q(color__name__icontains=q)
+                | Q(specification__name__icontains=q),
+            )
+        browse_limit = 1000 if not q else 50
+        materials = list(qs.order_by('name', 'code')[:browse_limit])
+        balance_map = {
+            balance.material_id: balance.quantity
+            for balance in StockBalance.objects.filter(
+                location_id=location_id,
+                material_id__in=[material.pk for material in materials],
+            )
+        }
+    else:
+        qs = Material.objects.filter(is_active=True).select_related('unit', 'color', 'specification')
+        if q:
+            qs = qs.filter(
+                Q(code__icontains=q)
+                | Q(name__icontains=q)
+                | Q(color__name__icontains=q)
+                | Q(specification__name__icontains=q),
+            )
+        materials = list(qs.order_by('code')[:40])
+        balance_map = {}
+        if location_id and materials:
+            material_ids = [m.pk for m in materials]
+            for balance in StockBalance.objects.filter(
+                location_id=location_id,
+                material_id__in=material_ids,
+            ):
+                balance_map[balance.material_id] = balance.quantity
     rows = []
     for material in materials:
         if location_id is not None:
             qty = balance_map.get(material.pk, Decimal('0'))
+            if in_stock_only and qty <= 0:
+                continue
             text = _material_stock_label(material, qty)
         else:
             text = _material_search_label(material)
@@ -99,7 +143,13 @@ def material_search(request):
             'code': material.code,
             'name': material.name,
             'unit': material.unit.code,
+            'unit_name': material.unit.name,
             'qty': float(balance_map.get(material.pk, Decimal('0'))) if location_id is not None else None,
+            'qty_label': (
+                _material_qty_label(material, balance_map.get(material.pk, Decimal('0')))
+                if location_id is not None
+                else ''
+            ),
         })
     return JsonResponse({'results': rows})
 
@@ -120,19 +170,23 @@ def balance_lookup(request):
         'qty': format_npl_qty(qty),
         'qty_decimal': str(qty),
         'unit': unit_label(material.unit),
+        'unit_name': material.unit.name,
+        'qty_label': _material_qty_label(material, qty),
         'text': _material_stock_label(material, qty),
+        'name': material.name,
     })
 
 
 def _material_catalog_qs(request):
     search_query = get_search_query(request)
-    category_ids = parse_int_ids(request, 'category')
+    category_parent_id, category_ids = parse_category_cascade_filter(request)
     show_inactive = request.GET.get('inactive') == '1'
     qs = Material.objects.select_related('category', 'category__parent', 'unit', 'supplier', 'color', 'specification')
     if not show_inactive:
         qs = qs.filter(is_active=True)
-    if category_ids:
-        qs = qs.filter(category_filter_q(category_ids))
+    category_q = resolve_category_filter_q(category_parent_id, category_ids)
+    if category_q:
+        qs = qs.filter(category_q)
     if search_query:
         qs = qs.filter(
             Q(code__icontains=search_query)
@@ -140,7 +194,7 @@ def _material_catalog_qs(request):
             | Q(color__name__icontains=search_query)
             | Q(specification__name__icontains=search_query)
         )
-    return qs, search_query, category_ids, show_inactive
+    return qs, search_query, category_ids, category_parent_id, show_inactive
 
 
 MATERIAL_LIST_STATUS_CHOICES = (
@@ -228,7 +282,7 @@ def _stock_list_sort(request):
 
 
 def _stock_filtered_rows(request):
-    qs, search_query, category_ids, show_inactive = _material_catalog_qs(request)
+    qs, search_query, category_ids, category_parent_id, show_inactive = _material_catalog_qs(request)
     location_ids = parse_int_ids(request, 'location')
     status = (request.GET.get('status') or '').strip().lower()
     if status not in (STOCK_STATUS_OK, STOCK_STATUS_LOW, STOCK_STATUS_OUT):
@@ -242,12 +296,12 @@ def _stock_filtered_rows(request):
 
     sort_key, sort_dir = _stock_list_sort(request)
     rows.sort(key=STOCK_LIST_SORT_FIELDS[sort_key], reverse=(sort_dir == 'desc'))
-    return rows, search_query, category_ids, location_ids, status, show_inactive, sort_key, sort_dir
+    return rows, search_query, category_ids, category_parent_id, location_ids, status, show_inactive, sort_key, sort_dir
 
 
 @module_perm_required(MODULE_KHO_NPL, 'view')
 def material_stock_list(request):
-    rows, search_query, category_ids, location_ids, status, show_inactive, sort_key, sort_dir = (
+    rows, search_query, category_ids, category_parent_id, location_ids, status, show_inactive, sort_key, sort_dir = (
         _stock_filtered_rows(request)
     )
     page_obj, query_string = paginate_queryset(request, rows, per_page=25)
@@ -269,6 +323,44 @@ def material_stock_list(request):
         'sort_key': sort_key,
         'sort_dir': sort_dir,
         'has_filters': bool(search_query or category_ids or location_ids or status),
+    })
+
+
+@module_perm_required(MODULE_KHO_NPL, 'view')
+def material_stock_detail(request, pk):
+    material = get_object_or_404(
+        Material.objects.select_related(
+            'category', 'category__parent', 'unit', 'color', 'specification',
+        ),
+        pk=pk,
+    )
+    location_ids = parse_int_ids(request, 'location')
+    rows = material_stock_rows(
+        Material.objects.filter(pk=pk),
+        location_ids=location_ids or None,
+    )
+    row = rows[0]
+    back_query = request.GET.urlencode()
+    stock_card_params = [f'material={pk}']
+    for loc_id in location_ids:
+        stock_card_params.append(f'location={loc_id}')
+    stock_card_url = reverse('kho_npl:stock_cards') + '?' + '&'.join(stock_card_params)
+    prefill_location_id = stock_doc_prefill_location(request, row)
+    issue_create_url, transfer_create_url = stock_doc_action_urls(pk, prefill_location_id)
+    issue_perms = perm_context(request.user, 'issues')
+    transfer_perms = perm_context(request.user, 'transfers')
+    return render(request, 'kho_npl/material_stock_detail.html', {
+        **nav_context('material_stock', user=request.user),
+        **perm_context(request.user, 'material_stock'),
+        'material': material,
+        'row': row,
+        'back_query': back_query,
+        'stock_card_url': stock_card_url,
+        'selected_locations': location_ids,
+        'issue_create_url': issue_create_url,
+        'transfer_create_url': transfer_create_url,
+        'can_create_issue': issue_perms.get('can_create'),
+        'can_create_transfer': transfer_perms.get('can_create'),
     })
 
 
@@ -300,14 +392,10 @@ def material_detail(request, pk):
         Material.objects.select_related('category', 'category__parent', 'unit', 'supplier', 'color', 'specification'),
         pk=pk,
     )
-    balances = material.balances.select_related('location').order_by('-quantity')
-    total_qty = material_total_qty(material)
     return render(request, 'kho_npl/material_detail.html', {
         **nav_context('materials', user=request.user),
         **perm_context(request.user, 'materials'),
         'material': material,
-        'balances': balances,
-        'total_qty': total_qty,
     })
 
 
@@ -347,7 +435,7 @@ def material_edit(request, pk):
 
 @module_perm_required(MODULE_KHO_NPL, 'export')
 def material_export(request):
-    qs, _, _, _ = _material_catalog_qs(request)
+    qs, _, _, _, _ = _material_catalog_qs(request)
     return export_materials_xlsx(qs)
 
 

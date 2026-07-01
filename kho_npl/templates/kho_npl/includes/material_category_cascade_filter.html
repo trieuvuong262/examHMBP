@@ -1,0 +1,20 @@
+<div class="jp-npl-mat-filter-field">
+    <select name="category_parent" id="{{ parent_select_id }}"
+            class="form-select form-select-sm jp-npl-filter-ctl jp-npl-category-parent-select"
+            aria-label="Nhóm cấp 1">
+        <option value="">Nhóm cấp 1</option>
+        {% for root in category_roots %}
+        <option value="{{ root.id }}" {% if selected_category_parent == root.id %}selected{% endif %}>{{ root.name }}</option>
+        {% endfor %}
+    </select>
+</div>
+<div class="jp-npl-mat-filter-field">
+    <select name="category" id="{{ child_select_id }}"
+            class="form-select form-select-sm jp-npl-filter-ctl jp-npl-category-child-select"
+            aria-label="Nhóm cấp 2" {% if not selected_category_parent %}disabled{% endif %}>
+        <option value="">Tất cả</option>
+        {% for child in category_children %}
+        <option value="{{ child.id }}" {% if child.id in selected_categories %}selected{% endif %}>{{ child.name }}</option>
+        {% endfor %}
+    </select>
+</div>

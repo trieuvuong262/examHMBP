@@ -1,5 +1,6 @@
-<div class="col-12">
-    <label class="form-label fw-bold small" for="{{ field.id_for_label }}">Chứng từ / ảnh</label>
+<div class="{{ col_class|default:'col-12' }} jp-npl-doc-attachment-field">
+    <label class="form-label fw-bold small" for="{{ field.id_for_label }}">Chứng từ / ảnh{% if required %} <span class="text-danger">*</span>{% endif %}</label>
     {{ field }}
     {% if field.errors %}<div class="text-danger small">{{ field.errors }}</div>{% endif %}
 </div>
+{% include 'kho_npl/includes/doc_attachment_clear_script.html' %}

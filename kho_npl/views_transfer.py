@@ -45,6 +45,12 @@ from kho_npl.doc_list_columns import (
     TRANSFER_LIST_TOTAL_COL_WEIGHT,
     TRANSFER_LIST_TOTAL_COL_WEIGHT_WITH_STATUS,
 )
+from kho_npl.doc_prefill import (
+    parse_doc_location_id,
+    parse_doc_material_id,
+    transfer_form_prefill_initial,
+    transfer_line_prefill_initial,
+)
 from kho_npl.doc_list_utils import doc_list_sort
 from kho_npl.view_utils import nav_context, perm_context
 
@@ -128,8 +134,8 @@ def _hub_list_context(request, tab: str):
     if search_query:
         qs = qs.filter(
             Q(number__icontains=search_query)
-            | Q(from_location__code__icontains=search_query)
-            | Q(to_location__code__icontains=search_query)
+            | Q(from_location__name__icontains=search_query)
+            | Q(to_location__name__icontains=search_query)
             | Q(notes__icontains=search_query)
         )
     sort_key, sort_dir, order = doc_list_sort(request, TRANSFER_LIST_SORT_FIELDS, default_key='transfer_date')
@@ -181,8 +187,13 @@ def transfer_hub(request):
         if not ctx.get('can_create'):
             messages.info(request, 'Bạn không có quyền tạo phiếu chuyển kho.')
             return redirect(_transfer_list_url(TRANSFER_TAB_CHUYEN))
-        form = StockTransferForm()
-        formset = StockTransferLineFormSet(prefix='lines')
+        material_id = parse_doc_material_id(request)
+        from_location_id = parse_doc_location_id(request, 'from_location', 'location')
+        form = StockTransferForm(initial=transfer_form_prefill_initial(from_location_id))
+        formset = StockTransferLineFormSet(
+            prefix='lines',
+            initial=transfer_line_prefill_initial(material_id),
+        )
         ctx.update({
             'form': form,
             'formset': formset,
@@ -283,7 +294,7 @@ def transfer_send(request, pk):
         send_stock_transfer(transfer, request.user)
         messages.success(
             request,
-            f'Đã chuyển phiếu {transfer.number} — hàng đang trên đường tới {transfer.to_location.code}.',
+            f'Đã chuyển phiếu {transfer.number} — hàng đang trên đường tới {transfer.to_location.display_label()}.',
         )
     except TransferWorkflowError as exc:
         messages.error(request, str(exc))
@@ -296,7 +307,7 @@ def transfer_receive(request, pk):
     transfer = get_object_or_404(StockTransfer, pk=pk)
     try:
         receive_stock_transfer(transfer, request.user)
-        messages.success(request, f'Đã nhập kho phiếu {transfer.number} tại {transfer.to_location.code}.')
+        messages.success(request, f'Đã nhập kho phiếu {transfer.number} tại {transfer.to_location.display_label()}.')
     except TransferWorkflowError as exc:
         messages.error(request, str(exc))
     return redirect('kho_npl:transfer_detail', pk=pk)

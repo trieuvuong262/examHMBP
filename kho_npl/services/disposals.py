@@ -42,7 +42,7 @@ def post_stock_disposal(disposal: StockDisposal, user) -> StockDisposal:
         available = source_balance.quantity if source_balance else Decimal('0')
         if available < line.quantity:
             raise DisposalWorkflowError(
-                f'Tồn không đủ tại {disposal.from_location.code}: {line.material.code} '
+                f'Tồn không đủ tại {disposal.from_location.display_label()}: {line.material.code} '
                 f'(có {available}, cần hủy {line.quantity}).'
             )
         source_balance.quantity -= line.quantity
@@ -56,7 +56,7 @@ def post_stock_disposal(disposal: StockDisposal, user) -> StockDisposal:
             ref_id=disposal.pk,
             ref_number=disposal.number,
             created_by=user,
-            notes=f'Hủy {disposal.number} → {scrap_location.code}',
+            notes=f'Hủy {disposal.number} → {scrap_location.display_label()}',
         )
 
         scrap_balance, _ = StockBalance.objects.select_for_update().get_or_create(
@@ -75,7 +75,7 @@ def post_stock_disposal(disposal: StockDisposal, user) -> StockDisposal:
             ref_id=disposal.pk,
             ref_number=disposal.number,
             created_by=user,
-            notes=f'Nhận hủy {disposal.number} từ {disposal.from_location.code}',
+            notes=f'Nhận hủy {disposal.number} từ {disposal.from_location.display_label()}',
         )
 
     disposal.status = DOC_STATUS_POSTED

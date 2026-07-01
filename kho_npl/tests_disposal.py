@@ -97,4 +97,4 @@ class StockDisposalWorkflowTests(TestCase):
 
         create_resp = self.client.get(reverse('kho_npl:disposal_create'))
         self.assertEqual(create_resp.status_code, 200)
-        self.assertContains(create_resp, WAREHOUSE_SCRAP_CODE)
+        self.assertContains(create_resp, self.scrap_loc.display_label())

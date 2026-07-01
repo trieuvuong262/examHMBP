@@ -22,6 +22,7 @@ from kho_npl.choices import (
     ADJUST_STATUS_PENDING,
     ADJUST_STATUS_REJECTED,
     ISSUE_TYPE_CHOICES,
+    ISSUE_TYPE_LEGACY_LABELS,
     ISSUE_TYPE_PRODUCTION,
 )
 from kho_npl.models import (
@@ -420,7 +421,8 @@ class Command(BaseCommand):
         if not to_create:
             return 0
         start_seq = existing + 1
-        issue_types = [c[0] for c in ISSUE_TYPE_CHOICES]
+        issue_types = [c[1] for c in ISSUE_TYPE_CHOICES]
+        production_label = ISSUE_TYPE_LEGACY_LABELS[ISSUE_TYPE_PRODUCTION]
         weights = [50, 10, 8, 5, 12, 15]
         posted = 0
 
@@ -439,8 +441,8 @@ class Command(BaseCommand):
                 number=number,
                 issue_date=self._random_past_date(rng, 150),
                 issue_type=issue_type,
-                production_order=f'LSX-{PERF_TAG}-{rng.randint(1000, 9999)}' if issue_type == ISSUE_TYPE_PRODUCTION else '',
-                product_code=rng.choice(PRODUCT_CODES) if issue_type == ISSUE_TYPE_PRODUCTION else '',
+                production_order=f'LSX-{PERF_TAG}-{rng.randint(1000, 9999)}' if issue_type == production_label else '',
+                product_code=rng.choice(PRODUCT_CODES) if issue_type == production_label else '',
                 recipient_department=rng.choice(DEPARTMENTS),
                 recipient_name=f'NV-{rng.randint(100, 999)}',
                 issued_by=user,

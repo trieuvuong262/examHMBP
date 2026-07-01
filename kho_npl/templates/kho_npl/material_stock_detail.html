@@ -1,0 +1,167 @@
+{% extends 'base.html' %}
+{% load npl_extras %}
+
+{% block extra_head %}
+{% include 'kho_npl/includes/material_color_styles.html' %}
+{% include 'kho_npl/includes/material_detail_styles.html' %}
+<style>
+.jp-npl-stock-detail-page .jp-npl-stock-loc-table th {
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+}
+.jp-npl-stock-detail-page .jp-npl-stock-loc-table .jp-mat-code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.9em;
+}
+.jp-npl-stock-detail-page .jp-npl-stock-summary-value {
+    font-size: 1.35rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container jp-page jp-npl-material-detail-page jp-npl-stock-detail-page py-3 py-md-4 mb-5"
+     data-loading-message="Đang tải chi tiết tồn kho…">
+
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3 jp-npl-mat-detail-toolbar">
+        <a href="{% url 'kho_npl:material_stock' %}{% if back_query %}?{{ back_query }}{% endif %}" class="jp-npl-mat-detail-back">
+            <i class="bi bi-arrow-left" aria-hidden="true"></i>Tồn kho
+        </a>
+        <div class="d-flex flex-wrap gap-2 jp-npl-mat-detail-toolbar-actions">
+            {% if can_create_transfer %}
+            <a href="{{ transfer_create_url }}" class="btn btn-outline-hm btn-sm"
+               data-loading-message="Đang mở phiếu chuyển kho…">
+                <i class="bi bi-arrow-left-right me-1"></i>Chuyển kho
+            </a>
+            {% endif %}
+            {% if can_create_issue %}
+            <a href="{{ issue_create_url }}" class="btn btn-hm btn-sm"
+               data-loading-message="Đang mở phiếu xuất kho…">
+                <i class="bi bi-box-arrow-up me-1"></i>Xuất kho
+            </a>
+            {% endif %}
+            <a href="{% url 'kho_npl:material_detail' material.pk %}" class="btn btn-outline-secondary btn-sm"
+               data-loading-message="Đang tải chi tiết NPL…">
+                <i class="bi bi-tags me-1"></i>Danh mục NPL
+            </a>
+            <a href="{{ stock_card_url }}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-grid-3x3-gap me-1"></i>Thẻ kho
+            </a>
+        </div>
+    </div>
+
+    <div class="card jp-npl-mat-detail-hero shadow-sm mb-4">
+        <div class="card-body p-3 p-md-4">
+            <div class="row g-4 align-items-center">
+                <div class="col-lg-4 col-xl-3">
+                    <div class="jp-npl-mat-detail-media">
+                        {% include 'kho_npl/includes/material_image_preview.html' with show_hint=False %}
+                    </div>
+                </div>
+                <div class="col-lg-8 col-xl-9">
+                    {% if material.category.parent %}
+                    <div class="jp-npl-mat-detail-breadcrumb">
+                        {{ material.category.parent.name }}
+                        <i class="bi bi-chevron-right mx-1" aria-hidden="true"></i>
+                        {{ material.category.name }}
+                    </div>
+                    {% else %}
+                    <div class="jp-npl-mat-detail-breadcrumb">{{ material.category.name }}</div>
+                    {% endif %}
+                    <div class="jp-npl-mat-detail-code">{{ material.code }}</div>
+                    <h1 class="jp-npl-mat-detail-name">{{ material.name }}</h1>
+                    <div class="jp-npl-mat-detail-meta">
+                        <span class="badge text-bg-{{ row.status_badge }}">{{ row.status_label }}</span>
+                        <span class="jp-npl-mat-detail-pill">
+                            <i class="bi bi-rulers" aria-hidden="true"></i>{{ material.unit.name }}
+                        </span>
+                        {% if material.color %}
+                        <span class="jp-npl-mat-detail-pill">
+                            {% include 'kho_npl/includes/material_color_chip.html' with color=material.color %}
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-sm-4">
+            <div class="card jp-npl-mat-detail-section h-100">
+                <div class="card-body">
+                    <div class="jp-npl-mat-detail-label mb-1">Tồn hiện tại</div>
+                    <div class="jp-npl-stock-summary-value text-hm jp-mat-code">
+                        {{ row.total_qty|npl_qty_with_unit:material.unit }}
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-4">
+            <div class="card jp-npl-mat-detail-section h-100">
+                <div class="card-body">
+                    <div class="jp-npl-mat-detail-label mb-1">Tối thiểu</div>
+                    <div class="jp-npl-stock-summary-value jp-mat-code">
+                        {{ material.min_stock|npl_qty_with_unit:material.unit }}
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-4">
+            <div class="card jp-npl-mat-detail-section h-100">
+                <div class="card-body">
+                    <div class="jp-npl-mat-detail-label mb-1">Số vị trí có tồn</div>
+                    <div class="jp-npl-stock-summary-value">{{ row.location_balances|length }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card jp-npl-mat-detail-section shadow-sm">
+        <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <h2 class="jp-npl-mat-detail-section-title mb-0">
+                <i class="bi bi-geo-alt" aria-hidden="true"></i>Tồn theo vị trí kho
+            </h2>
+            {% if selected_locations %}
+            <span class="badge text-bg-light border text-secondary">Đang lọc theo vị trí từ danh sách</span>
+            {% endif %}
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 jp-npl-stock-loc-table">
+                <thead class="table-light">
+                    <tr>
+                        <th>Tên vị trí</th>
+                        <th class="text-end">Số lượng</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for lb in row.location_balances %}
+                    <tr>
+                        <td class="fw-semibold">{{ lb.location.name }}</td>
+                        <td class="text-end jp-mat-code fw-semibold">{{ lb.quantity|npl_qty_with_unit:material.unit }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="2" class="text-center text-muted py-4">Chưa có tồn tại vị trí nào.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                {% if row.location_balances %}
+                <tfoot class="table-light">
+                    <tr>
+                        <th colspan="1" class="text-end">Tổng</th>
+                        <th class="text-end jp-mat-code">{{ row.total_qty|npl_qty_with_unit:material.unit }}</th>
+                    </tr>
+                </tfoot>
+                {% endif %}
+            </table>
+        </div>
+    </div>
+</div>
+{% include 'kho_npl/includes/material_image_modal.html' %}
+{% endblock %}

@@ -4,7 +4,69 @@
 {% block extra_head %}
 {% include 'kho_npl/includes/filter_multi_select_head.html' %}
 <style>
-.jp-npl-material-catalog-page.jp-npl-stock-card-page { --jp-npl-mat-ctl-h: 34px; }
+.jp-main-content:has(.jp-npl-stock-card-page) {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+}
+.jp-main-content:has(.jp-npl-stock-card-page) > .container.jp-npl-stock-card-page,
+.jp-main-content:has(.jp-npl-stock-card-page) > .alert {
+    flex-shrink: 0;
+}
+.jp-npl-material-catalog-page.jp-npl-stock-card-page {
+    --jp-npl-mat-ctl-h: 34px;
+    --jp-npl-sc-catalog-grid-max-h: min(34vh, 300px);
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
+    margin-bottom: 0 !important;
+    padding-top: 1rem;
+    padding-bottom: 0;
+}
+.jp-npl-stock-card-page .jp-npl-sc-shell {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    height: 100%;
+}
+.jp-npl-stock-card-page .jp-npl-sc-topbar {
+    flex: 0 0 auto;
+}
+.jp-npl-stock-card-page .jp-npl-sc-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    margin-bottom: 0.5rem;
+}
+.jp-npl-stock-card-page .jp-npl-sc-body .card {
+    margin-bottom: 0 !important;
+}
+.jp-npl-stock-card-page .jp-npl-sc-catalog-section {
+    flex: 0 0 auto;
+    flex-shrink: 0;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    margin-top: auto;
+    z-index: 20;
+    background: var(--jp-page-bg, var(--bs-body-bg));
+    border-top: 1px solid var(--bs-border-color);
+    border-radius: 0.5rem 0.5rem 0 0;
+    box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.08);
+}
+.jp-npl-stock-card-page .jp-npl-sc-catalog-section .jp-npl-mat-grid-wrap {
+    max-height: var(--jp-npl-sc-catalog-grid-max-h);
+    overflow: auto;
+}
 .jp-npl-stock-card-page .jp-npl-catalog-row.is-selected td {
     background: rgba(220, 38, 38, 0.06);
 }
@@ -14,6 +76,17 @@
 .jp-npl-stock-card-page .jp-npl-ledger-table thead th {
     font-size: 0.78rem;
     white-space: nowrap;
+}
+.jp-npl-stock-card-page .jp-npl-sc-body .table-responsive {
+    overflow-x: auto;
+    overflow-y: visible;
+}
+.jp-npl-stock-card-page .jp-npl-sc-body .jp-npl-ledger-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background-color: var(--bs-table-bg, #f8f9fa);
+    box-shadow: inset 0 -1px 0 var(--bs-border-color);
 }
 .jp-npl-material-catalog-page.jp-npl-stock-card-page .jp-npl-mat-topbar {
     display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem 1rem; margin-bottom: 1rem;
@@ -128,12 +201,67 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page.jp-npl-stock-card-page .j
 }
 .jp-npl-material-catalog-page.jp-npl-stock-card-page .jp-npl-sc-catalog-filter {
     padding: 0.75rem 1rem;
-    border-bottom: 1px solid var(--bs-border-color);
+    border-top: 1px solid var(--bs-border-color);
 }
 .jp-npl-material-catalog-page.jp-npl-stock-card-page .jp-npl-sc-catalog-filter .jp-npl-mat-search-row {
-    max-width: 52rem;
+    max-width: none;
+    width: 100%;
+    align-items: stretch;
+}
+.jp-npl-material-catalog-page.jp-npl-stock-card-page .jp-npl-sc-catalog-filter .jp-npl-mat-filter-field {
+    display: flex;
+    align-items: stretch;
+    flex: 1 1 9rem;
+    min-width: 9rem;
+}
+.jp-npl-material-catalog-page.jp-npl-stock-card-page .jp-npl-sc-catalog-filter .jp-npl-mat-filter-field.jp-npl-mat-search-field {
+    flex: 1.4 1 12rem;
+    min-width: 12rem;
+}
+.jp-npl-material-catalog-page.jp-npl-stock-card-page .jp-npl-sc-catalog-filter .jp-npl-mat-filter-field.jp-npl-mat-filter-loc {
+    flex: 1.2 1 10rem;
+    min-width: 10rem;
+}
+.jp-npl-material-catalog-page.jp-npl-stock-card-page .jp-npl-sc-catalog-filter .jp-npl-filter-ctl {
+    height: var(--jp-npl-mat-ctl-h);
+    min-height: var(--jp-npl-mat-ctl-h);
+    width: 100%;
+    padding: 0.25rem 0.55rem;
+    font-size: 0.875rem;
+    line-height: 1.25;
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--bs-border-radius-sm);
+    background-color: var(--bs-body-bg);
+    color: var(--bs-body-color);
+    box-shadow: none;
+}
+.jp-npl-material-catalog-page.jp-npl-stock-card-page .jp-npl-sc-catalog-filter .jp-npl-filter-ctl:focus {
+    border-color: rgba(220, 38, 38, 0.45);
+    box-shadow: 0 0 0 0.2rem rgba(220, 38, 38, 0.12);
+}
+.jp-npl-material-catalog-page.jp-npl-stock-card-page .jp-npl-sc-catalog-filter .jp-npl-category-child-select:disabled {
+    opacity: 0.72;
+    background-color: var(--bs-secondary-bg);
+    cursor: not-allowed;
+}
+.jp-npl-material-catalog-page.jp-npl-stock-card-page .jp-npl-sc-catalog-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.65rem 1rem 0;
+}
+.jp-npl-material-catalog-page.jp-npl-stock-card-page .jp-npl-sc-catalog-toolbar-title {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--bs-secondary-color);
+    margin: 0;
 }
 @media (max-width: 767.98px) {
+    .jp-npl-material-catalog-page.jp-npl-stock-card-page {
+        --jp-npl-sc-catalog-grid-max-h: min(34vh, 260px);
+    }
     .jp-npl-material-catalog-page.jp-npl-stock-card-page .jp-npl-mat-topbar-search {
         flex: 1 1 100%; max-width: none; margin-left: 0; order: 3;
     }
@@ -144,7 +272,9 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page.jp-npl-stock-card-page .j
 {% endblock %}
 
 {% block content %}
-<div class="container jp-page jp-npl-material-catalog-page jp-npl-stock-card-page py-3 py-md-4 mb-5" data-loading-message="Đang tải thẻ kho…">
+<div class="container jp-page jp-npl-material-catalog-page jp-npl-stock-card-page py-md-4" data-loading-message="Đang tải thẻ kho…">
+    <div class="jp-npl-sc-shell">
+    <div class="jp-npl-sc-topbar">
     <div class="jp-npl-mat-topbar">
         <h2 class="jp-npl-mat-topbar-title">Thẻ kho</h2>
         <form method="get" class="jp-npl-mat-topbar-search" id="jp-stock-card-filters">
@@ -158,6 +288,9 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page.jp-npl-stock-card-page .j
                 {% for cat_id in selected_categories %}
                 <input type="hidden" name="category" value="{{ cat_id }}">
                 {% endfor %}
+                {% if selected_category_parent %}
+                <input type="hidden" name="category_parent" value="{{ selected_category_parent }}">
+                {% endif %}
                 {% if search_query %}
                 <input type="hidden" name="q" value="{{ search_query }}">
                 {% endif %}
@@ -167,20 +300,20 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page.jp-npl-stock-card-page .j
                 {% if sort_dir and sort_dir != 'asc' %}
                 <input type="hidden" name="dir" value="{{ sort_dir }}">
                 {% endif %}
-                <input type="date" class="form-control form-control-sm jp-npl-mat-filter-date" id="sc-from"
-                       name="date_from" value="{{ date_from|date:'Y-m-d' }}" aria-label="Từ ngày" title="Từ ngày">
-                <input type="date" class="form-control form-control-sm jp-npl-mat-filter-date" id="sc-to"
-                       name="date_to" value="{{ date_to|date:'Y-m-d' }}" aria-label="Đến ngày" title="Đến ngày">
                 <div class="jp-npl-mat-filter-field jp-npl-mat-filter-loc jp-npl-filter-multi">
                     <select name="location" id="sc-loc" class="form-select form-select-sm jp-npl-multi-select" multiple
                             data-placeholder="Vị trí kho" aria-label="Vị trí kho">
                         {% for loc in locations %}
                         <option value="{{ loc.id }}" {% if loc.id in selected_locations %}selected{% endif %}>
-                            {{ loc.code }} — {{ loc.name }}
+                            {{ loc.name }}
                         </option>
                         {% endfor %}
                     </select>
                 </div>
+                <input type="date" class="form-control form-control-sm jp-npl-mat-filter-date" id="sc-from"
+                       name="date_from" value="{{ date_from|date:'Y-m-d' }}" aria-label="Từ ngày" title="Từ ngày">
+                <input type="date" class="form-control form-control-sm jp-npl-mat-filter-date" id="sc-to"
+                       name="date_to" value="{{ date_to|date:'Y-m-d' }}" aria-label="Đến ngày" title="Đến ngày">
                 <button type="submit" class="btn btn-hm btn-sm fw-bold">
                     <i class="bi bi-funnel me-1"></i>Xem thẻ kho
                 </button>
@@ -190,59 +323,23 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page.jp-npl-stock-card-page .j
                 {% endif %}
             </div>
         </form>
-        <div class="jp-npl-mat-topbar-actions">
-            {% if can_export %}
-            <a href="{% url 'kho_npl:stock_cards_export' %}{% if catalog_query_string %}?{{ catalog_query_string }}{% endif %}"
-               class="btn btn-outline-secondary btn-sm fw-bold" title="Xuất Excel">
-                <i class="bi bi-download me-1"></i>Xuất Excel
-            </a>
-            {% endif %}
-            <div class="dropdown jp-npl-mat-col-picker">
-                <button type="button" class="btn btn-outline-secondary btn-sm fw-bold" id="npl-sc-col-btn"
-                        data-bs-toggle="dropdown" data-bs-auto-close="outside"
-                        aria-expanded="false" title="Chọn cột hiển thị">
-                    <i class="bi bi-layout-three-columns me-1"></i>Cột
-                </button>
-                <div class="dropdown-menu shadow-sm jp-npl-mat-col-menu" data-bs-popper="static">
-                    <div class="jp-npl-mat-col-head">Hiển thị cột</div>
-                    <div class="jp-npl-mat-col-list">
-                        {% for col in list_columns %}
-                        <label class="jp-npl-mat-col-item{% if col.required %} is-required{% endif %}" for="npl-sc-col-{{ col.key }}">
-                            <input class="npl-sc-col-toggle" type="checkbox"
-                                   id="npl-sc-col-{{ col.key }}" data-col="{{ col.key }}"
-                                   {% if col.default %}checked{% endif %}
-                                   {% if col.required %}disabled checked{% endif %}>
-                            <span>{{ col.label }}</span>
-                        </label>
-                        {% endfor %}
-                    </div>
-                </div>
-            </div>
-        </div>
+    </div>
     </div>
 
+    <div class="jp-npl-sc-body">
     {% if selected_material %}
-    <div class="card border-0 shadow-sm mb-3">
+    <div class="card border-0 shadow-sm">
         <div class="card-header bg-white border-bottom py-3">
             <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
                 <div>
-                    <h5 class="fw-bold mb-1">
+                    <h5 class="fw-bold mb-0">
                         <span class="text-hm">{{ selected_material.code }}</span>
                         — {{ selected_material.name }}
                     </h5>
-                    <div class="text-muted small">
-                        {{ selected_material.category.name }} · {{ selected_material.unit.name }}
-                        {% if selected_material.color %} · {% include 'kho_npl/includes/material_color_chip.html' with color=selected_material.color %}{% endif %}
-                        · Phạm vi: <strong>{{ card.scope_label }}</strong>
-                    </div>
-                </div>
-                <div class="text-end">
-                    <div class="small text-muted">
-                        {% if card.scope_is_location %}Tồn tại {{ card.scope_label }}{% else %}Tồn tổng mọi kệ{% endif %}
-                    </div>
-                    <div class="fs-5 fw-bold text-hm">{{ card.system_stock|npl_qty_with_unit:selected_material.unit }}</div>
-                    {% if not card.scope_is_location %}
-                    <div class="small text-muted">Tổng sổ: {{ card.ledger_total|npl_qty_with_unit:selected_material.unit }}</div>
+                    {% if card.scope_is_location %}
+                    <p class="text-muted small mb-0 mt-1">
+                        Phạm vi sổ kho: <strong>{{ card.scope_label }}</strong>
+                    </p>
                     {% endif %}
                 </div>
             </div>
@@ -263,7 +360,7 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page.jp-npl-stock-card-page .j
                     {% endif %}
                     Lệch <strong>{% if card.variance > 0 %}+{% endif %}{{ card.variance|npl_qty_with_unit:selected_material.unit }}</strong>.
                     {% if not card.scope_is_location %}
-                    Cột「Tồn sau」là tồn theo từng kệ; khi chọn nhiều kệ, tổng tồn/sổ ở header là cộng các kệ đã lọc.
+                    Cột「Tồn」là tồn theo từng kệ; khi chọn nhiều kệ, tổng tồn/sổ ở header là cộng các kệ đã lọc.
                     {% endif %}
                 </div>
                 {% if mismatch_diagnosis %}
@@ -302,8 +399,7 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page.jp-npl-stock-card-page .j
                                 {% for row in mismatch_diagnosis.location_rows %}
                                 <tr class="{% if not row.is_ok %}table-warning{% endif %}">
                                     <td>
-                                        <span class="fw-semibold">{{ row.location_code }}</span>
-                                        <span class="text-muted small d-block">{{ row.location_name }}</span>
+                                        <span class="fw-semibold">{{ row.location_name }}</span>
                                     </td>
                                     <td class="text-end">{{ row.balance_qty|npl_qty_with_unit:selected_material.unit }}</td>
                                     <td class="text-end">{{ row.ledger_sum|npl_qty_with_unit:selected_material.unit }}</td>
@@ -359,11 +455,9 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page.jp-npl-stock-card-page .j
                         <th>Phiếu</th>
                         <th>Loại</th>
                         <th>Vị trí</th>
-                        <th class="text-end">Tồn đầu</th>
                         <th class="text-end">SL nhập</th>
-                        <th class="text-end">SL xuất</th>
-                        <th class="text-end">Biến động</th>
-                        <th class="text-end">Tồn sau (kệ)</th>
+                        <th class="text-end">Số lượng xuất</th>
+                        <th class="text-end">Tồn</th>
                         <th>Ghi chú</th>
                     </tr>
                 </thead>
@@ -381,18 +475,14 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page.jp-npl-stock-card-page .j
                         </td>
                         <td>{{ row.ref_type_label|default:'—' }}</td>
                         <td>{{ row.location_code|default:'—' }}</td>
-                        <td class="text-end">{{ row.balance_before|npl_qty_with_unit:selected_material.unit }}</td>
                         <td class="text-end qty-in">{% if row.qty_in %}+{{ row.qty_in|npl_qty }}{% else %}—{% endif %}</td>
                         <td class="text-end qty-out">{% if row.qty_out %}-{{ row.qty_out|npl_qty }}{% else %}—{% endif %}</td>
-                        <td class="text-end fw-semibold">
-                            {% if row.qty_delta > 0 %}+{% endif %}{{ row.qty_delta|npl_qty }}
-                        </td>
                         <td class="text-end fw-bold">{{ row.balance_after|npl_qty_with_unit:selected_material.unit }}</td>
                         <td class="small text-muted">{{ row.notes|default:'' }}</td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="11" class="text-center text-muted py-4">
+                        <td colspan="9" class="text-center text-muted py-4">
                             Chưa có biến động trên sổ kho cho NPL này{% if date_from or date_to %} trong khoảng ngày đã chọn{% endif %}.
                         </td>
                     </tr>
@@ -404,10 +494,8 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page.jp-npl-stock-card-page .j
                         <td colspan="5" class="text-end">
                             {% if card.scope_is_location %}Cộng kỳ / Tồn cuối tại {{ card.scope_label }}{% else %}Cộng kỳ / Tổng biến động sổ{% endif %}
                         </td>
-                        <td class="text-end">{{ card.opening_balance|npl_qty_with_unit:selected_material.unit }}</td>
                         <td class="text-end qty-in">+{{ card.totals_in|npl_qty }}</td>
                         <td class="text-end qty-out">-{{ card.totals_out|npl_qty }}</td>
-                        <td></td>
                         <td class="text-end text-hm">{{ card.closing_balance|npl_qty_with_unit:selected_material.unit }}</td>
                         <td></td>
                     </tr>
@@ -416,16 +504,34 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page.jp-npl-stock-card-page .j
             </table>
         </div>
     </div>
-    {% else %}
-    <div class="card border-0 shadow-sm mb-3">
-        <div class="card-body text-center text-muted py-5">
-            
-            Chọn một nguyên phụ liệu trong danh mục bên dưới để xem thẻ kho.
-        </div>
-    </div>
     {% endif %}
+    </div>
 
-    <div class="card border-0 shadow-sm">
+    <div class="card border-0 shadow-sm jp-npl-sc-catalog-section">
+        <div class="jp-npl-sc-catalog-toolbar">
+            <p class="jp-npl-sc-catalog-toolbar-title mb-0">Chọn nguyên phụ liệu</p>
+            <div class="dropdown jp-npl-mat-col-picker">
+                <button type="button" class="btn btn-outline-secondary btn-sm fw-bold" id="npl-sc-col-btn"
+                        data-bs-toggle="dropdown" data-bs-auto-close="outside"
+                        aria-expanded="false" title="Chọn cột hiển thị">
+                    <i class="bi bi-layout-three-columns me-1"></i>Cột
+                </button>
+                <div class="dropdown-menu shadow-sm jp-npl-mat-col-menu" data-bs-popper="static">
+                    <div class="jp-npl-mat-col-head">Hiển thị cột</div>
+                    <div class="jp-npl-mat-col-list">
+                        {% for col in list_columns %}
+                        <label class="jp-npl-mat-col-item{% if col.required %} is-required{% endif %}" for="npl-sc-col-{{ col.key }}">
+                            <input class="npl-sc-col-toggle" type="checkbox"
+                                   id="npl-sc-col-{{ col.key }}" data-col="{{ col.key }}"
+                                   {% if col.default %}checked{% endif %}
+                                   {% if col.required %}disabled checked{% endif %}>
+                            <span>{{ col.label }}</span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
         <form method="get" class="jp-npl-sc-catalog-filter" id="jp-stock-card-catalog-filters">
             <div class="jp-npl-mat-search-row">
                 {% if selected_material %}
@@ -440,30 +546,23 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page.jp-npl-stock-card-page .j
                 {% if date_to %}
                 <input type="hidden" name="date_to" value="{{ date_to|date:'Y-m-d' }}">
                 {% endif %}
-                {% for loc_id in selected_locations %}
-                <input type="hidden" name="location" value="{{ loc_id }}">
-                {% endfor %}
                 {% if sort_key and sort_key != 'code' %}
                 <input type="hidden" name="sort" value="{{ sort_key }}">
                 {% endif %}
                 {% if sort_dir and sort_dir != 'asc' %}
                 <input type="hidden" name="dir" value="{{ sort_dir }}">
                 {% endif %}
-                <div class="jp-npl-mat-filter-field jp-npl-filter-multi">
-                    <select name="category" id="sc-cat" class="form-select form-select-sm jp-npl-multi-select" multiple
-                            data-placeholder="Nhóm" aria-label="Nhóm">
-                        {% for cat in categories %}
-                        <option value="{{ cat.id }}" {% if cat.id in selected_categories %}selected{% endif %}>{{ cat.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="input-group input-group-sm jp-npl-mat-filter-field jp-npl-mat-search-input">
-                    <input type="search" class="form-control" id="sc-q" name="q"
+                {% for loc_id in selected_locations %}
+                <input type="hidden" name="location" value="{{ loc_id }}">
+                {% endfor %}
+                {% include 'kho_npl/includes/material_category_cascade_filter.html' with parent_select_id='sc-cat-parent' child_select_id='sc-cat-child' %}
+                <div class="jp-npl-mat-filter-field jp-npl-mat-search-field">
+                    <input type="search" class="form-control form-control-sm jp-npl-filter-ctl" id="sc-q" name="q"
                            value="{{ search_query }}" placeholder="Mã, tên, màu..." autocomplete="off" aria-label="Tìm NPL">
                 </div>
                 <button type="submit" class="btn btn-hm btn-sm fw-bold">Tìm</button>
                 {% if has_catalog_filters %}
-                <a href="{% url 'kho_npl:stock_cards' %}{% if card_filter_qs %}?{% if selected_material %}material={{ selected_material.pk }}&{% endif %}{{ card_filter_qs }}{% elif selected_material %}?material={{ selected_material.pk }}{% endif %}"
+                <a href="{% url 'kho_npl:stock_cards' %}{% if catalog_clear_qs %}?{% if selected_material %}material={{ selected_material.pk }}&{% endif %}{{ catalog_clear_qs }}{% elif selected_material %}?material={{ selected_material.pk }}{% endif %}"
                    class="btn btn-outline-secondary btn-sm fw-bold px-2" title="Xóa lọc danh mục">×</a>
                 {% endif %}
             </div>
@@ -493,6 +592,9 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page.jp-npl-stock-card-page .j
                         data-href="{{ catalog_select_base }}?material={{ material.pk }}{% if catalog_filter_qs %}&{{ catalog_filter_qs }}{% endif %}">
                         <td class="npl-col jp-mat-code fw-semibold text-hm" data-col="code">{{ material.code }}</td>
                         <td class="npl-col" data-col="name" title="{{ material.name }}">{{ material.name }}</td>
+                        <td class="npl-col" data-col="category_parent" title="{% if material.category.parent %}{{ material.category.parent.name }}{% endif %}">
+                            {% if material.category.parent %}{{ material.category.parent.name }}{% else %}—{% endif %}
+                        </td>
                         <td class="npl-col" data-col="category" title="{{ material.category.name }}">{{ material.category.name }}</td>
                         <td class="npl-col" data-col="specification">{% include 'kho_npl/includes/material_spec_display.html' with spec=material.specification %}</td>
                         <td class="text-end npl-col jp-mat-code fw-semibold" data-col="stock_total">{{ material.stock_total|npl_qty_with_unit:material.unit }}</td>
@@ -507,25 +609,75 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page.jp-npl-stock-card-page .j
                 </tbody>
             </table>
         </div>
+        {% if catalog_page.paginator.num_pages > 1 %}
+        <div class="px-3 pb-3">
+            {% include 'includes/pagination.html' with page_obj=catalog_page query_string=catalog_query_string page_param='cat_page' %}
+        </div>
+        {% endif %}
     </div>
-
-    {% if catalog_page.paginator.num_pages > 1 %}
-    <div class="mt-3">
-        {% include 'includes/pagination.html' with page_obj=catalog_page query_string=catalog_query_string %}
-    </div>
-    {% endif %}
 </div>
 {% endblock %}
 
 {% block scripts %}
 {% include 'kho_npl/includes/filter_multi_select_script.html' %}
+{% include 'kho_npl/includes/material_category_cascade_script.html' with parent_select_id='sc-cat-parent' child_select_id='sc-cat-child' form_id='jp-stock-card-catalog-filters' cascade_data_id='sc-category-cascade' %}
 <script>
 (function () {
+    function selectedLocationIds() {
+        var locSelect = document.getElementById('sc-loc');
+        if (!locSelect) return [];
+        if (locSelect.tomselect) {
+            var values = locSelect.tomselect.getValue();
+            return (Array.isArray(values) ? values : (values ? [values] : [])).filter(Boolean);
+        }
+        return Array.from(locSelect.selectedOptions).map(function (opt) { return opt.value; }).filter(Boolean);
+    }
+
+    function mergeCardFilterParams(url) {
+        selectedLocationIds().forEach(function (id) {
+            url.searchParams.append('location', id);
+        });
+        var dateFrom = document.getElementById('sc-from');
+        var dateTo = document.getElementById('sc-to');
+        if (dateFrom && dateFrom.value) {
+            url.searchParams.set('date_from', dateFrom.value);
+        }
+        if (dateTo && dateTo.value) {
+            url.searchParams.set('date_to', dateTo.value);
+        }
+        return url;
+    }
+
     document.querySelectorAll('.jp-npl-catalog-row[data-href]').forEach(function (row) {
         row.addEventListener('click', function () {
-            window.location.href = row.getAttribute('data-href');
+            var href = row.getAttribute('data-href');
+            if (!href) return;
+            var url = new URL(href, window.location.origin);
+            url.searchParams.delete('location');
+            url.searchParams.delete('date_from');
+            url.searchParams.delete('date_to');
+            mergeCardFilterParams(url);
+            window.location.href = url.pathname + url.search;
         });
     });
+
+    var cardFilterForm = document.getElementById('jp-stock-card-filters');
+    var locSelect = document.getElementById('sc-loc');
+    if (cardFilterForm && locSelect) {
+        function submitCardFiltersIfMaterial() {
+            if (!cardFilterForm.querySelector('input[name="material"]')) return;
+            if (cardFilterForm.requestSubmit) {
+                cardFilterForm.requestSubmit();
+            } else {
+                cardFilterForm.submit();
+            }
+        }
+        if (locSelect.tomselect) {
+            locSelect.tomselect.on('change', submitCardFiltersIfMaterial);
+        } else {
+            locSelect.addEventListener('change', submitCardFiltersIfMaterial);
+        }
+    }
 })();
 (function () {
     function centerColMenu() {

@@ -89,7 +89,6 @@ class KhoNplPageSmokeTests(TestCase):
         self.assertContains(response, 'jp-mat-col-resizer')
         self.assertContains(response, 'jp-mat-th-sort')
         self.assertContains(response, 'jp-npl-catalog-row')
-        self.assertContains(response, reverse('kho_npl:stock_cards_export'))
         self.assertContains(response, 'jpNplCatalogLoading')
         self.assertContains(response, 'Đang tải thẻ kho')
 

@@ -1,0 +1,25 @@
+<script>
+(function () {
+    if (window.__jpNplDocAttachmentClearInit) return;
+    window.__jpNplDocAttachmentClearInit = true;
+    document.addEventListener('click', function (e) {
+        var btn = e.target.closest('.jp-npl-doc-attachment-clear-btn');
+        if (!btn) return;
+        e.preventDefault();
+        var field = btn.closest('.jp-npl-doc-attachment-field');
+        if (!field) return;
+        var cb = field.querySelector('.jp-npl-doc-attachment-clear');
+        if (!cb || cb.disabled) return;
+        cb.checked = true;
+        var current = field.querySelector('.jp-npl-doc-attachment-current');
+        if (current) current.classList.add('d-none');
+        var change = field.querySelector('.jp-npl-doc-attachment-change');
+        if (change) change.classList.remove('d-none');
+        var fileInput = field.querySelector('input[type="file"]');
+        if (fileInput) {
+            fileInput.focus();
+            fileInput.value = '';
+        }
+    });
+})();
+</script>

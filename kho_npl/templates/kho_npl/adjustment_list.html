@@ -6,7 +6,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="container jp-page jp-npl-material-catalog-page py-3 py-md-4 mb-5">
+<div class="container jp-page jp-npl-material-catalog-page py-3 py-md-4 mb-5" data-loading-message="Đang tải phiếu điều chỉnh…">
     <div class="jp-page-header mb-3 mb-md-4">
         <h2 class="fw-bold text-hm mb-0 jp-page-title">Phiếu điều chỉnh</h2>
         <p class="text-muted small mb-0 mt-1">Điều chỉnh có chọn lọc từng NPL — khác kiểm kê (toàn bộ kho).</p>
@@ -25,7 +25,7 @@
 
     <div class="card border-0 shadow-sm">
         <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
+            <table class="table table-hover align-middle mb-0" id="npl-adjustment-table">
                 <thead class="table-light">
                     <tr>
                         <th>Số phiếu</th>
@@ -38,9 +38,10 @@
                 </thead>
                 <tbody>
                     {% for adj in page_obj %}
-                    <tr>
+                    <tr class="jp-npl-catalog-row" data-href="{% url 'kho_npl:adjustment_detail' adj.pk %}">
                         <td class="fw-semibold">
-                            <a href="{% url 'kho_npl:adjustment_detail' adj.pk %}" class="text-decoration-none">{{ adj.number }}</a>
+                            <a href="{% url 'kho_npl:adjustment_detail' adj.pk %}" class="text-decoration-none"
+                               data-loading-message="Đang tải chi tiết điều chỉnh…">{{ adj.number }}</a>
                         </td>
                         <td>{{ adj.adjust_date|date:'d/m/Y' }}</td>
                         <td class="text-center">{{ adj.line_count }}</td>
@@ -67,4 +68,18 @@
     </div>
     {% if page_obj.paginator.num_pages > 1 %}{% include 'includes/pagination.html' with page_obj=page_obj query_string=query_string %}{% endif %}
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+    document.querySelectorAll('#npl-adjustment-table .jp-npl-catalog-row[data-href]').forEach(function (row) {
+        row.addEventListener('click', function (e) {
+            if (e.target.closest('a, button, form, input')) return;
+            var href = row.getAttribute('data-href');
+            if (href) window.location.href = href;
+        });
+    });
+})();
+</script>
 {% endblock %}

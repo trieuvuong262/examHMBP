@@ -7,28 +7,32 @@
     <div class="card-body p-3 p-md-4">
         <div class="row g-3 align-items-end">
             <div class="col-6 col-md-6 col-lg-2">
-                <label class="form-label fw-bold small">Ngày chuyển</label>
+                <label class="form-label fw-bold small">Ngày chuyển <span class="text-danger">*</span></label>
                 {{ form.transfer_date }}
+                {% if form.transfer_date.errors %}<div class="text-danger small">{{ form.transfer_date.errors }}</div>{% endif %}
             </div>
             <div class="col-6 col-md-6 col-lg-3">
-                <label class="form-label fw-bold small">Kho gửi</label>
+                <label class="form-label fw-bold small">Kho gửi <span class="text-danger">*</span></label>
                 {{ form.from_location }}
+                {% if form.from_location.errors %}<div class="text-danger small">{{ form.from_location.errors }}</div>{% endif %}
             </div>
             <div class="col-lg-1 d-none d-lg-flex align-items-end justify-content-center pb-2 text-muted">
                 
             </div>
             <div class="col-6 col-md-6 col-lg-3">
-                <label class="form-label fw-bold small">Kho nhận</label>
+                <label class="form-label fw-bold small">Kho nhận <span class="text-danger">*</span></label>
                 {{ form.to_location }}
+                {% if form.to_location.errors %}<div class="text-danger small">{{ form.to_location.errors }}</div>{% endif %}
             </div>
-            <div class="col-12 col-md-6 col-lg-3">
-                <label class="form-label fw-bold small">Ghi chú</label>
+            {% include 'kho_npl/includes/doc_attachment_field.html' with field=form.attachment required=True col_class='col-12 col-md-6 col-lg-3' %}
+            <div class="col-12">
+                <label class="form-label fw-bold small">Ghi chú <span class="text-danger">*</span></label>
                 {{ form.notes }}
+                {% if form.notes.errors %}<div class="text-danger small">{{ form.notes.errors }}</div>{% endif %}
             </div>
-            {% include 'kho_npl/includes/doc_attachment_field.html' with field=form.attachment %}
             <div class="col-12">
                 <p class="small text-muted mb-0 jp-wh-lock-hint {% if not warehouse_locked %}d-none{% endif %}" id="wh-lock-hint">
-                    Đã chốt kho — xóa hết dòng NPL để đổi kho gửi/nhận.
+                    Đã chốt kho gửi — xóa hết dòng NPL để đổi kho gửi.
                 </p>
             </div>
         </div>
@@ -38,7 +42,7 @@
 {{ formset.management_form }}
 <div class="card border-0 shadow-sm mb-4 jp-npl-transfer-lines-card">
     <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
-        <h5 class="mb-0 fw-bold">Chi tiết chuyển</h5>
+        <h5 class="mb-0 fw-bold">Chi tiết chuyển <span class="text-danger">*</span></h5>
         <button type="button" class="btn btn-outline-hm btn-sm fw-bold" id="add-row">
             <i class="bi bi-plus-lg me-1"></i>Thêm dòng
         </button>
@@ -47,9 +51,10 @@
         <table class="table table-sm align-middle mb-0 jp-npl-transfer-lines-table">
             <thead>
                 <tr>
-                    <th class="jp-npl-col-material">Nguyên phụ liệu</th>
-                    <th class="jp-npl-col-qty text-end">Số lượng</th>
-                    <th class="jp-npl-col-line-notes">Ghi chú dòng</th>
+                    <th class="jp-npl-col-material">Nguyên phụ liệu <span class="text-danger">*</span></th>
+                    <th class="jp-npl-col-stock text-end">Tồn</th>
+                    <th class="jp-npl-col-qty text-end">Số lượng <span class="text-danger">*</span></th>
+                    <th class="jp-npl-col-line-notes">Ghi chú dòng <span class="text-danger">*</span></th>
                     <th class="jp-npl-col-actions"></th>
                 </tr>
             </thead>
@@ -61,11 +66,17 @@
                         <div class="jp-npl-material-field">{{ line_form.material }}</div>
                         {% if line_form.material.errors %}<div class="text-danger small">{{ line_form.material.errors }}</div>{% endif %}
                     </td>
-                    <td class="jp-npl-qty-cell">
+                    <td class="jp-npl-stock-cell text-end">
+                        <span class="jp-npl-stock-qty text-muted small">—</span>
+                    </td>
+                    <td class="jp-npl-qty-cell text-end">
                         {{ line_form.quantity }}
                         {% if line_form.quantity.errors %}<div class="text-danger small">{{ line_form.quantity.errors }}</div>{% endif %}
                     </td>
-                    <td class="jp-npl-line-notes-cell">{{ line_form.notes }}</td>
+                    <td class="jp-npl-line-notes-cell">
+                        {{ line_form.notes }}
+                        {% if line_form.notes.errors %}<div class="text-danger small">{{ line_form.notes.errors }}</div>{% endif %}
+                    </td>
                     <td class="text-center">
                         {% if line_form.DELETE %}
                         <div class="d-none">{{ line_form.DELETE }}</div>

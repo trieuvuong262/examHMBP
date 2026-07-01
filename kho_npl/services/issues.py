@@ -19,10 +19,12 @@ def issue_is_editable(issue: StockIssue) -> bool:
 def post_stock_issue(issue: StockIssue, user) -> StockIssue:
     issue = StockIssue.objects.select_for_update().get(pk=issue.pk)
     if issue.status != DOC_STATUS_DRAFT:
-        raise IssueWorkflowError('Chỉ phiếu nháp mới được ghi sổ.')
+        raise IssueWorkflowError('Chỉ phiếu đã tạo mới được xuất kho.')
     lines = list(issue.lines.select_related('material', 'location').all())
     if not lines:
         raise IssueWorkflowError('Phiếu xuất chưa có dòng chi tiết.')
+    if not issue.attachment:
+        raise IssueWorkflowError('Vui lòng đính kèm chứng từ trước khi xuất kho.')
     for line in lines:
         if line.quantity <= Decimal('0'):
             raise IssueWorkflowError(f'Số lượng xuất của {line.material.code} phải lớn hơn 0.')
@@ -34,7 +36,7 @@ def post_stock_issue(issue: StockIssue, user) -> StockIssue:
         available = balance.quantity if balance else Decimal('0')
         if available < line.quantity:
             raise IssueWorkflowError(
-                f'Tồn không đủ: {line.material.code} tại {line.location.code} '
+                f'Tồn không đủ: {line.material.code} tại {line.location.display_label()} '
                 f'(có {available}, cần xuất {line.quantity}).'
             )
         balance.quantity -= line.quantity
@@ -60,7 +62,7 @@ def post_stock_issue(issue: StockIssue, user) -> StockIssue:
 def cancel_stock_issue(issue: StockIssue) -> StockIssue:
     issue = StockIssue.objects.select_for_update().get(pk=issue.pk)
     if issue.status != DOC_STATUS_DRAFT:
-        raise IssueWorkflowError('Chỉ phiếu nháp mới được hủy.')
+        raise IssueWorkflowError('Chỉ phiếu đã tạo mới được hủy.')
     from kho_npl.choices import DOC_STATUS_CANCELLED
     issue.status = DOC_STATUS_CANCELLED
     issue.save(update_fields=['status'])

@@ -1,0 +1,48 @@
+<script type="application/json" id="{{ cascade_data_id|default:'jp-npl-category-cascade' }}">{{ category_cascade_json|safe }}</script>
+<script>
+(function () {
+    var cascadeEl = document.getElementById('{{ cascade_data_id|default:"jp-npl-category-cascade" }}');
+    var parentSel = document.getElementById('{{ parent_select_id }}');
+    var childSel = document.getElementById('{{ child_select_id }}');
+    var form = document.getElementById('{{ form_id }}');
+    if (!cascadeEl || !parentSel || !childSel || !form) return;
+
+    var cascade = {};
+    try {
+        cascade = JSON.parse(cascadeEl.textContent || '{}');
+    } catch (e) {
+        cascade = {};
+    }
+
+    function fillChildren(parentId, selectedChild) {
+        childSel.innerHTML = '';
+        var allOpt = document.createElement('option');
+        allOpt.value = '';
+        allOpt.textContent = 'Tất cả';
+        childSel.appendChild(allOpt);
+
+        (cascade[String(parentId)] || []).forEach(function (child) {
+            var opt = document.createElement('option');
+            opt.value = String(child.id);
+            opt.textContent = child.name;
+            if (String(child.id) === String(selectedChild)) {
+                opt.selected = true;
+            }
+            childSel.appendChild(opt);
+        });
+        childSel.disabled = !parentId;
+    }
+
+    fillChildren(parentSel.value, childSel.value);
+
+    parentSel.addEventListener('change', function () {
+        fillChildren(parentSel.value, '');
+        form.requestSubmit ? form.requestSubmit() : form.submit();
+    });
+
+    childSel.addEventListener('change', function () {
+        if (!parentSel.value) return;
+        form.requestSubmit ? form.requestSubmit() : form.submit();
+    });
+})();
+</script>

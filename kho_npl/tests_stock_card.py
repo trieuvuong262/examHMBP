@@ -114,7 +114,7 @@ class StockCardTests(TestCase):
         )
         diag = diagnose_stock_mismatch(self.material)
         self.assertEqual(diag['problem_count'], 1)
-        self.assertEqual(diag['problem_rows'][0]['location_code'], self.location.code)
+        self.assertEqual(diag['problem_rows'][0]['location_code'], self.location.display_label())
         self.assertEqual(diag['problem_rows'][0]['variance_ledger'], Decimal('989'))
 
     def test_stock_card_page_shows_diagnose_button_when_mismatch(self):
@@ -127,13 +127,13 @@ class StockCardTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Kiểm tra lệch')
         self.assertContains(response, 'jp-npl-diagnose-table')
-        self.assertContains(response, self.location.code)
+        self.assertContains(response, self.location.display_label())
 
     def test_stock_card_location_scope(self):
         self._post_receipt(Decimal('10'))
         card = build_material_stock_card(self.material, location_id=self.location.id)
         self.assertTrue(card['scope_is_location'])
-        self.assertEqual(card['scope_label'], self.location.code)
+        self.assertEqual(card['scope_label'], self.location.display_label())
         self.assertEqual(card['closing_balance'], Decimal('10'))
 
     def test_stock_card_multi_location_scope(self):

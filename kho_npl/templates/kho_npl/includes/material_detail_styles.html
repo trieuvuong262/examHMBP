@@ -1,0 +1,194 @@
+<style>
+.jp-npl-material-detail-page {
+    --jp-npl-detail-radius: 0.75rem;
+    --jp-npl-detail-muted: var(--bs-secondary-color);
+}
+
+.jp-npl-material-detail-page .jp-npl-mat-detail-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--bs-secondary-color);
+    text-decoration: none;
+}
+.jp-npl-material-detail-page .jp-npl-mat-detail-back:hover {
+    color: var(--hm-red, #dc2626);
+}
+
+.jp-npl-material-detail-page .jp-npl-mat-detail-hero {
+    border-radius: var(--jp-npl-detail-radius);
+    background: linear-gradient(145deg, #ffffff 0%, #fff7f7 48%, #ffffff 100%);
+    border: 1px solid rgba(220, 38, 38, 0.08);
+    overflow: hidden;
+}
+
+.jp-npl-material-detail-page .jp-npl-mat-detail-media {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 12rem;
+    padding: 0.5rem;
+    border-radius: calc(var(--jp-npl-detail-radius) - 0.15rem);
+    background: rgba(255, 255, 255, 0.85);
+    border: 1px solid var(--bs-border-color-translucent, rgba(0, 0, 0, 0.08));
+}
+
+.jp-npl-material-detail-page .jp-npl-mat-preview-img {
+    max-width: 100%;
+    max-height: min(16rem, 42vw);
+    object-fit: contain;
+    border-radius: 0.5rem;
+    border: 1px solid var(--bs-border-color);
+    background: #fff;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.jp-npl-material-detail-page .jp-npl-mat-preview-btn:hover .jp-npl-mat-preview-img {
+    border-color: rgba(220, 38, 38, 0.45);
+    box-shadow: 0 0.35rem 1rem rgba(220, 38, 38, 0.12);
+}
+
+.jp-npl-material-detail-page .jp-npl-mat-preview-empty {
+    width: 100%;
+    min-height: 12rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+    border: 1px dashed var(--bs-border-color);
+    border-radius: 0.5rem;
+    background: rgba(248, 250, 252, 0.9);
+    color: var(--jp-npl-detail-muted);
+}
+
+.jp-npl-material-detail-page .jp-npl-mat-detail-code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: clamp(1.35rem, 2.5vw, 1.75rem);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--hm-red, #dc2626);
+    line-height: 1.2;
+    margin-bottom: 0.35rem;
+}
+
+.jp-npl-material-detail-page .jp-npl-mat-detail-name {
+    font-size: clamp(1.125rem, 2vw, 1.5rem);
+    font-weight: 700;
+    color: var(--bs-body-color);
+    line-height: 1.35;
+    margin-bottom: 0.75rem;
+}
+
+.jp-npl-material-detail-page .jp-npl-mat-detail-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.jp-npl-material-detail-page .jp-npl-mat-detail-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.25rem 0.65rem;
+    border-radius: 999px;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    background: rgba(15, 23, 42, 0.05);
+    color: var(--bs-body-color);
+    border: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.jp-npl-material-detail-page .jp-npl-mat-detail-breadcrumb {
+    font-size: 0.875rem;
+    color: var(--jp-npl-detail-muted);
+    margin-bottom: 0.65rem;
+}
+
+.jp-npl-material-detail-page .jp-npl-mat-detail-breadcrumb .bi {
+    font-size: 0.7rem;
+    vertical-align: 0.05em;
+}
+
+.jp-npl-material-detail-page .jp-npl-mat-detail-section {
+    border: 0;
+    border-radius: var(--jp-npl-detail-radius);
+    box-shadow: 0 0.125rem 0.5rem rgba(15, 23, 42, 0.06);
+    height: 100%;
+}
+
+.jp-npl-material-detail-page .jp-npl-mat-detail-section .card-header {
+    background: #fff;
+    border-bottom: 1px solid var(--bs-border-color-translucent, rgba(0, 0, 0, 0.08));
+    padding: 0.85rem 1rem;
+}
+
+.jp-npl-material-detail-page .jp-npl-mat-detail-section-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin: 0;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--bs-body-color);
+}
+
+.jp-npl-material-detail-page .jp-npl-mat-detail-section-title .bi {
+    color: var(--hm-red, #dc2626);
+    font-size: 1rem;
+}
+
+.jp-npl-material-detail-page .jp-npl-mat-detail-section .card-body {
+    padding: 0.35rem 1rem 0.85rem;
+}
+
+.jp-npl-material-detail-page .jp-npl-mat-detail-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding: 0.65rem 0;
+    border-bottom: 1px solid var(--bs-border-color-translucent, rgba(0, 0, 0, 0.06));
+}
+
+.jp-npl-material-detail-page .jp-npl-mat-detail-item:last-child {
+    border-bottom: 0;
+    padding-bottom: 0.15rem;
+}
+
+.jp-npl-material-detail-page .jp-npl-mat-detail-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--jp-npl-detail-muted);
+}
+
+.jp-npl-material-detail-page .jp-npl-mat-detail-value {
+    font-size: 0.9375rem;
+    font-weight: 500;
+    color: var(--bs-body-color);
+    word-break: break-word;
+}
+
+.jp-npl-material-detail-page .jp-npl-mat-detail-notes {
+    border: 0;
+    border-radius: var(--jp-npl-detail-radius);
+    box-shadow: 0 0.125rem 0.5rem rgba(15, 23, 42, 0.06);
+}
+
+.jp-npl-material-detail-page .jp-npl-mat-detail-notes .card-body {
+    font-size: 0.9375rem;
+    line-height: 1.55;
+    color: var(--bs-body-color);
+}
+
+@media (max-width: 991.98px) {
+    .jp-npl-material-detail-page .jp-npl-mat-detail-toolbar-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+}
+</style>
