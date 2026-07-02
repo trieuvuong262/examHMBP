@@ -33,6 +33,9 @@
                             <td>
                                 <div class="fw-semibold">{{ survey.title }}</div>
                                 <div class="small text-muted text-truncate" style="max-width:24rem">{{ survey.question|truncatechars:80 }}</div>
+                                {% if survey.required_course %}
+                                <div class="small mt-1"><span class="badge bg-info-subtle text-info-emphasis">Bài học gợi ý: {{ survey.required_course.title }}</span></div>
+                                {% endif %}
                             </td>
                             <td>
                                 {% if survey.is_open %}

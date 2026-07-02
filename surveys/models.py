@@ -17,6 +17,15 @@ class Survey(models.Model):
         blank=True,
         help_text='Link tài liệu / Google Form gốc (tuỳ chọn).',
     )
+    required_course = models.ForeignKey(
+        'training.Course',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='linked_surveys',
+        verbose_name='Bài học gợi ý',
+        help_text='Nhân viên có thể bấm học trước (không bắt buộc) rồi quay lại khảo sát.',
+    )
     token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False, db_index=True)
     is_active = models.BooleanField('Đang mở', default=True)
     deadline = models.DateTimeField('Hạn nhận câu hỏi', null=True, blank=True)

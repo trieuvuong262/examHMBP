@@ -9,6 +9,13 @@
 <div class="container jp-page jp-survey-fill-page py-3 py-md-4 mb-4">
     <div class="jp-survey-fill-head text-center mb-3">
         <h2 class="fw-bold text-hm mb-2 jp-page-title">{{ survey.title }}</h2>
+        {% if learning_url %}
+        <div class="mb-2">
+            <a href="{{ learning_url }}" class="btn btn-outline-hm btn-sm">
+                <i class="bi bi-mortarboard-fill me-1"></i>Học trước (tuỳ chọn)
+            </a>
+        </div>
+        {% endif %}
         {% if survey.reference_url %}
         <a href="{{ survey.reference_url }}" target="_blank" rel="noopener" class="jp-survey-ref-link small">
             <i class="bi bi-box-arrow-up-right me-1"></i>Xem tài liệu tham khảo

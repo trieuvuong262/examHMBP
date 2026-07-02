@@ -6,7 +6,7 @@ from .models import Survey, SurveyResponse
 class SurveyCreateForm(forms.ModelForm):
     class Meta:
         model = Survey
-        fields = ('title', 'question', 'reference_url', 'deadline', 'is_active')
+        fields = ('title', 'question', 'reference_url', 'required_course', 'deadline', 'is_active')
         widgets = {
             'title': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -21,6 +21,7 @@ class SurveyCreateForm(forms.ModelForm):
                 'class': 'form-control',
                 'placeholder': 'https://... (tuỳ chọn)',
             }),
+            'required_course': forms.Select(attrs={'class': 'form-select'}),
             'deadline': forms.DateTimeInput(
                 format='%Y-%m-%dT%H:%M',
                 attrs={
@@ -34,6 +35,7 @@ class SurveyCreateForm(forms.ModelForm):
             'title': 'Tiêu đề',
             'question': 'Nội dung câu hỏi',
             'reference_url': 'Link tham khảo',
+            'required_course': 'Bài học gợi ý (tuỳ chọn)',
             'deadline': 'Hạn nhận câu hỏi',
             'is_active': 'Đang mở nhận phản hồi',
         }
@@ -42,26 +44,41 @@ class SurveyCreateForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields['deadline'].required = False
         self.fields['reference_url'].required = False
+        self.fields['required_course'].required = False
         self.fields['deadline'].input_formats = [
             '%Y-%m-%dT%H:%M',
             '%Y-%m-%d %H:%M:%S',
             '%Y-%m-%d %H:%M',
         ]
+        self.fields['required_course'].queryset = (
+            self.fields['required_course'].queryset.filter(is_active=True).order_by('title')
+        )
+        self.fields['required_course'].empty_label = '— Không bắt buộc học trước —'
 
 
 class SurveyReferenceForm(forms.ModelForm):
     class Meta:
         model = Survey
-        fields = ('reference_url',)
+        fields = ('reference_url', 'required_course')
         widgets = {
             'reference_url': forms.URLInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'https://...',
             }),
+            'required_course': forms.Select(attrs={'class': 'form-select'}),
         }
         labels = {
             'reference_url': 'Link tham khảo / tài liệu',
+            'required_course': 'Bài học gợi ý (tuỳ chọn)',
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['required_course'].required = False
+        self.fields['required_course'].queryset = (
+            self.fields['required_course'].queryset.filter(is_active=True).order_by('title')
+        )
+        self.fields['required_course'].empty_label = '— Không bắt buộc học trước —'
 
 
 class SurveyResponseForm(forms.ModelForm):

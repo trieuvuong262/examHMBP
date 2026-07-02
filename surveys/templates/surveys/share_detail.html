@@ -33,6 +33,12 @@
                 <a href="{{ survey.reference_url }}" target="_blank" rel="noopener">{{ survey.reference_url }}</a>
             </p>
             {% endif %}
+            {% if survey.required_course %}
+            <p class="mb-0 mt-2">
+                <span class="text-muted">Bài học bắt buộc:</span>
+                <span class="fw-semibold">{{ survey.required_course.title }}</span>
+            </p>
+            {% endif %}
             {% if survey.deadline %}
             <p class="text-muted small mt-2 mb-0">Hạn nhận: {{ survey.deadline|date:"d/m/Y H:i" }}</p>
             {% endif %}

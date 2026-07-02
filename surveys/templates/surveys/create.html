@@ -33,6 +33,12 @@
                     <div class="form-text">Link tài liệu tham khảo (Sổ tay nhân viên, Google Form gốc, v.v.).</div>
                     {% if form.reference_url.errors %}<div class="text-danger small mt-1">{{ form.reference_url.errors }}</div>{% endif %}
                 </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold" for="{{ form.required_course.id_for_label }}">{{ form.required_course.label }}</label>
+                    {{ form.required_course }}
+                    <div class="form-text">Nếu chọn, nhân viên có thể chủ động bấm vào học trước rồi quay lại khảo sát.</div>
+                    {% if form.required_course.errors %}<div class="text-danger small mt-1">{{ form.required_course.errors }}</div>{% endif %}
+                </div>
                 <div class="row g-3 mb-3">
                     <div class="col-md-6">
                         <label class="form-label fw-semibold" for="{{ form.deadline.id_for_label }}">{{ form.deadline.label }}</label>

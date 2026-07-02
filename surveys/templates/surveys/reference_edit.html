@@ -17,6 +17,12 @@
                     <div class="form-text">Link hiển thị cho nhân viên trước khi trả lời (tuỳ chọn).</div>
                     {% if form.reference_url.errors %}<div class="text-danger small mt-1">{{ form.reference_url.errors }}</div>{% endif %}
                 </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold" for="{{ form.required_course.id_for_label }}">{{ form.required_course.label }}</label>
+                    {{ form.required_course }}
+                    <div class="form-text">Nếu chọn, nhân viên có thể chủ động học trước rồi quay lại khảo sát.</div>
+                    {% if form.required_course.errors %}<div class="text-danger small mt-1">{{ form.required_course.errors }}</div>{% endif %}
+                </div>
                 <div class="d-flex gap-2">
                     <button type="submit" class="btn btn-hm">Lưu link</button>
                     <a href="{% url 'surveys:manage_list' %}" class="btn btn-outline-secondary">Quay lại</a>

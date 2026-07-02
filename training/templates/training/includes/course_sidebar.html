@@ -14,7 +14,7 @@
             <div class="accordion-body p-0">
                 <ul class="list-group list-group-flush">
                     {% for lesson in chapter.lessons.all %}
-                    <a href="{% url 'learning_space' course.id lesson.id %}"
+                    <a href="{% url 'learning_space' course.id lesson.id %}{{ learning_query_suffix|default:'' }}"
                        class="list-group-item list-group-item-action py-3 {% if current_lesson and current_lesson.id == lesson.id %}bg-light border-start border-4 active-lesson-border{% endif %}"
                        {% if close_offcanvas %}data-bs-dismiss="offcanvas"{% endif %}>
                         <div class="d-flex align-items-center">

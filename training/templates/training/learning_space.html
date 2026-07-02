@@ -114,7 +114,7 @@
                     </div>
                     <div>
                         {% if next_lesson %}
-                            <a href="{% url 'learning_space' course.id next_lesson.id %}" class="btn btn-outline-dark fw-bold w-100 w-sm-auto">
+                            <a href="{% url 'learning_space' course.id next_lesson.id %}{{ learning_query_suffix }}" class="btn btn-outline-dark fw-bold w-100 w-sm-auto">
                                 Bài tiếp theo <i class="bi bi-chevron-right ms-1"></i>
                             </a>
                         {% endif %}
@@ -162,7 +162,10 @@
         $.ajax({
             url: `/training/lesson/${lessonId}/complete/`,
             method: "POST",
-            data: { 'csrfmiddlewaretoken': '{{ csrf_token }}' },
+            data: {
+                'csrfmiddlewaretoken': '{{ csrf_token }}',
+                'next': '{{ return_next|escapejs }}',
+            },
             success: function(res) {
                 if(res.status === 'success') {
                     const btn = $('#btn-complete');
@@ -171,9 +174,10 @@
                     $('#top-progress-bar').css('width', res.progress_percent + '%');
                     $('#progress-text').text(res.progress_percent + '% Hoàn thành');
 
-                    if (res.exam_url) {
-                        btn.html('Chuyển sang bài kiểm tra…');
-                        setTimeout(function() { window.location.href = res.exam_url; }, 700);
+                    const targetUrl = res.redirect_url || res.exam_url;
+                    if (targetUrl) {
+                        btn.html('Đang chuyển tiếp…');
+                        setTimeout(function() { window.location.href = targetUrl; }, 700);
                     } else {
                         btn.html('Đã hoàn thành bài này');
                         setTimeout(function() { location.reload(); }, 800);

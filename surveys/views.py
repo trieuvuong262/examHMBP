@@ -1,7 +1,8 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
-from django.utils import timezone
+from django.urls import reverse
+from django.utils.http import urlencode
 
 from assessment.decorators import module_perm_required
 from hrm.menu_permissions import user_can_access_menu
@@ -172,8 +173,13 @@ def survey_fill(request, token):
     else:
         form = SurveyResponseForm()
 
+    learning_url = None
+    if survey.required_course_id:
+        learning_url = f"{reverse('course_start', args=[survey.required_course_id])}?{urlencode({'next': request.get_full_path()})}"
+
     return render(request, 'surveys/fill.html', {
         'survey': survey,
         'form': form,
         'profile': profile_snapshot,
+        'learning_url': learning_url,
     })

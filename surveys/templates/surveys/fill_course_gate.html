@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/surveys.css' %}?v=20260702a">
+{% endblock %}
+
+{% block content %}
+<div class="container jp-page py-5 text-center jp-survey-state-page">
+    <div class="mb-3"><i class="bi bi-mortarboard-fill text-warning" style="font-size:3rem"></i></div>
+    <h2 class="fw-bold text-hm mb-2">Cần học trước khi trả lời khảo sát</h2>
+    <p class="text-muted mb-1">Khảo sát: «{{ survey.title }}»</p>
+    <p class="mb-3">Bạn cần hoàn thành khóa học <strong>«{{ course.title }}»</strong> trước.</p>
+    <div class="d-flex flex-column flex-sm-row justify-content-center gap-2">
+        <a href="{{ learning_url }}" class="btn btn-hm">
+            <i class="bi bi-play-fill me-1"></i>Bắt đầu học
+        </a>
+        <a href="{% url 'home_portal' %}" class="btn btn-outline-secondary">Để sau</a>
+    </div>
+</div>
+{% endblock %}

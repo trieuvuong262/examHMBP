@@ -5,8 +5,10 @@ from django.core.paginator import Paginator
 from django.db.models import Count
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 import json
+from urllib.parse import urlencode
 
 from assessment.decorators import module_perm_required
 from hrm.module_permissions import (
@@ -128,6 +130,15 @@ def learning_space(request, course_id, lesson_id=None):
         except ValueError:
             pass
 
+    return_next = request.GET.get('next', '').strip()
+    if return_next and not url_has_allowed_host_and_scheme(
+        return_next,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return_next = ''
+    learning_query_suffix = f"?{urlencode({'next': return_next})}" if return_next else ''
+
     return render(request, 'training/learning_space.html', {
         'course': course,
         'chapters': chapters,
@@ -135,6 +146,8 @@ def learning_space(request, course_id, lesson_id=None):
         'completed_lesson_ids': completed_lesson_ids,
         'enrollment': enrollment,
         'next_lesson': next_lesson,
+        'return_next': return_next,
+        'learning_query_suffix': learning_query_suffix,
         'title': f'Học tập: {course.title}'
     })
 
@@ -152,8 +165,18 @@ def mark_lesson_complete(request, lesson_id):
         enrollment = Enrollment.objects.get(user=request.user, course=course)
         is_course_finished = enrollment.sync_completion_status()
         exam_url = None
+        redirect_url = None
+        return_next = (request.POST.get('next') or '').strip()
+        if return_next and not url_has_allowed_host_and_scheme(
+            return_next,
+            allowed_hosts={request.get_host()},
+            require_https=request.is_secure(),
+        ):
+            return_next = ''
 
-        if is_course_finished and course.final_exam_id:
+        if is_course_finished and return_next:
+            redirect_url = return_next
+        elif is_course_finished and course.final_exam_id:
             from assessment.models import ExamSubmission
             from django.urls import reverse
 
@@ -164,12 +187,14 @@ def mark_lesson_complete(request, lesson_id):
             ).exists()
             if not already_submitted:
                 exam_url = reverse('take_exam', args=[course.final_exam_id])
+                redirect_url = exam_url
 
         return JsonResponse({
             'status': 'success',
             'progress_percent': enrollment.progress_percent,
             'is_course_finished': is_course_finished,
             'exam_url': exam_url,
+            'redirect_url': redirect_url,
         })
     return JsonResponse({'status': 'error'}, status=400)
 
