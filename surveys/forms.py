@@ -89,7 +89,7 @@ class SurveyResponseForm(forms.ModelForm):
             'answer': forms.Textarea(attrs={
                 'class': 'form-control',
                 'rows': 6,
-                'placeholder': 'Ghi cụ thể nội dung cần được giải đáp (tuỳ chọn)...',
+                'placeholder': 'Anh/chị vui lòng cân nhắc, đọc kỹ Sổ tay nhân viên và các văn bản quy định trước khi đặt câu hỏi. Nếu nội dung chưa rõ hoặc cần giải thích thêm, vui lòng ghi cụ thể nội dung cần được giải đáp',
             }),
         }
         labels = {
