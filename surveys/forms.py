@@ -93,5 +93,5 @@ class SurveyResponseForm(forms.ModelForm):
             }),
         }
         labels = {
-            'answer': 'Nhập câu trả lời',
+            'answer': 'Nhập câu hỏi',
         }
