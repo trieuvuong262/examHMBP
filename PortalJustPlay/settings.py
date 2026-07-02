@@ -213,6 +213,7 @@ INSTALLED_APPS = [
     'service_requests.apps.ServiceRequestsConfig',
     'equipment.apps.EquipmentConfig',
     'feedback.apps.FeedbackConfig',
+    'surveys.apps.SurveysConfig',
     'utilities.apps.UtilitiesConfig',
     'kiotviet.apps.KiotvietConfig',
     'kho_npl.apps.KhoNplConfig',

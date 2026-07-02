@@ -31,6 +31,7 @@ MODULE_HO_TRO = 'ho_tro'
 MODULE_NAS_STORAGE = 'nas_storage'
 MODULE_EQUIPMENT = 'equipment'
 MODULE_FEEDBACK = 'feedback'
+MODULE_SURVEYS = 'surveys'
 MODULE_UTILITIES = 'utilities'
 MODULE_KIOTVIET = 'kiotviet'
 MODULE_KHO_NPL = 'kho_npl'
@@ -55,6 +56,7 @@ _ALL_MODULE_CHOICES = [
     (MODULE_HO_TRO, 'Hỗ trợ kỹ thuật'),
     (MODULE_EQUIPMENT, 'Quản lý thiết bị'),
     (MODULE_FEEDBACK, 'Góp ý'),
+    (MODULE_SURVEYS, 'Khảo sát'),
     (MODULE_UTILITIES, 'Tiện ích'),
     (MODULE_KIOTVIET, 'KiotViet'),
     (MODULE_ODOO, 'Odoo'),
@@ -125,6 +127,7 @@ DEPARTMENT_MENU_SECTIONS = [
         'modules': _visible_module_list([
             MODULE_EQUIPMENT,
             MODULE_FEEDBACK,
+            MODULE_SURVEYS,
             MODULE_UTILITIES,
             MODULE_KIOTVIET,
             MODULE_ODOO,
@@ -153,6 +156,8 @@ EXEMPT_PATH_PREFIXES = (
     '/login-redirect/',
     '/nhat-ky/rustdesk/api/dang-ky/',
     '/thiet-bi/api/quyet-cau-hinh/',
+    # Nhân viên trả lời khảo sát qua link — chỉ cần đăng nhập, không cần menu Khảo sát
+    '/khao-sat/d/',
     # Web push portal — view tự kiểm tra user_portal_push_eligible (không cần module Tiện ích)
     '/tien-ich/push/',
 )
@@ -186,6 +191,7 @@ PATH_MODULE_RULES = [
     ('/thu-muc-nas/', MODULE_NAS_STORAGE),
     ('/thiet-bi/', MODULE_EQUIPMENT),
     ('/gop-y/', MODULE_FEEDBACK),
+    ('/khao-sat/', MODULE_SURVEYS),
     ('/tien-ich/', MODULE_UTILITIES),
     ('/kiotviet/', MODULE_KIOTVIET),
     ('/odoo/', MODULE_ODOO),

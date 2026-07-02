@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, time, timedelta
+from decimal import Decimal
 from typing import Optional
 
 from django.utils import timezone
@@ -101,6 +102,32 @@ def _shift_window(report_date, shift: str | None) -> tuple[datetime, datetime]:
     return _slot_start_dt(report_date, slots[0]), _slot_end_dt(report_date, slots[-1])
 
 
+def shift_break_intervals(
+    report_date,
+    shift: str | None,
+) -> list[tuple[datetime, datetime]]:
+    """Khoảng nghỉ cố định trong ca (vd. nghỉ trưa 12h–13h)."""
+    slots = slots_for_shift(shift)
+    intervals: list[tuple[datetime, datetime]] = []
+    for i in range(len(slots) - 1):
+        gap_start = _slot_end_dt(report_date, slots[i])
+        gap_end = _slot_start_dt(report_date, slots[i + 1])
+        if gap_end > gap_start:
+            intervals.append((gap_start, gap_end))
+    return intervals
+
+
+def shift_contains_datetime(
+    at: datetime,
+    report_date,
+    shift: str | None,
+) -> bool:
+    """Thời điểm có nằm trong khung ca (theo report_date của ca đó)."""
+    local = timezone.localtime(at) if timezone.is_aware(at) else timezone.make_aware(at)
+    window_start, window_end = _shift_window(report_date, shift)
+    return window_start <= local < window_end
+
+
 def current_slot_index(
     now=None,
     report_date=None,
@@ -127,6 +154,43 @@ def current_slot_index(
     if now >= _slot_end_dt(report_date, last):
         return last.index
     return None
+
+
+def overlap_minutes(
+    interval_start: datetime,
+    interval_end: datetime,
+    slot_start: datetime,
+    slot_end: datetime,
+) -> Decimal:
+    """Số phút giao nhau giữa khoảng thời gian làm việc và khung giờ ca."""
+    overlap_start = max(interval_start, slot_start)
+    overlap_end = min(interval_end, slot_end)
+    if overlap_end <= overlap_start:
+        return Decimal('0')
+    seconds = (overlap_end - overlap_start).total_seconds()
+    return Decimal(str(seconds)) / Decimal('60')
+
+
+def slots_overlapping_interval(
+    report_date,
+    shift: str | None,
+    interval_start: datetime,
+    interval_end: datetime,
+) -> list[tuple[int, Decimal]]:
+    """Các khung giờ giao với [interval_start, interval_end] và số giờ thực tế mỗi khung."""
+    if interval_end <= interval_start:
+        return []
+    shift = normalize_shift(shift)
+    results: list[tuple[int, Decimal]] = []
+    for slot in slots_for_shift(shift):
+        slot_start = _slot_start_dt(report_date, slot)
+        slot_end = _slot_end_dt(report_date, slot)
+        minutes = overlap_minutes(interval_start, interval_end, slot_start, slot_end)
+        if minutes <= 0:
+            continue
+        hours = (minutes / Decimal('60')).quantize(Decimal('0.01'))
+        results.append((slot.index, hours))
+    return results
 
 
 def due_slot_indices(

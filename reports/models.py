@@ -236,8 +236,25 @@ class ProductionShiftProduct(models.Model):
         default=0,
         verbose_name='Khung giờ bắt đầu phiên mã hàng',
     )
-    started_at = models.DateTimeField(auto_now_add=True)
-    ended_at = models.DateTimeField(null=True, blank=True)
+    started_at = models.DateTimeField(null=True, blank=True, verbose_name='Bắt đầu công đoạn')
+    ended_at = models.DateTimeField(null=True, blank=True, verbose_name='Kết thúc công đoạn')
+    total_quantity = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name='Tổng sản lượng phiên',
+    )
+    total_damaged_quantity = models.PositiveIntegerField(
+        default=0,
+        verbose_name='Tổng hư hỏng phiên',
+    )
+    completion_note = models.CharField(
+        max_length=500,
+        blank=True,
+        default='',
+        verbose_name='Ghi chú phiên',
+    )
 
     class Meta:
         ordering = ['sort_order', 'id']
@@ -257,7 +274,12 @@ class ProductionHourlyQuantity(models.Model):
         verbose_name='Mã hàng',
     )
     slot_index = models.PositiveSmallIntegerField(verbose_name='Khung giờ')
-    quantity = models.PositiveIntegerField(default=0, verbose_name='Sản lượng giờ')
+    quantity = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        verbose_name='Sản lượng giờ',
+    )
     damaged_quantity = models.PositiveIntegerField(
         default=0,
         verbose_name='Số lượng hư hỏng',

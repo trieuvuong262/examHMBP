@@ -1,4 +1,4 @@
-{% load static %}
+{% load static report_extras %}
 <div class="jp-prod-hourly-sheet-wrap jp-prod-hourly-sheet-wrap--detail">
     <div class="table-responsive jp-prod-hourly-scroll">
         <table class="table table-bordered table-sm jp-prod-hourly-table jp-prod-hourly-table--detail mb-0">
@@ -7,6 +7,8 @@
                     <th class="jp-ph-stt text-center">STT</th>
                     <th class="jp-ph-code">Mã hàng</th>
                     <th class="jp-ph-process">Tên công đoạn</th>
+                    <th class="jp-ph-time">Bắt đầu</th>
+                    <th class="jp-ph-time">Kết thúc</th>
                     {% for slot in hourly_grid.slots %}
                     <th class="jp-ph-slot">{{ slot.label }}</th>
                     {% endfor %}
@@ -21,16 +23,18 @@
                         {% if row.is_unfinalized %}<span class="badge bg-warning text-dark ms-1">Chưa gắn</span>{% endif %}
                     </td>
                     <td class="jp-ph-process-cell">{{ row.label_process|default:row.process_name|default:"Chưa gắn mã" }}</td>
+                    <td class="jp-ph-time text-nowrap text-center">{{ row.started_at_display|default:"—" }}</td>
+                    <td class="jp-ph-time text-nowrap text-center">{{ row.ended_at_display|default:"—" }}</td>
                     {% for cell in row.slots %}
                     <td class="jp-ph-cell{% if cell.is_na %} is-na{% elif not cell.has_data %} is-empty{% endif %}">
                         {% if cell.is_na %}
                         <span class="jp-ph-na">—</span>
                         {% elif cell.has_data %}
                         {% if cell.quantity > 0 %}
-                        <span class="jp-ph-qty">{{ cell.quantity }}</span>
-                        <span class="jp-ph-cum">{{ cell.cumulative }}</span>
+                        <span class="jp-ph-qty">{{ cell.display|default:cell.quantity|prod_qty }}</span>
+                        <span class="jp-ph-cum">{{ cell.cumulative|prod_qty }}</span>
                         {% if cell.damaged_quantity %}
-                        <span class="jp-ph-damaged" title="Hư hỏng">Hư: {{ cell.damaged_quantity }}</span>
+                        <span class="jp-ph-damaged" title="Hư hỏng">Hư: {{ cell.damaged_quantity|prod_qty }}</span>
                         {% endif %}
                         {% if cell.note %}
                         <span class="jp-ph-note" title="{{ cell.note }}">{{ cell.note|truncatechars:14 }}</span>
@@ -52,8 +56,8 @@
             {% if hourly_grid.rows %}
             <tfoot>
                 <tr class="jp-ph-foot">
-                    <th colspan="3" class="text-end">Tổng</th>
-                    <th colspan="{{ hourly_grid.slots|length }}" class="text-end text-hm">{{ hourly_grid.grand_total }}</th>
+                    <th colspan="5" class="text-end">Tổng</th>
+                    <th colspan="{{ hourly_grid.slots|length }}" class="text-end text-hm">{{ hourly_grid.grand_total|prod_qty }}</th>
                 </tr>
             </tfoot>
             {% endif %}

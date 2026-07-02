@@ -5,6 +5,9 @@
 {% block extra_head %}
 {% if reports_scope_label == 'VP' %}
 <link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260624a">
+{% elif reports_scope_label == 'SX' %}
+<link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260624a">
+<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260702c">
 {% endif %}
 {% endblock %}
 
@@ -21,7 +24,6 @@
 
     <form method="get" class="card border-0 shadow-sm mb-4">
         <div class="card-body p-3 d-flex flex-wrap gap-3 align-items-end">
-            {% if reports_scope_label == 'VP' %}
             <div>
                 <label class="form-label fw-bold small mb-1">Từ ngày</label>
                 <input type="date" name="from" value="{{ range_from|date:'Y-m-d' }}" class="form-control">
@@ -30,6 +32,7 @@
                 <label class="form-label fw-bold small mb-1">Đến ngày</label>
                 <input type="date" name="to" value="{{ range_to|date:'Y-m-d' }}" class="form-control">
             </div>
+            {% if reports_scope_label == 'VP' %}
             <div>
                 <label class="form-label fw-bold small mb-1">Loại</label>
                 <select name="period" class="form-select">
@@ -39,21 +42,6 @@
                     {% endfor %}
                 </select>
             </div>
-            {% else %}
-            <div>
-                <label class="form-label fw-bold small mb-1">Ngày</label>
-                <input type="date" name="date" value="{{ report_date|date:'Y-m-d' }}" class="form-control">
-            </div>
-            {% if production_shift_choices %}
-            <div>
-                <label class="form-label fw-bold small mb-1">Ca</label>
-                <select name="shift" class="form-select">
-                    {% for choice in production_shift_choices %}
-                    <option value="{{ choice.value }}" {% if production_shift_filter == choice.value %}selected{% endif %}>{{ choice.label }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            {% endif %}
             {% endif %}
             {% if team_sort_active %}
             <input type="hidden" name="sort" value="{{ team_sort_key }}">
@@ -68,7 +56,7 @@
             </div>
             <button type="submit" class="btn btn-hm px-4 align-self-end">Xem</button>
             {% if search_query or selected_dept or status_filter or selected_period %}
-            <a href="?{% if reports_scope_label == 'VP' %}from={{ range_from|date:'Y-m-d' }}&to={{ range_to|date:'Y-m-d' }}{% else %}date={{ report_date|date:'Y-m-d' }}{% endif %}" class="btn btn-light border align-self-end" title="Xóa bộ lọc"><i class="bi bi-x-lg"></i></a>
+            <a href="?from={{ range_from|date:'Y-m-d' }}&to={{ range_to|date:'Y-m-d' }}{% if reports_scope_label == 'VP' and selected_period %}&period={{ selected_period }}{% endif %}" class="btn btn-light border align-self-end" title="Xóa bộ lọc"><i class="bi bi-x-lg"></i></a>
             {% endif %}
         </div>
         {% if search_query %}
@@ -79,9 +67,6 @@
     </form>
 
     {% include 'reports/includes/team_stat_cards.html' %}
-    {% if reports_scope_label == 'SX' %}
-    {% include 'reports/includes/team_production_shift_stats.html' %}
-    {% endif %}
 
     <div class="card border-0 shadow-sm overflow-hidden">
         <div class="table-responsive">
@@ -122,11 +107,12 @@
                     <tr>
                         <td>
                             <strong>{{ row.member.profile.full_name|default:row.member.username }}</strong>
-                            {% if row.member.profile.department %}
+                            {% if reports_scope_label == 'SX' %}
+                                {% if row.member.profile.division %}
+                                <div class="text-muted small">{{ row.member.profile.division.name }}</div>
+                                {% endif %}
+                            {% elif row.member.profile.department %}
                             <div class="text-muted small">{{ row.member.profile.department.name }}</div>
-                            {% endif %}
-                            {% if row.week_rollup and row.week_rollup.warning %}
-                            <div class="text-danger small mt-1"><i class="bi bi-exclamation-circle me-1"></i>{{ row.week_rollup.warning }}</div>
                             {% endif %}
                         </td>
                         {% if reports_scope_label == 'VP' %}
@@ -137,29 +123,38 @@
                             <span class="text-muted small">—</span>
                             {% endif %}
                         </td>
-                        {% endif %}
                         <td>
-                            {% if row.production_multi_shift %}
-                            {% include 'reports/includes/team_production_shift_cells.html' %}
-                            {% elif row.report %}
-                                {% if row.report.is_production_report %}
-                                <span class="badge bg-primary-subtle text-primary">{{ row.report.get_shift_display }}</span>
-                                {% else %}
-                                <span class="badge {{ row.report|report_period_badge_class }}">{{ row.report|report_period_label }}</span>
-                                {% endif %}
+                            {% if row.report %}
+                            <span class="badge {{ row.report|report_period_badge_class }}">{{ row.report|report_period_label }}</span>
+                            {% else %}
+                            <span class="text-muted small">—</span>
+                            {% endif %}
+                        </td>
+                        {% elif reports_scope_label == 'SX' %}
+                        <td>
+                            {% if row.report_date %}
+                            <span class="text-nowrap small">{{ row.report_date|date:"d/m/Y" }}</span>
                             {% else %}
                             <span class="text-muted small">—</span>
                             {% endif %}
                         </td>
                         <td>
-                            {% if row.production_multi_shift %}
-                            {% if row.week_rollup %}
-                            <span class="badge {% if row.week_rollup.is_complete %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %}">
-                                {{ row.week_rollup.submitted_days }}/{{ row.week_rollup.expected_days }} ngày ca sáng
-                            </span>
-                            {% else %}
+                            {% for badge in row.shift_badges %}
+                            <span class="{{ badge.badge_class }} me-1 mb-1">{{ badge.label }}</span>
+                            {% empty %}
                             <span class="text-muted small">—</span>
-                            {% endif %}
+                            {% endfor %}
+                        </td>
+                        {% endif %}
+                        <td>
+                            {% if reports_scope_label == 'SX' %}
+                                {% if not row.production_report_count %}
+                                <span class="badge bg-danger-subtle text-danger">Chưa báo cáo</span>
+                                {% elif row.production_all_submitted %}
+                                <span class="badge bg-success-subtle text-success">Đã nộp</span>
+                                {% else %}
+                                <span class="badge bg-warning-subtle text-warning">Nháp</span>
+                                {% endif %}
                             {% elif row.report %}
                                 {% if row.report.status == 'SUBMITTED' %}
                                 <span class="badge bg-success-subtle text-success">Đã nộp</span>
@@ -171,21 +166,14 @@
                             {% endif %}
                         </td>
                         <td class="text-center">
-                            {% if row.production_multi_shift %}
-                            <div class="d-flex flex-wrap gap-1 justify-content-center">
-                                {% for cell in row.shift_cell_list %}
-                                    {% if cell.report %}
-                                        {% if cell.report.hod_reviewed %}
-                                        <i class="bi bi-check-circle-fill text-success" title="{{ cell.label }}: đã xem"></i>
-                                        {% else %}
-                                        <i class="bi bi-circle text-muted opacity-50" title="{{ cell.label }}: chưa xem"></i>
-                                        {% endif %}
-                                    {% endif %}
-                                {% endfor %}
-                                {% if not row.shift_cell_list %}
+                            {% if reports_scope_label == 'SX' %}
+                                {% if row.production_report_count and row.production_all_reviewed %}
+                                <i class="bi bi-check-circle-fill text-success" title="Đã xem"></i>
+                                {% elif row.production_report_count %}
+                                <i class="bi bi-circle text-muted opacity-50" title="Chưa xem hết"></i>
+                                {% else %}
                                 <span class="text-muted small">—</span>
                                 {% endif %}
-                            </div>
                             {% elif row.report %}
                                 {% if row.report.hod_reviewed %}
                                 <i class="bi bi-check-circle-fill text-success" title="Đã xem"></i>
@@ -197,10 +185,12 @@
                             {% endif %}
                         </td>
                         <td class="text-end">
-                            {% if row.production_multi_shift %}
-                            {% if row.production_total_qty %}
-                            SL {{ row.production_total_qty }}
-                            {% else %}—{% endif %}
+                            {% if reports_scope_label == 'SX' %}
+                                {% if row.production_total_qty %}
+                                {{ row.production_report_count }} báo cáo · SL {{ row.production_total_qty|prod_qty }}
+                                {% elif row.production_report_count %}
+                                {{ row.production_report_count }} báo cáo
+                                {% else %}—{% endif %}
                             {% elif row.report %}
                                 {% if row.report.is_production_report %}
                                 {{ row.report.line_count }} dòng · SL {{ row.report.total_qty|default:0 }}
@@ -210,20 +200,16 @@
                             {% else %}—{% endif %}
                         </td>
                         <td class="text-end text-nowrap">
-                            {% if row.production_multi_shift %}
-                            <div class="d-flex flex-wrap gap-1 justify-content-end">
-                                {% for cell in row.shift_cell_list %}
-                                    {% if cell.report %}
-                                    <a href="{% url detail_url_name cell.report.pk %}{% if team_list_query %}?{{ team_list_query }}{% endif %}" class="btn btn-sm btn-outline-hm">{{ cell.label }}</a>
-                                    {% else %}
-                                    <a href="{% url today_url_name %}?date={{ report_date|date:'Y-m-d' }}&shift={{ cell.shift }}&for_user={{ row.member.id }}" class="btn btn-sm btn-outline-dark">{{ cell.label }}</a>
-                                    {% endif %}
-                                {% endfor %}
-                            </div>
+                            {% if reports_scope_label == 'SX' %}
+                                {% if row.report %}
+                                <a href="{% url detail_url_name row.report.pk %}{% if team_list_query %}?{{ team_list_query }}{% endif %}" class="btn btn-sm btn-outline-hm">Chi tiết</a>
+                                {% else %}
+                                <a href="{% url today_url_name %}?date={{ row.report_date|default:range_to|date:'Y-m-d' }}&for_user={{ row.member.id }}" class="btn btn-sm btn-outline-dark">Nhập hộ</a>
+                                {% endif %}
                             {% elif row.report %}
                             <a href="{% url detail_url_name row.report.pk %}{% if team_list_query %}?{{ team_list_query }}{% endif %}" class="btn btn-sm btn-outline-hm">Chi tiết</a>
                             {% else %}
-                            <a href="{% if reports_scope_label == 'VP' %}{% url today_url_name %}?date={{ range_to|date:'Y-m-d' }}&for_user={{ row.member.id }}{% else %}{% url today_url_name %}?date={{ report_date|date:'Y-m-d' }}{% if production_shift_filter %}&shift={{ production_shift_filter }}{% endif %}&for_user={{ row.member.id }}{% endif %}" class="btn btn-sm btn-outline-dark">Nhập hộ</a>
+                            <a href="{% url today_url_name %}?date={{ range_to|date:'Y-m-d' }}&for_user={{ row.member.id }}" class="btn btn-sm btn-outline-dark">Nhập hộ</a>
                             {% endif %}
                         </td>
                     </tr>
@@ -232,9 +218,9 @@
                     <tr>
                         <td colspan="{{ table_columns|length }}" class="text-center text-muted py-5">
                             {% if status_filter == 'submitted' %}
-                            Không có nhân viên đã nộp báo cáo{% if reports_scope_label == 'VP' %} trong khoảng đã chọn{% else %} trong ngày này{% endif %}.
+                            Không có nhân viên đã nộp báo cáo trong khoảng đã chọn.
                             {% elif status_filter == 'missing' %}
-                            Tất cả nhân viên đã nộp báo cáo{% if reports_scope_label == 'VP' %} trong khoảng đã chọn{% else %} trong ngày này{% endif %}.
+                            Tất cả nhân viên đã nộp báo cáo trong khoảng đã chọn.
                             {% else %}
                             Chưa có nhân viên cấp dưới được cấu hình.
                             {% endif %}

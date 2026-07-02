@@ -1,3 +1,4 @@
+{% load report_extras %}
 {# Mobile — xem sản lượng (read-only) #}
 <div class="jp-prod-review-list jp-prod-review-list--readonly">
     {% for row in hourly_grid.rows %}
@@ -21,11 +22,13 @@
             <div class="jp-prod-review-slot jp-prod-review-slot--readonly">
                 <div class="jp-prod-review-slot-label">{{ cell.slot_label }}</div>
                 <div class="jp-prod-review-slot-values">
-                    <span class="jp-prod-review-qty-display{% if not cell.quantity %} text-muted{% endif %}">{{ cell.quantity }}</span>
+                    <span class="jp-prod-review-qty-display{% if not cell.quantity %} text-muted{% endif %}">{{ cell.quantity|prod_qty }}</span>
                     {% if cell.quantity > 0 %}
+                    {% if cell.show_cumulative|default:True %}
                     <span class="jp-prod-review-cum-display">Σ {{ cell.cumulative }}</span>
+                    {% endif %}
                     {% if cell.damaged_quantity %}
-                    <span class="jp-prod-review-damaged">Hư: {{ cell.damaged_quantity }}</span>
+                    <span class="jp-prod-review-damaged">Hư: {{ cell.damaged_quantity|prod_qty }}</span>
                     {% endif %}
                     {% if cell.note %}
                     <span class="jp-prod-review-note" title="{{ cell.note }}">{{ cell.note|truncatechars:24 }}</span>
@@ -39,7 +42,12 @@
             {% endfor %}
         </div>
         <footer class="jp-prod-review-row-total">
-            Tổng dòng: <strong>{{ row.total_quantity }}</strong>
+            {% if row.is_session_reported %}
+            Bạn nhập: <strong>{{ row.session_total|default:row.total_quantity|prod_qty }}</strong>
+            {% if row.session_time_label %}<span class="text-muted small ms-1">({{ row.session_time_label }})</span>{% endif %}
+            {% else %}
+            Tổng dòng: <strong>{{ row.total_quantity|prod_qty }}</strong>
+            {% endif %}
         </footer>
     </article>
     {% empty %}
@@ -49,6 +57,6 @@
 {% if hourly_grid.rows %}
 <div class="jp-prod-review-grand">
     <span>Tổng ngày</span>
-    <strong>{{ hourly_grid.grand_total }}</strong>
+    <strong>{{ hourly_grid.grand_total|prod_qty }}</strong>
 </div>
 {% endif %}

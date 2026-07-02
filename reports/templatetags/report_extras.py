@@ -4,9 +4,21 @@ from django import template
 
 from reports.office_content import office_report_summary_text
 from reports.period_utils import PERIOD_LABELS
+from reports.production_hourly import format_production_quantity
+from reports.production_shift_policy import shift_badge_class
 from reports.weekly_preview import file_attachment_preview
 
 register = template.Library()
+
+
+@register.filter
+def prod_qty(value):
+    return format_production_quantity(value)
+
+
+@register.filter
+def production_shift_badge_class(shift):
+    return shift_badge_class(shift or '')
 
 
 @register.filter

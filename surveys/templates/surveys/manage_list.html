@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5">
+    <div class="jp-page-header mb-3 mb-md-4 d-flex flex-wrap justify-content-between align-items-start gap-2">
+        <div>
+            <h2 class="fw-bold text-hm mb-1 jp-page-title">Quản lý khảo sát</h2>
+            <p class="text-muted mb-0">Chỉnh link tham khảo và sao chép link gửi nhân viên.</p>
+        </div>
+        {% if jp_can_create_surveys %}
+        <a href="{% url 'surveys:create' %}" class="btn btn-hm btn-sm">
+            <i class="bi bi-plus-circle me-1"></i>Đặt câu hỏi mới
+        </a>
+        {% endif %}
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Tiêu đề</th>
+                            <th>Trạng thái</th>
+                            <th class="text-center">Phản hồi</th>
+                            <th>Hạn</th>
+                            <th class="text-end">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for survey in page_obj %}
+                        <tr>
+                            <td>
+                                <div class="fw-semibold">{{ survey.title }}</div>
+                                <div class="small text-muted text-truncate" style="max-width:24rem">{{ survey.question|truncatechars:80 }}</div>
+                            </td>
+                            <td>
+                                {% if survey.is_open %}
+                                <span class="badge bg-success-subtle text-success">Đang mở</span>
+                                {% else %}
+                                <span class="badge bg-secondary-subtle text-secondary">Đã đóng</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">{{ survey.response_count }}</td>
+                            <td class="text-nowrap small">
+                                {% if survey.deadline %}{{ survey.deadline|date:"d/m/Y H:i" }}{% else %}—{% endif %}
+                            </td>
+                            <td class="text-end text-nowrap">
+                                <a href="{% url 'surveys:share_detail' survey.pk %}" class="btn btn-outline-hm btn-sm" title="Tạo link gửi NV">
+                                    <i class="bi bi-link-45deg"></i>
+                                </a>
+                                {% if jp_can_update_surveys %}
+                                <a href="{% url 'surveys:reference_edit' survey.pk %}" class="btn btn-outline-secondary btn-sm" title="Chèn link">
+                                    <i class="bi bi-box-arrow-up-right"></i>
+                                </a>
+                                {% endif %}
+                                <a href="{% url 'surveys:result_detail' survey.pk %}" class="btn btn-outline-dark btn-sm" title="Kết quả">
+                                    <i class="bi bi-inbox"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="5" class="text-center text-muted py-4">Chưa có khảo sát.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% include 'includes/pagination.html' with page_obj=page_obj query_string=query_string only %}
+</div>
+{% endblock %}

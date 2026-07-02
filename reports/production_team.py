@@ -5,13 +5,16 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import date, timedelta
 
-from django.db.models import Count, Q, Sum
+from django.db.models import Count, Sum
 
 from reports.models import DailyWorkReport
 from reports.period_utils import PERIOD_DAY
-from reports.production_hourly import active_product
-from reports.production_shift_policy import PRODUCTION_SHIFT_ORDER, shift_display_label
-from reports.production_slots import slot_count_for_shift
+from reports.production_shift_policy import (
+    PRODUCTION_SHIFT_ORDER,
+    production_reports_for_day,
+    shift_badge_class,
+    shift_display_label,
+)
 from reports.report_profile import REPORT_PROFILE_PRODUCTION
 from reports.team_utils import (
     build_report_team_department_groups,
@@ -24,28 +27,58 @@ from reports.week_utils import monday_of
 PRODUCTION_WEEK_WORK_DAYS = 6  # Thứ 2 – Thứ 7
 
 
-def parse_team_shift_filter(request) -> str:
-    shift = (request.GET.get('shift') or '').strip().upper()
-    if shift in PRODUCTION_SHIFT_ORDER:
-        return shift
-    return ''
-
-
-def production_shift_filter_choices() -> list[dict]:
-    return [
-        {'value': '', 'label': 'Tất cả ca'},
-        *[
-            {'value': shift, 'label': shift_display_label(shift)}
-            for shift in PRODUCTION_SHIFT_ORDER
-        ],
-    ]
-
-
-def build_production_reports_by_employee(reports_qs) -> dict[int, dict[str, DailyWorkReport]]:
-    by_employee: dict[int, dict[str, DailyWorkReport]] = defaultdict(dict)
+def build_production_reports_by_employee(reports_qs) -> dict[int, list[DailyWorkReport]]:
+    by_employee: dict[int, list[DailyWorkReport]] = defaultdict(list)
     for report in reports_qs:
-        by_employee[report.employee_id][report.shift] = report
+        by_employee[report.employee_id].append(report)
     return dict(by_employee)
+
+
+def _visible_reports(reports: list[DailyWorkReport], visible_fn) -> list[DailyWorkReport]:
+    return [report for report in reports if _visible_report(report, visible_fn)]
+
+
+def _shift_badges_for_reports(reports: list[DailyWorkReport]) -> list[dict]:
+    badges: list[dict] = []
+    shifts_present = {report.shift for report in reports}
+    for shift in PRODUCTION_SHIFT_ORDER:
+        if shift in shifts_present:
+            badges.append({
+                'shift': shift,
+                'label': shift_display_label(shift),
+                'badge_class': shift_badge_class(shift),
+            })
+    return badges
+
+
+def _aggregate_production_row(reports: list[DailyWorkReport], visible_fn) -> dict:
+    visible = _visible_reports(reports, visible_fn)
+    visible.sort(
+        key=lambda report: (
+            PRODUCTION_SHIFT_ORDER.index(report.shift)
+            if report.shift in PRODUCTION_SHIFT_ORDER
+            else len(PRODUCTION_SHIFT_ORDER)
+        )
+    )
+    total_qty = sum(int(getattr(report, 'total_qty', 0) or 0) for report in visible)
+    primary = visible[0] if visible else None
+    all_submitted = bool(visible) and all(
+        report.status == DailyWorkReport.STATUS_SUBMITTED for report in visible
+    )
+    any_submitted = any(
+        report.status == DailyWorkReport.STATUS_SUBMITTED for report in visible
+    )
+    all_reviewed = bool(visible) and all(report.hod_reviewed for report in visible)
+    return {
+        'report': primary,
+        'production_reports': visible,
+        'production_report_count': len(visible),
+        'production_total_qty': total_qty,
+        'production_all_submitted': all_submitted,
+        'production_any_submitted': any_submitted,
+        'production_all_reviewed': all_reviewed,
+        'shift_badges': _shift_badges_for_reports(visible),
+    }
 
 
 def _visible_report(report, visible_fn) -> DailyWorkReport | None:
@@ -54,99 +87,88 @@ def _visible_report(report, visible_fn) -> DailyWorkReport | None:
     return None
 
 
-def _filled_slot_counts(report: DailyWorkReport) -> tuple[int, int]:
-    total = slot_count_for_shift(report.shift)
-    if not report.shift_started_at:
-        return 0, total
-    product = active_product(report)
-    if not product:
-        return 0, total
-    filled = product.hourly_entries.filter(
-        Q(quantity__gt=0) | ~Q(zero_reason=''),
-    ).count()
-    return filled, total
+def _reports_by_employee_date(
+    reports: list[DailyWorkReport],
+) -> dict[date, list[DailyWorkReport]]:
+    by_date: dict[date, list[DailyWorkReport]] = defaultdict(list)
+    for report in reports:
+        by_date[report.report_date].append(report)
+    return dict(by_date)
 
 
-def build_shift_cell(report: DailyWorkReport | None) -> dict:
-    if report is None:
-        return {
-            'status': 'missing',
-            'status_label': 'Chưa báo cáo',
-            'badge_class': 'bg-danger-subtle text-danger',
-            'slot_label': '',
-            'report': None,
-        }
-    if report.status == DailyWorkReport.STATUS_SUBMITTED:
-        status = 'submitted'
-        status_label = 'Đã nộp'
-        badge_class = 'bg-success-subtle text-success'
-    else:
-        status = 'draft'
-        status_label = 'Nháp'
-        badge_class = 'bg-warning-subtle text-warning'
-
-    filled, total = _filled_slot_counts(report)
-    slot_label = ''
-    if report.shift_started_at and total:
-        slot_label = f'{filled}/{total}'
-
-    return {
-        'status': status,
-        'status_label': status_label,
-        'badge_class': badge_class,
-        'slot_label': slot_label,
-        'report': report,
-    }
+def _iter_dates(date_from: date, date_to: date):
+    day = date_from
+    while day <= date_to:
+        yield day
+        day += timedelta(days=1)
 
 
-def production_shift_stats(
-    team_count: int,
-    reports_by_employee: dict[int, dict[str, DailyWorkReport]],
-    visible_fn,
-) -> list[dict]:
-    stats = []
-    for shift in PRODUCTION_SHIFT_ORDER:
-        submitted = 0
-        for reports in reports_by_employee.values():
-            report = _visible_report(reports.get(shift), visible_fn)
-            if report and report.status == DailyWorkReport.STATUS_SUBMITTED:
-                submitted += 1
-        stats.append({
-            'shift': shift,
-            'label': shift_display_label(shift),
-            'submitted': submitted,
-            'missing': team_count - submitted,
-            'team_count': team_count,
-        })
-    return stats
-
-
-def _primary_report(reports: dict[str, DailyWorkReport], visible_fn) -> DailyWorkReport | None:
-    for shift in PRODUCTION_SHIFT_ORDER:
-        report = _visible_report(reports.get(shift), visible_fn)
-        if report:
-            return report
-    return None
-
-
-def _report_for_shift_filter(
-    reports: dict[str, DailyWorkReport],
+def _append_production_member_rows(
+    rows: list[dict],
+    member,
+    reports: list[DailyWorkReport],
     visible_fn,
     *,
-    shift_filter: str,
-) -> DailyWorkReport | None:
-    if shift_filter:
-        return _visible_report(reports.get(shift_filter), visible_fn)
-    return _primary_report(reports, visible_fn)
+    date_from: date,
+    date_to: date,
+) -> None:
+    by_date = _reports_by_employee_date(reports)
+    if by_date:
+        for report_date in sorted(_iter_dates(date_from, date_to), reverse=True):
+            rows.append({
+                'member': member,
+                'report_date': report_date,
+                **_aggregate_production_row(by_date.get(report_date, []), visible_fn),
+            })
+        return
+    rows.append({
+        'member': member,
+        'report_date': None,
+        **_aggregate_production_row([], visible_fn),
+    })
+
+
+def _ensure_team_members_in_groups(groups: list[dict], team) -> list[dict]:
+    """Đảm bảo mọi NV trong queryset team đều có trong một nhóm hiển thị."""
+    team_users = list(team.select_related('profile', 'profile__department'))
+    if not team_users:
+        return groups
+
+    indexed = {user.pk: user for user in team_users}
+    covered = {member.pk for group in groups for member in group['members']}
+    missing = [indexed[pk] for pk in indexed if pk not in covered]
+    if not missing:
+        return groups
+
+    groups = [dict(group, members=list(group['members'])) for group in groups]
+    other = next((group for group in groups if group['key'] == 'other'), None)
+    if other is None:
+        groups.append({
+            'key': 'other',
+            'department_id': None,
+            'label': 'Khác',
+            'subtitle': '',
+            'members': missing,
+        })
+    else:
+        other['members'] = sorted(
+            {member.pk: member for member in other['members'] + missing}.values(),
+            key=lambda user: (
+                (getattr(getattr(user, 'profile', None), 'full_name', '') or user.username).lower(),
+                user.username.lower(),
+            ),
+        )
+    return groups
 
 
 def build_production_team_department_groups(
     viewer,
     team,
-    reports_by_employee: dict[int, dict[str, DailyWorkReport]],
+    reports_by_employee: dict[int, list[DailyWorkReport]],
     visible_fn,
     *,
-    shift_filter: str = '',
+    date_from: date,
+    date_to: date,
     dept_filter: str = '',
 ):
     all_groups = build_report_team_department_groups(viewer, team)
@@ -155,69 +177,43 @@ def build_production_team_department_groups(
         build_report_team_department_groups(viewer, team, dept_filter=dept_filter)
         if dept_filter else all_groups
     )
+    groups = _ensure_team_members_in_groups(groups, team)
     department_groups = []
     for group in groups:
         rows = []
         for member in group['members']:
-            reports = reports_by_employee.get(member.id, {})
-            shift_cells = {
-                shift: build_shift_cell(_visible_report(reports.get(shift), visible_fn))
-                for shift in PRODUCTION_SHIFT_ORDER
-            }
-            shift_cell_list = [
-                {
-                    'shift': shift,
-                    'label': shift_display_label(shift),
-                    **shift_cells[shift],
-                }
-                for shift in PRODUCTION_SHIFT_ORDER
-            ]
-            report = _report_for_shift_filter(reports, visible_fn, shift_filter=shift_filter)
-            visible_reports = [
-                _visible_report(reports.get(shift), visible_fn)
-                for shift in PRODUCTION_SHIFT_ORDER
-            ]
-            visible_reports = [r for r in visible_reports if r]
-            total_qty = sum(int(getattr(r, 'total_qty', 0) or 0) for r in visible_reports)
-            rows.append({
-                'member': member,
-                'report': report,
-                'reports_by_shift': reports,
-                'shift_cells': shift_cells,
-                'shift_cell_list': shift_cell_list,
-                'production_multi_shift': not shift_filter,
-                'production_total_qty': total_qty,
-            })
+            reports = reports_by_employee.get(member.id, [])
+            _append_production_member_rows(
+                rows,
+                member,
+                reports,
+                visible_fn,
+                date_from=date_from,
+                date_to=date_to,
+            )
         department_groups.append({**group, 'rows': rows})
     return department_groups, dept_choices
 
 
 def production_team_submitted_count(
-    reports_by_employee: dict[int, dict[str, DailyWorkReport]],
+    reports_by_employee: dict[int, list[DailyWorkReport]],
     visible_fn,
     *,
-    shift_filter: str,
     team_count: int,
 ) -> tuple[int, int]:
     submitted = 0
     for reports in reports_by_employee.values():
-        report = _report_for_shift_filter(reports, visible_fn, shift_filter=shift_filter)
-        if report and report.status == DailyWorkReport.STATUS_SUBMITTED:
+        if _aggregate_production_row(reports, visible_fn)['production_any_submitted']:
             submitted += 1
     missing = team_count - submitted
     return submitted, missing
 
 
 def production_team_row_is_submitted(row, *, submitted_status: str, shift_filter: str = '') -> bool:
-    if shift_filter:
-        cell = row.get('shift_cells', {}).get(shift_filter, {})
-        report = cell.get('report')
-    elif row.get('production_multi_shift'):
-        cell = row.get('shift_cells', {}).get(DailyWorkReport.SHIFT_MORNING, {})
-        report = cell.get('report')
-    else:
-        report = row.get('report')
-    return bool(report and report.status == submitted_status)
+    reports = row.get('production_reports') or []
+    if not reports and row.get('report'):
+        reports = [row['report']]
+    return any(report.status == submitted_status for report in reports)
 
 
 def expected_morning_days_through(anchor: date) -> int:
@@ -273,17 +269,58 @@ def build_production_week_rollup(
     return rollup
 
 
-def query_production_team_reports(team_ids, report_date):
+def build_production_day_shift_tabs(
+    report: DailyWorkReport,
+    *,
+    detail_url_name: str,
+    list_query: str = '',
+) -> list[dict]:
+    """Tab chuyển ca trong trang chi tiết — cùng NV + ngày."""
+    from django.urls import reverse
+
+    if not report.is_production_report:
+        return []
+
+    siblings = list(production_reports_for_day(report.employee, report.report_date))
+    siblings.sort(
+        key=lambda row: (
+            PRODUCTION_SHIFT_ORDER.index(row.shift)
+            if row.shift in PRODUCTION_SHIFT_ORDER
+            else len(PRODUCTION_SHIFT_ORDER)
+        )
+    )
+    if len(siblings) <= 1:
+        return []
+
+    tabs = []
+    for sibling in siblings:
+        url = reverse(detail_url_name, args=[sibling.pk])
+        if list_query:
+            url = f'{url}?{list_query}'
+        tabs.append({
+            'pk': sibling.pk,
+            'shift': sibling.shift,
+            'label': shift_display_label(sibling.shift),
+            'badge_class': shift_badge_class(sibling.shift),
+            'is_active': sibling.pk == report.pk,
+            'url': url,
+        })
+    return tabs
+
+
+def query_production_team_reports(team_ids, date_from, date_to):
     if not team_ids:
         return DailyWorkReport.objects.none()
     return (
         meaningful_daily_reports_qs()
         .filter(
             employee_id__in=team_ids,
-            report_date=report_date,
+            report_date__gte=date_from,
+            report_date__lte=date_to,
             report_profile=REPORT_PROFILE_PRODUCTION,
             report_period=PERIOD_DAY,
         )
+        .order_by('-report_date', '-id')
         .select_related('employee', 'employee__profile')
         .annotate(
             line_count=Count('lines'),

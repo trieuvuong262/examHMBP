@@ -2,8 +2,13 @@
 
 from __future__ import annotations
 
+from datetime import date, datetime, time, timedelta
+
+from django.utils import timezone
+
 from reports.models import DailyWorkReport
 from reports.period_utils import PERIOD_DAY
+from reports.production_slots import shift_contains_datetime
 from reports.report_profile import REPORT_PROFILE_PRODUCTION
 
 PRODUCTION_SHIFT_ORDER = (
@@ -50,6 +55,104 @@ def get_production_report(employee, report_date, shift: str):
 def shift_display_label(shift: str) -> str:
     meta = SHIFT_META.get(shift)
     return meta['label'] if meta else shift
+
+
+def shift_badge_class(shift: str) -> str:
+    """Màu badge ca — cùng palette Loại VP (Ngày / Tuần / Tháng)."""
+    period_suffix = {
+        DailyWorkReport.SHIFT_MORNING: 'day',
+        DailyWorkReport.SHIFT_OVERTIME: 'week',
+        DailyWorkReport.SHIFT_NIGHT: 'month',
+    }.get(shift)
+    if period_suffix:
+        return f'badge jp-report-period-badge jp-report-period-badge--{period_suffix}'
+    return 'badge bg-secondary-subtle text-secondary'
+
+
+def production_shift_for_datetime(
+    at: datetime,
+    employee,
+) -> tuple[date, str]:
+    """
+    Suy ra (report_date, shift) từ thời điểm thực tế.
+    - Ca sáng: 7h30–18h
+    - Tăng ca: 18h–22h khi đã có ca sáng cùng ngày
+    - Ca tối: 18h–5h sáng hôm sau (report_date = ngày bắt đầu lúc 18h)
+    """
+    local = timezone.localtime(at)
+    day = local.date()
+    clock = local.time()
+
+    if clock < time(5, 0):
+        prev_day = day - timedelta(days=1)
+        if shift_contains_datetime(local, prev_day, DailyWorkReport.SHIFT_NIGHT):
+            return prev_day, DailyWorkReport.SHIFT_NIGHT
+
+    if shift_contains_datetime(local, day, DailyWorkReport.SHIFT_MORNING):
+        return day, DailyWorkReport.SHIFT_MORNING
+
+    if shift_contains_datetime(local, day, DailyWorkReport.SHIFT_OVERTIME):
+        has_morning = production_reports_for_day(employee, day).filter(
+            shift=DailyWorkReport.SHIFT_MORNING,
+        ).exists()
+        if has_morning:
+            return day, DailyWorkReport.SHIFT_OVERTIME
+        if shift_contains_datetime(local, day, DailyWorkReport.SHIFT_NIGHT):
+            return day, DailyWorkReport.SHIFT_NIGHT
+
+    if clock >= time(22, 0):
+        return day, DailyWorkReport.SHIFT_NIGHT
+
+    return day, DailyWorkReport.SHIFT_MORNING
+
+
+def find_open_production_report(employee, at: datetime | None = None):
+    """Báo cáo ca đang nhập (draft) gần nhất — ưu tiên khi quay lại portal."""
+    at = at or timezone.localtime()
+    local_day = timezone.localtime(at).date()
+    candidates = production_reports_for_day(employee, local_day).filter(
+        status=DailyWorkReport.STATUS_DRAFT,
+    ).order_by('-shift_started_at', '-updated_at')
+    for report in candidates:
+        if report.shift_started_at:
+            return report
+    prev_day = local_day - timedelta(days=1)
+    night = production_reports_for_day(employee, prev_day).filter(
+        shift=DailyWorkReport.SHIFT_NIGHT,
+        status=DailyWorkReport.STATUS_DRAFT,
+        shift_started_at__isnull=False,
+    ).first()
+    if night and shift_contains_datetime(at, prev_day, DailyWorkReport.SHIFT_NIGHT):
+        return night
+    return candidates.first()
+
+
+def resolve_production_entry(
+    employee,
+    requested_date: date | None = None,
+    *,
+    at: datetime | None = None,
+    explicit_shift: str | None = None,
+) -> tuple[date, str]:
+    """
+    Xác định ngày báo cáo và ca làm khi NV mở trang / bắt đầu công đoạn.
+    Ưu tiên: shift trên URL → báo cáo draft đang mở → suy từ thời điểm hiện tại.
+    """
+    at = at or timezone.localtime()
+
+    if explicit_shift and explicit_shift in PRODUCTION_SHIFT_ORDER:
+        report_date = requested_date or timezone.localtime(at).date()
+        return report_date, explicit_shift
+
+    open_report = find_open_production_report(employee, at)
+    if open_report:
+        return open_report.report_date, open_report.shift
+
+    report_date, shift = production_shift_for_datetime(at, employee)
+    if requested_date and requested_date != report_date:
+        if shift_contains_datetime(at, requested_date, shift):
+            report_date = requested_date
+    return report_date, shift
 
 
 def can_start_production_shift(employee, report_date, shift: str) -> tuple[bool, str]:

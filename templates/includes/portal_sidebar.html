@@ -460,6 +460,58 @@
             </ul>
         </li>
         {% endif %}
+        {% if jp_can_surveys %}
+        <li class="jp-sidebar-group{% if 'khao-sat' in request.path %} is-open{% endif %}">
+            <button type="button"
+                    class="jp-sidebar-group-toggle"
+                    data-jp-sidebar-group-toggle
+                    aria-expanded="{% if 'khao-sat' in request.path %}true{% else %}false{% endif %}"
+                    aria-controls="jp-sidebar-surveys-submenu">
+                <span class="jp-sidebar-group-toggle-main">
+                    <i class="bi bi-ui-radios"></i><span>Khảo sát</span>
+                </span>
+                <i class="bi bi-chevron-down jp-sidebar-group-chevron" aria-hidden="true"></i>
+            </button>
+            <ul class="jp-sidebar-submenu" id="jp-sidebar-surveys-submenu">
+                {% jp_can_menu 'surveys' 'create' as jp_can_surveys_create %}
+                {% if jp_can_surveys_create %}
+                <li>
+                    <a href="{% url 'surveys:create' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'create' %}active{% endif %}">
+                        <i class="bi bi-plus-circle"></i><span>Đặt câu hỏi</span>
+                    </a>
+                </li>
+                {% endif %}
+                {% jp_can_menu 'surveys' 'manage' as jp_can_surveys_manage %}
+                {% if jp_can_surveys_manage %}
+                <li>
+                    <a href="{% url 'surveys:manage_list' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'manage_list' or request.resolver_match.url_name == 'reference_edit' %}active{% endif %}">
+                        <i class="bi bi-link-45deg"></i><span>Chèn link</span>
+                    </a>
+                </li>
+                {% endif %}
+                {% jp_can_menu 'surveys' 'share' as jp_can_surveys_share %}
+                {% if jp_can_surveys_share %}
+                <li>
+                    <a href="{% url 'surveys:manage_list' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'share_detail' %}active{% endif %}">
+                        <i class="bi bi-send"></i><span>Tạo link gửi NV</span>
+                    </a>
+                </li>
+                {% endif %}
+                {% jp_can_menu 'surveys' 'results' as jp_can_surveys_results %}
+                {% if jp_can_surveys_results %}
+                <li>
+                    <a href="{% url 'surveys:results' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'results' or request.resolver_match.url_name == 'result_detail' %}active{% endif %}">
+                        <i class="bi bi-inbox-fill"></i><span>Kết quả</span>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </li>
+        {% endif %}
         {% if jp_can_utilities %}
         <li class="jp-sidebar-group{% if 'tien-ich' in request.path %} is-open{% endif %}">
             <button type="button"

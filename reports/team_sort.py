@@ -4,6 +4,7 @@ from datetime import date
 from urllib.parse import urlencode
 
 from reports.period_utils import PERIOD_DAY, PERIOD_MONTH, PERIOD_WEEK
+from reports.production_shift_policy import PRODUCTION_SHIFT_ORDER
 
 TEAM_SORT_MEMBER = 'member'
 TEAM_SORT_ANCHOR = 'anchor'
@@ -53,20 +54,23 @@ def build_team_table_columns(
     *,
     is_vp: bool,
     is_production: bool = False,
-    production_multi_shift: bool = False,
     base_params: dict,
     sort_key: str,
     sort_dir: str,
 ) -> list[dict]:
     specs = [
         {'key': TEAM_SORT_MEMBER, 'label': 'Nhân viên', 'align': 'start'},
-        {'key': TEAM_SORT_ANCHOR, 'label': 'Mốc', 'align': 'start', 'vp_only': True},
         {
-            'key': TEAM_SORT_SHIFT if production_multi_shift else TEAM_SORT_PERIOD,
-            'label': 'Theo ca' if production_multi_shift else ('Ca' if is_production else 'Loại'),
+            'key': TEAM_SORT_ANCHOR,
+            'label': 'Mốc',
             'align': 'start',
-            'production_only': is_production or production_multi_shift,
-            'office_skip': production_multi_shift,
+            'date_column': True,
+        },
+        {
+            'key': TEAM_SORT_SHIFT,
+            'label': 'Ca',
+            'align': 'start',
+            'production_only': True,
         },
         {'key': TEAM_SORT_PERIOD, 'label': 'Loại', 'align': 'start', 'office_only': True},
         {'key': TEAM_SORT_STATUS, 'label': 'Trạng thái', 'align': 'start'},
@@ -76,21 +80,15 @@ def build_team_table_columns(
     ]
     columns = []
     for spec in specs:
-        if spec.get('vp_only') and not is_vp:
+        if spec.get('date_column') and not (is_vp or is_production):
+            continue
+        if spec.get('production_only') and not is_production:
             continue
         if spec.get('office_only') and not is_vp:
             continue
-        if spec.get('production_only') and not is_production and not production_multi_shift:
-            continue
-        if spec.get('office_skip') and is_vp:
-            continue
-        if (
-            spec.get('key') == TEAM_SORT_PERIOD
-            and is_production
-            and not is_vp
-        ):
-            continue
         col = dict(spec)
+        if spec.get('date_column') and is_production and not is_vp:
+            col['label'] = 'Ngày'
         sortable = spec.get('sortable', spec['key'] is not None)
         col['sortable'] = sortable
         align = col['align']
@@ -116,9 +114,12 @@ def _member_name(row) -> str:
 def _row_sort_tuple(row, sort_key: str) -> tuple:
     report = row.get('report')
     if sort_key == TEAM_SORT_MEMBER:
-        return (_member_name(row),)
+        return (_member_name(row), row.get('report_date') or date.min)
     if sort_key == TEAM_SORT_ANCHOR:
-        return (report.report_date if report else date.min,)
+        anchor = row.get('report_date')
+        if anchor is None and report:
+            anchor = report.report_date
+        return (anchor or date.min,)
     if sort_key == TEAM_SORT_PERIOD:
         if not report:
             return (-1,)
@@ -126,19 +127,38 @@ def _row_sort_tuple(row, sort_key: str) -> tuple:
             return (0,)
         return (PERIOD_ORDER.get(report.report_period, 99),)
     if sort_key == TEAM_SORT_SHIFT:
+        reports = row.get('production_reports') or []
+        if reports:
+            indices = []
+            for report in reports:
+                try:
+                    indices.append(PRODUCTION_SHIFT_ORDER.index(report.shift))
+                except ValueError:
+                    indices.append(99)
+            return (min(indices),)
         if not report:
             return (-1,)
-        from reports.production_shift_policy import PRODUCTION_SHIFT_ORDER
         try:
             return (PRODUCTION_SHIFT_ORDER.index(report.shift),)
         except ValueError:
             return (99,)
     if sort_key == TEAM_SORT_STATUS:
+        if row.get('production_report_count') is not None:
+            if not row.get('production_report_count'):
+                return (STATUS_ORDER.get(None, 0),)
+            if row.get('production_all_submitted'):
+                return (STATUS_ORDER.get('SUBMITTED', 0),)
+            return (STATUS_ORDER.get('DRAFT', 0),)
         status = report.status if report else None
         return (STATUS_ORDER.get(status, 0),)
     if sort_key == TEAM_SORT_REVIEWED:
+        if row.get('production_report_count'):
+            return (1 if row.get('production_all_reviewed') else 0,)
         return (1 if report and report.hod_reviewed else 0,)
     if sort_key == TEAM_SORT_SUMMARY:
+        qty = row.get('production_total_qty')
+        if qty is not None:
+            return (qty, row.get('production_report_count', 0))
         if not report:
             return (0,)
         if report.is_production_report:

@@ -1,5 +1,6 @@
 """Tests for production hourly report logic."""
 
+from decimal import Decimal
 from datetime import date, datetime, time, timedelta
 from unittest.mock import patch
 
@@ -11,12 +12,19 @@ from django.utils import timezone
 from hrm.models import Department, DepartmentMenuPermission, Profile
 from reports.models import DailyWorkReport, ProductionHourlyQuantity, ProductionShiftProduct
 from reports.production_hourly import (
+    build_work_day_timeline,
     active_product,
     build_hourly_grid,
     build_proxy_entry_grid,
     build_productivity_report,
     can_edit_production_report,
     cumulative_quantity,
+    complete_work_session,
+    distribute_quantity_to_slots,
+    end_work_session,
+    session_awaiting_completion,
+    session_in_progress,
+    start_work_session,
     ensure_active_work_block,
     ensure_work_day_started,
     finalize_product_with_metadata,
@@ -68,6 +76,95 @@ class ProductionHourlyTests(TestCase):
             report_profile=REPORT_PROFILE_PRODUCTION,
             shift=DailyWorkReport.SHIFT_MORNING,
         )
+
+
+
+    def test_session_start_end_complete(self):
+        ensure_work_day_started(self.report)
+        started = start_work_session(self.report)
+        self.assertIsNotNone(started.started_at)
+        self.assertIsNone(started.ended_at)
+        self.assertIsNotNone(session_in_progress(self.report))
+
+        morning = MORNING_SLOTS[0]
+        start_dt = timezone.make_aware(datetime.combine(self.report_date, morning.start))
+        end_dt = timezone.make_aware(datetime.combine(self.report_date, morning.end))
+        started.started_at = start_dt
+        started.save(update_fields=['started_at'])
+        ended = end_work_session(self.report)
+        ended.ended_at = end_dt
+        ended.save(update_fields=['ended_at'])
+        self.assertIsNotNone(session_awaiting_completion(self.report))
+
+        completed = complete_work_session(
+            self.report,
+            product_code='PEGASUS',
+            process_name='RAP DAY TRUOC x1',
+            norm_per_hour=180,
+            total_quantity=200,
+        )
+        self.assertEqual(completed.status, ProductionShiftProduct.STATUS_DONE)
+        self.assertEqual(completed.total_quantity, 200)
+        self.assertEqual(completed.hourly_entries.count(), 1)
+        self.assertEqual(completed.hourly_entries.first().quantity, 200)
+
+        prod = build_productivity_report(self.report)
+        self.assertTrue(prod['has_data'])
+        self.assertEqual(prod['total_quantity'], 200)
+
+    def test_distribute_quantity_across_slots(self):
+        ensure_work_day_started(self.report)
+        product = ProductionShiftProduct.objects.create(
+            report=self.report,
+            sort_order=0,
+            first_slot_index=0,
+            status=ProductionShiftProduct.STATUS_ACTIVE,
+            started_at=timezone.make_aware(datetime.combine(self.report_date, time(7, 30))),
+            ended_at=timezone.make_aware(datetime.combine(self.report_date, time(10, 30))),
+        )
+        entries = distribute_quantity_to_slots(product, 300)
+        self.assertEqual(len(entries), 3)
+        self.assertEqual(sum(e.quantity for e in entries), 300)
+        for entry in entries:
+            self.assertEqual(entry.quantity, Decimal('100'))
+    def test_work_day_timeline_shows_unaccounted_gaps(self):
+        ensure_work_day_started(self.report)
+        from datetime import datetime, time
+        from reports.models import ProductionShiftProduct
+        ProductionShiftProduct.objects.create(
+            report=self.report, sort_order=0, first_slot_index=4,
+            product_code='JP-D', process_name='Dong goi', norm_per_hour=150,
+            status=ProductionShiftProduct.STATUS_DONE, total_quantity=160,
+            started_at=timezone.make_aware(datetime.combine(self.report_date, time(13, 11))),
+            ended_at=timezone.make_aware(datetime.combine(self.report_date, time(14, 39))),
+        )
+        timeline = build_work_day_timeline(self.report)
+        kinds = [s['kind'] for s in timeline['segments']]
+        self.assertIn('gap', kinds)
+        self.assertTrue(timeline['has_gaps'])
+        gap_segments = [s for s in timeline['segments'] if s['kind'] == 'gap']
+        self.assertTrue(any(s['end_display'] == '18:00' for s in gap_segments))
+
+    def test_distribute_quantity_equal_per_overlapping_slot(self):
+        ensure_work_day_started(self.report)
+        product = ProductionShiftProduct.objects.create(
+            report=self.report,
+            sort_order=0,
+            first_slot_index=1,
+            status=ProductionShiftProduct.STATUS_ACTIVE,
+            started_at=timezone.make_aware(datetime.combine(self.report_date, time(8, 35))),
+            ended_at=timezone.make_aware(datetime.combine(self.report_date, time(12, 2))),
+        )
+        entries = distribute_quantity_to_slots(product, 450)
+        self.assertEqual(len(entries), 3)
+        self.assertEqual(sum(e.quantity for e in entries), 450)
+        by_slot = {e.slot_index: e for e in entries}
+        self.assertEqual(set(by_slot), {1, 2, 3})
+        for entry in entries:
+            self.assertEqual(entry.quantity, Decimal('150'))
+        self.assertEqual(by_slot[1].partial_hours, Decimal('0.92'))
+        self.assertIsNone(by_slot[2].partial_hours)
+        self.assertEqual(by_slot[3].partial_hours, Decimal('1.50'))
 
     def test_auto_start_and_active_block(self):
         self.report.shift = DailyWorkReport.SHIFT_MORNING
@@ -430,6 +527,37 @@ class ProductionHourlyTests(TestCase):
                 slot_count_for_shift(DailyWorkReport.SHIFT_MORNING),
             )
 
+
+
+
+    def test_production_shift_for_datetime(self):
+        from reports.production_shift_policy import production_shift_for_datetime
+
+        morning = timezone.make_aware(datetime.combine(self.report_date, time(9, 0)))
+        rd, shift = production_shift_for_datetime(morning, self.user)
+        self.assertEqual(rd, self.report_date)
+        self.assertEqual(shift, DailyWorkReport.SHIFT_MORNING)
+
+        self.report.shift = DailyWorkReport.SHIFT_MORNING
+        self.report.save(update_fields=['shift'])
+        overtime = timezone.make_aware(datetime.combine(self.report_date, time(19, 0)))
+        rd, shift = production_shift_for_datetime(overtime, self.user)
+        self.assertEqual(shift, DailyWorkReport.SHIFT_OVERTIME)
+
+        night = timezone.make_aware(datetime.combine(self.report_date, time(19, 0)))
+        rd, shift = production_shift_for_datetime(night, self.user)
+        self.assertEqual(shift, DailyWorkReport.SHIFT_OVERTIME)
+
+        self.report.delete()
+        rd, shift = production_shift_for_datetime(night, self.user)
+        self.assertEqual(shift, DailyWorkReport.SHIFT_NIGHT)
+
+        after_midnight = timezone.make_aware(
+            datetime.combine(self.report_date + timedelta(days=1), time(2, 0))
+        )
+        rd, shift = production_shift_for_datetime(after_midnight, self.user)
+        self.assertEqual(rd, self.report_date)
+        self.assertEqual(shift, DailyWorkReport.SHIFT_NIGHT)
 
 class ProductionShiftPolicyTests(TestCase):
     def setUp(self):

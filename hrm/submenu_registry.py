@@ -11,6 +11,7 @@ from hrm.module_permissions import (
     MODULE_DOCUMENTS,
     MODULE_EQUIPMENT,
     MODULE_FEEDBACK,
+    MODULE_SURVEYS,
     MODULE_HO_TRO,
     MODULE_KHO_NPL,
     MODULE_KIOTVIET,
@@ -60,6 +61,12 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
     MODULE_FEEDBACK: [
         {'key': 'create', 'label': 'Gửi góp ý', 'icon': 'bi-plus-circle'},
         {'key': 'list', 'label': 'Danh sách góp ý', 'icon': 'bi-inbox-fill'},
+    ],
+    MODULE_SURVEYS: [
+        {'key': 'create', 'label': 'Đặt câu hỏi', 'icon': 'bi-plus-circle'},
+        {'key': 'manage', 'label': 'Chèn link', 'icon': 'bi-link-45deg'},
+        {'key': 'share', 'label': 'Tạo link gửi NV', 'icon': 'bi-send'},
+        {'key': 'results', 'label': 'Kết quả', 'icon': 'bi-inbox-fill'},
     ],
     MODULE_UTILITIES: [
         {'key': 'meal_ordering', 'label': 'Đặt cơm', 'icon': 'bi-cup-hot'},
@@ -198,6 +205,10 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     # Góp ý
     ('/gop-y/danh-sach', MODULE_FEEDBACK, 'list'),
     ('/gop-y/tao', MODULE_FEEDBACK, 'create'),
+    ('/khao-sat/quan-ly/tao', MODULE_SURVEYS, 'create'),
+    ('/link-gui', MODULE_SURVEYS, 'share'),
+    ('/khao-sat/quan-ly/', MODULE_SURVEYS, 'manage'),
+    ('/khao-sat/ket-qua', MODULE_SURVEYS, 'results'),
     # Kho NPL
     ('/kho-npl/thiet-lap', MODULE_KHO_NPL, 'settings'),
     ('/kho-npl/bao-cao', MODULE_KHO_NPL, 'reports'),

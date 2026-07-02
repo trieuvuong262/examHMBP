@@ -36,7 +36,9 @@ from PortalJustPlay.pagination import paginate_queryset
 from reports.report_profile import (
     REPORT_PROFILE_OFFICE,
     REPORT_PROFILE_PRODUCTION,
+    filter_team_members_for_report_profile,
 )
+from reports.production_shift_policy import shift_badge_class
 from reports.period_utils import (
     PERIOD_CHOICES,
     PERIOD_DAY,
@@ -120,12 +122,9 @@ from .team_sort import (
     sort_team_department_groups,
 )
 from .production_team import (
+    build_production_day_shift_tabs,
     build_production_reports_by_employee,
     build_production_team_department_groups,
-    build_production_week_rollup,
-    parse_team_shift_filter,
-    production_shift_filter_choices,
-    production_shift_stats,
     production_team_row_is_submitted,
     production_team_submitted_count,
     query_production_team_reports,
@@ -1062,11 +1061,14 @@ def _my_reports(request, daily_report_profile=None):
     })
 
 
-def _team_queryset(viewer, search_query):
+def _team_queryset(viewer, search_query, *, report_profile: str | None = None):
     team = get_team_report_members(viewer).select_related(
         'profile',
         'profile__department',
+        'profile__division',
     ).order_by('profile__department__sort_order', 'profile__full_name', 'username')
+    if report_profile:
+        team = filter_team_members_for_report_profile(team, report_profile)
     return apply_user_search(team, search_query)
 
 
@@ -1132,12 +1134,7 @@ def _filter_team_department_groups(
 
 
 def _production_team_row_is_submitted(row, *, submitted_status: str):
-    shift_filter = row.get('_shift_filter', '')
-    return production_team_row_is_submitted(
-        row,
-        submitted_status=submitted_status,
-        shift_filter=shift_filter,
-    )
+    return production_team_row_is_submitted(row, submitted_status=submitted_status)
 
 
 def _team_stat_urls(base_params: dict) -> dict:
@@ -1178,27 +1175,21 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
             return redirect(today_url_for_user(request.user))
         return redirect('home_portal')
 
+    date_from, date_to = parse_team_date_range(request)
+    report_date = date_to
     if report_profile == REPORT_PROFILE_OFFICE:
-        date_from, date_to = parse_team_date_range(request)
-        report_date = date_to
         period_filter = parse_team_period_filter(request)
         report_period = period_filter or PERIOD_DAY
     else:
         period_filter = ''
         report_period = PERIOD_DAY
-        report_date = request.GET.get('date') or timezone.localdate()
-        if isinstance(report_date, str):
-            report_date = datetime.strptime(report_date, '%Y-%m-%d').date()
-        date_from = report_date
-        date_to = report_date
 
     search_query = get_search_query(request)
     dept_filter = (request.GET.get('dept') or '').strip()
     status_filter = _parse_team_status_filter(request)
-    team = _team_queryset(request.user, search_query)
+    team = _team_queryset(request.user, search_query, report_profile=report_profile)
     all_team_ids = list(team.values_list('id', flat=True))
     team_count = team.count()
-    production_shift_stat_cards = []
 
     if report_profile == REPORT_PROFILE_OFFICE:
         reports_in_range = query_team_office_reports_in_range(
@@ -1217,13 +1208,11 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
         submitted = len(submitted_employee_ids)
         missing = team_count - submitted
     else:
-        shift_filter = parse_team_shift_filter(request)
-        reports = query_production_team_reports(all_team_ids, report_date)
+        reports = query_production_team_reports(all_team_ids, date_from, date_to)
         reports_by_employee = build_production_reports_by_employee(reports)
         submitted, missing = production_team_submitted_count(
             reports_by_employee,
             daily_report_visible_to_team,
-            shift_filter=shift_filter,
             team_count=team_count,
         )
         department_groups, dept_choices = build_production_team_department_groups(
@@ -1231,25 +1220,9 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
             team,
             reports_by_employee,
             daily_report_visible_to_team,
-            shift_filter=shift_filter,
+            date_from=date_from,
+            date_to=date_to,
             dept_filter=dept_filter,
-        )
-        for group in department_groups:
-            for row in group['rows']:
-                row['_shift_filter'] = shift_filter
-                row['week_rollup'] = None
-        week_rollup = build_production_week_rollup(
-            all_team_ids,
-            report_date,
-            daily_report_visible_to_team,
-        )
-        for group in department_groups:
-            for row in group['rows']:
-                row['week_rollup'] = week_rollup.get(row['member'].id)
-        production_shift_stat_cards = production_shift_stats(
-            team_count,
-            reports_by_employee,
-            daily_report_visible_to_team,
         )
 
     department_groups = _filter_team_department_groups(
@@ -1269,11 +1242,7 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
     if report_profile == REPORT_PROFILE_OFFICE:
         base_params = team_date_range_query_params(date_from, date_to, period=period_filter)
     else:
-        base_params = {'date': report_date.isoformat()}
-        if report_profile == REPORT_PROFILE_PRODUCTION:
-            shift_filter = parse_team_shift_filter(request)
-            if shift_filter:
-                base_params['shift'] = shift_filter
+        base_params = team_date_range_query_params(date_from, date_to)
     if search_query:
         base_params['q'] = search_query
     if dept_filter:
@@ -1287,10 +1256,6 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
     table_columns = build_team_table_columns(
         is_vp=report_profile == REPORT_PROFILE_OFFICE,
         is_production=report_profile == REPORT_PROFILE_PRODUCTION,
-        production_multi_shift=(
-            report_profile == REPORT_PROFILE_PRODUCTION
-            and not parse_team_shift_filter(request)
-        ),
         base_params=base_params,
         sort_key=sort_key,
         sort_dir=sort_dir,
@@ -1318,7 +1283,11 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
         'reports_scope_label': scope_label,
         'team_page_title': team_title,
         'office_period': report_period if report_profile == REPORT_PROFILE_OFFICE else PERIOD_DAY,
-        'period_query': base_params if report_profile == REPORT_PROFILE_OFFICE else {'date': report_date.isoformat()},
+        'period_query': (
+            base_params
+            if report_profile == REPORT_PROFILE_OFFICE
+            else team_date_range_query_params(date_from, date_to)
+        ),
         'today_url_name': (
             'reports:today_cn'
             if report_profile == REPORT_PROFILE_PRODUCTION
@@ -1335,17 +1304,10 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
         'team_sort_dir': sort_dir,
         'team_sort_active': bool(request.GET.get('sort')),
         'team_list_query': urlencode(base_params),
-        'production_shift_filter': (
-            parse_team_shift_filter(request)
-            if report_profile == REPORT_PROFILE_PRODUCTION else ''
-        ),
-        'production_shift_choices': (
-            production_shift_filter_choices()
-            if report_profile == REPORT_PROFILE_PRODUCTION else []
-        ),
-        'production_shift_stat_cards': (
-            production_shift_stat_cards
-            if report_profile == REPORT_PROFILE_PRODUCTION else []
+        'my_url_name': (
+            'reports:my_cn'
+            if report_profile == REPORT_PROFILE_PRODUCTION
+            else 'reports:my_vp'
         ),
     })
 
@@ -1404,7 +1366,7 @@ def _team_weekly_reports_for_profile(request, report_profile: str):
     search_query = get_search_query(request)
     dept_filter = (request.GET.get('dept') or '').strip()
     status_filter = _parse_team_status_filter(request)
-    team = _team_queryset(request.user, search_query)
+    team = _team_queryset(request.user, search_query, report_profile=report_profile)
     all_team_ids = list(team.values_list('id', flat=True))
     all_reports = meaningful_weekly_reports_qs().filter(
         employee_id__in=all_team_ids,
@@ -1655,6 +1617,18 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
             list_query=list_query,
         ),
         'team_list_query': list_query,
+        'shift_badge_class': (
+            shift_badge_class(report.shift)
+            if report.is_production_report and report.shift else ''
+        ),
+        'production_day_shift_tabs': (
+            build_production_day_shift_tabs(
+                report,
+                detail_url_name=detail_url_name,
+                list_query=list_query,
+            )
+            if report.is_production_report else []
+        ),
     })
 
 

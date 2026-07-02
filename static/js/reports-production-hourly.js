@@ -1,6 +1,18 @@
 (function () {
     'use strict';
 
+    function formatProdQty(value) {
+        var n = parseFloat(value);
+        if (!isFinite(n) || n === 0) return '0';
+        if (Math.floor(n) === n) return String(Math.floor(n));
+        return String(n).replace(/\.?0+$/, '');
+    }
+
+    function parseProdQty(value) {
+        var n = parseFloat(value);
+        return isFinite(n) ? n : 0;
+    }
+
     function ready(fn) {
         if (document.readyState !== 'loading') fn();
         else document.addEventListener('DOMContentLoaded', fn);
@@ -10,10 +22,10 @@
         mountModalsToBody();
         cleanupModalArtifacts();
         initReviewPageLayout();
-        initHourlyModal();
-        initProductWizard();
+        initCompleteSessionModal();
         initReviewGrid();
         autoOpenModals();
+        focusMobileCompleteQty();
     });
 
     function initReviewPageLayout() {
@@ -35,7 +47,7 @@
 
     /** Modal trong main content dễ bị backdrop che (màn hình mờ, không bấm được). */
     function mountModalsToBody() {
-        ['hourlyModal', 'productWizardModal'].forEach(function (id) {
+        ['completeSessionModal'].forEach(function (id) {
             var el = document.getElementById(id);
             if (el && el.parentElement !== document.body) {
                 document.body.appendChild(el);
@@ -63,26 +75,15 @@
         instance.show();
     }
 
-    function initHourlyModal() {
-        var modal = document.getElementById('hourlyModal');
-        if (!modal) return;
+    function initCompleteSessionModal() {
+        document.querySelectorAll('.jp-prod-complete-form').forEach(function (form) {
+            var qtyInput = form.querySelector('.jp-prod-complete-qty');
+            var reasonWrap = form.querySelector('.jp-prod-complete-zero-wrap');
+            var reasonInput = form.querySelector('.jp-prod-complete-zero-reason');
+            var extraWrap = form.querySelector('.jp-prod-complete-extra-wrap');
+            var damagedInput = form.querySelector('.jp-prod-complete-damaged');
+            if (!qtyInput || !reasonWrap || !reasonInput) return;
 
-        modal.addEventListener('show.bs.modal', function (event) {
-            var btn = event.relatedTarget;
-            var slotIndex = btn && btn.getAttribute('data-slot-index');
-            var slotLabel = btn && btn.getAttribute('data-slot-label');
-            fillHourlyModal(slotIndex, slotLabel);
-        });
-
-        modal.addEventListener('hidden.bs.modal', cleanupModalArtifacts);
-
-        var qtyInput = document.getElementById('hourly-quantity');
-        var reasonWrap = document.getElementById('hourly-zero-reason-wrap');
-        var reasonInput = document.getElementById('hourly-zero-reason');
-        var extraWrap = document.getElementById('hourly-extra-wrap');
-        var damagedInput = document.getElementById('hourly-damaged-quantity');
-        var noteInput = document.getElementById('hourly-note');
-        if (qtyInput && reasonWrap && reasonInput) {
             qtyInput.addEventListener('input', function () {
                 var isZero = qtyInput.value === '0';
                 reasonWrap.classList.toggle('d-none', !isZero);
@@ -91,113 +92,36 @@
                 if (extraWrap) extraWrap.classList.toggle('d-none', isZero);
                 if (isZero && damagedInput) damagedInput.value = '';
             });
-        }
 
-        var hourlyForm = document.getElementById('hourly-form');
-        if (hourlyForm) {
-            hourlyForm.addEventListener('submit', function (e) {
-                if (!qtyInput) return;
-                if (qtyInput.value === '0' && !(reasonInput && reasonInput.value.trim())) {
+            form.addEventListener('submit', function (e) {
+                if (qtyInput.value === '0' && !(reasonInput.value || '').trim()) {
                     e.preventDefault();
                     reasonWrap.classList.remove('d-none');
                     reasonInput.required = true;
                     reasonInput.focus();
                 }
             });
+        });
+
+        var modal = document.getElementById('completeSessionModal');
+        if (modal) {
+            modal.addEventListener('hidden.bs.modal', cleanupModalArtifacts);
         }
     }
 
-    function fillHourlyModal(slotIndex, slotLabel) {
-        var idxInput = document.getElementById('hourly-slot-index');
-        var slotText = document.getElementById('hourly-modal-slot');
-        if (idxInput) idxInput.value = slotIndex || '';
-        if (slotText) slotText.textContent = slotLabel ? 'Khung giờ: ' + slotLabel : '';
-        var modal = document.getElementById('hourlyModal');
-        var qty = document.getElementById('hourly-quantity');
-        var reasonWrap = document.getElementById('hourly-zero-reason-wrap');
-        var reasonInput = document.getElementById('hourly-zero-reason');
-        var extraWrap = document.getElementById('hourly-extra-wrap');
-        var damagedInput = document.getElementById('hourly-damaged-quantity');
-        var noteInput = document.getElementById('hourly-note');
-        if (qty) {
-            qty.value = '';
-            if (reasonWrap) reasonWrap.classList.add('d-none');
-            if (reasonInput) {
-                reasonInput.value = '';
-                reasonInput.required = false;
-            }
-            if (extraWrap) extraWrap.classList.remove('d-none');
-            if (damagedInput) damagedInput.value = '';
-            if (noteInput) noteInput.value = '';
-            setTimeout(function () { qty.focus(); }, 200);
-        }
-    }
-
-    function initProductWizard() {
-        var modal = document.getElementById('productWizardModal');
-        if (!modal) return;
-
-        var form = document.getElementById('product-wizard-form');
-        var nextBtn = document.getElementById('wizard-next-btn');
-        var submitBtn = document.getElementById('wizard-submit-btn');
-        var title = document.getElementById('wizard-title');
-        var panes = modal.querySelectorAll('.wizard-pane');
-        var steps = modal.querySelectorAll('.jp-prod-wizard-steps span');
-        var current = 1;
-
-        function showStep(n) {
-            current = n;
-            panes.forEach(function (pane) {
-                var step = parseInt(pane.getAttribute('data-step'), 10);
-                pane.classList.toggle('d-none', step !== n);
-                var input = pane.querySelector('input');
-                if (input) input.required = step === n;
-            });
-            steps.forEach(function (s) {
-                var step = parseInt(s.getAttribute('data-step'), 10);
-                s.classList.toggle('active', step === n);
-                s.classList.toggle('done', step < n);
-            });
-            var titles = { 1: 'Mã hàng', 2: 'Tên công đoạn', 3: 'Định mức 1 giờ' };
-            if (title) title.textContent = titles[n] || '';
-            if (nextBtn) nextBtn.classList.toggle('d-none', n >= 3);
-            if (submitBtn) submitBtn.classList.toggle('d-none', n < 3);
-        }
-
-        if (nextBtn) {
-            nextBtn.addEventListener('click', function () {
-                var pane = modal.querySelector('.wizard-pane[data-step="' + current + '"]');
-                var input = pane && pane.querySelector('input');
-                if (input && !input.value.trim()) {
-                    input.focus();
-                    input.reportValidity();
-                    return;
-                }
-                showStep(current + 1);
-                var nextPane = modal.querySelector('.wizard-pane[data-step="' + (current) + '"] input');
-                if (nextPane) nextPane.focus();
-            });
-        }
-
-        if (form) {
-            form.addEventListener('submit', function (e) {
-                if (current < 3) {
-                    e.preventDefault();
-                    showStep(3);
-                }
-            });
-        }
-
-        modal.addEventListener('hidden.bs.modal', cleanupModalArtifacts);
-        showStep(1);
+    function focusMobileCompleteQty() {
+        if (window.matchMedia('(min-width: 992px)').matches) return;
+        var input = document.querySelector('#complete-session-form-mobile .jp-prod-complete-qty');
+        if (input) setTimeout(function () { input.focus(); }, 300);
     }
 
     function autoOpenModals() {
-        var productModal = document.getElementById('productWizardModal');
-        if (!productModal || typeof bootstrap === 'undefined') return;
+        if (!window.matchMedia('(min-width: 992px)').matches) return;
+        var completeModal = document.getElementById('completeSessionModal');
+        if (!completeModal || typeof bootstrap === 'undefined') return;
 
-        if (productModal.getAttribute('data-show') === '1') {
-            setTimeout(function () { openModal(productModal); }, 100);
+        if (completeModal.getAttribute('data-show') === '1') {
+            setTimeout(function () { openModal(completeModal); }, 100);
         }
     }
 
@@ -292,18 +216,18 @@
         row.slots.forEach(function (cell) {
             if (cell.is_na) return;
             if (!proxyMode && !cell.has_data) return;
-            var qty = parseInt(cell.quantity, 10) || 0;
+            var qty = parseProdQty(cell.quantity);
             if (qty > 0) rowTotal += qty;
             var label = escapeHtml(cell.slot_label || ('Giờ ' + (cell.slot_index + 1)));
             html += '<div class="jp-prod-review-slot">';
             html += '<div class="jp-prod-review-slot-label">' + label + '</div>';
-            html += '<input type="number" class="jp-prod-review-qty-input" min="0" step="1" inputmode="numeric" ';
+            html += '<input type="number" class="jp-prod-review-qty-input" min="0" step="0.01" inputmode="decimal" ';
             html += 'data-slot-index="' + cell.slot_index + '" value="' + qty + '" aria-label="Sản lượng ' + label + '">';
-            html += '<span class="jp-prod-review-slot-cum">Σ ' + (cell.cumulative || qty) + '</span>';
+            html += '<span class="jp-prod-review-slot-cum">Σ ' + formatProdQty(cell.cumulative || qty) + '</span>';
             html += '</div>';
         });
 
-        html += '</div><footer class="jp-prod-review-row-total">Tổng dòng: <strong class="jp-prod-row-total-val">' + (row.total_quantity || rowTotal) + '</strong></footer>';
+        html += '</div><footer class="jp-prod-review-row-total">Tổng dòng: <strong class="jp-prod-row-total-val">' + formatProdQty(row.total_quantity || rowTotal) + '</strong></footer>';
         html += '</article>';
         return html;
     }
@@ -335,14 +259,14 @@
                 if (cell.is_na) {
                     html += '<span class="text-muted">—</span>';
                 } else if (cell.has_data || proxyMode) {
-                    var qty = parseInt(cell.quantity, 10) || 0;
+                    var qty = parseProdQty(cell.quantity);
                     if (qty > 0) rowTotal += qty;
-                    html += '<input type="number" class="jp-review-cell-input" min="0" step="1" ';
+                    html += '<input type="number" class="jp-review-cell-input" min="0" step="0.01" ';
                     html += 'data-slot-index="' + cell.slot_index + '" value="' + qty + '">';
                 }
                 html += '</td>';
             });
-            html += '<td class="text-end fw-bold jp-prod-row-total-val">' + (row.total_quantity || rowTotal) + '</td>';
+            html += '<td class="text-end fw-bold jp-prod-row-total-val">' + formatProdQty(row.total_quantity || rowTotal) + '</td>';
             html += '</tr>';
         });
 
@@ -366,27 +290,27 @@
             root.querySelectorAll('tr[data-product-id]').forEach(function (tr) {
                 var rowTotal = 0;
                 tr.querySelectorAll('.jp-review-cell-input').forEach(function (inp) {
-                    rowTotal += parseInt(inp.value, 10) || 0;
+                    rowTotal += parseProdQty(inp.value);
                 });
                 grand += rowTotal;
                 var el = tr.querySelector('.jp-prod-row-total-val');
-                if (el) el.textContent = rowTotal;
+                if (el) el.textContent = formatProdQty(rowTotal);
             });
         } else {
             root.querySelectorAll('.jp-prod-review-product').forEach(function (article) {
                 var rowTotal = 0;
                 article.querySelectorAll('.jp-prod-review-qty-input').forEach(function (inp) {
-                    rowTotal += parseInt(inp.value, 10) || 0;
+                    rowTotal += parseProdQty(inp.value);
                 });
                 grand += rowTotal;
                 var el = article.querySelector('.jp-prod-row-total-val');
-                if (el) el.textContent = rowTotal;
+                if (el) el.textContent = formatProdQty(rowTotal);
             });
         }
 
         ['review-grand-total', 'review-grand-total-desktop', 'review-grand-total-mobile'].forEach(function (id) {
             var grandEl = document.getElementById(id);
-            if (grandEl) grandEl.textContent = grand;
+            if (grandEl) grandEl.textContent = formatProdQty(grand);
         });
     }
 
@@ -402,7 +326,7 @@
                 tr.querySelectorAll('.jp-review-cell-input').forEach(function (inp) {
                     slots.push({
                         slot_index: parseInt(inp.getAttribute('data-slot-index'), 10),
-                        quantity: parseInt(inp.value, 10) || 0,
+                        quantity: parseProdQty(inp.value),
                     });
                 });
                 payload.push({ product_id: parseInt(productId, 10), slots: slots });
@@ -414,7 +338,7 @@
                 article.querySelectorAll('.jp-prod-review-qty-input').forEach(function (inp) {
                     slots.push({
                         slot_index: parseInt(inp.getAttribute('data-slot-index'), 10),
-                        quantity: parseInt(inp.value, 10) || 0,
+                        quantity: parseProdQty(inp.value),
                     });
                 });
                 payload.push({ product_id: parseInt(productId, 10), slots: slots });

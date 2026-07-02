@@ -1,4 +1,4 @@
-{% load static %}
+{% load static report_extras %}
 <div class="jp-prod-hourly-sheet-wrap">
     <div class="table-responsive jp-prod-hourly-scroll">
         <table class="table table-bordered table-sm jp-prod-hourly-table mb-0">
@@ -40,10 +40,12 @@
                         <span class="jp-ph-na">—</span>
                         {% elif cell.has_data %}
                         {% if cell.quantity > 0 %}
-                        <span class="jp-ph-qty">{{ cell.quantity }}</span>
-                        <span class="jp-ph-cum">{{ cell.cumulative }}</span>
+                        <span class="jp-ph-qty">{{ cell.display|default:cell.quantity|prod_qty }}</span>
+                        {% if cell.show_cumulative|default:True %}
+                        <span class="jp-ph-cum">{{ cell.cumulative|prod_qty }}</span>
+                        {% endif %}
                         {% if cell.damaged_quantity %}
-                        <span class="jp-ph-damaged" title="Hư hỏng">Hư: {{ cell.damaged_quantity }}</span>
+                        <span class="jp-ph-damaged" title="Hư hỏng">Hư: {{ cell.damaged_quantity|prod_qty }}</span>
                         {% endif %}
                         {% if cell.note %}
                         <span class="jp-ph-note" title="{{ cell.note }}">{{ cell.note|truncatechars:14 }}</span>
@@ -66,7 +68,7 @@
             <tfoot class="table-light">
                 <tr>
                     <th colspan="4" class="text-end">Tổng</th>
-                    <th colspan="{{ hourly_grid.slots|length }}" class="text-hm">{{ hourly_grid.grand_total }}</th>
+                    <th colspan="{{ hourly_grid.slots|length }}" class="text-hm">{{ hourly_grid.grand_total|prod_qty }}</th>
                 </tr>
             </tfoot>
             {% endif %}

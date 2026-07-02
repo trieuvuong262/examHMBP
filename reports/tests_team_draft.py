@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+﻿from datetime import date, timedelta
 
 from django.contrib.auth.models import User
 from django.test import Client, TestCase
@@ -15,7 +15,7 @@ from hrm.models import (
 )
 from hrm.permissions import ROLE_DIRECTOR, ROLE_DIVISION_HEAD, ROLE_EMPLOYEE, ROLE_TEAM_LEADER
 from reports.models import DailyWorkReport, WeeklyWorkReport
-from reports.report_profile import REPORT_PROFILE_OFFICE
+from reports.report_profile import REPORT_PROFILE_OFFICE, REPORT_PROFILE_PRODUCTION
 from reports.team_utils import build_report_team_department_groups
 from reports.week_utils import monday_of
 
@@ -53,8 +53,8 @@ class ReportTeamDraftTests(TestCase):
         self.client.force_login(self.leader)
         resp = self.client.get(reverse('reports:team_cn'))
         self.assertEqual(resp.status_code, 200)
-        self.assertContains(resp, 'Chưa báo cáo')
-        self.assertNotContains(resp, 'Nháp')
+        self.assertContains(resp, 'ChÆ°a bÃ¡o cÃ¡o')
+        self.assertNotContains(resp, 'NhÃ¡p')
 
     def test_saved_draft_shown_on_team_page(self):
         DailyWorkReport.objects.create(
@@ -65,11 +65,11 @@ class ReportTeamDraftTests(TestCase):
         )
         self.client.force_login(self.leader)
         resp = self.client.get(reverse('reports:team_cn'))
-        self.assertContains(resp, 'Nháp')
+        self.assertContains(resp, 'NhÃ¡p')
 
     def test_team_grouped_by_concurrent_department(self):
         mkt = Department.objects.create(name='MARKETING GRP', sort_order=2)
-        sx = Department.objects.create(name='SAN XUAT GRP', sort_order=1)
+        sx = Department.objects.create(name='SAN XUAT GRP', sort_order=1, report_profile=REPORT_PROFILE_PRODUCTION)
         div = Division.objects.create(name='Team A', department=mkt, sort_order=1)
         mgr = self._user('mgr_grp', ROLE_EMPLOYEE, mkt)
         sub_mkt = self._user('sub_mkt', ROLE_EMPLOYEE, mkt)
@@ -78,13 +78,13 @@ class ReportTeamDraftTests(TestCase):
             profile=mgr.profile,
             department=mkt,
             division=div,
-            job_position='Trưởng bộ phận',
+            job_position='TrÆ°á»Ÿng bá»™ pháº­n',
             role=ROLE_DIVISION_HEAD,
         )
         slot_sx = ProfileConcurrentPosition.objects.create(
             profile=mgr.profile,
             department=sx,
-            job_position='Trưởng phòng',
+            job_position='TrÆ°á»Ÿng phÃ²ng',
             role=ROLE_DIVISION_HEAD,
         )
         slot_mkt.subordinates.add(sub_mkt)
@@ -119,7 +119,7 @@ class ReportTeamDraftTests(TestCase):
             'from': week.isoformat(),
             'to': (week + timedelta(days=6)).isoformat(),
         })
-        self.assertContains(resp, 'Nháp')
+        self.assertContains(resp, 'NhÃ¡p')
 
     def test_unsaved_weekly_not_shown_as_draft_on_team_page(self):
         week = monday_of(date.today())
@@ -135,8 +135,8 @@ class ReportTeamDraftTests(TestCase):
             'from': week.isoformat(),
             'to': (week + timedelta(days=6)).isoformat(),
         })
-        self.assertContains(resp, 'Chưa báo cáo')
-        self.assertNotContains(resp, 'Nháp')
+        self.assertContains(resp, 'ChÆ°a bÃ¡o cÃ¡o')
+        self.assertNotContains(resp, 'NhÃ¡p')
 
     def test_my_reports_lists_weekly_history(self):
         week = monday_of(date.today())
@@ -152,9 +152,9 @@ class ReportTeamDraftTests(TestCase):
         self.client.force_login(self.member)
         resp = self.client.get(reverse('reports:my_vp'), {'period': 'week'})
         self.assertEqual(resp.status_code, 200)
-        self.assertContains(resp, 'Tuần')
+        self.assertContains(resp, 'Tuáº§n')
         self.assertContains(resp, 'Link')
-        self.assertContains(resp, 'Đã nộp')
+        self.assertContains(resp, 'ÄÃ£ ná»™p')
         self.assertContains(resp, reverse('reports:detail_vp', args=[report.pk]))
 
     def test_my_reports_hides_unsaved_weekly_draft(self):
@@ -169,7 +169,7 @@ class ReportTeamDraftTests(TestCase):
         self.client.force_login(self.member)
         resp = self.client.get(reverse('reports:my_vp'), {'period': 'week'})
         self.assertEqual(resp.status_code, 200)
-        self.assertContains(resp, 'Chưa có báo cáo nào')
+        self.assertContains(resp, 'ChÆ°a cÃ³ bÃ¡o cÃ¡o nÃ o')
 
     def test_team_weekly_vp_redirects_to_unified_team_page(self):
         week = monday_of(date.today())
@@ -269,9 +269,35 @@ class ReportTeamDraftTests(TestCase):
             },
         )
         self.assertEqual(resp.status_code, 200)
-        self.assertContains(resp, 'Đã nộp')
-        self.assertContains(resp, 'Tuần')
-        self.assertNotContains(resp, 'Nhập hộ')
+        self.assertContains(resp, 'ÄÃ£ ná»™p')
+        self.assertContains(resp, 'Tuáº§n')
+        self.assertNotContains(resp, 'Nháº­p há»™')
         self.assertContains(resp, reverse('reports:detail_vp', args=[
             DailyWorkReport.objects.get(employee=self.member, report_period='week').pk,
         ]))
+
+    def test_team_vp_excludes_production_subordinates(self):
+        sx_dept = Department.objects.create(
+            name='SX VP Exclude',
+            sort_order=2,
+            report_profile=REPORT_PROFILE_PRODUCTION,
+        )
+        sx_member = self._user('mem_sx_vp', ROLE_EMPLOYEE, sx_dept)
+        self.leader.profile.subordinates.add(sx_member)
+        DailyWorkReport.objects.create(
+            employee=self.member,
+            report_date=date.today(),
+            report_profile=REPORT_PROFILE_OFFICE,
+            status=DailyWorkReport.STATUS_SUBMITTED,
+            submitted_at=timezone.now(),
+        )
+        self.client.force_login(self.leader)
+        resp = self.client.get(reverse('reports:team_vp'), {
+            'from': date.today().isoformat(),
+            'to': date.today().isoformat(),
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'mem_draft')
+        self.assertNotContains(resp, 'mem_sx_vp')
+
+

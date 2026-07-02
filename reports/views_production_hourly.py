@@ -1,6 +1,7 @@
 """Báo cáo sản xuất — nhập sản lượng hàng giờ (mobile-first)."""
 
 import json
+from decimal import Decimal
 
 from django.contrib import messages
 from django.contrib.auth import get_user_model
@@ -22,21 +23,28 @@ from reports.production_hourly import (
     build_proxy_entry_grid,
     can_edit_production_report,
     can_proxy_enter_daily_report,
+    complete_work_session,
     ensure_active_work_block,
     ensure_work_day_started,
+    end_work_session,
     finalize_product_with_metadata,
     is_production_report_locked,
     parse_decimal,
+    parse_non_negative_decimal,
     parse_int,
-    pending_slots_for_report,
     save_hourly_entry,
+    session_awaiting_completion,
+    session_in_progress,
     shift_is_started,
+    start_work_session,
     unfinalized_active_with_data,
 )
 from reports.production_shift_policy import (
     PRODUCTION_SHIFT_ORDER,
     build_shift_picker_options,
     can_start_production_shift,
+    production_reports_for_day,
+    resolve_production_entry,
     shift_display_label,
 )
 from reports.production_slots import current_slot_index, slot_by_index
@@ -154,29 +162,55 @@ def _production_redirect(report_date, shift='', for_user_id=None, extra=None):
     return url
 
 
+def _auto_resolve_shift_and_date(subject, report_date, *, explicit_shift: str = ''):
+    """Tự nhận ca (sáng / tăng ca / tối) và ngày báo cáo theo giờ hiện tại."""
+    if explicit_shift:
+        return resolve_production_entry(
+            subject,
+            report_date,
+            explicit_shift=explicit_shift,
+        )
+    return resolve_production_entry(subject, report_date)
+
+
+def _prepare_production_report(subject, report_date, shift: str):
+    """Tải hoặc tạo báo cáo ca — shift rỗng thì tự suy theo thời gian."""
+    from reports.views import _ensure_daily_report_saved
+
+    resolved_date, resolved_shift = _auto_resolve_shift_and_date(
+        subject,
+        report_date,
+        explicit_shift=shift,
+    )
+    ok, reason = can_start_production_shift(subject, resolved_date, resolved_shift)
+    existing = DailyWorkReport.objects.filter(
+        employee=subject,
+        report_date=resolved_date,
+        report_profile=REPORT_PROFILE_PRODUCTION,
+        shift=resolved_shift,
+    ).first()
+    if not ok and not existing:
+        return None, reason, resolved_date, resolved_shift
+
+    report = _load_production_report(subject, resolved_date, resolved_shift)
+    report.shift = resolved_shift
+    report = _ensure_daily_report_saved(report)
+    return report, '', resolved_date, resolved_shift
+
+
 def _handle_production_post(request, report, report_date, subject, editing_for_other, shift: str):
     from reports.views import _ensure_daily_report_saved, _finalize_report_submission
-
-    if report.pk:
-        report = DailyWorkReport.objects.get(pk=report.pk)
-
-    can_edit = can_edit_production_report(
-        request.user,
-        report,
-        can_submit=can_submit_daily_report(request.user),
-        is_proxy=editing_for_other,
-    )
-    if not can_edit:
-        if report.employee_id == request.user.id:
-            messages.error(request, report_edit_denied_message(report))
-        else:
-            messages.error(request, 'Bạn không có quyền chỉnh sửa báo cáo này.')
-        return redirect(_production_redirect(report_date, shift, subject.id if editing_for_other else None))
 
     action = request.POST.get('action', '')
     for_user = str(subject.id) if editing_for_other else ''
 
     if action == 'start_shift':
+        if not (
+            can_submit_daily_report(request.user)
+            or (editing_for_other and can_proxy_enter_daily_report(request.user, subject))
+        ):
+            messages.error(request, 'Bạn không có quyền chỉnh sửa báo cáo này.')
+            return redirect(_production_redirect(report_date, shift, for_user or None))
         start_shift = (request.POST.get('shift') or '').strip().upper()
         if start_shift not in PRODUCTION_SHIFT_ORDER:
             messages.error(request, 'Chọn ca làm hợp lệ.')
@@ -192,13 +226,99 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
         messages.success(request, f'Đã bắt đầu {shift_display_label(start_shift)}.')
         return redirect(_production_redirect(report_date, start_shift, for_user or None))
 
-    if not report.pk:
-        messages.error(request, 'Chọn ca làm trước khi nhập báo cáo.')
-        return redirect(_production_redirect(report_date, '', for_user or None))
+    if action == 'start_product':
+        if not (
+            can_submit_daily_report(request.user)
+            or (editing_for_other and can_proxy_enter_daily_report(request.user, subject))
+        ):
+            messages.error(request, 'Bạn không có quyền chỉnh sửa báo cáo này.')
+            return redirect(_production_redirect(report_date, shift, for_user or None))
+        report, err, report_date, shift = _prepare_production_report(
+            subject, report_date, shift,
+        )
+        if err:
+            messages.error(request, err)
+            return redirect(_production_redirect(report_date, shift, for_user or None))
+        if not shift_is_started(report):
+            ensure_work_day_started(report)
+        try:
+            start_work_session(report)
+        except ValueError as exc:
+            messages.error(request, str(exc))
+            return redirect(_production_redirect(report_date, shift, for_user or None))
+        messages.success(
+            request,
+            f'Đã bắt đầu công đoạn — {shift_display_label(shift)}.',
+        )
+        return redirect(_production_redirect(report_date, shift, for_user or None))
+
+    if report and report.pk:
+        report = DailyWorkReport.objects.get(pk=report.pk)
+
+    can_edit = can_edit_production_report(
+        request.user,
+        report,
+        can_submit=can_submit_daily_report(request.user),
+        is_proxy=editing_for_other,
+    )
+    if not can_edit:
+        if report and report.employee_id == request.user.id:
+            messages.error(request, report_edit_denied_message(report))
+        else:
+            messages.error(request, 'Bạn không có quyền chỉnh sửa báo cáo này.')
+        return redirect(_production_redirect(report_date, shift, subject.id if editing_for_other else None))
+
+    if not report or not report.pk:
+        report, err, report_date, shift = _prepare_production_report(
+            subject, report_date, shift,
+        )
+        if err:
+            messages.error(request, err)
+            return redirect(_production_redirect(report_date, shift, for_user or None))
 
     report = _ensure_daily_report_saved(report)
     if not shift_is_started(report):
         ensure_work_day_started(report)
+
+    if action == 'end_product':
+        ended = end_work_session(report)
+        if not ended:
+            messages.error(request, 'Không có công đoạn đang làm để kết thúc.')
+            return redirect(_production_redirect(report_date, shift, for_user or None))
+        messages.success(request, 'Đã kết thúc công đoạn — nhập sản lượng và thông tin mã hàng.')
+        return redirect(_production_redirect(report_date, shift, for_user or None, 'phase=complete_product'))
+
+    if action == 'complete_product':
+        code = (request.POST.get('product_code') or '').strip()
+        process = (request.POST.get('process_name') or '').strip()
+        norm = parse_decimal(request.POST.get('norm_per_hour'))
+        total_qty = parse_non_negative_decimal(request.POST.get('total_quantity'), default=Decimal('-1'))
+        damaged_quantity = parse_int(request.POST.get('damaged_quantity'))
+        note = (request.POST.get('note') or '').strip()
+        zero_reason = (request.POST.get('zero_reason') or '').strip()
+        if total_qty < 0:
+            messages.error(request, 'Nhập sản lượng hợp lệ.')
+            return redirect(_production_redirect(report_date, shift, for_user or None, 'phase=complete_product'))
+        if not session_awaiting_completion(report):
+            messages.error(request, 'Không có công đoạn chờ hoàn tất.')
+            return redirect(_production_redirect(report_date, shift, for_user or None))
+        try:
+            completed = complete_work_session(
+                report,
+                product_code=code,
+                process_name=process,
+                norm_per_hour=norm,
+                total_quantity=total_qty,
+                damaged_quantity=damaged_quantity,
+                note=note,
+                zero_reason=zero_reason,
+            )
+        except ValueError as exc:
+            messages.error(request, str(exc))
+            return redirect(_production_redirect(report_date, shift, for_user or None, 'phase=complete_product'))
+        if completed:
+            messages.success(request, f'Đã lưu {code} — tổng {total_qty.normalize()} sản phẩm.')
+        return redirect(_production_redirect(report_date, shift, for_user or None))
 
     if action == 'finalize_product':
         code = (request.POST.get('product_code') or '').strip()
@@ -222,7 +342,11 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
         return redirect(_production_redirect(report_date, shift, for_user or None))
 
     if action == 'save_hourly':
-        product = ensure_active_work_block(report)
+        if editing_for_other:
+            product = ensure_active_work_block(report)
+        else:
+            messages.error(request, 'Chức năng nhập từng giờ chỉ dùng khi nhập hộ.')
+            return redirect(_production_redirect(report_date, shift, for_user or None))
         slot_index = parse_int(request.POST.get('slot_index'), -1)
         qty = parse_int(request.POST.get('quantity'))
         zero_reason = (request.POST.get('zero_reason') or '').strip()
@@ -270,11 +394,26 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
 
     if action in ('save', 'submit'):
         if unfinalized_active_with_data(report):
-            messages.warning(
-                request,
-                'Còn sản lượng chưa gắn mã hàng — điền thông tin mã hàng trước khi gửi.',
+            awaiting = session_awaiting_completion(report)
+            in_progress = session_in_progress(report)
+            if in_progress:
+                messages.warning(
+                    request,
+                    'Còn công đoạn đang làm — bấm «Kết thúc» và nhập thông tin trước khi gửi.',
+                )
+            elif awaiting:
+                messages.warning(
+                    request,
+                    'Còn công đoạn chưa nhập sản lượng — hoàn tất trước khi gửi.',
+                )
+            else:
+                messages.warning(
+                    request,
+                    'Còn sản lượng chưa gắn mã hàng — điền thông tin mã hàng trước khi gửi.',
+                )
+            extra = 'phase=proxy' if editing_for_other else (
+                'phase=complete_product' if awaiting else 'phase=working'
             )
-            extra = 'phase=proxy' if editing_for_other else 'phase=finish_product'
             return redirect(_production_redirect(report_date, shift, for_user or None, extra))
         if action == 'submit':
             review_json = request.POST.get('review_json')
@@ -314,9 +453,86 @@ def today_production_hourly(request, report_date, report_context_common):
     user_profile = get_profile(subject)
 
     shift = _parse_production_shift(request)
-    report = _load_production_report(subject, report_date, shift) if shift else None
+    phase = (request.GET.get('phase') or '').strip().lower()
+    force_picker = request.GET.get('pick_shift') == '1'
+    report = None
 
-    can_edit = False
+    can_edit = (
+        can_submit_daily_report(request.user)
+        or (editing_for_other and can_proxy_enter_daily_report(request.user, subject))
+    )
+
+    if request.method == 'POST':
+        post_shift = _parse_production_shift(request)
+        report, err, report_date, shift = _prepare_production_report(
+            subject, report_date, post_shift,
+        )
+        if err and request.POST.get('action') != 'start_shift':
+            messages.error(request, err)
+            return redirect(_production_redirect(report_date, shift, subject.id if editing_for_other else None))
+        result = _handle_production_post(
+            request, report, report_date, subject, editing_for_other, shift,
+        )
+        if result:
+            return result
+
+    if phase == 'review' and not shift:
+        report = production_reports_for_day(subject, report_date).order_by(
+            '-submitted_at', '-updated_at',
+        ).first()
+        if report:
+            report_date = report.report_date
+            shift = report.shift
+            report = _load_production_report(subject, report_date, shift)
+
+    if explicit_shift := shift:
+        report_date, shift = resolve_production_entry(
+            subject, report_date, explicit_shift=explicit_shift,
+        )
+        report = _load_production_report(subject, report_date, shift)
+    elif force_picker and phase not in ('review',):
+        shift_options = build_shift_picker_options(subject, report_date, can_edit=can_edit)
+        ctx = report_context_common(request, report_date)
+        ctx.update({
+            'phase': 'select_shift',
+            'shift_options': shift_options,
+            'employee_name': (user_profile.full_name if user_profile else '') or subject.username,
+            'department_name': user_profile.department.name if user_profile and user_profile.department_id else '',
+            'subject_user': subject,
+            'editing_for_other': editing_for_other,
+            'for_user_param': subject.id if editing_for_other else '',
+            'back_team_url': reverse('reports:team_cn') + f'?date={report_date.isoformat()}',
+        })
+        return render(request, 'reports/today_production_hourly.html', ctx)
+    else:
+        report_date, shift = resolve_production_entry(subject, report_date)
+        ok, reason = can_start_production_shift(subject, report_date, shift)
+        has_report = DailyWorkReport.objects.filter(
+            employee=subject,
+            report_date=report_date,
+            report_profile=REPORT_PROFILE_PRODUCTION,
+            shift=shift,
+        ).exists()
+        if not ok and not has_report:
+            messages.error(request, reason)
+            if editing_for_other:
+                shift_options = build_shift_picker_options(subject, report_date, can_edit=can_edit)
+                ctx = report_context_common(request, report_date)
+                ctx.update({
+                    'phase': 'select_shift',
+                    'shift_options': shift_options,
+                    'employee_name': (user_profile.full_name if user_profile else '') or subject.username,
+                    'department_name': user_profile.department.name if user_profile and user_profile.department_id else '',
+                    'subject_user': subject,
+                    'editing_for_other': editing_for_other,
+                    'for_user_param': subject.id if editing_for_other else '',
+                    'back_team_url': reverse('reports:team_cn') + f'?date={report_date.isoformat()}',
+                })
+                return render(request, 'reports/today_production_hourly.html', ctx)
+        report, err, report_date, shift = _prepare_production_report(subject, report_date, shift)
+        if err:
+            messages.error(request, err)
+
     if report and report.pk:
         can_edit = can_edit_production_report(
             request.user,
@@ -324,89 +540,20 @@ def today_production_hourly(request, report_date, report_context_common):
             can_submit=can_submit_daily_report(request.user),
             is_proxy=editing_for_other,
         )
-    else:
-        can_edit = (
-            can_submit_daily_report(request.user)
-            or (editing_for_other and can_proxy_enter_daily_report(request.user, subject))
-        )
+    elif not can_edit:
+        can_edit = False
 
-    if request.method == 'POST':
-        if not report:
-            post_shift = _parse_production_shift(request) or DailyWorkReport.SHIFT_MORNING
-            report = _load_production_report(subject, report_date, post_shift)
-            shift = post_shift
-        result = _handle_production_post(
-            request, report, report_date, subject, editing_for_other, shift,
-        )
-        if result:
-            return result
+    auto_shift_mode = not editing_for_other
 
-    phase = (request.GET.get('phase') or '').strip().lower()
-
-    if not shift:
-        if phase not in ('review', 'proxy'):
-            shift_options = build_shift_picker_options(subject, report_date, can_edit=can_edit)
-            ctx = report_context_common(request, report_date)
-            ctx.update({
-                'phase': 'select_shift',
-                'shift_options': shift_options,
-                'employee_name': (user_profile.full_name if user_profile else '') or subject.username,
-                'department_name': user_profile.department.name if user_profile and user_profile.department_id else '',
-                'subject_user': subject,
-                'editing_for_other': editing_for_other,
-                'for_user_param': subject.id if editing_for_other else '',
-                'back_team_url': reverse('reports:team_cn') + f'?date={report_date.isoformat()}',
-            })
-            return render(request, 'reports/today_production_hourly.html', ctx)
-        shift = DailyWorkReport.SHIFT_MORNING
-        report = _load_production_report(subject, report_date, shift)
-
-    if not report.pk:
-        ok, reason = can_start_production_shift(subject, report_date, shift)
-        if not ok:
-            messages.error(request, reason)
-            shift_options = build_shift_picker_options(subject, report_date, can_edit=can_edit)
-            ctx = report_context_common(request, report_date)
-            ctx.update({
-                'phase': 'select_shift',
-                'shift_options': shift_options,
-                'employee_name': (user_profile.full_name if user_profile else '') or subject.username,
-                'department_name': user_profile.department.name if user_profile and user_profile.department_id else '',
-                'subject_user': subject,
-                'editing_for_other': editing_for_other,
-                'for_user_param': subject.id if editing_for_other else '',
-                'back_team_url': reverse('reports:team_cn') + f'?date={report_date.isoformat()}',
-            })
-            return render(request, 'reports/today_production_hourly.html', ctx)
-        if phase not in ('review', 'proxy', 'working', 'hourly'):
-            shift_options = build_shift_picker_options(subject, report_date, can_edit=can_edit)
-            ctx = report_context_common(request, report_date)
-            ctx.update({
-                'phase': 'select_shift',
-                'shift_options': shift_options,
-                'employee_name': (user_profile.full_name if user_profile else '') or subject.username,
-                'department_name': user_profile.department.name if user_profile and user_profile.department_id else '',
-                'subject_user': subject,
-                'editing_for_other': editing_for_other,
-                'for_user_param': subject.id if editing_for_other else '',
-                'back_team_url': reverse('reports:team_cn') + f'?date={report_date.isoformat()}',
-            })
-            return render(request, 'reports/today_production_hourly.html', ctx)
-
-    can_edit = can_edit_production_report(
-        request.user,
-        report,
-        can_submit=can_submit_daily_report(request.user),
-        is_proxy=editing_for_other,
-    )
-
-    if report.pk and not shift_is_started(report) and can_edit and phase not in ('review', 'proxy'):
+    if report and report.pk and not auto_shift_mode and not shift_is_started(report) and can_edit and phase not in ('review', 'proxy'):
         from reports.views import _ensure_daily_report_saved
         report = _ensure_daily_report_saved(report)
         ensure_work_day_started(report)
         report = _load_production_report(subject, report_date, shift)
 
-    started = shift_is_started(report)
+    started = shift_is_started(report) if report and report.pk else False
+    if auto_shift_mode and report and report.pk and can_edit and phase not in ('review',):
+        started = True
     is_submitted = report.status == DailyWorkReport.STATUS_SUBMITTED
     is_locked = is_production_report_locked(report)
     is_edit_expired = is_report_edit_expired(report)
@@ -423,8 +570,11 @@ def today_production_hourly(request, report_date, report_context_common):
         phase = 'review'
 
     current_product = active_product(report) if report.pk else None
+    session_active = session_in_progress(report) if report.pk else None
+    awaiting_product = session_awaiting_completion(report) if report.pk else None
+    work_step = ''
+    completed_sessions_count = 0
     if editing_for_other:
-        pending = []
         if started:
             grid = build_proxy_entry_grid(report)
             if not grid.get('rows'):
@@ -436,22 +586,43 @@ def today_production_hourly(request, report_date, report_context_common):
         if phase in ('', 'working', 'hourly'):
             phase = 'proxy'
     else:
-        pending = pending_slots_for_report(report) if started else []
         grid = build_hourly_grid(report) if started else None
         if not phase:
-            if pending:
-                phase = 'hourly'
+            if awaiting_product:
+                phase = 'complete_product'
             else:
                 phase = 'working'
+        if phase == 'hourly':
+            phase = 'working'
+
+    if not editing_for_other and started and phase not in ('review', 'proxy', 'select_shift'):
+        if session_active:
+            work_step = 'working'
+        elif awaiting_product or phase == 'complete_product':
+            work_step = 'complete'
+            if phase != 'complete_product':
+                phase = 'complete_product'
+        elif not current_product:
+            work_step = 'start'
+        if grid and grid.get('rows'):
+            completed_sessions_count = sum(
+                1 for row in grid['rows'] if not row.get('is_unfinalized')
+            )
 
     current_slot = current_slot_index(report_date=report_date, shift=shift)
     has_unfinalized = bool(unfinalized_active_with_data(report)) if report.pk else False
 
     if phase == 'review' and has_unfinalized and not editing_for_other:
-        messages.info(
-            request,
-            'Còn sản lượng chưa gắn mã hàng — xem bảng tổng bên dưới và bấm «Hoàn tất mã hàng» trước khi gửi.',
-        )
+        if awaiting_product:
+            messages.info(
+                request,
+                'Còn công đoạn chưa nhập sản lượng — hoàn tất trước khi gửi báo cáo.',
+            )
+        else:
+            messages.info(
+                request,
+                'Còn công đoạn chưa hoàn tất — xem bảng tổng bên dưới trước khi gửi.',
+            )
 
     team_members = []
     if editing_for_other:
@@ -475,8 +646,12 @@ def today_production_hourly(request, report_date, report_context_common):
         'phase': phase,
         'shift_started': started,
         'current_product': current_product,
+        'session_active': session_active,
+        'awaiting_product': awaiting_product,
+        'work_step': work_step,
+        'completed_sessions_count': completed_sessions_count,
         'has_unfinalized': has_unfinalized,
-        'pending_slots': pending,
+        'pending_slots': [],
         'current_slot_index': current_slot,
         'current_slot_label': slot_by_index(current_slot, shift).label if current_slot is not None else '',
         'active_first_slot_label': (
@@ -490,6 +665,8 @@ def today_production_hourly(request, report_date, report_context_common):
         'for_user_param': subject.id if editing_for_other else '',
         'back_team_url': reverse('reports:team_cn') + f'?date={report_date.isoformat()}',
         'detail_url': reverse('reports:detail_cn', kwargs={'pk': report.pk}) if report.pk else '',
-        'shift_picker_url': _production_redirect(report_date, '', subject.id if editing_for_other else None),
+        'shift_picker_url': _production_redirect(
+            report_date, '', subject.id if editing_for_other else None, 'pick_shift=1',
+        ),
     })
     return render(request, 'reports/today_production_hourly.html', ctx)

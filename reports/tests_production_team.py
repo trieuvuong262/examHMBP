@@ -1,4 +1,4 @@
-"""Tests for production team view (shift-aware)."""
+﻿"""Tests for production team view (consolidated by day)."""
 
 from datetime import date, timedelta
 
@@ -11,17 +11,22 @@ from hrm.models import Department, DepartmentMenuPermission, Profile, RoleModule
 from hrm.permissions import ROLE_DIRECTOR, ROLE_EMPLOYEE, ROLE_TEAM_LEADER
 from reports.models import DailyWorkReport
 from reports.production_team import (
+    build_production_team_department_groups,
     build_production_week_rollup,
     production_team_submitted_count,
 )
-from reports.report_profile import REPORT_PROFILE_PRODUCTION
+from reports.report_profile import REPORT_PROFILE_OFFICE, REPORT_PROFILE_PRODUCTION
 from reports.team_utils import daily_report_visible_to_team
 from reports.week_utils import monday_of
 
 
 class ProductionTeamViewTests(TestCase):
     def setUp(self):
-        dept = Department.objects.create(name='SX Team Shift', sort_order=1)
+        dept = Department.objects.create(
+            name='SX Team Shift',
+            sort_order=1,
+            report_profile=REPORT_PROFILE_PRODUCTION,
+        )
         DepartmentMenuPermission.objects.create(department=dept, modules=['reports'])
         perms = {'reports': {'view': True, 'edit': True, 'create': True, 'update': True}}
         for role in (ROLE_EMPLOYEE, ROLE_TEAM_LEADER, ROLE_DIRECTOR):
@@ -32,7 +37,8 @@ class ProductionTeamViewTests(TestCase):
 
         self.leader = self._user('ldr_shift', ROLE_TEAM_LEADER, dept)
         self.member = self._user('mem_shift', ROLE_EMPLOYEE, dept)
-        self.leader.profile.subordinates.add(self.member)
+        self.other = self._user('mem_none', ROLE_EMPLOYEE, dept)
+        self.leader.profile.subordinates.add(self.member, self.other)
         self.client = Client(HTTP_HOST='testserver')
         self.today = date.today()
 
@@ -47,10 +53,10 @@ class ProductionTeamViewTests(TestCase):
         user.refresh_from_db()
         return user
 
-    def _morning_report(self, *, status=DailyWorkReport.STATUS_SUBMITTED, draft_saved=False):
+    def _morning_report(self, *, employee=None, report_date=None, status=DailyWorkReport.STATUS_SUBMITTED, draft_saved=False):
         return DailyWorkReport.objects.create(
-            employee=self.member,
-            report_date=self.today,
+            employee=employee or self.member,
+            report_date=report_date or self.today,
             report_profile=REPORT_PROFILE_PRODUCTION,
             report_period='day',
             shift=DailyWorkReport.SHIFT_MORNING,
@@ -59,7 +65,7 @@ class ProductionTeamViewTests(TestCase):
             shift_started_at=timezone.now(),
         )
 
-    def test_team_shows_all_shift_cells(self):
+    def test_team_merges_shifts_on_same_day(self):
         self._morning_report()
         DailyWorkReport.objects.create(
             employee=self.member,
@@ -72,29 +78,95 @@ class ProductionTeamViewTests(TestCase):
             shift_started_at=timezone.now(),
         )
         self.client.force_login(self.leader)
-        resp = self.client.get(reverse('reports:team_cn'), {'date': self.today.isoformat()})
+        resp = self.client.get(reverse('reports:team_cn'), {
+            'from': self.today.isoformat(),
+            'to': self.today.isoformat(),
+        })
         self.assertEqual(resp.status_code, 200)
-        self.assertContains(resp, 'Ca sáng')
-        self.assertContains(resp, 'Tăng ca')
-        self.assertContains(resp, 'Ca tối')
-        self.assertContains(resp, 'Theo ca')
+        self.assertContains(resp, '2 b\u00e1o c\u00e1o')
 
-    def test_team_shift_filter_morning(self):
+    def test_team_shows_employee_without_reports(self):
         self._morning_report()
         self.client.force_login(self.leader)
         resp = self.client.get(reverse('reports:team_cn'), {
-            'date': self.today.isoformat(),
-            'shift': DailyWorkReport.SHIFT_MORNING,
+            'from': self.today.isoformat(),
+            'to': self.today.isoformat(),
+        })
+        self.assertContains(resp, 'mem_none')
+        self.assertContains(resp, 'Ch\u01b0a b\u00e1o c\u00e1o')
+
+    def test_team_splits_rows_by_day_and_shows_missing_days(self):
+        yesterday = self.today - timedelta(days=1)
+        self._morning_report(report_date=yesterday)
+        self.client.force_login(self.leader)
+        resp = self.client.get(reverse('reports:team_cn'), {
+            'from': yesterday.isoformat(),
+            'to': self.today.isoformat(),
         })
         self.assertEqual(resp.status_code, 200)
-        self.assertContains(resp, 'Đã nộp')
-        self.assertNotContains(resp, 'Theo ca')
+        self.assertContains(resp, yesterday.strftime('%d/%m/%Y'))
+        self.assertContains(resp, self.today.strftime('%d/%m/%Y'))
 
-    def test_team_shift_stats_cards(self):
+    def test_build_groups_one_row_per_day_in_range(self):
+        yesterday = self.today - timedelta(days=1)
+        reports_by_employee = {
+            self.member.id: [
+                self._morning_report(report_date=yesterday),
+                self._morning_report(),
+                DailyWorkReport.objects.create(
+                    employee=self.member,
+                    report_date=self.today,
+                    report_profile=REPORT_PROFILE_PRODUCTION,
+                    report_period='day',
+                    shift=DailyWorkReport.SHIFT_OVERTIME,
+                    status=DailyWorkReport.STATUS_DRAFT,
+                    draft_saved_at=timezone.now(),
+                    shift_started_at=timezone.now(),
+                ),
+            ],
+        }
+        team = User.objects.filter(pk__in=[self.member.pk, self.other.pk])
+        groups, _ = build_production_team_department_groups(
+            self.leader,
+            team,
+            reports_by_employee,
+            daily_report_visible_to_team,
+            date_from=yesterday,
+            date_to=self.today,
+        )
+        member_rows = [row for group in groups for row in group['rows'] if row['member'].id == self.member.id]
+        other_rows = [row for group in groups for row in group['rows'] if row['member'].id == self.other.id]
+        self.assertEqual(len(member_rows), 2)
+        self.assertEqual(member_rows[0]['production_report_count'], 2)
+        self.assertEqual(len(other_rows), 1)
+        self.assertIsNone(other_rows[0]['report_date'])
+
+    def test_team_single_report_links_to_detail(self):
+        report = self._morning_report()
+        self.client.force_login(self.leader)
+        resp = self.client.get(reverse('reports:team_cn'), {
+            'from': self.today.isoformat(),
+            'to': self.today.isoformat(),
+        })
+        self.assertContains(resp, reverse('reports:detail_cn', args=[report.pk]))
+
+    def test_team_excludes_non_production_subordinates(self):
+        vp_dept = Department.objects.create(
+            name='VP Test',
+            sort_order=2,
+            report_profile=REPORT_PROFILE_OFFICE,
+        )
+        vp_member = self._user('mem_vp', ROLE_EMPLOYEE, vp_dept)
+        self.leader.profile.subordinates.add(vp_member)
         self._morning_report()
         self.client.force_login(self.leader)
-        resp = self.client.get(reverse('reports:team_cn'), {'date': self.today.isoformat()})
-        self.assertContains(resp, 'jp-team-shift-stat-grid')
+        resp = self.client.get(reverse('reports:team_cn'), {
+            'from': self.today.isoformat(),
+            'to': self.today.isoformat(),
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'mem_shift')
+        self.assertNotContains(resp, 'mem_vp')
 
     def test_week_rollup_warns_missing_morning_days(self):
         week_start = monday_of(self.today)
@@ -116,28 +188,15 @@ class ProductionTeamViewTests(TestCase):
         )
         self.assertIn(self.member.id, rollup)
         self.assertGreater(rollup[self.member.id]['missing_days'], 0)
-        self.assertIn('Thiếu', rollup[self.member.id]['warning'])
 
-    def test_submitted_count_per_shift(self):
+    def test_submitted_count_any_shift_in_range(self):
         reports_by_employee = {
-            self.member.id: {
-                DailyWorkReport.SHIFT_MORNING: self._morning_report(),
-            },
+            self.member.id: [self._morning_report()],
         }
         submitted, missing = production_team_submitted_count(
             reports_by_employee,
             daily_report_visible_to_team,
-            shift_filter=DailyWorkReport.SHIFT_MORNING,
-            team_count=1,
+            team_count=2,
         )
         self.assertEqual(submitted, 1)
-        self.assertEqual(missing, 0)
-
-        submitted_ot, missing_ot = production_team_submitted_count(
-            reports_by_employee,
-            daily_report_visible_to_team,
-            shift_filter=DailyWorkReport.SHIFT_OVERTIME,
-            team_count=1,
-        )
-        self.assertEqual(submitted_ot, 0)
-        self.assertEqual(missing_ot, 1)
+        self.assertEqual(missing, 1)

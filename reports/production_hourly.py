@@ -1,5 +1,6 @@
 """Logic báo cáo sản lượng hàng giờ — sản xuất."""
 
+from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from typing import Optional
 
@@ -15,11 +16,16 @@ from reports.models import (
 from reports.production_slots import (
     PRODUCTION_HOURLY_SLOTS,
     SLOT_COUNT,
+    _shift_window,
+    _slot_end_dt,
+    _slot_start_dt,
     current_slot_index,
     due_slot_indices,
+    shift_break_intervals,
     slot_by_index,
     slot_count_for_shift,
     slots_for_shift,
+    slots_overlapping_interval,
 )
 from reports.report_profile import REPORT_PROFILE_PRODUCTION
 
@@ -70,7 +76,7 @@ def can_proxy_enter_daily_report(viewer, employee) -> bool:
 
 @transaction.atomic
 def ensure_work_day_started(report: DailyWorkReport) -> DailyWorkReport:
-    """Tự bắt đầu ngày làm khi vào trang — không chọn ca."""
+    """Tự bắt đầu ngày làm khi vào trang — không tạo phiên công đoạn."""
     if not report.shift_started_at:
         report.report_profile = REPORT_PROFILE_PRODUCTION
         if not report.shift:
@@ -79,7 +85,6 @@ def ensure_work_day_started(report: DailyWorkReport) -> DailyWorkReport:
         report.status = DailyWorkReport.STATUS_DRAFT
         report.draft_saved_at = timezone.now()
         report.save()
-    ensure_active_work_block(report)
     return report
 
 
@@ -141,6 +146,7 @@ def ensure_active_work_block(
     *,
     after_product: Optional[ProductionShiftProduct] = None,
 ) -> ProductionShiftProduct:
+    """Tạo phiên trống — dùng cho nhập hộ (proxy), không dùng cho NV tự nhập."""
     active = active_product(report)
     if active:
         return active
@@ -157,8 +163,162 @@ def ensure_active_work_block(
     )
 
 
-def active_has_hourly_data(product: ProductionShiftProduct) -> bool:
-    return product.hourly_entries.filter(quantity__gt=0).exists()
+def session_in_progress(report: DailyWorkReport) -> Optional[ProductionShiftProduct]:
+    """Phiên đang làm — đã bắt đầu, chưa kết thúc."""
+    active = active_product(report)
+    if active and active.started_at and not active.ended_at:
+        return active
+    return None
+
+
+def session_awaiting_completion(report: DailyWorkReport) -> Optional[ProductionShiftProduct]:
+    """Phiên đã kết thúc — chờ nhập sản lượng và thông tin mã hàng."""
+    active = active_product(report)
+    if active and active.ended_at and not (active.product_code or '').strip():
+        return active
+    return None
+
+
+@transaction.atomic
+def start_work_session(report: DailyWorkReport) -> ProductionShiftProduct:
+    """Nhân viên bắt đầu công đoạn."""
+    if active_product(report):
+        raise ValueError('Đang có công đoạn chưa hoàn tất — kết thúc trước khi bắt đầu mới.')
+    now = timezone.now()
+    shift = _shift_for_report(report)
+    overlaps = slots_overlapping_interval(report.report_date, shift, now, now)
+    if overlaps:
+        slot_idx = overlaps[0][0]
+    else:
+        slot_idx = current_slot_index(now, report.report_date, shift)
+        if slot_idx is None:
+            slot_idx = compute_first_slot_index(report)
+    sort_order = report.production_products.count()
+    return ProductionShiftProduct.objects.create(
+        report=report,
+        product_code='',
+        process_name='',
+        norm_per_hour=None,
+        sort_order=sort_order,
+        first_slot_index=slot_idx,
+        status=ProductionShiftProduct.STATUS_ACTIVE,
+        started_at=now,
+    )
+
+
+@transaction.atomic
+def end_work_session(report: DailyWorkReport) -> Optional[ProductionShiftProduct]:
+    """Nhân viên kết thúc công đoạn — chưa nhập sản lượng."""
+    active = session_in_progress(report)
+    if not active:
+        return None
+    active.ended_at = timezone.now()
+    active.save(update_fields=['ended_at'])
+    return active
+
+
+def distribute_quantity_to_slots(
+    product: ProductionShiftProduct,
+    total_quantity,
+    *,
+    damaged_quantity: int = 0,
+    note: str = '',
+    zero_reason: str = '',
+) -> list[ProductionHourlyQuantity]:
+    """Chia đều tổng sản lượng cho từng khung giờ giao với phiên (partial_hours = giờ thực tế)."""
+    report = product.report
+    shift = _shift_for_product(product)
+    start = product.started_at or timezone.now()
+    end = product.ended_at or timezone.now()
+    overlaps = slots_overlapping_interval(report.report_date, shift, start, end)
+    if not overlaps:
+        overlaps = [(product.first_slot_index, Decimal('1'))]
+
+    product.first_slot_index = overlaps[0][0]
+    product.save(update_fields=['first_slot_index'])
+
+    total_qty = parse_non_negative_decimal(total_quantity, default=Decimal('0'))
+    reason = (zero_reason or '').strip()
+    if total_qty == 0 and not reason:
+        raise ValueError('Cần nhập lý do khi sản lượng bằng 0.')
+
+    product.hourly_entries.all().delete()
+    entries: list[ProductionHourlyQuantity] = []
+    remaining = total_qty
+    damaged_left = max(0, int(damaged_quantity)) if total_qty > 0 else 0
+    session_note = (note or '').strip()[:500]
+    slot_count = len(overlaps)
+    if slot_count <= 0:
+        slot_count = 1
+
+    for i, (slot_index, hours) in enumerate(overlaps):
+        if i == len(overlaps) - 1:
+            qty = remaining
+        else:
+            share = (total_qty / Decimal(slot_count)).quantize(Decimal('0.01'))
+            qty = share
+            remaining -= qty
+
+        slot_damaged = 0
+        if qty > 0 and damaged_left > 0:
+            slot_damaged = damaged_left
+            damaged_left = 0
+
+        partial = hours if hours != Decimal('1') else None
+        entry = ProductionHourlyQuantity.objects.create(
+            product=product,
+            slot_index=slot_index,
+            quantity=qty,
+            damaged_quantity=slot_damaged,
+            note=session_note if i == 0 else '',
+            partial_hours=partial,
+            zero_reason='' if qty > 0 else reason[:200],
+        )
+        entries.append(entry)
+    return entries
+
+
+@transaction.atomic
+def complete_work_session(
+    report: DailyWorkReport,
+    *,
+    product_code: str,
+    process_name: str,
+    norm_per_hour,
+    total_quantity,
+    damaged_quantity: int = 0,
+    note: str = '',
+    zero_reason: str = '',
+) -> Optional[ProductionShiftProduct]:
+    """Hoàn tất phiên — nhập metadata + tổng sản lượng, chia đều theo khung giờ giao."""
+    active = session_awaiting_completion(report)
+    if not active:
+        active = active_product(report)
+        if not active or not active.ended_at:
+            return None
+    code = (product_code or '').strip()
+    process = (process_name or '').strip()
+    norm = parse_decimal(norm_per_hour)
+    if not code or not process or not norm or norm <= 0:
+        raise ValueError('Điền đủ mã hàng, tên công đoạn và định mức > 0.')
+
+    total_qty = parse_non_negative_decimal(total_quantity, default=Decimal('0'))
+    distribute_quantity_to_slots(
+        active,
+        total_qty,
+        damaged_quantity=damaged_quantity,
+        note=note,
+        zero_reason=zero_reason,
+    )
+    active.product_code = code
+    active.process_name = process
+    active.norm_per_hour = Decimal(str(norm))
+    active.total_quantity = total_qty
+    active.total_damaged_quantity = max(0, int(damaged_quantity)) if total_qty > 0 else 0
+    active.completion_note = (note or '').strip()[:500]
+    active.status = ProductionShiftProduct.STATUS_DONE
+    active.save()
+    return active
 
 
 @transaction.atomic
@@ -169,7 +329,7 @@ def finalize_product_with_metadata(
     process_name: str,
     norm_per_hour,
 ) -> Optional[ProductionShiftProduct]:
-    """Kết thúc mã hàng — gắn thông tin sau khi đã nhập sản lượng từng giờ."""
+    """Kết thúc mã hàng — tương thích nhập hộ / dữ liệu cũ đã có sản lượng từng giờ."""
     active = active_product(report)
     if not active:
         return None
@@ -179,23 +339,41 @@ def finalize_product_with_metadata(
     active.process_name = process_name.strip()
     active.norm_per_hour = Decimal(str(norm_per_hour))
     active.status = ProductionShiftProduct.STATUS_DONE
-    active.ended_at = timezone.now()
+    if not active.ended_at:
+        active.ended_at = timezone.now()
     active.save()
     ensure_active_work_block(report, after_product=active)
     return active
 
 
 def unfinalized_active_with_data(report: DailyWorkReport) -> Optional[ProductionShiftProduct]:
+    """Phiên chưa hoàn tất — đang làm hoặc chờ nhập thông tin."""
     active = active_product(report)
-    if active and active_has_hourly_data(active):
+    if not active:
+        return None
+    if session_in_progress(report):
+        return active
+    if session_awaiting_completion(report):
+        return active
+    if active_has_hourly_data(active):
         return active
     return None
+
+
+def active_has_hourly_data(product: ProductionShiftProduct) -> bool:
+    return product.hourly_entries.filter(quantity__gt=0).exists()
+
+
+def _entry_hours(entry: ProductionHourlyQuantity) -> Decimal:
+    if entry.partial_hours is not None and entry.partial_hours > 0:
+        return Decimal(str(entry.partial_hours))
+    return Decimal('1')
 
 
 def save_hourly_entry(
     product: ProductionShiftProduct,
     slot_index: int,
-    quantity: int,
+    quantity,
     zero_reason=None,
     damaged_quantity=None,
     note=None,
@@ -208,7 +386,7 @@ def save_hourly_entry(
         raise ValueError('slot_index không hợp lệ')
     if not relax_slot_scope and slot_index < product.first_slot_index:
         raise ValueError('Khung giờ này không thuộc phiên mã hàng hiện tại.')
-    qty = max(0, int(quantity))
+    qty = parse_non_negative_decimal(quantity, default=Decimal('0'))
     reason = (zero_reason or '').strip()
     if qty == 0 and not reason:
         raise ValueError('Cần nhập lý do khi sản lượng bằng 0.')
@@ -229,11 +407,36 @@ def save_hourly_entry(
     return entry
 
 
-def cumulative_quantity(product: ProductionShiftProduct, up_to_slot: int) -> int:
-    total = 0
+def cumulative_quantity(product: ProductionShiftProduct, up_to_slot: int) -> Decimal:
+    total = Decimal('0')
     for entry in product.hourly_entries.filter(slot_index__lte=up_to_slot).order_by('slot_index'):
         total += entry.quantity
     return total
+
+
+def is_session_reported_product(product: ProductionShiftProduct) -> bool:
+    """NV nhập tổng một lần — chia đều sản lượng cho từng khung giờ giao với phiên."""
+    return (
+        product.total_quantity is not None
+        and bool(product.started_at)
+        and bool(product.ended_at)
+    )
+
+
+def session_time_label(product: ProductionShiftProduct) -> str:
+    started, ended = session_time_displays(product)
+    if not started or not ended:
+        return ''
+    return f'{started} – {ended}'
+
+
+def session_time_displays(product: ProductionShiftProduct) -> tuple[str, str]:
+    """Giờ bắt đầu / kết thúc thực tế (local) cho một công đoạn."""
+    if not product.started_at or not product.ended_at:
+        return '', ''
+    start = timezone.localtime(product.started_at)
+    end = timezone.localtime(product.ended_at)
+    return start.strftime('%H:%M'), end.strftime('%H:%M')
 
 
 def product_slot_cell(product: ProductionShiftProduct, slot_index: int) -> dict:
@@ -260,13 +463,14 @@ def product_slot_cell(product: ProductionShiftProduct, slot_index: int) -> dict:
     damaged = entry.damaged_quantity if entry else 0
     entry_note = (entry.note or '').strip() if entry else ''
     filled = _entry_is_filled(entry)
-    cum = cumulative_quantity(product, slot_index) if qty else 0
+    session_mode = is_session_reported_product(product)
+    if session_mode and qty:
+        cum = qty
+    else:
+        cum = cumulative_quantity(product, slot_index) if qty else 0
     display = ''
     if entry and filled:
-        if qty > 0:
-            display = str(qty)
-        else:
-            display = '0'
+        display = format_production_quantity(qty) if qty > 0 else '0'
     slot = slot_by_index(slot_index, shift)
     return {
         'slot_index': slot_index,
@@ -280,11 +484,195 @@ def product_slot_cell(product: ProductionShiftProduct, slot_index: int) -> dict:
         'damaged_quantity': damaged,
         'note': entry_note,
         'entry_id': entry.pk if entry else None,
+        'show_cumulative': not session_mode,
+        'is_session_split': session_mode,
     }
 
 
 def _product_has_hourly_data(product: ProductionShiftProduct) -> bool:
+    if product.total_quantity is not None:
+        return True
     return product.hourly_entries.filter(quantity__gt=0).exists()
+
+
+def _product_visible_in_grid(product: ProductionShiftProduct) -> bool:
+    if _product_has_hourly_data(product):
+        return True
+    if product.status == ProductionShiftProduct.STATUS_DONE:
+        return True
+    if product.started_at:
+        return True
+    return False
+
+
+def _format_duration_minutes(total_minutes) -> str:
+    minutes = int(Decimal(str(total_minutes)).quantize(Decimal('1')))
+    if minutes < 60:
+        return f'{minutes} phút'
+    hours = minutes // 60
+    remainder = minutes % 60
+    if remainder:
+        return f'{hours}h{remainder:02d}'
+    return f'{hours}h'
+
+
+def _timeline_time_display(dt: datetime) -> str:
+    return timezone.localtime(dt).strftime('%H:%M')
+
+
+def _session_event_in_slot(
+    product: ProductionShiftProduct,
+    slot_start: datetime,
+    slot_end: datetime,
+) -> bool:
+    """Có bắt đầu hoặc kết thúc công đoạn trong khung giờ."""
+    if product.started_at and slot_start <= product.started_at < slot_end:
+        return True
+    if product.ended_at and slot_start <= product.ended_at < slot_end:
+        return True
+    return False
+
+
+def _slot_segment_times(report_date, slot) -> dict:
+    start = _slot_start_dt(report_date, slot)
+    end = _slot_end_dt(report_date, slot)
+    minutes = (end - start).total_seconds() / 60
+    return {
+        'start_display': _timeline_time_display(start),
+        'end_display': _timeline_time_display(end),
+        'duration_display': _format_duration_minutes(minutes),
+        'duration_minutes': minutes,
+        'slot_label': slot.label,
+    }
+
+
+def _work_item_from_entry(
+    product: ProductionShiftProduct,
+    entry: ProductionHourlyQuantity,
+) -> dict:
+    code = (product.product_code or '').strip() or '—'
+    process = (product.process_name or '').strip() or 'Chưa gắn mã'
+    qty = entry.quantity
+    norm = product.norm_per_hour
+    hours = _entry_hours(entry)
+    efficiency_pct = None
+    if qty > 0 and norm and norm > 0:
+        efficiency_pct = float(
+            (Decimal(str(qty)) / (norm * hours) * 100).quantize(Decimal('0.01'))
+        )
+    return {
+        'product_code': code,
+        'process_name': process,
+        'product_id': product.id,
+        'quantity': qty,
+        'norm_per_hour': float(norm) if norm is not None else None,
+        'hours': float(hours),
+        'hours_display': _format_hours(hours),
+        'efficiency_pct': efficiency_pct,
+        'damaged_quantity': entry.damaged_quantity or 0,
+        'note': (entry.note or '').strip(),
+    }
+
+
+def _work_segment_from_entry(
+    product: ProductionShiftProduct,
+    entry: ProductionHourlyQuantity,
+    slot_times: dict,
+) -> dict:
+    """Tương thích — gói item theo khung giờ."""
+    return {
+        'kind': 'work',
+        **slot_times,
+        'items': [_work_item_from_entry(product, entry)],
+    }
+
+
+def _annotate_product_rowspans(segments: list[dict]) -> None:
+    """Mỗi khung giờ hiển thị độc lập — không gộp qua nhiều khung."""
+    for segment in segments:
+        segment['product_continuation'] = False
+
+
+def build_work_day_timeline(report: DailyWorkReport) -> dict:
+    """Diễn biến theo khung giờ — chưa ghi nhận chỉ khi cả khung không bắt đầu/kết thúc công đoạn."""
+    shift = _shift_for_report(report)
+    report_date = report.report_date
+    slots = slots_for_shift(shift)
+
+    products = list(
+        report.production_products.prefetch_related('hourly_entries').order_by(
+            'sort_order', 'id',
+        )
+    )
+
+    segments: list[dict] = []
+    gap_minutes = Decimal('0')
+
+    for index, slot in enumerate(slots):
+        slot_start = _slot_start_dt(report_date, slot)
+        slot_end = _slot_end_dt(report_date, slot)
+        slot_times = _slot_segment_times(report_date, slot)
+
+        entries_in_slot: list[tuple[ProductionShiftProduct, ProductionHourlyQuantity]] = []
+        has_session_event = False
+        for product in products:
+            if _session_event_in_slot(product, slot_start, slot_end):
+                has_session_event = True
+            for entry in product.hourly_entries.all():
+                if entry.slot_index != slot.index:
+                    continue
+                if _entry_is_filled(entry):
+                    entries_in_slot.append((product, entry))
+
+        if entries_in_slot:
+            items = [
+                _work_item_from_entry(product, entry)
+                for product, entry in entries_in_slot
+            ]
+            segments.append({
+                'kind': 'work',
+                **slot_times,
+                'items': items,
+            })
+        elif has_session_event:
+            slot_hours = Decimal(str(slot_times['duration_minutes'])) / Decimal('60')
+            segments.append({
+                'kind': 'work',
+                **slot_times,
+                'items': [],
+                'label': '—',
+                'hours_display': _format_hours(slot_hours),
+            })
+        else:
+            segments.append({
+                'kind': 'gap',
+                **slot_times,
+                'label': 'Chưa ghi nhận công việc',
+            })
+            gap_minutes += Decimal(str(slot_times['duration_minutes']))
+
+        if index < len(slots) - 1:
+            break_start = _slot_end_dt(report_date, slot)
+            break_end = _slot_start_dt(report_date, slots[index + 1])
+            if break_end > break_start:
+                minutes = (break_end - break_start).total_seconds() / 60
+                segments.append({
+                    'kind': 'break',
+                    'start_display': _timeline_time_display(break_start),
+                    'end_display': _timeline_time_display(break_end),
+                    'duration_display': _format_duration_minutes(minutes),
+                    'duration_minutes': minutes,
+                    'slot_label': f'{_timeline_time_display(break_start)} – {_timeline_time_display(break_end)}',
+                    'label': 'Nghỉ trưa',
+                })
+
+    _annotate_product_rowspans(segments)
+
+    return {
+        'segments': segments,
+        'has_gaps': any(segment['kind'] == 'gap' for segment in segments),
+        'gap_minutes_display': _format_duration_minutes(gap_minutes) if gap_minutes > 0 else '',
+    }
 
 
 def build_productivity_report(report: DailyWorkReport) -> dict:
@@ -315,7 +703,7 @@ def build_productivity_report(report: DailyWorkReport) -> dict:
                 continue
 
             slot = slot_by_index(entry.slot_index, shift)
-            hours = Decimal('1')
+            hours = _entry_hours(entry)
             qty = entry.quantity
             efficiency_pct = None
 
@@ -349,6 +737,7 @@ def build_productivity_report(report: DailyWorkReport) -> dict:
             })
 
         if prod_qty > 0 and norm and norm > 0:
+            started_display, ended_display = session_time_displays(product)
             product_summaries.append({
                 'product_id': product.id,
                 'product_code': code,
@@ -360,11 +749,22 @@ def build_productivity_report(report: DailyWorkReport) -> dict:
                 'efficiency_pct': float(
                     (Decimal(prod_qty) / prod_expected * 100).quantize(Decimal('0.01'))
                 ),
+                'started_at_display': started_display,
+                'ended_at_display': ended_display,
             })
 
     hourly_rows.sort(
         key=lambda row: (product_order.get(row['product_id'], 999), row['slot_index'])
     )
+
+    if product_summaries:
+        total_qty = sum(Decimal(str(summary['quantity'])) for summary in product_summaries)
+        total_hours = sum(Decimal(str(summary['hours'])) for summary in product_summaries)
+        total_expected = Decimal('0')
+        for summary in product_summaries:
+            efficiency = Decimal(str(summary['efficiency_pct']))
+            if efficiency > 0:
+                total_expected += Decimal(str(summary['quantity'])) / (efficiency / Decimal('100'))
 
     overall_efficiency_pct = None
     if total_expected > 0:
@@ -380,6 +780,7 @@ def build_productivity_report(report: DailyWorkReport) -> dict:
         'hourly_rows': hourly_rows,
         'product_summaries': product_summaries,
         'summary_product_ids': [summary['product_id'] for summary in product_summaries],
+        'work_timeline': build_work_day_timeline(report),
         'total_quantity': total_qty,
         'total_hours': float(total_hours),
         'total_hours_display': _format_hours(total_hours),
@@ -407,6 +808,17 @@ def update_product_norms(report: DailyWorkReport, norms_by_id: dict) -> int:
     return updated
 
 
+def format_production_quantity(value) -> str:
+    """Hiển thị sản lượng — bỏ phần thập phân .00 khi là số tròn."""
+    if value in (None, ''):
+        return '0'
+    dec = Decimal(str(value))
+    if dec == dec.to_integral():
+        return str(int(dec))
+    text = format(dec.quantize(Decimal('0.01')), 'f')
+    return text.rstrip('0').rstrip('.')
+
+
 def _format_hours(value) -> str:
     dec = Decimal(str(value)).normalize()
     text = format(dec, 'f')
@@ -425,14 +837,18 @@ def build_hourly_grid(report: DailyWorkReport) -> dict:
     )
     rows = []
     for product in products:
-        if not _product_has_hourly_data(product):
+        if not _product_visible_in_grid(product):
             continue
         is_unfinalized = (
             product.status == ProductionShiftProduct.STATUS_ACTIVE
             or not (product.product_code or '').strip()
         )
         slots = [product_slot_cell(product, i) for i in range(slot_count)]
-        total_qty = sum(cell['quantity'] for cell in slots)
+        total_qty = product.total_quantity
+        if total_qty is None:
+            total_qty = sum(cell['quantity'] for cell in slots)
+        session_mode = is_session_reported_product(product)
+        started_display, ended_display = session_time_displays(product)
         rows.append({
             'id': product.pk,
             'product_code': product.product_code.strip() if product.product_code else '',
@@ -445,6 +861,11 @@ def build_hourly_grid(report: DailyWorkReport) -> dict:
             'label_process': product.process_name.strip() if product.process_name else 'Chưa gắn mã',
             'slots': slots,
             'total_quantity': total_qty,
+            'is_session_reported': session_mode,
+            'session_total': product.total_quantity,
+            'session_time_label': session_time_label(product) if session_mode else '',
+            'started_at_display': started_display,
+            'ended_at_display': ended_display,
         })
     return {
         'slots': [{'index': s.index, 'label': s.label} for s in hourly_slots],
@@ -452,6 +873,7 @@ def build_hourly_grid(report: DailyWorkReport) -> dict:
         'grand_total': sum(r['total_quantity'] for r in rows),
         'has_unfinalized': any(r['is_unfinalized'] for r in rows),
         'shift': shift,
+        'uses_session_reporting': bool(rows) and all(r['is_session_reported'] for r in rows),
     }
 
 
@@ -467,7 +889,7 @@ def product_slot_cell_proxy(product: ProductionShiftProduct, slot_index: int) ->
     cum = cumulative_quantity(product, slot_index) if qty else 0
     display = ''
     if entry and filled:
-        display = str(qty) if qty > 0 else '0'
+        display = format_production_quantity(qty) if qty > 0 else '0'
     slot = slot_by_index(slot_index, shift)
     return {
         'slot_index': slot_index,
@@ -578,6 +1000,13 @@ def parse_decimal(value, default=None):
         return Decimal(str(value).replace(',', '.'))
     except (InvalidOperation, ValueError):
         return default
+
+
+def parse_non_negative_decimal(value, default=Decimal('0')):
+    parsed = parse_decimal(value, default=default)
+    if parsed is None:
+        return default
+    return max(Decimal('0'), parsed)
 
 
 def parse_int(value, default=0):

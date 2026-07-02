@@ -2,8 +2,9 @@
 {% load static %}
 
 {% block extra_head %}
-{% if report.is_production_report and hourly_grid or productivity %}
-<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260628d">
+{% if report.is_production_report %}
+<link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260624a">
+<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260702m">
 {% elif not report.is_production_report %}
 <link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260630b">
 {% endif %}
@@ -17,8 +18,9 @@
                 <div class="d-flex flex-wrap align-items-center gap-2">
                     <h2 class="fw-bold text-hm mb-0 jp-page-title">
                         Báo cáo {{ report.report_date|date:"d/m/Y" }}
-                        {% if report.is_production_report and report.shift %}
-                        <span class="text-muted fs-5 fw-normal">· {{ report.get_shift_display }}</span>
+                        {% if production_day_shift_tabs %}
+                        {% elif report.is_production_report and report.shift %}
+                        <span class="{{ shift_badge_class }} fs-6 align-middle">{{ report.get_shift_display }}</span>
                         {% endif %}
                     </h2>
                     {% if report.status == 'SUBMITTED' %}
@@ -53,6 +55,23 @@
             </div>
         </div>
     </div>
+
+    {% if production_day_shift_tabs %}
+    <div class="card border-0 jp-report-section-card jp-report-tabs-card jp-prod-day-shift-tabs-card mb-4">
+        <ul class="nav nav-tabs jp-report-tabs jp-prod-day-shift-tabs" role="tablist" aria-label="Chọn ca làm">
+            {% for tab in production_day_shift_tabs %}
+            <li class="nav-item" role="presentation">
+                <a class="nav-link jp-prod-day-shift-tab jp-prod-day-shift-tab--{{ tab.shift|lower }}{% if tab.is_active %} active{% endif %}"
+                   href="{{ tab.url }}"
+                   role="tab"
+                   {% if tab.is_active %}aria-current="page"{% endif %}>
+                    {{ tab.label }}
+                </a>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
 
     {% if can_review %}
     <div class="jp-report-review-panel mb-4">
@@ -109,11 +128,7 @@
                     <div class="jp-report-tab-body">
                         {% include 'reports/includes/production_productivity_report.html' with can_edit_norm=can_edit_norm %}
                         {% if can_edit_norm %}
-                        <div class="d-flex justify-content-end mt-3">
-                            <button type="submit" class="btn btn-hm px-4">
-                                <i class="bi bi-check2-circle me-1"></i>Lưu định mức
-                            </button>
-                        </div>
+                        {% include 'reports/includes/production_norm_edit_modal.html' %}
                         {% endif %}
                     </div>
                     {% else %}
@@ -271,7 +286,7 @@
 
     function applyNorm(productId, normValue) {
         var norm = parseFloat(normValue);
-        document.querySelectorAll('[data-product-id="' + productId + '"]').forEach(function (row) {
+        document.querySelectorAll('.jp-prod-summary-row[data-product-id="' + productId + '"]').forEach(function (row) {
             var qty = row.getAttribute('data-quantity');
             var hours = row.getAttribute('data-hours');
             var normDisplay = row.querySelector('.jp-prod-norm-display');
@@ -294,7 +309,8 @@
         });
     }
 
-    var inputs = document.querySelectorAll('.jp-prod-norm-input[data-product-id]');
+    var modal = document.getElementById('jpProdNormModal');
+    var inputs = document.querySelectorAll('#jpProdNormModal .jp-prod-norm-input[data-product-id]');
     if (!inputs.length) return;
     var byProduct = {};
     inputs.forEach(function (input) {
@@ -311,6 +327,27 @@
             applyNorm(productId, input.value);
         });
     });
+
+    if (modal) {
+        modal.addEventListener('show.bs.modal', function (event) {
+            var trigger = event.relatedTarget;
+            var productId = trigger && trigger.getAttribute('data-product-id');
+            modal.querySelectorAll('.jp-prod-norm-modal-row').forEach(function (row) {
+                row.classList.remove('is-focus');
+            });
+            if (!productId) return;
+            var targetRow = modal.querySelector('.jp-prod-norm-modal-row[data-product-id="' + productId + '"]');
+            if (!targetRow) return;
+            targetRow.classList.add('is-focus');
+            var focusInput = targetRow.querySelector('.jp-prod-norm-input');
+            if (focusInput) {
+                setTimeout(function () {
+                    focusInput.focus();
+                    focusInput.select();
+                }, 200);
+            }
+        });
+    }
 })();
 </script>
 {% endif %}

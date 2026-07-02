@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5">
+    <div class="jp-page-header mb-3 mb-md-4">
+        <h2 class="fw-bold text-hm mb-1 jp-page-title">Kết quả khảo sát</h2>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Tiêu đề</th>
+                            <th class="text-center">Phản hồi</th>
+                            <th>Hạn</th>
+                            <th class="text-end">Xem</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for survey in page_obj %}
+                        <tr>
+                            <td class="fw-semibold">{{ survey.title }}</td>
+                            <td class="text-center">{{ survey.response_count }}</td>
+                            <td class="text-nowrap small">{% if survey.deadline %}{{ survey.deadline|date:"d/m/Y H:i" }}{% else %}—{% endif %}</td>
+                            <td class="text-end">
+                                <a href="{% url 'surveys:result_detail' survey.pk %}" class="btn btn-outline-hm btn-sm">Chi tiết</a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4" class="text-center text-muted py-4">Chưa có khảo sát.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% include 'includes/pagination.html' with page_obj=page_obj query_string=query_string only %}
+</div>
+{% endblock %}

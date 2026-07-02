@@ -37,3 +37,12 @@ def get_report_profile(user) -> str:
 
 def is_production_report_user(user) -> bool:
     return get_report_profile(user) == REPORT_PROFILE_PRODUCTION
+
+
+def filter_team_members_for_report_profile(team, report_profile: str):
+    """Lọc danh sách NV team theo loại báo cáo — SX chỉ SX; VP tất cả trừ SX."""
+    if report_profile == REPORT_PROFILE_PRODUCTION:
+        return team.filter(profile__department__report_profile=REPORT_PROFILE_PRODUCTION)
+    if report_profile == REPORT_PROFILE_OFFICE:
+        return team.exclude(profile__department__report_profile=REPORT_PROFILE_PRODUCTION)
+    return team

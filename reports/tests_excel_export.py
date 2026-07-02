@@ -12,6 +12,7 @@ from hrm.models import Department, DepartmentMenuPermission, Profile, RoleModule
 from hrm.permissions import ROLE_EMPLOYEE, ROLE_TEAM_LEADER
 from reports.models import DailyWorkReport, ProductionShiftProduct
 from reports.production_hourly import (
+    ensure_active_work_block,
     ensure_work_day_started,
     finalize_product_with_metadata,
     save_hourly_entry,
@@ -65,9 +66,7 @@ class ReportExcelExportTests(TestCase):
         )
         self.report.shift = DailyWorkReport.SHIFT_MORNING
         ensure_work_day_started(self.report)
-        product = self.report.production_products.filter(
-            status=ProductionShiftProduct.STATUS_ACTIVE,
-        ).first()
+        product = ensure_active_work_block(self.report)
         save_hourly_entry(product, 0, 100)
         finalize_product_with_metadata(
             self.report,

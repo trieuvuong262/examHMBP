@@ -1,0 +1,48 @@
+{% load static %}
+<form method="post" class="jp-prod-complete-form{% if form_class %} {{ form_class }}{% endif %}" id="{{ form_id|default:'complete-session-form' }}">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="complete_product">
+    <input type="hidden" name="shift" value="{{ production_shift }}">
+    {% if for_user_param %}<input type="hidden" name="for_user" value="{{ for_user_param }}">{% endif %}
+
+    {% if awaiting_product %}
+    <p class="text-muted small jp-prod-complete-time">
+        Thời gian làm: <strong>{{ awaiting_product.started_at|date:"H:i" }} — {{ awaiting_product.ended_at|date:"H:i" }}</strong>.
+        Tổng sản lượng chia <strong>đều</strong> cho từng khung giờ làm việc (giờ thực tế/h khác nhau; giờ nghỉ không tính).
+    </p>
+    {% endif %}
+
+    <label class="form-label fw-bold">Tổng sản lượng <span class="text-danger">*</span></label>
+    <input type="number" name="total_quantity" class="form-control form-control-lg text-center jp-prod-qty-input jp-prod-complete-qty"
+           min="0" step="0.01" required inputmode="decimal" autocomplete="off" placeholder="0">
+
+    <div class="jp-prod-complete-zero-wrap mt-3 d-none">
+        <label class="form-label fw-bold">Lý do sản lượng 0 <span class="text-danger">*</span></label>
+        <input type="text" name="zero_reason" class="form-control jp-prod-complete-zero-reason"
+               maxlength="200" placeholder="VD: Bận việc khác, máy hỏng…" autocomplete="off">
+    </div>
+
+    <div class="jp-prod-complete-extra-wrap mt-3">
+        <label class="form-label fw-bold">Số lượng hư hỏng <span class="text-muted fw-normal">(tuỳ chọn)</span></label>
+        <input type="number" name="damaged_quantity" class="form-control jp-prod-complete-damaged"
+               min="0" step="1" inputmode="numeric" autocomplete="off">
+        <label class="form-label fw-bold mt-3">Ghi chú <span class="text-muted fw-normal">(tuỳ chọn)</span></label>
+        <input type="text" name="note" class="form-control jp-prod-complete-note" maxlength="500" autocomplete="off">
+    </div>
+
+    <hr class="my-4">
+
+    <label class="form-label fw-bold">Mã hàng <span class="text-danger">*</span></label>
+    <input type="text" name="product_code" class="form-control form-control-lg" required
+           autocomplete="off" placeholder="VD: PEGASUS">
+
+    <label class="form-label fw-bold mt-3">Tên công đoạn <span class="text-danger">*</span></label>
+    <input type="text" name="process_name" class="form-control form-control-lg" required
+           autocomplete="off" placeholder="VD: RÁP ĐÁY TRƯỚC x1">
+
+    <label class="form-label fw-bold mt-3">Định mức 1 giờ <span class="text-danger">*</span></label>
+    <input type="number" name="norm_per_hour" class="form-control form-control-lg" required
+           min="1" step="1" inputmode="numeric" placeholder="VD: 180">
+
+    <button type="submit" class="btn btn-hm btn-lg w-100 fw-bold mt-4 jp-prod-complete-submit">Lưu công đoạn</button>
+</form>

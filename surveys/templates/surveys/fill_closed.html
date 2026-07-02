@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page py-5 text-center" style="max-width: 520px;">
+    <div class="mb-3"><i class="bi bi-hourglass-bottom text-warning" style="font-size:3rem"></i></div>
+    <h2 class="fw-bold text-hm mb-2">Khảo sát đã đóng</h2>
+    <p class="text-muted mb-2">«{{ survey.title }}» hiện không nhận phản hồi.</p>
+    {% if survey.deadline %}
+    <p class="text-muted small">Hạn nhận: {{ survey.deadline|date:"d/m/Y H:i" }}</p>
+    {% endif %}
+    <a href="{% url 'home_portal' %}" class="btn btn-outline-hm mt-3">Về trang chủ</a>
+</div>
+{% endblock %}

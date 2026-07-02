@@ -184,6 +184,13 @@ body .modal-backdrop.show {
 .jp-ph-stt { width: 2rem; }
 .jp-ph-code { min-width: 5rem; }
 .jp-ph-process { min-width: 8rem; }
+.jp-ph-time {
+    width: 4.25rem;
+    min-width: 4.25rem;
+    font-size: 0.8rem;
+    text-align: center;
+    white-space: nowrap;
+}
 .jp-ph-norm { width: 4rem; }
 .jp-ph-slot {
     min-width: 4.5rem;
@@ -823,6 +830,100 @@ body .modal-backdrop.show {
     overflow-x: auto;
 }
 
+.jp-prod-timeline-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.65rem;
+    overflow: hidden;
+    background: #fff;
+}
+
+.jp-prod-timeline-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding: 0.65rem 0.85rem;
+    border-bottom: 1px solid #eef2f6;
+}
+
+.jp-prod-timeline-item:last-child {
+    border-bottom: none;
+}
+
+@media (min-width: 768px) {
+    .jp-prod-timeline-item {
+        flex-direction: row;
+        align-items: center;
+        gap: 1rem;
+    }
+}
+
+.jp-prod-timeline-time {
+    flex: 0 0 auto;
+    min-width: 10.5rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #334155;
+    white-space: nowrap;
+}
+
+.jp-prod-timeline-duration {
+    font-weight: 500;
+    color: #64748b;
+    margin-left: 0.15rem;
+}
+
+.jp-prod-timeline-body {
+    flex: 1 1 auto;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.45rem;
+    min-width: 0;
+}
+
+.jp-prod-timeline-process {
+    color: #0f172a;
+}
+
+.jp-prod-timeline-qty {
+    margin-left: auto;
+    font-weight: 700;
+    color: var(--hm-primary);
+}
+
+.jp-prod-timeline-label {
+    font-weight: 600;
+}
+
+.jp-prod-timeline-item--work {
+    background: #f8fafc;
+}
+
+.jp-prod-timeline-item--break {
+    background: #f1f5f9;
+}
+
+.jp-prod-timeline-item--break .jp-prod-timeline-label {
+    color: #64748b;
+}
+
+.jp-prod-timeline-item--gap {
+    background: #fffbeb;
+    border-left: 3px solid #f59e0b;
+}
+
+.jp-prod-timeline-item--gap .jp-prod-timeline-label {
+    color: #b45309;
+}
+
+.jp-prod-timeline-gap-badge {
+    font-size: 0.72rem;
+    font-weight: 600;
+}
+
 .jp-prod-norm-input {
     width: 5rem;
     min-width: 4.5rem;
@@ -1224,8 +1325,108 @@ body .modal-backdrop.show {
     background: #f8fafc;
 }
 
+.jp-prod-hour-merged-col {
+    vertical-align: middle;
+}
+
+.jp-prod-hour-merged-line + .jp-prod-hour-merged-line {
+    margin-top: 0.35rem;
+    padding-top: 0.35rem;
+    border-top: 1px dashed #e2e8f0;
+}
+
+/* ——— Chi tiết theo khung giờ — tách từng dòng ——— */
+.jp-prod-productivity-table--hourly-detail {
+    border-collapse: separate;
+    border-spacing: 0 0.5rem;
+}
+
+.jp-prod-productivity-table--hourly-detail tbody .jp-prod-hour-row td {
+    padding-top: 0.6rem;
+    padding-bottom: 0.6rem;
+    border-top: 1px solid #e2e8f0;
+    border-bottom: 1px solid #e2e8f0;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.7) inset;
+}
+
+.jp-prod-productivity-table--hourly-detail tbody .jp-prod-hour-row td:first-child {
+    border-left: 3px solid #94a3b8;
+    border-radius: 0.35rem 0 0 0.35rem;
+}
+
+.jp-prod-productivity-table--hourly-detail tbody .jp-prod-hour-row td:last-child {
+    border-radius: 0 0.35rem 0.35rem 0;
+}
+
+.jp-prod-productivity-table--hourly-detail tbody .jp-prod-hour-row--slot-start td:first-child {
+    border-left-width: 4px;
+    border-left-color: var(--hm-primary, #c41e3a);
+}
+
+.jp-prod-productivity-table--hourly-detail tbody .jp-prod-hour-row--gap td {
+    background: #fffbeb;
+}
+
+.jp-prod-productivity-table--hourly-detail tbody .jp-prod-hour-row--gap td:first-child {
+    border-left-color: #f59e0b;
+}
+
+.jp-prod-productivity-table--hourly-detail tbody .jp-prod-hour-row--break td {
+    background: #f1f5f9;
+}
+
+.jp-prod-productivity-table--hourly-detail tbody .jp-prod-hour-row--break td:first-child {
+    border-left-color: #94a3b8;
+}
+
+.jp-prod-productivity-table--hourly-detail tbody .jp-prod-hour-row--work td {
+    background: #f8fafc;
+}
+
+.jp-prod-productivity-table--hourly-detail tbody .jp-prod-hour-row--work.jp-prod-hour-row--slot-start td {
+    box-shadow: inset 0 2px 0 rgba(196, 30, 58, 0.06);
+}
+
+.jp-prod-productivity-table--hourly-detail .jp-prod-slot-pill {
+    font-weight: 700;
+}
+
 .jp-prod-hour-row--group-start td {
     border-top: 2px solid #cbd5e1 !important;
+}
+
+.jp-prod-hour-row--work {
+    background: #f8fafc;
+}
+
+.jp-prod-hour-row--break {
+    background: #f1f5f9;
+}
+
+.jp-prod-hour-row--gap {
+    background: #fffbeb;
+}
+
+.jp-prod-hour-status-label {
+    font-weight: 600;
+}
+
+.jp-prod-hour-status-label.is-gap {
+    color: #b45309;
+}
+
+.jp-prod-hour-status-label.is-break {
+    color: #64748b;
+}
+
+.jp-prod-hour-time-range {
+    font-weight: 600;
+    color: #334155;
+}
+
+.jp-prod-hour-time-duration {
+    font-size: 0.78rem;
+    margin-left: 0.15rem;
 }
 
 .jp-prod-hour-row--group-start:first-child td,
@@ -1512,7 +1713,7 @@ body .modal-backdrop.show {
 /* ——— Lưới sản lượng (màn chi tiết) ——— */
 .jp-prod-hourly-table--detail {
     font-size: 0.72rem;
-    min-width: 900px;
+    min-width: 1000px;
 }
 
 .jp-prod-hourly-table--detail .jp-ph-head th {
@@ -1639,4 +1840,222 @@ body .modal-backdrop.show {
 
 .jp-prod-shift-picker .jp-prod-shift-card.is-disabled {
     opacity: 0.72;
+}
+
+/* Tab chuyển ca — cùng kiểu jp-report-tabs (Báo cáo năng suất / sản lượng) */
+.jp-prod-day-shift-tabs-card {
+    overflow: visible;
+}
+
+.jp-prod-day-shift-tabs-card .jp-report-tabs {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.jp-prod-day-shift-tabs .nav-link {
+    text-decoration: none;
+}
+
+/* Viền card chọn ca — cùng màu Loại VP (Ngày / Tuần / Tháng) */
+.jp-prod-shift-picker .jp-prod-shift-card--morning:not(.is-disabled) {
+    border-top: 3px solid #1d4ed8 !important;
+}
+
+.jp-prod-shift-picker .jp-prod-shift-card--overtime:not(.is-disabled) {
+    border-top: 3px solid #b45309 !important;
+}
+
+.jp-prod-shift-picker .jp-prod-shift-card--night:not(.is-disabled) {
+    border-top: 3px solid #6d28d9 !important;
+}
+
+/* ——— Mobile flow: một màn hình — một hành động ——— */
+
+@media (max-width: 991.98px) {
+    .jp-prod-page--mobile-flow .jp-prod-page-wrap {
+        padding-top: 0.5rem;
+        padding-bottom: max(1rem, env(safe-area-inset-bottom));
+    }
+
+    .jp-prod-page--mobile-flow .jp-prod-page-header--compact {
+        margin-bottom: 0.5rem;
+        padding-bottom: 0;
+        border-bottom: none;
+        text-align: center;
+    }
+
+    .jp-prod-page--mobile-flow .jp-prod-page-header--compact .jp-prod-page-sub {
+        font-size: 0.85rem;
+    }
+
+    .jp-prod-mobile-flow {
+        min-height: calc(100dvh - 7.5rem);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.5rem 0 1.5rem;
+    }
+
+    .jp-prod-mobile-step {
+        width: 100%;
+        max-width: 22rem;
+        margin: 0 auto;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.35rem;
+    }
+
+    .jp-prod-mobile-step--form {
+        max-width: 100%;
+        text-align: left;
+        align-items: stretch;
+        min-height: auto;
+    }
+
+    .jp-prod-mobile-step-visual {
+        width: 5.5rem;
+        height: 5.5rem;
+        border-radius: 50%;
+        background: linear-gradient(145deg, rgba(var(--hm-primary-rgb, 13, 110, 253), 0.12), rgba(var(--hm-primary-rgb, 13, 110, 253), 0.04));
+        color: var(--hm-primary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2.75rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .jp-prod-mobile-step-visual--pulse {
+        animation: jp-prod-pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes jp-prod-pulse {
+        0%, 100% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.04); opacity: 0.88; }
+    }
+
+    .jp-prod-mobile-step-kicker {
+        font-size: 0.8rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--hm-primary);
+        margin: 0;
+    }
+
+    .jp-prod-mobile-step-title {
+        font-size: 1.35rem;
+        font-weight: 800;
+        margin: 0 0 0.25rem;
+        line-height: 1.25;
+    }
+
+    .jp-prod-mobile-step-clock {
+        font-size: 3rem;
+        font-weight: 800;
+        line-height: 1;
+        color: var(--hm-primary);
+        margin: 0.15rem 0 0.35rem;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .jp-prod-mobile-step-shift {
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--hm-primary);
+        margin: 0 0 0.35rem;
+    }
+
+    .jp-prod-mobile-step-lead {
+        color: #6c757d;
+        font-size: 0.95rem;
+        margin: 0 0 0.75rem;
+        max-width: 18rem;
+    }
+
+    .jp-prod-mobile-step-meta {
+        font-size: 0.85rem;
+        color: #6c757d;
+        margin: 0 0 0.5rem;
+    }
+
+    .jp-prod-mobile-step-action {
+        width: 100%;
+        margin-top: 0.75rem !important;
+    }
+
+    .jp-prod-mobile-cta {
+        width: 100%;
+        min-height: 3.75rem;
+        font-size: 1.2rem;
+        font-weight: 800;
+        border-radius: 1rem;
+        box-shadow: 0 0.5rem 1.25rem rgba(var(--hm-primary-rgb, 13, 110, 253), 0.28);
+    }
+
+    .jp-prod-mobile-cta--end {
+        background: #212529;
+        border-color: #212529;
+        box-shadow: 0 0.5rem 1.25rem rgba(33, 37, 41, 0.22);
+    }
+
+    .jp-prod-mobile-secondary-link {
+        display: inline-block;
+        margin-top: 1.25rem;
+        font-size: 0.88rem;
+        color: #6c757d;
+        text-decoration: none;
+    }
+
+    .jp-prod-mobile-secondary-link:hover {
+        color: var(--hm-primary);
+        text-decoration: underline;
+    }
+
+    .jp-prod-page--mobile-flow .jp-prod-complete-form .form-control-lg {
+        font-size: 1.05rem;
+    }
+
+    .jp-prod-page--mobile-flow .jp-prod-complete-submit {
+        min-height: 3.25rem;
+        border-radius: 0.85rem;
+    }
+
+    .jp-prod-session-list .jp-prod-session-card {
+        border-radius: 1rem;
+    }
+
+    .jp-prod-session-split-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.35rem 0.75rem;
+    }
+
+    .jp-prod-session-split-item {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.5rem;
+        font-size: 0.85rem;
+        padding: 0.35rem 0;
+        border-bottom: 1px dashed rgba(0, 0, 0, 0.08);
+    }
+
+    .jp-prod-session-split-label {
+        color: #6c757d;
+    }
+
+    .jp-prod-session-split-qty {
+        font-weight: 700;
+    }
+
+    .jp-prod-session-split-details summary {
+        cursor: pointer;
+        user-select: none;
+    }
+
+    #completeSessionModal {
+        display: none !important;
+    }
 }
