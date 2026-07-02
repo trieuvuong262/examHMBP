@@ -282,7 +282,7 @@ def _report_context_common(request, report_date, *, report_profile=None, report_
             report_period=report_period,
         ).exists(),
         'yesterday': prev_anchor,
-        'can_view_team': can_view_team_reports(request.user),
+        'can_view_team': can_view_team_reports(request.user) and get_team_report_members(request.user).exists(),
     }
     if report_profile:
         ctx.update(page_tools_context_for_profile(
@@ -472,7 +472,7 @@ def _weekly_context_common(request, week_start, *, report_profile: str):
             report_profile=report_profile,
         ).exists(),
         'prev_week': prev_week,
-        'can_view_team': can_view_team_reports(request.user),
+        'can_view_team': can_view_team_reports(request.user) and get_team_report_members(request.user).exists(),
         'reports_scope_label': report_profile_label(report_profile),
         'weekly_detail_url_name': weekly_detail_url_name_for_profile(report_profile),
     })
@@ -486,6 +486,135 @@ def _today_production_report(request, report_date):
         return _report_context_common(req, d, report_profile=REPORT_PROFILE_PRODUCTION)
 
     return today_production_hourly(request, report_date, _production_context)
+
+
+def _parse_proxy_rows(request, shift):
+    from reports.production_slots import slot_count_for_shift
+
+    count = slot_count_for_shift(shift)
+    rows = []
+    for i in range(count):
+        rows.append({
+            'slot_index': i,
+            'product_code': request.POST.get(f'code_{i}', ''),
+            'process_name': request.POST.get(f'process_{i}', ''),
+            'quantity': request.POST.get(f'qty_{i}', ''),
+            'norm_per_hour': request.POST.get(f'norm_{i}', ''),
+            'damaged_quantity': request.POST.get(f'damaged_{i}', ''),
+            'note': request.POST.get(f'note_{i}', ''),
+        })
+    return rows
+
+
+@_reports_access_required
+def proxy_report_entry(request):
+    """Nhập hộ báo cáo sản xuất cho công nhân (tổ trưởng/QC) — 3 tab ca, bảng theo khung giờ."""
+    from reports.production_hourly import (
+        build_proxy_shift_sessions,
+        can_proxy_enter_daily_report,
+        save_proxy_shift_sessions,
+    )
+    from reports.production_shift_policy import shift_display_label
+    import json
+
+    if not can_view_team_reports(request.user):
+        messages.error(request, 'Bạn không có quyền nhập hộ báo cáo.')
+        return redirect('home_portal')
+
+    report_date = _parse_report_date(request)
+
+    team_members = list(
+        get_team_report_members(request.user)
+        .filter(profile__department__report_profile=REPORT_PROFILE_PRODUCTION)
+        .select_related('profile')
+        .order_by('profile__full_name', 'username')
+    )
+
+    def _proxy_url(subject_id, shift=''):
+        url = f"{reverse('reports:proxy_cn')}?date={report_date.isoformat()}&for_user={subject_id}"
+        if shift:
+            url += f'&shift={shift}'
+        return url
+
+    for_user_id = request.GET.get('for_user') or request.POST.get('for_user')
+    subject = None
+    if for_user_id:
+        try:
+            subject = get_team_report_members(request.user).get(pk=int(for_user_id))
+        except (ValueError, TypeError, User.DoesNotExist):
+            subject = None
+    if subject is None and team_members:
+        subject = team_members[0]
+    if subject is None:
+        messages.info(request, 'Không có công nhân sản xuất cấp dưới để nhập hộ.')
+        return redirect('reports:team_cn')
+    if not can_proxy_enter_daily_report(request.user, subject):
+        messages.error(request, 'Bạn không có quyền nhập hộ cho nhân viên này.')
+        return redirect('reports:team_cn')
+
+    subject_profile = getattr(subject, 'profile', None)
+    subject_name = (subject_profile.full_name if subject_profile and subject_profile.full_name else subject.username)
+
+    SHIFTS = [
+        (DailyWorkReport.SHIFT_MORNING, 'Ca sáng'),
+        (DailyWorkReport.SHIFT_OVERTIME, 'Tăng ca'),
+        (DailyWorkReport.SHIFT_NIGHT, 'Ca tối'),
+    ]
+    valid_shifts = {s for s, _ in SHIFTS}
+
+    if request.method == 'POST':
+        post_shift = (request.POST.get('shift') or '').strip().upper()
+        if post_shift not in valid_shifts:
+            messages.error(request, 'Ca làm không hợp lệ.')
+            return redirect(_proxy_url(subject.id))
+        report = _load_daily_report(
+            subject, report_date,
+            report_profile=REPORT_PROFILE_PRODUCTION, shift=post_shift,
+        )
+        report = _ensure_daily_report_saved(report)
+        if is_report_locked(report) or is_report_edit_expired(report):
+            messages.error(request, report_edit_denied_message(report))
+            return redirect(_proxy_url(subject.id, post_shift))
+        try:
+            sessions = json.loads(request.POST.get('sessions_json') or '[]')
+        except (ValueError, TypeError):
+            sessions = []
+        if not isinstance(sessions, list):
+            sessions = []
+        save_proxy_shift_sessions(report, sessions, request.user)
+        messages.success(request, f'Đã lưu {shift_display_label(post_shift)} cho {subject_name}.')
+        return redirect(_proxy_url(subject.id, post_shift))
+
+    active_shift = (request.GET.get('shift') or DailyWorkReport.SHIFT_MORNING).strip().upper()
+    if active_shift not in valid_shifts:
+        active_shift = DailyWorkReport.SHIFT_MORNING
+
+    tabs = []
+    for shift, label in SHIFTS:
+        report = _load_daily_report(
+            subject, report_date,
+            report_profile=REPORT_PROFILE_PRODUCTION, shift=shift,
+        )
+        tabs.append({
+            'shift': shift,
+            'label': label,
+            'data': build_proxy_shift_sessions(report),
+            'is_submitted': bool(report.pk) and report.status == DailyWorkReport.STATUS_SUBMITTED,
+            'is_locked': bool(report.pk) and (is_report_locked(report) or is_report_edit_expired(report)),
+            'proxy_entered_by': report.proxy_entered_by if report.pk else None,
+        })
+
+    return render(request, 'reports/proxy_entry.html', {
+        'report_date': report_date,
+        'subject': subject,
+        'subject_name': subject_name,
+        'department_name': subject_profile.department.name if subject_profile and subject_profile.department_id else '',
+        'team_members': team_members,
+        'tabs': tabs,
+        'active_shift': active_shift,
+        'empty_session': {'code': '', 'process': '', 'norm': '', 'total': '', 'damaged': '', 'note': '', 'slots': []},
+        'back_team_url': reverse('reports:team_cn') + f'?date={report_date.isoformat()}',
+    })
 
 
 def _today_office_report(request, report_date, *, report_period: str = PERIOD_DAY):
@@ -510,9 +639,10 @@ def _today_office_report(request, report_date, *, report_period: str = PERIOD_DA
         if not can_edit:
             messages.error(request, report_edit_denied_message(report))
             return redirect(f'{reverse("reports:today_vp")}?{redirect_qs}')
-        action = request.POST.get('action', 'save')
+        # Bỏ chức năng lưu nháp — mọi lần lưu đều là nộp báo cáo
+        action = 'submit'
         report = _ensure_daily_report_saved(report)
-        form = OfficeDailyWorkReportForm(request.POST, request.FILES, instance=report)
+        form = OfficeDailyWorkReportForm(request.POST, request.FILES, instance=report, report_period=report_period)
         delete_ids = [int(pk) for pk in request.POST.getlist('delete_attachments') if pk.isdigit()]
         if form.is_valid():
             _delete_daily_attachments(report, delete_ids)
@@ -546,7 +676,7 @@ def _today_office_report(request, report_date, *, report_period: str = PERIOD_DA
                 f'{reverse("reports:today_vp")}?{urlencode(period_query_param(report_period, report.report_date))}',
             )
     else:
-        form = OfficeDailyWorkReportForm(instance=report)
+        form = OfficeDailyWorkReportForm(instance=report, report_period=report_period)
 
     attachment_images, attachment_files = _daily_report_attachments(report)
     ctx = _report_context_common(
@@ -604,7 +734,8 @@ def _weekly_report(request, *, report_profile: str):
         if not can_edit:
             messages.error(request, report_edit_denied_message(report))
             return redirect(f'{reverse(weekly_url_name)}?week={week_start.isoformat()}')
-        action = request.POST.get('action', 'save')
+        # Bỏ chức năng lưu nháp — mọi lần lưu đều là nộp báo cáo
+        action = 'submit'
         report = _ensure_weekly_report_saved(report)
         form = WeeklyWorkReportForm(request.POST, instance=report)
         delete_ids = [int(pk) for pk in request.POST.getlist('delete_attachments') if pk.isdigit()]
@@ -829,6 +960,7 @@ def copy_prev_vp(request):
     report.status = DailyWorkReport.STATUS_DRAFT
     report.submitted_at = None
     report.draft_saved_at = None
+    report.title = source.title
     report.spreadsheet_json = source.spreadsheet_json
     report.document_html = source.document_html
     report.links = source.links
@@ -872,6 +1004,7 @@ def copy_yesterday(request, *, report_profile: str):
     report.submitted_at = None
     report.draft_saved_at = None
     if report_profile == REPORT_PROFILE_OFFICE:
+        report.title = source.title
         report.spreadsheet_json = source.spreadsheet_json
         report.document_html = source.document_html
         report.links = source.links
@@ -1021,7 +1154,7 @@ def _my_reports(request, daily_report_profile=None):
         'page_obj': page_obj,
         'query_string': query_string,
         'search_query': search_query,
-        'can_view_team': can_view_team_reports(request.user),
+        'can_view_team': can_view_team_reports(request.user) and get_team_report_members(request.user).exists(),
         'report_period': period,
         'history_employee_name': history_employee_name,
         'history_for_user_id': subject.pk if subject.pk != request.user.pk else None,
@@ -1175,7 +1308,9 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
             return redirect(today_url_for_user(request.user))
         return redirect('home_portal')
 
-    date_from, date_to = parse_team_date_range(request)
+    # SX mặc định chỉ lọc trong ngày hôm nay; VP giữ khoảng 7 ngày.
+    default_span = 1 if report_profile == REPORT_PROFILE_PRODUCTION else 7
+    date_from, date_to = parse_team_date_range(request, default_span_days=default_span)
     report_date = date_to
     if report_profile == REPORT_PROFILE_OFFICE:
         period_filter = parse_team_period_filter(request)
@@ -1700,6 +1835,12 @@ def report_detail_export(request, pk):
 
 @_require_today_report_access
 def today_report_cn(request):
+    if request.GET.get('for_user'):
+        from django.utils.http import urlencode as _urlencode
+        params = {'for_user': request.GET.get('for_user')}
+        if request.GET.get('date'):
+            params['date'] = request.GET.get('date')
+        return redirect(f"{reverse('reports:proxy_cn')}?{_urlencode(params)}")
     report_date = _parse_report_date(request)
     return _today_production_report(request, report_date)
 

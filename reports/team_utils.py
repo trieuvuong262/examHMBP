@@ -87,23 +87,56 @@ def query_team_office_reports_in_range(
     date_to: date,
     report_period: str = '',
 ):
-    """Báo cáo VP của team trong khoảng thời gian (mọi hoặc một chu kỳ ngày/tuần/tháng)."""
-    from django.db.models import Count, Sum
+    """Báo cáo VP của team giao với khoảng thời gian — khớp theo phạm vi kỳ (ngày/tuần/tháng).
+
+    Báo cáo tuần/tháng lưu report_date ở mốc đầu kỳ, nên khi lọc phải so theo cả kỳ:
+    - Ngày: report_date nằm trong [from, to].
+    - Tuần: [report_date, report_date+6] giao với [from, to].
+    - Tháng: cả tháng của report_date giao với [from, to].
+    """
+    from datetime import timedelta
+
+    from django.db.models import Count, Q, Sum
+
+    from reports.period_utils import (
+        PERIOD_DAY,
+        PERIOD_MONTH,
+        PERIOD_WEEK,
+        first_day_of_month,
+    )
 
     if not team_ids:
         return DailyWorkReport.objects.none()
 
-    qs = (
-        meaningful_daily_reports_qs()
-        .filter(
-            employee_id__in=team_ids,
-            report_profile=REPORT_PROFILE_OFFICE,
-            report_date__gte=date_from,
-            report_date__lte=date_to,
-        )
+    day_q = Q(
+        report_period=PERIOD_DAY,
+        report_date__gte=date_from,
+        report_date__lte=date_to,
     )
-    if report_period:
-        qs = qs.filter(report_period=report_period)
+    week_q = Q(
+        report_period=PERIOD_WEEK,
+        report_date__lte=date_to,
+        report_date__gte=date_from - timedelta(days=6),
+    )
+    month_q = Q(
+        report_period=PERIOD_MONTH,
+        report_date__lte=date_to,
+        report_date__gte=first_day_of_month(date_from),
+    )
+
+    qs = meaningful_daily_reports_qs().filter(
+        employee_id__in=team_ids,
+        report_profile=REPORT_PROFILE_OFFICE,
+    )
+    if report_period == PERIOD_DAY:
+        qs = qs.filter(day_q)
+    elif report_period == PERIOD_WEEK:
+        qs = qs.filter(week_q)
+    elif report_period == PERIOD_MONTH:
+        qs = qs.filter(month_q)
+    else:
+        qs = qs.filter(day_q | week_q | month_q)
+
     return (
         qs.select_related('employee', 'employee__profile')
         .annotate(

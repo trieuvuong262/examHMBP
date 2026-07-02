@@ -7,6 +7,7 @@ urlpatterns = [
     path('', views.report_hub, name='hub'),
     # Báo cáo ngày — SX (sản xuất)
     path('sx/today/', views.today_report_cn, name='today_cn'),
+    path('sx/nhap-ho/', views.proxy_report_entry, name='proxy_cn'),
     path('sx/team/', views.team_reports_cn, name='team_cn'),
     path('sx/my/', views.my_reports_cn, name='my_cn'),
     path('sx/copy-yesterday/', views.copy_yesterday_cn, name='copy_yesterday_cn'),

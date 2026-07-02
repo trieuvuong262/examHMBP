@@ -1335,27 +1335,35 @@ body .modal-backdrop.show {
     border-top: 1px dashed #e2e8f0;
 }
 
-/* ——— Chi tiết theo khung giờ — tách từng dòng ——— */
+/* ——— Chi tiết theo khung giờ — bảng có khung + border ——— */
 .jp-prod-productivity-table--hourly-detail {
     border-collapse: separate;
-    border-spacing: 0 0.5rem;
+    border-spacing: 0;
+}
+
+.jp-prod-productivity-table--hourly-detail th,
+.jp-prod-productivity-table--hourly-detail td {
+    border-right: 1px solid #e2e8f0;
+}
+
+.jp-prod-productivity-table--hourly-detail th:last-child,
+.jp-prod-productivity-table--hourly-detail td:last-child {
+    border-right: none;
+}
+
+.jp-prod-productivity-table--hourly-detail .jp-prod-productivity-head th {
+    border-right-color: rgba(255, 255, 255, 0.25);
+    border-bottom: 1px solid #a01729;
 }
 
 .jp-prod-productivity-table--hourly-detail tbody .jp-prod-hour-row td {
     padding-top: 0.6rem;
     padding-bottom: 0.6rem;
-    border-top: 1px solid #e2e8f0;
     border-bottom: 1px solid #e2e8f0;
-    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.7) inset;
 }
 
 .jp-prod-productivity-table--hourly-detail tbody .jp-prod-hour-row td:first-child {
     border-left: 3px solid #94a3b8;
-    border-radius: 0.35rem 0 0 0.35rem;
-}
-
-.jp-prod-productivity-table--hourly-detail tbody .jp-prod-hour-row td:last-child {
-    border-radius: 0 0.35rem 0.35rem 0;
 }
 
 .jp-prod-productivity-table--hourly-detail tbody .jp-prod-hour-row--slot-start td:first-child {
@@ -1749,7 +1757,7 @@ body .modal-backdrop.show {
     height: 2.5rem;
     padding: 0 !important;
     background: linear-gradient(
-        to bottom left,
+        to bottom right,
         transparent calc(50% - 0.5px),
         #bbb calc(50% - 0.5px),
         #bbb calc(50% + 0.5px),
@@ -1759,7 +1767,7 @@ body .modal-backdrop.show {
 
 .jp-prod-hourly-table--detail .jp-ph-cell.is-empty {
     background: linear-gradient(
-        to bottom left,
+        to bottom right,
         transparent calc(50% - 0.5px),
         #ccc calc(50% - 0.5px),
         #ccc calc(50% + 0.5px),
@@ -1820,9 +1828,36 @@ body .modal-backdrop.show {
     right: 0;
     width: 0;
     height: 0;
-    border-top: 8px solid var(--hm-primary, #c41e3a);
-    border-left: 8px solid transparent;
+    border-top: 9px solid var(--hm-primary, #c41e3a);
+    border-left: 9px solid transparent;
     cursor: help;
+    transition: border-top-color 0.15s ease, filter 0.15s ease;
+}
+
+.jp-prod-hourly-table--detail .jp-ph-flag:hover,
+.jp-prod-hourly-table--detail .jp-ph-flag:focus {
+    border-top-color: #ef4444;
+    filter: drop-shadow(0 1px 2px rgba(196, 30, 58, 0.5));
+    outline: none;
+}
+
+/* Tooltip đẹp cho hư hỏng / ghi chú */
+.jp-ph-tooltip.tooltip {
+    --bs-tooltip-bg: #1f2937;
+    --bs-tooltip-color: #f8fafc;
+    --bs-tooltip-opacity: 1;
+    --bs-tooltip-max-width: 16rem;
+    --bs-tooltip-font-size: 0.75rem;
+    --bs-tooltip-border-radius: 0.5rem;
+    filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.25));
+}
+
+.jp-ph-tooltip .tooltip-inner {
+    padding: 0.45rem 0.65rem;
+    text-align: left;
+    line-height: 1.35;
+    font-weight: 500;
+    white-space: pre-line;
 }
 
 .jp-prod-hourly-table--detail .jp-ph-na {
@@ -2075,4 +2110,25 @@ body .modal-backdrop.show {
     #completeSessionModal {
         display: none !important;
     }
+}
+
+/* ——— Hư hỏng / Ghi chú cấp mã hàng (bảng tổng hợp) ——— */
+.jp-prod-damaged-val {
+    font-weight: 700;
+    color: #b45309;
+}
+
+.jp-prod-note-cell {
+    max-width: 16rem;
+}
+
+.jp-prod-note-val {
+    display: inline-block;
+    max-width: 16rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: bottom;
+    color: #475569;
+    cursor: help;
 }

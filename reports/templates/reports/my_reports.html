@@ -115,10 +115,8 @@
                         <td>
                             {% if r.status == 'SUBMITTED' %}
                             <span class="badge bg-success-subtle text-success">Đã nộp</span>
-                            {% elif r.draft_saved_at %}
-                            <span class="badge bg-warning-subtle text-warning">Nháp</span>
                             {% else %}
-                            <span class="badge bg-secondary-subtle text-secondary">Chưa lưu</span>
+                            <span class="badge bg-secondary-subtle text-secondary">Chưa nộp</span>
                             {% endif %}
                         </td>
                         <td class="text-end">
@@ -155,10 +153,8 @@
                         <td>
                             {% if r.status == 'SUBMITTED' %}
                             <span class="badge bg-success-subtle text-success">Đã nộp</span>
-                            {% elif r.draft_saved_at %}
-                            <span class="badge bg-warning-subtle text-warning">Nháp</span>
                             {% else %}
-                            <span class="badge bg-secondary-subtle text-secondary">Chưa lưu</span>
+                            <span class="badge bg-secondary-subtle text-secondary">Chưa nộp</span>
                             {% endif %}
                         </td>
                         <td class="text-end">

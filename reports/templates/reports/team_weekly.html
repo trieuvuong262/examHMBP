@@ -1,5 +1,9 @@
 {% extends 'base.html' %}
 
+{% block extra_head %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+{% endblock %}
+
 {% block content %}
 <div class="container jp-page jp-reports-page py-3 py-md-4 mb-5">
     <div class="jp-page-header mb-3 mb-md-4">
@@ -15,7 +19,7 @@
         <div class="card-body p-3 d-flex flex-wrap gap-3 align-items-end">
             <div>
                 <label class="form-label fw-bold small mb-1">Tuần (thứ 2)</label>
-                <input type="date" name="week" value="{{ week_start|date:'Y-m-d' }}" class="form-control">
+                <input type="date" name="week" value="{{ week_start|date:'Y-m-d' }}" class="form-control jp-date-vn">
             </div>
             {% include 'reports/includes/team_filter_form_extra.html' %}
             <div class="flex-grow-1 jp-hrm-search-wrap" style="min-width: 240px;">
@@ -76,7 +80,7 @@
                                 <span class="badge bg-primary-subtle text-primary">Đã xem</span>
                                 {% endif %}
                                 {% else %}
-                                <span class="badge bg-warning-subtle text-warning">Nháp</span>
+                                <span class="badge bg-warning-subtle text-warning">Chưa nộp</span>
                                 {% endif %}
                             {% else %}
                             <span class="badge bg-danger-subtle text-danger">Chưa báo cáo</span>
@@ -114,4 +118,19 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    if (!window.flatpickr) return;
+    flatpickr('.jp-date-vn', {
+        dateFormat: 'Y-m-d',
+        altInput: true,
+        altFormat: 'd/m/Y',
+        allowInput: true,
+    });
+});
+</script>
 {% endblock %}

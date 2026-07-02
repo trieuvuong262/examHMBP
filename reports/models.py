@@ -38,6 +38,12 @@ class DailyWorkReport(models.Model):
     )
     report_date = models.DateField(verbose_name='Ngày báo cáo')
     shift = models.CharField(max_length=20, choices=SHIFT_CHOICES, default=SHIFT_MORNING, blank=True)
+    title = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name='Tiêu đề báo cáo',
+        help_text='Dùng cho báo cáo tuần / tháng.',
+    )
     report_profile = models.CharField(
         max_length=20,
         choices=REPORT_PROFILE_CHOICES,
@@ -59,6 +65,14 @@ class DailyWorkReport(models.Model):
     hod_reviewed = models.BooleanField(default=False, verbose_name='HOD đã xem')
     hod_note = models.CharField(max_length=500, blank=True, verbose_name='Ghi chú HOD')
     shift_started_at = models.DateTimeField(null=True, blank=True, verbose_name='Bắt đầu ca')
+    proxy_entered_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='proxy_daily_reports_entered',
+        verbose_name='Tổ trưởng nhập hộ',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -79,6 +93,10 @@ class DailyWorkReport(models.Model):
     @property
     def is_production_report(self):
         return self.report_profile == REPORT_PROFILE_PRODUCTION
+
+    @property
+    def is_proxy_entered(self):
+        return self.proxy_entered_by_id is not None
 
     @property
     def is_edit_expired(self):

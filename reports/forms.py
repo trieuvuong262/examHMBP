@@ -103,9 +103,13 @@ class OfficeDailyWorkReportForm(forms.ModelForm):
 
     class Meta:
         model = DailyWorkReport
-        fields = ['report_date', 'document_html', 'links']
+        fields = ['report_date', 'title', 'document_html', 'links']
         widgets = {
             'report_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'title': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Nhập tiêu đề báo cáo...',
+            }),
             'document_html': OfficeWordEditorWidget(),
             'links': forms.Textarea(attrs={
                 'class': 'form-control jp-office-links-input',
@@ -115,7 +119,8 @@ class OfficeDailyWorkReportForm(forms.ModelForm):
             }),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, report_period='day', **kwargs):
+        self.report_period = report_period
         super().__init__(*args, **kwargs)
         initial_sheet = self.instance.spreadsheet_json if self.instance.pk else None
         self.fields['spreadsheet_data'].initial = json.dumps(
@@ -125,6 +130,9 @@ class OfficeDailyWorkReportForm(forms.ModelForm):
         self.fields['document_html'].required = False
         self.fields['links'].required = False
         self.fields['links'].label = ''
+        self.fields['title'].required = False
+        # Tiêu đề chỉ dùng cho báo cáo tuần / tháng
+        self._title_required = self.report_period in ('week', 'month')
 
     def clean_spreadsheet_data(self):
         raw = self.cleaned_data.get('spreadsheet_data') or ''
@@ -145,6 +153,8 @@ class OfficeDailyWorkReportForm(forms.ModelForm):
         sheet = cleaned.get('spreadsheet_data') or DEFAULT_SPREADSHEET
         doc = cleaned.get('document_html') or ''
         if self.data.get('action') == 'submit':
+            if self._title_required and not (cleaned.get('title') or '').strip():
+                self.add_error('title', 'Báo cáo tuần / tháng cần nhập tiêu đề.')
             delete_ids = {int(pk) for pk in self.data.getlist('delete_attachments') if pk.isdigit()}
             existing = 0
             if self.instance.pk:

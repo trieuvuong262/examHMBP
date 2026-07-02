@@ -464,10 +464,8 @@ def product_slot_cell(product: ProductionShiftProduct, slot_index: int) -> dict:
     entry_note = (entry.note or '').strip() if entry else ''
     filled = _entry_is_filled(entry)
     session_mode = is_session_reported_product(product)
-    if session_mode and qty:
-        cum = qty
-    else:
-        cum = cumulative_quantity(product, slot_index) if qty else 0
+    # Lũy kế luôn cộng dồn theo khung giờ (khớp mẫu báo cáo sản lượng hằng giờ)
+    cum = cumulative_quantity(product, slot_index) if qty else 0
     display = ''
     if entry and filled:
         display = format_production_quantity(qty) if qty > 0 else '0'
@@ -736,6 +734,8 @@ def build_productivity_report(report: DailyWorkReport) -> dict:
                 ),
                 'started_at_display': started_display,
                 'ended_at_display': ended_display,
+                'damaged_quantity': product.total_damaged_quantity or 0,
+                'note': (product.completion_note or '').strip(),
             })
 
     hourly_rows.sort(
@@ -999,3 +999,297 @@ def parse_int(value, default=0):
         return max(0, int(value))
     except (TypeError, ValueError):
         return default
+
+
+# =========================================================
+# NHẬP HỘ — bảng Excel theo khung giờ (tổ trưởng nhập cho công nhân)
+# =========================================================
+
+def slot_duration_hours(slot) -> Decimal:
+    """Độ dài khung giờ (giờ) — dùng làm 'Thời gian/H' khi nhập hộ."""
+    from datetime import date as _date, datetime as _dt, timedelta as _td
+
+    base = _date(2000, 1, 1)
+    start = _dt.combine(base + _td(days=slot.start_day_offset), slot.start)
+    end = _dt.combine(base + _td(days=slot.end_day_offset), slot.end)
+    minutes = (end - start).total_seconds() / 60
+    return (Decimal(str(minutes)) / Decimal('60')).quantize(Decimal('0.01'))
+
+
+def _proxy_efficiency(qty, norm, hours) -> Optional[float]:
+    if qty and norm and norm > 0 and hours > 0:
+        return float((Decimal(str(qty)) / (Decimal(str(norm)) * hours) * 100).quantize(Decimal('0.01')))
+    return None
+
+
+def build_proxy_shift_table(report: DailyWorkReport) -> dict:
+    """Bảng nhập hộ 1 ca — mỗi dòng là 1 khung giờ, điền sẵn dữ liệu đã có."""
+    shift = _shift_for_report(report)
+    slots = slots_for_shift(shift)
+
+    prod_by_slot: dict[int, tuple] = {}
+    if report.pk:
+        for product in report.production_products.prefetch_related('hourly_entries').order_by('sort_order', 'id'):
+            for entry in product.hourly_entries.all():
+                prod_by_slot[entry.slot_index] = (product, entry)
+
+    rows = []
+    for slot in slots:
+        product, entry = prod_by_slot.get(slot.index, (None, None))
+        hours = slot_duration_hours(slot)
+        qty = entry.quantity if entry else None
+        norm = product.norm_per_hour if product else None
+        rows.append({
+            'slot_index': slot.index,
+            'slot_label': slot.label,
+            'hours': hours,
+            'hours_display': _format_hours(hours),
+            'product_code': (product.product_code or '').strip() if product else '',
+            'process_name': (product.process_name or '').strip() if product else '',
+            'quantity': format_production_quantity(qty) if qty else '',
+            'norm_per_hour': (int(norm) if norm == norm.to_integral() else float(norm)) if norm is not None else '',
+            'damaged_quantity': entry.damaged_quantity if entry and entry.damaged_quantity else '',
+            'note': (entry.note or '').strip() if entry else '',
+            'efficiency_pct': _proxy_efficiency(qty, norm, hours),
+        })
+
+    return {
+        'shift': shift,
+        'rows': rows,
+        'has_data': bool(prod_by_slot),
+    }
+
+
+@transaction.atomic
+def save_proxy_shift_table(report: DailyWorkReport, rows: list[dict], user) -> dict:
+    """
+    Lưu bảng nhập hộ 1 ca. `rows` = list theo thứ tự khung giờ, mỗi phần tử:
+    {slot_index, product_code, process_name, quantity, norm_per_hour, damaged_quantity, note}.
+    Gom các khung giờ liên tiếp cùng (mã hàng + công đoạn + định mức) thành 1 ProductionShiftProduct.
+    """
+    if not report.pk:
+        report.report_profile = REPORT_PROFILE_PRODUCTION
+        report.save()
+    report.report_profile = REPORT_PROFILE_PRODUCTION
+    shift = _shift_for_report(report)
+    slots = slots_for_shift(shift)
+    slot_by_idx = {s.index: s for s in slots}
+
+    report.production_products.all().delete()
+
+    groups: list[dict] = []
+    current = None
+    for row in sorted(rows, key=lambda r: r.get('slot_index', 0)):
+        idx = int(row.get('slot_index', -1))
+        if idx not in slot_by_idx:
+            continue
+        code = (row.get('product_code') or '').strip()
+        process = (row.get('process_name') or '').strip()
+        qty = parse_non_negative_decimal(row.get('quantity'), default=Decimal('0'))
+        norm = parse_decimal(row.get('norm_per_hour'))
+        damaged = parse_int(row.get('damaged_quantity'))
+        note = (row.get('note') or '').strip()
+
+        has_data = bool(code or process or qty > 0 or note or damaged)
+        if not has_data:
+            current = None
+            continue
+
+        key = (code, process, str(norm) if norm is not None else '')
+        cell = {'idx': idx, 'qty': qty, 'damaged': damaged, 'note': note}
+        if current and current['key'] == key:
+            current['cells'].append(cell)
+        else:
+            current = {'key': key, 'code': code, 'process': process, 'norm': norm, 'cells': [cell]}
+            groups.append(current)
+
+    sort_order = 0
+    for g in groups:
+        indices = [c['idx'] for c in g['cells']]
+        first, last = min(indices), max(indices)
+        total = sum((c['qty'] for c in g['cells']), Decimal('0'))
+        total_damaged = sum(c['damaged'] for c in g['cells'])
+        note_first = next((c['note'] for c in g['cells'] if c['note']), '')
+        product = ProductionShiftProduct.objects.create(
+            report=report,
+            product_code=g['code'],
+            process_name=g['process'],
+            norm_per_hour=g['norm'],
+            status=ProductionShiftProduct.STATUS_DONE,
+            sort_order=sort_order,
+            first_slot_index=first,
+            started_at=_slot_start_dt(report.report_date, slot_by_idx[first]),
+            ended_at=_slot_end_dt(report.report_date, slot_by_idx[last]),
+            total_quantity=total,
+            total_damaged_quantity=total_damaged,
+            completion_note=note_first[:500],
+        )
+        sort_order += 1
+        for c in g['cells']:
+            slot = slot_by_idx[c['idx']]
+            hours = slot_duration_hours(slot)
+            partial = hours if hours != Decimal('1') else None
+            ProductionHourlyQuantity.objects.create(
+                product=product,
+                slot_index=c['idx'],
+                quantity=c['qty'],
+                damaged_quantity=c['damaged'],
+                note=c['note'][:500],
+                partial_hours=partial,
+                zero_reason='',
+            )
+
+    report.proxy_entered_by = user
+    if not report.shift_started_at:
+        report.shift_started_at = _slot_start_dt(report.report_date, slots[0])
+    if groups:
+        report.status = DailyWorkReport.STATUS_SUBMITTED
+        report.submitted_at = timezone.now()
+    else:
+        report.status = DailyWorkReport.STATUS_DRAFT
+    report.save()
+    return {'groups': len(groups)}
+
+
+# =========================================================
+# NHẬP HỘ — theo công đoạn/mã hàng: chọn nhiều khung giờ + tổng sản lượng
+# =========================================================
+
+def _slot_options_for_shift(shift: str) -> list[dict]:
+    out = []
+    for s in slots_for_shift(shift):
+        hours = slot_duration_hours(s)
+        out.append({
+            'index': s.index,
+            'label': s.label,
+            'hours': float(hours),
+            'hours_display': _format_hours(hours),
+        })
+    return out
+
+
+def build_proxy_shift_sessions(report: DailyWorkReport) -> dict:
+    """Dữ liệu nhập hộ theo công đoạn — mỗi công đoạn 1 mã hàng + nhiều khung giờ + tổng SL."""
+    shift = _shift_for_report(report)
+    sessions = []
+    if report.pk:
+        for p in report.production_products.prefetch_related('hourly_entries').order_by('sort_order', 'id'):
+            entries = list(p.hourly_entries.all())
+            indices = sorted(e.slot_index for e in entries)
+            total = p.total_quantity
+            if total is None:
+                total = sum((e.quantity for e in entries), Decimal('0'))
+            norm = p.norm_per_hour
+            sessions.append({
+                'code': (p.product_code or '').strip(),
+                'process': (p.process_name or '').strip(),
+                'norm': (int(norm) if norm == norm.to_integral() else float(norm)) if norm is not None else '',
+                'slots': indices,
+                'total': format_production_quantity(total) if total else '',
+                'damaged': p.total_damaged_quantity or '',
+                'note': (p.completion_note or '').strip(),
+            })
+    return {
+        'shift': shift,
+        'slots': _slot_options_for_shift(shift),
+        'sessions': sessions,
+        'has_data': bool(sessions),
+    }
+
+
+@transaction.atomic
+def save_proxy_shift_sessions(report: DailyWorkReport, sessions: list[dict], user) -> dict:
+    """
+    Lưu nhập hộ theo công đoạn. Mỗi phần tử sessions:
+    {code, process, norm, slots: [slot_index...], total, damaged, note}.
+    Tổng SL được chia đều cho các khung giờ đã chọn (partial_hours = độ dài khung).
+    """
+    if not report.pk:
+        report.report_profile = REPORT_PROFILE_PRODUCTION
+        report.save()
+    report.report_profile = REPORT_PROFILE_PRODUCTION
+    shift = _shift_for_report(report)
+    slots = slots_for_shift(shift)
+    slot_by_idx = {s.index: s for s in slots}
+
+    report.production_products.all().delete()
+
+    created = 0
+    sort_order = 0
+    for sess in sessions:
+        code = (sess.get('code') or '').strip()
+        process = (sess.get('process') or '').strip()
+        norm = parse_decimal(sess.get('norm'))
+        total = parse_non_negative_decimal(sess.get('total'), default=Decimal('0'))
+        damaged = parse_int(sess.get('damaged'))
+        note = (sess.get('note') or '').strip()
+
+        indices = []
+        for raw in (sess.get('slots') or []):
+            try:
+                n = int(raw)
+            except (TypeError, ValueError):
+                continue
+            if n in slot_by_idx and n not in indices:
+                indices.append(n)
+        indices.sort()
+
+        has_data = bool(code or process or total > 0 or note or damaged)
+        if not has_data or not indices:
+            continue
+
+        first, last = indices[0], indices[-1]
+        product = ProductionShiftProduct.objects.create(
+            report=report,
+            product_code=code,
+            process_name=process,
+            norm_per_hour=norm,
+            status=ProductionShiftProduct.STATUS_DONE,
+            sort_order=sort_order,
+            first_slot_index=first,
+            started_at=_slot_start_dt(report.report_date, slot_by_idx[first]),
+            ended_at=_slot_end_dt(report.report_date, slot_by_idx[last]),
+            total_quantity=total,
+            total_damaged_quantity=damaged,
+            completion_note=note[:500],
+        )
+        sort_order += 1
+
+        count = len(indices)
+        remaining = total
+        damaged_left = damaged
+        for pos, idx in enumerate(indices):
+            slot = slot_by_idx[idx]
+            hours = slot_duration_hours(slot)
+            if pos == count - 1:
+                qty = remaining
+            else:
+                share = (total / Decimal(count)).quantize(Decimal('0.01'))
+                qty = share
+                remaining -= qty
+            slot_damaged = 0
+            if damaged_left > 0 and qty > 0:
+                slot_damaged = damaged_left
+                damaged_left = 0
+            partial = hours if hours != Decimal('1') else None
+            ProductionHourlyQuantity.objects.create(
+                product=product,
+                slot_index=idx,
+                quantity=qty,
+                damaged_quantity=slot_damaged,
+                note=note[:500] if pos == 0 else '',
+                partial_hours=partial,
+                zero_reason='',
+            )
+        created += 1
+
+    report.proxy_entered_by = user
+    if not report.shift_started_at:
+        report.shift_started_at = _slot_start_dt(report.report_date, slots[0])
+    if created:
+        report.status = DailyWorkReport.STATUS_SUBMITTED
+        report.submitted_at = timezone.now()
+    else:
+        report.status = DailyWorkReport.STATUS_DRAFT
+    report.save()
+    return {'sessions': created}

@@ -26,20 +26,23 @@
                     <td class="jp-ph-time text-nowrap text-center">{{ row.started_at_display|default:"—" }}</td>
                     <td class="jp-ph-time text-nowrap text-center">{{ row.ended_at_display|default:"—" }}</td>
                     {% for cell in row.slots %}
-                    <td class="jp-ph-cell{% if cell.is_na %} is-na{% elif not cell.has_data %} is-empty{% endif %}">
-                        {% if cell.is_na %}
-                        <span class="jp-ph-na">—</span>
-                        {% elif cell.has_data %}
+                    <td class="jp-ph-cell{% if cell.is_na or not cell.has_data %} is-na{% endif %}">
+                        {% if cell.has_data %}
                         {% if cell.quantity > 0 %}
                         <span class="jp-ph-qty">{{ cell.display|default:cell.quantity|prod_qty }}</span>
                         <span class="jp-ph-cum">{{ cell.cumulative|prod_qty }}</span>
                         {% if cell.damaged_quantity or cell.note %}
-                        <span class="jp-ph-flag" tabindex="0" title="{% if cell.damaged_quantity %}Hư: {{ cell.damaged_quantity|prod_qty }}{% endif %}{% if cell.damaged_quantity and cell.note %} · {% endif %}{% if cell.note %}{{ cell.note }}{% endif %}"></span>
+                        <span class="jp-ph-flag" tabindex="0"
+                              data-bs-toggle="tooltip" data-bs-placement="top"
+                              data-bs-custom-class="jp-ph-tooltip"
+                              data-bs-title="{% if cell.damaged_quantity %}Hư hỏng: {{ cell.damaged_quantity|prod_qty }}{% endif %}{% if cell.damaged_quantity and cell.note %}&#10;{% endif %}{% if cell.note %}Ghi chú: {{ cell.note }}{% endif %}"></span>
                         {% endif %}
                         {% else %}
                         <span class="jp-ph-qty text-muted">0</span>
                         <span class="jp-ph-zero-reason" title="{{ cell.zero_reason }}">{{ cell.zero_reason|truncatechars:12 }}</span>
                         {% endif %}
+                        {% else %}
+                        <span class="jp-ph-na">—</span>
                         {% endif %}
                     </td>
                     {% endfor %}

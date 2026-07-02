@@ -4,7 +4,7 @@
 {% block extra_head %}
 {% if report.is_production_report %}
 <link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260624a">
-<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260702o">
+<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260702r">
 {% elif not report.is_production_report %}
 <link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260630b">
 {% endif %}
@@ -26,12 +26,22 @@
                     {% if report.status == 'SUBMITTED' %}
                     <span class="badge jp-report-badge jp-report-badge--submitted">Đã nộp</span>
                     {% else %}
-                    <span class="badge jp-report-badge jp-report-badge--draft">Nháp</span>
+                    <span class="badge jp-report-badge jp-report-badge--draft">Chưa nộp</span>
                     {% endif %}
                     {% if report.hod_reviewed %}
                     <span class="badge jp-report-badge jp-report-badge--reviewed">Đã xem</span>
                     {% endif %}
+                    {% if report.is_proxy_entered %}
+                    <span class="badge bg-warning text-dark" title="Nhập bởi {{ report.proxy_entered_by.profile.full_name|default:report.proxy_entered_by.username }}">
+                        <i class="bi bi-person-check-fill me-1"></i>Tổ trưởng nhập hộ
+                    </span>
+                    {% endif %}
                 </div>
+                {% if report.title and report.report_period != 'day' %}
+                <p class="jp-report-detail-title fw-semibold text-dark mb-0 mt-2">
+                    <i class="bi bi-card-heading me-1 text-hm"></i>{{ report.title }}
+                </p>
+                {% endif %}
                 <p class="jp-report-detail-name mb-0 mt-2">{{ report.employee.profile.full_name|default:report.employee.username }}</p>
             </div>
             <div class="jp-report-detail-hero-actions d-flex gap-2 flex-wrap">
@@ -349,6 +359,29 @@
         });
     }
 })();
+</script>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if report.is_production_report %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    if (!(window.bootstrap && bootstrap.Tooltip)) return;
+    function initFlags(root) {
+        (root || document).querySelectorAll('.jp-ph-flag[data-bs-toggle="tooltip"]').forEach(function (el) {
+            bootstrap.Tooltip.getOrCreateInstance(el);
+        });
+    }
+    initFlags(document);
+    // Khởi tạo lại khi chuyển sang tab "Báo cáo sản lượng" (nội dung ẩn lúc đầu)
+    var quantityTabBtn = document.getElementById('jp-tab-quantity-btn');
+    if (quantityTabBtn) {
+        quantityTabBtn.addEventListener('shown.bs.tab', function () {
+            initFlags(document.getElementById('jp-tab-quantity'));
+        });
+    }
+});
 </script>
 {% endif %}
 {% endblock %}

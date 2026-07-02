@@ -20,13 +20,9 @@
                     </p>
                     <p class="jp-prod-page-sub small text-muted mb-0">
                         {{ report_date|date:"d/m/Y" }}
-                        {% if production_shift_label %} · <span class="{{ production_shift|production_shift_badge_class }}">{{ production_shift_label }}</span>{% endif %}
                     </p>
                 </div>
                 <div class="d-flex flex-wrap align-items-center gap-2 jp-prod-header-tools{% if work_step %} d-none d-lg-flex{% endif %}">
-                    {% if production_shift_label and shift_picker_url %}
-                    <a href="{{ shift_picker_url }}" class="btn btn-sm btn-outline-secondary">Đổi ca</a>
-                    {% endif %}
                     {% include 'reports/includes/reports_page_tools.html' %}
                     {% if editing_for_other %}
                     <span class="badge bg-warning text-dark">Nhập hộ NV</span>
@@ -163,13 +159,6 @@
                     <strong id="review-grand-total-mobile">{{ hourly_grid.grand_total|default:0|prod_qty }}</strong>
                 </div>
                 <div class="d-grid gap-2">
-                    <form method="post" class="mb-0" id="review-save-form">
-                        {% csrf_token %}
-                        <input type="hidden" name="action" value="save_review">
-                        <input type="hidden" name="review_json" id="review-json-save">
-                        {% if for_user_param %}<input type="hidden" name="for_user" value="{{ for_user_param }}">{% endif %}
-                        <button type="submit" class="btn btn-outline-hm w-100 fw-bold">Lưu nháp</button>
-                    </form>
                     <form method="post" class="mb-0" id="review-submit-form">
                         {% csrf_token %}
                         <input type="hidden" name="action" value="submit">
@@ -188,13 +177,6 @@
                     <span class="text-muted">Tổng ngày</span>
                     <strong id="review-grand-total-desktop">{{ hourly_grid.grand_total|default:0|prod_qty }}</strong>
                 </div>
-                <form method="post" class="mb-0" id="review-save-form-desktop">
-                    {% csrf_token %}
-                    <input type="hidden" name="action" value="save_review">
-                    <input type="hidden" name="review_json" id="review-json-save-desktop">
-                    {% if for_user_param %}<input type="hidden" name="for_user" value="{{ for_user_param }}">{% endif %}
-                    <button type="submit" class="btn btn-outline-hm fw-bold px-4">Lưu nháp</button>
-                </form>
                 <form method="post" class="mb-0 ms-auto" id="review-submit-form-desktop">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="submit">
@@ -214,7 +196,6 @@
         <aside class="jp-prod-sidebar d-none d-lg-block">
             <div class="jp-prod-sidebar-card">
                 <div class="jp-prod-status-bar mb-3">
-                    <span class="badge bg-success-subtle text-success">Đang làm việc</span>
                     {% if current_slot_label %}
                     <span class="small text-muted d-block mt-2">Giờ hiện tại: {{ current_slot_label }}</span>
                     {% endif %}
@@ -313,7 +294,6 @@
 
             {% if shift_started and phase != 'review' %}
             <section class="jp-prod-status-bar d-none d-lg-flex">
-                <span class="badge bg-success-subtle text-success">Đang làm việc</span>
                 {% if current_slot_label %}
                 <span class="small text-muted">Giờ hiện tại: {{ current_slot_label }}</span>
                 {% endif %}

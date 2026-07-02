@@ -67,6 +67,16 @@
             </div>
         </div>
 
+        {% if office_period != 'day' %}
+        <div class="jp-office-title-bar card border-0 shadow-sm mb-3">
+            <div class="card-body py-3 px-3 px-md-4">
+                <label class="form-label fw-semibold small text-muted mb-1" for="{{ form.title.id_for_label }}">Tiêu đề báo cáo</label>
+                {{ form.title }}
+                {% if form.title.errors %}<div class="text-danger small mt-1">{{ form.title.errors }}</div>{% endif %}
+            </div>
+        </div>
+        {% endif %}
+
         {% include 'reports/includes/office_report_workspace.html' %}
 
         <div class="card border-0 shadow-sm mb-3 jp-office-link-card">
@@ -88,7 +98,6 @@
 
         {% if can_edit %}
         <div class="jp-office-actions">
-            <button type="submit" name="action" value="save" class="btn btn-outline-dark px-4">Lưu nháp</button>
             <button type="submit" name="action" value="submit" class="btn btn-hm px-4 fw-bold">Gửi báo cáo</button>
         </div>
         {% endif %}

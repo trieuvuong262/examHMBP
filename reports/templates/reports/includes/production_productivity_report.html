@@ -15,9 +15,11 @@
                     <th class="text-center">Bắt đầu</th>
                     <th class="text-center">Kết thúc</th>
                     <th class="text-end">Số lượng</th>
+                    <th class="text-end">Hư hỏng</th>
                     <th class="text-end">Định mức/H</th>
                     <th class="text-end">Thời gian/H</th>
                     <th class="text-end">Hiệu suất</th>
+                    <th>Ghi chú</th>
                 </tr>
             </thead>
             <tbody>
@@ -29,6 +31,9 @@
                     <td class="text-center text-nowrap">{{ row.started_at_display|default:"—" }}</td>
                     <td class="text-center text-nowrap">{{ row.ended_at_display|default:"—" }}</td>
                     <td class="text-end"><span class="jp-prod-qty-val">{{ row.quantity|prod_qty }}</span></td>
+                    <td class="text-end">
+                        {% if row.damaged_quantity %}<span class="jp-prod-damaged-val">{{ row.damaged_quantity|prod_qty }}</span>{% else %}<span class="text-muted">—</span>{% endif %}
+                    </td>
                     <td class="text-end">
                         <div class="jp-prod-norm-cell">
                             <span class="jp-prod-norm-display">{% if row.norm_per_hour %}{{ row.norm_per_hour|floatformat:0 }}{% else %}—{% endif %}</span>
@@ -48,6 +53,9 @@
                     <td class="text-end text-muted">{{ row.hours_display }}</td>
                     <td class="text-end jp-prod-eff-cell">
                         <span class="jp-prod-eff-badge{% if row.efficiency_pct >= 100 %} is-good{% elif row.efficiency_pct >= 80 %} is-ok{% else %} is-low{% endif %}">{{ row.efficiency_pct|floatformat:1 }}%</span>
+                    </td>
+                    <td class="jp-prod-note-cell">
+                        {% if row.note %}<span class="jp-prod-note-val" title="{{ row.note }}">{{ row.note|truncatechars:40 }}</span>{% else %}<span class="text-muted">—</span>{% endif %}
                     </td>
                 </tr>
                 {% endfor %}
@@ -72,8 +80,6 @@
                     <th>Mã hàng</th>
                     <th>Công đoạn</th>
                     <th class="text-end">Số lượng</th>
-                    <th class="text-end">Hư hỏng</th>
-                    <th>Ghi chú</th>
                     <th class="text-end">Định mức/H</th>
                     <th class="text-end">Thời gian/H</th>
                     <th class="text-end">Hiệu suất</th>
@@ -87,44 +93,18 @@
                     </td>
                     {% if seg.kind == 'work' %}
                     <td class="jp-prod-hour-merged-col">
-                        {% if seg.items|length == 1 %}
-                        <span class="jp-prod-code-pill">{{ seg.items.0.product_code }}</span>
-                        {% else %}
                         {% for item in seg.items %}
                         <div class="jp-prod-hour-merged-line"><span class="jp-prod-code-pill">{{ item.product_code }}</span></div>
-                        {% endfor %}
-                        {% endif %}
-                    </td>
-                    <td class="jp-prod-hour-merged-col">
-                        {% if seg.items|length == 1 %}
-                        {{ seg.items.0.process_name }}
-                        {% else %}
-                        {% for item in seg.items %}
-                        <div class="jp-prod-hour-merged-line">{{ item.process_name }}</div>
-                        {% endfor %}
-                        {% endif %}
-                    </td>
-                    <td class="text-end jp-prod-hour-merged-col">
-                        {% if seg.items|length == 1 %}
-                        <span class="jp-prod-qty-val">{{ seg.items.0.quantity|prod_qty }}</span>
-                        {% else %}
-                        {% for item in seg.items %}
-                        <div class="jp-prod-hour-merged-line"><span class="jp-prod-qty-val">{{ item.quantity|prod_qty }}</span></div>
-                        {% endfor %}
-                        {% endif %}
-                    </td>
-                    <td class="text-end">
-                        {% for item in seg.items %}
-                        <div class="jp-prod-hour-merged-line">
-                        {% if item.damaged_quantity %}<span class="jp-prod-damaged-val">{{ item.damaged_quantity|prod_qty }}</span>{% else %}<span class="text-muted">—</span>{% endif %}
-                        </div>
                         {% empty %}<span class="text-muted">—</span>{% endfor %}
                     </td>
-                    <td class="jp-prod-note-cell">
+                    <td class="jp-prod-hour-merged-col">
                         {% for item in seg.items %}
-                        <div class="jp-prod-hour-merged-line">
-                        {% if item.note %}<span class="jp-prod-note-val" title="{{ item.note }}">{{ item.note|truncatechars:40 }}</span>{% else %}<span class="text-muted">—</span>{% endif %}
-                        </div>
+                        <div class="jp-prod-hour-merged-line">{{ item.process_name }}</div>
+                        {% empty %}<span class="text-muted">—</span>{% endfor %}
+                    </td>
+                    <td class="text-end jp-prod-hour-merged-col">
+                        {% for item in seg.items %}
+                        <div class="jp-prod-hour-merged-line"><span class="jp-prod-qty-val">{{ item.quantity|prod_qty }}</span></div>
                         {% empty %}<span class="text-muted">—</span>{% endfor %}
                     </td>
                     <td class="text-end jp-prod-norm-display">
@@ -151,14 +131,12 @@
                     <td class="jp-prod-hour-status-label{% if seg.kind == 'gap' %} is-gap{% else %} is-break{% endif %}">{{ seg.label }}</td>
                     <td class="text-end text-muted">—</td>
                     <td class="text-end text-muted">—</td>
-                    <td class="text-muted">—</td>
-                    <td class="text-end text-muted">—</td>
                     <td class="text-end text-muted">—</td>
                     <td class="text-end text-muted">—</td>
                     {% endif %}
                 </tr>
                 {% empty %}
-                <tr><td colspan="9" class="text-center text-muted py-4">Chưa có dữ liệu theo khung giờ.</td></tr>
+                <tr><td colspan="7" class="text-center text-muted py-4">Chưa có dữ liệu theo khung giờ.</td></tr>
                 {% endfor %}
             </tbody>
             {% if productivity.work_timeline.segments %}
@@ -166,7 +144,6 @@
                 <tr class="jp-prod-productivity-foot">
                     <th colspan="3" class="text-end text-uppercase">Tổng</th>
                     <th class="text-end">{{ productivity.total_quantity|prod_qty }}</th>
-                    <th colspan="2"></th>
                     <th class="text-end text-muted">—</th>
                     <th class="text-end">{{ productivity.total_hours_display }}</th>
                     <th class="text-end">

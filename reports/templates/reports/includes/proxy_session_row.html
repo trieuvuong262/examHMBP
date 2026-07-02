@@ -1,0 +1,56 @@
+<div class="jp-proxy-session card border shadow-sm mb-2">
+    <div class="card-body p-2 p-md-3">
+        <div class="row g-2">
+            <div class="col-6 col-md-3">
+                <label class="form-label small fw-semibold mb-1">Mã hàng</label>
+                <input type="text" class="form-control form-control-sm s-code" value="{{ sess.code }}" placeholder="VD: SP-A01">
+            </div>
+            <div class="col-6 col-md-3">
+                <label class="form-label small fw-semibold mb-1">Công đoạn</label>
+                <input type="text" class="form-control form-control-sm s-process" value="{{ sess.process }}" placeholder="VD: May thân">
+            </div>
+            <div class="col-4 col-md-2">
+                <label class="form-label small fw-semibold mb-1">Định mức/H</label>
+                <input type="number" min="0" step="0.01" class="form-control form-control-sm s-norm" value="{{ sess.norm }}">
+            </div>
+            <div class="col-4 col-md-2">
+                <label class="form-label small fw-semibold mb-1">Số lượng tổng</label>
+                <input type="number" min="0" step="1" class="form-control form-control-sm s-total" value="{{ sess.total }}">
+            </div>
+            <div class="col-4 col-md-2">
+                <label class="form-label small fw-semibold mb-1">Hư hỏng</label>
+                <input type="number" min="0" step="1" class="form-control form-control-sm s-damaged" value="{{ sess.damaged }}">
+            </div>
+        </div>
+
+        <div class="mt-2">
+            <label class="form-label small fw-semibold mb-1">Khung giờ (chọn nhiều)</label>
+            <div class="d-flex flex-wrap gap-2 s-slots">
+                {% for slot in slots %}
+                <label class="jp-proxy-slot-chip">
+                    <input type="checkbox" class="s-slot" value="{{ slot.index }}" data-hours="{{ slot.hours }}"
+                           {% if slot.index in sess.slots %}checked{% endif %}>
+                    <span>{{ slot.label }}</span>
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="row g-2 mt-1 align-items-center">
+            <div class="col-12 col-md-7">
+                <input type="text" class="form-control form-control-sm s-note" value="{{ sess.note }}" placeholder="Ghi chú (tuỳ chọn)">
+            </div>
+            <div class="col-6 col-md-2 small text-muted">
+                Thời gian: <strong class="s-hours text-dark">0h</strong>
+            </div>
+            <div class="col-4 col-md-2 small text-muted">
+                Hiệu suất: <span class="jp-proxy-eff-badge is-none s-eff">—</span>
+            </div>
+            <div class="col-2 col-md-1 text-end">
+                <button type="button" class="btn btn-sm btn-outline-danger remove-session" title="Xóa công đoạn">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
