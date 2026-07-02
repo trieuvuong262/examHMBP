@@ -42,6 +42,12 @@
                     <div class="jp-survey-profile-label">Bộ phận</div>
                     <div class="jp-survey-profile-value">{{ profile.department_name }}</div>
                 </div>
+                {% if survey.deadline %}
+                <div class="jp-survey-profile-item jp-survey-profile-item--full">
+                    <div class="jp-survey-profile-label">Thời hạn nhận câu hỏi</div>
+                    <div class="jp-survey-profile-value">{{ survey.deadline|date:"H:i d/m/Y" }}</div>
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>
