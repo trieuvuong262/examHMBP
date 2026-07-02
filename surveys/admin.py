@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Survey, SurveyResponse
+from .models import Survey, SurveyResponse, SurveyView
 
 
 @admin.register(Survey)
@@ -14,4 +14,11 @@ class SurveyAdmin(admin.ModelAdmin):
 class SurveyResponseAdmin(admin.ModelAdmin):
     list_display = ('survey', 'full_name', 'employee_code', 'department_name', 'submitted_at')
     search_fields = ('full_name', 'employee_code', 'answer')
+    list_filter = ('survey',)
+
+
+@admin.register(SurveyView)
+class SurveyViewAdmin(admin.ModelAdmin):
+    list_display = ('survey', 'full_name', 'employee_code', 'department_name', 'last_viewed_at')
+    search_fields = ('full_name', 'employee_code')
     list_filter = ('survey',)

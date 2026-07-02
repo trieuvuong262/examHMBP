@@ -62,6 +62,9 @@ class Survey(models.Model):
     def response_count(self):
         return self.responses.count()
 
+    def viewed_count(self):
+        return self.views.count()
+
 
 class SurveyResponse(models.Model):
     survey = models.ForeignKey(
@@ -95,3 +98,37 @@ class SurveyResponse(models.Model):
 
     def __str__(self):
         return f'{self.full_name or self.user_id} — {self.survey.title}'
+
+
+class SurveyView(models.Model):
+    survey = models.ForeignKey(
+        Survey,
+        on_delete=models.CASCADE,
+        related_name='views',
+        verbose_name='Khảo sát',
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='survey_views',
+        verbose_name='Nhân viên',
+    )
+    employee_code = models.CharField('Mã NV', max_length=50, blank=True)
+    full_name = models.CharField('Họ và tên', max_length=255, blank=True)
+    department_name = models.CharField('Bộ phận', max_length=255, blank=True)
+    first_viewed_at = models.DateTimeField('Lần xem đầu', auto_now_add=True)
+    last_viewed_at = models.DateTimeField('Lần xem gần nhất', auto_now=True)
+
+    class Meta:
+        ordering = ['-last_viewed_at']
+        verbose_name = 'Lượt xem khảo sát'
+        verbose_name_plural = 'Lượt xem khảo sát'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['survey', 'user'],
+                name='surveys_unique_view_per_user',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.full_name or self.user_id} đã xem {self.survey.title}'

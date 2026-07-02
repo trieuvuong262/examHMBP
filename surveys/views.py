@@ -2,6 +2,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.http import urlencode
 
 from assessment.decorators import module_perm_required
@@ -12,7 +13,7 @@ from PortalJustPlay.list_search import apply_term_search, get_search_query
 from PortalJustPlay.pagination import paginate_queryset
 
 from .forms import SurveyCreateForm, SurveyReferenceForm, SurveyResponseForm
-from .models import Survey, SurveyResponse
+from .models import Survey, SurveyResponse, SurveyView
 
 
 def _profile_department_label(profile):
@@ -109,7 +110,7 @@ def survey_share_detail(request, pk):
 @module_perm_required(MODULE_SURVEYS, 'view')
 def survey_results(request):
     search_query = get_search_query(request)
-    qs = Survey.objects.select_related('created_by').prefetch_related('responses')
+    qs = Survey.objects.select_related('created_by').prefetch_related('responses', 'views')
     qs = apply_term_search(qs, search_query, ('title',))
     page_obj, query_string = paginate_queryset(request, qs)
     return render(request, 'surveys/results_list.html', {
@@ -130,12 +131,18 @@ def survey_result_detail(request, pk):
         ('full_name', 'employee_code', 'department_name', 'answer'),
     )
     page_obj, query_string = paginate_queryset(request, qs)
+    viewed_qs = survey.views.exclude(
+        user_id__in=survey.responses.values_list('user_id', flat=True),
+    )
+    viewed_without_submit = viewed_qs[:100]
     return render(request, 'surveys/result_detail.html', {
         'survey': survey,
         'page_obj': page_obj,
         'query_string': query_string,
         'search_query': search_query,
         'response_count': survey.response_count(),
+        'viewed_count': survey.viewed_count(),
+        'viewed_without_submit': viewed_without_submit,
     })
 
 
@@ -145,6 +152,18 @@ def survey_fill(request, token):
     if not survey.is_open:
         return render(request, 'surveys/fill_closed.html', {'survey': survey})
 
+    profile_snapshot = _snapshot_profile(request.user)
+    SurveyView.objects.update_or_create(
+        survey=survey,
+        user=request.user,
+        defaults={
+            'employee_code': profile_snapshot['employee_code'],
+            'full_name': profile_snapshot['full_name'],
+            'department_name': profile_snapshot['department_name'],
+            'last_viewed_at': timezone.now(),
+        },
+    )
+
     existing = SurveyResponse.objects.filter(survey=survey, user=request.user).first()
     if existing:
         return render(request, 'surveys/fill_done.html', {
@@ -153,7 +172,6 @@ def survey_fill(request, token):
             'already_submitted': True,
         })
 
-    profile_snapshot = _snapshot_profile(request.user)
     if request.method == 'POST':
         form = SurveyResponseForm(request.POST)
         if form.is_valid():

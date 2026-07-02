@@ -13,6 +13,7 @@
                     <thead class="table-light">
                         <tr>
                             <th>Tiêu đề</th>
+                            <th class="text-center">Đã xem</th>
                             <th class="text-center">Phản hồi</th>
                             <th>Hạn</th>
                             <th class="text-end">Xem</th>
@@ -22,6 +23,7 @@
                         {% for survey in page_obj %}
                         <tr>
                             <td class="fw-semibold">{{ survey.title }}</td>
+                            <td class="text-center">{{ survey.viewed_count }}</td>
                             <td class="text-center">{{ survey.response_count }}</td>
                             <td class="text-nowrap small">{% if survey.deadline %}{{ survey.deadline|date:"d/m/Y H:i" }}{% else %}—{% endif %}</td>
                             <td class="text-end">
@@ -29,7 +31,7 @@
                             </td>
                         </tr>
                         {% empty %}
-                        <tr><td colspan="4" class="text-center text-muted py-4">Chưa có khảo sát.</td></tr>
+                        <tr><td colspan="5" class="text-center text-muted py-4">Chưa có khảo sát.</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
