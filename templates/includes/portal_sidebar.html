@@ -482,20 +482,11 @@
                     </a>
                 </li>
                 {% endif %}
-                {% jp_can_menu 'surveys' 'manage' as jp_can_surveys_manage %}
-                {% if jp_can_surveys_manage %}
-                <li>
-                    <a href="{% url 'surveys:manage_list' %}"
-                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'manage_list' or request.resolver_match.url_name == 'reference_edit' %}active{% endif %}">
-                        <i class="bi bi-link-45deg"></i><span>Chèn link</span>
-                    </a>
-                </li>
-                {% endif %}
                 {% jp_can_menu 'surveys' 'share' as jp_can_surveys_share %}
                 {% if jp_can_surveys_share %}
                 <li>
                     <a href="{% url 'surveys:manage_list' %}"
-                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'share_detail' %}active{% endif %}">
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'manage_list' or request.resolver_match.url_name == 'share_detail' or request.resolver_match.url_name == 'reference_edit' %}active{% endif %}">
                         <i class="bi bi-send"></i><span>Tạo link gửi NV</span>
                     </a>
                 </li>

@@ -1,0 +1,109 @@
+.jp-survey-fill-page {
+    max-width: 680px;
+}
+
+.jp-survey-fill-head {
+    padding: 0.25rem 0.25rem 0;
+}
+
+.jp-survey-ref-link {
+    display: inline-block;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.jp-survey-ref-link:hover {
+    text-decoration: underline;
+}
+
+.jp-survey-card {
+    border-radius: 1rem;
+    overflow: hidden;
+}
+
+.jp-survey-question {
+    font-size: 0.98rem;
+    line-height: 1.5;
+    color: #0f172a;
+}
+
+.jp-survey-profile-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.55rem;
+}
+
+.jp-survey-profile-item {
+    padding: 0.6rem 0.7rem;
+    border-radius: 0.7rem;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+}
+
+.jp-survey-profile-item--full {
+    grid-column: 1 / -1;
+}
+
+.jp-survey-profile-label {
+    font-size: 0.72rem;
+    color: #64748b;
+    margin-bottom: 0.2rem;
+}
+
+.jp-survey-profile-value {
+    font-weight: 700;
+    color: #0f172a;
+    word-break: break-word;
+}
+
+.jp-survey-submit-btn {
+    min-height: 3rem;
+}
+
+.jp-survey-fill-page textarea.form-control {
+    min-height: 8rem;
+    font-size: 1rem;
+    line-height: 1.45;
+    border-radius: 0.75rem;
+    padding: 0.75rem 0.85rem;
+}
+
+.jp-survey-fill-page textarea.form-control:focus {
+    border-color: var(--hm-primary);
+    box-shadow: 0 0 0 3px var(--hm-primary-subtle);
+}
+
+.jp-survey-state-page {
+    max-width: 520px;
+}
+
+@media (max-width: 575.98px) {
+    .jp-survey-fill-page {
+        padding-left: 0.65rem;
+        padding-right: 0.65rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .jp-survey-fill-head .jp-page-title {
+        font-size: 1.2rem;
+    }
+
+    .jp-survey-profile-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .jp-survey-profile-item--full {
+        grid-column: auto;
+    }
+
+    .jp-survey-fill-page .card-body {
+        padding: 0.9rem !important;
+    }
+
+    .jp-survey-submit-btn {
+        min-height: 3.2rem;
+        font-size: 1.02rem;
+        border-radius: 0.85rem;
+        box-shadow: 0 8px 20px rgba(220, 38, 38, 0.2);
+    }
+}

@@ -64,7 +64,6 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
     ],
     MODULE_SURVEYS: [
         {'key': 'create', 'label': 'Đặt câu hỏi', 'icon': 'bi-plus-circle'},
-        {'key': 'manage', 'label': 'Chèn link', 'icon': 'bi-link-45deg'},
         {'key': 'share', 'label': 'Tạo link gửi NV', 'icon': 'bi-send'},
         {'key': 'results', 'label': 'Kết quả', 'icon': 'bi-inbox-fill'},
     ],
@@ -207,7 +206,7 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     ('/gop-y/tao', MODULE_FEEDBACK, 'create'),
     ('/khao-sat/quan-ly/tao', MODULE_SURVEYS, 'create'),
     ('/link-gui', MODULE_SURVEYS, 'share'),
-    ('/khao-sat/quan-ly/', MODULE_SURVEYS, 'manage'),
+    ('/khao-sat/quan-ly/', MODULE_SURVEYS, 'share'),
     ('/khao-sat/ket-qua', MODULE_SURVEYS, 'results'),
     # Kho NPL
     ('/kho-npl/thiet-lap', MODULE_KHO_NPL, 'settings'),

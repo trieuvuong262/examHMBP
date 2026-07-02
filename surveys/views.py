@@ -40,10 +40,10 @@ def _build_share_url(request, survey):
 
 @module_perm_required(MODULE_SURVEYS, 'view')
 def survey_hub(request):
-    if user_can_access_menu(request.user, MODULE_SURVEYS, 'manage'):
-        return redirect('surveys:manage_list')
     if user_can_access_menu(request.user, MODULE_SURVEYS, 'create'):
         return redirect('surveys:create')
+    if user_can_access_menu(request.user, MODULE_SURVEYS, 'share'):
+        return redirect('surveys:manage_list')
     if user_can_access_menu(request.user, MODULE_SURVEYS, 'results'):
         return redirect('surveys:results')
     return redirect('home_portal')
