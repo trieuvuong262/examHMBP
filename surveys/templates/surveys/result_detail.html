@@ -5,7 +5,6 @@
     <div class="jp-page-header mb-3 mb-md-4 d-flex flex-wrap justify-content-between align-items-start gap-2">
         <div>
             <h2 class="fw-bold text-hm mb-1 jp-page-title">{{ survey.title }}</h2>
-            <p class="text-muted mb-0">{{ viewed_count }} đã xem • {{ response_count }} phản hồi</p>
         </div>
         <a href="{% url 'surveys:results' %}" class="btn btn-outline-secondary btn-sm">Danh sách khảo sát</a>
     </div>
@@ -21,6 +20,7 @@
                             <th>Bộ phận</th>
                             <th>Nội dung câu hỏi</th>
                             <th>Thời gian</th>
+                            <th class="text-center">Trạng thái gửi</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -30,10 +30,13 @@
                             <td>{{ row.full_name|default:"—" }}</td>
                             <td>{{ row.department_name|default:"—" }}</td>
                             <td style="max-width:24rem; white-space:normal">{{ row.answer|default:"—"|linebreaksbr }}</td>
-                            <td class="text-nowrap small">{{ row.submitted_at|date:"d/m/Y H:i" }}</td>
+                            <td class="text-nowrap small">{{ row.event_at|date:"d/m/Y H:i" }}</td>
+                            <td class="text-center">
+                                <input type="checkbox" class="form-check-input" {% if row.is_submitted %}checked style="accent-color:#16a34a;"{% endif %} disabled>
+                            </td>
                         </tr>
                         {% empty %}
-                        <tr><td colspan="5" class="text-center text-muted py-4">Chưa có phản hồi.</td></tr>
+                        <tr><td colspan="6" class="text-center text-muted py-4">Chưa có dữ liệu xem/gửi.</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
@@ -41,35 +44,5 @@
         </div>
     </div>
     {% include 'includes/pagination.html' with page_obj=page_obj query_string=query_string only %}
-
-    <div class="card border-0 shadow-sm mt-3">
-        <div class="card-header bg-white fw-semibold">Đã xem nhưng chưa gửi</div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-sm align-middle mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Mã NV</th>
-                            <th>Họ và tên</th>
-                            <th>Bộ phận</th>
-                            <th>Xem gần nhất</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for row in viewed_without_submit %}
-                        <tr>
-                            <td>{{ row.employee_code|default:"—" }}</td>
-                            <td>{{ row.full_name|default:"—" }}</td>
-                            <td>{{ row.department_name|default:"—" }}</td>
-                            <td class="text-nowrap small">{{ row.last_viewed_at|date:"d/m/Y H:i" }}</td>
-                        </tr>
-                        {% empty %}
-                        <tr><td colspan="4" class="text-center text-muted py-4">Không có người xem chưa gửi.</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
 </div>
 {% endblock %}

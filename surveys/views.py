@@ -1,5 +1,6 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -124,25 +125,59 @@ def survey_results(request):
 def survey_result_detail(request, pk):
     survey = get_object_or_404(Survey, pk=pk)
     search_query = get_search_query(request)
-    qs = survey.responses.select_related('user')
-    qs = apply_term_search(
-        qs,
-        search_query,
-        ('full_name', 'employee_code', 'department_name', 'answer'),
-    )
-    page_obj, query_string = paginate_queryset(request, qs)
-    viewed_qs = survey.views.exclude(
-        user_id__in=survey.responses.values_list('user_id', flat=True),
-    )
-    viewed_without_submit = viewed_qs[:100]
+    response_by_user = {
+        row.user_id: row
+        for row in survey.responses.select_related('user')
+    }
+    rows = []
+    viewed_user_ids = set()
+    for viewed in survey.views.select_related('user'):
+        viewed_user_ids.add(viewed.user_id)
+        submitted = response_by_user.get(viewed.user_id)
+        rows.append({
+            'employee_code': viewed.employee_code,
+            'full_name': viewed.full_name,
+            'department_name': viewed.department_name,
+            'answer': submitted.answer if submitted else '',
+            'event_at': submitted.submitted_at if submitted else viewed.last_viewed_at,
+            'is_submitted': bool(submitted),
+        })
+
+    # Dữ liệu cũ có thể đã gửi trước khi bật tracking "đã xem".
+    for user_id, submitted in response_by_user.items():
+        if user_id in viewed_user_ids:
+            continue
+        rows.append({
+            'employee_code': submitted.employee_code,
+            'full_name': submitted.full_name,
+            'department_name': submitted.department_name,
+            'answer': submitted.answer or '',
+            'event_at': submitted.submitted_at,
+            'is_submitted': True,
+        })
+
+    if search_query:
+        needle = search_query.lower()
+        rows = [
+            row for row in rows
+            if needle in (row['employee_code'] or '').lower()
+            or needle in (row['full_name'] or '').lower()
+            or needle in (row['department_name'] or '').lower()
+            or needle in (row['answer'] or '').lower()
+        ]
+
+    rows.sort(key=lambda item: item['event_at'], reverse=True)
+    paginator = Paginator(rows, 25)
+    page_obj = paginator.get_page(request.GET.get('page'))
+    params = request.GET.copy()
+    if 'page' in params:
+        del params['page']
+    query_string = params.urlencode()
     return render(request, 'surveys/result_detail.html', {
         'survey': survey,
         'page_obj': page_obj,
         'query_string': query_string,
         'search_query': search_query,
-        'response_count': survey.response_count(),
-        'viewed_count': survey.viewed_count(),
-        'viewed_without_submit': viewed_without_submit,
     })
 
 

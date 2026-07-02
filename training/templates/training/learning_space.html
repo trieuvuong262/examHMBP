@@ -22,7 +22,7 @@
             <div class="progress" style="width: 150px; height: 10px; background-color: rgba(255,255,255,0.3);">
                 <div class="progress-bar bg-success" id="top-progress-bar" style="width: {{ enrollment.progress_percent }}%"></div>
             </div>
-            {% if course.final_exam %}
+            {% if course.final_exam and not survey_read_mode %}
                 <a href="{% url 'take_exam' course.final_exam.id %}" id="exam-btn" class="btn btn-sm btn-danger fw-bold {% if enrollment.progress_percent < 100 %}d-none{% endif %}">
                     <i class="bi bi-pencil-square"></i><span class="d-none d-md-inline ms-1">Thi cuối khóa</span>
                 </a>
@@ -102,7 +102,11 @@
 
                 <div class="d-flex flex-column flex-sm-row justify-content-between align-items-stretch align-items-sm-center gap-2 bg-white p-3 rounded shadow-sm border border-top-0 border-4" style="border-color: #dc2626 !important;">
                     <div>
-                        {% if current_lesson.id in completed_lesson_ids %}
+                        {% if survey_read_mode and return_next %}
+                            <a href="{{ return_next }}" class="btn btn-hm fw-bold w-100 w-sm-auto">
+                                <i class="bi bi-arrow-return-left me-2"></i>Quay lại khảo sát
+                            </a>
+                        {% elif current_lesson.id in completed_lesson_ids %}
                             <button class="btn btn-hm fw-bold disabled w-100 w-sm-auto">
                                 <i class="bi bi-check-circle-fill me-2"></i>Đã hoàn thành bài này
                             </button>
@@ -159,6 +163,9 @@
     });
 
     function markComplete(lessonId) {
+        if ('{{ survey_read_mode|yesno:"1,0" }}' === '1') {
+            return;
+        }
         $.ajax({
             url: `/training/lesson/${lessonId}/complete/`,
             method: "POST",
@@ -182,6 +189,8 @@
                         btn.html('Đã hoàn thành bài này');
                         setTimeout(function() { location.reload(); }, 800);
                     }
+                } else if (res.status === 'readonly' && res.redirect_url) {
+                    window.location.href = res.redirect_url;
                 }
             }
         });

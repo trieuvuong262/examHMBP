@@ -25,6 +25,12 @@ from .forms import ChapterForm, CourseForm, LessonForm
 from .models import Chapter, Course, CourseCategory, Enrollment, Lesson, LessonProgress
 
 
+def _is_survey_read_mode(next_url: str) -> bool:
+    if not next_url:
+        return False
+    return '/khao-sat/d/' in next_url
+
+
 def _training_perm_context(user):
     return {
         'can_create': user_can_create_module(user, MODULE_TRAINING),
@@ -137,6 +143,7 @@ def learning_space(request, course_id, lesson_id=None):
         require_https=request.is_secure(),
     ):
         return_next = ''
+    survey_read_mode = _is_survey_read_mode(return_next)
     learning_query_suffix = f"?{urlencode({'next': return_next})}" if return_next else ''
 
     return render(request, 'training/learning_space.html', {
@@ -147,6 +154,7 @@ def learning_space(request, course_id, lesson_id=None):
         'enrollment': enrollment,
         'next_lesson': next_lesson,
         'return_next': return_next,
+        'survey_read_mode': survey_read_mode,
         'learning_query_suffix': learning_query_suffix,
         'title': f'Học tập: {course.title}'
     })
@@ -155,6 +163,20 @@ def learning_space(request, course_id, lesson_id=None):
 def mark_lesson_complete(request, lesson_id):
     """API dùng AJAX để đánh dấu bài học hoàn tất"""
     if request.method == 'POST':
+        return_next = (request.POST.get('next') or '').strip()
+        if return_next and not url_has_allowed_host_and_scheme(
+            return_next,
+            allowed_hosts={request.get_host()},
+            require_https=request.is_secure(),
+        ):
+            return_next = ''
+        if _is_survey_read_mode(return_next):
+            # Đọc từ khảo sát chỉ để tham khảo, không ghi tiến độ module Đào tạo.
+            return JsonResponse({
+                'status': 'readonly',
+                'redirect_url': return_next,
+            })
+
         lesson = get_object_or_404(Lesson, id=lesson_id)
         
         progress, created = LessonProgress.objects.get_or_create(user=request.user, lesson=lesson)
@@ -166,14 +188,6 @@ def mark_lesson_complete(request, lesson_id):
         is_course_finished = enrollment.sync_completion_status()
         exam_url = None
         redirect_url = None
-        return_next = (request.POST.get('next') or '').strip()
-        if return_next and not url_has_allowed_host_and_scheme(
-            return_next,
-            allowed_hosts={request.get_host()},
-            require_https=request.is_secure(),
-        ):
-            return_next = ''
-
         if is_course_finished and return_next:
             redirect_url = return_next
         elif is_course_finished and course.final_exam_id:
