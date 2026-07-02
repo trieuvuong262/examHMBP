@@ -33,11 +33,8 @@
                         {% if cell.quantity > 0 %}
                         <span class="jp-ph-qty">{{ cell.display|default:cell.quantity|prod_qty }}</span>
                         <span class="jp-ph-cum">{{ cell.cumulative|prod_qty }}</span>
-                        {% if cell.damaged_quantity %}
-                        <span class="jp-ph-damaged" title="Hư hỏng">Hư: {{ cell.damaged_quantity|prod_qty }}</span>
-                        {% endif %}
-                        {% if cell.note %}
-                        <span class="jp-ph-note" title="{{ cell.note }}">{{ cell.note|truncatechars:14 }}</span>
+                        {% if cell.damaged_quantity or cell.note %}
+                        <span class="jp-ph-flag" tabindex="0" title="{% if cell.damaged_quantity %}Hư: {{ cell.damaged_quantity|prod_qty }}{% endif %}{% if cell.damaged_quantity and cell.note %} · {% endif %}{% if cell.note %}{{ cell.note }}{% endif %}"></span>
                         {% endif %}
                         {% else %}
                         <span class="jp-ph-qty text-muted">0</span>

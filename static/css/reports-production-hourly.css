@@ -1808,6 +1808,23 @@ body .modal-backdrop.show {
     white-space: nowrap;
 }
 
+/* Hư hỏng & ghi chú: không hiện trong ô — chỉ báo bằng dấu góc, rê chuột xem tooltip */
+.jp-prod-hourly-table--detail .jp-ph-damaged,
+.jp-prod-hourly-table--detail .jp-ph-note {
+    display: none;
+}
+
+.jp-prod-hourly-table--detail .jp-ph-flag {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 0;
+    height: 0;
+    border-top: 8px solid var(--hm-primary, #c41e3a);
+    border-left: 8px solid transparent;
+    cursor: help;
+}
+
 .jp-prod-hourly-table--detail .jp-ph-na {
     display: block;
     text-align: center;

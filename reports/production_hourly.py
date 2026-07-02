@@ -651,21 +651,6 @@ def build_work_day_timeline(report: DailyWorkReport) -> dict:
             })
             gap_minutes += Decimal(str(slot_times['duration_minutes']))
 
-        if index < len(slots) - 1:
-            break_start = _slot_end_dt(report_date, slot)
-            break_end = _slot_start_dt(report_date, slots[index + 1])
-            if break_end > break_start:
-                minutes = (break_end - break_start).total_seconds() / 60
-                segments.append({
-                    'kind': 'break',
-                    'start_display': _timeline_time_display(break_start),
-                    'end_display': _timeline_time_display(break_end),
-                    'duration_display': _format_duration_minutes(minutes),
-                    'duration_minutes': minutes,
-                    'slot_label': f'{_timeline_time_display(break_start)} – {_timeline_time_display(break_end)}',
-                    'label': 'Nghỉ trưa',
-                })
-
     _annotate_product_rowspans(segments)
 
     return {
