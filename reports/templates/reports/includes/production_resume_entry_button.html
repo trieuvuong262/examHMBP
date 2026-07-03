@@ -1,0 +1,10 @@
+{% if can_resume_entry %}
+<form method="post" class="jp-prod-resume-form m-0{% if form_class %} {{ form_class }}{% endif %}">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="resume_production_entry">
+    {% if for_user_param %}<input type="hidden" name="for_user" value="{{ for_user_param }}">{% endif %}
+    <button type="submit" class="btn btn-outline-hm fw-bold w-100{% if btn_class %} {{ btn_class }}{% endif %}">
+        <i class="bi bi-plus-circle me-2"></i>Nhập tiếp báo cáo
+    </button>
+</form>
+{% endif %}

@@ -22,6 +22,9 @@ from reports.production_hourly import (
     build_hourly_grid,
     build_proxy_entry_grid,
     can_edit_production_report,
+    can_add_production_entry,
+    can_resume_production_entry,
+    can_operate_production_entry,
     can_proxy_enter_daily_report,
     complete_work_session,
     ensure_active_work_block,
@@ -233,9 +236,11 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
         return redirect(_production_redirect(report_date, start_shift, for_user or None))
 
     if action == 'resume_production_entry':
-        if not (
-            can_submit_daily_report(request.user)
-            or (editing_for_other and can_proxy_enter_daily_report(request.user, subject))
+        if not can_resume_production_entry(
+            request.user,
+            report,
+            can_submit=can_submit_daily_report(request.user),
+            is_proxy=editing_for_other,
         ):
             messages.error(request, 'Bạn không có quyền chỉnh sửa báo cáo này.')
             return redirect(_production_redirect(report_date, shift, for_user or None))
@@ -255,9 +260,11 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
                 'Báo cáo đã gửi — bấm «Nhập tiếp báo cáo» trên màn tổng kết để thêm công đoạn.',
             )
             return redirect(_production_redirect(report_date, shift, for_user or None, 'phase=review'))
-        if not (
-            can_submit_daily_report(request.user)
-            or (editing_for_other and can_proxy_enter_daily_report(request.user, subject))
+        if not can_add_production_entry(
+            request.user,
+            report,
+            can_submit=can_submit_daily_report(request.user),
+            is_proxy=editing_for_other,
         ):
             messages.error(request, 'Bạn không có quyền chỉnh sửa báo cáo này.')
             return redirect(_production_redirect(report_date, shift, for_user or None))
@@ -279,18 +286,33 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
     if report and report.pk:
         report = DailyWorkReport.objects.get(pk=report.pk)
 
+    _can_submit = can_submit_daily_report(request.user)
     can_edit = can_edit_production_report(
         request.user,
         report,
-        can_submit=can_submit_daily_report(request.user),
+        can_submit=_can_submit,
         is_proxy=editing_for_other,
     )
-    if not can_edit:
-        if report and report.employee_id == request.user.id:
-            messages.error(request, report_edit_denied_message(report))
-        else:
-            messages.error(request, 'Bạn không có quyền chỉnh sửa báo cáo này.')
-        return redirect(_production_redirect(report_date, shift, subject.id if editing_for_other else None))
+    can_operate = can_operate_production_entry(
+        request.user,
+        report,
+        can_submit=_can_submit,
+        is_proxy=editing_for_other,
+    )
+    if action in ('end_product', 'complete_product', 'save', 'submit'):
+        if not can_operate:
+            if report and report.employee_id == request.user.id:
+                messages.error(request, report_edit_denied_message(report))
+            else:
+                messages.error(request, 'Bạn không có quyền chỉnh sửa báo cáo này.')
+            return redirect(_production_redirect(report_date, shift, subject.id if editing_for_other else None))
+    elif action in ('edit_session', 'save_review', 'finalize_product', 'save_hourly'):
+        if not can_edit:
+            if report and report.employee_id == request.user.id:
+                messages.error(request, report_edit_denied_message(report))
+            else:
+                messages.error(request, 'Bạn không có quyền chỉnh sửa báo cáo này.')
+            return redirect(_production_redirect(report_date, shift, subject.id if editing_for_other else None))
 
     if not report or not report.pk:
         report, err, report_date, shift = _prepare_production_report(
@@ -608,31 +630,49 @@ def today_production_hourly(request, report_date, report_context_common):
             messages.error(request, err)
 
     if report and report.pk:
+        _can_submit = can_submit_daily_report(request.user)
         can_edit = can_edit_production_report(
             request.user,
             report,
-            can_submit=can_submit_daily_report(request.user),
+            can_submit=_can_submit,
+            is_proxy=editing_for_other,
+        )
+        can_resume_entry = can_resume_production_entry(
+            request.user,
+            report,
+            can_submit=_can_submit,
+            is_proxy=editing_for_other,
+        )
+        can_add_entry = can_add_production_entry(
+            request.user,
+            report,
+            can_submit=_can_submit,
             is_proxy=editing_for_other,
         )
     elif not can_edit:
         can_edit = False
+        can_resume_entry = False
+        can_add_entry = False
+    else:
+        can_resume_entry = False
+        can_add_entry = False
 
     auto_shift_mode = not editing_for_other
 
-    if report and report.pk and not auto_shift_mode and not shift_is_started(report) and can_edit and phase not in ('review', 'proxy'):
+    if report and report.pk and not auto_shift_mode and not shift_is_started(report) and (can_edit or can_add_entry) and phase not in ('review', 'proxy'):
         from reports.views import _ensure_daily_report_saved
         report = _ensure_daily_report_saved(report)
         ensure_work_day_started(report)
         report = _load_production_report(subject, report_date, shift)
 
     started = shift_is_started(report) if report and report.pk else False
-    if auto_shift_mode and report and report.pk and can_edit and phase not in ('review',):
+    if auto_shift_mode and report and report.pk and (can_edit or can_add_entry) and phase not in ('review',):
         started = True
     is_submitted = report.status == DailyWorkReport.STATUS_SUBMITTED
     is_locked = is_production_report_locked(report)
     is_edit_expired = is_report_edit_expired(report)
 
-    if editing_for_other and can_edit and report.pk and not started:
+    if editing_for_other and (can_edit or can_add_entry) and report.pk and not started:
         from reports.views import _ensure_daily_report_saved
         report = _ensure_daily_report_saved(report)
         ensure_work_day_started(report)
@@ -714,6 +754,8 @@ def today_production_hourly(request, report_date, report_context_common):
         'subject_user': subject,
         'editing_for_other': editing_for_other,
         'can_edit': can_edit,
+        'can_resume_entry': can_resume_entry,
+        'can_add_entry': can_add_entry,
         'is_submitted': is_submitted,
         'is_locked': is_locked,
         'production_entry_closed': is_production_entry_closed(report) if report.pk else False,

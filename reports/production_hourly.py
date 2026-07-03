@@ -85,6 +85,37 @@ def can_edit_production_report(viewer, report, *, can_submit, is_proxy=False) ->
     return False
 
 
+def _production_entry_actor_ok(viewer, report, *, can_submit: bool, is_proxy: bool = False) -> bool:
+    if report.employee_id == viewer.id:
+        return can_submit
+    if is_proxy:
+        return can_proxy_enter_daily_report(viewer, report.employee)
+    return False
+
+
+def can_operate_production_entry(viewer, report, *, can_submit: bool, is_proxy: bool = False) -> bool:
+    """Nhập tiếp / thêm công đoạn / gửi lại — kể cả khi cấp trên đã xem."""
+    if not report or not report.pk:
+        return False
+    if is_report_edit_expired(report):
+        return False
+    return _production_entry_actor_ok(viewer, report, can_submit=can_submit, is_proxy=is_proxy)
+
+
+def can_resume_production_entry(viewer, report, *, can_submit: bool, is_proxy: bool = False) -> bool:
+    return (
+        can_operate_production_entry(viewer, report, can_submit=can_submit, is_proxy=is_proxy)
+        and is_production_entry_closed(report)
+    )
+
+
+def can_add_production_entry(viewer, report, *, can_submit: bool, is_proxy: bool = False) -> bool:
+    return (
+        can_operate_production_entry(viewer, report, can_submit=can_submit, is_proxy=is_proxy)
+        and not is_production_entry_closed(report)
+    )
+
+
 def can_proxy_enter_daily_report(viewer, employee) -> bool:
     """Tổ trưởng / cấp trên nhập báo cáo hộ nhân viên (điện thoại hỏng)."""
     from hrm.permissions import can_view_team_reports, get_team_report_members

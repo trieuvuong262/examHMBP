@@ -508,9 +508,13 @@ body .modal-backdrop.show {
 }
 
 .jp-prod-review-sticky-spacer {
-    height: 7.5rem;
+    height: 5rem;
     flex-shrink: 0;
     pointer-events: none;
+}
+
+.jp-prod-page--review.jp-prod-page--mobile-flow .jp-prod-review-sticky-spacer {
+    height: 4.5rem;
 }
 
 .jp-prod-review-sticky-total {
@@ -1925,38 +1929,53 @@ body .modal-backdrop.show {
 
 @media (max-width: 991.98px) {
     .jp-prod-page--mobile-flow .jp-prod-page-wrap {
-        padding-top: 0.5rem;
-        padding-bottom: max(1rem, env(safe-area-inset-bottom));
+        padding-top: 0.35rem;
+        padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+    }
+
+    .jp-prod-mobile-context {
+        line-height: 1.4;
     }
 
     .jp-prod-page--mobile-flow .jp-prod-page-header--compact {
-        margin-bottom: 0.5rem;
+        margin-bottom: 0.35rem;
         padding-bottom: 0;
         border-bottom: none;
-        text-align: center;
     }
 
+    .jp-prod-page--mobile-flow .jp-prod-page-header--compact .jp-prod-page-title,
     .jp-prod-page--mobile-flow .jp-prod-page-header--compact .jp-prod-page-sub {
-        font-size: 0.85rem;
+        display: none !important;
     }
 
     .jp-prod-mobile-flow {
-        min-height: calc(100dvh - 7.5rem);
+        min-height: auto;
         display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 0.5rem 0 1.5rem;
+        align-items: stretch;
+        justify-content: flex-start;
+        padding: 0 0 1rem;
+    }
+
+    .jp-prod-mobile-flow:has(.jp-prod-mobile-step--form) {
+        align-items: flex-start;
+        padding-bottom: 5.5rem;
     }
 
     .jp-prod-mobile-step {
         width: 100%;
-        max-width: 22rem;
-        margin: 0 auto;
+        max-width: none;
+        margin: 0;
         text-align: center;
         display: flex;
         flex-direction: column;
-        align-items: center;
         gap: 0.35rem;
+    }
+
+    .jp-prod-mobile-step--working,
+    .jp-prod-mobile-step:not(.jp-prod-mobile-step--form) {
+        min-height: calc(100dvh - 8rem);
+        justify-content: center;
+        align-items: center;
     }
 
     .jp-prod-mobile-step--form {
@@ -1964,6 +1983,36 @@ body .modal-backdrop.show {
         text-align: left;
         align-items: stretch;
         min-height: auto;
+        padding: 0 0.15rem;
+    }
+
+    .jp-prod-complete-form--mobile .form-label {
+        font-size: 0.9rem;
+        margin-bottom: 0.35rem;
+    }
+
+    .jp-prod-complete-form--mobile .form-control-lg {
+        min-height: 2.85rem;
+        font-size: 1rem;
+    }
+
+    .jp-prod-complete-form--mobile .jp-prod-complete-submit {
+        position: fixed;
+        left: max(1rem, env(safe-area-inset-left));
+        right: max(1rem, env(safe-area-inset-right));
+        bottom: calc(0.65rem + env(safe-area-inset-bottom, 0px));
+        z-index: 1035;
+        max-width: 448px;
+        margin: 0 auto;
+        box-shadow: 0 -4px 20px rgba(15, 23, 42, 0.12);
+    }
+
+    .jp-prod-page--review .jp-prod-review-main {
+        padding-bottom: 0.5rem;
+    }
+
+    .jp-prod-page--review .jp-prod-session-list .jp-prod-session-card:last-child {
+        margin-bottom: 0.5rem !important;
     }
 
     .jp-prod-mobile-step-visual {
@@ -2197,9 +2246,17 @@ body .modal-backdrop.show {
     }
 }
 
-.jp-prod-resume-entry {
-    padding: 0.85rem 1rem;
-    border-radius: 0.75rem;
-    background: rgba(var(--hm-primary-rgb, 220, 38, 38), 0.06);
-    border: 1px dashed rgba(var(--hm-primary-rgb, 220, 38, 38), 0.25);
+.jp-prod-resume-form .btn {
+    min-height: 2.85rem;
+}
+
+@media (max-width: 767.98px) {
+    .jp-prod-page--review .jp-prod-review-sticky:has(.jp-prod-resume-form) {
+        padding-top: 0.65rem;
+        padding-bottom: calc(0.85rem + env(safe-area-inset-bottom, 0px));
+    }
+
+    .jp-prod-page--review .jp-prod-review-sticky:has(.jp-prod-resume-form) + .jp-prod-review-sticky-spacer {
+        height: 4.25rem;
+    }
 }

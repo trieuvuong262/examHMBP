@@ -1,4 +1,4 @@
-{% if can_edit and not production_entry_closed and production_review_url and has_saved_product and not session_active and not awaiting_product and phase != 'complete_product' %}
+{% if can_add_entry and not production_entry_closed and production_review_url and has_saved_product and not session_active and not awaiting_product and phase != 'complete_product' %}
 <div class="jp-prod-go-review-wrap{% if wrap_class %} {{ wrap_class }}{% endif %}">
     <a href="{{ production_review_url }}"
        class="btn jp-prod-go-review-cta fw-bold w-100{% if extra_class %} {{ extra_class }}{% endif %}">

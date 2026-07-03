@@ -1,7 +1,7 @@
 {# NV nhập tổng một lần — hiển thị theo phiên, không gây nhầm với lũy kế từng giờ #}
 {% load report_extras l10n %}
 
-{% if can_edit and not production_entry_closed and not is_locked %}
+{% if can_add_entry %}
 <div class="jp-prod-session-start-next mb-3">
     <form method="post" class="m-0">
         {% csrf_token %}
@@ -107,7 +107,7 @@
     {% endfor %}
 </div>
 {% if hourly_grid.rows %}
-<div class="jp-prod-review-grand">
+<div class="jp-prod-review-grand d-none d-md-flex">
     <span>Tổng ngày</span>
     <strong>{{ hourly_grid.grand_total|prod_qty }}</strong>
 </div>
