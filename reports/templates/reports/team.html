@@ -119,7 +119,7 @@
                         {% if reports_scope_label == 'VP' %}
                         <td>
                             {% if row.report %}
-                            <span class="jp-report-anchor jp-report-anchor--{{ row.report.report_period|default:'day' }} text-nowrap small">{{ row.report|report_anchor_display }}</span>
+                            <span class="text-nowrap small">{% if row.report.submitted_at %}{{ row.report.submitted_at|date:"H:i d/m/Y" }}{% else %}{{ row.report.report_date|date:"d/m/Y" }}{% endif %}</span>
                             {% else %}
                             <span class="text-muted small">—</span>
                             {% endif %}
