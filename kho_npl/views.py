@@ -2,12 +2,12 @@ import json
 from datetime import date
 
 import pandas as pd
-from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 
 from assessment.decorators import module_perm_required
 from hrm.module_permissions import MODULE_KHO_NPL
 from PortalJustPlay.list_search import get_search_query
+from kho_npl.material_search import apply_material_search, material_matches_query
 from PortalJustPlay.pagination import paginate_queryset
 
 from kho_npl.choices import (
@@ -55,13 +55,7 @@ STOCK_ALERT_STATUS_CHOICES = {
 def _filter_alert_rows(rows, search_query: str):
     if not search_query:
         return rows
-    q = search_query.lower()
-    return [
-        r for r in rows
-        if q in r['material'].code.lower()
-        or q in r['material'].name.lower()
-        or q in (r['material'].color.name if r['material'].color_id else '').lower()
-    ]
+    return [r for r in rows if material_matches_query(r['material'], search_query)]
 
 
 OVERVIEW_STOCK_STATUS_CHOICES = (
@@ -95,13 +89,7 @@ def _overview_filtered_rows(request):
     if category_ids:
         qs = qs.filter(category_filter_q(category_ids))
     if search_query:
-        qs = qs.filter(
-            Q(code__icontains=search_query)
-            | Q(name__icontains=search_query)
-            | Q(color__name__icontains=search_query)
-            | Q(specification__name__icontains=search_query)
-            | Q(specification__code__icontains=search_query),
-        )
+        qs = apply_material_search(qs, search_query)
 
     rows = material_stock_rows(qs)
     if status:

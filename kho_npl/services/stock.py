@@ -1,6 +1,6 @@
 from decimal import Decimal
 
-from django.db.models import Q, Sum
+from django.db.models import Sum
 
 from kho_npl.choices import (
     STOCK_STATUS_BADGE,
@@ -10,7 +10,9 @@ from kho_npl.choices import (
     STOCK_STATUS_OUT,
 )
 from kho_npl.models import Material, StockBalance
+from kho_npl.material_search import balance_stock_q_for_term
 from kho_npl.services.scrap_warehouse import exclude_scrap_locations
+from PortalJustPlay.list_search import apply_combined_search
 
 
 def material_total_qty(material: Material) -> Decimal:
@@ -155,14 +157,7 @@ def balance_stock_rows(
     if category_id:
         qs = qs.filter(material__category_id=category_id)
     if search_query:
-        q = search_query.lower()
-        qs = qs.filter(
-            Q(material__code__icontains=q)
-            | Q(material__name__icontains=q)
-            | Q(material__color__name__icontains=q)
-            | Q(location__code__icontains=q)
-            | Q(location__name__icontains=q)
-        )
+        qs = apply_combined_search(qs, search_query, balance_stock_q_for_term)
 
     rows = []
     for balance in qs.order_by('location__code', 'material__code'):

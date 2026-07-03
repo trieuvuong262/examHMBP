@@ -1,0 +1,43 @@
+---
+description: Ưu tiên CodeGraph MCP khi khám phá/sửa code — tiết kiệm token
+alwaysApply: true
+---
+
+# Quy tắc dùng CodeGraph để khám phá code
+
+Dự án có index tại `PortalJustPlay/.codegraph/codegraph.db`. MCP `user-codegraph` đã cấu hình `--path D:\Project\PortalJustPlay` trong `.cursor/mcp.json` — **không cần** truyền `projectPath` mỗi lần gọi (chỉ dùng khi query codebase khác).
+
+## Thứ tự ưu tiên khi cần hiểu code
+
+1. **Ưu tiên CodeGraph MCP trước** — không delegate subagent explore, không grep/read hàng loạt:
+   - `codegraph_context` — **gọi đầu tiên** cho câu hỏi "X hoạt động thế nào?", bug, kiến trúc
+   - `codegraph_search` — tìm symbol theo tên
+   - `codegraph_trace` — luồng từ A → B (một lần gọi, đủ path)
+   - `codegraph_callers` / `codegraph_callees` — ai gọi / gọi gì
+   - `codegraph_impact` — blast radius khi đổi symbol
+   - `codegraph_explore` — xem source nhiều symbol liên quan (một lần)
+   - `codegraph_node` — chi tiết một symbol
+   - `codegraph_files` — cấu trúc thư mục từ index
+   - `codegraph_status` — trạng thái index / file pending sync
+
+2. **Chỉ Read/Grep full file khi**: đã thử CodeGraph **3 lần không đủ**, hoặc file nằm trong banner "pending sync" sau khi sửa.
+
+## Chuỗi gọi gợi ý
+
+- **Flow / trace**: `codegraph_trace` → (nếu cần) một `codegraph_explore`
+- **Onboarding vùng mới**: `codegraph_context` → `codegraph_explore`
+- **Refactor**: `codegraph_search` → `codegraph_callers` → `codegraph_impact`
+- **Debug regression**: `codegraph_callers` nghi ngờ → `codegraph_impact` nếu có caller lạ
+
+## Giữ index luôn mới
+
+- Sau khi sửa nhiều file, chạy CLI tại `d:\Project\PortalJustPlay`:
+  `codegraph sync`
+- Index lỗi/cũ: `codegraph sync` hoặc `codegraph index -i`
+- Chưa có `.codegraph/`: `codegraph init -i`
+
+## Anti-pattern
+
+- Không grep-first khi đã biết tên symbol
+- Không chain nhiều `codegraph_node` — dùng `codegraph_explore`
+- Không tái tạo call path bằng search + callers khi `codegraph_trace` đủ

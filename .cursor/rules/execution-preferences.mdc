@@ -1,0 +1,11 @@
+---
+description: Quy tắc thực thi lệnh shell trong dự án
+alwaysApply: true
+---
+
+# Quy tắc thực thi lệnh
+
+- Khi cần xác nhận chạy lệnh shell/terminal thông thường trong dự án — **tự động tiến hành**, không chờ người dùng bấm Run.
+- Áp dụng: `manage.py`, migrate, test, `codegraph sync`, script kiểm tra, v.v.
+- `cwd` Django/CLI: `d:\Project\PortalJustPlay` (không phải `d:\Project`).
+- Vẫn tuân thủ an toàn: thao tác phá hủy diện rộng hoặc ảnh hưởng production thì nêu rõ rủi ro trước.

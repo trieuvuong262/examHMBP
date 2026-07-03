@@ -2,7 +2,6 @@ import pandas as pd
 from decimal import Decimal
 
 from django.contrib import messages
-from django.db.models import Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -10,6 +9,7 @@ from django.urls import reverse
 from assessment.decorators import module_perm_required, module_perm_required_methods
 from hrm.module_permissions import MODULE_KHO_NPL
 from PortalJustPlay.list_search import get_search_query
+from kho_npl.material_search import apply_material_search
 from PortalJustPlay.pagination import paginate_queryset
 
 from kho_npl.choices import (
@@ -97,13 +97,7 @@ def material_search(request):
             .distinct()
         )
         if q:
-            qs = qs.filter(
-                Q(code__icontains=q)
-                | Q(name__icontains=q)
-                | Q(color__name__icontains=q)
-                | Q(specification__name__icontains=q)
-                | Q(specification__code__icontains=q),
-            )
+            qs = apply_material_search(qs, q)
         browse_limit = 1000 if not q else 50
         materials = list(qs.order_by('name', 'code')[:browse_limit])
         balance_map = {
@@ -116,13 +110,7 @@ def material_search(request):
     else:
         qs = Material.objects.filter(is_active=True).select_related('unit', 'color', 'specification')
         if q:
-            qs = qs.filter(
-                Q(code__icontains=q)
-                | Q(name__icontains=q)
-                | Q(color__name__icontains=q)
-                | Q(specification__name__icontains=q)
-                | Q(specification__code__icontains=q),
-            )
+            qs = apply_material_search(qs, q)
         materials = list(qs.order_by('code')[:40])
         balance_map = {}
         if location_id and materials:
@@ -195,13 +183,7 @@ def _material_catalog_qs(request):
     if category_q:
         qs = qs.filter(category_q)
     if search_query:
-        qs = qs.filter(
-            Q(code__icontains=search_query)
-            | Q(name__icontains=search_query)
-            | Q(color__name__icontains=search_query)
-            | Q(specification__name__icontains=search_query)
-            | Q(specification__code__icontains=search_query),
-        )
+        qs = apply_material_search(qs, search_query)
     return qs, search_query, category_ids, category_parent_id, show_inactive
 
 
@@ -244,13 +226,7 @@ def material_list(request):
     if category_ids:
         qs = qs.filter(category_filter_q(category_ids))
     if search_query:
-        qs = qs.filter(
-            Q(code__icontains=search_query)
-            | Q(name__icontains=search_query)
-            | Q(color__name__icontains=search_query)
-            | Q(specification__name__icontains=search_query)
-            | Q(specification__code__icontains=search_query),
-        )
+        qs = apply_material_search(qs, search_query)
     sort_key, sort_dir, order_by = _material_list_sort(request)
     page_obj, query_string = paginate_queryset(request, qs.order_by(order_by, 'code'), per_page=25)
     category_roots = active_category_roots()
