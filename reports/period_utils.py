@@ -184,7 +184,7 @@ def period_intro_title(period: str) -> str:
 
 def period_date_label(period: str) -> str:
     if period == PERIOD_WEEK:
-        return 'Tuần (bắt đầu thứ 2)'
+        return 'Chọn ngày bất kỳ trong tuần'
     if period == PERIOD_MONTH:
         return 'Tháng'
     return 'Ngày báo cáo'

@@ -401,8 +401,15 @@ def _report_comment_widgets(user):
 
     if my_daily:
         from reports.models import DailyWorkReport as _DWR
+        # Lấy comment đầu tiên chưa đọc để biết tên quản lý
+        first_comment = (
+            ReportComment.objects.filter(is_read=False, daily_report__employee=user)
+            .exclude(author=user)
+            .select_related('author', 'author__profile', 'daily_report')
+            .first()
+        )
         try:
-            r = _DWR.objects.select_related('employee', 'employee__profile').get(pk=my_daily)
+            r = _DWR.objects.get(pk=my_daily)
             url = reverse(
                 'reports:detail_cn' if r.is_production_report else 'reports:detail_vp',
                 args=[r.pk],
@@ -416,8 +423,9 @@ def _report_comment_widgets(user):
         ).exclude(author=user).count() + ReportComment.objects.filter(
             is_read=False, weekly_report__employee=user,
         ).exclude(author=user).count()
-        if my_unread == 1 and report_date_str:
-            text = f'Bạn có nhận xét mới từ quản lý trên báo cáo ngày {report_date_str}.'
+        if my_unread == 1 and report_date_str and first_comment:
+            manager_name = first_comment.author.profile.full_name if hasattr(first_comment.author, 'profile') and first_comment.author.profile.full_name else first_comment.author.username
+            text = f'Bạn có nhận xét mới từ {manager_name} cho báo cáo ngày {report_date_str}.'
         else:
             text = f'Bạn có {my_unread} nhận xét mới từ quản lý.'
         widgets.append({
@@ -436,9 +444,16 @@ def _report_comment_widgets(user):
         ).exclude(author=user).count()
         if my_unread == 1:
             from reports.models import WeeklyWorkReport as _WWR2
+            first_wk_comment = (
+                ReportComment.objects.filter(is_read=False, weekly_report__employee=user)
+                .exclude(author=user)
+                .select_related('author', 'author__profile', 'weekly_report')
+                .first()
+            )
             try:
                 wr = _WWR2.objects.get(pk=my_weekly)
-                text = f'Bạn có nhận xét mới từ quản lý trên báo cáo tuần {wr.week_start.strftime("%d/%m/%Y")}.'
+                manager_name = first_wk_comment.author.profile.full_name if first_wk_comment and hasattr(first_wk_comment.author, 'profile') and first_wk_comment.author.profile.full_name else 'quản lý'
+                text = f'Bạn có nhận xét mới từ {manager_name} cho báo cáo tuần {wr.week_start.strftime("%d/%m/%Y")}.'
             except _WWR2.DoesNotExist:
                 text = f'Bạn có {my_unread} nhận xét mới từ quản lý.'
         else:

@@ -64,6 +64,11 @@
                     {{ form.report_date }}
                     {% endif %}
                 </div>
+                {% if office_period == 'week' %}
+                <p class="text-muted small mb-0 mt-2">
+                    <i class="bi bi-info-circle me-1"></i>Hệ thống tự xác định tuần (Thứ 2 – Chủ nhật) từ ngày bạn chọn.
+                </p>
+                {% endif %}
             </div>
         </div>
 
