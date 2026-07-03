@@ -27,6 +27,7 @@
         initSubmitConfirm();
         autoOpenModals();
         focusMobileCompleteQty();
+        initServerClock();
     });
 
     function initReviewPageLayout() {
@@ -74,6 +75,36 @@
         if (typeof setupFn === 'function') setupFn();
         var instance = bootstrap.Modal.getOrCreateInstance(el, { backdrop: true, keyboard: true });
         instance.show();
+    }
+
+    function initServerClock() {
+        var page = document.querySelector('.jp-prod-page[data-server-now]');
+        if (!page) return;
+        var raw = page.getAttribute('data-server-now');
+        if (!raw) return;
+        var serverStart = Date.parse(raw);
+        if (!isFinite(serverStart)) return;
+        var clientStart = Date.now();
+
+        function pad(n) {
+            return n < 10 ? '0' + n : String(n);
+        }
+
+        function formatServerTime(ms) {
+            var d = new Date(ms);
+            return pad(d.getHours()) + ':' + pad(d.getMinutes());
+        }
+
+        function tick() {
+            var nowMs = serverStart + (Date.now() - clientStart);
+            var label = formatServerTime(nowMs);
+            document.querySelectorAll('[data-server-clock]').forEach(function (el) {
+                el.textContent = label;
+            });
+        }
+
+        tick();
+        setInterval(tick, 30000);
     }
 
     function initCompleteSessionModal() {
@@ -277,7 +308,8 @@
         html += '<table class="table table-bordered table-sm jp-prod-hourly-table mb-0"><thead><tr class="table-light">';
         html += '<th class="jp-ph-stt">STT</th><th class="jp-ph-code">Mã hàng</th><th class="jp-ph-process">Tên công đoạn</th><th class="jp-ph-norm">ĐM 1 giờ</th>';
         grid.slots.forEach(function (slot) {
-            html += '<th class="jp-ph-slot">' + escapeHtml(slot.label) + '</th>';
+            var otClass = slot.is_overtime ? ' jp-ph-slot--overtime' : '';
+            html += '<th class="jp-ph-slot' + otClass + '">' + escapeHtml(slot.label) + '</th>';
         });
         html += '<th class="text-end">Tổng dòng</th></tr></thead><tbody>';
 

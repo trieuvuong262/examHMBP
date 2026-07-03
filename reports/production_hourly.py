@@ -21,13 +21,41 @@ from reports.production_slots import (
     _slot_start_dt,
     current_slot_index,
     due_slot_indices,
+    normalize_shift,
     shift_break_intervals,
+    shift_contains_datetime,
     slot_by_index,
     slot_count_for_shift,
+    slot_grid_meta,
     slots_for_shift,
     slots_overlapping_interval,
 )
 from reports.report_profile import REPORT_PROFILE_PRODUCTION
+
+# POST keys — không bao giờ tin thời gian từ client (điện thoại có thể chỉnh giờ).
+CLIENT_SESSION_TIME_POST_KEYS = frozenset({
+    'started_at',
+    'ended_at',
+    'client_time',
+    'session_started_at',
+    'session_ended_at',
+    'device_time',
+})
+
+
+def production_server_now() -> datetime:
+    """Thời điểm hiện tại trên VPS — mọi mốc bắt đầu/kết thúc công đoạn dùng hàm này."""
+    return timezone.now()
+
+
+def client_supplied_session_time(request) -> bool:
+    """True nếu client gửi kèm thời gian — bị bỏ qua, chỉ ghi nhận giờ VPS."""
+    if not request:
+        return False
+    post = getattr(request, 'POST', None)
+    if not post:
+        return False
+    return any(post.get(key) for key in CLIENT_SESSION_TIME_POST_KEYS)
 
 
 from reports.report_lock import (
@@ -131,7 +159,7 @@ def ensure_work_day_started(report: DailyWorkReport) -> DailyWorkReport:
         report.report_profile = REPORT_PROFILE_PRODUCTION
         if not report.shift:
             raise ValueError('Báo cáo sản xuất cần chọn ca trước khi bắt đầu.')
-        report.shift_started_at = timezone.now()
+        report.shift_started_at = production_server_now()
         report.status = DailyWorkReport.STATUS_DRAFT
         report.draft_saved_at = timezone.now()
         report.save()
@@ -166,7 +194,7 @@ def _last_filled_slot_index(product: ProductionShiftProduct) -> Optional[int]:
 
 
 def _shift_for_report(report: DailyWorkReport) -> str:
-    return report.shift or DailyWorkReport.SHIFT_MORNING
+    return normalize_shift(report.shift or DailyWorkReport.SHIFT_MORNING)
 
 
 def _shift_for_product(product: ProductionShiftProduct) -> str:
@@ -231,11 +259,16 @@ def session_awaiting_completion(report: DailyWorkReport) -> Optional[ProductionS
 
 @transaction.atomic
 def start_work_session(report: DailyWorkReport) -> ProductionShiftProduct:
-    """Nhân viên bắt đầu công đoạn."""
+    """Nhân viên bắt đầu công đoạn — mốc thời gian lấy từ VPS tại thời điểm xử lý request."""
     if active_product(report):
         raise ValueError('Đang có công đoạn chưa hoàn tất — kết thúc trước khi bắt đầu mới.')
-    now = timezone.now()
+    now = production_server_now()
+    local_now = timezone.localtime(now)
     shift = _shift_for_report(report)
+    if not shift_contains_datetime(local_now, report.report_date, shift):
+        raise ValueError(
+            'Không thể bắt đầu — giờ hệ thống hiện không nằm trong ca báo cáo này.'
+        )
     overlaps = slots_overlapping_interval(report.report_date, shift, now, now)
     if overlaps:
         slot_idx = overlaps[0][0]
@@ -258,11 +291,14 @@ def start_work_session(report: DailyWorkReport) -> ProductionShiftProduct:
 
 @transaction.atomic
 def end_work_session(report: DailyWorkReport) -> Optional[ProductionShiftProduct]:
-    """Nhân viên kết thúc công đoạn — chưa nhập sản lượng."""
+    """Nhân viên kết thúc công đoạn — mốc thời gian lấy từ VPS tại thời điểm xử lý request."""
     active = session_in_progress(report)
     if not active:
         return None
-    active.ended_at = timezone.now()
+    now = production_server_now()
+    if active.started_at and now < active.started_at:
+        now = active.started_at
+    active.ended_at = now
     active.save(update_fields=['ended_at'])
     return active
 
@@ -278,8 +314,8 @@ def distribute_quantity_to_slots(
     """Chia đều tổng sản lượng cho từng khung giờ giao với phiên (partial_hours = giờ thực tế)."""
     report = product.report
     shift = _shift_for_product(product)
-    start = product.started_at or timezone.now()
-    end = product.ended_at or timezone.now()
+    start = product.started_at or production_server_now()
+    end = product.ended_at or production_server_now()
     overlaps = slots_overlapping_interval(report.report_date, shift, start, end)
     if not overlaps:
         overlaps = [(product.first_slot_index, Decimal('1'))]
@@ -427,7 +463,7 @@ def finalize_product_with_metadata(
     active.norm_per_hour = Decimal(str(norm_per_hour))
     active.status = ProductionShiftProduct.STATUS_DONE
     if not active.ended_at:
-        active.ended_at = timezone.now()
+        active.ended_at = production_server_now()
     active.save()
     ensure_active_work_block(report, after_product=active)
     return active
@@ -528,8 +564,9 @@ def session_time_displays(product: ProductionShiftProduct) -> tuple[str, str]:
 
 def product_slot_cell(product: ProductionShiftProduct, slot_index: int) -> dict:
     shift = _shift_for_product(product)
+    slot = slot_by_index(slot_index, shift)
+    is_overtime = bool(slot and slot.is_overtime)
     if slot_index < product.first_slot_index:
-        slot = slot_by_index(slot_index, shift)
         return {
             'slot_index': slot_index,
             'slot_label': slot.label if slot else str(slot_index),
@@ -539,6 +576,7 @@ def product_slot_cell(product: ProductionShiftProduct, slot_index: int) -> dict:
             'display': '',
             'has_data': False,
             'is_na': True,
+            'is_overtime': is_overtime,
             'zero_reason': '',
             'damaged_quantity': 0,
             'note': '',
@@ -556,7 +594,6 @@ def product_slot_cell(product: ProductionShiftProduct, slot_index: int) -> dict:
     display = ''
     if entry and filled:
         display = format_production_quantity(qty) if qty > 0 else '0'
-    slot = slot_by_index(slot_index, shift)
     return {
         'slot_index': slot_index,
         'slot_label': slot.label if slot else str(slot_index),
@@ -565,6 +602,7 @@ def product_slot_cell(product: ProductionShiftProduct, slot_index: int) -> dict:
         'display': display,
         'has_data': filled,
         'is_na': False,
+        'is_overtime': is_overtime,
         'zero_reason': reason,
         'damaged_quantity': damaged,
         'note': entry_note,
@@ -944,7 +982,7 @@ def build_hourly_grid(report: DailyWorkReport) -> dict:
             'ended_at_display': ended_display,
         })
     return {
-        'slots': [{'index': s.index, 'label': s.label} for s in hourly_slots],
+        'slots': [slot_grid_meta(s) for s in hourly_slots],
         'rows': rows,
         'grand_total': sum(r['total_quantity'] for r in rows),
         'has_unfinalized': any(r['is_unfinalized'] for r in rows),
@@ -1016,7 +1054,7 @@ def build_proxy_entry_grid(report: DailyWorkReport) -> dict:
             'total_quantity': total_qty,
         })
     return {
-        'slots': [{'index': s.index, 'label': s.label} for s in hourly_slots],
+        'slots': [slot_grid_meta(s) for s in hourly_slots],
         'rows': rows,
         'grand_total': sum(r['total_quantity'] for r in rows),
         'has_unfinalized': any(r['is_unfinalized'] for r in rows),

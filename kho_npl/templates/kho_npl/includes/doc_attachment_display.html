@@ -1,7 +1,8 @@
 {% load npl_extras %}
-{% if attachment %}
+{% if attachment or can_replace %}
 <dt class="col-sm-3 text-muted">Chứng từ / ảnh</dt>
 <dd class="col-sm-9">
+    {% if attachment %}
     {% if attachment|attachment_is_image %}
     <a href="{{ attachment.url }}" target="_blank" rel="noopener" class="d-inline-block">
         <img src="{{ attachment.url }}" alt="Chứng từ" class="img-thumbnail jp-npl-doc-attachment-preview" style="max-height:12rem;">
@@ -10,6 +11,29 @@
     <a href="{{ attachment.url }}" target="_blank" rel="noopener" class="btn btn-outline-secondary btn-sm">
         <i class="bi bi-paperclip me-1"></i>Tải / xem chứng từ
     </a>
+    {% endif %}
+    {% elif can_replace %}
+    <span class="text-muted">Chưa có chứng từ.</span>
+    {% endif %}
+    {% if can_replace and replace_url %}
+    <div class="jp-npl-doc-attachment-replace{% if attachment %} mt-2{% endif %}">
+        <button type="button" class="btn btn-outline-hm btn-sm jp-npl-doc-attachment-replace-toggle">
+            <i class="bi bi-arrow-repeat me-1"></i>{% if attachment %}Thay thế{% else %}Đính kèm{% endif %}
+        </button>
+        <form method="post" action="{{ replace_url }}" enctype="multipart/form-data" class="jp-npl-doc-attachment-replace-form d-none mt-2">
+            {% csrf_token %}
+            <div class="d-flex flex-wrap align-items-end gap-2">
+                <div class="flex-grow-1" style="min-width:12rem;max-width:24rem;">
+                    <input type="file" name="attachment" class="form-control form-control-sm" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" required>
+                </div>
+                <button type="submit" class="btn btn-hm btn-sm">
+                    <i class="bi bi-upload me-1"></i>Lưu
+                </button>
+                <button type="button" class="btn btn-outline-secondary btn-sm jp-npl-doc-attachment-replace-cancel">Hủy</button>
+            </div>
+        </form>
+    </div>
+    {% include 'kho_npl/includes/doc_attachment_replace_script.html' %}
     {% endif %}
 </dd>
 {% endif %}

@@ -53,6 +53,20 @@ def attachment_is_image(file_field) -> bool:
     return ext in IMAGE_ATTACHMENT_EXTENSIONS
 
 
+def can_replace_doc_attachment(*, is_editable: bool, posted_editable: bool, can_update: bool) -> bool:
+    """Nháp (sửa phiếu) hoặc đã ghi sổ (sửa ghi chú) — cần quyền cập nhật."""
+    return bool(can_update and (is_editable or posted_editable))
+
+
+def replace_doc_attachment(instance, uploaded, *, field: str = 'attachment') -> None:
+    old = getattr(instance, field, None)
+    old_name = getattr(old, 'name', '') if old else ''
+    setattr(instance, field, uploaded)
+    instance.save(update_fields=[field])
+    if old_name and (not getattr(instance, field) or getattr(instance, field).name != old_name):
+        old.delete(save=False)
+
+
 class DocClearableFileInput(forms.ClearableFileInput):
     template_name = 'kho_npl/widgets/doc_clearable_file_input.html'
     clear_checkbox_label = 'Xóa'

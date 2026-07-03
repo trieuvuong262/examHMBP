@@ -1745,6 +1745,40 @@ body .modal-backdrop.show {
     font-size: 0.65rem;
 }
 
+.jp-prod-hourly-table--detail .jp-ph-slot.jp-ph-slot--overtime,
+.jp-prod-hourly-table .jp-ph-slot.jp-ph-slot--overtime {
+    background: #c2410c !important;
+    border-color: #9a3412 !important;
+    color: #fff !important;
+}
+
+.jp-prod-hourly-table--detail .jp-ph-cell.jp-ph-cell--overtime,
+.jp-prod-hourly-table .jp-ph-cell.jp-ph-cell--overtime {
+    background-color: #fff7ed;
+}
+
+.jp-prod-hourly-table--detail .jp-ph-cell.jp-ph-cell--overtime.is-na,
+.jp-prod-hourly-table--detail .jp-ph-cell.jp-ph-cell--overtime.is-empty,
+.jp-prod-hourly-table .jp-ph-cell.jp-ph-cell--overtime.is-na,
+.jp-prod-hourly-table .jp-ph-cell.jp-ph-cell--overtime.is-empty {
+    background: #ffedd5;
+}
+
+.jp-prod-overtime-legend {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.jp-prod-overtime-swatch {
+    display: inline-block;
+    width: 0.85rem;
+    height: 0.85rem;
+    border-radius: 0.15rem;
+    background: #c2410c;
+    flex-shrink: 0;
+}
+
 .jp-prod-hourly-table--detail .jp-ph-row.is-warning td:not(.jp-ph-cell) {
     background: #fffbeb;
 }

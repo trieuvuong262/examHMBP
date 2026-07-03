@@ -557,13 +557,14 @@ def proxy_report_entry(request):
 
     SHIFTS = [
         (DailyWorkReport.SHIFT_MORNING, 'Ca sáng'),
-        (DailyWorkReport.SHIFT_OVERTIME, 'Tăng ca'),
         (DailyWorkReport.SHIFT_NIGHT, 'Ca tối'),
     ]
     valid_shifts = {s for s, _ in SHIFTS}
 
     if request.method == 'POST':
         post_shift = (request.POST.get('shift') or '').strip().upper()
+        from reports.production_slots import normalize_shift
+        post_shift = normalize_shift(post_shift) if post_shift else ''
         if post_shift not in valid_shifts:
             messages.error(request, 'Ca làm không hợp lệ.')
             return redirect(_proxy_url(subject.id))

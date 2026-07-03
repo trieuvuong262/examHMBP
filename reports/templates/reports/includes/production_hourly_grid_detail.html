@@ -1,5 +1,9 @@
 {% load static report_extras %}
 <div class="jp-prod-hourly-sheet-wrap jp-prod-hourly-sheet-wrap--detail">
+    <p class="small text-muted mb-2 jp-prod-overtime-legend d-none d-md-block">
+        <span class="jp-prod-overtime-swatch" aria-hidden="true"></span>
+        Khung giờ tăng ca (18h–23h)
+    </p>
     <div class="table-responsive jp-prod-hourly-scroll">
         <table class="table table-bordered table-sm jp-prod-hourly-table jp-prod-hourly-table--detail mb-0">
             <thead>
@@ -10,7 +14,7 @@
                     <th class="jp-ph-time">Bắt đầu</th>
                     <th class="jp-ph-time">Kết thúc</th>
                     {% for slot in hourly_grid.slots %}
-                    <th class="jp-ph-slot">{{ slot.label }}</th>
+                    <th class="jp-ph-slot{% if slot.is_overtime %} jp-ph-slot--overtime{% endif %}">{{ slot.label }}</th>
                     {% endfor %}
                 </tr>
             </thead>
@@ -26,7 +30,7 @@
                     <td class="jp-ph-time text-nowrap text-center">{{ row.started_at_display|default:"—" }}</td>
                     <td class="jp-ph-time text-nowrap text-center">{{ row.ended_at_display|default:"—" }}</td>
                     {% for cell in row.slots %}
-                    <td class="jp-ph-cell{% if cell.is_na or not cell.has_data %} is-na{% endif %}">
+                    <td class="jp-ph-cell{% if cell.is_na or not cell.has_data %} is-na{% endif %}{% if cell.is_overtime %} jp-ph-cell--overtime{% endif %}">
                         {% if cell.has_data %}
                         {% if cell.quantity > 0 %}
                         <span class="jp-ph-qty">{{ cell.display|default:cell.quantity|prod_qty }}</span>

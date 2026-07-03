@@ -35,6 +35,7 @@ from reports.production_hourly import (
     is_production_entry_closed,
     lock_production_steps_on_submit,
     product_is_submitted_locked,
+    production_server_now,
     parse_decimal,
     parse_non_negative_decimal,
     parse_int,
@@ -61,14 +62,18 @@ User = get_user_model()
 
 
 def _parse_production_shift(request, *, report=None) -> str:
+    from reports.production_slots import normalize_shift
     raw = (
         request.GET.get('shift')
         or request.POST.get('shift')
         or (report.shift if report and report.pk else '')
         or ''
     ).strip().upper()
-    if raw in PRODUCTION_SHIFT_ORDER:
-        return raw
+    if not raw:
+        return ''
+    shift = normalize_shift(raw)
+    if shift in PRODUCTION_SHIFT_ORDER:
+        return shift
     return ''
 
 
@@ -172,7 +177,7 @@ def _production_redirect(report_date, shift='', for_user_id=None, extra=None):
 
 
 def _auto_resolve_shift_and_date(subject, report_date, *, explicit_shift: str = ''):
-    """Tự nhận ca (sáng / tăng ca / tối) và ngày báo cáo theo giờ hiện tại."""
+    """Tự nhận ca (sáng / tối) và ngày báo cáo theo giờ VPS."""
     if explicit_shift:
         return resolve_production_entry(
             subject,
@@ -208,6 +213,7 @@ def _prepare_production_report(subject, report_date, shift: str):
 
 
 def _handle_production_post(request, report, report_date, subject, editing_for_other, shift: str):
+    """POST báo cáo SX — mốc bắt đầu/kết thúc công đoạn luôn lấy production_server_now() (VPS)."""
     from reports.views import _ensure_daily_report_saved, _finalize_report_submission
 
     action = request.POST.get('action', '')
@@ -723,7 +729,7 @@ def today_production_hourly(request, report_date, report_context_common):
                 1 for row in grid['rows'] if not row.get('is_unfinalized')
             )
 
-    current_slot = current_slot_index(report_date=report_date, shift=shift)
+    current_slot = current_slot_index(now=timezone.localtime(production_server_now()), report_date=report_date, shift=shift)
     has_unfinalized = bool(unfinalized_active_with_data(report)) if report.pk else False
 
     if phase == 'review' and has_unfinalized and not editing_for_other:
@@ -744,8 +750,12 @@ def today_production_hourly(request, report_date, report_context_common):
             get_team_report_members(request.user).select_related('profile').order_by('profile__full_name', 'username')
         )
 
+    server_local_now = timezone.localtime(production_server_now())
     ctx = report_context_common(request, report_date)
     ctx.update({
+        'server_now': server_local_now,
+        'server_now_display': server_local_now.strftime('%H:%M'),
+        'server_date_display': server_local_now.strftime('%d/%m/%Y'),
         'report': report,
         'production_shift': shift,
         'production_shift_label': shift_display_label(shift),

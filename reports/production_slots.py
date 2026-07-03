@@ -1,4 +1,4 @@
-"""Khung giờ báo cáo sản lượng — theo ca làm (sáng / tăng ca / tối)."""
+"""Khung giờ báo cáo sản lượng — ca sáng (gồm tăng ca) và ca tối."""
 
 from __future__ import annotations
 
@@ -20,8 +20,10 @@ class ProductionHourlySlot:
     end: time
     start_day_offset: int = 0
     end_day_offset: int = 0
+    is_overtime: bool = False
 
 
+# Ca sáng: 7h30–18h + tăng ca 18h–23h (cùng một báo cáo)
 MORNING_SLOTS = (
     ProductionHourlySlot(0, '7h30 - 8h30', time(7, 30), time(8, 30)),
     ProductionHourlySlot(1, '8h30 - 9h30', time(8, 30), time(9, 30)),
@@ -32,32 +34,26 @@ MORNING_SLOTS = (
     ProductionHourlySlot(6, '15h - 16h', time(15, 0), time(16, 0)),
     ProductionHourlySlot(7, '16h - 17h', time(16, 0), time(17, 0)),
     ProductionHourlySlot(8, '17h - 18h', time(17, 0), time(18, 0)),
+    ProductionHourlySlot(9, '18h - 19h', time(18, 0), time(19, 0), is_overtime=True),
+    ProductionHourlySlot(10, '19h - 20h', time(19, 0), time(20, 0), is_overtime=True),
+    ProductionHourlySlot(11, '20h - 21h', time(20, 0), time(21, 0), is_overtime=True),
+    ProductionHourlySlot(12, '21h - 22h', time(21, 0), time(22, 0), is_overtime=True),
+    ProductionHourlySlot(13, '22h - 23h', time(22, 0), time(23, 0), is_overtime=True),
 )
 
-OVERTIME_SLOTS = (
-    ProductionHourlySlot(0, '18h - 19h', time(18, 0), time(19, 0)),
-    ProductionHourlySlot(1, '19h - 20h', time(19, 0), time(20, 0)),
-    ProductionHourlySlot(2, '20h - 21h', time(20, 0), time(21, 0)),
-    ProductionHourlySlot(3, '21h - 22h', time(21, 0), time(22, 0)),
-)
+MORNING_REGULAR_SLOT_COUNT = sum(1 for s in MORNING_SLOTS if not s.is_overtime)
 
 NIGHT_SLOTS = (
-    ProductionHourlySlot(0, '18h - 19h', time(18, 0), time(19, 0)),
-    ProductionHourlySlot(1, '19h - 20h', time(19, 0), time(20, 0)),
-    ProductionHourlySlot(2, '20h - 21h', time(20, 0), time(21, 0)),
-    ProductionHourlySlot(3, '21h - 22h', time(21, 0), time(22, 0)),
-    ProductionHourlySlot(4, '22h - 23h', time(22, 0), time(23, 0)),
-    ProductionHourlySlot(5, '23h - 0h', time(23, 0), time(0, 0), end_day_offset=1),
-    ProductionHourlySlot(6, '0h - 1h', time(0, 0), time(1, 0), start_day_offset=1, end_day_offset=1),
-    ProductionHourlySlot(7, '1h - 2h', time(1, 0), time(2, 0), start_day_offset=1, end_day_offset=1),
-    ProductionHourlySlot(8, '2h - 3h', time(2, 0), time(3, 0), start_day_offset=1, end_day_offset=1),
-    ProductionHourlySlot(9, '3h - 4h', time(3, 0), time(4, 0), start_day_offset=1, end_day_offset=1),
-    ProductionHourlySlot(10, '4h - 5h', time(4, 0), time(5, 0), start_day_offset=1, end_day_offset=1),
+    ProductionHourlySlot(0, '23h - 0h', time(23, 0), time(0, 0), end_day_offset=1),
+    ProductionHourlySlot(1, '0h - 1h', time(0, 0), time(1, 0), start_day_offset=1, end_day_offset=1),
+    ProductionHourlySlot(2, '1h - 2h', time(1, 0), time(2, 0), start_day_offset=1, end_day_offset=1),
+    ProductionHourlySlot(3, '2h - 3h', time(2, 0), time(3, 0), start_day_offset=1, end_day_offset=1),
+    ProductionHourlySlot(4, '3h - 4h', time(3, 0), time(4, 0), start_day_offset=1, end_day_offset=1),
+    ProductionHourlySlot(5, '4h - 5h', time(4, 0), time(5, 0), start_day_offset=1, end_day_offset=1),
 )
 
 SHIFT_SLOTS = {
     DailyWorkReport.SHIFT_MORNING: MORNING_SLOTS,
-    DailyWorkReport.SHIFT_OVERTIME: OVERTIME_SLOTS,
     DailyWorkReport.SHIFT_NIGHT: NIGHT_SLOTS,
 }
 
@@ -67,6 +63,9 @@ SLOT_COUNT = len(MORNING_SLOTS)
 
 
 def normalize_shift(shift: str | None) -> str:
+    """OVERTIME (ca cũ) → MORNING."""
+    if shift == DailyWorkReport.SHIFT_OVERTIME:
+        return DailyWorkReport.SHIFT_MORNING
     if shift in SHIFT_SLOTS:
         return shift
     return DailyWorkReport.SHIFT_MORNING
@@ -85,6 +84,14 @@ def slot_by_index(index: int, shift: str | None = None) -> Optional[ProductionHo
     if 0 <= index < len(slots):
         return slots[index]
     return None
+
+
+def slot_grid_meta(slot: ProductionHourlySlot) -> dict:
+    return {
+        'index': slot.index,
+        'label': slot.label,
+        'is_overtime': slot.is_overtime,
+    }
 
 
 def _slot_start_dt(report_date, slot: ProductionHourlySlot) -> datetime:

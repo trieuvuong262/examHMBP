@@ -1,4 +1,4 @@
-"""Quy tắc ca làm — báo cáo sản xuất."""
+"""Quy tắc ca làm — báo cáo sản xuất (ca sáng + ca tối)."""
 
 from __future__ import annotations
 
@@ -8,30 +8,24 @@ from django.utils import timezone
 
 from reports.models import DailyWorkReport
 from reports.period_utils import PERIOD_DAY
-from reports.production_slots import shift_contains_datetime
+from reports.production_slots import normalize_shift, shift_contains_datetime
 from reports.report_profile import REPORT_PROFILE_PRODUCTION
 
 PRODUCTION_SHIFT_ORDER = (
     DailyWorkReport.SHIFT_MORNING,
-    DailyWorkReport.SHIFT_OVERTIME,
     DailyWorkReport.SHIFT_NIGHT,
 )
 
 SHIFT_META = {
     DailyWorkReport.SHIFT_MORNING: {
         'label': 'Ca sáng',
-        'time_range': '7h30 – 18h',
-        'description': 'Ca chính ban ngày',
-    },
-    DailyWorkReport.SHIFT_OVERTIME: {
-        'label': 'Tăng ca',
-        'time_range': '18h – 22h',
-        'description': 'Làm thêm sau ca sáng (bắt buộc đã có ca sáng cùng ngày)',
+        'time_range': '7h30 – 23h',
+        'description': 'Ca ban ngày — gồm khung tăng ca 18h–23h trong cùng báo cáo',
     },
     DailyWorkReport.SHIFT_NIGHT: {
         'label': 'Ca tối',
-        'time_range': '18h – 5h sáng hôm sau',
-        'description': 'Ca đêm — ngày báo cáo là ngày bắt đầu lúc 18h',
+        'time_range': '23h – 5h sáng hôm sau',
+        'description': 'Ca đêm — ngày báo cáo là ngày bắt đầu lúc 23h',
     },
 }
 
@@ -46,6 +40,7 @@ def production_reports_for_day(employee, report_date):
 
 
 def get_production_report(employee, report_date, shift: str):
+    shift = normalize_shift(shift)
     try:
         return production_reports_for_day(employee, report_date).get(shift=shift)
     except DailyWorkReport.DoesNotExist:
@@ -53,15 +48,16 @@ def get_production_report(employee, report_date, shift: str):
 
 
 def shift_display_label(shift: str) -> str:
+    shift = normalize_shift(shift)
     meta = SHIFT_META.get(shift)
     return meta['label'] if meta else shift
 
 
 def shift_badge_class(shift: str) -> str:
-    """Màu badge ca — cùng palette Loại VP (Ngày / Tuần / Tháng)."""
+    """Màu badge ca — cùng palette Loại VP (Ngày / Tháng)."""
+    shift = normalize_shift(shift)
     period_suffix = {
         DailyWorkReport.SHIFT_MORNING: 'day',
-        DailyWorkReport.SHIFT_OVERTIME: 'week',
         DailyWorkReport.SHIFT_NIGHT: 'month',
     }.get(shift)
     if period_suffix:
@@ -74,10 +70,9 @@ def production_shift_for_datetime(
     employee,
 ) -> tuple[date, str]:
     """
-    Suy ra (report_date, shift) từ thời điểm thực tế.
-    - Ca sáng: 7h30–18h
-    - Tăng ca: 18h–22h khi đã có ca sáng cùng ngày
-    - Ca tối: 18h–5h sáng hôm sau (report_date = ngày bắt đầu lúc 18h)
+    Suy ra (report_date, shift) từ thời điểm thực tế (VPS).
+    - Ca sáng (+ tăng ca): 7h30–23h
+    - Ca tối: 23h–5h sáng hôm sau (report_date = ngày bắt đầu lúc 23h)
     """
     local = timezone.localtime(at)
     day = local.date()
@@ -91,16 +86,7 @@ def production_shift_for_datetime(
     if shift_contains_datetime(local, day, DailyWorkReport.SHIFT_MORNING):
         return day, DailyWorkReport.SHIFT_MORNING
 
-    if shift_contains_datetime(local, day, DailyWorkReport.SHIFT_OVERTIME):
-        has_morning = production_reports_for_day(employee, day).filter(
-            shift=DailyWorkReport.SHIFT_MORNING,
-        ).exists()
-        if has_morning:
-            return day, DailyWorkReport.SHIFT_OVERTIME
-        if shift_contains_datetime(local, day, DailyWorkReport.SHIFT_NIGHT):
-            return day, DailyWorkReport.SHIFT_NIGHT
-
-    if clock >= time(22, 0):
+    if clock >= time(23, 0):
         return day, DailyWorkReport.SHIFT_NIGHT
 
     return day, DailyWorkReport.SHIFT_MORNING
@@ -139,6 +125,7 @@ def resolve_production_entry(
     Ưu tiên: shift trên URL → báo cáo draft đang mở → suy từ thời điểm hiện tại.
     """
     at = at or timezone.localtime()
+    explicit_shift = normalize_shift(explicit_shift) if explicit_shift else None
 
     if explicit_shift and explicit_shift in PRODUCTION_SHIFT_ORDER:
         report_date = requested_date or timezone.localtime(at).date()
@@ -146,7 +133,7 @@ def resolve_production_entry(
 
     open_report = find_open_production_report(employee, at)
     if open_report:
-        return open_report.report_date, open_report.shift
+        return open_report.report_date, normalize_shift(open_report.shift)
 
     report_date, shift = production_shift_for_datetime(at, employee)
     if requested_date and requested_date != report_date:
@@ -157,26 +144,21 @@ def resolve_production_entry(
 
 def can_start_production_shift(employee, report_date, shift: str) -> tuple[bool, str]:
     """Kiểm tra NV có được mở báo cáo ca mới không."""
+    shift = normalize_shift(shift)
     if shift not in PRODUCTION_SHIFT_ORDER:
         return False, 'Ca làm không hợp lệ.'
 
     existing = {
-        row.shift: row
+        normalize_shift(row.shift): row
         for row in production_reports_for_day(employee, report_date)
     }
 
     if shift in existing:
         return True, ''
 
-    if shift == DailyWorkReport.SHIFT_OVERTIME:
-        if DailyWorkReport.SHIFT_MORNING not in existing:
-            return False, 'Cần có báo cáo ca sáng cùng ngày trước khi nhập tăng ca.'
-        return True, ''
-
     if shift == DailyWorkReport.SHIFT_NIGHT:
-        for blocked in (DailyWorkReport.SHIFT_MORNING, DailyWorkReport.SHIFT_OVERTIME):
-            if blocked in existing:
-                return False, 'Ca tối không áp dụng khi đã có ca sáng hoặc tăng ca cùng ngày.'
+        if DailyWorkReport.SHIFT_MORNING in existing:
+            return False, 'Ca tối không áp dụng khi đã có ca sáng cùng ngày.'
         return True, ''
 
     if shift == DailyWorkReport.SHIFT_MORNING:
@@ -190,7 +172,7 @@ def can_start_production_shift(employee, report_date, shift: str) -> tuple[bool,
 def build_shift_picker_options(employee, report_date, *, can_edit: bool) -> list[dict]:
     """Danh sách ca cho màn chọn — gồm trạng thái và nút hành động."""
     existing = {
-        row.shift: row
+        normalize_shift(row.shift): row
         for row in production_reports_for_day(employee, report_date)
     }
     options = []

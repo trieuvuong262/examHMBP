@@ -1,0 +1,35 @@
+<script>
+(function () {
+    if (window.__jpNplDocAttachmentReplaceInit) return;
+    window.__jpNplDocAttachmentReplaceInit = true;
+    document.addEventListener('click', function (e) {
+        var toggle = e.target.closest('.jp-npl-doc-attachment-replace-toggle');
+        if (toggle) {
+            e.preventDefault();
+            var wrap = toggle.closest('.jp-npl-doc-attachment-replace');
+            if (!wrap) return;
+            var form = wrap.querySelector('.jp-npl-doc-attachment-replace-form');
+            if (!form) return;
+            toggle.classList.add('d-none');
+            form.classList.remove('d-none');
+            var fileInput = form.querySelector('input[type="file"]');
+            if (fileInput) fileInput.focus();
+            return;
+        }
+        var cancel = e.target.closest('.jp-npl-doc-attachment-replace-cancel');
+        if (cancel) {
+            e.preventDefault();
+            var wrap = cancel.closest('.jp-npl-doc-attachment-replace');
+            if (!wrap) return;
+            var form = wrap.querySelector('.jp-npl-doc-attachment-replace-form');
+            var toggleBtn = wrap.querySelector('.jp-npl-doc-attachment-replace-toggle');
+            if (form) {
+                form.classList.add('d-none');
+                var fileInput = form.querySelector('input[type="file"]');
+                if (fileInput) fileInput.value = '';
+            }
+            if (toggleBtn) toggleBtn.classList.remove('d-none');
+        }
+    });
+})();
+</script>

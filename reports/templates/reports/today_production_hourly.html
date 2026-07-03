@@ -4,18 +4,21 @@
 
 {% block extra_head %}
 <link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260624a">
-<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260703f">
+<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260703h">
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid jp-prod-page-wrap jp-page jp-reports-page py-3 py-md-4 mb-md-5">
-<div class="jp-prod-page{% if editing_for_other %} jp-prod-page--proxy{% endif %}{% if phase == 'review' %} jp-prod-page--review{% endif %}{% if proxy_mode %} jp-prod-page--proxy-mode{% endif %}{% if work_step %} jp-prod-page--mobile-flow{% endif %}" data-phase="{{ phase }}" data-work-step="{{ work_step }}">
+<div class="jp-prod-page{% if editing_for_other %} jp-prod-page--proxy{% endif %}{% if phase == 'review' %} jp-prod-page--review{% endif %}{% if proxy_mode %} jp-prod-page--proxy-mode{% endif %}{% if work_step %} jp-prod-page--mobile-flow{% endif %}" data-phase="{{ phase }}" data-work-step="{{ work_step }}"{% if server_now %} data-server-now="{{ server_now.isoformat }}"{% endif %}>
     <header class="jp-prod-page-header{% if work_step %} jp-prod-page-header--compact{% endif %}">
         <div class="jp-prod-page-header-main">
             {% if work_step %}
             <div class="jp-prod-mobile-context d-lg-none text-center mb-2">
                 <span class="{{ production_shift|production_shift_badge_class }}">{{ production_shift_label }}</span>
                 <span class="text-muted small ms-2">{{ report_date|date:"d/m/Y" }}</span>
+                {% if server_now_display %}
+                <span class="text-muted small ms-1">· HT <span data-server-clock>{{ server_now_display }}</span></span>
+                {% endif %}
             </div>
             {% endif %}
             <div class="d-flex flex-wrap align-items-start justify-content-between gap-2 w-100">
@@ -270,8 +273,8 @@
                         <i class="bi bi-hourglass-split"></i>
                     </div>
                     <p class="jp-prod-mobile-step-kicker">Đang làm công đoạn · <span class="{{ production_shift|production_shift_badge_class }}">{{ production_shift_label }}</span></p>
-                    <div class="jp-prod-mobile-step-clock">{{ session_active.started_at|date:"H:i" }}</div>
-                    <p class="jp-prod-mobile-step-lead">Bắt đầu lúc {{ session_active.started_at|date:"H:i d/m" }}</p>
+                    <div class="jp-prod-mobile-step-clock" id="jp-prod-session-started-clock">{{ session_active.started_at|date:"H:i" }}</div>
+                    <p class="jp-prod-mobile-step-lead">Bắt đầu (giờ hệ thống) {{ session_active.started_at|date:"H:i d/m" }}</p>
                     <form method="post" class="jp-prod-mobile-step-action m-0">
                         {% csrf_token %}
                         <input type="hidden" name="action" value="end_product">
@@ -477,5 +480,5 @@
 {% endif %}
 
 {% if hourly_grid %}{{ hourly_grid|json_script:"hourly-grid-data" }}{% endif %}
-<script src="{% static 'js/reports-production-hourly.js' %}?v=20260703d"></script>
+<script src="{% static 'js/reports-production-hourly.js' %}?v=20260703h"></script>
 {% endblock %}

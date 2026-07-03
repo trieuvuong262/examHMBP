@@ -14,12 +14,14 @@ from PortalJustPlay.pagination import paginate_queryset
 
 from kho_npl.choices import DOC_STATUS_DRAFT, DOC_STATUS_POSTED
 from kho_npl.forms import (
+    DocAttachmentReplaceForm,
     StockIssueForm,
     StockIssueLineFormSet,
     StockIssueLineNotesFormSet,
     StockIssueNotesForm,
 )
 from kho_npl.models import StockIssue
+from kho_npl.doc_attachment import can_replace_doc_attachment, replace_doc_attachment
 from kho_npl.services.doc_numbers import next_issue_number
 from kho_npl.services.issues import (
     IssueWorkflowError,
@@ -123,14 +125,22 @@ def issue_detail(request, pk):
     )
     perms = perm_context(request.user, 'issues')
     can_edit_notes = issue_notes_editable(issue) and perms.get('can_update')
+    is_editable = issue_is_editable(issue)
+    can_replace_attachment = can_replace_doc_attachment(
+        is_editable=is_editable,
+        posted_editable=issue_notes_editable(issue),
+        can_update=perms.get('can_update'),
+    )
     notes_form = StockIssueNotesForm(instance=issue) if can_edit_notes else None
     line_notes_formset = StockIssueLineNotesFormSet(instance=issue) if can_edit_notes else None
     return render(request, 'kho_npl/issue_detail.html', {
         **nav_context('issues', user=request.user),
         **perms,
         'issue': issue,
-        'is_editable': issue_is_editable(issue),
+        'is_editable': is_editable,
         'can_edit_notes': can_edit_notes,
+        'can_replace_attachment': can_replace_attachment,
+        'issue_replace_attachment_url': reverse('kho_npl:issue_replace_attachment', args=[issue.pk]),
         'notes_form': notes_form,
         'line_notes_formset': line_notes_formset,
     })
@@ -187,6 +197,29 @@ def issue_update_notes(request, pk):
         messages.success(request, f'Đã cập nhật ghi chú phiếu {issue.number}.')
     else:
         messages.error(request, 'Không lưu được ghi chú — kiểm tra lại nội dung.')
+    return redirect('kho_npl:issue_detail', pk=pk)
+
+
+@module_perm_required_methods(MODULE_KHO_NPL, post='update')
+def issue_replace_attachment(request, pk):
+    issue = get_object_or_404(StockIssue, pk=pk)
+    if request.method != 'POST':
+        return redirect('kho_npl:issue_detail', pk=pk)
+    perms = perm_context(request.user, 'issues')
+    if not can_replace_doc_attachment(
+        is_editable=issue_is_editable(issue),
+        posted_editable=issue_notes_editable(issue),
+        can_update=perms.get('can_update'),
+    ):
+        messages.error(request, 'Không thể thay chứng từ phiếu này.')
+        return redirect('kho_npl:issue_detail', pk=pk)
+    form = DocAttachmentReplaceForm(request.POST, request.FILES)
+    if form.is_valid():
+        replace_doc_attachment(issue, form.cleaned_data['attachment'])
+        messages.success(request, f'Đã cập nhật chứng từ phiếu {issue.number}.')
+    else:
+        err = next(iter(form.errors.get('attachment', [])), None)
+        messages.error(request, err or 'Không lưu được chứng từ — kiểm tra lại file.')
     return redirect('kho_npl:issue_detail', pk=pk)
 
 

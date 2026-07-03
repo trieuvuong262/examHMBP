@@ -33,6 +33,7 @@ from hrm.user_search import exclude_hidden_hrm_users, issue_recipient_label, iss
 from kho_npl.category_tree import material_form_category_queryset
 from kho_npl.doc_attachment import (
     DOC_ATTACHMENT_ACCEPT,
+    DOC_ATTACHMENT_REQUIRED_MSG,
     IMAGE_ATTACHMENT_EXTENSIONS,
     DocClearableFileInput,
     clean_required_doc_attachment,
@@ -73,6 +74,25 @@ FORM_ATTACHMENT = DocClearableFileInput(attrs={
     'class': 'form-control',
     'accept': DOC_ATTACHMENT_ACCEPT,
 })
+
+
+class DocAttachmentReplaceForm(forms.Form):
+    attachment = forms.FileField(
+        label='',
+        widget=forms.FileInput(attrs={
+            **FORM_CONTROL,
+            'class': 'form-control form-control-sm',
+            'accept': DOC_ATTACHMENT_ACCEPT,
+        }),
+    )
+
+    def clean_attachment(self):
+        uploaded = self.cleaned_data.get('attachment')
+        if not uploaded:
+            raise ValidationError(DOC_ATTACHMENT_REQUIRED_MSG)
+        return validate_doc_attachment(uploaded)
+
+
 DOC_DATE_DISPLAY_FORMAT = '%d/%m/%Y'
 DOC_DATE_INPUT_FORMATS = ['%d/%m/%Y', '%d-%m-%Y', '%Y-%m-%d']
 DOC_DATE_INPUT = {
