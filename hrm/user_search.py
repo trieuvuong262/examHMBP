@@ -111,14 +111,14 @@ USER_LIST_TABLE_COLUMNS = (
     {'key': 'name', 'label': 'Họ và tên', 'th_tone': 'cap', 'th_align': 'start', 'col_class': 'jp-hrm-col-name', 'sortable': True, 'default': True, 'required': True},
     {'key': 'account', 'label': 'Tài khoản', 'th_tone': 'cap', 'th_align': 'start', 'col_class': 'jp-hrm-col-account', 'sortable': True, 'default': True},
     {'key': 'department', 'label': 'Phòng ban', 'th_tone': 'cap', 'th_align': 'start', 'col_class': 'jp-hrm-col-dept', 'sortable': True, 'default': True},
-    {'key': 'division', 'label': 'Bộ phận', 'th_tone': 'cap', 'th_align': 'start', 'col_class': 'jp-hrm-col-division', 'sortable': True, 'default': False},
+    {'key': 'division', 'label': 'Bộ phận', 'th_tone': 'cap', 'th_align': 'start', 'col_class': 'jp-hrm-col-division', 'sortable': True, 'default': True},
     {'key': 'position', 'label': 'Vị trí', 'th_tone': 'cap', 'th_align': 'start', 'col_class': 'jp-hrm-col-position', 'sortable': True, 'default': True},
-    {'key': 'job_title', 'label': 'Chức vụ', 'th_tone': 'cap', 'th_align': 'start', 'col_class': 'jp-hrm-col-job-title', 'sortable': True, 'default': False},
+    {'key': 'job_title', 'label': 'Chức vụ', 'th_tone': 'cap', 'th_align': 'start', 'col_class': 'jp-hrm-col-job-title', 'sortable': True, 'default': True},
     {'key': 'birth_date', 'label': 'Ngày sinh', 'th_tone': 'cap', 'th_align': 'center', 'col_class': 'jp-hrm-col-date', 'sortable': True, 'default': True},
     {'key': 'gender', 'label': 'Giới tính', 'th_tone': 'cap', 'th_align': 'center', 'col_class': 'jp-hrm-col-gender', 'sortable': True, 'default': True},
-    {'key': 'permission_group', 'label': 'Nhóm quyền', 'th_tone': 'cap', 'th_align': 'start', 'col_class': 'jp-hrm-col-perm-group', 'sortable': True, 'default': True},
-    {'key': 'role', 'label': 'Vai trò HT', 'th_tone': 'cap', 'th_align': 'center', 'col_class': 'jp-hrm-col-role', 'sortable': True, 'default': True},
-    {'key': 'last_login', 'label': 'Đăng nhập cuối', 'th_tone': 'cap', 'th_align': 'center', 'col_class': 'jp-hrm-col-last-login', 'sortable': True, 'default': True},
+    {'key': 'permission_group', 'label': 'Nhóm quyền', 'th_tone': 'cap', 'th_align': 'start', 'col_class': 'jp-hrm-col-perm-group', 'sortable': True, 'default': False},
+    {'key': 'role', 'label': 'Vai trò HT', 'th_tone': 'cap', 'th_align': 'center', 'col_class': 'jp-hrm-col-role', 'sortable': True, 'default': False},
+    {'key': 'last_login', 'label': 'Đăng nhập cuối', 'th_tone': 'cap', 'th_align': 'center', 'col_class': 'jp-hrm-col-last-login', 'sortable': True, 'default': False},
     {'key': None, 'label': 'Thao tác', 'th_tone': 'cap', 'th_align': 'end', 'col_class': 'jp-hrm-col-actions', 'sortable': False, 'default': True, 'required': True},
 )
 
@@ -208,7 +208,7 @@ def apply_user_list_sort(queryset, sort_key: str, sort_dir: str):
 
 
 def user_list_query_params(request, **overrides) -> dict[str, str]:
-    keys = ('department', 'division', 'position', 'q', 'status', 'sort', 'dir', 'page')
+    keys = ('department', 'division', 'position', 'permission_group', 'q', 'status', 'sort', 'dir', 'page')
     data: dict[str, str] = {}
     for key in keys:
         if key in overrides:

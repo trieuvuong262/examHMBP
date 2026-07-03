@@ -81,25 +81,13 @@
     </div>
     {% endif %}
 
-    {% if can_review %}
-    <div class="jp-report-review-panel mb-4">
-        <form method="post" class="jp-report-review-form">
-            {% csrf_token %}
-            {% if team_list_query %}
-            <input type="hidden" name="team_list_query" value="{{ team_list_query }}">
-            {% endif %}
-            <input type="text" name="hod_note" id="hod_note" class="form-control jp-report-review-note" value="{{ report.hod_note }}" placeholder="Ghi chú cho nhân viên (tuỳ chọn)" autocomplete="off">
-            <button type="submit" class="btn btn-hm btn-sm jp-report-review-save">
-                <i class="bi bi-check2 me-1" aria-hidden="true"></i>Lưu
-            </button>
-        </form>
-    </div>
-    {% elif report.hod_note %}
-    <div class="jp-report-hod-note-readonly mb-4" role="note">
+    {% if report.hod_note %}
+    <div class="jp-report-hod-note-readonly mb-3" role="note">
         <i class="bi bi-chat-left-quote jp-report-hod-note-icon" aria-hidden="true"></i>
         <span class="jp-report-hod-note-text">{{ report.hod_note }}</span>
     </div>
     {% endif %}
+    {% include 'reports/includes/report_comments.html' %}
 
     {% if report.is_production_report %}
         {% if can_edit_norm and productivity and productivity.has_data %}

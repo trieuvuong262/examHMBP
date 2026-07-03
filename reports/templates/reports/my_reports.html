@@ -4,39 +4,42 @@
 
 {% block extra_head %}
 <link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260530b">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 {% endblock %}
 
 {% block content %}
 <div class="container jp-page jp-reports-page py-3 py-md-4 mb-5">
+
     <div class="jp-page-header mb-3 mb-md-4">
-        <div>
-            <h2 class="fw-bold text-hm mb-1 jp-page-title">
+        <div class="jp-page-header-main">
+            <h2 class="jp-page-title fw-bold text-dark mb-1">
                 {% if history_employee_name %}Lịch sử báo cáo — {{ history_employee_name }}{% elif reports_scope_label %}Lịch sử báo cáo ({{ reports_scope_label }}){% else %}Lịch sử báo cáo{% endif %}
             </h2>
+            <p class="text-muted small mb-0">{{ page_obj.paginator.count }} báo cáo</p>
         </div>
-        <div class="d-flex gap-2 flex-wrap w-100 w-md-auto">
+        <div class="d-flex gap-2 flex-wrap">
             {% if not history_for_user_id %}
             {% if is_office_history %}
-            <a href="{% url today_url_name %}?period={{ office_period }}" class="btn btn-hm fw-bold flex-fill flex-md-grow-0">
+            <a href="{% url today_url_name %}?period={{ office_period }}" class="btn btn-hm fw-bold shadow-sm">
                 <i class="bi bi-plus-lg me-1"></i>Báo cáo mới
             </a>
             {% elif report_period == 'weekly' %}
-            <a href="{% url weekly_url_name %}" class="btn btn-hm fw-bold flex-fill flex-md-grow-0">
+            <a href="{% url weekly_url_name %}" class="btn btn-hm fw-bold shadow-sm">
                 <i class="bi bi-plus-lg me-1"></i>Báo cáo tuần
             </a>
             {% else %}
-            <a href="{% url today_url_name %}" class="btn btn-hm fw-bold flex-fill flex-md-grow-0">
+            <a href="{% url today_url_name %}" class="btn btn-hm fw-bold shadow-sm">
                 <i class="bi bi-plus-lg me-1"></i>Báo cáo hôm nay
             </a>
             {% endif %}
             {% endif %}
             {% if can_view_team %}
             {% if is_office_history %}
-            <a href="{% url team_url_name %}?period={{ office_period }}" class="btn btn-outline-hm fw-bold flex-fill flex-md-grow-0">Báo cáo cấp dưới</a>
+            <a href="{% url team_url_name %}?period={{ office_period }}" class="btn btn-outline-hm fw-bold">Báo cáo cấp dưới</a>
             {% elif report_period == 'weekly' %}
-            <a href="{% url team_weekly_url_name %}" class="btn btn-outline-hm fw-bold flex-fill flex-md-grow-0">Báo cáo cấp dưới</a>
+            <a href="{% url team_weekly_url_name %}" class="btn btn-outline-hm fw-bold">Báo cáo cấp dưới</a>
             {% else %}
-            <a href="{% url team_url_name %}" class="btn btn-outline-hm fw-bold flex-fill flex-md-grow-0">Báo cáo cấp dưới</a>
+            <a href="{% url team_url_name %}" class="btn btn-outline-hm fw-bold">Báo cáo cấp dưới</a>
             {% endif %}
             {% endif %}
         </div>
@@ -63,26 +66,36 @@
     </ul>
     {% endif %}
 
-    <div class="card border-0 shadow-sm mb-3">
-        <div class="card-body p-3">
-            <form method="get" class="jp-hrm-search input-group" role="search">
-                <input type="hidden" name="period" value="{% if is_office_history %}{{ office_period }}{% else %}{{ report_period }}{% endif %}">
-                {% if history_for_user_id %}
-                <input type="hidden" name="for_user" value="{{ history_for_user_id }}">
-                {% endif %}
-                {% if report_period == 'weekly' %}
-                {% include 'includes/list_search_bar.html' with search_query=search_query placeholder='Tìm theo tuần, link, ghi chú...' clear_url=request.path|add:'?period=weekly' %}
-                {% elif is_office_history %}
-                {% include 'includes/list_search_bar.html' with search_query=search_query placeholder='Tìm theo ngày, nội dung, link...' clear_url=request.path|add:'?period='|add:office_period %}
-                {% else %}
-                {% include 'includes/list_search_bar.html' with search_query=search_query placeholder='Tìm theo ngày, nội dung dòng báo cáo...' clear_url=request.path|add:'?period=daily' %}
-                {% endif %}
-            </form>
+    <form method="get" id="myReportsFilterForm" class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-3 d-flex flex-wrap gap-3 align-items-end">
+            <input type="hidden" name="period" value="{% if is_office_history %}{{ office_period }}{% else %}{{ report_period }}{% endif %}">
+            {% if history_for_user_id %}
+            <input type="hidden" name="for_user" value="{{ history_for_user_id }}">
+            {% endif %}
+            <div>
+                <label class="form-label fw-bold small mb-1">Từ ngày</label>
+                <input type="date" name="from" value="{{ history_date_from|date:'Y-m-d' }}" class="form-control jp-date-vn">
+            </div>
+            <div>
+                <label class="form-label fw-bold small mb-1">Đến ngày</label>
+                <input type="date" name="to" value="{{ history_date_to|date:'Y-m-d' }}" class="form-control jp-date-vn">
+            </div>
+            <div class="flex-grow-1" style="min-width: 220px;">
+                <label class="form-label fw-bold small mb-1">Tìm kiếm</label>
+                <input type="search" name="q" class="form-control" placeholder="Nội dung, link, ghi chú..."
+                       value="{{ search_query }}" autocomplete="off">
+            </div>
+            <button type="submit" class="btn btn-hm px-4 align-self-end">Xem</button>
             {% if search_query %}
-            <p class="text-muted small mb-0 mt-2">Kết quả tìm “{{ search_query }}” — {{ page_obj.paginator.count }} báo cáo</p>
+            <a href="?period={% if is_office_history %}{{ office_period }}{% else %}{{ report_period }}{% endif %}{% if history_for_user_id %}&for_user={{ history_for_user_id }}{% endif %}" class="btn btn-light border align-self-end" title="Xóa tìm kiếm"><i class="bi bi-x-lg"></i></a>
             {% endif %}
         </div>
-    </div>
+        {% if search_query %}
+        <div class="card-footer bg-white border-top py-2">
+            <p class="text-muted small mb-0">Kết quả tìm "{{ search_query }}" — {{ page_obj.paginator.count }} báo cáo</p>
+        </div>
+        {% endif %}
+    </form>
 
     <div class="card border-0 shadow-sm overflow-hidden">
         <div class="table-responsive">
@@ -92,6 +105,7 @@
                         {% if report_period == 'weekly' %}
                         <th>Tuần</th>
                         <th>Trạng thái</th>
+                        <th class="text-center">Nhận xét</th>
                         <th class="text-end">Tóm tắt</th>
                         <th class="text-end">Cập nhật</th>
                         <th></th>
@@ -99,6 +113,7 @@
                         <th>{% if office_period == 'week' %}Tuần{% elif office_period == 'month' %}Tháng{% else %}Ngày{% endif %}</th>
                         {% if not is_office_history %}<th>Loại</th>{% endif %}
                         <th>Trạng thái</th>
+                        <th class="text-center">Nhận xét</th>
                         <th class="text-end">Tóm tắt</th>
                         <th class="text-end">Cập nhật</th>
                         <th></th>
@@ -109,27 +124,20 @@
                     {% for r in reports %}
                     <tr>
                         {% if report_period == 'weekly' %}
-                        <td>
-                            <strong>{{ r.week_range_label }}</strong>
-                        </td>
+                        <td><strong>{{ r.week_range_label }}</strong></td>
                         <td>
                             {% if r.status == 'SUBMITTED' %}
                             <span class="badge bg-success-subtle text-success">Đã nộp</span>
                             {% endif %}
                         </td>
-                        <td class="text-end">
-                            {{ r.link_lines|length }} link · {{ r.attachment_count|default:0 }} file
+                        <td class="text-center">
+                            {% if r.has_manager_comment and r.has_employee_reply %}<i class="bi bi-chat-dots-fill text-hm" title="Quản lý đã nhận xét"></i><i class="bi bi-chat-dots-fill text-primary ms-1" title="Nhân viên đã phản hồi"></i>{% elif r.has_manager_comment %}<i class="bi bi-chat-dots-fill text-hm" title="Quản lý đã nhận xét"></i>{% elif r.has_employee_reply %}<i class="bi bi-chat-dots-fill text-primary" title="Nhân viên đã phản hồi"></i>{% else %}<span class="text-muted">—</span>{% endif %}
                         </td>
+                        <td class="text-end">{{ r.link_lines|length }} link · {{ r.attachment_count|default:0 }} file</td>
                         <td class="text-end text-muted small">
-                            {% if r.submitted_at %}
-                            Gửi {{ r.submitted_at|date:"H:i d/m/Y" }}
-                            {% elif r.draft_saved_at %}
-                            Lưu {{ r.draft_saved_at|date:"H:i d/m/Y" }}
-                            {% else %}
-                            —
-                            {% endif %}
+                            {% if r.submitted_at %}Gửi {{ r.submitted_at|date:"H:i d/m/Y" }}{% elif r.draft_saved_at %}Lưu {{ r.draft_saved_at|date:"H:i d/m/Y" }}{% else %}—{% endif %}
                         </td>
-                        <td class="text-end">
+                        <td class="text-end text-nowrap">
                             <a href="{% url weekly_detail_url_name r.pk %}" class="btn btn-sm btn-outline-hm">Xem</a>
                             {% if not r.hod_reviewed and not r.is_edit_expired %}
                             <a href="{% url weekly_url_name %}?week={{ r.week_start|date:'Y-m-d' }}" class="btn btn-sm btn-outline-dark">Sửa</a>
@@ -153,6 +161,9 @@
                             <span class="badge bg-success-subtle text-success">Đã nộp</span>
                             {% endif %}
                         </td>
+                        <td class="text-center">
+                            {% if r.has_manager_comment and r.has_employee_reply %}<i class="bi bi-chat-dots-fill text-hm" title="Quản lý đã nhận xét"></i><i class="bi bi-chat-dots-fill text-primary ms-1" title="Nhân viên đã phản hồi"></i>{% elif r.has_manager_comment %}<i class="bi bi-chat-dots-fill text-hm" title="Quản lý đã nhận xét"></i>{% elif r.has_employee_reply %}<i class="bi bi-chat-dots-fill text-primary" title="Nhân viên đã phản hồi"></i>{% else %}<span class="text-muted">—</span>{% endif %}
+                        </td>
                         <td class="text-end">
                             {% if r.is_production_report %}
                             {{ r.line_count }} dòng · SL {{ r.total_qty|default:0 }}
@@ -161,15 +172,9 @@
                             {% endif %}
                         </td>
                         <td class="text-end text-muted small">
-                            {% if r.submitted_at %}
-                            Gửi {{ r.submitted_at|date:"H:i d/m/Y" }}
-                            {% elif r.draft_saved_at %}
-                            Lưu {{ r.draft_saved_at|date:"H:i d/m/Y" }}
-                            {% else %}
-                            —
-                            {% endif %}
+                            {% if r.submitted_at %}Gửi {{ r.submitted_at|date:"H:i d/m/Y" }}{% elif r.draft_saved_at %}Lưu {{ r.draft_saved_at|date:"H:i d/m/Y" }}{% else %}—{% endif %}
                         </td>
-                        <td class="text-end">
+                        <td class="text-end text-nowrap">
                             <a href="{% url detail_url_name r.pk %}" class="btn btn-sm btn-outline-hm">Xem</a>
                             {% if not r.hod_reviewed and not r.is_edit_expired %}
                             {% if is_office_history %}
@@ -183,8 +188,8 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="{% if report_period == 'weekly' %}5{% elif is_office_history %}5{% else %}7{% endif %}" class="text-center text-muted py-5">
-                            {% if report_period == 'weekly' %}Chưa có báo cáo tuần nào.{% else %}Chưa có báo cáo nào.{% endif %}
+                        <td colspan="{% if report_period == 'weekly' %}6{% elif is_office_history %}6{% else %}8{% endif %}" class="text-center text-muted py-5">
+                            {% if report_period == 'weekly' %}Chưa có báo cáo tuần nào.{% else %}Chưa có báo cáo nào trong khoảng đã chọn.{% endif %}
                         </td>
                     </tr>
                     {% endfor %}
@@ -197,5 +202,44 @@
         </div>
         {% endif %}
     </div>
+
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var form = document.getElementById('myReportsFilterForm');
+    if (!form) return;
+
+    var submitTimer = null;
+    function submitForm(delay) {
+        if (submitTimer) clearTimeout(submitTimer);
+        submitTimer = setTimeout(function () { form.submit(); }, delay || 0);
+    }
+
+    if (window.flatpickr) {
+        flatpickr('.jp-date-vn', {
+            dateFormat: 'Y-m-d',
+            altInput: true,
+            altFormat: 'd/m/Y',
+            allowInput: true,
+            onChange: function () { submitForm(0); },
+        });
+    } else {
+        form.querySelectorAll('.jp-date-vn').forEach(function (el) {
+            el.addEventListener('change', function () { submitForm(0); });
+        });
+    }
+
+    var searchEl = form.querySelector('input[name="q"]');
+    if (searchEl) {
+        searchEl.addEventListener('input', function () { submitForm(450); });
+        searchEl.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') { e.preventDefault(); submitForm(0); }
+        });
+    }
+});
+</script>
 {% endblock %}

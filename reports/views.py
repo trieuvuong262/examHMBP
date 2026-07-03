@@ -14,7 +14,7 @@ from django.urls import reverse
 from django.views.decorators.http import require_POST
 from django.utils import timezone
 from django.contrib import messages
-from django.db.models import Count, Sum, Q
+from django.db.models import Count, Exists, OuterRef, Sum, Q
 
 from assessment.decorators import module_perm_required
 
@@ -115,7 +115,7 @@ from .forms import (
     OfficeDailyWorkReportForm,
     WeeklyWorkReportForm,
 )
-from .models import DailyWorkReport, DailyWorkReportAttachment, WeeklyWorkReport, WeeklyWorkReportAttachment
+from .models import DailyWorkReport, DailyWorkReportAttachment, ReportComment, WeeklyWorkReport, WeeklyWorkReportAttachment
 from .team_sort import (
     build_team_table_columns,
     resolve_team_sort,
@@ -608,6 +608,7 @@ def proxy_report_entry(request):
         'report_date': report_date,
         'subject': subject,
         'subject_name': subject_name,
+        'subject_code': subject_profile.employee_code if subject_profile and subject_profile.employee_code else '',
         'department_name': subject_profile.department.name if subject_profile and subject_profile.department_id else '',
         'team_members': team_members,
         'tabs': tabs,
@@ -627,6 +628,16 @@ def _today_office_report(request, report_date, *, report_period: str = PERIOD_DA
         report_profile=REPORT_PROFILE_OFFICE,
         report_period=report_period,
     )
+
+    # Nếu ngày/kỳ này đã có báo cáo nộp + đã khóa hoặc hết hạn sửa → chuyển sang lịch sử BC VP
+    if (
+        request.method == 'GET'
+        and report.pk
+        and report.status == DailyWorkReport.STATUS_SUBMITTED
+        and (is_report_locked(report) or is_report_edit_expired(report))
+    ):
+        return redirect(f'{reverse("reports:my_vp")}?period={report_period}')
+
     can_submit = can_submit_daily_report(request.user)
     can_edit = can_edit_own_daily_report(request.user, report, can_submit=can_submit)
     is_locked = is_report_locked(report)
@@ -1091,6 +1102,14 @@ def _my_reports(request, daily_report_profile=None):
     elif not can_view_own_report_history(request.user, daily_report_profile):
         return redirect('home_portal')
 
+    # Bộ lọc từ ngày — đến ngày (mặc định 1 tuần gần nhất)
+    history_date_from = _parse_iso_date(request.GET.get('from'))
+    history_date_to = _parse_iso_date(request.GET.get('to'))
+    if not history_date_to:
+        history_date_to = timezone.localdate()
+    if not history_date_from:
+        history_date_from = history_date_to - timedelta(days=6)
+
     if is_office:
         reports_qs = meaningful_daily_reports_qs().filter(
             employee=subject,
@@ -1100,6 +1119,12 @@ def _my_reports(request, daily_report_profile=None):
         reports_qs = reports_qs.annotate(
             line_count=Count('lines'),
             total_qty=Sum('lines__quantity'),
+            has_manager_comment=Exists(
+                ReportComment.objects.filter(daily_report=OuterRef('pk')).exclude(author=subject),
+            ),
+            has_employee_reply=Exists(
+                ReportComment.objects.filter(daily_report=OuterRef('pk'), author=subject),
+            ),
         ).order_by('-report_date')
         reports_qs = apply_combined_search(reports_qs, search_query, lambda term: (
             Q(hod_note__icontains=term)
@@ -1115,6 +1140,12 @@ def _my_reports(request, daily_report_profile=None):
             reports_qs = reports_qs.filter(report_profile=daily_report_profile)
         reports_qs = reports_qs.annotate(
             attachment_count=Count('attachments'),
+            has_manager_comment=Exists(
+                ReportComment.objects.filter(weekly_report=OuterRef('pk')).exclude(author=subject),
+            ),
+            has_employee_reply=Exists(
+                ReportComment.objects.filter(weekly_report=OuterRef('pk'), author=subject),
+            ),
         ).order_by('-week_start')
         reports_qs = apply_combined_search(reports_qs, search_query, lambda term: (
             Q(hod_note__icontains=term)
@@ -1131,6 +1162,12 @@ def _my_reports(request, daily_report_profile=None):
         reports_qs = reports_qs.annotate(
             line_count=Count('lines'),
             total_qty=Sum('lines__quantity'),
+            has_manager_comment=Exists(
+                ReportComment.objects.filter(daily_report=OuterRef('pk')).exclude(author=subject),
+            ),
+            has_employee_reply=Exists(
+                ReportComment.objects.filter(daily_report=OuterRef('pk'), author=subject),
+            ),
         ).order_by('-report_date')
         reports_qs = apply_combined_search(reports_qs, search_query, lambda term: (
             Q(hod_note__icontains=term)
@@ -1139,6 +1176,18 @@ def _my_reports(request, daily_report_profile=None):
             | Q(lines__order_code__icontains=term)
             | Q(lines__product_name__icontains=term)
         ))
+
+    # Áp dụng lọc ngày
+    if history_date_from:
+        if period == 'weekly':
+            reports_qs = reports_qs.filter(week_start__gte=history_date_from)
+        else:
+            reports_qs = reports_qs.filter(report_date__gte=history_date_from)
+    if history_date_to:
+        if period == 'weekly':
+            reports_qs = reports_qs.filter(week_start__lte=history_date_to)
+        else:
+            reports_qs = reports_qs.filter(report_date__lte=history_date_to)
 
     page_obj, query_string = paginate_queryset(request, reports_qs)
     scope_label = 'SX' if daily_report_profile == REPORT_PROFILE_PRODUCTION else 'VP' if daily_report_profile else ''
@@ -1191,6 +1240,8 @@ def _my_reports(request, daily_report_profile=None):
             if is_office and history_anchor else None
         ),
         'office_tab_extra_query': office_tab_extra_query,
+        'history_date_from': history_date_from,
+        'history_date_to': history_date_to,
     })
 
 
@@ -1277,7 +1328,8 @@ def _team_stat_urls(base_params: dict) -> dict:
         return '?' + urlencode(params)
 
     return {
-        'all': _url({}),
+        # 'all' phải xóa status (base_params có thể đang mang status hiện tại)
+        'all': _url({'status': ''}),
         'submitted': _url({'status': TEAM_STATUS_SUBMITTED}),
         'missing': _url({'status': TEAM_STATUS_MISSING}),
     }
@@ -1630,12 +1682,19 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
             messages.warning(request, 'Không có định mức hợp lệ để cập nhật.')
         return _detail_redirect()
 
-    if request.method == 'POST' and can_review:
-        report.hod_note = request.POST.get('hod_note', '').strip()
-        if report.status == DailyWorkReport.STATUS_SUBMITTED and not report.hod_reviewed:
-            report.hod_reviewed = True
-        report.save()
-        messages.success(request, 'Đã cập nhật phản hồi.')
+    can_comment = can_review or report.employee_id == request.user.id
+    if (
+        request.method == 'POST'
+        and request.POST.get('action') == 'add_comment'
+        and can_comment
+    ):
+        body = (request.POST.get('comment_body') or '').strip()
+        if body:
+            ReportComment.objects.create(daily_report=report, author=request.user, body=body)
+            if can_review and report.status == DailyWorkReport.STATUS_SUBMITTED and not report.hod_reviewed:
+                report.hod_reviewed = True
+                report.save(update_fields=['hod_reviewed', 'updated_at'])
+            messages.success(request, 'Đã gửi nhận xét.')
         return _detail_redirect()
 
     from reports.office_content import (
@@ -1739,6 +1798,8 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
         'productivity': productivity,
         'edit_report_url': edit_report_url,
         'can_review': can_review,
+        'can_comment': can_comment,
+        'comments': report.comments.select_related('author', 'author__profile').all(),
         'can_edit_norm': can_edit_norm,
         'can_submit_report': can_submit_daily_report(request.user),
         'can_view_team': can_view_team_reports(request.user),
@@ -1903,12 +1964,19 @@ def _weekly_report_detail_core(request, pk, *, detail_url_name: str):
     if request.method == 'GET' and lock_report_on_supervisor_view(report, request.user):
         report.refresh_from_db()
 
-    if request.method == 'POST' and can_review:
-        report.hod_note = request.POST.get('hod_note', '').strip()
-        if report.status == WeeklyWorkReport.STATUS_SUBMITTED and not report.hod_reviewed:
-            report.hod_reviewed = True
-        report.save()
-        messages.success(request, 'Đã cập nhật phản hồi.')
+    can_comment = can_review or report.employee_id == request.user.id
+    if (
+        request.method == 'POST'
+        and request.POST.get('action') == 'add_comment'
+        and can_comment
+    ):
+        body = (request.POST.get('comment_body') or '').strip()
+        if body:
+            ReportComment.objects.create(weekly_report=report, author=request.user, body=body)
+            if can_review and report.status == WeeklyWorkReport.STATUS_SUBMITTED and not report.hod_reviewed:
+                report.hod_reviewed = True
+                report.save(update_fields=['hod_reviewed', 'updated_at'])
+            messages.success(request, 'Đã gửi nhận xét.')
         return redirect(detail_url_name, pk=pk)
 
     images, files = _weekly_attachments(report)
@@ -1931,6 +1999,8 @@ def _weekly_report_detail_core(request, pk, *, detail_url_name: str):
         'employee_name': profile.full_name if profile else report.employee.username,
         'department_name': profile.department.name if profile and profile.department_id else '',
         'can_review': can_review,
+        'can_comment': can_comment,
+        'comments': report.comments.select_related('author', 'author__profile').all(),
         'can_submit_report': can_submit_daily_report(request.user),
         'can_view_team': can_view_team_reports(request.user),
         'edit_report_url': edit_report_url,

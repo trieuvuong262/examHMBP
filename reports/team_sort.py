@@ -62,7 +62,7 @@ def build_team_table_columns(
         {'key': TEAM_SORT_MEMBER, 'label': 'Nhân viên', 'align': 'start'},
         {
             'key': TEAM_SORT_ANCHOR,
-            'label': 'Mốc',
+            'label': 'Ngày',
             'align': 'start',
             'date_column': True,
         },
@@ -75,6 +75,7 @@ def build_team_table_columns(
         {'key': TEAM_SORT_PERIOD, 'label': 'Loại', 'align': 'start', 'office_only': True},
         {'key': 'title', 'label': 'Tiêu đề', 'align': 'start', 'office_only': True, 'sortable': False},
         {'key': TEAM_SORT_STATUS, 'label': 'Trạng thái', 'align': 'start'},
+        {'key': 'comment', 'label': 'Nhận xét', 'align': 'center', 'sortable': False},
         {'key': TEAM_SORT_REVIEWED, 'label': 'Đã xem', 'align': 'center'},
         {'key': TEAM_SORT_SUMMARY, 'label': 'Tóm tắt', 'align': 'end'},
         {'key': None, 'label': '', 'align': 'end', 'sortable': False},

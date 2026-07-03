@@ -5,9 +5,9 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import date, timedelta
 
-from django.db.models import Count, Sum
+from django.db.models import Count, Exists, OuterRef, Sum
 
-from reports.models import DailyWorkReport
+from reports.models import DailyWorkReport, ReportComment
 from reports.period_utils import PERIOD_DAY
 from reports.production_shift_policy import (
     PRODUCTION_SHIFT_ORDER,
@@ -69,6 +69,8 @@ def _aggregate_production_row(reports: list[DailyWorkReport], visible_fn) -> dic
         report.status == DailyWorkReport.STATUS_SUBMITTED for report in visible
     )
     all_reviewed = bool(visible) and all(report.hod_reviewed for report in visible)
+    has_manager_comment = any(getattr(report, 'has_manager_comment', False) for report in visible)
+    has_employee_reply = any(getattr(report, 'has_employee_reply', False) for report in visible)
     return {
         'report': primary,
         'production_reports': visible,
@@ -77,6 +79,8 @@ def _aggregate_production_row(reports: list[DailyWorkReport], visible_fn) -> dic
         'production_all_submitted': all_submitted,
         'production_any_submitted': any_submitted,
         'production_all_reviewed': all_reviewed,
+        'production_has_manager_comment': has_manager_comment,
+        'production_has_employee_reply': has_employee_reply,
         'shift_badges': _shift_badges_for_reports(visible),
     }
 
@@ -325,6 +329,12 @@ def query_production_team_reports(team_ids, date_from, date_to):
         .annotate(
             line_count=Count('lines'),
             total_qty=Sum('lines__quantity'),
+            has_manager_comment=Exists(
+                ReportComment.objects.filter(daily_report=OuterRef('pk')).exclude(author_id=OuterRef('employee_id')),
+            ),
+            has_employee_reply=Exists(
+                ReportComment.objects.filter(daily_report=OuterRef('pk'), author_id=OuterRef('employee_id')),
+            ),
         )
         .prefetch_related('production_products__hourly_entries')
     )

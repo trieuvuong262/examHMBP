@@ -437,3 +437,40 @@ class WeeklyWorkReportAttachment(models.Model):
     @property
     def is_image(self):
         return self.kind == self.KIND_IMAGE
+
+
+class ReportComment(models.Model):
+    """Nhận xét/phản hồi hai chiều trên báo cáo — quản lý và nhân viên trao đổi qua lại."""
+
+    daily_report = models.ForeignKey(
+        DailyWorkReport,
+        on_delete=models.CASCADE,
+        related_name='comments',
+        null=True,
+        blank=True,
+        verbose_name='Báo cáo ngày',
+    )
+    weekly_report = models.ForeignKey(
+        WeeklyWorkReport,
+        on_delete=models.CASCADE,
+        related_name='comments',
+        null=True,
+        blank=True,
+        verbose_name='Báo cáo tuần',
+    )
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='report_comments',
+        verbose_name='Người nhận xét',
+    )
+    body = models.TextField(verbose_name='Nội dung nhận xét')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at', 'id']
+        verbose_name = 'Nhận xét báo cáo'
+        verbose_name_plural = 'Nhận xét báo cáo'
+
+    def __str__(self):
+        return f'{self.author} · {self.created_at:%d/%m/%Y %H:%M}'

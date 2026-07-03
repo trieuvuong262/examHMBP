@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from datetime import date
 
-from django.db.models import Q
+from django.db.models import Exists, OuterRef, Q
 
 from hrm.concurrent_positions import MANAGER_SLOT_ROLES, get_active_concurrent_positions
 from hrm.permissions import get_profile
-from reports.models import DailyWorkReport, WeeklyWorkReport
+from reports.models import DailyWorkReport, ReportComment, WeeklyWorkReport
 from reports.period_utils import PERIOD_DAY, PERIOD_MONTH, PERIOD_WEEK
 from reports.report_profile import REPORT_PROFILE_OFFICE
 from reports.week_utils import monday_of
@@ -143,6 +143,12 @@ def query_team_office_reports_in_range(
             line_count=Count('lines'),
             total_qty=Sum('lines__quantity'),
             attachment_count=Count('attachments'),
+            has_manager_comment=Exists(
+                ReportComment.objects.filter(daily_report=OuterRef('pk')).exclude(author_id=OuterRef('employee_id')),
+            ),
+            has_employee_reply=Exists(
+                ReportComment.objects.filter(daily_report=OuterRef('pk'), author_id=OuterRef('employee_id')),
+            ),
         )
         .order_by('-report_date', 'employee__profile__full_name', 'employee__username')
     )

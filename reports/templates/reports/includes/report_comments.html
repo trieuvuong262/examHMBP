@@ -1,0 +1,58 @@
+{% comment %}
+  Luồng nhận xét hai chiều trên báo cáo (quản lý ⇄ nhân viên).
+  Context cần: comments, can_comment, report, request.user, (tùy chọn) team_list_query.
+{% endcomment %}
+<div class="jp-report-comments mb-4">
+    <div class="jp-report-comments-head">
+        <i class="bi bi-chat-dots-fill me-2" aria-hidden="true"></i>
+        <span class="fw-bold">Nhận xét &amp; phản hồi</span>
+        {% if comments %}<span class="badge bg-hm-subtle text-hm ms-2">{{ comments|length }}</span>{% endif %}
+    </div>
+
+    <div class="jp-report-comments-thread">
+        {% for c in comments %}
+        {% if c.author_id == report.employee_id %}
+        <div class="jp-report-comment is-employee">
+            <div class="jp-report-comment-bubble">
+                <div class="jp-report-comment-meta">
+                    <span class="jp-report-comment-author">{{ c.author.profile.full_name|default:c.author.username }}</span>
+                    <span class="jp-report-comment-role jp-role-employee">Nhân viên</span>
+                    <span class="jp-report-comment-time">{{ c.created_at|date:"H:i d/m/Y" }}</span>
+                </div>
+                <div class="jp-report-comment-body">{{ c.body|linebreaksbr }}</div>
+            </div>
+        </div>
+        {% else %}
+        <div class="jp-report-comment is-manager">
+            <div class="jp-report-comment-bubble">
+                <div class="jp-report-comment-meta">
+                    <span class="jp-report-comment-author">{{ c.author.profile.full_name|default:c.author.username }}</span>
+                    <span class="jp-report-comment-role jp-role-manager">Quản lý</span>
+                    <span class="jp-report-comment-time">{{ c.created_at|date:"H:i d/m/Y" }}</span>
+                </div>
+                <div class="jp-report-comment-body">{{ c.body|linebreaksbr }}</div>
+            </div>
+        </div>
+        {% endif %}
+        {% empty %}
+        <p class="jp-report-comments-empty text-muted small mb-0">
+            {% if can_comment %}Chưa có nhận xét nào. Hãy là người trao đổi đầu tiên.{% else %}Chưa có nhận xét nào.{% endif %}
+        </p>
+        {% endfor %}
+    </div>
+
+    {% if can_comment %}
+    <form method="post" class="jp-report-comment-form">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="add_comment">
+        {% if team_list_query %}<input type="hidden" name="team_list_query" value="{{ team_list_query }}">{% endif %}
+        <textarea name="comment_body" class="form-control jp-report-comment-input" rows="2"
+                  placeholder="Nhập nhận xét hoặc phản hồi..." required></textarea>
+        <div class="d-flex justify-content-end mt-2">
+            <button type="submit" class="btn btn-hm btn-sm fw-bold">
+                <i class="bi bi-send me-1" aria-hidden="true"></i>Gửi
+            </button>
+        </div>
+    </form>
+    {% endif %}
+</div>

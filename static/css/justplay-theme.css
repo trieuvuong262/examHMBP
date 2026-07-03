@@ -11166,3 +11166,120 @@ body.jp-meal-push-locked {
     color: #94a3b8 !important;
 }
 
+
+
+/* ===== Luồng nhận xét báo cáo (quản lý ⇄ nhân viên) ===== */
+.jp-report-comments {
+    border: 1px solid #e9edf2;
+    border-radius: 0.85rem;
+    background: #fbfcfe;
+    padding: 1rem 1.1rem;
+}
+
+.jp-report-comments-head {
+    display: flex;
+    align-items: center;
+    color: var(--hm-primary, #d21f3c);
+    font-size: 0.95rem;
+    margin-bottom: 0.85rem;
+}
+
+.jp-report-comments-thread {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    margin-bottom: 0.9rem;
+}
+
+.jp-report-comment {
+    display: flex;
+    width: 100%;
+}
+
+.jp-report-comment.is-employee {
+    justify-content: flex-end;
+}
+
+.jp-report-comment.is-manager {
+    justify-content: flex-start;
+}
+
+.jp-report-comment-bubble {
+    max-width: 78%;
+    padding: 0.55rem 0.8rem;
+    border-radius: 0.85rem;
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.jp-report-comment.is-manager .jp-report-comment-bubble {
+    background: #fff5f6;
+    border-color: #f3d6db;
+    border-top-left-radius: 0.25rem;
+}
+
+.jp-report-comment.is-employee .jp-report-comment-bubble {
+    background: #eef6ff;
+    border-color: #d3e6fb;
+    border-top-right-radius: 0.25rem;
+}
+
+.jp-report-comment-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: 0.2rem;
+    font-size: 0.72rem;
+}
+
+.jp-report-comment-author {
+    font-weight: 700;
+    color: #1f2937;
+}
+
+.jp-report-comment-role {
+    padding: 0.02rem 0.4rem;
+    border-radius: 999px;
+    font-size: 0.64rem;
+    font-weight: 700;
+}
+
+.jp-report-comment-role.jp-role-manager {
+    background: #fde2e6;
+    color: #b4123a;
+}
+
+.jp-report-comment-role.jp-role-employee {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.jp-report-comment-time {
+    color: #94a3b8;
+    margin-left: auto;
+}
+
+.jp-report-comment-body {
+    font-size: 0.88rem;
+    color: #334155;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+.jp-report-comments-empty {
+    padding: 0.4rem 0;
+}
+
+.jp-report-comment-input {
+    border-radius: 0.65rem;
+    border-color: #e2e8f0;
+    font-size: 0.9rem;
+    resize: vertical;
+}
+
+.jp-report-comment-input:focus {
+    border-color: #fca5a5;
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+}
