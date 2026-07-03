@@ -94,7 +94,15 @@ def parse_period_anchor_date(request, period: str) -> date:
             or request.POST.get('report_date')
         )
         parsed = _parse_iso_date(raw)
-        return monday_of(parsed) if parsed else monday_of(today)
+        if parsed:
+            return monday_of(parsed)
+        # Mặc định: tuần trước nếu còn hạn sửa, ngược lại tuần hiện tại
+        last_week_monday = monday_of(today) - timedelta(days=7)
+        last_week_end = last_week_monday + timedelta(days=6)
+        # Hạn sửa tuần = hết ngày CN + 1 (tức thứ 2 tuần sau)
+        if today <= last_week_end + timedelta(days=1):
+            return last_week_monday
+        return monday_of(today)
     raw = (
         request.GET.get('date')
         or request.POST.get('report_date')

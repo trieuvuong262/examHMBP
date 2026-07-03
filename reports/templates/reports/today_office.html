@@ -2,46 +2,44 @@
 {% load static %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260630c">
+<link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260703d">
 {% endblock %}
 
 {% block content %}
 <div class="container jp-page jp-reports-page jp-office-today-page py-3 py-md-4 mb-5">
-    <div class="jp-office-page-hero mb-3">
-        <div class="jp-office-page-hero-top">
-            <div class="jp-office-page-hero-text">
-                <div class="d-flex flex-wrap align-items-center gap-2">
-                    <h2 class="fw-bold text-hm mb-0 jp-page-title">{{ period_intro_title }}</h2>
-                    {% if report.status == 'SUBMITTED' %}
-                    <span class="badge jp-report-badge jp-report-badge--submitted">{{ report.get_status_display }}</span>
-                    {% else %}
-                    <span class="badge jp-report-badge jp-report-badge--draft">{{ report.get_status_display }}</span>
-                    {% endif %}
-                </div>
-                {% if employee_name %}
-                <p class="jp-office-page-hero-name mb-0 mt-2">{{ employee_name }}</p>
+
+    <div class="jp-page-header mb-3 mb-md-4">
+        <div class="jp-page-header-main">
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <h2 class="jp-page-title fw-bold text-dark mb-0">{{ period_intro_title }}</h2>
+                {% if report.status == 'SUBMITTED' %}
+                <span class="badge bg-success-subtle text-success">Đã nộp</span>
                 {% endif %}
             </div>
-            <div class="jp-office-page-hero-actions d-flex gap-2 flex-wrap">
-                {% include 'reports/includes/reports_page_tools.html' with report_period=office_period report_date=report_date can_view_team=can_view_team my_url_name=my_url_name team_url_name=team_url_name copy_url=copy_url copy_label=copy_label copy_confirm=copy_confirm %}
-            </div>
+            {% if employee_name %}
+            <p class="text-muted small mb-0 mt-1">{{ employee_name }}{% if department_name %} · {{ department_name }}{% endif %}</p>
+            {% endif %}
         </div>
-        <div class="jp-office-page-hero-tabs">
-            {% include 'reports/includes/vp_period_tabs.html' with base_url_name='reports:today_vp' office_period=office_period report_date=report_date period_nav_date=period_nav_date %}
+        <div class="d-flex gap-2 flex-wrap">
+            {% include 'reports/includes/reports_page_tools.html' with report_period=office_period report_date=report_date can_view_team=can_view_team my_url_name=my_url_name team_url_name=team_url_name copy_url=copy_url copy_label=copy_label copy_confirm=copy_confirm %}
         </div>
+    </div>
+
+    <div class="mb-3">
+        {% include 'reports/includes/vp_period_tabs.html' with base_url_name='reports:today_vp' office_period=office_period report_date=report_date period_nav_date=period_nav_date %}
     </div>
 
     {% if is_locked %}
     <div class="alert alert-secondary border-0 shadow-sm py-2 mb-3">
-        Cấp trên đã xem báo cáo — không thể chỉnh sửa.
+        <i class="bi bi-lock-fill me-1"></i>Cấp trên đã xem báo cáo — không thể chỉnh sửa.
     </div>
     {% elif show_edit_expired %}
     <div class="alert alert-secondary border-0 shadow-sm py-2 mb-3">
-        Đã quá hạn chỉnh sửa — chỉ được sửa đến hết ngày {{ last_editable_on|date:"d/m/Y" }}.
+        <i class="bi bi-clock-history me-1"></i>Đã quá hạn chỉnh sửa — chỉ được sửa đến hết ngày {{ last_editable_on|date:"d/m/Y" }}.
     </div>
     {% elif report.status == 'SUBMITTED' %}
     <div class="alert alert-success border-0 shadow-sm py-2 mb-3">
-        Đã gửi lúc {{ report.submitted_at|date:"H:i d/m/Y" }} — vẫn có thể chỉnh và gửi lại.
+        <i class="bi bi-check-circle me-1"></i>Đã gửi lúc {{ report.submitted_at|date:"H:i d/m/Y" }} — vẫn có thể chỉnh và gửi lại.
     </div>
     {% endif %}
 
@@ -53,38 +51,41 @@
         {% csrf_token %}
         <input type="hidden" name="period" value="{{ office_period }}">
 
-        <div class="jp-office-date-bar card border-0 shadow-sm mb-3">
+        <div class="card border-0 shadow-sm mb-3">
             <div class="card-body py-3 px-3 px-md-4">
-                <label class="form-label fw-semibold small text-muted mb-1" for="{% if office_period == 'month' %}office-month-input{% else %}id_report_date{% endif %}">{{ period_date_label }}</label>
-                <div class="jp-office-date-bar-field">
-                    {% if office_period == 'month' %}
-                    <input type="month" name="month" id="office-month-input" class="form-control" value="{{ period_date_input_value }}">
-                    <input type="hidden" name="report_date" value="{{ report_date|date:'Y-m-d' }}">
-                    {% else %}
-                    {{ form.report_date }}
-                    {% endif %}
+                {% if office_period != 'day' %}
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-4 col-lg-3">
+                        <label class="form-label fw-bold small text-muted mb-1" for="{% if office_period == 'month' %}office-month-input{% else %}id_report_date{% endif %}">
+                            {% if office_period == 'month' %}Tháng báo cáo{% else %}Chọn tuần báo cáo{% endif %}
+                        </label>
+                        <div class="jp-office-date-bar-field">
+                            {% if office_period == 'month' %}
+                            <input type="month" name="month" id="office-month-input" class="form-control" value="{{ period_date_input_value }}">
+                            <input type="hidden" name="report_date" value="{{ report_date|date:'Y-m-d' }}">
+                            {% else %}
+                            {{ form.report_date }}
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-8 col-lg-9">
+                        <label class="form-label fw-bold small text-muted mb-1" for="{{ form.title.id_for_label }}">Tiêu đề báo cáo</label>
+                        {{ form.title }}
+                        {% if form.title.errors %}<div class="text-danger small mt-1">{{ form.title.errors }}</div>{% endif %}
+                    </div>
                 </div>
-                {% if office_period == 'week' %}
-                <p class="text-muted small mb-0 mt-2">
-                    <i class="bi bi-info-circle me-1"></i>Hệ thống tự xác định tuần (Thứ 2 – Chủ nhật) từ ngày bạn chọn.
-                </p>
+                {% else %}
+                <label class="form-label fw-bold small text-muted mb-1" for="id_report_date">Ngày báo cáo</label>
+                <div class="jp-office-date-bar-field">
+                    {{ form.report_date }}
+                </div>
                 {% endif %}
             </div>
         </div>
 
-        {% if office_period != 'day' %}
-        <div class="jp-office-title-bar card border-0 shadow-sm mb-3">
-            <div class="card-body py-3 px-3 px-md-4">
-                <label class="form-label fw-semibold small text-muted mb-1" for="{{ form.title.id_for_label }}">Tiêu đề báo cáo</label>
-                {{ form.title }}
-                {% if form.title.errors %}<div class="text-danger small mt-1">{{ form.title.errors }}</div>{% endif %}
-            </div>
-        </div>
-        {% endif %}
-
         {% include 'reports/includes/office_report_workspace.html' %}
 
-        <div class="card border-0 shadow-sm mb-3 jp-office-link-card">
+        <div class="card border-0 shadow-sm mb-3">
             <div class="card-header bg-white border-bottom py-3">
                 <h6 class="fw-bold mb-0"><i class="bi bi-link-45deg me-1 text-hm"></i>Link &amp; đính kèm</h6>
             </div>
@@ -102,8 +103,10 @@
         {% endif %}
 
         {% if can_edit %}
-        <div class="jp-office-actions">
-            <button type="submit" name="action" value="submit" class="btn btn-hm px-4 fw-bold">Gửi báo cáo</button>
+        <div class="d-flex justify-content-end gap-2 mt-3">
+            <button type="submit" name="action" value="submit" class="btn btn-hm px-4 fw-bold shadow-sm">
+                <i class="bi bi-send me-1"></i>Gửi báo cáo
+            </button>
         </div>
         {% endif %}
     </form>
@@ -112,4 +115,5 @@
 
 {% block scripts %}
 {% include 'reports/includes/office_ckeditor_scripts.html' %}
+<script src="{% static 'js/reports-office-autosave.js' %}?v=20260703a"></script>
 {% endblock %}
