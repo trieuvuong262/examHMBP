@@ -2132,3 +2132,74 @@ body .modal-backdrop.show {
     color: #475569;
     cursor: help;
 }
+
+/* ——— Nút xem tổng & gửi báo cáo (tách màu + vị trí, tránh bấm nhầm) ——— */
+.jp-prod-go-review-wrap--sidebar {
+    margin-top: 1.25rem;
+    padding-top: 1rem;
+    border-top: 1px dashed rgba(15, 23, 42, 0.14);
+    width: 100%;
+}
+
+.jp-prod-go-review-cta {
+    background: #fff;
+    color: #1e3a5f;
+    border: 2px solid #64748b;
+    box-shadow: none;
+    font-size: 0.92rem;
+    padding: 0.55rem 1rem;
+    min-height: 2.75rem;
+}
+
+.jp-prod-go-review-cta:hover,
+.jp-prod-go-review-cta:focus {
+    background: #f1f5f9;
+    color: #0f172a;
+    border-color: #475569;
+    transform: none;
+    box-shadow: none;
+}
+
+.jp-prod-go-review-sticky-bar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1040;
+    padding: 0.6rem 1rem calc(0.6rem + env(safe-area-inset-bottom, 0px));
+    background: rgba(255, 255, 255, 0.98);
+    border-top: 1px solid rgba(15, 23, 42, 0.12);
+    box-shadow: 0 -6px 24px rgba(15, 23, 42, 0.1);
+    backdrop-filter: blur(8px);
+}
+
+.jp-prod-go-review-sticky-bar .jp-prod-go-review-wrap {
+    max-width: 480px;
+    margin: 0 auto;
+}
+
+.jp-prod-go-review-sticky-bar .jp-prod-go-review-cta {
+    min-height: 2.85rem;
+    font-size: 0.95rem;
+}
+
+.jp-prod-go-review-sticky-spacer {
+    height: 4.25rem;
+}
+
+@media (min-width: 992px) {
+    .jp-prod-sidebar-card .jp-prod-go-review-wrap--sidebar {
+        margin-top: 1rem;
+    }
+
+    .jp-prod-sidebar-card .jp-prod-go-review-cta {
+        width: 100%;
+    }
+}
+
+.jp-prod-resume-entry {
+    padding: 0.85rem 1rem;
+    border-radius: 0.75rem;
+    background: rgba(var(--hm-primary-rgb, 220, 38, 38), 0.06);
+    border: 1px dashed rgba(var(--hm-primary-rgb, 220, 38, 38), 0.25);
+}

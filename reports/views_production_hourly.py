@@ -29,6 +29,9 @@ from reports.production_hourly import (
     end_work_session,
     finalize_product_with_metadata,
     is_production_report_locked,
+    is_production_entry_closed,
+    lock_production_steps_on_submit,
+    product_is_submitted_locked,
     parse_decimal,
     parse_non_negative_decimal,
     parse_int,
@@ -38,6 +41,7 @@ from reports.production_hourly import (
     shift_is_started,
     start_work_session,
     unfinalized_active_with_data,
+    update_session_product,
 )
 from reports.production_shift_policy import (
     PRODUCTION_SHIFT_ORDER,
@@ -78,6 +82,8 @@ def _apply_review_payload(report, payload_str, *, relax_slot_scope=False):
         try:
             product = report.production_products.get(pk=product_id)
         except ProductionShiftProduct.DoesNotExist:
+            continue
+        if product_is_submitted_locked(product):
             continue
         for cell in row.get('slots', []):
             slot_index = cell.get('slot_index')
@@ -226,7 +232,29 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
         messages.success(request, f'Đã bắt đầu {shift_display_label(start_shift)}.')
         return redirect(_production_redirect(report_date, start_shift, for_user or None))
 
+    if action == 'resume_production_entry':
+        if not (
+            can_submit_daily_report(request.user)
+            or (editing_for_other and can_proxy_enter_daily_report(request.user, subject))
+        ):
+            messages.error(request, 'Bạn không có quyền chỉnh sửa báo cáo này.')
+            return redirect(_production_redirect(report_date, shift, for_user or None))
+        if not report or not report.pk:
+            return redirect(_production_redirect(report_date, shift, for_user or None))
+        if not is_production_entry_closed(report):
+            return redirect(_production_redirect(report_date, shift, for_user or None))
+        report.status = DailyWorkReport.STATUS_DRAFT
+        report.submitted_at = None
+        report.save(update_fields=['status', 'submitted_at', 'updated_at'])
+        return redirect(_production_redirect(report_date, shift, for_user or None))
+
     if action == 'start_product':
+        if is_production_entry_closed(report):
+            messages.warning(
+                request,
+                'Báo cáo đã gửi — bấm «Nhập tiếp báo cáo» trên màn tổng kết để thêm công đoạn.',
+            )
+            return redirect(_production_redirect(report_date, shift, for_user or None, 'phase=review'))
         if not (
             can_submit_daily_report(request.user)
             or (editing_for_other and can_proxy_enter_daily_report(request.user, subject))
@@ -246,10 +274,6 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
         except ValueError as exc:
             messages.error(request, str(exc))
             return redirect(_production_redirect(report_date, shift, for_user or None))
-        messages.success(
-            request,
-            f'Đã bắt đầu công đoạn — {shift_display_label(shift)}.',
-        )
         return redirect(_production_redirect(report_date, shift, for_user or None))
 
     if report and report.pk:
@@ -281,14 +305,19 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
         ensure_work_day_started(report)
 
     if action == 'end_product':
+        if is_production_entry_closed(report):
+            messages.warning(request, 'Báo cáo đã gửi — không thể kết thúc thêm công đoạn.')
+            return redirect(_production_redirect(report_date, shift, for_user or None, 'phase=review'))
         ended = end_work_session(report)
         if not ended:
             messages.error(request, 'Không có công đoạn đang làm để kết thúc.')
             return redirect(_production_redirect(report_date, shift, for_user or None))
-        messages.success(request, 'Đã kết thúc công đoạn — nhập sản lượng và thông tin mã hàng.')
         return redirect(_production_redirect(report_date, shift, for_user or None, 'phase=complete_product'))
 
     if action == 'complete_product':
+        if is_production_entry_closed(report):
+            messages.warning(request, 'Báo cáo đã gửi — không thể nhập thêm sản lượng.')
+            return redirect(_production_redirect(report_date, shift, for_user or None, 'phase=review'))
         code = (request.POST.get('product_code') or '').strip()
         process = (request.POST.get('process_name') or '').strip()
         norm = parse_decimal(request.POST.get('norm_per_hour'))
@@ -320,7 +349,50 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
             messages.success(request, f'Đã lưu {code} — tổng {total_qty.normalize()} sản phẩm.')
         return redirect(_production_redirect(report_date, shift, for_user or None))
 
+    if action == 'edit_session':
+        if is_production_entry_closed(report):
+            messages.warning(request, 'Báo cáo đã gửi — bấm «Nhập tiếp báo cáo» trước khi chỉnh sửa.')
+            return redirect(_production_redirect(report_date, shift, for_user or None, 'phase=review'))
+        product_id = parse_int(request.POST.get('product_id'), -1)
+        try:
+            product = report.production_products.get(pk=product_id)
+        except ProductionShiftProduct.DoesNotExist:
+            messages.error(request, 'Không tìm thấy công đoạn cần sửa.')
+            return redirect(_production_redirect(report_date, shift, for_user or None, 'phase=review'))
+        if product_is_submitted_locked(product):
+            messages.warning(request, 'Công đoạn đã gửi trong báo cáo — không thể sửa.')
+            return redirect(_production_redirect(report_date, shift, for_user or None, 'phase=review'))
+        code = (request.POST.get('product_code') or '').strip()
+        process = (request.POST.get('process_name') or '').strip()
+        norm = parse_decimal(request.POST.get('norm_per_hour'))
+        total_qty = parse_non_negative_decimal(request.POST.get('total_quantity'), default=Decimal('-1'))
+        damaged_quantity = parse_int(request.POST.get('damaged_quantity'))
+        note = (request.POST.get('note') or '').strip()
+        zero_reason = (request.POST.get('zero_reason') or '').strip()
+        if total_qty < 0:
+            messages.error(request, 'Nhập sản lượng hợp lệ.')
+            return redirect(_production_redirect(report_date, shift, for_user or None, 'phase=review'))
+        try:
+            update_session_product(
+                product,
+                product_code=code,
+                process_name=process,
+                norm_per_hour=norm,
+                total_quantity=total_qty,
+                damaged_quantity=damaged_quantity,
+                note=note,
+                zero_reason=zero_reason,
+            )
+        except ValueError as exc:
+            messages.error(request, str(exc))
+            return redirect(_production_redirect(report_date, shift, for_user or None, 'phase=review'))
+        messages.success(request, f'Đã cập nhật {code}.')
+        return redirect(_production_redirect(report_date, shift, for_user or None, 'phase=review'))
+
     if action == 'finalize_product':
+        if is_production_entry_closed(report):
+            messages.warning(request, 'Báo cáo đã gửi — không thể nhập thêm sản lượng.')
+            return redirect(_production_redirect(report_date, shift, for_user or None, 'phase=review'))
         code = (request.POST.get('product_code') or '').strip()
         process = (request.POST.get('process_name') or '').strip()
         norm = parse_decimal(request.POST.get('norm_per_hour'))
@@ -433,6 +505,8 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
                 return redirect(_production_redirect(report_date, shift, for_user or None, extra))
         was_submitted = report.status == DailyWorkReport.STATUS_SUBMITTED
         msg = _finalize_report_submission(report, action)
+        if action == 'submit':
+            lock_production_steps_on_submit(report)
         if action == 'submit' and was_submitted:
             msg = 'Đã cập nhật báo cáo.'
         messages.success(request, msg)
@@ -642,6 +716,7 @@ def today_production_hourly(request, report_date, report_context_common):
         'can_edit': can_edit,
         'is_submitted': is_submitted,
         'is_locked': is_locked,
+        'production_entry_closed': is_production_entry_closed(report) if report.pk else False,
         'is_edit_expired': is_edit_expired,
         'phase': phase,
         'shift_started': started,
@@ -667,6 +742,14 @@ def today_production_hourly(request, report_date, report_context_common):
         'detail_url': reverse('reports:detail_cn', kwargs={'pk': report.pk}) if report.pk else '',
         'shift_picker_url': _production_redirect(
             report_date, '', subject.id if editing_for_other else None, 'pick_shift=1',
+        ),
+        'production_review_url': (
+            _production_redirect(report_date, shift, subject.id if editing_for_other else None, 'phase=review')
+            if report and report.pk and started
+            else ''
+        ),
+        'has_saved_product': bool(
+            grid and any(not row.get('is_unfinalized') for row in grid.get('rows') or [])
         ),
     })
     return render(request, 'reports/today_production_hourly.html', ctx)

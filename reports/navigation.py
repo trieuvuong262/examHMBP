@@ -9,6 +9,7 @@ from hrm.module_permissions import MODULE_REPORTS
 from reports.report_profile import (
     REPORT_PROFILE_OFFICE,
     REPORT_PROFILE_PRODUCTION,
+    get_report_profile,
 )
 from reports.period_utils import (
     PERIOD_DAY,
@@ -66,11 +67,28 @@ def legacy_reports_menu_key(menu_key: str) -> str | None:
     return legacy_daily_menu_key(menu_key) or legacy_weekly_menu_key(menu_key)
 
 
+def preferred_daily_report_profile(user) -> str | None:
+    """Loại báo cáo ngày ưu tiên cho user.
+
+    Tách biệt VP/SX: ưu tiên theo phòng ban (report_profile). Chỉ trả về loại mà
+    user thực sự có quyền menu; nếu phòng ban không khớp menu được cấp thì dùng
+    menu duy nhất có. Trả về None nếu user không có quyền nhập báo cáo ngày nào.
+    """
+    has_cn = user_can_access_menu(user, MODULE_REPORTS, MENU_DAILY_CN)
+    has_vp = user_can_access_menu(user, MODULE_REPORTS, MENU_DAILY_VP)
+    if not has_cn and not has_vp:
+        return None
+    if has_cn and not has_vp:
+        return REPORT_PROFILE_PRODUCTION
+    if has_vp and not has_cn:
+        return REPORT_PROFILE_OFFICE
+    # Có cả hai menu → quyết định theo phòng ban để không mặc định SX.
+    return get_report_profile(user)
+
+
 def today_url_name_for_user(user) -> str:
-    """Ưu tiên menu được cấp trong phân quyền — không theo phòng ban."""
-    if user_can_access_menu(user, MODULE_REPORTS, MENU_DAILY_CN):
-        return 'reports:today_cn'
-    if user_can_access_menu(user, MODULE_REPORTS, MENU_DAILY_VP):
+    """Điều hướng nhập báo cáo ngày — theo phòng ban, không mặc định SX."""
+    if preferred_daily_report_profile(user) == REPORT_PROFILE_OFFICE:
         return 'reports:today_vp'
     return 'reports:today_cn'
 
@@ -80,9 +98,13 @@ def today_url_for_user(user) -> str:
 
 
 def weekly_url_name_for_user(user) -> str:
-    if user_can_access_menu(user, MODULE_REPORTS, MENU_WEEKLY_CN):
+    has_cn = user_can_access_menu(user, MODULE_REPORTS, MENU_WEEKLY_CN)
+    has_vp = user_can_access_menu(user, MODULE_REPORTS, MENU_WEEKLY_VP)
+    if has_cn and has_vp:
+        if get_report_profile(user) == REPORT_PROFILE_OFFICE:
+            return 'reports:weekly_vp'
         return 'reports:weekly_cn'
-    if user_can_access_menu(user, MODULE_REPORTS, MENU_WEEKLY_VP):
+    if has_vp:
         return 'reports:weekly_vp'
     return 'reports:weekly_cn'
 
@@ -100,11 +122,10 @@ def user_has_dual_daily_report_submit(user) -> bool:
 
 
 def my_url_name_for_user(user) -> str:
-    if user_has_dual_daily_report_submit(user):
-        return 'reports:my_vp'
-    if user_can_access_menu(user, MODULE_REPORTS, MENU_DAILY_CN):
+    profile = preferred_daily_report_profile(user)
+    if profile == REPORT_PROFILE_PRODUCTION:
         return 'reports:my_cn'
-    if user_can_access_menu(user, MODULE_REPORTS, MENU_DAILY_VP):
+    if profile == REPORT_PROFILE_OFFICE:
         return 'reports:my_vp'
     if user_can_access_menu(user, MODULE_REPORTS, MENU_WEEKLY_CN):
         return 'reports:my_cn'
@@ -152,9 +173,7 @@ def my_url_for_profile(report_profile: str) -> str:
 
 
 def my_url_name_for_history(user, report_profile: str) -> str:
-    """URL lịch sử cá nhân — user có cả SX và VP thì mặc định VP."""
-    if user_has_dual_daily_report_submit(user):
-        return 'reports:my_vp'
+    """URL lịch sử cá nhân — bám theo loại trang đang xem (SX↔SX, VP↔VP)."""
     return my_url_name_for_profile(report_profile)
 
 
@@ -361,10 +380,14 @@ def list_back_url_for(report, viewer, *, can_view_team: bool) -> str:
 
 
 def redirect_team_legacy(user):
-    """URL quản lý báo cáo ngày mặc định — theo phân quyền menu."""
-    if user_can_access_menu(user, MODULE_REPORTS, MENU_DAILY_CN_DETAIL):
+    """URL quản lý báo cáo ngày mặc định — theo phòng ban khi có cả hai quyền."""
+    has_cn = user_can_access_menu(user, MODULE_REPORTS, MENU_DAILY_CN_DETAIL)
+    has_vp = user_can_access_menu(user, MODULE_REPORTS, MENU_DAILY_VP_DETAIL)
+    if has_cn and has_vp:
+        if get_report_profile(user) == REPORT_PROFILE_OFFICE:
+            return reverse('reports:team_vp')
         return reverse('reports:team_cn')
-    if user_can_access_menu(user, MODULE_REPORTS, MENU_DAILY_VP_DETAIL):
+    if has_vp:
         return reverse('reports:team_vp')
     return reverse('reports:team_cn')
 
@@ -386,9 +409,7 @@ def redirect_team_weekly_legacy(user):
 
 
 def redirect_copy_yesterday_legacy(user):
-    if user_can_access_menu(user, MODULE_REPORTS, MENU_DAILY_CN):
-        return reverse('reports:copy_yesterday_cn')
-    if user_can_access_menu(user, MODULE_REPORTS, MENU_DAILY_VP):
+    if preferred_daily_report_profile(user) == REPORT_PROFILE_OFFICE:
         return reverse('reports:copy_yesterday_vp')
     return reverse('reports:copy_yesterday_cn')
 

@@ -10,6 +10,7 @@ urlpatterns = [
     path('push/subscribe/', push_views.push_subscribe, name='push_subscribe'),
     path('push/unsubscribe/', push_views.push_unsubscribe, name='push_unsubscribe'),
     path('push/status/', push_views.push_status, name='push_status'),
+    path('push/consent/', push_views.push_consent, name='push_consent'),
     path('push/test/', push_views.push_test, name='push_test'),
     path('push/schedule-poll/', push_views.schedule_push_poll, name='schedule_push_poll'),
     path('dat-com/tu-choi/', portal_actions.meal_decline, name='meal_decline'),

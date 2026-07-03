@@ -11039,19 +11039,19 @@ body.jp-monitor-modal-open {
     }
 }
 
-/* --- Bắt buộc bật nhắc đẩy đặt cơm --- */
-body.jp-meal-push-locked {
-    overflow: hidden;
-}
-
+/* --- Gợi ý bật nhắc đẩy portal (không chặn trang) --- */
 .jp-meal-push-gate {
     position: fixed;
-    inset: 0;
+    right: 1rem;
+    bottom: 1rem;
+    left: auto;
+    top: auto;
     z-index: 1080;
     display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 1.25rem;
+    align-items: flex-end;
+    justify-content: flex-end;
+    padding: 0;
+    pointer-events: none;
 }
 
 .jp-meal-push-gate[hidden] {
@@ -11059,21 +11059,20 @@ body.jp-meal-push-locked {
 }
 
 .jp-meal-push-gate-backdrop {
-    position: absolute;
-    inset: 0;
-    background: rgba(15, 23, 42, 0.72);
-    backdrop-filter: blur(4px);
+    display: none;
 }
 
 .jp-meal-push-gate-card {
     position: relative;
     z-index: 1;
-    width: min(100%, 420px);
-    padding: 1.75rem 1.5rem;
+    width: min(calc(100vw - 2rem), 380px);
+    padding: 1.25rem 1.15rem;
     border-radius: 16px;
     background: #fff;
-    box-shadow: 0 24px 48px rgba(15, 23, 42, 0.28);
+    box-shadow: 0 16px 40px rgba(15, 23, 42, 0.22);
     text-align: center;
+    pointer-events: auto;
+    border: 1px solid rgba(148, 163, 184, 0.35);
 }
 
 .jp-meal-push-gate-icon {

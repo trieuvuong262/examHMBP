@@ -1,0 +1,199 @@
+{% extends 'reports/detail_base.html' %}
+{% load static %}
+
+{% block detail_extra_head %}
+<link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260624a">
+<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260702r">
+{% endblock %}
+
+{% block detail_body %}
+    {% if can_edit_norm and productivity and productivity.has_data %}
+    <form method="post" id="jp-prod-norm-form">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="update_norms">
+    {% endif %}
+
+    {% if productivity and productivity.has_data or hourly_grid %}
+    <div class="card border-0 jp-report-section-card jp-report-tabs-card mb-4">
+        <ul class="nav nav-tabs jp-report-tabs" id="jpReportDetailTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="jp-tab-productivity-btn" data-bs-toggle="tab" data-bs-target="#jp-tab-productivity" type="button" role="tab" aria-controls="jp-tab-productivity" aria-selected="true">
+                    <i class="bi bi-speedometer2 me-1"></i>Báo cáo năng suất
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="jp-tab-quantity-btn" data-bs-toggle="tab" data-bs-target="#jp-tab-quantity" type="button" role="tab" aria-controls="jp-tab-quantity" aria-selected="false">
+                    <i class="bi bi-table me-1"></i>Báo cáo sản lượng
+                </button>
+            </li>
+        </ul>
+        <div class="tab-content jp-report-tab-panels" id="jpReportDetailTabContent">
+            <div class="tab-pane fade show active" id="jp-tab-productivity" role="tabpanel" aria-labelledby="jp-tab-productivity-btn" tabindex="0">
+                {% if productivity and productivity.has_data %}
+                <div class="jp-report-tab-toolbar">
+                    <div class="jp-prod-eff-legend jp-prod-eff-legend--inline">
+                        <span class="jp-prod-eff-legend-title">Hiệu suất:</span>
+                        <span class="jp-prod-eff-legend-item"><span class="jp-prod-eff-badge is-good">≥100%</span> Đạt / vượt định mức</span>
+                        <span class="jp-prod-eff-legend-item"><span class="jp-prod-eff-badge is-ok">80–99%</span> Gần đạt</span>
+                        <span class="jp-prod-eff-legend-item"><span class="jp-prod-eff-badge is-low">&lt;80%</span> Chưa đạt</span>
+                    </div>
+                </div>
+                <div class="jp-report-tab-body">
+                    {% include 'reports/includes/production_productivity_report.html' with can_edit_norm=can_edit_norm %}
+                    {% if can_edit_norm %}
+                    {% include 'reports/includes/production_norm_edit_modal.html' %}
+                    {% endif %}
+                </div>
+                {% else %}
+                <div class="jp-report-tab-body text-center text-muted py-5">Chưa có dữ liệu năng suất.</div>
+                {% endif %}
+            </div>
+            <div class="tab-pane fade" id="jp-tab-quantity" role="tabpanel" aria-labelledby="jp-tab-quantity-btn" tabindex="0">
+                <div class="jp-report-tab-body">
+                    {% if hourly_grid %}
+                    {% include 'reports/includes/production_hourly_grid_detail.html' %}
+                    {% else %}
+                    <div class="text-center text-muted py-5">Chưa có dữ liệu sản lượng theo giờ.</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% if can_edit_norm and productivity and productivity.has_data %}
+    </form>
+    {% endif %}
+
+    {% elif not hourly_grid %}
+    <div class="card border-0 shadow-sm overflow-hidden mb-4">
+        <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Công đoạn</th>
+                        <th>Mã đơn/Style</th>
+                        <th>Tên SP</th>
+                        <th class="text-end">SL</th>
+                        <th>ĐVT</th>
+                        <th>Ghi chú</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for line in report.lines.all %}
+                    <tr>
+                        <td>{{ line.get_area_display }}</td>
+                        <td>{{ line.order_code|default:"—" }}</td>
+                        <td>{{ line.product_name|default:"—" }}</td>
+                        <td class="text-end fw-bold">{{ line.quantity }}</td>
+                        <td>{{ line.get_unit_display }}</td>
+                        <td>{{ line.note|default:"—" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6" class="text-center text-muted py-4">Chưa bắt đầu ca hoặc chưa có dữ liệu.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+{% endblock %}
+
+{% block detail_inline_scripts %}
+{% if can_edit_norm and productivity and productivity.has_data %}
+<script>
+(function () {
+    function efficiencyPct(qty, hours, norm) {
+        qty = parseFloat(qty);
+        hours = parseFloat(hours);
+        norm = parseFloat(norm);
+        if (!qty || !hours || !norm || norm <= 0) return null;
+        return (qty / (norm * hours) * 100).toFixed(2);
+    }
+
+    function applyNorm(productId, normValue) {
+        var norm = parseFloat(normValue);
+        document.querySelectorAll('.jp-prod-summary-row[data-product-id="' + productId + '"]').forEach(function (row) {
+            var qty = row.getAttribute('data-quantity');
+            var hours = row.getAttribute('data-hours');
+            var normDisplay = row.querySelector('.jp-prod-norm-display');
+            if (normDisplay) {
+                normDisplay.textContent = norm > 0 ? Math.round(norm) : '—';
+            }
+            var effCell = row.querySelector('.jp-prod-eff-cell');
+            if (effCell) {
+                var eff = efficiencyPct(qty, hours, norm);
+                if (eff === null) {
+                    effCell.innerHTML = '<span class="text-muted">—</span>';
+                    return;
+                }
+                var badgeClass = 'jp-prod-eff-badge';
+                if (parseFloat(eff) >= 100) badgeClass += ' is-good';
+                else if (parseFloat(eff) >= 80) badgeClass += ' is-ok';
+                else badgeClass += ' is-low';
+                effCell.innerHTML = '<span class="' + badgeClass + '">' + eff + '%</span>';
+            }
+        });
+    }
+
+    var modal = document.getElementById('jpProdNormModal');
+    var inputs = document.querySelectorAll('#jpProdNormModal .jp-prod-norm-input[data-product-id]');
+    if (!inputs.length) return;
+    var byProduct = {};
+    inputs.forEach(function (input) {
+        var id = input.getAttribute('data-product-id');
+        if (!byProduct[id]) byProduct[id] = [];
+        byProduct[id].push(input);
+    });
+    inputs.forEach(function (input) {
+        input.addEventListener('input', function () {
+            var productId = input.getAttribute('data-product-id');
+            (byProduct[productId] || []).forEach(function (peer) {
+                if (peer !== input) peer.value = input.value;
+            });
+            applyNorm(productId, input.value);
+        });
+    });
+
+    if (modal) {
+        modal.addEventListener('show.bs.modal', function (event) {
+            var trigger = event.relatedTarget;
+            var productId = trigger && trigger.getAttribute('data-product-id');
+            modal.querySelectorAll('.jp-prod-norm-modal-row').forEach(function (row) {
+                row.classList.remove('is-focus');
+            });
+            if (!productId) return;
+            var targetRow = modal.querySelector('.jp-prod-norm-modal-row[data-product-id="' + productId + '"]');
+            if (!targetRow) return;
+            targetRow.classList.add('is-focus');
+            var focusInput = targetRow.querySelector('.jp-prod-norm-input');
+            if (focusInput) {
+                setTimeout(function () {
+                    focusInput.focus();
+                    focusInput.select();
+                }, 200);
+            }
+        });
+    }
+})();
+</script>
+{% endif %}
+{% endblock %}
+
+{% block detail_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    if (!(window.bootstrap && bootstrap.Tooltip)) return;
+    function initFlags(root) {
+        (root || document).querySelectorAll('.jp-ph-flag[data-bs-toggle="tooltip"]').forEach(function (el) {
+            bootstrap.Tooltip.getOrCreateInstance(el);
+        });
+    }
+    initFlags(document);
+    var quantityTabBtn = document.getElementById('jp-tab-quantity-btn');
+    if (quantityTabBtn) {
+        quantityTabBtn.addEventListener('shown.bs.tab', function () {
+            initFlags(document.getElementById('jp-tab-quantity'));
+        });
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,103 @@
+{% extends 'reports/team_base.html' %}
+{% load report_extras %}
+{% load static %}
+
+{% block team_filter_period %}
+<div>
+    <label class="form-label fw-bold small mb-1">Loại</label>
+    <select name="period" class="form-select">
+        <option value="">Tất cả</option>
+        {% for value, label in period_filter_choices %}
+        <option value="{{ value }}" {% if selected_period == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+    </select>
+</div>
+{% endblock %}
+
+{% block team_clear_extra %}{% if selected_period %}&period={{ selected_period }}{% endif %}{% endblock %}
+
+{% block team_row_cells %}
+<td>
+    <strong>{{ row.member.profile.full_name|default:row.member.username }}</strong>
+    {% if row.member.profile.department %}
+    <div class="text-muted small">{{ row.member.profile.department.name }}</div>
+    {% endif %}
+</td>
+<td>
+    {% if row.report %}
+    <span class="text-nowrap small">{% if row.report.submitted_at %}{{ row.report.submitted_at|date:"H:i d/m/Y" }}{% else %}{{ row.report.report_date|date:"d/m/Y" }}{% endif %}</span>
+    {% else %}
+    <span class="text-muted small">—</span>
+    {% endif %}
+</td>
+<td>
+    {% if row.report %}
+    <span class="jp-report-anchor jp-report-anchor--{{ row.report.report_period|default:'day' }} text-nowrap small">{{ row.report|report_anchor_display }}</span>
+    {% else %}
+    <span class="text-muted small">—</span>
+    {% endif %}
+</td>
+<td>
+    {% if row.report %}
+    <span class="badge {{ row.report|report_period_badge_class }}">{{ row.report|report_period_label }}</span>
+    {% else %}
+    <span class="text-muted small">—</span>
+    {% endif %}
+</td>
+<td>
+    {% if row.report and row.report.report_period != 'day' and row.report.title %}
+    <span class="small" title="{{ row.report.title }}">{{ row.report.title|truncatechars:40 }}</span>
+    {% else %}
+    <span class="text-muted small">—</span>
+    {% endif %}
+</td>
+<td>
+    {% if row.report %}
+        {% if row.report.status == 'SUBMITTED' %}
+        <span class="badge bg-success-subtle text-success">Đã nộp</span>
+        {% endif %}
+    {% else %}
+    <span class="badge bg-danger-subtle text-danger">Chưa báo cáo</span>
+    {% endif %}
+</td>
+<td class="text-center">
+    {% if row.report %}
+        {% if row.report.has_manager_comment and row.report.has_employee_reply %}
+        <i class="bi bi-chat-dots-fill text-hm" title="Quản lý đã nhận xét"></i><i class="bi bi-chat-dots-fill text-primary ms-1" title="Nhân viên đã phản hồi"></i>
+        {% elif row.report.has_manager_comment %}
+        <i class="bi bi-chat-dots-fill text-hm" title="Quản lý đã nhận xét"></i>
+        {% elif row.report.has_employee_reply %}
+        <i class="bi bi-chat-dots-fill text-primary" title="Nhân viên đã phản hồi"></i>
+        {% else %}<span class="text-muted">—</span>{% endif %}
+    {% else %}
+    <span class="text-muted">—</span>
+    {% endif %}
+</td>
+<td class="text-center">
+    {% if row.report %}
+        {% if row.report.hod_reviewed %}
+        <i class="bi bi-check-circle-fill text-success" title="Đã xem"></i>
+        {% else %}
+        <i class="bi bi-circle text-muted opacity-50" title="Chưa xem"></i>
+        {% endif %}
+    {% else %}
+    <span class="text-muted small">—</span>
+    {% endif %}
+</td>
+<td class="text-end">
+    {% if row.report %}
+        {% if row.report.is_production_report %}
+        {{ row.report.line_count }} dòng · SL {{ row.report.total_qty|default:0 }}
+        {% else %}
+        {{ row.report|office_report_summary|default:"—" }}
+        {% endif %}
+    {% else %}—{% endif %}
+</td>
+<td class="text-end text-nowrap">
+    {% if row.report %}
+    <a href="{% url detail_url_name row.report.pk %}{% if team_list_query %}?{{ team_list_query }}{% endif %}" class="btn btn-sm btn-outline-hm">Chi tiết</a>
+    {% else %}
+    <span class="text-muted small">—</span>
+    {% endif %}
+</td>
+{% endblock %}

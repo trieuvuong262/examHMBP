@@ -5,13 +5,6 @@
     <input type="hidden" name="shift" value="{{ production_shift }}">
     {% if for_user_param %}<input type="hidden" name="for_user" value="{{ for_user_param }}">{% endif %}
 
-    {% if awaiting_product %}
-    <p class="text-muted small jp-prod-complete-time">
-        Thời gian làm: <strong>{{ awaiting_product.started_at|date:"H:i" }} — {{ awaiting_product.ended_at|date:"H:i" }}</strong>.
-        Tổng sản lượng chia <strong>đều</strong> cho từng khung giờ làm việc (giờ thực tế/h khác nhau; giờ nghỉ không tính).
-    </p>
-    {% endif %}
-
     <label class="form-label fw-bold">Tổng sản lượng <span class="text-danger">*</span></label>
     <input type="number" name="total_quantity" class="form-control form-control-lg text-center jp-prod-qty-input jp-prod-complete-qty"
            min="0" step="0.01" required inputmode="decimal" autocomplete="off" placeholder="0">

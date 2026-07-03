@@ -8,6 +8,11 @@ from django.views.decorators.http import require_GET, require_http_methods
 
 from utilities.models import MealPushSubscription
 from utilities.portal_push_eligibility import user_portal_push_debug, user_portal_push_eligible
+from utilities.push_consent import (
+    clear_push_consent,
+    get_push_consent,
+    record_push_consent,
+)
 from utilities.push_service import webpush_configured
 
 
@@ -60,6 +65,12 @@ def push_subscribe(request):
             'user_agent': user_agent,
         },
     )
+    record_push_consent(
+        request.user,
+        browser_permission='granted',
+        push_subscribed=True,
+        user_agent=user_agent,
+    )
     return JsonResponse({
         'ok': True,
         'created': created,
@@ -76,11 +87,42 @@ def push_unsubscribe(request):
         body = {}
 
     endpoint = (body.get('endpoint') or '').strip()
+    clear_consent = str(body.get('clear_consent', '')).lower() in ('1', 'true', 'yes')
     qs = MealPushSubscription.objects.filter(user=request.user)
     if endpoint:
         qs = qs.filter(endpoint=endpoint)
     deleted, _ = qs.delete()
+    if clear_consent or (not endpoint and deleted):
+        clear_push_consent(request.user)
     return JsonResponse({'ok': True, 'deleted': deleted})
+
+
+@login_required
+@require_http_methods(['POST'])
+def push_consent(request):
+    if not webpush_configured():
+        return _json_error('Web push chưa được cấu hình trên server.', status=503)
+    if not user_portal_push_eligible(request.user):
+        return _json_error('Tài khoản không đủ điều kiện nhận thông báo đẩy.', status=403)
+
+    try:
+        body = json.loads(request.body.decode('utf-8') or '{}')
+    except json.JSONDecodeError:
+        body = {}
+
+    user_agent = (request.META.get('HTTP_USER_AGENT') or '')[:300]
+    log = record_push_consent(
+        request.user,
+        browser_permission=(body.get('browser_permission') or ''),
+        push_subscribed=bool(body.get('push_subscribed')),
+        user_agent=user_agent,
+    )
+    return JsonResponse({
+        'ok': True,
+        'consent_recorded': True,
+        'browser_permission': log.browser_permission,
+        'push_subscribed': log.push_subscribed,
+    })
 
 
 @require_GET
@@ -92,10 +134,14 @@ def push_status(request):
         return _json_error('Tài khoản không đủ điều kiện nhận thông báo đẩy.', status=403)
 
     count = MealPushSubscription.objects.filter(user=request.user).count()
+    consent = get_push_consent(request.user)
     return JsonResponse({
         'ok': True,
         'subscribed': count > 0,
         'subscription_count': count,
+        'consent_recorded': consent is not None,
+        'browser_permission': consent.browser_permission if consent else '',
+        'push_subscribed': bool(consent and consent.push_subscribed),
     })
 
 

@@ -65,11 +65,26 @@
     }
 
     function lockPage() {
-        document.body.classList.add('jp-meal-push-locked');
+        /* Không chặn cuộn / thao tác trang — gợi ý push là tùy chọn. */
     }
 
     function unlockPage() {
         document.body.classList.remove('jp-meal-push-locked');
+    }
+
+    function showOptionalGate() {
+        var gate = getGateEl();
+        if (!gate) {
+            return;
+        }
+        gate.hidden = false;
+        unlockPage();
+        prewarmServiceWorker();
+        applyBrowserGuideCopy();
+    }
+
+    function showMandatoryGate() {
+        showOptionalGate();
     }
 
     function prewarmServiceWorker() {
@@ -78,15 +93,22 @@
         }
     }
 
-    function showMandatoryGate() {
-        var gate = getGateEl();
-        if (!gate) {
-            return;
+    function recordConsentOnServer(permission, pushSubscribed) {
+        if (!cfg.consentUrl) {
+            return Promise.resolve();
         }
-        gate.hidden = false;
-        lockPage();
-        prewarmServiceWorker();
-        applyBrowserGuideCopy();
+        return postJson(cfg.consentUrl, {
+            browser_permission: permission || (window.Notification ? Notification.permission : 'default'),
+            push_subscribed: !!pushSubscribed,
+        });
+    }
+
+    function completePortalConsent(permission, pushSubscribed) {
+        return recordConsentOnServer(permission, pushSubscribed).then(function () {
+            hideMandatoryGate();
+            hideBlockGuide();
+            hideGateError();
+        });
     }
 
     function hideMandatoryGate() {
@@ -177,7 +199,11 @@
 
     function fetchServerStatus() {
         if (!cfg.statusUrl) {
-            return Promise.resolve({ subscribed: false, subscription_count: 0 });
+            return Promise.resolve({
+                subscribed: false,
+                subscription_count: 0,
+                consent_recorded: false,
+            });
         }
         return fetchJson(cfg.statusUrl, { credentials: 'same-origin' });
     }
@@ -268,7 +294,7 @@
             return;
         }
         if (Notification.permission === 'denied') {
-            enableBtn.textContent = isChromium ? 'Đã Block — hướng dẫn Chrome' : 'Đã Block — xem hướng dẫn';
+            enableBtn.textContent = 'Cho phép nhận thông báo';
             enableBtn.hidden = false;
             hideBlockGuide();
         } else {
@@ -280,11 +306,7 @@
 
     function subscribeAfterPermission(permission) {
         if (permission !== 'granted') {
-            return Promise.reject(new Error(
-                permission === 'denied'
-                    ? permissionDeniedMessage()
-                    : permissionDismissedMessage(),
-            ));
+            return Promise.resolve();
         }
         return navigator.serviceWorker.ready.then(function (registration) {
             return registration.pushManager.getSubscription().then(function (existing) {
@@ -322,7 +344,15 @@
             return Promise.reject(new Error('Trình duyệt không hỗ trợ thông báo đẩy.'));
         }
         hideGateError();
-        return requestPermissionInClick().then(subscribeAfterPermission);
+        return requestPermissionInClick()
+            .then(function (permission) {
+                return completePortalConsent(permission, false).then(function () {
+                    return subscribeAfterPermission(permission);
+                });
+            })
+            .catch(function () {
+                return completePortalConsent(Notification.permission, false);
+            });
     };
 
     function onEnableButtonClick() {
@@ -332,46 +362,42 @@
         }
 
         hideGateError();
-
-        if (Notification.permission === 'denied') {
-            showBlockGuide();
-            return;
-        }
-
         hideBlockGuide();
 
         var enableBtn = document.getElementById('jpMealPushEnable');
-        var permissionPromise;
-
-        try {
-            permissionPromise = requestPermissionInClick();
-        } catch (err) {
-            showGateError((err && err.message) || 'Không gọi được quyền thông báo.');
-            return;
-        }
-
         if (enableBtn) {
             enableBtn.disabled = true;
         }
 
-        permissionPromise
-            .then(function (permission) {
-                if (permission !== 'granted') {
-                    if (permission === 'denied') {
-                        showBlockGuide();
-                    }
-                    throw new Error(
-                        permission === 'denied'
-                            ? permissionDeniedMessage()
-                            : permissionDismissedMessage(),
-                    );
-                }
-                return subscribeAfterPermission(permission);
-            })
+        var permission = Notification.permission;
+        var flow;
+
+        if (permission === 'granted') {
+            flow = completePortalConsent('granted', false).then(function () {
+                return subscribeAfterPermission('granted');
+            });
+        } else if (permission === 'denied') {
+            flow = completePortalConsent('denied', false);
+        } else {
+            flow = requestPermissionInClick()
+                .then(function (result) {
+                    return completePortalConsent(result, false).then(function () {
+                        if (result === 'granted') {
+                            return subscribeAfterPermission('granted');
+                        }
+                    });
+                })
+                .catch(function () {
+                    return completePortalConsent(Notification.permission, false);
+                });
+        }
+
+        flow
             .catch(function (err) {
-                if (Notification.permission !== 'granted') {
-                    showGateError(err.message || 'Không bật được thông báo.');
+                if (!Notification.permission || Notification.permission !== 'granted') {
+                    return completePortalConsent(Notification.permission, false);
                 }
+                showGateError((err && err.message) || 'Không đăng ký được push.');
             })
             .finally(function () {
                 if (enableBtn) {
@@ -442,7 +468,10 @@
 
     function disableMealPush() {
         return getBrowserSubscription().then(function (subscription) {
-            var tasks = [postJson(cfg.unsubscribeUrl, subscription ? { endpoint: subscription.endpoint } : {})];
+            var tasks = [postJson(cfg.unsubscribeUrl, {
+                endpoint: subscription ? subscription.endpoint : '',
+                clear_consent: true,
+            })];
             if (subscription) {
                 tasks.push(subscription.unsubscribe());
             }
@@ -451,11 +480,8 @@
             lsRemove(LS_SUBSCRIBED);
             hideSuccessBanner();
             permissionWatchStarted = false;
-            showMandatoryGate();
+            showOptionalGate();
             updateGateForPermission();
-            if (Notification.permission === 'denied') {
-                showBlockGuide();
-            }
         });
     }
 
@@ -505,14 +531,6 @@
 
         applyBrowserGuideCopy();
 
-        if (Notification.permission === 'denied') {
-            lsRemove(LS_SUBSCRIBED);
-            showMandatoryGate();
-            updateGateForPermission();
-            showBlockGuide();
-            return Promise.resolve();
-        }
-
         return Promise.all([getBrowserSubscription(), fetchServerStatus()]).then(function (results) {
             var browserSub = results[0];
             var serverStatus = results[1];
@@ -522,26 +540,29 @@
                 lsRemove(LS_SUBSCRIBED);
             }
 
-            if (isFullySubscribed(browserSub, serverStatus, permission)) {
-                if (browserSub && permission === 'granted' && !serverStatus.subscribed) {
-                    return saveSubscriptionOnServer(browserSub).then(function () {
-                        hideMandatoryGate();
-                        showSuccessBanner('Đã đồng bộ đăng ký push lên server.');
-                    }).catch(function () {
-                        hideMandatoryGate();
-                        showSuccessBanner('Trình duyệt đã cho phép — chưa đồng bộ server.');
-                    });
-                }
+            if (serverStatus.consent_recorded) {
                 hideMandatoryGate();
-                showSuccessBanner('Đã đăng ký push — dùng nút bên phải để gửi thử.');
+                if (isFullySubscribed(browserSub, serverStatus, permission)) {
+                    showSuccessBanner('Đã đăng ký push — dùng nút bên phải để gửi thử.');
+                } else if (permission === 'granted' && browserSub && !serverStatus.subscribed) {
+                    return saveSubscriptionOnServer(browserSub).then(function () {
+                        showSuccessBanner('Đã đồng bộ đăng ký push lên server.');
+                    }).catch(function () {});
+                }
                 return;
             }
 
-            showMandatoryGate();
+            if (isFullySubscribed(browserSub, serverStatus, permission)) {
+                return recordConsentOnServer('granted', true).then(function () {
+                    hideMandatoryGate();
+                    showSuccessBanner('Đã đăng ký push — dùng nút bên phải để gửi thử.');
+                });
+            }
+
+            showOptionalGate();
             updateGateForPermission();
-            startPermissionWatch();
         }).catch(function () {
-            showMandatoryGate();
+            showOptionalGate();
             updateGateForPermission();
         });
     }

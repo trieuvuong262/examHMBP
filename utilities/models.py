@@ -230,6 +230,46 @@ class MealPushReminderLog(models.Model):
         return f'{self.employee} · {self.meal_date} · {self.sent_at:%d/%m/%Y %H:%M}'
 
 
+class PortalPushConsentLog(models.Model):
+    """Nhân viên đã bấm đồng ý nhận push trên portal — không hỏi lại."""
+
+    PERMISSION_GRANTED = 'granted'
+    PERMISSION_DENIED = 'denied'
+    PERMISSION_DEFAULT = 'default'
+    PERMISSION_CHOICES = (
+        (PERMISSION_GRANTED, 'Cho phép'),
+        (PERMISSION_DENIED, 'Chặn'),
+        (PERMISSION_DEFAULT, 'Chưa chọn / bỏ qua'),
+    )
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='portal_push_consent',
+        verbose_name='Nhân viên',
+    )
+    browser_permission = models.CharField(
+        max_length=16,
+        choices=PERMISSION_CHOICES,
+        default=PERMISSION_DEFAULT,
+        verbose_name='Quyền trình duyệt',
+    )
+    push_subscribed = models.BooleanField(
+        default=False,
+        verbose_name='Đã đăng ký push thiết bị',
+    )
+    user_agent = models.CharField(max_length=300, blank=True, verbose_name='User-Agent')
+    consented_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Nhật ký đồng ý push portal'
+        verbose_name_plural = 'Nhật ký đồng ý push portal'
+
+    def __str__(self):
+        return f'{self.user} · {self.get_browser_permission_display()} · {self.consented_at:%d/%m/%Y %H:%M}'
+
+
 class ScheduleReminder(models.Model):
     """Nhắc lịch cá nhân — chọn thứ trong tuần, một lần hoặc lặp hàng tuần."""
 

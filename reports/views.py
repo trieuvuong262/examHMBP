@@ -1450,7 +1450,12 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
 
     scope_label = 'SX' if report_profile == REPORT_PROFILE_PRODUCTION else 'VP'
     team_title = 'Quản lý BC (VP)' if report_profile == REPORT_PROFILE_OFFICE else f'Quản lý báo cáo ({scope_label})'
-    return render(request, 'reports/team.html', {
+    team_template = (
+        'reports/team_cn.html'
+        if report_profile == REPORT_PROFILE_PRODUCTION
+        else 'reports/team_vp.html'
+    )
+    return render(request, team_template, {
         'department_groups': department_groups,
         'dept_choices': dept_choices,
         'selected_dept': dept_filter,
@@ -1778,7 +1783,12 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
             f"&shift={report.shift}"
             f"&for_user={report.employee_id}"
         )
-    return render(request, 'reports/detail.html', {
+    detail_template = (
+        'reports/detail_cn.html'
+        if report.is_production_report
+        else 'reports/detail_vp.html'
+    )
+    return render(request, detail_template, {
         'report': report,
         'office_sheet': office_sheet,
         'document_html_display': document_html_display,

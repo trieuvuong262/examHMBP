@@ -4,7 +4,7 @@
 
 {% block extra_head %}
 <link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260624a">
-<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260702c">
+<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260703c">
 {% endblock %}
 
 {% block content %}
@@ -228,13 +228,8 @@
                         </button>
                     </form>
                     {% endif %}
-                    {% if can_edit %}
-                    <a href="?date={{ report_date|date:'Y-m-d' }}{% if for_user_param %}&for_user={{ for_user_param }}{% endif %}&phase=review"
-                       class="btn btn-outline-dark">
-                        <i class="bi bi-list-check me-2"></i>Kết thúc ngày — xem tổng
-                    </a>
-                    {% endif %}
                 </div>
+                {% include 'reports/includes/production_go_review_button.html' with wrap_class='jp-prod-go-review-wrap--sidebar' %}
                 {% endif %}
             </div>
         </aside>
@@ -262,8 +257,6 @@
                             <i class="bi bi-play-fill me-2"></i>Bắt đầu
                         </button>
                     </form>
-                    <a href="?date={{ report_date|date:'Y-m-d' }}{% if for_user_param %}&for_user={{ for_user_param }}{% endif %}&phase=review"
-                       class="jp-prod-mobile-secondary-link">Xem tổng &amp; gửi báo cáo</a>
                 </div>
                 {% elif work_step == 'working' and can_edit and session_active %}
                 <div class="jp-prod-mobile-step jp-prod-mobile-step--working">
@@ -328,13 +321,7 @@
                     <button type="submit" class="btn btn-hm btn-lg fw-bold w-100">
                         <i class="bi bi-play-circle me-2"></i>Bắt đầu công đoạn
                     </button>
-                </form>
-                {% endif %}
-                {% if can_edit %}
-                <a href="?date={{ report_date|date:'Y-m-d' }}{% if for_user_param %}&for_user={{ for_user_param }}{% endif %}&phase=review"
-                   class="btn btn-outline-dark w-100">
-                    <i class="bi bi-list-check me-2"></i>Kết thúc ngày — xem tổng
-                </a>
+                    </form>
                 {% endif %}
             </section>
             {% endif %}
@@ -365,7 +352,8 @@
             <section class="jp-prod-review-main">
                 {% if is_submitted and can_edit %}
                 <div class="alert alert-success border-0 small mb-3">
-                    Đã gửi lúc {{ report.submitted_at|date:"H:i d/m/Y" }} — vẫn có thể chỉnh sửa cho đến khi cấp trên xem báo cáo.
+                    Đã gửi lúc {{ report.submitted_at|date:"H:i d/m/Y" }} — không thể nhập thêm sản lượng.
+                    Bấm <strong>Nhập tiếp báo cáo</strong> bên dưới để bắt đầu công đoạn mới.
                 </div>
                 {% elif is_locked %}
                 <div class="alert alert-secondary border-0 small mb-3">
@@ -376,8 +364,7 @@
                 {% if has_unfinalized and can_edit %}
                 <div class="alert alert-warning border-0 small mb-3">
                     {% if awaiting_product %}
-                    Công đoạn đã kết thúc — nhập sản lượng và thông tin mã hàng.
-                    <button type="button" class="btn btn-hm w-100 w-md-auto mt-2 fw-bold" data-bs-toggle="modal"
+                    <button type="button" class="btn btn-hm w-100 w-md-auto fw-bold" data-bs-toggle="modal"
                             data-bs-target="#completeSessionModal">
                         Hoàn tất công đoạn
                     </button>
@@ -389,12 +376,22 @@
                 </div>
                 {% endif %}
 
+                {% if production_entry_closed and can_edit and not is_locked %}
+                <div class="jp-prod-resume-entry mb-3">
+                    <form method="post" class="m-0">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="resume_production_entry">
+                        {% if for_user_param %}<input type="hidden" name="for_user" value="{{ for_user_param }}">{% endif %}
+                        <button type="submit" class="btn btn-outline-hm fw-bold w-100 w-md-auto">
+                            <i class="bi bi-plus-circle me-2"></i>Nhập tiếp báo cáo
+                        </button>
+                    </form>
+                    <p class="small text-muted mb-0 mt-2">Mở công đoạn mới và nhập thêm sản lượng trong ca này.</p>
+                </div>
+                {% endif %}
+
                 {% if hourly_grid.rows %}
                 {% if hourly_grid.uses_session_reporting and not proxy_mode %}
-                <div class="alert alert-light border small mb-3">
-                    Mỗi công đoạn bạn chỉ nhập <strong>tổng sản lượng một lần</strong>.
-                    Số theo từng khung giờ bên dưới được chia <strong>đều</strong> — mỗi khung cùng sản lượng, giờ thực tế/h có thể khác (giờ nghỉ trưa không tính).
-                </div>
                 {% include 'reports/includes/production_session_summary_list.html' %}
                 {% elif can_edit %}
                 <div id="review-grid-root" class="jp-prod-review-mobile d-md-none"></div>
@@ -420,15 +417,26 @@
                     <strong id="review-grand-total">{{ hourly_grid.grand_total|prod_qty }}</strong>
                 </div>
                 {% endif %}
-                <form method="post" class="mb-0" id="review-submit-form">
+                {% if production_entry_closed and not is_locked %}
+                <form method="post" class="mb-2">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="resume_production_entry">
+                    {% if for_user_param %}<input type="hidden" name="for_user" value="{{ for_user_param }}">{% endif %}
+                    <button type="submit" class="btn btn-outline-hm w-100 fw-bold">
+                        <i class="bi bi-plus-circle me-2"></i>Nhập tiếp báo cáo
+                    </button>
+                </form>
+                {% elif not has_unfinalized %}
+                <form method="post" class="mb-0 js-prod-submit-form" id="review-submit-form">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="submit">
                     <input type="hidden" name="review_json" id="review-json-input">
                     {% if for_user_param %}<input type="hidden" name="for_user" value="{{ for_user_param }}">{% endif %}
-                    <button type="submit" class="btn btn-hm w-100 fw-bold btn-lg">
-                        <i class="bi bi-send-fill me-2"></i>{% if is_submitted %}Cập nhật báo cáo{% else %}Gửi báo cáo{% endif %}
+                    <button type="button" class="btn btn-hm w-100 fw-bold btn-lg js-prod-submit-trigger">
+                        <i class="bi bi-send-fill me-2"></i>Gửi báo cáo
                     </button>
                 </form>
+                {% endif %}
             </div>
             <div class="jp-prod-review-sticky-spacer d-md-none" aria-hidden="true"></div>
 
@@ -439,15 +447,26 @@
                     <strong id="review-grand-total-desktop">{{ hourly_grid.grand_total|prod_qty }}</strong>
                 </div>
                 {% endif %}
-                <form method="post" class="mb-0 ms-auto" id="review-submit-form-desktop">
+                {% if production_entry_closed and not is_locked %}
+                <form method="post" class="mb-0 ms-auto">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="resume_production_entry">
+                    {% if for_user_param %}<input type="hidden" name="for_user" value="{{ for_user_param }}">{% endif %}
+                    <button type="submit" class="btn btn-outline-hm fw-bold px-4">
+                        <i class="bi bi-plus-circle me-2"></i>Nhập tiếp báo cáo
+                    </button>
+                </form>
+                {% elif not has_unfinalized %}
+                <form method="post" class="mb-0 ms-auto js-prod-submit-form" id="review-submit-form-desktop">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="submit">
                     <input type="hidden" name="review_json" id="review-json-input-desktop">
                     {% if for_user_param %}<input type="hidden" name="for_user" value="{{ for_user_param }}">{% endif %}
-                    <button type="submit" class="btn btn-hm fw-bold px-4">
-                        <i class="bi bi-send-fill me-2"></i>{% if is_submitted %}Cập nhật báo cáo{% else %}Gửi báo cáo{% endif %}
+                    <button type="button" class="btn btn-hm fw-bold px-4 js-prod-submit-trigger">
+                        <i class="bi bi-send-fill me-2"></i>Gửi báo cáo
                     </button>
                 </form>
+                {% endif %}
             </div>
             {% endif %}
             {% endif %}
@@ -457,6 +476,13 @@
     {% endif %}
 </div>
 </div>
+
+{% if can_edit and not production_entry_closed and production_review_url and has_saved_product and shift_started and phase != 'review' and phase != 'select_shift' and phase != 'complete_product' and not session_active and not awaiting_product %}
+<div class="jp-prod-go-review-sticky-bar d-lg-none">
+    {% include 'reports/includes/production_go_review_button.html' %}
+</div>
+<div class="jp-prod-go-review-sticky-spacer d-lg-none" aria-hidden="true"></div>
+{% endif %}
 
 {% if can_edit and not proxy_mode and phase != 'select_shift' %}
 <div class="modal fade jp-prod-modal" id="completeSessionModal" tabindex="-1" aria-hidden="true"
@@ -475,6 +501,30 @@
 </div>
 {% endif %}
 
+{% if phase == 'review' and can_edit and not production_entry_closed %}
+<div class="modal fade jp-prod-modal" id="prodSubmitConfirmModal" tabindex="-1" aria-labelledby="prodSubmitConfirmTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold" id="prodSubmitConfirmTitle">Bạn có chắc muốn gửi báo cáo?</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body">
+                <p class="small text-muted mb-0">
+                    Hành động này không thể hoàn tác. Bấm <strong>Gửi báo cáo</strong> muốn chốt ca hoặc <strong>Huỷ</strong> để quay lại màn hình tổng kết.
+                </p>
+            </div>
+            <div class="modal-footer border-0 pt-0 flex-nowrap gap-2">
+                <button type="button" class="btn btn-outline-secondary flex-grow-1" data-bs-dismiss="modal">Huỷ</button>
+                <button type="button" class="btn btn-hm fw-bold flex-grow-1" id="prodSubmitConfirmBtn">
+                    <i class="bi bi-send-fill me-1"></i>Gửi báo cáo
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 {% if hourly_grid %}{{ hourly_grid|json_script:"hourly-grid-data" }}{% endif %}
-<script src="{% static 'js/reports-production-hourly.js' %}?v=20260625b"></script>
+<script src="{% static 'js/reports-production-hourly.js' %}?v=20260703d"></script>
 {% endblock %}

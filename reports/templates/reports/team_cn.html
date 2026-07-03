@@ -1,0 +1,69 @@
+{% extends 'reports/team_base.html' %}
+{% load report_extras %}
+{% load static %}
+
+{% block team_extra_head %}
+<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260702c">
+{% endblock %}
+
+{% block team_row_cells %}
+<td>
+    <strong>{{ row.member.profile.full_name|default:row.member.username }}</strong>
+    {% if row.member.profile.division %}
+    <div class="text-muted small">{{ row.member.profile.division.name }}</div>
+    {% endif %}
+</td>
+<td>
+    {% if row.report_date %}
+    <span class="text-nowrap small">{{ row.report_date|date:"d/m/Y" }}</span>
+    {% else %}
+    <span class="text-muted small">—</span>
+    {% endif %}
+</td>
+<td>
+    {% for badge in row.shift_badges %}
+    <span class="{{ badge.badge_class }} me-1 mb-1">{{ badge.label }}</span>
+    {% empty %}
+    <span class="text-muted small">—</span>
+    {% endfor %}
+</td>
+<td>
+    {% if not row.production_report_count %}
+    <span class="badge bg-danger-subtle text-danger">Chưa báo cáo</span>
+    {% elif row.production_all_submitted %}
+    <span class="badge bg-success-subtle text-success">Đã nộp</span>
+    {% endif %}
+</td>
+<td class="text-center">
+    {% if row.production_has_manager_comment and row.production_has_employee_reply %}
+    <i class="bi bi-chat-dots-fill text-hm" title="Quản lý đã nhận xét"></i><i class="bi bi-chat-dots-fill text-primary ms-1" title="Nhân viên đã phản hồi"></i>
+    {% elif row.production_has_manager_comment %}
+    <i class="bi bi-chat-dots-fill text-hm" title="Quản lý đã nhận xét"></i>
+    {% elif row.production_has_employee_reply %}
+    <i class="bi bi-chat-dots-fill text-primary" title="Nhân viên đã phản hồi"></i>
+    {% else %}<span class="text-muted">—</span>{% endif %}
+</td>
+<td class="text-center">
+    {% if row.production_report_count and row.production_all_reviewed %}
+    <i class="bi bi-check-circle-fill text-success" title="Đã xem"></i>
+    {% elif row.production_report_count %}
+    <i class="bi bi-circle text-muted opacity-50" title="Chưa xem hết"></i>
+    {% else %}
+    <span class="text-muted small">—</span>
+    {% endif %}
+</td>
+<td class="text-end">
+    {% if row.production_total_qty %}
+    {{ row.production_report_count }} báo cáo · SL {{ row.production_total_qty|prod_qty }}
+    {% elif row.production_report_count %}
+    {{ row.production_report_count }} báo cáo
+    {% else %}—{% endif %}
+</td>
+<td class="text-end text-nowrap">
+    {% if row.report %}
+    <a href="{% url detail_url_name row.report.pk %}{% if team_list_query %}?{{ team_list_query }}{% endif %}" class="btn btn-sm btn-outline-hm">Chi tiết</a>
+    {% else %}
+    <a href="{% url today_url_name %}?date={{ row.report_date|default:range_to|date:'Y-m-d' }}&for_user={{ row.member.id }}" class="btn btn-sm btn-outline-dark">Nhập hộ</a>
+    {% endif %}
+</td>
+{% endblock %}

@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_head %}{% block detail_extra_head %}{% endblock %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-2 px-md-3 jp-page jp-reports-page jp-report-detail-page py-2 py-md-3 mb-3 mb-md-4">
+    <div class="jp-report-detail-hero mb-4">
+        <div class="jp-report-detail-hero-top">
+            <div class="jp-report-detail-hero-text">
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                    <h2 class="fw-bold text-hm mb-0 jp-page-title">
+                        Báo cáo {{ report.report_date|date:"d/m/Y" }}
+                        {% if production_day_shift_tabs %}
+                        {% elif report.is_production_report and report.shift %}
+                        <span class="{{ shift_badge_class }} fs-6 align-middle">{{ report.get_shift_display }}</span>
+                        {% endif %}
+                    </h2>
+                    {% if report.status == 'SUBMITTED' %}
+                    <span class="badge jp-report-badge jp-report-badge--submitted">Đã nộp</span>
+                    {% endif %}
+                    {% if report.hod_reviewed %}
+                    <span class="badge jp-report-badge jp-report-badge--reviewed">Đã xem</span>
+                    {% endif %}
+                    {% if report.is_proxy_entered %}
+                    <span class="badge bg-warning text-dark" title="Nhập bởi {{ report.proxy_entered_by.profile.full_name|default:report.proxy_entered_by.username }}">
+                        <i class="bi bi-person-check-fill me-1"></i>Tổ trưởng nhập hộ
+                    </span>
+                    {% endif %}
+                </div>
+                {% if report.title and report.report_period != 'day' %}
+                <p class="jp-report-detail-title fw-semibold text-dark mb-0 mt-2">
+                    <i class="bi bi-card-heading me-1 text-hm"></i>{{ report.title }}
+                </p>
+                {% endif %}
+                <p class="jp-report-detail-name mb-0 mt-2">{{ report.employee.profile.full_name|default:report.employee.username }}</p>
+            </div>
+            <div class="jp-report-detail-hero-actions d-flex gap-2 flex-wrap">
+                <a href="{{ list_back_url }}" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-arrow-left me-1"></i>Danh sách báo cáo
+                </a>
+                <a href="{{ history_url }}" class="btn btn-outline-dark btn-sm">
+                    <i class="bi bi-clock-history me-1"></i>Lịch sử
+                </a>
+                {% if can_export_report %}
+                <a href="{{ export_url }}" class="btn btn-outline-hm btn-sm">
+                    <i class="bi bi-file-earmark-spreadsheet me-1"></i>Xuất Excel
+                </a>
+                {% endif %}
+                {% if edit_report_url %}
+                <a href="{{ edit_report_url }}" class="btn btn-outline-hm btn-sm">
+                    <i class="bi bi-pencil-square me-1"></i>
+                    {% if report.employee_id == request.user.id %}Sửa{% else %}Chỉnh sửa báo cáo{% endif %}
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {% if production_day_shift_tabs %}
+    <div class="card border-0 jp-report-section-card jp-report-tabs-card jp-prod-day-shift-tabs-card mb-4">
+        <ul class="nav nav-tabs jp-report-tabs jp-prod-day-shift-tabs" role="tablist" aria-label="Chọn ca làm">
+            {% for tab in production_day_shift_tabs %}
+            <li class="nav-item" role="presentation">
+                <a class="nav-link jp-prod-day-shift-tab jp-prod-day-shift-tab--{{ tab.shift|lower }}{% if tab.is_active %} active{% endif %}"
+                   href="{{ tab.url }}"
+                   role="tab"
+                   {% if tab.is_active %}aria-current="page"{% endif %}>
+                    {{ tab.label }}
+                </a>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    {% if report.hod_note %}
+    <div class="jp-report-hod-note-readonly mb-3" role="note">
+        <i class="bi bi-chat-left-quote jp-report-hod-note-icon" aria-hidden="true"></i>
+        <span class="jp-report-hod-note-text">{{ report.hod_note }}</span>
+    </div>
+    {% endif %}
+    {% include 'reports/includes/report_comments.html' %}
+
+    {% block detail_body %}{% endblock %}
+
+</div>
+{% block detail_inline_scripts %}{% endblock %}
+{% endblock %}
+
+{% block scripts %}{% block detail_scripts %}{% endblock %}{% endblock %}

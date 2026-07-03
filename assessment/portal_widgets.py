@@ -1,6 +1,11 @@
 """Tóm tắt việc cần làm — hiển thị trên trang chủ portal."""
 
-from reports.navigation import redirect_team_legacy, team_pending_url_for_user, today_url_for_user
+from reports.navigation import (
+    preferred_daily_report_profile,
+    redirect_team_legacy,
+    team_pending_url_for_user,
+    today_url_for_user,
+)
 from django.db.models import Q
 from django.urls import reverse
 from django.utils import timezone
@@ -575,10 +580,14 @@ def get_portal_dashboard(user):
 
     # --- Báo cáo hôm nay (cá nhân — không áp dụng Giám đốc) ---
     if can_submit_daily_report(user):
-        today_report = DailyWorkReport.objects.filter(
+        today_report_qs = DailyWorkReport.objects.filter(
             employee=user,
             report_date=today,
-        ).first()
+        )
+        widget_profile = preferred_daily_report_profile(user)
+        if widget_profile:
+            today_report_qs = today_report_qs.filter(report_profile=widget_profile)
+        today_report = today_report_qs.first()
         if not today_report or today_report.status != DailyWorkReport.STATUS_SUBMITTED:
             if today_report and today_report.status == DailyWorkReport.STATUS_DRAFT:
                 text = f'Báo cáo ngày {today.strftime("%d/%m/%Y")} đang lưu nháp — nộp cho cấp trên trước tan ca.'

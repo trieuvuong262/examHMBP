@@ -43,6 +43,25 @@ def is_production_report_locked(report) -> bool:
     return is_report_locked(report)
 
 
+def is_production_entry_closed(report) -> bool:
+    """Đã gửi báo cáo — không nhập thêm công đoạn cho đến khi «Nhập tiếp»."""
+    return report.status == DailyWorkReport.STATUS_SUBMITTED
+
+
+def lock_production_steps_on_submit(report: DailyWorkReport) -> int:
+    """Chốt mọi công đoạn đã hoàn tất tại thời điểm gửi báo cáo."""
+    if not report.pk:
+        return 0
+    return report.production_products.filter(
+        status=ProductionShiftProduct.STATUS_DONE,
+        submitted_locked=False,
+    ).update(submitted_locked=True)
+
+
+def product_is_submitted_locked(product: ProductionShiftProduct) -> bool:
+    return bool(getattr(product, 'submitted_locked', False))
+
+
 def lock_production_report_on_supervisor_view(report, viewer) -> bool:
     """Tự khóa khi cấp trên mở xem báo cáo đã gửi (lần đầu)."""
     return lock_report_on_supervisor_view(report, viewer)
@@ -319,6 +338,43 @@ def complete_work_session(
     active.status = ProductionShiftProduct.STATUS_DONE
     active.save()
     return active
+
+
+@transaction.atomic
+def update_session_product(
+    product: ProductionShiftProduct,
+    *,
+    product_code: str,
+    process_name: str,
+    norm_per_hour,
+    total_quantity,
+    damaged_quantity: int = 0,
+    note: str = '',
+    zero_reason: str = '',
+) -> ProductionShiftProduct:
+    """Chỉnh sửa một công đoạn đã hoàn tất trên màn tổng kết — cập nhật thông tin + chia lại sản lượng."""
+    code = (product_code or '').strip()
+    process = (process_name or '').strip()
+    norm = parse_decimal(norm_per_hour)
+    if not code or not process or not norm or norm <= 0:
+        raise ValueError('Điền đủ mã hàng, tên công đoạn và định mức > 0.')
+    total_qty = parse_non_negative_decimal(total_quantity, default=Decimal('0'))
+    distribute_quantity_to_slots(
+        product,
+        total_qty,
+        damaged_quantity=damaged_quantity,
+        note=note,
+        zero_reason=zero_reason,
+    )
+    product.product_code = code
+    product.process_name = process
+    product.norm_per_hour = Decimal(str(norm))
+    product.total_quantity = total_qty
+    product.total_damaged_quantity = max(0, int(damaged_quantity)) if total_qty > 0 else 0
+    product.completion_note = (note or '').strip()[:500]
+    product.status = ProductionShiftProduct.STATUS_DONE
+    product.save()
+    return product
 
 
 @transaction.atomic
@@ -841,6 +897,7 @@ def build_hourly_grid(report: DailyWorkReport) -> dict:
             'norm_per_hour': float(product.norm_per_hour) if product.norm_per_hour is not None else None,
             'status': product.status,
             'is_unfinalized': is_unfinalized,
+            'submitted_locked': product.submitted_locked,
             'first_slot_index': product.first_slot_index,
             'label_code': product.product_code.strip() if product.product_code else '—',
             'label_process': product.process_name.strip() if product.process_name else 'Chưa gắn mã',
@@ -848,6 +905,9 @@ def build_hourly_grid(report: DailyWorkReport) -> dict:
             'total_quantity': total_qty,
             'is_session_reported': session_mode,
             'session_total': product.total_quantity,
+            'session_damaged': product.total_damaged_quantity or 0,
+            'session_note': product.completion_note or '',
+            'submitted_locked': product.submitted_locked,
             'session_time_label': session_time_label(product) if session_mode else '',
             'started_at_display': started_display,
             'ended_at_display': ended_display,
@@ -1145,6 +1205,7 @@ def save_proxy_shift_table(report: DailyWorkReport, rows: list[dict], user) -> d
     if groups:
         report.status = DailyWorkReport.STATUS_SUBMITTED
         report.submitted_at = timezone.now()
+        lock_production_steps_on_submit(report)
     else:
         report.status = DailyWorkReport.STATUS_DRAFT
     report.save()
@@ -1289,6 +1350,7 @@ def save_proxy_shift_sessions(report: DailyWorkReport, sessions: list[dict], use
     if created:
         report.status = DailyWorkReport.STATUS_SUBMITTED
         report.submitted_at = timezone.now()
+        lock_production_steps_on_submit(report)
     else:
         report.status = DailyWorkReport.STATUS_DRAFT
     report.save()

@@ -273,6 +273,11 @@ class ProductionShiftProduct(models.Model):
         default='',
         verbose_name='Ghi chú phiên',
     )
+    submitted_locked = models.BooleanField(
+        default=False,
+        verbose_name='Đã chốt khi gửi báo cáo',
+        help_text='True = không sửa sau khi đã gửi báo cáo (kể cả «Nhập tiếp»).',
+    )
 
     class Meta:
         ordering = ['sort_order', 'id']

@@ -1,5 +1,19 @@
 {# NV nhập tổng một lần — hiển thị theo phiên, không gây nhầm với lũy kế từng giờ #}
-{% load report_extras %}
+{% load report_extras l10n %}
+
+{% if can_edit and not production_entry_closed and not is_locked %}
+<div class="jp-prod-session-start-next mb-3">
+    <form method="post" class="m-0">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="start_product">
+        {% if for_user_param %}<input type="hidden" name="for_user" value="{{ for_user_param }}">{% endif %}
+        <button type="submit" class="btn btn-outline-hm fw-bold w-100 w-md-auto">
+            <i class="bi bi-plus-circle me-2"></i>Bắt đầu công đoạn tiếp theo
+        </button>
+    </form>
+</div>
+{% endif %}
+
 <div class="jp-prod-session-list">
     {% for row in hourly_grid.rows %}
     <article class="jp-prod-session-card card border-0 shadow-sm mb-3">
@@ -13,28 +27,79 @@
                     {% endif %}
                 </div>
                 <div class="text-end">
+                    {% if row.submitted_locked %}
+                    <span class="badge bg-secondary-subtle text-secondary mb-1">Đã gửi</span>
+                    {% endif %}
                     <div class="small text-muted">Bạn nhập</div>
                     <div class="fs-3 fw-bold text-hm lh-1">{{ row.session_total|default:row.total_quantity|prod_qty }}</div>
                 </div>
             </div>
             {% if row.session_time_label %}
-            <p class="small text-muted mb-2">
+            <p class="small text-muted mb-0">
                 <i class="bi bi-clock me-1"></i>{{ row.session_time_label }}
             </p>
             {% endif %}
-            <details class="jp-prod-session-split-details">
-                <summary class="small text-muted">Chi tiết chia theo giờ (cho quản lý)</summary>
-                <div class="jp-prod-session-split-grid mt-2">
-                    {% for cell in row.slots %}
-                    {% if cell.has_data and cell.quantity > 0 %}
-                    <div class="jp-prod-session-split-item">
-                        <span class="jp-prod-session-split-label">{{ cell.slot_label }}</span>
-                        <span class="jp-prod-session-split-qty">{{ cell.quantity|prod_qty }}</span>
+            {% if can_edit and not is_locked and not row.submitted_locked %}
+            <div class="mt-2">
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse"
+                        data-bs-target="#session-edit-{{ row.id }}" aria-expanded="false"
+                        aria-controls="session-edit-{{ row.id }}">
+                    <i class="bi bi-pencil-square me-1"></i>Sửa
+                </button>
+            </div>
+            <div class="collapse mt-3" id="session-edit-{{ row.id }}">
+                <form method="post" class="jp-prod-session-edit-form border-top pt-3">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="edit_session">
+                    <input type="hidden" name="product_id" value="{{ row.id }}">
+                    {% if for_user_param %}<input type="hidden" name="for_user" value="{{ for_user_param }}">{% endif %}
+                    <div class="mb-2">
+                        <label class="form-label fw-bold small mb-1">Mã hàng</label>
+                        <input type="text" name="product_code" class="form-control" required
+                               autocomplete="off" value="{{ row.product_code }}">
                     </div>
-                    {% endif %}
-                    {% endfor %}
-                </div>
-            </details>
+                    <div class="mb-2">
+                        <label class="form-label fw-bold small mb-1">Tên công đoạn</label>
+                        <input type="text" name="process_name" class="form-control" required
+                               autocomplete="off" value="{{ row.process_name }}">
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-6 mb-2">
+                            <label class="form-label fw-bold small mb-1">Định mức 1 giờ</label>
+                            <input type="number" name="norm_per_hour" class="form-control" min="1" step="1" required
+                                   inputmode="numeric" value="{{ row.norm_per_hour|floatformat:0 }}">
+                        </div>
+                        <div class="col-6 mb-2">
+                            <label class="form-label fw-bold small mb-1">Tổng sản lượng</label>
+                            <input type="number" name="total_quantity" class="form-control" min="0" step="0.01" required
+                                   inputmode="decimal" value="{{ row.session_total|default:row.total_quantity|unlocalize }}">
+                        </div>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-6 mb-2">
+                            <label class="form-label fw-bold small mb-1">Hư hỏng <span class="text-muted fw-normal">(tuỳ chọn)</span></label>
+                            <input type="number" name="damaged_quantity" class="form-control" min="0" step="1"
+                                   inputmode="numeric" value="{{ row.session_damaged }}">
+                        </div>
+                        <div class="col-6 mb-2">
+                            <label class="form-label fw-bold small mb-1">Lý do nếu SL 0</label>
+                            <input type="text" name="zero_reason" class="form-control" maxlength="200"
+                                   autocomplete="off" placeholder="VD: Máy hỏng…">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small mb-1">Ghi chú <span class="text-muted fw-normal">(tuỳ chọn)</span></label>
+                        <input type="text" name="note" class="form-control" maxlength="500"
+                               autocomplete="off" value="{{ row.session_note }}">
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-hm fw-bold">Lưu thay đổi</button>
+                        <button type="button" class="btn btn-outline-secondary" data-bs-toggle="collapse"
+                                data-bs-target="#session-edit-{{ row.id }}">Huỷ</button>
+                    </div>
+                </form>
+            </div>
+            {% endif %}
         </div>
     </article>
     {% empty %}
