@@ -5053,18 +5053,20 @@ body.jp-tool-loading-active {
         width: 100%;
     }
 
-    .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-code { width: 6%; }
-    .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-name { width: 17%; }
-    .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-account { width: 8%; }
-    .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-dept { width: 11%; }
-    .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-division { width: 8%; }
-    .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-position { width: 11%; }
-    .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-job-title { width: 8%; }
-    .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-date { width: 6%; }
-    .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-gender { width: 4%; }
-    .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-perm-group { width: 13%; }
-    .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-role { width: 8%; }
-    .jp-hrm-page #userTable.jp-hrm-list-table col.jp-hrm-col-actions { width: 5%; }
+    /* Width đặt trên th (theo data-col) — ẩn cột thì tự thu lại, layout luôn vừa */
+    .jp-hrm-page #userTable.jp-hrm-list-table thead th.jp-hrm-col-code-h { width: 6%; }
+    .jp-hrm-page #userTable.jp-hrm-list-table thead th.jp-hrm-col-name-h { width: 17%; }
+    .jp-hrm-page #userTable.jp-hrm-list-table thead th.jp-hrm-col-account-h { width: 9%; }
+    .jp-hrm-page #userTable.jp-hrm-list-table thead th.jp-hrm-col-dept-h { width: 12%; }
+    .jp-hrm-page #userTable.jp-hrm-list-table thead th.jp-hrm-col-division-h { width: 10%; }
+    .jp-hrm-page #userTable.jp-hrm-list-table thead th.jp-hrm-col-position-h { width: 12%; }
+    .jp-hrm-page #userTable.jp-hrm-list-table thead th.jp-hrm-col-job-title-h { width: 10%; }
+    .jp-hrm-page #userTable.jp-hrm-list-table thead th.jp-hrm-col-date-h { width: 7%; }
+    .jp-hrm-page #userTable.jp-hrm-list-table thead th.jp-hrm-col-gender-h { width: 5%; }
+    .jp-hrm-page #userTable.jp-hrm-list-table thead th.jp-hrm-col-perm-group-h { width: 9%; }
+    .jp-hrm-page #userTable.jp-hrm-list-table thead th.jp-hrm-col-role-h { width: 9%; }
+    .jp-hrm-page #userTable.jp-hrm-list-table thead th.jp-hrm-col-last-login-h { width: 10%; }
+    .jp-hrm-page #userTable.jp-hrm-list-table thead th.jp-hrm-col-actions-h { width: 6%; }
 }
 
 .jp-hrm-page #userTable .jp-hrm-cell-truncate {
@@ -5132,6 +5134,36 @@ body.jp-tool-loading-active {
 .jp-hrm-page #userTable td.jp-td-actions {
     white-space: nowrap;
     vertical-align: middle;
+}
+
+/* Cố định cột Thao tác về bên phải — không lệch khi bật/tắt cột */
+@media (min-width: 992px) {
+    .jp-hrm-page #userTable .jp-hrm-col-actions-h,
+    .jp-hrm-page #userTable td.jp-td-actions {
+        position: sticky;
+        right: 0;
+        z-index: 2;
+        background-color: #fff;
+    }
+
+    .jp-hrm-list-thead .jp-hrm-col-actions-h {
+        z-index: 3;
+    }
+
+    .jp-hrm-page #userTable tr:hover td.jp-td-actions {
+        background-color: var(--bs-table-hover-bg, #f5f5f5);
+    }
+
+    .jp-hrm-page #userTable .jp-hrm-col-actions-h::before,
+    .jp-hrm-page #userTable td.jp-td-actions::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        width: 1px;
+        background-color: rgba(0, 0, 0, 0.06);
+    }
 }
 
 .jp-hrm-actions-cluster {

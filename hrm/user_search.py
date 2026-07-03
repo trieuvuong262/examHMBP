@@ -103,21 +103,23 @@ USER_LIST_SORT_COLUMNS = {
     'gender': 'profile__gender',
     'permission_group': 'profile__permission_group__name',
     'role': 'profile__role',
+    'last_login': 'last_login',
 }
 
 USER_LIST_TABLE_COLUMNS = (
-    {'key': 'code', 'label': 'Mã NS', 'th_tone': 'cap', 'th_align': 'start', 'col_class': 'jp-hrm-col-code', 'sortable': True},
-    {'key': 'name', 'label': 'Họ và tên', 'th_tone': 'cap', 'th_align': 'start', 'col_class': 'jp-hrm-col-name', 'sortable': True},
-    {'key': 'account', 'label': 'Account', 'th_tone': 'cap', 'th_align': 'start', 'col_class': 'jp-hrm-col-account', 'sortable': True},
-    {'key': 'department', 'label': 'Phòng ban', 'th_tone': 'cap', 'th_align': 'start', 'col_class': 'jp-hrm-col-dept', 'sortable': True},
-    {'key': 'division', 'label': 'Bộ phận', 'th_tone': 'cap', 'th_align': 'start', 'col_class': 'jp-hrm-col-division', 'sortable': True},
-    {'key': 'position', 'label': 'Vị trí', 'th_tone': 'cap', 'th_align': 'start', 'col_class': 'jp-hrm-col-position', 'sortable': True},
-    {'key': 'job_title', 'label': 'Chức vụ', 'th_tone': 'cap', 'th_align': 'start', 'col_class': 'jp-hrm-col-job-title', 'sortable': True},
-    {'key': 'birth_date', 'label': 'Ngày sinh', 'th_tone': 'cap', 'th_align': 'center', 'col_class': 'jp-hrm-col-date', 'sortable': True},
-    {'key': 'gender', 'label': 'Giới tính', 'th_tone': 'cap', 'th_align': 'center', 'col_class': 'jp-hrm-col-gender', 'sortable': True},
-    {'key': 'permission_group', 'label': 'Nhóm quyền', 'th_tone': 'cap', 'th_align': 'start', 'col_class': 'jp-hrm-col-perm-group', 'sortable': True},
-    {'key': 'role', 'label': 'Vai trò HT', 'th_tone': 'cap', 'th_align': 'center', 'col_class': 'jp-hrm-col-role', 'sortable': True},
-    {'key': None, 'label': 'Thao tác', 'th_tone': 'cap', 'th_align': 'end', 'col_class': 'jp-hrm-col-actions', 'sortable': False},
+    {'key': 'code', 'label': 'Mã NS', 'th_tone': 'cap', 'th_align': 'start', 'col_class': 'jp-hrm-col-code', 'sortable': True, 'default': True, 'required': True},
+    {'key': 'name', 'label': 'Họ và tên', 'th_tone': 'cap', 'th_align': 'start', 'col_class': 'jp-hrm-col-name', 'sortable': True, 'default': True, 'required': True},
+    {'key': 'account', 'label': 'Tài khoản', 'th_tone': 'cap', 'th_align': 'start', 'col_class': 'jp-hrm-col-account', 'sortable': True, 'default': True},
+    {'key': 'department', 'label': 'Phòng ban', 'th_tone': 'cap', 'th_align': 'start', 'col_class': 'jp-hrm-col-dept', 'sortable': True, 'default': True},
+    {'key': 'division', 'label': 'Bộ phận', 'th_tone': 'cap', 'th_align': 'start', 'col_class': 'jp-hrm-col-division', 'sortable': True, 'default': False},
+    {'key': 'position', 'label': 'Vị trí', 'th_tone': 'cap', 'th_align': 'start', 'col_class': 'jp-hrm-col-position', 'sortable': True, 'default': True},
+    {'key': 'job_title', 'label': 'Chức vụ', 'th_tone': 'cap', 'th_align': 'start', 'col_class': 'jp-hrm-col-job-title', 'sortable': True, 'default': False},
+    {'key': 'birth_date', 'label': 'Ngày sinh', 'th_tone': 'cap', 'th_align': 'center', 'col_class': 'jp-hrm-col-date', 'sortable': True, 'default': True},
+    {'key': 'gender', 'label': 'Giới tính', 'th_tone': 'cap', 'th_align': 'center', 'col_class': 'jp-hrm-col-gender', 'sortable': True, 'default': True},
+    {'key': 'permission_group', 'label': 'Nhóm quyền', 'th_tone': 'cap', 'th_align': 'start', 'col_class': 'jp-hrm-col-perm-group', 'sortable': True, 'default': True},
+    {'key': 'role', 'label': 'Vai trò HT', 'th_tone': 'cap', 'th_align': 'center', 'col_class': 'jp-hrm-col-role', 'sortable': True, 'default': True},
+    {'key': 'last_login', 'label': 'Đăng nhập cuối', 'th_tone': 'cap', 'th_align': 'center', 'col_class': 'jp-hrm-col-last-login', 'sortable': True, 'default': True},
+    {'key': None, 'label': 'Thao tác', 'th_tone': 'cap', 'th_align': 'end', 'col_class': 'jp-hrm-col-actions', 'sortable': False, 'default': True, 'required': True},
 )
 
 

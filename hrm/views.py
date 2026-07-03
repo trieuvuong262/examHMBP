@@ -193,6 +193,7 @@ def user_list(request):
     department_id = (request.GET.get('department') or '').strip()
     division_id = (request.GET.get('division') or '').strip()
     job_position = (request.GET.get('position') or '').strip()
+    permission_group_id = (request.GET.get('permission_group') or '').strip()
     employment_status = (request.GET.get('status') or '').strip().lower()
     if employment_status not in EMPLOYMENT_STATUS_LABELS:
         employment_status = ''
@@ -215,6 +216,10 @@ def user_list(request):
     users_qs = filter_users_by_department(users_qs, department_id)
     users_qs = filter_users_by_division(users_qs, division_id)
     users_qs = filter_users_by_job_position(users_qs, job_position)
+    if permission_group_id == 'none':
+        users_qs = users_qs.filter(profile__permission_group__isnull=True)
+    elif permission_group_id.isdigit():
+        users_qs = users_qs.filter(profile__permission_group_id=int(permission_group_id))
     users_qs = filter_users_by_employment_status(users_qs, employment_status)
     users_qs = apply_user_list_sort(users_qs, sort_key, sort_dir)
     page_obj, query_string = paginate_queryset(request, users_qs)
@@ -285,11 +290,14 @@ def user_list(request):
         'current_division_label': current_division_label,
         'current_position': job_position,
         'current_position_label': current_position_label,
+        'permission_groups': PermissionGroup.objects.order_by('name'),
+        'current_permission_group': permission_group_id,
         'divisions_filter_map': json.dumps(divisions_filter_map_for_user_list()),
         'divisions_catalog': json.dumps(divisions_catalog_for_filter()),
         'positions_cascade': json.dumps(job_positions_cascade_for_filter()),
         'filters_active': bool(
-            search_query or department_id or division_id or job_position or employment_status,
+            search_query or department_id or division_id or job_position
+            or permission_group_id or employment_status,
         ),
     })
 

@@ -160,14 +160,10 @@
                                 <span class="badge bg-danger-subtle text-danger">Chưa báo cáo</span>
                                 {% elif row.production_all_submitted %}
                                 <span class="badge bg-success-subtle text-success">Đã nộp</span>
-                                {% else %}
-                                <span class="badge bg-warning-subtle text-warning">Chưa nộp</span>
                                 {% endif %}
                             {% elif row.report %}
                                 {% if row.report.status == 'SUBMITTED' %}
                                 <span class="badge bg-success-subtle text-success">Đã nộp</span>
-                                {% else %}
-                                <span class="badge bg-warning-subtle text-warning">Chưa nộp</span>
                                 {% endif %}
                             {% else %}
                             <span class="badge bg-danger-subtle text-danger">Chưa báo cáo</span>
