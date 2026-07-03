@@ -86,7 +86,7 @@
         <div class="jp-npl-stk-detail-toolbar">
             <div class="input-group input-group-sm jp-npl-stk-detail-search">
                 <input type="search" class="form-control" id="stk-detail-search"
-                       placeholder="Gõ mã hoặc tên NPL để lọc nhanh…" autocomplete="off"
+                       placeholder="Gõ tên NPL để lọc nhanh…" autocomplete="off"
                        aria-label="Tìm nguyên phụ liệu">
                 <button type="button" class="btn btn-outline-secondary" id="stk-detail-clear" title="Xóa tìm">×</button>
             </div>
@@ -110,7 +110,7 @@
                 <tbody id="stk-detail-body">
                     {% for line in stocktake.lines.all %}
                     <tr class="jp-npl-stk-detail-row"
-                        data-mat-search="{{ line.material.code }} {{ line.material.name }} {% if line.material.color %}{{ line.material.color|npl_color }}{% endif %} {% if line.material.specification %}{{ line.material.specification|npl_spec }}{% endif %}">
+                        data-mat-search="{{ line.material.name }}">
                         <td class="npl-col jp-mat-code" data-col="material">
                             <span class="fw-semibold">{{ line.material.code }}</span>
                         </td>
@@ -139,5 +139,6 @@
 
 {% block scripts %}
 {% include 'kho_npl/includes/catalog_grid_scripts.html' with table_id='npl-stocktake-detail-table' storage_key='kho_npl_stocktake_detail_visible_cols' col_btn_id='npl-stkd-col-btn' col_toggle_class='npl-stkd-col-toggle' default_sort_key='material' list_columns=line_columns %}
+{% include 'kho_npl/includes/material_name_search_script.html' %}
 {% include 'kho_npl/includes/stocktake_detail_scripts.html' %}
 {% endblock %}

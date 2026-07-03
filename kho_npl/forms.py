@@ -688,7 +688,7 @@ class StockAdjustmentLineForm(forms.ModelForm):
             'material': forms.Select(attrs={
                 **FORM_SELECT,
                 'class': 'form-select jp-npl-material-select',
-                'data-placeholder': 'Gõ tên hoặc mã NPL...',
+                'data-placeholder': 'Gõ tên NPL...',
             }),
             'location': forms.Select(attrs=FORM_SELECT),
             'system_qty': forms.NumberInput(attrs={
@@ -1074,7 +1074,7 @@ class StockDisposalLineForm(forms.ModelForm):
             'material': forms.Select(attrs={
                 **FORM_SELECT,
                 'class': 'form-select jp-npl-material-select',
-                'data-placeholder': 'Gõ tên hoặc mã NPL...',
+                'data-placeholder': 'Gõ tên NPL...',
             }),
             'quantity': forms.NumberInput(attrs={**FORM_CONTROL, 'step': '0.001', 'min': '0.001'}),
             'location': forms.Select(attrs=LOCATION_ROW_SELECT),

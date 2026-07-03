@@ -1,4 +1,4 @@
-"""Tìm kiếm thông minh NPL — nhiều từ, không dấu, nhiều trường."""
+"""Tìm kiếm thông minh Kho NPL — không dấu, thiếu dấu cách, nhiều từ."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from django.db.models import CharField, Q, TextField, Value
 from django.db.models.expressions import Func
 from django.db.models.functions import Cast, Coalesce, Concat, Lower
 
-from PortalJustPlay.list_search import apply_combined_search, search_terms
+from PortalJustPlay.list_search import search_terms
 
 # Ký tự có thể thay thế khi tìm không dấu (PostgreSQL __iregex).
 _ACCENT_CLASSES = {
@@ -22,54 +22,12 @@ _ACCENT_CLASSES = {
     'y': 'yỳýỷỹỵ',
 }
 
-MATERIAL_SEARCH_FIELDS = (
-    'code',
-    'name',
-    'color__name',
-    'color__code',
-    'specification__name',
-    'specification__code',
-    'category__name',
-    'category__parent__name',
-    'unit__name',
-    'unit__code',
-    'supplier__name',
-    'supplier__code',
-)
+MATERIAL_SEARCH_FIELDS = ('name',)
 
 
 class _RegexpReplace(Func):
     function = 'REGEXP_REPLACE'
     output_field = CharField()
-
-
-def _material_search_blob_expr(*, prefix: str = ''):
-    """Gộp các trường tìm kiếm, bỏ khoảng trắng — khớp gõ liền (vaitrang)."""
-    chunks = []
-    for field in MATERIAL_SEARCH_FIELDS:
-        path = f'{prefix}{field}' if prefix else field
-        chunks.append(Cast(Coalesce(path, Value('')), TextField()))
-        chunks.append(Value(' ', output_field=TextField()))
-    blob = Lower(Concat(*chunks, output_field=TextField()))
-    return _RegexpReplace(blob, Value(r'\s+'), Value(''), Value('g'))
-
-
-def _material_compact_q(query: str, *, prefix: str = '') -> Q:
-    compact = normalize_search_text(query.replace(' ', ''))
-    if len(compact) < 3:
-        return Q()
-    pattern = _vietnamese_flexible_pattern(compact)
-    if not pattern:
-        return Q()
-    blob_field = f'{prefix}_jp_mat_blob' if prefix else '_jp_mat_blob'
-    return Q(**{f'{blob_field}__iregex': pattern})
-
-
-def _annotate_material_blob(queryset, *, prefix: str = ''):
-    blob_field = f'{prefix}_jp_mat_blob' if prefix else '_jp_mat_blob'
-    if blob_field in queryset.query.annotations:
-        return queryset
-    return queryset.annotate(**{blob_field: _material_search_blob_expr(prefix=prefix)})
 
 
 def normalize_search_text(text: str) -> str:
@@ -93,121 +51,153 @@ def _vietnamese_flexible_pattern(term: str) -> str:
     return ''.join(pieces)
 
 
-def _material_q_simple(term: str, *, prefix: str = '') -> Q:
-    """Một đoạn text khớp substring trong ít nhất một trường."""
+def _fields_q_simple(term: str, fields: tuple[str, ...], *, prefix: str = '') -> Q:
     pattern = _vietnamese_flexible_pattern(term)
     if not pattern:
         return Q()
     q = Q()
-    for field in MATERIAL_SEARCH_FIELDS:
+    for field in fields:
         q |= Q(**{f'{prefix}{field}__iregex': pattern})
     return q
 
 
-def _missing_space_split_q(term: str, *, prefix: str = '') -> Q:
-    """
-    Gõ liền không dấu cách (vd. vaitrang) — thử tách thành 2 phần,
-    mỗi phần khớp ít nhất một trường (vd. vai + trang).
-    """
+def _missing_space_split_q(term: str, fields: tuple[str, ...], *, prefix: str = '') -> Q:
+    """Gõ liền (vd. vaitrang) — tách 2 phần, mỗi phần khớp ít nhất một trường."""
     compact = normalize_search_text(term.replace(' ', ''))
     if len(compact) < 4:
         return Q()
     q = Q()
     for split_at in range(2, len(compact) - 1):
         left, right = compact[:split_at], compact[split_at:]
-        q |= _material_q_simple(left, prefix=prefix) & _material_q_simple(right, prefix=prefix)
+        q |= _fields_q_simple(left, fields, prefix=prefix) & _fields_q_simple(right, fields, prefix=prefix)
+    return q
+
+
+def q_for_term_on_fields(term: str, fields: tuple[str, ...], *, prefix: str = '') -> Q:
+    q = _fields_q_simple(term, fields, prefix=prefix)
+    if ' ' not in term:
+        q |= _missing_space_split_q(term, fields, prefix=prefix)
     return q
 
 
 def material_q_for_term(term: str, *, prefix: str = '') -> Q:
-    """Một từ khóa khớp ít nhất một trường NPL."""
-    q = _material_q_simple(term, prefix=prefix)
-    if ' ' not in term:
-        q |= _missing_space_split_q(term, prefix=prefix)
-    return q
+    return q_for_term_on_fields(term, MATERIAL_SEARCH_FIELDS, prefix=prefix)
 
 
-def balance_stock_q_for_term(term: str) -> Q:
-    """Tìm thẻ kho — NPL hoặc vị trí kho."""
-    pattern = _vietnamese_flexible_pattern(term)
+def _single_field_blob_expr(field_path: str):
+    blob = Lower(Cast(Coalesce(field_path, Value('')), TextField()))
+    return _RegexpReplace(blob, Value(r'\s+'), Value(''), Value('g'))
+
+
+def _annotate_name_blob(queryset, *, prefix: str = ''):
+    field_path = f'{prefix}name' if prefix else 'name'
+    blob_field = f'{prefix}_jp_mat_blob' if prefix else '_jp_mat_blob'
+    if blob_field in queryset.query.annotations:
+        return queryset
+    return queryset.annotate(**{blob_field: _single_field_blob_expr(field_path)})
+
+
+def _q_is_empty(q: Q) -> bool:
+    return not q.children
+
+
+def _apply_or_term_search(queryset, query: str, build_q_for_term):
+    """Mỗi từ khóa OR với nhau — chỉ cần khớp một từ là hiện."""
+    terms = search_terms(query)
+    if not terms:
+        return queryset.none()
+    q = Q()
+    has_filter = False
+    for term in terms:
+        term_q = build_q_for_term(term)
+        if _q_is_empty(term_q):
+            continue
+        q |= term_q
+        has_filter = True
+    if not has_filter:
+        return queryset.none()
+    return queryset.filter(q).distinct()
+
+
+def _term_hits_text(term: str, haystack: str) -> bool:
+    """Một từ khóa khớp tên NPL — substring, từ đơn, hoặc gõ liền."""
+    norm_term = normalize_search_text(term)
+    if not norm_term:
+        return False
+    if norm_term in haystack:
+        return True
+    compact_term = norm_term.replace(' ', '')
+    haystack_compact = haystack.replace(' ', '')
+    if compact_term and compact_term in haystack_compact:
+        return True
+    for word in haystack.split():
+        if norm_term in word or (len(norm_term) >= 2 and word.startswith(norm_term)):
+            return True
+    if ' ' not in term and len(compact_term) >= 4:
+        for split_at in range(2, len(compact_term) - 1):
+            left, right = compact_term[:split_at], compact_term[split_at:]
+            if left in haystack and right in haystack:
+                return True
+    return False
+
+
+def _name_compact_q(query: str, *, prefix: str = '') -> Q:
+    compact = normalize_search_text(query.replace(' ', ''))
+    if len(compact) < 3:
+        return Q()
+    pattern = _vietnamese_flexible_pattern(compact)
     if not pattern:
         return Q()
-    return material_q_for_term(term, prefix='material__') | Q(
-        location__code__iregex=pattern,
-    ) | Q(
-        location__name__iregex=pattern,
-    )
+    blob_field = f'{prefix}_jp_mat_blob' if prefix else '_jp_mat_blob'
+    return Q(**{f'{blob_field}__iregex': pattern})
 
 
-def apply_material_search(queryset, query: str):
-    """Mỗi từ trong query phải khớp ít nhất một trường (AND giữa các từ)."""
+def apply_smart_search(
+    queryset,
+    query: str,
+    fields: tuple[str, ...],
+    *,
+    prefix: str = '',
+):
+    """Tìm thông minh — OR giữa các từ (khớp một từ là hiện), OR giữa các trường."""
     query = (query or '').strip()
-    if not query:
+    if not query or not fields:
         return queryset
 
-    matched = apply_combined_search(queryset, query, material_q_for_term)
+    def build_q(term: str) -> Q:
+        return q_for_term_on_fields(term, fields, prefix=prefix)
 
-    # Gõ liền không dấu cách: khớp trên chuỗi gộp tất cả trường
-    if ' ' not in query:
+    matched = _apply_or_term_search(queryset, query, build_q)
+
+    # Gõ liền trên một trường tên: khớp chuỗi gộp không khoảng trắng
+    if ' ' not in query and len(fields) == 1 and fields[0] == 'name':
         compact = normalize_search_text(query)
         if len(compact) >= 3:
-            compact_qs = _annotate_material_blob(queryset).filter(
-                _material_compact_q(query),
-            )
-            matched = queryset.filter(
-                Q(pk__in=matched.values('pk')) | Q(pk__in=compact_qs.values('pk')),
-            ).distinct()
+            compact_q = _name_compact_q(query, prefix=prefix)
+            if not _q_is_empty(compact_q):
+                compact_qs = _annotate_name_blob(queryset, prefix=prefix).filter(compact_q)
+                matched = queryset.filter(
+                    Q(pk__in=matched.values('pk')) | Q(pk__in=compact_qs.values('pk')),
+                ).distinct()
 
     return matched
 
 
+def apply_material_search(queryset, query: str):
+    """Tìm NPL — chỉ theo tên."""
+    return apply_smart_search(queryset, query, MATERIAL_SEARCH_FIELDS)
+
+
 def material_search_haystack(material) -> str:
-    parts = [
-        getattr(material, 'code', '') or '',
-        getattr(material, 'name', '') or '',
-    ]
-    color = getattr(material, 'color', None)
-    if color is not None:
-        parts.extend([getattr(color, 'name', '') or '', getattr(color, 'code', '') or ''])
-    spec = getattr(material, 'specification', None)
-    if spec is not None:
-        parts.extend([getattr(spec, 'name', '') or '', getattr(spec, 'code', '') or ''])
-    category = getattr(material, 'category', None)
-    if category is not None:
-        parts.append(getattr(category, 'name', '') or '')
-        parent = getattr(category, 'parent', None)
-        if parent is not None:
-            parts.append(getattr(parent, 'name', '') or '')
-    unit = getattr(material, 'unit', None)
-    if unit is not None:
-        parts.extend([getattr(unit, 'name', '') or '', getattr(unit, 'code', '') or ''])
-    supplier = getattr(material, 'supplier', None)
-    if supplier is not None:
-        parts.extend([getattr(supplier, 'name', '') or '', getattr(supplier, 'code', '') or ''])
-    return normalize_search_text(' '.join(parts))
+    return normalize_search_text(getattr(material, 'name', '') or '')
 
 
 def material_matches_query(material, query: str) -> bool:
-    """Lọc trong bộ nhớ — cùng logic với apply_material_search."""
+    """Lọc trong bộ nhớ — cùng logic với apply_material_search (tên NPL)."""
     if not query or not query.strip():
         return True
     haystack = material_search_haystack(material)
     terms = search_terms(query)
-
-    if len(terms) > 1:
-        return all(normalize_search_text(term) in haystack for term in terms)
-
-    term = terms[0] if terms else query.strip()
-    if normalize_search_text(term) in haystack:
-        return True
-
-    compact = normalize_search_text(term.replace(' ', ''))
-    if compact and compact in haystack.replace(' ', ''):
-        return True
-
-    if ' ' not in term and len(compact) >= 4:
-        for split_at in range(2, len(compact) - 1):
-            left, right = compact[:split_at], compact[split_at:]
-            if left in haystack and right in haystack:
-                return True
-    return False
+    if not terms:
+        terms = [query.strip()]
+    return any(_term_hits_text(term, haystack) for term in terms)

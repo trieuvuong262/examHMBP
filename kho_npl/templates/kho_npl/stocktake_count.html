@@ -37,7 +37,7 @@
             <div class="jp-npl-stk-count-toolbar">
                 <div class="input-group input-group-sm jp-npl-stk-count-search">
                     <input type="search" class="form-control" id="stk-count-search"
-                           placeholder="Gõ mã hoặc tên NPL để lọc nhanh…" autocomplete="off"
+                           placeholder="Gõ tên NPL để lọc nhanh…" autocomplete="off"
                            aria-label="Tìm nguyên phụ liệu">
                     <button type="button" class="btn btn-outline-secondary" id="stk-count-clear" title="Xóa tìm">×</button>
                 </div>
@@ -64,7 +64,7 @@
                         <tr class="jp-npl-stk-count-row"
                             data-mat-code="{{ line_form.instance.material.code }}"
                             data-mat-name="{{ line_form.instance.material.name }}"
-                            data-mat-search="{{ line_form.instance.material.code }} {{ line_form.instance.material.name }} {% if line_form.instance.material.color %}{{ line_form.instance.material.color|npl_color }}{% endif %} {% if line_form.instance.material.specification %}{{ line_form.instance.material.specification|npl_spec }}{% endif %}"
+                            data-mat-search="{{ line_form.instance.material.name }}"
                             data-system-qty="{{ line_form.instance.system_qty }}">
                             {% for hidden in line_form.hidden_fields %}{{ hidden }}{% endfor %}
                             <td>
@@ -88,5 +88,6 @@
 {% endblock %}
 
 {% block scripts %}
+{% include 'kho_npl/includes/material_name_search_script.html' %}
 {% include 'kho_npl/includes/stocktake_count_scripts.html' %}
 {% endblock %}

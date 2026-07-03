@@ -1,7 +1,6 @@
 """Tìm kiếm nhà cung cấp — server-side cho TomSelect."""
 
-from django.db.models import Q
-
+from kho_npl.material_search import apply_smart_search
 from kho_npl.models import Supplier
 
 
@@ -16,11 +15,7 @@ def search_suppliers(query: str, *, limit: int | None = None) -> list[dict]:
     qs = Supplier.objects.filter(is_active=True)
     q = (query or '').strip()
     if q:
-        qs = qs.filter(
-            Q(name__icontains=q)
-            | Q(code__icontains=q)
-            | Q(phone__icontains=q),
-        )
+        qs = apply_smart_search(qs, q, ('name', 'code', 'phone'))
     if limit is None:
         limit = 1000 if not q else 50
     qs = qs.order_by('name')[:limit]

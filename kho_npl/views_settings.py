@@ -6,6 +6,7 @@ from django.urls import reverse
 
 from assessment.decorators import module_perm_required, module_perm_required_methods
 from hrm.module_permissions import MODULE_KHO_NPL
+from kho_npl.material_search import apply_smart_search
 from PortalJustPlay.list_search import get_search_query
 from PortalJustPlay.pagination import paginate_queryset
 
@@ -39,10 +40,7 @@ def settings_list(request, section):
     if not show_inactive:
         qs = qs.filter(is_active=True)
     if search_query:
-        q = Q()
-        for field in config['search_fields']:
-            q |= Q(**{f'{field}__icontains': search_query})
-        qs = qs.filter(q)
+        qs = apply_smart_search(qs, search_query, tuple(config['search_fields']))
     qs = qs.order_by(*config['order_by'])
     page_obj, query_string = paginate_queryset(request, qs, per_page=30)
     return render(request, 'kho_npl/settings_list.html', {

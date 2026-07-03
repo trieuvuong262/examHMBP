@@ -5,6 +5,7 @@ from django.urls import reverse
 
 from assessment.decorators import module_perm_required, module_perm_required_methods
 from hrm.module_permissions import MODULE_KHO_NPL
+from kho_npl.material_search import apply_smart_search
 from PortalJustPlay.list_search import get_search_query
 from PortalJustPlay.pagination import paginate_queryset
 
@@ -60,12 +61,7 @@ def _stocktake_filtered_qs(search_query, status):
     if status:
         qs = qs.filter(status=status)
     if search_query:
-        qs = qs.filter(
-            Q(number__icontains=search_query)
-            | Q(name__icontains=search_query)
-            | Q(location__name__icontains=search_query)
-            | Q(location__name__icontains=search_query),
-        )
+        qs = apply_smart_search(qs, search_query, ('number', 'name', 'location__name'))
     return qs
 
 

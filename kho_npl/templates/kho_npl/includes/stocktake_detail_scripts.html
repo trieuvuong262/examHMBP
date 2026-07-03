@@ -9,11 +9,13 @@
     const rows = Array.from(tbody.querySelectorAll('.jp-npl-stk-detail-row'));
 
     function applyFilter() {
-        const term = (searchInput.value || '').trim().toLowerCase();
+        const term = (searchInput.value || '').trim();
         let visible = 0;
         rows.forEach(function (row) {
-            const hay = (row.getAttribute('data-mat-search') || '').toLowerCase();
-            const show = !term || hay.indexOf(term) !== -1;
+            const name = row.getAttribute('data-mat-search') || '';
+            const show = !term || (window.JpNplMaterialNameSearch
+                ? window.JpNplMaterialNameSearch.matches(name, term)
+                : name.toLowerCase().indexOf(term.toLowerCase()) !== -1);
             row.classList.toggle('is-hidden', !show);
             if (show) visible += 1;
         });

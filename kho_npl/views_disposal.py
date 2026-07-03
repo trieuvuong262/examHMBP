@@ -6,6 +6,7 @@ from django.urls import reverse
 
 from assessment.decorators import module_perm_required, module_perm_required_methods
 from hrm.module_permissions import MODULE_KHO_NPL
+from kho_npl.material_search import apply_smart_search
 from PortalJustPlay.list_search import get_search_query
 from PortalJustPlay.pagination import paginate_queryset
 
@@ -64,11 +65,10 @@ def disposal_list(request):
     if status:
         qs = qs.filter(status=status)
     if search_query:
-        qs = qs.filter(
-            Q(number__icontains=search_query)
-            | Q(lines__location__name__icontains=search_query)
-            | Q(lines__location__code__icontains=search_query)
-            | Q(notes__icontains=search_query)
+        qs = apply_smart_search(
+            qs,
+            search_query,
+            ('number', 'lines__location__name', 'notes'),
         ).distinct()
     qs = qs.order_by(order, '-pk')
     page_obj, query_string = paginate_queryset(request, qs)

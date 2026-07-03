@@ -607,7 +607,7 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page.jp-npl-stock-card-page .j
                 {% include 'kho_npl/includes/material_category_cascade_filter.html' with parent_select_id='sc-cat-parent' child_select_id='sc-cat-child' %}
                 <div class="jp-npl-mat-filter-field jp-npl-mat-search-field">
                     <input type="search" class="form-control form-control-sm jp-npl-filter-ctl" id="sc-q" name="q"
-                           value="{{ search_query }}" placeholder="Mã, tên, màu..." autocomplete="off" aria-label="Tìm NPL">
+                           value="{{ search_query }}" placeholder="Tên NPL..." autocomplete="off" aria-label="Tìm theo tên NPL">
                 </div>
                 <button type="submit" class="btn btn-hm btn-sm fw-bold">Tìm</button>
                 {% if has_catalog_filters %}

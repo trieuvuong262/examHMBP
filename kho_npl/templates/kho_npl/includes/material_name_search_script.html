@@ -1,0 +1,48 @@
+<script>
+window.JpNplMaterialNameSearch = (function () {
+    function normalize(text) {
+        return (text || '')
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/đ/g, 'd');
+    }
+
+    function termHits(term, hay) {
+        var norm = normalize(term);
+        if (!norm) return false;
+        if (hay.indexOf(norm) !== -1) return true;
+        var compact = norm.replace(/\s+/g, '');
+        var hayCompact = hay.replace(/\s+/g, '');
+        if (compact && hayCompact.indexOf(compact) !== -1) return true;
+        var words = hay.split(/\s+/).filter(Boolean);
+        for (var i = 0; i < words.length; i++) {
+            var word = words[i];
+            if (norm.indexOf(word) !== -1 || word.indexOf(norm) !== -1) return true;
+            if (norm.length >= 2 && word.indexOf(norm) === 0) return true;
+        }
+        if (term.indexOf(' ') === -1 && compact.length >= 4) {
+            for (var j = 2; j < compact.length - 1; j++) {
+                var left = compact.slice(0, j);
+                var right = compact.slice(j);
+                if (hay.indexOf(left) !== -1 && hay.indexOf(right) !== -1) return true;
+            }
+        }
+        return false;
+    }
+
+    function matches(name, query) {
+        var q = (query || '').trim();
+        if (!q) return true;
+        var hay = normalize(name);
+        var parts = q.split(/\s+/).filter(Boolean);
+        if (!parts.length) parts = [q];
+        for (var i = 0; i < parts.length; i++) {
+            if (termHits(parts[i], hay)) return true;
+        }
+        return false;
+    }
+
+    return { normalize: normalize, matches: matches };
+})();
+</script>

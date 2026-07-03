@@ -7,6 +7,7 @@ from django.urls import reverse
 from assessment.decorators import module_perm_required, module_perm_required_methods
 from hrm.menu_permissions import user_can_create_menu
 from hrm.module_permissions import MODULE_KHO_NPL
+from kho_npl.material_search import apply_smart_search
 from PortalJustPlay.list_search import get_search_query
 from PortalJustPlay.pagination import paginate_queryset
 
@@ -76,11 +77,7 @@ def receipt_list(request):
     if status:
         qs = qs.filter(status=status)
     if search_query:
-        qs = qs.filter(
-            Q(number__icontains=search_query)
-            | Q(po_number__icontains=search_query)
-            | Q(supplier__name__icontains=search_query)
-        )
+        qs = apply_smart_search(qs, search_query, ('number', 'po_number', 'supplier__name'))
     qs = qs.order_by(order, '-pk')
     page_obj, query_string = paginate_queryset(request, qs)
     return render(request, 'kho_npl/receipt_list.html', {

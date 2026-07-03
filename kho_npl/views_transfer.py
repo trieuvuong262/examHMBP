@@ -6,6 +6,7 @@ from django.urls import reverse
 
 from assessment.decorators import module_perm_required, module_perm_required_methods
 from hrm.module_permissions import MODULE_KHO_NPL
+from kho_npl.material_search import apply_smart_search
 from PortalJustPlay.list_search import get_search_query
 from PortalJustPlay.pagination import paginate_queryset
 
@@ -132,11 +133,10 @@ def _hub_list_context(request, tab: str):
     else:
         qs = qs.filter(status__in=TAB_STATUS_MAP[tab])
     if search_query:
-        qs = qs.filter(
-            Q(number__icontains=search_query)
-            | Q(from_location__name__icontains=search_query)
-            | Q(to_location__name__icontains=search_query)
-            | Q(notes__icontains=search_query)
+        qs = apply_smart_search(
+            qs,
+            search_query,
+            ('number', 'from_location__name', 'to_location__name', 'notes'),
         )
     sort_key, sort_dir, order = doc_list_sort(request, TRANSFER_LIST_SORT_FIELDS, default_key='transfer_date')
     qs = qs.order_by(order, '-pk')

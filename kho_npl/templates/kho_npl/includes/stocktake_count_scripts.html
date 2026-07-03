@@ -47,12 +47,14 @@
 
     function passesSearch(row, term) {
         if (!term) return true;
-        const hay = (row.getAttribute('data-mat-search') || '').toLowerCase();
-        return hay.indexOf(term) !== -1;
+        const name = row.getAttribute('data-mat-search') || '';
+        return window.JpNplMaterialNameSearch
+            ? window.JpNplMaterialNameSearch.matches(name, term)
+            : name.toLowerCase().indexOf(term.toLowerCase()) !== -1;
     }
 
     function applyFilter() {
-        const term = (searchInput.value || '').trim().toLowerCase();
+        const term = (searchInput.value || '').trim();
         let visible = 0;
         rows.forEach(function (row) {
             const show = passesSearch(row, term) && passesFilter(row);
