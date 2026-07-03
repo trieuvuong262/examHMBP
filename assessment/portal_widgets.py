@@ -25,7 +25,7 @@ from hrm.module_permissions import (
     user_can_access_module,
     user_can_edit_module,
 )
-from reports.models import DailyWorkReport
+from reports.models import DailyWorkReport, ReportComment
 from tasks.models import WorkTask, WorkTaskHandoff
 
 
@@ -381,6 +381,160 @@ def _utilities_widgets(user):
         return []
 
 
+def _report_comment_widgets(user):
+    """Widget nhận xét báo cáo chưa đọc — cho cả nhân viên (quản lý nhận xét) và quản lý (NV phản hồi)."""
+    widgets = []
+
+    # Nhận xét chưa đọc trên báo cáo CỦA MÌNH (quản lý nhận xét cho mình)
+    my_daily = (
+        ReportComment.objects.filter(is_read=False, daily_report__employee=user)
+        .exclude(author=user)
+        .values_list('daily_report_id', flat=True)
+        .first()
+    )
+    my_weekly = (
+        ReportComment.objects.filter(is_read=False, weekly_report__employee=user)
+        .exclude(author=user)
+        .values_list('weekly_report_id', flat=True)
+        .first()
+    ) if not my_daily else None
+
+    if my_daily:
+        from reports.models import DailyWorkReport as _DWR
+        try:
+            r = _DWR.objects.select_related('employee', 'employee__profile').get(pk=my_daily)
+            url = reverse(
+                'reports:detail_cn' if r.is_production_report else 'reports:detail_vp',
+                args=[r.pk],
+            )
+            report_date_str = r.report_date.strftime('%d/%m/%Y')
+        except _DWR.DoesNotExist:
+            url = reverse('reports:my_vp')
+            report_date_str = ''
+        my_unread = ReportComment.objects.filter(
+            is_read=False, daily_report__employee=user,
+        ).exclude(author=user).count() + ReportComment.objects.filter(
+            is_read=False, weekly_report__employee=user,
+        ).exclude(author=user).count()
+        if my_unread == 1 and report_date_str:
+            text = f'Bạn có nhận xét mới từ quản lý trên báo cáo ngày {report_date_str}.'
+        else:
+            text = f'Bạn có {my_unread} nhận xét mới từ quản lý.'
+        widgets.append({
+            'level': 'info',
+            'icon': 'bi-chat-dots-fill',
+            'title': 'Nhận xét báo cáo',
+            'text': text,
+            'url': url,
+            'action': 'Xem',
+            'badge': my_unread,
+        })
+    elif my_weekly:
+        url = reverse('reports:weekly_detail_vp', args=[my_weekly])
+        my_unread = ReportComment.objects.filter(
+            is_read=False, weekly_report__employee=user,
+        ).exclude(author=user).count()
+        if my_unread == 1:
+            from reports.models import WeeklyWorkReport as _WWR2
+            try:
+                wr = _WWR2.objects.get(pk=my_weekly)
+                text = f'Bạn có nhận xét mới từ quản lý trên báo cáo tuần {wr.week_start.strftime("%d/%m/%Y")}.'
+            except _WWR2.DoesNotExist:
+                text = f'Bạn có {my_unread} nhận xét mới từ quản lý.'
+        else:
+            text = f'Bạn có {my_unread} nhận xét mới từ quản lý.'
+        widgets.append({
+            'level': 'info',
+            'icon': 'bi-chat-dots-fill',
+            'title': 'Nhận xét báo cáo',
+            'text': text,
+            'url': url,
+            'action': 'Xem',
+            'badge': my_unread,
+        })
+
+    # Phản hồi chưa đọc trên báo cáo CẤP DƯỚI (nhân viên phản hồi lại)
+    if can_view_team_reports(user):
+        team_ids = list(get_team_report_members(user).values_list('pk', flat=True))
+        if team_ids:
+            sub_daily = (
+                ReportComment.objects.filter(
+                    is_read=False,
+                    daily_report__employee_id__in=team_ids,
+                    author_id__in=team_ids,
+                ).values_list('daily_report_id', flat=True).first()
+            )
+            sub_weekly = (
+                ReportComment.objects.filter(
+                    is_read=False,
+                    weekly_report__employee_id__in=team_ids,
+                    author_id__in=team_ids,
+                ).values_list('weekly_report_id', flat=True).first()
+            ) if not sub_daily else None
+
+            if sub_daily:
+                from reports.models import DailyWorkReport as _DWR2
+                try:
+                    r = _DWR2.objects.select_related('employee', 'employee__profile').get(pk=sub_daily)
+                    url = reverse(
+                        'reports:detail_cn' if r.is_production_report else 'reports:detail_vp',
+                        args=[r.pk],
+                    )
+                    emp_name = r.employee.profile.full_name if hasattr(r.employee, 'profile') and r.employee.profile.full_name else r.employee.username
+                    report_date_str = r.report_date.strftime('%d/%m/%Y')
+                except _DWR2.DoesNotExist:
+                    url = reverse('reports:team_vp')
+                    emp_name = 'nhân viên'
+                    report_date_str = ''
+                sub_unread = ReportComment.objects.filter(
+                    is_read=False, daily_report__employee_id__in=team_ids, author_id__in=team_ids,
+                ).count() + ReportComment.objects.filter(
+                    is_read=False, weekly_report__employee_id__in=team_ids, author_id__in=team_ids,
+                ).count()
+                if sub_unread == 1 and report_date_str:
+                    text = f'Bạn có phản hồi từ báo cáo {report_date_str} của {emp_name}.'
+                else:
+                    text = f'Bạn có {sub_unread} phản hồi mới từ nhân viên.'
+                widgets.append({
+                    'level': 'info',
+                    'icon': 'bi-chat-dots-fill',
+                    'title': 'Phản hồi báo cáo',
+                    'text': text,
+                    'url': url,
+                    'action': 'Xem',
+                    'badge': sub_unread,
+                })
+            elif sub_weekly:
+                from reports.models import WeeklyWorkReport as _WWR
+                try:
+                    wr = _WWR.objects.select_related('employee', 'employee__profile').get(pk=sub_weekly)
+                    url = reverse('reports:weekly_detail_vp', args=[sub_weekly])
+                    emp_name = wr.employee.profile.full_name if hasattr(wr.employee, 'profile') and wr.employee.profile.full_name else wr.employee.username
+                    report_date_str = wr.week_start.strftime('%d/%m/%Y')
+                except _WWR.DoesNotExist:
+                    url = reverse('reports:team_vp')
+                    emp_name = 'nhân viên'
+                    report_date_str = ''
+                sub_unread = ReportComment.objects.filter(
+                    is_read=False, weekly_report__employee_id__in=team_ids, author_id__in=team_ids,
+                ).count()
+                if sub_unread == 1 and report_date_str:
+                    text = f'Bạn có phản hồi từ báo cáo tuần {report_date_str} của {emp_name}.'
+                else:
+                    text = f'Bạn có {sub_unread} phản hồi mới từ nhân viên.'
+                widgets.append({
+                    'level': 'info',
+                    'icon': 'bi-chat-dots-fill',
+                    'title': 'Phản hồi báo cáo',
+                    'text': text,
+                    'url': url,
+                    'action': 'Xem',
+                    'badge': sub_unread,
+                })
+
+    return widgets
+
+
 def get_portal_dashboard(user):
     """Trả về danh sách widget nhắc việc (dict) cho trang chủ."""
     widgets = []
@@ -432,6 +586,7 @@ def get_portal_dashboard(user):
     widgets.extend(_equipment_it_widgets(user))
     widgets.extend(_feedback_widgets(user))
     widgets.extend(_utilities_widgets(user))
+    widgets.extend(_report_comment_widgets(user))
 
     # --- HOD / GM: team chưa nộp BC ---
     if can_view_team_reports(user):

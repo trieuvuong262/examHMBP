@@ -126,6 +126,13 @@
                         </td>
                         <td>
                             {% if row.report %}
+                            <span class="jp-report-anchor jp-report-anchor--{{ row.report.report_period|default:'day' }} text-nowrap small">{{ row.report|report_anchor_display }}</span>
+                            {% else %}
+                            <span class="text-muted small">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if row.report %}
                             <span class="badge {{ row.report|report_period_badge_class }}">{{ row.report|report_period_label }}</span>
                             {% else %}
                             <span class="text-muted small">—</span>

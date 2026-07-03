@@ -1664,6 +1664,12 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
     ):
         report.refresh_from_db()
 
+    # Đánh dấu nhận xét đã đọc (comment không phải của mình)
+    if request.method == 'GET':
+        ReportComment.objects.filter(
+            daily_report=report, is_read=False,
+        ).exclude(author=request.user).update(is_read=True)
+
     if request.method == 'POST' and request.POST.get('action') == 'update_norms' and can_edit_norm:
         norms = {}
         for key, value in request.POST.items():
@@ -1963,6 +1969,12 @@ def _weekly_report_detail_core(request, pk, *, detail_url_name: str):
 
     if request.method == 'GET' and lock_report_on_supervisor_view(report, request.user):
         report.refresh_from_db()
+
+    # Đánh dấu nhận xét đã đọc (comment không phải của mình)
+    if request.method == 'GET':
+        ReportComment.objects.filter(
+            weekly_report=report, is_read=False,
+        ).exclude(author=request.user).update(is_read=True)
 
     can_comment = can_review or report.employee_id == request.user.id
     if (

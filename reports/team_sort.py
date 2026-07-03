@@ -62,10 +62,11 @@ def build_team_table_columns(
         {'key': TEAM_SORT_MEMBER, 'label': 'Nhân viên', 'align': 'start'},
         {
             'key': TEAM_SORT_ANCHOR,
-            'label': 'Ngày',
+            'label': 'Ngày gửi BC',
             'align': 'start',
             'date_column': True,
         },
+        {'key': 'report_anchor', 'label': 'Mốc báo cáo', 'align': 'start', 'office_only': True, 'sortable': False},
         {
             'key': TEAM_SORT_SHIFT,
             'label': 'Ca',

@@ -465,6 +465,7 @@ class ReportComment(models.Model):
         verbose_name='Người nhận xét',
     )
     body = models.TextField(verbose_name='Nội dung nhận xét')
+    is_read = models.BooleanField(default=False, verbose_name='Đã đọc')
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
