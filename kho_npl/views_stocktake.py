@@ -15,8 +15,9 @@ from kho_npl.choices import (
 )
 from kho_npl.filter_utils import parse_int_ids
 from kho_npl.services.scrap_warehouse import source_locations_qs
-from kho_npl.forms import StocktakeForm, StocktakeLineFormSet
+from kho_npl.forms import DocAttachmentReplaceForm, StocktakeForm, StocktakeLineFormSet
 from kho_npl.models import Stocktake, StocktakeLine
+from kho_npl.doc_attachment import can_replace_doc_attachment, replace_doc_attachment
 from kho_npl.services.doc_numbers import next_stocktake_number
 from kho_npl.services.stocktake_export import (
     stocktake_detail_export_response,
@@ -27,6 +28,7 @@ from kho_npl.services.stocktakes import (
     close_stocktake,
     populate_stocktake_lines,
     start_stocktake_counting,
+    stocktake_attachment_editable_after_close,
     stocktake_can_count,
     stocktake_is_editable,
 )
@@ -167,17 +169,49 @@ def stocktake_detail(request, pk):
         line for line in stocktake.lines.all()
         if line.actual_qty is not None and line.actual_qty != line.system_qty
     ]
+    perms = perm_context(request.user, 'stocktakes')
+    is_editable = stocktake_is_editable(stocktake)
+    can_replace_attachment = can_replace_doc_attachment(
+        is_editable=is_editable,
+        posted_editable=stocktake_attachment_editable_after_close(stocktake),
+        can_update=perms.get('can_update'),
+    )
     return render(request, 'kho_npl/stocktake_detail.html', {
         **nav_context('stocktakes', user=request.user),
-        **perm_context(request.user, 'stocktakes'),
+        **perms,
         'stocktake': stocktake,
         'variance_lines': variance_lines,
         'line_count': _stocktake_line_count(stocktake),
         'can_count': stocktake_can_count(stocktake),
-        'is_editable': stocktake_is_editable(stocktake),
+        'is_editable': is_editable,
+        'can_replace_attachment': can_replace_attachment,
+        'stocktake_replace_attachment_url': reverse('kho_npl:stocktake_replace_attachment', args=[stocktake.pk]),
         'line_columns': STOCKTAKE_DETAIL_LINE_COLUMNS,
         'line_total_col_weight': STOCKTAKE_DETAIL_LINE_TOTAL_COL_WEIGHT,
     })
+
+
+@module_perm_required_methods(MODULE_KHO_NPL, post='update')
+def stocktake_replace_attachment(request, pk):
+    stocktake = get_object_or_404(Stocktake, pk=pk)
+    if request.method != 'POST':
+        return redirect('kho_npl:stocktake_detail', pk=pk)
+    perms = perm_context(request.user, 'stocktakes')
+    if not can_replace_doc_attachment(
+        is_editable=stocktake_is_editable(stocktake),
+        posted_editable=stocktake_attachment_editable_after_close(stocktake),
+        can_update=perms.get('can_update'),
+    ):
+        messages.error(request, 'Không thể thay chứng từ phiếu này.')
+        return redirect('kho_npl:stocktake_detail', pk=pk)
+    form = DocAttachmentReplaceForm(request.POST, request.FILES)
+    if form.is_valid():
+        replace_doc_attachment(stocktake, form.cleaned_data['attachment'])
+        messages.success(request, f'Đã cập nhật chứng từ kỳ kiểm kê {stocktake.number}.')
+    else:
+        err = next(iter(form.errors.get('attachment', [])), None)
+        messages.error(request, err or 'Không lưu được chứng từ — kiểm tra lại file.')
+    return redirect('kho_npl:stocktake_detail', pk=pk)
 
 
 @module_perm_required_methods(MODULE_KHO_NPL, get='create', post='create')

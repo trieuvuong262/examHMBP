@@ -11,10 +11,12 @@ from PortalJustPlay.list_search import get_search_query
 from PortalJustPlay.pagination import paginate_queryset
 
 from kho_npl.choices import ADJUST_STATUS_PENDING
-from kho_npl.forms import StockAdjustmentForm, StockAdjustmentLineFormSet
+from kho_npl.forms import DocAttachmentReplaceForm, StockAdjustmentForm, StockAdjustmentLineFormSet
 from kho_npl.models import StockAdjustment
+from kho_npl.doc_attachment import can_replace_doc_attachment, replace_doc_attachment
 from kho_npl.services.adjustments import (
     AdjustmentWorkflowError,
+    adjustment_attachment_editable_after_approve,
     adjustment_is_editable,
     approve_stock_adjustment,
     reject_stock_adjustment,
@@ -74,12 +76,44 @@ def adjustment_detail(request, pk):
         ),
         pk=pk,
     )
+    perms = perm_context(request.user, 'adjustments')
+    is_editable = adjustment_is_editable(adjustment)
+    can_replace_attachment = can_replace_doc_attachment(
+        is_editable=is_editable,
+        posted_editable=adjustment_attachment_editable_after_approve(adjustment),
+        can_update=perms.get('can_update'),
+    )
     return render(request, 'kho_npl/adjustment_detail.html', {
         **nav_context('adjustments', user=request.user),
-        **perm_context(request.user, 'adjustments'),
+        **perms,
         'adjustment': adjustment,
-        'is_editable': adjustment_is_editable(adjustment),
+        'is_editable': is_editable,
+        'can_replace_attachment': can_replace_attachment,
+        'adjustment_replace_attachment_url': reverse('kho_npl:adjustment_replace_attachment', args=[adjustment.pk]),
     })
+
+
+@module_perm_required_methods(MODULE_KHO_NPL, post='update')
+def adjustment_replace_attachment(request, pk):
+    adjustment = get_object_or_404(StockAdjustment, pk=pk)
+    if request.method != 'POST':
+        return redirect('kho_npl:adjustment_detail', pk=pk)
+    perms = perm_context(request.user, 'adjustments')
+    if not can_replace_doc_attachment(
+        is_editable=adjustment_is_editable(adjustment),
+        posted_editable=adjustment_attachment_editable_after_approve(adjustment),
+        can_update=perms.get('can_update'),
+    ):
+        messages.error(request, 'Không thể thay chứng từ phiếu này.')
+        return redirect('kho_npl:adjustment_detail', pk=pk)
+    form = DocAttachmentReplaceForm(request.POST, request.FILES)
+    if form.is_valid():
+        replace_doc_attachment(adjustment, form.cleaned_data['attachment'])
+        messages.success(request, f'Đã cập nhật chứng từ phiếu {adjustment.number}.')
+    else:
+        err = next(iter(form.errors.get('attachment', [])), None)
+        messages.error(request, err or 'Không lưu được chứng từ — kiểm tra lại file.')
+    return redirect('kho_npl:adjustment_detail', pk=pk)
 
 
 @module_perm_required_methods(MODULE_KHO_NPL, get='create', post='create')

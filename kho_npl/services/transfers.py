@@ -20,6 +20,10 @@ def transfer_is_editable(transfer: StockTransfer) -> bool:
     return transfer.status == TRANSFER_STATUS_DRAFT
 
 
+def transfer_attachment_editable_after_send(transfer: StockTransfer) -> bool:
+    return transfer.status in (TRANSFER_STATUS_IN_TRANSIT, TRANSFER_STATUS_RECEIVED)
+
+
 def transfer_can_send(transfer: StockTransfer) -> bool:
     return transfer.status == TRANSFER_STATUS_DRAFT
 

@@ -20,6 +20,10 @@ def adjustment_is_editable(adjustment: StockAdjustment) -> bool:
     return adjustment.status == ADJUST_STATUS_PENDING
 
 
+def adjustment_attachment_editable_after_approve(adjustment: StockAdjustment) -> bool:
+    return adjustment.status == ADJUST_STATUS_APPROVED
+
+
 @transaction.atomic
 def approve_stock_adjustment(adjustment: StockAdjustment, user) -> StockAdjustment:
     adjustment = StockAdjustment.objects.select_for_update().get(pk=adjustment.pk)

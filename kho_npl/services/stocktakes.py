@@ -7,6 +7,7 @@ from kho_npl.choices import (
     STOCKTAKE_STATUS_CLOSED,
     STOCKTAKE_STATUS_COUNTING,
     STOCKTAKE_STATUS_DRAFT,
+    STOCKTAKE_STATUS_REVIEW,
 )
 from kho_npl.models import Material, StockBalance, StockLedger, Stocktake, StocktakeLine
 
@@ -17,6 +18,10 @@ class StocktakeWorkflowError(Exception):
 
 def stocktake_is_editable(stocktake: Stocktake) -> bool:
     return stocktake.status in (STOCKTAKE_STATUS_DRAFT, STOCKTAKE_STATUS_COUNTING)
+
+
+def stocktake_attachment_editable_after_close(stocktake: Stocktake) -> bool:
+    return stocktake.status in (STOCKTAKE_STATUS_REVIEW, STOCKTAKE_STATUS_CLOSED)
 
 
 def stocktake_can_count(stocktake: Stocktake) -> bool:
