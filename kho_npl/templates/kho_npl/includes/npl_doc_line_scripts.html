@@ -411,7 +411,8 @@
             maxItems: 1,
             valueField: 'id',
             labelField: materialDisplay === 'name-stock' ? 'name' : 'text',
-            searchField: ['text', 'code', 'name'],
+            // Tìm kiếm từ server (tên NPL, không dấu, thiếu khoảng trắng) — không lọc lại client-side.
+            searchField: searchUrl ? [] : ['name'],
             placeholder: select.dataset.placeholder || 'Gõ tên NPL...',
             dropdownParent: 'body',
             openOnFocus: true,
@@ -441,8 +442,8 @@
                         return '<div class="px-2 py-2 text-muted small">' + locationRequiredMessage() + '</div>';
                     }
                     const msg = inStockOnly
-                        ? 'Không có NPL có tồn tại vị trí này — thử mã/tên khác'
-                        : 'Không tìm thấy NPL — thử tên hoặc mã khác';
+                        ? 'Không có NPL có tồn tại vị trí này — thử tên khác'
+                        : 'Không tìm thấy NPL — thử tên khác';
                     return '<div class="px-2 py-2 text-muted small">' + msg + '</div>';
                 },
                 loading: function () {

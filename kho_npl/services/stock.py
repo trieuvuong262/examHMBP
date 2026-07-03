@@ -11,6 +11,7 @@ from kho_npl.choices import (
 )
 from kho_npl.models import Material, StockBalance
 from kho_npl.material_search import apply_smart_search
+from kho_npl.services.scrap_warehouse import exclude_scrap_locations
 
 
 def material_total_qty(material: Material) -> Decimal:

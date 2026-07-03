@@ -111,7 +111,13 @@ def material_search(request):
         qs = Material.objects.filter(is_active=True).select_related('unit', 'color', 'specification')
         if q:
             qs = apply_material_search(qs, q)
-        materials = list(qs.order_by('code')[:40])
+        if location_id and not q:
+            browse_limit = 1000
+        elif q:
+            browse_limit = 50
+        else:
+            browse_limit = 40
+        materials = list(qs.order_by('name', 'code')[:browse_limit])
         balance_map = {}
         if location_id and materials:
             material_ids = [m.pk for m in materials]

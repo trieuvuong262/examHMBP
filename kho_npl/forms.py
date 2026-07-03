@@ -690,7 +690,7 @@ class StockAdjustmentLineForm(forms.ModelForm):
                 'class': 'form-select jp-npl-material-select',
                 'data-placeholder': 'Gõ tên NPL...',
             }),
-            'location': forms.Select(attrs=FORM_SELECT),
+            'location': forms.Select(attrs=LOCATION_ROW_SELECT),
             'system_qty': forms.NumberInput(attrs={
                 **FORM_CONTROL,
                 'step': '0.001',
@@ -715,7 +715,7 @@ class StockAdjustmentLineForm(forms.ModelForm):
             )
         else:
             self.fields['material'].queryset = Material.objects.none()
-        self.fields['material'].empty_label = 'Gõ tên hoặc mã để tìm...'
+        self.fields['material'].empty_label = None
         self.fields['location'].queryset = WarehouseLocation.objects.filter(is_active=True)
         self.fields['notes'].required = False
         self.fields['system_qty'].required = False

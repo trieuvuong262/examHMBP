@@ -94,11 +94,11 @@
     function initMaterialSelect(select) {
         if (!select || materialInstances.has(select) || typeof TomSelect === 'undefined') return;
         const ts = new TomSelect(select, {
-            maxOptions: 40,
+            maxOptions: browseOnOpen ? null : 40,
             maxItems: 1,
             valueField: 'id',
-            labelField: 'text',
-            searchField: ['text', 'code', 'name'],
+            labelField: materialDisplay === 'name-stock' ? 'name' : 'text',
+            searchField: searchUrl ? [] : ['name'],
             placeholder: select.dataset.placeholder || 'Gõ tên NPL...',
             dropdownParent: 'body',
             openOnFocus: true,
@@ -126,7 +126,7 @@
                     return '<div class="jp-npl-material-item"><span class="jp-npl-material-item-code">' + code + '</span>' + unit + '</div>';
                 },
                 no_results: function () {
-                    return '<div class="px-2 py-2 text-muted small">Không tìm thấy NPL — thử mã hoặc tên khác</div>';
+                    return '<div class="px-2 py-2 text-muted small">Không tìm thấy NPL — thử tên khác</div>';
                 },
                 loading: function () {
                     return '<div class="px-2 py-2 text-muted small">Đang tìm...</div>';
