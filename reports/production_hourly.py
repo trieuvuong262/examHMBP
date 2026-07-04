@@ -758,8 +758,9 @@ def _work_item_from_entry(
     )
     quantity_per_hour = metrics['quantity_per_hour']
     if efficiency_pct is not None and norm and norm > 0:
+        hours = Decimal(str(metrics['hours']))
         quantity_per_hour = float(
-            (Decimal(str(efficiency_pct)) / Decimal('100') * norm).quantize(Decimal('0.01'))
+            (Decimal(str(efficiency_pct)) / Decimal('100') * norm * hours).quantize(Decimal('0.01'))
         )
     return {
         'product_code': code,
