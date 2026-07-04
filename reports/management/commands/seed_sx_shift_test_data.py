@@ -148,15 +148,12 @@ class Command(BaseCommand):
             for user in users:
                 base_eff = random.randint(80, 108)
                 for day in days:
-                    shift = (
-                        DailyWorkReport.SHIFT_MORNING
-                        if random.random() < 0.6
-                        else DailyWorkReport.SHIFT_NIGHT
-                    )
-                    n_prod = self._create_shift_report(user, day, shift, base_eff)
-                    if n_prod:
-                        created_reports += 1
-                        created_products += n_prod
+                    # Mỗi NV mỗi ngày nộp cả 2 ca: sáng + tối
+                    for shift in (DailyWorkReport.SHIFT_MORNING, DailyWorkReport.SHIFT_NIGHT):
+                        n_prod = self._create_shift_report(user, day, shift, base_eff)
+                        if n_prod:
+                            created_reports += 1
+                            created_products += n_prod
 
         self.stdout.write(self.style.SUCCESS(
             f'Đã tạo {created_reports} báo cáo SX (đã nộp), {created_products} công đoạn.'
