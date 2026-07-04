@@ -229,3 +229,20 @@ class ProductionTeamViewTests(TestCase):
         qs = query_production_team_reports([self.member.id], self.today, self.today)
         annotated = qs.get(pk=report.pk)
         self.assertEqual(annotated.total_qty, Decimal('200'))
+
+    def test_status_counts_split_draft_and_no_report(self):
+        from reports.production_team import production_team_status_counts
+
+        reports_by_employee = {
+            self.member.id: [
+                self._morning_report(status=DailyWorkReport.STATUS_DRAFT, draft_saved=True),
+            ],
+        }
+        counts = production_team_status_counts(
+            [self.member.id, self.other.id],
+            reports_by_employee,
+            daily_report_visible_to_team,
+        )
+        self.assertEqual(counts['submitted'], 0)
+        self.assertEqual(counts['draft_saved'], 1)
+        self.assertEqual(counts['no_report'], 1)

@@ -53,7 +53,9 @@
         {% endif %}
     </form>
 
+    {% block team_stat_cards %}
     {% include 'reports/includes/team_stat_cards.html' %}
+    {% endblock %}
 
     <div class="card border-0 shadow-sm overflow-hidden">
         <div class="table-responsive">
