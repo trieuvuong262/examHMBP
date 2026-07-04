@@ -76,6 +76,39 @@ def _xlsx_response(sheets: dict[str, pd.DataFrame], filename_prefix: str) -> Htt
     return response
 
 
+def export_production_team_summary_xlsx(summary, *, date_from, date_to, shift_label: str) -> HttpResponse:
+    """Xuất ma trận hiệu suất tổng hợp SX (NV × ngày) ra Excel."""
+    days = summary.get('days', [])
+    day_headers = [f"{d['weekday']} {d['date'].strftime('%d/%m')}" for d in days]
+    columns = ['STT', 'Nhân viên', 'Bộ phận', *day_headers, 'TB chung']
+
+    rows: list[list] = []
+    for group in summary.get('groups', []):
+        for member in group.get('members', []):
+            row = [member['stt'], member['name'], member.get('division') or '']
+            for cell in member['cells']:
+                eff = cell.get('efficiency_pct')
+                row.append(round(eff, 2) if eff is not None else '')
+            avg = member.get('avg_efficiency_pct')
+            row.append(round(avg, 2) if avg is not None else '')
+            rows.append(row)
+
+    footer = ['', 'TB team theo ngày', '']
+    for d in days:
+        avg = d.get('average')
+        footer.append(round(avg, 2) if avg is not None else '')
+    overall = summary.get('overall_avg')
+    footer.append(round(overall, 2) if overall is not None else '')
+    rows.append(footer)
+
+    df = pd.DataFrame(rows, columns=columns)
+    prefix = (
+        f'Bao_cao_tong_hop_SX_{_safe_filename_part(shift_label)}'
+        f'_{date_from.strftime("%Y%m%d")}_{date_to.strftime("%Y%m%d")}'
+    )
+    return _xlsx_response({'Tong_hop': df}, prefix)
+
+
 def can_export_daily_report(report: DailyWorkReport) -> bool:
     if report.is_production_report:
         return bool(report.shift_started_at)

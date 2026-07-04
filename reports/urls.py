@@ -10,6 +10,7 @@ urlpatterns = [
     path('sx/nhap-ho/', views.proxy_report_entry, name='proxy_cn'),
     path('sx/team/', views.team_reports_cn, name='team_cn'),
     path('sx/team/tong-hop/', views.team_summary_cn, name='team_summary_cn'),
+    path('sx/team/tong-hop/xuat-excel/', views.team_summary_cn_export, name='team_summary_cn_export'),
     path('sx/my/', views.my_reports_cn, name='my_cn'),
     path('sx/copy-yesterday/', views.copy_yesterday_cn, name='copy_yesterday_cn'),
     path('sx/<int:pk>/export/', views.report_detail_export_cn, name='detail_export_cn'),

@@ -107,9 +107,17 @@
             <h2 class="fw-bold text-hm mb-1 jp-page-title">{{ team_page_title }}</h2>
             <p class="text-muted small mb-0">Hiệu suất trung bình mỗi nhân viên theo từng ngày — <span class="{{ active_shift|production_shift_badge_class }}">{{ summary.shift_label }}</span></p>
         </div>
-        <a href="{% url team_url_name %}?{{ team_list_query }}" class="btn btn-outline-hm btn-sm">
-            <i class="bi bi-arrow-left me-1"></i>Danh sách báo cáo
-        </a>
+        <div class="d-flex flex-wrap gap-2">
+            <a href="{% url 'reports:team_summary_cn_export' %}?{{ team_list_query }}" class="btn btn-outline-success btn-sm">
+                <i class="bi bi-file-earmark-spreadsheet me-1"></i>Xuất Excel
+            </a>
+            <button type="button" id="btnSummaryScreenshot" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-camera me-1"></i>Chụp ảnh
+            </button>
+            <a href="{% url team_url_name %}?{{ team_list_query }}" class="btn btn-outline-hm btn-sm">
+                <i class="bi bi-arrow-left me-1"></i>Danh sách báo cáo
+            </a>
+        </div>
     </div>
 
     <div class="jp-summary-stats mb-3">
@@ -189,7 +197,7 @@
 
     <div class="card border-0 shadow-sm overflow-hidden">
         <div class="jp-summary-scroll">
-            <table class="table table-hover align-middle jp-summary-table">
+            <table class="table table-hover align-middle jp-summary-table" id="summaryTable">
                 <thead>
                     <tr>
                         <th class="jp-col-sticky jp-col-stt">STT</th>
@@ -281,8 +289,37 @@
 
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    var shotBtn = document.getElementById('btnSummaryScreenshot');
+    if (shotBtn) {
+        shotBtn.addEventListener('click', function () {
+            var table = document.getElementById('summaryTable');
+            if (!table || typeof html2canvas === 'undefined') return;
+            var original = shotBtn.innerHTML;
+            shotBtn.disabled = true;
+            shotBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Đang chụp...';
+            html2canvas(table, {
+                backgroundColor: '#ffffff',
+                scale: 2,
+                windowWidth: table.scrollWidth + 40,
+                windowHeight: table.scrollHeight + 40,
+            }).then(function (canvas) {
+                var link = document.createElement('a');
+                var stamp = new Date().toISOString().slice(0, 10);
+                link.download = 'bao-cao-tong-hop-sx-{{ active_shift|lower }}-' + stamp + '.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            }).catch(function () {
+                alert('Không chụp được ảnh, vui lòng thử lại.');
+            }).finally(function () {
+                shotBtn.disabled = false;
+                shotBtn.innerHTML = original;
+            });
+        });
+    }
+
     var form = document.getElementById('summaryFilterForm');
     if (!form) return;
     function submitForm() {

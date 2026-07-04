@@ -1458,6 +1458,42 @@ def team_summary_cn(request):
     })
 
 
+@_reports_access_required
+def team_summary_cn_export(request):
+    """Xuất Excel báo cáo tổng hợp SX (theo bộ lọc hiện tại)."""
+    from .production_team import build_production_team_summary
+    from .excel_export import export_production_team_summary_xlsx
+
+    if not can_view_team_reports(request.user):
+        return redirect('home_portal')
+
+    date_from, date_to = parse_team_date_range(request, default_span_days=TEAM_SUMMARY_DEFAULT_SPAN_DAYS)
+    search_query = get_search_query(request)
+    dept_filter = (request.GET.get('dept') or '').strip()
+    shift_filter = _parse_team_summary_shift(request)
+
+    team = _team_queryset(request.user, search_query, report_profile=REPORT_PROFILE_PRODUCTION)
+    all_team_ids = list(team.values_list('id', flat=True))
+    reports = query_production_team_reports(all_team_ids, date_from, date_to)
+    reports_by_employee = build_production_reports_by_employee(reports)
+    summary = build_production_team_summary(
+        request.user,
+        team,
+        reports_by_employee,
+        daily_report_visible_to_team,
+        date_from=date_from,
+        date_to=date_to,
+        dept_filter=dept_filter,
+        shift_filter=shift_filter,
+    )
+    return export_production_team_summary_xlsx(
+        summary,
+        date_from=date_from,
+        date_to=date_to,
+        shift_label=summary['shift_label'],
+    )
+
+
 def _team_reports_for_profile(request, report_profile: str, *, report_period: str = PERIOD_DAY):
     if not can_view_team_reports(request.user):
         messages.error(
