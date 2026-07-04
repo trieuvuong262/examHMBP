@@ -214,29 +214,6 @@ def production_team_submitted_count(
     return submitted, missing
 
 
-def production_team_status_counts(
-    team_ids: list[int],
-    reports_by_employee: dict[int, list[DailyWorkReport]],
-    visible_fn,
-) -> dict[str, int]:
-    """Đếm theo NV: đã nộp / lưu nháp / chưa có báo cáo trong khoảng lọc."""
-    submitted = 0
-    draft_saved = 0
-    for emp_id in team_ids:
-        reports = reports_by_employee.get(emp_id, [])
-        agg = _aggregate_production_row(reports, visible_fn)
-        if agg['production_any_submitted']:
-            submitted += 1
-        elif agg['production_report_count'] > 0:
-            draft_saved += 1
-    no_report = len(team_ids) - submitted - draft_saved
-    return {
-        'submitted': submitted,
-        'draft_saved': draft_saved,
-        'no_report': no_report,
-    }
-
-
 def production_team_row_is_submitted(row, *, submitted_status: str, shift_filter: str = '') -> bool:
     reports = row.get('production_reports') or []
     if not reports and row.get('report'):

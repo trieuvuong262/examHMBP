@@ -126,7 +126,6 @@ from .production_team import (
     build_production_reports_by_employee,
     build_production_team_department_groups,
     production_team_row_is_submitted,
-    production_team_status_counts,
     production_team_submitted_count,
     query_production_team_reports,
 )
@@ -1396,20 +1395,14 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
         )
         submitted = len(submitted_employee_ids)
         missing = team_count - submitted
-        draft_saved_count = 0
-        no_report_count = 0
     else:
         reports = query_production_team_reports(all_team_ids, date_from, date_to)
         reports_by_employee = build_production_reports_by_employee(reports)
-        status_counts = production_team_status_counts(
-            all_team_ids,
+        submitted, missing = production_team_submitted_count(
             reports_by_employee,
             daily_report_visible_to_team,
+            team_count=team_count,
         )
-        submitted = status_counts['submitted']
-        missing = team_count - submitted
-        draft_saved_count = status_counts['draft_saved']
-        no_report_count = status_counts['no_report']
         department_groups, dept_choices = build_production_team_department_groups(
             request.user,
             team,
@@ -1477,8 +1470,6 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
         'period_filter_choices': PERIOD_CHOICES if report_profile == REPORT_PROFILE_OFFICE else [],
         'submitted_count': submitted,
         'missing_count': missing,
-        'draft_saved_count': draft_saved_count,
-        'no_report_count': no_report_count,
         'team_count': team_count,
         'can_submit_report': can_submit_daily_report(request.user),
         'report_period': report_period,

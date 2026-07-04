@@ -6,10 +6,6 @@
 <link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260702c">
 {% endblock %}
 
-{% block team_stat_cards %}
-{% include 'reports/includes/team_stat_cards_production.html' %}
-{% endblock %}
-
 {% block team_row_cells %}
 <td>
     <strong>{{ row.member.profile.full_name|default:row.member.username }}</strong>
@@ -37,7 +33,7 @@
     {% elif row.production_all_submitted %}
     <span class="badge bg-success-subtle text-success">Đã nộp</span>
     {% else %}
-    <span class="badge bg-warning-subtle text-warning">Lưu nháp</span>
+    <span class="badge bg-danger-subtle text-danger">Chưa nộp</span>
     {% endif %}
 </td>
 <td class="text-center">
