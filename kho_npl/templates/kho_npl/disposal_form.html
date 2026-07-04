@@ -49,7 +49,7 @@
                         <label class="form-label fw-bold small text-muted">Kho đích</label>
                         <input type="text" class="form-control" value="{{ scrap_warehouse_label }}" readonly disabled>
                     </div>
-                    {% include 'kho_npl/includes/doc_attachment_field.html' with field=form.attachment required=True col_class='col-md-6' %}
+                    {% include 'kho_npl/includes/doc_attachment_field.html' with field=form.attachments col_class='col-md-6' existing_attachments=existing_attachments %}
                     <div class="col-12">
                         <label class="form-label fw-bold small">Ghi chú</label>
                         {{ form.notes }}

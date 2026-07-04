@@ -109,7 +109,7 @@
                 <dt class="col-sm-3 text-muted">Ghi chú</dt>
                 <dd class="col-sm-9">{{ transfer.notes|linebreaksbr }}</dd>
                 {% endif %}
-                {% include 'kho_npl/includes/doc_attachment_display.html' with attachment=transfer.attachment can_replace=can_replace_attachment replace_url=transfer_replace_attachment_url %}
+                {% include 'kho_npl/includes/doc_attachment_display.html' with attachments=attachments can_replace=can_replace_attachment replace_url=transfer_replace_attachment_url delete_url=transfer_replace_attachment_url %}
             </dl>
         </div>
     </div>

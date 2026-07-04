@@ -10,9 +10,11 @@ from kho_npl.material_search import apply_smart_search
 from PortalJustPlay.list_search import get_search_query
 from PortalJustPlay.pagination import paginate_queryset
 
-from kho_npl.choices import DOC_STATUS_DRAFT
+from kho_npl.choices import DOC_STATUS_DRAFT, DOC_STATUS_POSTED
 from kho_npl.forms import StockDisposalForm, StockDisposalLineFormSet
 from kho_npl.models import StockDisposal
+from kho_npl.doc_attachment import can_replace_doc_attachment, doc_attachments_for
+from kho_npl.views_doc_attachment import handle_doc_attachment_replace_post
 from kho_npl.services.disposals import (
     DisposalWorkflowError,
     cancel_stock_disposal,
@@ -47,6 +49,7 @@ def _save_disposal_form(request, disposal, *, is_create: bool):
             doc.created_by = request.user
             doc.status = DOC_STATUS_DRAFT
         doc.save()
+        form.save_doc_attachments(doc, user=request.user)
         formset.instance = doc
         formset.save()
     return form, formset, doc
@@ -96,11 +99,20 @@ def disposal_detail(request, pk):
         .prefetch_related('lines__material__unit', 'lines__location'),
         pk=pk,
     )
+    perms = perm_context(request.user, 'disposals')
+    can_replace_attachment = can_replace_doc_attachment(
+        is_editable=disposal_is_editable(disposal),
+        posted_editable=disposal.status == DOC_STATUS_POSTED,
+        can_update=perms.get('can_update'),
+    )
     return render(request, 'kho_npl/disposal_detail.html', {
         **nav_context('disposals', user=request.user),
-        **perm_context(request.user, 'disposals'),
+        **perms,
         'disposal': disposal,
         'is_editable': disposal_is_editable(disposal),
+        'attachments': doc_attachments_for(disposal),
+        'can_replace_attachment': can_replace_attachment,
+        'disposal_replace_attachment_url': reverse('kho_npl:disposal_replace_attachment', args=[disposal.pk]),
         **_scrap_warehouse_context(),
     })
 
@@ -137,6 +149,7 @@ def disposal_create(request):
         'disposal': disposal,
         **_scrap_warehouse_context(),
         'cancel_url': reverse('kho_npl:disposal_list'),
+        'existing_attachments': [],
     })
 
 
@@ -172,7 +185,21 @@ def disposal_edit(request, pk):
         'disposal': disposal,
         **_scrap_warehouse_context(),
         'cancel_url': reverse('kho_npl:disposal_detail', args=[disposal.pk]),
+        'existing_attachments': doc_attachments_for(disposal),
     })
+
+
+@module_perm_required_methods(MODULE_KHO_NPL, post='update')
+def disposal_replace_attachment(request, pk):
+    disposal = get_object_or_404(StockDisposal, pk=pk)
+    if request.method != 'POST':
+        return redirect('kho_npl:disposal_detail', pk=pk)
+    return handle_doc_attachment_replace_post(
+        request,
+        disposal,
+        redirect_url=reverse('kho_npl:disposal_detail', args=[pk]),
+        doc_label=f'phiếu {disposal.number}',
+    )
 
 
 @module_perm_required_methods(MODULE_KHO_NPL, get='update', post='update')

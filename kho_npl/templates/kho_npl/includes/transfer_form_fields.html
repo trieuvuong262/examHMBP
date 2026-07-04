@@ -24,7 +24,7 @@
                 {{ form.to_location }}
                 {% if form.to_location.errors %}<div class="text-danger small">{{ form.to_location.errors }}</div>{% endif %}
             </div>
-            {% include 'kho_npl/includes/doc_attachment_field.html' with field=form.attachment required=True col_class='col-12 col-md-6 col-lg-3' %}
+            {% include 'kho_npl/includes/doc_attachment_field.html' with field=form.attachments required=True col_class='col-12 col-md-6 col-lg-3' existing_attachments=existing_attachments %}
             <div class="col-12">
                 <label class="form-label fw-bold small">Ghi chú</label>
                 {{ form.notes }}

@@ -13,14 +13,14 @@ from PortalJustPlay.pagination import paginate_queryset
 
 from kho_npl.choices import DOC_STATUS_DRAFT, DOC_STATUS_POSTED
 from kho_npl.forms import (
-    DocAttachmentReplaceForm,
     StockReceiptForm,
     StockReceiptLineFormSet,
     StockReceiptLineNotesFormSet,
     StockReceiptNotesForm,
 )
 from kho_npl.models import StockReceipt
-from kho_npl.doc_attachment import can_replace_doc_attachment, replace_doc_attachment
+from kho_npl.doc_attachment import can_replace_doc_attachment, doc_attachments_for
+from kho_npl.views_doc_attachment import handle_doc_attachment_replace_post
 from kho_npl.services.doc_numbers import next_receipt_number
 from kho_npl.services.receipts import (
     ReceiptWorkflowError,
@@ -38,6 +38,7 @@ from kho_npl.view_utils import nav_context, perm_context
 
 
 def _receipt_form_context(request, *, form, formset, is_edit, cancel_url, receipt=None):
+    existing_attachments = doc_attachments_for(receipt) if receipt and receipt.pk else []
     return {
         **nav_context('receipts', user=request.user),
         **perm_context(request.user, 'receipts'),
@@ -46,6 +47,7 @@ def _receipt_form_context(request, *, form, formset, is_edit, cancel_url, receip
         'is_edit': is_edit,
         'cancel_url': cancel_url,
         'can_create_supplier': user_can_create_menu(request.user, MODULE_KHO_NPL, 'settings'),
+        'existing_attachments': existing_attachments,
         **({'receipt': receipt} if receipt else {}),
     }
 
@@ -65,6 +67,7 @@ def _save_receipt_form(request, receipt, *, is_create: bool):
             doc.created_by = request.user
             doc.status = DOC_STATUS_DRAFT
         doc.save()
+        form.save_doc_attachments(doc, user=request.user)
         formset.instance = doc
         formset.save()
     return form, formset, doc
@@ -127,6 +130,7 @@ def receipt_detail(request, pk):
         'is_editable': is_editable,
         'can_edit_notes': can_edit_notes,
         'can_replace_attachment': can_replace_attachment,
+        'attachments': doc_attachments_for(receipt),
         'receipt_replace_attachment_url': reverse('kho_npl:receipt_replace_attachment', args=[receipt.pk]),
         'notes_form': notes_form,
         'line_notes_formset': line_notes_formset,
@@ -173,22 +177,12 @@ def receipt_replace_attachment(request, pk):
     receipt = get_object_or_404(StockReceipt, pk=pk)
     if request.method != 'POST':
         return redirect('kho_npl:receipt_detail', pk=pk)
-    perms = perm_context(request.user, 'receipts')
-    if not can_replace_doc_attachment(
-        is_editable=receipt_is_editable(receipt),
-        posted_editable=receipt_notes_editable(receipt),
-        can_update=perms.get('can_update'),
-    ):
-        messages.error(request, 'Không thể thay chứng từ phiếu này.')
-        return redirect('kho_npl:receipt_detail', pk=pk)
-    form = DocAttachmentReplaceForm(request.POST, request.FILES)
-    if form.is_valid():
-        replace_doc_attachment(receipt, form.cleaned_data['attachment'])
-        messages.success(request, f'Đã cập nhật chứng từ phiếu {receipt.number}.')
-    else:
-        err = next(iter(form.errors.get('attachment', [])), None)
-        messages.error(request, err or 'Không lưu được chứng từ — kiểm tra lại file.')
-    return redirect('kho_npl:receipt_detail', pk=pk)
+    return handle_doc_attachment_replace_post(
+        request,
+        receipt,
+        redirect_url=reverse('kho_npl:receipt_detail', args=[pk]),
+        doc_label=f'phiếu {receipt.number}',
+    )
 
 
 @module_perm_required_methods(MODULE_KHO_NPL, get='create', post='create')

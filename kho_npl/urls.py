@@ -9,6 +9,7 @@ from . import views_reports
 from . import views_settings
 from . import views_stocktake
 from . import views_disposal
+from . import views_doc_attachment
 from . import views_transfer
 from . import views_supplier
 
@@ -37,6 +38,7 @@ urlpatterns = [
     path('api/tim-ncc/', views_supplier.supplier_search, name='supplier_search'),
     path('api/them-ncc/', views_supplier.supplier_quick_create, name='supplier_quick_create'),
     path('api/ton-npl/', views_material.balance_lookup, name='balance_lookup'),
+    path('chung-tu-file/<int:pk>/xoa/', views_doc_attachment.doc_attachment_delete, name='doc_attachment_delete'),
     path('phieu-nhap/', views_receipt.receipt_list, name='receipt_list'),
     path('phieu-nhap/them/', views_receipt.receipt_create, name='receipt_create'),
     path('phieu-nhap/<int:pk>/', views_receipt.receipt_detail, name='receipt_detail'),
@@ -66,6 +68,7 @@ urlpatterns = [
     path('phieu-huy/', views_disposal.disposal_list, name='disposal_list'),
     path('phieu-huy/them/', views_disposal.disposal_create, name='disposal_create'),
     path('phieu-huy/<int:pk>/', views_disposal.disposal_detail, name='disposal_detail'),
+    path('phieu-huy/<int:pk>/chung-tu/', views_disposal.disposal_replace_attachment, name='disposal_replace_attachment'),
     path('phieu-huy/<int:pk>/sua/', views_disposal.disposal_edit, name='disposal_edit'),
     path('phieu-huy/<int:pk>/ghi-so/', views_disposal.disposal_post, name='disposal_post'),
     path('phieu-huy/<int:pk>/huy/', views_disposal.disposal_cancel, name='disposal_cancel'),

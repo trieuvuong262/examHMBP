@@ -33,11 +33,17 @@ from hrm.user_search import exclude_hidden_hrm_users, issue_recipient_label, iss
 from kho_npl.category_tree import material_form_category_queryset
 from kho_npl.doc_attachment import (
     DOC_ATTACHMENT_ACCEPT,
+    DOC_ATTACHMENT_FIELD_NAME,
     DOC_ATTACHMENT_REQUIRED_MSG,
     IMAGE_ATTACHMENT_EXTENSIONS,
     DocClearableFileInput,
-    clean_required_doc_attachment,
+    DocMultipleFileInput,
+    attachment_files_from_request,
+    add_doc_attachments,
+    attachment_files_from_request,
+    doc_has_attachments,
     validate_doc_attachment,
+    validate_doc_attachment_list,
 )
 from kho_npl.catalog_labels import color_label, spec_label, unit_label
 from kho_npl.services.scrap_warehouse import source_locations_qs
@@ -74,23 +80,61 @@ FORM_ATTACHMENT = DocClearableFileInput(attrs={
     'class': 'form-control',
     'accept': DOC_ATTACHMENT_ACCEPT,
 })
+FORM_ATTACHMENTS = DocMultipleFileInput()
+
+
+class DocAttachmentsFormMixin:
+    """Thay field attachment đơn bằng upload nhiều file (name=attachments)."""
+    doc_attachments_required = False
+
+    def _init_doc_attachments_field(self):
+        if 'attachment' in self.fields:
+            del self.fields['attachment']
+        self.fields[DOC_ATTACHMENT_FIELD_NAME] = forms.FileField(
+            required=False,
+            label='Chứng từ / ảnh',
+            widget=FORM_ATTACHMENTS,
+        )
+
+    def _doc_attachment_uploads(self):
+        return attachment_files_from_request(self.files)
+
+    def clean(self):
+        cleaned = super().clean()
+        try:
+            files = validate_doc_attachment_list(self._doc_attachment_uploads())
+        except ValidationError as exc:
+            self.add_error(DOC_ATTACHMENT_FIELD_NAME, exc)
+            return cleaned
+        cleaned['_doc_attachment_files'] = files
+        if self.doc_attachments_required and not files and not doc_has_attachments(self.instance):
+            self.add_error(DOC_ATTACHMENT_FIELD_NAME, DOC_ATTACHMENT_REQUIRED_MSG)
+        return cleaned
+
+    def save_doc_attachments(self, instance, *, user=None):
+        files = self.cleaned_data.get('_doc_attachment_files') or []
+        if files:
+            add_doc_attachments(instance, files, uploaded_by=user)
 
 
 class DocAttachmentReplaceForm(forms.Form):
-    attachment = forms.FileField(
-        label='',
-        widget=forms.FileInput(attrs={
-            **FORM_CONTROL,
-            'class': 'form-control form-control-sm',
-            'accept': DOC_ATTACHMENT_ACCEPT,
-        }),
-    )
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields[DOC_ATTACHMENT_FIELD_NAME] = forms.FileField(
+            label='',
+            required=False,
+            widget=DocMultipleFileInput(attrs={
+                'class': 'form-control form-control-sm',
+            }),
+        )
 
-    def clean_attachment(self):
-        uploaded = self.cleaned_data.get('attachment')
-        if not uploaded:
+    def clean(self):
+        cleaned = super().clean()
+        files = attachment_files_from_request(self.files)
+        if not files:
             raise ValidationError(DOC_ATTACHMENT_REQUIRED_MSG)
-        return validate_doc_attachment(uploaded)
+        cleaned['attachment_files'] = validate_doc_attachment_list(files)
+        return cleaned
 
 
 DOC_DATE_DISPLAY_FORMAT = '%d/%m/%Y'
@@ -224,7 +268,9 @@ class MaterialForm(forms.ModelForm):
         return None
 
 
-class StockReceiptForm(forms.ModelForm):
+class StockReceiptForm(DocAttachmentsFormMixin, forms.ModelForm):
+    doc_attachments_required = True
+
     class Meta:
         model = StockReceipt
         fields = [
@@ -234,7 +280,6 @@ class StockReceiptForm(forms.ModelForm):
             'received_by',
             'checked_by',
             'notes',
-            'attachment',
         ]
         widgets = {
             'receipt_date': forms.DateInput(attrs=DOC_DATE_INPUT, format=DOC_DATE_DISPLAY_FORMAT),
@@ -243,7 +288,6 @@ class StockReceiptForm(forms.ModelForm):
             'received_by': forms.Select(attrs=DOC_EMPLOYEE_SELECT),
             'checked_by': forms.Select(attrs=DOC_EMPLOYEE_SELECT_BROWSE),
             'notes': forms.Textarea(attrs=FORM_TEXTAREA),
-            'attachment': FORM_ATTACHMENT,
         }
 
     def __init__(self, *args, operator=None, **kwargs):
@@ -297,11 +341,8 @@ class StockReceiptForm(forms.ModelForm):
             selected_id=selected_checked_id,
             required=False,
         )
-        self.fields['attachment'].required = True
+        self._init_doc_attachments_field()
         self.fields['receipt_date'].input_formats = DOC_DATE_INPUT_FORMATS
-
-    def clean_attachment(self):
-        return clean_required_doc_attachment(self.cleaned_data, self.instance)
 
     def full_clean(self):
         if self.data:
@@ -444,7 +485,9 @@ StockReceiptLineNotesFormSet = inlineformset_factory(
 )
 
 
-class StockIssueForm(forms.ModelForm):
+class StockIssueForm(DocAttachmentsFormMixin, forms.ModelForm):
+    doc_attachments_required = True
+
     class Meta:
         model = StockIssue
         fields = [
@@ -453,7 +496,6 @@ class StockIssueForm(forms.ModelForm):
             'issued_by',
             'recipient',
             'notes',
-            'attachment',
         ]
         widgets = {
             'issue_date': forms.DateInput(attrs=DOC_DATE_INPUT, format=DOC_DATE_DISPLAY_FORMAT),
@@ -464,7 +506,6 @@ class StockIssueForm(forms.ModelForm):
             'issued_by': forms.Select(attrs=ISSUE_EMPLOYEE_SELECT),
             'recipient': forms.Select(attrs=ISSUE_EMPLOYEE_SELECT),
             'notes': forms.Textarea(attrs=FORM_TEXTAREA),
-            'attachment': FORM_ATTACHMENT,
         }
 
     def __init__(self, *args, operator=None, **kwargs):
@@ -507,7 +548,7 @@ class StockIssueForm(forms.ModelForm):
             required=True,
         )
         self.fields['issue_type'].required = True
-        self.fields['attachment'].required = True
+        self._init_doc_attachments_field()
         self.fields['issue_date'].input_formats = DOC_DATE_INPUT_FORMATS
 
     def clean_issue_type(self):
@@ -515,9 +556,6 @@ class StockIssueForm(forms.ModelForm):
         if not value:
             raise ValidationError('Vui lòng nhập lý do xuất.')
         return value
-
-    def clean_attachment(self):
-        return clean_required_doc_attachment(self.cleaned_data, self.instance)
 
     def full_clean(self):
         if self.data:
@@ -677,27 +715,20 @@ StockIssueLineFormSet = inlineformset_factory(
 )
 
 
-class StockAdjustmentForm(forms.ModelForm):
+class StockAdjustmentForm(DocAttachmentsFormMixin, forms.ModelForm):
     class Meta:
         model = StockAdjustment
-        fields = ['adjust_date', 'reason', 'attachment']
+        fields = ['adjust_date', 'reason']
         widgets = {
             'adjust_date': forms.DateInput(attrs={**FORM_CONTROL, 'type': 'date'}),
             'reason': forms.Textarea(attrs=FORM_TEXTAREA),
-            'attachment': FORM_ATTACHMENT,
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['attachment'].required = False
+        self._init_doc_attachments_field()
         if not self.instance.pk:
             self.initial.setdefault('adjust_date', timezone.localdate())
-
-    def clean_attachment(self):
-        uploaded = self.cleaned_data.get('attachment')
-        if uploaded is False:
-            return None
-        return validate_doc_attachment(uploaded)
 
 
 class StockAdjustmentLineForm(forms.ModelForm):
@@ -818,34 +849,27 @@ StockAdjustmentLineFormSet = inlineformset_factory(
 )
 
 
-class StocktakeForm(forms.ModelForm):
+class StocktakeForm(DocAttachmentsFormMixin, forms.ModelForm):
     class Meta:
         model = Stocktake
-        fields = ['name', 'stocktake_date', 'location', 'notes', 'attachment']
+        fields = ['name', 'stocktake_date', 'location', 'notes']
         widgets = {
             'name': forms.TextInput(attrs=FORM_CONTROL),
             'stocktake_date': forms.DateInput(attrs={**FORM_CONTROL, 'type': 'date'}),
             'location': forms.Select(attrs=FORM_SELECT),
             'notes': forms.Textarea(attrs=FORM_TEXTAREA),
-            'attachment': FORM_ATTACHMENT,
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['location'].queryset = source_locations_qs()
         self.fields['notes'].required = False
-        self.fields['attachment'].required = False
+        self._init_doc_attachments_field()
         if not self.instance.pk:
             self.initial.setdefault('stocktake_date', timezone.localdate())
             default = source_locations_qs().filter(code='MAIN').first()
             if default:
                 self.initial.setdefault('location', default.pk)
-
-    def clean_attachment(self):
-        uploaded = self.cleaned_data.get('attachment')
-        if uploaded is False:
-            return None
-        return validate_doc_attachment(uploaded)
 
 
 class StocktakeLineForm(forms.ModelForm):
@@ -883,23 +907,24 @@ StocktakeLineFormSet = inlineformset_factory(
 )
 
 
-class StockTransferForm(forms.ModelForm):
+class StockTransferForm(DocAttachmentsFormMixin, forms.ModelForm):
+    doc_attachments_required = True
+
     class Meta:
         model = StockTransfer
-        fields = ['transfer_date', 'from_location', 'to_location', 'notes', 'attachment']
+        fields = ['transfer_date', 'from_location', 'to_location', 'notes']
         widgets = {
             'transfer_date': forms.DateInput(attrs={**FORM_CONTROL, 'type': 'date'}),
             'from_location': forms.Select(attrs=FORM_SELECT),
             'to_location': forms.Select(attrs=FORM_SELECT),
             'notes': forms.Textarea(attrs=FORM_TEXTAREA),
-            'attachment': FORM_ATTACHMENT,
         }
 
     def __init__(self, *args, **kwargs):
         self.warehouse_locked = kwargs.pop('warehouse_locked', False)
         super().__init__(*args, **kwargs)
         self.fields['notes'].required = False
-        self.fields['attachment'].required = True
+        self._init_doc_attachments_field()
         locations = WarehouseLocation.objects.filter(is_active=True)
         self.fields['from_location'].queryset = locations
         self.fields['to_location'].queryset = locations
@@ -930,9 +955,6 @@ class StockTransferForm(forms.ModelForm):
                     'Đã có dòng hàng — không thể đổi kho gửi. Xóa hết dòng NPL trước.',
                 )
         return cleaned
-
-    def clean_attachment(self):
-        return clean_required_doc_attachment(self.cleaned_data, self.instance)
 
 
 class StockTransferLineForm(forms.ModelForm):
@@ -1061,29 +1083,22 @@ StockTransferLineFormSet = inlineformset_factory(
 )
 
 
-class StockDisposalForm(forms.ModelForm):
+class StockDisposalForm(DocAttachmentsFormMixin, forms.ModelForm):
     class Meta:
         model = StockDisposal
-        fields = ['disposal_date', 'reason', 'notes', 'attachment']
+        fields = ['disposal_date', 'reason', 'notes']
         widgets = {
             'disposal_date': forms.DateInput(attrs=DOC_DATE_INPUT, format=DOC_DATE_DISPLAY_FORMAT),
             'reason': forms.Select(attrs=FORM_SELECT),
             'notes': forms.Textarea(attrs=FORM_TEXTAREA),
-            'attachment': FORM_ATTACHMENT,
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self._init_doc_attachments_field()
         if not self.instance.pk:
             self.initial.setdefault('disposal_date', timezone.localdate())
-        self.fields['attachment'].required = False
         self.fields['disposal_date'].input_formats = DOC_DATE_INPUT_FORMATS
-
-    def clean_attachment(self):
-        uploaded = self.cleaned_data.get('attachment')
-        if uploaded is False:
-            return None
-        return validate_doc_attachment(uploaded)
 
 
 class StockDisposalLineForm(forms.ModelForm):

@@ -68,7 +68,7 @@
                     —
                     {% endif %}
                 </dd>
-                {% include 'kho_npl/includes/doc_attachment_display.html' with attachment=issue.attachment can_replace=can_replace_attachment replace_url=issue_replace_attachment_url %}
+                {% include 'kho_npl/includes/doc_attachment_display.html' with attachments=attachments can_replace=can_replace_attachment replace_url=issue_replace_attachment_url delete_url=issue_replace_attachment_url %}
             </dl>
         </div>
     </div>

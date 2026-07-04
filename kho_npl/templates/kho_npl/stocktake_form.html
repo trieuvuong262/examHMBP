@@ -32,7 +32,7 @@
                     {{ form.notes }}
                     {% if form.notes.errors %}<div class="text-danger small">{{ form.notes.errors }}</div>{% endif %}
                 </div>
-                {% include 'kho_npl/includes/doc_attachment_field.html' with field=form.attachment %}
+                {% include 'kho_npl/includes/doc_attachment_field.html' with field=form.attachments existing_attachments=existing_attachments %}
             </div>
             <div class="mt-4 d-flex gap-2"><button class="btn btn-hm fw-bold">Tạo kỳ</button><a href="{{ cancel_url }}" class="btn btn-outline-secondary">Huỷ</a></div>
         </form>

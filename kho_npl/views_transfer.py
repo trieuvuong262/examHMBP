@@ -24,13 +24,13 @@ from kho_npl.choices import (
     TRANSFER_TAB_NHAP,
 )
 from kho_npl.forms import (
-    DocAttachmentReplaceForm,
     StockTransferForm,
     StockTransferLineFormSet,
     transfer_post_has_active_lines,
 )
 from kho_npl.models import StockTransfer
-from kho_npl.doc_attachment import can_replace_doc_attachment, replace_doc_attachment
+from kho_npl.doc_attachment import can_replace_doc_attachment, doc_attachments_for
+from kho_npl.views_doc_attachment import handle_doc_attachment_replace_post
 from kho_npl.services.doc_numbers import next_transfer_number
 from kho_npl.services.transfers import (
     TransferWorkflowError,
@@ -117,6 +117,7 @@ def _save_transfer_form(request, transfer, *, is_create: bool):
             doc.created_by = request.user
             doc.status = TRANSFER_STATUS_DRAFT
         doc.save()
+        form.save_doc_attachments(doc, user=request.user)
         formset.instance = doc
         formset.save()
     return form, formset, doc
@@ -202,6 +203,7 @@ def transfer_hub(request):
             'formset': formset,
             'form_action_url': reverse('kho_npl:transfer_create'),
             'warehouse_locked': False,
+            'existing_attachments': [],
         })
         return render(request, 'kho_npl/transfer_hub.html', ctx)
 
@@ -237,6 +239,7 @@ def transfer_detail(request, pk):
         'search_query': '',
         'is_editable': is_editable,
         'can_replace_attachment': can_replace_attachment,
+        'attachments': doc_attachments_for(transfer),
         'transfer_replace_attachment_url': reverse('kho_npl:transfer_replace_attachment', args=[transfer.pk]),
         'can_send': transfer_can_send(transfer),
         'can_receive': transfer_can_receive(transfer),
@@ -268,6 +271,7 @@ def transfer_create(request):
         'cancel_url': _transfer_list_url(TRANSFER_TAB_NHAP),
         'form_action_url': reverse('kho_npl:transfer_create'),
         'warehouse_locked': _warehouse_locked(transfer),
+        'existing_attachments': [],
     })
 
 
@@ -296,6 +300,7 @@ def transfer_edit(request, pk):
         'cancel_url': reverse('kho_npl:transfer_detail', args=[pk]),
         'form_action_url': reverse('kho_npl:transfer_edit', args=[pk]),
         'warehouse_locked': transfer.lines.exists(),
+        'existing_attachments': doc_attachments_for(transfer),
     })
 
 
@@ -304,22 +309,12 @@ def transfer_replace_attachment(request, pk):
     transfer = get_object_or_404(StockTransfer, pk=pk)
     if request.method != 'POST':
         return redirect('kho_npl:transfer_detail', pk=pk)
-    perms = perm_context(request.user, 'transfers')
-    if not can_replace_doc_attachment(
-        is_editable=transfer_is_editable(transfer),
-        posted_editable=transfer_attachment_editable_after_send(transfer),
-        can_update=perms.get('can_update'),
-    ):
-        messages.error(request, 'Không thể thay chứng từ phiếu này.')
-        return redirect('kho_npl:transfer_detail', pk=pk)
-    form = DocAttachmentReplaceForm(request.POST, request.FILES)
-    if form.is_valid():
-        replace_doc_attachment(transfer, form.cleaned_data['attachment'])
-        messages.success(request, f'Đã cập nhật chứng từ phiếu {transfer.number}.')
-    else:
-        err = next(iter(form.errors.get('attachment', [])), None)
-        messages.error(request, err or 'Không lưu được chứng từ — kiểm tra lại file.')
-    return redirect('kho_npl:transfer_detail', pk=pk)
+    return handle_doc_attachment_replace_post(
+        request,
+        transfer,
+        redirect_url=reverse('kho_npl:transfer_detail', args=[pk]),
+        doc_label=f'phiếu {transfer.number}',
+    )
 
 
 @module_perm_required_methods(MODULE_KHO_NPL, post='update')

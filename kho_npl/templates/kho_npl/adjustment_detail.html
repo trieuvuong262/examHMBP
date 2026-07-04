@@ -26,7 +26,7 @@
             <dl class="row mb-0">
                 <dt class="col-sm-3 text-muted">Lý do</dt>
                 <dd class="col-sm-9">{{ adjustment.reason|linebreaksbr }}</dd>
-                {% include 'kho_npl/includes/doc_attachment_display.html' with attachment=adjustment.attachment can_replace=can_replace_attachment replace_url=adjustment_replace_attachment_url %}
+                {% include 'kho_npl/includes/doc_attachment_display.html' with attachments=attachments can_replace=can_replace_attachment replace_url=adjustment_replace_attachment_url delete_url=adjustment_replace_attachment_url %}
                 <dt class="col-sm-3 text-muted">Người đề xuất</dt>
                 <dd class="col-sm-9">{% if adjustment.proposed_by %}{{ adjustment.proposed_by.get_full_name|default:adjustment.proposed_by.username }}{% else %}—{% endif %}</dd>
             </dl>

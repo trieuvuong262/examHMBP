@@ -44,7 +44,7 @@
                         {{ form.reason }}
                         {% if form.reason.errors %}<div class="text-danger small">{{ form.reason.errors }}</div>{% endif %}
                     </div>
-                    {% include 'kho_npl/includes/doc_attachment_field.html' with field=form.attachment %}
+                    {% include 'kho_npl/includes/doc_attachment_field.html' with field=form.attachments existing_attachments=existing_attachments %}
                 </div>
             </div>
         </div>

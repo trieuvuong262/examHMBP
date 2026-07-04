@@ -65,7 +65,7 @@
     </div>
     {% endif %}
 
-    {% if stocktake.notes or stocktake.attachment or stocktake.created_by or can_replace_attachment %}
+    {% if stocktake.notes or attachments or stocktake.created_by or can_replace_attachment %}
     <div class="card border-0 shadow-sm mb-3">
         <div class="card-body py-3">
             <dl class="row mb-0 small">
@@ -76,7 +76,7 @@
                 {% if stocktake.notes %}
                 <dt class="col-sm-3 text-muted">Ghi chú</dt><dd class="col-sm-9">{{ stocktake.notes|linebreaksbr }}</dd>
                 {% endif %}
-                {% include 'kho_npl/includes/doc_attachment_display.html' with attachment=stocktake.attachment can_replace=can_replace_attachment replace_url=stocktake_replace_attachment_url %}
+                {% include 'kho_npl/includes/doc_attachment_display.html' with attachments=attachments can_replace=can_replace_attachment replace_url=stocktake_replace_attachment_url delete_url=stocktake_replace_attachment_url %}
             </dl>
         </div>
     </div>

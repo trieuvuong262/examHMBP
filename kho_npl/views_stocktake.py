@@ -15,9 +15,10 @@ from kho_npl.choices import (
 )
 from kho_npl.filter_utils import parse_int_ids
 from kho_npl.services.scrap_warehouse import source_locations_qs
-from kho_npl.forms import DocAttachmentReplaceForm, StocktakeForm, StocktakeLineFormSet
+from kho_npl.forms import StocktakeForm, StocktakeLineFormSet
 from kho_npl.models import Stocktake, StocktakeLine
-from kho_npl.doc_attachment import can_replace_doc_attachment, replace_doc_attachment
+from kho_npl.doc_attachment import can_replace_doc_attachment, doc_attachments_for
+from kho_npl.views_doc_attachment import handle_doc_attachment_replace_post
 from kho_npl.services.doc_numbers import next_stocktake_number
 from kho_npl.services.stocktake_export import (
     stocktake_detail_export_response,
@@ -185,6 +186,7 @@ def stocktake_detail(request, pk):
         'can_count': stocktake_can_count(stocktake),
         'is_editable': is_editable,
         'can_replace_attachment': can_replace_attachment,
+        'attachments': doc_attachments_for(stocktake),
         'stocktake_replace_attachment_url': reverse('kho_npl:stocktake_replace_attachment', args=[stocktake.pk]),
         'line_columns': STOCKTAKE_DETAIL_LINE_COLUMNS,
         'line_total_col_weight': STOCKTAKE_DETAIL_LINE_TOTAL_COL_WEIGHT,
@@ -196,22 +198,12 @@ def stocktake_replace_attachment(request, pk):
     stocktake = get_object_or_404(Stocktake, pk=pk)
     if request.method != 'POST':
         return redirect('kho_npl:stocktake_detail', pk=pk)
-    perms = perm_context(request.user, 'stocktakes')
-    if not can_replace_doc_attachment(
-        is_editable=stocktake_is_editable(stocktake),
-        posted_editable=stocktake_attachment_editable_after_close(stocktake),
-        can_update=perms.get('can_update'),
-    ):
-        messages.error(request, 'Không thể thay chứng từ phiếu này.')
-        return redirect('kho_npl:stocktake_detail', pk=pk)
-    form = DocAttachmentReplaceForm(request.POST, request.FILES)
-    if form.is_valid():
-        replace_doc_attachment(stocktake, form.cleaned_data['attachment'])
-        messages.success(request, f'Đã cập nhật chứng từ kỳ kiểm kê {stocktake.number}.')
-    else:
-        err = next(iter(form.errors.get('attachment', [])), None)
-        messages.error(request, err or 'Không lưu được chứng từ — kiểm tra lại file.')
-    return redirect('kho_npl:stocktake_detail', pk=pk)
+    return handle_doc_attachment_replace_post(
+        request,
+        stocktake,
+        redirect_url=reverse('kho_npl:stocktake_detail', args=[pk]),
+        doc_label=f'kỳ kiểm kê {stocktake.number}',
+    )
 
 
 @module_perm_required_methods(MODULE_KHO_NPL, get='create', post='create')
@@ -228,6 +220,7 @@ def stocktake_create(request):
         stocktake.created_by = request.user
         stocktake.status = STOCKTAKE_STATUS_DRAFT
         stocktake.save()
+        form.save_doc_attachments(stocktake, user=request.user)
         messages.success(
             request,
             f'Đã tạo kỳ kiểm kê {stocktake.number} — kho {stocktake.location.display_label()}.',
@@ -238,6 +231,7 @@ def stocktake_create(request):
         **perm_context(request.user, 'stocktakes'),
         'form': form,
         'cancel_url': reverse('kho_npl:stocktake_list'),
+        'existing_attachments': [],
     })
 
 

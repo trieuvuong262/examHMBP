@@ -11,9 +11,10 @@ from PortalJustPlay.list_search import get_search_query
 from PortalJustPlay.pagination import paginate_queryset
 
 from kho_npl.choices import ADJUST_STATUS_PENDING
-from kho_npl.forms import DocAttachmentReplaceForm, StockAdjustmentForm, StockAdjustmentLineFormSet
+from kho_npl.forms import StockAdjustmentForm, StockAdjustmentLineFormSet
 from kho_npl.models import StockAdjustment
-from kho_npl.doc_attachment import can_replace_doc_attachment, replace_doc_attachment
+from kho_npl.doc_attachment import can_replace_doc_attachment, doc_attachments_for
+from kho_npl.views_doc_attachment import handle_doc_attachment_replace_post
 from kho_npl.services.adjustments import (
     AdjustmentWorkflowError,
     adjustment_attachment_editable_after_approve,
@@ -38,6 +39,7 @@ def _save_adjustment_form(request, adjustment, *, is_create: bool):
             doc.proposed_by = request.user
             doc.status = ADJUST_STATUS_PENDING
         doc.save()
+        form.save_doc_attachments(doc, user=request.user)
         formset.instance = doc
         formset.save()
     return form, formset, doc
@@ -89,6 +91,7 @@ def adjustment_detail(request, pk):
         'adjustment': adjustment,
         'is_editable': is_editable,
         'can_replace_attachment': can_replace_attachment,
+        'attachments': doc_attachments_for(adjustment),
         'adjustment_replace_attachment_url': reverse('kho_npl:adjustment_replace_attachment', args=[adjustment.pk]),
     })
 
@@ -98,22 +101,12 @@ def adjustment_replace_attachment(request, pk):
     adjustment = get_object_or_404(StockAdjustment, pk=pk)
     if request.method != 'POST':
         return redirect('kho_npl:adjustment_detail', pk=pk)
-    perms = perm_context(request.user, 'adjustments')
-    if not can_replace_doc_attachment(
-        is_editable=adjustment_is_editable(adjustment),
-        posted_editable=adjustment_attachment_editable_after_approve(adjustment),
-        can_update=perms.get('can_update'),
-    ):
-        messages.error(request, 'Không thể thay chứng từ phiếu này.')
-        return redirect('kho_npl:adjustment_detail', pk=pk)
-    form = DocAttachmentReplaceForm(request.POST, request.FILES)
-    if form.is_valid():
-        replace_doc_attachment(adjustment, form.cleaned_data['attachment'])
-        messages.success(request, f'Đã cập nhật chứng từ phiếu {adjustment.number}.')
-    else:
-        err = next(iter(form.errors.get('attachment', [])), None)
-        messages.error(request, err or 'Không lưu được chứng từ — kiểm tra lại file.')
-    return redirect('kho_npl:adjustment_detail', pk=pk)
+    return handle_doc_attachment_replace_post(
+        request,
+        adjustment,
+        redirect_url=reverse('kho_npl:adjustment_detail', args=[pk]),
+        doc_label=f'phiếu {adjustment.number}',
+    )
 
 
 @module_perm_required_methods(MODULE_KHO_NPL, get='create', post='create')
@@ -137,6 +130,7 @@ def adjustment_create(request):
         'formset': formset,
         'is_edit': False,
         'cancel_url': reverse('kho_npl:adjustment_list'),
+        'existing_attachments': [],
     })
 
 

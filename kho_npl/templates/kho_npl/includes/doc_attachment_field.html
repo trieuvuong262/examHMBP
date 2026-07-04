@@ -1,6 +1,31 @@
+{% load npl_extras %}
 <div class="{{ col_class|default:'col-12' }} jp-npl-doc-attachment-field">
-    <label class="form-label fw-bold small" for="{{ field.id_for_label }}">Chứng từ / ảnh{% if required %} <span class="text-danger">*</span>{% endif %}</label>
+    <label class="form-label fw-bold small" for="{{ field.id_for_label }}">
+        Chứng từ / ảnh{% if required %} <span class="text-danger">*</span>{% endif %}
+    </label>
+    {% if existing_attachments %}
+    <div class="jp-npl-doc-attachments-existing mb-2">
+        <span class="text-muted small d-block mb-1">Đã đính kèm ({{ existing_attachments|length }})</span>
+        <div class="d-flex flex-wrap gap-2">
+            {% for att in existing_attachments %}
+            <div class="jp-npl-doc-attachment-item border rounded p-1 bg-light">
+                {% if att.file|attachment_is_image %}
+                <a href="{{ att.file.url }}" target="_blank" rel="noopener" class="d-inline-block">
+                    <img src="{{ att.file.url }}" alt="Chứng từ" class="img-thumbnail jp-npl-doc-attachment-preview" style="max-height:5rem;">
+                </a>
+                {% else %}
+                <a href="{{ att.file.url }}" target="_blank" rel="noopener" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-paperclip me-1"></i>{{ att.file.name|cut:"npl/doc_attachments/"|truncatechars:24 }}
+                </a>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        <span class="text-muted small d-block mt-1">Chọn thêm file bên dưới (có thể chọn nhiều).</span>
+    </div>
+    {% else %}
+    <span class="text-muted small d-block mb-1">Có thể chọn nhiều file cùng lúc.</span>
+    {% endif %}
     {{ field }}
     {% if field.errors %}<div class="text-danger small">{{ field.errors }}</div>{% endif %}
 </div>
-{% include 'kho_npl/includes/doc_attachment_clear_script.html' %}

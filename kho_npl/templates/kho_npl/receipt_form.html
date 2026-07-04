@@ -74,7 +74,7 @@
                         {{ form.checked_by }}
                         {% if form.checked_by.errors %}<div class="text-danger small">{{ form.checked_by.errors }}</div>{% endif %}
                     </div>
-                    {% include 'kho_npl/includes/doc_attachment_field.html' with field=form.attachment required=True col_class='col-md-4' %}
+                    {% include 'kho_npl/includes/doc_attachment_field.html' with field=form.attachments required=True col_class='col-md-4' existing_attachments=existing_attachments %}
                 </div>
                 <div class="row g-3 mt-0">
                     <div class="col-12">
