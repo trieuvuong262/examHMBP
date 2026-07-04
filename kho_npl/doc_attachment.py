@@ -225,3 +225,22 @@ class DocMultipleFileInput(forms.FileInput):
 
     def value_from_datadict(self, data, files, name):
         return files.getlist(name) if files else []
+
+
+class MultipleFileField(forms.FileField):
+    """FileField cho phép chọn nhiều file — clean từng file trong list.
+
+    forms.FileField mặc định chỉ nhận 1 file; với widget multiple (trả về
+    list) thì to_python sẽ báo lỗi 'No file was submitted'. Override clean để
+    xử lý list, tránh chặn submit khi đính kèm nhiều chứng từ.
+    """
+
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault('widget', DocMultipleFileInput())
+        super().__init__(*args, **kwargs)
+
+    def clean(self, data, initial=None):
+        single_clean = super().clean
+        if isinstance(data, (list, tuple)):
+            return [single_clean(item, initial) for item in data if item]
+        return single_clean(data, initial)

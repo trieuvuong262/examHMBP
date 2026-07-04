@@ -38,9 +38,9 @@ from kho_npl.doc_attachment import (
     IMAGE_ATTACHMENT_EXTENSIONS,
     DocClearableFileInput,
     DocMultipleFileInput,
+    MultipleFileField,
     attachment_files_from_request,
     add_doc_attachments,
-    attachment_files_from_request,
     doc_has_attachments,
     validate_doc_attachment,
     validate_doc_attachment_list,
@@ -90,7 +90,7 @@ class DocAttachmentsFormMixin:
     def _init_doc_attachments_field(self):
         if 'attachment' in self.fields:
             del self.fields['attachment']
-        self.fields[DOC_ATTACHMENT_FIELD_NAME] = forms.FileField(
+        self.fields[DOC_ATTACHMENT_FIELD_NAME] = MultipleFileField(
             required=False,
             label='Chứng từ / ảnh',
             widget=FORM_ATTACHMENTS,
@@ -120,7 +120,7 @@ class DocAttachmentsFormMixin:
 class DocAttachmentReplaceForm(forms.Form):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields[DOC_ATTACHMENT_FIELD_NAME] = forms.FileField(
+        self.fields[DOC_ATTACHMENT_FIELD_NAME] = MultipleFileField(
             label='',
             required=False,
             widget=DocMultipleFileInput(attrs={
