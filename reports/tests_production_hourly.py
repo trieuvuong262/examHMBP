@@ -194,7 +194,7 @@ class ProductionHourlyTests(TestCase):
 
         grid = build_hourly_grid(self.report)
         self.assertEqual(len(grid['rows']), 1)
-        self.assertEqual(grid['rows'][0]['slots'][0]['quantity'], 120)
+        self.assertEqual(grid['rows'][0]['slots'][0]['quantity'], 125)
         self.assertEqual(grid['rows'][0]['slots'][1]['cumulative'], 250)
         self.assertEqual(grid['grand_total'], 250)
 

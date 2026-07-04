@@ -677,11 +677,34 @@ def _slot_segment_times(report_date, slot) -> dict:
     }
 
 
+def _product_totals(product: ProductionShiftProduct) -> tuple[Decimal, Decimal]:
+    """Tổng SL và tổng giờ của mã hàng (chỉ khung có SL > 0, từ khung bắt đầu)."""
+    total_qty = Decimal('0')
+    total_hours = Decimal('0')
+    for entry in product.hourly_entries.all():
+        if not _entry_is_filled(entry):
+            continue
+        if entry.slot_index < product.first_slot_index:
+            continue
+        if entry.quantity > 0:
+            total_qty += Decimal(str(entry.quantity))
+            total_hours += _entry_hours(entry)
+    return total_qty, total_hours
+
+
 def _slot_metrics_from_entry(
     product: ProductionShiftProduct,
     entry: ProductionHourlyQuantity | None,
+    *,
+    product_efficiency_pct: float | None = None,
+    product_totals: tuple[Decimal, Decimal] | None = None,
 ) -> dict:
-    """Hiệu suất khung, SL/1 giờ và SL khung (= SL/1h × thời gian/H)."""
+    """SL khung (báo cáo sản lượng) = tổng SL × thời gian/H ÷ tổng giờ.
+
+    Bằng hiệu suất chung × định mức × thời gian/H nhưng tránh sai số làm tròn nên
+    tổng các khung luôn khớp tổng SL mã hàng. Hiệu suất hiển thị lấy chung theo mã
+    hàng (báo cáo năng suất). Thiếu định mức thì fallback về SL thực nhập.
+    """
     norm = product.norm_per_hour
     hours = _entry_hours(entry) if entry else Decimal('1')
     empty = {
@@ -694,29 +717,35 @@ def _slot_metrics_from_entry(
         return empty
 
     qty = entry.quantity
-    slot_quantity = Decimal(str(qty)).quantize(Decimal('0.01'))
-    if qty > 0 and hours > 0:
+    if qty <= 0:
+        return empty
+
+    overall_eff = (
+        product_efficiency_pct
+        if product_efficiency_pct is not None
+        else _product_efficiency_pct(product)
+    )
+    total_qty, total_hours = (
+        product_totals if product_totals is not None else _product_totals(product)
+    )
+    if norm and norm > 0 and total_hours > 0 and hours > 0:
+        slot_quantity = (total_qty * hours / total_hours).quantize(Decimal('0.01'))
         quantity_per_hour = float((slot_quantity / hours).quantize(Decimal('0.01')))
-    else:
-        quantity_per_hour = None
-    if qty > 0 and norm and norm > 0 and hours > 0:
-        efficiency_pct = float(
-            (slot_quantity / (norm * hours) * 100).quantize(Decimal('0.01'))
-        )
         return {
-            'efficiency_pct': efficiency_pct,
+            'efficiency_pct': overall_eff,
             'quantity_per_hour': quantity_per_hour,
             'slot_quantity': slot_quantity,
             'hours': float(hours),
         }
-    if qty > 0:
-        return {
-            'efficiency_pct': None,
-            'quantity_per_hour': quantity_per_hour,
-            'slot_quantity': slot_quantity,
-            'hours': float(hours),
-        }
-    return empty
+
+    slot_quantity = Decimal(str(qty)).quantize(Decimal('0.01'))
+    quantity_per_hour = float((slot_quantity / hours).quantize(Decimal('0.01'))) if hours > 0 else None
+    return {
+        'efficiency_pct': None,
+        'quantity_per_hour': quantity_per_hour,
+        'slot_quantity': slot_quantity,
+        'hours': float(hours),
+    }
 
 
 def _product_efficiency_pct(product: ProductionShiftProduct) -> float | None:
@@ -749,19 +778,17 @@ def _work_item_from_entry(
 ) -> dict:
     code = (product.product_code or '').strip() or '—'
     process = (product.process_name or '').strip() or 'Chưa gắn mã'
-    metrics = _slot_metrics_from_entry(product, entry)
-    norm = product.norm_per_hour
     efficiency_pct = (
         product_efficiency_pct
         if product_efficiency_pct is not None
         else _product_efficiency_pct(product)
     )
-    quantity_per_hour = metrics['quantity_per_hour']
-    if efficiency_pct is not None and norm and norm > 0:
-        hours = Decimal(str(metrics['hours']))
-        quantity_per_hour = float(
-            (Decimal(str(efficiency_pct)) / Decimal('100') * norm * hours).quantize(Decimal('0.01'))
-        )
+    metrics = _slot_metrics_from_entry(
+        product, entry, product_efficiency_pct=efficiency_pct,
+    )
+    norm = product.norm_per_hour
+    slot_qty = metrics['slot_quantity']
+    quantity_per_hour = float(slot_qty) if slot_qty else metrics['quantity_per_hour']
     return {
         'product_code': code,
         'process_name': process,
