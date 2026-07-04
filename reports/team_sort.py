@@ -12,6 +12,7 @@ TEAM_SORT_PERIOD = 'period'
 TEAM_SORT_STATUS = 'status'
 TEAM_SORT_REVIEWED = 'reviewed'
 TEAM_SORT_SUMMARY = 'summary'
+TEAM_SORT_EFFICIENCY = 'efficiency'
 
 TEAM_SORT_SHIFT = 'shift'
 
@@ -23,6 +24,7 @@ TEAM_SORT_KEYS = frozenset({
     TEAM_SORT_STATUS,
     TEAM_SORT_REVIEWED,
     TEAM_SORT_SUMMARY,
+    TEAM_SORT_EFFICIENCY,
 })
 
 DEFAULT_TEAM_SORT = TEAM_SORT_MEMBER
@@ -78,6 +80,7 @@ def build_team_table_columns(
         {'key': TEAM_SORT_STATUS, 'label': 'Trạng thái', 'align': 'start'},
         {'key': 'comment', 'label': 'Nhận xét', 'align': 'center', 'sortable': False},
         {'key': TEAM_SORT_REVIEWED, 'label': 'Đã xem', 'align': 'center'},
+        {'key': TEAM_SORT_EFFICIENCY, 'label': 'Hiệu suất', 'align': 'center', 'production_only': True},
         {'key': TEAM_SORT_SUMMARY, 'label': 'Tóm tắt', 'align': 'end'},
         {'key': None, 'label': '', 'align': 'end', 'sortable': False},
     ]
@@ -158,6 +161,9 @@ def _row_sort_tuple(row, sort_key: str) -> tuple:
         if row.get('production_report_count'):
             return (1 if row.get('production_all_reviewed') else 0,)
         return (1 if report and report.hod_reviewed else 0,)
+    if sort_key == TEAM_SORT_EFFICIENCY:
+        eff = row.get('production_efficiency_pct')
+        return (eff if eff is not None else -1.0,)
     if sort_key == TEAM_SORT_SUMMARY:
         qty = row.get('production_total_qty')
         if qty is not None:

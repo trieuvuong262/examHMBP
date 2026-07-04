@@ -64,6 +64,13 @@
     <span class="text-muted small">—</span>
     {% endif %}
 </td>
+<td class="text-center">
+    {% if row.production_efficiency_pct is not None %}
+    <span class="badge {% if row.production_efficiency_pct >= 100 %}bg-success-subtle text-success{% elif row.production_efficiency_pct >= 80 %}bg-warning-subtle text-warning{% else %}bg-danger-subtle text-danger{% endif %}">{{ row.production_efficiency_pct|floatformat:0 }}%</span>
+    {% else %}
+    <span class="text-muted">—</span>
+    {% endif %}
+</td>
 <td class="text-end">
     {% if row.production_total_qty %}
     {{ row.production_report_count }} báo cáo · SL {{ row.production_total_qty|prod_qty }}

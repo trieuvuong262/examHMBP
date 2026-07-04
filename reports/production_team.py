@@ -83,6 +83,7 @@ def _aggregate_production_row(reports: list[DailyWorkReport], visible_fn) -> dic
         'production_all_reviewed': all_reviewed,
         'production_has_manager_comment': has_manager_comment,
         'production_has_employee_reply': has_employee_reply,
+        'production_efficiency_pct': _weighted_efficiency_pct(visible),
         'shift_badges': _shift_badges_for_reports(visible),
     }
 
