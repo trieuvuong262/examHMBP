@@ -670,59 +670,34 @@ def _slot_segment_times(report_date, slot) -> dict:
     }
 
 
-def _product_efficiency_metrics(product: ProductionShiftProduct) -> dict:
-    """Hiệu suất chung theo mã hàng + sản lượng quy đổi 1 giờ (tổng SL ÷ tổng giờ)."""
-    norm = product.norm_per_hour
-    prod_qty = 0
-    prod_hours = Decimal('0')
-    prod_expected = Decimal('0')
-    for entry in product.hourly_entries.order_by('slot_index'):
-        if not _entry_is_filled(entry):
-            continue
-        if entry.slot_index < product.first_slot_index:
-            continue
-        hours = _entry_hours(entry)
-        qty = entry.quantity
-        if qty > 0 and norm and norm > 0:
-            prod_qty += qty
-            prod_hours += hours
-            prod_expected += norm * hours
-    efficiency_pct = None
-    quantity_per_hour = None
-    if prod_qty > 0 and norm and norm > 0 and prod_expected > 0:
-        efficiency_pct = float(
-            (Decimal(prod_qty) / prod_expected * 100).quantize(Decimal('0.01'))
-        )
-        if prod_hours > 0:
-            quantity_per_hour = float(
-                (Decimal(prod_qty) / prod_hours).quantize(Decimal('0.01'))
-            )
-    return {
-        'efficiency_pct': efficiency_pct,
-        'quantity_per_hour': quantity_per_hour,
-        'norm_per_hour': float(norm) if norm is not None else None,
-    }
-
-
 def _work_item_from_entry(
     product: ProductionShiftProduct,
     entry: ProductionHourlyQuantity,
-    *,
-    product_metrics: dict | None = None,
 ) -> dict:
     code = (product.product_code or '').strip() or '—'
     process = (product.process_name or '').strip() or 'Chưa gắn mã'
+    norm = product.norm_per_hour
     hours = _entry_hours(entry)
-    metrics = product_metrics or _product_efficiency_metrics(product)
+    efficiency_pct = None
+    quantity_per_hour = None
+    qty = entry.quantity
+    if qty > 0 and norm and norm > 0 and hours > 0:
+        expected = norm * hours
+        efficiency_pct = float(
+            (Decimal(str(qty)) / expected * 100).quantize(Decimal('0.01'))
+        )
+        quantity_per_hour = float(
+            (Decimal(str(efficiency_pct)) / Decimal('100') * norm).quantize(Decimal('0.01'))
+        )
     return {
         'product_code': code,
         'process_name': process,
         'product_id': product.id,
-        'quantity': metrics.get('quantity_per_hour'),
-        'norm_per_hour': metrics.get('norm_per_hour'),
+        'quantity': quantity_per_hour,
+        'norm_per_hour': float(norm) if norm is not None else None,
         'hours': float(hours),
         'hours_display': _format_hours(hours),
-        'efficiency_pct': metrics.get('efficiency_pct'),
+        'efficiency_pct': efficiency_pct,
         'damaged_quantity': entry.damaged_quantity or 0,
         'note': (entry.note or '').strip(),
     }
@@ -758,10 +733,6 @@ def build_work_day_timeline(report: DailyWorkReport) -> dict:
             'sort_order', 'id',
         )
     )
-    metrics_by_product = {
-        product.id: _product_efficiency_metrics(product)
-        for product in products
-    }
 
     segments: list[dict] = []
     gap_minutes = Decimal('0')
@@ -784,11 +755,7 @@ def build_work_day_timeline(report: DailyWorkReport) -> dict:
 
         if entries_in_slot:
             items = [
-                _work_item_from_entry(
-                    product,
-                    entry,
-                    product_metrics=metrics_by_product.get(product.id),
-                )
+                _work_item_from_entry(product, entry)
                 for product, entry in entries_in_slot
             ]
             segments.append({

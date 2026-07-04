@@ -4,7 +4,7 @@ Nhập dữ liệu báo cáo SX test — ngày hôm nay (giờ VPS), thời gian
 Usage:
     python scripts/seed_production_test_report.py vananh
     python scripts/seed_production_test_report.py vananh --clear
-    docker compose exec -T web python scripts/seed_production_test_report.py vananh --clear
+    docker compose exec -T -w /app web python scripts/seed_production_test_report.py vananh --clear
 """
 
 from __future__ import annotations
@@ -14,6 +14,11 @@ import random
 import sys
 from datetime import datetime, timedelta
 from decimal import Decimal
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'PortalJustPlay.settings')
 
