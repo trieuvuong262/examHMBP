@@ -97,6 +97,13 @@
     }
     .jp-summary-table tfoot td.jp-col-sticky { z-index: 4; background: #0f172a; text-align: left; }
     .jp-summary-table tfoot .jp-eff { background: rgba(255,255,255,0.14); color: #fff; }
+
+    /* Khi chụp ảnh (html2canvas): tắt sticky để không lệch dòng/cột */
+    .jp-capturing thead th,
+    .jp-capturing tfoot td,
+    .jp-capturing th.jp-col-sticky,
+    .jp-capturing td.jp-col-sticky,
+    .jp-capturing .jp-summary-group td { position: static !important; }
 </style>
 {% endblock %}
 
@@ -305,6 +312,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 scale: 2,
                 windowWidth: table.scrollWidth + 40,
                 windowHeight: table.scrollHeight + 40,
+                onclone: function (doc) {
+                    var t = doc.getElementById('summaryTable');
+                    if (t) t.classList.add('jp-capturing');
+                },
             }).then(function (canvas) {
                 var link = document.createElement('a');
                 var stamp = new Date().toISOString().slice(0, 10);
