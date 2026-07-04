@@ -49,7 +49,7 @@
 
     /** Modal trong main content dễ bị backdrop che (màn hình mờ, không bấm được). */
     function mountModalsToBody() {
-        ['completeSessionModal'].forEach(function (id) {
+        ['completeSessionModal', 'prodSubmitConfirmModal'].forEach(function (id) {
             var el = document.getElementById(id);
             if (el && el.parentElement !== document.body) {
                 document.body.appendChild(el);
@@ -221,14 +221,14 @@
         if (!modalEl || typeof bootstrap === 'undefined') return;
 
         var pendingForm = null;
-        var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        var modal = bootstrap.Modal.getOrCreateInstance(modalEl, { backdrop: true, keyboard: true });
 
         document.querySelectorAll('.js-prod-submit-trigger').forEach(function (btn) {
             btn.addEventListener('click', function () {
                 pendingForm = btn.closest('form.js-prod-submit-form');
                 if (!pendingForm) return;
                 fillReviewPayload();
-                modal.show();
+                openModal(modalEl);
             });
         });
 

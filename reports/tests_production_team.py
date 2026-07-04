@@ -1,4 +1,4 @@
-"""Tests for production team view (consolidated by day)."""
+﻿"""Tests for production team view (consolidated by day)."""
 
 from datetime import date, timedelta
 
@@ -228,4 +228,4 @@ class ProductionTeamViewTests(TestCase):
         )
         qs = query_production_team_reports([self.member.id], self.today, self.today)
         annotated = qs.get(pk=report.pk)
-                self.assertEqual(annotated.total_qty, Decimal('200'))
+        self.assertEqual(annotated.total_qty, Decimal('200'))
