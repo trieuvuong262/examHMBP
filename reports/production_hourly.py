@@ -532,8 +532,15 @@ def save_hourly_entry(
 
 def cumulative_quantity(product: ProductionShiftProduct, up_to_slot: int) -> Decimal:
     total = Decimal('0')
-    for entry in product.hourly_entries.filter(slot_index__lte=up_to_slot).order_by('slot_index'):
-        total += entry.quantity
+    for entry in product.hourly_entries.filter(
+        slot_index__lte=up_to_slot,
+        slot_index__gte=product.first_slot_index,
+    ).order_by('slot_index'):
+        if not _entry_is_filled(entry):
+            continue
+        metrics = _slot_metrics_from_entry(product, entry)
+        if metrics['slot_quantity'] > 0:
+            total += metrics['slot_quantity']
     return total
 
 
@@ -583,14 +590,14 @@ def product_slot_cell(product: ProductionShiftProduct, slot_index: int) -> dict:
             'entry_id': None,
         }
     entry = product.hourly_entries.filter(slot_index=slot_index).first()
-    qty = entry.quantity if entry else 0
+    metrics = _slot_metrics_from_entry(product, entry)
+    qty = metrics['slot_quantity']
     reason = (entry.zero_reason or '').strip() if entry else ''
     damaged = entry.damaged_quantity if entry else 0
     entry_note = (entry.note or '').strip() if entry else ''
     filled = _entry_is_filled(entry)
     session_mode = is_session_reported_product(product)
-    # Lũy kế luôn cộng dồn theo khung giờ (khớp mẫu báo cáo sản lượng hằng giờ)
-    cum = cumulative_quantity(product, slot_index) if qty else 0
+    cum = cumulative_quantity(product, slot_index) if filled and qty > 0 else Decimal('0')
     display = ''
     if entry and filled:
         display = format_production_quantity(qty) if qty > 0 else '0'
@@ -598,7 +605,7 @@ def product_slot_cell(product: ProductionShiftProduct, slot_index: int) -> dict:
         'slot_index': slot_index,
         'slot_label': slot.label if slot else str(slot_index),
         'quantity': qty,
-        'cumulative': cum if qty else 0,
+        'cumulative': cum,
         'display': display,
         'has_data': filled,
         'is_na': False,
@@ -670,34 +677,65 @@ def _slot_segment_times(report_date, slot) -> dict:
     }
 
 
+def _slot_metrics_from_entry(
+    product: ProductionShiftProduct,
+    entry: ProductionHourlyQuantity | None,
+) -> dict:
+    """Hiệu suất khung, SL/1 giờ và SL khung (= SL/1h × thời gian/H)."""
+    norm = product.norm_per_hour
+    hours = _entry_hours(entry) if entry else Decimal('1')
+    empty = {
+        'efficiency_pct': None,
+        'quantity_per_hour': None,
+        'slot_quantity': Decimal('0'),
+        'hours': float(hours),
+    }
+    if not entry or not _entry_is_filled(entry):
+        return empty
+
+    qty = entry.quantity
+    slot_quantity = Decimal(str(qty)).quantize(Decimal('0.01'))
+    if qty > 0 and hours > 0:
+        quantity_per_hour = float((slot_quantity / hours).quantize(Decimal('0.01')))
+    else:
+        quantity_per_hour = None
+    if qty > 0 and norm and norm > 0 and hours > 0:
+        efficiency_pct = float(
+            (slot_quantity / (norm * hours) * 100).quantize(Decimal('0.01'))
+        )
+        return {
+            'efficiency_pct': efficiency_pct,
+            'quantity_per_hour': quantity_per_hour,
+            'slot_quantity': slot_quantity,
+            'hours': float(hours),
+        }
+    if qty > 0:
+        return {
+            'efficiency_pct': None,
+            'quantity_per_hour': quantity_per_hour,
+            'slot_quantity': slot_quantity,
+            'hours': float(hours),
+        }
+    return empty
+
+
 def _work_item_from_entry(
     product: ProductionShiftProduct,
     entry: ProductionHourlyQuantity,
 ) -> dict:
     code = (product.product_code or '').strip() or '—'
     process = (product.process_name or '').strip() or 'Chưa gắn mã'
+    metrics = _slot_metrics_from_entry(product, entry)
     norm = product.norm_per_hour
-    hours = _entry_hours(entry)
-    efficiency_pct = None
-    quantity_per_hour = None
-    qty = entry.quantity
-    if qty > 0 and norm and norm > 0 and hours > 0:
-        expected = norm * hours
-        efficiency_pct = float(
-            (Decimal(str(qty)) / expected * 100).quantize(Decimal('0.01'))
-        )
-        quantity_per_hour = float(
-            (Decimal(str(efficiency_pct)) / Decimal('100') * norm).quantize(Decimal('0.01'))
-        )
     return {
         'product_code': code,
         'process_name': process,
         'product_id': product.id,
-        'quantity': quantity_per_hour,
+        'quantity': metrics['quantity_per_hour'],
         'norm_per_hour': float(norm) if norm is not None else None,
-        'hours': float(hours),
-        'hours_display': _format_hours(hours),
-        'efficiency_pct': efficiency_pct,
+        'hours': metrics['hours'],
+        'hours_display': _format_hours(metrics['hours']),
+        'efficiency_pct': metrics['efficiency_pct'],
         'damaged_quantity': entry.damaged_quantity or 0,
         'note': (entry.note or '').strip(),
     }
@@ -994,10 +1032,12 @@ def build_hourly_grid(report: DailyWorkReport) -> dict:
             or not (product.product_code or '').strip()
         )
         slots = [product_slot_cell(product, i) for i in range(slot_count)]
-        total_qty = product.total_quantity
-        if total_qty is None:
-            total_qty = sum(cell['quantity'] for cell in slots)
         session_mode = is_session_reported_product(product)
+        cell_total = sum(
+            (cell['quantity'] for cell in slots if cell['has_data']),
+            Decimal('0'),
+        )
+        total_qty = product.total_quantity if session_mode and product.total_quantity is not None else cell_total
         started_display, ended_display = session_time_displays(product)
         rows.append({
             'id': product.pk,
