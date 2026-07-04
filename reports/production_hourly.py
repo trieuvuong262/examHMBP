@@ -666,32 +666,63 @@ def _slot_segment_times(report_date, slot) -> dict:
         'duration_display': _format_duration_minutes(minutes),
         'duration_minutes': minutes,
         'slot_label': slot.label,
+        'is_overtime': slot.is_overtime,
+    }
+
+
+def _product_efficiency_metrics(product: ProductionShiftProduct) -> dict:
+    """Hiệu suất chung theo mã hàng + sản lượng quy đổi 1 giờ (tổng SL ÷ tổng giờ)."""
+    norm = product.norm_per_hour
+    prod_qty = 0
+    prod_hours = Decimal('0')
+    prod_expected = Decimal('0')
+    for entry in product.hourly_entries.order_by('slot_index'):
+        if not _entry_is_filled(entry):
+            continue
+        if entry.slot_index < product.first_slot_index:
+            continue
+        hours = _entry_hours(entry)
+        qty = entry.quantity
+        if qty > 0 and norm and norm > 0:
+            prod_qty += qty
+            prod_hours += hours
+            prod_expected += norm * hours
+    efficiency_pct = None
+    quantity_per_hour = None
+    if prod_qty > 0 and norm and norm > 0 and prod_expected > 0:
+        efficiency_pct = float(
+            (Decimal(prod_qty) / prod_expected * 100).quantize(Decimal('0.01'))
+        )
+        if prod_hours > 0:
+            quantity_per_hour = float(
+                (Decimal(prod_qty) / prod_hours).quantize(Decimal('0.01'))
+            )
+    return {
+        'efficiency_pct': efficiency_pct,
+        'quantity_per_hour': quantity_per_hour,
+        'norm_per_hour': float(norm) if norm is not None else None,
     }
 
 
 def _work_item_from_entry(
     product: ProductionShiftProduct,
     entry: ProductionHourlyQuantity,
+    *,
+    product_metrics: dict | None = None,
 ) -> dict:
     code = (product.product_code or '').strip() or '—'
     process = (product.process_name or '').strip() or 'Chưa gắn mã'
-    qty = entry.quantity
-    norm = product.norm_per_hour
     hours = _entry_hours(entry)
-    efficiency_pct = None
-    if qty > 0 and norm and norm > 0:
-        efficiency_pct = float(
-            (Decimal(str(qty)) / (norm * hours) * 100).quantize(Decimal('0.01'))
-        )
+    metrics = product_metrics or _product_efficiency_metrics(product)
     return {
         'product_code': code,
         'process_name': process,
         'product_id': product.id,
-        'quantity': qty,
-        'norm_per_hour': float(norm) if norm is not None else None,
+        'quantity': metrics.get('quantity_per_hour'),
+        'norm_per_hour': metrics.get('norm_per_hour'),
         'hours': float(hours),
         'hours_display': _format_hours(hours),
-        'efficiency_pct': efficiency_pct,
+        'efficiency_pct': metrics.get('efficiency_pct'),
         'damaged_quantity': entry.damaged_quantity or 0,
         'note': (entry.note or '').strip(),
     }
@@ -727,6 +758,10 @@ def build_work_day_timeline(report: DailyWorkReport) -> dict:
             'sort_order', 'id',
         )
     )
+    metrics_by_product = {
+        product.id: _product_efficiency_metrics(product)
+        for product in products
+    }
 
     segments: list[dict] = []
     gap_minutes = Decimal('0')
@@ -749,7 +784,11 @@ def build_work_day_timeline(report: DailyWorkReport) -> dict:
 
         if entries_in_slot:
             items = [
-                _work_item_from_entry(product, entry)
+                _work_item_from_entry(
+                    product,
+                    entry,
+                    product_metrics=metrics_by_product.get(product.id),
+                )
                 for product, entry in entries_in_slot
             ]
             segments.append({
@@ -877,9 +916,14 @@ def build_productivity_report(report: DailyWorkReport) -> dict:
                 total_expected += Decimal(str(summary['quantity'])) / (efficiency / Decimal('100'))
 
     overall_efficiency_pct = None
+    overall_quantity_per_hour = None
     if total_expected > 0:
         overall_efficiency_pct = float(
             (Decimal(total_qty) / total_expected * 100).quantize(Decimal('0.01'))
+        )
+    if total_hours > 0 and total_qty > 0:
+        overall_quantity_per_hour = float(
+            (Decimal(total_qty) / total_hours).quantize(Decimal('0.01'))
         )
 
     profile = getattr(report.employee, 'profile', None)
@@ -895,6 +939,7 @@ def build_productivity_report(report: DailyWorkReport) -> dict:
         'total_hours': float(total_hours),
         'total_hours_display': _format_hours(total_hours),
         'overall_efficiency_pct': overall_efficiency_pct,
+        'overall_quantity_per_hour': overall_quantity_per_hour,
         'employee_name': employee_name,
         'department_name': department_name,
         'report_date': report.report_date,
@@ -904,18 +949,46 @@ def build_productivity_report(report: DailyWorkReport) -> dict:
 
 def update_product_norms(report: DailyWorkReport, norms_by_id: dict) -> int:
     """Quản lý chỉnh định mức theo mã hàng — cập nhật ProductionShiftProduct."""
-    if not norms_by_id:
+    return update_production_product_fields(report, norms_by_id=norms_by_id)
+
+
+def update_production_product_fields(
+    report: DailyWorkReport,
+    *,
+    norms_by_id: dict | None = None,
+    codes_by_id: dict | None = None,
+    processes_by_id: dict | None = None,
+) -> int:
+    """Quản lý chỉnh mã hàng, công đoạn, định mức trên báo cáo năng suất."""
+    norms_by_id = norms_by_id or {}
+    codes_by_id = codes_by_id or {}
+    processes_by_id = processes_by_id or {}
+    if not (norms_by_id or codes_by_id or processes_by_id):
         return 0
     products = {product.id: product for product in report.production_products.all()}
-    updated = 0
-    for product_id, norm in norms_by_id.items():
+    updated_ids: set[int] = set()
+    product_ids = set(norms_by_id) | set(codes_by_id) | set(processes_by_id)
+    for product_id in product_ids:
         product = products.get(int(product_id))
-        if not product or norm is None or norm <= 0:
+        if not product:
             continue
-        product.norm_per_hour = Decimal(str(norm))
-        product.save(update_fields=['norm_per_hour'])
-        updated += 1
-    return updated
+        update_fields: list[str] = []
+        if product_id in codes_by_id:
+            product.product_code = str(codes_by_id[product_id] or '').strip()[:80]
+            update_fields.append('product_code')
+        if product_id in processes_by_id:
+            product.process_name = str(processes_by_id[product_id] or '').strip()[:120]
+            update_fields.append('process_name')
+        if product_id in norms_by_id:
+            norm = norms_by_id[product_id]
+            if norm is None or norm <= 0:
+                continue
+            product.norm_per_hour = Decimal(str(norm))
+            update_fields.append('norm_per_hour')
+        if update_fields:
+            product.save(update_fields=update_fields)
+            updated_ids.add(int(product_id))
+    return len(updated_ids)
 
 
 def format_production_quantity(value) -> str:

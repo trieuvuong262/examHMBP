@@ -1639,6 +1639,7 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
         can_edit_production_report,
         parse_decimal,
         update_product_norms,
+        update_production_product_fields,
     )
 
     report = get_object_or_404(
@@ -1678,20 +1679,34 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
 
     if request.method == 'POST' and request.POST.get('action') == 'update_norms' and can_edit_norm:
         norms = {}
+        codes = {}
+        processes = {}
         for key, value in request.POST.items():
-            if not key.startswith('norm_'):
-                continue
-            product_id = key[5:]
-            if not product_id.isdigit():
-                continue
-            norm = parse_decimal(value)
-            if norm and norm > 0:
-                norms[int(product_id)] = norm
-        count = update_product_norms(report, norms)
+            if key.startswith('norm_'):
+                product_id = key[5:]
+                if not product_id.isdigit():
+                    continue
+                norm = parse_decimal(value)
+                if norm and norm > 0:
+                    norms[int(product_id)] = norm
+            elif key.startswith('code_'):
+                product_id = key[5:]
+                if product_id.isdigit():
+                    codes[int(product_id)] = value
+            elif key.startswith('process_'):
+                product_id = key[8:]
+                if product_id.isdigit():
+                    processes[int(product_id)] = value
+        count = update_production_product_fields(
+            report,
+            norms_by_id=norms,
+            codes_by_id=codes,
+            processes_by_id=processes,
+        )
         if count:
-            messages.success(request, f'Đã cập nhật định mức cho {count} mã hàng.')
+            messages.success(request, f'Đã cập nhật {count} dòng mã hàng / công đoạn.')
         else:
-            messages.warning(request, 'Không có định mức hợp lệ để cập nhật.')
+            messages.warning(request, 'Không có thay đổi hợp lệ để cập nhật.')
         return _detail_redirect()
 
     can_comment = can_review or report.employee_id == request.user.id

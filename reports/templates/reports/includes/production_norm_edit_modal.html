@@ -1,15 +1,15 @@
 <div class="modal fade" id="jpProdNormModal" tabindex="-1" aria-labelledby="jpProdNormModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="jpProdNormModalLabel">
-                    <i class="bi bi-sliders me-1"></i>Quản lý định mức
+                    <i class="bi bi-pencil-square me-1"></i>Sửa mã hàng / công đoạn / định mức
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
             </div>
             <div class="modal-body p-0">
                 <p class="text-muted small px-3 pt-3 mb-2">
-                    Chỉnh định mức theo mã hàng — áp dụng cho toàn báo cáo này.
+                    Chỉnh thông tin theo dòng công đoạn — áp dụng cho toàn báo cáo này.
                 </p>
                 <div class="table-responsive">
                     <table class="table table-sm jp-prod-norm-modal-table mb-0">
@@ -23,8 +23,24 @@
                         <tbody>
                             {% for row in productivity.product_summaries %}
                             <tr class="jp-prod-norm-modal-row" data-product-id="{{ row.product_id }}">
-                                <td><span class="jp-prod-code-pill">{{ row.product_code }}</span></td>
-                                <td>{{ row.process_name }}</td>
+                                <td>
+                                    <input type="text"
+                                        name="code_{{ row.product_id }}"
+                                        value="{{ row.product_code }}"
+                                        class="form-control form-control-sm jp-prod-code-input"
+                                        maxlength="80"
+                                        data-product-id="{{ row.product_id }}"
+                                        aria-label="Mã hàng {{ row.product_id }}">
+                                </td>
+                                <td>
+                                    <input type="text"
+                                        name="process_{{ row.product_id }}"
+                                        value="{{ row.process_name }}"
+                                        class="form-control form-control-sm jp-prod-process-input"
+                                        maxlength="120"
+                                        data-product-id="{{ row.product_id }}"
+                                        aria-label="Công đoạn {{ row.product_id }}">
+                                </td>
                                 <td class="text-end">
                                     <input type="number"
                                         name="norm_{{ row.product_id }}"
@@ -43,7 +59,7 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Đóng</button>
                 <button type="submit" class="btn btn-hm btn-sm px-4">
-                    <i class="bi bi-check2-circle me-1"></i>Lưu định mức
+                    <i class="bi bi-check2-circle me-1"></i>Lưu thay đổi
                 </button>
             </div>
         </div>

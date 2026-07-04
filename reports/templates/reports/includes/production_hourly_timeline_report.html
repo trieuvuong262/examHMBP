@@ -1,0 +1,107 @@
+{% load static report_extras %}
+<div class="jp-prod-productivity-wrap">
+    <div class="jp-prod-section-label d-flex flex-wrap align-items-center gap-2">
+        <span>Báo cáo số lượng/h</span>
+        {% if productivity.work_timeline.has_gaps %}
+        <span class="badge bg-warning text-dark jp-prod-timeline-gap-badge">
+            Có {{ productivity.work_timeline.gap_minutes_display }} chưa ghi nhận
+        </span>
+        {% endif %}
+    </div>
+    <p class="small text-muted mb-2 jp-prod-overtime-legend">
+        <span class="jp-prod-overtime-swatch" aria-hidden="true"></span>
+        Khung giờ tăng ca (18h–23h)
+    </p>
+    <div class="table-responsive jp-prod-productivity-scroll mb-0">
+        <table class="table table-sm jp-prod-productivity-table jp-prod-productivity-table--hourly-detail mb-0">
+            <thead>
+                <tr class="jp-prod-productivity-head">
+                    <th>Khung giờ</th>
+                    <th>Mã hàng</th>
+                    <th>Công đoạn</th>
+                    <th class="text-end">SL/1 giờ</th>
+                    <th class="text-end">Định mức/H</th>
+                    <th class="text-end">Thời gian/H</th>
+                    <th class="text-end">Hiệu suất</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for seg in productivity.work_timeline.segments %}
+                <tr class="jp-prod-hour-row jp-prod-hour-row--{{ seg.kind }}{% if seg.is_overtime %} jp-prod-hour-row--overtime{% endif %}{% if not seg.product_continuation %} jp-prod-hour-row--slot-start{% endif %}">
+                    <td class="text-nowrap">
+                        <span class="jp-prod-slot-pill{% if seg.is_overtime %} jp-prod-slot-pill--overtime{% endif %}">{{ seg.slot_label }}</span>
+                    </td>
+                    {% if seg.kind == 'work' %}
+                    <td class="jp-prod-hour-merged-col">
+                        {% for item in seg.items %}
+                        <div class="jp-prod-hour-merged-line"><span class="jp-prod-code-pill">{{ item.product_code }}</span></div>
+                        {% empty %}<span class="text-muted">—</span>{% endfor %}
+                    </td>
+                    <td class="jp-prod-hour-merged-col">
+                        {% for item in seg.items %}
+                        <div class="jp-prod-hour-merged-line">{{ item.process_name }}</div>
+                        {% empty %}<span class="text-muted">—</span>{% endfor %}
+                    </td>
+                    <td class="text-end jp-prod-hour-merged-col">
+                        {% for item in seg.items %}
+                        <div class="jp-prod-hour-merged-line">
+                        {% if item.quantity is not None %}
+                        <span class="jp-prod-qty-val">{{ item.quantity|prod_qty }}</span>
+                        {% else %}<span class="text-muted">—</span>{% endif %}
+                        </div>
+                        {% empty %}<span class="text-muted">—</span>{% endfor %}
+                    </td>
+                    <td class="text-end jp-prod-norm-display">
+                        {% for item in seg.items %}
+                        <div class="jp-prod-hour-merged-line">{% if item.norm_per_hour %}{{ item.norm_per_hour|floatformat:0 }}{% else %}—{% endif %}</div>
+                        {% empty %}—{% endfor %}
+                    </td>
+                    <td class="text-end text-muted{% if seg.is_overtime %} jp-prod-hour-time--overtime{% endif %}">
+                        {% for item in seg.items %}
+                        <div class="jp-prod-hour-merged-line jp-prod-hour-time-val">{{ item.hours_display }}</div>
+                        {% empty %}<span class="jp-prod-hour-time-val">{{ seg.hours_display|default:"—" }}</span>{% endfor %}
+                    </td>
+                    <td class="text-end jp-prod-eff-cell">
+                        {% for item in seg.items %}
+                        <div class="jp-prod-hour-merged-line">
+                        {% if item.efficiency_pct is not None %}
+                        <span class="jp-prod-eff-badge{% if item.efficiency_pct >= 100 %} is-good{% elif item.efficiency_pct >= 80 %} is-ok{% else %} is-low{% endif %}">{{ item.efficiency_pct|floatformat:1 }}%</span>
+                        {% else %}<span class="text-muted">—</span>{% endif %}
+                        </div>
+                        {% empty %}<span class="text-muted">—</span>{% endfor %}
+                    </td>
+                    {% else %}
+                    <td class="text-muted">—</td>
+                    <td class="jp-prod-hour-status-label{% if seg.kind == 'gap' %} is-gap{% else %} is-break{% endif %}">{{ seg.label }}</td>
+                    <td class="text-end text-muted">—</td>
+                    <td class="text-end text-muted">—</td>
+                    <td class="text-end text-muted">—</td>
+                    <td class="text-end text-muted">—</td>
+                    {% endif %}
+                </tr>
+                {% empty %}
+                <tr><td colspan="7" class="text-center text-muted py-4">Chưa có dữ liệu số lượng/h.</td></tr>
+                {% endfor %}
+            </tbody>
+            {% if productivity.work_timeline.segments %}
+            <tfoot>
+                <tr class="jp-prod-productivity-foot">
+                    <th colspan="3" class="text-end text-uppercase">Tổng</th>
+                    <th class="text-end">
+                        {% if productivity.overall_quantity_per_hour is not None %}
+                        {{ productivity.overall_quantity_per_hour|prod_qty }}
+                        {% else %}—{% endif %}
+                    </th>
+                    <th class="text-end text-muted">—</th>
+                    <th class="text-end">{{ productivity.total_hours_display }}</th>
+                    <th class="text-end">
+                        {% if productivity.overall_efficiency_pct is not None %}
+                        <span class="jp-prod-eff-badge{% if productivity.overall_efficiency_pct >= 100 %} is-good{% elif productivity.overall_efficiency_pct >= 80 %} is-ok{% else %} is-low{% endif %}">{{ productivity.overall_efficiency_pct|floatformat:1 }}%</span>
+                        {% else %}—{% endif %}
+                    </th>
+                </tr>
+            </tfoot>
+            {% endif %}
+        </table>
+    </div>
+</div>

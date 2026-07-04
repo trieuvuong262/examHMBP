@@ -3,7 +3,7 @@
 
 {% block detail_extra_head %}
 <link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260624a">
-<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260702r">
+<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260704b">
 {% endblock %}
 
 {% block detail_body %}
@@ -26,6 +26,13 @@
                     <i class="bi bi-table me-1"></i>Báo cáo sản lượng
                 </button>
             </li>
+            {% if productivity and productivity.has_data %}
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="jp-tab-hourly-btn" data-bs-toggle="tab" data-bs-target="#jp-tab-hourly" type="button" role="tab" aria-controls="jp-tab-hourly" aria-selected="false">
+                    <i class="bi bi-clock-history me-1"></i>Báo cáo số lượng/h
+                </button>
+            </li>
+            {% endif %}
         </ul>
         <div class="tab-content jp-report-tab-panels" id="jpReportDetailTabContent">
             <div class="tab-pane fade show active" id="jp-tab-productivity" role="tabpanel" aria-labelledby="jp-tab-productivity-btn" tabindex="0">
@@ -57,6 +64,21 @@
                     {% endif %}
                 </div>
             </div>
+            {% if productivity and productivity.has_data %}
+            <div class="tab-pane fade" id="jp-tab-hourly" role="tabpanel" aria-labelledby="jp-tab-hourly-btn" tabindex="0">
+                <div class="jp-report-tab-toolbar">
+                    <div class="jp-prod-eff-legend jp-prod-eff-legend--inline">
+                        <span class="jp-prod-eff-legend-title">Hiệu suất:</span>
+                        <span class="jp-prod-eff-legend-item"><span class="jp-prod-eff-badge is-good">≥100%</span> Đạt / vượt định mức</span>
+                        <span class="jp-prod-eff-legend-item"><span class="jp-prod-eff-badge is-ok">80–99%</span> Gần đạt</span>
+                        <span class="jp-prod-eff-legend-item"><span class="jp-prod-eff-badge is-low">&lt;80%</span> Chưa đạt</span>
+                    </div>
+                </div>
+                <div class="jp-report-tab-body">
+                    {% include 'reports/includes/production_hourly_timeline_report.html' %}
+                </div>
+            </div>
+            {% endif %}
         </div>
     </div>
     {% if can_edit_norm and productivity and productivity.has_data %}
@@ -109,47 +131,95 @@
         return (qty / (norm * hours) * 100).toFixed(2);
     }
 
-    function applyNorm(productId, normValue) {
-        var norm = parseFloat(normValue);
+    function applyProductFields(productId, codeValue, processValue, normValue) {
         document.querySelectorAll('.jp-prod-summary-row[data-product-id="' + productId + '"]').forEach(function (row) {
             var qty = row.getAttribute('data-quantity');
             var hours = row.getAttribute('data-hours');
-            var normDisplay = row.querySelector('.jp-prod-norm-display');
-            if (normDisplay) {
-                normDisplay.textContent = norm > 0 ? Math.round(norm) : '—';
+            var codeDisplay = row.querySelector('.jp-prod-code-display');
+            if (codeDisplay) {
+                codeDisplay.textContent = (codeValue || '').trim() || '—';
             }
-            var effCell = row.querySelector('.jp-prod-eff-cell');
-            if (effCell) {
-                var eff = efficiencyPct(qty, hours, norm);
-                if (eff === null) {
-                    effCell.innerHTML = '<span class="text-muted">—</span>';
-                    return;
+            var processDisplay = row.querySelector('.jp-prod-process-display');
+            if (processDisplay) {
+                processDisplay.textContent = (processValue || '').trim() || '—';
+            }
+            if (normValue !== undefined) {
+                var norm = parseFloat(normValue);
+                var normDisplay = row.querySelector('.jp-prod-norm-display');
+                if (normDisplay) {
+                    normDisplay.textContent = norm > 0 ? Math.round(norm) : '—';
                 }
-                var badgeClass = 'jp-prod-eff-badge';
-                if (parseFloat(eff) >= 100) badgeClass += ' is-good';
-                else if (parseFloat(eff) >= 80) badgeClass += ' is-ok';
-                else badgeClass += ' is-low';
-                effCell.innerHTML = '<span class="' + badgeClass + '">' + eff + '%</span>';
+                var effCell = row.querySelector('.jp-prod-eff-cell');
+                if (effCell) {
+                    var eff = efficiencyPct(qty, hours, norm);
+                    if (eff === null) {
+                        effCell.innerHTML = '<span class="text-muted">—</span>';
+                        return;
+                    }
+                    var badgeClass = 'jp-prod-eff-badge';
+                    if (parseFloat(eff) >= 100) badgeClass += ' is-good';
+                    else if (parseFloat(eff) >= 80) badgeClass += ' is-ok';
+                    else badgeClass += ' is-low';
+                    effCell.innerHTML = '<span class="' + badgeClass + '">' + eff + '%</span>';
+                }
             }
         });
     }
 
+    function applyNorm(productId, normValue) {
+        var rowInput = document.querySelector('.jp-prod-norm-modal-row[data-product-id="' + productId + '"]');
+        var codeInput = rowInput && rowInput.querySelector('.jp-prod-code-input');
+        var processInput = rowInput && rowInput.querySelector('.jp-prod-process-input');
+        applyProductFields(
+            productId,
+            codeInput ? codeInput.value : undefined,
+            processInput ? processInput.value : undefined,
+            normValue
+        );
+    }
+
     var modal = document.getElementById('jpProdNormModal');
-    var inputs = document.querySelectorAll('#jpProdNormModal .jp-prod-norm-input[data-product-id]');
-    if (!inputs.length) return;
+    var normInputs = document.querySelectorAll('#jpProdNormModal .jp-prod-norm-input[data-product-id]');
+    var codeInputs = document.querySelectorAll('#jpProdNormModal .jp-prod-code-input[data-product-id]');
+    var processInputs = document.querySelectorAll('#jpProdNormModal .jp-prod-process-input[data-product-id]');
+    if (!normInputs.length && !codeInputs.length && !processInputs.length) return;
     var byProduct = {};
-    inputs.forEach(function (input) {
+    function trackInput(input, field) {
         var id = input.getAttribute('data-product-id');
-        if (!byProduct[id]) byProduct[id] = [];
-        byProduct[id].push(input);
+        if (!byProduct[id]) byProduct[id] = {};
+        byProduct[id][field] = input;
+    }
+    normInputs.forEach(function (input) { trackInput(input, 'norm'); });
+    codeInputs.forEach(function (input) { trackInput(input, 'code'); });
+    processInputs.forEach(function (input) { trackInput(input, 'process'); });
+
+    function syncRowPreview(productId) {
+        var group = byProduct[productId] || {};
+        applyProductFields(
+            productId,
+            group.code ? group.code.value : undefined,
+            group.process ? group.process.value : undefined,
+            group.norm ? group.norm.value : undefined
+        );
+    }
+
+    codeInputs.forEach(function (input) {
+        input.addEventListener('input', function () {
+            syncRowPreview(input.getAttribute('data-product-id'));
+        });
     });
-    inputs.forEach(function (input) {
+    processInputs.forEach(function (input) {
+        input.addEventListener('input', function () {
+            syncRowPreview(input.getAttribute('data-product-id'));
+        });
+    });
+    normInputs.forEach(function (input) {
         input.addEventListener('input', function () {
             var productId = input.getAttribute('data-product-id');
-            (byProduct[productId] || []).forEach(function (peer) {
+            (byProduct[productId] && byProduct[productId].norm ? [byProduct[productId].norm] : []).forEach(function (peer) {
                 if (peer !== input) peer.value = input.value;
             });
-            applyNorm(productId, input.value);
+            syncRowPreview(productId);
         });
     });
 
@@ -157,6 +227,7 @@
         modal.addEventListener('show.bs.modal', function (event) {
             var trigger = event.relatedTarget;
             var productId = trigger && trigger.getAttribute('data-product-id');
+            var focusField = (trigger && trigger.getAttribute('data-focus-field')) || 'norm';
             modal.querySelectorAll('.jp-prod-norm-modal-row').forEach(function (row) {
                 row.classList.remove('is-focus');
             });
@@ -164,7 +235,12 @@
             var targetRow = modal.querySelector('.jp-prod-norm-modal-row[data-product-id="' + productId + '"]');
             if (!targetRow) return;
             targetRow.classList.add('is-focus');
-            var focusInput = targetRow.querySelector('.jp-prod-norm-input');
+            var selector = focusField === 'code'
+                ? '.jp-prod-code-input'
+                : focusField === 'process'
+                    ? '.jp-prod-process-input'
+                    : '.jp-prod-norm-input';
+            var focusInput = targetRow.querySelector(selector);
             if (focusInput) {
                 setTimeout(function () {
                     focusInput.focus();

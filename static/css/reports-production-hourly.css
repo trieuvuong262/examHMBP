@@ -1399,6 +1399,26 @@ body .modal-backdrop.show {
     box-shadow: inset 0 2px 0 rgba(196, 30, 58, 0.06);
 }
 
+.jp-prod-productivity-table--hourly-detail tbody .jp-prod-hour-row--overtime td {
+    background: #fff7ed;
+}
+
+.jp-prod-productivity-table--hourly-detail tbody .jp-prod-hour-row--overtime td:first-child {
+    border-left-color: #c2410c;
+}
+
+.jp-prod-productivity-table--hourly-detail .jp-prod-slot-pill--overtime {
+    background: #c2410c;
+    border-color: #9a3412;
+    color: #fff;
+}
+
+.jp-prod-productivity-table--hourly-detail .jp-prod-hour-time--overtime,
+.jp-prod-productivity-table--hourly-detail .jp-prod-hour-time--overtime .jp-prod-hour-time-val {
+    color: #c2410c !important;
+    font-weight: 700;
+}
+
 .jp-prod-productivity-table--hourly-detail .jp-prod-slot-pill {
     font-weight: 700;
 }
@@ -1561,6 +1581,23 @@ body .modal-backdrop.show {
 
 .jp-prod-summary-row:hover {
     background: #f1f5f9 !important;
+}
+
+.jp-prod-editable-cell,
+.jp-prod-norm-cell {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    flex-wrap: wrap;
+}
+
+.jp-prod-product-edit-btn {
+    line-height: 1;
+    color: #64748b;
+}
+
+.jp-prod-product-edit-btn:hover {
+    color: var(--hm-primary);
 }
 
 .jp-prod-norm-edit-wrap {
