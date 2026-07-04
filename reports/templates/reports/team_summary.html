@@ -309,12 +309,9 @@ document.addEventListener('DOMContentLoaded', function () {
             shotBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Đang chụp...';
             html2canvas(table, {
                 backgroundColor: '#ffffff',
-                scale: Math.max(3, (window.devicePixelRatio || 1) * 2),
+                scale: 4,
                 useCORS: true,
-                width: table.scrollWidth,
-                height: table.scrollHeight,
-                windowWidth: table.scrollWidth + 40,
-                windowHeight: table.scrollHeight + 40,
+                logging: false,
                 onclone: function (doc) {
                     var t = doc.getElementById('summaryTable');
                     if (t) t.classList.add('jp-capturing');
