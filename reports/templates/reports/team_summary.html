@@ -317,16 +317,36 @@ document.addEventListener('DOMContentLoaded', function () {
                     if (t) t.classList.add('jp-capturing');
                 },
             }).then(function (canvas) {
-                var link = document.createElement('a');
                 var stamp = new Date().toISOString().slice(0, 10);
-                link.download = 'bao-cao-tong-hop-sx-{{ active_shift|lower }}-' + stamp + '.png';
+                var fileName = 'bao-cao-tong-hop-sx-{{ active_shift|lower }}-' + stamp + '.png';
+                // 1) Tải xuống
+                var link = document.createElement('a');
+                link.download = fileName;
                 link.href = canvas.toDataURL('image/png');
                 link.click();
+                // 2) Copy vào clipboard (nếu trình duyệt hỗ trợ)
+                return new Promise(function (resolve) {
+                    canvas.toBlob(function (blob) {
+                        if (!blob || !navigator.clipboard || !window.ClipboardItem) {
+                            resolve(false);
+                            return;
+                        }
+                        navigator.clipboard.write([
+                            new ClipboardItem({ 'image/png': blob })
+                        ]).then(function () { resolve(true); })
+                          .catch(function () { resolve(false); });
+                    }, 'image/png');
+                });
+            }).then(function (copied) {
+                shotBtn.innerHTML = copied
+                    ? '<i class="bi bi-clipboard-check me-1"></i>Đã tải & copy'
+                    : '<i class="bi bi-download me-1"></i>Đã tải ảnh';
+                setTimeout(function () { shotBtn.innerHTML = original; }, 2000);
             }).catch(function () {
                 alert('Không chụp được ảnh, vui lòng thử lại.');
+                shotBtn.innerHTML = original;
             }).finally(function () {
                 shotBtn.disabled = false;
-                shotBtn.innerHTML = original;
             });
         });
     }
