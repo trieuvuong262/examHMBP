@@ -216,11 +216,14 @@ class Command(BaseCommand):
         chunks = _split_contiguous(slots, n_stages)
         picks = random.sample(PRODUCTS, len(chunks))
 
+        n_chunks = len(chunks)
         for sort_order, (chunk, (code, process)) in enumerate(zip(chunks, picks)):
             norm = random.choice(NORMS)
             eff = max(50, min(130, base_eff + random.randint(-12, 12)))
             first_slot_index = chunk[0][0]
             last_slot_index = chunk[-1][0]
+            is_first = sort_order == 0
+            is_last = sort_order == n_chunks - 1
 
             total_qty = Decimal('0')
             entries = []
@@ -236,6 +239,13 @@ class Command(BaseCommand):
 
             first_slot = slot_by_index(first_slot_index, shift)
             last_slot = slot_by_index(last_slot_index, shift)
+            # Công đoạn đầu dùng đúng giờ bắt đầu lẻ; công đoạn cuối dùng giờ kết thúc lẻ
+            started_at = start_dt if is_first else (
+                _slot_start_dt(day, first_slot) if first_slot else start_dt
+            )
+            ended_at = end_dt if is_last else (
+                _slot_end_dt(day, last_slot) if last_slot else end_dt
+            )
             product = ProductionShiftProduct.objects.create(
                 report=report,
                 product_code=code,
@@ -244,8 +254,8 @@ class Command(BaseCommand):
                 status=ProductionShiftProduct.STATUS_DONE,
                 sort_order=sort_order,
                 first_slot_index=first_slot_index,
-                started_at=_slot_start_dt(day, first_slot) if first_slot else start_dt,
-                ended_at=_slot_end_dt(day, last_slot) if last_slot else end_dt,
+                started_at=started_at,
+                ended_at=ended_at,
                 total_quantity=total_qty,
                 total_damaged_quantity=0,
                 completion_note='',
