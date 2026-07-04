@@ -104,6 +104,41 @@
     .jp-capturing th.jp-col-sticky,
     .jp-capturing td.jp-col-sticky,
     .jp-capturing .jp-summary-group td { position: static !important; }
+    /* Khi chụp: hiện lại cột Bộ phận dù đang ẩn trên mobile */
+    .jp-capturing th.jp-col-dept,
+    .jp-capturing td.jp-col-dept { display: table-cell !important; }
+
+    /* ——— Tối ưu mobile ——— */
+    @media (max-width: 767.98px) {
+        .jp-summary-stats { gap: 0.5rem; }
+        .jp-summary-stat { flex: 1 1 calc(50% - 0.25rem); padding: 0.5rem 0.7rem; border-radius: 0.6rem; }
+        .jp-summary-stat .val { font-size: 1.15rem; }
+        .jp-summary-stat .lbl { font-size: 0.6rem; }
+
+        #summaryFilterForm .card-body { gap: 0.5rem !important; padding: 0.6rem !important; }
+        #summaryFilterForm .card-body > div { flex: 1 1 100%; }
+        #summaryFilterForm .jp-hrm-search-wrap { min-width: 0 !important; }
+        #summaryFilterForm .form-control,
+        #summaryFilterForm .form-select { width: 100%; }
+
+        .jp-summary-scroll { max-height: 70vh; }
+        .jp-summary-table { font-size: 0.72rem; }
+        .jp-summary-table thead th { font-size: 0.6rem; padding: 0.3rem 0.22rem; }
+        .jp-summary-table thead th small { font-size: 0.55rem; }
+        .jp-summary-table tbody td { padding: 0.22rem 0.26rem; }
+        .jp-eff { min-width: 2rem; padding: 0.06rem 0.28rem; font-size: 0.68rem; }
+
+        .jp-summary-table th.jp-col-stt,
+        .jp-summary-table td.jp-col-stt { min-width: 26px; }
+        .jp-summary-table th.jp-col-name,
+        .jp-summary-table td.jp-col-name {
+            left: 26px; min-width: 96px; max-width: 96px;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        /* Ẩn cột Bộ phận trên mobile để dành chỗ cho các ngày (vẫn hiện khi chụp ảnh & Excel) */
+        .jp-summary-table th.jp-col-dept,
+        .jp-summary-table td.jp-col-dept { display: none; }
+    }
 </style>
 {% endblock %}
 
