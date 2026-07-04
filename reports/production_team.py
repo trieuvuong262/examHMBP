@@ -491,7 +491,7 @@ def build_production_team_summary(
         {
             'date': day,
             'weekday': _weekday_label_vi(day),
-            'is_weekend': day.weekday() >= 5,
+            'is_weekend': day.weekday() == 6,
         }
         for day in _iter_dates(date_from, date_to)
     ]
