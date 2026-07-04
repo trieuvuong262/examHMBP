@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from datetime import date, timedelta
+from decimal import Decimal
 
 from django.db.models import Count, Exists, OuterRef, Subquery, Sum, Value, DecimalField
 from django.db.models.functions import Coalesce
@@ -356,6 +357,45 @@ def build_production_day_shift_tabs(
     return tabs
 
 
+def _filter_reports_by_shift(
+    reports: list[DailyWorkReport],
+    shift_filter: str,
+) -> list[DailyWorkReport]:
+    if not shift_filter:
+        return reports
+    from reports.production_slots import normalize_shift
+
+    target = normalize_shift(shift_filter)
+    return [
+        report
+        for report in reports
+        if normalize_shift(report.shift or DailyWorkReport.SHIFT_MORNING) == target
+    ]
+
+
+def build_production_summary_shift_tabs(
+    *,
+    active_shift: str,
+    base_params: dict[str, str],
+) -> list[dict]:
+    """Tab Ca sáng / Ca tối — trang báo cáo tổng hợp SX."""
+    from urllib.parse import urlencode
+
+    from django.urls import reverse
+
+    tabs = []
+    for shift in PRODUCTION_SHIFT_ORDER:
+        params = {**base_params, 'shift': shift}
+        tabs.append({
+            'shift': shift,
+            'label': shift_display_label(shift),
+            'badge_class': shift_badge_class(shift),
+            'is_active': shift == active_shift,
+            'url': f"{reverse('reports:team_summary_cn')}?{urlencode(params)}",
+        })
+    return tabs
+
+
 def _production_total_qty_subquery():
     return (
         ProductionHourlyQuantity.objects.filter(product__report_id=OuterRef('pk'))
@@ -363,6 +403,170 @@ def _production_total_qty_subquery():
         .annotate(total=Sum('quantity'))
         .values('total')[:1]
     )
+
+
+# =========================================================
+# BÁO CÁO TỔNG HỢP — ma trận hiệu suất theo NV × ngày
+# =========================================================
+
+WEEKDAY_LABELS_VI = ('Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'CN')
+
+
+def _weekday_label_vi(day: date) -> str:
+    return WEEKDAY_LABELS_VI[day.weekday()]
+
+
+def _product_efficiency_and_hours(product) -> tuple[Decimal | None, Decimal]:
+    """Hiệu suất (%) và thời gian (giờ) của 1 công đoạn từ dữ liệu đã prefetch."""
+    norm = product.norm_per_hour
+    if not norm or norm <= 0:
+        return None, Decimal('0')
+    qty_total = Decimal('0')
+    hours_total = Decimal('0')
+    for entry in product.hourly_entries.all():
+        if entry.slot_index < product.first_slot_index:
+            continue
+        qty = entry.quantity or Decimal('0')
+        if qty <= 0:
+            continue
+        hours = entry.partial_hours if (entry.partial_hours and entry.partial_hours > 0) else Decimal('1')
+        qty_total += Decimal(qty)
+        hours_total += Decimal(hours)
+    if qty_total > 0 and hours_total > 0:
+        eff = qty_total / (Decimal(norm) * hours_total) * Decimal('100')
+        return eff, hours_total
+    return None, Decimal('0')
+
+
+def _weighted_parts(reports) -> tuple[Decimal, Decimal]:
+    """Trả (Σ hiệu suất công đoạn × giờ, Σ giờ) của danh sách báo cáo."""
+    weighted = Decimal('0')
+    hours = Decimal('0')
+    for report in reports:
+        for product in report.production_products.all():
+            eff, prod_hours = _product_efficiency_and_hours(product)
+            if eff is None or prod_hours <= 0:
+                continue
+            weighted += eff * prod_hours
+            hours += prod_hours
+    return weighted, hours
+
+
+def _pct_from_parts(weighted: Decimal, hours: Decimal) -> float | None:
+    if hours > 0:
+        return float((weighted / hours).quantize(Decimal('0.01')))
+    return None
+
+
+def _weighted_efficiency_pct(reports: list[DailyWorkReport]) -> float | None:
+    """Trung bình có trọng số theo thời gian: Σ(hiệu suất × giờ) / Σ giờ."""
+    weighted, hours = _weighted_parts(reports)
+    return _pct_from_parts(weighted, hours)
+
+
+def report_overall_efficiency_pct(report) -> float | None:
+    """Hiệu suất trung bình 1 báo cáo — trọng số theo thời gian từng công đoạn."""
+    return _weighted_efficiency_pct([report])
+
+
+def _day_efficiency_pct(reports: list[DailyWorkReport]) -> float | None:
+    """Hiệu suất trung bình trong ngày — trọng số theo thời gian từng công đoạn."""
+    return _weighted_efficiency_pct(reports)
+
+
+def build_production_team_summary(
+    viewer,
+    team,
+    reports_by_employee: dict[int, list[DailyWorkReport]],
+    visible_fn,
+    *,
+    date_from: date,
+    date_to: date,
+    dept_filter: str = '',
+    shift_filter: str = DailyWorkReport.SHIFT_MORNING,
+) -> dict:
+    """Ma trận: mỗi NV 1 dòng, mỗi ngày 1 cột, ô = hiệu suất TB ca trong ngày."""
+    days = [
+        {
+            'date': day,
+            'weekday': _weekday_label_vi(day),
+            'is_weekend': day.weekday() >= 5,
+        }
+        for day in _iter_dates(date_from, date_to)
+    ]
+
+    all_groups = build_report_team_department_groups(viewer, team)
+    dept_choices = department_filter_choices(all_groups)
+    groups_src = (
+        build_report_team_department_groups(viewer, team, dept_filter=dept_filter)
+        if dept_filter else all_groups
+    )
+    groups_src = _ensure_team_members_in_groups(groups_src, team)
+
+    day_totals = [{'weighted': Decimal('0'), 'hours': Decimal('0')} for _ in days]
+    grand_weighted = Decimal('0')
+    grand_hours = Decimal('0')
+
+    stt = 0
+    members_with_data = 0
+    groups = []
+    for group in groups_src:
+        members_out = []
+        for member in group['members']:
+            stt += 1
+            visible = _visible_reports(reports_by_employee.get(member.id, []), visible_fn)
+            shift_reports = _filter_reports_by_shift(visible, shift_filter)
+            by_date = _reports_by_employee_date(shift_reports)
+            cells = []
+            member_weighted = Decimal('0')
+            member_hours = Decimal('0')
+            for idx, day in enumerate(days):
+                weighted, hours = _weighted_parts(by_date.get(day['date'], []))
+                eff = _pct_from_parts(weighted, hours)
+                cells.append({
+                    'efficiency_pct': eff,
+                    'has_data': eff is not None,
+                    'is_weekend': day['is_weekend'],
+                })
+                if hours > 0:
+                    day_totals[idx]['weighted'] += weighted
+                    day_totals[idx]['hours'] += hours
+                    member_weighted += weighted
+                    member_hours += hours
+            avg = _pct_from_parts(member_weighted, member_hours)
+            if avg is not None:
+                members_with_data += 1
+            grand_weighted += member_weighted
+            grand_hours += member_hours
+            profile = getattr(member, 'profile', None)
+            members_out.append({
+                'stt': stt,
+                'member': member,
+                'name': (profile.full_name if profile and profile.full_name else member.username),
+                'division': profile.division.name if profile and getattr(profile, 'division_id', None) else '',
+                'cells': cells,
+                'avg_efficiency_pct': avg,
+                'report_count': len(shift_reports),
+            })
+        groups.append({**group, 'label': group['label'], 'members': members_out})
+
+    day_averages = [_pct_from_parts(t['weighted'], t['hours']) for t in day_totals]
+    for day, avg in zip(days, day_averages):
+        day['average'] = avg
+    overall_avg = _pct_from_parts(grand_weighted, grand_hours)
+
+    return {
+        'days': days,
+        'groups': groups,
+        'dept_choices': dept_choices,
+        'has_members': stt > 0,
+        'member_count': stt,
+        'members_with_data': members_with_data,
+        'day_averages': day_averages,
+        'overall_avg': overall_avg,
+        'shift_filter': shift_filter,
+        'shift_label': shift_display_label(shift_filter),
+    }
 
 
 def query_production_team_reports(team_ids, date_from, date_to):

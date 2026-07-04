@@ -23,26 +23,16 @@
             </div>
         </div>
 
-        <div class="row g-2 mt-2">
+        <div class="row g-2 mt-2 align-items-end">
             <div class="col-6 col-md-3">
                 <label class="form-label small fw-semibold mb-1">Giờ bắt đầu</label>
-                <select class="form-select form-select-sm s-start-slot">
-                    <option value="">— Chọn —</option>
-                    {% for opt in start_options %}
-                    <option value="{{ opt.index }}" {% if sess.start_slot == opt.index %}selected{% endif %}>{{ opt.label }}</option>
-                    {% endfor %}
-                </select>
+                <input type="time" class="form-control form-control-sm s-start-time" value="{{ sess.start_time }}" step="60">
             </div>
             <div class="col-6 col-md-3">
                 <label class="form-label small fw-semibold mb-1">Giờ kết thúc</label>
-                <select class="form-select form-select-sm s-end-slot">
-                    <option value="">— Chọn —</option>
-                    {% for opt in end_options %}
-                    <option value="{{ opt.index }}" {% if sess.end_slot == opt.index %}selected{% endif %}>{{ opt.label }}</option>
-                    {% endfor %}
-                </select>
+                <input type="time" class="form-control form-control-sm s-end-time" value="{{ sess.end_time }}" step="60">
             </div>
-            <div class="col-12 col-md-6 d-flex align-items-end">
+            <div class="col-12 col-md-6">
                 <p class="small text-muted mb-2 mb-md-1 s-range-hint"></p>
             </div>
         </div>

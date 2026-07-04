@@ -147,7 +147,11 @@
             </div>
             {% endif %}
 
-            <form method="post" class="jp-proxy-form" data-shift="{{ tab.shift }}" data-slot-hours="{{ tab.data.slot_hours_json|escape }}">
+            <form method="post" class="jp-proxy-form" data-shift="{{ tab.shift }}"
+                  data-report-date="{{ report_date|date:'Y-m-d' }}"
+                  data-slot-windows="{{ tab.data.slot_windows_json|escape }}"
+                  data-shift-start="{{ tab.data.shift_window_start }}"
+                  data-shift-end="{{ tab.data.shift_window_end }}">
                 {% csrf_token %}
                 <input type="hidden" name="shift" value="{{ tab.shift }}">
                 <input type="hidden" name="for_user" value="{{ subject.pk }}">
@@ -156,14 +160,14 @@
                 <fieldset class="border-0 p-0 m-0" {% if tab.is_locked %}disabled{% endif %}>
                     <div class="jp-proxy-sessions">
                         {% for sess in tab.data.sessions %}
-                        {% include 'reports/includes/proxy_session_row.html' with sess=sess start_options=tab.data.starts end_options=tab.data.ends %}
+                        {% include 'reports/includes/proxy_session_row.html' with sess=sess %}
                         {% endfor %}
                     </div>
                 </fieldset>
 
                 {% if not tab.is_locked %}
                 <template class="jp-proxy-session-tpl">
-                    {% include 'reports/includes/proxy_session_row.html' with sess=empty_session start_options=tab.data.starts end_options=tab.data.ends %}
+                    {% include 'reports/includes/proxy_session_row.html' with sess=empty_session %}
                 </template>
                 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-3">
                     <button type="button" class="btn btn-outline-hm add-session">
@@ -194,36 +198,95 @@
         return 'is-low';
     }
 
-    function slotHoursMap(form) {
+    function parseHm(value) {
+        if (!value) return null;
+        var parts = value.split(':');
+        if (parts.length < 2) return null;
+        var h = parseInt(parts[0], 10);
+        var m = parseInt(parts[1], 10);
+        if (isNaN(h) || isNaN(m)) return null;
+        return { h: h, m: m };
+    }
+
+    function combineLocal(reportDate, dayOffset, hm) {
+        var d = new Date(reportDate + 'T00:00:00');
+        d.setDate(d.getDate() + dayOffset);
+        d.setHours(hm.h, hm.m, 0, 0);
+        return d;
+    }
+
+    function slotWindows(form) {
         try {
-            return JSON.parse(form.getAttribute('data-slot-hours') || '{}');
+            return JSON.parse(form.getAttribute('data-slot-windows') || '[]');
         } catch (e) {
-            return {};
+            return [];
         }
     }
 
-    function hoursInRange(startIdx, endIdx, hoursMap) {
-        if (isNaN(startIdx) || isNaN(endIdx) || endIdx < startIdx) return 0;
-        var total = 0;
-        for (var i = startIdx; i <= endIdx; i++) {
-            total += parseFloat(hoursMap[String(i)]) || 0;
-        }
-        return total;
+    function overlapMinutes(aStart, aEnd, bStart, bEnd) {
+        var start = Math.max(aStart.getTime(), bStart.getTime());
+        var end = Math.min(aEnd.getTime(), bEnd.getTime());
+        if (end <= start) return 0;
+        return (end - start) / 60000;
+    }
+
+    function proxyClockInterval(form, startStr, endStr) {
+        var reportDate = form.getAttribute('data-report-date');
+        var startHm = parseHm(startStr);
+        var endHm = parseHm(endStr);
+        if (!reportDate || !startHm || !endHm) return null;
+
+        var candidates = [];
+        [0, 1].forEach(function (startOff) {
+            var startDt = combineLocal(reportDate, startOff, startHm);
+            [0, 1, 2].forEach(function (endOff) {
+                var endDt = combineLocal(reportDate, endOff, endHm);
+                if (endDt <= startDt) {
+                    endDt = new Date(endDt.getTime() + 86400000);
+                }
+                if (endDt > startDt) {
+                    candidates.push({ start: startDt, end: endDt });
+                }
+            });
+        });
+        if (!candidates.length) return null;
+        candidates.sort(function (a, b) { return a.start - b.start; });
+        return candidates[0];
+    }
+
+    function hoursForClockRange(form, startStr, endStr) {
+        var interval = proxyClockInterval(form, startStr, endStr);
+        if (!interval) return { hours: 0, valid: false };
+
+        var windows = slotWindows(form);
+        var totalMinutes = 0;
+        windows.forEach(function (win) {
+            var slotStart = combineLocal(form.getAttribute('data-report-date'), win.start_day_offset || 0, parseHm(win.start));
+            var slotEnd = combineLocal(form.getAttribute('data-report-date'), win.end_day_offset || 0, parseHm(win.end));
+            totalMinutes += overlapMinutes(interval.start, interval.end, slotStart, slotEnd);
+        });
+        return {
+            hours: Math.round((totalMinutes / 60) * 100) / 100,
+            valid: totalMinutes > 0,
+            interval: interval,
+        };
     }
 
     function recalcSession(sess) {
         var form = sess.closest('.jp-proxy-form');
-        var hoursMap = form ? slotHoursMap(form) : {};
-        var startIdx = parseInt((sess.querySelector('.s-start-slot') || {}).value, 10);
-        var endIdx = parseInt((sess.querySelector('.s-end-slot') || {}).value, 10);
-        var hours = hoursInRange(startIdx, endIdx, hoursMap);
+        var startStr = (sess.querySelector('.s-start-time') || {}).value || '';
+        var endStr = (sess.querySelector('.s-end-time') || {}).value || '';
+        var range = form ? hoursForClockRange(form, startStr, endStr) : { hours: 0, valid: false };
+        var hours = range.hours;
         var hint = sess.querySelector('.s-range-hint');
         if (hint) {
-            if (!isNaN(startIdx) && !isNaN(endIdx) && endIdx < startIdx) {
-                hint.textContent = 'Giờ kết thúc phải sau giờ bắt đầu.';
+            if (startStr && endStr && !range.valid) {
+                var shiftStart = form.getAttribute('data-shift-start') || '';
+                var shiftEnd = form.getAttribute('data-shift-end') || '';
+                hint.textContent = 'Giờ phải nằm trong ca (' + shiftStart + ' – ' + shiftEnd + ') và kết thúc sau bắt đầu.';
                 hint.classList.add('text-danger');
-            } else if (!isNaN(startIdx) && !isNaN(endIdx) && endIdx >= startIdx) {
-                hint.textContent = 'Từ khung ' + (startIdx + 1) + ' đến khung ' + (endIdx + 1) + ' trong ca.';
+            } else if (startStr && endStr && range.valid) {
+                hint.textContent = 'Làm từ ' + startStr + ' đến ' + endStr + ' (' + hours + 'h trong ca, đã trừ nghỉ giữa ca).';
                 hint.classList.remove('text-danger');
             } else {
                 hint.textContent = '';
@@ -274,14 +337,13 @@
             var sessions = [];
             var invalidRange = false;
             container.querySelectorAll('.jp-proxy-session').forEach(function (sess) {
-                var startSlot = (sess.querySelector('.s-start-slot') || {}).value || '';
-                var endSlot = (sess.querySelector('.s-end-slot') || {}).value || '';
+                var startTime = (sess.querySelector('.s-start-time') || {}).value || '';
+                var endTime = (sess.querySelector('.s-end-time') || {}).value || '';
                 var code = (sess.querySelector('.s-code') || {}).value || '';
                 var total = (sess.querySelector('.s-total') || {}).value || '';
-                if (!code.trim() && !total && !startSlot && !endSlot) return;
-                var startIdx = parseInt(startSlot, 10);
-                var endIdx = parseInt(endSlot, 10);
-                if (!isNaN(startIdx) && !isNaN(endIdx) && endIdx < startIdx) {
+                if (!code.trim() && !total && !startTime && !endTime) return;
+                var range = hoursForClockRange(form, startTime, endTime);
+                if (startTime && endTime && !range.valid) {
                     invalidRange = true;
                     return;
                 }
@@ -292,13 +354,13 @@
                     total: total,
                     damaged: (sess.querySelector('.s-damaged') || {}).value || '',
                     note: (sess.querySelector('.s-note') || {}).value || '',
-                    start_slot: startSlot,
-                    end_slot: endSlot,
+                    start_time: startTime,
+                    end_time: endTime,
                 });
             });
             if (invalidRange) {
                 ev.preventDefault();
-                alert('Giờ kết thúc phải sau giờ bắt đầu trong mỗi công đoạn.');
+                alert('Giờ bắt đầu / kết thúc không hợp lệ hoặc nằm ngoài khung ca.');
                 return;
             }
             var hidden = form.querySelector('.s-sessions-json');

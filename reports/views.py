@@ -38,7 +38,7 @@ from reports.report_profile import (
     REPORT_PROFILE_PRODUCTION,
     filter_team_members_for_report_profile,
 )
-from reports.production_shift_policy import shift_badge_class
+from reports.production_shift_policy import PRODUCTION_SHIFT_ORDER, shift_badge_class
 from reports.period_utils import (
     PERIOD_CHOICES,
     PERIOD_DAY,
@@ -124,6 +124,7 @@ from .team_sort import (
 from .production_team import (
     build_production_day_shift_tabs,
     build_production_reports_by_employee,
+    build_production_summary_shift_tabs,
     build_production_team_department_groups,
     production_team_row_is_submitted,
     production_team_row_matches_filter,
@@ -617,7 +618,7 @@ def proxy_report_entry(request):
         'active_shift': active_shift,
         'empty_session': {
             'code': '', 'process': '', 'norm': '', 'total': '', 'damaged': '', 'note': '',
-            'start_slot': '', 'end_slot': '', 'slots': [],
+            'start_time': '', 'end_time': '',
         },
         'back_team_url': reverse('reports:team_cn') + f'?date={report_date.isoformat()}',
     })
@@ -1284,6 +1285,33 @@ def _build_department_group_rows(viewer, team, report_map, visible_fn, dept_filt
 TEAM_STATUS_SUBMITTED = 'submitted'
 TEAM_STATUS_MISSING = 'missing'
 TEAM_STATUS_NO_REPORT = 'no_report'
+TEAM_SUMMARY_DEFAULT_SPAN_DAYS = 7
+
+
+def _summary_week_date_range(anchor_to=None):
+    """Khoảng mặc định trang tổng hợp SX — 1 tuần (7 ngày) tính đến anchor_to."""
+    anchor_to = anchor_to or timezone.localdate()
+    anchor_from = anchor_to - timedelta(days=TEAM_SUMMARY_DEFAULT_SPAN_DAYS - 1)
+    return anchor_from, anchor_to
+
+
+def _summary_list_query_params(*, dept_filter: str = '') -> dict[str, str]:
+    date_from, date_to = _summary_week_date_range()
+    params = team_date_range_query_params(date_from, date_to)
+    params['shift'] = DailyWorkReport.SHIFT_MORNING
+    if dept_filter:
+        params['dept'] = dept_filter
+    return params
+
+
+def _parse_team_summary_shift(request) -> str:
+    from reports.production_slots import normalize_shift
+
+    raw = (request.GET.get('shift') or DailyWorkReport.SHIFT_MORNING).strip().upper()
+    shift = normalize_shift(raw)
+    if shift not in PRODUCTION_SHIFT_ORDER:
+        return DailyWorkReport.SHIFT_MORNING
+    return shift
 
 
 def _parse_team_status_filter(request) -> str:
@@ -1360,6 +1388,74 @@ def team_reports_cn(request):
 @_reports_access_required
 def team_reports_vp(request):
     return _team_reports_for_profile(request, REPORT_PROFILE_OFFICE)
+
+
+@_reports_access_required
+def team_summary_cn(request):
+    """Báo cáo tổng hợp SX — ma trận hiệu suất trung bình NV × ngày."""
+    from .production_team import build_production_team_summary
+
+    if not can_view_team_reports(request.user):
+        messages.error(
+            request,
+            'Chưa có nhân viên cấp dưới trực tiếp. HR cần cấu hình tại Nhân sự → Sửa nhân viên → Nhân viên dưới quyền.',
+        )
+        return redirect('home_portal')
+
+    date_from, date_to = parse_team_date_range(request, default_span_days=TEAM_SUMMARY_DEFAULT_SPAN_DAYS)
+    search_query = get_search_query(request)
+    dept_filter = (request.GET.get('dept') or '').strip()
+    shift_filter = _parse_team_summary_shift(request)
+
+    team = _team_queryset(request.user, search_query, report_profile=REPORT_PROFILE_PRODUCTION)
+    all_team_ids = list(team.values_list('id', flat=True))
+    team_count = team.count()
+
+    reports = query_production_team_reports(all_team_ids, date_from, date_to)
+    reports_by_employee = build_production_reports_by_employee(reports)
+    summary = build_production_team_summary(
+        request.user,
+        team,
+        reports_by_employee,
+        daily_report_visible_to_team,
+        date_from=date_from,
+        date_to=date_to,
+        dept_filter=dept_filter,
+        shift_filter=shift_filter,
+    )
+
+    base_params = team_date_range_query_params(date_from, date_to)
+    base_params['shift'] = shift_filter
+    if search_query:
+        base_params['q'] = search_query
+    if dept_filter:
+        base_params['dept'] = dept_filter
+
+    tab_params = {k: v for k, v in base_params.items() if k != 'shift'}
+
+    return render(request, 'reports/team_summary.html', {
+        'summary': summary,
+        'days': summary['days'],
+        'department_groups': summary['groups'],
+        'dept_choices': summary['dept_choices'],
+        'selected_dept': dept_filter,
+        'search_query': search_query,
+        'range_from': date_from,
+        'range_to': date_to,
+        'report_date': date_to,
+        'team_count': team_count,
+        'active_shift': shift_filter,
+        'shift_tabs': build_production_summary_shift_tabs(
+            active_shift=shift_filter,
+            base_params=tab_params,
+        ),
+        'team_page_title': 'Báo cáo tổng hợp (SX)',
+        'reports_scope_label': 'SX',
+        'can_submit_report': can_submit_daily_report(request.user),
+        'today_url_name': 'reports:today_cn',
+        'team_url_name': 'reports:team_cn',
+        'team_list_query': urlencode(base_params),
+    })
 
 
 def _team_reports_for_profile(request, report_profile: str, *, report_period: str = PERIOD_DAY):
@@ -1518,6 +1614,11 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
         'team_sort_dir': sort_dir,
         'team_sort_active': bool(request.GET.get('sort')),
         'team_list_query': urlencode(base_params),
+        'summary_list_query': (
+            urlencode(_summary_list_query_params(dept_filter=dept_filter))
+            if report_profile == REPORT_PROFILE_PRODUCTION
+            else ''
+        ),
         'my_url_name': (
             'reports:my_cn'
             if report_profile == REPORT_PROFILE_PRODUCTION

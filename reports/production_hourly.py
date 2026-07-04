@@ -1,6 +1,6 @@
 """Logic báo cáo sản lượng hàng giờ — sản xuất."""
 
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 from decimal import Decimal, InvalidOperation
 import json
 from typing import Optional
@@ -1436,6 +1436,98 @@ def save_proxy_shift_table(report: DailyWorkReport, rows: list[dict], user) -> d
 # NHẬP HỘ — theo công đoạn/mã hàng: chọn nhiều khung giờ + tổng sản lượng
 # =========================================================
 
+def _parse_hhmm(value: str) -> time | None:
+    value = (value or '').strip()
+    if not value:
+        return None
+    parts = value.split(':')
+    if len(parts) < 2:
+        return None
+    try:
+        hour, minute = int(parts[0]), int(parts[1])
+    except ValueError:
+        return None
+    if 0 <= hour <= 23 and 0 <= minute <= 59:
+        return time(hour, minute)
+    return None
+
+
+def _proxy_clock_datetimes(report_date, shift: str, start_str: str, end_str: str):
+    """Chuyển giờ đồng hồ (HH:MM) thành khoảng datetime nằm trong ca."""
+    start_t = _parse_hhmm(start_str)
+    end_t = _parse_hhmm(end_str)
+    if not start_t or not end_t:
+        return None
+
+    shift = normalize_shift(shift)
+    window_start, window_end = _shift_window(report_date, shift)
+    candidates: list[tuple[datetime, datetime]] = []
+
+    for start_off in (0, 1):
+        start_day = report_date + timedelta(days=start_off)
+        start_dt = timezone.make_aware(datetime.combine(start_day, start_t))
+        for end_off in (0, 1, 2):
+            end_day = report_date + timedelta(days=end_off)
+            end_dt = timezone.make_aware(datetime.combine(end_day, end_t))
+            if end_dt <= start_dt:
+                end_dt += timedelta(days=1)
+            if start_dt < window_start:
+                continue
+            if end_dt > window_end:
+                end_dt = window_end
+            if end_dt <= start_dt or end_dt > window_end:
+                continue
+            candidates.append((start_dt, end_dt))
+
+    if not candidates:
+        return None
+    candidates.sort(key=lambda pair: pair[0])
+    return candidates[0]
+
+
+def proxy_slot_windows_for_shift(shift: str) -> list[dict]:
+    """Metadata khung giờ ca — dùng tính giao nhau trên trình duyệt."""
+    return [
+        {
+            'index': slot.index,
+            'start': f'{slot.start.hour:02d}:{slot.start.minute:02d}',
+            'end': f'{slot.end.hour:02d}:{slot.end.minute:02d}',
+            'start_day_offset': slot.start_day_offset,
+            'end_day_offset': slot.end_day_offset,
+        }
+        for slot in slots_for_shift(shift)
+    ]
+
+
+def _proxy_session_overlaps(
+    report_date,
+    shift: str,
+    sess: dict,
+    slot_by_idx: dict[int, object],
+) -> tuple[list[tuple[int, Decimal]], tuple[datetime, datetime] | None]:
+    """Trả về các khung giờ giao với khoảng thời gian + interval datetime (nếu có)."""
+    start_time = (sess.get('start_time') or '').strip()
+    end_time = (sess.get('end_time') or '').strip()
+    if start_time and end_time:
+        interval = _proxy_clock_datetimes(report_date, shift, start_time, end_time)
+        if not interval:
+            return [], None
+        start_dt, end_dt = interval
+        overlaps = slots_overlapping_interval(report_date, shift, start_dt, end_dt)
+        return overlaps, (start_dt, end_dt)
+
+    indices = _proxy_session_slot_indices(sess, slot_by_idx)
+    if not indices:
+        return [], None
+    overlaps = [(idx, slot_duration_hours(slot_by_idx[idx])) for idx in indices]
+    first, last = indices[0], indices[-1]
+    interval = (
+        _slot_start_dt(report_date, slot_by_idx[first]),
+        _slot_end_dt(report_date, slot_by_idx[last]),
+    )
+    return overlaps, interval
+
+
 def _proxy_time_label(t: time) -> str:
     if t.minute:
         return f'{t.hour}h{t.minute:02d}'
@@ -1494,9 +1586,9 @@ def _slot_options_for_shift(shift: str) -> list[dict]:
 
 
 def build_proxy_shift_sessions(report: DailyWorkReport) -> dict:
-    """Dữ liệu nhập hộ theo công đoạn — mã hàng + khoảng giờ bắt đầu/kết thúc + tổng SL."""
+    """Dữ liệu nhập hộ theo công đoạn — mã hàng + giờ bắt đầu/kết thúc + tổng SL."""
     shift = _shift_for_report(report)
-    starts, ends, slot_hours = proxy_boundary_options_for_shift(shift)
+    window_start, window_end = _shift_window(report.report_date, shift)
     sessions = []
     if report.pk:
         for p in report.production_products.prefetch_related('hourly_entries').order_by('sort_order', 'id'):
@@ -1506,12 +1598,13 @@ def build_proxy_shift_sessions(report: DailyWorkReport) -> dict:
             if total is None:
                 total = sum((e.quantity for e in entries), Decimal('0'))
             norm = p.norm_per_hour
+            start_disp, end_disp = session_time_displays(p)
             sessions.append({
                 'code': (p.product_code or '').strip(),
                 'process': (p.process_name or '').strip(),
                 'norm': (int(norm) if norm == norm.to_integral() else float(norm)) if norm is not None else '',
-                'start_slot': indices[0] if indices else '',
-                'end_slot': indices[-1] if indices else '',
+                'start_time': start_disp,
+                'end_time': end_disp,
                 'slots': indices,
                 'total': format_production_quantity(total) if total else '',
                 'damaged': p.total_damaged_quantity or '',
@@ -1519,11 +1612,10 @@ def build_proxy_shift_sessions(report: DailyWorkReport) -> dict:
             })
     return {
         'shift': shift,
-        'starts': starts,
-        'ends': ends,
-        'slot_hours': slot_hours,
-        'slot_hours_json': json.dumps(slot_hours),
-        'slots': _slot_options_for_shift(shift),
+        'slot_windows': proxy_slot_windows_for_shift(shift),
+        'slot_windows_json': json.dumps(proxy_slot_windows_for_shift(shift)),
+        'shift_window_start': timezone.localtime(window_start).strftime('%H:%M'),
+        'shift_window_end': timezone.localtime(window_end).strftime('%H:%M'),
         'sessions': sessions,
         'has_data': bool(sessions),
     }
@@ -1533,8 +1625,8 @@ def build_proxy_shift_sessions(report: DailyWorkReport) -> dict:
 def save_proxy_shift_sessions(report: DailyWorkReport, sessions: list[dict], user) -> dict:
     """
     Lưu nhập hộ theo công đoạn. Mỗi phần tử sessions:
-    {code, process, norm, slots: [slot_index...], total, damaged, note}.
-    Tổng SL được chia đều cho các khung giờ đã chọn (partial_hours = độ dài khung).
+    {code, process, norm, start_time, end_time, total, damaged, note} (HH:MM).
+    Tổng SL chia theo tỷ lệ thời gian giao với từng khung giờ ca.
     """
     if not report.pk:
         report.report_profile = REPORT_PROFILE_PRODUCTION
@@ -1556,15 +1648,18 @@ def save_proxy_shift_sessions(report: DailyWorkReport, sessions: list[dict], use
         damaged = parse_int(sess.get('damaged'))
         note = (sess.get('note') or '').strip()
 
-        indices = _proxy_session_slot_indices(sess, slot_by_idx)
+        overlaps, interval = _proxy_session_overlaps(
+            report.report_date, shift, sess, slot_by_idx,
+        )
 
         has_data = bool(code or process or total > 0 or note or damaged)
-        if not has_data or not indices:
+        if not has_data or not overlaps or not interval:
             continue
 
+        indices = [idx for idx, _ in overlaps]
         first, last = indices[0], indices[-1]
-        slot_hours_list = [slot_duration_hours(slot_by_idx[i]) for i in indices]
-        total_slot_hours = sum(slot_hours_list, Decimal('0'))
+        start_dt, end_dt = interval
+        total_overlap_hours = sum((hours for _, hours in overlaps), Decimal('0'))
         product = ProductionShiftProduct.objects.create(
             report=report,
             product_code=code,
@@ -1573,25 +1668,23 @@ def save_proxy_shift_sessions(report: DailyWorkReport, sessions: list[dict], use
             status=ProductionShiftProduct.STATUS_DONE,
             sort_order=sort_order,
             first_slot_index=first,
-            started_at=_slot_start_dt(report.report_date, slot_by_idx[first]),
-            ended_at=_slot_end_dt(report.report_date, slot_by_idx[last]),
+            started_at=start_dt,
+            ended_at=end_dt,
             total_quantity=total,
             total_damaged_quantity=damaged,
             completion_note=note[:500],
         )
         sort_order += 1
 
-        count = len(indices)
+        count = len(overlaps)
         remaining = total
         damaged_left = damaged
-        for pos, idx in enumerate(indices):
-            slot = slot_by_idx[idx]
-            hours = slot_duration_hours(slot)
-            if total_slot_hours > 0:
+        for pos, (idx, hours) in enumerate(overlaps):
+            if total_overlap_hours > 0:
                 if pos == count - 1:
                     qty = remaining
                 else:
-                    share = (total * hours / total_slot_hours).quantize(Decimal('0.01'))
+                    share = (total * hours / total_overlap_hours).quantize(Decimal('0.01'))
                     qty = share
                     remaining -= qty
             elif pos == count - 1:

@@ -1,0 +1,322 @@
+{% extends 'base.html' %}
+{% load report_extras %}
+{% load static %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260702c">
+<style>
+    .jp-summary-stats { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+    .jp-summary-stat {
+        flex: 1 1 150px;
+        background: #fff;
+        border: 1px solid #eef2f6;
+        border-radius: 0.75rem;
+        padding: 0.75rem 1rem;
+        box-shadow: 0 1px 2px rgba(15,23,42,0.04);
+    }
+    .jp-summary-stat .val { font-size: 1.5rem; font-weight: 800; line-height: 1.1; }
+    .jp-summary-stat .lbl { font-size: 0.72rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.02em; }
+
+    .jp-summary-scroll { max-height: 74vh; overflow: auto; border-radius: 0.5rem; }
+    .jp-summary-table {
+        border-collapse: separate;
+        border-spacing: 0;
+        font-size: 0.85rem;
+        margin-bottom: 0;
+        width: max-content;
+        min-width: 100%;
+    }
+    .jp-summary-table thead th {
+        position: sticky;
+        top: 0;
+        z-index: 3;
+        background: var(--hm-primary, #dc2626);
+        color: #fff;
+        font-weight: 700;
+        font-size: 0.74rem;
+        text-align: center;
+        vertical-align: middle;
+        white-space: nowrap;
+        padding: 0.5rem 0.45rem;
+        border-right: 1px solid rgba(255,255,255,0.18);
+    }
+    .jp-summary-table thead th small { font-weight: 500; opacity: 0.9; display: block; font-size: 0.68rem; }
+    .jp-summary-table th.jp-col-sticky,
+    .jp-summary-table td.jp-col-sticky {
+        position: sticky;
+        z-index: 2;
+        background: #fff;
+    }
+    .jp-summary-table th.jp-col-stt,  .jp-summary-table td.jp-col-stt  { left: 0;      min-width: 46px; }
+    .jp-summary-table th.jp-col-name, .jp-summary-table td.jp-col-name { left: 46px;   min-width: 190px; text-align: left; }
+    .jp-summary-table th.jp-col-dept, .jp-summary-table td.jp-col-dept { left: 236px;  min-width: 150px; text-align: left; box-shadow: 2px 0 4px -2px rgba(15,23,42,0.15); }
+    .jp-summary-table thead th.jp-col-sticky { z-index: 5; background: var(--hm-primary, #dc2626); }
+    .jp-summary-table tbody td {
+        border-bottom: 1px solid #eef2f6;
+        border-right: 1px solid #f1f5f9;
+        padding: 0.3rem 0.45rem;
+        text-align: center;
+        vertical-align: middle;
+        white-space: nowrap;
+    }
+    .jp-summary-table tbody tr:nth-child(even) td { background: #fcfdfe; }
+    .jp-summary-table tbody tr:nth-child(even) td.jp-col-sticky { background: #fcfdfe; }
+    .jp-summary-table tbody tr:hover td { background: #fff5f5; }
+    .jp-summary-table tbody tr:hover td.jp-col-sticky { background: #fff5f5; }
+    .jp-summary-group td {
+        background: #f1f5f9 !important;
+        font-weight: 700;
+        color: var(--hm-primary, #dc2626);
+        text-align: left !important;
+        position: sticky;
+        left: 0;
+    }
+    .jp-eff { display: inline-block; min-width: 3rem; padding: 0.12rem 0.45rem; border-radius: 0.45rem; font-weight: 700; font-size: 0.82rem; }
+    .jp-eff.is-good { background: #dcfce7; color: #166534; }
+    .jp-eff.is-ok   { background: #fef9c3; color: #854d0e; }
+    .jp-eff.is-low  { background: #fee2e2; color: #991b1b; }
+    .jp-eff.is-none { color: #cbd5e1; background: transparent; }
+    .jp-summary-table thead th.jp-col-weekend { background: #b91c1c; }
+    .jp-summary-table tbody td.jp-col-weekend { background: #fef2f2; }
+    .jp-summary-table tbody tr:nth-child(even) td.jp-col-weekend { background: #fee7e7; }
+    .jp-col-avg { background: #fff1f2 !important; }
+    thead th.jp-col-avg { background: #991b1b !important; }
+    tbody td.jp-col-avg { font-weight: 700; }
+    .jp-summary-table tfoot td {
+        position: sticky;
+        bottom: 0;
+        z-index: 2;
+        background: #0f172a;
+        color: #fff;
+        font-weight: 700;
+        text-align: center;
+        padding: 0.45rem;
+        border-top: 2px solid #b91c1c;
+        white-space: nowrap;
+    }
+    .jp-summary-table tfoot td.jp-col-sticky { z-index: 4; background: #0f172a; text-align: left; }
+    .jp-summary-table tfoot .jp-eff { background: rgba(255,255,255,0.14); color: #fff; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid jp-page jp-reports-page py-3 py-md-4 mb-5">
+    <div class="jp-page-header d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+        <div>
+            <h2 class="fw-bold text-hm mb-1 jp-page-title">{{ team_page_title }}</h2>
+            <p class="text-muted small mb-0">Hiệu suất trung bình mỗi nhân viên theo từng ngày — <span class="{{ active_shift|production_shift_badge_class }}">{{ summary.shift_label }}</span></p>
+        </div>
+        <a href="{% url team_url_name %}?{{ team_list_query }}" class="btn btn-outline-hm btn-sm">
+            <i class="bi bi-arrow-left me-1"></i>Danh sách báo cáo
+        </a>
+    </div>
+
+    <div class="jp-summary-stats mb-3">
+        <div class="jp-summary-stat">
+            <div class="val text-hm">{{ summary.member_count }}</div>
+            <div class="lbl">Nhân viên</div>
+        </div>
+        <div class="jp-summary-stat">
+            <div class="val text-success">{{ summary.members_with_data }}</div>
+            <div class="lbl">Có báo cáo</div>
+        </div>
+        <div class="jp-summary-stat">
+            <div class="val">{{ days|length }}</div>
+            <div class="lbl">Số ngày</div>
+        </div>
+        <div class="jp-summary-stat">
+            <div class="val {% if summary.overall_avg is None %}text-muted{% elif summary.overall_avg >= 100 %}text-success{% elif summary.overall_avg >= 80 %}text-warning{% else %}text-danger{% endif %}">
+                {% if summary.overall_avg is not None %}{{ summary.overall_avg|floatformat:0 }}%{% else %}—{% endif %}
+            </div>
+            <div class="lbl">HS TB toàn team</div>
+        </div>
+    </div>
+
+    <div class="card border-0 jp-report-section-card jp-report-tabs-card jp-prod-day-shift-tabs-card mb-3">
+        <ul class="nav nav-tabs jp-report-tabs jp-prod-day-shift-tabs" role="tablist" aria-label="Chọn ca làm">
+            {% for tab in shift_tabs %}
+            <li class="nav-item" role="presentation">
+                <a class="nav-link jp-prod-day-shift-tab jp-prod-day-shift-tab--{{ tab.shift|lower }}{% if tab.is_active %} active{% endif %}"
+                   href="{{ tab.url }}"
+                   role="tab"
+                   {% if tab.is_active %}aria-current="page"{% endif %}>
+                    {{ tab.label }}
+                </a>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <form method="get" id="summaryFilterForm" class="card border-0 shadow-sm mb-3">
+        <input type="hidden" name="shift" value="{{ active_shift }}">
+        <div class="card-body p-3 d-flex flex-wrap gap-3 align-items-end">
+            <div>
+                <label class="form-label fw-bold small mb-1">Từ ngày</label>
+                <input type="date" name="from" value="{{ range_from|date:'Y-m-d' }}" class="form-control jp-date-vn">
+            </div>
+            <div>
+                <label class="form-label fw-bold small mb-1">Đến ngày</label>
+                <input type="date" name="to" value="{{ range_to|date:'Y-m-d' }}" class="form-control jp-date-vn">
+            </div>
+            {% if dept_choices|length > 1 %}
+            <div>
+                <label class="form-label fw-bold small mb-1">Phòng ban</label>
+                <select name="dept" class="form-select">
+                    <option value="">Tất cả phòng ban</option>
+                    {% for opt in dept_choices %}
+                    <option value="{{ opt.key }}" {% if opt.key == selected_dept %}selected{% endif %}>{{ opt.label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+            <div class="flex-grow-1 jp-hrm-search-wrap" style="min-width: 240px;">
+                <label class="form-label fw-bold small mb-1">Tìm nhân viên</label>
+                <div class="input-group jp-hrm-search">
+                    {% include 'includes/list_search_bar.html' with search_query=search_query placeholder='Tên, mã NS, account...' show_button=False %}
+                </div>
+            </div>
+            {% if search_query or selected_dept %}
+            <a href="?from={{ range_from|date:'Y-m-d' }}&to={{ range_to|date:'Y-m-d' }}&shift={{ active_shift }}" class="btn btn-light border align-self-end" title="Xóa bộ lọc"><i class="bi bi-x-lg"></i></a>
+            {% endif %}
+        </div>
+        {% if search_query %}
+        <div class="card-footer bg-white border-top py-2">
+            <p class="text-muted small mb-0">Kết quả tìm “{{ search_query }}” — {{ team_count }} nhân viên</p>
+        </div>
+        {% endif %}
+    </form>
+
+    <div class="card border-0 shadow-sm overflow-hidden">
+        <div class="jp-summary-scroll">
+            <table class="table table-hover align-middle jp-summary-table">
+                <thead>
+                    <tr>
+                        <th class="jp-col-sticky jp-col-stt">STT</th>
+                        <th class="jp-col-sticky jp-col-name">Nhân viên</th>
+                        <th class="jp-col-sticky jp-col-dept">Bộ phận</th>
+                        {% for day in days %}
+                        <th class="{% if day.is_weekend %}jp-col-weekend{% endif %}">
+                            {{ day.weekday }}
+                            <small>{{ day.date|date:"d/m" }}</small>
+                        </th>
+                        {% endfor %}
+                        <th class="jp-col-avg">TB<small>chung</small></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for group in department_groups %}
+                    {% if group.members %}
+                    <tr class="jp-summary-group">
+                        <td colspan="{{ days|length|add:4 }}">
+                            {{ group.label }}
+                            {% if group.subtitle %}<span class="text-muted fw-normal small ms-1">{{ group.subtitle }}</span>{% endif %}
+                            <span class="badge text-bg-secondary ms-1">{{ group.members|length }}</span>
+                        </td>
+                    </tr>
+                    {% for m in group.members %}
+                    <tr>
+                        <td class="jp-col-sticky jp-col-stt text-muted">{{ m.stt }}</td>
+                        <td class="jp-col-sticky jp-col-name">
+                            <strong>{{ m.name }}</strong>
+                        </td>
+                        <td class="jp-col-sticky jp-col-dept small">{{ m.division|default:"—" }}</td>
+                        {% for cell in m.cells %}
+                        <td class="{% if cell.is_weekend %}jp-col-weekend{% endif %}">
+                            {% if cell.has_data %}
+                            <span class="jp-eff {% if cell.efficiency_pct >= 100 %}is-good{% elif cell.efficiency_pct >= 80 %}is-ok{% else %}is-low{% endif %}">{{ cell.efficiency_pct|floatformat:0 }}%</span>
+                            {% else %}
+                            <span class="jp-eff is-none">—</span>
+                            {% endif %}
+                        </td>
+                        {% endfor %}
+                        <td class="jp-col-avg">
+                            {% if m.avg_efficiency_pct is not None %}
+                            <span class="jp-eff {% if m.avg_efficiency_pct >= 100 %}is-good{% elif m.avg_efficiency_pct >= 80 %}is-ok{% else %}is-low{% endif %}">{{ m.avg_efficiency_pct|floatformat:0 }}%</span>
+                            {% else %}
+                            <span class="jp-eff is-none">—</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% endif %}
+                    {% empty %}
+                    <tr>
+                        <td colspan="{{ days|length|add:4 }}" class="text-center text-muted py-5">
+                            Chưa có nhân viên cấp dưới được cấu hình.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                {% if summary.has_members %}
+                <tfoot>
+                    <tr>
+                        <td class="jp-col-sticky" colspan="3">TB team theo ngày</td>
+                        {% for day in days %}
+                        <td>
+                            {% if day.average is not None %}
+                            <span class="jp-eff">{{ day.average|floatformat:0 }}%</span>
+                            {% else %}<span class="text-white-50">—</span>{% endif %}
+                        </td>
+                        {% endfor %}
+                        <td>
+                            {% if summary.overall_avg is not None %}
+                            <span class="jp-eff">{{ summary.overall_avg|floatformat:0 }}%</span>
+                            {% else %}<span class="text-white-50">—</span>{% endif %}
+                        </td>
+                    </tr>
+                </tfoot>
+                {% endif %}
+            </table>
+        </div>
+    </div>
+    <p class="text-muted small mt-2 mb-0">
+        <span class="jp-eff is-good">≥100%</span>
+        <span class="jp-eff is-ok ms-1">80–99%</span>
+        <span class="jp-eff is-low ms-1">&lt;80%</span>
+        <span class="ms-2">Ô «—» = không có báo cáo trong ngày. Cột nền đỏ nhạt = cuối tuần.</span>
+    </p>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var form = document.getElementById('summaryFilterForm');
+    if (!form) return;
+    function submitForm() {
+        if (typeof form.requestSubmit === 'function') { form.requestSubmit(); }
+        else { form.submit(); }
+    }
+    if (window.flatpickr) {
+        flatpickr('.jp-date-vn', {
+            dateFormat: 'Y-m-d',
+            altInput: true,
+            altFormat: 'd/m/Y',
+            allowInput: true,
+            onChange: function () { submitForm(); },
+        });
+    } else {
+        form.querySelectorAll('.jp-date-vn').forEach(function (el) {
+            el.addEventListener('change', submitForm);
+        });
+    }
+    form.querySelectorAll('select[name="dept"]').forEach(function (el) {
+        el.addEventListener('change', submitForm);
+    });
+
+    var searchEl = form.querySelector('input[name="q"]');
+    if (searchEl) {
+        var submitTimer = null;
+        searchEl.addEventListener('input', function () {
+            if (submitTimer) window.clearTimeout(submitTimer);
+            submitTimer = window.setTimeout(submitForm, 450);
+        });
+        searchEl.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') { e.preventDefault(); submitForm(); }
+        });
+    }
+});
+</script>
+{% endblock %}

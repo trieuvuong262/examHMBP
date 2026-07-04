@@ -14,9 +14,12 @@
         <div>
             <h2 class="fw-bold text-hm mb-1 jp-page-title">{{ team_page_title|default:"Quản lý báo cáo" }}</h2>
         </div>
-        {% if can_submit_report %}
-        <a href="{% url today_url_name %}" class="btn btn-outline-hm btn-sm flex-fill flex-md-grow-0">Báo cáo của tôi</a>
-        {% endif %}
+        <div class="d-flex flex-wrap gap-2">
+            {% block team_header_actions %}{% endblock %}
+            {% if can_submit_report %}
+            <a href="{% url today_url_name %}" class="btn btn-outline-hm btn-sm flex-fill flex-md-grow-0">Báo cáo của tôi</a>
+            {% endif %}
+        </div>
     </div>
 
     <form method="get" id="teamReportFilterForm" class="card border-0 shadow-sm mb-4">
