@@ -103,7 +103,9 @@
                             {% if status_filter == 'submitted' %}
                             Không có nhân viên đã nộp báo cáo trong khoảng đã chọn.
                             {% elif status_filter == 'missing' %}
-                            Tất cả nhân viên đã nộp báo cáo trong khoảng đã chọn.
+                            Không có nhân viên chưa nộp báo cáo trong khoảng đã chọn.
+                            {% elif status_filter == 'no_report' %}
+                            Tất cả nhân viên đã có báo cáo trong khoảng đã chọn.
                             {% else %}
                             Chưa có nhân viên cấp dưới được cấu hình.
                             {% endif %}

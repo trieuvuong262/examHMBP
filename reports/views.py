@@ -126,7 +126,8 @@ from .production_team import (
     build_production_reports_by_employee,
     build_production_team_department_groups,
     production_team_row_is_submitted,
-    production_team_submitted_count,
+    production_team_row_matches_filter,
+    production_team_status_counts,
     query_production_team_reports,
 )
 from .team_utils import (
@@ -1279,11 +1280,12 @@ def _build_department_group_rows(viewer, team, report_map, visible_fn, dept_filt
 
 TEAM_STATUS_SUBMITTED = 'submitted'
 TEAM_STATUS_MISSING = 'missing'
+TEAM_STATUS_NO_REPORT = 'no_report'
 
 
 def _parse_team_status_filter(request) -> str:
     val = (request.GET.get('status') or '').strip().lower()
-    if val in (TEAM_STATUS_SUBMITTED, TEAM_STATUS_MISSING):
+    if val in (TEAM_STATUS_SUBMITTED, TEAM_STATUS_MISSING, TEAM_STATUS_NO_REPORT):
         return val
     return ''
 
@@ -1299,20 +1301,25 @@ def _filter_team_department_groups(
     *,
     submitted_status: str,
     row_is_submitted=None,
+    row_matches_filter=None,
 ):
     if not status_filter:
         return department_groups
     is_submitted = row_is_submitted or _team_row_is_submitted
     filtered = []
     for group in department_groups:
-        rows = [
-            row for row in group['rows']
-            if (
-                is_submitted(row, submitted_status=submitted_status)
-                if status_filter == TEAM_STATUS_SUBMITTED
-                else not is_submitted(row, submitted_status=submitted_status)
-            )
-        ]
+        rows = []
+        for row in group['rows']:
+            if row_matches_filter:
+                include = row_matches_filter(
+                    row, status_filter, submitted_status=submitted_status,
+                )
+            elif status_filter == TEAM_STATUS_SUBMITTED:
+                include = is_submitted(row, submitted_status=submitted_status)
+            else:
+                include = not is_submitted(row, submitted_status=submitted_status)
+            if include:
+                rows.append(row)
         if rows:
             filtered.append({**group, 'rows': rows})
     return filtered
@@ -1333,6 +1340,7 @@ def _team_stat_urls(base_params: dict) -> dict:
         'all': _url({'status': ''}),
         'submitted': _url({'status': TEAM_STATUS_SUBMITTED}),
         'missing': _url({'status': TEAM_STATUS_MISSING}),
+        'no_report': _url({'status': TEAM_STATUS_NO_REPORT}),
     }
 
 
@@ -1395,14 +1403,18 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
         )
         submitted = len(submitted_employee_ids)
         missing = team_count - submitted
+        no_report_count = 0
     else:
         reports = query_production_team_reports(all_team_ids, date_from, date_to)
         reports_by_employee = build_production_reports_by_employee(reports)
-        submitted, missing = production_team_submitted_count(
+        status_counts = production_team_status_counts(
+            all_team_ids,
             reports_by_employee,
             daily_report_visible_to_team,
-            team_count=team_count,
         )
+        submitted = status_counts['submitted']
+        missing = status_counts['unsubmitted_report']
+        no_report_count = status_counts['no_report']
         department_groups, dept_choices = build_production_team_department_groups(
             request.user,
             team,
@@ -1419,6 +1431,11 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
         submitted_status=DailyWorkReport.STATUS_SUBMITTED,
         row_is_submitted=(
             _production_team_row_is_submitted
+            if report_profile == REPORT_PROFILE_PRODUCTION
+            else None
+        ),
+        row_matches_filter=(
+            production_team_row_matches_filter
             if report_profile == REPORT_PROFILE_PRODUCTION
             else None
         ),
@@ -1470,6 +1487,7 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
         'period_filter_choices': PERIOD_CHOICES if report_profile == REPORT_PROFILE_OFFICE else [],
         'submitted_count': submitted,
         'missing_count': missing,
+        'no_report_count': no_report_count,
         'team_count': team_count,
         'can_submit_report': can_submit_daily_report(request.user),
         'report_period': report_period,

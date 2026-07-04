@@ -208,10 +208,34 @@ def production_team_submitted_count(
 ) -> tuple[int, int]:
     submitted = 0
     for reports in reports_by_employee.values():
-        if _aggregate_production_row(reports, visible_fn)['production_any_submitted']:
+        agg = _aggregate_production_row(reports, visible_fn)
+        if agg['production_any_submitted']:
             submitted += 1
     missing = team_count - submitted
     return submitted, missing
+
+
+def production_team_status_counts(
+    team_ids: list[int],
+    reports_by_employee: dict[int, list[DailyWorkReport]],
+    visible_fn,
+) -> dict[str, int]:
+    """Đếm theo NV trong khoảng lọc: đã nộp / chưa nộp (có BC) / chưa báo cáo."""
+    submitted = 0
+    unsubmitted_report = 0
+    for emp_id in team_ids:
+        reports = reports_by_employee.get(emp_id, [])
+        agg = _aggregate_production_row(reports, visible_fn)
+        if agg['production_any_submitted']:
+            submitted += 1
+        elif agg['production_report_count'] > 0:
+            unsubmitted_report += 1
+    no_report = len(team_ids) - submitted - unsubmitted_report
+    return {
+        'submitted': submitted,
+        'unsubmitted_report': unsubmitted_report,
+        'no_report': no_report,
+    }
 
 
 def production_team_row_is_submitted(row, *, submitted_status: str, shift_filter: str = '') -> bool:
@@ -219,6 +243,25 @@ def production_team_row_is_submitted(row, *, submitted_status: str, shift_filter
     if not reports and row.get('report'):
         reports = [row['report']]
     return any(report.status == submitted_status for report in reports)
+
+
+def production_team_row_matches_filter(
+    row,
+    status_filter: str,
+    *,
+    submitted_status: str,
+) -> bool:
+    """Lọc dòng SX — «Chưa nộp» = đã có BC nhưng chưa gửi; «Chưa báo cáo» = chưa có BC."""
+    if status_filter == 'submitted':
+        return production_team_row_is_submitted(row, submitted_status=submitted_status)
+    if status_filter == 'missing':
+        return (
+            row.get('production_report_count', 0) > 0
+            and not production_team_row_is_submitted(row, submitted_status=submitted_status)
+        )
+    if status_filter == 'no_report':
+        return row.get('production_report_count', 0) == 0
+    return True
 
 
 def expected_morning_days_through(anchor: date) -> int:

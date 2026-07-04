@@ -229,3 +229,41 @@ class ProductionTeamViewTests(TestCase):
         qs = query_production_team_reports([self.member.id], self.today, self.today)
         annotated = qs.get(pk=report.pk)
         self.assertEqual(annotated.total_qty, Decimal('200'))
+    def test_status_counts_split_draft_and_no_report(self):
+        from reports.production_team import (
+            production_team_row_matches_filter,
+            production_team_status_counts,
+        )
+
+        draft = self._morning_report(draft_saved=True, status=DailyWorkReport.STATUS_DRAFT)
+        reports_by_employee = {self.member.id: [draft]}
+        counts = production_team_status_counts(
+            [self.member.id, self.member.id + 9999],
+            reports_by_employee,
+            daily_report_visible_to_team,
+        )
+        self.assertEqual(counts['submitted'], 0)
+        self.assertEqual(counts['unsubmitted_report'], 1)
+        self.assertEqual(counts['no_report'], 1)
+
+        row = {
+            'production_report_count': 1,
+            'production_reports': [draft],
+            'report': draft,
+        }
+        self.assertTrue(
+            production_team_row_matches_filter(
+                row, 'missing', submitted_status=DailyWorkReport.STATUS_SUBMITTED,
+            )
+        )
+        self.assertFalse(
+            production_team_row_matches_filter(
+                row, 'no_report', submitted_status=DailyWorkReport.STATUS_SUBMITTED,
+            )
+        )
+        empty_row = {'production_report_count': 0, 'production_reports': []}
+        self.assertTrue(
+            production_team_row_matches_filter(
+                empty_row, 'no_report', submitted_status=DailyWorkReport.STATUS_SUBMITTED,
+            )
+        )
