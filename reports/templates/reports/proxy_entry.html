@@ -147,7 +147,7 @@
             </div>
             {% endif %}
 
-            <form method="post" class="jp-proxy-form" data-shift="{{ tab.shift }}">
+            <form method="post" class="jp-proxy-form" data-shift="{{ tab.shift }}" data-slot-hours="{{ tab.data.slot_hours_json|escape }}">
                 {% csrf_token %}
                 <input type="hidden" name="shift" value="{{ tab.shift }}">
                 <input type="hidden" name="for_user" value="{{ subject.pk }}">
@@ -156,14 +156,14 @@
                 <fieldset class="border-0 p-0 m-0" {% if tab.is_locked %}disabled{% endif %}>
                     <div class="jp-proxy-sessions">
                         {% for sess in tab.data.sessions %}
-                        {% include 'reports/includes/proxy_session_row.html' with sess=sess slots=tab.data.slots %}
+                        {% include 'reports/includes/proxy_session_row.html' with sess=sess start_options=tab.data.starts end_options=tab.data.ends %}
                         {% endfor %}
                     </div>
                 </fieldset>
 
                 {% if not tab.is_locked %}
                 <template class="jp-proxy-session-tpl">
-                    {% include 'reports/includes/proxy_session_row.html' with sess=empty_session slots=tab.data.slots %}
+                    {% include 'reports/includes/proxy_session_row.html' with sess=empty_session start_options=tab.data.starts end_options=tab.data.ends %}
                 </template>
                 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-3">
                     <button type="button" class="btn btn-outline-hm add-session">
@@ -194,11 +194,42 @@
         return 'is-low';
     }
 
+    function slotHoursMap(form) {
+        try {
+            return JSON.parse(form.getAttribute('data-slot-hours') || '{}');
+        } catch (e) {
+            return {};
+        }
+    }
+
+    function hoursInRange(startIdx, endIdx, hoursMap) {
+        if (isNaN(startIdx) || isNaN(endIdx) || endIdx < startIdx) return 0;
+        var total = 0;
+        for (var i = startIdx; i <= endIdx; i++) {
+            total += parseFloat(hoursMap[String(i)]) || 0;
+        }
+        return total;
+    }
+
     function recalcSession(sess) {
-        var hours = 0;
-        sess.querySelectorAll('.s-slot:checked').forEach(function (cb) {
-            hours += parseFloat(cb.getAttribute('data-hours')) || 0;
-        });
+        var form = sess.closest('.jp-proxy-form');
+        var hoursMap = form ? slotHoursMap(form) : {};
+        var startIdx = parseInt((sess.querySelector('.s-start-slot') || {}).value, 10);
+        var endIdx = parseInt((sess.querySelector('.s-end-slot') || {}).value, 10);
+        var hours = hoursInRange(startIdx, endIdx, hoursMap);
+        var hint = sess.querySelector('.s-range-hint');
+        if (hint) {
+            if (!isNaN(startIdx) && !isNaN(endIdx) && endIdx < startIdx) {
+                hint.textContent = 'Giờ kết thúc phải sau giờ bắt đầu.';
+                hint.classList.add('text-danger');
+            } else if (!isNaN(startIdx) && !isNaN(endIdx) && endIdx >= startIdx) {
+                hint.textContent = 'Từ khung ' + (startIdx + 1) + ' đến khung ' + (endIdx + 1) + ' trong ca.';
+                hint.classList.remove('text-danger');
+            } else {
+                hint.textContent = '';
+                hint.classList.remove('text-danger');
+            }
+        }
         var total = parseFloat((sess.querySelector('.s-total') || {}).value) || 0;
         var norm = parseFloat((sess.querySelector('.s-norm') || {}).value) || 0;
         var hoursEl = sess.querySelector('.s-hours');
@@ -239,16 +270,21 @@
             addBtn.addEventListener('click', function () { addRow(container, tpl); });
         }
 
-        form.addEventListener('submit', function () {
+        form.addEventListener('submit', function (ev) {
             var sessions = [];
+            var invalidRange = false;
             container.querySelectorAll('.jp-proxy-session').forEach(function (sess) {
-                var slots = [];
-                sess.querySelectorAll('.s-slot:checked').forEach(function (cb) {
-                    slots.push(parseInt(cb.value, 10));
-                });
+                var startSlot = (sess.querySelector('.s-start-slot') || {}).value || '';
+                var endSlot = (sess.querySelector('.s-end-slot') || {}).value || '';
                 var code = (sess.querySelector('.s-code') || {}).value || '';
                 var total = (sess.querySelector('.s-total') || {}).value || '';
-                if (!code.trim() && !total && !slots.length) return; // bỏ dòng rỗng
+                if (!code.trim() && !total && !startSlot && !endSlot) return;
+                var startIdx = parseInt(startSlot, 10);
+                var endIdx = parseInt(endSlot, 10);
+                if (!isNaN(startIdx) && !isNaN(endIdx) && endIdx < startIdx) {
+                    invalidRange = true;
+                    return;
+                }
                 sessions.push({
                     code: code,
                     process: (sess.querySelector('.s-process') || {}).value || '',
@@ -256,9 +292,15 @@
                     total: total,
                     damaged: (sess.querySelector('.s-damaged') || {}).value || '',
                     note: (sess.querySelector('.s-note') || {}).value || '',
-                    slots: slots,
+                    start_slot: startSlot,
+                    end_slot: endSlot,
                 });
             });
+            if (invalidRange) {
+                ev.preventDefault();
+                alert('Giờ kết thúc phải sau giờ bắt đầu trong mỗi công đoạn.');
+                return;
+            }
             var hidden = form.querySelector('.s-sessions-json');
             if (hidden) hidden.value = JSON.stringify(sessions);
         });

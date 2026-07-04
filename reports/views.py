@@ -615,7 +615,10 @@ def proxy_report_entry(request):
         'team_members': team_members,
         'tabs': tabs,
         'active_shift': active_shift,
-        'empty_session': {'code': '', 'process': '', 'norm': '', 'total': '', 'damaged': '', 'note': '', 'slots': []},
+        'empty_session': {
+            'code': '', 'process': '', 'norm': '', 'total': '', 'damaged': '', 'note': '',
+            'start_slot': '', 'end_slot': '', 'slots': [],
+        },
         'back_team_url': reverse('reports:team_cn') + f'?date={report_date.isoformat()}',
     })
 

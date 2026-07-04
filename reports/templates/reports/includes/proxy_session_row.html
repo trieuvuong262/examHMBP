@@ -23,16 +23,27 @@
             </div>
         </div>
 
-        <div class="mt-2">
-            <label class="form-label small fw-semibold mb-1">Khung giờ (chọn nhiều)</label>
-            <div class="d-flex flex-wrap gap-2 s-slots">
-                {% for slot in slots %}
-                <label class="jp-proxy-slot-chip">
-                    <input type="checkbox" class="s-slot" value="{{ slot.index }}" data-hours="{{ slot.hours }}"
-                           {% if slot.index in sess.slots %}checked{% endif %}>
-                    <span>{{ slot.label }}</span>
-                </label>
-                {% endfor %}
+        <div class="row g-2 mt-2">
+            <div class="col-6 col-md-3">
+                <label class="form-label small fw-semibold mb-1">Giờ bắt đầu</label>
+                <select class="form-select form-select-sm s-start-slot">
+                    <option value="">— Chọn —</option>
+                    {% for opt in start_options %}
+                    <option value="{{ opt.index }}" {% if sess.start_slot == opt.index %}selected{% endif %}>{{ opt.label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-6 col-md-3">
+                <label class="form-label small fw-semibold mb-1">Giờ kết thúc</label>
+                <select class="form-select form-select-sm s-end-slot">
+                    <option value="">— Chọn —</option>
+                    {% for opt in end_options %}
+                    <option value="{{ opt.index }}" {% if sess.end_slot == opt.index %}selected{% endif %}>{{ opt.label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12 col-md-6 d-flex align-items-end">
+                <p class="small text-muted mb-2 mb-md-1 s-range-hint"></p>
             </div>
         </div>
 

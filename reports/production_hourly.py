@@ -1,7 +1,8 @@
 """Logic báo cáo sản lượng hàng giờ — sản xuất."""
 
-from datetime import datetime
+from datetime import datetime, time
 from decimal import Decimal, InvalidOperation
+import json
 from typing import Optional
 
 from django.db import transaction
@@ -1435,6 +1436,50 @@ def save_proxy_shift_table(report: DailyWorkReport, rows: list[dict], user) -> d
 # NHẬP HỘ — theo công đoạn/mã hàng: chọn nhiều khung giờ + tổng sản lượng
 # =========================================================
 
+def _proxy_time_label(t: time) -> str:
+    if t.minute:
+        return f'{t.hour}h{t.minute:02d}'
+    return f'{t.hour}h'
+
+
+def proxy_boundary_options_for_shift(shift: str) -> tuple[list[dict], list[dict], dict[str, float]]:
+    """Mốc bắt đầu/kết thúc theo khung ca — dùng cho nhập hộ."""
+    slots = slots_for_shift(shift)
+    starts = [{'index': s.index, 'label': _proxy_time_label(s.start)} for s in slots]
+    ends = [{'index': s.index, 'label': _proxy_time_label(s.end)} for s in slots]
+    hours = {str(s.index): float(slot_duration_hours(s)) for s in slots}
+    return starts, ends, hours
+
+
+def _proxy_session_slot_indices(sess: dict, slot_by_idx: dict[int, object]) -> list[int]:
+    """Chuyển start_slot/end_slot (hoặc slots cũ) thành danh sách chỉ số khung giờ."""
+    indices: list[int] = []
+    for raw in (sess.get('slots') or []):
+        try:
+            n = int(raw)
+        except (TypeError, ValueError):
+            continue
+        if n in slot_by_idx and n not in indices:
+            indices.append(n)
+
+    if indices:
+        indices.sort()
+        return indices
+
+    start_raw = sess.get('start_slot')
+    end_raw = sess.get('end_slot')
+    if start_raw in (None, '') or end_raw in (None, ''):
+        return []
+    try:
+        start = int(start_raw)
+        end = int(end_raw)
+    except (TypeError, ValueError):
+        return []
+    if start not in slot_by_idx or end not in slot_by_idx or end < start:
+        return []
+    return list(range(start, end + 1))
+
+
 def _slot_options_for_shift(shift: str) -> list[dict]:
     out = []
     for s in slots_for_shift(shift):
@@ -1449,8 +1494,9 @@ def _slot_options_for_shift(shift: str) -> list[dict]:
 
 
 def build_proxy_shift_sessions(report: DailyWorkReport) -> dict:
-    """Dữ liệu nhập hộ theo công đoạn — mỗi công đoạn 1 mã hàng + nhiều khung giờ + tổng SL."""
+    """Dữ liệu nhập hộ theo công đoạn — mã hàng + khoảng giờ bắt đầu/kết thúc + tổng SL."""
     shift = _shift_for_report(report)
+    starts, ends, slot_hours = proxy_boundary_options_for_shift(shift)
     sessions = []
     if report.pk:
         for p in report.production_products.prefetch_related('hourly_entries').order_by('sort_order', 'id'):
@@ -1464,6 +1510,8 @@ def build_proxy_shift_sessions(report: DailyWorkReport) -> dict:
                 'code': (p.product_code or '').strip(),
                 'process': (p.process_name or '').strip(),
                 'norm': (int(norm) if norm == norm.to_integral() else float(norm)) if norm is not None else '',
+                'start_slot': indices[0] if indices else '',
+                'end_slot': indices[-1] if indices else '',
                 'slots': indices,
                 'total': format_production_quantity(total) if total else '',
                 'damaged': p.total_damaged_quantity or '',
@@ -1471,6 +1519,10 @@ def build_proxy_shift_sessions(report: DailyWorkReport) -> dict:
             })
     return {
         'shift': shift,
+        'starts': starts,
+        'ends': ends,
+        'slot_hours': slot_hours,
+        'slot_hours_json': json.dumps(slot_hours),
         'slots': _slot_options_for_shift(shift),
         'sessions': sessions,
         'has_data': bool(sessions),
@@ -1504,21 +1556,15 @@ def save_proxy_shift_sessions(report: DailyWorkReport, sessions: list[dict], use
         damaged = parse_int(sess.get('damaged'))
         note = (sess.get('note') or '').strip()
 
-        indices = []
-        for raw in (sess.get('slots') or []):
-            try:
-                n = int(raw)
-            except (TypeError, ValueError):
-                continue
-            if n in slot_by_idx and n not in indices:
-                indices.append(n)
-        indices.sort()
+        indices = _proxy_session_slot_indices(sess, slot_by_idx)
 
         has_data = bool(code or process or total > 0 or note or damaged)
         if not has_data or not indices:
             continue
 
         first, last = indices[0], indices[-1]
+        slot_hours_list = [slot_duration_hours(slot_by_idx[i]) for i in indices]
+        total_slot_hours = sum(slot_hours_list, Decimal('0'))
         product = ProductionShiftProduct.objects.create(
             report=report,
             product_code=code,
@@ -1541,7 +1587,14 @@ def save_proxy_shift_sessions(report: DailyWorkReport, sessions: list[dict], use
         for pos, idx in enumerate(indices):
             slot = slot_by_idx[idx]
             hours = slot_duration_hours(slot)
-            if pos == count - 1:
+            if total_slot_hours > 0:
+                if pos == count - 1:
+                    qty = remaining
+                else:
+                    share = (total * hours / total_slot_hours).quantize(Decimal('0.01'))
+                    qty = share
+                    remaining -= qty
+            elif pos == count - 1:
                 qty = remaining
             else:
                 share = (total / Decimal(count)).quantize(Decimal('0.01'))
