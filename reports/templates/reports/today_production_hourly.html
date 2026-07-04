@@ -306,7 +306,7 @@
             </section>
             {% endif %}
 
-            {% if hourly_grid.rows %}
+            {% if hourly_grid.rows and phase != 'review' %}
             <section class="jp-prod-card jp-prod-grid-section mt-3 mt-lg-0{% if work_step %} d-none d-lg-block{% endif %}">
                 <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
                     <h3 class="h6 fw-bold mb-0">Sản lượng đã nhập</h3>
