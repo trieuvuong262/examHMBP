@@ -200,3 +200,32 @@ class ProductionTeamViewTests(TestCase):
         )
         self.assertEqual(submitted, 1)
         self.assertEqual(missing, 1)
+
+    def test_team_total_qty_from_production_hourly_entries(self):
+        from decimal import Decimal
+
+        from reports.models import ProductionHourlyQuantity, ProductionShiftProduct
+        from reports.production_team import query_production_team_reports
+
+        report = self._morning_report(draft_saved=True)
+        product = ProductionShiftProduct.objects.create(
+            report=report,
+            product_code='TEST',
+            process_name='May',
+            norm_per_hour=Decimal('100'),
+            status=ProductionShiftProduct.STATUS_DONE,
+            sort_order=0,
+        )
+        ProductionHourlyQuantity.objects.create(
+            product=product,
+            slot_index=0,
+            quantity=Decimal('120'),
+        )
+        ProductionHourlyQuantity.objects.create(
+            product=product,
+            slot_index=1,
+            quantity=Decimal('80'),
+        )
+        qs = query_production_team_reports([self.member.id], self.today, self.today)
+        annotated = qs.get(pk=report.pk)
+        self.assertEqual(annotated.total_qty, Decimal('200'))

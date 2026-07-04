@@ -5,9 +5,10 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import date, timedelta
 
-from django.db.models import Count, Exists, OuterRef, Sum
+from django.db.models import Count, Exists, OuterRef, Subquery, Sum, Value, DecimalField
+from django.db.models.functions import Coalesce
 
-from reports.models import DailyWorkReport, ReportComment
+from reports.models import DailyWorkReport, ProductionHourlyQuantity, ReportComment
 from reports.period_utils import PERIOD_DAY
 from reports.production_shift_policy import (
     PRODUCTION_SHIFT_ORDER,
@@ -312,6 +313,15 @@ def build_production_day_shift_tabs(
     return tabs
 
 
+def _production_total_qty_subquery():
+    return (
+        ProductionHourlyQuantity.objects.filter(product__report_id=OuterRef('pk'))
+        .values('product__report_id')
+        .annotate(total=Sum('quantity'))
+        .values('total')[:1]
+    )
+
+
 def query_production_team_reports(team_ids, date_from, date_to):
     if not team_ids:
         return DailyWorkReport.objects.none()
@@ -328,7 +338,10 @@ def query_production_team_reports(team_ids, date_from, date_to):
         .select_related('employee', 'employee__profile')
         .annotate(
             line_count=Count('lines'),
-            total_qty=Sum('lines__quantity'),
+            total_qty=Coalesce(
+                Subquery(_production_total_qty_subquery()),
+                Value(0, output_field=DecimalField(max_digits=12, decimal_places=2)),
+            ),
             has_manager_comment=Exists(
                 ReportComment.objects.filter(daily_report=OuterRef('pk')).exclude(author_id=OuterRef('employee_id')),
             ),
