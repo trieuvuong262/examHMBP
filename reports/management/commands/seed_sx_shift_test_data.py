@@ -163,27 +163,30 @@ class Command(BaseCommand):
         ))
 
     def _random_interval(self, day: date, shift: str):
-        """(start_dt, end_dt) ngẫu nhiên trong khung ca."""
+        """(start_dt, end_dt) ngẫu nhiên trong khung ca — phút lẻ (vd 7h34, 21h03)."""
         shift = normalize_shift(shift)
         if shift == DailyWorkReport.SHIFT_MORNING:
+            # bắt đầu 7h31–7h59 (phút lẻ, sau mốc 7h30)
             start = timezone.make_aware(datetime.combine(
-                day, time(7, random.choice([30, 35, 40, 45]))
+                day, time(7, random.randint(31, 59))
             ))
-            # kết thúc: đa số 16h–17h, đôi khi tăng ca tới 19h–22h
+            # kết thúc: đa số 16h–17h, đôi khi tăng ca tới 19h–22h — phút lẻ
             if random.random() < 0.72:
                 end_hour = random.choice([16, 17])
             else:
                 end_hour = random.choice([19, 20, 21, 22])
             end = timezone.make_aware(datetime.combine(
-                day, time(end_hour, random.choice([0, 10, 20, 30]))
+                day, time(end_hour, random.randint(1, 59))
             ))
         else:  # NIGHT — 23h hôm nay → 3h–5h hôm sau
+            # bắt đầu 23h01–23h25 (phút lẻ)
             start = timezone.make_aware(datetime.combine(
-                day, time(23, random.choice([0, 5, 10, 15]))
+                day, time(23, random.randint(1, 25))
             ))
             next_day = day + timedelta(days=1)
             end_hour = random.choice([3, 4, 5])
-            minute = random.choice([0, 10, 20, 30]) if end_hour < 5 else 0
+            # không vượt quá 5h00 (hết ca) → nếu kết thúc lúc 5h thì đúng 5h00
+            minute = 0 if end_hour >= 5 else random.randint(1, 59)
             end = timezone.make_aware(datetime.combine(next_day, time(end_hour, minute)))
         return start, end
 
