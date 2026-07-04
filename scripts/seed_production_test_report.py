@@ -9,10 +9,13 @@ Usage:
 
 from __future__ import annotations
 
+import os
 import random
 import sys
 from datetime import datetime, timedelta
 from decimal import Decimal
+
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'PortalJustPlay.settings')
 
 import django
 
