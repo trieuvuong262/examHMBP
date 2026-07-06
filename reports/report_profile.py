@@ -40,9 +40,41 @@ def is_production_report_user(user) -> bool:
 
 
 def filter_team_members_for_report_profile(team, report_profile: str):
-    """Lọc danh sách NV team theo loại báo cáo — SX chỉ SX; VP tất cả trừ SX."""
+    """Lọc danh sách NV team theo loại báo cáo.
+
+    SX: NV phòng sản xuất (công nhân).
+    VP: NV phòng văn phòng + NV văn phòng trong phòng SX (có quyền «Báo cáo VP» hoặc đã nộp BC VP).
+    """
     if report_profile == REPORT_PROFILE_PRODUCTION:
         return team.filter(profile__department__report_profile=REPORT_PROFILE_PRODUCTION)
     if report_profile == REPORT_PROFILE_OFFICE:
-        return team.exclude(profile__department__report_profile=REPORT_PROFILE_PRODUCTION)
+        return _office_team_members(team)
     return team
+
+
+def _office_team_members(team):
+    """NV hiển thị trên Quản lý BC (VP) — không loại NV văn phòng trong phòng SX."""
+    from hrm.menu_permissions import user_can_access_menu
+    from hrm.module_permissions import MODULE_REPORTS
+
+    office_dept = team.exclude(profile__department__report_profile=REPORT_PROFILE_PRODUCTION)
+    prod_dept = team.filter(profile__department__report_profile=REPORT_PROFILE_PRODUCTION)
+    if not prod_dept.exists():
+        return office_dept
+
+    from reports.models import DailyWorkReport
+
+    office_reporter_ids = set(
+        DailyWorkReport.objects.filter(
+            employee__in=prod_dept,
+            report_profile=REPORT_PROFILE_OFFICE,
+        ).values_list('employee_id', flat=True).distinct()
+    )
+    vp_menu_ids = {
+        user.pk for user in prod_dept
+        if user_can_access_menu(user, MODULE_REPORTS, 'daily_vp')
+    }
+    extra_ids = office_reporter_ids | vp_menu_ids
+    if not extra_ids:
+        return office_dept
+    return (office_dept | team.filter(pk__in=extra_ids)).distinct()
