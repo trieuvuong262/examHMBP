@@ -142,6 +142,7 @@ class DailyWorkReportAttachment(models.Model):
     file = models.FileField(
         upload_to=daily_attachment_upload_to,
         storage=DailyReportNasStorage(),
+        max_length=255,
     )
     original_name = models.CharField(max_length=255, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

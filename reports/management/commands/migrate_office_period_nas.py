@@ -144,8 +144,15 @@ class Command(BaseCommand):
         src_target = app_storage_rclone_target(self.daily_base, rel)
         dst_target = app_storage_rclone_target(target_base, rel)
         if self.dry:
-            # Kiểm tra tồn tại để đếm chính xác
-            return self._rclone_exists(src_target)
+            # Đếm: có ở nguồn hoặc đã nằm ở đích (chạy lại sau lỗi)
+            return self._rclone_exists(src_target) or self._rclone_exists(dst_target)
+
+        # Đã dời sẵn ở lần chạy trước (DB chưa cập nhật) → chỉ cần cập nhật DB
+        if self._rclone_exists(dst_target):
+            return True
+        if not self._rclone_exists(src_target):
+            self.stderr.write(self.style.WARNING(f'    ! Bỏ qua {rel}: không thấy file ở NAS.'))
+            return False
         try:
             self._rclone_moveto(src_target, dst_target)
             return True
