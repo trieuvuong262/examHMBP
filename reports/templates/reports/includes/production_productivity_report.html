@@ -85,7 +85,11 @@
                     </td>
                     <td class="text-end text-muted">{{ row.hours_display }}</td>
                     <td class="text-end jp-prod-eff-cell">
-                        <span class="jp-prod-eff-badge{% if row.efficiency_pct >= 100 %} is-good{% elif row.efficiency_pct >= 80 %} is-ok{% else %} is-low{% endif %}">{{ row.efficiency_pct|floatformat:1 }}%</span>
+                        {% if row.efficiency_pct is not None %}
+                        <span class="jp-eff {{ row.efficiency_pct|summary_efficiency_class }}">{{ row.efficiency_pct|floatformat:1 }}%</span>
+                        {% else %}
+                        <span class="jp-eff is-none">—</span>
+                        {% endif %}
                     </td>
                     <td class="jp-prod-note-cell">
                         {% if row.note %}<span class="jp-prod-note-val" title="{{ row.note }}">{{ row.note|truncatechars:40 }}</span>{% else %}<span class="text-muted">—</span>{% endif %}

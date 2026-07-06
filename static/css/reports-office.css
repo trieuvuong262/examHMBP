@@ -1408,6 +1408,98 @@
     .jp-report-detail-page .jp-word-page-body.jp-ckeditor-content p {
         margin-bottom: 0.45em;
     }
+
+    /* Chi tiết VP — Bảng: giữ dạng lưới, vuốt ngang */
+    .jp-report-detail-page .jp-report-bang-card {
+        width: 100%;
+        max-width: 100%;
+        margin-left: 0;
+        margin-right: 0;
+        margin-bottom: 0.65rem !important;
+        border-radius: 0;
+        box-shadow: none !important;
+        overflow: visible;
+    }
+
+    .jp-report-detail-page .jp-report-bang-card .card-header {
+        padding: 0.45rem 0.55rem;
+        font-size: 0.92rem;
+    }
+
+    .jp-office-sheet-scroll-wrap,
+    .jp-sheet-viewport.jp-office-sheet-scroll {
+        overflow: auto;
+        -webkit-overflow-scrolling: touch;
+        touch-action: pan-x pan-y;
+        overscroll-behavior: contain;
+        max-height: min(68vh, calc(100dvh - 10rem));
+    }
+
+    .jp-office-sheet-scroll-wrap.jp-office-sheet-scroll::after,
+    .jp-sheet-viewport.jp-office-sheet-scroll::after {
+        content: '← Vuốt ngang để xem bảng →';
+        display: block;
+        text-align: center;
+        font-size: 0.7rem;
+        color: #94a3b8;
+        padding: 0.35rem 0.5rem;
+        background: #f1f5f9;
+        border-top: 1px solid #e8edf3;
+    }
+
+    .jp-office-sheet {
+        min-width: max(100%, 520px);
+    }
+
+    .jp-office-sheet th,
+    .jp-office-sheet td {
+        min-width: 92px;
+        width: 92px;
+    }
+
+    .jp-office-sheet-axis {
+        position: static !important;
+    }
+
+    .jp-sheet-header-row th {
+        position: static !important;
+    }
+
+    .jp-sheet-cell-input {
+        font-size: 16px;
+        min-height: 44px;
+    }
+
+    .jp-office-sheet-readonly th,
+    .jp-office-sheet-readonly td {
+        font-size: 0.84rem;
+        padding: 0.4rem 0.55rem;
+        white-space: pre-wrap;
+        word-break: break-word;
+        min-width: 72px;
+    }
+
+    .jp-office-section-head-tools {
+        align-items: stretch;
+    }
+
+    .jp-sheet-tools-inline {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.35rem;
+        width: 100%;
+    }
+
+    .jp-sheet-tool-btn {
+        justify-content: center;
+        min-height: 40px;
+        font-size: 0.8rem;
+    }
+
+    .jp-sheet-viewport {
+        padding: 0.5rem;
+        max-height: min(62vh, calc(100dvh - 12rem));
+    }
 }
 
 .jp-office-actions {

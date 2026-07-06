@@ -4,10 +4,26 @@
 (function () {
     'use strict';
 
+    function isOfficeSheetTable(table) {
+        return table.classList.contains('jp-office-sheet')
+            || table.classList.contains('jp-office-sheet-readonly')
+            || table.id === 'jpOfficeSheet'
+            || !!table.closest('.jp-sheet-viewport, .jp-report-bang-card');
+    }
+
     function enhanceTables() {
         document.querySelectorAll('main table').forEach(function (table) {
             if (table.dataset.jpEnhanced || table.closest('#lines-table')) return;
             table.dataset.jpEnhanced = '1';
+
+            if (isOfficeSheetTable(table)) {
+                table.classList.add('jp-table');
+                var scrollWrap = table.closest('.table-responsive, .jp-sheet-viewport');
+                if (scrollWrap) {
+                    scrollWrap.classList.add('jp-table-wrap', 'jp-table-scroll', 'jp-office-sheet-scroll');
+                }
+                return;
+            }
 
             var wrap = table.closest('.table-responsive');
             if (wrap) {

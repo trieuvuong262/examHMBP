@@ -1,9 +1,9 @@
 {% extends 'reports/detail_base.html' %}
-{% load static %}
+{% load static report_extras %}
 
 {% block detail_extra_head %}
 <link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260624a">
-<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260704b">
+<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260706c">
 {% endblock %}
 
 {% block detail_body %}
@@ -40,9 +40,10 @@
                 <div class="jp-report-tab-toolbar">
                     <div class="jp-prod-eff-legend jp-prod-eff-legend--inline">
                         <span class="jp-prod-eff-legend-title">Hiệu suất:</span>
-                        <span class="jp-prod-eff-legend-item"><span class="jp-prod-eff-badge is-good">≥100%</span> Đạt / vượt định mức</span>
-                        <span class="jp-prod-eff-legend-item"><span class="jp-prod-eff-badge is-ok">80–99%</span> Gần đạt</span>
-                        <span class="jp-prod-eff-legend-item"><span class="jp-prod-eff-badge is-low">&lt;80%</span> Chưa đạt</span>
+                        <span class="jp-prod-eff-legend-item"><span class="jp-eff is-high">≥120%</span> Vượt cao</span>
+                        <span class="jp-prod-eff-legend-item"><span class="jp-eff is-norm">100–119%</span> Đạt</span>
+                        <span class="jp-prod-eff-legend-item"><span class="jp-eff is-ok">80–99%</span> Gần đạt</span>
+                        <span class="jp-prod-eff-legend-item"><span class="jp-eff is-low">&lt;80%</span> Chưa đạt</span>
                     </div>
                 </div>
                 <div class="jp-report-tab-body">
@@ -69,9 +70,10 @@
                 <div class="jp-report-tab-toolbar">
                     <div class="jp-prod-eff-legend jp-prod-eff-legend--inline">
                         <span class="jp-prod-eff-legend-title">Hiệu suất:</span>
-                        <span class="jp-prod-eff-legend-item"><span class="jp-prod-eff-badge is-good">≥100%</span> Đạt / vượt định mức</span>
-                        <span class="jp-prod-eff-legend-item"><span class="jp-prod-eff-badge is-ok">80–99%</span> Gần đạt</span>
-                        <span class="jp-prod-eff-legend-item"><span class="jp-prod-eff-badge is-low">&lt;80%</span> Chưa đạt</span>
+                        <span class="jp-prod-eff-legend-item"><span class="jp-eff is-high">≥120%</span> Vượt cao</span>
+                        <span class="jp-prod-eff-legend-item"><span class="jp-eff is-norm">100–119%</span> Đạt</span>
+                        <span class="jp-prod-eff-legend-item"><span class="jp-eff is-ok">80–99%</span> Gần đạt</span>
+                        <span class="jp-prod-eff-legend-item"><span class="jp-eff is-low">&lt;80%</span> Chưa đạt</span>
                     </div>
                 </div>
                 <div class="jp-report-tab-body">
@@ -123,6 +125,15 @@
 {% if can_edit_norm and productivity and productivity.has_data %}
 <script>
 (function () {
+    function efficiencyClass(eff) {
+        var v = parseFloat(eff);
+        if (isNaN(v)) return 'jp-eff is-none';
+        if (v >= 120) return 'jp-eff is-high';
+        if (v >= 100) return 'jp-eff is-norm';
+        if (v >= 80) return 'jp-eff is-ok';
+        return 'jp-eff is-low';
+    }
+
     function efficiencyPct(qty, hours, norm) {
         qty = parseFloat(qty);
         hours = parseFloat(hours);
@@ -153,14 +164,10 @@
                 if (effCell) {
                     var eff = efficiencyPct(qty, hours, norm);
                     if (eff === null) {
-                        effCell.innerHTML = '<span class="text-muted">—</span>';
+                        effCell.innerHTML = '<span class="jp-eff is-none">—</span>';
                         return;
                     }
-                    var badgeClass = 'jp-prod-eff-badge';
-                    if (parseFloat(eff) >= 100) badgeClass += ' is-good';
-                    else if (parseFloat(eff) >= 80) badgeClass += ' is-ok';
-                    else badgeClass += ' is-low';
-                    effCell.innerHTML = '<span class="' + badgeClass + '">' + eff + '%</span>';
+                    effCell.innerHTML = '<span class="' + efficiencyClass(eff) + '">' + eff + '%</span>';
                 }
             }
         });

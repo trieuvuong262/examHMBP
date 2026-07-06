@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block detail_extra_head %}
-<link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260706a">
+<link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260706b">
 {% endblock %}
 
 {% block detail_body %}
@@ -24,11 +24,11 @@
     </div>
     {% endif %}
     {% if has_office_spreadsheet %}
-    <div class="card border-0 shadow-sm mb-4">
+    <div class="card border-0 shadow-sm mb-4 jp-report-bang-card">
         <div class="card-header bg-white fw-bold">Bảng</div>
         {% if office_sheet_has_data %}
         <div class="card-body p-0">
-            <div class="table-responsive">
+            <div class="table-responsive jp-office-sheet-scroll-wrap">
                 <table class="table table-bordered table-sm mb-0 jp-office-sheet-readonly">
                     <thead class="table-light">
                         <tr>
