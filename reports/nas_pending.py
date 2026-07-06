@@ -20,7 +20,8 @@ from django.conf import settings
 
 KIND_DAILY = 'daily'
 KIND_WEEKLY = 'weekly'
-_ALL_KINDS = (KIND_DAILY, KIND_WEEKLY)
+KIND_MONTH = 'month'
+_ALL_KINDS = (KIND_DAILY, KIND_WEEKLY, KIND_MONTH)
 
 _PENDING_DIRNAME = 'reports_pending'
 

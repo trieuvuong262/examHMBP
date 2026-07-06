@@ -12,10 +12,16 @@ from pathlib import Path
 
 from django.core.cache import cache
 
-from reports.daily_nas_storage import daily_report_nas_abs_root, daily_report_nas_rel_base
+from reports.daily_nas_storage import (
+    daily_report_nas_abs_root,
+    daily_report_nas_rel_base,
+    monthly_report_nas_abs_root,
+    monthly_report_nas_rel_base,
+)
 from reports.nas_health import mark_storage_unavailable, report_storage_available
 from reports.nas_pending import (
     KIND_DAILY,
+    KIND_MONTH,
     KIND_WEEKLY,
     count_pending,
     iter_pending_names,
@@ -31,9 +37,11 @@ _AUTO_SYNC_THROTTLE_SEC = 120
 
 
 def _nas_target_for(kind: str, name: str):
-    if kind == KIND_DAILY:
-        return daily_report_nas_abs_root() / name.lstrip('/'), daily_report_nas_rel_base()
-    return weekly_report_nas_abs_root() / name.lstrip('/'), weekly_report_nas_rel_base()
+    if kind == KIND_WEEKLY:
+        return weekly_report_nas_abs_root() / name.lstrip('/'), weekly_report_nas_rel_base()
+    if kind == KIND_MONTH:
+        return monthly_report_nas_abs_root() / name.lstrip('/'), monthly_report_nas_rel_base()
+    return daily_report_nas_abs_root() / name.lstrip('/'), daily_report_nas_rel_base()
 
 
 def _upload_one(kind: str, name: str) -> None:
@@ -60,7 +68,7 @@ def sync_all_pending() -> dict:
         stats['status'] = 'nas_down'
         return stats
 
-    for kind in (KIND_DAILY, KIND_WEEKLY):
+    for kind in (KIND_DAILY, KIND_WEEKLY, KIND_MONTH):
         for name in list(iter_pending_names(kind)):
             try:
                 _upload_one(kind, name)

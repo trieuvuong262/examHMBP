@@ -1031,6 +1031,7 @@ def ckeditor5_upload(request):
             username=request.user.username,
             report_date=parse_upload_report_date(request),
             ext=ext,
+            period=parse_office_period(request),
         )
     except OSError as exc:
         logger.exception('CKEditor upload failed for %s: %s', request.user.username, exc)

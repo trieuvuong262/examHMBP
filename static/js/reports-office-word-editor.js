@@ -33,6 +33,11 @@
                     var join = loader.uploadUrl.indexOf('?') >= 0 ? '&' : '?';
                     loader.uploadUrl = loader.uploadUrl + join + 'report_date=' + encodeURIComponent(dateInput.value);
                 }
+                var periodInput = document.querySelector('input[name="period"]');
+                if (loader && periodInput && periodInput.value) {
+                    var joinP = loader.uploadUrl.indexOf('?') >= 0 ? '&' : '?';
+                    loader.uploadUrl = loader.uploadUrl + joinP + 'period=' + encodeURIComponent(periodInput.value);
+                }
             });
 
             ev.editor.on('fileUploadResponse', function (evt) {
@@ -322,11 +327,17 @@
         }
         const dateInput = document.getElementById('id_report_date')
             || document.querySelector('input[name="report_date"]');
-        if (!dateInput || !dateInput.value) {
-            return uploadUrl;
+        let result = uploadUrl;
+        if (dateInput && dateInput.value) {
+            const join = result.indexOf('?') >= 0 ? '&' : '?';
+            result = result + join + 'report_date=' + encodeURIComponent(dateInput.value);
         }
-        const join = uploadUrl.indexOf('?') >= 0 ? '&' : '?';
-        return uploadUrl + join + 'report_date=' + encodeURIComponent(dateInput.value);
+        const periodInput = document.querySelector('input[name="period"]');
+        if (periodInput && periodInput.value) {
+            const joinP = result.indexOf('?') >= 0 ? '&' : '?';
+            result = result + joinP + 'period=' + encodeURIComponent(periodInput.value);
+        }
+        return result;
     }
 
     function dataUrlToBlob(dataUrl) {

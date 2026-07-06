@@ -15,6 +15,11 @@ from django.utils.text import get_valid_filename
 
 LEGACY_DAILY_PREFIX = 'reports/daily/'
 
+# Báo cáo VP theo kỳ dùng chung storage này; kỳ tuần/tháng gắn tiền tố để
+# định tuyến sang thư mục NAS riêng (BAO_CAO_TUAN / BAO_CAO_THANG).
+OFFICE_WEEK_PREFIX = '_tuan/'
+OFFICE_MONTH_PREFIX = '_thang/'
+
 
 def daily_report_nas_rel_base() -> str:
     return (
@@ -25,6 +30,39 @@ def daily_report_nas_rel_base() -> str:
 
 def daily_report_nas_abs_root() -> Path:
     return Path(getattr(settings, 'NAS_MOUNT_ROOT', '/mnt/nas-portal')) / daily_report_nas_rel_base()
+
+
+def monthly_report_nas_rel_base() -> str:
+    return (
+        getattr(settings, 'NAS_MONTHLY_REPORT_REL_PATH', '')
+        or '99_LUU_TRU/1.2026/BAO_CAO_THANG'
+    ).strip('/')
+
+
+def monthly_report_nas_abs_root() -> Path:
+    return Path(getattr(settings, 'NAS_MOUNT_ROOT', '/mnt/nas-portal')) / monthly_report_nas_rel_base()
+
+
+def office_bucket_prefix_for_period(report_period: str | None) -> str:
+    if report_period == 'week':
+        return OFFICE_WEEK_PREFIX
+    if report_period == 'month':
+        return OFFICE_MONTH_PREFIX
+    return ''
+
+
+def _resolve_daily_bucket(name: str):
+    """(kind, abs_root, rel_base, rel_without_prefix) theo tiền tố kỳ trong name."""
+    from reports.nas_pending import KIND_DAILY, KIND_MONTH, KIND_WEEKLY
+    from reports.weekly_nas_storage import weekly_report_nas_abs_root, weekly_report_nas_rel_base
+
+    if name.startswith(OFFICE_WEEK_PREFIX):
+        rel = name[len(OFFICE_WEEK_PREFIX):]
+        return KIND_WEEKLY, weekly_report_nas_abs_root(), weekly_report_nas_rel_base(), rel
+    if name.startswith(OFFICE_MONTH_PREFIX):
+        rel = name[len(OFFICE_MONTH_PREFIX):]
+        return KIND_MONTH, monthly_report_nas_abs_root(), monthly_report_nas_rel_base(), rel
+    return KIND_DAILY, daily_report_nas_abs_root(), daily_report_nas_rel_base(), name
 
 
 def is_legacy_daily_path(name: str) -> bool:
@@ -38,7 +76,8 @@ def daily_attachment_upload_to(instance, filename: str) -> str:
     tab = (instance.source_tab or 'BANG').lower()
     safe = get_valid_filename(os.path.basename(filename)) or 'file'
     stem = uuid.uuid4().hex[:12]
-    return f'{report_date.year}/{report_date.isoformat()}/{username}/{tab}/{stem}_{safe}'
+    prefix = office_bucket_prefix_for_period(getattr(report, 'report_period', None))
+    return f'{prefix}{report_date.year}/{report_date.isoformat()}/{username}/{tab}/{stem}_{safe}'
 
 
 @deconstructible
@@ -56,23 +95,25 @@ class DailyReportNasStorage(FileSystemStorage):
     def path(self, name: str) -> str:
         if is_legacy_daily_path(name):
             return str(Path(settings.MEDIA_ROOT) / name)
-        from reports.nas_pending import KIND_DAILY, pending_exists, pending_path
+        from reports.nas_pending import pending_exists, pending_path
 
-        if pending_exists(KIND_DAILY, name):
-            return str(pending_path(KIND_DAILY, name))
-        return str(daily_report_nas_abs_root() / name)
+        kind, abs_root, _rel_base, rel = _resolve_daily_bucket(name)
+        if pending_exists(kind, rel):
+            return str(pending_path(kind, rel))
+        return str(abs_root / rel)
 
     def get_available_name(self, name: str, max_length: int | None = None) -> str:
         # Tên đã chứa uuid → bỏ qua kiểm tra tồn tại (tránh chạm mount NAS treo).
         return name
 
     def exists(self, name: str) -> bool:
-        from reports.nas_pending import KIND_DAILY, pending_exists
+        from reports.nas_pending import pending_exists
 
-        if pending_exists(KIND_DAILY, name):
+        kind, abs_root, _rel_base, rel = _resolve_daily_bucket(name)
+        if pending_exists(kind, rel):
             return True
         try:
-            return Path(str(daily_report_nas_abs_root() / name)).is_file()
+            return Path(str(abs_root / rel)).is_file()
         except OSError:
             return False
 
@@ -80,10 +121,11 @@ class DailyReportNasStorage(FileSystemStorage):
         return Path(self.path(name)).open(mode)
 
     def delete(self, name: str) -> None:
-        from reports.nas_pending import KIND_DAILY, remove_pending
+        from reports.nas_pending import remove_pending
 
-        remove_pending(KIND_DAILY, name)
-        path = Path(str(daily_report_nas_abs_root() / name))
+        kind, abs_root, _rel_base, rel = _resolve_daily_bucket(name)
+        remove_pending(kind, rel)
+        path = Path(str(abs_root / rel))
         try:
             if path.is_file():
                 path.unlink()
@@ -114,9 +156,11 @@ class DailyReportNasStorage(FileSystemStorage):
 
 
 def _persist_daily_with_fallback(tmp_path: Path, name: str) -> None:
-    """Ghi lên NAS; nếu NAS down/lỗi thì lưu tạm VPS để đồng bộ sau."""
+    """Ghi lên NAS (đúng thư mục theo kỳ); nếu NAS down/lỗi thì lưu tạm VPS."""
     from reports.nas_health import mark_storage_unavailable, report_storage_available
-    from reports.nas_pending import KIND_DAILY, write_pending
+    from reports.nas_pending import write_pending
+
+    kind, abs_root, rel_base, rel = _resolve_daily_bucket(name)
 
     if report_storage_available():
         from nas_storage.app_nas_storage import persist_app_nas_file
@@ -124,15 +168,15 @@ def _persist_daily_with_fallback(tmp_path: Path, name: str) -> None:
         try:
             persist_app_nas_file(
                 tmp_path=tmp_path,
-                mount_dest=daily_report_nas_abs_root() / name.lstrip('/'),
-                folder_rel_base=daily_report_nas_rel_base(),
-                file_rel=name,
+                mount_dest=abs_root / rel.lstrip('/'),
+                folder_rel_base=rel_base,
+                file_rel=rel,
             )
             return
         except OSError:
             mark_storage_unavailable()
 
-    write_pending(KIND_DAILY, name, tmp_path)
+    write_pending(kind, rel, tmp_path)
 
 
 def daily_attachment_abs_path(att) -> Path | None:
@@ -165,7 +209,8 @@ def _dsm_download_to_cache(rel_name: str) -> Path | None:
     from nas_storage.dsm_upload import DsmUploadError, dsm_download_nas_rel
 
     cached = _rclone_cache_path(rel_name)
-    full_rel = f'{daily_report_nas_rel_base()}/{rel_name.lstrip("/")}'
+    _kind, _abs_root, rel_base, rel = _resolve_daily_bucket(rel_name)
+    full_rel = f'{rel_base}/{rel.lstrip("/")}'
     try:
         return dsm_download_nas_rel(full_rel, cached)
     except DsmUploadError:
@@ -223,7 +268,8 @@ def ensure_daily_report_nas_dir() -> Path:
 def _daily_rclone_target(rel_name: str) -> str:
     from nas_storage.nas_paths import app_storage_rclone_target
 
-    return app_storage_rclone_target(daily_report_nas_rel_base(), rel_name.lstrip('/'))
+    _kind, _abs_root, rel_base, rel = _resolve_daily_bucket(rel_name)
+    return app_storage_rclone_target(rel_base, rel.lstrip('/'))
 
 
 def _rclone_env() -> dict:

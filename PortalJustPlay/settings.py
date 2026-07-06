@@ -528,6 +528,11 @@ NAS_DAILY_REPORT_REL_PATH = os.getenv(
     'NAS_DAILY_REPORT_REL_PATH',
     '99_LUU_TRU/1.2026/BAO_CAO_NGAY',
 ).strip('/')
+# Báo cáo tháng VP — đính kèm lưu trên NAS, không lưu media VPS
+NAS_MONTHLY_REPORT_REL_PATH = os.getenv(
+    'NAS_MONTHLY_REPORT_REL_PATH',
+    '99_LUU_TRU/1.2026/BAO_CAO_THANG',
+).strip('/')
 # Thông báo — file PDF/video/file gốc lưu trên NAS, không lưu media VPS
 NAS_ANNOUNCEMENT_REL_PATH = os.getenv(
     'NAS_ANNOUNCEMENT_REL_PATH',

@@ -11,15 +11,30 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 
 from hrm.permissions import get_report_team_users, is_global_report_viewer
-from reports.daily_nas_storage import DailyReportNasStorage, daily_nas_abs_path, open_daily_nas_file
+from reports.daily_nas_storage import (
+    OFFICE_MONTH_PREFIX,
+    OFFICE_WEEK_PREFIX,
+    DailyReportNasStorage,
+    daily_nas_abs_path,
+    office_bucket_prefix_for_period,
+    open_daily_nas_file,
+)
 
 User = get_user_model()
 
 LEGACY_CKEDITOR_PREFIX = 'reports/ckeditor5/'
 INLINE_SEGMENT = '/vanban/inline/'
 INLINE_REL_PATTERN = re.compile(
-    r'^\d{4}/\d{4}-\d{2}-\d{2}/[^/]+/vanban/inline/[^/]+$',
+    r'^(?:_tuan/|_thang/)?\d{4}/\d{4}-\d{2}-\d{2}/[^/]+/vanban/inline/[^/]+$',
 )
+
+
+def _strip_office_prefix(rel: str) -> str:
+    if rel.startswith(OFFICE_WEEK_PREFIX):
+        return rel[len(OFFICE_WEEK_PREFIX):]
+    if rel.startswith(OFFICE_MONTH_PREFIX):
+        return rel[len(OFFICE_MONTH_PREFIX):]
+    return rel
 
 
 def parse_upload_report_date(request) -> date:
@@ -36,11 +51,14 @@ def parse_upload_report_date(request) -> date:
     return timezone.localdate()
 
 
-def inline_image_upload_rel(username: str, report_date: date, ext: str) -> str:
+def inline_image_upload_rel(
+    username: str, report_date: date, ext: str, *, period: str | None = None
+) -> str:
     safe_ext = ext if ext.startswith('.') else f'.{ext}'
     stem = uuid.uuid4().hex
+    prefix = office_bucket_prefix_for_period(period)
     return (
-        f'{report_date.year}/{report_date.isoformat()}/{username}/vanban/inline/'
+        f'{prefix}{report_date.year}/{report_date.isoformat()}/{username}/vanban/inline/'
         f'{stem}{safe_ext}'
     )
 
@@ -93,7 +111,7 @@ def can_view_inline_image(viewer, rel: str) -> bool:
     if rel.startswith(LEGACY_CKEDITOR_PREFIX):
         return True
 
-    parts = rel.split('/')
+    parts = _strip_office_prefix(rel).split('/')
     if len(parts) < 6:
         return False
     username = parts[2]
@@ -109,8 +127,10 @@ def can_view_inline_image(viewer, rel: str) -> bool:
     return get_report_team_users(viewer).filter(pk=owner.pk).exists()
 
 
-def save_inline_image(upload, *, username: str, report_date: date, ext: str) -> str:
-    rel = inline_image_upload_rel(username, report_date, ext)
+def save_inline_image(
+    upload, *, username: str, report_date: date, ext: str, period: str | None = None
+) -> str:
+    rel = inline_image_upload_rel(username, report_date, ext, period=period)
     DailyReportNasStorage().save(rel, upload)
     return rel
 
