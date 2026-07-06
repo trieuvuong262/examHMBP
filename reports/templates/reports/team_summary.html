@@ -73,9 +73,10 @@
         left: 0;
     }
     .jp-eff { display: inline-block; min-width: 3rem; padding: 0.12rem 0.45rem; border-radius: 0.45rem; font-weight: 700; font-size: 0.82rem; }
-    .jp-eff.is-good { background: #dcfce7; color: #166534; }
-    .jp-eff.is-ok   { background: #fef9c3; color: #854d0e; }
     .jp-eff.is-low  { background: #fee2e2; color: #991b1b; }
+    .jp-eff.is-ok   { background: #fef9c3; color: #854d0e; }
+    .jp-eff.is-norm { background: #dbeafe; color: #1e40af; }
+    .jp-eff.is-high { background: #dcfce7; color: #166534; }
     .jp-eff.is-none { color: #cbd5e1; background: transparent; }
     .jp-summary-table thead th.jp-col-weekend { background: #b91c1c; }
     .jp-summary-table tbody td.jp-col-weekend { background: #fef2f2; }
@@ -83,24 +84,27 @@
     .jp-col-avg { background: #fff1f2 !important; }
     thead th.jp-col-avg { background: #991b1b !important; }
     tbody td.jp-col-avg { font-weight: 700; }
-    .jp-summary-table tfoot td {
+    .jp-summary-team-row td {
         position: sticky;
-        bottom: 0;
-        z-index: 2;
-        background: #0f172a;
-        color: #fff;
+        top: 2.35rem;
+        z-index: 3;
+        background: #f1f5f9 !important;
         font-weight: 700;
         text-align: center;
-        padding: 0.45rem;
-        border-top: 2px solid #b91c1c;
-        white-space: nowrap;
+        border-bottom: 2px solid #b91c1c;
     }
-    .jp-summary-table tfoot td.jp-col-sticky { z-index: 4; background: #0f172a; text-align: left; }
-    .jp-summary-table tfoot .jp-eff { background: rgba(255,255,255,0.14); color: #fff; }
+    .jp-summary-team-row td.jp-col-sticky {
+        z-index: 4;
+        text-align: left;
+        color: var(--hm-primary, #dc2626);
+    }
+    .jp-summary-team-row:hover td { background: #f1f5f9 !important; }
+    .jp-summary-team-row td.jp-col-weekend { background: #e2e8f0 !important; }
+    .jp-summary-team-row td.jp-col-avg { background: #e8ecf1 !important; }
 
     /* Khi chụp ảnh (html2canvas): tắt sticky để không lệch dòng/cột */
     .jp-capturing thead th,
-    .jp-capturing tfoot td,
+    .jp-capturing .jp-summary-team-row td,
     .jp-capturing th.jp-col-sticky,
     .jp-capturing td.jp-col-sticky,
     .jp-capturing .jp-summary-group td { position: static !important; }
@@ -176,7 +180,7 @@
             <div class="lbl">Số ngày</div>
         </div>
         <div class="jp-summary-stat">
-            <div class="val {% if summary.overall_avg is None %}text-muted{% elif summary.overall_avg >= 100 %}text-success{% elif summary.overall_avg >= 80 %}text-warning{% else %}text-danger{% endif %}">
+            <div class="val {% if summary.overall_avg is None %}text-muted{% elif summary.overall_avg >= 120 %}text-success{% elif summary.overall_avg >= 100 %}text-primary{% elif summary.overall_avg >= 80 %}text-warning{% else %}text-danger{% endif %}">
                 {% if summary.overall_avg is not None %}{{ summary.overall_avg|floatformat:2 }}%{% else %}—{% endif %}
             </div>
             <div class="lbl">HS TB toàn team</div>
@@ -255,6 +259,27 @@
                     </tr>
                 </thead>
                 <tbody>
+                    {% if summary.has_members %}
+                    <tr class="jp-summary-team-row">
+                        <td class="jp-col-sticky" colspan="3">TB team theo ngày</td>
+                        {% for day in days %}
+                        <td class="{% if day.is_weekend %}jp-col-weekend{% endif %}">
+                            {% if day.average is not None %}
+                            <span class="jp-eff {{ day.average|summary_efficiency_class }}">{{ day.average|floatformat:2 }}%</span>
+                            {% else %}
+                            <span class="jp-eff is-none">—</span>
+                            {% endif %}
+                        </td>
+                        {% endfor %}
+                        <td class="jp-col-avg">
+                            {% if summary.overall_avg is not None %}
+                            <span class="jp-eff {{ summary.overall_avg|summary_efficiency_class }}">{{ summary.overall_avg|floatformat:2 }}%</span>
+                            {% else %}
+                            <span class="jp-eff is-none">—</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endif %}
                     {% for group in department_groups %}
                     {% if group.members %}
                     <tr class="jp-summary-group">
@@ -274,7 +299,7 @@
                         {% for cell in m.cells %}
                         <td class="{% if cell.is_weekend %}jp-col-weekend{% endif %}">
                             {% if cell.has_data %}
-                            <span class="jp-eff {% if cell.efficiency_pct >= 100 %}is-good{% elif cell.efficiency_pct >= 80 %}is-ok{% else %}is-low{% endif %}">{{ cell.efficiency_pct|floatformat:2 }}%</span>
+                            <span class="jp-eff {{ cell.efficiency_pct|summary_efficiency_class }}">{{ cell.efficiency_pct|floatformat:2 }}%</span>
                             {% else %}
                             <span class="jp-eff is-none">—</span>
                             {% endif %}
@@ -282,7 +307,7 @@
                         {% endfor %}
                         <td class="jp-col-avg">
                             {% if m.avg_efficiency_pct is not None %}
-                            <span class="jp-eff {% if m.avg_efficiency_pct >= 100 %}is-good{% elif m.avg_efficiency_pct >= 80 %}is-ok{% else %}is-low{% endif %}">{{ m.avg_efficiency_pct|floatformat:2 }}%</span>
+                            <span class="jp-eff {{ m.avg_efficiency_pct|summary_efficiency_class }}">{{ m.avg_efficiency_pct|floatformat:2 }}%</span>
                             {% else %}
                             <span class="jp-eff is-none">—</span>
                             {% endif %}
@@ -298,30 +323,12 @@
                     </tr>
                     {% endfor %}
                 </tbody>
-                {% if summary.has_members %}
-                <tfoot>
-                    <tr>
-                        <td class="jp-col-sticky" colspan="3">TB team theo ngày</td>
-                        {% for day in days %}
-                        <td>
-                            {% if day.average is not None %}
-                            <span class="jp-eff">{{ day.average|floatformat:2 }}%</span>
-                            {% else %}<span class="text-white-50">—</span>{% endif %}
-                        </td>
-                        {% endfor %}
-                        <td>
-                            {% if summary.overall_avg is not None %}
-                            <span class="jp-eff">{{ summary.overall_avg|floatformat:2 }}%</span>
-                            {% else %}<span class="text-white-50">—</span>{% endif %}
-                        </td>
-                    </tr>
-                </tfoot>
-                {% endif %}
             </table>
         </div>
     </div>
     <p class="text-muted small mt-2 mb-0">
-        <span class="jp-eff is-good">≥100%</span>
+        <span class="jp-eff is-high">≥120%</span>
+        <span class="jp-eff is-norm ms-1">100–119%</span>
         <span class="jp-eff is-ok ms-1">80–99%</span>
         <span class="jp-eff is-low ms-1">&lt;80%</span>
         <span class="ms-2">Ô «—» = không có báo cáo trong ngày. Cột nền đỏ nhạt = cuối tuần.</span>

@@ -54,6 +54,24 @@ def report_period_label(report):
 
 
 @register.filter
+def summary_efficiency_class(pct):
+    """CSS class jp-eff cho thang màu 4 mức trên báo cáo tổng hợp SX."""
+    if pct is None:
+        return 'is-none'
+    try:
+        value = float(pct)
+    except (TypeError, ValueError):
+        return 'is-none'
+    if value >= 120:
+        return 'is-high'
+    if value >= 100:
+        return 'is-norm'
+    if value >= 80:
+        return 'is-ok'
+    return 'is-low'
+
+
+@register.filter
 def report_anchor_display(report):
     if not report:
         return ''

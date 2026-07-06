@@ -82,7 +82,14 @@ def export_production_team_summary_xlsx(summary, *, date_from, date_to, shift_la
     day_headers = [f"{d['weekday']} {d['date'].strftime('%d/%m')}" for d in days]
     columns = ['STT', 'Nhân viên', 'Bộ phận', *day_headers, 'TB chung']
 
-    rows: list[list] = []
+    team_row = ['', 'TB team theo ngày', '']
+    for d in days:
+        avg = d.get('average')
+        team_row.append(round(avg, 2) if avg is not None else '')
+    overall = summary.get('overall_avg')
+    team_row.append(round(overall, 2) if overall is not None else '')
+
+    rows: list[list] = [team_row]
     for group in summary.get('groups', []):
         for member in group.get('members', []):
             row = [member['stt'], member['name'], member.get('division') or '']
@@ -92,14 +99,6 @@ def export_production_team_summary_xlsx(summary, *, date_from, date_to, shift_la
             avg = member.get('avg_efficiency_pct')
             row.append(round(avg, 2) if avg is not None else '')
             rows.append(row)
-
-    footer = ['', 'TB team theo ngày', '']
-    for d in days:
-        avg = d.get('average')
-        footer.append(round(avg, 2) if avg is not None else '')
-    overall = summary.get('overall_avg')
-    footer.append(round(overall, 2) if overall is not None else '')
-    rows.append(footer)
 
     df = pd.DataFrame(rows, columns=columns)
     prefix = (
