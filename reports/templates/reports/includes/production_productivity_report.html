@@ -2,8 +2,17 @@
 <div class="jp-prod-productivity-wrap">
 
     {% if productivity.product_summaries %}
-    <div class="jp-prod-section-label">
+    <div class="jp-prod-section-label d-flex flex-wrap align-items-center justify-content-between gap-2">
         <span>Tổng hợp theo mã hàng / công đoạn</span>
+        {% if can_edit_norm %}
+        <button type="button"
+            class="btn btn-outline-hm btn-sm"
+            data-bs-toggle="modal"
+            data-bs-target="#jpProdNormModal"
+            title="Chỉnh sửa mã hàng, công đoạn, định mức">
+            <i class="bi bi-pencil-square me-1" aria-hidden="true"></i>Chỉnh sửa
+        </button>
+        {% endif %}
     </div>
     <div class="table-responsive jp-prod-productivity-scroll mb-4">
         <table class="table table-sm jp-prod-productivity-table jp-prod-productivity-table--summary mb-0">
@@ -27,38 +36,10 @@
                 <tr class="jp-prod-summary-row" data-product-id="{{ row.product_id }}" data-quantity="{{ row.quantity }}" data-hours="{{ row.hours }}">
                     <td class="text-center text-muted">{{ forloop.counter }}</td>
                     <td>
-                        <div class="jp-prod-editable-cell">
-                            <span class="jp-prod-code-pill jp-prod-code-display">{{ row.product_code }}</span>
-                            {% if can_edit_norm %}
-                            <button type="button"
-                                class="jp-prod-product-edit-btn btn btn-link btn-sm p-0"
-                                data-bs-toggle="modal"
-                                data-bs-target="#jpProdNormModal"
-                                data-product-id="{{ row.product_id }}"
-                                data-focus-field="code"
-                                title="Sửa mã hàng {{ row.product_code }}"
-                                aria-label="Sửa mã hàng {{ row.product_code }}">
-                                <i class="bi bi-pencil-square" aria-hidden="true"></i>
-                            </button>
-                            {% endif %}
-                        </div>
+                        <span class="jp-prod-code-pill jp-prod-code-display">{{ row.product_code }}</span>
                     </td>
                     <td>
-                        <div class="jp-prod-editable-cell">
-                            <span class="jp-prod-process-display">{{ row.process_name }}</span>
-                            {% if can_edit_norm %}
-                            <button type="button"
-                                class="jp-prod-product-edit-btn btn btn-link btn-sm p-0"
-                                data-bs-toggle="modal"
-                                data-bs-target="#jpProdNormModal"
-                                data-product-id="{{ row.product_id }}"
-                                data-focus-field="process"
-                                title="Sửa công đoạn {{ row.process_name }}"
-                                aria-label="Sửa công đoạn {{ row.process_name }}">
-                                <i class="bi bi-pencil-square" aria-hidden="true"></i>
-                            </button>
-                            {% endif %}
-                        </div>
+                        <span class="jp-prod-process-display">{{ row.process_name }}</span>
                     </td>
                     <td class="text-center text-nowrap">{{ row.started_at_display|default:"—" }}</td>
                     <td class="text-center text-nowrap">{{ row.ended_at_display|default:"—" }}</td>
@@ -67,21 +48,7 @@
                         {% if row.damaged_quantity %}<span class="jp-prod-damaged-val">{{ row.damaged_quantity|prod_qty }}</span>{% else %}<span class="text-muted">—</span>{% endif %}
                     </td>
                     <td class="text-end">
-                        <div class="jp-prod-norm-cell">
-                            <span class="jp-prod-norm-display">{% if row.norm_per_hour %}{{ row.norm_per_hour|floatformat:0 }}{% else %}—{% endif %}</span>
-                            {% if can_edit_norm %}
-                            <button type="button"
-                                class="jp-prod-product-edit-btn btn btn-link btn-sm p-0"
-                                data-bs-toggle="modal"
-                                data-bs-target="#jpProdNormModal"
-                                data-product-id="{{ row.product_id }}"
-                                data-focus-field="norm"
-                                title="Sửa định mức {{ row.product_code }}"
-                                aria-label="Sửa định mức {{ row.product_code }}">
-                                <i class="bi bi-pencil-square" aria-hidden="true"></i>
-                            </button>
-                            {% endif %}
-                        </div>
+                        <span class="jp-prod-norm-display">{% if row.norm_per_hour %}{{ row.norm_per_hour|floatformat:0 }}{% else %}—{% endif %}</span>
                     </td>
                     <td class="text-end text-muted">{{ row.hours_display }}</td>
                     <td class="text-end jp-prod-eff-cell">

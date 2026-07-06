@@ -3,7 +3,7 @@
 
 {% block detail_extra_head %}
 <link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260624a">
-<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260706d">
+<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260706e">
 {% endblock %}
 
 {% block detail_body %}
@@ -184,6 +184,49 @@
         );
     }
 
+    function resetDeleteMarks() {
+        var form = document.getElementById('jp-prod-norm-form');
+        if (form) {
+            form.querySelectorAll('.jp-prod-delete-flag').forEach(function (el) { el.remove(); });
+        }
+        document.querySelectorAll('.jp-prod-norm-modal-row.is-marked-delete').forEach(function (row) {
+            row.classList.remove('is-marked-delete');
+            row.querySelectorAll('input').forEach(function (inp) { inp.disabled = false; });
+            var delBtn = row.querySelector('.jp-prod-norm-delete-btn');
+            if (delBtn) {
+                delBtn.disabled = false;
+                delBtn.innerHTML = '<i class="bi bi-trash" aria-hidden="true"></i>';
+            }
+        });
+        document.querySelectorAll('.jp-prod-summary-row.is-marked-delete').forEach(function (row) {
+            row.classList.remove('is-marked-delete');
+        });
+    }
+
+    function markProductForDelete(productId) {
+        var row = modal && modal.querySelector('.jp-prod-norm-modal-row[data-product-id="' + productId + '"]');
+        if (!row || row.classList.contains('is-marked-delete')) return;
+        row.classList.add('is-marked-delete');
+        row.querySelectorAll('input').forEach(function (inp) { inp.disabled = true; });
+        var delBtn = row.querySelector('.jp-prod-norm-delete-btn');
+        if (delBtn) {
+            delBtn.disabled = true;
+            delBtn.innerHTML = '<i class="bi bi-check-lg" aria-hidden="true"></i>';
+        }
+        var form = document.getElementById('jp-prod-norm-form');
+        if (!form || form.querySelector('.jp-prod-delete-flag[data-product-id="' + productId + '"]')) return;
+        var hidden = document.createElement('input');
+        hidden.type = 'hidden';
+        hidden.name = 'delete_product_' + productId;
+        hidden.value = '1';
+        hidden.className = 'jp-prod-delete-flag';
+        hidden.setAttribute('data-product-id', productId);
+        form.appendChild(hidden);
+        document.querySelectorAll('.jp-prod-summary-row[data-product-id="' + productId + '"]').forEach(function (r) {
+            r.classList.add('is-marked-delete');
+        });
+    }
+
     var modal = document.getElementById('jpProdNormModal');
     if (modal && modal.parentElement !== document.body) {
         document.body.appendChild(modal);
@@ -225,37 +268,24 @@
     normInputs.forEach(function (input) {
         input.addEventListener('input', function () {
             var productId = input.getAttribute('data-product-id');
-            (byProduct[productId] && byProduct[productId].norm ? [byProduct[productId].norm] : []).forEach(function (peer) {
-                if (peer !== input) peer.value = input.value;
-            });
             syncRowPreview(productId);
         });
     });
 
     if (modal) {
-        modal.addEventListener('show.bs.modal', function (event) {
-            var trigger = event.relatedTarget;
-            var productId = trigger && trigger.getAttribute('data-product-id');
-            var focusField = (trigger && trigger.getAttribute('data-focus-field')) || 'norm';
-            modal.querySelectorAll('.jp-prod-norm-modal-row').forEach(function (row) {
-                row.classList.remove('is-focus');
+        modal.addEventListener('show.bs.modal', function () {
+            resetDeleteMarks();
+        });
+        modal.querySelectorAll('.jp-prod-norm-delete-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var productId = btn.getAttribute('data-product-id');
+                if (!productId) return;
+                var row = modal.querySelector('.jp-prod-norm-modal-row[data-product-id="' + productId + '"]');
+                var label = row && row.querySelector('.jp-prod-process-input');
+                var name = label && label.value ? label.value.trim() : 'công đoạn này';
+                if (!window.confirm('Xóa «' + name + '» khỏi báo cáo? (Lưu thay đổi để áp dụng)')) return;
+                markProductForDelete(productId);
             });
-            if (!productId) return;
-            var targetRow = modal.querySelector('.jp-prod-norm-modal-row[data-product-id="' + productId + '"]');
-            if (!targetRow) return;
-            targetRow.classList.add('is-focus');
-            var selector = focusField === 'code'
-                ? '.jp-prod-code-input'
-                : focusField === 'process'
-                    ? '.jp-prod-process-input'
-                    : '.jp-prod-norm-input';
-            var focusInput = targetRow.querySelector(selector);
-            if (focusInput) {
-                setTimeout(function () {
-                    focusInput.focus();
-                    focusInput.select();
-                }, 200);
-            }
         });
     }
 })();

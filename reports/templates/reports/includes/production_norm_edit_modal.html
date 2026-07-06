@@ -9,7 +9,7 @@
             </div>
             <div class="modal-body p-0">
                 <p class="text-muted small px-3 pt-3 mb-2">
-                    Chỉnh thông tin theo dòng công đoạn — áp dụng cho toàn báo cáo này.
+                    Chỉnh thông tin theo dòng công đoạn. Bấm <strong>Xóa</strong> để gỡ công đoạn khỏi báo cáo, rồi <strong>Lưu thay đổi</strong>.
                 </p>
                 <div class="table-responsive">
                     <table class="table table-sm jp-prod-norm-modal-table mb-0">
@@ -18,6 +18,7 @@
                                 <th>Mã hàng</th>
                                 <th>Công đoạn</th>
                                 <th class="text-end" style="width:7rem">Định mức/H</th>
+                                <th class="text-center" style="width:4.5rem">Xóa</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -52,6 +53,15 @@
                                         min="1" step="1"
                                         data-product-id="{{ row.product_id }}"
                                         aria-label="Định mức {{ row.product_code }}">
+                                </td>
+                                <td class="text-center">
+                                    <button type="button"
+                                        class="btn btn-outline-danger btn-sm jp-prod-norm-delete-btn px-2"
+                                        data-product-id="{{ row.product_id }}"
+                                        title="Xóa công đoạn {{ row.process_name }}"
+                                        aria-label="Xóa công đoạn {{ row.process_name }}">
+                                        <i class="bi bi-trash" aria-hidden="true"></i>
+                                    </button>
                                 </td>
                             </tr>
                             {% endfor %}

@@ -1028,6 +1028,18 @@ def update_product_norms(report: DailyWorkReport, norms_by_id: dict) -> int:
     return update_production_product_fields(report, norms_by_id=norms_by_id)
 
 
+def delete_production_products(report: DailyWorkReport, product_ids: list[int]) -> int:
+    """Xóa các phiên mã hàng/công đoạn khỏi báo cáo (kèm sản lượng theo giờ)."""
+    if not product_ids:
+        return 0
+    ids = {int(i) for i in product_ids if int(i) > 0}
+    if not ids:
+        return 0
+    qs = report.production_products.filter(id__in=ids)
+    count, _detail = qs.delete()
+    return count
+
+
 def update_production_product_fields(
     report: DailyWorkReport,
     *,

@@ -1931,6 +1931,7 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
         can_edit_production_norms,
         can_edit_production_report,
         parse_decimal,
+        delete_production_products,
         update_product_norms,
         update_production_product_fields,
     )
@@ -1971,24 +1972,32 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
         ).exclude(author=request.user).update(is_read=True)
 
     if request.method == 'POST' and request.POST.get('action') == 'update_norms' and can_edit_norm:
+        delete_ids = [
+            int(key[15:])
+            for key, val in request.POST.items()
+            if key.startswith('delete_product_') and val and key[15:].isdigit()
+        ]
+        deleted = delete_production_products(report, delete_ids)
+
         norms = {}
         codes = {}
         processes = {}
+        skip_ids = set(delete_ids)
         for key, value in request.POST.items():
             if key.startswith('norm_'):
                 product_id = key[5:]
-                if not product_id.isdigit():
+                if not product_id.isdigit() or int(product_id) in skip_ids:
                     continue
                 norm = parse_decimal(value)
                 if norm and norm > 0:
                     norms[int(product_id)] = norm
             elif key.startswith('code_'):
                 product_id = key[5:]
-                if product_id.isdigit():
+                if product_id.isdigit() and int(product_id) not in skip_ids:
                     codes[int(product_id)] = value
             elif key.startswith('process_'):
                 product_id = key[8:]
-                if product_id.isdigit():
+                if product_id.isdigit() and int(product_id) not in skip_ids:
                     processes[int(product_id)] = value
         count = update_production_product_fields(
             report,
@@ -1996,7 +2005,14 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
             codes_by_id=codes,
             processes_by_id=processes,
         )
-        if count:
+        if deleted and count:
+            messages.success(
+                request,
+                f'Đã xóa {deleted} công đoạn và cập nhật {count} dòng.',
+            )
+        elif deleted:
+            messages.success(request, f'Đã xóa {deleted} công đoạn.')
+        elif count:
             messages.success(request, f'Đã cập nhật {count} dòng mã hàng / công đoạn.')
         else:
             messages.warning(request, 'Không có thay đổi hợp lệ để cập nhật.')

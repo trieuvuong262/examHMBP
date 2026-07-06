@@ -1623,6 +1623,19 @@ body .modal-backdrop.show {
     color: var(--hm-primary);
 }
 
+.jp-prod-norm-modal-row.is-marked-delete {
+    opacity: 0.5;
+    background: #fef2f2;
+}
+
+.jp-prod-norm-modal-row.is-marked-delete td {
+    text-decoration: line-through;
+}
+
+.jp-prod-summary-row.is-marked-delete {
+    opacity: 0.45;
+}
+
 .jp-prod-norm-edit-wrap {
     display: flex;
     justify-content: flex-end;
