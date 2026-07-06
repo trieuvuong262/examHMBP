@@ -441,6 +441,19 @@ ODOO_MANAGER_GROUPS = [
     ).split(',')
     if g.strip()
 ]
+ODOO_SYSTEM_GROUPS = [
+    g.strip()
+    for g in os.getenv(
+        'ODOO_SYSTEM_GROUPS',
+        'base.group_system,base.group_erp_manager',
+    ).split(',')
+    if g.strip()
+]
+ODOO_ADMIN_USERNAMES = frozenset(
+    u.strip().lower()
+    for u in os.getenv('ODOO_ADMIN_USERNAMES', 'admin,ductn').split(',')
+    if u.strip()
+)
 ODOO_SSO_SECRET = os.getenv('ODOO_SSO_SECRET', '').strip()
 ODOO_SSO_TTL_SECONDS = int(os.getenv('ODOO_SSO_TTL_SECONDS', '120') or '120')
 

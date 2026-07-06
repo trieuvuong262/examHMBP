@@ -43,7 +43,11 @@ def weekly_attachment_upload_to(instance, filename: str) -> str:
 
 @deconstructible
 class WeeklyReportNasStorage(FileSystemStorage):
-    """FileSystemStorage trỏ tới thư mục NAS; vẫn đọc/xóa file cũ trong media VPS."""
+    """FileSystemStorage trỏ tới thư mục NAS.
+
+    Khi NAS mất kết nối, file được ghi tạm trên VPS (``reports.nas_pending``)
+    và đồng bộ về NAS sau; ``file.name`` luôn là đường dẫn NAS chuẩn.
+    """
 
     def __init__(self):
         # location đọc động qua path() — không bake đường dẫn lúc import model
@@ -52,11 +56,23 @@ class WeeklyReportNasStorage(FileSystemStorage):
     def path(self, name: str) -> str:
         if is_legacy_weekly_path(name):
             return str(Path(settings.MEDIA_ROOT) / name)
+        from reports.nas_pending import KIND_WEEKLY, pending_exists, pending_path
+
+        if pending_exists(KIND_WEEKLY, name):
+            return str(pending_path(KIND_WEEKLY, name))
         return str(weekly_report_nas_abs_root() / name)
 
+    def get_available_name(self, name: str, max_length: int | None = None) -> str:
+        # Tên đã chứa uuid → bỏ qua kiểm tra tồn tại (tránh chạm mount NAS treo).
+        return name
+
     def exists(self, name: str) -> bool:
+        from reports.nas_pending import KIND_WEEKLY, pending_exists
+
+        if pending_exists(KIND_WEEKLY, name):
+            return True
         try:
-            return Path(self.path(name)).is_file()
+            return Path(str(weekly_report_nas_abs_root() / name)).is_file()
         except OSError:
             return False
 
@@ -64,7 +80,10 @@ class WeeklyReportNasStorage(FileSystemStorage):
         return Path(self.path(name)).open(mode)
 
     def delete(self, name: str) -> None:
-        path = Path(self.path(name))
+        from reports.nas_pending import KIND_WEEKLY, remove_pending
+
+        remove_pending(KIND_WEEKLY, name)
+        path = Path(str(weekly_report_nas_abs_root() / name))
         try:
             if path.is_file():
                 path.unlink()
@@ -85,21 +104,35 @@ class WeeklyReportNasStorage(FileSystemStorage):
                 else:
                     tmp_file.write(content.read())
 
-            dest = Path(self.path(name))
-            from nas_storage.app_nas_storage import persist_app_nas_file
-
-            persist_app_nas_file(
-                tmp_path=tmp_path,
-                mount_dest=dest,
-                folder_rel_base=weekly_report_nas_rel_base(),
-                file_rel=name,
-            )
+            _persist_weekly_with_fallback(tmp_path, name)
             return name
         finally:
             try:
                 tmp_path.unlink(missing_ok=True)
             except OSError:
                 pass
+
+
+def _persist_weekly_with_fallback(tmp_path: Path, name: str) -> None:
+    """Ghi lên NAS; nếu NAS down/lỗi thì lưu tạm VPS để đồng bộ sau."""
+    from reports.nas_health import mark_storage_unavailable, report_storage_available
+    from reports.nas_pending import KIND_WEEKLY, write_pending
+
+    if report_storage_available():
+        from nas_storage.app_nas_storage import persist_app_nas_file
+
+        try:
+            persist_app_nas_file(
+                tmp_path=tmp_path,
+                mount_dest=weekly_report_nas_abs_root() / name.lstrip('/'),
+                folder_rel_base=weekly_report_nas_rel_base(),
+                file_rel=name,
+            )
+            return
+        except OSError:
+            mark_storage_unavailable()
+
+    write_pending(KIND_WEEKLY, name, tmp_path)
 
 
 def weekly_attachment_abs_path(att) -> Path | None:

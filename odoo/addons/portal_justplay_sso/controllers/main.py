@@ -55,7 +55,7 @@ class PortalJustPlaySSOController(http.Controller):
             return werkzeug.utils.redirect('/web/login?error=sso_expired')
 
         user = request.env['res.users'].sudo().search([
-            ('login', '=', login),
+            ('login', '=ilike', login),
             ('active', '=', True),
         ], limit=1)
         if not user:

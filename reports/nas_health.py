@@ -30,6 +30,13 @@ NAS_STORAGE_UNAVAILABLE_MSG = (
     'file/ảnh lúc này và báo lại bộ phận IT để khắc phục.'
 )
 
+# Thông báo mới: file/ảnh vẫn nhận được nhưng đang lưu tạm trên máy chủ,
+# sẽ tự đồng bộ về NAS khi kết nối phục hồi.
+NAS_STORAGE_PENDING_MSG = (
+    'NAS đang mất kết nối nên file/ảnh được lưu tạm trên máy chủ. '
+    'Hệ thống sẽ tự đồng bộ về NAS khi kết nối phục hồi (bạn không cần gửi lại).'
+)
+
 _CACHE_KEY = 'reports:nas_storage_available'
 _CACHE_TTL_OK = 60
 _CACHE_TTL_DOWN = 20

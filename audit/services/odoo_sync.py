@@ -101,10 +101,29 @@ def _execute(model: str, method: str, *args, **kwargs):
     )
 
 
-def _group_ids_for_user(user) -> list[int]:
+def _odoo_search(model: str, domain: list, *, limit: int | None = None, include_inactive: bool = False):
+    """search Odoo — include_inactive=True để tìm user đã bị vô hiệu hóa trước đó."""
+    kwargs: dict = {}
+    if limit is not None:
+        kwargs['limit'] = limit
+    if include_inactive:
+        kwargs['context'] = {'active_test': False}
+    return _execute(model, 'search', domain, **kwargs)
+
+
+def _is_odoo_admin_portal_user(user) -> bool:
+    """User Portal được giữ toàn bộ nhóm Odoo (không ghi đè khi sync)."""
+    usernames = getattr(settings, 'ODOO_ADMIN_USERNAMES', None) or frozenset({'admin', 'ductn'})
+    return (getattr(user, 'username', None) or '').lower() in {u.lower() for u in usernames}
+
+
+def _group_ids_for_user(user) -> list[int] | None:
+    if _is_odoo_admin_portal_user(user):
+        return None
     xml_ids = list(getattr(settings, 'ODOO_DEFAULT_GROUPS', []) or [])
     if user_can_update_module(user, MODULE_ODOO):
         xml_ids.extend(getattr(settings, 'ODOO_MANAGER_GROUPS', []) or [])
+        xml_ids.extend(getattr(settings, 'ODOO_SYSTEM_GROUPS', []) or [])
     if not xml_ids:
         xml_ids = ['base.group_user']
     seen: set[int] = set()
@@ -157,13 +176,18 @@ def _upsert_odoo_user_record(user, profile, *, password: str | None = None) -> d
         'active': True,
     }
     group_ids = _group_ids_for_user(user)
-    if group_ids:
+    if group_ids is not None:
         vals['groups_id'] = [(6, 0, group_ids)]
 
     created = False
     temp_password = None
     if profile.odoo_user_id:
-        user_ids = _execute('res.users', 'search', [('id', '=', profile.odoo_user_id)], limit=1)
+        user_ids = _odoo_search(
+            'res.users',
+            [('id', '=', profile.odoo_user_id)],
+            limit=1,
+            include_inactive=True,
+        )
         if not user_ids:
             profile.odoo_user_id = None
             profile.save(update_fields=['odoo_user_id'])
@@ -178,7 +202,12 @@ def _upsert_odoo_user_record(user, profile, *, password: str | None = None) -> d
             profile.odoo_password_synced = True
             profile.save(update_fields=['odoo_password_synced'])
     else:
-        existing = _execute('res.users', 'search', [('login', '=', login)], limit=1)
+        existing = _odoo_search(
+            'res.users',
+            [('login', '=ilike', login)],
+            limit=1,
+            include_inactive=True,
+        )
         if existing:
             odoo_id = int(existing[0])
             write_vals = dict(vals)

@@ -13,6 +13,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.contrib import messages
 from django.db.models import Count, Exists, OuterRef, Sum, Q
 
@@ -108,10 +109,13 @@ from reports.navigation import (
     weekly_url_name_for_profile,
 )
 from reports.nas_health import (
+    NAS_STORAGE_PENDING_MSG,
     NAS_STORAGE_UNAVAILABLE_MSG,
     mark_storage_unavailable,
     report_storage_available,
 )
+from reports.nas_pending import count_pending as count_pending_nas_sync
+from reports.nas_pending_sync import maybe_auto_sync, sync_all_pending
 from reports.week_utils import monday_of, parse_week_start, week_end, week_label
 
 from .forms import (
@@ -299,7 +303,9 @@ def _report_context_common(request, report_date, *, report_profile=None, report_
         'yesterday': prev_anchor,
         'can_view_team': can_view_team_reports(request.user) and get_team_report_members(request.user).exists(),
         'storage_unavailable': not report_storage_available(),
+        'nas_pending_count': count_pending_nas_sync(),
     }
+    maybe_auto_sync()
     if report_profile:
         ctx.update(page_tools_context_for_profile(
             report_profile,
@@ -547,7 +553,9 @@ def _weekly_context_common(request, week_start, *, report_profile: str):
         'reports_scope_label': report_profile_label(report_profile),
         'weekly_detail_url_name': weekly_detail_url_name_for_profile(report_profile),
         'storage_unavailable': not report_storage_available(),
+        'nas_pending_count': count_pending_nas_sync(),
     })
+    maybe_auto_sync()
     return ctx
 
 
@@ -748,21 +756,24 @@ def _today_office_report(request, report_date, *, report_period: str = PERIOD_DA
                 or request.FILES.getlist('link_files'),
             )
             if has_uploads:
-                if not report_storage_available():
-                    mark_storage_unavailable()
-                    messages.warning(request, NAS_STORAGE_UNAVAILABLE_MSG)
-                else:
+                nas_ok = report_storage_available()
+                if nas_ok:
                     try:
                         ensure_daily_report_nas_dir()
-                        save_daily_uploads(
-                            report,
-                            link_images=request.FILES.getlist('link_images'),
-                            link_files=request.FILES.getlist('link_files'),
-                        )
-                    except OSError as exc:
-                        logger.exception('Daily report attachment save failed: %s', exc)
-                        mark_storage_unavailable()
-                        messages.warning(request, NAS_STORAGE_UNAVAILABLE_MSG)
+                    except OSError:
+                        nas_ok = False
+                try:
+                    save_daily_uploads(
+                        report,
+                        link_images=request.FILES.getlist('link_images'),
+                        link_files=request.FILES.getlist('link_files'),
+                    )
+                    if not nas_ok or count_pending_nas_sync():
+                        messages.warning(request, NAS_STORAGE_PENDING_MSG)
+                except OSError as exc:
+                    logger.exception('Daily report attachment save failed: %s', exc)
+                    mark_storage_unavailable()
+                    messages.warning(request, NAS_STORAGE_UNAVAILABLE_MSG)
             return redirect(
                 f'{reverse("reports:today_vp")}?{urlencode(period_query_param(report_period, report.report_date))}',
             )
@@ -853,17 +864,20 @@ def _weekly_report(request, *, report_profile: str):
                 messages.success(request, msg)
                 report.save()
                 if image_uploads or file_uploads:
-                    if not report_storage_available():
-                        mark_storage_unavailable()
-                        messages.warning(request, NAS_STORAGE_UNAVAILABLE_MSG)
-                    else:
+                    nas_ok = report_storage_available()
+                    if nas_ok:
                         try:
                             ensure_weekly_report_nas_dir()
-                            save_weekly_uploads(report, image_list=image_uploads, file_list=file_uploads)
-                        except OSError as exc:
-                            logger.exception('Weekly report attachment save failed: %s', exc)
-                            mark_storage_unavailable()
-                            messages.warning(request, NAS_STORAGE_UNAVAILABLE_MSG)
+                        except OSError:
+                            nas_ok = False
+                    try:
+                        save_weekly_uploads(report, image_list=image_uploads, file_list=file_uploads)
+                        if not nas_ok or count_pending_nas_sync():
+                            messages.warning(request, NAS_STORAGE_PENDING_MSG)
+                    except OSError as exc:
+                        logger.exception('Weekly report attachment save failed: %s', exc)
+                        mark_storage_unavailable()
+                        messages.warning(request, NAS_STORAGE_UNAVAILABLE_MSG)
                 return redirect(f'{reverse(weekly_url_name)}?week={week_start.isoformat()}')
     else:
         form = WeeklyWorkReportForm(instance=report)
@@ -1032,6 +1046,39 @@ def ckeditor5_upload(request):
         'fileName': os.path.basename(rel_path),
         'url': url,
     })
+
+
+@_reports_access_required
+@require_POST
+def sync_nas_pending_now(request):
+    """Nút bấm: đẩy file báo cáo lưu tạm trên VPS lên NAS rồi xóa bản tạm."""
+    pending_before = count_pending_nas_sync()
+    if not pending_before:
+        messages.info(request, 'Không có file nào chờ đồng bộ lên NAS.')
+        return _redirect_back(request)
+
+    stats = sync_all_pending()
+    remaining = count_pending_nas_sync()
+    if stats.get('status') == 'nas_down':
+        messages.warning(
+            request,
+            f'NAS chưa sẵn sàng. Đã đồng bộ {stats.get("synced", 0)} file, '
+            f'còn {remaining} file chờ — thử lại sau khi NAS phục hồi.',
+        )
+    elif stats.get('synced'):
+        messages.success(request, f'Đã đồng bộ {stats["synced"]} file lên NAS.')
+    else:
+        messages.info(request, 'Không có file nào được đồng bộ.')
+    return _redirect_back(request)
+
+
+def _redirect_back(request):
+    nxt = request.POST.get('next') or request.META.get('HTTP_REFERER')
+    if nxt and url_has_allowed_host_and_scheme(
+        nxt, allowed_hosts={request.get_host()}, require_https=request.is_secure(),
+    ):
+        return redirect(nxt)
+    return redirect('reports:hub')
 
 
 @_require_submit_access

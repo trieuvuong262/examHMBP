@@ -1,0 +1,11 @@
+[Unit]
+Description=Định kỳ đồng bộ file báo cáo tạm (VPS → NAS)
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=3min
+AccuracySec=30s
+Persistent=true
+
+[Install]
+WantedBy=timers.target

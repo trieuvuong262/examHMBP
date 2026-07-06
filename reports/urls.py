@@ -5,6 +5,7 @@ app_name = 'reports'
 
 urlpatterns = [
     path('', views.report_hub, name='hub'),
+    path('nas/dong-bo/', views.sync_nas_pending_now, name='sync_nas_pending'),
     # Báo cáo ngày — SX (sản xuất)
     path('sx/today/', views.today_report_cn, name='today_cn'),
     path('sx/nhap-ho/', views.proxy_report_entry, name='proxy_cn'),

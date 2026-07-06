@@ -1,0 +1,8 @@
+[Unit]
+Description=Đồng bộ file báo cáo lưu tạm trên VPS lên NAS
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/docker exec portaljustplay-web-1 python manage.py sync_nas_pending
