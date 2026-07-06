@@ -159,6 +159,7 @@ def _persist_comment_with_fallback(tmp_path: Path, name: str) -> None:
                 mount_dest=_abs_root(name) / rel,
                 folder_rel_base=_folder_rel_base(name),
                 file_rel=rel,
+                allow_mount=False,
             )
             return
         except OSError:

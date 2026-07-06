@@ -156,11 +156,10 @@ from .team_utils import (
 from .weekly_preview import file_attachment_preview, link_preview_rows
 from .daily_nas_storage import (
     daily_attachment_abs_path,
-    ensure_daily_report_nas_dir,
     open_daily_attachment,
 )
 from .daily_uploads import copy_daily_attachments, save_daily_uploads
-from .weekly_nas_storage import ensure_weekly_report_nas_dir, open_weekly_attachment, weekly_attachment_abs_path
+from .weekly_nas_storage import open_weekly_attachment, weekly_attachment_abs_path
 from .weekly_uploads import copy_weekly_attachments, save_weekly_uploads, weekly_report_has_content
 
 User = get_user_model()
@@ -746,10 +745,6 @@ def _today_office_report(request, report_date, *, report_period: str = PERIOD_DA
             )
             if has_uploads:
                 try:
-                    ensure_daily_report_nas_dir()
-                except OSError:
-                    pass
-                try:
                     save_daily_uploads(
                         report,
                         link_images=request.FILES.getlist('link_images'),
@@ -848,10 +843,6 @@ def _weekly_report(request, *, report_profile: str):
                 messages.success(request, msg)
                 report.save()
                 if image_uploads or file_uploads:
-                    try:
-                        ensure_weekly_report_nas_dir()
-                    except OSError:
-                        pass
                     try:
                         save_weekly_uploads(report, image_list=image_uploads, file_list=file_uploads)
                     except OSError as exc:

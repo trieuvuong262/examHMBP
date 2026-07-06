@@ -171,6 +171,7 @@ def _persist_daily_with_fallback(tmp_path: Path, name: str) -> None:
                 mount_dest=abs_root / rel.lstrip('/'),
                 folder_rel_base=rel_base,
                 file_rel=rel,
+                allow_mount=False,
             )
             return
         except OSError:

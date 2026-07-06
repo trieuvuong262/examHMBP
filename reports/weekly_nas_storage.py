@@ -127,6 +127,7 @@ def _persist_weekly_with_fallback(tmp_path: Path, name: str) -> None:
                 mount_dest=weekly_report_nas_abs_root() / name.lstrip('/'),
                 folder_rel_base=weekly_report_nas_rel_base(),
                 file_rel=name,
+                allow_mount=False,
             )
             return
         except OSError:

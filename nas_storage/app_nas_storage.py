@@ -18,33 +18,53 @@ def persist_app_nas_file(
     mount_dest: Path,
     folder_rel_base: str,
     file_rel: str,
+    allow_mount: bool = True,
 ) -> None:
-    """Lưu file ứng dụng (báo cáo, thông báo) lên NAS."""
+    """Lưu file ứng dụng (báo cáo, thông báo) lên NAS.
+
+    ``allow_mount=False``: KHÔNG đụng mount FUSE (``shutil.copyfile``) — chỉ dùng
+    rclone/DSM qua mạng. Cần cho báo cáo: khi NAS vừa rớt mà mount FUSE treo (D-state),
+    thao tác trên mount treo vĩnh viễn làm kẹt worker; rclone có timeout nên fail an toàn.
+    """
     tmp_path = Path(tmp_path)
     mount_dest = Path(mount_dest)
     file_rel = (file_rel or '').lstrip('/')
     folder_rel_base = (folder_rel_base or '').strip('/')
 
-    try:
-        mount_dest.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(tmp_path, mount_dest)
-        return
-    except OSError:
-        pass
+    if allow_mount:
+        try:
+            mount_dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(tmp_path, mount_dest)
+            return
+        except OSError:
+            pass
 
     target = app_storage_rclone_target(folder_rel_base, file_rel)
-    proc = subprocess.run(
-        ['rclone', 'copyto', str(tmp_path), target],
-        capture_output=True,
-        text=True,
-        timeout=600,
-        check=False,
-        env=_rclone_env(),
-    )
-    if proc.returncode == 0:
+    rclone_cmd = ['rclone', 'copyto', str(tmp_path), target]
+    if not allow_mount:
+        # Fail nhanh khi NAS mất kết nối để rơi về lưu tạm, không treo request.
+        rclone_cmd += [
+            '--contimeout', '5s',
+            '--timeout', '30s',
+            '--retries', '1',
+            '--low-level-retries', '1',
+        ]
+    try:
+        proc = subprocess.run(
+            rclone_cmd,
+            capture_output=True,
+            text=True,
+            timeout=600 if allow_mount else 90,
+            check=False,
+            env=_rclone_env(),
+        )
+        rclone_err = '' if proc.returncode == 0 else (proc.stderr or proc.stdout or '').strip()
+    except subprocess.TimeoutExpired:
+        proc = None
+        rclone_err = 'rclone timeout'
+    if proc is not None and proc.returncode == 0:
         return
 
-    rclone_err = (proc.stderr or proc.stdout or '').strip()
     full_rel = f'{folder_rel_base}/{file_rel}' if folder_rel_base and file_rel else folder_rel_base or file_rel
     try:
         dsm_upload_nas_rel(tmp_path, full_rel)
