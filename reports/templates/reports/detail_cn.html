@@ -3,14 +3,15 @@
 
 {% block detail_extra_head %}
 <link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260624a">
-<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260706c">
+<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260706d">
 {% endblock %}
 
 {% block detail_body %}
     {% if can_edit_norm and productivity and productivity.has_data %}
-    <form method="post" id="jp-prod-norm-form">
+    <form method="post" id="jp-prod-norm-form" class="d-none" aria-hidden="true">
         {% csrf_token %}
         <input type="hidden" name="action" value="update_norms">
+    </form>
     {% endif %}
 
     {% if productivity and productivity.has_data or hourly_grid %}
@@ -48,9 +49,6 @@
                 </div>
                 <div class="jp-report-tab-body">
                     {% include 'reports/includes/production_productivity_report.html' with can_edit_norm=can_edit_norm %}
-                    {% if can_edit_norm %}
-                    {% include 'reports/includes/production_norm_edit_modal.html' %}
-                    {% endif %}
                 </div>
                 {% else %}
                 <div class="jp-report-tab-body text-center text-muted py-5">Chưa có dữ liệu năng suất.</div>
@@ -83,8 +81,9 @@
             {% endif %}
         </div>
     </div>
+
     {% if can_edit_norm and productivity and productivity.has_data %}
-    </form>
+    {% include 'reports/includes/production_norm_edit_modal.html' %}
     {% endif %}
 
     {% elif not hourly_grid %}
@@ -186,6 +185,9 @@
     }
 
     var modal = document.getElementById('jpProdNormModal');
+    if (modal && modal.parentElement !== document.body) {
+        document.body.appendChild(modal);
+    }
     var normInputs = document.querySelectorAll('#jpProdNormModal .jp-prod-norm-input[data-product-id]');
     var codeInputs = document.querySelectorAll('#jpProdNormModal .jp-prod-code-input[data-product-id]');
     var processInputs = document.querySelectorAll('#jpProdNormModal .jp-prod-process-input[data-product-id]');

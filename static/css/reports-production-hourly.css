@@ -88,7 +88,7 @@ body.jp-prod-hourly-review .jp-app-footer {
 }
 
 .jp-prod-modal {
-    z-index: 1065 !important;
+    z-index: 1090 !important;
 }
 
 .jp-prod-modal.show {
@@ -96,11 +96,11 @@ body.jp-prod-hourly-review .jp-app-footer {
 }
 
 body .modal-backdrop.show {
-    z-index: 1060 !important;
+    z-index: 1085 !important;
 }
 
 .jp-prod-modal .modal-dialog {
-    z-index: 1066;
+    z-index: 1091;
     position: relative;
 }
 
