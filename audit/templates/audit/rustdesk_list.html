@@ -76,7 +76,7 @@
                         <th>RustDesk ID</th>
                         <th>Mật khẩu</th>
                         <th>Phòng ban</th>
-                        <th style="min-width: 8rem">Thao tác</th>
+                        <th style="min-width: 9.5rem">Thao tác</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -146,6 +146,17 @@
                                     <i class="bi bi-pencil"></i>
                                 </a>
                                 {% endif %}
+                                {% if can_delete_rustdesk %}
+                                <form method="post"
+                                      action="{% url 'audit:rustdesk_delete' host.pk %}"
+                                      class="d-inline jp-rd-delete-form"
+                                      onsubmit="return confirm('Xóa máy RustDesk «{{ host.name|escapejs }}»?');">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Xóa">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
                             </div>
                         </td>
                     </tr>
@@ -194,6 +205,25 @@
     document.querySelectorAll('.jp-rd-copy').forEach(function (btn) {
         btn.addEventListener('click', function () {
             copyText(btn.getAttribute('data-copy'), btn.getAttribute('data-copy-label'), btn);
+        });
+    });
+
+    function buildRustDeskConnectUrl(id, password) {
+        var digits = (id || '').replace(/\D/g, '');
+        if (!digits) return '';
+        var base = 'rustdesk://connection/new/' + digits;
+        if (!password) return base;
+        return base + '?password=' + encodeURIComponent(password);
+    }
+
+    document.querySelectorAll('.jp-rd-connect-btn').forEach(function (btn) {
+        btn.addEventListener('click', function (event) {
+            var id = btn.getAttribute('data-rd-id') || '';
+            var password = btn.getAttribute('data-rd-password') || '';
+            var url = buildRustDeskConnectUrl(id, password) || btn.getAttribute('href') || '';
+            if (!url || url === '#') return;
+            event.preventDefault();
+            window.location.href = url;
         });
     });
 

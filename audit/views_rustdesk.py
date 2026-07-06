@@ -73,6 +73,7 @@ def rustdesk_list(request):
         'filtered_count': filtered_count,
         'can_connect_rustdesk': _can_connect(request.user),
         'can_edit_rustdesk': _can_connect(request.user),
+        'can_delete_rustdesk': _can_delete(request.user),
         'rustdesk_online_check': getattr(settings, 'RUSTDESK_ONLINE_CHECK_ENABLED', True),
         'rustdesk_online_poll_sec': getattr(settings, 'RUSTDESK_ONLINE_POLL_SEC', 5),
         'rustdesk_wol_enabled': getattr(settings, 'RUSTDESK_WOL_ENABLED', True),

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from urllib.parse import urlencode
+from urllib.parse import quote
 
 from django.conf import settings
 
@@ -28,5 +28,6 @@ def build_rustdesk_connect_url(rustdesk_id: str, password: str = '') -> str:
 
     pwd = effective_rustdesk_password(password)
     if pwd:
-        return f'{path}?{urlencode({"password": pwd})}'
+        # quote(safe='') — tránh quote_plus biến khoảng trắng thành '+' (RustDesk có thể hiểu sai).
+        return f'{path}?password={quote(pwd, safe="")}'
     return path
