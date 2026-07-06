@@ -150,6 +150,41 @@ def sanitize_document_html_for_storage(html: str) -> str:
     return strip_ckeditor_widget_markup(html or '')
 
 
+def remove_missing_ckeditor_inline_images(
+    html: str,
+    *,
+    exists=None,
+) -> tuple[str, int]:
+    """Gỡ thẻ ``<img>`` trỏ tới ``reports/ckeditor5/...`` khi file không còn."""
+    if not html:
+        return '', 0
+
+    def default_exists(relpath: str) -> bool:
+        from pathlib import Path
+
+        from django.conf import settings
+
+        return (Path(settings.MEDIA_ROOT) / relpath).is_file()
+
+    exists_fn = exists or default_exists
+    removed = 0
+
+    def repl_img(match):
+        nonlocal removed
+        tag = match.group(0)
+        src = _extract_html_attr(tag, 'src')
+        saved = _extract_html_attr(tag, 'data-cke-saved-src')
+        for url in (saved, src):
+            relpath = _ckeditor_relpath_from_url(url)
+            if relpath and not exists_fn(relpath):
+                removed += 1
+                return ''
+        return tag
+
+    new_html = re.sub(r'<img\b[^>]*>', repl_img, html, flags=re.I)
+    return new_html, removed
+
+
 def prepare_document_html_for_display(html: str, report, request) -> str:
     if not html:
         return ''
