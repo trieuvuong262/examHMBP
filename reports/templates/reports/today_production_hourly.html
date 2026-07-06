@@ -170,7 +170,7 @@
                     <strong id="review-grand-total-mobile">{{ hourly_grid.grand_total|default:0|prod_qty }}</strong>
                 </div>
                 <div class="d-grid gap-2">
-                    <form method="post" class="mb-0" id="review-submit-form">
+                    <form method="post" class="mb-0 js-report-submit-form" id="review-submit-form">
                         {% csrf_token %}
                         <input type="hidden" name="action" value="submit">
                         <input type="hidden" name="review_json" id="review-json-input">
@@ -188,7 +188,7 @@
                     <span class="text-muted">Tổng ngày</span>
                     <strong id="review-grand-total-desktop">{{ hourly_grid.grand_total|default:0|prod_qty }}</strong>
                 </div>
-                <form method="post" class="mb-0 ms-auto" id="review-submit-form-desktop">
+                <form method="post" class="mb-0 ms-auto js-report-submit-form" id="review-submit-form-desktop">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="submit">
                     <input type="hidden" name="review_json" id="review-json-input-desktop">
@@ -387,7 +387,7 @@
                 </div>
                 {% endif %}
                 {% if can_add_entry and not has_unfinalized %}
-                <form method="post" class="mb-0 js-prod-submit-form" id="review-submit-form">
+                <form method="post" class="mb-0 js-prod-submit-form js-report-submit-form" id="review-submit-form">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="submit">
                     <input type="hidden" name="review_json" id="review-json-input">
@@ -413,7 +413,7 @@
                     {% include 'reports/includes/production_resume_entry_button.html' with btn_class='px-4' form_class='mb-0' %}
                 </div>
                 {% elif can_add_entry and not has_unfinalized %}
-                <form method="post" class="mb-0 ms-auto js-prod-submit-form" id="review-submit-form-desktop">
+                <form method="post" class="mb-0 ms-auto js-prod-submit-form js-report-submit-form" id="review-submit-form-desktop">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="submit">
                     <input type="hidden" name="review_json" id="review-json-input-desktop">
@@ -481,6 +481,7 @@
 </div>
 {% endif %}
 
+{% include 'reports/includes/report_submit_loading.html' %}
 {% if hourly_grid %}{{ hourly_grid|json_script:"hourly-grid-data" }}{% endif %}
-<script src="{% static 'js/reports-production-hourly.js' %}?v=20260704a"></script>
+<script src="{% static 'js/reports-production-hourly.js' %}?v=20260706a"></script>
 {% endblock %}

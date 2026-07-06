@@ -26,7 +26,7 @@
     {% endif %}
 
     <form method="post" id="weekly-report-form" enctype="multipart/form-data"
-          class="{% if not can_edit %}jp-report-locked{% endif %}">
+          class="js-report-submit-form {% if not can_edit %}jp-report-locked{% endif %}">
         {% csrf_token %}
 
         <div class="jp-weekly-hero card border-0 shadow-sm mb-3">
@@ -136,6 +136,8 @@
         </div>
         {% endif %}
     </form>
+
+    {% include 'reports/includes/report_submit_loading.html' %}
 </div>
 {% endblock %}
 

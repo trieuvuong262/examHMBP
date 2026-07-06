@@ -46,7 +46,7 @@
     {% endif %}
 
     <form method="post" id="office-report-form" enctype="multipart/form-data"
-          class="{% if not can_edit %}jp-report-locked{% endif %}"
+          class="js-report-submit-form {% if not can_edit %}jp-report-locked{% endif %}"
           data-ck-upload-url="{% url 'reports:ckeditor5_upload' %}"
           data-ck-browse-url=""
           {% if not can_edit %}data-report-locked="1"{% endif %}>
@@ -111,6 +111,8 @@
         </div>
         {% endif %}
     </form>
+
+    {% include 'reports/includes/report_submit_loading.html' %}
 </div>
 {% endblock %}
 

@@ -238,6 +238,11 @@
                 if (!pendingForm) return;
                 fillReviewPayload();
                 modal.hide();
+                if (window.JpReportSubmitLoading) {
+                    JpReportSubmitLoading.syncCkEditor();
+                    JpReportSubmitLoading.show('Đang gửi báo cáo...');
+                    JpReportSubmitLoading.disableSubmitControls(pendingForm);
+                }
                 pendingForm.submit();
                 pendingForm = null;
             });

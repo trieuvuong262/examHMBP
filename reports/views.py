@@ -747,18 +747,22 @@ def _today_office_report(request, report_date, *, report_period: str = PERIOD_DA
                 request.FILES.getlist('link_images')
                 or request.FILES.getlist('link_files'),
             )
-            try:
-                ensure_daily_report_nas_dir()
-                save_daily_uploads(
-                    report,
-                    link_images=request.FILES.getlist('link_images'),
-                    link_files=request.FILES.getlist('link_files'),
-                )
-            except OSError as exc:
-                logger.exception('Daily report attachment save failed: %s', exc)
-                mark_storage_unavailable()
-                if has_uploads:
+            if has_uploads:
+                if not report_storage_available():
+                    mark_storage_unavailable()
                     messages.warning(request, NAS_STORAGE_UNAVAILABLE_MSG)
+                else:
+                    try:
+                        ensure_daily_report_nas_dir()
+                        save_daily_uploads(
+                            report,
+                            link_images=request.FILES.getlist('link_images'),
+                            link_files=request.FILES.getlist('link_files'),
+                        )
+                    except OSError as exc:
+                        logger.exception('Daily report attachment save failed: %s', exc)
+                        mark_storage_unavailable()
+                        messages.warning(request, NAS_STORAGE_UNAVAILABLE_MSG)
             return redirect(
                 f'{reverse("reports:today_vp")}?{urlencode(period_query_param(report_period, report.report_date))}',
             )
@@ -848,14 +852,18 @@ def _weekly_report(request, *, report_profile: str):
                 msg = _finalize_report_submission(report, action)
                 messages.success(request, msg)
                 report.save()
-                try:
-                    ensure_weekly_report_nas_dir()
-                    save_weekly_uploads(report, image_list=image_uploads, file_list=file_uploads)
-                except OSError as exc:
-                    logger.exception('Weekly report attachment save failed: %s', exc)
-                    mark_storage_unavailable()
-                    if image_uploads or file_uploads:
+                if image_uploads or file_uploads:
+                    if not report_storage_available():
+                        mark_storage_unavailable()
                         messages.warning(request, NAS_STORAGE_UNAVAILABLE_MSG)
+                    else:
+                        try:
+                            ensure_weekly_report_nas_dir()
+                            save_weekly_uploads(report, image_list=image_uploads, file_list=file_uploads)
+                        except OSError as exc:
+                            logger.exception('Weekly report attachment save failed: %s', exc)
+                            mark_storage_unavailable()
+                            messages.warning(request, NAS_STORAGE_UNAVAILABLE_MSG)
                 return redirect(f'{reverse(weekly_url_name)}?week={week_start.isoformat()}')
     else:
         form = WeeklyWorkReportForm(instance=report)

@@ -9,6 +9,7 @@ chỉ phần đính kèm file/ảnh mới cần NAS.
 from __future__ import annotations
 
 import logging
+import subprocess
 
 from django.core.cache import cache
 
@@ -23,13 +24,36 @@ NAS_STORAGE_UNAVAILABLE_MSG = (
 _CACHE_KEY = 'reports:nas_storage_available'
 _CACHE_TTL_OK = 60
 _CACHE_TTL_DOWN = 30
+_PROBE_TIMEOUT_SEC = 3.0
+
+
+def _probe_mount_responsive() -> bool:
+    """Đọc thử mount — phát hiện NFS treo khi NAS mất kết nối."""
+    from nas_storage.nas_paths import nas_is_available, nas_mount_root
+
+    if not nas_is_available():
+        return False
+
+    root = str(nas_mount_root())
+    try:
+        proc = subprocess.run(
+            ['ls', '-1', root],
+            capture_output=True,
+            text=True,
+            timeout=_PROBE_TIMEOUT_SEC,
+            check=False,
+        )
+        return proc.returncode == 0
+    except subprocess.TimeoutExpired:
+        logger.warning('NAS mount không phản hồi trong %.1fs', _PROBE_TIMEOUT_SEC)
+        return False
+    except OSError:
+        return False
 
 
 def _probe() -> bool:
     try:
-        from nas_storage.nas_paths import nas_is_available
-
-        return bool(nas_is_available())
+        return _probe_mount_responsive()
     except Exception:  # noqa: BLE001 - probe không được phép làm sập trang
         logger.exception('Probe NAS storage thất bại')
         return False
