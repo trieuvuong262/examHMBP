@@ -14,7 +14,6 @@ import re
 import subprocess
 
 from django.core.management.base import BaseCommand
-from django.db import transaction
 
 from reports.daily_nas_storage import (
     OFFICE_MONTH_PREFIX,
