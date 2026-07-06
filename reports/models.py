@@ -80,8 +80,8 @@ class DailyWorkReport(models.Model):
     class Meta:
         ordering = ['-report_date', '-updated_at']
         unique_together = ('employee', 'report_date', 'report_profile', 'report_period', 'shift')
-        verbose_name = 'Báo cáo công việc ngày'
-        verbose_name_plural = 'Báo cáo công việc ngày'
+        verbose_name = 'Báo cáo công việc'
+        verbose_name_plural = 'Báo cáo công việc'
 
     def __str__(self):
         return f'{self.employee} - {self.report_date}'
@@ -135,7 +135,7 @@ class DailyWorkReportAttachment(models.Model):
         DailyWorkReport,
         on_delete=models.CASCADE,
         related_name='attachments',
-        verbose_name='Báo cáo ngày',
+        verbose_name='Báo cáo',
     )
     source_tab = models.CharField(max_length=10, choices=SOURCE_TAB_CHOICES)
     kind = models.CharField(max_length=10, choices=KIND_CHOICES)
@@ -149,8 +149,8 @@ class DailyWorkReportAttachment(models.Model):
 
     class Meta:
         ordering = ['created_at', 'id']
-        verbose_name = 'Đính kèm báo cáo ngày'
-        verbose_name_plural = 'Đính kèm báo cáo ngày'
+        verbose_name = 'Đính kèm báo cáo'
+        verbose_name_plural = 'Đính kèm báo cáo'
 
     def __str__(self):
         return self.display_name
@@ -369,8 +369,8 @@ class WeeklyWorkReport(models.Model):
     class Meta:
         ordering = ['-week_start', '-updated_at']
         unique_together = ('employee', 'week_start')
-        verbose_name = 'Báo cáo công việc tuần'
-        verbose_name_plural = 'Báo cáo công việc tuần'
+        verbose_name = 'Báo cáo tuần (sản xuất)'
+        verbose_name_plural = 'Báo cáo tuần (sản xuất)'
 
     def __str__(self):
         return f'{self.employee} - tuần {self.week_start}'
@@ -424,8 +424,8 @@ class WeeklyWorkReportAttachment(models.Model):
 
     class Meta:
         ordering = ['created_at', 'id']
-        verbose_name = 'Đính kèm báo cáo tuần'
-        verbose_name_plural = 'Đính kèm báo cáo tuần'
+        verbose_name = 'Đính kèm báo cáo tuần (SX)'
+        verbose_name_plural = 'Đính kèm báo cáo tuần (SX)'
 
     def __str__(self):
         return self.display_name
@@ -455,7 +455,7 @@ class ReportComment(models.Model):
         related_name='comments',
         null=True,
         blank=True,
-        verbose_name='Báo cáo ngày',
+        verbose_name='Báo cáo',
     )
     weekly_report = models.ForeignKey(
         WeeklyWorkReport,
