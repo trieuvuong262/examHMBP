@@ -52,6 +52,8 @@ urlpatterns = [
     path('weekly/<int:pk>/', views.weekly_report_detail_redirect, name='weekly_detail'),
     path('weekly/file/<int:pk>/', views.weekly_attachment_serve, name='weekly_attachment'),
     path('weekly/file/<int:pk>/preview/', views.weekly_attachment_preview, name='weekly_attachment_preview'),
+    path('comment/file/<int:pk>/', views.comment_attachment_serve, name='comment_attachment'),
+    path('comment/file/<int:pk>/preview/', views.comment_attachment_preview, name='comment_attachment_preview'),
     # Legacy — chuyển hướng sang SX/VP
     path('today/', views.today_report, name='today'),
     path('team/', views.team_reports, name='team'),

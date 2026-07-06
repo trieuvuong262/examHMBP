@@ -1,0 +1,11 @@
+{% if storage_unavailable %}
+<div class="alert alert-warning border-0 shadow-sm d-flex align-items-start gap-2 mb-3" role="alert">
+    <i class="bi bi-exclamation-triangle-fill fs-5 mt-1" aria-hidden="true"></i>
+    <div class="small">
+        <strong>Kết nối thư mục lưu trữ (NAS) đang gặp sự cố.</strong>
+        Bạn vẫn gửi được báo cáo bằng <strong>văn bản</strong> và <strong>bảng</strong> —
+        vui lòng <strong>không đính kèm file/ảnh</strong> lúc này và
+        <strong>báo lại bộ phận IT</strong> để khắc phục.
+    </div>
+</div>
+{% endif %}

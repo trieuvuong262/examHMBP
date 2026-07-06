@@ -1,0 +1,19 @@
+{% load report_extras %}
+{% if attachments %}
+<div class="jp-report-comment-attachments mt-2">
+    {% for att in attachments %}
+    {% with item=att|attachment_file_preview %}
+    {% if item.type == 'image' %}
+    <a href="{{ item.url }}" class="jp-report-comment-attach-image" target="_blank" rel="noopener noreferrer" title="{{ item.name }}">
+        <img src="{{ item.preview_url }}" alt="{{ item.name }}" loading="lazy">
+    </a>
+    {% else %}
+    <a href="{{ item.download_url|default:item.url }}" class="jp-report-comment-attach-file" download="{{ item.name }}" title="Tải {{ item.name }}">
+        <i class="bi bi-paperclip" aria-hidden="true"></i>
+        <span>{{ item.name }}</span>
+    </a>
+    {% endif %}
+    {% endwith %}
+    {% endfor %}
+</div>
+{% endif %}

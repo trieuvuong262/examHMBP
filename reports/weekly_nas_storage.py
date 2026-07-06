@@ -106,20 +106,26 @@ def weekly_attachment_abs_path(att) -> Path | None:
     name = att.file.name
     if not name:
         return None
-    path = Path(WeeklyReportNasStorage().path(name))
+    return weekly_nas_abs_path(name)
+
+
+def weekly_nas_abs_path(rel_name: str) -> Path | None:
+    if not rel_name:
+        return None
+    path = Path(WeeklyReportNasStorage().path(rel_name))
     try:
         if path.is_file():
             return path
     except OSError:
         pass
-    cached = _rclone_cache_path(name)
+    cached = _rclone_cache_path(rel_name)
     if cached.is_file():
         return cached
     try:
-        return _rclone_download_to_cache(name)
+        return _rclone_download_to_cache(rel_name)
     except OSError:
         pass
-    return _dsm_download_to_cache(name)
+    return _dsm_download_to_cache(rel_name)
 
 
 def _dsm_download_to_cache(rel_name: str) -> Path | None:

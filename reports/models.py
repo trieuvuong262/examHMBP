@@ -9,6 +9,7 @@ from reports.report_profile import (
     REPORT_PROFILE_OFFICE,
     REPORT_PROFILE_PRODUCTION,
 )
+from reports.comment_nas_storage import ReportCommentNasStorage, comment_attachment_upload_to
 from reports.daily_nas_storage import DailyReportNasStorage, daily_attachment_upload_to
 from reports.weekly_nas_storage import WeeklyReportNasStorage, weekly_attachment_upload_to
 
@@ -480,3 +481,49 @@ class ReportComment(models.Model):
 
     def __str__(self):
         return f'{self.author} · {self.created_at:%d/%m/%Y %H:%M}'
+
+
+class ReportCommentAttachment(models.Model):
+    KIND_FILE = 'FILE'
+    KIND_IMAGE = 'IMAGE'
+    KIND_CHOICES = [
+        (KIND_FILE, 'File'),
+        (KIND_IMAGE, 'Ảnh'),
+    ]
+
+    comment = models.ForeignKey(
+        ReportComment,
+        on_delete=models.CASCADE,
+        related_name='attachments',
+        verbose_name='Nhận xét',
+    )
+    kind = models.CharField(max_length=10, choices=KIND_CHOICES)
+    file = models.FileField(
+        upload_to=comment_attachment_upload_to,
+        storage=ReportCommentNasStorage(),
+    )
+    original_name = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at', 'id']
+        verbose_name = 'Đính kèm nhận xét'
+        verbose_name_plural = 'Đính kèm nhận xét'
+
+    def __str__(self):
+        return self.display_name
+
+    @property
+    def display_name(self):
+        return self.original_name or os.path.basename(self.file.name)
+
+    @property
+    def file_url(self):
+        from django.urls import reverse
+        if not self.pk:
+            return ''
+        return reverse('reports:comment_attachment', kwargs={'pk': self.pk})
+
+    @property
+    def is_image(self):
+        return self.kind == self.KIND_IMAGE

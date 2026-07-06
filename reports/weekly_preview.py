@@ -61,8 +61,11 @@ def link_preview_rows(links_text: str) -> list[dict]:
 
 
 def _preview_route_for(att) -> str:
-    if att.__class__.__name__ == 'WeeklyWorkReportAttachment':
+    class_name = att.__class__.__name__
+    if class_name == 'WeeklyWorkReportAttachment':
         return 'reports:weekly_attachment_preview'
+    if class_name == 'ReportCommentAttachment':
+        return 'reports:comment_attachment_preview'
     return 'reports:daily_attachment_preview'
 
 

@@ -2,6 +2,7 @@
   Luồng nhận xét hai chiều trên báo cáo (quản lý ⇄ nhân viên).
   Context cần: comments, can_comment, report, request.user, (tùy chọn) team_list_query.
 {% endcomment %}
+{% load report_extras %}
 <div class="jp-report-comments mb-4">
     <div class="jp-report-comments-head">
         <i class="bi bi-chat-dots-fill me-2" aria-hidden="true"></i>
@@ -19,7 +20,10 @@
                     <span class="jp-report-comment-role jp-role-employee">Nhân viên</span>
                     <span class="jp-report-comment-time">{{ c.created_at|date:"H:i d/m/Y" }}</span>
                 </div>
+                {% if c.body %}
                 <div class="jp-report-comment-body">{{ c.body|linebreaksbr }}</div>
+                {% endif %}
+                {% include 'reports/includes/report_comment_attachments.html' with attachments=c.attachments.all %}
             </div>
         </div>
         {% else %}
@@ -30,7 +34,10 @@
                     <span class="jp-report-comment-role jp-role-manager">Quản lý</span>
                     <span class="jp-report-comment-time">{{ c.created_at|date:"H:i d/m/Y" }}</span>
                 </div>
+                {% if c.body %}
                 <div class="jp-report-comment-body">{{ c.body|linebreaksbr }}</div>
+                {% endif %}
+                {% include 'reports/includes/report_comment_attachments.html' with attachments=c.attachments.all %}
             </div>
         </div>
         {% endif %}
@@ -42,17 +49,38 @@
     </div>
 
     {% if can_comment %}
-    <form method="post" class="jp-report-comment-form">
+    <form method="post" enctype="multipart/form-data" class="jp-report-comment-form">
         {% csrf_token %}
         <input type="hidden" name="action" value="add_comment">
         {% if team_list_query %}<input type="hidden" name="team_list_query" value="{{ team_list_query }}">{% endif %}
         <textarea name="comment_body" class="form-control jp-report-comment-input" rows="2"
-                  placeholder="Nhập nhận xét hoặc phản hồi..." required></textarea>
-        <div class="d-flex justify-content-end mt-2">
-            <button type="submit" class="btn btn-hm btn-sm fw-bold">
+                  placeholder="Nhập nhận xét hoặc phản hồi..."></textarea>
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-2">
+            <div class="d-flex flex-wrap align-items-center gap-2 min-w-0">
+                <label class="btn btn-outline-secondary btn-sm fw-bold mb-0 jp-report-comment-attach-btn">
+                    <i class="bi bi-paperclip me-1" aria-hidden="true"></i>Đính kèm
+                    <input type="file" name="comment_files" class="d-none jp-report-comment-file-input" multiple>
+                </label>
+                <span class="jp-report-comment-file-list small text-muted text-truncate"></span>
+            </div>
+            <button type="submit" class="btn btn-hm btn-sm fw-bold flex-shrink-0">
                 <i class="bi bi-send me-1" aria-hidden="true"></i>Gửi
             </button>
         </div>
     </form>
+    <script>
+    (function () {
+        const root = document.currentScript && document.currentScript.previousElementSibling;
+        const form = root && root.classList.contains('jp-report-comment-form') ? root : null;
+        if (!form) return;
+        const input = form.querySelector('.jp-report-comment-file-input');
+        const list = form.querySelector('.jp-report-comment-file-list');
+        if (!input || !list) return;
+        input.addEventListener('change', function () {
+            const names = Array.from(input.files || []).map(function (f) { return f.name; });
+            list.textContent = names.length ? (names.length + ' file: ' + names.join(', ')) : '';
+        });
+    })();
+    </script>
     {% endif %}
 </div>

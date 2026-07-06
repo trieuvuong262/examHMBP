@@ -107,6 +107,11 @@ from reports.navigation import (
     weekly_url_for_user,
     weekly_url_name_for_profile,
 )
+from reports.nas_health import (
+    NAS_STORAGE_UNAVAILABLE_MSG,
+    mark_storage_unavailable,
+    report_storage_available,
+)
 from reports.week_utils import monday_of, parse_week_start, week_end, week_label
 
 from .forms import (
@@ -115,7 +120,14 @@ from .forms import (
     OfficeDailyWorkReportForm,
     WeeklyWorkReportForm,
 )
-from .models import DailyWorkReport, DailyWorkReportAttachment, ReportComment, WeeklyWorkReport, WeeklyWorkReportAttachment
+from .models import (
+    DailyWorkReport,
+    DailyWorkReportAttachment,
+    ReportComment,
+    ReportCommentAttachment,
+    WeeklyWorkReport,
+    WeeklyWorkReportAttachment,
+)
 from .team_sort import (
     build_team_table_columns,
     resolve_team_sort,
@@ -286,6 +298,7 @@ def _report_context_common(request, report_date, *, report_profile=None, report_
         ).exists(),
         'yesterday': prev_anchor,
         'can_view_team': can_view_team_reports(request.user) and get_team_report_members(request.user).exists(),
+        'storage_unavailable': not report_storage_available(),
     }
     if report_profile:
         ctx.update(page_tools_context_for_profile(
@@ -393,6 +406,61 @@ def _weekly_attachments(report):
     return images, files
 
 
+def _report_comments_queryset(report):
+    return report.comments.select_related('author', 'author__profile').prefetch_related('attachments')
+
+
+def _handle_add_report_comment(request, *, report, can_review, redirect_fn, daily_report=None, weekly_report=None):
+    from reports.comment_uploads import save_comment_attachments
+
+    body = (request.POST.get('comment_body') or '').strip()
+    uploaded_files = [f for f in request.FILES.getlist('comment_files') if f]
+    if not body and not uploaded_files:
+        messages.warning(request, 'Nhập nội dung hoặc chọn file đính kèm.')
+        return redirect_fn()
+
+    create_kwargs = {'author': request.user, 'body': body}
+    if daily_report is not None:
+        create_kwargs['daily_report'] = daily_report
+    else:
+        create_kwargs['weekly_report'] = weekly_report
+    comment = ReportComment.objects.create(**create_kwargs)
+    try:
+        save_comment_attachments(comment, uploaded_files)
+    except OSError as exc:
+        logger.exception('Comment attachment save failed: %s', exc)
+        mark_storage_unavailable()
+        if uploaded_files:
+            messages.warning(request, NAS_STORAGE_UNAVAILABLE_MSG)
+        if not body:
+            comment.delete()
+            return redirect_fn()
+
+    if can_review and report.status == report.STATUS_SUBMITTED and not report.hod_reviewed:
+        report.hod_reviewed = True
+        report.save(update_fields=['hod_reviewed', 'updated_at'])
+    messages.success(request, 'Đã gửi nhận xét.')
+    return redirect_fn()
+
+
+def _comment_attachment_report(att):
+    comment = att.comment
+    if comment.daily_report_id:
+        return comment.daily_report, 'daily'
+    return comment.weekly_report, 'weekly'
+
+
+def _can_view_comment_attachment(user, att) -> bool:
+    report, kind = _comment_attachment_report(att)
+    if kind == 'daily':
+        if not can_view_user_report(user, report):
+            return False
+        return daily_report_visible_to_team(report) or report.employee_id == user.id
+    if not can_view_user_weekly_report(user, report):
+        return False
+    return weekly_report_visible_to_team(report) or report.employee_id == user.id
+
+
 def _delete_weekly_attachments(report, attachment_ids):
     if not attachment_ids:
         return 0
@@ -478,6 +546,7 @@ def _weekly_context_common(request, week_start, *, report_profile: str):
         'can_view_team': can_view_team_reports(request.user) and get_team_report_members(request.user).exists(),
         'reports_scope_label': report_profile_label(report_profile),
         'weekly_detail_url_name': weekly_detail_url_name_for_profile(report_profile),
+        'storage_unavailable': not report_storage_available(),
     })
     return ctx
 
@@ -674,8 +743,12 @@ def _today_office_report(request, report_date, *, report_period: str = PERIOD_DA
             report.shift = ''
             messages.success(request, _finalize_report_submission(report, action))
             report.save()
-            ensure_daily_report_nas_dir()
+            has_uploads = bool(
+                request.FILES.getlist('link_images')
+                or request.FILES.getlist('link_files'),
+            )
             try:
+                ensure_daily_report_nas_dir()
                 save_daily_uploads(
                     report,
                     link_images=request.FILES.getlist('link_images'),
@@ -683,13 +756,9 @@ def _today_office_report(request, report_date, *, report_period: str = PERIOD_DA
                 )
             except OSError as exc:
                 logger.exception('Daily report attachment save failed: %s', exc)
-                messages.error(
-                    request,
-                    'Báo cáo đã lưu nhưng không ghi được file/ảnh đính kèm. Thử tải lại hoặc liên hệ IT.',
-                )
-                return redirect(
-                    f'{reverse("reports:today_vp")}?{urlencode(period_query_param(report_period, report.report_date))}',
-                )
+                mark_storage_unavailable()
+                if has_uploads:
+                    messages.warning(request, NAS_STORAGE_UNAVAILABLE_MSG)
             return redirect(
                 f'{reverse("reports:today_vp")}?{urlencode(period_query_param(report_period, report.report_date))}',
             )
@@ -779,8 +848,14 @@ def _weekly_report(request, *, report_profile: str):
                 msg = _finalize_report_submission(report, action)
                 messages.success(request, msg)
                 report.save()
-                ensure_weekly_report_nas_dir()
-                save_weekly_uploads(report, image_list=image_uploads, file_list=file_uploads)
+                try:
+                    ensure_weekly_report_nas_dir()
+                    save_weekly_uploads(report, image_list=image_uploads, file_list=file_uploads)
+                except OSError as exc:
+                    logger.exception('Weekly report attachment save failed: %s', exc)
+                    mark_storage_unavailable()
+                    if image_uploads or file_uploads:
+                        messages.warning(request, NAS_STORAGE_UNAVAILABLE_MSG)
                 return redirect(f'{reverse(weekly_url_name)}?week={week_start.isoformat()}')
     else:
         form = WeeklyWorkReportForm(instance=report)
@@ -852,7 +927,12 @@ def copy_prev_week(request, *, report_profile: str):
     report.links = source.links
     report.save()
     _delete_weekly_attachments(report, list(report.attachments.values_list('pk', flat=True)))
-    copy_weekly_attachments(source, report)
+    try:
+        copy_weekly_attachments(source, report)
+    except OSError as exc:
+        logger.exception('Copy weekly attachments failed: %s', exc)
+        mark_storage_unavailable()
+        messages.warning(request, NAS_STORAGE_UNAVAILABLE_MSG)
     messages.success(request, 'Đã sao chép báo cáo tuần trước. Kiểm tra và gửi lại.')
     return redirect(f'{reverse(weekly_url_name)}?week={this_week.isoformat()}')
 
@@ -930,8 +1010,10 @@ def ckeditor5_upload(request):
         )
     except OSError as exc:
         logger.exception('CKEditor upload failed for %s: %s', request.user.username, exc)
+        mark_storage_unavailable()
         return _ckeditor_upload_error(
-            'Không lưu được ảnh lên máy chủ. Thử lại hoặc liên hệ IT.',
+            'Kết nối thư mục lưu trữ (NAS) đang gặp sự cố nên không lưu được ảnh. '
+            'Vui lòng soạn báo cáo bằng văn bản/bảng, tạm thời không chèn ảnh và báo lại IT.',
             status=503,
         )
     url = request.build_absolute_uri(
@@ -985,7 +1067,12 @@ def copy_prev_vp(request):
     report.save()
     report.lines.all().delete()
     _delete_daily_attachments(report, list(report.attachments.values_list('pk', flat=True)))
-    copy_daily_attachments(source, report)
+    try:
+        copy_daily_attachments(source, report)
+    except OSError as exc:
+        logger.exception('Copy daily attachments failed: %s', exc)
+        mark_storage_unavailable()
+        messages.warning(request, NAS_STORAGE_UNAVAILABLE_MSG)
     messages.success(request, 'Đã sao chép báo cáo kỳ trước. Kiểm tra và nộp lại.')
     return redirect(f'{reverse("reports:today_vp")}?{urlencode(period_query_param(report_period, anchor))}')
 
@@ -1029,7 +1116,12 @@ def copy_yesterday(request, *, report_profile: str):
         report.save()
         report.lines.all().delete()
         _delete_daily_attachments(report, list(report.attachments.values_list('pk', flat=True)))
-        copy_daily_attachments(source, report)
+        try:
+            copy_daily_attachments(source, report)
+        except OSError as exc:
+            logger.exception('Copy daily attachments failed: %s', exc)
+            mark_storage_unavailable()
+            messages.warning(request, NAS_STORAGE_UNAVAILABLE_MSG)
     else:
         report.spreadsheet_json = None
         report.document_html = ''
@@ -1897,14 +1989,13 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
         and request.POST.get('action') == 'add_comment'
         and can_comment
     ):
-        body = (request.POST.get('comment_body') or '').strip()
-        if body:
-            ReportComment.objects.create(daily_report=report, author=request.user, body=body)
-            if can_review and report.status == DailyWorkReport.STATUS_SUBMITTED and not report.hod_reviewed:
-                report.hod_reviewed = True
-                report.save(update_fields=['hod_reviewed', 'updated_at'])
-            messages.success(request, 'Đã gửi nhận xét.')
-        return _detail_redirect()
+        return _handle_add_report_comment(
+            request,
+            report=report,
+            daily_report=report,
+            can_review=can_review,
+            redirect_fn=_detail_redirect,
+        )
 
     from reports.office_content import (
         document_has_any_content,
@@ -2013,7 +2104,7 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
         'edit_report_url': edit_report_url,
         'can_review': can_review,
         'can_comment': can_comment,
-        'comments': report.comments.select_related('author', 'author__profile').all(),
+        'comments': _report_comments_queryset(report),
         'can_edit_norm': can_edit_norm,
         'can_submit_report': can_submit_daily_report(request.user),
         'can_view_team': can_view_team_reports(request.user),
@@ -2190,14 +2281,13 @@ def _weekly_report_detail_core(request, pk, *, detail_url_name: str):
         and request.POST.get('action') == 'add_comment'
         and can_comment
     ):
-        body = (request.POST.get('comment_body') or '').strip()
-        if body:
-            ReportComment.objects.create(weekly_report=report, author=request.user, body=body)
-            if can_review and report.status == WeeklyWorkReport.STATUS_SUBMITTED and not report.hod_reviewed:
-                report.hod_reviewed = True
-                report.save(update_fields=['hod_reviewed', 'updated_at'])
-            messages.success(request, 'Đã gửi nhận xét.')
-        return redirect(detail_url_name, pk=pk)
+        return _handle_add_report_comment(
+            request,
+            report=report,
+            weekly_report=report,
+            can_review=can_review,
+            redirect_fn=lambda: redirect(detail_url_name, pk=pk),
+        )
 
     images, files = _weekly_attachments(report)
     profile = report.employee.profile
@@ -2220,7 +2310,7 @@ def _weekly_report_detail_core(request, pk, *, detail_url_name: str):
         'department_name': profile.department.name if profile and profile.department_id else '',
         'can_review': can_review,
         'can_comment': can_comment,
-        'comments': report.comments.select_related('author', 'author__profile').all(),
+        'comments': _report_comments_queryset(report),
         'can_submit_report': can_submit_daily_report(request.user),
         'can_view_team': can_view_team_reports(request.user),
         'edit_report_url': edit_report_url,
@@ -2394,6 +2484,76 @@ def weekly_attachment_serve(request, pk):
     force_download = request.GET.get('download', '').lower() in ('1', 'true', 'yes')
     as_attachment = force_download or content_type not in inline_types
     file_handle = open_weekly_attachment(att)
+    response = FileResponse(file_handle, content_type=content_type, as_attachment=as_attachment)
+    if as_attachment:
+        from reports.weekly_preview import attachment_content_disposition
+
+        response['Content-Disposition'] = attachment_content_disposition(att.display_name)
+    return response
+
+
+@_reports_access_required
+def comment_attachment_preview(request, pk):
+    from nas_storage.file_preview import inline_office_pdf_response, inline_pdf_response, preview_kind
+    from reports.comment_nas_storage import comment_attachment_abs_path
+    from tools.services import office_preview_available
+
+    att = get_object_or_404(
+        ReportCommentAttachment.objects.select_related(
+            'comment__daily_report__employee',
+            'comment__weekly_report__employee',
+        ),
+        pk=pk,
+    )
+    if not _can_view_comment_attachment(request.user, att):
+        raise Http404
+
+    path = comment_attachment_abs_path(att)
+    if not path:
+        raise Http404
+
+    kind = preview_kind(att.display_name)
+    if kind == 'pdf':
+        return inline_pdf_response(path, filename=att.display_name)
+    if kind == 'office' and office_preview_available():
+        return inline_office_pdf_response(path, display_name=att.display_name)
+    raise Http404
+
+
+@_reports_access_required
+def comment_attachment_serve(request, pk):
+    import mimetypes
+
+    from reports.comment_nas_storage import comment_attachment_abs_path, open_comment_attachment
+
+    att = get_object_or_404(
+        ReportCommentAttachment.objects.select_related(
+            'comment__daily_report__employee',
+            'comment__weekly_report__employee',
+        ),
+        pk=pk,
+    )
+    if not _can_view_comment_attachment(request.user, att):
+        messages.error(request, 'Bạn không có quyền tải file này.')
+        return redirect('reports:hub')
+
+    path = comment_attachment_abs_path(att)
+    if not path:
+        raise Http404
+
+    content_type = mimetypes.guess_type(att.display_name)[0] or 'application/octet-stream'
+    inline_types = {
+        'application/pdf',
+        'image/jpeg',
+        'image/png',
+        'image/gif',
+        'image/webp',
+        'image/bmp',
+        'image/svg+xml',
+    }
+    force_download = request.GET.get('download', '').lower() in ('1', 'true', 'yes')
+    as_attachment = force_download or content_type not in inline_types
+    file_handle = open_comment_attachment(att)
     response = FileResponse(file_handle, content_type=content_type, as_attachment=as_attachment)
     if as_attachment:
         from reports.weekly_preview import attachment_content_disposition
