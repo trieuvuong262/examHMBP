@@ -53,7 +53,7 @@ print("blacklist saved:", cfg.ip_blacklist)
 
 for i in range(10):
     record_failed_login(username=f"vpsbot{i}", ip="198.51.100.88")
-print("auto block bot IP:", is_ip_blocked("198.51.100.88"))
+print("login failures no auto IP block:", not is_ip_blocked("198.51.100.88"))
 for i in range(12):
     record_failed_login(username=f"vpsbot{i}", ip="14.161.25.119")
 print("whitelist no block:", not is_ip_blocked("14.161.25.119"))

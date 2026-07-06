@@ -9,7 +9,7 @@
                 Bảo mật đăng nhập
             </h2>
             <p class="text-muted small mb-0">
-                Khóa tài khoản sau 10 lần sai · Chặn IP spam sau 10 lần (trừ IP WAN công ty)
+                Khóa tài khoản sau 10 lần sai · Chặn IP bot quét exploit / blacklist thủ công
             </p>
         </div>
     </div>
@@ -94,8 +94,8 @@
     {% elif tab == 'bots' %}
     <div class="card border-0 shadow-sm overflow-hidden">
         <div class="card-header bg-white py-3 border-bottom">
-            <h5 class="mb-0 fw-bold">IP bị chặn — bot quét / spam đăng nhập</h5>
-            <p class="small text-muted mb-0 mt-1">User không tồn tại hoặc quá nhiều lần thử từ cùng IP.</p>
+            <h5 class="mb-0 fw-bold">IP bị chặn — bot quét exploit / blacklist</h5>
+            <p class="small text-muted mb-0 mt-1">Nhập sai mật khẩu không còn tự chặn IP; chỉ chặn bot quét hoặc IP trong blacklist.</p>
         </div>
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
@@ -179,8 +179,8 @@
         <div class="card-header bg-white py-3 border-bottom">
             <h5 class="mb-0 fw-bold">Whitelist / Blacklist IP đăng nhập</h5>
             <p class="small text-muted mb-0 mt-1">
-                IP WAN công ty: không đếm spam, vẫn khóa tài khoản sau 10 lần sai mật khẩu.
-                Blacklist: chặn ngay, không cần đủ 10 lần.
+                IP WAN công ty: miễn chặn bot exploit. Khóa tài khoản sau 10 lần sai mật khẩu (không chặn IP).
+                Blacklist: chặn ngay.
             </p>
         </div>
         <div class="card-body">

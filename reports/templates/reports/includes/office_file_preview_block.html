@@ -3,8 +3,8 @@
         <div class="jp-weekly-file-chip">
             <span class="fw-semibold">{{ item.name }}</span>
         </div>
-        <a href="{{ item.url }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-hm">
-            <i class="bi bi-download me-1"></i>Tải / mở tab mới
+        <a href="{{ item.download_url|default:item.url }}" class="btn btn-sm btn-outline-hm" download="{{ item.name }}">
+            <i class="bi bi-download me-1"></i>Tải file
         </a>
     </div>
     {% if item.type == 'pdf' %}
@@ -18,7 +18,7 @@
     {% elif item.type == 'office' %}
     <div class="jp-weekly-file-fallback">
         <span class="badge text-bg-light border">{{ item.ext }}</span>
-        <span class="text-muted small">Máy chủ chưa hỗ trợ xem trước — tải file về hoặc mở tab mới.</span>
+        <span class="text-muted small">Máy chủ chưa hỗ trợ xem trước — tải file về.</span>
     </div>
     {% else %}
     <div class="jp-weekly-file-fallback">

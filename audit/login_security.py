@@ -1,4 +1,4 @@
-"""Giới hạn đăng nhập — khóa tài khoản / chặn IP bot."""
+"""Giới hạn đăng nhập — khóa tài khoản; chặn IP blacklist / bot quét exploit."""
 
 from __future__ import annotations
 
@@ -244,12 +244,6 @@ def record_failed_login(*, username: str, ip: str | None) -> dict:
                     'sample_usernames',
                 ],
             )
-            if ip_row.failed_attempts >= max_ip_attempts():
-                ip_row.blocked_at = timezone.now()
-                ip_row.unlocked_at = None
-                ip_row.unlocked_by = None
-                ip_row.save(update_fields=['blocked_at', 'unlocked_at', 'unlocked_by'])
-                result['ip_blocked'] = True
 
     if user and not is_user_locked(user):
         lock, _ = UserLoginLock.objects.get_or_create(

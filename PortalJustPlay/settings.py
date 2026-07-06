@@ -333,8 +333,9 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_REDIRECT_URL = 'login_redirect'
 LOGOUT_REDIRECT_URL = 'login'
 
-# Đăng nhập — khóa sau N lần sai; chặn IP bot sau M lần (Quản Trị Hệ thống → Bảo mật đăng nhập)
+# Đăng nhập — khóa tài khoản sau N lần sai; IP chỉ chặn qua blacklist / bot exploit (Quản Trị → Bảo mật đăng nhập)
 LOGIN_LOCK_MAX_ATTEMPTS = int(os.getenv('LOGIN_LOCK_MAX_ATTEMPTS', '10'))
+# Ngưỡng gợi ý blacklist (không còn tự chặn IP khi đăng nhập sai)
 LOGIN_IP_BLOCK_MAX_ATTEMPTS = int(os.getenv('LOGIN_IP_BLOCK_MAX_ATTEMPTS', '10'))
 PORTAL_IT_CONTACT = os.getenv('PORTAL_IT_CONTACT', 'Phòng IT Just Play — nhờ quản trị viên portal')
 

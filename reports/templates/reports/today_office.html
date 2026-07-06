@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260703d">
+<link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260706a">
 {% endblock %}
 
 {% block content %}
@@ -53,20 +53,25 @@
 
         <div class="card border-0 shadow-sm mb-3">
             <div class="card-body py-3 px-3 px-md-4">
-                {% if office_period != 'day' %}
                 <div class="row g-3 align-items-end">
                     <div class="col-md-4 col-lg-3">
-                        <label class="form-label fw-bold small text-muted mb-1" for="{% if office_period == 'month' %}office-month-input{% else %}id_report_date{% endif %}">
-                            {% if office_period == 'month' %}Tháng báo cáo{% else %}Chọn tuần báo cáo{% endif %}
-                        </label>
+                        {% if office_period == 'month' %}
+                        <label class="form-label fw-bold small text-muted mb-1" for="office-month-input">Tháng báo cáo</label>
                         <div class="jp-office-date-bar-field">
-                            {% if office_period == 'month' %}
                             <input type="month" name="month" id="office-month-input" class="form-control" value="{{ period_date_input_value }}">
                             <input type="hidden" name="report_date" value="{{ report_date|date:'Y-m-d' }}">
-                            {% else %}
-                            {{ form.report_date }}
-                            {% endif %}
                         </div>
+                        {% elif office_period == 'week' %}
+                        <label class="form-label fw-bold small text-muted mb-1" for="id_report_date">Chọn tuần báo cáo</label>
+                        <div class="jp-office-date-bar-field">
+                            {{ form.report_date }}
+                        </div>
+                        {% else %}
+                        <label class="form-label fw-bold small text-muted mb-1" for="id_report_date">Ngày báo cáo</label>
+                        <div class="jp-office-date-bar-field">
+                            {{ form.report_date }}
+                        </div>
+                        {% endif %}
                     </div>
                     <div class="col-md-8 col-lg-9">
                         <label class="form-label fw-bold small text-muted mb-1" for="{{ form.title.id_for_label }}">Tiêu đề báo cáo</label>
@@ -74,12 +79,6 @@
                         {% if form.title.errors %}<div class="text-danger small mt-1">{{ form.title.errors }}</div>{% endif %}
                     </div>
                 </div>
-                {% else %}
-                <label class="form-label fw-bold small text-muted mb-1" for="id_report_date">Ngày báo cáo</label>
-                <div class="jp-office-date-bar-field">
-                    {{ form.report_date }}
-                </div>
-                {% endif %}
             </div>
         </div>
 

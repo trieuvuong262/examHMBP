@@ -19,6 +19,7 @@ from reports.production_shift_policy import (
 )
 from reports.report_profile import REPORT_PROFILE_PRODUCTION
 from reports.team_utils import (
+    build_profile_department_groups,
     build_report_team_department_groups,
     daily_report_visible_to_team,
     department_filter_choices,
@@ -496,13 +497,12 @@ def build_production_team_summary(
         for day in _iter_dates(date_from, date_to)
     ]
 
-    all_groups = build_report_team_department_groups(viewer, team)
+    all_groups = build_profile_department_groups(team)
     dept_choices = department_filter_choices(all_groups)
     groups_src = (
-        build_report_team_department_groups(viewer, team, dept_filter=dept_filter)
+        build_profile_department_groups(team, dept_filter=dept_filter)
         if dept_filter else all_groups
     )
-    groups_src = _ensure_team_members_in_groups(groups_src, team)
 
     day_totals = [{'weighted': Decimal('0'), 'hours': Decimal('0')} for _ in days]
     grand_weighted = Decimal('0')

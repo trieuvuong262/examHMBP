@@ -66,17 +66,42 @@ def _preview_route_for(att) -> str:
     return 'reports:daily_attachment_preview'
 
 
+def attachment_content_disposition(filename: str) -> str:
+    """Content-Disposition giữ đúng tên file (kể cả tiếng Việt)."""
+    from urllib.parse import quote
+
+    name = (filename or 'download').replace('"', '').replace('\\', '')
+    ascii_fallback = ''.join(c if ord(c) < 128 and c not in ('"', '\\') else '_' for c in name) or 'download'
+    return f"attachment; filename=\"{ascii_fallback}\"; filename*=UTF-8''{quote(name)}"
+
+
+def attachment_download_url(att) -> str:
+    url = att.file_url
+    if not url:
+        return ''
+    return f'{url}?download=1'
+
+
 def file_attachment_preview(att) -> dict:
     name = att.original_name or os.path.basename(att.file.name)
     lower = name.lower()
     ext = os.path.splitext(lower)[1]
     url = att.file_url
+    download_url = attachment_download_url(att)
     if att.is_image or ext in IMAGE_EXTENSIONS:
-        return {'type': 'image', 'url': url, 'preview_url': url, 'name': name, 'pk': att.pk}
+        return {
+            'type': 'image',
+            'url': url,
+            'download_url': download_url,
+            'preview_url': url,
+            'name': name,
+            'pk': att.pk,
+        }
     if ext in PDF_EXTENSIONS:
         return {
             'type': 'pdf',
             'url': url,
+            'download_url': download_url,
             'preview_url': url,
             'name': name,
             'pk': att.pk,
@@ -87,6 +112,7 @@ def file_attachment_preview(att) -> dict:
         return {
             'type': 'office',
             'url': url,
+            'download_url': download_url,
             'preview_url': preview_url,
             'office_preview_ready': ready,
             'name': name,
@@ -96,6 +122,7 @@ def file_attachment_preview(att) -> dict:
     return {
         'type': 'download',
         'url': url,
+        'download_url': download_url,
         'preview_url': '',
         'name': name,
         'ext': ext.lstrip('.').upper() or 'FILE',

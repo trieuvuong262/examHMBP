@@ -1103,6 +1103,7 @@
     height: var(--jp-vanban-viewport-h);
     overflow: hidden;
     overscroll-behavior: contain;
+    touch-action: pan-y;
     background: #f0f2f5;
     display: flex;
     flex-direction: column;
@@ -1303,6 +1304,11 @@
 .jp-report-detail-page .jp-word-desk-readonly {
     padding: 0;
     max-height: none;
+    height: auto;
+    overflow: visible;
+    overscroll-behavior: auto;
+    -webkit-overflow-scrolling: auto;
+    touch-action: pan-y;
     background: #fff;
 }
 
@@ -1346,6 +1352,7 @@
     .jp-report-detail-page.jp-page {
         padding-left: 0 !important;
         padding-right: 0 !important;
+        overflow-x: clip;
     }
 
     .jp-report-detail-page .jp-report-detail-hero {
@@ -1355,23 +1362,29 @@
     }
 
     .jp-report-detail-page .jp-report-vanban-card {
-        width: 100vw;
-        max-width: 100vw;
-        margin-left: calc(50% - 50vw);
-        margin-right: calc(50% - 50vw);
+        width: 100%;
+        max-width: 100%;
+        margin-left: 0;
+        margin-right: 0;
         margin-bottom: 0.65rem !important;
         border-radius: 0;
         box-shadow: none !important;
-    }
-
-    .jp-report-detail-page .jp-report-vanban-card .card-header {
-        padding: 0.45rem 0.55rem;
-        font-size: 0.92rem;
+        overflow: visible;
+        touch-action: pan-y;
     }
 
     .jp-report-detail-page .jp-word-desk-readonly {
         padding: 0;
         max-height: none;
+        height: auto;
+        overflow: visible;
+        overscroll-behavior: auto;
+        touch-action: pan-y;
+    }
+
+    .jp-report-detail-page .jp-report-vanban-card .card-header {
+        padding: 0.45rem 0.55rem;
+        font-size: 0.92rem;
     }
 
     .jp-report-detail-page .jp-word-page-readonly {

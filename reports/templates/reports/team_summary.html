@@ -29,7 +29,6 @@
     }
     .jp-summary-table thead th {
         position: sticky;
-        top: 0;
         z-index: 3;
         background: var(--hm-primary, #dc2626);
         color: #fff;
@@ -41,6 +40,7 @@
         padding: 0.5rem 0.45rem;
         border-right: 1px solid rgba(255,255,255,0.18);
     }
+    .jp-summary-table thead tr:first-child th { top: 0; z-index: 4; }
     .jp-summary-table thead th small { font-weight: 500; opacity: 0.9; display: block; font-size: 0.68rem; }
     .jp-summary-table th.jp-col-sticky,
     .jp-summary-table td.jp-col-sticky {
@@ -78,33 +78,48 @@
     .jp-eff.is-norm { background: #dbeafe; color: #1e40af; }
     .jp-eff.is-high { background: #dcfce7; color: #166534; }
     .jp-eff.is-none { color: #cbd5e1; background: transparent; }
-    .jp-summary-table thead th.jp-col-weekend { background: #b91c1c; }
-    .jp-summary-table tbody td.jp-col-weekend { background: #fef2f2; }
-    .jp-summary-table tbody tr:nth-child(even) td.jp-col-weekend { background: #fee7e7; }
-    .jp-col-avg { background: #fff1f2 !important; }
-    thead th.jp-col-avg { background: #991b1b !important; }
+    .jp-col-avg {
+        background: #ffe8ec !important;
+        border-left: 2px solid #fecaca !important;
+        box-shadow: inset 3px 0 0 rgba(220, 38, 38, 0.08);
+    }
+    thead th.jp-col-avg {
+        background: #7f1d1d !important;
+        border-left: 2px solid rgba(255, 255, 255, 0.28) !important;
+    }
     tbody td.jp-col-avg { font-weight: 700; }
-    .jp-summary-team-row td {
-        position: sticky;
-        top: 2.35rem;
+    .jp-summary-table tbody tr:nth-child(even) td.jp-col-avg { background: #ffd9e0 !important; }
+    .jp-summary-table tbody tr:hover td.jp-col-avg { background: #ffc9d2 !important; }
+    .jp-summary-table thead .jp-summary-team-row th {
+        top: var(--jp-summary-head-h, 2.5rem);
         z-index: 3;
-        background: #f1f5f9 !important;
+        background: #0f172a !important;
+        color: #fff;
         font-weight: 700;
         text-align: center;
         border-bottom: 2px solid #b91c1c;
+        box-shadow: 0 2px 0 #b91c1c;
     }
-    .jp-summary-team-row td.jp-col-sticky {
-        z-index: 4;
+    .jp-summary-table thead .jp-summary-team-row th.jp-col-team-label {
+        left: 0;
+        z-index: 6;
         text-align: left;
-        color: var(--hm-primary, #dc2626);
+        box-shadow: 2px 0 4px -2px rgba(15, 23, 42, 0.35), 0 2px 0 #b91c1c;
     }
-    .jp-summary-team-row:hover td { background: #f1f5f9 !important; }
-    .jp-summary-team-row td.jp-col-weekend { background: #e2e8f0 !important; }
-    .jp-summary-team-row td.jp-col-avg { background: #e8ecf1 !important; }
+    .jp-summary-table thead .jp-summary-team-row th.jp-col-avg {
+        background: #1e293b !important;
+        border-left: 2px solid rgba(248, 113, 113, 0.65) !important;
+        box-shadow: inset 3px 0 0 rgba(248, 113, 113, 0.2);
+    }
+    .jp-summary-team-row .jp-eff {
+        background: rgba(255, 255, 255, 0.14);
+        color: #fff;
+    }
+    .jp-summary-team-row .jp-eff.is-none { color: rgba(255, 255, 255, 0.45); background: transparent; }
 
     /* Khi chụp ảnh (html2canvas): tắt sticky để không lệch dòng/cột */
     .jp-capturing thead th,
-    .jp-capturing .jp-summary-team-row td,
+    .jp-capturing .jp-summary-team-row th,
     .jp-capturing th.jp-col-sticky,
     .jp-capturing td.jp-col-sticky,
     .jp-capturing .jp-summary-group td { position: static !important; }
@@ -224,13 +239,24 @@
                 </select>
             </div>
             {% endif %}
+            {% if division_choices|length > 1 %}
+            <div>
+                <label class="form-label fw-bold small mb-1">Bộ phận</label>
+                <select name="division" class="form-select">
+                    <option value="">Tất cả bộ phận</option>
+                    {% for opt in division_choices %}
+                    <option value="{{ opt.key }}" {% if opt.key == selected_division %}selected{% endif %}>{{ opt.label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
             <div class="flex-grow-1 jp-hrm-search-wrap" style="min-width: 240px;">
                 <label class="form-label fw-bold small mb-1">Tìm nhân viên</label>
                 <div class="input-group jp-hrm-search">
                     {% include 'includes/list_search_bar.html' with search_query=search_query placeholder='Tên, mã NS, account...' show_button=False %}
                 </div>
             </div>
-            {% if search_query or selected_dept %}
+            {% if search_query or selected_dept or selected_division %}
             <a href="?from={{ range_from|date:'Y-m-d' }}&to={{ range_to|date:'Y-m-d' }}&shift={{ active_shift }}" class="btn btn-light border align-self-end" title="Xóa bộ lọc"><i class="bi bi-x-lg"></i></a>
             {% endif %}
         </div>
@@ -250,36 +276,36 @@
                         <th class="jp-col-sticky jp-col-name">Nhân viên</th>
                         <th class="jp-col-sticky jp-col-dept">Bộ phận</th>
                         {% for day in days %}
-                        <th class="{% if day.is_weekend %}jp-col-weekend{% endif %}">
+                        <th>
                             {{ day.weekday }}
                             <small>{{ day.date|date:"d/m" }}</small>
                         </th>
                         {% endfor %}
                         <th class="jp-col-avg">TB<small>chung</small></th>
                     </tr>
-                </thead>
-                <tbody>
                     {% if summary.has_members %}
                     <tr class="jp-summary-team-row">
-                        <td class="jp-col-sticky" colspan="3">TB team theo ngày</td>
+                        <th class="jp-col-team-label" colspan="3">TB team theo ngày</th>
                         {% for day in days %}
-                        <td class="{% if day.is_weekend %}jp-col-weekend{% endif %}">
+                        <th>
                             {% if day.average is not None %}
-                            <span class="jp-eff {{ day.average|summary_efficiency_class }}">{{ day.average|floatformat:2 }}%</span>
+                            <span class="jp-eff">{{ day.average|floatformat:2 }}%</span>
                             {% else %}
                             <span class="jp-eff is-none">—</span>
                             {% endif %}
-                        </td>
+                        </th>
                         {% endfor %}
-                        <td class="jp-col-avg">
+                        <th class="jp-col-avg">
                             {% if summary.overall_avg is not None %}
-                            <span class="jp-eff {{ summary.overall_avg|summary_efficiency_class }}">{{ summary.overall_avg|floatformat:2 }}%</span>
+                            <span class="jp-eff">{{ summary.overall_avg|floatformat:2 }}%</span>
                             {% else %}
                             <span class="jp-eff is-none">—</span>
                             {% endif %}
-                        </td>
+                        </th>
                     </tr>
                     {% endif %}
+                </thead>
+                <tbody>
                     {% for group in department_groups %}
                     {% if group.members %}
                     <tr class="jp-summary-group">
@@ -297,7 +323,7 @@
                         </td>
                         <td class="jp-col-sticky jp-col-dept small">{{ m.division|default:"—" }}</td>
                         {% for cell in m.cells %}
-                        <td class="{% if cell.is_weekend %}jp-col-weekend{% endif %}">
+                        <td>
                             {% if cell.has_data %}
                             <span class="jp-eff {{ cell.efficiency_pct|summary_efficiency_class }}">{{ cell.efficiency_pct|floatformat:2 }}%</span>
                             {% else %}
@@ -331,7 +357,6 @@
         <span class="jp-eff is-norm ms-1">100–119%</span>
         <span class="jp-eff is-ok ms-1">80–99%</span>
         <span class="jp-eff is-low ms-1">&lt;80%</span>
-        <span class="ms-2">Ô «—» = không có báo cáo trong ngày. Cột nền đỏ nhạt = cuối tuần.</span>
     </p>
 </div>
 {% endblock %}
@@ -341,6 +366,16 @@
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    function syncSummaryTeamRowStickyTop() {
+        var table = document.getElementById('summaryTable');
+        if (!table) return;
+        var headRow = table.querySelector('thead tr:first-child');
+        if (!headRow) return;
+        table.style.setProperty('--jp-summary-head-h', headRow.getBoundingClientRect().height + 'px');
+    }
+    syncSummaryTeamRowStickyTop();
+    window.addEventListener('resize', syncSummaryTeamRowStickyTop);
+
     var shotBtn = document.getElementById('btnSummaryScreenshot');
     if (shotBtn) {
         shotBtn.addEventListener('click', function () {
@@ -412,7 +447,7 @@ document.addEventListener('DOMContentLoaded', function () {
             el.addEventListener('change', submitForm);
         });
     }
-    form.querySelectorAll('select[name="dept"]').forEach(function (el) {
+    form.querySelectorAll('select[name="dept"], select[name="division"]').forEach(function (el) {
         el.addEventListener('change', submitForm);
     });
 

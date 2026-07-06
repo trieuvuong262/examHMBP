@@ -45,7 +45,7 @@
     {% endif %}
 </td>
 <td>
-    {% if row.report and row.report.report_period != 'day' and row.report.title %}
+    {% if row.report and row.report.title %}
     <span class="small" title="{{ row.report.title }}">{{ row.report.title|truncatechars:40 }}</span>
     {% else %}
     <span class="text-muted small">—</span>

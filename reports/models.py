@@ -42,7 +42,7 @@ class DailyWorkReport(models.Model):
         max_length=255,
         blank=True,
         verbose_name='Tiêu đề báo cáo',
-        help_text='Dùng cho báo cáo tuần / tháng.',
+        help_text='Tuỳ chọn với báo cáo ngày; bắt buộc khi nộp báo cáo tuần / tháng.',
     )
     report_profile = models.CharField(
         max_length=20,

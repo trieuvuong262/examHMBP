@@ -137,6 +137,7 @@ from .team_utils import (
     query_team_office_reports_in_range,
     daily_report_visible_to_team,
     department_filter_choices,
+    division_filter_choices_from_team,
     meaningful_daily_reports_qs,
     meaningful_weekly_reports_qs,
     weekly_report_visible_to_team,
@@ -1405,9 +1406,21 @@ def team_summary_cn(request):
     date_from, date_to = parse_team_date_range(request, default_span_days=TEAM_SUMMARY_DEFAULT_SPAN_DAYS)
     search_query = get_search_query(request)
     dept_filter = (request.GET.get('dept') or '').strip()
+    division_filter = (request.GET.get('division') or '').strip()
     shift_filter = _parse_team_summary_shift(request)
 
-    team = _team_queryset(request.user, search_query, report_profile=REPORT_PROFILE_PRODUCTION)
+    from hrm.user_search import filter_users_by_division
+
+    team_base = _team_queryset(request.user, search_query, report_profile=REPORT_PROFILE_PRODUCTION)
+    division_choices = division_filter_choices_from_team(
+        request.user,
+        team_base,
+        dept_filter=dept_filter,
+    )
+    team = (
+        filter_users_by_division(team_base, division_filter)
+        if division_filter else team_base
+    )
     all_team_ids = list(team.values_list('id', flat=True))
     team_count = team.count()
 
@@ -1430,6 +1443,8 @@ def team_summary_cn(request):
         base_params['q'] = search_query
     if dept_filter:
         base_params['dept'] = dept_filter
+    if division_filter:
+        base_params['division'] = division_filter
 
     tab_params = {k: v for k, v in base_params.items() if k != 'shift'}
 
@@ -1438,7 +1453,9 @@ def team_summary_cn(request):
         'days': summary['days'],
         'department_groups': summary['groups'],
         'dept_choices': summary['dept_choices'],
+        'division_choices': division_choices,
         'selected_dept': dept_filter,
+        'selected_division': division_filter,
         'search_query': search_query,
         'range_from': date_from,
         'range_to': date_to,
@@ -1470,9 +1487,16 @@ def team_summary_cn_export(request):
     date_from, date_to = parse_team_date_range(request, default_span_days=TEAM_SUMMARY_DEFAULT_SPAN_DAYS)
     search_query = get_search_query(request)
     dept_filter = (request.GET.get('dept') or '').strip()
+    division_filter = (request.GET.get('division') or '').strip()
     shift_filter = _parse_team_summary_shift(request)
 
-    team = _team_queryset(request.user, search_query, report_profile=REPORT_PROFILE_PRODUCTION)
+    from hrm.user_search import filter_users_by_division
+
+    team_base = _team_queryset(request.user, search_query, report_profile=REPORT_PROFILE_PRODUCTION)
+    team = (
+        filter_users_by_division(team_base, division_filter)
+        if division_filter else team_base
+    )
     all_team_ids = list(team.values_list('id', flat=True))
     reports = query_production_team_reports(all_team_ids, date_from, date_to)
     reports_by_employee = build_production_reports_by_employee(reports)
@@ -2300,11 +2324,14 @@ def daily_attachment_serve(request, pk):
         'image/bmp',
         'image/svg+xml',
     }
-    as_attachment = content_type not in inline_types
+    force_download = request.GET.get('download', '').lower() in ('1', 'true', 'yes')
+    as_attachment = force_download or content_type not in inline_types
     file_handle = open_daily_attachment(att)
     response = FileResponse(file_handle, content_type=content_type, as_attachment=as_attachment)
     if as_attachment:
-        response['Content-Disposition'] = f'attachment; filename="{att.display_name}"'
+        from reports.weekly_preview import attachment_content_disposition
+
+        response['Content-Disposition'] = attachment_content_disposition(att.display_name)
     return response
 
 
@@ -2364,11 +2391,14 @@ def weekly_attachment_serve(request, pk):
         'image/bmp',
         'image/svg+xml',
     }
-    as_attachment = content_type not in inline_types
+    force_download = request.GET.get('download', '').lower() in ('1', 'true', 'yes')
+    as_attachment = force_download or content_type not in inline_types
     file_handle = open_weekly_attachment(att)
     response = FileResponse(file_handle, content_type=content_type, as_attachment=as_attachment)
     if as_attachment:
-        response['Content-Disposition'] = f'attachment; filename="{att.display_name}"'
+        from reports.weekly_preview import attachment_content_disposition
+
+        response['Content-Disposition'] = attachment_content_disposition(att.display_name)
     return response
 
 

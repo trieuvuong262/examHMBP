@@ -131,7 +131,7 @@ class OfficeDailyWorkReportForm(forms.ModelForm):
         self.fields['links'].required = False
         self.fields['links'].label = ''
         self.fields['title'].required = False
-        # Tiêu đề chỉ dùng cho báo cáo tuần / tháng
+        # Tiêu đề bắt buộc khi nộp báo cáo tuần / tháng; ngày là tuỳ chọn
         self._title_required = self.report_period in ('week', 'month')
 
     def clean_spreadsheet_data(self):

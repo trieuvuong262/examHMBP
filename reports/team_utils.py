@@ -311,3 +311,77 @@ def build_report_team_department_groups(viewer, team_users, *, dept_filter: str 
 def department_filter_choices(department_groups):
     """Danh sách phòng ban cho dropdown lọc."""
     return [{'key': g['key'], 'label': g['label']} for g in department_groups]
+
+
+def _sort_team_members(members):
+    return sorted(
+        members,
+        key=lambda user: (
+            (getattr(getattr(user, 'profile', None), 'full_name', '') or user.username).lower(),
+            user.username.lower(),
+        ),
+    )
+
+
+def build_profile_department_groups(team_users, *, dept_filter: str = ''):
+    """Nhóm NV theo phòng ban trên hồ sơ HR — ma trận tổng hợp SX (không nhóm «Khác» theo quyền quản lý)."""
+    from collections import defaultdict
+
+    buckets: dict[tuple, list] = defaultdict(list)
+    for user in team_users.select_related('profile', 'profile__department', 'profile__division'):
+        profile = getattr(user, 'profile', None)
+        dept = profile.department if profile and getattr(profile, 'department_id', None) else None
+        dept_id = dept.pk if dept else None
+        label = dept.name if dept else 'Chưa gán phòng ban'
+        sort_key = (dept.sort_order if dept else 99999, label.lower())
+        buckets[(dept_id, label, sort_key)].append(user)
+
+    groups_meta = []
+    for (dept_id, label, sort_key), members in buckets.items():
+        key = f'dept-{dept_id}' if dept_id else 'no-dept'
+        groups_meta.append({
+            'key': key,
+            'department_id': dept_id,
+            'label': label,
+            'subtitle': '',
+            'sort_order': sort_key,
+            'members': _sort_team_members(members),
+        })
+
+    groups_meta.sort(key=lambda g: g['sort_order'])
+    if dept_filter:
+        groups_meta = [g for g in groups_meta if g['key'] == dept_filter]
+
+    return [
+        {
+            'key': g['key'],
+            'department_id': g['department_id'],
+            'label': g['label'],
+            'subtitle': g['subtitle'],
+            'members': g['members'],
+        }
+        for g in groups_meta
+    ]
+
+
+def division_filter_choices_from_team(viewer, team_users, *, dept_filter: str = ''):
+    """Danh sách bộ phận cho dropdown lọc — từ NV trong team (có thể thu hẹp theo phòng ban)."""
+    groups = build_profile_department_groups(team_users, dept_filter=dept_filter)
+    members = [member for group in groups for member in group['members']]
+
+    divisions: dict[int, str] = {}
+    has_unassigned = False
+    for user in members:
+        profile = getattr(user, 'profile', None)
+        if profile and profile.division_id:
+            divisions[profile.division_id] = profile.division.name
+        else:
+            has_unassigned = True
+
+    choices = [
+        {'key': str(div_id), 'label': name}
+        for div_id, name in sorted(divisions.items(), key=lambda item: item[1].lower())
+    ]
+    if has_unassigned:
+        choices.append({'key': 'none', 'label': 'Chưa gán bộ phận'})
+    return choices
