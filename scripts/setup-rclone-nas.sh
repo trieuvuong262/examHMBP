@@ -27,9 +27,12 @@ echo "=== rclone lsd ==="
 
 fusermount -u /mnt/nas-portal 2>/dev/null || true
 mkdir -p /mnt/nas-portal
+# --daemon-timeout: kernel FUSE hủy request treo sau 15s (tránh kẹt D-state khi NAS mất mạng)
+# --timeout/--contimeout: rclone lỗi nhanh thay vì treo vô hạn
 "$RCLONE_BIN" mount synology: /mnt/nas-portal \
   --daemon --allow-other --vfs-cache-mode writes \
-  --dir-cache-time 5s --poll-interval 5s --attr-timeout 1s
+  --dir-cache-time 5s --poll-interval 5s --attr-timeout 1s \
+  --daemon-timeout 15s --timeout 10s --contimeout 5s --retries 1 --low-level-retries 2
 
 sleep 2
 echo "=== ls /mnt/nas-portal ==="
@@ -45,7 +48,8 @@ Wants=network-online.target
 Type=simple
 ExecStart=${RCLONE_BIN} mount synology: /mnt/nas-portal \\
   --allow-other --vfs-cache-mode writes \\
-  --dir-cache-time 5s --poll-interval 5s --attr-timeout 1s
+  --dir-cache-time 5s --poll-interval 5s --attr-timeout 1s \\
+  --daemon-timeout 15s --timeout 10s --contimeout 5s --retries 1 --low-level-retries 2
 ExecStop=/bin/fusermount -u /mnt/nas-portal
 Restart=on-failure
 RestartSec=15

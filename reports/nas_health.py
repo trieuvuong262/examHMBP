@@ -4,6 +4,14 @@ Dùng để: (1) hiện cảnh báo trên trang nhập báo cáo khi NAS mất k
 (2) đánh dấu NAS lỗi ngay khi một lần ghi file thất bại.
 Báo cáo bằng văn bản / bảng vẫn lưu bình thường vì nội dung nằm trong DB;
 chỉ phần đính kèm file/ảnh mới cần NAS.
+
+QUAN TRỌNG — vì sao KHÔNG kiểm tra bằng cách đọc mount ``/mnt/nas-portal``:
+Khi NAS mất kết nối, mount rclone/FUSE bị treo, mọi thao tác I/O (``os.access``,
+``listdir``, ``ls``...) rơi vào trạng thái **D (uninterruptible sleep)** — không thể
+kill kể cả bằng ``subprocess timeout`` hay ``gunicorn --timeout``. Chỉ cần một request
+chạm mount là worker gunicorn kẹt cứng, cạn worker → sập toàn site.
+Vì vậy probe ở đây kiểm tra NAS **qua mạng bằng rclone CLI** (tiến trình network bình
+thường, timeout kill được), tuyệt đối không chạm vào mount FUSE.
 """
 
 from __future__ import annotations
@@ -11,6 +19,7 @@ from __future__ import annotations
 import logging
 import subprocess
 
+from django.conf import settings
 from django.core.cache import cache
 
 logger = logging.getLogger(__name__)
@@ -23,37 +32,62 @@ NAS_STORAGE_UNAVAILABLE_MSG = (
 
 _CACHE_KEY = 'reports:nas_storage_available'
 _CACHE_TTL_OK = 60
-_CACHE_TTL_DOWN = 30
-_PROBE_TIMEOUT_SEC = 3.0
+_CACHE_TTL_DOWN = 20
+
+# rclone timeout ngắn để probe nhanh; subprocess timeout là chốt chặn cứng.
+_RCLONE_CONNECT_TIMEOUT = '4s'
+_RCLONE_IO_TIMEOUT = '4s'
+_SUBPROCESS_TIMEOUT_SEC = 8.0
 
 
-def _probe_mount_responsive() -> bool:
-    """Đọc thử mount — phát hiện NFS treo khi NAS mất kết nối."""
-    from nas_storage.nas_paths import nas_is_available, nas_mount_root
+def _rclone_probe_env() -> dict:
+    import os
 
-    if not nas_is_available():
-        return False
+    env = os.environ.copy()
+    config = getattr(settings, 'NAS_RCLONE_CONFIG', '')
+    if config and os.path.isfile(config):
+        env['RCLONE_CONFIG'] = config
+    return env
 
-    root = str(nas_mount_root())
+
+def _probe_remote_reachable() -> bool:
+    """Kiểm tra NAS qua rclone CLI (network) — KHÔNG đụng mount FUSE.
+
+    ``rclone lsd`` là tiến trình mạng thông thường: nếu NAS mất kết nối nó sẽ lỗi
+    trong ``--contimeout`` hoặc bị ``subprocess timeout`` kill an toàn.
+    """
+    remote = (getattr(settings, 'NAS_RCLONE_REMOTE', 'synology:') or 'synology:').strip()
+    cmd = [
+        'rclone', 'lsd', remote,
+        '--contimeout', _RCLONE_CONNECT_TIMEOUT,
+        '--timeout', _RCLONE_IO_TIMEOUT,
+        '--retries', '1',
+        '--low-level-retries', '1',
+    ]
     try:
         proc = subprocess.run(
-            ['ls', '-1', root],
+            cmd,
             capture_output=True,
             text=True,
-            timeout=_PROBE_TIMEOUT_SEC,
+            timeout=_SUBPROCESS_TIMEOUT_SEC,
             check=False,
+            env=_rclone_probe_env(),
         )
-        return proc.returncode == 0
     except subprocess.TimeoutExpired:
-        logger.warning('NAS mount không phản hồi trong %.1fs', _PROBE_TIMEOUT_SEC)
+        logger.warning('Probe NAS: rclone lsd quá %.0fs — coi như NAS lỗi', _SUBPROCESS_TIMEOUT_SEC)
         return False
-    except OSError:
+    except (OSError, ValueError):
+        logger.exception('Probe NAS: không chạy được rclone')
         return False
+    if proc.returncode != 0:
+        logger.warning('Probe NAS lỗi rc=%s: %s', proc.returncode, (proc.stderr or '').strip()[:200])
+        return False
+    return True
 
 
 def _probe() -> bool:
     try:
-        return _probe_mount_responsive()
+        return _probe_remote_reachable()
     except Exception:  # noqa: BLE001 - probe không được phép làm sập trang
         logger.exception('Probe NAS storage thất bại')
         return False
