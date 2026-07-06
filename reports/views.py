@@ -108,12 +108,7 @@ from reports.navigation import (
     weekly_url_for_user,
     weekly_url_name_for_profile,
 )
-from reports.nas_health import (
-    NAS_STORAGE_PENDING_MSG,
-    NAS_STORAGE_UNAVAILABLE_MSG,
-    mark_storage_unavailable,
-    report_storage_available,
-)
+from reports.nas_health import mark_storage_unavailable
 from reports.nas_pending import count_pending as count_pending_nas_sync
 from reports.nas_pending_sync import maybe_auto_sync, sync_all_pending
 from reports.week_utils import monday_of, parse_week_start, week_end, week_label
@@ -302,8 +297,6 @@ def _report_context_common(request, report_date, *, report_profile=None, report_
         ).exists(),
         'yesterday': prev_anchor,
         'can_view_team': can_view_team_reports(request.user) and get_team_report_members(request.user).exists(),
-        'storage_unavailable': not report_storage_available(),
-        'nas_pending_count': count_pending_nas_sync(),
     }
     maybe_auto_sync()
     if report_profile:
@@ -433,13 +426,9 @@ def _handle_add_report_comment(request, *, report, can_review, redirect_fn, dail
     comment = ReportComment.objects.create(**create_kwargs)
     try:
         save_comment_attachments(comment, uploaded_files)
-        if uploaded_files and (not report_storage_available() or count_pending_nas_sync()):
-            messages.warning(request, NAS_STORAGE_PENDING_MSG)
     except OSError as exc:
         logger.exception('Comment attachment save failed: %s', exc)
         mark_storage_unavailable()
-        if uploaded_files:
-            messages.warning(request, NAS_STORAGE_UNAVAILABLE_MSG)
         if not body:
             comment.delete()
             return redirect_fn()
@@ -554,8 +543,6 @@ def _weekly_context_common(request, week_start, *, report_profile: str):
         'can_view_team': can_view_team_reports(request.user) and get_team_report_members(request.user).exists(),
         'reports_scope_label': report_profile_label(report_profile),
         'weekly_detail_url_name': weekly_detail_url_name_for_profile(report_profile),
-        'storage_unavailable': not report_storage_available(),
-        'nas_pending_count': count_pending_nas_sync(),
     })
     maybe_auto_sync()
     return ctx
@@ -758,24 +745,19 @@ def _today_office_report(request, report_date, *, report_period: str = PERIOD_DA
                 or request.FILES.getlist('link_files'),
             )
             if has_uploads:
-                nas_ok = report_storage_available()
-                if nas_ok:
-                    try:
-                        ensure_daily_report_nas_dir()
-                    except OSError:
-                        nas_ok = False
+                try:
+                    ensure_daily_report_nas_dir()
+                except OSError:
+                    pass
                 try:
                     save_daily_uploads(
                         report,
                         link_images=request.FILES.getlist('link_images'),
                         link_files=request.FILES.getlist('link_files'),
                     )
-                    if not nas_ok or count_pending_nas_sync():
-                        messages.warning(request, NAS_STORAGE_PENDING_MSG)
                 except OSError as exc:
                     logger.exception('Daily report attachment save failed: %s', exc)
                     mark_storage_unavailable()
-                    messages.warning(request, NAS_STORAGE_UNAVAILABLE_MSG)
             return redirect(
                 f'{reverse("reports:today_vp")}?{urlencode(period_query_param(report_period, report.report_date))}',
             )
@@ -866,20 +848,15 @@ def _weekly_report(request, *, report_profile: str):
                 messages.success(request, msg)
                 report.save()
                 if image_uploads or file_uploads:
-                    nas_ok = report_storage_available()
-                    if nas_ok:
-                        try:
-                            ensure_weekly_report_nas_dir()
-                        except OSError:
-                            nas_ok = False
+                    try:
+                        ensure_weekly_report_nas_dir()
+                    except OSError:
+                        pass
                     try:
                         save_weekly_uploads(report, image_list=image_uploads, file_list=file_uploads)
-                        if not nas_ok or count_pending_nas_sync():
-                            messages.warning(request, NAS_STORAGE_PENDING_MSG)
                     except OSError as exc:
                         logger.exception('Weekly report attachment save failed: %s', exc)
                         mark_storage_unavailable()
-                        messages.warning(request, NAS_STORAGE_UNAVAILABLE_MSG)
                 return redirect(f'{reverse(weekly_url_name)}?week={week_start.isoformat()}')
     else:
         form = WeeklyWorkReportForm(instance=report)
@@ -956,7 +933,6 @@ def copy_prev_week(request, *, report_profile: str):
     except OSError as exc:
         logger.exception('Copy weekly attachments failed: %s', exc)
         mark_storage_unavailable()
-        messages.warning(request, NAS_STORAGE_UNAVAILABLE_MSG)
     messages.success(request, 'Đã sao chép báo cáo tuần trước. Kiểm tra và gửi lại.')
     return redirect(f'{reverse(weekly_url_name)}?week={this_week.isoformat()}')
 
@@ -1036,11 +1012,7 @@ def ckeditor5_upload(request):
     except OSError as exc:
         logger.exception('CKEditor upload failed for %s: %s', request.user.username, exc)
         mark_storage_unavailable()
-        return _ckeditor_upload_error(
-            'Kết nối thư mục lưu trữ (NAS) đang gặp sự cố nên không lưu được ảnh. '
-            'Vui lòng soạn báo cáo bằng văn bản/bảng, tạm thời không chèn ảnh và báo lại IT.',
-            status=503,
-        )
+        return _ckeditor_upload_error('Không lưu được ảnh. Vui lòng thử lại.', status=503)
     url = request.build_absolute_uri(
         reverse('reports:inline_image', kwargs={'relpath': rel_path}),
     )
@@ -1130,7 +1102,6 @@ def copy_prev_vp(request):
     except OSError as exc:
         logger.exception('Copy daily attachments failed: %s', exc)
         mark_storage_unavailable()
-        messages.warning(request, NAS_STORAGE_UNAVAILABLE_MSG)
     messages.success(request, 'Đã sao chép báo cáo kỳ trước. Kiểm tra và nộp lại.')
     return redirect(f'{reverse("reports:today_vp")}?{urlencode(period_query_param(report_period, anchor))}')
 
@@ -1179,7 +1150,6 @@ def copy_yesterday(request, *, report_profile: str):
         except OSError as exc:
             logger.exception('Copy daily attachments failed: %s', exc)
             mark_storage_unavailable()
-            messages.warning(request, NAS_STORAGE_UNAVAILABLE_MSG)
     else:
         report.spreadsheet_json = None
         report.document_html = ''
