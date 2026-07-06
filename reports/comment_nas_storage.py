@@ -64,17 +64,44 @@ def _abs_root(name: str) -> Path:
     return daily_report_nas_abs_root()
 
 
+def _kind_for(name: str) -> str:
+    from reports.nas_pending import KIND_DAILY, KIND_WEEKLY
+
+    return KIND_WEEKLY if name.startswith(WEEKLY_PREFIX) else KIND_DAILY
+
+
 @deconstructible
 class ReportCommentNasStorage(FileSystemStorage):
+    """Đính kèm nhận xét — cùng thư mục NAS báo cáo ngày/tuần.
+
+    Khi NAS mất kết nối, file lưu tạm trên VPS (dùng chung ``reports.nas_pending``
+    theo kind daily/weekly) và tự đồng bộ về NAS sau.
+    """
+
     def __init__(self):
         super().__init__(location='', base_url=None)
 
     def path(self, name: str) -> str:
-        return str(_abs_root(name) / _rel_without_prefix(name))
+        from reports.nas_pending import pending_exists, pending_path
+
+        kind = _kind_for(name)
+        rel = _rel_without_prefix(name)
+        if pending_exists(kind, rel):
+            return str(pending_path(kind, rel))
+        return str(_abs_root(name) / rel)
+
+    def get_available_name(self, name: str, max_length: int | None = None) -> str:
+        return name
 
     def exists(self, name: str) -> bool:
+        from reports.nas_pending import pending_exists
+
+        kind = _kind_for(name)
+        rel = _rel_without_prefix(name)
+        if pending_exists(kind, rel):
+            return True
         try:
-            return Path(self.path(name)).is_file()
+            return Path(str(_abs_root(name) / rel)).is_file()
         except OSError:
             return False
 
@@ -82,7 +109,10 @@ class ReportCommentNasStorage(FileSystemStorage):
         return Path(self.path(name)).open(mode)
 
     def delete(self, name: str) -> None:
-        path = Path(self.path(name))
+        from reports.nas_pending import remove_pending
+
+        remove_pending(_kind_for(name), _rel_without_prefix(name))
+        path = Path(str(_abs_root(name) / _rel_without_prefix(name)))
         try:
             if path.is_file():
                 path.unlink()
@@ -103,21 +133,38 @@ class ReportCommentNasStorage(FileSystemStorage):
                 else:
                     tmp_file.write(content.read())
 
-            dest = Path(self.path(name))
-            from nas_storage.app_nas_storage import persist_app_nas_file
-
-            persist_app_nas_file(
-                tmp_path=tmp_path,
-                mount_dest=dest,
-                folder_rel_base=_folder_rel_base(name),
-                file_rel=_rel_without_prefix(name),
-            )
+            _persist_comment_with_fallback(tmp_path, name)
             return name
         finally:
             try:
                 tmp_path.unlink(missing_ok=True)
             except OSError:
                 pass
+
+
+def _persist_comment_with_fallback(tmp_path: Path, name: str) -> None:
+    """Ghi lên NAS; nếu NAS down/lỗi thì lưu tạm VPS để đồng bộ sau."""
+    from reports.nas_health import mark_storage_unavailable, report_storage_available
+    from reports.nas_pending import write_pending
+
+    kind = _kind_for(name)
+    rel = _rel_without_prefix(name)
+
+    if report_storage_available():
+        from nas_storage.app_nas_storage import persist_app_nas_file
+
+        try:
+            persist_app_nas_file(
+                tmp_path=tmp_path,
+                mount_dest=_abs_root(name) / rel,
+                folder_rel_base=_folder_rel_base(name),
+                file_rel=rel,
+            )
+            return
+        except OSError:
+            mark_storage_unavailable()
+
+    write_pending(kind, rel, tmp_path)
 
 
 def comment_attachment_abs_path(att) -> Path | None:

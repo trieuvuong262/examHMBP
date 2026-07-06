@@ -433,6 +433,8 @@ def _handle_add_report_comment(request, *, report, can_review, redirect_fn, dail
     comment = ReportComment.objects.create(**create_kwargs)
     try:
         save_comment_attachments(comment, uploaded_files)
+        if uploaded_files and (not report_storage_available() or count_pending_nas_sync()):
+            messages.warning(request, NAS_STORAGE_PENDING_MSG)
     except OSError as exc:
         logger.exception('Comment attachment save failed: %s', exc)
         mark_storage_unavailable()
