@@ -64,6 +64,7 @@ from hrm.forms import (
 )
 from hrm.user_search import (
     EMPLOYMENT_STATUS_LABELS,
+    resolve_employment_status_from_request,
     build_user_list_table_columns,
     exclude_hidden_hrm_users,
     is_protected_system_user,
@@ -199,9 +200,7 @@ def user_list(request):
     division_id = (request.GET.get('division') or '').strip()
     job_position = (request.GET.get('position') or '').strip()
     permission_group_id = (request.GET.get('permission_group') or '').strip()
-    employment_status = (request.GET.get('status') or '').strip().lower()
-    if employment_status not in EMPLOYMENT_STATUS_LABELS:
-        employment_status = ''
+    employment_status = resolve_employment_status_from_request(request)
 
     users_qs = User.objects.select_related(
         'profile',
@@ -285,6 +284,7 @@ def user_list(request):
         'search_query': search_query,
         'current_status': employment_status,
         'current_status_label': EMPLOYMENT_STATUS_LABELS.get(employment_status, ''),
+        'status_filter_explicit': 'status' in request.GET,
         'employment_status_options': EMPLOYMENT_STATUS_LABELS,
         'departments': departments,
         'divisions': divisions,
@@ -302,7 +302,7 @@ def user_list(request):
         'positions_cascade': json.dumps(job_positions_cascade_for_filter()),
         'filters_active': bool(
             search_query or department_id or division_id or job_position
-            or permission_group_id or employment_status,
+            or permission_group_id or 'status' in request.GET,
         ),
     })
 
@@ -868,9 +868,7 @@ def user_export_excel(request):
     department_id = (request.GET.get('department') or '').strip()
     division_id = (request.GET.get('division') or '').strip()
     job_position = (request.GET.get('position') or '').strip()
-    employment_status = (request.GET.get('status') or '').strip().lower()
-    if employment_status not in EMPLOYMENT_STATUS_LABELS:
-        employment_status = ''
+    employment_status = resolve_employment_status_from_request(request)
     _sort_key, _sort_dir, _order_fields = resolve_user_list_sort(
         request.GET.get('sort'),
         request.GET.get('dir'),

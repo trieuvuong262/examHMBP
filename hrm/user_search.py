@@ -145,6 +145,17 @@ EMPLOYMENT_STATUS_LABELS = {
     'active': 'Đang làm',
     'inactive': 'Nghỉ làm',
 }
+EMPLOYMENT_STATUS_DEFAULT = 'active'
+
+
+def resolve_employment_status_from_request(request) -> str:
+    """Mặc định «Đang làm» khi URL không có ?status=; «Tất cả» khi ?status= rỗng."""
+    if 'status' not in request.GET:
+        return EMPLOYMENT_STATUS_DEFAULT
+    raw = (request.GET.get('status') or '').strip().lower()
+    if raw not in EMPLOYMENT_STATUS_LABELS:
+        return EMPLOYMENT_STATUS_DEFAULT
+    return raw
 
 
 def filter_users_by_employment_status(queryset, status: str | None):
