@@ -3104,12 +3104,33 @@ body.jp-tool-loading-active {
 .jp-hrm-list-filters .form-label {
     font-weight: 600;
     letter-spacing: 0.02em;
+    font-size: 0.72rem;
+    margin-bottom: 0.15rem;
+    white-space: nowrap;
 }
 
 .jp-hrm-list-filters .form-select,
 .jp-hrm-list-filters .form-control,
 .jp-hrm-list-filters .input-group-text {
-    min-height: var(--jp-touch, 42px);
+    min-height: 2rem;
+    font-size: 0.8125rem;
+    padding-top: 0.2rem;
+    padding-bottom: 0.2rem;
+}
+
+.jp-hrm-list-filters .form-select {
+    padding-right: 1.75rem;
+    text-overflow: ellipsis;
+}
+
+@media (min-width: 1200px) {
+    .jp-hrm-list-filters .jp-hrm-filter-toolbar {
+        flex-wrap: nowrap;
+    }
+
+    .jp-hrm-list-filters .jp-hrm-filter-toolbar > .col {
+        min-width: 0;
+    }
 }
 
 .jp-hrm-list-filters .jp-hrm-search.input-group {

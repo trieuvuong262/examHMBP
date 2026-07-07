@@ -90,60 +90,52 @@
             <form method="get" id="userListFilterForm" role="search">
                 <input type="hidden" name="sort" id="userListSort" value="{{ sort_col }}">
                 <input type="hidden" name="dir" id="userListSortDir" value="{{ sort_dir }}">
-                <div class="row g-2 g-md-3 align-items-end">
-                    <div class="col-xl-2 col-lg-4 col-md-6 col-sm-6">
+                <div class="row row-cols-xl-6 row-cols-lg-3 row-cols-md-2 g-2 align-items-end jp-hrm-filter-toolbar">
+                    <div class="col">
                         <label for="userDepartmentFilter" class="form-label small text-muted mb-1">Phòng ban</label>
-                        <div class="input-group">
-                            <select name="department" id="userDepartmentFilter" class="form-select">
-                                <option value="">Tất cả phòng ban</option>
-                                <option value="none" {% if current_department == 'none' %}selected{% endif %}>Chưa gán phòng ban</option>
-                                {% for dept in departments %}
-                                <option value="{{ dept.pk }}" {% if current_department == dept.pk|stringformat:"s" %}selected{% endif %}>{{ dept.name }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
+                        <select name="department" id="userDepartmentFilter" class="form-select form-select-sm">
+                            <option value="">Tất cả</option>
+                            <option value="none" {% if current_department == 'none' %}selected{% endif %}>Chưa gán</option>
+                            {% for dept in departments %}
+                            <option value="{{ dept.pk }}" {% if current_department == dept.pk|stringformat:"s" %}selected{% endif %}>{{ dept.name }}</option>
+                            {% endfor %}
+                        </select>
                     </div>
-                    <div class="col-xl-2 col-lg-4 col-md-6 col-sm-6">
+                    <div class="col">
                         <label for="userDivisionFilter" class="form-label small text-muted mb-1">Bộ phận</label>
-                        <div class="input-group">
-                            <select name="division" id="userDivisionFilter" class="form-select">
-                                <option value="">Tất cả bộ phận</option>
-                                <option value="none" {% if current_division == 'none' %}selected{% endif %}>Chưa gán bộ phận</option>
-                                {% for div in divisions %}
-                                <option value="{{ div.pk }}" {% if current_division == div.pk|stringformat:"s" %}selected{% endif %}>{{ div.name }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
+                        <select name="division" id="userDivisionFilter" class="form-select form-select-sm">
+                            <option value="">Tất cả</option>
+                            <option value="none" {% if current_division == 'none' %}selected{% endif %}>Chưa gán</option>
+                            {% for div in divisions %}
+                            <option value="{{ div.pk }}" {% if current_division == div.pk|stringformat:"s" %}selected{% endif %}>{{ div.name }}</option>
+                            {% endfor %}
+                        </select>
                     </div>
-                    <div class="col-xl-2 col-lg-4 col-md-6 col-sm-6">
+                    <div class="col">
                         <label for="userPositionFilter" class="form-label small text-muted mb-1">Vị trí</label>
-                        <div class="input-group">
-                            <select name="position" id="userPositionFilter" class="form-select">
-                                <option value="">Tất cả vị trí</option>
-                                <option value="none" {% if current_position == 'none' %}selected{% endif %}>Chưa có vị trí</option>
-                                {% for pos in job_positions %}
-                                <option value="{{ pos }}" {% if current_position == pos %}selected{% endif %}>{{ pos }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
+                        <select name="position" id="userPositionFilter" class="form-select form-select-sm">
+                            <option value="">Tất cả</option>
+                            <option value="none" {% if current_position == 'none' %}selected{% endif %}>Chưa có</option>
+                            {% for pos in job_positions %}
+                            <option value="{{ pos }}" {% if current_position == pos %}selected{% endif %}>{{ pos }}</option>
+                            {% endfor %}
+                        </select>
                     </div>
-                    <div class="col-xl-2 col-lg-4 col-md-6 col-sm-6">
+                    <div class="col">
                         <label for="userPermGroupFilter" class="form-label small text-muted mb-1">Nhóm quyền</label>
-                        <div class="input-group">
-                            <select name="permission_group" id="userPermGroupFilter" class="form-select">
-                                <option value="">Tất cả nhóm quyền</option>
-                                <option value="none" {% if current_permission_group == 'none' %}selected{% endif %}>Chưa gán nhóm</option>
-                                {% for grp in permission_groups %}
-                                <option value="{{ grp.pk }}" {% if current_permission_group == grp.pk|stringformat:"s" %}selected{% endif %}>{{ grp.name }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
+                        <select name="permission_group" id="userPermGroupFilter" class="form-select form-select-sm">
+                            <option value="">Tất cả</option>
+                            <option value="none" {% if current_permission_group == 'none' %}selected{% endif %}>Chưa gán</option>
+                            {% for grp in permission_groups %}
+                            <option value="{{ grp.pk }}" {% if current_permission_group == grp.pk|stringformat:"s" %}selected{% endif %}>{{ grp.name }}</option>
+                            {% endfor %}
+                        </select>
                     </div>
-                    <div class="col-xl-3 col-lg-5 col-md-6 col-sm-12">
-                        <div class="row g-2 align-items-end jp-hrm-status-probation-row">
+                    <div class="col">
+                        <div class="row g-1 align-items-end jp-hrm-status-probation-row">
                             <div class="col-6">
                                 <label for="userStatusFilter" class="form-label small text-muted mb-1">Trạng thái</label>
-                                <select name="status" id="userStatusFilter" class="form-select">
+                                <select name="status" id="userStatusFilter" class="form-select form-select-sm">
                                     {% for value, label in employment_status_options.items %}
                                     <option value="{{ value }}" {% if current_status == value %}selected{% endif %}>{{ label }}</option>
                                     {% endfor %}
@@ -151,7 +143,7 @@
                             </div>
                             <div class="col-6">
                                 <label for="userProbationFilter" class="form-label small text-muted mb-1">Thử việc</label>
-                                <select name="probation" id="userProbationFilter" class="form-select">
+                                <select name="probation" id="userProbationFilter" class="form-select form-select-sm">
                                     {% for value, label in probation_filter_options.items %}
                                     <option value="{{ value }}" {% if current_probation == value %}selected{% endif %}>{{ label }}</option>
                                     {% endfor %}
@@ -159,18 +151,18 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-xl-2 col-lg-3 col-md-6 col-sm-6">
+                    <div class="col">
                         <label for="userSearch" class="form-label small text-muted mb-1">Tìm kiếm</label>
-                        <div class="jp-hrm-search input-group">
+                        <div class="jp-hrm-search input-group input-group-sm">
                             <input type="search"
                                    name="q"
                                    id="userSearch"
-                                   class="form-control"
-                                   placeholder="Mã NS, họ tên, account..."
+                                   class="form-control form-control-sm"
+                                   placeholder="Mã NS, tên..."
                                    value="{{ search_query }}"
                                    autocomplete="off">
                             {% if filters_active %}
-                            <a href="{% url 'user_list' %}" class="btn btn-outline-secondary" title="Xóa bộ lọc">
+                            <a href="{% url 'user_list' %}" class="btn btn-outline-secondary btn-sm" title="Xóa bộ lọc">
                                 <i class="bi bi-x-lg"></i>
                             </a>
                             {% endif %}

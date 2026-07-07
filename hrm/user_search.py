@@ -141,7 +141,7 @@ def _user_list_th_class(spec: dict) -> str:
     return ' '.join(parts)
 
 EMPLOYMENT_STATUS_LABELS = {
-    '': 'Tất cả trạng thái',
+    '': 'Tất cả',
     'active': 'Đang làm',
     'inactive': 'Nghỉ làm',
 }
@@ -170,8 +170,8 @@ def filter_users_by_employment_status(queryset, status: str | None):
 
 PROBATION_FILTER_LABELS = {
     '': 'Tất cả',
-    'yes': 'Đang thử việc',
-    'no': 'Không thử việc',
+    'yes': 'Đang TV',
+    'no': 'Không TV',
 }
 
 
