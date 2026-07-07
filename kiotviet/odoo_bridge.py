@@ -665,25 +665,40 @@ def push_stock(retailer: str, branch_loc: dict, codes: set[str], result: PushRes
 
     quant_ids: list[int] = []
     done = 0
+
+    # Cập nhật quant đã có: ghi lẻ theo giá trị (thường ít, chỉ nhiều khi chạy lại).
+    to_create: list[dict] = []
     for (pid, loc), qty in targets.items():
-        try:
-            qid = existing_quants.get((pid, loc))
-            if qid:
+        qid = existing_quants.get((pid, loc))
+        if qid:
+            try:
                 _execute('stock.quant', 'write', [qid], {'inventory_quantity': qty},
                          context={'inventory_mode': True})
-            else:
-                qid = _execute(
-                    'stock.quant', 'create',
-                    {'product_id': pid, 'location_id': loc, 'inventory_quantity': qty},
-                    context={'inventory_mode': True},
-                )
-            quant_ids.append(qid)
-            done += 1
-            if progress and done % 500 == 0:
-                pct = 83 + int((done / total) * 10)
-                progress(f'Đã ghi {done}/{total} dòng (chưa áp dụng)...', min(93, pct))
-        except Exception as exc:  # noqa: BLE001
-            result.stock_failed.append({'pid': pid, 'loc': loc, 'error': str(exc)[:150]})
+                quant_ids.append(qid)
+            except Exception as exc:  # noqa: BLE001
+                result.stock_failed.append({'pid': pid, 'loc': loc, 'error': str(exc)[:150]})
+        else:
+            to_create.append({'product_id': pid, 'location_id': loc, 'inventory_quantity': qty})
+
+    # Tạo quant mới theo LÔ (giảm số round-trip từ hàng nghìn xuống vài chục).
+    for i in range(0, len(to_create), _STOCK_APPLY_BATCH):
+        batch = to_create[i:i + _STOCK_APPLY_BATCH]
+        try:
+            ids = _execute('stock.quant', 'create', batch, context={'inventory_mode': True})
+            quant_ids.extend(ids if isinstance(ids, list) else [ids])
+        except Exception:
+            # Lô lỗi → tạo lẻ để cô lập bản ghi hỏng.
+            for vals in batch:
+                try:
+                    qid = _execute('stock.quant', 'create', vals, context={'inventory_mode': True})
+                    quant_ids.append(qid)
+                except Exception as exc:  # noqa: BLE001
+                    result.stock_failed.append(
+                        {'pid': vals['product_id'], 'loc': vals['location_id'], 'error': str(exc)[:150]})
+        done += len(batch)
+        if progress:
+            pct = 83 + int((done / total) * 10)
+            progress(f'Đã ghi {min(done, total)}/{total} dòng (chưa áp dụng)...', min(93, pct))
 
     # Áp dụng tồn kho theo lô (bước nặng nhất, nhưng gộp nên nhanh)
     if progress:
