@@ -268,7 +268,7 @@
                         <td data-label="Ngày sinh" class="text-muted small jp-hrm-col-date jp-hrm-col" data-col="birth_date">{{ u.profile.date_of_birth|date:"d/m/Y"|default:"—" }}</td>
                         <td class="text-center jp-hrm-col-probation jp-hrm-col" data-col="probation" data-label="Thử việc">
                             {% if u.profile.on_probation %}
-                            <i class="bi bi-check-square-fill text-warning" title="Đang thử việc"></i>
+                            <i class="bi bi-check-square-fill text-danger" title="Đang thử việc"></i>
                             {% else %}
                             <span class="text-muted">—</span>
                             {% endif %}
