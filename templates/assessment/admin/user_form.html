@@ -235,17 +235,13 @@
                             <div class="col-sm-6 col-md-4">
                                 {% if is_edit %}
                                 <div class="jp-form-field jp-user-form--view-only">
-                                    <div class="jp-form-label">Thử việc</div>
-                                    <div class="mt-md-2 pt-md-1">
-                                        {% if profile.on_probation %}
-                                        <span class="d-inline-flex align-items-center gap-1 text-danger fw-semibold small">
-                                            <i class="bi bi-check-square-fill" aria-hidden="true"></i>
-                                            <span>Đang thử việc</span>
-                                        </span>
-                                        {% else %}
-                                        <span class="text-muted small">Không</span>
-                                        {% endif %}
-                                    </div>
+                                    <label class="jp-form-label">Thử việc</label>
+                                    <input type="text"
+                                           class="form-control{% if profile.on_probation %} text-danger fw-semibold{% else %} text-muted{% endif %}"
+                                           value="{% if profile.on_probation %}Đang thử việc{% else %}Không{% endif %}"
+                                           readonly
+                                           tabindex="-1"
+                                           aria-readonly="true">
                                 </div>
                                 <div class="jp-form-field jp-user-form--edit-only{% if form.on_probation.errors %} is-invalid{% endif %}">
                                     <div class="form-check form-switch jp-hrm-probation-switch mt-md-2 pt-md-1">
