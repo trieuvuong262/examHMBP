@@ -19,6 +19,7 @@ import base64
 import logging
 import unicodedata
 import xmlrpc.client
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from decimal import Decimal, InvalidOperation
 
@@ -739,6 +740,8 @@ def push_stock(retailer: str, branch_loc: dict, codes: set[str], result: PushRes
 
 _IMAGE_TIMEOUT = 20
 _IMAGE_MAX_BYTES = 8 * 1024 * 1024  # bỏ ảnh > 8MB (Odoo image_1920 ~ đủ dùng)
+_IMAGE_DOWNLOAD_WORKERS = 12
+_IMAGE_BATCH = 48
 
 
 def _download_image_b64(url: str) -> str | None:
@@ -835,9 +838,8 @@ def push_images(
                 have_image.add(r['id'])
 
     total = max(1, len(code_to_url))
-    done = 0
+    pending: list[tuple[str, str, int]] = []
     for code, url in code_to_url.items():
-        done += 1
         tmpl_id = code_to_tmpl.get(code)
         if not tmpl_id:
             result.images_failed.append({'code': code, 'error': 'không tìm thấy SP trên Odoo'})
@@ -845,18 +847,42 @@ def push_images(
         if only_missing and tmpl_id in have_image:
             result.images_skipped += 1
             continue
-        b64 = _download_image_b64(url)
-        if not b64:
-            result.images_failed.append({'code': code, 'error': 'tải ảnh lỗi/quá lớn'})
-            continue
-        try:
-            _execute('product.template', 'write', [tmpl_id], {'image_1920': b64})
-            result.images_set += 1
-        except Exception as exc:  # noqa: BLE001
-            result.images_failed.append({'code': code, 'error': str(exc)[:150]})
-        if progress and done % 100 == 0:
-            pct = 3 + int((done / total) * 95)
-            _log(f'Ảnh: đặt {result.images_set}, bỏ qua {result.images_skipped}, lỗi {len(result.images_failed)} ({done}/{total})...', min(99, pct))
+        pending.append((code, url, tmpl_id))
+
+    _log(f'Cần đẩy {len(pending)} ảnh (bỏ qua {result.images_skipped} đã có)...', 5)
+    done = 0
+
+    for batch_start in range(0, len(pending), _IMAGE_BATCH):
+        batch = pending[batch_start:batch_start + _IMAGE_BATCH]
+        downloaded: dict[str, str] = {}
+        with ThreadPoolExecutor(max_workers=_IMAGE_DOWNLOAD_WORKERS) as pool:
+            futures = {pool.submit(_download_image_b64, url): (code, tmpl_id) for code, url, tmpl_id in batch}
+            for fut in as_completed(futures):
+                code, tmpl_id = futures[fut]
+                b64 = fut.result()
+                if b64:
+                    downloaded[code] = b64
+                else:
+                    result.images_failed.append({'code': code, 'error': 'tải ảnh lỗi/quá lớn'})
+
+        for code, _url, tmpl_id in batch:
+            b64 = downloaded.get(code)
+            if not b64:
+                continue
+            try:
+                _execute('product.template', 'write', [tmpl_id], {'image_1920': b64})
+                result.images_set += 1
+            except Exception as exc:  # noqa: BLE001
+                result.images_failed.append({'code': code, 'error': str(exc)[:150]})
+
+        done += len(batch)
+        if progress:
+            pct = 5 + int((done / max(1, len(pending))) * 94)
+            _log(
+                f'Ảnh: đặt {result.images_set}, bỏ qua {result.images_skipped}, '
+                f'lỗi {len(result.images_failed)} ({done}/{len(pending)})...',
+                min(99, pct),
+            )
 
     _log(f'Xong ảnh: đặt {result.images_set}, bỏ qua {result.images_skipped}, lỗi {len(result.images_failed)}.', 100)
     return result
