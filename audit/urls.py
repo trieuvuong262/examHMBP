@@ -30,6 +30,7 @@ urlpatterns = [
     path('kiotviet-sync/', kiotviet_sync_views.kiotviet_sync_page, name='kiotviet_sync'),
     path('kiotviet-sync/save/', kiotviet_sync_views.kiotviet_sync_save, name='kiotviet_sync_save'),
     path('kiotviet-sync/run/', kiotviet_sync_views.kiotviet_sync_run, name='kiotviet_sync_run'),
+    path('kiotviet-sync/odoo-push/', kiotviet_sync_views.kiotviet_odoo_push_run, name='kiotviet_odoo_push_run'),
     path('kiotviet-sync/status/<int:job_id>/', kiotviet_sync_views.kiotviet_sync_status, name='kiotviet_sync_status'),
     path('nas-links/', views.nas_links_index, name='nas_links'),
     path('vps/', views_vps.vps_monitor_page, name='vps_monitor'),

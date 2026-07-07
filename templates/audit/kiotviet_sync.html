@@ -166,6 +166,49 @@
                 </div>
             </div>
 
+            {% if can_export and configured %}
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white border-0 pt-3 pb-0 d-flex justify-content-between align-items-center">
+                    <h5 class="fw-bold mb-0"> Đẩy sang Odoo</h5>
+                </div>
+                <div class="card-body">
+                    {% if odoo_ready %}
+                    <p class="text-muted small mb-3">
+                        Đẩy danh mục + sản phẩm (+ tồn kho theo kho) từ mirror KiotViet sang Odoo.
+                        Khớp theo <code>mã hàng = default_code</code> nên chạy lại không tạo trùng.
+                    </p>
+                    <form method="post" action="{% url 'audit:kiotviet_odoo_push_run' %}"
+                          onsubmit="return confirm('Bắt đầu đẩy dữ liệu sang Odoo?');">
+                        {% csrf_token %}
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" name="dry_run" id="odoo_dry_run" checked>
+                            <label class="form-check-label" for="odoo_dry_run">
+                                Chạy thử (dry-run) — chỉ xem sẽ tạo gì, <strong>không ghi Odoo</strong>
+                            </label>
+                        </div>
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" name="with_stock" id="odoo_with_stock" checked>
+                            <label class="form-check-label" for="odoo_with_stock">Kèm tồn kho theo chi nhánh</label>
+                        </div>
+                        <div class="mb-3" style="max-width: 14rem;">
+                            <label class="form-label small fw-semibold mb-1" for="odoo_limit">Giới hạn số SP (để test, bỏ trống = tất cả)</label>
+                            <input type="number" min="1" class="form-control form-control-sm" name="limit" id="odoo_limit" placeholder="VD: 20">
+                        </div>
+                        <button type="submit" class="btn btn-outline-hm fw-bold"
+                                {% if active_job %}disabled title="Đang có job chạy…"{% endif %}>
+                            <i class="bi bi-box-arrow-right me-1"></i>Đẩy sang Odoo
+                        </button>
+                    </form>
+                    {% else %}
+                    <div class="alert alert-warning border-0 mb-0 small">
+                        Chưa cấu hình Odoo. Đặt <code>ODOO_URL</code>, <code>ODOO_DB</code>,
+                        <code>ODOO_API_USER</code>, <code>ODOO_API_PASSWORD</code> trong <code>.env</code>.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
             <div class="card border-0 shadow-sm">
                 <div class="card-header bg-white border-0 pt-3 pb-0">
                     <h5 class="fw-bold mb-0"> Trạng thái mirror</h5>

@@ -68,7 +68,7 @@ class Command(BaseCommand):
             update_existing=options.get('update_existing', True),
             branch_filter=options.get('branches'),
             product_type=options.get('product_type', 'storable'),
-            progress=lambda m: self.stdout.write(f'  … {m}'),
+            progress=lambda m, p=None: self.stdout.write(f'  … {m}'),
         )
 
         s = result.summary()

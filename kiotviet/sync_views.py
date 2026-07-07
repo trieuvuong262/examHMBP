@@ -14,6 +14,8 @@ from hrm.module_permissions import MODULE_AUDIT, user_can_export_module
 from .client import KiotVietClient
 from .mirror import mirror_summary, sync_states
 from .models import KvSyncConfig, KvSyncJob
+from .odoo_bridge import odoo_ready
+from .odoo_push_runner import OdooPushRunnerError, start_odoo_push_async
 from .sync_helpers import SYNC_INTERVAL_CHOICES, cron_hint_for_minutes, normalize_interval_minutes
 from .sync_runner import KvSyncRunnerError, active_sync_job, latest_sync_job, start_sync_async
 from .sync_service import ENTITY_ALL, ENTITY_LABELS, current_retailer
@@ -51,6 +53,7 @@ def _sync_page_context(user) -> dict:
     return {
         'can_export': user_can_export_module(user, MODULE_AUDIT),
         'configured': configured,
+        'odoo_ready': odoo_ready(),
         'retailer': retailer,
         'config': config,
         'interval_choices': SYNC_INTERVAL_CHOICES,
@@ -127,6 +130,40 @@ def kiotviet_sync_run(request):
         messages.error(request, str(exc))
         return redirect('audit:kiotviet_sync')
 
+    return redirect(reverse('audit:kiotviet_sync') + f'?job={job.pk}')
+
+
+@module_perm_required(MODULE_AUDIT, 'export')
+@require_POST
+def kiotviet_odoo_push_run(request):
+    if not odoo_ready():
+        messages.error(request, 'Odoo chưa cấu hình (ODOO_URL/ODOO_DB/ODOO_API_USER/ODOO_API_PASSWORD).')
+        return redirect('audit:kiotviet_sync')
+    if not KiotVietClient.is_configured():
+        messages.error(request, 'KiotViet chưa cấu hình.')
+        return redirect('audit:kiotviet_sync')
+
+    dry_run = request.POST.get('dry_run') == 'on'
+    with_stock = request.POST.get('with_stock') == 'on'
+    limit_raw = (request.POST.get('limit') or '').strip()
+    limit = int(limit_raw) if limit_raw.isdigit() and int(limit_raw) > 0 else None
+
+    try:
+        job = start_odoo_push_async(
+            user=request.user,
+            options={
+                'dry_run': dry_run,
+                'with_stock': with_stock,
+                'limit': limit,
+                'product_type': 'storable',
+            },
+        )
+    except OdooPushRunnerError as exc:
+        messages.error(request, str(exc))
+        return redirect('audit:kiotviet_sync')
+
+    mode = 'thử (dry-run)' if dry_run else 'ghi thật'
+    messages.success(request, f'Đã bắt đầu đẩy sang Odoo — chế độ {mode}.')
     return redirect(reverse('audit:kiotviet_sync') + f'?job={job.pk}')
 
 

@@ -506,19 +506,19 @@ def push_products(
     retailer = retailer if retailer is not None else current_retailer()
     result = PushResult(retailer=retailer, dry_run=dry_run)
 
-    def _log(msg):
+    def _log(msg, pct=None):
         if progress:
-            progress(msg)
+            progress(msg, pct)
 
     # 1) Danh mục
-    _log('Chuẩn bị cây danh mục...')
+    _log('Chuẩn bị cây danh mục...', 3)
     cat = ensure_category_tree(retailer, dry_run=dry_run)
     result.categories_created = cat['created']
     path_map = cat['path_map']
     root_id = cat['root_id']
 
     # 2) Kho
-    _log('Chuẩn bị kho...')
+    _log('Chuẩn bị kho...', 6)
     wh = ensure_warehouses(retailer, branch_filter, dry_run=dry_run)
     result.warehouses_created = wh['created']
     branch_loc = {bid: info['location_id'] for bid, info in wh['map'].items()}
@@ -584,31 +584,41 @@ def push_products(
         if len(to_create) >= _PRODUCT_CREATE_BATCH:
             _create_products_batch(to_create, result)
             to_create = []
-            _log(f'Đã tạo {result.products_created} SP...')
+            total = max(1, len(unique_products))
+            pct = 6 + int((result.products_created / total) * 74)
+            _log(f'Đã tạo {result.products_created} SP...', min(80, pct))
 
     if to_create:
         _create_products_batch(to_create, result)
-    _log(f'Xong sản phẩm: tạo {result.products_created}, cập nhật {result.products_updated}.')
+    _log(f'Xong sản phẩm: tạo {result.products_created}, cập nhật {result.products_updated}.', 80)
 
     # 4) Tồn kho
     if with_stock and not dry_run:
-        _log('Đang set tồn kho theo kho...')
+        _log('Đang set tồn kho theo kho...', 82)
         push_stock(retailer, branch_loc, seen_codes, result, progress=progress)
     elif with_stock and dry_run:
-        _log('(dry-run) Bỏ qua ghi tồn kho.')
+        _log('(dry-run) Bỏ qua ghi tồn kho.', 99)
 
     return result
 
 
+_STOCK_APPLY_BATCH = 500
+
+
 def push_stock(retailer: str, branch_loc: dict, codes: set[str], result: PushResult, *, progress=None) -> None:
-    """Set on_hand cho từng (SP, kho) qua stock.quant inventory mode. Idempotent."""
+    """Set on_hand cho từng (SP, kho) qua stock.quant inventory mode. Idempotent.
+
+    Tối ưu: ghi inventory_quantity từng dòng (nhẹ, chỉ ghi DB) rồi gọi
+    action_apply_inventory THEO LÔ (nặng) — giảm số lần apply từ hàng nghìn
+    xuống vài chục, nhanh hơn ~1-2 bậc so với apply từng dòng.
+    """
     valid_locs = {bid: loc for bid, loc in branch_loc.items() if loc}
     if not valid_locs:
         return
 
-    # map default_code -> product.product id (chỉ lấy SP có mã trùng KiotViet)
     variants = fetch_odoo_products_by_code(codes)
     code_to_pid = {c: recs[0]['id'] for c, recs in variants.items() if recs}
+    loc_ids = list(valid_locs.values())
 
     invs = list(
         KvProductInventory.objects
@@ -617,42 +627,74 @@ def push_stock(retailer: str, branch_loc: dict, codes: set[str], result: PushRes
         .exclude(on_hand=0)
         .values('product_kiotviet_id', 'branch_kiotviet_id', 'on_hand')
     )
-
-    # cần map product_kiotviet_id -> code để tra pid
     kv_id_to_code = dict(
         KvProduct.objects
         .filter(retailer=retailer, kiotviet_id__in=[i['product_kiotviet_id'] for i in invs])
         .values_list('kiotviet_id', 'code')
     )
 
-    done = 0
+    # (pid, loc) -> qty cần đặt
+    targets: dict[tuple[int, int], float] = {}
     for row in invs:
         code = _norm_code(kv_id_to_code.get(row['product_kiotviet_id']))
         pid = code_to_pid.get(code)
         loc = valid_locs.get(row['branch_kiotviet_id'])
         if not pid or not loc:
             continue
-        qty = float(row['on_hand'] or 0)
+        targets[(pid, loc)] = float(row['on_hand'] or 0)
+
+    total = max(1, len(targets))
+    if progress:
+        progress(f'Chuẩn bị ghi {total} dòng tồn kho...', 83)
+
+    # Nạp trước quant hiện có để biết dòng nào update / dòng nào tạo mới
+    pids = list({pid for pid, _ in targets})
+    existing_quants: dict[tuple[int, int], int] = {}
+    for i in range(0, len(pids), _ODOO_READ_BATCH):
+        chunk = pids[i:i + _ODOO_READ_BATCH]
+        rows = _execute(
+            'stock.quant', 'search_read',
+            [['product_id', 'in', chunk], ['location_id', 'in', loc_ids]],
+            fields=['id', 'product_id', 'location_id'],
+            context={'inventory_mode': True},
+        ) or []
+        for q in rows:
+            p = q['product_id'][0] if isinstance(q['product_id'], (list, tuple)) else q['product_id']
+            l = q['location_id'][0] if isinstance(q['location_id'], (list, tuple)) else q['location_id']
+            existing_quants[(p, l)] = q['id']
+
+    quant_ids: list[int] = []
+    done = 0
+    for (pid, loc), qty in targets.items():
         try:
-            found = _execute(
-                'stock.quant', 'search',
-                [['product_id', '=', pid], ['location_id', '=', loc]],
-                context={'inventory_mode': True},
-            )
-            if found:
-                _execute('stock.quant', 'write', found, {'inventory_quantity': qty},
+            qid = existing_quants.get((pid, loc))
+            if qid:
+                _execute('stock.quant', 'write', [qid], {'inventory_quantity': qty},
                          context={'inventory_mode': True})
-                _safe_apply_inventory(found)
             else:
                 qid = _execute(
                     'stock.quant', 'create',
                     {'product_id': pid, 'location_id': loc, 'inventory_quantity': qty},
                     context={'inventory_mode': True},
                 )
-                _safe_apply_inventory([qid])
-            result.stock_applied += 1
+            quant_ids.append(qid)
             done += 1
-            if progress and done % 200 == 0:
-                progress(f'Đã set tồn {done} dòng...')
+            if progress and done % 500 == 0:
+                pct = 83 + int((done / total) * 10)
+                progress(f'Đã ghi {done}/{total} dòng (chưa áp dụng)...', min(93, pct))
         except Exception as exc:  # noqa: BLE001
-            result.stock_failed.append({'code': code, 'branch': row['branch_kiotviet_id'], 'error': str(exc)[:150]})
+            result.stock_failed.append({'pid': pid, 'loc': loc, 'error': str(exc)[:150]})
+
+    # Áp dụng tồn kho theo lô (bước nặng nhất, nhưng gộp nên nhanh)
+    if progress:
+        progress(f'Áp dụng tồn kho theo lô ({len(quant_ids)} dòng)...', 94)
+    for i in range(0, len(quant_ids), _STOCK_APPLY_BATCH):
+        batch = quant_ids[i:i + _STOCK_APPLY_BATCH]
+        try:
+            _safe_apply_inventory(batch)
+            result.stock_applied += len(batch)
+        except Exception as exc:  # noqa: BLE001
+            result.stock_failed.append({'batch_start': i, 'error': str(exc)[:150]})
+        if progress:
+            pct = 94 + int(((i + len(batch)) / max(1, len(quant_ids))) * 5)
+            progress(f'Đã áp dụng {min(i + len(batch), len(quant_ids))}/{len(quant_ids)} dòng tồn...', min(99, pct))
