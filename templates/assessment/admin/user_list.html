@@ -139,17 +139,27 @@
                             </select>
                         </div>
                     </div>
-                    <div class="col-xl-2 col-lg-4 col-md-6 col-sm-6">
-                        <label for="userStatusFilter" class="form-label small text-muted mb-1">Trạng thái</label>
-                        <div class="input-group">
-                            <select name="status" id="userStatusFilter" class="form-select">
-                                {% for value, label in employment_status_options.items %}
-                                <option value="{{ value }}" {% if current_status == value %}selected{% endif %}>{{ label }}</option>
-                                {% endfor %}
-                            </select>
+                    <div class="col-xl-3 col-lg-5 col-md-6 col-sm-12">
+                        <div class="row g-2 align-items-end jp-hrm-status-probation-row">
+                            <div class="col-6">
+                                <label for="userStatusFilter" class="form-label small text-muted mb-1">Trạng thái</label>
+                                <select name="status" id="userStatusFilter" class="form-select">
+                                    {% for value, label in employment_status_options.items %}
+                                    <option value="{{ value }}" {% if current_status == value %}selected{% endif %}>{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-6">
+                                <label for="userProbationFilter" class="form-label small text-muted mb-1">Thử việc</label>
+                                <select name="probation" id="userProbationFilter" class="form-select">
+                                    {% for value, label in probation_filter_options.items %}
+                                    <option value="{{ value }}" {% if current_probation == value %}selected{% endif %}>{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
                         </div>
                     </div>
-                    <div class="col-xl-2 col-lg-4 col-md-6 col-sm-6">
+                    <div class="col-xl-2 col-lg-3 col-md-6 col-sm-6">
                         <label for="userSearch" class="form-label small text-muted mb-1">Tìm kiếm</label>
                         <div class="jp-hrm-search input-group">
                             <input type="search"
@@ -189,6 +199,11 @@
                     {% if status_filter_explicit %}
                     <span class="badge rounded-pill bg-hm-subtle text-hm border border-danger border-opacity-25 px-3 py-2">
                         {{ current_status_label }}
+                    </span>
+                    {% endif %}
+                    {% if probation_filter_explicit %}
+                    <span class="badge rounded-pill bg-hm-subtle text-hm border border-danger border-opacity-25 px-3 py-2">
+                        {{ current_probation_label }}
                     </span>
                     {% endif %}
                     {% if search_query %}
@@ -608,6 +623,7 @@ function autoCopySync(text) {
         const divEl = document.getElementById('userDivisionFilter');
         const posEl = document.getElementById('userPositionFilter');
         const statusEl = document.getElementById('userStatusFilter');
+        const probationEl = document.getElementById('userProbationFilter');
         const permGroupEl = document.getElementById('userPermGroupFilter');
         const searchEl = document.getElementById('userSearch');
         if (!form) return;
@@ -731,6 +747,11 @@ function autoCopySync(text) {
         }
         if (statusEl) {
             statusEl.addEventListener('change', function () {
+                submitFilters(0);
+            });
+        }
+        if (probationEl) {
+            probationEl.addEventListener('change', function () {
                 submitFilters(0);
             });
         }

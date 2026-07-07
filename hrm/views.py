@@ -65,12 +65,15 @@ from hrm.forms import (
 from hrm.user_search import (
     EMPLOYMENT_STATUS_LABELS,
     resolve_employment_status_from_request,
+    resolve_probation_filter_from_request,
+    PROBATION_FILTER_LABELS,
     build_user_list_table_columns,
     exclude_hidden_hrm_users,
     is_protected_system_user,
     filter_users_by_department,
     filter_users_by_division,
     filter_users_by_employment_status,
+    filter_users_by_probation,
     filter_users_by_job_position,
     filter_users_by_search,
     distinct_job_positions_for_filter,
@@ -201,6 +204,7 @@ def user_list(request):
     job_position = (request.GET.get('position') or '').strip()
     permission_group_id = (request.GET.get('permission_group') or '').strip()
     employment_status = resolve_employment_status_from_request(request)
+    probation_filter = resolve_probation_filter_from_request(request)
 
     users_qs = User.objects.select_related(
         'profile',
@@ -225,6 +229,7 @@ def user_list(request):
     elif permission_group_id.isdigit():
         users_qs = users_qs.filter(profile__permission_group_id=int(permission_group_id))
     users_qs = filter_users_by_employment_status(users_qs, employment_status)
+    users_qs = filter_users_by_probation(users_qs, probation_filter)
     users_qs = apply_user_list_sort(users_qs, sort_key, sort_dir)
     page_obj, query_string = paginate_queryset(request, users_qs)
 
@@ -286,6 +291,10 @@ def user_list(request):
         'current_status_label': EMPLOYMENT_STATUS_LABELS.get(employment_status, ''),
         'status_filter_explicit': 'status' in request.GET,
         'employment_status_options': EMPLOYMENT_STATUS_LABELS,
+        'current_probation': probation_filter,
+        'current_probation_label': PROBATION_FILTER_LABELS.get(probation_filter, ''),
+        'probation_filter_explicit': 'probation' in request.GET,
+        'probation_filter_options': PROBATION_FILTER_LABELS,
         'departments': departments,
         'divisions': divisions,
         'job_positions': job_positions,
@@ -302,7 +311,7 @@ def user_list(request):
         'positions_cascade': json.dumps(job_positions_cascade_for_filter()),
         'filters_active': bool(
             search_query or department_id or division_id or job_position
-            or permission_group_id or 'status' in request.GET,
+            or permission_group_id or 'status' in request.GET or 'probation' in request.GET,
         ),
     })
 
@@ -869,6 +878,7 @@ def user_export_excel(request):
     division_id = (request.GET.get('division') or '').strip()
     job_position = (request.GET.get('position') or '').strip()
     employment_status = resolve_employment_status_from_request(request)
+    probation_filter = resolve_probation_filter_from_request(request)
     _sort_key, _sort_dir, _order_fields = resolve_user_list_sort(
         request.GET.get('sort'),
         request.GET.get('dir'),
@@ -886,6 +896,7 @@ def user_export_excel(request):
     users = filter_users_by_division(users, division_id)
     users = filter_users_by_job_position(users, job_position)
     users = filter_users_by_employment_status(users, employment_status)
+    users = filter_users_by_probation(users, probation_filter)
     users = apply_user_list_sort(users, _sort_key, _sort_dir)
     rows = [user_to_excel_row(u) for u in users]
     df = pd.DataFrame(rows, columns=EXCEL_ALL_HEADERS)

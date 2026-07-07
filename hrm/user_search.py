@@ -168,6 +168,31 @@ def filter_users_by_employment_status(queryset, status: str | None):
     return queryset
 
 
+PROBATION_FILTER_LABELS = {
+    '': 'Tất cả',
+    'yes': 'Đang thử việc',
+    'no': 'Không thử việc',
+}
+
+
+def resolve_probation_filter_from_request(request) -> str:
+    if 'probation' not in request.GET:
+        return ''
+    raw = (request.GET.get('probation') or '').strip().lower()
+    if raw not in PROBATION_FILTER_LABELS:
+        return ''
+    return raw
+
+
+def filter_users_by_probation(queryset, probation: str | None):
+    raw = (probation or '').strip().lower()
+    if raw == 'yes':
+        return queryset.filter(profile__on_probation=True)
+    if raw == 'no':
+        return queryset.filter(profile__on_probation=False)
+    return queryset
+
+
 def resolve_user_list_sort(sort_key: str | None, sort_dir: str | None) -> tuple[str, str, list[str]]:
     key = (sort_key or 'name').strip()
     if key not in USER_LIST_SORT_COLUMNS:
@@ -221,7 +246,7 @@ def apply_user_list_sort(queryset, sort_key: str, sort_dir: str):
 
 
 def user_list_query_params(request, **overrides) -> dict[str, str]:
-    keys = ('department', 'division', 'position', 'permission_group', 'q', 'status', 'sort', 'dir', 'page')
+    keys = ('department', 'division', 'position', 'permission_group', 'q', 'status', 'probation', 'sort', 'dir', 'page')
     data: dict[str, str] = {}
     for key in keys:
         if key in overrides:

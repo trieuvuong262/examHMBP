@@ -3122,6 +3122,14 @@ body.jp-tool-loading-active {
     border-radius: var(--jp-radius-xs, 4px);
 }
 
+.jp-hrm-list-filters .jp-hrm-status-probation-row {
+    flex-wrap: nowrap;
+}
+
+.jp-hrm-list-filters .jp-hrm-status-probation-row > [class*="col-"] {
+    min-width: 0;
+}
+
 [data-theme="dark"] .jp-hrm-list-filters {
     background: linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, transparent 100%);
 }
