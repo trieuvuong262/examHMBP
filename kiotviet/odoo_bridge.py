@@ -15,11 +15,14 @@ nên chạy lại nhiều lần không tạo trùng.
 
 from __future__ import annotations
 
+import base64
 import logging
 import unicodedata
 import xmlrpc.client
 from dataclasses import dataclass, field
 from decimal import Decimal, InvalidOperation
+
+import requests
 
 from audit.services.odoo_sync import _execute, odoo_configured
 from kiotviet.models import KvBranch, KvProduct, KvProductInventory
@@ -454,6 +457,9 @@ class PushResult:
     products_failed: list = field(default_factory=list)
     stock_applied: int = 0
     stock_failed: list = field(default_factory=list)
+    images_set: int = 0
+    images_skipped: int = 0
+    images_failed: list = field(default_factory=list)
 
     def summary(self) -> dict:
         return {
@@ -467,6 +473,9 @@ class PushResult:
             'products_failed': len(self.products_failed),
             'stock_applied': self.stock_applied,
             'stock_failed': len(self.stock_failed),
+            'images_set': self.images_set,
+            'images_skipped': self.images_skipped,
+            'images_failed': len(self.images_failed),
         }
 
 
@@ -494,12 +503,13 @@ def push_products(
     dry_run: bool = True,
     limit: int | None = None,
     with_stock: bool = True,
+    with_images: bool = False,
     update_existing: bool = True,
     branch_filter=None,
     product_type: str = 'storable',
     progress=None,
 ) -> PushResult:
-    """Đẩy danh mục + sản phẩm (+ tồn kho) từ KiotViet sang Odoo.
+    """Đẩy danh mục + sản phẩm (+ tồn kho + ảnh) từ KiotViet sang Odoo.
 
     Idempotent: khớp theo default_code. Chạy lại chỉ cập nhật/thêm mới.
     """
@@ -597,7 +607,17 @@ def push_products(
         _log('Đang set tồn kho theo kho...', 82)
         push_stock(retailer, branch_loc, seen_codes, result, progress=progress)
     elif with_stock and dry_run:
-        _log('(dry-run) Bỏ qua ghi tồn kho.', 99)
+        _log('(dry-run) Bỏ qua ghi tồn kho.', 95)
+
+    # 5) Ảnh
+    if with_images and not dry_run:
+        _log('Đang đẩy ảnh sản phẩm...', 96)
+        img = push_images(retailer, only_missing=True, progress=progress)
+        result.images_set = img.images_set
+        result.images_skipped = img.images_skipped
+        result.images_failed = img.images_failed
+    elif with_images and dry_run:
+        _log('(dry-run) Bỏ qua đẩy ảnh.', 99)
 
     return result
 
@@ -713,3 +733,130 @@ def push_stock(retailer: str, branch_loc: dict, codes: set[str], result: PushRes
         if progress:
             pct = 94 + int(((i + len(batch)) / max(1, len(quant_ids))) * 5)
             progress(f'Đã áp dụng {min(i + len(batch), len(quant_ids))}/{len(quant_ids)} dòng tồn...', min(99, pct))
+
+
+# ------------------------------- HÌNH ẢNH / IMAGE --------------------------
+
+_IMAGE_TIMEOUT = 20
+_IMAGE_MAX_BYTES = 8 * 1024 * 1024  # bỏ ảnh > 8MB (Odoo image_1920 ~ đủ dùng)
+
+
+def _download_image_b64(url: str) -> str | None:
+    if not url:
+        return None
+    try:
+        resp = requests.get(url, timeout=_IMAGE_TIMEOUT, stream=True)
+        resp.raise_for_status()
+        content = resp.content
+        if not content or len(content) > _IMAGE_MAX_BYTES:
+            return None
+        return base64.b64encode(content).decode('ascii')
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _tmpl_ids_by_code(codes) -> dict[str, int]:
+    """map default_code -> product.template id (đọc qua product.product)."""
+    result: dict[str, int] = {}
+    codes = [c for c in {_norm_code(c) for c in codes} if c]
+    for i in range(0, len(codes), _ODOO_READ_BATCH):
+        chunk = codes[i:i + _ODOO_READ_BATCH]
+        rows = _execute(
+            'product.product', 'search_read',
+            [['default_code', 'in', chunk]],
+            fields=['default_code', 'product_tmpl_id'],
+            context={'active_test': False},
+        ) or []
+        for r in rows:
+            code = _norm_code(r.get('default_code'))
+            tmpl = r.get('product_tmpl_id')
+            tmpl = tmpl[0] if isinstance(tmpl, (list, tuple)) else tmpl
+            if code and tmpl and code not in result:
+                result[code] = tmpl
+    return result
+
+
+def push_images(
+    retailer: str | None = None,
+    *,
+    limit: int | None = None,
+    only_missing: bool = True,
+    progress=None,
+) -> PushResult:
+    """Tải ảnh đầu tiên của SP từ CDN KiotViet → nạp vào image_1920 Odoo.
+
+    only_missing=True: bỏ qua SP trên Odoo đã có ảnh (tránh tải lại).
+    """
+    retailer = retailer if retailer is not None else current_retailer()
+    result = PushResult(retailer=retailer, dry_run=False)
+
+    def _log(msg, pct=None):
+        if progress:
+            progress(msg, pct)
+
+    qs = (
+        KvProduct.objects
+        .filter(retailer=retailer, is_deleted=False)
+        .exclude(is_active=False)
+        .exclude(code='')
+        .exclude(image_urls=[])
+        .order_by('code', 'kiotviet_id')
+    )
+    if limit:
+        qs = qs[:limit]
+
+    # gộp theo code (flat), lấy url ảnh đầu tiên
+    code_to_url: dict[str, str] = {}
+    for p in qs:
+        code = _norm_code(p.code)
+        if code in code_to_url:
+            continue
+        urls = p.image_urls or []
+        if urls:
+            code_to_url[code] = urls[0]
+
+    result.products_total = len(code_to_url)
+    _log(f'Ánh xạ {len(code_to_url)} SP có ảnh sang Odoo...', 3)
+
+    code_to_tmpl = _tmpl_ids_by_code(code_to_url.keys())
+
+    # Lọc SP đã có ảnh (đọc image_1920 dạng bool qua context để nhẹ)
+    have_image: set[int] = set()
+    if only_missing and code_to_tmpl:
+        tmpl_ids = list(set(code_to_tmpl.values()))
+        for i in range(0, len(tmpl_ids), _ODOO_READ_BATCH):
+            chunk = tmpl_ids[i:i + _ODOO_READ_BATCH]
+            rows = _execute(
+                'product.template', 'search_read',
+                [['id', 'in', chunk], ['image_1920', '!=', False]],
+                fields=['id'],
+            ) or []
+            for r in rows:
+                have_image.add(r['id'])
+
+    total = max(1, len(code_to_url))
+    done = 0
+    for code, url in code_to_url.items():
+        done += 1
+        tmpl_id = code_to_tmpl.get(code)
+        if not tmpl_id:
+            result.images_failed.append({'code': code, 'error': 'không tìm thấy SP trên Odoo'})
+            continue
+        if only_missing and tmpl_id in have_image:
+            result.images_skipped += 1
+            continue
+        b64 = _download_image_b64(url)
+        if not b64:
+            result.images_failed.append({'code': code, 'error': 'tải ảnh lỗi/quá lớn'})
+            continue
+        try:
+            _execute('product.template', 'write', [tmpl_id], {'image_1920': b64})
+            result.images_set += 1
+        except Exception as exc:  # noqa: BLE001
+            result.images_failed.append({'code': code, 'error': str(exc)[:150]})
+        if progress and done % 100 == 0:
+            pct = 3 + int((done / total) * 95)
+            _log(f'Ảnh: đặt {result.images_set}, bỏ qua {result.images_skipped}, lỗi {len(result.images_failed)} ({done}/{total})...', min(99, pct))
+
+    _log(f'Xong ảnh: đặt {result.images_set}, bỏ qua {result.images_skipped}, lỗi {len(result.images_failed)}.', 100)
+    return result

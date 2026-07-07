@@ -37,6 +37,8 @@ class Command(BaseCommand):
                             help='Chỉ xử lý N sản phẩm đầu (để test).')
         parser.add_argument('--no-stock', dest='with_stock', action='store_false',
                             help='Không đẩy tồn kho, chỉ danh mục + sản phẩm.')
+        parser.add_argument('--images', dest='with_images', action='store_true',
+                            help='Kèm đẩy ảnh sản phẩm (image_1920).')
         parser.add_argument('--no-update', dest='update_existing', action='store_false',
                             help='Bỏ qua SP đã có trên Odoo (không cập nhật giá/tên).')
         parser.add_argument('--branch', action='append', dest='branches', type=int,
@@ -65,6 +67,7 @@ class Command(BaseCommand):
             dry_run=dry_run,
             limit=options.get('limit'),
             with_stock=options.get('with_stock', True),
+            with_images=options.get('with_images', False),
             update_existing=options.get('update_existing', True),
             branch_filter=options.get('branches'),
             product_type=options.get('product_type', 'storable'),
@@ -81,6 +84,8 @@ class Command(BaseCommand):
         self.stdout.write(f'  SP cập nhật          : {s["products_updated"]}')
         self.stdout.write(f'  SP bỏ qua            : {s["products_skipped"]}')
         self.stdout.write(f'  Dòng tồn kho đã set  : {s["stock_applied"]}')
+        if options.get('with_images'):
+            self.stdout.write(f'  Ảnh đã đặt           : {s["images_set"]} (bỏ qua {s["images_skipped"]})')
         if s['products_failed']:
             self.stdout.write(self.style.ERROR(f'  SP lỗi               : {s["products_failed"]}'))
             for row in result.products_failed[:10]:

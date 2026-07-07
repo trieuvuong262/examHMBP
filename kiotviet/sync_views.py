@@ -145,6 +145,7 @@ def kiotviet_odoo_push_run(request):
 
     dry_run = request.POST.get('dry_run') == 'on'
     with_stock = request.POST.get('with_stock') == 'on'
+    with_images = request.POST.get('with_images') == 'on'
     limit_raw = (request.POST.get('limit') or '').strip()
     limit = int(limit_raw) if limit_raw.isdigit() and int(limit_raw) > 0 else None
 
@@ -154,6 +155,7 @@ def kiotviet_odoo_push_run(request):
             options={
                 'dry_run': dry_run,
                 'with_stock': with_stock,
+                'with_images': with_images,
                 'limit': limit,
                 'product_type': 'storable',
             },

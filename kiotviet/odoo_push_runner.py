@@ -52,6 +52,7 @@ def run_odoo_push_job(*, job_id: int, options: dict) -> None:
             dry_run=bool(options.get('dry_run', False)),
             limit=options.get('limit'),
             with_stock=bool(options.get('with_stock', True)),
+            with_images=bool(options.get('with_images', False)),
             update_existing=bool(options.get('update_existing', True)),
             branch_filter=options.get('branch_filter'),
             product_type=options.get('product_type', 'storable'),
@@ -75,6 +76,8 @@ def run_odoo_push_job(*, job_id: int, options: dict) -> None:
         f'{s["warehouses_created"]} kho',
         f'{s["stock_applied"]} dòng tồn',
     ]
+    if s.get('images_set') or s.get('images_skipped'):
+        parts.append(f'{s["images_set"]} ảnh')
     if s['products_failed'] or s['stock_failed']:
         parts.append(f'lỗi SP {s["products_failed"]}, lỗi tồn {s["stock_failed"]}')
     prefix = '[DRY-RUN] ' if s['dry_run'] else ''
