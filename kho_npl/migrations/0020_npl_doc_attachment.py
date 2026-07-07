@@ -18,7 +18,8 @@ def backfill_doc_attachments(apps, schema_editor):
     NplDocAttachment = apps.get_model('kho_npl', 'NplDocAttachment')
     for model_name in ATTACHMENT_MODELS:
         Model = apps.get_model('kho_npl', model_name)
-        ct = ContentType.objects.get(app_label='kho_npl', model=model_name)
+        # Trên DB mới (vd test DB), ContentType chưa được post_migrate tạo → get_or_create
+        ct, _ = ContentType.objects.get_or_create(app_label='kho_npl', model=model_name)
         for obj in Model.objects.all():
             attachment = getattr(obj, 'attachment', None)
             if not attachment or not getattr(attachment, 'name', ''):
