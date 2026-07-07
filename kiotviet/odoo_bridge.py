@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import logging
 import unicodedata
+import xmlrpc.client
 from dataclasses import dataclass, field
 from decimal import Decimal, InvalidOperation
 
@@ -270,6 +271,17 @@ def _unique_warehouse_code(base: str, used: set[str]) -> str:
 
 class OdooBridgeError(Exception):
     pass
+
+
+def _safe_apply_inventory(ids) -> None:
+    """action_apply_inventory trả None → Odoo XML-RPC ném Fault 'cannot marshal None'
+    dù thao tác đã áp dụng thành công server-side. Nuốt đúng lỗi vô hại này."""
+    try:
+        _execute('stock.quant', 'action_apply_inventory', ids, context={'inventory_mode': True})
+    except xmlrpc.client.Fault as fault:
+        if 'cannot marshal None' in str(fault):
+            return
+        raise
 
 
 def ensure_warehouses(retailer: str, branch_filter=None, *, dry_run: bool = False) -> dict:
@@ -630,16 +642,14 @@ def push_stock(retailer: str, branch_loc: dict, codes: set[str], result: PushRes
             if found:
                 _execute('stock.quant', 'write', found, {'inventory_quantity': qty},
                          context={'inventory_mode': True})
-                _execute('stock.quant', 'action_apply_inventory', found,
-                         context={'inventory_mode': True})
+                _safe_apply_inventory(found)
             else:
                 qid = _execute(
                     'stock.quant', 'create',
                     {'product_id': pid, 'location_id': loc, 'inventory_quantity': qty},
                     context={'inventory_mode': True},
                 )
-                _execute('stock.quant', 'action_apply_inventory', [qid],
-                         context={'inventory_mode': True})
+                _safe_apply_inventory([qid])
             result.stock_applied += 1
             done += 1
             if progress and done % 200 == 0:
