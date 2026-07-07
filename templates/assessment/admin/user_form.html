@@ -1527,5 +1527,29 @@
     }
     updateAddHeroPreview();
 })();
+
+(function () {
+    function normalizeHrmDateInput(el) {
+        const raw = (el.value || '').trim();
+        if (!raw) return;
+        const match = raw.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})$/);
+        if (!match) return;
+        const day = match[1].padStart(2, '0');
+        const month = match[2].padStart(2, '0');
+        let year = match[3];
+        if (year.length === 2) {
+            year = '20' + year;
+        }
+        el.value = day + '/' + month + '/' + year;
+    }
+
+    document.querySelectorAll('.jp-hrm-date-input').forEach(function (el) {
+        if (el.dataset.hrmDateBound) return;
+        el.dataset.hrmDateBound = '1';
+        el.addEventListener('blur', function () {
+            normalizeHrmDateInput(el);
+        });
+    });
+})();
 </script>
 {% endblock %}

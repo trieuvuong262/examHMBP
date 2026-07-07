@@ -55,7 +55,15 @@ from hrm.user_search import (
 
 INPUT = {'class': 'form-control'}
 SELECT = {'class': 'form-select'}
-DATE = {'class': 'form-control', 'type': 'date'}
+HRM_DATE_DISPLAY_FORMAT = '%d/%m/%Y'
+HRM_DATE_INPUT_FORMATS = ['%d/%m/%Y', '%d-%m-%Y', '%Y-%m-%d']
+HRM_DATE_INPUT = {
+    **INPUT,
+    'class': 'form-control jp-hrm-date-input',
+    'placeholder': 'dd/mm/yyyy',
+    'autocomplete': 'off',
+    'inputmode': 'numeric',
+}
 
 
 class CustomUserForm(forms.Form):
@@ -114,7 +122,7 @@ class CustomUserForm(forms.Form):
     join_date = forms.DateField(
         label='Ngày vào',
         required=False,
-        widget=forms.DateInput(attrs=DATE, format='%Y-%m-%d'),
+        widget=forms.DateInput(attrs=HRM_DATE_INPUT, format=HRM_DATE_DISPLAY_FORMAT),
     )
     on_probation = forms.BooleanField(
         label='Thử việc',
@@ -126,7 +134,7 @@ class CustomUserForm(forms.Form):
     date_of_birth = forms.DateField(
         label='Ngày sinh',
         required=False,
-        widget=forms.DateInput(attrs=DATE, format='%Y-%m-%d'),
+        widget=forms.DateInput(attrs=HRM_DATE_INPUT, format=HRM_DATE_DISPLAY_FORMAT),
     )
     gender = forms.ChoiceField(
         label='Giới tính',
@@ -170,8 +178,8 @@ class CustomUserForm(forms.Form):
     def __init__(self, *args, **kwargs):
         self.user_id = kwargs.pop('user_id', None)
         super().__init__(*args, **kwargs)
-        self.fields['join_date'].input_formats = ['%Y-%m-%d']
-        self.fields['date_of_birth'].input_formats = ['%Y-%m-%d']
+        self.fields['join_date'].input_formats = HRM_DATE_INPUT_FORMATS
+        self.fields['date_of_birth'].input_formats = HRM_DATE_INPUT_FORMATS
 
         manager_role = (self.data.get('role') or self.initial.get('role') or '').strip()
         manager_dept = self.data.get('department') or self.initial.get('department')
