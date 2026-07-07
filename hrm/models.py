@@ -334,7 +334,6 @@ class Profile(models.Model):
         default=True,
         verbose_name='Thử việc',
         db_index=True,
-        help_text='Mặc định bật khi tạo mới; tự tắt sau 2 tháng kể từ ngày vào.',
     )
     date_of_birth = models.DateField(verbose_name='Ngày sinh', null=True, blank=True)
     gender = models.CharField(

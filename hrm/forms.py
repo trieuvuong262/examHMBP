@@ -129,7 +129,6 @@ class CustomUserForm(forms.Form):
         required=False,
         initial=True,
         widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-        help_text='Mặc định bật khi tạo mới; tự tắt sau 2 tháng kể từ ngày vào làm.',
     )
     date_of_birth = forms.DateField(
         label='Ngày sinh',

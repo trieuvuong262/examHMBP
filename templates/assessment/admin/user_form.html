@@ -238,9 +238,6 @@
                                         {{ form.on_probation }}
                                         <label class="form-check-label fw-bold small" for="{{ form.on_probation.id_for_label }}">Thử việc</label>
                                     </div>
-                                    {% if form.on_probation.help_text %}
-                                    <div class="form-text">{{ form.on_probation.help_text }}</div>
-                                    {% endif %}
                                     {% for error in form.on_probation.errors %}
                                     <div class="invalid-feedback d-block">{{ error }}</div>
                                     {% endfor %}
