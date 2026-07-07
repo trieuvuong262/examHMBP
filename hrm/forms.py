@@ -128,7 +128,7 @@ class CustomUserForm(forms.Form):
         label='Thử việc',
         required=False,
         initial=True,
-        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input', 'role': 'switch'}),
     )
     date_of_birth = forms.DateField(
         label='Ngày sinh',

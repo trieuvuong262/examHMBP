@@ -248,7 +248,7 @@
                                     </div>
                                 </div>
                                 <div class="jp-form-field jp-user-form--edit-only{% if form.on_probation.errors %} is-invalid{% endif %}">
-                                    <div class="form-check mt-md-4 pt-md-2">
+                                    <div class="form-check form-switch jp-hrm-probation-switch mt-md-2 pt-md-1">
                                         {{ form.on_probation }}
                                         <label class="form-check-label fw-bold small" for="{{ form.on_probation.id_for_label }}">Thử việc</label>
                                     </div>
@@ -258,7 +258,7 @@
                                 </div>
                                 {% else %}
                                 <div class="jp-form-field{% if form.on_probation.errors %} is-invalid{% endif %}">
-                                    <div class="form-check mt-md-4 pt-md-2">
+                                    <div class="form-check form-switch jp-hrm-probation-switch mt-md-2 pt-md-1">
                                         {{ form.on_probation }}
                                         <label class="form-check-label fw-bold small" for="{{ form.on_probation.id_for_label }}">Thử việc</label>
                                     </div>
@@ -729,7 +729,6 @@
     function setFormEditMode(editing) {
         if (!userFormEl || !userFormEl.classList.contains('jp-user-form--view-mode')) return;
         userFormEl.classList.toggle('jp-user-form--edit-mode', editing);
-        userFormEl.classList.toggle('jp-user-form--view-mode', !editing);
         setFormFieldsDisabled(!editing);
     }
 
