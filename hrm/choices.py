@@ -185,7 +185,26 @@ EXCEL_COLUMN_MAP = {
     'trang thai': 'is_employed',
     'trạng thái': 'is_employed',
     'is_employed': 'is_employed',
+    'thu_viec': 'on_probation',
+    'thu viec': 'on_probation',
+    'thử việc': 'on_probation',
+    'on_probation': 'on_probation',
 }
+
+
+def parse_probation_status(value, default=True):
+    if value is None or value == '':
+        return default
+    if isinstance(value, bool):
+        return value
+    raw = str(value).strip().lower()
+    yes = {'1', 'true', 'yes', 'y', 'có', 'co', 'thử việc', 'thu viec', 'thuviec', 'on'}
+    no = {'0', 'false', 'no', 'n', 'không', 'khong', 'off'}
+    if raw in yes:
+        return True
+    if raw in no:
+        return False
+    return default
 
 
 def format_excel_date(value):
@@ -309,6 +328,7 @@ def user_to_excel_row(user):
         'Vị trí': profile.job_position if profile else '',
         'Chức vụ': profile.job_title if profile else '',
         'Ngày vào': format_excel_date(profile.join_date if profile else None),
+        'Thử việc': 'Có' if profile and profile.on_probation else 'Không',
         'Ngày sinh': format_excel_date(profile.date_of_birth if profile else None),
         'Giới tính': gender_excel_label(profile.gender if profile else ''),
         'Vai trò HT': role_excel_label(profile.role if profile else ''),
@@ -327,12 +347,17 @@ def profile_defaults_from_import(data):
     """Dict field profile từ dữ liệu đã parse Excel."""
     from hrm.group_permissions import default_group_for_role
     from hrm.permissions import ROLE_EMPLOYEE
+    from hrm.probation import resolve_on_probation
 
     dept = resolve_department(data.get('department', ''))
     role = resolve_role(data.get('role', '')) or ROLE_EMPLOYEE
     permission_group = resolve_permission_group(data.get('permission_group', ''))
     if not permission_group:
         permission_group = default_group_for_role(role)
+    join_date = data.get('join_date')
+    on_probation_raw = data.get('on_probation')
+    requested = parse_probation_status(on_probation_raw, default=True)
+    on_probation = resolve_on_probation(join_date, requested)
     return {
         'employee_code': data.get('employee_code') or None,
         'full_name': data.get('full_name', ''),
@@ -340,7 +365,8 @@ def profile_defaults_from_import(data):
         'division': resolve_division(data.get('division', ''), department=dept),
         'job_position': (data.get('job_position') or '').strip(),
         'job_title': data.get('job_title', ''),
-        'join_date': data.get('join_date'),
+        'join_date': join_date,
+        'on_probation': on_probation,
         'date_of_birth': data.get('date_of_birth'),
         'gender': data.get('gender', ''),
         'role': role,
@@ -364,6 +390,8 @@ def row_to_profile_data(row):
         elif field == 'job_position':
             data[field] = str(val).strip() if val is not None and str(val).strip() else ''
         elif field == 'is_employed':
+            data[field] = val
+        elif field == 'on_probation':
             data[field] = val
         else:
             data[field] = str(val).strip() if val is not None and str(val).strip() else ''

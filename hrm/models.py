@@ -330,6 +330,12 @@ class Profile(models.Model):
     )
     job_title = models.CharField(max_length=100, verbose_name='Chức vụ', blank=True)
     join_date = models.DateField(verbose_name='Ngày vào', null=True, blank=True)
+    on_probation = models.BooleanField(
+        default=True,
+        verbose_name='Thử việc',
+        db_index=True,
+        help_text='Mặc định bật khi tạo mới; tự tắt sau 2 tháng kể từ ngày vào.',
+    )
     date_of_birth = models.DateField(verbose_name='Ngày sinh', null=True, blank=True)
     gender = models.CharField(
         max_length=1,
@@ -416,6 +422,9 @@ class Profile(models.Model):
         1. Giám đốc ngang hàng với Admin (Staff & Superuser).
         2. Tự động thu hồi quyền nếu bị đổi từ Giám đốc xuống vai trò thấp hơn.
         """
+        from hrm.probation import sync_probation_status
+
+        sync_probation_status(self)
         # Lưu đối tượng trước để đảm bảo dữ liệu ổn định
         super().save(*args, **kwargs)
         

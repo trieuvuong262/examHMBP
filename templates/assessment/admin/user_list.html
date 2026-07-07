@@ -266,6 +266,13 @@
                             <span class="jp-hrm-cell-truncate">{{ u.profile.job_title|default:"—" }}</span>
                         </td>
                         <td data-label="Ngày sinh" class="text-muted small jp-hrm-col-date jp-hrm-col" data-col="birth_date">{{ u.profile.date_of_birth|date:"d/m/Y"|default:"—" }}</td>
+                        <td class="text-center jp-hrm-col-probation jp-hrm-col" data-col="probation" data-label="Thử việc">
+                            {% if u.profile.on_probation %}
+                            <i class="bi bi-check-square-fill text-warning" title="Đang thử việc"></i>
+                            {% else %}
+                            <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
                         <td class="text-center jp-hrm-col-gender jp-hrm-col" data-col="gender" data-label="Giới tính">{{ u.profile.get_gender_display_short|default:"—" }}</td>
                         <td data-label="Nhóm quyền" class="jp-hrm-col-perm-group jp-hrm-col" data-col="permission_group"{% if u.profile.permission_group %} title="{{ u.profile.permission_group.name }}"{% endif %}>
                             {% if u.profile.permission_group %}

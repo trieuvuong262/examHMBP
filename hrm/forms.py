@@ -116,6 +116,13 @@ class CustomUserForm(forms.Form):
         required=False,
         widget=forms.DateInput(attrs=DATE, format='%Y-%m-%d'),
     )
+    on_probation = forms.BooleanField(
+        label='Thử việc',
+        required=False,
+        initial=True,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        help_text='Mặc định bật khi tạo mới; tự tắt sau 2 tháng kể từ ngày vào làm.',
+    )
     date_of_birth = forms.DateField(
         label='Ngày sinh',
         required=False,
@@ -304,6 +311,12 @@ class CustomUserForm(forms.Form):
                     'division',
                     'Bộ phận này không thuộc phòng ban đã chọn — chọn lại hoặc cập nhật tại Cơ cấu tổ chức.',
                 )
+        from hrm.probation import resolve_on_probation
+
+        cleaned['on_probation'] = resolve_on_probation(
+            cleaned.get('join_date'),
+            cleaned.get('on_probation', False),
+        )
         return cleaned
 
 

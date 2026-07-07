@@ -102,6 +102,9 @@
                             {% else %}
                             <span class="badge bg-secondary-subtle text-secondary px-2 py-1">Nghỉ việc</span>
                             {% endif %}
+                            {% if profile.on_probation %}
+                            <span class="badge bg-warning-subtle text-warning-emphasis px-2 py-1">Thử việc</span>
+                            {% endif %}
                             {% if permission_group_label %}
                             <span class="badge bg-light text-dark border px-2 py-1" title="Nhóm quyền">
                                 {{ permission_group_label }}
@@ -228,6 +231,20 @@
                             </div>
                             <div class="col-sm-6 col-md-4">
                                 {% include 'assessment/admin/includes/user_form_field.html' with field=form.join_date label='Ngày vào làm' %}
+                            </div>
+                            <div class="col-sm-6 col-md-4">
+                                <div class="jp-form-field{% if form.on_probation.errors %} is-invalid{% endif %}">
+                                    <div class="form-check mt-md-4 pt-md-2">
+                                        {{ form.on_probation }}
+                                        <label class="form-check-label fw-bold small" for="{{ form.on_probation.id_for_label }}">Thử việc</label>
+                                    </div>
+                                    {% if form.on_probation.help_text %}
+                                    <div class="form-text">{{ form.on_probation.help_text }}</div>
+                                    {% endif %}
+                                    {% for error in form.on_probation.errors %}
+                                    <div class="invalid-feedback d-block">{{ error }}</div>
+                                    {% endfor %}
+                                </div>
                             </div>
                         </div>
                                     </div>

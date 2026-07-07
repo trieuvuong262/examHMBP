@@ -111,6 +111,7 @@ def _profile_fields_from_form(form):
         'job_position': (form.cleaned_data.get('job_position') or '').strip(),
         'job_title': form.cleaned_data.get('job_title', ''),
         'join_date': form.cleaned_data.get('join_date'),
+        'on_probation': form.cleaned_data.get('on_probation', True),
         'date_of_birth': form.cleaned_data.get('date_of_birth'),
         'gender': form.cleaned_data.get('gender', ''),
         'role': form.cleaned_data['role'],
@@ -185,6 +186,10 @@ def _user_edit_render_context(profile, user_obj, request, *, list_return_query: 
 # ==========================================
 @module_perm_required(MODULE_HRM, 'view')
 def user_list(request):
+    from hrm.probation import bulk_clear_expired_probation
+
+    bulk_clear_expired_probation()
+
     sort_key, sort_dir, _order_fields = resolve_user_list_sort(
         request.GET.get('sort'),
         request.GET.get('dir'),
@@ -347,6 +352,7 @@ def user_add(request):
         initial = {
             'password': generate_secure_password(),
             'join_date': date.today(),
+            'on_probation': True,
             'job_position': PROBATION_JOB_LABEL,
             'job_title': PROBATION_JOB_LABEL,
             'role': ROLE_EMPLOYEE,
@@ -558,6 +564,7 @@ def user_edit(request, user_id):
             profile.job_position = (form.cleaned_data.get('job_position') or '').strip()
             profile.job_title = form.cleaned_data.get('job_title', '')
             profile.join_date = form.cleaned_data.get('join_date')
+            profile.on_probation = form.cleaned_data.get('on_probation', False)
             profile.date_of_birth = form.cleaned_data.get('date_of_birth')
             profile.gender = form.cleaned_data.get('gender', '')
             profile.role = form.cleaned_data['role']
@@ -606,6 +613,11 @@ def user_edit(request, user_id):
             prefix='concurrent',
         )
     else:
+        from hrm.probation import sync_probation_status
+
+        if sync_probation_status(profile):
+            profile.save(update_fields=['on_probation'])
+
         # Đổ dữ liệu hiện tại vào Form để sếp thấy mà sửa
         initial_data = {
             'username': user_obj.username,
@@ -617,6 +629,7 @@ def user_edit(request, user_id):
             'job_position': profile.job_position or '',
             'job_title': profile.job_title,
             'join_date': profile.join_date,
+            'on_probation': profile.on_probation,
             'date_of_birth': profile.date_of_birth,
             'gender': profile.gender,
             'role': profile.role,
