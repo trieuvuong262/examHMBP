@@ -448,6 +448,12 @@
     }
     .jp-hrm-col-resizer:hover { background: rgba(220, 38, 38, 0.25); }
     body.jp-hrm-col-resizing { cursor: col-resize !important; user-select: none !important; }
+    @media (min-width: 992px) {
+        .jp-hrm-page .jp-hrm-list-card .jp-table-wrap {
+            overflow-x: auto;
+            overflow-y: visible;
+        }
+    }
 </style>
 
 <script>
@@ -797,7 +803,13 @@ function autoCopySync(text) {
                 var key = el.getAttribute('data-col');
                 if (!key) return;
                 if (REQUIRED.indexOf(key) !== -1) { el.classList.remove('d-none'); return; }
-                el.classList.toggle('d-none', !visible.has(key));
+                var show = visible.has(key);
+                el.classList.toggle('d-none', !show);
+                if (!show) {
+                    el.style.width = '';
+                    el.style.minWidth = '';
+                    el.style.maxWidth = '';
+                }
             });
         }
         function syncCheckboxes(visible) {

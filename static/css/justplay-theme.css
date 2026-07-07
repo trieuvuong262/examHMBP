@@ -5080,24 +5080,35 @@ body.jp-tool-loading-active {
 
 @media (min-width: 992px) {
     .jp-hrm-page #userTable.jp-hrm-list-table {
-        table-layout: fixed;
-        width: 100%;
+        table-layout: auto;
+        width: max-content;
+        min-width: 100%;
     }
 
-    /* Width đặt trên th (theo data-col) — ẩn cột thì tự thu lại, layout luôn vừa */
-    .jp-hrm-page #userTable.jp-hrm-list-table thead th.jp-hrm-col-code-h { width: 6%; }
-    .jp-hrm-page #userTable.jp-hrm-list-table thead th.jp-hrm-col-name-h { width: 17%; }
-    .jp-hrm-page #userTable.jp-hrm-list-table thead th.jp-hrm-col-account-h { width: 9%; }
-    .jp-hrm-page #userTable.jp-hrm-list-table thead th.jp-hrm-col-dept-h { width: 12%; }
-    .jp-hrm-page #userTable.jp-hrm-list-table thead th.jp-hrm-col-division-h { width: 10%; }
-    .jp-hrm-page #userTable.jp-hrm-list-table thead th.jp-hrm-col-position-h { width: 12%; }
-    .jp-hrm-page #userTable.jp-hrm-list-table thead th.jp-hrm-col-job-title-h { width: 10%; }
-    .jp-hrm-page #userTable.jp-hrm-list-table thead th.jp-hrm-col-date-h { width: 7%; }
-    .jp-hrm-page #userTable.jp-hrm-list-table thead th.jp-hrm-col-gender-h { width: 5%; }
-    .jp-hrm-page #userTable.jp-hrm-list-table thead th.jp-hrm-col-perm-group-h { width: 9%; }
-    .jp-hrm-page #userTable.jp-hrm-list-table thead th.jp-hrm-col-role-h { width: 9%; }
-    .jp-hrm-page #userTable.jp-hrm-list-table thead th.jp-hrm-col-last-login-h { width: 10%; }
-    .jp-hrm-page #userTable.jp-hrm-list-table thead th.jp-hrm-col-actions-h { width: 6%; }
+    .jp-hrm-page #userTable.jp-hrm-list-table th.jp-hrm-col,
+    .jp-hrm-page #userTable.jp-hrm-list-table td.jp-hrm-col {
+        overflow: hidden;
+    }
+
+    /* Min-width theo data-col — bật thêm cột thì bảng giãn ngang, không đè lên nhau */
+    .jp-hrm-page #userTable.jp-hrm-list-table [data-col="code"] { min-width: 4.5rem; }
+    .jp-hrm-page #userTable.jp-hrm-list-table [data-col="name"] { min-width: 11rem; }
+    .jp-hrm-page #userTable.jp-hrm-list-table [data-col="account"] { min-width: 6.5rem; }
+    .jp-hrm-page #userTable.jp-hrm-list-table [data-col="department"] { min-width: 7rem; }
+    .jp-hrm-page #userTable.jp-hrm-list-table [data-col="division"] { min-width: 6.5rem; }
+    .jp-hrm-page #userTable.jp-hrm-list-table [data-col="position"] { min-width: 7rem; }
+    .jp-hrm-page #userTable.jp-hrm-list-table [data-col="job_title"] { min-width: 6rem; }
+    .jp-hrm-page #userTable.jp-hrm-list-table [data-col="birth_date"] { min-width: 5.5rem; }
+    .jp-hrm-page #userTable.jp-hrm-list-table [data-col="probation"] { min-width: 3.5rem; }
+    .jp-hrm-page #userTable.jp-hrm-list-table [data-col="gender"] { min-width: 3.5rem; }
+    .jp-hrm-page #userTable.jp-hrm-list-table [data-col="permission_group"] { min-width: 7rem; }
+    .jp-hrm-page #userTable.jp-hrm-list-table [data-col="role"] { min-width: 5.5rem; }
+    .jp-hrm-page #userTable.jp-hrm-list-table [data-col="last_login"] { min-width: 7.5rem; }
+
+    .jp-hrm-page #userTable.jp-hrm-list-table thead th.jp-hrm-col-actions-h,
+    .jp-hrm-page #userTable.jp-hrm-list-table td.jp-td-actions {
+        min-width: 4.5rem;
+    }
 }
 
 .jp-hrm-page #userTable .jp-hrm-cell-truncate {
