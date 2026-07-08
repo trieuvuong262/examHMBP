@@ -553,12 +553,15 @@ def build_production_team_summary(
             member_weighted = Decimal('0')
             member_hours = Decimal('0')
             for idx, day in enumerate(days):
-                weighted, hours = _weighted_parts(by_date.get(day['date'], []))
+                day_reports = by_date.get(day['date'], [])
+                weighted, hours = _weighted_parts(day_reports)
                 eff = _pct_from_parts(weighted, hours)
+                primary_report = day_reports[0] if day_reports else None
                 cells.append({
                     'efficiency_pct': eff,
                     'has_data': eff is not None,
                     'is_weekend': day['is_weekend'],
+                    'report_pk': primary_report.pk if primary_report else None,
                 })
                 if hours > 0:
                     day_totals[idx]['weighted'] += weighted
@@ -571,10 +574,13 @@ def build_production_team_summary(
             grand_weighted += member_weighted
             grand_hours += member_hours
             profile = getattr(member, 'profile', None)
+            display_name = (
+                profile.full_name if profile and profile.full_name else member.username
+            )
             members_out.append({
                 'stt': stt,
                 'member': member,
-                'name': (profile.full_name if profile and profile.full_name else member.username),
+                'name': display_name.upper(),
                 'division': profile.division.name if profile and getattr(profile, 'division_id', None) else '',
                 'cells': cells,
                 'avg_efficiency_pct': avg,

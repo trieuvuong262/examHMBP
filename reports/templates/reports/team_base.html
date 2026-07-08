@@ -5,6 +5,14 @@
 {% block extra_head %}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260624a">
+<style>
+.jp-reports-page tr.jp-team-row-clickable td {
+    cursor: pointer;
+}
+.jp-reports-page tr.jp-team-row-clickable:hover td {
+    background-color: #fff5f5;
+}
+</style>
 {% block team_extra_head %}{% endblock %}
 {% endblock %}
 

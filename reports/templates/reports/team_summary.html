@@ -78,6 +78,16 @@
     .jp-eff.is-norm { background: #dbeafe; color: #1e40af; }
     .jp-eff.is-high { background: #dcfce7; color: #166534; }
     .jp-eff.is-none { color: #cbd5e1; background: transparent; }
+    a.jp-summary-eff-link {
+        text-decoration: none;
+        color: inherit;
+        display: inline-block;
+    }
+    a.jp-summary-eff-link:hover .jp-eff,
+    a.jp-summary-eff-link:focus-visible .jp-eff {
+        box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.28);
+        transform: translateY(-1px);
+    }
     .jp-col-avg {
         background: #ffe8ec !important;
         border-left: 2px solid #fecaca !important;
@@ -324,7 +334,13 @@
                         <td class="jp-col-sticky jp-col-dept small">{{ m.division|default:"—" }}</td>
                         {% for cell in m.cells %}
                         <td>
-                            {% if cell.has_data %}
+                            {% if cell.has_data and cell.report_pk %}
+                            <a href="{% url 'reports:detail_cn' cell.report_pk %}{% if team_list_query %}?{{ team_list_query }}{% endif %}"
+                               class="jp-summary-eff-link"
+                               title="Xem báo cáo chi tiết">
+                                <span class="jp-eff {{ cell.efficiency_pct|summary_efficiency_class }}">{{ cell.efficiency_pct|floatformat:2 }}%</span>
+                            </a>
+                            {% elif cell.has_data %}
                             <span class="jp-eff {{ cell.efficiency_pct|summary_efficiency_class }}">{{ cell.efficiency_pct|floatformat:2 }}%</span>
                             {% else %}
                             <span class="jp-eff is-none">—</span>
