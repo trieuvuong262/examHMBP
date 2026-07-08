@@ -2180,12 +2180,12 @@ body .modal-backdrop.show {
 
     .jp-prod-complete-form--mobile .jp-prod-complete-submit {
         position: fixed;
-        left: max(1rem, env(safe-area-inset-left));
-        right: max(1rem, env(safe-area-inset-right));
+        left: 50%;
+        transform: translateX(-50%);
+        width: min(448px, calc(100vw - 1.25rem));
         bottom: calc(0.65rem + env(safe-area-inset-bottom, 0px));
         z-index: 1040;
-        max-width: 448px;
-        margin: 0 auto;
+        margin: 0;
         box-shadow: 0 -4px 20px rgba(15, 23, 42, 0.12);
     }
 
@@ -2377,9 +2377,9 @@ body .modal-backdrop.show {
 }
 
 .jp-prod-go-review-cta {
-    background: var(--hm-primary);
+    background: #7f1d1d;
     color: #fff;
-    border: 1px solid var(--hm-primary);
+    border: 1px solid #7f1d1d;
     box-shadow: none;
     font-size: 0.95rem;
     padding: 0.62rem 1rem;
@@ -2388,22 +2388,21 @@ body .modal-backdrop.show {
 
 .jp-prod-go-review-cta:hover,
 .jp-prod-go-review-cta:focus {
-    background: #b91c1c;
+    background: #661313;
     color: #fff;
-    border-color: #b91c1c;
+    border-color: #661313;
     transform: translateY(-1px);
     box-shadow: none;
 }
 
 .jp-prod-go-review-sticky-bar {
     position: fixed;
-    left: 0;
-    right: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(480px, calc(100vw - 1.25rem));
     bottom: calc(var(--jp-footer-h, 2.75rem) + var(--jp-safe-bottom, env(safe-area-inset-bottom, 0px)));
     z-index: 1040;
-    max-width: 480px;
-    margin: 0 auto;
-    padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom, 0px));
+    padding: 0.75rem 0.75rem calc(0.75rem + env(safe-area-inset-bottom, 0px));
     background: rgba(255, 255, 255, 0.98);
     border-top: 1px solid #e9ecef;
     box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
@@ -2411,8 +2410,8 @@ body .modal-backdrop.show {
 }
 
 .jp-prod-go-review-sticky-bar .jp-prod-go-review-wrap {
-    max-width: 480px;
-    margin: 0 auto;
+    width: 100%;
+    margin: 0;
 }
 
 .jp-prod-go-review-sticky-bar .jp-prod-go-review-cta {
