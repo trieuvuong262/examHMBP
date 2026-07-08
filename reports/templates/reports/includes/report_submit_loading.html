@@ -1,10 +1,21 @@
 {% load static %}
-<link rel="stylesheet" href="{% static 'css/reports-submit-loading.css' %}?v=20260708b">
+<link rel="stylesheet" href="{% static 'css/reports-submit-loading.css' %}?v=20260708c">
 <div id="jp-report-submit-loading" class="jp-report-submit-loading" hidden aria-live="polite" aria-busy="false">
     <div class="jp-report-submit-loading-box" role="status">
         <div class="spinner-border text-hm mb-3" style="width: 3rem; height: 3rem; border-width: 0.2em;" aria-hidden="true"></div>
         <h5 class="fw-bold text-dark mb-1" data-loading-message>Đang gửi báo cáo...</h5>
         <p class="text-muted small mb-0">Vui lòng đợi, không đóng hoặc tải lại trang.</p>
+    </div>
+</div>
+
+<div id="jp-report-submit-success" class="jp-report-submit-success" hidden role="alertdialog" aria-modal="true" aria-labelledby="jpReportSubmitSuccessTitle">
+    <div class="jp-report-submit-success-box">
+        <div class="jp-report-submit-success-icon" aria-hidden="true">
+            <i class="bi bi-check-circle-fill"></i>
+        </div>
+        <h5 class="fw-bold text-success mb-2" id="jpReportSubmitSuccessTitle">Gửi báo cáo thành công</h5>
+        <p class="text-muted small mb-3 mb-md-4">Báo cáo đã được gửi. Bạn có thể tiếp tục sử dụng portal.</p>
+        <button type="button" class="btn btn-hm fw-bold w-100" id="jpReportSubmitSuccessCloseBtn">Đã hiểu</button>
     </div>
 </div>
 
@@ -23,4 +34,4 @@
         <button type="button" class="btn btn-hm fw-bold w-100" id="jpReportSubmitErrorCloseBtn">Đã hiểu</button>
     </div>
 </div>
-<script src="{% static 'js/reports-submit-loading.js' %}?v=20260708b"></script>
+<script src="{% static 'js/reports-submit-loading.js' %}?v=20260708c"></script>

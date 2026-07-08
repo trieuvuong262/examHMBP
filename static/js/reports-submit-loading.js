@@ -1,6 +1,6 @@
 /**
  * Overlay loading khi gửi báo cáo (VP ngày/tuần, SX).
- * Submit qua fetch — thất bại mạng/server thì hiện overlay yêu cầu kiểm tra mạng.
+ * Submit qua fetch — thành công / thất bại đều hiện overlay thông báo.
  */
 (function () {
     'use strict';
@@ -9,9 +9,13 @@
     if (!overlay) return;
 
     var msgEl = overlay.querySelector('[data-loading-message]');
+    var successOverlay = document.getElementById('jp-report-submit-success');
+    var successCloseBtn = document.getElementById('jpReportSubmitSuccessCloseBtn');
     var errorOverlay = document.getElementById('jp-report-submit-error');
     var errorCloseBtn = document.getElementById('jpReportSubmitErrorCloseBtn');
     var submitting = false;
+    var pendingRedirectUrl = '';
+    var redirectTimer = null;
 
     function syncCkEditor() {
         if (!window.CKEDITOR || !CKEDITOR.instances) return;
@@ -22,7 +26,23 @@
         });
     }
 
+    function clearRedirectTimer() {
+        if (redirectTimer) {
+            window.clearTimeout(redirectTimer);
+            redirectTimer = null;
+        }
+    }
+
+    function goToPendingRedirect() {
+        clearRedirectTimer();
+        if (!pendingRedirectUrl) return;
+        var url = pendingRedirectUrl;
+        pendingRedirectUrl = '';
+        window.location.href = url;
+    }
+
     function show(message) {
+        hideSuccess();
         hideError();
         if (msgEl && message) {
             msgEl.textContent = message;
@@ -38,8 +58,37 @@
         document.body.classList.remove('jp-report-submitting');
     }
 
+    function showSuccess(redirectUrl) {
+        hide();
+        hideError();
+        pendingRedirectUrl = redirectUrl || window.location.href;
+        if (!successOverlay) {
+            window.alert('Gửi báo cáo thành công.');
+            goToPendingRedirect();
+            return;
+        }
+        successOverlay.hidden = false;
+        document.body.classList.add('jp-report-submit-success-open');
+        if (successCloseBtn) {
+            window.setTimeout(function () {
+                successCloseBtn.focus();
+            }, 50);
+        }
+        // Tự chuyển trang sau 2.2s nếu người dùng không bấm.
+        clearRedirectTimer();
+        redirectTimer = window.setTimeout(goToPendingRedirect, 2200);
+    }
+
+    function hideSuccess() {
+        clearRedirectTimer();
+        if (!successOverlay) return;
+        successOverlay.hidden = true;
+        document.body.classList.remove('jp-report-submit-success-open');
+    }
+
     function showErrorModal() {
         hide();
+        hideSuccess();
         if (!errorOverlay) {
             window.alert('Gửi báo cáo thất bại. Vui lòng kiểm tra kết nối mạng rồi gửi lại.');
             return;
@@ -129,7 +178,7 @@
             if (!resp.ok) {
                 throw new Error('HTTP ' + resp.status);
             }
-            window.location.href = resp.url || url;
+            showSuccess(resp.url || url);
         }).catch(function () {
             submitting = false;
             enableSubmitControls(form);
@@ -147,6 +196,14 @@
         });
     }
 
+    if (successCloseBtn) {
+        successCloseBtn.addEventListener('click', goToPendingRedirect);
+    }
+    if (successOverlay) {
+        successOverlay.addEventListener('click', function (ev) {
+            if (ev.target === successOverlay) goToPendingRedirect();
+        });
+    }
     if (errorCloseBtn) {
         errorCloseBtn.addEventListener('click', hideError);
     }
@@ -166,6 +223,7 @@
         disableSubmitControls: disableSubmitControls,
         enableSubmitControls: enableSubmitControls,
         submitForm: submitForm,
+        showSuccess: showSuccess,
         showErrorModal: showErrorModal,
         hideError: hideError,
     };

@@ -1,4 +1,5 @@
 .jp-report-submit-loading,
+.jp-report-submit-success,
 .jp-report-submit-error {
     position: fixed;
     inset: 0;
@@ -12,11 +13,13 @@
 }
 
 .jp-report-submit-loading[hidden],
+.jp-report-submit-success[hidden],
 .jp-report-submit-error[hidden] {
     display: none !important;
 }
 
 .jp-report-submit-loading-box,
+.jp-report-submit-success-box,
 .jp-report-submit-error-box {
     width: min(100%, 22rem);
     padding: 1.75rem 1.5rem;
@@ -28,17 +31,26 @@
     pointer-events: auto;
 }
 
+.jp-report-submit-success-icon,
 .jp-report-submit-error-icon {
     width: 3.25rem;
     height: 3.25rem;
     margin: 0 auto 0.85rem;
     border-radius: 999px;
-    background: #fee2e2;
-    color: #b91c1c;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 1.45rem;
+}
+
+.jp-report-submit-success-icon {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.jp-report-submit-error-icon {
+    background: #fee2e2;
+    color: #b91c1c;
 }
 
 @keyframes jpReportSubmitPop {
@@ -53,11 +65,13 @@
 }
 
 body.jp-report-submitting,
+body.jp-report-submit-success-open,
 body.jp-report-submit-error-open {
     overflow: hidden;
 }
 
 body.jp-report-submitting .jp-report-submit-loading,
+body.jp-report-submit-success-open .jp-report-submit-success,
 body.jp-report-submit-error-open .jp-report-submit-error {
     pointer-events: all;
 }
