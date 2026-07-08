@@ -661,9 +661,8 @@ def proxy_report_entry(request):
             sessions = []
         if not isinstance(sessions, list):
             sessions = []
-        can_edit_declared_work_hours = (
-            report.status == DailyWorkReport.STATUS_SUBMITTED
-            and not (is_report_locked(report) or is_report_edit_expired(report))
+        can_edit_declared_work_hours = not (
+            is_report_locked(report) or is_report_edit_expired(report)
         )
         if can_edit_declared_work_hours:
             from reports.production_hourly import validate_production_work_hours
@@ -695,11 +694,10 @@ def proxy_report_entry(request):
             report_profile=REPORT_PROFILE_PRODUCTION, shift=shift,
         )
         lock_session_times = employee_self_submitted_production_report(report)
-        can_edit_declared_work_hours = (
-            bool(report.pk)
-            and report.status == DailyWorkReport.STATUS_SUBMITTED
-            and not (is_report_locked(report) or is_report_edit_expired(report))
+        can_edit_declared_work_hours = not (
+            is_report_locked(report) or is_report_edit_expired(report)
         )
+        show_declared_work_hours = True
         tabs.append({
             'shift': shift,
             'label': label,
@@ -709,7 +707,8 @@ def proxy_report_entry(request):
             'proxy_entered_by': report.proxy_entered_by if report.pk else None,
             'lock_session_times': lock_session_times,
             'declared_work_hours': report.declared_work_hours if report.pk else None,
-            'show_declared_work_hours': can_edit_declared_work_hours,
+            'show_declared_work_hours': show_declared_work_hours,
+            'can_edit_declared_work_hours': can_edit_declared_work_hours,
         })
 
     return render(request, 'reports/proxy_entry.html', {

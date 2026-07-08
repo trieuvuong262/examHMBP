@@ -2,130 +2,40 @@
 {% load static report_extras %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260708g">
-<style>
-    .jp-proxy-wrap { max-width: 1400px; }
-    .jp-proxy-head {
-        background: linear-gradient(135deg, #fff5f6, #fdeef0);
-        border: 1px solid #f3d6db;
-        border-radius: 0.75rem;
-    }
-    .jp-proxy-tab-badge { font-size: 0.62rem; vertical-align: middle; }
-    .jp-proxy-panels { padding: 1rem; }
-    .jp-proxy-table {
-        border-collapse: separate;
-        border-spacing: 0;
-        border: 1px solid #e2e8f0;
-        border-radius: 0.6rem;
-        overflow: hidden;
-        font-size: 0.82rem;
-        min-width: 980px;
-    }
-    .jp-proxy-table thead th {
-        background: var(--hm-primary);
-        color: #fff;
-        font-weight: 700;
-        font-size: 0.72rem;
-        text-align: center;
-        vertical-align: middle;
-        padding: 0.5rem 0.4rem;
-        border-right: 1px solid rgba(255,255,255,0.2);
-        white-space: nowrap;
-    }
-    .jp-proxy-table thead th:last-child { border-right: none; }
-    .jp-proxy-table tbody td {
-        border-top: 1px solid #eef2f6;
-        border-right: 1px solid #eef2f6;
-        padding: 0.25rem 0.35rem;
-        vertical-align: middle;
-    }
-    .jp-proxy-table tbody td:last-child { border-right: none; }
-    .jp-proxy-slot {
-        font-weight: 700;
-        color: #334155;
-        white-space: nowrap;
-        text-align: center;
-        background: #f8fafc;
-    }
-    .jp-proxy-table .form-control,
-    .jp-proxy-table .form-control-sm {
-        font-size: 0.8rem;
-        padding: 0.25rem 0.4rem;
-        min-width: 4.5rem;
-    }
-    .jp-proxy-col-num { text-align: right; }
-    .jp-proxy-hours, .jp-proxy-eff {
-        text-align: center;
-        font-weight: 600;
-        white-space: nowrap;
-    }
-    .jp-proxy-eff-badge {
-        display: inline-block;
-        padding: 0.1rem 0.45rem;
-        border-radius: 999px;
-        font-size: 0.72rem;
-        font-weight: 700;
-    }
-    .jp-proxy-eff-badge.is-good { background: #dcfce7; color: #166534; }
-    .jp-proxy-eff-badge.is-ok { background: #fef9c3; color: #854d0e; }
-    .jp-proxy-eff-badge.is-low { background: #fee2e2; color: #991b1b; }
-    .jp-proxy-eff-badge.is-none { background: #f1f5f9; color: #94a3b8; }
-    .jp-proxy-locked-note {
-        background: #fff7ed; border: 1px solid #fed7aa; color: #9a3412;
-        border-radius: 0.5rem;
-    }
-    .jp-proxy-slot-chip {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.3rem;
-        padding: 0.25rem 0.6rem;
-        border: 1px solid #cbd5e1;
-        border-radius: 999px;
-        font-size: 0.78rem;
-        cursor: pointer;
-        user-select: none;
-        background: #fff;
-        transition: all 0.12s ease;
-    }
-    .jp-proxy-slot-chip:has(input:checked) {
-        background: var(--hm-primary);
-        border-color: var(--hm-primary);
-        color: #fff;
-        font-weight: 600;
-    }
-    .jp-proxy-slot-chip input { accent-color: #fff; }
-    .jp-proxy-session { background: #fcfcfd; }
-    .jp-proxy-work-hours-input { max-width: 14rem; }
-</style>
+<link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260624a">
+<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260708j">
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid jp-proxy-wrap jp-page py-3 py-md-4 mb-5">
+<div class="container-fluid px-2 px-md-3 jp-page jp-proxy-page py-2 py-md-3 mb-4 mb-md-5">
 
-    <div class="jp-proxy-head p-3 p-md-4 mb-3">
-        <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
-            <div>
-                <h1 class="h4 fw-bold text-hm mb-1"><i class="bi bi-people-fill me-2"></i>Nhập hộ báo cáo sản xuất</h1>
-                <p class="mb-2 text-dark">
-                    Nhập hộ cho: <strong>{{ subject_name }}</strong>{% if subject_code %} <span class="text-muted">· Mã NS {{ subject_code }}</span>{% endif %}
-                </p>
-                <div class="mt-1">
-                    <span class="badge bg-hm">{{ subject_name }}</span>
+    <div class="jp-report-detail-hero mb-3 mb-md-4">
+        <div class="jp-report-detail-hero-top">
+            <div class="jp-report-detail-hero-text">
+                <h1 class="fw-bold text-hm mb-2 jp-page-title h4">
+                    <i class="bi bi-people-fill me-2"></i>Nhập hộ báo cáo sản xuất
+                </h1>
+                <p class="jp-report-detail-name mb-2">{{ subject_name }}{% if subject_code %} <span class="text-muted fw-normal">· {{ subject_code }}</span>{% endif %}</p>
+                <div class="d-flex flex-wrap align-items-center gap-2">
                     {% if department_name %}<span class="badge bg-light text-dark border">{{ department_name }}</span>{% endif %}
                     <span class="badge bg-light text-dark border">Ngày {{ report_date|date:"d/m/Y" }}</span>
                 </div>
             </div>
-            <div class="d-flex flex-column gap-2 align-items-stretch">
-                <a href="{{ back_team_url }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i>Quay lại</a>
+            <div class="jp-report-detail-hero-actions d-flex flex-column gap-2 align-items-stretch">
+                <div class="d-flex gap-2 flex-wrap jp-report-detail-hero-nav-actions">
+                    <a href="{{ back_team_url }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-arrow-left me-1"></i>Quay lại
+                    </a>
+                </div>
             </div>
         </div>
     </div>
 
-    <div class="card border-0 jp-report-section-card jp-report-tabs-card mb-3">
+    <div class="card border-0 jp-report-section-card jp-report-tabs-card jp-proxy-tabs-card">
         <ul class="nav nav-tabs jp-report-tabs" role="tablist">
             {% for tab in tabs %}
             <li class="nav-item" role="presentation">
-                <button class="nav-link {% if tab.shift == active_shift %}active{% endif %}"
+                <button class="nav-link{% if tab.shift == active_shift %} active{% endif %}"
                         id="tab-btn-{{ tab.shift }}" data-bs-toggle="tab"
                         data-bs-target="#tab-{{ tab.shift }}" type="button" role="tab">
                     {{ tab.label }}
@@ -138,83 +48,84 @@
 
         <div class="tab-content jp-proxy-panels">
             {% for tab in tabs %}
-            <div class="tab-pane fade {% if tab.shift == active_shift %}show active{% endif %}"
+            <div class="tab-pane fade{% if tab.shift == active_shift %} show active{% endif %}"
                  id="tab-{{ tab.shift }}" role="tabpanel">
 
-            {% if tab.proxy_entered_by %}
-            <div class="jp-proxy-locked-note p-2 px-3 mb-3 small">
-                <i class="bi bi-person-check-fill me-1"></i>Báo cáo <strong>{{ tab.label }}</strong> đã được nhập hộ bởi
-                <strong>{{ tab.proxy_entered_by.profile.full_name|default:tab.proxy_entered_by.username }}</strong>.
-            </div>
-            {% endif %}
-
-            <form method="post" class="jp-proxy-form" data-shift="{{ tab.shift }}"
-                  data-report-date="{{ report_date|date:'Y-m-d' }}"
-                  data-slot-windows="{{ tab.data.slot_windows_json|escape }}"
-                  data-shift-start="{{ tab.data.shift_window_start }}"
-                  data-shift-end="{{ tab.data.shift_window_end }}"
-                  data-lock-session-times="{% if tab.lock_session_times %}1{% else %}0{% endif %}">
-                {% csrf_token %}
-                <input type="hidden" name="shift" value="{{ tab.shift }}">
-                <input type="hidden" name="for_user" value="{{ subject.pk }}">
-                <input type="hidden" name="sessions_json" class="s-sessions-json">
-
-                {% if tab.show_declared_work_hours %}
-                <div class="mb-3 jp-proxy-work-hours">
-                    <label class="form-label fw-bold small mb-1" for="declared-work-hours-{{ tab.shift }}">
-                        Thời gian làm việc
-                    </label>
-                    <div class="input-group jp-proxy-work-hours-input">
-                        <input type="number"
-                               class="form-control"
-                               id="declared-work-hours-{{ tab.shift }}"
-                               name="declared_work_hours"
-                               min="8.01"
-                               max="15.99"
-                               step="0.01"
-                               inputmode="decimal"
-                               placeholder="9,5"
-                               value="{% if tab.declared_work_hours %}{{ tab.declared_work_hours }}{% else %}9.5{% endif %}">
-                        <span class="input-group-text">giờ</span>
-                    </div>
-                    <div class="form-text text-muted small mb-0">
-                        Thời gian nhân viên khai báo khi gửi báo cáo.
-                    </div>
+                {% if tab.proxy_entered_by %}
+                <div class="jp-proxy-info-note">
+                    <i class="bi bi-person-check-fill me-1"></i>
+                    <strong>{{ tab.label }}</strong> đã được nhập hộ bởi
+                    <strong>{{ tab.proxy_entered_by.profile.full_name|default:tab.proxy_entered_by.username }}</strong>.
                 </div>
                 {% endif %}
 
-                <fieldset class="border-0 p-0 m-0" {% if tab.is_locked and not tab.lock_session_times %}disabled{% endif %}>
-                    <div class="jp-proxy-sessions">
-                        {% for sess in tab.data.sessions %}
-                        {% include 'reports/includes/proxy_session_row.html' with sess=sess content_edit_only=tab.lock_session_times %}
-                        {% endfor %}
-                    </div>
-                </fieldset>
+                <form method="post" class="jp-proxy-form" data-shift="{{ tab.shift }}"
+                      data-report-date="{{ report_date|date:'Y-m-d' }}"
+                      data-slot-windows="{{ tab.data.slot_windows_json|escape }}"
+                      data-shift-start="{{ tab.data.shift_window_start }}"
+                      data-shift-end="{{ tab.data.shift_window_end }}"
+                      data-lock-session-times="{% if tab.lock_session_times %}1{% else %}0{% endif %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="shift" value="{{ tab.shift }}">
+                    <input type="hidden" name="for_user" value="{{ subject.pk }}">
+                    <input type="hidden" name="sessions_json" class="s-sessions-json">
 
-                {% if not tab.is_locked or tab.lock_session_times %}
-                {% if not tab.lock_session_times %}
-                <template class="jp-proxy-session-tpl">
-                    {% include 'reports/includes/proxy_session_row.html' with sess=empty_session content_edit_only=False %}
-                </template>
-                {% endif %}
-                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-3">
+                    <div class="jp-proxy-form-toolbar">
+                        {% if tab.show_declared_work_hours %}
+                        <div class="jp-proxy-work-hours">
+                            <label class="form-label jp-proxy-label mb-1" for="declared-work-hours-{{ tab.shift }}">Thời gian làm việc</label>
+                            <div class="input-group input-group-sm jp-proxy-work-hours-input">
+                                <input type="number"
+                                       class="form-control"
+                                       id="declared-work-hours-{{ tab.shift }}"
+                                       name="declared_work_hours"
+                                       min="8.01"
+                                       max="15.99"
+                                       step="0.01"
+                                       inputmode="decimal"
+                                       placeholder="9,5"
+                                       value="{% if tab.declared_work_hours %}{{ tab.declared_work_hours }}{% else %}9.5{% endif %}"
+                                       {% if not tab.can_edit_declared_work_hours %}readonly disabled{% endif %}>
+                                <span class="input-group-text">giờ</span>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <fieldset class="border-0 p-0 m-0" {% if tab.is_locked and not tab.lock_session_times %}disabled{% endif %}>
+                        <div class="jp-proxy-sessions">
+                            {% for sess in tab.data.sessions %}
+                            {% include 'reports/includes/proxy_session_row.html' with sess=sess content_edit_only=tab.lock_session_times %}
+                            {% endfor %}
+                        </div>
+                    </fieldset>
+
+                    {% if not tab.is_locked or tab.lock_session_times %}
                     {% if not tab.lock_session_times %}
-                    <button type="button" class="btn btn-outline-hm add-session">
-                        <i class="bi bi-plus-lg me-1"></i>Thêm công đoạn
-                    </button>
-                    {% else %}
-                    <span></span>
+                    <template class="jp-proxy-session-tpl">
+                        {% include 'reports/includes/proxy_session_row.html' with sess=empty_session content_edit_only=False %}
+                    </template>
                     {% endif %}
-                    <button type="submit" class="btn btn-hm fw-bold px-4">
-                        <i class="bi bi-save me-1"></i>{% if tab.lock_session_times %}Lưu chỉnh sửa{% else %}Lưu {{ tab.label }}{% endif %}
-                    </button>
-                </div>
-                {% else %}
-                <div class="text-muted small mt-2"><i class="bi bi-lock-fill me-1"></i>Báo cáo đã khóa (cấp trên đã xem hoặc quá hạn) — không thể chỉnh sửa.</div>
-                {% endif %}
-            </form>
-        </div>
-        {% endfor %}
+                    <div class="jp-proxy-form-actions">
+                        {% if not tab.lock_session_times %}
+                        <button type="button" class="btn btn-outline-hm btn-sm add-session">
+                            <i class="bi bi-plus-lg me-1"></i>Thêm công đoạn
+                        </button>
+                        {% else %}
+                        <span></span>
+                        {% endif %}
+                        <button type="submit" class="btn btn-hm fw-bold">
+                            <i class="bi bi-save me-1"></i>{% if tab.lock_session_times %}Lưu chỉnh sửa{% else %}Lưu {{ tab.label }}{% endif %}
+                        </button>
+                    </div>
+                    {% else %}
+                    <div class="jp-proxy-locked-msg">
+                        <i class="bi bi-lock-fill me-1"></i>Báo cáo đã khóa — không thể chỉnh sửa.
+                    </div>
+                    {% endif %}
+                </form>
+            </div>
+            {% endfor %}
         </div>
     </div>
 </div>
@@ -352,7 +263,6 @@
 
         container.querySelectorAll('.jp-proxy-session').forEach(bindSession);
 
-        // Nếu chưa có công đoạn nào và form còn sửa được — thêm 1 dòng trống
         if (tpl && !container.querySelector('.jp-proxy-session')) {
             addRow(container, tpl);
         }

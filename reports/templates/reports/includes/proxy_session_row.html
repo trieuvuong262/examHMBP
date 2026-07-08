@@ -1,32 +1,33 @@
-<div class="jp-proxy-session card border shadow-sm mb-2">
-    <div class="card-body p-2 p-md-3">
+<div class="jp-proxy-session card border-0 shadow-sm mb-3">
+    <div class="card-body p-3">
         {% if sess.product_id %}<input type="hidden" class="s-product-id" value="{{ sess.product_id }}">{% endif %}
-        <div class="row g-2">
-            <div class="col-6 col-md-3">
-                <label class="form-label small fw-semibold mb-1">Mã hàng</label>
+
+        <div class="row g-3 jp-proxy-session-fields">
+            <div class="col-12 col-md-6 col-xl-3">
+                <label class="form-label jp-proxy-label">Mã hàng</label>
                 <input type="text" class="form-control form-control-sm s-code" value="{{ sess.code }}" placeholder="VD: SP-A01">
             </div>
-            <div class="col-6 col-md-3">
-                <label class="form-label small fw-semibold mb-1">Công đoạn</label>
+            <div class="col-12 col-md-6 col-xl-3">
+                <label class="form-label jp-proxy-label">Công đoạn</label>
                 <input type="text" class="form-control form-control-sm s-process" value="{{ sess.process }}" placeholder="VD: May thân">
             </div>
-            <div class="col-4 col-md-2">
-                <label class="form-label small fw-semibold mb-1">Định mức/H</label>
+            <div class="col-4 col-md-4 col-xl-2">
+                <label class="form-label jp-proxy-label">Định mức/H</label>
                 <input type="number" min="0" step="0.01" class="form-control form-control-sm s-norm" value="{{ sess.norm }}">
             </div>
-            <div class="col-4 col-md-2">
-                <label class="form-label small fw-semibold mb-1">Số lượng tổng</label>
+            <div class="col-4 col-md-4 col-xl-2">
+                <label class="form-label jp-proxy-label">Số lượng</label>
                 <input type="number" min="0" step="1" class="form-control form-control-sm s-total" value="{{ sess.total }}">
             </div>
-            <div class="col-4 col-md-2">
-                <label class="form-label small fw-semibold mb-1">Hư hỏng</label>
+            <div class="col-4 col-md-4 col-xl-2">
+                <label class="form-label jp-proxy-label">Hư hỏng</label>
                 <input type="number" min="0" step="1" class="form-control form-control-sm s-damaged" value="{{ sess.damaged }}">
             </div>
         </div>
 
-        <div class="row g-2 mt-2 align-items-end">
-            <div class="col-6 col-md-3">
-                <label class="form-label small fw-semibold mb-1">Giờ bắt đầu</label>
+        <div class="row g-2 jp-proxy-session-meta">
+            <div class="col-6 col-lg-2">
+                <label class="form-label jp-proxy-label">Giờ bắt đầu</label>
                 {% if content_edit_only %}
                 <div class="form-control form-control-sm bg-light text-muted s-start-time-readonly">{{ sess.start_time|default:"—" }}</div>
                 <input type="hidden" class="s-start-time" value="{{ sess.start_time }}">
@@ -34,8 +35,8 @@
                 <input type="time" class="form-control form-control-sm s-start-time" value="{{ sess.start_time }}" step="60">
                 {% endif %}
             </div>
-            <div class="col-6 col-md-3">
-                <label class="form-label small fw-semibold mb-1">Giờ kết thúc</label>
+            <div class="col-6 col-lg-2">
+                <label class="form-label jp-proxy-label">Giờ kết thúc</label>
                 {% if content_edit_only %}
                 <div class="form-control form-control-sm bg-light text-muted s-end-time-readonly">{{ sess.end_time|default:"—" }}</div>
                 <input type="hidden" class="s-end-time" value="{{ sess.end_time }}">
@@ -43,19 +44,28 @@
                 <input type="time" class="form-control form-control-sm s-end-time" value="{{ sess.end_time }}" step="60">
                 {% endif %}
             </div>
-            <div class="col-12 col-md-6">
-                <label class="form-label small fw-semibold mb-1">Ghi chú</label>
+            <div class="col-12 col-lg-5">
+                <label class="form-label jp-proxy-label">Ghi chú</label>
                 <input type="text" class="form-control form-control-sm s-note" value="{{ sess.note }}" placeholder="Tuỳ chọn">
-                <div class="d-flex flex-wrap align-items-center gap-2 gap-md-3 mt-2">
-                    <span class="small text-muted">Thời gian: <strong class="s-hours text-dark">0h</strong></span>
-                    <span class="small text-muted">Hiệu suất: <span class="jp-proxy-eff-badge is-none s-eff">—</span></span>
+                <p class="small text-danger mb-0 mt-1 s-range-hint d-none"></p>
+            </div>
+            <div class="col-12 col-lg-3">
+                <label class="form-label jp-proxy-label jp-proxy-label--spacer" aria-hidden="true">&nbsp;</label>
+                <div class="jp-proxy-session-stats">
+                    <div class="jp-proxy-session-stat">
+                        <span class="jp-proxy-session-stat-label">Thời gian</span>
+                        <strong class="s-hours">0h</strong>
+                    </div>
+                    <div class="jp-proxy-session-stat">
+                        <span class="jp-proxy-session-stat-label">Hiệu suất</span>
+                        <span class="jp-proxy-eff-badge is-none s-eff">—</span>
+                    </div>
                     {% if not content_edit_only %}
-                    <button type="button" class="btn btn-sm btn-outline-danger remove-session ms-md-auto" title="Xóa công đoạn">
-                        <i class="bi bi-trash"></i>
+                    <button type="button" class="btn btn-sm btn-outline-danger remove-session jp-proxy-remove-btn" title="Xóa công đoạn">
+                        <i class="bi bi-trash me-1"></i>Xóa
                     </button>
                     {% endif %}
                 </div>
-                <p class="small text-danger mb-0 mt-1 s-range-hint d-none"></p>
             </div>
         </div>
     </div>

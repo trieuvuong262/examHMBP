@@ -143,9 +143,11 @@ def auto_reject_expired_production_reports(
 
 
 def ensure_production_report_approval_state(report) -> bool:
-    """Đồng bộ trạng thái duyệt khi mở báo cáo — trả True nếu vừa chuyển không duyệt."""
+    """Đồng bộ trạng thái duyệt khi mở báo cáo — trả True nếu vừa đổi trạng thái."""
     if not report or not report.pk:
         return False
+    if auto_approve_fully_proxy_entered_report(report):
+        return True
     return auto_reject_production_report(report)
 
 
@@ -161,13 +163,33 @@ def approve_production_report(report) -> None:
     report.hod_reviewed_at = now
     report.hod_rejected = False
     report.hod_rejected_at = None
-    report.save(update_fields=[
+    update_fields = [
         'hod_reviewed',
         'hod_reviewed_at',
         'hod_rejected',
         'hod_rejected_at',
         'updated_at',
-    ])
+    ]
+    if hasattr(report, 'hod_first_reviewed_at') and not report.hod_first_reviewed_at:
+        report.hod_first_reviewed_at = now
+        update_fields.append('hod_first_reviewed_at')
+    report.save(update_fields=update_fields)
+
+
+def auto_approve_fully_proxy_entered_report(report) -> bool:
+    """Báo cáo SX nhập hộ toàn bộ — mặc định đã duyệt."""
+    if not report or not report.pk:
+        return False
+    if not is_production_report(report):
+        return False
+    if not report.proxy_entered_by_id:
+        return False
+    if report.status != DailyWorkReport.STATUS_SUBMITTED:
+        return False
+    if report.hod_reviewed:
+        return False
+    approve_production_report(report)
+    return True
 
 
 def unapprove_production_report(report) -> None:

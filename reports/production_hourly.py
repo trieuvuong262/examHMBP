@@ -1724,6 +1724,12 @@ def save_proxy_shift_table(report: DailyWorkReport, rows: list[dict], user) -> d
     else:
         report.status = DailyWorkReport.STATUS_DRAFT
     report.save()
+
+    if groups:
+        from reports.report_lock import auto_approve_fully_proxy_entered_report
+
+        auto_approve_fully_proxy_entered_report(report)
+
     return {'groups': len(groups)}
 
 
@@ -2047,6 +2053,11 @@ def save_proxy_shift_sessions(
     else:
         report.status = DailyWorkReport.STATUS_DRAFT
     report.save()
+
+    if not content_edit_only and created:
+        from reports.report_lock import auto_approve_fully_proxy_entered_report
+
+        auto_approve_fully_proxy_entered_report(report)
 
     from reports.models import DailyWorkReportEditLog
     from reports.report_edit_log import log_report_edit
