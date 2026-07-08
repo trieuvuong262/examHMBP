@@ -1225,6 +1225,9 @@ def build_productivity_report(report: DailyWorkReport) -> dict:
             'avg_efficiency_pct': overall_efficiency_pct,
             'time_efficiency_pct': day_times['time_efficiency_pct'],
             'work_time_display': day_times['work_minutes_display'],
+            'declared_work_time_display': _format_declared_work_hours(
+                getattr(report, 'declared_work_hours', None),
+            ),
             'waste_time_display': day_times['waste_minutes_display'],
             'has_waste': day_times['has_waste'],
         },
@@ -1308,6 +1311,17 @@ def _format_hours(value) -> str:
     if '.' in text:
         text = text.rstrip('0').rstrip('.')
     return f'{text}h'
+
+
+def _format_declared_work_hours(hours) -> str:
+    """Giờ làm việc nhân viên khai báo khi gửi báo cáo."""
+    if hours is None or hours <= 0:
+        return '—'
+    dec = Decimal(str(hours)).quantize(Decimal('0.01')).normalize()
+    text = format(dec, 'f')
+    if '.' in text:
+        text = text.rstrip('0').rstrip('.')
+    return f'{text.replace(".", ",")} giờ'
 
 
 def build_hourly_grid(report: DailyWorkReport) -> dict:
