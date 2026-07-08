@@ -66,7 +66,8 @@
 
 body.jp-report-submitting,
 body.jp-report-submit-success-open,
-body.jp-report-submit-error-open {
+body.jp-report-submit-error-open,
+body.jp-report-submit-locked {
     overflow: hidden;
 }
 
@@ -74,4 +75,15 @@ body.jp-report-submitting .jp-report-submit-loading,
 body.jp-report-submit-success-open .jp-report-submit-success,
 body.jp-report-submit-error-open .jp-report-submit-error {
     pointer-events: all;
+}
+
+body.jp-report-submitting .js-prod-submit-trigger,
+body.jp-report-submitting .js-report-submit-form button[type="submit"],
+body.jp-report-submit-success-open .js-prod-submit-trigger,
+body.jp-report-submit-success-open .js-report-submit-form button[type="submit"],
+body.jp-report-submit-locked .js-prod-submit-trigger,
+body.jp-report-submit-locked .js-report-submit-form button[type="submit"],
+.jp-report-submit-locked {
+    pointer-events: none !important;
+    opacity: 0.75;
 }

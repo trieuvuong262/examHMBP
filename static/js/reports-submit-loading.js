@@ -1,6 +1,7 @@
 /**
  * Overlay loading khi gửi báo cáo (VP ngày/tuần, SX).
- * Submit qua fetch — thành công / thất bại đều hiện overlay thông báo.
+ * Chống spam: khóa toàn bộ nút gửi ngay khi bấm, chặn gửi trùng,
+ * chỉ mở lại sau khi thất bại + cooldown ngắn.
  */
 (function () {
     'use strict';
@@ -14,8 +15,15 @@
     var errorOverlay = document.getElementById('jp-report-submit-error');
     var errorCloseBtn = document.getElementById('jpReportSubmitErrorCloseBtn');
     var submitting = false;
+    var cooldownUntil = 0;
     var pendingRedirectUrl = '';
     var redirectTimer = null;
+    var cooldownTimer = null;
+    var COOLDOWN_MS = 2500;
+
+    function submitSelector() {
+        return 'button[type="submit"], input[type="submit"], .js-prod-submit-trigger, #prodSubmitConfirmBtn';
+    }
 
     function syncCkEditor() {
         if (!window.CKEDITOR || !CKEDITOR.instances) return;
@@ -33,12 +41,60 @@
         }
     }
 
+    function clearCooldownTimer() {
+        if (cooldownTimer) {
+            window.clearTimeout(cooldownTimer);
+            cooldownTimer = null;
+        }
+    }
+
     function goToPendingRedirect() {
         clearRedirectTimer();
         if (!pendingRedirectUrl) return;
         var url = pendingRedirectUrl;
         pendingRedirectUrl = '';
         window.location.href = url;
+    }
+
+    function lockAllSubmitButtons() {
+        document.querySelectorAll(submitSelector()).forEach(function (btn) {
+            btn.disabled = true;
+            btn.setAttribute('aria-busy', 'true');
+            btn.classList.add('jp-report-submit-locked');
+        });
+        document.body.classList.add('jp-report-submit-locked');
+    }
+
+    function unlockAllSubmitButtons() {
+        document.querySelectorAll(submitSelector()).forEach(function (btn) {
+            btn.disabled = false;
+            btn.removeAttribute('aria-busy');
+            btn.classList.remove('jp-report-submit-locked');
+        });
+        document.body.classList.remove('jp-report-submit-locked');
+    }
+
+    function canStartSubmit() {
+        if (submitting) return false;
+        if (Date.now() < cooldownUntil) return false;
+        return true;
+    }
+
+    function beginSubmitLock() {
+        submitting = true;
+        clearCooldownTimer();
+        lockAllSubmitButtons();
+        document.body.classList.add('jp-report-submitting');
+    }
+
+    function endSubmitLockWithCooldown() {
+        submitting = false;
+        cooldownUntil = Date.now() + COOLDOWN_MS;
+        clearCooldownTimer();
+        cooldownTimer = window.setTimeout(function () {
+            cooldownUntil = 0;
+            unlockAllSubmitButtons();
+        }, COOLDOWN_MS);
     }
 
     function show(message) {
@@ -61,6 +117,9 @@
     function showSuccess(redirectUrl) {
         hide();
         hideError();
+        // Giữ khóa nút sau thành công — không cho spam thêm trước khi chuyển trang.
+        submitting = true;
+        lockAllSubmitButtons();
         pendingRedirectUrl = redirectUrl || window.location.href;
         if (!successOverlay) {
             window.alert('Gửi báo cáo thành công.');
@@ -74,7 +133,6 @@
                 successCloseBtn.focus();
             }, 50);
         }
-        // Tự chuyển trang sau 2.2s nếu người dùng không bấm.
         clearRedirectTimer();
         redirectTimer = window.setTimeout(goToPendingRedirect, 2200);
     }
@@ -109,17 +167,16 @@
     }
 
     function disableSubmitControls(form) {
+        lockAllSubmitButtons();
         if (!form) return;
-        form.querySelectorAll('button[type="submit"], input[type="submit"], .js-prod-submit-trigger, #prodSubmitConfirmBtn').forEach(function (btn) {
+        form.querySelectorAll(submitSelector()).forEach(function (btn) {
             btn.disabled = true;
         });
     }
 
-    function enableSubmitControls(form) {
-        if (!form) return;
-        form.querySelectorAll('button[type="submit"], input[type="submit"], .js-prod-submit-trigger, #prodSubmitConfirmBtn').forEach(function (btn) {
-            btn.disabled = false;
-        });
+    function enableSubmitControls() {
+        // Không mở lại ngay — phải hết cooldown sau lỗi mới mở.
+        endSubmitLockWithCooldown();
     }
 
     function isReportSubmit(submitter, form) {
@@ -156,11 +213,10 @@
     }
 
     function submitForm(form, submitter) {
-        if (!form || submitting) return;
-        submitting = true;
+        if (!form || !canStartSubmit()) return false;
+        beginSubmitLock();
         syncCkEditor();
         show('Đang gửi báo cáo...');
-        disableSubmitControls(form);
 
         var fd = buildFormData(form, submitter || null);
         var url = form.getAttribute('action') || window.location.href;
@@ -180,10 +236,10 @@
             }
             showSuccess(resp.url || url);
         }).catch(function () {
-            submitting = false;
-            enableSubmitControls(form);
+            enableSubmitControls();
             showErrorModal();
         });
+        return true;
     }
 
     function armForm(form) {
@@ -192,8 +248,9 @@
         form.addEventListener('submit', function (ev) {
             if (!isReportSubmit(ev.submitter, form)) return;
             ev.preventDefault();
+            ev.stopImmediatePropagation();
             submitForm(form, ev.submitter);
-        });
+        }, true);
     }
 
     if (successCloseBtn) {
@@ -223,6 +280,7 @@
         disableSubmitControls: disableSubmitControls,
         enableSubmitControls: enableSubmitControls,
         submitForm: submitForm,
+        canStartSubmit: canStartSubmit,
         showSuccess: showSuccess,
         showErrorModal: showErrorModal,
         hideError: hideError,

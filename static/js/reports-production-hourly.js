@@ -288,6 +288,9 @@
 
         document.querySelectorAll('.js-prod-submit-trigger').forEach(function (btn) {
             btn.addEventListener('click', function () {
+                if (window.JpReportSubmitLoading && typeof JpReportSubmitLoading.canStartSubmit === 'function') {
+                    if (!JpReportSubmitLoading.canStartSubmit()) return;
+                }
                 pendingForm = btn.closest('form.js-prod-submit-form');
                 if (!pendingForm) return;
                 fillReviewPayload();
@@ -300,6 +303,9 @@
         if (confirmBtn) {
             confirmBtn.addEventListener('click', function () {
                 if (!pendingForm) return;
+                if (window.JpReportSubmitLoading && typeof JpReportSubmitLoading.canStartSubmit === 'function') {
+                    if (!JpReportSubmitLoading.canStartSubmit()) return;
+                }
                 fillReviewPayload();
                 clearWorkHoursError();
                 var check = validateProdWorkHours(workHoursInput ? workHoursInput.value : '');
@@ -311,6 +317,7 @@
                 modal.hide();
                 var formToSubmit = pendingForm;
                 pendingForm = null;
+                confirmBtn.disabled = true;
                 if (window.JpReportSubmitLoading && typeof JpReportSubmitLoading.submitForm === 'function') {
                     JpReportSubmitLoading.submitForm(formToSubmit);
                 } else {
