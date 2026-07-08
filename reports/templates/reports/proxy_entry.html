@@ -95,6 +95,7 @@
     }
     .jp-proxy-slot-chip input { accent-color: #fff; }
     .jp-proxy-session { background: #fcfcfd; }
+    .jp-proxy-work-hours-input { max-width: 14rem; }
 </style>
 {% endblock %}
 
@@ -157,6 +158,30 @@
                 <input type="hidden" name="shift" value="{{ tab.shift }}">
                 <input type="hidden" name="for_user" value="{{ subject.pk }}">
                 <input type="hidden" name="sessions_json" class="s-sessions-json">
+
+                {% if tab.lock_session_times and tab.is_submitted %}
+                <div class="mb-3 jp-proxy-work-hours">
+                    <label class="form-label fw-bold small mb-1" for="declared-work-hours-{{ tab.shift }}">
+                        Thời gian làm việc
+                    </label>
+                    <div class="input-group jp-proxy-work-hours-input">
+                        <input type="number"
+                               class="form-control"
+                               id="declared-work-hours-{{ tab.shift }}"
+                               name="declared_work_hours"
+                               min="8.01"
+                               max="15.99"
+                               step="0.01"
+                               inputmode="decimal"
+                               placeholder="9,5"
+                               value="{% if tab.declared_work_hours %}{{ tab.declared_work_hours }}{% else %}9.5{% endif %}">
+                        <span class="input-group-text">giờ</span>
+                    </div>
+                    <div class="form-text text-muted small mb-0">
+                        Thời gian nhân viên khai báo khi gửi báo cáo.
+                    </div>
+                </div>
+                {% endif %}
 
                 <fieldset class="border-0 p-0 m-0" {% if tab.is_locked and not tab.lock_session_times %}disabled{% endif %}>
                     <div class="jp-proxy-sessions">

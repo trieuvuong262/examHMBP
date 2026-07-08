@@ -661,6 +661,16 @@ def proxy_report_entry(request):
             sessions = []
         if not isinstance(sessions, list):
             sessions = []
+        if lock_session_times:
+            from reports.production_hourly import validate_production_work_hours
+
+            work_hours, work_hours_err = validate_production_work_hours(
+                request.POST.get('declared_work_hours'),
+            )
+            if work_hours_err:
+                messages.error(request, work_hours_err)
+                return redirect(_proxy_url(subject.id, post_shift))
+            report.declared_work_hours = work_hours
         save_proxy_shift_sessions(
             report,
             sessions,
@@ -689,6 +699,7 @@ def proxy_report_entry(request):
             'is_locked': bool(report.pk) and (is_report_locked(report) or is_report_edit_expired(report)),
             'proxy_entered_by': report.proxy_entered_by if report.pk else None,
             'lock_session_times': lock_session_times,
+            'declared_work_hours': report.declared_work_hours if report.pk else None,
         })
 
     return render(request, 'reports/proxy_entry.html', {
