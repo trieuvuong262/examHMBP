@@ -44,26 +44,18 @@
                 {% endif %}
             </div>
             <div class="col-12 col-md-6">
-                <p class="small text-muted mb-2 mb-md-1 s-range-hint"></p>
-            </div>
-        </div>
-
-        <div class="row g-2 mt-1 align-items-center">
-            <div class="col-12 col-md-7">
-                <input type="text" class="form-control form-control-sm s-note" value="{{ sess.note }}" placeholder="Ghi chú (tuỳ chọn)">
-            </div>
-            <div class="col-6 col-md-2 small text-muted">
-                Thời gian: <strong class="s-hours text-dark">0h</strong>
-            </div>
-            <div class="col-4 col-md-2 small text-muted">
-                Hiệu suất: <span class="jp-proxy-eff-badge is-none s-eff">—</span>
-            </div>
-            <div class="col-2 col-md-1 text-end">
-                {% if not content_edit_only %}
-                <button type="button" class="btn btn-sm btn-outline-danger remove-session" title="Xóa công đoạn">
-                    <i class="bi bi-trash"></i>
-                </button>
-                {% endif %}
+                <label class="form-label small fw-semibold mb-1">Ghi chú</label>
+                <input type="text" class="form-control form-control-sm s-note" value="{{ sess.note }}" placeholder="Tuỳ chọn">
+                <div class="d-flex flex-wrap align-items-center gap-2 gap-md-3 mt-2">
+                    <span class="small text-muted">Thời gian: <strong class="s-hours text-dark">0h</strong></span>
+                    <span class="small text-muted">Hiệu suất: <span class="jp-proxy-eff-badge is-none s-eff">—</span></span>
+                    {% if not content_edit_only %}
+                    <button type="button" class="btn btn-sm btn-outline-danger remove-session ms-md-auto" title="Xóa công đoạn">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                    {% endif %}
+                </div>
+                <p class="small text-danger mb-0 mt-1 s-range-hint d-none"></p>
             </div>
         </div>
     </div>

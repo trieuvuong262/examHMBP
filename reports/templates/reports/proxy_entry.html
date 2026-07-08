@@ -316,13 +316,10 @@
                 var shiftStart = form.getAttribute('data-shift-start') || '';
                 var shiftEnd = form.getAttribute('data-shift-end') || '';
                 hint.textContent = 'Giờ phải nằm trong ca (' + shiftStart + ' – ' + shiftEnd + ') và kết thúc sau bắt đầu.';
-                hint.classList.add('text-danger');
-            } else if (startStr && endStr && range.valid) {
-                hint.textContent = 'Làm từ ' + startStr + ' đến ' + endStr + ' (' + hours + 'h trong ca, đã trừ nghỉ giữa ca).';
-                hint.classList.remove('text-danger');
+                hint.classList.remove('d-none');
             } else {
                 hint.textContent = '';
-                hint.classList.remove('text-danger');
+                hint.classList.add('d-none');
             }
         }
         var total = parseFloat((sess.querySelector('.s-total') || {}).value) || 0;
