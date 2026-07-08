@@ -161,6 +161,15 @@ def can_add_production_entry(viewer, report, *, can_submit: bool, is_proxy: bool
     )
 
 
+def employee_self_submitted_production_report(report) -> bool:
+    """NV tự nộp báo cáo (không phải nhập hộ) — quản lý không được sửa giờ."""
+    return (
+        bool(report and report.pk)
+        and report.status == DailyWorkReport.STATUS_SUBMITTED
+        and not report.proxy_entered_by_id
+    )
+
+
 def can_proxy_enter_daily_report(viewer, employee) -> bool:
     """Tổ trưởng / cấp trên nhập báo cáo hộ nhân viên (điện thoại hỏng)."""
     from hrm.permissions import can_view_team_reports, get_team_report_members
@@ -1868,6 +1877,7 @@ def build_proxy_shift_sessions(report: DailyWorkReport) -> dict:
             norm = p.norm_per_hour
             start_disp, end_disp = session_time_displays(p)
             sessions.append({
+                'product_id': p.id,
                 'code': (p.product_code or '').strip(),
                 'process': (p.process_name or '').strip(),
                 'norm': (int(norm) if norm == norm.to_integral() else float(norm)) if norm is not None else '',
@@ -1890,12 +1900,18 @@ def build_proxy_shift_sessions(report: DailyWorkReport) -> dict:
 
 
 @transaction.atomic
-def save_proxy_shift_sessions(report: DailyWorkReport, sessions: list[dict], user) -> dict:
+def save_proxy_shift_sessions(
+    report: DailyWorkReport,
+    sessions: list[dict],
+    user,
+    *,
+    content_edit_only: bool = False,
+) -> dict:
     """
     Lưu nhập hộ theo công đoạn. Mỗi phần tử sessions:
-    {code, process, norm, start_time, end_time, total, damaged, note} (HH:MM).
+    {product_id?, code, process, norm, start_time, end_time, total, damaged, note} (HH:MM).
     Tổng SL chia theo tỷ lệ thời gian giao với từng khung giờ ca.
-    """
+  """
     if not report.pk:
         report.report_profile = REPORT_PROFILE_PRODUCTION
         report.save()
@@ -1904,11 +1920,33 @@ def save_proxy_shift_sessions(report: DailyWorkReport, sessions: list[dict], use
     slots = slots_for_shift(shift)
     slot_by_idx = {s.index: s for s in slots}
 
+    time_snapshot = {}
+    if content_edit_only and report.pk:
+        for product in report.production_products.all():
+            start_disp, end_disp = session_time_displays(product)
+            time_snapshot[product.id] = {
+                'start_time': start_disp,
+                'end_time': end_disp,
+            }
+
+    prior_status = report.status
+    prior_submitted_at = report.submitted_at
+
     report.production_products.all().delete()
 
     created = 0
     sort_order = 0
     for sess in sessions:
+        if content_edit_only:
+            product_id = parse_int(sess.get('product_id'), -1)
+            if product_id < 0 or product_id not in time_snapshot:
+                continue
+            sess = {
+                **sess,
+                'start_time': time_snapshot[product_id]['start_time'],
+                'end_time': time_snapshot[product_id]['end_time'],
+            }
+
         code = (sess.get('code') or '').strip()
         process = (sess.get('process') or '').strip()
         norm = parse_decimal(sess.get('norm'))
@@ -1980,7 +2018,10 @@ def save_proxy_shift_sessions(report: DailyWorkReport, sessions: list[dict], use
     report.proxy_entered_by = user
     if not report.shift_started_at:
         report.shift_started_at = _slot_start_dt(report.report_date, slots[0])
-    if created:
+    if content_edit_only:
+        report.status = prior_status
+        report.submitted_at = prior_submitted_at
+    elif created:
         report.status = DailyWorkReport.STATUS_SUBMITTED
         report.submitted_at = timezone.now()
         lock_production_steps_on_submit(report)

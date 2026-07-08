@@ -147,34 +147,47 @@
             </div>
             {% endif %}
 
+            {% if tab.lock_session_times %}
+            <div class="alert alert-light border small mb-3 py-2">
+                <i class="bi bi-info-circle me-1"></i>Nhân viên đã nộp báo cáo — chỉ sửa mã hàng, công đoạn, định mức và sản lượng, không đổi giờ bắt đầu / kết thúc.
+            </div>
+            {% endif %}
+
             <form method="post" class="jp-proxy-form" data-shift="{{ tab.shift }}"
                   data-report-date="{{ report_date|date:'Y-m-d' }}"
                   data-slot-windows="{{ tab.data.slot_windows_json|escape }}"
                   data-shift-start="{{ tab.data.shift_window_start }}"
-                  data-shift-end="{{ tab.data.shift_window_end }}">
+                  data-shift-end="{{ tab.data.shift_window_end }}"
+                  data-lock-session-times="{% if tab.lock_session_times %}1{% else %}0{% endif %}">
                 {% csrf_token %}
                 <input type="hidden" name="shift" value="{{ tab.shift }}">
                 <input type="hidden" name="for_user" value="{{ subject.pk }}">
                 <input type="hidden" name="sessions_json" class="s-sessions-json">
 
-                <fieldset class="border-0 p-0 m-0" {% if tab.is_locked %}disabled{% endif %}>
+                <fieldset class="border-0 p-0 m-0" {% if tab.is_locked and not tab.lock_session_times %}disabled{% endif %}>
                     <div class="jp-proxy-sessions">
                         {% for sess in tab.data.sessions %}
-                        {% include 'reports/includes/proxy_session_row.html' with sess=sess %}
+                        {% include 'reports/includes/proxy_session_row.html' with sess=sess content_edit_only=tab.lock_session_times %}
                         {% endfor %}
                     </div>
                 </fieldset>
 
-                {% if not tab.is_locked %}
+                {% if not tab.is_locked or tab.lock_session_times %}
+                {% if not tab.lock_session_times %}
                 <template class="jp-proxy-session-tpl">
-                    {% include 'reports/includes/proxy_session_row.html' with sess=empty_session %}
+                    {% include 'reports/includes/proxy_session_row.html' with sess=empty_session content_edit_only=False %}
                 </template>
+                {% endif %}
                 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-3">
+                    {% if not tab.lock_session_times %}
                     <button type="button" class="btn btn-outline-hm add-session">
                         <i class="bi bi-plus-lg me-1"></i>Thêm công đoạn
                     </button>
+                    {% else %}
+                    <span></span>
+                    {% endif %}
                     <button type="submit" class="btn btn-hm fw-bold px-4">
-                        <i class="bi bi-save me-1"></i>Lưu {{ tab.label }}
+                        <i class="bi bi-save me-1"></i>{% if tab.lock_session_times %}Lưu chỉnh sửa{% else %}Lưu {{ tab.label }}{% endif %}
                     </button>
                 </div>
                 {% else %}
@@ -348,6 +361,7 @@
                     return;
                 }
                 sessions.push({
+                    product_id: (sess.querySelector('.s-product-id') || {}).value || '',
                     code: code,
                     process: (sess.querySelector('.s-process') || {}).value || '',
                     norm: (sess.querySelector('.s-norm') || {}).value || '',

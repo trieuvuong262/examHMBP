@@ -583,7 +583,9 @@ def proxy_report_entry(request):
     """Nhập hộ báo cáo sản xuất cho công nhân (tổ trưởng/QC) — 3 tab ca, bảng theo khung giờ."""
     from reports.production_hourly import (
         build_proxy_shift_sessions,
+        can_edit_production_norms,
         can_proxy_enter_daily_report,
+        employee_self_submitted_production_report,
         save_proxy_shift_sessions,
     )
     from reports.production_shift_policy import shift_display_label
@@ -645,7 +647,12 @@ def proxy_report_entry(request):
             report_profile=REPORT_PROFILE_PRODUCTION, shift=post_shift,
         )
         report = _ensure_daily_report_saved(report)
-        if is_report_locked(report) or is_report_edit_expired(report):
+        lock_session_times = employee_self_submitted_production_report(report)
+        if lock_session_times:
+            if not can_edit_production_norms(request.user, report):
+                messages.error(request, 'Bạn không có quyền chỉnh sửa báo cáo này.')
+                return redirect(_proxy_url(subject.id, post_shift))
+        elif is_report_locked(report) or is_report_edit_expired(report):
             messages.error(request, report_edit_denied_message(report))
             return redirect(_proxy_url(subject.id, post_shift))
         try:
@@ -654,7 +661,12 @@ def proxy_report_entry(request):
             sessions = []
         if not isinstance(sessions, list):
             sessions = []
-        save_proxy_shift_sessions(report, sessions, request.user)
+        save_proxy_shift_sessions(
+            report,
+            sessions,
+            request.user,
+            content_edit_only=lock_session_times,
+        )
         messages.success(request, f'Đã lưu {shift_display_label(post_shift)} cho {subject_name}.')
         return redirect(_proxy_url(subject.id, post_shift))
 
@@ -668,6 +680,7 @@ def proxy_report_entry(request):
             subject, report_date,
             report_profile=REPORT_PROFILE_PRODUCTION, shift=shift,
         )
+        lock_session_times = employee_self_submitted_production_report(report)
         tabs.append({
             'shift': shift,
             'label': label,
@@ -675,6 +688,7 @@ def proxy_report_entry(request):
             'is_submitted': bool(report.pk) and report.status == DailyWorkReport.STATUS_SUBMITTED,
             'is_locked': bool(report.pk) and (is_report_locked(report) or is_report_edit_expired(report)),
             'proxy_entered_by': report.proxy_entered_by if report.pk else None,
+            'lock_session_times': lock_session_times,
         })
 
     return render(request, 'reports/proxy_entry.html', {
@@ -2221,14 +2235,10 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
             can_submit=can_submit,
         )
     ):
-        today_name = (
-            'reports:today_cn' if report.is_production_report else 'reports:today_vp'
-        )
         edit_report_url = (
-            f"{reverse(today_name)}?date={report.report_date.isoformat()}"
+            f"{reverse('reports:proxy_cn')}?date={report.report_date.isoformat()}"
             f"&shift={report.shift}"
             f"&for_user={report.employee_id}"
-            f"{_production_edit_query(report)}"
         )
     if report.is_production_report and (report.hod_reviewed or report.is_hod_rejected):
         edit_report_url = ''
@@ -2368,6 +2378,10 @@ def today_report_cn(request):
         params = {'for_user': request.GET.get('for_user')}
         if request.GET.get('date'):
             params['date'] = request.GET.get('date')
+        if request.GET.get('shift'):
+            params['shift'] = request.GET.get('shift')
+        if request.GET.get('edit_content') == '1':
+            params['edit_content'] = '1'
         return redirect(f"{reverse('reports:proxy_cn')}?{_urlencode(params)}")
     report_date = _parse_report_date(request)
     return _today_production_report(request, report_date)

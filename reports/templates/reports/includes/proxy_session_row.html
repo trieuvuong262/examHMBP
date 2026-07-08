@@ -1,5 +1,6 @@
 <div class="jp-proxy-session card border shadow-sm mb-2">
     <div class="card-body p-2 p-md-3">
+        {% if sess.product_id %}<input type="hidden" class="s-product-id" value="{{ sess.product_id }}">{% endif %}
         <div class="row g-2">
             <div class="col-6 col-md-3">
                 <label class="form-label small fw-semibold mb-1">Mã hàng</label>
@@ -26,11 +27,21 @@
         <div class="row g-2 mt-2 align-items-end">
             <div class="col-6 col-md-3">
                 <label class="form-label small fw-semibold mb-1">Giờ bắt đầu</label>
+                {% if content_edit_only %}
+                <div class="form-control form-control-sm bg-light text-muted s-start-time-readonly">{{ sess.start_time|default:"—" }}</div>
+                <input type="hidden" class="s-start-time" value="{{ sess.start_time }}">
+                {% else %}
                 <input type="time" class="form-control form-control-sm s-start-time" value="{{ sess.start_time }}" step="60">
+                {% endif %}
             </div>
             <div class="col-6 col-md-3">
                 <label class="form-label small fw-semibold mb-1">Giờ kết thúc</label>
+                {% if content_edit_only %}
+                <div class="form-control form-control-sm bg-light text-muted s-end-time-readonly">{{ sess.end_time|default:"—" }}</div>
+                <input type="hidden" class="s-end-time" value="{{ sess.end_time }}">
+                {% else %}
                 <input type="time" class="form-control form-control-sm s-end-time" value="{{ sess.end_time }}" step="60">
+                {% endif %}
             </div>
             <div class="col-12 col-md-6">
                 <p class="small text-muted mb-2 mb-md-1 s-range-hint"></p>
@@ -48,9 +59,11 @@
                 Hiệu suất: <span class="jp-proxy-eff-badge is-none s-eff">—</span>
             </div>
             <div class="col-2 col-md-1 text-end">
+                {% if not content_edit_only %}
                 <button type="button" class="btn btn-sm btn-outline-danger remove-session" title="Xóa công đoạn">
                     <i class="bi bi-trash"></i>
                 </button>
+                {% endif %}
             </div>
         </div>
     </div>
