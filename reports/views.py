@@ -1486,6 +1486,37 @@ def _team_row_is_submitted(row, *, submitted_status: str) -> bool:
     return bool(report and report.status == submitted_status)
 
 
+def _office_team_row_matches_filter(row, status_filter: str, *, submitted_status: str) -> bool:
+    """Lọc ô thống kê VP: đã nộp / chưa nộp / chưa xem / đã xem."""
+    report = row.get('report')
+    is_submitted = bool(report and report.status == submitted_status)
+    if status_filter == TEAM_STATUS_SUBMITTED:
+        return is_submitted
+    if status_filter == TEAM_STATUS_MISSING:
+        return not is_submitted
+    if status_filter == TEAM_STATUS_REVIEWED:
+        return bool(report and report.hod_reviewed)
+    if status_filter == TEAM_STATUS_NOT_REVIEWED:
+        return bool(is_submitted and report and not report.hod_reviewed)
+    return True
+
+
+def _office_team_view_row_counts(department_groups) -> dict:
+    """Đếm đã xem / chưa xem trên danh sách VP (trước khi lọc status)."""
+    reviewed = 0
+    not_reviewed = 0
+    for group in department_groups:
+        for row in group.get('rows') or []:
+            report = row.get('report')
+            if not report or report.status != DailyWorkReport.STATUS_SUBMITTED:
+                continue
+            if report.hod_reviewed:
+                reviewed += 1
+            else:
+                not_reviewed += 1
+    return {'reviewed': reviewed, 'not_reviewed': not_reviewed}
+
+
 def _filter_team_department_groups(
     department_groups,
     status_filter: str,
@@ -1507,8 +1538,10 @@ def _filter_team_department_groups(
                 )
             elif status_filter == TEAM_STATUS_SUBMITTED:
                 include = is_submitted(row, submitted_status=submitted_status)
-            else:
+            elif status_filter == TEAM_STATUS_MISSING:
                 include = not is_submitted(row, submitted_status=submitted_status)
+            else:
+                include = False
             if include:
                 rows.append(row)
         if rows:
@@ -1736,8 +1769,9 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
         submitted = len(submitted_employee_ids)
         missing = team_count - submitted
         no_report_count = 0
-        reviewed_count = 0
-        not_reviewed_count = 0
+        view_counts = _office_team_view_row_counts(department_groups)
+        reviewed_count = view_counts['reviewed']
+        not_reviewed_count = view_counts['not_reviewed']
         rejected_count = 0
     else:
         from reports.report_lock import auto_reject_expired_production_reports
@@ -1783,7 +1817,7 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
         row_matches_filter=(
             production_team_row_matches_filter
             if report_profile == REPORT_PROFILE_PRODUCTION
-            else None
+            else _office_team_row_matches_filter
         ),
     )
 

@@ -203,11 +203,11 @@
                             {% elif status_filter == 'no_report' %}
                             Tất cả nhân viên đã có báo cáo trong khoảng đã chọn.
                             {% elif status_filter == 'reviewed' %}
-                            Không có báo cáo đã duyệt trong khoảng đã chọn.
+                            Không có báo cáo {% if reports_scope_label == 'VP' %}đã xem{% else %}đã duyệt{% endif %} trong khoảng đã chọn.
                             {% elif status_filter == 'rejected' %}
                             Không có báo cáo không duyệt trong khoảng đã chọn.
                             {% elif status_filter == 'not_reviewed' %}
-                            Không có báo cáo chờ duyệt trong khoảng đã chọn.
+                            Không có báo cáo {% if reports_scope_label == 'VP' %}chờ xem{% else %}chờ duyệt{% endif %} trong khoảng đã chọn.
                             {% else %}
                             Chưa có nhân viên cấp dưới được cấu hình.
                             {% endif %}

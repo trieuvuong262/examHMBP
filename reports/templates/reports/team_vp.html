@@ -16,6 +16,10 @@
 
 {% block team_clear_extra %}{% if selected_period %}&period={{ selected_period }}{% endif %}{% endblock %}
 
+{% block team_stat_cards %}
+{% include 'reports/includes/team_stat_cards_office.html' %}
+{% endblock %}
+
 {% block team_row_cells %}
 <td>
     <strong>{{ row.member.profile.full_name|default:row.member.username }}</strong>

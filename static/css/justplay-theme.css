@@ -2411,6 +2411,23 @@ body.jp-tool-loading-active {
     line-height: 1.2;
 }
 
+.jp-stat-grid.jp-team-stat-grid--5 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.jp-stat-grid.jp-team-stat-grid--5 .jp-team-stat-card {
+    padding: 0.65rem 0.35rem !important;
+}
+
+.jp-stat-grid.jp-team-stat-grid--5 .fs-4 {
+    font-size: 1.15rem !important;
+}
+
+.jp-stat-grid.jp-team-stat-grid--5 small {
+    font-size: 0.68rem;
+    line-height: 1.2;
+}
+
 @media (min-width: 576px) {
     .jp-stat-grid.jp-team-stat-grid--4 .jp-team-stat-card {
         padding: 1rem !important;
@@ -2421,6 +2438,22 @@ body.jp-tool-loading-active {
     }
 
     .jp-stat-grid.jp-team-stat-grid--4 small {
+        font-size: 0.875em;
+    }
+
+    .jp-stat-grid.jp-team-stat-grid--5 {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+
+    .jp-stat-grid.jp-team-stat-grid--5 .jp-team-stat-card {
+        padding: 1rem !important;
+    }
+
+    .jp-stat-grid.jp-team-stat-grid--5 .fs-4 {
+        font-size: 1.5rem !important;
+    }
+
+    .jp-stat-grid.jp-team-stat-grid--5 small {
         font-size: 0.875em;
     }
 }
