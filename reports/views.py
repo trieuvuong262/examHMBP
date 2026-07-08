@@ -2026,7 +2026,12 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
     )
 
     report = get_object_or_404(
-        DailyWorkReport.objects.select_related('employee', 'employee__profile').prefetch_related(
+        DailyWorkReport.objects.select_related(
+            'employee',
+            'employee__profile',
+            'proxy_entered_by',
+            'proxy_entered_by__profile',
+        ).prefetch_related(
             'lines',
             'attachments',
             'production_products__hourly_entries',
@@ -2095,10 +2100,6 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
         from reports.report_lock import unapprove_production_report
 
         unapprove_production_report(report)
-        messages.success(
-            request,
-            'Đã hoàn duyệt — nhân viên có thể chỉnh sửa lại trong 24 giờ kể từ khi nộp (nếu còn hạn).',
-        )
         return _detail_redirect()
 
     # Đánh dấu nhận xét đã đọc (comment không phải của mình)

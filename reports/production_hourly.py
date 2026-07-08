@@ -1229,6 +1229,17 @@ def build_productivity_report(report: DailyWorkReport) -> dict:
     department_name = profile.department.name if profile and profile.department_id else '—'
     employee_name = (profile.full_name if profile and profile.full_name else report.employee.username)
 
+    proxy_entered_by_name = ''
+    if report.proxy_entered_by_id:
+        proxy_user = report.proxy_entered_by
+        if proxy_user:
+            proxy_profile = getattr(proxy_user, 'profile', None)
+            proxy_entered_by_name = (
+                proxy_profile.full_name
+                if proxy_profile and proxy_profile.full_name
+                else proxy_user.get_username()
+            )
+
     work_timeline = build_work_day_timeline(report)
     day_times = compute_day_work_waste_summary(report, productivity_products)
 
@@ -1256,6 +1267,7 @@ def build_productivity_report(report: DailyWorkReport) -> dict:
         'department_name': department_name,
         'report_date': report.report_date,
         'is_proxy_entered': bool(report.proxy_entered_by_id),
+        'proxy_entered_by_name': proxy_entered_by_name,
         'has_data': bool(hourly_rows) or bool(product_summaries),
     }
 

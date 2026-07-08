@@ -996,6 +996,21 @@ body .modal-backdrop.show {
     }
 }
 
+.jp-btn-unapprove {
+    background-color: #ea580c !important;
+    border: 1px solid #c2410c !important;
+    color: #fff !important;
+    box-shadow: 0 2px 8px rgba(234, 88, 12, 0.28);
+}
+
+.jp-btn-unapprove:hover,
+.jp-btn-unapprove:focus {
+    background-color: #c2410c !important;
+    border-color: #9a3412 !important;
+    color: #fff !important;
+    box-shadow: 0 4px 14px rgba(234, 88, 12, 0.35);
+}
+
 .jp-report-edit-history-table th,
 .jp-report-edit-history-table td {
     padding: 0.75rem 1rem;

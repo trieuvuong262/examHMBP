@@ -14,7 +14,7 @@
     <form method="post" class="d-inline mb-0 js-prod-unapprove-form">
         {% csrf_token %}
         <input type="hidden" name="action" value="unapprove_report">
-        <button type="button" class="btn btn-outline-warning btn-sm fw-bold js-prod-unapprove-trigger">
+        <button type="button" class="btn jp-btn-unapprove btn-sm fw-bold js-prod-unapprove-trigger">
             <i class="bi bi-arrow-counterclockwise me-1"></i>Hoàn duyệt
         </button>
     </form>

@@ -59,13 +59,13 @@
                     <th>Công đoạn</th>
                     <th class="text-center">Bắt đầu</th>
                     <th class="text-center">Kết thúc</th>
-                    <th class="text-center">Nhập hộ</th>
                     <th class="text-end">Số lượng</th>
                     <th class="text-end">Hư hỏng</th>
                     <th class="text-end">Định mức/H</th>
                     <th class="text-end">Thời gian/H</th>
                     <th class="text-end">Hiệu suất</th>
                     <th>Ghi chú</th>
+                    <th>Nhập hộ</th>
                 </tr>
             </thead>
             <tbody>
@@ -80,13 +80,6 @@
                     </td>
                     <td class="text-center text-nowrap">{{ row.started_at_display|default:"—" }}</td>
                     <td class="text-center text-nowrap">{{ row.ended_at_display|default:"—" }}</td>
-                    <td class="text-center">
-                        {% if productivity.is_proxy_entered %}
-                        <i class="bi bi-check-lg text-success" title="Tổ trưởng nhập hộ"></i>
-                        {% else %}
-                        <span class="text-muted">—</span>
-                        {% endif %}
-                    </td>
                     <td class="text-end"><span class="jp-prod-qty-val">{{ row.quantity|prod_qty }}</span></td>
                     <td class="text-end">
                         {% if row.damaged_quantity %}<span class="jp-prod-damaged-val">{{ row.damaged_quantity|prod_qty }}</span>{% else %}<span class="text-muted">—</span>{% endif %}
@@ -104,6 +97,13 @@
                     </td>
                     <td class="jp-prod-note-cell">
                         {% if row.note %}<span class="jp-prod-note-val" title="{{ row.note }}">{{ row.note|truncatechars:40 }}</span>{% else %}<span class="text-muted">—</span>{% endif %}
+                    </td>
+                    <td class="jp-prod-proxy-cell">
+                        {% if productivity.proxy_entered_by_name %}
+                        <span class="jp-prod-proxy-name">{{ productivity.proxy_entered_by_name }}</span>
+                        {% else %}
+                        <span class="text-muted">—</span>
+                        {% endif %}
                     </td>
                 </tr>
                 {% endfor %}
