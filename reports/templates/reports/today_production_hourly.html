@@ -4,7 +4,7 @@
 
 {% block extra_head %}
 <link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260624a">
-<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260708l">
+<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260708m">
 <style>
 /* Trang SX today: ẩn footer, sticky bar neo sát đáy như nút Gửi báo cáo */
 :root {
@@ -273,8 +273,6 @@
                         <i class="bi bi-play-circle-fill"></i>
                     </div>
                     <h2 class="jp-prod-mobile-step-title">Sẵn sàng làm việc</h2>
-                    <p class="jp-prod-mobile-step-shift"><span class="{{ production_shift|production_shift_badge_class }}">{{ production_shift_label }}</span></p>
-                    <p class="jp-prod-mobile-step-lead">Bấm bắt đầu khi bạn bắt đầu công đoạn.</p>
                     {% if completed_sessions_count %}
                     <p class="jp-prod-mobile-step-meta">Đã hoàn thành {{ completed_sessions_count }} công đoạn trong ca này.</p>
                     {% endif %}
