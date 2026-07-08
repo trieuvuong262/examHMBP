@@ -966,9 +966,11 @@ def _time_efficiency_pct(declared_hours, work_minutes: Decimal):
     if not declared_hours or declared_hours <= 0 or work_minutes <= 0:
         return None
     declared_minutes = Decimal(str(declared_hours)) * Decimal('60')
-    return float(
-        (work_minutes / declared_minutes * Decimal('100')).quantize(Decimal('0.01'))
-    )
+    pct = work_minutes / declared_minutes * Decimal('100')
+    # Báo cáo thời gian thực tế quá ngắn so với khai báo — scale lại (vd. 0,88 → 88).
+    if pct < 1:
+        pct = pct * Decimal('100')
+    return float(pct.quantize(Decimal('0.01')))
 
 
 def compute_day_work_waste_summary(
