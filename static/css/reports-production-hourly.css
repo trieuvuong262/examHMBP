@@ -2178,19 +2178,33 @@ body .modal-backdrop.show {
         font-size: 1rem;
     }
 
-    .jp-prod-complete-form--mobile .jp-prod-complete-submit {
+    .jp-prod-complete-form--mobile .jp-prod-complete-submit-bar {
         position: fixed;
         left: 50%;
         transform: translateX(-50%);
         width: min(448px, calc(100vw - 1.25rem));
-        bottom: calc(0.65rem + env(safe-area-inset-bottom, 0px));
+        bottom: env(safe-area-inset-bottom, 0px);
         z-index: 1040;
         margin: 0;
-        box-shadow: 0 -4px 20px rgba(15, 23, 42, 0.12);
+        padding: 0.75rem 0.75rem calc(0.75rem + env(safe-area-inset-bottom, 0px));
+        background: rgba(255, 255, 255, 0.98);
+        border-top: 1px solid #e9ecef;
+        box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
+        backdrop-filter: blur(8px);
     }
 
-    body:has(.jp-bottom-nav) .jp-prod-complete-form--mobile .jp-prod-complete-submit {
-        bottom: calc(var(--jp-bottom-nav-h, 0px) + env(safe-area-inset-bottom, 0px) + 0.65rem);
+    .jp-prod-complete-form--mobile .jp-prod-complete-submit {
+        margin: 0;
+        min-height: 2.85rem;
+        font-size: 1rem;
+        background: #111827;
+        border-color: #111827;
+    }
+
+    .jp-prod-complete-form--mobile .jp-prod-complete-submit:hover,
+    .jp-prod-complete-form--mobile .jp-prod-complete-submit:focus {
+        background: #000;
+        border-color: #000;
     }
 
     .jp-prod-page--review .jp-prod-review-main {
@@ -2377,9 +2391,9 @@ body .modal-backdrop.show {
 }
 
 .jp-prod-go-review-cta {
-    background: #7f1d1d;
+    background: #111827;
     color: #fff;
-    border: 1px solid #7f1d1d;
+    border: 1px solid #111827;
     box-shadow: none;
     font-size: 0.95rem;
     padding: 0.62rem 1rem;
@@ -2388,9 +2402,9 @@ body .modal-backdrop.show {
 
 .jp-prod-go-review-cta:hover,
 .jp-prod-go-review-cta:focus {
-    background: #661313;
+    background: #000;
     color: #fff;
-    border-color: #661313;
+    border-color: #000;
     transform: translateY(-1px);
     box-shadow: none;
 }
@@ -2400,7 +2414,7 @@ body .modal-backdrop.show {
     left: 50%;
     transform: translateX(-50%);
     width: min(480px, calc(100vw - 1.25rem));
-    bottom: calc(var(--jp-footer-h, 2.75rem) + var(--jp-safe-bottom, env(safe-area-inset-bottom, 0px)));
+    bottom: env(safe-area-inset-bottom, 0px);
     z-index: 1040;
     padding: 0.75rem 0.75rem calc(0.75rem + env(safe-area-inset-bottom, 0px));
     background: rgba(255, 255, 255, 0.98);
@@ -2420,7 +2434,7 @@ body .modal-backdrop.show {
 }
 
 .jp-prod-go-review-sticky-spacer {
-    height: calc(4.25rem + var(--jp-footer-h, 2.75rem) + var(--jp-safe-bottom, env(safe-area-inset-bottom, 0px)));
+    height: calc(4.25rem + env(safe-area-inset-bottom, 0px));
 }
 
 @media (min-width: 992px) {
