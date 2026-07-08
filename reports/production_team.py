@@ -273,7 +273,31 @@ def production_team_row_matches_filter(
         )
     if status_filter == 'no_report':
         return row.get('production_report_count', 0) == 0
+    if status_filter == 'reviewed':
+        return (
+            row.get('production_report_count', 0) > 0
+            and row.get('production_any_submitted', False)
+            and row.get('production_all_reviewed', False)
+        )
+    if status_filter == 'not_reviewed':
+        return (
+            row.get('production_any_submitted', False)
+            and not row.get('production_all_reviewed', False)
+        )
     return True
+
+
+def production_team_review_row_counts(department_groups: list[dict]) -> dict[str, int]:
+    """Đếm dòng NV×ngày đã duyệt / chưa duyệt (trong khoảng lọc)."""
+    reviewed = 0
+    not_reviewed = 0
+    for group in department_groups:
+        for row in group.get('rows') or []:
+            if row.get('production_any_submitted') and row.get('production_all_reviewed'):
+                reviewed += 1
+            elif row.get('production_any_submitted') and not row.get('production_all_reviewed'):
+                not_reviewed += 1
+    return {'reviewed': reviewed, 'not_reviewed': not_reviewed}
 
 
 def expected_morning_days_through(anchor: date) -> int:

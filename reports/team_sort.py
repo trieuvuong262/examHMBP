@@ -102,6 +102,8 @@ def build_team_table_columns(
         col = dict(spec)
         if spec.get('date_column') and is_production and not is_vp:
             col['label'] = 'Ngày'
+        if col.get('key') == TEAM_SORT_REVIEWED and is_production:
+            col['label'] = 'Đã duyệt'
         sortable = spec.get('sortable', spec['key'] is not None)
         col['sortable'] = sortable
         align = col['align']

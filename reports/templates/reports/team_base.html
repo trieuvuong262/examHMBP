@@ -109,6 +109,10 @@
                             Không có nhân viên chưa nộp báo cáo trong khoảng đã chọn.
                             {% elif status_filter == 'no_report' %}
                             Tất cả nhân viên đã có báo cáo trong khoảng đã chọn.
+                            {% elif status_filter == 'reviewed' %}
+                            Không có báo cáo đã duyệt trong khoảng đã chọn.
+                            {% elif status_filter == 'not_reviewed' %}
+                            Không có báo cáo chờ duyệt trong khoảng đã chọn.
                             {% else %}
                             Chưa có nhân viên cấp dưới được cấu hình.
                             {% endif %}

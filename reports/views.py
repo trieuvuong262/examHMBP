@@ -139,6 +139,7 @@ from .production_team import (
     build_production_reports_by_employee,
     build_production_summary_shift_tabs,
     build_production_team_department_groups,
+    production_team_review_row_counts,
     production_team_row_is_submitted,
     production_team_row_matches_filter,
     production_team_status_counts,
@@ -1409,6 +1410,8 @@ def _build_department_group_rows(viewer, team, report_map, visible_fn, dept_filt
 TEAM_STATUS_SUBMITTED = 'submitted'
 TEAM_STATUS_MISSING = 'missing'
 TEAM_STATUS_NO_REPORT = 'no_report'
+TEAM_STATUS_REVIEWED = 'reviewed'
+TEAM_STATUS_NOT_REVIEWED = 'not_reviewed'
 TEAM_SUMMARY_DEFAULT_SPAN_DAYS = 7
 
 
@@ -1440,7 +1443,13 @@ def _parse_team_summary_shift(request) -> str:
 
 def _parse_team_status_filter(request) -> str:
     val = (request.GET.get('status') or '').strip().lower()
-    if val in (TEAM_STATUS_SUBMITTED, TEAM_STATUS_MISSING, TEAM_STATUS_NO_REPORT):
+    if val in (
+        TEAM_STATUS_SUBMITTED,
+        TEAM_STATUS_MISSING,
+        TEAM_STATUS_NO_REPORT,
+        TEAM_STATUS_REVIEWED,
+        TEAM_STATUS_NOT_REVIEWED,
+    ):
         return val
     return ''
 
@@ -1496,6 +1505,8 @@ def _team_stat_urls(base_params: dict) -> dict:
         'submitted': _url({'status': TEAM_STATUS_SUBMITTED}),
         'missing': _url({'status': TEAM_STATUS_MISSING}),
         'no_report': _url({'status': TEAM_STATUS_NO_REPORT}),
+        'reviewed': _url({'status': TEAM_STATUS_REVIEWED}),
+        'not_reviewed': _url({'status': TEAM_STATUS_NOT_REVIEWED}),
     }
 
 
@@ -1697,6 +1708,8 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
         submitted = len(submitted_employee_ids)
         missing = team_count - submitted
         no_report_count = 0
+        reviewed_count = 0
+        not_reviewed_count = 0
     else:
         from reports.report_lock import auto_reject_expired_production_reports
 
@@ -1724,6 +1737,9 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
             date_to=date_to,
             dept_filter=dept_filter,
         )
+        review_counts = production_team_review_row_counts(department_groups)
+        reviewed_count = review_counts['reviewed']
+        not_reviewed_count = review_counts['not_reviewed']
 
     department_groups = _filter_team_department_groups(
         department_groups,
@@ -1792,6 +1808,8 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
         'submitted_count': submitted,
         'missing_count': missing,
         'no_report_count': no_report_count,
+        'reviewed_count': reviewed_count,
+        'not_reviewed_count': not_reviewed_count,
         'team_count': team_count,
         'can_submit_report': can_submit_daily_report(request.user),
         'report_period': report_period,
