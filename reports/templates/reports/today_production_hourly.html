@@ -5,6 +5,15 @@
 {% block extra_head %}
 <link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260624a">
 <link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260708k">
+<style>
+/* Trang SX today: ẩn footer, sticky bar neo sát đáy như nút Gửi báo cáo */
+:root {
+    --jp-footer-h: 0px;
+}
+.jp-site-footer {
+    display: none !important;
+}
+</style>
 {% endblock %}
 
 {% block content %}
