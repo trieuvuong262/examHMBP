@@ -1,6 +1,7 @@
 {% load static %}
-<link rel="stylesheet" href="{% static 'css/reports-submit-loading.css' %}?v=20260708f">
+<link rel="stylesheet" href="{% static 'css/reports-submit-loading.css' %}?v=20260708g">
 <div id="jp-report-submit-loading" class="jp-report-submit-loading" hidden aria-live="polite" aria-busy="false">
+    <div class="jp-report-submit-backdrop" aria-hidden="true"></div>
     <div class="jp-report-submit-loading-box" role="status">
         <div class="spinner-border text-hm mb-3" style="width: 3rem; height: 3rem; border-width: 0.2em;" aria-hidden="true"></div>
         <h5 class="fw-bold text-dark mb-1" data-loading-message>Đang gửi báo cáo...</h5>
@@ -9,6 +10,7 @@
 </div>
 
 <div id="jp-report-submit-success" class="jp-report-submit-success" hidden role="alertdialog" aria-modal="true" aria-labelledby="jpReportSubmitSuccessTitle">
+    <div class="jp-report-submit-backdrop" aria-hidden="true"></div>
     <div class="jp-report-submit-success-box">
         <div class="jp-report-submit-success-icon" aria-hidden="true">
             <i class="bi bi-check-circle-fill"></i>
@@ -20,6 +22,7 @@
 </div>
 
 <div id="jp-report-submit-error" class="jp-report-submit-error" hidden role="alertdialog" aria-modal="true" aria-labelledby="jpReportSubmitErrorTitle">
+    <div class="jp-report-submit-backdrop" aria-hidden="true"></div>
     <div class="jp-report-submit-error-box">
         <div class="jp-report-submit-error-icon" aria-hidden="true">
             <i class="bi bi-wifi-off"></i>
@@ -34,4 +37,4 @@
         <button type="button" class="btn btn-hm fw-bold w-100" id="jpReportSubmitErrorCloseBtn">Đã hiểu</button>
     </div>
 </div>
-<script src="{% static 'js/reports-submit-loading.js' %}?v=20260708f"></script>
+<script src="{% static 'js/reports-submit-loading.js' %}?v=20260708g"></script>

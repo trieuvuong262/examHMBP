@@ -3,25 +3,22 @@
 .jp-report-submit-error {
     position: fixed;
     inset: 0;
-    z-index: 10050;
+    z-index: 20000;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 1rem;
     background: transparent;
+    /* Tách stacking — không để filter/opacity cha ảnh hưởng popup */
+    isolation: isolate;
 }
 
-.jp-report-submit-loading::before,
-.jp-report-submit-success::before,
-.jp-report-submit-error::before {
-    content: "";
+.jp-report-submit-backdrop {
     position: absolute;
     inset: 0;
     z-index: 0;
+    /* Chỉ làm mờ nền trang bằng màu — KHÔNG dùng backdrop-filter (có thể đè/mờ popup trên một số trình duyệt) */
     background: rgba(15, 23, 42, 0.72);
-    /* Blur chỉ nền phía sau — không áp lên hộp popup */
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
     pointer-events: none;
 }
 
@@ -44,12 +41,10 @@
     text-align: center;
     animation: jpReportSubmitPop 0.28s ease-out forwards;
     pointer-events: auto;
-    /* Đảm bảo không bị backdrop-filter của lớp nền làm mờ */
-    isolation: isolate;
-    filter: none;
     opacity: 1;
-    -webkit-backdrop-filter: none;
+    filter: none;
     backdrop-filter: none;
+    -webkit-backdrop-filter: none;
 }
 
 .jp-report-submit-success-icon,
@@ -98,13 +93,15 @@ body.jp-report-submit-error-open .jp-report-submit-error {
     pointer-events: all;
 }
 
+/* Chỉ làm mờ/khóa NÚT gửi — không gắn opacity lên body (sẽ làm mờ cả popup). */
 body.jp-report-submitting .js-prod-submit-trigger,
 body.jp-report-submitting .js-report-submit-form button[type="submit"],
 body.jp-report-submit-success-open .js-prod-submit-trigger,
 body.jp-report-submit-success-open .js-report-submit-form button[type="submit"],
 body.jp-report-submit-locked .js-prod-submit-trigger,
 body.jp-report-submit-locked .js-report-submit-form button[type="submit"],
-.jp-report-submit-locked {
+button.jp-report-submit-locked,
+input.jp-report-submit-locked {
     pointer-events: none !important;
     opacity: 0.75;
 }

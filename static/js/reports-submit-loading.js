@@ -14,6 +14,14 @@
     var successCloseBtn = document.getElementById('jpReportSubmitSuccessCloseBtn');
     var errorOverlay = document.getElementById('jp-report-submit-error');
     var errorCloseBtn = document.getElementById('jpReportSubmitErrorCloseBtn');
+
+    // Gắn lên body để tránh bị filter/opacity/stacking của .container / CKEditor trên trang VP.
+    [overlay, successOverlay, errorOverlay].forEach(function (el) {
+        if (el && el.parentNode !== document.body) {
+            document.body.appendChild(el);
+        }
+    });
+
     var submitting = false;
     var cooldownUntil = 0;
     var pendingRedirectUrl = '';
@@ -258,7 +266,9 @@
     }
     if (successOverlay) {
         successOverlay.addEventListener('click', function (ev) {
-            if (ev.target === successOverlay) goToPendingRedirect();
+            if (ev.target === successOverlay || ev.target.classList.contains('jp-report-submit-backdrop')) {
+                goToPendingRedirect();
+            }
         });
     }
     if (errorCloseBtn) {
@@ -266,7 +276,9 @@
     }
     if (errorOverlay) {
         errorOverlay.addEventListener('click', function (ev) {
-            if (ev.target === errorOverlay) hideError();
+            if (ev.target === errorOverlay || ev.target.classList.contains('jp-report-submit-backdrop')) {
+                hideError();
+            }
         });
     }
 
