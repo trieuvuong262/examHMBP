@@ -564,9 +564,11 @@ class DailyWorkReportEditLog(models.Model):
 
     ACTION_UPDATE = 'update'
     ACTION_SUBMIT = 'submit'
+    ACTION_RESUBMIT = 'resubmit'
     ACTION_CHOICES = [
         (ACTION_UPDATE, 'Chỉnh sửa'),
         (ACTION_SUBMIT, 'Gửi báo cáo'),
+        (ACTION_RESUBMIT, 'Cập nhật báo cáo'),
     ]
 
     report = models.ForeignKey(

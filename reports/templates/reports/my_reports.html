@@ -4,6 +4,7 @@
 
 {% block extra_head %}
 <link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260530b">
+<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260708e">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 {% endblock %}
 
@@ -15,7 +16,9 @@
             <h2 class="jp-page-title fw-bold text-dark mb-1">
                 {% if history_employee_name %}Lịch sử báo cáo — {{ history_employee_name }}{% elif reports_scope_label %}Lịch sử báo cáo ({{ reports_scope_label }}){% else %}Lịch sử báo cáo{% endif %}
             </h2>
-            <p class="text-muted small mb-0">{{ page_obj.paginator.count }} báo cáo</p>
+            <p class="text-muted small mb-0">
+                {% if is_edit_history %}{{ page_obj.paginator.count }} lần chỉnh sửa / gửi / cập nhật{% else %}{{ page_obj.paginator.count }} báo cáo{% endif %}
+            </p>
         </div>
         <div class="d-flex gap-2 flex-wrap">
             {% if not history_for_user_id %}
@@ -44,7 +47,8 @@
             </div>
             <div class="flex-grow-1" style="min-width: 220px;">
                 <label class="form-label fw-bold small mb-1">Tìm kiếm</label>
-                <input type="search" name="q" class="form-control" placeholder="Nội dung, link, ghi chú..."
+                <input type="search" name="q" class="form-control"
+                       placeholder="{% if is_edit_history %}Mô tả, người thực hiện…{% else %}Nội dung, link, ghi chú…{% endif %}"
                        value="{{ search_query }}" autocomplete="off">
             </div>
             <button type="submit" class="btn btn-hm px-4 align-self-end">Xem</button>
@@ -54,13 +58,72 @@
         </div>
         {% if search_query %}
         <div class="card-footer bg-white border-top py-2">
-            <p class="text-muted small mb-0">Kết quả tìm "{{ search_query }}" — {{ page_obj.paginator.count }} báo cáo</p>
+            <p class="text-muted small mb-0">
+                Kết quả tìm "{{ search_query }}" —
+                {% if is_edit_history %}{{ page_obj.paginator.count }} lần thao tác{% else %}{{ page_obj.paginator.count }} báo cáo{% endif %}
+            </p>
         </div>
         {% endif %}
     </form>
 
     <div class="card border-0 shadow-sm overflow-hidden">
         <div class="table-responsive">
+            {% if is_edit_history %}
+            <table class="table table-hover align-middle mb-0 jp-report-edit-history-table">
+                <thead class="table-light">
+                    <tr>
+                        <th class="text-nowrap">Thời gian</th>
+                        <th>Kỳ báo cáo</th>
+                        <th>Người thực hiện</th>
+                        <th class="text-nowrap">Vai trò</th>
+                        <th class="text-nowrap">Thao tác</th>
+                        <th>Mô tả</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in edit_logs %}
+                    <tr>
+                        <td class="text-nowrap text-muted">{{ entry.edited_at|date:"d/m/Y H:i" }}</td>
+                        <td class="text-nowrap">
+                            {% if is_office_history %}
+                            <strong>{{ entry.report|report_anchor_display }}</strong>
+                            <span class="badge {{ entry.report|report_period_badge_class }} ms-1">{{ entry.report|report_period_label }}</span>
+                            {% else %}
+                            <strong>{{ entry.report.report_date|date:"d/m/Y" }}</strong>
+                            {% if entry.report.shift %}
+                            <span class="{{ entry.report.shift|production_shift_badge_class }} ms-1">{{ entry.report.get_shift_display }}</span>
+                            {% endif %}
+                            {% endif %}
+                        </td>
+                        <td class="fw-semibold">{{ entry.editor_name }}</td>
+                        <td>
+                            {% if entry.actor_kind == 'manager' %}
+                            <span class="badge bg-warning text-dark">Quản lý</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Nhân viên</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-nowrap">
+                            {% if entry.action == 'submit' %}
+                            <span class="badge text-bg-success">{{ entry.get_action_display }}</span>
+                            {% elif entry.action == 'resubmit' %}
+                            <span class="badge text-bg-info">{{ entry.get_action_display }}</span>
+                            {% else %}
+                            <span class="badge text-bg-secondary">{{ entry.get_action_display }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ entry.summary|default:"—" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-5">
+                            Chưa có lần chỉnh sửa, gửi hoặc cập nhật nào trong khoảng đã chọn.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
             <table class="table table-hover align-middle mb-0">
                 <thead class="table-light">
                     <tr>
@@ -70,7 +133,6 @@
                         <th class="text-center">Nhận xét</th>
                         <th class="text-end">Tóm tắt</th>
                         <th class="text-end">Cập nhật</th>
-                        <th></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -110,26 +172,17 @@
                         <td class="text-end text-muted small">
                             {% if r.submitted_at %}Gửi {{ r.submitted_at|date:"H:i d/m/Y" }}{% elif r.draft_saved_at %}Lưu {{ r.draft_saved_at|date:"H:i d/m/Y" }}{% else %}—{% endif %}
                         </td>
-                        <td class="text-end text-nowrap">
-                            <a href="{% url detail_url_name r.pk %}" class="btn btn-sm btn-outline-hm">Xem</a>
-                            {% if not r.hod_reviewed and not r.is_edit_expired %}
-                            {% if is_office_history %}
-                            <a href="{% url today_url_name %}?period={{ r.report_period }}&{% if r.report_period == 'month' %}month={{ r.report_date|date:'Y-m' }}{% else %}date={{ r.report_date|date:'Y-m-d' }}{% endif %}" class="btn btn-sm btn-outline-dark">Sửa</a>
-                            {% else %}
-                            <a href="{% url today_url_name %}?date={{ r.report_date|date:'Y-m-d' }}" class="btn btn-sm btn-outline-dark">Sửa</a>
-                            {% endif %}
-                            {% endif %}
-                        </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="7" class="text-center text-muted py-5">
+                        <td colspan="6" class="text-center text-muted py-5">
                             Chưa có báo cáo nào trong khoảng đã chọn.
                         </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
+            {% endif %}
         </div>
         {% if page_obj.has_other_pages %}
         <div class="card-footer bg-white border-top py-3">

@@ -60,7 +60,15 @@
                                 <span class="badge bg-secondary">Nhân viên</span>
                                 {% endif %}
                             </td>
-                            <td class="text-nowrap">{{ entry.get_action_display }}</td>
+                            <td class="text-nowrap">
+                                {% if entry.action == 'submit' %}
+                                <span class="badge text-bg-success">{{ entry.get_action_display }}</span>
+                                {% elif entry.action == 'resubmit' %}
+                                <span class="badge text-bg-info">{{ entry.get_action_display }}</span>
+                                {% else %}
+                                <span class="badge text-bg-secondary">{{ entry.get_action_display }}</span>
+                                {% endif %}
+                            </td>
                             <td>{{ entry.summary|default:"—" }}</td>
                         </tr>
                         {% empty %}

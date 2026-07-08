@@ -124,6 +124,7 @@ from .forms import (
 from .models import (
     DailyWorkReport,
     DailyWorkReportAttachment,
+    DailyWorkReportEditLog,
     ReportComment,
     ReportCommentAttachment,
     WeeklyWorkReport,
@@ -767,6 +768,7 @@ def _today_office_report(request, report_date, *, report_period: str = PERIOD_DA
         delete_ids = [int(pk) for pk in request.POST.getlist('delete_attachments') if pk.isdigit()]
         if form.is_valid():
             _delete_daily_attachments(report, delete_ids)
+            was_submitted = bool(report.pk and report.status == DailyWorkReport.STATUS_SUBMITTED)
             report = form.save(commit=False)
             report.report_profile = REPORT_PROFILE_OFFICE
             report.report_period = report_period
@@ -783,8 +785,16 @@ def _today_office_report(request, report_date, *, report_period: str = PERIOD_DA
             log_report_edit(
                 report,
                 request.user,
-                action=DailyWorkReportEditLog.ACTION_SUBMIT,
-                summary='Gửi báo cáo văn phòng.',
+                action=(
+                    DailyWorkReportEditLog.ACTION_RESUBMIT
+                    if was_submitted
+                    else DailyWorkReportEditLog.ACTION_SUBMIT
+                ),
+                summary=(
+                    'Cập nhật báo cáo văn phòng.'
+                    if was_submitted
+                    else 'Gửi báo cáo văn phòng.'
+                ),
             )
             has_uploads = bool(
                 request.FILES.getlist('link_images')
@@ -1270,99 +1280,101 @@ def _my_reports(request, daily_report_profile=None):
     if not history_date_from:
         history_date_from = history_date_to - timedelta(days=6)
 
-    if is_office:
-        # Gộp ngày / tuần / tháng — một danh sách như lịch sử SX.
-        reports_qs = meaningful_daily_reports_qs().filter(
-            employee=subject,
-            report_profile=REPORT_PROFILE_OFFICE,
+    if daily_report_profile in (REPORT_PROFILE_OFFICE, REPORT_PROFILE_PRODUCTION):
+        logs_qs = DailyWorkReportEditLog.objects.filter(
+            report__employee=subject,
+            report__report_profile=daily_report_profile,
+        ).select_related(
+            'report',
+            'edited_by',
+            'edited_by__profile',
         )
-        reports_qs = reports_qs.annotate(
-            line_count=Count('lines'),
-            total_qty=Sum('lines__quantity'),
-            has_manager_comment=Exists(
-                ReportComment.objects.filter(daily_report=OuterRef('pk')).exclude(author=subject),
-            ),
-            has_employee_reply=Exists(
-                ReportComment.objects.filter(daily_report=OuterRef('pk'), author=subject),
-            ),
-        ).order_by('-report_date', '-id')
-        reports_qs = apply_combined_search(reports_qs, search_query, lambda term: (
-            Q(hod_note__icontains=term)
-            | Q(status__icontains=term)
-            | Q(document_html__icontains=term)
-            | Q(links__icontains=term)
-            | Q(title__icontains=term)
+        if history_date_from:
+            logs_qs = logs_qs.filter(edited_at__date__gte=history_date_from)
+        if history_date_to:
+            logs_qs = logs_qs.filter(edited_at__date__lte=history_date_to)
+        logs_qs = apply_combined_search(logs_qs, search_query, lambda term: (
+            Q(summary__icontains=term)
+            | Q(report__title__icontains=term)
+            | Q(report__document_html__icontains=term)
+            | Q(report__hod_note__icontains=term)
+            | Q(edited_by__profile__full_name__icontains=term)
+            | Q(edited_by__username__icontains=term)
         ))
-    elif period == 'weekly':
-        reports_qs = meaningful_weekly_reports_qs().filter(
-            employee=subject,
+        if daily_report_profile == REPORT_PROFILE_PRODUCTION:
+            from reports.report_lock import auto_reject_expired_production_reports
+
+            auto_reject_expired_production_reports(
+                employee_ids=[subject.pk],
+                date_from=history_date_from,
+                date_to=history_date_to,
+            )
+        page_obj, query_string = paginate_queryset(
+            request,
+            logs_qs.order_by('-edited_at', '-id'),
         )
-        if daily_report_profile:
-            reports_qs = reports_qs.filter(report_profile=daily_report_profile)
-        reports_qs = reports_qs.annotate(
-            attachment_count=Count('attachments'),
-            has_manager_comment=Exists(
-                ReportComment.objects.filter(weekly_report=OuterRef('pk')).exclude(author=subject),
-            ),
-            has_employee_reply=Exists(
-                ReportComment.objects.filter(weekly_report=OuterRef('pk'), author=subject),
-            ),
-        ).order_by('-week_start')
-        reports_qs = apply_combined_search(reports_qs, search_query, lambda term: (
-            Q(hod_note__icontains=term)
-            | Q(status__icontains=term)
-            | Q(links__icontains=term)
-        ))
     else:
-        reports_qs = DailyWorkReport.objects.filter(
-            employee=subject,
-            report_period=PERIOD_DAY,
-        )
-        if daily_report_profile:
-            reports_qs = reports_qs.filter(report_profile=daily_report_profile)
-        reports_qs = reports_qs.annotate(
-            line_count=Count('lines'),
-            total_qty=Sum('lines__quantity'),
-            has_manager_comment=Exists(
-                ReportComment.objects.filter(daily_report=OuterRef('pk')).exclude(author=subject),
-            ),
-            has_employee_reply=Exists(
-                ReportComment.objects.filter(daily_report=OuterRef('pk'), author=subject),
-            ),
-        ).order_by('-report_date')
-        reports_qs = apply_combined_search(reports_qs, search_query, lambda term: (
-            Q(hod_note__icontains=term)
-            | Q(status__icontains=term)
-            | Q(lines__area__icontains=term)
-            | Q(lines__order_code__icontains=term)
-            | Q(lines__product_name__icontains=term)
-        ))
-
-    # Áp dụng lọc ngày
-    if history_date_from:
         if period == 'weekly':
-            reports_qs = reports_qs.filter(week_start__gte=history_date_from)
+            reports_qs = meaningful_weekly_reports_qs().filter(
+                employee=subject,
+            )
+            if daily_report_profile:
+                reports_qs = reports_qs.filter(report_profile=daily_report_profile)
+            reports_qs = reports_qs.annotate(
+                attachment_count=Count('attachments'),
+                has_manager_comment=Exists(
+                    ReportComment.objects.filter(weekly_report=OuterRef('pk')).exclude(author=subject),
+                ),
+                has_employee_reply=Exists(
+                    ReportComment.objects.filter(weekly_report=OuterRef('pk'), author=subject),
+                ),
+            ).order_by('-week_start')
+            reports_qs = apply_combined_search(reports_qs, search_query, lambda term: (
+                Q(hod_note__icontains=term)
+                | Q(status__icontains=term)
+                | Q(links__icontains=term)
+            ))
         else:
-            reports_qs = reports_qs.filter(report_date__gte=history_date_from)
-    if history_date_to:
-        if period == 'weekly':
-            reports_qs = reports_qs.filter(week_start__lte=history_date_to)
-        else:
-            reports_qs = reports_qs.filter(report_date__lte=history_date_to)
+            reports_qs = DailyWorkReport.objects.filter(
+                employee=subject,
+                report_period=PERIOD_DAY,
+            )
+            if daily_report_profile:
+                reports_qs = reports_qs.filter(report_profile=daily_report_profile)
+            reports_qs = reports_qs.annotate(
+                line_count=Count('lines'),
+                total_qty=Sum('lines__quantity'),
+                has_manager_comment=Exists(
+                    ReportComment.objects.filter(daily_report=OuterRef('pk')).exclude(author=subject),
+                ),
+                has_employee_reply=Exists(
+                    ReportComment.objects.filter(daily_report=OuterRef('pk'), author=subject),
+                ),
+            ).order_by('-report_date')
+            reports_qs = apply_combined_search(reports_qs, search_query, lambda term: (
+                Q(hod_note__icontains=term)
+                | Q(status__icontains=term)
+                | Q(lines__area__icontains=term)
+                | Q(lines__order_code__icontains=term)
+                | Q(lines__product_name__icontains=term)
+            ))
 
-    if daily_report_profile == REPORT_PROFILE_PRODUCTION and period != 'weekly':
-        from reports.report_lock import auto_reject_expired_production_reports
+        if history_date_from:
+            if period == 'weekly':
+                reports_qs = reports_qs.filter(week_start__gte=history_date_from)
+            else:
+                reports_qs = reports_qs.filter(report_date__gte=history_date_from)
+        if history_date_to:
+            if period == 'weekly':
+                reports_qs = reports_qs.filter(week_start__lte=history_date_to)
+            else:
+                reports_qs = reports_qs.filter(report_date__lte=history_date_to)
 
-        auto_reject_expired_production_reports(
-            employee_ids=[subject.pk],
-            date_from=history_date_from,
-            date_to=history_date_to,
-        )
+        page_obj, query_string = paginate_queryset(request, reports_qs)
 
-    page_obj, query_string = paginate_queryset(request, reports_qs)
     scope_label = 'SX' if daily_report_profile == REPORT_PROFILE_PRODUCTION else 'VP' if daily_report_profile else ''
-    return render(request, 'reports/my_reports.html', {
-        'reports': page_obj.object_list,
+    is_edit_history = daily_report_profile in (REPORT_PROFILE_OFFICE, REPORT_PROFILE_PRODUCTION)
+    ctx = {
         'page_obj': page_obj,
         'query_string': query_string,
         'search_query': search_query,
@@ -1375,11 +1387,6 @@ def _my_reports(request, daily_report_profile=None):
             'reports:today_cn'
             if daily_report_profile == REPORT_PROFILE_PRODUCTION
             else 'reports:today_vp'
-        ),
-        'detail_url_name': (
-            'reports:detail_cn'
-            if daily_report_profile == REPORT_PROFILE_PRODUCTION
-            else 'reports:detail_vp'
         ),
         'my_url_name': my_url_name_for_profile(daily_report_profile) if daily_report_profile else 'reports:my',
         'team_url_name': team_url_name_for_profile(daily_report_profile) if daily_report_profile else 'reports:team_cn',
@@ -1396,9 +1403,20 @@ def _my_reports(request, daily_report_profile=None):
             if daily_report_profile else 'reports:weekly_detail_cn'
         ),
         'is_office_history': is_office,
+        'is_edit_history': is_edit_history,
         'history_date_from': history_date_from,
         'history_date_to': history_date_to,
-    })
+    }
+    if is_edit_history:
+        ctx['edit_logs'] = page_obj.object_list
+    else:
+        ctx['reports'] = page_obj.object_list
+        ctx['detail_url_name'] = (
+            'reports:detail_cn'
+            if daily_report_profile == REPORT_PROFILE_PRODUCTION
+            else 'reports:detail_vp'
+        )
+    return render(request, 'reports/my_reports.html', ctx)
 
 
 def _team_queryset(viewer, search_query, *, report_profile: str | None = None):

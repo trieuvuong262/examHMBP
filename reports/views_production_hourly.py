@@ -366,9 +366,16 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
         if not is_production_entry_closed(report):
             return redirect(_production_redirect(report_date, shift, for_user or None))
         report.status = DailyWorkReport.STATUS_DRAFT
-        report.submitted_at = None
-        report.save(update_fields=['status', 'submitted_at', 'updated_at'])
-        report.production_products.filter(submitted_locked=True).update(submitted_locked=False)
+        report.save(update_fields=['status', 'updated_at'])
+        from reports.models import DailyWorkReportEditLog
+        from reports.report_edit_log import log_report_edit
+
+        log_report_edit(
+            report,
+            request.user,
+            action=DailyWorkReportEditLog.ACTION_UPDATE,
+            summary='Nhập tiếp báo cáo — thêm công đoạn mới.',
+        )
         return redirect(_production_redirect(report_date, shift, for_user or None))
 
     if action == 'start_product':
@@ -766,7 +773,11 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
             log_report_edit(
                 report,
                 request.user,
-                action=DailyWorkReportEditLog.ACTION_SUBMIT,
+                action=(
+                    DailyWorkReportEditLog.ACTION_RESUBMIT
+                    if was_submitted
+                    else DailyWorkReportEditLog.ACTION_SUBMIT
+                ),
                 summary='Cập nhật báo cáo đã nộp.' if was_submitted else 'Gửi báo cáo.',
             )
         if editing_for_other:
