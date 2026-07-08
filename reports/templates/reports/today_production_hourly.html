@@ -308,7 +308,6 @@
                     </div>
                     <p class="jp-prod-mobile-step-kicker">Đang làm công đoạn</p>
                     <div class="jp-prod-mobile-step-clock" id="jp-prod-session-started-clock">{{ session_active.started_at|date:"H:i" }}</div>
-                    <p class="jp-prod-mobile-step-lead">Bắt đầu (giờ hệ thống) {{ session_active.started_at|date:"H:i d/m" }}</p>
                     <form method="post" class="jp-prod-mobile-step-action m-0">
                         {% csrf_token %}
                         <input type="hidden" name="action" value="end_product">
@@ -368,7 +367,13 @@
                     <i class="bi bi-check-circle-fill text-success me-1"></i>
                     Đã gửi lúc {{ report.submitted_at|date:"H:i d/m/Y" }}.
                     {% if employee_edit_deadline and can_edit and not is_locked %}
-                    Có thể sửa đến {{ employee_edit_deadline|date:"H:i d/m/Y" }} — bấm «Sửa báo cáo» bên dưới.
+                    <span class="d-none d-md-inline">Có thể sửa đến {{ employee_edit_deadline|date:"H:i d/m/Y" }} — bấm «Sửa báo cáo» bên dưới.</span>
+                    <span class="d-md-none d-block mt-1 text-muted">Có thể sửa đến {{ employee_edit_deadline|date:"H:i d/m/Y" }}.</span>
+                    {% endif %}
+                    {% if production_edit_steps_url %}
+                    <a href="{{ production_edit_steps_url }}" class="btn btn-outline-hm w-100 fw-bold mt-2 d-md-none">
+                        <i class="bi bi-pencil-square me-2"></i>Sửa báo cáo
+                    </a>
                     {% endif %}
                 </div>
                 {% elif is_submitted and production_summary_editable and can_edit and not is_locked %}
@@ -447,27 +452,21 @@
             <div class="jp-prod-review-sticky-spacer d-md-none" aria-hidden="true"></div>
             {% elif show_prod_submit or can_resume_entry or production_summary_stats %}
             <div class="jp-prod-review-sticky d-md-none">
-                {% if production_entry_closed and not show_prod_submit %}
-                {% include 'reports/includes/production_resume_entry_button.html' with btn_class='btn-lg' %}
-                {% elif production_summary_stats and production_edit_steps_url %}
+                {% if production_summary_stats and production_edit_steps_url %}
                 <a href="{{ production_edit_steps_url }}" class="btn btn-outline-hm w-100 fw-bold btn-lg">
                     <i class="bi bi-pencil-square me-2"></i>Sửa báo cáo
                 </a>
-                {% else %}
-                {% if production_entry_closed %}
-                {% include 'reports/includes/production_resume_entry_button.html' with btn_class='btn-lg' %}
-                {% endif %}
-                {% if hourly_grid.rows and show_prod_submit %}
-                <div class="jp-prod-review-sticky-total">
-                    <span>Tổng ngày</span>
-                    <strong id="review-grand-total">{{ hourly_grid.grand_total|prod_qty }}</strong>
-                </div>
-                {% endif %}
-                {% if show_prod_submit %}
+                {% elif show_prod_submit %}
                 {% if production_stats_url %}
                 <a href="{{ production_stats_url }}" class="btn btn-outline-secondary w-100 mb-2">
                     <i class="bi bi-arrow-left me-1"></i>Quay lại thống kê
                 </a>
+                {% endif %}
+                {% if hourly_grid.rows %}
+                <div class="jp-prod-review-sticky-total">
+                    <span>Tổng ngày</span>
+                    <strong id="review-grand-total">{{ hourly_grid.grand_total|prod_qty }}</strong>
+                </div>
                 {% endif %}
                 <form method="post" class="mb-0 js-prod-submit-form js-report-submit-form" id="review-submit-form">
                     {% csrf_token %}
@@ -480,7 +479,8 @@
                         <i class="bi bi-send-fill me-2"></i>{% if is_submitted %}Cập nhật báo cáo{% else %}Gửi báo cáo{% endif %}
                     </button>
                 </form>
-                {% endif %}
+                {% elif production_entry_closed and can_resume_entry %}
+                {% include 'reports/includes/production_resume_entry_button.html' with btn_class='btn-lg' %}
                 {% endif %}
             </div>
             <div class="jp-prod-review-sticky-spacer d-md-none" aria-hidden="true"></div>
