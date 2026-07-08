@@ -369,7 +369,7 @@
                     {% if content_edit_only %}
                     Chỉ sửa mã hàng, công đoạn, định mức và sản lượng — không đổi thời gian.
                     {% elif employee_edit_deadline %}
-                    Sửa được đến {{ employee_edit_deadline|date:"H:i d/m/Y" }} (trước khi duyệt).
+                    Sửa được đến {{ employee_edit_deadline|date:"H:i d/m/Y" }}.
                     {% endif %}
                 </div>
                 {% elif is_locked and not can_edit %}

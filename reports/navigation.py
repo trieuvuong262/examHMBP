@@ -377,12 +377,7 @@ def list_back_url_for(report, viewer, *, can_view_team: bool) -> str:
             )
         return f"{team_url_for_profile(profile)}?date={report.report_date.isoformat()}"
     base = my_url_for_profile(profile)
-    if hasattr(report, 'week_start'):
-        if profile == REPORT_PROFILE_OFFICE:
-            return f'{base}?period={PERIOD_WEEK}'
-        return f'{base}?period=weekly'
-    if not report.is_production_report and report.report_period != PERIOD_DAY:
-        return f'{base}?period={report.report_period}'
+    # Lịch sử SX/VP không chia theo kỳ — về danh sách gộp.
     return base
 
 

@@ -746,7 +746,7 @@ def _today_office_report(request, report_date, *, report_period: str = PERIOD_DA
         and report.status == DailyWorkReport.STATUS_SUBMITTED
         and (is_report_locked(report) or is_report_edit_expired(report))
     ):
-        return redirect(f'{reverse("reports:my_vp")}?period={report_period}')
+        return redirect(reverse('reports:my_vp'))
 
     can_submit = can_submit_daily_report(request.user)
     can_edit = can_edit_own_daily_report(request.user, report, can_submit=can_submit)
@@ -1211,16 +1211,10 @@ def copy_yesterday(request, *, report_profile: str):
     return redirect(f'{reverse("reports:today_vp")}?date={today.isoformat()}')
 
 
-def _my_reports_period(request, *, office: bool = False):
-    if office:
-        raw = (request.GET.get('period') or PERIOD_DAY).strip().lower()
-        if raw == 'daily':
-            return PERIOD_DAY
-        if raw == 'weekly':
-            return PERIOD_WEEK
-        if raw in (PERIOD_DAY, PERIOD_WEEK, PERIOD_MONTH):
-            return raw
-        return PERIOD_DAY
+def _my_reports_period(request, *, office: bool = False, production: bool = False):
+    """Lịch sử SX/VP: không còn chia tab kỳ — luôn danh sách theo khoảng ngày."""
+    if office or production:
+        return 'daily'
     period = (request.GET.get('period') or 'daily').strip().lower()
     if period not in ('daily', 'weekly'):
         period = 'daily'
@@ -1249,7 +1243,8 @@ def my_reports_vp(request):
 def _my_reports(request, daily_report_profile=None):
     search_query = get_search_query(request)
     is_office = daily_report_profile == REPORT_PROFILE_OFFICE
-    period = _my_reports_period(request, office=is_office)
+    is_production = daily_report_profile == REPORT_PROFILE_PRODUCTION
+    period = _my_reports_period(request, office=is_office, production=is_production)
     subject = request.user
     history_employee_name = ''
     for_user_id = request.GET.get('for_user')
@@ -1276,10 +1271,10 @@ def _my_reports(request, daily_report_profile=None):
         history_date_from = history_date_to - timedelta(days=6)
 
     if is_office:
+        # Gộp ngày / tuần / tháng — một danh sách như lịch sử SX.
         reports_qs = meaningful_daily_reports_qs().filter(
             employee=subject,
             report_profile=REPORT_PROFILE_OFFICE,
-            report_period=period,
         )
         reports_qs = reports_qs.annotate(
             line_count=Count('lines'),
@@ -1290,12 +1285,13 @@ def _my_reports(request, daily_report_profile=None):
             has_employee_reply=Exists(
                 ReportComment.objects.filter(daily_report=OuterRef('pk'), author=subject),
             ),
-        ).order_by('-report_date')
+        ).order_by('-report_date', '-id')
         reports_qs = apply_combined_search(reports_qs, search_query, lambda term: (
             Q(hod_note__icontains=term)
             | Q(status__icontains=term)
             | Q(document_html__icontains=term)
             | Q(links__icontains=term)
+            | Q(title__icontains=term)
         ))
     elif period == 'weekly':
         reports_qs = meaningful_weekly_reports_qs().filter(
@@ -1365,13 +1361,6 @@ def _my_reports(request, daily_report_profile=None):
 
     page_obj, query_string = paginate_queryset(request, reports_qs)
     scope_label = 'SX' if daily_report_profile == REPORT_PROFILE_PRODUCTION else 'VP' if daily_report_profile else ''
-    history_anchor = parse_period_anchor_date(request, period) if is_office else None
-    tab_extra = {}
-    if search_query:
-        tab_extra['q'] = search_query
-    if subject.pk != request.user.pk:
-        tab_extra['for_user'] = subject.pk
-    office_tab_extra_query = urlencode(tab_extra) if tab_extra else ''
     return render(request, 'reports/my_reports.html', {
         'reports': page_obj.object_list,
         'page_obj': page_obj,
@@ -1406,14 +1395,7 @@ def _my_reports(request, daily_report_profile=None):
             weekly_detail_url_name_for_profile(daily_report_profile)
             if daily_report_profile else 'reports:weekly_detail_cn'
         ),
-        'office_period': period if is_office else None,
         'is_office_history': is_office,
-        'history_anchor_date': history_anchor,
-        'period_nav_date': (
-            period_nav_date(request, period, history_anchor)
-            if is_office and history_anchor else None
-        ),
-        'office_tab_extra_query': office_tab_extra_query,
         'history_date_from': history_date_from,
         'history_date_to': history_date_to,
     })
