@@ -1,7 +1,7 @@
 {# NV nhập tổng một lần — hiển thị theo phiên, không gây nhầm với lũy kế từng giờ #}
 {% load report_extras l10n %}
 
-{% if can_add_entry %}
+{% if production_summary_editable and can_add_entry %}
 <div class="jp-prod-session-start-next mb-3">
     <form method="post" class="m-0">
         {% csrf_token %}
@@ -79,17 +79,23 @@
 
 <div class="jp-prod-session-list">
     {% for row in hourly_grid.rows %}
-    <article class="jp-prod-session-card card border-0 shadow-sm mb-3{% if row.step_display_status == 'submitted' %} is-submitted{% elif row.step_display_status == 'updated' %} is-updated{% elif not row.is_unfinalized %} is-pending-submit{% endif %}">
+    <article class="jp-prod-session-card card border-0 shadow-sm mb-3{% if production_summary_editable %}{% if row.step_display_status == 'submitted' %} is-submitted{% elif row.step_display_status == 'updated' %} is-updated{% elif not row.is_unfinalized %} is-pending-submit{% endif %}{% elif is_submitted and not row.is_unfinalized %} is-submitted{% elif not row.is_unfinalized %} is-pending-submit{% endif %}">
         <div class="card-body p-3">
             <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
                 <div class="flex-grow-1 min-w-0">
                     <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
                         {% if row.is_unfinalized %}
                         <span class="badge bg-warning text-dark jp-prod-session-status">Chưa gắn</span>
-                        {% elif row.step_display_status == 'submitted' %}
+                        {% elif production_summary_editable %}
+                        {% if row.step_display_status == 'submitted' %}
                         <span class="badge text-bg-success jp-prod-session-status"><i class="bi bi-check-circle-fill me-1"></i>Đã gửi</span>
                         {% elif row.step_display_status == 'updated' %}
                         <span class="badge text-bg-info jp-prod-session-status"><i class="bi bi-arrow-repeat me-1"></i>Cập nhật</span>
+                        {% else %}
+                        <span class="badge text-bg-warning jp-prod-session-status"><i class="bi bi-hourglass-split me-1"></i>Chưa gửi</span>
+                        {% endif %}
+                        {% elif is_submitted %}
+                        <span class="badge text-bg-success jp-prod-session-status"><i class="bi bi-check-circle-fill me-1"></i>Đã gửi</span>
                         {% else %}
                         <span class="badge text-bg-warning jp-prod-session-status"><i class="bi bi-hourglass-split me-1"></i>Chưa gửi</span>
                         {% endif %}
@@ -115,7 +121,7 @@
                 <i class="bi bi-clock me-1"></i>{{ row.session_time_label }}
             </p>
             {% endif %}
-            {% if can_edit and not is_locked and row.can_edit_step %}
+            {% if production_summary_editable and can_edit and not is_locked and row.can_edit_step %}
             <div class="mt-2">
                 <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse"
                         data-bs-target="#session-edit-{{ row.id }}" aria-expanded="false"
@@ -130,6 +136,7 @@
                     <input type="hidden" name="product_id" value="{{ row.id }}">
                     {% if for_user_param %}<input type="hidden" name="for_user" value="{{ for_user_param }}">{% endif %}
                     {% if content_edit_only %}<input type="hidden" name="edit_content" value="1">{% endif %}
+                    {% if is_submitted and not content_edit_only %}<input type="hidden" name="edit_steps" value="1">{% endif %}
                     {% if row.is_zero_reason_only %}
                     <div class="mb-2">
                         <label class="form-label fw-bold small mb-1">Tổng sản lượng</label>

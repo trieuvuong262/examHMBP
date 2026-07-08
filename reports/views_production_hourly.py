@@ -88,14 +88,16 @@ def _parse_production_shift(request, *, report=None) -> str:
     return ''
 
 
-def _hourly_grid_for_viewer(report, viewer, *, started: bool = True):
+def _hourly_grid_for_viewer(report, viewer, *, started: bool = True, steps_editable=None):
     if not report or not report.pk:
         return None
     if not started and not shift_is_started(report):
         return None
+    if steps_editable is None:
+        steps_editable = report_steps_editable_for_viewer(viewer, report)
     return build_hourly_grid(
         report,
-        steps_editable=report_steps_editable_for_viewer(viewer, report),
+        steps_editable=steps_editable,
     )
 
 
@@ -229,8 +231,51 @@ def _is_content_edit_only(request, report) -> bool:
     return (request.GET.get('edit_content') or request.POST.get('edit_content')) == '1'
 
 
+def _is_edit_steps_mode(request, report) -> bool:
+    """NV chủ động vào chế độ sửa báo cáo đã gửi (có nút Cập nhật báo cáo)."""
+    if not report or not report.pk:
+        return False
+    if report.status != DailyWorkReport.STATUS_SUBMITTED:
+        return False
+    return (request.GET.get('edit_steps') or request.POST.get('edit_steps')) == '1'
+
+
+def _is_production_summary_editable(
+    request,
+    report,
+    *,
+    phase: str,
+    proxy_mode: bool,
+    content_edit_only: bool,
+    can_edit: bool,
+    is_locked: bool,
+) -> bool:
+    """Chỉ màn tổng kết có nút gửi/cập nhật mới cho sửa công đoạn."""
+    if phase != 'review' or proxy_mode:
+        return False
+    if content_edit_only:
+        return can_edit and not is_locked
+    if not report or not report.pk:
+        return False
+    if report.status != DailyWorkReport.STATUS_SUBMITTED:
+        return True
+    if not can_edit or is_locked:
+        return False
+    return _is_edit_steps_mode(request, report)
+
+
 def _content_edit_redirect_extra() -> str:
     return 'phase=review&edit_content=1'
+
+
+def _review_redirect_extra(request, report, *, content_edit_only: bool = False) -> str:
+    if content_edit_only:
+        return _content_edit_redirect_extra()
+    if report and report.pk and report.status == DailyWorkReport.STATUS_SUBMITTED:
+        if _is_edit_steps_mode(request, report):
+            return 'phase=review&edit_steps=1'
+        return 'phase=review'
+    return 'phase=review'
 
 
 def _auto_resolve_shift_and_date(subject, report_date, *, explicit_shift: str = ''):
@@ -456,11 +501,15 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
 
     if action == 'edit_session':
         product_id = parse_int(request.POST.get('product_id'), -1)
+        review_extra = _review_redirect_extra(request, report, content_edit_only=content_edit_only)
         try:
             product = report.production_products.get(pk=product_id)
         except ProductionShiftProduct.DoesNotExist:
             messages.error(request, 'Không tìm thấy công đoạn cần sửa.')
-            return redirect(_production_redirect(report_date, shift, for_user or None, 'phase=review'))
+            return redirect(_production_redirect(report_date, shift, for_user or None, review_extra))
+        if report.status == DailyWorkReport.STATUS_SUBMITTED and not content_edit_only and not _is_edit_steps_mode(request, report):
+            messages.warning(request, 'Bấm «Sửa báo cáo» trên màn thống kê để chỉnh sửa công đoạn đã gửi.')
+            return redirect(_production_redirect(report_date, shift, for_user or None, review_extra))
         if not product_may_be_edited_by(
             request.user,
             report,
@@ -469,7 +518,7 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
         ):
             denied = production_edit_denied_message(report, viewer=request.user)
             messages.warning(request, denied or 'Công đoạn này không thể sửa.')
-            return redirect(_production_redirect(report_date, shift, for_user or None, content_edit_extra if content_edit_only else 'phase=review'))
+            return redirect(_production_redirect(report_date, shift, for_user or None, review_extra))
         code = (request.POST.get('product_code') or '').strip()
         process = (request.POST.get('process_name') or '').strip()
         norm = parse_decimal(request.POST.get('norm_per_hour'))
@@ -479,7 +528,7 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
         zero_reason = (request.POST.get('zero_reason') or '').strip()
         if total_qty < 0:
             messages.error(request, 'Nhập sản lượng hợp lệ.')
-            return redirect(_production_redirect(report_date, shift, for_user or None, 'phase=review'))
+            return redirect(_production_redirect(report_date, shift, for_user or None, review_extra))
         try:
             update_session_product(
                 product,
@@ -493,7 +542,7 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
             )
         except ValueError as exc:
             messages.error(request, str(exc))
-            return redirect(_production_redirect(report_date, shift, for_user or None, 'phase=review'))
+            return redirect(_production_redirect(report_date, shift, for_user or None, review_extra))
         messages.success(
             request,
             f'Đã ghi nhận lý do sản lượng 0: {zero_reason[:120]}'
@@ -507,7 +556,7 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
             request.user,
             summary=f'Chỉnh sửa công đoạn {(code or product.product_code or "").strip() or "—"}.',
         )
-        return redirect(_production_redirect(report_date, shift, for_user or None, content_edit_extra if content_edit_only else 'phase=review'))
+        return redirect(_production_redirect(report_date, shift, for_user or None, review_extra))
 
     if action == 'add_session':
         if not content_edit_only:
@@ -880,6 +929,22 @@ def today_production_hourly(request, report_date, report_context_common):
     if is_submitted and phase not in ('review', 'proxy'):
         phase = 'review'
 
+    proxy_mode = editing_for_other and not content_edit_only
+    production_summary_editable = _is_production_summary_editable(
+        request,
+        report,
+        phase=phase,
+        proxy_mode=proxy_mode,
+        content_edit_only=content_edit_only,
+        can_edit=can_edit,
+        is_locked=is_locked,
+    )
+    grid_steps_editable = (
+        report_steps_editable_for_viewer(request.user, report)
+        if production_summary_editable
+        else False
+    )
+
     current_product = active_product(report) if report.pk else None
     session_active = session_in_progress(report) if report.pk else None
     awaiting_product = session_awaiting_completion(report) if report.pk else None
@@ -897,9 +962,9 @@ def today_production_hourly(request, report_date, report_context_common):
         if phase in ('', 'working', 'hourly'):
             phase = 'proxy'
     elif editing_for_other and content_edit_only:
-        grid = _hourly_grid_for_viewer(report, request.user, started=shift_is_started(report))
+        grid = _hourly_grid_for_viewer(report, request.user, started=shift_is_started(report), steps_editable=grid_steps_editable)
     else:
-        grid = _hourly_grid_for_viewer(report, request.user, started=started)
+        grid = _hourly_grid_for_viewer(report, request.user, started=started, steps_editable=grid_steps_editable)
         if not phase:
             if awaiting_product:
                 phase = 'complete_product'
@@ -922,8 +987,61 @@ def today_production_hourly(request, report_date, report_context_common):
                 1 for row in grid['rows'] if not row.get('is_unfinalized')
             )
 
+    production_summary_editable = _is_production_summary_editable(
+        request,
+        report,
+        phase=phase,
+        proxy_mode=proxy_mode,
+        content_edit_only=content_edit_only,
+        can_edit=can_edit,
+        is_locked=is_locked,
+    )
+
     current_slot = current_slot_index(now=timezone.localtime(production_server_now()), report_date=report_date, shift=shift)
     has_unfinalized = bool(unfinalized_active_with_data(report)) if report.pk else False
+    show_prod_submit = (
+        phase == 'review'
+        and not proxy_mode
+        and not has_unfinalized
+        and (
+            (can_add_entry and not is_production_entry_closed(report))
+            or (
+                is_submitted
+                and production_summary_editable
+                and can_edit
+                and not is_locked
+            )
+        )
+    )
+    production_edit_steps_url = ''
+    production_stats_url = ''
+    if (
+        phase == 'review'
+        and is_submitted
+        and not production_summary_editable
+        and can_edit
+        and not is_locked
+        and not proxy_mode
+    ):
+        production_edit_steps_url = _production_redirect(
+            report_date,
+            shift,
+            subject.id if editing_for_other else None,
+            'phase=review&edit_steps=1',
+        )
+    elif (
+        phase == 'review'
+        and is_submitted
+        and production_summary_editable
+        and not content_edit_only
+        and not proxy_mode
+    ):
+        production_stats_url = _production_redirect(
+            report_date,
+            shift,
+            subject.id if editing_for_other else None,
+            'phase=review',
+        )
 
     if phase == 'review' and has_unfinalized and not editing_for_other:
         if awaiting_product:
@@ -982,7 +1100,17 @@ def today_production_hourly(request, report_date, report_context_common):
             else ''
         ),
         'hourly_grid': grid,
-        'proxy_mode': editing_for_other and not content_edit_only,
+        'proxy_mode': proxy_mode,
+        'production_summary_editable': production_summary_editable,
+        'production_summary_stats': (
+            phase == 'review'
+            and is_submitted
+            and not production_summary_editable
+            and not proxy_mode
+        ),
+        'show_prod_submit': show_prod_submit,
+        'production_edit_steps_url': production_edit_steps_url,
+        'production_stats_url': production_stats_url,
         'team_members': team_members,
         'for_user_param': subject.id if editing_for_other else '',
         'back_team_url': reverse('reports:team_cn') + f'?date={report_date.isoformat()}',

@@ -48,7 +48,7 @@
             {% endif %}
             <div class="d-flex flex-wrap align-items-start justify-content-between gap-2 w-100">
                 <div>
-                    <h1 class="jp-prod-page-title{% if work_step %} d-none d-lg-block{% endif %}">{% if proxy_mode %}Nhập hộ báo cáo{% elif phase == 'review' %}Tổng kết ngày{% else %}Báo cáo sản xuất{% endif %}</h1>
+                    <h1 class="jp-prod-page-title{% if work_step %} d-none d-lg-block{% endif %}">{% if proxy_mode %}Nhập hộ báo cáo{% elif production_summary_stats %}Thống kê báo cáo đã gửi{% elif phase == 'review' %}Tổng kết ngày{% else %}Báo cáo sản xuất{% endif %}</h1>
                     <p class="jp-prod-page-sub mb-0{% if work_step %} d-none d-lg-block{% endif %}">
                         <strong>{{ employee_name }}</strong>{% if department_name %} · {{ department_name }}{% endif %}
                     </p>
@@ -343,13 +343,13 @@
             {% if hourly_grid.rows and phase != 'review' %}
             <section class="jp-prod-card jp-prod-grid-section mt-3 mt-lg-0{% if work_step %} d-none d-lg-block{% endif %}">
                 <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
-                    <h3 class="h6 fw-bold mb-0">Sản lượng đã nhập</h3>
+                    <h3 class="h6 fw-bold mb-0">{% if is_submitted %}Báo cáo đã gửi{% else %}Sản lượng đã nhập{% endif %}</h3>
                     {% if hourly_grid.grand_total %}
                     <span class="badge bg-light text-dark border">Tổng ngày: <strong class="text-hm ms-1">{{ hourly_grid.grand_total|prod_qty }}</strong></span>
                     {% endif %}
                 </div>
                 {% if hourly_grid.uses_session_reporting %}
-                {% include 'reports/includes/production_session_summary_list.html' %}
+                {% include 'reports/includes/production_session_summary_list.html' with production_summary_editable=False %}
                 {% else %}
                 <div class="d-md-none">
                     {% include 'reports/includes/production_hourly_mobile_readonly.html' %}
@@ -363,7 +363,15 @@
 
             {% if phase == 'review' and hourly_grid is not None %}
             <section class="jp-prod-review-main">
-                {% if is_submitted and can_edit and not is_locked %}
+                {% if production_summary_stats %}
+                <div class="alert alert-light border small mb-3 py-2">
+                    <i class="bi bi-check-circle-fill text-success me-1"></i>
+                    Đã gửi lúc {{ report.submitted_at|date:"H:i d/m/Y" }}.
+                    {% if employee_edit_deadline and can_edit and not is_locked %}
+                    Có thể sửa đến {{ employee_edit_deadline|date:"H:i d/m/Y" }} — bấm «Sửa báo cáo» bên dưới.
+                    {% endif %}
+                </div>
+                {% elif is_submitted and production_summary_editable and can_edit and not is_locked %}
                 <div class="alert alert-success border-0 small mb-3 py-2">
                     Đã gửi lúc {{ report.submitted_at|date:"H:i d/m/Y" }}.
                     {% if content_edit_only %}
@@ -407,7 +415,7 @@
                 <div class="d-none d-md-block">
                     {% include 'reports/includes/production_hourly_grid.html' with hourly_grid=hourly_grid report=report %}
                 </div>
-                {% elif can_edit or can_add_entry %}
+                {% elif production_summary_editable %}
                 <div id="review-grid-root" class="jp-prod-review-mobile d-md-none"></div>
                 <div id="review-grid-root-desktop" class="jp-prod-review-desktop d-none d-md-block"></div>
                 {% else %}
@@ -437,26 +445,39 @@
                 {% endif %}
             </div>
             <div class="jp-prod-review-sticky-spacer d-md-none" aria-hidden="true"></div>
-            {% elif can_edit or can_resume_entry or can_add_entry %}
+            {% elif show_prod_submit or can_resume_entry or production_summary_stats %}
             <div class="jp-prod-review-sticky d-md-none">
+                {% if production_entry_closed and not show_prod_submit %}
+                {% include 'reports/includes/production_resume_entry_button.html' with btn_class='btn-lg' %}
+                {% elif production_summary_stats and production_edit_steps_url %}
+                <a href="{{ production_edit_steps_url }}" class="btn btn-outline-hm w-100 fw-bold btn-lg">
+                    <i class="bi bi-pencil-square me-2"></i>Sửa báo cáo
+                </a>
+                {% else %}
                 {% if production_entry_closed %}
                 {% include 'reports/includes/production_resume_entry_button.html' with btn_class='btn-lg' %}
-                {% else %}
-                {% if hourly_grid.rows %}
+                {% endif %}
+                {% if hourly_grid.rows and show_prod_submit %}
                 <div class="jp-prod-review-sticky-total">
                     <span>Tổng ngày</span>
                     <strong id="review-grand-total">{{ hourly_grid.grand_total|prod_qty }}</strong>
                 </div>
                 {% endif %}
-                {% if can_add_entry and not has_unfinalized %}
+                {% if show_prod_submit %}
+                {% if production_stats_url %}
+                <a href="{{ production_stats_url }}" class="btn btn-outline-secondary w-100 mb-2">
+                    <i class="bi bi-arrow-left me-1"></i>Quay lại thống kê
+                </a>
+                {% endif %}
                 <form method="post" class="mb-0 js-prod-submit-form js-report-submit-form" id="review-submit-form">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="submit">
                     <input type="hidden" name="review_json" id="review-json-input">
                     <input type="hidden" name="declared_work_hours" value="">
                     {% if for_user_param %}<input type="hidden" name="for_user" value="{{ for_user_param }}">{% endif %}
+                    {% if is_submitted %}<input type="hidden" name="edit_steps" value="1">{% endif %}
                     <button type="button" class="btn btn-hm w-100 fw-bold btn-lg js-prod-submit-trigger">
-                        <i class="bi bi-send-fill me-2"></i>Gửi báo cáo
+                        <i class="bi bi-send-fill me-2"></i>{% if is_submitted %}Cập nhật báo cáo{% else %}Gửi báo cáo{% endif %}
                     </button>
                 </form>
                 {% endif %}
@@ -465,27 +486,43 @@
             <div class="jp-prod-review-sticky-spacer d-md-none" aria-hidden="true"></div>
 
             <div class="jp-prod-review-desktop-bar d-none d-md-flex">
+                {% if production_summary_stats and production_edit_steps_url %}
+                <p class="text-muted small mb-0 me-auto">Báo cáo đã chốt — chỉ xem thống kê.</p>
+                <a href="{{ production_edit_steps_url }}" class="btn btn-outline-hm fw-bold px-4">
+                    <i class="bi bi-pencil-square me-2"></i>Sửa báo cáo
+                </a>
+                {% elif show_prod_submit %}
+                {% if production_stats_url %}
+                <a href="{{ production_stats_url }}" class="btn btn-outline-secondary me-2">
+                    <i class="bi bi-arrow-left me-1"></i>Thống kê
+                </a>
+                {% endif %}
                 {% if hourly_grid.rows and not production_entry_closed %}
                 <div class="jp-prod-review-desktop-total">
                     <span class="text-muted">Tổng ngày</span>
                     <strong id="review-grand-total-desktop">{{ hourly_grid.grand_total|prod_qty }}</strong>
                 </div>
                 {% endif %}
-                {% if production_entry_closed %}
-                <div class="ms-auto">
+                {% if production_entry_closed and can_resume_entry %}
+                <div class="ms-auto me-2">
                     {% include 'reports/includes/production_resume_entry_button.html' with btn_class='px-4' form_class='mb-0' %}
                 </div>
-                {% elif can_add_entry and not has_unfinalized %}
+                {% endif %}
                 <form method="post" class="mb-0 ms-auto js-prod-submit-form js-report-submit-form" id="review-submit-form-desktop">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="submit">
                     <input type="hidden" name="review_json" id="review-json-input-desktop">
                     <input type="hidden" name="declared_work_hours" value="">
                     {% if for_user_param %}<input type="hidden" name="for_user" value="{{ for_user_param }}">{% endif %}
+                    {% if is_submitted %}<input type="hidden" name="edit_steps" value="1">{% endif %}
                     <button type="button" class="btn btn-hm fw-bold px-4 js-prod-submit-trigger">
-                        <i class="bi bi-send-fill me-2"></i>Gửi báo cáo
+                        <i class="bi bi-send-fill me-2"></i>{% if is_submitted %}Cập nhật báo cáo{% else %}Gửi báo cáo{% endif %}
                     </button>
                 </form>
+                {% elif production_entry_closed %}
+                <div class="ms-auto">
+                    {% include 'reports/includes/production_resume_entry_button.html' with btn_class='px-4' form_class='mb-0' %}
+                </div>
                 {% endif %}
             </div>
             {% endif %}
