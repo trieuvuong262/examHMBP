@@ -21,6 +21,7 @@ from reports.report_lock import (
 )
 from reports.models import DailyWorkReport, ProductionHourlyQuantity, ProductionShiftProduct
 from reports.production_hourly import (
+    add_production_session,
     active_has_hourly_data,
     active_product,
     build_hourly_grid,
@@ -258,7 +259,7 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
     content_edit_only = _is_content_edit_only(request, report)
     content_edit_extra = _content_edit_redirect_extra()
 
-    if content_edit_only and action and action != 'edit_session':
+    if content_edit_only and action and action not in ('edit_session', 'add_session'):
         messages.error(
             request,
             'Chỉ được sửa mã hàng, công đoạn, định mức và sản lượng — không thể thay đổi thời gian.',
@@ -358,7 +359,7 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
             else:
                 messages.error(request, 'Bạn không có quyền chỉnh sửa báo cáo này.')
             return redirect(_production_redirect(report_date, shift, subject.id if editing_for_other else None))
-    elif action in ('edit_session', 'save_review', 'finalize_product', 'save_hourly'):
+    elif action in ('edit_session', 'add_session', 'save_review', 'finalize_product', 'save_hourly'):
         if not can_edit:
             if report and report.employee_id == request.user.id:
                 messages.error(request, production_edit_denied_message(report, viewer=request.user))
@@ -484,6 +485,56 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
             summary=f'Chỉnh sửa công đoạn {(code or product.product_code or "").strip() or "—"}.',
         )
         return redirect(_production_redirect(report_date, shift, for_user or None, content_edit_extra if content_edit_only else 'phase=review'))
+
+    if action == 'add_session':
+        if not content_edit_only:
+            messages.error(request, 'Chỉ có thể thêm công đoạn ở màn chỉnh sửa báo cáo đã nộp.')
+            return redirect(_production_redirect(report_date, shift, for_user or None, 'phase=review'))
+        code = (request.POST.get('product_code') or '').strip()
+        process = (request.POST.get('process_name') or '').strip()
+        norm = parse_decimal(request.POST.get('norm_per_hour'))
+        total_qty_raw = parse_decimal(request.POST.get('total_quantity'))
+        damaged_quantity = parse_int(request.POST.get('damaged_quantity'))
+        note = (request.POST.get('note') or '').strip()
+        start_time = (request.POST.get('start_time') or '').strip()
+        end_time = (request.POST.get('end_time') or '').strip()
+        if not code or not process:
+            messages.error(request, 'Điền mã hàng và tên công đoạn.')
+            return redirect(_production_redirect(report_date, shift, for_user or None, content_edit_extra))
+        if not norm or norm <= 0:
+            messages.error(request, 'Định mức phải lớn hơn 0.')
+            return redirect(_production_redirect(report_date, shift, for_user or None, content_edit_extra))
+        if total_qty_raw is None or total_qty_raw < 0:
+            messages.error(request, 'Nhập sản lượng hợp lệ.')
+            return redirect(_production_redirect(report_date, shift, for_user or None, content_edit_extra))
+        total_qty = total_qty_raw
+        if not start_time or not end_time:
+            messages.error(request, 'Chọn giờ bắt đầu và giờ kết thúc.')
+            return redirect(_production_redirect(report_date, shift, for_user or None, content_edit_extra))
+        try:
+            add_production_session(
+                report,
+                code=code,
+                process=process,
+                norm=norm,
+                total=total_qty,
+                damaged=damaged_quantity,
+                note=note,
+                start_time=start_time,
+                end_time=end_time,
+            )
+        except ValueError as exc:
+            messages.error(request, str(exc))
+            return redirect(_production_redirect(report_date, shift, for_user or None, content_edit_extra))
+        from reports.report_edit_log import log_report_edit
+
+        log_report_edit(
+            report,
+            request.user,
+            summary=f'Thêm công đoạn {(code or "—").strip()}.',
+        )
+        messages.success(request, f'Đã thêm công đoạn {code}.')
+        return redirect(_production_redirect(report_date, shift, for_user or None, content_edit_extra))
 
     if action == 'finalize_product':
         if is_production_entry_closed(report):

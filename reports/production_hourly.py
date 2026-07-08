@@ -6,7 +6,7 @@ import json
 from typing import Optional
 
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Max, Q
 from django.utils import timezone
 
 from reports.models import (
@@ -2079,3 +2079,115 @@ def save_proxy_shift_sessions(
         log_report_edit(report, user, summary='Lưu nhập hộ (chưa có dữ liệu).')
 
     return {'sessions': created}
+
+
+@transaction.atomic
+def add_production_session(
+    report: DailyWorkReport,
+    *,
+    code: str,
+    process: str,
+    norm,
+    total,
+    damaged: int,
+    note: str,
+    start_time: str,
+    end_time: str,
+):
+    """
+    Thêm 1 công đoạn mới theo kiểu nhập hộ (giờ bắt đầu/kết thúc).
+    Dùng cho màn hình chỉnh sửa báo cáo đã nộp.
+    """
+    shift = _shift_for_report(report)
+    slots = slots_for_shift(shift)
+    slot_by_idx = {s.index: s for s in slots}
+    sess = {
+        'code': code,
+        'process': process,
+        'norm': norm,
+        'total': total,
+        'damaged': damaged,
+        'note': note,
+        'start_time': start_time,
+        'end_time': end_time,
+    }
+    overlaps, interval = _proxy_session_overlaps(report.report_date, shift, sess, slot_by_idx)
+    if not overlaps or not interval:
+        raise ValueError('Giờ bắt đầu / kết thúc không hợp lệ hoặc nằm ngoài khung ca.')
+    start_dt, end_dt = interval
+
+    # Không cho chồng lấn; cho phép trùng biên (start == end cũ hoặc end == start cũ).
+    existing = list(
+        report.production_products.filter(
+            started_at__isnull=False,
+            ended_at__isnull=False,
+        ).values('started_at', 'ended_at')
+    )
+    for row in existing:
+        old_start = row['started_at']
+        old_end = row['ended_at']
+        if old_start is None or old_end is None:
+            continue
+        if start_dt < old_end and end_dt > old_start:
+            raise ValueError(
+                'Khoảng giờ bị chồng với công đoạn đã có. '
+                'Có thể bắt đầu đúng bằng giờ kết thúc công đoạn trước.'
+            )
+
+    total_overlap_hours = sum((hours for _, hours in overlaps), Decimal('0'))
+    next_sort = (
+        report.production_products.aggregate(m=Max('sort_order')).get('m')
+    )
+    if next_sort is None:
+        next_sort = -1
+    indices = [idx for idx, _ in overlaps]
+    first = indices[0]
+
+    product = ProductionShiftProduct.objects.create(
+        report=report,
+        product_code=code.strip(),
+        process_name=process.strip(),
+        norm_per_hour=norm,
+        status=ProductionShiftProduct.STATUS_DONE,
+        submitted_locked=bool(report.status == DailyWorkReport.STATUS_SUBMITTED),
+        sort_order=next_sort + 1,
+        first_slot_index=first,
+        started_at=start_dt,
+        ended_at=end_dt,
+        total_quantity=total,
+        total_damaged_quantity=damaged,
+        completion_note=(note or '').strip()[:500],
+    )
+
+    count = len(overlaps)
+    remaining = total
+    damaged_left = damaged
+    for pos, (idx, hours) in enumerate(overlaps):
+        if total_overlap_hours > 0:
+            if pos == count - 1:
+                qty = remaining
+            else:
+                share = (total * hours / total_overlap_hours).quantize(Decimal('0.01'))
+                qty = share
+                remaining -= qty
+        elif pos == count - 1:
+            qty = remaining
+        else:
+            share = (total / Decimal(count)).quantize(Decimal('0.01'))
+            qty = share
+            remaining -= qty
+        slot_damaged = 0
+        if damaged_left > 0 and qty > 0:
+            slot_damaged = damaged_left
+            damaged_left = 0
+        partial = hours if hours != Decimal('1') else None
+        ProductionHourlyQuantity.objects.create(
+            product=product,
+            slot_index=idx,
+            quantity=qty,
+            damaged_quantity=slot_damaged,
+            note=(note or '').strip()[:500] if pos == 0 else '',
+            partial_hours=partial,
+            zero_reason='',
+        )
+    return product
