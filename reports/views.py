@@ -1455,6 +1455,7 @@ TEAM_STATUS_MISSING = 'missing'
 TEAM_STATUS_NO_REPORT = 'no_report'
 TEAM_STATUS_REVIEWED = 'reviewed'
 TEAM_STATUS_NOT_REVIEWED = 'not_reviewed'
+TEAM_STATUS_REJECTED = 'rejected'
 TEAM_SUMMARY_DEFAULT_SPAN_DAYS = 7
 
 
@@ -1492,6 +1493,7 @@ def _parse_team_status_filter(request) -> str:
         TEAM_STATUS_NO_REPORT,
         TEAM_STATUS_REVIEWED,
         TEAM_STATUS_NOT_REVIEWED,
+        TEAM_STATUS_REJECTED,
     ):
         return val
     return ''
@@ -1550,6 +1552,7 @@ def _team_stat_urls(base_params: dict) -> dict:
         'no_report': _url({'status': TEAM_STATUS_NO_REPORT}),
         'reviewed': _url({'status': TEAM_STATUS_REVIEWED}),
         'not_reviewed': _url({'status': TEAM_STATUS_NOT_REVIEWED}),
+        'rejected': _url({'status': TEAM_STATUS_REJECTED}),
     }
 
 
@@ -1753,6 +1756,7 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
         no_report_count = 0
         reviewed_count = 0
         not_reviewed_count = 0
+        rejected_count = 0
     else:
         from reports.report_lock import auto_reject_expired_production_reports
 
@@ -1783,6 +1787,7 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
         review_counts = production_team_review_row_counts(department_groups)
         reviewed_count = review_counts['reviewed']
         not_reviewed_count = review_counts['not_reviewed']
+        rejected_count = review_counts['rejected']
 
     department_groups = _filter_team_department_groups(
         department_groups,
@@ -1853,6 +1858,7 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
         'no_report_count': no_report_count,
         'reviewed_count': reviewed_count,
         'not_reviewed_count': not_reviewed_count,
+        'rejected_count': rejected_count,
         'team_count': team_count,
         'can_submit_report': can_submit_daily_report(request.user),
         'report_period': report_period,

@@ -1,4 +1,4 @@
-<div class="jp-stat-grid mb-4 jp-team-stat-grid jp-team-stat-grid--6">
+<div class="jp-stat-grid mb-4 jp-team-stat-grid jp-team-stat-grid--7">
     <a href="{{ stat_urls.all }}" class="jp-team-stat-card card border-0 shadow-sm text-center p-3 text-decoration-none{% if not status_filter %} is-active{% endif %}">
         <div class="fs-4 fw-bold text-hm">{{ team_count }}</div>
         <small class="text-muted">Nhân viên</small>
@@ -18,6 +18,10 @@
     <a href="{{ stat_urls.not_reviewed }}" class="jp-team-stat-card card border-0 shadow-sm text-center p-3 text-decoration-none{% if status_filter == 'not_reviewed' %} is-active{% endif %}">
         <div class="fs-4 fw-bold text-warning">{{ not_reviewed_count }}</div>
         <small class="text-muted">Chưa duyệt</small>
+    </a>
+    <a href="{{ stat_urls.rejected }}" class="jp-team-stat-card card border-0 shadow-sm text-center p-3 text-decoration-none{% if status_filter == 'rejected' %} is-active{% endif %}">
+        <div class="fs-4 fw-bold text-danger">{{ rejected_count }}</div>
+        <small class="text-muted">Không duyệt</small>
     </a>
     <a href="{{ stat_urls.reviewed }}" class="jp-team-stat-card card border-0 shadow-sm text-center p-3 text-decoration-none{% if status_filter == 'reviewed' %} is-active{% endif %}">
         <div class="fs-4 fw-bold text-primary">{{ reviewed_count }}</div>

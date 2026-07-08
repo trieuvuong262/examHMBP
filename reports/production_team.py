@@ -279,9 +279,12 @@ def production_team_row_matches_filter(
             and row.get('production_any_submitted', False)
             and row.get('production_all_reviewed', False)
         )
+    if status_filter == 'rejected':
+        return bool(row.get('production_any_rejected', False))
     if status_filter == 'not_reviewed':
         return (
             row.get('production_any_submitted', False)
+            and not row.get('production_any_rejected', False)
             and not row.get('production_all_reviewed', False)
         )
     return True
@@ -291,13 +294,16 @@ def production_team_review_row_counts(department_groups: list[dict]) -> dict[str
     """Đếm dòng NV×ngày đã duyệt / chưa duyệt (trong khoảng lọc)."""
     reviewed = 0
     not_reviewed = 0
+    rejected = 0
     for group in department_groups:
         for row in group.get('rows') or []:
-            if row.get('production_any_submitted') and row.get('production_all_reviewed'):
+            if row.get('production_any_rejected'):
+                rejected += 1
+            elif row.get('production_any_submitted') and row.get('production_all_reviewed'):
                 reviewed += 1
             elif row.get('production_any_submitted') and not row.get('production_all_reviewed'):
                 not_reviewed += 1
-    return {'reviewed': reviewed, 'not_reviewed': not_reviewed}
+    return {'reviewed': reviewed, 'not_reviewed': not_reviewed, 'rejected': rejected}
 
 
 def expected_morning_days_through(anchor: date) -> int:
