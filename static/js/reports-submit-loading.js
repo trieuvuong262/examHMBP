@@ -1,6 +1,6 @@
 /**
  * Overlay loading khi gửi báo cáo (VP ngày/tuần, SX).
- * Submit qua fetch — thất bại mạng/server thì hiện popup yêu cầu kiểm tra mạng.
+ * Submit qua fetch — thất bại mạng/server thì hiện overlay yêu cầu kiểm tra mạng.
  */
 (function () {
     'use strict';
@@ -9,8 +9,8 @@
     if (!overlay) return;
 
     var msgEl = overlay.querySelector('[data-loading-message]');
-    var errorModalEl = document.getElementById('jpReportSubmitErrorModal');
-    var errorModal = null;
+    var errorOverlay = document.getElementById('jp-report-submit-error');
+    var errorCloseBtn = document.getElementById('jpReportSubmitErrorCloseBtn');
     var submitting = false;
 
     function syncCkEditor() {
@@ -23,6 +23,7 @@
     }
 
     function show(message) {
+        hideError();
         if (msgEl && message) {
             msgEl.textContent = message;
         }
@@ -35,6 +36,27 @@
         overlay.hidden = true;
         overlay.setAttribute('aria-busy', 'false');
         document.body.classList.remove('jp-report-submitting');
+    }
+
+    function showErrorModal() {
+        hide();
+        if (!errorOverlay) {
+            window.alert('Gửi báo cáo thất bại. Vui lòng kiểm tra kết nối mạng rồi gửi lại.');
+            return;
+        }
+        errorOverlay.hidden = false;
+        document.body.classList.add('jp-report-submit-error-open');
+        if (errorCloseBtn) {
+            window.setTimeout(function () {
+                errorCloseBtn.focus();
+            }, 50);
+        }
+    }
+
+    function hideError() {
+        if (!errorOverlay) return;
+        errorOverlay.hidden = true;
+        document.body.classList.remove('jp-report-submit-error-open');
     }
 
     function disableSubmitControls(form) {
@@ -61,21 +83,6 @@
             if (hidden) return true;
         }
         return false;
-    }
-
-    function showErrorModal() {
-        if (!errorModalEl) {
-            window.alert('Gửi báo cáo thất bại. Vui lòng kiểm tra kết nối mạng rồi gửi lại.');
-            return;
-        }
-        if (window.bootstrap && bootstrap.Modal) {
-            errorModal = bootstrap.Modal.getOrCreateInstance(errorModalEl);
-            errorModal.show();
-            return;
-        }
-        errorModalEl.classList.add('show');
-        errorModalEl.style.display = 'block';
-        errorModalEl.removeAttribute('aria-hidden');
     }
 
     function buildFormData(form, submitter) {
@@ -125,7 +132,6 @@
             window.location.href = resp.url || url;
         }).catch(function () {
             submitting = false;
-            hide();
             enableSubmitControls(form);
             showErrorModal();
         });
@@ -141,6 +147,15 @@
         });
     }
 
+    if (errorCloseBtn) {
+        errorCloseBtn.addEventListener('click', hideError);
+    }
+    if (errorOverlay) {
+        errorOverlay.addEventListener('click', function (ev) {
+            if (ev.target === errorOverlay) hideError();
+        });
+    }
+
     document.querySelectorAll('form.js-report-submit-form').forEach(armForm);
 
     window.JpReportSubmitLoading = {
@@ -152,5 +167,6 @@
         enableSubmitControls: enableSubmitControls,
         submitForm: submitForm,
         showErrorModal: showErrorModal,
+        hideError: hideError,
     };
 })();
