@@ -52,7 +52,7 @@ def production_manager_edit_deadline(report):
     """Hạn sửa của quản lý sau khi duyệt báo cáo SX."""
     if not report.hod_reviewed:
         return None
-    reviewed_at = getattr(report, 'hod_reviewed_at', None) or report.updated_at
+    reviewed_at = getattr(report, 'hod_reviewed_at', None) or report.submitted_at or report.updated_at
     if not reviewed_at:
         return None
     return reviewed_at + PRODUCTION_EDIT_WINDOW

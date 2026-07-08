@@ -2164,7 +2164,7 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
             )
     elif (
         report.is_production_report
-        and can_review
+        and can_edit_norm
         and can_edit_production_report(
             request.user,
             report,
