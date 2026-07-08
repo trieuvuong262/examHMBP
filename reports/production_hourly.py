@@ -1421,14 +1421,14 @@ def _format_hours(value) -> str:
     dec = Decimal(str(value)).quantize(Decimal('0.01'))
     total_minutes = int((dec * Decimal('60')).quantize(Decimal('1')))
     if total_minutes <= 0:
-        return '0h'
+        return '0g'
     hours = total_minutes // 60
     minutes = total_minutes % 60
     if minutes == 0:
-        return f'{hours}h'
+        return f'{hours}g'
     if hours == 0:
         return f'{minutes}p'
-    return f'{hours}h{minutes}p'
+    return f'{hours}g{minutes}p'
 
 
 def _format_declared_work_hours(hours) -> str:
