@@ -4,7 +4,7 @@
 
 {% block extra_head %}
 <link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260624a">
-<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260708o">
+<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260708p">
 <style>
 /* Trang SX today: ẩn footer, sticky bar neo sát đáy như nút Gửi báo cáo */
 :root {
@@ -139,7 +139,7 @@
             <div class="alert alert-success border-0 small mb-3">
                 Đã gửi lúc {{ report.submitted_at|date:"H:i d/m/Y" }}.
                 {% if employee_edit_deadline %}
-                Có thể chỉnh sửa đến {{ employee_edit_deadline|date:"H:i d/m/Y" }} (trước khi cấp trên duyệt).
+                Có thể sửa công đoạn đã gửi đến {{ employee_edit_deadline|date:"H:i d/m/Y" }} — sau khi lưu bấm «Cập nhật báo cáo».
                 {% else %}
                 Có thể chỉnh sửa trong 24 giờ sau khi nộp, trước khi cấp trên duyệt.
                 {% endif %}
@@ -369,7 +369,7 @@
                     {% if content_edit_only %}
                     Chỉ sửa mã hàng, công đoạn, định mức và sản lượng — không đổi thời gian.
                     {% elif employee_edit_deadline %}
-                    Sửa được đến {{ employee_edit_deadline|date:"H:i d/m/Y" }}.
+                    Có thể sửa công đoạn đã gửi đến {{ employee_edit_deadline|date:"H:i d/m/Y" }} — sau khi lưu bấm «Cập nhật báo cáo».
                     {% endif %}
                 </div>
                 {% elif is_locked and not can_edit %}
@@ -575,5 +575,5 @@
 
 {% include 'reports/includes/report_submit_loading.html' %}
 {% if hourly_grid %}{{ hourly_grid|json_script:"hourly-grid-data" }}{% endif %}
-<script src="{% static 'js/reports-production-hourly.js' %}?v=20260708i"></script>
+<script src="{% static 'js/reports-production-hourly.js' %}?v=20260708k"></script>
 {% endblock %}

@@ -347,6 +347,8 @@
 
             if (row.is_session_reported && row.session_effective_hours > 0) {
                 productHours = parseFloat(row.session_effective_hours);
+            } else if (row.is_session_reported) {
+                productHours = 0;
             }
 
             totalQty += productQty;
@@ -362,8 +364,84 @@
         return (max != null && isFinite(max)) ? parseFloat(max) : 200;
     }
 
+    function findZeroHourSteps(grid) {
+        if (!grid || !grid.rows) return [];
+        var root = getActiveReviewRoot();
+        var quantities = collectReviewQuantities(root);
+        var issues = [];
+
+        grid.rows.forEach(function (row) {
+            if (row.is_zero_reason_only) return;
+            var norm = parseFloat(row.norm_per_hour);
+            if (!norm || norm <= 0) return;
+
+            var productQty = 0;
+            var productHours = 0;
+            var rowQtys = quantities[row.id] || {};
+
+            row.slots.forEach(function (cell) {
+                if (cell.is_na) return;
+                if (cell.slot_index < row.first_slot_index) return;
+                var qty = rowQtys[cell.slot_index] !== undefined
+                    ? rowQtys[cell.slot_index]
+                    : parseProdQty(cell.quantity);
+                if (qty > 0) {
+                    productQty += qty;
+                    productHours += slotEntryHours(grid, cell, qty);
+                }
+            });
+
+            if (productQty <= 0) return;
+
+            if (row.is_session_reported) {
+                productHours = row.session_effective_hours != null
+                    ? parseFloat(row.session_effective_hours)
+                    : 0;
+            }
+
+            if (!isFinite(productHours) || productHours <= 0) {
+                issues.push({
+                    process: row.label_process || row.process_name || 'công đoạn',
+                    code: row.label_code || row.product_code || '',
+                });
+            }
+        });
+        return issues;
+    }
+
+    function validateSubmitPreview(grid) {
+        var zeroHourSteps = findZeroHourSteps(grid);
+        var efficiency = computeReviewEfficiency(grid);
+        var maxEff = getMaxSubmitEfficiency(grid);
+
+        if (zeroHourSteps.length) {
+            var first = zeroHourSteps[0];
+            var label = first.process + (first.code && first.code !== '—' ? ' (' + first.code + ')' : '');
+            return {
+                blocked: true,
+                efficiency: efficiency,
+                message: 'Số liệu bạn gửi sai — ' + label + ' có sản lượng nhưng thời gian công đoạn 0 phút. Vui lòng kiểm tra lại.',
+            };
+        }
+        if (efficiency != null && isFinite(efficiency) && efficiency < 0) {
+            return {
+                blocked: true,
+                efficiency: efficiency,
+                message: 'Số liệu bạn gửi sai — hiệu suất sơ bộ không hợp lệ. Vui lòng kiểm tra lại sản lượng, định mức và thời gian công đoạn.',
+            };
+        }
+        if (efficiency != null && isFinite(efficiency) && efficiency > maxEff) {
+            return {
+                blocked: true,
+                efficiency: efficiency,
+                message: 'Số liệu bạn gửi sai — hiệu suất sơ bộ ' + formatEfficiencyPct(efficiency) + ' vượt ' + maxEff + '%. Vui lòng kiểm tra lại sản lượng và định mức.',
+            };
+        }
+        return { blocked: false, efficiency: efficiency, message: '' };
+    }
+
     function isSubmitEfficiencyBlocked(efficiency, grid) {
-        return efficiency != null && isFinite(efficiency) && efficiency > getMaxSubmitEfficiency(grid);
+        return validateSubmitPreview(grid).blocked;
     }
 
     function updateSubmitEfficiencyPreview() {
@@ -371,24 +449,27 @@
         var previewValue = document.getElementById('prodEfficiencyPreviewValue');
         var previewWrap = document.getElementById('prodEfficiencyPreviewWrap');
         var errorEl = document.getElementById('prodEfficiencyError');
+        var errorText = document.getElementById('prodEfficiencyErrorText');
         var confirmBtn = document.getElementById('prodSubmitConfirmBtn');
-        var efficiency = computeReviewEfficiency(grid);
-        var blocked = isSubmitEfficiencyBlocked(efficiency, grid);
+        var check = validateSubmitPreview(grid);
 
         if (previewValue) {
-            previewValue.textContent = formatEfficiencyPct(efficiency);
-            previewValue.classList.toggle('text-danger', blocked);
+            previewValue.textContent = formatEfficiencyPct(check.efficiency);
+            previewValue.classList.toggle('text-danger', check.blocked);
         }
         if (previewWrap) {
-            previewWrap.classList.toggle('jp-prod-efficiency--blocked', blocked);
+            previewWrap.classList.toggle('jp-prod-efficiency--blocked', check.blocked);
         }
         if (errorEl) {
-            errorEl.classList.toggle('d-none', !blocked);
+            errorEl.classList.toggle('d-none', !check.blocked);
+        }
+        if (errorText && check.message) {
+            errorText.textContent = check.message;
         }
         if (confirmBtn) {
-            confirmBtn.disabled = blocked;
+            confirmBtn.disabled = check.blocked;
         }
-        return { efficiency: efficiency, blocked: blocked };
+        return check;
     }
 
     function initSubmitConfirm() {
@@ -489,12 +570,34 @@
         return html;
     }
 
+    function reviewStepStateClass(row) {
+        if (row.is_unfinalized) return ' is-unfinalized';
+        if (row.step_display_status === 'submitted') return ' is-submitted-locked';
+        if (row.step_display_status === 'updated') return ' is-updated';
+        return ' is-pending-submit';
+    }
+
+    function reviewStepBadgeHtml(row) {
+        if (row.is_unfinalized) {
+            return '<span class="badge bg-warning text-dark jp-prod-review-badge">Chưa gắn</span>';
+        }
+        if (row.step_display_status === 'submitted') {
+            return '<span class="badge text-bg-success jp-prod-review-badge"><i class="bi bi-check-circle-fill me-1"></i>Đã gửi</span>';
+        }
+        if (row.step_display_status === 'updated') {
+            return '<span class="badge text-bg-info jp-prod-review-badge"><i class="bi bi-arrow-repeat me-1"></i>Cập nhật</span>';
+        }
+        return '<span class="badge text-bg-warning jp-prod-review-badge"><i class="bi bi-hourglass-split me-1"></i>Chưa gửi</span>';
+    }
+
+    function reviewStepIsReadonly(row) {
+        return !row.can_edit_step;
+    }
+
     function renderReviewMobileCard(row, ri, proxyMode) {
         var code = escapeHtml(row.label_code || row.product_code || '—');
         var process = escapeHtml(row.label_process || row.process_name || 'Chưa gắn mã');
-        var stateClass = row.is_unfinalized
-            ? ' is-unfinalized'
-            : (row.submitted_locked ? ' is-submitted-locked' : ' is-pending-submit');
+        var stateClass = reviewStepStateClass(row);
         var html = '<article class="jp-prod-review-product' + stateClass + '" data-product-id="' + row.id + '">';
         html += '<header class="jp-prod-review-product-head">';
         html += '<span class="jp-prod-review-num">' + (ri + 1) + '</span>';
@@ -505,13 +608,7 @@
             html += '<div class="jp-prod-review-norm">ĐM ' + escapeHtml(row.norm_per_hour) + '/giờ</div>';
         }
         html += '</div>';
-        if (row.is_unfinalized) {
-            html += '<span class="badge bg-warning text-dark jp-prod-review-badge">Chưa gắn</span>';
-        } else if (row.submitted_locked) {
-            html += '<span class="badge text-bg-success jp-prod-review-badge"><i class="bi bi-check-circle-fill me-1"></i>Đã gửi</span>';
-        } else {
-            html += '<span class="badge text-bg-warning jp-prod-review-badge"><i class="bi bi-hourglass-split me-1"></i>Chưa gửi</span>';
-        }
+        html += reviewStepBadgeHtml(row);
         html += '</header><div class="jp-prod-review-slots">';
 
         var rowTotal = 0;
@@ -523,7 +620,7 @@
             var label = escapeHtml(cell.slot_label || ('Giờ ' + (cell.slot_index + 1)));
             html += '<div class="jp-prod-review-slot">';
             html += '<div class="jp-prod-review-slot-label">' + label + '</div>';
-            if (row.submitted_locked) {
+            if (reviewStepIsReadonly(row)) {
                 html += '<div class="jp-prod-review-qty-readonly">' + formatProdQty(qty) + '</div>';
             } else {
                 html += '<input type="number" class="jp-prod-review-qty-input" min="0" step="0.01" inputmode="decimal" ';
@@ -549,16 +646,23 @@
         html += '<th class="text-end">Tổng dòng</th></tr></thead><tbody>';
 
         grid.rows.forEach(function (row, ri) {
-            var rowClass = row.is_unfinalized
-                ? ' class="table-warning"'
-                : (row.submitted_locked ? ' class="table-success jp-prod-row--submitted"' : '');
+            var rowClass = '';
+            if (row.is_unfinalized) {
+                rowClass = ' class="table-warning"';
+            } else if (row.step_display_status === 'submitted') {
+                rowClass = ' class="table-success jp-prod-row--submitted"';
+            } else if (row.step_display_status === 'updated') {
+                rowClass = ' class="table-info jp-prod-row--updated"';
+            }
             html += '<tr data-product-id="' + row.id + '"' + rowClass + '>';
             html += '<td class="text-center">' + (ri + 1) + '</td>';
             html += '<td class="fw-semibold">' + escapeHtml(row.label_code || row.product_code || '—');
             if (row.is_unfinalized) {
                 html += ' <span class="badge bg-warning text-dark ms-1">Chưa gắn</span>';
-            } else if (row.submitted_locked) {
+            } else if (row.step_display_status === 'submitted') {
                 html += ' <span class="badge text-bg-success ms-1"><i class="bi bi-check-circle-fill me-1"></i>Đã gửi</span>';
+            } else if (row.step_display_status === 'updated') {
+                html += ' <span class="badge text-bg-info ms-1"><i class="bi bi-arrow-repeat me-1"></i>Cập nhật</span>';
             } else {
                 html += ' <span class="badge text-bg-warning ms-1"><i class="bi bi-hourglass-split me-1"></i>Chưa gửi</span>';
             }
@@ -574,7 +678,7 @@
                 } else if (cell.has_data || proxyMode) {
                     var qty = parseProdQty(cell.quantity);
                     if (qty > 0) rowTotal += qty;
-                    if (row.submitted_locked) {
+                    if (reviewStepIsReadonly(row)) {
                         html += '<span class="jp-review-qty-readonly">' + formatProdQty(qty) + '</span>';
                     } else {
                         html += '<input type="number" class="jp-review-cell-input" min="0" step="0.01" ';

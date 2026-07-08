@@ -41,7 +41,9 @@ from reports.production_hourly import (
     is_production_entry_closed,
     ensure_submitted_steps_locked,
     lock_production_steps_on_submit,
+    employee_can_edit_submitted_report_steps,
     product_is_submitted_locked,
+    product_may_be_edited_by,
     production_server_now,
     parse_decimal,
     parse_non_negative_decimal,
@@ -86,7 +88,7 @@ def _parse_production_shift(request, *, report=None) -> str:
     return ''
 
 
-def _apply_review_payload(report, payload_str, *, relax_slot_scope=False):
+def _apply_review_payload(report, payload_str, *, relax_slot_scope=False, unlock_on_edit=False):
     """Cập nhật sản lượng từ JSON tổng kết (chỉnh sửa trên màn review / nhập hộ)."""
     try:
         rows = json.loads(payload_str or '[]')
@@ -100,8 +102,9 @@ def _apply_review_payload(report, payload_str, *, relax_slot_scope=False):
             product = report.production_products.get(pk=product_id)
         except ProductionShiftProduct.DoesNotExist:
             continue
-        if product_is_submitted_locked(product):
+        if product_is_submitted_locked(product) and not unlock_on_edit:
             continue
+        was_locked = product_is_submitted_locked(product)
         for cell in row.get('slots', []):
             slot_index = cell.get('slot_index')
             if slot_index is None:
@@ -134,6 +137,9 @@ def _apply_review_payload(report, payload_str, *, relax_slot_scope=False):
                     ).delete()
             except ValueError:
                 return False
+        if unlock_on_edit and was_locked:
+            product.submitted_locked = False
+            product.save(update_fields=['submitted_locked'])
     return True
 
 
@@ -437,17 +443,19 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
         return redirect(_production_redirect(report_date, shift, for_user or None))
 
     if action == 'edit_session':
-        if is_production_entry_closed(report) and not content_edit_only:
-            messages.warning(request, 'Báo cáo đã gửi — bấm «Nhập tiếp báo cáo» trước khi chỉnh sửa.')
-            return redirect(_production_redirect(report_date, shift, for_user or None, 'phase=review'))
         product_id = parse_int(request.POST.get('product_id'), -1)
         try:
             product = report.production_products.get(pk=product_id)
         except ProductionShiftProduct.DoesNotExist:
             messages.error(request, 'Không tìm thấy công đoạn cần sửa.')
             return redirect(_production_redirect(report_date, shift, for_user or None, 'phase=review'))
-        if product_is_submitted_locked(product) and not content_edit_only:
-            messages.warning(request, 'Công đoạn đã gửi trong báo cáo — không thể sửa.')
+        if not product_may_be_edited_by(
+            request.user,
+            report,
+            product,
+            content_edit_only=content_edit_only,
+        ):
+            messages.warning(request, 'Công đoạn này không thể sửa.')
             return redirect(_production_redirect(report_date, shift, for_user or None, content_edit_extra if content_edit_only else 'phase=review'))
         code = (request.POST.get('product_code') or '').strip()
         process = (request.POST.get('process_name') or '').strip()
@@ -599,10 +607,16 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
 
     if action == 'save_review':
         relax = editing_for_other
+        unlock_steps = (
+            not editing_for_other
+            and report.employee_id == request.user.id
+            and employee_can_edit_submitted_report_steps(report)
+        )
         if not _apply_review_payload(
             report,
             request.POST.get('review_json'),
             relax_slot_scope=relax,
+            unlock_on_edit=unlock_steps,
         ):
             messages.error(request, 'Dữ liệu tổng kết không hợp lệ.')
             extra = 'phase=proxy' if editing_for_other else 'phase=review'
@@ -641,11 +655,17 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
             return redirect(_production_redirect(report_date, shift, for_user or None, extra))
         if action == 'submit':
             review_json = request.POST.get('review_json')
+            unlock_steps = (
+                not editing_for_other
+                and report.employee_id == request.user.id
+                and employee_can_edit_submitted_report_steps(report)
+            )
             if review_json:
                 if not _apply_review_payload(
                     report,
                     review_json,
                     relax_slot_scope=editing_for_other,
+                    unlock_on_edit=unlock_steps,
                 ):
                     messages.error(request, 'Dữ liệu tổng kết không hợp lệ.')
                     extra = 'phase=proxy' if editing_for_other else 'phase=review'

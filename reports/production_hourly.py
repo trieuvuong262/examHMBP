@@ -101,12 +101,60 @@ def product_is_submitted_locked(product: ProductionShiftProduct) -> bool:
 
 
 def product_shows_as_submitted(product: ProductionShiftProduct, report: DailyWorkReport) -> bool:
-    """Badge «Đã gửi»: đã chốt, hoặc báo cáo đang SUBMITTED và công đoạn đã xong."""
+    """Badge «Đã gửi» — chỉ khi công đoạn đã chốt lúc gửi báo cáo."""
+    return product_is_submitted_locked(product)
+
+
+def product_step_display_status(product: ProductionShiftProduct, report: DailyWorkReport) -> str:
+    """Trạng thái hiển thị: submitted | updated | pending | draft."""
     if product_is_submitted_locked(product):
-        return True
-    if not report or report.status != DailyWorkReport.STATUS_SUBMITTED:
+        return 'submitted'
+    if (
+        report
+        and report.status == DailyWorkReport.STATUS_SUBMITTED
+        and product.status == ProductionShiftProduct.STATUS_DONE
+    ):
+        return 'updated'
+    if product.status == ProductionShiftProduct.STATUS_DONE:
+        return 'pending'
+    return 'draft'
+
+
+def employee_can_edit_submitted_report_steps(report: DailyWorkReport) -> bool:
+    """NV được sửa công đoạn đã gửi trong 24h khi quản lý chưa duyệt."""
+    if not report or not report.pk:
         return False
-    return product.status == ProductionShiftProduct.STATUS_DONE
+    if report.status != DailyWorkReport.STATUS_SUBMITTED:
+        return False
+    return production_employee_may_edit(report)
+
+
+def product_may_be_edited_by(
+    viewer,
+    report,
+    product: ProductionShiftProduct,
+    *,
+    content_edit_only: bool = False,
+) -> bool:
+    if not report or not report.pk or not product:
+        return False
+    if product.status != ProductionShiftProduct.STATUS_DONE:
+        return False
+    if content_edit_only:
+        if can_edit_production_norms(viewer, report):
+            if report.hod_reviewed:
+                return production_manager_may_edit(report)
+            return production_employee_may_edit(report)
+        if report.employee_id == viewer.id:
+            return employee_can_edit_submitted_report_steps(report)
+        return False
+    if report.employee_id != viewer.id:
+        return False
+    if not production_employee_may_edit(report):
+        return False
+    if report.status == DailyWorkReport.STATUS_SUBMITTED:
+        return True
+    return not product_is_submitted_locked(product)
 
 
 def lock_production_report_on_supervisor_view(report, viewer) -> bool:
@@ -545,6 +593,9 @@ def update_session_product(
         product.completion_note = (note or '').strip()[:500]
 
     product.status = ProductionShiftProduct.STATUS_DONE
+    report = product.report
+    if report.status == DailyWorkReport.STATUS_SUBMITTED:
+        product.submitted_locked = False
     product.save()
     return product
 
@@ -963,6 +1014,36 @@ def _report_efficiency_totals(
         total_hours += product_hours
         total_expected += norm * product_hours
     return total_qty, total_hours, total_expected
+
+
+def _product_submit_work_hours(product: ProductionShiftProduct) -> Decimal:
+    """Giờ công đoạn khi kiểm tra trước gửi — khớp _report_efficiency_totals."""
+    session_mode = is_session_reported_product(product)
+    product_hours = Decimal('0')
+    has_qty = False
+    for entry in product.hourly_entries.all():
+        if not _entry_is_filled(entry):
+            continue
+        if entry.slot_index < product.first_slot_index:
+            continue
+        qty = entry.quantity or Decimal('0')
+        if qty <= 0:
+            continue
+        has_qty = True
+        product_hours += _entry_hours(entry)
+    if not has_qty:
+        return Decimal('0')
+    if session_mode and product.started_at and product.ended_at:
+        return session_effective_hours(product)
+    return product_hours
+
+
+def _zero_hour_step_label(product: ProductionShiftProduct) -> str:
+    process = (product.process_name or '').strip() or 'công đoạn'
+    code = (product.product_code or '').strip()
+    if code:
+        return f'{process} ({code})'
+    return process
 
 
 def _report_overall_efficiency_pct(
@@ -1475,14 +1556,18 @@ def build_hourly_grid(report: DailyWorkReport) -> dict:
         )
         total_qty = product.total_quantity if session_mode and product.total_quantity is not None else cell_total
         started_display, ended_display = session_time_displays(product)
-        marked_submitted = (
-            not is_unfinalized and product_shows_as_submitted(product, report)
+        marked_submitted = product_is_submitted_locked(product)
+        step_status = product_step_display_status(product, report)
+        can_edit_step = (
+            product.status == ProductionShiftProduct.STATUS_DONE
+            and (
+                report.status != DailyWorkReport.STATUS_SUBMITTED
+                or employee_can_edit_submitted_report_steps(report)
+            )
         )
         session_hours = None
-        if session_mode:
-            effective = session_effective_hours(product)
-            if effective > 0:
-                session_hours = float(effective)
+        if session_mode and product.started_at and product.ended_at:
+            session_hours = float(session_effective_hours(product))
         rows.append({
             'id': product.pk,
             'product_code': product.product_code.strip() if product.product_code else '',
@@ -1490,7 +1575,6 @@ def build_hourly_grid(report: DailyWorkReport) -> dict:
             'norm_per_hour': float(product.norm_per_hour) if product.norm_per_hour is not None else None,
             'status': product.status,
             'is_unfinalized': is_unfinalized,
-            'submitted_locked': marked_submitted,
             'first_slot_index': product.first_slot_index,
             'label_code': 'Sản lượng 0' if zero_only else (
                 product.product_code.strip() if product.product_code else '—'
@@ -1504,6 +1588,9 @@ def build_hourly_grid(report: DailyWorkReport) -> dict:
             'total_quantity': total_qty,
             'is_session_reported': session_mode,
             'session_effective_hours': session_hours,
+            'step_display_status': step_status,
+            'can_edit_step': can_edit_step,
+            'submitted_locked': marked_submitted,
             'session_total': product.total_quantity,
             'session_damaged': product.total_damaged_quantity or 0,
             'session_note': product.completion_note or '',
@@ -1683,11 +1770,39 @@ def validate_production_work_hours(value):
 
 
 def validate_production_submit_efficiency(report: DailyWorkReport) -> tuple[float | None, str]:
-    """Chặn gửi báo cáo nếu hiệu suất sơ bộ vượt ngưỡng cho phép."""
+    """Chặn gửi nếu hiệu suất > 200% hoặc công đoạn có SL nhưng thời gian 0 phút."""
     products = list(
         report.production_products.prefetch_related('hourly_entries').order_by('sort_order', 'id')
     )
+    productive = _products_for_productivity(products)
+    for product in productive:
+        norm = product.norm_per_hour
+        if not norm or norm <= 0:
+            continue
+        product_qty = Decimal('0')
+        for entry in product.hourly_entries.all():
+            if not _entry_is_filled(entry):
+                continue
+            if entry.slot_index < product.first_slot_index:
+                continue
+            qty = entry.quantity or Decimal('0')
+            if qty > 0:
+                product_qty += Decimal(str(qty))
+        if product_qty <= 0:
+            continue
+        work_hours = _product_submit_work_hours(product)
+        if work_hours <= 0:
+            return None, (
+                f'Số liệu bạn gửi sai — {_zero_hour_step_label(product)} có sản lượng '
+                'nhưng thời gian công đoạn 0 phút. Vui lòng kiểm tra lại.'
+            )
+
     efficiency = _report_overall_efficiency_pct(products)
+    if efficiency is not None and efficiency < 0:
+        return efficiency, (
+            'Số liệu bạn gửi sai — hiệu suất sơ bộ không hợp lệ. '
+            'Vui lòng kiểm tra lại sản lượng, định mức và thời gian công đoạn.'
+        )
     if efficiency is not None and efficiency > PRODUCTION_MAX_SUBMIT_EFFICIENCY_PCT:
         pct_text = format(efficiency, '.2f').rstrip('0').rstrip('.')
         return efficiency, (
