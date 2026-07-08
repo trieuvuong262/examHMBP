@@ -1403,11 +1403,17 @@ def format_production_quantity(value) -> str:
 
 
 def _format_hours(value) -> str:
-    dec = Decimal(str(value)).normalize()
-    text = format(dec, 'f')
-    if '.' in text:
-        text = text.rstrip('0').rstrip('.')
-    return f'{text}h'
+    dec = Decimal(str(value)).quantize(Decimal('0.01'))
+    total_minutes = int((dec * Decimal('60')).quantize(Decimal('1')))
+    if total_minutes <= 0:
+        return '0h'
+    hours = total_minutes // 60
+    minutes = total_minutes % 60
+    if minutes == 0:
+        return f'{hours}h'
+    if hours == 0:
+        return f'{minutes}p'
+    return f'{hours}h{minutes}p'
 
 
 def _format_declared_work_hours(hours) -> str:
