@@ -10,6 +10,7 @@ from reports.models import DailyWorkReport
 from reports.period_utils import PERIOD_DAY
 from reports.production_slots import normalize_shift, shift_contains_datetime
 from reports.report_lock import production_employee_may_edit
+from reports.report_profile import REPORT_PROFILE_PRODUCTION
 
 PRODUCTION_SHIFT_ORDER = (
     DailyWorkReport.SHIFT_MORNING,
