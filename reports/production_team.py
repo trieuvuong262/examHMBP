@@ -582,7 +582,7 @@ def query_production_team_reports(team_ids, date_from, date_to):
             report_profile=REPORT_PROFILE_PRODUCTION,
             report_period=PERIOD_DAY,
         )
-        .order_by('-report_date', '-id')
+        .order_by('-submitted_at', '-report_date', '-id')
         .select_related('employee', 'employee__profile')
         .annotate(
             line_count=Count('lines'),

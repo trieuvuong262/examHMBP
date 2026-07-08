@@ -1,7 +1,9 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime, time
 from urllib.parse import urlencode
+
+from django.utils import timezone
 
 from reports.period_utils import PERIOD_DAY, PERIOD_MONTH, PERIOD_WEEK
 from reports.production_shift_policy import PRODUCTION_SHIFT_ORDER
@@ -27,7 +29,7 @@ TEAM_SORT_KEYS = frozenset({
     TEAM_SORT_EFFICIENCY,
 })
 
-DEFAULT_TEAM_SORT = TEAM_SORT_MEMBER
+DEFAULT_TEAM_SORT = TEAM_SORT_ANCHOR
 
 PERIOD_ORDER = {PERIOD_DAY: 1, PERIOD_WEEK: 2, PERIOD_MONTH: 3}
 STATUS_ORDER = {None: 0, 'DRAFT': 1, 'SUBMITTED': 2}
@@ -37,9 +39,14 @@ def resolve_team_sort(sort_key: str | None, sort_dir: str | None) -> tuple[str, 
     key = (sort_key or DEFAULT_TEAM_SORT).strip()
     if key not in TEAM_SORT_KEYS:
         key = DEFAULT_TEAM_SORT
-    direction = (sort_dir or 'asc').strip().lower()
-    if direction not in ('asc', 'desc'):
+    if sort_dir:
+        direction = sort_dir.strip().lower()
+        if direction not in ('asc', 'desc'):
+            direction = 'asc'
+    elif sort_key:
         direction = 'asc'
+    else:
+        direction = 'desc'
     return key, direction
 
 
@@ -117,15 +124,40 @@ def _member_name(row) -> str:
     return (getattr(profile, 'full_name', None) or member.username or '').casefold()
 
 
+def _date_to_sort_datetime(value: date) -> datetime:
+    dt = datetime.combine(value, time.min)
+    if timezone.is_aware(dt):
+        return dt
+    return timezone.make_aware(dt, timezone.get_current_timezone())
+
+
+def _row_anchor_sort_key(row) -> datetime:
+    production_reports = row.get('production_reports') or []
+    submitted_times = [
+        report.submitted_at
+        for report in production_reports
+        if getattr(report, 'submitted_at', None)
+    ]
+    report = row.get('report')
+    if not submitted_times and report and report.submitted_at:
+        submitted_times = [report.submitted_at]
+    if submitted_times:
+        return max(submitted_times)
+
+    anchor_date = row.get('report_date')
+    if anchor_date is None and report:
+        anchor_date = report.report_date
+    if anchor_date:
+        return _date_to_sort_datetime(anchor_date)
+    return _date_to_sort_datetime(date.min)
+
+
 def _row_sort_tuple(row, sort_key: str) -> tuple:
     report = row.get('report')
     if sort_key == TEAM_SORT_MEMBER:
         return (_member_name(row), row.get('report_date') or date.min)
     if sort_key == TEAM_SORT_ANCHOR:
-        anchor = row.get('report_date')
-        if anchor is None and report:
-            anchor = report.report_date
-        return (anchor or date.min,)
+        return (_row_anchor_sort_key(row),)
     if sort_key == TEAM_SORT_PERIOD:
         if not report:
             return (-1,)

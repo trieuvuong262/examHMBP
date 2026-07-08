@@ -150,7 +150,7 @@ def query_team_office_reports_in_range(
                 ReportComment.objects.filter(daily_report=OuterRef('pk'), author_id=OuterRef('employee_id')),
             ),
         )
-        .order_by('-report_date', 'employee__profile__full_name', 'employee__username')
+        .order_by('-submitted_at', '-report_date', 'employee__profile__full_name', 'employee__username')
     )
 
 
