@@ -1989,6 +1989,12 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
         and report.status == DailyWorkReport.STATUS_SUBMITTED
         and not report.hod_reviewed
     )
+    can_unapprove = (
+        can_review
+        and report.is_production_report
+        and report.status == DailyWorkReport.STATUS_SUBMITTED
+        and report.hod_reviewed
+    )
 
     def _detail_redirect():
         query = team_list_query_from_request(request)
@@ -2015,6 +2021,20 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
         messages.success(
             request,
             'Đã duyệt báo cáo. Bạn có thể chỉnh sửa trong 24 giờ kể từ bây giờ.',
+        )
+        return _detail_redirect()
+
+    if (
+        request.method == 'POST'
+        and request.POST.get('action') == 'unapprove_report'
+        and can_unapprove
+    ):
+        from reports.report_lock import unapprove_production_report
+
+        unapprove_production_report(report)
+        messages.success(
+            request,
+            'Đã hoàn duyệt — nhân viên có thể chỉnh sửa lại trong 24 giờ kể từ khi nộp (nếu còn hạn).',
         )
         return _detail_redirect()
 
@@ -2191,6 +2211,7 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
         'edit_report_url': edit_report_url,
         'can_review': can_review,
         'can_approve': can_approve,
+        'can_unapprove': can_unapprove,
         'can_comment': can_comment,
         'comments': _report_comments_queryset(report),
         'can_edit_norm': can_edit_norm,

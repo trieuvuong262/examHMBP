@@ -95,6 +95,12 @@ def approve_production_report(report) -> None:
     report.save(update_fields=['hod_reviewed', 'hod_reviewed_at', 'updated_at'])
 
 
+def unapprove_production_report(report) -> None:
+    report.hod_reviewed = False
+    report.hod_reviewed_at = None
+    report.save(update_fields=['hod_reviewed', 'hod_reviewed_at', 'updated_at'])
+
+
 def is_report_locked(report) -> bool:
     return bool(report.hod_reviewed)
 

@@ -61,6 +61,16 @@
                     </button>
                 </form>
                 {% endif %}
+                {% if can_unapprove %}
+                <form method="post" class="d-inline"
+                      onsubmit="return confirm('Hoàn duyệt báo cáo? Nhân viên có thể sửa lại nếu còn trong hạn 24 giờ.');">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="unapprove_report">
+                    <button type="submit" class="btn btn-outline-warning btn-sm">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i>Hoàn duyệt
+                    </button>
+                </form>
+                {% endif %}
                 {% if edit_report_url %}
                 <a href="{{ edit_report_url }}" class="btn btn-outline-hm btn-sm">
                     <i class="bi bi-pencil-square me-1"></i>
@@ -87,6 +97,8 @@
         </ul>
     </div>
     {% endif %}
+
+    {% include 'reports/includes/production_approve_actions.html' %}
 
     {% if report.hod_note %}
     <div class="jp-report-hod-note-readonly mb-3" role="note">

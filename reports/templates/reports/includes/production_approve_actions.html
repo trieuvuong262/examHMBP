@@ -1,0 +1,44 @@
+{% if report.is_production_report and report.status == 'SUBMITTED' and can_review %}
+{% if can_approve or can_unapprove %}
+<div class="card border-0 jp-report-section-card jp-prod-approve-card mb-3">
+    <div class="card-body d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 py-3">
+        <div>
+            <div class="fw-bold text-hm mb-1">
+                <i class="bi bi-clipboard-check me-1" aria-hidden="true"></i>Duyệt báo cáo
+            </div>
+            {% if can_approve %}
+            <p class="small text-muted mb-0">Báo cáo đã nộp — bấm <strong>Duyệt</strong> để chốt. Sau khi duyệt, nhân viên không sửa được; quản lý sửa trong 24 giờ.</p>
+            {% elif can_unapprove %}
+            <p class="small text-muted mb-0">
+                Đã duyệt
+                {% if report.hod_reviewed_at %}lúc {{ report.hod_reviewed_at|date:"H:i d/m/Y" }}{% endif %}
+                — bấm <strong>Hoàn duyệt</strong> để mở lại cho nhân viên (trong hạn 24h sau khi nộp).
+            </p>
+            {% endif %}
+        </div>
+        <div class="d-flex flex-wrap gap-2 flex-shrink-0">
+            {% if can_approve %}
+            <form method="post" class="mb-0"
+                  onsubmit="return confirm('Duyệt báo cáo? Sau khi duyệt, nhân viên không thể chỉnh sửa.');">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="approve_report">
+                <button type="submit" class="btn btn-hm fw-bold">
+                    <i class="bi bi-check2-circle me-1"></i>Duyệt
+                </button>
+            </form>
+            {% endif %}
+            {% if can_unapprove %}
+            <form method="post" class="mb-0"
+                  onsubmit="return confirm('Hoàn duyệt báo cáo? Nhân viên có thể sửa lại nếu còn trong hạn 24 giờ.');">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="unapprove_report">
+                <button type="submit" class="btn btn-outline-warning fw-bold">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i>Hoàn duyệt
+                </button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endif %}
