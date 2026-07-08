@@ -1,4 +1,4 @@
-{% if report.is_production_report and report.status == 'SUBMITTED' and can_review %}
+{% if report.is_production_report and report.status == 'SUBMITTED' and can_edit_norm %}
 {% if can_approve or can_unapprove %}
 <div class="card border-0 jp-report-section-card jp-prod-approve-card mb-3">
     <div class="card-body d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 py-3">

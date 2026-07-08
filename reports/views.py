@@ -1984,13 +1984,13 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
     can_edit_norm = can_edit_production_norms(request.user, report)
     list_query = team_list_query_from_request(request)
     can_approve = (
-        can_review
+        can_edit_norm
         and report.is_production_report
         and report.status == DailyWorkReport.STATUS_SUBMITTED
         and not report.hod_reviewed
     )
     can_unapprove = (
-        can_review
+        can_edit_norm
         and report.is_production_report
         and report.status == DailyWorkReport.STATUS_SUBMITTED
         and report.hod_reviewed
