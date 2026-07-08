@@ -111,6 +111,9 @@
         </div>
     </div>
     {% endif %}
+    {% if can_approve %}
+    {% include 'reports/includes/production_approve_confirm_modal.html' %}
+    {% endif %}
     {% if can_unapprove %}
     {% include 'reports/includes/production_unapprove_confirm_modal.html' %}
     {% endif %}
@@ -135,6 +138,31 @@ document.addEventListener('DOMContentLoaded', function () {
                 initFlags(document.getElementById('jp-tab-quantity'));
             });
         }
+    }
+
+    var approveModalEl = document.getElementById('prodApproveConfirmModal');
+    if (approveModalEl && window.bootstrap && bootstrap.Modal) {
+        var pendingApproveForm = null;
+        var approveModal = bootstrap.Modal.getOrCreateInstance(approveModalEl);
+        document.querySelectorAll('.js-prod-approve-trigger').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                pendingApproveForm = btn.closest('form.js-prod-approve-form');
+                if (!pendingApproveForm) return;
+                approveModal.show();
+            });
+        });
+        var approveConfirmBtn = document.getElementById('prodApproveConfirmBtn');
+        if (approveConfirmBtn) {
+            approveConfirmBtn.addEventListener('click', function () {
+                if (!pendingApproveForm) return;
+                approveModal.hide();
+                pendingApproveForm.submit();
+                pendingApproveForm = null;
+            });
+        }
+        approveModalEl.addEventListener('hidden.bs.modal', function () {
+            pendingApproveForm = null;
+        });
     }
 
     var unapproveModalEl = document.getElementById('prodUnapproveConfirmModal');

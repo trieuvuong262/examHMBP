@@ -4,7 +4,7 @@
 
 {% block extra_head %}
 <link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260624a">
-<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260708n">
+<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260708o">
 <style>
 /* Trang SX today: ẩn footer, sticky bar neo sát đáy như nút Gửi báo cáo */
 :root {
@@ -530,6 +530,14 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
             </div>
             <div class="modal-body">
+                <div class="mb-3" id="prodEfficiencyPreviewWrap">
+                    <div class="small text-muted mb-1">Hiệu suất sơ bộ</div>
+                    <div class="fs-5 fw-bold" id="prodEfficiencyPreviewValue">—</div>
+                </div>
+                <div class="alert alert-danger py-2 px-3 small mb-3 d-none" id="prodEfficiencyError" role="alert">
+                    <i class="bi bi-exclamation-octagon-fill me-1"></i>
+                    <span id="prodEfficiencyErrorText">Số liệu bạn gửi sai. Vui lòng kiểm tra lại sản lượng và định mức.</span>
+                </div>
                 <div class="mb-3">
                     <label for="prodWorkHoursInput" class="form-label fw-bold small mb-1">
                         Thời gian làm việc <span class="text-danger">*</span>
@@ -567,5 +575,5 @@
 
 {% include 'reports/includes/report_submit_loading.html' %}
 {% if hourly_grid %}{{ hourly_grid|json_script:"hourly-grid-data" }}{% endif %}
-<script src="{% static 'js/reports-production-hourly.js' %}?v=20260708h"></script>
+<script src="{% static 'js/reports-production-hourly.js' %}?v=20260708i"></script>
 {% endblock %}

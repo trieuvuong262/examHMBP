@@ -5,11 +5,10 @@
 {% elif report.is_production_report and report.status == 'SUBMITTED' %}
 <div class="d-flex flex-wrap align-items-center gap-2 jp-report-detail-hero-review-actions">
     {% if can_edit_norm and can_approve %}
-    <form method="post" class="d-inline mb-0"
-          onsubmit="return confirm('Duyệt báo cáo? Sau khi duyệt, nhân viên không thể chỉnh sửa.');">
+    <form method="post" class="d-inline mb-0 js-prod-approve-form">
         {% csrf_token %}
         <input type="hidden" name="action" value="approve_report">
-        <button type="submit" class="btn btn-hm btn-sm fw-bold">
+        <button type="button" class="btn btn-hm btn-sm fw-bold js-prod-approve-trigger">
             <i class="bi bi-check2-circle me-1"></i>Duyệt
         </button>
     </form>

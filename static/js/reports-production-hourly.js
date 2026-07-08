@@ -1,6 +1,8 @@
 (function () {
     'use strict';
 
+    var reviewGridData = null;
+
     function formatProdQty(value) {
         var n = parseFloat(value);
         if (!isFinite(n) || n === 0) return '0';
@@ -197,6 +199,7 @@
             return;
         }
 
+        reviewGridData = grid;
         var proxyMode = !!grid.proxy_mode;
 
         if (rootMobile) {
@@ -259,6 +262,135 @@
         }
     }
 
+    function getReviewGridData() {
+        if (reviewGridData) return reviewGridData;
+        var dataEl = document.getElementById('hourly-grid-data');
+        if (!dataEl) return null;
+        try {
+            return JSON.parse(dataEl.textContent);
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function formatEfficiencyPct(pct) {
+        if (pct == null || !isFinite(pct)) return '—';
+        var rounded = Math.round(pct * 100) / 100;
+        return rounded.toFixed(2).replace(/\.?0+$/, '') + '%';
+    }
+
+    function collectReviewQuantities(root) {
+        var quantities = {};
+        if (!root) return quantities;
+
+        if (root.id === 'review-grid-root-desktop') {
+            root.querySelectorAll('tr[data-product-id]').forEach(function (tr) {
+                var productId = tr.getAttribute('data-product-id');
+                quantities[productId] = {};
+                tr.querySelectorAll('.jp-review-cell-input').forEach(function (inp) {
+                    quantities[productId][inp.getAttribute('data-slot-index')] = parseProdQty(inp.value);
+                });
+            });
+        } else {
+            root.querySelectorAll('.jp-prod-review-product').forEach(function (article) {
+                var productId = article.getAttribute('data-product-id');
+                quantities[productId] = {};
+                article.querySelectorAll('.jp-prod-review-qty-input').forEach(function (inp) {
+                    quantities[productId][inp.getAttribute('data-slot-index')] = parseProdQty(inp.value);
+                });
+            });
+        }
+        return quantities;
+    }
+
+    function slotEntryHours(grid, cell, qty) {
+        if (qty <= 0) return 0;
+        if (cell.entry_hours != null && isFinite(cell.entry_hours)) {
+            return parseFloat(cell.entry_hours);
+        }
+        if (grid.slots && grid.slots[cell.slot_index] && grid.slots[cell.slot_index].duration_hours != null) {
+            return parseFloat(grid.slots[cell.slot_index].duration_hours);
+        }
+        return 1;
+    }
+
+    function computeReviewEfficiency(grid) {
+        if (!grid || !grid.rows || !grid.rows.length) return null;
+
+        var root = getActiveReviewRoot();
+        var quantities = collectReviewQuantities(root);
+        var totalQty = 0;
+        var totalExpected = 0;
+
+        grid.rows.forEach(function (row) {
+            if (row.is_zero_reason_only) return;
+            var norm = parseFloat(row.norm_per_hour);
+            if (!norm || norm <= 0) return;
+
+            var productQty = 0;
+            var productHours = 0;
+            var rowQtys = quantities[row.id] || {};
+
+            row.slots.forEach(function (cell) {
+                if (cell.is_na) return;
+                if (cell.slot_index < row.first_slot_index) return;
+                var qty = rowQtys[cell.slot_index] !== undefined
+                    ? rowQtys[cell.slot_index]
+                    : parseProdQty(cell.quantity);
+                if (qty > 0) {
+                    productQty += qty;
+                    productHours += slotEntryHours(grid, cell, qty);
+                }
+            });
+
+            if (productQty <= 0) return;
+
+            if (row.is_session_reported && row.session_effective_hours > 0) {
+                productHours = parseFloat(row.session_effective_hours);
+            }
+
+            totalQty += productQty;
+            totalExpected += norm * productHours;
+        });
+
+        if (totalExpected <= 0) return null;
+        return Math.round((totalQty / totalExpected) * 10000) / 100;
+    }
+
+    function getMaxSubmitEfficiency(grid) {
+        var max = grid && grid.max_submit_efficiency_pct;
+        return (max != null && isFinite(max)) ? parseFloat(max) : 200;
+    }
+
+    function isSubmitEfficiencyBlocked(efficiency, grid) {
+        return efficiency != null && isFinite(efficiency) && efficiency > getMaxSubmitEfficiency(grid);
+    }
+
+    function updateSubmitEfficiencyPreview() {
+        var grid = getReviewGridData();
+        var previewValue = document.getElementById('prodEfficiencyPreviewValue');
+        var previewWrap = document.getElementById('prodEfficiencyPreviewWrap');
+        var errorEl = document.getElementById('prodEfficiencyError');
+        var confirmBtn = document.getElementById('prodSubmitConfirmBtn');
+        var efficiency = computeReviewEfficiency(grid);
+        var blocked = isSubmitEfficiencyBlocked(efficiency, grid);
+
+        if (previewValue) {
+            previewValue.textContent = formatEfficiencyPct(efficiency);
+            previewValue.classList.toggle('text-danger', blocked);
+        }
+        if (previewWrap) {
+            previewWrap.classList.toggle('jp-prod-efficiency--blocked', blocked);
+        }
+        if (errorEl) {
+            errorEl.classList.toggle('d-none', !blocked);
+        }
+        if (confirmBtn) {
+            confirmBtn.disabled = blocked;
+        }
+        return { efficiency: efficiency, blocked: blocked };
+    }
+
     function initSubmitConfirm() {
         var modalEl = document.getElementById('prodSubmitConfirmModal');
         if (!modalEl || typeof bootstrap === 'undefined') return;
@@ -295,6 +427,7 @@
                 if (!pendingForm) return;
                 fillReviewPayload();
                 clearWorkHoursError();
+                updateSubmitEfficiencyPreview();
                 openModal(modalEl);
             });
         });
@@ -308,6 +441,10 @@
                 }
                 fillReviewPayload();
                 clearWorkHoursError();
+                var efficiencyCheck = updateSubmitEfficiencyPreview();
+                if (efficiencyCheck.blocked) {
+                    return;
+                }
                 var check = validateProdWorkHours(workHoursInput ? workHoursInput.value : '');
                 if (!check.ok) {
                     showWorkHoursError(check.message);
@@ -333,6 +470,13 @@
         modalEl.addEventListener('hidden.bs.modal', function () {
             pendingForm = null;
             clearWorkHoursError();
+            if (confirmBtn) {
+                confirmBtn.disabled = false;
+            }
+            var errorEl = document.getElementById('prodEfficiencyError');
+            if (errorEl) {
+                errorEl.classList.add('d-none');
+            }
         });
     }
 

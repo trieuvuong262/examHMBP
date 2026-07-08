@@ -735,6 +735,9 @@ def product_slot_cell(product: ProductionShiftProduct, slot_index: int) -> dict:
     display = ''
     if entry and filled:
         display = format_production_quantity(qty) if qty > 0 else '0'
+    entry_hours_val = None
+    if filled and qty > 0:
+        entry_hours_val = float(_entry_hours(entry))
     return {
         'slot_index': slot_index,
         'slot_label': slot.label if slot else str(slot_index),
@@ -750,6 +753,7 @@ def product_slot_cell(product: ProductionShiftProduct, slot_index: int) -> dict:
         'entry_id': entry.pk if entry else None,
         'show_cumulative': not session_mode,
         'is_session_split': session_mode,
+        'entry_hours': entry_hours_val,
     }
 
 
@@ -1420,15 +1424,7 @@ def format_production_quantity(value) -> str:
 def _format_hours(value) -> str:
     dec = Decimal(str(value)).quantize(Decimal('0.01'))
     total_minutes = int((dec * Decimal('60')).quantize(Decimal('1')))
-    if total_minutes <= 0:
-        return '0g'
-    hours = total_minutes // 60
-    minutes = total_minutes % 60
-    if minutes == 0:
-        return f'{hours}g'
-    if hours == 0:
-        return f'{minutes}p'
-    return f'{hours}g{minutes}p'
+    return _format_hours_minutes_vn(total_minutes, zero_value='0')
 
 
 def _format_declared_work_hours(hours) -> str:
@@ -1472,6 +1468,11 @@ def build_hourly_grid(report: DailyWorkReport) -> dict:
         marked_submitted = (
             not is_unfinalized and product_shows_as_submitted(product, report)
         )
+        session_hours = None
+        if session_mode:
+            effective = session_effective_hours(product)
+            if effective > 0:
+                session_hours = float(effective)
         rows.append({
             'id': product.pk,
             'product_code': product.product_code.strip() if product.product_code else '',
@@ -1492,6 +1493,7 @@ def build_hourly_grid(report: DailyWorkReport) -> dict:
             'slots': slots,
             'total_quantity': total_qty,
             'is_session_reported': session_mode,
+            'session_effective_hours': session_hours,
             'session_total': product.total_quantity,
             'session_damaged': product.total_damaged_quantity or 0,
             'session_note': product.completion_note or '',
@@ -1499,13 +1501,19 @@ def build_hourly_grid(report: DailyWorkReport) -> dict:
             'started_at_display': started_display,
             'ended_at_display': ended_display,
         })
+    productive = _products_for_productivity(products)
     return {
-        'slots': [slot_grid_meta(s) for s in hourly_slots],
+        'slots': [
+            {**slot_grid_meta(s), 'duration_hours': float(slot_duration_hours(s))}
+            for s in hourly_slots
+        ],
         'rows': rows,
         'grand_total': sum(r['total_quantity'] for r in rows),
         'has_unfinalized': any(r['is_unfinalized'] for r in rows),
         'shift': shift,
         'uses_session_reporting': bool(rows) and all(r['is_session_reported'] for r in rows),
+        'overall_efficiency_pct': _report_overall_efficiency_pct(productive),
+        'max_submit_efficiency_pct': PRODUCTION_MAX_SUBMIT_EFFICIENCY_PCT,
     }
 
 
@@ -1523,6 +1531,7 @@ def product_slot_cell_proxy(product: ProductionShiftProduct, slot_index: int) ->
     if entry and filled:
         display = format_production_quantity(qty) if qty > 0 else '0'
     slot = slot_by_index(slot_index, shift)
+    hours = slot_duration_hours(slot) if slot else Decimal('1')
     return {
         'slot_index': slot_index,
         'slot_label': slot.label if slot else str(slot_index),
@@ -1535,6 +1544,7 @@ def product_slot_cell_proxy(product: ProductionShiftProduct, slot_index: int) ->
         'damaged_quantity': damaged,
         'note': entry_note,
         'entry_id': entry.pk if entry else None,
+        'entry_hours': float(hours),
     }
 
 
@@ -1571,13 +1581,19 @@ def build_proxy_entry_grid(report: DailyWorkReport) -> dict:
             'slots': slots,
             'total_quantity': total_qty,
         })
+    productive = _products_for_productivity(products)
     return {
-        'slots': [slot_grid_meta(s) for s in hourly_slots],
+        'slots': [
+            {**slot_grid_meta(s), 'duration_hours': float(slot_duration_hours(s))}
+            for s in hourly_slots
+        ],
         'rows': rows,
         'grand_total': sum(r['total_quantity'] for r in rows),
         'has_unfinalized': any(r['is_unfinalized'] for r in rows),
         'proxy_mode': True,
         'shift': shift,
+        'overall_efficiency_pct': _report_overall_efficiency_pct(productive),
+        'max_submit_efficiency_pct': PRODUCTION_MAX_SUBMIT_EFFICIENCY_PCT,
     }
 
 
@@ -1643,6 +1659,7 @@ def parse_non_negative_decimal(value, default=Decimal('0')):
 
 PRODUCTION_WORK_HOURS_MIN = Decimal('8')
 PRODUCTION_WORK_HOURS_MAX = Decimal('16')
+PRODUCTION_MAX_SUBMIT_EFFICIENCY_PCT = 200
 
 
 def validate_production_work_hours(value):
@@ -1653,6 +1670,21 @@ def validate_production_work_hours(value):
     if hours <= PRODUCTION_WORK_HOURS_MIN or hours >= PRODUCTION_WORK_HOURS_MAX:
         return None, 'Thời gian làm việc phải lớn hơn 8 và nhỏ hơn 16 giờ.'
     return hours, ''
+
+
+def validate_production_submit_efficiency(report: DailyWorkReport) -> tuple[float | None, str]:
+    """Chặn gửi báo cáo nếu hiệu suất sơ bộ vượt ngưỡng cho phép."""
+    products = list(
+        report.production_products.prefetch_related('hourly_entries').order_by('sort_order', 'id')
+    )
+    efficiency = _report_overall_efficiency_pct(products)
+    if efficiency is not None and efficiency > PRODUCTION_MAX_SUBMIT_EFFICIENCY_PCT:
+        pct_text = format(efficiency, '.2f').rstrip('0').rstrip('.')
+        return efficiency, (
+            f'Số liệu bạn gửi sai — hiệu suất sơ bộ {pct_text}% vượt '
+            f'{PRODUCTION_MAX_SUBMIT_EFFICIENCY_PCT}%. Vui lòng kiểm tra lại sản lượng và định mức.'
+        )
+    return efficiency, ''
 
 
 def parse_int(value, default=0):
