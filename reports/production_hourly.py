@@ -981,7 +981,7 @@ def compute_day_work_waste_summary(
         'work_minutes': work_minutes,
         'waste_minutes': waste_minutes,
         'work_minutes_display': _format_duration_minutes(work_minutes) if work_minutes > 0 else '—',
-        'waste_minutes_display': _format_duration_minutes(waste_minutes) if waste_minutes > 0 else '—',
+        'waste_minutes_display': _format_duration_minutes(waste_minutes) if waste_minutes > 0 else '0',
         'has_waste': waste_minutes > 0,
     }
 
