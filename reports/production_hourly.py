@@ -674,6 +674,35 @@ def session_time_displays(product: ProductionShiftProduct) -> tuple[str, str]:
     return start.strftime('%H:%M'), end.strftime('%H:%M')
 
 
+def session_effective_hours(product: ProductionShiftProduct) -> Decimal:
+    """Giờ làm thực của 1 công đoạn theo mốc bắt đầu/kết thúc, trừ giờ nghỉ ca.
+
+    Dùng mốc tới phút (khớp HH:MM hiển thị) để tránh lệch do giây/micro-giây
+    khi nhập tay cộng thời gian.
+    """
+    if not product.started_at or not product.ended_at:
+        return Decimal('0')
+    start = timezone.localtime(product.started_at).replace(second=0, microsecond=0)
+    end = timezone.localtime(product.ended_at).replace(second=0, microsecond=0)
+    if end <= start:
+        return Decimal('0')
+
+    minutes = Decimal(str((end - start).total_seconds() / 60))
+    report_date = product.report.report_date
+    shift = _shift_for_product(product)
+    for break_start, break_end in shift_break_intervals(report_date, shift):
+        local_break_start = timezone.localtime(break_start).replace(second=0, microsecond=0)
+        local_break_end = timezone.localtime(break_end).replace(second=0, microsecond=0)
+        overlap_start = max(start, local_break_start)
+        overlap_end = min(end, local_break_end)
+        if overlap_end > overlap_start:
+            minutes -= Decimal(str((overlap_end - overlap_start).total_seconds() / 60))
+    if minutes < 0:
+        minutes = Decimal('0')
+    minutes = minutes.quantize(Decimal('1'))
+    return (minutes / Decimal('60')).quantize(Decimal('0.01'))
+
+
 def product_slot_cell(product: ProductionShiftProduct, slot_index: int) -> dict:
     shift = _shift_for_product(product)
     slot = slot_by_index(slot_index, shift)
@@ -895,6 +924,9 @@ def _report_efficiency_totals(
         norm = product.norm_per_hour
         if not norm or norm <= 0:
             continue
+        session_mode = is_session_reported_product(product)
+        product_qty = Decimal('0')
+        product_hours = Decimal('0')
         for entry in product.hourly_entries.all():
             if not _entry_is_filled(entry):
                 continue
@@ -904,9 +936,18 @@ def _report_efficiency_totals(
             if qty <= 0:
                 continue
             hours = _entry_hours(entry)
-            total_qty += Decimal(str(qty))
-            total_hours += hours
-            total_expected += norm * hours
+            product_qty += Decimal(str(qty))
+            product_hours += hours
+        if product_qty <= 0:
+            continue
+        # Với công đoạn nhập theo phiên, ưu tiên giờ thực theo mốc bắt đầu/kết thúc.
+        if session_mode:
+            effective_hours = session_effective_hours(product)
+            if effective_hours > 0:
+                product_hours = effective_hours
+        total_qty += product_qty
+        total_hours += product_hours
+        total_expected += norm * product_hours
     return total_qty, total_hours, total_expected
 
 
@@ -1168,6 +1209,7 @@ def build_productivity_report(report: DailyWorkReport) -> dict:
         code = (product.product_code or '').strip() or '—'
         process = (product.process_name or '').strip() or 'Chưa gắn mã'
         norm = product.norm_per_hour
+        session_mode = is_session_reported_product(product)
         prod_qty = 0
         prod_hours = Decimal('0')
         prod_expected = Decimal('0')
@@ -1191,9 +1233,6 @@ def build_productivity_report(report: DailyWorkReport) -> dict:
                 prod_qty += qty
                 prod_hours += hours
                 prod_expected += expected
-                total_qty += qty
-                total_hours += hours
-                total_expected += expected
 
             hourly_rows.append({
                 'product_id': product.id,
@@ -1211,6 +1250,12 @@ def build_productivity_report(report: DailyWorkReport) -> dict:
                 'note': (entry.note or '').strip(),
                 'is_unfinalized': not (product.product_code or '').strip(),
             })
+
+        if session_mode and prod_qty > 0 and norm and norm > 0:
+            effective_hours = session_effective_hours(product)
+            if effective_hours > 0:
+                prod_hours = effective_hours
+                prod_expected = norm * effective_hours
 
         if prod_qty > 0 and norm and norm > 0:
             started_display, ended_display = session_time_displays(product)
