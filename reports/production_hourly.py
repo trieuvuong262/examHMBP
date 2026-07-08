@@ -892,11 +892,41 @@ def _report_has_overtime_activity(
     return False
 
 
+REGULAR_SHIFT_END_GRACE_MINUTES = 30
+
+
+def _early_end_waste_minutes(
+    actual_end: datetime,
+    regular_end: datetime,
+    accounting_end: datetime,
+    *,
+    grace_minutes: int = REGULAR_SHIFT_END_GRACE_MINUTES,
+) -> Decimal:
+    """Hao phí do kết thúc sớm.
+
+    - Trước 18h: chỉ tính đến cuối ca thường (không cộng khung tăng ca).
+    - 18h00–18h30: không tính thêm hao phí tăng ca.
+    - Sau 18h30 (nếu có OT): tính phần còn lại đến cuối khung OT.
+    """
+    grace_end = regular_end + timedelta(minutes=grace_minutes)
+    if actual_end <= regular_end:
+        return Decimal(str((regular_end - actual_end).total_seconds() / 60))
+    if actual_end <= grace_end:
+        return Decimal('0')
+    if actual_end < accounting_end:
+        return Decimal(str((accounting_end - actual_end).total_seconds() / 60))
+    return Decimal('0')
+
+
 def compute_day_work_waste_summary(
     report: DailyWorkReport,
     products: list[ProductionShiftProduct],
 ) -> dict:
-    """Thời gian làm / hao phí theo giờ thực tế so với khung ca (không tính tăng ca nếu không có OT)."""
+    """Thời gian làm / hao phí theo giờ thực tế so với khung ca.
+
+    Kết thúc trong 30 phút sau 18h (ca sáng) không tính hao phí tăng ca.
+    Kết thúc trước 18h chỉ tính hao phí đến 18h, không kéo dài đến 23h.
+    """
     empty = {
         'work_minutes': Decimal('0'),
         'waste_minutes': Decimal('0'),
@@ -934,8 +964,7 @@ def compute_day_work_waste_summary(
         if has_overtime and ot_slots
         else regular_end
     )
-    if actual_end < accounting_end:
-        waste_minutes += Decimal(str((accounting_end - actual_end).total_seconds() / 60))
+    waste_minutes += _early_end_waste_minutes(actual_end, regular_end, accounting_end)
 
     work_minutes = Decimal(str((actual_end - actual_start).total_seconds() / 60))
     for break_start, break_end in shift_break_intervals(report_date, shift):
