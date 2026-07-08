@@ -129,6 +129,23 @@ def employee_can_edit_submitted_report_steps(report: DailyWorkReport) -> bool:
     return production_employee_may_edit(report)
 
 
+def report_steps_editable_for_viewer(viewer, report: DailyWorkReport) -> bool:
+    """Công đoạn đã hoàn tất có được sửa trên màn tổng kết hay không."""
+    if not report or not report.pk:
+        return False
+    if can_edit_production_norms(viewer, report):
+        if report.status != DailyWorkReport.STATUS_SUBMITTED:
+            return False
+        if report.hod_reviewed:
+            return production_manager_may_edit(report)
+        return production_employee_may_edit(report)
+    if report.employee_id != viewer.id:
+        return False
+    if report.status == DailyWorkReport.STATUS_SUBMITTED:
+        return employee_can_edit_submitted_report_steps(report)
+    return production_employee_may_edit(report)
+
+
 def product_may_be_edited_by(
     viewer,
     report,
@@ -140,21 +157,7 @@ def product_may_be_edited_by(
         return False
     if product.status != ProductionShiftProduct.STATUS_DONE:
         return False
-    if content_edit_only:
-        if can_edit_production_norms(viewer, report):
-            if report.hod_reviewed:
-                return production_manager_may_edit(report)
-            return production_employee_may_edit(report)
-        if report.employee_id == viewer.id:
-            return employee_can_edit_submitted_report_steps(report)
-        return False
-    if report.employee_id != viewer.id:
-        return False
-    if not production_employee_may_edit(report):
-        return False
-    if report.status == DailyWorkReport.STATUS_SUBMITTED:
-        return True
-    return not product_is_submitted_locked(product)
+    return report_steps_editable_for_viewer(viewer, report)
 
 
 def lock_production_report_on_supervisor_view(report, viewer) -> bool:
@@ -1527,7 +1530,7 @@ def _format_declared_work_hours(hours) -> str:
     return _format_hours_minutes_vn(total_minutes, zero_value='—')
 
 
-def build_hourly_grid(report: DailyWorkReport) -> dict:
+def build_hourly_grid(report: DailyWorkReport, *, steps_editable: bool | None = None) -> dict:
     """Bảng tổng — gồm mã đã kết thúc và phiên đang nhập (chưa gắn mã hàng)."""
     shift = _shift_for_report(report)
     slot_count = slot_count_for_shift(shift)
@@ -1535,6 +1538,11 @@ def build_hourly_grid(report: DailyWorkReport) -> dict:
     products = list(
         report.production_products.prefetch_related('hourly_entries').order_by('sort_order', 'id')
     )
+    if steps_editable is None:
+        steps_editable = (
+            report.status != DailyWorkReport.STATUS_SUBMITTED
+            or employee_can_edit_submitted_report_steps(report)
+        )
     rows = []
     for product in products:
         if not _product_visible_in_grid(product):
@@ -1560,10 +1568,7 @@ def build_hourly_grid(report: DailyWorkReport) -> dict:
         step_status = product_step_display_status(product, report)
         can_edit_step = (
             product.status == ProductionShiftProduct.STATUS_DONE
-            and (
-                report.status != DailyWorkReport.STATUS_SUBMITTED
-                or employee_can_edit_submitted_report_steps(report)
-            )
+            and steps_editable
         )
         session_hours = None
         if session_mode and product.started_at and product.ended_at:

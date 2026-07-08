@@ -42,6 +42,7 @@ from reports.production_hourly import (
     ensure_submitted_steps_locked,
     lock_production_steps_on_submit,
     employee_can_edit_submitted_report_steps,
+    report_steps_editable_for_viewer,
     product_is_submitted_locked,
     product_may_be_edited_by,
     production_server_now,
@@ -86,6 +87,17 @@ def _parse_production_shift(request, *, report=None) -> str:
     if shift in PRODUCTION_SHIFT_ORDER:
         return shift
     return ''
+
+
+def _hourly_grid_for_viewer(report, viewer, *, started: bool = True):
+    if not report or not report.pk:
+        return None
+    if not started and not shift_is_started(report):
+        return None
+    return build_hourly_grid(
+        report,
+        steps_editable=report_steps_editable_for_viewer(viewer, report),
+    )
 
 
 def _apply_review_payload(report, payload_str, *, relax_slot_scope=False, unlock_on_edit=False):
@@ -312,6 +324,7 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
         report.status = DailyWorkReport.STATUS_DRAFT
         report.submitted_at = None
         report.save(update_fields=['status', 'submitted_at', 'updated_at'])
+        report.production_products.filter(submitted_locked=True).update(submitted_locked=False)
         return redirect(_production_redirect(report_date, shift, for_user or None))
 
     if action == 'start_product':
@@ -455,7 +468,8 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
             product,
             content_edit_only=content_edit_only,
         ):
-            messages.warning(request, 'Công đoạn này không thể sửa.')
+            denied = production_edit_denied_message(report, viewer=request.user)
+            messages.warning(request, denied or 'Công đoạn này không thể sửa.')
             return redirect(_production_redirect(report_date, shift, for_user or None, content_edit_extra if content_edit_only else 'phase=review'))
         code = (request.POST.get('product_code') or '').strip()
         process = (request.POST.get('process_name') or '').strip()
@@ -887,9 +901,9 @@ def today_production_hourly(request, report_date, report_context_common):
         if phase in ('', 'working', 'hourly'):
             phase = 'proxy'
     elif editing_for_other and content_edit_only:
-        grid = build_hourly_grid(report) if report.pk and shift_is_started(report) else None
+        grid = _hourly_grid_for_viewer(report, request.user, started=shift_is_started(report))
     else:
-        grid = build_hourly_grid(report) if started else None
+        grid = _hourly_grid_for_viewer(report, request.user, started=started)
         if not phase:
             if awaiting_product:
                 phase = 'complete_product'
