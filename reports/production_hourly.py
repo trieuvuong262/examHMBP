@@ -88,7 +88,7 @@ def lock_production_steps_on_submit(report: DailyWorkReport) -> int:
 
 
 def ensure_submitted_steps_locked(report: DailyWorkReport) -> int:
-    """Nếu báo cáo đang SUBMITTED mà công đoạn chưa chốt — tự chốt (heal dữ liệu cũ)."""
+    """Chốt công đoạn khi gửi báo cáo (hoặc heal thủ công). Không gọi khi load trang — sẽ ghi đè trạng thái «Cập nhật» sau khi NV sửa."""
     if not report or not report.pk:
         return 0
     if report.status != DailyWorkReport.STATUS_SUBMITTED:
