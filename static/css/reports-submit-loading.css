@@ -8,8 +8,21 @@
     align-items: center;
     justify-content: center;
     padding: 1rem;
+    background: transparent;
+}
+
+.jp-report-submit-loading::before,
+.jp-report-submit-success::before,
+.jp-report-submit-error::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
     background: rgba(15, 23, 42, 0.72);
+    /* Blur chỉ nền phía sau — không áp lên hộp popup */
     backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    pointer-events: none;
 }
 
 .jp-report-submit-loading[hidden],
@@ -21,14 +34,22 @@
 .jp-report-submit-loading-box,
 .jp-report-submit-success-box,
 .jp-report-submit-error-box {
+    position: relative;
+    z-index: 1;
     width: min(100%, 22rem);
     padding: 1.75rem 1.5rem;
     border-radius: 1rem;
     background: #fff;
-    box-shadow: 0 1rem 2.5rem rgba(15, 23, 42, 0.22);
+    box-shadow: 0 1rem 2.5rem rgba(15, 23, 42, 0.28);
     text-align: center;
     animation: jpReportSubmitPop 0.28s ease-out forwards;
     pointer-events: auto;
+    /* Đảm bảo không bị backdrop-filter của lớp nền làm mờ */
+    isolation: isolate;
+    filter: none;
+    opacity: 1;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
 }
 
 .jp-report-submit-success-icon,
