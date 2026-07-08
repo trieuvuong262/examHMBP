@@ -343,7 +343,9 @@
                 {% if is_submitted and can_edit and not is_locked %}
                 <div class="alert alert-success border-0 small mb-3 py-2">
                     Đã gửi lúc {{ report.submitted_at|date:"H:i d/m/Y" }}.
-                    {% if employee_edit_deadline %}
+                    {% if content_edit_only %}
+                    Chỉ sửa mã hàng, công đoạn, định mức và sản lượng — không đổi thời gian.
+                    {% elif employee_edit_deadline %}
                     Sửa được đến {{ employee_edit_deadline|date:"H:i d/m/Y" }} (trước khi duyệt).
                     {% endif %}
                 </div>
@@ -373,8 +375,15 @@
                 {% endif %}
 
                 {% if hourly_grid.rows %}
-                {% if hourly_grid.uses_session_reporting and not proxy_mode %}
+                {% if hourly_grid.uses_session_reporting and (not proxy_mode or content_edit_only) %}
                 {% include 'reports/includes/production_session_summary_list.html' %}
+                {% elif content_edit_only %}
+                <div class="d-md-none">
+                    {% include 'reports/includes/production_hourly_mobile_readonly.html' %}
+                </div>
+                <div class="d-none d-md-block">
+                    {% include 'reports/includes/production_hourly_grid.html' with hourly_grid=hourly_grid report=report %}
+                </div>
                 {% elif can_edit or can_add_entry %}
                 <div id="review-grid-root" class="jp-prod-review-mobile d-md-none"></div>
                 <div id="review-grid-root-desktop" class="jp-prod-review-desktop d-none d-md-block"></div>
@@ -391,7 +400,21 @@
                 {% endif %}
             </section>
 
-            {% if can_edit or can_resume_entry or can_add_entry %}
+            {% if content_edit_only %}
+            <div class="jp-prod-review-desktop-bar d-none d-md-flex">
+                <p class="text-muted small mb-0 me-auto">Chỉ sửa mã hàng, công đoạn, định mức và sản lượng — không đổi thời gian.</p>
+                {% if detail_url %}
+                <a href="{{ detail_url }}" class="btn btn-outline-hm fw-bold px-4">Quay lại báo cáo</a>
+                {% endif %}
+            </div>
+            <div class="jp-prod-review-sticky d-md-none">
+                <p class="text-muted small mb-2">Chỉ sửa mã hàng, công đoạn, định mức và sản lượng.</p>
+                {% if detail_url %}
+                <a href="{{ detail_url }}" class="btn btn-outline-hm w-100 fw-bold">Quay lại báo cáo</a>
+                {% endif %}
+            </div>
+            <div class="jp-prod-review-sticky-spacer d-md-none" aria-hidden="true"></div>
+            {% elif can_edit or can_resume_entry or can_add_entry %}
             <div class="jp-prod-review-sticky d-md-none">
                 {% if production_entry_closed %}
                 {% include 'reports/includes/production_resume_entry_button.html' with btn_class='btn-lg' %}

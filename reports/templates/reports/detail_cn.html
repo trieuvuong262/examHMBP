@@ -7,13 +7,6 @@
 {% endblock %}
 
 {% block detail_body %}
-    {% if can_edit_norm and productivity and productivity.has_data %}
-    <form method="post" id="jp-prod-norm-form" class="d-none" aria-hidden="true">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="update_norms">
-    </form>
-    {% endif %}
-
     {% if productivity and productivity.has_data or hourly_grid %}
     <div class="card border-0 jp-report-section-card jp-report-tabs-card mb-4">
         <ul class="nav nav-tabs jp-report-tabs" id="jpReportDetailTabs" role="tablist">
@@ -82,10 +75,6 @@
         </div>
     </div>
 
-    {% if can_edit_norm and productivity and productivity.has_data %}
-    {% include 'reports/includes/production_norm_edit_modal.html' %}
-    {% endif %}
-
     {% elif not hourly_grid %}
     <div class="card border-0 shadow-sm overflow-hidden mb-4">
         <div class="table-responsive">
@@ -121,181 +110,6 @@
 {% endblock %}
 
 {% block detail_inline_scripts %}
-{% if can_edit_norm and productivity and productivity.has_data %}
-<script>
-(function () {
-    function efficiencyClass(eff) {
-        var v = parseFloat(eff);
-        if (isNaN(v)) return 'jp-eff is-none';
-        if (v >= 120) return 'jp-eff is-high';
-        if (v >= 100) return 'jp-eff is-norm';
-        if (v >= 80) return 'jp-eff is-ok';
-        return 'jp-eff is-low';
-    }
-
-    function formatEfficiencyPct(value) {
-        if (value === null || value === undefined) return null;
-        return String(value).replace('.', ',');
-    }
-
-    function efficiencyPct(qty, hours, norm) {
-        qty = parseFloat(qty);
-        hours = parseFloat(hours);
-        norm = parseFloat(norm);
-        if (!qty || !hours || !norm || norm <= 0) return null;
-        return formatEfficiencyPct((qty / (norm * hours) * 100).toFixed(2));
-    }
-
-    function applyProductFields(productId, codeValue, processValue, normValue) {
-        document.querySelectorAll('.jp-prod-summary-row[data-product-id="' + productId + '"]').forEach(function (row) {
-            var qty = row.getAttribute('data-quantity');
-            var hours = row.getAttribute('data-hours');
-            var codeDisplay = row.querySelector('.jp-prod-code-display');
-            if (codeDisplay) {
-                codeDisplay.textContent = (codeValue || '').trim() || '—';
-            }
-            var processDisplay = row.querySelector('.jp-prod-process-display');
-            if (processDisplay) {
-                processDisplay.textContent = (processValue || '').trim() || '—';
-            }
-            if (normValue !== undefined) {
-                var norm = parseFloat(normValue);
-                var normDisplay = row.querySelector('.jp-prod-norm-display');
-                if (normDisplay) {
-                    normDisplay.textContent = norm > 0 ? Math.round(norm) : '—';
-                }
-                var effCell = row.querySelector('.jp-prod-eff-cell');
-                if (effCell) {
-                    var eff = efficiencyPct(qty, hours, norm);
-                    if (eff === null) {
-                        effCell.innerHTML = '<span class="jp-eff is-none">—</span>';
-                        return;
-                    }
-                    effCell.innerHTML = '<span class="' + efficiencyClass(eff) + '">' + eff + '%</span>';
-                }
-            }
-        });
-    }
-
-    function applyNorm(productId, normValue) {
-        var rowInput = document.querySelector('.jp-prod-norm-modal-row[data-product-id="' + productId + '"]');
-        var codeInput = rowInput && rowInput.querySelector('.jp-prod-code-input');
-        var processInput = rowInput && rowInput.querySelector('.jp-prod-process-input');
-        applyProductFields(
-            productId,
-            codeInput ? codeInput.value : undefined,
-            processInput ? processInput.value : undefined,
-            normValue
-        );
-    }
-
-    function resetDeleteMarks() {
-        var form = document.getElementById('jp-prod-norm-form');
-        if (form) {
-            form.querySelectorAll('.jp-prod-delete-flag').forEach(function (el) { el.remove(); });
-        }
-        document.querySelectorAll('.jp-prod-norm-modal-row.is-marked-delete').forEach(function (row) {
-            row.classList.remove('is-marked-delete');
-            row.querySelectorAll('input').forEach(function (inp) { inp.disabled = false; });
-            var delBtn = row.querySelector('.jp-prod-norm-delete-btn');
-            if (delBtn) {
-                delBtn.disabled = false;
-                delBtn.innerHTML = '<i class="bi bi-trash" aria-hidden="true"></i>';
-            }
-        });
-        document.querySelectorAll('.jp-prod-summary-row.is-marked-delete').forEach(function (row) {
-            row.classList.remove('is-marked-delete');
-        });
-    }
-
-    function markProductForDelete(productId) {
-        var row = modal && modal.querySelector('.jp-prod-norm-modal-row[data-product-id="' + productId + '"]');
-        if (!row || row.classList.contains('is-marked-delete')) return;
-        row.classList.add('is-marked-delete');
-        row.querySelectorAll('input').forEach(function (inp) { inp.disabled = true; });
-        var delBtn = row.querySelector('.jp-prod-norm-delete-btn');
-        if (delBtn) {
-            delBtn.disabled = true;
-            delBtn.innerHTML = '<i class="bi bi-check-lg" aria-hidden="true"></i>';
-        }
-        var form = document.getElementById('jp-prod-norm-form');
-        if (!form || form.querySelector('.jp-prod-delete-flag[data-product-id="' + productId + '"]')) return;
-        var hidden = document.createElement('input');
-        hidden.type = 'hidden';
-        hidden.name = 'delete_product_' + productId;
-        hidden.value = '1';
-        hidden.className = 'jp-prod-delete-flag';
-        hidden.setAttribute('data-product-id', productId);
-        form.appendChild(hidden);
-        document.querySelectorAll('.jp-prod-summary-row[data-product-id="' + productId + '"]').forEach(function (r) {
-            r.classList.add('is-marked-delete');
-        });
-    }
-
-    var modal = document.getElementById('jpProdNormModal');
-    if (modal && modal.parentElement !== document.body) {
-        document.body.appendChild(modal);
-    }
-    var normInputs = document.querySelectorAll('#jpProdNormModal .jp-prod-norm-input[data-product-id]');
-    var codeInputs = document.querySelectorAll('#jpProdNormModal .jp-prod-code-input[data-product-id]');
-    var processInputs = document.querySelectorAll('#jpProdNormModal .jp-prod-process-input[data-product-id]');
-    if (!normInputs.length && !codeInputs.length && !processInputs.length) return;
-    var byProduct = {};
-    function trackInput(input, field) {
-        var id = input.getAttribute('data-product-id');
-        if (!byProduct[id]) byProduct[id] = {};
-        byProduct[id][field] = input;
-    }
-    normInputs.forEach(function (input) { trackInput(input, 'norm'); });
-    codeInputs.forEach(function (input) { trackInput(input, 'code'); });
-    processInputs.forEach(function (input) { trackInput(input, 'process'); });
-
-    function syncRowPreview(productId) {
-        var group = byProduct[productId] || {};
-        applyProductFields(
-            productId,
-            group.code ? group.code.value : undefined,
-            group.process ? group.process.value : undefined,
-            group.norm ? group.norm.value : undefined
-        );
-    }
-
-    codeInputs.forEach(function (input) {
-        input.addEventListener('input', function () {
-            syncRowPreview(input.getAttribute('data-product-id'));
-        });
-    });
-    processInputs.forEach(function (input) {
-        input.addEventListener('input', function () {
-            syncRowPreview(input.getAttribute('data-product-id'));
-        });
-    });
-    normInputs.forEach(function (input) {
-        input.addEventListener('input', function () {
-            var productId = input.getAttribute('data-product-id');
-            syncRowPreview(productId);
-        });
-    });
-
-    if (modal) {
-        modal.addEventListener('show.bs.modal', function () {
-            resetDeleteMarks();
-        });
-        modal.querySelectorAll('.jp-prod-norm-delete-btn').forEach(function (btn) {
-            btn.addEventListener('click', function () {
-                var productId = btn.getAttribute('data-product-id');
-                if (!productId) return;
-                var row = modal.querySelector('.jp-prod-norm-modal-row[data-product-id="' + productId + '"]');
-                var label = row && row.querySelector('.jp-prod-process-input');
-                var name = label && label.value ? label.value.trim() : 'công đoạn này';
-                if (!window.confirm('Xóa «' + name + '» khỏi báo cáo? (Lưu thay đổi để áp dụng)')) return;
-                markProductForDelete(productId);
-            });
-        });
-    }
-})();
-</script>
-{% endif %}
 {% endblock %}
 
 {% block detail_scripts %}

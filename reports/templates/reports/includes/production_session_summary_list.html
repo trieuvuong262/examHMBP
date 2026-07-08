@@ -44,7 +44,7 @@
                 <i class="bi bi-clock me-1"></i>{{ row.session_time_label }}
             </p>
             {% endif %}
-            {% if can_edit and not is_locked and not row.submitted_locked %}
+            {% if can_edit and not is_locked and (content_edit_only or not row.submitted_locked) %}
             <div class="mt-2">
                 <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse"
                         data-bs-target="#session-edit-{{ row.id }}" aria-expanded="false"
@@ -58,6 +58,7 @@
                     <input type="hidden" name="action" value="edit_session">
                     <input type="hidden" name="product_id" value="{{ row.id }}">
                     {% if for_user_param %}<input type="hidden" name="for_user" value="{{ for_user_param }}">{% endif %}
+                    {% if content_edit_only %}<input type="hidden" name="edit_content" value="1">{% endif %}
                     {% if row.is_zero_reason_only %}
                     <div class="mb-2">
                         <label class="form-label fw-bold small mb-1">Tổng sản lượng</label>

@@ -26,14 +26,5 @@
         {% if report.employee_id == request.user.id %}Sửa{% else %}Chỉnh sửa{% endif %}
     </a>
     {% endif %}
-    {% if can_edit_norm and not report.hod_reviewed and not report.is_hod_rejected %}
-    <button type="button"
-        class="btn btn-outline-hm btn-sm"
-        data-bs-toggle="modal"
-        data-bs-target="#jpProdNormModal"
-        title="Chỉnh sửa mã hàng, công đoạn, định mức">
-        <i class="bi bi-pencil-square me-1" aria-hidden="true"></i>Chỉnh sửa
-    </button>
-    {% endif %}
 </div>
 {% endif %}

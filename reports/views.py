@@ -2175,12 +2175,19 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
     if report.is_production_report and report.shift_started_at:
         hourly_grid = build_hourly_grid(report)
         productivity = build_productivity_report(report)
+
+    def _production_edit_query(report) -> str:
+        if report.is_production_report and report.status == DailyWorkReport.STATUS_SUBMITTED:
+            return '&phase=review&edit_content=1'
+        return ''
+
     can_submit = can_submit_daily_report(request.user)
     if can_edit_own_daily_report(request.user, report, can_submit=can_submit):
         if report.is_production_report:
             edit_report_url = (
                 f"{reverse('reports:today_cn')}?date={report.report_date.isoformat()}"
                 f"&shift={report.shift}"
+                f"{_production_edit_query(report)}"
             )
         else:
             edit_report_url = (
@@ -2203,6 +2210,7 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
             f"{reverse(today_name)}?date={report.report_date.isoformat()}"
             f"&shift={report.shift}"
             f"&for_user={report.employee_id}"
+            f"{_production_edit_query(report)}"
         )
     if report.is_production_report and (report.hod_reviewed or report.is_hod_rejected):
         edit_report_url = ''

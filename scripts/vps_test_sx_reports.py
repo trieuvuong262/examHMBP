@@ -70,10 +70,6 @@ if submitted:
                 * Decimal("100")
             ).quantize(Decimal("0.01"))
         )
-        if expected < 1:
-            expected = float(
-                (Decimal(str(expected)) * Decimal("100")).quantize(Decimal("0.01"))
-            )
         got = day_summary.get("time_efficiency_pct")
         check(
             "time_efficiency_pct formula",
