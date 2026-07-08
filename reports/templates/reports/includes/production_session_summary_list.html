@@ -44,7 +44,7 @@
                 <i class="bi bi-clock me-1"></i>{{ row.session_time_label }}
             </p>
             {% endif %}
-            {% if can_edit and not is_locked and (content_edit_only or not row.submitted_locked) %}
+            {% if can_edit and not is_locked and content_edit_only or can_edit and not is_locked and not row.submitted_locked %}
             <div class="mt-2">
                 <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse"
                         data-bs-target="#session-edit-{{ row.id }}" aria-expanded="false"

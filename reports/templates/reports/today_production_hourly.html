@@ -375,7 +375,7 @@
                 {% endif %}
 
                 {% if hourly_grid.rows %}
-                {% if hourly_grid.uses_session_reporting and (not proxy_mode or content_edit_only) %}
+                {% if hourly_grid.uses_session_reporting and not proxy_mode or hourly_grid.uses_session_reporting and content_edit_only %}
                 {% include 'reports/includes/production_session_summary_list.html' %}
                 {% elif content_edit_only %}
                 <div class="d-md-none">
@@ -521,11 +521,10 @@
                                max="15.99"
                                step="0.01"
                                inputmode="decimal"
-                               placeholder="VD: 8,5"
-                               value="{% if report.declared_work_hours %}{{ report.declared_work_hours }}{% endif %}">
+                               placeholder="9,5"
+                               value="{% if report.declared_work_hours %}{{ report.declared_work_hours }}{% else %}9.5{% endif %}">
                         <span class="input-group-text">giờ</span>
                     </div>
-                    <div class="form-text">Lớn hơn 8 và nhỏ hơn 16 giờ.</div>
                     <div class="invalid-feedback" id="prodWorkHoursFeedback"></div>
                 </div>
                 <p class="small text-muted mb-0">
@@ -545,5 +544,5 @@
 
 {% include 'reports/includes/report_submit_loading.html' %}
 {% if hourly_grid %}{{ hourly_grid|json_script:"hourly-grid-data" }}{% endif %}
-<script src="{% static 'js/reports-production-hourly.js' %}?v=20260708d"></script>
+<script src="{% static 'js/reports-production-hourly.js' %}?v=20260708e"></script>
 {% endblock %}
