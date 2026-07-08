@@ -187,6 +187,8 @@ def build_shift_picker_options(employee, report_date, *, can_edit: bool) -> list
             enabled = can_edit and production_employee_may_edit(report)
             if report.hod_reviewed and report.status == DailyWorkReport.STATUS_SUBMITTED:
                 status_label = 'Đã duyệt'
+            elif getattr(report, 'hod_rejected', False) and report.status == DailyWorkReport.STATUS_SUBMITTED:
+                status_label = 'Không duyệt'
             elif report.status == DailyWorkReport.STATUS_SUBMITTED:
                 status_label = 'Đã gửi'
             else:

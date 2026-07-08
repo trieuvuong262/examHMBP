@@ -1066,6 +1066,11 @@ body .modal-backdrop.show {
     color: var(--hm-primary-dark);
 }
 
+.jp-report-badge--rejected {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
 .jp-report-stat-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));

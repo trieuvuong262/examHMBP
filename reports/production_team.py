@@ -76,6 +76,10 @@ def _aggregate_production_row(reports: list[DailyWorkReport], visible_fn) -> dic
         report.status == DailyWorkReport.STATUS_SUBMITTED for report in visible
     )
     all_reviewed = bool(visible) and all(report.hod_reviewed for report in visible)
+    any_rejected = bool(visible) and any(
+        getattr(report, 'hod_rejected', False) and not report.hod_reviewed
+        for report in visible
+    )
     has_manager_comment = any(getattr(report, 'has_manager_comment', False) for report in visible)
     has_employee_reply = any(getattr(report, 'has_employee_reply', False) for report in visible)
     return {
@@ -86,6 +90,7 @@ def _aggregate_production_row(reports: list[DailyWorkReport], visible_fn) -> dic
         'production_all_submitted': all_submitted,
         'production_any_submitted': any_submitted,
         'production_all_reviewed': all_reviewed,
+        'production_any_rejected': any_rejected,
         'production_has_manager_comment': has_manager_comment,
         'production_has_employee_reply': has_employee_reply,
         'production_efficiency_pct': _weighted_efficiency_pct(visible),

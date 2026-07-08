@@ -677,6 +677,10 @@ def today_production_hourly(request, report_date, report_context_common):
             messages.error(request, err)
 
     if report and report.pk:
+        from reports.report_lock import ensure_production_report_approval_state
+
+        if ensure_production_report_approval_state(report):
+            report.refresh_from_db()
         _can_submit = can_submit_daily_report(request.user)
         can_edit = can_edit_production_report(
             request.user,

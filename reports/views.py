@@ -1310,6 +1310,15 @@ def _my_reports(request, daily_report_profile=None):
         else:
             reports_qs = reports_qs.filter(report_date__lte=history_date_to)
 
+    if daily_report_profile == REPORT_PROFILE_PRODUCTION and period != 'weekly':
+        from reports.report_lock import auto_reject_expired_production_reports
+
+        auto_reject_expired_production_reports(
+            employee_ids=[subject.pk],
+            date_from=history_date_from,
+            date_to=history_date_to,
+        )
+
     page_obj, query_string = paginate_queryset(request, reports_qs)
     scope_label = 'SX' if daily_report_profile == REPORT_PROFILE_PRODUCTION else 'VP' if daily_report_profile else ''
     history_anchor = parse_period_anchor_date(request, period) if is_office else None
@@ -1689,6 +1698,13 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
         missing = team_count - submitted
         no_report_count = 0
     else:
+        from reports.report_lock import auto_reject_expired_production_reports
+
+        auto_reject_expired_production_reports(
+            employee_ids=all_team_ids,
+            date_from=date_from,
+            date_to=date_to,
+        )
         reports = query_production_team_reports(all_team_ids, date_from, date_to)
         reports_by_employee = build_production_reports_by_employee(reports)
         status_counts = production_team_status_counts(
@@ -1980,6 +1996,12 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
         messages.error(request, 'Bạn không có quyền xem báo cáo này.')
         return redirect('reports:hub')
 
+    if report.is_production_report:
+        from reports.report_lock import ensure_production_report_approval_state
+
+        if ensure_production_report_approval_state(report):
+            report.refresh_from_db()
+
     can_review = can_review_user_report(request.user, report)
     can_edit_norm = can_edit_production_norms(request.user, report)
     list_query = team_list_query_from_request(request)
@@ -2045,6 +2067,9 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
         ).exclude(author=request.user).update(is_read=True)
 
     if request.method == 'POST' and request.POST.get('action') == 'update_norms' and can_edit_norm:
+        if report.is_production_report and report.status != DailyWorkReport.STATUS_SUBMITTED:
+            messages.error(request, 'Chỉ có thể chỉnh sửa định mức sau khi nhân viên đã nộp báo cáo.')
+            return _detail_redirect()
         delete_ids = [
             int(key[15:])
             for key, val in request.POST.items()
@@ -2179,7 +2204,7 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
             f"&shift={report.shift}"
             f"&for_user={report.employee_id}"
         )
-    if report.is_production_report and report.hod_reviewed:
+    if report.is_production_report and (report.hod_reviewed or report.is_hod_rejected):
         edit_report_url = ''
     detail_template = (
         'reports/detail_cn.html'

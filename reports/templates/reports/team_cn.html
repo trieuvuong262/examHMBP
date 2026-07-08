@@ -58,6 +58,8 @@
 <td class="text-center">
     {% if row.production_report_count and row.production_all_reviewed %}
     <i class="bi bi-check-circle-fill text-success" title="Đã duyệt"></i>
+    {% elif row.production_any_rejected %}
+    <i class="bi bi-x-circle-fill text-danger" title="Không duyệt"></i>
     {% elif row.production_report_count %}
     <i class="bi bi-circle text-muted opacity-50" title="Chưa duyệt hết"></i>
     {% else %}

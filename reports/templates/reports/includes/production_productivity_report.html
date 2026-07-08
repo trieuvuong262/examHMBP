@@ -51,15 +51,7 @@
     {% if productivity.product_summaries %}
     <div class="jp-prod-section-label d-flex flex-wrap align-items-center justify-content-between gap-2">
         <span>Tổng hợp theo mã hàng / công đoạn</span>
-        {% if can_edit_norm %}
-        <button type="button"
-            class="btn btn-outline-hm btn-sm"
-            data-bs-toggle="modal"
-            data-bs-target="#jpProdNormModal"
-            title="Chỉnh sửa mã hàng, công đoạn, định mức">
-            <i class="bi bi-pencil-square me-1" aria-hidden="true"></i>Chỉnh sửa
-        </button>
-        {% endif %}
+        {% include 'reports/includes/production_detail_section_actions.html' %}
     </div>
     <div class="table-responsive jp-prod-productivity-scroll mb-4">
         <table class="table table-sm jp-prod-productivity-table jp-prod-productivity-table--summary mb-0">

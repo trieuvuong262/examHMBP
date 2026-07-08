@@ -97,8 +97,10 @@ def lock_production_report_on_supervisor_view(report, viewer) -> bool:
 
 
 def can_edit_production_norms(viewer, report) -> bool:
-    """Quản lý xem báo cáo cấp dưới — được chỉnh định mức nếu nhân viên nhập sai."""
+    """Quản lý chỉnh định mức / duyệt — chỉ khi báo cáo đã nộp."""
     if report.employee_id == viewer.id:
+        return False
+    if report.is_production_report and report.status != DailyWorkReport.STATUS_SUBMITTED:
         return False
     from hrm.permissions import can_view_user_report
     return can_view_user_report(viewer, report)
@@ -110,6 +112,8 @@ def can_edit_production_report(viewer, report, *, can_submit, is_proxy=False) ->
             return False
         return can_submit
     if can_edit_production_norms(viewer, report):
+        if report.status != DailyWorkReport.STATUS_SUBMITTED:
+            return False
         if report.hod_reviewed:
             return production_manager_may_edit(report)
         return production_employee_may_edit(report)
@@ -133,6 +137,8 @@ def can_operate_production_entry(viewer, report, *, can_submit: bool, is_proxy: 
     if not report or not report.pk:
         return False
     if can_edit_production_norms(viewer, report):
+        if report.status != DailyWorkReport.STATUS_SUBMITTED:
+            return False
         if report.hod_reviewed:
             return production_manager_may_edit(report)
         return production_employee_may_edit(report)

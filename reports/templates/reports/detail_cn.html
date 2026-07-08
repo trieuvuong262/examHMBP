@@ -3,7 +3,7 @@
 
 {% block detail_extra_head %}
 <link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260624a">
-<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260708b">
+<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260708c">
 {% endblock %}
 
 {% block detail_body %}
@@ -48,7 +48,7 @@
                     </div>
                 </div>
                 <div class="jp-report-tab-body">
-                    {% include 'reports/includes/production_productivity_report.html' with can_edit_norm=can_edit_norm %}
+                    {% include 'reports/includes/production_productivity_report.html' with can_edit_norm=can_edit_norm can_approve=can_approve can_unapprove=can_unapprove edit_report_url=edit_report_url %}
                 </div>
                 {% else %}
                 <div class="jp-report-tab-body text-center text-muted py-5">Chưa có dữ liệu năng suất.</div>

@@ -65,6 +65,13 @@ class DailyWorkReport(models.Model):
     draft_saved_at = models.DateTimeField(null=True, blank=True, verbose_name='Lưu nháp lúc')
     hod_reviewed = models.BooleanField(default=False, verbose_name='HOD đã duyệt')
     hod_reviewed_at = models.DateTimeField(null=True, blank=True, verbose_name='HOD duyệt lúc')
+    hod_first_reviewed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='Lần duyệt đầu tiên lúc',
+    )
+    hod_rejected = models.BooleanField(default=False, verbose_name='Không duyệt (quá hạn)')
+    hod_rejected_at = models.DateTimeField(null=True, blank=True, verbose_name='Không duyệt lúc')
     hod_note = models.CharField(max_length=500, blank=True, verbose_name='Ghi chú HOD')
     declared_work_hours = models.DecimalField(
         max_digits=4,
@@ -106,6 +113,10 @@ class DailyWorkReport(models.Model):
     @property
     def is_proxy_entered(self):
         return self.proxy_entered_by_id is not None
+
+    @property
+    def is_hod_rejected(self):
+        return bool(self.hod_rejected) and not self.hod_reviewed
 
     @property
     def is_edit_expired(self):

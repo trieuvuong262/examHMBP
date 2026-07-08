@@ -27,7 +27,15 @@ def _meta_rows(report: DailyWorkReport) -> list[list]:
     employee_name = profile.full_name if profile and profile.full_name else report.employee.username
     department = profile.department.name if profile and profile.department_id else '—'
     status = report.get_status_display()
-    reviewed = 'Có' if report.hod_reviewed else 'Không'
+    if report.is_production_report:
+        if report.hod_reviewed:
+            reviewed = 'Đã duyệt'
+        elif getattr(report, 'hod_rejected', False):
+            reviewed = 'Không duyệt'
+        else:
+            reviewed = 'Chưa duyệt'
+    else:
+        reviewed = 'Có' if report.hod_reviewed else 'Không'
     submitted = report.submitted_at.strftime('%d/%m/%Y %H:%M') if report.submitted_at else '—'
     rows = [
         ['Nhân viên', employee_name],
@@ -38,7 +46,7 @@ def _meta_rows(report: DailyWorkReport) -> list[list]:
         rows.append(['Ca làm', shift_display_label(report.shift)])
     rows.extend([
         ['Trạng thái', status],
-        ['Đã xem (cấp trên)', reviewed],
+        ['Duyệt (cấp trên)' if report.is_production_report else 'Đã xem (cấp trên)', reviewed],
         ['Thời gian nộp', submitted],
         ['Ghi chú cấp trên', report.hod_note or ''],
     ])
