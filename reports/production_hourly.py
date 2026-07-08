@@ -1059,7 +1059,11 @@ def compute_day_work_waste_summary(
     report: DailyWorkReport,
     products: list[ProductionShiftProduct],
 ) -> dict:
-    """Thời gian làm thực tế và hao phí = giờ khai báo − giờ thực tế."""
+    """Thời gian làm thực tế và hao phí = giờ khai báo − giờ thực tế.
+
+    `Thời gian thực tế` đồng bộ với tổng `Thời gian/H` theo từng công đoạn
+    (thay vì tính theo khoảng span từ công đoạn đầu tới công đoạn cuối).
+    """
     empty = {
         'work_minutes': Decimal('0'),
         'waste_minutes': Decimal('0'),
@@ -1068,24 +1072,35 @@ def compute_day_work_waste_summary(
         'has_waste': False,
         'time_efficiency_pct': None,
     }
-    actual_start, actual_end = _report_session_bounds(_products_for_productivity(products))
-    if not actual_start or not actual_end or actual_end <= actual_start:
+    work_hours = Decimal('0')
+    for product in _products_for_productivity(products):
+        norm = product.norm_per_hour
+        if not norm or norm <= 0:
+            continue
+        session_mode = is_session_reported_product(product)
+        product_qty = Decimal('0')
+        product_hours = Decimal('0')
+        for entry in product.hourly_entries.all():
+            if not _entry_is_filled(entry):
+                continue
+            if entry.slot_index < product.first_slot_index:
+                continue
+            qty = entry.quantity or Decimal('0')
+            if qty <= 0:
+                continue
+            product_qty += Decimal(str(qty))
+            product_hours += _entry_hours(entry)
+        if product_qty <= 0:
+            continue
+        if session_mode:
+            effective_hours = session_effective_hours(product)
+            if effective_hours > 0:
+                product_hours = effective_hours
+        work_hours += product_hours
+
+    work_minutes = (work_hours * Decimal('60')).quantize(Decimal('1'))
+    if work_minutes <= 0:
         return empty
-
-    actual_start = timezone.localtime(actual_start)
-    actual_end = timezone.localtime(actual_end)
-    shift = _shift_for_report(report)
-    report_date = report.report_date
-
-    work_minutes = Decimal(str((actual_end - actual_start).total_seconds() / 60))
-    for break_start, break_end in shift_break_intervals(report_date, shift):
-        overlap_start = max(actual_start, break_start)
-        overlap_end = min(actual_end, break_end)
-        if overlap_end > overlap_start:
-            work_minutes -= Decimal(str((overlap_end - overlap_start).total_seconds() / 60))
-    if work_minutes < 0:
-        work_minutes = Decimal('0')
-    work_minutes = work_minutes.quantize(Decimal('1'))
 
     declared_hours = getattr(report, 'declared_work_hours', None)
     if declared_hours is None or declared_hours <= 0:

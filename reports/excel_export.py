@@ -158,7 +158,7 @@ def _export_production_report(report: DailyWorkReport, filename_prefix: str) -> 
                 'Công đoạn': row['process_name'],
                 'Số lượng': row['quantity'],
                 'Định mức/H': row['norm_per_hour'],
-                'Thời gian/H': row['hours_display'],
+                'Thời gian công đoạn': row['hours_display'],
                 'Hiệu suất %': row['efficiency_pct'],
             })
         sheets['Tong_hop'] = pd.DataFrame(summary_rows)
@@ -173,7 +173,7 @@ def _export_production_report(report: DailyWorkReport, filename_prefix: str) -> 
                 'Khung giờ': row['slot_label'],
                 'Số lượng': row['quantity'],
                 'Định mức/H': row['norm_per_hour'] or '',
-                'Thời gian/H': row['hours_display'],
+                'Thời gian công đoạn': row['hours_display'],
                 'Hiệu suất %': row['efficiency_pct'] if row['efficiency_pct'] is not None else '',
                 'Hư hỏng': row.get('damaged_quantity') or '',
                 'Ghi chú': row.get('note') or '',
