@@ -15,6 +15,7 @@ urlpatterns = [
     path('sx/my/', views.my_reports_cn, name='my_cn'),
     path('sx/copy-yesterday/', views.copy_yesterday_cn, name='copy_yesterday_cn'),
     path('sx/<int:pk>/export/', views.report_detail_export_cn, name='detail_export_cn'),
+    path('sx/<int:pk>/lich-su/', views.report_edit_history_cn, name='detail_cn_changelog'),
     path('sx/<int:pk>/', views.report_detail_cn, name='detail_cn'),
     # Legacy /reports/cn/ → /reports/sx/
     path('cn/today/', views.redirect_legacy_cn_today),
@@ -31,6 +32,7 @@ urlpatterns = [
     path('vp/copy-prev/', views.copy_prev_vp, name='copy_prev_vp'),
     path('vp/ckeditor5-upload/', views.ckeditor5_upload, name='ckeditor5_upload'),
     path('vp/<int:pk>/export/', views.report_detail_export_vp, name='detail_export_vp'),
+    path('vp/<int:pk>/lich-su/', views.report_edit_history_vp, name='detail_vp_changelog'),
     path('vp/<int:pk>/', views.report_detail_vp, name='detail_vp'),
     path('vp/file/<int:pk>/', views.daily_attachment_serve, name='daily_attachment'),
     path('vp/file/<int:pk>/preview/', views.daily_attachment_preview, name='daily_attachment_preview'),

@@ -424,6 +424,13 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
                 messages.success(request, f'Đã ghi nhận lý do sản lượng 0: {zero_reason[:120]}')
             else:
                 messages.success(request, f'Đã lưu {code} — tổng {total_qty.normalize()} sản phẩm.')
+            from reports.report_edit_log import log_report_edit
+
+            log_report_edit(
+                report,
+                request.user,
+                summary=f'Hoàn tất công đoạn {(code or "—").strip()}.',
+            )
         return redirect(_production_redirect(report_date, shift, for_user or None))
 
     if action == 'edit_session':
@@ -468,6 +475,13 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
             f'Đã ghi nhận lý do sản lượng 0: {zero_reason[:120]}'
             if total_qty == 0
             else f'Đã cập nhật {code}.',
+        )
+        from reports.report_edit_log import log_report_edit
+
+        log_report_edit(
+            report,
+            request.user,
+            summary=f'Chỉnh sửa công đoạn {(code or product.product_code or "").strip() or "—"}.',
         )
         return redirect(_production_redirect(report_date, shift, for_user or None, content_edit_extra if content_edit_only else 'phase=review'))
 
@@ -543,6 +557,9 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
         messages.success(request, 'Đã lưu sản lượng.')
         report.draft_saved_at = timezone.now()
         report.save(update_fields=['draft_saved_at'])
+        from reports.report_edit_log import log_report_edit
+
+        log_report_edit(report, request.user, summary='Lưu sản lượng tổng kết.')
         extra = 'phase=proxy' if editing_for_other else 'phase=review'
         return redirect(_production_redirect(report_date, shift, for_user or None, extra))
 
@@ -602,6 +619,16 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
         messages.success(request, msg)
         report.report_profile = REPORT_PROFILE_PRODUCTION
         report.save()
+        from reports.models import DailyWorkReportEditLog
+        from reports.report_edit_log import log_report_edit
+
+        if action == 'submit':
+            log_report_edit(
+                report,
+                request.user,
+                action=DailyWorkReportEditLog.ACTION_SUBMIT,
+                summary='Cập nhật báo cáo đã nộp.' if was_submitted else 'Gửi báo cáo.',
+            )
         if editing_for_other:
             return redirect('reports:detail_cn', pk=report.pk)
         return redirect(_production_redirect(report_date, shift, None, 'phase=review'))

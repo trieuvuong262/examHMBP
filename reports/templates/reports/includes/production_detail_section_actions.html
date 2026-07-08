@@ -1,5 +1,5 @@
 {% if report.is_production_report and report.status == 'SUBMITTED' %}
-<div class="d-flex flex-wrap align-items-center gap-2">
+<div class="d-flex flex-wrap align-items-center gap-2 jp-report-detail-hero-review-actions">
     {% if can_edit_norm and can_approve %}
     <form method="post" class="d-inline mb-0"
           onsubmit="return confirm('Duyệt báo cáo? Sau khi duyệt, nhân viên không thể chỉnh sửa.');">
@@ -11,11 +11,10 @@
     </form>
     {% endif %}
     {% if can_edit_norm and can_unapprove %}
-    <form method="post" class="d-inline mb-0"
-          onsubmit="return confirm('Hoàn duyệt báo cáo? Nhân viên có thể sửa lại nếu còn trong hạn 24 giờ.');">
+    <form method="post" class="d-inline mb-0 js-prod-unapprove-form">
         {% csrf_token %}
         <input type="hidden" name="action" value="unapprove_report">
-        <button type="submit" class="btn btn-outline-warning btn-sm fw-bold">
+        <button type="button" class="btn btn-outline-warning btn-sm fw-bold js-prod-unapprove-trigger">
             <i class="bi bi-arrow-counterclockwise me-1"></i>Hoàn duyệt
         </button>
     </form>

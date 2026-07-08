@@ -41,24 +41,27 @@
                 {% endif %}
                 <p class="jp-report-detail-name mb-0 mt-2">{{ report.employee.profile.full_name|default:report.employee.username }}</p>
             </div>
-            <div class="jp-report-detail-hero-actions d-flex gap-2 flex-wrap">
-                <a href="{{ list_back_url }}" class="btn btn-outline-secondary btn-sm">
-                    <i class="bi bi-arrow-left me-1"></i>Danh sách báo cáo
-                </a>
-                <a href="{{ history_url }}" class="btn btn-outline-dark btn-sm">
-                    <i class="bi bi-clock-history me-1"></i>Lịch sử
-                </a>
-                {% if can_export_report %}
-                <a href="{{ export_url }}" class="btn btn-outline-hm btn-sm">
-                    <i class="bi bi-file-earmark-spreadsheet me-1"></i>Xuất Excel
-                </a>
-                {% endif %}
-                {% if edit_report_url and not report.is_production_report %}
-                <a href="{{ edit_report_url }}" class="btn btn-outline-hm btn-sm">
-                    <i class="bi bi-pencil-square me-1"></i>
-                    {% if report.employee_id == request.user.id %}Sửa{% else %}Chỉnh sửa báo cáo{% endif %}
-                </a>
-                {% endif %}
+            <div class="jp-report-detail-hero-actions d-flex flex-column gap-2 align-items-stretch">
+                <div class="d-flex gap-2 flex-wrap jp-report-detail-hero-nav-actions">
+                    <a href="{{ list_back_url }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-arrow-left me-1"></i>Danh sách báo cáo
+                    </a>
+                    <a href="{{ history_url }}" class="btn btn-outline-dark btn-sm" title="Lịch sử chỉnh sửa báo cáo này">
+                        <i class="bi bi-clock-history me-1"></i>Lịch sử
+                    </a>
+                    {% if can_export_report %}
+                    <a href="{{ export_url }}" class="btn btn-outline-hm btn-sm">
+                        <i class="bi bi-file-earmark-spreadsheet me-1"></i>Xuất Excel
+                    </a>
+                    {% endif %}
+                    {% if edit_report_url and not report.is_production_report %}
+                    <a href="{{ edit_report_url }}" class="btn btn-outline-hm btn-sm">
+                        <i class="bi bi-pencil-square me-1"></i>
+                        {% if report.employee_id == request.user.id %}Sửa{% else %}Chỉnh sửa báo cáo{% endif %}
+                    </a>
+                    {% endif %}
+                </div>
+                {% block detail_hero_review_actions %}{% endblock %}
             </div>
         </div>
     </div>

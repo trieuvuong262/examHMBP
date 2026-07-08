@@ -49,10 +49,7 @@
     {% endif %}
 
     {% if productivity.product_summaries %}
-    <div class="jp-prod-section-label d-flex flex-wrap align-items-center justify-content-between gap-2">
-        <span>Tổng hợp theo mã hàng / công đoạn</span>
-        {% include 'reports/includes/production_detail_section_actions.html' %}
-    </div>
+    <div class="jp-prod-section-label">Tổng hợp theo mã hàng / công đoạn</div>
     <div class="table-responsive jp-prod-productivity-scroll mb-4">
         <table class="table table-sm jp-prod-productivity-table jp-prod-productivity-table--summary mb-0">
             <thead>
@@ -62,6 +59,7 @@
                     <th>Công đoạn</th>
                     <th class="text-center">Bắt đầu</th>
                     <th class="text-center">Kết thúc</th>
+                    <th class="text-center">Nhập hộ</th>
                     <th class="text-end">Số lượng</th>
                     <th class="text-end">Hư hỏng</th>
                     <th class="text-end">Định mức/H</th>
@@ -82,6 +80,13 @@
                     </td>
                     <td class="text-center text-nowrap">{{ row.started_at_display|default:"—" }}</td>
                     <td class="text-center text-nowrap">{{ row.ended_at_display|default:"—" }}</td>
+                    <td class="text-center">
+                        {% if productivity.is_proxy_entered %}
+                        <i class="bi bi-check-lg text-success" title="Tổ trưởng nhập hộ"></i>
+                        {% else %}
+                        <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
                     <td class="text-end"><span class="jp-prod-qty-val">{{ row.quantity|prod_qty }}</span></td>
                     <td class="text-end">
                         {% if row.damaged_quantity %}<span class="jp-prod-damaged-val">{{ row.damaged_quantity|prod_qty }}</span>{% else %}<span class="text-muted">—</span>{% endif %}

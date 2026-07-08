@@ -552,3 +552,67 @@ class ReportCommentAttachment(models.Model):
     @property
     def is_image(self):
         return self.kind == self.KIND_IMAGE
+
+
+class DailyWorkReportEditLog(models.Model):
+    ACTOR_EMPLOYEE = 'employee'
+    ACTOR_MANAGER = 'manager'
+    ACTOR_CHOICES = [
+        (ACTOR_EMPLOYEE, 'Nhân viên'),
+        (ACTOR_MANAGER, 'Quản lý'),
+    ]
+
+    ACTION_UPDATE = 'update'
+    ACTION_SUBMIT = 'submit'
+    ACTION_CHOICES = [
+        (ACTION_UPDATE, 'Chỉnh sửa'),
+        (ACTION_SUBMIT, 'Gửi báo cáo'),
+    ]
+
+    report = models.ForeignKey(
+        DailyWorkReport,
+        on_delete=models.CASCADE,
+        related_name='edit_logs',
+        verbose_name='Báo cáo',
+    )
+    edited_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='report_edit_logs',
+        verbose_name='Người sửa',
+    )
+    actor_kind = models.CharField(
+        max_length=20,
+        choices=ACTOR_CHOICES,
+        verbose_name='Vai trò',
+    )
+    action = models.CharField(
+        max_length=20,
+        choices=ACTION_CHOICES,
+        default=ACTION_UPDATE,
+        verbose_name='Thao tác',
+    )
+    summary = models.CharField(max_length=500, blank=True, verbose_name='Mô tả')
+    edited_at = models.DateTimeField(auto_now_add=True, db_index=True, verbose_name='Thời gian')
+
+    class Meta:
+        ordering = ['-edited_at', '-id']
+        verbose_name = 'Lịch sử chỉnh sửa báo cáo'
+        verbose_name_plural = 'Lịch sử chỉnh sửa báo cáo'
+        indexes = [
+            models.Index(fields=['report', '-edited_at']),
+        ]
+
+    def __str__(self):
+        return f'{self.report_id} — {self.get_actor_kind_display()} — {self.edited_at}'
+
+    @property
+    def editor_name(self):
+        if not self.edited_by_id:
+            return '—'
+        profile = getattr(self.edited_by, 'profile', None)
+        if profile and profile.full_name:
+            return profile.full_name
+        return self.edited_by.get_username()

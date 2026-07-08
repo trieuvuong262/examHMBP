@@ -757,6 +757,15 @@ def _today_office_report(request, report_date, *, report_period: str = PERIOD_DA
             report.shift = ''
             messages.success(request, _finalize_report_submission(report, action))
             report.save()
+            from reports.models import DailyWorkReportEditLog
+            from reports.report_edit_log import log_report_edit
+
+            log_report_edit(
+                report,
+                request.user,
+                action=DailyWorkReportEditLog.ACTION_SUBMIT,
+                summary='Gửi báo cáo văn phòng.',
+            )
             has_uploads = bool(
                 request.FILES.getlist('link_images')
                 or request.FILES.getlist('link_files'),
@@ -2146,6 +2155,20 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
             messages.success(request, f'Đã cập nhật {count} dòng mã hàng / công đoạn.')
         else:
             messages.warning(request, 'Không có thay đổi hợp lệ để cập nhật.')
+        if deleted or count:
+            from reports.models import DailyWorkReportEditLog
+            from reports.report_edit_log import log_report_edit
+
+            parts = []
+            if deleted:
+                parts.append(f'xóa {deleted} công đoạn')
+            if count:
+                parts.append(f'cập nhật {count} dòng mã hàng / công đoạn')
+            log_report_edit(
+                report,
+                request.user,
+                summary='Quản lý ' + ' và '.join(parts) + '.',
+            )
         return _detail_redirect()
 
     can_comment = can_review or report.employee_id == request.user.id
@@ -2303,6 +2326,53 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
             if report.is_production_report else []
         ),
     })
+
+
+def _report_edit_history_core(request, pk, *, detail_url_name: str):
+    report = get_object_or_404(
+        DailyWorkReport.objects.select_related('employee', 'employee__profile'),
+        pk=pk,
+    )
+    if not can_view_user_report(request.user, report):
+        messages.error(request, 'Bạn không có quyền xem báo cáo này.')
+        return redirect('reports:hub')
+
+    list_query = team_list_query_from_request(request)
+    detail_url = reverse(detail_url_name, kwargs={'pk': pk})
+    if list_query:
+        detail_url = f'{detail_url}?{list_query}'
+
+    return render(request, 'reports/report_edit_history.html', {
+        'report': report,
+        'edit_logs': report.edit_logs.select_related('edited_by', 'edited_by__profile'),
+        'detail_url': detail_url,
+        'list_back_url': team_list_back_url_for(
+            report,
+            request.user,
+            can_view_team=can_view_team_reports(request.user),
+            list_query=list_query,
+        ),
+        'shift_badge_class': (
+            shift_badge_class(report.shift)
+            if report.is_production_report and report.shift else ''
+        ),
+    })
+
+
+@_reports_access_required
+def report_edit_history_cn(request, pk):
+    report = get_object_or_404(DailyWorkReport, pk=pk)
+    if not report.is_production_report:
+        return redirect('reports:detail_vp_changelog', pk=pk)
+    return _report_edit_history_core(request, pk, detail_url_name='reports:detail_cn')
+
+
+@_reports_access_required
+def report_edit_history_vp(request, pk):
+    report = get_object_or_404(DailyWorkReport, pk=pk)
+    if report.is_production_report:
+        return redirect('reports:detail_cn_changelog', pk=pk)
+    return _report_edit_history_core(request, pk, detail_url_name='reports:detail_vp')
 
 
 @_reports_access_required

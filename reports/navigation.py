@@ -279,6 +279,12 @@ def can_view_own_report_history(user, report_profile: str | None) -> bool:
 
 
 def history_url_for(report, viewer) -> str:
+    if getattr(report, 'pk', None):
+        from django.urls import reverse
+
+        if getattr(report, 'is_production_report', False):
+            return reverse('reports:detail_cn_changelog', kwargs={'pk': report.pk})
+        return reverse('reports:detail_vp_changelog', kwargs={'pk': report.pk})
     profile = (
         REPORT_PROFILE_PRODUCTION
         if getattr(report, 'is_production_report', False)

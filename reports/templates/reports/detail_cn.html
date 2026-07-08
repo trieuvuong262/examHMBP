@@ -3,7 +3,11 @@
 
 {% block detail_extra_head %}
 <link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260624a">
-<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260708c">
+<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260708d">
+{% endblock %}
+
+{% block detail_hero_review_actions %}
+{% include 'reports/includes/production_detail_section_actions.html' %}
 {% endblock %}
 
 {% block detail_body %}
@@ -41,7 +45,7 @@
                     </div>
                 </div>
                 <div class="jp-report-tab-body">
-                    {% include 'reports/includes/production_productivity_report.html' with can_edit_norm=can_edit_norm can_approve=can_approve can_unapprove=can_unapprove edit_report_url=edit_report_url %}
+                    {% include 'reports/includes/production_productivity_report.html' %}
                 </div>
                 {% else %}
                 <div class="jp-report-tab-body text-center text-muted py-5">Chưa có dữ liệu năng suất.</div>
@@ -107,6 +111,9 @@
         </div>
     </div>
     {% endif %}
+    {% if can_unapprove %}
+    {% include 'reports/includes/production_unapprove_confirm_modal.html' %}
+    {% endif %}
 {% endblock %}
 
 {% block detail_inline_scripts %}
@@ -115,17 +122,43 @@
 {% block detail_scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    if (!(window.bootstrap && bootstrap.Tooltip)) return;
-    function initFlags(root) {
-        (root || document).querySelectorAll('.jp-ph-flag[data-bs-toggle="tooltip"]').forEach(function (el) {
-            bootstrap.Tooltip.getOrCreateInstance(el);
-        });
+    if (window.bootstrap && bootstrap.Tooltip) {
+        function initFlags(root) {
+            (root || document).querySelectorAll('.jp-ph-flag[data-bs-toggle="tooltip"]').forEach(function (el) {
+                bootstrap.Tooltip.getOrCreateInstance(el);
+            });
+        }
+        initFlags(document);
+        var quantityTabBtn = document.getElementById('jp-tab-quantity-btn');
+        if (quantityTabBtn) {
+            quantityTabBtn.addEventListener('shown.bs.tab', function () {
+                initFlags(document.getElementById('jp-tab-quantity'));
+            });
+        }
     }
-    initFlags(document);
-    var quantityTabBtn = document.getElementById('jp-tab-quantity-btn');
-    if (quantityTabBtn) {
-        quantityTabBtn.addEventListener('shown.bs.tab', function () {
-            initFlags(document.getElementById('jp-tab-quantity'));
+
+    var unapproveModalEl = document.getElementById('prodUnapproveConfirmModal');
+    if (unapproveModalEl && window.bootstrap && bootstrap.Modal) {
+        var pendingUnapproveForm = null;
+        var unapproveModal = bootstrap.Modal.getOrCreateInstance(unapproveModalEl);
+        document.querySelectorAll('.js-prod-unapprove-trigger').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                pendingUnapproveForm = btn.closest('form.js-prod-unapprove-form');
+                if (!pendingUnapproveForm) return;
+                unapproveModal.show();
+            });
+        });
+        var unapproveConfirmBtn = document.getElementById('prodUnapproveConfirmBtn');
+        if (unapproveConfirmBtn) {
+            unapproveConfirmBtn.addEventListener('click', function () {
+                if (!pendingUnapproveForm) return;
+                unapproveModal.hide();
+                pendingUnapproveForm.submit();
+                pendingUnapproveForm = null;
+            });
+        }
+        unapproveModalEl.addEventListener('hidden.bs.modal', function () {
+            pendingUnapproveForm = null;
         });
     }
 });

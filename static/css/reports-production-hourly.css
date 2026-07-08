@@ -989,6 +989,21 @@ body .modal-backdrop.show {
         align-self: flex-start;
         max-width: min(100%, 28rem);
     }
+
+    .jp-report-detail-hero-nav-actions,
+    .jp-report-detail-hero-review-actions {
+        justify-content: flex-end;
+    }
+}
+
+.jp-report-edit-history-table th,
+.jp-report-edit-history-table td {
+    padding: 0.75rem 1rem;
+    vertical-align: middle;
+}
+
+.jp-report-edit-history-table tbody tr:last-child td {
+    border-bottom: 0;
 }
 
 .jp-report-detail-hero-main {

@@ -722,15 +722,22 @@ def _product_visible_in_grid(product: ProductionShiftProduct) -> bool:
     return False
 
 
-def _format_duration_minutes(total_minutes) -> str:
+def _format_hours_minutes_vn(total_minutes, *, zero_value='0') -> str:
+    """< 60 phút → chỉ «X phút»; từ 1 giờ → «X giờ» hoặc «X giờ Y phút»."""
     minutes = int(Decimal(str(total_minutes)).quantize(Decimal('1')))
+    if minutes <= 0:
+        return zero_value
     if minutes < 60:
         return f'{minutes} phút'
     hours = minutes // 60
     remainder = minutes % 60
     if remainder:
-        return f'{hours}h{remainder:02d}'
-    return f'{hours}h'
+        return f'{hours} giờ {remainder} phút'
+    return f'{hours} giờ'
+
+
+def _format_duration_minutes(total_minutes) -> str:
+    return _format_hours_minutes_vn(total_minutes, zero_value='0')
 
 
 def _timeline_time_display(dt: datetime) -> str:
@@ -1248,6 +1255,7 @@ def build_productivity_report(report: DailyWorkReport) -> dict:
         'employee_name': employee_name,
         'department_name': department_name,
         'report_date': report.report_date,
+        'is_proxy_entered': bool(report.proxy_entered_by_id),
         'has_data': bool(hourly_rows) or bool(product_summaries),
     }
 
@@ -1331,11 +1339,9 @@ def _format_declared_work_hours(hours) -> str:
     """Giờ làm việc nhân viên khai báo khi gửi báo cáo."""
     if hours is None or hours <= 0:
         return '—'
-    dec = Decimal(str(hours)).quantize(Decimal('0.01')).normalize()
-    text = format(dec, 'f')
-    if '.' in text:
-        text = text.rstrip('0').rstrip('.')
-    return f'{text.replace(".", ",")} giờ'
+    dec = Decimal(str(hours)).quantize(Decimal('0.01'))
+    total_minutes = int((dec * Decimal('60')).quantize(Decimal('1')))
+    return _format_hours_minutes_vn(total_minutes, zero_value='—')
 
 
 def build_hourly_grid(report: DailyWorkReport) -> dict:
@@ -2028,4 +2034,24 @@ def save_proxy_shift_sessions(
     else:
         report.status = DailyWorkReport.STATUS_DRAFT
     report.save()
+
+    from reports.models import DailyWorkReportEditLog
+    from reports.report_edit_log import log_report_edit
+
+    if content_edit_only:
+        log_report_edit(
+            report,
+            user,
+            summary=f'Chỉnh sửa nội dung ({created} công đoạn).',
+        )
+    elif created:
+        log_report_edit(
+            report,
+            user,
+            action=DailyWorkReportEditLog.ACTION_SUBMIT,
+            summary=f'Nhập hộ và nộp báo cáo ({created} công đoạn).',
+        )
+    else:
+        log_report_edit(report, user, summary='Lưu nhập hộ (chưa có dữ liệu).')
+
     return {'sessions': created}

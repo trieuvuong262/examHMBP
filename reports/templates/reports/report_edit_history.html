@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260624a">
+<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260708e">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-2 px-md-3 jp-page jp-reports-page py-2 py-md-3 mb-3 mb-md-4">
+    <div class="jp-report-detail-hero mb-4">
+        <div class="jp-report-detail-hero-top">
+            <div class="jp-report-detail-hero-text">
+                <h2 class="fw-bold text-hm mb-2 jp-page-title">
+                    <i class="bi bi-clock-history me-2"></i>Lịch sử chỉnh sửa
+                </h2>
+                <p class="mb-1 fw-semibold text-dark">
+                    Báo cáo {{ report.report_date|date:"d/m/Y" }}
+                    {% if report.is_production_report and report.shift %}
+                    <span class="{{ shift_badge_class }} fs-6 align-middle">{{ report.get_shift_display }}</span>
+                    {% endif %}
+                </p>
+                <p class="jp-report-detail-name mb-0">{{ report.employee.profile.full_name|default:report.employee.username }}</p>
+            </div>
+            <div class="jp-report-detail-hero-actions d-flex flex-column gap-2 align-items-stretch">
+                <div class="d-flex gap-2 flex-wrap jp-report-detail-hero-nav-actions">
+                    <a href="{{ detail_url }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-arrow-left me-1"></i>Quay lại báo cáo
+                    </a>
+                    <a href="{{ list_back_url }}" class="btn btn-outline-dark btn-sm">
+                        <i class="bi bi-list-ul me-1"></i>Danh sách báo cáo
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 jp-report-section-card shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0 jp-report-edit-history-table">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="text-nowrap">Thời gian</th>
+                            <th>Người sửa</th>
+                            <th class="text-nowrap">Vai trò</th>
+                            <th class="text-nowrap">Thao tác</th>
+                            <th>Mô tả</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in edit_logs %}
+                        <tr>
+                            <td class="text-nowrap text-muted">{{ entry.edited_at|date:"d/m/Y H:i" }}</td>
+                            <td class="fw-semibold">{{ entry.editor_name }}</td>
+                            <td>
+                                {% if entry.actor_kind == 'manager' %}
+                                <span class="badge bg-warning text-dark">Quản lý</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Nhân viên</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-nowrap">{{ entry.get_action_display }}</td>
+                            <td>{{ entry.summary|default:"—" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted py-5">
+                                Chưa có lần chỉnh sửa nào được ghi nhận.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
