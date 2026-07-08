@@ -1,4 +1,5 @@
 from datetime import timedelta
+from decimal import Decimal, InvalidOperation
 
 from django import template
 
@@ -51,6 +52,27 @@ def report_period_label(report):
         return ''
     period = getattr(report, 'report_period', 'day') or 'day'
     return PERIOD_LABELS.get(period, period)
+
+
+@register.filter
+def efficiency_pct_display(value, arg='2'):
+    """Hiển thị hiệu suất % — mặc định 2 chữ số thập phân (vd. 93,81)."""
+    if value is None:
+        return '—'
+    try:
+        places = int(arg)
+    except (TypeError, ValueError):
+        places = 2
+    if places < 0:
+        places = 2
+    try:
+        number = Decimal(str(value))
+    except (InvalidOperation, TypeError, ValueError):
+        return '—'
+    quantizer = Decimal('1').scaleb(-places)
+    rounded = number.quantize(quantizer)
+    text = f'{rounded:.{places}f}'
+    return text.replace('.', ',')
 
 
 @register.filter

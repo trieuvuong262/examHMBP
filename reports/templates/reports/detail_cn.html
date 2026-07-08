@@ -3,7 +3,7 @@
 
 {% block detail_extra_head %}
 <link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260624a">
-<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260706e">
+<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260708b">
 {% endblock %}
 
 {% block detail_body %}
@@ -133,12 +133,17 @@
         return 'jp-eff is-low';
     }
 
+    function formatEfficiencyPct(value) {
+        if (value === null || value === undefined) return null;
+        return String(value).replace('.', ',');
+    }
+
     function efficiencyPct(qty, hours, norm) {
         qty = parseFloat(qty);
         hours = parseFloat(hours);
         norm = parseFloat(norm);
         if (!qty || !hours || !norm || norm <= 0) return null;
-        return (qty / (norm * hours) * 100).toFixed(2);
+        return formatEfficiencyPct((qty / (norm * hours) * 100).toFixed(2));
     }
 
     function applyProductFields(productId, codeValue, processValue, normValue) {

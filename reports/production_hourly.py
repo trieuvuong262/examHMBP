@@ -771,6 +771,42 @@ def _product_efficiency_pct(product: ProductionShiftProduct) -> float | None:
     return None
 
 
+def _report_efficiency_totals(
+    products: list[ProductionShiftProduct],
+) -> tuple[Decimal, Decimal, Decimal]:
+    """Tổng SL, giờ và SL kỳ vọng (định mức × giờ) — dùng cho hiệu suất TB ngày."""
+    total_qty = Decimal('0')
+    total_hours = Decimal('0')
+    total_expected = Decimal('0')
+    for product in products:
+        norm = product.norm_per_hour
+        if not norm or norm <= 0:
+            continue
+        for entry in product.hourly_entries.all():
+            if not _entry_is_filled(entry):
+                continue
+            if entry.slot_index < product.first_slot_index:
+                continue
+            qty = entry.quantity or Decimal('0')
+            if qty <= 0:
+                continue
+            hours = _entry_hours(entry)
+            total_qty += Decimal(str(qty))
+            total_hours += hours
+            total_expected += norm * hours
+    return total_qty, total_hours, total_expected
+
+
+def _report_overall_efficiency_pct(
+    products: list[ProductionShiftProduct],
+) -> float | None:
+    """Hiệu suất TB trong ngày — trọng số theo giờ từng công đoạn: ΣSL / Σ(định mức × giờ)."""
+    total_qty, total_hours, total_expected = _report_efficiency_totals(products)
+    if total_expected <= 0 or total_hours <= 0:
+        return None
+    return float((total_qty / total_expected * 100).quantize(Decimal('0.01')))
+
+
 def _work_item_from_entry(
     product: ProductionShiftProduct,
     entry: ProductionHourlyQuantity,
@@ -821,6 +857,104 @@ def _annotate_product_rowspans(segments: list[dict]) -> None:
     """Mỗi khung giờ hiển thị độc lập — không gộp qua nhiều khung."""
     for segment in segments:
         segment['product_continuation'] = False
+
+
+def _report_session_bounds(
+    products: list[ProductionShiftProduct],
+) -> tuple[datetime | None, datetime | None]:
+    """Giờ bắt đầu sớm nhất và kết thúc muộn nhất trong ngày."""
+    starts = [product.started_at for product in products if product.started_at]
+    ends = [product.ended_at for product in products if product.ended_at]
+    if not starts or not ends:
+        return None, None
+    return min(starts), max(ends)
+
+
+def _report_has_overtime_activity(
+    report: DailyWorkReport,
+    products: list[ProductionShiftProduct],
+) -> bool:
+    """Có ghi nhận sản lượng hoặc phiên công việc trong khung tăng ca."""
+    shift = _shift_for_report(report)
+    report_date = report.report_date
+    ot_slots = [slot for slot in slots_for_shift(shift) if slot.is_overtime]
+    if not ot_slots:
+        return False
+    for product in products:
+        for slot in ot_slots:
+            slot_start = _slot_start_dt(report_date, slot)
+            slot_end = _slot_end_dt(report_date, slot)
+            if _session_event_in_slot(product, slot_start, slot_end):
+                return True
+            for entry in product.hourly_entries.all():
+                if entry.slot_index == slot.index and _entry_is_filled(entry):
+                    return True
+    return False
+
+
+def compute_day_work_waste_summary(
+    report: DailyWorkReport,
+    products: list[ProductionShiftProduct],
+) -> dict:
+    """Thời gian làm / hao phí theo giờ thực tế so với khung ca (không tính tăng ca nếu không có OT)."""
+    empty = {
+        'work_minutes': Decimal('0'),
+        'waste_minutes': Decimal('0'),
+        'work_minutes_display': '—',
+        'waste_minutes_display': '—',
+        'has_waste': False,
+    }
+    actual_start, actual_end = _report_session_bounds(products)
+    if not actual_start or not actual_end or actual_end <= actual_start:
+        return empty
+
+    actual_start = timezone.localtime(actual_start)
+    actual_end = timezone.localtime(actual_end)
+
+    shift = _shift_for_report(report)
+    report_date = report.report_date
+    slots = slots_for_shift(shift)
+    regular_slots = [slot for slot in slots if not slot.is_overtime] or list(slots)
+    ot_slots = [slot for slot in slots if slot.is_overtime]
+    has_overtime = _report_has_overtime_activity(report, products)
+
+    window_start = _slot_start_dt(report_date, regular_slots[0])
+    regular_end = _slot_end_dt(report_date, regular_slots[-1])
+
+    waste_minutes = Decimal('0')
+    if window_start < actual_start < regular_end:
+        waste_minutes += Decimal(str((actual_start - window_start).total_seconds() / 60))
+    elif has_overtime and ot_slots and actual_start >= regular_end:
+        ot_start = _slot_start_dt(report_date, ot_slots[0])
+        if actual_start > ot_start:
+            waste_minutes += Decimal(str((actual_start - ot_start).total_seconds() / 60))
+
+    accounting_end = (
+        _slot_end_dt(report_date, ot_slots[-1])
+        if has_overtime and ot_slots
+        else regular_end
+    )
+    if actual_end < accounting_end:
+        waste_minutes += Decimal(str((accounting_end - actual_end).total_seconds() / 60))
+
+    work_minutes = Decimal(str((actual_end - actual_start).total_seconds() / 60))
+    for break_start, break_end in shift_break_intervals(report_date, shift):
+        overlap_start = max(actual_start, break_start)
+        overlap_end = min(actual_end, break_end)
+        if overlap_end > overlap_start:
+            work_minutes -= Decimal(str((overlap_end - overlap_start).total_seconds() / 60))
+
+    if work_minutes < 0:
+        work_minutes = Decimal('0')
+    waste_minutes = waste_minutes.quantize(Decimal('1'))
+
+    return {
+        'work_minutes': work_minutes,
+        'waste_minutes': waste_minutes,
+        'work_minutes_display': _format_duration_minutes(work_minutes) if work_minutes > 0 else '—',
+        'waste_minutes_display': _format_duration_minutes(waste_minutes) if waste_minutes > 0 else '—',
+        'has_waste': waste_minutes > 0,
+    }
 
 
 def build_work_day_timeline(report: DailyWorkReport) -> dict:
@@ -982,40 +1116,37 @@ def build_productivity_report(report: DailyWorkReport) -> dict:
         key=lambda row: (product_order.get(row['product_id'], 999), row['slot_index'])
     )
 
-    if product_summaries:
-        total_qty = sum(Decimal(str(summary['quantity'])) for summary in product_summaries)
-        total_hours = sum(Decimal(str(summary['hours'])) for summary in product_summaries)
-        total_expected = Decimal('0')
-        for summary in product_summaries:
-            efficiency = Decimal(str(summary['efficiency_pct']))
-            if efficiency > 0:
-                total_expected += Decimal(str(summary['quantity'])) / (efficiency / Decimal('100'))
-
-    overall_efficiency_pct = None
+    total_qty, total_hours, total_expected = _report_efficiency_totals(products)
+    overall_efficiency_pct = _report_overall_efficiency_pct(products)
     overall_quantity_per_hour = None
-    if total_expected > 0:
-        overall_efficiency_pct = float(
-            (Decimal(total_qty) / total_expected * 100).quantize(Decimal('0.01'))
-        )
     if total_hours > 0 and total_qty > 0:
         overall_quantity_per_hour = float(
-            (Decimal(total_qty) / total_hours).quantize(Decimal('0.01'))
+            (total_qty / total_hours).quantize(Decimal('0.01'))
         )
 
     profile = getattr(report.employee, 'profile', None)
     department_name = profile.department.name if profile and profile.department_id else '—'
     employee_name = (profile.full_name if profile and profile.full_name else report.employee.username)
 
+    work_timeline = build_work_day_timeline(report)
+    day_times = compute_day_work_waste_summary(report, products)
+
     return {
         'hourly_rows': hourly_rows,
         'product_summaries': product_summaries,
         'summary_product_ids': [summary['product_id'] for summary in product_summaries],
-        'work_timeline': build_work_day_timeline(report),
+        'work_timeline': work_timeline,
         'total_quantity': total_qty,
         'total_hours': float(total_hours),
         'total_hours_display': _format_hours(total_hours),
         'overall_efficiency_pct': overall_efficiency_pct,
         'overall_quantity_per_hour': overall_quantity_per_hour,
+        'day_summary': {
+            'avg_efficiency_pct': overall_efficiency_pct,
+            'work_time_display': day_times['work_minutes_display'],
+            'waste_time_display': day_times['waste_minutes_display'],
+            'has_waste': day_times['has_waste'],
+        },
         'employee_name': employee_name,
         'department_name': department_name,
         'report_date': report.report_date,

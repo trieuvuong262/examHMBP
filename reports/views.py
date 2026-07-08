@@ -31,6 +31,7 @@ from hrm.permissions import (
     get_team_report_members,
     is_director,
 )
+from hrm.user_search import filter_users_by_division
 from PortalJustPlay.list_search import apply_combined_search, apply_term_search, apply_user_search, get_search_query
 from PortalJustPlay.pagination import paginate_queryset
 
@@ -60,6 +61,7 @@ from reports.period_utils import (
     parse_team_period_filter,
     team_date_range_query_params,
     team_range_query_params,
+    TEAM_MANAGEMENT_DEFAULT_SPAN_DAYS,
     _parse_iso_date,
 )
 from reports.report_lock import (
@@ -1639,9 +1641,10 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
             return redirect(today_url_for_user(request.user))
         return redirect('home_portal')
 
-    # SX mặc định chỉ lọc trong ngày hôm nay; VP giữ khoảng 7 ngày.
-    default_span = 1 if report_profile == REPORT_PROFILE_PRODUCTION else 7
-    date_from, date_to = parse_team_date_range(request, default_span_days=default_span)
+    date_from, date_to = parse_team_date_range(
+        request,
+        default_span_days=TEAM_MANAGEMENT_DEFAULT_SPAN_DAYS,
+    )
     report_date = date_to
     if report_profile == REPORT_PROFILE_OFFICE:
         period_filter = parse_team_period_filter(request)
@@ -1652,8 +1655,18 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
 
     search_query = get_search_query(request)
     dept_filter = (request.GET.get('dept') or '').strip()
+    division_filter = (request.GET.get('division') or '').strip()
     status_filter = _parse_team_status_filter(request)
-    team = _team_queryset(request.user, search_query, report_profile=report_profile)
+    team_base = _team_queryset(request.user, search_query, report_profile=report_profile)
+    division_choices = division_filter_choices_from_team(
+        request.user,
+        team_base,
+        dept_filter=dept_filter,
+    )
+    team = (
+        filter_users_by_division(team_base, division_filter)
+        if division_filter else team_base
+    )
     all_team_ids = list(team.values_list('id', flat=True))
     team_count = team.count()
 
@@ -1722,6 +1735,8 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
         base_params['q'] = search_query
     if dept_filter:
         base_params['dept'] = dept_filter
+    if division_filter:
+        base_params['division'] = division_filter
     if status_filter:
         base_params['status'] = status_filter
     if request.GET.get('sort'):
@@ -1746,7 +1761,9 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
     return render(request, team_template, {
         'department_groups': department_groups,
         'dept_choices': dept_choices,
+        'division_choices': division_choices,
         'selected_dept': dept_filter,
+        'selected_division': division_filter,
         'status_filter': status_filter,
         'stat_urls': _team_stat_urls(base_params),
         'search_query': search_query,
@@ -1851,8 +1868,18 @@ def _team_weekly_reports_for_profile(request, report_profile: str):
     week_start = _parse_week_start(request)
     search_query = get_search_query(request)
     dept_filter = (request.GET.get('dept') or '').strip()
+    division_filter = (request.GET.get('division') or '').strip()
     status_filter = _parse_team_status_filter(request)
-    team = _team_queryset(request.user, search_query, report_profile=report_profile)
+    team_base = _team_queryset(request.user, search_query, report_profile=report_profile)
+    division_choices = division_filter_choices_from_team(
+        request.user,
+        team_base,
+        dept_filter=dept_filter,
+    )
+    team = (
+        filter_users_by_division(team_base, division_filter)
+        if division_filter else team_base
+    )
     all_team_ids = list(team.values_list('id', flat=True))
     all_reports = meaningful_weekly_reports_qs().filter(
         employee_id__in=all_team_ids,
@@ -1889,12 +1916,16 @@ def _team_weekly_reports_for_profile(request, report_profile: str):
         base_params['q'] = search_query
     if dept_filter:
         base_params['dept'] = dept_filter
+    if division_filter:
+        base_params['division'] = division_filter
 
     ctx = _weekly_context_common(request, week_start, report_profile=report_profile)
     ctx.update({
         'department_groups': department_groups,
         'dept_choices': dept_choices,
+        'division_choices': division_choices,
         'selected_dept': dept_filter,
+        'selected_division': division_filter,
         'status_filter': status_filter,
         'stat_urls': _team_stat_urls(base_params),
         'search_query': search_query,

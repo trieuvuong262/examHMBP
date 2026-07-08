@@ -1,6 +1,35 @@
 {% load static report_extras %}
 <div class="jp-prod-productivity-wrap">
 
+    {% if productivity.day_summary %}
+    <div class="jp-prod-day-summary row g-3 mb-4">
+        <div class="col-sm-4">
+            <div class="jp-prod-day-summary-card h-100">
+                <div class="jp-prod-day-summary-label">Hiệu suất TB trong ngày</div>
+                <div class="jp-prod-day-summary-value">
+                    {% if productivity.day_summary.avg_efficiency_pct is not None %}
+                    <span class="jp-eff {{ productivity.day_summary.avg_efficiency_pct|summary_efficiency_class }}">{{ productivity.day_summary.avg_efficiency_pct|efficiency_pct_display:2 }}%</span>
+                    {% else %}
+                    <span class="text-muted">—</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-4">
+            <div class="jp-prod-day-summary-card h-100">
+                <div class="jp-prod-day-summary-label">Thời gian làm</div>
+                <div class="jp-prod-day-summary-value">{{ productivity.day_summary.work_time_display }}</div>
+            </div>
+        </div>
+        <div class="col-sm-4">
+            <div class="jp-prod-day-summary-card h-100">
+                <div class="jp-prod-day-summary-label">Thời gian hao phí</div>
+                <div class="jp-prod-day-summary-value{% if productivity.day_summary.has_waste %} text-warning-emphasis{% endif %}">{{ productivity.day_summary.waste_time_display }}</div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     {% if productivity.product_summaries %}
     <div class="jp-prod-section-label d-flex flex-wrap align-items-center justify-content-between gap-2">
         <span>Tổng hợp theo mã hàng / công đoạn</span>
@@ -53,7 +82,7 @@
                     <td class="text-end text-muted">{{ row.hours_display }}</td>
                     <td class="text-end jp-prod-eff-cell">
                         {% if row.efficiency_pct is not None %}
-                        <span class="jp-eff {{ row.efficiency_pct|summary_efficiency_class }}">{{ row.efficiency_pct|floatformat:1 }}%</span>
+                        <span class="jp-eff {{ row.efficiency_pct|summary_efficiency_class }}">{{ row.efficiency_pct|efficiency_pct_display:2 }}%</span>
                         {% else %}
                         <span class="jp-eff is-none">—</span>
                         {% endif %}

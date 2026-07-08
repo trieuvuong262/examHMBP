@@ -22,6 +22,7 @@
         mountModalsToBody();
         cleanupModalArtifacts();
         initReviewPageLayout();
+        initCompleteProductMobileLayout();
         initCompleteSessionModal();
         initReviewGrid();
         initSubmitConfirm();
@@ -38,6 +39,11 @@
         document.body.classList.add('jp-prod-hourly-review');
         syncReviewStickySpacer();
         window.addEventListener('resize', syncReviewStickySpacer);
+    }
+
+    function initCompleteProductMobileLayout() {
+        if (!document.querySelector('.jp-prod-complete-form--mobile')) return;
+        document.body.classList.add('jp-prod-hourly-complete');
     }
 
     function syncReviewStickySpacer() {

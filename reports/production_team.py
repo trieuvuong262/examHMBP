@@ -18,6 +18,10 @@ from reports.production_shift_policy import (
     shift_display_label,
 )
 from reports.report_profile import REPORT_PROFILE_PRODUCTION
+from reports.production_hourly import (
+    _report_efficiency_totals,
+    _report_overall_efficiency_pct,
+)
 from reports.team_utils import (
     build_profile_department_groups,
     build_report_team_department_groups,
@@ -418,40 +422,30 @@ def _weekday_label_vi(day: date) -> str:
     return WEEKDAY_LABELS_VI[day.weekday()]
 
 
-def _product_efficiency_and_hours(product) -> tuple[Decimal | None, Decimal]:
-    """Hiệu suất (%) và thời gian (giờ) của 1 công đoạn từ dữ liệu đã prefetch."""
-    norm = product.norm_per_hour
-    if not norm or norm <= 0:
-        return None, Decimal('0')
-    qty_total = Decimal('0')
-    hours_total = Decimal('0')
-    for entry in product.hourly_entries.all():
-        if entry.slot_index < product.first_slot_index:
-            continue
-        qty = entry.quantity or Decimal('0')
-        if qty <= 0:
-            continue
-        hours = entry.partial_hours if (entry.partial_hours and entry.partial_hours > 0) else Decimal('1')
-        qty_total += Decimal(qty)
-        hours_total += Decimal(hours)
-    if qty_total > 0 and hours_total > 0:
-        eff = qty_total / (Decimal(norm) * hours_total) * Decimal('100')
-        return eff, hours_total
-    return None, Decimal('0')
+def _efficiency_totals_for_reports(
+    reports,
+) -> tuple[Decimal, Decimal, Decimal]:
+    """Tổng SL / giờ / SL kỳ vọng trên một hoặc nhiều báo cáo ca."""
+    total_qty = Decimal('0')
+    total_hours = Decimal('0')
+    total_expected = Decimal('0')
+    for report in reports:
+        qty, hours, expected = _report_efficiency_totals(
+            list(report.production_products.all()),
+        )
+        total_qty += qty
+        total_hours += hours
+        total_expected += expected
+    return total_qty, total_hours, total_expected
 
 
 def _weighted_parts(reports) -> tuple[Decimal, Decimal]:
-    """Trả (Σ hiệu suất công đoạn × giờ, Σ giờ) của danh sách báo cáo."""
-    weighted = Decimal('0')
-    hours = Decimal('0')
-    for report in reports:
-        for product in report.production_products.all():
-            eff, prod_hours = _product_efficiency_and_hours(product)
-            if eff is None or prod_hours <= 0:
-                continue
-            weighted += eff * prod_hours
-            hours += prod_hours
-    return weighted, hours
+    """Trả (hiệu suất tổng × tổng giờ, tổng giờ) — khớp chi tiết báo cáo."""
+    total_qty, total_hours, total_expected = _efficiency_totals_for_reports(reports)
+    if total_expected <= 0 or total_hours <= 0:
+        return Decimal('0'), Decimal('0')
+    aggregate_pct = total_qty / total_expected * Decimal('100')
+    return aggregate_pct * total_hours, total_hours
 
 
 def _pct_from_parts(weighted: Decimal, hours: Decimal) -> float | None:
@@ -461,14 +455,16 @@ def _pct_from_parts(weighted: Decimal, hours: Decimal) -> float | None:
 
 
 def _weighted_efficiency_pct(reports: list[DailyWorkReport]) -> float | None:
-    """Trung bình có trọng số theo thời gian: Σ(hiệu suất × giờ) / Σ giờ."""
-    weighted, hours = _weighted_parts(reports)
-    return _pct_from_parts(weighted, hours)
+    """Hiệu suất TB — ΣSL / Σ(định mức × giờ), khớp tab chi tiết báo cáo."""
+    total_qty, _total_hours, total_expected = _efficiency_totals_for_reports(reports)
+    if total_expected <= 0:
+        return None
+    return float((total_qty / total_expected * 100).quantize(Decimal('0.01')))
 
 
 def report_overall_efficiency_pct(report) -> float | None:
-    """Hiệu suất trung bình 1 báo cáo — trọng số theo thời gian từng công đoạn."""
-    return _weighted_efficiency_pct([report])
+    """Hiệu suất trung bình 1 báo cáo — khớp build_productivity_report."""
+    return _report_overall_efficiency_pct(list(report.production_products.all()))
 
 
 def _day_efficiency_pct(reports: list[DailyWorkReport]) -> float | None:

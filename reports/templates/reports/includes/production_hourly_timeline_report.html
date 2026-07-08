@@ -65,7 +65,7 @@
                         {% for item in seg.items %}
                         <div class="jp-prod-hour-merged-line">
                         {% if item.efficiency_pct is not None %}
-                        <span class="jp-eff {{ item.efficiency_pct|summary_efficiency_class }}">{{ item.efficiency_pct|floatformat:1 }}%</span>
+                        <span class="jp-eff {{ item.efficiency_pct|summary_efficiency_class }}">{{ item.efficiency_pct|efficiency_pct_display:2 }}%</span>
                         {% else %}<span class="text-muted">—</span>{% endif %}
                         </div>
                         {% empty %}<span class="text-muted">—</span>{% endfor %}
@@ -96,7 +96,7 @@
                     <th class="text-end">{{ productivity.total_hours_display }}</th>
                     <th class="text-end">
                         {% if productivity.overall_efficiency_pct is not None %}
-                        <span class="jp-eff {{ productivity.overall_efficiency_pct|summary_efficiency_class }}">{{ productivity.overall_efficiency_pct|floatformat:1 }}%</span>
+                        <span class="jp-eff {{ productivity.overall_efficiency_pct|summary_efficiency_class }}">{{ productivity.overall_efficiency_pct|efficiency_pct_display:2 }}%</span>
                         {% else %}—{% endif %}
                     </th>
                 </tr>

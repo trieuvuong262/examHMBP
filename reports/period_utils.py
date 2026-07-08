@@ -21,6 +21,8 @@ PERIOD_CHOICES = [
 
 PERIOD_LABELS = dict(PERIOD_CHOICES)
 
+TEAM_MANAGEMENT_DEFAULT_SPAN_DAYS = 10
+
 
 def parse_office_period(request) -> str:
     raw = (
@@ -198,8 +200,8 @@ def period_date_label(period: str) -> str:
     return 'Ngày báo cáo'
 
 
-def parse_team_date_range(request, *, default_span_days: int = 7) -> tuple[date, date]:
-    """Khoảng thời gian lọc trên trang quản lý BC (VP)."""
+def parse_team_date_range(request, *, default_span_days: int = TEAM_MANAGEMENT_DEFAULT_SPAN_DAYS) -> tuple[date, date]:
+    """Khoảng thời gian lọc trên trang quản lý BC (SX/VP)."""
     today = timezone.localdate()
     date_to = _parse_iso_date(request.GET.get('to')) or today
     date_from = _parse_iso_date(request.GET.get('from'))

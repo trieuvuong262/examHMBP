@@ -34,6 +34,7 @@ TEAM_LIST_FILTER_KEYS = frozenset({
     'date',
     'period',
     'dept',
+    'division',
     'status',
     'q',
     'sort',

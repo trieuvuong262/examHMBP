@@ -9,3 +9,14 @@
     </select>
 </div>
 {% endif %}
+{% if division_choices|length > 1 %}
+<div>
+    <label class="form-label fw-bold small mb-1">Bộ phận</label>
+    <select name="division" class="form-select">
+        <option value="">Tất cả bộ phận</option>
+        {% for item in division_choices %}
+        <option value="{{ item.key }}" {% if selected_division == item.key %}selected{% endif %}>{{ item.label }}</option>
+        {% endfor %}
+    </select>
+</div>
+{% endif %}

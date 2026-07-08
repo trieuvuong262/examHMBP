@@ -4,7 +4,7 @@
 
 {% block extra_head %}
 <link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260624a">
-<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260703h">
+<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260708a">
 {% endblock %}
 
 {% block content %}
@@ -481,5 +481,5 @@
 
 {% include 'reports/includes/report_submit_loading.html' %}
 {% if hourly_grid %}{{ hourly_grid|json_script:"hourly-grid-data" }}{% endif %}
-<script src="{% static 'js/reports-production-hourly.js' %}?v=20260706a"></script>
+<script src="{% static 'js/reports-production-hourly.js' %}?v=20260708a"></script>
 {% endblock %}

@@ -39,6 +39,12 @@ body.jp-prod-hourly-review .jp-app-footer {
     display: none;
 }
 
+@media (max-width: 991.98px) {
+    body.jp-prod-hourly-complete .jp-app-footer {
+        display: none;
+    }
+}
+
 .jp-prod-card--flush {
     background: transparent;
     box-shadow: none;
@@ -1503,7 +1509,7 @@ body .modal-backdrop.show {
 /* Hiệu suất 4 mức — đồng bộ với báo cáo tổng hợp SX */
 .jp-eff {
     display: inline-block;
-    min-width: 3rem;
+    min-width: 3.85rem;
     padding: 0.12rem 0.45rem;
     border-radius: 0.45rem;
     font-weight: 700;
@@ -1596,6 +1602,36 @@ body .modal-backdrop.show {
 
 .jp-prod-eff-legend--inline .jp-prod-eff-legend-item {
     white-space: nowrap;
+}
+
+.jp-prod-day-summary-card {
+    padding: 0.85rem 1rem;
+    border-radius: 0.65rem;
+    background: #fafbfc;
+    border: 1px solid #eef2f6;
+}
+
+.jp-prod-day-summary-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #64748b;
+    margin-bottom: 0.35rem;
+}
+
+.jp-prod-day-summary-value {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1.3;
+}
+
+.jp-prod-day-summary-value .jp-eff {
+    font-size: 1.15rem;
+    min-width: auto;
+    padding: 0;
+    background: transparent;
 }
 
 .jp-prod-productivity-table--summary tbody tr {
@@ -2068,6 +2104,10 @@ body .modal-backdrop.show {
         padding-bottom: 5.5rem;
     }
 
+    body:has(.jp-bottom-nav) .jp-prod-mobile-flow:has(.jp-prod-mobile-step--form) {
+        padding-bottom: calc(5.5rem + var(--jp-bottom-nav-h, 0px) + var(--jp-safe-bottom, 0px));
+    }
+
     .jp-prod-mobile-step {
         width: 100%;
         max-width: none;
@@ -2108,10 +2148,14 @@ body .modal-backdrop.show {
         left: max(1rem, env(safe-area-inset-left));
         right: max(1rem, env(safe-area-inset-right));
         bottom: calc(0.65rem + env(safe-area-inset-bottom, 0px));
-        z-index: 1035;
+        z-index: 1040;
         max-width: 448px;
         margin: 0 auto;
         box-shadow: 0 -4px 20px rgba(15, 23, 42, 0.12);
+    }
+
+    body:has(.jp-bottom-nav) .jp-prod-complete-form--mobile .jp-prod-complete-submit {
+        bottom: calc(var(--jp-bottom-nav-h, 0px) + env(safe-area-inset-bottom, 0px) + 0.65rem);
     }
 
     .jp-prod-page--review .jp-prod-review-main {
