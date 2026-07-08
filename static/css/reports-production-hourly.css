@@ -337,6 +337,36 @@ body .modal-backdrop.show {
     box-shadow: 0 0 0 1px rgba(255, 193, 7, 0.35);
 }
 
+.jp-prod-review-product.is-submitted-locked {
+    border-color: rgba(25, 135, 84, 0.45);
+    box-shadow: 0 0 0 1px rgba(25, 135, 84, 0.2);
+    background: linear-gradient(180deg, #f0fdf4 0%, #fff 2.5rem);
+}
+
+.jp-prod-review-product.is-pending-submit {
+    border-color: rgba(255, 193, 7, 0.55);
+}
+
+.jp-prod-session-card.is-submitted {
+    border: 1px solid rgba(25, 135, 84, 0.4) !important;
+    box-shadow: 0 0 0 1px rgba(25, 135, 84, 0.12), 0 2px 10px rgba(0, 0, 0, 0.05) !important;
+    background: linear-gradient(180deg, #f0fdf4 0%, #fff 2.75rem);
+}
+
+.jp-prod-session-card.is-pending-submit {
+    border: 1px solid rgba(255, 193, 7, 0.45) !important;
+}
+
+.jp-prod-session-status {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+}
+
+.jp-prod-row--submitted > td:first-child {
+    box-shadow: inset 3px 0 0 #198754;
+}
+
 .jp-prod-review-product-head {
     display: flex;
     align-items: flex-start;

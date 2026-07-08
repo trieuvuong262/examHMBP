@@ -2,7 +2,7 @@
 {# Mobile — xem sản lượng (read-only) #}
 <div class="jp-prod-review-list jp-prod-review-list--readonly">
     {% for row in hourly_grid.rows %}
-    <article class="jp-prod-review-product{% if row.is_unfinalized %} is-unfinalized{% endif %}">
+    <article class="jp-prod-review-product{% if row.is_unfinalized %} is-unfinalized{% elif row.submitted_locked %} is-submitted-locked{% else %} is-pending-submit{% endif %}">
         <header class="jp-prod-review-product-head">
             <span class="jp-prod-review-num">{{ forloop.counter }}</span>
             <div class="jp-prod-review-product-meta">
@@ -14,6 +14,10 @@
             </div>
             {% if row.is_unfinalized %}
             <span class="badge bg-warning text-dark jp-prod-review-badge">Chưa gắn</span>
+            {% elif row.submitted_locked %}
+            <span class="badge text-bg-success jp-prod-review-badge"><i class="bi bi-check-circle-fill me-1"></i>Đã gửi</span>
+            {% else %}
+            <span class="badge text-bg-warning jp-prod-review-badge"><i class="bi bi-hourglass-split me-1"></i>Chưa gửi</span>
             {% endif %}
         </header>
         <div class="jp-prod-review-slots">

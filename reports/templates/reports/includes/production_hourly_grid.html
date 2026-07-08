@@ -15,11 +15,17 @@
             </thead>
             <tbody>
                 {% for row in hourly_grid.rows %}
-                <tr{% if row.is_unfinalized %} class="table-warning"{% endif %}>
+                <tr{% if row.is_unfinalized %} class="table-warning"{% elif row.submitted_locked %} class="table-success jp-prod-row--submitted"{% endif %}>
                     <td class="text-center">{{ forloop.counter }}</td>
                     <td class="fw-semibold">
                         {{ row.label_code|default:row.product_code|default:"—" }}
-                        {% if row.is_unfinalized %}<span class="badge bg-warning text-dark ms-1">Chưa gắn</span>{% endif %}
+                        {% if row.is_unfinalized %}
+                        <span class="badge bg-warning text-dark ms-1">Chưa gắn</span>
+                        {% elif row.submitted_locked %}
+                        <span class="badge text-bg-success ms-1"><i class="bi bi-check-circle-fill me-1"></i>Đã gửi</span>
+                        {% else %}
+                        <span class="badge text-bg-warning ms-1"><i class="bi bi-hourglass-split me-1"></i>Chưa gửi</span>
+                        {% endif %}
                     </td>
                     <td>{{ row.label_process|default:row.process_name|default:"Chưa gắn mã" }}</td>
                     <td class="text-end">

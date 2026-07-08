@@ -79,10 +79,19 @@
 
 <div class="jp-prod-session-list">
     {% for row in hourly_grid.rows %}
-    <article class="jp-prod-session-card card border-0 shadow-sm mb-3">
+    <article class="jp-prod-session-card card border-0 shadow-sm mb-3{% if row.submitted_locked %} is-submitted{% elif not row.is_unfinalized %} is-pending-submit{% endif %}">
         <div class="card-body p-3">
             <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
-                <div>
+                <div class="flex-grow-1 min-w-0">
+                    <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+                        {% if row.is_unfinalized %}
+                        <span class="badge bg-warning text-dark jp-prod-session-status">Chưa gắn</span>
+                        {% elif row.submitted_locked %}
+                        <span class="badge text-bg-success jp-prod-session-status"><i class="bi bi-check-circle-fill me-1"></i>Đã gửi</span>
+                        {% else %}
+                        <span class="badge text-bg-warning jp-prod-session-status"><i class="bi bi-hourglass-split me-1"></i>Chưa gửi</span>
+                        {% endif %}
+                    </div>
                     {% if row.is_zero_reason_only %}
                     <div class="fw-bold fs-5 text-hm">{{ row.label_code }}</div>
                     <div class="text-muted">{{ row.zero_reason }}</div>
@@ -94,10 +103,7 @@
                     {% endif %}
                     {% endif %}
                 </div>
-                <div class="text-end">
-                    {% if row.submitted_locked %}
-                    <span class="badge bg-secondary-subtle text-secondary mb-1">Đã gửi</span>
-                    {% endif %}
+                <div class="text-end flex-shrink-0">
                     <div class="small text-muted">Bạn nhập</div>
                     <div class="fs-3 fw-bold text-hm lh-1">{{ row.session_total|default:row.total_quantity|prod_qty }}</div>
                 </div>

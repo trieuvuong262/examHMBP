@@ -348,9 +348,10 @@
     function renderReviewMobileCard(row, ri, proxyMode) {
         var code = escapeHtml(row.label_code || row.product_code || '—');
         var process = escapeHtml(row.label_process || row.process_name || 'Chưa gắn mã');
-        var unfinalized = row.is_unfinalized ? ' is-unfinalized' : '';
-        var locked = row.submitted_locked ? ' is-submitted-locked' : '';
-        var html = '<article class="jp-prod-review-product' + unfinalized + locked + '" data-product-id="' + row.id + '">';
+        var stateClass = row.is_unfinalized
+            ? ' is-unfinalized'
+            : (row.submitted_locked ? ' is-submitted-locked' : ' is-pending-submit');
+        var html = '<article class="jp-prod-review-product' + stateClass + '" data-product-id="' + row.id + '">';
         html += '<header class="jp-prod-review-product-head">';
         html += '<span class="jp-prod-review-num">' + (ri + 1) + '</span>';
         html += '<div class="jp-prod-review-product-meta">';
@@ -363,7 +364,9 @@
         if (row.is_unfinalized) {
             html += '<span class="badge bg-warning text-dark jp-prod-review-badge">Chưa gắn</span>';
         } else if (row.submitted_locked) {
-            html += '<span class="badge bg-secondary-subtle text-secondary jp-prod-review-badge">Đã gửi</span>';
+            html += '<span class="badge text-bg-success jp-prod-review-badge"><i class="bi bi-check-circle-fill me-1"></i>Đã gửi</span>';
+        } else {
+            html += '<span class="badge text-bg-warning jp-prod-review-badge"><i class="bi bi-hourglass-split me-1"></i>Chưa gửi</span>';
         }
         html += '</header><div class="jp-prod-review-slots">';
 
@@ -402,14 +405,18 @@
         html += '<th class="text-end">Tổng dòng</th></tr></thead><tbody>';
 
         grid.rows.forEach(function (row, ri) {
-            var rowClass = row.is_unfinalized ? ' class="table-warning"' : (row.submitted_locked ? ' class="table-secondary"' : '');
+            var rowClass = row.is_unfinalized
+                ? ' class="table-warning"'
+                : (row.submitted_locked ? ' class="table-success jp-prod-row--submitted"' : '');
             html += '<tr data-product-id="' + row.id + '"' + rowClass + '>';
             html += '<td class="text-center">' + (ri + 1) + '</td>';
             html += '<td class="fw-semibold">' + escapeHtml(row.label_code || row.product_code || '—');
             if (row.is_unfinalized) {
                 html += ' <span class="badge bg-warning text-dark ms-1">Chưa gắn</span>';
             } else if (row.submitted_locked) {
-                html += ' <span class="badge bg-secondary-subtle text-secondary ms-1">Đã gửi</span>';
+                html += ' <span class="badge text-bg-success ms-1"><i class="bi bi-check-circle-fill me-1"></i>Đã gửi</span>';
+            } else {
+                html += ' <span class="badge text-bg-warning ms-1"><i class="bi bi-hourglass-split me-1"></i>Chưa gửi</span>';
             }
             html += '</td>';
             html += '<td>' + escapeHtml(row.label_process || row.process_name || 'Chưa gắn mã') + '</td>';
