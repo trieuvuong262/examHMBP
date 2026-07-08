@@ -309,13 +309,13 @@
                 }
                 setProdWorkHoursField(pendingForm, check.value);
                 modal.hide();
-                if (window.JpReportSubmitLoading) {
-                    JpReportSubmitLoading.syncCkEditor();
-                    JpReportSubmitLoading.show('Đang gửi báo cáo...');
-                    JpReportSubmitLoading.disableSubmitControls(pendingForm);
-                }
-                pendingForm.submit();
+                var formToSubmit = pendingForm;
                 pendingForm = null;
+                if (window.JpReportSubmitLoading && typeof JpReportSubmitLoading.submitForm === 'function') {
+                    JpReportSubmitLoading.submitForm(formToSubmit);
+                } else {
+                    formToSubmit.submit();
+                }
             });
         }
 

@@ -1,5 +1,6 @@
 /**
  * Overlay loading khi gửi báo cáo (VP ngày/tuần, SX).
+ * Submit qua fetch — thất bại mạng/server thì hiện popup yêu cầu kiểm tra mạng.
  */
 (function () {
     'use strict';
@@ -8,6 +9,9 @@
     if (!overlay) return;
 
     var msgEl = overlay.querySelector('[data-loading-message]');
+    var errorModalEl = document.getElementById('jpReportSubmitErrorModal');
+    var errorModal = null;
+    var submitting = false;
 
     function syncCkEditor() {
         if (!window.CKEDITOR || !CKEDITOR.instances) return;
@@ -27,10 +31,23 @@
         document.body.classList.add('jp-report-submitting');
     }
 
+    function hide() {
+        overlay.hidden = true;
+        overlay.setAttribute('aria-busy', 'false');
+        document.body.classList.remove('jp-report-submitting');
+    }
+
     function disableSubmitControls(form) {
         if (!form) return;
-        form.querySelectorAll('button[type="submit"], input[type="submit"]').forEach(function (btn) {
+        form.querySelectorAll('button[type="submit"], input[type="submit"], .js-prod-submit-trigger, #prodSubmitConfirmBtn').forEach(function (btn) {
             btn.disabled = true;
+        });
+    }
+
+    function enableSubmitControls(form) {
+        if (!form) return;
+        form.querySelectorAll('button[type="submit"], input[type="submit"], .js-prod-submit-trigger, #prodSubmitConfirmBtn').forEach(function (btn) {
+            btn.disabled = false;
         });
     }
 
@@ -46,14 +63,81 @@
         return false;
     }
 
+    function showErrorModal() {
+        if (!errorModalEl) {
+            window.alert('Gửi báo cáo thất bại. Vui lòng kiểm tra kết nối mạng rồi gửi lại.');
+            return;
+        }
+        if (window.bootstrap && bootstrap.Modal) {
+            errorModal = bootstrap.Modal.getOrCreateInstance(errorModalEl);
+            errorModal.show();
+            return;
+        }
+        errorModalEl.classList.add('show');
+        errorModalEl.style.display = 'block';
+        errorModalEl.removeAttribute('aria-hidden');
+    }
+
+    function buildFormData(form, submitter) {
+        var fd;
+        try {
+            fd = submitter ? new FormData(form, submitter) : new FormData(form);
+        } catch (err) {
+            fd = new FormData(form);
+            if (submitter && submitter.name) {
+                fd.append(submitter.name, submitter.value);
+            }
+        }
+        if (!fd.get('action')) {
+            var hiddenAction = form.querySelector('input[name="action"]');
+            if (hiddenAction && hiddenAction.value) {
+                fd.set('action', hiddenAction.value);
+            } else {
+                fd.set('action', 'submit');
+            }
+        }
+        return fd;
+    }
+
+    function submitForm(form, submitter) {
+        if (!form || submitting) return;
+        submitting = true;
+        syncCkEditor();
+        show('Đang gửi báo cáo...');
+        disableSubmitControls(form);
+
+        var fd = buildFormData(form, submitter || null);
+        var url = form.getAttribute('action') || window.location.href;
+        var method = (form.getAttribute('method') || 'POST').toUpperCase();
+
+        fetch(url, {
+            method: method,
+            body: fd,
+            credentials: 'same-origin',
+            redirect: 'follow',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+        }).then(function (resp) {
+            if (!resp.ok) {
+                throw new Error('HTTP ' + resp.status);
+            }
+            window.location.href = resp.url || url;
+        }).catch(function () {
+            submitting = false;
+            hide();
+            enableSubmitControls(form);
+            showErrorModal();
+        });
+    }
+
     function armForm(form) {
         if (!form || form.dataset.jpSubmitArmed === '1') return;
         form.dataset.jpSubmitArmed = '1';
         form.addEventListener('submit', function (ev) {
             if (!isReportSubmit(ev.submitter, form)) return;
-            syncCkEditor();
-            show('Đang gửi báo cáo...');
-            disableSubmitControls(form);
+            ev.preventDefault();
+            submitForm(form, ev.submitter);
         });
     }
 
@@ -61,8 +145,12 @@
 
     window.JpReportSubmitLoading = {
         show: show,
+        hide: hide,
         armForm: armForm,
         syncCkEditor: syncCkEditor,
         disableSubmitControls: disableSubmitControls,
+        enableSubmitControls: enableSubmitControls,
+        submitForm: submitForm,
+        showErrorModal: showErrorModal,
     };
 })();

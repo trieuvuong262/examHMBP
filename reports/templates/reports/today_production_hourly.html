@@ -306,7 +306,7 @@
                     <div class="jp-prod-mobile-step-visual jp-prod-mobile-step-visual--pulse" aria-hidden="true">
                         <i class="bi bi-hourglass-split"></i>
                     </div>
-                    <p class="jp-prod-mobile-step-kicker">Đang làm công đoạn · <span class="{{ production_shift|production_shift_badge_class }}">{{ production_shift_label }}</span></p>
+                    <p class="jp-prod-mobile-step-kicker">Đang làm công đoạn</p>
                     <div class="jp-prod-mobile-step-clock" id="jp-prod-session-started-clock">{{ session_active.started_at|date:"H:i" }}</div>
                     <p class="jp-prod-mobile-step-lead">Bắt đầu (giờ hệ thống) {{ session_active.started_at|date:"H:i d/m" }}</p>
                     <form method="post" class="jp-prod-mobile-step-action m-0">
@@ -567,5 +567,5 @@
 
 {% include 'reports/includes/report_submit_loading.html' %}
 {% if hourly_grid %}{{ hourly_grid|json_script:"hourly-grid-data" }}{% endif %}
-<script src="{% static 'js/reports-production-hourly.js' %}?v=20260708e"></script>
+<script src="{% static 'js/reports-production-hourly.js' %}?v=20260708f"></script>
 {% endblock %}

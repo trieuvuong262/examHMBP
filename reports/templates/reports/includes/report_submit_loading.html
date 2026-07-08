@@ -1,5 +1,5 @@
 {% load static %}
-<link rel="stylesheet" href="{% static 'css/reports-submit-loading.css' %}?v=20260706a">
+<link rel="stylesheet" href="{% static 'css/reports-submit-loading.css' %}?v=20260708a">
 <div id="jp-report-submit-loading" class="jp-report-submit-loading" hidden aria-live="polite" aria-busy="false">
     <div class="jp-report-submit-loading-box" role="status">
         <div class="spinner-border text-hm mb-3" style="width: 3rem; height: 3rem; border-width: 0.2em;" aria-hidden="true"></div>
@@ -7,4 +7,28 @@
         <p class="text-muted small mb-0">Vui lòng đợi, không đóng hoặc tải lại trang.</p>
     </div>
 </div>
-<script src="{% static 'js/reports-submit-loading.js' %}?v=20260706a"></script>
+
+<div class="modal fade" id="jpReportSubmitErrorModal" tabindex="-1" aria-labelledby="jpReportSubmitErrorTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold text-danger" id="jpReportSubmitErrorTitle">
+                    <i class="bi bi-wifi-off me-2"></i>Gửi báo cáo thất bại
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-2">Không gửi được báo cáo. Vui lòng:</p>
+                <ol class="small text-muted mb-0 ps-3">
+                    <li class="mb-1">Kiểm tra kết nối mạng (Wi‑Fi / dữ liệu di động)</li>
+                    <li class="mb-1">Đợi mạng ổn định rồi thử lại</li>
+                    <li>Bấm <strong>Gửi báo cáo</strong> lần nữa</li>
+                </ol>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-hm fw-bold w-100" data-bs-dismiss="modal">Đã hiểu</button>
+            </div>
+        </div>
+    </div>
+</div>
+<script src="{% static 'js/reports-submit-loading.js' %}?v=20260708a"></script>
