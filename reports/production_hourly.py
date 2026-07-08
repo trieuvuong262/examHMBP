@@ -966,12 +966,12 @@ def _report_has_overtime_activity(
 
 
 def _time_efficiency_pct(declared_hours, work_minutes: Decimal):
-    """Hiệu suất thời gian = (giờ khai báo / giờ thực tế) × 100."""
+    """Hiệu suất thời gian = (giờ thực tế / giờ khai báo) × 100."""
     if not declared_hours or declared_hours <= 0 or work_minutes <= 0:
         return None
     declared_minutes = Decimal(str(declared_hours)) * Decimal('60')
     return float(
-        (declared_minutes / work_minutes * Decimal('100')).quantize(Decimal('0.01'))
+        (work_minutes / declared_minutes * Decimal('100')).quantize(Decimal('0.01'))
     )
 
 
