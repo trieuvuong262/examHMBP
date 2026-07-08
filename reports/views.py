@@ -2071,17 +2071,20 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
     can_review = can_review_user_report(request.user, report)
     can_edit_norm = can_edit_production_norms(request.user, report)
     list_query = team_list_query_from_request(request)
+    is_rejected = bool(report.is_production_report and report.is_hod_rejected)
     can_approve = (
         can_edit_norm
         and report.is_production_report
         and report.status == DailyWorkReport.STATUS_SUBMITTED
         and not report.hod_reviewed
+        and not is_rejected
     )
     can_unapprove = (
         can_edit_norm
         and report.is_production_report
         and report.status == DailyWorkReport.STATUS_SUBMITTED
         and report.hod_reviewed
+        and not is_rejected
     )
 
     def _detail_redirect():
@@ -2129,6 +2132,9 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
         ).exclude(author=request.user).update(is_read=True)
 
     if request.method == 'POST' and request.POST.get('action') == 'update_norms' and can_edit_norm:
+        if report.is_production_report and report.is_hod_rejected:
+            messages.error(request, 'Báo cáo không được duyệt — không thể chỉnh sửa.')
+            return _detail_redirect()
         if report.is_production_report and report.status != DailyWorkReport.STATUS_SUBMITTED:
             messages.error(request, 'Chỉ có thể chỉnh sửa định mức sau khi nhân viên đã nộp báo cáo.')
             return _detail_redirect()

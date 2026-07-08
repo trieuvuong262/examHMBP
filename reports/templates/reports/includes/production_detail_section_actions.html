@@ -1,4 +1,8 @@
-{% if report.is_production_report and report.status == 'SUBMITTED' %}
+{% if report.is_production_report and report.is_hod_rejected %}
+<div class="alert alert-warning py-2 px-3 mb-0 jp-report-not-approved-banner">
+    <i class="bi bi-x-octagon me-1"></i><strong>Báo cáo không được duyệt</strong>
+</div>
+{% elif report.is_production_report and report.status == 'SUBMITTED' %}
 <div class="d-flex flex-wrap align-items-center gap-2 jp-report-detail-hero-review-actions">
     {% if can_edit_norm and can_approve %}
     <form method="post" class="d-inline mb-0"
