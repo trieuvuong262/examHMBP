@@ -133,8 +133,8 @@
                 successCloseBtn.focus();
             }, 50);
         }
+        // Không tự tắt — người dùng bấm «Đã hiểu» mới chuyển trang.
         clearRedirectTimer();
-        redirectTimer = window.setTimeout(goToPendingRedirect, 2200);
     }
 
     function hideSuccess() {
