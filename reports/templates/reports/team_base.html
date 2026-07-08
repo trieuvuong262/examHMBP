@@ -96,7 +96,7 @@
                         </td>
                     </tr>
                     {% for row in group.rows %}
-                    <tr>
+                    <tr{% if row.report %} class="jp-team-row-clickable" data-row-href="{% url detail_url_name row.report.pk %}{% if team_list_query %}?{{ team_list_query }}{% endif %}" tabindex="0" role="link" aria-label="Mở chi tiết báo cáo"{% endif %}>
                         {% block team_row_cells %}{% endblock %}
                     </tr>
                     {% endfor %}
@@ -172,6 +172,22 @@ document.addEventListener('DOMContentLoaded', function () {
             if (e.key === 'Enter') { e.preventDefault(); submitForm(0); }
         });
     }
+
+    // Hàng có báo cáo: bấm vào bất kỳ đâu để mở trang chi tiết.
+    document.querySelectorAll('tr.jp-team-row-clickable[data-row-href]').forEach(function (row) {
+        row.addEventListener('click', function (e) {
+            if (e.target.closest('a, button, input, select, textarea, label, [data-bs-toggle]')) return;
+            var href = row.getAttribute('data-row-href');
+            if (href) window.location.href = href;
+        });
+        row.addEventListener('keydown', function (e) {
+            if (e.key !== 'Enter' && e.key !== ' ') return;
+            if (e.target.closest('a, button, input, select, textarea, label, [data-bs-toggle]')) return;
+            e.preventDefault();
+            var href = row.getAttribute('data-row-href');
+            if (href) window.location.href = href;
+        });
+    });
 });
 </script>
 {% endblock %}
