@@ -9,7 +9,7 @@ from django.utils import timezone
 from reports.models import DailyWorkReport
 from reports.period_utils import PERIOD_DAY
 from reports.production_slots import normalize_shift, shift_contains_datetime
-from reports.report_profile import REPORT_PROFILE_PRODUCTION
+from reports.report_lock import production_employee_may_edit
 
 PRODUCTION_SHIFT_ORDER = (
     DailyWorkReport.SHIFT_MORNING,
@@ -183,11 +183,13 @@ def build_shift_picker_options(employee, report_date, *, can_edit: bool) -> list
         if report:
             action = 'continue'
             action_label = 'Tiếp tục' if report.status == DailyWorkReport.STATUS_DRAFT else 'Xem / sửa'
-            enabled = can_edit and not (
-                report.status == DailyWorkReport.STATUS_SUBMITTED
-                and report.hod_reviewed
-            )
-            status_label = 'Đã gửi' if report.status == DailyWorkReport.STATUS_SUBMITTED else 'Đang nhập'
+            enabled = can_edit and production_employee_may_edit(report)
+            if report.hod_reviewed and report.status == DailyWorkReport.STATUS_SUBMITTED:
+                status_label = 'Đã duyệt'
+            elif report.status == DailyWorkReport.STATUS_SUBMITTED:
+                status_label = 'Đã gửi'
+            else:
+                status_label = 'Đang nhập'
         elif can_start and can_edit:
             action = 'start'
             action_label = 'Bắt đầu'

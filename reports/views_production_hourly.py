@@ -14,7 +14,11 @@ from hrm.permissions import (
     get_profile,
     get_team_report_members,
 )
-from reports.report_lock import is_report_edit_expired, report_edit_denied_message
+from reports.report_lock import (
+    is_production_employee_edit_expired,
+    production_edit_denied_message,
+    production_employee_edit_deadline,
+)
 from reports.models import DailyWorkReport, ProductionHourlyQuantity, ProductionShiftProduct
 from reports.production_hourly import (
     active_has_hourly_data,
@@ -38,6 +42,7 @@ from reports.production_hourly import (
     production_server_now,
     parse_decimal,
     parse_non_negative_decimal,
+    validate_production_work_hours,
     parse_int,
     save_hourly_entry,
     session_awaiting_completion,
@@ -308,14 +313,14 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
     if action in ('end_product', 'complete_product', 'save', 'submit'):
         if not can_operate:
             if report and report.employee_id == request.user.id:
-                messages.error(request, report_edit_denied_message(report))
+                messages.error(request, production_edit_denied_message(report, viewer=request.user))
             else:
                 messages.error(request, 'Bạn không có quyền chỉnh sửa báo cáo này.')
             return redirect(_production_redirect(report_date, shift, subject.id if editing_for_other else None))
     elif action in ('edit_session', 'save_review', 'finalize_product', 'save_hourly'):
         if not can_edit:
             if report and report.employee_id == request.user.id:
-                messages.error(request, report_edit_denied_message(report))
+                messages.error(request, production_edit_denied_message(report, viewer=request.user))
             else:
                 messages.error(request, 'Bạn không có quyền chỉnh sửa báo cáo này.')
             return redirect(_production_redirect(report_date, shift, subject.id if editing_for_other else None))
@@ -374,7 +379,10 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
             messages.error(request, str(exc))
             return redirect(_production_redirect(report_date, shift, for_user or None, 'phase=complete_product'))
         if completed:
-            messages.success(request, f'Đã lưu {code} — tổng {total_qty.normalize()} sản phẩm.')
+            if total_qty == 0:
+                messages.success(request, f'Đã ghi nhận lý do sản lượng 0: {zero_reason[:120]}')
+            else:
+                messages.success(request, f'Đã lưu {code} — tổng {total_qty.normalize()} sản phẩm.')
         return redirect(_production_redirect(report_date, shift, for_user or None))
 
     if action == 'edit_session':
@@ -414,7 +422,12 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
         except ValueError as exc:
             messages.error(request, str(exc))
             return redirect(_production_redirect(report_date, shift, for_user or None, 'phase=review'))
-        messages.success(request, f'Đã cập nhật {code}.')
+        messages.success(
+            request,
+            f'Đã ghi nhận lý do sản lượng 0: {zero_reason[:120]}'
+            if total_qty == 0
+            else f'Đã cập nhật {code}.',
+        )
         return redirect(_production_redirect(report_date, shift, for_user or None, 'phase=review'))
 
     if action == 'finalize_product':
@@ -531,6 +544,14 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
                 messages.error(request, 'Cần nhập ít nhất một mã hàng và sản lượng trước khi gửi.')
                 extra = 'phase=proxy' if editing_for_other else 'phase=review'
                 return redirect(_production_redirect(report_date, shift, for_user or None, extra))
+            work_hours, work_hours_err = validate_production_work_hours(
+                request.POST.get('declared_work_hours'),
+            )
+            if work_hours_err:
+                messages.error(request, work_hours_err)
+                extra = 'phase=proxy' if editing_for_other else 'phase=review'
+                return redirect(_production_redirect(report_date, shift, for_user or None, extra))
+            report.declared_work_hours = work_hours
         was_submitted = report.status == DailyWorkReport.STATUS_SUBMITTED
         msg = _finalize_report_submission(report, action)
         if action == 'submit':
@@ -676,7 +697,8 @@ def today_production_hourly(request, report_date, report_context_common):
         started = True
     is_submitted = report.status == DailyWorkReport.STATUS_SUBMITTED
     is_locked = is_production_report_locked(report)
-    is_edit_expired = is_report_edit_expired(report)
+    is_edit_expired = is_production_employee_edit_expired(report) if report.pk else False
+    employee_edit_deadline = production_employee_edit_deadline(report) if report.pk else None
 
     if editing_for_other and (can_edit or can_add_entry) and report.pk and not started:
         from reports.views import _ensure_daily_report_saved
@@ -770,6 +792,7 @@ def today_production_hourly(request, report_date, report_context_common):
         'is_locked': is_locked,
         'production_entry_closed': is_production_entry_closed(report) if report.pk else False,
         'is_edit_expired': is_edit_expired,
+        'employee_edit_deadline': employee_edit_deadline,
         'phase': phase,
         'shift_started': started,
         'current_product': current_product,

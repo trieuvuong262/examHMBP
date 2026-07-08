@@ -435,8 +435,9 @@ def _handle_add_report_comment(request, *, report, can_review, redirect_fn, dail
             return redirect_fn()
 
     if can_review and report.status == report.STATUS_SUBMITTED and not report.hod_reviewed:
-        report.hod_reviewed = True
-        report.save(update_fields=['hod_reviewed', 'updated_at'])
+        if not (daily_report is not None and daily_report.is_production_report):
+            report.hod_reviewed = True
+            report.save(update_fields=['hod_reviewed', 'updated_at'])
     messages.success(request, 'Đã gửi nhận xét.')
     return redirect_fn()
 
@@ -1982,6 +1983,12 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
     can_review = can_review_user_report(request.user, report)
     can_edit_norm = can_edit_production_norms(request.user, report)
     list_query = team_list_query_from_request(request)
+    can_approve = (
+        can_review
+        and report.is_production_report
+        and report.status == DailyWorkReport.STATUS_SUBMITTED
+        and not report.hod_reviewed
+    )
 
     def _detail_redirect():
         query = team_list_query_from_request(request)
@@ -1992,9 +1999,24 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
 
     if (
         request.method == 'GET'
+        and not report.is_production_report
         and lock_report_on_supervisor_view(report, request.user)
     ):
         report.refresh_from_db()
+
+    if (
+        request.method == 'POST'
+        and request.POST.get('action') == 'approve_report'
+        and can_approve
+    ):
+        from reports.report_lock import approve_production_report
+
+        approve_production_report(report)
+        messages.success(
+            request,
+            'Đã duyệt báo cáo. Bạn có thể chỉnh sửa trong 24 giờ kể từ bây giờ.',
+        )
+        return _detail_redirect()
 
     # Đánh dấu nhận xét đã đọc (comment không phải của mình)
     if request.method == 'GET':
@@ -2127,7 +2149,6 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
             request.user,
             report,
             can_submit=can_submit,
-            is_proxy=True,
         )
     ):
         today_name = (
@@ -2169,6 +2190,7 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
         'productivity': productivity,
         'edit_report_url': edit_report_url,
         'can_review': can_review,
+        'can_approve': can_approve,
         'can_comment': can_comment,
         'comments': _report_comments_queryset(report),
         'can_edit_norm': can_edit_norm,

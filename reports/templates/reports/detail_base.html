@@ -20,7 +20,11 @@
                     <span class="badge jp-report-badge jp-report-badge--submitted">Đã nộp</span>
                     {% endif %}
                     {% if report.hod_reviewed %}
+                    {% if report.is_production_report %}
+                    <span class="badge jp-report-badge jp-report-badge--reviewed">Đã duyệt</span>
+                    {% else %}
                     <span class="badge jp-report-badge jp-report-badge--reviewed">Đã xem</span>
+                    {% endif %}
                     {% endif %}
                     {% if report.is_proxy_entered %}
                     <span class="badge bg-warning text-dark" title="Nhập bởi {{ report.proxy_entered_by.profile.full_name|default:report.proxy_entered_by.username }}">
@@ -46,6 +50,16 @@
                 <a href="{{ export_url }}" class="btn btn-outline-hm btn-sm">
                     <i class="bi bi-file-earmark-spreadsheet me-1"></i>Xuất Excel
                 </a>
+                {% endif %}
+                {% if can_approve %}
+                <form method="post" class="d-inline"
+                      onsubmit="return confirm('Duyệt báo cáo? Sau khi duyệt, nhân viên không thể chỉnh sửa.');">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="approve_report">
+                    <button type="submit" class="btn btn-hm btn-sm">
+                        <i class="bi bi-check2-circle me-1"></i>Duyệt
+                    </button>
+                </form>
                 {% endif %}
                 {% if edit_report_url %}
                 <a href="{{ edit_report_url }}" class="btn btn-outline-hm btn-sm">

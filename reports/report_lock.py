@@ -10,6 +10,8 @@ from django.utils import timezone
 from reports.models import DailyWorkReport, WeeklyWorkReport
 from reports.period_utils import PERIOD_DAY, PERIOD_MONTH, PERIOD_WEEK
 
+PRODUCTION_EDIT_WINDOW = timedelta(hours=24)
+
 
 def _report_reference_date(report) -> date:
     """Mốc ngày của báo cáo — dùng tính hạn sửa."""
@@ -35,6 +37,64 @@ def is_report_edit_expired(report) -> bool:
     return timezone.localdate() > last_editable_date(report)
 
 
+def is_production_report(report) -> bool:
+    return bool(getattr(report, 'is_production_report', False))
+
+
+def production_employee_edit_deadline(report):
+    """Hạn sửa của nhân viên sau khi nộp báo cáo SX."""
+    if report.status != DailyWorkReport.STATUS_SUBMITTED or not report.submitted_at:
+        return None
+    return report.submitted_at + PRODUCTION_EDIT_WINDOW
+
+
+def production_manager_edit_deadline(report):
+    """Hạn sửa của quản lý sau khi duyệt báo cáo SX."""
+    if not report.hod_reviewed:
+        return None
+    reviewed_at = getattr(report, 'hod_reviewed_at', None) or report.updated_at
+    if not reviewed_at:
+        return None
+    return reviewed_at + PRODUCTION_EDIT_WINDOW
+
+
+def is_production_employee_edit_expired(report) -> bool:
+    if report.status != DailyWorkReport.STATUS_SUBMITTED:
+        return is_report_edit_expired(report)
+    deadline = production_employee_edit_deadline(report)
+    if not deadline:
+        return False
+    return timezone.now() > deadline
+
+
+def is_production_manager_edit_expired(report) -> bool:
+    deadline = production_manager_edit_deadline(report)
+    if not deadline:
+        return True
+    return timezone.now() > deadline
+
+
+def production_employee_may_edit(report) -> bool:
+    if report.hod_reviewed:
+        return False
+    if report.status == DailyWorkReport.STATUS_SUBMITTED:
+        return not is_production_employee_edit_expired(report)
+    return not is_report_edit_expired(report)
+
+
+def production_manager_may_edit(report) -> bool:
+    if not report.hod_reviewed:
+        return False
+    return not is_production_manager_edit_expired(report)
+
+
+def approve_production_report(report) -> None:
+    now = timezone.now()
+    report.hod_reviewed = True
+    report.hod_reviewed_at = now
+    report.save(update_fields=['hod_reviewed', 'hod_reviewed_at', 'updated_at'])
+
+
 def is_report_locked(report) -> bool:
     return bool(report.hod_reviewed)
 
@@ -42,6 +102,30 @@ def is_report_locked(report) -> bool:
 def report_edit_denied_message(report) -> str:
     if is_report_locked(report):
         return 'Cấp trên đã xem báo cáo — không thể chỉnh sửa.'
+    if is_report_edit_expired(report):
+        return (
+            'Đã quá hạn chỉnh sửa — chỉ được sửa đến hết ngày '
+            f'{last_editable_date(report).strftime("%d/%m/%Y")}.'
+        )
+    return 'Bạn không có quyền chỉnh sửa báo cáo này.'
+
+
+def production_edit_denied_message(report, *, viewer=None) -> str:
+    from hrm.permissions import can_review_user_report
+
+    if report.hod_reviewed:
+        if viewer and can_review_user_report(viewer, report):
+            if is_production_manager_edit_expired(report):
+                return 'Đã quá 24 giờ kể từ khi duyệt — không thể chỉnh sửa.'
+        return 'Báo cáo đã được duyệt — bạn không thể chỉnh sửa.'
+    if report.status == DailyWorkReport.STATUS_SUBMITTED:
+        deadline = production_employee_edit_deadline(report)
+        if deadline and timezone.now() > deadline:
+            local_deadline = timezone.localtime(deadline)
+            return (
+                'Đã quá 24 giờ kể từ khi nộp — hạn sửa '
+                f'{local_deadline.strftime("%H:%M %d/%m/%Y")}.'
+            )
     if is_report_edit_expired(report):
         return (
             'Đã quá hạn chỉnh sửa — chỉ được sửa đến hết ngày '
@@ -59,9 +143,11 @@ def _can_supervisor_view_report(viewer, report) -> bool:
 
 
 def lock_report_on_supervisor_view(report, viewer) -> bool:
-    """Tự khóa khi cấp trên mở xem báo cáo đã gửi (lần đầu)."""
+    """Tự khóa khi cấp trên mở xem báo cáo đã gửi (lần đầu) — không áp dụng SX."""
     from hrm.permissions import get_report_team_users, is_global_report_viewer
 
+    if is_production_report(report):
+        return False
     if (
         report.employee_id == viewer.id
         or not _can_supervisor_view_report(viewer, report)

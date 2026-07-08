@@ -119,26 +119,40 @@
             var reasonWrap = form.querySelector('.jp-prod-complete-zero-wrap');
             var reasonInput = form.querySelector('.jp-prod-complete-zero-reason');
             var extraWrap = form.querySelector('.jp-prod-complete-extra-wrap');
+            var productWrap = form.querySelector('.jp-prod-complete-product-wrap');
             var damagedInput = form.querySelector('.jp-prod-complete-damaged');
+            var noteInput = form.querySelector('.jp-prod-complete-note');
+            var productInputs = productWrap
+                ? productWrap.querySelectorAll('.jp-prod-complete-product-code, .jp-prod-complete-process-name, .jp-prod-complete-norm')
+                : [];
             if (!qtyInput || !reasonWrap || !reasonInput) return;
 
-            qtyInput.addEventListener('input', function () {
+            function syncZeroQtyMode() {
                 var isZero = qtyInput.value === '0';
                 reasonWrap.classList.toggle('d-none', !isZero);
                 reasonInput.required = isZero;
-                if (!isZero) reasonInput.value = '';
                 if (extraWrap) extraWrap.classList.toggle('d-none', isZero);
+                if (productWrap) productWrap.classList.toggle('d-none', isZero);
+                productInputs.forEach(function (inp) {
+                    inp.required = !isZero;
+                    if (isZero) inp.value = '';
+                });
                 if (isZero && damagedInput) damagedInput.value = '';
-            });
+                if (isZero && noteInput) noteInput.value = '';
+                if (!isZero) reasonInput.value = '';
+            }
+
+            qtyInput.addEventListener('input', syncZeroQtyMode);
 
             form.addEventListener('submit', function (e) {
                 if (qtyInput.value === '0' && !(reasonInput.value || '').trim()) {
                     e.preventDefault();
-                    reasonWrap.classList.remove('d-none');
-                    reasonInput.required = true;
+                    syncZeroQtyMode();
                     reasonInput.focus();
                 }
             });
+
+            syncZeroQtyMode();
         });
 
         var modal = document.getElementById('completeSessionModal');
@@ -222,18 +236,62 @@
         });
     }
 
+    function validateProdWorkHours(raw) {
+        var text = String(raw || '').trim().replace(',', '.');
+        if (!text) {
+            return { ok: false, message: 'Nhập thời gian làm việc.' };
+        }
+        var hours = parseFloat(text);
+        if (isNaN(hours)) {
+            return { ok: false, message: 'Thời gian làm việc không hợp lệ.' };
+        }
+        if (hours <= 8 || hours >= 16) {
+            return { ok: false, message: 'Thời gian làm việc phải lớn hơn 8 và nhỏ hơn 16 giờ.' };
+        }
+        return { ok: true, value: hours.toFixed(2) };
+    }
+
+    function setProdWorkHoursField(form, value) {
+        if (!form) return;
+        var input = form.querySelector('input[name="declared_work_hours"]');
+        if (input) {
+            input.value = value;
+        }
+    }
+
     function initSubmitConfirm() {
         var modalEl = document.getElementById('prodSubmitConfirmModal');
         if (!modalEl || typeof bootstrap === 'undefined') return;
 
         var pendingForm = null;
         var modal = bootstrap.Modal.getOrCreateInstance(modalEl, { backdrop: true, keyboard: true });
+        var workHoursInput = document.getElementById('prodWorkHoursInput');
+        var workHoursFeedback = document.getElementById('prodWorkHoursFeedback');
+
+        function clearWorkHoursError() {
+            if (!workHoursInput) return;
+            workHoursInput.classList.remove('is-invalid');
+            if (workHoursFeedback) {
+                workHoursFeedback.textContent = '';
+            }
+        }
+
+        function showWorkHoursError(message) {
+            if (!workHoursInput) return false;
+            workHoursInput.classList.add('is-invalid');
+            if (workHoursFeedback) {
+                workHoursFeedback.textContent = message;
+            }
+            workHoursInput.focus();
+            return false;
+        }
 
         document.querySelectorAll('.js-prod-submit-trigger').forEach(function (btn) {
             btn.addEventListener('click', function () {
                 pendingForm = btn.closest('form.js-prod-submit-form');
                 if (!pendingForm) return;
                 fillReviewPayload();
+                clearWorkHoursError();
                 openModal(modalEl);
             });
         });
@@ -243,6 +301,13 @@
             confirmBtn.addEventListener('click', function () {
                 if (!pendingForm) return;
                 fillReviewPayload();
+                clearWorkHoursError();
+                var check = validateProdWorkHours(workHoursInput ? workHoursInput.value : '');
+                if (!check.ok) {
+                    showWorkHoursError(check.message);
+                    return;
+                }
+                setProdWorkHoursField(pendingForm, check.value);
                 modal.hide();
                 if (window.JpReportSubmitLoading) {
                     JpReportSubmitLoading.syncCkEditor();
@@ -254,8 +319,13 @@
             });
         }
 
+        if (workHoursInput) {
+            workHoursInput.addEventListener('input', clearWorkHoursError);
+        }
+
         modalEl.addEventListener('hidden.bs.modal', function () {
             pendingForm = null;
+            clearWorkHoursError();
         });
     }
 

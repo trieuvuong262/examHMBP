@@ -3,7 +3,7 @@
 
     {% if productivity.day_summary %}
     <div class="jp-prod-day-summary row g-3 mb-4">
-        <div class="col-sm-4">
+        <div class="col-6 col-lg-3">
             <div class="jp-prod-day-summary-card h-100">
                 <div class="jp-prod-day-summary-label">Hiệu suất TB trong ngày</div>
                 <div class="jp-prod-day-summary-value">
@@ -15,13 +15,25 @@
                 </div>
             </div>
         </div>
-        <div class="col-sm-4">
+        <div class="col-6 col-lg-3">
+            <div class="jp-prod-day-summary-card h-100">
+                <div class="jp-prod-day-summary-label">Hiệu suất thời gian</div>
+                <div class="jp-prod-day-summary-value">
+                    {% if productivity.day_summary.time_efficiency_pct is not None %}
+                    <span class="jp-eff {{ productivity.day_summary.time_efficiency_pct|summary_efficiency_class }}">{{ productivity.day_summary.time_efficiency_pct|efficiency_pct_display:2 }}%</span>
+                    {% else %}
+                    <span class="text-muted">—</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
             <div class="jp-prod-day-summary-card h-100">
                 <div class="jp-prod-day-summary-label">Thời gian làm</div>
                 <div class="jp-prod-day-summary-value">{{ productivity.day_summary.work_time_display }}</div>
             </div>
         </div>
-        <div class="col-sm-4">
+        <div class="col-6 col-lg-3">
             <div class="jp-prod-day-summary-card h-100">
                 <div class="jp-prod-day-summary-label">Thời gian hao phí</div>
                 <div class="jp-prod-day-summary-value{% if productivity.day_summary.has_waste %} text-warning-emphasis{% endif %}">{{ productivity.day_summary.waste_time_display }}</div>

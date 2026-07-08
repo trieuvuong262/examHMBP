@@ -20,10 +20,15 @@
         <div class="card-body p-3">
             <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
                 <div>
+                    {% if row.is_zero_reason_only %}
+                    <div class="fw-bold fs-5 text-hm">{{ row.label_code }}</div>
+                    <div class="text-muted">{{ row.zero_reason }}</div>
+                    {% else %}
                     <div class="fw-bold fs-5 text-hm">{{ row.label_code|default:row.product_code }}</div>
                     <div class="text-muted small">{{ row.label_process|default:row.process_name }}</div>
                     {% if row.norm_per_hour %}
                     <div class="small text-muted mt-1">Định mức {{ row.norm_per_hour|floatformat:0 }}/giờ</div>
+                    {% endif %}
                     {% endif %}
                 </div>
                 <div class="text-end">
@@ -53,6 +58,18 @@
                     <input type="hidden" name="action" value="edit_session">
                     <input type="hidden" name="product_id" value="{{ row.id }}">
                     {% if for_user_param %}<input type="hidden" name="for_user" value="{{ for_user_param }}">{% endif %}
+                    {% if row.is_zero_reason_only %}
+                    <div class="mb-2">
+                        <label class="form-label fw-bold small mb-1">Tổng sản lượng</label>
+                        <input type="number" name="total_quantity" class="form-control" min="0" step="0.01" required
+                               inputmode="decimal" value="0" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small mb-1">Lý do sản lượng 0 <span class="text-danger">*</span></label>
+                        <input type="text" name="zero_reason" class="form-control" maxlength="200" required
+                               autocomplete="off" value="{{ row.zero_reason }}">
+                    </div>
+                    {% else %}
                     <div class="mb-2">
                         <label class="form-label fw-bold small mb-1">Mã hàng</label>
                         <input type="text" name="product_code" class="form-control" required
@@ -92,6 +109,7 @@
                         <input type="text" name="note" class="form-control" maxlength="500"
                                autocomplete="off" value="{{ row.session_note }}">
                     </div>
+                    {% endif %}
                     <div class="d-flex gap-2">
                         <button type="submit" class="btn btn-hm fw-bold">Lưu thay đổi</button>
                         <button type="button" class="btn btn-outline-secondary" data-bs-toggle="collapse"

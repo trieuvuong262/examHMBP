@@ -63,8 +63,16 @@ class DailyWorkReport(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT)
     submitted_at = models.DateTimeField(null=True, blank=True)
     draft_saved_at = models.DateTimeField(null=True, blank=True, verbose_name='Lưu nháp lúc')
-    hod_reviewed = models.BooleanField(default=False, verbose_name='HOD đã xem')
+    hod_reviewed = models.BooleanField(default=False, verbose_name='HOD đã duyệt')
+    hod_reviewed_at = models.DateTimeField(null=True, blank=True, verbose_name='HOD duyệt lúc')
     hod_note = models.CharField(max_length=500, blank=True, verbose_name='Ghi chú HOD')
+    declared_work_hours = models.DecimalField(
+        max_digits=4,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name='Thời gian làm việc (giờ)',
+    )
     shift_started_at = models.DateTimeField(null=True, blank=True, verbose_name='Bắt đầu ca')
     proxy_entered_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -101,7 +109,12 @@ class DailyWorkReport(models.Model):
 
     @property
     def is_edit_expired(self):
-        from reports.report_lock import is_report_edit_expired
+        from reports.report_lock import (
+            is_production_employee_edit_expired,
+            is_report_edit_expired,
+        )
+        if self.is_production_report:
+            return is_production_employee_edit_expired(self)
         return is_report_edit_expired(self)
 
     @property

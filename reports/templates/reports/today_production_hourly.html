@@ -110,17 +110,26 @@
                 </div>
             </section>
 
-            {% if is_submitted and can_edit %}
+            {% if is_submitted and can_edit and not is_locked %}
             <div class="alert alert-success border-0 small mb-3">
-                Đã gửi lúc {{ report.submitted_at|date:"H:i d/m/Y" }} — vẫn chỉnh sửa được trước khi cấp trên xem chi tiết.
+                Đã gửi lúc {{ report.submitted_at|date:"H:i d/m/Y" }}.
+                {% if employee_edit_deadline %}
+                Có thể chỉnh sửa đến {{ employee_edit_deadline|date:"H:i d/m/Y" }} (trước khi cấp trên duyệt).
+                {% else %}
+                Có thể chỉnh sửa trong 24 giờ sau khi nộp, trước khi cấp trên duyệt.
+                {% endif %}
             </div>
-            {% elif is_locked %}
+            {% elif is_locked and not can_edit %}
             <div class="alert alert-secondary border-0 small mb-3">
-                Đã khóa — không thể chỉnh sửa.
+                Báo cáo đã được duyệt — bạn không thể chỉnh sửa.
             </div>
             {% elif is_edit_expired %}
             <div class="alert alert-secondary border-0 small mb-3">
+                {% if is_submitted %}
+                Đã quá 24 giờ kể từ khi nộp — không thể chỉnh sửa.
+                {% else %}
                 Đã quá hạn chỉnh sửa — chỉ được sửa đến hết ngày {{ report.last_editable_on|date:"d/m/Y" }}.
+                {% endif %}
             </div>
             {% endif %}
 
@@ -168,12 +177,13 @@
                     <strong id="review-grand-total-mobile">{{ hourly_grid.grand_total|default:0|prod_qty }}</strong>
                 </div>
                 <div class="d-grid gap-2">
-                    <form method="post" class="mb-0 js-report-submit-form" id="review-submit-form">
+                    <form method="post" class="mb-0 js-prod-submit-form js-report-submit-form" id="review-submit-form">
                         {% csrf_token %}
                         <input type="hidden" name="action" value="submit">
                         <input type="hidden" name="review_json" id="review-json-input">
+                        <input type="hidden" name="declared_work_hours" value="">
                         {% if for_user_param %}<input type="hidden" name="for_user" value="{{ for_user_param }}">{% endif %}
-                        <button type="submit" class="btn btn-hm w-100 fw-bold btn-lg">
+                        <button type="button" class="btn btn-hm w-100 fw-bold btn-lg js-prod-submit-trigger">
                             <i class="bi bi-send-fill me-2"></i>{% if is_submitted %}Cập nhật báo cáo{% else %}Gửi báo cáo{% endif %}
                         </button>
                     </form>
@@ -186,12 +196,13 @@
                     <span class="text-muted">Tổng ngày</span>
                     <strong id="review-grand-total-desktop">{{ hourly_grid.grand_total|default:0|prod_qty }}</strong>
                 </div>
-                <form method="post" class="mb-0 ms-auto js-report-submit-form" id="review-submit-form-desktop">
+                <form method="post" class="mb-0 ms-auto js-prod-submit-form js-report-submit-form" id="review-submit-form-desktop">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="submit">
                     <input type="hidden" name="review_json" id="review-json-input-desktop">
+                    <input type="hidden" name="declared_work_hours" value="">
                     {% if for_user_param %}<input type="hidden" name="for_user" value="{{ for_user_param }}">{% endif %}
-                    <button type="submit" class="btn btn-hm fw-bold px-4">
+                    <button type="button" class="btn btn-hm fw-bold px-4 js-prod-submit-trigger">
                         <i class="bi bi-send-fill me-2"></i>{% if is_submitted %}Cập nhật báo cáo{% else %}Gửi báo cáo{% endif %}
                     </button>
                 </form>
@@ -329,13 +340,20 @@
 
             {% if phase == 'review' and hourly_grid is not None %}
             <section class="jp-prod-review-main">
-                {% if is_submitted and not is_edit_expired %}
+                {% if is_submitted and can_edit and not is_locked %}
                 <div class="alert alert-success border-0 small mb-3 py-2">
                     Đã gửi lúc {{ report.submitted_at|date:"H:i d/m/Y" }}.
+                    {% if employee_edit_deadline %}
+                    Sửa được đến {{ employee_edit_deadline|date:"H:i d/m/Y" }} (trước khi duyệt).
+                    {% endif %}
                 </div>
-                {% elif is_locked %}
+                {% elif is_locked and not can_edit %}
                 <div class="alert alert-secondary border-0 small mb-3 py-2">
-                    Cấp trên đã xem báo cáo — không sửa phần đã gửi.{% if can_resume_entry %} Bấm «Nhập tiếp báo cáo» ở cuối trang để thêm công đoạn.{% endif %}
+                    Báo cáo đã được duyệt — bạn không thể chỉnh sửa.
+                </div>
+                {% elif is_edit_expired and is_submitted %}
+                <div class="alert alert-secondary border-0 small mb-3 py-2">
+                    Đã quá 24 giờ kể từ khi nộp — không thể chỉnh sửa.
                 </div>
                 {% endif %}
 
@@ -389,6 +407,7 @@
                     {% csrf_token %}
                     <input type="hidden" name="action" value="submit">
                     <input type="hidden" name="review_json" id="review-json-input">
+                    <input type="hidden" name="declared_work_hours" value="">
                     {% if for_user_param %}<input type="hidden" name="for_user" value="{{ for_user_param }}">{% endif %}
                     <button type="button" class="btn btn-hm w-100 fw-bold btn-lg js-prod-submit-trigger">
                         <i class="bi bi-send-fill me-2"></i>Gửi báo cáo
@@ -415,6 +434,7 @@
                     {% csrf_token %}
                     <input type="hidden" name="action" value="submit">
                     <input type="hidden" name="review_json" id="review-json-input-desktop">
+                    <input type="hidden" name="declared_work_hours" value="">
                     {% if for_user_param %}<input type="hidden" name="for_user" value="{{ for_user_param }}">{% endif %}
                     <button type="button" class="btn btn-hm fw-bold px-4 js-prod-submit-trigger">
                         <i class="bi bi-send-fill me-2"></i>Gửi báo cáo
@@ -455,17 +475,38 @@
 </div>
 {% endif %}
 
-{% if phase == 'review' and can_add_entry and not production_entry_closed %}
+{% if phase == 'review' %}
 <div class="modal fade jp-prod-modal" id="prodSubmitConfirmModal" tabindex="-1" aria-labelledby="prodSubmitConfirmTitle" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow">
             <div class="modal-header border-0 pb-0">
-                <h5 class="modal-title fw-bold" id="prodSubmitConfirmTitle">Bạn có chắc muốn gửi báo cáo?</h5>
+                <h5 class="modal-title fw-bold" id="prodSubmitConfirmTitle">Gửi báo cáo</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
             </div>
             <div class="modal-body">
+                <div class="mb-3">
+                    <label for="prodWorkHoursInput" class="form-label fw-bold small mb-1">
+                        Thời gian làm việc <span class="text-danger">*</span>
+                    </label>
+                    <div class="input-group">
+                        <input type="number"
+                               class="form-control"
+                               id="prodWorkHoursInput"
+                               name="declared_work_hours"
+                               required
+                               min="8.01"
+                               max="15.99"
+                               step="0.01"
+                               inputmode="decimal"
+                               placeholder="VD: 8,5"
+                               value="{% if report.declared_work_hours %}{{ report.declared_work_hours }}{% endif %}">
+                        <span class="input-group-text">giờ</span>
+                    </div>
+                    <div class="form-text">Lớn hơn 8 và nhỏ hơn 16 giờ.</div>
+                    <div class="invalid-feedback" id="prodWorkHoursFeedback"></div>
+                </div>
                 <p class="small text-muted mb-0">
-                    Hành động này không thể hoàn tác. Bấm <strong>Gửi báo cáo</strong> muốn chốt ca hoặc <strong>Huỷ</strong> để quay lại màn hình tổng kết.
+                    Bấm <strong>Gửi báo cáo</strong> để chốt ca hoặc <strong>Huỷ</strong> để quay lại.
                 </p>
             </div>
             <div class="modal-footer border-0 pt-0 flex-nowrap gap-2">
@@ -481,5 +522,5 @@
 
 {% include 'reports/includes/report_submit_loading.html' %}
 {% if hourly_grid %}{{ hourly_grid|json_script:"hourly-grid-data" }}{% endif %}
-<script src="{% static 'js/reports-production-hourly.js' %}?v=20260708a"></script>
+<script src="{% static 'js/reports-production-hourly.js' %}?v=20260708d"></script>
 {% endblock %}
