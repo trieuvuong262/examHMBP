@@ -51,10 +51,32 @@
                     <i class="bi bi-file-earmark-spreadsheet me-1"></i>Xuất Excel
                 </a>
                 {% endif %}
+                {% if report.is_production_report and report.status == 'SUBMITTED' and can_edit_norm %}
+                {% if can_approve %}
+                <form method="post" class="d-inline mb-0"
+                      onsubmit="return confirm('Duyệt báo cáo? Sau khi duyệt, nhân viên không thể chỉnh sửa.');">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="approve_report">
+                    <button type="submit" class="btn btn-hm btn-sm fw-bold">
+                        <i class="bi bi-check2-circle me-1"></i>Duyệt
+                    </button>
+                </form>
+                {% endif %}
+                {% if can_unapprove %}
+                <form method="post" class="d-inline mb-0"
+                      onsubmit="return confirm('Hoàn duyệt báo cáo? Nhân viên có thể sửa lại nếu còn trong hạn 24 giờ.');">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="unapprove_report">
+                    <button type="submit" class="btn btn-outline-warning btn-sm fw-bold">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i>Hoàn duyệt
+                    </button>
+                </form>
+                {% endif %}
+                {% endif %}
                 {% if edit_report_url %}
                 <a href="{{ edit_report_url }}" class="btn btn-outline-hm btn-sm">
                     <i class="bi bi-pencil-square me-1"></i>
-                    {% if report.employee_id == request.user.id %}Sửa{% else %}Chỉnh sửa báo cáo{% endif %}
+                    {% if report.employee_id == request.user.id %}Sửa{% else %}Chỉnh sửa{% endif %}
                 </a>
                 {% endif %}
             </div>
@@ -77,8 +99,6 @@
         </ul>
     </div>
     {% endif %}
-
-    {% include 'reports/includes/production_approve_actions.html' %}
 
     {% if report.hod_note %}
     <div class="jp-report-hod-note-readonly mb-3" role="note">

@@ -110,7 +110,9 @@ def can_edit_production_report(viewer, report, *, can_submit, is_proxy=False) ->
             return False
         return can_submit
     if can_edit_production_norms(viewer, report):
-        return production_manager_may_edit(report)
+        if report.hod_reviewed:
+            return production_manager_may_edit(report)
+        return production_employee_may_edit(report)
     if is_proxy:
         if not can_proxy_enter_daily_report(viewer, report.employee):
             return False
@@ -131,7 +133,9 @@ def can_operate_production_entry(viewer, report, *, can_submit: bool, is_proxy: 
     if not report or not report.pk:
         return False
     if can_edit_production_norms(viewer, report):
-        return production_manager_may_edit(report)
+        if report.hod_reviewed:
+            return production_manager_may_edit(report)
+        return production_employee_may_edit(report)
     if not _production_entry_actor_ok(viewer, report, can_submit=can_submit, is_proxy=is_proxy):
         return False
     return production_employee_may_edit(report)

@@ -26,6 +26,7 @@ from reports.production_hourly import (
     build_hourly_grid,
     build_proxy_entry_grid,
     can_edit_production_report,
+    can_edit_production_norms,
     can_add_production_entry,
     can_resume_production_entry,
     can_operate_production_entry,
@@ -144,11 +145,30 @@ def _resolve_production_subject(request, report_date):
         except (User.DoesNotExist, ValueError, TypeError):
             messages.error(request, 'Không tìm thấy nhân viên cấp dưới.')
             return None, None, redirect('reports:team_cn')
-        if not can_proxy_enter_daily_report(request.user, target):
-            messages.error(request, 'Bạn không có quyền nhập báo cáo hộ nhân viên này.')
-            return None, None, redirect('reports:team_cn')
-        subject = target
-        editing_for_other = True
+        if can_proxy_enter_daily_report(request.user, target):
+            subject = target
+            editing_for_other = True
+        else:
+            shift = _parse_production_shift(request)
+            report = _load_production_report(target, report_date, shift) if shift else None
+            can_manager_edit = (
+                report
+                and report.pk
+                and report.status == DailyWorkReport.STATUS_SUBMITTED
+                and not report.hod_reviewed
+                and can_edit_production_norms(request.user, report)
+                and can_edit_production_report(
+                    request.user,
+                    report,
+                    can_submit=can_submit_daily_report(request.user),
+                )
+            )
+            if can_manager_edit:
+                subject = target
+                editing_for_other = True
+            else:
+                messages.error(request, 'Bạn không có quyền nhập báo cáo hộ nhân viên này.')
+                return None, None, redirect('reports:team_cn')
     return subject, editing_for_other, None
 
 

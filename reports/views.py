@@ -2020,7 +2020,7 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
         approve_production_report(report)
         messages.success(
             request,
-            'Đã duyệt báo cáo. Bạn có thể chỉnh sửa trong 24 giờ kể từ bây giờ.',
+            'Đã duyệt báo cáo. Bấm Hoàn duyệt nếu cần mở lại cho nhân viên chỉnh sửa.',
         )
         return _detail_redirect()
 
@@ -2179,6 +2179,8 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
             f"&shift={report.shift}"
             f"&for_user={report.employee_id}"
         )
+    if report.is_production_report and report.hod_reviewed:
+        edit_report_url = ''
     detail_template = (
         'reports/detail_cn.html'
         if report.is_production_report
