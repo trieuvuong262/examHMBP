@@ -2,7 +2,7 @@
 {% load static report_extras %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260702r">
+<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260708g">
 <style>
     .jp-proxy-wrap { max-width: 1400px; }
     .jp-proxy-head {
@@ -159,7 +159,7 @@
                 <input type="hidden" name="for_user" value="{{ subject.pk }}">
                 <input type="hidden" name="sessions_json" class="s-sessions-json">
 
-                {% if tab.lock_session_times and tab.is_submitted %}
+                {% if tab.show_declared_work_hours %}
                 <div class="mb-3 jp-proxy-work-hours">
                     <label class="form-label fw-bold small mb-1" for="declared-work-hours-{{ tab.shift }}">
                         Thời gian làm việc

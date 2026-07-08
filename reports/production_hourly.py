@@ -2033,7 +2033,8 @@ def save_proxy_shift_sessions(
             )
         created += 1
 
-    report.proxy_entered_by = user
+    if not content_edit_only:
+        report.proxy_entered_by = user
     if not report.shift_started_at:
         report.shift_started_at = _slot_start_dt(report.report_date, slots[0])
     if content_edit_only:
