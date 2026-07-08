@@ -39,6 +39,7 @@ from reports.production_hourly import (
     finalize_product_with_metadata,
     is_production_report_locked,
     is_production_entry_closed,
+    ensure_submitted_steps_locked,
     lock_production_steps_on_submit,
     product_is_submitted_locked,
     production_server_now,
@@ -828,6 +829,9 @@ def today_production_hourly(request, report_date, report_context_common):
     is_locked = is_production_report_locked(report)
     is_edit_expired = is_production_employee_edit_expired(report) if report.pk else False
     employee_edit_deadline = production_employee_edit_deadline(report) if report.pk else None
+    if is_submitted and report.pk:
+        # Heal: báo cáo đã gửi nhưng công đoạn chưa gắn submitted_locked (dữ liệu cũ / miss khi submit).
+        ensure_submitted_steps_locked(report)
 
     if editing_for_other and (can_edit or can_add_entry) and report.pk and not started and not content_edit_only:
         from reports.views import _ensure_daily_report_saved

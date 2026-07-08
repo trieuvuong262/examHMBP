@@ -87,8 +87,26 @@ def lock_production_steps_on_submit(report: DailyWorkReport) -> int:
     ).update(submitted_locked=True)
 
 
+def ensure_submitted_steps_locked(report: DailyWorkReport) -> int:
+    """Nếu báo cáo đang SUBMITTED mà công đoạn chưa chốt — tự chốt (heal dữ liệu cũ)."""
+    if not report or not report.pk:
+        return 0
+    if report.status != DailyWorkReport.STATUS_SUBMITTED:
+        return 0
+    return lock_production_steps_on_submit(report)
+
+
 def product_is_submitted_locked(product: ProductionShiftProduct) -> bool:
     return bool(getattr(product, 'submitted_locked', False))
+
+
+def product_shows_as_submitted(product: ProductionShiftProduct, report: DailyWorkReport) -> bool:
+    """Badge «Đã gửi»: đã chốt, hoặc báo cáo đang SUBMITTED và công đoạn đã xong."""
+    if product_is_submitted_locked(product):
+        return True
+    if not report or report.status != DailyWorkReport.STATUS_SUBMITTED:
+        return False
+    return product.status == ProductionShiftProduct.STATUS_DONE
 
 
 def lock_production_report_on_supervisor_view(report, viewer) -> bool:
@@ -1385,6 +1403,9 @@ def build_hourly_grid(report: DailyWorkReport) -> dict:
         )
         total_qty = product.total_quantity if session_mode and product.total_quantity is not None else cell_total
         started_display, ended_display = session_time_displays(product)
+        marked_submitted = (
+            not is_unfinalized and product_shows_as_submitted(product, report)
+        )
         rows.append({
             'id': product.pk,
             'product_code': product.product_code.strip() if product.product_code else '',
@@ -1392,7 +1413,7 @@ def build_hourly_grid(report: DailyWorkReport) -> dict:
             'norm_per_hour': float(product.norm_per_hour) if product.norm_per_hour is not None else None,
             'status': product.status,
             'is_unfinalized': is_unfinalized,
-            'submitted_locked': product.submitted_locked,
+            'submitted_locked': marked_submitted,
             'first_slot_index': product.first_slot_index,
             'label_code': 'Sản lượng 0' if zero_only else (
                 product.product_code.strip() if product.product_code else '—'
@@ -1408,7 +1429,6 @@ def build_hourly_grid(report: DailyWorkReport) -> dict:
             'session_total': product.total_quantity,
             'session_damaged': product.total_damaged_quantity or 0,
             'session_note': product.completion_note or '',
-            'submitted_locked': product.submitted_locked,
             'session_time_label': session_time_label(product) if session_mode else '',
             'started_at_display': started_display,
             'ended_at_display': ended_display,
