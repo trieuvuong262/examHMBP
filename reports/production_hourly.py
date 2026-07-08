@@ -899,18 +899,30 @@ def _product_efficiency_pct(product: ProductionShiftProduct) -> float | None:
     if not norm or norm <= 0:
         return None
     prod_qty = Decimal('0')
-    prod_expected = Decimal('0')
     for entry in product.hourly_entries.order_by('slot_index'):
         if not _entry_is_filled(entry):
             continue
         if entry.slot_index < product.first_slot_index:
             continue
-        hours = _entry_hours(entry)
         qty = entry.quantity
         if qty > 0:
             prod_qty += qty
-            prod_expected += norm * hours
-    if prod_qty > 0 and prod_expected > 0:
+    if prod_qty <= 0:
+        return None
+    if is_session_reported_product(product) and product.started_at and product.ended_at:
+        product_hours = session_effective_hours(product)
+    else:
+        product_hours = Decimal('0')
+        for entry in product.hourly_entries.order_by('slot_index'):
+            if not _entry_is_filled(entry):
+                continue
+            if entry.slot_index < product.first_slot_index:
+                continue
+            qty = entry.quantity
+            if qty > 0:
+                product_hours += _entry_hours(entry)
+    prod_expected = norm * product_hours
+    if prod_expected > 0:
         return float((prod_qty / prod_expected * 100).quantize(Decimal('0.01')))
     return None
 
@@ -944,11 +956,9 @@ def _report_efficiency_totals(
             product_hours += hours
         if product_qty <= 0:
             continue
-        # Với công đoạn nhập theo phiên, ưu tiên giờ thực theo mốc bắt đầu/kết thúc.
-        if session_mode:
-            effective_hours = session_effective_hours(product)
-            if effective_hours > 0:
-                product_hours = effective_hours
+        # Với công đoạn nhập theo phiên, luôn lấy giờ theo mốc bắt đầu/kết thúc (kể cả 0 phút).
+        if session_mode and product.started_at and product.ended_at:
+            product_hours = session_effective_hours(product)
         total_qty += product_qty
         total_hours += product_hours
         total_expected += norm * product_hours
@@ -1096,10 +1106,8 @@ def compute_day_work_waste_summary(
             product_hours += _entry_hours(entry)
         if product_qty <= 0:
             continue
-        if session_mode:
-            effective_hours = session_effective_hours(product)
-            if effective_hours > 0:
-                product_hours = effective_hours
+        if session_mode and product.started_at and product.ended_at:
+            product_hours = session_effective_hours(product)
         work_hours += product_hours
 
     work_minutes = (work_hours * Decimal('60')).quantize(Decimal('1'))
@@ -1271,10 +1279,9 @@ def build_productivity_report(report: DailyWorkReport) -> dict:
             })
 
         if session_mode and prod_qty > 0 and norm and norm > 0:
-            effective_hours = session_effective_hours(product)
-            if effective_hours > 0:
-                prod_hours = effective_hours
-                prod_expected = norm * effective_hours
+            if product.started_at and product.ended_at:
+                prod_hours = session_effective_hours(product)
+                prod_expected = norm * prod_hours
 
         if prod_qty > 0 and norm and norm > 0:
             started_display, ended_display = session_time_displays(product)
@@ -1286,8 +1293,11 @@ def build_productivity_report(report: DailyWorkReport) -> dict:
                 'norm_per_hour': float(norm),
                 'hours': float(prod_hours),
                 'hours_display': _format_hours(prod_hours),
-                'efficiency_pct': float(
-                    (Decimal(prod_qty) / prod_expected * 100).quantize(Decimal('0.01'))
+                'efficiency_pct': (
+                    float(
+                        (Decimal(prod_qty) / prod_expected * 100).quantize(Decimal('0.01'))
+                    )
+                    if prod_expected > 0 else None
                 ),
                 'started_at_display': started_display,
                 'ended_at_display': ended_display,
@@ -1424,7 +1434,7 @@ def format_production_quantity(value) -> str:
 def _format_hours(value) -> str:
     dec = Decimal(str(value)).quantize(Decimal('0.01'))
     total_minutes = int((dec * Decimal('60')).quantize(Decimal('1')))
-    return _format_hours_minutes_vn(total_minutes, zero_value='0')
+    return _format_hours_minutes_vn(total_minutes, zero_value='0 phút')
 
 
 def _format_declared_work_hours(hours) -> str:
