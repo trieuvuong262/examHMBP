@@ -610,6 +610,7 @@ def proxy_report_entry(request):
         can_edit_production_norms,
         can_manager_edit_unsubmitted_production_report,
         can_proxy_enter_daily_report,
+        enrich_proxy_shift_sessions_for_anomaly_fix,
         employee_self_submitted_production_report,
         report_has_manager_fixable_anomaly,
         save_proxy_shift_sessions,
@@ -705,7 +706,7 @@ def proxy_report_entry(request):
         )
         if lock_session_times:
             pass
-        elif can_edit_declared_work_hours:
+        elif can_edit_declared_work_hours and not preserve_draft:
             from reports.production_hourly import resolve_declared_work_hours_for_save
 
             work_hours, work_hours_err = resolve_declared_work_hours_for_save(
@@ -762,27 +763,32 @@ def proxy_report_entry(request):
             is_report_locked(report) or is_report_edit_expired(report)
         )
         show_declared_work_hours = True
+        has_anomaly = (
+            bool(report.pk)
+            and report.status != DailyWorkReport.STATUS_SUBMITTED
+            and report_has_manager_fixable_anomaly(report)
+        )
+        proxy_data = build_proxy_shift_sessions(report)
+        if has_anomaly:
+            proxy_data = enrich_proxy_shift_sessions_for_anomaly_fix(proxy_data, report)
         tabs.append({
             'shift': shift,
             'label': label,
-            'data': build_proxy_shift_sessions(report),
+            'data': proxy_data,
             'is_submitted': bool(report.pk) and report.status == DailyWorkReport.STATUS_SUBMITTED,
             'is_locked': bool(report.pk) and (is_report_locked(report) or is_report_edit_expired(report)),
             'proxy_entered_by': report.proxy_entered_by if report.pk else None,
             'lock_session_times': lock_session_times,
             'declared_work_hours': report.declared_work_hours if report.pk else None,
-            'show_declared_work_hours': show_declared_work_hours and not lock_session_times,
-            'can_edit_declared_work_hours': can_edit_declared_work_hours,
+            'show_declared_work_hours': show_declared_work_hours and not lock_session_times and not has_anomaly,
+            'can_edit_declared_work_hours': can_edit_declared_work_hours and not has_anomaly,
             'report_id': report.pk if report.pk else None,
             'detail_url': (
                 reverse('reports:detail_cn', kwargs={'pk': report.pk})
                 if report.pk else ''
             ),
-            'has_anomaly': (
-                bool(report.pk)
-                and report.status != DailyWorkReport.STATUS_SUBMITTED
-                and report_has_manager_fixable_anomaly(report)
-            ),
+            'has_anomaly': has_anomaly,
+            'anomaly_fix_mode': has_anomaly and not lock_session_times,
             'can_manager_edit': (
                 lock_session_times
                 or not report.pk
@@ -791,10 +797,7 @@ def proxy_report_entry(request):
                     and report.status == DailyWorkReport.STATUS_SUBMITTED
                     and not (is_report_locked(report) or is_report_edit_expired(report))
                 )
-                or (
-                    report.status != DailyWorkReport.STATUS_SUBMITTED
-                    and report_has_manager_fixable_anomaly(report)
-                )
+                or has_anomaly
             ),
         })
 
@@ -855,6 +858,7 @@ def proxy_report_entry(request):
         'back_team_url': back_url,
         'back_url': back_url,
         'edit_submitted_only': edit_submitted_only,
+        'anomaly_fix_mode': any(tab.get('anomaly_fix_mode') for tab in tabs),
     })
 
 

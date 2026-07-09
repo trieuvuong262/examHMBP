@@ -1851,19 +1851,36 @@ def product_has_efficiency_anomaly(product: ProductionShiftProduct) -> bool:
     return efficiency <= 0 or efficiency > PRODUCTION_MAX_SUBMIT_EFFICIENCY_PCT
 
 
+def product_has_manager_fixable_anomaly(product: ProductionShiftProduct) -> bool:
+    """Công đoạn sai — quản lý được phép sửa khi báo cáo chưa nộp."""
+    if _product_is_zero_reason_only(product):
+        return False
+    return (
+        product_has_zero_duration_anomaly(product)
+        or product_has_efficiency_anomaly(product)
+    )
+
+
+def anomaly_product_ids_for_report(report: DailyWorkReport) -> set[int]:
+    if not report or not report.pk:
+        return set()
+    products = list(
+        report.production_products.prefetch_related('hourly_entries').order_by('sort_order', 'id')
+    )
+    return {
+        product.id
+        for product in _products_for_productivity(products)
+        if product_has_manager_fixable_anomaly(product)
+    }
+
+
 def report_has_manager_fixable_anomaly(report: DailyWorkReport) -> bool:
     """Báo cáo chưa nộp có công đoạn sai — quản lý được phép chỉnh sửa."""
     if not report or not report.pk:
         return False
     if report.status == DailyWorkReport.STATUS_SUBMITTED:
         return False
-    products = list(
-        report.production_products.prefetch_related('hourly_entries').order_by('sort_order', 'id')
-    )
-    for product in _products_for_productivity(products):
-        if product_has_zero_duration_anomaly(product) or product_has_efficiency_anomaly(product):
-            return True
-    return False
+    return bool(anomaly_product_ids_for_report(report))
 
 
 def can_manager_edit_unsubmitted_production_report(viewer, report: DailyWorkReport) -> bool:
@@ -2233,32 +2250,36 @@ def _slot_options_for_shift(shift: str) -> list[dict]:
     return out
 
 
+def _proxy_session_dict_from_product(product: ProductionShiftProduct) -> dict:
+    entries = list(product.hourly_entries.all())
+    indices = sorted(e.slot_index for e in entries)
+    total = product.total_quantity
+    if total is None:
+        total = sum((e.quantity for e in entries), Decimal('0'))
+    norm = product.norm_per_hour
+    start_disp, end_disp = session_time_displays(product)
+    return {
+        'product_id': product.id,
+        'code': (product.product_code or '').strip(),
+        'process': (product.process_name or '').strip(),
+        'norm': (int(norm) if norm == norm.to_integral() else float(norm)) if norm is not None else '',
+        'start_time': start_disp,
+        'end_time': end_disp,
+        'slots': indices,
+        'total': format_production_quantity(total) if total else '',
+        'damaged': product.total_damaged_quantity or '',
+        'note': (product.completion_note or '').strip(),
+    }
+
+
 def build_proxy_shift_sessions(report: DailyWorkReport) -> dict:
     """Dữ liệu nhập hộ theo công đoạn — mã hàng + giờ bắt đầu/kết thúc + tổng SL."""
     shift = _shift_for_report(report)
     window_start, window_end = _shift_window(report.report_date, shift)
     sessions = []
     if report.pk:
-        for p in report.production_products.prefetch_related('hourly_entries').order_by('sort_order', 'id'):
-            entries = list(p.hourly_entries.all())
-            indices = sorted(e.slot_index for e in entries)
-            total = p.total_quantity
-            if total is None:
-                total = sum((e.quantity for e in entries), Decimal('0'))
-            norm = p.norm_per_hour
-            start_disp, end_disp = session_time_displays(p)
-            sessions.append({
-                'product_id': p.id,
-                'code': (p.product_code or '').strip(),
-                'process': (p.process_name or '').strip(),
-                'norm': (int(norm) if norm == norm.to_integral() else float(norm)) if norm is not None else '',
-                'start_time': start_disp,
-                'end_time': end_disp,
-                'slots': indices,
-                'total': format_production_quantity(total) if total else '',
-                'damaged': p.total_damaged_quantity or '',
-                'note': (p.completion_note or '').strip(),
-            })
+        for product in report.production_products.prefetch_related('hourly_entries').order_by('sort_order', 'id'):
+            sessions.append(_proxy_session_dict_from_product(product))
     return {
         'shift': shift,
         'slot_windows': proxy_slot_windows_for_shift(shift),
@@ -2268,6 +2289,25 @@ def build_proxy_shift_sessions(report: DailyWorkReport) -> dict:
         'sessions': sessions,
         'has_data': bool(sessions),
     }
+
+
+def enrich_proxy_shift_sessions_for_anomaly_fix(data: dict, report: DailyWorkReport) -> dict:
+    """Đánh dấu công đoạn đúng (khóa) / sai (cho sửa) trên form sửa báo cáo chưa nộp."""
+    if not report or not report.pk or report.status == DailyWorkReport.STATUS_SUBMITTED:
+        return data
+    anomaly_ids = anomaly_product_ids_for_report(report)
+    if not anomaly_ids:
+        return data
+    sessions = []
+    for sess in data.get('sessions') or []:
+        product_id = sess.get('product_id')
+        is_anomaly = product_id in anomaly_ids
+        sessions.append({
+            **sess,
+            'is_anomaly': is_anomaly,
+            'session_locked': not is_anomaly,
+        })
+    return {**data, 'sessions': sessions, 'anomaly_fix_mode': True}
 
 
 def _build_proxy_time_snapshot(report: DailyWorkReport) -> dict[int, dict]:
@@ -2314,6 +2354,46 @@ def _resolve_proxy_session_interval(
             if overlaps:
                 return overlaps, (start_dt, end_dt)
     return _proxy_session_overlaps(report_date, shift, sess, slot_by_idx)
+
+
+def _normalize_anomaly_fix_sessions(report: DailyWorkReport, sessions: list[dict]) -> list[dict]:
+    """Chỉ cho sửa công đoạn sai — công đoạn đúng giữ nguyên từ DB."""
+    products = list(
+        report.production_products.prefetch_related('hourly_entries').order_by('sort_order', 'id')
+    )
+    if not products:
+        raise ValueError('Báo cáo không có công đoạn để lưu.')
+    anomaly_ids = anomaly_product_ids_for_report(report)
+    if not anomaly_ids:
+        raise ValueError('Báo cáo không còn công đoạn cần sửa.')
+
+    locked_forms = {
+        product.id: _proxy_session_dict_from_product(product)
+        for product in products
+    }
+    submitted_by_id: dict[int, dict] = {}
+    for raw_sess in sessions:
+        product_id = parse_int(raw_sess.get('product_id'), -1)
+        if product_id < 0:
+            raise ValueError(
+                'Không được thêm công đoạn mới — chỉ sửa các công đoạn sai hiệu suất hoặc thời gian.'
+            )
+        if product_id not in locked_forms:
+            raise ValueError('Công đoạn không hợp lệ.')
+        submitted_by_id[product_id] = dict(raw_sess)
+
+    if set(submitted_by_id) != set(locked_forms):
+        raise ValueError(
+            'Phải giữ nguyên các công đoạn đúng — không được xóa công đoạn đã khóa.'
+        )
+
+    normalized: list[dict] = []
+    for product in products:
+        if product.id in anomaly_ids:
+            normalized.append(submitted_by_id[product.id])
+        else:
+            normalized.append(locked_forms[product.id])
+    return normalized
 
 
 def _prepare_proxy_sessions_for_save(
@@ -2459,6 +2539,9 @@ def save_proxy_shift_sessions(
 
     prior_status = report.status
     prior_submitted_at = report.submitted_at
+
+    if preserve_draft:
+        sessions = _normalize_anomaly_fix_sessions(report, sessions)
 
     prepared = _prepare_proxy_sessions_for_save(
         report,

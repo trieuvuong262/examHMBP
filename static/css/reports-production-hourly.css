@@ -2617,6 +2617,26 @@ body .modal-backdrop.show {
     background: #fff;
 }
 
+.jp-proxy-session--locked {
+    background: #f8fafc;
+    border-color: #dbe3ec !important;
+}
+
+.jp-proxy-session--locked .form-control[readonly] {
+    background-color: #f1f5f9;
+    cursor: default;
+}
+
+.jp-proxy-session--anomaly {
+    border-color: #f0c674 !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 193, 7, 0.15);
+}
+
+.jp-proxy-session-lock-note,
+.jp-proxy-session-anomaly-note {
+    font-weight: 500;
+}
+
 .jp-proxy-label--spacer {
     visibility: hidden;
     user-select: none;

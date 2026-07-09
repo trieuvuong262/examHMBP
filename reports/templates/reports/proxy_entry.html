@@ -3,7 +3,7 @@
 
 {% block extra_head %}
 <link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260624a">
-<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260708j">
+<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260709a">
 {% endblock %}
 
 {% block content %}
@@ -13,8 +13,8 @@
         <div class="jp-report-detail-hero-top">
             <div class="jp-report-detail-hero-text">
                 <h1 class="fw-bold text-hm mb-2 jp-page-title h4">
-                    <i class="bi bi-{% if edit_submitted_only %}pencil-square{% else %}people-fill{% endif %} me-2"></i>
-                    {% if edit_submitted_only %}Chỉnh sửa báo cáo sản xuất{% else %}Nhập hộ báo cáo sản xuất{% endif %}
+                    <i class="bi bi-{% if edit_submitted_only %}pencil-square{% elif anomaly_fix_mode %}exclamation-triangle{% else %}people-fill{% endif %} me-2"></i>
+                    {% if edit_submitted_only %}Chỉnh sửa báo cáo sản xuất{% elif anomaly_fix_mode %}Chỉnh sửa báo cáo sai{% else %}Nhập hộ báo cáo sản xuất{% endif %}
                 </h1>
                 <p class="jp-report-detail-name mb-2">{{ subject_name }}{% if subject_code %} <span class="text-muted fw-normal">· {{ subject_code }}</span>{% endif %}</p>
                 <div class="d-flex flex-wrap align-items-center gap-2">
@@ -68,12 +68,20 @@
                 </div>
                 {% endif %}
 
+                {% if tab.anomaly_fix_mode %}
+                <div class="jp-proxy-info-note">
+                    <i class="bi bi-info-circle me-1"></i>
+                    Chỉ được sửa các <strong>công đoạn sai</strong> (hiệu suất hoặc thời gian không hợp lệ). Công đoạn đúng đã khóa.
+                </div>
+                {% endif %}
+
                 <form method="post" class="jp-proxy-form" data-shift="{{ tab.shift }}"
                       data-report-date="{{ report_date|date:'Y-m-d' }}"
                       data-slot-windows="{{ tab.data.slot_windows_json|escape }}"
                       data-shift-start="{{ tab.data.shift_window_start }}"
                       data-shift-end="{{ tab.data.shift_window_end }}"
-                      data-lock-session-times="{% if tab.lock_session_times %}1{% else %}0{% endif %}">
+                      data-lock-session-times="{% if tab.lock_session_times %}1{% else %}0{% endif %}"
+                      data-anomaly-fix-mode="{% if tab.anomaly_fix_mode %}1{% else %}0{% endif %}">
                     {% csrf_token %}
                     <input type="hidden" name="shift" value="{{ tab.shift }}">
                     <input type="hidden" name="for_user" value="{{ subject.pk }}">
@@ -104,21 +112,25 @@
                     <fieldset class="border-0 p-0 m-0" {% if tab.is_locked and not tab.lock_session_times or not tab.can_manager_edit %}disabled{% endif %}>
                         <div class="jp-proxy-sessions">
                             {% for sess in tab.data.sessions %}
-                            {% include 'reports/includes/proxy_session_row.html' with sess=sess content_edit_only=tab.lock_session_times allow_delete=True %}
+                            {% include 'reports/includes/proxy_session_row.html' with sess=sess content_edit_only=tab.lock_session_times session_locked=sess.session_locked allow_delete=not tab.anomaly_fix_mode %}
                             {% endfor %}
                         </div>
                     </fieldset>
 
                     {% if not tab.is_locked and tab.can_manager_edit %}
+                    {% if not tab.anomaly_fix_mode %}
                     <template class="jp-proxy-session-tpl">
                         {% include 'reports/includes/proxy_session_row.html' with sess=empty_session content_edit_only=False allow_delete=True %}
                     </template>
+                    {% endif %}
                     <div class="jp-proxy-form-actions">
+                        {% if not tab.anomaly_fix_mode %}
                         <button type="button" class="btn btn-outline-hm btn-sm add-session">
                             <i class="bi bi-plus-lg me-1"></i>Thêm công đoạn
                         </button>
+                        {% endif %}
                         <button type="submit" class="btn btn-hm fw-bold">
-                            <i class="bi bi-save me-1"></i>{% if tab.lock_session_times %}Lưu chỉnh sửa{% else %}Lưu {{ tab.label }}{% endif %}
+                            <i class="bi bi-save me-1"></i>{% if tab.lock_session_times or tab.anomaly_fix_mode %}Lưu chỉnh sửa{% else %}Lưu {{ tab.label }}{% endif %}
                         </button>
                     </div>
                     {% elif not tab.can_manager_edit and not tab.is_locked %}
@@ -261,6 +273,7 @@
         sess.addEventListener('change', function () { recalcSession(sess); });
         var rm = sess.querySelector('.remove-session');
         if (rm) rm.addEventListener('click', function () {
+            if (sess.querySelector('.s-session-locked')) return;
             if (!confirm('Xóa công đoạn này khỏi báo cáo?')) return;
             sess.remove();
         });
@@ -269,16 +282,17 @@
     function initForm(form) {
         var container = form.querySelector('.jp-proxy-sessions');
         var tpl = form.querySelector('.jp-proxy-session-tpl');
+        var anomalyFix = form.getAttribute('data-anomaly-fix-mode') === '1';
         if (!container) return;
 
         container.querySelectorAll('.jp-proxy-session').forEach(bindSession);
 
-        if (tpl && !container.querySelector('.jp-proxy-session')) {
+        if (tpl && !container.querySelector('.jp-proxy-session') && !anomalyFix) {
             addRow(container, tpl);
         }
 
         var addBtn = form.querySelector('.add-session');
-        if (addBtn && tpl) {
+        if (addBtn && tpl && !anomalyFix) {
             addBtn.addEventListener('click', function () { addRow(container, tpl); });
         }
 
@@ -290,7 +304,9 @@
                 var endTime = (sess.querySelector('.s-end-time') || {}).value || '';
                 var code = (sess.querySelector('.s-code') || {}).value || '';
                 var total = (sess.querySelector('.s-total') || {}).value || '';
-                if (!code.trim() && !total && !startTime && !endTime) return;
+                var isLocked = !!sess.querySelector('.s-session-locked');
+                if (!isLocked && !code.trim() && !total && !startTime && !endTime) return;
+                if (isLocked && !sess.querySelector('.s-product-id')) return;
                 var range = hoursForClockRange(form, startTime, endTime);
                 if (startTime && endTime && !range.valid) {
                     invalidRange = true;
