@@ -789,6 +789,7 @@ def proxy_report_entry(request):
             ),
             'has_anomaly': has_anomaly,
             'anomaly_fix_mode': has_anomaly and not lock_session_times,
+            'allow_session_delete': not has_anomaly or lock_session_times,
             'can_manager_edit': (
                 lock_session_times
                 or not report.pk
