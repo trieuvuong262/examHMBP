@@ -13,7 +13,8 @@
         <div class="jp-report-detail-hero-top">
             <div class="jp-report-detail-hero-text">
                 <h1 class="fw-bold text-hm mb-2 jp-page-title h4">
-                    <i class="bi bi-people-fill me-2"></i>Nhập hộ báo cáo sản xuất
+                    <i class="bi bi-{% if edit_submitted_only %}pencil-square{% else %}people-fill{% endif %} me-2"></i>
+                    {% if edit_submitted_only %}Chỉnh sửa báo cáo sản xuất{% else %}Nhập hộ báo cáo sản xuất{% endif %}
                 </h1>
                 <p class="jp-report-detail-name mb-2">{{ subject_name }}{% if subject_code %} <span class="text-muted fw-normal">· {{ subject_code }}</span>{% endif %}</p>
                 <div class="d-flex flex-wrap align-items-center gap-2">
@@ -32,6 +33,13 @@
     </div>
 
     <div class="card border-0 jp-report-section-card jp-report-tabs-card jp-proxy-tabs-card">
+        {% if edit_submitted_only %}
+        <div class="alert alert-light border-0 small mb-0 rounded-0 border-bottom py-2 px-3">
+            <i class="bi bi-info-circle me-1"></i>
+            Chỉ hiển thị ca đã nộp — các ca chưa gửi được ẩn.
+        </div>
+        {% endif %}
+        {% if tabs|length > 1 %}
         <ul class="nav nav-tabs jp-report-tabs" role="tablist">
             {% for tab in tabs %}
             <li class="nav-item" role="presentation">
@@ -45,6 +53,13 @@
             </li>
             {% endfor %}
         </ul>
+        {% elif tabs %}
+        <div class="px-3 pt-3 pb-0">
+            <span class="{{ tabs.0.shift|production_shift_badge_class }}">{{ tabs.0.label }}</span>
+            {% if tabs.0.is_submitted %}<span class="badge bg-success ms-2">Đã nộp</span>{% endif %}
+            {% if tabs.0.is_locked %}<span class="badge bg-secondary ms-2">Khóa</span>{% endif %}
+        </div>
+        {% endif %}
 
         <div class="tab-content jp-proxy-panels">
             {% for tab in tabs %}
@@ -56,6 +71,14 @@
                     <i class="bi bi-person-check-fill me-1"></i>
                     <strong>{{ tab.label }}</strong> đã được nhập hộ bởi
                     <strong>{{ tab.proxy_entered_by.profile.full_name|default:tab.proxy_entered_by.username }}</strong>.
+                </div>
+                {% endif %}
+
+                {% if tab.lock_session_times and not tab.is_locked %}
+                <div class="jp-proxy-info-note">
+                    <i class="bi bi-pencil-square me-1"></i>
+                    Chỉ sửa mã hàng, công đoạn, định mức và sản lượng — giờ các công đoạn đã gửi không đổi.
+                    Có thể <strong>thêm công đoạn mới</strong> bên dưới.
                 </div>
                 {% endif %}
 
@@ -100,20 +123,14 @@
                         </div>
                     </fieldset>
 
-                    {% if not tab.is_locked or tab.lock_session_times %}
-                    {% if not tab.lock_session_times %}
+                    {% if not tab.is_locked %}
                     <template class="jp-proxy-session-tpl">
                         {% include 'reports/includes/proxy_session_row.html' with sess=empty_session content_edit_only=False %}
                     </template>
-                    {% endif %}
                     <div class="jp-proxy-form-actions">
-                        {% if not tab.lock_session_times %}
                         <button type="button" class="btn btn-outline-hm btn-sm add-session">
                             <i class="bi bi-plus-lg me-1"></i>Thêm công đoạn
                         </button>
-                        {% else %}
-                        <span></span>
-                        {% endif %}
                         <button type="submit" class="btn btn-hm fw-bold">
                             <i class="bi bi-save me-1"></i>{% if tab.lock_session_times %}Lưu chỉnh sửa{% else %}Lưu {{ tab.label }}{% endif %}
                         </button>

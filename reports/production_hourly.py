@@ -2211,13 +2211,15 @@ def save_proxy_shift_sessions(
     for sess in sessions:
         if content_edit_only:
             product_id = parse_int(sess.get('product_id'), -1)
-            if product_id < 0 or product_id not in time_snapshot:
-                continue
-            sess = {
-                **sess,
-                'start_time': time_snapshot[product_id]['start_time'],
-                'end_time': time_snapshot[product_id]['end_time'],
-            }
+            if product_id >= 0:
+                if product_id not in time_snapshot:
+                    continue
+                sess = {
+                    **sess,
+                    'start_time': time_snapshot[product_id]['start_time'],
+                    'end_time': time_snapshot[product_id]['end_time'],
+                }
+            # product_id < 0: công đoạn mới — giữ giờ từ form
 
         code = (sess.get('code') or '').strip()
         process = (sess.get('process') or '').strip()
@@ -2244,6 +2246,7 @@ def save_proxy_shift_sessions(
             process_name=process,
             norm_per_hour=norm,
             status=ProductionShiftProduct.STATUS_DONE,
+            submitted_locked=content_edit_only,
             sort_order=sort_order,
             first_slot_index=first,
             started_at=start_dt,

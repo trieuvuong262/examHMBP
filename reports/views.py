@@ -712,6 +712,17 @@ def proxy_report_entry(request):
             'can_edit_declared_work_hours': can_edit_declared_work_hours,
         })
 
+    submitted_tabs = [tab for tab in tabs if tab['is_submitted']]
+    if submitted_tabs:
+        tabs = submitted_tabs
+        edit_submitted_only = True
+    else:
+        edit_submitted_only = False
+
+    visible_shifts = {tab['shift'] for tab in tabs}
+    if active_shift not in visible_shifts and tabs:
+        active_shift = tabs[0]['shift']
+
     return render(request, 'reports/proxy_entry.html', {
         'report_date': report_date,
         'subject': subject,
@@ -726,6 +737,7 @@ def proxy_report_entry(request):
             'start_time': '', 'end_time': '',
         },
         'back_team_url': reverse('reports:team_cn') + f'?date={report_date.isoformat()}',
+        'edit_submitted_only': edit_submitted_only,
     })
 
 
