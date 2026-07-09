@@ -17,6 +17,10 @@ PRODUCTION_SHIFT_ORDER = (
     DailyWorkReport.SHIFT_NIGHT,
 )
 
+# Gán báo cáo vào tab ca nào (khác khung slot giờ — slot vẫn theo production_slots.py).
+ASSIGN_MORNING_FROM = time(6, 30)
+ASSIGN_CHOICE_FROM = time(17, 0)
+
 SHIFT_META = {
     DailyWorkReport.SHIFT_MORNING: {
         'label': 'Ca sáng',
@@ -66,31 +70,77 @@ def shift_badge_class(shift: str) -> str:
     return 'badge bg-secondary-subtle text-secondary'
 
 
-def production_shift_for_datetime(
+def is_production_shift_assignment_choice_required(at: datetime | None = None) -> bool:
+    """17h00–23h59 — NV chọn tab ca sáng hay ca tối (không tự gán)."""
+    local = timezone.localtime(at or timezone.now())
+    clock = local.time()
+    return ASSIGN_CHOICE_FROM <= clock
+
+
+def production_shift_assignment_for_datetime(
     at: datetime,
-    employee,
-) -> tuple[date, str]:
+) -> tuple[date, str] | None:
     """
-    Suy ra (report_date, shift) từ thời điểm thực tế (VPS).
-    - Ca sáng (+ tăng ca): 7h30–23h
-    - Ca tối: 23h–5h sáng hôm sau (report_date = ngày bắt đầu lúc 23h)
+    Suy ra tab báo cáo (report_date, shift) từ giờ VPS.
+    - 00h00–06h29: ca tối (report_date = ngày bắt đầu ca 23h hôm trước)
+    - 06h30–16h59: ca sáng (report_date = hôm nay)
+    - 17h00–23h59: None — cần NV chọn ca
+
+    Khung giờ slot vẫn theo production_slots.py.
     """
     local = timezone.localtime(at)
     day = local.date()
     clock = local.time()
 
-    if clock < time(5, 0):
+    if is_production_shift_assignment_choice_required(local):
+        return None
+
+    if clock < ASSIGN_MORNING_FROM:
         prev_day = day - timedelta(days=1)
-        if shift_contains_datetime(local, prev_day, DailyWorkReport.SHIFT_NIGHT):
-            return prev_day, DailyWorkReport.SHIFT_NIGHT
-
-    if shift_contains_datetime(local, day, DailyWorkReport.SHIFT_MORNING):
-        return day, DailyWorkReport.SHIFT_MORNING
-
-    if clock >= time(23, 0):
-        return day, DailyWorkReport.SHIFT_NIGHT
+        return prev_day, DailyWorkReport.SHIFT_NIGHT
 
     return day, DailyWorkReport.SHIFT_MORNING
+
+
+def production_shift_for_datetime(
+    at: datetime,
+    employee,
+) -> tuple[date, str]:
+    """Tương thích — dùng quy tắc gán tab ca mới."""
+    assignment = production_shift_assignment_for_datetime(at)
+    if assignment is not None:
+        return assignment
+    local = timezone.localtime(at)
+    return local.date(), DailyWorkReport.SHIFT_MORNING
+
+
+def build_shift_assignment_options(
+    employee,
+    report_date: date,
+    *,
+    at: datetime | None = None,
+) -> list[dict]:
+    """Hai lựa chọn popup — chỉ khi trong khung 17h–23h59."""
+    at = at or timezone.localtime()
+    options = []
+    for shift in PRODUCTION_SHIFT_ORDER:
+        can_start, reason = can_start_production_shift(employee, report_date, shift)
+        if shift == DailyWorkReport.SHIFT_NIGHT and can_start:
+            if not shift_contains_datetime(at, report_date, shift):
+                can_start = False
+                reason = (
+                    'Ca tối chỉ bắt đầu nhập từ 23h. '
+                    'Nếu đang làm buổi tối, chọn ca sáng.'
+                )
+        meta = SHIFT_META[shift]
+        options.append({
+            'shift': shift,
+            'label': meta['label'],
+            'time_range': meta['time_range'],
+            'enabled': can_start,
+            'reason': reason or '',
+        })
+    return options
 
 
 def find_open_production_report(employee, at: datetime | None = None):
@@ -136,11 +186,18 @@ def resolve_production_entry(
     if open_report:
         return open_report.report_date, normalize_shift(open_report.shift)
 
-    report_date, shift = production_shift_for_datetime(at, employee)
-    if requested_date and requested_date != report_date:
-        if shift_contains_datetime(at, requested_date, shift):
-            report_date = requested_date
-    return report_date, shift
+    assignment = production_shift_assignment_for_datetime(at)
+    if assignment is not None:
+        report_date, shift = assignment
+        if requested_date and requested_date != report_date:
+            if shift == DailyWorkReport.SHIFT_MORNING:
+                report_date = requested_date
+            elif shift_contains_datetime(at, requested_date, shift):
+                report_date = requested_date
+        return report_date, shift
+
+    report_date = requested_date or timezone.localtime(at).date()
+    return report_date, ''
 
 
 def can_start_production_shift(employee, report_date, shift: str) -> tuple[bool, str]:

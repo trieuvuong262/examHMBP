@@ -28,6 +28,7 @@
         initCompleteSessionModal();
         initReviewGrid();
         initSubmitConfirm();
+        initShiftChoice();
         autoOpenModals();
         focusMobileCompleteQty();
         initServerClock();
@@ -57,7 +58,7 @@
 
     /** Modal trong main content dễ bị backdrop che (màn hình mờ, không bấm được). */
     function mountModalsToBody() {
-        ['completeSessionModal', 'prodSubmitConfirmModal'].forEach(function (id) {
+        ['completeSessionModal', 'prodSubmitConfirmModal', 'prodShiftChoiceModal'].forEach(function (id) {
             var el = document.getElementById(id);
             if (el && el.parentElement !== document.body) {
                 document.body.appendChild(el);
@@ -470,6 +471,47 @@
             confirmBtn.disabled = check.blocked;
         }
         return check;
+    }
+
+    function initShiftChoice() {
+        var page = document.querySelector('.jp-prod-page[data-shift-choice-required="true"]');
+        var modal = document.getElementById('prodShiftChoiceModal');
+        if (!page || !modal) return;
+
+        var pendingForm = null;
+
+        document.querySelectorAll('.js-prod-start-form').forEach(function (form) {
+            form.addEventListener('submit', function (e) {
+                var shiftInput = form.querySelector('input[name="shift"]');
+                if (shiftInput && (shiftInput.value || '').trim()) {
+                    return;
+                }
+                e.preventDefault();
+                pendingForm = form;
+                openModal(modal, function () {
+                    var firstEnabled = modal.querySelector('.js-prod-shift-choice-btn:not([disabled])');
+                    if (firstEnabled) firstEnabled.focus();
+                });
+            });
+        });
+
+        modal.querySelectorAll('.js-prod-shift-choice-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                if (btn.disabled) return;
+                var shift = btn.getAttribute('data-shift');
+                if (!shift || !pendingForm) return;
+                var shiftInput = pendingForm.querySelector('input[name="shift"]');
+                if (!shiftInput) return;
+                shiftInput.value = shift;
+                var instance = bootstrap.Modal.getInstance(modal);
+                if (instance) instance.hide();
+                pendingForm.submit();
+            });
+        });
+
+        modal.addEventListener('hidden.bs.modal', function () {
+            pendingForm = null;
+        });
     }
 
     function initSubmitConfirm() {
