@@ -270,8 +270,6 @@ def assign_product_updated_by(
 def product_updated_by_display(product: ProductionShiftProduct, report: DailyWorkReport) -> str:
     if product.updated_by_id:
         return user_display_name(product.updated_by)
-    if report.proxy_entered_by_id and not employee_self_submitted_production_report(report):
-        return user_display_name(report.proxy_entered_by)
     return ''
 
 
@@ -2312,6 +2310,7 @@ def _prepare_proxy_sessions_for_save(
             'note': note,
             'overlaps': overlaps,
             'interval': interval,
+            'product_id': parse_int(sess.get('product_id'), -1) if content_edit_only else -1,
         })
 
     if any(_proxy_session_has_input(sess) for sess in sessions) and not prepared:
@@ -2319,6 +2318,56 @@ def _prepare_proxy_sessions_for_save(
             'Không lưu được công đoạn nào. Kiểm tra mã hàng, sản lượng và khung giờ bắt đầu/kết thúc.'
         )
     return prepared
+
+
+def _snapshot_from_prepared_proxy_item(item: dict) -> dict[str, str]:
+    start_dt, end_dt = item['interval']
+    start_disp = timezone.localtime(start_dt).strftime('%H:%M')
+    end_disp = timezone.localtime(end_dt).strftime('%H:%M')
+    norm = item.get('norm')
+    return {
+        'code': (item.get('code') or '').strip() or '—',
+        'process': (item.get('process') or '').strip() or '—',
+        'norm': format_production_quantity(norm) if norm and norm > 0 else '—',
+        'quantity': format_production_quantity(item.get('total') or 0),
+        'damaged': str(max(0, int(item.get('damaged') or 0))),
+        'time': f'{start_disp}–{end_disp}' if start_disp and end_disp else '—',
+        'note': (item.get('note') or '').strip() or '—',
+    }
+
+
+def _build_proxy_product_meta(report: DailyWorkReport) -> dict[int, dict]:
+    from reports.production_edit_log import snapshot_production_session
+
+    meta: dict[int, dict] = {}
+    for product in report.production_products.all():
+        meta[product.id] = {
+            'updated_by_id': product.updated_by_id,
+            'snapshot': snapshot_production_session(product),
+        }
+    return meta
+
+
+def _resolve_proxy_product_updated_by_id(
+    *,
+    content_edit_only: bool,
+    user,
+    report: DailyWorkReport,
+    product_id: int,
+    old_meta: dict[int, dict],
+    new_snap: dict[str, str],
+) -> int | None:
+    """Chỉ gán «Cập nhật bởi» cho công đoạn mới hoặc có thay đổi nội dung."""
+    if not content_edit_only:
+        return None
+    if not user or user.id == report.employee_id:
+        return None
+    if product_id >= 0 and product_id in old_meta:
+        old = old_meta[product_id]
+        if old['snapshot'] == new_snap:
+            return old.get('updated_by_id')
+        return user.id
+    return user.id
 
 
 @transaction.atomic
@@ -2367,6 +2416,8 @@ def save_proxy_shift_sessions(
     else:
         change_detail = ''
 
+    old_meta = _build_proxy_product_meta(report) if content_edit_only and report.pk else {}
+
     report.production_products.all().delete()
 
     created = 0
@@ -2384,7 +2435,14 @@ def save_proxy_shift_sessions(
         indices = [idx for idx, _ in overlaps]
         first = indices[0]
         total_overlap_hours = sum((hours for _, hours in overlaps), Decimal('0'))
-        updated_by_user = user if user and user.id != report.employee_id else None
+        updated_by_id = _resolve_proxy_product_updated_by_id(
+            content_edit_only=content_edit_only,
+            user=user,
+            report=report,
+            product_id=item.get('product_id', -1),
+            old_meta=old_meta,
+            new_snap=_snapshot_from_prepared_proxy_item(item),
+        )
         product = ProductionShiftProduct.objects.create(
             report=report,
             product_code=code,
@@ -2399,7 +2457,7 @@ def save_proxy_shift_sessions(
             total_quantity=total,
             total_damaged_quantity=damaged,
             completion_note=note[:500],
-            updated_by=updated_by_user,
+            updated_by_id=updated_by_id,
         )
         sort_order += 1
 
