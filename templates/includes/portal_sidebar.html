@@ -198,7 +198,9 @@
                 {% if jp_can_reports_daily_cn_detail %}
                 <li>
                     <a href="{% url 'reports:team_cn' %}"
-                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'team_cn' or request.resolver_match.url_name == 'detail_cn' %}active{% endif %}">
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'team_cn' or request.resolver_match.url_name == 'detail_cn' %}active{% endif %}"
+                       data-jp-team-list-nav
+                       data-loading-message="Đang tải danh sách SX...">
                         <i class="bi bi-people-fill"></i><span>Quản lý báo cáo SX</span>
                     </a>
                 </li>
@@ -216,7 +218,9 @@
                 {% if jp_can_reports_daily_vp_detail %}
                 <li>
                     <a href="{% url 'reports:team_vp' %}"
-                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'team_vp' or request.resolver_match.url_name == 'detail_vp' %}active{% endif %}">
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'team_vp' or request.resolver_match.url_name == 'detail_vp' %}active{% endif %}"
+                       data-jp-team-list-nav
+                       data-loading-message="Đang tải danh sách VP...">
                         <i class="bi bi-people-fill"></i><span>Quản lý báo cáo (VP)</span>
                     </a>
                 </li>

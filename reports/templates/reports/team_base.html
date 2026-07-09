@@ -97,7 +97,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="container jp-page jp-reports-page py-3 py-md-4 mb-5">
+<div class="container jp-page jp-reports-page jp-team-list-page py-3 py-md-4 mb-5">
     <div class="jp-page-header mb-3 mb-md-4">
         <div>
             <h2 class="fw-bold text-hm mb-1 jp-page-title">{{ team_page_title|default:"Quản lý báo cáo" }}</h2>
@@ -219,7 +219,6 @@
         </div>
     </div>
 </div>
-{% include 'reports/includes/team_list_loading.html' %}
 {% endblock %}
 
 {% block scripts %}

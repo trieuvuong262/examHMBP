@@ -88,8 +88,13 @@ body.jp-team-list-loading {
     overflow: hidden;
 }
 
-body.jp-team-list-loading .jp-report-submit-loading#jp-team-list-loading {
+body.jp-team-list-loading .jp-report-submit-loading#jp-team-list-loading,
+html.jp-team-list-pending-load .jp-report-submit-loading#jp-team-list-loading {
     pointer-events: all;
+}
+
+html.jp-team-list-pending-load body.jp-team-list-loading {
+    overflow: hidden;
 }
 
 body.jp-report-submitting .jp-report-submit-loading,

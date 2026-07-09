@@ -1,5 +1,14 @@
 {% load static %}
-<link rel="stylesheet" href="{% static 'css/reports-submit-loading.css' %}?v=20260709b">
+<script>
+(function () {
+    try {
+        if (sessionStorage.getItem('jp_team_list_loading')) {
+            document.documentElement.classList.add('jp-team-list-pending-load');
+        }
+    } catch (e) {}
+})();
+</script>
+<link rel="stylesheet" href="{% static 'css/reports-submit-loading.css' %}?v=20260709c">
 <div id="jp-team-list-loading" class="jp-report-submit-loading" hidden aria-live="polite" aria-busy="false">
     <div class="jp-report-submit-backdrop" aria-hidden="true"></div>
     <div class="jp-report-submit-loading-box" role="status">
@@ -8,4 +17,4 @@
         <p class="text-muted small mb-0">Vui lòng đợi trong giây lát.</p>
     </div>
 </div>
-<script src="{% static 'js/reports-team-list-loading.js' %}?v=20260709b"></script>
+<script src="{% static 'js/reports-team-list-loading.js' %}?v=20260709c"></script>
