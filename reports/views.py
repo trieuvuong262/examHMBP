@@ -725,6 +725,11 @@ def proxy_report_entry(request):
     if active_shift not in valid_shifts:
         active_shift = DailyWorkReport.SHIFT_MORNING
 
+    from_detail_pk = None
+    raw_from_detail = request.GET.get('from_detail') or request.POST.get('from_detail')
+    if raw_from_detail and str(raw_from_detail).isdigit():
+        from_detail_pk = int(raw_from_detail)
+
     tabs = []
     for shift, label in SHIFTS:
         report = _load_daily_report(
@@ -747,6 +752,11 @@ def proxy_report_entry(request):
             'declared_work_hours': report.declared_work_hours if report.pk else None,
             'show_declared_work_hours': show_declared_work_hours and not lock_session_times,
             'can_edit_declared_work_hours': can_edit_declared_work_hours,
+            'report_id': report.pk if report.pk else None,
+            'detail_url': (
+                reverse('reports:detail_cn', kwargs={'pk': report.pk})
+                if report.pk else ''
+            ),
         })
 
     submitted_tabs = [tab for tab in tabs if tab['is_submitted']]
@@ -759,6 +769,17 @@ def proxy_report_entry(request):
     visible_shifts = {tab['shift'] for tab in tabs}
     if active_shift not in visible_shifts and tabs:
         active_shift = tabs[0]['shift']
+
+    active_report = _load_daily_report(
+        subject, report_date,
+        report_profile=REPORT_PROFILE_PRODUCTION, shift=active_shift,
+    )
+    if from_detail_pk:
+        back_url = reverse('reports:detail_cn', kwargs={'pk': from_detail_pk})
+    elif edit_submitted_only and active_report.pk:
+        back_url = reverse('reports:detail_cn', kwargs={'pk': active_report.pk})
+    else:
+        back_url = reverse('reports:team_cn') + f'?date={report_date.isoformat()}'
 
     return render(request, 'reports/proxy_entry.html', {
         'report_date': report_date,
@@ -773,7 +794,8 @@ def proxy_report_entry(request):
             'code': '', 'process': '', 'norm': '', 'total': '', 'damaged': '', 'note': '',
             'start_time': '', 'end_time': '',
         },
-        'back_team_url': reverse('reports:team_cn') + f'?date={report_date.isoformat()}',
+        'back_team_url': back_url,
+        'back_url': back_url,
         'edit_submitted_only': edit_submitted_only,
     })
 
@@ -2375,6 +2397,7 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
             edit_report_url = (
                 f"{reverse('reports:today_cn')}?date={report.report_date.isoformat()}"
                 f"&shift={report.shift}"
+                f"&from_detail={report.pk}"
                 f"{_production_edit_query(report)}"
             )
         else:
@@ -2395,6 +2418,7 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
             f"{reverse('reports:proxy_cn')}?date={report.report_date.isoformat()}"
             f"&shift={report.shift}"
             f"&for_user={report.employee_id}"
+            f"&from_detail={report.pk}"
         )
     if report.is_production_report and (report.hod_reviewed or report.is_hod_rejected):
         edit_report_url = ''
@@ -2585,6 +2609,8 @@ def today_report_cn(request):
             params['shift'] = request.GET.get('shift')
         if request.GET.get('edit_content') == '1':
             params['edit_content'] = '1'
+        if request.GET.get('from_detail'):
+            params['from_detail'] = request.GET.get('from_detail')
         return redirect(f"{reverse('reports:proxy_cn')}?{_urlencode(params)}")
     report_date = _parse_report_date(request)
     return _today_production_report(request, report_date)

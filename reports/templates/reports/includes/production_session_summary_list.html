@@ -25,6 +25,7 @@
             {% csrf_token %}
             <input type="hidden" name="action" value="add_session">
             <input type="hidden" name="edit_content" value="1">
+            {% if from_detail_param %}<input type="hidden" name="from_detail" value="{{ from_detail_param }}">{% endif %}
             {% if for_user_param %}<input type="hidden" name="for_user" value="{{ for_user_param }}">{% endif %}
             <div class="mb-2">
                 <label class="form-label fw-bold small mb-1">Mã hàng</label>
@@ -132,6 +133,7 @@
                     {% if for_user_param %}<input type="hidden" name="for_user" value="{{ for_user_param }}">{% endif %}
                     {% if content_edit_only %}<input type="hidden" name="edit_content" value="1">{% endif %}
                     {% if is_submitted and not content_edit_only %}<input type="hidden" name="edit_steps" value="1">{% endif %}
+                    {% if from_detail_param %}<input type="hidden" name="from_detail" value="{{ from_detail_param }}">{% endif %}
                     <button type="submit" class="btn btn-sm btn-outline-danger">
                         <i class="bi bi-trash me-1"></i>Xóa
                     </button>
@@ -145,6 +147,7 @@
                     {% if for_user_param %}<input type="hidden" name="for_user" value="{{ for_user_param }}">{% endif %}
                     {% if content_edit_only %}<input type="hidden" name="edit_content" value="1">{% endif %}
                     {% if is_submitted and not content_edit_only %}<input type="hidden" name="edit_steps" value="1">{% endif %}
+                    {% if from_detail_param %}<input type="hidden" name="from_detail" value="{{ from_detail_param }}">{% endif %}
                     {% if row.is_zero_reason_only %}
                     <div class="mb-2">
                         <label class="form-label fw-bold small mb-1">Tổng sản lượng</label>

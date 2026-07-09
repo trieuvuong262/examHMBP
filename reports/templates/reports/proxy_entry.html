@@ -24,8 +24,8 @@
             </div>
             <div class="jp-report-detail-hero-actions d-flex flex-column gap-2 align-items-stretch">
                 <div class="d-flex gap-2 flex-wrap jp-report-detail-hero-nav-actions">
-                    <a href="{{ back_team_url }}" class="btn btn-outline-secondary btn-sm">
-                        <i class="bi bi-arrow-left me-1"></i>Quay lại
+                    <a href="{{ back_url }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-arrow-left me-1"></i>{% if edit_submitted_only %}Quay lại báo cáo{% else %}Quay lại{% endif %}
                     </a>
                 </div>
             </div>

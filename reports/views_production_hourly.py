@@ -267,18 +267,26 @@ def _is_production_summary_editable(
     return _is_edit_steps_mode(request, report)
 
 
-def _content_edit_redirect_extra() -> str:
-    return 'phase=review&edit_content=1'
+def _from_detail_query(request) -> str:
+    raw = (request.GET.get('from_detail') or request.POST.get('from_detail') or '').strip()
+    if raw.isdigit():
+        return f'&from_detail={raw}'
+    return ''
+
+
+def _content_edit_redirect_extra(request) -> str:
+    return f'phase=review&edit_content=1{_from_detail_query(request)}'
 
 
 def _review_redirect_extra(request, report, *, content_edit_only: bool = False) -> str:
+    fd = _from_detail_query(request)
     if content_edit_only:
-        return _content_edit_redirect_extra()
+        return f'phase=review&edit_content=1{fd}'
     if report and report.pk and report.status == DailyWorkReport.STATUS_SUBMITTED:
         if _is_edit_steps_mode(request, report):
-            return 'phase=review&edit_steps=1'
-        return 'phase=review'
-    return 'phase=review'
+            return f'phase=review&edit_steps=1{fd}'
+        return f'phase=review{fd}'
+    return f'phase=review{fd}'
 
 
 def _auto_resolve_shift_and_date(subject, report_date, *, explicit_shift: str = ''):
@@ -326,7 +334,7 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
     action = request.POST.get('action', '')
     for_user = str(subject.id) if editing_for_other else ''
     content_edit_only = _is_content_edit_only(request, report)
-    content_edit_extra = _content_edit_redirect_extra()
+    content_edit_extra = _content_edit_redirect_extra(request)
 
     if content_edit_only and action and action not in ('edit_session', 'add_session', 'delete_session'):
         messages.error(
@@ -1134,7 +1142,7 @@ def today_production_hourly(request, report_date, report_context_common):
             report_date,
             shift,
             subject.id if editing_for_other else None,
-            'phase=review&edit_steps=1',
+            f'phase=review&edit_steps=1{_from_detail_query(request)}',
         )
     elif (
         phase == 'review'
@@ -1169,6 +1177,8 @@ def today_production_hourly(request, report_date, report_context_common):
         )
 
     server_local_now = timezone.localtime(production_server_now())
+    from_detail_pk = parse_int(request.GET.get('from_detail') or request.POST.get('from_detail'), -1)
+    detail_pk = from_detail_pk if from_detail_pk > 0 else (report.pk if report and report.pk else None)
     ctx = report_context_common(request, report_date)
     ctx.update({
         'server_now': server_local_now,
@@ -1221,7 +1231,8 @@ def today_production_hourly(request, report_date, report_context_common):
         'team_members': team_members,
         'for_user_param': subject.id if editing_for_other else '',
         'back_team_url': reverse('reports:team_cn') + f'?date={report_date.isoformat()}',
-        'detail_url': reverse('reports:detail_cn', kwargs={'pk': report.pk}) if report and report.pk else '',
+        'detail_url': reverse('reports:detail_cn', kwargs={'pk': detail_pk}) if detail_pk else '',
+        'from_detail_param': str(from_detail_pk) if from_detail_pk > 0 else '',
         'shift_picker_url': _production_redirect(
             report_date, '', subject.id if editing_for_other else None, 'pick_shift=1',
         ),
