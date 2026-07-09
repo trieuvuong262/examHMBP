@@ -261,7 +261,7 @@ def assign_product_updated_by(
     report: DailyWorkReport,
     user,
 ) -> None:
-    """Ghi quản lý vào cột «Cập nhật bởi» khi sửa/thêm công đoạn của NV."""
+    """Ghi quản lý vào cột «Cập nhật» khi sửa/thêm công đoạn của NV."""
     if not user or not report or user.id == report.employee_id:
         return
     product.updated_by = user
@@ -2360,7 +2360,7 @@ def _resolve_proxy_product_updated_by_id(
     old_meta: dict[int, dict],
     new_snap: dict[str, str],
 ) -> int | None:
-    """Chỉ gán «Cập nhật bởi» cho công đoạn mới hoặc có thay đổi nội dung."""
+    """Chỉ gán «Cập nhật» cho công đoạn mới hoặc có thay đổi nội dung."""
     if not content_edit_only:
         return None
     if not user or user.id == report.employee_id:

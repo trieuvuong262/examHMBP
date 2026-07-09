@@ -310,7 +310,7 @@ class ProductionShiftProduct(models.Model):
         null=True,
         blank=True,
         related_name='production_products_updated',
-        verbose_name='Cập nhật bởi',
+        verbose_name='Cập nhật',
     )
 
     class Meta:
