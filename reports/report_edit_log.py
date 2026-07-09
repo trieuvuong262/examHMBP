@@ -17,6 +17,7 @@ def log_report_edit(
     *,
     action: str = DailyWorkReportEditLog.ACTION_UPDATE,
     summary: str = '',
+    detail: str = '',
 ) -> DailyWorkReportEditLog | None:
     if not report.pk:
         return None
@@ -26,4 +27,5 @@ def log_report_edit(
         actor_kind=report_edit_actor_kind(user, report),
         action=action,
         summary=(summary or '')[:500],
+        detail=(detail or '').strip(),
     )

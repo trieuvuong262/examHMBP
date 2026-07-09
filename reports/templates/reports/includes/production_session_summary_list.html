@@ -118,12 +118,24 @@
             </p>
             {% endif %}
             {% if production_summary_editable and can_edit and not is_locked and row.can_edit_step %}
-            <div class="mt-2">
+            <div class="mt-2 d-flex flex-wrap gap-2">
                 <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse"
                         data-bs-target="#session-edit-{{ row.id }}" aria-expanded="false"
                         aria-controls="session-edit-{{ row.id }}">
                     <i class="bi bi-pencil-square me-1"></i>Sửa
                 </button>
+                <form method="post" class="d-inline mb-0"
+                      onsubmit="return confirm('Xóa công đoạn «{{ row.label_code|default:row.product_code|escapejs }}» khỏi báo cáo?');">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="delete_session">
+                    <input type="hidden" name="product_id" value="{{ row.id }}">
+                    {% if for_user_param %}<input type="hidden" name="for_user" value="{{ for_user_param }}">{% endif %}
+                    {% if content_edit_only %}<input type="hidden" name="edit_content" value="1">{% endif %}
+                    {% if is_submitted and not content_edit_only %}<input type="hidden" name="edit_steps" value="1">{% endif %}
+                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                        <i class="bi bi-trash me-1"></i>Xóa
+                    </button>
+                </form>
             </div>
             <div class="collapse mt-3" id="session-edit-{{ row.id }}">
                 <form method="post" class="jp-prod-session-edit-form border-top pt-3">

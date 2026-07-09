@@ -104,14 +104,14 @@
                     <fieldset class="border-0 p-0 m-0" {% if tab.is_locked and not tab.lock_session_times %}disabled{% endif %}>
                         <div class="jp-proxy-sessions">
                             {% for sess in tab.data.sessions %}
-                            {% include 'reports/includes/proxy_session_row.html' with sess=sess content_edit_only=tab.lock_session_times %}
+                            {% include 'reports/includes/proxy_session_row.html' with sess=sess content_edit_only=tab.lock_session_times allow_delete=True %}
                             {% endfor %}
                         </div>
                     </fieldset>
 
                     {% if not tab.is_locked %}
                     <template class="jp-proxy-session-tpl">
-                        {% include 'reports/includes/proxy_session_row.html' with sess=empty_session content_edit_only=False %}
+                        {% include 'reports/includes/proxy_session_row.html' with sess=empty_session content_edit_only=False allow_delete=True %}
                     </template>
                     <div class="jp-proxy-form-actions">
                         <button type="button" class="btn btn-outline-hm btn-sm add-session">
@@ -256,7 +256,10 @@
         sess.addEventListener('input', function () { recalcSession(sess); });
         sess.addEventListener('change', function () { recalcSession(sess); });
         var rm = sess.querySelector('.remove-session');
-        if (rm) rm.addEventListener('click', function () { sess.remove(); });
+        if (rm) rm.addEventListener('click', function () {
+            if (!confirm('Xóa công đoạn này khỏi báo cáo?')) return;
+            sess.remove();
+        });
     }
 
     function initForm(form) {

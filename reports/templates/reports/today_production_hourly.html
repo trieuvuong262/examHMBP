@@ -215,7 +215,7 @@
                         {% csrf_token %}
                         <input type="hidden" name="action" value="submit">
                         <input type="hidden" name="review_json" id="review-json-input">
-                        <input type="hidden" name="declared_work_hours" value="">
+                        <input type="hidden" name="declared_work_hours" value="{% if report.declared_work_hours %}{{ report.declared_work_hours }}{% endif %}">
                         {% if for_user_param %}<input type="hidden" name="for_user" value="{{ for_user_param }}">{% endif %}
                         <button type="button" class="btn btn-hm w-100 fw-bold btn-lg js-prod-submit-trigger">
                             <i class="bi bi-send-fill me-2"></i>{% if is_submitted %}Cập nhật báo cáo{% else %}Gửi báo cáo{% endif %}
@@ -234,7 +234,7 @@
                     {% csrf_token %}
                     <input type="hidden" name="action" value="submit">
                     <input type="hidden" name="review_json" id="review-json-input-desktop">
-                    <input type="hidden" name="declared_work_hours" value="">
+                    <input type="hidden" name="declared_work_hours" value="{% if report.declared_work_hours %}{{ report.declared_work_hours }}{% endif %}">
                     {% if for_user_param %}<input type="hidden" name="for_user" value="{{ for_user_param }}">{% endif %}
                     <button type="button" class="btn btn-hm fw-bold px-4 js-prod-submit-trigger">
                         <i class="bi bi-send-fill me-2"></i>{% if is_submitted %}Cập nhật báo cáo{% else %}Gửi báo cáo{% endif %}
@@ -485,7 +485,7 @@
                     {% csrf_token %}
                     <input type="hidden" name="action" value="submit">
                     <input type="hidden" name="review_json" id="review-json-input">
-                    <input type="hidden" name="declared_work_hours" value="">
+                    <input type="hidden" name="declared_work_hours" value="{% if report.declared_work_hours %}{{ report.declared_work_hours }}{% endif %}">
                     {% if for_user_param %}<input type="hidden" name="for_user" value="{{ for_user_param }}">{% endif %}
                     {% if is_submitted %}<input type="hidden" name="edit_steps" value="1">{% endif %}
                     <button type="button" class="btn btn-hm w-100 fw-bold btn-lg js-prod-submit-trigger">
@@ -525,7 +525,7 @@
                     {% csrf_token %}
                     <input type="hidden" name="action" value="submit">
                     <input type="hidden" name="review_json" id="review-json-input-desktop">
-                    <input type="hidden" name="declared_work_hours" value="">
+                    <input type="hidden" name="declared_work_hours" value="{% if report.declared_work_hours %}{{ report.declared_work_hours }}{% endif %}">
                     {% if for_user_param %}<input type="hidden" name="for_user" value="{{ for_user_param }}">{% endif %}
                     {% if is_submitted %}<input type="hidden" name="edit_steps" value="1">{% endif %}
                     <button type="button" class="btn btn-hm fw-bold px-4 js-prod-submit-trigger">
@@ -572,7 +572,7 @@
 {% endif %}
 
 {% if phase == 'review' %}
-<div class="modal fade jp-prod-modal" id="prodSubmitConfirmModal" tabindex="-1" aria-labelledby="prodSubmitConfirmTitle" aria-hidden="true">
+<div class="modal fade jp-prod-modal" id="prodSubmitConfirmModal" tabindex="-1" aria-labelledby="prodSubmitConfirmTitle" aria-hidden="true"{% if is_submitted and report.declared_work_hours %} data-keep-work-hours="{{ report.declared_work_hours }}"{% endif %}>
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow">
             <div class="modal-header border-0 pb-0">
@@ -588,7 +588,7 @@
                     <i class="bi bi-exclamation-octagon-fill me-1"></i>
                     <span id="prodEfficiencyErrorText">Số liệu bạn gửi sai. Vui lòng kiểm tra lại sản lượng và định mức.</span>
                 </div>
-                <div class="mb-3">
+                <div class="mb-3{% if is_submitted and report.declared_work_hours %} d-none{% endif %}" id="prodWorkHoursWrap">
                     <label for="prodWorkHoursInput" class="form-label fw-bold small mb-1">
                         Thời gian làm việc <span class="text-danger">*</span>
                     </label>
@@ -663,5 +663,5 @@
 
 {% include 'reports/includes/report_submit_loading.html' %}
 {% if hourly_grid %}{{ hourly_grid|json_script:"hourly-grid-data" }}{% endif %}
-<script src="{% static 'js/reports-production-hourly.js' %}?v=20260709a"></script>
+<script src="{% static 'js/reports-production-hourly.js' %}?v=20260709b"></script>
 {% endblock %}

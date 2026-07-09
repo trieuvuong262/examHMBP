@@ -160,6 +160,7 @@ def _export_production_report(report: DailyWorkReport, filename_prefix: str) -> 
                 'Định mức/H': row['norm_per_hour'],
                 'Thời gian công đoạn': row['hours_display'],
                 'Hiệu suất %': row['efficiency_pct'],
+                'Cập nhật bởi': row.get('updated_by_name') or '',
             })
         sheets['Tong_hop'] = pd.DataFrame(summary_rows)
 

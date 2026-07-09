@@ -47,7 +47,8 @@ from reports.production_hourly import (
     production_server_now,
     parse_decimal,
     parse_non_negative_decimal,
-    validate_production_work_hours,
+    delete_production_products,
+    resolve_declared_work_hours_for_save,
     validate_production_submit_efficiency,
     parse_int,
     save_hourly_entry,
@@ -327,7 +328,7 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
     content_edit_only = _is_content_edit_only(request, report)
     content_edit_extra = _content_edit_redirect_extra()
 
-    if content_edit_only and action and action not in ('edit_session', 'add_session'):
+    if content_edit_only and action and action not in ('edit_session', 'add_session', 'delete_session'):
         messages.error(
             request,
             'Chỉ được sửa mã hàng, công đoạn, định mức và sản lượng — không thể thay đổi thời gian.',
@@ -439,7 +440,7 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
             else:
                 messages.error(request, 'Bạn không có quyền chỉnh sửa báo cáo này.')
             return redirect(_production_redirect(report_date, shift, subject.id if editing_for_other else None))
-    elif action in ('edit_session', 'add_session', 'save_review', 'finalize_product', 'save_hourly'):
+    elif action in ('edit_session', 'add_session', 'delete_session', 'save_review', 'finalize_product', 'save_hourly'):
         if not can_edit:
             if report and report.employee_id == request.user.id:
                 messages.error(request, production_edit_denied_message(report, viewer=request.user))
@@ -544,6 +545,12 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
         if total_qty < 0:
             messages.error(request, 'Nhập sản lượng hợp lệ.')
             return redirect(_production_redirect(report_date, shift, for_user or None, review_extra))
+        from reports.production_edit_log import (
+            format_session_change_detail,
+            snapshot_production_session,
+        )
+
+        before_snap = snapshot_production_session(product)
         try:
             update_session_product(
                 product,
@@ -554,10 +561,13 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
                 damaged_quantity=damaged_quantity,
                 note=note,
                 zero_reason=zero_reason,
+                updated_by=request.user,
             )
         except ValueError as exc:
             messages.error(request, str(exc))
             return redirect(_production_redirect(report_date, shift, for_user or None, review_extra))
+        product.refresh_from_db()
+        after_snap = snapshot_production_session(product)
         messages.success(
             request,
             f'Đã ghi nhận lý do sản lượng 0: {zero_reason[:120]}'
@@ -570,7 +580,53 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
             report,
             request.user,
             summary=f'Chỉnh sửa công đoạn {(code or product.product_code or "").strip() or "—"}.',
+            detail=format_session_change_detail(before=before_snap, after=after_snap),
         )
+        return redirect(_production_redirect(report_date, shift, for_user or None, review_extra))
+
+    if action == 'delete_session':
+        product_id = parse_int(request.POST.get('product_id'), -1)
+        review_extra = _review_redirect_extra(request, report, content_edit_only=content_edit_only)
+        if product_id < 0:
+            messages.error(request, 'Không tìm thấy công đoạn cần xóa.')
+            return redirect(_production_redirect(report_date, shift, for_user or None, review_extra))
+        try:
+            product = report.production_products.get(pk=product_id)
+        except ProductionShiftProduct.DoesNotExist:
+            messages.error(request, 'Không tìm thấy công đoạn cần xóa.')
+            return redirect(_production_redirect(report_date, shift, for_user or None, review_extra))
+        if report.status == DailyWorkReport.STATUS_SUBMITTED and not content_edit_only and not _is_edit_steps_mode(request, report):
+            messages.warning(request, 'Bấm «Sửa báo cáo» trên màn thống kê để chỉnh sửa công đoạn đã gửi.')
+            return redirect(_production_redirect(report_date, shift, for_user or None, review_extra))
+        if not product_may_be_edited_by(
+            request.user,
+            report,
+            product,
+            content_edit_only=content_edit_only,
+        ):
+            denied = production_edit_denied_message(report, viewer=request.user)
+            messages.warning(request, denied or 'Công đoạn này không thể xóa.')
+            return redirect(_production_redirect(report_date, shift, for_user or None, review_extra))
+        label = (product.product_code or product.process_name or '—').strip() or '—'
+        from reports.production_edit_log import (
+            format_session_change_detail,
+            snapshot_production_session,
+        )
+
+        before_snap = snapshot_production_session(product)
+        deleted = delete_production_products(report, [product_id])
+        if not deleted:
+            messages.error(request, 'Không thể xóa công đoạn này.')
+            return redirect(_production_redirect(report_date, shift, for_user or None, review_extra))
+        from reports.report_edit_log import log_report_edit
+
+        log_report_edit(
+            report,
+            request.user,
+            summary=f'Xóa công đoạn {label}.',
+            detail=format_session_change_detail(before=before_snap),
+        )
+        messages.success(request, f'Đã xóa công đoạn {label}.')
         return redirect(_production_redirect(report_date, shift, for_user or None, review_extra))
 
     if action == 'add_session':
@@ -599,7 +655,7 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
             messages.error(request, 'Chọn giờ bắt đầu và giờ kết thúc.')
             return redirect(_production_redirect(report_date, shift, for_user or None, content_edit_extra))
         try:
-            add_production_session(
+            product = add_production_session(
                 report,
                 code=code,
                 process=process,
@@ -609,16 +665,23 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
                 note=note,
                 start_time=start_time,
                 end_time=end_time,
+                updated_by=request.user,
             )
         except ValueError as exc:
             messages.error(request, str(exc))
             return redirect(_production_redirect(report_date, shift, for_user or None, content_edit_extra))
+        from reports.production_edit_log import (
+            format_session_change_detail,
+            snapshot_production_session,
+        )
         from reports.report_edit_log import log_report_edit
 
+        after_snap = snapshot_production_session(product)
         log_report_edit(
             report,
             request.user,
             summary=f'Thêm công đoạn {(code or "—").strip()}.',
+            detail=format_session_change_detail(after=after_snap),
         )
         messages.success(request, f'Đã thêm công đoạn {code}.')
         return redirect(_production_redirect(report_date, shift, for_user or None, content_edit_extra))
@@ -730,6 +793,7 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
                 'phase=complete_product' if awaiting else 'phase=working'
             )
             return redirect(_production_redirect(report_date, shift, for_user or None, extra))
+        was_submitted = report.status == DailyWorkReport.STATUS_SUBMITTED
         if action == 'submit':
             review_json = request.POST.get('review_json')
             unlock_steps = (
@@ -752,8 +816,10 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
                 messages.error(request, 'Cần nhập ít nhất một mã hàng và sản lượng trước khi gửi.')
                 extra = 'phase=proxy' if editing_for_other else 'phase=review'
                 return redirect(_production_redirect(report_date, shift, for_user or None, extra))
-            work_hours, work_hours_err = validate_production_work_hours(
+            work_hours, work_hours_err = resolve_declared_work_hours_for_save(
+                report,
                 request.POST.get('declared_work_hours'),
+                allow_keep_existing=was_submitted,
             )
             if work_hours_err:
                 messages.error(request, work_hours_err)
@@ -765,7 +831,6 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
                 extra = 'phase=proxy' if editing_for_other else 'phase=review'
                 return redirect(_production_redirect(report_date, shift, for_user or None, extra))
             report.declared_work_hours = work_hours
-        was_submitted = report.status == DailyWorkReport.STATUS_SUBMITTED
         msg = _finalize_report_submission(report, action)
         if action == 'submit':
             lock_production_steps_on_submit(report)

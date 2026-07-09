@@ -688,11 +688,15 @@ def proxy_report_entry(request):
         can_edit_declared_work_hours = not (
             is_report_locked(report) or is_report_edit_expired(report)
         )
-        if can_edit_declared_work_hours:
-            from reports.production_hourly import validate_production_work_hours
+        if lock_session_times:
+            pass
+        elif can_edit_declared_work_hours:
+            from reports.production_hourly import resolve_declared_work_hours_for_save
 
-            work_hours, work_hours_err = validate_production_work_hours(
+            work_hours, work_hours_err = resolve_declared_work_hours_for_save(
+                report,
                 request.POST.get('declared_work_hours'),
+                allow_keep_existing=True,
             )
             if work_hours_err:
                 messages.error(request, work_hours_err)
@@ -741,7 +745,7 @@ def proxy_report_entry(request):
             'proxy_entered_by': report.proxy_entered_by if report.pk else None,
             'lock_session_times': lock_session_times,
             'declared_work_hours': report.declared_work_hours if report.pk else None,
-            'show_declared_work_hours': show_declared_work_hours,
+            'show_declared_work_hours': show_declared_work_hours and not lock_session_times,
             'can_edit_declared_work_hours': can_edit_declared_work_hours,
         })
 
@@ -2140,6 +2144,8 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
             'lines',
             'attachments',
             'production_products__hourly_entries',
+            'production_products__updated_by',
+            'production_products__updated_by__profile',
         ),
         pk=pk,
     )
@@ -2228,7 +2234,6 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
             for key, val in request.POST.items()
             if key.startswith('delete_product_') and val and key[15:].isdigit()
         ]
-        deleted = delete_production_products(report, delete_ids)
 
         norms = {}
         codes = {}
@@ -2250,11 +2255,23 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
                 product_id = key[8:]
                 if product_id.isdigit() and int(product_id) not in skip_ids:
                     processes[int(product_id)] = value
+
+        from reports.production_edit_log import collect_productivity_update_detail
+
+        change_detail = collect_productivity_update_detail(
+            report,
+            delete_ids,
+            norms,
+            codes,
+            processes,
+        )
+        deleted = delete_production_products(report, delete_ids)
         count = update_production_product_fields(
             report,
             norms_by_id=norms,
             codes_by_id=codes,
             processes_by_id=processes,
+            updated_by=request.user,
         )
         if deleted and count:
             messages.success(
@@ -2280,6 +2297,7 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
                 report,
                 request.user,
                 summary='Quản lý ' + ' và '.join(parts) + '.',
+                detail=change_detail,
             )
         return _detail_redirect()
 

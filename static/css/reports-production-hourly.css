@@ -1079,6 +1079,17 @@ body .modal-backdrop.show {
     border-bottom: 0;
 }
 
+.jp-edit-log-detail-cell {
+    min-width: 18rem;
+    max-width: 36rem;
+}
+
+.jp-edit-log-detail {
+    white-space: pre-wrap;
+    line-height: 1.5;
+    color: #495057;
+}
+
 .jp-report-detail-hero-main {
     display: flex;
     align-items: flex-start;

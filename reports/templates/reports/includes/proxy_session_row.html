@@ -60,7 +60,7 @@
                         <span class="jp-proxy-session-stat-label">Hiệu suất</span>
                         <span class="jp-proxy-eff-badge is-none s-eff">—</span>
                     </div>
-                    {% if not content_edit_only %}
+                    {% if not content_edit_only or allow_delete %}
                     <button type="button" class="btn btn-sm btn-outline-danger remove-session jp-proxy-remove-btn" title="Xóa công đoạn">
                         <i class="bi bi-trash me-1"></i>Xóa
                     </button>

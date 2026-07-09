@@ -4,7 +4,7 @@
 
 {% block extra_head %}
 <link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260530b">
-<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260708e">
+<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260709c">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 {% endblock %}
 
@@ -78,6 +78,7 @@
                         <th class="text-nowrap">Vai trò</th>
                         <th class="text-nowrap">Thao tác</th>
                         <th>Mô tả</th>
+                        <th>Chi tiết thay đổi</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -113,10 +114,17 @@
                             {% endif %}
                         </td>
                         <td>{{ entry.summary|default:"—" }}</td>
+                        <td class="jp-edit-log-detail-cell">
+                            {% if entry.detail %}
+                            <div class="jp-edit-log-detail small">{{ entry.detail|linebreaksbr }}</div>
+                            {% else %}
+                            <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="6" class="text-center text-muted py-5">
+                        <td colspan="7" class="text-center text-muted py-5">
                             Chưa có lần chỉnh sửa, gửi hoặc cập nhật nào trong khoảng đã chọn.
                         </td>
                     </tr>

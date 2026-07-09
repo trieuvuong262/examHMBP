@@ -304,6 +304,14 @@ class ProductionShiftProduct(models.Model):
         verbose_name='Đã chốt khi gửi báo cáo',
         help_text='True = không sửa sau khi đã gửi báo cáo (kể cả «Nhập tiếp»).',
     )
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='production_products_updated',
+        verbose_name='Cập nhật bởi',
+    )
 
     class Meta:
         ordering = ['sort_order', 'id']
@@ -597,6 +605,7 @@ class DailyWorkReportEditLog(models.Model):
         verbose_name='Thao tác',
     )
     summary = models.CharField(max_length=500, blank=True, verbose_name='Mô tả')
+    detail = models.TextField(blank=True, verbose_name='Chi tiết thay đổi')
     edited_at = models.DateTimeField(auto_now_add=True, db_index=True, verbose_name='Thời gian')
 
     class Meta:

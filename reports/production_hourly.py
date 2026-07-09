@@ -247,6 +247,34 @@ def can_proxy_enter_daily_report(viewer, employee) -> bool:
     return get_team_report_members(viewer).filter(pk=employee.pk).exists()
 
 
+def user_display_name(user) -> str:
+    if not user:
+        return ''
+    profile = getattr(user, 'profile', None)
+    if profile and profile.full_name:
+        return profile.full_name
+    return user.get_username()
+
+
+def assign_product_updated_by(
+    product: ProductionShiftProduct,
+    report: DailyWorkReport,
+    user,
+) -> None:
+    """Ghi quản lý vào cột «Cập nhật bởi» khi sửa/thêm công đoạn của NV."""
+    if not user or not report or user.id == report.employee_id:
+        return
+    product.updated_by = user
+
+
+def product_updated_by_display(product: ProductionShiftProduct, report: DailyWorkReport) -> str:
+    if product.updated_by_id:
+        return user_display_name(product.updated_by)
+    if report.proxy_entered_by_id and not employee_self_submitted_production_report(report):
+        return user_display_name(report.proxy_entered_by)
+    return ''
+
+
 @transaction.atomic
 def ensure_work_day_started(report: DailyWorkReport) -> DailyWorkReport:
     """Tự bắt đầu ngày làm khi vào trang — không tạo phiên công đoạn."""
@@ -556,6 +584,7 @@ def update_session_product(
     damaged_quantity: int = 0,
     note: str = '',
     zero_reason: str = '',
+    updated_by=None,
 ) -> ProductionShiftProduct:
     """Chỉnh sửa một công đoạn đã hoàn tất trên màn tổng kết — cập nhật thông tin + chia lại sản lượng."""
     code = (product_code or '').strip()
@@ -599,6 +628,8 @@ def update_session_product(
     report = product.report
     if report.status == DailyWorkReport.STATUS_SUBMITTED:
         product.submitted_locked = False
+    if updated_by:
+        assign_product_updated_by(product, report, updated_by)
     product.save()
     return product
 
@@ -1304,7 +1335,11 @@ def build_productivity_report(report: DailyWorkReport) -> dict:
     """Báo cáo năng suất theo từng khung giờ — dành cho quản lý xem."""
     shift = _shift_for_report(report)
     products = list(
-        report.production_products.prefetch_related('hourly_entries').order_by('sort_order', 'id')
+        report.production_products.prefetch_related(
+            'hourly_entries',
+            'updated_by',
+            'updated_by__profile',
+        ).order_by('sort_order', 'id')
     )
     product_order = {product.id: index for index, product in enumerate(products)}
     hourly_rows = []
@@ -1387,6 +1422,7 @@ def build_productivity_report(report: DailyWorkReport) -> dict:
                 'ended_at_display': ended_display,
                 'damaged_quantity': product.total_damaged_quantity or 0,
                 'note': (product.completion_note or '').strip(),
+                'updated_by_name': product_updated_by_display(product, report),
             })
 
     hourly_rows.sort(
@@ -1407,14 +1443,7 @@ def build_productivity_report(report: DailyWorkReport) -> dict:
 
     proxy_entered_by_name = ''
     if report.proxy_entered_by_id:
-        proxy_user = report.proxy_entered_by
-        if proxy_user:
-            proxy_profile = getattr(proxy_user, 'profile', None)
-            proxy_entered_by_name = (
-                proxy_profile.full_name
-                if proxy_profile and proxy_profile.full_name
-                else proxy_user.get_username()
-            )
+        proxy_entered_by_name = user_display_name(report.proxy_entered_by)
 
     work_timeline = build_work_day_timeline(report)
     day_times = compute_day_work_waste_summary(report, productivity_products)
@@ -1471,6 +1500,7 @@ def update_production_product_fields(
     norms_by_id: dict | None = None,
     codes_by_id: dict | None = None,
     processes_by_id: dict | None = None,
+    updated_by=None,
 ) -> int:
     """Quản lý chỉnh mã hàng, công đoạn, định mức trên báo cáo năng suất."""
     norms_by_id = norms_by_id or {}
@@ -1499,6 +1529,9 @@ def update_production_product_fields(
             product.norm_per_hour = Decimal(str(norm))
             update_fields.append('norm_per_hour')
         if update_fields:
+            if updated_by:
+                assign_product_updated_by(product, report, updated_by)
+                update_fields.append('updated_by')
             product.save(update_fields=update_fields)
             updated_ids.add(int(product_id))
     return len(updated_ids)
@@ -1772,6 +1805,19 @@ def validate_production_work_hours(value):
     if hours <= PRODUCTION_WORK_HOURS_MIN or hours >= PRODUCTION_WORK_HOURS_MAX:
         return None, 'Thời gian làm việc phải lớn hơn 8 và nhỏ hơn 16 giờ.'
     return hours, ''
+
+
+def resolve_declared_work_hours_for_save(
+    report: DailyWorkReport,
+    raw_value,
+    *,
+    allow_keep_existing: bool = True,
+):
+    """Giữ thời gian làm việc đã có nếu form không gửi lại giá trị mới."""
+    raw = (raw_value or '').strip() if raw_value is not None else ''
+    if allow_keep_existing and not raw and report.declared_work_hours is not None:
+        return report.declared_work_hours, ''
+    return validate_production_work_hours(raw or None)
 
 
 def validate_production_submit_efficiency(report: DailyWorkReport) -> tuple[float | None, str]:
@@ -2307,6 +2353,20 @@ def save_proxy_shift_sessions(
         snapshot=snapshot,
     )
 
+    from reports.production_edit_log import (
+        collect_new_sessions_detail,
+        collect_proxy_save_change_detail,
+    )
+
+    if content_edit_only:
+        change_detail = collect_proxy_save_change_detail(
+            report,
+            sessions,
+            content_edit_only=True,
+        )
+    else:
+        change_detail = ''
+
     report.production_products.all().delete()
 
     created = 0
@@ -2324,6 +2384,7 @@ def save_proxy_shift_sessions(
         indices = [idx for idx, _ in overlaps]
         first = indices[0]
         total_overlap_hours = sum((hours for _, hours in overlaps), Decimal('0'))
+        updated_by_user = user if user and user.id != report.employee_id else None
         product = ProductionShiftProduct.objects.create(
             report=report,
             product_code=code,
@@ -2338,6 +2399,7 @@ def save_proxy_shift_sessions(
             total_quantity=total,
             total_damaged_quantity=damaged,
             completion_note=note[:500],
+            updated_by=updated_by_user,
         )
         sort_order += 1
 
@@ -2402,6 +2464,7 @@ def save_proxy_shift_sessions(
             report,
             user,
             summary=f'Chỉnh sửa nội dung ({created} công đoạn).',
+            detail=change_detail,
         )
     elif created:
         log_report_edit(
@@ -2409,6 +2472,7 @@ def save_proxy_shift_sessions(
             user,
             action=DailyWorkReportEditLog.ACTION_SUBMIT,
             summary=f'Nhập hộ và nộp báo cáo ({created} công đoạn).',
+            detail=collect_new_sessions_detail(report),
         )
     else:
         log_report_edit(report, user, summary='Lưu nhập hộ (chưa có dữ liệu).')
@@ -2428,6 +2492,7 @@ def add_production_session(
     note: str,
     start_time: str,
     end_time: str,
+    updated_by=None,
 ):
     """
     Thêm 1 công đoạn mới theo kiểu nhập hộ (giờ bắt đầu/kết thúc).
@@ -2492,6 +2557,7 @@ def add_production_session(
         total_quantity=total,
         total_damaged_quantity=damaged,
         completion_note=(note or '').strip()[:500],
+        updated_by=updated_by if updated_by and updated_by.id != report.employee_id else None,
     )
 
     count = len(overlaps)

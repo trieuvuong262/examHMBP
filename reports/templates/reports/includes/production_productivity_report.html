@@ -65,7 +65,7 @@
                     <th class="text-end">Thời gian công đoạn</th>
                     <th class="text-end">Hiệu suất</th>
                     <th>Ghi chú</th>
-                    <th>Nhập hộ</th>
+                    <th>Cập nhật bởi</th>
                 </tr>
             </thead>
             <tbody>
@@ -99,8 +99,8 @@
                         {% if row.note %}<span class="jp-prod-note-val" title="{{ row.note }}">{{ row.note|truncatechars:40 }}</span>{% else %}<span class="text-muted">—</span>{% endif %}
                     </td>
                     <td class="jp-prod-proxy-cell">
-                        {% if productivity.proxy_entered_by_name %}
-                        <span class="jp-prod-proxy-name">{{ productivity.proxy_entered_by_name }}</span>
+                        {% if row.updated_by_name %}
+                        <span class="jp-prod-proxy-name">{{ row.updated_by_name }}</span>
                         {% else %}
                         <span class="text-muted">—</span>
                         {% endif %}
