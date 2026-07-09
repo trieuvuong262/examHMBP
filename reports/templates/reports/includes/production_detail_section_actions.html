@@ -2,6 +2,15 @@
 <div class="alert alert-warning py-2 px-3 mb-0 jp-report-not-approved-banner">
     <i class="bi bi-x-octagon me-1"></i><strong>Báo cáo không được duyệt</strong>
 </div>
+{% elif report.is_production_report and report.status != 'SUBMITTED' and production_has_anomaly %}
+<div class="d-flex flex-wrap align-items-center gap-2 jp-report-detail-hero-review-actions">
+    <span class="badge bg-warning text-dark">Báo cáo sai</span>
+    {% if edit_report_url %}
+    <a href="{{ edit_report_url }}" class="btn btn-outline-hm btn-sm">
+        <i class="bi bi-pencil-square me-1"></i>Chỉnh sửa
+    </a>
+    {% endif %}
+</div>
 {% elif report.is_production_report and report.status == 'SUBMITTED' %}
 <div class="d-flex flex-wrap align-items-center gap-2 jp-report-detail-hero-review-actions">
     {% if can_edit_norm and can_approve %}

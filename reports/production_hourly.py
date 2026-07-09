@@ -1818,6 +1818,62 @@ def resolve_declared_work_hours_for_save(
     return validate_production_work_hours(raw or None)
 
 
+def _product_has_positive_quantity(product: ProductionShiftProduct) -> bool:
+    for entry in product.hourly_entries.all():
+        if not _entry_is_filled(entry):
+            continue
+        if entry.slot_index < product.first_slot_index:
+            continue
+        if (entry.quantity or Decimal('0')) > 0:
+            return True
+    return (product.total_quantity or Decimal('0')) > 0
+
+
+def product_has_zero_duration_anomaly(product: ProductionShiftProduct) -> bool:
+    """Công đoạn có SL nhưng thời gian bắt đầu = kết thúc (0 phút)."""
+    if _product_is_zero_reason_only(product):
+        return False
+    if not _product_has_positive_quantity(product):
+        return False
+    if product.started_at and product.ended_at:
+        start = timezone.localtime(product.started_at).replace(second=0, microsecond=0)
+        end = timezone.localtime(product.ended_at).replace(second=0, microsecond=0)
+        if start == end:
+            return True
+    return _product_submit_work_hours(product) <= 0
+
+
+def product_has_efficiency_anomaly(product: ProductionShiftProduct) -> bool:
+    """Hiệu suất công đoạn > 200% hoặc <= 0%."""
+    efficiency = _product_efficiency_pct(product)
+    if efficiency is None:
+        return False
+    return efficiency <= 0 or efficiency > PRODUCTION_MAX_SUBMIT_EFFICIENCY_PCT
+
+
+def report_has_manager_fixable_anomaly(report: DailyWorkReport) -> bool:
+    """Báo cáo chưa nộp có công đoạn sai — quản lý được phép chỉnh sửa."""
+    if not report or not report.pk:
+        return False
+    if report.status == DailyWorkReport.STATUS_SUBMITTED:
+        return False
+    products = list(
+        report.production_products.prefetch_related('hourly_entries').order_by('sort_order', 'id')
+    )
+    for product in _products_for_productivity(products):
+        if product_has_zero_duration_anomaly(product) or product_has_efficiency_anomaly(product):
+            return True
+    return False
+
+
+def can_manager_edit_unsubmitted_production_report(viewer, report: DailyWorkReport) -> bool:
+    if not report or not report.pk or report.status == DailyWorkReport.STATUS_SUBMITTED:
+        return False
+    if not can_proxy_enter_daily_report(viewer, report.employee):
+        return False
+    return report_has_manager_fixable_anomaly(report)
+
+
 def validate_production_submit_efficiency(report: DailyWorkReport) -> tuple[float | None, str]:
     """Chặn gửi nếu hiệu suất > 200% hoặc công đoạn có SL nhưng thời gian 0 phút."""
     products = list(
@@ -1825,26 +1881,25 @@ def validate_production_submit_efficiency(report: DailyWorkReport) -> tuple[floa
     )
     productive = _products_for_productivity(products)
     for product in productive:
-        norm = product.norm_per_hour
-        if not norm or norm <= 0:
-            continue
-        product_qty = Decimal('0')
-        for entry in product.hourly_entries.all():
-            if not _entry_is_filled(entry):
-                continue
-            if entry.slot_index < product.first_slot_index:
-                continue
-            qty = entry.quantity or Decimal('0')
-            if qty > 0:
-                product_qty += Decimal(str(qty))
-        if product_qty <= 0:
-            continue
-        work_hours = _product_submit_work_hours(product)
-        if work_hours <= 0:
+        if product_has_zero_duration_anomaly(product):
             return None, (
                 f'Số liệu bạn gửi sai — {_zero_hour_step_label(product)} có sản lượng '
                 'nhưng thời gian công đoạn 0 phút. Vui lòng kiểm tra lại.'
             )
+        if product_has_efficiency_anomaly(product):
+            efficiency = _product_efficiency_pct(product)
+            if efficiency is not None and efficiency <= 0:
+                return efficiency, (
+                    'Số liệu bạn gửi sai — có công đoạn hiệu suất không hợp lệ. '
+                    'Vui lòng kiểm tra lại sản lượng, định mức và thời gian công đoạn.'
+                )
+            if efficiency is not None:
+                pct_text = format(efficiency, '.2f').rstrip('0').rstrip('.')
+                return efficiency, (
+                    f'Số liệu bạn gửi sai — công đoạn {_zero_hour_step_label(product)} '
+                    f'hiệu suất {pct_text}% vượt {PRODUCTION_MAX_SUBMIT_EFFICIENCY_PCT}%. '
+                    'Vui lòng kiểm tra lại sản lượng và định mức.'
+                )
 
     efficiency = _report_overall_efficiency_pct(products)
     if efficiency is not None and efficiency < 0:

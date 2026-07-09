@@ -42,6 +42,8 @@
     <span class="badge bg-danger-subtle text-danger">Chưa báo cáo</span>
     {% elif row.production_all_submitted %}
     <span class="badge bg-success-subtle text-success">Đã nộp</span>
+    {% elif row.production_has_anomaly %}
+    <span class="badge bg-warning text-dark">Báo cáo sai</span>
     {% else %}
     <span class="badge bg-danger-subtle text-danger">Chưa nộp</span>
     {% endif %}

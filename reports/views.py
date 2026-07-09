@@ -608,8 +608,10 @@ def proxy_report_entry(request):
     from reports.production_hourly import (
         build_proxy_shift_sessions,
         can_edit_production_norms,
+        can_manager_edit_unsubmitted_production_report,
         can_proxy_enter_daily_report,
         employee_self_submitted_production_report,
+        report_has_manager_fixable_anomaly,
         save_proxy_shift_sessions,
     )
     from reports.production_shift_policy import shift_display_label
@@ -675,6 +677,14 @@ def proxy_report_entry(request):
         if lock_session_times:
             if not can_edit_production_norms(request.user, report):
                 messages.error(request, 'Bạn không có quyền chỉnh sửa báo cáo này.')
+                return redirect(_proxy_url(subject.id, post_shift))
+        elif report.status != DailyWorkReport.STATUS_SUBMITTED:
+            if not can_manager_edit_unsubmitted_production_report(request.user, report):
+                messages.error(
+                    request,
+                    'Báo cáo chưa nộp chỉ được chỉnh sửa khi có công đoạn hiệu suất >200%, ≤0% '
+                    'hoặc thời gian công đoạn 0 phút.',
+                )
                 return redirect(_proxy_url(subject.id, post_shift))
         elif is_report_locked(report) or is_report_edit_expired(report):
             messages.error(request, report_edit_denied_message(report))
@@ -757,12 +767,49 @@ def proxy_report_entry(request):
                 reverse('reports:detail_cn', kwargs={'pk': report.pk})
                 if report.pk else ''
             ),
+            'has_anomaly': (
+                bool(report.pk)
+                and report.status != DailyWorkReport.STATUS_SUBMITTED
+                and report_has_manager_fixable_anomaly(report)
+            ),
+            'can_manager_edit': (
+                lock_session_times
+                or not report.pk
+                or (
+                    bool(report.pk)
+                    and report.status == DailyWorkReport.STATUS_SUBMITTED
+                    and not (is_report_locked(report) or is_report_edit_expired(report))
+                )
+                or (
+                    report.status != DailyWorkReport.STATUS_SUBMITTED
+                    and report_has_manager_fixable_anomaly(report)
+                )
+            ),
         })
 
     submitted_tabs = [tab for tab in tabs if tab['is_submitted']]
-    if submitted_tabs:
+    anomaly_tabs = [tab for tab in tabs if tab.get('has_anomaly')]
+    active_shift_tab = next((tab for tab in tabs if tab['shift'] == active_shift), None)
+    from_detail_report = None
+    if from_detail_pk:
+        from_detail_report = DailyWorkReport.objects.filter(pk=from_detail_pk).first()
+
+    if (
+        from_detail_report
+        and from_detail_report.status != DailyWorkReport.STATUS_SUBMITTED
+        and report_has_manager_fixable_anomaly(from_detail_report)
+    ):
+        tabs = [tab for tab in tabs if tab['shift'] == from_detail_report.shift]
+        edit_submitted_only = False
+    elif active_shift_tab and active_shift_tab.get('has_anomaly') and not active_shift_tab['is_submitted']:
+        tabs = [active_shift_tab]
+        edit_submitted_only = False
+    elif submitted_tabs:
         tabs = submitted_tabs
         edit_submitted_only = True
+    elif anomaly_tabs:
+        tabs = anomaly_tabs
+        edit_submitted_only = False
     else:
         edit_submitted_only = False
 
@@ -2150,10 +2197,12 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
         build_productivity_report,
         can_edit_production_norms,
         can_edit_production_report,
+        can_manager_edit_unsubmitted_production_report,
         parse_decimal,
         delete_production_products,
         update_product_norms,
         update_production_product_fields,
+        report_has_manager_fixable_anomaly,
     )
 
     report = get_object_or_404(
@@ -2420,6 +2469,16 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
             f"&for_user={report.employee_id}"
             f"&from_detail={report.pk}"
         )
+    elif (
+        report.is_production_report
+        and can_manager_edit_unsubmitted_production_report(request.user, report)
+    ):
+        edit_report_url = (
+            f"{reverse('reports:proxy_cn')}?date={report.report_date.isoformat()}"
+            f"&shift={report.shift}"
+            f"&for_user={report.employee_id}"
+            f"&from_detail={report.pk}"
+        )
     if report.is_production_report and (report.hod_reviewed or report.is_hod_rejected):
         edit_report_url = ''
     detail_template = (
@@ -2452,6 +2511,11 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
         'hourly_grid': hourly_grid,
         'productivity': productivity,
         'edit_report_url': edit_report_url,
+        'production_has_anomaly': (
+            report.is_production_report
+            and report.status != DailyWorkReport.STATUS_SUBMITTED
+            and report_has_manager_fixable_anomaly(report)
+        ),
         'can_review': can_review,
         'can_approve': can_approve,
         'can_unapprove': can_unapprove,

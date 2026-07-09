@@ -101,7 +101,7 @@
                         {% endif %}
                     </div>
 
-                    <fieldset class="border-0 p-0 m-0" {% if tab.is_locked and not tab.lock_session_times %}disabled{% endif %}>
+                    <fieldset class="border-0 p-0 m-0" {% if tab.is_locked and not tab.lock_session_times or not tab.can_manager_edit %}disabled{% endif %}>
                         <div class="jp-proxy-sessions">
                             {% for sess in tab.data.sessions %}
                             {% include 'reports/includes/proxy_session_row.html' with sess=sess content_edit_only=tab.lock_session_times allow_delete=True %}
@@ -109,7 +109,7 @@
                         </div>
                     </fieldset>
 
-                    {% if not tab.is_locked %}
+                    {% if not tab.is_locked and tab.can_manager_edit %}
                     <template class="jp-proxy-session-tpl">
                         {% include 'reports/includes/proxy_session_row.html' with sess=empty_session content_edit_only=False allow_delete=True %}
                     </template>
@@ -120,6 +120,10 @@
                         <button type="submit" class="btn btn-hm fw-bold">
                             <i class="bi bi-save me-1"></i>{% if tab.lock_session_times %}Lưu chỉnh sửa{% else %}Lưu {{ tab.label }}{% endif %}
                         </button>
+                    </div>
+                    {% elif not tab.can_manager_edit and not tab.is_locked %}
+                    <div class="jp-proxy-locked-msg">
+                        <i class="bi bi-exclamation-triangle me-1"></i>Báo cáo chưa nộp bình thường — chỉ chỉnh sửa khi có công đoạn sai hiệu suất hoặc thời gian 0 phút.
                     </div>
                     {% else %}
                     <div class="jp-proxy-locked-msg">

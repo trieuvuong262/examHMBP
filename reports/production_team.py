@@ -21,6 +21,7 @@ from reports.report_profile import REPORT_PROFILE_PRODUCTION
 from reports.production_hourly import (
     _report_efficiency_totals,
     _report_overall_efficiency_pct,
+    report_has_manager_fixable_anomaly,
 )
 from reports.team_utils import (
     build_profile_department_groups,
@@ -82,6 +83,11 @@ def _aggregate_production_row(reports: list[DailyWorkReport], visible_fn) -> dic
     )
     has_manager_comment = any(getattr(report, 'has_manager_comment', False) for report in visible)
     has_employee_reply = any(getattr(report, 'has_employee_reply', False) for report in visible)
+    has_anomaly = any(
+        report.status != DailyWorkReport.STATUS_SUBMITTED
+        and report_has_manager_fixable_anomaly(report)
+        for report in visible
+    )
     return {
         'report': primary,
         'production_reports': visible,
@@ -93,6 +99,7 @@ def _aggregate_production_row(reports: list[DailyWorkReport], visible_fn) -> dic
         'production_any_rejected': any_rejected,
         'production_has_manager_comment': has_manager_comment,
         'production_has_employee_reply': has_employee_reply,
+        'production_has_anomaly': has_anomaly,
         'production_efficiency_pct': _weighted_efficiency_pct(visible),
         'shift_badges': _shift_badges_for_reports(visible),
     }
