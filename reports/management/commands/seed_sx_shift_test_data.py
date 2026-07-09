@@ -175,10 +175,9 @@ class Command(BaseCommand):
             end = timezone.make_aware(datetime.combine(
                 day, time(end_hour, random.randint(1, 59))
             ))
-        else:  # NIGHT — 23h hôm nay → 3h–5h hôm sau
-            # bắt đầu 23h01–23h25 (phút lẻ)
+        else:  # NIGHT — 17h hôm nay → 3h–5h hôm sau
             start = timezone.make_aware(datetime.combine(
-                day, time(23, random.randint(1, 25))
+                day, time(17, random.randint(1, 25))
             ))
             next_day = day + timedelta(days=1)
             end_hour = random.choice([3, 4, 5])

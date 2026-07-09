@@ -17,20 +17,21 @@ PRODUCTION_SHIFT_ORDER = (
     DailyWorkReport.SHIFT_NIGHT,
 )
 
-# Gán báo cáo vào tab ca nào (khác khung slot giờ — slot vẫn theo production_slots.py).
+# Gán tab báo cáo (khác khung slot giờ — slot vẫn theo production_slots.py).
 ASSIGN_MORNING_FROM = time(6, 30)
-ASSIGN_CHOICE_FROM = time(17, 0)
+ASSIGN_NIGHT_END = time(5, 0)
+ASSIGN_CHOICE_FROM = time(18, 0)
 
 SHIFT_META = {
     DailyWorkReport.SHIFT_MORNING: {
         'label': 'Ca sáng',
-        'time_range': '7h30 – 23h',
-        'description': 'Ca ban ngày — gồm khung tăng ca 18h–23h trong cùng báo cáo',
+        'time_range': '7h30 – 18h + tăng ca 18h–23h',
+        'description': 'Ca ban ngày — tăng ca 18h–23h ghi chung báo cáo ca sáng',
     },
     DailyWorkReport.SHIFT_NIGHT: {
         'label': 'Ca tối',
-        'time_range': '23h – 5h sáng hôm sau',
-        'description': 'Ca đêm — ngày báo cáo là ngày bắt đầu lúc 23h',
+        'time_range': '17h – 5h sáng hôm sau',
+        'description': 'Ca đêm — ngày báo cáo là ngày bắt đầu lúc 17h',
     },
 }
 
@@ -71,7 +72,7 @@ def shift_badge_class(shift: str) -> str:
 
 
 def is_production_shift_assignment_choice_required(at: datetime | None = None) -> bool:
-    """17h00–23h59 — NV chọn tab ca sáng hay ca tối (không tự gán)."""
+    """18h00–23h59 — hai ca chồng khung giờ, NV chọn ca sáng (tăng ca) hay ca tối."""
     local = timezone.localtime(at or timezone.now())
     clock = local.time()
     return ASSIGN_CHOICE_FROM <= clock
@@ -82,9 +83,10 @@ def production_shift_assignment_for_datetime(
 ) -> tuple[date, str] | None:
     """
     Suy ra tab báo cáo (report_date, shift) từ giờ VPS.
-    - 00h00–06h29: ca tối (report_date = ngày bắt đầu ca 23h hôm trước)
-    - 06h30–16h59: ca sáng (report_date = hôm nay)
-    - 17h00–23h59: None — cần NV chọn ca
+    - 00h00–04h59: ca tối (report_date = ngày bắt đầu ca 17h hôm trước)
+    - 05h00–06h29: None — ngoài khung ca
+    - 06h30–17h59: ca sáng (report_date = hôm nay)
+    - 18h00–23h59: None — cần NV chọn ca (chồng tăng ca sáng / ca tối)
 
     Khung giờ slot vẫn theo production_slots.py.
     """
@@ -95,9 +97,12 @@ def production_shift_assignment_for_datetime(
     if is_production_shift_assignment_choice_required(local):
         return None
 
-    if clock < ASSIGN_MORNING_FROM:
+    if clock < ASSIGN_NIGHT_END:
         prev_day = day - timedelta(days=1)
         return prev_day, DailyWorkReport.SHIFT_NIGHT
+
+    if clock < ASSIGN_MORNING_FROM:
+        return None
 
     return day, DailyWorkReport.SHIFT_MORNING
 
@@ -120,18 +125,14 @@ def build_shift_assignment_options(
     *,
     at: datetime | None = None,
 ) -> list[dict]:
-    """Hai lựa chọn popup — chỉ khi trong khung 17h–23h59."""
+    """Hai lựa chọn popup — chỉ khi trong khung chồng ca 18h–23h59."""
     at = at or timezone.localtime()
     options = []
     for shift in PRODUCTION_SHIFT_ORDER:
         can_start, reason = can_start_production_shift(employee, report_date, shift)
-        if shift == DailyWorkReport.SHIFT_NIGHT and can_start:
-            if not shift_contains_datetime(at, report_date, shift):
-                can_start = False
-                reason = (
-                    'Ca tối chỉ bắt đầu nhập từ 23h. '
-                    'Nếu đang làm buổi tối, chọn ca sáng.'
-                )
+        if can_start and not shift_contains_datetime(at, report_date, shift):
+            can_start = False
+            reason = 'Khung giờ hiện tại không thuộc ca này.'
         meta = SHIFT_META[shift]
         options.append({
             'shift': shift,
@@ -214,17 +215,7 @@ def can_start_production_shift(employee, report_date, shift: str) -> tuple[bool,
     if shift in existing:
         return True, ''
 
-    if shift == DailyWorkReport.SHIFT_NIGHT:
-        if DailyWorkReport.SHIFT_MORNING in existing:
-            return False, 'Ca tối không áp dụng khi đã có ca sáng cùng ngày.'
-        return True, ''
-
-    if shift == DailyWorkReport.SHIFT_MORNING:
-        if DailyWorkReport.SHIFT_NIGHT in existing:
-            return False, 'Đã có báo cáo ca tối cùng ngày — không thể mở ca sáng.'
-        return True, ''
-
-    return False, 'Ca làm không hợp lệ.'
+    return True, ''
 
 
 def build_shift_picker_options(employee, report_date, *, can_edit: bool) -> list[dict]:

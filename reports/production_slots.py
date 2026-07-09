@@ -1,4 +1,4 @@
-"""Khung giờ báo cáo sản lượng — ca sáng (gồm tăng ca) và ca tối."""
+"""Khung giờ báo cáo sản lượng — ca sáng (7h30–18h + tăng ca 18h–23h) và ca tối (17h–5h)."""
 
 from __future__ import annotations
 
@@ -43,13 +43,20 @@ MORNING_SLOTS = (
 
 MORNING_REGULAR_SLOT_COUNT = sum(1 for s in MORNING_SLOTS if not s.is_overtime)
 
+# Ca tối: 17h hôm nay → 5h sáng hôm sau
 NIGHT_SLOTS = (
-    ProductionHourlySlot(0, '23h - 0h', time(23, 0), time(0, 0), end_day_offset=1),
-    ProductionHourlySlot(1, '0h - 1h', time(0, 0), time(1, 0), start_day_offset=1, end_day_offset=1),
-    ProductionHourlySlot(2, '1h - 2h', time(1, 0), time(2, 0), start_day_offset=1, end_day_offset=1),
-    ProductionHourlySlot(3, '2h - 3h', time(2, 0), time(3, 0), start_day_offset=1, end_day_offset=1),
-    ProductionHourlySlot(4, '3h - 4h', time(3, 0), time(4, 0), start_day_offset=1, end_day_offset=1),
-    ProductionHourlySlot(5, '4h - 5h', time(4, 0), time(5, 0), start_day_offset=1, end_day_offset=1),
+    ProductionHourlySlot(0, '17h - 18h', time(17, 0), time(18, 0)),
+    ProductionHourlySlot(1, '18h - 19h', time(18, 0), time(19, 0)),
+    ProductionHourlySlot(2, '19h - 20h', time(19, 0), time(20, 0)),
+    ProductionHourlySlot(3, '20h - 21h', time(20, 0), time(21, 0)),
+    ProductionHourlySlot(4, '21h - 22h', time(21, 0), time(22, 0)),
+    ProductionHourlySlot(5, '22h - 23h', time(22, 0), time(23, 0)),
+    ProductionHourlySlot(6, '23h - 0h', time(23, 0), time(0, 0), end_day_offset=1),
+    ProductionHourlySlot(7, '0h - 1h', time(0, 0), time(1, 0), start_day_offset=1, end_day_offset=1),
+    ProductionHourlySlot(8, '1h - 2h', time(1, 0), time(2, 0), start_day_offset=1, end_day_offset=1),
+    ProductionHourlySlot(9, '2h - 3h', time(2, 0), time(3, 0), start_day_offset=1, end_day_offset=1),
+    ProductionHourlySlot(10, '3h - 4h', time(3, 0), time(4, 0), start_day_offset=1, end_day_offset=1),
+    ProductionHourlySlot(11, '4h - 5h', time(4, 0), time(5, 0), start_day_offset=1, end_day_offset=1),
 )
 
 SHIFT_SLOTS = {
