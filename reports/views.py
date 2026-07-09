@@ -2296,6 +2296,10 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
         from reports.report_lock import unapprove_production_report
 
         unapprove_production_report(report)
+        messages.success(
+            request,
+            'Đã hoàn duyệt — nhân viên có thể chỉnh sửa lại nếu còn trong hạn 24 giờ.',
+        )
         return _detail_redirect()
 
     # Đánh dấu nhận xét đã đọc (comment không phải của mình)

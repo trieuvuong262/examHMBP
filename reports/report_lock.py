@@ -146,8 +146,8 @@ def ensure_production_report_approval_state(report) -> bool:
     """Đồng bộ trạng thái duyệt khi mở báo cáo — trả True nếu vừa đổi trạng thái."""
     if not report or not report.pk:
         return False
-    if auto_approve_fully_proxy_entered_report(report):
-        return True
+    # Không tự duyệt lại báo cáo nhập hộ khi mở trang — tránh ghi đè Hoàn duyệt.
+    # Tự duyệt nhập hộ chỉ chạy lúc nộp/lưu (save_proxy_shift_sessions, …).
     return auto_reject_production_report(report)
 
 

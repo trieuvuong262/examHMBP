@@ -180,9 +180,10 @@ document.addEventListener('DOMContentLoaded', function () {
         if (unapproveConfirmBtn) {
             unapproveConfirmBtn.addEventListener('click', function () {
                 if (!pendingUnapproveForm) return;
-                unapproveModal.hide();
-                pendingUnapproveForm.submit();
+                var form = pendingUnapproveForm;
                 pendingUnapproveForm = null;
+                form.submit();
+                unapproveModal.hide();
             });
         }
         unapproveModalEl.addEventListener('hidden.bs.modal', function () {
