@@ -507,6 +507,10 @@ if NAS_SMB_PORT == 5678:
 NAS_RDRIVE_SERVER = os.getenv('NAS_RDRIVE_SERVER', 'justplay.synology.me').strip()
 NAS_RDRIVE_PORT = NAS_WEBDAV_PORT  # tương thích tên cũ = cổng WebDAV
 NAS_RDRIVE_FALLBACK_SERVER = os.getenv('NAS_RDRIVE_FALLBACK_SERVER', '').strip()
+NAS_RAIDRIVE_INSTALLER_SHARE_TOKEN = os.getenv(
+    'NAS_RAIDRIVE_INSTALLER_SHARE_TOKEN',
+    'e9e15707-7552-46ad-8d8e-e9962f816753',
+).strip()
 # Share ẩn khỏi Duyệt thư mục Portal + Quét từ NAS (share hệ thống: docker, backup, log…)
 NAS_PORTAL_BROWSE_HIDDEN_SHARES = os.getenv(
     'NAS_PORTAL_BROWSE_HIDDEN_SHARES', 'docker,backup,log',
