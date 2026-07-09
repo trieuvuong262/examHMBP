@@ -286,7 +286,11 @@
                     <form method="post" class="m-0{% if shift_choice_required %} js-prod-start-form{% endif %}">
                         {% csrf_token %}
                         <input type="hidden" name="action" value="start_product">
-                        {% if shift_choice_required %}<input type="hidden" name="shift" value="">{% endif %}
+                        {% if shift_choice_required %}
+                        <input type="hidden" name="shift" value="">
+                        {% elif production_shift %}
+                        <input type="hidden" name="shift" value="{{ production_shift }}">
+                        {% endif %}
                         {% if for_user_param %}<input type="hidden" name="for_user" value="{{ for_user_param }}">{% endif %}
                         <button type="submit" class="btn btn-hm fw-bold w-100">
                             <i class="bi bi-play-circle me-2"></i>Bắt đầu công đoạn
@@ -318,7 +322,11 @@
                     <form method="post" class="jp-prod-mobile-step-action m-0{% if shift_choice_required %} js-prod-start-form{% endif %}">
                         {% csrf_token %}
                         <input type="hidden" name="action" value="start_product">
-                        {% if shift_choice_required %}<input type="hidden" name="shift" value="">{% endif %}
+                        {% if shift_choice_required %}
+                        <input type="hidden" name="shift" value="">
+                        {% elif production_shift %}
+                        <input type="hidden" name="shift" value="{{ production_shift }}">
+                        {% endif %}
                         {% if for_user_param %}<input type="hidden" name="for_user" value="{{ for_user_param }}">{% endif %}
                         <button type="submit" class="btn btn-hm jp-prod-mobile-cta">
                             <i class="bi bi-play-fill me-2"></i>Bắt đầu

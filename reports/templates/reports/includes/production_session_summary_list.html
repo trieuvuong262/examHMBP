@@ -6,6 +6,7 @@
     <form method="post" class="m-0">
         {% csrf_token %}
         <input type="hidden" name="action" value="start_product">
+        {% if production_shift %}<input type="hidden" name="shift" value="{{ production_shift }}">{% endif %}
         {% if for_user_param %}<input type="hidden" name="for_user" value="{{ for_user_param }}">{% endif %}
         <button type="submit" class="btn btn-outline-hm fw-bold w-100 w-md-auto">
             <i class="bi bi-plus-circle me-2"></i>Bắt đầu công đoạn tiếp theo

@@ -392,10 +392,10 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
         return redirect(_production_redirect(report_date, shift, for_user or None))
 
     if action == 'start_product':
-        chosen_shift = _parse_production_shift(request)
+        chosen_shift = _parse_production_shift(request, report=report) or shift
         if is_production_shift_assignment_choice_required() and not chosen_shift:
             messages.warning(request, 'Chọn ca sáng hoặc ca tối trước khi bắt đầu công đoạn.')
-            return redirect(_production_redirect(report_date, '', for_user or None))
+            return redirect(_production_redirect(report_date, shift, for_user or None))
         if is_production_entry_closed(report):
             messages.warning(
                 request,
