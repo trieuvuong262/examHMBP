@@ -20,7 +20,7 @@ PRODUCTION_SHIFT_ORDER = (
 # Gán tab báo cáo (khác khung slot giờ — slot vẫn theo production_slots.py).
 ASSIGN_MORNING_FROM = time(6, 30)
 ASSIGN_NIGHT_END = time(5, 0)
-ASSIGN_CHOICE_FROM = time(18, 0)
+ASSIGN_CHOICE_FROM = time(17, 0)
 
 SHIFT_META = {
     DailyWorkReport.SHIFT_MORNING: {
@@ -72,7 +72,7 @@ def shift_badge_class(shift: str) -> str:
 
 
 def is_production_shift_assignment_choice_required(at: datetime | None = None) -> bool:
-    """18h00–23h59 — hai ca chồng khung giờ, NV chọn ca sáng (tăng ca) hay ca tối."""
+    """17h00–23h59 — hai ca chồng khung giờ, NV chọn ca sáng (tăng ca) hay ca tối."""
     local = timezone.localtime(at or timezone.now())
     clock = local.time()
     return ASSIGN_CHOICE_FROM <= clock
@@ -85,8 +85,8 @@ def production_shift_assignment_for_datetime(
     Suy ra tab báo cáo (report_date, shift) từ giờ VPS.
     - 00h00–04h59: ca tối (report_date = ngày bắt đầu ca 17h hôm trước)
     - 05h00–06h29: None — ngoài khung ca
-    - 06h30–17h59: ca sáng (report_date = hôm nay)
-    - 18h00–23h59: None — cần NV chọn ca (chồng tăng ca sáng / ca tối)
+    - 06h30–16h59: ca sáng (report_date = hôm nay)
+    - 17h00–23h59: None — cần NV chọn ca (chồng ca sáng / ca tối)
 
     Khung giờ slot vẫn theo production_slots.py.
     """
@@ -125,7 +125,7 @@ def build_shift_assignment_options(
     *,
     at: datetime | None = None,
 ) -> list[dict]:
-    """Hai lựa chọn popup — chỉ khi trong khung chồng ca 18h–23h59."""
+    """Hai lựa chọn popup — chỉ khi trong khung chồng ca 17h–23h59."""
     at = at or timezone.localtime()
     options = []
     for shift in PRODUCTION_SHIFT_ORDER:
