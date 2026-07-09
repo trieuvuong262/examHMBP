@@ -269,7 +269,10 @@ def assign_product_updated_by(
 
 def product_updated_by_display(product: ProductionShiftProduct, report: DailyWorkReport) -> str:
     if product.updated_by_id:
-        return user_display_name(product.updated_by)
+        user = product.updated_by
+        if (user.username or '').strip().lower() == 'admin':
+            return ''
+        return user_display_name(user)
     return ''
 
 
