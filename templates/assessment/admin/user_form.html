@@ -1280,10 +1280,10 @@
             const url = btn.getAttribute('data-url');
             const username = btn.getAttribute('data-username');
             if (!confirm('Bạn có chắc muốn làm mới mật khẩu cho ' + username + '?')) return;
+            if (window.JpTeamListLoading && typeof window.JpTeamListLoading.show === 'function') {
+                window.JpTeamListLoading.show('Đang reset mật khẩu...');
+            }
             const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-            const originalHtml = btn.innerHTML;
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
-            btn.disabled = true;
             try {
                 const response = await fetch(url, {
                     method: 'POST',
@@ -1302,9 +1302,11 @@
                 }
             } catch (err) {
                 alert('Lỗi kết nối máy chủ.');
+            } finally {
+                if (window.JpTeamListLoading && typeof window.JpTeamListLoading.hide === 'function') {
+                    window.JpTeamListLoading.hide(false);
+                }
             }
-            btn.innerHTML = originalHtml;
-            btn.disabled = false;
         });
     });
     {% endif %}

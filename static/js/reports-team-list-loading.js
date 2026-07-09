@@ -1,5 +1,5 @@
 /**
- * Popup loading cho danh sách báo cáo VP / SX — menu, lọc, sắp xếp, mở chi tiết.
+ * Popup loading — danh sách VP/SX, Nhân sự, sửa NV, reset MK.
  */
 (function () {
     'use strict';
@@ -37,6 +37,10 @@
 
     function isHrmListUrl(url) {
         return normalizePath(url.pathname) === HRM_LIST_PATH;
+    }
+
+    function isHrmUserEditUrl(url) {
+        return /^\/dashboard\/users\/edit\/\d+\/?$/.test(url.pathname);
     }
 
     function isNavListUrl(url) {
@@ -109,6 +113,9 @@
         if (link.hasAttribute('data-jp-team-list-nav')) {
             return link.getAttribute('data-loading-message') || 'Đang tải danh sách...';
         }
+        if (isHrmUserEditUrl(url)) {
+            return 'Đang tải thông tin nhân viên...';
+        }
         if (isNavListUrl(url)) {
             if (isHrmListUrl(url)) {
                 return 'Đang tải danh sách nhân sự...';
@@ -151,7 +158,7 @@
     }
 
     function bootListPage() {
-        var page = document.querySelector('.jp-team-list-page, .jp-hrm-list-page');
+        var page = document.querySelector('.jp-team-list-page, .jp-hrm-list-page, .jp-user-form-page');
         if (!page) {
             if (pendingMessage()) {
                 hide(true);

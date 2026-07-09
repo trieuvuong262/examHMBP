@@ -473,13 +473,12 @@ document.querySelectorAll('.reset-pwd-btn').forEach(btn => {
         // Hỏi xác nhận
         if(!confirm(`Bạn có chắc chắn muốn làm mới mật khẩu cho ${username}.?`)) return;
 
+        if (window.JpTeamListLoading && typeof window.JpTeamListLoading.show === 'function') {
+            window.JpTeamListLoading.show('Đang reset mật khẩu...');
+        }
+
         // Lấy CSRF token có sẵn trên trang
         const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-
-        // Đổi nút thành icon xoay xoay cho chuyên nghiệp
-        const originalHtml = this.innerHTML;
-        this.innerHTML = '<span class="spinner-border spinner-border-sm text-primary"></span>';
-        this.disabled = true;
 
         try {
             // Gửi lệnh ngầm xuống Backend
@@ -518,11 +517,11 @@ document.querySelectorAll('.reset-pwd-btn').forEach(btn => {
             }
         } catch (err) {
             alert("Lỗi kết nối máy chủ! Vui lòng thử lại.");
+        } finally {
+            if (window.JpTeamListLoading && typeof window.JpTeamListLoading.hide === 'function') {
+                window.JpTeamListLoading.hide(false);
+            }
         }
-
-        // Trả lại nút như cũ
-        this.innerHTML = originalHtml;
-        this.disabled = false;
     });
 });
 
