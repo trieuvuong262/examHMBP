@@ -160,7 +160,9 @@
         {% endif %}
         {% if jp_can_hrm %}
         <li>
-            <a href="{% url 'user_list' %}" class="jp-sidebar-link {% if '/dashboard/users' in request.path or '/dashboard/org' in request.path or '/dashboard/divisions' in request.path %}active{% elif '/dashboard/departments' in request.path and request.resolver_match.url_name != 'department_permissions' %}active{% endif %}">
+            <a href="{% url 'user_list' %}" class="jp-sidebar-link {% if '/dashboard/users' in request.path or '/dashboard/org' in request.path or '/dashboard/divisions' in request.path %}active{% elif '/dashboard/departments' in request.path and request.resolver_match.url_name != 'department_permissions' %}active{% endif %}"
+               data-jp-team-list-nav
+               data-loading-message="Đang tải danh sách nhân sự...">
                 <i class="bi bi-people-fill"></i><span>Nhân sự</span>
             </a>
         </li>

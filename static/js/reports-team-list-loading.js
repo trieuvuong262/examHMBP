@@ -7,6 +7,7 @@
     var STORAGE_KEY = 'jp_team_list_loading';
     var MIN_VISIBLE_MS = 280;
     var TEAM_LIST_PATHS = ['/reports/sx/team/', '/reports/vp/team/'];
+    var HRM_LIST_PATH = '/dashboard/users/';
 
     var overlay = document.getElementById('jp-team-list-loading');
     if (!overlay) return;
@@ -32,6 +33,14 @@
             if (path === TEAM_LIST_PATHS[i]) return true;
         }
         return false;
+    }
+
+    function isHrmListUrl(url) {
+        return normalizePath(url.pathname) === HRM_LIST_PATH;
+    }
+
+    function isNavListUrl(url) {
+        return isTeamListUrl(url) || isHrmListUrl(url);
     }
 
     function clearPending() {
@@ -100,7 +109,10 @@
         if (link.hasAttribute('data-jp-team-list-nav')) {
             return link.getAttribute('data-loading-message') || 'Đang tải danh sách...';
         }
-        if (isTeamListUrl(url)) {
+        if (isNavListUrl(url)) {
+            if (isHrmListUrl(url)) {
+                return 'Đang tải danh sách nhân sự...';
+            }
             return 'Đang tải danh sách...';
         }
         return null;
@@ -138,8 +150,8 @@
         });
     }
 
-    function bootTeamListPage() {
-        var page = document.querySelector('.jp-team-list-page');
+    function bootListPage() {
+        var page = document.querySelector('.jp-team-list-page, .jp-hrm-list-page');
         if (!page) {
             if (pendingMessage()) {
                 hide(true);
@@ -168,9 +180,9 @@
     wireGlobalNav();
 
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', bootTeamListPage);
+        document.addEventListener('DOMContentLoaded', bootListPage);
     } else {
-        bootTeamListPage();
+        bootListPage();
     }
 
     window.addEventListener('pageshow', function (ev) {
