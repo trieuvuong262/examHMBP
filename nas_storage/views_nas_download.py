@@ -6,6 +6,7 @@ import io
 import json
 import logging
 import re
+import subprocess
 import zipfile
 from pathlib import Path
 
@@ -185,7 +186,7 @@ def nas_download_raidrive(request):
                 filename,
                 timeout=getattr(settings, 'NAS_RAIDRIVE_CACHE_ON_DEMAND_TIMEOUT', 90),
             )
-        except OSError as exc:
+        except (OSError, subprocess.TimeoutExpired) as exc:
             logger.warning('RaiDrive on-demand sync failed: %s', exc)
             return HttpResponse(
                 'File RaiDrive chưa sẵn sàng trên server. Vui lòng thử lại sau 1–2 phút hoặc liên hệ IT.',
