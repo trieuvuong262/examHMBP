@@ -33,12 +33,6 @@
     </div>
 
     <div class="card border-0 jp-report-section-card jp-report-tabs-card jp-proxy-tabs-card">
-        {% if edit_submitted_only %}
-        <div class="alert alert-light border-0 small mb-0 rounded-0 border-bottom py-2 px-3">
-            <i class="bi bi-info-circle me-1"></i>
-            Chỉ hiển thị ca đã nộp — các ca chưa gửi được ẩn.
-        </div>
-        {% endif %}
         {% if tabs|length > 1 %}
         <ul class="nav nav-tabs jp-report-tabs" role="tablist">
             {% for tab in tabs %}
@@ -71,14 +65,6 @@
                     <i class="bi bi-person-check-fill me-1"></i>
                     <strong>{{ tab.label }}</strong> đã được nhập hộ bởi
                     <strong>{{ tab.proxy_entered_by.profile.full_name|default:tab.proxy_entered_by.username }}</strong>.
-                </div>
-                {% endif %}
-
-                {% if tab.lock_session_times and not tab.is_locked %}
-                <div class="jp-proxy-info-note">
-                    <i class="bi bi-pencil-square me-1"></i>
-                    Chỉ sửa mã hàng, công đoạn, định mức và sản lượng — giờ các công đoạn đã gửi không đổi.
-                    Có thể <strong>thêm công đoạn mới</strong> bên dưới.
                 </div>
                 {% endif %}
 

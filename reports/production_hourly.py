@@ -2171,6 +2171,110 @@ def build_proxy_shift_sessions(report: DailyWorkReport) -> dict:
     }
 
 
+def _build_proxy_time_snapshot(report: DailyWorkReport) -> dict[int, dict]:
+    snapshot: dict[int, dict] = {}
+    for product in report.production_products.all():
+        start_disp, end_disp = session_time_displays(product)
+        snapshot[product.id] = {
+            'start_time': start_disp,
+            'end_time': end_disp,
+            'started_at': product.started_at,
+            'ended_at': product.ended_at,
+        }
+    return snapshot
+
+
+def _proxy_session_has_input(sess: dict) -> bool:
+    code = (sess.get('code') or '').strip()
+    process = (sess.get('process') or '').strip()
+    total = parse_non_negative_decimal(sess.get('total'), default=Decimal('0'))
+    damaged = parse_int(sess.get('damaged'))
+    note = (sess.get('note') or '').strip()
+    start_time = (sess.get('start_time') or '').strip()
+    end_time = (sess.get('end_time') or '').strip()
+    return bool(code or process or total > 0 or note or damaged or start_time or end_time)
+
+
+def _resolve_proxy_session_interval(
+    report_date,
+    shift: str,
+    sess: dict,
+    slot_by_idx: dict[int, object],
+    *,
+    snapshot: dict[int, dict],
+    content_edit_only: bool,
+) -> tuple[list[tuple[int, Decimal]], tuple[datetime, datetime] | None]:
+    """Xác định khung giờ giao — ưu tiên mốc datetime gốc khi sửa báo cáo đã nộp."""
+    product_id = parse_int(sess.get('product_id'), -1)
+    if content_edit_only and product_id >= 0 and product_id in snapshot:
+        snap = snapshot[product_id]
+        start_dt = snap.get('started_at')
+        end_dt = snap.get('ended_at')
+        if start_dt and end_dt:
+            overlaps = slots_overlapping_interval(report_date, shift, start_dt, end_dt)
+            if overlaps:
+                return overlaps, (start_dt, end_dt)
+    return _proxy_session_overlaps(report_date, shift, sess, slot_by_idx)
+
+
+def _prepare_proxy_sessions_for_save(
+    report: DailyWorkReport,
+    sessions: list[dict],
+    *,
+    content_edit_only: bool,
+    snapshot: dict[int, dict],
+) -> list[dict]:
+    shift = _shift_for_report(report)
+    slot_by_idx = {s.index: s for s in slots_for_shift(shift)}
+    prepared: list[dict] = []
+
+    for raw_sess in sessions:
+        sess = dict(raw_sess)
+        if content_edit_only:
+            product_id = parse_int(sess.get('product_id'), -1)
+            if product_id >= 0 and product_id in snapshot:
+                sess['start_time'] = snapshot[product_id]['start_time']
+                sess['end_time'] = snapshot[product_id]['end_time']
+
+        if not _proxy_session_has_input(sess):
+            continue
+
+        code = (sess.get('code') or '').strip()
+        process = (sess.get('process') or '').strip()
+        norm = parse_decimal(sess.get('norm'))
+        total = parse_non_negative_decimal(sess.get('total'), default=Decimal('0'))
+        damaged = parse_int(sess.get('damaged'))
+        note = (sess.get('note') or '').strip()
+
+        overlaps, interval = _resolve_proxy_session_interval(
+            report.report_date,
+            shift,
+            sess,
+            slot_by_idx,
+            snapshot=snapshot,
+            content_edit_only=content_edit_only,
+        )
+        if not overlaps or not interval:
+            continue
+
+        prepared.append({
+            'code': code,
+            'process': process,
+            'norm': norm,
+            'total': total,
+            'damaged': damaged,
+            'note': note,
+            'overlaps': overlaps,
+            'interval': interval,
+        })
+
+    if any(_proxy_session_has_input(sess) for sess in sessions) and not prepared:
+        raise ValueError(
+            'Không lưu được công đoạn nào. Kiểm tra mã hàng, sản lượng và khung giờ bắt đầu/kết thúc.'
+        )
+    return prepared
+
+
 @transaction.atomic
 def save_proxy_shift_sessions(
     report: DailyWorkReport,
@@ -2190,55 +2294,35 @@ def save_proxy_shift_sessions(
     report.report_profile = REPORT_PROFILE_PRODUCTION
     shift = _shift_for_report(report)
     slots = slots_for_shift(shift)
-    slot_by_idx = {s.index: s for s in slots}
 
-    time_snapshot = {}
-    if content_edit_only and report.pk:
-        for product in report.production_products.all():
-            start_disp, end_disp = session_time_displays(product)
-            time_snapshot[product.id] = {
-                'start_time': start_disp,
-                'end_time': end_disp,
-            }
+    snapshot = _build_proxy_time_snapshot(report) if content_edit_only and report.pk else {}
 
     prior_status = report.status
     prior_submitted_at = report.submitted_at
+
+    prepared = _prepare_proxy_sessions_for_save(
+        report,
+        sessions,
+        content_edit_only=content_edit_only,
+        snapshot=snapshot,
+    )
 
     report.production_products.all().delete()
 
     created = 0
     sort_order = 0
-    for sess in sessions:
-        if content_edit_only:
-            product_id = parse_int(sess.get('product_id'), -1)
-            if product_id >= 0:
-                if product_id not in time_snapshot:
-                    continue
-                sess = {
-                    **sess,
-                    'start_time': time_snapshot[product_id]['start_time'],
-                    'end_time': time_snapshot[product_id]['end_time'],
-                }
-            # product_id < 0: công đoạn mới — giữ giờ từ form
-
-        code = (sess.get('code') or '').strip()
-        process = (sess.get('process') or '').strip()
-        norm = parse_decimal(sess.get('norm'))
-        total = parse_non_negative_decimal(sess.get('total'), default=Decimal('0'))
-        damaged = parse_int(sess.get('damaged'))
-        note = (sess.get('note') or '').strip()
-
-        overlaps, interval = _proxy_session_overlaps(
-            report.report_date, shift, sess, slot_by_idx,
-        )
-
-        has_data = bool(code or process or total > 0 or note or damaged)
-        if not has_data or not overlaps or not interval:
-            continue
+    for item in prepared:
+        code = item['code']
+        process = item['process']
+        norm = item['norm']
+        total = item['total']
+        damaged = item['damaged']
+        note = item['note']
+        overlaps = item['overlaps']
+        start_dt, end_dt = item['interval']
 
         indices = [idx for idx, _ in overlaps]
-        first, last = indices[0], indices[-1]
-        start_dt, end_dt = interval
+        first = indices[0]
         total_overlap_hours = sum((hours for _, hours in overlaps), Decimal('0'))
         product = ProductionShiftProduct.objects.create(
             report=report,

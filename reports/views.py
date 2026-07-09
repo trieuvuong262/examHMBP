@@ -329,6 +329,29 @@ def _load_daily_report(
     shift: str = '',
 ):
     """Chỉ lấy bản ghi đã lưu; loại báo cáo theo trang SX/VP, không theo phòng ban."""
+    if report_profile == REPORT_PROFILE_PRODUCTION and shift:
+        from reports.production_slots import normalize_shift
+
+        shift = normalize_shift(shift)
+        base_qs = DailyWorkReport.objects.filter(
+            employee=user,
+            report_date=report_date,
+            report_profile=report_profile,
+            report_period=report_period,
+        )
+        report = base_qs.filter(shift=shift).first()
+        if not report and shift == DailyWorkReport.SHIFT_MORNING:
+            report = base_qs.filter(shift=DailyWorkReport.SHIFT_OVERTIME).first()
+        if report:
+            return report
+        defaults = _daily_report_defaults(report_profile, report_period)
+        defaults['shift'] = shift
+        return DailyWorkReport(
+            employee=user,
+            report_date=report_date,
+            **defaults,
+        )
+
     try:
         return DailyWorkReport.objects.get(
             employee=user,
@@ -675,12 +698,22 @@ def proxy_report_entry(request):
                 messages.error(request, work_hours_err)
                 return redirect(_proxy_url(subject.id, post_shift))
             report.declared_work_hours = work_hours
-        save_proxy_shift_sessions(
-            report,
-            sessions,
-            request.user,
-            content_edit_only=lock_session_times,
-        )
+        try:
+            result = save_proxy_shift_sessions(
+                report,
+                sessions,
+                request.user,
+                content_edit_only=lock_session_times,
+            )
+        except ValueError as exc:
+            messages.error(request, str(exc))
+            return redirect(_proxy_url(subject.id, post_shift))
+        if not result.get('sessions') and sessions:
+            messages.warning(
+                request,
+                'Không có công đoạn nào được lưu — kiểm tra mã hàng, sản lượng và khung giờ.',
+            )
+            return redirect(_proxy_url(subject.id, post_shift))
         messages.success(request, f'Đã lưu {shift_display_label(post_shift)} cho {subject_name}.')
         return redirect(_proxy_url(subject.id, post_shift))
 
@@ -2306,7 +2339,10 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
     hourly_grid = None
     productivity = None
     edit_report_url = ''
-    if report.is_production_report and report.shift_started_at:
+    if report.is_production_report and (
+        report.shift_started_at
+        or report.production_products.exists()
+    ):
         hourly_grid = build_hourly_grid(report)
         productivity = build_productivity_report(report)
 
