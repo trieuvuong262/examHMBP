@@ -13,7 +13,7 @@ from audit.services.rustdesk_device_sync import sync_all_rustdesk_hosts_from_dev
 from audit.services.rustdesk_connect import effective_rustdesk_password
 from audit.services.rustdesk_online import get_peers_online_map, normalize_rustdesk_id
 from audit.services.wake_on_lan import dispatch_wake_on_lan
-from hrm.menu_permissions import user_can_delete_menu, user_can_edit_menu
+from hrm.menu_permissions import user_can_access_menu, user_can_delete_menu, user_can_edit_menu
 from hrm.module_permissions import MODULE_AUDIT
 from PortalJustPlay.pagination import paginate_queryset
 
@@ -26,6 +26,11 @@ RUSTDESK_MENU_KEY = 'rustdesk'
 
 
 def _can_connect(user) -> bool:
+    """Ai được xem menu RustDesk thì được kết nối remote."""
+    return user_can_access_menu(user, MODULE_AUDIT, RUSTDESK_MENU_KEY)
+
+
+def _can_edit(user) -> bool:
     return user_can_edit_menu(user, MODULE_AUDIT, RUSTDESK_MENU_KEY)
 
 
@@ -72,7 +77,7 @@ def rustdesk_list(request):
         'current_active': active,
         'filtered_count': filtered_count,
         'can_connect_rustdesk': _can_connect(request.user),
-        'can_edit_rustdesk': _can_connect(request.user),
+        'can_edit_rustdesk': _can_edit(request.user),
         'can_delete_rustdesk': _can_delete(request.user),
         'rustdesk_online_check': getattr(settings, 'RUSTDESK_ONLINE_CHECK_ENABLED', True),
         'rustdesk_online_poll_sec': getattr(settings, 'RUSTDESK_ONLINE_POLL_SEC', 5),
@@ -99,7 +104,7 @@ def rustdesk_online_status(request):
 @module_perm_required(MODULE_AUDIT, 'view')
 @require_POST
 def rustdesk_sync_devices(request):
-    if not _can_connect(request.user):
+    if not _can_edit(request.user):
         return JsonResponse({'status': 'error', 'message': 'Không có quyền.'}, status=403)
 
     overwrite = request.POST.get('overwrite') == '1'
@@ -125,7 +130,7 @@ def rustdesk_sync_devices(request):
 @module_perm_required(MODULE_AUDIT, 'view')
 @require_POST
 def rustdesk_wake(request, pk):
-    if not _can_connect(request.user):
+    if not _can_edit(request.user):
         return JsonResponse({'status': 'error', 'message': 'Không có quyền.'}, status=403)
     if not getattr(settings, 'RUSTDESK_WOL_ENABLED', True):
         return JsonResponse({'status': 'error', 'message': 'Wake-on-LAN đã tắt.'}, status=403)
