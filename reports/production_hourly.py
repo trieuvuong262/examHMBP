@@ -69,6 +69,8 @@ from reports.report_lock import (
 
 def is_production_report_locked(report) -> bool:
     """Khóa chỉnh sửa sau khi quản lý đã duyệt báo cáo."""
+    if not report or not report.pk:
+        return False
     return is_report_locked(report)
 
 

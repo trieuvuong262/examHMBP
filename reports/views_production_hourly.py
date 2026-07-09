@@ -1025,7 +1025,7 @@ def today_production_hourly(request, report_date, report_context_common):
     if auto_shift_mode and report and report.pk and (can_edit or can_add_entry) and phase not in ('review',):
         started = True
     is_submitted = bool(report and report.pk and report.status == DailyWorkReport.STATUS_SUBMITTED)
-    is_locked = is_production_report_locked(report)
+    is_locked = is_production_report_locked(report) if report and report.pk else False
     is_edit_expired = is_production_employee_edit_expired(report) if report and report.pk else False
     employee_edit_deadline = production_employee_edit_deadline(report) if report and report.pk else None
 
