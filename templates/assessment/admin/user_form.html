@@ -1213,6 +1213,11 @@
             {% else %}
             syncConcurrentFormsetBeforeSubmit();
             {% endif %}
+            if (window.JpTeamListLoading && typeof window.JpTeamListLoading.markNavigating === 'function') {
+                window.JpTeamListLoading.markNavigating(
+                    {% if is_edit %}'Đang lưu thay đổi...'{% else %}'Đang tạo nhân viên...'{% endif %}
+                );
+            }
         });
     }
 
