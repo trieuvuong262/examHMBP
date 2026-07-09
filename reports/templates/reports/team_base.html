@@ -219,6 +219,7 @@
         </div>
     </div>
 </div>
+{% include 'reports/includes/team_list_loading.html' %}
 {% endblock %}
 
 {% block scripts %}
@@ -228,14 +229,33 @@ document.addEventListener('DOMContentLoaded', function () {
     var form = document.getElementById('teamReportFilterForm');
     if (!form) return;
 
+    function showTeamLoading(message) {
+        if (window.JpTeamListLoading && typeof window.JpTeamListLoading.show === 'function') {
+            window.JpTeamListLoading.show(message || 'Đang tải danh sách...');
+        }
+    }
+
     var submitTimer = null;
     function submitForm(delay) {
         if (submitTimer) window.clearTimeout(submitTimer);
         submitTimer = window.setTimeout(function () {
+            showTeamLoading();
             if (typeof form.requestSubmit === 'function') { form.requestSubmit(); }
             else { form.submit(); }
         }, typeof delay === 'number' ? delay : 0);
     }
+
+    form.addEventListener('submit', function () {
+        showTeamLoading();
+    });
+
+    document.querySelectorAll(
+        '.jp-team-stat-card[href], .jp-table-sort-link[href], .jp-team-filter-actions a[href]'
+    ).forEach(function (el) {
+        el.addEventListener('click', function () {
+            showTeamLoading();
+        });
+    });
 
     // Ngày (flatpickr) — tự tìm khi chọn xong
     if (window.flatpickr) {
@@ -271,14 +291,20 @@ document.addEventListener('DOMContentLoaded', function () {
         row.addEventListener('click', function (e) {
             if (e.target.closest('a, button, input, select, textarea, label, [data-bs-toggle]')) return;
             var href = row.getAttribute('data-row-href');
-            if (href) window.location.href = href;
+            if (href) {
+                showTeamLoading('Đang mở báo cáo...');
+                window.location.href = href;
+            }
         });
         row.addEventListener('keydown', function (e) {
             if (e.key !== 'Enter' && e.key !== ' ') return;
             if (e.target.closest('a, button, input, select, textarea, label, [data-bs-toggle]')) return;
             e.preventDefault();
             var href = row.getAttribute('data-row-href');
-            if (href) window.location.href = href;
+            if (href) {
+                showTeamLoading('Đang mở báo cáo...');
+                window.location.href = href;
+            }
         });
     });
 });

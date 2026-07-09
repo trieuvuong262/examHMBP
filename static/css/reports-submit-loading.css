@@ -83,8 +83,13 @@
 body.jp-report-submitting,
 body.jp-report-submit-success-open,
 body.jp-report-submit-error-open,
-body.jp-report-submit-locked {
+body.jp-report-submit-locked,
+body.jp-team-list-loading {
     overflow: hidden;
+}
+
+body.jp-team-list-loading .jp-report-submit-loading#jp-team-list-loading {
+    pointer-events: all;
 }
 
 body.jp-report-submitting .jp-report-submit-loading,
