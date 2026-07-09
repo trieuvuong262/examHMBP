@@ -37,10 +37,4 @@ server {
     location /media/ {
         alias /app/media/;
     }
-
-    # Tải RaiDrive — Django kiểm tra quyền rồi X-Accel (bật NAS_RAIDRIVE_X_ACCEL_REDIRECT=1)
-    location /internal-installer-cache/ {
-        internal;
-        alias /app/media/installer-cache/;
-    }
 }

@@ -511,13 +511,6 @@ NAS_RAIDRIVE_INSTALLER_SHARE_TOKEN = os.getenv(
     'NAS_RAIDRIVE_INSTALLER_SHARE_TOKEN',
     'e9e15707-7552-46ad-8d8e-e9962f816753',
 ).strip()
-# Cache RaiDrive trên đĩa VPS (mặc định MEDIA/installer-cache) — tải nhanh hơn mount NAS
-NAS_RAIDRIVE_INSTALLER_CACHE_DIR = os.getenv('NAS_RAIDRIVE_INSTALLER_CACHE_DIR', '').strip()
-# Nếu set: bỏ qua NAS, phục vụ thẳng file local (vd. /opt/installers/RaiDrive_x64.exe)
-NAS_RAIDRIVE_INSTALLER_LOCAL_PATH = os.getenv('NAS_RAIDRIVE_INSTALLER_LOCAL_PATH', '').strip()
-NAS_RAIDRIVE_X_ACCEL_REDIRECT = env_bool('NAS_RAIDRIVE_X_ACCEL_REDIRECT', False)
-NAS_RAIDRIVE_CACHE_RCLONE_TIMEOUT = int(os.getenv('NAS_RAIDRIVE_CACHE_RCLONE_TIMEOUT', '900') or '900')
-NAS_RAIDRIVE_CACHE_ON_DEMAND_TIMEOUT = int(os.getenv('NAS_RAIDRIVE_CACHE_ON_DEMAND_TIMEOUT', '90') or '90')
 # Share ẩn khỏi Duyệt thư mục Portal + Quét từ NAS (share hệ thống: docker, backup, log…)
 NAS_PORTAL_BROWSE_HIDDEN_SHARES = os.getenv(
     'NAS_PORTAL_BROWSE_HIDDEN_SHARES', 'docker,backup,log',

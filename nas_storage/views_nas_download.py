@@ -4,9 +4,7 @@ from __future__ import annotations
 
 import io
 import json
-import logging
 import re
-import subprocess
 import zipfile
 from pathlib import Path
 
@@ -14,7 +12,6 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
-from django.http import FileResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_GET
@@ -28,39 +25,9 @@ from equipment.views_inventory_scan import _apply_script_tokens as apply_equipme
 from nas_storage.download_shares import WEBDAV_SHARE_ALIASES, nas_webdav_shares_for_user, resolve_webdav_share_name
 from nas_storage.nas_download_access import user_can_nas_download
 from nas_storage.nas_paths import user_department_folder_code
-from nas_storage.raidrive_installer_cache import get_ready_raidrive_path, sync_raidrive_installer_cache
 from nas_storage.share_access import get_active_share
 from hrm.menu_permissions import menu_perm_context
 from hrm.module_permissions import MODULE_DOCUMENTS
-
-logger = logging.getLogger(__name__)
-
-
-def _raidrive_file_response(_request, serve_path: Path, download_name: str):
-    """Phục vụ file cache — nginx X-Accel (nếu bật) hoặc FileResponse chunk lớn."""
-    stat = serve_path.stat()
-    if getattr(settings, 'NAS_RAIDRIVE_X_ACCEL_REDIRECT', False):
-        from urllib.parse import quote
-
-        internal_name = serve_path.name
-        response = HttpResponse()
-        response['Content-Type'] = 'application/octet-stream'
-        response['Content-Disposition'] = f'attachment; filename="{download_name}"'
-        response['Content-Length'] = stat.st_size
-        response['X-Accel-Redirect'] = f'/internal-installer-cache/{quote(internal_name)}'
-        response['Cache-Control'] = 'private, max-age=3600'
-        return response
-
-    response = FileResponse(
-        serve_path.open('rb'),
-        as_attachment=True,
-        filename=download_name,
-    )
-    if hasattr(response, 'block_size'):
-        response.block_size = 1024 * 512
-    response['Content-Length'] = stat.st_size
-    response['Cache-Control'] = 'private, max-age=3600'
-    return response
 
 
 def nas_shares_for_user(user) -> list[str]:
@@ -120,16 +87,11 @@ def _order_shares_for_webdav_mount(shares: list[str], user) -> list[str]:
 def _raidrive_installer_context(request) -> dict:
     token = getattr(settings, 'NAS_RAIDRIVE_INSTALLER_SHARE_TOKEN', '').strip()
     if not token:
-        return {
-            'raidrive_download_url': '',
-            'raidrive_share_url': '',
-            'raidrive_file_name': '',
-        }
+        return {'raidrive_share_url': '', 'raidrive_file_name': ''}
     share = get_active_share(token)
     share_url = request.build_absolute_uri(reverse('nas_storage:share_open', args=[token]))
     return {
-        'raidrive_download_url': reverse('documents:nas_download_raidrive') if share else '',
-        'raidrive_share_url': share_url,
+        'raidrive_share_url': share_url if share else '',
         'raidrive_file_name': share.item_name if share else '',
     }
 
@@ -152,49 +114,6 @@ def nas_download_page(request):
         'user_shares': shares,
         'drive_preview': drive_preview,
     })
-
-
-@login_required
-@require_GET
-def nas_download_raidrive(request):
-    """Tải file cài RaiDrive từ share NAS (user chỉ cần quyền Tải bộ cài)."""
-    if not user_can_nas_download(request.user):
-        return _download_forbidden(request)
-
-    token = getattr(settings, 'NAS_RAIDRIVE_INSTALLER_SHARE_TOKEN', '').strip()
-    if not token:
-        return HttpResponse(
-            'Chưa cấu hình link tải RaiDrive.',
-            status=404,
-            content_type='text/plain; charset=utf-8',
-        )
-
-    share = get_active_share(token)
-    if not share or share.is_dir:
-        return HttpResponse(
-            'Liên kết tải RaiDrive không khả dụng.',
-            status=404,
-            content_type='text/plain; charset=utf-8',
-        )
-
-    filename = share.item_name or 'RaiDrive-installer.exe'
-    serve_path = get_ready_raidrive_path(filename)
-    if serve_path is None:
-        try:
-            serve_path = sync_raidrive_installer_cache(
-                share.rel_path,
-                filename,
-                timeout=getattr(settings, 'NAS_RAIDRIVE_CACHE_ON_DEMAND_TIMEOUT', 90),
-            )
-        except (OSError, subprocess.TimeoutExpired) as exc:
-            logger.warning('RaiDrive on-demand sync failed: %s', exc)
-            return HttpResponse(
-                'File RaiDrive chưa sẵn sàng trên server. Vui lòng thử lại sau 1–2 phút hoặc liên hệ IT.',
-                status=503,
-                content_type='text/plain; charset=utf-8',
-            )
-
-    return _raidrive_file_response(request, serve_path, serve_path.name)
 
 
 def _prepare_ps1(body: str) -> bytes:

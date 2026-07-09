@@ -286,9 +286,6 @@ compose exec -T web python manage.py seed_kho_npl_category_tree
 echo "==> 8c) Sync NPL colors + backfill material colors"
 compose exec -T web python manage.py seed_kho_npl_material_colors
 
-echo "==> 8d) Warm RaiDrive installer cache (tải nhanh từ đĩa VPS)"
-compose exec -T web python manage.py warm_raidrive_installer_cache || echo "    WARNING: warm RaiDrive cache thất bại — kiểm tra NAS/share token"
-
 verify_nas_rclone() {
   echo "==> Verify NAS rclone in web container"
   if compose exec -T web rclone lsd synology: >/dev/null 2>&1; then
