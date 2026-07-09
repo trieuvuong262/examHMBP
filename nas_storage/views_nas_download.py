@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import json
+import logging
 import re
 import zipfile
 from pathlib import Path
@@ -25,11 +26,13 @@ from equipment.services.inventory_scan import script_config as equipment_script_
 from equipment.views_inventory_scan import _apply_script_tokens as apply_equipment_script_tokens
 from nas_storage.download_shares import WEBDAV_SHARE_ALIASES, nas_webdav_shares_for_user, resolve_webdav_share_name
 from nas_storage.nas_download_access import user_can_nas_download
-from nas_storage.nas_paths import NasPathError, user_department_folder_code
-from nas_storage.raidrive_installer_cache import resolve_raidrive_installer_path
-from nas_storage.share_access import get_active_share, resolve_path_for_request
+from nas_storage.nas_paths import user_department_folder_code
+from nas_storage.raidrive_installer_cache import get_ready_raidrive_path, sync_raidrive_installer_cache
+from nas_storage.share_access import get_active_share
 from hrm.menu_permissions import menu_perm_context
 from hrm.module_permissions import MODULE_DOCUMENTS
+
+logger = logging.getLogger(__name__)
 
 
 def _raidrive_file_response(_request, serve_path: Path, download_name: str):
@@ -172,26 +175,22 @@ def nas_download_raidrive(request):
             content_type='text/plain; charset=utf-8',
         )
 
-    try:
-        path = resolve_path_for_request(request.user, share.rel_path, share=share)
-    except NasPathError as exc:
-        return HttpResponse(str(exc), status=404, content_type='text/plain; charset=utf-8')
-
-    if not path.is_file():
-        return HttpResponse(
-            'Không tìm thấy file cài RaiDrive trên NAS.',
-            status=404,
-            content_type='text/plain; charset=utf-8',
-        )
-
-    try:
-        serve_path = resolve_raidrive_installer_path(
-            path,
-            rel_path=share.rel_path,
-            filename=share.item_name or path.name,
-        )
-    except OSError as exc:
-        return HttpResponse(str(exc), status=503, content_type='text/plain; charset=utf-8')
+    filename = share.item_name or 'RaiDrive-installer.exe'
+    serve_path = get_ready_raidrive_path(filename)
+    if serve_path is None:
+        try:
+            serve_path = sync_raidrive_installer_cache(
+                share.rel_path,
+                filename,
+                timeout=getattr(settings, 'NAS_RAIDRIVE_CACHE_ON_DEMAND_TIMEOUT', 90),
+            )
+        except OSError as exc:
+            logger.warning('RaiDrive on-demand sync failed: %s', exc)
+            messages.error(
+                request,
+                'File RaiDrive chưa sẵn sàng trên server. Vui lòng thử lại sau 1–2 phút hoặc liên hệ IT.',
+            )
+            return redirect('documents:nas_download')
 
     return _raidrive_file_response(request, serve_path, serve_path.name)
 
