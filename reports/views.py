@@ -674,6 +674,11 @@ def proxy_report_entry(request):
         )
         report = _ensure_daily_report_saved(report)
         lock_session_times = employee_self_submitted_production_report(report)
+        preserve_draft = (
+            not lock_session_times
+            and report.status != DailyWorkReport.STATUS_SUBMITTED
+            and can_manager_edit_unsubmitted_production_report(request.user, report)
+        )
         if lock_session_times:
             if not can_edit_production_norms(request.user, report):
                 messages.error(request, 'Bạn không có quyền chỉnh sửa báo cáo này.')
@@ -718,6 +723,7 @@ def proxy_report_entry(request):
                 sessions,
                 request.user,
                 content_edit_only=lock_session_times,
+                preserve_draft=preserve_draft,
             )
         except ValueError as exc:
             messages.error(request, str(exc))
@@ -728,7 +734,12 @@ def proxy_report_entry(request):
                 'Không có công đoạn nào được lưu — kiểm tra mã hàng, sản lượng và khung giờ.',
             )
             return redirect(_proxy_url(subject.id, post_shift))
-        messages.success(request, f'Đã lưu {shift_display_label(post_shift)} cho {subject_name}.')
+        messages.success(
+            request,
+            f'Đã lưu chỉnh sửa {shift_display_label(post_shift)} cho {subject_name}.'
+            if preserve_draft
+            else f'Đã lưu {shift_display_label(post_shift)} cho {subject_name}.',
+        )
         return redirect(_proxy_url(subject.id, post_shift))
 
     active_shift = (request.GET.get('shift') or DailyWorkReport.SHIFT_MORNING).strip().upper()

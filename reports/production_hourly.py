@@ -2321,6 +2321,7 @@ def _prepare_proxy_sessions_for_save(
     sessions: list[dict],
     *,
     content_edit_only: bool,
+    preserve_draft: bool = False,
     snapshot: dict[int, dict],
 ) -> list[dict]:
     shift = _shift_for_report(report)
@@ -2365,7 +2366,11 @@ def _prepare_proxy_sessions_for_save(
             'note': note,
             'overlaps': overlaps,
             'interval': interval,
-            'product_id': parse_int(sess.get('product_id'), -1) if content_edit_only else -1,
+            'product_id': (
+                parse_int(sess.get('product_id'), -1)
+                if content_edit_only or preserve_draft
+                else -1
+            ),
         })
 
     if any(_proxy_session_has_input(sess) for sess in sessions) and not prepared:
@@ -2405,7 +2410,7 @@ def _build_proxy_product_meta(report: DailyWorkReport) -> dict[int, dict]:
 
 def _resolve_proxy_product_updated_by_id(
     *,
-    content_edit_only: bool,
+    track_manager_updates: bool,
     user,
     report: DailyWorkReport,
     product_id: int,
@@ -2413,7 +2418,7 @@ def _resolve_proxy_product_updated_by_id(
     new_snap: dict[str, str],
 ) -> int | None:
     """Chỉ gán «Cập nhật» cho công đoạn mới hoặc có thay đổi nội dung."""
-    if not content_edit_only:
+    if not track_manager_updates:
         return None
     if not user or user.id == report.employee_id:
         return None
@@ -2432,12 +2437,16 @@ def save_proxy_shift_sessions(
     user,
     *,
     content_edit_only: bool = False,
+    preserve_draft: bool = False,
 ) -> dict:
     """
     Lưu nhập hộ theo công đoạn. Mỗi phần tử sessions:
     {product_id?, code, process, norm, start_time, end_time, total, damaged, note} (HH:MM).
     Tổng SL chia theo tỷ lệ thời gian giao với từng khung giờ ca.
-  """
+
+    preserve_draft: quản lý sửa báo cáo chưa nộp (sai số liệu) — giữ trạng thái draft,
+    ghi cột «Cập nhật» và lịch sử, không tự nộp báo cáo.
+    """
     if not report.pk:
         report.report_profile = REPORT_PROFILE_PRODUCTION
         report.save()
@@ -2445,6 +2454,7 @@ def save_proxy_shift_sessions(
     shift = _shift_for_report(report)
     slots = slots_for_shift(shift)
 
+    track_manager_updates = content_edit_only or preserve_draft
     snapshot = _build_proxy_time_snapshot(report) if content_edit_only and report.pk else {}
 
     prior_status = report.status
@@ -2454,6 +2464,7 @@ def save_proxy_shift_sessions(
         report,
         sessions,
         content_edit_only=content_edit_only,
+        preserve_draft=preserve_draft,
         snapshot=snapshot,
     )
 
@@ -2462,16 +2473,16 @@ def save_proxy_shift_sessions(
         collect_proxy_save_change_detail,
     )
 
-    if content_edit_only:
+    if track_manager_updates:
         change_detail = collect_proxy_save_change_detail(
             report,
             sessions,
-            content_edit_only=True,
+            content_edit_only=content_edit_only,
         )
     else:
         change_detail = ''
 
-    old_meta = _build_proxy_product_meta(report) if content_edit_only and report.pk else {}
+    old_meta = _build_proxy_product_meta(report) if track_manager_updates and report.pk else {}
 
     report.production_products.all().delete()
 
@@ -2491,7 +2502,7 @@ def save_proxy_shift_sessions(
         first = indices[0]
         total_overlap_hours = sum((hours for _, hours in overlaps), Decimal('0'))
         updated_by_id = _resolve_proxy_product_updated_by_id(
-            content_edit_only=content_edit_only,
+            track_manager_updates=track_manager_updates,
             user=user,
             report=report,
             product_id=item.get('product_id', -1),
@@ -2549,13 +2560,15 @@ def save_proxy_shift_sessions(
             )
         created += 1
 
-    if not content_edit_only:
+    if not content_edit_only and not preserve_draft:
         report.proxy_entered_by = user
     if not report.shift_started_at:
         report.shift_started_at = _slot_start_dt(report.report_date, slots[0])
-    if content_edit_only:
+    if content_edit_only or preserve_draft:
         report.status = prior_status
         report.submitted_at = prior_submitted_at
+        if created and report.status == DailyWorkReport.STATUS_DRAFT:
+            report.draft_saved_at = timezone.now()
     elif created:
         report.status = DailyWorkReport.STATUS_SUBMITTED
         report.submitted_at = timezone.now()
@@ -2564,7 +2577,7 @@ def save_proxy_shift_sessions(
         report.status = DailyWorkReport.STATUS_DRAFT
     report.save()
 
-    if not content_edit_only and created:
+    if not content_edit_only and not preserve_draft and created:
         from reports.report_lock import auto_approve_fully_proxy_entered_report
 
         auto_approve_fully_proxy_entered_report(report)
@@ -2577,6 +2590,13 @@ def save_proxy_shift_sessions(
             report,
             user,
             summary=f'Chỉnh sửa nội dung ({created} công đoạn).',
+            detail=change_detail,
+        )
+    elif preserve_draft:
+        log_report_edit(
+            report,
+            user,
+            summary=f'Quản lý chỉnh sửa báo cáo sai ({created} công đoạn).',
             detail=change_detail,
         )
     elif created:
