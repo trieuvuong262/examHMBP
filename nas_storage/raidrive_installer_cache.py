@@ -21,6 +21,10 @@ def raidrive_cache_dir() -> Path:
     override = getattr(settings, 'NAS_RAIDRIVE_INSTALLER_CACHE_DIR', '').strip()
     if override:
         return Path(override)
+    # Docker production: media volume gắn tại /app/media (không phụ thuộc MEDIA_ROOT/BASE_DIR)
+    app_media_cache = Path('/app/media/installer-cache')
+    if app_media_cache.parent.is_dir():
+        return app_media_cache
     return Path(settings.MEDIA_ROOT) / 'installer-cache'
 
 

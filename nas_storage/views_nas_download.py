@@ -54,8 +54,9 @@ def _raidrive_file_response(_request, serve_path: Path, download_name: str):
         serve_path.open('rb'),
         as_attachment=True,
         filename=download_name,
-        block_size=1024 * 512,
     )
+    if hasattr(response, 'block_size'):
+        response.block_size = 1024 * 512
     response['Content-Length'] = stat.st_size
     response['Cache-Control'] = 'private, max-age=3600'
     return response
@@ -186,11 +187,11 @@ def nas_download_raidrive(request):
             )
         except OSError as exc:
             logger.warning('RaiDrive on-demand sync failed: %s', exc)
-            messages.error(
-                request,
+            return HttpResponse(
                 'File RaiDrive chưa sẵn sàng trên server. Vui lòng thử lại sau 1–2 phút hoặc liên hệ IT.',
+                status=503,
+                content_type='text/plain; charset=utf-8',
             )
-            return redirect('documents:nas_download')
 
     return _raidrive_file_response(request, serve_path, serve_path.name)
 

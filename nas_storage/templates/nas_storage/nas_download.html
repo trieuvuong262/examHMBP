@@ -63,12 +63,12 @@ document.addEventListener('DOMContentLoaded', function () {
             if (window.JpTeamListLoading && typeof window.JpTeamListLoading.show === 'function') {
                 window.JpTeamListLoading.show('Đang tải RaiDrive...');
             }
+            window.setTimeout(function () {
+                if (window.JpTeamListLoading && typeof window.JpTeamListLoading.hide === 'function') {
+                    window.JpTeamListLoading.hide(true);
+                }
+            }, 120000);
         });
-    });
-    window.addEventListener('pageshow', function () {
-        if (window.JpTeamListLoading && typeof window.JpTeamListLoading.hide === 'function') {
-            window.JpTeamListLoading.hide(true);
-        }
     });
 });
 </script>
