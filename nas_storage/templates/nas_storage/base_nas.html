@@ -5,13 +5,13 @@
 
 {% block content %}
 {% include "nas_storage/_nas_page_loading.html" %}
-<div class="jp-nas-page" data-loading-message="{% block nas_loading_message %}Đang tải NAS…{% endblock %}">
+<div class="jp-nas-page" data-loading-message="{% block nas_loading_message %}Đang tải NAS…{% endblock %}"{% block nas_page_attrs %}{% endblock %}>
 {% block nas_content %}{% endblock %}
 </div>
 {% endblock %}
 
 {% block scripts %}
 {{ block.super }}
-<script src="{% static 'js/nas_storage/nas_page_loading.js' %}?v=20260627a"></script>
+<script src="{% static 'js/nas_storage/nas_page_loading.js' %}?v=20260709a"></script>
 {% block nas_scripts %}{% endblock %}
 {% endblock %}

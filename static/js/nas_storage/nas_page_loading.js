@@ -21,7 +21,11 @@
     }
 
     function loadingPageEl() {
-        return document.querySelector('.jp-nas-page[data-loading-message]');
+        const page = document.querySelector('.jp-nas-page');
+        if (!page || page.hasAttribute('data-skip-nas-loading')) return null;
+        const msg = (page.getAttribute('data-loading-message') || '').trim();
+        if (!msg) return null;
+        return page;
     }
 
     function pageMessage() {
@@ -175,6 +179,10 @@
     }
 
     function bootLoadingPages() {
+        if (document.querySelector('.jp-nas-page[data-skip-nas-loading]')) {
+            hide(true);
+            return;
+        }
         if (loadingPageEl()) {
             onLoadingPageReady();
             return;

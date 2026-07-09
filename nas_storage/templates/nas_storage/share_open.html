@@ -1,7 +1,14 @@
 {% extends "nas_storage/base_nas.html" %}
 {% load humanize static %}
 
+{% if file_preview %}
+{% if file_preview.kind != 'office' or file_preview.office_preview_ready %}
 {% block nas_loading_message %}Đang mở liên kết chia sẻ…{% endblock %}
+{% endif %}
+{% endif %}
+{% if not file_preview or file_preview.kind == 'office' and not file_preview.office_preview_ready %}
+{% block nas_page_attrs %} data-skip-nas-loading="1"{% endblock %}
+{% endif %}
 
 {% block nas_extra_head %}
 <link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260530a">
