@@ -26,9 +26,36 @@ from equipment.views_inventory_scan import _apply_script_tokens as apply_equipme
 from nas_storage.download_shares import WEBDAV_SHARE_ALIASES, nas_webdav_shares_for_user, resolve_webdav_share_name
 from nas_storage.nas_download_access import user_can_nas_download
 from nas_storage.nas_paths import NasPathError, user_department_folder_code
+from nas_storage.raidrive_installer_cache import resolve_raidrive_installer_path
 from nas_storage.share_access import get_active_share, resolve_path_for_request
 from hrm.menu_permissions import menu_perm_context
 from hrm.module_permissions import MODULE_DOCUMENTS
+
+
+def _raidrive_file_response(_request, serve_path: Path, download_name: str):
+    """Phục vụ file cache — nginx X-Accel (nếu bật) hoặc FileResponse chunk lớn."""
+    stat = serve_path.stat()
+    if getattr(settings, 'NAS_RAIDRIVE_X_ACCEL_REDIRECT', False):
+        from urllib.parse import quote
+
+        internal_name = serve_path.name
+        response = HttpResponse()
+        response['Content-Type'] = 'application/octet-stream'
+        response['Content-Disposition'] = f'attachment; filename="{download_name}"'
+        response['Content-Length'] = stat.st_size
+        response['X-Accel-Redirect'] = f'/internal-installer-cache/{quote(internal_name)}'
+        response['Cache-Control'] = 'private, max-age=3600'
+        return response
+
+    response = FileResponse(
+        serve_path.open('rb'),
+        as_attachment=True,
+        filename=download_name,
+        block_size=1024 * 512,
+    )
+    response['Content-Length'] = stat.st_size
+    response['Cache-Control'] = 'private, max-age=3600'
+    return response
 
 
 def nas_shares_for_user(user) -> list[str]:
@@ -157,9 +184,16 @@ def nas_download_raidrive(request):
             content_type='text/plain; charset=utf-8',
         )
 
-    response = FileResponse(path.open('rb'), as_attachment=True, filename=path.name)
-    response['Content-Length'] = path.stat().st_size
-    return response
+    try:
+        serve_path = resolve_raidrive_installer_path(
+            path,
+            rel_path=share.rel_path,
+            filename=share.item_name or path.name,
+        )
+    except OSError as exc:
+        return HttpResponse(str(exc), status=503, content_type='text/plain; charset=utf-8')
+
+    return _raidrive_file_response(request, serve_path, serve_path.name)
 
 
 def _prepare_ps1(body: str) -> bytes:
