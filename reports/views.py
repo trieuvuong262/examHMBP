@@ -1414,7 +1414,31 @@ def _my_reports(request, daily_report_profile=None):
     if not history_date_from:
         history_date_from = history_date_to - timedelta(days=6)
 
-    if daily_report_profile in (REPORT_PROFILE_OFFICE, REPORT_PROFILE_PRODUCTION):
+    if daily_report_profile == REPORT_PROFILE_OFFICE:
+        reports_qs = meaningful_daily_reports_qs().filter(
+            employee=subject,
+            report_profile=REPORT_PROFILE_OFFICE,
+        ).annotate(
+            has_manager_comment=Exists(
+                ReportComment.objects.filter(daily_report=OuterRef('pk')).exclude(author=subject),
+            ),
+            has_employee_reply=Exists(
+                ReportComment.objects.filter(daily_report=OuterRef('pk'), author=subject),
+            ),
+        ).order_by('-report_date', '-id')
+        reports_qs = apply_combined_search(reports_qs, search_query, lambda term: (
+            Q(title__icontains=term)
+            | Q(document_html__icontains=term)
+            | Q(hod_note__icontains=term)
+            | Q(links__icontains=term)
+            | Q(status__icontains=term)
+        ))
+        if history_date_from:
+            reports_qs = reports_qs.filter(report_date__gte=history_date_from)
+        if history_date_to:
+            reports_qs = reports_qs.filter(report_date__lte=history_date_to)
+        page_obj, query_string = paginate_queryset(request, reports_qs)
+    elif daily_report_profile == REPORT_PROFILE_PRODUCTION:
         logs_qs = DailyWorkReportEditLog.objects.filter(
             report__employee=subject,
             report__report_profile=daily_report_profile,
@@ -1435,14 +1459,13 @@ def _my_reports(request, daily_report_profile=None):
             | Q(edited_by__profile__full_name__icontains=term)
             | Q(edited_by__username__icontains=term)
         ))
-        if daily_report_profile == REPORT_PROFILE_PRODUCTION:
-            from reports.report_lock import auto_reject_expired_production_reports
+        from reports.report_lock import auto_reject_expired_production_reports
 
-            auto_reject_expired_production_reports(
-                employee_ids=[subject.pk],
-                date_from=history_date_from,
-                date_to=history_date_to,
-            )
+        auto_reject_expired_production_reports(
+            employee_ids=[subject.pk],
+            date_from=history_date_from,
+            date_to=history_date_to,
+        )
         page_obj, query_string = paginate_queryset(
             request,
             logs_qs.order_by('-edited_at', '-id'),
@@ -1507,7 +1530,7 @@ def _my_reports(request, daily_report_profile=None):
         page_obj, query_string = paginate_queryset(request, reports_qs)
 
     scope_label = 'SX' if daily_report_profile == REPORT_PROFILE_PRODUCTION else 'VP' if daily_report_profile else ''
-    is_edit_history = daily_report_profile in (REPORT_PROFILE_OFFICE, REPORT_PROFILE_PRODUCTION)
+    is_edit_history = daily_report_profile == REPORT_PROFILE_PRODUCTION
     ctx = {
         'page_obj': page_obj,
         'query_string': query_string,
