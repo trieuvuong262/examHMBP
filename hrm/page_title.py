@@ -8,7 +8,7 @@ from hrm.module_permissions import (
 )
 from hrm.submenu_registry import get_menu_label
 
-SITE_TITLE = 'JustPlay Portal'
+SITE_TITLE = 'Just Play Portal'
 
 _STATIC_PATH_TITLES = (
     ('/accounts/login/', 'Đăng nhập'),
@@ -21,7 +21,7 @@ def _module_label(module_key: str) -> str:
 
 
 def resolve_page_title(path: str, tab: str | None = None) -> str:
-    """Trả về tiêu đề tab: «Menu - JustPlay Portal» hoặc chỉ tên site."""
+    """Trả về tiêu đề tab: «Menu - Just Play Portal» hoặc chỉ tên site."""
     normalized = path or '/'
     if normalized in ('', '/'):
         return f'Trang chủ - {SITE_TITLE}'
