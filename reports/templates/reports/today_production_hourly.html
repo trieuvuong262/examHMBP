@@ -4,7 +4,7 @@
 
 {% block extra_head %}
 <link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260624a">
-<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260708p">
+<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260710a">
 <style>
 /* Trang SX today: ẩn footer, sticky bar neo sát đáy như nút Gửi báo cáo */
 :root {
@@ -251,12 +251,6 @@
         </div>
         {% else %}
         {% if shift_started or shift_choice_required %}
-        {% if shift_choice_required %}
-        <div class="alert alert-info border-0 small mb-3 d-none d-lg-block">
-            <i class="bi bi-info-circle me-1"></i>
-            Từ <strong>17h00</strong> đến <strong>23h59</strong>, bấm <strong>Bắt đầu</strong> để chọn báo cáo thuộc <strong>ca sáng (tăng ca)</strong> hay <strong>ca tối</strong>.
-        </div>
-        {% endif %}
         <aside class="jp-prod-sidebar d-none d-lg-block">
             <div class="jp-prod-sidebar-card">
                 <div class="jp-prod-status-bar mb-3">
@@ -314,9 +308,7 @@
                         <i class="bi bi-play-circle-fill"></i>
                     </div>
                     <h2 class="jp-prod-mobile-step-title">Sẵn sàng làm việc</h2>
-                    {% if shift_choice_required %}
-                    <p class="jp-prod-mobile-step-meta">17h–23h59: chọn ca sáng (tăng ca) hoặc ca tối khi bắt đầu công đoạn.</p>
-                    {% elif completed_sessions_count %}
+                    {% if completed_sessions_count %}
                     <p class="jp-prod-mobile-step-meta">Đã hoàn thành {{ completed_sessions_count }} công đoạn trong ca này.</p>
                     {% endif %}
                     <form method="post" class="jp-prod-mobile-step-action m-0{% if shift_choice_required %} js-prod-start-form{% endif %}">
@@ -643,27 +635,21 @@
                 <h2 class="modal-title h5 fw-bold" id="prodShiftChoiceModalLabel">Chọn ca báo cáo</h2>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
             </div>
-            <div class="modal-body pt-2">
-                <p class="small text-muted mb-3">
-                    Từ <strong>17h00</strong> đến <strong>23h59</strong>, cùng một khung giờ có thể ghi vào <strong>ca sáng (tăng ca)</strong> hoặc <strong>ca tối</strong>.
-                    Chọn đúng ca bạn đang làm việc.
-                </p>
-                <div class="d-grid gap-2">
+            <div class="modal-body pt-2 pb-4">
+                <div class="jp-prod-shift-choice-list d-grid gap-3">
                     {% for opt in shift_assignment_options %}
                     <button type="button"
-                            class="btn btn-lg text-start jp-prod-shift-choice-btn js-prod-shift-choice-btn{% if not opt.enabled %} disabled{% endif %}"
+                            class="jp-prod-shift-choice-card jp-prod-shift-choice-card--{{ opt.shift|lower }} js-prod-shift-choice-btn{% if not opt.enabled %} disabled{% endif %}"
                             data-shift="{{ opt.shift }}"
                             {% if not opt.enabled %}disabled aria-disabled="true"{% endif %}>
-                        <span class="d-flex align-items-start justify-content-between gap-2 w-100">
-                            <span>
-                                <span class="{{ opt.shift|production_shift_badge_class }}">{{ opt.label }}</span>
-                                <span class="d-block small text-muted mt-1">{{ opt.time_range }}</span>
-                            </span>
-                            <i class="bi bi-chevron-right text-muted flex-shrink-0 mt-1"></i>
+                        <span class="jp-prod-shift-choice-card__icon" aria-hidden="true">
+                            {% if opt.shift == 'MORNING' %}
+                            <i class="bi bi-sun-fill"></i>
+                            {% else %}
+                            <i class="bi bi-moon-stars-fill"></i>
+                            {% endif %}
                         </span>
-                        {% if not opt.enabled and opt.reason %}
-                        <span class="d-block small text-danger mt-2 mb-0">{{ opt.reason }}</span>
-                        {% endif %}
+                        <span class="jp-prod-shift-choice-card__label">{{ opt.label }}</span>
                     </button>
                     {% endfor %}
                 </div>

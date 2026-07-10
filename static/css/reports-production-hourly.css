@@ -141,6 +141,89 @@ body .modal-backdrop.show {
     }
 }
 
+.jp-prod-shift-choice-list {
+    padding-top: 0.25rem;
+}
+
+.jp-prod-shift-choice-card {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    width: 100%;
+    padding: 1rem 1.15rem;
+    border: 2px solid transparent;
+    border-radius: 1rem;
+    background: #f8fafc;
+    text-align: left;
+    font-weight: 700;
+    font-size: 1.125rem;
+    line-height: 1.2;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.jp-prod-shift-choice-card:not(:disabled):not(.disabled):hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.1);
+}
+
+.jp-prod-shift-choice-card:not(:disabled):not(.disabled):active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+}
+
+.jp-prod-shift-choice-card__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 0.85rem;
+    font-size: 1.2rem;
+    flex-shrink: 0;
+}
+
+.jp-prod-shift-choice-card__label {
+    flex: 1;
+}
+
+.jp-prod-shift-choice-card--morning {
+    border-color: #bfdbfe;
+    background: linear-gradient(135deg, #eff6ff 0%, #f8fafc 100%);
+    color: #1d4ed8;
+}
+
+.jp-prod-shift-choice-card--morning .jp-prod-shift-choice-card__icon {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.jp-prod-shift-choice-card--morning:not(:disabled):not(.disabled):hover {
+    border-color: #93c5fd;
+}
+
+.jp-prod-shift-choice-card--night {
+    border-color: #ddd6fe;
+    background: linear-gradient(135deg, #f5f3ff 0%, #f8fafc 100%);
+    color: #6d28d9;
+}
+
+.jp-prod-shift-choice-card--night .jp-prod-shift-choice-card__icon {
+    background: #ede9fe;
+    color: #6d28d9;
+}
+
+.jp-prod-shift-choice-card--night:not(:disabled):not(.disabled):hover {
+    border-color: #c4b5fd;
+}
+
+.jp-prod-shift-choice-card:disabled,
+.jp-prod-shift-choice-card.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
 .jp-prod-qty-input {
     font-size: 2rem;
     font-weight: 700;
