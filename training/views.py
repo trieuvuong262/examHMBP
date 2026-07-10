@@ -25,10 +25,33 @@ from .forms import ChapterForm, CourseForm, LessonForm
 from .models import Chapter, Course, CourseCategory, Enrollment, Lesson, LessonProgress
 
 
-def _is_survey_read_mode(next_url: str) -> bool:
+def _is_survey_read_mode(*, next_url: str = '', ref: str = '') -> bool:
+    """Chỉ đọc tham khảo khi vào từ khảo sát (ref=survey), không áp dụng menu Đào tạo."""
+    if (ref or '').strip().lower() == 'survey':
+        return True
     if not next_url:
         return False
     return '/khao-sat/d/' in next_url
+
+
+def _sanitize_return_next(request, next_url: str) -> str:
+    next_url = (next_url or '').strip()
+    if next_url and not url_has_allowed_host_and_scheme(
+        next_url,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return ''
+    return next_url
+
+
+def _learning_query_suffix(*, return_next: str = '', survey_ref: str = '') -> str:
+    params = {}
+    if return_next:
+        params['next'] = return_next
+    if survey_ref:
+        params['ref'] = survey_ref
+    return f"?{urlencode(params)}" if params else ''
 
 
 def _training_perm_context(user):
@@ -136,15 +159,13 @@ def learning_space(request, course_id, lesson_id=None):
         except ValueError:
             pass
 
-    return_next = request.GET.get('next', '').strip()
-    if return_next and not url_has_allowed_host_and_scheme(
-        return_next,
-        allowed_hosts={request.get_host()},
-        require_https=request.is_secure(),
-    ):
-        return_next = ''
-    survey_read_mode = _is_survey_read_mode(return_next)
-    learning_query_suffix = f"?{urlencode({'next': return_next})}" if return_next else ''
+    return_next = _sanitize_return_next(request, request.GET.get('next', ''))
+    survey_ref = (request.GET.get('ref') or '').strip().lower()
+    survey_read_mode = _is_survey_read_mode(next_url=return_next, ref=survey_ref)
+    learning_query_suffix = _learning_query_suffix(
+        return_next=return_next,
+        survey_ref=survey_ref if survey_read_mode else '',
+    )
 
     return render(request, 'training/learning_space.html', {
         'course': course,
@@ -154,6 +175,7 @@ def learning_space(request, course_id, lesson_id=None):
         'enrollment': enrollment,
         'next_lesson': next_lesson,
         'return_next': return_next,
+        'survey_ref': survey_ref if survey_read_mode else '',
         'survey_read_mode': survey_read_mode,
         'learning_query_suffix': learning_query_suffix,
         'title': f'Học tập: {course.title}'
@@ -163,14 +185,9 @@ def learning_space(request, course_id, lesson_id=None):
 def mark_lesson_complete(request, lesson_id):
     """API dùng AJAX để đánh dấu bài học hoàn tất"""
     if request.method == 'POST':
-        return_next = (request.POST.get('next') or '').strip()
-        if return_next and not url_has_allowed_host_and_scheme(
-            return_next,
-            allowed_hosts={request.get_host()},
-            require_https=request.is_secure(),
-        ):
-            return_next = ''
-        if _is_survey_read_mode(return_next):
+        return_next = _sanitize_return_next(request, request.POST.get('next', ''))
+        survey_ref = (request.POST.get('ref') or '').strip().lower()
+        if _is_survey_read_mode(next_url=return_next, ref=survey_ref):
             # Đọc từ khảo sát chỉ để tham khảo, không ghi tiến độ module Đào tạo.
             return JsonResponse({
                 'status': 'readonly',
@@ -188,16 +205,15 @@ def mark_lesson_complete(request, lesson_id):
         is_course_finished = enrollment.sync_completion_status()
         exam_url = None
         redirect_url = None
-        if is_course_finished and return_next:
+        if is_course_finished and _is_survey_read_mode(next_url=return_next, ref=survey_ref):
             redirect_url = return_next
         elif is_course_finished and course.final_exam_id:
-            from assessment.models import ExamSubmission
             from django.urls import reverse
 
             already_submitted = ExamSubmission.objects.filter(
                 user=request.user,
                 exam_id=course.final_exam_id,
-                is_completed=True,
+                submitted_at__isnull=False,
             ).exists()
             if not already_submitted:
                 exam_url = reverse('take_exam', args=[course.final_exam_id])

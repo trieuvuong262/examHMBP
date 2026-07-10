@@ -163,15 +163,13 @@
     });
 
     function markComplete(lessonId) {
-        if ('{{ survey_read_mode|yesno:"1,0" }}' === '1') {
-            return;
-        }
         $.ajax({
             url: `/training/lesson/${lessonId}/complete/`,
             method: "POST",
             data: {
                 'csrfmiddlewaretoken': '{{ csrf_token }}',
                 'next': '{{ return_next|escapejs }}',
+                'ref': '{{ survey_ref|escapejs }}',
             },
             success: function(res) {
                 if(res.status === 'success') {
@@ -180,6 +178,9 @@
 
                     $('#top-progress-bar').css('width', res.progress_percent + '%');
                     $('#progress-text').text(res.progress_percent + '% Hoàn thành');
+                    if (res.progress_percent >= 100) {
+                        $('#exam-btn').removeClass('d-none');
+                    }
 
                     const targetUrl = res.redirect_url || res.exam_url;
                     if (targetUrl) {

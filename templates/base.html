@@ -23,9 +23,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token }}">
 
-    <title>JustPlay Portal</title>
+    <title>{% block title %}{{ jp_page_title|default:"JustPlay Portal" }}{% endblock %}</title>
     <meta name="description"
-        content="JustPlay Portal">
+        content="{% block meta_description %}{{ jp_page_title|default:"JustPlay Portal" }}{% endblock %}">
     <meta name="theme-color" content="#dc2626">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">

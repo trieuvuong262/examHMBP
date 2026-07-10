@@ -228,7 +228,7 @@ def survey_fill(request, token):
 
     learning_url = None
     if survey.required_course_id:
-        learning_url = f"{reverse('course_start', args=[survey.required_course_id])}?{urlencode({'next': request.get_full_path()})}"
+        learning_url = f"{reverse('course_start', args=[survey.required_course_id])}?{urlencode({'next': request.get_full_path(), 'ref': 'survey'})}"
 
     return render(request, 'surveys/fill.html', {
         'survey': survey,

@@ -36,6 +36,7 @@ from hrm.module_permissions import (
     user_can_export_module,
     user_can_update_module,
 )
+from hrm.page_title import resolve_page_title
 from hrm.permissions import (
     can_assign_tasks,
     can_create_cross_dept_project,
@@ -54,6 +55,12 @@ from hrm.permissions import (
     role_display,
     user_role,
 )
+
+
+def portal_page_title(request):
+    path = getattr(request, 'path', '/') or '/'
+    tab = request.GET.get('tab') if hasattr(request, 'GET') else None
+    return {'jp_page_title': resolve_page_title(path, tab)}
 
 
 def _can_manage_module(user, module_key: str) -> bool:
