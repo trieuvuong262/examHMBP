@@ -1,6 +1,7 @@
 <div class="d-flex gap-2 flex-wrap w-100 w-md-auto">
     {% if edit_report_url %}
-    <a href="{{ edit_report_url }}" class="btn btn-outline-hm btn-sm fw-bold flex-fill flex-md-grow-0">Sửa báo cáo</a>
+    <a href="{{ edit_report_url }}" class="btn btn-outline-hm btn-sm fw-bold flex-fill flex-md-grow-0"
+       data-prod-loading-message="Đang mở sửa báo cáo...">Sửa báo cáo</a>
     {% endif %}
     {% if copy_url %}
     <a href="{{ copy_url }}" class="btn btn-outline-hm btn-sm fw-bold flex-fill flex-md-grow-0"

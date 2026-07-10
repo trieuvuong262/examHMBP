@@ -29,6 +29,13 @@
     var cooldownTimer = null;
     var COOLDOWN_MS = 2500;
 
+    function getSubmitMessage(form) {
+        if (form && form.querySelector('input[name="edit_steps"]')) {
+            return 'Đang cập nhật báo cáo...';
+        }
+        return 'Đang gửi báo cáo...';
+    }
+
     function submitSelector() {
         return 'button[type="submit"], input[type="submit"], .js-prod-submit-trigger, #prodSubmitConfirmBtn';
     }
@@ -224,7 +231,7 @@
         if (!form || !canStartSubmit()) return false;
         beginSubmitLock();
         syncCkEditor();
-        show('Đang gửi báo cáo...');
+        show(getSubmitMessage(form));
 
         var fd = buildFormData(form, submitter || null);
         var url = form.getAttribute('action') || window.location.href;

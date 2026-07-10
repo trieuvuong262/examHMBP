@@ -472,7 +472,8 @@
             {% elif show_prod_submit or can_resume_entry or production_summary_stats %}
             <div class="jp-prod-review-sticky d-md-none">
                 {% if production_summary_stats and production_edit_steps_url %}
-                <a href="{{ production_edit_steps_url }}" class="btn btn-outline-hm w-100 fw-bold btn-lg">
+                <a href="{{ production_edit_steps_url }}" class="btn btn-outline-hm w-100 fw-bold btn-lg"
+                   data-prod-loading-message="Đang mở sửa báo cáo...">
                     <i class="bi bi-pencil-square me-2"></i>Sửa báo cáo
                 </a>
                 {% elif show_prod_submit %}
@@ -505,7 +506,8 @@
             <div class="jp-prod-review-desktop-bar d-none d-md-flex">
                 {% if production_summary_stats and production_edit_steps_url %}
                 <p class="text-muted small mb-0 me-auto">Báo cáo đã chốt — chỉ xem thống kê.</p>
-                <a href="{{ production_edit_steps_url }}" class="btn btn-outline-hm fw-bold px-4">
+                <a href="{{ production_edit_steps_url }}" class="btn btn-outline-hm fw-bold px-4"
+                   data-prod-loading-message="Đang mở sửa báo cáo...">
                     <i class="bi bi-pencil-square me-2"></i>Sửa báo cáo
                 </a>
                 {% elif show_prod_submit %}
@@ -661,5 +663,5 @@
 
 {% include 'reports/includes/report_submit_loading.html' %}
 {% if hourly_grid %}{{ hourly_grid|json_script:"hourly-grid-data" }}{% endif %}
-<script src="{% static 'js/reports-production-hourly.js' %}?v=20260709b"></script>
+<script src="{% static 'js/reports-production-hourly.js' %}?v=20260710b"></script>
 {% endblock %}

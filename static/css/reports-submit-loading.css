@@ -106,6 +106,9 @@ body.jp-report-submit-error-open .jp-report-submit-error {
 /* Chỉ làm mờ/khóa NÚT gửi — không gắn opacity lên body (sẽ làm mờ cả popup). */
 body.jp-report-submitting .js-prod-submit-trigger,
 body.jp-report-submitting .js-report-submit-form button[type="submit"],
+body.jp-report-submitting .jp-prod-page button[type="submit"],
+body.jp-report-submitting .jp-prod-complete-form button[type="submit"],
+body.jp-report-submitting .jp-prod-session-edit-form button[type="submit"],
 body.jp-report-submit-success-open .js-prod-submit-trigger,
 body.jp-report-submit-success-open .js-report-submit-form button[type="submit"],
 body.jp-report-submit-locked .js-prod-submit-trigger,

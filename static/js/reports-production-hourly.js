@@ -29,10 +29,84 @@
         initReviewGrid();
         initSubmitConfirm();
         initShiftChoice();
+        initProductionActionLoading();
         autoOpenModals();
         focusMobileCompleteQty();
         initServerClock();
     });
+
+    var PROD_ACTION_MESSAGES = {
+        start_product: 'Đang bắt đầu công đoạn...',
+        end_product: 'Đang kết thúc công đoạn...',
+        complete_product: 'Đang lưu sản lượng...',
+        edit_session: 'Đang lưu thay đổi...',
+        delete_session: 'Đang xóa công đoạn...',
+        add_session: 'Đang thêm công đoạn...',
+        finalize_product: 'Đang lưu mã hàng...',
+        start_shift: 'Đang mở ca làm...',
+        resume_production_entry: 'Đang mở nhập tiếp...',
+    };
+
+    function getProductionFormAction(form, submitter) {
+        if (!form) return '';
+        if (submitter && submitter.getAttribute('name') === 'action') {
+            return (submitter.getAttribute('value') || submitter.value || '').trim();
+        }
+        var hidden = form.querySelector('input[name="action"]');
+        return hidden ? (hidden.value || '').trim() : '';
+    }
+
+    function showProductionLoading(message) {
+        if (!message) return;
+        if (window.JpReportSubmitLoading && typeof JpReportSubmitLoading.show === 'function') {
+            JpReportSubmitLoading.show(message);
+            return;
+        }
+        var overlay = document.getElementById('jp-report-submit-loading');
+        if (!overlay) return;
+        var msgEl = overlay.querySelector('[data-loading-message]');
+        if (msgEl) msgEl.textContent = message;
+        overlay.hidden = false;
+        overlay.setAttribute('aria-busy', 'true');
+        document.body.classList.add('jp-report-submitting');
+    }
+
+    function lockProductionForm(form) {
+        if (!form) return;
+        form.querySelectorAll('button, input[type="submit"]').forEach(function (btn) {
+            btn.disabled = true;
+            btn.setAttribute('aria-busy', 'true');
+        });
+    }
+
+    function initProductionActionLoading() {
+        if (!document.querySelector('.jp-prod-page')) return;
+
+        document.addEventListener('submit', function (e) {
+            var form = e.target;
+            if (!(form instanceof HTMLFormElement)) return;
+            if (e.defaultPrevented) return;
+            if ((form.getAttribute('method') || 'GET').toUpperCase() !== 'POST') return;
+
+            var action = getProductionFormAction(form, e.submitter);
+            if (!action) return;
+            if (action === 'submit' && form.classList.contains('js-report-submit-form')) return;
+
+            var message = PROD_ACTION_MESSAGES[action];
+            if (!message) return;
+
+            showProductionLoading(message);
+            lockProductionForm(form);
+        });
+
+        document.querySelectorAll('[data-prod-loading-message]').forEach(function (link) {
+            link.addEventListener('click', function (e) {
+                if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+                if (link.target === '_blank') return;
+                showProductionLoading(link.getAttribute('data-prod-loading-message') || 'Đang tải...');
+            });
+        });
+    }
 
     function initReviewPageLayout() {
         if (
