@@ -354,6 +354,11 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
         if start_shift not in PRODUCTION_SHIFT_ORDER:
             messages.error(request, 'Chọn ca làm hợp lệ.')
             return redirect(_production_redirect(report_date, '', for_user or None))
+        report_date, start_shift = resolve_production_entry(
+            subject,
+            report_date,
+            explicit_shift=start_shift,
+        )
         ok, reason = can_start_production_shift(subject, report_date, start_shift)
         if not ok:
             messages.error(request, reason)
@@ -911,9 +916,23 @@ def today_production_hourly(request, report_date, report_context_common):
             report = _load_production_report(subject, report_date, shift)
 
     if explicit_shift := shift:
+        requested_date = report_date
         report_date, shift = resolve_production_entry(
             subject, report_date, explicit_shift=explicit_shift,
         )
+        # Ca tối qua 0h: URL có thể còn «hôm nay» — chuyển về ngày bắt đầu ca
+        if (
+            request.method == 'GET'
+            and phase not in ('review',)
+            and report_date != requested_date
+        ):
+            return redirect(
+                _production_redirect(
+                    report_date,
+                    shift,
+                    subject.id if editing_for_other else None,
+                )
+            )
         report = _load_production_report(subject, report_date, shift)
     elif force_picker and phase not in ('review',):
         shift_options = build_shift_picker_options(subject, report_date, can_edit=can_edit)
@@ -930,7 +949,21 @@ def today_production_hourly(request, report_date, report_context_common):
         })
         return render(request, 'reports/today_production_hourly.html', ctx)
     else:
+        requested_date = report_date
         report_date, shift = resolve_production_entry(subject, report_date)
+        if (
+            request.method == 'GET'
+            and phase not in ('review',)
+            and shift
+            and report_date != requested_date
+        ):
+            return redirect(
+                _production_redirect(
+                    report_date,
+                    shift,
+                    subject.id if editing_for_other else None,
+                )
+            )
         shift_choice_required = (
             not shift
             and is_production_shift_assignment_choice_required()

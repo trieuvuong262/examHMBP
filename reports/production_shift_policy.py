@@ -175,12 +175,18 @@ def resolve_production_entry(
     """
     Xác định ngày báo cáo và ca làm khi NV mở trang / bắt đầu công đoạn.
     Ưu tiên: shift trên URL → báo cáo draft đang mở → suy từ thời điểm hiện tại.
+
+    Ca tối qua nửa đêm (0h–5h): ngày báo cáo là ngày bắt đầu ca (17h hôm trước),
+    không phải ngày lịch sau 0h.
+
+    17h–23h: không tự gán ca — giữ popup để NV chọn ca sáng (tăng ca) hoặc ca tối.
     """
     at = at or timezone.localtime()
     explicit_shift = normalize_shift(explicit_shift) if explicit_shift else None
 
     if explicit_shift and explicit_shift in PRODUCTION_SHIFT_ORDER:
         report_date = requested_date or timezone.localtime(at).date()
+        report_date = _coerce_overnight_night_report_date(at, report_date, explicit_shift)
         return report_date, explicit_shift
 
     open_report = find_open_production_report(employee, at)
@@ -199,6 +205,29 @@ def resolve_production_entry(
 
     report_date = requested_date or timezone.localtime(at).date()
     return report_date, ''
+
+
+def _coerce_overnight_night_report_date(
+    at: datetime,
+    report_date: date,
+    shift: str,
+) -> date:
+    """
+    Sau 0h–5h sáng: ca tối đang chạy thuộc ngày bắt đầu 17h hôm trước.
+    Nếu URL/ngày chọn là «hôm nay» (không nằm trong khung ca) → kéo về ngày bắt đầu ca.
+    """
+    shift = normalize_shift(shift)
+    if shift != DailyWorkReport.SHIFT_NIGHT:
+        return report_date
+    if shift_contains_datetime(at, report_date, shift):
+        return report_date
+    local = timezone.localtime(at)
+    if local.time() >= ASSIGN_NIGHT_END:
+        return report_date
+    prev_day = local.date() - timedelta(days=1)
+    if shift_contains_datetime(local, prev_day, shift):
+        return prev_day
+    return report_date
 
 
 def can_start_production_shift(employee, report_date, shift: str) -> tuple[bool, str]:
