@@ -127,12 +127,22 @@
     }
     .jp-summary-team-row .jp-eff.is-none { color: rgba(255, 255, 255, 0.45); background: transparent; }
 
-    /* Khi chụp ảnh (html2canvas): tắt sticky để không lệch dòng/cột */
+    /* Khi chụp ảnh (html2canvas): tắt sticky / overflow để không lệch hoặc cắt ảnh */
+    .jp-summary-scroll.jp-capturing-scroll {
+        max-height: none !important;
+        overflow: visible !important;
+        height: auto !important;
+    }
     .jp-capturing thead th,
     .jp-capturing .jp-summary-team-row th,
     .jp-capturing th.jp-col-sticky,
     .jp-capturing td.jp-col-sticky,
-    .jp-capturing .jp-summary-group td { position: static !important; }
+    .jp-capturing .jp-summary-group td {
+        position: static !important;
+        left: auto !important;
+        top: auto !important;
+        box-shadow: none !important;
+    }
     /* Khi chụp: hiện lại cột Bộ phận dù đang ẩn trên mobile */
     .jp-capturing th.jp-col-dept,
     .jp-capturing td.jp-col-dept { display: table-cell !important; }
@@ -396,28 +406,91 @@ document.addEventListener('DOMContentLoaded', function () {
     if (shotBtn) {
         shotBtn.addEventListener('click', function () {
             var table = document.getElementById('summaryTable');
-            if (!table || typeof html2canvas === 'undefined') return;
+            var scrollEl = table && table.closest('.jp-summary-scroll');
+            if (!table) return;
+            if (typeof html2canvas === 'undefined') {
+                alert('Thư viện chụp ảnh chưa tải được. Vui lòng tải lại trang.');
+                return;
+            }
+
             var original = shotBtn.innerHTML;
             shotBtn.disabled = true;
             shotBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Đang chụp...';
+
+            var prevScroll = null;
+            if (scrollEl) {
+                prevScroll = {
+                    scrollTop: scrollEl.scrollTop,
+                    scrollLeft: scrollEl.scrollLeft,
+                };
+                scrollEl.classList.add('jp-capturing-scroll');
+                scrollEl.scrollTop = 0;
+                scrollEl.scrollLeft = 0;
+            }
+            table.classList.add('jp-capturing');
+
+            // scale: 4 dễ vượt giới hạn canvas trình duyệt trên bảng lớn → chọn scale an toàn
+            var w = Math.max(table.scrollWidth, table.offsetWidth, 1);
+            var h = Math.max(table.scrollHeight, table.offsetHeight, 1);
+            var maxPixels = 16000000;
+            var maxSide = 8192;
+            var scale = 2;
+            while (scale > 1 && (w * scale > maxSide || h * scale > maxSide || w * scale * h * scale > maxPixels)) {
+                scale -= 0.25;
+            }
+            if (scale < 1) scale = 1;
+
+            function restoreUi() {
+                table.classList.remove('jp-capturing');
+                if (scrollEl) {
+                    scrollEl.classList.remove('jp-capturing-scroll');
+                    if (prevScroll) {
+                        scrollEl.scrollTop = prevScroll.scrollTop;
+                        scrollEl.scrollLeft = prevScroll.scrollLeft;
+                    }
+                }
+                shotBtn.disabled = false;
+            }
+
             html2canvas(table, {
                 backgroundColor: '#ffffff',
-                scale: 4,
+                scale: scale,
                 useCORS: true,
                 logging: false,
+                scrollX: 0,
+                scrollY: -window.scrollY,
                 onclone: function (doc) {
                     var t = doc.getElementById('summaryTable');
-                    if (t) t.classList.add('jp-capturing');
+                    if (!t) return;
+                    t.classList.add('jp-capturing');
+                    var s = t.closest('.jp-summary-scroll');
+                    if (s) {
+                        s.classList.add('jp-capturing-scroll');
+                        s.style.maxHeight = 'none';
+                        s.style.overflow = 'visible';
+                        s.style.height = 'auto';
+                    }
+                    var card = t.closest('.overflow-hidden');
+                    if (card) card.style.overflow = 'visible';
                 },
             }).then(function (canvas) {
                 var stamp = new Date().toISOString().slice(0, 10);
                 var fileName = 'bao-cao-tong-hop-sx-{{ active_shift|lower }}-' + stamp + '.png';
-                // 1) Tải xuống
+                var dataUrl;
+                try {
+                    dataUrl = canvas.toDataURL('image/png');
+                } catch (err) {
+                    throw new Error('Ảnh quá lớn để xuất PNG. Hãy thu hẹp khoảng ngày rồi thử lại.');
+                }
+                if (!dataUrl || dataUrl === 'data:,') {
+                    throw new Error('Không tạo được ảnh. Hãy thu hẹp khoảng ngày rồi thử lại.');
+                }
                 var link = document.createElement('a');
                 link.download = fileName;
-                link.href = canvas.toDataURL('image/png');
+                link.href = dataUrl;
+                document.body.appendChild(link);
                 link.click();
-                // 2) Copy vào clipboard (nếu trình duyệt hỗ trợ)
+                link.remove();
                 return new Promise(function (resolve) {
                     canvas.toBlob(function (blob) {
                         if (!blob || !navigator.clipboard || !window.ClipboardItem) {
@@ -435,12 +508,11 @@ document.addEventListener('DOMContentLoaded', function () {
                     ? '<i class="bi bi-clipboard-check me-1"></i>Đã tải & copy'
                     : '<i class="bi bi-download me-1"></i>Đã tải ảnh';
                 setTimeout(function () { shotBtn.innerHTML = original; }, 2000);
-            }).catch(function () {
-                alert('Không chụp được ảnh, vui lòng thử lại.');
+            }).catch(function (err) {
+                var msg = (err && err.message) ? err.message : 'Không chụp được ảnh, vui lòng thử lại.';
+                alert(msg);
                 shotBtn.innerHTML = original;
-            }).finally(function () {
-                shotBtn.disabled = false;
-            });
+            }).finally(restoreUi);
         });
     }
 
