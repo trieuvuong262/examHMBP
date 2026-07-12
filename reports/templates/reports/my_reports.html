@@ -79,6 +79,7 @@
                         <th class="text-nowrap">Thao tác</th>
                         <th>Mô tả</th>
                         <th>Chi tiết thay đổi</th>
+                        <th class="text-end text-nowrap">Xem</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -121,10 +122,21 @@
                             <span class="text-muted">—</span>
                             {% endif %}
                         </td>
+                        <td class="text-end text-nowrap">
+                            {% if entry.report_id %}
+                            <a href="{% url detail_url_name entry.report_id %}"
+                               class="btn btn-outline-hm btn-sm"
+                               title="Xem chi tiết báo cáo">
+                                <i class="bi bi-eye me-1"></i>Chi tiết
+                            </a>
+                            {% else %}
+                            <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="7" class="text-center text-muted py-5">
+                        <td colspan="8" class="text-center text-muted py-5">
                             Chưa có lần chỉnh sửa, gửi hoặc cập nhật nào trong khoảng đã chọn.
                         </td>
                     </tr>
@@ -141,6 +153,7 @@
                         <th class="text-center">Nhận xét</th>
                         <th class="text-end">Tóm tắt</th>
                         <th class="text-end">Cập nhật</th>
+                        <th class="text-end text-nowrap">Xem</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -165,6 +178,8 @@
                         <td>
                             {% if r.status == 'SUBMITTED' %}
                             <span class="badge bg-success-subtle text-success">Đã nộp</span>
+                            {% elif r.status == 'DRAFT' %}
+                            <span class="badge bg-secondary-subtle text-secondary">Nháp</span>
                             {% endif %}
                         </td>
                         <td class="text-center">
@@ -180,10 +195,17 @@
                         <td class="text-end text-muted small">
                             {% if r.submitted_at %}Gửi {{ r.submitted_at|date:"H:i d/m/Y" }}{% elif r.draft_saved_at %}Lưu {{ r.draft_saved_at|date:"H:i d/m/Y" }}{% else %}—{% endif %}
                         </td>
+                        <td class="text-end text-nowrap">
+                            <a href="{% url detail_url_name r.pk %}"
+                               class="btn btn-outline-hm btn-sm"
+                               title="Xem chi tiết báo cáo">
+                                <i class="bi bi-eye me-1"></i>Chi tiết
+                            </a>
+                        </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="6" class="text-center text-muted py-5">
+                        <td colspan="7" class="text-center text-muted py-5">
                             Chưa có báo cáo nào trong khoảng đã chọn.
                         </td>
                     </tr>

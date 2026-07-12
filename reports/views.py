@@ -1568,11 +1568,11 @@ def _my_reports(request, daily_report_profile=None):
         ctx['edit_logs'] = page_obj.object_list
     else:
         ctx['reports'] = page_obj.object_list
-        ctx['detail_url_name'] = (
-            'reports:detail_cn'
-            if daily_report_profile == REPORT_PROFILE_PRODUCTION
-            else 'reports:detail_vp'
-        )
+    ctx['detail_url_name'] = (
+        'reports:detail_cn'
+        if daily_report_profile == REPORT_PROFILE_PRODUCTION
+        else 'reports:detail_vp'
+    )
     return render(request, 'reports/my_reports.html', ctx)
 
 
