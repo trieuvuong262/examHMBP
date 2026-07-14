@@ -86,6 +86,24 @@
         font-size: 0.85rem;
         font-weight: 700;
     }
+    /* Badge Ca sáng / Ca tối — chữ rõ trên nền trắng bảng */
+    .jp-summary-table .jp-report-period-badge--day,
+    .jp-summary-stats ~ * .jp-report-period-badge--day,
+    span.jp-report-period-badge--day {
+        background: #dbeafe !important;
+        color: #1d4ed8 !important;
+    }
+    .jp-summary-table .jp-report-period-badge--month,
+    span.jp-report-period-badge--month {
+        background: #ede9fe !important;
+        color: #5b21b6 !important;
+    }
+    .jp-col-shift .badge {
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.01em;
+        white-space: nowrap;
+    }
     .jp-eff { display: inline-block; min-width: 3rem; padding: 0.12rem 0.45rem; border-radius: 0.45rem; font-weight: 700; font-size: 0.82rem; }
     .jp-eff.is-low  { background: #fee2e2; color: #991b1b; }
     .jp-eff.is-ok   { background: #fef9c3; color: #854d0e; }
@@ -291,7 +309,7 @@
                 <label class="form-label fw-bold small mb-1">Ca làm</label>
                 <select name="shift" class="form-select">
                     {% for opt in shift_filter_choices %}
-                    <option value="{{ opt.key }}" {% if opt.key == active_shift %}selected{% endif %}>{{ opt.label }}</option>
+                    <option value="{{ opt.key }}" {% if opt.key == 'ALL' and not active_shift or opt.key == active_shift %}selected{% endif %}>{{ opt.label }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -610,8 +628,13 @@ document.addEventListener('DOMContentLoaded', function () {
     var form = document.getElementById('summaryFilterForm');
     if (!form) return;
     function submitForm() {
+        var shiftEl = form.querySelector('select[name="shift"]');
+        if (shiftEl && (!shiftEl.value || shiftEl.value === 'ALL')) {
+            shiftEl.disabled = true;
+        }
         if (typeof form.requestSubmit === 'function') { form.requestSubmit(); }
         else { form.submit(); }
+        if (shiftEl) { shiftEl.disabled = false; }
     }
     if (window.flatpickr) {
         flatpickr('.jp-date-vn', {

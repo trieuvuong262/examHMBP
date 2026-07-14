@@ -458,8 +458,8 @@ def _filter_reports_by_shift(
 
 
 def build_production_summary_shift_filter_choices() -> list[dict]:
-    """Bộ lọc ca trên form tổng hợp / thống kê SX."""
-    choices = [{'key': '', 'label': 'Tất cả ca'}]
+    """Bộ lọc ca trên form tổng hợp / thống kê SX — mặc định Tất cả ca."""
+    choices = [{'key': 'ALL', 'label': 'Tất cả ca'}]
     for shift in PRODUCTION_SHIFT_ORDER:
         choices.append({'key': shift, 'label': shift_display_label(shift)})
     return choices
