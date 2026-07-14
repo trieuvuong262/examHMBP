@@ -180,6 +180,53 @@
     .jp-capturing th.jp-col-dept,
     .jp-capturing td.jp-col-dept { display: table-cell !important; }
 
+    .jp-summary-filters {
+        display: flex;
+        flex-wrap: nowrap;
+        align-items: end;
+        gap: 0.45rem;
+        overflow-x: auto;
+        padding: 0.55rem 0.75rem !important;
+    }
+    .jp-summary-filters .form-label {
+        margin-bottom: 0.1rem;
+        font-size: 0.65rem;
+        white-space: nowrap;
+    }
+    .jp-summary-filters .form-control,
+    .jp-summary-filters .form-select {
+        min-height: 2rem;
+        padding: 0.2rem 0.45rem;
+        font-size: 0.8rem;
+    }
+    .jp-summary-filters .jp-filter-date {
+        flex: 0 0 7.6rem;
+        width: 7.6rem;
+    }
+    .jp-summary-filters .jp-filter-date .form-control,
+    .jp-summary-filters .jp-filter-date .flatpickr-input {
+        width: 100%;
+        min-width: 0;
+    }
+    .jp-summary-filters .jp-filter-sm {
+        flex: 0 0 auto;
+        min-width: 7.2rem;
+        max-width: 9.5rem;
+    }
+    .jp-summary-filters .jp-filter-show {
+        flex: 0 0 auto;
+        min-width: 9.5rem;
+        max-width: 11.5rem;
+    }
+    .jp-summary-filters .jp-hrm-search-wrap {
+        flex: 1 1 10rem;
+        min-width: 9rem !important;
+    }
+    .jp-summary-filters .jp-filter-clear {
+        flex: 0 0 auto;
+        padding: 0.3rem 0.5rem;
+    }
+
     /* ——— Tối ưu mobile ——— */
     @media (max-width: 767.98px) {
         .jp-summary-stats { gap: 0.5rem; }
@@ -187,11 +234,15 @@
         .jp-summary-stat .val { font-size: 1.15rem; }
         .jp-summary-stat .lbl { font-size: 0.6rem; }
 
-        #summaryFilterForm .card-body { gap: 0.5rem !important; padding: 0.6rem !important; }
-        #summaryFilterForm .card-body > div { flex: 1 1 100%; }
-        #summaryFilterForm .jp-hrm-search-wrap { min-width: 0 !important; }
-        #summaryFilterForm .form-control,
-        #summaryFilterForm .form-select { width: 100%; }
+        .jp-summary-filters {
+            flex-wrap: nowrap;
+            gap: 0.4rem !important;
+            padding: 0.5rem 0.6rem !important;
+        }
+        .jp-summary-filters > div { flex: 0 0 auto; }
+        .jp-summary-filters .jp-hrm-search-wrap { min-width: 8rem !important; }
+        .jp-summary-filters .form-control,
+        .jp-summary-filters .form-select { width: auto; min-width: 0; }
 
         .jp-summary-scroll { max-height: 70vh; }
         .jp-summary-table { font-size: 0.72rem; }
@@ -261,25 +312,25 @@
         {% if show_metric_selector %}
         <input type="hidden" name="metric" value="{{ active_metric }}">
         {% endif %}
-        <div class="card-body p-3 d-flex flex-wrap gap-3 align-items-end">
-            <div>
-                <label class="form-label fw-bold small mb-1">Từ ngày</label>
+        <div class="card-body jp-summary-filters">
+            <div class="jp-filter-date">
+                <label class="form-label fw-bold mb-0">Từ</label>
                 <input type="date" name="from" value="{{ range_from|date:'Y-m-d' }}" class="form-control jp-date-vn">
             </div>
-            <div>
-                <label class="form-label fw-bold small mb-1">Đến ngày</label>
+            <div class="jp-filter-date">
+                <label class="form-label fw-bold mb-0">Đến</label>
                 <input type="date" name="to" value="{{ range_to|date:'Y-m-d' }}" class="form-control jp-date-vn">
             </div>
-            <div>
-                <label class="form-label fw-bold small mb-1">Ca làm</label>
+            <div class="jp-filter-sm">
+                <label class="form-label fw-bold mb-0">Ca</label>
                 <select name="shift" class="form-select">
                     {% for opt in shift_filter_choices %}
                     <option value="{{ opt.key }}" {% if opt.key == 'ALL' and not active_shift or opt.key == active_shift %}selected{% endif %}>{{ opt.label }}</option>
                     {% endfor %}
                 </select>
             </div>
-            <div>
-                <label class="form-label fw-bold small mb-1">Hiển thị</label>
+            <div class="jp-filter-show">
+                <label class="form-label fw-bold mb-0">Hiển thị</label>
                 <select name="show" class="form-select">
                     {% for opt in display_filter_choices %}
                     <option value="{{ opt.key }}" {% if opt.key == active_display %}selected{% endif %}>{{ opt.label }}</option>
@@ -287,10 +338,10 @@
                 </select>
             </div>
             {% if dept_choices|length > 1 %}
-            <div>
-                <label class="form-label fw-bold small mb-1">Phòng ban</label>
+            <div class="jp-filter-sm">
+                <label class="form-label fw-bold mb-0">Phòng ban</label>
                 <select name="dept" class="form-select">
-                    <option value="">Tất cả phòng ban</option>
+                    <option value="">Tất cả</option>
                     {% for opt in dept_choices %}
                     <option value="{{ opt.key }}" {% if opt.key == selected_dept %}selected{% endif %}>{{ opt.label }}</option>
                     {% endfor %}
@@ -298,24 +349,24 @@
             </div>
             {% endif %}
             {% if division_choices|length > 1 %}
-            <div>
-                <label class="form-label fw-bold small mb-1">Bộ phận</label>
+            <div class="jp-filter-sm">
+                <label class="form-label fw-bold mb-0">Bộ phận</label>
                 <select name="division" class="form-select">
-                    <option value="">Tất cả bộ phận</option>
+                    <option value="">Tất cả</option>
                     {% for opt in division_choices %}
                     <option value="{{ opt.key }}" {% if opt.key == selected_division %}selected{% endif %}>{{ opt.label }}</option>
                     {% endfor %}
                 </select>
             </div>
             {% endif %}
-            <div class="flex-grow-1 jp-hrm-search-wrap" style="min-width: 240px;">
-                <label class="form-label fw-bold small mb-1">Tìm nhân viên</label>
+            <div class="jp-hrm-search-wrap">
+                <label class="form-label fw-bold mb-0">Tìm NV</label>
                 <div class="input-group jp-hrm-search">
-                    {% include 'includes/list_search_bar.html' with search_query=search_query placeholder='Tên, mã NS, account...' show_button=False %}
+                    {% include 'includes/list_search_bar.html' with search_query=search_query placeholder='Tên, mã NS...' show_button=False %}
                 </div>
             </div>
             {% if search_query or selected_dept or selected_division or active_shift or active_display and active_display != 'all' %}
-            <a href="?from={{ range_from|date:'Y-m-d' }}&to={{ range_to|date:'Y-m-d' }}{% if show_metric_selector %}&metric={{ active_metric }}{% endif %}" class="btn btn-light border align-self-end" title="Xóa bộ lọc"><i class="bi bi-x-lg"></i></a>
+            <a href="?from={{ range_from|date:'Y-m-d' }}&to={{ range_to|date:'Y-m-d' }}{% if show_metric_selector %}&metric={{ active_metric }}{% endif %}" class="btn btn-light border jp-filter-clear" title="Xóa bộ lọc"><i class="bi bi-x-lg"></i></a>
             {% endif %}
         </div>
         {% if search_query %}

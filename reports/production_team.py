@@ -529,6 +529,7 @@ def normalize_summary_display(raw: str | None) -> str:
         'days': SUMMARY_DISPLAY_DAYS_WITH_REPORT,
         'reported_days': SUMMARY_DISPLAY_DAYS_WITH_REPORT,
         'with_report_days': SUMMARY_DISPLAY_DAYS_WITH_REPORT,
+        'with_report': SUMMARY_DISPLAY_DAYS_WITH_REPORT,
         'co_bao_cao': SUMMARY_DISPLAY_DAYS_WITH_REPORT,
     }
     key = aliases.get(key, key)
@@ -577,8 +578,36 @@ def _iter_summary_members(summary: dict):
             yield member
 
 
+def _member_has_report_data(member: dict) -> bool:
+    if member.get('avg_value') is not None:
+        return True
+    if (member.get('report_count') or 0) > 0:
+        return True
+    return any(cell.get('has_data') for cell in (member.get('cells') or []))
+
+
+def _filter_summary_groups_keep_reported(groups: list[dict]) -> tuple[list[dict], int]:
+    """Giữ NV đã nộp BC trong kỳ; bỏ dòng trống; đánh lại STT theo section/nhóm."""
+    out = []
+    stt = 0
+    for group in groups or []:
+        kept = []
+        for member in group.get('members') or []:
+            if not _member_has_report_data(member):
+                continue
+            stt += 1
+            kept.append({**member, 'stt': stt})
+        if kept:
+            out.append({**group, 'members': kept})
+    return out, stt
+
+
 def _apply_summary_display_mode(summary: dict, display_mode: str) -> dict:
-    """Lọc cột ngày: chỉ giữ ngày có ít nhất một ô báo cáo."""
+    """Lọc hiển thị ma trận.
+
+    days_with_report: trong kỳ lọc, chỉ giữ nhân viên đã gửi BC
+    (bỏ dòng trống toàn —); giữ nguyên các cột ngày.
+    """
     display_mode = normalize_summary_display(display_mode)
     summary['display_mode'] = display_mode
     summary['display_label'] = dict(SUMMARY_DISPLAY_CHOICES).get(
@@ -588,33 +617,44 @@ def _apply_summary_display_mode(summary: dict, display_mode: str) -> dict:
     if display_mode != SUMMARY_DISPLAY_DAYS_WITH_REPORT:
         return summary
 
-    days = summary.get('days') or []
-    if not days:
+    sections = summary.get('shift_sections') or []
+    if sections:
+        new_sections = []
+        total_members = 0
+        with_data_ids: set[int] = set()
+        for section in sections:
+            filtered_groups, stt = _filter_summary_groups_keep_reported(
+                section.get('groups') or []
+            )
+            if not filtered_groups:
+                continue
+            for group in filtered_groups:
+                for row in group['members']:
+                    member = row.get('member')
+                    if member is not None:
+                        with_data_ids.add(member.pk)
+            new_sections.append({
+                **section,
+                'groups': filtered_groups,
+                'member_count': stt,
+            })
+            total_members += stt
+        summary['shift_sections'] = new_sections
+        summary['groups'] = [
+            g for section in new_sections for g in section.get('groups') or []
+        ]
+        summary['member_count'] = total_members
+        summary['members_with_data'] = len(with_data_ids)
+        summary['has_members'] = total_members > 0
         return summary
 
-    keep = [False] * len(days)
-    for member in _iter_summary_members(summary):
-        cells = member.get('cells') or []
-        for idx, cell in enumerate(cells):
-            if idx < len(keep) and cell.get('has_data'):
-                keep[idx] = True
-
-    indices = [idx for idx, ok in enumerate(keep) if ok]
-    if not indices:
-        summary['days'] = []
-        summary['day_averages'] = []
-        for member in _iter_summary_members(summary):
-            member['cells'] = []
-        return summary
-
-    summary['days'] = [days[i] for i in indices]
-    day_averages = summary.get('day_averages') or []
-    summary['day_averages'] = [
-        day_averages[i] for i in indices if i < len(day_averages)
-    ]
-    for member in _iter_summary_members(summary):
-        cells = member.get('cells') or []
-        member['cells'] = [cells[i] for i in indices if i < len(cells)]
+    filtered_groups, stt = _filter_summary_groups_keep_reported(
+        summary.get('groups') or []
+    )
+    summary['groups'] = filtered_groups
+    summary['member_count'] = stt
+    summary['members_with_data'] = stt
+    summary['has_members'] = stt > 0
     return summary
 
 
@@ -856,7 +896,7 @@ def build_production_team_summary(
     - Ca sáng: danh sách đầy đủ (kể cả chưa nộp).
     - Ca tối: chỉ nhân viên đã nộp BC ca tối; không có ai nộp thì không hiện khối ca tối.
     - Tất cả ca: khối Ca sáng trên, Ca tối dưới (nếu có).
-    - display_mode=days_with_report: chỉ giữ cột ngày có ít nhất 1 BC.
+    - display_mode=days_with_report: chỉ nhân viên đã gửi BC trong kỳ (bỏ dòng trống).
     """
     metric = normalize_summary_metric(metric)
     display_mode = normalize_summary_display(display_mode)
