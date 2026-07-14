@@ -893,10 +893,10 @@ def build_production_team_summary(
 ) -> dict:
     """Ma trận NV × ngày theo metric.
 
-    - Ca sáng: danh sách đầy đủ (kể cả chưa nộp).
-    - Ca tối: chỉ nhân viên đã nộp BC ca tối; không có ai nộp thì không hiện khối ca tối.
-    - Tất cả ca: khối Ca sáng trên, Ca tối dưới (nếu có).
-    - display_mode=days_with_report: chỉ nhân viên đã gửi BC trong kỳ (bỏ dòng trống).
+    - Tất cả nhân viên: ca sáng + ca tối đều danh sách đầy đủ (ô trống nếu chưa nộp).
+    - Chỉ ngày có báo cáo: chỉ NV có số liệu trong kỳ; ca tối chỉ những người đã có BC ca tối
+      (khối ca tối ẩn nếu không ai có dữ liệu).
+    - Tất cả ca: khối Ca sáng trên, Ca tối dưới.
     """
     metric = normalize_summary_metric(metric)
     display_mode = normalize_summary_display(display_mode)
@@ -904,6 +904,8 @@ def build_production_team_summary(
     metric_label = dict(SUMMARY_METRIC_CHOICES).get(metric, 'Hiệu suất')
     split_by_shift = not shift_filter
     shift_label = shift_display_label(shift_filter) if shift_filter else 'Tất cả ca'
+    # Chỉ khi lọc «Chỉ ngày có báo cáo» mới thu hẹp ca tối xuống NV đã nộp.
+    night_only_with_reports = display_mode == SUMMARY_DISPLAY_DAYS_WITH_REPORT
 
     days = [
         {
@@ -928,8 +930,10 @@ def build_production_team_summary(
     shift_sections: list[dict] = []
 
     if shift_filter:
-        # Ca tối: chỉ NV đã nộp; ca sáng / ca khác: danh sách đầy đủ.
-        only_with = shift_filter == DailyWorkReport.SHIFT_NIGHT
+        only_with = (
+            night_only_with_reports
+            and shift_filter == DailyWorkReport.SHIFT_NIGHT
+        )
         groups, stt, with_data, num, den = _build_summary_groups_for_shift(
             groups_src,
             reports_by_employee,
@@ -953,12 +957,12 @@ def build_production_team_summary(
             'member_count': stt,
         }] if groups else []
     else:
-        # Ca sáng (toàn bộ NV) → rồi ca tối (chỉ NV có BC ca tối; ẩn khối nếu không ai nộp)
+        # Ca sáng → ca tối. Tất cả NV: cả hai ca đầy đủ; Chỉ có BC: ca tối chỉ NV đã nộp.
         groups = []
         member_count = 0
         for shift, only_with in (
             (DailyWorkReport.SHIFT_MORNING, False),
-            (DailyWorkReport.SHIFT_NIGHT, True),
+            (DailyWorkReport.SHIFT_NIGHT, night_only_with_reports),
         ):
             section_groups, stt, _wd, num, den = _build_summary_groups_for_shift(
                 groups_src,
