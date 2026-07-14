@@ -465,16 +465,6 @@ def build_production_summary_shift_filter_choices() -> list[dict]:
     return choices
 
 
-def _member_shifts_to_render(visible_reports: list[DailyWorkReport], shift_filter: str) -> list[str]:
-    """Thứ tự ca hiển thị: lọc 1 ca, hoặc ca sáng rồi ca tối (chỉ hiện ca tối khi có BC)."""
-    if shift_filter:
-        return [shift_filter]
-    shifts = [DailyWorkReport.SHIFT_MORNING]
-    if _filter_reports_by_shift(visible_reports, DailyWorkReport.SHIFT_NIGHT):
-        shifts.append(DailyWorkReport.SHIFT_NIGHT)
-    return shifts
-
-
 def build_production_summary_shift_tabs(
     *,
     active_shift: str,
@@ -664,6 +654,110 @@ def _metric_value_from_parts(numerator: Decimal, denominator: Decimal, metric: s
     return _pct_from_parts(numerator, denominator)
 
 
+def _build_summary_member_row(
+    member,
+    shift_reports: list[DailyWorkReport],
+    *,
+    days: list[dict],
+    metric: str,
+    is_quantity: bool,
+    stt: int,
+    shift: str,
+    day_totals: list[dict],
+) -> tuple[dict, Decimal, Decimal]:
+    """Một dòng NV×ca; cập nhật day_totals; trả (row, numerator, denominator)."""
+    by_date = _reports_by_employee_date(shift_reports)
+    cells = []
+    member_numerator = Decimal('0')
+    member_denominator = Decimal('0')
+    for idx, day in enumerate(days):
+        day_reports = by_date.get(day['date'], [])
+        numerator, denominator = _metric_parts(day_reports, metric)
+        value = _metric_value_from_parts(numerator, denominator, metric)
+        primary_report = day_reports[0] if day_reports else None
+        cells.append({
+            'value': value,
+            'efficiency_pct': value if not is_quantity else None,
+            'has_data': value is not None,
+            'is_weekend': day['is_weekend'],
+            'report_pk': primary_report.pk if primary_report else None,
+        })
+        if denominator > 0:
+            day_totals[idx]['numerator'] += numerator
+            day_totals[idx]['denominator'] += denominator
+            member_numerator += numerator
+            member_denominator += denominator
+    avg = _metric_value_from_parts(member_numerator, member_denominator, metric)
+    profile = getattr(member, 'profile', None)
+    display_name = (
+        profile.full_name if profile and profile.full_name else member.username
+    )
+    row = {
+        'stt': stt,
+        'member': member,
+        'name': display_name.upper(),
+        'division': (
+            profile.division.name
+            if profile and getattr(profile, 'division_id', None)
+            else ''
+        ),
+        'shift': shift,
+        'shift_label': shift_display_label(shift),
+        'show_identity': True,
+        'cells': cells,
+        'avg_value': avg,
+        'avg_efficiency_pct': avg if not is_quantity else None,
+        'report_count': len(shift_reports),
+    }
+    return row, member_numerator, member_denominator
+
+
+def _build_summary_groups_for_shift(
+    groups_src: list[dict],
+    reports_by_employee: dict[int, list[DailyWorkReport]],
+    visible_fn,
+    *,
+    shift: str,
+    days: list[dict],
+    metric: str,
+    is_quantity: bool,
+    day_totals: list[dict],
+    only_with_shift_reports: bool = False,
+) -> tuple[list[dict], int, int, Decimal, Decimal]:
+    """Nhóm phòng ban cho một ca. Trả groups, member_count, with_data, grand_num, grand_den."""
+    stt = 0
+    members_with_data = 0
+    grand_numerator = Decimal('0')
+    grand_denominator = Decimal('0')
+    groups = []
+    for group in groups_src:
+        members_out = []
+        for member in group['members']:
+            visible = _visible_reports(reports_by_employee.get(member.id, []), visible_fn)
+            shift_reports = _filter_reports_by_shift(visible, shift)
+            if only_with_shift_reports and not shift_reports:
+                continue
+            stt += 1
+            row, num, den = _build_summary_member_row(
+                member,
+                shift_reports,
+                days=days,
+                metric=metric,
+                is_quantity=is_quantity,
+                stt=stt,
+                shift=shift,
+                day_totals=day_totals,
+            )
+            if row['avg_value'] is not None:
+                members_with_data += 1
+            grand_numerator += num
+            grand_denominator += den
+            members_out.append(row)
+        if members_out:
+            groups.append({**group, 'label': group['label'], 'members': members_out})
+    return groups, stt, members_with_data, grand_numerator, grand_denominator
+
+
 def build_production_team_summary(
     viewer,
     team,
@@ -676,9 +770,9 @@ def build_production_team_summary(
     shift_filter: str = '',
     metric: str = SUMMARY_METRIC_EFFICIENCY,
 ) -> dict:
-    """Ma trận: mỗi NV × ca 1 dòng, mỗi ngày 1 cột — theo metric (HS / HS thời gian / SL).
+    """Ma trận NV × ngày theo metric.
 
-    `shift_filter` rỗng = tất cả ca: ca sáng trước, ca tối (nếu có) phía dưới.
+    Lọc 1 ca: một khối. Tất cả ca: khối Ca sáng ở trên, khối Ca tối (nếu có) ở dưới.
     """
     metric = normalize_summary_metric(metric)
     is_quantity = metric == SUMMARY_METRIC_QUANTITY
@@ -705,70 +799,77 @@ def build_production_team_summary(
     day_totals = [{'numerator': Decimal('0'), 'denominator': Decimal('0')} for _ in days]
     grand_numerator = Decimal('0')
     grand_denominator = Decimal('0')
+    members_with_data_ids: set[int] = set()
+    shift_sections: list[dict] = []
 
-    stt = 0
-    members_with_data = 0
-    groups = []
-    for group in groups_src:
-        members_out = []
-        for member in group['members']:
-            stt += 1
-            visible = _visible_reports(reports_by_employee.get(member.id, []), visible_fn)
-            profile = getattr(member, 'profile', None)
-            display_name = (
-                profile.full_name if profile and profile.full_name else member.username
+    if shift_filter:
+        groups, stt, with_data, num, den = _build_summary_groups_for_shift(
+            groups_src,
+            reports_by_employee,
+            visible_fn,
+            shift=shift_filter,
+            days=days,
+            metric=metric,
+            is_quantity=is_quantity,
+            day_totals=day_totals,
+            only_with_shift_reports=False,
+        )
+        grand_numerator += num
+        grand_denominator += den
+        members_with_data = with_data
+        member_count = stt
+        shift_sections = [{
+            'shift': shift_filter,
+            'label': shift_display_label(shift_filter),
+            'badge_class': shift_badge_class(shift_filter),
+            'groups': groups,
+            'member_count': stt,
+        }]
+    else:
+        # Ca sáng (toàn bộ NV) → rồi ca tối (chỉ NV có BC ca tối)
+        groups = []
+        member_count = 0
+        for shift, only_with in (
+            (DailyWorkReport.SHIFT_MORNING, False),
+            (DailyWorkReport.SHIFT_NIGHT, True),
+        ):
+            section_groups, stt, _wd, num, den = _build_summary_groups_for_shift(
+                groups_src,
+                reports_by_employee,
+                visible_fn,
+                shift=shift,
+                days=days,
+                metric=metric,
+                is_quantity=is_quantity,
+                day_totals=day_totals,
+                only_with_shift_reports=only_with,
             )
-            division = (
-                profile.division.name
-                if profile and getattr(profile, 'division_id', None)
-                else ''
-            )
-            person_has_data = False
-            shifts = _member_shifts_to_render(visible, shift_filter)
-            for shift_idx, shift in enumerate(shifts):
-                shift_reports = _filter_reports_by_shift(visible, shift)
-                by_date = _reports_by_employee_date(shift_reports)
-                cells = []
-                member_numerator = Decimal('0')
-                member_denominator = Decimal('0')
-                for idx, day in enumerate(days):
-                    day_reports = by_date.get(day['date'], [])
-                    numerator, denominator = _metric_parts(day_reports, metric)
-                    value = _metric_value_from_parts(numerator, denominator, metric)
-                    primary_report = day_reports[0] if day_reports else None
-                    cells.append({
-                        'value': value,
-                        'efficiency_pct': value if not is_quantity else None,
-                        'has_data': value is not None,
-                        'is_weekend': day['is_weekend'],
-                        'report_pk': primary_report.pk if primary_report else None,
-                    })
-                    if denominator > 0:
-                        day_totals[idx]['numerator'] += numerator
-                        day_totals[idx]['denominator'] += denominator
-                        member_numerator += numerator
-                        member_denominator += denominator
-                avg = _metric_value_from_parts(member_numerator, member_denominator, metric)
-                if avg is not None:
-                    person_has_data = True
-                grand_numerator += member_numerator
-                grand_denominator += member_denominator
-                members_out.append({
-                    'stt': stt if shift_idx == 0 else '',
-                    'member': member,
-                    'name': display_name.upper(),
-                    'division': division,
-                    'shift': shift,
-                    'shift_label': shift_display_label(shift),
-                    'show_identity': shift_idx == 0,
-                    'cells': cells,
-                    'avg_value': avg,
-                    'avg_efficiency_pct': avg if not is_quantity else None,
-                    'report_count': len(shift_reports),
-                })
-            if person_has_data:
-                members_with_data += 1
-        groups.append({**group, 'label': group['label'], 'members': members_out})
+            if not section_groups:
+                continue
+            grand_numerator += num
+            grand_denominator += den
+            for g in section_groups:
+                for row in g['members']:
+                    if row['avg_value'] is not None:
+                        members_with_data_ids.add(row['member'].pk)
+                    if shift == DailyWorkReport.SHIFT_MORNING:
+                        member_count += 1
+            shift_sections.append({
+                'shift': shift,
+                'label': shift_display_label(shift),
+                'badge_class': shift_badge_class(shift),
+                'groups': section_groups,
+                'member_count': stt,
+            })
+        # Nhóm phẳng = gộp để tương thích export cũ khi cần
+        groups = [
+            g
+            for section in shift_sections
+            for g in section['groups']
+        ]
+        members_with_data = len(members_with_data_ids)
+        if member_count == 0 and shift_sections:
+            member_count = sum(s['member_count'] for s in shift_sections)
 
     day_averages = [
         _metric_value_from_parts(t['numerator'], t['denominator'], metric)
@@ -781,9 +882,12 @@ def build_production_team_summary(
     return {
         'days': days,
         'groups': groups,
+        'shift_sections': shift_sections,
         'dept_choices': dept_choices,
-        'has_members': stt > 0,
-        'member_count': stt,
+        'has_members': member_count > 0 or any(
+            section['member_count'] for section in shift_sections
+        ),
+        'member_count': member_count,
         'members_with_data': members_with_data,
         'day_averages': day_averages,
         'overall_avg': overall_avg,

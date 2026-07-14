@@ -72,6 +72,19 @@
         position: sticky;
         left: 0;
     }
+    .jp-summary-shift-section td {
+        background: #0f172a !important;
+        color: #fff !important;
+        font-weight: 700;
+        text-align: left !important;
+        position: sticky;
+        left: 0;
+        padding: 0.55rem 0.75rem !important;
+    }
+    .jp-summary-shift-section .badge {
+        font-size: 0.85rem;
+        font-weight: 700;
+    }
     .jp-eff { display: inline-block; min-width: 3rem; padding: 0.12rem 0.45rem; border-radius: 0.45rem; font-weight: 700; font-size: 0.82rem; }
     .jp-eff.is-low  { background: #fee2e2; color: #991b1b; }
     .jp-eff.is-ok   { background: #fef9c3; color: #854d0e; }
@@ -137,7 +150,8 @@
     .jp-capturing .jp-summary-team-row th,
     .jp-capturing th.jp-col-sticky,
     .jp-capturing td.jp-col-sticky,
-    .jp-capturing .jp-summary-group td {
+    .jp-capturing .jp-summary-group td,
+    .jp-capturing .jp-summary-shift-section td {
         position: static !important;
         left: auto !important;
         top: auto !important;
@@ -361,7 +375,17 @@
                     {% endif %}
                 </thead>
                 <tbody>
-                    {% for group in department_groups %}
+                    {% if summary.shift_sections %}
+                    {% for section in summary.shift_sections %}
+                    {% if summary.split_by_shift or summary.shift_sections|length > 1 %}
+                    <tr class="jp-summary-shift-section">
+                        <td colspan="{{ days|length|add:4 }}">
+                            <span class="{{ section.badge_class }}">{{ section.label }}</span>
+                            <span class="badge text-bg-secondary ms-2">{{ section.member_count }}</span>
+                        </td>
+                    </tr>
+                    {% endif %}
+                    {% for group in section.groups %}
                     {% if group.members %}
                     <tr class="jp-summary-group">
                         <td colspan="{{ days|length|add:4 }}">
@@ -372,17 +396,11 @@
                     </tr>
                     {% for m in group.members %}
                     <tr>
-                        <td class="jp-col-sticky jp-col-stt text-muted">{% if m.show_identity != False %}{{ m.stt }}{% endif %}</td>
+                        <td class="jp-col-sticky jp-col-stt text-muted">{{ m.stt }}</td>
                         <td class="jp-col-sticky jp-col-name">
-                            {% if m.show_identity != False %}
                             <strong>{{ m.name }}</strong>
-                            {% endif %}
-                            {% if summary.split_by_shift and m.shift_label %}
-                            <div class="{% if m.show_identity != False %}mt-1{% endif %}">
-                                <span class="{{ m.shift|production_shift_badge_class }}">{{ m.shift_label }}</span>
-                            </div>
-                            {% endif %}
-                        </td>                        <td class="jp-col-sticky jp-col-dept small">{% if m.show_identity != False %}{{ m.division|default:"—" }}{% endif %}</td>
+                        </td>
+                        <td class="jp-col-sticky jp-col-dept small">{{ m.division|default:"—" }}</td>
                         {% for cell in m.cells %}
                         <td>
                             {% if cell.has_data and cell.report_pk %}
@@ -420,6 +438,7 @@
                     </tr>
                     {% endfor %}
                     {% endif %}
+                    {% endfor %}
                     {% empty %}
                     <tr>
                         <td colspan="{{ days|length|add:4 }}" class="text-center text-muted py-5">
@@ -427,6 +446,13 @@
                         </td>
                     </tr>
                     {% endfor %}
+                    {% else %}
+                    <tr>
+                        <td colspan="{{ days|length|add:4 }}" class="text-center text-muted py-5">
+                            {{ empty_team_message|default:"Chưa có nhân viên cấp dưới được cấu hình." }}
+                        </td>
+                    </tr>
+                    {% endif %}
                 </tbody>
             </table>
         </div>
