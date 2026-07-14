@@ -49,8 +49,9 @@
         background: #fff;
     }
     .jp-summary-table th.jp-col-stt,  .jp-summary-table td.jp-col-stt  { left: 0;      min-width: 46px; }
-    .jp-summary-table th.jp-col-name, .jp-summary-table td.jp-col-name { left: 46px;   min-width: 190px; text-align: left; }
-    .jp-summary-table th.jp-col-dept, .jp-summary-table td.jp-col-dept { left: 236px;  min-width: 150px; text-align: left; box-shadow: 2px 0 4px -2px rgba(15,23,42,0.15); }
+    .jp-summary-table th.jp-col-name, .jp-summary-table td.jp-col-name { left: 46px;   min-width: 170px; text-align: left; }
+    .jp-summary-table th.jp-col-shift, .jp-summary-table td.jp-col-shift { left: 216px; min-width: 92px; text-align: center; }
+    .jp-summary-table th.jp-col-dept, .jp-summary-table td.jp-col-dept { left: 308px;  min-width: 140px; text-align: left; box-shadow: 2px 0 4px -2px rgba(15,23,42,0.15); }
     .jp-summary-table thead th.jp-col-sticky { z-index: 5; background: var(--hm-primary, #dc2626); }
     .jp-summary-table tbody td {
         border-bottom: 1px solid #eef2f6;
@@ -187,6 +188,11 @@
         .jp-summary-table td.jp-col-name {
             left: 26px; min-width: 96px; max-width: 96px;
             overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .jp-summary-table th.jp-col-shift,
+        .jp-summary-table td.jp-col-shift {
+            left: 122px; min-width: 72px;
+            box-shadow: 2px 0 4px -2px rgba(15,23,42,0.15);
         }
         /* Ẩn cột Bộ phận trên mobile để dành chỗ cho các ngày (vẫn hiện khi chụp ảnh & Excel) */
         .jp-summary-table th.jp-col-dept,
@@ -335,6 +341,7 @@
                     <tr>
                         <th class="jp-col-sticky jp-col-stt">STT</th>
                         <th class="jp-col-sticky jp-col-name">Nhân viên</th>
+                        <th class="jp-col-sticky jp-col-shift">Ca</th>
                         <th class="jp-col-sticky jp-col-dept">Bộ phận</th>
                         {% for day in days %}
                         <th>
@@ -346,7 +353,7 @@
                     </tr>
                     {% if summary.has_members %}
                     <tr class="jp-summary-team-row">
-                        <th class="jp-col-team-label" colspan="3">{% if summary.metric_is_percent %}TB team theo ngày{% else %}SL team theo ngày{% endif %}</th>
+                        <th class="jp-col-team-label" colspan="4">{% if summary.metric_is_percent %}TB team theo ngày{% else %}SL team theo ngày{% endif %}</th>
                         {% for day in days %}
                         <th>
                             {% if day.average is not None %}
@@ -379,7 +386,7 @@
                     {% for section in summary.shift_sections %}
                     {% if summary.split_by_shift or summary.shift_sections|length > 1 %}
                     <tr class="jp-summary-shift-section">
-                        <td colspan="{{ days|length|add:4 }}">
+                        <td colspan="{{ days|length|add:5 }}">
                             <span class="{{ section.badge_class }}">{{ section.label }}</span>
                             <span class="badge text-bg-secondary ms-2">{{ section.member_count }}</span>
                         </td>
@@ -388,7 +395,7 @@
                     {% for group in section.groups %}
                     {% if group.members %}
                     <tr class="jp-summary-group">
-                        <td colspan="{{ days|length|add:4 }}">
+                        <td colspan="{{ days|length|add:5 }}">
                             {{ group.label }}
                             {% if group.subtitle %}<span class="text-muted fw-normal small ms-1">{{ group.subtitle }}</span>{% endif %}
                             <span class="badge text-bg-secondary ms-1">{{ group.members|length }}</span>
@@ -399,6 +406,9 @@
                         <td class="jp-col-sticky jp-col-stt text-muted">{{ m.stt }}</td>
                         <td class="jp-col-sticky jp-col-name">
                             <strong>{{ m.name }}</strong>
+                        </td>
+                        <td class="jp-col-sticky jp-col-shift">
+                            <span class="{{ m.shift|production_shift_badge_class }}">{{ m.shift_label }}</span>
                         </td>
                         <td class="jp-col-sticky jp-col-dept small">{{ m.division|default:"—" }}</td>
                         {% for cell in m.cells %}
@@ -441,14 +451,14 @@
                     {% endfor %}
                     {% empty %}
                     <tr>
-                        <td colspan="{{ days|length|add:4 }}" class="text-center text-muted py-5">
+                        <td colspan="{{ days|length|add:5 }}" class="text-center text-muted py-5">
                             {{ empty_team_message|default:"Chưa có nhân viên cấp dưới được cấu hình." }}
                         </td>
                     </tr>
                     {% endfor %}
                     {% else %}
                     <tr>
-                        <td colspan="{{ days|length|add:4 }}" class="text-center text-muted py-5">
+                        <td colspan="{{ days|length|add:5 }}" class="text-center text-muted py-5">
                             {{ empty_team_message|default:"Chưa có nhân viên cấp dưới được cấu hình." }}
                         </td>
                     </tr>

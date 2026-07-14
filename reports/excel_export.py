@@ -100,13 +100,14 @@ def export_production_team_summary_xlsx(
     columns = [
         'STT',
         'Nhân viên',
+        'Ca',
         'Bộ phận',
         *day_headers,
         f'{avg_label} chung' if is_percent else f'{avg_label} kỳ',
     ]
 
     team_label = 'TB team theo ngày' if is_percent else 'SL team theo ngày'
-    team_row = ['', team_label, '']
+    team_row = ['', team_label, '', '']
     for d in days:
         avg = d.get('average')
         team_row.append(round(avg, 2) if avg is not None else '')
@@ -118,10 +119,22 @@ def export_production_team_summary_xlsx(
     if sections:
         for section in sections:
             if summary.get('split_by_shift') or len(sections) > 1:
-                rows.append([section.get('label') or '', '', '', *([''] * len(days)), ''])
+                rows.append([
+                    section.get('label') or '',
+                    '',
+                    '',
+                    '',
+                    *([''] * len(days)),
+                    '',
+                ])
             for group in section.get('groups', []):
                 for member in group.get('members', []):
-                    row = [member['stt'], member['name'], member.get('division') or '']
+                    row = [
+                        member['stt'],
+                        member['name'],
+                        member.get('shift_label') or section.get('label') or '',
+                        member.get('division') or '',
+                    ]
                     for cell in member['cells']:
                         val = cell.get('value', cell.get('efficiency_pct'))
                         row.append(round(val, 2) if val is not None else '')
@@ -131,7 +144,12 @@ def export_production_team_summary_xlsx(
     else:
         for group in summary.get('groups', []):
             for member in group.get('members', []):
-                row = [member['stt'], member['name'], member.get('division') or '']
+                row = [
+                    member['stt'],
+                    member['name'],
+                    member.get('shift_label') or '',
+                    member.get('division') or '',
+                ]
                 for cell in member['cells']:
                     val = cell.get('value', cell.get('efficiency_pct'))
                     row.append(round(val, 2) if val is not None else '')
