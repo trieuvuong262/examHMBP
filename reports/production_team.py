@@ -772,7 +772,9 @@ def build_production_team_summary(
 ) -> dict:
     """Ma trận NV × ngày theo metric.
 
-    Lọc 1 ca: một khối. Tất cả ca: khối Ca sáng ở trên, khối Ca tối (nếu có) ở dưới.
+    - Ca sáng: danh sách đầy đủ (kể cả chưa nộp).
+    - Ca tối: chỉ nhân viên đã nộp BC ca tối; không có ai nộp thì không hiện khối ca tối.
+    - Tất cả ca: khối Ca sáng trên, Ca tối dưới (nếu có).
     """
     metric = normalize_summary_metric(metric)
     is_quantity = metric == SUMMARY_METRIC_QUANTITY
@@ -803,6 +805,8 @@ def build_production_team_summary(
     shift_sections: list[dict] = []
 
     if shift_filter:
+        # Ca tối: chỉ NV đã nộp; ca sáng / ca khác: danh sách đầy đủ.
+        only_with = shift_filter == DailyWorkReport.SHIFT_NIGHT
         groups, stt, with_data, num, den = _build_summary_groups_for_shift(
             groups_src,
             reports_by_employee,
@@ -812,7 +816,7 @@ def build_production_team_summary(
             metric=metric,
             is_quantity=is_quantity,
             day_totals=day_totals,
-            only_with_shift_reports=False,
+            only_with_shift_reports=only_with,
         )
         grand_numerator += num
         grand_denominator += den
@@ -824,9 +828,9 @@ def build_production_team_summary(
             'badge_class': shift_badge_class(shift_filter),
             'groups': groups,
             'member_count': stt,
-        }]
+        }] if groups else []
     else:
-        # Ca sáng (toàn bộ NV) → rồi ca tối (chỉ NV có BC ca tối)
+        # Ca sáng (toàn bộ NV) → rồi ca tối (chỉ NV có BC ca tối; ẩn khối nếu không ai nộp)
         groups = []
         member_count = 0
         for shift, only_with in (
