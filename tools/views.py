@@ -29,6 +29,13 @@ def _tool_context(tool_slug: str, **extra):
     }
 
 
+def _validation_error_message(exc: ValidationError) -> str:
+    messages_list = getattr(exc, 'messages', None) or []
+    if messages_list:
+        return '; '.join(str(item) for item in messages_list)
+    return str(exc)
+
+
 @login_required
 def pdf_to_word(request):
     if request.method == 'POST':
@@ -41,7 +48,11 @@ def pdf_to_word(request):
         try:
             docx_bytes, filename = convert_pdf_to_docx(uploaded)
         except ValidationError as exc:
-            return render(request, 'tools/pdf_to_word.html', _tool_context('pdf-word', error=str(exc)))
+            return render(
+                request,
+                'tools/pdf_to_word.html',
+                _tool_context('pdf-word', error=_validation_error_message(exc)),
+            )
         except Exception:
             return render(request, 'tools/pdf_to_word.html', _tool_context(
                 'pdf-word',

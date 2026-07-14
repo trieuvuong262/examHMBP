@@ -9,7 +9,7 @@ from django.core.exceptions import ValidationError
 from PIL import Image, ImageDraw, ImageFont
 
 
-PDF_MAX_BYTES = 10 * 1024 * 1024
+PDF_MAX_BYTES = 60 * 1024 * 1024
 OFFICE_MAX_BYTES = 15 * 1024 * 1024
 IMAGE_MAX_BYTES = 10 * 1024 * 1024
 IMAGE_TYPES = {'image/jpeg', 'image/png', 'image/webp', 'image/gif'}
@@ -41,25 +41,57 @@ _FONT_CANDIDATES = (
     'C:/Windows/Fonts/segoeui.ttf',
 )
 
+
+def _normalize_content_type(content_type: str | None) -> str:
+    if not content_type:
+        return ''
+    return content_type.split(';', 1)[0].strip().lower()
+
+
+def _mb_label(byte_limit: int) -> int:
+    return max(1, byte_limit // (1024 * 1024))
+
+
 def _validate_pdf(uploaded_file):
-    if uploaded_file.size > PDF_MAX_BYTES:
-        raise ValidationError('File không hợp lệ.')
-    name = (uploaded_file.name or '').lower()
+    size = getattr(uploaded_file, 'size', 0) or 0
+    if size <= 0:
+        raise ValidationError('File PDF trống hoặc không đọc được.')
+    if size > PDF_MAX_BYTES:
+        raise ValidationError(
+            f'File PDF quá lớn (tối đa {_mb_label(PDF_MAX_BYTES)}MB). '
+            'Hãy nén PDF hoặc giảm số trang rồi thử lại.'
+        )
+    name = (uploaded_file.name or '').lower().strip()
     if not name.endswith('.pdf'):
-        raise ValidationError('Vui lòng chọn file PDF.')
-    if uploaded_file.content_type and uploaded_file.content_type not in (
-        'application/pdf',
-        'application/x-pdf',
-        'application/octet-stream',
-    ):
-        raise ValidationError('Định dạng file không hợp lệ.')
+        raise ValidationError('Vui lòng chọn file PDF (đuôi .pdf).')
+
+    try:
+        position = uploaded_file.tell()
+    except (AttributeError, OSError):
+        position = 0
+    header = uploaded_file.read(5) or b''
+    try:
+        uploaded_file.seek(position)
+    except (AttributeError, OSError):
+        try:
+            uploaded_file.seek(0)
+        except (AttributeError, OSError):
+            pass
+    if not header.startswith(b'%PDF'):
+        raise ValidationError(
+            'Nội dung không phải PDF hợp lệ (thiếu chữ ký %PDF). '
+            'Kiểm tra lại file — có thể là ảnh đổi tên đuôi .pdf.'
+        )
 
 
 def _validate_image(uploaded_file):
     if uploaded_file.size > IMAGE_MAX_BYTES:
-        raise ValidationError('File không hợp lệ.')
-    if uploaded_file.content_type and uploaded_file.content_type not in IMAGE_TYPES:
-        raise ValidationError('File không hợp lệ.')
+        raise ValidationError(
+            f'Ảnh quá lớn (tối đa {_mb_label(IMAGE_MAX_BYTES)}MB).'
+        )
+    content_type = _normalize_content_type(getattr(uploaded_file, 'content_type', None))
+    if content_type and content_type not in IMAGE_TYPES:
+        raise ValidationError('Định dạng ảnh không hợp lệ (JPG, PNG, WebP, GIF).')
 
 
 def convert_pdf_to_docx(uploaded_file) -> tuple[bytes, str]:
@@ -69,6 +101,11 @@ def convert_pdf_to_docx(uploaded_file) -> tuple[bytes, str]:
 
     base_name = os.path.splitext(os.path.basename(uploaded_file.name or 'document.pdf'))[0]
     output_name = f'{base_name}.docx'
+
+    try:
+        uploaded_file.seek(0)
+    except (AttributeError, OSError):
+        pass
 
     with tempfile.TemporaryDirectory() as tmp:
         pdf_path = os.path.join(tmp, 'input.pdf')
