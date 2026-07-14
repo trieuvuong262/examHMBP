@@ -21,6 +21,7 @@ from reports.report_profile import REPORT_PROFILE_PRODUCTION
 from reports.production_hourly import (
     _report_efficiency_totals,
     _report_overall_efficiency_pct,
+    compute_day_work_waste_summary,
     report_has_manager_fixable_anomaly,
 )
 from reports.team_utils import (
@@ -425,8 +426,9 @@ def build_production_summary_shift_tabs(
     *,
     active_shift: str,
     base_params: dict[str, str],
+    url_name: str = 'reports:team_summary_cn',
 ) -> list[dict]:
-    """Tab Ca sáng / Ca tối — trang báo cáo tổng hợp SX."""
+    """Tab Ca sáng / Ca tối — trang báo cáo tổng hợp / thống kê SX."""
     from urllib.parse import urlencode
 
     from django.urls import reverse
@@ -439,7 +441,48 @@ def build_production_summary_shift_tabs(
             'label': shift_display_label(shift),
             'badge_class': shift_badge_class(shift),
             'is_active': shift == active_shift,
-            'url': f"{reverse('reports:team_summary_cn')}?{urlencode(params)}",
+            'url': f"{reverse(url_name)}?{urlencode(params)}",
+        })
+    return tabs
+
+
+SUMMARY_METRIC_EFFICIENCY = 'efficiency'
+SUMMARY_METRIC_TIME = 'time'
+SUMMARY_METRIC_QUANTITY = 'quantity'
+SUMMARY_METRIC_CHOICES = (
+    (SUMMARY_METRIC_EFFICIENCY, 'Hiệu suất'),
+    (SUMMARY_METRIC_TIME, 'Hiệu suất theo thời gian'),
+    (SUMMARY_METRIC_QUANTITY, 'Sản lượng'),
+)
+SUMMARY_METRIC_KEYS = frozenset(key for key, _label in SUMMARY_METRIC_CHOICES)
+
+
+def normalize_summary_metric(raw: str | None) -> str:
+    key = (raw or SUMMARY_METRIC_EFFICIENCY).strip().lower()
+    if key in SUMMARY_METRIC_KEYS:
+        return key
+    return SUMMARY_METRIC_EFFICIENCY
+
+
+def build_production_summary_metric_tabs(
+    *,
+    active_metric: str,
+    base_params: dict[str, str],
+    url_name: str = 'reports:report_stats_cn',
+) -> list[dict]:
+    """Tab chọn chỉ số: hiệu suất / hiệu suất thời gian / sản lượng."""
+    from urllib.parse import urlencode
+
+    from django.urls import reverse
+
+    tabs = []
+    for key, label in SUMMARY_METRIC_CHOICES:
+        params = {**base_params, 'metric': key}
+        tabs.append({
+            'key': key,
+            'label': label,
+            'is_active': key == active_metric,
+            'url': f"{reverse(url_name)}?{urlencode(params)}",
         })
     return tabs
 
@@ -490,6 +533,34 @@ def _weighted_parts(reports) -> tuple[Decimal, Decimal]:
     return aggregate_pct * total_hours, total_hours
 
 
+def _time_efficiency_parts(reports) -> tuple[Decimal, Decimal]:
+    """Trả (HS thời gian × trọng số giờ khai báo, tổng trọng số)."""
+    weighted = Decimal('0')
+    weight = Decimal('0')
+    for report in reports:
+        day_times = compute_day_work_waste_summary(
+            report,
+            list(report.production_products.all()),
+        )
+        pct = day_times.get('time_efficiency_pct')
+        if pct is None:
+            continue
+        declared = getattr(report, 'declared_work_hours', None)
+        part_weight = (
+            Decimal(str(declared))
+            if declared is not None and declared > 0
+            else Decimal('1')
+        )
+        weighted += Decimal(str(pct)) * part_weight
+        weight += part_weight
+    return weighted, weight
+
+
+def _quantity_total(reports) -> Decimal:
+    total_qty, _hours, _expected = _efficiency_totals_for_reports(reports)
+    return total_qty
+
+
 def _pct_from_parts(weighted: Decimal, hours: Decimal) -> float | None:
     if hours > 0:
         return float((weighted / hours).quantize(Decimal('0.01')))
@@ -514,6 +585,24 @@ def _day_efficiency_pct(reports: list[DailyWorkReport]) -> float | None:
     return _weighted_efficiency_pct(reports)
 
 
+def _metric_parts(reports, metric: str) -> tuple[Decimal, Decimal]:
+    """Trả (tử số tích lũy, mẫu số) theo loại chỉ số."""
+    if metric == SUMMARY_METRIC_TIME:
+        return _time_efficiency_parts(reports)
+    if metric == SUMMARY_METRIC_QUANTITY:
+        qty = _quantity_total(reports)
+        return qty, (Decimal('1') if qty > 0 else Decimal('0'))
+    return _weighted_parts(reports)
+
+
+def _metric_value_from_parts(numerator: Decimal, denominator: Decimal, metric: str) -> float | None:
+    if metric == SUMMARY_METRIC_QUANTITY:
+        if denominator > 0:
+            return float(numerator.quantize(Decimal('0.01')))
+        return None
+    return _pct_from_parts(numerator, denominator)
+
+
 def build_production_team_summary(
     viewer,
     team,
@@ -524,8 +613,13 @@ def build_production_team_summary(
     date_to: date,
     dept_filter: str = '',
     shift_filter: str = DailyWorkReport.SHIFT_MORNING,
+    metric: str = SUMMARY_METRIC_EFFICIENCY,
 ) -> dict:
-    """Ma trận: mỗi NV 1 dòng, mỗi ngày 1 cột, ô = hiệu suất TB ca trong ngày."""
+    """Ma trận: mỗi NV 1 dòng, mỗi ngày 1 cột — theo metric (HS / HS thời gian / SL)."""
+    metric = normalize_summary_metric(metric)
+    is_quantity = metric == SUMMARY_METRIC_QUANTITY
+    metric_label = dict(SUMMARY_METRIC_CHOICES).get(metric, 'Hiệu suất')
+
     days = [
         {
             'date': day,
@@ -542,9 +636,9 @@ def build_production_team_summary(
         if dept_filter else all_groups
     )
 
-    day_totals = [{'weighted': Decimal('0'), 'hours': Decimal('0')} for _ in days]
-    grand_weighted = Decimal('0')
-    grand_hours = Decimal('0')
+    day_totals = [{'numerator': Decimal('0'), 'denominator': Decimal('0')} for _ in days]
+    grand_numerator = Decimal('0')
+    grand_denominator = Decimal('0')
 
     stt = 0
     members_with_data = 0
@@ -557,29 +651,30 @@ def build_production_team_summary(
             shift_reports = _filter_reports_by_shift(visible, shift_filter)
             by_date = _reports_by_employee_date(shift_reports)
             cells = []
-            member_weighted = Decimal('0')
-            member_hours = Decimal('0')
+            member_numerator = Decimal('0')
+            member_denominator = Decimal('0')
             for idx, day in enumerate(days):
                 day_reports = by_date.get(day['date'], [])
-                weighted, hours = _weighted_parts(day_reports)
-                eff = _pct_from_parts(weighted, hours)
+                numerator, denominator = _metric_parts(day_reports, metric)
+                value = _metric_value_from_parts(numerator, denominator, metric)
                 primary_report = day_reports[0] if day_reports else None
                 cells.append({
-                    'efficiency_pct': eff,
-                    'has_data': eff is not None,
+                    'value': value,
+                    'efficiency_pct': value if not is_quantity else None,
+                    'has_data': value is not None,
                     'is_weekend': day['is_weekend'],
                     'report_pk': primary_report.pk if primary_report else None,
                 })
-                if hours > 0:
-                    day_totals[idx]['weighted'] += weighted
-                    day_totals[idx]['hours'] += hours
-                    member_weighted += weighted
-                    member_hours += hours
-            avg = _pct_from_parts(member_weighted, member_hours)
+                if denominator > 0:
+                    day_totals[idx]['numerator'] += numerator
+                    day_totals[idx]['denominator'] += denominator
+                    member_numerator += numerator
+                    member_denominator += denominator
+            avg = _metric_value_from_parts(member_numerator, member_denominator, metric)
             if avg is not None:
                 members_with_data += 1
-            grand_weighted += member_weighted
-            grand_hours += member_hours
+            grand_numerator += member_numerator
+            grand_denominator += member_denominator
             profile = getattr(member, 'profile', None)
             display_name = (
                 profile.full_name if profile and profile.full_name else member.username
@@ -590,15 +685,19 @@ def build_production_team_summary(
                 'name': display_name.upper(),
                 'division': profile.division.name if profile and getattr(profile, 'division_id', None) else '',
                 'cells': cells,
-                'avg_efficiency_pct': avg,
+                'avg_value': avg,
+                'avg_efficiency_pct': avg if not is_quantity else None,
                 'report_count': len(shift_reports),
             })
         groups.append({**group, 'label': group['label'], 'members': members_out})
 
-    day_averages = [_pct_from_parts(t['weighted'], t['hours']) for t in day_totals]
+    day_averages = [
+        _metric_value_from_parts(t['numerator'], t['denominator'], metric)
+        for t in day_totals
+    ]
     for day, avg in zip(days, day_averages):
         day['average'] = avg
-    overall_avg = _pct_from_parts(grand_weighted, grand_hours)
+    overall_avg = _metric_value_from_parts(grand_numerator, grand_denominator, metric)
 
     return {
         'days': days,
@@ -611,6 +710,13 @@ def build_production_team_summary(
         'overall_avg': overall_avg,
         'shift_filter': shift_filter,
         'shift_label': shift_display_label(shift_filter),
+        'metric': metric,
+        'metric_label': metric_label,
+        'metric_is_percent': not is_quantity,
+        'avg_column_label': 'Tổng' if is_quantity else 'TB',
+        'overall_stat_label': (
+            'SL toàn team' if is_quantity else f'{metric_label} TB toàn team'
+        ),
     }
 
 

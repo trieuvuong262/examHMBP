@@ -124,6 +124,10 @@ def user_can_menu_action(user, module_key: str, menu_key: str, action: str) -> b
 
 
 def user_can_access_menu(user, module_key: str, menu_key: str) -> bool:
+    # Thống kê báo cáo: chỉ khi nhóm bật rõ submenu — tránh kế thừa view cả module.
+    if module_key == 'reports' and menu_key == 'report_stats':
+        from hrm.permissions import can_view_report_statistics
+        return can_view_report_statistics(user)
     return user_can_menu_action(user, module_key, menu_key, PERM_VIEW)
 
 

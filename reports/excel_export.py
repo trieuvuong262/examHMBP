@@ -84,13 +84,29 @@ def _xlsx_response(sheets: dict[str, pd.DataFrame], filename_prefix: str) -> Htt
     return response
 
 
-def export_production_team_summary_xlsx(summary, *, date_from, date_to, shift_label: str) -> HttpResponse:
-    """Xuất ma trận hiệu suất tổng hợp SX (NV × ngày) ra Excel."""
+def export_production_team_summary_xlsx(
+    summary,
+    *,
+    date_from,
+    date_to,
+    shift_label: str,
+    filename_kind: str = 'tong_hop',
+) -> HttpResponse:
+    """Xuất ma trận tổng hợp / thống kê SX (NV × ngày) ra Excel."""
     days = summary.get('days', [])
     day_headers = [f"{d['weekday']} {d['date'].strftime('%d/%m')}" for d in days]
-    columns = ['STT', 'Nhân viên', 'Bộ phận', *day_headers, 'TB chung']
+    is_percent = summary.get('metric_is_percent', True)
+    avg_label = summary.get('avg_column_label') or ('TB' if is_percent else 'Tổng')
+    columns = [
+        'STT',
+        'Nhân viên',
+        'Bộ phận',
+        *day_headers,
+        f'{avg_label} chung' if is_percent else f'{avg_label} kỳ',
+    ]
 
-    team_row = ['', 'TB team theo ngày', '']
+    team_label = 'TB team theo ngày' if is_percent else 'SL team theo ngày'
+    team_row = ['', team_label, '']
     for d in days:
         avg = d.get('average')
         team_row.append(round(avg, 2) if avg is not None else '')
@@ -102,17 +118,27 @@ def export_production_team_summary_xlsx(summary, *, date_from, date_to, shift_la
         for member in group.get('members', []):
             row = [member['stt'], member['name'], member.get('division') or '']
             for cell in member['cells']:
-                eff = cell.get('efficiency_pct')
-                row.append(round(eff, 2) if eff is not None else '')
-            avg = member.get('avg_efficiency_pct')
+                val = cell.get('value', cell.get('efficiency_pct'))
+                row.append(round(val, 2) if val is not None else '')
+            avg = member.get('avg_value', member.get('avg_efficiency_pct'))
             row.append(round(avg, 2) if avg is not None else '')
             rows.append(row)
 
     df = pd.DataFrame(rows, columns=columns)
-    prefix = (
-        f'Bao_cao_tong_hop_SX_{_safe_filename_part(shift_label)}'
-        f'_{date_from.strftime("%Y%m%d")}_{date_to.strftime("%Y%m%d")}'
-    )
+    metric = summary.get('metric') or 'efficiency'
+    metric_part = {
+        'efficiency': 'hieu_suat',
+        'time': 'hieu_suat_thoi_gian',
+        'quantity': 'san_luong',
+    }.get(metric, metric)
+    date_span = f'{date_from.strftime("%Y%m%d")}_{date_to.strftime("%Y%m%d")}'
+    if filename_kind == 'thong_ke':
+        prefix = (
+            f'Thong_ke_BC_SX_{_safe_filename_part(metric_part)}'
+            f'_{_safe_filename_part(shift_label)}_{date_span}'
+        )
+    else:
+        prefix = f'Bao_cao_tong_hop_SX_{_safe_filename_part(shift_label)}_{date_span}'
     return _xlsx_response({'Tong_hop': df}, prefix)
 
 

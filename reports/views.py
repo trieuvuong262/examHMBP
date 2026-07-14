@@ -27,6 +27,7 @@ from hrm.permissions import (
     can_review_user_report,
     can_review_user_weekly_report,
     can_submit_daily_report,
+    can_view_report_statistics,
     can_view_team_reports,
     can_view_user_report,
     can_view_user_weekly_report,
@@ -139,8 +140,10 @@ from .team_sort import (
 from .production_team import (
     build_production_day_shift_tabs,
     build_production_reports_by_employee,
+    build_production_summary_metric_tabs,
     build_production_summary_shift_tabs,
     build_production_team_department_groups,
+    normalize_summary_metric,
     production_team_review_row_counts,
     production_team_row_is_submitted,
     production_team_row_matches_filter,
@@ -1643,6 +1646,227 @@ def _parse_team_summary_shift(request) -> str:
     return shift
 
 
+def _parse_summary_metric(request) -> str:
+    return normalize_summary_metric(request.GET.get('metric'))
+
+
+def _render_production_summary_matrix(
+    request,
+    *,
+    page_title: str,
+    summary_url_name: str,
+    export_url_name: str,
+    show_metric_selector: bool = False,
+    require_stats_access: bool = False,
+):
+    """Ma trận NV × ngày — báo cáo tổng hợp (chỉ HS) hoặc thống kê KPI (nhiều chỉ số)."""
+    from .production_team import build_production_team_summary
+
+    if require_stats_access:
+        if not can_view_report_statistics(request.user):
+            messages.error(request, 'Bạn không có quyền xem thống kê báo cáo.')
+            return redirect('home_portal')
+    elif not can_view_team_reports(request.user):
+        messages.error(
+            request,
+            'Chưa có nhân viên cấp dưới trực tiếp. HR cần cấu hình tại Nhân sự → Sửa nhân viên → Nhân viên dưới quyền.',
+        )
+        return redirect('home_portal')
+
+    date_from, date_to = parse_team_date_range(request, default_span_days=TEAM_SUMMARY_DEFAULT_SPAN_DAYS)
+    search_query = get_search_query(request)
+    dept_filter = (request.GET.get('dept') or '').strip()
+    division_filter = (request.GET.get('division') or '').strip()
+    shift_filter = _parse_team_summary_shift(request)
+    metric = _parse_summary_metric(request) if show_metric_selector else 'efficiency'
+
+    team_base = _team_queryset(request.user, search_query, report_profile=REPORT_PROFILE_PRODUCTION)
+    division_choices = division_filter_choices_from_team(
+        request.user,
+        team_base,
+        dept_filter=dept_filter,
+    )
+    team = (
+        filter_users_by_division(team_base, division_filter)
+        if division_filter else team_base
+    )
+    all_team_ids = list(team.values_list('id', flat=True))
+    team_count = team.count()
+
+    reports = query_production_team_reports(all_team_ids, date_from, date_to)
+    reports_by_employee = build_production_reports_by_employee(reports)
+    summary = build_production_team_summary(
+        request.user,
+        team,
+        reports_by_employee,
+        daily_report_visible_to_team,
+        date_from=date_from,
+        date_to=date_to,
+        dept_filter=dept_filter,
+        shift_filter=shift_filter,
+        metric=metric,
+    )
+
+    base_params = team_date_range_query_params(date_from, date_to)
+    base_params['shift'] = shift_filter
+    if show_metric_selector:
+        base_params['metric'] = metric
+    if search_query:
+        base_params['q'] = search_query
+    if dept_filter:
+        base_params['dept'] = dept_filter
+    if division_filter:
+        base_params['division'] = division_filter
+
+    tab_params = {k: v for k, v in base_params.items() if k != 'shift'}
+    metric_tab_params = {k: v for k, v in base_params.items() if k != 'metric'}
+
+    return render(request, 'reports/team_summary.html', {
+        'summary': summary,
+        'days': summary['days'],
+        'department_groups': summary['groups'],
+        'dept_choices': summary['dept_choices'],
+        'division_choices': division_choices,
+        'selected_dept': dept_filter,
+        'selected_division': division_filter,
+        'search_query': search_query,
+        'range_from': date_from,
+        'range_to': date_to,
+        'report_date': date_to,
+        'team_count': team_count,
+        'active_shift': shift_filter,
+        'active_metric': metric,
+        'show_metric_selector': show_metric_selector,
+        'metric_tabs': (
+            build_production_summary_metric_tabs(
+                active_metric=metric,
+                base_params=metric_tab_params,
+                url_name=summary_url_name,
+            )
+            if show_metric_selector else []
+        ),
+        'shift_tabs': build_production_summary_shift_tabs(
+            active_shift=shift_filter,
+            base_params=tab_params,
+            url_name=summary_url_name,
+        ),
+        'team_page_title': page_title,
+        'reports_scope_label': 'SX',
+        'can_submit_report': can_submit_daily_report(request.user),
+        'today_url_name': 'reports:today_cn',
+        'team_url_name': 'reports:team_cn',
+        'summary_export_url_name': export_url_name,
+        'show_team_list_back': not require_stats_access,
+        'empty_team_message': (
+            'Chưa có nhân viên sản xuất để thống kê.'
+            if require_stats_access
+            else 'Chưa có nhân viên cấp dưới được cấu hình.'
+        ),
+        'team_list_query': urlencode(base_params),
+        'screenshot_filename_prefix': (
+            'thong-ke-bao-cao-sx'
+            if require_stats_access
+            else 'bao-cao-tong-hop-sx'
+        ),
+    })
+
+
+def _export_production_summary_matrix(
+    request,
+    *,
+    show_metric_selector: bool = False,
+    require_stats_access: bool = False,
+):
+    from .production_team import build_production_team_summary
+    from .excel_export import export_production_team_summary_xlsx
+
+    if require_stats_access:
+        if not can_view_report_statistics(request.user):
+            return redirect('home_portal')
+    elif not can_view_team_reports(request.user):
+        return redirect('home_portal')
+
+    date_from, date_to = parse_team_date_range(request, default_span_days=TEAM_SUMMARY_DEFAULT_SPAN_DAYS)
+    search_query = get_search_query(request)
+    dept_filter = (request.GET.get('dept') or '').strip()
+    division_filter = (request.GET.get('division') or '').strip()
+    shift_filter = _parse_team_summary_shift(request)
+    metric = _parse_summary_metric(request) if show_metric_selector else 'efficiency'
+
+    team_base = _team_queryset(request.user, search_query, report_profile=REPORT_PROFILE_PRODUCTION)
+    team = (
+        filter_users_by_division(team_base, division_filter)
+        if division_filter else team_base
+    )
+    all_team_ids = list(team.values_list('id', flat=True))
+    reports = query_production_team_reports(all_team_ids, date_from, date_to)
+    reports_by_employee = build_production_reports_by_employee(reports)
+    summary = build_production_team_summary(
+        request.user,
+        team,
+        reports_by_employee,
+        daily_report_visible_to_team,
+        date_from=date_from,
+        date_to=date_to,
+        dept_filter=dept_filter,
+        shift_filter=shift_filter,
+        metric=metric,
+    )
+    return export_production_team_summary_xlsx(
+        summary,
+        date_from=date_from,
+        date_to=date_to,
+        shift_label=summary['shift_label'],
+        filename_kind='thong_ke' if require_stats_access else 'tong_hop',
+    )
+
+
+@_reports_access_required
+def team_summary_cn(request):
+    """Báo cáo tổng hợp SX — ma trận hiệu suất trung bình NV × ngày."""
+    return _render_production_summary_matrix(
+        request,
+        page_title='Báo cáo tổng hợp (SX)',
+        summary_url_name='reports:team_summary_cn',
+        export_url_name='reports:team_summary_cn_export',
+        show_metric_selector=False,
+        require_stats_access=False,
+    )
+
+
+@_reports_access_required
+def team_summary_cn_export(request):
+    """Xuất Excel báo cáo tổng hợp SX (theo bộ lọc hiện tại)."""
+    return _export_production_summary_matrix(
+        request,
+        show_metric_selector=False,
+        require_stats_access=False,
+    )
+
+
+@_reports_access_required
+def report_stats_cn(request):
+    """Thống kê báo cáo SX — ma trận KPI (HS / HS thời gian / sản lượng), xem toàn công ty."""
+    return _render_production_summary_matrix(
+        request,
+        page_title='Thống kê báo cáo (SX)',
+        summary_url_name='reports:report_stats_cn',
+        export_url_name='reports:report_stats_cn_export',
+        show_metric_selector=True,
+        require_stats_access=True,
+    )
+
+
+@_reports_access_required
+def report_stats_cn_export(request):
+    """Xuất Excel thống kê báo cáo SX."""
+    return _export_production_summary_matrix(
+        request,
+        show_metric_selector=True,
+        require_stats_access=True,
+    )
+
+
 def _parse_team_status_filter(request) -> str:
     val = (request.GET.get('status') or '').strip().lower()
     if val in (
@@ -1760,133 +1984,6 @@ def team_reports_cn(request):
 @_reports_access_required
 def team_reports_vp(request):
     return _team_reports_for_profile(request, REPORT_PROFILE_OFFICE)
-
-
-@_reports_access_required
-def team_summary_cn(request):
-    """Báo cáo tổng hợp SX — ma trận hiệu suất trung bình NV × ngày."""
-    from .production_team import build_production_team_summary
-
-    if not can_view_team_reports(request.user):
-        messages.error(
-            request,
-            'Chưa có nhân viên cấp dưới trực tiếp. HR cần cấu hình tại Nhân sự → Sửa nhân viên → Nhân viên dưới quyền.',
-        )
-        return redirect('home_portal')
-
-    date_from, date_to = parse_team_date_range(request, default_span_days=TEAM_SUMMARY_DEFAULT_SPAN_DAYS)
-    search_query = get_search_query(request)
-    dept_filter = (request.GET.get('dept') or '').strip()
-    division_filter = (request.GET.get('division') or '').strip()
-    shift_filter = _parse_team_summary_shift(request)
-
-    from hrm.user_search import filter_users_by_division
-
-    team_base = _team_queryset(request.user, search_query, report_profile=REPORT_PROFILE_PRODUCTION)
-    division_choices = division_filter_choices_from_team(
-        request.user,
-        team_base,
-        dept_filter=dept_filter,
-    )
-    team = (
-        filter_users_by_division(team_base, division_filter)
-        if division_filter else team_base
-    )
-    all_team_ids = list(team.values_list('id', flat=True))
-    team_count = team.count()
-
-    reports = query_production_team_reports(all_team_ids, date_from, date_to)
-    reports_by_employee = build_production_reports_by_employee(reports)
-    summary = build_production_team_summary(
-        request.user,
-        team,
-        reports_by_employee,
-        daily_report_visible_to_team,
-        date_from=date_from,
-        date_to=date_to,
-        dept_filter=dept_filter,
-        shift_filter=shift_filter,
-    )
-
-    base_params = team_date_range_query_params(date_from, date_to)
-    base_params['shift'] = shift_filter
-    if search_query:
-        base_params['q'] = search_query
-    if dept_filter:
-        base_params['dept'] = dept_filter
-    if division_filter:
-        base_params['division'] = division_filter
-
-    tab_params = {k: v for k, v in base_params.items() if k != 'shift'}
-
-    return render(request, 'reports/team_summary.html', {
-        'summary': summary,
-        'days': summary['days'],
-        'department_groups': summary['groups'],
-        'dept_choices': summary['dept_choices'],
-        'division_choices': division_choices,
-        'selected_dept': dept_filter,
-        'selected_division': division_filter,
-        'search_query': search_query,
-        'range_from': date_from,
-        'range_to': date_to,
-        'report_date': date_to,
-        'team_count': team_count,
-        'active_shift': shift_filter,
-        'shift_tabs': build_production_summary_shift_tabs(
-            active_shift=shift_filter,
-            base_params=tab_params,
-        ),
-        'team_page_title': 'Báo cáo tổng hợp (SX)',
-        'reports_scope_label': 'SX',
-        'can_submit_report': can_submit_daily_report(request.user),
-        'today_url_name': 'reports:today_cn',
-        'team_url_name': 'reports:team_cn',
-        'team_list_query': urlencode(base_params),
-    })
-
-
-@_reports_access_required
-def team_summary_cn_export(request):
-    """Xuất Excel báo cáo tổng hợp SX (theo bộ lọc hiện tại)."""
-    from .production_team import build_production_team_summary
-    from .excel_export import export_production_team_summary_xlsx
-
-    if not can_view_team_reports(request.user):
-        return redirect('home_portal')
-
-    date_from, date_to = parse_team_date_range(request, default_span_days=TEAM_SUMMARY_DEFAULT_SPAN_DAYS)
-    search_query = get_search_query(request)
-    dept_filter = (request.GET.get('dept') or '').strip()
-    division_filter = (request.GET.get('division') or '').strip()
-    shift_filter = _parse_team_summary_shift(request)
-
-    from hrm.user_search import filter_users_by_division
-
-    team_base = _team_queryset(request.user, search_query, report_profile=REPORT_PROFILE_PRODUCTION)
-    team = (
-        filter_users_by_division(team_base, division_filter)
-        if division_filter else team_base
-    )
-    all_team_ids = list(team.values_list('id', flat=True))
-    reports = query_production_team_reports(all_team_ids, date_from, date_to)
-    reports_by_employee = build_production_reports_by_employee(reports)
-    summary = build_production_team_summary(
-        request.user,
-        team,
-        reports_by_employee,
-        daily_report_visible_to_team,
-        date_from=date_from,
-        date_to=date_to,
-        dept_filter=dept_filter,
-        shift_filter=shift_filter,
-    )
-    return export_production_team_summary_xlsx(
-        summary,
-        date_from=date_from,
-        date_to=date_to,
-        shift_label=summary['shift_label'],
-    )
 
 
 def _team_reports_for_profile(request, report_profile: str, *, report_period: str = PERIOD_DAY):

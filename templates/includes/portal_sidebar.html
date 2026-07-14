@@ -200,10 +200,19 @@
                 {% if jp_can_reports_daily_cn_detail %}
                 <li>
                     <a href="{% url 'reports:team_cn' %}"
-                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'team_cn' or request.resolver_match.url_name == 'detail_cn' %}active{% endif %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'team_cn' or request.resolver_match.url_name == 'detail_cn' or request.resolver_match.url_name == 'team_summary_cn' %}active{% endif %}"
                        data-jp-team-list-nav
                        data-loading-message="Đang tải danh sách SX...">
                         <i class="bi bi-people-fill"></i><span>Quản lý báo cáo SX</span>
+                    </a>
+                </li>
+                {% endif %}
+                {% jp_can_menu 'reports' 'report_stats' as jp_can_reports_stats %}
+                {% if jp_can_reports_stats %}
+                <li>
+                    <a href="{% url 'reports:report_stats_cn' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'report_stats_cn' %}active{% endif %}">
+                        <i class="bi bi-table"></i><span>Thống kê báo cáo</span>
                     </a>
                 </li>
                 {% endif %}

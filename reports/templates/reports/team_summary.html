@@ -186,18 +186,26 @@
     <div class="jp-page-header d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
         <div>
             <h2 class="fw-bold text-hm mb-1 jp-page-title">{{ team_page_title }}</h2>
-            <p class="text-muted small mb-0">Hiệu suất trung bình mỗi nhân viên theo từng ngày — <span class="{{ active_shift|production_shift_badge_class }}">{{ summary.shift_label }}</span></p>
+            <p class="text-muted small mb-0">
+                {% if show_metric_selector %}
+                {{ summary.metric_label }} mỗi nhân viên theo từng ngày — <span class="{{ active_shift|production_shift_badge_class }}">{{ summary.shift_label }}</span>
+                {% else %}
+                Hiệu suất trung bình mỗi nhân viên theo từng ngày — <span class="{{ active_shift|production_shift_badge_class }}">{{ summary.shift_label }}</span>
+                {% endif %}
+            </p>
         </div>
         <div class="d-flex flex-wrap gap-2">
-            <a href="{% url 'reports:team_summary_cn_export' %}?{{ team_list_query }}" class="btn btn-outline-success btn-sm">
+            <a href="{% url summary_export_url_name %}?{{ team_list_query }}" class="btn btn-outline-success btn-sm">
                 <i class="bi bi-file-earmark-spreadsheet me-1"></i>Xuất Excel
             </a>
             <button type="button" id="btnSummaryScreenshot" class="btn btn-outline-secondary btn-sm">
                 <i class="bi bi-camera me-1"></i>Chụp ảnh
             </button>
+            {% if show_team_list_back %}
             <a href="{% url team_url_name %}?{{ team_list_query }}" class="btn btn-outline-hm btn-sm">
                 <i class="bi bi-arrow-left me-1"></i>Danh sách báo cáo
             </a>
+            {% endif %}
         </div>
     </div>
 
@@ -215,12 +223,31 @@
             <div class="lbl">Số ngày</div>
         </div>
         <div class="jp-summary-stat">
-            <div class="val {% if summary.overall_avg is None %}text-muted{% elif summary.overall_avg >= 120 %}text-success{% elif summary.overall_avg >= 100 %}text-primary{% elif summary.overall_avg >= 80 %}text-warning{% else %}text-danger{% endif %}">
-                {% if summary.overall_avg is not None %}{{ summary.overall_avg|floatformat:2 }}%{% else %}—{% endif %}
+            <div class="val {% if summary.overall_avg is None %}text-muted{% elif not summary.metric_is_percent %}text-hm{% elif summary.overall_avg >= 120 %}text-success{% elif summary.overall_avg >= 100 %}text-primary{% elif summary.overall_avg >= 80 %}text-warning{% else %}text-danger{% endif %}">
+                {% if summary.overall_avg is not None %}
+                    {% if summary.metric_is_percent %}{{ summary.overall_avg|floatformat:2 }}%{% else %}{{ summary.overall_avg|prod_qty }}{% endif %}
+                {% else %}—{% endif %}
             </div>
-            <div class="lbl">HS TB toàn team</div>
+            <div class="lbl">{{ summary.overall_stat_label|default:"HS TB toàn team" }}</div>
         </div>
     </div>
+
+    {% if show_metric_selector and metric_tabs %}
+    <div class="card border-0 jp-report-section-card jp-report-tabs-card mb-3">
+        <ul class="nav nav-tabs jp-report-tabs" role="tablist" aria-label="Chọn chỉ số thống kê">
+            {% for tab in metric_tabs %}
+            <li class="nav-item" role="presentation">
+                <a class="nav-link{% if tab.is_active %} active{% endif %}"
+                   href="{{ tab.url }}"
+                   role="tab"
+                   {% if tab.is_active %}aria-current="page"{% endif %}>
+                    {{ tab.label }}
+                </a>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
 
     <div class="card border-0 jp-report-section-card jp-report-tabs-card jp-prod-day-shift-tabs-card mb-3">
         <ul class="nav nav-tabs jp-report-tabs jp-prod-day-shift-tabs" role="tablist" aria-label="Chọn ca làm">
@@ -239,6 +266,9 @@
 
     <form method="get" id="summaryFilterForm" class="card border-0 shadow-sm mb-3">
         <input type="hidden" name="shift" value="{{ active_shift }}">
+        {% if show_metric_selector %}
+        <input type="hidden" name="metric" value="{{ active_metric }}">
+        {% endif %}
         <div class="card-body p-3 d-flex flex-wrap gap-3 align-items-end">
             <div>
                 <label class="form-label fw-bold small mb-1">Từ ngày</label>
@@ -277,7 +307,7 @@
                 </div>
             </div>
             {% if search_query or selected_dept or selected_division %}
-            <a href="?from={{ range_from|date:'Y-m-d' }}&to={{ range_to|date:'Y-m-d' }}&shift={{ active_shift }}" class="btn btn-light border align-self-end" title="Xóa bộ lọc"><i class="bi bi-x-lg"></i></a>
+            <a href="?from={{ range_from|date:'Y-m-d' }}&to={{ range_to|date:'Y-m-d' }}&shift={{ active_shift }}{% if show_metric_selector %}&metric={{ active_metric }}{% endif %}" class="btn btn-light border align-self-end" title="Xóa bộ lọc"><i class="bi bi-x-lg"></i></a>
             {% endif %}
         </div>
         {% if search_query %}
@@ -301,15 +331,19 @@
                             <small>{{ day.date|date:"d/m" }}</small>
                         </th>
                         {% endfor %}
-                        <th class="jp-col-avg">TB<small>chung</small></th>
+                        <th class="jp-col-avg">{{ summary.avg_column_label|default:"TB" }}<small>{% if summary.metric_is_percent %}chung{% else %}kỳ{% endif %}</small></th>
                     </tr>
                     {% if summary.has_members %}
                     <tr class="jp-summary-team-row">
-                        <th class="jp-col-team-label" colspan="3">TB team theo ngày</th>
+                        <th class="jp-col-team-label" colspan="3">{% if summary.metric_is_percent %}TB team theo ngày{% else %}SL team theo ngày{% endif %}</th>
                         {% for day in days %}
                         <th>
                             {% if day.average is not None %}
-                            <span class="jp-eff">{{ day.average|floatformat:2 }}%</span>
+                                {% if summary.metric_is_percent %}
+                                <span class="jp-eff">{{ day.average|floatformat:2 }}%</span>
+                                {% else %}
+                                <span class="jp-eff">{{ day.average|prod_qty }}</span>
+                                {% endif %}
                             {% else %}
                             <span class="jp-eff is-none">—</span>
                             {% endif %}
@@ -317,7 +351,11 @@
                         {% endfor %}
                         <th class="jp-col-avg">
                             {% if summary.overall_avg is not None %}
-                            <span class="jp-eff">{{ summary.overall_avg|floatformat:2 }}%</span>
+                                {% if summary.metric_is_percent %}
+                                <span class="jp-eff">{{ summary.overall_avg|floatformat:2 }}%</span>
+                                {% else %}
+                                <span class="jp-eff">{{ summary.overall_avg|prod_qty }}</span>
+                                {% endif %}
                             {% else %}
                             <span class="jp-eff is-none">—</span>
                             {% endif %}
@@ -348,18 +386,30 @@
                             <a href="{% url 'reports:detail_cn' cell.report_pk %}{% if team_list_query %}?{{ team_list_query }}{% endif %}"
                                class="jp-summary-eff-link"
                                title="Xem báo cáo chi tiết">
-                                <span class="jp-eff {{ cell.efficiency_pct|summary_efficiency_class }}">{{ cell.efficiency_pct|floatformat:2 }}%</span>
+                                {% if summary.metric_is_percent %}
+                                <span class="jp-eff {{ cell.value|summary_efficiency_class }}">{{ cell.value|floatformat:2 }}%</span>
+                                {% else %}
+                                <span class="jp-eff is-norm">{{ cell.value|prod_qty }}</span>
+                                {% endif %}
                             </a>
                             {% elif cell.has_data %}
-                            <span class="jp-eff {{ cell.efficiency_pct|summary_efficiency_class }}">{{ cell.efficiency_pct|floatformat:2 }}%</span>
+                                {% if summary.metric_is_percent %}
+                                <span class="jp-eff {{ cell.value|summary_efficiency_class }}">{{ cell.value|floatformat:2 }}%</span>
+                                {% else %}
+                                <span class="jp-eff is-norm">{{ cell.value|prod_qty }}</span>
+                                {% endif %}
                             {% else %}
                             <span class="jp-eff is-none">—</span>
                             {% endif %}
                         </td>
                         {% endfor %}
                         <td class="jp-col-avg">
-                            {% if m.avg_efficiency_pct is not None %}
-                            <span class="jp-eff {{ m.avg_efficiency_pct|summary_efficiency_class }}">{{ m.avg_efficiency_pct|floatformat:2 }}%</span>
+                            {% if m.avg_value is not None %}
+                                {% if summary.metric_is_percent %}
+                                <span class="jp-eff {{ m.avg_value|summary_efficiency_class }}">{{ m.avg_value|floatformat:2 }}%</span>
+                                {% else %}
+                                <span class="jp-eff is-norm">{{ m.avg_value|prod_qty }}</span>
+                                {% endif %}
                             {% else %}
                             <span class="jp-eff is-none">—</span>
                             {% endif %}
@@ -370,7 +420,7 @@
                     {% empty %}
                     <tr>
                         <td colspan="{{ days|length|add:4 }}" class="text-center text-muted py-5">
-                            Chưa có nhân viên cấp dưới được cấu hình.
+                            {{ empty_team_message|default:"Chưa có nhân viên cấp dưới được cấu hình." }}
                         </td>
                     </tr>
                     {% endfor %}
@@ -378,12 +428,14 @@
             </table>
         </div>
     </div>
+    {% if summary.metric_is_percent %}
     <p class="text-muted small mt-2 mb-0">
         <span class="jp-eff is-high">≥120%</span>
         <span class="jp-eff is-norm ms-1">100–119%</span>
         <span class="jp-eff is-ok ms-1">80–99%</span>
         <span class="jp-eff is-low ms-1">&lt;80%</span>
     </p>
+    {% endif %}
 </div>
 {% endblock %}
 
@@ -475,7 +527,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 },
             }).then(function (canvas) {
                 var stamp = new Date().toISOString().slice(0, 10);
-                var fileName = 'bao-cao-tong-hop-sx-{{ active_shift|lower }}-' + stamp + '.png';
+                var fileName = '{{ screenshot_filename_prefix|default:"bao-cao-tong-hop-sx" }}-{{ active_shift|lower }}-' + stamp + '.png';
                 var dataUrl;
                 try {
                     dataUrl = canvas.toDataURL('image/png');

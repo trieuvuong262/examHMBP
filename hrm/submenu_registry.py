@@ -35,6 +35,12 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
     MODULE_REPORTS: [
         {'key': 'daily_cn', 'label': 'Báo cáo ngày (SX)', 'icon': 'bi-calendar-day'},
         {'key': 'daily_cn_detail', 'label': 'Quản lý báo cáo (SX)', 'icon': 'bi-people-fill'},
+        {
+            'key': 'report_stats',
+            'label': 'Thống kê báo cáo',
+            'icon': 'bi-table',
+            'perm_view_only': True,
+        },
         {'key': 'daily_vp', 'label': 'Báo cáo VP', 'icon': 'bi-clipboard-check'},
         {'key': 'daily_vp_detail', 'label': 'Quản lý BC (VP)', 'icon': 'bi-people-fill'},
     ],
@@ -141,6 +147,7 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     ('/dashboard/submission/', MODULE_ASSESSMENT, 'manage'),
     ('/exams/', MODULE_ASSESSMENT, 'exams'),
     # Báo cáo — SX (sản xuất)
+    ('/reports/sx/thong-ke', MODULE_REPORTS, 'report_stats'),
     ('/reports/sx/team', MODULE_REPORTS, 'daily_cn_detail'),
     ('/reports/sx/my', MODULE_REPORTS, 'daily_cn'),
     ('/reports/sx/copy-yesterday', MODULE_REPORTS, 'daily_cn'),

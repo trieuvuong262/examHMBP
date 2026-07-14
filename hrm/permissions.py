@@ -134,11 +134,40 @@ def is_global_report_viewer(user) -> bool:
     return user.username.lower() in GLOBAL_REPORT_VIEWER_USERNAMES
 
 
+def can_view_report_statistics(user) -> bool:
+    """Menu Thống kê báo cáo — chỉ khi nhóm quyền bật rõ submenu (không kế thừa mặc định).
+
+    HR không cần tổ trưởng / cấp dưới vẫn xem toàn công ty để đánh giá KPI.
+    """
+    if not getattr(user, 'is_authenticated', False):
+        return False
+    from hrm.group_permissions import get_user_module_perm, module_perm_allows_view
+    from hrm.menu_permissions import module_has_configured_menus
+    from hrm.module_permissions import MODULE_REPORTS, bypass_department_modules
+    from reports.navigation import MENU_REPORT_STATS
+
+    if bypass_department_modules(user):
+        return True
+    if not _has_reports_module_access(user):
+        return False
+
+    mod_perm = get_user_module_perm(user, MODULE_REPORTS)
+    if not module_has_configured_menus(mod_perm):
+        return False
+    menus = mod_perm.get('menus') or {}
+    menu_perm = menus.get(MENU_REPORT_STATS)
+    if not isinstance(menu_perm, dict):
+        return False
+    return module_perm_allows_view(menu_perm)
+
+
 def has_company_wide_report_access(user) -> bool:
-    """Xem danh sách / chi tiết báo cáo toàn công ty (admin đặc biệt hoặc Giám đốc)."""
+    """Xem danh sách / chi tiết báo cáo toàn công ty (admin, Giám đốc, hoặc Thống kê BC)."""
     if is_global_report_viewer(user):
         return True
-    return is_director(user)
+    if is_director(user):
+        return True
+    return can_view_report_statistics(user)
 
 
 def get_report_team_users(viewer):
