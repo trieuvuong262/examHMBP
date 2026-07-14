@@ -211,37 +211,163 @@
 
     /* ——— Tối ưu mobile ——— */
     @media (max-width: 767.98px) {
-        .jp-summary-stats { gap: 0.5rem; }
-        .jp-summary-stat { flex: 1 1 calc(50% - 0.25rem); padding: 0.5rem 0.7rem; border-radius: 0.6rem; }
-        .jp-summary-stat .val { font-size: 1.15rem; }
-        .jp-summary-stat .lbl { font-size: 0.6rem; }
+        .jp-reports-page {
+            padding-top: 0.75rem !important;
+            padding-bottom: 4rem !important;
+        }
+        .jp-page-header {
+            gap: 0.65rem !important;
+            margin-bottom: 0.75rem !important;
+        }
+        .jp-page-header .jp-page-title {
+            font-size: 1.15rem;
+            margin-bottom: 0 !important;
+        }
+        .jp-page-header > .d-flex {
+            width: 100%;
+            gap: 0.4rem !important;
+        }
+        .jp-page-header .btn {
+            flex: 1 1 0;
+            min-width: 0;
+            white-space: nowrap;
+            font-size: 0.78rem;
+            padding: 0.35rem 0.45rem;
+        }
 
-        .jp-summary-filters { gap: 0.5rem; }
-        .jp-summary-filters .jp-filter-date { flex-basis: 7.5rem; width: 7.5rem; }
-        .jp-summary-filters .jp-hrm-search-wrap { min-width: 10rem; }
+        .jp-report-tabs-card {
+            margin-bottom: 0.65rem !important;
+        }
+        .jp-report-tabs {
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            gap: 0;
+        }
+        .jp-report-tabs .nav-link {
+            white-space: nowrap;
+            font-size: 0.78rem;
+            padding: 0.55rem 0.7rem;
+        }
 
-        .jp-summary-scroll { max-height: 70vh; }
+        /* Bộ lọc: lưới 2 cột, không cuộn ngang */
+        #summaryFilterForm {
+            margin-bottom: 0.75rem !important;
+        }
+        .jp-summary-filters {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            align-items: end;
+            gap: 0.55rem 0.5rem;
+            overflow: visible;
+            padding: 0.75rem !important;
+        }
+        .jp-summary-filters .jp-filter-date,
+        .jp-summary-filters .jp-filter-sm,
+        .jp-summary-filters .jp-filter-show,
+        .jp-summary-filters .jp-hrm-search-wrap,
+        .jp-summary-filters .jp-filter-clear {
+            width: auto;
+            min-width: 0;
+            max-width: none;
+            flex: none;
+        }
+        .jp-summary-filters .jp-filter-date {
+            width: auto;
+        }
+        .jp-summary-filters .jp-hrm-search-wrap {
+            grid-column: 1 / -1;
+            min-width: 0;
+        }
+        .jp-summary-filters .jp-filter-clear {
+            grid-column: 1 / -1;
+            justify-self: end;
+            width: auto;
+        }
+        .jp-summary-filters .form-control,
+        .jp-summary-filters .form-select,
+        .jp-summary-filters .flatpickr-input,
+        .jp-summary-filters .jp-hrm-search .form-control {
+            width: 100%;
+            min-width: 0;
+            font-size: 16px; /* tránh zoom iOS */
+        }
+        .jp-summary-filters .form-label {
+            font-size: 0.7rem;
+        }
+        #summaryFilterForm .card-footer {
+            padding: 0.45rem 0.75rem;
+        }
+
+        .jp-summary-scroll {
+            max-height: min(68vh, calc(100dvh - 14rem));
+            overscroll-behavior: contain;
+            -webkit-overflow-scrolling: touch;
+            border-radius: 0.4rem;
+        }
         .jp-summary-table { font-size: 0.72rem; }
         .jp-summary-table thead th { font-size: 0.6rem; padding: 0.3rem 0.22rem; }
         .jp-summary-table thead th small { font-size: 0.55rem; }
-        .jp-summary-table tbody td { padding: 0.22rem 0.26rem; }
-        .jp-eff { min-width: 2rem; padding: 0.06rem 0.28rem; font-size: 0.68rem; }
+        .jp-summary-table tbody td { padding: 0.28rem 0.26rem; }
+        .jp-summary-table thead .jp-summary-team-row th {
+            font-size: 0.58rem;
+            padding: 0.28rem 0.22rem;
+        }
+        .jp-summary-table thead .jp-summary-team-row .jp-col-team-label {
+            font-size: 0.62rem;
+            line-height: 1.2;
+            white-space: normal;
+            min-width: 0;
+        }
+        .jp-eff {
+            min-width: 2.35rem;
+            min-height: 1.55rem;
+            padding: 0.12rem 0.28rem;
+            font-size: 0.68rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        a.jp-summary-eff-link {
+            display: inline-flex;
+            min-height: 1.7rem;
+            align-items: center;
+        }
 
         .jp-summary-table th.jp-col-stt,
         .jp-summary-table td.jp-col-stt { min-width: 26px; }
         .jp-summary-table th.jp-col-name,
         .jp-summary-table td.jp-col-name {
-            left: 26px; min-width: 96px; max-width: 96px;
-            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+            left: 26px;
+            min-width: 88px;
+            max-width: 88px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
         .jp-summary-table th.jp-col-shift,
         .jp-summary-table td.jp-col-shift {
-            left: 122px; min-width: 72px;
+            left: 114px;
+            min-width: 64px;
             box-shadow: 2px 0 4px -2px rgba(15,23,42,0.15);
+        }
+        .jp-summary-table .jp-col-shift .badge {
+            font-size: 0.58rem;
+            padding: 0.18em 0.4em;
+        }
+        .jp-summary-shift-section td,
+        .jp-summary-group td {
+            font-size: 0.72rem;
+            padding: 0.4rem 0.5rem !important;
+            white-space: normal;
         }
         /* Ẩn cột Bộ phận trên mobile để dành chỗ cho các ngày (vẫn hiện khi chụp ảnh & Excel) */
         .jp-summary-table th.jp-col-dept,
         .jp-summary-table td.jp-col-dept { display: none; }
+        /* Team row: chỉ còn STT+Tên+Ca hiển thị → căn nhãn theo cột cố định */
+        .jp-summary-table thead .jp-summary-team-row .jp-col-team-label {
+            max-width: 178px;
+        }
     }
 </style>
 {% endblock %}
