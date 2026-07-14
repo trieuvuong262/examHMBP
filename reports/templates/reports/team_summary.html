@@ -224,18 +224,6 @@
     <div class="jp-page-header d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
         <div>
             <h2 class="fw-bold text-hm mb-1 jp-page-title">{{ team_page_title }}</h2>
-            <p class="text-muted small mb-0">
-                {% if show_metric_selector %}
-                {{ summary.metric_label }} mỗi nhân viên theo từng ngày —
-                {% else %}
-                Hiệu suất trung bình mỗi nhân viên theo từng ngày —
-                {% endif %}
-                {% if active_shift %}
-                <span class="{{ active_shift|production_shift_badge_class }}">{{ summary.shift_label }}</span>
-                {% else %}
-                <span class="badge bg-secondary-subtle text-secondary">{{ summary.shift_label }}</span>
-                {% endif %}
-            </p>
         </div>
         <div class="d-flex flex-wrap gap-2">
             <a href="{% url summary_export_url_name %}?{{ team_list_query }}" class="btn btn-outline-success btn-sm">
@@ -249,29 +237,6 @@
                 <i class="bi bi-arrow-left me-1"></i>Danh sách báo cáo
             </a>
             {% endif %}
-        </div>
-    </div>
-
-    <div class="jp-summary-stats mb-3">
-        <div class="jp-summary-stat">
-            <div class="val text-hm">{{ summary.member_count }}</div>
-            <div class="lbl">Nhân viên</div>
-        </div>
-        <div class="jp-summary-stat">
-            <div class="val text-success">{{ summary.members_with_data }}</div>
-            <div class="lbl">Có báo cáo</div>
-        </div>
-        <div class="jp-summary-stat">
-            <div class="val">{{ days|length }}</div>
-            <div class="lbl">Số ngày</div>
-        </div>
-        <div class="jp-summary-stat">
-            <div class="val {% if summary.overall_avg is None %}text-muted{% elif not summary.metric_is_percent %}text-hm{% elif summary.overall_avg >= 120 %}text-success{% elif summary.overall_avg >= 100 %}text-primary{% elif summary.overall_avg >= 80 %}text-warning{% else %}text-danger{% endif %}">
-                {% if summary.overall_avg is not None %}
-                    {% if summary.metric_is_percent %}{{ summary.overall_avg|floatformat:2 }}%{% else %}{{ summary.overall_avg|prod_qty }}{% endif %}
-                {% else %}—{% endif %}
-            </div>
-            <div class="lbl">{{ summary.overall_stat_label|default:"HS TB toàn team" }}</div>
         </div>
     </div>
 
@@ -313,6 +278,14 @@
                     {% endfor %}
                 </select>
             </div>
+            <div>
+                <label class="form-label fw-bold small mb-1">Hiển thị</label>
+                <select name="show" class="form-select">
+                    {% for opt in display_filter_choices %}
+                    <option value="{{ opt.key }}" {% if opt.key == active_display %}selected{% endif %}>{{ opt.label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
             {% if dept_choices|length > 1 %}
             <div>
                 <label class="form-label fw-bold small mb-1">Phòng ban</label>
@@ -341,7 +314,7 @@
                     {% include 'includes/list_search_bar.html' with search_query=search_query placeholder='Tên, mã NS, account...' show_button=False %}
                 </div>
             </div>
-            {% if search_query or selected_dept or selected_division or active_shift %}
+            {% if search_query or selected_dept or selected_division or active_shift or active_display and active_display != 'all' %}
             <a href="?from={{ range_from|date:'Y-m-d' }}&to={{ range_to|date:'Y-m-d' }}{% if show_metric_selector %}&metric={{ active_metric }}{% endif %}" class="btn btn-light border align-self-end" title="Xóa bộ lọc"><i class="bi bi-x-lg"></i></a>
             {% endif %}
         </div>
@@ -632,9 +605,14 @@ document.addEventListener('DOMContentLoaded', function () {
         if (shiftEl && (!shiftEl.value || shiftEl.value === 'ALL')) {
             shiftEl.disabled = true;
         }
+        var showEl = form.querySelector('select[name="show"]');
+        if (showEl && (!showEl.value || showEl.value === 'all')) {
+            showEl.disabled = true;
+        }
         if (typeof form.requestSubmit === 'function') { form.requestSubmit(); }
         else { form.submit(); }
         if (shiftEl) { shiftEl.disabled = false; }
+        if (showEl) { showEl.disabled = false; }
     }
     if (window.flatpickr) {
         flatpickr('.jp-date-vn', {
@@ -649,7 +627,7 @@ document.addEventListener('DOMContentLoaded', function () {
             el.addEventListener('change', submitForm);
         });
     }
-    form.querySelectorAll('select[name="dept"], select[name="division"], select[name="shift"]').forEach(function (el) {
+    form.querySelectorAll('select[name="dept"], select[name="division"], select[name="shift"], select[name="show"]').forEach(function (el) {
         el.addEventListener('change', submitForm);
     });
 

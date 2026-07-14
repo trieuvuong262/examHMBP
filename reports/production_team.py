@@ -507,12 +507,38 @@ SUMMARY_METRIC_CHOICES = (
 )
 SUMMARY_METRIC_KEYS = frozenset(key for key, _label in SUMMARY_METRIC_CHOICES)
 
+SUMMARY_DISPLAY_ALL = 'all'
+SUMMARY_DISPLAY_DAYS_WITH_REPORT = 'days_with_report'
+SUMMARY_DISPLAY_CHOICES = (
+    (SUMMARY_DISPLAY_ALL, 'Tất cả nhân viên'),
+    (SUMMARY_DISPLAY_DAYS_WITH_REPORT, 'Chỉ ngày có báo cáo'),
+)
+SUMMARY_DISPLAY_KEYS = frozenset(key for key, _label in SUMMARY_DISPLAY_CHOICES)
+
 
 def normalize_summary_metric(raw: str | None) -> str:
     key = (raw or SUMMARY_METRIC_EFFICIENCY).strip().lower()
     if key in SUMMARY_METRIC_KEYS:
         return key
     return SUMMARY_METRIC_EFFICIENCY
+
+
+def normalize_summary_display(raw: str | None) -> str:
+    key = (raw or SUMMARY_DISPLAY_ALL).strip().lower().replace('-', '_')
+    aliases = {
+        'days': SUMMARY_DISPLAY_DAYS_WITH_REPORT,
+        'reported_days': SUMMARY_DISPLAY_DAYS_WITH_REPORT,
+        'with_report_days': SUMMARY_DISPLAY_DAYS_WITH_REPORT,
+        'co_bao_cao': SUMMARY_DISPLAY_DAYS_WITH_REPORT,
+    }
+    key = aliases.get(key, key)
+    if key in SUMMARY_DISPLAY_KEYS:
+        return key
+    return SUMMARY_DISPLAY_ALL
+
+
+def build_production_summary_display_choices() -> list[dict]:
+    return [{'key': key, 'label': label} for key, label in SUMMARY_DISPLAY_CHOICES]
 
 
 def build_production_summary_metric_tabs(
@@ -536,6 +562,60 @@ def build_production_summary_metric_tabs(
             'url': f"{reverse(url_name)}?{urlencode(params)}",
         })
     return tabs
+
+
+def _iter_summary_members(summary: dict):
+    sections = summary.get('shift_sections') or []
+    if sections:
+        for section in sections:
+            for group in section.get('groups') or []:
+                for member in group.get('members') or []:
+                    yield member
+        return
+    for group in summary.get('groups') or []:
+        for member in group.get('members') or []:
+            yield member
+
+
+def _apply_summary_display_mode(summary: dict, display_mode: str) -> dict:
+    """Lọc cột ngày: chỉ giữ ngày có ít nhất một ô báo cáo."""
+    display_mode = normalize_summary_display(display_mode)
+    summary['display_mode'] = display_mode
+    summary['display_label'] = dict(SUMMARY_DISPLAY_CHOICES).get(
+        display_mode, 'Tất cả nhân viên'
+    )
+    summary['display_filter_choices'] = build_production_summary_display_choices()
+    if display_mode != SUMMARY_DISPLAY_DAYS_WITH_REPORT:
+        return summary
+
+    days = summary.get('days') or []
+    if not days:
+        return summary
+
+    keep = [False] * len(days)
+    for member in _iter_summary_members(summary):
+        cells = member.get('cells') or []
+        for idx, cell in enumerate(cells):
+            if idx < len(keep) and cell.get('has_data'):
+                keep[idx] = True
+
+    indices = [idx for idx, ok in enumerate(keep) if ok]
+    if not indices:
+        summary['days'] = []
+        summary['day_averages'] = []
+        for member in _iter_summary_members(summary):
+            member['cells'] = []
+        return summary
+
+    summary['days'] = [days[i] for i in indices]
+    day_averages = summary.get('day_averages') or []
+    summary['day_averages'] = [
+        day_averages[i] for i in indices if i < len(day_averages)
+    ]
+    for member in _iter_summary_members(summary):
+        cells = member.get('cells') or []
+        member['cells'] = [cells[i] for i in indices if i < len(cells)]
+    return summary
 
 
 def _production_total_qty_subquery():
@@ -769,14 +849,17 @@ def build_production_team_summary(
     dept_filter: str = '',
     shift_filter: str = '',
     metric: str = SUMMARY_METRIC_EFFICIENCY,
+    display_mode: str = SUMMARY_DISPLAY_ALL,
 ) -> dict:
     """Ma trận NV × ngày theo metric.
 
     - Ca sáng: danh sách đầy đủ (kể cả chưa nộp).
     - Ca tối: chỉ nhân viên đã nộp BC ca tối; không có ai nộp thì không hiện khối ca tối.
     - Tất cả ca: khối Ca sáng trên, Ca tối dưới (nếu có).
+    - display_mode=days_with_report: chỉ giữ cột ngày có ít nhất 1 BC.
     """
     metric = normalize_summary_metric(metric)
+    display_mode = normalize_summary_display(display_mode)
     is_quantity = metric == SUMMARY_METRIC_QUANTITY
     metric_label = dict(SUMMARY_METRIC_CHOICES).get(metric, 'Hiệu suất')
     split_by_shift = not shift_filter
@@ -883,7 +966,7 @@ def build_production_team_summary(
         day['average'] = avg
     overall_avg = _metric_value_from_parts(grand_numerator, grand_denominator, metric)
 
-    return {
+    summary = {
         'days': days,
         'groups': groups,
         'shift_sections': shift_sections,
@@ -907,6 +990,7 @@ def build_production_team_summary(
             'SL toàn team' if is_quantity else f'{metric_label} TB toàn team'
         ),
     }
+    return _apply_summary_display_mode(summary, display_mode)
 
 
 def query_production_team_reports(team_ids, date_from, date_to):

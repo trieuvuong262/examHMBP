@@ -140,9 +140,11 @@ from .team_sort import (
 from .production_team import (
     build_production_day_shift_tabs,
     build_production_reports_by_employee,
+    build_production_summary_display_choices,
     build_production_summary_metric_tabs,
     build_production_summary_shift_filter_choices,
     build_production_team_department_groups,
+    normalize_summary_display,
     normalize_summary_metric,
     production_no_report_exempt_ids,
     production_team_review_row_counts,
@@ -1654,6 +1656,10 @@ def _parse_summary_metric(request) -> str:
     return normalize_summary_metric(request.GET.get('metric'))
 
 
+def _parse_summary_display(request) -> str:
+    return normalize_summary_display(request.GET.get('show') or request.GET.get('display'))
+
+
 def _render_production_summary_matrix(
     request,
     *,
@@ -1683,6 +1689,7 @@ def _render_production_summary_matrix(
     division_filter = (request.GET.get('division') or '').strip()
     shift_filter = _parse_team_summary_shift(request)
     metric = _parse_summary_metric(request) if show_metric_selector else 'efficiency'
+    display_mode = _parse_summary_display(request)
 
     team_base = _team_queryset(request.user, search_query, report_profile=REPORT_PROFILE_PRODUCTION)
     division_choices = division_filter_choices_from_team(
@@ -1709,11 +1716,14 @@ def _render_production_summary_matrix(
         dept_filter=dept_filter,
         shift_filter=shift_filter,
         metric=metric,
+        display_mode=display_mode,
     )
 
     base_params = team_date_range_query_params(date_from, date_to)
     if shift_filter:
         base_params['shift'] = shift_filter
+    if display_mode and display_mode != 'all':
+        base_params['show'] = display_mode
     if show_metric_selector:
         base_params['metric'] = metric
     if search_query:
@@ -1743,6 +1753,8 @@ def _render_production_summary_matrix(
         'active_shift': shift_filter,
         'active_shift_slug': shift_slug,
         'shift_filter_choices': build_production_summary_shift_filter_choices(),
+        'active_display': display_mode,
+        'display_filter_choices': build_production_summary_display_choices(),
         'active_metric': metric,
         'show_metric_selector': show_metric_selector,
         'metric_tabs': (
@@ -1795,6 +1807,7 @@ def _export_production_summary_matrix(
     division_filter = (request.GET.get('division') or '').strip()
     shift_filter = _parse_team_summary_shift(request)
     metric = _parse_summary_metric(request) if show_metric_selector else 'efficiency'
+    display_mode = _parse_summary_display(request)
 
     team_base = _team_queryset(request.user, search_query, report_profile=REPORT_PROFILE_PRODUCTION)
     team = (
@@ -1814,6 +1827,7 @@ def _export_production_summary_matrix(
         dept_filter=dept_filter,
         shift_filter=shift_filter,
         metric=metric,
+        display_mode=display_mode,
     )
     return export_production_team_summary_xlsx(
         summary,

@@ -18,8 +18,26 @@ from reports.production_hourly import build_hourly_grid, build_productivity_repo
 
 
 def _safe_filename_part(text: str) -> str:
-    cleaned = re.sub(r'[^\w\-]+', '_', (text or '').strip())
-    return cleaned[:40] or 'bao_cao'
+    """Chuỗi ASCII an toàn cho tên file tải về (tránh browser đặt tên download)."""
+    from django.utils.text import slugify
+
+    cleaned = slugify(text or '', allow_unicode=False).replace('-', '_')
+    cleaned = re.sub(r'_+', '_', cleaned).strip('_')
+    return cleaned[:50] or 'bao_cao'
+
+
+def _content_disposition_attachment(filename: str) -> str:
+    """Content-Disposition với tên file ASCII + UTF-8 (không để browser fallback 'download')."""
+    from urllib.parse import quote
+
+    name = (filename or 'bao_cao.xlsx').replace('"', '').replace('\\', '').replace('\n', '')
+    ascii_fallback = ''.join(
+        c if ord(c) < 128 and c not in ('"', '\\', ';', ' ') else '_'
+        for c in name
+    ).strip('_') or 'bao_cao.xlsx'
+    if not ascii_fallback.lower().endswith('.xlsx') and name.lower().endswith('.xlsx'):
+        ascii_fallback = f'{ascii_fallback}.xlsx'
+    return f"attachment; filename=\"{ascii_fallback}\"; filename*=UTF-8''{quote(name)}"
 
 
 def _meta_rows(report: DailyWorkReport) -> list[list]:
@@ -76,11 +94,15 @@ def _xlsx_response(sheets: dict[str, pd.DataFrame], filename_prefix: str) -> Htt
             use_header = sheet_name not in {'Thong_tin', 'Van_ban'}
             df.to_excel(writer, index=False, header=use_header, sheet_name=sheet_name[:31])
     stamp = datetime.now().strftime('%Y%m%d_%H%M')
+    # Chỉ ASCII — trình duyệt không fallback thành "download"
+    safe_prefix = re.sub(r'[^\w\-]+', '_', filename_prefix or 'bao_cao', flags=re.ASCII)
+    safe_prefix = re.sub(r'_+', '_', safe_prefix).strip('_') or 'bao_cao'
+    filename = f'{safe_prefix}_{stamp}.xlsx'
     response = HttpResponse(
         output.getvalue(),
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     )
-    response['Content-Disposition'] = f'attachment; filename={filename_prefix}_{stamp}.xlsx'
+    response['Content-Disposition'] = _content_disposition_attachment(filename)
     return response
 
 
@@ -165,13 +187,12 @@ def export_production_team_summary_xlsx(
         'quantity': 'san_luong',
     }.get(metric, metric)
     date_span = f'{date_from.strftime("%Y%m%d")}_{date_to.strftime("%Y%m%d")}'
+    shift_filter = (summary.get('shift_filter') or '').strip().upper()
+    shift_part = shift_filter.lower() if shift_filter else 'tat_ca'
     if filename_kind == 'thong_ke':
-        prefix = (
-            f'Thong_ke_BC_SX_{_safe_filename_part(metric_part)}'
-            f'_{_safe_filename_part(shift_label)}_{date_span}'
-        )
+        prefix = f'Thong_ke_BC_SX_{metric_part}_{shift_part}_{date_span}'
     else:
-        prefix = f'Bao_cao_tong_hop_SX_{_safe_filename_part(shift_label)}_{date_span}'
+        prefix = f'Bao_cao_tong_hop_SX_{shift_part}_{date_span}'
     return _xlsx_response({'Tong_hop': df}, prefix)
 
 
