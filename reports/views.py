@@ -22,6 +22,8 @@ from assessment.decorators import module_perm_required
 logger = logging.getLogger(__name__)
 from hrm.module_permissions import MODULE_REPORTS
 from hrm.permissions import (
+    can_comment_on_user_report,
+    can_comment_on_user_weekly_report,
     can_review_user_report,
     can_review_user_weekly_report,
     can_submit_daily_report,
@@ -29,7 +31,6 @@ from hrm.permissions import (
     can_view_user_report,
     can_view_user_weekly_report,
     get_team_report_members,
-    is_director,
 )
 from hrm.user_search import filter_users_by_division
 from PortalJustPlay.list_search import apply_combined_search, apply_term_search, apply_user_search, get_search_query
@@ -2415,7 +2416,7 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
             )
         return _detail_redirect()
 
-    can_comment = can_review or report.employee_id == request.user.id
+    can_comment = can_comment_on_user_report(request.user, report)
     if (
         request.method == 'POST'
         and request.POST.get('action') == 'add_comment'
@@ -2787,7 +2788,7 @@ def _weekly_report_detail_core(request, pk, *, detail_url_name: str):
             weekly_report=report, is_read=False,
         ).exclude(author=request.user).update(is_read=True)
 
-    can_comment = can_review or report.employee_id == request.user.id
+    can_comment = can_comment_on_user_weekly_report(request.user, report)
     if (
         request.method == 'POST'
         and request.POST.get('action') == 'add_comment'

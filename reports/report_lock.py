@@ -257,7 +257,7 @@ def _can_supervisor_view_report(viewer, report) -> bool:
 
 def lock_report_on_supervisor_view(report, viewer) -> bool:
     """Tự khóa khi cấp trên mở xem báo cáo đã gửi (lần đầu) — không áp dụng SX."""
-    from hrm.permissions import get_report_team_users, is_global_report_viewer
+    from hrm.permissions import get_report_team_users, has_company_wide_report_access
 
     if is_production_report(report):
         return False
@@ -268,8 +268,8 @@ def lock_report_on_supervisor_view(report, viewer) -> bool:
         or report.hod_reviewed
     ):
         return False
-    # ductn/admin xem toàn công ty — không đánh dấu đã xem, trừ cấp dưới M2M/kiêm nhiệm.
-    if is_global_report_viewer(viewer) and not get_report_team_users(viewer).filter(
+    # Giám đốc / admin xem toàn công ty — không đánh dấu đã xem, trừ cấp dưới M2M.
+    if has_company_wide_report_access(viewer) and not get_report_team_users(viewer).filter(
         pk=report.employee_id,
     ).exists():
         return False

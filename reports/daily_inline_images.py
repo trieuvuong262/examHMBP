@@ -10,7 +10,7 @@ from pathlib import Path
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 
-from hrm.permissions import get_report_team_users, is_global_report_viewer
+from hrm.permissions import get_report_team_users, has_company_wide_report_access
 from reports.daily_nas_storage import (
     OFFICE_MONTH_PREFIX,
     OFFICE_WEEK_PREFIX,
@@ -120,7 +120,7 @@ def can_view_inline_image(viewer, rel: str) -> bool:
     owner = User.objects.filter(username=username).only('pk').first()
     if not owner:
         return False
-    if is_global_report_viewer(viewer):
+    if has_company_wide_report_access(viewer):
         from hrm.module_permissions import MODULE_REPORTS
         from hrm.role_permissions import user_can_view_module
         return user_can_view_module(viewer, MODULE_REPORTS)

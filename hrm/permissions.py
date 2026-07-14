@@ -134,6 +134,13 @@ def is_global_report_viewer(user) -> bool:
     return user.username.lower() in GLOBAL_REPORT_VIEWER_USERNAMES
 
 
+def has_company_wide_report_access(user) -> bool:
+    """Xem danh sách / chi tiết báo cáo toàn công ty (admin đặc biệt hoặc Giám đốc)."""
+    if is_global_report_viewer(user):
+        return True
+    return is_director(user)
+
+
 def get_report_team_users(viewer):
     """Nhân viên cấp dưới — chỉ M2M đã cấu hình trong Nhân sự (chính + kiêm nhiệm)."""
     from hrm.concurrent_positions import get_manual_subordinate_users
@@ -142,8 +149,8 @@ def get_report_team_users(viewer):
 
 
 def get_team_report_members(viewer):
-    """Danh sách NV trên trang team / nhập hộ — global viewer thấy toàn công ty."""
-    if is_global_report_viewer(viewer):
+    """Danh sách NV trên trang team / nhập hộ — Giám đốc & global viewer thấy toàn công ty."""
+    if has_company_wide_report_access(viewer):
         return (
             User.objects.filter(is_active=True, profile__is_employed=True)
             .exclude(pk=viewer.pk)
@@ -158,7 +165,7 @@ def _viewer_can_see_employee_reports(viewer, employee) -> bool:
         return False
     if employee.pk == viewer.pk:
         return can_submit_daily_report(viewer)
-    if is_global_report_viewer(viewer):
+    if has_company_wide_report_access(viewer):
         return True
     return get_report_team_users(viewer).filter(pk=employee.pk).exists()
 
@@ -176,10 +183,10 @@ def has_report_subordinates(user) -> bool:
 
 
 def can_view_team_reports(user) -> bool:
-    """Xem báo cáo team — cấp dưới trực tiếp hoặc tài khoản xem toàn công ty."""
+    """Xem báo cáo team — cấp dưới trực tiếp, Giám đốc, hoặc tài khoản xem toàn công ty."""
     if not _has_reports_module_access(user):
         return False
-    if is_global_report_viewer(user):
+    if has_company_wide_report_access(user):
         return True
     return has_report_subordinates(user)
 
@@ -222,6 +229,38 @@ def can_review_user_report(viewer, report) -> bool:
     if report.employee_id == viewer.id:
         return False
     if not get_report_team_users(viewer).filter(pk=report.employee_id).exists():
+        return False
+    from hrm.module_permissions import MODULE_REPORTS, user_can_update_module
+    return user_can_update_module(viewer, MODULE_REPORTS)
+
+
+def can_comment_on_user_report(viewer, report) -> bool:
+    """Nhận xét báo cáo ngày — cấp dưới (review) hoặc Giám đốc mọi NV (SX/VP)."""
+    if not getattr(viewer, 'is_authenticated', False):
+        return False
+    if report.employee_id == viewer.id:
+        return True
+    if can_review_user_report(viewer, report):
+        return True
+    if not is_director(viewer):
+        return False
+    if not can_view_user_report(viewer, report):
+        return False
+    from hrm.module_permissions import MODULE_REPORTS, user_can_update_module
+    return user_can_update_module(viewer, MODULE_REPORTS)
+
+
+def can_comment_on_user_weekly_report(viewer, report) -> bool:
+    """Nhận xét báo cáo tuần — cấp dưới (review) hoặc Giám đốc mọi NV."""
+    if not getattr(viewer, 'is_authenticated', False):
+        return False
+    if report.employee_id == viewer.id:
+        return True
+    if can_review_user_weekly_report(viewer, report):
+        return True
+    if not is_director(viewer):
+        return False
+    if not can_view_user_weekly_report(viewer, report):
         return False
     from hrm.module_permissions import MODULE_REPORTS, user_can_update_module
     return user_can_update_module(viewer, MODULE_REPORTS)
