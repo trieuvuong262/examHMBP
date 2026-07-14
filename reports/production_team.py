@@ -579,11 +579,11 @@ def _iter_summary_members(summary: dict):
 
 
 def _member_has_report_data(member: dict) -> bool:
-    if member.get('avg_value') is not None:
+    """True khi ma trận hiện ít nhất một ô có số liệu (không phải dòng toàn —)."""
+    if any(cell.get('has_data') for cell in (member.get('cells') or [])):
         return True
-    if (member.get('report_count') or 0) > 0:
-        return True
-    return any(cell.get('has_data') for cell in (member.get('cells') or []))
+    # avg_value chỉ khi đã cộng được metric từ ô có dữ liệu
+    return member.get('avg_value') is not None
 
 
 def _filter_summary_groups_keep_reported(groups: list[dict]) -> tuple[list[dict], int]:

@@ -653,17 +653,16 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!form) return;
     function submitForm() {
         var shiftEl = form.querySelector('select[name="shift"]');
+        var showEl = form.querySelector('select[name="show"]');
+        // Không bật lại trước khi navigate — tránh form async (client-device) gửi nhầm giá trị mặc định
         if (shiftEl && (!shiftEl.value || shiftEl.value === 'ALL')) {
             shiftEl.disabled = true;
         }
-        var showEl = form.querySelector('select[name="show"]');
         if (showEl && (!showEl.value || showEl.value === 'all')) {
             showEl.disabled = true;
         }
         if (typeof form.requestSubmit === 'function') { form.requestSubmit(); }
         else { form.submit(); }
-        if (shiftEl) { shiftEl.disabled = false; }
-        if (showEl) { showEl.disabled = false; }
     }
     if (window.flatpickr) {
         flatpickr('.jp-date-vn', {
