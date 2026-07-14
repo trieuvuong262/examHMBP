@@ -9,6 +9,11 @@ from decimal import Decimal
 from django.db.models import Count, Exists, OuterRef, Subquery, Sum, Value, DecimalField
 from django.db.models.functions import Coalesce
 
+from hrm.permissions import (
+    ROLE_DEPARTMENT_HEAD,
+    ROLE_DIRECTOR,
+    ROLE_DIVISION_HEAD,
+)
 from reports.models import DailyWorkReport, ProductionHourlyQuantity, ReportComment
 from reports.period_utils import PERIOD_DAY
 from reports.production_shift_policy import (
@@ -34,6 +39,24 @@ from reports.team_utils import (
 from reports.week_utils import monday_of
 
 PRODUCTION_WEEK_WORK_DAYS = 6  # Thứ 2 – Thứ 7
+
+# Trưởng bộ phận / trưởng phòng / giám đốc — không bắt buộc BC SX, không hiện «Chưa báo cáo».
+PRODUCTION_NO_REPORT_EXEMPT_ROLES = frozenset({
+    ROLE_DIVISION_HEAD,
+    ROLE_DEPARTMENT_HEAD,
+    ROLE_DIRECTOR,
+})
+
+
+def is_production_no_report_exempt(user) -> bool:
+    """Vai trò từ Trưởng bộ phận / Trưởng phòng trở lên — bỏ dòng «Chưa báo cáo» trên team SX."""
+    from hrm.concurrent_positions import effective_roles
+
+    return bool(effective_roles(user) & PRODUCTION_NO_REPORT_EXEMPT_ROLES)
+
+
+def production_no_report_exempt_ids(users) -> set[int]:
+    return {user.pk for user in users if is_production_no_report_exempt(user)}
 
 
 def build_production_reports_by_employee(reports_qs) -> dict[int, list[DailyWorkReport]]:
@@ -138,13 +161,20 @@ def _append_production_member_rows(
     date_to: date,
 ) -> None:
     by_date = _reports_by_employee_date(reports)
+    skip_empty = is_production_no_report_exempt(member)
     if by_date:
         for report_date in sorted(_iter_dates(date_from, date_to), reverse=True):
+            day_reports = by_date.get(report_date, [])
+            agg = _aggregate_production_row(day_reports, visible_fn)
+            if skip_empty and not agg['production_report_count']:
+                continue
             rows.append({
                 'member': member,
                 'report_date': report_date,
-                **_aggregate_production_row(by_date.get(report_date, []), visible_fn),
+                **agg,
             })
+        return
+    if skip_empty:
         return
     rows.append({
         'member': member,
@@ -239,10 +269,14 @@ def production_team_status_counts(
     team_ids: list[int],
     reports_by_employee: dict[int, list[DailyWorkReport]],
     visible_fn,
+    *,
+    exempt_no_report_ids: set[int] | None = None,
 ) -> dict[str, int]:
     """Đếm theo NV trong khoảng lọc: đã nộp / chưa nộp (có BC) / chưa báo cáo."""
+    exempt = exempt_no_report_ids or set()
     submitted = 0
     unsubmitted_report = 0
+    no_report = 0
     for emp_id in team_ids:
         reports = reports_by_employee.get(emp_id, [])
         agg = _aggregate_production_row(reports, visible_fn)
@@ -250,7 +284,8 @@ def production_team_status_counts(
             submitted += 1
         elif agg['production_report_count'] > 0:
             unsubmitted_report += 1
-    no_report = len(team_ids) - submitted - unsubmitted_report
+        elif emp_id not in exempt:
+            no_report += 1
     return {
         'submitted': submitted,
         'unsubmitted_report': unsubmitted_report,

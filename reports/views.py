@@ -144,6 +144,7 @@ from .production_team import (
     build_production_summary_shift_tabs,
     build_production_team_department_groups,
     normalize_summary_metric,
+    production_no_report_exempt_ids,
     production_team_review_row_counts,
     production_team_row_is_submitted,
     production_team_row_matches_filter,
@@ -2056,10 +2057,13 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
         )
         reports = query_production_team_reports(all_team_ids, date_from, date_to)
         reports_by_employee = build_production_reports_by_employee(reports)
+        team = team.prefetch_related('profile__concurrent_positions')
+        exempt_no_report_ids = production_no_report_exempt_ids(team)
         status_counts = production_team_status_counts(
             all_team_ids,
             reports_by_employee,
             daily_report_visible_to_team,
+            exempt_no_report_ids=exempt_no_report_ids,
         )
         submitted = status_counts['submitted']
         missing = status_counts['unsubmitted_report']
