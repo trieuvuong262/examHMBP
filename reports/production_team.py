@@ -457,13 +457,31 @@ def _filter_reports_by_shift(
     ]
 
 
+def build_production_summary_shift_filter_choices() -> list[dict]:
+    """Bộ lọc ca trên form tổng hợp / thống kê SX."""
+    choices = [{'key': '', 'label': 'Tất cả ca'}]
+    for shift in PRODUCTION_SHIFT_ORDER:
+        choices.append({'key': shift, 'label': shift_display_label(shift)})
+    return choices
+
+
+def _member_shifts_to_render(visible_reports: list[DailyWorkReport], shift_filter: str) -> list[str]:
+    """Thứ tự ca hiển thị: lọc 1 ca, hoặc ca sáng rồi ca tối (chỉ hiện ca tối khi có BC)."""
+    if shift_filter:
+        return [shift_filter]
+    shifts = [DailyWorkReport.SHIFT_MORNING]
+    if _filter_reports_by_shift(visible_reports, DailyWorkReport.SHIFT_NIGHT):
+        shifts.append(DailyWorkReport.SHIFT_NIGHT)
+    return shifts
+
+
 def build_production_summary_shift_tabs(
     *,
     active_shift: str,
     base_params: dict[str, str],
     url_name: str = 'reports:team_summary_cn',
 ) -> list[dict]:
-    """Tab Tất cả / Ca sáng / Ca tối — trang báo cáo tổng hợp / thống kê SX."""
+    """Deprecated — giữ tương thích; UI đã chuyển sang bộ lọc select."""
     from urllib.parse import urlencode
 
     from django.urls import reverse
@@ -658,13 +676,14 @@ def build_production_team_summary(
     shift_filter: str = '',
     metric: str = SUMMARY_METRIC_EFFICIENCY,
 ) -> dict:
-    """Ma trận: mỗi NV 1 dòng, mỗi ngày 1 cột — theo metric (HS / HS thời gian / SL).
+    """Ma trận: mỗi NV × ca 1 dòng, mỗi ngày 1 cột — theo metric (HS / HS thời gian / SL).
 
-    `shift_filter` rỗng = gộp tất cả ca trong ngày.
+    `shift_filter` rỗng = tất cả ca: ca sáng trước, ca tối (nếu có) phía dưới.
     """
     metric = normalize_summary_metric(metric)
     is_quantity = metric == SUMMARY_METRIC_QUANTITY
     metric_label = dict(SUMMARY_METRIC_CHOICES).get(metric, 'Hiệu suất')
+    split_by_shift = not shift_filter
     shift_label = shift_display_label(shift_filter) if shift_filter else 'Tất cả ca'
 
     days = [
@@ -695,47 +714,60 @@ def build_production_team_summary(
         for member in group['members']:
             stt += 1
             visible = _visible_reports(reports_by_employee.get(member.id, []), visible_fn)
-            shift_reports = _filter_reports_by_shift(visible, shift_filter)
-            by_date = _reports_by_employee_date(shift_reports)
-            cells = []
-            member_numerator = Decimal('0')
-            member_denominator = Decimal('0')
-            for idx, day in enumerate(days):
-                day_reports = by_date.get(day['date'], [])
-                numerator, denominator = _metric_parts(day_reports, metric)
-                value = _metric_value_from_parts(numerator, denominator, metric)
-                primary_report = day_reports[0] if day_reports else None
-                cells.append({
-                    'value': value,
-                    'efficiency_pct': value if not is_quantity else None,
-                    'has_data': value is not None,
-                    'is_weekend': day['is_weekend'],
-                    'report_pk': primary_report.pk if primary_report else None,
-                })
-                if denominator > 0:
-                    day_totals[idx]['numerator'] += numerator
-                    day_totals[idx]['denominator'] += denominator
-                    member_numerator += numerator
-                    member_denominator += denominator
-            avg = _metric_value_from_parts(member_numerator, member_denominator, metric)
-            if avg is not None:
-                members_with_data += 1
-            grand_numerator += member_numerator
-            grand_denominator += member_denominator
             profile = getattr(member, 'profile', None)
             display_name = (
                 profile.full_name if profile and profile.full_name else member.username
             )
-            members_out.append({
-                'stt': stt,
-                'member': member,
-                'name': display_name.upper(),
-                'division': profile.division.name if profile and getattr(profile, 'division_id', None) else '',
-                'cells': cells,
-                'avg_value': avg,
-                'avg_efficiency_pct': avg if not is_quantity else None,
-                'report_count': len(shift_reports),
-            })
+            division = (
+                profile.division.name
+                if profile and getattr(profile, 'division_id', None)
+                else ''
+            )
+            person_has_data = False
+            shifts = _member_shifts_to_render(visible, shift_filter)
+            for shift_idx, shift in enumerate(shifts):
+                shift_reports = _filter_reports_by_shift(visible, shift)
+                by_date = _reports_by_employee_date(shift_reports)
+                cells = []
+                member_numerator = Decimal('0')
+                member_denominator = Decimal('0')
+                for idx, day in enumerate(days):
+                    day_reports = by_date.get(day['date'], [])
+                    numerator, denominator = _metric_parts(day_reports, metric)
+                    value = _metric_value_from_parts(numerator, denominator, metric)
+                    primary_report = day_reports[0] if day_reports else None
+                    cells.append({
+                        'value': value,
+                        'efficiency_pct': value if not is_quantity else None,
+                        'has_data': value is not None,
+                        'is_weekend': day['is_weekend'],
+                        'report_pk': primary_report.pk if primary_report else None,
+                    })
+                    if denominator > 0:
+                        day_totals[idx]['numerator'] += numerator
+                        day_totals[idx]['denominator'] += denominator
+                        member_numerator += numerator
+                        member_denominator += denominator
+                avg = _metric_value_from_parts(member_numerator, member_denominator, metric)
+                if avg is not None:
+                    person_has_data = True
+                grand_numerator += member_numerator
+                grand_denominator += member_denominator
+                members_out.append({
+                    'stt': stt if shift_idx == 0 else '',
+                    'member': member,
+                    'name': display_name.upper(),
+                    'division': division,
+                    'shift': shift,
+                    'shift_label': shift_display_label(shift),
+                    'show_identity': shift_idx == 0,
+                    'cells': cells,
+                    'avg_value': avg,
+                    'avg_efficiency_pct': avg if not is_quantity else None,
+                    'report_count': len(shift_reports),
+                })
+            if person_has_data:
+                members_with_data += 1
         groups.append({**group, 'label': group['label'], 'members': members_out})
 
     day_averages = [
@@ -757,6 +789,8 @@ def build_production_team_summary(
         'overall_avg': overall_avg,
         'shift_filter': shift_filter,
         'shift_label': shift_label,
+        'split_by_shift': split_by_shift,
+        'shift_filter_choices': build_production_summary_shift_filter_choices(),
         'metric': metric,
         'metric_label': metric_label,
         'metric_is_percent': not is_quantity,

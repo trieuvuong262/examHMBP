@@ -141,7 +141,7 @@ from .production_team import (
     build_production_day_shift_tabs,
     build_production_reports_by_employee,
     build_production_summary_metric_tabs,
-    build_production_summary_shift_tabs,
+    build_production_summary_shift_filter_choices,
     build_production_team_department_groups,
     normalize_summary_metric,
     production_no_report_exempt_ids,
@@ -1723,7 +1723,6 @@ def _render_production_summary_matrix(
     if division_filter:
         base_params['division'] = division_filter
 
-    tab_params = {k: v for k, v in base_params.items() if k != 'shift'}
     metric_tab_params = {k: v for k, v in base_params.items() if k != 'metric'}
 
     shift_slug = (shift_filter or 'all').lower()
@@ -1743,6 +1742,7 @@ def _render_production_summary_matrix(
         'team_count': team_count,
         'active_shift': shift_filter,
         'active_shift_slug': shift_slug,
+        'shift_filter_choices': build_production_summary_shift_filter_choices(),
         'active_metric': metric,
         'show_metric_selector': show_metric_selector,
         'metric_tabs': (
@@ -1752,11 +1752,6 @@ def _render_production_summary_matrix(
                 url_name=summary_url_name,
             )
             if show_metric_selector else []
-        ),
-        'shift_tabs': build_production_summary_shift_tabs(
-            active_shift=shift_filter,
-            base_params=tab_params,
-            url_name=summary_url_name,
         ),
         'team_page_title': page_title,
         'reports_scope_label': 'SX',

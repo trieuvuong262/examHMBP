@@ -254,23 +254,7 @@
     </div>
     {% endif %}
 
-    <div class="card border-0 jp-report-section-card jp-report-tabs-card jp-prod-day-shift-tabs-card mb-3">
-        <ul class="nav nav-tabs jp-report-tabs jp-prod-day-shift-tabs" role="tablist" aria-label="Chọn ca làm">
-            {% for tab in shift_tabs %}
-            <li class="nav-item" role="presentation">
-                <a class="nav-link jp-prod-day-shift-tab jp-prod-day-shift-tab--{{ tab.shift|lower }}{% if tab.is_active %} active{% endif %}"
-                   href="{{ tab.url }}"
-                   role="tab"
-                   {% if tab.is_active %}aria-current="page"{% endif %}>
-                    {{ tab.label }}
-                </a>
-            </li>
-            {% endfor %}
-        </ul>
-    </div>
-
     <form method="get" id="summaryFilterForm" class="card border-0 shadow-sm mb-3">
-        <input type="hidden" name="shift" value="{{ active_shift }}">
         {% if show_metric_selector %}
         <input type="hidden" name="metric" value="{{ active_metric }}">
         {% endif %}
@@ -282,6 +266,14 @@
             <div>
                 <label class="form-label fw-bold small mb-1">Đến ngày</label>
                 <input type="date" name="to" value="{{ range_to|date:'Y-m-d' }}" class="form-control jp-date-vn">
+            </div>
+            <div>
+                <label class="form-label fw-bold small mb-1">Ca làm</label>
+                <select name="shift" class="form-select">
+                    {% for opt in shift_filter_choices %}
+                    <option value="{{ opt.key }}" {% if opt.key == active_shift %}selected{% endif %}>{{ opt.label }}</option>
+                    {% endfor %}
+                </select>
             </div>
             {% if dept_choices|length > 1 %}
             <div>
@@ -311,8 +303,8 @@
                     {% include 'includes/list_search_bar.html' with search_query=search_query placeholder='Tên, mã NS, account...' show_button=False %}
                 </div>
             </div>
-            {% if search_query or selected_dept or selected_division %}
-            <a href="?from={{ range_from|date:'Y-m-d' }}&to={{ range_to|date:'Y-m-d' }}{% if active_shift %}&shift={{ active_shift }}{% endif %}{% if show_metric_selector %}&metric={{ active_metric }}{% endif %}" class="btn btn-light border align-self-end" title="Xóa bộ lọc"><i class="bi bi-x-lg"></i></a>
+            {% if search_query or selected_dept or selected_division or active_shift %}
+            <a href="?from={{ range_from|date:'Y-m-d' }}&to={{ range_to|date:'Y-m-d' }}{% if show_metric_selector %}&metric={{ active_metric }}{% endif %}" class="btn btn-light border align-self-end" title="Xóa bộ lọc"><i class="bi bi-x-lg"></i></a>
             {% endif %}
         </div>
         {% if search_query %}
@@ -380,11 +372,17 @@
                     </tr>
                     {% for m in group.members %}
                     <tr>
-                        <td class="jp-col-sticky jp-col-stt text-muted">{{ m.stt }}</td>
+                        <td class="jp-col-sticky jp-col-stt text-muted">{% if m.show_identity != False %}{{ m.stt }}{% endif %}</td>
                         <td class="jp-col-sticky jp-col-name">
+                            {% if m.show_identity != False %}
                             <strong>{{ m.name }}</strong>
-                        </td>
-                        <td class="jp-col-sticky jp-col-dept small">{{ m.division|default:"—" }}</td>
+                            {% endif %}
+                            {% if summary.split_by_shift and m.shift_label %}
+                            <div class="{% if m.show_identity != False %}mt-1{% endif %}">
+                                <span class="{{ m.shift|production_shift_badge_class }}">{{ m.shift_label }}</span>
+                            </div>
+                            {% endif %}
+                        </td>                        <td class="jp-col-sticky jp-col-dept small">{% if m.show_identity != False %}{{ m.division|default:"—" }}{% endif %}</td>
                         {% for cell in m.cells %}
                         <td>
                             {% if cell.has_data and cell.report_pk %}
@@ -592,7 +590,7 @@ document.addEventListener('DOMContentLoaded', function () {
             el.addEventListener('change', submitForm);
         });
     }
-    form.querySelectorAll('select[name="dept"], select[name="division"]').forEach(function (el) {
+    form.querySelectorAll('select[name="dept"], select[name="division"], select[name="shift"]').forEach(function (el) {
         el.addEventListener('change', submitForm);
     });
 

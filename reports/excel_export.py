@@ -97,16 +97,16 @@ def export_production_team_summary_xlsx(
     day_headers = [f"{d['weekday']} {d['date'].strftime('%d/%m')}" for d in days]
     is_percent = summary.get('metric_is_percent', True)
     avg_label = summary.get('avg_column_label') or ('TB' if is_percent else 'Tổng')
-    columns = [
-        'STT',
-        'Nhân viên',
-        'Bộ phận',
-        *day_headers,
-        f'{avg_label} chung' if is_percent else f'{avg_label} kỳ',
-    ]
+    split_by_shift = bool(summary.get('split_by_shift'))
+    columns = ['STT', 'Nhân viên', 'Bộ phận']
+    if split_by_shift:
+        columns.append('Ca')
+    columns.extend([*day_headers, f'{avg_label} chung' if is_percent else f'{avg_label} kỳ'])
 
     team_label = 'TB team theo ngày' if is_percent else 'SL team theo ngày'
     team_row = ['', team_label, '']
+    if split_by_shift:
+        team_row.append('')
     for d in days:
         avg = d.get('average')
         team_row.append(round(avg, 2) if avg is not None else '')
@@ -116,7 +116,13 @@ def export_production_team_summary_xlsx(
     rows: list[list] = [team_row]
     for group in summary.get('groups', []):
         for member in group.get('members', []):
-            row = [member['stt'], member['name'], member.get('division') or '']
+            row = [
+                member.get('stt') if member.get('stt') != '' else '',
+                member['name'] if member.get('show_identity', True) else '',
+                (member.get('division') or '') if member.get('show_identity', True) else '',
+            ]
+            if split_by_shift:
+                row.append(member.get('shift_label') or '')
             for cell in member['cells']:
                 val = cell.get('value', cell.get('efficiency_pct'))
                 row.append(round(val, 2) if val is not None else '')
