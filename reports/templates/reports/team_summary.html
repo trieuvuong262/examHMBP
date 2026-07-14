@@ -188,9 +188,14 @@
             <h2 class="fw-bold text-hm mb-1 jp-page-title">{{ team_page_title }}</h2>
             <p class="text-muted small mb-0">
                 {% if show_metric_selector %}
-                {{ summary.metric_label }} mỗi nhân viên theo từng ngày — <span class="{{ active_shift|production_shift_badge_class }}">{{ summary.shift_label }}</span>
+                {{ summary.metric_label }} mỗi nhân viên theo từng ngày —
                 {% else %}
-                Hiệu suất trung bình mỗi nhân viên theo từng ngày — <span class="{{ active_shift|production_shift_badge_class }}">{{ summary.shift_label }}</span>
+                Hiệu suất trung bình mỗi nhân viên theo từng ngày —
+                {% endif %}
+                {% if active_shift %}
+                <span class="{{ active_shift|production_shift_badge_class }}">{{ summary.shift_label }}</span>
+                {% else %}
+                <span class="badge bg-secondary-subtle text-secondary">{{ summary.shift_label }}</span>
                 {% endif %}
             </p>
         </div>
@@ -307,7 +312,7 @@
                 </div>
             </div>
             {% if search_query or selected_dept or selected_division %}
-            <a href="?from={{ range_from|date:'Y-m-d' }}&to={{ range_to|date:'Y-m-d' }}&shift={{ active_shift }}{% if show_metric_selector %}&metric={{ active_metric }}{% endif %}" class="btn btn-light border align-self-end" title="Xóa bộ lọc"><i class="bi bi-x-lg"></i></a>
+            <a href="?from={{ range_from|date:'Y-m-d' }}&to={{ range_to|date:'Y-m-d' }}{% if active_shift %}&shift={{ active_shift }}{% endif %}{% if show_metric_selector %}&metric={{ active_metric }}{% endif %}" class="btn btn-light border align-self-end" title="Xóa bộ lọc"><i class="bi bi-x-lg"></i></a>
             {% endif %}
         </div>
         {% if search_query %}
@@ -527,7 +532,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 },
             }).then(function (canvas) {
                 var stamp = new Date().toISOString().slice(0, 10);
-                var fileName = '{{ screenshot_filename_prefix|default:"bao-cao-tong-hop-sx" }}-{{ active_shift|lower }}-' + stamp + '.png';
+                var fileName = '{{ screenshot_filename_prefix|default:"bao-cao-tong-hop-sx" }}-{{ active_shift_slug|default:"all" }}-' + stamp + '.png';
                 var dataUrl;
                 try {
                     dataUrl = canvas.toDataURL('image/png');

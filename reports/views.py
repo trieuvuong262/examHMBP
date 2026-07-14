@@ -1631,19 +1631,22 @@ def _summary_week_date_range(anchor_to=None):
 def _summary_list_query_params(*, dept_filter: str = '') -> dict[str, str]:
     date_from, date_to = _summary_week_date_range()
     params = team_date_range_query_params(date_from, date_to)
-    params['shift'] = DailyWorkReport.SHIFT_MORNING
+    # Mặc định: tất cả ca (không gắn shift).
     if dept_filter:
         params['dept'] = dept_filter
     return params
 
 
 def _parse_team_summary_shift(request) -> str:
+    """Ca lọc ma trận tổng hợp/thống kê — mặc định tất cả (chuỗi rỗng)."""
     from reports.production_slots import normalize_shift
 
-    raw = (request.GET.get('shift') or DailyWorkReport.SHIFT_MORNING).strip().upper()
+    raw = (request.GET.get('shift') or '').strip().upper()
+    if not raw or raw in ('ALL', 'TAT_CA', 'TATCA', 'ALL_SHIFTS'):
+        return ''
     shift = normalize_shift(raw)
     if shift not in PRODUCTION_SHIFT_ORDER:
-        return DailyWorkReport.SHIFT_MORNING
+        return ''
     return shift
 
 
@@ -1709,7 +1712,8 @@ def _render_production_summary_matrix(
     )
 
     base_params = team_date_range_query_params(date_from, date_to)
-    base_params['shift'] = shift_filter
+    if shift_filter:
+        base_params['shift'] = shift_filter
     if show_metric_selector:
         base_params['metric'] = metric
     if search_query:
@@ -1721,6 +1725,8 @@ def _render_production_summary_matrix(
 
     tab_params = {k: v for k, v in base_params.items() if k != 'shift'}
     metric_tab_params = {k: v for k, v in base_params.items() if k != 'metric'}
+
+    shift_slug = (shift_filter or 'all').lower()
 
     return render(request, 'reports/team_summary.html', {
         'summary': summary,
@@ -1736,6 +1742,7 @@ def _render_production_summary_matrix(
         'report_date': date_to,
         'team_count': team_count,
         'active_shift': shift_filter,
+        'active_shift_slug': shift_slug,
         'active_metric': metric,
         'show_metric_selector': show_metric_selector,
         'metric_tabs': (

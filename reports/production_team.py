@@ -463,14 +463,22 @@ def build_production_summary_shift_tabs(
     base_params: dict[str, str],
     url_name: str = 'reports:team_summary_cn',
 ) -> list[dict]:
-    """Tab Ca sáng / Ca tối — trang báo cáo tổng hợp / thống kê SX."""
+    """Tab Tất cả / Ca sáng / Ca tối — trang báo cáo tổng hợp / thống kê SX."""
     from urllib.parse import urlencode
 
     from django.urls import reverse
 
     tabs = []
+    all_params = {k: v for k, v in base_params.items() if k != 'shift'}
+    tabs.append({
+        'shift': 'all',
+        'label': 'Tất cả ca',
+        'badge_class': 'badge bg-secondary-subtle text-secondary',
+        'is_active': not active_shift,
+        'url': f"{reverse(url_name)}?{urlencode(all_params)}" if all_params else reverse(url_name),
+    })
     for shift in PRODUCTION_SHIFT_ORDER:
-        params = {**base_params, 'shift': shift}
+        params = {**all_params, 'shift': shift}
         tabs.append({
             'shift': shift,
             'label': shift_display_label(shift),
@@ -647,13 +655,17 @@ def build_production_team_summary(
     date_from: date,
     date_to: date,
     dept_filter: str = '',
-    shift_filter: str = DailyWorkReport.SHIFT_MORNING,
+    shift_filter: str = '',
     metric: str = SUMMARY_METRIC_EFFICIENCY,
 ) -> dict:
-    """Ma trận: mỗi NV 1 dòng, mỗi ngày 1 cột — theo metric (HS / HS thời gian / SL)."""
+    """Ma trận: mỗi NV 1 dòng, mỗi ngày 1 cột — theo metric (HS / HS thời gian / SL).
+
+    `shift_filter` rỗng = gộp tất cả ca trong ngày.
+    """
     metric = normalize_summary_metric(metric)
     is_quantity = metric == SUMMARY_METRIC_QUANTITY
     metric_label = dict(SUMMARY_METRIC_CHOICES).get(metric, 'Hiệu suất')
+    shift_label = shift_display_label(shift_filter) if shift_filter else 'Tất cả ca'
 
     days = [
         {
@@ -744,7 +756,7 @@ def build_production_team_summary(
         'day_averages': day_averages,
         'overall_avg': overall_avg,
         'shift_filter': shift_filter,
-        'shift_label': shift_display_label(shift_filter),
+        'shift_label': shift_label,
         'metric': metric,
         'metric_label': metric_label,
         'metric_is_percent': not is_quantity,
