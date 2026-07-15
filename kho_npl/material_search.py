@@ -193,7 +193,7 @@ def apply_material_search(queryset, query: str):
 
 def apply_material_search_strict(queryset, query: str):
     """
-    Tìm NPL cho ô chọn trong phiếu — chỉ hiện mã khớp thật sự.
+    Tìm NPL cho ô chọn trong phiếu — chỉ theo mã và tên NPL.
 
     Tất cả các từ đều phải khớp (AND giữa các từ), mỗi từ vẫn linh hoạt
     có/không dấu và gõ liền. Khác tìm thông minh (OR) nên không hiện lan man.
@@ -207,7 +207,7 @@ def apply_material_search_strict(queryset, query: str):
     qs = queryset
     has_filter = False
     for term in terms:
-        term_q = q_for_term_on_fields(term, MATERIAL_SEARCH_FIELDS)
+        term_q = q_for_term_on_fields(term, MATERIAL_DOC_SEARCH_FIELDS)
         if _q_is_empty(term_q):
             continue
         qs = qs.filter(term_q)
@@ -215,6 +215,26 @@ def apply_material_search_strict(queryset, query: str):
     if not has_filter:
         return queryset.none()
     return qs.distinct()
+
+
+def material_relevance_sort_key(material, query: str):
+    """Xếp hạng kết quả cho ô chọn trong phiếu — mã/tên khớp chính xác lên đầu."""
+    q_norm = normalize_search_text((query or '').strip())
+    code = normalize_search_text(getattr(material, 'code', '') or '')
+    name = normalize_search_text(getattr(material, 'name', '') or '')
+    if not q_norm:
+        rank = 5
+    elif code == q_norm or name == q_norm:
+        rank = 0
+    elif code.startswith(q_norm) or name.startswith(q_norm):
+        rank = 1
+    elif q_norm in name or q_norm in code:
+        rank = 2
+    elif q_norm.replace(' ', '') in name.replace(' ', ''):
+        rank = 3
+    else:
+        rank = 4
+    return (rank, name, code)
 
 
 def material_search_haystack(material) -> str:

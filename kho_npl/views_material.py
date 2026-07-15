@@ -11,7 +11,11 @@ from django.urls import reverse
 from assessment.decorators import module_perm_required, module_perm_required_methods
 from hrm.module_permissions import MODULE_KHO_NPL
 from PortalJustPlay.list_search import get_search_query
-from kho_npl.material_search import apply_material_search, apply_material_search_strict
+from kho_npl.material_search import (
+    apply_material_search,
+    apply_material_search_strict,
+    material_relevance_sort_key,
+)
 from PortalJustPlay.pagination import paginate_queryset
 
 from kho_npl.choices import (
@@ -108,6 +112,8 @@ def material_search(request):
             qs = apply_material_search_strict(qs, q)
         browse_limit = 1000 if not q else 50
         materials = list(qs.order_by('name', 'code')[:browse_limit])
+        if q:
+            materials.sort(key=lambda m: material_relevance_sort_key(m, q))
         balance_map = {
             balance.material_id: balance.quantity
             for balance in StockBalance.objects.filter(
@@ -126,6 +132,8 @@ def material_search(request):
         else:
             browse_limit = 40
         materials = list(qs.order_by('name', 'code')[:browse_limit])
+        if q:
+            materials.sort(key=lambda m: material_relevance_sort_key(m, q))
         balance_map = {}
         if location_id and materials:
             material_ids = [m.pk for m in materials]

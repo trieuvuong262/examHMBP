@@ -656,16 +656,23 @@
             .replace(/đ/g, 'd');
     }
 
-    function materialMatchesTerms(data, terms) {
-        if (!terms.length) return true;
-        const haystack = normalizeSearchText(
-            (data.name || '') + ' ' + (data.code || '') + ' '
-            + (data.variant_group || '') + ' ' + (data.text || '')
-        );
-        const compact = haystack.replace(/\s+/g, '');
-        return terms.every(function (t) {
-            return haystack.indexOf(t) !== -1 || compact.indexOf(t) !== -1;
+    function materialSearchScore(data, query, terms) {
+        // Chỉ khớp theo mã và tên NPL — không dò theo đơn vị/tồn/nhóm hàng.
+        const name = normalizeSearchText(data.name || '');
+        const code = normalizeSearchText(data.code || '');
+        if (!terms.length) return 1;
+        const nameCompact = name.replace(/\s+/g, '');
+        const codeCompact = code.replace(/\s+/g, '');
+        const allMatch = terms.every(function (t) {
+            return name.indexOf(t) !== -1 || code.indexOf(t) !== -1
+                || nameCompact.indexOf(t) !== -1 || codeCompact.indexOf(t) !== -1;
         });
+        if (!allMatch) return 0;
+        const q = normalizeSearchText(query).trim();
+        if (name === q || code === q) return 4;
+        if (name.indexOf(q) === 0 || code.indexOf(q) === 0) return 3;
+        if (name.indexOf(q) !== -1 || code.indexOf(q) !== -1) return 2;
+        return 1;
     }
 
     function initMaterialSelect(select) {
@@ -766,14 +773,16 @@
             },
         };
         if (searchUrl) {
-            // Lọc lại client-side (không dấu, gõ liền): ẩn các option cũ đã nạp
-            // từ lần tìm trước nhưng không khớp từ khóa đang gõ.
+            // Lọc lại client-side (không dấu, gõ liền) theo mã + tên NPL:
+            // ẩn option cũ đã nạp từ lần tìm trước không khớp từ khóa đang gõ,
+            // điểm cao hơn cho khớp chính xác / bắt đầu bằng từ khóa.
             tsOptions.score = function (query) {
                 const terms = normalizeSearchText(query).split(/\s+/).filter(Boolean);
                 return function (data) {
-                    return materialMatchesTerms(data, terms) ? 1 : 0;
+                    return materialSearchScore(data, query, terms);
                 };
             };
+            tsOptions.sortField = [{ field: '$score', direction: 'desc' }, { field: '$order' }];
         }
         if (browseOnOpen) {
             tsOptions.preload = 'focus';
