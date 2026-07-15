@@ -2,6 +2,7 @@ from django.contrib import admin
 
 from kho_npl.models import (
     Material,
+    MaterialBatch,
     MaterialCategory,
     MaterialColor,
     MaterialSpecification,
@@ -23,8 +24,8 @@ from kho_npl.models import (
 
 @admin.register(MaterialCategory)
 class MaterialCategoryAdmin(admin.ModelAdmin):
-    list_display = ('code', 'name', 'parent', 'sort_order', 'is_active')
-    list_filter = ('is_active', 'parent')
+    list_display = ('code', 'name', 'sort_order', 'is_active')
+    list_filter = ('is_active',)
     search_fields = ('code', 'name')
 
 
@@ -91,6 +92,13 @@ class MaterialAdmin(admin.ModelAdmin):
     list_display = ('code', 'name', 'category', 'color', 'specification', 'unit', 'min_stock', 'is_active')
     list_filter = ('category', 'is_active')
     search_fields = ('code', 'name', 'color__name', 'specification__name')
+
+
+@admin.register(MaterialBatch)
+class MaterialBatchAdmin(admin.ModelAdmin):
+    list_display = ('material', 'code', 'unit_price', 'quantity', 'received_date', 'is_active')
+    list_filter = ('is_active',)
+    search_fields = ('code', 'material__code', 'material__name')
 
 
 @admin.register(StockBalance)

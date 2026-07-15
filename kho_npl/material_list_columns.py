@@ -5,8 +5,7 @@ MATERIAL_LIST_COLUMNS = [
     {'key': 'image', 'label': 'Ảnh', 'default': True, 'required': True, 'weight': 40, 'sortable': False},
     {'key': 'code', 'label': 'Mã', 'default': True, 'required': True, 'weight': 100},
     {'key': 'name', 'label': 'Tên NPL', 'default': True, 'required': False, 'weight': 150},
-    {'key': 'category_parent', 'label': 'Nhóm cấp 1', 'default': True, 'required': False, 'weight': 100},
-    {'key': 'category', 'label': 'Nhóm cấp 2', 'default': True, 'required': False, 'weight': 100},
+    {'key': 'category', 'label': 'Nhóm', 'default': True, 'required': False, 'weight': 120},
     {'key': 'color', 'label': 'Màu', 'default': True, 'required': False, 'weight': 100},
     {'key': 'specification', 'label': 'Quy cách', 'default': True, 'required': False, 'weight': 100},
     {'key': 'unit', 'label': 'ĐVT', 'default': True, 'required': False, 'weight': 50},
@@ -24,7 +23,6 @@ MATERIAL_LIST_REQUIRED_KEYS = {c['key'] for c in MATERIAL_LIST_COLUMNS if c.get(
 MATERIAL_LIST_SORT_FIELDS = {
     'code': 'code',
     'name': 'name',
-    'category_parent': 'category__parent__name',
     'category': 'category__name',
     'color': 'color__name',
     'specification': 'specification__name',

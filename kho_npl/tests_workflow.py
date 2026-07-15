@@ -10,6 +10,7 @@ from hrm.module_permissions import MODULE_KHO_NPL
 from hrm.permissions import ROLE_EMPLOYEE
 from kho_npl.choices import ADJUST_STATUS_APPROVED, ADJUST_STATUS_PENDING, STOCKTAKE_STATUS_DRAFT
 from kho_npl.models import (
+    MaterialBatch,
     Material,
     MaterialCategory,
     StockAdjustment,
@@ -47,6 +48,9 @@ class KhoNplWorkflowTests(TestCase):
         StockBalance.objects.create(
             material=self.material, location=self.location, quantity=Decimal('50'),
         )
+        self.batch = MaterialBatch.objects.create(
+            material=self.material, code='LO-WF', unit_price=Decimal('10000'), quantity=Decimal('50'),
+        )
         self.client.login(username='npl_wf', password='test')
 
     def test_adjustment_approve_updates_stock(self):
@@ -63,6 +67,7 @@ class KhoNplWorkflowTests(TestCase):
             location=self.location,
             system_qty=Decimal('50'),
             actual_qty=Decimal('45'),
+            batch=self.batch,
         )
         self.client.post(reverse('kho_npl:adjustment_approve', args=[adj.pk]))
         adj.refresh_from_db()
@@ -82,6 +87,7 @@ class KhoNplWorkflowTests(TestCase):
         StocktakeLine.objects.create(
             stocktake=st, material=self.material, location=self.location,
             system_qty=Decimal('50'), actual_qty=Decimal('48'),
+            batch=self.batch,
         )
         from kho_npl.choices import STOCKTAKE_STATUS_COUNTING
         st.status = STOCKTAKE_STATUS_COUNTING

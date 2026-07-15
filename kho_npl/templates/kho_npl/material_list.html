@@ -105,9 +105,6 @@
                                data-loading-message="Đang tải chi tiết NPL…">{{ material.code }}</a>
                         </td>
                         <td class="npl-col" data-col="name" title="{{ material.name }}">{{ material.name }}</td>
-                        <td class="npl-col" data-col="category_parent" title="{% if material.category.parent %}{{ material.category.parent.name }}{% endif %}">
-                            {% if material.category.parent %}{{ material.category.parent.name }}{% else %}<span class="text-muted">—</span>{% endif %}
-                        </td>
                         <td class="npl-col" data-col="category" title="{{ material.category.name }}">{{ material.category.name }}</td>
                         <td class="npl-col" data-col="color">{% include 'kho_npl/includes/material_color_chip.html' with color=material.color %}</td>
                         <td class="npl-col" data-col="specification" title="{% if material.specification %}{{ material.specification|npl_spec }}{% endif %}">{% include 'kho_npl/includes/material_spec_display.html' with spec=material.specification %}</td>

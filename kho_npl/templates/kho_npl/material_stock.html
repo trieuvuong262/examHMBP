@@ -77,7 +77,7 @@
                 <thead class="table-light">
                     <tr>
                         {% for col in list_columns %}
-                        <th class="npl-col jp-mat-th{% if col.key == 'total_qty' or col.key == 'min_stock' %} text-end{% elif col.key == 'detail' or col.key == 'image' %} text-center{% endif %}"
+                        <th class="npl-col jp-mat-th{% if col.key == 'total_qty' or col.key == 'min_stock' or col.key == 'avg_unit_price' or col.key == 'stock_value' %} text-end{% elif col.key == 'detail' or col.key == 'image' %} text-center{% endif %}"
                             data-col="{{ col.key }}" style="width:{% widthratio col.weight total_col_weight 100 %}%">
                             {% if col.sortable == False %}
                             <span class="jp-mat-th-label">{{ col.label }}</span>
@@ -110,11 +110,6 @@
                         <td class="npl-col" data-col="name" title="{{ row.material.name }}">
                             <span class="jp-npl-stock-cell-clip">{{ row.material.name }}</span>
                         </td>
-                        <td class="npl-col" data-col="category_parent" title="{% if row.material.category.parent %}{{ row.material.category.parent.name }}{% endif %}">
-                            {% if row.material.category.parent %}
-                            <span class="jp-npl-stock-cell-clip">{{ row.material.category.parent.name }}</span>
-                            {% else %}<span class="text-muted">—</span>{% endif %}
-                        </td>
                         <td class="npl-col" data-col="category" title="{{ row.material.category.name }}">
                             <span class="jp-npl-stock-cell-clip">{{ row.material.category.name }}</span>
                         </td>
@@ -124,6 +119,12 @@
                         </td>
                         <td class="text-end npl-col jp-mat-code fw-semibold" data-col="total_qty" title="{{ row.total_qty|npl_qty_with_unit:row.material.unit }}">
                             <span class="jp-npl-stock-cell-clip">{{ row.total_qty|npl_qty_with_unit:row.material.unit }}</span>
+                        </td>
+                        <td class="text-end npl-col jp-mat-code" data-col="avg_unit_price" title="{{ row.avg_unit_price|floatformat:0 }}">
+                            <span class="jp-npl-stock-cell-clip">{% if row.avg_unit_price %}{{ row.avg_unit_price|floatformat:0 }}{% else %}—{% endif %}</span>
+                        </td>
+                        <td class="text-end npl-col jp-mat-code" data-col="stock_value" title="{{ row.stock_value|floatformat:0 }}">
+                            <span class="jp-npl-stock-cell-clip">{% if row.stock_value %}{{ row.stock_value|floatformat:0 }}{% else %}—{% endif %}</span>
                         </td>
                         <td class="text-end npl-col jp-mat-code" data-col="min_stock" title="{{ row.material.min_stock|npl_qty_with_unit:row.material.unit }}">
                             <span class="jp-npl-stock-cell-clip">{{ row.material.min_stock|npl_qty_with_unit:row.material.unit }}</span>
@@ -144,10 +145,12 @@
                     {% for lb in row.location_balances %}
                     <tr class="jp-npl-stock-loc-row is-collapsed" data-stock-expand="{{ row.material.pk }}">
                         <td class="npl-col" data-col="image"></td>
-                        <td class="npl-col jp-npl-stock-loc-label" data-col="name" colspan="6" title="{{ lb.location.name }}">
+                        <td class="npl-col jp-npl-stock-loc-label" data-col="name" colspan="5" title="{{ lb.location.name }}">
                             <span class="jp-npl-stock-loc-name">{{ lb.location.name }}</span>
                         </td>
                         <td class="text-end npl-col jp-mat-code fw-semibold" data-col="total_qty">{{ lb.quantity|npl_qty_with_unit:row.material.unit }}</td>
+                        <td class="npl-col" data-col="avg_unit_price"></td>
+                        <td class="npl-col" data-col="stock_value"></td>
                         <td class="npl-col" data-col="min_stock"></td>
                         <td class="npl-col" data-col="stock_status"></td>
                         <td class="npl-col" data-col="detail"></td>

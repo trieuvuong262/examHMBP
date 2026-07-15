@@ -25,14 +25,6 @@ from kho_npl.choices import (
 class MaterialCategory(models.Model):
     code = models.SlugField(max_length=40, unique=True, verbose_name='Mã nhóm')
     name = models.CharField(max_length=120, verbose_name='Tên nhóm')
-    parent = models.ForeignKey(
-        'self',
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        related_name='children',
-        verbose_name='Nhóm cấp 1',
-    )
     sort_order = models.PositiveIntegerField(default=0, verbose_name='Thứ tự')
     is_active = models.BooleanField(default=True, verbose_name='Đang dùng')
 
@@ -43,18 +35,6 @@ class MaterialCategory(models.Model):
 
     def __str__(self):
         return self.name
-
-    @property
-    def parent_name(self):
-        return self.parent.name if self.parent_id else '—'
-
-    @property
-    def is_root(self):
-        return self.parent_id is None
-
-    @property
-    def is_leaf(self):
-        return self.parent_id is not None
 
 
 class Unit(models.Model):
@@ -198,6 +178,56 @@ class Material(models.Model):
         return f'{self.code} — {self.name}'
 
 
+class MaterialBatch(models.Model):
+    """Lô hàng theo mã NPL — mỗi lô một giá nhập cố định."""
+
+    OPENING_CODE = 'TON-DAU'
+
+    material = models.ForeignKey(
+        Material,
+        on_delete=models.CASCADE,
+        related_name='batches',
+        verbose_name='Nguyên phụ liệu',
+    )
+    code = models.CharField(max_length=60, verbose_name='Mã lô')
+    unit_price = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal('0'),
+        validators=[MinValueValidator(Decimal('0'))],
+        verbose_name='Đơn giá nhập',
+    )
+    received_date = models.DateField(null=True, blank=True, verbose_name='Ngày nhập lô')
+    quantity = models.DecimalField(
+        max_digits=14,
+        decimal_places=3,
+        default=Decimal('0'),
+        validators=[MinValueValidator(Decimal('0'))],
+        verbose_name='Tồn lô',
+    )
+    is_active = models.BooleanField(default=True, verbose_name='Đang dùng')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-received_date', '-id']
+        verbose_name = 'Lô hàng NPL'
+        verbose_name_plural = 'Lô hàng NPL'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['material', 'code'],
+                name='uniq_material_batch_code',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.material.code} / {self.code}'
+
+    @property
+    def amount(self) -> Decimal:
+        return (self.quantity or Decimal('0')) * (self.unit_price or Decimal('0'))
+
+
 class StockBalance(models.Model):
     material = models.ForeignKey(
         Material,
@@ -321,11 +351,23 @@ class StockReceiptLine(models.Model):
         related_name='receipt_lines',
         verbose_name='Vị trí kho',
     )
+    batch_code = models.CharField(max_length=60, blank=True, default='', verbose_name='Mã lô')
+    unit_price = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal('0'),
+        validators=[MinValueValidator(Decimal('0'))],
+        verbose_name='Đơn giá nhập',
+    )
     notes = models.CharField(max_length=255, blank=True, verbose_name='Ghi chú')
 
     class Meta:
         verbose_name = 'Chi tiết phiếu nhập'
         verbose_name_plural = 'Chi tiết phiếu nhập'
+
+    @property
+    def amount(self) -> Decimal:
+        return (self.received_qty or Decimal('0')) * (self.unit_price or Decimal('0'))
 
 
 class StockIssue(models.Model):
@@ -413,11 +455,30 @@ class StockIssueLine(models.Model):
         related_name='issue_lines',
         verbose_name='Vị trí kho',
     )
+    batch = models.ForeignKey(
+        MaterialBatch,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='issue_lines',
+        verbose_name='Lô hàng',
+    )
+    unit_price = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal('0'),
+        validators=[MinValueValidator(Decimal('0'))],
+        verbose_name='Đơn giá xuất',
+    )
     notes = models.CharField(max_length=255, blank=True, verbose_name='Ghi chú')
 
     class Meta:
         verbose_name = 'Chi tiết phiếu xuất'
         verbose_name_plural = 'Chi tiết phiếu xuất'
+
+    @property
+    def amount(self) -> Decimal:
+        return (self.quantity or Decimal('0')) * (self.unit_price or Decimal('0'))
 
 
 class StockDisposal(models.Model):
@@ -501,6 +562,14 @@ class StockDisposalLine(models.Model):
         on_delete=models.PROTECT,
         related_name='disposal_lines',
         verbose_name='Vị trí kho',
+    )
+    batch = models.ForeignKey(
+        MaterialBatch,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='disposal_lines',
+        verbose_name='Lô hàng',
     )
     notes = models.CharField(max_length=255, blank=True, verbose_name='Ghi chú')
 
@@ -591,6 +660,14 @@ class StockTransferLine(models.Model):
         validators=[MinValueValidator(Decimal('0.001'))],
         verbose_name='Số lượng',
     )
+    batch = models.ForeignKey(
+        MaterialBatch,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='transfer_lines',
+        verbose_name='Lô hàng',
+    )
     notes = models.CharField(max_length=255, blank=True, verbose_name='Ghi chú')
 
     class Meta:
@@ -661,6 +738,14 @@ class StockAdjustmentLine(models.Model):
     )
     system_qty = models.DecimalField(max_digits=14, decimal_places=3, verbose_name='Tồn hệ thống')
     actual_qty = models.DecimalField(max_digits=14, decimal_places=3, verbose_name='Tồn thực tế')
+    batch = models.ForeignKey(
+        MaterialBatch,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='adjustment_lines',
+        verbose_name='Lô hàng',
+    )
     notes = models.CharField(max_length=255, blank=True, verbose_name='Ghi chú')
 
     class Meta:
@@ -749,6 +834,14 @@ class StocktakeLine(models.Model):
         blank=True,
         verbose_name='Tồn thực tế',
     )
+    batch = models.ForeignKey(
+        MaterialBatch,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='stocktake_lines',
+        verbose_name='Lô hàng',
+    )
     notes = models.CharField(max_length=255, blank=True, verbose_name='Ghi chú')
 
     class Meta:
@@ -784,6 +877,27 @@ class StockLedger(models.Model):
     )
     qty_delta = models.DecimalField(max_digits=14, decimal_places=3, verbose_name='Biến động')
     balance_after = models.DecimalField(max_digits=14, decimal_places=3, verbose_name='Tồn sau')
+    batch = models.ForeignKey(
+        MaterialBatch,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='ledger_entries',
+        verbose_name='Lô hàng',
+    )
+    unit_price = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal('0'),
+        validators=[MinValueValidator(Decimal('0'))],
+        verbose_name='Đơn giá',
+    )
+    amount = models.DecimalField(
+        max_digits=16,
+        decimal_places=2,
+        default=Decimal('0'),
+        verbose_name='Thành tiền',
+    )
     ref_type = models.CharField(max_length=20, verbose_name='Loại chứng từ')
     ref_id = models.PositiveIntegerField(verbose_name='ID chứng từ')
     ref_number = models.CharField(max_length=30, blank=True, verbose_name='Số chứng từ')

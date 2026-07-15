@@ -10,6 +10,7 @@ from hrm.module_permissions import MODULE_KHO_NPL
 from hrm.permissions import ROLE_EMPLOYEE
 from kho_npl.choices import DOC_STATUS_POSTED, WAREHOUSE_SCRAP_CODE
 from kho_npl.models import (
+    MaterialBatch,
     Material,
     MaterialCategory,
     StockBalance,
@@ -49,6 +50,10 @@ class StockDisposalWorkflowTests(TestCase):
         StockBalance.objects.create(
             material=self.material, location=self.from_loc, quantity=Decimal('30'),
         )
+        MaterialBatch.objects.create(
+            material=self.material, code='LO-DIS', unit_price=Decimal('10000'),
+            quantity=Decimal('30'),
+        )
         self.client.login(username='npl_dis', password='test')
 
     _seq = 0
@@ -60,9 +65,14 @@ class StockDisposalWorkflowTests(TestCase):
             disposal_date=timezone.localdate(),
             created_by=self.user,
         )
+        batch = MaterialBatch.objects.filter(material=self.material, quantity__gte=qty).order_by('id').first()
+        if not batch:
+            batch = MaterialBatch.objects.create(
+                material=self.material, code='LO-DIS', unit_price=Decimal('10000'), quantity=qty,
+            )
         StockDisposalLine.objects.create(
             disposal=disposal, material=self.material, quantity=qty,
-            location=self.from_loc,
+            location=self.from_loc, batch=batch,
         )
         return disposal
 

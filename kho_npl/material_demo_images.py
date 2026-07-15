@@ -52,8 +52,6 @@ def demo_image_urls_for_material(material) -> list[str]:
     keys: list[str] = []
     if cat:
         keys.append(cat.code)
-        if cat.parent_id:
-            keys.append(cat.parent.code)
     for key in keys:
         urls = CATEGORY_DEMO_IMAGE_URLS.get(key)
         if urls:

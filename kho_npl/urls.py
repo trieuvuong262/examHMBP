@@ -38,6 +38,7 @@ urlpatterns = [
     path('api/tim-ncc/', views_supplier.supplier_search, name='supplier_search'),
     path('api/them-ncc/', views_supplier.supplier_quick_create, name='supplier_quick_create'),
     path('api/ton-npl/', views_material.balance_lookup, name='balance_lookup'),
+    path('api/lo-hang/', views_material.batch_lookup, name='batch_lookup'),
     path('chung-tu-file/<int:pk>/xoa/', views_doc_attachment.doc_attachment_delete, name='doc_attachment_delete'),
     path('phieu-nhap/', views_receipt.receipt_list, name='receipt_list'),
     path('phieu-nhap/them/', views_receipt.receipt_create, name='receipt_create'),

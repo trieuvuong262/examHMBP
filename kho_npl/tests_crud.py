@@ -12,6 +12,7 @@ from hrm.permissions import ROLE_EMPLOYEE
 from kho_npl.choices import DOC_STATUS_DRAFT, DOC_STATUS_POSTED
 from kho_npl.choices import ISSUE_TYPE_PRODUCTION
 from kho_npl.models import (
+    MaterialBatch,
     Material,
     MaterialCategory,
     StockBalance,
@@ -90,6 +91,8 @@ class KhoNplCrudTests(TestCase):
             ordered_qty=Decimal('0'),
             received_qty=Decimal('25'),
             location=self.location,
+            batch_code='LO-RCP-01',
+            unit_price=Decimal('12000'),
         )
         response = self.client.post(reverse('kho_npl:receipt_post', args=[receipt.pk]))
         self.assertEqual(response.status_code, 302)
@@ -118,6 +121,9 @@ class KhoNplCrudTests(TestCase):
             unit=self.unit,
         )
         StockBalance.objects.create(material=material, location=self.location, quantity=Decimal('100'))
+        batch = MaterialBatch.objects.create(
+            material=material, code='LO-ISS-01', unit_price=Decimal('10000'), quantity=Decimal('100'),
+        )
         issue = StockIssue.objects.create(
             number='PX-TEST-0001',
             issue_date=timezone.localdate(),
@@ -126,7 +132,7 @@ class KhoNplCrudTests(TestCase):
             status=DOC_STATUS_DRAFT,
             attachment=_sample_doc_attachment(),
         )
-        issue.lines.create(material=material, quantity=Decimal('30'), location=self.location)
+        issue.lines.create(material=material, quantity=Decimal('30'), location=self.location, batch=batch)
         response = self.client.post(reverse('kho_npl:issue_post', args=[issue.pk]))
         self.assertEqual(response.status_code, 302)
         issue.refresh_from_db()
@@ -144,13 +150,17 @@ class KhoNplCrudTests(TestCase):
             unit=self.unit,
         )
         StockBalance.objects.create(material=material, location=self.location, quantity=Decimal('5'))
+        batch = MaterialBatch.objects.create(
+            material=material, code='LO-ISS-02', unit_price=Decimal('10000'), quantity=Decimal('5'),
+        )
         issue = StockIssue.objects.create(
             number='PX-TEST-0002',
             issue_date=timezone.localdate(),
             created_by=self.user,
             status=DOC_STATUS_DRAFT,
+            attachment=_sample_doc_attachment(),
         )
-        issue.lines.create(material=material, quantity=Decimal('10'), location=self.location)
+        issue.lines.create(material=material, quantity=Decimal('10'), location=self.location, batch=batch)
         self.client.post(reverse('kho_npl:issue_post', args=[issue.pk]))
         issue.refresh_from_db()
         self.assertEqual(issue.status, DOC_STATUS_DRAFT)

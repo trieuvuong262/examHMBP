@@ -28,6 +28,8 @@ def report_stock_current_rows():
             'Nhóm': m.category.name,
             'ĐVT': m.unit.name,
             'Tồn': float(row['total_qty']),
+            'Đơn giá BQ': float(row.get('avg_unit_price') or 0),
+            'Giá trị tồn': float(row.get('stock_value') or 0),
             'Tối thiểu': float(m.min_stock),
             'Trạng thái': row['status_label'],
             'Vị trí chính': row['primary_location'],

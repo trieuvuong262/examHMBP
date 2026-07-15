@@ -371,7 +371,7 @@ class Command(BaseCommand):
             code='MAIN',
             defaults={'name': 'Kho chính', 'is_active': True},
         )
-        categories = {c.code: c for c in MaterialCategory.objects.filter(is_active=True, parent__isnull=False)}
+        categories = {c.code: c for c in MaterialCategory.objects.filter(is_active=True)}
         units = {u.code: u for u in Unit.objects.filter(is_active=True)}
         return categories, units
 

@@ -64,15 +64,7 @@
                     </div>
                 </div>
                 <div class="col-lg-8 col-xl-9">
-                    {% if material.category.parent %}
-                    <div class="jp-npl-mat-detail-breadcrumb">
-                        {{ material.category.parent.name }}
-                        <i class="bi bi-chevron-right mx-1" aria-hidden="true"></i>
-                        {{ material.category.name }}
-                    </div>
-                    {% else %}
                     <div class="jp-npl-mat-detail-breadcrumb">{{ material.category.name }}</div>
-                    {% endif %}
                     <div class="jp-npl-mat-detail-code">{{ material.code }}</div>
                     <h1 class="jp-npl-mat-detail-name">{{ material.name }}</h1>
                     <div class="jp-npl-mat-detail-meta">
@@ -92,7 +84,7 @@
     </div>
 
     <div class="row g-3 mb-4">
-        <div class="col-sm-4">
+        <div class="col-sm-6 col-lg-3">
             <div class="card jp-npl-mat-detail-section h-100">
                 <div class="card-body">
                     <div class="jp-npl-mat-detail-label mb-1">Tồn hiện tại</div>
@@ -102,7 +94,27 @@
                 </div>
             </div>
         </div>
-        <div class="col-sm-4">
+        <div class="col-sm-6 col-lg-3">
+            <div class="card jp-npl-mat-detail-section h-100">
+                <div class="card-body">
+                    <div class="jp-npl-mat-detail-label mb-1">Đơn giá BQ</div>
+                    <div class="jp-npl-stock-summary-value jp-mat-code">
+                        {% if avg_unit_price %}{{ avg_unit_price|floatformat:0 }} ₫{% else %}—{% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+            <div class="card jp-npl-mat-detail-section h-100">
+                <div class="card-body">
+                    <div class="jp-npl-mat-detail-label mb-1">Giá trị tồn</div>
+                    <div class="jp-npl-stock-summary-value jp-mat-code">
+                        {% if stock_value %}{{ stock_value|floatformat:0 }} ₫{% else %}—{% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
             <div class="card jp-npl-mat-detail-section h-100">
                 <div class="card-body">
                     <div class="jp-npl-mat-detail-label mb-1">Tối thiểu</div>
@@ -112,13 +124,50 @@
                 </div>
             </div>
         </div>
-        <div class="col-sm-4">
-            <div class="card jp-npl-mat-detail-section h-100">
-                <div class="card-body">
-                    <div class="jp-npl-mat-detail-label mb-1">Số vị trí có tồn</div>
-                    <div class="jp-npl-stock-summary-value">{{ row.location_balances|length }}</div>
-                </div>
-            </div>
+    </div>
+
+    <div class="card jp-npl-mat-detail-section shadow-sm mb-4">
+        <div class="card-header">
+            <h2 class="jp-npl-mat-detail-section-title mb-0">
+                <i class="bi bi-box-seam" aria-hidden="true"></i>Tồn theo lô hàng
+            </h2>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 jp-npl-stock-loc-table">
+                <thead class="table-light">
+                    <tr>
+                        <th>Mã lô</th>
+                        <th>Ngày nhập</th>
+                        <th class="text-end">Đơn giá</th>
+                        <th class="text-end">Tồn lô</th>
+                        <th class="text-end">Thành tiền</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for batch in batches %}
+                    <tr>
+                        <td class="fw-semibold jp-mat-code">{{ batch.code }}</td>
+                        <td>{% if batch.received_date %}{{ batch.received_date|date:'d/m/Y' }}{% else %}—{% endif %}</td>
+                        <td class="text-end jp-mat-code">{{ batch.unit_price|floatformat:0 }}</td>
+                        <td class="text-end jp-mat-code">{{ batch.quantity|npl_qty_with_unit:material.unit }}</td>
+                        <td class="text-end jp-mat-code fw-semibold">{{ batch.amount|floatformat:0 }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-4">Chưa có lô còn tồn.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                {% if batches %}
+                <tfoot class="table-light">
+                    <tr>
+                        <th colspan="3" class="text-end">Đơn giá BQ / Tổng giá trị</th>
+                        <th class="text-end jp-mat-code">{% if avg_unit_price %}{{ avg_unit_price|floatformat:0 }} ₫{% else %}—{% endif %}</th>
+                        <th class="text-end jp-mat-code">{% if stock_value %}{{ stock_value|floatformat:0 }}{% else %}—{% endif %}</th>
+                    </tr>
+                </tfoot>
+                {% endif %}
+            </table>
         </div>
     </div>
 

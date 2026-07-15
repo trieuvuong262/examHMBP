@@ -26,26 +26,19 @@ class Command(BaseCommand):
         # Master data
         color_count = MaterialColor.objects.filter(is_active=True).count()
         spec_count = MaterialSpecification.objects.filter(is_active=True).count()
-        roots = MaterialCategory.objects.filter(is_active=True, parent__isnull=True).count()
-        leaves = MaterialCategory.objects.filter(is_active=True, parent__isnull=False).count()
+        groups = MaterialCategory.objects.filter(is_active=True).count()
         self.stdout.write(
-            f'  Mau sac: {color_count} | Quy cach: {spec_count} | Nhom cha: {roots} | Nhom con: {leaves}'
+            f'  Mau sac: {color_count} | Quy cach: {spec_count} | Nhom: {groups}'
         )
         if color_count < 50:
             errors.append(f'Màu sắc thiếu (có {color_count}, cần >= 50).')
         if spec_count < 40:
             errors.append(f'Quy cách thiếu (có {spec_count}, cần >= 40).')
-        if roots < 7:
-            errors.append(f'Nhóm cấp 1 thiếu (có {roots}, cần >= 7).')
-        if leaves < 9:
-            errors.append(f'Nhóm cấp 2 thiếu (có {leaves}, cần >= 9).')
+        if groups < 9:
+            errors.append(f'Nhóm NPL thiếu (có {groups}, cần >= 9).')
 
-        mat_with_parent = Material.objects.filter(
-            is_active=True, category__parent__isnull=False,
-        ).count()
-        self.stdout.write(f'  NPL gan nhom con: {mat_with_parent}')
-        if mat_with_parent == 0 and Material.objects.exists():
-            errors.append('Có NPL nhưng chưa gắn nhóm cấp 2.')
+        categorized = Material.objects.filter(is_active=True, category__isnull=False).count()
+        self.stdout.write(f'  NPL gan nhom: {categorized}')
 
         if not user:
             self._finish(errors)
@@ -62,13 +55,12 @@ class Command(BaseCommand):
 
         pages = [
             ('Danh mục', reverse('kho_npl:material_list'), [
-                'data-col="category_parent"', 'jp-npl-catalog-row', 'jp-npl-color-swatch',
-                'Nhóm cấp 1', 'Nhóm cấp 2', '<optgroup',
+                'data-col="category"', 'jp-npl-catalog-row', 'jp-npl-color-swatch', 'Nhóm',
             ]),
             ('Tồn kho', reverse('kho_npl:material_stock'), [
                 'npl-stock-table', 'jp-npl-stock-row', 'data-col="image"', 'data-col="code"',
                 'data-col="stock_status"', 'Đang tải chi tiết tồn kho', 'jp-npl-stock-detail-btn',
-                'data-col="category_parent"', 'Nhóm cấp 1', '<optgroup',
+                'data-col="category"', 'Nhóm',
             ]),
             ('Phieu nhap', reverse('kho_npl:receipt_list'), ['npl-receipt-table', 'jp-npl-catalog-row']),
             ('Phieu xuat', reverse('kho_npl:issue_list'), ['npl-issue-table', 'jp-npl-catalog-row']),
@@ -77,7 +69,7 @@ class Command(BaseCommand):
             ('Kiem ke', reverse('kho_npl:stocktake_list'), ['npl-stocktake-table', 'jp-npl-catalog-row', 'jp-mat-edit-btn']),
             ('Thiet lap mau', reverse('kho_npl:settings_list', kwargs={'section': 'mau'}), ['jp-npl-color-swatch', 'Mã hex']),
             ('Thiết lập quy cách', reverse('kho_npl:settings_list', kwargs={'section': 'quy-cach'}), ['Quy cách']),
-            ('Thiết lập nhóm', reverse('kho_npl:settings_list', kwargs={'section': 'nhom'}), ['Nhóm cấp 1']),
+            ('Thiết lập nhóm', reverse('kho_npl:settings_list', kwargs={'section': 'nhom'}), ['Tên nhóm']),
         ]
 
         for label, url, needles in pages:

@@ -56,6 +56,7 @@
         <tr class="line-row">
             {% for hidden in line_form.hidden_fields %}{{ hidden }}{% endfor %}
             <td class="jp-npl-material-cell"><div class="jp-npl-material-field">{{ line_form.material }}</div></td>
+            <td>{{ line_form.batch }}</td>
             <td class="jp-npl-stock-cell text-end"><span class="jp-npl-stock-qty text-muted small">—</span></td>
             <td class="jp-npl-qty-cell text-end">{{ line_form.quantity }}</td>
             <td class="jp-npl-line-unit-cell"><span class="jp-npl-line-unit text-muted small">—</span></td>

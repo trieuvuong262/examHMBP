@@ -5,6 +5,12 @@ from django.utils import timezone
 
 from kho_npl.choices import DOC_STATUS_DRAFT, DOC_STATUS_POSTED
 from kho_npl.models import StockBalance, StockIssue, StockLedger
+from kho_npl.services.batches import (
+    BatchWorkflowError,
+    decrease_batch_qty,
+    ledger_amount,
+    validate_batch_for_material,
+)
 
 
 class IssueWorkflowError(Exception):
@@ -20,7 +26,7 @@ def post_stock_issue(issue: StockIssue, user) -> StockIssue:
     issue = StockIssue.objects.select_for_update().get(pk=issue.pk)
     if issue.status != DOC_STATUS_DRAFT:
         raise IssueWorkflowError('Chỉ phiếu đã tạo mới được xuất kho.')
-    lines = list(issue.lines.select_related('material', 'location').all())
+    lines = list(issue.lines.select_related('material', 'location', 'batch').all())
     if not lines:
         raise IssueWorkflowError('Phiếu xuất chưa có dòng chi tiết.')
     if not issue.attachment:
@@ -28,6 +34,16 @@ def post_stock_issue(issue: StockIssue, user) -> StockIssue:
     for line in lines:
         if line.quantity <= Decimal('0'):
             raise IssueWorkflowError(f'Số lượng xuất của {line.material.code} phải lớn hơn 0.')
+        try:
+            batch = validate_batch_for_material(line.batch, line.material)
+            decrease_batch_qty(batch, line.quantity, material_code=line.material.code)
+        except BatchWorkflowError as exc:
+            raise IssueWorkflowError(str(exc)) from exc
+
+        # Snapshot giá xuất = giá lô
+        line.unit_price = batch.unit_price
+        line.save(update_fields=['unit_price'])
+
         balance = (
             StockBalance.objects.select_for_update()
             .filter(material=line.material, location=line.location)
@@ -46,6 +62,9 @@ def post_stock_issue(issue: StockIssue, user) -> StockIssue:
             location=line.location,
             qty_delta=-line.quantity,
             balance_after=balance.quantity,
+            batch=batch,
+            unit_price=line.unit_price,
+            amount=ledger_amount(line.quantity, line.unit_price),
             ref_type=StockLedger.REF_ISSUE,
             ref_id=issue.pk,
             ref_number=issue.number,

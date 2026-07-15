@@ -344,9 +344,6 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page.jp-npl-stock-card-page .j
                 {% for cat_id in selected_categories %}
                 <input type="hidden" name="category" value="{{ cat_id }}">
                 {% endfor %}
-                {% if selected_category_parent %}
-                <input type="hidden" name="category_parent" value="{{ selected_category_parent }}">
-                {% endif %}
                 {% if search_query %}
                 <input type="hidden" name="q" value="{{ search_query }}">
                 {% endif %}
@@ -641,9 +638,6 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page.jp-npl-stock-card-page .j
                         data-href="{{ catalog_select_base }}?material={{ material.pk }}{% if catalog_filter_qs %}&{{ catalog_filter_qs }}{% endif %}">
                         <td class="npl-col jp-mat-code fw-semibold text-hm" data-col="code">{{ material.code }}</td>
                         <td class="npl-col" data-col="name" title="{{ material.name }}">{{ material.name }}</td>
-                        <td class="npl-col" data-col="category_parent" title="{% if material.category.parent %}{{ material.category.parent.name }}{% endif %}">
-                            {% if material.category.parent %}{{ material.category.parent.name }}{% else %}—{% endif %}
-                        </td>
                         <td class="npl-col" data-col="category" title="{{ material.category.name }}">{{ material.category.name }}</td>
                         <td class="npl-col" data-col="specification">{% include 'kho_npl/includes/material_spec_display.html' with spec=material.specification %}</td>
                     </tr>
@@ -669,7 +663,6 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page.jp-npl-stock-card-page .j
 
 {% block scripts %}
 {% include 'kho_npl/includes/filter_multi_select_script.html' %}
-{% include 'kho_npl/includes/material_category_cascade_script.html' with parent_select_id='sc-cat-parent' child_select_id='sc-cat-child' form_id='jp-stock-card-catalog-filters' cascade_data_id='sc-category-cascade' %}
 <script>
 (function () {
     function selectedLocationIds() {

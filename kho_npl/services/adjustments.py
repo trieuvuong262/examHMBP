@@ -5,6 +5,12 @@ from django.utils import timezone
 
 from kho_npl.choices import ADJUST_STATUS_APPROVED, ADJUST_STATUS_PENDING, ADJUST_STATUS_REJECTED
 from kho_npl.models import StockAdjustment, StockBalance, StockLedger
+from kho_npl.services.batches import (
+    BatchWorkflowError,
+    adjust_batch_qty,
+    ledger_amount,
+    validate_batch_for_material,
+)
 
 
 class AdjustmentWorkflowError(Exception):
@@ -30,12 +36,21 @@ def approve_stock_adjustment(adjustment: StockAdjustment, user) -> StockAdjustme
     if adjustment.status != ADJUST_STATUS_PENDING:
         raise AdjustmentWorkflowError('Chỉ phiếu chờ duyệt mới được phê duyệt.')
     lines = list(
-        adjustment.lines.select_related('material', 'location').order_by('id')
+        adjustment.lines.select_related('material', 'location', 'batch').order_by('id')
     )
     if not lines:
         raise AdjustmentWorkflowError('Phiếu chưa có dòng điều chỉnh.')
     for line in lines:
         variance = line.actual_qty - line.system_qty
+        if variance != 0:
+            try:
+                batch = validate_batch_for_material(line.batch, line.material)
+                adjust_batch_qty(batch, variance, material_code=line.material.code)
+            except BatchWorkflowError as exc:
+                raise AdjustmentWorkflowError(str(exc)) from exc
+        else:
+            batch = line.batch
+
         balance, _ = StockBalance.objects.select_for_update().get_or_create(
             material=line.material,
             location=line.location,
@@ -45,11 +60,15 @@ def approve_stock_adjustment(adjustment: StockAdjustment, user) -> StockAdjustme
         balance.save(update_fields=['quantity', 'updated_at'])
         if variance != 0:
             note = line.notes or adjustment.reason
+            unit_price = batch.unit_price if batch else Decimal('0')
             StockLedger.objects.create(
                 material=line.material,
                 location=line.location,
                 qty_delta=variance,
                 balance_after=balance.quantity,
+                batch=batch,
+                unit_price=unit_price,
+                amount=ledger_amount(variance, unit_price),
                 ref_type=StockLedger.REF_ADJUSTMENT,
                 ref_id=adjustment.pk,
                 ref_number=adjustment.number,

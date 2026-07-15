@@ -235,7 +235,7 @@ class Command(BaseCommand):
         ensure_material_category_tree()
         locations = self._ensure_locations()
         suppliers = self._ensure_suppliers()
-        categories = {c.code: c for c in MaterialCategory.objects.filter(is_active=True, parent__isnull=False)}
+        categories = {c.code: c for c in MaterialCategory.objects.filter(is_active=True)}
         units = {u.code: u for u in Unit.objects.filter(is_active=True)}
         if not categories or not units.get('met'):
             raise CommandError('Thiếu master data — chạy migrate kho_npl trước.')

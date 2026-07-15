@@ -10,6 +10,12 @@ from kho_npl.choices import (
     STOCKTAKE_STATUS_REVIEW,
 )
 from kho_npl.models import Material, StockBalance, StockLedger, Stocktake, StocktakeLine
+from kho_npl.services.batches import (
+    BatchWorkflowError,
+    adjust_batch_qty,
+    ledger_amount,
+    validate_batch_for_material,
+)
 
 
 class StocktakeWorkflowError(Exception):
@@ -80,10 +86,16 @@ def close_stocktake(stocktake: Stocktake, user) -> Stocktake:
     uncounted = stocktake.lines.filter(actual_qty__isnull=True).count()
     if uncounted:
         raise StocktakeWorkflowError(f'Còn {uncounted} dòng chưa nhập tồn thực tế.')
-    for line in stocktake.lines.select_related('material', 'location'):
+    for line in stocktake.lines.select_related('material', 'location', 'batch'):
         variance = line.actual_qty - line.system_qty
         if variance == 0:
             continue
+        try:
+            batch = validate_batch_for_material(line.batch, line.material)
+            adjust_batch_qty(batch, variance, material_code=line.material.code)
+        except BatchWorkflowError as exc:
+            raise StocktakeWorkflowError(str(exc)) from exc
+
         balance, _ = StockBalance.objects.select_for_update().get_or_create(
             material=line.material,
             location=line.location,
@@ -96,6 +108,9 @@ def close_stocktake(stocktake: Stocktake, user) -> Stocktake:
             location=line.location,
             qty_delta=variance,
             balance_after=balance.quantity,
+            batch=batch,
+            unit_price=batch.unit_price,
+            amount=ledger_amount(variance, batch.unit_price),
             ref_type=StockLedger.REF_STOCKTAKE,
             ref_id=stocktake.pk,
             ref_number=stocktake.number,

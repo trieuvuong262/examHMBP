@@ -179,6 +179,7 @@
                 </thead>
                 <tbody>
                     {% for group in department_groups %}
+                    {% if group.label %}
                     <tr class="table-light">
                         <td colspan="{{ table_columns|length }}" class="py-2">
                             <div class="d-flex flex-wrap align-items-center gap-2">
@@ -188,6 +189,7 @@
                             </div>
                         </td>
                     </tr>
+                    {% endif %}
                     {% for row in group.rows %}
                     <tr{% if row.report %} class="jp-team-row-clickable" data-row-href="{% url detail_url_name row.report.pk %}{% if team_list_query %}?{{ team_list_query }}{% endif %}" tabindex="0" role="link" aria-label="Mở chi tiết báo cáo"{% endif %}>
                         {% block team_row_cells %}{% endblock %}

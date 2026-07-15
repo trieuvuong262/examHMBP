@@ -13,6 +13,7 @@ from hrm.permissions import (
     ROLE_DEPARTMENT_HEAD,
     ROLE_DIRECTOR,
     ROLE_DIVISION_HEAD,
+    ROLE_TEAM_LEADER,
 )
 from reports.models import DailyWorkReport, ProductionHourlyQuantity, ReportComment
 from reports.period_utils import PERIOD_DAY
@@ -40,8 +41,9 @@ from reports.week_utils import monday_of
 
 PRODUCTION_WEEK_WORK_DAYS = 6  # Thứ 2 – Thứ 7
 
-# Trưởng bộ phận / trưởng phòng / giám đốc — không bắt buộc BC SX, không hiện «Chưa báo cáo».
+# Tổ trưởng trở lên — không bắt buộc BC SX, không hiện «Chưa báo cáo».
 PRODUCTION_NO_REPORT_EXEMPT_ROLES = frozenset({
+    ROLE_TEAM_LEADER,
     ROLE_DIVISION_HEAD,
     ROLE_DEPARTMENT_HEAD,
     ROLE_DIRECTOR,
@@ -49,7 +51,7 @@ PRODUCTION_NO_REPORT_EXEMPT_ROLES = frozenset({
 
 
 def is_production_no_report_exempt(user) -> bool:
-    """Vai trò từ Trưởng bộ phận / Trưởng phòng trở lên — bỏ dòng «Chưa báo cáo» trên team SX."""
+    """Vai trò từ Tổ trưởng trở lên — bỏ dòng «Chưa báo cáo» trên team SX."""
     from hrm.concurrent_positions import effective_roles
 
     return bool(effective_roles(user) & PRODUCTION_NO_REPORT_EXEMPT_ROLES)

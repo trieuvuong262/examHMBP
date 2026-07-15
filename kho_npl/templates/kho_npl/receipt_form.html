@@ -32,7 +32,9 @@
           data-qty-field-suffix="received_qty"
           data-default-qty-on-material="1"
           data-validate-qty-zero="1"
-          data-show-line-unit="1">
+          data-show-line-unit="1"
+          data-batch-mode="code"
+          data-price-mode="input">
         {% csrf_token %}
         {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
 
@@ -95,9 +97,12 @@
                     <thead class="table-light">
                         <tr>
                             <th style="min-width:130px">Vị trí</th>
-                            <th style="min-width:260px">Nguyên phụ liệu</th>
-                            <th style="width:110px" class="text-end">SL nhập</th>
+                            <th style="min-width:220px">Nguyên phụ liệu</th>
+                            <th style="min-width:110px">Mã lô</th>
+                            <th style="width:100px" class="text-end">SL nhập</th>
                             <th style="width:72px">ĐVT</th>
+                            <th style="width:110px" class="text-end">Đơn giá</th>
+                            <th style="width:110px" class="text-end">Thành tiền</th>
                             <th>Ghi chú</th>
                             <th style="width:40px"></th>
                         </tr>
@@ -108,10 +113,13 @@
                             {% for hidden in line_form.hidden_fields %}{{ hidden }}{% endfor %}
                             <td>{{ line_form.location }}{% if line_form.location.errors %}<div class="text-danger small">{{ line_form.location.errors }}</div>{% endif %}</td>
                             <td class="jp-npl-material-cell"><div class="jp-npl-material-field">{{ line_form.material }}{% if line_form.material.errors %}<div class="text-danger small">{{ line_form.material.errors }}</div>{% endif %}</div></td>
+                            <td>{{ line_form.batch_code }}{% if line_form.batch_code.errors %}<div class="text-danger small">{{ line_form.batch_code.errors }}</div>{% endif %}</td>
                             <td class="text-end">{{ line_form.received_qty }}{% if line_form.received_qty.errors %}<div class="text-danger small">{{ line_form.received_qty.errors }}</div>{% endif %}</td>
                             <td class="jp-npl-line-unit-cell">
                                 <span class="jp-npl-line-unit text-muted small">{% if line_form.instance.material_id %}{{ line_form.instance.material.unit.name }}{% else %}—{% endif %}</span>
                             </td>
+                            <td class="text-end">{{ line_form.unit_price }}{% if line_form.unit_price.errors %}<div class="text-danger small">{{ line_form.unit_price.errors }}</div>{% endif %}</td>
+                            <td class="text-end"><span class="jp-npl-line-amount text-muted small">—</span></td>
                             <td>{{ line_form.notes }}</td>
                             <td class="text-center">
                                 {% if line_form.DELETE %}
@@ -126,10 +134,11 @@
                     </tbody>
                 </table>
             </div>
-            <div class="p-3 border-top bg-light">
+            <div class="p-3 border-top bg-light d-flex flex-wrap justify-content-between align-items-center gap-2">
                 <button type="button" class="btn btn-outline-hm btn-sm" id="add-row">
                     <i class="bi bi-plus-lg me-1"></i>Thêm dòng
                 </button>
+                <div class="fw-bold small">Tổng tiền: <span id="jp-npl-receipt-total">0</span> ₫</div>
             </div>
         </div>
 
@@ -155,8 +164,11 @@
         {% for hidden in line_form.hidden_fields %}{{ hidden }}{% endfor %}
         <td>{{ line_form.location }}</td>
         <td class="jp-npl-material-cell"><div class="jp-npl-material-field">{{ line_form.material }}</div></td>
+        <td>{{ line_form.batch_code }}</td>
         <td class="text-end">{{ line_form.received_qty }}</td>
         <td class="jp-npl-line-unit-cell"><span class="jp-npl-line-unit text-muted small">—</span></td>
+        <td class="text-end">{{ line_form.unit_price }}</td>
+        <td class="text-end"><span class="jp-npl-line-amount text-muted small">—</span></td>
         <td>{{ line_form.notes }}</td>
         <td class="text-center">
             <div class="d-none">{{ line_form.DELETE }}</div>

@@ -10,6 +10,7 @@ from kho_npl.choices import (
     TRANSFER_STATUS_RECEIVED,
 )
 from kho_npl.models import StockBalance, StockLedger, StockTransfer
+from kho_npl.services.batches import ledger_amount
 
 
 class TransferWorkflowError(Exception):
@@ -39,7 +40,7 @@ def send_stock_transfer(transfer: StockTransfer, user) -> StockTransfer:
         raise TransferWorkflowError('Chỉ phiếu nháp mới được gửi chuyển.')
     if transfer.from_location_id == transfer.to_location_id:
         raise TransferWorkflowError('Kho gửi và kho nhận phải khác nhau.')
-    lines = list(transfer.lines.select_related('material'))
+    lines = list(transfer.lines.select_related('material', 'batch'))
     if not lines:
         raise TransferWorkflowError('Phiếu chuyển chưa có dòng chi tiết.')
 
@@ -59,11 +60,16 @@ def send_stock_transfer(transfer: StockTransfer, user) -> StockTransfer:
             )
         balance.quantity -= line.quantity
         balance.save(update_fields=['quantity', 'updated_at'])
+        # Chuyển kho không đổi tồn theo lô (lô theo mã NPL); batch chỉ tham chiếu
+        unit_price = line.batch.unit_price if line.batch_id else Decimal('0')
         StockLedger.objects.create(
             material=line.material,
             location=transfer.from_location,
             qty_delta=-line.quantity,
             balance_after=balance.quantity,
+            batch=line.batch,
+            unit_price=unit_price,
+            amount=ledger_amount(line.quantity, unit_price),
             ref_type=StockLedger.REF_TRANSFER,
             ref_id=transfer.pk,
             ref_number=transfer.number,
@@ -84,7 +90,7 @@ def receive_stock_transfer(transfer: StockTransfer, user) -> StockTransfer:
     if transfer.status != TRANSFER_STATUS_IN_TRANSIT:
         raise TransferWorkflowError('Chỉ phiếu đang chuyển mới được nhận vào kho.')
 
-    for line in transfer.lines.select_related('material'):
+    for line in transfer.lines.select_related('material', 'batch'):
         balance, _ = StockBalance.objects.select_for_update().get_or_create(
             material=line.material,
             location=transfer.to_location,
@@ -92,11 +98,15 @@ def receive_stock_transfer(transfer: StockTransfer, user) -> StockTransfer:
         )
         balance.quantity += line.quantity
         balance.save(update_fields=['quantity', 'updated_at'])
+        unit_price = line.batch.unit_price if line.batch_id else Decimal('0')
         StockLedger.objects.create(
             material=line.material,
             location=transfer.to_location,
             qty_delta=line.quantity,
             balance_after=balance.quantity,
+            batch=line.batch,
+            unit_price=unit_price,
+            amount=ledger_amount(line.quantity, unit_price),
             ref_type=StockLedger.REF_TRANSFER,
             ref_id=transfer.pk,
             ref_number=transfer.number,

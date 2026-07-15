@@ -2056,6 +2056,14 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
             daily_report_visible_to_team,
             dept_filter=dept_filter,
         )
+        # VP: danh sách phẳng theo ngày, không chia nhóm vị trí chính / phòng ban
+        flat_rows = [row for group in department_groups for row in group['rows']]
+        department_groups = [{
+            'key': 'all',
+            'label': '',
+            'subtitle': '',
+            'rows': flat_rows,
+        }] if flat_rows else []
         submitted = len(submitted_employee_ids)
         missing = team_count - submitted
         no_report_count = 0

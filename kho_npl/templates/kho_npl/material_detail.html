@@ -36,15 +36,7 @@
                     </div>
                 </div>
                 <div class="col-lg-8 col-xl-9">
-                    {% if material.category.parent %}
-                    <div class="jp-npl-mat-detail-breadcrumb">
-                        {{ material.category.parent.name }}
-                        <i class="bi bi-chevron-right mx-1" aria-hidden="true"></i>
-                        {{ material.category.name }}
-                    </div>
-                    {% else %}
                     <div class="jp-npl-mat-detail-breadcrumb">{{ material.category.name }}</div>
-                    {% endif %}
                     <div class="jp-npl-mat-detail-code">{{ material.code }}</div>
                     <h1 class="jp-npl-mat-detail-name">{{ material.name }}</h1>
                     <div class="jp-npl-mat-detail-meta">
@@ -77,13 +69,7 @@
                 </div>
                 <div class="card-body">
                     <div class="jp-npl-mat-detail-item">
-                        <span class="jp-npl-mat-detail-label">Nhóm cấp 1</span>
-                        <span class="jp-npl-mat-detail-value">
-                            {% if material.category.parent %}{{ material.category.parent.name }}{% else %}<span class="text-muted">—</span>{% endif %}
-                        </span>
-                    </div>
-                    <div class="jp-npl-mat-detail-item">
-                        <span class="jp-npl-mat-detail-label">Nhóm cấp 2</span>
+                        <span class="jp-npl-mat-detail-label">Nhóm</span>
                         <span class="jp-npl-mat-detail-value">{{ material.category.name }}</span>
                     </div>
                 </div>

@@ -11,6 +11,7 @@ from kho_npl.choices import (
 )
 from kho_npl.models import Material, StockBalance
 from kho_npl.material_search import apply_smart_search
+from kho_npl.services.batches import material_batch_totals
 from kho_npl.services.scrap_warehouse import exclude_scrap_locations
 
 
@@ -81,7 +82,7 @@ def material_stock_rows(queryset=None, location_ids: list[int] | None = None):
 
     storage_ids = set(source_locations_qs().values_list('pk', flat=True))
     qs = queryset or Material.objects.filter(is_active=True).select_related(
-        'category', 'unit', 'supplier', 'color', 'specification', 'category__parent',
+        'category', 'unit', 'supplier', 'color', 'specification',
     ).prefetch_related('balances__location')
     loc_set = set(location_ids or []) & storage_ids if location_ids else storage_ids
     rows = []
@@ -109,9 +110,12 @@ def material_stock_rows(queryset=None, location_ids: list[int] | None = None):
                 primary_location = location_balances[0]['location'].display_label()
         can_expand = len(location_balances) >= 1
         status = stock_status_for_qty(total, material.min_stock)
+        _batch_qty, stock_value, avg_unit_price = material_batch_totals(material)
         rows.append({
             'material': material,
             'total_qty': total,
+            'avg_unit_price': avg_unit_price,
+            'stock_value': stock_value,
             'status': status,
             'status_label': STOCK_STATUS_LABELS[status],
             'status_badge': STOCK_STATUS_BADGE[status],

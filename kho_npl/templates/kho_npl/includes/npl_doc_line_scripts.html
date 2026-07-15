@@ -9,6 +9,9 @@
     const searchUrl = form.dataset.materialSearchUrl || '';
     const inStockOnly = form.dataset.materialInStockOnly === '1';
     const balanceUrl = form.dataset.balanceUrl || '';
+    const batchUrl = form.dataset.batchUrl || '';
+    const batchMode = form.dataset.batchMode || '';
+    const priceMode = form.dataset.priceMode || '';
     const locationMode = form.dataset.locationMode || 'row';
     const locationSelector = form.dataset.locationSelector || '';
     const stockTarget = form.dataset.stockTarget || 'text';
@@ -26,6 +29,137 @@
     const fromSelect = transferWarehouseLock ? document.getElementById('id_from_location') : null;
     const lockFromInput = transferWarehouseLock ? document.getElementById('wh-lock-from') : null;
     const lockHint = transferWarehouseLock ? document.getElementById('wh-lock-hint') : null;
+
+    function formatMoney(n) {
+        if (!Number.isFinite(n)) return '—';
+        return Math.round(n).toLocaleString('vi-VN');
+    }
+
+    function rowBatchSelect(row) {
+        return row?.querySelector('select.jp-npl-batch-select, select[name$="-batch"]');
+    }
+
+    function rowUnitPriceInput(row) {
+        return row?.querySelector('input.jp-npl-unit-price, input[name$="-unit_price"]');
+    }
+
+    function clearBatchOptions(select, keepEmpty) {
+        if (!select) return;
+        const selected = select.value;
+        select.innerHTML = '';
+        if (keepEmpty !== false) {
+            const opt = document.createElement('option');
+            opt.value = '';
+            opt.textContent = select.dataset.placeholder || '— Chọn lô —';
+            select.appendChild(opt);
+        }
+        return selected;
+    }
+
+    function loadBatchesForRow(row, preferredId) {
+        if (batchMode !== 'select') return;
+        const select = rowBatchSelect(row);
+        const materialSelect = row?.querySelector('select.jp-npl-material-select');
+        if (!select || !batchUrl) return;
+        const materialId = materialSelect?.value || '';
+        const prev = preferredId || select.value || '';
+        clearBatchOptions(select);
+        setUnitPriceDisplay(row, null);
+        updateLineAmount(row);
+        if (!materialId) return;
+        fetch(batchUrl + '?material_id=' + encodeURIComponent(materialId), {
+            headers: { 'Accept': 'application/json' },
+        })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                const results = data.results || [];
+                results.forEach(function (item) {
+                    const opt = document.createElement('option');
+                    opt.value = String(item.id);
+                    opt.textContent = item.label || item.code;
+                    opt.dataset.unitPrice = item.unit_price || '0';
+                    opt.dataset.quantity = item.quantity || '0';
+                    select.appendChild(opt);
+                });
+                if (prev && Array.from(select.options).some(function (o) { return o.value === String(prev); })) {
+                    select.value = String(prev);
+                } else if (results.length === 1) {
+                    select.value = String(results[0].id);
+                }
+                onBatchChange(row);
+            })
+            .catch(function () { /* ignore */ });
+    }
+
+    function onBatchChange(row) {
+        const select = rowBatchSelect(row);
+        if (!select) return;
+        const opt = select.options[select.selectedIndex];
+        const price = opt && opt.value ? parseQty(opt.dataset.unitPrice) : null;
+        setUnitPriceDisplay(row, price);
+        updateLineAmount(row);
+    }
+
+    function setUnitPriceDisplay(row, price) {
+        const display = row?.querySelector('.jp-npl-unit-price-display');
+        if (display) {
+            display.textContent = price == null ? '—' : formatMoney(price);
+            if (price != null) display.dataset.unitPrice = String(price);
+            else delete display.dataset.unitPrice;
+        }
+        if (priceMode === 'input') return;
+        const input = rowUnitPriceInput(row);
+        if (input && price != null) input.value = String(price);
+    }
+
+    function resolveUnitPrice(row) {
+        if (priceMode === 'input') {
+            return parseQty(rowUnitPriceInput(row)?.value);
+        }
+        const display = row?.querySelector('.jp-npl-unit-price-display');
+        if (display?.dataset.unitPrice) return parseQty(display.dataset.unitPrice);
+        const select = rowBatchSelect(row);
+        const opt = select?.options[select.selectedIndex];
+        if (opt && opt.dataset.unitPrice) return parseQty(opt.dataset.unitPrice);
+        return parseQty(rowUnitPriceInput(row)?.value);
+    }
+
+    function updateLineAmount(row) {
+        if (!row) return;
+        const qty = parseQty(rowQtyInput(row)?.value);
+        const price = resolveUnitPrice(row);
+        const amountEl = row.querySelector('.jp-npl-line-amount');
+        let amount = null;
+        if (qty != null && price != null) amount = qty * price;
+        if (amountEl) amountEl.textContent = amount == null ? '—' : formatMoney(amount);
+        updateDocTotal();
+    }
+
+    function updateDocTotal() {
+        const totalEl = document.getElementById('jp-npl-doc-total')
+            || document.getElementById('jp-npl-receipt-total');
+        if (!totalEl) return;
+        let sum = 0;
+        body.querySelectorAll('.line-row').forEach(function (row) {
+            if (row.style.display === 'none') return;
+            const del = row.querySelector('input[type=checkbox][name$="-DELETE"]');
+            if (del && del.checked) return;
+            const qty = parseQty(rowQtyInput(row)?.value);
+            const price = resolveUnitPrice(row);
+            if (qty != null && price != null) sum += qty * price;
+        });
+        totalEl.textContent = formatMoney(sum);
+    }
+
+    function suggestReceiptBatchCode(row) {
+        if (batchMode !== 'code') return;
+        const input = row?.querySelector('input.jp-npl-batch-code, input[name$="-batch_code"]');
+        if (!input || (input.value || '').trim()) return;
+        const dateInput = form.querySelector('input[name="receipt_date"]');
+        const dateVal = (dateInput?.value || '').replace(/-/g, '') || 'LO';
+        const idx = Array.from(body.querySelectorAll('.line-row')).indexOf(row) + 1;
+        input.value = 'LO-' + dateVal + '-' + String(idx).padStart(2, '0');
+    }
 
     function parseQty(value) {
         const raw = String(value || '').trim().replace(',', '.');
@@ -460,6 +594,9 @@
                 }
                 applyDefaultQtyOnMaterial(row);
                 fetchStock(row);
+                suggestReceiptBatchCode(row);
+                loadBatchesForRow(row);
+                updateLineAmount(row);
                 syncTransferWarehouseLock();
             },
             onInitialize: function () {
@@ -497,6 +634,8 @@
         materialInstances.set(select, ts);
         if (select.value) {
             fetchStock(row);
+            loadBatchesForRow(row, rowBatchSelect(row)?.value);
+            updateLineAmount(row);
         }
     }
 
@@ -538,11 +677,15 @@
     const qtyInputSelector = 'input[name$="-' + qtyFieldSuffix + '"]';
 
     body.addEventListener('input', function (e) {
-        if (e.target.matches(qtyInputSelector)) {
+        if (e.target.matches(qtyInputSelector)
+            || e.target.matches('input.jp-npl-unit-price, input[name$="-unit_price"]')) {
             const row = e.target.closest('tr');
-            const showPopup = isCompleteQtyValue(e.target.value);
-            validateRowQty(row, showPopup);
-            syncTransferWarehouseLock();
+            if (e.target.matches(qtyInputSelector)) {
+                const showPopup = isCompleteQtyValue(e.target.value);
+                validateRowQty(row, showPopup);
+                syncTransferWarehouseLock();
+            }
+            updateLineAmount(row);
         }
     });
 
@@ -551,9 +694,14 @@
             onLocationChange(e.target.closest('tr'));
             return;
         }
+        if (e.target.matches('select.jp-npl-batch-select, select[name$="-batch"]')) {
+            onBatchChange(e.target.closest('tr'));
+            return;
+        }
         if (e.target.matches(qtyInputSelector)) {
             const row = e.target.closest('tr');
             validateRowQty(row, true);
+            updateLineAmount(row);
         }
     });
 

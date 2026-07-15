@@ -84,7 +84,7 @@ class Command(BaseCommand):
         active_only: bool = options['active_only']
         delay: float = options['delay']
 
-        qs = Material.objects.select_related('category', 'category__parent').order_by('code')
+        qs = Material.objects.select_related('category').order_by('code')
         if active_only:
             qs = qs.filter(is_active=True)
         if not force:

@@ -5,6 +5,12 @@ from django.utils import timezone
 
 from kho_npl.choices import DOC_STATUS_CANCELLED, DOC_STATUS_DRAFT, DOC_STATUS_POSTED
 from kho_npl.models import StockBalance, StockDisposal, StockLedger
+from kho_npl.services.batches import (
+    BatchWorkflowError,
+    decrease_batch_qty,
+    ledger_amount,
+    validate_batch_for_material,
+)
 from kho_npl.services.scrap_warehouse import get_scrap_location
 
 
@@ -23,7 +29,7 @@ def post_stock_disposal(disposal: StockDisposal, user) -> StockDisposal:
         raise DisposalWorkflowError('Chỉ phiếu nháp mới được ghi sổ.')
 
     scrap_location = get_scrap_location()
-    lines = list(disposal.lines.select_related('material', 'location'))
+    lines = list(disposal.lines.select_related('material', 'location', 'batch'))
     if not lines:
         raise DisposalWorkflowError('Phiếu hủy chưa có dòng chi tiết.')
 
@@ -34,6 +40,12 @@ def post_stock_disposal(disposal: StockDisposal, user) -> StockDisposal:
             raise DisposalWorkflowError(f'Dòng {line.material.code} chưa chọn vị trí kho.')
         if line.location_id == scrap_location.pk:
             raise DisposalWorkflowError('Vị trí nguồn không được là kho hủy.')
+
+        try:
+            batch = validate_batch_for_material(line.batch, line.material)
+            decrease_batch_qty(batch, line.quantity, material_code=line.material.code)
+        except BatchWorkflowError as exc:
+            raise DisposalWorkflowError(str(exc)) from exc
 
         source_balance = (
             StockBalance.objects.select_for_update()
@@ -53,6 +65,9 @@ def post_stock_disposal(disposal: StockDisposal, user) -> StockDisposal:
             location=line.location,
             qty_delta=-line.quantity,
             balance_after=source_balance.quantity,
+            batch=batch,
+            unit_price=batch.unit_price,
+            amount=ledger_amount(line.quantity, batch.unit_price),
             ref_type=StockLedger.REF_DISPOSAL,
             ref_id=disposal.pk,
             ref_number=disposal.number,
@@ -72,6 +87,9 @@ def post_stock_disposal(disposal: StockDisposal, user) -> StockDisposal:
             location=scrap_location,
             qty_delta=line.quantity,
             balance_after=scrap_balance.quantity,
+            batch=batch,
+            unit_price=batch.unit_price,
+            amount=ledger_amount(line.quantity, batch.unit_price),
             ref_type=StockLedger.REF_DISPOSAL,
             ref_id=disposal.pk,
             ref_number=disposal.number,

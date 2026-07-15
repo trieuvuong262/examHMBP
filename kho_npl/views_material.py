@@ -178,11 +178,25 @@ def balance_lookup(request):
     })
 
 
+@module_perm_required(MODULE_KHO_NPL, 'view')
+def batch_lookup(request):
+    """Danh sách lô còn tồn của 1 NPL — cho dropdown phiếu xuất/hủy/điều chỉnh/kiểm kê."""
+    material_id = _parse_positive_int(request.GET.get('material_id'))
+    if not material_id:
+        return JsonResponse({'error': 'Thiếu material_id.'}, status=400)
+    try:
+        material = Material.objects.get(pk=material_id, is_active=True)
+    except Material.DoesNotExist:
+        return JsonResponse({'error': 'NPL không hợp lệ.'}, status=404)
+    from kho_npl.services.batches import batch_stock_options
+    return JsonResponse({'results': batch_stock_options(material)})
+
+
 def _material_catalog_qs(request):
     search_query = get_search_query(request)
     category_parent_id, category_ids = parse_category_cascade_filter(request)
     show_inactive = request.GET.get('inactive') == '1'
-    qs = Material.objects.select_related('category', 'category__parent', 'unit', 'supplier', 'color', 'specification')
+    qs = Material.objects.select_related('category', 'unit', 'supplier', 'color', 'specification')
     if not show_inactive:
         qs = qs.filter(is_active=True)
     category_q = resolve_category_filter_q(category_parent_id, category_ids)
@@ -224,7 +238,7 @@ def material_list(request):
     search_query = get_search_query(request)
     category_ids = parse_int_ids(request, 'category')
     status = _material_list_status(request)
-    qs = Material.objects.select_related('category', 'category__parent', 'unit', 'supplier', 'color', 'specification')
+    qs = Material.objects.select_related('category', 'unit', 'supplier', 'color', 'specification')
     if status == 'active':
         qs = qs.filter(is_active=True)
     elif status == 'inactive':
@@ -321,7 +335,7 @@ def material_stock_list(request):
 def material_stock_detail(request, pk):
     material = get_object_or_404(
         Material.objects.select_related(
-            'category', 'category__parent', 'unit', 'color', 'specification',
+            'category', 'unit', 'color', 'specification',
         ),
         pk=pk,
     )
@@ -331,6 +345,9 @@ def material_stock_detail(request, pk):
         location_ids=location_ids or None,
     )
     row = rows[0]
+    from kho_npl.services.batches import batches_with_stock, material_batch_totals
+    batches = list(batches_with_stock(material))
+    _bq, stock_value, avg_unit_price = material_batch_totals(material)
     back_query = request.GET.urlencode()
     stock_card_params = [f'material={pk}']
     for loc_id in location_ids:
@@ -345,6 +362,9 @@ def material_stock_detail(request, pk):
         **perm_context(request.user, 'material_stock'),
         'material': material,
         'row': row,
+        'batches': batches,
+        'avg_unit_price': avg_unit_price,
+        'stock_value': stock_value,
         'back_query': back_query,
         'stock_card_url': stock_card_url,
         'selected_locations': location_ids,
@@ -364,12 +384,13 @@ def material_stock_export(request):
         data.append({
             'Mã NPL': mat.code,
             'Tên NPL': mat.name,
-            'Nhóm cấp 1': mat.category.parent.name if mat.category and mat.category.parent_id else '',
-            'Nhóm cấp 2': mat.category.name if mat.category_id else '',
+            'Nhóm': mat.category.name if mat.category_id else '',
             'Màu': mat.color.name if mat.color_id else '',
             'Quy cách': spec_label(mat.specification) if mat.specification_id else '',
             'ĐVT': mat.unit.name,
             'Tồn hiện tại': float(row['total_qty']),
+            'Đơn giá BQ': float(row.get('avg_unit_price') or 0),
+            'Giá trị tồn': float(row.get('stock_value') or 0),
             'Tối thiểu': float(mat.min_stock),
             'Vị trí chính': row['primary_location'],
             'Trạng thái': STOCK_STATUS_LABELS[row['status']],
@@ -381,7 +402,7 @@ def material_stock_export(request):
 @module_perm_required(MODULE_KHO_NPL, 'view')
 def material_detail(request, pk):
     material = get_object_or_404(
-        Material.objects.select_related('category', 'category__parent', 'unit', 'supplier', 'color', 'specification'),
+        Material.objects.select_related('category', 'unit', 'supplier', 'color', 'specification'),
         pk=pk,
     )
     return render(request, 'kho_npl/material_detail.html', {

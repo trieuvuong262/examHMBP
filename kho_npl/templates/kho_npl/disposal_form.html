@@ -28,7 +28,9 @@
           data-location-mode="row"
           data-stock-target="text"
           data-validate-qty-stock="1"
-          data-validate-qty-zero="1">
+          data-validate-qty-zero="1"
+          data-batch-url="{% url 'kho_npl:batch_lookup' %}"
+          data-batch-mode="select">
         {% csrf_token %}
         {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
 
@@ -68,9 +70,10 @@
                     <thead class="table-light">
                         <tr>
                             <th style="min-width:130px">Vị trí</th>
-                            <th style="min-width:260px">Nguyên phụ liệu</th>
-                            <th style="width:110px" class="text-end">Tồn</th>
-                            <th style="width:120px" class="text-end">Số lượng hủy</th>
+                            <th style="min-width:220px">Nguyên phụ liệu</th>
+                            <th style="min-width:180px">Lô hàng</th>
+                            <th style="width:90px" class="text-end">Tồn</th>
+                            <th style="width:110px" class="text-end">SL hủy</th>
                             <th>Ghi chú</th>
                             <th style="width:40px"></th>
                         </tr>
@@ -81,6 +84,7 @@
                             {% for hidden in line_form.hidden_fields %}{{ hidden }}{% endfor %}
                             <td>{{ line_form.location }}{% if line_form.location.errors %}<div class="text-danger small">{{ line_form.location.errors }}</div>{% endif %}</td>
                             <td class="jp-npl-material-cell"><div class="jp-npl-material-field">{{ line_form.material }}{% if line_form.material.errors %}<div class="text-danger small">{{ line_form.material.errors }}</div>{% endif %}</div></td>
+                            <td>{{ line_form.batch }}{% if line_form.batch.errors %}<div class="text-danger small">{{ line_form.batch.errors }}</div>{% endif %}</td>
                             <td class="text-end"><span class="jp-npl-stock-qty text-muted small">—</span></td>
                             <td class="text-end">{{ line_form.quantity }}{% if line_form.quantity.errors %}<div class="text-danger small">{{ line_form.quantity.errors }}</div>{% endif %}</td>
                             <td>{{ line_form.notes }}</td>
@@ -125,6 +129,7 @@
         {% for hidden in line_form.hidden_fields %}{{ hidden }}{% endfor %}
         <td>{{ line_form.location }}</td>
         <td class="jp-npl-material-cell"><div class="jp-npl-material-field">{{ line_form.material }}</div></td>
+        <td>{{ line_form.batch }}</td>
         <td class="text-end"><span class="jp-npl-stock-qty text-muted small">—</span></td>
         <td class="text-end">{{ line_form.quantity }}</td>
         <td>{{ line_form.notes }}</td>

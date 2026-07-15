@@ -57,11 +57,14 @@ class StockCardTests(TestCase):
         )
         self.client.login(username='sc_user', password='test')
 
-    def _post_receipt(self, qty, number='PN-SC-01'):
+    def _post_receipt(self, qty, number='PN-SC-01', batch_code=None, unit_price=None):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from decimal import Decimal
         receipt = StockReceipt.objects.create(
             number=number,
             receipt_date=timezone.localdate(),
             created_by=self.user,
+            attachment=SimpleUploadedFile('pn.pdf', b'%PDF-1.4', content_type='application/pdf'),
         )
         StockReceiptLine.objects.create(
             receipt=receipt,
@@ -69,20 +72,27 @@ class StockCardTests(TestCase):
             location=self.location,
             ordered_qty=qty,
             received_qty=qty,
+            batch_code=batch_code or number,
+            unit_price=unit_price if unit_price is not None else Decimal('10000'),
         )
         post_stock_receipt(receipt, self.user)
 
     def _post_issue(self, qty, number='PX-SC-01'):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from kho_npl.models import MaterialBatch
+        batch = MaterialBatch.objects.filter(material=self.material, quantity__gt=0).order_by('id').first()
         issue = StockIssue.objects.create(
             number=number,
             issue_date=timezone.localdate(),
             created_by=self.user,
+            attachment=SimpleUploadedFile('px.pdf', b'%PDF-1.4', content_type='application/pdf'),
         )
         StockIssueLine.objects.create(
             issue=issue,
             material=self.material,
             location=self.location,
             quantity=qty,
+            batch=batch,
         )
         post_stock_issue(issue, self.user)
 
@@ -95,17 +105,18 @@ class StockCardTests(TestCase):
         self.assertTrue(card['is_consistent'])
         self.assertEqual(material_total_qty(self.material), Decimal('98'))
         self.assertEqual(card['closing_balance'], Decimal('98'))
-        self.assertEqual(card['scope_label'], 'Tổng mọi kệ')
+        self.assertEqual(card['scope_label'], 'Tổng kho chứa')
         self.assertFalse(card['scope_is_location'])
 
         txn_rows = [r for r in card['rows'] if r['kind'] == 'txn']
         self.assertEqual(len(txn_rows), 3)
-        self.assertEqual(txn_rows[0]['qty_in'], Decimal('100'))
-        self.assertEqual(txn_rows[0]['balance_after'], Decimal('100'))
+        # Thẻ kho hiển thị phiếu mới nhất trước
+        self.assertEqual(txn_rows[0]['qty_in'], Decimal('3'))
+        self.assertEqual(txn_rows[0]['balance_after'], Decimal('98'))
         self.assertEqual(txn_rows[1]['qty_out'], Decimal('5'))
         self.assertEqual(txn_rows[1]['balance_after'], Decimal('95'))
-        self.assertEqual(txn_rows[2]['qty_in'], Decimal('3'))
-        self.assertEqual(txn_rows[2]['balance_after'], Decimal('98'))
+        self.assertEqual(txn_rows[2]['qty_in'], Decimal('100'))
+        self.assertEqual(txn_rows[2]['balance_after'], Decimal('100'))
 
     def test_diagnose_finds_location_mismatch(self):
         self._post_receipt(Decimal('10'))
@@ -144,12 +155,17 @@ class StockCardTests(TestCase):
             receipt_date=timezone.localdate(),
             created_by=self.user,
         )
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        receipt.attachment = SimpleUploadedFile('pn2.pdf', b'%PDF-1.4', content_type='application/pdf')
+        receipt.save(update_fields=['attachment'])
         StockReceiptLine.objects.create(
             receipt=receipt,
             material=self.material,
             location=loc_b,
             ordered_qty=Decimal('7'),
             received_qty=Decimal('7'),
+            batch_code='PN-SC-MULTI',
+            unit_price=Decimal('10000'),
         )
         post_stock_receipt(receipt, self.user)
 

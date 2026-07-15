@@ -87,8 +87,11 @@
                         <tr>
                             <th>Mã NPL</th>
                             <th>Tên</th>
+                            <th>Lô</th>
                             <th class="text-end">SL nhập</th>
                             <th>ĐVT</th>
+                            <th class="text-end">Đơn giá</th>
+                            <th class="text-end">Thành tiền</th>
                             <th>Vị trí</th>
                             <th>Ghi chú</th>
                         </tr>
@@ -99,8 +102,11 @@
                         <tr>
                             <td class="fw-semibold">{{ line.material.code }}</td>
                             <td>{{ line.material.name }}</td>
+                            <td>{{ line.batch_code|default:'—' }}</td>
                             <td class="text-end">{{ line.received_qty|npl_qty }}</td>
                             <td>{{ line.material.unit.name }}</td>
+                            <td class="text-end">{{ line.unit_price|floatformat:0 }}</td>
+                            <td class="text-end">{{ line.amount|floatformat:0 }}</td>
                             <td>{{ line.location.name }}</td>
                             <td>
                                 {{ line_form.id }}
@@ -113,7 +119,7 @@
                         {% endwith %}
                         {% empty %}
                         <tr>
-                            <td colspan="6" class="text-center text-muted py-4">Chưa có dòng chi tiết.</td>
+                            <td colspan="9" class="text-center text-muted py-4">Chưa có dòng chi tiết.</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -134,8 +140,11 @@
                     <tr>
                         <th>Mã NPL</th>
                         <th>Tên</th>
+                        <th>Lô</th>
                         <th class="text-end">SL nhập</th>
                         <th>ĐVT</th>
+                        <th class="text-end">Đơn giá</th>
+                        <th class="text-end">Thành tiền</th>
                         <th>Vị trí</th>
                         <th>Ghi chú</th>
                     </tr>
@@ -145,14 +154,17 @@
                     <tr>
                         <td class="fw-semibold">{{ line.material.code }}</td>
                         <td>{{ line.material.name }}</td>
+                        <td>{{ line.batch_code|default:'—' }}</td>
                         <td class="text-end">{{ line.received_qty|npl_qty }}</td>
                         <td>{{ line.material.unit.name }}</td>
+                        <td class="text-end">{{ line.unit_price|floatformat:0 }}</td>
+                        <td class="text-end">{{ line.amount|floatformat:0 }}</td>
                         <td>{{ line.location.name }}</td>
                         <td>{{ line.notes|default:'—' }}</td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="6" class="text-center text-muted py-4">Chưa có dòng chi tiết.</td>
+                        <td colspan="9" class="text-center text-muted py-4">Chưa có dòng chi tiết.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
