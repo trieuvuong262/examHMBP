@@ -109,6 +109,40 @@
 .jp-npl-material-catalog-page #npl-stock-table tr.jp-npl-stock-row-expandable.is-expanded {
     background: rgba(220, 38, 38, 0.04);
 }
+.jp-npl-material-catalog-page #npl-stock-table .jp-npl-group-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+    max-width: 100%;
+}
+.jp-npl-material-catalog-page #npl-stock-table .jp-npl-group-toggle .bi {
+    color: var(--hm-red, #dc2626);
+    font-size: 0.85rem;
+    flex: 0 0 auto;
+}
+.jp-npl-material-catalog-page #npl-stock-table tr.jp-npl-variant-row td {
+    background: rgba(15, 23, 42, 0.03);
+    font-size: 0.875rem;
+}
+.jp-npl-material-catalog-page #npl-stock-table tr.jp-npl-variant-row.is-collapsed {
+    display: none;
+}
+.jp-npl-material-catalog-page #npl-stock-table .jp-npl-variant-indent {
+    padding-left: 1.35rem;
+}
+.jp-npl-material-catalog-page #npl-stock-table .jp-npl-variant-indent::before {
+    content: '↳';
+    margin-right: 0.35rem;
+    color: var(--hm-red, #dc2626);
+    font-weight: 700;
+}
 .jp-npl-material-catalog-page #npl-stock-table tr.jp-npl-stock-loc-row td {
     background: rgba(15, 23, 42, 0.03);
     font-size: 0.875rem;

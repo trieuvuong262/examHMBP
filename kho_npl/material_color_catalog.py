@@ -158,8 +158,9 @@ def infer_material_color(material: Material) -> MaterialColor | None:
 def backfill_material_colors(*, only_missing: bool = True) -> tuple[int, int]:
     """
     Gán màu cho NPL. Trả về (đã gán, không suy luận được).
-  """
-    qs = Material.objects.select_related('color')
+    """
+    # only(...) tránh SELECT cột mới (vd. variant_group) khi migration cũ chạy.
+    qs = Material.objects.only('id', 'code', 'name', 'color_id').select_related('color')
     if only_missing:
         qs = qs.filter(color__isnull=True)
 

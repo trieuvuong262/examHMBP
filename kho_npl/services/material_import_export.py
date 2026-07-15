@@ -12,6 +12,7 @@ from kho_npl.services.material_specifications import resolve_material_specificat
 EXCEL_HEADERS = [
     'Mã NPL',
     'Tên NPL',
+    'Tên nhóm hàng',
     'Mã nhóm',
     'Màu sắc',
     'Quy cách',
@@ -27,6 +28,8 @@ _HEADER_ALIASES = {
     'ma': 'Mã NPL',
     'ten npl': 'Tên NPL',
     'ten': 'Tên NPL',
+    'ten nhom hang': 'Tên nhóm hàng',
+    'nhom hang': 'Tên nhóm hàng',
     'ma nhom': 'Mã nhóm',
     'nhom': 'Mã nhóm',
     'mau sac': 'Màu sắc',
@@ -78,6 +81,7 @@ def material_to_row(material: Material) -> dict:
     return {
         'Mã NPL': material.code,
         'Tên NPL': material.name,
+        'Tên nhóm hàng': material.variant_group or '',
         'Mã nhóm': material.category.code,
         'Màu sắc': material.color.name if material.color_id else '',
         'Quy cách': spec_label(material.specification) if material.specification_id else '',
@@ -105,6 +109,7 @@ def sample_template_xlsx() -> HttpResponse:
     sample = pd.DataFrame([{
         'Mã NPL': 'VAI-001',
         'Tên NPL': 'Vải cotton trắng',
+        'Tên nhóm hàng': 'COTTON',
         'Mã nhóm': 'vai-chinh',
         'Màu sắc': 'Trắng',
         'Quy cách': 'Khổ 1m6',
@@ -207,6 +212,7 @@ def import_materials_from_excel(file_obj) -> dict:
 
         defaults = {
             'name': name,
+            'variant_group': str(row.get('Tên nhóm hàng', '') or '').strip().upper(),
             'category': category,
             'color': color,
             'specification': specification,
@@ -216,6 +222,10 @@ def import_materials_from_excel(file_obj) -> dict:
             'notes': str(row.get('Ghi chú', '') or '').strip(),
             'is_active': _parse_bool(row.get('Đang dùng')),
         }
+
+        if not defaults['variant_group'] or defaults['variant_group'].lower() in ('nan', 'none'):
+            from kho_npl.variant_group import infer_variant_group_from_code
+            defaults['variant_group'] = infer_variant_group_from_code(code)
 
         material, is_new = Material.objects.update_or_create(
             code=code,

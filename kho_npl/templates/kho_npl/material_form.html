@@ -44,6 +44,19 @@
                         {% if form.name.errors %}<div class="text-danger small">{{ form.name.errors }}</div>{% endif %}
                     </div>
                     <div class="col-md-4">
+                        <label class="form-label fw-bold small" for="{{ form.variant_group.id_for_label }}">Tên nhóm hàng</label>
+                        {{ form.variant_group }}
+                        {% if form.variant_group.help_text %}<div class="form-text">{{ form.variant_group.help_text }}</div>{% endif %}
+                        {% if form.variant_group.errors %}<div class="text-danger small">{{ form.variant_group.errors }}</div>{% endif %}
+                        {% if form.variant_group_suggestions %}
+                        <datalist id="jp-npl-variant-group-list">
+                            {% for suggestion in form.variant_group_suggestions %}
+                            <option value="{{ suggestion }}"></option>
+                            {% endfor %}
+                        </datalist>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-4">
                         <label class="form-label fw-bold small" for="{{ form.category.id_for_label }}">Nhóm</label>
                         {{ form.category }}
                         {% if form.category.errors %}<div class="text-danger small">{{ form.category.errors }}</div>{% endif %}

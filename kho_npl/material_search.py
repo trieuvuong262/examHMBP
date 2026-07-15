@@ -22,7 +22,7 @@ _ACCENT_CLASSES = {
     'y': 'yỳýỷỹỵ',
 }
 
-MATERIAL_SEARCH_FIELDS = ('name',)
+MATERIAL_SEARCH_FIELDS = ('name', 'code', 'variant_group')
 
 
 class _RegexpReplace(Func):
@@ -184,16 +184,21 @@ def apply_smart_search(
 
 
 def apply_material_search(queryset, query: str):
-    """Tìm NPL — chỉ theo tên."""
+    """Tìm NPL — theo tên, mã và tên nhóm hàng."""
     return apply_smart_search(queryset, query, MATERIAL_SEARCH_FIELDS)
 
 
 def material_search_haystack(material) -> str:
-    return normalize_search_text(getattr(material, 'name', '') or '')
+    parts = [
+        getattr(material, 'name', '') or '',
+        getattr(material, 'code', '') or '',
+        getattr(material, 'variant_group', '') or '',
+    ]
+    return normalize_search_text(' '.join(parts))
 
 
 def material_matches_query(material, query: str) -> bool:
-    """Lọc trong bộ nhớ — cùng logic với apply_material_search (tên NPL)."""
+    """Lọc trong bộ nhớ — cùng logic với apply_material_search (tên / mã / nhóm hàng)."""
     if not query or not query.strip():
         return True
     haystack = material_search_haystack(material)

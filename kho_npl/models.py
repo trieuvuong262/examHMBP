@@ -120,6 +120,14 @@ class Supplier(models.Model):
 class Material(models.Model):
     code = models.CharField(max_length=60, unique=True, verbose_name='Mã NPL')
     name = models.CharField(max_length=200, verbose_name='Tên nguyên phụ liệu')
+    variant_group = models.CharField(
+        max_length=80,
+        blank=True,
+        default='',
+        db_index=True,
+        verbose_name='Tên nhóm hàng',
+        help_text='Gom các mã cùng dòng hàng (màu/quy cách khác nhau). Ví dụ: SIEU, CR3, BICH.',
+    )
     category = models.ForeignKey(
         MaterialCategory,
         on_delete=models.PROTECT,
@@ -175,8 +183,25 @@ class Material(models.Model):
         verbose_name_plural = 'Nguyên phụ liệu'
 
     def save(self, *args, **kwargs):
+        from kho_npl.variant_group import infer_variant_group_from_code, normalize_variant_group
+
         # Tên NPL luôn viết hoa, dù nhập từ form, import Excel hay admin
         self.name = (self.name or '').strip().upper()
+        update_fields = kwargs.get('update_fields')
+
+        # Migration cũ (vd. gán màu) có thể save(update_fields=['color']) trước khi có cột variant_group.
+        if update_fields is not None and 'variant_group' not in update_fields and 'code' not in update_fields:
+            super().save(*args, **kwargs)
+            return
+
+        deferred = set(self.get_deferred_fields()) if self.pk else set()
+        if 'variant_group' in deferred:
+            # Không fetch deferred field (cột có thể chưa tồn tại trên DB đang migrate).
+            self.variant_group = infer_variant_group_from_code(self.code)
+        else:
+            self.variant_group = normalize_variant_group(self.variant_group)
+            if not self.variant_group and self.code:
+                self.variant_group = infer_variant_group_from_code(self.code)
         super().save(*args, **kwargs)
 
     def __str__(self):

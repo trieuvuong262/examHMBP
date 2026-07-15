@@ -89,9 +89,9 @@ class MaterialSpecificationAdmin(admin.ModelAdmin):
 
 @admin.register(Material)
 class MaterialAdmin(admin.ModelAdmin):
-    list_display = ('code', 'name', 'category', 'color', 'specification', 'unit', 'min_stock', 'is_active')
-    list_filter = ('category', 'is_active')
-    search_fields = ('code', 'name', 'color__name', 'specification__name')
+    list_display = ('code', 'name', 'variant_group', 'category', 'color', 'specification', 'unit', 'min_stock', 'is_active')
+    list_filter = ('category', 'variant_group', 'is_active')
+    search_fields = ('code', 'name', 'variant_group', 'color__name', 'specification__name')
 
 
 @admin.register(MaterialBatch)

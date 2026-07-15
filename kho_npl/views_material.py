@@ -39,6 +39,12 @@ from kho_npl.services.material_import_export import (
 )
 from kho_npl.services.scrap_warehouse import filter_storage_location_ids, source_locations_qs
 from kho_npl.services.stock import material_stock_rows
+from kho_npl.services.variant_groups import (
+    group_materials,
+    group_stock_rows,
+    sort_catalog_groups,
+    sort_stock_groups,
+)
 from kho_npl.stock_list_columns import (
     STOCK_LIST_COLUMNS,
     STOCK_LIST_SORT_FIELDS,
@@ -226,13 +232,11 @@ def _material_list_status(request) -> str:
 def _material_list_sort(request):
     sort_key = (request.GET.get('sort') or 'code').strip()
     sort_dir = (request.GET.get('dir') or 'asc').strip().lower()
-    if sort_key not in MATERIAL_LIST_SORT_FIELDS:
+    if sort_key not in MATERIAL_LIST_SORT_FIELDS and sort_key != 'variant_group':
         sort_key = 'code'
     if sort_dir not in ('asc', 'desc'):
         sort_dir = 'asc'
-    orm_field = MATERIAL_LIST_SORT_FIELDS[sort_key]
-    order = orm_field if sort_dir == 'asc' else f'-{orm_field}'
-    return sort_key, sort_dir, order
+    return sort_key, sort_dir
 
 
 @module_perm_required(MODULE_KHO_NPL, 'view')
@@ -249,8 +253,10 @@ def material_list(request):
         qs = qs.filter(category_filter_q(category_ids))
     if search_query:
         qs = apply_material_search(qs, search_query)
-    sort_key, sort_dir, order_by = _material_list_sort(request)
-    page_obj, query_string = paginate_queryset(request, qs.order_by(order_by, 'code'), per_page=25)
+    sort_key, sort_dir = _material_list_sort(request)
+    groups = group_materials(list(qs.order_by('variant_group', 'code')))
+    groups = sort_catalog_groups(groups, sort_key, sort_dir)
+    page_obj, query_string = paginate_queryset(request, groups, per_page=25)
     category_roots = active_category_roots()
     return render(request, 'kho_npl/material_list.html', {
         **nav_context('materials', user=request.user),
@@ -266,6 +272,7 @@ def material_list(request):
         'total_col_weight': MATERIAL_LIST_TOTAL_COL_WEIGHT,
         'sort_key': sort_key,
         'sort_dir': sort_dir,
+        'expand_search_hits': bool(search_query),
         'has_filters': bool(search_query or category_ids or status != 'all'),
     })
 
@@ -302,16 +309,17 @@ def _stock_filtered_rows(request):
         rows = [r for r in rows if r['status'] == status]
 
     sort_key, sort_dir = _stock_list_sort(request)
-    rows.sort(key=STOCK_LIST_SORT_FIELDS[sort_key], reverse=(sort_dir == 'desc'))
-    return rows, search_query, category_ids, category_parent_id, location_ids, status, show_inactive, sort_key, sort_dir
+    groups = group_stock_rows(rows)
+    groups = sort_stock_groups(groups, sort_key, sort_dir)
+    return groups, search_query, category_ids, category_parent_id, location_ids, status, show_inactive, sort_key, sort_dir
 
 
 @module_perm_required(MODULE_KHO_NPL, 'view')
 def material_stock_list(request):
-    rows, search_query, category_ids, category_parent_id, location_ids, status, show_inactive, sort_key, sort_dir = (
+    groups, search_query, category_ids, category_parent_id, location_ids, status, show_inactive, sort_key, sort_dir = (
         _stock_filtered_rows(request)
     )
-    page_obj, query_string = paginate_queryset(request, rows, per_page=25)
+    page_obj, query_string = paginate_queryset(request, groups, per_page=25)
     return render(request, 'kho_npl/material_stock.html', {
         **nav_context('material_stock', user=request.user),
         **perm_context(request.user, 'material_stock'),
@@ -329,6 +337,7 @@ def material_stock_list(request):
         'total_col_weight': STOCK_LIST_TOTAL_COL_WEIGHT,
         'sort_key': sort_key,
         'sort_dir': sort_dir,
+        'expand_search_hits': bool(search_query),
         'has_filters': bool(search_query or category_ids or location_ids or status),
     })
 
@@ -379,24 +388,26 @@ def material_stock_detail(request, pk):
 
 @module_perm_required(MODULE_KHO_NPL, 'export')
 def material_stock_export(request):
-    rows, _, _, _, _, _, _, _, _ = _stock_filtered_rows(request)
+    groups, _, _, _, _, _, _, _, _ = _stock_filtered_rows(request)
     data = []
-    for row in rows:
-        mat = row['material']
-        data.append({
-            'Mã NPL': mat.code,
-            'Tên NPL': mat.name,
-            'Nhóm': mat.category.name if mat.category_id else '',
-            'Màu': mat.color.name if mat.color_id else '',
-            'Quy cách': spec_label(mat.specification) if mat.specification_id else '',
-            'ĐVT': mat.unit.name,
-            'Tồn hiện tại': float(row['total_qty']),
-            'Đơn giá BQ': float(row.get('avg_unit_price') or 0),
-            'Giá trị tồn': float(row.get('stock_value') or 0),
-            'Tối thiểu': float(mat.min_stock),
-            'Vị trí chính': row['primary_location'],
-            'Trạng thái': STOCK_STATUS_LABELS[row['status']],
-        })
+    for group in groups:
+        for row in group.get('rows') or []:
+            mat = row['material']
+            data.append({
+                'Mã NPL': mat.code,
+                'Tên NPL': mat.name,
+                'Tên nhóm hàng': getattr(mat, 'variant_group', '') or group.get('group_name', ''),
+                'Nhóm': mat.category.name if mat.category_id else '',
+                'Màu': mat.color.name if mat.color_id else '',
+                'Quy cách': spec_label(mat.specification) if mat.specification_id else '',
+                'ĐVT': mat.unit.name,
+                'Tồn hiện tại': float(row['total_qty']),
+                'Đơn giá BQ': float(row.get('avg_unit_price') or 0),
+                'Giá trị tồn': float(row.get('stock_value') or 0),
+                'Tối thiểu': float(mat.min_stock),
+                'Vị trí chính': row.get('primary_location') or '',
+                'Trạng thái': STOCK_STATUS_LABELS[row['status']],
+            })
     df = pd.DataFrame(data)
     return dataframe_to_xlsx_response(df, 'Ton_kho_npl', 'Ton_kho')
 

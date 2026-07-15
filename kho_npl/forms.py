@@ -198,6 +198,7 @@ class MaterialForm(forms.ModelForm):
         fields = [
             'code',
             'name',
+            'variant_group',
             'category',
             'color',
             'specification',
@@ -211,6 +212,12 @@ class MaterialForm(forms.ModelForm):
         widgets = {
             'code': forms.TextInput(attrs={**FORM_CONTROL, 'placeholder': 'VD: VAI-001'}),
             'name': forms.TextInput(attrs=FORM_CONTROL),
+            'variant_group': forms.TextInput(attrs={
+                **FORM_CONTROL,
+                'list': 'jp-npl-variant-group-list',
+                'placeholder': 'VD: SIEU, CR3, BICH…',
+                'autocomplete': 'off',
+            }),
             'category': forms.Select(attrs=FORM_SELECT),
             'color': MaterialColorSelect(attrs={
                 **FORM_SEARCH_SELECT,
@@ -232,6 +239,17 @@ class MaterialForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['category'].label = 'Nhóm'
+        self.fields['variant_group'].label = 'Tên nhóm hàng'
+        self.fields['variant_group'].required = False
+        self.fields['variant_group'].help_text = (
+            'Gom các mã cùng dòng hàng (màu/quy cách khác). Để trống sẽ tự suy từ mã NPL.'
+        )
+        self.variant_group_suggestions = list(
+            Material.objects.exclude(variant_group='')
+            .order_by('variant_group')
+            .values_list('variant_group', flat=True)
+            .distinct()[:200]
+        )
         self.fields['category'].queryset = material_form_category_queryset(
             self.instance if self.instance.pk else None,
         )
@@ -265,6 +283,15 @@ class MaterialForm(forms.ModelForm):
         if qs.exists():
             raise ValidationError('Mã NPL đã tồn tại.')
         return code
+
+    def clean_variant_group(self):
+        from kho_npl.variant_group import infer_variant_group_from_code, normalize_variant_group
+
+        group = normalize_variant_group(self.cleaned_data.get('variant_group'))
+        if group:
+            return group
+        code = (self.cleaned_data.get('code') or getattr(self.instance, 'code', '') or '').strip()
+        return infer_variant_group_from_code(code)
 
     def clean_image(self):
         uploaded = self.cleaned_data.get('image')
