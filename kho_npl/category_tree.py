@@ -8,9 +8,9 @@ from kho_npl.models import Material, MaterialCategory
 
 
 def ensure_material_category_tree():
-    """Đồng bộ danh mục nhóm phẳng mặc định."""
+    """Tạo nhóm mặc định còn thiếu — không ghi đè tên/trạng thái người dùng đã sửa."""
     for code, name, sort_order in DEFAULT_MATERIAL_CATEGORIES:
-        MaterialCategory.objects.update_or_create(
+        MaterialCategory.objects.get_or_create(
             code=code,
             defaults={
                 'name': name,

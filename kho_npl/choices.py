@@ -145,13 +145,17 @@ DISPOSAL_REASON_CHOICES = [
 ]
 
 DEFAULT_MATERIAL_CATEGORIES = [
-    ('vai-chinh', 'Vải chính', 1),
+    ('vai', 'Vải', 1),
     ('vai-phoi', 'Vải phối', 2),
-    ('bo-co-tay', 'Bo cổ / bo tay', 3),
+    ('bo-co', 'Bo cổ', 3),
+    ('bo-tay', 'Bo tay', 3),
     ('day-khoa', 'Dây kéo', 4),
-    ('tem-nhan', 'Tem nhãn / tag / size', 5),
-    ('bao-bi', 'Bao bì / túi / thùng', 6),
-    ('decal', 'Decal / vật tư in ép', 7),
+    ('day-rut', 'Dây rút', 4),
+    ('nut', 'Nút', 4),
+    ('khoen', 'Khoen', 4),
+    ('tem-nhan', 'Tem nhãn', 5),
+    ('bao-bi', 'Bao bì', 6),
+    ('decal', 'Decal', 7),
     ('chi-may', 'Chỉ may', 8),
     ('khac', 'Phụ liệu khác', 9),
 ]
