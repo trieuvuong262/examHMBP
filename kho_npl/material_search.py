@@ -24,6 +24,9 @@ _ACCENT_CLASSES = {
 
 MATERIAL_SEARCH_FIELDS = ('name', 'code', 'variant_group')
 
+# Ô chọn NPL trong phiếu: chỉ khớp theo mã và tên NPL.
+MATERIAL_DOC_SEARCH_FIELDS = ('name', 'code')
+
 
 class _RegexpReplace(Func):
     function = 'REGEXP_REPLACE'
