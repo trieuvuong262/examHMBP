@@ -247,7 +247,7 @@ class MaterialForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['category'].label = 'Loại NPL'
-        self.fields['variant_group'].label = 'Gom cùng dòng hàng'
+        self.fields['variant_group'].label = 'Gom nhóm hàng hoá'
         self.fields['variant_group'].required = False
         self.fields['variant_group'].help_text = (
             'Chọn một dòng hàng đã có để gom các màu/quy cách vào cùng một nhóm.'
