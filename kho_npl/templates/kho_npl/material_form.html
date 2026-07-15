@@ -64,6 +64,11 @@
                         {{ form.min_stock }}
                         {% if form.min_stock.errors %}<div class="text-danger small">{{ form.min_stock.errors }}</div>{% endif %}
                     </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold small" for="{{ form.base_price.id_for_label }}">Giá cơ bản (₫)</label>
+                        {{ form.base_price }}
+                        {% if form.base_price.errors %}<div class="text-danger small">{{ form.base_price.errors }}</div>{% endif %}
+                    </div>
                     <div class="col-12">
                         <div class="jp-npl-variant-group-box border rounded-3 p-3">
                             <div class="fw-bold mb-1">

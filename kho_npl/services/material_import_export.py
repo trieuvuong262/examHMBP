@@ -19,6 +19,7 @@ EXCEL_HEADERS = [
     'Mã ĐVT',
     'Mã NCC',
     'Tồn tối thiểu',
+    'Giá cơ bản',
     'Ghi chú',
     'Đang dùng',
 ]
@@ -40,6 +41,8 @@ _HEADER_ALIASES = {
     'ma ncc': 'Mã NCC',
     'ncc': 'Mã NCC',
     'ton toi thieu': 'Tồn tối thiểu',
+    'gia co ban': 'Giá cơ bản',
+    'don gia': 'Giá cơ bản',
     'ghi chu': 'Ghi chú',
     'dang dung': 'Đang dùng',
     'trang thai': 'Đang dùng',
@@ -98,6 +101,7 @@ def material_to_row(material: Material) -> dict:
         'Mã ĐVT': material.unit.code,
         'Mã NCC': material.supplier.code if material.supplier_id else '',
         'Tồn tối thiểu': float(material.min_stock),
+        'Giá cơ bản': float(material.base_price),
         'Ghi chú': material.notes or '',
         'Đang dùng': 'Có' if material.is_active else 'Không',
     }
@@ -126,6 +130,7 @@ def sample_template_xlsx() -> HttpResponse:
         'Mã ĐVT': 'met',
         'Mã NCC': '',
         'Tồn tối thiểu': 10,
+        'Giá cơ bản': 15000,
         'Ghi chú': '',
         'Đang dùng': 'Có',
     }], columns=EXCEL_HEADERS)
@@ -229,6 +234,7 @@ def import_materials_from_excel(file_obj) -> dict:
             'unit': unit,
             'supplier': supplier,
             'min_stock': _parse_decimal(row.get('Tồn tối thiểu')),
+            'base_price': _parse_decimal(row.get('Giá cơ bản')),
             'notes': _parse_text(row.get('Ghi chú')),
             'is_active': _parse_bool(row.get('Đang dùng')),
         }

@@ -171,6 +171,14 @@ class Material(models.Model):
         validators=[MinValueValidator(Decimal('0'))],
         verbose_name='Tồn tối thiểu',
     )
+    base_price = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal('0'),
+        validators=[MinValueValidator(Decimal('0'))],
+        verbose_name='Giá cơ bản',
+        help_text='Dùng làm giá bình quân khi chưa có lô và gợi ý đơn giá phiếu nhập.',
+    )
     image = models.ImageField(upload_to='npl/materials/', blank=True, verbose_name='Hình ảnh')
     notes = models.TextField(blank=True, verbose_name='Ghi chú')
     is_active = models.BooleanField(default=True, verbose_name='Đang dùng')

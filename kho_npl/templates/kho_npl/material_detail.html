@@ -123,6 +123,10 @@
                         <span class="jp-npl-mat-detail-label">Tồn tối thiểu</span>
                         <span class="jp-npl-mat-detail-value fw-semibold text-hm">{{ material.min_stock|npl_qty_with_unit:material.unit }}</span>
                     </div>
+                    <div class="jp-npl-mat-detail-item">
+                        <span class="jp-npl-mat-detail-label">Giá cơ bản</span>
+                        <span class="jp-npl-mat-detail-value jp-mat-code">{% if material.base_price %}{{ material.base_price|floatformat:0 }} ₫{% else %}—{% endif %}</span>
+                    </div>
                 </div>
             </div>
         </div>

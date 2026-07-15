@@ -151,6 +151,18 @@
         totalEl.textContent = formatMoney(sum);
     }
 
+    function suggestBasePrice(row, option) {
+        // Phiếu nhập: gợi ý đơn giá từ giá cơ bản trong danh mục nếu chưa nhập
+        if (priceMode !== 'input') return;
+        const input = rowUnitPriceInput(row);
+        if (!input) return;
+        const current = parseQty(input.value);
+        if (current != null && current > 0) return;
+        const base = option ? parseQty(option.base_price) : null;
+        if (base == null || base <= 0) return;
+        input.value = String(base);
+    }
+
     function suggestReceiptBatchCode(row) {
         if (batchMode !== 'code') return;
         const input = row?.querySelector('input.jp-npl-batch-code, input[name$="-batch_code"]');
@@ -595,6 +607,7 @@
                 applyDefaultQtyOnMaterial(row);
                 fetchStock(row);
                 suggestReceiptBatchCode(row);
+                suggestBasePrice(row, materialId ? this.options[materialId] : null);
                 loadBatchesForRow(row);
                 updateLineAmount(row);
                 syncTransferWarehouseLock();

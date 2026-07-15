@@ -229,6 +229,7 @@ class MaterialForm(forms.ModelForm):
             'unit',
             'supplier',
             'min_stock',
+            'base_price',
             'image',
             'notes',
             'is_active',
@@ -247,6 +248,7 @@ class MaterialForm(forms.ModelForm):
             'unit': forms.Select(attrs=FORM_SELECT),
             'supplier': forms.Select(attrs={**FORM_SEARCH_SELECT, 'data-placeholder': 'Tìm NCC...'}),
             'min_stock': forms.NumberInput(attrs={**FORM_CONTROL, 'step': '0.001', 'min': '0'}),
+            'base_price': forms.NumberInput(attrs={**FORM_CONTROL, 'step': '1', 'min': '0', 'placeholder': 'VD: 15000'}),
             'image': DocClearableFileInput(attrs={
                 'class': 'form-control',
                 'accept': 'image/*,.jpg,.jpeg,.png,.gif,.webp',
@@ -306,6 +308,10 @@ class MaterialForm(forms.ModelForm):
         self.fields['supplier'].empty_label = '—'
         self.fields['image'].required = False
         self.fields['is_active'].required = False
+        self.fields['base_price'].required = False
+
+    def clean_base_price(self):
+        return self.cleaned_data.get('base_price') or Decimal('0')
 
     def clean_code(self):
         code = (self.cleaned_data.get('code') or '').strip().upper()
