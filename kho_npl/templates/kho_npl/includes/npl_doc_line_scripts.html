@@ -671,12 +671,13 @@
     function initMaterialSelect(select) {
         if (!select || materialInstances.has(select) || typeof TomSelect === 'undefined') return;
         const row = select.closest('tr');
+        let lastMaterialId = (select.value || '').trim();
         const tsOptions = {
             maxOptions: browseOnOpen ? null : 40,
             maxItems: 1,
             valueField: 'id',
             labelField: materialDisplay === 'name-stock' ? 'name' : 'text',
-            // Tìm kiếm từ server (tên NPL, không dấu, thiếu khoảng trắng) — không lọc lại client-side.
+            // Tìm kiếm từ server; kết quả được lọc lại client-side qua score bên dưới.
             searchField: searchUrl ? [] : ['name'],
             placeholder: select.dataset.placeholder || 'Gõ tên NPL...',
             dropdownParent: 'body',
@@ -717,6 +718,19 @@
             },
             onChange: function () {
                 const materialId = this.getValue();
+                // Đổi sang NPL khác: xoá số lượng (và đơn giá gợi ý) của hàng cũ
+                if (lastMaterialId && materialId !== lastMaterialId) {
+                    const qtyInput = rowQtyInput(row);
+                    if (qtyInput) {
+                        qtyInput.value = '';
+                        setQtyInvalidState(qtyInput, false);
+                    }
+                    if (priceMode === 'input') {
+                        const priceInput = rowUnitPriceInput(row);
+                        if (priceInput) priceInput.value = '';
+                    }
+                }
+                lastMaterialId = materialId;
                 if (showLineUnit) {
                     const unit = materialId && this.options[materialId]
                         ? (this.options[materialId].unit_name || this.options[materialId].unit || '')
