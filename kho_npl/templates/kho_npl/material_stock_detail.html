@@ -98,7 +98,7 @@
             <div class="card jp-npl-mat-detail-section h-100">
                 <div class="card-body">
                     <div class="jp-npl-mat-detail-label mb-1">Đơn giá BQ</div>
-                    <div class="jp-npl-stock-summary-value jp-mat-code">
+                    <div class="jp-npl-stock-summary-value jp-mat-code" title="{{ avg_unit_price|npl_money_exact }}">
                         {% if avg_unit_price %}{{ avg_unit_price|npl_money }}{% else %}—{% endif %}
                     </div>
                 </div>
@@ -108,7 +108,7 @@
             <div class="card jp-npl-mat-detail-section h-100">
                 <div class="card-body">
                     <div class="jp-npl-mat-detail-label mb-1">Giá trị tồn</div>
-                    <div class="jp-npl-stock-summary-value jp-mat-code">
+                    <div class="jp-npl-stock-summary-value jp-mat-code" title="{{ stock_value|npl_money_exact }}">
                         {% if stock_value %}{{ stock_value|npl_money }}{% else %}—{% endif %}
                     </div>
                 </div>
@@ -148,9 +148,9 @@
                     <tr>
                         <td class="fw-semibold jp-mat-code">{{ batch.code }}</td>
                         <td>{% if batch.received_date %}{{ batch.received_date|date:'d/m/Y' }}{% else %}—{% endif %}</td>
-                        <td class="text-end jp-mat-code">{{ batch.unit_price|npl_money }}</td>
+                        <td class="text-end jp-mat-code" title="{{ batch.unit_price|npl_money_exact }}">{{ batch.unit_price|npl_money }}</td>
                         <td class="text-end jp-mat-code">{{ batch.quantity|npl_qty_with_unit:material.unit }}</td>
-                        <td class="text-end jp-mat-code fw-semibold">{{ batch.amount|npl_money }}</td>
+                        <td class="text-end jp-mat-code fw-semibold" title="{{ batch.amount|npl_money_exact }}">{{ batch.amount|npl_money }}</td>
                     </tr>
                     {% empty %}
                     <tr>
@@ -162,8 +162,8 @@
                 <tfoot class="table-light">
                     <tr>
                         <th colspan="3" class="text-end">Đơn giá BQ / Tổng giá trị</th>
-                        <th class="text-end jp-mat-code">{% if avg_unit_price %}{{ avg_unit_price|npl_money }}{% else %}—{% endif %}</th>
-                        <th class="text-end jp-mat-code">{% if stock_value %}{{ stock_value|npl_money }}{% else %}—{% endif %}</th>
+                        <th class="text-end jp-mat-code" title="{{ avg_unit_price|npl_money_exact }}">{% if avg_unit_price %}{{ avg_unit_price|npl_money }}{% else %}—{% endif %}</th>
+                        <th class="text-end jp-mat-code" title="{{ stock_value|npl_money_exact }}">{% if stock_value %}{{ stock_value|npl_money }}{% else %}—{% endif %}</th>
                     </tr>
                 </tfoot>
                 {% endif %}

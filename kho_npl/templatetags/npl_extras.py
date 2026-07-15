@@ -41,6 +41,19 @@ def format_npl_money(value) -> str:
     return f'{rounded:,.0f}'.replace(',', '.') + 'đ'
 
 
+def format_npl_money_exact(value) -> str:
+    """Tiền VND giữ tối đa 2 số lẻ (cho tooltip) — VD: 41.726,22đ."""
+    d = _to_decimal(value)
+    if d is None:
+        return '—'
+    quantized = d.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    if quantized == quantized.to_integral_value():
+        return format_npl_money(quantized)
+    text = f'{quantized:,.2f}'  # 41,726.22
+    text = text.replace(',', '\u0000').replace('.', ',').replace('\u0000', '.')
+    return text + 'đ'
+
+
 def unit_label(unit) -> str:
     """Nhãn ĐVT hiển thị — ưu tiên tên, không dùng mã."""
     return catalog_unit_label(unit)
@@ -87,6 +100,11 @@ def npl_qty_with_unit(value, unit=None):
 @register.filter
 def npl_money(value):
     return format_npl_money(value)
+
+
+@register.filter
+def npl_money_exact(value):
+    return format_npl_money_exact(value)
 
 
 @register.filter

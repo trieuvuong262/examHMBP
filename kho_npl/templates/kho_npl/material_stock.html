@@ -131,10 +131,10 @@
                         <td class="text-end npl-col jp-mat-code fw-semibold" data-col="total_qty" title="{{ group.total_qty|npl_qty_with_unit:group.unit }}">
                             <span class="jp-npl-stock-cell-clip">{{ group.total_qty|npl_qty_with_unit:group.unit }}</span>
                         </td>
-                        <td class="text-end npl-col jp-mat-code" data-col="avg_unit_price" title="{{ group.avg_unit_price|npl_money }}">
+                        <td class="text-end npl-col jp-mat-code" data-col="avg_unit_price" title="{{ group.avg_unit_price|npl_money_exact }}">
                             <span class="jp-npl-stock-cell-clip">{% if group.avg_unit_price %}{{ group.avg_unit_price|npl_money }}{% else %}—{% endif %}</span>
                         </td>
-                        <td class="text-end npl-col jp-mat-code" data-col="stock_value" title="{{ group.stock_value|npl_money }}">
+                        <td class="text-end npl-col jp-mat-code" data-col="stock_value" title="{{ group.stock_value|npl_money_exact }}">
                             <span class="jp-npl-stock-cell-clip">{% if group.stock_value %}{{ group.stock_value|npl_money }}{% else %}—{% endif %}</span>
                         </td>
                         <td class="text-end npl-col jp-mat-code" data-col="min_stock" title="{{ group.min_stock|npl_qty_with_unit:group.unit }}">
@@ -198,10 +198,10 @@
                         <td class="text-end npl-col jp-mat-code fw-semibold" data-col="total_qty" title="{{ row.total_qty|npl_qty_with_unit:row.material.unit }}">
                             <span class="jp-npl-stock-cell-clip">{{ row.total_qty|npl_qty_with_unit:row.material.unit }}</span>
                         </td>
-                        <td class="text-end npl-col jp-mat-code" data-col="avg_unit_price" title="{{ row.avg_unit_price|npl_money }}">
+                        <td class="text-end npl-col jp-mat-code" data-col="avg_unit_price" title="{{ row.avg_unit_price|npl_money_exact }}">
                             <span class="jp-npl-stock-cell-clip">{% if row.avg_unit_price %}{{ row.avg_unit_price|npl_money }}{% else %}—{% endif %}</span>
                         </td>
-                        <td class="text-end npl-col jp-mat-code" data-col="stock_value" title="{{ row.stock_value|npl_money }}">
+                        <td class="text-end npl-col jp-mat-code" data-col="stock_value" title="{{ row.stock_value|npl_money_exact }}">
                             <span class="jp-npl-stock-cell-clip">{% if row.stock_value %}{{ row.stock_value|npl_money }}{% else %}—{% endif %}</span>
                         </td>
                         <td class="text-end npl-col jp-mat-code" data-col="min_stock" title="{{ row.material.min_stock|npl_qty_with_unit:row.material.unit }}">
