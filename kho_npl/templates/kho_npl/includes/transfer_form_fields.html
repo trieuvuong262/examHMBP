@@ -50,7 +50,6 @@
                 <tr>
                     <th class="jp-npl-col-material">Nguyên phụ liệu <span class="text-danger">*</span></th>
                     <th style="min-width:160px">Lô (tuỳ chọn)</th>
-                    <th class="jp-npl-col-stock text-end">Tồn</th>
                     <th class="jp-npl-col-qty text-end">Số lượng <span class="text-danger">*</span></th>
                     <th class="jp-npl-col-unit">ĐVT</th>
                     <th class="jp-npl-col-line-notes">Ghi chú dòng</th>
@@ -69,10 +68,8 @@
                         {{ line_form.batch }}
                         {% if line_form.batch.errors %}<div class="text-danger small">{{ line_form.batch.errors }}</div>{% endif %}
                     </td>
-                    <td class="jp-npl-stock-cell text-end">
-                        <span class="jp-npl-stock-qty text-muted small">—</span>
-                    </td>
                     <td class="jp-npl-qty-cell text-end">
+                        <span class="jp-npl-stock-qty d-none">—</span>
                         {{ line_form.quantity }}
                         {% if line_form.quantity.errors %}<div class="text-danger small">{{ line_form.quantity.errors }}</div>{% endif %}
                     </td>
