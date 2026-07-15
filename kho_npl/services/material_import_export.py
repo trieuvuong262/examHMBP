@@ -54,6 +54,16 @@ def _normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
     return df.rename(columns=mapping)
 
 
+def _parse_text(value) -> str:
+    """Chuỗi từ ô Excel — ô trống/NaN trả về '' thay vì 'nan'."""
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        return ''
+    text = str(value).strip()
+    if text.lower() in ('nan', 'none'):
+        return ''
+    return text
+
+
 def _parse_bool(value) -> bool:
     text = str(value or '').strip().lower()
     if text in ('', 'nan', 'none'):
@@ -219,7 +229,7 @@ def import_materials_from_excel(file_obj) -> dict:
             'unit': unit,
             'supplier': supplier,
             'min_stock': _parse_decimal(row.get('Tồn tối thiểu')),
-            'notes': str(row.get('Ghi chú', '') or '').strip(),
+            'notes': _parse_text(row.get('Ghi chú')),
             'is_active': _parse_bool(row.get('Đang dùng')),
         }
 
