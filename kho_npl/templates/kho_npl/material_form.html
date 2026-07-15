@@ -101,6 +101,14 @@
                         <label class="form-label fw-bold small" for="{{ form.specification.id_for_label }}">Quy cách / khổ</label>
                         {{ form.specification }}
                         {% if form.specification.errors %}<div class="text-danger small">{{ form.specification.errors }}</div>{% endif %}
+                        <button type="button" class="btn btn-link btn-sm px-0 mt-1" id="jp-npl-new-spec-toggle">
+                            <i class="bi bi-plus-circle me-1"></i>Tạo quy cách / khổ mới
+                        </button>
+                        <div id="jp-npl-new-spec-wrap" class="mt-1" hidden>
+                            {{ form.new_specification }}
+                            <div class="form-text">Nhập trực tiếp; hệ thống sẽ tự tạo và chọn quy cách này.</div>
+                            {% if form.new_specification.errors %}<div class="text-danger small">{{ form.new_specification.errors }}</div>{% endif %}
+                        </div>
                     </div>
                     <div class="col-md-6">
                         <label class="form-label fw-bold small" for="{{ form.supplier.id_for_label }}">NCC chính</label>
@@ -161,6 +169,19 @@ document.addEventListener('DOMContentLoaded', function () {
 
     select.addEventListener('change', toggleNewGroup);
     toggleNewGroup();
+
+    const newSpecToggle = document.getElementById('jp-npl-new-spec-toggle');
+    const newSpecWrap = document.getElementById('jp-npl-new-spec-wrap');
+    const newSpecInput = document.getElementById('{{ form.new_specification.id_for_label }}');
+    if (newSpecToggle && newSpecWrap && newSpecInput) {
+        function showNewSpecification() {
+            newSpecWrap.hidden = false;
+            newSpecToggle.hidden = true;
+            newSpecInput.focus();
+        }
+        newSpecToggle.addEventListener('click', showNewSpecification);
+        if (newSpecInput.value) showNewSpecification();
+    }
 });
 </script>
 {% endblock %}

@@ -8,6 +8,7 @@ from django.core.exceptions import ValidationError
 from django.db.models import Count, Min
 from django.forms import BaseInlineFormSet, inlineformset_factory
 from django.utils import timezone
+from django.utils.text import slugify
 
 from kho_npl.models import (
     Material,
@@ -205,6 +206,16 @@ class MaterialForm(forms.ModelForm):
             'autocomplete': 'off',
         }),
     )
+    new_specification = forms.CharField(
+        required=False,
+        max_length=120,
+        label='Quy cách / khổ mới',
+        widget=forms.TextInput(attrs={
+            **FORM_CONTROL,
+            'placeholder': 'VD: Khổ 1m6, 2 cm, 100 gói/thùng…',
+            'autocomplete': 'off',
+        }),
+    )
 
     class Meta:
         model = Material
@@ -332,6 +343,31 @@ class MaterialForm(forms.ModelForm):
             group = infer_variant_group_from_code(code)
         cleaned_data['variant_group'] = group
         return cleaned_data
+
+    def save(self, commit=True):
+        material = super().save(commit=False)
+        new_spec_name = (self.cleaned_data.get('new_specification') or '').strip()
+        if new_spec_name:
+            specification = MaterialSpecification.objects.filter(name__iexact=new_spec_name).first()
+            if specification is None:
+                base_code = slugify(new_spec_name)[:40] or 'quy-cach'
+                code = base_code
+                suffix = 2
+                while MaterialSpecification.objects.filter(code=code).exists():
+                    suffix_text = f'-{suffix}'
+                    code = f'{base_code[:40 - len(suffix_text)]}{suffix_text}'
+                    suffix += 1
+                specification = MaterialSpecification.objects.create(
+                    code=code,
+                    name=new_spec_name,
+                    is_active=True,
+                )
+            material.specification = specification
+
+        if commit:
+            material.save()
+            self.save_m2m()
+        return material
 
     def clean_image(self):
         uploaded = self.cleaned_data.get('image')
