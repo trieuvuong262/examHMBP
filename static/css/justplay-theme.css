@@ -7142,6 +7142,61 @@ body.jp-monitor-modal-open {
     white-space: nowrap;
 }
 
+/* Dropdown NPL trong phiếu: tên căn trái, tồn căn phải */
+.jp-npl-material-option.is-name-stock {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.65rem;
+}
+
+.jp-npl-material-option.is-name-stock .jp-npl-material-option-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    text-align: left;
+}
+
+.jp-npl-material-option.is-name-stock .jp-npl-material-option-meta {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    text-align: right;
+}
+
+/* Dropdown lô hàng trong phiếu: mã lô căn trái, tồn căn giữa, giá căn trái */
+.jp-npl-batch-option {
+    display: flex;
+    align-items: baseline;
+    gap: 0.65rem;
+}
+
+.jp-npl-batch-option-code {
+    flex: 1 1 34%;
+    min-width: 0;
+    text-align: left;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.jp-npl-batch-option-qty {
+    flex: 1 1 33%;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.jp-npl-batch-option-price {
+    flex: 1 1 33%;
+    text-align: left;
+    white-space: nowrap;
+}
+
+.jp-npl-batch-item {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .jp-npl-material-item-code {
     font-weight: 700;
 }

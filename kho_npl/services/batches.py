@@ -21,12 +21,20 @@ def batches_with_stock(material: Material, *, include_zero: bool = False):
     return qs.order_by('received_date', 'id')
 
 
+def batch_effective_price(batch: MaterialBatch) -> Decimal:
+    """Giá lô để tính thành tiền — lô chưa có giá (0) dùng giá cơ bản danh mục."""
+    price = batch.unit_price or Decimal('0')
+    if price > 0:
+        return price
+    return batch.material.base_price or Decimal('0')
+
+
 def batch_label(batch: MaterialBatch) -> str:
-    """Nhãn lô: mã — tồn kèm ĐVT — giá. VD: TON-DAU — tồn 200 gói — giá 0₫."""
+    """Nhãn lô: mã — tồn kèm ĐVT — giá. VD: TON-DAU — tồn 200 gói — giá 15.000₫."""
     from kho_npl.catalog_labels import unit_label
     from kho_npl.templatetags.npl_extras import format_npl_qty
 
-    price = batch.unit_price or Decimal('0')
+    price = batch_effective_price(batch)
     price_text = f'{price:,.0f}'.replace(',', '.')
     qty_text = format_npl_qty(batch.quantity or Decimal('0'))
     unit = unit_label(getattr(batch.material, 'unit', None))
@@ -42,7 +50,7 @@ def batch_stock_options(material: Material) -> list[dict]:
         rows.append({
             'id': batch.pk,
             'code': batch.code,
-            'unit_price': str(batch.unit_price),
+            'unit_price': str(batch_effective_price(batch)),
             'quantity': str(batch.quantity),
             'label': batch_label(batch),
         })

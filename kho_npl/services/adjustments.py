@@ -8,6 +8,7 @@ from kho_npl.models import StockAdjustment, StockBalance, StockLedger
 from kho_npl.services.batches import (
     BatchWorkflowError,
     adjust_batch_qty,
+    batch_effective_price,
     ledger_amount,
     validate_batch_for_material,
 )
@@ -60,7 +61,7 @@ def approve_stock_adjustment(adjustment: StockAdjustment, user) -> StockAdjustme
         balance.save(update_fields=['quantity', 'updated_at'])
         if variance != 0:
             note = line.notes or adjustment.reason
-            unit_price = batch.unit_price if batch else Decimal('0')
+            unit_price = batch_effective_price(batch) if batch else Decimal('0')
             StockLedger.objects.create(
                 material=line.material,
                 location=line.location,

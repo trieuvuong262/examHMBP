@@ -26,6 +26,7 @@
     const warehouseLockedInitial = form.dataset.warehouseLocked === '1';
     const materialInstances = new WeakMap();
     const locationInstances = new WeakMap();
+    const batchInstances = new WeakMap();
     const fromSelect = transferWarehouseLock ? document.getElementById('id_from_location') : null;
     const lockFromInput = transferWarehouseLock ? document.getElementById('wh-lock-from') : null;
     const lockHint = transferWarehouseLock ? document.getElementById('wh-lock-hint') : null;
@@ -61,9 +62,16 @@
         const select = rowBatchSelect(row);
         const materialSelect = row?.querySelector('select.jp-npl-material-select');
         if (!select || !batchUrl) return;
+        const ts = batchInstances.get(select);
         const materialId = materialSelect?.value || '';
-        const prev = preferredId || select.value || '';
-        clearBatchOptions(select);
+        const prev = preferredId || (ts ? ts.getValue() : select.value) || '';
+        if (ts) {
+            ts.clear(true);
+            ts.clearOptions();
+            ts.addOption({ id: '', text: select.dataset.placeholder || '— Chọn lô —' });
+        } else {
+            clearBatchOptions(select);
+        }
         setUnitPriceDisplay(row, null);
         updateLineAmount(row);
         if (!materialId) return;
@@ -73,29 +81,57 @@
             .then(function (r) { return r.json(); })
             .then(function (data) {
                 const results = data.results || [];
-                results.forEach(function (item) {
-                    const opt = document.createElement('option');
-                    opt.value = String(item.id);
-                    opt.textContent = item.label || item.code;
-                    opt.dataset.unitPrice = item.unit_price || '0';
-                    opt.dataset.quantity = item.quantity || '0';
-                    select.appendChild(opt);
-                });
-                if (prev && Array.from(select.options).some(function (o) { return o.value === String(prev); })) {
-                    select.value = String(prev);
-                } else if (results.length === 1) {
-                    select.value = String(results[0].id);
+                if (ts) {
+                    results.forEach(function (item) {
+                        ts.addOption({
+                            id: String(item.id),
+                            text: item.label || item.code,
+                            code: item.code || '',
+                            unit_price: item.unit_price || '0',
+                            quantity: item.quantity || '0',
+                        });
+                    });
+                    if (prev && ts.options[String(prev)]) {
+                        ts.setValue(String(prev), true);
+                    } else if (results.length === 1) {
+                        ts.setValue(String(results[0].id), true);
+                    }
+                } else {
+                    results.forEach(function (item) {
+                        const opt = document.createElement('option');
+                        opt.value = String(item.id);
+                        opt.textContent = item.label || item.code;
+                        opt.dataset.unitPrice = item.unit_price || '0';
+                        opt.dataset.quantity = item.quantity || '0';
+                        select.appendChild(opt);
+                    });
+                    if (prev && Array.from(select.options).some(function (o) { return o.value === String(prev); })) {
+                        select.value = String(prev);
+                    } else if (results.length === 1) {
+                        select.value = String(results[0].id);
+                    }
                 }
                 onBatchChange(row);
             })
             .catch(function () { /* ignore */ });
     }
 
+    function selectedBatchData(select) {
+        const ts = batchInstances.get(select);
+        if (ts) {
+            const val = ts.getValue();
+            return val ? (ts.options[val] || null) : null;
+        }
+        const opt = select.options[select.selectedIndex];
+        if (!opt || !opt.value) return null;
+        return { unit_price: opt.dataset.unitPrice, quantity: opt.dataset.quantity };
+    }
+
     function onBatchChange(row) {
         const select = rowBatchSelect(row);
         if (!select) return;
-        const opt = select.options[select.selectedIndex];
-        const price = opt && opt.value ? parseQty(opt.dataset.unitPrice) : null;
+        const data = selectedBatchData(select);
+        const price = data ? parseQty(data.unit_price) : null;
         setUnitPriceDisplay(row, price);
         updateLineAmount(row);
     }
@@ -119,8 +155,8 @@
         const display = row?.querySelector('.jp-npl-unit-price-display');
         if (display?.dataset.unitPrice) return parseQty(display.dataset.unitPrice);
         const select = rowBatchSelect(row);
-        const opt = select?.options[select.selectedIndex];
-        if (opt && opt.dataset.unitPrice) return parseQty(opt.dataset.unitPrice);
+        const data = select ? selectedBatchData(select) : null;
+        if (data && data.unit_price != null) return parseQty(data.unit_price);
         return parseQty(rowUnitPriceInput(row)?.value);
     }
 
@@ -491,7 +527,7 @@
         const name = escape(data.name || data.text || '');
         if (materialDisplay === 'name-stock') {
             const stock = escape(materialStockLabel(data) || '0');
-            return '<div class="jp-npl-material-option" title="' + name + ' — ' + stock + '">'
+            return '<div class="jp-npl-material-option is-name-stock" title="' + name + ' — ' + stock + '">'
                 + '<span class="jp-npl-material-option-name">' + name + '</span>'
                 + '<span class="jp-npl-material-option-meta text-muted small">Tồn: ' + stock + '</span>'
                 + '</div>';
@@ -512,6 +548,67 @@
             ? materialSelectedLabel(data)
             : (data.text || data.name || '');
         return '<div class="jp-npl-material-item"><span class="jp-npl-material-item-name">' + escape(label) + '</span></div>';
+    }
+
+    function renderBatchOption(data, escape) {
+        // Nhãn lô: "MÃ — tồn X đvt — giá Y₫" → 3 cột: mã trái, tồn giữa, giá trái
+        const text = String(data.text || '');
+        const parts = text.split(' — ');
+        if (parts.length >= 3) {
+            return '<div class="jp-npl-batch-option" title="' + escape(text) + '">'
+                + '<span class="jp-npl-batch-option-code">' + escape(parts[0]) + '</span>'
+                + '<span class="jp-npl-batch-option-qty">' + escape(parts[1]) + '</span>'
+                + '<span class="jp-npl-batch-option-price">' + escape(parts.slice(2).join(' — ')) + '</span>'
+                + '</div>';
+        }
+        return '<div class="jp-npl-batch-option">' + escape(text) + '</div>';
+    }
+
+    function initBatchSelect(select) {
+        if (!select || batchInstances.has(select) || typeof TomSelect === 'undefined') return;
+        const row = select.closest('tr');
+        const emptyOpt = Array.from(select.options).find(function (o) { return !o.value; });
+        if (emptyOpt && !select.dataset.placeholder) {
+            select.dataset.placeholder = emptyOpt.textContent.trim();
+        }
+        const ts = new TomSelect(select, {
+            maxOptions: null,
+            maxItems: 1,
+            valueField: 'id',
+            labelField: 'text',
+            searchField: ['text'],
+            allowEmptyOption: true,
+            dropdownParent: 'body',
+            openOnFocus: true,
+            render: {
+                option: renderBatchOption,
+                item: function (data, escape) {
+                    return '<div class="jp-npl-batch-item">' + escape(data.text || '') + '</div>';
+                },
+            },
+            onChange: function () {
+                onBatchChange(row);
+            },
+            onInitialize: function () {
+                if (this.wrapper) this.wrapper.classList.add('jp-npl-batch-ts');
+            },
+        });
+        batchInstances.set(select, ts);
+    }
+
+    function initAllBatchSelects(root) {
+        if (batchMode !== 'select') return;
+        (root || document).querySelectorAll('select.jp-npl-batch-select, select[name$="-batch"]')
+            .forEach(initBatchSelect);
+    }
+
+    function destroyBatchSelect(row) {
+        const select = rowBatchSelect(row);
+        const ts = select ? batchInstances.get(select) : null;
+        if (ts) {
+            ts.destroy();
+            batchInstances.delete(select);
+        }
     }
 
     function initLocationSelect(select) {
@@ -683,6 +780,7 @@
         });
     }
 
+    initAllBatchSelects(body);
     initAllMaterialSelects(body);
     initAllLocationSelects(body);
     syncTransferWarehouseLock();
@@ -733,6 +831,7 @@
         const rows = body.querySelectorAll('.line-row');
         const lastRow = rows[rows.length - 1];
         if (lastRow) {
+            if (batchMode === 'select') initBatchSelect(rowBatchSelect(lastRow));
             initMaterialSelect(lastRow.querySelector('select.jp-npl-material-select'));
             initLocationSelect(lastRow.querySelector('select.jp-npl-location-select'));
             syncTransferWarehouseLock();
@@ -750,6 +849,7 @@
             materialInstances.delete(select);
         }
         destroyLocationSelect(row);
+        destroyBatchSelect(row);
         const del = row.querySelector('input[type=checkbox][name$="-DELETE"]');
         if (del) { del.checked = true; row.style.display = 'none'; }
         else { row.remove(); }

@@ -10,7 +10,7 @@ from kho_npl.choices import (
     TRANSFER_STATUS_RECEIVED,
 )
 from kho_npl.models import StockBalance, StockLedger, StockTransfer
-from kho_npl.services.batches import ledger_amount
+from kho_npl.services.batches import batch_effective_price, ledger_amount
 
 
 class TransferWorkflowError(Exception):
@@ -61,7 +61,7 @@ def send_stock_transfer(transfer: StockTransfer, user) -> StockTransfer:
         balance.quantity -= line.quantity
         balance.save(update_fields=['quantity', 'updated_at'])
         # Chuyển kho không đổi tồn theo lô (lô theo mã NPL); batch chỉ tham chiếu
-        unit_price = line.batch.unit_price if line.batch_id else Decimal('0')
+        unit_price = batch_effective_price(line.batch) if line.batch_id else Decimal('0')
         StockLedger.objects.create(
             material=line.material,
             location=transfer.from_location,
@@ -98,7 +98,7 @@ def receive_stock_transfer(transfer: StockTransfer, user) -> StockTransfer:
         )
         balance.quantity += line.quantity
         balance.save(update_fields=['quantity', 'updated_at'])
-        unit_price = line.batch.unit_price if line.batch_id else Decimal('0')
+        unit_price = batch_effective_price(line.batch) if line.batch_id else Decimal('0')
         StockLedger.objects.create(
             material=line.material,
             location=transfer.to_location,

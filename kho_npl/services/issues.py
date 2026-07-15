@@ -7,6 +7,7 @@ from kho_npl.choices import DOC_STATUS_DRAFT, DOC_STATUS_POSTED
 from kho_npl.models import StockBalance, StockIssue, StockLedger
 from kho_npl.services.batches import (
     BatchWorkflowError,
+    batch_effective_price,
     decrease_batch_qty,
     ledger_amount,
     validate_batch_for_material,
@@ -40,8 +41,8 @@ def post_stock_issue(issue: StockIssue, user) -> StockIssue:
         except BatchWorkflowError as exc:
             raise IssueWorkflowError(str(exc)) from exc
 
-        # Snapshot giá xuất = giá lô
-        line.unit_price = batch.unit_price
+        # Snapshot giá xuất = giá lô (lô chưa có giá thì dùng giá cơ bản danh mục)
+        line.unit_price = batch_effective_price(batch)
         line.save(update_fields=['unit_price'])
 
         balance = (

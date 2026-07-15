@@ -13,6 +13,7 @@ from kho_npl.models import Material, StockBalance, StockLedger, Stocktake, Stock
 from kho_npl.services.batches import (
     BatchWorkflowError,
     adjust_batch_qty,
+    batch_effective_price,
     ledger_amount,
     validate_batch_for_material,
 )
@@ -109,8 +110,8 @@ def close_stocktake(stocktake: Stocktake, user) -> Stocktake:
             qty_delta=variance,
             balance_after=balance.quantity,
             batch=batch,
-            unit_price=batch.unit_price,
-            amount=ledger_amount(variance, batch.unit_price),
+            unit_price=batch_effective_price(batch),
+            amount=ledger_amount(variance, batch_effective_price(batch)),
             ref_type=StockLedger.REF_STOCKTAKE,
             ref_id=stocktake.pk,
             ref_number=stocktake.number,

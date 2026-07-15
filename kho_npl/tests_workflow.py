@@ -113,7 +113,7 @@ class KhoNplWorkflowTests(TestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
         row = next(r for r in response.json()['results'] if r['code'] == 'WF-01')
-        self.assertIn('WF test', row['text'])
+        self.assertIn('WF TEST', row['text'])
         self.assertIn('50', row['text'])
 
     def test_balance_lookup_api(self):
@@ -125,7 +125,7 @@ class KhoNplWorkflowTests(TestCase):
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertEqual(data['qty_decimal'], '50.000')
-        self.assertIn('WF test', data['text'])
+        self.assertIn('WF TEST', data['text'])
         self.assertIn('50', data['text'])
 
     def test_stocktake_count_page_has_loading(self):

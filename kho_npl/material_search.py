@@ -188,6 +188,32 @@ def apply_material_search(queryset, query: str):
     return apply_smart_search(queryset, query, MATERIAL_SEARCH_FIELDS)
 
 
+def apply_material_search_strict(queryset, query: str):
+    """
+    Tìm NPL cho ô chọn trong phiếu — chỉ hiện mã khớp thật sự.
+
+    Tất cả các từ đều phải khớp (AND giữa các từ), mỗi từ vẫn linh hoạt
+    có/không dấu và gõ liền. Khác tìm thông minh (OR) nên không hiện lan man.
+    """
+    query = (query or '').strip()
+    if not query:
+        return queryset
+    terms = search_terms(query)
+    if not terms:
+        return queryset.none()
+    qs = queryset
+    has_filter = False
+    for term in terms:
+        term_q = q_for_term_on_fields(term, MATERIAL_SEARCH_FIELDS)
+        if _q_is_empty(term_q):
+            continue
+        qs = qs.filter(term_q)
+        has_filter = True
+    if not has_filter:
+        return queryset.none()
+    return qs.distinct()
+
+
 def material_search_haystack(material) -> str:
     parts = [
         getattr(material, 'name', '') or '',
