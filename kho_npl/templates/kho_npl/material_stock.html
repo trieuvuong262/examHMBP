@@ -97,9 +97,9 @@
                 </thead>
                 <tbody>
                     {% for group in page_obj %}
-                    {% with material=group.representative %}
-                    <tr class="jp-npl-stock-row jp-npl-group-row{% if group.can_expand %} jp-npl-stock-row-expandable is-group{% endif %}{% if expand_search_hits and group.can_expand %} is-expanded{% endif %}"
-                        {% if group.can_expand %}data-expand-target="{{ group.key }}"{% endif %}>
+                    {% with material=group.representative single_row=group.rows.0 %}
+                    <tr class="jp-npl-stock-row jp-npl-group-row{% if group.can_expand %} jp-npl-stock-row-expandable is-group{% elif single_row.can_expand %} jp-npl-stock-row-expandable{% endif %}{% if expand_search_hits and group.can_expand %} is-expanded{% endif %}"
+                        {% if group.can_expand %}data-expand-target="{{ group.key }}"{% elif single_row.can_expand %}data-loc-target="{{ material.pk }}"{% endif %}>
                         <td class="npl-col text-center" data-col="image">
                             {% include 'kho_npl/includes/material_image_thumb.html' with material=material %}
                         </td>
@@ -156,9 +156,27 @@
                             {% endif %}
                         </td>
                     </tr>
+                    {% if not group.can_expand and single_row.can_expand %}
+                    {% for lb in single_row.location_balances %}
+                    <tr class="jp-npl-stock-loc-row is-collapsed" data-loc-expand="{{ material.pk }}">
+                        <td class="npl-col" data-col="image"></td>
+                        <td class="npl-col jp-npl-stock-loc-label" data-col="name" colspan="5" title="{{ lb.location.name }}">
+                            <span class="jp-npl-stock-loc-name">{{ lb.location.name }}</span>
+                        </td>
+                        <td class="text-end npl-col jp-mat-code fw-semibold" data-col="total_qty">{{ lb.quantity|npl_qty_with_unit:material.unit }}</td>
+                        <td class="npl-col" data-col="avg_unit_price"></td>
+                        <td class="npl-col" data-col="stock_value"></td>
+                        <td class="npl-col" data-col="min_stock"></td>
+                        <td class="npl-col" data-col="stock_status"></td>
+                        <td class="npl-col" data-col="detail"></td>
+                    </tr>
+                    {% endfor %}
+                    {% endif %}
                     {% if group.can_expand %}
                     {% for row in group.rows %}
-                    <tr class="jp-npl-variant-row{% if not expand_search_hits %} is-collapsed{% endif %}" data-group-expand="{{ group.key }}">
+                    <tr class="jp-npl-variant-row{% if row.can_expand %} jp-npl-stock-row-expandable{% endif %}{% if not expand_search_hits %} is-collapsed{% endif %}"
+                        data-group-expand="{{ group.key }}"
+                        {% if row.can_expand %}data-loc-target="{{ row.material.pk }}"{% endif %}>
                         <td class="npl-col text-center" data-col="image">
                             {% include 'kho_npl/includes/material_image_thumb.html' with material=row.material %}
                         </td>
@@ -201,6 +219,22 @@
                             </a>
                         </td>
                     </tr>
+                    {% if row.can_expand %}
+                    {% for lb in row.location_balances %}
+                    <tr class="jp-npl-stock-loc-row is-collapsed" data-loc-expand="{{ row.material.pk }}" data-group-parent="{{ group.key }}">
+                        <td class="npl-col" data-col="image"></td>
+                        <td class="npl-col jp-npl-stock-loc-label jp-npl-stock-loc-label-nested" data-col="name" colspan="5" title="{{ lb.location.name }}">
+                            <span class="jp-npl-stock-loc-name">{{ lb.location.name }}</span>
+                        </td>
+                        <td class="text-end npl-col jp-mat-code fw-semibold" data-col="total_qty">{{ lb.quantity|npl_qty_with_unit:row.material.unit }}</td>
+                        <td class="npl-col" data-col="avg_unit_price"></td>
+                        <td class="npl-col" data-col="stock_value"></td>
+                        <td class="npl-col" data-col="min_stock"></td>
+                        <td class="npl-col" data-col="stock_status"></td>
+                        <td class="npl-col" data-col="detail"></td>
+                    </tr>
+                    {% endfor %}
+                    {% endif %}
                     {% endfor %}
                     {% endif %}
                     {% endwith %}
@@ -319,13 +353,38 @@
         table.querySelectorAll('tr.jp-npl-variant-row[data-group-expand="' + CSS.escape(groupKey) + '"]').forEach(function (row) {
             row.classList.toggle('is-collapsed', !next);
         });
+        if (!next) {
+            // Đóng nhóm thì đóng luôn các dòng vị trí kho của từng mã trong nhóm
+            table.querySelectorAll('tr.jp-npl-stock-loc-row[data-group-parent="' + CSS.escape(groupKey) + '"]').forEach(function (row) {
+                row.classList.add('is-collapsed');
+            });
+            table.querySelectorAll('tr.jp-npl-variant-row[data-group-expand="' + CSS.escape(groupKey) + '"]').forEach(function (row) {
+                row.classList.remove('is-expanded');
+            });
+        }
+    }
+
+    function toggleLocations(materialId, forceOpen) {
+        if (!materialId) return;
+        var parent = table.querySelector('tr[data-loc-target="' + CSS.escape(materialId) + '"]');
+        if (!parent) return;
+        var isExpanded = parent.classList.contains('is-expanded');
+        var next = typeof forceOpen === 'boolean' ? forceOpen : !isExpanded;
+        parent.classList.toggle('is-expanded', next);
+        table.querySelectorAll('tr.jp-npl-stock-loc-row[data-loc-expand="' + CSS.escape(materialId) + '"]').forEach(function (row) {
+            row.classList.toggle('is-collapsed', !next);
+        });
     }
 
     table.addEventListener('click', function (e) {
         if (e.target.closest('.jp-mat-th-sort, .jp-mat-col-resizer, a, input, select, .jp-npl-mat-avatar-btn, [data-npl-material-image]')) return;
-        var row = e.target.closest('tr.jp-npl-stock-row-expandable.is-group');
+        var row = e.target.closest('tr.jp-npl-stock-row-expandable');
         if (!row) return;
-        toggleGroup(row.getAttribute('data-expand-target'));
+        if (row.hasAttribute('data-expand-target')) {
+            toggleGroup(row.getAttribute('data-expand-target'));
+        } else if (row.hasAttribute('data-loc-target')) {
+            toggleLocations(row.getAttribute('data-loc-target'));
+        }
     });
 })();
 (function () {
