@@ -128,7 +128,7 @@
                         <td class="npl-col" data-col="supplier" title="{{ group.supplier.name|default:'—' }}">{{ group.supplier.name|default:'—' }}</td>
                         <td class="text-end npl-col jp-mat-code" data-col="min_stock">{{ group.min_stock|npl_qty_with_unit:group.unit }}</td>
                         <td class="text-end npl-col jp-mat-code" data-col="base_price">
-                            {% if group.can_expand %}{% if group.base_price %}{{ group.base_price|floatformat:0 }}{% else %}<span class="text-muted">—</span>{% endif %}{% else %}{% if material.base_price %}{{ material.base_price|floatformat:0 }}{% else %}<span class="text-muted">—</span>{% endif %}{% endif %}
+                            {% if group.can_expand %}{% if group.base_price %}{{ group.base_price|npl_money }}{% else %}<span class="text-muted">—</span>{% endif %}{% else %}{% if material.base_price %}{{ material.base_price|npl_money }}{% else %}<span class="text-muted">—</span>{% endif %}{% endif %}
                         </td>
                         <td class="npl-col" data-col="status">
                             {% if group.is_active %}
@@ -158,7 +158,7 @@
                         <td class="npl-col" data-col="supplier" title="{{ material.supplier.name|default:'—' }}">{{ material.supplier.name|default:'—' }}</td>
                         <td class="text-end npl-col jp-mat-code" data-col="min_stock">{{ material.min_stock|npl_qty_with_unit:material.unit }}</td>
                         <td class="text-end npl-col jp-mat-code" data-col="base_price">
-                            {% if material.base_price %}{{ material.base_price|floatformat:0 }}{% else %}<span class="text-muted">—</span>{% endif %}
+                            {% if material.base_price %}{{ material.base_price|npl_money }}{% else %}<span class="text-muted">—</span>{% endif %}
                         </td>
                         <td class="npl-col" data-col="status">
                             {% if material.is_active %}

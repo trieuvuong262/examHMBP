@@ -125,7 +125,7 @@
                     </div>
                     <div class="jp-npl-mat-detail-item">
                         <span class="jp-npl-mat-detail-label">Giá cơ bản</span>
-                        <span class="jp-npl-mat-detail-value jp-mat-code">{% if material.base_price %}{{ material.base_price|floatformat:0 }} ₫{% else %}—{% endif %}</span>
+                        <span class="jp-npl-mat-detail-value jp-mat-code">{% if material.base_price %}{{ material.base_price|npl_money }}{% else %}—{% endif %}</span>
                     </div>
                 </div>
             </div>

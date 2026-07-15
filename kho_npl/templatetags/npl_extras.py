@@ -1,4 +1,4 @@
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
 from django import template
 
@@ -30,6 +30,15 @@ def format_npl_qty(value, max_decimals: int = 3) -> str:
         whole, frac = text.split('.', 1)
         return f'{whole},{frac}'
     return text
+
+
+def format_npl_money(value) -> str:
+    """Tiền VND, làm tròn đến đồng và phân cách hàng nghìn bằng dấu chấm."""
+    d = _to_decimal(value)
+    if d is None:
+        return '—'
+    rounded = d.quantize(Decimal('1'), rounding=ROUND_HALF_UP)
+    return f'{rounded:,.0f}'.replace(',', '.') + 'đ'
 
 
 def unit_label(unit) -> str:
@@ -73,6 +82,11 @@ def npl_qty_with_unit(value, unit=None):
     qty = format_npl_qty(value)
     label = unit_label(unit)
     return f'{qty} {label}'.strip() if label else qty
+
+
+@register.filter
+def npl_money(value):
+    return format_npl_money(value)
 
 
 @register.filter

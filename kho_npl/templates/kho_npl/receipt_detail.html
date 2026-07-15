@@ -105,8 +105,8 @@
                             <td>{{ line.batch_code|default:'—' }}</td>
                             <td class="text-end">{{ line.received_qty|npl_qty }}</td>
                             <td>{{ line.material.unit.name }}</td>
-                            <td class="text-end">{{ line.unit_price|floatformat:0 }}</td>
-                            <td class="text-end">{{ line.amount|floatformat:0 }}</td>
+                            <td class="text-end">{{ line.unit_price|npl_money }}</td>
+                            <td class="text-end">{{ line.amount|npl_money }}</td>
                             <td>{{ line.location.name }}</td>
                             <td>
                                 {{ line_form.id }}
@@ -157,8 +157,8 @@
                         <td>{{ line.batch_code|default:'—' }}</td>
                         <td class="text-end">{{ line.received_qty|npl_qty }}</td>
                         <td>{{ line.material.unit.name }}</td>
-                        <td class="text-end">{{ line.unit_price|floatformat:0 }}</td>
-                        <td class="text-end">{{ line.amount|floatformat:0 }}</td>
+                        <td class="text-end">{{ line.unit_price|npl_money }}</td>
+                        <td class="text-end">{{ line.amount|npl_money }}</td>
                         <td>{{ line.location.name }}</td>
                         <td>{{ line.notes|default:'—' }}</td>
                     </tr>

@@ -33,7 +33,7 @@
 
     function formatMoney(n) {
         if (!Number.isFinite(n)) return '—';
-        return Math.round(n).toLocaleString('vi-VN');
+        return Math.round(n).toLocaleString('vi-VN') + 'đ';
     }
 
     function rowBatchSelect(row) {
@@ -551,7 +551,7 @@
     }
 
     function renderBatchOption(data, escape) {
-        // Nhãn lô: "MÃ — X đvt — Y₫" → 3 cột: mã trái, tồn giữa, giá trái
+        // Nhãn lô: "MÃ — X đvt — Yđ" → 3 cột: mã trái, tồn giữa, giá trái
         const text = String(data.text || '');
         const parts = text.split(' — ');
         if (parts.length >= 3) {
