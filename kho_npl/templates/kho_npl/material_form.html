@@ -8,6 +8,9 @@
 .jp-npl-material-form-page .ts-wrapper.form-select {
     width: 100%;
 }
+.jp-npl-variant-group-box {
+    background: var(--bs-tertiary-bg);
+}
 </style>
 {% include 'kho_npl/includes/form_validation_assets.html' %}
 {% endblock %}
@@ -44,20 +47,7 @@
                         {% if form.name.errors %}<div class="text-danger small">{{ form.name.errors }}</div>{% endif %}
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label fw-bold small" for="{{ form.variant_group.id_for_label }}">Tên nhóm hàng</label>
-                        {{ form.variant_group }}
-                        {% if form.variant_group.help_text %}<div class="form-text">{{ form.variant_group.help_text }}</div>{% endif %}
-                        {% if form.variant_group.errors %}<div class="text-danger small">{{ form.variant_group.errors }}</div>{% endif %}
-                        {% if form.variant_group_suggestions %}
-                        <datalist id="jp-npl-variant-group-list">
-                            {% for suggestion in form.variant_group_suggestions %}
-                            <option value="{{ suggestion }}"></option>
-                            {% endfor %}
-                        </datalist>
-                        {% endif %}
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label fw-bold small" for="{{ form.category.id_for_label }}">Nhóm</label>
+                        <label class="form-label fw-bold small" for="{{ form.category.id_for_label }}">Loại NPL</label>
                         {{ form.category }}
                         {% if form.category.errors %}<div class="text-danger small">{{ form.category.errors }}</div>{% endif %}
                     </div>
@@ -70,6 +60,36 @@
                         <label class="form-label fw-bold small" for="{{ form.min_stock.id_for_label }}">Tồn tối thiểu</label>
                         {{ form.min_stock }}
                         {% if form.min_stock.errors %}<div class="text-danger small">{{ form.min_stock.errors }}</div>{% endif %}
+                    </div>
+                    <div class="col-12">
+                        <div class="jp-npl-variant-group-box border rounded-3 p-3">
+                            <div class="fw-bold mb-1">
+                                <i class="bi bi-collection me-1"></i>Gom biến thể
+                                <span class="fw-normal text-muted">(không bắt buộc)</span>
+                            </div>
+                            <div class="small text-muted mb-3">
+                                Dùng khi nhiều mã chỉ khác màu hoặc quy cách. Ví dụ BB-BICH-01 và BB-BICH-02
+                                sẽ hiển thị chung dưới nhóm BB-BICH.
+                            </div>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold small" for="{{ form.variant_group.id_for_label }}">
+                                        Gom NPL này vào
+                                    </label>
+                                    {{ form.variant_group }}
+                                    {% if form.variant_group.help_text %}<div class="form-text">{{ form.variant_group.help_text }}</div>{% endif %}
+                                    {% if form.variant_group.errors %}<div class="text-danger small">{{ form.variant_group.errors }}</div>{% endif %}
+                                </div>
+                                <div class="col-md-6" id="jp-npl-new-variant-group-wrap" hidden>
+                                    <label class="form-label fw-bold small" for="{{ form.new_variant_group.id_for_label }}">
+                                        Tên nhóm mới
+                                    </label>
+                                    {{ form.new_variant_group }}
+                                    <div class="form-text">Chỉ nhập phần nhận diện, ví dụ BICH hoặc SIEU.</div>
+                                    {% if form.new_variant_group.errors %}<div class="text-danger small">{{ form.new_variant_group.errors }}</div>{% endif %}
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     <div class="col-md-4">
                         <label class="form-label fw-bold small" for="{{ form.color.id_for_label }}">Màu sắc</label>
@@ -126,4 +146,21 @@
 {% endif %}
 {% include 'kho_npl/includes/material_form_search_select_script.html' %}
 {% include 'kho_npl/includes/doc_attachment_clear_script.html' %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const select = document.getElementById('{{ form.variant_group.id_for_label }}');
+    const newGroupWrap = document.getElementById('jp-npl-new-variant-group-wrap');
+    const newGroupInput = document.getElementById('{{ form.new_variant_group.id_for_label }}');
+    if (!select || !newGroupWrap || !newGroupInput) return;
+
+    function toggleNewGroup() {
+        const creating = select.value === '__new__';
+        newGroupWrap.hidden = !creating;
+        newGroupInput.required = creating;
+    }
+
+    select.addEventListener('change', toggleNewGroup);
+    toggleNewGroup();
+});
+</script>
 {% endblock %}

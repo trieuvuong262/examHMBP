@@ -5,6 +5,7 @@ import re
 from django import forms
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
+from django.db.models import Count, Min
 from django.forms import BaseInlineFormSet, inlineformset_factory
 from django.utils import timezone
 
@@ -193,6 +194,18 @@ class MaterialColorSelect(forms.Select):
 
 
 class MaterialForm(forms.ModelForm):
+    NEW_VARIANT_GROUP_VALUE = '__new__'
+
+    new_variant_group = forms.CharField(
+        required=False,
+        label='Tên nhóm mới',
+        widget=forms.TextInput(attrs={
+            **FORM_CONTROL,
+            'placeholder': 'VD: BICH, SIEU, CR3…',
+            'autocomplete': 'off',
+        }),
+    )
+
     class Meta:
         model = Material
         fields = [
@@ -212,12 +225,7 @@ class MaterialForm(forms.ModelForm):
         widgets = {
             'code': forms.TextInput(attrs={**FORM_CONTROL, 'placeholder': 'VD: VAI-001'}),
             'name': forms.TextInput(attrs=FORM_CONTROL),
-            'variant_group': forms.TextInput(attrs={
-                **FORM_CONTROL,
-                'list': 'jp-npl-variant-group-list',
-                'placeholder': 'VD: SIEU, CR3, BICH…',
-                'autocomplete': 'off',
-            }),
+            'variant_group': forms.Select(attrs=FORM_SELECT),
             'category': forms.Select(attrs=FORM_SELECT),
             'color': MaterialColorSelect(attrs={
                 **FORM_SEARCH_SELECT,
@@ -238,18 +246,33 @@ class MaterialForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['category'].label = 'Nhóm'
-        self.fields['variant_group'].label = 'Tên nhóm hàng'
+        self.fields['category'].label = 'Loại NPL'
+        self.fields['variant_group'].label = 'Gom cùng dòng hàng'
         self.fields['variant_group'].required = False
         self.fields['variant_group'].help_text = (
-            'Gom các mã cùng dòng hàng (màu/quy cách khác). Để trống sẽ tự suy từ mã NPL.'
+            'Chọn một dòng hàng đã có để gom các màu/quy cách vào cùng một nhóm.'
         )
-        self.variant_group_suggestions = list(
+        from kho_npl.variant_group import code_base
+
+        group_rows = list(
             Material.objects.exclude(variant_group='')
-            .order_by('variant_group')
-            .values_list('variant_group', flat=True)
-            .distinct()[:200]
+            .values('variant_group')
+            .annotate(example_code=Min('code'), material_count=Count('pk'))
+            .order_by('variant_group')[:200]
         )
+        choices = [('', 'Tự động gom theo mã NPL (khuyên dùng)')]
+        known_groups = set()
+        for row in group_rows:
+            group = row['variant_group']
+            known_groups.add(group)
+            display_code = code_base(row['example_code']) or group
+            choices.append((group, f"{display_code} — {row['material_count']} mã"))
+
+        current_group = (getattr(self.instance, 'variant_group', '') or '').strip()
+        if current_group and current_group not in known_groups:
+            choices.append((current_group, current_group))
+        choices.append((self.NEW_VARIANT_GROUP_VALUE, '+ Tạo nhóm mới'))
+        self.fields['variant_group'].widget.choices = choices
         self.fields['category'].queryset = material_form_category_queryset(
             self.instance if self.instance.pk else None,
         )
@@ -285,13 +308,30 @@ class MaterialForm(forms.ModelForm):
         return code
 
     def clean_variant_group(self):
+        from kho_npl.variant_group import normalize_variant_group
+
+        value = self.cleaned_data.get('variant_group')
+        if value == self.NEW_VARIANT_GROUP_VALUE:
+            return value
+        return normalize_variant_group(value)
+
+    def clean(self):
+        cleaned_data = super().clean()
         from kho_npl.variant_group import infer_variant_group_from_code, normalize_variant_group
 
-        group = normalize_variant_group(self.cleaned_data.get('variant_group'))
-        if group:
-            return group
-        code = (self.cleaned_data.get('code') or getattr(self.instance, 'code', '') or '').strip()
-        return infer_variant_group_from_code(code)
+        group = cleaned_data.get('variant_group')
+        if group == self.NEW_VARIANT_GROUP_VALUE:
+            group = normalize_variant_group(cleaned_data.get('new_variant_group'))
+            if not group:
+                self.add_error('new_variant_group', 'Nhập tên nhóm mới.')
+                cleaned_data['variant_group'] = ''
+                return cleaned_data
+
+        if not group:
+            code = (cleaned_data.get('code') or getattr(self.instance, 'code', '') or '').strip()
+            group = infer_variant_group_from_code(code)
+        cleaned_data['variant_group'] = group
+        return cleaned_data
 
     def clean_image(self):
         uploaded = self.cleaned_data.get('image')
@@ -785,16 +825,16 @@ class StockIssueLineForm(forms.ModelForm):
 
 
 def _batch_label(batch: MaterialBatch) -> str:
-    price = batch.unit_price or Decimal('0')
-    qty = batch.quantity or Decimal('0')
-    return f'{batch.code} — tồn {qty:g} — {price:,.0f}₫'.replace(',', '.')
+    from kho_npl.services.batches import batch_label
+
+    return batch_label(batch)
 
 
 def _batches_for_material(material_id, instance=None, posted_batch_id=None):
     """Lô còn tồn của NPL; giữ lô đã gắn (sửa nháp) hoặc giá trị POST."""
     from django.db.models import Q
 
-    qs = MaterialBatch.objects.filter(material_id=material_id, is_active=True)
+    qs = MaterialBatch.objects.filter(material_id=material_id, is_active=True).select_related('material__unit')
     keep_ids = []
     if instance and getattr(instance, 'batch_id', None):
         keep_ids.append(instance.batch_id)

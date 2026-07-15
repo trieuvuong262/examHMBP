@@ -21,19 +21,30 @@ def batches_with_stock(material: Material, *, include_zero: bool = False):
     return qs.order_by('received_date', 'id')
 
 
+def batch_label(batch: MaterialBatch) -> str:
+    """Nhãn lô: mã — tồn kèm ĐVT — giá. VD: TON-DAU — tồn 200 gói — giá 0₫."""
+    from kho_npl.catalog_labels import unit_label
+    from kho_npl.templatetags.npl_extras import format_npl_qty
+
+    price = batch.unit_price or Decimal('0')
+    price_text = f'{price:,.0f}'.replace(',', '.')
+    qty_text = format_npl_qty(batch.quantity or Decimal('0'))
+    unit = unit_label(getattr(batch.material, 'unit', None))
+    if unit:
+        qty_text = f'{qty_text} {unit}'
+    return f'{batch.code} — tồn {qty_text} — giá {price_text}₫'
+
+
 def batch_stock_options(material: Material) -> list[dict]:
     """Options dropdown chọn lô (còn tồn)."""
     rows = []
-    for batch in batches_with_stock(material):
+    for batch in batches_with_stock(material).select_related('material__unit'):
         rows.append({
             'id': batch.pk,
             'code': batch.code,
             'unit_price': str(batch.unit_price),
             'quantity': str(batch.quantity),
-            'label': (
-                f'{batch.code} — tồn {batch.quantity:g} — '
-                f'{batch.unit_price:,.0f}₫'.replace(',', '.')
-            ),
+            'label': batch_label(batch),
         })
     return rows
 
