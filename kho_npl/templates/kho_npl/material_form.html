@@ -11,6 +11,9 @@
 .jp-npl-variant-group-box {
     background: var(--bs-tertiary-bg);
 }
+.jp-npl-material-form-page .min-w-0 {
+    min-width: 0;
+}
 </style>
 {% include 'kho_npl/includes/form_validation_assets.html' %}
 {% endblock %}
@@ -93,20 +96,29 @@
                     </div>
                     <div class="col-md-4">
                         <label class="form-label fw-bold small" for="{{ form.color.id_for_label }}">Màu sắc</label>
-                        {{ form.color }}
+                        <div class="d-flex align-items-start gap-2">
+                            <div class="flex-grow-1 min-w-0">{{ form.color }}</div>
+                            {% if can_create %}
+                            <a href="{% url 'kho_npl:settings_create' 'mau' %}" target="_blank" rel="noopener"
+                               class="btn btn-outline-secondary btn-sm text-nowrap">
+                                <i class="bi bi-plus-lg me-1"></i>Thêm màu
+                            </a>
+                            {% endif %}
+                        </div>
                         {% if form.color.errors %}<div class="text-danger small">{{ form.color.errors }}</div>{% endif %}
                         {% include 'kho_npl/includes/material_form_color_select.html' %}
                     </div>
                     <div class="col-md-4">
                         <label class="form-label fw-bold small" for="{{ form.specification.id_for_label }}">Quy cách / khổ</label>
-                        {{ form.specification }}
+                        <div class="d-flex align-items-start gap-2">
+                            <div class="flex-grow-1 min-w-0">{{ form.specification }}</div>
+                            <button type="button" class="btn btn-outline-secondary btn-sm text-nowrap" id="jp-npl-new-spec-toggle">
+                                <i class="bi bi-plus-lg me-1"></i>Thêm quy cách
+                            </button>
+                        </div>
                         {% if form.specification.errors %}<div class="text-danger small">{{ form.specification.errors }}</div>{% endif %}
-                        <button type="button" class="btn btn-link btn-sm px-0 mt-1" id="jp-npl-new-spec-toggle">
-                            <i class="bi bi-plus-circle me-1"></i>Tạo quy cách / khổ mới
-                        </button>
-                        <div id="jp-npl-new-spec-wrap" class="mt-1" hidden>
+                        <div id="jp-npl-new-spec-wrap" class="mt-2" hidden>
                             {{ form.new_specification }}
-                            <div class="form-text">Nhập trực tiếp; hệ thống sẽ tự tạo và chọn quy cách này.</div>
                             {% if form.new_specification.errors %}<div class="text-danger small">{{ form.new_specification.errors }}</div>{% endif %}
                         </div>
                     </div>
@@ -159,28 +171,30 @@ document.addEventListener('DOMContentLoaded', function () {
     const select = document.getElementById('{{ form.variant_group.id_for_label }}');
     const newGroupWrap = document.getElementById('jp-npl-new-variant-group-wrap');
     const newGroupInput = document.getElementById('{{ form.new_variant_group.id_for_label }}');
-    if (!select || !newGroupWrap || !newGroupInput) return;
-
-    function toggleNewGroup() {
-        const creating = select.value === '__new__';
-        newGroupWrap.hidden = !creating;
-        newGroupInput.required = creating;
+    if (select && newGroupWrap && newGroupInput) {
+        function toggleNewGroup() {
+            const creating = select.value === '__new__';
+            newGroupWrap.hidden = !creating;
+            newGroupInput.required = creating;
+        }
+        select.addEventListener('change', toggleNewGroup);
+        toggleNewGroup();
     }
-
-    select.addEventListener('change', toggleNewGroup);
-    toggleNewGroup();
 
     const newSpecToggle = document.getElementById('jp-npl-new-spec-toggle');
     const newSpecWrap = document.getElementById('jp-npl-new-spec-wrap');
     const newSpecInput = document.getElementById('{{ form.new_specification.id_for_label }}');
     if (newSpecToggle && newSpecWrap && newSpecInput) {
-        function showNewSpecification() {
-            newSpecWrap.hidden = false;
-            newSpecToggle.hidden = true;
-            newSpecInput.focus();
-        }
-        newSpecToggle.addEventListener('click', showNewSpecification);
-        if (newSpecInput.value) showNewSpecification();
+        newSpecToggle.addEventListener('click', function () {
+            if (newSpecWrap.hidden) {
+                newSpecWrap.hidden = false;
+                newSpecInput.focus();
+            } else {
+                newSpecWrap.hidden = true;
+                newSpecInput.value = '';
+            }
+        });
+        if (newSpecInput.value) newSpecWrap.hidden = false;
     }
 });
 </script>
