@@ -529,7 +529,7 @@
             const stock = escape(materialStockLabel(data) || '0');
             return '<div class="jp-npl-material-option is-name-stock" title="' + name + ' — ' + stock + '">'
                 + '<span class="jp-npl-material-option-name">' + name + '</span>'
-                + '<span class="jp-npl-material-option-meta text-muted small">Tồn: ' + stock + '</span>'
+                + '<span class="jp-npl-material-option-meta text-muted small">' + stock + '</span>'
                 + '</div>';
         }
         const text = escape(data.text || data.name || '');
@@ -551,14 +551,16 @@
     }
 
     function renderBatchOption(data, escape) {
-        // Nhãn lô: "MÃ — tồn X đvt — giá Y₫" → 3 cột: mã trái, tồn giữa, giá trái
+        // Nhãn lô: "MÃ — X đvt — Y₫" → 3 cột: mã trái, tồn giữa, giá trái
         const text = String(data.text || '');
         const parts = text.split(' — ');
         if (parts.length >= 3) {
+            const qty = parts[1].replace(/^tồn\s+/i, '');
+            const price = parts.slice(2).join(' — ').replace(/^giá\s+/i, '');
             return '<div class="jp-npl-batch-option" title="' + escape(text) + '">'
                 + '<span class="jp-npl-batch-option-code">' + escape(parts[0]) + '</span>'
-                + '<span class="jp-npl-batch-option-qty">' + escape(parts[1]) + '</span>'
-                + '<span class="jp-npl-batch-option-price">' + escape(parts.slice(2).join(' — ')) + '</span>'
+                + '<span class="jp-npl-batch-option-qty">' + escape(qty) + '</span>'
+                + '<span class="jp-npl-batch-option-price">' + escape(price) + '</span>'
                 + '</div>';
         }
         return '<div class="jp-npl-batch-option">' + escape(text) + '</div>';
@@ -646,6 +648,26 @@
         }
     }
 
+    function normalizeSearchText(value) {
+        return String(value || '')
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/đ/g, 'd');
+    }
+
+    function materialMatchesTerms(data, terms) {
+        if (!terms.length) return true;
+        const haystack = normalizeSearchText(
+            (data.name || '') + ' ' + (data.code || '') + ' '
+            + (data.variant_group || '') + ' ' + (data.text || '')
+        );
+        const compact = haystack.replace(/\s+/g, '');
+        return terms.every(function (t) {
+            return haystack.indexOf(t) !== -1 || compact.indexOf(t) !== -1;
+        });
+    }
+
     function initMaterialSelect(select) {
         if (!select || materialInstances.has(select) || typeof TomSelect === 'undefined') return;
         const row = select.closest('tr');
@@ -729,11 +751,18 @@
                 this.setValue(initialValue, true);
             },
         };
+        if (searchUrl) {
+            // Lọc lại client-side (không dấu, gõ liền): ẩn các option cũ đã nạp
+            // từ lần tìm trước nhưng không khớp từ khóa đang gõ.
+            tsOptions.score = function (query) {
+                const terms = normalizeSearchText(query).split(/\s+/).filter(Boolean);
+                return function (data) {
+                    return materialMatchesTerms(data, terms) ? 1 : 0;
+                };
+            };
+        }
         if (browseOnOpen) {
             tsOptions.preload = 'focus';
-            tsOptions.score = function () {
-                return function () { return 1; };
-            };
             tsOptions.onDropdownOpen = function () {
                 if (!rowLocationId(row)) return;
                 const query = (this.control_input.value || '').trim();

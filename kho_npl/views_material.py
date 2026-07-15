@@ -153,6 +153,7 @@ def material_search(request):
             'specification': spec_label(material.specification) if material.specification_id else '',
             'specification_name': material.specification.name if material.specification_id else '',
             'color': color_label(material.color) if material.color_id else '',
+            'variant_group': material.variant_group or '',
             'base_price': float(material.base_price or 0),
             'qty': float(balance_map.get(material.pk, Decimal('0'))) if location_id is not None else None,
             'qty_label': (

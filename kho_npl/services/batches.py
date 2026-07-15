@@ -30,7 +30,7 @@ def batch_effective_price(batch: MaterialBatch) -> Decimal:
 
 
 def batch_label(batch: MaterialBatch) -> str:
-    """Nhãn lô: mã — tồn kèm ĐVT — giá. VD: TON-DAU — tồn 200 gói — giá 15.000₫."""
+    """Nhãn lô: mã — tồn kèm ĐVT — giá. VD: TON-DAU — 200 gói — 15.000₫."""
     from kho_npl.catalog_labels import unit_label
     from kho_npl.templatetags.npl_extras import format_npl_qty
 
@@ -40,7 +40,7 @@ def batch_label(batch: MaterialBatch) -> str:
     unit = unit_label(getattr(batch.material, 'unit', None))
     if unit:
         qty_text = f'{qty_text} {unit}'
-    return f'{batch.code} — tồn {qty_text} — giá {price_text}₫'
+    return f'{batch.code} — {qty_text} — {price_text}₫'
 
 
 def batch_stock_options(material: Material) -> list[dict]:
