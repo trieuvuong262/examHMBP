@@ -47,7 +47,7 @@ class VariantGroupServiceTests(TestCase):
         self.assertEqual(len(groups), 1)
         self.assertTrue(groups[0]['can_expand'])
         self.assertEqual(groups[0]['variant_count'], 2)
-        self.assertEqual(groups[0]['group_name'], 'SIEU')
+        self.assertEqual(groups[0]['group_name'], 'VAI-SIEU')
 
     def test_do_not_group_different_category_or_unit(self):
         m1 = Material.objects.create(

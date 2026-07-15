@@ -13,7 +13,7 @@ from kho_npl.choices import (
     STOCK_STATUS_OK,
     STOCK_STATUS_OUT,
 )
-from kho_npl.variant_group import normalize_variant_group
+from kho_npl.variant_group import code_base, normalize_variant_group
 
 
 def material_group_key(material) -> tuple:
@@ -38,11 +38,35 @@ def _safe_group_dom_key(key: tuple, representative) -> str:
     return f'g-{digest}'
 
 
-def _group_display_name(material) -> str:
-    group = normalize_variant_group(getattr(material, 'variant_group', '') or '')
-    if group:
-        return group
-    return material.name or material.code
+def _common_dash_prefix(values: list[str]) -> str:
+    """Tiền tố chung của các chuỗi, cắt về ranh giới dấu '-'."""
+    values = [v for v in values if v]
+    if not values:
+        return ''
+    prefix = values[0]
+    for value in values[1:]:
+        while prefix and not value.startswith(prefix):
+            prefix = prefix[:-1]
+        if not prefix:
+            return ''
+    if any(len(v) > len(prefix) for v in values) and '-' in prefix:
+        # Cắt phần dở dang sau dấu '-' cuối (VD: 'BB-BICH-0' → 'BB-BICH')
+        if not prefix.endswith('-'):
+            prefix = prefix.rsplit('-', 1)[0]
+    return prefix.strip('-_ ')
+
+
+def _group_display_name(materials: list) -> str:
+    """Tên nhóm hiển thị theo phần mã chung (BB-BICH), fallback tên nhóm hàng."""
+    bases = [code_base(m.code) for m in materials]
+    if bases and all(b == bases[0] for b in bases) and bases[0]:
+        return bases[0]
+    common = _common_dash_prefix([(m.code or '').strip().upper() for m in materials])
+    if common:
+        return common
+    rep = materials[0]
+    group = normalize_variant_group(getattr(rep, 'variant_group', '') or '')
+    return group or rep.name or rep.code
 
 
 def group_materials(materials) -> list[dict]:
@@ -62,7 +86,7 @@ def group_materials(materials) -> list[dict]:
         rep = items[0]
         groups.append({
             'key': _safe_group_dom_key(key, rep),
-            'group_name': _group_display_name(rep),
+            'group_name': _group_display_name(items),
             'category': rep.category,
             'unit': rep.unit,
             'materials': items,
@@ -113,7 +137,7 @@ def group_stock_rows(stock_rows: list[dict]) -> list[dict]:
 
         groups.append({
             'key': _safe_group_dom_key(key, rep),
-            'group_name': _group_display_name(rep),
+            'group_name': _group_display_name(materials),
             'category': rep.category,
             'unit': rep.unit,
             'materials': materials,

@@ -20,6 +20,15 @@ def normalize_variant_group(value: str | None) -> str:
     return (value or '').strip().upper()
 
 
+def code_base(code: str | None) -> str:
+    """Mã bỏ số thứ tự cuối — giữ nguyên tiền tố nhóm. VD: BB-BICH-01 → BB-BICH."""
+    code = (code or '').strip().upper()
+    if not code:
+        return ''
+    base = _TRAILING_SEQ_RE.sub('', code).strip('-_ ')
+    return base or code
+
+
 def infer_variant_group_from_code(code: str | None) -> str:
     """
     Suy nhóm hàng từ mã NPL đã chuẩn hóa.
