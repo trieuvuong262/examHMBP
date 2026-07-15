@@ -148,7 +148,7 @@ DEFAULT_MATERIAL_CATEGORIES = [
     ('vai-chinh', 'Vải chính', 1),
     ('vai-phoi', 'Vải phối', 2),
     ('bo-co-tay', 'Bo cổ / bo tay', 3),
-    ('day-khoa', 'Dây kéo / dây rút / nút / khoen', 4),
+    ('day-khoa', 'Dây kéo', 4),
     ('tem-nhan', 'Tem nhãn / tag / size', 5),
     ('bao-bi', 'Bao bì / túi / thùng', 6),
     ('decal', 'Decal / vật tư in ép', 7),
@@ -180,7 +180,7 @@ DEFAULT_MATERIAL_CATEGORY_TREE = [
         'Khóa & phụ kiện',
         3,
         [
-            ('day-khoa', 'Dây kéo / dây rút / nút / khoen', 1),
+            ('day-khoa', 'Dây kéo', 1),
         ],
     ),
     (
