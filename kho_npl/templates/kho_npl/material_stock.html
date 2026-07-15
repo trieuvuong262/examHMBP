@@ -141,7 +141,7 @@
                             <span class="jp-npl-stock-cell-clip">{{ group.min_stock|npl_qty_with_unit:group.unit }}</span>
                         </td>
                         <td class="npl-col" data-col="stock_status">
-                            <span class="badge text-bg-{{ group.status_badge }}">{{ group.status_label }}</span>
+                            {% if group.can_expand %}<span class="text-muted">—</span>{% else %}<span class="badge text-bg-{{ group.status_badge }}">{{ group.status_label }}</span>{% endif %}
                         </td>
                         <td class="npl-col text-center" data-col="detail">
                             {% if not group.can_expand %}
