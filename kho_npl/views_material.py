@@ -2,6 +2,8 @@ import pandas as pd
 from decimal import Decimal
 
 from django.contrib import messages
+from django.db import transaction
+from django.db.models.deletion import ProtectedError
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -377,53 +379,26 @@ def material_stock_detail(request, pk):
 
 @module_perm_required(MODULE_KHO_NPL, 'export')
 def material_stock_export(request):
-    # #region agent log
-    import json as _json, time as _time, traceback as _tb
-    def _dbg(hyp, msg, extra=None):
-        try:
-            with open(r'd:\Project\debug-56fca9.log', 'a', encoding='utf-8') as _f:
-                _f.write(_json.dumps({'sessionId': '56fca9', 'hypothesisId': hyp, 'location': 'views_material.py:material_stock_export', 'message': msg, 'data': extra or {}, 'timestamp': int(_time.time() * 1000)}, ensure_ascii=False, default=str) + '\n')
-        except Exception:
-            pass
-    _dbg('A', 'entry', {'GET': dict(request.GET)})
-    # #endregion
-    try:
-        result = _stock_filtered_rows(request)
-        # #region agent log
-        _dbg('A', 'filtered_rows returned', {'tuple_len': len(result)})
-        # #endregion
-        rows, _, _, _, _, _, _, _ = result
-        data = []
-        for row in rows:
-            mat = row['material']
-            data.append({
-                'Mã NPL': mat.code,
-                'Tên NPL': mat.name,
-                'Nhóm': mat.category.name if mat.category_id else '',
-                'Màu': mat.color.name if mat.color_id else '',
-                'Quy cách': spec_label(mat.specification) if mat.specification_id else '',
-                'ĐVT': mat.unit.name,
-                'Tồn hiện tại': float(row['total_qty']),
-                'Đơn giá BQ': float(row.get('avg_unit_price') or 0),
-                'Giá trị tồn': float(row.get('stock_value') or 0),
-                'Tối thiểu': float(mat.min_stock),
-                'Vị trí chính': row['primary_location'],
-                'Trạng thái': STOCK_STATUS_LABELS[row['status']],
-            })
-        # #region agent log
-        _dbg('B', 'rows built', {'row_count': len(data)})
-        # #endregion
-        df = pd.DataFrame(data)
-        resp = dataframe_to_xlsx_response(df, 'Ton_kho_npl', 'Ton_kho')
-        # #region agent log
-        _dbg('C', 'xlsx response ok', {'status': resp.status_code})
-        # #endregion
-        return resp
-    except Exception as exc:
-        # #region agent log
-        _dbg('A', 'EXCEPTION', {'type': type(exc).__name__, 'error': str(exc), 'traceback': _tb.format_exc()})
-        # #endregion
-        raise
+    rows, _, _, _, _, _, _, _, _ = _stock_filtered_rows(request)
+    data = []
+    for row in rows:
+        mat = row['material']
+        data.append({
+            'Mã NPL': mat.code,
+            'Tên NPL': mat.name,
+            'Nhóm': mat.category.name if mat.category_id else '',
+            'Màu': mat.color.name if mat.color_id else '',
+            'Quy cách': spec_label(mat.specification) if mat.specification_id else '',
+            'ĐVT': mat.unit.name,
+            'Tồn hiện tại': float(row['total_qty']),
+            'Đơn giá BQ': float(row.get('avg_unit_price') or 0),
+            'Giá trị tồn': float(row.get('stock_value') or 0),
+            'Tối thiểu': float(mat.min_stock),
+            'Vị trí chính': row['primary_location'],
+            'Trạng thái': STOCK_STATUS_LABELS[row['status']],
+        })
+    df = pd.DataFrame(data)
+    return dataframe_to_xlsx_response(df, 'Ton_kho_npl', 'Ton_kho')
 
 
 @module_perm_required(MODULE_KHO_NPL, 'view')
@@ -520,7 +495,7 @@ def material_import(request):
     return redirect('kho_npl:material_list')
 
 
-@module_perm_required_methods(MODULE_KHO_NPL, get='delete', post='delete')
+@module_perm_required_methods(MODULE_KHO_NPL, get='update', post='update')
 def material_deactivate(request, pk):
     material = get_object_or_404(Material, pk=pk)
     if request.method == 'POST':
@@ -532,4 +507,72 @@ def material_deactivate(request, pk):
         **nav_context('materials', user=request.user),
         **perm_context(request.user, 'materials'),
         'material': material,
+    })
+
+
+def _material_delete_blockers(material: Material) -> list[str]:
+    """Lịch sử phải được giữ; chỉ cho xóa mã chưa từng phát sinh nghiệp vụ."""
+    checks = (
+        ('Phiếu nhập', material.receipt_lines),
+        ('Phiếu xuất', material.issue_lines),
+        ('Phiếu chuyển', material.transfer_lines),
+        ('Phiếu hủy', material.disposal_lines),
+        ('Phiếu điều chỉnh', material.adjustment_lines),
+        ('Phiếu kiểm kê', material.stocktake_lines),
+        ('Sổ kho', material.ledger_entries),
+    )
+    blockers = [
+        f'{label}: {manager.count()}'
+        for label, manager in checks
+        if manager.exists()
+    ]
+    nonzero_balances = material.balances.exclude(quantity=0).count()
+    if nonzero_balances:
+        blockers.append(f'Tồn theo vị trí: {nonzero_balances}')
+    nonzero_batches = material.batches.exclude(quantity=0).count()
+    if nonzero_batches:
+        blockers.append(f'Lô còn tồn: {nonzero_batches}')
+    return blockers
+
+
+@module_perm_required_methods(MODULE_KHO_NPL, get='delete', post='delete')
+def material_delete(request, pk):
+    material = get_object_or_404(Material, pk=pk)
+    blockers = _material_delete_blockers(material)
+    if request.method == 'POST':
+        try:
+            with transaction.atomic():
+                material = get_object_or_404(
+                    Material.objects.select_for_update(),
+                    pk=pk,
+                )
+                blockers = _material_delete_blockers(material)
+                if blockers:
+                    messages.error(
+                        request,
+                        f'Không thể xóa {material.code} vì đã có dữ liệu phát sinh. '
+                        'Hãy dùng “Ngừng dùng” để giữ lịch sử.',
+                    )
+                    return redirect('kho_npl:material_detail', pk=material.pk)
+
+                code = material.code
+                image = material.image
+                material.delete()
+                if image:
+                    transaction.on_commit(lambda: image.delete(save=False))
+        except ProtectedError:
+            messages.error(
+                request,
+                f'Không thể xóa {code} vì đang được dữ liệu khác sử dụng.',
+            )
+            return redirect('kho_npl:material_detail', pk=pk)
+
+        messages.success(request, f'Đã xóa nguyên phụ liệu {code}.')
+        return redirect('kho_npl:material_list')
+
+    return render(request, 'kho_npl/material_confirm_delete.html', {
+        **nav_context('materials', user=request.user),
+        **perm_context(request.user, 'materials'),
+        'material': material,
+        'delete_blockers': blockers,
     })

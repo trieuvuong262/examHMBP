@@ -32,6 +32,7 @@ urlpatterns = [
     path('danh-muc/<int:pk>/', views_material.material_detail, name='material_detail'),
     path('danh-muc/<int:pk>/sua/', views_material.material_edit, name='material_edit'),
     path('danh-muc/<int:pk>/ngung/', views_material.material_deactivate, name='material_deactivate'),
+    path('danh-muc/<int:pk>/xoa/', views_material.material_delete, name='material_delete'),
     path('api/tim-npl/', views_material.material_search, name='material_search'),
     path('api/tim-ma-sp/', views_issue.product_code_search, name='product_code_search'),
     path('api/tim-nhan-vien/', views_issue.recipient_search, name='recipient_search'),
