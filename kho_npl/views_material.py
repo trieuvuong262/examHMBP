@@ -142,6 +142,21 @@ def material_search(request):
                 material_id__in=material_ids,
             ):
                 balance_map[balance.material_id] = balance.quantity
+            # Ẩn NPL tồn 0 tại vị trí này nhưng có tồn ở vị trí khác (gây nhiễu);
+            # vẫn giữ NPL chưa có tồn ở bất kỳ đâu để phiếu nhập thêm được mã mới.
+            stocked_elsewhere = set(
+                StockBalance.objects.filter(
+                    material_id__in=material_ids,
+                    quantity__gt=0,
+                )
+                .exclude(location_id=location_id)
+                .values_list('material_id', flat=True)
+            )
+            materials = [
+                material for material in materials
+                if balance_map.get(material.pk, Decimal('0')) > 0
+                or material.pk not in stocked_elsewhere
+            ]
     rows = []
     for material in materials:
         if location_id is not None:
