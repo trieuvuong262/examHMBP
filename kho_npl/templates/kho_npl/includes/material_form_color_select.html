@@ -1,0 +1,41 @@
+{% if can_create %}
+<div class="mt-2">
+    <a href="{% url 'kho_npl:settings_create' 'mau' %}" target="_blank" rel="noopener"
+       class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-plus-lg me-1"></i>Thêm màu
+    </a>
+    <span class="form-text ms-1">Màu mới sẽ có trong danh sách sau khi tải lại trang.</span>
+</div>
+{% endif %}
+<script>
+(function () {
+    if (typeof TomSelect === 'undefined') return;
+    var el = document.getElementById('{{ form.color.id_for_label }}');
+    if (!el || el.tomselect) return;
+
+    var hexByValue = {};
+    el.querySelectorAll('option').forEach(function (opt) {
+        if (opt.dataset.hex) hexByValue[opt.value] = opt.dataset.hex;
+    });
+
+    function renderColor(data, escape) {
+        var hex = hexByValue[data.value];
+        var swatch = hex
+            ? '<span class="jp-npl-color-swatch" style="background-color: ' + escape(hex) + ';" aria-hidden="true"></span>'
+            : '';
+        return '<div class="jp-npl-color-chip">' + swatch +
+            '<span class="jp-npl-color-name">' + escape(data.text) + '</span></div>';
+    }
+
+    new TomSelect(el, {
+        placeholder: el.getAttribute('data-placeholder') || 'Tìm màu...',
+        allowEmptyOption: true,
+        maxItems: 1,
+        dropdownParent: 'body',
+        render: {
+            option: renderColor,
+            item: renderColor,
+        },
+    });
+})();
+</script>

@@ -181,6 +181,17 @@ def _configure_supplier_select_field(field, *, selected_id=None, required=False)
     field.empty_label = None
 
 
+class MaterialColorSelect(forms.Select):
+    """Select màu — gắn data-hex vào từng option để hiển thị ô màu thật."""
+
+    def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
+        option = super().create_option(name, value, label, selected, index, subindex=subindex, attrs=attrs)
+        instance = getattr(value, 'instance', None)
+        if instance is not None and getattr(instance, 'hex_code', ''):
+            option['attrs']['data-hex'] = instance.hex_code
+        return option
+
+
 class MaterialForm(forms.ModelForm):
     class Meta:
         model = Material
@@ -201,7 +212,11 @@ class MaterialForm(forms.ModelForm):
             'code': forms.TextInput(attrs={**FORM_CONTROL, 'placeholder': 'VD: VAI-001'}),
             'name': forms.TextInput(attrs=FORM_CONTROL),
             'category': forms.Select(attrs=FORM_SELECT),
-            'color': forms.Select(attrs={**FORM_SEARCH_SELECT, 'data-placeholder': 'Tìm màu...'}),
+            'color': MaterialColorSelect(attrs={
+                **FORM_SEARCH_SELECT,
+                'class': 'form-select jp-npl-search-select jp-npl-color-select',
+                'data-placeholder': 'Tìm màu...',
+            }),
             'specification': forms.Select(attrs={**FORM_SEARCH_SELECT, 'data-placeholder': 'Tìm quy cách / khổ...'}),
             'unit': forms.Select(attrs=FORM_SELECT),
             'supplier': forms.Select(attrs={**FORM_SEARCH_SELECT, 'data-placeholder': 'Tìm NCC...'}),

@@ -6,6 +6,7 @@
         if (el.classList.contains('jp-npl-employee-select')) return;
         if (el.classList.contains('jp-npl-supplier-select')) return;
         if (el.classList.contains('jp-npl-location-select')) return;
+        if (el.classList.contains('jp-npl-color-select')) return;
         if (el.tomselect) return;
         new TomSelect(el, {
             placeholder: el.getAttribute('data-placeholder') || 'Tìm...',
