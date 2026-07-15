@@ -174,6 +174,11 @@ class Material(models.Model):
         verbose_name = 'Nguyên phụ liệu'
         verbose_name_plural = 'Nguyên phụ liệu'
 
+    def save(self, *args, **kwargs):
+        # Tên NPL luôn viết hoa, dù nhập từ form, import Excel hay admin
+        self.name = (self.name or '').strip().upper()
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f'{self.code} — {self.name}'
 
