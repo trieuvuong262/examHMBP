@@ -384,11 +384,9 @@ def material_stock_detail(request, pk):
     from kho_npl.services.batches import batches_with_stock, material_batch_totals
     batches = list(batches_with_stock(material))
     _bq, stock_value, avg_unit_price = material_batch_totals(material)
-    # Chưa có lô — tạm dùng giá cơ bản trong danh mục
-    if avg_unit_price <= 0 and material.base_price:
-        avg_unit_price = material.base_price
-        if row['total_qty'] > 0:
-            stock_value = (row['total_qty'] * material.base_price).quantize(Decimal('0.01'))
+    # Có tồn nhưng chưa có lô kèm giá — tạm tính giá trị tồn theo giá cơ bản
+    if stock_value <= 0 and row['total_qty'] > 0 and material.base_price:
+        stock_value = (row['total_qty'] * material.base_price).quantize(Decimal('0.01'))
     back_query = request.GET.urlencode()
     stock_card_params = [f'material={pk}']
     for loc_id in location_ids:

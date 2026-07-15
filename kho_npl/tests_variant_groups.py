@@ -91,7 +91,9 @@ class VariantGroupServiceTests(TestCase):
         self.assertEqual(g['total_qty'], Decimal('20'))
         self.assertEqual(g['status'], STOCK_STATUS_OUT)
         self.assertEqual(g['stock_value'], Decimal('200000.00'))
-        self.assertEqual(g['avg_unit_price'], Decimal('10000.00'))
+        # Don gia BQ nhom = trung binh cong don gia BQ cac ma co gia:
+        # m1 = 10000 (lo L1), m2 = 20000 (lo L2 du da het ton) -> (10000+20000)/2
+        self.assertEqual(g['avg_unit_price'], Decimal('15000.00'))
 
 
 class VariantGroupViewTests(TestCase):

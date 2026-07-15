@@ -126,8 +126,10 @@ def group_stock_rows(stock_rows: list[dict]) -> list[dict]:
 
         total_qty = sum((r['total_qty'] for r in rows), Decimal('0'))
         stock_value = sum((r.get('stock_value') or Decimal('0') for r in rows), Decimal('0'))
-        if total_qty > 0:
-            avg_unit_price = (stock_value / total_qty).quantize(Decimal('0.01'))
+        # Đơn giá BQ nhóm = trung bình cộng đơn giá BQ của các mã có giá trong nhóm
+        member_prices = [r['avg_unit_price'] for r in rows if (r.get('avg_unit_price') or Decimal('0')) > 0]
+        if member_prices:
+            avg_unit_price = (sum(member_prices, Decimal('0')) / len(member_prices)).quantize(Decimal('0.01'))
         else:
             avg_unit_price = Decimal('0')
 

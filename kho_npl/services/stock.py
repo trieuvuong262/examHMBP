@@ -111,11 +111,9 @@ def material_stock_rows(queryset=None, location_ids: list[int] | None = None):
         can_expand = len(location_balances) >= 1
         status = stock_status_for_qty(total, material.min_stock)
         _batch_qty, stock_value, avg_unit_price = material_batch_totals(material)
-        # Chưa có lô (chưa nhập giá) — tạm dùng giá cơ bản trong danh mục làm giá BQ
-        if avg_unit_price <= 0 and material.base_price:
-            avg_unit_price = material.base_price
-            if total > 0:
-                stock_value = (total * material.base_price).quantize(Decimal('0.01'))
+        # Có tồn nhưng chưa có lô kèm giá — tạm tính giá trị tồn theo giá cơ bản
+        if stock_value <= 0 and total > 0 and material.base_price:
+            stock_value = (total * material.base_price).quantize(Decimal('0.01'))
         rows.append({
             'material': material,
             'total_qty': total,

@@ -56,10 +56,33 @@ def batch_stock_options(material: Material) -> list[dict]:
     return rows
 
 
+def material_avg_price(material: Material) -> Decimal:
+    """
+    Đơn giá BQ = trung bình cộng giá của tất cả các lô đã nhập (mọi phiếu nhập,
+    kể cả lô đã hết tồn) cộng thêm giá cơ bản trong danh mục nếu có.
+    Giá cơ bản trống (0) thì chỉ tính trung bình từ các lô.
+    """
+    prices = list(
+        MaterialBatch.objects.filter(
+            material=material,
+            unit_price__gt=0,
+        ).values_list('unit_price', flat=True)
+    )
+    base_price = material.base_price or Decimal('0')
+    if base_price > 0:
+        prices.append(base_price)
+    if not prices:
+        return Decimal('0')
+    total = sum(prices, Decimal('0'))
+    return (total / len(prices)).quantize(Decimal('0.01'))
+
+
 def material_batch_totals(material: Material) -> tuple[Decimal, Decimal, Decimal]:
     """
-    Trả (tổng tồn lô, tổng giá trị, đơn giá bình quân gia quyền).
-    Bỏ lô không còn tồn.
+    Trả (tổng tồn lô, tổng giá trị tồn, đơn giá BQ).
+
+    Giá trị tồn = Σ(tồn lô × giá lô) — chỉ tính lô còn tồn.
+    Đơn giá BQ = trung bình cộng giá tất cả lô + giá cơ bản (xem material_avg_price).
     """
     agg = MaterialBatch.objects.filter(
         material=material,
@@ -71,14 +94,14 @@ def material_batch_totals(material: Material) -> tuple[Decimal, Decimal, Decimal
     )
     total_qty = agg['total_qty'] or Decimal('0')
     total_value = agg['total_value'] or Decimal('0')
+    avg_price = material_avg_price(material)
     if total_qty <= 0:
-        return Decimal('0'), Decimal('0'), Decimal('0')
-    avg_cost = (total_value / total_qty).quantize(Decimal('0.01'))
-    return total_qty, total_value.quantize(Decimal('0.01')), avg_cost
+        return Decimal('0'), Decimal('0'), avg_price
+    return total_qty, total_value.quantize(Decimal('0.01')), avg_price
 
 
 def avg_cost(material: Material) -> Decimal:
-    """Đơn giá bình quân gia quyền từ các lô còn tồn."""
+    """Đơn giá BQ — trung bình cộng giá các lô + giá cơ bản danh mục."""
     _qty, _value, avg = material_batch_totals(material)
     return avg
 
