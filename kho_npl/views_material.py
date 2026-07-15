@@ -377,26 +377,53 @@ def material_stock_detail(request, pk):
 
 @module_perm_required(MODULE_KHO_NPL, 'export')
 def material_stock_export(request):
-    rows, _, _, _, _, _, _, _ = _stock_filtered_rows(request)
-    data = []
-    for row in rows:
-        mat = row['material']
-        data.append({
-            'Mã NPL': mat.code,
-            'Tên NPL': mat.name,
-            'Nhóm': mat.category.name if mat.category_id else '',
-            'Màu': mat.color.name if mat.color_id else '',
-            'Quy cách': spec_label(mat.specification) if mat.specification_id else '',
-            'ĐVT': mat.unit.name,
-            'Tồn hiện tại': float(row['total_qty']),
-            'Đơn giá BQ': float(row.get('avg_unit_price') or 0),
-            'Giá trị tồn': float(row.get('stock_value') or 0),
-            'Tối thiểu': float(mat.min_stock),
-            'Vị trí chính': row['primary_location'],
-            'Trạng thái': STOCK_STATUS_LABELS[row['status']],
-        })
-    df = pd.DataFrame(data)
-    return dataframe_to_xlsx_response(df, 'Ton_kho_npl', 'Ton_kho')
+    # #region agent log
+    import json as _json, time as _time, traceback as _tb
+    def _dbg(hyp, msg, extra=None):
+        try:
+            with open(r'd:\Project\debug-56fca9.log', 'a', encoding='utf-8') as _f:
+                _f.write(_json.dumps({'sessionId': '56fca9', 'hypothesisId': hyp, 'location': 'views_material.py:material_stock_export', 'message': msg, 'data': extra or {}, 'timestamp': int(_time.time() * 1000)}, ensure_ascii=False, default=str) + '\n')
+        except Exception:
+            pass
+    _dbg('A', 'entry', {'GET': dict(request.GET)})
+    # #endregion
+    try:
+        result = _stock_filtered_rows(request)
+        # #region agent log
+        _dbg('A', 'filtered_rows returned', {'tuple_len': len(result)})
+        # #endregion
+        rows, _, _, _, _, _, _, _ = result
+        data = []
+        for row in rows:
+            mat = row['material']
+            data.append({
+                'Mã NPL': mat.code,
+                'Tên NPL': mat.name,
+                'Nhóm': mat.category.name if mat.category_id else '',
+                'Màu': mat.color.name if mat.color_id else '',
+                'Quy cách': spec_label(mat.specification) if mat.specification_id else '',
+                'ĐVT': mat.unit.name,
+                'Tồn hiện tại': float(row['total_qty']),
+                'Đơn giá BQ': float(row.get('avg_unit_price') or 0),
+                'Giá trị tồn': float(row.get('stock_value') or 0),
+                'Tối thiểu': float(mat.min_stock),
+                'Vị trí chính': row['primary_location'],
+                'Trạng thái': STOCK_STATUS_LABELS[row['status']],
+            })
+        # #region agent log
+        _dbg('B', 'rows built', {'row_count': len(data)})
+        # #endregion
+        df = pd.DataFrame(data)
+        resp = dataframe_to_xlsx_response(df, 'Ton_kho_npl', 'Ton_kho')
+        # #region agent log
+        _dbg('C', 'xlsx response ok', {'status': resp.status_code})
+        # #endregion
+        return resp
+    except Exception as exc:
+        # #region agent log
+        _dbg('A', 'EXCEPTION', {'type': type(exc).__name__, 'error': str(exc), 'traceback': _tb.format_exc()})
+        # #endregion
+        raise
 
 
 @module_perm_required(MODULE_KHO_NPL, 'view')
