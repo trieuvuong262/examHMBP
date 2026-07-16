@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5">
+    <div class="jp-page-header mb-3 mb-md-4">
+        <div>
+            <h2 class="fw-bold text-hm mb-1 jp-page-title">Kiểm tra chất lượng</h2>
+            <p class="text-muted mb-0 small">Yêu cầu · phiếu · tiêu chuẩn · lỗi</p>
+        </div>
+        <a href="{% url 'san_xuat:overview' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left me-1"></i>Tổng quan
+        </a>
+    </div>
+
+    <div class="alert alert-warning border-0 mb-4" role="status">
+        Scaffold — chưa lưu DB. Nghiệp vụ kho NPL không đổi.
+    </div>
+
+    <h3 class="h6 text-uppercase text-muted mb-2">Vận hành</h3>
+    <div class="list-group list-group-flush border rounded-3 mb-4">
+        <a href="{% url 'san_xuat:qc_request' %}" class="list-group-item list-group-item-action d-flex justify-content-between">
+            <span><i class="bi bi-clipboard-plus me-2"></i>Yêu cầu kiểm tra</span>
+            <span class="badge text-bg-secondary">Sắp làm</span>
+        </a>
+        <a href="{% url 'san_xuat:qc_sheet' %}" class="list-group-item list-group-item-action d-flex justify-content-between">
+            <span><i class="bi bi-clipboard-check me-2"></i>Phiếu kiểm tra</span>
+            <span class="badge text-bg-secondary">Sắp làm</span>
+        </a>
+    </div>
+
+    <h3 class="h6 text-uppercase text-muted mb-2">Tiêu chuẩn</h3>
+    <div class="list-group list-group-flush border rounded-3 mb-4">
+        <a href="{% url 'san_xuat:qc_criteria' %}" class="list-group-item list-group-item-action d-flex justify-content-between">
+            <span><i class="bi bi-list-check me-2"></i>Tiêu chí chất lượng</span>
+            <span class="badge text-bg-secondary">Sắp làm</span>
+        </a>
+        <a href="{% url 'san_xuat:qc_criteria_group' %}" class="list-group-item list-group-item-action d-flex justify-content-between">
+            <span><i class="bi bi-collection me-2"></i>Nhóm tiêu chí chất lượng</span>
+            <span class="badge text-bg-secondary">Sắp làm</span>
+        </a>
+        <a href="{% url 'san_xuat:qc_sampling' %}" class="list-group-item list-group-item-action d-flex justify-content-between">
+            <span><i class="bi bi-pie-chart me-2"></i>Phương pháp chọn mẫu</span>
+            <span class="badge text-bg-secondary">Sắp làm</span>
+        </a>
+        <a href="{% url 'san_xuat:qc_standard_set' %}" class="list-group-item list-group-item-action d-flex justify-content-between">
+            <span><i class="bi bi-journal-bookmark me-2"></i>Bộ tiêu chuẩn kiểm tra chất lượng</span>
+            <span class="badge text-bg-secondary">Sắp làm</span>
+        </a>
+        <a href="{% url 'san_xuat:qc_defect' %}" class="list-group-item list-group-item-action d-flex justify-content-between">
+            <span><i class="bi bi-exclamation-triangle me-2"></i>Lỗi kiểm tra chất lượng</span>
+            <span class="badge text-bg-secondary">Sắp làm</span>
+        </a>
+        <a href="{% url 'san_xuat:qc_defect_group' %}" class="list-group-item list-group-item-action d-flex justify-content-between">
+            <span><i class="bi bi-folder-x me-2"></i>Nhóm lỗi kiểm tra chất lượng</span>
+            <span class="badge text-bg-secondary">Sắp làm</span>
+        </a>
+    </div>
+</div>
+{% endblock %}

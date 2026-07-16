@@ -31,7 +31,7 @@
             </a>
         </div>
         <div class="col-6 col-md-3">
-            <a href="{% url 'san_xuat:redirect_npl_stock' %}" class="border rounded-3 p-3 h-100 d-block text-decoration-none text-reset">
+            <a href="{% url 'kho_npl:material_stock' %}" class="border rounded-3 p-3 h-100 d-block text-decoration-none text-reset">
                 <div class="text-muted small">Kho NPL</div>
                 <div class="fw-semibold">Tồn nguyên liệu</div>
                 <div class="small text-hm">Mở kho →</div>
@@ -40,21 +40,21 @@
         <div class="col-6 col-md-3">
             <a href="{% url 'san_xuat:redirect_fg_stock' %}" class="border rounded-3 p-3 h-100 d-block text-decoration-none text-reset">
                 <div class="text-muted small">Kho sản phẩm</div>
-                <div class="fw-semibold">Tồn KV</div>
-                <div class="small text-hm">Mở tồn →</div>
+                <div class="fw-semibold">Hàng hoá / tồn KV</div>
+                <div class="small text-hm">Mở trong hub SX →</div>
             </a>
         </div>
     </div>
 
     <h3 class="h6 text-uppercase text-muted mb-3">Lối tắt</h3>
     <div class="list-group list-group-flush border rounded-3">
+        <a href="{% url 'san_xuat:plan_stub' %}" class="list-group-item list-group-item-action d-flex justify-content-between">
+            <span><i class="bi bi-calendar3 me-2"></i>Kế hoạch sản xuất</span>
+            <i class="bi bi-chevron-right"></i>
+        </a>
         <a href="{% url 'san_xuat:doc_list' %}" class="list-group-item list-group-item-action d-flex justify-content-between">
             <span><i class="bi bi-journal-text me-2"></i>Hồ sơ SX / BOM / Costing</span>
             <i class="bi bi-chevron-right"></i>
-        </a>
-        <a href="{% url 'san_xuat:plan_stub' %}" class="list-group-item list-group-item-action d-flex justify-content-between">
-            <span><i class="bi bi-calendar3 me-2"></i>Kế hoạch sản xuất</span>
-            <span class="badge text-bg-secondary">Sắp làm</span>
         </a>
         <a href="{% url 'san_xuat:dispatch_stub' %}" class="list-group-item list-group-item-action d-flex justify-content-between">
             <span><i class="bi bi-diagram-2 me-2"></i>Điều phối</span>

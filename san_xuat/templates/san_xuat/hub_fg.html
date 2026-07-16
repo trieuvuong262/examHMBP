@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5">
+    <div class="jp-page-header mb-3 mb-md-4">
+        <div>
+            <h2 class="fw-bold text-hm mb-1 jp-page-title">Kho sản phẩm</h2>
+            <p class="text-muted mb-0 small">Dữ liệu KiotViet (mirror) — nhúng trong hub Sản xuất</p>
+        </div>
+        <a href="{% url 'san_xuat:overview' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left me-1"></i>Tổng quan
+        </a>
+    </div>
+
+    <div class="alert alert-light border mb-4" role="status">
+        Không đổi module KiotViet gốc. Menu dưới mở cùng màn hình tra cứu, nằm trong URL
+        <code>/san-xuat/kho-san-pham/…</code>.
+    </div>
+
+    <div class="list-group list-group-flush border rounded-3">
+        <a href="{% url 'san_xuat:fg_product_lookup' %}" class="list-group-item list-group-item-action d-flex justify-content-between">
+            <span><i class="bi bi-box-seam me-2"></i>Hàng hoá</span>
+            <i class="bi bi-chevron-right"></i>
+        </a>
+        <a href="{% url 'san_xuat:fg_stock_lookup' %}" class="list-group-item list-group-item-action d-flex justify-content-between">
+            <span><i class="bi bi-boxes me-2"></i>Tồn kho</span>
+            <i class="bi bi-chevron-right"></i>
+        </a>
+        <a href="{% url 'san_xuat:fg_purchase_lookup' %}" class="list-group-item list-group-item-action d-flex justify-content-between">
+            <span><i class="bi bi-box-arrow-in-down me-2"></i>Phiếu nhập</span>
+            <i class="bi bi-chevron-right"></i>
+        </a>
+    </div>
+</div>
+{% endblock %}

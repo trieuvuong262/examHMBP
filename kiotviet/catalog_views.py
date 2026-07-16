@@ -25,6 +25,7 @@ from .product_filters import (
 from .product_groups import browse_product_groups, get_product_group
 from .lookup_views import _lookup_context
 from .sync_service import current_retailer
+from .url_ns import kv_url_name
 from .views import MIRROR_EMPTY_HINT
 
 
@@ -54,6 +55,9 @@ def product_lookup(request):
     if total and (browse_mode or query or has_active_filters):
         page_obj, query_string = paginate_api_meta(request, total)
 
+    product_lookup_url = kv_url_name(request, 'product_lookup', 'kiotviet:product_lookup')
+    product_detail_url = kv_url_name(request, 'product_detail', 'kiotviet:product_detail')
+
     return render(
         request,
         'kiotviet/product_lookup.html',
@@ -66,7 +70,8 @@ def product_lookup(request):
             total=total,
             api_error=None,
             mirror_empty_hint=MIRROR_EMPTY_HINT if total == 0 else '',
-            detail_url_name='kiotviet:product_detail',
+            detail_url_name=product_detail_url,
+            product_lookup_url_name=product_lookup_url,
             empty_hint='Mặc định chỉ hàng đang kinh doanh. Dùng bộ lọc hoặc từ khóa để thu hẹp danh sách.',
             product_group_mode=True,
             sidebar_filters=True,
@@ -92,13 +97,17 @@ def product_lookup(request):
 def product_detail(request, product_id: int):
     retailer = current_retailer()
     raw = get_product_group(retailer, product_id)
+    lookup_name = kv_url_name(request, 'product_lookup', 'kiotviet:product_lookup')
     if raw is None:
         messages.error(request, 'Không tìm thấy hàng hóa trong dữ liệu đã sync.')
-        return redirect('kiotviet:product_lookup')
+        return redirect(lookup_name)
     return render(
         request,
         'kiotviet/product_detail.html',
-        {'product': format_product_group_detail(raw)},
+        {
+            'product': format_product_group_detail(raw),
+            'product_lookup_url_name': lookup_name,
+        },
     )
 
 
@@ -152,6 +161,7 @@ def stock_lookup(request):
             'query_string': query_string,
             'browse_mode': browse_mode,
             'retailer': retailer,
+            'product_detail_url_name': kv_url_name(request, 'product_detail', 'kiotviet:product_detail'),
             'type_options': (
                 ('code', 'Mã hàng hóa'),
                 ('name', 'Tên hàng hóa'),
@@ -220,7 +230,7 @@ def purchase_lookup(request):
             total=total,
             api_error=None,
             mirror_empty_hint=MIRROR_EMPTY_HINT if total == 0 else '',
-            detail_url_name='kiotviet:purchase_detail',
+            detail_url_name=kv_url_name(request, 'purchase_detail', 'kiotviet:purchase_detail'),
             empty_hint='Nhập mã phiếu hoặc ID để lọc. Không nhập từ khóa: xem 30 phiếu mới nhất.',
             type_options=(
                 ('code', 'Mã phiếu nhập'),
@@ -238,15 +248,16 @@ def purchase_lookup(request):
 def purchase_detail(request, purchase_id: int):
     retailer = current_retailer()
     raw = local.get_purchase_order(retailer, purchase_id)
+    lookup_name = kv_url_name(request, 'purchase_lookup', 'kiotviet:purchase_lookup')
     if raw is None:
         messages.error(request, 'Không tìm thấy phiếu nhập trong dữ liệu đã sync.')
-        return redirect('kiotviet:purchase_lookup')
+        return redirect(lookup_name)
     return render(
         request,
         'kiotviet/_purchase_detail.html',
         {
             'doc': format_purchase_order_detail(raw),
             'header_icon': 'bi-box-arrow-in-down',
-            'back_url_name': 'kiotviet:purchase_lookup',
+            'back_url_name': lookup_name,
         },
     )

@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5">
+    <div class="jp-page-header mb-3 mb-md-4">
+        <div>
+            <h2 class="fw-bold text-hm mb-1 jp-page-title">Điều phối</h2>
+            <p class="text-muted mb-0 small">LSX · lịch · xuất vật tư · bàn giao BTP · thống kê</p>
+        </div>
+        <a href="{% url 'san_xuat:overview' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left me-1"></i>Tổng quan
+        </a>
+    </div>
+
+    <div class="alert alert-warning border-0 mb-4" role="status">
+        Các trang con đang scaffold. Xuất/nhập kho NPL thật vẫn trên module Kho NPL (SoT).
+    </div>
+
+    <div class="list-group list-group-flush border rounded-3 mb-4">
+        <a href="{% url 'san_xuat:dispatch_mo' %}" class="list-group-item list-group-item-action d-flex justify-content-between">
+            <span><i class="bi bi-file-earmark-gear me-2"></i>Lệnh sản xuất</span>
+            <span class="badge text-bg-secondary">Sắp làm</span>
+        </a>
+        <a href="{% url 'san_xuat:dispatch_disassembly' %}" class="list-group-item list-group-item-action d-flex justify-content-between">
+            <span><i class="bi bi-box-arrow-up me-2"></i>Lệnh tháo dỡ</span>
+            <span class="badge text-bg-secondary">Sắp làm</span>
+        </a>
+        <a href="{% url 'san_xuat:dispatch_schedule' %}" class="list-group-item list-group-item-action d-flex justify-content-between">
+            <span><i class="bi bi-calendar-week me-2"></i>Lịch sản xuất</span>
+            <span class="badge text-bg-secondary">Sắp làm</span>
+        </a>
+        <a href="{% url 'san_xuat:dispatch_material_issue_req' %}" class="list-group-item list-group-item-action d-flex justify-content-between">
+            <span><i class="bi bi-box-arrow-right me-2"></i>Yêu cầu xuất vật tư</span>
+            <span class="badge text-bg-secondary">Sắp làm</span>
+        </a>
+        <a href="{% url 'san_xuat:dispatch_prod_stats' %}" class="list-group-item list-group-item-action d-flex justify-content-between">
+            <span><i class="bi bi-bar-chart me-2"></i>Thống kê sản xuất</span>
+            <span class="badge text-bg-secondary">Sắp làm</span>
+        </a>
+        <a href="{% url 'san_xuat:dispatch_fg_receipt_req' %}" class="list-group-item list-group-item-action d-flex justify-content-between">
+            <span><i class="bi bi-box-arrow-in-down me-2"></i>Yêu cầu nhập thành phẩm</span>
+            <span class="badge text-bg-secondary">Sắp làm</span>
+        </a>
+        <a href="{% url 'san_xuat:dispatch_npl_surplus' %}" class="list-group-item list-group-item-action d-flex justify-content-between">
+            <span><i class="bi bi-recycle me-2"></i>NPL thừa</span>
+            <span class="badge text-bg-secondary">Sắp làm</span>
+        </a>
+        <a href="{% url 'san_xuat:dispatch_wip_handover' %}" class="list-group-item list-group-item-action d-flex justify-content-between">
+            <span><i class="bi bi-arrow-left-right me-2"></i>Bàn giao bán thành phẩm</span>
+            <span class="badge text-bg-secondary">Sắp làm</span>
+        </a>
+        <a href="{% url 'san_xuat:dispatch_wip_return' %}" class="list-group-item list-group-item-action d-flex justify-content-between">
+            <span><i class="bi bi-arrow-return-left me-2"></i>Trả lại bán thành phẩm</span>
+            <span class="badge text-bg-secondary">Sắp làm</span>
+        </a>
+        <a href="{% url 'san_xuat:dispatch_handover_status' %}" class="list-group-item list-group-item-action d-flex justify-content-between">
+            <span><i class="bi bi-clipboard-data me-2"></i>Tình hình bàn giao SX</span>
+            <span class="badge text-bg-secondary">Sắp làm</span>
+        </a>
+    </div>
+
+    <div class="d-flex flex-wrap gap-2">
+        <a href="{% url 'san_xuat:plan_stub' %}" class="btn btn-outline-hm">Kế hoạch SX</a>
+        <a href="{% url 'kho_npl:issue_list' %}" class="btn btn-outline-secondary">Phiếu xuất NPL</a>
+    </div>
+</div>
+{% endblock %}

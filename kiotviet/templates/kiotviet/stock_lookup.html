@@ -85,7 +85,7 @@
                         </td>
                         <td class="text-end">
                             {% if row.product_id %}
-                            <a href="{% url 'kiotviet:product_detail' row.product_id %}" class="btn btn-sm btn-outline-hm">SP</a>
+                            <a href="{% url product_detail_url_name|default:'kiotviet:product_detail' row.product_id %}" class="btn btn-sm btn-outline-hm">SP</a>
                             {% endif %}
                         </td>
                     </tr>

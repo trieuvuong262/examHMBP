@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5">
+    <div class="jp-page-header mb-3 mb-md-4">
+        <div>
+            <h2 class="fw-bold text-hm mb-1 jp-page-title">Kế hoạch sản xuất</h2>
+            <p class="text-muted mb-0 small">Tổng thể → chi tiết → nhu cầu NPL → yêu cầu mua → đơn mua</p>
+        </div>
+        <a href="{% url 'san_xuat:overview' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left me-1"></i>Tổng quan
+        </a>
+    </div>
+
+    <div class="alert alert-warning border-0 mb-4" role="status">
+        Các trang con đang scaffold — chưa lưu DB. Hồ sơ / BOM / Costing vẫn ở menu Sản xuất riêng.
+    </div>
+
+    <div class="list-group list-group-flush border rounded-3 mb-4">
+        <a href="{% url 'san_xuat:plan_overall' %}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-calendar-range me-2"></i>Kế hoạch tổng thể</span>
+            <span class="badge text-bg-secondary">Sắp làm</span>
+        </a>
+        <a href="{% url 'san_xuat:plan_detail' %}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-list-columns me-2"></i>Kế hoạch chi tiết</span>
+            <span class="badge text-bg-secondary">Sắp làm</span>
+        </a>
+        <a href="{% url 'san_xuat:plan_npl' %}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-boxes me-2"></i>Kế hoạch nguyên phụ liệu</span>
+            <span class="badge text-bg-secondary">Sắp làm</span>
+        </a>
+        <a href="{% url 'san_xuat:npl_purchase_request' %}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-cart-plus me-2"></i>Yêu cầu mua nguyên phụ liệu</span>
+            <span class="badge text-bg-secondary">Sắp làm</span>
+        </a>
+        <a href="{% url 'san_xuat:purchase_order' %}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-receipt me-2"></i>Đơn mua hàng</span>
+            <span class="badge text-bg-secondary">Sắp làm</span>
+        </a>
+    </div>
+
+    <div class="d-flex flex-wrap gap-2">
+        <a href="{% url 'san_xuat:redirect_orders' %}" class="btn btn-hm">Đơn đặt hàng (KV)</a>
+        <a href="{% url 'san_xuat:doc_list' %}" class="btn btn-outline-hm">Hồ sơ SX</a>
+        <a href="{% url 'kho_npl:material_stock' %}" class="btn btn-outline-secondary">Kho NPL</a>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,118 @@
+{# Menu con Kho NPL — URL/view kho_npl không đổi. Dùng trong sidebar Sản xuất hoặc nhóm Kho NPL độc lập. #}
+{% jp_can_menu 'kho_npl' 'overview' as jp_can_kho_npl_overview %}
+{% if jp_can_kho_npl_overview %}
+<li>
+    <a href="{% url 'kho_npl:overview' %}"
+       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'overview' and 'kho-npl' in request.path %}active{% endif %}"
+       data-jp-npl-catalog-nav data-loading-message="Đang tải tổng quan…">
+        <i class="bi bi-speedometer2"></i><span>Tổng quan</span>
+    </a>
+</li>
+{% endif %}
+{% jp_can_menu 'kho_npl' 'materials' as jp_can_kho_npl_materials %}
+{% if jp_can_kho_npl_materials %}
+<li>
+    <a href="{% url 'kho_npl:material_list' %}"
+       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'material_list' %}active{% endif %}"
+       data-jp-npl-catalog-nav data-loading-message="Đang tải danh mục…">
+        <i class="bi bi-tags"></i><span>Danh mục</span>
+    </a>
+</li>
+{% endif %}
+{% jp_can_menu 'kho_npl' 'material_stock' as jp_can_kho_npl_material_stock %}
+{% if jp_can_kho_npl_material_stock %}
+<li>
+    <a href="{% url 'kho_npl:material_stock' %}"
+       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'material_stock' %}active{% endif %}"
+       data-jp-npl-catalog-nav data-loading-message="Đang tải tồn kho…">
+        <i class="bi bi-boxes"></i><span>Tồn kho</span>
+    </a>
+</li>
+{% endif %}
+{% jp_can_menu 'kho_npl' 'stock_cards' as jp_can_kho_npl_stock_cards %}
+{% if jp_can_kho_npl_stock_cards %}
+<li>
+    <a href="{% url 'kho_npl:stock_cards' %}"
+       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'stock_cards' %}active{% endif %}"
+       data-jp-npl-catalog-nav data-loading-message="Đang tải thẻ kho…">
+        <i class="bi bi-grid-3x3-gap"></i><span>Thẻ kho</span>
+    </a>
+</li>
+{% endif %}
+{% jp_can_menu 'kho_npl' 'receipts' as jp_can_kho_npl_receipts %}
+{% if jp_can_kho_npl_receipts %}
+<li>
+    <a href="{% url 'kho_npl:receipt_list' %}"
+       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'receipt_list' %}active{% endif %}"
+       data-jp-npl-catalog-nav data-loading-message="Đang tải phiếu nhập…">
+        <i class="bi bi-box-arrow-in-down"></i><span>Phiếu nhập</span>
+    </a>
+</li>
+{% endif %}
+{% jp_can_menu 'kho_npl' 'issues' as jp_can_kho_npl_issues %}
+{% if jp_can_kho_npl_issues %}
+<li>
+    <a href="{% url 'kho_npl:issue_list' %}"
+       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'issue_list' %}active{% endif %}"
+       data-jp-npl-catalog-nav data-loading-message="Đang tải phiếu xuất…">
+        <i class="bi bi-box-arrow-up"></i><span>Phiếu xuất</span>
+    </a>
+</li>
+{% endif %}
+{% jp_can_menu 'kho_npl' 'transfers' as jp_can_kho_npl_transfers %}
+{% if jp_can_kho_npl_transfers %}
+<li>
+    <a href="{% url 'kho_npl:transfer_hub' %}"
+       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'transfer_hub' or request.resolver_match.url_name == 'transfer_create' or request.resolver_match.url_name == 'transfer_detail' or request.resolver_match.url_name == 'transfer_edit' %}active{% endif %}"
+       data-jp-npl-catalog-nav data-loading-message="Đang tải phiếu chuyển…">
+        <i class="bi bi-arrow-left-right"></i><span>Phiếu chuyển</span>
+    </a>
+</li>
+{% endif %}
+{% jp_can_menu 'kho_npl' 'disposals' as jp_can_kho_npl_disposals %}
+{% if jp_can_kho_npl_disposals %}
+<li>
+    <a href="{% url 'kho_npl:disposal_list' %}"
+       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'disposal_list' or request.resolver_match.url_name == 'disposal_create' or request.resolver_match.url_name == 'disposal_detail' or request.resolver_match.url_name == 'disposal_edit' %}active{% endif %}"
+       data-jp-npl-catalog-nav data-loading-message="Đang tải phiếu hủy…">
+        <i class="bi bi-trash3"></i><span>Phiếu hủy</span>
+    </a>
+</li>
+{% endif %}
+{% jp_can_menu 'kho_npl' 'adjustments' as jp_can_kho_npl_adjustments %}
+{% if jp_can_kho_npl_adjustments %}
+<li>
+    <a href="{% url 'kho_npl:adjustment_list' %}"
+       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'adjustment_list' %}active{% endif %}">
+        <i class="bi bi-sliders"></i><span>Phiếu điều chỉnh</span>
+    </a>
+</li>
+{% endif %}
+{% jp_can_menu 'kho_npl' 'stocktakes' as jp_can_kho_npl_stocktakes %}
+{% if jp_can_kho_npl_stocktakes %}
+<li>
+    <a href="{% url 'kho_npl:stocktake_list' %}"
+       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'stocktake_list' %}active{% endif %}"
+       data-jp-npl-catalog-nav data-loading-message="Đang tải phiếu kiểm kê…">
+        <i class="bi bi-clipboard-check"></i><span>Phiếu kiểm kê</span>
+    </a>
+</li>
+{% endif %}
+{% jp_can_menu 'kho_npl' 'reports' as jp_can_kho_npl_reports %}
+{% if jp_can_kho_npl_reports %}
+<li>
+    <a href="{% url 'kho_npl:report_hub' %}"
+       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'report_hub' %}active{% endif %}">
+        <i class="bi bi-file-earmark-bar-graph"></i><span>Báo cáo</span>
+    </a>
+</li>
+{% endif %}
+{% jp_can_menu 'kho_npl' 'settings' as jp_can_kho_npl_settings %}
+{% if jp_can_kho_npl_settings %}
+<li>
+    <a href="{% url 'kho_npl:settings_hub' %}"
+       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'settings_hub' %}active{% endif %}">
+        <i class="bi bi-gear"></i><span>Thiết lập</span>
+    </a>
+</li>
+{% endif %}
