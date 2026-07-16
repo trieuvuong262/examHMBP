@@ -1037,6 +1037,7 @@ PERM_GROUP_MODULE_ICONS = {
     'feedback': 'bi-chat-square-text',
     'utilities': 'bi-lightning-charge',
     'kiotviet': 'bi-shop',
+    'san_xuat': 'bi-clipboard2-data',
     'kho_npl': 'bi-boxes',
 }
 

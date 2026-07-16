@@ -33,6 +33,8 @@ M = {
     'ho_tro': 'ho_tro',
     'nas_storage': 'nas_storage',
     'odoo': 'odoo',
+    'san_xuat': 'san_xuat',
+    'kho_npl': 'kho_npl',
 }
 
 
@@ -143,6 +145,46 @@ def _it_documents_menus(*, manager: bool) -> dict:
     }
 
 
+def _san_xuat_menus(*, manager: bool) -> dict:
+    """Menu hub SX — khớp submenu_registry MODULE_SAN_XUAT."""
+    level = MGR if manager else VIEW
+    keys = (
+        'overview', 'orders',
+        'plan', 'plan_overall', 'plan_detail', 'plan_npl', 'npl_pr', 'purchase_order',
+        'dispatch', 'mo', 'disassembly', 'schedule', 'material_issue_req', 'prod_stats',
+        'fg_receipt_req', 'npl_surplus', 'wip_handover', 'wip_return', 'handover_status',
+        'qc', 'qc_request', 'qc_sheet', 'qc_criteria', 'qc_criteria_group', 'qc_sampling',
+        'qc_standard_set', 'qc_defect', 'qc_defect_group',
+        'costing_hub', 'costing_norm', 'costing_so',
+        'fg_stock', 'fg_products', 'fg_stock_list', 'fg_purchases',
+        'npl_stock', 'process', 'docs', 'bom', 'costing',
+    )
+    return {key: dict(level) for key in keys}
+
+
+def _kho_npl_menus(*, manager: bool) -> dict:
+    """Menu Kho NPL — nằm dưới Sản xuất trên sidebar; quyền module kho_npl riêng."""
+    level = MGR if manager else VIEW
+    if manager:
+        level = FULL
+    keys = (
+        'overview', 'materials', 'material_stock', 'stock_cards',
+        'receipts', 'issues', 'transfers', 'disposals',
+        'adjustments', 'stocktakes', 'reports', 'settings',
+    )
+    return {key: dict(level) for key in keys}
+
+
+def _sx_stack(*, manager: bool) -> dict:
+    """Sản xuất hub + Kho NPL (menu lồng sidebar)."""
+    sx_level = MGR if manager else VIEW
+    npl_level = FULL if manager else VIEW
+    return _build(
+        _module_with_menus(M['san_xuat'], _san_xuat_menus(manager=manager), module_perm=sx_level),
+        _module_with_menus(M['kho_npl'], _kho_npl_menus(manager=manager), module_perm=npl_level),
+    )
+
+
 def _full_access() -> dict:
     return {key: dict(FULL) for key in ALL_MODULE_KEYS}
 
@@ -167,8 +209,8 @@ DEPARTMENT_PERMISSION_TEMPLATES = [
         'department_names': ('ĐẢM BẢO CHẤT LƯỢNG',),
         'employee_name': 'ĐẢM BẢO CHẤT LƯỢNG — Nhân viên',
         'manager_name': 'ĐẢM BẢO CHẤT LƯỢNG — Trưởng phòng',
-        'employee': _portal_employee(),
-        'manager': _build(_portal_manager(), {M['assessment']: MGR}),
+        'employee': _build(_portal_employee(), _sx_stack(manager=False)),
+        'manager': _build(_portal_manager(), {M['assessment']: MGR}, _sx_stack(manager=True)),
     },
     {
         'code': 'hcns',
@@ -196,8 +238,8 @@ DEPARTMENT_PERMISSION_TEMPLATES = [
         'department_names': ('KẾ HOẠCH SẢN XUẤT',),
         'employee_name': 'KẾ HOẠCH SẢN XUẤT — Nhân viên',
         'manager_name': 'KẾ HOẠCH SẢN XUẤT — Trưởng phòng',
-        'employee': _portal_employee(),
-        'manager': _portal_manager(),
+        'employee': _build(_portal_employee(), _sx_stack(manager=False)),
+        'manager': _build(_portal_manager(), _sx_stack(manager=True)),
     },
     {
         'code': 'kd-mkt',
@@ -220,8 +262,8 @@ DEPARTMENT_PERMISSION_TEMPLATES = [
         'department_names': ('SẢN XUẤT',),
         'employee_name': 'SẢN XUẤT — Nhân viên',
         'manager_name': 'SẢN XUẤT — Trưởng phòng',
-        'employee': _portal_employee(),
-        'manager': _portal_manager(),
+        'employee': _build(_portal_employee(), _sx_stack(manager=False)),
+        'manager': _build(_portal_manager(), _sx_stack(manager=True)),
     },
     {
         'code': 'tckt',
