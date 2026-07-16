@@ -580,11 +580,11 @@
         </li>
         {% endif %}
         {% if jp_can_san_xuat %}
-        <li class="jp-sidebar-group{% if 'san-xuat' in request.path or 'kho-npl' in request.path %} is-open{% endif %}">
+        <li class="jp-sidebar-group{% if 'san-xuat' in request.path or 'kho-npl' in request.path or 'kiotviet' in request.path %} is-open{% endif %}">
             <button type="button"
                     class="jp-sidebar-group-toggle"
                     data-jp-sidebar-group-toggle
-                    aria-expanded="{% if 'san-xuat' in request.path or 'kho-npl' in request.path %}true{% else %}false{% endif %}"
+                    aria-expanded="{% if 'san-xuat' in request.path or 'kho-npl' in request.path or 'kiotviet' in request.path %}true{% else %}false{% endif %}"
                     aria-controls="jp-sidebar-san-xuat-submenu">
                 <span class="jp-sidebar-group-toggle-main">
                     <i class="bi bi-clipboard2-data"></i><span>Sản xuất</span>
@@ -964,6 +964,23 @@
                     </ul>
                 </li>
                 {% endif %}
+                {% if jp_can_kiotviet %}
+                <li class="jp-sidebar-nested-group{% if 'kiotviet' in request.path %} is-open{% endif %}">
+                    <button type="button"
+                            class="jp-sidebar-nested-toggle"
+                            data-jp-sidebar-group-toggle
+                            aria-expanded="{% if 'kiotviet' in request.path %}true{% else %}false{% endif %}"
+                            aria-controls="jp-sidebar-san-xuat-kiotviet-submenu">
+                        <span class="jp-sidebar-nested-toggle-main">
+                            <i class="bi bi-shop"></i><span>KiotViet</span>
+                        </span>
+                        <i class="bi bi-chevron-down jp-sidebar-nested-chevron" aria-hidden="true"></i>
+                    </button>
+                    <ul class="jp-sidebar-nested-submenu" id="jp-sidebar-san-xuat-kiotviet-submenu">
+                        {% include 'includes/kiotviet_sidebar_items.html' %}
+                    </ul>
+                </li>
+                {% endif %}
                 {% jp_can_menu 'san_xuat' 'process' as jp_can_san_xuat_process %}
                 {% if jp_can_san_xuat_process %}
                 <li>
@@ -1003,7 +1020,7 @@
             </ul>
         </li>
         {% endif %}
-        {% if jp_can_kiotviet %}
+        {% if jp_can_kiotviet and not jp_can_san_xuat %}
         <li class="jp-sidebar-group{% if 'kiotviet' in request.path %} is-open{% endif %}">
             <button type="button"
                     class="jp-sidebar-group-toggle"
@@ -1016,61 +1033,7 @@
                 <i class="bi bi-chevron-down jp-sidebar-group-chevron" aria-hidden="true"></i>
             </button>
             <ul class="jp-sidebar-submenu" id="jp-sidebar-kiotviet-submenu">
-                {% jp_can_menu 'kiotviet' 'customers' as jp_can_kiotviet_customers %}
-                {% if jp_can_kiotviet_customers %}
-                <li>
-                    <a href="{% url 'kiotviet:customer_lookup' %}"
-                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'customer_lookup' or request.resolver_match.url_name == 'customer_detail' %}active{% endif %}">
-                        <i class="bi bi-person-vcard"></i><span>Tra cứu khách hàng</span>
-                    </a>
-                </li>
-                {% endif %}
-                {% jp_can_menu 'kiotviet' 'orders' as jp_can_kiotviet_orders %}
-                {% if jp_can_kiotviet_orders %}
-                <li>
-                    <a href="{% url 'kiotviet:order_lookup' %}"
-                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'order_lookup' or request.resolver_match.url_name == 'order_detail' %}active{% endif %}">
-                        <i class="bi bi-cart-check"></i><span>Đơn đặt hàng</span>
-                    </a>
-                </li>
-                {% endif %}
-                {% jp_can_menu 'kiotviet' 'invoices' as jp_can_kiotviet_invoices %}
-                {% if jp_can_kiotviet_invoices %}
-                <li>
-                    <a href="{% url 'kiotviet:invoice_lookup' %}"
-                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'invoice_lookup' or request.resolver_match.url_name == 'invoice_detail' %}active{% endif %}">
-                        <i class="bi bi-receipt"></i><span>Hóa đơn</span>
-                    </a>
-                </li>
-                {% endif %}
-                {% jp_can_menu 'kiotviet' 'products' as jp_can_kiotviet_products %}
-                {% if jp_can_kiotviet_products %}
-                <li>
-                    <a href="{% url 'kiotviet:product_lookup' %}"
-                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'product_lookup' or request.resolver_match.url_name == 'product_detail' %}active{% endif %}"
-                       data-jp-collapse-sidebar>
-                        <i class="bi bi-box-seam"></i><span>Hàng hoá</span>
-                    </a>
-                </li>
-                {% endif %}
-                {% jp_can_menu 'kiotviet' 'stock' as jp_can_kiotviet_stock %}
-                {% if jp_can_kiotviet_stock %}
-                <li>
-                    <a href="{% url 'kiotviet:stock_lookup' %}"
-                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'stock_lookup' %}active{% endif %}">
-                        <i class="bi bi-boxes"></i><span>Tồn kho</span>
-                    </a>
-                </li>
-                {% endif %}
-                {% jp_can_menu 'kiotviet' 'purchases' as jp_can_kiotviet_purchases %}
-                {% if jp_can_kiotviet_purchases %}
-                <li>
-                    <a href="{% url 'kiotviet:purchase_lookup' %}"
-                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'purchase_lookup' or request.resolver_match.url_name == 'purchase_detail' %}active{% endif %}">
-                        <i class="bi bi-box-arrow-in-down"></i><span>Phiếu nhập</span>
-                    </a>
-                </li>
-                {% endif %}
+                {% include 'includes/kiotviet_sidebar_items.html' %}
             </ul>
         </li>
         {% endif %}

@@ -59,10 +59,10 @@ _ALL_MODULE_CHOICES = [
     (MODULE_FEEDBACK, 'Góp ý'),
     (MODULE_SURVEYS, 'Khảo sát'),
     (MODULE_UTILITIES, 'Tiện ích'),
-    (MODULE_KIOTVIET, 'KiotViet'),
     (MODULE_ODOO, 'Odoo'),
     (MODULE_SAN_XUAT, 'Sản xuất'),
     (MODULE_KHO_NPL, 'Kho Nguyên Phụ Liệu'),
+    (MODULE_KIOTVIET, 'KiotViet'),
     (MODULE_NAS_STORAGE, 'NAS'),
     (MODULE_DOCUMENTS, 'Tài liệu & Hỏi đáp'),
     (MODULE_GUIDE, 'Hướng dẫn'),
@@ -131,7 +131,6 @@ DEPARTMENT_MENU_SECTIONS = [
             MODULE_FEEDBACK,
             MODULE_SURVEYS,
             MODULE_UTILITIES,
-            MODULE_KIOTVIET,
             MODULE_ODOO,
             MODULE_NAS_STORAGE,
         ]),
@@ -141,6 +140,7 @@ DEPARTMENT_MENU_SECTIONS = [
         'modules': _visible_module_list([
             MODULE_SAN_XUAT,
             MODULE_KHO_NPL,
+            MODULE_KIOTVIET,
         ]),
     },
     {

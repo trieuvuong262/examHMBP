@@ -52,6 +52,8 @@ UX vận hành chính nằm trên **Portal** (`/san-xuat/`), không dùng Odoo l
 | → Phiếu nhập | `/san-xuat/kho-san-pham/phieu-nhap/` | Cùng UI KiotViet |
 | Kho NPL (nhóm — menu chuyển vào Sản xuất) | URL `/kho-npl/…` giữ nguyên | Cùng UI + data + quyền `kho_npl` |
 | → Tổng quan, Danh mục, Tồn, Thẻ kho, Phiếu… | như module kho_npl | Không đổi view |
+| KiotViet (nhóm — menu chuyển vào Sản xuất) | URL `/kiotviet/…` giữ nguyên | Menu độc lập ẩn nếu có `san_xuat` |
+| → KH, Đơn, HĐ, Hàng hoá, Tồn, Phiếu nhập | như module kiotviet | Không đổi view |
 | Quy trình | `/san-xuat/quy-trinh/` | Stub |
 | Hồ sơ SX / BOM / Costing | `/san-xuat/ho-so/` | Đã có (menu riêng) |
 

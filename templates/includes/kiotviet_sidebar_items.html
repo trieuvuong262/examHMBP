@@ -1,0 +1,57 @@
+{# Menu con KiotViet — URL/view kiotviet không đổi. Dùng trong sidebar Sản xuất hoặc nhóm KiotViet độc lập. #}
+{% load menu_perms %}
+{% jp_can_menu 'kiotviet' 'customers' as jp_can_kiotviet_customers %}
+{% if jp_can_kiotviet_customers %}
+<li>
+    <a href="{% url 'kiotviet:customer_lookup' %}"
+       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'customer_lookup' or request.resolver_match.url_name == 'customer_detail' %}active{% endif %}">
+        <i class="bi bi-person-vcard"></i><span>Tra cứu khách hàng</span>
+    </a>
+</li>
+{% endif %}
+{% jp_can_menu 'kiotviet' 'orders' as jp_can_kiotviet_orders %}
+{% if jp_can_kiotviet_orders %}
+<li>
+    <a href="{% url 'kiotviet:order_lookup' %}"
+       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'order_lookup' or request.resolver_match.url_name == 'order_detail' %}active{% endif %}">
+        <i class="bi bi-cart-check"></i><span>Đơn đặt hàng</span>
+    </a>
+</li>
+{% endif %}
+{% jp_can_menu 'kiotviet' 'invoices' as jp_can_kiotviet_invoices %}
+{% if jp_can_kiotviet_invoices %}
+<li>
+    <a href="{% url 'kiotviet:invoice_lookup' %}"
+       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'invoice_lookup' or request.resolver_match.url_name == 'invoice_detail' %}active{% endif %}">
+        <i class="bi bi-receipt"></i><span>Hóa đơn</span>
+    </a>
+</li>
+{% endif %}
+{% jp_can_menu 'kiotviet' 'products' as jp_can_kiotviet_products %}
+{% if jp_can_kiotviet_products %}
+<li>
+    <a href="{% url 'kiotviet:product_lookup' %}"
+       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'product_lookup' or request.resolver_match.url_name == 'product_detail' %}active{% endif %}"
+       data-jp-collapse-sidebar>
+        <i class="bi bi-box-seam"></i><span>Hàng hoá</span>
+    </a>
+</li>
+{% endif %}
+{% jp_can_menu 'kiotviet' 'stock' as jp_can_kiotviet_stock %}
+{% if jp_can_kiotviet_stock %}
+<li>
+    <a href="{% url 'kiotviet:stock_lookup' %}"
+       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'stock_lookup' %}active{% endif %}">
+        <i class="bi bi-boxes"></i><span>Tồn kho</span>
+    </a>
+</li>
+{% endif %}
+{% jp_can_menu 'kiotviet' 'purchases' as jp_can_kiotviet_purchases %}
+{% if jp_can_kiotviet_purchases %}
+<li>
+    <a href="{% url 'kiotviet:purchase_lookup' %}"
+       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'purchase_lookup' or request.resolver_match.url_name == 'purchase_detail' %}active{% endif %}">
+        <i class="bi bi-box-arrow-in-down"></i><span>Phiếu nhập</span>
+    </a>
+</li>
+{% endif %}
