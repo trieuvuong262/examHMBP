@@ -233,3 +233,39 @@ class CostingSnapshot(models.Model):
 
     def __str__(self):
         return f'Costing {self.bom} @ {self.created_at:%Y-%m-%d}'
+
+
+# Hub: kế hoạch / điều phối / QC / giá thành KH (import để Django register models)
+from san_xuat.hub_models import (  # noqa: E402,F401
+    SxDetailPlan,
+    SxDetailPlanLine,
+    SxDisassemblyOrder,
+    SxFgReceiptRequest,
+    SxMaterialIssueRequest,
+    SxMaterialIssueRequestLine,
+    SxMaterialPlan,
+    SxMaterialPlanLine,
+    SxNplPurchaseRequest,
+    SxNplPurchaseRequestLine,
+    SxNplSurplus,
+    SxOrderPlanCost,
+    SxOrderPlanCostLine,
+    SxOverallPlan,
+    SxOverallPlanLine,
+    SxProductionOrder,
+    SxProductionStat,
+    SxPurchaseOrder,
+    SxPurchaseOrderLine,
+    SxQcCriteria,
+    SxQcCriteriaGroup,
+    SxQcDefect,
+    SxQcDefectGroup,
+    SxQcInspection,
+    SxQcRequest,
+    SxQcSamplingMethod,
+    SxQcStandardSet,
+    SxStandardCostLine,
+    SxStandardCostSheet,
+    SxWipHandover,
+    SxWipReturn,
+)

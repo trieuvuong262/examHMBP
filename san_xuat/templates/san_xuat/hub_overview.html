@@ -24,6 +24,30 @@
             </div>
         </div>
         <div class="col-6 col-md-3">
+            <div class="border rounded-3 p-3 h-100">
+                <div class="text-muted small">Kế hoạch (demo)</div>
+                <div class="fs-4 fw-semibold text-hm">{{ plan_count }}</div>
+                <a href="{% url 'san_xuat:plan_stub' %}" class="small text-hm">Mở →</a>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="border rounded-3 p-3 h-100">
+                <div class="text-muted small">Lệnh SX (demo)</div>
+                <div class="fs-4 fw-semibold text-hm">{{ mo_count }}</div>
+                <a href="{% url 'san_xuat:dispatch_mo' %}" class="small text-hm">Mở →</a>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="border rounded-3 p-3 h-100">
+                <div class="text-muted small">Phiếu QC (demo)</div>
+                <div class="fs-4 fw-semibold text-hm">{{ qc_count }}</div>
+                <a href="{% url 'san_xuat:qc_sheet' %}" class="small text-hm">Mở →</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
             <a href="{% url 'san_xuat:redirect_orders' %}" class="border rounded-3 p-3 h-100 d-block text-decoration-none text-reset">
                 <div class="text-muted small">Đơn đặt hàng</div>
                 <div class="fw-semibold">KiotViet</div>
@@ -58,15 +82,15 @@
         </a>
         <a href="{% url 'san_xuat:dispatch_stub' %}" class="list-group-item list-group-item-action d-flex justify-content-between">
             <span><i class="bi bi-diagram-2 me-2"></i>Điều phối</span>
-            <span class="badge text-bg-secondary">Sắp làm</span>
+            <i class="bi bi-chevron-right"></i>
         </a>
         <a href="{% url 'san_xuat:qc_stub' %}" class="list-group-item list-group-item-action d-flex justify-content-between">
             <span><i class="bi bi-clipboard-check me-2"></i>Kiểm tra chất lượng</span>
-            <span class="badge text-bg-secondary">Sắp làm</span>
+            <i class="bi bi-chevron-right"></i>
         </a>
         <a href="{% url 'san_xuat:process_stub' %}" class="list-group-item list-group-item-action d-flex justify-content-between">
             <span><i class="bi bi-signpost-2 me-2"></i>Quy trình</span>
-            <span class="badge text-bg-secondary">Sắp làm</span>
+            <i class="bi bi-chevron-right"></i>
         </a>
     </div>
 </div>

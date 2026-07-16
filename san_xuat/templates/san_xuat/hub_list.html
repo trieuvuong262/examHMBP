@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5">
+    <div class="jp-page-header mb-3 mb-md-4">
+        <div>
+            <h2 class="fw-bold text-hm mb-1 jp-page-title">{{ hub_title }}</h2>
+            <p class="text-muted mb-0 small">{{ hub_subtitle }}</p>
+        </div>
+        <a href="{% url 'san_xuat:overview' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left me-1"></i>Tổng quan
+        </a>
+    </div>
+
+    {% if rows %}
+    <div class="table-responsive border rounded-3 mb-4">
+        <table class="table table-sm table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    {% for col in columns %}
+                    <th scope="col">{{ col.label }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                <tr>
+                    {% for cell in row.cells %}
+                    <td>{{ cell }}</td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="alert alert-light border mb-4" role="status">{{ empty_hint }}</div>
+    {% endif %}
+
+    <div class="d-flex flex-wrap gap-2">
+        {% if related_url %}
+        <a href="{{ related_url }}" class="btn btn-hm">Mở liên quan</a>
+        {% elif related_url_name %}
+        <a href="{% url related_url_name %}" class="btn btn-hm">Mở liên quan</a>
+        {% endif %}
+        <a href="{% url 'san_xuat:doc_list' %}" class="btn btn-outline-hm">Hồ sơ SX</a>
+    </div>
+</div>
+{% endblock %}

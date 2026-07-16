@@ -6135,12 +6135,14 @@ html.jp-sidebar-collapsed .jp-sidebar-collapse-icon-collapsed {
 
 .jp-sidebar-sublink {
     padding-left: 2rem !important;
-    font-size: 0.88rem;
+    /* Match top-level .jp-sidebar-link (was 0.88rem — looked larger than parent) */
+    font-size: 0.8125rem;
+    font-weight: 500;
 }
 
 .jp-sidebar-nested-group {
     list-style: none;
-    margin: 0.1rem 0;
+    margin: 0.05rem 0;
 }
 
 .jp-sidebar-nested-toggle {
@@ -6149,16 +6151,18 @@ html.jp-sidebar-collapsed .jp-sidebar-collapse-icon-collapsed {
     justify-content: space-between;
     gap: 0.35rem;
     width: 100%;
-    padding: 0.48rem 0.75rem 0.48rem 1.35rem;
+    /* Align with first-level sublinks */
+    padding: 0.58rem 0.75rem 0.58rem 2rem;
     border: none;
     border-radius: var(--jp-radius-sm);
     background: transparent;
-    color: rgba(255, 255, 255, 0.82);
-    font-size: 0.88rem;
-    font-weight: 600;
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    line-height: 1.3;
     text-align: left;
     cursor: pointer;
-    transition: background 0.18s ease, color 0.18s ease;
+    transition: background 0.15s ease, color 0.15s ease;
 }
 
 .jp-sidebar-nested-toggle:hover {
@@ -6169,11 +6173,13 @@ html.jp-sidebar-collapsed .jp-sidebar-collapse-icon-collapsed {
 .jp-sidebar-nested-toggle-main {
     display: inline-flex;
     align-items: center;
-    gap: 0.55rem;
+    gap: 0.6rem;
     min-width: 0;
 }
 
 .jp-sidebar-nested-toggle-main i {
+    width: 1.1rem;
+    text-align: center;
     flex-shrink: 0;
     opacity: 0.9;
 }
@@ -6196,7 +6202,7 @@ html.jp-sidebar-collapsed .jp-sidebar-collapse-icon-collapsed {
 .jp-sidebar-nested-submenu {
     list-style: none;
     margin: 0;
-    padding: 0 0 0 0.25rem;
+    padding: 0 0 0 0.15rem;
     display: none;
     flex-direction: column;
     gap: 0.08rem;
@@ -6204,12 +6210,14 @@ html.jp-sidebar-collapsed .jp-sidebar-collapse-icon-collapsed {
 
 .jp-sidebar-nested-group.is-open .jp-sidebar-nested-submenu {
     display: flex;
-    margin-bottom: 0.15rem;
+    margin-bottom: 0.1rem;
 }
 
 .jp-sidebar-nested-submenu .jp-sidebar-sublink {
-    padding-left: 2.65rem !important;
-    font-size: 0.84rem;
+    padding-left: 2.75rem !important;
+    /* One step smaller than L1 submenu */
+    font-size: 0.78rem;
+    font-weight: 500;
 }
 
 .jp-sidebar-link {
