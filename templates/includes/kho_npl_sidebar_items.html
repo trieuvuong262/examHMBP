@@ -1,4 +1,5 @@
 {# Menu con Kho NPL — URL/view kho_npl không đổi. Dùng trong sidebar Sản xuất hoặc nhóm Kho NPL độc lập. #}
+{% load menu_perms %}
 {% jp_can_menu 'kho_npl' 'overview' as jp_can_kho_npl_overview %}
 {% if jp_can_kho_npl_overview %}
 <li>
