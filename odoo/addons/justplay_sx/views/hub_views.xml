@@ -1,0 +1,380 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========== Tổng quan ========== -->
+    <record id="view_overview_list" model="ir.ui.view">
+        <field name="name">justplay.sx.overview.list</field>
+        <field name="model">justplay.sx.overview</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="kpi_value"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_overview_form" model="ir.ui.view">
+        <field name="name">justplay.sx.overview.form</field>
+        <field name="model">justplay.sx.overview</field>
+        <field name="arch" type="xml">
+            <form string="Tổng quan SX">
+                <sheet>
+                    <div class="alert alert-info" role="alert">
+                        Hub Sản xuất JustPlay — scaffold. KPI thật sẽ tổng hợp SO / KH / LSX / tồn.
+                    </div>
+                    <group>
+                        <field name="name"/>
+                        <field name="kpi_value"/>
+                        <field name="sequence"/>
+                    </group>
+                    <field name="note"/>
+                </sheet>
+            </form>
+        </field>
+    </record>
+    <record id="action_overview" model="ir.actions.act_window">
+        <field name="name">Tổng quan</field>
+        <field name="res_model">justplay.sx.overview</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ========== Đơn đặt hàng ========== -->
+    <record id="view_sale_order_list" model="ir.ui.view">
+        <field name="name">justplay.sx.sale.order.list</field>
+        <field name="model">justplay.sx.sale.order</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="partner_name"/>
+                <field name="date_order"/>
+                <field name="product_code"/>
+                <field name="qty"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_sale_order_form" model="ir.ui.view">
+        <field name="name">justplay.sx.sale.order.form</field>
+        <field name="model">justplay.sx.sale.order</field>
+        <field name="arch" type="xml">
+            <form string="Đơn đặt hàng">
+                <header>
+                    <button name="action_confirm" type="object" string="Xác nhận"
+                            invisible="state != 'draft'" class="btn-primary"/>
+                    <button name="action_create_plan" type="object" string="Tạo kế hoạch SX"
+                            invisible="state not in ('confirmed', 'planned')" class="btn-primary"/>
+                    <field name="state" widget="statusbar"
+                            statusbar_visible="draft,confirmed,planned,done"/>
+                </header>
+                <sheet>
+                    <div class="alert alert-warning" role="alert">
+                        Stub SO (chưa dùng sale.order). Sau: bridge đơn KiotViet hoặc map Odoo Sales.
+                        Luồng: SO → Kế hoạch → LSX.
+                    </div>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="partner_name"/>
+                            <field name="date_order"/>
+                        </group>
+                        <group>
+                            <field name="product_code"/>
+                            <field name="product_name"/>
+                            <field name="qty"/>
+                        </group>
+                    </group>
+                    <field name="note"/>
+                    <notebook>
+                        <page string="Kế hoạch liên quan">
+                            <field name="plan_ids">
+                                <list>
+                                    <field name="name"/>
+                                    <field name="date_start"/>
+                                    <field name="state"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+    <record id="action_sale_order" model="ir.actions.act_window">
+        <field name="name">Đơn đặt hàng</field>
+        <field name="res_model">justplay.sx.sale.order</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ========== Kế hoạch SX ========== -->
+    <record id="view_plan_line_list" model="ir.ui.view">
+        <field name="name">justplay.sx.plan.line.list</field>
+        <field name="model">justplay.sx.plan.line</field>
+        <field name="arch" type="xml">
+            <list editable="bottom">
+                <field name="product_code"/>
+                <field name="product_name"/>
+                <field name="qty"/>
+                <field name="mo_id"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_plan_list" model="ir.ui.view">
+        <field name="name">justplay.sx.plan.list</field>
+        <field name="model">justplay.sx.plan</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="sale_order_id"/>
+                <field name="date_start"/>
+                <field name="date_end"/>
+                <field name="mo_count"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_plan_form" model="ir.ui.view">
+        <field name="name">justplay.sx.plan.form</field>
+        <field name="model">justplay.sx.plan</field>
+        <field name="arch" type="xml">
+            <form string="Kế hoạch sản xuất">
+                <header>
+                    <button name="action_set_ready" type="object" string="Sẵn sàng"
+                            invisible="state != 'draft'"/>
+                    <button name="action_create_mo" type="object" string="Tạo LSX (demo)"
+                            invisible="state in ('released', 'done', 'cancel')"
+                            class="btn-primary"/>
+                    <button name="action_open_mos" type="object" string="Xem LSX"
+                            invisible="mo_count == 0"/>
+                    <field name="state" widget="statusbar"
+                            statusbar_visible="draft,ready,released,done"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_open_mos" type="object" class="oe_stat_button" icon="fa-cogs"
+                                invisible="mo_count == 0">
+                            <field name="mo_count" widget="statinfo" string="LSX"/>
+                        </button>
+                    </div>
+                    <div class="alert alert-info" role="alert">
+                        Kế hoạch SX scaffold. «Tạo LSX» tạo Manufacturing Order (mrp.production) demo.
+                    </div>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="sale_order_id"/>
+                        </group>
+                        <group>
+                            <field name="date_start"/>
+                            <field name="date_end"/>
+                        </group>
+                    </group>
+                    <field name="note"/>
+                    <notebook>
+                        <page string="Dòng kế hoạch">
+                            <field name="line_ids"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+    <record id="action_plan" model="ir.actions.act_window">
+        <field name="name">Kế hoạch sản xuất</field>
+        <field name="res_model">justplay.sx.plan</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ========== Điều phối ========== -->
+    <record id="view_dispatch_kanban" model="ir.ui.view">
+        <field name="name">justplay.sx.dispatch.kanban</field>
+        <field name="model">justplay.sx.dispatch</field>
+        <field name="arch" type="xml">
+            <kanban default_group_by="state" class="o_kanban_small_column">
+                <field name="name"/>
+                <field name="date_dispatch"/>
+                <field name="team"/>
+                <field name="state"/>
+                <templates>
+                    <t t-name="card">
+                        <div class="oe_kanban_details">
+                            <strong><field name="name"/></strong>
+                            <div><field name="date_dispatch"/></div>
+                            <div><field name="team"/></div>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+    <record id="view_dispatch_list" model="ir.ui.view">
+        <field name="name">justplay.sx.dispatch.list</field>
+        <field name="model">justplay.sx.dispatch</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="date_dispatch"/>
+                <field name="team"/>
+                <field name="plan_id"/>
+                <field name="state"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_dispatch_form" model="ir.ui.view">
+        <field name="name">justplay.sx.dispatch.form</field>
+        <field name="model">justplay.sx.dispatch</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <div class="alert alert-info" role="alert">
+                        Điều phối placeholder — sau gán LSX / ca theo tổ.
+                    </div>
+                    <group>
+                        <field name="name"/>
+                        <field name="date_dispatch"/>
+                        <field name="team"/>
+                        <field name="plan_id"/>
+                    </group>
+                    <field name="note"/>
+                </sheet>
+            </form>
+        </field>
+    </record>
+    <record id="action_dispatch" model="ir.actions.act_window">
+        <field name="name">Điều phối</field>
+        <field name="res_model">justplay.sx.dispatch</field>
+        <field name="view_mode">kanban,list,form</field>
+    </record>
+
+    <!-- ========== QC ========== -->
+    <record id="view_qc_list" model="ir.ui.view">
+        <field name="name">justplay.sx.qc.check.list</field>
+        <field name="model">justplay.sx.qc.check</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="date_check"/>
+                <field name="product_code"/>
+                <field name="plan_id"/>
+                <field name="result" widget="badge"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_qc_form" model="ir.ui.view">
+        <field name="name">justplay.sx.qc.check.form</field>
+        <field name="model">justplay.sx.qc.check</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <field name="result" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <div class="alert alert-info" role="alert">
+                        QC scaffold — chưa dùng Odoo Quality app.
+                    </div>
+                    <group>
+                        <field name="name"/>
+                        <field name="date_check"/>
+                        <field name="product_code"/>
+                        <field name="plan_id"/>
+                    </group>
+                    <field name="note"/>
+                </sheet>
+            </form>
+        </field>
+    </record>
+    <record id="action_qc" model="ir.actions.act_window">
+        <field name="name">Kiểm tra chất lượng</field>
+        <field name="res_model">justplay.sx.qc.check</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ========== Giá thành KH ========== -->
+    <record id="view_planned_cost_list" model="ir.ui.view">
+        <field name="name">justplay.sx.planned.cost.list</field>
+        <field name="model">justplay.sx.planned.cost</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="product_code"/>
+                <field name="material_cost"/>
+                <field name="labor_cost"/>
+                <field name="overhead_cost"/>
+                <field name="total_cost"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_planned_cost_form" model="ir.ui.view">
+        <field name="name">justplay.sx.planned.cost.form</field>
+        <field name="model">justplay.sx.planned.cost</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <div class="alert alert-info" role="alert">
+                        Giá thành kế hoạch placeholder — sau port từ Portal san_xuat / BOM Odoo.
+                    </div>
+                    <group>
+                        <field name="name"/>
+                        <field name="product_code"/>
+                        <field name="plan_id"/>
+                    </group>
+                    <group string="Chi phí dự kiến">
+                        <field name="material_cost"/>
+                        <field name="labor_cost"/>
+                        <field name="overhead_cost"/>
+                        <field name="total_cost"/>
+                    </group>
+                    <field name="note"/>
+                </sheet>
+            </form>
+        </field>
+    </record>
+    <record id="action_planned_cost" model="ir.actions.act_window">
+        <field name="name">Giá thành kế hoạch</field>
+        <field name="res_model">justplay.sx.planned.cost</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ========== Quy trình ========== -->
+    <record id="view_process_list" model="ir.ui.view">
+        <field name="name">justplay.sx.process.route.list</field>
+        <field name="model">justplay.sx.process.route</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="product_code"/>
+                <field name="workcenter"/>
+                <field name="duration_hours"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_process_form" model="ir.ui.view">
+        <field name="name">justplay.sx.process.route.form</field>
+        <field name="model">justplay.sx.process.route</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <div class="alert alert-info" role="alert">
+                        Quy trình scaffold — sau map ProcessStep Portal → mrp.routing.
+                    </div>
+                    <group>
+                        <field name="name"/>
+                        <field name="sequence"/>
+                        <field name="product_code"/>
+                        <field name="workcenter"/>
+                        <field name="duration_hours"/>
+                        <field name="active"/>
+                    </group>
+                    <field name="note"/>
+                </sheet>
+            </form>
+        </field>
+    </record>
+    <record id="action_process" model="ir.actions.act_window">
+        <field name="name">Quy trình</field>
+        <field name="res_model">justplay.sx.process.route</field>
+        <field name="view_mode">list,form</field>
+    </record>
+</odoo>

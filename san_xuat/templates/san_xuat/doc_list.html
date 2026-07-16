@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5">
+    <div class="jp-page-header mb-3 mb-md-4">
+        <div>
+            <h2 class="fw-bold text-hm mb-1 jp-page-title">Tài liệu sản xuất</h2>
+            <p class="text-muted mb-0 small">BOM · công đoạn · costing — neo mã hàng KiotViet</p>
+        </div>
+        {% if can_create %}
+        <a href="{% url 'san_xuat:doc_create' %}" class="btn btn-hm">
+            <i class="bi bi-plus-lg me-1"></i>Thêm hồ sơ
+        </a>
+        {% endif %}
+    </div>
+
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body p-3">
+            <form method="get" class="jp-hrm-search input-group" role="search">
+                {% include 'includes/list_search_bar.html' with search_query=search_query placeholder='Tìm mã hàng, tên sản phẩm…' clear_url=request.path %}
+            </form>
+            {% if search_query %}
+            <p class="text-muted small mb-0 mt-2">Kết quả “{{ search_query }}” — {{ page_obj.paginator.count }} hồ sơ</p>
+            {% else %}
+            <p class="text-muted small mb-0 mt-2">Tổng {{ total_count }} hồ sơ</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm overflow-hidden">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Mã SP</th>
+                        <th>Tên</th>
+                        <th>Trạng thái</th>
+                        <th>Cập nhật</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for doc in page_obj %}
+                    <tr>
+                        <td><strong>{{ doc.product_code }}</strong></td>
+                        <td>{{ doc.product_name|default:"—" }}</td>
+                        <td>
+                            {% if doc.is_active %}
+                            <span class="badge bg-success-subtle text-success border">Đang dùng</span>
+                            {% else %}
+                            <span class="badge bg-secondary-subtle text-secondary border">Ngưng</span>
+                            {% endif %}
+                        </td>
+                        <td class="small text-muted">{{ doc.updated_at|date:"d/m/Y H:i" }}</td>
+                        <td class="text-end">
+                            <a href="{% url 'san_xuat:doc_detail' doc.pk %}" class="btn btn-sm btn-outline-hm">Mở</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-4">
+                            Chưa có hồ sơ SX.
+                            {% if can_create %}
+                            <a href="{% url 'san_xuat:doc_create' %}?code=SP008073">Tạo SP008073</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if page_obj.paginator.num_pages > 1 %}
+        <div class="card-footer bg-white">
+            {% include 'includes/pagination.html' with page_obj=page_obj query_string=query_string %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

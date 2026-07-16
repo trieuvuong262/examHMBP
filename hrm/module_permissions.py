@@ -35,6 +35,7 @@ MODULE_SURVEYS = 'surveys'
 MODULE_UTILITIES = 'utilities'
 MODULE_KIOTVIET = 'kiotviet'
 MODULE_KHO_NPL = 'kho_npl'
+MODULE_SAN_XUAT = 'san_xuat'
 MODULE_ODOO = 'odoo'
 
 # Tạm ẩn khỏi sidebar + màn hình phân quyền — gỡ khỏi set khi bật lại.
@@ -61,6 +62,7 @@ _ALL_MODULE_CHOICES = [
     (MODULE_KIOTVIET, 'KiotViet'),
     (MODULE_ODOO, 'Odoo'),
     (MODULE_KHO_NPL, 'Kho Nguyên Phụ Liệu'),
+    (MODULE_SAN_XUAT, 'Sản xuất'),
     (MODULE_NAS_STORAGE, 'NAS'),
     (MODULE_DOCUMENTS, 'Tài liệu & Hỏi đáp'),
     (MODULE_GUIDE, 'Hướng dẫn'),
@@ -132,6 +134,7 @@ DEPARTMENT_MENU_SECTIONS = [
             MODULE_KIOTVIET,
             MODULE_ODOO,
             MODULE_KHO_NPL,
+            MODULE_SAN_XUAT,
             MODULE_NAS_STORAGE,
         ]),
     },
@@ -196,6 +199,7 @@ PATH_MODULE_RULES = [
     ('/kiotviet/', MODULE_KIOTVIET),
     ('/odoo/', MODULE_ODOO),
     ('/kho-npl/', MODULE_KHO_NPL),
+    ('/san-xuat/', MODULE_SAN_XUAT),
 ]
 
 EQUIPMENT_PUBLIC_PREFIXES = (

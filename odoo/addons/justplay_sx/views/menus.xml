@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <menuitem id="menu_justplay_sx_root"
+              name="Sản xuất JustPlay"
+              sequence="25"
+              groups="justplay_sx.group_user"/>
+
+    <menuitem id="menu_overview"
+              name="Tổng quan"
+              parent="menu_justplay_sx_root"
+              action="action_overview"
+              sequence="10"/>
+
+    <menuitem id="menu_sale_order"
+              name="Đơn đặt hàng"
+              parent="menu_justplay_sx_root"
+              action="action_sale_order"
+              sequence="20"/>
+
+    <menuitem id="menu_plan"
+              name="Kế hoạch sản xuất"
+              parent="menu_justplay_sx_root"
+              action="action_plan"
+              sequence="30"/>
+
+    <menuitem id="menu_dispatch"
+              name="Điều phối"
+              parent="menu_justplay_sx_root"
+              action="action_dispatch"
+              sequence="40"/>
+
+    <menuitem id="menu_qc"
+              name="Kiểm tra chất lượng"
+              parent="menu_justplay_sx_root"
+              action="action_qc"
+              sequence="50"/>
+
+    <menuitem id="menu_planned_cost"
+              name="Giá thành kế hoạch"
+              parent="menu_justplay_sx_root"
+              action="action_planned_cost"
+              sequence="60"/>
+
+    <menuitem id="menu_wh_fg"
+              name="Kho sản phẩm"
+              parent="menu_justplay_sx_root"
+              action="action_wh_fg_products_server"
+              sequence="70"/>
+
+    <menuitem id="menu_wh_npl"
+              name="Kho Nguyên Phụ Liệu"
+              parent="menu_justplay_sx_root"
+              action="action_wh_npl_products_server"
+              sequence="80"/>
+
+    <menuitem id="menu_wh_npl_stock"
+              name="Tồn NPL"
+              parent="menu_wh_npl"
+              action="action_wh_npl_quants"
+              sequence="10"/>
+
+    <menuitem id="menu_process"
+              name="Quy trình"
+              parent="menu_justplay_sx_root"
+              action="action_process"
+              sequence="90"/>
+</odoo>

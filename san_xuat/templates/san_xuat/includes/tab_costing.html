@@ -1,0 +1,130 @@
+{% load humanize %}
+<div class="row g-3 mb-3">
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="small text-muted">Chi phí NVL</div>
+                <div class="fs-4 fw-semibold">{{ costing.material_cost|floatformat:0|intcomma }} đ</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="small text-muted">Nhân công</div>
+                <div class="fs-4 fw-semibold">{{ costing.labor_cost|floatformat:0|intcomma }} đ</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="small text-muted">Phụ phí ({{ costing.overhead_pct }}%)</div>
+                <div class="fs-4 fw-semibold">{{ costing.overhead_cost|floatformat:0|intcomma }} đ</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="small text-muted">Tổng giá thành</div>
+                <div class="fs-4 fw-semibold text-hm">{{ costing.total_cost|floatformat:0|intcomma }} đ</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-body d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div>
+            <div class="small text-muted">Giá bán KiotViet</div>
+            <strong>{{ costing.sell_price|floatformat:0|intcomma }} đ</strong>
+            <span class="ms-3 small text-muted">Biên</span>
+            <strong class="{% if costing.margin >= 0 %}text-success{% else %}text-danger{% endif %}">
+                {{ costing.margin|floatformat:0|intcomma }} đ
+            </strong>
+        </div>
+        {% if can_update %}
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="snapshot">
+            <button type="submit" class="btn btn-outline-hm btn-sm">Chốt costing</button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-7">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white fw-semibold">Chi tiết NVL</div>
+            <div class="table-responsive">
+                <table class="table table-sm mb-0 align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>NPL</th>
+                            <th class="text-end">Qty+hao</th>
+                            <th class="text-end">Đơn giá BQ</th>
+                            <th class="text-end">Thành tiền</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in costing.material_lines %}
+                        <tr>
+                            <td>
+                                <strong>{{ row.material_code }}</strong>
+                                <div class="small text-muted">{{ row.material_name }}</div>
+                            </td>
+                            <td class="text-end">{{ row.qty_with_scrap }} {% if row.unit_name %}{{ row.unit_name }}{% endif %}</td>
+                            <td class="text-end">{{ row.unit_price|floatformat:0|intcomma }}</td>
+                            <td class="text-end">{{ row.amount|floatformat:0|intcomma }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4" class="text-muted text-center py-3">Chưa có dòng BOM.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-5">
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-header bg-white fw-semibold">Chi tiết công đoạn</div>
+            <div class="table-responsive">
+                <table class="table table-sm mb-0 align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Công đoạn</th>
+                            <th class="text-end">Giờ/cái</th>
+                            <th class="text-end">Tiền NC</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in costing.process_lines %}
+                        <tr>
+                            <td>{{ row.sequence }}. {{ row.process_name }}</td>
+                            <td class="text-end">{{ row.hours_per_piece }}</td>
+                            <td class="text-end">{{ row.labor_amount|floatformat:0|intcomma }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="3" class="text-muted text-center py-3">Chưa có công đoạn.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% if snapshots %}
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white fw-semibold">Lịch sử chốt</div>
+            <ul class="list-group list-group-flush">
+                {% for s in snapshots %}
+                <li class="list-group-item d-flex justify-content-between small">
+                    <span>{{ s.created_at|date:"d/m/Y H:i" }}</span>
+                    <span>{{ s.total_cost|floatformat:0|intcomma }} đ</span>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+</div>

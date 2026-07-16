@@ -1,0 +1,17 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_justplay_sx_overview_user,justplay.sx.overview.user,model_justplay_sx_overview,group_user,1,0,0,0
+access_justplay_sx_overview_manager,justplay.sx.overview.manager,model_justplay_sx_overview,group_manager,1,1,1,1
+access_justplay_sx_sale_order_user,justplay.sx.sale.order.user,model_justplay_sx_sale_order,group_user,1,1,1,0
+access_justplay_sx_sale_order_manager,justplay.sx.sale.order.manager,model_justplay_sx_sale_order,group_manager,1,1,1,1
+access_justplay_sx_plan_user,justplay.sx.plan.user,model_justplay_sx_plan,group_user,1,1,1,0
+access_justplay_sx_plan_manager,justplay.sx.plan.manager,model_justplay_sx_plan,group_manager,1,1,1,1
+access_justplay_sx_plan_line_user,justplay.sx.plan.line.user,model_justplay_sx_plan_line,group_user,1,1,1,0
+access_justplay_sx_plan_line_manager,justplay.sx.plan.line.manager,model_justplay_sx_plan_line,group_manager,1,1,1,1
+access_justplay_sx_dispatch_user,justplay.sx.dispatch.user,model_justplay_sx_dispatch,group_user,1,1,1,0
+access_justplay_sx_dispatch_manager,justplay.sx.dispatch.manager,model_justplay_sx_dispatch,group_manager,1,1,1,1
+access_justplay_sx_qc_user,justplay.sx.qc.check.user,model_justplay_sx_qc_check,group_user,1,1,1,0
+access_justplay_sx_qc_manager,justplay.sx.qc.check.manager,model_justplay_sx_qc_check,group_manager,1,1,1,1
+access_justplay_sx_planned_cost_user,justplay.sx.planned.cost.user,model_justplay_sx_planned_cost,group_user,1,1,1,0
+access_justplay_sx_planned_cost_manager,justplay.sx.planned.cost.manager,model_justplay_sx_planned_cost,group_manager,1,1,1,1
+access_justplay_sx_process_user,justplay.sx.process.route.user,model_justplay_sx_process_route,group_user,1,1,1,0
+access_justplay_sx_process_manager,justplay.sx.process.route.manager,model_justplay_sx_process_route,group_manager,1,1,1,1

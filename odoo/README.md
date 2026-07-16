@@ -56,6 +56,8 @@ Giới hạn container: Odoo 2 GB, Postgres Odoo 1 GB. Theo dõi `free -h` khi p
 
 ## Phase tiếp theo
 
+- App hub SX: **`justplay_sx`** (menu *Sản xuất JustPlay*) — xem [`docs/odoo18/sx-hub-scaffold.md`](../docs/odoo18/sx-hub-scaffold.md)
 - Menu link từ Portal sidebar → `https://erp.justplay.vn`
 - Đồng bộ nhân viên Portal → Odoo (`hr.employee`)
 - SSO (Keycloak) — khi >30 user dùng hàng ngày
+- Bridge thành phẩm / đơn KiotViet → Odoo (sau scaffold)

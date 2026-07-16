@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <record id="demo_overview_so" model="justplay.sx.overview">
+        <field name="name">Đơn đặt hàng (stub)</field>
+        <field name="kpi_value">2</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="demo_overview_plan" model="justplay.sx.overview">
+        <field name="name">Kế hoạch SX</field>
+        <field name="kpi_value">1</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="demo_overview_npl" model="justplay.sx.overview">
+        <field name="name">NPL trên Odoo</field>
+        <field name="kpi_value">Xem menu Kho NPL</field>
+        <field name="sequence">30</field>
+        <field name="note">SoT Portal kho_npl — đã mirror Phase 1.</field>
+    </record>
+    <record id="demo_overview_fg" model="justplay.sx.overview">
+        <field name="name">Kho sản phẩm (KV)</field>
+        <field name="kpi_value">Chờ bridge</field>
+        <field name="sequence">40</field>
+        <field name="note">Thành phẩm sync từ KiotViet — chưa implement.</field>
+    </record>
+
+    <record id="demo_so_01" model="justplay.sx.sale.order">
+        <field name="name">SO-DEMO-001</field>
+        <field name="partner_name">Đại lý Demo A</field>
+        <field name="product_code">SP008073</field>
+        <field name="product_name">Argentina sọc 26-27 (pilot)</field>
+        <field name="qty">50</field>
+        <field name="state">confirmed</field>
+    </record>
+    <record id="demo_so_02" model="justplay.sx.sale.order">
+        <field name="name">SO-DEMO-002</field>
+        <field name="partner_name">Đại lý Demo B</field>
+        <field name="product_code">JP-DEMO-FG-01</field>
+        <field name="product_name">Áo Demo FG</field>
+        <field name="qty">20</field>
+        <field name="state">draft</field>
+    </record>
+
+    <record id="demo_plan_01" model="justplay.sx.plan">
+        <field name="name">KH/SO-DEMO-001</field>
+        <field name="sale_order_id" ref="demo_so_01"/>
+        <field name="state">ready</field>
+    </record>
+    <record id="demo_plan_01_line" model="justplay.sx.plan.line">
+        <field name="plan_id" ref="demo_plan_01"/>
+        <field name="product_code">SP008073</field>
+        <field name="product_name">Argentina sọc 26-27 (pilot)</field>
+        <field name="qty">50</field>
+    </record>
+
+    <record id="demo_dispatch_01" model="justplay.sx.dispatch">
+        <field name="name">DP-DEMO-001</field>
+        <field name="team">Tổ may 1</field>
+        <field name="plan_id" ref="demo_plan_01"/>
+        <field name="state">draft</field>
+    </record>
+
+    <record id="demo_qc_01" model="justplay.sx.qc.check">
+        <field name="name">QC-DEMO-001</field>
+        <field name="product_code">SP008073</field>
+        <field name="plan_id" ref="demo_plan_01"/>
+        <field name="result">pending</field>
+    </record>
+
+    <record id="demo_cost_01" model="justplay.sx.planned.cost">
+        <field name="name">GT-SP008073</field>
+        <field name="product_code">SP008073</field>
+        <field name="plan_id" ref="demo_plan_01"/>
+        <field name="material_cost">120000</field>
+        <field name="labor_cost">45000</field>
+        <field name="overhead_cost">15000</field>
+    </record>
+
+    <record id="demo_process_01" model="justplay.sx.process.route">
+        <field name="name">Cắt</field>
+        <field name="sequence">10</field>
+        <field name="product_code">SP008073</field>
+        <field name="workcenter">Tổ cắt</field>
+        <field name="duration_hours">0.5</field>
+    </record>
+    <record id="demo_process_02" model="justplay.sx.process.route">
+        <field name="name">May</field>
+        <field name="sequence">20</field>
+        <field name="product_code">SP008073</field>
+        <field name="workcenter">Tổ may 1</field>
+        <field name="duration_hours">2.0</field>
+    </record>
+    <record id="demo_process_03" model="justplay.sx.process.route">
+        <field name="name">QC thành phẩm</field>
+        <field name="sequence">30</field>
+        <field name="product_code">SP008073</field>
+        <field name="workcenter">QC</field>
+        <field name="duration_hours">0.3</field>
+    </record>
+</odoo>

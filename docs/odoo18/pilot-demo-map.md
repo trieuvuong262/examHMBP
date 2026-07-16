@@ -245,7 +245,8 @@ Xem chi tiết luồng: [accounting-sales.md](./accounting-sales.md).
 
 | Odoo pilot | Portal hiện tại | Ghi chú |
 |------------|-----------------|---------|
-| `JP-DEMO-NPL-*` | `kho_npl` app | Cùng domain NVL — chưa sync |
+| `JP-DEMO-NPL-*` | `kho_npl` app | Demo song song — **bridge thật:** `npl_odoo_push` (`Material.code` → `default_code`) |
+| Products NVL live | `kho_npl.Material` + `StockBalance` | One-way Portal→Odoo; root category `Kho NPL`, WH `KHO-NPL` — xem `docs/integrations/npl-odoo-bridge.md` |
 | MO / ca SX | `reports` production hourly | Báo cáo Portal ≠ MO Odoo |
 | Equipment IT | `equipment` app | Khác Maintenance Odoo (máy xưởng) |
 | SSO user | `audit/odoo_sso.py` | Đã có redirect ERP |

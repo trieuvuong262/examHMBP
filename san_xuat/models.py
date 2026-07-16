@@ -1,0 +1,235 @@
+from decimal import Decimal
+
+from django.conf import settings
+from django.core.validators import MinValueValidator
+from django.db import models
+
+
+class ProductTechDoc(models.Model):
+    """Hồ sơ tài liệu sản xuất neo theo mã hàng KiotViet."""
+
+    product_code = models.CharField(
+        max_length=60,
+        unique=True,
+        db_index=True,
+        verbose_name='Mã sản phẩm',
+    )
+    product_name = models.CharField(
+        max_length=255,
+        blank=True,
+        default='',
+        verbose_name='Tên sản phẩm (snapshot)',
+    )
+    product_image_url = models.URLField(
+        max_length=500,
+        blank=True,
+        default='',
+        verbose_name='Ảnh sản phẩm',
+    )
+    kv_product_id = models.BigIntegerField(
+        null=True,
+        blank=True,
+        verbose_name='KiotViet product id',
+    )
+    notes = models.TextField(blank=True, default='', verbose_name='Ghi chú')
+    is_active = models.BooleanField(default=True, verbose_name='Đang dùng')
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='san_xuat_tech_docs',
+        verbose_name='Người tạo',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['product_code']
+        verbose_name = 'Hồ sơ tài liệu SX'
+        verbose_name_plural = 'Hồ sơ tài liệu SX'
+
+    def __str__(self):
+        name = self.product_name or ''
+        return f'{self.product_code} — {name}'.strip(' —')
+
+
+class BomVersion(models.Model):
+    STATUS_DRAFT = 'draft'
+    STATUS_ACTIVE = 'active'
+    STATUS_ARCHIVED = 'archived'
+    STATUS_CHOICES = [
+        (STATUS_DRAFT, 'Nháp'),
+        (STATUS_ACTIVE, 'Đang dùng'),
+        (STATUS_ARCHIVED, 'Lưu trữ'),
+    ]
+
+    tech_doc = models.ForeignKey(
+        ProductTechDoc,
+        on_delete=models.CASCADE,
+        related_name='bom_versions',
+        verbose_name='Hồ sơ SX',
+    )
+    version_label = models.CharField(
+        max_length=40,
+        default='v1',
+        verbose_name='Phiên bản',
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default=STATUS_DRAFT,
+        db_index=True,
+        verbose_name='Trạng thái',
+    )
+    overhead_pct = models.DecimalField(
+        max_digits=6,
+        decimal_places=2,
+        default=Decimal('0'),
+        validators=[MinValueValidator(Decimal('0'))],
+        verbose_name='Phụ phí (%)',
+        help_text='Phần trăm cộng thêm trên (NVL + nhân công).',
+    )
+    notes = models.TextField(blank=True, default='', verbose_name='Ghi chú')
+    activated_at = models.DateTimeField(null=True, blank=True, verbose_name='Ngày kích hoạt')
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='san_xuat_bom_versions',
+        verbose_name='Người tạo',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Phiên bản BOM'
+        verbose_name_plural = 'Phiên bản BOM'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['tech_doc', 'version_label'],
+                name='san_xuat_bom_unique_label_per_doc',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.tech_doc.product_code} / {self.version_label} ({self.status})'
+
+
+class BomLine(models.Model):
+    bom = models.ForeignKey(
+        BomVersion,
+        on_delete=models.CASCADE,
+        related_name='lines',
+        verbose_name='BOM',
+    )
+    material = models.ForeignKey(
+        'kho_npl.Material',
+        on_delete=models.PROTECT,
+        related_name='san_xuat_bom_lines',
+        verbose_name='Nguyên phụ liệu',
+    )
+    qty = models.DecimalField(
+        max_digits=14,
+        decimal_places=4,
+        validators=[MinValueValidator(Decimal('0'))],
+        verbose_name='Định mức',
+    )
+    scrap_pct = models.DecimalField(
+        max_digits=6,
+        decimal_places=2,
+        default=Decimal('0'),
+        validators=[MinValueValidator(Decimal('0'))],
+        verbose_name='Hao hụt (%)',
+    )
+    size_code = models.CharField(
+        max_length=20,
+        blank=True,
+        default='',
+        verbose_name='Size',
+        help_text='Để trống = áp dụng mọi size.',
+    )
+    notes = models.CharField(max_length=255, blank=True, default='', verbose_name='Ghi chú')
+    sort_order = models.PositiveSmallIntegerField(default=0, verbose_name='Thứ tự')
+
+    class Meta:
+        ordering = ['sort_order', 'id']
+        verbose_name = 'Dòng BOM'
+        verbose_name_plural = 'Dòng BOM'
+
+    def __str__(self):
+        return f'{self.material.code} × {self.qty}'
+
+    @property
+    def qty_with_scrap(self) -> Decimal:
+        factor = Decimal('1') + (self.scrap_pct or Decimal('0')) / Decimal('100')
+        return (self.qty * factor).quantize(Decimal('0.0001'))
+
+
+class ProcessStep(models.Model):
+    bom = models.ForeignKey(
+        BomVersion,
+        on_delete=models.CASCADE,
+        related_name='process_steps',
+        verbose_name='BOM',
+    )
+    sequence = models.PositiveSmallIntegerField(default=10, verbose_name='Thứ tự')
+    process_name = models.CharField(max_length=120, verbose_name='Tên công đoạn')
+    norm_per_hour = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.01'))],
+        verbose_name='Định mức (cái/giờ)',
+    )
+    cost_per_hour = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal('0'),
+        validators=[MinValueValidator(Decimal('0'))],
+        verbose_name='Chi phí giờ (VNĐ)',
+    )
+    notes = models.CharField(max_length=255, blank=True, default='', verbose_name='Ghi chú')
+
+    class Meta:
+        ordering = ['sequence', 'id']
+        verbose_name = 'Công đoạn'
+        verbose_name_plural = 'Công đoạn'
+
+    def __str__(self):
+        return f'{self.sequence}. {self.process_name}'
+
+
+class CostingSnapshot(models.Model):
+    """Bản chốt costing tại một thời điểm."""
+
+    bom = models.ForeignKey(
+        BomVersion,
+        on_delete=models.CASCADE,
+        related_name='costing_snapshots',
+        verbose_name='BOM',
+    )
+    material_cost = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
+    labor_cost = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
+    overhead_cost = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
+    total_cost = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
+    sell_price = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
+    margin = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
+    notes = models.TextField(blank=True, default='')
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='san_xuat_costing_snapshots',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Bản chốt costing'
+        verbose_name_plural = 'Bản chốt costing'
+
+    def __str__(self):
+        return f'Costing {self.bom} @ {self.created_at:%Y-%m-%d}'

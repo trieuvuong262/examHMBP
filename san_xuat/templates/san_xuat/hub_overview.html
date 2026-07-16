@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5">
+    <div class="jp-page-header mb-3 mb-md-4">
+        <div>
+            <h2 class="fw-bold text-hm mb-1 jp-page-title">Sản xuất</h2>
+            <p class="text-muted mb-0 small">Tổng quan hub — Portal là nơi thao tác; Odoo chỉ mirror kho NPL</p>
+        </div>
+    </div>
+
+    <div class="alert alert-light border mb-4" role="status">
+        <strong>SoT:</strong> nhập / xuất / kiểm kê NPL trên
+        <a href="{% url 'kho_npl:material_stock' %}">Kho NPL</a>.
+        Thành phẩm &amp; đơn hàng: module KiotViet.
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <div class="border rounded-3 p-3 h-100">
+                <div class="text-muted small">Hồ sơ SX</div>
+                <div class="fs-4 fw-semibold text-hm">{{ doc_total }}</div>
+                <div class="small text-muted">{{ doc_active }} đang dùng</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <a href="{% url 'san_xuat:redirect_orders' %}" class="border rounded-3 p-3 h-100 d-block text-decoration-none text-reset">
+                <div class="text-muted small">Đơn đặt hàng</div>
+                <div class="fw-semibold">KiotViet</div>
+                <div class="small text-hm">Mở danh sách →</div>
+            </a>
+        </div>
+        <div class="col-6 col-md-3">
+            <a href="{% url 'san_xuat:redirect_npl_stock' %}" class="border rounded-3 p-3 h-100 d-block text-decoration-none text-reset">
+                <div class="text-muted small">Kho NPL</div>
+                <div class="fw-semibold">Tồn nguyên liệu</div>
+                <div class="small text-hm">Mở kho →</div>
+            </a>
+        </div>
+        <div class="col-6 col-md-3">
+            <a href="{% url 'san_xuat:redirect_fg_stock' %}" class="border rounded-3 p-3 h-100 d-block text-decoration-none text-reset">
+                <div class="text-muted small">Kho sản phẩm</div>
+                <div class="fw-semibold">Tồn KV</div>
+                <div class="small text-hm">Mở tồn →</div>
+            </a>
+        </div>
+    </div>
+
+    <h3 class="h6 text-uppercase text-muted mb-3">Lối tắt</h3>
+    <div class="list-group list-group-flush border rounded-3">
+        <a href="{% url 'san_xuat:doc_list' %}" class="list-group-item list-group-item-action d-flex justify-content-between">
+            <span><i class="bi bi-journal-text me-2"></i>Hồ sơ SX / BOM / Costing</span>
+            <i class="bi bi-chevron-right"></i>
+        </a>
+        <a href="{% url 'san_xuat:plan_stub' %}" class="list-group-item list-group-item-action d-flex justify-content-between">
+            <span><i class="bi bi-calendar3 me-2"></i>Kế hoạch sản xuất</span>
+            <span class="badge text-bg-secondary">Sắp làm</span>
+        </a>
+        <a href="{% url 'san_xuat:dispatch_stub' %}" class="list-group-item list-group-item-action d-flex justify-content-between">
+            <span><i class="bi bi-diagram-2 me-2"></i>Điều phối</span>
+            <span class="badge text-bg-secondary">Sắp làm</span>
+        </a>
+        <a href="{% url 'san_xuat:qc_stub' %}" class="list-group-item list-group-item-action d-flex justify-content-between">
+            <span><i class="bi bi-clipboard-check me-2"></i>Kiểm tra chất lượng</span>
+            <span class="badge text-bg-secondary">Sắp làm</span>
+        </a>
+        <a href="{% url 'san_xuat:process_stub' %}" class="list-group-item list-group-item-action d-flex justify-content-between">
+            <span><i class="bi bi-signpost-2 me-2"></i>Quy trình</span>
+            <span class="badge text-bg-secondary">Sắp làm</span>
+        </a>
+    </div>
+</div>
+{% endblock %}

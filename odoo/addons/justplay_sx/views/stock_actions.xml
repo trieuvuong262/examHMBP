@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Kho NPL: filter category name «Kho NPL» (Portal bridge) -->
+    <record id="action_wh_npl_products_server" model="ir.actions.server">
+        <field name="name">Mở Kho NPL</field>
+        <field name="model_id" ref="product.model_product_product"/>
+        <field name="state">code</field>
+        <field name="code">
+cat = env['product.category'].search([('name', '=', 'Kho NPL')], limit=1)
+domain = [('categ_id', 'child_of', cat.id)] if cat else [('id', '=', False)]
+action = {
+    'type': 'ir.actions.act_window',
+    'name': 'Kho Nguyên Phụ Liệu',
+    'res_model': 'product.product',
+    'view_mode': 'list,form',
+    'domain': domain,
+    'context': {'create': False},
+    'target': 'current',
+}
+        </field>
+    </record>
+
+    <record id="action_wh_npl_quants" model="ir.actions.server">
+        <field name="name">Tồn NPL (On Hand)</field>
+        <field name="model_id" ref="stock.model_stock_quant"/>
+        <field name="state">code</field>
+        <field name="code">
+wh = env['stock.warehouse'].search([('code', '=', 'NPL')], limit=1)
+domain = [('location_id', 'child_of', wh.view_location_id.id)] if wh else [('id', '=', False)]
+action = {
+    'type': 'ir.actions.act_window',
+    'name': 'Tồn kho NPL',
+    'res_model': 'stock.quant',
+    'view_mode': 'list,form',
+    'domain': domain,
+    'context': {'inventory_mode': True, 'create': False},
+    'target': 'current',
+}
+        </field>
+    </record>
+
+    <!-- Kho thành phẩm: chờ bridge KiotViet -->
+    <record id="action_wh_fg_products_server" model="ir.actions.server">
+        <field name="name">Mở Kho sản phẩm</field>
+        <field name="model_id" ref="product.model_product_product"/>
+        <field name="state">code</field>
+        <field name="code">
+cat = env['product.category'].search([('name', 'in', ['KiotViet', 'Thành phẩm', 'Thanh pham'])], limit=1)
+domain = [('categ_id', 'child_of', cat.id)] if cat else [('id', '=', False)]
+action = {
+    'type': 'ir.actions.act_window',
+    'name': 'Kho sản phẩm (KiotViet)',
+    'res_model': 'product.product',
+    'view_mode': 'list,form',
+    'domain': domain,
+    'context': {'create': False},
+    'target': 'current',
+}
+        </field>
+    </record>
+</odoo>

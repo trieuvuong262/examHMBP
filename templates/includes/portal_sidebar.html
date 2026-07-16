@@ -695,6 +695,130 @@
             </ul>
         </li>
         {% endif %}
+        {% if jp_can_san_xuat %}
+        <li class="jp-sidebar-group{% if 'san-xuat' in request.path %} is-open{% endif %}">
+            <button type="button"
+                    class="jp-sidebar-group-toggle"
+                    data-jp-sidebar-group-toggle
+                    aria-expanded="{% if 'san-xuat' in request.path %}true{% else %}false{% endif %}"
+                    aria-controls="jp-sidebar-san-xuat-submenu">
+                <span class="jp-sidebar-group-toggle-main">
+                    <i class="bi bi-clipboard2-data"></i><span>Sản xuất</span>
+                </span>
+                <i class="bi bi-chevron-down jp-sidebar-group-chevron" aria-hidden="true"></i>
+            </button>
+            <ul class="jp-sidebar-submenu" id="jp-sidebar-san-xuat-submenu">
+                {% jp_can_menu 'san_xuat' 'overview' as jp_can_san_xuat_overview %}
+                {% if jp_can_san_xuat_overview %}
+                <li>
+                    <a href="{% url 'san_xuat:overview' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'overview' or request.resolver_match.url_name == 'hub' %}active{% endif %}">
+                        <i class="bi bi-speedometer2"></i><span>Tổng quan</span>
+                    </a>
+                </li>
+                {% endif %}
+                {% jp_can_menu 'san_xuat' 'orders' as jp_can_san_xuat_orders %}
+                {% if jp_can_san_xuat_orders %}
+                <li>
+                    <a href="{% url 'san_xuat:redirect_orders' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'redirect_orders' %}active{% endif %}">
+                        <i class="bi bi-cart-check"></i><span>Đơn đặt hàng</span>
+                    </a>
+                </li>
+                {% endif %}
+                {% jp_can_menu 'san_xuat' 'plan' as jp_can_san_xuat_plan %}
+                {% if jp_can_san_xuat_plan %}
+                <li>
+                    <a href="{% url 'san_xuat:plan_stub' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'plan_stub' %}active{% endif %}">
+                        <i class="bi bi-calendar3"></i><span>Kế hoạch sản xuất</span>
+                    </a>
+                </li>
+                {% endif %}
+                {% jp_can_menu 'san_xuat' 'dispatch' as jp_can_san_xuat_dispatch %}
+                {% if jp_can_san_xuat_dispatch %}
+                <li>
+                    <a href="{% url 'san_xuat:dispatch_stub' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'dispatch_stub' %}active{% endif %}">
+                        <i class="bi bi-diagram-2"></i><span>Điều phối</span>
+                    </a>
+                </li>
+                {% endif %}
+                {% jp_can_menu 'san_xuat' 'qc' as jp_can_san_xuat_qc %}
+                {% if jp_can_san_xuat_qc %}
+                <li>
+                    <a href="{% url 'san_xuat:qc_stub' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'qc_stub' %}active{% endif %}">
+                        <i class="bi bi-clipboard-check"></i><span>Kiểm tra chất lượng</span>
+                    </a>
+                </li>
+                {% endif %}
+                {% jp_can_menu 'san_xuat' 'costing_hub' as jp_can_san_xuat_costing_hub %}
+                {% if jp_can_san_xuat_costing_hub %}
+                <li>
+                    <a href="{% url 'san_xuat:redirect_costing' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'redirect_costing' %}active{% endif %}">
+                        <i class="bi bi-calculator"></i><span>Giá thành kế hoạch</span>
+                    </a>
+                </li>
+                {% endif %}
+                {% jp_can_menu 'san_xuat' 'fg_stock' as jp_can_san_xuat_fg %}
+                {% if jp_can_san_xuat_fg %}
+                <li>
+                    <a href="{% url 'san_xuat:redirect_fg_stock' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'redirect_fg_stock' %}active{% endif %}">
+                        <i class="bi bi-box-seam"></i><span>Kho sản phẩm</span>
+                    </a>
+                </li>
+                {% endif %}
+                {% jp_can_menu 'san_xuat' 'npl_stock' as jp_can_san_xuat_npl %}
+                {% if jp_can_san_xuat_npl %}
+                <li>
+                    <a href="{% url 'san_xuat:redirect_npl_stock' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'redirect_npl_stock' %}active{% endif %}">
+                        <i class="bi bi-boxes"></i><span>Kho Nguyên Phụ Liệu</span>
+                    </a>
+                </li>
+                {% endif %}
+                {% jp_can_menu 'san_xuat' 'process' as jp_can_san_xuat_process %}
+                {% if jp_can_san_xuat_process %}
+                <li>
+                    <a href="{% url 'san_xuat:process_stub' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'process_stub' %}active{% endif %}">
+                        <i class="bi bi-signpost-2"></i><span>Quy trình</span>
+                    </a>
+                </li>
+                {% endif %}
+                {% jp_can_menu 'san_xuat' 'docs' as jp_can_san_xuat_docs %}
+                {% if jp_can_san_xuat_docs %}
+                <li>
+                    <a href="{% url 'san_xuat:doc_list' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'doc_list' or request.resolver_match.url_name == 'doc_create' or request.resolver_match.url_name == 'doc_detail' %}active{% endif %}">
+                        <i class="bi bi-journal-text"></i><span>Hồ sơ SX</span>
+                    </a>
+                </li>
+                {% endif %}
+                {% jp_can_menu 'san_xuat' 'bom' as jp_can_san_xuat_bom %}
+                {% if jp_can_san_xuat_bom %}
+                <li>
+                    <a href="{% url 'san_xuat:doc_list' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if 'san-xuat' in request.path and request.GET.tab == 'bom' %}active{% endif %}">
+                        <i class="bi bi-diagram-3"></i><span>BOM</span>
+                    </a>
+                </li>
+                {% endif %}
+                {% jp_can_menu 'san_xuat' 'costing' as jp_can_san_xuat_costing %}
+                {% if jp_can_san_xuat_costing %}
+                <li>
+                    <a href="{% url 'san_xuat:doc_list' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if 'san-xuat' in request.path and request.GET.tab == 'costing' %}active{% endif %}">
+                        <i class="bi bi-calculator"></i><span>Costing</span>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </li>
+        {% endif %}
         {% if jp_can_kiotviet %}
         <li class="jp-sidebar-group{% if 'kiotviet' in request.path %} is-open{% endif %}">
             <button type="button"

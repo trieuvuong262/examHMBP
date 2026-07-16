@@ -217,6 +217,7 @@ INSTALLED_APPS = [
     'utilities.apps.UtilitiesConfig',
     'kiotviet.apps.KiotvietConfig',
     'kho_npl.apps.KhoNplConfig',
+    'san_xuat.apps.SanXuatConfig',
     'nas_storage.apps.NasStorageConfig',
     'tools.apps.ToolsConfig',
     'django_cleanup.apps.CleanupConfig', # 👉 Thêm dòng này vào cuối

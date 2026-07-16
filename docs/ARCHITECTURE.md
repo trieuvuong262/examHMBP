@@ -63,6 +63,7 @@ Mỗi app là một Django app chuẩn (`models.py`, `views.py`, `urls.py`, `tem
 | App           | URL gốc        | Vai trò | Model chính |
 |---------------|----------------|---------|-------------|
 | `kho_npl`     | `/kho-npl/`    | Kho Nguyên Phụ Liệu: nhập/xuất/chuyển/kiểm kê/điều chỉnh, sổ cái tồn kho | `Material`, `StockBalance`, `StockReceipt`, `StockIssue`, `StockLedger`, `Stocktake` |
+| `san_xuat`    | `/san-xuat/`   | Tài liệu sản xuất: hồ sơ SX, BOM, công đoạn, costing (neo `KvProduct` + `Material`) | `ProductTechDoc`, `BomVersion`, `BomLine`, `ProcessStep`, `CostingSnapshot` |
 | `equipment`   | `/thiet-bi/`   | Quản lý thiết bị + tem QR, lịch bảo trì | `Device`, `DeviceCategory`, `MaintenanceLog` |
 
 ### Tài liệu, truyền thông & lưu trữ
