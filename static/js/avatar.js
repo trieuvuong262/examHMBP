@@ -8,6 +8,9 @@
         var trigger = event.target.closest('[data-jp-avatar-trigger]');
         if (!trigger) return;
         var form = trigger.closest('form');
+        if (!form) {
+            form = document.querySelector('.jp-topbar-avatar-form, .jp-sidebar-avatar-form');
+        }
         var input = form && form.querySelector('[data-jp-avatar-input]');
         if (input) input.click();
     });

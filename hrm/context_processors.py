@@ -258,7 +258,7 @@ def portal_permissions(request):
         'jp_can_surveys': user_can_access_module(user, MODULE_SURVEYS),
         'jp_can_utilities': user_can_access_module(user, MODULE_UTILITIES),
         'jp_can_kiotviet': _jp_can_kiotviet(user),
-        'jp_can_odoo': user_can_access_module(user, MODULE_ODOO),
+        'jp_can_odoo': False,  # Tạm ẩn menu Odoo
         'jp_can_kho_npl': user_can_access_module(user, MODULE_KHO_NPL),
         'jp_can_san_xuat': user_can_access_module(user, MODULE_SAN_XUAT),
         'jp_can_assign_tasks': can_assign_tasks(user),
@@ -366,6 +366,15 @@ def portal_permissions(request):
             'jp_ho_tro_pending_count': 0,
             'jp_can_manage_catalog': False,
         })
+    try:
+        from nas_storage.nas_download_access import raidrive_installer_context, user_can_nas_download
+
+        base['jp_can_nas_installer'] = user_can_nas_download(user)
+        base.update(raidrive_installer_context(request))
+    except Exception:
+        base.setdefault('jp_can_nas_installer', False)
+        base.setdefault('raidrive_share_url', '')
+        base.setdefault('raidrive_file_name', '')
     return base
 
 

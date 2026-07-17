@@ -1,0 +1,41 @@
+{% with profile=user.profile %}
+{% with display_name=profile.full_name|default:user.get_full_name|default:user.first_name|default:user.username %}
+<div class="dropdown jp-topbar-profile-dropdown">
+    <button type="button"
+            class="jp-topbar-profile-btn dropdown-toggle"
+            data-bs-toggle="dropdown"
+            aria-expanded="false"
+            aria-label="Thông tin tài khoản {{ display_name }}">
+        <span class="jp-topbar-profile-avatar-wrap">
+            {% include 'includes/profile_avatar.html' with profile=profile user=user img_class='jp-topbar-profile-avatar-img' fallback_class='jp-topbar-profile-avatar' %}
+            <span class="jp-topbar-profile-status" title="Đang hoạt động" aria-hidden="true"></span>
+        </span>
+        <span class="jp-topbar-profile-summary">
+            <span class="jp-topbar-profile-name">{{ display_name }}</span>
+            <span class="jp-topbar-profile-meta">
+                <span>{{ jp_role_display|default:"Nhân viên" }}</span>
+                {% if profile.department %}
+                <span class="jp-topbar-profile-dept">{{ profile.department.name }}</span>
+                {% endif %}
+            </span>
+        </span>
+        <i class="bi bi-chevron-down jp-topbar-profile-chevron" aria-hidden="true"></i>
+    </button>
+    <div class="dropdown-menu shadow border-0 jp-topbar-profile-menu">
+        <div class="jp-topbar-profile-menu-body">
+            <div class="jp-topbar-profile-menu-name">{{ display_name }}</div>
+            <div class="jp-topbar-profile-menu-role">{{ jp_role_display|default:"Nhân viên" }}</div>
+            {% if profile.department %}
+            <div class="jp-topbar-profile-menu-dept">
+                <i class="bi bi-building" aria-hidden="true"></i>
+                <span>{{ profile.department.name }}</span>
+            </div>
+            {% endif %}
+            {% if profile.employee_code %}
+            <div class="jp-topbar-profile-menu-code">Mã NS · {{ profile.employee_code }}</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endwith %}
+{% endwith %}

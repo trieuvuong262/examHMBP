@@ -1,21 +1,5 @@
 {% load static menu_perms %}
 <nav class="jp-sidebar-nav" aria-label="Menu chính">
-    <div class="jp-sidebar-brand d-none d-lg-flex">
-        <a href="{% url 'home_portal' %}" class="jp-sidebar-brand-link">
-            <img src="{% static 'images/logo/logo.png' %}" alt="JustPlay" class="jp-sidebar-logo">
-            <span class="jp-sidebar-brand-text">JustPlay Portal</span>
-        </a>
-        <button type="button"
-                class="jp-sidebar-collapse-btn d-none d-lg-inline-flex"
-                data-jp-sidebar-collapse
-                aria-pressed="false"
-                aria-label="Thu gọn menu"
-                title="Thu gọn menu">
-            <i class="bi bi-chevron-left jp-sidebar-collapse-icon-expanded" aria-hidden="true"></i>
-            <i class="bi bi-chevron-right jp-sidebar-collapse-icon-collapsed" aria-hidden="true"></i>
-        </button>
-    </div>
-
     {% with profile=user.profile %}
     <div class="jp-sidebar-profile">
         <div class="jp-sidebar-profile-card">
@@ -51,10 +35,19 @@
 
     <div class="jp-sidebar-menu-scroll">
     <ul class="jp-sidebar-menu">
-        <li>
-            <a href="{% url 'home_portal' %}" class="jp-sidebar-link {% if request.resolver_match.url_name == 'home_portal' %}active{% endif %}">
-                <i class="bi bi-house-fill"></i><span>Trang chủ</span>
+        <li class="jp-sidebar-home-row">
+            <a href="{% url 'home_portal' %}" class="jp-sidebar-link jp-sidebar-home-link {% if request.resolver_match.url_name == 'home_portal' %}active{% endif %}">
+                <i class="bi bi-house-fill" aria-hidden="true"></i><span>Trang chủ</span>
             </a>
+            <button type="button"
+                    class="jp-sidebar-collapse-btn d-none d-lg-inline-flex"
+                    data-jp-sidebar-collapse
+                    aria-pressed="false"
+                    aria-label="Thu gọn menu"
+                    title="Thu gọn menu">
+                <i class="bi bi-layout-sidebar-inset jp-sidebar-collapse-icon-expanded" aria-hidden="true"></i>
+                <i class="bi bi-layout-sidebar jp-sidebar-collapse-icon-collapsed" aria-hidden="true"></i>
+            </button>
         </li>
         {% if jp_can_announcements %}
         <li>
@@ -1239,11 +1232,11 @@
     </div>
 
     <div class="jp-sidebar-footer">
-        <a href="{% url 'password_change' %}" class="jp-sidebar-link jp-sidebar-link-muted">
+        <a href="{% url 'password_change' %}" class="jp-sidebar-link jp-sidebar-link-muted jp-sidebar-footer-extra">
             <i class="bi bi-shield-lock"></i><span>Đổi mật khẩu</span>
         </a>
         {% if jp_can_update_own_avatar %}
-        <form action="{% url 'update_avatar' %}" method="post" enctype="multipart/form-data" class="m-0 jp-sidebar-avatar-form">
+        <form action="{% url 'update_avatar' %}" method="post" enctype="multipart/form-data" class="m-0 jp-sidebar-avatar-form jp-sidebar-footer-extra">
             {% csrf_token %}
             <input type="hidden" name="next" value="{{ request.get_full_path }}">
             <input type="file" name="avatar" class="d-none" accept="image/*" data-jp-avatar-input>
@@ -1252,10 +1245,10 @@
             </button>
         </form>
         {% endif %}
-        <form action="{% url 'logout' %}" method="POST" class="m-0">
+        <form action="{% url 'logout' %}" method="post" class="m-0">
             {% csrf_token %}
-            <button type="submit" class="jp-sidebar-link jp-sidebar-link-muted jp-sidebar-logout w-100 border-0 bg-transparent text-start">
-                <i class="bi bi-box-arrow-right"></i><span>Đăng xuất</span>
+            <button type="submit" class="jp-sidebar-logout-btn">
+                Đăng xuất
             </button>
         </form>
     </div>

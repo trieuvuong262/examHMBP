@@ -23,9 +23,9 @@ from equipment.services.inventory_scan import downloader_script_fields as equipm
 from equipment.services.inventory_scan import script_config as equipment_script_config
 from equipment.views_inventory_scan import _apply_script_tokens as apply_equipment_script_tokens
 from nas_storage.download_shares import WEBDAV_SHARE_ALIASES, nas_webdav_shares_for_user, resolve_webdav_share_name
-from nas_storage.nas_download_access import user_can_nas_download
-from nas_storage.nas_paths import user_department_folder_code
-from nas_storage.share_access import get_active_share
+from nas_storage.nas_download_access import raidrive_installer_context, user_can_nas_download
+from nas_storage.nas_paths import NasPathError, user_department_folder_code
+from nas_storage.share_access import get_active_share, resolve_path_for_request
 from hrm.menu_permissions import menu_perm_context
 from hrm.module_permissions import MODULE_DOCUMENTS
 
@@ -85,15 +85,42 @@ def _order_shares_for_webdav_mount(shares: list[str], user) -> list[str]:
 
 
 def _raidrive_installer_context(request) -> dict:
+    return raidrive_installer_context(request)
+
+
+@login_required
+@require_GET
+def nas_raidrive_download(request):
+    """Tải installer RaiDrive — quyền Thư viện, không cần menu NAS."""
+    if not user_can_nas_download(request.user):
+        return _download_forbidden(request)
+
     token = getattr(settings, 'NAS_RAIDRIVE_INSTALLER_SHARE_TOKEN', '').strip()
     if not token:
-        return {'raidrive_share_url': '', 'raidrive_file_name': ''}
+        messages.error(request, 'Chưa cấu hình installer RaiDrive trên server.')
+        return redirect('documents:nas_download')
+
     share = get_active_share(token)
-    share_url = request.build_absolute_uri(reverse('nas_storage:share_open', args=[token]))
-    return {
-        'raidrive_share_url': share_url if share else '',
-        'raidrive_file_name': share.item_name if share else '',
-    }
+    if share:
+        try:
+            path = resolve_path_for_request(request.user, share.rel_path, share=share)
+        except NasPathError as exc:
+            messages.error(request, str(exc))
+            path = None
+        if path and path.is_file():
+            filename = share.item_name or 'RaiDrive_x64.exe'
+            response = HttpResponse(path.read_bytes(), content_type='application/octet-stream')
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            return response
+
+    exe_path = Path(settings.BASE_DIR) / 'scripts' / 'installers' / 'RaiDrive_x64.exe'
+    if exe_path.is_file():
+        response = HttpResponse(exe_path.read_bytes(), content_type='application/octet-stream')
+        response['Content-Disposition'] = 'attachment; filename="RaiDrive_x64.exe"'
+        return response
+
+    messages.error(request, 'Không tìm thấy file cài RaiDrive. Liên hệ IT.')
+    return redirect('documents:nas_download')
 
 
 @login_required

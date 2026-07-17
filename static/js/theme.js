@@ -34,6 +34,10 @@
                 isDark ? 'Bật giao diện sáng' : 'Bật giao diện tối'
             );
             btn.setAttribute('title', isDark ? 'Giao diện sáng' : 'Giao diện tối');
+            var label = btn.querySelector('.jp-theme-toggle-label');
+            if (label) {
+                label.textContent = isDark ? 'Giao diện sáng' : 'Giao diện tối';
+            }
         });
     }
 

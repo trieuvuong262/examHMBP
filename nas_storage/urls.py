@@ -14,6 +14,7 @@ urlpatterns = [
     path('tai-xuong/', views.download, name='download'),
     path('xoa/', views.delete_entry, name='delete'),
     path('cai-dat/', views_nas_download.nas_download_page, name='nas_download'),
+    path('cai-dat/raidrive/', views_nas_download.nas_raidrive_download, name='raidrive_download'),
     path('cai-dat/tai/', views_nas_download.nas_download_setup, name='nas_download_setup'),
     # Phân quyền thư mục NAS
     path('phan-quyen/', perm_views.permissions_hub, name='permissions_hub'),

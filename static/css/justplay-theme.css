@@ -608,6 +608,31 @@ main pre {
     box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
 }
 
+/* Tab/pill trong nội dung trang — không dùng chữ trắng của navbar */
+.jp-main-content .nav-tabs .nav-link,
+.jp-main-content .nav-pills .nav-link:not(.active) {
+    color: var(--jp-text-secondary, #404040) !important;
+    background-color: transparent !important;
+    box-shadow: none;
+}
+.jp-main-content .nav-tabs .nav-link:hover,
+.jp-main-content .nav-pills .nav-link:hover {
+    color: var(--hm-primary) !important;
+    background-color: var(--hm-primary-soft, rgba(220, 38, 38, 0.08)) !important;
+}
+.jp-main-content .nav-tabs .nav-link.active {
+    color: var(--hm-primary) !important;
+    background-color: #fff !important;
+    border-color: #dee2e6 #dee2e6 #fff !important;
+    box-shadow: none;
+}
+.jp-main-content .nav-pills .nav-link.active,
+.jp-main-content .nav-pills-hm .nav-link.active,
+.jp-main-content .custom-pills .nav-link.active {
+    color: #fff !important;
+    background-color: var(--hm-primary) !important;
+}
+
 .nav-link.locked {
     opacity: 0.6;
     cursor: not-allowed;
@@ -3072,6 +3097,42 @@ body.jp-tool-loading-active {
     flex-wrap: wrap;
     gap: 0.5rem;
     width: 100%;
+}
+
+.jp-announcements-page .jp-page-header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+}
+
+@media (min-width: 768px) {
+    .jp-announcements-page .jp-page-header {
+        flex-direction: row;
+        align-items: flex-start;
+        justify-content: space-between;
+    }
+}
+
+.jp-announcements-page .announcement-body {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.jp-announcements-page .announcement-body img,
+.jp-announcements-page .announcement-body iframe,
+.jp-announcements-page .announcement-body video,
+.jp-announcements-page .announcement-body table {
+    max-width: 100%;
+}
+
+.jp-announcements-page .announcement-body table {
+    display: block;
+    overflow-x: auto;
+}
+
+.jp-announcement-video {
+    max-height: 70vh;
 }
 
 @media (min-width: 768px) {
@@ -5587,6 +5648,64 @@ body.jp-tool-loading-active {
         transition: width 0.22s ease;
     }
 
+    body.jp-has-amis-header .jp-sidebar {
+        display: flex;
+        flex-direction: column;
+        position: relative;
+        top: auto;
+        left: auto;
+        bottom: auto;
+        align-self: stretch;
+        height: auto;
+        min-height: 100%;
+        max-height: none;
+        overflow: visible;
+    }
+
+    body.jp-has-amis-header .jp-sidebar-nav {
+        position: sticky;
+        top: 0;
+        flex: 1 1 auto;
+        min-height: 0;
+        height: calc(100vh - var(--jp-topbar-h));
+        height: calc(100dvh - var(--jp-topbar-h));
+        max-height: calc(100dvh - var(--jp-topbar-h));
+        overflow: hidden;
+        padding-bottom: 4.25rem;
+    }
+
+    body.jp-has-amis-header aside.jp-sidebar .jp-sidebar-footer {
+        position: fixed;
+        left: 0;
+        bottom: 0;
+        z-index: 1045;
+        width: var(--jp-sidebar-w);
+        margin-top: 0;
+        padding: 0.75rem 0.65rem 1rem;
+        background: var(--jp-sidebar-gradient);
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: 0 -10px 28px rgba(0, 0, 0, 0.22);
+        transition: width 0.22s ease;
+    }
+
+    html.jp-sidebar-collapsed body.jp-has-amis-header aside.jp-sidebar .jp-sidebar-footer {
+        width: var(--jp-sidebar-w-collapsed);
+    }
+
+    body.jp-has-amis-header .jp-app-main {
+        margin-left: 0;
+        width: auto;
+        max-width: none;
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    html.jp-sidebar-collapsed body.jp-has-amis-header .jp-app-main {
+        margin-left: 0;
+        width: auto;
+        max-width: none;
+    }
+
     html.jp-sidebar-collapsed .jp-sidebar {
         width: var(--jp-sidebar-w-collapsed);
         overflow: visible;
@@ -5647,8 +5766,27 @@ body.jp-tool-loading-active {
         padding-right: 0.35rem;
     }
 
+    html.jp-sidebar-collapsed .jp-sidebar-brand-actions {
+        justify-content: center;
+    }
+
     html.jp-sidebar-collapsed .jp-sidebar-brand-link {
         justify-content: center;
+    }
+
+    html.jp-sidebar-collapsed .jp-sidebar-home-row {
+        gap: 0.15rem;
+    }
+
+    html.jp-sidebar-collapsed .jp-sidebar-home-row .jp-sidebar-home-link {
+        flex: 1 1 auto;
+        justify-content: center;
+        padding-left: 0.35rem;
+        padding-right: 0.35rem;
+    }
+
+    html.jp-sidebar-collapsed .jp-sidebar-home-row .jp-sidebar-collapse-btn {
+        margin-right: 0;
     }
 
     html.jp-sidebar-collapsed .jp-sidebar-brand-text,
@@ -5796,6 +5934,22 @@ body.jp-tool-loading-active {
     gap: 0.35rem;
 }
 
+.jp-sidebar-brand-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-shrink: 0;
+}
+
+.jp-sidebar-brand-icon-btn {
+    display: inline-flex;
+}
+
+.jp-sidebar-logout-btn:hover {
+    color: #fca5a5 !important;
+    border-color: rgba(252, 165, 165, 0.35) !important;
+}
+
 .jp-sidebar-brand-link {
     display: flex;
     align-items: center;
@@ -5808,23 +5962,28 @@ body.jp-tool-loading-active {
 
 .jp-sidebar-collapse-btn {
     flex-shrink: 0;
-    width: 32px;
-    height: 32px;
+    width: 2rem;
+    height: 2rem;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    border-radius: var(--jp-radius-sm);
-    background: rgba(255, 255, 255, 0.06);
-    color: rgba(255, 255, 255, 0.88);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 0.5rem;
+    background: rgba(255, 255, 255, 0.07);
+    color: rgba(255, 255, 255, 0.92);
     padding: 0;
     cursor: pointer;
-    transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+    font-size: 0.95rem;
+    line-height: 1;
+    transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
 }
 
-.jp-sidebar-collapse-btn:hover {
-    background: rgba(255, 255, 255, 0.12);
+.jp-sidebar-collapse-btn:hover,
+.jp-sidebar-collapse-btn:focus-visible {
+    background: rgba(255, 255, 255, 0.14);
     color: #fff;
-    border-color: rgba(255, 255, 255, 0.22);
+    border-color: rgba(255, 255, 255, 0.28);
+    transform: translateY(-1px);
 }
 
 .jp-sidebar-collapse-icon-collapsed {
@@ -6189,10 +6348,13 @@ html.jp-sidebar-collapsed .jp-sidebar-collapse-icon-collapsed {
     font-size: 0.72rem;
     opacity: 0.65;
     transition: transform 0.18s ease;
+    /* bi-chevron-down → ▶ khi đóng */
+    transform: rotate(-90deg);
 }
 
 .jp-sidebar-nested-group.is-open .jp-sidebar-nested-chevron {
-    transform: rotate(180deg);
+    /* ▼ khi mở */
+    transform: rotate(0deg);
 }
 
 .jp-sidebar-nested-group.is-open .jp-sidebar-nested-toggle {
@@ -6201,8 +6363,9 @@ html.jp-sidebar-collapsed .jp-sidebar-collapse-icon-collapsed {
 
 .jp-sidebar-nested-submenu {
     list-style: none;
-    margin: 0;
-    padding: 0 0 0 0.15rem;
+    margin: 0.05rem 0 0.15rem 1.55rem;
+    padding: 0.1rem 0 0.05rem 0.45rem;
+    border-left: 1px solid rgba(255, 255, 255, 0.14);
     display: none;
     flex-direction: column;
     gap: 0.08rem;
@@ -6213,11 +6376,38 @@ html.jp-sidebar-collapsed .jp-sidebar-collapse-icon-collapsed {
     margin-bottom: 0.1rem;
 }
 
-.jp-sidebar-nested-submenu .jp-sidebar-sublink {
-    padding-left: 2.75rem !important;
-    /* One step smaller than L1 submenu */
+/* Cấp 2 — chỉ thụt + rail; mũi tên ▶/▼ chỉ ở nhóm CÓ menu con */
+.jp-sidebar-nested-submenu > li > .jp-sidebar-sublink {
+    padding-left: 0.85rem !important;
     font-size: 0.78rem;
     font-weight: 500;
+}
+
+/* Nhóm depth2 (có con) — caret nhỏ hơn */
+.jp-sidebar-nested-group--depth2 {
+    margin: 0.05rem 0;
+}
+
+.jp-sidebar-nested-toggle--depth2 {
+    padding: 0.48rem 0.55rem 0.48rem 0.85rem;
+    font-size: 0.78rem;
+}
+
+.jp-sidebar-nested-submenu--depth2 {
+    margin: 0.05rem 0 0.1rem 0.55rem;
+    padding: 0.08rem 0 0.05rem 0.4rem;
+    border-left-style: dashed;
+    border-left-color: rgba(255, 255, 255, 0.18);
+}
+
+.jp-sidebar-nested-group--depth2.is-open .jp-sidebar-nested-submenu--depth2 {
+    display: flex;
+}
+
+/* Cấp 3 — thụt thêm */
+.jp-sidebar-nested-submenu.jp-sidebar-nested-submenu--depth2 > li > .jp-sidebar-sublink {
+    padding-left: 0.75rem !important;
+    font-size: 0.75rem;
 }
 
 .jp-sidebar-link {
@@ -6353,6 +6543,52 @@ html.jp-sidebar-collapsed .jp-sidebar-collapse-icon-collapsed {
     color: #fca5a5 !important;
 }
 
+.jp-sidebar-home-row {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin-bottom: 0.15rem;
+}
+
+.jp-sidebar-home-row .jp-sidebar-home-link {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+}
+
+.jp-sidebar-home-row .jp-sidebar-collapse-btn {
+    margin-right: 0.05rem;
+}
+
+.jp-sidebar-logout-btn {
+    width: 100%;
+    display: block;
+    padding: 0.58rem 0.75rem;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: var(--jp-radius-sm);
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.92);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    line-height: 1.3;
+    text-align: center;
+    cursor: pointer;
+    transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+}
+
+.jp-sidebar-logout-btn:hover,
+.jp-sidebar-logout-btn:focus-visible {
+    background: rgba(220, 38, 38, 0.32);
+    border-color: rgba(252, 165, 165, 0.42);
+    color: #fecaca;
+}
+
+html.jp-sidebar-collapsed .jp-sidebar-logout-btn {
+    font-size: 0.6875rem;
+    padding: 0.5rem 0.35rem;
+    letter-spacing: -0.01em;
+}
+
 .jp-sidebar-avatar-form button[data-jp-avatar-trigger] {
     cursor: pointer;
 }
@@ -6366,6 +6602,35 @@ html.jp-sidebar-collapsed .jp-sidebar-collapse-icon-collapsed {
     background: var(--jp-page-bg);
 }
 
+body.jp-has-amis-header .jp-app-shell {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    min-height: 100dvh;
+}
+
+body.jp-has-amis-header .jp-topbar {
+    flex-shrink: 0;
+    width: 100%;
+}
+
+body.jp-has-amis-header .jp-app-body {
+    display: flex;
+    align-items: stretch;
+    flex: 1 1 auto;
+    width: 100%;
+    min-width: 0;
+    min-height: calc(100vh - var(--jp-topbar-h));
+    min-height: calc(100dvh - var(--jp-topbar-h));
+}
+
+body.jp-has-amis-header .jp-app-main {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: calc(100vh - var(--jp-topbar-h));
+    min-height: calc(100dvh - var(--jp-topbar-h));
+}
+
 .jp-topbar {
     height: var(--jp-topbar-h);
     flex-shrink: 0;
@@ -6375,9 +6640,6 @@ html.jp-sidebar-collapsed .jp-sidebar-collapse-icon-collapsed {
     padding: 0 1rem 0 0.75rem;
     background: var(--jp-surface-bg);
     border-bottom: 1px solid var(--jp-surface-border);
-    position: sticky;
-    top: 0;
-    z-index: 1030;
 }
 
 .jp-topbar-start,
@@ -6410,6 +6672,80 @@ html.jp-sidebar-collapsed .jp-sidebar-collapse-icon-collapsed {
     height: 30px;
     width: auto;
     filter: none;
+}
+
+.jp-topbar-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.65rem;
+    text-decoration: none;
+    color: #fff;
+    min-width: 0;
+    flex-shrink: 1;
+}
+
+.jp-topbar-brand-logo {
+    height: 34px;
+    width: auto;
+    object-fit: contain;
+    flex-shrink: 0;
+}
+
+.jp-topbar-brand-text {
+    font-weight: 700;
+    font-size: 0.9rem;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.jp-topbar-collapse-btn {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    border-radius: var(--jp-radius-sm);
+    background: rgba(0, 0, 0, 0.12);
+    color: #fff;
+    padding: 0;
+    cursor: pointer;
+    transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+}
+
+.jp-topbar-brand-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-shrink: 0;
+}
+
+.jp-topbar-logout-btn:hover,
+.jp-topbar-logout-btn:focus-visible {
+    color: #fca5a5 !important;
+    border-color: rgba(252, 165, 165, 0.45) !important;
+}
+
+.jp-topbar-collapse-btn:hover,
+.jp-topbar-collapse-btn:focus-visible {
+    background: rgba(0, 0, 0, 0.22);
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+.jp-topbar-collapse-btn .jp-sidebar-collapse-icon-collapsed {
+    display: none;
+}
+
+html.jp-sidebar-collapsed .jp-topbar-collapse-btn .jp-sidebar-collapse-icon-expanded {
+    display: none;
+}
+
+html.jp-sidebar-collapsed .jp-topbar-collapse-btn .jp-sidebar-collapse-icon-collapsed {
+    display: inline;
 }
 
 .jp-topbar-user-btn {
@@ -6452,6 +6788,415 @@ html.jp-sidebar-collapsed .jp-sidebar-collapse-icon-collapsed {
     white-space: nowrap;
 }
 
+/* AMIS-style header: đỏ + viền đen, icon toolbar bên phải */
+.jp-topbar--amis {
+    background: var(--hm-primary);
+    border-bottom: 3px solid var(--jp-black-900);
+    color: #fff;
+    padding: 0 0.75rem 0 0.5rem;
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.08);
+}
+
+.jp-topbar--amis .jp-topbar-menu-btn {
+    color: #fff;
+}
+
+.jp-topbar--amis .jp-topbar-menu-btn:hover {
+    background: rgba(0, 0, 0, 0.18);
+    color: #fff;
+}
+
+.jp-topbar--amis .jp-topbar-brand img,
+.jp-topbar--amis .jp-topbar-brand-logo {
+    filter: brightness(0) invert(1);
+}
+
+.jp-topbar-page-title {
+    font-weight: 600;
+    font-size: 0.9375rem;
+    color: #fff;
+    max-width: min(42vw, 28rem);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding-left: 0.25rem;
+}
+
+.jp-topbar-actions {
+    gap: 0.15rem;
+}
+
+.jp-topbar-icon-btn {
+    width: 2.35rem;
+    height: 2.35rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    color: #fff;
+    border-radius: var(--jp-radius-sm);
+    padding: 0;
+    position: relative;
+    text-decoration: none;
+    font-size: 1.05rem;
+    line-height: 1;
+}
+
+.jp-topbar-icon-btn:hover,
+.jp-topbar-icon-btn:focus-visible {
+    background: rgba(0, 0, 0, 0.18);
+    color: #fff;
+}
+
+.jp-topbar-badge {
+    position: absolute;
+    top: 0.15rem;
+    right: 0.1rem;
+    min-width: 1rem;
+    height: 1rem;
+    padding: 0 0.25rem;
+    border-radius: 999px;
+    background: var(--jp-black-900);
+    color: #fff;
+    font-size: 0.625rem;
+    font-weight: 700;
+    line-height: 1rem;
+    text-align: center;
+    border: 1.5px solid var(--hm-primary);
+    pointer-events: none;
+}
+
+.jp-topbar-divider {
+    width: 1px;
+    height: 1.5rem;
+    background: rgba(255, 255, 255, 0.35);
+    margin: 0 0.25rem;
+    align-self: center;
+}
+
+.jp-topbar--amis .jp-topbar-user-btn {
+    border-color: rgba(255, 255, 255, 0.35);
+    background: rgba(0, 0, 0, 0.12);
+    color: #fff;
+    padding: 0.15rem 0.55rem 0.15rem 0.15rem;
+}
+
+.jp-topbar--amis .jp-topbar-user-btn:hover,
+.jp-topbar--amis .jp-topbar-user-btn:focus-visible,
+.jp-topbar--amis .jp-topbar-user-btn.show {
+    background: rgba(0, 0, 0, 0.22);
+    border-color: rgba(255, 255, 255, 0.5);
+    color: #fff;
+}
+
+.jp-topbar--amis .jp-topbar-user-name {
+    color: #fff;
+}
+
+.jp-topbar-user-avatar-img {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    object-fit: cover;
+    display: block;
+}
+
+.jp-topbar--amis .jp-topbar-user-avatar {
+    width: 2rem;
+    height: 2rem;
+    border: 2px solid rgba(255, 255, 255, 0.85);
+}
+
+.jp-topbar--amis .jp-theme-toggle {
+    border: none;
+    background: transparent;
+    color: #fff;
+}
+
+.jp-topbar--amis .jp-theme-toggle:hover,
+.jp-topbar--amis .jp-theme-toggle:focus-visible {
+    background: rgba(0, 0, 0, 0.18);
+    border: none;
+    color: #fff;
+    transform: none;
+}
+
+.jp-topbar--amis .jp-topbar-icon-btn.dropdown-toggle::after {
+    display: none;
+}
+
+.jp-topbar-profile-dropdown {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.jp-topbar-profile-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    border: none;
+    background: transparent;
+    color: #fff;
+    padding: 0.25rem 0.5rem 0.25rem 0.25rem;
+    border-radius: var(--jp-radius-sm);
+    max-width: min(52vw, 22rem);
+    text-align: left;
+}
+
+.jp-topbar-profile-btn:hover,
+.jp-topbar-profile-btn:focus-visible,
+.jp-topbar-profile-btn.show {
+    background: rgba(0, 0, 0, 0.18);
+    color: #fff;
+}
+
+.jp-topbar-profile-btn.dropdown-toggle::after {
+    display: none;
+}
+
+.jp-topbar-profile-avatar-wrap {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.jp-topbar-profile-avatar {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.8125rem;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.22);
+    border: 2px solid rgba(255, 255, 255, 0.85);
+}
+
+.jp-topbar-profile-avatar-img {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    object-fit: cover;
+    display: block;
+    border: 2px solid rgba(255, 255, 255, 0.85);
+}
+
+.jp-topbar-profile-status {
+    position: absolute;
+    right: -1px;
+    bottom: -1px;
+    width: 0.55rem;
+    height: 0.55rem;
+    border-radius: 50%;
+    background: #22c55e;
+    border: 1.5px solid var(--hm-primary);
+}
+
+.jp-topbar-profile-summary {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    line-height: 1.25;
+}
+
+.jp-topbar-profile-name {
+    font-weight: 700;
+    font-size: 0.8125rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.jp-topbar-profile-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.15rem 0.35rem;
+    font-size: 0.6875rem;
+    opacity: 0.92;
+}
+
+.jp-topbar-profile-dept {
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.jp-topbar-profile-chevron {
+    font-size: 0.75rem;
+    opacity: 0.85;
+    flex-shrink: 0;
+}
+
+.jp-topbar-profile-menu {
+    min-width: 15rem;
+    max-width: 18rem;
+    padding: 0;
+    margin-top: 0.35rem !important;
+}
+
+.jp-topbar-profile-menu-body {
+    padding: 0.85rem 1rem;
+}
+
+.jp-topbar-profile-menu-name {
+    font-weight: 700;
+    font-size: 0.9375rem;
+    line-height: 1.35;
+    margin-bottom: 0.35rem;
+}
+
+.jp-topbar-profile-menu-role {
+    font-size: 0.8125rem;
+    color: var(--hm-primary);
+    font-weight: 600;
+    margin-bottom: 0.35rem;
+}
+
+.jp-topbar-profile-menu-dept {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.8125rem;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    margin-bottom: 0.25rem;
+}
+
+.jp-topbar-profile-menu-code {
+    font-size: 0.75rem;
+    color: var(--jp-black-500);
+    margin-top: 0.35rem;
+}
+
+.jp-topbar-download-menu {
+    min-width: 14rem;
+}
+
+.jp-topbar-user-menu {
+    min-width: 12rem;
+}
+
+body.jp-has-amis-header .jp-sidebar-footer {
+    display: block;
+    flex-shrink: 0;
+    margin-top: auto;
+}
+
+body.jp-has-amis-header .jp-sidebar-drawer .jp-sidebar-footer {
+    position: static;
+    width: auto;
+    box-shadow: none;
+    background: transparent;
+}
+
+body.jp-has-amis-header .jp-sidebar-footer-extra {
+    display: none !important;
+}
+
+body.jp-has-amis-header .jp-sidebar-theme-toggle {
+    display: none;
+}
+
+body.jp-has-amis-header .jp-sidebar-profile {
+    display: none;
+}
+
+body.jp-has-amis-header .jp-sidebar-brand {
+    display: none !important;
+}
+
+.jp-topbar--amis .jp-topbar-start {
+    gap: 0.35rem;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.jp-topbar--amis .jp-topbar-end {
+    flex-shrink: 0;
+}
+
+.jp-topbar-actions-inline {
+    align-items: center;
+    gap: 0.15rem;
+}
+
+.jp-topbar-more-menu-list {
+    min-width: 13.5rem;
+    max-width: min(92vw, 18rem);
+}
+
+.jp-topbar-more-menu-list .dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.jp-topbar-more-menu-list .dropdown-item .jp-theme-toggle-label {
+    flex: 1 1 auto;
+}
+
+.jp-topbar-profile-wrap {
+    min-width: 0;
+}
+
+@media (min-width: 992px) {
+    .jp-topbar-profile-wrap {
+        margin-right: 0.15rem;
+        padding-right: 0.75rem;
+        border-right: 1px solid rgba(255, 255, 255, 0.28);
+    }
+
+    .jp-topbar-profile-wrap .jp-topbar-profile-btn {
+        max-width: min(32vw, 20rem);
+    }
+
+    .jp-topbar-profile-wrap .jp-topbar-profile-summary {
+        display: flex;
+    }
+
+    .jp-topbar-profile-wrap .jp-topbar-profile-chevron {
+        display: inline;
+    }
+}
+
+@media (max-width: 991.98px) {
+    .jp-topbar-brand-text {
+        max-width: 9.5rem;
+    }
+
+    .jp-topbar-actions {
+        gap: 0.15rem;
+    }
+
+    .jp-topbar-icon-btn {
+        width: 2.15rem;
+        height: 2.15rem;
+        font-size: 1rem;
+    }
+
+    .jp-topbar-profile-wrap .jp-topbar-profile-summary,
+    .jp-topbar-profile-wrap .jp-topbar-profile-chevron {
+        display: none;
+    }
+
+    .jp-topbar-profile-wrap .jp-topbar-profile-btn {
+        max-width: none;
+        padding: 0.15rem;
+    }
+
+    .jp-topbar--amis .jp-topbar-user-btn {
+        padding: 0.1rem;
+        min-width: 2.15rem;
+        min-height: 2.15rem;
+        justify-content: center;
+    }
+
+    .jp-topbar--amis .jp-topbar-user-btn.dropdown-toggle::after {
+        display: none;
+    }
+}
+
 .jp-main-content {
     flex: 1 1 auto;
     min-width: 0;
@@ -6487,6 +7232,10 @@ html.jp-sidebar-collapsed .jp-sidebar-collapse-icon-collapsed {
 .jp-sidebar-drawer .jp-sidebar-profile,
 .jp-sidebar-drawer .jp-sidebar-footer {
     display: block !important;
+}
+
+body.jp-has-amis-header .jp-sidebar-drawer .jp-sidebar-profile {
+    display: none !important;
 }
 
 .jp-sidebar-drawer .jp-sidebar-footer {
@@ -9233,6 +9982,10 @@ body.jp-monitor-modal-open {
 }
 
 /* --- Topbar & shell --- */
+[data-theme="dark"] .jp-topbar--amis {
+    border-bottom-color: #000;
+}
+
 [data-theme="dark"] .jp-topbar-menu-btn {
     color: var(--jp-text-primary);
 }

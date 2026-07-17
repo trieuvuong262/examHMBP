@@ -1,0 +1,241 @@
+{% load static %}
+<header class="jp-topbar jp-topbar--amis" role="banner">
+    <div class="jp-topbar-start">
+        <button class="btn jp-topbar-menu-btn d-lg-none" type="button"
+            data-bs-toggle="offcanvas" data-bs-target="#mobileSidebar" aria-label="Mở menu">
+            <i class="bi bi-list" aria-hidden="true"></i>
+        </button>
+
+        <a href="{% url 'home_portal' %}" class="jp-topbar-brand">
+            <img src="{% static 'images/logo/logo.png' %}" alt="JustPlay" class="jp-topbar-brand-logo">
+            <span class="jp-topbar-brand-text">Just Play Portal</span>
+        </a>
+    </div>
+
+    <nav class="jp-topbar-end jp-topbar-actions" aria-label="Thao tác nhanh">
+        <div class="jp-topbar-profile-wrap">
+            {% include 'includes/portal_header_profile.html' %}
+        </div>
+
+        <div class="jp-topbar-actions-inline d-none d-lg-flex">
+            <a href="{% url 'home_portal' %}#jp-home-todo-title"
+               class="jp-topbar-icon-btn"
+               title="Việc cần làm"
+               aria-label="Việc cần làm{% if jp_portal_todo_count %} ({{ jp_portal_todo_count }}){% endif %}">
+                <i class="bi bi-check2-square" aria-hidden="true"></i>
+                {% if jp_portal_todo_count %}
+                <span class="jp-topbar-badge" aria-hidden="true">
+                    {% if jp_portal_todo_count > 99 %}99+{% else %}{{ jp_portal_todo_count }}{% endif %}
+                </span>
+                {% endif %}
+            </a>
+
+            {% if jp_can_announcements %}
+            <a href="{% url 'announcements:list' %}"
+               class="jp-topbar-icon-btn"
+               title="Thông báo"
+               aria-label="Thông báo{% if unread_announcements_count %} ({{ unread_announcements_count }} chưa đọc){% endif %}">
+                <i class="bi bi-bell-fill" aria-hidden="true"></i>
+                {% if unread_announcements_count %}
+                <span class="jp-topbar-badge" aria-hidden="true">
+                    {% if unread_announcements_count > 99 %}99+{% else %}{{ unread_announcements_count }}{% endif %}
+                </span>
+                {% endif %}
+            </a>
+            {% endif %}
+
+            {% if jp_can_guide %}
+            <a href="{% url 'user_guide' %}"
+               class="jp-topbar-icon-btn"
+               title="Hướng dẫn sử dụng"
+               aria-label="Hướng dẫn sử dụng">
+                <i class="bi bi-question-circle-fill" aria-hidden="true"></i>
+            </a>
+            {% endif %}
+
+            {% if jp_can_feedback %}
+            <a href="{% url 'feedback:create' %}"
+               class="jp-topbar-icon-btn"
+               title="Góp ý"
+               aria-label="Góp ý">
+                <i class="bi bi-chat-square-text-fill" aria-hidden="true"></i>
+            </a>
+            {% endif %}
+
+            {% if jp_can_documents %}
+            <div class="dropdown jp-topbar-download-dropdown">
+                <button type="button"
+                        class="jp-topbar-icon-btn dropdown-toggle"
+                        data-bs-toggle="dropdown"
+                        aria-expanded="false"
+                        title="Tải bộ cài (Thư viện)"
+                        aria-label="Tải bộ cài trong thư viện">
+                    <i class="bi bi-download" aria-hidden="true"></i>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow border-0 jp-topbar-download-menu">
+                    {% if raidrive_share_url %}
+                    <li>
+                        <a class="dropdown-item" href="{{ raidrive_share_url }}">
+                            <i class="bi bi-hdd-network me-2"></i>Tải RaiDrive
+                            {% if raidrive_file_name %}
+                            <span class="d-block small text-muted ms-4">{{ raidrive_file_name }}</span>
+                            {% endif %}
+                        </a>
+                    </li>
+                    {% endif %}
+                    {% if jp_can_nas_installer %}
+                    <li>
+                        <a class="dropdown-item" href="{% url 'documents:nas_download_setup' %}">
+                            <i class="bi bi-file-earmark-zip me-2"></i>Tải bộ cài NAS (.zip)
+                        </a>
+                    </li>
+                    {% endif %}
+                    <li>
+                        <a class="dropdown-item" href="{% url 'documents:nas_download' %}">
+                            <i class="bi bi-info-circle me-2"></i>Trang tải bộ cài
+                        </a>
+                    </li>
+                </ul>
+            </div>
+            {% endif %}
+
+            <button type="button"
+                    class="jp-topbar-icon-btn jp-theme-toggle"
+                    data-jp-theme-toggle
+                    aria-pressed="false"
+                    aria-label="Bật giao diện tối"
+                    title="Giao diện tối">
+                <i class="bi bi-moon-stars-fill jp-theme-icon-dark" aria-hidden="true"></i>
+                <i class="bi bi-sun-fill jp-theme-icon-light d-none" aria-hidden="true"></i>
+            </button>
+
+            <span class="jp-topbar-divider" aria-hidden="true"></span>
+
+            <a href="{% url 'password_change' %}"
+               class="jp-topbar-icon-btn"
+               title="Đổi mật khẩu"
+               aria-label="Đổi mật khẩu">
+                <i class="bi bi-shield-lock-fill" aria-hidden="true"></i>
+            </a>
+
+            {% if jp_can_update_own_avatar %}
+            <button type="button" class="jp-topbar-icon-btn" data-jp-avatar-trigger
+                    title="Cập nhật avatar" aria-label="Cập nhật avatar">
+                <i class="bi bi-camera-fill" aria-hidden="true"></i>
+            </button>
+            {% endif %}
+        </div>
+
+        <div class="dropdown jp-topbar-more-menu d-lg-none">
+            <button type="button"
+                    class="jp-topbar-icon-btn dropdown-toggle"
+                    data-bs-toggle="dropdown"
+                    aria-expanded="false"
+                    title="Thêm thao tác"
+                    aria-label="Thêm thao tác">
+                <i class="bi bi-three-dots-vertical" aria-hidden="true"></i>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end shadow border-0 jp-topbar-more-menu-list">
+                <li>
+                    <a class="dropdown-item d-flex align-items-center justify-content-between gap-2"
+                       href="{% url 'home_portal' %}#jp-home-todo-title">
+                        <span><i class="bi bi-check2-square me-2" aria-hidden="true"></i>Việc cần làm</span>
+                        {% if jp_portal_todo_count %}
+                        <span class="badge rounded-pill text-bg-danger">
+                            {% if jp_portal_todo_count > 99 %}99+{% else %}{{ jp_portal_todo_count }}{% endif %}
+                        </span>
+                        {% endif %}
+                    </a>
+                </li>
+
+                {% if jp_can_announcements %}
+                <li>
+                    <a class="dropdown-item d-flex align-items-center justify-content-between gap-2"
+                       href="{% url 'announcements:list' %}">
+                        <span><i class="bi bi-bell-fill me-2" aria-hidden="true"></i>Thông báo</span>
+                        {% if unread_announcements_count %}
+                        <span class="badge rounded-pill text-bg-danger">
+                            {% if unread_announcements_count > 99 %}99+{% else %}{{ unread_announcements_count }}{% endif %}
+                        </span>
+                        {% endif %}
+                    </a>
+                </li>
+                {% endif %}
+
+                {% if jp_can_guide %}
+                <li>
+                    <a class="dropdown-item" href="{% url 'user_guide' %}">
+                        <i class="bi bi-question-circle-fill me-2" aria-hidden="true"></i>Hướng dẫn sử dụng
+                    </a>
+                </li>
+                {% endif %}
+
+                {% if jp_can_feedback %}
+                <li>
+                    <a class="dropdown-item" href="{% url 'feedback:create' %}">
+                        <i class="bi bi-chat-square-text-fill me-2" aria-hidden="true"></i>Góp ý
+                    </a>
+                </li>
+                {% endif %}
+
+                {% if jp_can_documents %}
+                <li><hr class="dropdown-divider"></li>
+                <li><h6 class="dropdown-header">Tải bộ cài</h6></li>
+                {% if raidrive_share_url %}
+                <li>
+                    <a class="dropdown-item" href="{{ raidrive_share_url }}">
+                        <i class="bi bi-hdd-network me-2" aria-hidden="true"></i>Tải RaiDrive
+                    </a>
+                </li>
+                {% endif %}
+                {% if jp_can_nas_installer %}
+                <li>
+                    <a class="dropdown-item" href="{% url 'documents:nas_download_setup' %}">
+                        <i class="bi bi-file-earmark-zip me-2" aria-hidden="true"></i>Tải bộ cài NAS (.zip)
+                    </a>
+                </li>
+                {% endif %}
+                <li>
+                    <a class="dropdown-item" href="{% url 'documents:nas_download' %}">
+                        <i class="bi bi-info-circle me-2" aria-hidden="true"></i>Trang tải bộ cài
+                    </a>
+                </li>
+                {% endif %}
+
+                <li><hr class="dropdown-divider"></li>
+
+                <li>
+                    <button type="button" class="dropdown-item" data-jp-theme-toggle
+                            aria-pressed="false" aria-label="Bật giao diện tối">
+                        <i class="bi bi-moon-stars-fill jp-theme-icon-dark me-2" aria-hidden="true"></i>
+                        <i class="bi bi-sun-fill jp-theme-icon-light d-none me-2" aria-hidden="true"></i>
+                        <span class="jp-theme-toggle-label">Giao diện tối</span>
+                    </button>
+                </li>
+
+                <li>
+                    <a class="dropdown-item" href="{% url 'password_change' %}">
+                        <i class="bi bi-shield-lock-fill me-2" aria-hidden="true"></i>Đổi mật khẩu
+                    </a>
+                </li>
+
+                {% if jp_can_update_own_avatar %}
+                <li>
+                    <button type="button" class="dropdown-item" data-jp-avatar-trigger>
+                        <i class="bi bi-camera-fill me-2" aria-hidden="true"></i>Cập nhật avatar
+                    </button>
+                </li>
+                {% endif %}
+            </ul>
+        </div>
+
+        {% if jp_can_update_own_avatar %}
+        <form action="{% url 'update_avatar' %}" method="post" enctype="multipart/form-data"
+              class="m-0 jp-topbar-avatar-form d-none">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+            <input type="file" name="avatar" class="d-none" accept="image/*" data-jp-avatar-input>
+        </form>
+        {% endif %}
+    </nav>
+</header>

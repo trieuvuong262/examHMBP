@@ -29,6 +29,7 @@ urlpatterns = [
     path('hoi-dap/ask/', views.qa_ask, name='qa_ask'),
     path('cau-hinh-rustdesk/tai/', views_rustdesk_setup.rustdesk_download_setup, name='rustdesk_download'),
     path('cau-hinh-rustdesk/', views_rustdesk_setup.rustdesk_install_page, name='rustdesk_config'),
+    path('tai-nas/raidrive/', views_nas_download.nas_raidrive_download, name='raidrive_download'),
     path('tai-nas/tai/', views_nas_download.nas_download_setup, name='nas_download_setup'),
     path('tai-nas/', views_nas_download.nas_download_page, name='nas_download'),
     path('quet-thiet-bi/tai/', views_inventory_scan.equipment_scan_download, name='equipment_scan_download'),
