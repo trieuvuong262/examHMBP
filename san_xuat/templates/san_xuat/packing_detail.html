@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
+  <div class="jp-page-header mb-3 mb-md-4">
+    <div>
+      <h2 class="fw-bold text-hm mb-1 jp-page-title">{{ item.code }}</h2>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{% url 'san_xuat:traceability' %}?query={{ item.lot_code|default:item.code }}" class="btn btn-outline-hm btn-sm">Truy xuất</a>
+      <a href="{% url 'san_xuat:packing_list' %}" class="btn btn-outline-secondary btn-sm">Quay lại</a>
+    </div>
+  </div>
+  <div class="row g-3">
+    <div class="col-lg-7">
+      <div class="border rounded-3 p-3 mb-3">
+        <div class="row g-3">
+          <div class="col-6"><div class="small text-muted">Số lượng</div><div class="fs-5 fw-semibold">{{ item.qty }}</div></div>
+          <div class="col-6"><div class="small text-muted">Thùng/kiện</div><div>{{ item.carton_count }}</div></div>
+          <div class="col-6"><div class="small text-muted">Mã lô</div><div>{{ item.lot_code|default:"—" }}</div></div>
+          <div class="col-6"><div class="small text-muted">Ngày</div><div>{{ item.pack_date|date:"d/m/Y" }}</div></div>
+          <div class="col-12">
+            <div class="small text-muted">Yêu cầu nhập thành phẩm</div>
+            <div>
+              {% if item.fg_receipt %}
+              <a href="{% url 'san_xuat:dispatch_fg_receipt_req_detail' item.fg_receipt_id %}">{{ item.fg_receipt.code }}</a>
+              {% else %}—{% endif %}
+            </div>
+          </div>
+          <div class="col-12"><div class="small text-muted">Ghi chú</div><div>{{ item.notes|default:"—" }}</div></div>
+        </div>
+      </div>
+      {% if item.lines.all %}
+      <div class="border rounded-3 p-3">
+        <div class="fw-semibold mb-2">Dòng size / SKU</div>
+        <table class="table table-hover table-sm mb-0">
+          <thead><tr><th>SKU</th><th>Size</th><th>Màu</th><th class="text-end">Số lượng</th><th class="text-end">Thùng</th></tr></thead>
+          <tbody>
+          {% for ln in item.lines.all %}
+            <tr>
+              <td>{{ ln.sku_code|default:"—" }}</td>
+              <td>{{ ln.size_label|default:"—" }}</td>
+              <td>{{ ln.color_label|default:"—" }}</td>
+              <td class="text-end">{{ ln.qty }}</td>
+              <td class="text-end">{{ ln.carton_count }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+    </div>
+    <div class="col-lg-5">
+      <div class="border rounded-3 p-3">
+        {% if can_update and item.status == 'draft' %}
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="confirm">
+          <button type="submit" class="btn btn-success w-100">Xác nhận đóng gói</button>
+          <div class="form-text mt-2">Nếu trống mã lô, hệ thống tự sinh LO-{{ item.code }}.</div>
+        </form>
+        {% else %}
+        <div class="small text-muted">Đã xử lý hoặc không có quyền.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

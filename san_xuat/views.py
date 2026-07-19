@@ -58,6 +58,47 @@ def doc_list(request):
     })
 
 
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+def bom_list(request):
+    """Danh sách phiên bản BOM / định mức — khác danh sách hồ sơ SX."""
+    from django.db.models import Count
+
+    from san_xuat.list_filters import (
+        SX_FILTER_BOM,
+        apply_sx_list_filters,
+        parse_sx_list_filters,
+        sx_filter_context,
+    )
+
+    filters = parse_sx_list_filters(request)
+    status = (request.GET.get('status') or '').strip().lower()
+    qs = (
+        BomVersion.objects.select_related('tech_doc')
+        .annotate(
+            line_count=Count('lines', distinct=True),
+            step_count=Count('process_steps', distinct=True),
+        )
+        .order_by('-updated_at', '-pk')
+    )
+    if status in {
+        BomVersion.STATUS_DRAFT,
+        BomVersion.STATUS_ACTIVE,
+        BomVersion.STATUS_ARCHIVED,
+    }:
+        qs = qs.filter(status=status)
+    qs = apply_sx_list_filters(qs, filters, SX_FILTER_BOM)
+    page_obj, query_string = paginate_queryset(request, qs)
+    return render(request, 'san_xuat/bom_list.html', {
+        'page_obj': page_obj,
+        'query_string': query_string,
+        'filter_status': status,
+        'status_choices': BomVersion.STATUS_CHOICES,
+        'total_count': BomVersion.objects.count(),
+        **sx_filter_context(filters),
+        **_perm_ctx(request),
+    })
+
+
 @module_perm_required(MODULE_SAN_XUAT, 'create')
 def doc_create(request):
     if request.method == 'POST':

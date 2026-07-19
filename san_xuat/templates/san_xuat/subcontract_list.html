@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 py-md-4 mb-5">
+  <div class="jp-page-header mb-3 mb-md-4">
+    <div>
+      <h2 class="fw-bold text-hm mb-1 jp-page-title">Thuê gia công</h2>
+    </div>
+    {% if can_create %}
+    <a href="{% url 'san_xuat:subcontract_create' %}" class="btn btn-hm btn-sm">Tạo lệnh GC</a>
+    {% endif %}
+  </div>
+
+  {% include 'san_xuat/includes/sx_list_filter.html' %}
+
+  <div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+      <table class="table table-sm table-hover mb-0 align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Mã</th>
+            <th>NCC Gia công</th>
+            <th>SP</th>
+            <th class="text-end">Số lượng</th>
+            <th>Ngày</th>
+            <th>Trạng thái</th>
+            {% include 'san_xuat/includes/sx_list_meta_head.html' %}
+<th class="text-end"></th>
+</tr>
+        </thead>
+        <tbody>
+        {% for item in items %}
+          <tr class="jp-npl-catalog-row" data-href="{% url 'san_xuat:subcontract_detail' item.pk %}">
+            <td><strong>{{ item.code }}</strong></td>
+            <td class="small">{{ item.vendor_name }}</td>
+            <td class="small">{{ item.product_code }}</td>
+<td class="text-end">{{ item.qty }}</td>
+            <td class="small">{{ item.order_date|date:"d/m/Y" }}</td>
+            <td class="small">{{ item.get_status_display }}</td>
+                        {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=item %}
+<td class="text-end"><a href="{% url 'san_xuat:subcontract_detail' item.pk %}" class="btn btn-sm btn-outline-hm">Mở</a></td>
+</tr>
+        {% empty %}
+          <tr><td colspan="13" class="text-muted small p-3">Chưa có lệnh gia công.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

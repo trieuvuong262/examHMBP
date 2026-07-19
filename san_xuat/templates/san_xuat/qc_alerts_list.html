@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 py-md-4 mb-5">
+  <div class="jp-page-header mb-3 mb-md-4">
+    <div>
+      <h2 class="fw-bold text-hm mb-1 jp-page-title">Cảnh báo chất lượng</h2>
+    </div>
+    <a href="{% url 'san_xuat:qc_stub' %}" class="btn btn-outline-secondary btn-sm">Quay lại kiểm tra chất lượng</a>
+  </div>
+
+  <div class="d-flex flex-wrap gap-2 mb-3">
+    <a href="{% url 'san_xuat:qc_alerts' %}" class="btn btn-sm {% if not status_filter %}btn-hm{% else %}btn-outline-secondary{% endif %}">Tất cả</a>
+    <a href="{% url 'san_xuat:qc_alerts' %}?status=open" class="btn btn-sm {% if status_filter == 'open' %}btn-danger{% else %}btn-outline-danger{% endif %}">Đang mở</a>
+    <a href="{% url 'san_xuat:qc_alerts' %}?status=acknowledged" class="btn btn-sm {% if status_filter == 'acknowledged' %}btn-warning{% else %}btn-outline-warning{% endif %}">Đã xử lý</a>
+  </div>
+
+  {% include 'san_xuat/includes/sx_list_filter.html' %}
+  <div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+      <table class="table table-sm table-hover mb-0 align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Mã</th>
+            <th>Loại</th>
+            <th>Lệnh sản xuất</th>
+            <th>Công đoạn</th>
+            <th class="text-end">Tỷ lệ lỗi</th>
+            <th class="text-end">Ngưỡng</th>
+            <th>Trạng thái</th>
+            {% include 'san_xuat/includes/sx_list_meta_head.html' %}
+<th class="text-end"></th>
+</tr>
+        </thead>
+        <tbody>
+        {% for alert in alerts %}
+          <tr class="{% if alert.status == 'open' %}table-danger{% endif %} jp-npl-catalog-row" data-href="{% url 'san_xuat:qc_alert_detail' alert.pk %}">
+            <td><strong>{{ alert.code }}</strong></td>
+            <td class="small">{{ alert.get_alert_type_display }}</td>
+            <td class="small">
+              <a href="{% url 'san_xuat:dispatch_mo_detail' alert.production_order.pk %}">{{ alert.production_order.code }}</a>
+            </td>
+            <td class="small">{{ alert.process_name|default:"—" }}</td>
+<td class="text-end">{{ alert.defect_rate }}%</td>
+            <td class="text-end">{{ alert.tolerance_limit }}%</td>
+            <td>
+              {% if alert.status == 'open' %}
+              <span class="badge text-bg-danger">Mở</span>
+              {% elif alert.status == 'acknowledged' %}
+              <span class="badge text-bg-warning">Đã xử lý</span>
+              {% else %}
+              <span class="badge text-bg-secondary">{{ alert.get_status_display }}</span>
+              {% endif %}
+            </td>
+                        {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=alert %}
+<td class="text-end">
+              <a href="{% url 'san_xuat:qc_alert_detail' alert.pk %}" class="btn btn-sm btn-outline-hm">Mở</a>
+            </td>
+</tr>
+        {% empty %}
+          <tr><td colspan="14" class="text-muted small p-3">Chưa có cảnh báo kiểm tra chất lượng.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

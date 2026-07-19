@@ -1,0 +1,43 @@
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var form = document.getElementById('sxPeriodFilterForm');
+  if (!form) return;
+
+  var submitTimer = null;
+  function submitForm(delay) {
+    if (submitTimer) window.clearTimeout(submitTimer);
+    submitTimer = window.setTimeout(function () {
+      if (typeof form.requestSubmit === 'function') form.requestSubmit();
+      else form.submit();
+    }, typeof delay === 'number' ? delay : 0);
+  }
+
+  // Ngày (flatpickr) — giống Quản lý báo cáo SX: hiển thị dd/mm/yyyy, tự lọc khi chọn
+  if (window.flatpickr) {
+    flatpickr('#sxPeriodFilterForm .jp-date-vn', {
+      dateFormat: 'Y-m-d',
+      altInput: true,
+      altFormat: 'd/m/Y',
+      allowInput: true,
+      onChange: function () { submitForm(0); },
+    });
+  } else {
+    form.querySelectorAll('.jp-date-vn').forEach(function (el) {
+      el.addEventListener('change', function () { submitForm(0); });
+    });
+  }
+
+  // Đổi tháng → bỏ from/to để kỳ theo tháng có hiệu lực, rồi tự lọc
+  var monthEl = form.querySelector('#sx-month');
+  if (monthEl) {
+    monthEl.addEventListener('change', function () {
+      form.querySelectorAll('.jp-date-vn').forEach(function (el) {
+        el.value = '';
+        if (el._flatpickr) el._flatpickr.clear();
+      });
+      submitForm(0);
+    });
+  }
+});
+</script>

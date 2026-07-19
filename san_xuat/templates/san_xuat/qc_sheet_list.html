@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 py-md-4 mb-5">
+    <div class="jp-page-header mb-3 mb-md-4">
+        <div>
+            <h2 class="fw-bold text-hm mb-1 jp-page-title">Phiếu kiểm tra</h2>
+        </div>
+        <div class="d-flex gap-2">
+            {% if can_create %}
+            <a href="{% url 'san_xuat:qc_sheet_create' %}" class="btn btn-hm btn-sm">Tạo phiếu kiểm tra</a>
+            {% endif %}
+            <a href="{% url 'san_xuat:qc_stub' %}" class="btn btn-outline-secondary btn-sm">QC</a>
+        </div>
+    </div>
+
+  {% include 'san_xuat/includes/sx_list_filter.html' %}
+    <div class="card border-0 shadow-sm overflow-hidden">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Mã</th>
+                        <th>Yêu cầu kiểm tra</th>
+                        <th>Ngày kiểm</th>
+                        <th>Bộ tiêu chuẩn</th>
+                        <th class="text-end">Mẫu</th>
+                        <th class="text-end">Đạt</th>
+                        <th class="text-end">Lỗi</th>
+                        <th>Kết luận</th>
+            {% include 'san_xuat/includes/sx_list_meta_head.html' %}
+<th class="text-end"></th>
+</tr>
+                </thead>
+                <tbody>
+                {% for inspection in inspections %}
+                    <tr class="jp-npl-catalog-row" data-href="{% url 'san_xuat:qc_sheet_detail' inspection.pk %}">
+                        <td><strong>{{ inspection.code }}</strong></td>
+                        <td>{% if inspection.qc_request %}<a href="{% url 'san_xuat:qc_request_detail' inspection.qc_request.pk %}">{{ inspection.qc_request.code }}</a>{% else %}—{% endif %}</td>
+                        <td class="small text-muted">{{ inspection.inspected_at|date:"d/m/Y" }}</td>
+                        <td class="small">{{ inspection.standard_set|default:"—" }}</td>
+<td class="text-end">{{ inspection.qty_sample }}</td>
+                        <td class="text-end">{{ inspection.qty_pass }}</td>
+                        <td class="text-end">{{ inspection.qty_fail }}</td>
+                        <td><span class="badge bg-secondary-subtle text-secondary border">{{ inspection.get_result_display }}</span></td>
+                                    {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=inspection %}
+<td class="text-end"><a href="{% url 'san_xuat:qc_sheet_detail' inspection.pk %}" class="btn btn-sm btn-outline-hm">Mở</a></td>
+</tr>
+                {% empty %}
+                    <tr><td colspan="15" class="text-center text-muted py-4">Chưa có Phiếu kiểm tra thật.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

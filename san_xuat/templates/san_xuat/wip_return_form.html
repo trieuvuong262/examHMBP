@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block extra_head %}
+{% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}
+{% endblock %}
+{% block content %}
+<div class="container jp-page jp-npl-material-catalog-page jp-sx-page py-3 py-md-4 mb-5">
+  <div class="jp-npl-mat-topbar">
+    <div class="jp-npl-mat-topbar-title-wrap">
+      <h2 class="jp-npl-mat-topbar-title mb-0">Tạo phiếu trả bán thành phẩm</h2>
+    </div>
+    <div class="jp-npl-mat-topbar-actions ms-auto">
+      <a href="{% url 'san_xuat:dispatch_wip_return' %}" class="btn btn-outline-secondary btn-sm fw-bold">Quay lại</a>
+    </div>
+  </div>
+  <div class="card border-0 shadow-sm">
+    <div class="card-body">
+      <form method="post">
+        {% csrf_token %}
+        {% for field in form %}
+        <div class="mb-3">
+          <label class="form-label small text-muted" for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {{ field }}
+          {% if field.errors %}<div class="text-danger small">{{ field.errors }}</div>{% endif %}
+        </div>
+        {% endfor %}
+        <button type="submit" class="btn btn-hm">Tạo phiếu trả</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

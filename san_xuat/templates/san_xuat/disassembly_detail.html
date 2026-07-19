@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
+  <div class="jp-page-header mb-3 mb-md-4">
+    <div>
+      <h2 class="fw-bold text-hm mb-1 jp-page-title">{{ order.code }}</h2>
+    </div>
+    <a href="{% url 'san_xuat:dispatch_disassembly' %}" class="btn btn-outline-secondary btn-sm">Quay lại</a>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-lg-8">
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body">
+          <h3 class="h6 text-muted mb-3">Nguyên vật liệu / Bán thành phẩm thu hồi</h3>
+          <div class="table-responsive">
+            <table class="table table-hover table-sm mb-0 align-middle">
+              <thead class="table-light">
+                <tr>
+                  <th>Mã nguyên phụ liệu</th>
+                  <th>Tên</th>
+                  <th class="text-end">Số lượng</th>
+                </tr>
+              </thead>
+              <tbody>
+              {% for line in order.lines.all %}
+                <tr>
+                  <td><strong>{{ line.material_code }}</strong></td>
+                  <td class="small">{{ line.material_name|default:"—" }}</td>
+                  <td class="text-end">{{ line.qty }}</td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="3" class="text-muted small p-3">Chưa có dòng thu hồi.</td></tr>
+              {% endfor %}
+              </tbody>
+            </table>
+          </div>
+
+          {% if can_update and order.status == 'draft' %}
+          <form method="post" class="row g-2 align-items-end mt-3">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_line">
+            <div class="col-md-5">
+              <label class="form-label small text-muted">Mã nguyên phụ liệu</label>
+              <input type="text" name="material_code" class="form-control form-control-sm" required>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label small text-muted">Số lượng</label>
+              <input type="number" name="material_qty" class="form-control form-control-sm" step="0.0001" min="0.0001" required>
+            </div>
+            <div class="col-md-3">
+              <button type="submit" class="btn btn-outline-hm btn-sm w-100">Thêm dòng</button>
+            </div>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+      {% if order.notes %}
+      <div class="small text-muted">Ghi chú: {{ order.notes }}</div>
+      {% endif %}
+    </div>
+
+    <div class="col-12 col-lg-4">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <div class="small text-muted mb-3">Workflow</div>
+          {% if can_update and order.status == 'draft' %}
+          <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="confirm">
+            <button type="submit" class="btn btn-success w-100">Xác nhận lệnh tháo dỡ</button>
+          </form>
+          <p class="small text-muted mt-2 mb-0">Xác nhận sẽ sinh phiếu Nguyên phụ liệu thừa nháp từ các dòng thu hồi.</p>
+          {% else %}
+          <div class="text-muted small">
+            {% if order.status == 'confirmed' %}
+            Đã xác nhận.
+            <a href="{% url 'san_xuat:dispatch_npl_surplus' %}">Xem Nguyên phụ liệu thừa</a>
+            {% else %}
+            Lệnh tháo dỡ đã xử lý hoặc bạn không có quyền cập nhật.
+            {% endif %}
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

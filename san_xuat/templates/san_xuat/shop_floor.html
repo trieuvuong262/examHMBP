@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+{% block extra_head %}
+{% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}
+{% endblock %}
+{% block content %}
+<div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 mb-5">
+  <div class="jp-npl-mat-topbar">
+    <div>
+      <h2 class="jp-npl-mat-topbar-title mb-0">Xác nhận tại xưởng</h2>
+    </div>
+  </div>
+  {% if can_update %}
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-body">
+      <form method="post" class="row g-2 align-items-end">
+        {% csrf_token %}
+        <div class="col-md-4">
+          <label class="form-label small">Mã quét (lệnh / thống kê sản xuất)</label>
+          <input name="scan" class="form-control form-control-lg" autofocus placeholder="Ví dụ: Lệnh sản xuất-… hoặc Thống kê sản xuất-…" required>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small">Công đoạn (nếu quét lệnh sản xuất)</label>
+          <input name="process_name" class="form-control" placeholder="Để trống = công đoạn đầu BOM">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small">Số lượng đạt</label>
+          <input name="qty_good" type="number" step="0.01" min="0.01" value="1" class="form-control">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small">Tổ</label>
+          <input name="team_label" class="form-control">
+        </div>
+        <div class="col-md-1">
+          <button class="btn btn-hm w-100">OK</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+  <div class="card border-0 shadow-sm">
+    <div class="card-header bg-white"><strong>Lệnh sản xuất đang chạy</strong></div>
+    <div class="table-responsive">
+      <table class="table table-hover table-sm mb-0">
+        <thead><tr><th>Mã</th><th>Sản phẩm</th><th>Số lượng</th><th>Tổ</th><th></th></tr></thead>
+        <tbody>
+          {% for mo in mos %}
+          <tr>
+            <td>{{ mo.code }}{% if mo.is_sample %} <span class="badge text-bg-info">Mẫu</span>{% endif %}</td>
+            <td>{{ mo.product_code }}</td>
+            <td>{{ mo.qty_done }}/{{ mo.qty }}</td>
+            <td>{{ mo.team_label|default:"—" }}</td>
+            <td><a class="btn btn-outline-secondary btn-sm" href="{% url 'san_xuat:dispatch_mo_detail' mo.pk %}">Chi tiết</a></td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="5" class="text-muted text-center py-3">Không có lệnh sản xuất đang chạy.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

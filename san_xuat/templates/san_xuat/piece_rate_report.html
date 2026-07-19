@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% block extra_head %}
+{% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}
+{% endblock %}
+{% block content %}
+<div class="container jp-page jp-npl-material-catalog-page jp-sx-page py-3 py-md-4 mb-5">
+  <div class="jp-npl-mat-topbar">
+    <div class="jp-npl-mat-topbar-title-wrap">
+      <h2 class="jp-npl-mat-topbar-title mb-0">Lương sản phẩm</h2>
+    </div>
+    <form method="get" class="jp-npl-mat-topbar-search">
+      <div class="jp-npl-mat-search-row">
+        <input type="month" name="month" value="{{ month_value }}" class="form-control form-control-sm" aria-label="Tháng"
+               style="flex:0 1 8rem;width:auto;height:var(--jp-npl-mat-ctl-h);">
+        <input type="date" name="date_from" value="{{ date_from|date:'Y-m-d' }}" class="form-control form-control-sm" aria-label="Từ"
+               style="flex:0 1 8rem;width:auto;height:var(--jp-npl-mat-ctl-h);">
+        <input type="date" name="date_to" value="{{ date_to|date:'Y-m-d' }}" class="form-control form-control-sm" aria-label="Đến"
+               style="flex:0 1 8rem;width:auto;height:var(--jp-npl-mat-ctl-h);">
+        <div class="input-group input-group-sm jp-npl-mat-filter-field jp-npl-mat-search-input" style="flex:0 1 6rem;min-width:5rem;">
+          <input type="text" name="mo" value="{{ mo_id }}" class="form-control" placeholder="ID lệnh sản xuất" aria-label="ID lệnh sản xuất">
+        </div>
+        <button type="submit" class="btn btn-hm btn-sm fw-bold">Lọc</button>
+      </div>
+    </form>
+    <div class="jp-npl-mat-topbar-actions">
+      <a href="{% url 'san_xuat:team_hr_map' %}" class="btn btn-outline-secondary btn-sm fw-bold">Map tổ → NV</a>
+      <a href="{% url 'san_xuat:piece_rate_hr_export' %}?month={{ month_value }}&date_from={{ date_from|date:'Y-m-d' }}&date_to={{ date_to|date:'Y-m-d' }}"
+         class="btn btn-outline-secondary btn-sm fw-bold">Xuất CSV cho nhân sự</a>
+      <a href="{% url 'san_xuat:ops_report' %}" class="btn btn-outline-secondary btn-sm fw-bold">Báo cáo vận hành</a>
+    </div>
+  </div>
+  {% if unmapped_count %}
+  <div class="alert alert-warning py-2 small">{{ unmapped_count }} dòng chưa map mã NV — vào Map tổ → NV trước khi xuất HR.</div>
+  {% endif %}
+  <div class="row g-3 mb-3">
+    <div class="col-6 col-md-3">
+      <div class="border rounded-3 p-3">
+        <div class="text-muted small">Số dòng</div>
+        <div class="fs-5 fw-semibold">{{ rows|length }}</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="border rounded-3 p-3">
+        <div class="text-muted small">Tổng lương sản phẩm</div>
+        <div class="fs-5 fw-semibold text-hm">{{ total_amount|floatformat:0|intcomma }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+      <table class="table table-hover table-sm mb-0 align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Mã NV</th>
+            <th>Tổ</th>
+            <th>Công đoạn</th>
+            <th>Lệnh sản xuất</th>
+            <th>Thống kê sản xuất</th>
+            <th class="text-end">Số lượng đạt</th>
+            <th class="text-end">Đơn giá</th>
+            <th class="text-end">Thành tiền</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for r in rows %}
+          <tr class="{% if not r.hr_mapped %}table-warning{% endif %}">
+            <td>{{ r.employee_code|default:"—" }}</td>
+            <td>{{ r.team_label|default:"—" }}</td>
+            <td>{{ r.process_name }}</td>
+            <td class="small">{{ r.production_order_code }}</td>
+            <td class="small">{{ r.stat_code }}</td>
+            <td class="text-end">{{ r.qty_good }}</td>
+            <td class="text-end">{{ r.piece_rate|floatformat:0|intcomma }}</td>
+            <td class="text-end fw-semibold">{{ r.amount|floatformat:0|intcomma }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="8" class="text-muted text-center py-3">Không có dữ liệu trong kỳ.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

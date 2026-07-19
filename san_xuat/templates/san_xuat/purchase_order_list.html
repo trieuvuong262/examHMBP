@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 py-md-4 mb-5">
+  <div class="jp-page-header mb-3 mb-md-4">
+    <div>
+      <h2 class="fw-bold text-hm mb-1 jp-page-title">Đơn mua hàng</h2>
+    </div>
+    <div class="d-flex gap-2">
+      {% if can_create %}
+      <a href="{% url 'san_xuat:purchase_order_create' %}" class="btn btn-hm btn-sm">Tạo đơn mua hàng</a>
+      {% endif %}
+      <a href="{% url 'kiotviet:purchase_lookup' %}" class="btn btn-outline-secondary btn-sm">Phiếu nhập KiotViet</a>
+    </div>
+  </div>
+
+  {% include 'san_xuat/includes/sx_list_filter.html' %}
+  <div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+      <table class="table table-sm table-hover mb-0 align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Mã</th>
+            <th>NCC</th>
+            <th>Yêu cầu mua nguyên phụ liệu nguồn</th>
+            <th class="text-end">Dòng</th>
+            <th>Phiếu nhập KiotViet</th>
+            <th>Trạng thái</th>
+            {% include 'san_xuat/includes/sx_list_meta_head.html' %}
+<th class="text-end"></th>
+</tr>
+        </thead>
+        <tbody>
+        {% for order in orders %}
+          <tr class="jp-npl-catalog-row" data-href="{% url 'san_xuat:purchase_order_detail' order.pk %}">
+            <td><strong>{{ order.code }}</strong></td>
+            <td class="small">{{ order.supplier_name|default:"—" }}</td>
+            <td class="small">
+              {% if order.purchase_request %}
+              <a href="{% url 'san_xuat:npl_purchase_request_detail' order.purchase_request.pk %}">{{ order.purchase_request.code }}</a>
+              {% else %}—{% endif %}
+            </td>
+<td class="text-end">{{ order.lines.count }}</td>
+            <td class="small">
+              {% if order.kv_purchase_kiotviet_id %}
+              <a href="{% url 'kiotviet:purchase_detail' order.kv_purchase_kiotviet_id %}">{{ order.kv_purchase_code|default:order.kv_purchase_kiotviet_id }}</a>
+              {% else %}—{% endif %}
+            </td>
+            <td class="small">{{ order.get_status_display }}</td>
+                        {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=order %}
+<td class="text-end">
+              <a href="{% url 'san_xuat:purchase_order_detail' order.pk %}" class="btn btn-sm btn-outline-hm">Mở</a>
+            </td>
+</tr>
+        {% empty %}
+          <tr><td colspan="13" class="text-muted small p-3">Chưa có đơn mua hàng.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
+  <div class="jp-page-header mb-3 mb-md-4">
+    <div>
+      <h2 class="fw-bold text-hm mb-1 jp-page-title">{{ item.code }}</h2>
+    </div>
+    <a href="{% url 'san_xuat:dispatch_npl_surplus' %}" class="btn btn-outline-secondary btn-sm">Quay lại</a>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-lg-7">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-6">
+              <div class="small text-muted">NPL</div>
+              <div class="fw-semibold">{{ item.material_code }}</div>
+              <div class="small">{{ item.material_name|default:"" }}</div>
+            </div>
+            <div class="col-6">
+              <div class="small text-muted">Số lượng thừa</div>
+              <div class="fs-5 fw-semibold">{{ item.qty }}</div>
+            </div>
+            <div class="col-6">
+              <div class="small text-muted">Ngày</div>
+              <div>{{ item.recorded_at|date:"d/m/Y" }}</div>
+            </div>
+            <div class="col-6">
+              <div class="small text-muted">Phiếu ĐC kho</div>
+              <div>
+                {% if item.stock_adjustment %}
+                <a href="{% url 'kho_npl:adjustment_detail' item.stock_adjustment.pk %}">{{ item.stock_adjustment.number }}</a>
+                {% else %}—{% endif %}
+              </div>
+            </div>
+            <div class="col-12">
+              <div class="small text-muted">Nguồn</div>
+              <div class="small">
+                {% if item.production_order %}
+                Lệnh sản xuất <a href="{% url 'san_xuat:dispatch_mo_detail' item.production_order.pk %}">{{ item.production_order.code }}</a>
+                {% endif %}
+                {% if item.disassembly_order %}
+                · Lệnh tháo dỡ <a href="{% url 'san_xuat:dispatch_disassembly_detail' item.disassembly_order.pk %}">{{ item.disassembly_order.code }}</a>
+                {% endif %}
+                {% if not item.production_order and not item.disassembly_order %}—{% endif %}
+              </div>
+            </div>
+            <div class="col-12">
+              <div class="small text-muted">Ghi chú</div>
+              <div>{{ item.notes|default:"—" }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-5">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <div class="small text-muted mb-3">Workflow</div>
+          {% if can_update and item.status == 'draft' %}
+          <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="confirm">
+            <button type="submit" class="btn btn-success w-100">Xác nhận nhập kho</button>
+          </form>
+          <p class="small text-muted mt-2 mb-0">Tạo và duyệt phiếu điều chỉnh tồn (+SL) trên kho nguyên phụ liệu.</p>
+          {% else %}
+          <div class="text-muted small">
+            {% if item.status == 'confirmed' %}Đã nhập kho.{% else %}Đã xử lý hoặc không có quyền cập nhật.{% endif %}
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

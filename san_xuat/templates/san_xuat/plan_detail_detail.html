@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
+  <div class="jp-page-header mb-3 mb-md-4">
+    <div>
+      <h2 class="fw-bold text-hm mb-1 jp-page-title">{{ detail_plan.code }}</h2>
+    </div>
+    <a href="{% url 'san_xuat:plan_detail' %}" class="btn btn-outline-secondary btn-sm">Quay lại</a>
+  </div>
+
+  <div class="d-flex flex-wrap gap-2 mb-3">
+    {% if can_update %}
+    <form method="post" class="d-inline">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="refresh">
+      <button type="submit" class="btn btn-outline-secondary btn-sm">Cập nhật phân bổ</button>
+    </form>
+    {% if detail_plan.status == 'draft' %}
+    <form method="post" class="d-inline">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="confirm">
+      <button type="submit" class="btn btn-hm btn-sm">Xác nhận kế hoạch chi tiết</button>
+    </form>
+    {% endif %}
+    {% endif %}
+    {% if can_update and detail_plan.status == 'confirmed' %}
+    <form method="post" class="d-inline">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="generate_mos">
+      <button type="submit" class="btn btn-hm btn-sm">Sinh Lệnh sản xuất từ kế hoạch chi tiết</button>
+    </form>
+    <a href="{% url 'san_xuat:dispatch_schedule' %}" class="btn btn-outline-hm btn-sm">Lịch SX (D4)</a>
+    {% endif %}
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+      <table class="table table-sm table-hover mb-0 align-middle">
+        <thead class="table-light">
+          <tr>
+            <th class="sticky-start bg-light">Mã sản phẩm</th>
+            <th>Tên</th>
+            {% for dt in dates %}
+            <th class="text-end small">{{ dt|date:"d/m" }}</th>
+            {% endfor %}
+            <th class="text-end">Tổng</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for row in product_rows %}
+          <tr>
+            <td class="sticky-start bg-white"><strong>{{ row.code }}</strong></td>
+            <td class="small">{{ row.name|default:"—" }}</td>
+            {% for cell in row.cells %}
+            <td class="text-end small">{% if cell.qty %}{{ cell.qty }}{% else %}—{% endif %}</td>
+            {% endfor %}
+            <td class="text-end fw-semibold">{{ row.total }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="{{ dates|length|add:3 }}" class="text-muted small p-3">Chưa có dòng theo ngày.</td></tr>
+        {% endfor %}
+        </tbody>
+        {% if product_rows %}
+        <tfoot class="table-light">
+          <tr>
+            <th colspan="2" class="small">Tổng theo ngày</th>
+            {% for item in date_totals %}
+            <th class="text-end small">{{ item.total }}</th>
+            {% endfor %}
+            <th></th>
+          </tr>
+        </tfoot>
+        {% endif %}
+      </table>
+    </div>
+  </div>
+
+  {% if production_orders %}
+  <div class="card border-0 shadow-sm mt-3">
+    <div class="card-body">
+      <div class="small text-muted mb-2">Lệnh sản xuất từ kế hoạch chi tiết (D4+)</div>
+      <ul class="mb-0">
+      {% for mo in production_orders %}
+        <li>
+          <a href="{% url 'san_xuat:dispatch_mo_detail' mo.pk %}">{{ mo.code }}</a>
+          — {{ mo.product_code }} · {{ mo.planned_start|date:"d/m/Y" }} · {{ mo.get_status_display }}
+        </li>
+      {% endfor %}
+      </ul>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

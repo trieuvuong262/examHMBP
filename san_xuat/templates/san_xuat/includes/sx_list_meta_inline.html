@@ -1,0 +1,5 @@
+<span class="text-muted d-block mt-1" style="font-size:.8rem">
+  {% if obj.created_by %}Người tạo: {{ obj.created_by.get_full_name|default:obj.created_by.username }}{% endif %}
+  {% if obj.created_at %}{% if obj.created_by %} · {% endif %}Tạo lúc: {{ obj.created_at|date:"d/m/Y H:i" }}{% endif %}
+  {% if not obj.created_by and not obj.created_at %}—{% endif %}
+</span>

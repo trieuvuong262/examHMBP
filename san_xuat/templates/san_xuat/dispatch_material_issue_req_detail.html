@@ -1,0 +1,143 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
+  <div class="jp-page-header mb-3 mb-md-4">
+    <div>
+      <h2 class="fw-bold text-hm mb-1 jp-page-title">
+        Yêu cầu xuất vật tư <span class="text-muted">({{ req.code }})</span>
+      </h2>
+    </div>
+    <a href="{% url 'san_xuat:dispatch_material_issue_req' %}" class="btn btn-outline-secondary btn-sm">Quay lại</a>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-lg-6">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <div class="small text-muted mb-2">Thông tin</div>
+          <div class="row g-2">
+            <div class="col-6">
+              <div class="small text-muted">Ngày yêu cầu</div>
+              <div class="small">{{ req.request_date|date:"d/m/Y" }}</div>
+            </div>
+            <div class="col-6">
+              <div class="small text-muted">Tạo</div>
+              <div class="small text-muted">{{ req.created_at|date:"d/m/Y H:i" }}</div>
+            </div>
+          </div>
+          {% if req.notes %}
+          <div class="mt-3">
+            <div class="small text-muted">Ghi chú</div>
+            <div class="small">{{ req.notes }}</div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-6">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <div class="small text-muted mb-3">Duyệt yêu cầu xuất</div>
+
+          {% if can_update and not req.stock_issue %}
+            {% if req.status == 'draft' or req.status == 'submitted' or req.status == 'approved' %}
+              <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="approve"/>
+                <div class="mb-3">
+                  <label class="form-label small text-muted">{{ form.attachment.label }}</label>
+                  {{ form.attachment }}
+                  <div class="form-text">
+                    Nếu không upload, hệ thống chỉ tạo phiếu xuất kho nháp. Nếu upload thì hệ thống sẽ xuất kho thật ngay.
+                  </div>
+                </div>
+                <button type="submit" class="btn btn-hm w-100">Duyệt → Tạo/ Xuất kho nguyên phụ liệu</button>
+              </form>
+            {% else %}
+              <div class="text-muted small">
+                Yêu cầu xuất chưa ở trạng thái duyệt.
+              </div>
+            {% endif %}
+          {% else %}
+            <div class="text-muted small">
+              Bạn không có quyền hoặc Yêu cầu xuất đã có phiếu xuất kho liên quan.
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body">
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <div>
+          <div class="small text-muted mb-1">Dòng nguyên phụ liệu</div>
+          <div class="fw-semibold">{{ req.lines.all|length }} dòng</div>
+          <div class="form-text">Duyệt sẽ chia xuất theo nhiều vị trí nếu một vị trí không đủ. Có thể chọn vị trí ưu tiên trước.</div>
+        </div>
+      </div>
+
+      {% if can_update and not req.stock_issue %}
+      <form method="post" class="mb-3">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="save_locations">
+      {% endif %}
+      <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>NPL</th>
+              <th class="text-end">SL YC</th>
+              <th class="text-end">SL đã xuất</th>
+              <th>Vị trí ưu tiên</th>
+              <th>Tồn theo vị trí</th>
+            </tr>
+          </thead>
+          <tbody>
+          {% for row in line_rows %}
+            {% with l=row.line %}
+            <tr>
+              <td>
+                <div class="fw-semibold small">{{ l.material_code }}</div>
+                <div class="text-muted small">{{ l.material_name }}</div>
+              </td>
+              <td class="text-end">{{ l.qty_requested }}</td>
+              <td class="text-end">{{ l.qty_issued }}</td>
+              <td>
+                {% if can_update and not req.stock_issue %}
+                <select name="loc_{{ l.pk }}" class="form-select form-select-sm" style="min-width:8rem">
+                  <option value="">Tự chia</option>
+                  {% for loc in locations %}
+                  <option value="{{ loc.pk }}" {% if l.preferred_location_id == loc.pk %}selected{% endif %}>{{ loc.code }}</option>
+                  {% endfor %}
+                </select>
+                {% else %}
+                {{ l.preferred_location.code|default:"—" }}
+                {% endif %}
+              </td>
+              <td class="small text-muted">
+                {% for b in row.balances %}
+                  {{ b.location.code }}: {{ b.quantity }}{% if not forloop.last %} · {% endif %}
+                {% empty %}—{% endfor %}
+              </td>
+            </tr>
+            {% endwith %}
+          {% empty %}
+            <tr><td colspan="5" class="text-muted small p-3">Chưa có dòng NPL.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if can_update and not req.stock_issue %}
+        <button type="submit" class="btn btn-outline-secondary btn-sm mt-2">Lưu vị trí ưu tiên</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+

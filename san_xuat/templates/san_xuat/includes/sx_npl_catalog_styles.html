@@ -1,0 +1,103 @@
+{# Style topbar/search/nút theo Kho nguyên phụ liệu — hub Sản phẩm & module liên quan #}
+{% include 'kho_npl/includes/catalog_grid_styles.html' %}
+<style>
+/* jp-sx-page = alias jp-sx-product-page (tương thích template cũ) */
+.jp-npl-material-catalog-page.jp-sx-page .jp-npl-mat-topbar-search,
+.jp-npl-material-catalog-page.jp-sx-product-page .jp-npl-mat-topbar-search {
+    max-width: min(56rem, 100%);
+}
+.jp-npl-material-catalog-page.jp-sx-page .jp-npl-mat-topbar-title-wrap,
+.jp-npl-material-catalog-page.jp-sx-product-page .jp-npl-mat-topbar-title-wrap {
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 28rem;
+}
+.jp-npl-material-catalog-page.jp-sx-page .jp-npl-mat-topbar-title-wrap .jp-npl-mat-topbar-title,
+.jp-npl-material-catalog-page.jp-sx-product-page .jp-npl-mat-topbar-title-wrap .jp-npl-mat-topbar-title {
+    white-space: normal;
+    line-height: 1.25;
+}
+.jp-npl-material-catalog-page.jp-sx-page .jp-npl-mat-search-row .form-select-sm.jp-sx-filter-select,
+.jp-npl-material-catalog-page.jp-sx-product-page .jp-npl-mat-search-row .form-select-sm.jp-sx-filter-select {
+    flex: 0 1 8.5rem;
+    width: auto;
+    min-width: 6.5rem;
+    height: var(--jp-npl-mat-ctl-h);
+    min-height: var(--jp-npl-mat-ctl-h);
+    padding-top: 0.25rem;
+    padding-bottom: 0.25rem;
+    font-size: 0.875rem;
+}
+.jp-npl-material-catalog-page.jp-sx-page .jp-npl-mat-topbar-actions .btn,
+.jp-npl-material-catalog-page.jp-sx-product-page .jp-npl-mat-topbar-actions .btn {
+    height: var(--jp-npl-mat-ctl-h);
+    min-height: var(--jp-npl-mat-ctl-h);
+    display: inline-flex;
+    align-items: center;
+}
+.jp-npl-material-catalog-page.jp-sx-page .jp-sx-hub-links,
+.jp-npl-material-catalog-page.jp-sx-product-page .jp-sx-hub-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+.jp-npl-material-catalog-page.jp-sx-page .jp-sx-hub-link,
+.jp-npl-material-catalog-page.jp-sx-product-page .jp-sx-hub-link {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex: 1 1 16rem;
+    padding: 0.85rem 1rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.5rem;
+    text-decoration: none;
+    color: inherit;
+    background: var(--bs-body-bg);
+}
+.jp-npl-material-catalog-page.jp-sx-page .jp-sx-hub-link:hover,
+.jp-npl-material-catalog-page.jp-sx-product-page .jp-sx-hub-link:hover {
+    border-color: var(--hm-red, #dc2626);
+    color: var(--hm-red, #dc2626);
+}
+.jp-npl-material-catalog-page.jp-sx-page .jp-sx-stat-grid,
+.jp-npl-material-catalog-page.jp-sx-product-page .jp-sx-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+@media (min-width: 768px) {
+    .jp-npl-material-catalog-page.jp-sx-page .jp-sx-stat-grid,
+    .jp-npl-material-catalog-page.jp-sx-product-page .jp-sx-stat-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+}
+.jp-npl-material-catalog-page.jp-sx-page .jp-sx-stat,
+.jp-npl-material-catalog-page.jp-sx-product-page .jp-sx-stat {
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.5rem;
+    padding: 0.85rem 1rem;
+}
+.jp-npl-material-catalog-page.jp-sx-page .jp-sx-stat .label,
+.jp-npl-material-catalog-page.jp-sx-product-page .jp-sx-stat .label {
+    font-size: 0.75rem;
+    color: var(--bs-secondary-color);
+}
+.jp-npl-material-catalog-page.jp-sx-page .jp-sx-stat .value,
+.jp-npl-material-catalog-page.jp-sx-product-page .jp-sx-stat .value {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--hm-red, #dc2626);
+    line-height: 1.2;
+}
+.jp-npl-material-catalog-page.jp-sx-page .jp-sx-section-title,
+.jp-npl-material-catalog-page.jp-sx-product-page .jp-sx-section-title {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--bs-secondary-color);
+    margin: 1.25rem 0 0.5rem;
+}
+</style>

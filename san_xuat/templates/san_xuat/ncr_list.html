@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% block extra_head %}{% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}{% endblock %}
+{% block content %}
+<div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 mb-5">
+  <div class="jp-npl-mat-topbar">
+    <div>
+      <h2 class="jp-npl-mat-topbar-title mb-0">Xử lý hàng không đạt</h2>
+    </div>
+    <a href="{% url 'san_xuat:qc_alerts' %}" class="btn btn-outline-secondary btn-sm">Cảnh báo chất lượng</a>
+  </div>
+
+  {% include 'san_xuat/includes/sx_list_filter.html' %}
+
+  <div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+      <table class="table table-hover table-sm mb-0 align-middle">
+        <thead class="table-light">
+          <tr><th>Mã</th><th>Lệnh sản xuất</th><th>Hướng xử lý</th><th>Số lượng</th><th>Trạng thái</th>
+            {% include 'san_xuat/includes/sx_list_meta_head.html' %}
+<th></th>
+</tr>
+        </thead>
+        <tbody>
+          {% for c in cases %}
+          <tr class="jp-npl-catalog-row" data-href="{% url 'san_xuat:ncr_detail' c.pk %}">
+            <td>{{ c.code }}</td>
+            <td>{{ c.production_order.code }}</td>
+            <td>{{ c.get_disposition_display }}</td>
+            <td>{{ c.qty }}</td>
+            <td>{{ c.get_status_display }}</td>
+            {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=c %}
+<td><a href="{% url 'san_xuat:ncr_detail' c.pk %}">Xem</a></td>
+</tr>
+          {% empty %}
+          <tr><td colspan="12" class="text-muted text-center py-3">Chưa có phiếu xử lý — tạo từ cảnh báo chất lượng.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

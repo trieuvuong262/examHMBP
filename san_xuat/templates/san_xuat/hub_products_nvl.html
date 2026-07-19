@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+
+{% block extra_head %}
+{% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}
+{% endblock %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page jp-npl-material-catalog-page jp-sx-product-page py-3 py-md-4 mb-5">
+  <div class="jp-npl-mat-topbar">
+    <h2 class="jp-npl-mat-topbar-title">Sản phẩm, Nguyên phụ liệu</h2>
+    <div class="jp-npl-mat-topbar-actions ms-auto">
+      <a href="{% url 'san_xuat:doc_list' %}" class="btn btn-hm btn-sm fw-bold">
+        <i class="bi bi-folder2-open me-1"></i>Hồ sơ SX
+      </a>
+      <a href="{% url 'kho_npl:material_list' %}" class="btn btn-outline-hm btn-sm fw-bold">
+        <i class="bi bi-boxes me-1"></i>Danh mục NPL
+      </a>
+      <a href="{% url 'san_xuat:fg_product_lookup' %}" class="btn btn-outline-secondary btn-sm fw-bold">
+        <i class="bi bi-box-seam me-1"></i>Hàng hoá KV
+      </a>
+      <a href="{% url 'san_xuat:overview' %}" class="btn btn-outline-secondary btn-sm fw-bold" title="Tổng quan">
+        <i class="bi bi-arrow-left"></i>
+      </a>
+    </div>
+  </div>
+
+  <p class="text-muted small mb-3">
+    SoT: Thành phẩm → KiotViet · NPL → Kho NPL · BOM / quy trình / costing → Hồ sơ SX.
+  </p>
+
+  <div class="jp-sx-stat-grid">
+    <div class="jp-sx-stat">
+      <div class="label">Hồ sơ SX</div>
+      <div class="value">{{ doc_total }}</div>
+      <div class="small text-muted">{{ doc_active }} đang dùng</div>
+    </div>
+    <div class="jp-sx-stat">
+      <div class="label">BOM active</div>
+      <div class="value">{{ bom_active }}</div>
+    </div>
+    <div class="jp-sx-stat">
+      <div class="label">NPL (danh mục)</div>
+      <div class="value">{{ material_active }}</div>
+    </div>
+    <div class="jp-sx-stat">
+      <div class="label">Hàng hoá KV</div>
+      <div class="value">{{ kv_product_count }}</div>
+    </div>
+  </div>
+
+  <div class="jp-sx-section-title">Danh mục &amp; định mức</div>
+  <div class="jp-sx-hub-links mb-2">
+    <a href="{% url 'san_xuat:fg_product_lookup' %}" class="jp-sx-hub-link">
+      <span><i class="bi bi-box-seam me-2"></i>Thành phẩm (KV)</span>
+      <i class="bi bi-chevron-right"></i>
+    </a>
+    <a href="{% url 'kho_npl:material_list' %}" class="jp-sx-hub-link">
+      <span><i class="bi bi-boxes me-2"></i>Nguyên phụ liệu</span>
+      <i class="bi bi-chevron-right"></i>
+    </a>
+    <a href="{% url 'san_xuat:doc_list' %}?tab=bom" class="jp-sx-hub-link">
+      <span><i class="bi bi-diagram-3 me-2"></i>BOM / định mức</span>
+      <i class="bi bi-chevron-right"></i>
+    </a>
+    <a href="{% url 'san_xuat:process_stub' %}" class="jp-sx-hub-link">
+      <span><i class="bi bi-signpost-2 me-2"></i>Quy trình SX</span>
+      <i class="bi bi-chevron-right"></i>
+    </a>
+  </div>
+
+  <div class="jp-sx-section-title">Tháo dỡ &amp; kho</div>
+  <div class="jp-sx-hub-links">
+    <a href="{% url 'san_xuat:dispatch_disassembly' %}" class="jp-sx-hub-link">
+      <span><i class="bi bi-box-arrow-up me-2"></i>Lệnh tháo dỡ</span>
+      <i class="bi bi-chevron-right"></i>
+    </a>
+    <a href="{% url 'san_xuat:fg_stock_lookup' %}" class="jp-sx-hub-link">
+      <span><i class="bi bi-boxes me-2"></i>Tồn thành phẩm</span>
+      <i class="bi bi-chevron-right"></i>
+    </a>
+    <a href="{% url 'kho_npl:material_stock' %}" class="jp-sx-hub-link">
+      <span><i class="bi bi-clipboard-data me-2"></i>Tồn NPL</span>
+      <i class="bi bi-chevron-right"></i>
+    </a>
+    <a href="{% url 'san_xuat:redirect_costing' %}" class="jp-sx-hub-link">
+      <span><i class="bi bi-cash-stack me-2"></i>Giá thành KH</span>
+      <i class="bi bi-chevron-right"></i>
+    </a>
+  </div>
+</div>
+{% endblock %}

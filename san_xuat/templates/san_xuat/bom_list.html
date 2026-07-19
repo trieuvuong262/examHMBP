@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 py-md-4 mb-5"
+     data-loading-message="Đang tải BOM…">
+    <div class="jp-npl-mat-topbar">
+        <h2 class="jp-npl-mat-topbar-title">BOM / định mức</h2>
+        <div class="jp-npl-mat-topbar-actions">
+            <a href="{% url 'san_xuat:doc_list' %}" class="btn btn-outline-secondary btn-sm fw-bold">Hồ sơ</a>
+        </div>
+    </div>
+
+    <form method="get" class="card border-0 shadow-sm mb-3" role="search">
+      <div class="card-body py-2 px-3">
+        <div class="row g-2 align-items-end">
+          <div class="col-6 col-md-2">
+            <label class="form-label small mb-0 text-muted" for="sx-filter-code">Mã</label>
+            <input type="text" id="sx-filter-code" name="code" class="form-control form-control-sm" value="{{ filter_code|default:'' }}">
+          </div>
+          <div class="col-6 col-md-3">
+            <label class="form-label small mb-0 text-muted" for="sx-filter-name">Tên</label>
+            <input type="text" id="sx-filter-name" name="name" class="form-control form-control-sm" value="{{ filter_name|default:'' }}">
+          </div>
+          <div class="col-6 col-md-2">
+            <label class="form-label small mb-0 text-muted" for="sx-filter-date-from">Từ ngày</label>
+            <input type="date" id="sx-filter-date-from" name="date_from" class="form-control form-control-sm" value="{{ filter_date_from|default:'' }}">
+          </div>
+          <div class="col-6 col-md-2">
+            <label class="form-label small mb-0 text-muted" for="sx-filter-date-to">Đến ngày</label>
+            <input type="date" id="sx-filter-date-to" name="date_to" class="form-control form-control-sm" value="{{ filter_date_to|default:'' }}">
+          </div>
+          <div class="col-6 col-md-2">
+            <label class="form-label small mb-0 text-muted" for="bom-status">Trạng thái</label>
+            <select name="status" id="bom-status" class="form-select form-select-sm">
+              <option value="">Tất cả</option>
+              {% for value, label in status_choices %}
+              <option value="{{ value }}" {% if filter_status == value %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-auto d-flex gap-1">
+            <button type="submit" class="btn btn-hm btn-sm fw-bold">Lọc</button>
+            {% if has_list_filters or filter_status %}
+            <a href="{% url 'san_xuat:bom_list' %}" class="btn btn-outline-secondary btn-sm" title="Xóa lọc">×</a>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </form>
+
+    <div class="card border-0 shadow-sm overflow-hidden">
+        <div class="jp-npl-mat-grid-wrap">
+            <table class="table table-hover align-middle mb-0 jp-npl-mat-grid">
+                <thead class="table-light">
+                    <tr>
+                        <th>Mã sản phẩm</th>
+                        <th>Tên</th>
+                        <th>Phiên bản</th>
+                        <th>Trạng thái</th>
+                        <th class="text-end">Dòng NPL</th>
+                        <th class="text-end">Công đoạn</th>
+                        <th>Cập nhật</th>
+            {% include 'san_xuat/includes/sx_list_meta_head.html' %}
+<th></th>
+</tr>
+                </thead>
+                <tbody>
+                    {% for bom in page_obj %}
+                    <tr class="jp-npl-catalog-row"
+                        data-href="{% url 'san_xuat:doc_detail' bom.tech_doc_id %}?tab=bom&bom={{ bom.pk }}">
+<td>
+                            <a href="{% url 'san_xuat:doc_detail' bom.tech_doc_id %}?tab=bom&bom={{ bom.pk }}"
+                               class="text-decoration-none fw-semibold">{{ bom.tech_doc.product_code }}</a>
+                        </td>
+                        <td>{{ bom.tech_doc.product_name|default:"—" }}</td>
+                        <td>{{ bom.version_label }}</td>
+                        <td>
+                            {% if bom.status == 'active' %}
+                            <span class="badge bg-success-subtle text-success border">Đang dùng</span>
+                            {% elif bom.status == 'draft' %}
+                            <span class="badge bg-warning-subtle text-warning border">Nháp</span>
+                            {% else %}
+                            <span class="badge bg-secondary-subtle text-secondary border">Lưu trữ</span>
+                            {% endif %}
+                        </td>
+<td class="text-end">{{ bom.line_count }}</td>
+                        <td class="text-end">{{ bom.step_count }}</td>
+                        <td class="small text-muted">{{ bom.updated_at|date:"d/m/Y H:i" }}</td>
+                                    {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=bom %}
+<td class="text-end">
+                            <a href="{% url 'san_xuat:doc_detail' bom.tech_doc_id %}?tab=bom&bom={{ bom.pk }}"
+                               class="btn btn-sm btn-outline-hm">Mở</a>
+                        </td>
+</tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="14" class="text-center text-muted py-4">Chưa có phiên bản BOM.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if page_obj.paginator.num_pages > 1 %}
+        <div class="card-footer bg-white">
+            {% include 'includes/pagination.html' with page_obj=page_obj query_string=query_string %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

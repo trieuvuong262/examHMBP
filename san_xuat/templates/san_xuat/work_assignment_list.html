@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 py-md-4 mb-5">
+  <div class="jp-page-header mb-3 mb-md-4">
+    <div>
+      <h2 class="fw-bold text-hm mb-1 jp-page-title">Giao việc SX</h2>
+    </div>
+    <div class="d-flex gap-2">
+      {% if can_create %}
+      <a href="{% url 'san_xuat:work_assignment_create' %}" class="btn btn-hm btn-sm">Giao việc</a>
+      {% endif %}
+      <a href="{% url 'tasks:personal_hub' %}" class="btn btn-outline-secondary btn-sm">Module Công việc</a>
+    </div>
+  </div>
+
+  {% include 'san_xuat/includes/sx_list_filter.html' %}
+
+  <div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+      <table class="table table-sm table-hover mb-0 align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Mã</th>
+            <th>Lệnh sản xuất</th>
+            <th>Tiêu đề</th>
+            <th>Tổ / công đoạn / người</th>
+            <th>WorkTask</th>
+            <th>Hạn</th>
+            <th>Trạng thái</th>
+            {% include 'san_xuat/includes/sx_list_meta_head.html' %}
+<th class="text-end"></th>
+</tr>
+        </thead>
+        <tbody>
+        {% for item in items %}
+          <tr class="{% if item.status == 'open' %}table-warning{% endif %}">
+            <td><strong>{{ item.code }}</strong></td>
+            <td class="small"><a href="{% url 'san_xuat:dispatch_mo_detail' item.production_order_id %}">{{ item.production_order.code }}</a></td>
+            <td>{{ item.title }}</td>
+            <td class="small">
+              {% if item.work_center %}{{ item.work_center.code }} · {% endif %}
+              {{ item.process_name|default:"—" }} ·
+              {% if item.assignee %}{{ item.assignee.get_full_name|default:item.assignee.username }}{% else %}{{ item.assignee_label|default:"—" }}{% endif %}
+            </td>
+            <td class="small">
+              {% if item.work_task_id %}
+              <a href="{% url 'tasks:detail' item.work_task_id %}">#{{ item.work_task_id }}</a>
+              {% else %}—{% endif %}
+            </td>
+            <td class="small">{% if item.due_date %}{{ item.due_date|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+            <td class="small">{{ item.get_status_display }}</td>
+            {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=item %}
+<td class="text-end">
+              {% if can_update and item.status == 'open' %}
+              <form method="post" class="d-inline">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="complete">
+                <input type="hidden" name="pk" value="{{ item.pk }}">
+                <button type="submit" class="btn btn-sm btn-outline-success">Xong</button>
+              </form>
+              {% endif %}
+            </td>
+</tr>
+        {% empty %}
+          <tr><td colspan="14" class="text-muted small p-3">Chưa có giao việc.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

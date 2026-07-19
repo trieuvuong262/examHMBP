@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
+    <div class="jp-page-header mb-3 mb-md-4">
+        <div>
+            <h2 class="fw-bold text-hm mb-1 jp-page-title">Yêu cầu kiểm tra {{ qc_req.code }}</h2>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'san_xuat:qc_sheet_create' %}?request={{ qc_req.pk }}" class="btn btn-hm btn-sm">Tạo phiếu kiểm tra</a>
+            <a href="{% url 'san_xuat:qc_request' %}" class="btn btn-outline-secondary btn-sm">Quay lại</a>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-6">
+                    <div class="small text-muted">Mã sản phẩm</div>
+                    <div>{{ qc_req.product_code }}</div>
+                </div>
+                <div class="col-6">
+                    <div class="small text-muted">Tên sản phẩm</div>
+                    <div>{{ qc_req.product_name|default:"—" }}</div>
+                </div>
+                <div class="col-6">
+                    <div class="small text-muted">Công đoạn</div>
+                    <div>{{ qc_req.stage_name|default:"—" }}</div>
+                </div>
+                <div class="col-6">
+                    <div class="small text-muted">SL kiểm</div>
+                    <div>{{ qc_req.qty }}</div>
+                </div>
+                <div class="col-6">
+                    <div class="small text-muted">Ngày yêu cầu</div>
+                    <div>{{ qc_req.request_date|date:"d/m/Y" }}</div>
+                </div>
+                <div class="col-6">
+                    <div class="small text-muted">Hạn</div>
+                    <div>{% if qc_req.due_date %}{{ qc_req.due_date|date:"d/m/Y" }}{% else %}—{% endif %}</div>
+                </div>
+                <div class="col-12">
+                    <div class="small text-muted">Ghi chú</div>
+                    <div>{{ qc_req.notes|default:"—" }}</div>
+                </div>
+            </div>
+            {% if qc_req.inspections.all %}
+            <hr>
+            <div class="small text-muted mb-2">Phiếu kiểm tra liên quan</div>
+            <ul class="mb-0">
+            {% for inspection in qc_req.inspections.all %}
+                <li>{{ inspection.code }} - {{ inspection.result }}</li>
+            {% endfor %}
+            </ul>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+

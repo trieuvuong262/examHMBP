@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+{% block extra_head %}{% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}{% endblock %}
+{% block content %}
+<div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 mb-5">
+  <div class="jp-npl-mat-topbar">
+    <div>
+      <h2 class="jp-npl-mat-topbar-title mb-0">Vị trí chờ / kho trung gian</h2>
+    </div>
+    <a href="{% url 'kho_npl:settings_list' 'vi-tri' %}" class="btn btn-outline-secondary btn-sm">Thiết lập vị trí kho</a>
+  </div>
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="table-responsive">
+      <table class="table table-hover table-sm mb-0 align-middle">
+        <thead class="table-light"><tr><th>Mã</th><th>Tên</th><th>Loại</th>{% if can_update %}<th></th>{% endif %}</tr></thead>
+        <tbody>
+          {% for loc in locations %}
+          <tr>
+            <td>{{ loc.code }}</td>
+            <td>{{ loc.name }}</td>
+            <td>{{ loc.get_location_kind_display }}</td>
+            {% if can_update %}
+            <td>
+              <form method="post" class="d-flex gap-1">
+                {% csrf_token %}
+                <input type="hidden" name="location_id" value="{{ loc.pk }}">
+                <select name="location_kind" class="form-select form-select-sm" style="width:auto">
+                  {% for k,v in kinds %}
+                  <option value="{{ k }}" {% if loc.location_kind == k %}selected{% endif %}>{{ v }}</option>
+                  {% endfor %}
+                </select>
+                <button class="btn btn-sm btn-outline-secondary">Lưu</button>
+              </form>
+            </td>
+            {% endif %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <h3 class="h6 text-muted">Giữ chỗ tồn đang active</h3>
+  <div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+      <table class="table table-hover table-sm mb-0">
+        <thead class="table-light"><tr><th>Nguyên phụ liệu</th><th>Số lượng</th><th>Loại chứng từ</th><th>Mã chứng từ</th><th>Lệnh sản xuất</th></tr></thead>
+        <tbody>
+          {% for r in reservations %}
+          <tr>
+            <td>{{ r.material.code }}</td>
+            <td>{{ r.quantity }}</td>
+            <td>{{ r.get_ref_type_display }}</td>
+            <td>{{ r.ref_code }}</td>
+            <td>{{ r.production_order_code|default:"—" }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="5" class="text-muted text-center py-3">Không có giữ chỗ.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

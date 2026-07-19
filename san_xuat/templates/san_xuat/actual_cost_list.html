@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% block extra_head %}{% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}{% endblock %}
+{% block content %}
+<div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 mb-5">
+  <div class="jp-npl-mat-topbar">
+    <div>
+      <h2 class="jp-npl-mat-topbar-title mb-0">Giá thành thực tế</h2>
+    </div>
+  </div>
+
+  {% include 'san_xuat/includes/sx_list_filter.html' %}
+
+  <div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+      <table class="table table-hover table-sm mb-0">
+        <thead class="table-light">
+          <tr><th>Mã</th><th>Lệnh sản xuất</th><th class="text-end">Nguyên phụ liệu</th><th class="text-end">Nhân công</th><th class="text-end">Gia công</th><th class="text-end">Tổng</th><th>Trạng thái</th>
+            {% include 'san_xuat/includes/sx_list_meta_head.html' %}
+<th></th>
+</tr>
+        </thead>
+        <tbody>
+          {% for s in sheets %}
+          <tr>
+            <td>{{ s.code }}</td>
+            <td>{{ s.production_order.code }}</td>
+<td class="text-end">{{ s.material_cost|floatformat:0|intcomma }}</td>
+            <td class="text-end">{{ s.labor_cost|floatformat:0|intcomma }}</td>
+            <td class="text-end">{{ s.subcontract_cost|floatformat:0|intcomma }}</td>
+            <td class="text-end fw-semibold">{{ s.total_cost|floatformat:0|intcomma }}</td>
+            <td>{{ s.get_status_display }}</td>
+                        {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=s %}
+<td><a href="{% url 'san_xuat:actual_cost_mo' s.production_order_id %}">Chi tiết</a></td>
+</tr>
+          {% empty %}
+          <tr><td colspan="14" class="text-muted text-center py-3">Chưa có bảng chốt — mở từ lệnh sản xuất.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

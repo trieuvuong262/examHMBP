@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 py-md-4 mb-5">
+  <div class="jp-page-header mb-3 mb-md-4">
+    <div>
+      <h2 class="fw-bold text-hm mb-1 jp-page-title">Loại chi phí thêm</h2>
+    </div>
+    <div class="d-flex gap-2">
+      {% if can_create %}
+      <a href="{% url 'san_xuat:costing_cost_type_create' %}" class="btn btn-hm btn-sm">Thêm loại</a>
+      {% endif %}
+      <a href="{% url 'san_xuat:costing_by_order' %}" class="btn btn-outline-secondary btn-sm">Giá thành kế hoạch theo đơn</a>
+    </div>
+  </div>
+
+  {% include 'san_xuat/includes/sx_list_filter.html' %}
+  <div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+      <table class="table table-sm table-hover mb-0 align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Mã</th>
+            <th>Tên</th>
+            <th class="text-end">Thứ tự</th>
+            <th>Trạng thái</th>
+            {% include 'san_xuat/includes/sx_list_meta_head.html' %}
+<th class="text-end"></th>
+</tr>
+        </thead>
+        <tbody>
+        {% for ct in cost_types %}
+          <tr>
+            <td><strong>{{ ct.code }}</strong></td>
+            <td>{{ ct.name }}</td>
+<td class="text-end">{{ ct.sort_order }}</td>
+            <td class="small">{% if ct.is_active %}Đang dùng{% else %}Tắt{% endif %}</td>
+                        {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=ct %}
+<td class="text-end">
+              {% if can_update %}
+              <a href="{% url 'san_xuat:costing_cost_type_edit' ct.pk %}" class="btn btn-sm btn-outline-hm">Sửa</a>
+              {% endif %}
+            </td>
+</tr>
+        {% empty %}
+          <tr><td colspan="13" class="text-muted small p-3">Chưa có loại CP — mở form thêm hoặc hệ thống sẽ seed mặc định khi mở GTKH.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

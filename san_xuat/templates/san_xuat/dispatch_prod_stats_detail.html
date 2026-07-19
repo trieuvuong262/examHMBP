@@ -1,0 +1,120 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
+  <div class="jp-page-header mb-3 mb-md-4">
+    <div>
+      <h2 class="fw-bold text-hm mb-1 jp-page-title">Thống kê sản xuất {{ stat.code }}</h2>
+    </div>
+    <a href="{% url 'san_xuat:dispatch_prod_stats' %}" class="btn btn-outline-secondary btn-sm">Quay lại</a>
+  </div>
+
+  {% if qc_alerts %}
+  <div class="alert alert-danger border-0 mb-4" role="alert">
+    <strong>Cảnh báo chất lượng:</strong>
+    {% for alert in qc_alerts %}
+      {% if alert.status == 'open' %}
+      <div class="small mt-1">
+        <a href="{% url 'san_xuat:qc_alert_detail' alert.pk %}" class="alert-link">{{ alert.code }}</a>
+        — {{ alert.message }}
+      </div>
+      {% endif %}
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <div class="row g-3">
+    <div class="col-12 col-lg-7">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-6">
+              <div class="small text-muted">Ngày ghi nhận</div>
+              <div>{{ stat.stat_date|date:"d/m/Y" }}</div>
+            </div>
+            <div class="col-6">
+              <div class="small text-muted">Công đoạn</div>
+              <div>{{ stat.process_name|default:"—" }}</div>
+            </div>
+            <div class="col-6">
+              <div class="small text-muted">Số lượng đạt</div>
+              <div class="fw-semibold">{{ stat.qty_good }}</div>
+            </div>
+            <div class="col-6">
+              <div class="small text-muted">Số lượng lỗi</div>
+              <div class="fw-semibold">{{ stat.qty_defect }}</div>
+            </div>
+            <div class="col-6">
+              <div class="small text-muted">Tổ / chuyền</div>
+              <div>{{ stat.team_label|default:"—" }}</div>
+            </div>
+            <div class="col-6">
+              <div class="small text-muted">Lệnh sản xuất hiện tại</div>
+              <div>{{ stat.production_order.get_status_display }} · Đã đạt {{ stat.production_order.qty_done }}/{{ stat.production_order.qty }}</div>
+            </div>
+            <div class="col-12">
+              <div class="small text-muted">Ghi chú</div>
+              <div>{{ stat.notes|default:"—" }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm mt-4">
+        <div class="card-body">
+          <div class="small text-muted mb-2">Yêu cầu kiểm tra liên quan (Q4)</div>
+          {% if qc_requests %}
+          <ul class="mb-0">
+          {% for req in qc_requests %}
+            <li>
+              <a href="{% url 'san_xuat:qc_request_detail' req.pk %}">{{ req.code }}</a>
+              — {{ req.status }}
+            </li>
+          {% endfor %}
+          </ul>
+          {% else %}
+          <div class="text-muted small">Chưa có yêu cầu kiểm tra. Xác nhận thống kê sản xuất sẽ tự sinh yêu cầu kiểm tra.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-5">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <div class="small text-muted mb-3">Hành động</div>
+          {% if can_update and stat.status == 'draft' %}
+          <form method="post" class="mb-3">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="confirm">
+            <button type="submit" class="btn btn-hm w-100">Xác nhận Thống kê sản xuất + cập nhật lệnh sản xuất</button>
+          </form>
+          <div class="form-text mb-3">
+            Khi xác nhận: cộng Số lượng đạt vào lệnh sản xuất, tự sinh Yêu cầu kiểm tra và tạo cảnh báo nếu tỷ lệ lỗi vượt ngưỡng.
+          </div>
+          {% elif stat.status == 'confirmed' %}
+          <div class="text-muted small mb-3">Thống kê sản xuất đã xác nhận.</div>
+          {% else %}
+          <div class="text-muted small mb-3">Bạn không có quyền cập nhật.</div>
+          {% endif %}
+
+          {% if can_update and not qc_requests %}
+          <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="create_yckt">
+            <button type="submit" class="btn btn-outline-hm w-100">Tạo yêu cầu kiểm tra thủ công</button>
+          </form>
+          {% endif %}
+
+          <a href="{% url 'san_xuat:qc_request_create' %}?stat={{ stat.pk }}" class="btn btn-outline-secondary w-100 mt-2">
+            Mở form Yêu cầu kiểm tra (prefill)
+          </a>
+          <a href="{% url 'san_xuat:dispatch_fg_receipt_req_create' %}?stat={{ stat.pk }}" class="btn btn-outline-secondary w-100 mt-2">
+            Tạo yêu cầu nhập thành phẩm từ thống kê sản xuất
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

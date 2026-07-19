@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 py-md-4 mb-5">
+  <div class="jp-page-header mb-3 mb-md-4">
+    <div>
+      <h2 class="fw-bold text-hm mb-1 jp-page-title">Năng lực SX</h2>
+    </div>
+    {% if can_create %}
+    <a href="{% url 'san_xuat:capacity_create' %}" class="btn btn-hm btn-sm">Thêm tổ/chuyền</a>
+    {% endif %}
+  </div>
+
+  <form method="get" class="row g-2 align-items-end mb-4">
+    <div class="col-6 col-md-2">
+      <label class="form-label small text-muted" for="sx-filter-code">Mã</label>
+      <input type="text" id="sx-filter-code" name="code" class="form-control form-control-sm"
+             value="{{ filter_code|default:'' }}" placeholder="Mã tổ/chuyền…">
+    </div>
+    <div class="col-6 col-md-3">
+      <label class="form-label small text-muted" for="sx-filter-name">Tên</label>
+      <input type="text" id="sx-filter-name" name="name" class="form-control form-control-sm"
+             value="{{ filter_name|default:'' }}" placeholder="Tên / nhãn tổ…">
+    </div>
+    <div class="col-6 col-md-2">
+      <label class="form-label small text-muted">Tháng</label>
+      <input type="month" name="month" value="{{ month_value }}" class="form-control form-control-sm">
+    </div>
+    <div class="col-6 col-md-2">
+      <label class="form-label small text-muted">Từ ngày</label>
+      <input type="date" name="date_from" value="{{ filter_date_from|default:date_from|date:'Y-m-d' }}" class="form-control form-control-sm">
+    </div>
+    <div class="col-6 col-md-2">
+      <label class="form-label small text-muted">Đến ngày</label>
+      <input type="date" name="date_to" value="{{ filter_date_to|default:date_to|date:'Y-m-d' }}" class="form-control form-control-sm">
+    </div>
+    <div class="col-auto d-flex gap-1">
+      <button type="submit" class="btn btn-hm btn-sm">Lọc</button>
+      {% if has_list_filters or list_filter_preserve %}
+      <a href="{% url 'san_xuat:capacity_list' %}" class="btn btn-outline-secondary btn-sm" title="Xóa lọc">×</a>
+      {% endif %}
+    </div>
+  </form>
+
+  <h3 class="h6 text-muted mb-2">Tải kỳ {{ date_from|date:"d/m" }} – {{ date_to|date:"d/m/Y" }}</h3>
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="table-responsive">
+      <table class="table table-hover table-sm mb-0 align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Tổ/chuyền</th>
+            <th class="text-end">NL kỳ</th>
+            <th class="text-end">Còn lại (giao việc mở)</th>
+            <th class="text-end">Tải %</th>
+            <th class="text-end">SX đạt kỳ</th>
+            <th class="text-end">Tận dụng %</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for row in load_rows %}
+          <tr class="{% if row.load_pct > 100 %}table-danger{% elif row.load_pct > 80 %}table-warning{% endif %}">
+            <td>
+              <strong>{{ row.center.code }}</strong> — {{ row.center.name }}
+              <div class="small text-muted">team: {{ row.center.team_label|default:row.center.name }} · {{ row.days }} ngày</div>
+            </td>
+            <td class="text-end">{{ row.capacity_period|floatformat:0|intcomma }}</td>
+            <td class="text-end">{{ row.assigned_open|floatformat:0|intcomma }}</td>
+            <td class="text-end">{{ row.load_pct }}%</td>
+            <td class="text-end">{{ row.output_period|floatformat:0|intcomma }}</td>
+            <td class="text-end">{{ row.utilization_pct }}%</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6" class="text-muted small p-3">Chưa có tổ/chuyền đang dùng.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <h3 class="h6 text-muted mb-2">Danh mục</h3>
+  <div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+      <table class="table table-hover table-sm mb-0 align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Mã</th>
+            <th>Tên</th>
+            <th>Nhãn Thống kê sản xuất</th>
+            <th class="text-end">Năng lực/ngày</th>
+            <th>Đơn vị tính</th>
+            <th>Trạng thái</th>
+            {% include 'san_xuat/includes/sx_list_meta_head.html' %}
+          </tr>
+        </thead>
+        <tbody>
+        {% for c in centers %}
+          <tr>
+            <td><strong>{{ c.code }}</strong></td>
+            <td>{{ c.name }}</td>
+            <td class="small">{{ c.team_label|default:"—" }}</td>
+            <td class="text-end">{{ c.capacity_per_day|floatformat:0|intcomma }}</td>
+            <td>{{ c.uom_label }}</td>
+            <td class="small">{% if c.is_active %}Đang dùng{% else %}Tắt{% endif %}</td>
+            {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=c %}
+          </tr>
+        {% empty %}
+          <tr><td colspan="8" class="text-muted small p-3">Chưa khai báo tổ/chuyền.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

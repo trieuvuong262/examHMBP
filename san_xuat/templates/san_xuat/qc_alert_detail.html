@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
+  <div class="jp-page-header mb-3 mb-md-4">
+    <div>
+      <h2 class="fw-bold text-hm mb-1 jp-page-title">Cảnh báo {{ alert.code }}</h2>
+    </div>
+    <a href="{% url 'san_xuat:qc_alerts' %}" class="btn btn-outline-secondary btn-sm">Quay lại</a>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-lg-7">
+      <div class="card border-0 shadow-sm {% if alert.status == 'open' %}border-danger border{% endif %}">
+        <div class="card-body">
+          <div class="alert alert-danger border-0 mb-3" role="alert">
+            {{ alert.message }}
+          </div>
+          <div class="row g-3">
+            <div class="col-6">
+              <div class="small text-muted">Lệnh sản xuất</div>
+              <div><a href="{% url 'san_xuat:dispatch_mo_detail' alert.production_order.pk %}">{{ alert.production_order.code }}</a></div>
+            </div>
+            <div class="col-6">
+              <div class="small text-muted">Công đoạn</div>
+              <div>{{ alert.process_name|default:"—" }}</div>
+            </div>
+            <div class="col-6">
+              <div class="small text-muted">Tỷ lệ lỗi</div>
+              <div class="fw-semibold text-danger">{{ alert.defect_rate }}%</div>
+            </div>
+            <div class="col-6">
+              <div class="small text-muted">Ngưỡng cho phép</div>
+              <div>{{ alert.tolerance_limit }}%</div>
+            </div>
+            <div class="col-6">
+              <div class="small text-muted">Số lượng đạt / lỗi</div>
+              <div>{{ alert.qty_good }} / {{ alert.qty_defect }}</div>
+            </div>
+            <div class="col-6">
+              <div class="small text-muted">Thời điểm</div>
+              <div>{{ alert.created_at|date:"d/m/Y H:i" }}</div>
+            </div>
+            {% if alert.production_stat %}
+            <div class="col-12">
+              <div class="small text-muted">Thống kê sản xuất nguồn</div>
+              <div><a href="{% url 'san_xuat:dispatch_prod_stats_detail' alert.production_stat.pk %}">{{ alert.production_stat.code }}</a></div>
+            </div>
+            {% endif %}
+            {% if alert.qc_inspection %}
+            <div class="col-12">
+              <div class="small text-muted">Phiếu kiểm tra liên quan</div>
+              <div><a href="{% url 'san_xuat:qc_sheet_detail' alert.qc_inspection.pk %}">{{ alert.qc_inspection.code }}</a></div>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-5">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <div class="small text-muted mb-3">Hành động</div>
+          {% if can_update and alert.status == 'open' %}
+          <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="ack">
+            <button type="submit" class="btn btn-warning w-100">Ghi nhận đã xử lý</button>
+          </form>
+          <div class="form-text mt-2">Sau khi xử lý tại xưởng/điều phối, đánh dấu cảnh báo để theo dõi.</div>
+          {% else %}
+          <div class="text-muted small">Cảnh báo đã đóng hoặc bạn không có quyền cập nhật.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

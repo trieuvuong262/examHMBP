@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 py-md-4 mb-5">
+  <div class="jp-page-header mb-3 mb-md-4">
+    <div>
+      <h2 class="fw-bold text-hm mb-1 jp-page-title">Lịch sản xuất</h2>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{% url 'san_xuat:dispatch_schedule' %}?week={{ prev_week }}" class="btn btn-outline-secondary btn-sm">← Tuần trước</a>
+      <a href="{% url 'san_xuat:dispatch_schedule' %}?week={{ next_week }}" class="btn btn-outline-secondary btn-sm">Tuần sau →</a>
+      <a href="{% url 'san_xuat:dispatch_mo' %}" class="btn btn-outline-hm btn-sm">Danh sách lệnh sản xuất</a>
+    </div>
+  </div>
+
+  <div class="row g-2">
+    {% for day in days %}
+    <div class="col-12 col-md-6 col-xl">
+      <div class="card border-0 shadow-sm h-100 {% if day.is_today %}border border-hm{% endif %}">
+        <div class="card-header bg-light py-2 small fw-semibold">
+          {{ day.date|date:"D d/m" }}
+          {% if day.is_today %}<span class="badge text-bg-primary ms-1">Hôm nay</span>{% endif %}
+        </div>
+        <div class="card-body p-2">
+          {% for mo in day.orders %}
+          <div class="border rounded-2 p-2 mb-2 small">
+            <div><a href="{% url 'san_xuat:dispatch_mo_detail' mo.pk %}" class="fw-semibold">{{ mo.code }}</a></div>
+            <div class="text-muted">{{ mo.product_code }} · SL {{ mo.qty }}</div>
+            {% if mo.team_label %}<div class="text-muted">{{ mo.team_label }}</div>{% endif %}
+            <div class="text-muted">{{ mo.get_status_display }}</div>
+          </div>
+          {% empty %}
+          <div class="text-muted small p-1">—</div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% block extra_head %}{% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}{% endblock %}
+{% block content %}
+<div class="container jp-page jp-sx-page py-3 mb-5">
+  <div class="jp-npl-mat-topbar">
+    <div>
+      <h2 class="jp-npl-mat-topbar-title mb-0">Xử lý không đạt {{ case.code }}</h2>
+    </div>
+    <a href="{% url 'san_xuat:ncr_list' %}" class="btn btn-outline-secondary btn-sm">Danh sách</a>
+  </div>
+  <div class="row g-3">
+    <div class="col-lg-7">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <div class="row g-2">
+            <div class="col-6"><div class="small text-muted">Lệnh sản xuất</div>
+              <a href="{% url 'san_xuat:dispatch_mo_detail' case.production_order.pk %}">{{ case.production_order.code }}</a></div>
+            <div class="col-6"><div class="small text-muted">Số lượng</div><div>{{ case.qty }}</div></div>
+            <div class="col-6"><div class="small text-muted">Công đoạn</div><div>{{ case.process_name|default:"—" }}</div></div>
+            {% if case.alert %}<div class="col-6"><div class="small text-muted">Cảnh báo</div>
+              <a href="{% url 'san_xuat:qc_alert_detail' case.alert.pk %}">{{ case.alert.code }}</a></div>{% endif %}
+            {% if case.remake_order %}<div class="col-12"><div class="small text-muted">Lệnh tái sản xuất</div>
+              <a href="{% url 'san_xuat:dispatch_mo_detail' case.remake_order.pk %}">{{ case.remake_order.code }}</a></div>{% endif %}
+            {% if case.rework_stat %}<div class="col-12"><div class="small text-muted">Thống kê sản xuất (sửa hàng)</div>
+              <a href="{% url 'san_xuat:dispatch_prod_stats_detail' case.rework_stat.pk %}">{{ case.rework_stat.code }}</a></div>{% endif %}
+            <div class="col-12"><div class="small text-muted">Ghi chú</div><div>{{ case.notes|default:"—" }}</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-5">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          {% if can_update and case.status == 'draft' %}
+          <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="confirm">
+            <button class="btn btn-hm w-100">Xác nhận xử lý</button>
+          </form>
+          {% else %}
+          <div class="text-muted small">Đã xử lý hoặc không có quyền.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

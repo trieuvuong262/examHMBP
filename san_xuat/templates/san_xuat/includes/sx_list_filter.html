@@ -1,0 +1,45 @@
+<form method="get" class="card border-0 shadow-sm mb-3" role="search" aria-label="Bộ lọc danh sách">
+  <div class="card-body py-2 px-3">
+    <div class="row g-2 align-items-end">
+      <div class="col-6 col-md-2">
+        <label class="form-label small mb-0 text-muted" for="sx-filter-code">Mã</label>
+        <input type="text" id="sx-filter-code" name="code" class="form-control form-control-sm"
+               value="{{ filter_code|default:'' }}" placeholder="Mã chứng từ…" autocomplete="off">
+      </div>
+      <div class="col-6 col-md-3">
+        <label class="form-label small mb-0 text-muted" for="sx-filter-name">Tên</label>
+        <input type="text" id="sx-filter-name" name="name" class="form-control form-control-sm"
+               value="{{ filter_name|default:'' }}" placeholder="Tên / mô tả…" autocomplete="off">
+      </div>
+      <div class="col-6 col-md-2">
+        <label class="form-label small mb-0 text-muted" for="sx-filter-date-from">Từ ngày</label>
+        <input type="date" id="sx-filter-date-from" name="date_from" class="form-control form-control-sm"
+               value="{{ filter_date_from|default:'' }}">
+      </div>
+      <div class="col-6 col-md-2">
+        <label class="form-label small mb-0 text-muted" for="sx-filter-date-to">Đến ngày</label>
+        <input type="date" id="sx-filter-date-to" name="date_to" class="form-control form-control-sm"
+               value="{{ filter_date_to|default:'' }}">
+      </div>
+      {% if list_filter_status_options %}
+      <div class="col-6 col-md-2">
+        <label class="form-label small mb-0 text-muted" for="sx-filter-status">Trạng thái</label>
+        <select id="sx-filter-status" name="status" class="form-select form-select-sm">
+          {% for val, label in list_filter_status_options %}
+          <option value="{{ val }}" {% if list_filter_status_value == val %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endif %}
+      {% for key, val in list_filter_preserve.items %}
+      <input type="hidden" name="{{ key }}" value="{{ val }}">
+      {% endfor %}
+      <div class="col-auto d-flex gap-1 flex-wrap">
+        <button type="submit" class="btn btn-hm btn-sm fw-bold">Lọc</button>
+        {% if has_list_filters or list_filter_preserve %}
+        <a href="{{ list_filter_clear_url|default:request.path }}" class="btn btn-outline-secondary btn-sm" title="Xóa lọc">×</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</form>

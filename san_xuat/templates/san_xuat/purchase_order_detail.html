@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
+  <div class="jp-page-header mb-3 mb-md-4">
+    <div>
+      <h2 class="fw-bold text-hm mb-1 jp-page-title">{{ po.code }}</h2>
+    </div>
+    <a href="{% url 'san_xuat:purchase_order' %}" class="btn btn-outline-secondary btn-sm">Quay lại</a>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-lg-7">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          {% if po.notes %}
+          <div class="alert alert-light border mb-3 small">{{ po.notes }}</div>
+          {% endif %}
+
+          <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0 align-middle">
+              <thead class="table-light">
+                <tr>
+                  <th>Nguyên phụ liệu</th>
+                  <th class="text-end">SL đặt</th>
+                  <th class="text-end">Số lượng nhập</th>
+                </tr>
+              </thead>
+              <tbody>
+              {% for line in po.lines.all %}
+                <tr class="{% if line.qty_received and line.qty_received < line.qty_ordered %}table-warning{% endif %}">
+                  <td>
+                    <div class="fw-semibold small">{{ line.material_code }}</div>
+                    <div class="text-muted small">{{ line.material_name|default:"—" }}</div>
+                  </td>
+                  <td class="text-end">{{ line.qty_ordered }}</td>
+                  <td class="text-end {% if line.qty_received %}text-success fw-semibold{% endif %}">
+                    {% if line.qty_received %}{{ line.qty_received }}{% else %}—{% endif %}
+                  </td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="3" class="text-muted small">Chưa có dòng nguyên vật liệu.</td></tr>
+              {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-5">
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body">
+          <div class="small text-muted mb-2">Phiếu nhập KiotViet</div>
+          {% if po.kv_purchase_kiotviet_id %}
+          <a href="{% url 'kiotviet:purchase_detail' po.kv_purchase_kiotviet_id %}" class="fw-semibold">
+            {{ po.kv_purchase_code|default:po.kv_purchase_kiotviet_id }}
+          </a>
+          {% elif can_update %}
+          <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="link_kv">
+            {% for field in link_form %}
+            <div class="mb-2">
+              <label class="form-label small text-muted" for="{{ field.id_for_label }}">{{ field.label }}</label>
+              {{ field }}
+            </div>
+            {% endfor %}
+            <button type="submit" class="btn btn-outline-hm w-100 btn-sm">Liên kết phiếu nhập</button>
+          </form>
+          <div class="form-text mt-2">
+            Tra cứu mã/id tại <a href="{% url 'kiotviet:purchase_lookup' %}">phiếu nhập KiotViet</a>.
+          </div>
+          {% else %}
+          <div class="text-muted small">Chưa liên kết phiếu nhập.</div>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <div class="small text-muted mb-3">Workflow</div>
+          {% if can_update and po.status == 'draft' %}
+          <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="confirm">
+            <button type="submit" class="btn btn-hm w-100">Xác nhận đơn mua hàng</button>
+          </form>
+          {% elif po.status == 'confirmed' and can_update and not po.kv_purchase_kiotviet_id %}
+          <div class="text-muted small">Đơn mua hàng đã xác nhận — liên kết phiếu nhập KiotViet để đánh dấu đã nhập.</div>
+          {% elif po.status == 'received' %}
+          <div class="text-success small">Đơn mua hàng đã nhập (liên kết KV).</div>
+          {% else %}
+          <div class="text-muted small">Đơn mua hàng đã xử lý hoặc bạn không có quyền cập nhật.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

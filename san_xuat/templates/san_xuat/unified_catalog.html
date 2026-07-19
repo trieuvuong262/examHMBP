@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% block extra_head %}{% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}{% endblock %}
+{% block content %}
+<div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 mb-5">
+  <div class="jp-npl-mat-topbar">
+    <div>
+      <h2 class="jp-npl-mat-topbar-title mb-0">Catalog thống nhất</h2>
+    </div>
+  </div>
+
+  {% include 'san_xuat/includes/sx_list_filter.html' %}
+
+  <div class="row g-3">
+    <div class="col-lg-3">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header bg-white">Nhóm SP</div>
+        <ul class="list-group list-group-flush">
+          {% for g in groups %}<li class="list-group-item py-2 small">
+            {{ g.code }} — {{ g.name }}
+            {% include 'san_xuat/includes/sx_list_meta_inline.html' with obj=g %}
+          </li>{% empty %}
+          <li class="list-group-item text-muted small">Chưa có nhóm</li>{% endfor %}
+        </ul>
+        {% if can_create %}
+        <div class="card-body border-top">
+          <form method="post" class="row g-1">
+            {% csrf_token %}
+            <div class="col-5"><input name="group_code" class="form-control form-control-sm" placeholder="Mã"></div>
+            <div class="col-5"><input name="group_name" class="form-control form-control-sm" placeholder="Tên"></div>
+            <div class="col-2"><button class="btn btn-sm btn-hm w-100">+</button></div>
+          </form>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    <div class="col-lg-3">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header bg-white">Hồ sơ SP</div>
+        <ul class="list-group list-group-flush" style="max-height:22rem;overflow:auto">
+          {% for d in docs %}<li class="list-group-item py-2 small">
+            <a href="{% url 'san_xuat:doc_detail' d.pk %}">{{ d.product_code }}</a> — {{ d.product_name|truncatechars:28 }}
+            {% include 'san_xuat/includes/sx_list_meta_inline.html' with obj=d %}
+          </li>{% empty %}<li class="list-group-item text-muted small">—</li>{% endfor %}
+        </ul>
+      </div>
+    </div>
+    <div class="col-lg-3">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header bg-white">Nguyên phụ liệu (kho_npl)</div>
+        <ul class="list-group list-group-flush" style="max-height:22rem;overflow:auto">
+          {% for m in materials %}<li class="list-group-item py-2 small">{{ m.code }} — {{ m.name|truncatechars:28 }}
+            <span class="text-muted">({{ m.unit }})</span>
+            {% if m.created_at %}<span class="text-muted d-block mt-1" style="font-size:.8rem">Tạo lúc: {{ m.created_at|date:"d/m/Y H:i" }}</span>{% endif %}
+          </li>{% empty %}
+          <li class="list-group-item text-muted small">—</li>{% endfor %}
+        </ul>
+      </div>
+    </div>
+    <div class="col-lg-3">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header bg-white">Đơn vị tính</div>
+        <ul class="list-group list-group-flush">
+          {% for u in units %}<li class="list-group-item py-2 small">{{ u.code }} — {{ u.name }}</li>{% empty %}
+          <li class="list-group-item text-muted small">—</li>{% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

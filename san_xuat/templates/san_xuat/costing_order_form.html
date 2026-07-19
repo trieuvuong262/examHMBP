@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
+  <div class="jp-page-header mb-3 mb-md-4">
+    <div>
+      <h2 class="fw-bold text-hm mb-1 jp-page-title">Tạo giá thành kế hoạch theo đơn KiotViet</h2>
+    </div>
+    <a href="{% url 'san_xuat:costing_by_order' %}" class="btn btn-outline-secondary btn-sm">Quay lại</a>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body">
+      <form method="post">
+        {% csrf_token %}
+        {% for field in form %}
+        <div class="mb-3">
+          <label class="form-label small text-muted" for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {{ field }}
+          {% if field.errors %}<div class="text-danger small">{{ field.errors }}</div>{% endif %}
+        </div>
+        {% endfor %}
+        <button type="submit" class="btn btn-hm">Tính GTKH</button>
+      </form>
+      <div class="form-text mt-3">
+        Tra cứu đơn tại <a href="{% url 'san_xuat:redirect_orders' %}">KiotViet đơn hàng</a>.
+        GT định mức ưu tiên bảng C1 đã chốt, không có thì tính live từ BOM.
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

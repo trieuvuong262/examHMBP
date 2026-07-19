@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
+  <div class="jp-page-header mb-3 mb-md-4">
+    <div>
+      <h2 class="fw-bold text-hm mb-1 jp-page-title">{{ mat_plan.code }}</h2>
+    </div>
+    <a href="{% url 'san_xuat:plan_npl' %}" class="btn btn-outline-secondary btn-sm">Quay lại</a>
+  </div>
+
+  {% if mat_plan.notes %}
+  <div class="alert alert-warning border-0 mb-3" role="status">{{ mat_plan.notes }}</div>
+  {% endif %}
+
+  <div class="row g-3 mb-3">
+    <div class="col-md-4">
+      <div class="border rounded-3 p-3 h-100">
+        <div class="text-muted small">Tổng shortfall</div>
+        <div class="fs-4 fw-semibold {% if shortfall_total %}text-danger{% else %}text-hm{% endif %}">{{ shortfall_total }}</div>
+      </div>
+    </div>
+    <div class="col-md-8 d-flex align-items-center flex-wrap gap-2">
+      {% if mat_plan.status == 'confirmed' and shortfall_total > 0 %}
+      <a href="{% url 'san_xuat:npl_purchase_request_create' %}?plan={{ mat_plan.pk }}" class="btn btn-hm btn-sm">Tạo yêu cầu mua nguyên phụ liệu từ shortfall</a>
+      {% endif %}
+      {% if can_update %}
+      <form method="post" class="d-inline">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="refresh">
+        <button type="submit" class="btn btn-outline-secondary btn-sm">Cập nhật tồn/shortfall</button>
+      </form>
+      {% if mat_plan.status == 'draft' %}
+      <form method="post" class="d-inline">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="confirm">
+        <button type="submit" class="btn btn-hm btn-sm">Xác nhận kế hoạch nguyên phụ liệu</button>
+      </form>
+      {% endif %}
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+      <table class="table table-sm table-hover mb-0 align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Nguyên phụ liệu</th>
+            <th class="text-end">Nhu cầu</th>
+            <th class="text-end">Tồn hiện tại</th>
+            <th class="text-end">Thiếu hụt</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for line in mat_plan.lines.all %}
+          <tr class="{% if line.qty_shortfall %}table-warning{% endif %}">
+            <td>
+              <div class="fw-semibold small">{{ line.material_code }}</div>
+              <div class="text-muted small">{{ line.material_name|default:"—" }}</div>
+            </td>
+            <td class="text-end">{{ line.qty_required }}</td>
+            <td class="text-end">{{ line.qty_on_hand }}</td>
+            <td class="text-end fw-semibold {% if line.qty_shortfall %}text-danger{% endif %}">{{ line.qty_shortfall }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="4" class="text-muted small p-3">Chưa có dòng nguyên vật liệu.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {% if purchase_requests %}
+  <div class="card border-0 shadow-sm mt-3">
+    <div class="card-body">
+      <div class="small text-muted mb-2">Yêu cầu mua nguyên phụ liệu liên quan (P3)</div>
+      <ul class="mb-0">
+      {% for pr in purchase_requests %}
+        <li><a href="{% url 'san_xuat:npl_purchase_request_detail' pr.pk %}">{{ pr.code }}</a> — {{ pr.get_status_display }}</li>
+      {% endfor %}
+      </ul>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

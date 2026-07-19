@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 py-md-4 mb-5">
+    <div class="jp-page-header mb-3 mb-md-4">
+        <div>
+            <h2 class="fw-bold text-hm mb-1 jp-page-title">Yêu cầu kiểm tra</h2>
+        </div>
+        <div class="d-flex gap-2">
+            {% if can_create %}
+            <a href="{% url 'san_xuat:qc_request_create' %}" class="btn btn-hm btn-sm">Tạo yêu cầu kiểm tra</a>
+            {% endif %}
+            <a href="{% url 'san_xuat:qc_stub' %}" class="btn btn-outline-secondary btn-sm">QC</a>
+        </div>
+    </div>
+
+  {% include 'san_xuat/includes/sx_list_filter.html' %}
+    <div class="card border-0 shadow-sm overflow-hidden">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Mã</th>
+                        <th>Lệnh sản xuất</th>
+                        <th>Mã sản phẩm</th>
+                        <th>Công đoạn</th>
+                        <th class="text-end">Số lượng</th>
+                        <th>Trạng thái</th>
+            {% include 'san_xuat/includes/sx_list_meta_head.html' %}
+<th class="text-end"></th>
+</tr>
+                </thead>
+                <tbody>
+                {% for req in requests %}
+                    <tr class="jp-npl-catalog-row" data-href="{% url 'san_xuat:qc_request_detail' req.pk %}">
+                        <td><strong>{{ req.code }}</strong></td>
+                        <td>{% if req.production_order %}<a href="{% url 'san_xuat:dispatch_mo_detail' req.production_order.pk %}">{{ req.production_order.code }}</a>{% else %}—{% endif %}</td>
+                        <td>{{ req.product_code }}</td>
+                        <td>{{ req.stage_name|default:"—" }}</td>
+<td class="text-end">{{ req.qty }}</td>
+                        <td><span class="badge bg-secondary-subtle text-secondary border">{{ req.status }}</span></td>
+                                    {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=req %}
+<td class="text-end"><a href="{% url 'san_xuat:qc_request_detail' req.pk %}" class="btn btn-sm btn-outline-hm">Mở</a></td>
+</tr>
+                {% empty %}
+                    <tr><td colspan="13" class="text-center text-muted py-4">Chưa có Yêu cầu kiểm tra thật.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

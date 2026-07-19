@@ -141,6 +141,25 @@ def compute_costing(bom: BomVersion) -> CostingResult:
     return result
 
 
+def list_costing_from_active_boms(*, include_draft: bool = False) -> list[tuple]:
+    """C0: danh sách (doc, bom, CostingResult) cho hub giá thành."""
+    from san_xuat.models import BomVersion, ProductTechDoc
+    from san_xuat.services.bom import get_active_bom, get_working_bom
+
+    rows: list[tuple] = []
+    docs = ProductTechDoc.objects.filter(is_active=True).order_by('product_code')
+    for doc in docs:
+        bom = get_active_bom(doc)
+        if not bom and include_draft:
+            bom = get_working_bom(doc)
+        if not bom:
+            continue
+        if not include_draft and bom.status != BomVersion.STATUS_ACTIVE:
+            continue
+        rows.append((doc, bom, compute_costing(bom)))
+    return rows
+
+
 def save_costing_snapshot(bom: BomVersion, *, user=None, notes: str = '') -> CostingSnapshot:
     result = compute_costing(bom)
     return CostingSnapshot.objects.create(

@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 py-md-4 mb-5">
+  <div class="jp-page-header mb-3 mb-md-4">
+    <div>
+      <h2 class="fw-bold text-hm mb-1 jp-page-title">Yêu cầu nhập thành phẩm</h2>
+    </div>
+    <a href="{% url 'san_xuat:dispatch_fg_receipt_req_create' %}" class="btn btn-hm btn-sm">Tạo yêu cầu nhập thành phẩm</a>
+  </div>
+
+  {% include 'san_xuat/includes/sx_list_filter.html' %}
+  <div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+      <table class="table table-sm table-hover mb-0 align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Mã</th>
+            <th>Lệnh sản xuất</th>
+            <th>Ngày</th>
+            <th class="text-end">Số lượng</th>
+            <th>Trạng thái</th>
+            <th>Phiếu KV</th>
+            {% include 'san_xuat/includes/sx_list_meta_head.html' %}
+<th class="text-end"></th>
+</tr>
+        </thead>
+        <tbody>
+        {% for req in requests %}
+          <tr class="jp-npl-catalog-row" data-href="{% url 'san_xuat:dispatch_fg_receipt_req_detail' req.pk %}">
+            <td><strong>{{ req.code }}</strong></td>
+            <td class="small">
+              <a href="{% url 'san_xuat:dispatch_mo_detail' req.production_order.pk %}">{{ req.production_order.code }}</a>
+            </td>
+            <td class="small text-muted">{{ req.request_date|date:"d/m/Y" }}</td>
+<td class="text-end">{{ req.qty }}</td>
+            <td class="small">{{ req.get_status_display }}</td>
+            <td class="small">
+              {% if req.kv_purchase_kiotviet_id %}
+              <a href="{% url 'san_xuat:fg_purchase_detail' req.kv_purchase_kiotviet_id %}">{{ req.kv_purchase_code|default:req.kv_purchase_kiotviet_id }}</a>
+              {% else %}—{% endif %}
+            </td>
+                        {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=req %}
+<td class="text-end">
+              <a href="{% url 'san_xuat:dispatch_fg_receipt_req_detail' req.pk %}" class="btn btn-sm btn-outline-hm">Mở</a>
+            </td>
+</tr>
+        {% empty %}
+          <tr><td colspan="13" class="text-muted small p-3">Chưa có yêu cầu nhập thành phẩm.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

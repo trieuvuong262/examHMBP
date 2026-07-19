@@ -83,8 +83,22 @@ class MaterialSpecification(models.Model):
 
 
 class WarehouseLocation(models.Model):
+    KIND_STOCK = 'stock'
+    KIND_STAGING_NPL = 'staging_npl'
+    KIND_STAGING_WIP = 'staging_wip'
+    KIND_SCRAP = 'scrap'
+    KIND_CHOICES = [
+        (KIND_STOCK, 'Kho thường'),
+        (KIND_STAGING_NPL, 'Vùng chờ nguyên phụ liệu'),
+        (KIND_STAGING_WIP, 'Vùng chờ bán thành phẩm'),
+        (KIND_SCRAP, 'Kho phế / hủy'),
+    ]
+
     code = models.CharField(max_length=40, unique=True, verbose_name='Mã vị trí')
     name = models.CharField(max_length=120, verbose_name='Tên vị trí / kệ')
+    location_kind = models.CharField(
+        max_length=20, choices=KIND_CHOICES, default=KIND_STOCK, db_index=True, verbose_name='Loại vị trí',
+    )
     is_active = models.BooleanField(default=True, verbose_name='Đang dùng')
 
     class Meta:
@@ -953,6 +967,68 @@ class StockLedger(models.Model):
         ordering = ['-created_at', '-id']
         verbose_name = 'Sổ kho'
         verbose_name_plural = 'Sổ kho'
+
+
+class StockReservation(models.Model):
+    """Giữ chỗ tồn NPL cho KHNVL/YCX — trừ khỏi tồn khả dụng trước khi xuất thật."""
+
+    REF_YCX = 'ycx'
+    REF_KHNVL = 'khnvl'
+    REF_MO = 'mo'
+    REF_CHOICES = [
+        (REF_YCX, 'Yêu cầu xuất'),
+        (REF_KHNVL, 'Kế hoạch nguyên phụ liệu'),
+        (REF_MO, 'Lệnh sản xuất'),
+    ]
+
+    STATUS_ACTIVE = 'active'
+    STATUS_CONSUMED = 'consumed'
+    STATUS_RELEASED = 'released'
+    STATUS_CHOICES = [
+        (STATUS_ACTIVE, 'Đang giữ'),
+        (STATUS_CONSUMED, 'Đã xuất'),
+        (STATUS_RELEASED, 'Đã hủy'),
+    ]
+
+    material = models.ForeignKey(
+        Material,
+        on_delete=models.CASCADE,
+        related_name='reservations',
+        verbose_name='Nguyên phụ liệu',
+    )
+    location = models.ForeignKey(
+        WarehouseLocation,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='reservations',
+        verbose_name='Vị trí (tuỳ chọn)',
+    )
+    quantity = models.DecimalField(
+        max_digits=14,
+        decimal_places=3,
+        default=Decimal('0'),
+        validators=[MinValueValidator(Decimal('0'))],
+        verbose_name='SL giữ',
+    )
+    ref_type = models.CharField(max_length=10, choices=REF_CHOICES, db_index=True)
+    ref_code = models.CharField(max_length=60, db_index=True, verbose_name='Mã chứng từ')
+    production_order_code = models.CharField(max_length=40, blank=True, default='', db_index=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_ACTIVE, db_index=True)
+    notes = models.CharField(max_length=255, blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Giữ chỗ tồn'
+        verbose_name_plural = 'Giữ chỗ tồn'
+        indexes = [
+            models.Index(fields=['material', 'status']),
+        ]
+
+    def __str__(self):
+        return f'{self.ref_code} · {self.material.code} · {self.quantity}'
 
 
 class NplDocAttachment(models.Model):

@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 py-md-4 mb-5">
+  <div class="jp-page-header mb-3 mb-md-4">
+    <div>
+      <h2 class="fw-bold text-hm mb-1 jp-page-title">Giá thành định mức sản phẩm</h2>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{% url 'san_xuat:redirect_costing' %}" class="btn btn-outline-secondary btn-sm">Quay lại</a>
+      <a href="{% url 'san_xuat:costing_sheet_list' %}" class="btn btn-outline-hm btn-sm">Bảng chốt kỳ (C1)</a>
+      <a href="{% url 'san_xuat:doc_list' %}" class="btn btn-outline-hm btn-sm">Hồ sơ sản xuất</a>
+    </div>
+  </div>
+
+  {% include 'san_xuat/includes/sx_list_filter.html' %}
+  <div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+      <table class="table table-sm table-hover mb-0 align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Mã sản phẩm</th>
+            <th>Tên</th>
+            <th class="text-end">Nguyên phụ liệu</th>
+            <th class="text-end">Nhân công</th>
+            <th class="text-end">Phụ phí</th>
+            <th class="text-end">Tổng GT</th>
+            <th class="text-end">Giá bán</th>
+            <th class="text-end">Biên</th>
+            {% include 'san_xuat/includes/sx_list_meta_head.html' %}
+            <th class="text-end"></th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for doc, bom, costing in rows %}
+          <tr>
+            <td><strong>{{ costing.product_code|default:doc.product_code }}</strong></td>
+            <td class="small">{{ costing.product_name|default:doc.product_name|default:"—" }}</td>
+            <td class="text-end">{{ costing.material_cost|floatformat:0|intcomma }}</td>
+            <td class="text-end">{{ costing.labor_cost|floatformat:0|intcomma }}</td>
+            <td class="text-end">{{ costing.overhead_cost|floatformat:0|intcomma }}</td>
+            <td class="text-end fw-semibold text-hm">{{ costing.total_cost|floatformat:0|intcomma }}</td>
+            <td class="text-end">{{ costing.sell_price|floatformat:0|intcomma }}</td>
+            <td class="text-end {% if costing.margin >= 0 %}text-success{% else %}text-danger{% endif %}">
+              {{ costing.margin|floatformat:0|intcomma }}
+            </td>
+            {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=doc %}
+            <td class="text-end">
+              <a href="{% url 'san_xuat:doc_detail' doc.pk %}?tab=costing&bom={{ bom.pk }}" class="btn btn-sm btn-outline-hm">Chi tiết</a>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="11" class="text-muted small p-3">
+              Chưa có SP nào có BOM active. Tạo BOM trong <a href="{% url 'san_xuat:doc_list' %}">Hồ sơ sản xuất</a>.
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

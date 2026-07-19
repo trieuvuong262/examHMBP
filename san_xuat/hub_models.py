@@ -14,6 +14,14 @@ from django.db import models
 
 class DemoMarkedModel(models.Model):
     is_demo = models.BooleanField(default=False, db_index=True, verbose_name='Dữ liệu demo')
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='%(app_label)s_%(class)s_created',
+        verbose_name='Người tạo',
+    )
 
     class Meta:
         abstract = True
@@ -38,6 +46,13 @@ class SxOverallPlan(DemoMarkedModel):
     name = models.CharField(max_length=200, verbose_name='Tên kế hoạch')
     date_from = models.DateField(verbose_name='Từ ngày')
     date_to = models.DateField(verbose_name='Đến ngày')
+    SOURCE_FORECAST = 'forecast'
+    SOURCE_SALES_ORDER = 'sales_order'
+    SOURCE_CHOICES = [
+        (SOURCE_FORECAST, 'Dự báo / nhập tay'),
+        (SOURCE_SALES_ORDER, 'Từ đơn KV'),
+    ]
+    source = models.CharField(max_length=20, choices=SOURCE_CHOICES, default=SOURCE_FORECAST)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT, db_index=True)
     notes = models.TextField(blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
@@ -58,6 +73,8 @@ class SxOverallPlanLine(models.Model):
     qty_required = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
     qty_planned = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
     capacity_per_day = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
+    kv_order_kiotviet_id = models.BigIntegerField(null=True, blank=True, verbose_name='KV order id')
+    kv_order_code = models.CharField(max_length=64, blank=True, default='', verbose_name='Mã đơn KV')
 
     class Meta:
         ordering = ['id']
@@ -92,6 +109,15 @@ class SxDetailPlanLine(models.Model):
     product_code = models.CharField(max_length=60, db_index=True)
     product_name = models.CharField(max_length=255, blank=True, default='')
     qty = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
+    team_label = models.CharField(max_length=80, blank=True, default='', verbose_name='Tổ/chuyền')
+    work_center = models.ForeignKey(
+        'san_xuat.SxWorkCenter',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='detail_plan_lines',
+        verbose_name='Năng lực SX',
+    )
 
     class Meta:
         ordering = ['plan_date', 'id']
@@ -125,6 +151,9 @@ class SxMaterialPlanLine(models.Model):
     qty_required = models.DecimalField(max_digits=14, decimal_places=4, default=Decimal('0'))
     qty_on_hand = models.DecimalField(max_digits=14, decimal_places=4, default=Decimal('0'))
     qty_shortfall = models.DecimalField(max_digits=14, decimal_places=4, default=Decimal('0'))
+    qty_expected_inbound = models.DecimalField(
+        max_digits=14, decimal_places=4, default=Decimal('0'), verbose_name='Dự kiến về (PO mở)',
+    )
 
     class Meta:
         ordering = ['id']
@@ -133,12 +162,24 @@ class SxMaterialPlanLine(models.Model):
 
 
 class SxNplPurchaseRequest(DemoMarkedModel):
+    STATUS_DRAFT = 'draft'
+    STATUS_SUBMITTED = 'submitted'
+    STATUS_APPROVED = 'approved'
+    STATUS_REJECTED = 'rejected'
+    STATUS_CHOICES = [
+        (STATUS_DRAFT, 'Nháp'),
+        (STATUS_SUBMITTED, 'Đã gửi'),
+        (STATUS_APPROVED, 'Đã duyệt'),
+        (STATUS_REJECTED, 'Từ chối'),
+    ]
+
     code = models.CharField(max_length=40, unique=True, verbose_name='Mã YCM')
     material_plan = models.ForeignKey(
         SxMaterialPlan, on_delete=models.SET_NULL, null=True, blank=True, related_name='purchase_requests',
     )
+    request_date = models.DateField(null=True, blank=True, verbose_name='Ngày YC')
     due_date = models.DateField(null=True, blank=True)
-    status = models.CharField(max_length=20, default='draft')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT, db_index=True)
     notes = models.TextField(blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -162,12 +203,23 @@ class SxNplPurchaseRequestLine(models.Model):
 
 
 class SxPurchaseOrder(DemoMarkedModel):
+    STATUS_DRAFT = 'draft'
+    STATUS_CONFIRMED = 'confirmed'
+    STATUS_RECEIVED = 'received'
+    STATUS_CHOICES = [
+        (STATUS_DRAFT, 'Nháp'),
+        (STATUS_CONFIRMED, 'Đã xác nhận'),
+        (STATUS_RECEIVED, 'Đã nhập'),
+    ]
+
     code = models.CharField(max_length=40, unique=True, verbose_name='Mã DMH')
     supplier_name = models.CharField(max_length=200, blank=True, default='')
     purchase_request = models.ForeignKey(
         SxNplPurchaseRequest, on_delete=models.SET_NULL, null=True, blank=True, related_name='purchase_orders',
     )
-    status = models.CharField(max_length=20, default='draft')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT, db_index=True)
+    kv_purchase_kiotviet_id = models.BigIntegerField(null=True, blank=True, verbose_name='KV purchase id')
+    kv_purchase_code = models.CharField(max_length=64, blank=True, default='', verbose_name='Mã phiếu nhập KV')
     notes = models.TextField(blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -225,6 +277,12 @@ class SxProductionOrder(DemoMarkedModel):
     planned_end = models.DateField(null=True, blank=True)
     team_label = models.CharField(max_length=80, blank=True, default='')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT, db_index=True)
+    is_sample = models.BooleanField(
+        default=False,
+        db_index=True,
+        verbose_name='Lệnh sản xuất mẫu',
+        help_text='Tách khỏi lệnh sản xuất đại trà (có thể lọc khi tính năng lực).',
+    )
     notes = models.TextField(blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -238,12 +296,31 @@ class SxProductionOrder(DemoMarkedModel):
 
 
 class SxDisassemblyOrder(DemoMarkedModel):
+    STATUS_DRAFT = 'draft'
+    STATUS_CONFIRMED = 'confirmed'
+    STATUS_CANCELLED = 'cancelled'
+    STATUS_CHOICES = [
+        (STATUS_DRAFT, 'Nháp'),
+        (STATUS_CONFIRMED, 'Đã xác nhận'),
+        (STATUS_CANCELLED, 'Hủy'),
+    ]
+
     code = models.CharField(max_length=40, unique=True, verbose_name='Mã LTD')
+    production_order = models.ForeignKey(
+        SxProductionOrder,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='disassembly_orders',
+        verbose_name='LSX nguồn',
+    )
     product_code = models.CharField(max_length=60, db_index=True)
     product_name = models.CharField(max_length=255, blank=True, default='')
     qty = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
     order_date = models.DateField()
-    status = models.CharField(max_length=20, default='draft')
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT, db_index=True,
+    )
     notes = models.TextField(blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -256,10 +333,36 @@ class SxDisassemblyOrder(DemoMarkedModel):
         return self.code
 
 
+class SxDisassemblyOrderLine(models.Model):
+    """NVL / BTP thu hồi từ lệnh tháo dỡ."""
+
+    order = models.ForeignKey(
+        SxDisassemblyOrder, on_delete=models.CASCADE, related_name='lines',
+    )
+    material_code = models.CharField(max_length=60)
+    material_name = models.CharField(max_length=255, blank=True, default='')
+    qty = models.DecimalField(max_digits=14, decimal_places=4, default=Decimal('0'))
+    notes = models.CharField(max_length=255, blank=True, default='')
+
+    class Meta:
+        ordering = ['id']
+        verbose_name = 'Dòng tháo dỡ'
+        verbose_name_plural = 'Dòng tháo dỡ'
+
+
 class SxMaterialIssueRequest(DemoMarkedModel):
     code = models.CharField(max_length=40, unique=True, verbose_name='Mã YCX')
     production_order = models.ForeignKey(
         SxProductionOrder, on_delete=models.CASCADE, related_name='material_issue_requests',
+    )
+    # Liên kết phiếu xuất NPL thật trên kho_npl sau khi duyệt YCX.
+    stock_issue = models.ForeignKey(
+        'kho_npl.StockIssue',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='material_issue_requests',
+        verbose_name='Phiếu xuất NPL',
     )
     status = models.CharField(max_length=20, default='draft')
     request_date = models.DateField()
@@ -281,12 +384,27 @@ class SxMaterialIssueRequestLine(models.Model):
     material_name = models.CharField(max_length=255, blank=True, default='')
     qty_requested = models.DecimalField(max_digits=14, decimal_places=4, default=Decimal('0'))
     qty_issued = models.DecimalField(max_digits=14, decimal_places=4, default=Decimal('0'))
+    preferred_location = models.ForeignKey(
+        'kho_npl.WarehouseLocation',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='ycx_preferred_lines',
+        verbose_name='Vị trí ưu tiên',
+    )
 
     class Meta:
         ordering = ['id']
 
 
 class SxProductionStat(DemoMarkedModel):
+    STATUS_DRAFT = 'draft'
+    STATUS_CONFIRMED = 'confirmed'
+    STATUS_CHOICES = [
+        (STATUS_DRAFT, 'Nháp'),
+        (STATUS_CONFIRMED, 'Đã xác nhận'),
+    ]
+
     code = models.CharField(max_length=40, unique=True, verbose_name='Mã TKSX')
     production_order = models.ForeignKey(
         SxProductionOrder, on_delete=models.CASCADE, related_name='production_stats',
@@ -296,6 +414,10 @@ class SxProductionStat(DemoMarkedModel):
     qty_good = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
     qty_defect = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
     team_label = models.CharField(max_length=80, blank=True, default='')
+    sku_code = models.CharField(max_length=60, blank=True, default='', verbose_name='SKU')
+    size_label = models.CharField(max_length=40, blank=True, default='', verbose_name='Size')
+    color_label = models.CharField(max_length=40, blank=True, default='', verbose_name='Màu')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT, db_index=True)
     notes = models.TextField(blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -309,13 +431,30 @@ class SxProductionStat(DemoMarkedModel):
 
 
 class SxFgReceiptRequest(DemoMarkedModel):
+    STATUS_DRAFT = 'draft'
+    STATUS_SUBMITTED = 'submitted'
+    STATUS_DONE = 'done'
+    STATUS_CANCELLED = 'cancelled'
+    STATUS_CHOICES = [
+        (STATUS_DRAFT, 'Nháp'),
+        (STATUS_SUBMITTED, 'Đã gửi'),
+        (STATUS_DONE, 'Hoàn thành'),
+        (STATUS_CANCELLED, 'Hủy'),
+    ]
+
     code = models.CharField(max_length=40, unique=True, verbose_name='Mã YCNTP')
     production_order = models.ForeignKey(
         SxProductionOrder, on_delete=models.CASCADE, related_name='fg_receipt_requests',
     )
+    production_stat = models.ForeignKey(
+        SxProductionStat, on_delete=models.SET_NULL, null=True, blank=True, related_name='fg_receipt_requests',
+        verbose_name='TKSX nguồn',
+    )
     request_date = models.DateField()
     qty = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
-    status = models.CharField(max_length=20, default='draft')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT, db_index=True)
+    kv_purchase_kiotviet_id = models.BigIntegerField(null=True, blank=True, verbose_name='KV purchase id')
+    kv_purchase_code = models.CharField(max_length=64, blank=True, default='', verbose_name='Mã phiếu nhập KV')
     notes = models.TextField(blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -329,14 +468,42 @@ class SxFgReceiptRequest(DemoMarkedModel):
 
 
 class SxNplSurplus(DemoMarkedModel):
+    STATUS_DRAFT = 'draft'
+    STATUS_CONFIRMED = 'confirmed'
+    STATUS_CANCELLED = 'cancelled'
+    STATUS_CHOICES = [
+        (STATUS_DRAFT, 'Nháp'),
+        (STATUS_CONFIRMED, 'Đã nhập kho'),
+        (STATUS_CANCELLED, 'Hủy'),
+    ]
+
     code = models.CharField(max_length=40, unique=True, verbose_name='Mã NPL thừa')
     production_order = models.ForeignKey(
         SxProductionOrder, on_delete=models.SET_NULL, null=True, blank=True, related_name='npl_surplus_records',
+    )
+    disassembly_order = models.ForeignKey(
+        SxDisassemblyOrder,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='surplus_records',
+        verbose_name='LTD nguồn',
     )
     material_code = models.CharField(max_length=60)
     material_name = models.CharField(max_length=255, blank=True, default='')
     qty = models.DecimalField(max_digits=14, decimal_places=4, default=Decimal('0'))
     recorded_at = models.DateField()
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT, db_index=True,
+    )
+    stock_adjustment = models.ForeignKey(
+        'kho_npl.StockAdjustment',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='npl_surplus_records',
+        verbose_name='Phiếu ĐC kho',
+    )
     notes = models.TextField(blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -381,26 +548,68 @@ class SxWipHandover(DemoMarkedModel):
 
 
 class SxWipReturn(DemoMarkedModel):
-    code = models.CharField(max_length=40, unique=True, verbose_name='Mã trả BTP')
+    STATUS_DRAFT = 'draft'
+    STATUS_CONFIRMED = 'confirmed'
+    STATUS_CANCELLED = 'cancelled'
+    STATUS_CHOICES = [
+        (STATUS_DRAFT, 'Nháp'),
+        (STATUS_CONFIRMED, 'Đã xác nhận'),
+        (STATUS_CANCELLED, 'Hủy'),
+    ]
+
+    code = models.CharField(max_length=40, unique=True, verbose_name='Mã trả bán thành phẩm')
     handover = models.ForeignKey(
         SxWipHandover, on_delete=models.SET_NULL, null=True, blank=True, related_name='returns',
     )
     production_order = models.ForeignKey(
         SxProductionOrder, on_delete=models.CASCADE, related_name='wip_returns',
     )
+    from_process = models.CharField(
+        max_length=120, blank=True, default='', verbose_name='Từ công đoạn (đang giữ)',
+    )
+    to_process = models.CharField(
+        max_length=120, blank=True, default='', verbose_name='Về công đoạn (sửa)',
+    )
     qty = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
     return_date = models.DateField()
     reason = models.CharField(max_length=255, blank=True, default='')
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT, db_index=True,
+    )
     notes = models.TextField(blank=True, default='')
+    confirmed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ['-return_date']
-        verbose_name = 'Trả lại BTP'
-        verbose_name_plural = 'Trả lại BTP'
+        verbose_name = 'Trả lại bán thành phẩm'
+        verbose_name_plural = 'Trả lại bán thành phẩm'
 
     def __str__(self):
         return self.code
+
+
+class SxWipBalance(DemoMarkedModel):
+    production_order = models.ForeignKey(
+        SxProductionOrder, on_delete=models.CASCADE, related_name='wip_balances',
+    )
+    process_name = models.CharField(max_length=120, verbose_name='Công đoạn')
+    qty = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['production_order_id', 'process_name']
+        verbose_name = 'Tồn bán thành phẩm theo công đoạn'
+        verbose_name_plural = 'Tồn bán thành phẩm theo công đoạn'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['production_order', 'process_name'],
+                name='uniq_sx_wip_balance_mo_process',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.production_order_id} · {self.process_name}: {self.qty}'
 
 
 # --- QC ---
@@ -463,6 +672,11 @@ class SxQcStandardSet(DemoMarkedModel):
     code = models.CharField(max_length=40, unique=True)
     name = models.CharField(max_length=200)
     product_code = models.CharField(max_length=60, blank=True, default='')
+    stage_name = models.CharField(max_length=120, blank=True, default='', verbose_name='Công đoạn')
+    defect_tolerance_pct = models.DecimalField(
+        max_digits=6, decimal_places=2, default=Decimal('5'),
+        verbose_name='Ngưỡng lỗi cho phép (%)',
+    )
     sampling_method = models.ForeignKey(
         SxQcSamplingMethod, on_delete=models.PROTECT, related_name='standard_sets',
     )
@@ -475,6 +689,20 @@ class SxQcStandardSet(DemoMarkedModel):
 
     def __str__(self):
         return self.name
+
+
+class SxQcStandardCriteria(models.Model):
+    standard_set = models.ForeignKey(SxQcStandardSet, on_delete=models.CASCADE, related_name='criteria_links')
+    criteria = models.ForeignKey(SxQcCriteria, on_delete=models.PROTECT, related_name='standard_links')
+    sort_order = models.PositiveSmallIntegerField(default=0)
+    min_value = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
+    max_value = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
+
+    class Meta:
+        ordering = ['sort_order', 'id']
+        unique_together = [('standard_set', 'criteria')]
+        verbose_name = 'Tiêu chí trong bộ TC'
+        verbose_name_plural = 'Tiêu chí trong bộ TC'
 
 
 class SxQcDefectGroup(DemoMarkedModel):
@@ -512,9 +740,16 @@ class SxQcRequest(DemoMarkedModel):
     production_order = models.ForeignKey(
         SxProductionOrder, on_delete=models.SET_NULL, null=True, blank=True, related_name='qc_requests',
     )
+    production_stat = models.ForeignKey(
+        SxProductionStat, on_delete=models.SET_NULL, null=True, blank=True, related_name='qc_requests',
+        verbose_name='TKSX nguồn',
+    )
     product_code = models.CharField(max_length=60, db_index=True)
     product_name = models.CharField(max_length=255, blank=True, default='')
     stage_name = models.CharField(max_length=120, blank=True, default='')
+    sku_code = models.CharField(max_length=60, blank=True, default='', verbose_name='SKU')
+    size_label = models.CharField(max_length=40, blank=True, default='', verbose_name='Size')
+    color_label = models.CharField(max_length=40, blank=True, default='', verbose_name='Màu')
     qty = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
     request_date = models.DateField()
     due_date = models.DateField(null=True, blank=True)
@@ -566,15 +801,102 @@ class SxQcInspection(DemoMarkedModel):
         return self.code
 
 
+class SxQcInspectionCriteriaLine(models.Model):
+    inspection = models.ForeignKey(
+        SxQcInspection, on_delete=models.CASCADE, related_name='criteria_lines',
+    )
+    criteria = models.ForeignKey(SxQcCriteria, on_delete=models.PROTECT, related_name='inspection_lines')
+    value_text = models.CharField(max_length=255, blank=True, default='')
+    value_number = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
+    is_pass = models.BooleanField(null=True, blank=True)
+    notes = models.CharField(max_length=255, blank=True, default='')
+
+    class Meta:
+        ordering = ['id']
+        unique_together = [('inspection', 'criteria')]
+        verbose_name = 'Dòng tiêu chí PKT'
+        verbose_name_plural = 'Dòng tiêu chí PKT'
+
+
+class SxQcInspectionDefectLine(models.Model):
+    inspection = models.ForeignKey(
+        SxQcInspection, on_delete=models.CASCADE, related_name='defect_lines',
+    )
+    defect = models.ForeignKey(SxQcDefect, on_delete=models.PROTECT, related_name='inspection_lines')
+    qty = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
+    notes = models.CharField(max_length=255, blank=True, default='')
+
+    class Meta:
+        ordering = ['id']
+        verbose_name = 'Dòng lỗi PKT'
+        verbose_name_plural = 'Dòng lỗi PKT'
+
+
+class SxQcAlert(DemoMarkedModel):
+    TYPE_DEFECT_RATE = 'defect_rate_exceeded'
+    TYPE_QC_FAIL = 'qc_inspection_fail'
+    TYPE_CHOICES = [
+        (TYPE_DEFECT_RATE, 'Tỷ lệ lỗi vượt ngưỡng'),
+        (TYPE_QC_FAIL, 'Phiếu kiểm tra không đạt'),
+    ]
+
+    STATUS_OPEN = 'open'
+    STATUS_ACK = 'acknowledged'
+    STATUS_CLOSED = 'closed'
+    STATUS_CHOICES = [
+        (STATUS_OPEN, 'Mở'),
+        (STATUS_ACK, 'Đã xử lý'),
+        (STATUS_CLOSED, 'Đóng'),
+    ]
+
+    code = models.CharField(max_length=40, unique=True, verbose_name='Mã cảnh báo')
+    alert_type = models.CharField(max_length=30, choices=TYPE_CHOICES, db_index=True)
+    production_order = models.ForeignKey(
+        SxProductionOrder, on_delete=models.CASCADE, related_name='qc_alerts',
+    )
+    production_stat = models.ForeignKey(
+        SxProductionStat, on_delete=models.SET_NULL, null=True, blank=True, related_name='qc_alerts',
+    )
+    qc_request = models.ForeignKey(
+        SxQcRequest, on_delete=models.SET_NULL, null=True, blank=True, related_name='alerts',
+    )
+    qc_inspection = models.ForeignKey(
+        SxQcInspection, on_delete=models.SET_NULL, null=True, blank=True, related_name='alerts',
+    )
+    process_name = models.CharField(max_length=120, blank=True, default='')
+    defect_rate = models.DecimalField(max_digits=8, decimal_places=2, default=Decimal('0'))
+    tolerance_limit = models.DecimalField(max_digits=6, decimal_places=2, default=Decimal('5'))
+    qty_good = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
+    qty_defect = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
+    message = models.TextField(blank=True, default='')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_OPEN, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Cảnh báo QC'
+        verbose_name_plural = 'Cảnh báo QC'
+
+    def __str__(self):
+        return self.code
+
+
 # --- Giá thành kế hoạch ---
 
 
 class SxStandardCostSheet(DemoMarkedModel):
+    STATUS_DRAFT = 'draft'
+    STATUS_CONFIRMED = 'confirmed'
+    STATUS_CHOICES = [
+        (STATUS_DRAFT, 'Nháp'),
+        (STATUS_CONFIRMED, 'Đã chốt'),
+    ]
+
     code = models.CharField(max_length=40, unique=True, verbose_name='Mã GTDM')
     name = models.CharField(max_length=200)
     date_from = models.DateField()
     date_to = models.DateField()
-    status = models.CharField(max_length=20, default='confirmed')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT, db_index=True)
     notes = models.TextField(blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -601,13 +923,21 @@ class SxStandardCostLine(models.Model):
 
 
 class SxOrderPlanCost(DemoMarkedModel):
+    STATUS_DRAFT = 'draft'
+    STATUS_CONFIRMED = 'confirmed'
+    STATUS_CHOICES = [
+        (STATUS_DRAFT, 'Nháp'),
+        (STATUS_CONFIRMED, 'Đã chốt'),
+    ]
+
     code = models.CharField(max_length=40, unique=True, verbose_name='Mã GTĐH')
     name = models.CharField(max_length=200)
     kv_order_code = models.CharField(max_length=80, blank=True, default='', verbose_name='Mã đơn KV')
+    kv_order_kiotviet_id = models.BigIntegerField(null=True, blank=True, verbose_name='KV order id')
     date_from = models.DateField()
     date_to = models.DateField()
     total_cost = models.DecimalField(max_digits=16, decimal_places=2, default=Decimal('0'))
-    status = models.CharField(max_length=20, default='confirmed')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT, db_index=True)
     notes = models.TextField(blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -626,7 +956,459 @@ class SxOrderPlanCostLine(models.Model):
     product_name = models.CharField(max_length=255, blank=True, default='')
     qty = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
     unit_cost = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
+    extra_cost = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
     line_cost = models.DecimalField(max_digits=16, decimal_places=2, default=Decimal('0'))
 
     class Meta:
         ordering = ['id']
+
+
+class SxCostType(DemoMarkedModel):
+    """Loại chi phí thêm cấu hình được (C4) — cột động trên GTKH theo đơn."""
+
+    code = models.CharField(max_length=40, unique=True, verbose_name='Mã loại CP')
+    name = models.CharField(max_length=120, verbose_name='Tên loại CP')
+    is_active = models.BooleanField(default=True, db_index=True)
+    sort_order = models.PositiveIntegerField(default=100)
+    notes = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['sort_order', 'code']
+        verbose_name = 'Loại chi phí thêm'
+        verbose_name_plural = 'Loại chi phí thêm'
+
+    def __str__(self):
+        return f'{self.code} — {self.name}'
+
+
+class SxOrderPlanCostLineExtra(models.Model):
+    line = models.ForeignKey(
+        SxOrderPlanCostLine, on_delete=models.CASCADE, related_name='typed_extras',
+    )
+    cost_type = models.ForeignKey(
+        SxCostType, on_delete=models.PROTECT, related_name='order_line_extras',
+    )
+    amount = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
+
+    class Meta:
+        ordering = ['cost_type__sort_order', 'id']
+        verbose_name = 'CP thêm theo loại'
+        verbose_name_plural = 'CP thêm theo loại'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['line', 'cost_type'],
+                name='uniq_order_line_cost_type',
+            ),
+        ]
+
+
+# --- Giai đoạn 3 / ops (0014–0018) ---
+
+
+class SxWorkCenter(DemoMarkedModel):
+    code = models.CharField(max_length=40, unique=True, verbose_name='Mã tổ/chuyền')
+    name = models.CharField(max_length=120)
+    capacity_per_day = models.DecimalField(
+        max_digits=14, decimal_places=2, default=Decimal('0'), verbose_name='Năng lực/ngày',
+    )
+    uom_label = models.CharField(max_length=40, blank=True, default='SP')
+    team_label = models.CharField(
+        max_length=80,
+        blank=True,
+        default='',
+        verbose_name='Nhãn tổ (khớp thống kê sản xuất)',
+        help_text='Khớp field team_label trên TKSX để tính tải thực tế.',
+    )
+    is_active = models.BooleanField(default=True, db_index=True)
+    notes = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['code']
+        verbose_name = 'Năng lực SX'
+        verbose_name_plural = 'Năng lực SX'
+
+    def __str__(self):
+        return f'{self.code} — {self.name}'
+
+
+class SxPackingRecord(DemoMarkedModel):
+    STATUS_DRAFT = 'draft'
+    STATUS_CONFIRMED = 'confirmed'
+    STATUS_CHOICES = [
+        (STATUS_DRAFT, 'Nháp'),
+        (STATUS_CONFIRMED, 'Đã xác nhận'),
+    ]
+
+    code = models.CharField(max_length=40, unique=True, verbose_name='Mã ĐG')
+    production_order = models.ForeignKey(
+        SxProductionOrder, on_delete=models.CASCADE, related_name='packing_records',
+    )
+    fg_receipt = models.ForeignKey(
+        SxFgReceiptRequest,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='packing_records',
+    )
+    pack_date = models.DateField()
+    qty = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
+    carton_count = models.PositiveIntegerField(default=0, verbose_name='Số thùng/kiện')
+    lot_code = models.CharField(max_length=60, blank=True, default='')
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT, db_index=True,
+    )
+    notes = models.TextField(blank=True, default='')
+    confirmed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-pack_date', '-pk']
+        verbose_name = 'Đóng gói'
+        verbose_name_plural = 'Đóng gói'
+
+    def __str__(self):
+        return self.code
+
+
+class SxPackingLine(models.Model):
+    packing = models.ForeignKey(SxPackingRecord, on_delete=models.CASCADE, related_name='lines')
+    sku_code = models.CharField(max_length=60, blank=True, default='', verbose_name='SKU')
+    size_label = models.CharField(max_length=40, blank=True, default='', verbose_name='Size')
+    color_label = models.CharField(max_length=40, blank=True, default='', verbose_name='Màu')
+    qty = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
+    carton_count = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['pk']
+        verbose_name = 'Dòng đóng gói'
+        verbose_name_plural = 'Dòng đóng gói'
+
+
+class SxSubcontractOrder(DemoMarkedModel):
+    STATUS_DRAFT = 'draft'
+    STATUS_SENT = 'sent'
+    STATUS_RECEIVED = 'received'
+    STATUS_DONE = 'done'
+    STATUS_CANCELLED = 'cancelled'
+    STATUS_CHOICES = [
+        (STATUS_DRAFT, 'Nháp'),
+        (STATUS_SENT, 'Đã gửi GC'),
+        (STATUS_RECEIVED, 'Đã nhận lại'),
+        (STATUS_DONE, 'Hoàn thành'),
+        (STATUS_CANCELLED, 'Hủy'),
+    ]
+
+    code = models.CharField(max_length=40, unique=True, verbose_name='Mã GC')
+    production_order = models.ForeignKey(
+        SxProductionOrder,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='subcontract_orders',
+    )
+    vendor_name = models.CharField(max_length=200, verbose_name='Đơn vị gia công')
+    product_code = models.CharField(max_length=60, db_index=True)
+    product_name = models.CharField(max_length=255, blank=True, default='')
+    process_name = models.CharField(max_length=120, blank=True, default='')
+    qty = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
+    qty_received = models.DecimalField(
+        max_digits=14, decimal_places=2, default=Decimal('0'), verbose_name='SL nhận lại',
+    )
+    service_fee = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal('0'),
+        verbose_name='Phí gia công (VNĐ)',
+        help_text='Chi phí GC đưa vào giá thành thực tế.',
+    )
+    order_date = models.DateField()
+    due_date = models.DateField(null=True, blank=True)
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT, db_index=True,
+    )
+    stock_issue = models.ForeignKey(
+        'kho_npl.StockIssue',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='sx_subcontract_orders',
+        verbose_name='Phiếu xuất kho (gửi GC)',
+    )
+    stock_adjustment = models.ForeignKey(
+        'kho_npl.StockAdjustment',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='sx_subcontract_orders',
+        verbose_name='Phiếu ĐC kho (nhận về)',
+    )
+    notes = models.TextField(blank=True, default='')
+    sent_at = models.DateTimeField(null=True, blank=True)
+    received_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-order_date', '-pk']
+        verbose_name = 'Thuê gia công'
+        verbose_name_plural = 'Thuê gia công'
+
+    def __str__(self):
+        return self.code
+
+
+class SxSubcontractMaterialLine(models.Model):
+    DIRECTION_OUT = 'out'
+    DIRECTION_IN = 'in'
+    DIRECTION_CHOICES = [
+        (DIRECTION_OUT, 'Xuất đi GC'),
+        (DIRECTION_IN, 'Nhận về'),
+    ]
+
+    order = models.ForeignKey(
+        SxSubcontractOrder, on_delete=models.CASCADE, related_name='material_lines',
+    )
+    direction = models.CharField(
+        max_length=10, choices=DIRECTION_CHOICES, default=DIRECTION_OUT, db_index=True,
+    )
+    material_code = models.CharField(
+        max_length=60, verbose_name='Mã nguyên phụ liệu / bán thành phẩm',
+    )
+    material_name = models.CharField(max_length=255, blank=True, default='')
+    qty = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
+    uom_label = models.CharField(max_length=40, blank=True, default='SP')
+    lot_code = models.CharField(max_length=60, blank=True, default='')
+    notes = models.CharField(max_length=255, blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['direction', 'pk']
+        verbose_name = 'Dòng NVL/BTP GC'
+        verbose_name_plural = 'Dòng NVL/BTP GC'
+
+
+class SxWorkAssignment(DemoMarkedModel):
+    STATUS_OPEN = 'open'
+    STATUS_DONE = 'done'
+    STATUS_CANCELLED = 'cancelled'
+    STATUS_CHOICES = [
+        (STATUS_OPEN, 'Đang giao'),
+        (STATUS_DONE, 'Hoàn thành'),
+        (STATUS_CANCELLED, 'Hủy'),
+    ]
+
+    code = models.CharField(max_length=40, unique=True, verbose_name='Mã giao việc')
+    production_order = models.ForeignKey(
+        SxProductionOrder, on_delete=models.CASCADE, related_name='work_assignments',
+    )
+    work_center = models.ForeignKey(
+        SxWorkCenter,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='assignments',
+        verbose_name='Tổ/chuyền',
+    )
+    process_name = models.CharField(max_length=120, blank=True, default='')
+    title = models.CharField(max_length=200)
+    assignee = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='sx_work_assignments',
+        verbose_name='Người nhận (portal)',
+    )
+    assignee_label = models.CharField(
+        max_length=120, blank=True, default='', verbose_name='Người/tổ nhận',
+    )
+    work_task = models.ForeignKey(
+        'tasks.WorkTask',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='sx_assignments',
+        verbose_name='Công việc',
+    )
+    due_date = models.DateField(null=True, blank=True)
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default=STATUS_OPEN, db_index=True,
+    )
+    notes = models.TextField(blank=True, default='')
+    completed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Giao việc SX'
+        verbose_name_plural = 'Giao việc SX'
+
+    def __str__(self):
+        return self.code
+
+
+class SxDowntimeEvent(DemoMarkedModel):
+    code = models.CharField(max_length=40, unique=True, verbose_name='Mã dừng')
+    production_order = models.ForeignKey(
+        SxProductionOrder,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='downtime_events',
+    )
+    work_center = models.ForeignKey(
+        SxWorkCenter,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='downtime_events',
+    )
+    team_label = models.CharField(max_length=80, blank=True, default='')
+    event_date = models.DateField()
+    reason = models.CharField(max_length=200, verbose_name='Lý do dừng')
+    minutes = models.PositiveIntegerField(default=0, verbose_name='Số phút')
+    notes = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-event_date', '-pk']
+        verbose_name = 'Dừng chuyền'
+        verbose_name_plural = 'Dừng chuyền'
+
+    def __str__(self):
+        return self.code
+
+
+class SxProductGroup(DemoMarkedModel):
+    code = models.CharField(max_length=40, unique=True, verbose_name='Mã nhóm')
+    name = models.CharField(max_length=120, verbose_name='Tên nhóm')
+    is_active = models.BooleanField(default=True)
+    notes = models.CharField(max_length=255, blank=True, default='')
+
+    class Meta:
+        ordering = ['code']
+        verbose_name = 'Nhóm sản phẩm'
+        verbose_name_plural = 'Nhóm sản phẩm'
+
+    def __str__(self):
+        return f'{self.code} — {self.name}'
+
+
+class SxActualCostSheet(DemoMarkedModel):
+    STATUS_DRAFT = 'draft'
+    STATUS_CLOSED = 'closed'
+    STATUS_CHOICES = [
+        (STATUS_DRAFT, 'Nháp'),
+        (STATUS_CLOSED, 'Đã chốt'),
+    ]
+
+    code = models.CharField(max_length=40, unique=True, verbose_name='Mã GT thực')
+    production_order = models.ForeignKey(
+        SxProductionOrder, on_delete=models.CASCADE, related_name='actual_cost_sheets',
+    )
+    period_from = models.DateField(null=True, blank=True)
+    period_to = models.DateField(null=True, blank=True)
+    material_cost = models.DecimalField(max_digits=16, decimal_places=2, default=Decimal('0'))
+    labor_cost = models.DecimalField(max_digits=16, decimal_places=2, default=Decimal('0'))
+    subcontract_cost = models.DecimalField(max_digits=16, decimal_places=2, default=Decimal('0'))
+    total_cost = models.DecimalField(max_digits=16, decimal_places=2, default=Decimal('0'))
+    qty_basis = models.DecimalField(
+        max_digits=14, decimal_places=2, default=Decimal('0'), verbose_name='SL cơ sở (qty_done)',
+    )
+    unit_cost = models.DecimalField(max_digits=16, decimal_places=2, default=Decimal('0'))
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT, db_index=True,
+    )
+    notes = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+    closed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Giá thành thực tế'
+        verbose_name_plural = 'Giá thành thực tế'
+
+    def __str__(self):
+        return self.code
+
+
+class SxNcrCase(DemoMarkedModel):
+    DISP_REWORK = 'rework'
+    DISP_SCRAP = 'scrap'
+    DISP_REMAKE = 'remake'
+    DISP_USE_AS_IS = 'use_as_is'
+    DISP_CHOICES = [
+        (DISP_REWORK, 'Sửa hàng'),
+        (DISP_SCRAP, 'Phế'),
+        (DISP_REMAKE, 'Tái sản xuất'),
+        (DISP_USE_AS_IS, 'Chấp nhận dùng'),
+    ]
+    STATUS_DRAFT = 'draft'
+    STATUS_CONFIRMED = 'confirmed'
+    STATUS_DONE = 'done'
+    STATUS_CANCELLED = 'cancelled'
+    STATUS_CHOICES = [
+        (STATUS_DRAFT, 'Nháp'),
+        (STATUS_CONFIRMED, 'Đã xác nhận'),
+        (STATUS_DONE, 'Hoàn tất'),
+        (STATUS_CANCELLED, 'Hủy'),
+    ]
+
+    code = models.CharField(max_length=40, unique=True, verbose_name='Mã xử lý không đạt')
+    production_order = models.ForeignKey(
+        SxProductionOrder, on_delete=models.CASCADE, related_name='ncr_cases',
+    )
+    alert = models.ForeignKey(
+        SxQcAlert, on_delete=models.SET_NULL, null=True, blank=True, related_name='ncr_cases',
+    )
+    disposition = models.CharField(max_length=20, choices=DISP_CHOICES, default=DISP_REWORK)
+    qty = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
+    process_name = models.CharField(max_length=120, blank=True, default='')
+    remake_order = models.ForeignKey(
+        SxProductionOrder,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='ncr_remake_sources',
+        verbose_name='Lệnh tái sản xuất',
+    )
+    rework_stat = models.ForeignKey(
+        SxProductionStat,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='ncr_reworks',
+        verbose_name='Thống kê sản xuất (sửa hàng)',
+    )
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT, db_index=True,
+    )
+    notes = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+    confirmed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Xử lý hàng không đạt'
+        verbose_name_plural = 'Xử lý hàng không đạt'
+
+    def __str__(self):
+        return self.code
+
+
+class SxTeamHrMap(DemoMarkedModel):
+    team_label = models.CharField(max_length=80, unique=True, verbose_name='Nhãn tổ (TKSX)')
+    employee_code = models.CharField(max_length=40, blank=True, default='', verbose_name='Mã NV')
+    employee_name = models.CharField(max_length=120, blank=True, default='', verbose_name='Tên NV / tổ')
+    notes = models.CharField(max_length=255, blank=True, default='')
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['team_label']
+        verbose_name = 'Map tổ → nhân sự'
+        verbose_name_plural = 'Map tổ → nhân sự'
+
+    def __str__(self):
+        return self.team_label

@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 py-md-4 mb-5">
+  <div class="jp-page-header mb-3 mb-md-4">
+    <div>
+      <h2 class="fw-bold text-hm mb-1 jp-page-title">Kế hoạch tổng thể</h2>
+    </div>
+    {% if can_create %}
+    <a href="{% url 'san_xuat:plan_overall_create' %}" class="btn btn-hm btn-sm">Tạo kế hoạch tổng thể</a>
+    {% endif %}
+  </div>
+
+  {% include 'san_xuat/includes/sx_list_filter.html' %}
+  <div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+      <table class="table table-sm table-hover mb-0 align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Mã</th>
+            <th>Tên</th>
+            <th>Từ</th>
+            <th>Đến</th>
+            <th>Nguồn</th>
+            <th class="text-end">Dòng SP</th>
+            <th>Trạng thái</th>
+            {% include 'san_xuat/includes/sx_list_meta_head.html' %}
+<th class="text-end"></th>
+</tr>
+        </thead>
+        <tbody>
+        {% for plan in plans %}
+          <tr class="jp-npl-catalog-row" data-href="{% url 'san_xuat:plan_overall_detail' plan.pk %}">
+            <td><strong>{{ plan.code }}</strong></td>
+            <td>{{ plan.name }}</td>
+            <td class="small text-muted">{{ plan.date_from|date:"d/m/Y" }}</td>
+            <td class="small text-muted">{{ plan.date_to|date:"d/m/Y" }}</td>
+            <td class="small">{{ plan.get_source_display }}</td>
+<td class="text-end">{{ plan.lines.count }}</td>
+            <td class="small">{{ plan.get_status_display }}</td>
+                        {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=plan %}
+<td class="text-end">
+              <a href="{% url 'san_xuat:plan_overall_detail' plan.pk %}" class="btn btn-sm btn-outline-hm">Mở</a>
+            </td>
+</tr>
+        {% empty %}
+          <tr><td colspan="14" class="text-muted small p-3">Chưa có kế hoạch tổng thể.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 py-md-4 mb-5">
+  <div class="jp-page-header mb-3 mb-md-4">
+    <div>
+      <h2 class="fw-bold text-hm mb-1 jp-page-title">Giá thành kế hoạch theo đơn</h2>
+    </div>
+    <div class="d-flex gap-2">
+      {% if can_create %}
+      <a href="{% url 'san_xuat:costing_order_create' %}" class="btn btn-hm btn-sm">Tạo giá thành kế hoạch</a>
+      {% endif %}
+      <a href="{% url 'san_xuat:redirect_orders' %}" class="btn btn-outline-secondary btn-sm">Đơn KV</a>
+    </div>
+  </div>
+
+  {% include 'san_xuat/includes/sx_list_filter.html' %}
+  <div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+      <table class="table table-sm table-hover mb-0 align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Mã</th>
+            <th>Tên</th>
+            <th>Đơn KV</th>
+            <th>Kỳ</th>
+            <th class="text-end">Tổng GT</th>
+            <th>Trạng thái</th>
+            {% include 'san_xuat/includes/sx_list_meta_head.html' %}
+<th class="text-end"></th>
+</tr>
+        </thead>
+        <tbody>
+        {% for sheet in sheets %}
+          <tr class="jp-npl-catalog-row" data-href="{% url 'san_xuat:costing_order_detail' sheet.pk %}">
+            <td><strong>{{ sheet.code }}</strong></td>
+            <td>{{ sheet.name }}</td>
+            <td class="small">{{ sheet.kv_order_code|default:"—" }}</td>
+            <td class="small">{{ sheet.date_from|date:"d/m/Y" }}–{{ sheet.date_to|date:"d/m/Y" }}</td>
+            <td class="text-end fw-semibold">{{ sheet.total_cost|floatformat:0|intcomma }}</td>
+            <td class="small">{{ sheet.get_status_display }}</td>
+            {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=sheet %}
+<td class="text-end">
+              <a href="{% url 'san_xuat:costing_order_detail' sheet.pk %}" class="btn btn-sm btn-outline-hm">Mở</a>
+            </td>
+</tr>
+        {% empty %}
+          <tr><td colspan="13" class="text-muted small p-3">Chưa có Giá thành kế hoạch theo đơn.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

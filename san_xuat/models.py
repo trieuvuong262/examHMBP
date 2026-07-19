@@ -131,6 +131,15 @@ class BomLine(models.Model):
         related_name='san_xuat_bom_lines',
         verbose_name='Nguyên phụ liệu',
     )
+    substitute_material = models.ForeignKey(
+        'kho_npl.Material',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='san_xuat_bom_substitutes',
+        verbose_name='NVL thay thế',
+        help_text='Khi tồn NVL chính thiếu, YCX có thể dùng mã này.',
+    )
     qty = models.DecimalField(
         max_digits=14,
         decimal_places=4,
@@ -190,6 +199,30 @@ class ProcessStep(models.Model):
         validators=[MinValueValidator(Decimal('0'))],
         verbose_name='Chi phí giờ (VNĐ)',
     )
+    piece_rate = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal('0'),
+        validators=[MinValueValidator(Decimal('0'))],
+        verbose_name='Đơn giá SP (VNĐ/cái)',
+        help_text='Lương sản phẩm = SL đạt TKSX × đơn giá.',
+    )
+    std_time_minutes = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0'),
+        validators=[MinValueValidator(Decimal('0'))],
+        verbose_name='Chuẩn giờ (phút/cái)',
+        help_text='Thời gian chuẩn một sản phẩm ở công đoạn này.',
+    )
+    work_center = models.ForeignKey(
+        'san_xuat.SxWorkCenter',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='process_steps',
+        verbose_name='Tổ / máy (NL)',
+    )
     notes = models.CharField(max_length=255, blank=True, default='', verbose_name='Ghi chú')
 
     class Meta:
@@ -237,35 +270,54 @@ class CostingSnapshot(models.Model):
 
 # Hub: kế hoạch / điều phối / QC / giá thành KH (import để Django register models)
 from san_xuat.hub_models import (  # noqa: E402,F401
+    SxActualCostSheet,
+    SxCostType,
     SxDetailPlan,
     SxDetailPlanLine,
     SxDisassemblyOrder,
+    SxDisassemblyOrderLine,
+    SxDowntimeEvent,
     SxFgReceiptRequest,
     SxMaterialIssueRequest,
     SxMaterialIssueRequestLine,
     SxMaterialPlan,
     SxMaterialPlanLine,
+    SxNcrCase,
     SxNplPurchaseRequest,
     SxNplPurchaseRequestLine,
     SxNplSurplus,
     SxOrderPlanCost,
     SxOrderPlanCostLine,
+    SxOrderPlanCostLineExtra,
     SxOverallPlan,
     SxOverallPlanLine,
+    SxPackingLine,
+    SxPackingRecord,
+    SxProductGroup,
     SxProductionOrder,
     SxProductionStat,
     SxPurchaseOrder,
     SxPurchaseOrderLine,
+    SxQcAlert,
     SxQcCriteria,
     SxQcCriteriaGroup,
     SxQcDefect,
     SxQcDefectGroup,
     SxQcInspection,
+    SxQcInspectionCriteriaLine,
+    SxQcInspectionDefectLine,
     SxQcRequest,
     SxQcSamplingMethod,
+    SxQcStandardCriteria,
     SxQcStandardSet,
     SxStandardCostLine,
     SxStandardCostSheet,
+    SxSubcontractMaterialLine,
+    SxSubcontractOrder,
+    SxTeamHrMap,
+    SxWipBalance,
     SxWipHandover,
     SxWipReturn,
+    SxWorkAssignment,
+    SxWorkCenter,
 )

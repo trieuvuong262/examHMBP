@@ -1,0 +1,309 @@
+"""Bộ lọc chung cho danh sách hub Sản xuất (mã, tên, từ ngày–đến ngày)."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from datetime import date, datetime, timedelta
+from typing import Any, Iterable
+
+from django.db.models import Q, QuerySet
+from django.db.models.fields import DateField, DateTimeField
+from django.http import HttpRequest
+from django.utils import timezone
+
+LIST_DATE_RANGE_DAYS = 7
+
+
+def default_list_date_range(*, days: int = LIST_DATE_RANGE_DAYS) -> tuple[date, date]:
+    """Khoảng ngày mặc định trên list (7 ngày gần nhất, gồm hôm nay)."""
+    today = timezone.localdate()
+    span = max(1, int(days))
+    return today - timedelta(days=span - 1), today
+
+
+@dataclass(frozen=True)
+class SxFilterSpec:
+    code_fields: tuple[str, ...] = ('code',)
+    name_fields: tuple[str, ...] = ('name',)
+    date_field: str | None = None
+    date_range_fields: tuple[str, str] | None = None
+
+
+@dataclass
+class SxListFilters:
+    code: str = ''
+    name: str = ''
+    date_from: date | None = None
+    date_to: date | None = None
+    dates_defaulted: bool = False
+
+    @property
+    def has_filters(self) -> bool:
+        if self.code or self.name:
+            return True
+        if self.dates_defaulted:
+            return False
+        return bool(self.date_from or self.date_to)
+
+
+def parse_sx_date(raw: str) -> date | None:
+    raw = (raw or '').strip()
+    if not raw:
+        return None
+    try:
+        return datetime.strptime(raw, '%Y-%m-%d').date()
+    except ValueError:
+        return None
+
+
+def parse_sx_list_filters(request: HttpRequest) -> SxListFilters:
+    code = (request.GET.get('code') or '').strip()
+    name = (request.GET.get('name') or '').strip()
+
+    if 'date_from' in request.GET or 'date_to' in request.GET:
+        raw_from = (request.GET.get('date_from') or '').strip()
+        raw_to = (request.GET.get('date_to') or '').strip()
+        if raw_from or raw_to:
+            return SxListFilters(
+                code=code,
+                name=name,
+                date_from=parse_sx_date(raw_from),
+                date_to=parse_sx_date(raw_to),
+                dates_defaulted=False,
+            )
+        return SxListFilters(code=code, name=name, dates_defaulted=False)
+
+    date_from, date_to = default_list_date_range()
+    return SxListFilters(
+        code=code,
+        name=name,
+        date_from=date_from,
+        date_to=date_to,
+        dates_defaulted=True,
+    )
+
+
+def _date_filter_lookups(qs: QuerySet, field_path: str) -> tuple[str, str]:
+    """Trả về suffix lookup gte/lte theo kiểu field (Date vs DateTime)."""
+    parts = field_path.split('__')
+    model = qs.model
+    field = None
+    for i, part in enumerate(parts):
+        try:
+            field = model._meta.get_field(part)
+        except Exception:
+            field = None
+            break
+        if field.is_relation and i < len(parts) - 1:
+            model = field.related_model
+            continue
+        break
+    if isinstance(field, DateTimeField):
+        return f'{field_path}__date__gte', f'{field_path}__date__lte'
+    if isinstance(field, DateField):
+        return f'{field_path}__gte', f'{field_path}__lte'
+    # FK path lạ hoặc không resolve được — ưu tiên DateTime (created_at/updated_at).
+    return f'{field_path}__date__gte', f'{field_path}__date__lte'
+
+
+def apply_sx_list_filters(qs: QuerySet, filters: SxListFilters, spec: SxFilterSpec) -> QuerySet:
+    if filters.code:
+        q = Q()
+        for field in spec.code_fields:
+            q |= Q(**{f'{field}__icontains': filters.code})
+        qs = qs.filter(q)
+
+    if filters.name:
+        q = Q()
+        for field in spec.name_fields:
+            q |= Q(**{f'{field}__icontains': filters.name})
+        qs = qs.filter(q)
+
+    if filters.date_from or filters.date_to:
+        if spec.date_range_fields:
+            from_field, to_field = spec.date_range_fields
+            if filters.date_from:
+                qs = qs.filter(**{f'{to_field}__gte': filters.date_from})
+            if filters.date_to:
+                qs = qs.filter(**{f'{from_field}__lte': filters.date_to})
+        elif spec.date_field:
+            gte_key, lte_key = _date_filter_lookups(qs, spec.date_field)
+            if filters.date_from:
+                qs = qs.filter(**{gte_key: filters.date_from})
+            if filters.date_to:
+                qs = qs.filter(**{lte_key: filters.date_to})
+    return qs
+
+
+def sx_filter_context(filters: SxListFilters, *, preserve: dict[str, str] | None = None) -> dict[str, Any]:
+    preserve = preserve or {}
+    return {
+        'filter_code': filters.code,
+        'filter_name': filters.name,
+        'filter_date_from': filters.date_from.isoformat() if filters.date_from else '',
+        'filter_date_to': filters.date_to.isoformat() if filters.date_to else '',
+        'has_list_filters': filters.has_filters,
+        'list_filter_preserve': preserve,
+    }
+
+
+def prepare_hub_list(
+    request: HttpRequest,
+    qs: QuerySet,
+    spec: SxFilterSpec,
+    *,
+    limit: int = 200,
+    preserve: dict[str, str] | None = None,
+) -> tuple[QuerySet, dict[str, Any]]:
+    filters = parse_sx_list_filters(request)
+    if hasattr(qs.model, 'created_by_id'):
+        qs = qs.select_related('created_by')
+    filtered = apply_sx_list_filters(qs, filters, spec)[:limit]
+    return filtered, sx_filter_context(filters, preserve=preserve)
+
+
+def filter_tuple_rows(
+    rows: Iterable[tuple],
+    filters: SxListFilters,
+    *,
+    code_index: int = 0,
+    name_index: int | None = None,
+    code_attr: str = 'product_code',
+    name_attr: str = 'product_name',
+) -> list[tuple]:
+    """Lọc danh sách tuple (doc, bom, …) theo mã/tên trên phần tử đầu."""
+    out: list[tuple] = []
+    for row in rows:
+        head = row[code_index]
+        code_val = (getattr(head, code_attr, '') or '').lower()
+        name_val = (getattr(head, name_attr, '') or '').lower() if name_index is not None else ''
+        if name_index is not None and len(row) > name_index:
+            alt = row[name_index]
+            if hasattr(alt, name_attr):
+                name_val = (getattr(alt, name_attr, '') or '').lower()
+        if filters.code and filters.code.lower() not in code_val:
+            continue
+        if filters.name and filters.name.lower() not in name_val:
+            continue
+        out.append(row)
+    return out
+
+
+# --- Preset theo từng màn danh sách ---
+
+SX_FILTER_PLAN_PERIOD = SxFilterSpec(date_range_fields=('date_from', 'date_to'))
+SX_FILTER_PLAN_NPL = SxFilterSpec(date_field='created_at')
+SX_FILTER_NPL_PR = SxFilterSpec(name_fields=('notes',), date_field='request_date')
+SX_FILTER_PURCHASE_ORDER = SxFilterSpec(name_fields=('supplier_name',), date_field='created_at')
+
+SX_FILTER_COST_SHEET = SxFilterSpec(date_range_fields=('date_from', 'date_to'))
+SX_FILTER_COST_ORDER = SxFilterSpec(
+    code_fields=('code', 'kv_order_code'),
+    date_range_fields=('date_from', 'date_to'),
+)
+SX_FILTER_COST_TYPE = SxFilterSpec(date_field='created_at')
+
+SX_FILTER_MO = SxFilterSpec(
+    code_fields=('code', 'product_code'),
+    name_fields=('product_name',),
+    date_field='order_date',
+)
+SX_FILTER_DISASSEMBLY = SxFilterSpec(
+    code_fields=('code', 'product_code'),
+    name_fields=('product_name',),
+    date_field='order_date',
+)
+SX_FILTER_MATERIAL_ISSUE = SxFilterSpec(
+    code_fields=('code', 'production_order__code', 'production_order__product_code'),
+    name_fields=('production_order__product_name',),
+    date_field='request_date',
+)
+SX_FILTER_PROD_STAT = SxFilterSpec(
+    code_fields=('code', 'production_order__code', 'production_order__product_code'),
+    name_fields=('production_order__product_name', 'process_name'),
+    date_field='stat_date',
+)
+SX_FILTER_FG_RECEIPT = SxFilterSpec(
+    code_fields=('code', 'production_order__code'),
+    name_fields=('production_order__product_name',),
+    date_field='request_date',
+)
+SX_FILTER_NPL_SURPLUS = SxFilterSpec(
+    code_fields=('code', 'material_code'),
+    name_fields=('material_name',),
+    date_field='recorded_at',
+)
+SX_FILTER_WIP_HANDOVER = SxFilterSpec(
+    code_fields=('code', 'production_order__code'),
+    name_fields=('production_order__product_name', 'from_process', 'to_process'),
+    date_field='handover_date',
+)
+SX_FILTER_WIP_RETURN = SxFilterSpec(
+    code_fields=('code', 'handover__code'),
+    name_fields=('from_process', 'to_process'),
+    date_field='return_date',
+)
+
+SX_FILTER_QC_REQUEST = SxFilterSpec(
+    code_fields=('code', 'product_code'),
+    name_fields=('product_name', 'stage_name'),
+    date_field='request_date',
+)
+SX_FILTER_QC_SHEET = SxFilterSpec(
+    code_fields=('code', 'qc_request__code'),
+    name_fields=('qc_request__product_name',),
+    date_field='inspected_at',
+)
+SX_FILTER_QC_ALERT = SxFilterSpec(
+    code_fields=('code', 'production_order__code', 'production_order__product_code'),
+    name_fields=('production_order__product_name', 'message', 'process_name'),
+    date_field='created_at',
+)
+SX_FILTER_QC_CATALOG = SxFilterSpec()
+
+SX_FILTER_WORK_ASSIGN = SxFilterSpec(
+    code_fields=('code', 'production_order__code'),
+    name_fields=('title', 'process_name', 'assignee_label'),
+    date_field='due_date',
+)
+SX_FILTER_PACKING = SxFilterSpec(
+    code_fields=('code', 'lot_code', 'production_order__product_code'),
+    name_fields=('production_order__product_name',),
+    date_field='pack_date',
+)
+SX_FILTER_SUBCONTRACT = SxFilterSpec(
+    code_fields=('code', 'product_code'),
+    name_fields=('vendor_name', 'product_name', 'process_name'),
+    date_field='order_date',
+)
+SX_FILTER_WORK_CENTER = SxFilterSpec(name_fields=('name', 'team_label'))
+
+SX_FILTER_TECH_DOC = SxFilterSpec(
+    code_fields=('product_code',),
+    name_fields=('product_name', 'notes'),
+    date_field='updated_at',
+)
+SX_FILTER_BOM = SxFilterSpec(
+    code_fields=('tech_doc__product_code', 'version_label'),
+    name_fields=('tech_doc__product_name', 'notes'),
+    date_field='updated_at',
+)
+SX_FILTER_NCR = SxFilterSpec(
+    name_fields=('process_name', 'production_order__product_name', 'notes'),
+    date_field='created_at',
+)
+SX_FILTER_ACTUAL_COST = SxFilterSpec(
+    code_fields=('code', 'production_order__code'),
+    name_fields=('production_order__product_name',),
+    date_field='created_at',
+)
+SX_FILTER_DOWNTIME = SxFilterSpec(
+    name_fields=('reason', 'team_label'),
+    date_field='event_date',
+)
+SX_FILTER_TEAM_HR = SxFilterSpec(
+    code_fields=('employee_code',),
+    name_fields=('employee_name', 'team_label'),
+)
+
+SX_FILTER_CATALOG_ITEM = SxFilterSpec(code_fields=('code',), name_fields=('name',))

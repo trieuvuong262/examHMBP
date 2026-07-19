@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 py-md-4 mb-5">
+  <div class="jp-page-header mb-3 mb-md-4">
+    <div>
+      <h2 class="fw-bold text-hm mb-1 jp-page-title">Tình hình bàn giao SX</h2>
+    </div>
+    <a href="{% url 'san_xuat:dispatch_wip_handover' %}" class="btn btn-outline-secondary btn-sm">Danh sách</a>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-4">
+      <div class="border rounded-3 p-3 h-100">
+        <div class="text-muted small">Chờ bàn giao</div>
+        <div class="fs-4 fw-semibold text-warning">{{ pending }}</div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="border rounded-3 p-3 h-100">
+        <div class="text-muted small">Đã bàn giao</div>
+        <div class="fs-4 fw-semibold text-success">{{ done }}</div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="border rounded-3 p-3 h-100">
+        <div class="text-muted small">Từ chối</div>
+        <div class="fs-4 fw-semibold text-danger">{{ rejected }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white fw-semibold">Tồn bán thành phẩm theo công đoạn</div>
+    <div class="table-responsive">
+      <table class="table table-hover table-sm mb-0 align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Lệnh sản xuất</th>
+            <th>Công đoạn</th>
+            <th class="text-end">Tồn BTP</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for b in balances %}
+          <tr>
+            <td class="small">
+              <a href="{% url 'san_xuat:dispatch_mo_detail' b.production_order.pk %}">{{ b.production_order.code }}</a>
+            </td>
+            <td>{{ b.process_name }}</td>
+            <td class="text-end fw-semibold">{{ b.qty }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="3" class="text-muted small p-3">Chưa có tồn — xác nhận TKSX / bàn giao sẽ cập nhật sổ.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+      <table class="table table-sm table-hover mb-0 align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Mã</th>
+            <th>Lệnh sản xuất</th>
+            <th>Công đoạn</th>
+            <th class="text-end">Số lượng</th>
+            <th>Ngày</th>
+            <th>Trạng thái</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for item in recent %}
+          <tr>
+            <td><a href="{% url 'san_xuat:dispatch_wip_handover_detail' item.pk %}">{{ item.code }}</a></td>
+            <td class="small">{{ item.production_order.code }}</td>
+            <td class="small">{{ item.from_process }} → {{ item.to_process }}</td>
+            <td class="text-end">{{ item.qty }}</td>
+            <td class="small">{{ item.handover_date|date:"d/m/Y" }}</td>
+            <td class="small">{{ item.get_status_display }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6" class="text-muted small p-3">Chưa có bàn giao.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

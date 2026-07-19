@@ -1,0 +1,157 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 py-md-4 mb-5">
+  <div class="jp-page-header mb-3 mb-md-4">
+    <div>
+      <h2 class="fw-bold text-hm mb-1 jp-page-title">Truy xuất nguồn gốc</h2>
+    </div>
+  </div>
+
+  <form method="get" class="row g-2 align-items-end mb-4">
+    <div class="col-md-8">
+      <label class="form-label small text-muted" for="{{ form.query.id_for_label }}">{{ form.query.label }}</label>
+      {{ form.query }}
+    </div>
+    <div class="col-md-4">
+      <button type="submit" class="btn btn-hm btn-sm">Tra cứu</button>
+    </div>
+  </form>
+
+  {% if result %}
+    {% if result.message and not result.mo %}
+    <div class="alert alert-warning">{{ result.message }}</div>
+    {% endif %}
+    {% if result.mo %}
+    {% if result.reverse_batch %}
+    <div class="alert alert-info small">Tra cứu ngược từ lô nguyên phụ liệu → các Yêu cầu xuất/Lệnh sản xuất đã xuất lô này.</div>
+    {% endif %}
+
+    <div class="border rounded-3 p-3 mb-3">
+      <div class="fw-semibold mb-1">Lệnh sản xuất {{ result.mo.code }}</div>
+      <div class="small text-muted">
+        {{ result.mo.product_code }} — {{ result.mo.product_name }}
+        · SL {{ result.mo.qty }} · Đã làm {{ result.mo.qty_done }}
+        · {{ result.mo.get_status_display }}
+      </div>
+      <div class="mt-2 d-flex flex-wrap gap-2">
+        <a href="{% url 'san_xuat:dispatch_mo_detail' result.mo.pk %}" class="btn btn-sm btn-outline-hm">Mở Lệnh sản xuất</a>
+        <a href="{% url 'san_xuat:work_assignment_create' %}?mo={{ result.mo.pk }}" class="btn btn-sm btn-outline-secondary">Giao việc</a>
+        <a href="{% url 'san_xuat:packing_create' %}" class="btn btn-sm btn-outline-secondary">Đóng gói</a>
+      </div>
+    </div>
+
+    <h3 class="h6 text-muted">Timeline</h3>
+    <ul class="list-group mb-4">
+      {% for ev in result.timeline %}
+      <li class="list-group-item small d-flex justify-content-between gap-3">
+        <div>
+          <span class="badge text-bg-light me-1">{{ ev.kind }}</span>
+          <strong>{{ ev.label }}</strong>
+          <div class="text-muted">{{ ev.detail }}</div>
+        </div>
+        <div class="text-end text-nowrap">
+          <div class="text-muted">{% if ev.when %}{{ ev.when }}{% else %}—{% endif %}</div>
+          {% if ev.url_name and ev.url_pk %}
+          <a href="{% url ev.url_name ev.url_pk %}">Chi tiết →</a>
+          {% endif %}
+        </div>
+      </li>
+      {% empty %}
+      <li class="list-group-item small text-muted">Chưa có sự kiện.</li>
+      {% endfor %}
+    </ul>
+
+    <div class="row g-3">
+      <div class="col-md-6">
+        <h3 class="h6 text-muted">Yêu cầu nhập thành phẩm / phiếu KV</h3>
+        <ul class="list-group mb-3">
+          {% for fg in result.fg_receipts %}
+          <li class="list-group-item small">
+            <a href="{% url 'san_xuat:dispatch_fg_receipt_req_detail' fg.pk %}">{{ fg.code }}</a>
+            · {{ fg.get_status_display }}
+            {% if fg.kv_purchase_code %} · KV {{ fg.kv_purchase_code }}{% endif %}
+          </li>
+          {% empty %}
+          <li class="list-group-item small text-muted">Không có Yêu cầu nhập thành phẩm.</li>
+          {% endfor %}
+        </ul>
+      </div>
+      <div class="col-md-6">
+        <h3 class="h6 text-muted">Đóng gói</h3>
+        <ul class="list-group mb-3">
+          {% for p in result.packing %}
+          <li class="list-group-item small">
+            <a href="{% url 'san_xuat:packing_detail' p.pk %}">{{ p.code }}</a>
+            · {{ p.qty }} · lô {{ p.lot_code|default:"—" }}
+          </li>
+          {% empty %}
+          <li class="list-group-item small text-muted">Không có phiếu đóng gói.</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+
+    <h3 class="h6 text-muted">Yêu cầu xuất → phiếu xuất → lô nguyên phụ liệu</h3>
+    <div class="table-responsive border rounded-3 mb-3">
+      <table class="table table-hover table-sm mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Yêu cầu xuất</th>
+            <th>Phiếu xuất</th>
+            <th>NPL</th>
+            <th>Lô</th>
+            <th class="text-end">Số lượng</th>
+            <th>Vị trí</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for b in result.issue_batches %}
+          <tr>
+            <td>{{ b.ycx }}</td>
+            <td>{{ b.issue_number }}</td>
+            <td>{{ b.material_code }} <span class="text-muted">{{ b.material_name }}</span></td>
+            <td>
+              {% if b.batch_code and b.batch_code != "—" %}
+              <a href="?query={{ b.batch_code }}">{{ b.batch_code }}</a>
+              {% else %}—{% endif %}
+            </td>
+            <td class="text-end">{{ b.qty }}</td>
+            <td>{{ b.location }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6" class="text-muted small p-3">Chưa có phiếu xuất / lô gắn Yêu cầu xuất.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="row g-3">
+      <div class="col-md-6">
+        <h3 class="h6 text-muted">Giao việc</h3>
+        <ul class="list-group">
+          {% for gv in result.work_assignments %}
+          <li class="list-group-item small">{{ gv.code }} · {{ gv.title }} · {{ gv.get_status_display }}</li>
+          {% empty %}
+          <li class="list-group-item small text-muted">Không có.</li>
+          {% endfor %}
+        </ul>
+      </div>
+      <div class="col-md-6">
+        <h3 class="h6 text-muted">Thuê GC</h3>
+        <ul class="list-group">
+          {% for gc in result.subcontract_orders %}
+          <li class="list-group-item small">
+            <a href="{% url 'san_xuat:subcontract_detail' gc.pk %}">{{ gc.code }}</a>
+            · {{ gc.vendor_name }} · {{ gc.get_status_display }}
+          </li>
+          {% empty %}
+          <li class="list-group-item small text-muted">Không có.</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+    {% endif %}
+  {% endif %}
+</div>
+{% endblock %}

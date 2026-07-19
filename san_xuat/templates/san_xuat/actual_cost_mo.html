@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% block extra_head %}{% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}{% endblock %}
+{% block content %}
+<div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 mb-5">
+  <div class="jp-npl-mat-topbar">
+    <div>
+      <h2 class="jp-npl-mat-topbar-title mb-0">GT thực · {{ mo.code }}</h2>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{% url 'san_xuat:dispatch_mo_detail' mo.pk %}" class="btn btn-outline-secondary btn-sm">Lệnh sản xuất</a>
+      <a href="{% url 'san_xuat:actual_cost_list' %}" class="btn btn-outline-secondary btn-sm">Danh sách</a>
+    </div>
+  </div>
+  <div class="row g-3 mb-3">
+    <div class="col-md-3"><div class="card border-0 shadow-sm"><div class="card-body">
+      <div class="small text-muted">Nguyên phụ liệu xuất</div><div class="fs-5">{{ br.material_cost|floatformat:0|intcomma }}</div>
+    </div></div></div>
+    <div class="col-md-3"><div class="card border-0 shadow-sm"><div class="card-body">
+      <div class="small text-muted">Lương sản phẩm</div><div class="fs-5">{{ br.labor_cost|floatformat:0|intcomma }}</div>
+    </div></div></div>
+    <div class="col-md-3"><div class="card border-0 shadow-sm"><div class="card-body">
+      <div class="small text-muted">Phí GC</div><div class="fs-5">{{ br.subcontract_cost|floatformat:0|intcomma }}</div>
+    </div></div></div>
+    <div class="col-md-3"><div class="card border-0 shadow-sm"><div class="card-body">
+      <div class="small text-muted">Tổng / đơn vị</div>
+      <div class="fs-5">{{ br.total_cost|floatformat:0|intcomma }}</div>
+      <div class="small text-muted">{{ br.unit_cost|floatformat:0|intcomma }} / SP (SL {{ br.qty_basis }})</div>
+    </div></div></div>
+  </div>
+  {% if can_update %}
+  <form method="post" class="d-flex gap-2 mb-3">
+    {% csrf_token %}
+    <button name="action" value="refresh" class="btn btn-outline-secondary btn-sm">Tính lại</button>
+    <button name="action" value="close" class="btn btn-hm btn-sm" {% if sheet.status == 'closed' %}disabled{% endif %}>Chốt kỳ</button>
+    {% if sheet %}<span class="align-self-center small text-muted">{{ sheet.code }} · {{ sheet.get_status_display }}</span>{% endif %}
+  </form>
+  {% endif %}
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-header bg-white">Chi tiết nguyên phụ liệu</div>
+    <div class="table-responsive">
+      <table class="table table-hover table-sm mb-0">
+        <thead><tr><th>PX</th><th>Nguyên phụ liệu</th><th class="text-end">Số lượng</th><th class="text-end">Đơn giá</th><th class="text-end">Trạng thái</th></tr></thead>
+        <tbody>
+          {% for l in br.material_lines %}
+          <tr>
+            <td>{{ l.issue }}</td><td>{{ l.material }}</td>
+            <td class="text-end">{{ l.qty }}</td>
+            <td class="text-end">{{ l.unit_price|floatformat:0|intcomma }}</td>
+            <td class="text-end">{{ l.amount|floatformat:0|intcomma }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="5" class="text-muted text-center py-2">Chưa có phiếu xuất post.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

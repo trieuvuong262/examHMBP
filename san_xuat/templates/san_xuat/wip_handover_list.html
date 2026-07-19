@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 py-md-4 mb-5">
+  <div class="jp-page-header mb-3 mb-md-4">
+    <div>
+      <h2 class="fw-bold text-hm mb-1 jp-page-title">Bàn giao bán thành phẩm</h2>
+    </div>
+    <div class="d-flex gap-2">
+      {% if can_create %}
+      <a href="{% url 'san_xuat:dispatch_wip_handover_create' %}" class="btn btn-hm btn-sm">Tạo bàn giao</a>
+      {% endif %}
+      <a href="{% url 'san_xuat:dispatch_handover_status' %}" class="btn btn-outline-secondary btn-sm">Tình hình</a>
+    </div>
+  </div>
+
+  {% include 'san_xuat/includes/sx_list_filter.html' %}
+  <div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+      <table class="table table-sm table-hover mb-0 align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Mã</th>
+            <th>Lệnh sản xuất</th>
+            <th>Từ công đoạn</th>
+            <th>Đến công đoạn</th>
+            <th class="text-end">Số lượng</th>
+            <th>Ngày</th>
+            <th>Trạng thái</th>
+            {% include 'san_xuat/includes/sx_list_meta_head.html' %}
+<th class="text-end"></th>
+</tr>
+        </thead>
+        <tbody>
+        {% for item in handovers %}
+          <tr class="{% if item.status == 'pending' %}table-warning{% elif item.status == 'rejected' %}table-danger{% endif %} jp-npl-catalog-row" data-href="{% url 'san_xuat:dispatch_wip_handover_detail' item.pk %}">
+            <td><strong>{{ item.code }}</strong></td>
+            <td class="small">
+              <a href="{% url 'san_xuat:dispatch_mo_detail' item.production_order.pk %}">{{ item.production_order.code }}</a>
+            </td>
+            <td class="small">{{ item.from_process }}</td>
+            <td class="small">{{ item.to_process }}</td>
+<td class="text-end">{{ item.qty }}</td>
+            <td class="small">{{ item.handover_date|date:"d/m/Y" }}</td>
+            <td class="small">{{ item.get_status_display }}</td>
+                        {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=item %}
+<td class="text-end">
+              <a href="{% url 'san_xuat:dispatch_wip_handover_detail' item.pk %}" class="btn btn-sm btn-outline-hm">Mở</a>
+            </td>
+</tr>
+        {% empty %}
+          <tr><td colspan="14" class="text-muted small p-3">Chưa có bàn giao bán thành phẩm.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

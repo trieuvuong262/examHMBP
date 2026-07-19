@@ -1,0 +1,49 @@
+{# Click cả dòng danh sách Sản xuất #}
+<script>
+(function () {
+  function pickDetailHref(tr) {
+    if (tr.getAttribute('data-href')) return tr.getAttribute('data-href');
+    var preferred = tr.querySelector(
+      'a.btn-outline-hm[href], a.btn-sm.btn-outline-hm[href], a.btn-hm[href*="/"]'
+    );
+    if (preferred && preferred.getAttribute('href') && preferred.getAttribute('href') !== '#') {
+      return preferred.getAttribute('href');
+    }
+    var labeled = null;
+    tr.querySelectorAll('a[href]').forEach(function (a) {
+      var t = (a.textContent || '').trim().toLowerCase();
+      if (t === 'mở' || t === 'xem' || t === 'chi tiết' || t === 'mở bom') labeled = a;
+    });
+    if (labeled) return labeled.getAttribute('href');
+    var cells = tr.querySelectorAll('td');
+    if (!cells.length) return null;
+    var last = cells[cells.length - 1].querySelector('a[href]:not([href="#"])');
+    if (last) return last.getAttribute('href');
+    var firstCode = tr.querySelector('td a[href*="/san-xuat/"]');
+    return firstCode ? firstCode.getAttribute('href') : null;
+  }
+
+  document.querySelectorAll('.jp-sx-module table tbody tr').forEach(function (tr) {
+    if (tr.querySelector('td[colspan]')) return;
+    if (tr.classList.contains('jp-sx-row-wired')) return;
+    // Hàng đã có data-href + jp-npl-catalog-row: catalog_page_loading.js xử lý
+    if (tr.classList.contains('jp-npl-catalog-row') && tr.getAttribute('data-href')) {
+      tr.classList.add('jp-sx-row-click', 'jp-sx-row-wired');
+      return;
+    }
+    var href = pickDetailHref(tr);
+    if (!href || href.charAt(0) === '#') return;
+    tr.classList.add('jp-sx-row-click', 'jp-sx-row-wired');
+    tr.setAttribute('data-href', href);
+    tr.setAttribute('title', 'Mở chi tiết');
+    tr.addEventListener('click', function (e) {
+      if (e.target.closest('a, button, form, input, select, textarea, label, .btn, [data-bs-toggle]')) return;
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      if (window.jpShowToolLoading) {
+        try { window.jpShowToolLoading('Đang mở…'); } catch (err) {}
+      }
+      window.location.href = href;
+    });
+  });
+})();
+</script>

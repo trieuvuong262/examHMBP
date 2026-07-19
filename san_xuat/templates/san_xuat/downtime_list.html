@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+{% block extra_head %}{% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}{% endblock %}
+{% block content %}
+<div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 mb-5">
+  <div class="jp-npl-mat-topbar">
+    <div>
+      <h2 class="jp-npl-mat-topbar-title mb-0">Dừng chuyền / OEE</h2>
+    </div>
+  </div>
+
+  {% include 'san_xuat/includes/sx_list_filter.html' %}
+
+  {% if oee_rows %}
+  <div class="row g-2 mb-3">
+    {% for r in oee_rows %}
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm"><div class="card-body py-2">
+        <div class="fw-semibold">{{ r.wc.name }}</div>
+        <div class="small text-muted">Dừng {{ r.downtime_min }} phút · Availability ~{{ r.availability_pct }}%</div>
+      </div></div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% if can_create %}
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-body">
+      <form method="post" class="row g-2 align-items-end">
+        {% csrf_token %}
+        <div class="col-md-3"><label class="form-label small">Lý do</label>
+          <input name="reason" class="form-control form-control-sm" required></div>
+        <div class="col-md-2"><label class="form-label small">Phút</label>
+          <input name="minutes" type="number" min="1" class="form-control form-control-sm" required></div>
+        <div class="col-md-3"><label class="form-label small">Tổ/NL</label>
+          <select name="work_center" class="form-select form-select-sm">
+            <option value="">—</option>
+            {% for c in centers %}<option value="{{ c.pk }}">{{ c.code }} — {{ c.name }}</option>{% endfor %}
+          </select></div>
+        <div class="col-md-2"><label class="form-label small">Lệnh sản xuất</label>
+          <select name="production_order" class="form-select form-select-sm">
+            <option value="">—</option>
+            {% for m in mos %}<option value="{{ m.pk }}">{{ m.code }}</option>{% endfor %}
+          </select></div>
+        <div class="col-md-2"><button class="btn btn-hm btn-sm w-100">Ghi</button></div>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+  <div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+      <table class="table table-hover table-sm mb-0">
+        <thead class="table-light"><tr><th>Mã</th><th>Ngày</th><th>Lý do</th><th>Phút</th><th>Tổ</th><th>Lệnh sản xuất</th>
+            {% include 'san_xuat/includes/sx_list_meta_head.html' %}
+</tr>
+</thead>
+        <tbody>
+          {% for e in events %}
+          <tr>
+            <td>{{ e.code }}</td>
+            <td>{{ e.event_date|date:"d/m/Y" }}</td>
+            <td>{{ e.reason }}</td>
+            <td>{{ e.minutes }}</td>
+            <td>{% if e.work_center %}{{ e.work_center.name }}{% else %}{{ e.team_label|default:"—" }}{% endif %}</td>
+                        {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=e %}
+<td>{% if e.production_order %}{{ e.production_order.code }}{% else %}—{% endif %}</td>
+</tr>
+          {% empty %}
+          <tr><td colspan="12" class="text-muted text-center py-3">Chưa có sự kiện dừng.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

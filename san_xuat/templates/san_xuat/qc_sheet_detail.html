@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
+    <div class="jp-page-header mb-3 mb-md-4">
+        <div>
+            <h2 class="fw-bold text-hm mb-1 jp-page-title">Phiếu kiểm tra {{ inspection.code }}</h2>
+        </div>
+        <a href="{% url 'san_xuat:qc_sheet' %}" class="btn btn-outline-secondary btn-sm">Quay lại</a>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-12 col-lg-5">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <div class="small text-muted">Ngày kiểm</div>
+                            <div>{{ inspection.inspected_at|date:"d/m/Y" }}</div>
+                        </div>
+                        <div class="col-6">
+                            <div class="small text-muted">Bộ tiêu chuẩn</div>
+                            <div>{{ inspection.standard_set|default:"—" }}</div>
+                        </div>
+                        <div class="col-6">
+                            <div class="small text-muted">SL mẫu</div>
+                            <div class="fw-semibold">{{ inspection.qty_sample }}</div>
+                        </div>
+                        <div class="col-6">
+                            <div class="small text-muted">Trạng thái phiếu</div>
+                            <div>{{ inspection.status }}</div>
+                        </div>
+                        {% if inspection.status == 'done' %}
+                        <div class="col-6">
+                            <div class="small text-muted">Số lượng đạt / lỗi</div>
+                            <div class="fw-semibold">{{ inspection.qty_pass }} / {{ inspection.qty_fail }}</div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-lg-7">
+            {% if can_update and inspection.status != 'done' %}
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="finalize">
+
+                <div class="card border-0 shadow-sm mb-3">
+                    <div class="card-body">
+                        <div class="small text-muted mb-3">Tiêu chí kiểm tra (Q3)</div>
+                        {% if criteria_forms %}
+                        <div class="table-responsive">
+                            <table class="table table-hover table-sm align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Tiêu chí</th>
+                                        <th>Kết quả</th>
+                                        <th>Ghi chú</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                {% for item in criteria_forms %}
+                                    <tr>
+                                        <td class="small">{{ item.line.criteria.name }}</td>
+                                        <td>{{ item.form.is_pass }}</td>
+                                        <td>{{ item.form.notes }}</td>
+                                    </tr>
+                                {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="text-muted small">Chưa có tiêu chí — thêm danh mục kiểm tra chất lượng hoặc gắn tiêu chí vào bộ TC.</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="card border-0 shadow-sm mb-3">
+                    <div class="card-body">
+                        <div class="small text-muted mb-3">Lỗi chi tiết theo nhóm (Q3)</div>
+                        {{ defect_formset.management_form }}
+                        {% for form in defect_formset %}
+                        <div class="row g-2 mb-2">
+                            <div class="col-md-5">{{ form.defect }}</div>
+                            <div class="col-md-3">{{ form.qty }}</div>
+                            <div class="col-md-4">{{ form.notes }}</div>
+                        </div>
+                        {% endfor %}
+                        <div class="form-text">Tổng Số lượng lỗi từ các dòng sẽ được dùng khi chốt PKT.</div>
+                    </div>
+                </div>
+
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body">
+                        <div class="small text-muted mb-3">Tổng kết</div>
+                        {% for field in form %}
+                        <div class="mb-3">
+                            <label class="form-label small text-muted" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                            {{ field }}
+                            {% if field.errors %}<div class="text-danger small">{{ field.errors }}</div>{% endif %}
+                        </div>
+                        {% endfor %}
+                        <button type="submit" class="btn btn-hm w-100">Chốt kết quả PKT</button>
+                    </div>
+                </div>
+            </form>
+            {% else %}
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-body">
+                    <div class="small text-muted mb-2">Tiêu chí đã kiểm</div>
+                    {% if inspection.criteria_lines.all %}
+                    <ul class="mb-0 small">
+                    {% for line in inspection.criteria_lines.all %}
+                        <li>{{ line.criteria.name }} — {% if line.is_pass == True %}Đạt{% elif line.is_pass == False %}Không đạt{% else %}—{% endif %}</li>
+                    {% endfor %}
+                    </ul>
+                    {% else %}
+                    <div class="text-muted small">Không có dòng tiêu chí.</div>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="small text-muted mb-2">Lỗi chi tiết</div>
+                    {% if inspection.defect_lines.all %}
+                    <ul class="mb-0 small">
+                    {% for line in inspection.defect_lines.all %}
+                        <li>{{ line.defect.name }} × {{ line.qty }}</li>
+                    {% endfor %}
+                    </ul>
+                    {% else %}
+                    <div class="text-muted small">Không ghi nhận lỗi chi tiết.</div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

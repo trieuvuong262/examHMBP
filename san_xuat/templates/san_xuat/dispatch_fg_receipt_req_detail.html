@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
+  <div class="jp-page-header mb-3 mb-md-4">
+    <div>
+      <h2 class="fw-bold text-hm mb-1 jp-page-title">Yêu cầu nhập thành phẩm {{ fg_req.code }}</h2>
+    </div>
+    <a href="{% url 'san_xuat:dispatch_fg_receipt_req' %}" class="btn btn-outline-secondary btn-sm">Quay lại</a>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-lg-6">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-6">
+              <div class="small text-muted">Ngày yêu cầu</div>
+              <div>{{ fg_req.request_date|date:"d/m/Y" }}</div>
+            </div>
+            <div class="col-6">
+              <div class="small text-muted">Số lượng nhập thành phẩm</div>
+              <div class="fw-semibold">{{ fg_req.qty }}</div>
+            </div>
+            <div class="col-6">
+              <div class="small text-muted">Mã sản phẩm</div>
+              <div>{{ fg_req.production_order.product_code }}</div>
+            </div>
+            <div class="col-6">
+              <div class="small text-muted">Phiếu nhập KiotViet</div>
+              <div>
+                {% if fg_req.kv_purchase_kiotviet_id %}
+                <a href="{% url 'san_xuat:fg_purchase_detail' fg_req.kv_purchase_kiotviet_id %}">{{ fg_req.kv_purchase_code|default:fg_req.kv_purchase_kiotviet_id }}</a>
+                {% else %}—{% endif %}
+              </div>
+            </div>
+            <div class="col-12">
+              <div class="small text-muted">Ghi chú</div>
+              <div>{{ fg_req.notes|default:"—" }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-6">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <div class="small text-muted mb-3">Hành động</div>
+          {% if can_update and fg_req.status == 'draft' %}
+          <form method="post" class="mb-3">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="submit">
+            <button type="submit" class="btn btn-hm w-100">Gửi yêu cầu nhập thành phẩm</button>
+          </form>
+          {% endif %}
+
+          {% if can_update and not fg_req.kv_purchase_kiotviet_id %}
+          <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="link_kv">
+            {% for field in link_form %}
+            <div class="mb-3">
+              <label class="form-label small text-muted" for="{{ field.id_for_label }}">{{ field.label }}</label>
+              {{ field }}
+              {% if field.errors %}<div class="text-danger small">{{ field.errors }}</div>{% endif %}
+            </div>
+            {% endfor %}
+            <button type="submit" class="btn btn-outline-hm w-100">Liên kết phiếu nhập KiotViet</button>
+          </form>
+          <div class="form-text mt-2">
+            Tra cứu phiếu nhập tại
+            <a href="{% url 'san_xuat:fg_purchase_lookup' %}">Kho sản phẩm → Phiếu nhập</a>.
+          </div>
+          {% elif fg_req.kv_purchase_kiotviet_id %}
+          <div class="text-muted small">Đã liên kết phiếu nhập KiotViet.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
