@@ -213,7 +213,7 @@ def upsert_work_center(
         is_active=is_active,
         notes=notes or "",
         is_demo=False,
-        user=user,
+        created_by=user,
     )
 
 

@@ -84,7 +84,7 @@ def create_overall_plan(
         status=SxOverallPlan.STATUS_DRAFT,
         notes=notes or "",
         is_demo=False,
-        user=user,
+        created_by=user,
     )
 
 

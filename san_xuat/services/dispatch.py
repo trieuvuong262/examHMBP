@@ -205,7 +205,7 @@ def create_mo_from_bom(
         notes=notes or "",
         detail_plan_id=detail_plan_id,
         is_sample=bool(is_sample),
-        user=user,
+        created_by=user,
     )
     return mo
 
