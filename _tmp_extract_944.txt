@@ -1,0 +1,64 @@
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+def doc_list(request):
+    search_query = get_search_query(request)
+    qs = ProductTechDoc.objects.all()
+    qs = apply_term_search(
+        qs,
+        search_query,
+        'product_code__icontains',
+        'product_name__icontains',
+        'notes__icontains',
+    )
+    page_obj, query_string = paginate_queryset(request, qs)
+    return render(request, 'san_xuat/doc_list.html', {
+        'page_obj': page_obj,
+        'query_string': query_string,
+        'search_query': search_query,
+        'total_count': ProductTechDoc.objects.count(),
+        **_perm_ctx(request),
+    })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+def bom_list(request):
+    """Danh sách phiên bản BOM / định mức — khác danh sách hồ sơ SX."""
+    from django.db.models import Count
+
+    search_query = get_search_query(request)
+    status = (request.GET.get('status') or '').strip().lower()
+    qs = (
+        BomVersion.objects.select_related('tech_doc')
+        .annotate(
+            line_count=Count('lines', distinct=True),
+            step_count=Count('process_steps', distinct=True),
+        )
+        .all()
+    )
+    if status in {
+        BomVersion.STATUS_DRAFT,
+        BomVersion.STATUS_ACTIVE,
+        BomVersion.STATUS_ARCHIVED,
+    }:
+        qs = qs.filter(status=status)
+    qs = apply_term_search(
+        qs,
+        search_query,
+        'tech_doc__product_code__icontains',
+        'tech_doc__product_name__icontains',
+        'version_label__icontains',
+        'notes__icontains',
+    )
+    page_obj, query_string = paginate_queryset(request, qs)
+    return render(request, 'san_xuat/bom_list.html', {
+        'page_obj': page_obj,
+        'query_string': query_string,
+        'search_query': search_query,
+        'filter_status': status,
+        'status_choices': BomVersion.STATUS_CHOICES,
+        'total_count': BomVersion.objects.count(),
+        **_perm_ctx(request),
+    })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'create')
+def doc_create(request):

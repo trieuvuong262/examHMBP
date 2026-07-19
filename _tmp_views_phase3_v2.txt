@@ -1,0 +1,751 @@
+LINE 453
+=== StrReplace new_string ===
+            try:
+                from hrm.permissions import get_task_assignable_users
+
+                qs = get_task_assignable_users(assigner)
+            except Exception:
+                pass
+
+
+=== StrReplace old_string ===
+            try:
+                from tasks.permissions import get_task_assignable_users
+
+                qs = get_task_assignable_users(assigner)
+            except Exception:
+                pass
+
+
+=== StrReplace new_string ===
+from san_xuat.forms_phase3 import (
+    PackingCreateForm,
+    PackingLineFormSet,
+    SubcontractCreateForm,
+    SubcontractMaterialLineForm,
+    SubcontractOutLineFormSet,
+    SubcontractReceiveForm,
+    TraceLookupForm,
+    WorkAssignmentCreateForm,
+    WorkCenterForm,
+)
+
+
+=== StrReplace old_string ===
+from san_xuat.forms_phase3 import (
+    PackingCreateForm,
+    SubcontractCreateForm,
+    TraceLookupForm,
+    WorkAssignmentCreateForm,
+    WorkCenterForm,
+)
+
+
+=== StrReplace new_string ===
+# --- Giai đoạn 3 ---
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+def work_assignment_list(request):
+    from san_xuat.services.phase3 import Phase3Error, complete_work_assignment
+
+    qs = (
+        SxWorkAssignment.objects.filter(is_demo=False)
+        .select_related('production_order', 'work_center', 'work_task', 'assignee')
+        .order_by('-created_at', '-pk')
+    )
+    status_filter = (request.GET.get('status') or '').strip()
+    if status_filter:
+        qs = qs.filter(status=status_filter)
+    can_update = _perm_ctx(request).get('can_update')
+    if request.method == 'POST' and can_update:
+        action = (request.POST.get('action') or '').strip()
+        pk = request.POST.get('pk')
+        if action == 'complete' and pk and str(pk).isdigit():
+            try:
+                item = complete_work_assignment(assignment_id=int(pk))
+            except Phase3Error as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(request, f'Đã hoàn thành {item.code}.')
+            return redirect('san_xuat:work_assignment_list')
+    return render(request, 'san_xuat/work_assignment_list.html', {
+        **_perm_ctx(request),
+        'items': qs[:200],
+        'status_filter': status_filter,
+    })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'create')
+def work_assignment_create(request):
+    from san_xuat.services.phase3 import Phase3Error, create_work_assignment
+
+    if request.method == 'POST':
+        form = WorkAssignmentCreateForm(request.POST, assigner=request.user)
+        if form.is_valid():
+            center = form.cleaned_data.get('work_center')
+            assignee = form.cleaned_data.get('assignee')
+            create_task = bool(form.cleaned_data.get('create_portal_task'))
+            try:
+                item = create_work_assignment(
+                    production_order_id=form.cleaned_data['production_order'].pk,
+                    title=form.cleaned_data['title'],
+                    process_name=form.cleaned_data.get('process_name') or '',
+                    assignee_label=form.cleaned_data.get('assignee_label') or '',
+                    due_date=form.cleaned_data.get('due_date'),
+                    notes=form.cleaned_data.get('notes') or '',
+                    work_center_id=center.pk if center else None,
+                    assignee_id=assignee.pk if assignee else None,
+                    create_portal_task=create_task,
+                    assigner=request.user if create_task else None,
+                )
+            except Phase3Error as exc:
+                messages.error(request, str(exc))
+            else:
+                msg = f'Đã tạo giao việc {item.code}.'
+                if item.work_task_id:
+                    msg += f' Đã tạo WorkTask #{item.work_task_id}.'
+                messages.success(request, msg)
+                return redirect('san_xuat:work_assignment_list')
+        messages.error(request, 'Không tạo được giao việc.')
+    else:
+        initial = {'create_portal_task': True}
+        mo_id = request.GET.get('mo')
+        if mo_id and str(mo_id).isdigit():
+            initial['production_order'] = int(mo_id)
+        form = WorkAssignmentCreateForm(initial=initial, assigner=request.user)
+    return render(request, 'san_xuat/phase3_form.html', {
+        **_perm_ctx(request),
+        'form': form,
+        'title': 'Giao việc theo LSX',
+        'back_url': 'san_xuat:work_assignment_list',
+        'hint': 'Tick «Tạo công việc module Công việc» để đẩy sang tasks (cần chọn người nhận portal).',
+    })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+def traceability(request):
+    from san_xuat.services.phase3 import trace_production
+
+    result = None
+    form = TraceLookupForm(request.GET or None)
+    if request.GET.get('query'):
+        if form.is_valid():
+            result = trace_production(query=form.cleaned_data['query'])
+    return render(request, 'san_xuat/traceability.html', {
+        **_perm_ctx(request),
+        'form': form,
+        'result': result,
+    })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+def capacity_list(request):
+    from san_xuat.services.overview import parse_overview_period
+    from san_xuat.services.phase3 import build_capacity_load
+
+    date_from, date_to = parse_overview_period(
+        month=(request.GET.get('month') or '').strip(),
+        date_from=(request.GET.get('date_from') or '').strip(),
+        date_to=(request.GET.get('date_to') or '').strip(),
+    )
+    centers = SxWorkCenter.objects.filter(is_demo=False).order_by('code')
+    load_rows = build_capacity_load(date_from=date_from, date_to=date_to)
+    return render(request, 'san_xuat/capacity_list.html', {
+        **_perm_ctx(request),
+        'centers': centers,
+        'load_rows': load_rows,
+        'date_from': date_from,
+        'date_to': date_to,
+        'month_value': f'{date_from.year:04d}-{date_from.month:02d}',
+    })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'create')
+def capacity_create(request):
+    from san_xuat.services.phase3 import Phase3Error, upsert_work_center
+
+    if request.method == 'POST':
+        form = WorkCenterForm(request.POST)
+        if form.is_valid():
+            try:
+                center = upsert_work_center(
+                    code=form.cleaned_data['code'],
+                    name=form.cleaned_data['name'],
+                    capacity_per_day=form.cleaned_data['capacity_per_day'],
+                    uom_label=form.cleaned_data.get('uom_label') or 'SP',
+                    team_label=form.cleaned_data.get('team_label') or '',
+                    is_active=bool(form.cleaned_data.get('is_active')),
+                    notes=form.cleaned_data.get('notes') or '',
+                )
+            except Phase3Error as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(request, f'Đã thêm {center.code}.')
+                return redirect('san_xuat:capacity_list')
+        messages.error(request, 'Không lưu được tổ/chuyền.')
+    else:
+        form = WorkCenterForm(initial={'is_active': True, 'uom_label': 'SP'})
+    return render(request, 'san_xuat/phase3_form.html', {
+        **_perm_ctx(request),
+        'form': form,
+        'title': 'Thêm năng lực SX',
+        'back_url': 'san_xuat:capacity_list',
+    })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+def ops_report(request):
+    from san_xuat.services.overview import parse_overview_period
+    from san_xuat.services.phase3 import build_ops_report, export_ops_report_csv
+
+    date_from, date_to = parse_overview_period(
+        month=(request.GET.get('month') or '').strip(),
+        date_from=(request.GET.get('date_from') or '').strip(),
+        date_to=(request.GET.get('date_to') or '').strip(),
+    )
+    product_code = (request.GET.get('product_code') or '').strip()
+    process_name = (request.GET.get('process_name') or '').strip()
+    report = build_ops_report(
+        date_from=date_from,
+        date_to=date_to,
+        product_code=product_code,
+        process_name=process_name,
+    )
+    if (request.GET.get('export') or '').strip() == 'csv':
+        return export_ops_report_csv(report=report)
+    return render(request, 'san_xuat/ops_report.html', {
+        **_perm_ctx(request),
+        'report': report,
+        'month_value': f'{date_from.year:04d}-{date_from.month:02d}',
+        'product_code': product_code,
+        'process_name': process_name,
+    })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+def packing_list(request):
+    qs = (
+        SxPackingRecord.objects.filter(is_demo=False)
+        .select_related('production_order', 'fg_receipt')
+        .order_by('-pack_date', '-pk')
+    )
+    return render(request, 'san_xuat/packing_list.html', {
+        **_perm_ctx(request),
+        'items': qs[:200],
+    })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'create')
+def packing_create(request):
+    from san_xuat.services.phase3 import Phase3Error, create_packing_record
+
+    if request.method == 'POST':
+        form = PackingCreateForm(request.POST)
+        line_formset = PackingLineFormSet(request.POST, prefix='lines')
+        if form.is_valid() and line_formset.is_valid():
+            lines = []
+            for lf in line_formset:
+                cd = lf.cleaned_data
+                if not cd:
+                    continue
+                qty = cd.get('qty')
+                if qty and qty > 0:
+                    lines.append(cd)
+            fg = form.cleaned_data.get('fg_receipt')
+            try:
+                item = create_packing_record(
+                    production_order_id=form.cleaned_data['production_order'].pk,
+                    qty=form.cleaned_data.get('qty') or None,
+                    pack_date=form.cleaned_data.get('pack_date'),
+                    carton_count=form.cleaned_data.get('carton_count') or 0,
+                    lot_code=form.cleaned_data.get('lot_code') or '',
+                    fg_receipt_id=fg.pk if fg else None,
+                    notes=form.cleaned_data.get('notes') or '',
+                    lines=lines,
+                )
+            except Phase3Error as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(request, f'Đã tạo {item.code}.')
+                return redirect('san_xuat:packing_detail', pk=item.pk)
+        messages.error(request, 'Không tạo được phiếu đóng gói.')
+    else:
+        form = PackingCreateForm(initial={'pack_date': timezone.localdate()})
+        line_formset = PackingLineFormSet(prefix='lines')
+    return render(request, 'san_xuat/packing_create.html', {
+        **_perm_ctx(request),
+        'form': form,
+        'line_formset': line_formset,
+        'title': 'Ghi nhận đóng gói',
+        'back_url': 'san_xuat:packing_list',
+    })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+def packing_detail(request, pk: int):
+    from san_xuat.services.phase3 import Phase3Error, confirm_packing_record
+
+    item = get_object_or_404(
+        SxPackingRecord.objects.select_related('production_order', 'fg_receipt').prefetch_related('lines'),
+        pk=pk,
+    )
+    can_update = _perm_ctx(request).get('can_update')
+    if request.method == 'POST' and can_update:
+        if (request.POST.get('action') or '') == 'confirm' and item.status == SxPackingRecord.STATUS_DRAFT:
+            try:
+                item = confirm_packing_record(packing_id=item.pk)
+            except Phase3Error as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(request, f'Đã xác nhận {item.code}.')
+                return redirect('san_xuat:packing_detail', pk=item.pk)
+    return render(request, 'san_xuat/packing_detail.html', {
+        **_perm_ctx(request),
+        'item': item,
+        'can_update': can_update,
+    })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+def subcontract_list(request):
+    qs = (
+        SxSubcontractOrder.objects.filter(is_demo=False)
+        .select_related('production_order')
+        .order_by('-order_date', '-pk')
+    )
+    return render(request, 'san_xuat/subcontract_list.html', {
+        **_perm_ctx(request),
+        'items': qs[:200],
+    })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'create')
+def subcontract_create(request):
+    from san_xuat.services.phase3 import Phase3Error, create_subcontract_order
+
+    if request.method == 'POST':
+        form = SubcontractCreateForm(request.POST)
+        out_formset = SubcontractOutLineFormSet(request.POST, prefix='out')
+        if form.is_valid() and out_formset.is_valid():
+            mo = form.cleaned_data.get('production_order')
+            out_lines = []
+            for lf in out_formset:
+                cd = lf.cleaned_data
+                if not cd:
+                    continue
+                if cd.get('material_code') and cd.get('qty') and cd['qty'] > 0:
+                    out_lines.append(cd)
+            try:
+                item = create_subcontract_order(
+                    vendor_name=form.cleaned_data['vendor_name'],
+                    product_code=form.cleaned_data['product_code'],
+                    product_name=form.cleaned_data.get('product_name') or '',
+                    process_name=form.cleaned_data.get('process_name') or '',
+                    qty=form.cleaned_data['qty'],
+                    order_date=form.cleaned_data.get('order_date'),
+                    due_date=form.cleaned_data.get('due_date'),
+                    production_order_id=mo.pk if mo else None,
+                    notes=form.cleaned_data.get('notes') or '',
+                    out_lines=out_lines,
+                )
+            except Phase3Error as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(request, f'Đã tạo {item.code}.')
+                return redirect('san_xuat:subcontract_detail', pk=item.pk)
+        messages.error(request, 'Không tạo được lệnh GC.')
+    else:
+        form = SubcontractCreateForm(initial={'order_date': timezone.localdate()})
+        out_formset = SubcontractOutLineFormSet(prefix='out')
+    return render(request, 'san_xuat/subcontract_create.html', {
+        **_perm_ctx(request),
+        'form': form,
+        'out_formset': out_formset,
+        'title': 'Thuê gia công',
+        'back_url': 'san_xuat:subcontract_list',
+    })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+def subcontract_detail(request, pk: int):
+    from san_xuat.hub_models import SxSubcontractMaterialLine, SxSubcontractOrder as Sub
+    from san_xuat.services.phase3 import (
+        Phase3Error,
+        add_subcontract_material_line,
+        advance_subcontract_order,
+    )
+
+    item = get_object_or_404(
+        SxSubcontractOrder.objects.select_related('production_order').prefetch_related('material_lines'),
+        pk=pk,
+    )
+    can_update = _perm_ctx(request).get('can_update')
+    receive_form = SubcontractReceiveForm(initial={'qty_received': item.qty or Decimal('0')})
+    add_out_form = SubcontractMaterialLineForm()
+
+    if request.method == 'POST' and can_update:
+        action = (request.POST.get('action') or '').strip()
+        if action == 'add_out':
+            add_out_form = SubcontractMaterialLineForm(request.POST)
+            if add_out_form.is_valid():
+                cd = add_out_form.cleaned_data
+                try:
+                    add_subcontract_material_line(
+                        order_id=item.pk,
+                        direction=SxSubcontractMaterialLine.DIRECTION_OUT,
+                        material_code=cd.get('material_code') or '',
+                        qty=cd.get('qty') or Decimal('0'),
+                        material_name=cd.get('material_name') or '',
+                        uom_label=cd.get('uom_label') or 'SP',
+                        lot_code=cd.get('lot_code') or '',
+                    )
+                except Phase3Error as exc:
+                    messages.error(request, str(exc))
+                else:
+                    messages.success(request, 'Đã thêm dòng xuất đi GC.')
+                    return redirect('san_xuat:subcontract_detail', pk=item.pk)
+        elif action == 'receive':
+            receive_form = SubcontractReceiveForm(request.POST)
+            if receive_form.is_valid():
+                cd = receive_form.cleaned_data
+                try:
+                    if cd.get('material_code'):
+                        add_subcontract_material_line(
+                            order_id=item.pk,
+                            direction=SxSubcontractMaterialLine.DIRECTION_IN,
+                            material_code=cd['material_code'],
+                            qty=cd['qty_received'],
+                            material_name=cd.get('material_name') or '',
+                            lot_code=cd.get('lot_code') or '',
+                        )
+                    item = advance_subcontract_order(
+                        order_id=item.pk,
+                        to_status=Sub.STATUS_RECEIVED,
+                        qty_received=cd['qty_received'],
+                    )
+                except Phase3Error as exc:
+                    messages.error(request, str(exc))
+                else:
+                    messages.success(request, f'{item.code} → {item.get_status_display()}.')
+                    return redirect('san_xuat:subcontract_detail', pk=item.pk)
+        else:
+            to_status = (request.POST.get('to_status') or '').strip()
+            if to_status:
+                try:
+                    item = advance_subcontract_order(order_id=item.pk, to_status=to_status)
+                except Phase3Error as exc:
+                    messages.error(request, str(exc))
+                else:
+                    messages.success(request, f'{item.code} → {item.get_status_display()}.')
+                    return redirect('san_xuat:subcontract_detail', pk=item.pk)
+
+    out_lines = [ln for ln in item.material_lines.all() if ln.direction == 'out']
+    in_lines = [ln for ln in item.material_lines.all() if ln.direction == 'in']
+    return render(request, 'san_xuat/subcontract_detail.html', {
+        **_perm_ctx(request),
+        'item': item,
+        'can_update': can_update,
+        'out_lines': out_lines,
+        'in_lines': in_lines,
+        'receive_form': receive_form,
+        'add_out_form': add_out_form,
+        'STATUS_SENT': Sub.STATUS_SENT,
+        'STATUS_RECEIVED': Sub.STATUS_RECEIVED,
+        'STATUS_DONE': Sub.STATUS_DONE,
+        'STATUS_CANCELLED': Sub.STATUS_CANCELLED,
+        'STATUS_DRAFT': Sub.STATUS_DRAFT,
+    })
+
+
+=== StrReplace old_string ===
+# --- Giai đoạn 3 ---
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+def work_assignment_list(request):
+    from san_xuat.services.phase3 import Phase3Error, complete_work_assignment
+
+    qs = (
+        SxWorkAssignment.objects.filter(is_demo=False)
+        .select_related('production_order')
+        .order_by('-created_at', '-pk')
+    )
+    can_update = _perm_ctx(request).get('can_update')
+    if request.method == 'POST' and can_update:
+        action = (request.POST.get('action') or '').strip()
+        pk = request.POST.get('pk')
+        if action == 'complete' and pk and str(pk).isdigit():
+            try:
+                item = complete_work_assignment(assignment_id=int(pk))
+            except Phase3Error as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(request, f'Đã hoàn thành {item.code}.')
+            return redirect('san_xuat:work_assignment_list')
+    return render(request, 'san_xuat/work_assignment_list.html', {
+        **_perm_ctx(request),
+        'items': qs[:200],
+    })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'create')
+def work_assignment_create(request):
+    from san_xuat.services.phase3 import Phase3Error, create_work_assignment
+
+    if request.method == 'POST':
+        form = WorkAssignmentCreateForm(request.POST)
+        if form.is_valid():
+            try:
+                item = create_work_assignment(
+                    production_order_id=form.cleaned_data['production_order'].pk,
+                    title=form.cleaned_data['title'],
+                    process_name=form.cleaned_data.get('process_name') or '',
+                    assignee_label=form.cleaned_data.get('assignee_label') or '',
+                    due_date=form.cleaned_data.get('due_date'),
+                    notes=form.cleaned_data.get('notes') or '',
+                )
+            except Phase3Error as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(request, f'Đã tạo giao việc {item.code}.')
+                return redirect('san_xuat:work_assignment_list')
+        messages.error(request, 'Không tạo được giao việc.')
+    else:
+        initial = {}
+        mo_id = request.GET.get('mo')
+        if mo_id and str(mo_id).isdigit():
+            initial['production_order'] = int(mo_id)
+        form = WorkAssignmentCreateForm(initial=initial)
+    return render(request, 'san_xuat/phase3_form.html', {
+        **_perm_ctx(request),
+        'form': form,
+        'title': 'Giao việc theo LSX',
+        'back_url': 'san_xuat:work_assignment_list',
+    })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+def traceability(request):
+    from san_xuat.services.phase3 import trace_production
+
+    result = None
+    form = TraceLookupForm(request.GET or None)
+    if request.GET.get('query'):
+        if form.is_valid():
+            result = trace_production(query=form.cleaned_data['query'])
+    return render(request, 'san_xuat/traceability.html', {
+        **_perm_ctx(request),
+        'form': form,
+        'result': result,
+    })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+def capacity_list(request):
+    centers = SxWorkCenter.objects.filter(is_demo=False).order_by('code')
+    return render(request, 'san_xuat/capacity_list.html', {
+        **_perm_ctx(request),
+        'centers': centers,
+    })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'create')
+def capacity_create(request):
+    from san_xuat.services.phase3 import Phase3Error, upsert_work_center
+
+    if request.method == 'POST':
+        form = WorkCenterForm(request.POST)
+        if form.is_valid():
+            try:
+                center = upsert_work_center(
+                    code=form.cleaned_data['code'],
+                    name=form.cleaned_data['name'],
+                    capacity_per_day=form.cleaned_data['capacity_per_day'],
+                    uom_label=form.cleaned_data.get('uom_label') or 'SP',
+                    is_active=bool(form.cleaned_data.get('is_active')),
+                    notes=form.cleaned_data.get('notes') or '',
+                )
+            except Phase3Error as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(request, f'Đã thêm {center.code}.')
+                return redirect('san_xuat:capacity_list')
+        messages.error(request, 'Không lưu được tổ/chuyền.')
+    else:
+        form = WorkCenterForm(initial={'is_active': True, 'uom_label': 'SP'})
+    return render(request, 'san_xuat/phase3_form.html', {
+        **_perm_ctx(request),
+        'form': form,
+        'title': 'Thêm năng lực SX',
+        'back_url': 'san_xuat:capacity_list',
+    })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+def ops_report(request):
+    from san_xuat.services.overview import parse_overview_period
+    from san_xuat.services.phase3 import build_ops_report
+
+    date_from, date_to = parse_overview_period(
+        month=(request.GET.get('month') or '').strip(),
+        date_from=(request.GET.get('date_from') or '').strip(),
+        date_to=(request.GET.get('date_to') or '').strip(),
+    )
+    report = build_ops_report(date_from=date_from, date_to=date_to)
+    return render(request, 'san_xuat/ops_report.html', {
+        **_perm_ctx(request),
+        'report': report,
+        'month_value': f'{date_from.year:04d}-{date_from.month:02d}',
+    })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+def packing_list(request):
+    qs = (
+        SxPackingRecord.objects.filter(is_demo=False)
+        .select_related('production_order')
+        .order_by('-pack_date', '-pk')
+    )
+    return render(request, 'san_xuat/packing_list.html', {
+        **_perm_ctx(request),
+        'items': qs[:200],
+    })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'create')
+def packing_create(request):
+    from san_xuat.services.phase3 import Phase3Error, create_packing_record
+
+    if request.method == 'POST':
+        form = PackingCreateForm(request.POST)
+        if form.is_valid():
+            try:
+                item = create_packing_record(
+                    production_order_id=form.cleaned_data['production_order'].pk,
+                    qty=form.cleaned_data['qty'],
+                    pack_date=form.cleaned_data.get('pack_date'),
+                    carton_count=form.cleaned_data.get('carton_count') or 0,
+                    lot_code=form.cleaned_data.get('lot_code') or '',
+                    notes=form.cleaned_data.get('notes') or '',
+                )
+            except Phase3Error as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(request, f'Đã tạo {item.code}.')
+                return redirect('san_xuat:packing_detail', pk=item.pk)
+        messages.error(request, 'Không tạo được phiếu đóng gói.')
+    else:
+        form = PackingCreateForm(initial={'pack_date': timezone.localdate()})
+    return render(request, 'san_xuat/phase3_form.html', {
+        **_perm_ctx(request),
+        'form': form,
+        'title': 'Ghi nhận đóng gói',
+        'back_url': 'san_xuat:packing_list',
+    })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+def packing_detail(request, pk: int):
+    from san_xuat.services.phase3 import Phase3Error, confirm_packing_record
+
+    item = get_object_or_404(
+        SxPackingRecord.objects.select_related('production_order', 'fg_receipt'),
+        pk=pk,
+    )
+    can_update = _perm_ctx(request).get('can_update')
+    if request.method == 'POST' and can_update:
+        if (request.POST.get('action') or '') == 'confirm' and item.status == SxPackingRecord.STATUS_DRAFT:
+            try:
+                item = confirm_packing_record(packing_id=item.pk)
+            except Phase3Error as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(request, f'Đã xác nhận {item.code}.')
+                return redirect('san_xuat:packing_detail', pk=item.pk)
+    return render(request, 'san_xuat/packing_detail.html', {
+        **_perm_ctx(request),
+        'item': item,
+        'can_update': can_update,
+    })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+def subcontract_list(request):
+    qs = (
+        SxSubcontractOrder.objects.filter(is_demo=False)
+        .select_related('production_order')
+        .order_by('-order_date', '-pk')
+    )
+    return render(request, 'san_xuat/subcontract_list.html', {
+        **_perm_ctx(request),
+        'items': qs[:200],
+    })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'create')
+def subcontract_create(request):
+    from san_xuat.services.phase3 import Phase3Error, create_subcontract_order
+
+    if request.method == 'POST':
+        form = SubcontractCreateForm(request.POST)
+        if form.is_valid():
+            mo = form.cleaned_data.get('production_order')
+            try:
+                item = create_subcontract_order(
+                    vendor_name=form.cleaned_data['vendor_name'],
+                    product_code=form.cleaned_data['product_code'],
+                    product_name=form.cleaned_data.get('product_name') or '',
+                    process_name=form.cleaned_data.get('process_name') or '',
+                    qty=form.cleaned_data['qty'],
+                    order_date=form.cleaned_data.get('order_date'),
+                    due_date=form.cleaned_data.get('due_date'),
+                    production_order_id=mo.pk if mo else None,
+                    notes=form.cleaned_data.get('notes') or '',
+                )
+            except Phase3Error as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(request, f'Đã tạo {item.code}.')
+                return redirect('san_xuat:subcontract_detail', pk=item.pk)
+        messages.error(request, 'Không tạo được lệnh GC.')
+    else:
+        form = SubcontractCreateForm(initial={'order_date': timezone.localdate()})
+    return render(request, 'san_xuat/phase3_form.html', {
+        **_perm_ctx(request),
+        'form': form,
+        'title': 'Thuê gia công',
+        'back_url': 'san_xuat:subcontract_list',
+    })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+def subcontract_detail(request, pk: int):
+    from san_xuat.hub_models import SxSubcontractOrder as Sub
+    from san_xuat.services.phase3 import Phase3Error, advance_subcontract_order
+
+    item = get_object_or_404(
+        SxSubcontractOrder.objects.select_related('production_order'),
+        pk=pk,
+    )
+    can_update = _perm_ctx(request).get('can_update')
+    if request.method == 'POST' and can_update:
+        to_status = (request.POST.get('to_status') or '').strip()
+        if to_status:
+            try:
+                item = advance_subcontract_order(order_id=item.pk, to_status=to_status)
+            except Phase3Error as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(request, f'{item.code} → {item.get_status_display()}.')
+                return redirect('san_xuat:subcontract_detail', pk=item.pk)
+    return render(request, 'san_xuat/subcontract_detail.html', {
+        **_perm_ctx(request),
+        'item': item,
+        'can_update': can_update,
+        'STATUS_SENT': Sub.STATUS_SENT,
+        'STATUS_DONE': Sub.STATUS_DONE,
+        'STATUS_CANCELLED': Sub.STATUS_CANCELLED,
+        'STATUS_DRAFT': Sub.STATUS_DRAFT,
+    })
+

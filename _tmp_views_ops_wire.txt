@@ -1,0 +1,489 @@
+LINE 777
+=== StrReplace new_string ===
+def create_mo_from_bom(
+    *,
+    product_code: str,
+    qty: Decimal,
+    code: str | None = None,
+    order_date=None,
+    due_date=None,
+    planned_start=None,
+    planned_end=None,
+    team_label: str = "",
+    notes: str = "",
+    user=None,
+    detail_plan_id: int | None = None,
+    is_sample: bool = False,
+) -> SxProductionOrder:
+    product_code = (product_code or "").strip()
+    if not product_code:
+        raise DispatchError("Thiếu mã sản phẩm.")
+    if qty is None or qty <= 0:
+        raise DispatchError("SL phải > 0.")
+
+    tech_doc = ProductTechDoc.objects.filter(product_code__iexact=product_code).first()
+    if not tech_doc:
+        raise DispatchError(f"Chưa có hồ sơ SX cho mã {product_code}.")
+
+    working_bom = get_working_bom(tech_doc)
+    if not working_bom:
+        raise DispatchError(f"Mã {product_code} chưa có BOM để tính.")
+
+    mo_code = (code or "").strip() or _next_code("LSX", SxProductionOrder)
+
+    mo = SxProductionOrder.objects.create(
+        code=mo_code,
+        product_code=tech_doc.product_code,
+        product_name=tech_doc.product_name or "",
+        bom_version=working_bom,
+        qty=qty,
+        qty_done=Decimal("0"),
+        order_date=order_date or timezone.localdate(),
+        due_date=due_date,
+        planned_start=planned_start,
+        planned_end=planned_end,
+        team_label=team_label or "",
+        status=SxProductionOrder.STATUS_DRAFT,
+        notes=notes or "",
+        detail_plan_id=detail_plan_id,
+        is_sample=bool(is_sample),
+    )
+    return mo
+
+=== StrReplace old_string ===
+def create_mo_from_bom(
+    *,
+    product_code: str,
+    qty: Decimal,
+    code: str | None = None,
+    order_date=None,
+    due_date=None,
+    planned_start=None,
+    planned_end=None,
+    team_label: str = "",
+    notes: str = "",
+    user=None,
+    detail_plan_id: int | None = None,
+) -> SxProductionOrder:
+    product_code = (product_code or "").strip()
+    if not product_code:
+        raise DispatchError("Thiếu mã sản phẩm.")
+    if qty is None or qty <= 0:
+        raise DispatchError("SL phải > 0.")
+
+    tech_doc = ProductTechDoc.objects.filter(product_code__iexact=product_code).first()
+    if not tech_doc:
+        raise DispatchError(f"Chưa có hồ sơ SX cho mã {product_code}.")
+
+    working_bom = get_working_bom(tech_doc)
+    if not working_bom:
+        raise DispatchError(f"Mã {product_code} chưa có BOM để tính.")
+
+    mo_code = (code or "").strip() or _next_code("LSX", SxProductionOrder)
+
+    mo = SxProductionOrder.objects.create(
+        code=mo_code,
+        product_code=tech_doc.product_code,
+        product_name=tech_doc.product_name or "",
+        bom_version=working_bom,
+        qty=qty,
+        qty_done=Decimal("0"),
+        order_date=order_date or timezone.localdate(),
+        due_date=due_date,
+        planned_start=planned_start,
+        planned_end=planned_end,
+        team_label=team_label or "",
+        status=SxProductionOrder.STATUS_DRAFT,
+        notes=notes or "",
+        detail_plan_id=detail_plan_id,
+    )
+    return mo
+
+=== StrReplace new_string ===
+                mo = create_mo_from_bom(
+                    product_code=form.cleaned_data['product_code'],
+                    qty=form.cleaned_data['qty'],
+                    code=form.cleaned_data.get('code') or None,
+                    order_date=form.cleaned_data.get('order_date') or timezone.localdate(),
+                    due_date=form.cleaned_data.get('due_date'),
+                    planned_start=form.cleaned_data.get('planned_start'),
+                    planned_end=form.cleaned_data.get('planned_end'),
+                    team_label=form.cleaned_data.get('team_label') or '',
+                    notes=form.cleaned_data.get('notes') or '',
+                    user=request.user,
+                    is_sample=bool(form.cleaned_data.get('is_sample')),
+                )
+
+=== StrReplace old_string ===
+                mo = create_mo_from_bom(
+                    product_code=form.cleaned_data['product_code'],
+                    qty=form.cleaned_data['qty'],
+                    code=form.cleaned_data.get('code') or None,
+                    order_date=form.cleaned_data.get('order_date') or timezone.localdate(),
+                    due_date=form.cleaned_data.get('due_date'),
+                    planned_start=form.cleaned_data.get('planned_start'),
+                    planned_end=form.cleaned_data.get('planned_end'),
+                    team_label=form.cleaned_data.get('team_label') or '',
+                    notes=form.cleaned_data.get('notes') or '',
+                    user=request.user,
+                )
+
+=== Write contents ===
+"""Views vận hành nhà máy: shop floor, NCR, GT thực, downtime/OEE, catalog, staging."""
+
+from __future__ import annotations
+
+import csv
+from decimal import Decimal, InvalidOperation
+
+from django.contrib import messages
+from django.db.models import Sum
+from django.http import HttpResponse
+from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
+
+from hrm.module_permissions import MODULE_SAN_XUAT
+from hrm.views_portal import module_perm_required
+from kho_npl.models import Material, StockReservation, Unit, WarehouseLocation
+from san_xuat.hub_models import (
+    SxActualCostSheet,
+    SxDowntimeEvent,
+    SxNcrCase,
+    SxProductGroup,
+    SxProductionOrder,
+    SxQcAlert,
+    SxWorkCenter,
+)
+from san_xuat.models import ProductTechDoc
+from san_xuat.services.actual_costing import (
+    ActualCostError,
+    compute_actual_cost_for_mo,
+    create_or_refresh_actual_cost,
+)
+from san_xuat.services.ncr import NcrError, confirm_ncr, create_ncr_from_alert
+from san_xuat.services.shopfloor import ShopFloorError, quick_confirm_scan
+from san_xuat.views_hub import _perm_ctx
+
+
+def _next_dt_code() -> str:
+    year = timezone.localdate().year
+    prefix = f"DT-{year}-"
+    last = (
+        SxDowntimeEvent.objects.filter(code__startswith=prefix)
+        .order_by("-code")
+        .values_list("code", flat=True)
+        .first()
+    )
+    n = 1
+    if last:
+        try:
+            n = int(last.split("-")[-1]) + 1
+        except ValueError:
+            n = 1
+    return f"{prefix}{n:04d}"
+
+
+@module_perm_required(MODULE_SAN_XUAT, "view")
+def shop_floor(request):
+    result = None
+    can_update = _perm_ctx(request).get("can_update")
+    if request.method == "POST" and can_update:
+        scan = (request.POST.get("scan") or "").strip()
+        process_name = (request.POST.get("process_name") or "").strip()
+        team_label = (request.POST.get("team_label") or "").strip()
+        try:
+            qty = Decimal((request.POST.get("qty_good") or "1").replace(",", "."))
+        except (InvalidOperation, ValueError):
+            qty = Decimal("1")
+        try:
+            result = quick_confirm_scan(
+                scan=scan,
+                process_name=process_name,
+                qty_good=qty,
+                team_label=team_label,
+            )
+            messages.success(
+                request,
+                f"Đã xác nhận {result['stat'].code} · LSX {result['mo'].code}",
+            )
+        except ShopFloorError as exc:
+            messages.error(request, str(exc))
+    mos = (
+        SxProductionOrder.objects.filter(
+            is_demo=False,
+            status__in=(
+                SxProductionOrder.STATUS_RELEASED,
+                SxProductionOrder.STATUS_IN_PROGRESS,
+            ),
+        )
+        .order_by("-order_date")[:30]
+    )
+    return render(
+        request,
+        "san_xuat/shop_floor.html",
+        {**_perm_ctx(request), "result": result, "mos": mos},
+    )
+
+
+@module_perm_required(MODULE_SAN_XUAT, "view")
+def ncr_list(request):
+    qs = SxNcrCase.objects.filter(is_demo=False).select_related(
+        "production_order", "alert", "remake_order"
+    )
+    return render(
+        request,
+        "san_xuat/ncr_list.html",
+        {**_perm_ctx(request), "cases": qs[:200]},
+    )
+
+
+@module_perm_required(MODULE_SAN_XUAT, "view")
+def ncr_detail(request, pk: int):
+    case = get_object_or_404(
+        SxNcrCase.objects.select_related(
+            "production_order", "alert", "remake_order", "rework_stat"
+        ),
+        pk=pk,
+    )
+    can_update = _perm_ctx(request).get("can_update")
+    if request.method == "POST" and can_update:
+        action = (request.POST.get("action") or "").strip()
+        if action == "confirm" and case.status == SxNcrCase.STATUS_DRAFT:
+            try:
+                case = confirm_ncr(ncr_id=case.pk, user=request.user)
+            except NcrError as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(request, f"Đã xác nhận NCR {case.code}.")
+                return redirect("san_xuat:ncr_detail", pk=case.pk)
+    return render(
+        request,
+        "san_xuat/ncr_detail.html",
+        {**_perm_ctx(request), "case": case, "can_update": can_update},
+    )
+
+
+@module_perm_required(MODULE_SAN_XUAT, "view")
+def actual_cost_list(request):
+    sheets = (
+        SxActualCostSheet.objects.filter(is_demo=False)
+        .select_related("production_order")
+        .order_by("-created_at")[:200]
+    )
+    return render(
+        request,
+        "san_xuat/actual_cost_list.html",
+        {**_perm_ctx(request), "sheets": sheets},
+    )
+
+
+@module_perm_required(MODULE_SAN_XUAT, "view")
+def actual_cost_mo(request, mo_id: int):
+    mo = get_object_or_404(SxProductionOrder, pk=mo_id)
+    br = compute_actual_cost_for_mo(production_order_id=mo.pk)
+    sheet = (
+        SxActualCostSheet.objects.filter(production_order=mo, is_demo=False)
+        .order_by("-pk")
+        .first()
+    )
+    can_update = _perm_ctx(request).get("can_update")
+    if request.method == "POST" and can_update:
+        action = (request.POST.get("action") or "").strip()
+        try:
+            if action == "refresh":
+                sheet = create_or_refresh_actual_cost(production_order_id=mo.pk, close=False)
+                messages.success(request, f"Đã tính lại {sheet.code}.")
+            elif action == "close":
+                sheet = create_or_refresh_actual_cost(production_order_id=mo.pk, close=True)
+                messages.success(request, f"Đã chốt {sheet.code}.")
+            return redirect("san_xuat:actual_cost_mo", mo_id=mo.pk)
+        except ActualCostError as exc:
+            messages.error(request, str(exc))
+    return render(
+        request,
+        "san_xuat/actual_cost_mo.html",
+        {
+            **_perm_ctx(request),
+            "mo": mo,
+            "br": br,
+            "sheet": sheet,
+            "can_update": can_update,
+        },
+    )
+
+
+@module_perm_required(MODULE_SAN_XUAT, "view")
+def downtime_list(request):
+    qs = SxDowntimeEvent.objects.filter(is_demo=False).select_related(
+        "work_center", "production_order"
+    )
+    can_create = _perm_ctx(request).get("can_create")
+    if request.method == "POST" and can_create:
+        reason = (request.POST.get("reason") or "").strip()
+        try:
+            minutes = int(request.POST.get("minutes") or "0")
+        except ValueError:
+            minutes = 0
+        wc_id = (request.POST.get("work_center") or "").strip()
+        mo_id = (request.POST.get("production_order") or "").strip()
+        if reason and minutes > 0:
+            SxDowntimeEvent.objects.create(
+                code=_next_dt_code(),
+                work_center_id=int(wc_id) if wc_id.isdigit() else None,
+                production_order_id=int(mo_id) if mo_id.isdigit() else None,
+                team_label=(request.POST.get("team_label") or "").strip(),
+                event_date=timezone.localdate(),
+                reason=reason,
+                minutes=minutes,
+                notes=(request.POST.get("notes") or "").strip(),
+                is_demo=False,
+            )
+            messages.success(request, "Đã ghi nhận dừng chuyền.")
+            return redirect("san_xuat:downtime_list")
+        messages.error(request, "Cần lý do và số phút > 0.")
+
+    # OEE thô: available minutes (8h × NL) vs downtime
+    centers = list(SxWorkCenter.objects.filter(is_active=True, is_demo=False))
+    oee_rows = []
+    today = timezone.localdate()
+    month_start = today.replace(day=1)
+    for wc in centers:
+        dt_min = (
+            SxDowntimeEvent.objects.filter(
+                is_demo=False,
+                work_center=wc,
+                event_date__gte=month_start,
+                event_date__lte=today,
+            ).aggregate(t=Sum("minutes"))["t"]
+            or 0
+        )
+        days = max((today - month_start).days + 1, 1)
+        available = days * 8 * 60  # giả định 1 ca 8h
+        avail_pct = max(0, 100 - (100 * dt_min / available)) if available else 0
+        oee_rows.append({"wc": wc, "downtime_min": dt_min, "availability_pct": round(avail_pct, 1)})
+
+    return render(
+        request,
+        "san_xuat/downtime_list.html",
+        {
+            **_perm_ctx(request),
+            "events": qs[:200],
+            "centers": centers,
+            "mos": SxProductionOrder.objects.filter(is_demo=False).order_by("-order_date")[:50],
+            "oee_rows": oee_rows,
+            "can_create": can_create,
+        },
+    )
+
+
+@module_perm_required(MODULE_SAN_XUAT, "view")
+def unified_catalog(request):
+    q = (request.GET.get("q") or "").strip()
+    groups = SxProductGroup.objects.filter(is_active=True, is_demo=False)
+    docs = ProductTechDoc.objects.all().order_by("product_code")
+    materials = Material.objects.filter(is_active=True).select_related("unit", "category")
+    units = Unit.objects.filter(is_active=True) if hasattr(Unit, "is_active") else Unit.objects.all()
+    if q:
+        docs = docs.filter(product_code__icontains=q) | docs.filter(product_name__icontains=q)
+        materials = materials.filter(code__icontains=q) | materials.filter(name__icontains=q)
+        groups = groups.filter(code__icontains=q) | groups.filter(name__icontains=q)
+    can_create = _perm_ctx(request).get("can_create")
+    if request.method == "POST" and can_create:
+        code = (request.POST.get("group_code") or "").strip().upper()
+        name = (request.POST.get("group_name") or "").strip()
+        if code and name:
+            SxProductGroup.objects.get_or_create(
+                code=code, defaults={"name": name, is_demo: False}  # noqa — fix
+            )
+    # fix get_or_create
+    return render(
+        request,
+        "san_xuat/unified_catalog.html",
+        {
+            **_perm_ctx(request),
+            "q": q,
+            "groups": groups[:100],
+            "docs": docs[:100],
+            "materials": materials[:100],
+            "units": units[:100],
+            "can_create": can_create,
+        },
+    )
+
+
+@module_perm_required(MODULE_SAN_XUAT, "view")
+def staging_locations(request):
+    locs = WarehouseLocation.objects.filter(is_active=True).order_by("location_kind", "code")
+    can_update = _perm_ctx(request).get("can_update")
+    if request.method == "POST" and can_update:
+        loc_id = (request.POST.get("location_id") or "").strip()
+        kind = (request.POST.get("location_kind") or "").strip()
+        if loc_id.isdigit() and kind in dict(WarehouseLocation.KIND_CHOICES):
+            WarehouseLocation.objects.filter(pk=int(loc_id)).update(location_kind=kind)
+            messages.success(request, "Đã cập nhật loại vị trí.")
+            return redirect("san_xuat:staging_locations")
+    reservations = (
+        StockReservation.objects.filter(status=StockReservation.STATUS_ACTIVE)
+        .select_related("material", "location")
+        .order_by("-created_at")[:100]
+    )
+    return render(
+        request,
+        "san_xuat/staging_locations.html",
+        {
+            **_perm_ctx(request),
+            "locations": locs,
+            "kinds": WarehouseLocation.KIND_CHOICES,
+            "reservations": reservations,
+            "can_update": can_update,
+        },
+    )
+
+
+@module_perm_required(MODULE_SAN_XUAT, "view")
+def piece_rate_hr_export(request):
+    """CSV lương SP để HR/payroll import (team_label = tổ / proxy NV)."""
+    from san_xuat.services.overview import parse_overview_period
+    from san_xuat.services.phase3 import compute_piece_rate_pay
+
+    date_from, date_to = parse_overview_period(
+        month=(request.GET.get("month") or "").strip(),
+        date_from=(request.GET.get("date_from") or "").strip(),
+        date_to=(request.GET.get("date_to") or "").strip(),
+    )
+    rows = compute_piece_rate_pay(date_from=date_from, date_to=date_to)
+    resp = HttpResponse(content_type="text/csv; charset=utf-8")
+    resp["Content-Disposition"] = 'attachment; filename="luong-san-pham-hr.csv"'
+    resp.write("\ufeff")
+    w = csv.writer(resp)
+    w.writerow(
+        [
+            "Ky_tu",
+            "Ky_den",
+            "To_nhan_vien",
+            "Cong_doan",
+            "LSX",
+            "TKSX",
+            "SL_dat",
+            "Don_gia",
+            "Thanh_tien",
+            "Ghi_chu_HR",
+        ]
+    )
+    for r in rows:
+        w.writerow(
+            [
+                date_from.isoformat(),
+                date_to.isoformat(),
+                r.team_label,
+                r.process_name,
+                r.production_order_code,
+                r.stat_code,
+                str(r.qty_good),
+                str(r.piece_rate),
+                str(r.amount),
+                "Import payroll — map To_nhan_vien → mã NV",
+            ]
+        )
+    return resp
+

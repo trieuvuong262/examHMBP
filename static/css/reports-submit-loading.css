@@ -88,9 +88,33 @@ body.jp-team-list-loading {
     overflow: hidden;
 }
 
-body.jp-team-list-loading .jp-report-submit-loading#jp-team-list-loading,
-html.jp-team-list-pending-load .jp-report-submit-loading#jp-team-list-loading {
+body.jp-team-list-loading .jp-report-submit-loading#jp-team-list-loading:not([hidden]),
+html.jp-team-list-pending-load .jp-report-submit-loading#jp-team-list-loading:not([hidden]) {
     pointer-events: all;
+}
+
+.jp-report-submit-loading#jp-team-list-loading[hidden] {
+    display: none !important;
+    pointer-events: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+}
+
+/* Popup reset mật khẩu — luôn nổi trên overlay loading / backdrop */
+.jp-password-result-modal {
+    z-index: 21000 !important;
+}
+.modal-backdrop.jp-password-result-backdrop {
+    z-index: 20990 !important;
+    background-color: rgba(15, 23, 42, 0.35) !important;
+    opacity: 1 !important;
+}
+.jp-password-result-modal .modal-dialog,
+.jp-password-result-modal .modal-content {
+    opacity: 1 !important;
+    filter: none !important;
+    -webkit-filter: none !important;
+    pointer-events: auto !important;
 }
 
 html.jp-team-list-pending-load body.jp-team-list-loading {

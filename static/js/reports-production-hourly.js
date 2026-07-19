@@ -323,8 +323,8 @@
         if (isNaN(hours)) {
             return { ok: false, message: 'Thời gian làm việc không hợp lệ.' };
         }
-        if (hours <= 8 || hours >= 16) {
-            return { ok: false, message: 'Thời gian làm việc phải lớn hơn 8 và nhỏ hơn 16 giờ.' };
+        if (hours < 7.5 || hours >= 16) {
+            return { ok: false, message: 'Thời gian làm việc phải từ 7,50 đến 15,99 giờ.' };
         }
         return { ok: true, value: hours.toFixed(2) };
     }

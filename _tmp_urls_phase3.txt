@@ -1,0 +1,16 @@
+LINE 428
+    path('quy-trinh/', views_hub.process_stub, name='process_stub'),
+    path('giao-viec/', views_hub.work_assignment_list, name='work_assignment_list'),
+    path('giao-viec/them/', views_hub.work_assignment_create, name='work_assignment_create'),
+    path('truy-xuat/', views_hub.traceability, name='traceability'),
+    path('nang-luc/', views_hub.capacity_list, name='capacity_list'),
+    path('nang-luc/them/', views_hub.capacity_create, name='capacity_create'),
+    path('bao-cao-van-hanh/', views_hub.ops_report, name='ops_report'),
+    path('dong-goi/', views_hub.packing_list, name='packing_list'),
+    path('dong-goi/them/', views_hub.packing_create, name='packing_create'),
+    path('dong-goi/<int:pk>/', views_hub.packing_detail, name='packing_detail'),
+    path('thue-gia-cong/', views_hub.subcontract_list, name='subcontract_list'),
+    path('thue-gia-cong/them/', views_hub.subcontract_create, name='subcontract_create'),
+    path('thue-gia-cong/<int:pk>/', views_hub.subcontract_detail, name='subcontract_detail'),
+    path('ho-so/', views.doc_list, name='doc_list'),
+

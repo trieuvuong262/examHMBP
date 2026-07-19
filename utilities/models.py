@@ -2,10 +2,18 @@ from datetime import time
 from decimal import Decimal
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 from utilities.salary_rules import MAX_SALARY_ADVANCE
+
+
+def normalize_request_month(value):
+    """Chuẩn hoá tháng ứng về ngày 1 — bảo đảm 1 tài khoản / 1 tháng."""
+    if value is None:
+        return value
+    return value.replace(day=1)
 
 
 class MealOrderSettings(models.Model):
@@ -128,7 +136,10 @@ class SalaryAdvanceRequest(models.Model):
         related_name='salary_advance_requests',
         verbose_name='Nhân viên',
     )
-    request_month = models.DateField(verbose_name='Tháng ứng')
+    request_month = models.DateField(
+        verbose_name='Tháng ứng',
+        help_text='Mỗi tài khoản chỉ được ứng lương 1 lần trong một tháng.',
+    )
     amount = models.DecimalField(
         max_digits=12,
         decimal_places=0,
@@ -143,13 +154,38 @@ class SalaryAdvanceRequest(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = ('employee', 'request_month')
+        constraints = [
+            models.UniqueConstraint(
+                fields=['employee', 'request_month'],
+                name='utilities_salaryadvance_employee_month_uniq',
+            ),
+        ]
         ordering = ['-request_month', '-created_at']
         verbose_name = 'Yêu cầu ứng lương'
         verbose_name_plural = 'Yêu cầu ứng lương'
 
     def __str__(self):
         return f'{self.employee} · {self.request_month:%m/%Y} · {self.amount:,.0f}đ'
+
+    def clean(self):
+        super().clean()
+        self.request_month = normalize_request_month(self.request_month)
+        if not self.employee_id or not self.request_month:
+            return
+        qs = SalaryAdvanceRequest.objects.filter(
+            employee_id=self.employee_id,
+            request_month=self.request_month,
+        )
+        if self.pk:
+            qs = qs.exclude(pk=self.pk)
+        if qs.exists():
+            raise ValidationError({
+                'request_month': 'Mỗi tài khoản chỉ được ứng lương 1 lần trong một tháng.',
+            })
+
+    def save(self, *args, **kwargs):
+        self.request_month = normalize_request_month(self.request_month)
+        super().save(*args, **kwargs)
 
 
 class SalaryAdvanceDecline(models.Model):
@@ -165,13 +201,22 @@ class SalaryAdvanceDecline(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ('employee', 'request_month')
+        constraints = [
+            models.UniqueConstraint(
+                fields=['employee', 'request_month'],
+                name='utilities_salarydecline_employee_month_uniq',
+            ),
+        ]
         ordering = ['-request_month', '-created_at']
         verbose_name = 'Từ chối ứng lương'
         verbose_name_plural = 'Từ chối ứng lương'
 
     def __str__(self):
         return f'{self.employee} · không ứng · {self.request_month:%m/%Y}'
+
+    def save(self, *args, **kwargs):
+        self.request_month = normalize_request_month(self.request_month)
+        super().save(*args, **kwargs)
 
 
 class MealPushSubscription(models.Model):

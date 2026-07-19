@@ -68,6 +68,11 @@ class SalaryAdvanceForm(forms.ModelForm):
             'note': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Lý do (tuỳ chọn)'}),
         }
 
+    def __init__(self, *args, employee=None, request_month=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.employee = employee
+        self.request_month = request_month
+
     def clean_amount(self):
         amount = self.cleaned_data.get('amount')
         if amount is None:
@@ -82,6 +87,16 @@ class SalaryAdvanceForm(forms.ModelForm):
         cleaned = super().clean()
         if not is_salary_advance_open():
             raise ValidationError('Ứng lương chỉ mở vào ngày 18 và 19 hàng tháng.')
+        employee = self.employee or getattr(self.instance, 'employee', None)
+        month = self.request_month or getattr(self.instance, 'request_month', None)
+        if employee and month:
+            from utilities.models import normalize_request_month
+            month = normalize_request_month(month)
+            qs = SalaryAdvanceRequest.objects.filter(employee=employee, request_month=month)
+            if self.instance.pk:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise ValidationError('Mỗi tài khoản chỉ được ứng lương 1 lần trong một tháng.')
         return cleaned
 
 

@@ -1,0 +1,23 @@
+LINE 781
+=== StrReplace new_string ===
+    path('gia-thanh/loai-chi-phi/<int:pk>/', views_hub.costing_cost_type_edit, name='costing_cost_type_edit'),
+    path('gia-thanh/thuc-te/', views_ops.actual_cost_list, name='actual_cost_list'),
+    path('gia-thanh/thuc-te/lsx/<int:mo_id>/', views_ops.actual_cost_mo, name='actual_cost_mo'),
+    path('shop-floor/', views_ops.shop_floor, name='shop_floor'),
+    path('ncr/', views_ops.ncr_list, name='ncr_list'),
+    path('ncr/<int:pk>/', views_ops.ncr_detail, name='ncr_detail'),
+    path('dung-chuyen/', views_ops.downtime_list, name='downtime_list'),
+    path('catalog/', views_ops.unified_catalog, name='unified_catalog'),
+    path('staging/', views_ops.staging_locations, name='staging_locations'),
+    path('luong-san-pham/xuat-hr/', views_ops.piece_rate_hr_export, name='piece_rate_hr_export'),
+    path('quy-trinh/', views_hub.process_stub, name='process_stub'),
+
+=== StrReplace old_string ===
+    path('gia-thanh/loai-chi-phi/<int:pk>/', views_hub.costing_cost_type_edit, name='costing_cost_type_edit'),
+    path('quy-trinh/', views_hub.process_stub, name='process_stub'),
+
+=== StrReplace new_string ===
+from san_xuat import views, views_hub, views_kv_embed, views_ops
+
+=== StrReplace old_string ===
+from san_xuat import views, views_hub, views_kv_embed

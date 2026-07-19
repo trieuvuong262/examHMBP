@@ -1,0 +1,203 @@
+LINE 783
+=== StrReplace new_string ===
+    path('gia-thanh/loai-chi-phi/<int:pk>/', views_hub.costing_cost_type_edit, name='costing_cost_type_edit'),
+    path('gia-thanh/thuc-te/', views_ops.actual_cost_list, name='actual_cost_list'),
+    path('gia-thanh/thuc-te/lsx/<int:mo_id>/', views_ops.actual_cost_mo, name='actual_cost_mo'),
+    path('kho-san-pham/', views_kv_embed.fg_stock_hub, name='redirect_fg_stock'),
+
+=== StrReplace old_string ===
+    path('gia-thanh/loai-chi-phi/<int:pk>/', views_hub.costing_cost_type_edit, name='costing_cost_type_edit'),
+    path('kho-san-pham/', views_kv_embed.fg_stock_hub, name='redirect_fg_stock'),
+
+=== StrReplace new_string ===
+    path('quy-trinh/', views_hub.process_stub, name='process_stub'),
+    path('shop-floor/', views_ops.shop_floor, name='shop_floor'),
+    path('ncr/', views_ops.ncr_list, name='ncr_list'),
+    path('ncr/<int:pk>/', views_ops.ncr_detail, name='ncr_detail'),
+    path('dung-chuyen/', views_ops.downtime_list, name='downtime_list'),
+    path('catalog/', views_ops.unified_catalog, name='unified_catalog'),
+    path('staging/', views_ops.staging_locations, name='staging_locations'),
+    path('giao-viec/', views_hub.work_assignment_list, name='work_assignment_list'),
+
+=== StrReplace old_string ===
+    path('quy-trinh/', views_hub.process_stub, name='process_stub'),
+    path('giao-viec/', views_hub.work_assignment_list, name='work_assignment_list'),
+
+=== StrReplace new_string ===
+    path('luong-san-pham/', views_hub.piece_rate_report, name='piece_rate_report'),
+    path('luong-san-pham/xuat-hr/', views_ops.piece_rate_hr_export, name='piece_rate_hr_export'),
+    path('dong-goi/', views_hub.packing_list, name='packing_list'),
+
+=== StrReplace old_string ===
+    path('luong-san-pham/', views_hub.piece_rate_report, name='piece_rate_report'),
+    path('dong-goi/', views_hub.packing_list, name='packing_list'),
+
+=== StrReplace new_string ===
+    <a href="{% url 'kho_npl:settings_list' 'vi-tri' %}" class="btn btn-outline-secondary btn-sm">Thiết lập kho_npl</a>
+
+=== StrReplace old_string ===
+    <a href="{% url 'kho_npl:settings_section' 'vi-tri' %}" class="btn btn-outline-secondary btn-sm">Thiết lập kho_npl</a>
+
+=== Write contents ===
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-body">
+        {% if can_update and step_formset %}
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="save_process">
+            {{ step_formset.management_form }}
+            <div class="table-responsive">
+                <table class="table table-sm align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>TT</th>
+                            <th style="min-width:10rem">Công đoạn</th>
+                            <th>Định mức/giờ</th>
+                            <th>Chuẩn phút</th>
+                            <th>CP giờ</th>
+                            <th>ĐG SP</th>
+                            <th style="min-width:8rem">Tổ/máy</th>
+                            <th>Ghi chú</th>
+                            <th>Xóa</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for f in step_formset %}
+                        <tr>
+                            {% for hidden in f.hidden_fields %}{{ hidden }}{% endfor %}
+                            <td style="width:4rem">{{ f.sequence }}</td>
+                            <td>{{ f.process_name }}</td>
+                            <td>{{ f.norm_per_hour }}</td>
+                            <td>{{ f.std_time_minutes }}</td>
+                            <td>{{ f.cost_per_hour }}</td>
+                            <td>{{ f.piece_rate }}</td>
+                            <td>{{ f.work_center }}</td>
+                            <td>{{ f.notes }}</td>
+                            <td class="text-center">{% if f.instance.pk %}{{ f.DELETE }}{% endif %}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <button type="submit" class="btn btn-hm">Lưu công đoạn</button>
+        </form>
+        {% else %}
+        <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>TT</th>
+                        <th>Công đoạn</th>
+                        <th class="text-end">Định mức/giờ</th>
+                        <th class="text-end">Chuẩn phút</th>
+                        <th class="text-end">CP giờ</th>
+                        <th class="text-end">ĐG SP</th>
+                        <th>Tổ/máy</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for step in bom.process_steps.all %}
+                    <tr>
+                        <td>{{ step.sequence }}</td>
+                        <td>{{ step.process_name }}</td>
+                        <td class="text-end">{{ step.norm_per_hour }}</td>
+                        <td class="text-end">{{ step.std_time_minutes }}</td>
+                        <td class="text-end">{{ step.cost_per_hour }}</td>
+                        <td class="text-end">{{ step.piece_rate }}</td>
+                        <td>{% if step.work_center %}{{ step.work_center.name }}{% else %}—{% endif %}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="7" class="text-muted text-center py-3">Chưa có công đoạn.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+
+=== StrReplace new_string ===
+          {% if can_update and alert.status == 'open' %}
+          <form method="post" class="mb-3">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="ack">
+            <button type="submit" class="btn btn-warning w-100">Ghi nhận đã xử lý</button>
+          </form>
+          <div class="border-top pt-3">
+            <div class="small text-muted mb-2">Tạo NCR / xử lý</div>
+            <form method="post" class="vstack gap-2">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="create_ncr">
+              <select name="disposition" class="form-select form-select-sm" required>
+                <option value="rework">Sửa hàng (rework)</option>
+                <option value="scrap">Phế</option>
+                <option value="remake">Tái sản xuất</option>
+                <option value="use_as_is">Chấp nhận dùng</option>
+              </select>
+              <input name="qty" type="number" step="0.01" min="0.01" class="form-control form-control-sm"
+                     value="{{ alert.qty_defect }}" placeholder="SL">
+              <input name="notes" class="form-control form-control-sm" placeholder="Ghi chú">
+              <button type="submit" class="btn btn-hm btn-sm w-100">Tạo NCR</button>
+            </form>
+          </div>
+          {% else %}
+          <div class="text-muted small">Cảnh báo đã đóng hoặc bạn không có quyền cập nhật.</div>
+          {% endif %}
+
+=== StrReplace old_string ===
+          {% if can_update and alert.status == 'open' %}
+          <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="ack">
+            <button type="submit" class="btn btn-warning w-100">Ghi nhận đã xử lý</button>
+          </form>
+          <div class="form-text mt-2">Sau khi xử lý tại xưởng/điều phối, đánh dấu cảnh báo để theo dõi.</div>
+          {% else %}
+          <div class="text-muted small">Cảnh báo đã đóng hoặc bạn không có quyền cập nhật.</div>
+          {% endif %}
+
+=== StrReplace new_string ===
+    if request.method == 'POST':
+        action = (request.POST.get('action') or '').strip()
+        if action == 'ack' and can_update and alert.status == SxQcAlert.STATUS_OPEN:
+            try:
+                alert = acknowledge_alert(alert_id=alert.pk)
+            except QcError as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(request, f'Cảnh báo {alert.code} đã được ghi nhận xử lý.')
+                return redirect('san_xuat:qc_alert_detail', pk=alert.pk)
+        elif action == 'create_ncr' and can_update and alert.status == SxQcAlert.STATUS_OPEN:
+            from decimal import Decimal, InvalidOperation
+            from san_xuat.services.ncr import NcrError, create_ncr_from_alert
+
+            disp = (request.POST.get('disposition') or 'rework').strip()
+            try:
+                qty = Decimal((request.POST.get('qty') or '0').replace(',', '.'))
+            except (InvalidOperation, ValueError):
+                qty = None
+            try:
+                case = create_ncr_from_alert(
+                    alert_id=alert.pk,
+                    disposition=disp,
+                    qty=qty if qty and qty > 0 else None,
+                    notes=(request.POST.get('notes') or '').strip(),
+                )
+            except NcrError as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(request, f'Đã tạo NCR {case.code}.')
+                return redirect('san_xuat:ncr_detail', pk=case.pk)
+
+=== StrReplace old_string ===
+    if request.method == 'POST':
+        action = (request.POST.get('action') or '').strip()
+        if action == 'ack' and can_update and alert.status == SxQcAlert.STATUS_OPEN:
+            try:
+                alert = acknowledge_alert(alert_id=alert.pk)
+            except QcError as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(request, f'Cảnh báo {alert.code} đã được ghi nhận xử lý.')
+                return redirect('san_xuat:qc_alert_detail', pk=alert.pk)

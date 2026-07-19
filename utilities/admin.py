@@ -1,6 +1,117 @@
 from django.contrib import admin
 
-from utilities.models import ScheduleReminder, ScheduleReminderPushLog
+from utilities.models import (
+    MealDayOffering,
+    MealDish,
+    MealOrder,
+    MealOrderDecline,
+    MealOrderSettings,
+    SalaryAdvanceDecline,
+    SalaryAdvanceRequest,
+    ScheduleReminder,
+    ScheduleReminderPushLog,
+)
+
+
+@admin.register(MealOrderSettings)
+class MealOrderSettingsAdmin(admin.ModelAdmin):
+    list_display = ('order_start_time', 'order_end_time', 'order_days_before', 'updated_at')
+    readonly_fields = ('updated_at',)
+
+    def has_add_permission(self, request):
+        return not MealOrderSettings.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(MealDish)
+class MealDishAdmin(admin.ModelAdmin):
+    list_display = ('name', 'sort_order', 'is_active', 'updated_at')
+    list_filter = ('is_active',)
+    search_fields = ('name',)
+    list_editable = ('sort_order', 'is_active')
+    ordering = ('sort_order', 'name')
+
+
+@admin.register(MealDayOffering)
+class MealDayOfferingAdmin(admin.ModelAdmin):
+    list_display = ('meal_date', 'dish', 'is_offered')
+    list_filter = ('is_offered', 'meal_date')
+    search_fields = ('dish__name',)
+    list_select_related = ('dish',)
+    autocomplete_fields = ('dish',)
+    date_hierarchy = 'meal_date'
+    ordering = ('-meal_date', 'dish__sort_order')
+
+
+@admin.register(MealOrder)
+class MealOrderAdmin(admin.ModelAdmin):
+    list_display = ('meal_date', 'employee', 'dish', 'note', 'created_at')
+    list_filter = ('meal_date', 'dish')
+    search_fields = (
+        'employee__username',
+        'employee__profile__full_name',
+        'dish__name',
+        'note',
+    )
+    list_select_related = ('employee', 'employee__profile', 'dish')
+    raw_id_fields = ('employee',)
+    autocomplete_fields = ('dish',)
+    date_hierarchy = 'meal_date'
+    readonly_fields = ('created_at', 'updated_at')
+    ordering = ('-meal_date', '-created_at')
+
+
+@admin.register(MealOrderDecline)
+class MealOrderDeclineAdmin(admin.ModelAdmin):
+    list_display = ('meal_date', 'employee', 'created_at')
+    list_filter = ('meal_date',)
+    search_fields = (
+        'employee__username',
+        'employee__profile__full_name',
+    )
+    list_select_related = ('employee', 'employee__profile')
+    raw_id_fields = ('employee',)
+    date_hierarchy = 'meal_date'
+    readonly_fields = ('created_at',)
+    ordering = ('-meal_date', '-created_at')
+
+
+@admin.register(SalaryAdvanceRequest)
+class SalaryAdvanceRequestAdmin(admin.ModelAdmin):
+    list_display = ('request_month', 'employee', 'amount', 'note', 'created_at')
+    list_filter = ('request_month',)
+    search_fields = (
+        'employee__username',
+        'employee__profile__full_name',
+        'note',
+    )
+    list_select_related = ('employee', 'employee__profile')
+    raw_id_fields = ('employee',)
+    date_hierarchy = 'request_month'
+    readonly_fields = ('created_at', 'updated_at')
+    ordering = ('-request_month', '-created_at')
+
+    def save_model(self, request, obj, form, change):
+        from utilities.models import normalize_request_month
+        obj.request_month = normalize_request_month(obj.request_month)
+        super().save_model(request, obj, form, change)
+
+
+@admin.register(SalaryAdvanceDecline)
+class SalaryAdvanceDeclineAdmin(admin.ModelAdmin):
+    list_display = ('request_month', 'employee', 'created_at')
+    list_filter = ('request_month',)
+    search_fields = (
+        'employee__username',
+        'employee__profile__full_name',
+    )
+    list_select_related = ('employee', 'employee__profile')
+    raw_id_fields = ('employee',)
+    date_hierarchy = 'request_month'
+    readonly_fields = ('created_at',)
+    ordering = ('-request_month', '-created_at')
 
 
 @admin.register(ScheduleReminder)

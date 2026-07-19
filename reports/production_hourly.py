@@ -1792,18 +1792,18 @@ def parse_non_negative_decimal(value, default=Decimal('0')):
     return max(Decimal('0'), parsed)
 
 
-PRODUCTION_WORK_HOURS_MIN = Decimal('8')
+PRODUCTION_WORK_HOURS_MIN = Decimal('7.50')
 PRODUCTION_WORK_HOURS_MAX = Decimal('16')
 PRODUCTION_MAX_SUBMIT_EFFICIENCY_PCT = 200
 
 
 def validate_production_work_hours(value):
-    """Thời gian làm việc khi gửi báo cáo SX: bắt buộc, > 8h và < 16h."""
+    """Thời gian làm việc khi gửi báo cáo SX: bắt buộc, từ 7,50h đến dưới 16h."""
     hours = parse_decimal(value)
     if hours is None:
         return None, 'Nhập thời gian làm việc.'
-    if hours <= PRODUCTION_WORK_HOURS_MIN or hours >= PRODUCTION_WORK_HOURS_MAX:
-        return None, 'Thời gian làm việc phải lớn hơn 8 và nhỏ hơn 16 giờ.'
+    if hours < PRODUCTION_WORK_HOURS_MIN or hours >= PRODUCTION_WORK_HOURS_MAX:
+        return None, 'Thời gian làm việc phải từ 7,50 đến 15,99 giờ.'
     return hours, ''
 
 

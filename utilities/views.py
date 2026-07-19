@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 
 from django.contrib import messages
+from django.db import IntegrityError
 from django.db.models import Count, Sum, Value
 from django.db.models.functions import Coalesce
 from django.http import Http404
@@ -380,16 +381,31 @@ def salary_home(request):
     can_request = window_open and user_can_create_menu(request.user, MODULE_UTILITIES, 'salary_advance')
 
     if can_request and not existing and request.method == 'POST':
-        form = SalaryAdvanceForm(request.POST)
+        form = SalaryAdvanceForm(
+            request.POST,
+            employee=request.user,
+            request_month=month,
+        )
         if form.is_valid():
             req = form.save(commit=False)
             req.employee = request.user
             req.request_month = month
-            req.save()
+            try:
+                req.save()
+            except IntegrityError:
+                messages.error(
+                    request,
+                    'Bạn đã ứng lương tháng này rồi. Mỗi tài khoản chỉ được ứng 1 lần/tháng.',
+                )
+                return redirect('utilities:salary_home')
             messages.success(request, 'Đã gửi yêu cầu ứng lương.')
             return redirect('utilities:salary_home')
     else:
-        form = SalaryAdvanceForm() if can_request and not existing else None
+        form = (
+            SalaryAdvanceForm(employee=request.user, request_month=month)
+            if can_request and not existing
+            else None
+        )
 
     history = SalaryAdvanceRequest.objects.filter(employee=request.user).order_by('-request_month')[:12]
     return render(request, 'utilities/salary_home.html', {

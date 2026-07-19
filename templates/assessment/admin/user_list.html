@@ -3,30 +3,37 @@
 
 {% block content %}
 
-<div class="modal fade" id="passwordResultModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+<div class="modal fade jp-password-result-modal" id="passwordResultModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
     <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
         <div class="modal-content border-0 shadow-lg">
-            <div class="modal-header bg-hm text-white p-4 border-0 rounded-top-4">
+            <div class="modal-header bg-hm text-white p-4 border-0">
                 <h5 class="modal-title fw-bold">THÔNG TIN TÀI KHOẢN</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Đóng"></button>
             </div>
-            <div class="modal-body p-4">
+            <div class="modal-body p-4 jp-password-result-body">
                 <div class="mb-3 text-center">
                     <p class="text-secondary small mb-1">Nhân viên: <strong id="modalDisplayName" class="text-dark fs-5">...</strong></p>
                 </div>
-                
-                <div class="p-3 bg-light border mb-3 text-center">
-                    <p class="small text-muted mb-1 text-uppercase fw-bold">Tài khoản đăng nhập</p>
-                    <h5 class="fw-bold text-hm mb-0 user-select-all" id="modalUsernameText">...</h5>
+
+                <div class="mb-3">
+                    <label class="form-label small text-muted text-uppercase fw-bold mb-1" for="modalUsernameInput">Tài khoản đăng nhập</label>
+                    <input type="text" readonly class="form-control form-control-lg fw-bold text-hm text-center user-select-all" id="modalUsernameInput" value="">
+                    <span id="modalUsernameText" class="visually-hidden"></span>
                 </div>
 
-                <div class="p-4 bg-hm-subtle border border-hm border-2 border-opacity-50 mb-4 shadow-sm text-center">
-                    <p class="small text-hm mb-1 text-uppercase fw-bold">Mật khẩu mới</p>
-                    <h2 class="fw-bold text-dark mb-0 user-select-all" id="modalPasswordText" style="letter-spacing: 3px; font-family: monospace;">...</h2>
+                <div class="mb-3">
+                    <label class="form-label small text-hm text-uppercase fw-bold mb-1" for="modalPasswordInput">Mật khẩu mới</label>
+                    <input type="text" readonly class="form-control form-control-lg fw-bold text-dark text-center user-select-all" id="modalPasswordInput" value="" style="letter-spacing: 0.12em; font-family: ui-monospace, monospace;">
+                    <span id="modalPasswordText" class="visually-hidden"></span>
                 </div>
 
-                <button class="btn btn-hm fw-bold px-5 py-3 shadow btn-hover-lift w-100 fs-5 text-white" onclick="copyAccountInfo(this)">
-                    <i class="bi bi-clipboard-plus fs-4 me-2 align-middle"></i> SAO CHÉP THÔNG TIN
+                <p class="small text-muted text-center mb-3 d-md-none">Giữ để chọn text, hoặc bấm nút bên dưới để sao chép.</p>
+            </div>
+            <div class="modal-footer border-0 pt-0 px-4 pb-4 jp-password-result-footer">
+                <button type="button"
+                        class="btn btn-hm fw-bold px-4 py-3 shadow w-100 fs-5 text-white jp-password-copy-btn"
+                        id="passwordCopyBtn">
+                    <i class="bi bi-clipboard-plus fs-4 me-2 align-middle" aria-hidden="true"></i>Sao chép thông tin
                 </button>
             </div>
         </div>
@@ -444,6 +451,50 @@
     .loading-box { animation: jpHrmPopIn 0.3s ease-out forwards; width: min(100%, 320px); }
     @keyframes jpHrmPopIn { 0% { transform: scale(0.92); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
 
+    .jp-password-result-modal .modal-content {
+        max-height: 100dvh;
+        display: flex;
+        flex-direction: column;
+    }
+    .jp-password-result-body {
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        flex: 1 1 auto;
+    }
+    .jp-password-result-footer {
+        position: sticky;
+        bottom: 0;
+        background: #fff;
+        padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px)) !important;
+        z-index: 2;
+    }
+    .jp-password-copy-btn {
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: rgba(220, 38, 38, 0.2);
+        min-height: 3.25rem;
+        pointer-events: auto !important;
+    }
+    #modalUsernameInput,
+    #modalPasswordInput {
+        touch-action: manipulation;
+        -webkit-user-select: text;
+        user-select: text;
+    }
+    .jp-password-result-modal {
+        z-index: 21000 !important;
+    }
+    .modal-backdrop.jp-password-result-backdrop {
+        z-index: 20990 !important;
+        background-color: rgba(15, 23, 42, 0.35) !important;
+        opacity: 1 !important;
+    }
+    .jp-password-result-modal .modal-dialog,
+    .jp-password-result-modal .modal-content {
+        opacity: 1 !important;
+        filter: none !important;
+        pointer-events: auto !important;
+    }
+
     /* Chọn cột + kéo giãn cột (copy từ Kho NPL) */
     .jp-hrm-col-menu { max-height: 60vh; overflow-y: auto; min-width: 12rem; }
     .jp-hrm-col-menu .dropdown-item { cursor: pointer; border-radius: 0.35rem; }
@@ -464,149 +515,165 @@
 </style>
 
 <script>
-// BẮT SỰ KIỆN CLICK VÀO NÚT RESET PASS
-document.querySelectorAll('.reset-pwd-btn').forEach(btn => {
-    btn.addEventListener('click', async function() {
-        const url = this.getAttribute('data-url');
-        const username = this.getAttribute('data-username');
-
-        // Hỏi xác nhận
-        if(!confirm(`Bạn có chắc chắn muốn làm mới mật khẩu cho ${username}.?`)) return;
-
-        if (window.JpTeamListLoading && typeof window.JpTeamListLoading.show === 'function') {
-            window.JpTeamListLoading.show('Đang reset mật khẩu...');
-        }
-
-        // Lấy CSRF token có sẵn trên trang
-        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-
-        try {
-            // Gửi lệnh ngầm xuống Backend
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': csrfToken,
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            const data = await response.json();
-
-            if (data.status === 'success') {
-                // 1. ÉP BẮT BUỘC COPY NGAY TRONG LUỒNG CLICK NÀY
-                const textToCopy = `Tài khoản: ${data.username}\r\nMật khẩu: ${data.password}`;
-                autoCopySync(textToCopy);
-
-                // 2. CHÈN DATA VÀO MODAL
-                document.getElementById('modalDisplayName').innerText = data.full_name || 'Nhân viên';
-                document.getElementById('modalUsernameText').innerText = data.username;
-                document.getElementById('modalPasswordText').innerText = data.password;
-
-                // 3. ĐỔI GIAO DIỆN NÚT TRONG MODAL THÀNH "ĐÃ TỰ ĐỘNG COPY"
-                const modalBtn = document.querySelector('#passwordResultModal .btn-hm');
-                if (modalBtn) {
-                    modalBtn.innerHTML = 'COPY';
-                    modalBtn.classList.replace('btn-hm', 'btn-success');
-                }
-
-                // 4. MỞ MODAL LÊN ĐỂ SHOW HÀNG
-                const pwdModal = new bootstrap.Modal(document.getElementById('passwordResultModal'));
-                pwdModal.show();
-            } else {
-                alert("Lỗi khi reset mật khẩu!");
-            }
-        } catch (err) {
-            alert("Lỗi kết nối máy chủ! Vui lòng thử lại.");
-        } finally {
-            if (window.JpTeamListLoading && typeof window.JpTeamListLoading.hide === 'function') {
-                window.JpTeamListLoading.hide(false);
-            }
-        }
-    });
-});
-
-// Hàm Copy câm nín (Chạy chìm không cần hỏi)
-function autoCopySync(text) {
-    const textArea = document.createElement("textarea");
-    textArea.value = text;
-    textArea.style.position = "fixed";
-    textArea.style.left = "-9999px";
-    textArea.style.top = "0";
-    document.body.appendChild(textArea);
-    textArea.focus();
-    textArea.select();
-    textArea.setSelectionRange(0, 99999);
-    try {
-        document.execCommand('copy');
-    } catch (e) {
-        console.error("Auto copy failed");
-    }
-    document.body.removeChild(textArea);
-}
-
-    // ----------------------------------------------------
-    // HỆ THỐNG COPY BẤT TỬ (HỖ TRỢ HTTP / HTTPS / LOCALHOST)
-    // ----------------------------------------------------
-    function copyAccountInfo(btn) {
-        const user = document.getElementById('modalUsernameText').innerText.trim();
-        const pass = document.getElementById('modalPasswordText').innerText.trim();
-        // Dùng \r\n để đảm bảo xuống dòng chuẩn trên mọi phần mềm (Zalo, Word, Notepad)
-        const textToCopy = "Tài khoản: " + user + "\r\n" + "Mật khẩu: " + pass;
-
-        // Nếu là môi trường bảo mật (HTTPS) -> Dùng API xịn
-        if (navigator.clipboard && window.isSecureContext) {
-            navigator.clipboard.writeText(textToCopy).then(() => {
-                showSuccessEffect(btn);
-            }).catch(err => {
-                // Lỗi bất ngờ thì lùi về dùng cách thủ công
-                fallbackCopySync(textToCopy, btn);
-            });
-        } else {
-            // Nếu là HTTP (Production IP trần) -> Dùng chiêu tàng hình ngay lập tức
-            fallbackCopySync(textToCopy, btn);
-        }
+(function () {
+    function setPasswordModalValues(username, password, fullName) {
+        var nameEl = document.getElementById('modalDisplayName');
+        var userHidden = document.getElementById('modalUsernameText');
+        var passHidden = document.getElementById('modalPasswordText');
+        var userInput = document.getElementById('modalUsernameInput');
+        var passInput = document.getElementById('modalPasswordInput');
+        if (nameEl) nameEl.textContent = fullName || 'Nhân viên';
+        if (userHidden) userHidden.textContent = username || '';
+        if (passHidden) passHidden.textContent = password || '';
+        if (userInput) userInput.value = username || '';
+        if (passInput) passInput.value = password || '';
     }
 
-    // Hàm copy dự phòng (Chạy đồng bộ, ép trình duyệt phải nghe lời)
-    function fallbackCopySync(text, btn) {
-        const textArea = document.createElement("textarea");
+    function getPasswordModalText() {
+        var userInput = document.getElementById('modalUsernameInput');
+        var passInput = document.getElementById('modalPasswordInput');
+        var user = (userInput && userInput.value) || (document.getElementById('modalUsernameText') || {}).textContent || '';
+        var pass = (passInput && passInput.value) || (document.getElementById('modalPasswordText') || {}).textContent || '';
+        return 'Tài khoản: ' + String(user).trim() + '\r\nMật khẩu: ' + String(pass).trim();
+    }
+
+    function fallbackCopySync(text) {
+        var textArea = document.createElement('textarea');
         textArea.value = text;
-        
-        // CSS tàng hình tuyệt đối
-        textArea.style.position = "fixed";
-        textArea.style.left = "-9999px";
-        textArea.style.top = "0";
+        textArea.setAttribute('readonly', '');
+        textArea.style.position = 'fixed';
+        textArea.style.top = '0';
+        textArea.style.left = '0';
+        textArea.style.width = '2px';
+        textArea.style.height = '2px';
+        textArea.style.padding = '0';
+        textArea.style.border = 'none';
+        textArea.style.outline = 'none';
+        textArea.style.boxShadow = 'none';
+        textArea.style.background = 'transparent';
+        textArea.style.opacity = '0';
+        textArea.style.zIndex = '2147483647';
         document.body.appendChild(textArea);
-        
-        // Focus và chọn toàn bộ text
         textArea.focus();
         textArea.select();
-        textArea.setSelectionRange(0, 99999); // Cho mobile
-
+        textArea.setSelectionRange(0, text.length);
+        var ok = false;
         try {
-            const successful = document.execCommand('copy');
-            if (successful) {
-                showSuccessEffect(btn);
-            } else {
-                window.prompt("Trình duyệt bảo mật quá cao. Vui lòng copy thủ công:", text);
-            }
-        } catch (err) {
-            window.prompt("Lỗi trình duyệt. Vui lòng copy thủ công:", text);
+            ok = document.execCommand('copy');
+        } catch (e) {
+            ok = false;
         }
-        
         document.body.removeChild(textArea);
+        return ok;
     }
 
-    // Hiệu ứng xanh lá báo thành công
-    function showSuccessEffect(btn) {
-        const originalHTML = btn.innerHTML;
-        btn.innerHTML = 'ĐÃ SAO CHÉP!';
-        btn.classList.replace('btn-hm', 'btn-success');
-        setTimeout(() => {
+    function showCopySuccess(btn) {
+        if (!btn) return;
+        var originalHTML = btn.getAttribute('data-original-html') || btn.innerHTML;
+        btn.setAttribute('data-original-html', originalHTML);
+        btn.innerHTML = '<i class="bi bi-check2-circle fs-4 me-2 align-middle" aria-hidden="true"></i>Đã sao chép';
+        btn.classList.remove('btn-hm');
+        btn.classList.add('btn-success');
+        window.setTimeout(function () {
             btn.innerHTML = originalHTML;
-            btn.classList.replace('btn-success', 'btn-hm');
+            btn.classList.remove('btn-success');
+            btn.classList.add('btn-hm');
         }, 2000);
     }
+
+    function copyAccountInfo(btn) {
+        var textToCopy = getPasswordModalText();
+        if (!textToCopy || textToCopy.indexOf('Mật khẩu:') < 0) {
+            window.alert('Chưa có thông tin để sao chép.');
+            return;
+        }
+
+        var done = function (ok) {
+            if (ok) {
+                showCopySuccess(btn);
+                return;
+            }
+            if (navigator.share) {
+                navigator.share({ text: textToCopy }).catch(function () {
+                    window.prompt('Giữ để sao chép thủ công:', textToCopy);
+                });
+                return;
+            }
+            window.prompt('Giữ để sao chép thủ công:', textToCopy);
+        };
+
+        if (navigator.clipboard && window.isSecureContext && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(textToCopy).then(function () {
+                done(true);
+            }).catch(function () {
+                done(fallbackCopySync(textToCopy));
+            });
+            return;
+        }
+        done(fallbackCopySync(textToCopy));
+    }
+
+    window.copyAccountInfo = copyAccountInfo;
+
+    document.querySelectorAll('.reset-pwd-btn').forEach(function (btn) {
+        btn.addEventListener('click', async function () {
+            var url = this.getAttribute('data-url');
+            var username = this.getAttribute('data-username');
+            if (!window.confirm('Bạn có chắc chắn muốn làm mới mật khẩu cho ' + username + '?')) return;
+
+            var csrfEl = document.querySelector('[name=csrfmiddlewaretoken]');
+            var csrfToken = csrfEl ? csrfEl.value : '';
+
+            try {
+                var response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrfToken,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                var data = await response.json();
+                if (data.status === 'success') {
+                    setPasswordModalValues(data.username, data.password, data.full_name);
+                    document.documentElement.classList.remove('jp-team-list-pending-load');
+                    document.body.classList.remove('jp-team-list-loading');
+                    var loadingEl = document.getElementById('jp-team-list-loading');
+                    if (loadingEl) {
+                        loadingEl.hidden = true;
+                        loadingEl.setAttribute('aria-busy', 'false');
+                    }
+                    if (window.JpTeamListLoading && typeof window.JpTeamListLoading.hide === 'function') {
+                        window.JpTeamListLoading.hide(true);
+                    }
+                    var modalEl = document.getElementById('passwordResultModal');
+                    if (modalEl && modalEl.parentNode !== document.body) {
+                        document.body.appendChild(modalEl);
+                    }
+                    modalEl.addEventListener('shown.bs.modal', function onShown() {
+                        modalEl.removeEventListener('shown.bs.modal', onShown);
+                        document.querySelectorAll('.modal-backdrop').forEach(function (bd) {
+                            bd.classList.add('jp-password-result-backdrop');
+                        });
+                    });
+                    bootstrap.Modal.getOrCreateInstance(modalEl).show();
+                } else {
+                    window.alert('Lỗi khi reset mật khẩu!');
+                }
+            } catch (err) {
+                window.alert('Lỗi kết nối máy chủ! Vui lòng thử lại.');
+            }
+        });
+    });
+
+    var copyBtn = document.getElementById('passwordCopyBtn');
+    if (copyBtn) {
+        copyBtn.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            copyAccountInfo(copyBtn);
+        });
+    }
+})();
 
     (function initUserListSmartFilters() {
         const form = document.getElementById('userListFilterForm');

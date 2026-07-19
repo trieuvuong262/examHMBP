@@ -1,0 +1,40 @@
+LINE 679
+=== Shell command ===
+python manage.py shell -c "
+from san_xuat.services.dispatch import create_wip_return, confirm_wip_return, explode_disassembly_from_bom, update_mo_schedule, create_wip_handover, confirm_wip_handover
+from san_xuat.services.planning import check_detail_plan_capacity, _expected_inbound_qty
+from san_xuat.services.phase3 import compute_piece_rate_pay
+from san_xuat.hub_models import SxProductionOrder, SxWipHandover, SxDetailPlan, SxDisassemblyOrder
+from decimal import Decimal
+from django.utils import timezone
+
+mo = SxProductionOrder.objects.filter(is_demo=False, status__in=['released','in_progress','done']).order_by('-pk').first()
+print('MO', mo.code if mo else None)
+if mo:
+    ho = create_wip_handover(production_order_id=mo.pk, from_process='Cat', to_process='May', qty=Decimal('10'), handover_date=timezone.localdate())
+    confirm_wip_handover(handover_id=ho.pk)
+    wr = create_wip_return(production_order_id=mo.pk, handover_id=ho.pk, qty=Decimal('2'), reason='Loi may')
+    confirm_wip_return(return_id=wr.pk)
+    print('WIP return OK', wr.code, wr.status, wr.from_process, '->', wr.to_process)
+    update_mo_schedule(production_order_id=mo.pk, team_label='To May 1')
+    print('schedule OK', mo.team_label)
+
+detail = SxDetailPlan.objects.filter(is_demo=False).order_by('-pk').first()
+if detail:
+    warns = check_detail_plan_capacity(plan_id=detail.pk)
+    print('capacity warnings', len(warns), detail.code)
+
+ltd = SxDisassemblyOrder.objects.filter(is_demo=False, status='draft').order_by('-pk').first()
+if not ltd and mo:
+    from san_xuat.services.dispatch import create_disassembly_order
+    ltd = create_disassembly_order(product_code=mo.product_code, qty=Decimal('1'), product_name=mo.product_name, production_order_id=mo.pk)
+try:
+    explode_disassembly_from_bom(order_id=ltd.pk)
+    print('explode BOM OK', ltd.code, ltd.lines.count())
+except Exception as e:
+    print('explode', type(e).__name__, e)
+
+print('inbound sample', _expected_inbound_qty('JP-VAI-COT180-WHT'))
+print('piece rows', len(compute_piece_rate_pay()))
+print('ALL SERVICE SMOKE OK')
+" 2>&1

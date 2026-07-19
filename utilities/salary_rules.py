@@ -1,4 +1,4 @@
-"""Quy tắc ứng lương — chỉ ngày 18–19, tối đa 3 triệu."""
+"""Quy tắc ứng lương — chỉ ngày 18–19, tối đa 3 triệu, 1 lần/tháng/tài khoản."""
 
 from decimal import Decimal
 

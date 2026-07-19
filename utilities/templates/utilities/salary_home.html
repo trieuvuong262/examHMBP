@@ -6,7 +6,7 @@
     <div class="jp-page-header mb-3 mb-md-4 d-flex flex-wrap justify-content-between gap-2">
         <div>
             <h2 class="fw-bold text-hm jp-page-title">Ứng lương</h2>
-            <p class="text-muted small mb-0">{{ window_label }}</p>
+            <p class="text-muted small mb-0">{{ window_label }} · Tối đa 1 lần/tháng/tài khoản</p>
         </div>
         {% if can_manage %}
         <a href="{% url 'utilities:salary_manage' %}" class="btn btn-outline-hm btn-sm">Quản lý (HR)</a>
@@ -28,6 +28,7 @@
     <div class="alert alert-success border-0 shadow-sm">
         Bạn đã ứng <strong>{{ existing_request.amount|intcomma }}đ</strong>
         lúc {{ existing_request.created_at|date:"H:i d/m/Y" }}.
+        <div class="small text-muted mt-1">Mỗi tài khoản chỉ được ứng lương 1 lần trong một tháng.</div>
         {% if existing_request.note %}<div class="small text-muted mt-1">{{ existing_request.note }}</div>{% endif %}
     </div>
     {% elif form %}

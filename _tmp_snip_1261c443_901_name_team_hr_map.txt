@@ -1,0 +1,3 @@
+ece_rate_report, name='piece_rate_report'),
+    path('luong-san-pham/xuat-hr/', views_ops.piece_rate_hr_export, name='piece_rate_hr_export'),
+    path('luong-san-pham/map-hr/', views_ops.team_hr_map, name='team_hr_map'),
