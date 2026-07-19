@@ -87,6 +87,17 @@ class WorkTask(models.Model):
     task_type = models.CharField(
         max_length=20, choices=TYPE_CHOICES, default=TYPE_GENERAL, verbose_name='Loại việc',
     )
+    production_order = models.ForeignKey(
+        'san_xuat.SxProductionOrder',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='work_tasks',
+        verbose_name='LSX',
+    )
+    process_name = models.CharField(
+        max_length=120, blank=True, default='', verbose_name='Công đoạn',
+    )
     priority = models.CharField(
         max_length=10, choices=PRIORITY_CHOICES, default=PRIORITY_NORMAL, verbose_name='Ưu tiên',
     )

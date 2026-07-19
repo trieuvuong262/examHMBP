@@ -126,7 +126,7 @@ class SxDetailPlanLine(models.Model):
 
 
 class SxMaterialPlan(DemoMarkedModel):
-    code = models.CharField(max_length=40, unique=True, verbose_name='Mã KHNVL')
+    code = models.CharField(max_length=40, unique=True, verbose_name='Mã kế hoạch nguyên phụ liệu')
     name = models.CharField(max_length=200, verbose_name='Tên')
     overall_plan = models.ForeignKey(
         SxOverallPlan, on_delete=models.SET_NULL, null=True, blank=True, related_name='material_plans',
@@ -157,8 +157,8 @@ class SxMaterialPlanLine(models.Model):
 
     class Meta:
         ordering = ['id']
-        verbose_name = 'Dòng KHNVL'
-        verbose_name_plural = 'Dòng KHNVL'
+        verbose_name = 'Dòng kế hoạch nguyên phụ liệu'
+        verbose_name_plural = 'Dòng kế hoạch nguyên phụ liệu'
 
 
 class SxNplPurchaseRequest(DemoMarkedModel):
@@ -260,7 +260,7 @@ class SxProductionOrder(DemoMarkedModel):
         (STATUS_CANCELLED, 'Hủy'),
     ]
 
-    code = models.CharField(max_length=40, unique=True, verbose_name='Mã LSX')
+    code = models.CharField(max_length=40, unique=True, verbose_name='Mã lệnh sản xuất')
     product_code = models.CharField(max_length=60, db_index=True)
     product_name = models.CharField(max_length=255, blank=True, default='')
     detail_plan = models.ForeignKey(
@@ -312,7 +312,7 @@ class SxDisassemblyOrder(DemoMarkedModel):
         null=True,
         blank=True,
         related_name='disassembly_orders',
-        verbose_name='LSX nguồn',
+        verbose_name='Lệnh sản xuất nguồn',
     )
     product_code = models.CharField(max_length=60, db_index=True)
     product_name = models.CharField(max_length=255, blank=True, default='')
@@ -351,7 +351,7 @@ class SxDisassemblyOrderLine(models.Model):
 
 
 class SxMaterialIssueRequest(DemoMarkedModel):
-    code = models.CharField(max_length=40, unique=True, verbose_name='Mã YCX')
+    code = models.CharField(max_length=40, unique=True, verbose_name='Mã yêu cầu xuất')
     production_order = models.ForeignKey(
         SxProductionOrder, on_delete=models.CASCADE, related_name='material_issue_requests',
     )
@@ -405,7 +405,7 @@ class SxProductionStat(DemoMarkedModel):
         (STATUS_CONFIRMED, 'Đã xác nhận'),
     ]
 
-    code = models.CharField(max_length=40, unique=True, verbose_name='Mã TKSX')
+    code = models.CharField(max_length=40, unique=True, verbose_name='Mã thống kê sản xuất')
     production_order = models.ForeignKey(
         SxProductionOrder, on_delete=models.CASCADE, related_name='production_stats',
     )
@@ -442,13 +442,13 @@ class SxFgReceiptRequest(DemoMarkedModel):
         (STATUS_CANCELLED, 'Hủy'),
     ]
 
-    code = models.CharField(max_length=40, unique=True, verbose_name='Mã YCNTP')
+    code = models.CharField(max_length=40, unique=True, verbose_name='Mã yêu cầu nhập thành phẩm')
     production_order = models.ForeignKey(
         SxProductionOrder, on_delete=models.CASCADE, related_name='fg_receipt_requests',
     )
     production_stat = models.ForeignKey(
         SxProductionStat, on_delete=models.SET_NULL, null=True, blank=True, related_name='fg_receipt_requests',
-        verbose_name='TKSX nguồn',
+        verbose_name='Thống kê sản xuất nguồn',
     )
     request_date = models.DateField()
     qty = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
@@ -460,8 +460,8 @@ class SxFgReceiptRequest(DemoMarkedModel):
 
     class Meta:
         ordering = ['-request_date']
-        verbose_name = 'Yêu cầu nhập TP'
-        verbose_name_plural = 'Yêu cầu nhập TP'
+        verbose_name = 'Yêu cầu nhập thành phẩm'
+        verbose_name_plural = 'Yêu cầu nhập thành phẩm'
 
     def __str__(self):
         return self.code
@@ -540,8 +540,8 @@ class SxWipHandover(DemoMarkedModel):
 
     class Meta:
         ordering = ['-handover_date']
-        verbose_name = 'Bàn giao BTP'
-        verbose_name_plural = 'Bàn giao BTP'
+        verbose_name = 'Bàn giao bán thành phẩm'
+        verbose_name_plural = 'Bàn giao bán thành phẩm'
 
     def __str__(self):
         return self.code
@@ -742,7 +742,7 @@ class SxQcRequest(DemoMarkedModel):
     )
     production_stat = models.ForeignKey(
         SxProductionStat, on_delete=models.SET_NULL, null=True, blank=True, related_name='qc_requests',
-        verbose_name='TKSX nguồn',
+        verbose_name='Thống kê sản xuất nguồn',
     )
     product_code = models.CharField(max_length=60, db_index=True)
     product_name = models.CharField(max_length=255, blank=True, default='')
