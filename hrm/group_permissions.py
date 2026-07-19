@@ -30,6 +30,7 @@ MODULE_SUPPORTS_EXPORT = frozenset({
     'equipment',    # Xuất danh sách thiết bị
     'audit',        # Xuất nhật ký thao tác
     'kho_npl',      # Báo cáo tồn kho / sổ kho
+    'utilities',    # Xuất Excel đặt cơm / ứng lương
 })
 
 # Module chỉ dùng quyền Xem + Xuất Excel (ẩn Thêm/Sửa/Xóa trong ma trận phân quyền).
