@@ -90,7 +90,7 @@ def send_password_reset_email(request, user: User) -> None:
     ctx = {'display_name': display, 'reset_url': reset_url}
     body = (
         f'Xin chào {display},\n\n'
-        f'Bạn (hoặc ai đó) đã yêu cầu đặt lại mật khẩu JustPlay Portal.\n\n'
+        f'Bạn đã yêu cầu đặt lại mật khẩu JustPlay Portal.\n\n'
         f'Mở liên kết sau để đặt mật khẩu mới (có thời hạn):\n'
         f'{reset_url}\n\n'
         f'Nếu bạn không yêu cầu, hãy bỏ qua email này — tài khoản vẫn an toàn.\n\n'
