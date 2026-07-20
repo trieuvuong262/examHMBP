@@ -1,14 +1,13 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="container jp-page py-3 py-md-4 mb-5" style="max-width: 640px;">
-    <div class="jp-page-header mb-3 mb-md-4">
-        <div>
-            <h2 class="fw-bold text-hm mb-1 jp-page-title">Thêm hồ sơ SX</h2>
-            <p class="text-muted mb-0 small">Gắn mã hàng đã có trên KiotViet</p>
-        </div>
-        <a href="{% url 'san_xuat:doc_list' %}" class="btn btn-outline-secondary">Quay lại</a>
+<div class="container jp-page jp-sx-page py-3 py-md-4 mb-5" style="max-width: 640px;">
+      <div class="jp-npl-mat-topbar">
+    <h2 class="jp-npl-mat-topbar-title">Thêm hồ sơ SX</h2>
+    <div class="jp-npl-mat-topbar-actions ms-auto">
+      <a href="{% url 'san_xuat:doc_list' %}" class="btn btn-outline-secondary">Quay lại</a>
     </div>
+  </div>
 
     <div class="card border-0 shadow-sm">
         <div class="card-body p-4">

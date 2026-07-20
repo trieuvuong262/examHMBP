@@ -2,41 +2,13 @@
 {% load humanize %}
 
 {% block content %}
-<div class="container jp-page py-3 py-md-4 mb-5">
-    <div class="jp-page-header mb-3 mb-md-4">
-        <div>
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb mb-1 small">
-                    <li class="breadcrumb-item"><a href="{% url 'san_xuat:doc_list' %}">Tài liệu SX</a></li>
-                    <li class="breadcrumb-item active">{{ doc.product_code }}</li>
-                </ol>
-            </nav>
-            <h2 class="fw-bold text-hm mb-1 jp-page-title">{{ doc.product_code }}</h2>
-            <p class="text-muted mb-0">{{ doc.product_name|default:"(chưa có tên từ KiotViet)" }}</p>
-        </div>
-        <div class="d-flex flex-wrap gap-2 align-items-start">
-            {% if bom %}
-            <form method="get" class="d-flex align-items-center gap-2">
-                <input type="hidden" name="tab" value="{{ tab }}">
-                <label class="small text-muted mb-0">BOM</label>
-                <select name="bom" class="form-select form-select-sm" onchange="this.form.submit()" style="min-width: 9rem;">
-                    {% for v in versions %}
-                    <option value="{{ v.pk }}" {% if bom.pk == v.pk %}selected{% endif %}>
-                        {{ v.version_label }} — {{ v.get_status_display }}
-                    </option>
-                    {% endfor %}
-                </select>
-            </form>
-            {% endif %}
-            {% if can_update and bom and bom.status != 'active' %}
-            <form method="post">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="activate">
-                <button type="submit" class="btn btn-sm btn-outline-success">Kích hoạt BOM</button>
-            </form>
-            {% endif %}
-        </div>
+<div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
+      <div class="jp-npl-mat-topbar">
+    <h2 class="jp-npl-mat-topbar-title">{{ doc.product_code }}</h2>
+    <div class="jp-npl-mat-topbar-actions ms-auto">
+      
     </div>
+  </div>
 
     <ul class="nav nav-tabs mb-3">
         <li class="nav-item">

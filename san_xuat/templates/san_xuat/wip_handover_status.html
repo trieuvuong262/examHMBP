@@ -1,12 +1,15 @@
 {% extends 'base.html' %}
+{% block extra_head %}
+{% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}
+{% endblock %}
 
 {% block content %}
 <div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 py-md-4 mb-5">
-  <div class="jp-page-header mb-3 mb-md-4">
-    <div>
-      <h2 class="fw-bold text-hm mb-1 jp-page-title">Tình hình bàn giao SX</h2>
+    <div class="jp-npl-mat-topbar">
+    <h2 class="jp-npl-mat-topbar-title">Tình hình bàn giao SX</h2>
+    <div class="jp-npl-mat-topbar-actions ms-auto">
+      <a href="{% url 'san_xuat:dispatch_wip_handover' %}" class="btn btn-outline-secondary btn-sm fw-bold">Danh sách</a>
     </div>
-    <a href="{% url 'san_xuat:dispatch_wip_handover' %}" class="btn btn-outline-secondary btn-sm">Danh sách</a>
   </div>
 
   <div class="row g-3 mb-4">
@@ -58,9 +61,9 @@
     </div>
   </div>
 
-  <div class="card border-0 shadow-sm">
-    <div class="table-responsive">
-      <table class="table table-sm table-hover mb-0 align-middle">
+  <div class="card border-0 shadow-sm overflow-hidden">
+    <div class="jp-npl-mat-grid-wrap">
+      <table class="table table-hover align-middle mb-0 jp-npl-mat-grid">
         <thead class="table-light">
           <tr>
             <th>Mã</th>

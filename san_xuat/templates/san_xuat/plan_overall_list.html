@@ -1,20 +1,24 @@
 {% extends 'base.html' %}
+{% block extra_head %}
+{% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}
+{% endblock %}
 
 {% block content %}
 <div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 py-md-4 mb-5">
-  <div class="jp-page-header mb-3 mb-md-4">
-    <div>
-      <h2 class="fw-bold text-hm mb-1 jp-page-title">Kế hoạch tổng thể</h2>
-    </div>
-    {% if can_create %}
-    <a href="{% url 'san_xuat:plan_overall_create' %}" class="btn btn-hm btn-sm">Tạo kế hoạch tổng thể</a>
+    <div class="jp-npl-mat-topbar">
+    <h2 class="jp-npl-mat-topbar-title">Kế hoạch tổng thể</h2>
+    <div class="jp-npl-mat-topbar-actions ms-auto">
+      {% if can_create %}
+    <a href="{% url 'san_xuat:plan_overall_create' %}" class="btn btn-hm btn-sm fw-bold">Tạo kế hoạch tổng thể</a>
     {% endif %}
+      
+    </div>
   </div>
 
   {% include 'san_xuat/includes/sx_list_filter.html' %}
-  <div class="card border-0 shadow-sm">
-    <div class="table-responsive">
-      <table class="table table-sm table-hover mb-0 align-middle">
+  <div class="card border-0 shadow-sm overflow-hidden">
+    <div class="jp-npl-mat-grid-wrap">
+      <table class="table table-hover align-middle mb-0 jp-npl-mat-grid">
         <thead class="table-light">
           <tr>
             <th>Mã</th>
