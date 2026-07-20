@@ -51,13 +51,14 @@ def get_mail_connection():
 
     if cfg and cfg.is_ready():
         return get_connection(
-            backend='django.core.mail.backends.smtp.EmailBackend',
+            backend='audit.smtp_backend.PortalSMTPBackend',
             host=(cfg.host or '').strip(),
             port=int(cfg.port or 587),
             username=(cfg.username or '').strip() or None,
             password=cfg.password or None,
             use_tls=bool(cfg.use_tls),
             use_ssl=bool(cfg.use_ssl),
+            ssl_verify=bool(getattr(cfg, 'ssl_verify', True)),
             fail_silently=False,
         )
     return get_connection(fail_silently=False)
@@ -99,6 +100,7 @@ def smtp_status_dict() -> dict[str, Any]:
         'db_has_password': bool((cfg.password or '').strip()),
         'db_use_tls': cfg.use_tls,
         'db_use_ssl': cfg.use_ssl,
+        'db_ssl_verify': bool(getattr(cfg, 'ssl_verify', True)),
         'db_from_email': (cfg.from_email or '').strip() or '—',
         'db_updated_at': cfg.updated_at,
         'active_source': 'db' if cfg.is_ready() else ('env' if env_host or 'console' in env_backend else 'none'),

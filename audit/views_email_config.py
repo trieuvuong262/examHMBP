@@ -36,6 +36,8 @@ def email_config_page(request):
             cfg.use_ssl = (request.POST.get('use_ssl') or '') in ('1', 'on', 'true', 'yes')
             if cfg.use_ssl:
                 cfg.use_tls = False
+            # Checkbox: checked = verify ON; unchecked = skip verify (company mail mismatch)
+            cfg.ssl_verify = (request.POST.get('ssl_verify') or '') in ('1', 'on', 'true', 'yes')
             cfg.from_email = (request.POST.get('from_email') or '').strip()
             cfg.updated_by = request.user
             cfg.save()

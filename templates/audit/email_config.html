@@ -113,6 +113,16 @@
                                     <label class="form-check-label" for="id_use_ssl">SSL (thường cổng 465)</label>
                                 </div>
                             </div>
+                            <div class="col-12">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="id_ssl_verify" name="ssl_verify" value="1"
+                                           {% if cfg.ssl_verify %}checked{% endif %}>
+                                    <label class="form-check-label" for="id_ssl_verify">Xác minh chứng chỉ SSL/TLS</label>
+                                </div>
+                                <div class="form-text small">
+                                    Bỏ tick nếu lỗi <code>Hostname mismatch</code> / chứng chỉ self-signed trên mail nội bộ.
+                                </div>
+                            </div>
                         </div>
                         <button type="submit" class="btn btn-hm fw-bold mt-4">
                             <i class="bi bi-check2-circle me-1"></i>Lưu cấu hình

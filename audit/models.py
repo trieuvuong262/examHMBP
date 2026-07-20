@@ -337,6 +337,11 @@ class EmailSmtpConfig(models.Model):
     password = models.CharField(max_length=255, blank=True, default='', verbose_name='Mật khẩu SMTP')
     use_tls = models.BooleanField(default=True, verbose_name='TLS')
     use_ssl = models.BooleanField(default=False, verbose_name='SSL')
+    ssl_verify = models.BooleanField(
+        default=True,
+        verbose_name='Xác minh chứng chỉ SSL',
+        help_text='Tắt nếu mail nội bộ bị Hostname mismatch / self-signed.',
+    )
     from_email = models.CharField(
         max_length=255,
         blank=True,
