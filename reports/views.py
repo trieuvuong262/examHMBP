@@ -1414,6 +1414,7 @@ def _my_reports(request, daily_report_profile=None):
         return redirect('home_portal')
 
     # Bộ lọc từ ngày — đến ngày (mặc định 1 tuần gần nhất)
+    # VP: theo ngày nộp (submitted_at). SX / khác: theo kỳ hoặc thời điểm chỉnh sửa.
     history_date_from = _parse_iso_date(request.GET.get('from'))
     history_date_to = _parse_iso_date(request.GET.get('to'))
     if not history_date_to:
@@ -1432,7 +1433,7 @@ def _my_reports(request, daily_report_profile=None):
             has_employee_reply=Exists(
                 ReportComment.objects.filter(daily_report=OuterRef('pk'), author=subject),
             ),
-        ).order_by('-report_date', '-id')
+        ).order_by('-submitted_at', '-report_date', '-id')
         reports_qs = apply_combined_search(reports_qs, search_query, lambda term: (
             Q(title__icontains=term)
             | Q(document_html__icontains=term)
@@ -1440,10 +1441,11 @@ def _my_reports(request, daily_report_profile=None):
             | Q(links__icontains=term)
             | Q(status__icontains=term)
         ))
+        # Lọc theo ngày nộp báo cáo (không phải kỳ báo cáo ngày/tuần/tháng)
         if history_date_from:
-            reports_qs = reports_qs.filter(report_date__gte=history_date_from)
+            reports_qs = reports_qs.filter(submitted_at__date__gte=history_date_from)
         if history_date_to:
-            reports_qs = reports_qs.filter(report_date__lte=history_date_to)
+            reports_qs = reports_qs.filter(submitted_at__date__lte=history_date_to)
         page_obj, query_string = paginate_queryset(request, reports_qs)
     elif daily_report_profile == REPORT_PROFILE_PRODUCTION:
         logs_qs = DailyWorkReportEditLog.objects.filter(

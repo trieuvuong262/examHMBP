@@ -112,7 +112,7 @@ def parse_excel_date(value):
 
 # Cột Excel nhân sự (thứ tự cố định — dùng chung import/export/template)
 EXCEL_HR_HEADERS = [
-    'Mã NS', 'Họ và tên', 'Account', 'Phòng ban', 'Bộ phận',
+    'Mã NS', 'Họ và tên', 'SĐT', 'Account', 'Phòng ban', 'Bộ phận',
     'Vị trí', 'Chức vụ', 'Ngày vào', 'Ngày sinh', 'Giới tính',
     'Vai trò HT', 'Nhóm quyền', 'Trạng thái',
 ]
@@ -139,6 +139,16 @@ EXCEL_COLUMN_MAP = {
     'ho va ten': 'full_name',
     'họ và tên': 'full_name',
     'full_name': 'full_name',
+    'sdt': 'phone',
+    'sđt': 'phone',
+    'so_dien_thoai': 'phone',
+    'so dien thoai': 'phone',
+    'số điện thoại': 'phone',
+    'dien_thoai': 'phone',
+    'dien thoai': 'phone',
+    'điện thoại': 'phone',
+    'phone': 'phone',
+    'mobile': 'phone',
     'account': 'username',
     'username': 'username',
     'phong_ban': 'department',
@@ -312,6 +322,8 @@ def resolve_division(name, department=None):
 
 def user_to_excel_row(user):
     """Chuyển User + Profile thành dict theo EXCEL_ALL_HEADERS."""
+    from hrm.phone import format_phone_vn
+
     profile = getattr(user, 'profile', None)
     dept_name = ''
     div_name = ''
@@ -322,6 +334,7 @@ def user_to_excel_row(user):
     return {
         'Mã NS': profile.employee_code if profile and profile.employee_code else '',
         'Họ và tên': profile.full_name if profile and profile.full_name else (user.first_name or ''),
+        'SĐT': format_phone_vn(profile.phone) if profile else '',
         'Account': user.username,
         'Phòng ban': dept_name,
         'Bộ phận': div_name,
@@ -347,6 +360,7 @@ def profile_defaults_from_import(data):
     """Dict field profile từ dữ liệu đã parse Excel."""
     from hrm.group_permissions import default_group_for_role
     from hrm.permissions import ROLE_EMPLOYEE
+    from hrm.phone import is_valid_vn_mobile, normalize_phone
     from hrm.probation import resolve_on_probation
 
     dept = resolve_department(data.get('department', ''))
@@ -358,9 +372,13 @@ def profile_defaults_from_import(data):
     on_probation_raw = data.get('on_probation')
     requested = parse_probation_status(on_probation_raw, default=True)
     on_probation = resolve_on_probation(join_date, requested)
+    phone = normalize_phone(data.get('phone', ''))
+    if phone and not is_valid_vn_mobile(phone):
+        phone = ''
     return {
         'employee_code': data.get('employee_code') or None,
         'full_name': data.get('full_name', ''),
+        'phone': phone,
         'department': dept,
         'division': resolve_division(data.get('division', ''), department=dept),
         'job_position': (data.get('job_position') or '').strip(),
@@ -377,6 +395,8 @@ def profile_defaults_from_import(data):
 
 def row_to_profile_data(row):
     """Đọc một dòng Excel (Series/dict) thành dict chuẩn."""
+    from hrm.phone import normalize_phone
+
     data = {}
     for key, val in row.items():
         col = str(key).strip().lower()
@@ -387,6 +407,8 @@ def row_to_profile_data(row):
             data[field] = parse_excel_date(val)
         elif field == 'gender':
             data[field] = normalize_gender(val)
+        elif field == 'phone':
+            data[field] = normalize_phone(val)
         elif field == 'job_position':
             data[field] = str(val).strip() if val is not None and str(val).strip() else ''
         elif field == 'is_employed':

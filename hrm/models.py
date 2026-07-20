@@ -300,6 +300,14 @@ class Profile(models.Model):
         verbose_name='Mã NS',
     )
     full_name = models.CharField(max_length=255, verbose_name='Họ và tên', blank=True)
+    phone = models.CharField(
+        max_length=20,
+        blank=True,
+        default='',
+        db_index=True,
+        verbose_name='Số điện thoại',
+        help_text='Lưu dạng 84xxxxxxxxx — dùng gửi OTP Zalo.',
+    )
     avatar = models.ImageField(
         upload_to='avatars/%Y/%m/',
         null=True,
@@ -392,9 +400,26 @@ class Profile(models.Model):
 
     class Meta:
         db_table = 'assessment_profile' # Giữ nguyên để khớp với database cũ
+        constraints = [
+            models.UniqueConstraint(
+                fields=['phone'],
+                condition=~models.Q(phone=''),
+                name='uniq_profile_phone_nonempty',
+            ),
+        ]
 
     def __str__(self):
         return self.full_name if self.full_name else self.user.username
+
+    @property
+    def phone_display(self):
+        from hrm.phone import format_phone_vn
+        return format_phone_vn(self.phone)
+
+    @property
+    def phone_masked(self):
+        from hrm.phone import mask_phone_vn
+        return mask_phone_vn(self.phone)
 
     @property
     def position(self):

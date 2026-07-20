@@ -216,6 +216,7 @@ INSTALLED_APPS = [
     'surveys.apps.SurveysConfig',
     'utilities.apps.UtilitiesConfig',
     'kiotviet.apps.KiotvietConfig',
+    'zalo.apps.ZaloConfig',
     'kho_npl.apps.KhoNplConfig',
     'san_xuat.apps.SanXuatConfig',
     'nas_storage.apps.NasStorageConfig',
@@ -419,6 +420,26 @@ KIOTVIET_DETAIL_STOCK_BRANCHES = os.getenv(
     'KIOTVIET_DETAIL_STOCK_BRANCHES',
     'Chi nhánh trung tâm,Xưởng sản xuất,Đơn sản xuất',
 ).strip()
+
+# Zalo OA / ZBS — OTP quên mật khẩu (docs/integrations/zalo/)
+ZALO_ENABLED = env_bool('ZALO_ENABLED', False)
+ZALO_APP_ID = os.getenv('ZALO_APP_ID', '').strip()
+ZALO_APP_SECRET = os.getenv('ZALO_APP_SECRET', '').strip()
+ZALO_OA_ID = os.getenv('ZALO_OA_ID', '').strip()
+ZALO_OTP_TEMPLATE_ID = os.getenv('ZALO_OTP_TEMPLATE_ID', '').strip()
+ZALO_OTP_TEMPLATE_PARAM = os.getenv('ZALO_OTP_TEMPLATE_PARAM', 'otp').strip() or 'otp'
+ZALO_DEVELOPMENT_MODE = env_bool('ZALO_DEVELOPMENT_MODE', True)
+ZALO_REFRESH_TOKEN = os.getenv('ZALO_REFRESH_TOKEN', '').strip()
+ZALO_CODE_VERIFIER = os.getenv('ZALO_CODE_VERIFIER', '').strip()
+ZALO_TOKEN_URL = os.getenv(
+    'ZALO_TOKEN_URL',
+    'https://oauth.zaloapp.com/v4/oa/access_token',
+).strip()
+ZALO_MESSAGE_URL = os.getenv(
+    'ZALO_MESSAGE_URL',
+    'https://business.openapi.zalo.me/message/template',
+).strip()
+ZALO_API_TIMEOUT = int(os.getenv('ZALO_API_TIMEOUT', '30') or '30')
 
 # Odoo ERP — đồng bộ user / menu Odoo (Phase 1)
 ODOO_URL = os.getenv('ODOO_URL', 'https://erp.justplay.vn').strip().rstrip('/')

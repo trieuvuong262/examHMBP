@@ -18,6 +18,7 @@ def _sample_import_rows() -> list[dict]:
         {
             'Mã NS': 'NV001',
             'Họ và tên': 'Nguyễn Văn An',
+            'SĐT': '0912345678',
             'Account': 'Annt',
             'Phòng ban': 'SẢN XUẤT',
             'Bộ phận': 'QC',
@@ -35,6 +36,7 @@ def _sample_import_rows() -> list[dict]:
         {
             'Mã NS': 'NV002',
             'Họ và tên': 'Trần Thị Bình',
+            'SĐT': '0987654321',
             'Account': '',
             'Phòng ban': 'SẢN XUẤT',
             'Bộ phận': 'QC',
@@ -52,6 +54,7 @@ def _sample_import_rows() -> list[dict]:
         {
             'Mã NS': '',
             'Họ và tên': 'Lê Văn Cường',
+            'SĐT': '',
             'Account': '',
             'Phòng ban': 'ĐẢM BẢO CHẤT LƯỢNG',
             'Bộ phận': 'QA',
@@ -123,6 +126,7 @@ def build_import_template_xlsx() -> bytes:
         guide = pd.DataFrame([
             {'Mục': 'Bắt buộc', 'Nội dung': 'Cột Họ và tên — không để trống.'},
             {'Mục': 'Account', 'Nội dung': 'Để trống → hệ thống tự sinh khi thêm mới.'},
+            {'Mục': 'SĐT', 'Nội dung': 'Số di động VN (vd: 0912345678). Lưu chuẩn 84… — dùng gửi OTP Zalo. Trùng SĐT sẽ bỏ qua cột này.'},
             {'Mục': 'Phòng ban / Bộ phận', 'Nội dung': 'Phải khớp sheet Phong_ban, Bo_phan (đúng chính tả).'},
             {'Mục': 'Vị trí', 'Nội dung': 'Khớp sheet Vi_tri hoặc tên trên hồ sơ; import sẽ tạo danh mục vị trí nếu thiếu.'},
             {'Mục': 'Ngày', 'Nội dung': 'Định dạng dd/mm/yyyy (vd: 01/03/2026).'},

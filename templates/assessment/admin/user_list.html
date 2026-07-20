@@ -165,7 +165,7 @@
                                    name="q"
                                    id="userSearch"
                                    class="form-control form-control-sm"
-                                   placeholder="Mã NS, tên..."
+                                   placeholder="Mã NS, tên, SĐT..."
                                    value="{{ search_query }}"
                                    autocomplete="off">
                             {% if filters_active %}
@@ -267,6 +267,13 @@
                             </div>
                         </td>
                         <td data-label="Tài khoản" class="jp-hrm-col-account jp-hrm-col" data-col="account"><code class="text-primary fw-bold px-2 py-1 bg-light user-select-all jp-hrm-cell-truncate">{{ u.username }}</code></td>
+                        <td data-label="SĐT" class="jp-hrm-col-phone jp-hrm-col" data-col="phone">
+                            {% if u.profile.phone %}
+                            <span class="user-select-all jp-hrm-cell-truncate" title="{{ u.profile.phone_display }}">{{ u.profile.phone_display }}</span>
+                            {% else %}
+                            <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
                         <td data-label="Phòng ban" class="jp-hrm-col-dept jp-hrm-col" data-col="department"{% if u.profile.department %} title="{{ u.profile.department.name|display_title }}"{% endif %}>
                             <span class="jp-hrm-cell-truncate">{{ u.profile.department.name|default:"—"|display_title }}</span>
                         </td>
@@ -415,7 +422,7 @@
                 <div class="p-3 bg-warning bg-opacity-10 border-start border-warning border-4 mt-4">
                     <h6 class="fw-bold mb-1 small text-dark"> Lưu ý quan trọng:</h6>
                     <ul class="x-small text-dark mb-0 ps-3 lh-lg">
-                        <li>Cột theo file mẫu: <strong>Mã NS, Họ và tên, Account, Phòng ban, Bộ phận, Vị trí, Chức vụ, Ngày vào, Ngày sinh, Giới tính</strong>.</li>
+                        <li>Cột theo file mẫu: <strong>Mã NS, Họ và tên, SĐT, Account, Phòng ban, Bộ phận, Vị trí, Chức vụ, Ngày vào, Ngày sinh, Giới tính</strong>.</li>
                         <li>Bắt buộc có <strong>Họ và tên</strong>. <strong>Account</strong> để trống sẽ tự sinh khi thêm mới.</li>
                         <li>Ngày: <strong>dd/mm/yyyy</strong>. Giới tính: <strong>Nam</strong> hoặc <strong>Nữ</strong>.</li>
                         <li>Phòng ban và bộ phận phải khớp sơ đồ trong <a href="{% url 'org_structure' %}">cơ cấu tổ chức</a> (bộ phận thuộc đúng phòng ban).</li>

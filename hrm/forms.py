@@ -91,6 +91,17 @@ class CustomUserForm(forms.Form):
         label='Họ và tên',
         widget=forms.TextInput(attrs={**INPUT, 'placeholder': 'Nguyễn Văn An'}),
     )
+    phone = forms.CharField(
+        label='Số điện thoại',
+        required=False,
+        widget=forms.TextInput(attrs={
+            **INPUT,
+            'placeholder': '0912345678',
+            'inputmode': 'tel',
+            'autocomplete': 'tel',
+        }),
+        help_text='SĐT Zalo cá nhân — dùng gửi OTP quên mật khẩu.',
+    )
     department = forms.ModelChoiceField(
         label='Phòng ban',
         queryset=Department.objects.filter(is_active=True),
@@ -286,6 +297,28 @@ class CustomUserForm(forms.Form):
         if not name:
             raise forms.ValidationError('Họ và tên không được để trống.')
         return name
+
+    def clean_phone(self):
+        from hrm.phone import format_phone_vn, is_valid_vn_mobile, normalize_phone
+
+        raw = self.cleaned_data.get('phone')
+        phone = normalize_phone(raw)
+        if not phone:
+            return ''
+        if not is_valid_vn_mobile(phone):
+            raise forms.ValidationError(
+                'SĐT không hợp lệ. Nhập số di động VN, ví dụ: 0912345678.',
+            )
+        qs = Profile.objects.filter(phone=phone)
+        if self.user_id:
+            qs = qs.exclude(user_id=self.user_id)
+        clash = qs.select_related('user').first()
+        if clash:
+            label = clash.full_name or clash.user.username
+            raise forms.ValidationError(
+                f'SĐT {format_phone_vn(phone)} đã gắn với {label}.',
+            )
+        return phone
 
     def clean_password(self):
         password = self.cleaned_data.get('password') or ''

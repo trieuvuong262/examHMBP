@@ -114,6 +114,7 @@
                         <div class="small text-muted jp-user-form-identity-meta mb-2">
                             {% if profile.employee_code %}<code class="text-dark">{{ profile.employee_code }}</code>{% endif %}
                             <span class="text-primary user-select-all">{{ user_instance.username }}</span>
+                            {% if profile.phone %}<span class="text-muted">· {{ profile.phone_display }}</span>{% endif %}
                             {% if user_instance.email %}<span class="text-muted">· {{ user_instance.email }}</span>{% endif %}
                         </div>
                         <div class="jp-user-detail-org-chips d-flex flex-wrap gap-2">
@@ -222,6 +223,9 @@
                             </div>
                             <div class="col-sm-6 col-md-4">
                                 {% include 'assessment/admin/includes/user_form_field.html' with field=form.employee_code %}
+                            </div>
+                            <div class="col-sm-6 col-md-4">
+                                {% include 'assessment/admin/includes/user_form_field.html' with field=form.phone hint='Di động VN — dùng gửi OTP Zalo quên mật khẩu.' %}
                             </div>
                             <div class="col-sm-6 col-md-4">
                                 {% include 'assessment/admin/includes/user_form_field.html' with field=form.gender %}

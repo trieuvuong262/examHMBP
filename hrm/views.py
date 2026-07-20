@@ -110,6 +110,7 @@ def _profile_fields_from_form(form):
     return {
         'employee_code': form.cleaned_data.get('employee_code') or None,
         'full_name': form.cleaned_data['full_name'],
+        'phone': form.cleaned_data.get('phone') or '',
         'department': form.cleaned_data.get('department'),
         'division': form.cleaned_data.get('division'),
         'job_position': (form.cleaned_data.get('job_position') or '').strip(),
@@ -568,6 +569,7 @@ def user_edit(request, user_id):
             # 2. Cập nhật bảng Profile (Logic HRM của mình)
             profile.full_name = form.cleaned_data['full_name']
             profile.employee_code = form.cleaned_data.get('employee_code') or None
+            profile.phone = form.cleaned_data.get('phone') or ''
             profile.department = form.cleaned_data.get('department')
             profile.division = form.cleaned_data.get('division')
             profile.job_position = (form.cleaned_data.get('job_position') or '').strip()
@@ -633,6 +635,7 @@ def user_edit(request, user_id):
             'email': user_obj.email,
             'employee_code': profile.employee_code or '',
             'full_name': profile.full_name,
+            'phone': profile.phone_display,
             'department': profile.department,
             'division': profile.division,
             'job_position': profile.job_position or '',
@@ -807,6 +810,13 @@ def user_import_excel(request):
                                 continue
 
                         profile_defaults = profile_defaults_from_import(data)
+                        phone = profile_defaults.get('phone') or ''
+                        if phone:
+                            phone_clash = Profile.objects.filter(phone=phone).exclude(user=existing_user).exists()
+                            if phone_clash:
+                                profile_defaults['phone'] = getattr(
+                                    getattr(existing_user, 'profile', None), 'phone', '',
+                                ) or ''
                         _ensure_division_position_from_profile(profile_defaults)
 
                         existing_user.first_name = full_name
@@ -837,6 +847,11 @@ def user_import_excel(request):
                         skipped_count += 1
                         continue
 
+                    new_defaults = profile_defaults_from_import(data)
+                    phone = new_defaults.get('phone') or ''
+                    if phone and Profile.objects.filter(phone=phone).exists():
+                        new_defaults['phone'] = ''
+
                     password = data.get('password', '').strip() or generate_secure_password()
                     email = data.get('email', '').strip() or generate_hm_email(username)
 
@@ -847,7 +862,6 @@ def user_import_excel(request):
                         first_name=full_name,
                         is_staff=False,
                     )
-                    new_defaults = profile_defaults_from_import(data)
                     _ensure_division_position_from_profile(new_defaults)
                     Profile.objects.update_or_create(
                         user=user,

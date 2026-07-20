@@ -95,6 +95,7 @@ USER_LIST_SORT_COLUMNS = {
     'code': 'profile__employee_code',
     'name': 'profile__full_name',
     'account': 'username',
+    'phone': 'profile__phone',
     'department': 'profile__department__name',
     'division': 'profile__division__name',
     'position': 'profile__job_position',
@@ -111,6 +112,7 @@ USER_LIST_TABLE_COLUMNS = (
     {'key': 'code', 'label': 'Mã NS', 'th_tone': 'cap', 'th_align': 'start', 'col_class': 'jp-hrm-col-code', 'sortable': True, 'default': True, 'required': True},
     {'key': 'name', 'label': 'Họ và tên', 'th_tone': 'cap', 'th_align': 'start', 'col_class': 'jp-hrm-col-name', 'sortable': True, 'default': True, 'required': True},
     {'key': 'account', 'label': 'Tài khoản', 'th_tone': 'cap', 'th_align': 'start', 'col_class': 'jp-hrm-col-account', 'sortable': True, 'default': True},
+    {'key': 'phone', 'label': 'SĐT', 'th_tone': 'cap', 'th_align': 'start', 'col_class': 'jp-hrm-col-phone', 'sortable': True, 'default': True},
     {'key': 'department', 'label': 'Phòng ban', 'th_tone': 'cap', 'th_align': 'start', 'col_class': 'jp-hrm-col-dept', 'sortable': True, 'default': True},
     {'key': 'division', 'label': 'Bộ phận', 'th_tone': 'cap', 'th_align': 'start', 'col_class': 'jp-hrm-col-division', 'sortable': True, 'default': True},
     {'key': 'position', 'label': 'Vị trí', 'th_tone': 'cap', 'th_align': 'start', 'col_class': 'jp-hrm-col-position', 'sortable': True, 'default': True},
@@ -512,6 +514,8 @@ def subordinate_candidates_json(qs):
             role_display,
             department_name,
             division_name,
+            getattr(profile, 'phone_display', '') if profile else '',
+            getattr(profile, 'phone', '') if profile else '',
         ]
         rows.append({
             'id': user.pk,

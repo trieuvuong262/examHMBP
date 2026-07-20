@@ -38,11 +38,11 @@
             <input type="hidden" name="for_user" value="{{ history_for_user_id }}">
             {% endif %}
             <div>
-                <label class="form-label fw-bold small mb-1">Từ ngày</label>
+                <label class="form-label fw-bold small mb-1">{% if is_office_history %}Từ ngày nộp{% else %}Từ ngày{% endif %}</label>
                 <input type="date" name="from" value="{{ history_date_from|date:'Y-m-d' }}" class="form-control jp-date-vn">
             </div>
             <div>
-                <label class="form-label fw-bold small mb-1">Đến ngày</label>
+                <label class="form-label fw-bold small mb-1">{% if is_office_history %}Đến ngày nộp{% else %}Đến ngày{% endif %}</label>
                 <input type="date" name="to" value="{{ history_date_to|date:'Y-m-d' }}" class="form-control jp-date-vn">
             </div>
             <div class="flex-grow-1" style="min-width: 220px;">

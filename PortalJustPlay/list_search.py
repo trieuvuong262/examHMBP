@@ -35,7 +35,9 @@ def apply_combined_search(queryset, query: str, build_q_for_term):
 
 
 def apply_user_search(queryset, query: str, *, prefix: str = ''):
-    """Tìm user theo account, tên, email, mã NS — prefix vd. assignee__, requester__."""
+    """Tìm user theo account, tên, email, mã NS, SĐT — prefix vd. assignee__, requester__."""
+    from hrm.phone import is_valid_vn_mobile, normalize_phone
+
     lookups = (
         f'{prefix}username__icontains',
         f'{prefix}first_name__icontains',
@@ -43,5 +45,10 @@ def apply_user_search(queryset, query: str, *, prefix: str = ''):
         f'{prefix}email__icontains',
         f'{prefix}profile__full_name__icontains',
         f'{prefix}profile__employee_code__icontains',
+        f'{prefix}profile__phone__icontains',
     )
-    return apply_term_search(queryset, query, *lookups)
+    qs = apply_term_search(queryset, query, *lookups)
+    phone = normalize_phone(query)
+    if is_valid_vn_mobile(phone):
+        qs = (qs | queryset.filter(**{f'{prefix}profile__phone': phone})).distinct()
+    return qs
