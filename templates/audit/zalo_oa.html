@@ -1,0 +1,197 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5">
+    <div class="jp-page-header mb-3 mb-md-4">
+        <div>
+            <nav aria-label="breadcrumb" class="mb-2">
+                <ol class="breadcrumb breadcrumb-sm mb-0">
+                    <li class="breadcrumb-item"><a href="{% url 'audit:log_list' %}" class="text-decoration-none text-muted">Quản Trị Hệ thống</a></li>
+                    <li class="breadcrumb-item active fw-semibold">Zalo OA</li>
+                </ol>
+            </nav>
+            <h2 class="fw-bold text-hm mb-1 jp-page-title">Cấu hình Zalo OA</h2>
+            <p class="text-muted small mb-0">OTP quên mật khẩu qua ZBS Template — trạng thái kết nối và thao tác IT.</p>
+        </div>
+        <a href="{% url 'password_reset_request' %}" class="btn btn-outline-secondary fw-bold" target="_blank" rel="noopener">
+            Mở quên mật khẩu
+        </a>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h3 class="h6 fw-bold mb-3">Trạng thái</h3>
+                    {% if zalo_ready %}
+                    <div class="alert alert-success border-0 py-2 mb-3 mb-0">Sẵn sàng gửi OTP</div>
+                    {% elif zalo_configured %}
+                    <div class="alert alert-warning border-0 py-2 mb-3">Đã cấu hình .env — thiếu token OAuth</div>
+                    {% else %}
+                    <div class="alert alert-secondary border-0 py-2 mb-3">Chưa bật / thiếu biến ZALO_*</div>
+                    {% endif %}
+
+                    <ul class="list-unstyled small mb-0">
+                        <li class="mb-2 d-flex justify-content-between gap-2">
+                            <span class="text-muted">ZALO_ENABLED</span>
+                            <strong>{% if zalo_enabled %}Bật{% else %}Tắt{% endif %}</strong>
+                        </li>
+                        <li class="mb-2 d-flex justify-content-between gap-2">
+                            <span class="text-muted">App ID</span>
+                            <code class="user-select-all">{{ zalo_app_id_display }}</code>
+                        </li>
+                        <li class="mb-2 d-flex justify-content-between gap-2">
+                            <span class="text-muted">Secret</span>
+                            <strong>{% if zalo_has_secret %}Đã có{% else %}Trống{% endif %}</strong>
+                        </li>
+                        <li class="mb-2 d-flex justify-content-between gap-2">
+                            <span class="text-muted">OA ID</span>
+                            <span>{{ zalo_oa_id }}</span>
+                        </li>
+                        <li class="mb-2 d-flex justify-content-between gap-2">
+                            <span class="text-muted">Template OTP</span>
+                            <code>{{ zalo_template_id }}</code>
+                        </li>
+                        <li class="mb-2 d-flex justify-content-between gap-2">
+                            <span class="text-muted">Tham số template</span>
+                            <code>{{ zalo_otp_param }}</code>
+                        </li>
+                        <li class="mb-2 d-flex justify-content-between gap-2">
+                            <span class="text-muted">Development mode</span>
+                            <strong>{% if zalo_development_mode %}Bật{% else %}Tắt{% endif %}</strong>
+                        </li>
+                        <li class="mb-2 d-flex justify-content-between gap-2">
+                            <span class="text-muted">TTL OTP</span>
+                            <span>{{ zalo_ttl_seconds }} giây</span>
+                        </li>
+                        <li class="mb-2 d-flex justify-content-between gap-2">
+                            <span class="text-muted">NS có SĐT</span>
+                            <strong class="text-success">{{ phone_ok_count }}</strong>
+                        </li>
+                        <li class="d-flex justify-content-between gap-2">
+                            <span class="text-muted">NS thiếu SĐT</span>
+                            <strong class="{% if phone_missing_count %}text-danger{% endif %}">{{ phone_missing_count }}</strong>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-body p-4">
+                    <h3 class="h6 fw-bold mb-3">Token OAuth (DB)</h3>
+                    <ul class="list-unstyled small text-muted mb-3">
+                        <li class="mb-1">Access token: <strong class="text-dark">{% if token_has_access %}Có{% else %}Không{% endif %}</strong>
+                            {% if token_valid %}<span class="badge bg-success-subtle text-success ms-1">còn hạn</span>
+                            {% elif token_has_access %}<span class="badge bg-warning-subtle text-warning-emphasis ms-1">hết hạn</span>{% endif %}
+                        </li>
+                        <li class="mb-1">Refresh token: <strong class="text-dark">{% if token_has_refresh %}Có{% else %}Không{% endif %}</strong></li>
+                        <li class="mb-1">Hết hạn access: <strong class="text-dark">{% if token_expires_at %}{{ token_expires_at|date:"d/m/Y H:i" }}{% else %}—{% endif %}</strong></li>
+                        <li>Cập nhật lần cuối: {% if token_updated_at %}{{ token_updated_at|date:"d/m/Y H:i" }}{% else %}—{% endif %}</li>
+                    </ul>
+
+                    <div class="row g-3">
+                        <div class="col-md-7">
+                            <form method="post" class="border rounded-3 p-3 h-100">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="exchange_code">
+                                <div class="fw-semibold small mb-2">Đổi authorization code</div>
+                                <div class="mb-2">
+                                    <label class="form-label small mb-1" for="auth_code">Code từ callback Zalo</label>
+                                    <textarea name="auth_code" id="auth_code" class="form-control form-control-sm" rows="2" required placeholder="Dán code…"></textarea>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label small mb-1" for="code_verifier">Code verifier (PKCE, tuỳ chọn)</label>
+                                    <input type="text" name="code_verifier" id="code_verifier" class="form-control form-control-sm" autocomplete="off">
+                                </div>
+                                <button type="submit" class="btn btn-hm btn-sm fw-bold" {% if not zalo_configured %}disabled{% endif %}>
+                                    Lưu token
+                                </button>
+                            </form>
+                        </div>
+                        <div class="col-md-5">
+                            <form method="post" class="border rounded-3 p-3 h-100 d-flex flex-column">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="refresh_token">
+                                <div class="fw-semibold small mb-2">Làm mới access token</div>
+                                <p class="small text-muted flex-grow-1 mb-3">Dùng refresh token đã lưu (hoặc ZALO_REFRESH_TOKEN trong .env).</p>
+                                <button type="submit" class="btn btn-outline-secondary btn-sm fw-bold" {% if not zalo_has_refresh %}disabled{% endif %}>
+                                    Refresh token
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-body p-4">
+                    <h3 class="h6 fw-bold mb-2">Gửi OTP thử</h3>
+                    <p class="small text-muted mb-3">
+                        {% if zalo_development_mode %}
+                        Đang bật development — chỉ admin OA/App nhận được tin.
+                        {% else %}
+                        Production — tin thật, tính phí ZBS.
+                        {% endif %}
+                    </p>
+                    <form method="post" class="row g-2 align-items-end">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="send_test_otp">
+                        <div class="col-sm-5">
+                            <label class="form-label small mb-1" for="test_phone">SĐT</label>
+                            <input type="text" name="test_phone" id="test_phone" class="form-control" placeholder="0912345678" required inputmode="tel">
+                        </div>
+                        <div class="col-sm-3">
+                            <label class="form-label small mb-1" for="test_otp">OTP thử</label>
+                            <input type="text" name="test_otp" id="test_otp" class="form-control" value="123456" maxlength="8" inputmode="numeric">
+                        </div>
+                        <div class="col-sm-4">
+                            <button type="submit" class="btn btn-hm fw-bold w-100" {% if not zalo_ready %}disabled{% endif %}>
+                                Gửi thử
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <h3 class="h6 fw-bold mb-3">OTP quên mật khẩu gần đây</h3>
+                    {% if recent_otps %}
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead>
+                                <tr class="small text-muted">
+                                    <th>Thời gian</th>
+                                    <th>Tài khoản</th>
+                                    <th>SĐT</th>
+                                    <th>Trạng thái</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in recent_otps %}
+                                <tr class="small">
+                                    <td>{{ row.created_at|date:"d/m H:i" }}</td>
+                                    <td>{{ row.username }}</td>
+                                    <td>{{ row.phone_display }}</td>
+                                    <td>{{ row.status_display }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted small mb-0">Chưa có yêu cầu OTP nào.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <p class="small text-muted mt-3 mb-0">
+                Biến môi trường xem <code>.env</code> / <code>docs/integrations/zalo/README.md</code>.
+                Đổi App ID, Secret, Template ID phải sửa .env rồi restart web.
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}

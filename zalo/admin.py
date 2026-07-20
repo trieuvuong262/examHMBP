@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from zalo.models import ZaloOAuthToken
+from zalo.models import PasswordResetOtp, ZaloOAuthToken
 
 
 @admin.register(ZaloOAuthToken)
@@ -18,3 +18,19 @@ class ZaloOAuthTokenAdmin(admin.ModelAdmin):
 
     def has_add_permission(self, request):
         return not ZaloOAuthToken.objects.exists()
+
+
+@admin.register(PasswordResetOtp)
+class PasswordResetOtpAdmin(admin.ModelAdmin):
+    list_display = (
+        'id', 'user', 'phone', 'status', 'attempts', 'expires_at', 'created_at',
+    )
+    list_filter = ('status',)
+    search_fields = ('user__username', 'phone', 'session_token')
+    readonly_fields = (
+        'user', 'code_hash', 'session_token', 'phone', 'ip_address',
+        'attempts', 'status', 'expires_at', 'verified_at', 'used_at', 'created_at',
+    )
+
+    def has_add_permission(self, request):
+        return False

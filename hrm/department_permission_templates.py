@@ -121,6 +121,7 @@ def _it_audit_menus(*, manager: bool) -> dict:
             'nas_monitor': FULL,
             'kiotviet_sync': FULL,
             'nas_links': FULL,
+            'zalo_oa': FULL,
             'qa_assistant': FULL,
         }
     return {
@@ -132,6 +133,7 @@ def _it_audit_menus(*, manager: bool) -> dict:
         'nas_monitor': VIEW,
         'kiotviet_sync': VIEW,
         'nas_links': VIEW,
+        'zalo_oa': VIEW,
         'qa_assistant': VIEW,
     }
 

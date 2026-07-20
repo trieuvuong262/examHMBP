@@ -101,6 +101,18 @@ URL_DESCRIPTIONS: dict[str, dict[str, str] | str] = {
         'POST': 'đổi mật khẩu tài khoản',
     },
     'password_change_done': 'xem trang đổi mật khẩu thành công',
+    'password_reset_request': {
+        'GET': 'mở form quên mật khẩu',
+        'POST': 'yêu cầu OTP quên mật khẩu qua Zalo',
+    },
+    'password_reset_otp': {
+        'GET': 'mở form nhập OTP quên mật khẩu',
+        'POST': 'xác thực OTP quên mật khẩu',
+    },
+    'password_reset_new': {
+        'GET': 'mở form đặt mật khẩu mới sau OTP',
+        'POST': 'đặt mật khẩu mới sau OTP Zalo',
+    },
     'logout': 'bấm nút Đăng xuất',
     'user_guide': 'xem hướng dẫn sử dụng',
     'user_guide_edit': {
@@ -655,6 +667,10 @@ NAMESPACE_URL_DESCRIPTIONS: dict[str, dict[str, str] | str] = {
         'GET': 'mở cấu hình trợ lý AI',
         'POST': 'lưu cấu hình trợ lý AI',
     },
+    'audit:zalo_oa': {
+        'GET': 'xem cấu hình Zalo OA / OTP',
+        'POST': 'thao tác cấu hình Zalo OA (token / OTP thử)',
+    },
 
     # KiotViet tra cứu
     'kiotviet:customer_lookup': 'tra cứu khách hàng KiotViet',
@@ -841,6 +857,9 @@ URL_POST_HIGHLIGHTS: dict[str, list[str]] = {
     'grade_submission': ['score', 'feedback'],
     'take_exam': ['exam_id'],
     'password_change': ['old_password'],
+    'password_reset_otp': ['otp'],
+    'password_reset_new': ['password1', 'password2'],
+    'zalo_oa': ['auth_code', 'code_verifier'],
     'user_guide_edit': ['content', 'title'],
     'kiotviet_sync_save': ['interval_minutes', 'entities'],
     'kiotviet_sync_run': ['entities'],

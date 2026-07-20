@@ -440,6 +440,11 @@ ZALO_MESSAGE_URL = os.getenv(
     'https://business.openapi.zalo.me/message/template',
 ).strip()
 ZALO_API_TIMEOUT = int(os.getenv('ZALO_API_TIMEOUT', '30') or '30')
+ZALO_OTP_TTL_SECONDS = int(os.getenv('ZALO_OTP_TTL_SECONDS', '300') or '300')
+ZALO_OTP_LENGTH = int(os.getenv('ZALO_OTP_LENGTH', '6') or '6')
+ZALO_OTP_MAX_ATTEMPTS = int(os.getenv('ZALO_OTP_MAX_ATTEMPTS', '5') or '5')
+ZALO_OTP_COOLDOWN_SECONDS = int(os.getenv('ZALO_OTP_COOLDOWN_SECONDS', '60') or '60')
+ZALO_OTP_MAX_PER_HOUR = int(os.getenv('ZALO_OTP_MAX_PER_HOUR', '5') or '5')
 
 # Odoo ERP — đồng bộ user / menu Odoo (Phase 1)
 ODOO_URL = os.getenv('ODOO_URL', 'https://erp.justplay.vn').strip().rstrip('/')

@@ -1,7 +1,23 @@
 # Zalo OA + ZBS Template Message (OTP quên mật khẩu Portal)
 
 > Mục tiêu **P1**: cấu hình OA/App/ZBS + template OTP + client Portal sẵn sàng gửi thử.  
-> Flow quên mật khẩu trên login (**P2**) dùng `zalo.services.send_password_reset_otp`.
+> **P2** (đã có): quên mật khẩu trên login → OTP Zalo → đặt MK mới (`/accounts/forgot-password/`).
+
+## Luồng P2 (user)
+
+1. Login → **Quên mật khẩu?**
+2. Nhập username hoặc mã NS → OTP gửi Zalo (`Profile.phone`)
+3. Nhập OTP → đặt mật khẩu mới → đồng bộ Odoo/NAS → về login
+
+Yêu cầu: P0 (có SĐT) + P1 (`zalo_is_ready()`).
+
+| URL | Việc |
+|-----|------|
+| `/accounts/forgot-password/` | Yêu cầu OTP |
+| `/accounts/forgot-password/otp/` | Nhập OTP |
+| `/accounts/forgot-password/new/` | Đặt MK mới |
+
+Code: `zalo.password_reset`, `zalo.views_password_reset`.
 
 ## Liên kết chính thức
 

@@ -1216,6 +1216,15 @@
                     </a>
                 </li>
                 {% endif %}
+                {% jp_can_menu 'audit' 'zalo_oa' as jp_can_audit_zalo_oa %}
+                {% if jp_can_audit_zalo_oa %}
+                <li>
+                    <a href="{% url 'audit:zalo_oa' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'zalo_oa' %}active{% endif %}">
+                        <i class="bi bi-chat-dots"></i><span>Zalo OA</span>
+                    </a>
+                </li>
+                {% endif %}
                 {% jp_can_menu 'audit' 'qa_assistant' as jp_can_audit_qa_assistant %}
                 {% if jp_can_audit_qa_assistant %}
                 <li>

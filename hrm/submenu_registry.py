@@ -173,6 +173,7 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
         {'key': 'nas_monitor', 'label': 'Giám sát NAS', 'perm_label': 'Giám sát NAS', 'icon': 'bi-hdd-network', 'perm_manage': True},
         {'key': 'kiotviet_sync', 'label': 'Đồng bộ KiotViet', 'icon': 'bi-arrow-repeat'},
         {'key': 'nas_links', 'label': 'Cập nhật link NAS', 'icon': 'bi-hdd-network'},
+        {'key': 'zalo_oa', 'label': 'Zalo OA', 'perm_label': 'Cấu hình Zalo OA', 'icon': 'bi-chat-dots', 'perm_manage': True},
         {'key': 'qa_assistant', 'label': 'Trợ lý AI', 'icon': 'bi-stars'},
     ],
 }
@@ -332,6 +333,7 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     ('/tai-lieu/file', MODULE_DOCUMENTS, 'browse'),
     ('/tai-lieu/', MODULE_DOCUMENTS, 'browse'),
     # Quản trị hệ thống
+    ('/nhat-ky/zalo-oa', MODULE_AUDIT, 'zalo_oa'),
     ('/nhat-ky/tro-ly-ai', MODULE_AUDIT, 'qa_assistant'),
     ('/nhat-ky/bao-mat-dang-nhap', MODULE_AUDIT, 'login_security'),
     ('/nhat-ky/rustdesk/trang-thai', MODULE_AUDIT, 'rustdesk'),
