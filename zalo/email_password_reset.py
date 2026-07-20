@@ -12,6 +12,7 @@ from django.contrib.auth.tokens import default_token_generator
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import transaction
+from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
@@ -86,16 +87,18 @@ def send_password_reset_email(request, user: User) -> None:
     reset_url = build_reset_url(request, user)
     display = getattr(getattr(user, 'profile', None), 'full_name', '') or user.get_full_name() or user.username
     subject = 'JustPlay Portal — Đặt lại mật khẩu'
+    ctx = {'display_name': display, 'reset_url': reset_url}
     body = (
         f'Xin chào {display},\n\n'
         f'Bạn (hoặc ai đó) đã yêu cầu đặt lại mật khẩu JustPlay Portal.\n\n'
         f'Mở liên kết sau để đặt mật khẩu mới (có thời hạn):\n'
         f'{reset_url}\n\n'
-        f'Nếu bạn không yêu cầu, hãy bỏ qua email này.\n\n'
+        f'Nếu bạn không yêu cầu, hãy bỏ qua email này — tài khoản vẫn an toàn.\n\n'
         f'— JustPlay Portal\n'
     )
+    html_body = render_to_string('registration/password_reset_email.html', ctx)
     try:
-        send_portal_mail(subject, body, [to_email])
+        send_portal_mail(subject, body, [to_email], html_message=html_body)
     except Exception as exc:
         logger.exception('Gửi email reset mật khẩu thất bại user=%s', user.pk)
         raise PasswordResetError(
