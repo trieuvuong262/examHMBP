@@ -195,17 +195,68 @@ def _page(request, *, title, subtitle, model, fields, labels, related_url_name=N
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def overview(request):
-    doc_total = ProductTechDoc.objects.count()
-    doc_active = ProductTechDoc.objects.filter(is_active=True).count()
-    open_qc_alerts = SxQcAlert.objects.filter(is_demo=False, status=SxQcAlert.STATUS_OPEN).count()
+    import json
+
+    from san_xuat.services.overview import build_overview_dashboard, parse_overview_period
+
+    month = (request.GET.get('month') or '').strip()
+    date_from_raw = (request.GET.get('date_from') or '').strip()
+    date_to_raw = (request.GET.get('date_to') or '').strip()
+    product_code = (request.GET.get('product_code') or '').strip()
+    team_label = (request.GET.get('team_label') or '').strip()
+    active_tab = (request.GET.get('tab') or 'tong-hop').strip().lower()
+    allowed_tabs = {'tong-hop', 'lenh-sx', 'san-luong', 'chat-luong', 'dung-chuyen'}
+    if active_tab not in allowed_tabs:
+        active_tab = 'tong-hop'
+    date_from, date_to = parse_overview_period(
+        month=month,
+        date_from=date_from_raw,
+        date_to=date_to_raw,
+    )
+    dash = build_overview_dashboard(
+        date_from=date_from,
+        date_to=date_to,
+        product_code=product_code,
+        team_label=team_label,
+    )
+    month_value = f'{date_from.year:04d}-{date_from.month:02d}'
+    has_filters = bool(
+        product_code or team_label
+        or month or date_from_raw or date_to_raw
+    )
+
+    def _j(obj):
+        return json.dumps(obj, ensure_ascii=False)
+
     return render(request, 'san_xuat/hub_overview.html', {
         **_perm_ctx(request),
-        'doc_total': doc_total,
-        'doc_active': doc_active,
-        'plan_count': SxOverallPlan.objects.filter(is_demo=False).count(),
-        'mo_count': SxProductionOrder.objects.filter(is_demo=True).count(),
-        'qc_count': SxQcInspection.objects.filter(is_demo=True).count(),
-        'open_qc_alerts': open_qc_alerts,
+        'dash': dash,
+        'month_value': month_value,
+        'filter_product_code': product_code,
+        'filter_team_label': team_label,
+        'active_tab': active_tab,
+        'has_filters': has_filters,
+        'chart_mo_labels_json': _j([row['label'] for row in dash.mo_by_status]),
+        'chart_mo_data_json': _j([row['count'] for row in dash.mo_by_status]),
+        'chart_day_labels_json': _j([row['label'] for row in dash.production_by_day]),
+        'chart_day_good_json': _j([row['qty_good'] for row in dash.production_by_day]),
+        'chart_day_defect_json': _j([row['qty_defect'] for row in dash.production_by_day]),
+        'chart_qc_data_json': _j([dash.qc_pass, dash.qc_fail, dash.qc_pending]),
+        'chart_dt_labels_json': _j([row['reason'][:40] for row in dash.downtime_by_reason]),
+        'chart_dt_data_json': _j([row['minutes'] for row in dash.downtime_by_reason]),
+        'chart_order_labels_json': _j([row['label'] for row in dash.orders_by_sx_status]),
+        'chart_order_data_json': _j([row['count'] for row in dash.orders_by_sx_status]),
+        'chart_team_labels_json': _j([row['team_label'] for row in dash.team_output]),
+        'chart_team_good_json': _j([row['qty_good'] for row in dash.team_output]),
+        'chart_team_defect_json': _j([row['qty_defect'] for row in dash.team_output]),
+        'chart_process_labels_json': _j([row['process_name'] for row in dash.process_output]),
+        'chart_process_good_json': _j([row['qty_good'] for row in dash.process_output]),
+        'chart_process_defect_json': _j([row['qty_defect'] for row in dash.process_output]),
+        'chart_product_labels_json': _j([row['product_code'] for row in dash.top_products_output]),
+        'chart_product_good_json': _j([row['qty_good'] for row in dash.top_products_output]),
+        'chart_product_defect_json': _j([row['qty_defect'] for row in dash.top_products_output]),
+        'chart_defect_labels_json': _j([row['product_code'] for row in dash.top_products_defect]),
+        'chart_defect_rate_json': _j([row['defect_rate'] for row in dash.top_products_defect]),
     })
 
 
