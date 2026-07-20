@@ -122,6 +122,7 @@ def _it_audit_menus(*, manager: bool) -> dict:
             'kiotviet_sync': FULL,
             'nas_links': FULL,
             'zalo_oa': FULL,
+            'email_config': FULL,
             'qa_assistant': FULL,
         }
     return {
@@ -134,6 +135,7 @@ def _it_audit_menus(*, manager: bool) -> dict:
         'kiotviet_sync': VIEW,
         'nas_links': VIEW,
         'zalo_oa': VIEW,
+        'email_config': VIEW,
         'qa_assistant': VIEW,
     }
 

@@ -325,3 +325,47 @@ class RustDeskHost(models.Model):
         from audit.services.rustdesk_connect import build_rustdesk_connect_url
 
         return build_rustdesk_connect_url(self.rustdesk_id, self.rustdesk_password)
+
+
+class EmailSmtpConfig(models.Model):
+    """SMTP gửi mail Portal (singleton pk=1) — quên mật khẩu, thông báo…"""
+
+    enabled = models.BooleanField(default=False, verbose_name='Bật SMTP')
+    host = models.CharField(max_length=255, blank=True, default='', verbose_name='SMTP host')
+    port = models.PositiveIntegerField(default=587, verbose_name='Cổng')
+    username = models.CharField(max_length=255, blank=True, default='', verbose_name='Tài khoản SMTP')
+    password = models.CharField(max_length=255, blank=True, default='', verbose_name='Mật khẩu SMTP')
+    use_tls = models.BooleanField(default=True, verbose_name='TLS')
+    use_ssl = models.BooleanField(default=False, verbose_name='SSL')
+    from_email = models.CharField(
+        max_length=255,
+        blank=True,
+        default='',
+        verbose_name='Email gửi đi (From)',
+        help_text='Ví dụ: noreply@justplay.vn hoặc JustPlay Portal <noreply@justplay.vn>',
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='email_smtp_configs_updated',
+        verbose_name='Cập nhật bởi',
+    )
+
+    class Meta:
+        verbose_name = 'Cấu hình SMTP email'
+        verbose_name_plural = 'Cấu hình SMTP email'
+
+    def __str__(self):
+        return f'SMTP {"bật" if self.enabled else "tắt"} · {self.host or "(chưa cấu hình)"}'
+
+    @classmethod
+    def get_solo(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+    def is_ready(self) -> bool:
+        return bool(self.enabled and (self.host or '').strip() and (self.from_email or '').strip())
+

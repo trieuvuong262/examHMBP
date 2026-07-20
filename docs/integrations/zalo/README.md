@@ -1,23 +1,26 @@
 # Zalo OA + ZBS Template Message (OTP quên mật khẩu Portal)
 
-> Mục tiêu **P1**: cấu hình OA/App/ZBS + template OTP + client Portal sẵn sàng gửi thử.  
-> **P2** (đã có): quên mật khẩu trên login → OTP Zalo → đặt MK mới (`/accounts/forgot-password/`).
+> **P2:** quên mật khẩu trên login — chọn **Email** (đang dùng) hoặc **Zalo** (bảo trì).  
+> Email: có sẵn → gửi link; chưa có → nhập email → lưu hồ sơ → gửi link.  
+> URL: `/accounts/forgot-password/`.
 
-## Luồng P2 (user)
+## Luồng quên mật khẩu (user)
 
 1. Login → **Quên mật khẩu?**
-2. Nhập username hoặc mã NS → OTP gửi Zalo (`Profile.phone`)
-3. Nhập OTP → đặt mật khẩu mới → đồng bộ Odoo/NAS → về login
-
-Yêu cầu: P0 (có SĐT) + P1 (`zalo_is_ready()`).
+2. Nhập username / mã NS → chọn **Email** (Zalo hiện “Bảo trì”)
+3. **Đã có email:** thông báo kiểm tra hộp thư  
+   **Chưa có email:** nhập email → lưu `User.email` → gửi mail
+4. Mở link trong email → đặt mật khẩu mới → đăng nhập
 
 | URL | Việc |
 |-----|------|
-| `/accounts/forgot-password/` | Yêu cầu OTP |
-| `/accounts/forgot-password/otp/` | Nhập OTP |
-| `/accounts/forgot-password/new/` | Đặt MK mới |
+| `/accounts/forgot-password/` | Chọn kênh + nhập tài khoản |
+| `/accounts/forgot-password/email/` | Nhập email khi hồ sơ trống |
+| `/accounts/forgot-password/email-sent/` | Đã gửi mail |
+| `/accounts/forgot-password/confirm/<uid>/<token>/` | Đặt MK từ link |
+| `/accounts/forgot-password/otp/` | OTP Zalo (khi hết bảo trì) |
 
-Code: `zalo.password_reset`, `zalo.views_password_reset`.
+Code: `zalo.email_password_reset`, `zalo.views_password_reset`.
 
 ## Liên kết chính thức
 

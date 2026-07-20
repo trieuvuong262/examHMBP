@@ -12,9 +12,13 @@ SITE_TITLE = 'Just Play Portal'
 
 _STATIC_PATH_TITLES = (
     ('/accounts/login/', 'Đăng nhập'),
+    ('/accounts/forgot-password/confirm/', 'Mật khẩu mới'),
+    ('/accounts/forgot-password/email-sent/', 'Kiểm tra email'),
+    ('/accounts/forgot-password/email/', 'Nhập email'),
     ('/accounts/forgot-password/otp/', 'Nhập OTP'),
     ('/accounts/forgot-password/new/', 'Mật khẩu mới'),
     ('/accounts/forgot-password/', 'Quên mật khẩu'),
+    ('/nhat-ky/email', 'Email'),
     ('/nhat-ky/zalo-oa', 'Zalo OA'),
     ('/change-password', 'Thiết lập mật khẩu'),
 )

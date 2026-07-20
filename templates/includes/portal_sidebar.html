@@ -1225,6 +1225,15 @@
                     </a>
                 </li>
                 {% endif %}
+                {% jp_can_menu 'audit' 'email_config' as jp_can_audit_email_config %}
+                {% if jp_can_audit_email_config %}
+                <li>
+                    <a href="{% url 'audit:email_config' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'email_config' %}active{% endif %}">
+                        <i class="bi bi-envelope"></i><span>Email</span>
+                    </a>
+                </li>
+                {% endif %}
                 {% jp_can_menu 'audit' 'qa_assistant' as jp_can_audit_qa_assistant %}
                 {% if jp_can_audit_qa_assistant %}
                 <li>

@@ -1,0 +1,147 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5">
+    <div class="jp-page-header mb-3 mb-md-4">
+        <div>
+            <nav aria-label="breadcrumb" class="mb-2">
+                <ol class="breadcrumb breadcrumb-sm mb-0">
+                    <li class="breadcrumb-item"><a href="{% url 'audit:log_list' %}" class="text-decoration-none text-muted">Quản Trị Hệ thống</a></li>
+                    <li class="breadcrumb-item active fw-semibold">Email</li>
+                </ol>
+            </nav>
+            <h2 class="fw-bold text-hm mb-1 jp-page-title">Cấu hình Email</h2>
+            <p class="text-muted small mb-0">SMTP dùng gửi mail quên mật khẩu và thông báo hệ thống.</p>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h3 class="h6 fw-bold mb-3">Trạng thái</h3>
+                    {% if status.configured %}
+                    <div class="alert alert-success border-0 py-2 mb-3">
+                        Sẵn sàng gửi mail
+                        <div class="small mt-1 opacity-75">Nguồn: {% if status.active_source == 'db' %}cấu hình trên Portal{% else %}.env / console{% endif %}</div>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-warning border-0 py-2 mb-3">Chưa sẵn sàng — điền SMTP bên phải và bật gửi.</div>
+                    {% endif %}
+
+                    <ul class="list-unstyled small mb-0">
+                        <li class="mb-2 d-flex justify-content-between gap-2">
+                            <span class="text-muted">NS có email</span>
+                            <strong class="text-success">{{ users_with_email }}</strong>
+                        </li>
+                        <li class="mb-2 d-flex justify-content-between gap-2">
+                            <span class="text-muted">NS thiếu email</span>
+                            <strong class="{% if users_without_email %}text-danger{% endif %}">{{ users_without_email }}</strong>
+                        </li>
+                        <li class="mb-2 d-flex justify-content-between gap-2">
+                            <span class="text-muted">Admin email</span>
+                            <span class="text-break">{{ admin_email|default:"—" }}</span>
+                        </li>
+                        <li class="d-flex justify-content-between gap-2">
+                            <span class="text-muted">Cập nhật</span>
+                            <span>{% if status.db_updated_at %}{{ status.db_updated_at|date:"d/m/Y H:i" }}{% else %}—{% endif %}</span>
+                        </li>
+                    </ul>
+
+                    <hr class="my-3">
+                    <h3 class="h6 fw-bold mb-2">.env (fallback)</h3>
+                    <ul class="list-unstyled small text-muted mb-0">
+                        <li class="mb-1">Backend: <code class="text-dark">{{ status.env_backend }}</code></li>
+                        <li class="mb-1">Host: {{ status.env_host }}:{{ status.env_port }}</li>
+                        <li class="mb-1">User: {{ status.env_user }}</li>
+                        <li class="mb-1">Password: {% if status.env_has_password %}Đã có{% else %}Trống{% endif %}</li>
+                        <li>From: {{ status.env_from }}</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-body p-4">
+                    <h3 class="h6 fw-bold mb-3">SMTP trên Portal</h3>
+                    <form method="post" autocomplete="off">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="save">
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" role="switch" id="id_enabled" name="enabled" value="1"
+                                   {% if cfg.enabled %}checked{% endif %}>
+                            <label class="form-check-label fw-semibold" for="id_enabled">Bật gửi qua SMTP này</label>
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-md-8">
+                                <label class="form-label small fw-semibold" for="id_host">SMTP host</label>
+                                <input type="text" class="form-control" id="id_host" name="host" value="{{ cfg.host }}"
+                                       placeholder="smtp.gmail.com" autocomplete="off">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small fw-semibold" for="id_port">Cổng</label>
+                                <input type="number" class="form-control" id="id_port" name="port" value="{{ cfg.port }}" min="1" max="65535">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold" for="id_username">Tài khoản SMTP</label>
+                                <input type="text" class="form-control" id="id_username" name="username" value="{{ cfg.username }}"
+                                       autocomplete="off">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold" for="id_password">Mật khẩu SMTP</label>
+                                <input type="password" class="form-control" id="id_password" name="password"
+                                       placeholder="{% if cfg.password %}•••••••• (để trống = giữ nguyên){% else %}••••••••{% endif %}"
+                                       autocomplete="new-password">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label small fw-semibold" for="id_from_email">Email gửi đi (From)</label>
+                                <input type="text" class="form-control" id="id_from_email" name="from_email" value="{{ cfg.from_email }}"
+                                       placeholder="JustPlay Portal &lt;noreply@justplay.vn&gt;">
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="id_use_tls" name="use_tls" value="1"
+                                           {% if cfg.use_tls %}checked{% endif %}>
+                                    <label class="form-check-label" for="id_use_tls">TLS (thường cổng 587)</label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="id_use_ssl" name="use_ssl" value="1"
+                                           {% if cfg.use_ssl %}checked{% endif %}>
+                                    <label class="form-check-label" for="id_use_ssl">SSL (thường cổng 465)</label>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-hm fw-bold mt-4">
+                            <i class="bi bi-check2-circle me-1"></i>Lưu cấu hình
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <h3 class="h6 fw-bold mb-2">Gửi email thử</h3>
+                    <p class="small text-muted mb-3">Kiểm tra SMTP trước khi dùng quên mật khẩu.</p>
+                    <form method="post" class="row g-2 align-items-end">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="send_test">
+                        <div class="col-sm-8">
+                            <label class="form-label small mb-1" for="test_email">Gửi tới</label>
+                            <input type="email" class="form-control" name="test_email" id="test_email"
+                                   value="{{ test_email_default }}" required placeholder="ban@gmail.com">
+                        </div>
+                        <div class="col-sm-4">
+                            <button type="submit" class="btn btn-outline-secondary fw-bold w-100" {% if not status.configured %}disabled{% endif %}>
+                                Gửi thử
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
