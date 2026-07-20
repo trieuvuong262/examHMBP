@@ -6,13 +6,45 @@ from decimal import Decimal
 
 from django.contrib import messages
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 
 from assessment.decorators import module_perm_required
 from hrm.module_permissions import MODULE_SAN_XUAT
 
 from san_xuat.hub_list import _rows_from_queryset, hub_list_page
-from san_xuat.list_filters import SX_FILTER_WIP_RETURN, prepare_hub_list
+from san_xuat.list_filters import (
+    SX_FILTER_COST_ORDER,
+    SX_FILTER_COST_SHEET,
+    SX_FILTER_COST_TYPE,
+    SX_FILTER_DISASSEMBLY,
+    SX_FILTER_FG_RECEIPT,
+    SX_FILTER_MATERIAL_ISSUE,
+    SX_FILTER_MO,
+    SX_FILTER_NPL_PR,
+    SX_FILTER_NPL_SURPLUS,
+    SX_FILTER_PACKING,
+    SX_FILTER_PLAN_NPL,
+    SX_FILTER_PLAN_PERIOD,
+    SX_FILTER_PROD_STAT,
+    SX_FILTER_PURCHASE_ORDER,
+    SX_FILTER_QC_ALERT,
+    SX_FILTER_QC_CATALOG,
+    SX_FILTER_QC_REQUEST,
+    SX_FILTER_QC_SHEET,
+    SX_FILTER_SUBCONTRACT,
+    SX_FILTER_WIP_HANDOVER,
+    SX_FILTER_WIP_RETURN,
+    SX_FILTER_WORK_ASSIGN,
+    SX_FILTER_WORK_CENTER,
+    apply_sx_list_filters,
+    default_list_date_range,
+    filter_tuple_rows,
+    parse_sx_list_filters,
+    prepare_hub_list,
+    sx_filter_context,
+    SxListFilters,
+)
 from san_xuat.hub_models import (
     SxCostType,
     SxDetailPlan,
@@ -68,6 +100,7 @@ from san_xuat.forms_phase3 import (
     WorkCenterForm,
 )
 from san_xuat.forms_dispatch import (
+    ScheduleMoUpdateForm,
     DisassemblyCreateForm,
     FgReceiptCreateForm,
     FgReceiptLinkKvForm,
@@ -93,6 +126,7 @@ from san_xuat.forms_qc import (
     QcStandardSetForm,
 )
 from san_xuat.services.dispatch import (
+    update_mo_schedule,
     DispatchError,
     approve_material_issue,
     build_material_issue_request,
@@ -301,24 +335,28 @@ def products_nvl(request):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def costing_norm(request):
-    rows = list_costing_from_active_boms()
+    filters = parse_sx_list_filters(request)
+    rows = filter_tuple_rows(list_costing_from_active_boms(), filters)
     return render(request, 'san_xuat/costing_bom_list.html', {
         **_perm_ctx(request),
         'rows': rows,
         'product_count': len(rows),
+        **sx_filter_context(filters),
     })
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def costing_sheet_list(request):
-    qs = (
+    base_qs = (
         SxStandardCostSheet.objects.filter(is_demo=False)
         .prefetch_related('lines')
         .order_by('-date_from', '-pk')
     )
+    sheets, fctx = prepare_hub_list(request, base_qs, SX_FILTER_COST_SHEET)
     return render(request, 'san_xuat/costing_sheet_list.html', {
         **_perm_ctx(request),
-        'sheets': qs[:200],
+        'sheets': sheets,
+        **fctx,
     })
 
 
@@ -391,14 +429,16 @@ def costing_sheet_detail(request, pk: int):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def costing_by_order(request):
-    qs = (
+    base_qs = (
         SxOrderPlanCost.objects.filter(is_demo=False)
         .prefetch_related('lines')
         .order_by('-date_from', '-pk')
     )
+    sheets, fctx = prepare_hub_list(request, base_qs, SX_FILTER_COST_ORDER)
     return render(request, 'san_xuat/costing_order_list.html', {
         **_perm_ctx(request),
-        'sheets': qs[:200],
+        'sheets': sheets,
+        **fctx,
     })
 
 
@@ -523,10 +563,12 @@ def costing_order_export(request, pk: int):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def costing_cost_types(request):
-    types = SxCostType.objects.filter(is_demo=False).order_by('sort_order', 'code')
+    base_qs = SxCostType.objects.filter(is_demo=False).order_by('sort_order', 'code')
+    cost_types, fctx = prepare_hub_list(request, base_qs, SX_FILTER_COST_TYPE)
     return render(request, 'san_xuat/costing_cost_type_list.html', {
         **_perm_ctx(request),
-        'cost_types': types,
+        'cost_types': cost_types,
+        **fctx,
     })
 
 
@@ -602,14 +644,16 @@ def plan_stub(request):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def plan_overall(request):
-    qs = (
+    base_qs = (
         SxOverallPlan.objects.filter(is_demo=False)
         .prefetch_related('lines')
         .order_by('-date_from', '-pk')
     )
+    plans, fctx = prepare_hub_list(request, base_qs, SX_FILTER_PLAN_PERIOD)
     return render(request, 'san_xuat/plan_overall_list.html', {
         **_perm_ctx(request),
-        'plans': qs[:200],
+        'plans': plans,
+        **fctx,
     })
 
 
@@ -712,15 +756,17 @@ def plan_overall_detail(request, pk: int):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def plan_detail(request):
-    qs = (
+    base_qs = (
         SxDetailPlan.objects.filter(is_demo=False)
         .select_related('overall_plan')
         .prefetch_related('lines')
         .order_by('-date_from', '-pk')
     )
+    plans, fctx = prepare_hub_list(request, base_qs, SX_FILTER_PLAN_PERIOD)
     return render(request, 'san_xuat/plan_detail_list.html', {
         **_perm_ctx(request),
-        'plans': qs[:200],
+        'plans': plans,
+        **fctx,
     })
 
 
@@ -850,15 +896,17 @@ def plan_detail_detail(request, pk: int):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def plan_npl(request):
-    qs = (
+    base_qs = (
         SxMaterialPlan.objects.filter(is_demo=False)
         .select_related('overall_plan')
         .prefetch_related('lines')
         .order_by('-created_at', '-pk')
     )
+    plans, fctx = prepare_hub_list(request, base_qs, SX_FILTER_PLAN_NPL)
     return render(request, 'san_xuat/plan_npl_list.html', {
         **_perm_ctx(request),
-        'plans': qs[:200],
+        'plans': plans,
+        **fctx,
     })
 
 
@@ -936,15 +984,17 @@ def plan_npl_detail(request, pk: int):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def npl_purchase_request(request):
-    qs = (
+    base_qs = (
         SxNplPurchaseRequest.objects.filter(is_demo=False)
         .select_related('material_plan', 'material_plan__overall_plan')
         .prefetch_related('lines')
         .order_by('-created_at', '-pk')
     )
+    requests_qs, fctx = prepare_hub_list(request, base_qs, SX_FILTER_NPL_PR)
     return render(request, 'san_xuat/npl_purchase_request_list.html', {
         **_perm_ctx(request),
-        'requests': qs[:200],
+        'requests': requests_qs,
+        **fctx,
     })
 
 
@@ -1030,15 +1080,17 @@ def npl_purchase_request_detail(request, pk: int):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def purchase_order(request):
-    qs = (
+    base_qs = (
         SxPurchaseOrder.objects.filter(is_demo=False)
         .select_related('purchase_request', 'purchase_request__material_plan')
         .prefetch_related('lines')
         .order_by('-created_at', '-pk')
     )
+    orders, fctx = prepare_hub_list(request, base_qs, SX_FILTER_PURCHASE_ORDER)
     return render(request, 'san_xuat/purchase_order_list.html', {
         **_perm_ctx(request),
-        'orders': qs[:200],
+        'orders': orders,
+        **fctx,
     })
 
 
@@ -1127,15 +1179,17 @@ def dispatch_stub(request):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def dispatch_mo(request):
-    qs = (
+    base_qs = (
         SxProductionOrder.objects.filter(is_demo=False)
         .order_by('-order_date', '-pk')
         .select_related('bom_version')
     )
+    orders, fctx = prepare_hub_list(request, base_qs, SX_FILTER_MO)
     return render(request, 'san_xuat/dispatch_mo_list.html', {
         **_perm_ctx(request),
         'page_title': 'Lệnh sản xuất',
-        'orders': qs[:200],
+        'orders': orders,
+        **fctx,
     })
 
 
@@ -1297,14 +1351,16 @@ def dispatch_mo_detail(request, pk: int):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def dispatch_disassembly(request):
-    qs = (
+    base_qs = (
         SxDisassemblyOrder.objects.filter(is_demo=False)
         .select_related('production_order')
         .order_by('-order_date', '-pk')
     )
+    orders, fctx = prepare_hub_list(request, base_qs, SX_FILTER_DISASSEMBLY)
     return render(request, 'san_xuat/disassembly_list.html', {
         **_perm_ctx(request),
-        'orders': qs[:200],
+        'orders': orders,
+        **fctx,
     })
 
 
@@ -1395,6 +1451,7 @@ def dispatch_schedule(request):
 
     from django.db.models import Q
 
+    can_update = _perm_ctx(request).get('can_update')
     today = timezone.localdate()
     week_param = (request.GET.get('week') or '').strip()
     if week_param:
@@ -1404,6 +1461,24 @@ def dispatch_schedule(request):
             week_start = today - timedelta(days=today.weekday())
     else:
         week_start = today - timedelta(days=today.weekday())
+
+    if request.method == 'POST' and can_update:
+        form = ScheduleMoUpdateForm(request.POST)
+        if form.is_valid():
+            try:
+                mo = update_mo_schedule(
+                    production_order_id=form.cleaned_data['production_order_id'],
+                    planned_start=form.cleaned_data.get('planned_start'),
+                    planned_end=form.cleaned_data.get('planned_end'),
+                    team_label=form.cleaned_data.get('team_label'),
+                )
+            except DispatchError as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(request, f'Đã cập nhật lịch {mo.code}.')
+        else:
+            messages.error(request, 'Không cập nhật được lịch — kiểm tra lại form.')
+        return redirect(f"{request.path}?week={week_start.isoformat()}")
 
     week_end = week_start + timedelta(days=6)
     prev_week = (week_start - timedelta(days=7)).isoformat()
@@ -1439,21 +1514,25 @@ def dispatch_schedule(request):
         'prev_week': prev_week,
         'next_week': next_week,
         'days': days,
+        'mos': mos,
         'order_count': len(mos),
+        'can_update': can_update,
     })
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def dispatch_material_issue_req(request):
-    qs = (
+    base_qs = (
         SxMaterialIssueRequest.objects.filter(is_demo=False)
         .order_by('-request_date', '-pk')
         .select_related('production_order', 'stock_issue')
     )
+    requests_qs, fctx = prepare_hub_list(request, base_qs, SX_FILTER_MATERIAL_ISSUE)
     return render(request, 'san_xuat/dispatch_material_issue_req_list.html', {
         **_perm_ctx(request),
         'page_title': 'Yêu cầu xuất vật tư',
-        'requests': qs[:200],
+        'requests': requests_qs,
+        **fctx,
     })
 
 
@@ -1501,14 +1580,16 @@ def dispatch_material_issue_req_detail(request, pk: int):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def dispatch_prod_stats(request):
-    qs = (
+    base_qs = (
         SxProductionStat.objects.filter(is_demo=False)
         .order_by('-stat_date', '-pk')
         .select_related('production_order')
     )
+    stats, fctx = prepare_hub_list(request, base_qs, SX_FILTER_PROD_STAT)
     return render(request, 'san_xuat/dispatch_prod_stats_list.html', {
         **_perm_ctx(request),
-        'stats': qs[:200],
+        'stats': stats,
+        **fctx,
     })
 
 
@@ -1592,14 +1673,16 @@ def dispatch_prod_stats_detail(request, pk: int):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def dispatch_fg_receipt_req(request):
-    qs = (
+    base_qs = (
         SxFgReceiptRequest.objects.filter(is_demo=False)
         .select_related('production_order', 'production_stat')
         .order_by('-request_date', '-pk')
     )
+    requests_qs, fctx = prepare_hub_list(request, base_qs, SX_FILTER_FG_RECEIPT)
     return render(request, 'san_xuat/dispatch_fg_receipt_req_list.html', {
         **_perm_ctx(request),
-        'requests': qs[:200],
+        'requests': requests_qs,
+        **fctx,
     })
 
 
@@ -1697,14 +1780,16 @@ def dispatch_fg_receipt_req_detail(request, pk: int):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def dispatch_npl_surplus(request):
-    qs = (
+    base_qs = (
         SxNplSurplus.objects.filter(is_demo=False)
         .select_related('production_order', 'disassembly_order', 'stock_adjustment')
         .order_by('-recorded_at', '-pk')
     )
+    items, fctx = prepare_hub_list(request, base_qs, SX_FILTER_NPL_SURPLUS)
     return render(request, 'san_xuat/npl_surplus_list.html', {
         **_perm_ctx(request),
-        'items': qs[:200],
+        'items': items,
+        **fctx,
     })
 
 
@@ -1770,14 +1855,16 @@ def dispatch_npl_surplus_detail(request, pk: int):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def dispatch_wip_handover(request):
-    qs = (
+    base_qs = (
         SxWipHandover.objects.filter(is_demo=False)
         .select_related('production_order')
         .order_by('-handover_date', '-pk')
     )
+    handovers, fctx = prepare_hub_list(request, base_qs, SX_FILTER_WIP_HANDOVER)
     return render(request, 'san_xuat/wip_handover_list.html', {
         **_perm_ctx(request),
-        'handovers': qs[:200],
+        'handovers': handovers,
+        **fctx,
     })
 
 
@@ -1984,14 +2071,16 @@ def qc_stub(request):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def qc_request(request):
-    qs = (
+    base_qs = (
         SxQcRequest.objects.filter(is_demo=False)
         .select_related('production_order')
         .order_by('-request_date', '-pk')
     )
+    requests_qs, fctx = prepare_hub_list(request, base_qs, SX_FILTER_QC_REQUEST)
     return render(request, 'san_xuat/qc_request_list.html', {
         **_perm_ctx(request),
-        'requests': qs[:200],
+        'requests': requests_qs,
+        **fctx,
     })
 
 
@@ -2056,14 +2145,16 @@ def qc_request_detail(request, pk: int):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def qc_sheet(request):
-    qs = (
+    base_qs = (
         SxQcInspection.objects.filter(is_demo=False)
         .select_related('qc_request', 'standard_set')
         .order_by('-inspected_at', '-pk')
     )
+    inspections, fctx = prepare_hub_list(request, base_qs, SX_FILTER_QC_SHEET)
     return render(request, 'san_xuat/qc_sheet_list.html', {
         **_perm_ctx(request),
-        'inspections': qs[:200],
+        'inspections': inspections,
+        **fctx,
     })
 
 
@@ -2199,19 +2290,22 @@ def qc_sheet_detail(request, pk: int):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def qc_alerts(request):
-    qs = (
+    base_qs = (
         SxQcAlert.objects.filter(is_demo=False)
         .select_related('production_order', 'production_stat', 'qc_inspection')
         .order_by('-created_at', '-pk')
     )
     status = (request.GET.get('status') or '').strip()
     if status:
-        qs = qs.filter(status=status)
+        base_qs = base_qs.filter(status=status)
+    preserve = {'status': status} if status else None
+    alerts, fctx = prepare_hub_list(request, base_qs, SX_FILTER_QC_ALERT, preserve=preserve)
     return render(request, 'san_xuat/qc_alerts_list.html', {
         **_perm_ctx(request),
-        'alerts': qs[:200],
+        'alerts': alerts,
         'status_filter': status,
         'open_count': SxQcAlert.objects.filter(is_demo=False, status=SxQcAlert.STATUS_OPEN).count(),
+        **fctx,
     })
 
 
@@ -2382,33 +2476,7 @@ def qc_defect_group_create(request):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def process_stub(request):
-    steps = (
-        ProcessStep.objects.filter(bom__tech_doc__notes__startswith='[DEMO SX]')
-        .select_related('bom__tech_doc')
-        .order_by('bom__tech_doc__product_code', 'sequence')[:100]
-    )
-    rows = []
-    for step in steps:
-        doc = step.bom.tech_doc
-        rows.append({
-            'cells': [
-                doc.product_code,
-                step.sequence,
-                step.process_name,
-                step.norm_per_hour,
-                step.cost_per_hour,
-            ],
-        })
-    return hub_list_page(
-        request,
-        perm_ctx=_perm_ctx(request),
-        title='Quy trình',
-        subtitle='Công đoạn từ hồ sơ SX demo — chi tiết sửa trong Hồ sơ.',
-        columns=[{'label': x} for x in ['Mã SP', 'TT', 'Công đoạn', 'ĐM cái/giờ', 'CP giờ']],
-        rows=rows,
-        empty_hint=_DEMO_HINT,
-        related_url_name='san_xuat:doc_list',
-    )
+    return redirect(f"{reverse('san_xuat:doc_list')}?tab=process")
 
 
 # --- Giai đoạn 3 ---
@@ -2426,6 +2494,7 @@ def work_assignment_list(request):
     status_filter = (request.GET.get('status') or '').strip()
     if status_filter:
         qs = qs.filter(status=status_filter)
+    items, fctx = prepare_hub_list(request, qs, SX_FILTER_WORK_ASSIGN)
     can_update = _perm_ctx(request).get('can_update')
     if request.method == 'POST' and can_update:
         action = (request.POST.get('action') or '').strip()
@@ -2440,8 +2509,16 @@ def work_assignment_list(request):
             return redirect('san_xuat:work_assignment_list')
     return render(request, 'san_xuat/work_assignment_list.html', {
         **_perm_ctx(request),
-        'items': qs[:200],
+        'items': items,
         'status_filter': status_filter,
+        'list_filter_status_options': [
+            ('', 'Tất cả TT'),
+            ('open', 'Đang giao'),
+            ('done', 'Hoàn thành'),
+            ('cancelled', 'Hủy'),
+        ],
+        'list_filter_status_value': status_filter,
+        **fctx,
     })
 
 
@@ -2513,13 +2590,33 @@ def capacity_list(request):
     from san_xuat.services.overview import parse_overview_period
     from san_xuat.services.phase3 import build_capacity_load
 
-    date_from, date_to = parse_overview_period(
-        month=(request.GET.get('month') or '').strip(),
-        date_from=(request.GET.get('date_from') or '').strip(),
-        date_to=(request.GET.get('date_to') or '').strip(),
+    filters = parse_sx_list_filters(request)
+    month = (request.GET.get('month') or '').strip()
+    raw_from = (request.GET.get('date_from') or '').strip()
+    raw_to = (request.GET.get('date_to') or '').strip()
+
+    if month and not raw_from and not raw_to:
+        date_from, date_to = parse_overview_period(month=month)
+        filters = SxListFilters(
+            code=filters.code,
+            name=filters.name,
+            date_from=date_from,
+            date_to=date_to,
+            dates_defaulted=False,
+        )
+    else:
+        date_from, date_to = filters.date_from, filters.date_to
+        if not date_from or not date_to:
+            date_from, date_to = default_list_date_range()
+
+    base_centers = (
+        SxWorkCenter.objects.filter(is_demo=False)
+        .select_related('created_by')
+        .order_by('code')
     )
-    centers = SxWorkCenter.objects.filter(is_demo=False).order_by('code')
+    centers = apply_sx_list_filters(base_centers, filters, SX_FILTER_WORK_CENTER)
     load_rows = build_capacity_load(date_from=date_from, date_to=date_to)
+    preserve = {'month': month} if month else None
     return render(request, 'san_xuat/capacity_list.html', {
         **_perm_ctx(request),
         'centers': centers,
@@ -2527,6 +2624,7 @@ def capacity_list(request):
         'date_from': date_from,
         'date_to': date_to,
         'month_value': f'{date_from.year:04d}-{date_from.month:02d}',
+        **sx_filter_context(filters, preserve=preserve),
     })
 
 
@@ -2575,33 +2673,52 @@ def ops_report(request):
     )
     product_code = (request.GET.get('product_code') or '').strip()
     process_name = (request.GET.get('process_name') or '').strip()
+    team_label = (request.GET.get('team_label') or '').strip()
+    active_tab = (request.GET.get('tab') or 'danh-sach').strip().lower()
+    allowed_tabs = {
+        'danh-sach', 'theo-ngay', 'theo-sp', 'theo-to',
+        'lenh-sx', 'dong-goi', 'dung-chuyen', 'kho',
+    }
+    if active_tab not in allowed_tabs:
+        active_tab = 'danh-sach'
     report = build_ops_report(
         date_from=date_from,
         date_to=date_to,
         product_code=product_code,
         process_name=process_name,
+        team_label=team_label,
     )
     if (request.GET.get('export') or '').strip() == 'csv':
         return export_ops_report_csv(report=report)
+
+    has_filters = bool(
+        product_code or process_name or team_label
+        or request.GET.get('month') or request.GET.get('date_from') or request.GET.get('date_to')
+    )
     return render(request, 'san_xuat/ops_report.html', {
         **_perm_ctx(request),
         'report': report,
         'month_value': f'{date_from.year:04d}-{date_from.month:02d}',
         'product_code': product_code,
         'process_name': process_name,
+        'team_label': team_label,
+        'active_tab': active_tab,
+        'has_filters': has_filters,
     })
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def packing_list(request):
-    qs = (
+    base_qs = (
         SxPackingRecord.objects.filter(is_demo=False)
         .select_related('production_order', 'fg_receipt')
         .order_by('-pack_date', '-pk')
     )
+    items, fctx = prepare_hub_list(request, base_qs, SX_FILTER_PACKING)
     return render(request, 'san_xuat/packing_list.html', {
         **_perm_ctx(request),
-        'items': qs[:200],
+        'items': items,
+        **fctx,
     })
 
 
@@ -2678,14 +2795,16 @@ def packing_detail(request, pk: int):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def subcontract_list(request):
-    qs = (
+    base_qs = (
         SxSubcontractOrder.objects.filter(is_demo=False)
         .select_related('production_order')
         .order_by('-order_date', '-pk')
     )
+    items, fctx = prepare_hub_list(request, base_qs, SX_FILTER_SUBCONTRACT)
     return render(request, 'san_xuat/subcontract_list.html', {
         **_perm_ctx(request),
-        'items': qs[:200],
+        'items': items,
+        **fctx,
     })
 
 

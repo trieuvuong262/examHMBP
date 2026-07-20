@@ -1,32 +1,45 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="container jp-page py-3 py-md-4 mb-5">
+<div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 py-md-4 mb-5">
     <div class="jp-page-header mb-3 mb-md-4">
         <div>
             <h2 class="fw-bold text-hm mb-1 jp-page-title">Giá thành kế hoạch</h2>
-            <p class="text-muted mb-0 small">Định mức sản phẩm · kế hoạch theo đơn hàng</p>
         </div>
         <a href="{% url 'san_xuat:overview' %}" class="btn btn-outline-secondary btn-sm">
             <i class="bi bi-arrow-left me-1"></i>Tổng quan
         </a>
     </div>
 
-    <div class="alert alert-warning border-0 mb-4" role="status">
-        Scaffold. Costing chi tiết theo BOM vẫn mở trong <a href="{% url 'san_xuat:doc_list' %}">Hồ sơ SX</a>.
+    <div class="alert alert-light border mb-4" role="status">
+        <strong>GT kế hoạch</strong> = ước tính trước / theo BOM và đơn hàng (định mức, báo giá).
+        <strong>GT thực tế</strong> = chốt sau sản xuất từ NVL đã xuất + lương sản phẩm + phí gia công
+        — mở tại <a href="{% url 'san_xuat:actual_cost_list' %}">Giá thành thực tế</a>.
     </div>
 
     <div class="list-group list-group-flush border rounded-3 mb-4">
         <a href="{% url 'san_xuat:costing_norm' %}" class="list-group-item list-group-item-action d-flex justify-content-between">
-            <span><i class="bi bi-calculator me-2"></i>Giá thành định mức sản phẩm</span>
-            <span class="badge text-bg-secondary">Sắp làm</span>
+            <span><i class="bi bi-lightning me-2"></i>Giá thành live từ BOM</span>
+            <span class="badge text-bg-success">C0</span>
+        </a>
+        <a href="{% url 'san_xuat:costing_sheet_list' %}" class="list-group-item list-group-item-action d-flex justify-content-between">
+            <span><i class="bi bi-calculator me-2"></i>Bảng giá thành định mức (chốt kỳ)</span>
+            <span class="badge text-bg-success">C1</span>
         </a>
         <a href="{% url 'san_xuat:costing_by_order' %}" class="list-group-item list-group-item-action d-flex justify-content-between">
             <span><i class="bi bi-cart-check me-2"></i>Giá thành kế hoạch theo đơn đặt hàng</span>
-            <span class="badge text-bg-secondary">Sắp làm</span>
+            <span class="badge text-bg-success">C2–C3</span>
+        </a>
+        <a href="{% url 'san_xuat:costing_cost_types' %}" class="list-group-item list-group-item-action d-flex justify-content-between">
+            <span><i class="bi bi-tags me-2"></i>Loại chi phí thêm (cột động)</span>
+            <span class="badge text-bg-success">C4</span>
+        </a>
+        <a href="{% url 'san_xuat:actual_cost_list' %}" class="list-group-item list-group-item-action d-flex justify-content-between">
+            <span><i class="bi bi-cash me-2"></i>Giá thành thực tế theo lệnh sản xuất</span>
+            <span class="badge text-bg-primary">Thực tế</span>
         </a>
     </div>
 
-    <a href="{% url 'san_xuat:doc_list' %}?tab=costing" class="btn btn-outline-hm">Mở Costing trong Hồ sơ SX</a>
+    <a href="{% url 'san_xuat:doc_list' %}?tab=costing" class="btn btn-outline-hm">Mở costing trong hồ sơ sản xuất</a>
 </div>
 {% endblock %}
