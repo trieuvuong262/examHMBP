@@ -100,7 +100,6 @@ class CustomUserForm(forms.Form):
             'inputmode': 'tel',
             'autocomplete': 'tel',
         }),
-        help_text='SĐT Zalo cá nhân — dùng gửi OTP quên mật khẩu.',
     )
     department = forms.ModelChoiceField(
         label='Phòng ban',
