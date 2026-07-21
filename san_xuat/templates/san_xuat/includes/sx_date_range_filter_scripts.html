@@ -39,10 +39,27 @@ document.addEventListener('DOMContentLoaded', function () {
     var monthEl = form.querySelector('input[type="month"][name="month"]');
     if (monthEl) {
       monthEl.addEventListener('change', function () {
-        form.querySelectorAll('.jp-date-vn').forEach(function (el) {
-          el.value = '';
-          if (el._flatpickr) el._flatpickr.clear();
-        });
+        var val = (monthEl.value || '').trim();
+        if (!val) return;
+        var parts = val.split('-');
+        if (parts.length !== 2) return;
+        var y = parseInt(parts[0], 10);
+        var m = parseInt(parts[1], 10);
+        if (!y || !m) return;
+        var first = new Date(y, m - 1, 1);
+        var last = new Date(y, m, 0);
+        function fmt(d) {
+          var mm = String(d.getMonth() + 1).padStart(2, '0');
+          var dd = String(d.getDate()).padStart(2, '0');
+          return d.getFullYear() + '-' + mm + '-' + dd;
+        }
+        var dateEls = form.querySelectorAll('.jp-date-vn');
+        if (dateEls.length >= 2) {
+          dateEls[0].value = fmt(first);
+          if (dateEls[0]._flatpickr) dateEls[0]._flatpickr.setDate(fmt(first), false);
+          dateEls[1].value = fmt(last);
+          if (dateEls[1]._flatpickr) dateEls[1]._flatpickr.setDate(fmt(last), false);
+        }
         submitForm(form, 0);
       });
     }

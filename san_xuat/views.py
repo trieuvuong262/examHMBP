@@ -47,10 +47,18 @@ def hub(request):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def doc_list(request):
+    from san_xuat.list_filters import (
+        SX_FILTER_TECH_DOC,
+        apply_sx_list_filters,
+        parse_sx_list_filters,
+        sx_filter_context,
+    )
     from san_xuat.list_grid import apply_sx_list_sort, sx_list_grid_context
 
     search_query = get_search_query(request)
+    filters = parse_sx_list_filters(request)
     qs = ProductTechDoc.objects.all()
+    qs = apply_sx_list_filters(qs, filters, SX_FILTER_TECH_DOC)
     qs = apply_term_search(
         qs,
         search_query,
@@ -65,6 +73,7 @@ def doc_list(request):
         'query_string': query_string,
         'search_query': search_query,
         'total_count': ProductTechDoc.objects.count(),
+        **sx_filter_context(filters),
         **sx_list_grid_context(request, 'doc_list'),
         **_perm_ctx(request),
     })

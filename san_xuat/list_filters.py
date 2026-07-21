@@ -63,6 +63,22 @@ def parse_sx_date(raw: str) -> date | None:
         return None
 
 
+def _coalesce_list_date_range(
+    parsed_from: date | None,
+    parsed_to: date | None,
+) -> tuple[date, date, bool]:
+    """Điền ngày thiếu; dates_defaulted=True khi cả hai đầu vào đều rỗng."""
+    default_from, default_to = default_list_date_range()
+    if not parsed_from and not parsed_to:
+        return default_from, default_to, True
+
+    date_from = parsed_from or default_from
+    date_to = parsed_to or default_to
+    if date_from > date_to:
+        date_from, date_to = date_to, date_from
+    return date_from, date_to, False
+
+
 def parse_sx_list_filters(request: HttpRequest) -> SxListFilters:
     code = (request.GET.get('code') or '').strip()
     name = (request.GET.get('name') or '').strip()
@@ -70,15 +86,17 @@ def parse_sx_list_filters(request: HttpRequest) -> SxListFilters:
     if 'date_from' in request.GET or 'date_to' in request.GET:
         raw_from = (request.GET.get('date_from') or '').strip()
         raw_to = (request.GET.get('date_to') or '').strip()
-        if raw_from or raw_to:
-            return SxListFilters(
-                code=code,
-                name=name,
-                date_from=parse_sx_date(raw_from),
-                date_to=parse_sx_date(raw_to),
-                dates_defaulted=False,
-            )
-        return SxListFilters(code=code, name=name, dates_defaulted=False)
+        date_from, date_to, dates_defaulted = _coalesce_list_date_range(
+            parse_sx_date(raw_from),
+            parse_sx_date(raw_to),
+        )
+        return SxListFilters(
+            code=code,
+            name=name,
+            date_from=date_from,
+            date_to=date_to,
+            dates_defaulted=dates_defaulted,
+        )
 
     date_from, date_to = default_list_date_range()
     return SxListFilters(

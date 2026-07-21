@@ -2693,6 +2693,7 @@ def qc_defect_group(request):
 
 
 def _qc_catalog_list(request, *, title, subtitle, model, fields, labels, create_url_name, export_key=''):
+    filters = parse_sx_list_filters(request)
     qs = model.objects.filter(is_demo=False).order_by('code')[:200]
     return render(request, 'san_xuat/qc_catalog_list.html', {
         **_perm_ctx(request),
@@ -2702,6 +2703,7 @@ def _qc_catalog_list(request, *, title, subtitle, model, fields, labels, create_
         'rows': _rows_from_queryset(qs, fields),
         'create_url_name': create_url_name,
         'export_key': export_key,
+        **sx_filter_context(filters),
     })
 
 

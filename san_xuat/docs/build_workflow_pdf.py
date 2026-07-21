@@ -310,7 +310,7 @@ def build():
     )
     story.append(
         P(
-            "Ngày cập nhật: 21/07/2026 · Phiên bản chi tiết (+ thiết lập chung · in phiếu A5)",
+            "Ngày cập nhật: 21/07/2026 · v2 (Kho NPL · danh sách · lọc ngày · Chạy lệnh mới)",
             styles["SmallVN"],
         )
     )
@@ -433,6 +433,42 @@ def build():
         )
     )
 
+    story.append(P("1.2. Quy ước danh sách & bộ lọc ngày", styles["H2VN"]))
+    story.append(
+        P(
+            "Hầu hết màn <b>danh sách</b> trong module Sản xuất dùng cùng một kiểu giao diện:",
+            styles["BodyVN"],
+        )
+    )
+    story.append(
+        P(
+            "• <b>Bấm cả dòng</b> trên bảng để mở chi tiết — không còn nút «Mở» riêng trên từng dòng.",
+            styles["BulletVN"],
+        )
+    )
+    story.append(
+        P(
+            "• Thanh công cụ trên: <b>Xuất Excel</b> (quyền Xuất) · <b>Thêm / Tạo</b> (quyền Tạo) · "
+            "menu <b>Cột</b> để ẩn/hiện cột (tùy chọn lưu trên trình duyệt).",
+            styles["BulletVN"],
+        )
+    )
+    story.append(
+        P(
+            "• <b>Bộ lọc</b> (card ngay dưới tiêu đề): Mã · Tên · <b>Từ ngày / Đến ngày</b> · Trạng thái "
+            "(nếu có). Ô ngày hiển thị <b>dd/mm/yyyy</b> (lịch chọn ngày); chọn xong thường <b>tự lọc</b> "
+            "không cần bấm Lọc. Mặc định khoảng 7 ngày gần nhất (cấu hình trong Thiết lập chung).",
+            styles["BulletVN"],
+        )
+    )
+    story.append(
+        P(
+            "• Tổng quan / Báo cáo vận hành / Năng lực / Lương sản phẩm: thêm lọc <b>Tháng</b> hoặc "
+            "mã sản phẩm, tổ/chuyền tùy màn.",
+            styles["BulletVN"],
+        )
+    )
+
     # ========== 2. TỔNG QUAN ==========
     story.append(P("2. Tổng quan luồng nghiệp vụ", styles["H1VN"]))
     story.append(
@@ -453,7 +489,7 @@ def build():
         "/san-xuat/tong-quan/",
         "Không có vòng đời chứng từ (chỉ xem)",
         [
-            "Lọc theo tháng hoặc khoảng ngày, mã sản phẩm, tổ/chuyền",
+            "Lọc theo <b>Từ ngày / Đến ngày</b> (dd/mm/yyyy) hoặc Tháng, mã sản phẩm, tổ/chuyền",
             "Xem tab: Tổng hợp · Lệnh sản xuất · Sản lượng · Chất lượng · Dừng chuyền",
             "Bấm liên kết sang báo cáo vận hành, lệnh sản xuất, cảnh báo, kế hoạch…",
             "<b>Không</b> có thao tác gửi form thay đổi dữ liệu",
@@ -486,8 +522,17 @@ def build():
         ],
         [
             P("Kho nguyên phụ liệu", c),
-            P("Module Kho NPL (liên kết từ hub Sản phẩm–NVL)", c),
-            P("Nhập / xuất / xem tồn nguyên phụ liệu ngoài module Sản xuất", c),
+            P("/kho-npl/danh-muc/ · /kho-npl/ton-kho-npl/ · /san-xuat/kho-npl/", c),
+            P(
+                "Nhập / xuất / tồn NPL — module riêng. <b>Không còn màn Tổng quan</b> "
+                "(/kho-npl/tong-quan/ redirect về Tồn kho). Vào sidebar: Danh mục hoặc Tồn kho.",
+                c,
+            ),
+        ],
+        [
+            P("Catalog thống nhất", c),
+            P("/san-xuat/catalog/", c),
+            P("Tra cứu chéo mã hồ sơ / BOM / danh mục — chỉ xem và lọc", c),
         ],
         [
             P("Sản phẩm – nguyên phụ liệu (hub)", c),
@@ -519,7 +564,7 @@ def build():
         "/san-xuat/ke-hoach/tong-the/",
         None,
         [
-            "Xem / lọc danh sách (quyền Xem)",
+            "Xem / lọc danh sách (quyền Xem; bấm dòng mở chi tiết)",
             "Nút <b>Tạo</b> kế hoạch mới (quyền Tạo) → /ke-hoach/tong-the/them/",
         ],
     )
@@ -533,7 +578,7 @@ def build():
             "Khi <b>Nháp</b> + quyền Sửa: <b>Thêm dòng sản phẩm</b>",
             "Khi Nháp + quyền Sửa: <b>Import dòng từ đơn KiotViet</b>",
             "Khi Nháp + quyền Sửa: <b>Xác nhận</b> kế hoạch tổng thể",
-            "Khi đã xác nhận: liên kết <b>Lập kế hoạch chi tiết</b>",
+            "Khi đã xác nhận: liên kết <b>Lập kế hoạch chi tiết</b> và nút <b>Tiếp theo</b> (bước kế tiếp)",
             "Sau khi xác nhận: không còn thêm/sửa dòng như lúc nháp",
         ],
     )
@@ -627,9 +672,23 @@ def build():
         "/san-xuat/dieu-phoi/lenh-sx/",
         None,
         [
-            "Xem / lọc danh sách lệnh",
-            "Nút <b>Tạo lệnh</b> (quyền Tạo) — thường tạo từ định mức BOM (mã sản phẩm, số lượng, tổ)",
+            "Xem / lọc danh sách lệnh (bấm dòng mở chi tiết; Xuất Excel; menu Cột)",
+            "Nút <b>Chạy lệnh mới</b> (quyền Tạo) → wizard /dieu-phoi/chay-lenh-moi/",
+            "Nút <b>Tạo lệnh</b> (quyền Tạo) — form tạo từ định mức BOM (mã SP, số lượng, tổ)",
         ],
+    )
+    screen_block(
+        story,
+        styles,
+        "Chạy lệnh mới (wizard)",
+        "/san-xuat/dieu-phoi/chay-lenh-moi/",
+        None,
+        [
+            "Wizard hướng dẫn từng bước: chọn sản phẩm / BOM → số lượng / tổ → tạo lệnh",
+            "Có thể tiếp tục wizard từ lệnh đã tạo: /chay-lenh-moi/<mã lệnh>/",
+            "Phù hợp người mới hoặc chạy nhanh một lệnh đơn giản",
+        ],
+        "Sau khi có lệnh Nháp, vào chi tiết lệnh để Phát hành và các bước tiếp theo.",
     )
     screen_block(
         story,
@@ -959,7 +1018,7 @@ def build():
         [
             P("Báo cáo vận hành", c),
             P("/san-xuat/bao-cao-van-hanh/", c),
-            P("Lọc kỳ / sản phẩm / công đoạn · Xuất CSV — chỉ xem", c),
+            P("Lọc Từ/Đến ngày (dd/mm/yyyy), tháng, SP, công đoạn, tổ · Xuất CSV — chỉ xem", c),
         ],
         [
             P("Dừng chuyền", c),
@@ -974,7 +1033,7 @@ def build():
         [
             P("Lương sản phẩm", c),
             P("/san-xuat/luong-san-pham/", c),
-            P("Xem báo cáo · Xuất nhân sự · Map tổ–nhân sự", c),
+            P("Lọc tháng / khoảng ngày · Xuất CSV nhân sự · Map tổ–nhân sự", c),
         ],
         [
             P("Vị trí staging", c),
@@ -1435,6 +1494,13 @@ def build():
     )
     story.append(
         P(
+            "• <b>Kho NPL:</b> không còn màn Tổng quan — bookmark cũ /kho-npl/tong-quan/ tự chuyển "
+            "về Tồn kho. Module Sản xuất vẫn giữ Tổng quan tại /san-xuat/tong-quan/.",
+            styles["BulletVN"],
+        )
+    )
+    story.append(
+        P(
             "• Tài liệu này mô tả thao tác được phép theo mã nguồn hiện tại; "
             "chính sách nội bộ công ty có thể yêu cầu thêm bước phê duyệt giấy tờ ngoài hệ thống.",
             styles["BulletVN"],
@@ -1446,7 +1512,7 @@ def build():
     story.append(P("— Hết tài liệu —", styles["SmallVN"]))
     story.append(
         P(
-            "Portal JustPlay · Module Sản xuất · Bản chi tiết thao tác màn hình + thiết lập chung + in phiếu A5",
+            "Portal JustPlay · Module Sản xuất · v2 — thao tác màn hình + thiết lập chung + in phiếu A5",
             styles["SmallVN"],
         )
     )
