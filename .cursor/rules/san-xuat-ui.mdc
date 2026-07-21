@@ -14,18 +14,23 @@ alwaysApply: false
 - **Không** thu hẹp bằng `max-width: 720px` / `760px` / tương tự trên wrapper trang.
 - Form trải theo lưới Bootstrap (`col-*`) full chiều ngang container.
 
-## Topbar công cụ (In A5 / Xuất Excel / Quay lại / …)
+## Topbar công cụ
 
-Áp dụng mọi trang SX (detail / form / list / hub):
+### Trang danh sách / hub (topbar list)
 
-- Topbar **bắt buộc `w-100`**: `jp-npl-mat-topbar … w-100`.
-- Công cụ phụ (In A5, Xuất Excel/CSV, Wizard, Truy vết, Quay lại, link danh mục):
-  - Include `san_xuat/includes/sx_detail_tools_styles.html`.
-  - Markup: `jp-npl-mat-topbar jp-sx-detail-topbar w-100` + `jp-sx-detail-title` + `nav.jp-sx-tools`.
-  - **Soft link + icon** (`bi-printer`, `bi-download`, …) — **không** `btn btn-outline-* btn-sm`.
-  - List export: `{% include 'san_xuat/includes/sx_export_btn.html' with export_key='…' %}` trong `jp-sx-tools`.
-  - Pattern: In A5 · Xuất Excel · … · `sep` · Quay lại (`bi-arrow-left`, `is-back`).
-- Chỉ **CTA tạo mới** (Thêm / Tạo lệnh / Chạy lệnh mới) giữ `btn btn-hm btn-sm` trong `jp-sx-tools`.
+- Topbar **bắt buộc `w-100`**: `jp-npl-mat-topbar jp-sx-detail-topbar w-100` + `jp-sx-detail-title` + `nav.jp-sx-tools`.
+- **Xuất Excel**: `btn btn-success btn-sm fw-bold` — cùng kích thước/style với nút Thêm (`btn btn-hm btn-sm fw-bold`) nhưng **màu xanh**.
+  - Include: `san_xuat/includes/sx_export_btn.html` với `export_key`.
+- **Thêm / Tạo**: `btn btn-hm btn-sm fw-bold` (đỏ HM).
+- Link phụ (Hồ sơ, BC…): soft link trong `jp-sx-tools` nếu không phải CTA chính.
+
+### Trang chi tiết / form (topbar detail)
+
+- Include `san_xuat/includes/sx_detail_tools_styles.html`.
+- In A5 / Wizard / Truy vết / Quay lại: **soft link + icon** — **không** `btn btn-outline-* btn-sm`.
+- Pattern: In A5 (`bi-printer`) · … · `sep` · Quay lại (`bi-arrow-left`, `is-back`).
+- Xuất Excel trên detail (nếu có): soft link giống In A5.
+
 - Title trái · tools phải (`justify-content: space-between`).
 
 ## Copy & mô tả

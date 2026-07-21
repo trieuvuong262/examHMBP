@@ -1,4 +1,6 @@
 {% if can_export and export_key %}
 <a href="{% url 'san_xuat:list_export' export_key %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}"
-   title="Xuất Excel"><i class="bi bi-download" aria-hidden="true"></i>Xuất Excel</a>
+   class="btn btn-success btn-sm fw-bold" title="Xuất Excel">
+  <i class="bi bi-download me-1"></i>Xuất Excel
+</a>
 {% endif %}
