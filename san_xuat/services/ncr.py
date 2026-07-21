@@ -21,8 +21,10 @@ class NcrError(Exception):
 
 
 def _next_ncr_code() -> str:
+    from san_xuat.services.sx_settings import sx_prefix
+
     year = timezone.localdate().year
-    prefix = f"NCR-{year}-"
+    prefix = f"{sx_prefix('ncr')}-{year}-"
     last = (
         SxNcrCase.objects.filter(code__startswith=prefix)
         .order_by("-code")

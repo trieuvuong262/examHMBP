@@ -317,6 +317,17 @@
     margin: 0 0 1.15rem;
     line-height: 1.5;
   }
+  .jp-sx-settings .jp-sx-prefix-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+    gap: 0;
+  }
+  .jp-sx-settings .jp-sx-prefix-grid .jp-sx-metric-row {
+    flex-direction: column;
+    align-items: stretch;
+    border-bottom: 1px solid #f1f5f9;
+    border-right: 1px solid #f1f5f9;
+  }
 </style>
 {% endblock %}
 
@@ -346,6 +357,7 @@
         <a href="#sec-capacity">Năng lực</a>
         <a href="#sec-stock">Kho &amp; tích hợp</a>
         <a href="#sec-shopfloor">Shop floor</a>
+        <a href="#sec-prefix">Mã chứng từ</a>
       </nav>
 
       <div>
@@ -526,7 +538,7 @@
         <section class="jp-sx-set-panel" id="sec-capacity">
           <div class="jp-sx-set-panel-head">
             <h3>Năng lực &amp; danh sách</h3>
-            <p>Màu tải trên màn Năng lực SX và khoảng ngày lọc mặc định.</p>
+            <p>Màu tải, khoảng ngày lọc mặc định và giờ ca OEE.</p>
           </div>
           <div class="jp-sx-set-panel-body">
             <div class="jp-sx-metric-grid">
@@ -564,6 +576,18 @@
                 </div>
               </div>
             </div>
+            <div class="jp-sx-metric-row">
+              <div class="jp-sx-toggle-copy">
+                <strong>{{ form.oee_shift_hours.label }}</strong>
+                {% if form.oee_shift_hours.help_text %}
+                <span>{{ form.oee_shift_hours.help_text }}</span>
+                {% endif %}
+              </div>
+              <div class="jp-sx-metric-input">
+                {{ form.oee_shift_hours }}
+                <span class="jp-sx-metric-unit">giờ / ca</span>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -594,6 +618,17 @@
                 {{ form.require_kv_link_for_fg_done }}
               </div>
             </div>
+            <div class="jp-sx-toggle-row">
+              <div class="jp-sx-toggle-copy">
+                <strong>{{ form.show_pending_ycx_banner.label }}</strong>
+                {% if form.show_pending_ycx_banner.help_text %}
+                <span>{{ form.show_pending_ycx_banner.help_text }}</span>
+                {% endif %}
+              </div>
+              <div class="form-check form-switch">
+                {{ form.show_pending_ycx_banner }}
+              </div>
+            </div>
             </div>
           </div>
         </section>
@@ -621,6 +656,31 @@
                 {{ form.shopfloor_default_qty_good }}
                 <span class="jp-sx-metric-unit">đạt / lần</span>
               </div>
+            </div>
+          </div>
+        </section>
+
+        {# —— 6. Prefix —— #}
+        <section class="jp-sx-set-panel" id="sec-prefix">
+          <div class="jp-sx-set-panel-head">
+            <h3>Mã chứng từ</h3>
+            <p>Prefix khi hệ thống tự sinh mã mới (vd. LSX-2026-0001). Chỉ áp dụng mã tạo sau khi lưu.</p>
+          </div>
+          <div class="jp-sx-set-panel-body">
+            <div class="jp-sx-prefix-grid">
+              {% for bound in form %}
+                {% if "prefix_" in bound.name %}
+                <div class="jp-sx-metric-row">
+                  <div class="jp-sx-toggle-copy">
+                    <strong>{{ bound.label }}</strong>
+                  </div>
+                  <div class="jp-sx-metric-input" style="max-width: none;">
+                    {{ bound }}
+                  </div>
+                  {% if bound.errors %}<div class="text-danger small">{{ bound.errors }}</div>{% endif %}
+                </div>
+                {% endif %}
+              {% endfor %}
             </div>
           </div>
         </section>

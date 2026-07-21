@@ -48,8 +48,10 @@ from san_xuat.views_hub import _perm_ctx
 
 
 def _next_dt_code() -> str:
+    from san_xuat.services.sx_settings import sx_prefix
+
     year = timezone.localdate().year
-    prefix = f"DT-{year}-"
+    prefix = f"{sx_prefix('downtime')}-{year}-"
     last = (
         SxDowntimeEvent.objects.filter(code__startswith=prefix)
         .order_by("-code")
@@ -227,7 +229,10 @@ def downtime_list(request):
             return redirect("san_xuat:downtime_list")
         messages.error(request, "Cần lý do và số phút > 0.")
 
-    # OEE thô: available minutes (8h × NL) vs downtime
+    # OEE thô: available minutes (ca × NL) vs downtime
+    from san_xuat.services.sx_settings import sx_int
+
+    shift_hours = sx_int("oee_shift_hours", 8, min_v=1, max_v=24)
     centers = list(SxWorkCenter.objects.filter(is_active=True, is_demo=False))
     oee_rows = []
     today = timezone.localdate()
@@ -243,7 +248,7 @@ def downtime_list(request):
             or 0
         )
         days = max((today - month_start).days + 1, 1)
-        available = days * 8 * 60  # giả định 1 ca 8h
+        available = days * shift_hours * 60
         avail_pct = max(0, 100 - (100 * dt_min / available)) if available else 0
         oee_rows.append({"wc": wc, "downtime_min": dt_min, "availability_pct": round(avail_pct, 1)})
 
@@ -256,6 +261,7 @@ def downtime_list(request):
             "centers": centers,
             "mos": SxProductionOrder.objects.filter(is_demo=False).order_by("-order_date")[:50],
             "oee_rows": oee_rows,
+            "oee_shift_hours": shift_hours,
             "can_create": can_create,
             **fctx,
         },

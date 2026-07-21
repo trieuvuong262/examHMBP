@@ -97,8 +97,10 @@ def compute_actual_cost_for_mo(*, production_order_id: int) -> ActualCostBreakdo
 
 
 def _next_actual_code() -> str:
+    from san_xuat.services.sx_settings import sx_prefix
+
     year = timezone.localdate().year
-    prefix = f"GTT-{year}-"
+    prefix = f"{sx_prefix('actual_cost')}-{year}-"
     last = (
         SxActualCostSheet.objects.filter(code__startswith=prefix)
         .order_by("-code")

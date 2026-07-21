@@ -19,6 +19,9 @@ from san_xuat.hub_models import (
     SxQcStandardSet,
 )
 
+from san_xuat.services.sx_settings import sx_prefix
+
+
 DEFAULT_TOLERANCE_PCT = Decimal("5")
 
 
@@ -48,6 +51,13 @@ def _next_code(prefix: str, model, *, field: str = "code") -> str:
     except ValueError:
         seq = model.objects.filter(**{f"{field}__startswith": base}).count() + 1
     return f"{base}{seq:04d}"
+
+
+def _code(kind: str, model, *, code: str | None = None, field: str = "code"):
+    raw = (code or "").strip()
+    if raw:
+        return raw
+    return _next_code(sx_prefix(kind), model, field=field)
 
 
 @dataclass(frozen=True)
@@ -135,7 +145,7 @@ def create_request_from_stat(
         raise QcError("TKSX không có SL đạt/lỗi để sinh YCKT.")
 
     qc_req = SxQcRequest.objects.create(
-        code=(code or "").strip() or _next_code("YCKT", SxQcRequest),
+        code=_code("qc_req", SxQcRequest, code=code),
         production_order=mo,
         production_stat=stat,
         product_code=mo.product_code,
@@ -182,7 +192,7 @@ def maybe_create_defect_alert(*, stat: SxProductionStat) -> SxQcAlert | None:
         f"tại công đoạn {stat.process_name or '—'} (TKSX {stat.code})."
     )
     return SxQcAlert.objects.create(
-        code=_next_code("CBQC", SxQcAlert),
+        code=_code("qc_alert", SxQcAlert),
         alert_type=SxQcAlert.TYPE_DEFECT_RATE,
         production_order=mo,
         production_stat=stat,
@@ -359,7 +369,7 @@ def maybe_create_inspection_fail_alert(*, inspection: SxQcInspection) -> SxQcAle
         f"({rate}%). Cần xử lý tại LSX {mo.code}."
     )
     return SxQcAlert.objects.create(
-        code=_next_code("CBQC", SxQcAlert),
+        code=_code("qc_alert", SxQcAlert),
         alert_type=SxQcAlert.TYPE_QC_FAIL,
         production_order=mo,
         production_stat=getattr(qc_req, "production_stat", None) if qc_req else None,
@@ -413,7 +423,7 @@ def create_inspection_from_request(
 
     sample = compute_sample_qty(getattr(standard, "sampling_method", None), qc_req.qty or Decimal("0"))
     inspection = SxQcInspection.objects.create(
-        code=(code or "").strip() or _next_code("PKT", SxQcInspection),
+        code=_code("qc_sheet", SxQcInspection, code=code),
         qc_request=qc_req,
         standard_set=standard,
         inspected_at=inspected_at or timezone.localdate(),

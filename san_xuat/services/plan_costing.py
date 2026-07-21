@@ -11,6 +11,7 @@ from san_xuat.hub_models import SxStandardCostLine, SxStandardCostSheet
 from san_xuat.models import ProductTechDoc
 from san_xuat.services.bom import get_active_bom, get_working_bom
 from san_xuat.services.costing import compute_costing
+from san_xuat.services.sx_settings import sx_prefix
 
 
 class PlanCostingError(Exception):
@@ -33,6 +34,13 @@ def _next_code(prefix: str, model, *, field: str = "code") -> str:
     except ValueError:
         seq = model.objects.filter(**{f"{field}__startswith": base}).count() + 1
     return f"{base}{seq:04d}"
+
+
+def _code(kind: str, model, *, code: str | None = None, field: str = "code"):
+    raw = (code or "").strip()
+    if raw:
+        return raw
+    return _next_code(sx_prefix(kind), model, field=field)
 
 
 @transaction.atomic
@@ -77,7 +85,7 @@ def build_standard_sheet_from_bom(
             sheet.save(update_fields=["notes"])
         else:
             sheet = SxStandardCostSheet.objects.create(
-                code=(code or "").strip() or _next_code("GTDM", SxStandardCostSheet),
+                code=_code("cost_std", SxStandardCostSheet, code=code),
                 name=(name or "").strip() or f"GT định mức {date_from:%d/%m/%Y}–{date_to:%d/%m/%Y}",
                 date_from=date_from,
                 date_to=date_to,
@@ -245,7 +253,7 @@ def build_order_sheet_from_kv(
         preserved_extras = {}
         preserved_typed = {}
         sheet = SxOrderPlanCost.objects.create(
-            code=(code or "").strip() or _next_code("GTDH", SxOrderPlanCost),
+            code=_code("cost_order", SxOrderPlanCost, code=code),
             name=(name or "").strip() or f"GTKH đơn {order.code or order.kiotviet_id}",
             kv_order_code=order.code or "",
             kv_order_kiotviet_id=order.kiotviet_id,

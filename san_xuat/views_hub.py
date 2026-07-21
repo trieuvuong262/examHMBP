@@ -1175,11 +1175,13 @@ def purchase_order_detail(request, pk: int):
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def dispatch_stub(request):
     from san_xuat.services.mo_progress import pending_material_issue_qs
+    from san_xuat.services.sx_settings import sx_bool
 
     pending_ycx = pending_material_issue_qs().count()
     return render(request, 'san_xuat/hub_dispatch.html', {
         **_perm_ctx(request),
         'pending_ycx_count': pending_ycx,
+        'show_pending_ycx_banner': sx_bool('show_pending_ycx_banner', True),
     })
 
 
@@ -2356,7 +2358,8 @@ def qc_request_create(request):
         if form.is_valid():
             qc_req = form.save(commit=False)
             if not qc_req.code:
-                qc_req.code = _next_code('YCKT', SxQcRequest)
+                from san_xuat.services.sx_settings import sx_prefix
+                qc_req.code = _next_code(sx_prefix('qc_req'), SxQcRequest)
             qc_req.is_demo = False
             qc_req.save()
             messages.success(request, f'Đã tạo YCKT {qc_req.code}.')

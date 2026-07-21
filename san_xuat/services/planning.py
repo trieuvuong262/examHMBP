@@ -28,6 +28,7 @@ from san_xuat.hub_models import (
 )
 from san_xuat.models import ProductTechDoc
 from san_xuat.services.bom import get_active_bom
+from san_xuat.services.sx_settings import sx_prefix
 
 
 class PlanningError(Exception):
@@ -50,6 +51,13 @@ def _next_code(prefix: str, model, *, field: str = "code") -> str:
     except ValueError:
         seq = model.objects.filter(**{f"{field}__startswith": base}).count() + 1
     return f"{base}{seq:04d}"
+
+
+def _code(kind: str, model, *, code: str | None = None, field: str = "code"):
+    raw = (code or "").strip()
+    if raw:
+        return raw
+    return _next_code(sx_prefix(kind), model, field=field)
 
 
 def _resolve_product_name(product_code: str, fallback: str = "") -> str:
@@ -76,7 +84,7 @@ def create_overall_plan(
     if date_from and date_to and date_from > date_to:
         raise PlanningError("Ngày bắt đầu không được sau ngày kết thúc.")
     return SxOverallPlan.objects.create(
-        code=(code or "").strip() or _next_code("KHTT", SxOverallPlan),
+        code=_code("plan_overall", SxOverallPlan, code=code),
         name=(name or "").strip() or "Kế hoạch tổng thể",
         date_from=date_from or timezone.localdate(),
         date_to=date_to or timezone.localdate(),
@@ -243,7 +251,7 @@ def explode_material_plan(
     )
     if not mat_plan:
         mat_plan = SxMaterialPlan.objects.create(
-            code=(code or "").strip() or _next_code("KHNVL", SxMaterialPlan),
+            code=_code("plan_npl", SxMaterialPlan, code=code),
             name=(name or "").strip() or f"KHNVL từ {overall.code}",
             overall_plan=overall,
             status=SxOverallPlan.STATUS_DRAFT,
@@ -357,7 +365,7 @@ def build_pr_from_material_plan(
         pr.save(update_fields=["due_date", "notes"])
     else:
         pr = SxNplPurchaseRequest.objects.create(
-            code=(code or "").strip() or _next_code("YCM", SxNplPurchaseRequest),
+            code=_code("npl_pr", SxNplPurchaseRequest, code=code),
             material_plan=mat_plan,
             request_date=timezone.localdate(),
             due_date=due_date,
@@ -458,7 +466,7 @@ def explode_detail_plan_from_overall(
         detail.save(update_fields=["date_from", "date_to", "name"])
     else:
         detail = SxDetailPlan.objects.create(
-            code=(code or "").strip() or _next_code("KHCT", SxDetailPlan),
+            code=_code("plan_detail", SxDetailPlan, code=code),
             name=(name or "").strip() or f"KHCT từ {overall.code}",
             overall_plan=overall,
             date_from=overall.date_from,
@@ -646,7 +654,7 @@ def build_po_from_purchase_request(
         po.save(update_fields=["supplier_name", "notes"])
     else:
         po = SxPurchaseOrder.objects.create(
-            code=(code or "").strip() or _next_code("DMH", SxPurchaseOrder),
+            code=_code("po", SxPurchaseOrder, code=code),
             supplier_name=(supplier_name or "").strip(),
             purchase_request=pr,
             status=SxPurchaseOrder.STATUS_DRAFT,

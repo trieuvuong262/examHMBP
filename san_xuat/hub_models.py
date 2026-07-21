@@ -1509,6 +1509,44 @@ class SxGeneralSettings(models.Model):
         verbose_name='Shop floor: số lượng đạt mặc định mỗi lần quét',
     )
 
+    # --- Vận hành / OEE / UI ---
+    oee_shift_hours = models.PositiveSmallIntegerField(
+        default=8,
+        verbose_name='Số giờ / ca (OEE)',
+        help_text='Dùng tính sẵn sàng trên màn Dừng chuyền / OEE.',
+    )
+    show_pending_ycx_banner = models.BooleanField(
+        default=True,
+        verbose_name='Hiện banner hàng đợi duyệt xuất vật tư',
+        help_text='Banner trên hub Điều phối khi còn YCX chờ duyệt.',
+    )
+
+    # --- Prefix mã chứng từ (đổi hiếm; ảnh hưởng mã sinh mới) ---
+    prefix_mo = models.CharField(max_length=16, default='LSX', verbose_name='Prefix lệnh SX')
+    prefix_ycx = models.CharField(max_length=16, default='YCX', verbose_name='Prefix yêu cầu xuất')
+    prefix_stat = models.CharField(max_length=16, default='TKSX', verbose_name='Prefix thống kê SX')
+    prefix_fg = models.CharField(max_length=16, default='YCNTP', verbose_name='Prefix yêu cầu nhập TP')
+    prefix_qc_req = models.CharField(max_length=16, default='YCKT', verbose_name='Prefix yêu cầu kiểm tra')
+    prefix_qc_sheet = models.CharField(max_length=16, default='PKT', verbose_name='Prefix phiếu kiểm tra')
+    prefix_qc_alert = models.CharField(max_length=16, default='CBQC', verbose_name='Prefix cảnh báo QC')
+    prefix_wip_ho = models.CharField(max_length=16, default='BG', verbose_name='Prefix bàn giao BTP')
+    prefix_wip_ret = models.CharField(max_length=16, default='TRABTP', verbose_name='Prefix trả lại BTP')
+    prefix_disassembly = models.CharField(max_length=16, default='LTD', verbose_name='Prefix lệnh tháo dỡ')
+    prefix_npl_surplus = models.CharField(max_length=16, default='NPLT', verbose_name='Prefix NPL thừa')
+    prefix_packing = models.CharField(max_length=16, default='DG', verbose_name='Prefix đóng gói')
+    prefix_subcontract = models.CharField(max_length=16, default='GC', verbose_name='Prefix thuê gia công')
+    prefix_work_assign = models.CharField(max_length=16, default='GV', verbose_name='Prefix giao việc')
+    prefix_plan_overall = models.CharField(max_length=16, default='KHTT', verbose_name='Prefix KH tổng thể')
+    prefix_plan_npl = models.CharField(max_length=16, default='KHNVL', verbose_name='Prefix KH NPL')
+    prefix_plan_detail = models.CharField(max_length=16, default='KHCT', verbose_name='Prefix KH chi tiết')
+    prefix_npl_pr = models.CharField(max_length=16, default='YCM', verbose_name='Prefix YC mua NPL')
+    prefix_po = models.CharField(max_length=16, default='DMH', verbose_name='Prefix đơn mua hàng')
+    prefix_cost_std = models.CharField(max_length=16, default='GTDM', verbose_name='Prefix GT định mức')
+    prefix_cost_order = models.CharField(max_length=16, default='GTDH', verbose_name='Prefix GT theo ĐH')
+    prefix_actual_cost = models.CharField(max_length=16, default='GTT', verbose_name='Prefix GT thực tế')
+    prefix_ncr = models.CharField(max_length=16, default='NCR', verbose_name='Prefix NCR')
+    prefix_downtime = models.CharField(max_length=16, default='DT', verbose_name='Prefix dừng chuyền')
+
     updated_at = models.DateTimeField(auto_now=True)
     updated_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,

@@ -30,6 +30,9 @@ from san_xuat.hub_models import (
 )
 
 
+from san_xuat.services.sx_settings import sx_prefix
+
+
 class Phase3Error(Exception):
     pass
 
@@ -50,6 +53,13 @@ def _next_code(prefix: str, model, *, field: str = "code") -> str:
     except ValueError:
         seq = model.objects.filter(**{f"{field}__startswith": base}).count() + 1
     return f"{base}{seq:04d}"
+
+
+def _code(kind: str, model, *, code: str | None = None, field: str = "code"):
+    raw = (code or "").strip()
+    if raw:
+        return raw
+    return _next_code(sx_prefix(kind), model, field=field)
 
 
 def _user_display(user) -> str:
@@ -100,7 +110,7 @@ def create_work_assignment(
         assignee_label = center.name
 
     item = SxWorkAssignment.objects.create(
-        code=(code or "").strip() or _next_code("GV", SxWorkAssignment),
+        code=_code("work_assign", SxWorkAssignment, code=code),
         production_order=mo,
         work_center=center,
         assignee=assignee,
@@ -332,7 +342,7 @@ def create_packing_record(
         )
 
     item = SxPackingRecord.objects.create(
-        code=(code or "").strip() or _next_code("DG", SxPackingRecord),
+        code=_code("packing", SxPackingRecord, code=code),
         production_order=mo,
         fg_receipt=fg,
         pack_date=pack_date or timezone.localdate(),
@@ -402,7 +412,7 @@ def create_subcontract_order(
         if not product_code:
             product_code = mo.product_code
     order = SxSubcontractOrder.objects.create(
-        code=(code or "").strip() or _next_code("GC", SxSubcontractOrder),
+        code=_code("subcontract", SxSubcontractOrder, code=code),
         production_order=mo,
         vendor_name=vendor_name,
         product_code=product_code,

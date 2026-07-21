@@ -42,6 +42,7 @@ from san_xuat.hub_models import (
     SxWipReturn,
 )
 from san_xuat.services.bom import get_working_bom, activate_bom
+from san_xuat.services.sx_settings import sx_prefix
 
 
 class DispatchError(Exception):
@@ -60,10 +61,17 @@ def _next_code(prefix: str, model, *, field: str = "code") -> str:
     if not latest:
         return f"{base}0001"
     try:
-        seq = int(latest.rsplit("-", 1)[-1]) + 1
+        n = int(str(latest).rsplit("-", 1)[-1])
     except ValueError:
-        seq = model.objects.filter(**{f"{field}__startswith": base}).count() + 1
-    return f"{base}{seq:04d}"
+        n = 0
+    return f"{base}{n + 1:04d}"
+
+
+def _code(kind: str, model, *, code: str | None = None, field: str = "code", fallback: str | None = None):
+    raw = (code or "").strip()
+    if raw:
+        return raw
+    return _next_code(sx_prefix(kind, fallback), model, field=field)
 
 
 def _resolve_material_by_code(code: str) -> Material:
@@ -187,7 +195,7 @@ def create_mo_from_bom(
     if not working_bom:
         raise DispatchError(f"Mã {product_code} chưa có BOM để tính.")
 
-    mo_code = (code or "").strip() or _next_code("LSX", SxProductionOrder)
+    mo_code = _code("mo", SxProductionOrder, code=code)
 
     mo = SxProductionOrder.objects.create(
         code=mo_code,
@@ -242,7 +250,7 @@ def build_material_issue_request(
     if not mo.bom_version_id:
         raise DispatchError("Lệnh sản xuất chưa có BOM.")
 
-    req_code = (code or "").strip() or _next_code("YCX", SxMaterialIssueRequest)
+    req_code = _code("ycx", SxMaterialIssueRequest, code=code)
     req = SxMaterialIssueRequest.objects.create(
         code=req_code,
         production_order=mo,
@@ -443,7 +451,7 @@ def create_production_stat(
         raise DispatchError("Phải nhập ít nhất SL đạt hoặc SL lỗi lớn hơn 0.")
 
     stat = SxProductionStat.objects.create(
-        code=(code or "").strip() or _next_code("TKSX", SxProductionStat),
+        code=_code("stat", SxProductionStat, code=code),
         production_order=mo,
         stat_date=stat_date or timezone.localdate(),
         process_name=(process_name or "").strip(),
@@ -531,7 +539,7 @@ def create_fg_receipt_from_mo(
     enforce_gate(check_qc_pass_before_fg(mo=mo))
 
     return SxFgReceiptRequest.objects.create(
-        code=(code or "").strip() or _next_code("YCNTP", SxFgReceiptRequest),
+        code=_code("fg", SxFgReceiptRequest, code=code),
         production_order=mo,
         production_stat=stat,
         request_date=timezone.localdate(),
@@ -701,7 +709,7 @@ def create_wip_handover(
         raise DispatchError("Phải nhập công đoạn gửi và nhận.")
 
     handover = SxWipHandover.objects.create(
-        code=(code or "").strip() or _next_code("BG", SxWipHandover),
+        code=_code("wip_ho", SxWipHandover, code=code),
         production_order=mo,
         from_process=(from_process or "").strip(),
         to_process=(to_process or "").strip(),
@@ -821,7 +829,7 @@ def create_wip_return(
         raise DispatchError("Phải nhập công đoạn nguồn và đích trả.")
 
     return SxWipReturn.objects.create(
-        code=(code or "").strip() or _next_code("TRABTP", SxWipReturn),
+        code=_code("wip_ret", SxWipReturn, code=code),
         handover=handover,
         production_order=mo,
         from_process=(from_process or "").strip(),
@@ -1004,7 +1012,7 @@ def create_disassembly_order(
             product_name = mo.product_name
 
     order = SxDisassemblyOrder.objects.create(
-        code=(code or "").strip() or _next_code("LTD", SxDisassemblyOrder),
+        code=_code("disassembly", SxDisassemblyOrder, code=code),
         production_order=mo,
         product_code=product_code,
         product_name=(product_name or "").strip(),
@@ -1092,7 +1100,7 @@ def confirm_disassembly_order(*, order_id: int, create_surplus: bool = True) -> 
     if create_surplus:
         for line in order.lines.all():
             SxNplSurplus.objects.create(
-                code=_next_code("NPLT", SxNplSurplus),
+                code=_code("npl_surplus", SxNplSurplus),
                 production_order=order.production_order,
                 disassembly_order=order,
                 material_code=line.material_code,
@@ -1136,7 +1144,7 @@ def create_npl_surplus(
         ltd = SxDisassemblyOrder.objects.get(pk=disassembly_order_id)
 
     return SxNplSurplus.objects.create(
-        code=(code or "").strip() or _next_code("NPLT", SxNplSurplus),
+        code=_code("npl_surplus", SxNplSurplus, code=code),
         production_order=mo,
         disassembly_order=ltd,
         material_code=material.code,
