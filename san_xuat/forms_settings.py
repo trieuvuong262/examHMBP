@@ -7,7 +7,7 @@ from django import forms
 from san_xuat.hub_models import SxGeneralSettings
 
 _SELECT = forms.Select(attrs={'class': 'form-select'})
-_CHECK = forms.CheckboxInput(attrs={'class': 'form-check-input'})
+_CHECK = forms.CheckboxInput(attrs={'class': 'form-check-input', 'role': 'switch'})
 _NUM = forms.NumberInput(attrs={'class': 'form-control', 'min': 0})
 
 

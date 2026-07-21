@@ -1,154 +1,646 @@
 {% extends 'base.html' %}
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}
+<style>
+  .jp-sx-settings {
+    --sx-set-accent: var(--hm-primary, #dc2626);
+    --sx-set-border: #e2e8f0;
+    --sx-set-muted: #64748b;
+    --sx-set-surface: #fff;
+    --sx-set-soft: #f8fafc;
+  }
+  .jp-sx-settings .jp-sx-set-layout {
+    display: grid;
+    gap: 1.25rem;
+  }
+  @media (min-width: 992px) {
+    .jp-sx-settings .jp-sx-set-layout {
+      grid-template-columns: 13.5rem minmax(0, 1fr);
+      align-items: start;
+      gap: 1.75rem;
+    }
+  }
+  .jp-sx-settings .jp-sx-set-nav {
+    display: flex;
+    gap: .4rem;
+    overflow-x: auto;
+    padding-bottom: .25rem;
+    -webkit-overflow-scrolling: touch;
+  }
+  @media (min-width: 992px) {
+    .jp-sx-settings .jp-sx-set-nav {
+      flex-direction: column;
+      position: sticky;
+      top: 5.5rem;
+      overflow: visible;
+      padding: 0;
+    }
+  }
+  .jp-sx-settings .jp-sx-set-nav a {
+    flex: 0 0 auto;
+    display: block;
+    padding: .45rem .85rem;
+    border-radius: .5rem;
+    font-size: .8125rem;
+    font-weight: 600;
+    color: var(--sx-set-muted);
+    text-decoration: none;
+    white-space: nowrap;
+    border: 1px solid transparent;
+    background: var(--sx-set-soft);
+  }
+  .jp-sx-settings .jp-sx-set-nav a:hover {
+    color: var(--sx-set-accent);
+    border-color: #fecaca;
+    background: #fff;
+  }
+  .jp-sx-settings .jp-sx-set-nav a.is-active {
+    color: #fff;
+    background: var(--sx-set-accent);
+    border-color: var(--sx-set-accent);
+  }
+  .jp-sx-settings .jp-sx-set-panel {
+    background: var(--sx-set-surface);
+    border: 1px solid var(--sx-set-border);
+    border-radius: .75rem;
+    margin-bottom: 1rem;
+    overflow: hidden;
+  }
+  .jp-sx-settings .jp-sx-set-panel-head {
+    padding: .9rem 1.15rem;
+    border-bottom: 1px solid var(--sx-set-border);
+    background: linear-gradient(180deg, #fff 0%, var(--sx-set-soft) 100%);
+  }
+  .jp-sx-settings .jp-sx-set-panel-head h3 {
+    margin: 0;
+    font-size: .95rem;
+    font-weight: 700;
+    color: #0f172a;
+  }
+  .jp-sx-settings .jp-sx-set-panel-head p {
+    margin: .2rem 0 0;
+    font-size: .75rem;
+    color: var(--sx-set-muted);
+  }
+  .jp-sx-settings .jp-sx-set-panel-body { padding: .35rem 0; }
+
+  /* Gate rows */
+  .jp-sx-settings .jp-sx-gate-row {
+    display: grid;
+    gap: .65rem;
+    padding: .85rem 1.15rem;
+    border-bottom: 1px solid #f1f5f9;
+    align-items: center;
+  }
+  .jp-sx-settings .jp-sx-gate-row:last-child { border-bottom: 0; }
+  @media (min-width: 768px) {
+    .jp-sx-settings .jp-sx-gate-row {
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 1rem;
+    }
+  }
+  .jp-sx-settings .jp-sx-gate-title {
+    font-size: .875rem;
+    font-weight: 600;
+    color: #0f172a;
+    margin: 0;
+  }
+  .jp-sx-settings .jp-sx-gate-desc {
+    font-size: .75rem;
+    color: var(--sx-set-muted);
+    margin: .15rem 0 0;
+    line-height: 1.4;
+  }
+  .jp-sx-settings .jp-sx-seg {
+    display: inline-flex;
+    border: 1px solid var(--sx-set-border);
+    border-radius: .5rem;
+    overflow: hidden;
+    background: #fff;
+  }
+  .jp-sx-settings .jp-sx-seg button {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    padding: .4rem .7rem;
+    font-size: .75rem;
+    font-weight: 600;
+    color: var(--sx-set-muted);
+    cursor: pointer;
+    line-height: 1.2;
+    border-right: 1px solid var(--sx-set-border);
+  }
+  .jp-sx-settings .jp-sx-seg button:last-child { border-right: 0; }
+  .jp-sx-settings .jp-sx-seg button:hover { background: #f8fafc; color: #0f172a; }
+  .jp-sx-settings .jp-sx-seg button.is-on[data-val="block"] {
+    background: #fef2f2; color: #b91c1c;
+  }
+  .jp-sx-settings .jp-sx-seg button.is-on[data-val="warn"] {
+    background: #fffbeb; color: #b45309;
+  }
+  .jp-sx-settings .jp-sx-seg button.is-on[data-val="off"] {
+    background: #f1f5f9; color: #475569;
+  }
+  .jp-sx-settings [data-gate] {
+    position: relative;
+  }
+  .jp-sx-settings [data-gate] > select {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  /* Toggle / metric rows */
+  .jp-sx-settings .jp-sx-toggle-row,
+  .jp-sx-settings .jp-sx-metric-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: .85rem 1.15rem;
+    border-bottom: 1px solid #f1f5f9;
+  }
+  .jp-sx-settings .jp-sx-toggle-row:last-child,
+  .jp-sx-settings .jp-sx-metric-row:last-child { border-bottom: 0; }
+  .jp-sx-settings .jp-sx-toggle-copy { min-width: 0; flex: 1; }
+  .jp-sx-settings .jp-sx-toggle-copy strong {
+    display: block;
+    font-size: .875rem;
+    font-weight: 600;
+    color: #0f172a;
+  }
+  .jp-sx-settings .jp-sx-toggle-copy span {
+    display: block;
+    font-size: .75rem;
+    color: var(--sx-set-muted);
+    margin-top: .15rem;
+    line-height: 1.4;
+  }
+  .jp-sx-settings .form-switch {
+    padding-left: 2.6rem;
+    margin: .15rem 0 0;
+  }
+  .jp-sx-settings .form-switch .form-check-input {
+    width: 2.4rem;
+    height: 1.25rem;
+    margin-left: -2.6rem;
+    cursor: pointer;
+  }
+  .jp-sx-settings .form-switch .form-check-input:checked {
+    background-color: var(--sx-set-accent);
+    border-color: var(--sx-set-accent);
+  }
+  .jp-sx-settings .jp-sx-metric-grid {
+    display: grid;
+    gap: 0;
+  }
+  @media (min-width: 768px) {
+    .jp-sx-settings .jp-sx-metric-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .jp-sx-settings .jp-sx-metric-grid .jp-sx-metric-row {
+      flex-direction: column;
+      align-items: stretch;
+      border-bottom: 0;
+      border-right: 1px solid #f1f5f9;
+    }
+    .jp-sx-settings .jp-sx-metric-grid .jp-sx-metric-row:nth-child(3n) { border-right: 0; }
+  }
+  .jp-sx-settings .jp-sx-metric-input {
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    margin-top: .55rem;
+    max-width: 11rem;
+  }
+  .jp-sx-settings .jp-sx-metric-input .form-control {
+    font-weight: 600;
+  }
+  .jp-sx-settings .jp-sx-metric-unit {
+    font-size: .75rem;
+    font-weight: 600;
+    color: var(--sx-set-muted);
+    white-space: nowrap;
+  }
+  .jp-sx-settings .jp-sx-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem .85rem;
+    font-size: .72rem;
+    color: var(--sx-set-muted);
+    padding: 0 1.15rem .85rem;
+  }
+  .jp-sx-settings .jp-sx-legend i {
+    display: inline-block;
+    width: .55rem;
+    height: .55rem;
+    border-radius: 50%;
+    margin-right: .3rem;
+    vertical-align: middle;
+  }
+  .jp-sx-settings .jp-sx-legend .dot-block { background: #ef4444; }
+  .jp-sx-settings .jp-sx-legend .dot-warn { background: #f59e0b; }
+  .jp-sx-settings .jp-sx-legend .dot-off { background: #94a3b8; }
+
+  .jp-sx-settings .jp-sx-set-foot {
+    position: sticky;
+    bottom: 0;
+    z-index: 20;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    margin-top: .5rem;
+    padding: .85rem 1rem;
+    background: rgba(255, 255, 255, .92);
+    border: 1px solid var(--sx-set-border);
+    border-radius: .75rem;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 -6px 24px rgba(15, 23, 42, .06);
+  }
+  .jp-sx-settings .jp-sx-set-meta {
+    font-size: .75rem;
+    color: var(--sx-set-muted);
+  }
+  .jp-sx-settings .jp-sx-set-intro {
+    font-size: .8125rem;
+    color: var(--sx-set-muted);
+    margin: 0 0 1.15rem;
+    max-width: 42rem;
+    line-height: 1.5;
+  }
+</style>
 {% endblock %}
 
 {% block content %}
-<div class="container jp-page jp-sx-page py-3 py-md-4 mb-5" style="max-width: 860px;">
+<div class="container jp-page jp-sx-page jp-sx-settings py-3 py-md-4 mb-5" style="max-width: 980px;">
   <div class="jp-npl-mat-topbar">
-    <h2 class="jp-npl-mat-topbar-title">Thiết lập chung sản xuất</h2>
+    <h2 class="jp-npl-mat-topbar-title">Thiết lập chung</h2>
     <div class="jp-npl-mat-topbar-actions ms-auto">
       <a href="{% url 'san_xuat:overview' %}" class="btn btn-outline-secondary btn-sm fw-bold">Tổng quan</a>
     </div>
   </div>
 
-  <p class="text-muted small mb-4">
-    Cấu hình cổng quy trình, chất lượng, năng lực, kho/tích hợp và shop floor.
-    Lưu trên hệ thống — có hiệu lực ngay (ưu tiên hơn biến môi trường).
+  <p class="jp-sx-set-intro">
+    Cổng quy trình, chất lượng, năng lực và shop floor. Lưu trên hệ thống — có hiệu lực ngay.
   </p>
 
-  <form method="post">
+  <form method="post" id="sx-general-settings-form">
     {% csrf_token %}
     {% if form.non_field_errors %}
     <div class="alert alert-danger">{{ form.non_field_errors }}</div>
     {% endif %}
 
-    <div class="card border-0 shadow-sm mb-3">
-      <div class="card-body p-4">
-        <h3 class="h6 text-hm mb-2">1. Cổng quy trình</h3>
-        <p class="small text-muted mb-3">
-          <strong>Chặn</strong> / <strong>Cảnh báo</strong> / <strong>Tắt</strong>.
-        </p>
-        <div class="mb-3">
-          <label class="form-label" for="{{ form.gate_release_before_issue.id_for_label }}">{{ form.gate_release_before_issue.label }}</label>
-          {{ form.gate_release_before_issue }}
-        </div>
-        <div class="mb-3">
-          <label class="form-label" for="{{ form.gate_issue_before_stat.id_for_label }}">{{ form.gate_issue_before_stat.label }}</label>
-          {{ form.gate_issue_before_stat }}
-        </div>
-        <div class="mb-3">
-          <label class="form-label" for="{{ form.gate_stat_before_fg.id_for_label }}">{{ form.gate_stat_before_fg.label }}</label>
-          {{ form.gate_stat_before_fg }}
-        </div>
-        <div class="mb-3">
-          <label class="form-label" for="{{ form.gate_qc_pass_before_fg.id_for_label }}">{{ form.gate_qc_pass_before_fg.label }}</label>
-          {{ form.gate_qc_pass_before_fg }}
-        </div>
-        <div class="mb-3">
-          <label class="form-label" for="{{ form.gate_open_qc_alert_before_fg.id_for_label }}">{{ form.gate_open_qc_alert_before_fg.label }}</label>
-          {{ form.gate_open_qc_alert_before_fg }}
-        </div>
-        <div class="mb-0">
-          <label class="form-label" for="{{ form.gate_packing_before_done.id_for_label }}">{{ form.gate_packing_before_done.label }}</label>
-          {{ form.gate_packing_before_done }}
+    <div class="jp-sx-set-layout">
+      <nav class="jp-sx-set-nav" aria-label="Mục thiết lập" id="sx-set-nav">
+        <a href="#sec-gates" class="is-active">Cổng quy trình</a>
+        <a href="#sec-qc">Chất lượng</a>
+        <a href="#sec-capacity">Năng lực</a>
+        <a href="#sec-stock">Kho &amp; tích hợp</a>
+        <a href="#sec-shopfloor">Shop floor</a>
+      </nav>
+
+      <div>
+        {# —— 1. Gates —— #}
+        <section class="jp-sx-set-panel" id="sec-gates">
+          <div class="jp-sx-set-panel-head">
+            <h3>Cổng quy trình</h3>
+            <p>Kiểm tra thứ tự bước trước khi cho phép thao tác tiếp theo.</p>
+          </div>
+          <div class="jp-sx-set-panel-body">
+            {% with f=form.gate_release_before_issue %}
+            <div class="jp-sx-gate-row" data-gate>
+              <div>
+                <p class="jp-sx-gate-title">Phát hành lệnh → tạo YCX</p>
+                <p class="jp-sx-gate-desc">{{ f.label }}</p>
+              </div>
+              <div class="jp-sx-seg" role="group" aria-label="{{ f.label }}">
+                <button type="button" data-val="block">Chặn</button>
+                <button type="button" data-val="warn">Cảnh báo</button>
+                <button type="button" data-val="off">Tắt</button>
+              </div>
+              {{ f.as_widget }}
+            </div>
+            {% endwith %}
+
+            {% with f=form.gate_issue_before_stat %}
+            <div class="jp-sx-gate-row" data-gate>
+              <div>
+                <p class="jp-sx-gate-title">Xuất kho → xác nhận thống kê</p>
+                <p class="jp-sx-gate-desc">{{ f.label }}</p>
+              </div>
+              <div class="jp-sx-seg" role="group" aria-label="{{ f.label }}">
+                <button type="button" data-val="block">Chặn</button>
+                <button type="button" data-val="warn">Cảnh báo</button>
+                <button type="button" data-val="off">Tắt</button>
+              </div>
+              {{ f.as_widget }}
+            </div>
+            {% endwith %}
+
+            {% with f=form.gate_stat_before_fg %}
+            <div class="jp-sx-gate-row" data-gate>
+              <div>
+                <p class="jp-sx-gate-title">Thống kê → nhập thành phẩm</p>
+                <p class="jp-sx-gate-desc">{{ f.label }}</p>
+              </div>
+              <div class="jp-sx-seg" role="group" aria-label="{{ f.label }}">
+                <button type="button" data-val="block">Chặn</button>
+                <button type="button" data-val="warn">Cảnh báo</button>
+                <button type="button" data-val="off">Tắt</button>
+              </div>
+              {{ f.as_widget }}
+            </div>
+            {% endwith %}
+
+            {% with f=form.gate_qc_pass_before_fg %}
+            <div class="jp-sx-gate-row" data-gate>
+              <div>
+                <p class="jp-sx-gate-title">QC Đạt → nhập thành phẩm</p>
+                <p class="jp-sx-gate-desc">{{ f.label }}</p>
+              </div>
+              <div class="jp-sx-seg" role="group" aria-label="{{ f.label }}">
+                <button type="button" data-val="block">Chặn</button>
+                <button type="button" data-val="warn">Cảnh báo</button>
+                <button type="button" data-val="off">Tắt</button>
+              </div>
+              {{ f.as_widget }}
+            </div>
+            {% endwith %}
+
+            {% with f=form.gate_open_qc_alert_before_fg %}
+            <div class="jp-sx-gate-row" data-gate>
+              <div>
+                <p class="jp-sx-gate-title">Không còn cảnh báo QC mở → nhập TP</p>
+                <p class="jp-sx-gate-desc">{{ f.label }}</p>
+              </div>
+              <div class="jp-sx-seg" role="group" aria-label="{{ f.label }}">
+                <button type="button" data-val="block">Chặn</button>
+                <button type="button" data-val="warn">Cảnh báo</button>
+                <button type="button" data-val="off">Tắt</button>
+              </div>
+              {{ f.as_widget }}
+            </div>
+            {% endwith %}
+
+            {% with f=form.gate_packing_before_done %}
+            <div class="jp-sx-gate-row" data-gate>
+              <div>
+                <p class="jp-sx-gate-title">Đóng gói → hoàn thành lệnh</p>
+                <p class="jp-sx-gate-desc">{{ f.label }}</p>
+              </div>
+              <div class="jp-sx-seg" role="group" aria-label="{{ f.label }}">
+                <button type="button" data-val="block">Chặn</button>
+                <button type="button" data-val="warn">Cảnh báo</button>
+                <button type="button" data-val="off">Tắt</button>
+              </div>
+              {{ f.as_widget }}
+            </div>
+            {% endwith %}
+
+            <div class="jp-sx-legend">
+              <span><i class="dot-block"></i>Chặn — bắt buộc đúng bước</span>
+              <span><i class="dot-warn"></i>Cảnh báo — cho phép nhưng nhắc</span>
+              <span><i class="dot-off"></i>Tắt — không kiểm tra</span>
+            </div>
+          </div>
+        </section>
+
+        {# —— 2. QC —— #}
+        <section class="jp-sx-set-panel" id="sec-qc">
+          <div class="jp-sx-set-panel-head">
+            <h3>Chất lượng &amp; truy xuất</h3>
+            <p>Tự động tạo phiếu/cảnh báo và ngưỡng mặc định.</p>
+          </div>
+          <div class="jp-sx-set-panel-body">
+            <div class="jp-sx-toggle-row">
+              <div class="jp-sx-toggle-copy">
+                <strong>{{ form.auto_create_qc_from_stat.label }}</strong>
+              </div>
+              <div class="form-check form-switch">
+                {{ form.auto_create_qc_from_stat }}
+              </div>
+            </div>
+            <div class="jp-sx-toggle-row">
+              <div class="jp-sx-toggle-copy">
+                <strong>{{ form.auto_create_defect_alert.label }}</strong>
+              </div>
+              <div class="form-check form-switch">
+                {{ form.auto_create_defect_alert }}
+              </div>
+            </div>
+            <div class="jp-sx-metric-grid">
+              <div class="jp-sx-metric-row">
+                <div class="jp-sx-toggle-copy">
+                  <strong>{{ form.default_defect_tolerance_pct.label }}</strong>
+                  {% if form.default_defect_tolerance_pct.help_text %}
+                  <span>{{ form.default_defect_tolerance_pct.help_text }}</span>
+                  {% endif %}
+                </div>
+                <div class="jp-sx-metric-input">
+                  {{ form.default_defect_tolerance_pct }}
+                  <span class="jp-sx-metric-unit">%</span>
+                </div>
+              </div>
+              <div class="jp-sx-metric-row">
+                <div class="jp-sx-toggle-copy">
+                  <strong>{{ form.default_sample_qty.label }}</strong>
+                  {% if form.default_sample_qty.help_text %}
+                  <span>{{ form.default_sample_qty.help_text }}</span>
+                  {% endif %}
+                </div>
+                <div class="jp-sx-metric-input">
+                  {{ form.default_sample_qty }}
+                  <span class="jp-sx-metric-unit">mẫu</span>
+                </div>
+              </div>
+              <div class="jp-sx-metric-row">
+                <div class="jp-sx-toggle-copy">
+                  <strong>Ngưỡng timeline truy xuất</strong>
+                  {% if form.trace_min_timeline_events.help_text %}
+                  <span>{{ form.trace_min_timeline_events.help_text }}</span>
+                  {% endif %}
+                </div>
+                <div class="jp-sx-metric-input">
+                  {{ form.trace_min_timeline_events }}
+                  <span class="jp-sx-metric-unit">sự kiện</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {# —— 3. Capacity —— #}
+        <section class="jp-sx-set-panel" id="sec-capacity">
+          <div class="jp-sx-set-panel-head">
+            <h3>Năng lực &amp; danh sách</h3>
+            <p>Màu tải trên màn Năng lực SX và khoảng ngày lọc mặc định.</p>
+          </div>
+          <div class="jp-sx-set-panel-body">
+            <div class="jp-sx-metric-grid">
+              <div class="jp-sx-metric-row">
+                <div class="jp-sx-toggle-copy">
+                  <strong>Cảnh báo tải</strong>
+                  <span>Highlight vàng khi vượt ngưỡng.</span>
+                </div>
+                <div class="jp-sx-metric-input">
+                  {{ form.capacity_load_warn_pct }}
+                  <span class="jp-sx-metric-unit">%</span>
+                </div>
+                {% if form.capacity_load_warn_pct.errors %}
+                <div class="text-danger small mt-1">{{ form.capacity_load_warn_pct.errors }}</div>
+                {% endif %}
+              </div>
+              <div class="jp-sx-metric-row">
+                <div class="jp-sx-toggle-copy">
+                  <strong>Quá tải</strong>
+                  <span>Highlight đỏ khi vượt ngưỡng.</span>
+                </div>
+                <div class="jp-sx-metric-input">
+                  {{ form.capacity_load_danger_pct }}
+                  <span class="jp-sx-metric-unit">%</span>
+                </div>
+              </div>
+              <div class="jp-sx-metric-row">
+                <div class="jp-sx-toggle-copy">
+                  <strong>Khoảng ngày danh sách</strong>
+                  <span>Mặc định khi mở danh sách lệnh / thống kê…</span>
+                </div>
+                <div class="jp-sx-metric-input">
+                  {{ form.list_default_date_range_days }}
+                  <span class="jp-sx-metric-unit">ngày</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {# —— 4. Stock —— #}
+        <section class="jp-sx-set-panel" id="sec-stock">
+          <div class="jp-sx-set-panel-head">
+            <h3>Kho &amp; tích hợp</h3>
+            <p>Giữ chỗ tồn và liên kết KiotViet khi nhập thành phẩm.</p>
+          </div>
+          <div class="jp-sx-set-panel-body">
+            <div class="jp-sx-toggle-row">
+              <div class="jp-sx-toggle-copy">
+                <strong>{{ form.ycx_auto_reserve_stock.label }}</strong>
+              </div>
+              <div class="form-check form-switch">
+                {{ form.ycx_auto_reserve_stock }}
+              </div>
+            </div>
+            <div class="jp-sx-toggle-row">
+              <div class="jp-sx-toggle-copy">
+                <strong>{{ form.require_kv_link_for_fg_done.label }}</strong>
+                {% if form.require_kv_link_for_fg_done.help_text %}
+                <span>{{ form.require_kv_link_for_fg_done.help_text }}</span>
+                {% endif %}
+              </div>
+              <div class="form-check form-switch">
+                {{ form.require_kv_link_for_fg_done }}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {# —— 5. Shop floor —— #}
+        <section class="jp-sx-set-panel" id="sec-shopfloor">
+          <div class="jp-sx-set-panel-head">
+            <h3>Shop floor</h3>
+            <p>Hành vi khi quét mã trên màn xưởng.</p>
+          </div>
+          <div class="jp-sx-set-panel-body">
+            <div class="jp-sx-toggle-row">
+              <div class="jp-sx-toggle-copy">
+                <strong>{{ form.shopfloor_auto_confirm_stat.label }}</strong>
+              </div>
+              <div class="form-check form-switch">
+                {{ form.shopfloor_auto_confirm_stat }}
+              </div>
+            </div>
+            <div class="jp-sx-metric-row">
+              <div class="jp-sx-toggle-copy">
+                <strong>{{ form.shopfloor_default_qty_good.label }}</strong>
+              </div>
+              <div class="jp-sx-metric-input">
+                {{ form.shopfloor_default_qty_good }}
+                <span class="jp-sx-metric-unit">đạt / lần</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div class="jp-sx-set-foot">
+          <div class="jp-sx-set-meta">
+            {% if cfg.updated_at %}
+            Cập nhật lần cuối: {{ cfg.updated_at|date:"d/m/Y H:i" }}{% if cfg.updated_by %} · {{ cfg.updated_by.get_username }}{% endif %}
+            {% else %}
+            Chưa lưu lần nào
+            {% endif %}
+          </div>
+          {% if can_update %}
+          <button type="submit" class="btn btn-hm fw-bold px-4">Lưu thiết lập</button>
+          {% else %}
+          <span class="jp-sx-set-meta">Chỉ xem — cần quyền Sửa module Sản xuất để lưu.</span>
+          {% endif %}
         </div>
       </div>
     </div>
-
-    <div class="card border-0 shadow-sm mb-3">
-      <div class="card-body p-4">
-        <h3 class="h6 text-hm mb-3">2. Chất lượng &amp; truy xuất</h3>
-        <div class="form-check mb-2">
-          {{ form.auto_create_qc_from_stat }}
-          <label class="form-check-label" for="{{ form.auto_create_qc_from_stat.id_for_label }}">{{ form.auto_create_qc_from_stat.label }}</label>
-        </div>
-        <div class="form-check mb-3">
-          {{ form.auto_create_defect_alert }}
-          <label class="form-check-label" for="{{ form.auto_create_defect_alert.id_for_label }}">{{ form.auto_create_defect_alert.label }}</label>
-        </div>
-        <div class="row g-3">
-          <div class="col-md-4">
-            <label class="form-label" for="{{ form.default_defect_tolerance_pct.id_for_label }}">{{ form.default_defect_tolerance_pct.label }}</label>
-            {{ form.default_defect_tolerance_pct }}
-            <div class="form-text">{{ form.default_defect_tolerance_pct.help_text }}</div>
-          </div>
-          <div class="col-md-4">
-            <label class="form-label" for="{{ form.default_sample_qty.id_for_label }}">{{ form.default_sample_qty.label }}</label>
-            {{ form.default_sample_qty }}
-            <div class="form-text">{{ form.default_sample_qty.help_text }}</div>
-          </div>
-          <div class="col-md-4">
-            <label class="form-label" for="{{ form.trace_min_timeline_events.id_for_label }}">{{ form.trace_min_timeline_events.label }}</label>
-            {{ form.trace_min_timeline_events }}
-            <div class="form-text">{{ form.trace_min_timeline_events.help_text }}</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="card border-0 shadow-sm mb-3">
-      <div class="card-body p-4">
-        <h3 class="h6 text-hm mb-3">3. Năng lực &amp; danh sách</h3>
-        <div class="row g-3">
-          <div class="col-md-4">
-            <label class="form-label" for="{{ form.capacity_load_warn_pct.id_for_label }}">{{ form.capacity_load_warn_pct.label }}</label>
-            {{ form.capacity_load_warn_pct }}
-            {% if form.capacity_load_warn_pct.errors %}<div class="text-danger small">{{ form.capacity_load_warn_pct.errors }}</div>{% endif %}
-          </div>
-          <div class="col-md-4">
-            <label class="form-label" for="{{ form.capacity_load_danger_pct.id_for_label }}">{{ form.capacity_load_danger_pct.label }}</label>
-            {{ form.capacity_load_danger_pct }}
-          </div>
-          <div class="col-md-4">
-            <label class="form-label" for="{{ form.list_default_date_range_days.id_for_label }}">{{ form.list_default_date_range_days.label }}</label>
-            {{ form.list_default_date_range_days }}
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="card border-0 shadow-sm mb-3">
-      <div class="card-body p-4">
-        <h3 class="h6 text-hm mb-3">4. Kho &amp; tích hợp</h3>
-        <div class="form-check mb-2">
-          {{ form.ycx_auto_reserve_stock }}
-          <label class="form-check-label" for="{{ form.ycx_auto_reserve_stock.id_for_label }}">{{ form.ycx_auto_reserve_stock.label }}</label>
-        </div>
-        <div class="form-check mb-0">
-          {{ form.require_kv_link_for_fg_done }}
-          <label class="form-check-label" for="{{ form.require_kv_link_for_fg_done.id_for_label }}">{{ form.require_kv_link_for_fg_done.label }}</label>
-          <div class="form-text">{{ form.require_kv_link_for_fg_done.help_text }}</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="card border-0 shadow-sm mb-3">
-      <div class="card-body p-4">
-        <h3 class="h6 text-hm mb-3">5. Shop floor</h3>
-        <div class="form-check mb-3">
-          {{ form.shopfloor_auto_confirm_stat }}
-          <label class="form-check-label" for="{{ form.shopfloor_auto_confirm_stat.id_for_label }}">{{ form.shopfloor_auto_confirm_stat.label }}</label>
-        </div>
-        <div class="col-md-4 px-0">
-          <label class="form-label" for="{{ form.shopfloor_default_qty_good.id_for_label }}">{{ form.shopfloor_default_qty_good.label }}</label>
-          {{ form.shopfloor_default_qty_good }}
-        </div>
-      </div>
-    </div>
-
-    {% if cfg.updated_at %}
-    <p class="small text-muted mb-3">
-      Cập nhật lần cuối: {{ cfg.updated_at|date:"d/m/Y H:i" }}
-      {% if cfg.updated_by %} · {{ cfg.updated_by.get_username }}{% endif %}
-    </p>
-    {% endif %}
-
-    {% if can_update %}
-    <button type="submit" class="btn btn-hm">Lưu thiết lập</button>
-    {% else %}
-    <div class="text-muted small">Bạn chỉ có quyền xem — cần quyền Sửa module Sản xuất để lưu.</div>
-    {% endif %}
   </form>
 </div>
+
+<script>
+(function () {
+  document.querySelectorAll('[data-gate]').forEach(function (row) {
+    var sel = row.querySelector('select');
+    var seg = row.querySelector('.jp-sx-seg');
+    if (!sel || !seg) return;
+    function sync() {
+      var v = sel.value;
+      seg.querySelectorAll('button').forEach(function (btn) {
+        btn.classList.toggle('is-on', btn.getAttribute('data-val') === v);
+      });
+    }
+    seg.querySelectorAll('button').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        sel.value = btn.getAttribute('data-val');
+        sync();
+      });
+    });
+    sync();
+  });
+
+  var nav = document.getElementById('sx-set-nav');
+  if (!nav) return;
+  var links = Array.prototype.slice.call(nav.querySelectorAll('a'));
+  var sections = links.map(function (a) {
+    return document.querySelector(a.getAttribute('href'));
+  }).filter(Boolean);
+
+  function setActive(id) {
+    links.forEach(function (a) {
+      a.classList.toggle('is-active', a.getAttribute('href') === '#' + id);
+    });
+  }
+
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        if (en.isIntersecting) setActive(en.target.id);
+      });
+    }, { rootMargin: '-20% 0px -65% 0px', threshold: 0 });
+    sections.forEach(function (s) { io.observe(s); });
+  }
+
+  links.forEach(function (a) {
+    a.addEventListener('click', function () {
+      setActive(a.getAttribute('href').slice(1));
+    });
+  });
+})();
+</script>
 {% endblock %}
