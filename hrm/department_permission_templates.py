@@ -155,14 +155,22 @@ def _san_xuat_menus(*, manager: bool) -> dict:
     level = MGR if manager else VIEW
     keys = (
         'overview', 'orders',
+        'docs', 'bom', 'capacity',
         'plan', 'plan_overall', 'plan_detail', 'plan_npl', 'npl_pr', 'purchase_order',
-        'dispatch', 'mo', 'disassembly', 'schedule', 'material_issue_req', 'prod_stats',
-        'fg_receipt_req', 'npl_surplus', 'wip_handover', 'wip_return', 'handover_status',
-        'qc', 'qc_request', 'qc_sheet', 'qc_criteria', 'qc_criteria_group', 'qc_sampling',
+        'npl_stock',
+        'dispatch', 'mo', 'schedule', 'material_issue_req', 'prod_stats',
+        'wip_handover', 'wip_return', 'handover_status', 'fg_receipt_req',
+        'disassembly', 'npl_surplus',
+        'shop_floor', 'work_assign', 'downtime', 'piece_rate',
+        'qc', 'qc_request', 'qc_sheet', 'ncr',
+        'qc_criteria', 'qc_criteria_group', 'qc_sampling',
         'qc_standard_set', 'qc_defect', 'qc_defect_group',
-        'costing_hub', 'costing_norm', 'costing_so',
+        'packing', 'subcontract',
+        'costing_hub', 'costing_norm', 'costing_so', 'costing', 'actual_cost',
         'fg_stock', 'fg_products', 'fg_stock_list', 'fg_purchases',
-        'npl_stock', 'process', 'docs', 'bom', 'costing', 'general_settings',
+        'traceability', 'ops_report',
+        'process', 'unified_catalog', 'staging',
+        'general_settings',
     )
     return {key: dict(level) for key in keys}
 

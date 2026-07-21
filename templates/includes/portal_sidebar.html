@@ -731,7 +731,26 @@
                 </li>
                 {% endif %}
 
-                {# —— 4. Điều phối (theo luồng LSX) —— #}
+                {# —— 4. Kho NPL (sau kế hoạch / mua NPL) —— #}
+                {% if jp_can_kho_npl %}
+                <li class="jp-sidebar-nested-group{% if 'kho-npl' in request.path %} is-open{% endif %}">
+                    <button type="button"
+                            class="jp-sidebar-nested-toggle"
+                            data-jp-sidebar-group-toggle
+                            aria-expanded="{% if 'kho-npl' in request.path %}true{% else %}false{% endif %}"
+                            aria-controls="jp-sidebar-san-xuat-stock-submenu">
+                        <span class="jp-sidebar-nested-toggle-main">
+                            <i class="bi bi-boxes"></i><span>Kho NPL</span>
+                        </span>
+                        <i class="bi bi-chevron-down jp-sidebar-nested-chevron" aria-hidden="true"></i>
+                    </button>
+                    <ul class="jp-sidebar-nested-submenu" id="jp-sidebar-san-xuat-stock-submenu">
+                        {% include 'includes/kho_npl_sidebar_items.html' %}
+                    </ul>
+                </li>
+                {% endif %}
+
+                {# —— 5. Điều phối (theo luồng LSX) —— #}
                 {% jp_can_menu 'san_xuat' 'dispatch' as jp_can_san_xuat_dispatch %}
                 {% jp_can_menu 'san_xuat' 'mo' as jp_can_san_xuat_mo %}
                 {% jp_can_menu 'san_xuat' 'schedule' as jp_can_san_xuat_schedule %}
@@ -788,18 +807,10 @@
                             </a>
                         </li>
                         {% endif %}
-                        {% if jp_can_san_xuat_fg_req or jp_can_san_xuat_dispatch %}
-                        <li>
-                            <a href="{% url 'san_xuat:dispatch_fg_receipt_req' %}"
-                               class="jp-sidebar-link jp-sidebar-sublink {% if 'dispatch_fg_receipt' in request.resolver_match.url_name %}active{% endif %}">
-                                <i class="bi bi-box-arrow-in-down"></i><span>YCNTP</span>
-                            </a>
-                        </li>
-                        {% endif %}
                         {% if jp_can_san_xuat_wip_ho or jp_can_san_xuat_dispatch %}
                         <li>
                             <a href="{% url 'san_xuat:dispatch_wip_handover' %}"
-                               class="jp-sidebar-link jp-sidebar-sublink {% if 'dispatch_wip_handover' in request.resolver_match.url_name or request.resolver_match.url_name == 'dispatch_handover_status' %}active{% endif %}">
+                               class="jp-sidebar-link jp-sidebar-sublink {% if 'dispatch_wip_handover' in request.resolver_match.url_name %}active{% endif %}">
                                 <i class="bi bi-arrow-left-right"></i><span>Bàn giao BTP</span>
                             </a>
                         </li>
@@ -817,6 +828,14 @@
                             <a href="{% url 'san_xuat:dispatch_handover_status' %}"
                                class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'dispatch_handover_status' %}active{% endif %}">
                                 <i class="bi bi-clipboard-data"></i><span>Tồn BTP / bàn giao</span>
+                            </a>
+                        </li>
+                        {% endif %}
+                        {% if jp_can_san_xuat_fg_req or jp_can_san_xuat_dispatch %}
+                        <li>
+                            <a href="{% url 'san_xuat:dispatch_fg_receipt_req' %}"
+                               class="jp-sidebar-link jp-sidebar-sublink {% if 'dispatch_fg_receipt' in request.resolver_match.url_name %}active{% endif %}">
+                                <i class="bi bi-box-arrow-in-down"></i><span>YCNTP</span>
                             </a>
                         </li>
                         {% endif %}
@@ -856,41 +875,24 @@
                 </li>
                 {% endif %}
 
-                {# —— 5. Giao việc / vận hành xưởng —— #}
+                {# —— 6. Vận hành xưởng —— #}
                 {% jp_can_menu 'san_xuat' 'work_assign' as jp_can_san_xuat_work %}
                 {% jp_can_menu 'san_xuat' 'piece_rate' as jp_can_san_xuat_piece %}
                 {% jp_can_menu 'san_xuat' 'shop_floor' as jp_can_san_xuat_sf %}
-                {% jp_can_menu 'san_xuat' 'ncr' as jp_can_san_xuat_ncr %}
                 {% jp_can_menu 'san_xuat' 'downtime' as jp_can_san_xuat_dt %}
-                {% if jp_can_san_xuat_work or jp_can_san_xuat_piece or jp_can_san_xuat_sf or jp_can_san_xuat_ncr or jp_can_san_xuat_dt %}
-                <li class="jp-sidebar-nested-group{% if 'giao-viec' in request.path or 'luong-san-pham' in request.path or 'shop-floor' in request.path or '/san-xuat/ncr' in request.path or 'dung-chuyen' in request.path %} is-open{% endif %}">
+                {% if jp_can_san_xuat_work or jp_can_san_xuat_piece or jp_can_san_xuat_sf or jp_can_san_xuat_dt %}
+                <li class="jp-sidebar-nested-group{% if 'giao-viec' in request.path or 'luong-san-pham' in request.path or 'shop-floor' in request.path or 'dung-chuyen' in request.path %} is-open{% endif %}">
                     <button type="button"
                             class="jp-sidebar-nested-toggle"
                             data-jp-sidebar-group-toggle
-                            aria-expanded="{% if 'giao-viec' in request.path or 'luong-san-pham' in request.path or 'shop-floor' in request.path or '/san-xuat/ncr' in request.path or 'dung-chuyen' in request.path %}true{% else %}false{% endif %}"
+                            aria-expanded="{% if 'giao-viec' in request.path or 'luong-san-pham' in request.path or 'shop-floor' in request.path or 'dung-chuyen' in request.path %}true{% else %}false{% endif %}"
                             aria-controls="jp-sidebar-san-xuat-work-submenu">
                         <span class="jp-sidebar-nested-toggle-main">
-                            <i class="bi bi-person-workspace"></i><span>Giao việc</span>
+                            <i class="bi bi-person-workspace"></i><span>Vận hành xưởng</span>
                         </span>
                         <i class="bi bi-chevron-down jp-sidebar-nested-chevron" aria-hidden="true"></i>
                     </button>
                     <ul class="jp-sidebar-nested-submenu" id="jp-sidebar-san-xuat-work-submenu">
-                        {% if jp_can_san_xuat_work %}
-                        <li>
-                            <a href="{% url 'san_xuat:work_assignment_list' %}"
-                               class="jp-sidebar-link jp-sidebar-sublink {% if 'giao-viec' in request.path %}active{% endif %}">
-                                <i class="bi bi-person-workspace"></i><span>Giao việc SX</span>
-                            </a>
-                        </li>
-                        {% endif %}
-                        {% if jp_can_san_xuat_piece %}
-                        <li>
-                            <a href="{% url 'san_xuat:piece_rate_report' %}"
-                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'piece_rate_report' or request.resolver_match.url_name == 'piece_rate_hr_export' %}active{% endif %}">
-                                <i class="bi bi-cash-coin"></i><span>Lương SP</span>
-                            </a>
-                        </li>
-                        {% endif %}
                         {% if jp_can_san_xuat_sf %}
                         <li>
                             <a href="{% url 'san_xuat:shop_floor' %}"
@@ -899,11 +901,11 @@
                             </a>
                         </li>
                         {% endif %}
-                        {% if jp_can_san_xuat_ncr %}
+                        {% if jp_can_san_xuat_work %}
                         <li>
-                            <a href="{% url 'san_xuat:ncr_list' %}"
-                               class="jp-sidebar-link jp-sidebar-sublink {% if '/san-xuat/ncr' in request.path %}active{% endif %}">
-                                <i class="bi bi-exclamation-octagon"></i><span>NCR</span>
+                            <a href="{% url 'san_xuat:work_assignment_list' %}"
+                               class="jp-sidebar-link jp-sidebar-sublink {% if 'giao-viec' in request.path %}active{% endif %}">
+                                <i class="bi bi-person-workspace"></i><span>Giao việc SX</span>
                             </a>
                         </li>
                         {% endif %}
@@ -915,22 +917,31 @@
                             </a>
                         </li>
                         {% endif %}
+                        {% if jp_can_san_xuat_piece %}
+                        <li>
+                            <a href="{% url 'san_xuat:piece_rate_report' %}"
+                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'piece_rate_report' or request.resolver_match.url_name == 'piece_rate_hr_export' %}active{% endif %}">
+                                <i class="bi bi-cash-coin"></i><span>Lương SP</span>
+                            </a>
+                        </li>
+                        {% endif %}
                     </ul>
                 </li>
                 {% endif %}
 
-                {# —— 6. QC: hàng ngày YCKT/PKT/cảnh báo; danh mục gom 1 mục Tiêu chuẩn —— #}
+                {# —— 7. QC —— #}
                 {% jp_can_menu 'san_xuat' 'qc' as jp_can_san_xuat_qc %}
                 {% jp_can_menu 'san_xuat' 'qc_request' as jp_can_san_xuat_qc_req %}
                 {% jp_can_menu 'san_xuat' 'qc_sheet' as jp_can_san_xuat_qc_sheet %}
                 {% jp_can_menu 'san_xuat' 'qc_criteria' as jp_can_san_xuat_qc_crit %}
                 {% jp_can_menu 'san_xuat' 'qc_standard_set' as jp_can_san_xuat_qc_std %}
-                {% if jp_can_san_xuat_qc or jp_can_san_xuat_qc_req or jp_can_san_xuat_qc_sheet or jp_can_san_xuat_qc_crit or jp_can_san_xuat_qc_std %}
-                <li class="jp-sidebar-nested-group{% if '/san-xuat/chat-luong' in request.path %} is-open{% endif %}">
+                {% jp_can_menu 'san_xuat' 'ncr' as jp_can_san_xuat_ncr %}
+                {% if jp_can_san_xuat_qc or jp_can_san_xuat_qc_req or jp_can_san_xuat_qc_sheet or jp_can_san_xuat_qc_crit or jp_can_san_xuat_qc_std or jp_can_san_xuat_ncr %}
+                <li class="jp-sidebar-nested-group{% if '/san-xuat/chat-luong' in request.path or '/san-xuat/ncr' in request.path %} is-open{% endif %}">
                     <button type="button"
                             class="jp-sidebar-nested-toggle"
                             data-jp-sidebar-group-toggle
-                            aria-expanded="{% if '/san-xuat/chat-luong' in request.path %}true{% else %}false{% endif %}"
+                            aria-expanded="{% if '/san-xuat/chat-luong' in request.path or '/san-xuat/ncr' in request.path %}true{% else %}false{% endif %}"
                             aria-controls="jp-sidebar-san-xuat-qc-submenu">
                         <span class="jp-sidebar-nested-toggle-main">
                             <i class="bi bi-clipboard-check"></i><span>QC</span>
@@ -962,6 +973,14 @@
                             </a>
                         </li>
                         {% endif %}
+                        {% if jp_can_san_xuat_ncr %}
+                        <li>
+                            <a href="{% url 'san_xuat:ncr_list' %}"
+                               class="jp-sidebar-link jp-sidebar-sublink {% if '/san-xuat/ncr' in request.path %}active{% endif %}">
+                                <i class="bi bi-exclamation-octagon"></i><span>NCR</span>
+                            </a>
+                        </li>
+                        {% endif %}
                         {% if jp_can_san_xuat_qc or jp_can_san_xuat_qc_crit or jp_can_san_xuat_qc_std %}
                         <li>
                             <a href="{% url 'san_xuat:qc_stub' %}"
@@ -974,7 +993,7 @@
                 </li>
                 {% endif %}
 
-                {# —— 7. Đóng gói & thuê GC —— #}
+                {# —— 8. Đóng gói & thuê GC —— #}
                 {% jp_can_menu 'san_xuat' 'packing' as jp_can_san_xuat_packing %}
                 {% jp_can_menu 'san_xuat' 'subcontract' as jp_can_san_xuat_sub %}
                 {% if jp_can_san_xuat_packing or jp_can_san_xuat_sub %}
@@ -1010,7 +1029,7 @@
                 </li>
                 {% endif %}
 
-                {# —— 8. Giá thành —— #}
+                {# —— 9. Giá thành —— #}
                 {% jp_can_menu 'san_xuat' 'costing_hub' as jp_can_san_xuat_costing_hub %}
                 {% jp_can_menu 'san_xuat' 'costing_norm' as jp_can_san_xuat_costing_norm %}
                 {% jp_can_menu 'san_xuat' 'costing' as jp_can_san_xuat_costing %}
@@ -1044,25 +1063,6 @@
                             </a>
                         </li>
                         {% endif %}
-                    </ul>
-                </li>
-                {% endif %}
-
-                {# —— 9. Kho NPL — TP dùng menu Bán hàng —— #}
-                {% if jp_can_kho_npl %}
-                <li class="jp-sidebar-nested-group{% if 'kho-npl' in request.path %} is-open{% endif %}">
-                    <button type="button"
-                            class="jp-sidebar-nested-toggle"
-                            data-jp-sidebar-group-toggle
-                            aria-expanded="{% if 'kho-npl' in request.path %}true{% else %}false{% endif %}"
-                            aria-controls="jp-sidebar-san-xuat-stock-submenu">
-                        <span class="jp-sidebar-nested-toggle-main">
-                            <i class="bi bi-boxes"></i><span>Kho NPL</span>
-                        </span>
-                        <i class="bi bi-chevron-down jp-sidebar-nested-chevron" aria-hidden="true"></i>
-                    </button>
-                    <ul class="jp-sidebar-nested-submenu" id="jp-sidebar-san-xuat-stock-submenu">
-                        {% include 'includes/kho_npl_sidebar_items.html' %}
                     </ul>
                 </li>
                 {% endif %}
@@ -1103,17 +1103,6 @@
                 </li>
                 {% endif %}
 
-                {# —— Thiết lập chung —— #}
-                {% jp_can_menu 'san_xuat' 'general_settings' as jp_can_san_xuat_settings %}
-                {% if jp_can_san_xuat_settings %}
-                <li>
-                    <a href="{% url 'san_xuat:general_settings' %}"
-                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'general_settings' %}active{% endif %}">
-                        <i class="bi bi-gear"></i><span>Thiết lập chung</span>
-                    </a>
-                </li>
-                {% endif %}
-
                 {# —— 11. Tích hợp KV —— #}
                 {% if jp_can_kiotviet %}
                 <li class="jp-sidebar-nested-group{% if 'kiotviet' in request.path %} is-open{% endif %}">
@@ -1130,6 +1119,17 @@
                     <ul class="jp-sidebar-nested-submenu" id="jp-sidebar-san-xuat-kiotviet-submenu">
                         {% include 'includes/kiotviet_sidebar_items.html' %}
                     </ul>
+                </li>
+                {% endif %}
+
+                {# —— 12. Thiết lập chung (cuối) —— #}
+                {% jp_can_menu 'san_xuat' 'general_settings' as jp_can_san_xuat_settings %}
+                {% if jp_can_san_xuat_settings %}
+                <li>
+                    <a href="{% url 'san_xuat:general_settings' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'general_settings' %}active{% endif %}">
+                        <i class="bi bi-gear"></i><span>Thiết lập chung</span>
+                    </a>
                 </li>
                 {% endif %}
             </ul>
