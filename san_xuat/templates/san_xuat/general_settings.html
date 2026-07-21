@@ -77,11 +77,6 @@
     font-weight: 700;
     color: #0f172a;
   }
-  .jp-sx-settings .jp-sx-set-panel-head p {
-    margin: .2rem 0 0;
-    font-size: .75rem;
-    color: var(--sx-set-muted);
-  }
   .jp-sx-settings .jp-sx-set-panel-body { padding: .35rem 0; }
 
   /* Gate rows — 2 cột trên màn rộng */
@@ -124,12 +119,6 @@
     font-weight: 600;
     color: #0f172a;
     margin: 0;
-  }
-  .jp-sx-settings .jp-sx-gate-desc {
-    font-size: .75rem;
-    color: var(--sx-set-muted);
-    margin: .15rem 0 0;
-    line-height: 1.4;
   }
   .jp-sx-settings .jp-sx-seg {
     display: inline-flex;
@@ -355,7 +344,6 @@
         <section class="jp-sx-set-panel" id="sec-gates">
           <div class="jp-sx-set-panel-head">
             <h3>Cổng quy trình</h3>
-            <p>Kiểm tra thứ tự bước trước khi cho phép thao tác tiếp theo.</p>
           </div>
           <div class="jp-sx-set-panel-body">
             <div class="jp-sx-gate-grid">
@@ -363,7 +351,6 @@
             <div class="jp-sx-gate-row" data-gate>
               <div>
                 <p class="jp-sx-gate-title">Phát hành lệnh → tạo YCX</p>
-                <p class="jp-sx-gate-desc">{{ f.label }}</p>
               </div>
               <div class="jp-sx-seg" role="group" aria-label="{{ f.label }}">
                 <button type="button" data-val="block">Chặn</button>
@@ -378,7 +365,6 @@
             <div class="jp-sx-gate-row" data-gate>
               <div>
                 <p class="jp-sx-gate-title">Xuất kho → xác nhận thống kê</p>
-                <p class="jp-sx-gate-desc">{{ f.label }}</p>
               </div>
               <div class="jp-sx-seg" role="group" aria-label="{{ f.label }}">
                 <button type="button" data-val="block">Chặn</button>
@@ -393,7 +379,6 @@
             <div class="jp-sx-gate-row" data-gate>
               <div>
                 <p class="jp-sx-gate-title">Thống kê → nhập thành phẩm</p>
-                <p class="jp-sx-gate-desc">{{ f.label }}</p>
               </div>
               <div class="jp-sx-seg" role="group" aria-label="{{ f.label }}">
                 <button type="button" data-val="block">Chặn</button>
@@ -408,7 +393,6 @@
             <div class="jp-sx-gate-row" data-gate>
               <div>
                 <p class="jp-sx-gate-title">QC Đạt → nhập thành phẩm</p>
-                <p class="jp-sx-gate-desc">{{ f.label }}</p>
               </div>
               <div class="jp-sx-seg" role="group" aria-label="{{ f.label }}">
                 <button type="button" data-val="block">Chặn</button>
@@ -423,7 +407,6 @@
             <div class="jp-sx-gate-row" data-gate>
               <div>
                 <p class="jp-sx-gate-title">Không còn cảnh báo QC mở → nhập TP</p>
-                <p class="jp-sx-gate-desc">{{ f.label }}</p>
               </div>
               <div class="jp-sx-seg" role="group" aria-label="{{ f.label }}">
                 <button type="button" data-val="block">Chặn</button>
@@ -438,7 +421,6 @@
             <div class="jp-sx-gate-row" data-gate>
               <div>
                 <p class="jp-sx-gate-title">Đóng gói → hoàn thành lệnh</p>
-                <p class="jp-sx-gate-desc">{{ f.label }}</p>
               </div>
               <div class="jp-sx-seg" role="group" aria-label="{{ f.label }}">
                 <button type="button" data-val="block">Chặn</button>
@@ -462,7 +444,6 @@
         <section class="jp-sx-set-panel" id="sec-qc">
           <div class="jp-sx-set-panel-head">
             <h3>Chất lượng &amp; truy xuất</h3>
-            <p>Tự động tạo phiếu/cảnh báo và ngưỡng mặc định.</p>
           </div>
           <div class="jp-sx-set-panel-body">
             <div class="jp-sx-toggle-grid">
@@ -487,9 +468,6 @@
               <div class="jp-sx-metric-row">
                 <div class="jp-sx-toggle-copy">
                   <strong>{{ form.default_defect_tolerance_pct.label }}</strong>
-                  {% if form.default_defect_tolerance_pct.help_text %}
-                  <span>{{ form.default_defect_tolerance_pct.help_text }}</span>
-                  {% endif %}
                 </div>
                 <div class="jp-sx-metric-input">
                   {{ form.default_defect_tolerance_pct }}
@@ -499,9 +477,6 @@
               <div class="jp-sx-metric-row">
                 <div class="jp-sx-toggle-copy">
                   <strong>{{ form.default_sample_qty.label }}</strong>
-                  {% if form.default_sample_qty.help_text %}
-                  <span>{{ form.default_sample_qty.help_text }}</span>
-                  {% endif %}
                 </div>
                 <div class="jp-sx-metric-input">
                   {{ form.default_sample_qty }}
@@ -511,9 +486,6 @@
               <div class="jp-sx-metric-row">
                 <div class="jp-sx-toggle-copy">
                   <strong>Ngưỡng timeline truy xuất</strong>
-                  {% if form.trace_min_timeline_events.help_text %}
-                  <span>{{ form.trace_min_timeline_events.help_text }}</span>
-                  {% endif %}
                 </div>
                 <div class="jp-sx-metric-input">
                   {{ form.trace_min_timeline_events }}
@@ -528,14 +500,12 @@
         <section class="jp-sx-set-panel" id="sec-capacity">
           <div class="jp-sx-set-panel-head">
             <h3>Năng lực &amp; danh sách</h3>
-            <p>Màu tải, khoảng ngày lọc mặc định và giờ ca OEE.</p>
           </div>
           <div class="jp-sx-set-panel-body">
             <div class="jp-sx-metric-grid">
               <div class="jp-sx-metric-row">
                 <div class="jp-sx-toggle-copy">
                   <strong>Cảnh báo tải</strong>
-                  <span>Highlight vàng khi vượt ngưỡng.</span>
                 </div>
                 <div class="jp-sx-metric-input">
                   {{ form.capacity_load_warn_pct }}
@@ -548,7 +518,6 @@
               <div class="jp-sx-metric-row">
                 <div class="jp-sx-toggle-copy">
                   <strong>Quá tải</strong>
-                  <span>Highlight đỏ khi vượt ngưỡng.</span>
                 </div>
                 <div class="jp-sx-metric-input">
                   {{ form.capacity_load_danger_pct }}
@@ -558,7 +527,6 @@
               <div class="jp-sx-metric-row">
                 <div class="jp-sx-toggle-copy">
                   <strong>Khoảng ngày danh sách</strong>
-                  <span>Mặc định khi mở danh sách lệnh / thống kê…</span>
                 </div>
                 <div class="jp-sx-metric-input">
                   {{ form.list_default_date_range_days }}
@@ -569,9 +537,6 @@
             <div class="jp-sx-metric-row">
               <div class="jp-sx-toggle-copy">
                 <strong>{{ form.oee_shift_hours.label }}</strong>
-                {% if form.oee_shift_hours.help_text %}
-                <span>{{ form.oee_shift_hours.help_text }}</span>
-                {% endif %}
               </div>
               <div class="jp-sx-metric-input">
                 {{ form.oee_shift_hours }}
@@ -585,7 +550,6 @@
         <section class="jp-sx-set-panel" id="sec-stock">
           <div class="jp-sx-set-panel-head">
             <h3>Kho &amp; tích hợp</h3>
-            <p>Giữ chỗ tồn và liên kết KiotViet khi nhập thành phẩm.</p>
           </div>
           <div class="jp-sx-set-panel-body">
             <div class="jp-sx-toggle-grid">
@@ -600,9 +564,6 @@
             <div class="jp-sx-toggle-row">
               <div class="jp-sx-toggle-copy">
                 <strong>{{ form.require_kv_link_for_fg_done.label }}</strong>
-                {% if form.require_kv_link_for_fg_done.help_text %}
-                <span>{{ form.require_kv_link_for_fg_done.help_text }}</span>
-                {% endif %}
               </div>
               <div class="form-check form-switch">
                 {{ form.require_kv_link_for_fg_done }}
@@ -611,9 +572,6 @@
             <div class="jp-sx-toggle-row">
               <div class="jp-sx-toggle-copy">
                 <strong>{{ form.show_pending_ycx_banner.label }}</strong>
-                {% if form.show_pending_ycx_banner.help_text %}
-                <span>{{ form.show_pending_ycx_banner.help_text }}</span>
-                {% endif %}
               </div>
               <div class="form-check form-switch">
                 {{ form.show_pending_ycx_banner }}
@@ -627,7 +585,6 @@
         <section class="jp-sx-set-panel" id="sec-shopfloor">
           <div class="jp-sx-set-panel-head">
             <h3>Shop floor</h3>
-            <p>Hành vi khi quét mã trên màn xưởng.</p>
           </div>
           <div class="jp-sx-set-panel-body">
             <div class="jp-sx-toggle-row">
@@ -654,7 +611,6 @@
         <section class="jp-sx-set-panel" id="sec-prefix">
           <div class="jp-sx-set-panel-head">
             <h3>Mã chứng từ</h3>
-            <p>Prefix khi hệ thống tự sinh mã mới (vd. LSX-2026-0001). Chỉ áp dụng mã tạo sau khi lưu.</p>
           </div>
           <div class="jp-sx-set-panel-body">
             <div class="jp-sx-prefix-grid">
