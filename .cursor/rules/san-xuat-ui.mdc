@@ -8,11 +8,15 @@ alwaysApply: false
 
 Áp dụng cho **mọi** trang trong module `san_xuat` (list, detail, form, hub).
 
-## Layout — full ngang, không gom giữa
+## Layout — full ngang, thẳng hàng với header
 
 - Dùng `container jp-page jp-sx-page` như các trang khác.
 - **Không** thu hẹp bằng `max-width: 720px` / `760px` / tương tự trên wrapper trang.
 - Form trải theo lưới Bootstrap (`col-*`) full chiều ngang container.
+- Include `san_xuat/includes/sx_page_layout_styles.html` (đã gộp trong `sx_detail_tools_styles.html` và `sx_npl_catalog_styles.html`).
+- **Nội dung dưới topbar** (filter, card, bảng, form…) phải **cùng bề ngang** với header trang — không lệch trái/phải so với `jp-npl-mat-topbar`.
+- Tuỳ chọn bọc phần dưới topbar: `<div class="jp-sx-page-body">…</div>` (khuyến nghị trang mới).
+- **Bảng grid:** tiêu đề cột (`th`) và ô dữ liệu (`td`) **cùng kiểu căn** (trái / giữa / phải) theo `align` trong `list_grid.py`; `vertical-align: middle`. Include `sx_list_grid_align_styles.html` (qua `sx_list_grid_scripts.html`).
 
 ## Topbar công cụ
 

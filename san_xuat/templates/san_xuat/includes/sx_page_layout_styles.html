@@ -1,0 +1,73 @@
+{# Căn nội dung trang SX thẳng hàng với topbar; ô bảng căn khớp header cột #}
+<style>
+.jp-sx-page {
+  --jp-sx-page-pad-x: max(0.75rem, env(safe-area-inset-left));
+}
+
+.jp-sx-page > .jp-npl-mat-topbar.jp-sx-detail-topbar,
+.jp-sx-page > .jp-sx-page-body,
+.jp-sx-page > .card,
+.jp-sx-page > .row,
+.jp-sx-page > form,
+.jp-sx-page > .alert,
+.jp-sx-page > .table-responsive,
+.jp-sx-page > .jp-sx-stat-grid,
+.jp-sx-page > .d-flex,
+.jp-sx-page > h3 {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.jp-sx-page > .jp-sx-page-body > * {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Bảng grid: header và ô dữ liệu cùng căn ngang + giữa theo chiều dọc */
+.jp-sx-page .jp-npl-mat-grid thead th.jp-mat-th {
+  vertical-align: middle;
+  text-align: left;
+}
+.jp-sx-page .jp-npl-mat-grid thead th.jp-mat-th.text-end {
+  text-align: right;
+}
+.jp-sx-page .jp-npl-mat-grid thead th.jp-mat-th.text-center {
+  text-align: center;
+}
+.jp-sx-page .jp-npl-mat-grid thead th.jp-mat-th .jp-mat-th-sort,
+.jp-sx-page .jp-npl-mat-grid thead th.jp-mat-th .jp-mat-th-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  max-width: 100%;
+  text-align: left;
+}
+.jp-sx-page .jp-npl-mat-grid thead th.jp-mat-th.text-end .jp-mat-th-sort,
+.jp-sx-page .jp-npl-mat-grid thead th.jp-mat-th.text-end .jp-mat-th-label {
+  justify-content: flex-end;
+  text-align: right;
+}
+.jp-sx-page .jp-npl-mat-grid thead th.jp-mat-th.text-center .jp-mat-th-sort,
+.jp-sx-page .jp-npl-mat-grid thead th.jp-mat-th.text-center .jp-mat-th-label {
+  justify-content: center;
+  text-align: center;
+}
+.jp-sx-page .jp-npl-mat-grid tbody td.npl-col {
+  vertical-align: middle;
+}
+.jp-sx-page .jp-npl-mat-grid tbody td.npl-col.text-end {
+  text-align: right;
+}
+.jp-sx-page .jp-npl-mat-grid tbody td.npl-col.text-center {
+  text-align: center;
+}
+
+/* Bảng thường (detail, form) — giữa theo chiều dọc */
+.jp-sx-page .table:not(.jp-npl-mat-grid) th,
+.jp-sx-page .table:not(.jp-npl-mat-grid) td {
+  vertical-align: middle;
+}
+</style>

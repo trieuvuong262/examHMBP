@@ -1,0 +1,11 @@
+{% if list_columns %}
+<style>
+{% for col in list_columns %}
+{% if col.key != 'actions' %}
+.jp-sx-page .jp-npl-mat-grid td.npl-col[data-col="{{ col.key }}"] {
+  text-align: {% if col.align == 'end' %}right{% elif col.align == 'center' %}center{% else %}left{% endif %};
+}
+{% endif %}
+{% endfor %}
+</style>
+{% endif %}

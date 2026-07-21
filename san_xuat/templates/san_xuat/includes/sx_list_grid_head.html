@@ -10,7 +10,7 @@
         {% endif %}
     </button>
     {% else %}
-    <span class="jp-mat-th-sort jp-mat-th-label{% if not col.label %} d-block{% endif %}">{{ col.label }}</span>
+    <span class="jp-mat-th-sort jp-mat-th-label{% if not col.label %} d-block{% endif %}{% if col.align == 'end' %} justify-content-end{% elif col.align == 'center' %} justify-content-center{% endif %}">{{ col.label }}</span>
     {% endif %}
     <span class="jp-mat-col-resizer" aria-hidden="true"></span>
 </th>

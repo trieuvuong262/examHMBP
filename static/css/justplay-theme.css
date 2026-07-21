@@ -5659,37 +5659,51 @@ body.jp-tool-loading-active {
         height: auto;
         min-height: 100%;
         max-height: none;
-        overflow: visible;
+        overflow: hidden;
+        flex-shrink: 0;
+        width: var(--jp-sidebar-w);
     }
 
     body.jp-has-amis-header .jp-sidebar-nav {
-        position: sticky;
-        top: 0;
+        position: relative;
+        top: auto;
         flex: 1 1 auto;
         min-height: 0;
+        min-width: 0;
+        width: 100%;
+        max-width: 100%;
         height: calc(100vh - var(--jp-topbar-h));
         height: calc(100dvh - var(--jp-topbar-h));
         max-height: calc(100dvh - var(--jp-topbar-h));
         overflow: hidden;
-        padding-bottom: 4.25rem;
+        padding-bottom: 0;
     }
 
     body.jp-has-amis-header aside.jp-sidebar .jp-sidebar-footer {
-        position: fixed;
-        left: 0;
-        bottom: 0;
-        z-index: 1045;
-        width: var(--jp-sidebar-w);
-        margin-top: 0;
+        position: static;
+        left: auto;
+        bottom: auto;
+        z-index: auto;
+        width: 100%;
+        max-width: 100%;
+        margin-top: auto;
         padding: 0.75rem 0.65rem 1rem;
+        box-sizing: border-box;
         background: var(--jp-sidebar-gradient);
         border-top: 1px solid rgba(255, 255, 255, 0.08);
-        box-shadow: 0 -10px 28px rgba(0, 0, 0, 0.22);
-        transition: width 0.22s ease;
+        box-shadow: none;
+        transition: none;
+    }
+
+    body.jp-has-amis-header aside.jp-sidebar .jp-sidebar-footer form {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
     }
 
     html.jp-sidebar-collapsed body.jp-has-amis-header aside.jp-sidebar .jp-sidebar-footer {
-        width: var(--jp-sidebar-w-collapsed);
+        width: 100%;
+        max-width: 100%;
     }
 
     body.jp-has-amis-header .jp-app-main {
@@ -5873,6 +5887,8 @@ body.jp-tool-loading-active {
 .jp-sidebar-menu-scroll {
     flex: 1 1 auto;
     min-height: 0;
+    min-width: 0;
+    max-width: 100%;
     overflow-x: hidden;
     overflow-y: auto;
     overscroll-behavior: contain;
@@ -6297,6 +6313,10 @@ html.jp-sidebar-collapsed .jp-sidebar-collapse-icon-collapsed {
     /* Match top-level .jp-sidebar-link (was 0.88rem — looked larger than parent) */
     font-size: 0.8125rem;
     font-weight: 500;
+    max-width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .jp-sidebar-nested-group {
@@ -6310,6 +6330,9 @@ html.jp-sidebar-collapsed .jp-sidebar-collapse-icon-collapsed {
     justify-content: space-between;
     gap: 0.35rem;
     width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
     /* Align with first-level sublinks */
     padding: 0.58rem 0.75rem 0.58rem 2rem;
     border: none;
@@ -6369,6 +6392,10 @@ html.jp-sidebar-collapsed .jp-sidebar-collapse-icon-collapsed {
     display: none;
     flex-direction: column;
     gap: 0.08rem;
+    max-width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    box-sizing: border-box;
 }
 
 .jp-sidebar-nested-group.is-open .jp-sidebar-nested-submenu {
@@ -6382,9 +6409,12 @@ html.jp-sidebar-collapsed .jp-sidebar-collapse-icon-collapsed {
     padding-right: 0.35rem !important;
     font-size: 0.78rem;
     font-weight: 500;
-    width: auto;
+    width: 100%;
     max-width: 100%;
+    min-width: 0;
     box-sizing: border-box;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* Nhóm depth2 (có con) — caret nhỏ hơn */
@@ -6567,6 +6597,7 @@ html.jp-sidebar-collapsed .jp-sidebar-collapse-icon-collapsed {
 
 .jp-sidebar-logout-btn {
     width: 100%;
+    max-width: 100%;
     display: block;
     padding: 0.58rem 0.75rem;
     border: 1px solid rgba(255, 255, 255, 0.18);
@@ -6578,6 +6609,7 @@ html.jp-sidebar-collapsed .jp-sidebar-collapse-icon-collapsed {
     line-height: 1.3;
     text-align: center;
     cursor: pointer;
+    box-sizing: border-box;
     transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
 }
 
