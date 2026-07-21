@@ -303,18 +303,25 @@ def build():
     story.append(
         P(
             "Tài liệu mô tả luồng từ kế hoạch đến truy xuất nguồn gốc, "
-            "thao tác từng màn hình, và cách cấu hình <b>Thiết lập chung</b> module Sản xuất.",
+            "thao tác từng màn hình, cấu hình <b>Thiết lập chung</b>, "
+            "và <b>in phiếu giấy A5</b> mang ra xưởng / kho.",
             styles["SmallVN"],
         )
     )
-    story.append(P("Ngày cập nhật: 21/07/2026 · Phiên bản chi tiết (+ thiết lập chung)", styles["SmallVN"]))
+    story.append(
+        P(
+            "Ngày cập nhật: 21/07/2026 · Phiên bản chi tiết (+ thiết lập chung · in phiếu A5)",
+            styles["SmallVN"],
+        )
+    )
     story.append(Spacer(1, 0.9 * cm))
 
     cover_info = [
         [
             P("<b>Phạm vi</b>", c),
             P(
-                "Kế hoạch → Điều phối → Chất lượng → Nhập thành phẩm → Đóng gói → Truy xuất · Thiết lập chung",
+                "Kế hoạch → Điều phối → Chất lượng → Nhập thành phẩm → Đóng gói → Truy xuất · "
+                "Thiết lập chung · In phiếu A5",
                 c,
             ),
         ],
@@ -329,7 +336,7 @@ def build():
         [
             P("<b>Quyền module</b>", c),
             P(
-                "<b>Xem</b> — vào màn hình · <b>Tạo</b> — nút Thêm/Tạo · "
+                "<b>Xem</b> — vào màn hình / <b>In A5</b> · <b>Tạo</b> — nút Thêm/Tạo · "
                 "<b>Sửa</b> — xác nhận, duyệt, phát hành, chốt, <b>lưu thiết lập chung</b>",
                 c,
             ),
@@ -365,7 +372,8 @@ def build():
         "8. Giá thành (tóm tắt)",
         "9. Thiết lập chung — hướng dẫn cấu hình",
         "10. Checklist thao tác theo thứ tự",
-        "11. Ghi chú kỹ thuật",
+        "11. In phiếu giấy A5",
+        "12. Ghi chú kỹ thuật",
     ]
     for item in toc_items:
         story.append(P(item, styles["TOC"]))
@@ -636,6 +644,7 @@ def build():
             "Khi Đang sản xuất / Hoàn thành + quyền Sửa: <b>Tạo yêu cầu nhập thành phẩm</b>",
             "Liên kết: tạo thống kê sản xuất, bàn giao bán thành phẩm, xem cảnh báo chất lượng",
             "Xem tiến độ sản lượng, danh sách thống kê / xuất / nhập liên quan trên cùng màn",
+            "Quyền Xem: nút <b>In A5</b> → /dieu-phoi/lenh-sx/<mã>/in/ (phiếu lệnh + BOM tóm tắt)",
         ],
         "Không phát hành thì không nên xuất vật tư / ghi sản lượng chính thức.",
     )
@@ -652,6 +661,7 @@ def build():
             "Khi chưa duyệt + quyền Sửa: <b>Duyệt</b> → sinh / post phiếu xuất kho nguyên phụ liệu "
             "(có thể kèm file đính kèm)",
             "Sau khi duyệt thành công: trạng thái yêu cầu hoàn tất, phiếu xuất đã ghi sổ",
+            "Quyền Xem: nút <b>In A5</b> → /dieu-phoi/yeu-cau-xuat-vt/<mã>/in/ (phiếu lấy hàng kho)",
         ],
     )
 
@@ -682,6 +692,7 @@ def build():
             "Tạo từ lệnh sản xuất hoặc form tạo riêng (quyền Tạo)",
             "Khi Nháp + quyền Sửa: <b>Gửi</b> yêu cầu",
             "Quyền Sửa: <b>Liên kết phiếu nhập KiotViet</b>",
+            "Quyền Xem: nút <b>In A5</b> → /dieu-phoi/yeu-cau-nhap-tp/<mã>/in/",
         ],
     )
 
@@ -695,6 +706,7 @@ def build():
         [
             "Tạo phiếu bàn giao (quyền Tạo): lệnh, công đoạn nguồn → đích, số lượng",
             "Khi Chờ bàn giao + quyền Sửa: <b>Xác nhận bàn giao</b> hoặc <b>Từ chối</b>",
+            "Quyền Xem: nút <b>In A5</b> → /dieu-phoi/ban-giao-btp/<mã>/in/",
         ],
     )
     screen_block(
@@ -789,6 +801,7 @@ def build():
             "Tạo phiếu (quyền Tạo): gắn yêu cầu / lệnh, nhập mẫu, tiêu chí, lỗi",
             "Khi chưa chốt + quyền Sửa: nhập tiêu chí / lỗi rồi <b>Chốt kết quả</b> (finalize)",
             "Nếu Không đạt: hệ thống có thể tạo cảnh báo chất lượng",
+            "Quyền Xem: nút <b>In A5</b> → /chat-luong/phieu/<mã>/in/",
         ],
         "Nên chỉ nhập thành phẩm khi kết quả kiểm tra Đạt (theo quy trình vận hành).",
     )
@@ -801,6 +814,7 @@ def build():
         [
             "Xem danh sách / chi tiết (cảnh báo tỷ lệ lỗi hoặc phiếu không đạt)",
             "Khi Mở + quyền Sửa: <b>Ghi nhận xử lý</b> (ack)",
+            "Quyền Xem: nút <b>In A5</b> → /chat-luong/canh-bao/<mã>/in/",
         ],
     )
     story.append(P("6.1. Danh mục tiêu chuẩn chất lượng", styles["H2VN"]))
@@ -832,6 +846,7 @@ def build():
             "Tạo phiếu đóng gói (quyền Tạo): gắn lệnh / yêu cầu nhập thành phẩm, size, màu, số thùng",
             "Khi Nháp + quyền Sửa: <b>Xác nhận đóng gói</b> → sinh mã lô",
             "Liên kết sang Tra cứu truy xuất theo mã lô",
+            "Quyền Xem: nút <b>In A5</b> → /dong-goi/<mã>/in/ (tem lô / size–màu / thùng)",
         ],
     )
     screen_block(
@@ -894,6 +909,7 @@ def build():
             "Quyền Sửa: <b>Thêm dòng xuất đi</b> gia công",
             "Quyền Sửa: <b>Ghi nhận nhận lại</b> (+ dòng nhận về nếu cần)",
             "Quyền Sửa: chuyển trạng thái <b>Gửi gia công</b> / <b>Hoàn thành</b> / <b>Hủy</b>",
+            "Quyền Xem: nút <b>In A5</b> → /thue-gia-cong/<mã>/in/",
         ],
     )
 
@@ -952,8 +968,8 @@ def build():
         ],
         [
             P("Phiếu xử lý hàng không đạt", c),
-            P("/san-xuat/ncr/", c),
-            P("Xem; khi Nháp + Sửa: Xác nhận", c),
+            P("/san-xuat/ncr/ · …/ncr/<mã>/in/", c),
+            P("Xem; khi Nháp + Sửa: Xác nhận · In A5", c),
         ],
         [
             P("Lương sản phẩm", c),
@@ -1275,13 +1291,123 @@ def build():
     ]
     story.append(_table(check_rows, [0.9 * cm, 5.2 * cm, 5.2 * cm, 4.7 * cm]))
 
-    # ========== 11. GHI CHÚ ==========
-    story.append(P("11. Ghi chú kỹ thuật", styles["H1VN"]))
+    # ========== 11. IN PHIẾU A5 ==========
+    story.append(PageBreak())
+    story.append(P("11. In phiếu giấy A5", styles["H1VN"]))
+    story.append(
+        P(
+            "Trên màn <b>chi tiết</b> các chứng từ dưới đây có nút <b>In A5</b> (quyền Xem). "
+            "Mở tab in riêng (URL kết thúc bằng <font face=\"VN-B\">/in/</font>), "
+            "chọn khổ giấy <b>A5</b> khi in. Tham số <font face=\"VN-B\">?autoprint=1</font> "
+            "tự mở hộp thoại in.",
+            styles["BodyVN"],
+        )
+    )
+    story.append(P("11.1. Nội dung bắt buộc trên giấy", styles["H2VN"]))
+    story.append(
+        P(
+            "• Đầu phiếu: <b>MST 0316184836 — CÔNG TY TNHH JUST PLAY</b>",
+            styles["BulletVN"],
+        )
+    )
+    story.append(
+        P(
+            "• Địa chỉ: <b>19 Chiến Lược, Bình Trị Đông, Bình Tân, TP. Hồ Chí Minh</b>",
+            styles["BulletVN"],
+        )
+    )
+    story.append(
+        P(
+            "• <b>Ngày làm phiếu</b> theo ngày chứng từ (ngày lệnh / yêu cầu / kiểm / đóng gói…)",
+            styles["BulletVN"],
+        )
+    )
+    story.append(
+        P(
+            "• Bảng chi tiết nghiệp vụ (BOM, dòng NPL, tiêu chí QC, size–màu… tùy loại phiếu)",
+            styles["BulletVN"],
+        )
+    )
+    story.append(
+        P(
+            "• Cuối phiếu: <b>4 ô chữ ký</b> các bên liên quan (Ký, họ tên) — in trống để ký tay",
+            styles["BulletVN"],
+        )
+    )
+
+    story.append(P("11.2. Danh mục phiếu in được", styles["H2VN"]))
+    print_rows = [
+        [P("<b>Phiếu</b>", h), P("<b>Đường dẫn in</b>", h), P("<b>Chữ ký (4 ô)</b>", h)],
+        [
+            P("Lệnh sản xuất", c),
+            P("/dieu-phoi/lenh-sx/<mã>/in/", c),
+            P("Người lập · Tổ trưởng · Điều phối SX · Phụ trách xưởng", c),
+        ],
+        [
+            P("Yêu cầu xuất vật tư", c),
+            P("/dieu-phoi/yeu-cau-xuat-vt/<mã>/in/", c),
+            P("Người yêu cầu · Thủ kho NPL · Người nhận · Điều phối SX", c),
+        ],
+        [
+            P("Phiếu kiểm tra QC", c),
+            P("/chat-luong/phieu/<mã>/in/", c),
+            P("Người kiểm · Tổ trưởng · Phụ trách QC · Điều phối SX", c),
+        ],
+        [
+            P("Đóng gói", c),
+            P("/dong-goi/<mã>/in/", c),
+            P("Người đóng gói · Thủ kho TP · Điều phối SX · Xác nhận", c),
+        ],
+        [
+            P("Yêu cầu nhập thành phẩm", c),
+            P("/dieu-phoi/yeu-cau-nhap-tp/<mã>/in/", c),
+            P("Người yêu cầu · Thủ kho TP · Điều phối SX · Xác nhận", c),
+        ],
+        [
+            P("Bàn giao BTP", c),
+            P("/dieu-phoi/ban-giao-btp/<mã>/in/", c),
+            P("Bên giao · Bên nhận · Tổ trưởng · Điều phối SX", c),
+        ],
+        [
+            P("Thuê gia công", c),
+            P("/thue-gia-cong/<mã>/in/", c),
+            P("Người lập · Đơn vị GC · Thủ kho · Điều phối SX", c),
+        ],
+        [
+            P("NCR (hàng không đạt)", c),
+            P("/ncr/<mã>/in/", c),
+            P("Người lập · Phụ trách QC · Điều phối SX · Phụ trách xưởng", c),
+        ],
+        [
+            P("Cảnh báo chất lượng", c),
+            P("/chat-luong/canh-bao/<mã>/in/", c),
+            P("Người ghi nhận · Phụ trách QC · Tổ trưởng · Điều phối SX", c),
+        ],
+    ]
+    story.append(_table(print_rows, [3.6 * cm, 5.4 * cm, 7.0 * cm]))
+    story.append(
+        P(
+            "Ghi chú: tiền tố đường dẫn đầy đủ là <font face=\"VN-B\">/san-xuat/</font>. "
+            "Khi in trên máy in, chọn khổ <b>A5</b> (148×210 mm), lề tối thiểu.",
+            styles["BodyVN"],
+        )
+    )
+
+    # ========== 12. GHI CHÚ ==========
+    story.append(P("12. Ghi chú kỹ thuật", styles["H1VN"]))
     story.append(
         P(
             "• Luồng kiểm thử end-to-end nằm trong file "
             "<font face=\"VN-B\">san_xuat/scripts/full_workflow_check.py</font> "
             "(các bước từ kế hoạch tổng thể đến truy xuất).",
+            styles["BulletVN"],
+        )
+    )
+    story.append(
+        P(
+            "• Kiểm thử in phiếu A5: <font face=\"VN-B\">san_xuat/tests_print.py</font> · "
+            "mã nguồn in: <font face=\"VN-B\">san_xuat/views_print.py</font> · "
+            "thông tin công ty / chữ ký: <font face=\"VN-B\">san_xuat/print_company.py</font>.",
             styles["BulletVN"],
         )
     )
@@ -1318,7 +1444,12 @@ def build():
     story.append(Spacer(1, 0.8 * cm))
     story.append(HRFlowable(width="100%", thickness=1, color=BORDER, spaceBefore=4, spaceAfter=8))
     story.append(P("— Hết tài liệu —", styles["SmallVN"]))
-    story.append(P("Portal JustPlay · Module Sản xuất · Bản chi tiết thao tác màn hình + thiết lập chung", styles["SmallVN"]))
+    story.append(
+        P(
+            "Portal JustPlay · Module Sản xuất · Bản chi tiết thao tác màn hình + thiết lập chung + in phiếu A5",
+            styles["SmallVN"],
+        )
+    )
 
     doc = SimpleDocTemplate(
         str(OUT),
