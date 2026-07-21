@@ -1356,6 +1356,15 @@
                     </a>
                 </li>
                 {% endif %}
+                {% jp_can_menu 'audit' 'push_config' as jp_can_audit_push_config %}
+                {% if jp_can_audit_push_config %}
+                <li>
+                    <a href="{% url 'audit:push_config' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'push_config' %}active{% endif %}">
+                        <i class="bi bi-bell"></i><span>Thông báo đẩy</span>
+                    </a>
+                </li>
+                {% endif %}
                 {% jp_can_menu 'audit' 'qa_assistant' as jp_can_audit_qa_assistant %}
                 {% if jp_can_audit_qa_assistant %}
                 <li>

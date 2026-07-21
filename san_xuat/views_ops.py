@@ -27,6 +27,7 @@ from san_xuat.hub_models import (
 from san_xuat.list_filters import (
     SX_FILTER_ACTUAL_COST,
     SX_FILTER_CATALOG_ITEM,
+    SX_FILTER_CATALOG_MATERIAL,
     SX_FILTER_DOWNTIME,
     SX_FILTER_NCR,
     SX_FILTER_TEAM_HR,
@@ -34,6 +35,7 @@ from san_xuat.list_filters import (
     apply_sx_list_filters,
     parse_sx_list_filters,
     prepare_hub_list,
+    resolve_sx_period,
     sx_filter_context,
 )
 from san_xuat.models import ProductTechDoc
@@ -276,7 +278,7 @@ def unified_catalog(request):
     materials = Material.objects.filter(is_active=True).select_related("unit", "category")
     units = Unit.objects.filter(is_active=True).order_by("code")
     docs = apply_sx_list_filters(docs, filters, SX_FILTER_TECH_DOC)
-    materials = apply_sx_list_filters(materials, filters, SX_FILTER_CATALOG_ITEM)
+    materials = apply_sx_list_filters(materials, filters, SX_FILTER_CATALOG_MATERIAL)
     groups = apply_sx_list_filters(groups, filters, SX_FILTER_CATALOG_ITEM)
     can_create = _perm_ctx(request).get("can_create")
     if request.method == "POST" and can_create:
@@ -337,14 +339,9 @@ def staging_locations(request):
 @module_perm_required(MODULE_SAN_XUAT, "export")
 def piece_rate_hr_export(request):
     """CSV lương SP để HR/payroll import — ưu tiên mã NV từ SxTeamHrMap."""
-    from san_xuat.services.overview import parse_overview_period
     from san_xuat.services.phase3 import compute_piece_rate_pay
 
-    date_from, date_to = parse_overview_period(
-        month=(request.GET.get("month") or "").strip(),
-        date_from=(request.GET.get("date_from") or "").strip(),
-        date_to=(request.GET.get("date_to") or "").strip(),
-    )
+    date_from, date_to, _filters = resolve_sx_period(request)
     rows = compute_piece_rate_pay(date_from=date_from, date_to=date_to)
     resp = HttpResponse(content_type="text/csv; charset=utf-8")
     resp["Content-Disposition"] = 'attachment; filename="luong-san-pham-hr.csv"'

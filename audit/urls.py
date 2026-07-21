@@ -7,6 +7,7 @@ from zalo.views_config import zalo_oa_config_page
 
 from . import views
 from . import views_email_config
+from . import views_push
 from . import views_login_security
 from . import views_nas
 from . import views_rustdesk
@@ -16,6 +17,7 @@ from . import views_vps
 app_name = 'audit'
 
 urlpatterns = [
+    path('thong-bao-day/', views_push.push_config_page, name='push_config'),
     path('tro-ly-ai/', admin_qa_settings, name='qa_assistant'),
     path('zalo-oa/', zalo_oa_config_page, name='zalo_oa'),
     path('email/', views_email_config.email_config_page, name='email_config'),

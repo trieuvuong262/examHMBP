@@ -189,6 +189,7 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
         {'key': 'nas_links', 'label': 'Cập nhật link NAS', 'icon': 'bi-hdd-network'},
         {'key': 'zalo_oa', 'label': 'Zalo OA', 'perm_label': 'Cấu hình Zalo OA', 'icon': 'bi-chat-dots', 'perm_manage': True},
         {'key': 'email_config', 'label': 'Email', 'perm_label': 'Cấu hình Email', 'icon': 'bi-envelope', 'perm_manage': True},
+        {'key': 'push_config', 'label': 'Thông báo đẩy', 'perm_label': 'Quản lý thông báo đẩy', 'icon': 'bi-bell', 'perm_manage': True},
         {'key': 'qa_assistant', 'label': 'Trợ lý AI', 'icon': 'bi-stars'},
     ],
 }
@@ -368,6 +369,7 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     ('/tai-lieu/file', MODULE_DOCUMENTS, 'browse'),
     ('/tai-lieu/', MODULE_DOCUMENTS, 'browse'),
     # Quản trị hệ thống
+    ('/nhat-ky/thong-bao-day', MODULE_AUDIT, 'push_config'),
     ('/nhat-ky/email', MODULE_AUDIT, 'email_config'),
     ('/nhat-ky/zalo-oa', MODULE_AUDIT, 'zalo_oa'),
     ('/nhat-ky/tro-ly-ai', MODULE_AUDIT, 'qa_assistant'),

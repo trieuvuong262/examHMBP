@@ -684,6 +684,10 @@ NAMESPACE_URL_DESCRIPTIONS: dict[str, dict[str, str] | str] = {
         'GET': 'xem cấu hình SMTP email',
         'POST': 'lưu cấu hình SMTP hoặc gửi email thử',
     },
+    'audit:push_config': {
+        'GET': 'xem trang quản lý thông báo đẩy',
+        'POST': 'thao tác quản lý thiết bị / nhật ký đồng ý push',
+    },
 
     # KiotViet tra cứu
     'kiotviet:customer_lookup': 'tra cứu khách hàng KiotViet',

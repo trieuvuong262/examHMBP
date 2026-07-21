@@ -36,7 +36,6 @@ from san_xuat.list_filters import (
     SX_FILTER_WORK_ASSIGN,
     SX_FILTER_WORK_CENTER,
     apply_sx_list_filters,
-    default_list_date_range,
     filter_tuple_rows,
     parse_sx_list_filters,
     SxFilterSpec,
@@ -138,26 +137,11 @@ def _export_bom_list(request: HttpRequest) -> HttpResponse:
 
 def _export_capacity(request: HttpRequest) -> HttpResponse:
     from san_xuat.hub_models import SxWorkCenter
-    from san_xuat.services.overview import parse_overview_period
+    from san_xuat.list_filters import resolve_sx_period
     from san_xuat.services.phase3 import build_capacity_load
 
-    filters = parse_sx_list_filters(request)
     month = (request.GET.get('month') or '').strip()
-    raw_from = (request.GET.get('date_from') or '').strip()
-    raw_to = (request.GET.get('date_to') or '').strip()
-    if month and not raw_from and not raw_to:
-        date_from, date_to = parse_overview_period(month=month)
-        filters = SxListFilters(
-            code=filters.code,
-            name=filters.name,
-            date_from=date_from,
-            date_to=date_to,
-            dates_defaulted=False,
-        )
-    else:
-        date_from, date_to = filters.date_from, filters.date_to
-        if not date_from or not date_to:
-            date_from, date_to = default_list_date_range()
+    date_from, date_to, filters = resolve_sx_period(request)
 
     base = SxWorkCenter.objects.filter(is_demo=False).order_by('code')
     centers = apply_sx_list_filters(base, filters, SX_FILTER_WORK_CENTER)[:EXPORT_ROW_LIMIT]
@@ -641,7 +625,12 @@ def _export_costing_norm(request):
     from san_xuat.services.costing import list_costing_from_active_boms
 
     filters = parse_sx_list_filters(request)
-    tuples = filter_tuple_rows(list_costing_from_active_boms(), filters)[:EXPORT_ROW_LIMIT]
+    tuples = filter_tuple_rows(
+        list_costing_from_active_boms(),
+        filters,
+        date_index=1,
+        date_attr='updated_at',
+    )[:EXPORT_ROW_LIMIT]
     rows = []
     for item in tuples:
         doc = item[0]

@@ -1,0 +1,186 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5">
+    <div class="jp-page-header mb-3 mb-md-4">
+        <div>
+            <nav aria-label="breadcrumb" class="mb-2">
+                <ol class="breadcrumb breadcrumb-sm mb-0">
+                    <li class="breadcrumb-item"><a href="{% url 'audit:log_list' %}" class="text-decoration-none text-muted">Quản Trị Hệ thống</a></li>
+                    <li class="breadcrumb-item active fw-semibold">Thông báo đẩy</li>
+                </ol>
+            </nav>
+            <h2 class="fw-bold text-hm mb-1 jp-page-title">Thông báo đẩy (Web Push)</h2>
+            <p class="text-muted small mb-0">Thiết bị đã đăng ký nhận nhắc đặt cơm, nhắc lịch và thông báo công ty.</p>
+        </div>
+    </div>
+
+    {% if messages %}
+    {% for msg in messages %}
+    <div class="alert alert-{{ msg.tags|default:'info' }} alert-dismissible fade show border-0 shadow-sm mb-3" role="alert">
+        {{ msg }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Đóng"></button>
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    {% if not push_configured %}
+    <div class="alert alert-warning border-0 shadow-sm mb-4">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+        <strong>VAPID chưa cấu hình</strong> — Thêm <code>WEBPUSH_VAPID_PUBLIC_KEY</code> và <code>WEBPUSH_VAPID_PRIVATE_KEY</code> vào <code>.env</code> để bật thông báo đẩy.
+        Chạy <code>python manage.py generate_webpush_vapid_keys</code> để tạo cặp khóa mới.
+    </div>
+    {% endif %}
+
+    <!-- Tổng quan -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm text-center py-3">
+                <div class="h2 fw-bold text-hm mb-0">{{ total_subs }}</div>
+                <div class="small text-muted mt-1">Thiết bị đã đăng ký</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm text-center py-3">
+                <div class="h2 fw-bold text-hm mb-0">{{ total_users }}</div>
+                <div class="small text-muted mt-1">Người dùng</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm text-center py-3">
+                <div class="h2 fw-bold text-success mb-0">{{ total_granted }}</div>
+                <div class="small text-muted mt-1">Đã cho phép (granted)</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card border-0 shadow-sm text-center py-3">
+                <div class="h2 fw-bold text-danger mb-0">{{ total_denied }}</div>
+                <div class="small text-muted mt-1">Đã chặn (denied)</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Danh sách thiết bị đã đăng ký -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-0">
+            <div class="px-4 pt-3 pb-2 border-bottom d-flex align-items-center justify-content-between gap-2">
+                <h3 class="h6 fw-bold mb-0">
+                    <i class="bi bi-phone me-1"></i>Thiết bị đã đăng ký
+                    <span class="badge bg-secondary ms-1">{{ total_subs }}</span>
+                </h3>
+            </div>
+            {% if subscriptions %}
+            <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0 align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="px-4">Nhân viên</th>
+                            <th>Đăng ký lúc</th>
+                            <th>User-Agent</th>
+                            <th class="text-end px-4">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for sub in subscriptions %}
+                        <tr>
+                            <td class="px-4 fw-semibold">
+                                {{ sub.user.get_full_name|default:sub.user.username }}
+                                <div class="small text-muted fw-normal">{{ sub.user.username }}</div>
+                            </td>
+                            <td>
+                                <span class="small">{{ sub.created_at|date:"d/m/Y H:i" }}</span>
+                            </td>
+                            <td>
+                                <span class="small text-muted text-truncate d-inline-block" style="max-width:260px" title="{{ sub.user_agent }}">
+                                    {{ sub.user_agent|default:"—" }}
+                                </span>
+                            </td>
+                            <td class="text-end px-4">
+                                <form method="post" class="d-inline" onsubmit="return confirm('Xóa thiết bị đăng ký của {{ sub.user.get_full_name|default:sub.user.username }}?')">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="delete_subscription">
+                                    <input type="hidden" name="pk" value="{{ sub.pk }}">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger py-0">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-muted small p-4">Chưa có thiết bị nào đăng ký.</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Nhật ký đồng ý / từ chối -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            <div class="px-4 pt-3 pb-2 border-bottom d-flex align-items-center justify-content-between gap-2">
+                <h3 class="h6 fw-bold mb-0">
+                    <i class="bi bi-journal-check me-1"></i>Nhật ký đồng ý push
+                    <span class="badge bg-secondary ms-1">{{ consent_logs|length }}</span>
+                </h3>
+                <p class="small text-muted mb-0">Ghi nhận khi user bấm Cho phép / Để sau / Block trên hộp thoại trình duyệt.</p>
+            </div>
+            {% if consent_logs %}
+            <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0 align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="px-4">Nhân viên</th>
+                            <th>Quyền trình duyệt</th>
+                            <th>Đã đăng ký thiết bị</th>
+                            <th>Cập nhật lúc</th>
+                            <th class="text-end px-4">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in consent_logs %}
+                        <tr>
+                            <td class="px-4 fw-semibold">
+                                {{ log.user.get_full_name|default:log.user.username }}
+                                <div class="small text-muted fw-normal">{{ log.user.username }}</div>
+                            </td>
+                            <td>
+                                {% if log.browser_permission == 'granted' %}
+                                <span class="badge bg-success">Cho phép</span>
+                                {% elif log.browser_permission == 'denied' %}
+                                <span class="badge bg-danger">Chặn</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Để sau</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if log.push_subscribed %}
+                                <span class="text-success small"><i class="bi bi-check-circle-fill me-1"></i>Có</span>
+                                {% else %}
+                                <span class="text-muted small">Không</span>
+                                {% endif %}
+                            </td>
+                            <td><span class="small">{{ log.updated_at|date:"d/m/Y H:i" }}</span></td>
+                            <td class="text-end px-4">
+                                <form method="post" class="d-inline" onsubmit="return confirm('Xóa nhật ký đồng ý của {{ log.user.get_full_name|default:log.user.username }}? User sẽ thấy hộp gợi ý push lần sau.')">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="delete_consent">
+                                    <input type="hidden" name="pk" value="{{ log.pk }}">
+                                    <button type="submit" class="btn btn-sm btn-outline-secondary py-0" title="Xóa bản ghi (user thấy lại gợi ý)">
+                                        <i class="bi bi-x-circle"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-muted small p-4">Chưa có nhật ký nào.</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
