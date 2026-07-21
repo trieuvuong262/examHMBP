@@ -17,23 +17,83 @@
                             <th>Xóa</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="process-lines-body">
                         {% for f in step_formset %}
-                        <tr>
+                        <tr class="process-line-row">
                             {% for hidden in f.hidden_fields %}{{ hidden }}{% endfor %}
                             <td style="width:4.5rem">{{ f.sequence }}</td>
                             <td>{{ f.process_name }}</td>
                             <td>{{ f.norm_per_hour }}</td>
                             <td>{{ f.cost_per_hour }}</td>
                             <td>{{ f.notes }}</td>
-                            <td class="text-center">{% if f.instance.pk %}{{ f.DELETE }}{% endif %}</td>
+                            <td class="text-center" style="width:40px">
+                                {% if f.DELETE %}
+                                <div class="d-none">{{ f.DELETE }}</div>
+                                <button type="button" class="btn btn-link btn-sm text-danger p-0 remove-process-row" title="Xóa dòng">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                                {% endif %}
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
-            <button type="submit" class="btn btn-hm">Lưu công đoạn</button>
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <button type="button" class="btn btn-outline-hm btn-sm" id="add-process-row">
+                    <i class="bi bi-plus-lg me-1"></i>Thêm công đoạn
+                </button>
+                <button type="submit" class="btn btn-hm">Lưu công đoạn</button>
+            </div>
         </form>
+
+        <template id="empty-process-row-template">
+            {% with f=step_formset.empty_form %}
+            <tr class="process-line-row">
+                {% for hidden in f.hidden_fields %}{{ hidden }}{% endfor %}
+                <td style="width:4.5rem">{{ f.sequence }}</td>
+                <td>{{ f.process_name }}</td>
+                <td>{{ f.norm_per_hour }}</td>
+                <td>{{ f.cost_per_hour }}</td>
+                <td>{{ f.notes }}</td>
+                <td class="text-center" style="width:40px">
+                    <div class="d-none">{{ f.DELETE }}</div>
+                    <button type="button" class="btn btn-link btn-sm text-danger p-0 remove-process-row" title="Xóa dòng">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </td>
+            </tr>
+            {% endwith %}
+        </template>
+
+        <script>
+        (function () {
+            var body = document.getElementById('process-lines-body');
+            var tmpl = document.getElementById('empty-process-row-template');
+            var totalForms = document.getElementById('id_steps-TOTAL_FORMS');
+            if (!body || !tmpl || !totalForms) return;
+
+            document.getElementById('add-process-row')?.addEventListener('click', function () {
+                var idx = parseInt(totalForms.value, 10);
+                var html = tmpl.innerHTML.replace(/__prefix__/g, idx);
+                body.insertAdjacentHTML('beforeend', html);
+                totalForms.value = idx + 1;
+            });
+
+            body.addEventListener('click', function (e) {
+                var btn = e.target.closest('.remove-process-row');
+                if (!btn) return;
+                var row = btn.closest('tr');
+                var del = row?.querySelector('input[type=checkbox][name$="-DELETE"]');
+                if (del) {
+                    del.checked = true;
+                    row.style.display = 'none';
+                } else {
+                    row.remove();
+                }
+            });
+        })();
+        </script>
         {% else %}
         <div class="table-responsive">
             <table class="table table-sm align-middle mb-0">
