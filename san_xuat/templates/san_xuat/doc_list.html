@@ -1,60 +1,162 @@
 {% extends 'base.html' %}
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
-{% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}
+<style>
+.sx-doc-row { cursor: pointer; }
+.sx-doc-row:hover { background: var(--jp-table-hover-bg, #f8f9fa); }
+.sx-doc-row td:first-child { padding-left: 0.75rem; }
+.sx-doc-expand-btn {
+    background: none; border: none; padding: 0 0.5rem 0 0;
+    color: #6c757d; transition: transform .2s;
+    line-height: 1; vertical-align: middle;
+}
+.sx-doc-expand-btn.is-open { transform: rotate(90deg); }
+.sx-bom-panel {
+    background: #f8f9fc;
+    border-top: 1px solid #e9ecef;
+}
+.sx-bom-panel td { padding: 0 !important; }
+.sx-bom-inner { padding: 0.5rem 1rem 0.75rem 2.5rem; }
+.sx-bom-table { font-size: .85rem; }
+.sx-bom-table thead th { color: #6c757d; font-weight: 500; border-bottom: 1px solid #dee2e6; padding: 0.3rem 0.6rem; }
+.sx-bom-table tbody td { padding: 0.35rem 0.6rem; border: none; vertical-align: middle; }
+.sx-bom-table tbody tr { border-bottom: 1px solid #f0f0f0; }
+.sx-bom-table tbody tr:last-child { border-bottom: none; }
+.sx-bom-empty { color: #adb5bd; font-style: italic; font-size: .85rem; padding: 0.5rem 0; }
+.sx-bom-status-active  { background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
+.sx-bom-status-draft   { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
+.sx-bom-status-archived{ background: #f3f4f6; color: #6b7280; border: 1px solid #d1d5db; }
+</style>
 {% endblock %}
 
 {% block content %}
-<div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 py-md-4 mb-5"
-     data-loading-message="Đang tải hồ sơ…">
+<div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
     <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
-    <div class="jp-sx-detail-title">
-      <h2 class="jp-npl-mat-topbar-title w-100">Danh sách hồ sơ sản xuất</h2>
-    </div>
-    <nav class="jp-sx-tools" aria-label="Công cụ">
-      {% include 'san_xuat/includes/sx_export_btn.html' with export_key='doc_list' %}
-                  {% if can_create %}
+        <div class="jp-sx-detail-title">
+            <h2 class="jp-npl-mat-topbar-title w-100">Hồ sơ sản xuất &amp; định mức</h2>
+        </div>
+        <nav class="jp-sx-tools" aria-label="Công cụ">
+            {% include 'san_xuat/includes/sx_export_btn.html' with export_key='doc_list' %}
+            {% if can_create %}
             <a href="{% url 'san_xuat:doc_create' %}" class="btn btn-hm btn-sm fw-bold">
-                <i class="bi bi-plus-lg me-1"></i>Thêm
+                <i class="bi bi-plus-lg me-1"></i>Thêm hồ sơ
             </a>
             {% endif %}
-      {% include 'san_xuat/includes/sx_list_col_picker.html' %}
-    </nav>
+        </nav>
     </div>
 
     {% include 'san_xuat/includes/sx_list_filter.html' %}
 
     <div class="card border-0 shadow-sm overflow-hidden">
-        <div class="jp-npl-mat-grid-wrap">
-            <table class="table table-hover align-middle mb-0 jp-npl-mat-grid" id="{{ sx_list_table_id }}">
-                <thead class="table-light">
-          <tr>
-            {% include 'san_xuat/includes/sx_list_grid_head.html' %}
-          </tr>
-        </thead>
-                <tbody>
-                    {% for doc in page_obj %}
-                    <tr class="jp-npl-catalog-row" data-href="{% url 'san_xuat:doc_detail' doc.pk %}">
-<td class="npl-col" data-col="product_code"><a href="{% url 'san_xuat:doc_detail' doc.pk %}" class="text-decoration-none fw-semibold">{{ doc.product_code }}</a></td>
-                        <td class="npl-col" data-col="product_name">{{ doc.product_name|default:"—" }}</td>
-                        <td class="npl-col" data-col="status">
-                            {% if doc.is_active %}
-                            <span class="badge bg-success-subtle text-success border">Đang dùng</span>
+        <table class="table align-middle mb-0" id="sx-doc-list-table">
+            <thead class="table-light">
+                <tr>
+                    <th style="width:1.5rem"></th>
+                    <th style="min-width:120px">Mã SP</th>
+                    <th style="min-width:180px">Tên sản phẩm</th>
+                    <th>Trạng thái</th>
+                    <th>Phiên bản BOM</th>
+                    <th>Cập nhật</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for doc in page_obj %}
+                {# —— Hàng hồ sơ —— #}
+                <tr class="sx-doc-row" data-doc-id="{{ doc.pk }}" onclick="sxToggleDoc(this)">
+                    <td>
+                        <button type="button" class="sx-doc-expand-btn" aria-label="Mở rộng">
+                            <i class="bi bi-chevron-right"></i>
+                        </button>
+                    </td>
+                    <td>
+                        <a href="{% url 'san_xuat:doc_detail' doc.pk %}"
+                           class="fw-semibold text-decoration-none text-hm"
+                           onclick="event.stopPropagation()">{{ doc.product_code }}</a>
+                    </td>
+                    <td class="text-muted">{{ doc.product_name|default:"—" }}</td>
+                    <td>
+                        {% if doc.is_active %}
+                        <span class="badge bg-success-subtle text-success border">Đang dùng</span>
+                        {% else %}
+                        <span class="badge bg-secondary-subtle text-secondary border">Ngưng</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-muted small">
+                        {% with boms=doc.bom_versions.all %}
+                        {% if boms %}
+                            {% for bom in boms %}
+                                {% if bom.status == 'active' %}
+                                <span class="badge sx-bom-status-active me-1">{{ bom.version_label }} Đang dùng</span>
+                                {% elif bom.status == 'draft' %}
+                                <span class="badge sx-bom-status-draft me-1">{{ bom.version_label }} Nháp</span>
+                                {% endif %}
+                            {% endfor %}
+                        {% else %}
+                            <span class="text-muted">Chưa có BOM</span>
+                        {% endif %}
+                        {% endwith %}
+                    </td>
+                    <td class="text-muted small">{{ doc.updated_at|date:"d/m/Y" }}</td>
+                </tr>
+                {# —— Panel BOM expand —— #}
+                <tr class="sx-bom-panel d-none" id="sx-bom-panel-{{ doc.pk }}">
+                    <td colspan="6">
+                        <div class="sx-bom-inner">
+                            {% with boms=doc.bom_versions.all %}
+                            {% if boms %}
+                            <table class="table sx-bom-table mb-0 w-100">
+                                <thead>
+                                    <tr>
+                                        <th>Phiên bản</th>
+                                        <th>Trạng thái</th>
+                                        <th class="text-end">Số NPL</th>
+                                        <th class="text-end">Công đoạn</th>
+                                        <th>Cập nhật</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for bom in boms %}
+                                    <tr>
+                                        <td class="fw-semibold">{{ bom.version_label }}</td>
+                                        <td>
+                                            {% if bom.status == 'active' %}
+                                            <span class="badge sx-bom-status-active">Đang dùng</span>
+                                            {% elif bom.status == 'draft' %}
+                                            <span class="badge sx-bom-status-draft">Nháp</span>
+                                            {% else %}
+                                            <span class="badge sx-bom-status-archived">Lưu trữ</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-end">{{ bom.line_count }}</td>
+                                        <td class="text-end">{{ bom.step_count }}</td>
+                                        <td class="text-muted">{{ bom.updated_at|date:"d/m/Y" }}</td>
+                                        <td class="text-end">
+                                            <a href="{% url 'san_xuat:doc_detail' doc.pk %}?tab=bom&bom={{ bom.pk }}"
+                                               class="btn btn-outline-hm btn-xs py-0 px-2"
+                                               onclick="event.stopPropagation()">
+                                                <i class="bi bi-pencil-square me-1"></i>Mở
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
                             {% else %}
-                            <span class="badge bg-secondary-subtle text-secondary border">Ngưng</span>
+                            <div class="sx-bom-empty">Chưa có phiên bản BOM — <a href="{% url 'san_xuat:doc_detail' doc.pk %}">Vào hồ sơ để tạo</a></div>
                             {% endif %}
-                        </td>
-                        <td class="npl-col" data-col="updated_at">{{ doc.updated_at|date:"d/m/Y H:i" }}</td>
-            {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=doc %}
-</tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="13" class="text-center text-muted py-4">Chưa có hồ sơ SX.</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+                            {% endwith %}
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted py-4">Chưa có hồ sơ SX nào.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
         {% if page_obj.paginator.num_pages > 1 %}
         <div class="card-footer bg-white">
             {% include 'includes/pagination.html' with page_obj=page_obj query_string=query_string %}
@@ -62,5 +164,16 @@
         {% endif %}
     </div>
 </div>
-{% include 'san_xuat/includes/sx_list_grid_scripts.html' %}
+
+<script>
+function sxToggleDoc(row) {
+    var docId = row.dataset.docId;
+    var panel = document.getElementById('sx-bom-panel-' + docId);
+    var btn = row.querySelector('.sx-doc-expand-btn');
+    if (!panel) return;
+    var isOpen = !panel.classList.contains('d-none');
+    panel.classList.toggle('d-none', isOpen);
+    btn.classList.toggle('is-open', !isOpen);
+}
+</script>
 {% endblock %}

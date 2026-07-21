@@ -626,16 +626,8 @@
                         {% if jp_can_san_xuat_docs %}
                         <li>
                             <a href="{% url 'san_xuat:doc_list' %}"
-                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'doc_list' or request.resolver_match.url_name == 'doc_create' or request.resolver_match.url_name == 'doc_detail' %}active{% endif %}">
-                                <i class="bi bi-journal-text"></i><span>Danh sách hồ sơ</span>
-                            </a>
-                        </li>
-                        {% endif %}
-                        {% if jp_can_san_xuat_bom or jp_can_san_xuat_docs %}
-                        <li>
-                            <a href="{% url 'san_xuat:bom_list' %}"
-                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'bom_list' %}active{% endif %}">
-                                <i class="bi bi-diagram-3"></i><span>BOM / định mức</span>
+                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'doc_list' or request.resolver_match.url_name == 'doc_create' or request.resolver_match.url_name == 'doc_detail' or request.resolver_match.url_name == 'bom_list' %}active{% endif %}">
+                                <i class="bi bi-journal-text"></i><span>Hồ sơ &amp; định mức</span>
                             </a>
                         </li>
                         {% endif %}

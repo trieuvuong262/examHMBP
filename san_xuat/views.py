@@ -47,6 +47,8 @@ def hub(request):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def doc_list(request):
+    from django.db.models import Count, Prefetch
+
     from san_xuat.list_filters import (
         SX_FILTER_TECH_DOC,
         apply_sx_list_filters,
@@ -67,6 +69,14 @@ def doc_list(request):
         'notes__icontains',
     )
     qs = apply_sx_list_sort(qs, request, 'doc_list')
+
+    # Prefetch BOM versions kèm số dòng NPL và công đoạn
+    bom_qs = BomVersion.objects.annotate(
+        line_count=Count('lines', distinct=True),
+        step_count=Count('process_steps', distinct=True),
+    ).order_by('-created_at')
+    qs = qs.prefetch_related(Prefetch('bom_versions', queryset=bom_qs))
+
     page_obj, query_string = paginate_queryset(request, qs)
     return render(request, 'san_xuat/doc_list.html', {
         'page_obj': page_obj,
