@@ -1,0 +1,49 @@
+{% extends 'san_xuat/print/base_a5.html' %}
+{% block print_body %}
+<div class="doc-title">Lệnh sản xuất</div>
+<div class="doc-sub">Số: <strong>{{ mo.code }}</strong> · Ngày làm phiếu: <strong>{{ doc_date|date:"d/m/Y" }}</strong></div>
+
+<div class="meta-grid">
+  <div><span class="label">Mã SP:</span> <strong>{{ mo.product_code }}</strong></div>
+  <div><span class="label">Trạng thái:</span> {{ mo.get_status_display }}</div>
+  <div class="full"><span class="label">Tên SP:</span> {{ mo.product_name|default:"—" }}</div>
+  <div><span class="label">Số lượng lệnh:</span> <strong>{{ mo.qty }}</strong></div>
+  <div><span class="label">SL đạt:</span> {{ mo.qty_done }}</div>
+  <div><span class="label">Ngày lập LSX:</span> {{ mo.order_date|date:"d/m/Y" }}</div>
+  <div><span class="label">Hạn:</span> {% if mo.due_date %}{{ mo.due_date|date:"d/m/Y" }}{% else %}—{% endif %}</div>
+  <div><span class="label">KH bắt đầu:</span> {% if mo.planned_start %}{{ mo.planned_start|date:"d/m/Y" }}{% else %}—{% endif %}</div>
+  <div><span class="label">KH kết thúc:</span> {% if mo.planned_end %}{{ mo.planned_end|date:"d/m/Y" }}{% else %}—{% endif %}</div>
+  <div class="full"><span class="label">Tổ / chuyền:</span> {{ mo.team_label|default:"—" }}</div>
+  <div class="full"><span class="label">BOM:</span> {% if mo.bom_version %}{{ mo.bom_version.version_label }}{% else %}—{% endif %}</div>
+</div>
+
+{% if bom_lines %}
+<table class="lines">
+  <thead>
+    <tr>
+      <th style="width:8%">STT</th>
+      <th>Nguyên phụ liệu</th>
+      <th style="width:16%">ĐM/1SP</th>
+      <th style="width:12%">Hao hụt</th>
+      <th style="width:16%">Tổng cần</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for bl in bom_lines %}
+    <tr>
+      <td class="text-center">{{ forloop.counter }}</td>
+      <td>
+        <strong>{{ bl.material_code }}</strong><br>
+        {{ bl.material_name }}
+      </td>
+      <td class="text-end">{{ bl.qty_per_unit }}</td>
+      <td class="text-center">{{ bl.scrap_pct }}%</td>
+      <td class="text-end"><strong>{{ bl.qty_total }}</strong></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+<div class="notes"><span class="label">Ghi chú:</span> {{ mo.notes|default:"—" }}</div>
+{% endblock %}

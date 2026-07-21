@@ -1,0 +1,19 @@
+{% extends 'san_xuat/print/base_a5.html' %}
+{% block print_body %}
+<div class="doc-title">Yêu cầu nhập thành phẩm</div>
+<div class="doc-sub">Số: <strong>{{ fg_req.code }}</strong> · Ngày làm phiếu: <strong>{{ doc_date|date:"d/m/Y" }}</strong></div>
+
+<div class="meta-grid">
+  <div><span class="label">Lệnh SX:</span> <strong>{{ mo.code }}</strong></div>
+  <div><span class="label">Trạng thái:</span> {{ fg_req.get_status_display }}</div>
+  <div><span class="label">Mã SP:</span> {{ mo.product_code }}</div>
+  <div><span class="label">SL nhập:</span> <strong>{{ fg_req.qty }}</strong></div>
+  <div class="full"><span class="label">Tên SP:</span> {{ mo.product_name|default:"—" }}</div>
+  <div><span class="label">Ngày YC:</span> {{ fg_req.request_date|date:"d/m/Y" }}</div>
+  <div><span class="label">Tổ:</span> {{ mo.team_label|default:"—" }}</div>
+  <div class="full"><span class="label">Thống kê nguồn:</span> {% if fg_req.production_stat %}{{ fg_req.production_stat.code }}{% else %}—{% endif %}</div>
+  <div class="full"><span class="label">Phiếu nhập KiotViet:</span> {% if fg_req.kv_purchase_code %}{{ fg_req.kv_purchase_code }}{% elif fg_req.kv_purchase_kiotviet_id %}ID {{ fg_req.kv_purchase_kiotviet_id }}{% else %}—{% endif %}</div>
+</div>
+
+<div class="notes"><span class="label">Ghi chú:</span> {{ fg_req.notes|default:"—" }}</div>
+{% endblock %}

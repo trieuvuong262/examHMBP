@@ -1,0 +1,49 @@
+{% extends 'san_xuat/print/base_a5.html' %}
+{% block print_body %}
+<div class="doc-title">Thuê gia công</div>
+<div class="doc-sub">Số: <strong>{{ item.code }}</strong> · Ngày làm phiếu: <strong>{{ doc_date|date:"d/m/Y" }}</strong></div>
+
+<div class="meta-grid">
+  <div class="full"><span class="label">Đơn vị GC:</span> <strong>{{ item.vendor_name }}</strong></div>
+  <div><span class="label">Lệnh SX:</span> {% if mo %}{{ mo.code }}{% else %}—{% endif %}</div>
+  <div><span class="label">Trạng thái:</span> {{ item.get_status_display }}</div>
+  <div><span class="label">Mã SP:</span> {{ item.product_code }}</div>
+  <div><span class="label">Công đoạn:</span> {{ item.process_name|default:"—" }}</div>
+  <div class="full"><span class="label">Tên SP:</span> {{ item.product_name|default:"—" }}</div>
+  <div><span class="label">SL đặt:</span> <strong>{{ item.qty }}</strong></div>
+  <div><span class="label">SL nhận lại:</span> {{ item.qty_received }}</div>
+  <div><span class="label">Ngày đặt:</span> {{ item.order_date|date:"d/m/Y" }}</div>
+  <div><span class="label">Hạn:</span> {% if item.due_date %}{{ item.due_date|date:"d/m/Y" }}{% else %}—{% endif %}</div>
+  <div class="full"><span class="label">Phí GC (VNĐ):</span> {{ item.service_fee }}</div>
+</div>
+
+<table class="lines">
+  <thead>
+    <tr>
+      <th style="width:8%">STT</th>
+      <th style="width:14%">Chiều</th>
+      <th>Mã / tên</th>
+      <th style="width:14%">SL</th>
+      <th style="width:14%">Lô</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for ln in material_lines %}
+    <tr>
+      <td class="text-center">{{ forloop.counter }}</td>
+      <td class="text-center">{{ ln.get_direction_display }}</td>
+      <td>
+        <strong>{{ ln.material_code }}</strong><br>
+        {{ ln.material_name|default:"" }}
+      </td>
+      <td class="text-end">{{ ln.qty }} {{ ln.uom_label }}</td>
+      <td class="text-center">{{ ln.lot_code|default:"—" }}</td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="5" class="text-center">Chưa có dòng xuất/nhận.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+<div class="notes"><span class="label">Ghi chú:</span> {{ item.notes|default:"—" }}</div>
+{% endblock %}

@@ -1,0 +1,19 @@
+{% extends 'san_xuat/print/base_a5.html' %}
+{% block print_body %}
+<div class="doc-title">Bàn giao bán thành phẩm</div>
+<div class="doc-sub">Số: <strong>{{ handover.code }}</strong> · Ngày làm phiếu: <strong>{{ doc_date|date:"d/m/Y" }}</strong></div>
+
+<div class="meta-grid">
+  <div><span class="label">Lệnh SX:</span> <strong>{{ mo.code }}</strong></div>
+  <div><span class="label">Trạng thái:</span> {{ handover.get_status_display }}</div>
+  <div><span class="label">Mã SP:</span> {{ mo.product_code }}</div>
+  <div><span class="label">SL bàn giao:</span> <strong>{{ handover.qty }}</strong></div>
+  <div class="full"><span class="label">Tên SP:</span> {{ mo.product_name|default:"—" }}</div>
+  <div><span class="label">Từ công đoạn:</span> {{ handover.from_process|default:"—" }}</div>
+  <div><span class="label">Đến công đoạn:</span> {{ handover.to_process|default:"—" }}</div>
+  <div><span class="label">Ngày bàn giao:</span> {{ handover.handover_date|date:"d/m/Y" }}</div>
+  <div><span class="label">Tổ:</span> {{ mo.team_label|default:"—" }}</div>
+</div>
+
+<div class="notes"><span class="label">Ghi chú:</span> {{ handover.notes|default:"—" }}</div>
+{% endblock %}

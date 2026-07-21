@@ -1,0 +1,172 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ print_title|default:"In phiếu" }}</title>
+  <style>
+    :root {
+      --ink: #111;
+      --muted: #444;
+      --line: #222;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      color: var(--ink);
+      font-family: "Times New Roman", "Liberation Serif", serif;
+      font-size: 11pt;
+      line-height: 1.35;
+      background: #e8e8e8;
+    }
+    .no-print {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      gap: .5rem;
+      align-items: center;
+      justify-content: center;
+      padding: .65rem;
+      background: #1f2937;
+      color: #fff;
+      font-family: system-ui, sans-serif;
+      font-size: 13px;
+    }
+    .no-print button,
+    .no-print a {
+      appearance: none;
+      border: 0;
+      border-radius: 4px;
+      padding: .4rem .9rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      color: #111;
+      background: #f8fafc;
+    }
+    .no-print .hint { opacity: .85; margin-left: .5rem; }
+    .sheet {
+      width: 148mm;
+      min-height: 210mm;
+      margin: 12px auto;
+      padding: 8mm 8mm 7mm;
+      background: #fff;
+      box-shadow: 0 2px 12px rgba(0,0,0,.18);
+    }
+    .co-name {
+      font-size: 12.5pt;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .02em;
+    }
+    .co-meta { font-size: 9.5pt; color: var(--muted); }
+    .doc-title {
+      margin: 8px 0 4px;
+      text-align: center;
+      font-size: 14pt;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .doc-sub {
+      text-align: center;
+      font-size: 10pt;
+      margin-bottom: 8px;
+    }
+    .meta-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2px 10px;
+      margin-bottom: 8px;
+      font-size: 10.5pt;
+    }
+    .meta-grid .full { grid-column: 1 / -1; }
+    .label { color: var(--muted); }
+    table.lines {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 6px 0 8px;
+      font-size: 9.5pt;
+    }
+    table.lines th,
+    table.lines td {
+      border: 1px solid var(--line);
+      padding: 3px 5px;
+      vertical-align: top;
+    }
+    table.lines th {
+      background: #f3f3f3;
+      font-weight: 700;
+      text-align: center;
+    }
+    .text-end { text-align: right; }
+    .text-center { text-align: center; }
+    .notes {
+      font-size: 10pt;
+      margin: 4px 0 8px;
+      min-height: 1.6em;
+    }
+    .sig-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+      margin-top: 14px;
+      page-break-inside: avoid;
+    }
+    .sig-box { text-align: center; font-size: 9.5pt; }
+    .sig-box .role { font-weight: 700; }
+    .sig-box .hint-sign {
+      color: var(--muted);
+      font-size: 8.5pt;
+      font-style: italic;
+      margin: 2px 0 36px;
+    }
+    .sig-box .line {
+      border-top: 1px solid var(--line);
+      margin: 0 4px;
+      padding-top: 3px;
+      font-size: 8.5pt;
+      color: var(--muted);
+    }
+    .footer-note {
+      margin-top: 10px;
+      font-size: 8.5pt;
+      color: var(--muted);
+      text-align: center;
+    }
+    @page {
+      size: A5 portrait;
+      margin: 6mm;
+    }
+    @media print {
+      html, body { background: #fff; }
+      .no-print { display: none !important; }
+      .sheet {
+        width: auto;
+        min-height: auto;
+        margin: 0;
+        padding: 0;
+        box-shadow: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="no-print">
+    <button type="button" onclick="window.print()">In giấy A5</button>
+    <a href="{{ back_url }}">Đóng</a>
+    <span class="hint">Chọn khổ giấy A5 · ngang lề tối thiểu</span>
+  </div>
+  <div class="sheet">
+    {% include 'san_xuat/print/includes/header.html' %}
+    {% block print_body %}{% endblock %}
+    {% include 'san_xuat/print/includes/signatures.html' %}
+    <div class="footer-note">In từ Portal JustPlay · {{ printed_at|date:"d/m/Y H:i" }}</div>
+  </div>
+  {% if autoprint %}
+  <script>window.addEventListener('load', function () { window.print(); });</script>
+  {% endif %}
+</body>
+</html>

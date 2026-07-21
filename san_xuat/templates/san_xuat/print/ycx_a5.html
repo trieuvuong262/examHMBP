@@ -1,0 +1,46 @@
+{% extends 'san_xuat/print/base_a5.html' %}
+{% block print_body %}
+<div class="doc-title">Yêu cầu xuất vật tư</div>
+<div class="doc-sub">Số: <strong>{{ req.code }}</strong> · Ngày làm phiếu: <strong>{{ doc_date|date:"d/m/Y" }}</strong></div>
+
+<div class="meta-grid">
+  <div><span class="label">Lệnh SX:</span> <strong>{{ mo.code }}</strong></div>
+  <div><span class="label">Trạng thái YCX:</span> {{ req.status }}</div>
+  <div><span class="label">Mã SP:</span> {{ mo.product_code }}</div>
+  <div><span class="label">SL lệnh:</span> {{ mo.qty }}</div>
+  <div class="full"><span class="label">Tên SP:</span> {{ mo.product_name|default:"—" }}</div>
+  <div><span class="label">Ngày YC:</span> {{ req.request_date|date:"d/m/Y" }}</div>
+  <div><span class="label">Tổ:</span> {{ mo.team_label|default:"—" }}</div>
+  <div class="full"><span class="label">Phiếu xuất kho:</span> {% if req.stock_issue %}{{ req.stock_issue.number }}{% else %}—{% endif %}</div>
+</div>
+
+<table class="lines">
+  <thead>
+    <tr>
+      <th style="width:8%">STT</th>
+      <th>Nguyên phụ liệu</th>
+      <th style="width:18%">SL yêu cầu</th>
+      <th style="width:18%">SL đã xuất</th>
+      <th style="width:16%">Vị trí</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for line in lines %}
+    <tr>
+      <td class="text-center">{{ forloop.counter }}</td>
+      <td>
+        <strong>{{ line.material_code }}</strong><br>
+        {{ line.material_name }}
+      </td>
+      <td class="text-end">{{ line.qty_requested }}</td>
+      <td class="text-end">{{ line.qty_issued }}</td>
+      <td class="text-center">{{ line.preferred_location.code|default:"—" }}</td>
+    </tr>
+  {% empty %}
+    <tr><td colspan="5" class="text-center">Chưa có dòng NPL.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+<div class="notes"><span class="label">Ghi chú:</span> {{ req.notes|default:"—" }}</div>
+{% endblock %}

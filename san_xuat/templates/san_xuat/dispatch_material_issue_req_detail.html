@@ -5,6 +5,7 @@
     <div class="jp-npl-mat-topbar">
     <h2 class="jp-npl-mat-topbar-title">Yêu cầu xuất vật tư <span class="text-muted">({{ req.code }})</span></h2>
     <div class="jp-npl-mat-topbar-actions ms-auto">
+      <a href="{% url 'san_xuat:print_ycx' req.pk %}?autoprint=1" target="_blank" rel="noopener" class="btn btn-outline-secondary btn-sm fw-bold">In A5</a>
       <a href="{% url 'san_xuat:dispatch_material_issue_req' %}" class="btn btn-outline-secondary btn-sm fw-bold">Quay lại</a>
     </div>
   </div>
