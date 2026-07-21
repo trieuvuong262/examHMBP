@@ -172,6 +172,56 @@ def sx_filter_context(filters: SxListFilters, *, preserve: dict[str, str] | None
     }
 
 
+def resolve_sx_period(
+    request: HttpRequest,
+    *,
+    honor_month: bool = True,
+) -> tuple[date, date, SxListFilters]:
+    """Khoảng ngày thống nhất cho list + báo cáo SX (parse_sx_list_filters + chọn tháng)."""
+    from calendar import monthrange
+
+    filters = parse_sx_list_filters(request)
+    month = (request.GET.get('month') or '').strip()
+    raw_from = (request.GET.get('date_from') or '').strip()
+    raw_to = (request.GET.get('date_to') or '').strip()
+
+    if honor_month and month and not raw_from and not raw_to:
+        try:
+            y, m = month.split('-', 1)
+            year, mon = int(y), int(m)
+            last = monthrange(year, mon)[1]
+            date_from, date_to = date(year, mon, 1), date(year, mon, last)
+        except (ValueError, IndexError):
+            date_from, date_to = filters.date_from, filters.date_to
+        else:
+            filters = SxListFilters(
+                code=filters.code,
+                name=filters.name,
+                date_from=date_from,
+                date_to=date_to,
+                dates_defaulted=False,
+            )
+            return date_from, date_to, filters
+
+    return filters.date_from, filters.date_to, filters
+
+
+def _tuple_row_date(row: tuple, *, date_index: int | None, date_attr: str) -> date | None:
+    if date_index is None or len(row) <= date_index:
+        return None
+    val = getattr(row[date_index], date_attr, None)
+    if val is None:
+        return None
+    if isinstance(val, date):
+        return val
+    if hasattr(val, 'date'):
+        try:
+            return val.date()
+        except Exception:
+            return None
+    return None
+
+
 def prepare_hub_list(
     request: HttpRequest,
     qs: QuerySet,
@@ -204,8 +254,10 @@ def filter_tuple_rows(
     name_index: int | None = None,
     code_attr: str = 'product_code',
     name_attr: str = 'product_name',
+    date_index: int | None = None,
+    date_attr: str = 'updated_at',
 ) -> list[tuple]:
-    """Lọc danh sách tuple (doc, bom, …) theo mã/tên trên phần tử đầu."""
+    """Lọc danh sách tuple (doc, bom, …) theo mã/tên/ngày trên phần tử tương ứng."""
     out: list[tuple] = []
     for row in rows:
         head = row[code_index]
@@ -219,6 +271,13 @@ def filter_tuple_rows(
             continue
         if filters.name and filters.name.lower() not in name_val:
             continue
+        if filters.date_from or filters.date_to:
+            row_date = _tuple_row_date(row, date_index=date_index, date_attr=date_attr)
+            if row_date is not None:
+                if filters.date_from and row_date < filters.date_from:
+                    continue
+                if filters.date_to and row_date > filters.date_to:
+                    continue
         out.append(row)
     return out
 
@@ -310,7 +369,7 @@ SX_FILTER_SUBCONTRACT = SxFilterSpec(
     name_fields=('vendor_name', 'product_name', 'process_name'),
     date_field='order_date',
 )
-SX_FILTER_WORK_CENTER = SxFilterSpec(name_fields=('name', 'team_label'))
+SX_FILTER_WORK_CENTER = SxFilterSpec(name_fields=('name', 'team_label'), date_field='created_at')
 
 SX_FILTER_TECH_DOC = SxFilterSpec(
     code_fields=('product_code',),
@@ -338,6 +397,12 @@ SX_FILTER_DOWNTIME = SxFilterSpec(
 SX_FILTER_TEAM_HR = SxFilterSpec(
     code_fields=('employee_code',),
     name_fields=('employee_name', 'team_label'),
+    date_field='created_at',
 )
 
 SX_FILTER_CATALOG_ITEM = SxFilterSpec(code_fields=('code',), name_fields=('name',))
+SX_FILTER_CATALOG_MATERIAL = SxFilterSpec(
+    code_fields=('code',),
+    name_fields=('name',),
+    date_field='updated_at',
+)

@@ -120,6 +120,13 @@
         unlockPage();
     }
 
+    function dismissPushGate() {
+        hideGateError();
+        hideBlockGuide();
+        var permission = window.Notification ? Notification.permission : 'default';
+        return completePortalConsent(permission || 'default', false);
+    }
+
     function showGateError(message) {
         var err = document.getElementById('jpMealPushGateError');
         if (!err) {
@@ -522,8 +529,6 @@
     }
 
     function refreshPushUI() {
-        lsRemove('jp_meal_push_prompt_dismissed');
-
         if (!supportsPush()) {
             hideMandatoryGate();
             return Promise.resolve();
@@ -569,6 +574,8 @@
 
     function bindPushUI() {
         var enableBtn = document.getElementById('jpMealPushEnable');
+        var dismissBtn = document.getElementById('jpMealPushDismiss');
+        var skipBtn = document.getElementById('jpMealPushSkip');
         var recheckBtn = document.getElementById('jpMealPushRecheck');
         var reloadBtn = document.getElementById('jpMealPushReload');
         var testBtn = document.getElementById('jpMealPushTest');
@@ -579,6 +586,14 @@
 
         if (enableBtn) {
             enableBtn.addEventListener('click', onEnableButtonClick);
+        }
+
+        if (dismissBtn) {
+            dismissBtn.addEventListener('click', dismissPushGate);
+        }
+
+        if (skipBtn) {
+            skipBtn.addEventListener('click', dismissPushGate);
         }
 
         if (recheckBtn) {

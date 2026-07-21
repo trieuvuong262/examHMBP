@@ -12137,6 +12137,21 @@ body.jp-monitor-modal-open {
     display: none;
 }
 
+.jp-meal-push-gate-close {
+    position: absolute;
+    top: 0.65rem;
+    right: 0.65rem;
+    z-index: 2;
+}
+
+.jp-meal-push-gate-skip {
+    text-decoration: none;
+}
+
+.jp-meal-push-gate-skip:hover {
+    text-decoration: underline;
+}
+
 .jp-meal-push-gate-card {
     position: relative;
     z-index: 1;

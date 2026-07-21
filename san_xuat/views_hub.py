@@ -231,7 +231,8 @@ def _page(request, *, title, subtitle, model, fields, labels, related_url_name=N
 def overview(request):
     import json
 
-    from san_xuat.services.overview import build_overview_dashboard, parse_overview_period
+    from san_xuat.list_filters import resolve_sx_period
+    from san_xuat.services.overview import build_overview_dashboard
 
     month = (request.GET.get('month') or '').strip()
     date_from_raw = (request.GET.get('date_from') or '').strip()
@@ -242,11 +243,7 @@ def overview(request):
     allowed_tabs = {'tong-hop', 'lenh-sx', 'san-luong', 'chat-luong', 'dung-chuyen'}
     if active_tab not in allowed_tabs:
         active_tab = 'tong-hop'
-    date_from, date_to = parse_overview_period(
-        month=month,
-        date_from=date_from_raw,
-        date_to=date_to_raw,
-    )
+    date_from, date_to, _filters = resolve_sx_period(request)
     dash = build_overview_dashboard(
         date_from=date_from,
         date_to=date_to,
@@ -338,7 +335,12 @@ def costing_norm(request):
     from san_xuat.list_grid import sx_list_grid_context
 
     filters = parse_sx_list_filters(request)
-    rows = filter_tuple_rows(list_costing_from_active_boms(), filters)
+    rows = filter_tuple_rows(
+        list_costing_from_active_boms(),
+        filters,
+        date_index=1,
+        date_attr='updated_at',
+    )
     return render(request, 'san_xuat/costing_bom_list.html', {
         **_perm_ctx(request),
         'rows': rows,
@@ -2694,7 +2696,11 @@ def qc_defect_group(request):
 
 def _qc_catalog_list(request, *, title, subtitle, model, fields, labels, create_url_name, export_key=''):
     filters = parse_sx_list_filters(request)
-    qs = model.objects.filter(is_demo=False).order_by('code')[:200]
+    qs = apply_sx_list_filters(
+        model.objects.filter(is_demo=False).order_by('code'),
+        filters,
+        SX_FILTER_QC_CATALOG,
+    )[:200]
     return render(request, 'san_xuat/qc_catalog_list.html', {
         **_perm_ctx(request),
         'hub_title': title,
@@ -2913,27 +2919,11 @@ def general_settings(request):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def capacity_list(request):
-    from san_xuat.services.overview import parse_overview_period
+    from san_xuat.list_filters import resolve_sx_period
     from san_xuat.services.phase3 import build_capacity_load
 
-    filters = parse_sx_list_filters(request)
     month = (request.GET.get('month') or '').strip()
-    raw_from = (request.GET.get('date_from') or '').strip()
-    raw_to = (request.GET.get('date_to') or '').strip()
-
-    if month and not raw_from and not raw_to:
-        date_from, date_to = parse_overview_period(month=month)
-        filters = SxListFilters(
-            code=filters.code,
-            name=filters.name,
-            date_from=date_from,
-            date_to=date_to,
-            dates_defaulted=False,
-        )
-    else:
-        date_from, date_to = filters.date_from, filters.date_to
-        if not date_from or not date_to:
-            date_from, date_to = default_list_date_range()
+    date_from, date_to, filters = resolve_sx_period(request)
 
     base_centers = (
         SxWorkCenter.objects.filter(is_demo=False)
@@ -3002,14 +2992,10 @@ def capacity_create(request):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def ops_report(request):
-    from san_xuat.services.overview import parse_overview_period
+    from san_xuat.list_filters import resolve_sx_period
     from san_xuat.services.phase3 import build_ops_report, export_ops_report_csv
 
-    date_from, date_to = parse_overview_period(
-        month=(request.GET.get('month') or '').strip(),
-        date_from=(request.GET.get('date_from') or '').strip(),
-        date_to=(request.GET.get('date_to') or '').strip(),
-    )
+    date_from, date_to, _filters = resolve_sx_period(request)
     product_code = (request.GET.get('product_code') or '').strip()
     process_name = (request.GET.get('process_name') or '').strip()
     team_label = (request.GET.get('team_label') or '').strip()
@@ -3291,14 +3277,10 @@ def subcontract_detail(request, pk: int):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def piece_rate_report(request):
-    from san_xuat.services.overview import parse_overview_period
+    from san_xuat.list_filters import resolve_sx_period
     from san_xuat.services.phase3 import compute_piece_rate_pay
 
-    date_from, date_to = parse_overview_period(
-        month=(request.GET.get('month') or '').strip(),
-        date_from=(request.GET.get('date_from') or '').strip(),
-        date_to=(request.GET.get('date_to') or '').strip(),
-    )
+    date_from, date_to, _filters = resolve_sx_period(request)
     mo_raw = (request.GET.get('mo') or '').strip()
     mo_id = int(mo_raw) if mo_raw.isdigit() else None
     rows = compute_piece_rate_pay(date_from=date_from, date_to=date_to, production_order_id=mo_id)

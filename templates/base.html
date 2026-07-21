@@ -133,6 +133,7 @@
 <div id="jpMealPushGate" class="jp-meal-push-gate" hidden role="region" aria-labelledby="jpMealPushGateTitle">
     <div class="jp-meal-push-gate-backdrop" aria-hidden="true"></div>
     <div class="jp-meal-push-gate-card">
+        <button type="button" class="jp-meal-push-gate-close btn-close" id="jpMealPushDismiss" aria-label="Để sau, không bật thông báo"></button>
         <div class="jp-meal-push-gate-icon" aria-hidden="true"><i class="bi bi-bell-fill"></i></div>
         <h2 class="jp-meal-push-gate-title" id="jpMealPushGateTitle">Bật thông báo portal</h2>
         <p class="jp-meal-push-gate-lead mb-2">Bạn có thể <strong>cho phép thông báo</strong> để nhận <strong>thông báo công ty</strong>, <strong>nhắc lịch</strong>{% if jp_meal_push_eligible %} và nhắc <strong>đặt cơm lúc 16:00</strong>{% endif %}. Có thể tiếp tục dùng portal bình thường nếu chưa bật.</p>
@@ -165,6 +166,7 @@
             </div>
         </div>
         <button type="button" class="btn btn-hm btn-lg w-100 fw-bold" id="jpMealPushEnable">Cho phép nhận thông báo</button>
+        <button type="button" class="btn btn-link btn-sm w-100 mt-2 text-muted jp-meal-push-gate-skip" id="jpMealPushSkip">Để sau</button>
         <p id="jpMealPushGateError" class="jp-meal-push-gate-error small text-danger mb-0 mt-3" hidden></p>
     </div>
 </div>
@@ -233,7 +235,7 @@ window.JP_PORTAL_PUSH = {
 };
 window.JP_MEAL_PUSH = window.JP_PORTAL_PUSH;
 </script>
-<script src="{% static 'js/portal-push-meal.js' %}?v=20260703a"></script>
+<script src="{% static 'js/portal-push-meal.js' %}?v=20260721a"></script>
 <script src="{% static 'js/portal-push-schedule.js' %}?v=20260624a"></script>
 {% if jp_can_announcements %}
 <script src="{% static 'js/portal-push-announcements.js' %}?v=20260628a"></script>
