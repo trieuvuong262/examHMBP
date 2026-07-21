@@ -10,6 +10,9 @@
     <h2 class="jp-npl-mat-topbar-title">{{ page_title }}</h2>
     <div class="jp-npl-mat-topbar-actions ms-auto">
       {% if can_create %}
+      <a href="{% url 'san_xuat:run_order_wizard' %}" class="btn btn-outline-hm btn-sm fw-bold">
+        <i class="bi bi-magic me-1"></i>Chạy lệnh mới
+      </a>
       <a href="{% url 'san_xuat:dispatch_mo_create' %}" class="btn btn-hm btn-sm fw-bold">
         <i class="bi bi-plus-lg me-1"></i>Tạo lệnh
       </a>

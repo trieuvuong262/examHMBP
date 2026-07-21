@@ -14,6 +14,7 @@ from san_xuat.services.dispatch import (
     confirm_stat,
     create_production_stat,
 )
+from san_xuat.services.sx_settings import sx_bool, sx_decimal
 
 
 class ShopFloorError(Exception):
@@ -47,34 +48,41 @@ def quick_confirm_scan(
     *,
     scan: str,
     process_name: str = "",
-    qty_good: Decimal = Decimal("1"),
+    qty_good: Decimal | None = None,
     team_label: str = "",
 ) -> dict:
     """
     Quét mã:
-    - TKSX nháp → confirm
-    - LSX → tạo + confirm TKSX nhanh (cần process_name hoặc lấy CĐ đầu BOM)
+    - TKSX nháp → confirm (nếu bật auto-confirm)
+    - LSX → tạo TKSX nhanh (± confirm theo thiết lập)
     """
     scan = (scan or "").strip()
     if not scan:
         raise ShopFloorError("Nhập / quét mã LSX hoặc TKSX.")
 
+    auto_confirm = sx_bool("shopfloor_auto_confirm_stat", True)
+    default_qty = sx_decimal("shopfloor_default_qty_good", "1")
+    if qty_good is None:
+        qty_good = default_qty if default_qty > 0 else Decimal("1")
+
     stat = lookup_stat(scan)
     if stat:
         if stat.status == SxProductionStat.STATUS_CONFIRMED:
-            raise ShopFloorError(f"TKSX {stat.code} đã xác nhận.")
-        confirm_stat(stat_id=stat.pk)
-        return {"kind": "stat_confirm", "stat": stat, "mo": stat.production_order}
+            raise ShopFloorError(f"Thống kê {stat.code} đã xác nhận.")
+        if auto_confirm:
+            confirm_stat(stat_id=stat.pk)
+            return {"kind": "stat_confirm", "stat": stat, "mo": stat.production_order}
+        return {"kind": "stat_draft", "stat": stat, "mo": stat.production_order}
 
     mo = lookup_mo(scan)
     if not mo:
-        raise ShopFloorError(f"Không tìm thấy LSX/TKSX: {scan}")
+        raise ShopFloorError(f"Không tìm thấy lệnh / thống kê: {scan}")
     if mo.status not in (
         SxProductionOrder.STATUS_RELEASED,
         SxProductionOrder.STATUS_IN_PROGRESS,
         SxProductionOrder.STATUS_DONE,
     ):
-        raise ShopFloorError("LSX chưa phát hành.")
+        raise ShopFloorError("Lệnh sản xuất chưa phát hành.")
 
     pname = (process_name or "").strip()
     if not pname and mo.bom_version_id:
@@ -84,7 +92,7 @@ def quick_confirm_scan(
             if not team_label and step.work_center_id:
                 team_label = step.work_center.team_label or step.work_center.name
     if not pname:
-        raise ShopFloorError("Cần chọn công đoạn (BOM chưa có CĐ).")
+        raise ShopFloorError("Cần chọn công đoạn (BOM chưa có công đoạn).")
 
     try:
         stat = create_production_stat(
@@ -96,8 +104,9 @@ def quick_confirm_scan(
             team_label=team_label or mo.team_label,
             notes="Shop floor scan",
         )
-        confirm_stat(stat_id=stat.pk)
+        if auto_confirm:
+            confirm_stat(stat_id=stat.pk)
+            return {"kind": "mo_stat", "stat": stat, "mo": mo}
+        return {"kind": "mo_stat_draft", "stat": stat, "mo": mo}
     except DispatchError as exc:
         raise ShopFloorError(str(exc)) from exc
-
-    return {"kind": "mo_stat", "stat": stat, "mo": mo}

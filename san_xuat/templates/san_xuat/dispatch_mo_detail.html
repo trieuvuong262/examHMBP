@@ -5,9 +5,58 @@
     <div class="jp-npl-mat-topbar">
     <h2 class="jp-npl-mat-topbar-title">Lệnh sản xuất <span class="text-muted">({{ mo.code }})</span></h2>
     <div class="jp-npl-mat-topbar-actions ms-auto">
+      <a href="{% url 'san_xuat:run_order_wizard_mo' mo.pk %}" class="btn btn-outline-hm btn-sm fw-bold">Wizard</a>
+      <a href="{% url 'san_xuat:traceability' %}?query={{ mo.code }}&gaps=1" class="btn btn-outline-secondary btn-sm fw-bold">Thiếu bước?</a>
       <a href="{% url 'san_xuat:dispatch_mo' %}" class="btn btn-outline-secondary btn-sm fw-bold">Quay lại</a>
     </div>
   </div>
+
+  {% if progress %}
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+        <div>
+          <div class="small text-muted">Tiến độ quy trình</div>
+          <div class="fw-semibold">{{ progress.done_count }}/{{ progress.total_steps }} bước · {{ progress.pct_complete }}%</div>
+        </div>
+        <div class="progress flex-grow-1" style="max-width: 220px; height: .45rem;">
+          <div class="progress-bar bg-success" style="width: {{ progress.pct_complete }}%"></div>
+        </div>
+      </div>
+      <div class="d-flex flex-wrap gap-1 mb-3">
+        {% for s in progress.steps %}
+        <span class="badge {% if s.done %}text-bg-success{% else %}text-bg-light text-muted border{% endif %}">
+          {% if s.done %}✓{% else %}○{% endif %} {{ s.label }}
+        </span>
+        {% endfor %}
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>So sánh kế hoạch / thực tế</th>
+              <th class="text-end">Kế hoạch</th>
+              <th class="text-end">Thực tế</th>
+              <th class="text-end">Chênh</th>
+              <th class="text-end">%</th>
+            </tr>
+          </thead>
+          <tbody>
+          {% for row in progress.qty_rows %}
+            <tr>
+              <td class="small">{{ row.label }}</td>
+              <td class="text-end">{{ row.planned }}</td>
+              <td class="text-end fw-semibold">{{ row.actual }}</td>
+              <td class="text-end {% if row.variance < 0 %}text-danger{% elif row.variance > 0 %}text-success{% endif %}">{{ row.variance }}</td>
+              <td class="text-end text-muted">{% if row.pct != None %}{{ row.pct|floatformat:0 }}%{% else %}—{% endif %}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endif %}
 
   <div class="row g-3 mb-4">
     <div class="col-12 col-lg-6">

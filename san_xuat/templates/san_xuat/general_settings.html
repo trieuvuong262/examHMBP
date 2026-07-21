@@ -1,0 +1,154 @@
+{% extends 'base.html' %}
+{% block extra_head %}
+{% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}
+{% endblock %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page py-3 py-md-4 mb-5" style="max-width: 860px;">
+  <div class="jp-npl-mat-topbar">
+    <h2 class="jp-npl-mat-topbar-title">Thiết lập chung sản xuất</h2>
+    <div class="jp-npl-mat-topbar-actions ms-auto">
+      <a href="{% url 'san_xuat:overview' %}" class="btn btn-outline-secondary btn-sm fw-bold">Tổng quan</a>
+    </div>
+  </div>
+
+  <p class="text-muted small mb-4">
+    Cấu hình cổng quy trình, chất lượng, năng lực, kho/tích hợp và shop floor.
+    Lưu trên hệ thống — có hiệu lực ngay (ưu tiên hơn biến môi trường).
+  </p>
+
+  <form method="post">
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+    <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+    {% endif %}
+
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-body p-4">
+        <h3 class="h6 text-hm mb-2">1. Cổng quy trình</h3>
+        <p class="small text-muted mb-3">
+          <strong>Chặn</strong> / <strong>Cảnh báo</strong> / <strong>Tắt</strong>.
+        </p>
+        <div class="mb-3">
+          <label class="form-label" for="{{ form.gate_release_before_issue.id_for_label }}">{{ form.gate_release_before_issue.label }}</label>
+          {{ form.gate_release_before_issue }}
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="{{ form.gate_issue_before_stat.id_for_label }}">{{ form.gate_issue_before_stat.label }}</label>
+          {{ form.gate_issue_before_stat }}
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="{{ form.gate_stat_before_fg.id_for_label }}">{{ form.gate_stat_before_fg.label }}</label>
+          {{ form.gate_stat_before_fg }}
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="{{ form.gate_qc_pass_before_fg.id_for_label }}">{{ form.gate_qc_pass_before_fg.label }}</label>
+          {{ form.gate_qc_pass_before_fg }}
+        </div>
+        <div class="mb-3">
+          <label class="form-label" for="{{ form.gate_open_qc_alert_before_fg.id_for_label }}">{{ form.gate_open_qc_alert_before_fg.label }}</label>
+          {{ form.gate_open_qc_alert_before_fg }}
+        </div>
+        <div class="mb-0">
+          <label class="form-label" for="{{ form.gate_packing_before_done.id_for_label }}">{{ form.gate_packing_before_done.label }}</label>
+          {{ form.gate_packing_before_done }}
+        </div>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-body p-4">
+        <h3 class="h6 text-hm mb-3">2. Chất lượng &amp; truy xuất</h3>
+        <div class="form-check mb-2">
+          {{ form.auto_create_qc_from_stat }}
+          <label class="form-check-label" for="{{ form.auto_create_qc_from_stat.id_for_label }}">{{ form.auto_create_qc_from_stat.label }}</label>
+        </div>
+        <div class="form-check mb-3">
+          {{ form.auto_create_defect_alert }}
+          <label class="form-check-label" for="{{ form.auto_create_defect_alert.id_for_label }}">{{ form.auto_create_defect_alert.label }}</label>
+        </div>
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label" for="{{ form.default_defect_tolerance_pct.id_for_label }}">{{ form.default_defect_tolerance_pct.label }}</label>
+            {{ form.default_defect_tolerance_pct }}
+            <div class="form-text">{{ form.default_defect_tolerance_pct.help_text }}</div>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label" for="{{ form.default_sample_qty.id_for_label }}">{{ form.default_sample_qty.label }}</label>
+            {{ form.default_sample_qty }}
+            <div class="form-text">{{ form.default_sample_qty.help_text }}</div>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label" for="{{ form.trace_min_timeline_events.id_for_label }}">{{ form.trace_min_timeline_events.label }}</label>
+            {{ form.trace_min_timeline_events }}
+            <div class="form-text">{{ form.trace_min_timeline_events.help_text }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-body p-4">
+        <h3 class="h6 text-hm mb-3">3. Năng lực &amp; danh sách</h3>
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label" for="{{ form.capacity_load_warn_pct.id_for_label }}">{{ form.capacity_load_warn_pct.label }}</label>
+            {{ form.capacity_load_warn_pct }}
+            {% if form.capacity_load_warn_pct.errors %}<div class="text-danger small">{{ form.capacity_load_warn_pct.errors }}</div>{% endif %}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label" for="{{ form.capacity_load_danger_pct.id_for_label }}">{{ form.capacity_load_danger_pct.label }}</label>
+            {{ form.capacity_load_danger_pct }}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label" for="{{ form.list_default_date_range_days.id_for_label }}">{{ form.list_default_date_range_days.label }}</label>
+            {{ form.list_default_date_range_days }}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-body p-4">
+        <h3 class="h6 text-hm mb-3">4. Kho &amp; tích hợp</h3>
+        <div class="form-check mb-2">
+          {{ form.ycx_auto_reserve_stock }}
+          <label class="form-check-label" for="{{ form.ycx_auto_reserve_stock.id_for_label }}">{{ form.ycx_auto_reserve_stock.label }}</label>
+        </div>
+        <div class="form-check mb-0">
+          {{ form.require_kv_link_for_fg_done }}
+          <label class="form-check-label" for="{{ form.require_kv_link_for_fg_done.id_for_label }}">{{ form.require_kv_link_for_fg_done.label }}</label>
+          <div class="form-text">{{ form.require_kv_link_for_fg_done.help_text }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-body p-4">
+        <h3 class="h6 text-hm mb-3">5. Shop floor</h3>
+        <div class="form-check mb-3">
+          {{ form.shopfloor_auto_confirm_stat }}
+          <label class="form-check-label" for="{{ form.shopfloor_auto_confirm_stat.id_for_label }}">{{ form.shopfloor_auto_confirm_stat.label }}</label>
+        </div>
+        <div class="col-md-4 px-0">
+          <label class="form-label" for="{{ form.shopfloor_default_qty_good.id_for_label }}">{{ form.shopfloor_default_qty_good.label }}</label>
+          {{ form.shopfloor_default_qty_good }}
+        </div>
+      </div>
+    </div>
+
+    {% if cfg.updated_at %}
+    <p class="small text-muted mb-3">
+      Cập nhật lần cuối: {{ cfg.updated_at|date:"d/m/Y H:i" }}
+      {% if cfg.updated_by %} · {{ cfg.updated_by.get_username }}{% endif %}
+    </p>
+    {% endif %}
+
+    {% if can_update %}
+    <button type="submit" class="btn btn-hm">Lưu thiết lập</button>
+    {% else %}
+    <div class="text-muted small">Bạn chỉ có quyền xem — cần quyền Sửa module Sản xuất để lưu.</div>
+    {% endif %}
+  </form>
+</div>
+{% endblock %}

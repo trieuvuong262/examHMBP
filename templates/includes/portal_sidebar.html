@@ -1103,6 +1103,17 @@
                 </li>
                 {% endif %}
 
+                {# —— Thiết lập chung —— #}
+                {% jp_can_menu 'san_xuat' 'general_settings' as jp_can_san_xuat_settings %}
+                {% if jp_can_san_xuat_settings %}
+                <li>
+                    <a href="{% url 'san_xuat:general_settings' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'general_settings' %}active{% endif %}">
+                        <i class="bi bi-gear"></i><span>Thiết lập chung</span>
+                    </a>
+                </li>
+                {% endif %}
+
                 {# —— 11. Tích hợp KV —— #}
                 {% if jp_can_kiotviet %}
                 <li class="jp-sidebar-nested-group{% if 'kiotviet' in request.path %} is-open{% endif %}">

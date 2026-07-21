@@ -617,3 +617,14 @@ if not DEBUG:
 AUTHENTICATION_BACKENDS = [
     'assessment.backends.UsernameModelBackend',
 ]
+
+# ==============================================================================
+# Module Sản xuất — cổng quy trình (off | warn | block)
+# ==============================================================================
+# Ưu tiên: màn Hình Thiết lập chung (/san-xuat/thiet-lap/). Env chỉ là mặc định khi chưa lưu DB.
+# off = tắt · warn = cảnh báo · block = chặn cứng
+SX_GATE_REQUIRE_RELEASE_BEFORE_ISSUE = os.getenv('SX_GATE_REQUIRE_RELEASE_BEFORE_ISSUE', 'block')
+SX_GATE_REQUIRE_ISSUE_BEFORE_STAT = os.getenv('SX_GATE_REQUIRE_ISSUE_BEFORE_STAT', 'block')
+SX_GATE_REQUIRE_QC_PASS_BEFORE_FG = os.getenv('SX_GATE_REQUIRE_QC_PASS_BEFORE_FG', 'block')
+SX_GATE_REQUIRE_STAT_BEFORE_FG = os.getenv('SX_GATE_REQUIRE_STAT_BEFORE_FG', 'block')
+SX_TRACE_MIN_TIMELINE_EVENTS = int(os.getenv('SX_TRACE_MIN_TIMELINE_EVENTS', '4'))

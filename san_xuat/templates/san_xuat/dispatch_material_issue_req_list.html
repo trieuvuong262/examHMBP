@@ -8,9 +8,29 @@
     <div class="jp-npl-mat-topbar">
     <h2 class="jp-npl-mat-topbar-title">{{ page_title }}</h2>
     <div class="jp-npl-mat-topbar-actions ms-auto">
+      {% if pending_ycx_count %}
+      <a href="{% url 'san_xuat:dispatch_material_issue_req' %}?queue=pending"
+         class="btn btn-warning btn-sm fw-bold">
+        Chờ duyệt ({{ pending_ycx_count }})
+      </a>
+      {% endif %}
+      {% if queue_pending %}
+      <a href="{% url 'san_xuat:dispatch_material_issue_req' %}" class="btn btn-outline-secondary btn-sm fw-bold">Tất cả</a>
+      {% endif %}
       <a href="{% url 'san_xuat:dispatch_mo' %}" class="btn btn-outline-secondary btn-sm fw-bold">Lệnh sản xuất</a>
     </div>
   </div>
+
+  {% if queue_pending %}
+  <div class="alert alert-warning small mb-3">
+    Đang xem <strong>hàng đợi duyệt</strong>: yêu cầu chưa có phiếu xuất (nháp / đã gửi / đã duyệt pending).
+  </div>
+  {% elif pending_ycx_count %}
+  <div class="alert alert-light border small mb-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <span>Có <strong>{{ pending_ycx_count }}</strong> yêu cầu xuất đang chờ kho duyệt.</span>
+    <a href="?queue=pending" class="btn btn-sm btn-outline-hm">Chỉ xem hàng đợi</a>
+  </div>
+  {% endif %}
 
   {% include 'san_xuat/includes/sx_list_filter.html' %}
   <div class="card border-0 shadow-sm overflow-hidden">

@@ -42,8 +42,40 @@
         <a href="{% url 'san_xuat:dispatch_mo_detail' result.mo.pk %}" class="btn btn-sm btn-outline-hm">Mở Lệnh sản xuất</a>
         <a href="{% url 'san_xuat:work_assignment_create' %}?mo={{ result.mo.pk }}" class="btn btn-sm btn-outline-secondary">Giao việc</a>
         <a href="{% url 'san_xuat:packing_create' %}" class="btn btn-sm btn-outline-secondary">Đóng gói</a>
+        {% if show_gaps %}
+        <a href="?query={{ form.query.value|urlencode }}" class="btn btn-sm btn-outline-secondary">Ẩn thiếu bước</a>
+        {% else %}
+        <a href="?query={{ form.query.value|urlencode }}&gaps=1" class="btn btn-sm btn-warning">Thiếu bước nào?</a>
+        {% endif %}
       </div>
     </div>
+
+    {% if show_gaps %}
+    <div class="card border-warning mb-4">
+      <div class="card-body">
+        <h3 class="h6 text-warning-emphasis mb-2">Thiếu bước trên chuỗi truy xuất</h3>
+        {% if gaps %}
+        <ul class="list-group list-group-flush">
+          {% for g in gaps %}
+          <li class="list-group-item small">
+            <strong>{{ g.label }}</strong>
+            <div class="text-muted">{{ g.hint }}</div>
+            {% if g.url_name %}
+              {% if g.url_pk %}
+              <a href="{% url g.url_name g.url_pk %}">Mở →</a>
+              {% else %}
+              <a href="{% url g.url_name %}{% if g.key == 'stat' %}?mo={{ result.mo.pk }}{% endif %}">Mở →</a>
+              {% endif %}
+            {% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <div class="text-success small">Đủ các bước chính trên checklist lệnh.</div>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
 
     <h3 class="h6 text-muted">Timeline</h3>
     <ul class="list-group mb-4">

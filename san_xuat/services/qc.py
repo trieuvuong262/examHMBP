@@ -22,6 +22,12 @@ from san_xuat.hub_models import (
 DEFAULT_TOLERANCE_PCT = Decimal("5")
 
 
+def _default_tolerance() -> Decimal:
+    from san_xuat.services.sx_settings import sx_decimal
+
+    return sx_decimal("default_defect_tolerance_pct", DEFAULT_TOLERANCE_PCT)
+
+
 class QcError(Exception):
     pass
 
@@ -81,7 +87,7 @@ def resolve_tolerance(*, product_code: str, stage_name: str = "") -> Decimal:
         standard = candidate.order_by("-id").first()
         if standard and standard.defect_tolerance_pct is not None:
             return standard.defect_tolerance_pct
-    return DEFAULT_TOLERANCE_PCT
+    return _default_tolerance()
 
 
 def compute_sample_qty(method: SxQcSamplingMethod | None, production_qty: Decimal) -> SampleResult:
@@ -89,7 +95,9 @@ def compute_sample_qty(method: SxQcSamplingMethod | None, production_qty: Decima
     if qty <= 0:
         return SampleResult(required_qty=Decimal("0"), max_defect_allowed=Decimal("0"))
     if not method:
-        required = Decimal("5")
+        from san_xuat.services.sx_settings import sx_int
+
+        required = Decimal(str(sx_int("default_sample_qty", 5, min_v=1, max_v=9999)))
     elif (method.method_type or "").strip() == "percent":
         pct = method.sample_value or Decimal("0")
         required = ((qty * pct) / Decimal("100")).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
@@ -191,17 +199,22 @@ def maybe_create_defect_alert(*, stat: SxProductionStat) -> SxQcAlert | None:
 
 @transaction.atomic
 def process_stat_qc_link(*, stat_id: int) -> StatQcLinkResult:
+    from san_xuat.services.sx_settings import sx_bool
+
     stat = SxProductionStat.objects.select_related("production_order").get(pk=stat_id)
     if stat.status != SxProductionStat.STATUS_CONFIRMED:
         raise QcError("Chỉ nối QC sau khi TKSX đã xác nhận.")
 
     qc_request = None
-    try:
-        qc_request = create_request_from_stat(stat_id=stat.pk, auto=True)
-    except QcError:
-        pass
+    if sx_bool("auto_create_qc_from_stat", True):
+        try:
+            qc_request = create_request_from_stat(stat_id=stat.pk, auto=True)
+        except QcError:
+            pass
 
-    alert = maybe_create_defect_alert(stat=stat)
+    alert = None
+    if sx_bool("auto_create_defect_alert", True):
+        alert = maybe_create_defect_alert(stat=stat)
     return StatQcLinkResult(qc_request=qc_request, alert=alert)
 
 

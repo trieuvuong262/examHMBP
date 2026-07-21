@@ -14,8 +14,15 @@ from django.utils import timezone
 LIST_DATE_RANGE_DAYS = 7
 
 
-def default_list_date_range(*, days: int = LIST_DATE_RANGE_DAYS) -> tuple[date, date]:
-    """Khoảng ngày mặc định trên list (7 ngày gần nhất, gồm hôm nay)."""
+def default_list_date_range(*, days: int | None = None) -> tuple[date, date]:
+    """Khoảng ngày mặc định trên list (gồm hôm nay)."""
+    if days is None:
+        try:
+            from san_xuat.services.sx_settings import sx_int
+
+            days = sx_int("list_default_date_range_days", LIST_DATE_RANGE_DAYS, min_v=1, max_v=90)
+        except Exception:
+            days = LIST_DATE_RANGE_DAYS
     today = timezone.localdate()
     span = max(1, int(days))
     return today - timedelta(days=span - 1), today

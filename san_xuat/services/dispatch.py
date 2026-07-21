@@ -267,9 +267,12 @@ def build_material_issue_request(
             )
         )
     SxMaterialIssueRequestLine.objects.bulk_create(lines)
-    from kho_npl.services.reservation import upsert_reservations_for_ycx
+    from san_xuat.services.sx_settings import sx_bool
 
-    upsert_reservations_for_ycx(request=req)
+    if sx_bool("ycx_auto_reserve_stock", True):
+        from kho_npl.services.reservation import upsert_reservations_for_ycx
+
+        upsert_reservations_for_ycx(request=req)
     return req
 
 
@@ -280,6 +283,8 @@ class ApprovedIssueResult:
 
 
 def _recompute_mo_progress(mo: SxProductionOrder) -> SxProductionOrder:
+    from san_xuat.services.gates import check_packing_before_done
+
     confirmed_stats = mo.production_stats.filter(
         status=SxProductionStat.STATUS_CONFIRMED,
         is_demo=False,
@@ -289,7 +294,12 @@ def _recompute_mo_progress(mo: SxProductionOrder) -> SxProductionOrder:
     if mo.status == SxProductionOrder.STATUS_RELEASED and qty_done > 0:
         mo.status = SxProductionOrder.STATUS_IN_PROGRESS
     if qty_done >= (mo.qty or Decimal("0")) and (mo.qty or Decimal("0")) > 0:
-        mo.status = SxProductionOrder.STATUS_DONE
+        packing_gate = check_packing_before_done(mo=mo)
+        if packing_gate.should_block:
+            if mo.status != SxProductionOrder.STATUS_IN_PROGRESS:
+                mo.status = SxProductionOrder.STATUS_IN_PROGRESS
+        else:
+            mo.status = SxProductionOrder.STATUS_DONE
     elif qty_done < (mo.qty or Decimal("0")) and mo.status == SxProductionOrder.STATUS_DONE:
         mo.status = SxProductionOrder.STATUS_IN_PROGRESS if qty_done > 0 else SxProductionOrder.STATUS_RELEASED
     mo.save(update_fields=["qty_done", "status"])
@@ -451,9 +461,14 @@ def create_production_stat(
 
 @transaction.atomic
 def confirm_stat(*, stat_id: int) -> SxProductionStat:
+    from san_xuat.services.gates import check_issue_before_stat, enforce_gate
+
     stat = SxProductionStat.objects.select_for_update().select_related("production_order").get(pk=stat_id)
     if stat.status == SxProductionStat.STATUS_CONFIRMED:
         raise DispatchError("Thống kê sản xuất đã được xác nhận trước đó.")
+    warn = enforce_gate(check_issue_before_stat(mo=stat.production_order))
+    # Cảnh báo (warn) không chặn — caller/view có thể hiển thị thêm; block đã raise ở enforce_gate.
+    _ = warn
     stat.status = SxProductionStat.STATUS_CONFIRMED
     stat.save(update_fields=["status"])
     _recompute_mo_progress(stat.production_order)
@@ -504,13 +519,16 @@ def create_fg_receipt_from_mo(
     if (receipt_qty or Decimal("0")) <= 0:
         raise DispatchError("SL nhập TP phải > 0 — cần Thống kê sản xuất đã xác nhận hoặc Lệnh sản xuất có qty_done.")
 
-    has_open_qc_alert = SxQcAlert.objects.filter(
-        production_order=mo,
-        status=SxQcAlert.STATUS_OPEN,
-        is_demo=False,
-    ).exists()
-    if has_open_qc_alert:
-        raise DispatchError("Lệnh sản xuất có cảnh báo QC đang mở — xử lý QC trước khi tạo YCNTP.")
+    from san_xuat.services.gates import (
+        check_open_qc_alert_before_fg,
+        check_qc_pass_before_fg,
+        check_stat_before_fg,
+        enforce_gate,
+    )
+
+    enforce_gate(check_stat_before_fg(mo=mo))
+    enforce_gate(check_open_qc_alert_before_fg(mo=mo))
+    enforce_gate(check_qc_pass_before_fg(mo=mo))
 
     return SxFgReceiptRequest.objects.create(
         code=(code or "").strip() or _next_code("YCNTP", SxFgReceiptRequest),
@@ -526,10 +544,17 @@ def create_fg_receipt_from_mo(
 
 @transaction.atomic
 def submit_fg_receipt(*, request_id: int) -> SxFgReceiptRequest:
+    from san_xuat.services.sx_settings import sx_bool
+
     req = SxFgReceiptRequest.objects.select_for_update().get(pk=request_id)
     if req.status != SxFgReceiptRequest.STATUS_DRAFT:
         raise DispatchError("Chỉ gửi Yêu cầu nhập thành phẩm ở trạng thái nháp.")
-    req.status = SxFgReceiptRequest.STATUS_SUBMITTED
+    require_kv = sx_bool("require_kv_link_for_fg_done", True)
+    if require_kv:
+        req.status = SxFgReceiptRequest.STATUS_SUBMITTED
+    else:
+        # Không bắt buộc KV → gửi xong coi như hoàn tất
+        req.status = SxFgReceiptRequest.STATUS_DONE
     req.save(update_fields=["status"])
     return req
 

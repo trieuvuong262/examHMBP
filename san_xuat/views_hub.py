@@ -1174,7 +1174,13 @@ def purchase_order_detail(request, pk: int):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def dispatch_stub(request):
-    return render(request, 'san_xuat/hub_dispatch.html', {**_perm_ctx(request)})
+    from san_xuat.services.mo_progress import pending_material_issue_qs
+
+    pending_ycx = pending_material_issue_qs().count()
+    return render(request, 'san_xuat/hub_dispatch.html', {
+        **_perm_ctx(request),
+        'pending_ycx_count': pending_ycx,
+    })
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
@@ -1214,16 +1220,200 @@ def dispatch_mo_create(request):
             except DispatchError as exc:
                 messages.error(request, str(exc))
             else:
-                messages.success(request, f'Đã tạo LSX {mo.code}.')
+                messages.success(request, f'Đã tạo lệnh sản xuất {mo.code}.')
                 return redirect('san_xuat:dispatch_mo_detail', pk=mo.pk)
         else:
-            messages.error(request, 'Không tạo được LSX — kiểm tra lại form.')
+            messages.error(request, 'Không tạo được lệnh sản xuất — kiểm tra lại form.')
     else:
         form = ProductionOrderCreateForm(initial={'order_date': timezone.localdate()})
     return render(request, 'san_xuat/dispatch_mo_form.html', {
         **_perm_ctx(request),
         'form': form,
         'mode': 'create',
+    })
+
+
+WIZARD_STEPS = [
+    (1, 'Tạo lệnh'),
+    (2, 'Phát hành'),
+    (3, 'Xuất vật tư'),
+    (4, 'Duyệt xuất kho'),
+    (5, 'Thống kê sản xuất'),
+    (6, 'Kiểm tra chất lượng'),
+    (7, 'Nhập thành phẩm & đóng gói'),
+]
+
+
+def _wizard_step_for_mo(mo) -> int:
+    from san_xuat.services.mo_progress import build_mo_progress
+
+    progress = build_mo_progress(mo)
+    for step in progress.steps:
+        if step.done:
+            continue
+        if step.key == 'created':
+            return 1
+        if step.key == 'released':
+            return 2
+        if step.key == 'issue':
+            has_ycx = mo.material_issue_requests.filter(is_demo=False).exists()
+            return 4 if has_ycx else 3
+        if step.key == 'stat':
+            return 5
+        if step.key == 'qc':
+            return 6
+        if step.key in ('fg', 'packing'):
+            return 7
+    return 7
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+def run_order_wizard(request, mo_id: int | None = None):
+    """Wizard «Chạy lệnh mới» — 7 bước có thanh tiến độ."""
+    from san_xuat.services.mo_progress import build_mo_progress, pending_material_issue_qs
+
+    mo = None
+    if mo_id:
+        mo = get_object_or_404(SxProductionOrder, pk=mo_id, is_demo=False)
+
+    step_param = request.GET.get('step') or request.POST.get('step')
+    try:
+        step = int(step_param) if step_param else (_wizard_step_for_mo(mo) if mo else 1)
+    except (TypeError, ValueError):
+        step = 1
+    step = max(1, min(7, step))
+
+    can = _perm_ctx(request)
+    can_update = can.get('can_update')
+    create_form = ProductionOrderCreateForm(initial={'order_date': timezone.localdate()})
+    stat_form = None
+
+    if request.method == 'POST':
+        action = (request.POST.get('action') or '').strip()
+
+        if action == 'create_mo' and can.get('can_create'):
+            create_form = ProductionOrderCreateForm(request.POST)
+            if create_form.is_valid():
+                try:
+                    mo = create_mo_from_bom(
+                        product_code=create_form.cleaned_data['product_code'],
+                        qty=create_form.cleaned_data['qty'],
+                        code=create_form.cleaned_data.get('code') or None,
+                        order_date=create_form.cleaned_data.get('order_date') or timezone.localdate(),
+                        due_date=create_form.cleaned_data.get('due_date'),
+                        planned_start=create_form.cleaned_data.get('planned_start'),
+                        planned_end=create_form.cleaned_data.get('planned_end'),
+                        team_label=create_form.cleaned_data.get('team_label') or '',
+                        notes=create_form.cleaned_data.get('notes') or '',
+                        user=request.user,
+                    )
+                except DispatchError as exc:
+                    messages.error(request, str(exc))
+                else:
+                    messages.success(request, f'Đã tạo lệnh {mo.code}. Tiếp tục phát hành.')
+                    return redirect(f"{reverse('san_xuat:run_order_wizard_mo', kwargs={'mo_id': mo.pk})}?step=2")
+            else:
+                messages.error(request, 'Không tạo được lệnh — kiểm tra form.')
+                step = 1
+
+        elif mo and action == 'release' and can_update:
+            try:
+                mo_release(mo_id=mo.pk, user=request.user)
+            except DispatchError as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(request, f'Đã phát hành {mo.code}.')
+                return redirect(f"{reverse('san_xuat:run_order_wizard_mo', kwargs={'mo_id': mo.pk})}?step=3")
+
+        elif mo and action == 'create_ycx' and can_update:
+            try:
+                req = build_material_issue_request(
+                    production_order_id=mo.pk, user=request.user, notes='Từ wizard chạy lệnh',
+                )
+            except DispatchError as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(request, f'Đã tạo yêu cầu xuất {req.code}. Chuyển kho duyệt.')
+                return redirect(f"{reverse('san_xuat:run_order_wizard_mo', kwargs={'mo_id': mo.pk})}?step=4")
+
+        elif mo and action == 'create_stat' and can.get('can_create'):
+            stat_form = ProductionStatCreateForm(request.POST)
+            if stat_form.is_valid():
+                try:
+                    st = create_production_stat(
+                        production_order_id=mo.pk,
+                        stat_date=stat_form.cleaned_data.get('stat_date') or timezone.localdate(),
+                        process_name=stat_form.cleaned_data.get('process_name') or '',
+                        qty_good=stat_form.cleaned_data.get('qty_good') or Decimal('0'),
+                        qty_defect=stat_form.cleaned_data.get('qty_defect') or Decimal('0'),
+                        team_label=stat_form.cleaned_data.get('team_label') or mo.team_label or '',
+                        notes=stat_form.cleaned_data.get('notes') or '',
+                    )
+                    from san_xuat.services.gates import check_issue_before_stat
+                    gate = check_issue_before_stat(mo=mo)
+                    if gate.should_warn:
+                        messages.warning(request, gate.message)
+                    st = confirm_stat(stat_id=st.pk)
+                except DispatchError as exc:
+                    messages.error(request, str(exc))
+                else:
+                    messages.success(request, f'Đã ghi và xác nhận thống kê {st.code}.')
+                    return redirect(f"{reverse('san_xuat:run_order_wizard_mo', kwargs={'mo_id': mo.pk})}?step=6")
+            else:
+                messages.error(request, 'Không tạo được thống kê — kiểm tra form.')
+                step = 5
+
+        elif mo and action == 'create_ycntp' and can_update:
+            from san_xuat.services.gates import (
+                check_open_qc_alert_before_fg,
+                check_qc_pass_before_fg,
+                check_stat_before_fg,
+            )
+
+            for gate in (
+                check_stat_before_fg(mo=mo),
+                check_open_qc_alert_before_fg(mo=mo),
+                check_qc_pass_before_fg(mo=mo),
+            ):
+                if gate.should_warn:
+                    messages.warning(request, gate.message)
+            try:
+                fg = create_fg_receipt_from_mo(production_order_id=mo.pk)
+            except DispatchError as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(request, f'Đã tạo yêu cầu nhập thành phẩm {fg.code}.')
+                return redirect('san_xuat:dispatch_fg_receipt_req_detail', pk=fg.pk)
+
+    if mo and not mo_id:
+        return redirect('san_xuat:run_order_wizard_mo', mo_id=mo.pk)
+
+    progress = build_mo_progress(mo) if mo else None
+    latest_ycx = None
+    if mo:
+        latest_ycx = (
+            mo.material_issue_requests.filter(is_demo=False)
+            .select_related('stock_issue')
+            .order_by('-pk')
+            .first()
+        )
+        if step == 5 and stat_form is None:
+            stat_form = ProductionStatCreateForm(initial={
+                'stat_date': timezone.localdate(),
+                'team_label': mo.team_label or '',
+                'qty_good': mo.qty,
+            })
+
+    return render(request, 'san_xuat/run_order_wizard.html', {
+        **can,
+        'mo': mo,
+        'step': step,
+        'steps': WIZARD_STEPS,
+        'progress': progress,
+        'create_form': create_form,
+        'stat_form': stat_form,
+        'latest_ycx': latest_ycx,
+        'pending_ycx_count': pending_material_issue_qs().count(),
     })
 
 
@@ -1260,7 +1450,7 @@ def dispatch_mo_detail(request, pk: int):
             except DispatchError as exc:
                 messages.error(request, str(exc))
             else:
-                messages.success(request, f'LSX {mo.code} đã release.')
+                messages.success(request, f'Lệnh sản xuất {mo.code} đã phát hành.')
                 return redirect('san_xuat:dispatch_mo_detail', pk=mo.pk)
 
         elif action == 'create_ycx' and mo.status in (
@@ -1277,19 +1467,32 @@ def dispatch_mo_detail(request, pk: int):
             except DispatchError as exc:
                 messages.error(request, str(exc))
             else:
-                messages.success(request, f'Đã tạo YCX {req.code}.')
+                messages.success(request, f'Đã tạo yêu cầu xuất vật tư {req.code}.')
                 return redirect('san_xuat:dispatch_material_issue_req_detail', pk=req.pk)
 
         elif action == 'create_ycntp' and mo.status in (
             SxProductionOrder.STATUS_IN_PROGRESS,
             SxProductionOrder.STATUS_DONE,
         ):
+            from san_xuat.services.gates import (
+                check_open_qc_alert_before_fg,
+                check_qc_pass_before_fg,
+                check_stat_before_fg,
+            )
+
+            for gate in (
+                check_stat_before_fg(mo=mo),
+                check_open_qc_alert_before_fg(mo=mo),
+                check_qc_pass_before_fg(mo=mo),
+            ):
+                if gate.should_warn:
+                    messages.warning(request, gate.message)
             try:
                 fg_req = create_fg_receipt_from_mo(production_order_id=mo.pk)
             except DispatchError as exc:
                 messages.error(request, str(exc))
             else:
-                messages.success(request, f'Đã tạo YCNTP {fg_req.code}.')
+                messages.success(request, f'Đã tạo yêu cầu nhập thành phẩm {fg_req.code}.')
                 return redirect('san_xuat:dispatch_fg_receipt_req_detail', pk=fg_req.pk)
 
     update_form = ProductionOrderUpdateForm(initial={
@@ -1335,6 +1538,10 @@ def dispatch_mo_detail(request, pk: int):
                 'scrap_pct': bl.scrap_pct,
             })
 
+    from san_xuat.services.mo_progress import build_mo_progress
+
+    progress = build_mo_progress(mo)
+
     return render(request, 'san_xuat/dispatch_mo_detail.html', {
         **_perm_ctx(request),
         'mo': mo,
@@ -1346,6 +1553,7 @@ def dispatch_mo_detail(request, pk: int):
         'fg_receipt_list': fg_receipt_list,
         'wip_handover_list': wip_handover_list,
         'bom_lines': bom_lines,
+        'progress': progress,
     })
 
 
@@ -1522,25 +1730,55 @@ def dispatch_schedule(request):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def dispatch_material_issue_req(request):
+    from san_xuat.services.mo_progress import pending_material_issue_qs
+
+    queue = (request.GET.get('queue') or '').strip().lower()
     base_qs = (
         SxMaterialIssueRequest.objects.filter(is_demo=False)
         .order_by('-request_date', '-pk')
         .select_related('production_order', 'stock_issue')
     )
+    pending_count = pending_material_issue_qs().count()
+    if queue in ('pending', 'cho-duyet', '1'):
+        base_qs = pending_material_issue_qs()
     requests_qs, fctx = prepare_hub_list(request, base_qs, SX_FILTER_MATERIAL_ISSUE)
     return render(request, 'san_xuat/dispatch_material_issue_req_list.html', {
         **_perm_ctx(request),
         'page_title': 'Yêu cầu xuất vật tư',
         'requests': requests_qs,
+        'pending_ycx_count': pending_count,
+        'queue_pending': queue in ('pending', 'cho-duyet', '1'),
         **fctx,
     })
+
+
+def _ycx_detail_context(req):
+    from kho_npl.models import StockBalance, WarehouseLocation
+
+    locations = list(WarehouseLocation.objects.filter(is_active=True).order_by('code')[:200])
+    line_rows = []
+    for line in req.lines.select_related('preferred_location').all():
+        balances = []
+        mat = None
+        code = (line.material_code or '').strip()
+        if code:
+            from kho_npl.models import Material
+            mat = Material.objects.filter(code__iexact=code, is_active=True).first()
+        if mat:
+            balances = list(
+                StockBalance.objects.filter(material=mat, quantity__gt=0)
+                .select_related('location')
+                .order_by('location__code')[:12]
+            )
+        line_rows.append({'line': line, 'balances': balances})
+    return {'locations': locations, 'line_rows': line_rows}
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def dispatch_material_issue_req_detail(request, pk: int):
     req = (
         SxMaterialIssueRequest.objects.select_related('production_order', 'stock_issue')
-        .prefetch_related('lines')
+        .prefetch_related('lines__preferred_location')
         .get(pk=pk)
     )
     can_update = _perm_ctx(request).get('can_update')
@@ -1549,6 +1787,25 @@ def dispatch_material_issue_req_detail(request, pk: int):
 
     if request.method == 'POST':
         action = (request.POST.get('action') or '').strip()
+        if action == 'save_locations' and can_update and not req.stock_issue_id:
+            from kho_npl.models import WarehouseLocation
+
+            updated = 0
+            for line in req.lines.all():
+                raw = (request.POST.get(f'loc_{line.pk}') or '').strip()
+                loc = None
+                if raw.isdigit():
+                    loc = WarehouseLocation.objects.filter(pk=int(raw), is_active=True).first()
+                if line.preferred_location_id != (loc.pk if loc else None):
+                    line.preferred_location = loc
+                    line.save(update_fields=['preferred_location'])
+                    updated += 1
+            messages.success(
+                request,
+                f'Đã lưu vị trí ưu tiên ({updated} dòng cập nhật).' if updated else 'Không có thay đổi vị trí.',
+            )
+            return redirect('san_xuat:dispatch_material_issue_req_detail', pk=req.pk)
+
         if action == 'approve' and can_update and req.status in ('draft', 'submitted', 'approved'):
             form = MaterialIssueApproveForm(request.POST, request.FILES)
             if form.is_valid():
@@ -1561,10 +1818,10 @@ def dispatch_material_issue_req_detail(request, pk: int):
                 except DispatchError as exc:
                     messages.error(request, str(exc))
                 else:
-                    messages.success(request, f'YCX {res.request.code} đã duyệt.')
+                    messages.success(request, f'Yêu cầu xuất {res.request.code} đã duyệt.')
                     return redirect('san_xuat:dispatch_material_issue_req_detail', pk=res.request.pk)
             else:
-                messages.error(request, 'Không duyệt được YCX — kiểm tra lại form.')
+                messages.error(request, 'Không duyệt được yêu cầu xuất — kiểm tra lại form.')
 
     else:
         form = MaterialIssueApproveForm()
@@ -1575,6 +1832,7 @@ def dispatch_material_issue_req_detail(request, pk: int):
         'form': form,
         'can_update': can_update,
         'stock_issue': stock_issue,
+        **_ycx_detail_context(req),
     })
 
 
@@ -1641,6 +1899,11 @@ def dispatch_prod_stats_detail(request, pk: int):
     if request.method == 'POST':
         action = (request.POST.get('action') or '').strip()
         if action == 'confirm' and can_update and stat.status == SxProductionStat.STATUS_DRAFT:
+            from san_xuat.services.gates import check_issue_before_stat
+
+            gate = check_issue_before_stat(mo=stat.production_order)
+            if gate.should_warn:
+                messages.warning(request, gate.message)
             try:
                 stat = confirm_stat(stat_id=stat.pk)
             except DispatchError as exc:
@@ -1648,7 +1911,7 @@ def dispatch_prod_stats_detail(request, pk: int):
             else:
                 messages.success(
                     request,
-                    f'TKSX {stat.code} đã xác nhận, cập nhật LSX và tự sinh YCKT/cảnh báo QC (nếu có).',
+                    f'Thống kê {stat.code} đã xác nhận, cập nhật lệnh và tự sinh yêu cầu kiểm tra/cảnh báo (nếu có).',
                 )
                 return redirect('san_xuat:dispatch_prod_stats_detail', pk=stat.pk)
         elif action == 'create_yckt' and can_update:
@@ -2571,17 +2834,61 @@ def work_assignment_create(request):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def traceability(request):
+    from san_xuat.services.gates import get_trace_min_timeline_events
+    from san_xuat.services.mo_progress import analyze_trace_gaps
     from san_xuat.services.phase3 import trace_production
 
     result = None
+    gaps = []
+    show_gaps = (request.GET.get('gaps') or '').strip() in ('1', 'true', 'yes', 'on')
     form = TraceLookupForm(request.GET or None)
     if request.GET.get('query'):
         if form.is_valid():
             result = trace_production(query=form.cleaned_data['query'])
+            if result and result.mo and show_gaps:
+                gaps = analyze_trace_gaps(
+                    mo=result.mo,
+                    timeline_len=len(result.timeline or []),
+                    min_events=get_trace_min_timeline_events(),
+                )
     return render(request, 'san_xuat/traceability.html', {
         **_perm_ctx(request),
         'form': form,
         'result': result,
+        'show_gaps': show_gaps,
+        'gaps': gaps,
+    })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+def general_settings(request):
+    """Thiết lập chung sản xuất — cổng quy trình, ngưỡng truy xuất."""
+    from san_xuat.forms_settings import SxGeneralSettingsForm
+    from san_xuat.hub_models import SxGeneralSettings
+
+    cfg = SxGeneralSettings.load()
+    can_update = _perm_ctx(request).get('can_update')
+
+    if request.method == 'POST':
+        if not can_update:
+            messages.error(request, 'Bạn không có quyền cập nhật thiết lập.')
+            return redirect('san_xuat:general_settings')
+        form = SxGeneralSettingsForm(request.POST, instance=cfg)
+        if form.is_valid():
+            obj = form.save(commit=False)
+            obj.updated_by = request.user if request.user.is_authenticated else None
+            obj.save()
+            messages.success(request, 'Đã lưu thiết lập chung sản xuất.')
+            return redirect('san_xuat:general_settings')
+        messages.error(request, 'Không lưu được — kiểm tra lại form.')
+    else:
+        form = SxGeneralSettingsForm(instance=cfg)
+
+    return render(request, 'san_xuat/general_settings.html', {
+        **_perm_ctx(request),
+        'form': form,
+        'cfg': cfg,
+        'can_update': can_update,
     })
 
 
@@ -2617,6 +2924,8 @@ def capacity_list(request):
     centers = apply_sx_list_filters(base_centers, filters, SX_FILTER_WORK_CENTER)
     load_rows = build_capacity_load(date_from=date_from, date_to=date_to)
     preserve = {'month': month} if month else None
+    from san_xuat.services.sx_settings import sx_int
+
     return render(request, 'san_xuat/capacity_list.html', {
         **_perm_ctx(request),
         'centers': centers,
@@ -2624,6 +2933,8 @@ def capacity_list(request):
         'date_from': date_from,
         'date_to': date_to,
         'month_value': f'{date_from.year:04d}-{date_from.month:02d}',
+        'capacity_load_warn_pct': sx_int('capacity_load_warn_pct', 80, min_v=1, max_v=200),
+        'capacity_load_danger_pct': sx_int('capacity_load_danger_pct', 100, min_v=1, max_v=200),
         **sx_filter_context(filters, preserve=preserve),
     })
 

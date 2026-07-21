@@ -134,6 +134,7 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
         {'key': 'docs', 'label': 'Hồ sơ SX', 'icon': 'bi-journal-text'},
         {'key': 'bom', 'label': 'BOM', 'icon': 'bi-diagram-3'},
         {'key': 'costing', 'label': 'Costing', 'icon': 'bi-calculator'},
+        {'key': 'general_settings', 'label': 'Thiết lập chung', 'icon': 'bi-gear'},
     ],
     MODULE_KIOTVIET: [
         {'key': 'customers', 'label': 'Tra cứu khách hàng', 'icon': 'bi-person-vcard'},
@@ -311,6 +312,7 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     ('/san-xuat/kho-san-pham/phieu-nhap', MODULE_SAN_XUAT, 'fg_purchases'),
     ('/san-xuat/kho-san-pham', MODULE_SAN_XUAT, 'fg_stock'),
     ('/san-xuat/kho-npl', MODULE_SAN_XUAT, 'npl_stock'),
+    ('/san-xuat/thiet-lap', MODULE_SAN_XUAT, 'general_settings'),
     ('/san-xuat/quy-trinh', MODULE_SAN_XUAT, 'process'),
     ('/san-xuat/ho-so', MODULE_SAN_XUAT, 'docs'),
     ('/san-xuat/', MODULE_SAN_XUAT, 'overview'),

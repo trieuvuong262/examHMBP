@@ -63,7 +63,7 @@
         </thead>
         <tbody>
         {% for row in load_rows %}
-          <tr class="{% if row.load_pct > 100 %}table-danger{% elif row.load_pct > 80 %}table-warning{% endif %}">
+          <tr class="{% if row.load_pct > capacity_load_danger_pct %}table-danger{% elif row.load_pct > capacity_load_warn_pct %}table-warning{% endif %}">
             <td>
               <strong>{{ row.center.code }}</strong> — {{ row.center.name }}
               <div class="small text-muted">team: {{ row.center.team_label|default:row.center.name }} · {{ row.days }} ngày</div>

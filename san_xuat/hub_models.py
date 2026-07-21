@@ -1412,3 +1412,121 @@ class SxTeamHrMap(DemoMarkedModel):
 
     def __str__(self):
         return self.team_label
+
+
+class SxGeneralSettings(models.Model):
+    """Singleton (pk=1) — thiết lập chung module Sản xuất (cổng quy trình, QC, năng lực…)."""
+
+    GATE_OFF = 'off'
+    GATE_WARN = 'warn'
+    GATE_BLOCK = 'block'
+    GATE_CHOICES = [
+        (GATE_OFF, 'Tắt — không kiểm tra'),
+        (GATE_WARN, 'Cảnh báo — cho phép nhưng nhắc'),
+        (GATE_BLOCK, 'Chặn — bắt buộc đúng bước'),
+    ]
+
+    # --- Cổng quy trình ---
+    gate_release_before_issue = models.CharField(
+        max_length=10, choices=GATE_CHOICES, default=GATE_BLOCK,
+        verbose_name='Phát hành lệnh trước khi tạo yêu cầu xuất',
+    )
+    gate_issue_before_stat = models.CharField(
+        max_length=10, choices=GATE_CHOICES, default=GATE_BLOCK,
+        verbose_name='Xuất kho (đã ghi sổ) trước khi xác nhận thống kê',
+    )
+    gate_stat_before_fg = models.CharField(
+        max_length=10, choices=GATE_CHOICES, default=GATE_BLOCK,
+        verbose_name='Thống kê đã xác nhận trước khi nhập thành phẩm',
+    )
+    gate_qc_pass_before_fg = models.CharField(
+        max_length=10, choices=GATE_CHOICES, default=GATE_BLOCK,
+        verbose_name='Phiếu kiểm tra Đạt trước khi nhập thành phẩm',
+    )
+    gate_open_qc_alert_before_fg = models.CharField(
+        max_length=10, choices=GATE_CHOICES, default=GATE_BLOCK,
+        verbose_name='Cảnh báo chất lượng đang mở trước khi nhập thành phẩm',
+    )
+    gate_packing_before_done = models.CharField(
+        max_length=10, choices=GATE_CHOICES, default=GATE_OFF,
+        verbose_name='Đóng gói đã xác nhận trước khi hoàn thành lệnh',
+    )
+
+    # --- Chất lượng & truy xuất ---
+    auto_create_qc_from_stat = models.BooleanField(
+        default=True,
+        verbose_name='Tự tạo yêu cầu kiểm tra khi xác nhận thống kê',
+    )
+    auto_create_defect_alert = models.BooleanField(
+        default=True,
+        verbose_name='Tự tạo cảnh báo khi tỷ lệ lỗi vượt ngưỡng',
+    )
+    default_defect_tolerance_pct = models.DecimalField(
+        max_digits=6, decimal_places=2, default=Decimal('5'),
+        verbose_name='Dung sai tỷ lệ lỗi mặc định (%)',
+        help_text='Dùng khi sản phẩm chưa gắn bộ tiêu chuẩn QC.',
+    )
+    default_sample_qty = models.PositiveIntegerField(
+        default=5,
+        verbose_name='Số lượng mẫu mặc định',
+        help_text='Khi chưa chọn phương pháp lấy mẫu.',
+    )
+    trace_min_timeline_events = models.PositiveSmallIntegerField(
+        default=4,
+        verbose_name='Ngưỡng sự kiện timeline (Truy xuất — thiếu bước)',
+        help_text='Nếu timeline ngắn hơn ngưỡng và checklist đủ, vẫn gợi ý kiểm tra chuỗi.',
+    )
+
+    # --- Năng lực & danh sách ---
+    capacity_load_warn_pct = models.PositiveSmallIntegerField(
+        default=80, verbose_name='Ngưỡng cảnh báo tải năng lực (%)',
+    )
+    capacity_load_danger_pct = models.PositiveSmallIntegerField(
+        default=100, verbose_name='Ngưỡng quá tải năng lực (%)',
+    )
+    list_default_date_range_days = models.PositiveSmallIntegerField(
+        default=7, verbose_name='Số ngày lọc danh sách mặc định',
+    )
+
+    # --- Kho & tích hợp ---
+    ycx_auto_reserve_stock = models.BooleanField(
+        default=True,
+        verbose_name='Giữ chỗ tồn khi tạo yêu cầu xuất vật tư',
+    )
+    require_kv_link_for_fg_done = models.BooleanField(
+        default=True,
+        verbose_name='Bắt buộc liên kết phiếu nhập KiotViet để hoàn tất nhập thành phẩm',
+        help_text='Tắt = gửi yêu cầu nhập thành phẩm có thể đánh dấu hoàn thành không cần KV.',
+    )
+
+    # --- Shop floor ---
+    shopfloor_auto_confirm_stat = models.BooleanField(
+        default=True,
+        verbose_name='Shop floor: quét xong tự xác nhận thống kê',
+    )
+    shopfloor_default_qty_good = models.DecimalField(
+        max_digits=14, decimal_places=2, default=Decimal('1'),
+        verbose_name='Shop floor: số lượng đạt mặc định mỗi lần quét',
+    )
+
+    updated_at = models.DateTimeField(auto_now=True)
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='+',
+        verbose_name='Cập nhật bởi',
+    )
+
+    class Meta:
+        verbose_name = 'Thiết lập chung sản xuất'
+        verbose_name_plural = 'Thiết lập chung sản xuất'
+
+    def __str__(self):
+        return 'Thiết lập chung sản xuất'
+
+    @classmethod
+    def load(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj

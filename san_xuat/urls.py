@@ -26,6 +26,8 @@ urlpatterns = [
     path('ke-hoach/don-mua-hang/them/', views_hub.purchase_order_create, name='purchase_order_create'),
     path('ke-hoach/don-mua-hang/<int:pk>/', views_hub.purchase_order_detail, name='purchase_order_detail'),
     path('dieu-phoi/', views_hub.dispatch_stub, name='dispatch_stub'),
+    path('dieu-phoi/chay-lenh-moi/', views_hub.run_order_wizard, name='run_order_wizard'),
+    path('dieu-phoi/chay-lenh-moi/<int:mo_id>/', views_hub.run_order_wizard, name='run_order_wizard_mo'),
     path('dieu-phoi/lenh-sx/', views_hub.dispatch_mo, name='dispatch_mo'),
     path('dieu-phoi/lenh-sx/them/', views_hub.dispatch_mo_create, name='dispatch_mo_create'),
     path('dieu-phoi/lenh-sx/<int:pk>/', views_hub.dispatch_mo_detail, name='dispatch_mo_detail'),
@@ -119,5 +121,6 @@ urlpatterns = [
     path('ho-so/them/', views.doc_create, name='doc_create'),
     path('ho-so/<int:pk>/', views.doc_detail, name='doc_detail'),
     path('bom/', views.bom_list, name='bom_list'),
+    path('thiet-lap/', views_hub.general_settings, name='general_settings'),
     path('api/tim-ma-sp/', views.product_code_search, name='product_code_search'),
 ]

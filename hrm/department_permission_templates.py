@@ -162,7 +162,7 @@ def _san_xuat_menus(*, manager: bool) -> dict:
         'qc_standard_set', 'qc_defect', 'qc_defect_group',
         'costing_hub', 'costing_norm', 'costing_so',
         'fg_stock', 'fg_products', 'fg_stock_list', 'fg_purchases',
-        'npl_stock', 'process', 'docs', 'bom', 'costing',
+        'npl_stock', 'process', 'docs', 'bom', 'costing', 'general_settings',
     )
     return {key: dict(level) for key in keys}
 
