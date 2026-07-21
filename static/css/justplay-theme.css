@@ -5667,13 +5667,13 @@ body.jp-tool-loading-active {
     }
 
     body.jp-has-amis-header .jp-sidebar-nav {
-        flex: 1 1 auto;
+        flex: 1 1 0;
         min-height: 0;
         min-width: 0;
         width: 100%;
         max-width: 100%;
-        height: auto;
-        max-height: none;
+        height: 100%;
+        max-height: 100%;
         overflow: hidden;
         padding-bottom: 0;
     }
@@ -5745,41 +5745,14 @@ body.jp-tool-loading-active {
     html.jp-sidebar-collapsed .jp-sidebar-nav {
         padding-left: 0.45rem;
         padding-right: 0;
-        overflow-x: hidden;
-        overflow-y: auto;
-        scrollbar-width: thin;
-        scrollbar-color: var(--jp-sidebar-scroll-thumb) var(--jp-sidebar-scroll-track);
-    }
-
-    html.jp-sidebar-collapsed .jp-sidebar-nav::-webkit-scrollbar {
-        width: var(--jp-sidebar-scroll-w);
-    }
-
-    html.jp-sidebar-collapsed .jp-sidebar-nav::-webkit-scrollbar-track {
-        background: transparent;
-        margin: 0.5rem 0;
-    }
-
-    html.jp-sidebar-collapsed .jp-sidebar-nav::-webkit-scrollbar-thumb {
-        background-color: var(--jp-sidebar-scroll-thumb);
-        border-radius: 999px 0 0 999px;
-        border: none;
-        min-height: 2.75rem;
-        transition: background-color 0.2s ease;
-    }
-
-    html.jp-sidebar-collapsed .jp-sidebar-nav:hover::-webkit-scrollbar-thumb,
-    html.jp-sidebar-collapsed .jp-sidebar-nav::-webkit-scrollbar-thumb:hover {
-        background-color: var(--jp-sidebar-scroll-thumb-hover);
-    }
-
-    html.jp-sidebar-collapsed .jp-sidebar-nav::-webkit-scrollbar-thumb:active {
-        background-color: var(--jp-sidebar-scroll-thumb-active);
+        overflow: hidden;
     }
 
     html.jp-sidebar-collapsed .jp-sidebar-menu-scroll {
-        flex: none;
-        overflow: visible;
+        flex: 1 1 0;
+        min-height: 0;
+        overflow-x: hidden;
+        overflow-y: auto;
         margin: 0;
         padding: 0;
     }
@@ -5884,7 +5857,7 @@ body.jp-tool-loading-active {
     display: flex;
     flex-direction: column;
     height: 100%;
-    min-height: 100%;
+    min-height: 0;
     overflow: hidden;
     padding: 0.85rem 0.65rem 1rem;
 }
@@ -5896,7 +5869,7 @@ body.jp-tool-loading-active {
 }
 
 .jp-sidebar-menu-scroll {
-    flex: 1 1 auto;
+    flex: 1 1 0;
     min-height: 0;
     min-width: 0;
     width: 100%;

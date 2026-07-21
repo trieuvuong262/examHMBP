@@ -98,17 +98,51 @@
         });
     }
 
-    function bindCollapsedSidebarWheel() {
-        // When collapsed, .jp-sidebar-nav has overflow-y:auto so native scroll
-        // works. Flyouts use position:fixed positioned via JS so they are not
-        // clipped by the overflow container.
+    function getSidebarScroller() {
+        return document.querySelector('.jp-sidebar-menu-scroll');
+    }
+
+    function bindSidebarWheel() {
+        var sidebar = document.querySelector('aside.jp-sidebar');
+        if (!sidebar) return;
+
+        sidebar.addEventListener('wheel', function (event) {
+            if (window.innerWidth < 992) return;
+            if (event.target.closest('.jp-sidebar-submenu')) return;
+
+            var scroller = getSidebarScroller();
+            if (!scroller) return;
+
+            var maxScroll = scroller.scrollHeight - scroller.clientHeight;
+            if (maxScroll <= 0) return;
+
+            var next = scroller.scrollTop + event.deltaY;
+            if (next < 0) next = 0;
+            if (next > maxScroll) next = maxScroll;
+
+            if (next === scroller.scrollTop) return;
+
+            scroller.scrollTop = next;
+            event.preventDefault();
+            event.stopPropagation();
+
+            document.querySelectorAll('.jp-sidebar-group.is-flyout-open').forEach(positionFlyout);
+        }, { passive: false });
+
+        var scroller = getSidebarScroller();
+        if (scroller) {
+            scroller.addEventListener('scroll', function () {
+                if (!isCollapsed()) return;
+                document.querySelectorAll('.jp-sidebar-group.is-flyout-open').forEach(positionFlyout);
+            }, { passive: true });
+        }
     }
 
     document.addEventListener('DOMContentLoaded', function () {
         bindCollapseToggle();
         bindFlyouts();
         bindNavCollapseLinks();
-        bindCollapsedSidebarWheel();
+        bindSidebarWheel();
         applyLinkTitles();
         setCollapsed(isCollapsed());
     });
