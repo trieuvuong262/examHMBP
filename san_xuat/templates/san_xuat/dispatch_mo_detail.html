@@ -75,24 +75,6 @@
       </span>
     </div>
     <div class="jp-npl-mat-topbar-actions ms-auto">
-      {% if mo.status != 'draft' %}
-      <div class="jp-sx-mo-next me-1">
-        <form method="post">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="create_ycx"/>
-          <button type="submit" class="btn btn-hm fw-bold">Xuất VT</button>
-        </form>
-        <a href="{% url 'san_xuat:dispatch_prod_stats_create' %}?mo={{ mo.pk }}"
-           class="btn btn-outline-hm fw-bold">Thống kê SX</a>
-        {% if mo.status == 'in_progress' or mo.status == 'done' %}
-        <form method="post">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="create_ycntp"/>
-          <button type="submit" class="btn btn-outline-secondary fw-bold">Nhập TP</button>
-        </form>
-        {% endif %}
-      </div>
-      {% endif %}
       {% if can_print %}<a href="{% url 'san_xuat:print_mo' mo.pk %}?autoprint=1" target="_blank" rel="noopener" class="btn btn-outline-secondary btn-sm fw-bold">In A5</a>{% endif %}
       <a href="{% url 'san_xuat:run_order_wizard_mo' mo.pk %}" class="btn btn-outline-hm btn-sm fw-bold">Wizard</a>
       <a href="{% url 'san_xuat:traceability' %}?query={{ mo.code }}&gaps=1" class="btn btn-outline-secondary btn-sm fw-bold">Thiếu bước?</a>
@@ -103,20 +85,43 @@
   {# —— Tóm tắt lệnh —— #}
   <div class="card border-0 shadow-sm mb-3">
     <div class="card-body">
-      <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+      <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
         <div class="min-w-0">
           <div class="fw-semibold fs-5 mb-0">{{ mo.product_code }}</div>
           <div class="text-muted small">{{ mo.product_name|default:"—" }}</div>
         </div>
-        {% if progress %}
-        <div class="text-end flex-shrink-0" style="min-width: 9rem;">
-          <div class="small text-muted">Tiến độ</div>
-          <div class="fw-semibold">{{ progress.done_count }}/{{ progress.total_steps }} · {{ progress.pct_complete }}%</div>
-          <div class="progress mt-1" style="height: .4rem; width: 9rem;">
-            <div class="progress-bar bg-success" style="width: {{ progress.pct_complete }}%"></div>
+        <div class="d-flex flex-wrap align-items-start gap-3 ms-auto">
+          {% if mo.status != 'draft' %}
+          <div>
+            <div class="small text-muted mb-1">Tiếp theo</div>
+            <div class="jp-sx-mo-next">
+              <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="create_ycx"/>
+                <button type="submit" class="btn btn-hm fw-bold">Xuất VT</button>
+              </form>
+              <a href="{% url 'san_xuat:dispatch_prod_stats_create' %}?mo={{ mo.pk }}"
+                 class="btn btn-outline-hm fw-bold">Thống kê SX</a>
+              {% if mo.status == 'in_progress' or mo.status == 'done' %}
+              <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="create_ycntp"/>
+                <button type="submit" class="btn btn-outline-secondary fw-bold">Nhập TP</button>
+              </form>
+              {% endif %}
+            </div>
           </div>
+          {% endif %}
+          {% if progress %}
+          <div class="text-end flex-shrink-0" style="min-width: 9rem;">
+            <div class="small text-muted">Tiến độ</div>
+            <div class="fw-semibold">{{ progress.done_count }}/{{ progress.total_steps }} · {{ progress.pct_complete }}%</div>
+            <div class="progress mt-1" style="height: .4rem; width: 9rem;">
+              <div class="progress-bar bg-success" style="width: {{ progress.pct_complete }}%"></div>
+            </div>
+          </div>
+          {% endif %}
         </div>
-        {% endif %}
       </div>
 
       <div class="jp-sx-mo-meta">
