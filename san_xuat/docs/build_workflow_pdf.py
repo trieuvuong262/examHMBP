@@ -27,18 +27,20 @@ pdfmetrics.registerFont(TTFont("VN-B", r"C:\Windows\Fonts\arialbd.ttf"))
 
 OUT = Path(__file__).resolve().parent / "Quy_trinh_san_xuat_PortalJustPlay.pdf"
 
-PRIMARY = HexColor("#1a5f4a")
-ACCENT = HexColor("#0d9488")
-LIGHT = HexColor("#f0fdfa")
-BORDER = HexColor("#99f6e4")
+# Brand JustPlay — đỏ chủ đạo (không dùng xanh teal)
+PRIMARY = HexColor("#dc2626")
+ACCENT = HexColor("#b91c1c")
+LIGHT = HexColor("#fef2f2")
+BORDER = HexColor("#fecaca")
 MUTED = HexColor("#64748b")
 DARK = HexColor("#0f172a")
 WARN = HexColor("#b45309")
-BOX_BG = HexColor("#ecfdf5")
+BOX_BG = HexColor("#fff1f2")
 BLUE = HexColor("#0284c7")
 AMBER = HexColor("#d97706")
 PINK = HexColor("#db2777")
 PURPLE = HexColor("#7c3aed")
+H2_COLOR = HexColor("#991b1b")
 
 
 def _styles():
@@ -82,7 +84,7 @@ def _styles():
             fontName="VN-B",
             fontSize=11,
             leading=14,
-            textColor=HexColor("#134e4a"),
+            textColor=H2_COLOR,
             spaceBefore=10,
             spaceAfter=5,
         )
@@ -301,24 +303,24 @@ def build():
     story.append(
         P(
             "Tài liệu mô tả luồng từ kế hoạch đến truy xuất nguồn gốc, "
-            "kèm quyền và nút thao tác trên từng màn hình module Sản xuất.",
+            "thao tác từng màn hình, và cách cấu hình <b>Thiết lập chung</b> module Sản xuất.",
             styles["SmallVN"],
         )
     )
-    story.append(P("Ngày cập nhật: 21/07/2026 · Phiên bản chi tiết", styles["SmallVN"]))
+    story.append(P("Ngày cập nhật: 21/07/2026 · Phiên bản chi tiết (+ thiết lập chung)", styles["SmallVN"]))
     story.append(Spacer(1, 0.9 * cm))
 
     cover_info = [
         [
             P("<b>Phạm vi</b>", c),
             P(
-                "Kế hoạch → Điều phối → Chất lượng → Nhập thành phẩm → Đóng gói → Truy xuất",
+                "Kế hoạch → Điều phối → Chất lượng → Nhập thành phẩm → Đóng gói → Truy xuất · Thiết lập chung",
                 c,
             ),
         ],
         [
             P("<b>Đối tượng đọc</b>", c),
-            P("Điều phối sản xuất, kho nguyên phụ liệu, kiểm tra chất lượng, quản lý xưởng", c),
+            P("Điều phối sản xuất, kho nguyên phụ liệu, kiểm tra chất lượng, quản lý xưởng, admin cấu hình", c),
         ],
         [
             P("<b>Hệ thống liên quan</b>", c),
@@ -328,7 +330,7 @@ def build():
             P("<b>Quyền module</b>", c),
             P(
                 "<b>Xem</b> — vào màn hình · <b>Tạo</b> — nút Thêm/Tạo · "
-                "<b>Sửa</b> — xác nhận, duyệt, phát hành, chốt",
+                "<b>Sửa</b> — xác nhận, duyệt, phát hành, chốt, <b>lưu thiết lập chung</b>",
                 c,
             ),
         ],
@@ -361,8 +363,9 @@ def build():
         "6. Chất lượng",
         "7. Đóng gói, truy xuất, giao việc, năng lực, xưởng, gia công",
         "8. Giá thành (tóm tắt)",
-        "9. Checklist thao tác theo thứ tự",
-        "10. Ghi chú kỹ thuật",
+        "9. Thiết lập chung — hướng dẫn cấu hình",
+        "10. Checklist thao tác theo thứ tự",
+        "11. Ghi chú kỹ thuật",
     ]
     for item in toc_items:
         story.append(P(item, styles["TOC"]))
@@ -965,11 +968,245 @@ def build():
     ]
     story.append(_table(other_rows, [4.2 * cm, 5.5 * cm, 6.3 * cm]))
 
-    # ========== 9. CHECKLIST ==========
-    story.append(P("9. Checklist thao tác theo thứ tự", styles["H1VN"]))
+    # ========== 9. THIẾT LẬP CHUNG ==========
+    story.append(PageBreak())
+    story.append(P("9. Thiết lập chung — hướng dẫn cấu hình", styles["H1VN"]))
     story.append(
         P(
-            "Làm lần lượt; mỗi bước cần đúng quyền và trạng thái chứng từ trước đó đã xong.",
+            "Màn <b>Sản xuất → Thiết lập chung</b> (đường dẫn "
+            "<font face=\"VN-B\">/san-xuat/thiet-lap/</font>) lưu cấu hình vận hành trên hệ thống. "
+            "Giá trị trong database <b>ưu tiên hơn</b> biến môi trường; bấm <b>Lưu thiết lập</b> "
+            "là có hiệu lực ngay (không cần deploy lại).",
+            styles["BodyVN"],
+        )
+    )
+    story.append(P("9.1. Quyền & cách mở", styles["H2VN"]))
+    story.append(
+        P(
+            "• Cần quyền <b>Xem</b> module Sản xuất để mở trang; quyền <b>Sửa</b> để lưu. "
+            "Không có quyền Sửa thì chỉ xem được cấu hình hiện tại.",
+            styles["BulletVN"],
+        )
+    )
+    story.append(
+        P(
+            "• Menu sidebar: nhóm <b>Sản xuất</b> → mục cuối <b>Thiết lập chung</b> (icon bánh răng).",
+            styles["BulletVN"],
+        )
+    )
+    story.append(
+        P(
+            "• Giao diện chia mục: Cổng quy trình · Chất lượng · Năng lực · Kho & tích hợp · "
+            "Shop floor · Mã chứng từ. Thanh <b>Lưu thiết lập</b> dính đáy trang.",
+            styles["BulletVN"],
+        )
+    )
+
+    story.append(P("9.2. Ba mức cổng quy trình", styles["H2VN"]))
+    story.append(
+        P(
+            "Mỗi cổng kiểm tra thứ tự bước trước khi cho phép thao tác tiếp theo:",
+            styles["BodyVN"],
+        )
+    )
+    gate_mode_rows = [
+        [P("<b>Mức</b>", h), P("<b>Ý nghĩa</b>", h), P("<b>Khi nào dùng</b>", h)],
+        [
+            P("<b>Chặn</b>", c),
+            P("Không cho tiếp tục nếu thiếu bước trước", c),
+            P("Vận hành chuẩn / truy xuất nghiêm", c),
+        ],
+        [
+            P("<b>Cảnh báo</b>", c),
+            P("Cho phép nhưng nhắc trên màn hình", c),
+            P("Pilot / giai chuyển quy trình", c),
+        ],
+        [
+            P("<b>Tắt</b>", c),
+            P("Không kiểm tra cổng này", c),
+            P("Chỉ khi chủ động nới lỏng tạm thời", c),
+        ],
+    ]
+    story.append(_table(gate_mode_rows, [3.2 * cm, 6.5 * cm, 6.3 * cm]))
+
+    story.append(P("9.3. Các cổng đang cấu hình được", styles["H2VN"]))
+    gate_rows = [
+        [P("<b>Cổng</b>", h), P("<b>Mặc định</b>", h), P("<b>Ảnh hưởng</b>", h)],
+        [
+            P("Phát hành lệnh → tạo yêu cầu xuất vật tư", c),
+            P("Chặn", c),
+            P("Lệnh nháp không tạo được yêu cầu xuất", c),
+        ],
+        [
+            P("Xuất kho đã ghi sổ → xác nhận thống kê", c),
+            P("Chặn", c),
+            P("Chưa duyệt xuất thì không chốt thống kê", c),
+        ],
+        [
+            P("Thống kê đã xác nhận → nhập thành phẩm", c),
+            P("Chặn", c),
+            P("Không tạo yêu cầu nhập TP nếu chưa có thống kê", c),
+        ],
+        [
+            P("Phiếu kiểm tra Đạt → nhập thành phẩm", c),
+            P("Chặn", c),
+            P("Bắt buộc QC Đạt trước khi nhập TP", c),
+        ],
+        [
+            P("Cảnh báo chất lượng đang mở → nhập TP", c),
+            P("Chặn", c),
+            P("Còn cảnh báo mở thì không nhập TP", c),
+        ],
+        [
+            P("Đóng gói đã xác nhận → hoàn thành lệnh", c),
+            P("Tắt", c),
+            P("Bật Chặn khi muốn bắt buộc có phiếu đóng gói trước Done", c),
+        ],
+    ]
+    story.append(_table(gate_rows, [6.8 * cm, 2.2 * cm, 7.0 * cm]))
+
+    story.append(P("9.4. Chất lượng & truy xuất", styles["H2VN"]))
+    qc_set_rows = [
+        [P("<b>Thiết lập</b>", h), P("<b>Mặc định</b>", h), P("<b>Ghi chú</b>", h)],
+        [
+            P("Tự tạo yêu cầu kiểm tra khi xác nhận thống kê", c),
+            P("Bật", c),
+            P("Tắt nếu muốn tạo yêu cầu kiểm tra thủ công", c),
+        ],
+        [
+            P("Tự tạo cảnh báo khi tỷ lệ lỗi vượt ngưỡng", c),
+            P("Bật", c),
+            P("Tắt khi chạy thử để giảm “ồn” cảnh báo", c),
+        ],
+        [
+            P("Dung sai tỷ lệ lỗi mặc định (%)", c),
+            P("5", c),
+            P("Dùng khi sản phẩm chưa gắn bộ tiêu chuẩn QC", c),
+        ],
+        [
+            P("Số lượng mẫu mặc định", c),
+            P("5", c),
+            P("Khi chưa chọn phương pháp lấy mẫu", c),
+        ],
+        [
+            P("Ngưỡng sự kiện timeline (Truy xuất)", c),
+            P("4", c),
+            P("Nút «Thiếu bước nào?» gợi ý nếu timeline ngắn hơn ngưỡng", c),
+        ],
+    ]
+    story.append(_table(qc_set_rows, [7.0 * cm, 2.0 * cm, 7.0 * cm]))
+
+    story.append(P("9.5. Năng lực, danh sách & OEE", styles["H2VN"]))
+    cap_rows = [
+        [P("<b>Thiết lập</b>", h), P("<b>Mặc định</b>", h), P("<b>Ghi chú</b>", h)],
+        [
+            P("Ngưỡng cảnh báo / quá tải năng lực (%)", c),
+            P("80 / 100", c),
+            P("Màu vàng / đỏ trên màn Năng lực SX", c),
+        ],
+        [
+            P("Số ngày lọc danh sách mặc định", c),
+            P("7", c),
+            P("Khoảng ngày khi mở danh sách lệnh, thống kê…", c),
+        ],
+        [
+            P("Số giờ / ca (OEE)", c),
+            P("8", c),
+            P("Tính sẵn sàng trên màn Dừng chuyền / OEE", c),
+        ],
+    ]
+    story.append(_table(cap_rows, [7.0 * cm, 2.5 * cm, 6.5 * cm]))
+
+    story.append(P("9.6. Kho, tích hợp & shop floor", styles["H2VN"]))
+    stock_rows = [
+        [P("<b>Thiết lập</b>", h), P("<b>Mặc định</b>", h), P("<b>Ghi chú</b>", h)],
+        [
+            P("Giữ chỗ tồn khi tạo yêu cầu xuất", c),
+            P("Bật", c),
+            P("Tắt khi soft-launch / không muốn khóa tồn", c),
+        ],
+        [
+            P("Bắt buộc liên kết phiếu nhập KiotViet để hoàn tất nhập TP", c),
+            P("Bật", c),
+            P("Tắt = có thể đánh dấu xong không cần phiếu KV", c),
+        ],
+        [
+            P("Hiện banner hàng đợi duyệt xuất vật tư", c),
+            P("Bật", c),
+            P("Banner trên hub Điều phối khi còn yêu cầu chờ duyệt", c),
+        ],
+        [
+            P("Shop floor: quét xong tự xác nhận thống kê", c),
+            P("Bật", c),
+            P("Tắt = chỉ tạo thống kê nháp khi quét", c),
+        ],
+        [
+            P("Shop floor: số lượng đạt mặc định mỗi lần quét", c),
+            P("1", c),
+            P("SL đạt điền sẵn trên màn xác nhận xưởng", c),
+        ],
+    ]
+    story.append(_table(stock_rows, [7.2 * cm, 2.0 * cm, 6.8 * cm]))
+
+    story.append(P("9.7. Mã chứng từ (prefix)", styles["H2VN"]))
+    story.append(
+        P(
+            "Mỗi loại chứng từ có prefix riêng (ví dụ lệnh sản xuất = <b>LSX</b> → mã dạng "
+            "LSX-2026-0001). Đổi prefix chỉ ảnh hưởng <b>mã sinh mới</b> sau khi lưu; "
+            "chứng từ cũ giữ nguyên. Chỉ dùng chữ in hoa, số và dấu gạch ngang.",
+            styles["BodyVN"],
+        )
+    )
+    prefix_rows = [
+        [P("<b>Nhóm</b>", h), P("<b>Prefix mặc định (ví dụ)</b>", h)],
+        [
+            P("Điều phối", c),
+            P("LSX · YCX · TKSX · YCNTP · BG · TRABTP · LTD · NPLT", c),
+        ],
+        [
+            P("Chất lượng", c),
+            P("YCKT · PKT · CBQC · NCR", c),
+        ],
+        [
+            P("Kế hoạch / mua", c),
+            P("KHTT · KHNVL · KHCT · YCM · DMH", c),
+        ],
+        [
+            P("Xưởng / đóng gói / giá thành", c),
+            P("GV · DG · GC · GTDM · GTDH · GTT · DT", c),
+        ],
+    ]
+    story.append(_table(prefix_rows, [5.0 * cm, 11.0 * cm]))
+
+    story.append(P("9.8. Gợi ý cấu hình cơ bản (khuyến nghị)", styles["H2VN"]))
+    story.append(
+        P(
+            "• Vận hành chuẩn: mọi cổng (trừ đóng gói) = <b>Chặn</b>; tự tạo yêu cầu kiểm tra "
+            "và cảnh báo lỗi = <b>Bật</b>; giữ chỗ tồn + bắt buộc link KiotViet = <b>Bật</b>.",
+            styles["BulletVN"],
+        )
+    )
+    story.append(
+        P(
+            "• Pilot / chạy thử: một số cổng đổi sang <b>Cảnh báo</b> hoặc <b>Tắt</b>; "
+            "có thể tắt tự tạo cảnh báo lỗi để giảm nhiễu.",
+            styles["BulletVN"],
+        )
+    )
+    story.append(
+        P(
+            "• Không đưa vào Thiết lập chung (đã có màn riêng): BOM / hồ sơ, tổ-chuyền năng lực, "
+            "catalog tiêu chuẩn QC, staging, map tổ–nhân sự, credential KiotViet.",
+            styles["BulletVN"],
+        )
+    )
+
+    # ========== 10. CHECKLIST ==========
+    story.append(P("10. Checklist thao tác theo thứ tự", styles["H1VN"]))
+    story.append(
+        P(
+            "Làm lần lượt; mỗi bước cần đúng quyền và trạng thái chứng từ trước đó đã xong. "
+            "Cổng trên Thiết lập chung có thể chặn nếu bỏ qua bước.",
             styles["BodyVN"],
         )
     )
@@ -1038,8 +1275,8 @@ def build():
     ]
     story.append(_table(check_rows, [0.9 * cm, 5.2 * cm, 5.2 * cm, 4.7 * cm]))
 
-    # ========== 10. GHI CHÚ ==========
-    story.append(P("10. Ghi chú kỹ thuật", styles["H1VN"]))
+    # ========== 11. GHI CHÚ ==========
+    story.append(P("11. Ghi chú kỹ thuật", styles["H1VN"]))
     story.append(
         P(
             "• Luồng kiểm thử end-to-end nằm trong file "
@@ -1052,6 +1289,14 @@ def build():
         P(
             "• Nguồn sự thật dữ liệu gốc: Thành phẩm → KiotViet · Nguyên phụ liệu → Kho NPL · "
             "Định mức BOM / quy trình / giá thành → Hồ sơ sản xuất.",
+            styles["BulletVN"],
+        )
+    )
+    story.append(
+        P(
+            "• Cấu hình vận hành: model <font face=\"VN-B\">SxGeneralSettings</font> "
+            "(singleton) · đọc qua <font face=\"VN-B\">san_xuat/services/sx_settings.py</font> · "
+            "UI <font face=\"VN-B\">/san-xuat/thiet-lap/</font>.",
             styles["BulletVN"],
         )
     )
@@ -1073,7 +1318,7 @@ def build():
     story.append(Spacer(1, 0.8 * cm))
     story.append(HRFlowable(width="100%", thickness=1, color=BORDER, spaceBefore=4, spaceAfter=8))
     story.append(P("— Hết tài liệu —", styles["SmallVN"]))
-    story.append(P("Portal JustPlay · Module Sản xuất · Bản chi tiết thao tác màn hình", styles["SmallVN"]))
+    story.append(P("Portal JustPlay · Module Sản xuất · Bản chi tiết thao tác màn hình + thiết lập chung", styles["SmallVN"]))
 
     doc = SimpleDocTemplate(
         str(OUT),
