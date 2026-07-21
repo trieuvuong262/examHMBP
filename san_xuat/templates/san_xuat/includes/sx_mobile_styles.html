@@ -1,0 +1,250 @@
+{# Mobile — toàn module Sản xuất (list, detail, hub, form) #}
+<style>
+@media (max-width: 767.98px) {
+  /* --- Trang: giảm padding dọc --- */
+  .jp-sx-module .jp-sx-page.jp-npl-material-catalog-page,
+  .jp-sx-module .jp-sx-page:not(.jp-npl-material-catalog-page) {
+    padding-top: 0.65rem !important;
+    padding-bottom: 0.85rem !important;
+    margin-bottom: 0.75rem !important;
+  }
+
+  /* --- Topbar: tiêu đề trên, công cụ cuộn ngang dưới --- */
+  .jp-sx-module .jp-sx-page .jp-npl-mat-topbar.jp-sx-detail-topbar,
+  .jp-sx-module .jp-sx-page .jp-npl-mat-topbar.w-100 {
+    flex-direction: column;
+    align-items: stretch;
+    flex-wrap: nowrap;
+    gap: 0.45rem;
+    margin-bottom: 0.65rem;
+  }
+  .jp-sx-module .jp-sx-detail-title {
+    width: 100%;
+    min-width: 0;
+  }
+  .jp-sx-module .jp-sx-detail-title .jp-npl-mat-topbar-title {
+    font-size: 1.08rem;
+    line-height: 1.3;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
+  }
+  .jp-sx-module .jp-sx-tools {
+    width: 100%;
+    max-width: 100%;
+    margin-left: 0;
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    gap: 0.35rem;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 0.15rem;
+  }
+  .jp-sx-module .jp-sx-tools::-webkit-scrollbar {
+    display: none;
+  }
+  .jp-sx-module .jp-sx-tools .small.text-muted {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    font-size: 0.72rem;
+  }
+  .jp-sx-module .jp-sx-tools .btn,
+  .jp-sx-module .jp-sx-tools a:not(.btn) {
+    flex-shrink: 0;
+    min-height: 40px;
+  }
+  .jp-sx-module .jp-sx-tools .btn-sm {
+    padding-left: 0.65rem;
+    padding-right: 0.65rem;
+  }
+  .jp-sx-module .jp-sx-tools .sep {
+    display: none;
+  }
+
+  /* --- Bộ lọc --- */
+  .jp-sx-module .jp-team-filter-form {
+    margin-bottom: 0.65rem !important;
+  }
+  .jp-sx-module .jp-team-filter-form .card-body {
+    padding: 0.65rem 0.75rem !important;
+  }
+  .jp-sx-module .jp-team-filter-form .jp-team-filter-body {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.65rem;
+  }
+  .jp-sx-module .jp-team-filter-dates {
+    width: 100%;
+  }
+  .jp-sx-module .jp-team-filter-period {
+    width: 100%;
+    flex: none;
+  }
+  .jp-sx-module .jp-team-filter-org-search {
+    width: 100%;
+    flex: none;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    gap: 0.65rem;
+  }
+  .jp-sx-module .jp-team-filter-org-search > .jp-team-filter-org {
+    flex: 1 1 100%;
+    width: 100%;
+    max-width: none;
+  }
+  .jp-sx-module .jp-team-filter-actions {
+    width: 100%;
+    justify-content: stretch;
+    gap: 0.5rem;
+  }
+  .jp-sx-module .jp-team-filter-actions .btn {
+    flex: 1 1 auto;
+    min-height: 42px;
+  }
+  .jp-sx-module .jp-team-filter-actions .btn-light.border {
+    flex: 0 0 42px;
+    width: 42px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .jp-sx-module .jp-team-filter-form .form-control,
+  .jp-sx-module .jp-team-filter-form .form-select,
+  .jp-sx-module .jp-team-filter-form .flatpickr-input {
+    min-height: 42px;
+    font-size: 16px;
+  }
+
+  /* --- Bảng danh sách --- */
+  .jp-sx-module .jp-sx-list-card .jp-npl-mat-grid-wrap,
+  .jp-sx-module .jp-sx-page > .card .jp-npl-mat-grid-wrap {
+    overflow-x: auto;
+    overflow-y: visible;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x pan-y;
+  }
+  .jp-sx-module .jp-npl-mat-grid {
+    min-width: 36rem;
+  }
+  .jp-sx-module .jp-npl-mat-grid thead th.jp-mat-th {
+    font-size: 0.65rem;
+    padding: 0.45rem 0.35rem;
+    letter-spacing: 0.02em;
+  }
+  .jp-sx-module .jp-npl-mat-grid td.npl-col {
+    font-size: 0.8125rem;
+    padding: 0.5rem 0.35rem;
+  }
+  .jp-sx-module .jp-npl-mat-grid td.npl-col .small {
+    font-size: 0.75rem;
+  }
+  .jp-sx-module .card.border-0.shadow-sm.overflow-hidden {
+    border-radius: 0.5rem !important;
+  }
+
+  /* --- Tab / pill cuộn ngang --- */
+  .jp-sx-module .nav-tabs,
+  .jp-sx-module .nav-pills.flex-nowrap,
+  .jp-sx-module ul.nav.flex-nowrap {
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    gap: 0.25rem;
+    padding-bottom: 0.15rem;
+  }
+  .jp-sx-module .nav-tabs::-webkit-scrollbar,
+  .jp-sx-module .nav-pills.flex-nowrap::-webkit-scrollbar {
+    display: none;
+  }
+  .jp-sx-module .nav-tabs .nav-link,
+  .jp-sx-module .nav-pills .nav-link {
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  /* --- KPI / stat --- */
+  .jp-sx-module .jp-sx-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+  .jp-sx-module .jp-sx-stat .value,
+  .jp-sx-module .border.rounded-3 .fs-4 {
+    font-size: 1.15rem !important;
+  }
+  .jp-sx-module .border.rounded-3.p-3,
+  .jp-sx-module .jp-sx-stat {
+    padding: 0.65rem 0.75rem !important;
+  }
+
+  /* --- Detail: nút workflow --- */
+  .jp-sx-module .jp-sx-plan-next .btn,
+  .jp-sx-module .jp-sx-mo-next .btn {
+    min-height: 38px;
+    height: auto;
+    padding: 0.4rem 0.65rem;
+    font-size: 0.8125rem;
+  }
+  .jp-sx-module .jp-sx-plan-meta,
+  .jp-sx-module .jp-sx-mo-meta {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  /* --- Cột picker --- */
+  .jp-sx-module .jp-npl-mat-col-picker .dropdown-menu {
+    max-width: min(17rem, calc(100vw - 1.5rem));
+  }
+
+  /* --- Form chi tiết --- */
+  .jp-sx-module .jp-sx-page .row.g-3 > [class*="col-"],
+  .jp-sx-module .jp-sx-page .row.g-2 > [class*="col-"] {
+    min-width: 0;
+  }
+  .jp-sx-module .jp-sx-page .table-responsive {
+    -webkit-overflow-scrolling: touch;
+  }
+  .jp-sx-module .jp-sx-page .btn-group {
+    flex-wrap: wrap;
+  }
+
+  /* --- Biểu đồ / bảng báo cáo --- */
+  .jp-sx-module .sx-chart-wrap {
+    height: 200px;
+  }
+  .jp-sx-module .jp-sx-page .card-footer {
+    padding: 0.5rem 0.65rem !important;
+  }
+}
+
+@media (max-width: 767.98px) and (hover: none) {
+  .jp-sx-module .card.border-0.shadow-sm:hover,
+  .jp-sx-module .jp-sx-hub-link:hover,
+  .jp-sx-module .jp-sx-chart-card:hover,
+  .jp-sx-module .btn-hm:hover,
+  .jp-sx-module .btn-outline-hm:hover {
+    transform: none;
+    box-shadow: inherit;
+  }
+  .jp-sx-module table.table > tbody > tr.jp-sx-row-click:hover,
+  .jp-sx-module table.table > tbody > tr.jp-npl-catalog-row[data-href]:hover {
+    box-shadow: none;
+  }
+}
+
+@media (max-width: 399.98px) {
+  .jp-sx-module .jp-sx-stat-grid,
+  .jp-sx-module .row.g-3.mb-3 > .col-6 {
+    grid-template-columns: 1fr;
+  }
+  .jp-sx-module .row.g-3.mb-3 > .col-6 {
+    flex: 0 0 100%;
+    max-width: 100%;
+  }
+}
+</style>

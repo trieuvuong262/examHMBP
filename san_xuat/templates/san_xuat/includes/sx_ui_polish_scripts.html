@@ -1,6 +1,14 @@
 {# Click cả dòng danh sách Sản xuất #}
 <script>
 (function () {
+  document.querySelectorAll('.jp-sx-module .jp-npl-mat-grid-wrap').forEach(function (el) {
+    if (!el.getAttribute('role')) {
+      el.setAttribute('tabindex', '0');
+      el.setAttribute('role', 'region');
+      el.setAttribute('aria-label', 'Bảng danh sách, vuốt ngang để xem thêm cột');
+    }
+  });
+
   function pickDetailHref(tr) {
     if (tr.getAttribute('data-href')) return tr.getAttribute('data-href');
     var preferred = tr.querySelector(
