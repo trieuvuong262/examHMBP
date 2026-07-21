@@ -64,6 +64,120 @@
             </div>
             <button type="submit" class="btn btn-hm">Lưu BOM</button>
         </form>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/css/tom-select.bootstrap5.min.css">
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/js/tom-select.complete.min.js"></script>
+
+<script>
+(function () {
+    var SEARCH_URL = '{% url "kho_npl:material_search" %}';
+
+    function normalizeText(v) {
+        return String(v || '').toLowerCase()
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd');
+    }
+
+    function renderOption(data, escape) {
+        var name = escape(data.name || data.text || '');
+        var code = escape(data.code || '');
+        var unit = escape(data.unit_name || data.unit || '');
+        var meta = [code, unit].filter(Boolean).join(' · ');
+        return '<div style="padding:4px 8px">'
+            + '<div style="font-weight:500">' + name + '</div>'
+            + (meta ? '<div class="text-muted small">' + meta + '</div>' : '')
+            + '</div>';
+    }
+
+    function renderItem(data, escape) {
+        var name = data.name || data.text || '';
+        var code = data.code || '';
+        return '<div>' + escape(code ? code + ' — ' + name : name) + '</div>';
+    }
+
+    function scoreFactory(query) {
+        var terms = normalizeText(query).split(/\s+/).filter(Boolean);
+        return function (data) {
+            if (!terms.length) return 1;
+            var name = normalizeText(data.name || '');
+            var code = normalizeText(data.code || '');
+            var allMatch = terms.every(function (t) {
+                return name.indexOf(t) !== -1 || code.indexOf(t) !== -1;
+            });
+            if (!allMatch) return 0;
+            var q = normalizeText(query).trim();
+            if (name === q || code === q) return 4;
+            if (name.indexOf(q) === 0 || code.indexOf(q) === 0) return 3;
+            return 1;
+        };
+    }
+
+    function initBomMaterialSelect(select) {
+        if (!select || select._bomTsInit || typeof TomSelect === 'undefined') return;
+        select._bomTsInit = true;
+        var ts = new TomSelect(select, {
+            maxItems: 1,
+            valueField: 'id',
+            labelField: 'name',
+            searchField: [],
+            placeholder: select.dataset.placeholder || '— Gõ mã hoặc tên NPL —',
+            dropdownParent: 'body',
+            openOnFocus: true,
+            preload: 'focus',
+            loadThrottle: 220,
+            load: function (query, callback) {
+                var url = SEARCH_URL + '?q=' + encodeURIComponent(query || '');
+                fetch(url, { headers: { 'Accept': 'application/json' } })
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) { callback(data.results || []); })
+                    .catch(function () { callback(); });
+            },
+            score: function (query) { return scoreFactory(query); },
+            sortField: [{ field: '$score', direction: 'desc' }],
+            render: {
+                option: renderOption,
+                item: renderItem,
+                no_results: function () {
+                    return '<div class="px-2 py-2 text-muted small">Không tìm thấy NPL — thử tên khác</div>';
+                },
+                loading: function () {
+                    return '<div class="px-2 py-2 text-muted small">Đang tải...</div>';
+                },
+            },
+            onInitialize: function () {
+                if (this.wrapper) this.wrapper.classList.add('jp-npl-material-ts');
+                var val = (select.value || '').trim();
+                if (val && !this.options[val]) {
+                    var label = (select.options[select.selectedIndex] || {}).textContent || val;
+                    label = label.trim();
+                    this.addOption({ id: val, name: label, text: label, code: '' });
+                    this.setValue(val, true);
+                }
+            },
+        });
+    }
+
+    document.querySelectorAll('select.jp-npl-material-select').forEach(initBomMaterialSelect);
+
+    /* Thêm dòng mới — khởi tạo TomSelect cho hàng vừa thêm */
+    var addRowBtn = document.querySelector('[name="action"][value="save_bom"]')
+        ? null
+        : document.querySelector('#add-row');
+    if (!addRowBtn) {
+        /* fallback: watch for new selects */
+        var observer = new MutationObserver(function (mutations) {
+            mutations.forEach(function (m) {
+                m.addedNodes.forEach(function (node) {
+                    if (node.nodeType !== 1) return;
+                    node.querySelectorAll && node.querySelectorAll('select.jp-npl-material-select').forEach(initBomMaterialSelect);
+                    if (node.matches && node.matches('select.jp-npl-material-select')) initBomMaterialSelect(node);
+                });
+            });
+        });
+        var tbody = document.querySelector('table tbody');
+        if (tbody) observer.observe(tbody, { childList: true, subtree: true });
+    }
+})();
+</script>
         {% else %}
         <div class="table-responsive">
             <table class="table table-sm align-middle mb-0">

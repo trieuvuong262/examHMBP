@@ -39,7 +39,7 @@ class BomLineForm(forms.ModelForm):
         model = BomLine
         fields = ('material', 'qty', 'scrap_pct', 'size_code', 'notes', 'sort_order')
         widgets = {
-            'material': forms.Select(attrs={'class': 'form-select form-select-sm'}),
+            'material': forms.Select(attrs={'class': 'form-select form-select-sm jp-npl-material-select', 'data-placeholder': '— Gõ mã hoặc tên NPL —'}),
             'qty': forms.NumberInput(attrs={'class': 'form-control form-control-sm', 'step': '0.0001', 'min': '0'}),
             'scrap_pct': forms.NumberInput(attrs={'class': 'form-control form-control-sm', 'step': '0.01', 'min': '0'}),
             'size_code': forms.TextInput(attrs={'class': 'form-control form-control-sm', 'placeholder': 'S/M/L'}),
