@@ -159,14 +159,23 @@ def prepare_hub_list(
     qs: QuerySet,
     spec: SxFilterSpec,
     *,
+    list_key: str | None = None,
     limit: int = 200,
     preserve: dict[str, str] | None = None,
 ) -> tuple[QuerySet, dict[str, Any]]:
     filters = parse_sx_list_filters(request)
     if hasattr(qs.model, 'created_by_id'):
         qs = qs.select_related('created_by')
-    filtered = apply_sx_list_filters(qs, filters, spec)[:limit]
-    return filtered, sx_filter_context(filters, preserve=preserve)
+    filtered = apply_sx_list_filters(qs, filters, spec)
+    if list_key:
+        from san_xuat.list_grid import apply_sx_list_sort, sx_list_grid_context
+
+        filtered = apply_sx_list_sort(filtered, request, list_key)
+    filtered = filtered[:limit]
+    ctx = sx_filter_context(filters, preserve=preserve)
+    if list_key:
+        ctx.update(sx_list_grid_context(request, list_key))
+    return filtered, ctx
 
 
 def filter_tuple_rows(

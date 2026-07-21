@@ -14,6 +14,7 @@
     <nav class="jp-sx-tools" aria-label="Công cụ">
       <span class="sep" aria-hidden="true"></span>
       <a href="{% url 'san_xuat:qc_stub' %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại</a>
+      {% include 'san_xuat/includes/sx_list_col_picker.html' %}
     </nav>
   </div>
 
@@ -26,32 +27,24 @@
   {% include 'san_xuat/includes/sx_list_filter.html' %}
   <div class="card border-0 shadow-sm overflow-hidden">
     <div class="jp-npl-mat-grid-wrap">
-      <table class="table table-hover align-middle mb-0 jp-npl-mat-grid">
+      <table class="table table-hover align-middle mb-0 jp-npl-mat-grid" id="{{ sx_list_table_id }}">
         <thead class="table-light">
           <tr>
-            <th>Mã</th>
-            <th>Loại</th>
-            <th>Lệnh sản xuất</th>
-            <th>Công đoạn</th>
-            <th class="text-end">Tỷ lệ lỗi</th>
-            <th class="text-end">Ngưỡng</th>
-            <th>Trạng thái</th>
-            {% include 'san_xuat/includes/sx_list_meta_head.html' %}
-<th class="text-end"></th>
-</tr>
+            {% include 'san_xuat/includes/sx_list_grid_head.html' %}
+          </tr>
         </thead>
         <tbody>
         {% for alert in alerts %}
           <tr class="{% if alert.status == 'open' %}table-danger{% endif %} jp-npl-catalog-row" data-href="{% url 'san_xuat:qc_alert_detail' alert.pk %}">
-            <td><strong>{{ alert.code }}</strong></td>
-            <td class="small">{{ alert.get_alert_type_display }}</td>
-            <td class="small">
+            <td class="npl-col" data-col="code"><strong>{{ alert.code }}</strong></td>
+            <td class="npl-col" data-col="alert_type">{{ alert.get_alert_type_display }}</td>
+            <td class="npl-col" data-col="mo">
               <a href="{% url 'san_xuat:dispatch_mo_detail' alert.production_order.pk %}">{{ alert.production_order.code }}</a>
             </td>
-            <td class="small">{{ alert.process_name|default:"—" }}</td>
-<td class="text-end">{{ alert.defect_rate }}%</td>
-            <td class="text-end">{{ alert.tolerance_limit }}%</td>
-            <td>
+            <td class="npl-col" data-col="process">{{ alert.process_name|default:"—" }}</td>
+<td class="npl-col" data-col="qty">{{ alert.defect_rate }}%</td>
+            <td class="npl-col" data-col="message">{{ alert.tolerance_limit }}%</td>
+            <td class="npl-col" data-col="status">
               {% if alert.status == 'open' %}
               <span class="badge text-bg-danger">Mở</span>
               {% elif alert.status == 'acknowledged' %}
@@ -61,7 +54,7 @@
               {% endif %}
             </td>
                         {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=alert %}
-<td class="text-end">
+<td class="npl-col" data-col="actions">
               <a href="{% url 'san_xuat:qc_alert_detail' alert.pk %}" class="btn btn-sm btn-outline-hm">Mở</a>
             </td>
 </tr>
@@ -73,4 +66,5 @@
     </div>
   </div>
 </div>
+{% include 'san_xuat/includes/sx_list_grid_scripts.html' %}
 {% endblock %}

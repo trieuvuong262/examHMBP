@@ -15,40 +15,34 @@
             {% if can_create %}
     <a href="{% url 'san_xuat:plan_detail_create' %}" class="btn btn-hm btn-sm fw-bold">Lập kế hoạch chi tiết</a>
     {% endif %}
+      {% include 'san_xuat/includes/sx_list_col_picker.html' %}
     </nav>
   </div>
 
   {% include 'san_xuat/includes/sx_list_filter.html' %}
   <div class="card border-0 shadow-sm overflow-hidden">
     <div class="jp-npl-mat-grid-wrap">
-      <table class="table table-hover align-middle mb-0 jp-npl-mat-grid">
+      <table class="table table-hover align-middle mb-0 jp-npl-mat-grid" id="{{ sx_list_table_id }}">
         <thead class="table-light">
           <tr>
-            <th>Mã</th>
-            <th>Tên</th>
-            <th>kế hoạch tổng thể nguồn</th>
-            <th>Kỳ</th>
-            <th class="text-end">Dòng/ngày</th>
-            <th>Trạng thái</th>
-            {% include 'san_xuat/includes/sx_list_meta_head.html' %}
-<th class="text-end"></th>
-</tr>
+            {% include 'san_xuat/includes/sx_list_grid_head.html' %}
+          </tr>
         </thead>
         <tbody>
         {% for plan in plans %}
           <tr class="jp-npl-catalog-row" data-href="{% url 'san_xuat:plan_detail_detail' plan.pk %}">
-            <td><strong>{{ plan.code }}</strong></td>
-            <td>{{ plan.name }}</td>
-            <td class="small">
+            <td class="npl-col" data-col="code"><strong>{{ plan.code }}</strong></td>
+            <td class="npl-col" data-col="name">{{ plan.name }}</td>
+            <td class="npl-col" data-col="overall">
               {% if plan.overall_plan %}
               <a href="{% url 'san_xuat:plan_overall_detail' plan.overall_plan.pk %}">{{ plan.overall_plan.code }}</a>
               {% else %}—{% endif %}
             </td>
-            <td class="small">{{ plan.date_from|date:"d/m/Y" }}–{{ plan.date_to|date:"d/m/Y" }}</td>
-<td class="text-end">{{ plan.lines.count }}</td>
-            <td class="small">{{ plan.get_status_display }}</td>
+            <td class="npl-col" data-col="period">{{ plan.date_from|date:"d/m/Y" }}–{{ plan.date_to|date:"d/m/Y" }}</td>
+<td class="npl-col" data-col="line_count">{{ plan.lines.count }}</td>
+            <td class="npl-col" data-col="status">{{ plan.get_status_display }}</td>
                         {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=plan %}
-<td class="text-end">
+<td class="npl-col" data-col="actions">
               <a href="{% url 'san_xuat:plan_detail_detail' plan.pk %}" class="btn btn-sm btn-outline-hm">Mở</a>
             </td>
 </tr>
@@ -60,4 +54,5 @@
     </div>
   </div>
 </div>
+{% include 'san_xuat/includes/sx_list_grid_scripts.html' %}
 {% endblock %}

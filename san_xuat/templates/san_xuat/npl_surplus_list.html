@@ -13,42 +13,35 @@
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
       <a href="{% url 'san_xuat:dispatch_stub' %}"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>Điều phối</a>
+      {% include 'san_xuat/includes/sx_list_col_picker.html' %}
     </nav>
   </div>
 
   {% include 'san_xuat/includes/sx_list_filter.html' %}
   <div class="card border-0 shadow-sm overflow-hidden">
     <div class="jp-npl-mat-grid-wrap">
-      <table class="table table-hover align-middle mb-0 jp-npl-mat-grid">
+      <table class="table table-hover align-middle mb-0 jp-npl-mat-grid" id="{{ sx_list_table_id }}">
         <thead class="table-light">
           <tr>
-            <th>Mã</th>
-            <th>NPL</th>
-            <th class="text-end">Số lượng</th>
-            <th>Lệnh sản xuất / lệnh tháo dỡ</th>
-            <th>Ngày</th>
-            <th>Trạng thái</th>
-            <th>ĐC kho</th>
-            {% include 'san_xuat/includes/sx_list_meta_head.html' %}
-<th class="text-end"></th>
-</tr>
+            {% include 'san_xuat/includes/sx_list_grid_head.html' %}
+          </tr>
         </thead>
         <tbody>
         {% for item in items %}
           <tr class="{% if item.status == 'draft' %}table-warning{% endif %} jp-npl-catalog-row" data-href="{% url 'san_xuat:dispatch_npl_surplus_detail' item.pk %}">
-            <td><strong>{{ item.code }}</strong></td>
-            <td class="small">{{ item.material_code }}{% if item.material_name %} — {{ item.material_name }}{% endif %}</td>
-<td class="text-end">{{ item.qty }}</td>
-            <td class="small">
+            <td class="npl-col" data-col="code"><strong>{{ item.code }}</strong></td>
+            <td class="npl-col" data-col="material">{{ item.material_code }}{% if item.material_name %} — {{ item.material_name }}{% endif %}</td>
+<td class="npl-col" data-col="qty">{{ item.qty }}</td>
+            <td class="npl-col" data-col="source">
               {% if item.production_order %}{{ item.production_order.code }}{% endif %}
               {% if item.disassembly_order %} · {{ item.disassembly_order.code }}{% endif %}
               {% if not item.production_order and not item.disassembly_order %}—{% endif %}
             </td>
-            <td class="small">{{ item.recorded_at|date:"d/m/Y" }}</td>
-            <td class="small">{{ item.get_status_display }}</td>
-            <td class="small">{% if item.stock_adjustment %}{{ item.stock_adjustment.number }}{% else %}—{% endif %}</td>
+            <td class="npl-col" data-col="recorded_at">{{ item.recorded_at|date:"d/m/Y" }}</td>
+            <td class="npl-col" data-col="status">{{ item.get_status_display }}</td>
+            <td class="npl-col" data-col="stock_adj">{% if item.stock_adjustment %}{{ item.stock_adjustment.number }}{% else %}—{% endif %}</td>
                         {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=item %}
-<td class="text-end">
+<td class="npl-col" data-col="actions">
               <a href="{% url 'san_xuat:dispatch_npl_surplus_detail' item.pk %}" class="btn btn-sm btn-outline-hm">Mở</a>
             </td>
 </tr>
@@ -60,4 +53,5 @@
     </div>
   </div>
 </div>
+{% include 'san_xuat/includes/sx_list_grid_scripts.html' %}
 {% endblock %}

@@ -13,32 +13,28 @@
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
       <a href="{% url 'san_xuat:costing_by_order' %}"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>Giá thành kế hoạch theo đơn</a>
+      {% include 'san_xuat/includes/sx_list_col_picker.html' %}
     </nav>
   </div>
 
   {% include 'san_xuat/includes/sx_list_filter.html' %}
   <div class="card border-0 shadow-sm overflow-hidden">
     <div class="jp-npl-mat-grid-wrap">
-      <table class="table table-hover align-middle mb-0 jp-npl-mat-grid">
+      <table class="table table-hover align-middle mb-0 jp-npl-mat-grid" id="{{ sx_list_table_id }}">
         <thead class="table-light">
           <tr>
-            <th>Mã</th>
-            <th>Tên</th>
-            <th class="text-end">Thứ tự</th>
-            <th>Trạng thái</th>
-            {% include 'san_xuat/includes/sx_list_meta_head.html' %}
-<th class="text-end"></th>
-</tr>
+            {% include 'san_xuat/includes/sx_list_grid_head.html' %}
+          </tr>
         </thead>
         <tbody>
         {% for ct in cost_types %}
           <tr>
-            <td><strong>{{ ct.code }}</strong></td>
-            <td>{{ ct.name }}</td>
-<td class="text-end">{{ ct.sort_order }}</td>
-            <td class="small">{% if ct.is_active %}Đang dùng{% else %}Tắt{% endif %}</td>
+            <td class="npl-col" data-col="code"><strong>{{ ct.code }}</strong></td>
+            <td class="npl-col" data-col="name">{{ ct.name }}</td>
+<td class="npl-col" data-col="category">{{ ct.sort_order }}</td>
+            <td class="npl-col" data-col="status">{% if ct.is_active %}Đang dùng{% else %}Tắt{% endif %}</td>
                         {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=ct %}
-<td class="text-end">
+<td class="npl-col" data-col="actions">
               {% if can_update %}
               <a href="{% url 'san_xuat:costing_cost_type_edit' ct.pk %}" class="btn btn-sm btn-outline-hm">Sửa</a>
               {% endif %}
@@ -52,4 +48,5 @@
     </div>
   </div>
 </div>
+{% include 'san_xuat/includes/sx_list_grid_scripts.html' %}
 {% endblock %}

@@ -18,6 +18,7 @@
                 <i class="bi bi-plus-lg me-1"></i>Thêm
             </a>
             {% endif %}
+      {% include 'san_xuat/includes/sx_list_col_picker.html' %}
     </nav>
     </div>
 
@@ -25,32 +26,27 @@
 
     <div class="card border-0 shadow-sm overflow-hidden">
         <div class="jp-npl-mat-grid-wrap">
-            <table class="table table-hover align-middle mb-0 jp-npl-mat-grid">
+            <table class="table table-hover align-middle mb-0 jp-npl-mat-grid" id="{{ sx_list_table_id }}">
                 <thead class="table-light">
-                    <tr>
-                        <th>Mã sản phẩm</th>
-                        <th>Tên</th>
-                        <th>Trạng thái</th>
-                        <th>Cập nhật</th>
-            {% include 'san_xuat/includes/sx_list_meta_head.html' %}
-<th></th>
-</tr>
-                </thead>
+          <tr>
+            {% include 'san_xuat/includes/sx_list_grid_head.html' %}
+          </tr>
+        </thead>
                 <tbody>
                     {% for doc in page_obj %}
                     <tr class="jp-npl-catalog-row" data-href="{% url 'san_xuat:doc_detail' doc.pk %}">
-<td><a href="{% url 'san_xuat:doc_detail' doc.pk %}" class="text-decoration-none fw-semibold">{{ doc.product_code }}</a></td>
-                        <td>{{ doc.product_name|default:"—" }}</td>
-                        <td>
+<td class="npl-col" data-col="product_code"><a href="{% url 'san_xuat:doc_detail' doc.pk %}" class="text-decoration-none fw-semibold">{{ doc.product_code }}</a></td>
+                        <td class="npl-col" data-col="product_name">{{ doc.product_name|default:"—" }}</td>
+                        <td class="npl-col" data-col="status">
                             {% if doc.is_active %}
                             <span class="badge bg-success-subtle text-success border">Đang dùng</span>
                             {% else %}
                             <span class="badge bg-secondary-subtle text-secondary border">Ngưng</span>
                             {% endif %}
                         </td>
-                        <td class="small text-muted">{{ doc.updated_at|date:"d/m/Y H:i" }}</td>
+                        <td class="npl-col" data-col="updated_at">{{ doc.updated_at|date:"d/m/Y H:i" }}</td>
             {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=doc %}
-<td class="text-end">
+            <td class="npl-col" data-col="actions">
                             <a href="{% url 'san_xuat:doc_detail' doc.pk %}" class="btn btn-sm btn-outline-hm">Mở</a>
                         </td>
 </tr>
@@ -69,4 +65,5 @@
         {% endif %}
     </div>
 </div>
+{% include 'san_xuat/includes/sx_list_grid_scripts.html' %}
 {% endblock %}

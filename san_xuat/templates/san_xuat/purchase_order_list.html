@@ -13,44 +13,38 @@
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
       <a href="{% url 'kiotviet:purchase_lookup' %}"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>Phiếu nhập KiotViet</a>
+      {% include 'san_xuat/includes/sx_list_col_picker.html' %}
     </nav>
   </div>
 
   {% include 'san_xuat/includes/sx_list_filter.html' %}
   <div class="card border-0 shadow-sm overflow-hidden">
     <div class="jp-npl-mat-grid-wrap">
-      <table class="table table-hover align-middle mb-0 jp-npl-mat-grid">
+      <table class="table table-hover align-middle mb-0 jp-npl-mat-grid" id="{{ sx_list_table_id }}">
         <thead class="table-light">
           <tr>
-            <th>Mã</th>
-            <th>NCC</th>
-            <th>Yêu cầu mua nguyên phụ liệu nguồn</th>
-            <th class="text-end">Dòng</th>
-            <th>Phiếu nhập KiotViet</th>
-            <th>Trạng thái</th>
-            {% include 'san_xuat/includes/sx_list_meta_head.html' %}
-<th class="text-end"></th>
-</tr>
+            {% include 'san_xuat/includes/sx_list_grid_head.html' %}
+          </tr>
         </thead>
         <tbody>
         {% for order in orders %}
           <tr class="jp-npl-catalog-row" data-href="{% url 'san_xuat:purchase_order_detail' order.pk %}">
-            <td><strong>{{ order.code }}</strong></td>
-            <td class="small">{{ order.supplier_name|default:"—" }}</td>
-            <td class="small">
+            <td class="npl-col" data-col="code"><strong>{{ order.code }}</strong></td>
+            <td class="npl-col" data-col="supplier">{{ order.supplier_name|default:"—" }}</td>
+            <td class="npl-col" data-col="pr">
               {% if order.purchase_request %}
               <a href="{% url 'san_xuat:npl_purchase_request_detail' order.purchase_request.pk %}">{{ order.purchase_request.code }}</a>
               {% else %}—{% endif %}
             </td>
-<td class="text-end">{{ order.lines.count }}</td>
-            <td class="small">
+<td class="npl-col" data-col="total">{{ order.lines.count }}</td>
+            <td class="npl-col" data-col="kv_receipt">
               {% if order.kv_purchase_kiotviet_id %}
               <a href="{% url 'kiotviet:purchase_detail' order.kv_purchase_kiotviet_id %}">{{ order.kv_purchase_code|default:order.kv_purchase_kiotviet_id }}</a>
               {% else %}—{% endif %}
             </td>
-            <td class="small">{{ order.get_status_display }}</td>
+            <td class="npl-col" data-col="status">{{ order.get_status_display }}</td>
                         {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=order %}
-<td class="text-end">
+<td class="npl-col" data-col="actions">
               <a href="{% url 'san_xuat:purchase_order_detail' order.pk %}" class="btn btn-sm btn-outline-hm">Mở</a>
             </td>
 </tr>
@@ -62,4 +56,5 @@
     </div>
   </div>
 </div>
+{% include 'san_xuat/includes/sx_list_grid_scripts.html' %}
 {% endblock %}

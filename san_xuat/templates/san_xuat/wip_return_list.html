@@ -13,6 +13,7 @@
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
       <a href="{% url 'san_xuat:dispatch_wip_handover' %}"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>Bàn giao</a>
+      {% include 'san_xuat/includes/sx_list_col_picker.html' %}
     </nav>
   </div>
 
@@ -23,31 +24,23 @@
       <table class="table table-sm table-hover mb-0 align-middle">
         <thead class="table-light">
           <tr>
-            <th>Mã</th>
-            <th>Lệnh sản xuất</th>
-            <th>Từ công đoạn</th>
-            <th>Về công đoạn</th>
-            <th class="text-end">Số lượng</th>
-            <th>Ngày</th>
-            <th>Trạng thái</th>
-            {% include 'san_xuat/includes/sx_list_meta_head.html' %}
-<th class="text-end"></th>
-</tr>
+            {% include 'san_xuat/includes/sx_list_grid_head.html' %}
+          </tr>
         </thead>
         <tbody>
         {% for item in returns %}
           <tr class="{% if item.status == 'draft' %}table-warning{% elif item.status == 'cancelled' %}table-secondary{% endif %} jp-npl-catalog-row" data-href="{% url 'san_xuat:dispatch_wip_return_detail' item.pk %}">
-            <td><strong>{{ item.code }}</strong></td>
-            <td class="small">
+            <td class="npl-col" data-col="code"><strong>{{ item.code }}</strong></td>
+            <td class="npl-col" data-col="mo">
               <a href="{% url 'san_xuat:dispatch_mo_detail' item.production_order.pk %}">{{ item.production_order.code }}</a>
             </td>
-            <td class="small">{{ item.from_process|default:"—" }}</td>
-            <td class="small">{{ item.to_process|default:"—" }}</td>
-<td class="text-end">{{ item.qty }}</td>
-            <td class="small">{{ item.return_date|date:"d/m/Y" }}</td>
-            <td class="small">{{ item.get_status_display }}</td>
+            <td class="npl-col" data-col="from_process">{{ item.from_process|default:"—" }}</td>
+            <td class="npl-col" data-col="to_process">{{ item.to_process|default:"—" }}</td>
+<td class="npl-col" data-col="qty">{{ item.qty }}</td>
+            <td class="npl-col" data-col="return_date">{{ item.return_date|date:"d/m/Y" }}</td>
+            <td class="npl-col" data-col="status">{{ item.get_status_display }}</td>
                         {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=item %}
-<td class="text-end">
+<td class="npl-col" data-col="actions">
               <a href="{% url 'san_xuat:dispatch_wip_return_detail' item.pk %}" class="btn btn-sm btn-outline-hm">Mở</a>
             </td>
 </tr>
@@ -59,4 +52,5 @@
     </div>
   </div>
 </div>
+{% include 'san_xuat/includes/sx_list_grid_scripts.html' %}
 {% endblock %}

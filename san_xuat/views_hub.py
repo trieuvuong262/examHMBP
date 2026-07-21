@@ -335,6 +335,8 @@ def products_nvl(request):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def costing_norm(request):
+    from san_xuat.list_grid import sx_list_grid_context
+
     filters = parse_sx_list_filters(request)
     rows = filter_tuple_rows(list_costing_from_active_boms(), filters)
     return render(request, 'san_xuat/costing_bom_list.html', {
@@ -342,6 +344,7 @@ def costing_norm(request):
         'rows': rows,
         'product_count': len(rows),
         **sx_filter_context(filters),
+        **sx_list_grid_context(request, 'costing_bom'),
     })
 
 
@@ -352,7 +355,7 @@ def costing_sheet_list(request):
         .prefetch_related('lines')
         .order_by('-date_from', '-pk')
     )
-    sheets, fctx = prepare_hub_list(request, base_qs, SX_FILTER_COST_SHEET)
+    sheets, fctx = prepare_hub_list(request, base_qs, SX_FILTER_COST_SHEET, list_key='costing_sheet')
     return render(request, 'san_xuat/costing_sheet_list.html', {
         **_perm_ctx(request),
         'sheets': sheets,
@@ -434,7 +437,7 @@ def costing_by_order(request):
         .prefetch_related('lines')
         .order_by('-date_from', '-pk')
     )
-    sheets, fctx = prepare_hub_list(request, base_qs, SX_FILTER_COST_ORDER)
+    sheets, fctx = prepare_hub_list(request, base_qs, SX_FILTER_COST_ORDER, list_key='costing_order')
     return render(request, 'san_xuat/costing_order_list.html', {
         **_perm_ctx(request),
         'sheets': sheets,
@@ -564,7 +567,7 @@ def costing_order_export(request, pk: int):
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def costing_cost_types(request):
     base_qs = SxCostType.objects.filter(is_demo=False).order_by('sort_order', 'code')
-    cost_types, fctx = prepare_hub_list(request, base_qs, SX_FILTER_COST_TYPE)
+    cost_types, fctx = prepare_hub_list(request, base_qs, SX_FILTER_COST_TYPE, list_key='costing_cost_type')
     return render(request, 'san_xuat/costing_cost_type_list.html', {
         **_perm_ctx(request),
         'cost_types': cost_types,
@@ -649,7 +652,7 @@ def plan_overall(request):
         .prefetch_related('lines')
         .order_by('-date_from', '-pk')
     )
-    plans, fctx = prepare_hub_list(request, base_qs, SX_FILTER_PLAN_PERIOD)
+    plans, fctx = prepare_hub_list(request, base_qs, SX_FILTER_PLAN_PERIOD, list_key='plan_overall')
     return render(request, 'san_xuat/plan_overall_list.html', {
         **_perm_ctx(request),
         'plans': plans,
@@ -762,7 +765,7 @@ def plan_detail(request):
         .prefetch_related('lines')
         .order_by('-date_from', '-pk')
     )
-    plans, fctx = prepare_hub_list(request, base_qs, SX_FILTER_PLAN_PERIOD)
+    plans, fctx = prepare_hub_list(request, base_qs, SX_FILTER_PLAN_PERIOD, list_key='plan_detail')
     return render(request, 'san_xuat/plan_detail_list.html', {
         **_perm_ctx(request),
         'plans': plans,
@@ -902,7 +905,7 @@ def plan_npl(request):
         .prefetch_related('lines')
         .order_by('-created_at', '-pk')
     )
-    plans, fctx = prepare_hub_list(request, base_qs, SX_FILTER_PLAN_NPL)
+    plans, fctx = prepare_hub_list(request, base_qs, SX_FILTER_PLAN_NPL, list_key='plan_npl')
     return render(request, 'san_xuat/plan_npl_list.html', {
         **_perm_ctx(request),
         'plans': plans,
@@ -990,7 +993,7 @@ def npl_purchase_request(request):
         .prefetch_related('lines')
         .order_by('-created_at', '-pk')
     )
-    requests_qs, fctx = prepare_hub_list(request, base_qs, SX_FILTER_NPL_PR)
+    requests_qs, fctx = prepare_hub_list(request, base_qs, SX_FILTER_NPL_PR, list_key='npl_purchase_request')
     return render(request, 'san_xuat/npl_purchase_request_list.html', {
         **_perm_ctx(request),
         'requests': requests_qs,
@@ -1086,7 +1089,7 @@ def purchase_order(request):
         .prefetch_related('lines')
         .order_by('-created_at', '-pk')
     )
-    orders, fctx = prepare_hub_list(request, base_qs, SX_FILTER_PURCHASE_ORDER)
+    orders, fctx = prepare_hub_list(request, base_qs, SX_FILTER_PURCHASE_ORDER, list_key='purchase_order')
     return render(request, 'san_xuat/purchase_order_list.html', {
         **_perm_ctx(request),
         'orders': orders,
@@ -1192,7 +1195,7 @@ def dispatch_mo(request):
         .order_by('-order_date', '-pk')
         .select_related('bom_version')
     )
-    orders, fctx = prepare_hub_list(request, base_qs, SX_FILTER_MO)
+    orders, fctx = prepare_hub_list(request, base_qs, SX_FILTER_MO, list_key='dispatch_mo')
     return render(request, 'san_xuat/dispatch_mo_list.html', {
         **_perm_ctx(request),
         'page_title': 'Lệnh sản xuất',
@@ -1566,7 +1569,7 @@ def dispatch_disassembly(request):
         .select_related('production_order')
         .order_by('-order_date', '-pk')
     )
-    orders, fctx = prepare_hub_list(request, base_qs, SX_FILTER_DISASSEMBLY)
+    orders, fctx = prepare_hub_list(request, base_qs, SX_FILTER_DISASSEMBLY, list_key='disassembly')
     return render(request, 'san_xuat/disassembly_list.html', {
         **_perm_ctx(request),
         'orders': orders,
@@ -1743,7 +1746,7 @@ def dispatch_material_issue_req(request):
     pending_count = pending_material_issue_qs().count()
     if queue in ('pending', 'cho-duyet', '1'):
         base_qs = pending_material_issue_qs()
-    requests_qs, fctx = prepare_hub_list(request, base_qs, SX_FILTER_MATERIAL_ISSUE)
+    requests_qs, fctx = prepare_hub_list(request, base_qs, SX_FILTER_MATERIAL_ISSUE, list_key='dispatch_material_issue')
     return render(request, 'san_xuat/dispatch_material_issue_req_list.html', {
         **_perm_ctx(request),
         'page_title': 'Yêu cầu xuất vật tư',
@@ -1845,7 +1848,7 @@ def dispatch_prod_stats(request):
         .order_by('-stat_date', '-pk')
         .select_related('production_order')
     )
-    stats, fctx = prepare_hub_list(request, base_qs, SX_FILTER_PROD_STAT)
+    stats, fctx = prepare_hub_list(request, base_qs, SX_FILTER_PROD_STAT, list_key='dispatch_prod_stat')
     return render(request, 'san_xuat/dispatch_prod_stats_list.html', {
         **_perm_ctx(request),
         'stats': stats,
@@ -1947,7 +1950,7 @@ def dispatch_fg_receipt_req(request):
         .select_related('production_order', 'production_stat')
         .order_by('-request_date', '-pk')
     )
-    requests_qs, fctx = prepare_hub_list(request, base_qs, SX_FILTER_FG_RECEIPT)
+    requests_qs, fctx = prepare_hub_list(request, base_qs, SX_FILTER_FG_RECEIPT, list_key='dispatch_fg_receipt')
     return render(request, 'san_xuat/dispatch_fg_receipt_req_list.html', {
         **_perm_ctx(request),
         'requests': requests_qs,
@@ -2054,7 +2057,7 @@ def dispatch_npl_surplus(request):
         .select_related('production_order', 'disassembly_order', 'stock_adjustment')
         .order_by('-recorded_at', '-pk')
     )
-    items, fctx = prepare_hub_list(request, base_qs, SX_FILTER_NPL_SURPLUS)
+    items, fctx = prepare_hub_list(request, base_qs, SX_FILTER_NPL_SURPLUS, list_key='npl_surplus')
     return render(request, 'san_xuat/npl_surplus_list.html', {
         **_perm_ctx(request),
         'items': items,
@@ -2129,7 +2132,7 @@ def dispatch_wip_handover(request):
         .select_related('production_order')
         .order_by('-handover_date', '-pk')
     )
-    handovers, fctx = prepare_hub_list(request, base_qs, SX_FILTER_WIP_HANDOVER)
+    handovers, fctx = prepare_hub_list(request, base_qs, SX_FILTER_WIP_HANDOVER, list_key='wip_handover')
     return render(request, 'san_xuat/wip_handover_list.html', {
         **_perm_ctx(request),
         'handovers': handovers,
@@ -2226,7 +2229,7 @@ def dispatch_wip_return(request):
         .select_related('production_order', 'handover')
         .order_by('-return_date', '-pk')
     )
-    returns, fctx = prepare_hub_list(request, base_qs, SX_FILTER_WIP_RETURN)
+    returns, fctx = prepare_hub_list(request, base_qs, SX_FILTER_WIP_RETURN, list_key='wip_return')
     return render(request, 'san_xuat/wip_return_list.html', {
         **_perm_ctx(request),
         'returns': returns,
@@ -2345,7 +2348,7 @@ def qc_request(request):
         .select_related('production_order')
         .order_by('-request_date', '-pk')
     )
-    requests_qs, fctx = prepare_hub_list(request, base_qs, SX_FILTER_QC_REQUEST)
+    requests_qs, fctx = prepare_hub_list(request, base_qs, SX_FILTER_QC_REQUEST, list_key='qc_request')
     return render(request, 'san_xuat/qc_request_list.html', {
         **_perm_ctx(request),
         'requests': requests_qs,
@@ -2420,7 +2423,7 @@ def qc_sheet(request):
         .select_related('qc_request', 'standard_set')
         .order_by('-inspected_at', '-pk')
     )
-    inspections, fctx = prepare_hub_list(request, base_qs, SX_FILTER_QC_SHEET)
+    inspections, fctx = prepare_hub_list(request, base_qs, SX_FILTER_QC_SHEET, list_key='qc_sheet')
     return render(request, 'san_xuat/qc_sheet_list.html', {
         **_perm_ctx(request),
         'inspections': inspections,
@@ -2569,7 +2572,7 @@ def qc_alerts(request):
     if status:
         base_qs = base_qs.filter(status=status)
     preserve = {'status': status} if status else None
-    alerts, fctx = prepare_hub_list(request, base_qs, SX_FILTER_QC_ALERT, preserve=preserve)
+    alerts, fctx = prepare_hub_list(request, base_qs, SX_FILTER_QC_ALERT, preserve=preserve, list_key='qc_alert')
     return render(request, 'san_xuat/qc_alerts_list.html', {
         **_perm_ctx(request),
         'alerts': alerts,
@@ -2771,7 +2774,7 @@ def work_assignment_list(request):
     status_filter = (request.GET.get('status') or '').strip()
     if status_filter:
         qs = qs.filter(status=status_filter)
-    items, fctx = prepare_hub_list(request, qs, SX_FILTER_WORK_ASSIGN)
+    items, fctx = prepare_hub_list(request, qs, SX_FILTER_WORK_ASSIGN, list_key='work_assignment')
     can_update = _perm_ctx(request).get('can_update')
     if request.method == 'POST' and can_update:
         action = (request.POST.get('action') or '').strip()
@@ -2935,10 +2938,18 @@ def capacity_list(request):
         .select_related('created_by')
         .order_by('code')
     )
-    centers = apply_sx_list_filters(base_centers, filters, SX_FILTER_WORK_CENTER)
+    from san_xuat.list_grid import apply_sx_list_sort, sx_list_grid_context
+
+    centers = apply_sx_list_sort(
+        apply_sx_list_filters(base_centers, filters, SX_FILTER_WORK_CENTER),
+        request,
+        'capacity_catalog',
+    )
     load_rows = build_capacity_load(date_from=date_from, date_to=date_to)
     preserve = {'month': month} if month else None
     from san_xuat.services.sx_settings import sx_int
+
+    from san_xuat.list_grid import apply_sx_list_sort, sx_list_grid_context
 
     return render(request, 'san_xuat/capacity_list.html', {
         **_perm_ctx(request),
@@ -2950,6 +2961,7 @@ def capacity_list(request):
         'capacity_load_warn_pct': sx_int('capacity_load_warn_pct', 80, min_v=1, max_v=200),
         'capacity_load_danger_pct': sx_int('capacity_load_danger_pct', 100, min_v=1, max_v=200),
         **sx_filter_context(filters, preserve=preserve),
+        **sx_list_grid_context(request, 'capacity_catalog'),
     })
 
 
@@ -3043,7 +3055,7 @@ def packing_list(request):
         .select_related('production_order', 'fg_receipt')
         .order_by('-pack_date', '-pk')
     )
-    items, fctx = prepare_hub_list(request, base_qs, SX_FILTER_PACKING)
+    items, fctx = prepare_hub_list(request, base_qs, SX_FILTER_PACKING, list_key='packing')
     return render(request, 'san_xuat/packing_list.html', {
         **_perm_ctx(request),
         'items': items,
@@ -3129,7 +3141,7 @@ def subcontract_list(request):
         .select_related('production_order')
         .order_by('-order_date', '-pk')
     )
-    items, fctx = prepare_hub_list(request, base_qs, SX_FILTER_SUBCONTRACT)
+    items, fctx = prepare_hub_list(request, base_qs, SX_FILTER_SUBCONTRACT, list_key='subcontract')
     return render(request, 'san_xuat/subcontract_list.html', {
         **_perm_ctx(request),
         'items': items,

@@ -1,2 +1,2 @@
-<td class="small">{% if obj.created_by %}{{ obj.created_by.get_full_name|default:obj.created_by.username }}{% else %}—{% endif %}</td>
-<td class="small text-muted">{% if obj.created_at %}{{ obj.created_at|date:"d/m/Y H:i" }}{% else %}—{% endif %}</td>
+<td class="npl-col small" data-col="created_by">{% if obj.created_by %}{{ obj.created_by.get_full_name|default:obj.created_by.username }}{% else %}—{% endif %}</td>
+<td class="npl-col small text-muted" data-col="created_at">{% if obj.created_at %}{{ obj.created_at|date:"d/m/Y H:i" }}{% else %}—{% endif %}</td>

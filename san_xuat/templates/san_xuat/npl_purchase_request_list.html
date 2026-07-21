@@ -15,40 +15,34 @@
             {% if can_create %}
     <a href="{% url 'san_xuat:npl_purchase_request_create' %}" class="btn btn-hm btn-sm fw-bold">Tạo yêu cầu mua nguyên phụ liệu</a>
     {% endif %}
+      {% include 'san_xuat/includes/sx_list_col_picker.html' %}
     </nav>
   </div>
 
   {% include 'san_xuat/includes/sx_list_filter.html' %}
   <div class="card border-0 shadow-sm overflow-hidden">
     <div class="jp-npl-mat-grid-wrap">
-      <table class="table table-hover align-middle mb-0 jp-npl-mat-grid">
+      <table class="table table-hover align-middle mb-0 jp-npl-mat-grid" id="{{ sx_list_table_id }}">
         <thead class="table-light">
           <tr>
-            <th>Mã</th>
-            <th>kế hoạch nguyên phụ liệu</th>
-            <th>Ngày yêu cầu</th>
-            <th>Hạn</th>
-            <th class="text-end">Dòng</th>
-            <th>Trạng thái</th>
-            {% include 'san_xuat/includes/sx_list_meta_head.html' %}
-<th class="text-end"></th>
-</tr>
+            {% include 'san_xuat/includes/sx_list_grid_head.html' %}
+          </tr>
         </thead>
         <tbody>
         {% for req in requests %}
           <tr class="jp-npl-catalog-row" data-href="{% url 'san_xuat:npl_purchase_request_detail' req.pk %}">
-            <td><strong>{{ req.code }}</strong></td>
-            <td class="small">
+            <td class="npl-col" data-col="code"><strong>{{ req.code }}</strong></td>
+            <td class="npl-col" data-col="plan">
               {% if req.material_plan %}
               <a href="{% url 'san_xuat:plan_npl_detail' req.material_plan.pk %}">{{ req.material_plan.code }}</a>
               {% else %}—{% endif %}
             </td>
-            <td class="small text-muted">{% if req.request_date %}{{ req.request_date|date:"d/m/Y" }}{% else %}—{% endif %}</td>
-            <td class="small text-muted">{% if req.due_date %}{{ req.due_date|date:"d/m/Y" }}{% else %}—{% endif %}</td>
-<td class="text-end">{{ req.lines.count }}</td>
-            <td class="small">{{ req.get_status_display }}</td>
+            <td class="npl-col" data-col="request_date">{% if req.request_date %}{{ req.request_date|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+            <td class="npl-col" data-col="due_date">{% if req.due_date %}{{ req.due_date|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+<td class="npl-col" data-col="line_count">{{ req.lines.count }}</td>
+            <td class="npl-col" data-col="status">{{ req.get_status_display }}</td>
                         {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=req %}
-<td class="text-end">
+<td class="npl-col" data-col="actions">
               <a href="{% url 'san_xuat:npl_purchase_request_detail' req.pk %}" class="btn btn-sm btn-outline-hm">Mở</a>
             </td>
 </tr>
@@ -60,4 +54,5 @@
     </div>
   </div>
 </div>
+{% include 'san_xuat/includes/sx_list_grid_scripts.html' %}
 {% endblock %}

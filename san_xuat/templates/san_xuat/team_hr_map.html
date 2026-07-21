@@ -11,6 +11,7 @@
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
       <a href="{% url 'san_xuat:piece_rate_report' %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Lương SP</a>
+      {% include 'san_xuat/includes/sx_list_col_picker.html' %}
     </nav>
   </div>
 
@@ -42,21 +43,20 @@
   {% include 'san_xuat/includes/sx_list_filter.html' %}
   <div class="card border-0 shadow-sm">
     <div class="table-responsive">
-      <table class="table table-hover table-sm mb-0">
+      <table class="table table-hover table-sm mb-0 jp-npl-mat-grid" id="{{ sx_list_table_id }}">
         <thead class="table-light">
-          <tr><th>Nhãn tổ</th><th>Mã NV</th><th>Tên</th><th>TT</th>
-            {% include 'san_xuat/includes/sx_list_meta_head.html' %}
-</tr>
-</thead>
+          <tr>
+            {% include 'san_xuat/includes/sx_list_grid_head.html' %}
+          </tr>
+        </thead>
         <tbody>
           {% for m in maps %}
           <tr>
-            <td>{{ m.team_label }}</td>
-            <td>{{ m.employee_code }}</td>
-            <td>{{ m.employee_name|default:"—" }}</td>
-                        {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=m %}
-<td>{% if m.is_active %}Đang dùng{% else %}Ngưng{% endif %}</td>
-</tr>
+            <td class="npl-col" data-col="employee_code">{{ m.employee_code }}</td>
+            <td class="npl-col" data-col="employee_name">{{ m.employee_name|default:"—" }}</td>
+            <td class="npl-col" data-col="team">{{ m.team_label }}</td>
+            <td class="npl-col" data-col="status">{% if m.is_active %}Đang dùng{% else %}Ngưng{% endif %}</td>
+          </tr>
           {% empty %}
           <tr><td colspan="12" class="text-muted text-center py-3">Chưa có map — thêm từ nhãn tổ trên TKSX.</td></tr>
           {% endfor %}
@@ -65,4 +65,5 @@
     </div>
   </div>
 </div>
+{% include 'san_xuat/includes/sx_list_grid_scripts.html' %}
 {% endblock %}

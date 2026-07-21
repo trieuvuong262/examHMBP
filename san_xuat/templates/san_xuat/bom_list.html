@@ -14,6 +14,7 @@
     <nav class="jp-sx-tools" aria-label="Công cụ">
       {% include 'san_xuat/includes/sx_export_btn.html' with export_key='bom_list' %}
                   <a href="{% url 'san_xuat:doc_list' %}"><i class="bi bi-folder" aria-hidden="true"></i>Hồ sơ</a>
+      {% include 'san_xuat/includes/sx_list_col_picker.html' %}
     </nav>
     </div>
 
@@ -57,31 +58,23 @@
 
     <div class="card border-0 shadow-sm overflow-hidden">
         <div class="jp-npl-mat-grid-wrap">
-            <table class="table table-hover align-middle mb-0 jp-npl-mat-grid">
+            <table class="table table-hover align-middle mb-0 jp-npl-mat-grid" id="{{ sx_list_table_id }}">
                 <thead class="table-light">
-                    <tr>
-                        <th>Mã sản phẩm</th>
-                        <th>Tên</th>
-                        <th>Phiên bản</th>
-                        <th>Trạng thái</th>
-                        <th class="text-end">Dòng NPL</th>
-                        <th class="text-end">Công đoạn</th>
-                        <th>Cập nhật</th>
-            {% include 'san_xuat/includes/sx_list_meta_head.html' %}
-<th></th>
-</tr>
-                </thead>
+          <tr>
+            {% include 'san_xuat/includes/sx_list_grid_head.html' %}
+          </tr>
+        </thead>
                 <tbody>
                     {% for bom in page_obj %}
                     <tr class="jp-npl-catalog-row"
                         data-href="{% url 'san_xuat:doc_detail' bom.tech_doc_id %}?tab=bom&bom={{ bom.pk }}">
-<td>
+                        <td class="npl-col" data-col="product_code">
                             <a href="{% url 'san_xuat:doc_detail' bom.tech_doc_id %}?tab=bom&bom={{ bom.pk }}"
                                class="text-decoration-none fw-semibold">{{ bom.tech_doc.product_code }}</a>
                         </td>
-                        <td>{{ bom.tech_doc.product_name|default:"—" }}</td>
-                        <td>{{ bom.version_label }}</td>
-                        <td>
+                        <td class="npl-col" data-col="product_name">{{ bom.tech_doc.product_name|default:"—" }}</td>
+                        <td class="npl-col" data-col="version">{{ bom.version_label }}</td>
+                        <td class="npl-col" data-col="status">
                             {% if bom.status == 'active' %}
                             <span class="badge bg-success-subtle text-success border">Đang dùng</span>
                             {% elif bom.status == 'draft' %}
@@ -90,15 +83,15 @@
                             <span class="badge bg-secondary-subtle text-secondary border">Lưu trữ</span>
                             {% endif %}
                         </td>
-<td class="text-end">{{ bom.line_count }}</td>
-                        <td class="text-end">{{ bom.step_count }}</td>
-                        <td class="small text-muted">{{ bom.updated_at|date:"d/m/Y H:i" }}</td>
-                                    {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=bom %}
-<td class="text-end">
+                        <td class="npl-col" data-col="line_count">{{ bom.line_count }}</td>
+                        <td class="npl-col" data-col="step_count">{{ bom.step_count }}</td>
+                        <td class="npl-col" data-col="updated_at">{{ bom.updated_at|date:"d/m/Y H:i" }}</td>
+                        {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=bom %}
+                        <td class="npl-col" data-col="actions">
                             <a href="{% url 'san_xuat:doc_detail' bom.tech_doc_id %}?tab=bom&bom={{ bom.pk }}"
                                class="btn btn-sm btn-outline-hm">Mở</a>
                         </td>
-</tr>
+                    </tr>
                     {% empty %}
                     <tr>
                         <td colspan="14" class="text-center text-muted py-4">Chưa có phiên bản BOM.</td>
@@ -114,4 +107,5 @@
         {% endif %}
     </div>
 </div>
+{% include 'san_xuat/includes/sx_list_grid_scripts.html' %}
 {% endblock %}

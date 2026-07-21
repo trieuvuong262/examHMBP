@@ -47,6 +47,8 @@ def hub(request):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def doc_list(request):
+    from san_xuat.list_grid import apply_sx_list_sort, sx_list_grid_context
+
     search_query = get_search_query(request)
     qs = ProductTechDoc.objects.all()
     qs = apply_term_search(
@@ -56,12 +58,14 @@ def doc_list(request):
         'product_name__icontains',
         'notes__icontains',
     )
+    qs = apply_sx_list_sort(qs, request, 'doc_list')
     page_obj, query_string = paginate_queryset(request, qs)
     return render(request, 'san_xuat/doc_list.html', {
         'page_obj': page_obj,
         'query_string': query_string,
         'search_query': search_query,
         'total_count': ProductTechDoc.objects.count(),
+        **sx_list_grid_context(request, 'doc_list'),
         **_perm_ctx(request),
     })
 
@@ -78,6 +82,8 @@ def bom_list(request):
         sx_filter_context,
     )
 
+    from san_xuat.list_grid import apply_sx_list_sort, sx_list_grid_context
+
     filters = parse_sx_list_filters(request)
     status = (request.GET.get('status') or '').strip().lower()
     qs = (
@@ -86,7 +92,6 @@ def bom_list(request):
             line_count=Count('lines', distinct=True),
             step_count=Count('process_steps', distinct=True),
         )
-        .order_by('-updated_at', '-pk')
     )
     if status in {
         BomVersion.STATUS_DRAFT,
@@ -95,6 +100,7 @@ def bom_list(request):
     }:
         qs = qs.filter(status=status)
     qs = apply_sx_list_filters(qs, filters, SX_FILTER_BOM)
+    qs = apply_sx_list_sort(qs, request, 'bom_list')
     page_obj, query_string = paginate_queryset(request, qs)
     return render(request, 'san_xuat/bom_list.html', {
         'page_obj': page_obj,
@@ -103,6 +109,7 @@ def bom_list(request):
         'status_choices': BomVersion.STATUS_CHOICES,
         'total_count': BomVersion.objects.count(),
         **sx_filter_context(filters),
+        **sx_list_grid_context(request, 'bom_list'),
         **_perm_ctx(request),
     })
 

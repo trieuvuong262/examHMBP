@@ -11,6 +11,7 @@
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
       <a href="{% url 'san_xuat:qc_alerts' %}"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>Cảnh báo chất lượng</a>
+      {% include 'san_xuat/includes/sx_list_col_picker.html' %}
     </nav>
   </div>
 
@@ -20,21 +21,20 @@
     <div class="table-responsive">
       <table class="table table-hover table-sm mb-0 align-middle">
         <thead class="table-light">
-          <tr><th>Mã</th><th>Lệnh sản xuất</th><th>Hướng xử lý</th><th>Số lượng</th><th>Trạng thái</th>
-            {% include 'san_xuat/includes/sx_list_meta_head.html' %}
-<th></th>
-</tr>
+          <tr>
+            {% include 'san_xuat/includes/sx_list_grid_head.html' %}
+          </tr>
         </thead>
         <tbody>
           {% for c in cases %}
           <tr class="jp-npl-catalog-row" data-href="{% url 'san_xuat:ncr_detail' c.pk %}">
-            <td>{{ c.code }}</td>
-            <td>{{ c.production_order.code }}</td>
-            <td>{{ c.get_disposition_display }}</td>
-            <td>{{ c.qty }}</td>
-            <td>{{ c.get_status_display }}</td>
+            <td class="npl-col" data-col="code">{{ c.code }}</td>
+            <td class="npl-col" data-col="mo">{{ c.production_order.code }}</td>
+            <td class="npl-col" data-col="disposition">{{ c.get_disposition_display }}</td>
+            <td class="npl-col" data-col="qty">{{ c.qty }}</td>
+            <td class="npl-col" data-col="status">{{ c.get_status_display }}</td>
             {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=c %}
-<td><a href="{% url 'san_xuat:ncr_detail' c.pk %}">Xem</a></td>
+<td class="npl-col" data-col="actions"><a href="{% url 'san_xuat:ncr_detail' c.pk %}">Xem</a></td>
 </tr>
           {% empty %}
           <tr><td colspan="12" class="text-muted text-center py-3">Chưa có phiếu xử lý — tạo từ cảnh báo chất lượng.</td></tr>
@@ -44,4 +44,5 @@
     </div>
   </div>
 </div>
+{% include 'san_xuat/includes/sx_list_grid_scripts.html' %}
 {% endblock %}

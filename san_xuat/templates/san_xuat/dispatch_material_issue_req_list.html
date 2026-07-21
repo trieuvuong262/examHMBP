@@ -14,6 +14,7 @@
     <nav class="jp-sx-tools" aria-label="Công cụ">
       <a href="{% url 'san_xuat:dispatch_material_issue_req' %}"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>Tất cả</a>
       <a href="{% url 'san_xuat:dispatch_mo' %}"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>Lệnh sản xuất</a>
+      {% include 'san_xuat/includes/sx_list_col_picker.html' %}
     </nav>
   </div>
 
@@ -31,36 +32,30 @@
   {% include 'san_xuat/includes/sx_list_filter.html' %}
   <div class="card border-0 shadow-sm overflow-hidden">
     <div class="jp-npl-mat-grid-wrap">
-      <table class="table table-hover align-middle mb-0">
+      <table class="table table-hover align-middle mb-0 jp-npl-mat-grid" id="{{ sx_list_table_id }}">
         <thead class="table-light">
           <tr>
-            <th>Mã</th>
-            <th>Lệnh sản xuất</th>
-            <th>Ngày</th>
-            <th>Trạng thái</th>
-            <th>Phiếu xuất</th>
-            {% include 'san_xuat/includes/sx_list_meta_head.html' %}
-<th class="text-end"> </th>
-</tr>
-</thead>
+            {% include 'san_xuat/includes/sx_list_grid_head.html' %}
+          </tr>
+        </thead>
         <tbody>
         {% for req in requests %}
           <tr class="jp-npl-catalog-row" data-href="{% url 'san_xuat:dispatch_material_issue_req_detail' req.pk %}">
-            <td><strong>{{ req.code }}</strong></td>
-            <td class="small text-muted">
+            <td class="npl-col" data-col="code"><strong>{{ req.code }}</strong></td>
+            <td class="npl-col" data-col="mo">
               <a href="{% url 'san_xuat:dispatch_mo_detail' req.production_order.pk %}">{{ req.production_order.code }}</a>
             </td>
-            <td class="small text-muted">{{ req.request_date|date:"d/m/Y" }}</td>
-            <td>
+            <td class="npl-col" data-col="request_date">{{ req.request_date|date:"d/m/Y" }}</td>
+            <td class="npl-col" data-col="status">
               <span class="badge bg-secondary-subtle text-secondary border">{{ req.status }}</span>
             </td>
-            <td class="small text-muted">
+            <td class="npl-col" data-col="issue_doc">
               {% if req.stock_issue %}
                 <a href="{% url 'kho_npl:issue_detail' req.stock_issue.pk %}">{{ req.stock_issue.number }}</a>
               {% else %}—{% endif %}
             </td>
             {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=req %}
-<td class="text-end">
+<td class="npl-col" data-col="actions">
               <a href="{% url 'san_xuat:dispatch_material_issue_req_detail' req.pk %}" class="btn btn-sm btn-outline-hm">Mở</a>
             </td>
 </tr>
@@ -76,5 +71,5 @@
     </div>
   </div>
 </div>
+{% include 'san_xuat/includes/sx_list_grid_scripts.html' %}
 {% endblock %}
-

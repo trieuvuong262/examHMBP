@@ -17,42 +17,34 @@
       <a href="{% url 'san_xuat:doc_list' %}"><i class="bi bi-folder" aria-hidden="true"></i>Hồ sơ SX</a>
       <span class="sep" aria-hidden="true"></span>
       <a href="{% url 'san_xuat:redirect_costing' %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại</a>
+      {% include 'san_xuat/includes/sx_list_col_picker.html' %}
     </nav>
   </div>
 
   {% include 'san_xuat/includes/sx_list_filter.html' %}
   <div class="card border-0 shadow-sm overflow-hidden">
     <div class="jp-npl-mat-grid-wrap">
-      <table class="table table-hover align-middle mb-0 jp-npl-mat-grid">
+      <table class="table table-hover align-middle mb-0 jp-npl-mat-grid" id="{{ sx_list_table_id }}">
         <thead class="table-light">
           <tr>
-            <th>Mã sản phẩm</th>
-            <th>Tên</th>
-            <th class="text-end">Nguyên phụ liệu</th>
-            <th class="text-end">Nhân công</th>
-            <th class="text-end">Phụ phí</th>
-            <th class="text-end">Tổng GT</th>
-            <th class="text-end">Giá bán</th>
-            <th class="text-end">Biên</th>
-            {% include 'san_xuat/includes/sx_list_meta_head.html' %}
-            <th class="text-end"></th>
+            {% include 'san_xuat/includes/sx_list_grid_head.html' %}
           </tr>
         </thead>
         <tbody>
         {% for doc, bom, costing in rows %}
           <tr>
-            <td><strong>{{ costing.product_code|default:doc.product_code }}</strong></td>
-            <td class="small">{{ costing.product_name|default:doc.product_name|default:"—" }}</td>
-            <td class="text-end">{{ costing.material_cost|floatformat:0|intcomma }}</td>
-            <td class="text-end">{{ costing.labor_cost|floatformat:0|intcomma }}</td>
-            <td class="text-end">{{ costing.overhead_cost|floatformat:0|intcomma }}</td>
-            <td class="text-end fw-semibold text-hm">{{ costing.total_cost|floatformat:0|intcomma }}</td>
-            <td class="text-end">{{ costing.sell_price|floatformat:0|intcomma }}</td>
-            <td class="text-end {% if costing.margin >= 0 %}text-success{% else %}text-danger{% endif %}">
+            <td class="npl-col" data-col="product_code"><strong>{{ costing.product_code|default:doc.product_code }}</strong></td>
+            <td class="npl-col small" data-col="product_name">{{ costing.product_name|default:doc.product_name|default:"—" }}</td>
+            <td class="npl-col text-end" data-col="material">{{ costing.material_cost|floatformat:0|intcomma }}</td>
+            <td class="npl-col text-end" data-col="labor">{{ costing.labor_cost|floatformat:0|intcomma }}</td>
+            <td class="npl-col text-end" data-col="overhead">{{ costing.overhead_cost|floatformat:0|intcomma }}</td>
+            <td class="npl-col text-end fw-semibold text-hm" data-col="total">{{ costing.total_cost|floatformat:0|intcomma }}</td>
+            <td class="npl-col text-end" data-col="sell_price">{{ costing.sell_price|floatformat:0|intcomma }}</td>
+            <td class="npl-col text-end {% if costing.margin >= 0 %}text-success{% else %}text-danger{% endif %}" data-col="margin">
               {{ costing.margin|floatformat:0|intcomma }}
             </td>
             {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=doc %}
-            <td class="text-end">
+            <td class="npl-col text-end" data-col="actions">
               <a href="{% url 'san_xuat:doc_detail' doc.pk %}?tab=costing&bom={{ bom.pk }}" class="btn btn-sm btn-outline-hm">Chi tiết</a>
             </td>
           </tr>
@@ -68,4 +60,5 @@
     </div>
   </div>
 </div>
+{% include 'san_xuat/includes/sx_list_grid_scripts.html' %}
 {% endblock %}

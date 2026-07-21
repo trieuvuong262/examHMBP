@@ -15,6 +15,7 @@
             {% if can_create %}
     <a href="{% url 'san_xuat:subcontract_create' %}" class="btn btn-hm btn-sm fw-bold">Tạo lệnh GC</a>
     {% endif %}
+      {% include 'san_xuat/includes/sx_list_col_picker.html' %}
     </nav>
   </div>
 
@@ -22,30 +23,23 @@
 
   <div class="card border-0 shadow-sm overflow-hidden">
     <div class="jp-npl-mat-grid-wrap">
-      <table class="table table-hover align-middle mb-0 jp-npl-mat-grid">
+      <table class="table table-hover align-middle mb-0 jp-npl-mat-grid" id="{{ sx_list_table_id }}">
         <thead class="table-light">
           <tr>
-            <th>Mã</th>
-            <th>NCC Gia công</th>
-            <th>SP</th>
-            <th class="text-end">Số lượng</th>
-            <th>Ngày</th>
-            <th>Trạng thái</th>
-            {% include 'san_xuat/includes/sx_list_meta_head.html' %}
-<th class="text-end"></th>
-</tr>
+            {% include 'san_xuat/includes/sx_list_grid_head.html' %}
+          </tr>
         </thead>
         <tbody>
         {% for item in items %}
           <tr class="jp-npl-catalog-row" data-href="{% url 'san_xuat:subcontract_detail' item.pk %}">
-            <td><strong>{{ item.code }}</strong></td>
-            <td class="small">{{ item.vendor_name }}</td>
-            <td class="small">{{ item.product_code }}</td>
-<td class="text-end">{{ item.qty }}</td>
-            <td class="small">{{ item.order_date|date:"d/m/Y" }}</td>
-            <td class="small">{{ item.get_status_display }}</td>
+            <td class="npl-col" data-col="code"><strong>{{ item.code }}</strong></td>
+            <td class="npl-col" data-col="vendor">{{ item.vendor_name }}</td>
+            <td class="npl-col" data-col="product">{{ item.product_code }}</td>
+<td class="npl-col" data-col="qty">{{ item.qty }}</td>
+            <td class="npl-col" data-col="order_date">{{ item.order_date|date:"d/m/Y" }}</td>
+            <td class="npl-col" data-col="status">{{ item.get_status_display }}</td>
                         {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=item %}
-<td class="text-end"><a href="{% url 'san_xuat:subcontract_detail' item.pk %}" class="btn btn-sm btn-outline-hm">Mở</a></td>
+<td class="npl-col" data-col="actions"><a href="{% url 'san_xuat:subcontract_detail' item.pk %}" class="btn btn-sm btn-outline-hm">Mở</a></td>
 </tr>
         {% empty %}
           <tr><td colspan="13" class="text-muted small p-3">Chưa có lệnh gia công.</td></tr>
@@ -55,4 +49,5 @@
     </div>
   </div>
 </div>
+{% include 'san_xuat/includes/sx_list_grid_scripts.html' %}
 {% endblock %}

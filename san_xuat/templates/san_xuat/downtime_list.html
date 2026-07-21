@@ -9,6 +9,7 @@
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
       {% include 'san_xuat/includes/sx_export_btn.html' with export_key='downtime_list' %}
+      {% include 'san_xuat/includes/sx_list_col_picker.html' %}
     </nav>
   </div>
 
@@ -52,21 +53,21 @@
   {% endif %}
   <div class="card border-0 shadow-sm">
     <div class="table-responsive">
-      <table class="table table-hover table-sm mb-0">
-        <thead class="table-light"><tr><th>Mã</th><th>Ngày</th><th>Lý do</th><th>Phút</th><th>Tổ</th><th>Lệnh sản xuất</th>
-            {% include 'san_xuat/includes/sx_list_meta_head.html' %}
-</tr>
-</thead>
+      <table class="table table-hover table-sm mb-0 jp-npl-mat-grid" id="{{ sx_list_table_id }}">
+        <thead class="table-light">
+          <tr>
+            {% include 'san_xuat/includes/sx_list_grid_head.html' %}
+          </tr>
+        </thead>
         <tbody>
           {% for e in events %}
           <tr>
-            <td>{{ e.code }}</td>
-            <td>{{ e.event_date|date:"d/m/Y" }}</td>
-            <td>{{ e.reason }}</td>
-            <td>{{ e.minutes }}</td>
-            <td>{% if e.work_center %}{{ e.work_center.name }}{% else %}{{ e.team_label|default:"—" }}{% endif %}</td>
-                        {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=e %}
-<td>{% if e.production_order %}{{ e.production_order.code }}{% else %}—{% endif %}</td>
+            <td class="npl-col" data-col="code">{{ e.code }}</td>
+            <td class="npl-col" data-col="event_date">{{ e.event_date|date:"d/m/Y" }}</td>
+            <td class="npl-col" data-col="reason">{{ e.reason }}</td>
+            <td class="npl-col" data-col="minutes">{{ e.minutes }}</td>
+            <td class="npl-col" data-col="team">{% if e.work_center %}{{ e.work_center.name }}{% else %}{{ e.team_label|default:"—" }}{% endif %}</td>
+            <td class="npl-col" data-col="mo">{% if e.production_order %}{{ e.production_order.code }}{% else %}—{% endif %}</td>
 </tr>
           {% empty %}
           <tr><td colspan="12" class="text-muted text-center py-3">Chưa có sự kiện dừng.</td></tr>
@@ -76,4 +77,5 @@
     </div>
   </div>
 </div>
+{% include 'san_xuat/includes/sx_list_grid_scripts.html' %}
 {% endblock %}

@@ -114,7 +114,7 @@ def ncr_list(request):
     base_qs = SxNcrCase.objects.filter(is_demo=False).select_related(
         "production_order", "alert", "remake_order"
     ).order_by("-created_at", "-pk")
-    cases, fctx = prepare_hub_list(request, base_qs, SX_FILTER_NCR)
+    cases, fctx = prepare_hub_list(request, base_qs, SX_FILTER_NCR, list_key='ncr')
     return render(
         request,
         "san_xuat/ncr_list.html",
@@ -155,7 +155,7 @@ def actual_cost_list(request):
         .select_related("production_order")
         .order_by("-created_at")
     )
-    sheets, fctx = prepare_hub_list(request, base_qs, SX_FILTER_ACTUAL_COST)
+    sheets, fctx = prepare_hub_list(request, base_qs, SX_FILTER_ACTUAL_COST, list_key='actual_cost')
     return render(
         request,
         "san_xuat/actual_cost_list.html",
@@ -203,7 +203,7 @@ def downtime_list(request):
     base_qs = SxDowntimeEvent.objects.filter(is_demo=False).select_related(
         "work_center", "production_order"
     ).order_by("-event_date", "-pk")
-    events, fctx = prepare_hub_list(request, base_qs, SX_FILTER_DOWNTIME)
+    events, fctx = prepare_hub_list(request, base_qs, SX_FILTER_DOWNTIME, list_key='downtime')
     can_create = _perm_ctx(request).get("can_create")
     if request.method == "POST" and can_create:
         reason = (request.POST.get("reason") or "").strip()
@@ -416,7 +416,7 @@ def team_hr_map(request):
             return redirect("san_xuat:team_hr_map")
         messages.error(request, "Cần nhãn tổ và mã nhân viên.")
     base_qs = SxTeamHrMap.objects.filter(is_demo=False).order_by("team_label")
-    maps, fctx = prepare_hub_list(request, base_qs, SX_FILTER_TEAM_HR)
+    maps, fctx = prepare_hub_list(request, base_qs, SX_FILTER_TEAM_HR, list_key='team_hr')
     return render(
         request,
         "san_xuat/team_hr_map.html",

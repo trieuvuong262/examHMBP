@@ -1,0 +1,17 @@
+{% for col in list_columns %}
+<th class="npl-col jp-mat-th{% if col.align == 'end' %} text-end{% elif col.align == 'center' %} text-center{% endif %}"
+    data-col="{{ col.key }}" style="width:{% widthratio col.weight total_col_weight 100 %}%">
+    {% if col.sortable|default:True and col.key != 'actions' %}
+    <button type="button" class="jp-mat-th-sort{% if sort_key == col.key %} is-active{% endif %}"
+            data-sort="{{ col.key }}" title="Sắp xếp theo {{ col.label }}">
+        {{ col.label }}
+        {% if sort_key == col.key %}
+        <i class="bi bi-caret-{% if sort_dir == 'asc' %}up{% else %}down{% endif %}-fill jp-mat-sort-icon"></i>
+        {% endif %}
+    </button>
+    {% else %}
+    <span class="jp-mat-th-sort jp-mat-th-label{% if not col.label %} d-block{% endif %}">{{ col.label }}</span>
+    {% endif %}
+    <span class="jp-mat-col-resizer" aria-hidden="true"></span>
+</th>
+{% endfor %}

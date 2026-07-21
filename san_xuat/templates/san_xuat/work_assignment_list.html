@@ -13,6 +13,7 @@
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
       <a href="{% url 'tasks:personal_hub' %}"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>Module Công việc</a>
+      {% include 'san_xuat/includes/sx_list_col_picker.html' %}
     </nav>
   </div>
 
@@ -20,40 +21,32 @@
 
   <div class="card border-0 shadow-sm overflow-hidden">
     <div class="jp-npl-mat-grid-wrap">
-      <table class="table table-hover align-middle mb-0 jp-npl-mat-grid">
+      <table class="table table-hover align-middle mb-0 jp-npl-mat-grid" id="{{ sx_list_table_id }}">
         <thead class="table-light">
           <tr>
-            <th>Mã</th>
-            <th>Lệnh sản xuất</th>
-            <th>Tiêu đề</th>
-            <th>Tổ / công đoạn / người</th>
-            <th>WorkTask</th>
-            <th>Hạn</th>
-            <th>Trạng thái</th>
-            {% include 'san_xuat/includes/sx_list_meta_head.html' %}
-<th class="text-end"></th>
-</tr>
+            {% include 'san_xuat/includes/sx_list_grid_head.html' %}
+          </tr>
         </thead>
         <tbody>
         {% for item in items %}
           <tr class="{% if item.status == 'open' %}table-warning{% endif %}">
-            <td><strong>{{ item.code }}</strong></td>
-            <td class="small"><a href="{% url 'san_xuat:dispatch_mo_detail' item.production_order_id %}">{{ item.production_order.code }}</a></td>
-            <td>{{ item.title }}</td>
-            <td class="small">
+            <td class="npl-col" data-col="code"><strong>{{ item.code }}</strong></td>
+            <td class="npl-col" data-col="mo"><a href="{% url 'san_xuat:dispatch_mo_detail' item.production_order_id %}">{{ item.production_order.code }}</a></td>
+            <td class="npl-col" data-col="title">{{ item.title }}</td>
+            <td class="npl-col" data-col="assignee">
               {% if item.work_center %}{{ item.work_center.code }} · {% endif %}
               {{ item.process_name|default:"—" }} ·
               {% if item.assignee %}{{ item.assignee.get_full_name|default:item.assignee.username }}{% else %}{{ item.assignee_label|default:"—" }}{% endif %}
             </td>
-            <td class="small">
+            <td class="npl-col" data-col="work_task">
               {% if item.work_task_id %}
               <a href="{% url 'tasks:detail' item.work_task_id %}">#{{ item.work_task_id }}</a>
               {% else %}—{% endif %}
             </td>
-            <td class="small">{% if item.due_date %}{{ item.due_date|date:"d/m/Y" }}{% else %}—{% endif %}</td>
-            <td class="small">{{ item.get_status_display }}</td>
+            <td class="npl-col" data-col="due_date">{% if item.due_date %}{{ item.due_date|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+            <td class="npl-col" data-col="status">{{ item.get_status_display }}</td>
             {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=item %}
-<td class="text-end">
+            <td class="npl-col" data-col="actions">
               {% if can_update and item.status == 'open' %}
               <form method="post" class="d-inline">
                 {% csrf_token %}
@@ -72,4 +65,5 @@
     </div>
   </div>
 </div>
+{% include 'san_xuat/includes/sx_list_grid_scripts.html' %}
 {% endblock %}
