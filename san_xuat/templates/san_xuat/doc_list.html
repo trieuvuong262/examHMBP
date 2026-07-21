@@ -8,7 +8,7 @@
      data-loading-message="Đang tải hồ sơ…">
     <div class="jp-npl-mat-topbar">
         <h2 class="jp-npl-mat-topbar-title">Danh sách hồ sơ sản xuất</h2>
-        <div class="jp-npl-mat-topbar-actions">
+        <div class="jp-npl-mat-topbar-actions ms-auto">
       {% include 'san_xuat/includes/sx_export_btn.html' with export_key='doc_list' %}
                   {% if can_create %}
             <a href="{% url 'san_xuat:doc_create' %}" class="btn btn-hm btn-sm fw-bold">

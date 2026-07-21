@@ -35,6 +35,47 @@
     display: inline-flex;
     align-items: center;
 }
+/* Nút cạnh tiêu đề (Xuất Excel, Thêm…) luôn sát phải */
+.jp-npl-material-catalog-page.jp-sx-page .jp-npl-mat-topbar-actions,
+.jp-npl-material-catalog-page.jp-sx-product-page .jp-npl-mat-topbar-actions,
+.jp-sx-page .jp-npl-mat-topbar-actions {
+    margin-left: auto !important;
+    justify-content: flex-end;
+}
+/* Có ô tìm giữa title và nút — search đã ml-auto, không đẩy actions ra xa */
+.jp-npl-material-catalog-page.jp-sx-page .jp-npl-mat-topbar-search + .jp-npl-mat-topbar-actions,
+.jp-npl-material-catalog-page.jp-sx-product-page .jp-npl-mat-topbar-search + .jp-npl-mat-topbar-actions,
+.jp-sx-page .jp-npl-mat-topbar-search + .jp-npl-mat-topbar-actions {
+    margin-left: 0 !important;
+}
+/* Khi wrap xuống dòng dưới vẫn căn phải */
+@media (max-width: 767.98px) {
+    .jp-npl-material-catalog-page.jp-sx-page .jp-npl-mat-topbar-actions,
+    .jp-npl-material-catalog-page.jp-sx-product-page .jp-npl-mat-topbar-actions,
+    .jp-sx-page .jp-npl-mat-topbar-actions {
+        flex: 1 1 100%;
+        justify-content: flex-end;
+    }
+}
+/* Topbar trên trang chỉ có jp-sx-page (thiếu catalog grid) */
+.jp-sx-page:not(.jp-npl-material-catalog-page) .jp-npl-mat-topbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem 1rem;
+    margin-bottom: 1rem;
+}
+.jp-sx-page:not(.jp-npl-material-catalog-page) .jp-npl-mat-topbar-title {
+    margin: 0;
+    flex: 0 1 auto;
+    min-width: 0;
+}
+.jp-sx-page:not(.jp-npl-material-catalog-page) .jp-npl-mat-topbar-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    align-items: center;
+}
 .jp-npl-material-catalog-page.jp-sx-page .jp-sx-hub-links,
 .jp-npl-material-catalog-page.jp-sx-product-page .jp-sx-hub-links {
     display: flex;

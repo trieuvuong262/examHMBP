@@ -3,10 +3,8 @@
 {% block content %}
 <div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 mb-5">
   <div class="jp-npl-mat-topbar">
-    <div>
-      <h2 class="jp-npl-mat-topbar-title mb-0">Xử lý hàng không đạt</h2>
-    </div>
-    <div class="jp-npl-mat-topbar-actions ms-auto d-flex gap-2">
+    <h2 class="jp-npl-mat-topbar-title mb-0">Xử lý hàng không đạt</h2>
+    <div class="jp-npl-mat-topbar-actions ms-auto">
       {% include 'san_xuat/includes/sx_export_btn.html' with export_key='ncr_list' %}
       <a href="{% url 'san_xuat:qc_alerts' %}" class="btn btn-outline-secondary btn-sm">Cảnh báo chất lượng</a>
     </div>
