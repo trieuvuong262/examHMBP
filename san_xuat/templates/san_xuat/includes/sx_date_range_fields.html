@@ -1,0 +1,19 @@
+{# Từ ngày / Đến ngày — cùng pattern báo cáo VP team (flatpickr dd/mm/yyyy) #}
+<div class="jp-team-filter-dates">
+  <div>
+    <label class="form-label fw-bold small mb-1" for="{{ id_prefix|default:'sx-filter' }}-date-from">Từ ngày</label>
+    <input type="date"
+           name="{{ from_name|default:'date_from' }}"
+           id="{{ id_prefix|default:'sx-filter' }}-date-from"
+           value="{% if filter_date_from %}{{ filter_date_from }}{% elif date_from %}{{ date_from|date:'Y-m-d' }}{% endif %}"
+           class="form-control jp-date-vn">
+  </div>
+  <div>
+    <label class="form-label fw-bold small mb-1" for="{{ id_prefix|default:'sx-filter' }}-date-to">Đến ngày</label>
+    <input type="date"
+           name="{{ to_name|default:'date_to' }}"
+           id="{{ id_prefix|default:'sx-filter' }}-date-to"
+           value="{% if filter_date_to %}{{ filter_date_to }}{% elif date_to %}{{ date_to|date:'Y-m-d' }}{% endif %}"
+           class="form-control jp-date-vn">
+  </div>
+</div>

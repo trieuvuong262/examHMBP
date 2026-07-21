@@ -1,16 +1,7 @@
 <form method="get" id="sxPeriodFilterForm" class="card border-0 shadow-sm mb-4 jp-team-filter-form">
   {% if tab_value %}<input type="hidden" name="tab" id="sx-filter-tab" value="{{ tab_value }}">{% endif %}
   <div class="card-body p-3 jp-team-filter-body">
-    <div class="jp-team-filter-dates">
-      <div>
-        <label class="form-label fw-bold small mb-1" for="sx-date-from">Từ ngày</label>
-        <input type="date" name="date_from" id="sx-date-from" value="{{ date_from|date:'Y-m-d' }}" class="form-control jp-date-vn">
-      </div>
-      <div>
-        <label class="form-label fw-bold small mb-1" for="sx-date-to">Đến ngày</label>
-        <input type="date" name="date_to" id="sx-date-to" value="{{ date_to|date:'Y-m-d' }}" class="form-control jp-date-vn">
-      </div>
-    </div>
+    {% include 'san_xuat/includes/sx_date_range_fields.html' with id_prefix='sx-period' date_from=date_from date_to=date_to %}
     <div class="jp-team-filter-period">
       <label class="form-label fw-bold small mb-1" for="sx-month">Tháng</label>
       <input type="month" name="month" id="sx-month" value="{{ month_value }}" class="form-control">

@@ -1,0 +1,55 @@
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var FORM_IDS = [
+    'sxListFilterForm',
+    'sxPeriodFilterForm',
+    'sxBomFilterForm',
+    'sxCapacityFilterForm',
+    'sxPieceRateFilterForm',
+  ];
+
+  function submitForm(form, delay) {
+    if (!form._sxSubmitTimer) form._sxSubmitTimer = null;
+    if (form._sxSubmitTimer) window.clearTimeout(form._sxSubmitTimer);
+    form._sxSubmitTimer = window.setTimeout(function () {
+      if (typeof form.requestSubmit === 'function') form.requestSubmit();
+      else form.submit();
+    }, typeof delay === 'number' ? delay : 0);
+  }
+
+  function initSxDateForm(form) {
+    if (!form || form.dataset.sxDateBound === '1') return;
+    form.dataset.sxDateBound = '1';
+
+    if (window.flatpickr) {
+      flatpickr(form.querySelectorAll('.jp-date-vn'), {
+        dateFormat: 'Y-m-d',
+        altInput: true,
+        altFormat: 'd/m/Y',
+        allowInput: true,
+        onChange: function () { submitForm(form, 0); },
+      });
+    } else {
+      form.querySelectorAll('.jp-date-vn').forEach(function (el) {
+        el.addEventListener('change', function () { submitForm(form, 0); });
+      });
+    }
+
+    var monthEl = form.querySelector('input[type="month"][name="month"]');
+    if (monthEl) {
+      monthEl.addEventListener('change', function () {
+        form.querySelectorAll('.jp-date-vn').forEach(function (el) {
+          el.value = '';
+          if (el._flatpickr) el._flatpickr.clear();
+        });
+        submitForm(form, 0);
+      });
+    }
+  }
+
+  FORM_IDS.forEach(function (id) {
+    initSxDateForm(document.getElementById(id));
+  });
+});
+</script>

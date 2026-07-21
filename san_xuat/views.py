@@ -107,6 +107,8 @@ def bom_list(request):
         'query_string': query_string,
         'filter_status': status,
         'status_choices': BomVersion.STATUS_CHOICES,
+        'list_filter_status_options': [('', 'Tất cả'), *BomVersion.STATUS_CHOICES],
+        'list_filter_status_value': status,
         'total_count': BomVersion.objects.count(),
         **sx_filter_context(filters),
         **sx_list_grid_context(request, 'bom_list'),

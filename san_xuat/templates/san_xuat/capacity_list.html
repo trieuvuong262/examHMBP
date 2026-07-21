@@ -20,36 +20,7 @@
     </nav>
   </div>
 
-  <form method="get" class="row g-2 align-items-end mb-4">
-    <div class="col-6 col-md-2">
-      <label class="form-label small text-muted" for="sx-filter-code">Mã</label>
-      <input type="text" id="sx-filter-code" name="code" class="form-control form-control-sm"
-             value="{{ filter_code|default:'' }}" placeholder="Mã tổ/chuyền…">
-    </div>
-    <div class="col-6 col-md-3">
-      <label class="form-label small text-muted" for="sx-filter-name">Tên</label>
-      <input type="text" id="sx-filter-name" name="name" class="form-control form-control-sm"
-             value="{{ filter_name|default:'' }}" placeholder="Tên / nhãn tổ…">
-    </div>
-    <div class="col-6 col-md-2">
-      <label class="form-label small text-muted">Tháng</label>
-      <input type="month" name="month" value="{{ month_value }}" class="form-control form-control-sm">
-    </div>
-    <div class="col-6 col-md-2">
-      <label class="form-label small text-muted">Từ ngày</label>
-      <input type="date" name="date_from" value="{{ filter_date_from|default:date_from|date:'Y-m-d' }}" class="form-control form-control-sm">
-    </div>
-    <div class="col-6 col-md-2">
-      <label class="form-label small text-muted">Đến ngày</label>
-      <input type="date" name="date_to" value="{{ filter_date_to|default:date_to|date:'Y-m-d' }}" class="form-control form-control-sm">
-    </div>
-    <div class="col-auto d-flex gap-1">
-      <button type="submit" class="btn btn-hm btn-sm">Lọc</button>
-      {% if has_list_filters or list_filter_preserve %}
-      <a href="{% url 'san_xuat:capacity_list' %}" class="btn btn-outline-secondary btn-sm" title="Xóa lọc">×</a>
-      {% endif %}
-    </div>
-  </form>
+  {% include 'san_xuat/includes/sx_capacity_filter.html' %}
 
   <h3 class="h6 text-muted mb-2">Tải kỳ {{ date_from|date:"d/m" }} – {{ date_to|date:"d/m/Y" }}</h3>
   <div class="card border-0 shadow-sm mb-4">
