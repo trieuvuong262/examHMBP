@@ -1,16 +1,20 @@
 {% extends 'base.html' %}
 {% block extra_head %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+
 {% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}
 {% endblock %}
+
 {% block content %}
 <div class="container jp-page jp-npl-material-catalog-page jp-sx-page py-3 py-md-4 mb-5">
-  <div class="jp-npl-mat-topbar">
-    <div class="jp-npl-mat-topbar-title-wrap">
-      <h2 class="jp-npl-mat-topbar-title mb-0">{{ item.code }}</h2>
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title w-100">{{ item.code }}</h2>
     </div>
-    <div class="jp-npl-mat-topbar-actions ms-auto">
-      <a href="{% url 'san_xuat:dispatch_wip_return' %}" class="btn btn-outline-secondary btn-sm fw-bold">Quay lại</a>
-    </div>
+    <nav class="jp-sx-tools" aria-label="Công cụ">
+      <span class="sep" aria-hidden="true"></span>
+      <a href="{% url 'san_xuat:dispatch_wip_return' %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại</a>
+    </nav>
   </div>
   <div class="row g-3">
     <div class="col-12 col-lg-7">
@@ -53,12 +57,12 @@
           <form method="post" class="mb-3">
             {% csrf_token %}
             <input type="hidden" name="action" value="confirm">
-            <button type="submit" class="btn btn-success w-100">Xác nhận trả bán thành phẩm</button>
+            <button type="submit" class="btn btn-success btn-sm">Xác nhận trả bán thành phẩm</button>
           </form>
           <form method="post">
             {% csrf_token %}
             <input type="hidden" name="action" value="cancel">
-            <button type="submit" class="btn btn-outline-danger w-100">Hủy phiếu</button>
+            <button type="submit" class="btn btn-outline-danger btn-sm">Hủy phiếu</button>
           </form>
           {% else %}
           <div class="text-muted small">Không có hành động khả dụng.</div>

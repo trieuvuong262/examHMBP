@@ -176,6 +176,18 @@ class BomLine(models.Model):
         factor = Decimal('1') + (self.scrap_pct or Decimal('0')) / Decimal('100')
         return (self.qty * factor).quantize(Decimal('0.0001'))
 
+    def resolve_issue_material(self, *, needed_qty: Decimal | None = None):
+        """Chọn NVL xuất: ưu tiên mã chính; nếu tồn khả dụng thiếu và có NVL thay thế thì dùng thay thế."""
+        from kho_npl.services.reservation import material_available_qty
+
+        primary = self.material
+        if not self.substitute_material_id:
+            return primary
+        need = needed_qty if needed_qty is not None else Decimal('0')
+        if material_available_qty(primary) >= need:
+            return primary
+        return self.substitute_material
+
 
 class ProcessStep(models.Model):
     bom = models.ForeignKey(

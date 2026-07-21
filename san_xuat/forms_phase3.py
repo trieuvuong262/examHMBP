@@ -14,8 +14,8 @@ class TraceLookupForm(forms.Form):
         label="Mã tra cứu",
         widget=forms.TextInput(
             attrs={
-                "class": "form-control",
-                "placeholder": "Lệnh sản xuất / yêu cầu nhập thành phẩm / KiotViet / yêu cầu xuất / lô đóng gói / lô nguyên phụ liệu / gia công / giao việc",
+                "class": "form-control form-control-sm",
+                "placeholder": "LSX · YCX · YCNTP · lô · GC · giao việc…",
                 "autocomplete": "off",
             },
         ),

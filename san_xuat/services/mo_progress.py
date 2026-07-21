@@ -61,6 +61,25 @@ class MoProgress:
             return 0
         return int(round(100 * self.done_count / self.total_steps))
 
+    def _step_done(self, key: str) -> bool:
+        return any(s.key == key and s.done for s in self.steps)
+
+    @property
+    def issue_done(self) -> bool:
+        return self._step_done("issue")
+
+    @property
+    def stat_done(self) -> bool:
+        return self._step_done("stat")
+
+    @property
+    def fg_done(self) -> bool:
+        return self._step_done("fg")
+
+    @property
+    def packing_done(self) -> bool:
+        return self._step_done("packing")
+
 
 @dataclass
 class TraceGap:

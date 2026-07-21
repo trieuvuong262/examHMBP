@@ -1,19 +1,31 @@
 {% extends 'base.html' %}
 
 {% block extra_head %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
 <style>
 .jp-sx-mo-next {
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem;
-  align-items: center;
+  align-items: stretch;
 }
-.jp-sx-mo-next form { margin: 0; }
+.jp-sx-mo-next form {
+  margin: 0;
+  display: inline-flex;
+}
 .jp-sx-mo-next .btn {
-  padding: 0.2rem 0.55rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 1.75rem;
+  min-height: 1.75rem;
+  padding: 0 0.55rem;
   font-size: 0.78rem;
-  line-height: 1.25;
+  font-weight: 700;
+  line-height: 1;
   white-space: nowrap;
+  box-sizing: border-box;
+  border-width: 1px;
 }
 .jp-sx-mo-meta {
   display: grid;
@@ -67,19 +79,20 @@
 
 {% block content %}
 <div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
-  <div class="jp-npl-mat-topbar">
-    <div class="d-flex flex-wrap align-items-center gap-2 min-w-0">
-      <h2 class="jp-npl-mat-topbar-title mb-0">Lệnh sản xuất <span class="text-muted">({{ mo.code }})</span></h2>
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title w-100">Lệnh sản xuất <span class="text-muted">({{ mo.code }})</span></h2>
       <span class="badge {% if mo.status == 'draft' %}text-bg-secondary{% elif mo.status == 'released' %}text-bg-info{% elif mo.status == 'in_progress' %}text-bg-primary{% elif mo.status == 'done' %}text-bg-success{% elif mo.status == 'cancelled' %}text-bg-danger{% else %}text-bg-light text-dark border{% endif %}">
         {{ mo.get_status_display }}
       </span>
     </div>
-    <div class="jp-npl-mat-topbar-actions ms-auto">
-      {% if can_print %}<a href="{% url 'san_xuat:print_mo' mo.pk %}?autoprint=1" target="_blank" rel="noopener" class="btn btn-outline-secondary btn-sm fw-bold">In A5</a>{% endif %}
-      <a href="{% url 'san_xuat:run_order_wizard_mo' mo.pk %}" class="btn btn-outline-hm btn-sm fw-bold">Wizard</a>
-      <a href="{% url 'san_xuat:traceability' %}?query={{ mo.code }}&gaps=1" class="btn btn-outline-secondary btn-sm fw-bold">Thiếu bước?</a>
-      <a href="{% url 'san_xuat:dispatch_mo' %}" class="btn btn-outline-secondary btn-sm fw-bold">Quay lại</a>
-    </div>
+    <nav class="jp-sx-tools" aria-label="Công cụ lệnh sản xuất">
+      {% if can_print %}<a href="{% url 'san_xuat:print_mo' mo.pk %}?autoprint=1" target="_blank" rel="noopener"><i class="bi bi-printer" aria-hidden="true"></i>In A5</a>{% endif %}
+      <a href="{% url 'san_xuat:run_order_wizard_mo' mo.pk %}" class="is-accent"><i class="bi bi-magic" aria-hidden="true"></i>Wizard</a>
+      <a href="{% url 'san_xuat:traceability' %}?query={{ mo.code }}&gaps=1"><i class="bi bi-signpost-split" aria-hidden="true"></i>Truy vết</a>
+      <span class="sep" aria-hidden="true"></span>
+      <a href="{% url 'san_xuat:dispatch_mo' %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại</a>
+    </nav>
   </div>
 
   {# —— Tóm tắt lệnh —— #}
@@ -91,26 +104,45 @@
           <div class="text-muted small">{{ mo.product_name|default:"—" }}</div>
         </div>
         <div class="d-flex flex-wrap align-items-start gap-3 ms-auto">
-          {% if mo.status != 'draft' %}
+          {% if mo.status == 'draft' and can_update %}
           <div>
             <div class="small text-muted mb-1">Tiếp theo</div>
             <div class="jp-sx-mo-next">
+              <form method="post" id="jp-sx-mo-release" class="d-inline">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="release"/>
+                <button type="submit" class="btn btn-outline-success fw-bold">Phát hành</button>
+              </form>
+            </div>
+          </div>
+          {% elif mo.status != 'cancelled' and progress and progress.pct_complete < 100 %}
+          {% if not progress.issue_done or not progress.stat_done or not progress.fg_done %}
+          <div>
+            <div class="small text-muted mb-1">Tiếp theo</div>
+            <div class="jp-sx-mo-next">
+              {% if not progress.issue_done %}
               <form method="post">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="create_ycx"/>
                 <button type="submit" class="btn btn-hm fw-bold">Xuất VT</button>
               </form>
+              {% endif %}
+              {% if not progress.stat_done %}
               <a href="{% url 'san_xuat:dispatch_prod_stats_create' %}?mo={{ mo.pk }}"
                  class="btn btn-outline-hm fw-bold">Thống kê SX</a>
-              {% if mo.status == 'in_progress' or mo.status == 'done' %}
+              {% endif %}
+              {% if not progress.fg_done %}
+                {% if mo.status == 'in_progress' or mo.status == 'done' %}
               <form method="post">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="create_ycntp"/>
                 <button type="submit" class="btn btn-outline-secondary fw-bold">Nhập TP</button>
               </form>
+                {% endif %}
               {% endif %}
             </div>
           </div>
+          {% endif %}
           {% endif %}
           {% if progress %}
           <div class="text-end flex-shrink-0" style="min-width: 9rem;">
@@ -214,19 +246,14 @@
                 <label class="form-label small text-muted">{{ update_form.planned_end.label }}</label>
                 {{ update_form.planned_end }}
               </div>
-              <div class="col-12 col-md-6">
+              <div class="col-12">
                 <label class="form-label small text-muted">{{ update_form.notes.label }}</label>
                 {{ update_form.notes }}
               </div>
             </div>
             <div class="jp-sx-mo-next mt-3">
               <button type="submit" class="btn btn-hm fw-bold">Lưu</button>
-              <button type="submit" form="jp-sx-mo-release" class="btn btn-outline-success fw-bold">Phát hành</button>
             </div>
-          </form>
-          <form method="post" id="jp-sx-mo-release" class="d-none">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="release"/>
           </form>
         </div>
         {% else %}

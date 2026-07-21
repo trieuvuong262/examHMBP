@@ -1,12 +1,17 @@
 {% extends 'base.html' %}
 
+{% block extra_head %}{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}{% endblock %}
+
 {% block content %}
 <div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
-    <div class="jp-npl-mat-topbar">
-    <h2 class="jp-npl-mat-topbar-title">Yêu cầu mua nguyên phụ liệu {{ pr.code }}</h2>
-    <div class="jp-npl-mat-topbar-actions ms-auto">
-      <a href="{% url 'san_xuat:npl_purchase_request' %}" class="btn btn-outline-secondary btn-sm fw-bold">Quay lại</a>
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title w-100">Yêu cầu mua nguyên phụ liệu {{ pr.code }}</h2>
     </div>
+    <nav class="jp-sx-tools" aria-label="Công cụ">
+      <span class="sep" aria-hidden="true"></span>
+      <a href="{% url 'san_xuat:npl_purchase_request' %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại</a>
+    </nav>
   </div>
 
   <div class="row g-3 mb-4">
@@ -58,18 +63,18 @@
     <div class="col-12 col-lg-5">
       <div class="card border-0 shadow-sm">
         <div class="card-body">
-          <div class="small text-muted mb-3">Workflow</div>
+          <div class="small text-muted mb-3">Hành động</div>
           {% if can_update and pr.status == 'draft' %}
           <form method="post" class="mb-3">
             {% csrf_token %}
             <input type="hidden" name="action" value="submit">
-            <button type="submit" class="btn btn-hm w-100">Gửi duyệt</button>
+            <button type="submit" class="btn btn-hm btn-sm">Gửi duyệt</button>
           </form>
           {% elif can_update and pr.status == 'submitted' %}
           <form method="post" class="mb-3">
             {% csrf_token %}
             <input type="hidden" name="action" value="approve">
-            <button type="submit" class="btn btn-success w-100">Duyệt yêu cầu mua</button>
+            <button type="submit" class="btn btn-success btn-sm">Duyệt yêu cầu mua</button>
           </form>
           <form method="post">
             {% csrf_token %}
@@ -78,10 +83,10 @@
               <label class="form-label small text-muted" for="reject_notes">Lý do từ chối</label>
               <textarea name="reject_notes" id="reject_notes" class="form-control form-control-sm" rows="2"></textarea>
             </div>
-            <button type="submit" class="btn btn-outline-danger w-100">Từ chối</button>
+            <button type="submit" class="btn btn-outline-danger btn-sm">Từ chối</button>
           </form>
           {% elif pr.status == 'approved' %}
-          <a href="{% url 'san_xuat:purchase_order_create' %}?pr={{ pr.pk }}" class="btn btn-hm w-100 mb-3">Tạo đơn mua hàng (P5)</a>
+          <a href="{% url 'san_xuat:purchase_order_create' %}?pr={{ pr.pk }}" class="btn btn-hm mb-3 btn-sm">Tạo đơn mua hàng (P5)</a>
           {% if purchase_orders %}
           <div class="small text-muted mb-2">Đơn mua hàng liên quan</div>
           <ul class="mb-0">

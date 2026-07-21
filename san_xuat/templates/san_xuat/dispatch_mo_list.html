@@ -1,14 +1,17 @@
 {% extends 'base.html' %}
 {% block extra_head %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
 {% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}
 {% endblock %}
 
 {% block content %}
 <div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 py-md-4 mb-5"
      data-loading-message="Đang tải lệnh sản xuất…">
-  <div class="jp-npl-mat-topbar">
-    <h2 class="jp-npl-mat-topbar-title">{{ page_title }}</h2>
-    <div class="jp-npl-mat-topbar-actions ms-auto">
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title w-100">{{ page_title }}</h2>
+    </div>
+    <nav class="jp-sx-tools" aria-label="Công cụ">
       {% include 'san_xuat/includes/sx_export_btn.html' with export_key='dispatch_mo' %}
             {% if can_create %}
       <a href="{% url 'san_xuat:run_order_wizard' %}" class="btn btn-outline-hm btn-sm fw-bold">
@@ -18,7 +21,7 @@
         <i class="bi bi-plus-lg me-1"></i>Tạo lệnh
       </a>
       {% endif %}
-    </div>
+    </nav>
   </div>
 
   {% include 'san_xuat/includes/sx_list_filter.html' %}

@@ -92,14 +92,21 @@ class ProductionOrderUpdateForm(forms.Form):
     notes = forms.CharField(
         required=False,
         label="Ghi chú",
-        widget=forms.Textarea(attrs={"class": "form-control form-control-sm", "rows": 3}),
+        widget=forms.TextInput(attrs={
+            "class": "form-control form-control-sm",
+            "placeholder": "Ghi chú (tuỳ chọn)",
+        }),
     )
 
 
 class MaterialIssueApproveForm(forms.Form):
     attachment = forms.FileField(
         required=False,
-        label="Chứng từ (tùy chọn — có thì hệ thống sẽ xuất kho thật ngay)",
+        label="Chứng từ (tuỳ chọn)",
+        widget=forms.ClearableFileInput(attrs={
+            "class": "form-control form-control-sm",
+            "accept": "image/*,.pdf,.doc,.docx,.xls,.xlsx",
+        }),
     )
 
 
@@ -157,7 +164,10 @@ class ProductionStatCreateForm(forms.Form):
     notes = forms.CharField(
         required=False,
         label="Ghi chú",
-        widget=forms.Textarea(attrs={"class": "form-control form-control-sm", "rows": 3}),
+        widget=forms.TextInput(attrs={
+            "class": "form-control form-control-sm",
+            "placeholder": "Ghi chú (tuỳ chọn)",
+        }),
     )
 
     def clean(self):

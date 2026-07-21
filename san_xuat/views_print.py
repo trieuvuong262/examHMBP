@@ -27,7 +27,7 @@ from san_xuat.print_company import (
 )
 
 
-def _print_base_ctx(*, print_title: str, back_url: str, signature_key: str, doc_date, request):
+def _print_base_ctx(*, print_title: str, back_url: str, signature_key: str, doc_date, request, doc_code: str = ''):
     return {
         'print_title': print_title,
         'back_url': back_url,
@@ -35,6 +35,7 @@ def _print_base_ctx(*, print_title: str, back_url: str, signature_key: str, doc_
         'company_tax_code': COMPANY_TAX_CODE,
         'company_address': COMPANY_ADDRESS,
         'signature_roles': SIGNATURES[signature_key],
+        'doc_code': doc_code,
         'doc_date': doc_date,
         'printed_at': timezone.localtime(),
         'autoprint': (request.GET.get('autoprint') or '') in ('1', 'true', 'yes'),
@@ -70,6 +71,7 @@ def print_mo(request, pk: int):
             print_title=f'In LSX {mo.code}',
             back_url=reverse('san_xuat:dispatch_mo_detail', args=[mo.pk]),
             signature_key='mo',
+            doc_code=mo.code,
             doc_date=mo.order_date or timezone.localdate(),
             request=request,
         ),
@@ -93,6 +95,7 @@ def print_ycx(request, pk: int):
             print_title=f'In YCX {req.code}',
             back_url=reverse('san_xuat:dispatch_material_issue_req_detail', args=[req.pk]),
             signature_key='ycx',
+            doc_code=req.code,
             doc_date=req.request_date or timezone.localdate(),
             request=request,
         ),
@@ -121,6 +124,7 @@ def print_qc(request, pk: int):
             print_title=f'In PKT {inspection.code}',
             back_url=reverse('san_xuat:qc_sheet_detail', args=[inspection.pk]),
             signature_key='qc',
+            doc_code=inspection.code,
             doc_date=inspection.inspected_at or timezone.localdate(),
             request=request,
         ),
@@ -147,6 +151,7 @@ def print_packing(request, pk: int):
             print_title=f'In đóng gói {item.code}',
             back_url=reverse('san_xuat:packing_detail', args=[item.pk]),
             signature_key='packing',
+            doc_code=item.code,
             doc_date=item.pack_date or timezone.localdate(),
             request=request,
         ),
@@ -171,6 +176,7 @@ def print_ycntp(request, pk: int):
             print_title=f'In YCNTP {fg_req.code}',
             back_url=reverse('san_xuat:dispatch_fg_receipt_req_detail', args=[fg_req.pk]),
             signature_key='ycntp',
+            doc_code=fg_req.code,
             doc_date=fg_req.request_date or timezone.localdate(),
             request=request,
         ),
@@ -191,6 +197,7 @@ def print_handover(request, pk: int):
             print_title=f'In bàn giao {handover.code}',
             back_url=reverse('san_xuat:dispatch_wip_handover_detail', args=[handover.pk]),
             signature_key='handover',
+            doc_code=handover.code,
             doc_date=handover.handover_date or timezone.localdate(),
             request=request,
         ),
@@ -212,6 +219,7 @@ def print_subcontract(request, pk: int):
             print_title=f'In GC {item.code}',
             back_url=reverse('san_xuat:subcontract_detail', args=[item.pk]),
             signature_key='subcontract',
+            doc_code=item.code,
             doc_date=item.order_date or timezone.localdate(),
             request=request,
         ),
@@ -237,6 +245,7 @@ def print_ncr(request, pk: int):
             print_title=f'In NCR {case.code}',
             back_url=reverse('san_xuat:ncr_detail', args=[case.pk]),
             signature_key='ncr',
+            doc_code=case.code,
             doc_date=(case.confirmed_at.date() if case.confirmed_at else None)
             or (case.created_at.date() if case.created_at else timezone.localdate()),
             request=request,
@@ -262,6 +271,7 @@ def print_qc_alert(request, pk: int):
             print_title=f'In cảnh báo {alert.code}',
             back_url=reverse('san_xuat:qc_alert_detail', args=[alert.pk]),
             signature_key='qc_alert',
+            doc_code=alert.code,
             doc_date=(alert.created_at.date() if alert.created_at else timezone.localdate()),
             request=request,
         ),

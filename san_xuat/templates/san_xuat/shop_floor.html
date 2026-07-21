@@ -1,12 +1,13 @@
 {% extends 'base.html' %}
 {% block extra_head %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
 {% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}
 {% endblock %}
 {% block content %}
 <div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 mb-5">
-  <div class="jp-npl-mat-topbar">
-    <div>
-      <h2 class="jp-npl-mat-topbar-title mb-0">Xác nhận tại xưởng</h2>
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title mb-0 w-100">Xác nhận tại xưởng</h2>
     </div>
   </div>
   {% if can_update %}
@@ -31,7 +32,7 @@
           <input name="team_label" class="form-control">
         </div>
         <div class="col-md-1">
-          <button class="btn btn-hm w-100">OK</button>
+          <button class="btn btn-hm btn-sm">OK</button>
         </div>
       </form>
     </div>

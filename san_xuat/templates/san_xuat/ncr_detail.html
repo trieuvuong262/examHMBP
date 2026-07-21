@@ -1,15 +1,19 @@
 {% extends 'base.html' %}
-{% block extra_head %}{% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}{% endblock %}
+{% block extra_head %}
+{% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+{% endblock %}
 {% block content %}
 <div class="container jp-page jp-sx-page py-3 mb-5">
-  <div class="jp-npl-mat-topbar">
-    <div>
-      <h2 class="jp-npl-mat-topbar-title mb-0">Xử lý không đạt {{ case.code }}</h2>
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title w-100">Xử lý không đạt {{ case.code }}</h2>
     </div>
-    <div class="jp-npl-mat-topbar-actions ms-auto d-flex gap-1">
-      {% if can_print %}<a href="{% url 'san_xuat:print_ncr' case.pk %}?autoprint=1" target="_blank" rel="noopener" class="btn btn-outline-secondary btn-sm fw-bold">In A5</a>{% endif %}
-      <a href="{% url 'san_xuat:ncr_list' %}" class="btn btn-outline-secondary btn-sm">Danh sách</a>
-    </div>
+    <nav class="jp-sx-tools" aria-label="Công cụ">
+      {% if can_print %}<a href="{% url 'san_xuat:print_ncr' case.pk %}?autoprint=1" target="_blank" rel="noopener"><i class="bi bi-printer" aria-hidden="true"></i>In A5</a>{% endif %}
+      <span class="sep" aria-hidden="true"></span>
+      <a href="{% url 'san_xuat:ncr_list' %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại</a>
+    </nav>
   </div>
   <div class="row g-3">
     <div class="col-lg-7">
@@ -38,7 +42,7 @@
           <form method="post">
             {% csrf_token %}
             <input type="hidden" name="action" value="confirm">
-            <button class="btn btn-hm w-100">Xác nhận xử lý</button>
+            <button class="btn btn-hm btn-sm">Xác nhận xử lý</button>
           </form>
           {% else %}
           <div class="text-muted small">Đã xử lý hoặc không có quyền.</div>

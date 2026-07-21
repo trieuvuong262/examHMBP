@@ -1,0 +1,88 @@
+{# Topbar công cụ chi tiết SX: In A5 · … · Quay lại (link gọn + icon) #}
+<style>
+.jp-sx-page .jp-npl-mat-topbar.jp-sx-detail-topbar,
+.jp-sx-page .jp-npl-mat-topbar.w-100 {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  width: 100% !important;
+}
+.jp-sx-detail-title {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.jp-sx-detail-title .jp-npl-mat-topbar-title {
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.jp-sx-tools {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.15rem 0.1rem;
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+.jp-sx-tools a:not(.btn) {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0.55rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--bs-secondary-color);
+  text-decoration: none;
+  border-radius: 0.35rem;
+  line-height: 1.3;
+  white-space: nowrap;
+  transition: color .12s ease, background-color .12s ease;
+}
+.jp-sx-tools a:not(.btn) i {
+  font-size: 0.95em;
+  line-height: 1;
+}
+.jp-sx-tools a:not(.btn):hover {
+  color: var(--bs-body-color);
+  background: rgba(0, 0, 0, 0.045);
+}
+.jp-sx-tools a.is-accent:not(.btn) {
+  color: var(--hm-red, #dc2626);
+}
+.jp-sx-tools a.is-accent:not(.btn):hover {
+  background: rgba(220, 38, 38, 0.08);
+  color: var(--hm-red, #dc2626);
+}
+.jp-sx-tools .btn {
+  margin: 0;
+  white-space: nowrap;
+}
+.jp-sx-tools .sep {
+  width: 1px;
+  height: 1rem;
+  margin: 0 0.35rem;
+  background: var(--bs-border-color);
+  flex-shrink: 0;
+}
+.jp-sx-tools a.is-back:not(.btn) {
+  color: var(--bs-body-color);
+  font-weight: 600;
+}
+@media (max-width: 575.98px) {
+  .jp-sx-page .jp-npl-mat-topbar.jp-sx-detail-topbar,
+  .jp-sx-page .jp-npl-mat-topbar.w-100 {
+    flex-wrap: wrap;
+  }
+  .jp-sx-tools {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+}
+</style>

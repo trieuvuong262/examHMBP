@@ -1,20 +1,19 @@
 {% extends 'base.html' %}
 
+{% block extra_head %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+{% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}
+{% endblock %}
+
 {% block content %}
 <div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 py-md-4 mb-5">
-    <div class="jp-page-header mb-3 mb-md-4">
-        <div>
-            <h2 class="fw-bold text-hm mb-1 jp-page-title">Giá thành kế hoạch</h2>
+    <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+        <div class="jp-sx-detail-title">
+            <h2 class="jp-npl-mat-topbar-title w-100">Giá thành kế hoạch</h2>
         </div>
-        <a href="{% url 'san_xuat:overview' %}" class="btn btn-outline-secondary btn-sm">
-            <i class="bi bi-arrow-left me-1"></i>Tổng quan
-        </a>
-    </div>
-
-    <div class="alert alert-light border mb-4" role="status">
-        <strong>GT kế hoạch</strong> = ước tính trước / theo BOM và đơn hàng (định mức, báo giá).
-        <strong>GT thực tế</strong> = chốt sau sản xuất từ NVL đã xuất + lương sản phẩm + phí gia công
-        — mở tại <a href="{% url 'san_xuat:actual_cost_list' %}">Giá thành thực tế</a>.
+        <nav class="jp-sx-tools" aria-label="Công cụ">
+            <a href="{% url 'san_xuat:overview' %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Tổng quan</a>
+        </nav>
     </div>
 
     <div class="list-group list-group-flush border rounded-3 mb-4">

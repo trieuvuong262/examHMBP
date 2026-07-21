@@ -1,12 +1,17 @@
 {% extends 'base.html' %}
 
+{% block extra_head %}{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}{% endblock %}
+
 {% block content %}
 <div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
-    <div class="jp-npl-mat-topbar">
-    <h2 class="jp-npl-mat-topbar-title">{{ title }}</h2>
-    <div class="jp-npl-mat-topbar-actions ms-auto">
-      <a href="{% url back_url %}" class="btn btn-outline-secondary btn-sm fw-bold">Quay lại</a>
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title w-100">{{ title }}</h2>
     </div>
+    <nav class="jp-sx-tools" aria-label="Công cụ">
+      <span class="sep" aria-hidden="true"></span>
+      <a href="{% url back_url %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại</a>
+    </nav>
   </div>
   <div class="card border-0 shadow-sm">
     <div class="card-body">

@@ -1,5 +1,13 @@
-<div>
-  <div class="co-name">{{ company_name }}</div>
-  <div class="co-meta">MST: {{ company_tax_code }}</div>
-  <div class="co-meta">Địa chỉ: {{ company_address }}</div>
+<div class="print-header">
+  <div class="print-header-co">
+    <div class="co-name">{{ company_name }}</div>
+    <div class="co-meta">MST: {{ company_tax_code }}</div>
+    <div class="co-meta">Địa chỉ: {{ company_address }}</div>
+  </div>
+  {% if doc_code %}
+  <div class="print-header-doc">
+    Số: <strong>{{ doc_code }}</strong>
+    · Ngày làm phiếu: <strong>{% if doc_date %}{{ doc_date|date:"d/m/Y" }}{% else %}—{% endif %}</strong>
+  </div>
+  {% endif %}
 </div>

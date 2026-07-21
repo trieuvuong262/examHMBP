@@ -1,20 +1,19 @@
 {% extends 'base.html' %}
 {% block extra_head %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+
 {% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}
 {% endblock %}
 
 {% block content %}
 <div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 py-md-4 mb-5">
-      <div class="jp-npl-mat-topbar">
-    <h2 class="jp-npl-mat-topbar-title">Phiếu kiểm tra</h2>
-    <div class="jp-npl-mat-topbar-actions ms-auto">
-      {% include 'san_xuat/includes/sx_export_btn.html' with export_key='qc_sheet' %}
-            {% if can_create %}
-            <a href="{% url 'san_xuat:qc_sheet_create' %}" class="btn btn-hm btn-sm fw-bold">Tạo phiếu kiểm tra</a>
-            {% endif %}
-      
-      <a href="{% url 'san_xuat:qc_stub' %}" class="btn btn-outline-secondary btn-sm fw-bold">QC</a>
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title w-100">Phiếu kiểm tra</h2>
     </div>
+    <nav class="jp-sx-tools" aria-label="Công cụ">
+      <a href="{% url 'san_xuat:qc_stub' %}"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>QC</a>
+    </nav>
   </div>
 
   {% include 'san_xuat/includes/sx_list_filter.html' %}

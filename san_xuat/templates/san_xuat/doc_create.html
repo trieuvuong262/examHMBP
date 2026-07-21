@@ -1,12 +1,17 @@
 {% extends 'base.html' %}
 
+{% block extra_head %}{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}{% endblock %}
+
 {% block content %}
-<div class="container jp-page jp-sx-page py-3 py-md-4 mb-5" style="max-width: 640px;">
-      <div class="jp-npl-mat-topbar">
-    <h2 class="jp-npl-mat-topbar-title">Thêm hồ sơ SX</h2>
-    <div class="jp-npl-mat-topbar-actions ms-auto">
-      <a href="{% url 'san_xuat:doc_list' %}" class="btn btn-outline-secondary">Quay lại</a>
+<div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title w-100">Thêm hồ sơ SX</h2>
     </div>
+    <nav class="jp-sx-tools" aria-label="Công cụ">
+      <span class="sep" aria-hidden="true"></span>
+      <a href="{% url 'san_xuat:doc_list' %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại</a>
+    </nav>
   </div>
 
     <div class="card border-0 shadow-sm">
@@ -17,8 +22,7 @@
                     <label class="form-label" for="{{ form.product_code.id_for_label }}">{{ form.product_code.label }}</label>
                     {{ form.product_code }}
                     <datalist id="sx-product-code-list"></datalist>
-                    <div class="form-text">Gõ để tìm mã trên mirror KiotViet.</div>
-                    {% if form.product_code.errors %}<div class="text-danger small">{{ form.product_code.errors }}</div>{% endif %}
+{% if form.product_code.errors %}<div class="text-danger small">{{ form.product_code.errors }}</div>{% endif %}
                 </div>
                 <div class="mb-3">
                     <label class="form-label" for="{{ form.notes.id_for_label }}">{{ form.notes.label }}</label>

@@ -1,98 +1,202 @@
 {% extends 'base.html' %}
 
+{% block extra_head %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+<style>
+.jp-sx-ycx-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem 1rem;
+}
+@media (min-width: 768px) {
+  .jp-sx-ycx-meta { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+.jp-sx-ycx-meta .label {
+  font-size: 0.72rem;
+  color: var(--bs-secondary-color);
+  margin-bottom: 0.1rem;
+}
+.jp-sx-ycx-meta .value {
+  font-weight: 600;
+  font-size: 0.95rem;
+  line-height: 1.25;
+}
+.jp-sx-ycx-section {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--bs-secondary-color);
+  margin: 0 0 0.5rem;
+}
+.jp-sx-ycx-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.45rem 0.55rem;
+}
+.jp-sx-ycx-actions .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 1.75rem;
+  min-height: 1.75rem;
+  padding: 0 0.7rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1;
+  border-width: 1px;
+  white-space: nowrap;
+}
+.jp-sx-ycx-actions .field {
+  flex: 1 1 14rem;
+  min-width: 12rem;
+  max-width: 22rem;
+}
+.jp-sx-ycx-actions .field label {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--bs-secondary-color);
+  margin-bottom: 0.15rem;
+}
+.jp-sx-ycx-actions input[type="file"].form-control,
+.jp-sx-ycx-actions .form-control[type="file"] {
+  height: 1.75rem;
+  min-height: 1.75rem;
+  padding: 0.15rem 0.45rem;
+  font-size: 0.78rem;
+  line-height: 1.2;
+}
+.jp-sx-ycx-actions input[type="file"].form-control::file-selector-button,
+.jp-sx-ycx-actions .form-control[type="file"]::file-selector-button {
+  height: calc(1.75rem - 2px);
+  margin: -0.15rem 0.45rem -0.15rem -0.45rem;
+  padding: 0 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: 0;
+  border-right: 1px solid var(--bs-border-color);
+  background: var(--bs-tertiary-bg, #f8f9fa);
+  color: var(--bs-body-color);
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
-    <div class="jp-npl-mat-topbar">
-    <h2 class="jp-npl-mat-topbar-title">Yêu cầu xuất vật tư <span class="text-muted">({{ req.code }})</span></h2>
-    <div class="jp-npl-mat-topbar-actions ms-auto">
-      {% if can_print %}<a href="{% url 'san_xuat:print_ycx' req.pk %}?autoprint=1" target="_blank" rel="noopener" class="btn btn-outline-secondary btn-sm fw-bold">In A5</a>{% endif %}
-      <a href="{% url 'san_xuat:dispatch_material_issue_req' %}" class="btn btn-outline-secondary btn-sm fw-bold">Quay lại</a>
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title w-100">Yêu cầu xuất VT <span class="text-muted">({{ req.code }})</span></h2>
+      <span class="badge {% if req.status == 'draft' %}text-bg-secondary{% elif req.status == 'submitted' %}text-bg-info{% elif req.status == 'approved' %}text-bg-primary{% elif req.status == 'done' %}text-bg-success{% elif req.status == 'cancelled' %}text-bg-danger{% else %}text-bg-light text-dark border{% endif %}">
+        {% if req.status == 'draft' %}Nháp
+        {% elif req.status == 'submitted' %}Đã gửi
+        {% elif req.status == 'approved' %}Đã duyệt
+        {% elif req.status == 'done' %}Hoàn thành
+        {% elif req.status == 'cancelled' %}Hủy
+        {% else %}{{ req.status }}{% endif %}
+      </span>
     </div>
+    <nav class="jp-sx-tools" aria-label="Công cụ">
+      {% if can_print %}<a href="{% url 'san_xuat:print_ycx' req.pk %}?autoprint=1" target="_blank" rel="noopener"><i class="bi bi-printer" aria-hidden="true"></i>In A5</a>{% endif %}
+      {% if req.production_order %}
+      <a href="{% url 'san_xuat:dispatch_mo_detail' req.production_order.pk %}"><i class="bi bi-file-earmark-gear" aria-hidden="true"></i>{{ req.production_order.code }}</a>
+      {% endif %}
+      <span class="sep" aria-hidden="true"></span>
+      <a href="{% url 'san_xuat:dispatch_material_issue_req' %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại</a>
+    </nav>
   </div>
 
-  <div class="row g-3 mb-4">
-    <div class="col-12 col-lg-6">
-      <div class="card border-0 shadow-sm h-100">
-        <div class="card-body">
-          <div class="small text-muted mb-2">Thông tin</div>
-          <div class="row g-2">
-            <div class="col-6">
-              <div class="small text-muted">Ngày yêu cầu</div>
-              <div class="small">{{ req.request_date|date:"d/m/Y" }}</div>
-            </div>
-            <div class="col-6">
-              <div class="small text-muted">Tạo</div>
-              <div class="small text-muted">{{ req.created_at|date:"d/m/Y H:i" }}</div>
-            </div>
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-body">
+      <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+        <div class="min-w-0">
+          {% if req.production_order %}
+          <div class="fw-semibold fs-5 mb-0">{{ req.production_order.product_code }}</div>
+          <div class="text-muted small">
+            LSX <a href="{% url 'san_xuat:dispatch_mo_detail' req.production_order.pk %}">{{ req.production_order.code }}</a>
+            {% if req.production_order.product_name %} · {{ req.production_order.product_name }}{% endif %}
           </div>
-          {% if req.notes %}
-          <div class="mt-3">
-            <div class="small text-muted">Ghi chú</div>
-            <div class="small">{{ req.notes }}</div>
-          </div>
-          {% endif %}
-        </div>
-      </div>
-    </div>
-
-    <div class="col-12 col-lg-6">
-      <div class="card border-0 shadow-sm h-100">
-        <div class="card-body">
-          <div class="small text-muted mb-3">Duyệt yêu cầu xuất</div>
-
-          {% if can_update and not req.stock_issue %}
-            {% if req.status == 'draft' or req.status == 'submitted' or req.status == 'approved' %}
-              <form method="post" enctype="multipart/form-data">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="approve"/>
-                <div class="mb-3">
-                  <label class="form-label small text-muted">{{ form.attachment.label }}</label>
-                  {{ form.attachment }}
-                  <div class="form-text">
-                    Nếu không upload, hệ thống chỉ tạo phiếu xuất kho nháp. Nếu upload thì hệ thống sẽ xuất kho thật ngay.
-                  </div>
-                </div>
-                <button type="submit" class="btn btn-hm w-100">Duyệt → Tạo/ Xuất kho nguyên phụ liệu</button>
-              </form>
-            {% else %}
-              <div class="text-muted small">
-                Yêu cầu xuất chưa ở trạng thái duyệt.
-              </div>
-            {% endif %}
           {% else %}
-            <div class="text-muted small">
-              Bạn không có quyền hoặc Yêu cầu xuất đã có phiếu xuất kho liên quan.
-            </div>
+          <div class="fw-semibold">{{ req.code }}</div>
           {% endif %}
         </div>
       </div>
+
+      <div class="jp-sx-ycx-meta">
+        <div>
+          <div class="label">Ngày yêu cầu</div>
+          <div class="value">{{ req.request_date|date:"d/m/Y" }}</div>
+        </div>
+        <div>
+          <div class="label">Tạo lúc</div>
+          <div class="value">{{ req.created_at|date:"d/m/Y H:i" }}</div>
+        </div>
+        <div>
+          <div class="label">Dòng NPL</div>
+          <div class="value">{{ line_rows|length }}</div>
+        </div>
+        <div>
+          <div class="label">Phiếu xuất kho</div>
+          <div class="value">
+            {% if req.stock_issue %}
+            <a href="{% url 'kho_npl:issue_detail' req.stock_issue.pk %}">{{ req.stock_issue.number }}</a>
+            {% else %}—{% endif %}
+          </div>
+        </div>
+      </div>
+
+      {% if req.notes %}
+      <div class="mt-3 pt-3 border-top">
+        <div class="label text-muted small mb-1">Ghi chú</div>
+        <div class="small mb-0">{{ req.notes }}</div>
+      </div>
+      {% endif %}
+
+      {% if can_update and not req.stock_issue %}
+        {% if req.status == 'draft' or req.status == 'submitted' or req.status == 'approved' %}
+        <div class="mt-3 pt-3 border-top">
+          <p class="jp-sx-ycx-section">Duyệt xuất kho</p>
+          <form method="post" enctype="multipart/form-data" class="jp-sx-ycx-actions">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="approve"/>
+            <div class="field">
+              <label for="{{ form.attachment.id_for_label }}">Chứng từ (tuỳ chọn)</label>
+              {{ form.attachment }}
+            </div>
+            <button type="submit" class="btn btn-hm">Duyệt xuất</button>
+          </form>
+        </div>
+        {% endif %}
+      {% elif req.stock_issue %}
+      <div class="mt-3 pt-3 border-top">
+        <div class="text-muted small mb-0">Đã liên kết phiếu xuất kho.</div>
+      </div>
+      {% endif %}
     </div>
   </div>
 
   <div class="card border-0 shadow-sm">
     <div class="card-body">
       <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-        <div>
-          <div class="small text-muted mb-1">Dòng nguyên phụ liệu</div>
-          <div class="fw-semibold">{{ req.lines.all|length }} dòng</div>
-          <div class="form-text">Duyệt sẽ chia xuất theo nhiều vị trí nếu một vị trí không đủ. Có thể chọn vị trí ưu tiên trước.</div>
-        </div>
+        <p class="jp-sx-ycx-section mb-0">Dòng nguyên phụ liệu</p>
+        <span class="small text-muted">{{ line_rows|length }} dòng</span>
       </div>
 
       {% if can_update and not req.stock_issue %}
-      <form method="post" class="mb-3">
+      <form method="post">
         {% csrf_token %}
         <input type="hidden" name="action" value="save_locations">
       {% endif %}
+
       <div class="table-responsive">
         <table class="table table-sm table-hover mb-0 align-middle">
           <thead class="table-light">
             <tr>
               <th>NPL</th>
               <th class="text-end">SL YC</th>
-              <th class="text-end">SL đã xuất</th>
+              <th class="text-end">Đã xuất</th>
               <th>Vị trí ưu tiên</th>
-              <th>Tồn theo vị trí</th>
+              <th>Tồn theo VT</th>
             </tr>
           </thead>
           <tbody>
@@ -103,18 +207,18 @@
                 <div class="fw-semibold small">{{ l.material_code }}</div>
                 <div class="text-muted small">{{ l.material_name }}</div>
               </td>
-              <td class="text-end">{{ l.qty_requested }}</td>
-              <td class="text-end">{{ l.qty_issued }}</td>
+              <td class="text-end small">{{ l.qty_requested }}</td>
+              <td class="text-end small">{{ l.qty_issued }}</td>
               <td>
                 {% if can_update and not req.stock_issue %}
-                <select name="loc_{{ l.pk }}" class="form-select form-select-sm" style="min-width:8rem">
+                <select name="loc_{{ l.pk }}" class="form-select form-select-sm" style="min-width:7.5rem;max-width:10rem">
                   <option value="">Tự chia</option>
                   {% for loc in locations %}
                   <option value="{{ loc.pk }}" {% if l.preferred_location_id == loc.pk %}selected{% endif %}>{{ loc.code }}</option>
                   {% endfor %}
                 </select>
                 {% else %}
-                {{ l.preferred_location.code|default:"—" }}
+                <span class="small">{{ l.preferred_location.code|default:"—" }}</span>
                 {% endif %}
               </td>
               <td class="small text-muted">
@@ -130,13 +234,14 @@
           </tbody>
         </table>
       </div>
+
       {% if can_update and not req.stock_issue %}
-        <button type="submit" class="btn btn-outline-secondary btn-sm mt-2">Lưu vị trí ưu tiên</button>
+        <div class="jp-sx-ycx-actions mt-3">
+          <button type="submit" class="btn btn-outline-secondary">Lưu vị trí</button>
+        </div>
       </form>
       {% endif %}
     </div>
   </div>
-
 </div>
 {% endblock %}
-

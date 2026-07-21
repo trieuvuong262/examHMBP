@@ -1,20 +1,22 @@
 {% extends 'base.html' %}
 {% block extra_head %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
 {% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}
 {% endblock %}
 {% load humanize %}
 
 {% block content %}
 <div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 py-md-4 mb-5">
-    <div class="jp-npl-mat-topbar">
-    <h2 class="jp-npl-mat-topbar-title">Năng lực SX</h2>
-    <div class="jp-npl-mat-topbar-actions ms-auto">
+    <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title w-100">Năng lực SX</h2>
+    </div>
+    <nav class="jp-sx-tools" aria-label="Công cụ">
       {% include 'san_xuat/includes/sx_export_btn.html' with export_key='capacity_list' %}
             {% if can_create %}
     <a href="{% url 'san_xuat:capacity_create' %}" class="btn btn-hm btn-sm fw-bold">Thêm tổ/chuyền</a>
     {% endif %}
-      
-    </div>
+    </nav>
   </div>
 
   <form method="get" class="row g-2 align-items-end mb-4">

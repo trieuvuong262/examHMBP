@@ -1,190 +1,411 @@
 {% extends 'base.html' %}
 {% block extra_head %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
 {% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}
+<style>
+.jp-sx-trace-search {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+.jp-sx-trace-search .field {
+  flex: 1 1 16rem;
+  min-width: 0;
+}
+.jp-sx-trace-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem 1rem;
+}
+@media (min-width: 768px) {
+  .jp-sx-trace-meta { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+.jp-sx-trace-meta .label {
+  font-size: 0.72rem;
+  color: var(--bs-secondary-color);
+  margin-bottom: 0.1rem;
+}
+.jp-sx-trace-meta .value {
+  font-weight: 600;
+  font-size: 0.95rem;
+  line-height: 1.25;
+}
+.jp-sx-trace-section {
+  margin-bottom: 1.25rem;
+}
+.jp-sx-trace-section > .head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.55rem;
+}
+.jp-sx-trace-section > .head .title {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--bs-secondary-color);
+}
+.jp-sx-trace-section > .head .count {
+  font-size: 0.8rem;
+  color: var(--bs-secondary-color);
+}
+.jp-sx-trace-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-left: 2px solid var(--bs-border-color);
+}
+.jp-sx-trace-timeline > li {
+  position: relative;
+  padding: 0 0 0.9rem 1rem;
+  margin-left: 0.35rem;
+}
+.jp-sx-trace-timeline > li:last-child { padding-bottom: 0; }
+.jp-sx-trace-timeline > li::before {
+  content: "";
+  position: absolute;
+  left: -0.42rem;
+  top: 0.35rem;
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: var(--bs-body-bg);
+  border: 2px solid var(--bs-secondary-color);
+}
+.jp-sx-trace-timeline .when {
+  font-size: 0.75rem;
+  color: var(--bs-secondary-color);
+  margin-bottom: 0.1rem;
+}
+.jp-sx-trace-timeline .kind {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--bs-secondary-color);
+  margin-right: 0.35rem;
+}
+.jp-sx-trace-timeline .label {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.jp-sx-trace-timeline .detail {
+  font-size: 0.8125rem;
+  color: var(--bs-secondary-color);
+}
+.jp-sx-trace-gap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem 0.75rem;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--bs-border-color);
+  font-size: 0.875rem;
+}
+.jp-sx-trace-gap:last-child { border-bottom: 0; }
+.jp-sx-trace-rel {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.jp-sx-trace-rel > li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.5rem;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid var(--bs-border-color);
+  font-size: 0.875rem;
+}
+.jp-sx-trace-rel > li:last-child { border-bottom: 0; }
+.jp-sx-trace-rel .muted { color: var(--bs-secondary-color); }
+.jp-sx-trace-empty {
+  font-size: 0.875rem;
+  color: var(--bs-secondary-color);
+  padding: 0.35rem 0;
+}
+</style>
 {% endblock %}
 
 {% block content %}
 <div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 py-md-4 mb-5">
-    <div class="jp-npl-mat-topbar">
-    <h2 class="jp-npl-mat-topbar-title">Truy xuất nguồn gốc</h2>
-    <div class="jp-npl-mat-topbar-actions ms-auto">
-      
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title w-100">Truy xuất nguồn gốc</h2>
     </div>
+    <nav class="jp-sx-tools" aria-label="Công cụ">
+      {% if result and result.mo %}
+      <a href="{% url 'san_xuat:dispatch_mo_detail' result.mo.pk %}"><i class="bi bi-file-earmark-text" aria-hidden="true"></i>Mở lệnh</a>
+      <span class="sep" aria-hidden="true"></span>
+      {% endif %}
+      <a href="{% url 'san_xuat:overview' %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại</a>
+    </nav>
   </div>
 
-  <form method="get" class="row g-2 align-items-end mb-4">
-    <div class="col-md-8">
-      <label class="form-label small text-muted" for="{{ form.query.id_for_label }}">{{ form.query.label }}</label>
+  <form method="get" class="jp-sx-trace-search" role="search">
+    <div class="field">
+      <label class="form-label small text-muted mb-1" for="{{ form.query.id_for_label }}">{{ form.query.label }}</label>
       {{ form.query }}
     </div>
-    <div class="col-md-4">
-      <button type="submit" class="btn btn-hm btn-sm">Tra cứu</button>
-    </div>
+    {% if show_gaps %}<input type="hidden" name="gaps" value="1">{% endif %}
+    <button type="submit" class="btn btn-hm btn-sm fw-bold">Tra cứu</button>
   </form>
 
   {% if result %}
     {% if result.message and not result.mo %}
-    <div class="alert alert-warning">{{ result.message }}</div>
-    {% endif %}
-    {% if result.mo %}
-    {% if result.reverse_batch %}
-    <div class="alert alert-info small">Tra cứu ngược từ lô nguyên phụ liệu → các Yêu cầu xuất/Lệnh sản xuất đã xuất lô này.</div>
+    <div class="alert alert-warning py-2 small mb-3">{{ result.message }}</div>
     {% endif %}
 
-    <div class="border rounded-3 p-3 mb-3">
-      <div class="fw-semibold mb-1">Lệnh sản xuất {{ result.mo.code }}</div>
-      <div class="small text-muted">
-        {{ result.mo.product_code }} — {{ result.mo.product_name }}
-        · SL {{ result.mo.qty }} · Đã làm {{ result.mo.qty_done }}
-        · {{ result.mo.get_status_display }}
-      </div>
-      <div class="mt-2 d-flex flex-wrap gap-2">
-        <a href="{% url 'san_xuat:dispatch_mo_detail' result.mo.pk %}" class="btn btn-sm btn-outline-hm">Mở Lệnh sản xuất</a>
-        <a href="{% url 'san_xuat:work_assignment_create' %}?mo={{ result.mo.pk }}" class="btn btn-sm btn-outline-secondary">Giao việc</a>
-        <a href="{% url 'san_xuat:packing_create' %}" class="btn btn-sm btn-outline-secondary">Đóng gói</a>
-        {% if show_gaps %}
-        <a href="?query={{ form.query.value|urlencode }}" class="btn btn-sm btn-outline-secondary">Ẩn thiếu bước</a>
-        {% else %}
-        <a href="?query={{ form.query.value|urlencode }}&gaps=1" class="btn btn-sm btn-warning">Thiếu bước nào?</a>
-        {% endif %}
+    {% if result.mo %}
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-body">
+        <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+          <div class="min-w-0">
+            <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+              <div class="fw-semibold fs-5 mb-0">{{ result.mo.code }}</div>
+              <span class="badge {% if result.mo.status == 'draft' %}text-bg-secondary{% elif result.mo.status == 'released' %}text-bg-info{% elif result.mo.status == 'in_progress' %}text-bg-primary{% elif result.mo.status == 'done' %}text-bg-success{% elif result.mo.status == 'cancelled' %}text-bg-danger{% else %}text-bg-light text-dark border{% endif %}">
+                {{ result.mo.get_status_display }}
+              </span>
+              {% if result.reverse_batch %}
+              <span class="badge text-bg-light text-dark border">Từ lô NPL</span>
+              {% endif %}
+            </div>
+            <div class="text-muted small">{{ result.mo.product_code }} — {{ result.mo.product_name|default:"—" }}</div>
+          </div>
+          <nav class="jp-sx-tools" aria-label="Thao tác lệnh">
+            <a href="{% url 'san_xuat:work_assignment_create' %}?mo={{ result.mo.pk }}"><i class="bi bi-person-plus" aria-hidden="true"></i>Giao việc</a>
+            <a href="{% url 'san_xuat:packing_create' %}"><i class="bi bi-box-seam" aria-hidden="true"></i>Đóng gói</a>
+            <span class="sep" aria-hidden="true"></span>
+            {% if show_gaps %}
+            <a href="?query={{ form.query.value|urlencode }}"><i class="bi bi-eye-slash" aria-hidden="true"></i>Ẩn thiếu bước</a>
+            {% else %}
+            <a href="?query={{ form.query.value|urlencode }}&gaps=1" class="is-accent"><i class="bi bi-exclamation-circle" aria-hidden="true"></i>Thiếu bước</a>
+            {% endif %}
+          </nav>
+        </div>
+        <div class="jp-sx-trace-meta">
+          <div>
+            <div class="label">Số lượng</div>
+            <div class="value">{{ result.mo.qty }}</div>
+          </div>
+          <div>
+            <div class="label">Đã làm</div>
+            <div class="value">{{ result.mo.qty_done }}</div>
+          </div>
+          <div>
+            <div class="label">Ngày lập</div>
+            <div class="value">{% if result.mo.order_date %}{{ result.mo.order_date|date:"d/m/Y" }}{% else %}—{% endif %}</div>
+          </div>
+          <div>
+            <div class="label">Hạn</div>
+            <div class="value">{% if result.mo.due_date %}{{ result.mo.due_date|date:"d/m/Y" }}{% else %}—{% endif %}</div>
+          </div>
+        </div>
       </div>
     </div>
 
     {% if show_gaps %}
-    <div class="card border-warning mb-4">
-      <div class="card-body">
-        <h3 class="h6 text-warning-emphasis mb-2">Thiếu bước trên chuỗi truy xuất</h3>
-        {% if gaps %}
-        <ul class="list-group list-group-flush">
-          {% for g in gaps %}
-          <li class="list-group-item small">
-            <strong>{{ g.label }}</strong>
-            <div class="text-muted">{{ g.hint }}</div>
-            {% if g.url_name %}
-              {% if g.url_pk %}
-              <a href="{% url g.url_name g.url_pk %}">Mở →</a>
-              {% else %}
-              <a href="{% url g.url_name %}{% if g.key == 'stat' %}?mo={{ result.mo.pk }}{% endif %}">Mở →</a>
+    <div class="jp-sx-trace-section">
+      <div class="head">
+        <h3 class="title">Thiếu bước</h3>
+        <span class="count">{% if gaps %}{{ gaps|length }}{% else %}0{% endif %}</span>
+      </div>
+      <div class="card border-0 shadow-sm">
+        <div class="card-body py-2 px-3">
+          {% if gaps %}
+            {% for g in gaps %}
+            <div class="jp-sx-trace-gap">
+              <span class="fw-semibold">{{ g.label }}</span>
+              {% if g.url_name %}
+                {% if g.url_pk %}
+                <a href="{% url g.url_name g.url_pk %}" class="small">Mở</a>
+                {% else %}
+                <a href="{% url g.url_name %}{% if g.key == 'stat' %}?mo={{ result.mo.pk }}{% endif %}" class="small">Mở</a>
+                {% endif %}
               {% endif %}
-            {% endif %}
-          </li>
-          {% endfor %}
-        </ul>
-        {% else %}
-        <div class="text-success small">Đủ các bước chính trên checklist lệnh.</div>
-        {% endif %}
+            </div>
+            {% endfor %}
+          {% else %}
+            <div class="jp-sx-trace-empty text-success">Đủ các bước chính.</div>
+          {% endif %}
+        </div>
       </div>
     </div>
     {% endif %}
 
-    <h3 class="h6 text-muted">Timeline</h3>
-    <ul class="list-group mb-4">
-      {% for ev in result.timeline %}
-      <li class="list-group-item small d-flex justify-content-between gap-3">
-        <div>
-          <span class="badge text-bg-light me-1">{{ ev.kind }}</span>
-          <strong>{{ ev.label }}</strong>
-          <div class="text-muted">{{ ev.detail }}</div>
-        </div>
-        <div class="text-end text-nowrap">
-          <div class="text-muted">{% if ev.when %}{{ ev.when }}{% else %}—{% endif %}</div>
-          {% if ev.url_name and ev.url_pk %}
-          <a href="{% url ev.url_name ev.url_pk %}">Chi tiết →</a>
+    <div class="jp-sx-trace-section">
+      <div class="head">
+        <h3 class="title">Timeline</h3>
+        <span class="count">{{ result.timeline|length }}</span>
+      </div>
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          {% if result.timeline %}
+          <ul class="jp-sx-trace-timeline">
+            {% for ev in result.timeline %}
+            <li>
+              <div class="when">{% if ev.when %}{{ ev.when }}{% else %}—{% endif %}</div>
+              <div>
+                <span class="kind">{{ ev.kind }}</span>
+                <span class="label">{{ ev.label }}</span>
+                {% if ev.url_name and ev.url_pk %}
+                <a href="{% url ev.url_name ev.url_pk %}" class="small ms-1">Chi tiết</a>
+                {% endif %}
+              </div>
+              {% if ev.detail %}<div class="detail">{{ ev.detail }}</div>{% endif %}
+            </li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <div class="jp-sx-trace-empty">Chưa có sự kiện.</div>
           {% endif %}
         </div>
-      </li>
-      {% empty %}
-      <li class="list-group-item small text-muted">Chưa có sự kiện.</li>
-      {% endfor %}
-    </ul>
-
-    <div class="row g-3">
-      <div class="col-md-6">
-        <h3 class="h6 text-muted">Yêu cầu nhập thành phẩm / phiếu KV</h3>
-        <ul class="list-group mb-3">
-          {% for fg in result.fg_receipts %}
-          <li class="list-group-item small">
-            <a href="{% url 'san_xuat:dispatch_fg_receipt_req_detail' fg.pk %}">{{ fg.code }}</a>
-            · {{ fg.get_status_display }}
-            {% if fg.kv_purchase_code %} · KV {{ fg.kv_purchase_code }}{% endif %}
-          </li>
-          {% empty %}
-          <li class="list-group-item small text-muted">Không có Yêu cầu nhập thành phẩm.</li>
-          {% endfor %}
-        </ul>
-      </div>
-      <div class="col-md-6">
-        <h3 class="h6 text-muted">Đóng gói</h3>
-        <ul class="list-group mb-3">
-          {% for p in result.packing %}
-          <li class="list-group-item small">
-            <a href="{% url 'san_xuat:packing_detail' p.pk %}">{{ p.code }}</a>
-            · {{ p.qty }} · lô {{ p.lot_code|default:"—" }}
-          </li>
-          {% empty %}
-          <li class="list-group-item small text-muted">Không có phiếu đóng gói.</li>
-          {% endfor %}
-        </ul>
       </div>
     </div>
 
-    <h3 class="h6 text-muted">Yêu cầu xuất → phiếu xuất → lô nguyên phụ liệu</h3>
-    <div class="table-responsive border rounded-3 mb-3">
-      <table class="table table-hover table-sm mb-0">
-        <thead class="table-light">
-          <tr>
-            <th>Yêu cầu xuất</th>
-            <th>Phiếu xuất</th>
-            <th>NPL</th>
-            <th>Lô</th>
-            <th class="text-end">Số lượng</th>
-            <th>Vị trí</th>
-          </tr>
-        </thead>
-        <tbody>
-        {% for b in result.issue_batches %}
-          <tr>
-            <td>{{ b.ycx }}</td>
-            <td>{{ b.issue_number }}</td>
-            <td>{{ b.material_code }} <span class="text-muted">{{ b.material_name }}</span></td>
-            <td>
-              {% if b.batch_code and b.batch_code != "—" %}
-              <a href="?query={{ b.batch_code }}">{{ b.batch_code }}</a>
-              {% else %}—{% endif %}
-            </td>
-            <td class="text-end">{{ b.qty }}</td>
-            <td>{{ b.location }}</td>
-          </tr>
-        {% empty %}
-          <tr><td colspan="6" class="text-muted small p-3">Chưa có phiếu xuất / lô gắn Yêu cầu xuất.</td></tr>
-        {% endfor %}
-        </tbody>
-      </table>
+    <div class="jp-sx-trace-section">
+      <div class="head">
+        <h3 class="title">Xuất nguyên phụ liệu</h3>
+        <span class="count">{{ result.issue_batches|length }}</span>
+      </div>
+      <div class="card border-0 shadow-sm overflow-hidden">
+        <div class="jp-npl-mat-grid-wrap">
+          <table class="table table-hover align-middle mb-0 jp-npl-mat-grid">
+            <thead class="table-light">
+              <tr>
+                <th>Yêu cầu xuất</th>
+                <th>Phiếu xuất</th>
+                <th>NPL</th>
+                <th>Lô</th>
+                <th class="text-end">SL</th>
+                <th>Vị trí</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for b in result.issue_batches %}
+              <tr>
+                <td>{{ b.ycx }}</td>
+                <td>{{ b.issue_number }}</td>
+                <td>{{ b.material_code }} <span class="text-muted small">{{ b.material_name }}</span></td>
+                <td>
+                  {% if b.batch_code and b.batch_code != "—" %}
+                  <a href="?query={{ b.batch_code|urlencode }}">{{ b.batch_code }}</a>
+                  {% else %}—{% endif %}
+                </td>
+                <td class="text-end">{{ b.qty }}</td>
+                <td>{{ b.location }}</td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="6" class="text-muted small px-3 py-3">Chưa có phiếu xuất / lô.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
 
-    <div class="row g-3">
+    <div class="row g-3 mb-3">
       <div class="col-md-6">
-        <h3 class="h6 text-muted">Giao việc</h3>
-        <ul class="list-group">
-          {% for gv in result.work_assignments %}
-          <li class="list-group-item small">{{ gv.code }} · {{ gv.title }} · {{ gv.get_status_display }}</li>
-          {% empty %}
-          <li class="list-group-item small text-muted">Không có.</li>
-          {% endfor %}
-        </ul>
+        <div class="jp-sx-trace-section mb-0">
+          <div class="head">
+            <h3 class="title">Nhập thành phẩm</h3>
+            <span class="count">{{ result.fg_receipts|length }}</span>
+          </div>
+          <div class="card border-0 shadow-sm">
+            <div class="card-body py-2 px-3">
+              {% if result.fg_receipts %}
+              <ul class="jp-sx-trace-rel">
+                {% for fg in result.fg_receipts %}
+                <li>
+                  <a href="{% url 'san_xuat:dispatch_fg_receipt_req_detail' fg.pk %}">{{ fg.code }}</a>
+                  <span class="muted">{{ fg.get_status_display }}{% if fg.kv_purchase_code %} · KV {{ fg.kv_purchase_code }}{% endif %}</span>
+                </li>
+                {% endfor %}
+              </ul>
+              {% else %}
+              <div class="jp-sx-trace-empty">Không có.</div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
       </div>
       <div class="col-md-6">
-        <h3 class="h6 text-muted">Thuê GC</h3>
-        <ul class="list-group">
-          {% for gc in result.subcontract_orders %}
-          <li class="list-group-item small">
-            <a href="{% url 'san_xuat:subcontract_detail' gc.pk %}">{{ gc.code }}</a>
-            · {{ gc.vendor_name }} · {{ gc.get_status_display }}
-          </li>
-          {% empty %}
-          <li class="list-group-item small text-muted">Không có.</li>
-          {% endfor %}
-        </ul>
+        <div class="jp-sx-trace-section mb-0">
+          <div class="head">
+            <h3 class="title">Đóng gói</h3>
+            <span class="count">{{ result.packing|length }}</span>
+          </div>
+          <div class="card border-0 shadow-sm">
+            <div class="card-body py-2 px-3">
+              {% if result.packing %}
+              <ul class="jp-sx-trace-rel">
+                {% for p in result.packing %}
+                <li>
+                  <a href="{% url 'san_xuat:packing_detail' p.pk %}">{{ p.code }}</a>
+                  <span class="muted">{{ p.qty }} · lô {{ p.lot_code|default:"—" }}</span>
+                </li>
+                {% endfor %}
+              </ul>
+              {% else %}
+              <div class="jp-sx-trace-empty">Không có.</div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="jp-sx-trace-section mb-0">
+          <div class="head">
+            <h3 class="title">Giao việc</h3>
+            <span class="count">{{ result.work_assignments|length }}</span>
+          </div>
+          <div class="card border-0 shadow-sm">
+            <div class="card-body py-2 px-3">
+              {% if result.work_assignments %}
+              <ul class="jp-sx-trace-rel">
+                {% for gv in result.work_assignments %}
+                <li>
+                  <strong>{{ gv.code }}</strong>
+                  <span class="muted">{{ gv.title }} · {{ gv.get_status_display }}</span>
+                </li>
+                {% endfor %}
+              </ul>
+              {% else %}
+              <div class="jp-sx-trace-empty">Không có.</div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="jp-sx-trace-section mb-0">
+          <div class="head">
+            <h3 class="title">Thuê gia công</h3>
+            <span class="count">{{ result.subcontract_orders|length }}</span>
+          </div>
+          <div class="card border-0 shadow-sm">
+            <div class="card-body py-2 px-3">
+              {% if result.subcontract_orders %}
+              <ul class="jp-sx-trace-rel">
+                {% for gc in result.subcontract_orders %}
+                <li>
+                  <a href="{% url 'san_xuat:subcontract_detail' gc.pk %}">{{ gc.code }}</a>
+                  <span class="muted">{{ gc.vendor_name }} · {{ gc.get_status_display }}</span>
+                </li>
+                {% endfor %}
+              </ul>
+              {% else %}
+              <div class="jp-sx-trace-empty">Không có.</div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
     {% endif %}

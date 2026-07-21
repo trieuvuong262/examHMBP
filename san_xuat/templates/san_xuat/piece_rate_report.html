@@ -1,15 +1,16 @@
 {% extends 'base.html' %}
 {% load humanize %}
 {% block extra_head %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
 {% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}
 {% endblock %}
 {% block content %}
 <div class="container jp-page jp-npl-material-catalog-page jp-sx-page py-3 py-md-4 mb-5">
-  <div class="jp-npl-mat-topbar">
-    <div class="jp-npl-mat-topbar-title-wrap">
-      <h2 class="jp-npl-mat-topbar-title mb-0">Lương sản phẩm</h2>
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title mb-0 w-100">Lương sản phẩm</h2>
     </div>
-    <form method="get" class="jp-npl-mat-topbar-search">
+    <form method="get" class="jp-npl-mat-topbar-search w-100">
       <div class="jp-npl-mat-search-row">
         <input type="month" name="month" value="{{ month_value }}" class="form-control form-control-sm" aria-label="Tháng"
                style="flex:0 1 8rem;width:auto;height:var(--jp-npl-mat-ctl-h);">
@@ -23,14 +24,13 @@
         <button type="submit" class="btn btn-hm btn-sm fw-bold">Lọc</button>
       </div>
     </form>
-    <div class="jp-npl-mat-topbar-actions">
-      <a href="{% url 'san_xuat:team_hr_map' %}" class="btn btn-outline-secondary btn-sm fw-bold">Map tổ → NV</a>
+    <nav class="jp-sx-tools" aria-label="Công cụ">
+      <a href="{% url 'san_xuat:team_hr_map' %}"><i class="bi bi-people" aria-hidden="true"></i>Map tổ → NV</a>
       {% if can_export %}
-      <a href="{% url 'san_xuat:piece_rate_hr_export' %}?month={{ month_value }}&date_from={{ date_from|date:'Y-m-d' }}&date_to={{ date_to|date:'Y-m-d' }}"
-         class="btn btn-outline-secondary btn-sm fw-bold">Xuất CSV cho nhân sự</a>
+      <a href="{% url 'san_xuat:piece_rate_hr_export' %}?month={{ month_value }}&date_from={{ date_from|date:'Y-m-d' }}&date_to={{ date_to|date:'Y-m-d' }}"><i class="bi bi-download" aria-hidden="true"></i>Xuất CSV cho nhân sự</a>
       {% endif %}
-      <a href="{% url 'san_xuat:ops_report' %}" class="btn btn-outline-secondary btn-sm fw-bold">Báo cáo vận hành</a>
-    </div>
+      <a href="{% url 'san_xuat:ops_report' %}"><i class="bi bi-graph-up" aria-hidden="true"></i>Báo cáo vận hành</a>
+    </nav>
   </div>
   {% if unmapped_count %}
   <div class="alert alert-warning py-2 small">{{ unmapped_count }} dòng chưa map mã NV — vào Map tổ → NV trước khi xuất HR.</div>

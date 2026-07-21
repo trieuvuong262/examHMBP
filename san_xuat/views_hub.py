@@ -1869,6 +1869,9 @@ def dispatch_prod_stats_create(request):
                     qty_good=form.cleaned_data.get('qty_good') or 0,
                     qty_defect=form.cleaned_data.get('qty_defect') or 0,
                     team_label=form.cleaned_data.get('team_label') or '',
+                    size_label=form.cleaned_data.get('size_label') or '',
+                    sku_code=form.cleaned_data.get('sku_code') or '',
+                    color_label=form.cleaned_data.get('color_label') or '',
                     notes=form.cleaned_data.get('notes') or '',
                     code=form.cleaned_data.get('code') or None,
                 )
@@ -1883,6 +1886,7 @@ def dispatch_prod_stats_create(request):
         initial = {'stat_date': timezone.localdate()}
         if mo:
             initial['team_label'] = mo.team_label
+            initial['qty_good'] = mo.qty
         form = ProductionStatCreateForm(initial=initial)
     return render(request, 'san_xuat/dispatch_prod_stats_form.html', {
         **_perm_ctx(request),

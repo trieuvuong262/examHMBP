@@ -1,19 +1,21 @@
 {% extends 'base.html' %}
 {% block extra_head %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
 {% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}
 {% endblock %}
 
 {% block content %}
 <div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 py-md-4 mb-5">
-    <div class="jp-npl-mat-topbar">
-    <h2 class="jp-npl-mat-topbar-title">Yêu cầu mua nguyên phụ liệu</h2>
-    <div class="jp-npl-mat-topbar-actions ms-auto">
+    <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title w-100">Yêu cầu mua nguyên phụ liệu</h2>
+    </div>
+    <nav class="jp-sx-tools" aria-label="Công cụ">
       {% include 'san_xuat/includes/sx_export_btn.html' with export_key='npl_purchase_request' %}
             {% if can_create %}
     <a href="{% url 'san_xuat:npl_purchase_request_create' %}" class="btn btn-hm btn-sm fw-bold">Tạo yêu cầu mua nguyên phụ liệu</a>
     {% endif %}
-      
-    </div>
+    </nav>
   </div>
 
   {% include 'san_xuat/includes/sx_list_filter.html' %}

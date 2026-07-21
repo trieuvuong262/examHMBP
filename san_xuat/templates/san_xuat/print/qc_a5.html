@@ -1,7 +1,6 @@
 {% extends 'san_xuat/print/base_a5.html' %}
 {% block print_body %}
 <div class="doc-title">Phiếu kiểm tra chất lượng</div>
-<div class="doc-sub">Số: <strong>{{ inspection.code }}</strong> · Ngày làm phiếu: <strong>{{ doc_date|date:"d/m/Y" }}</strong></div>
 
 <div class="meta-grid">
   <div><span class="label">Ngày kiểm:</span> {{ inspection.inspected_at|date:"d/m/Y" }}</div>

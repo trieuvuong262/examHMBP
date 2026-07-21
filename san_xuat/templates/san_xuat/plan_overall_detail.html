@@ -1,12 +1,17 @@
 {% extends 'base.html' %}
 
+{% block extra_head %}{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}{% endblock %}
+
 {% block content %}
 <div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
-    <div class="jp-npl-mat-topbar">
-    <h2 class="jp-npl-mat-topbar-title">{{ plan.code }}</h2>
-    <div class="jp-npl-mat-topbar-actions ms-auto">
-      <a href="{% url 'san_xuat:plan_overall' %}" class="btn btn-outline-secondary btn-sm fw-bold">Quay lại</a>
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title w-100">{{ plan.code }}</h2>
     </div>
+    <nav class="jp-sx-tools" aria-label="Công cụ">
+      <span class="sep" aria-hidden="true"></span>
+      <a href="{% url 'san_xuat:plan_overall' %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại</a>
+    </nav>
   </div>
 
   <div class="row g-3 mb-4">
@@ -91,7 +96,7 @@
               {{ field }}
             </div>
             {% endfor %}
-            <button type="submit" class="btn btn-outline-hm w-100">Thêm dòng</button>
+            <button type="submit" class="btn btn-outline-hm btn-sm">Thêm dòng</button>
           </form>
         </div>
       </div>
@@ -108,25 +113,22 @@
               {{ field }}
             </div>
             {% endfor %}
-            <button type="submit" class="btn btn-outline-secondary w-100">Import đơn KiotViet</button>
+            <button type="submit" class="btn btn-outline-secondary btn-sm">Import đơn KiotViet</button>
           </form>
-          <div class="form-text mt-2">
-            Tra cứu đơn tại <a href="{% url 'san_xuat:redirect_orders' %}">KiotViet đơn hàng</a>.
-          </div>
-        </div>
+</div>
       </div>
 
       <form method="post">
         {% csrf_token %}
         <input type="hidden" name="action" value="confirm">
-        <button type="submit" class="btn btn-hm w-100">Xác nhận kế hoạch tổng thể</button>
+        <button type="submit" class="btn btn-hm btn-sm">Xác nhận kế hoạch tổng thể</button>
       </form>
       {% elif plan.status == 'confirmed' %}
       <div class="card border-0 shadow-sm">
         <div class="card-body d-grid gap-2">
-          <div class="small text-muted mb-1">Bước tiếp theo</div>
-          <a href="{% url 'san_xuat:plan_detail_create' %}?overall={{ plan.pk }}" class="btn btn-hm w-100">Lập KH chi tiết (P4)</a>
-          <a href="{% url 'san_xuat:plan_npl_create' %}?overall={{ plan.pk }}" class="btn btn-outline-hm w-100">Tính KH Nguyên vật liệu (P2)</a>
+          <div class="small text-muted mb-1">Tiếp theo</div>
+          <a href="{% url 'san_xuat:plan_detail_create' %}?overall={{ plan.pk }}" class="btn btn-hm btn-sm">Lập KH chi tiết (P4)</a>
+          <a href="{% url 'san_xuat:plan_npl_create' %}?overall={{ plan.pk }}" class="btn btn-outline-hm btn-sm">Tính KH Nguyên vật liệu (P2)</a>
         </div>
       </div>
       {% else %}

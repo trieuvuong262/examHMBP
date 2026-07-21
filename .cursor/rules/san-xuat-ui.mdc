@@ -1,0 +1,43 @@
+---
+description: UI Sản xuất (san_xuat) — layout full, topbar In A5, gọn
+globs: san_xuat/**/*
+alwaysApply: false
+---
+
+# Sản xuất — quy ước giao diện
+
+Áp dụng cho **mọi** trang trong module `san_xuat` (list, detail, form, hub).
+
+## Layout — full ngang, không gom giữa
+
+- Dùng `container jp-page jp-sx-page` như các trang khác.
+- **Không** thu hẹp bằng `max-width: 720px` / `760px` / tương tự trên wrapper trang.
+- Form trải theo lưới Bootstrap (`col-*`) full chiều ngang container.
+
+## Topbar công cụ (In A5 / Quay lại / …)
+
+Áp dụng mọi trang SX (detail / form / list / hub):
+
+- Topbar **bắt buộc `w-100`**: `jp-npl-mat-topbar … w-100`.
+- Trang có Quay lại / In A5 / Wizard / Truy vết:
+  - Include `san_xuat/includes/sx_detail_tools_styles.html`.
+  - Markup: `jp-npl-mat-topbar jp-sx-detail-topbar w-100` + `jp-sx-detail-title` + `nav.jp-sx-tools`.
+  - Link gọn + icon Bootstrap Icons — **không** `btn btn-outline-* btn-sm` cho In A5 / Wizard / Truy vết / Quay lại.
+  - Pattern: … · `sep` · Quay lại (`bi-arrow-left`, `is-back`).
+- List: `Xuất Excel` / `Thêm` có thể giữ `btn-sm` (CTA danh sách); Quay lại vẫn soft link.
+- Title trái · tools phải (`justify-content: space-between`).
+
+## Copy & mô tả
+
+- **Không** thêm đoạn mô tả / hint giải thích quy trình trên UI.
+- Ví dụ **cấm** (xoá nếu còn):
+  - «Có chứng từ → xuất kho thật ngay. Không upload → tạo phiếu xuất nháp.»
+  - «Duyệt sẽ chia theo nhiều vị trí nếu một vị trí không đủ…»
+  - `form-text` / `alert` hướng dẫn dài dưới field hoặc section.
+- Nhãn ngắn; chỉ giữ label field cần thiết. Không thêm câu giải thích bên dưới.
+- Nút hành động nhỏ (`~1.75rem`), không full-width thô.
+
+## Tham chiếu
+
+- Style shared: `san_xuat/templates/san_xuat/includes/sx_detail_tools_styles.html`
+- Ví dụ topbar: `dispatch_mo_detail.html`, `dispatch_material_issue_req_detail.html`

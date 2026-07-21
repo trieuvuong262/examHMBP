@@ -1,13 +1,18 @@
 {% extends 'base.html' %}
 
+{% block extra_head %}{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}{% endblock %}
+
 {% block content %}
 <div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
-      <div class="jp-npl-mat-topbar">
-    <h2 class="jp-npl-mat-topbar-title">Phiếu kiểm tra {{ inspection.code }}</h2>
-    <div class="jp-npl-mat-topbar-actions ms-auto">
-      {% if can_print %}<a href="{% url 'san_xuat:print_qc' inspection.pk %}?autoprint=1" target="_blank" rel="noopener" class="btn btn-outline-secondary btn-sm fw-bold">In A5</a>{% endif %}
-      <a href="{% url 'san_xuat:qc_sheet' %}" class="btn btn-outline-secondary btn-sm fw-bold">Quay lại</a>
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title w-100">Phiếu kiểm tra {{ inspection.code }}</h2>
     </div>
+    <nav class="jp-sx-tools" aria-label="Công cụ">
+      {% if can_print %}<a href="{% url 'san_xuat:print_qc' inspection.pk %}?autoprint=1" target="_blank" rel="noopener"><i class="bi bi-printer" aria-hidden="true"></i>In A5</a>{% endif %}
+      <span class="sep" aria-hidden="true"></span>
+      <a href="{% url 'san_xuat:qc_sheet' %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại</a>
+    </nav>
   </div>
 
     <div class="row g-3">
@@ -89,8 +94,7 @@
                             <div class="col-md-4">{{ form.notes }}</div>
                         </div>
                         {% endfor %}
-                        <div class="form-text">Tổng Số lượng lỗi từ các dòng sẽ được dùng khi chốt PKT.</div>
-                    </div>
+</div>
                 </div>
 
                 <div class="card border-0 shadow-sm">
@@ -103,7 +107,7 @@
                             {% if field.errors %}<div class="text-danger small">{{ field.errors }}</div>{% endif %}
                         </div>
                         {% endfor %}
-                        <button type="submit" class="btn btn-hm w-100">Chốt kết quả PKT</button>
+                        <button type="submit" class="btn btn-hm btn-sm">Chốt kết quả PKT</button>
                     </div>
                 </div>
             </form>

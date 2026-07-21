@@ -1,12 +1,17 @@
 {% extends 'base.html' %}
 
+{% block extra_head %}{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}{% endblock %}
+
 {% block content %}
 <div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
-    <div class="jp-npl-mat-topbar">
-    <h2 class="jp-npl-mat-topbar-title">Thống kê sản xuất {{ stat.code }}</h2>
-    <div class="jp-npl-mat-topbar-actions ms-auto">
-      <a href="{% url 'san_xuat:dispatch_prod_stats' %}" class="btn btn-outline-secondary btn-sm fw-bold">Quay lại</a>
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title w-100">Thống kê sản xuất {{ stat.code }}</h2>
     </div>
+    <nav class="jp-sx-tools" aria-label="Công cụ">
+      <span class="sep" aria-hidden="true"></span>
+      <a href="{% url 'san_xuat:dispatch_prod_stats' %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại</a>
+    </nav>
   </div>
 
   {% if qc_alerts %}
@@ -87,12 +92,9 @@
           <form method="post" class="mb-3">
             {% csrf_token %}
             <input type="hidden" name="action" value="confirm">
-            <button type="submit" class="btn btn-hm w-100">Xác nhận Thống kê sản xuất + cập nhật lệnh sản xuất</button>
+            <button type="submit" class="btn btn-hm btn-sm">Xác nhận Thống kê sản xuất + cập nhật lệnh sản xuất</button>
           </form>
-          <div class="form-text mb-3">
-            Khi xác nhận: cộng Số lượng đạt vào lệnh sản xuất, tự sinh Yêu cầu kiểm tra và tạo cảnh báo nếu tỷ lệ lỗi vượt ngưỡng.
-          </div>
-          {% elif stat.status == 'confirmed' %}
+{% elif stat.status == 'confirmed' %}
           <div class="text-muted small mb-3">Thống kê sản xuất đã xác nhận.</div>
           {% else %}
           <div class="text-muted small mb-3">Bạn không có quyền cập nhật.</div>
@@ -102,14 +104,14 @@
           <form method="post">
             {% csrf_token %}
             <input type="hidden" name="action" value="create_yckt">
-            <button type="submit" class="btn btn-outline-hm w-100">Tạo yêu cầu kiểm tra thủ công</button>
+            <button type="submit" class="btn btn-outline-hm btn-sm">Tạo yêu cầu kiểm tra thủ công</button>
           </form>
           {% endif %}
 
-          <a href="{% url 'san_xuat:qc_request_create' %}?stat={{ stat.pk }}" class="btn btn-outline-secondary w-100 mt-2">
+          <a href="{% url 'san_xuat:qc_request_create' %}?stat={{ stat.pk }}" class="btn btn-outline-secondary mt-2 btn-sm">
             Mở form Yêu cầu kiểm tra (prefill)
           </a>
-          <a href="{% url 'san_xuat:dispatch_fg_receipt_req_create' %}?stat={{ stat.pk }}" class="btn btn-outline-secondary w-100 mt-2">
+          <a href="{% url 'san_xuat:dispatch_fg_receipt_req_create' %}?stat={{ stat.pk }}" class="btn btn-outline-secondary mt-2 btn-sm">
             Tạo yêu cầu nhập thành phẩm từ thống kê sản xuất
           </a>
         </div>

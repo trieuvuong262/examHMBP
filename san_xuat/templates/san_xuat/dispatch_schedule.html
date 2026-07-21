@@ -1,17 +1,21 @@
 {% extends 'base.html' %}
 {% block extra_head %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+
 {% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}
 {% endblock %}
 
 {% block content %}
 <div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 py-md-4 mb-5">
-    <div class="jp-npl-mat-topbar">
-    <h2 class="jp-npl-mat-topbar-title">Lịch sản xuất</h2>
-    <div class="jp-npl-mat-topbar-actions ms-auto">
-      <a href="{% url 'san_xuat:dispatch_schedule' %}?week={{ prev_week }}" class="btn btn-outline-secondary btn-sm fw-bold">← Tuần trước</a>
-      <a href="{% url 'san_xuat:dispatch_schedule' %}?week={{ next_week }}" class="btn btn-outline-secondary btn-sm fw-bold">Tuần sau →</a>
-      <a href="{% url 'san_xuat:dispatch_mo' %}" class="btn btn-outline-hm btn-sm fw-bold">Danh sách lệnh sản xuất</a>
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title w-100">Lịch sản xuất</h2>
     </div>
+    <nav class="jp-sx-tools" aria-label="Công cụ">
+      <a href="{% url 'san_xuat:dispatch_schedule' %}?week={{ prev_week }}"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>← Tuần trước</a>
+      <a href="{% url 'san_xuat:dispatch_schedule' %}?week={{ next_week }}"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>Tuần sau →</a>
+      <a href="{% url 'san_xuat:dispatch_mo' %}"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>Danh sách lệnh sản xuất</a>
+    </nav>
   </div>
 
   <div class="row g-2">

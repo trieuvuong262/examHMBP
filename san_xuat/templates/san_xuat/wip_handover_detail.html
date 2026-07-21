@@ -1,13 +1,18 @@
 {% extends 'base.html' %}
 
+{% block extra_head %}{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}{% endblock %}
+
 {% block content %}
 <div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
-    <div class="jp-npl-mat-topbar">
-    <h2 class="jp-npl-mat-topbar-title">{{ handover.code }}</h2>
-    <div class="jp-npl-mat-topbar-actions ms-auto">
-      {% if can_print %}<a href="{% url 'san_xuat:print_handover' handover.pk %}?autoprint=1" target="_blank" rel="noopener" class="btn btn-outline-secondary btn-sm fw-bold">In A5</a>{% endif %}
-      <a href="{% url 'san_xuat:dispatch_wip_handover' %}" class="btn btn-outline-secondary btn-sm fw-bold">Quay lại</a>
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title w-100">{{ handover.code }}</h2>
     </div>
+    <nav class="jp-sx-tools" aria-label="Công cụ">
+      {% if can_print %}<a href="{% url 'san_xuat:print_handover' handover.pk %}?autoprint=1" target="_blank" rel="noopener"><i class="bi bi-printer" aria-hidden="true"></i>In A5</a>{% endif %}
+      <span class="sep" aria-hidden="true"></span>
+      <a href="{% url 'san_xuat:dispatch_wip_handover' %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại</a>
+    </nav>
   </div>
 
   <div class="row g-3">
@@ -35,12 +40,12 @@
     <div class="col-12 col-lg-5">
       <div class="card border-0 shadow-sm">
         <div class="card-body">
-          <div class="small text-muted mb-3">Workflow</div>
+          <div class="small text-muted mb-3">Hành động</div>
           {% if can_update and handover.status == 'pending' %}
           <form method="post" class="mb-3">
             {% csrf_token %}
             <input type="hidden" name="action" value="confirm">
-            <button type="submit" class="btn btn-success w-100">Xác nhận bàn giao</button>
+            <button type="submit" class="btn btn-success btn-sm">Xác nhận bàn giao</button>
           </form>
           <form method="post">
             {% csrf_token %}
@@ -49,7 +54,7 @@
               <label class="form-label small text-muted" for="reject_notes">Lý do từ chối</label>
               <textarea name="reject_notes" id="reject_notes" class="form-control form-control-sm" rows="2"></textarea>
             </div>
-            <button type="submit" class="btn btn-outline-danger w-100">Từ chối</button>
+            <button type="submit" class="btn btn-outline-danger btn-sm">Từ chối</button>
           </form>
           {% else %}
           <div class="text-muted small">Bàn giao đã xử lý hoặc bạn không có quyền cập nhật.</div>

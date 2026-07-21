@@ -1,66 +1,144 @@
 {% extends 'base.html' %}
 
+{% block extra_head %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+<style>
+.jp-sx-stat-form .label {
+  font-size: 0.72rem;
+  color: var(--bs-secondary-color);
+  margin-bottom: 0.15rem;
+}
+.jp-sx-stat-form .form-label {
+  font-size: 0.72rem;
+  color: var(--bs-secondary-color);
+  margin-bottom: 0.15rem;
+}
+.jp-sx-stat-mo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 1rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid var(--bs-border-color);
+}
+.jp-sx-stat-mo .code {
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+.jp-sx-stat-mo .meta {
+  font-size: 0.8125rem;
+  color: var(--bs-secondary-color);
+}
+.jp-sx-stat-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 1rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--bs-border-color);
+}
+.jp-sx-stat-actions .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 1.75rem;
+  min-height: 1.75rem;
+  padding: 0 0.75rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1;
+  border-width: 1px;
+}
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container jp-page jp-sx-page py-3 py-md-4 mb-5" style="max-width: 760px;">
-    <div class="jp-npl-mat-topbar">
-    <h2 class="jp-npl-mat-topbar-title">Tạo thống kê sản xuất</h2>
-    <div class="jp-npl-mat-topbar-actions ms-auto">
-      <a href="{% url 'san_xuat:dispatch_prod_stats' %}" class="btn btn-outline-secondary btn-sm fw-bold">Quay lại</a>
+<div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title w-100">Tạo thống kê sản xuất</h2>
     </div>
+    <nav class="jp-sx-tools" aria-label="Công cụ">
+      {% if mo %}
+      <a href="{% url 'san_xuat:dispatch_mo_detail' mo.pk %}"><i class="bi bi-file-earmark-gear" aria-hidden="true"></i>{{ mo.code }}</a>
+      {% endif %}
+      <span class="sep" aria-hidden="true"></span>
+      <a href="{% if mo %}{% url 'san_xuat:dispatch_mo_detail' mo.pk %}{% else %}{% url 'san_xuat:dispatch_prod_stats' %}{% endif %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại</a>
+    </nav>
   </div>
 
-  <div class="card border-0 shadow-sm">
-    <div class="card-body p-4">
+  <div class="card border-0 shadow-sm jp-sx-stat-form">
+    <div class="card-body">
       {% if mo %}
-      <div class="alert alert-light border small">
-        <strong>{{ mo.code }}</strong> · SL kế hoạch {{ mo.qty }} · Trạng thái {{ mo.get_status_display }}
+      <div class="jp-sx-stat-mo">
+        <a class="code text-decoration-none" href="{% url 'san_xuat:dispatch_mo_detail' mo.pk %}">{{ mo.code }}</a>
+        <span class="meta">{{ mo.product_code }}{% if mo.product_name %} · {{ mo.product_name }}{% endif %}</span>
+        <span class="meta">SL kế hoạch {{ mo.qty }} · Đã đạt {{ mo.qty_done }} · {{ mo.get_status_display }}</span>
       </div>
       {% else %}
-      <div class="alert alert-warning small">Màn này cần mở từ chi tiết Lệnh sản xuất để biết đang ghi cho lệnh nào.</div>
+      <div class="alert alert-warning border-0 small mb-3">Mở từ chi tiết lệnh sản xuất để ghi thống kê đúng lệnh.</div>
       {% endif %}
 
       <form method="post" novalidate>
         {% csrf_token %}
         <input type="hidden" name="production_order" value="{% if mo %}{{ mo.pk }}{% endif %}">
-        <div class="row g-3">
-          <div class="col-12 col-md-6">
-            <label class="form-label small text-muted" for="{{ form.code.id_for_label }}">{{ form.code.label }}</label>
-            {{ form.code }}
-          </div>
-          <div class="col-12 col-md-6">
-            <label class="form-label small text-muted" for="{{ form.stat_date.id_for_label }}">{{ form.stat_date.label }}</label>
+        {% if form.non_field_errors %}
+        <div class="text-danger small mb-2">{{ form.non_field_errors }}</div>
+        {% endif %}
+
+        <div class="row g-2 g-md-3">
+          <div class="col-6 col-lg-2">
+            <label class="form-label" for="{{ form.stat_date.id_for_label }}">{{ form.stat_date.label }}</label>
             {{ form.stat_date }}
           </div>
-          <div class="col-12">
-            <label class="form-label small text-muted" for="{{ form.process_name.id_for_label }}">{{ form.process_name.label }}</label>
+          <div class="col-6 col-lg-3">
+            <label class="form-label" for="{{ form.process_name.id_for_label }}">{{ form.process_name.label }}</label>
             {{ form.process_name }}
           </div>
-          <div class="col-12 col-md-6">
-            <label class="form-label small text-muted" for="{{ form.qty_good.id_for_label }}">{{ form.qty_good.label }}</label>
-            {{ form.qty_good }}
-          </div>
-          <div class="col-12 col-md-6">
-            <label class="form-label small text-muted" for="{{ form.qty_defect.id_for_label }}">{{ form.qty_defect.label }}</label>
-            {{ form.qty_defect }}
-          </div>
-          <div class="col-12">
-            <label class="form-label small text-muted" for="{{ form.team_label.id_for_label }}">{{ form.team_label.label }}</label>
+          <div class="col-12 col-lg-3">
+            <label class="form-label" for="{{ form.team_label.id_for_label }}">{{ form.team_label.label }}</label>
             {{ form.team_label }}
           </div>
-          <div class="col-12">
-            <label class="form-label small text-muted" for="{{ form.notes.id_for_label }}">{{ form.notes.label }}</label>
+          <div class="col-6 col-lg-2">
+            <label class="form-label" for="{{ form.qty_good.id_for_label }}">{{ form.qty_good.label }}</label>
+            {{ form.qty_good }}
+            {% if form.qty_good.errors %}<div class="text-danger small">{{ form.qty_good.errors }}</div>{% endif %}
+          </div>
+          <div class="col-6 col-lg-2">
+            <label class="form-label" for="{{ form.qty_defect.id_for_label }}">{{ form.qty_defect.label }}</label>
+            {{ form.qty_defect }}
+            {% if form.qty_defect.errors %}<div class="text-danger small">{{ form.qty_defect.errors }}</div>{% endif %}
+          </div>
+
+          <div class="col-4 col-lg-2">
+            <label class="form-label" for="{{ form.size_label.id_for_label }}">{{ form.size_label.label }}</label>
+            {{ form.size_label }}
+          </div>
+          <div class="col-4 col-lg-2">
+            <label class="form-label" for="{{ form.color_label.id_for_label }}">{{ form.color_label.label }}</label>
+            {{ form.color_label }}
+          </div>
+          <div class="col-4 col-lg-2">
+            <label class="form-label" for="{{ form.sku_code.id_for_label }}">{{ form.sku_code.label }}</label>
+            {{ form.sku_code }}
+          </div>
+          <div class="col-12 col-lg-3">
+            <label class="form-label" for="{{ form.code.id_for_label }}">Mã phiếu</label>
+            {{ form.code }}
+          </div>
+          <div class="col-12 col-lg-3">
+            <label class="form-label" for="{{ form.notes.id_for_label }}">{{ form.notes.label }}</label>
             {{ form.notes }}
           </div>
         </div>
-        <div class="d-flex flex-wrap gap-2 mt-4">
-          <button type="submit" class="btn btn-hm" {% if not mo %}disabled{% endif %}>Lưu thống kê sản xuất</button>
-          {% if mo %}
-          <a href="{% url 'san_xuat:dispatch_mo_detail' mo.pk %}" class="btn btn-outline-secondary">Quay về lệnh sản xuất</a>
-          {% endif %}
+
+        <div class="jp-sx-stat-actions">
+          <button type="submit" class="btn btn-hm" {% if not mo %}disabled{% endif %}>Lưu thống kê</button>
         </div>
       </form>
     </div>
   </div>
 </div>
 {% endblock %}
-

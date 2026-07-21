@@ -1,14 +1,19 @@
 {% extends 'base.html' %}
 
+{% block extra_head %}{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}{% endblock %}
+
 {% block content %}
 <div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
-    <div class="jp-npl-mat-topbar">
-    <h2 class="jp-npl-mat-topbar-title">{{ item.code }}</h2>
-    <div class="jp-npl-mat-topbar-actions ms-auto">
-      {% if can_print %}<a href="{% url 'san_xuat:print_packing' item.pk %}?autoprint=1" target="_blank" rel="noopener" class="btn btn-outline-secondary btn-sm fw-bold">In A5</a>{% endif %}
-      <a href="{% url 'san_xuat:traceability' %}?query={{ item.lot_code|default:item.code }}" class="btn btn-outline-hm btn-sm fw-bold">Truy xuất</a>
-      <a href="{% url 'san_xuat:packing_list' %}" class="btn btn-outline-secondary btn-sm fw-bold">Quay lại</a>
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title w-100">{{ item.code }}</h2>
     </div>
+    <nav class="jp-sx-tools" aria-label="Công cụ">
+      {% if can_print %}<a href="{% url 'san_xuat:print_packing' item.pk %}?autoprint=1" target="_blank" rel="noopener"><i class="bi bi-printer" aria-hidden="true"></i>In A5</a>{% endif %}
+      <a href="{% url 'san_xuat:traceability' %}?query={{ item.lot_code|default:item.code }}"><i class="bi bi-signpost-split" aria-hidden="true"></i>Truy vết</a>
+      <span class="sep" aria-hidden="true"></span>
+      <a href="{% url 'san_xuat:packing_list' %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại</a>
+    </nav>
   </div>
   <div class="row g-3">
     <div class="col-lg-7">
@@ -55,8 +60,7 @@
         <form method="post">
           {% csrf_token %}
           <input type="hidden" name="action" value="confirm">
-          <button type="submit" class="btn btn-success w-100">Xác nhận đóng gói</button>
-          <div class="form-text mt-2">Nếu trống mã lô, hệ thống tự sinh LO-{{ item.code }}.</div>
+          <button type="submit" class="btn btn-success btn-sm">Xác nhận đóng gói</button>
         </form>
         {% else %}
         <div class="small text-muted">Đã xử lý hoặc không có quyền.</div>

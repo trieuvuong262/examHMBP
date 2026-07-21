@@ -1,7 +1,6 @@
 {% extends 'san_xuat/print/base_a5.html' %}
 {% block print_body %}
 <div class="doc-title">Thuê gia công</div>
-<div class="doc-sub">Số: <strong>{{ item.code }}</strong> · Ngày làm phiếu: <strong>{{ doc_date|date:"d/m/Y" }}</strong></div>
 
 <div class="meta-grid">
   <div class="full"><span class="label">Đơn vị GC:</span> <strong>{{ item.vendor_name }}</strong></div>

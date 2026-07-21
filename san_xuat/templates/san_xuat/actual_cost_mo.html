@@ -1,16 +1,20 @@
 {% extends 'base.html' %}
 {% load humanize %}
-{% block extra_head %}{% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}{% endblock %}
+{% block extra_head %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+{% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}
+{% endblock %}
 {% block content %}
 <div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 mb-5">
-  <div class="jp-npl-mat-topbar">
-    <div>
-      <h2 class="jp-npl-mat-topbar-title mb-0">GT thực · {{ mo.code }}</h2>
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title mb-0 w-100">GT thực · {{ mo.code }}</h2>
     </div>
-    <div class="d-flex gap-2">
-      <a href="{% url 'san_xuat:dispatch_mo_detail' mo.pk %}" class="btn btn-outline-secondary btn-sm">Lệnh sản xuất</a>
-      <a href="{% url 'san_xuat:actual_cost_list' %}" class="btn btn-outline-secondary btn-sm">Danh sách</a>
-    </div>
+    <nav class="jp-sx-tools" aria-label="Công cụ">
+      <a href="{% url 'san_xuat:dispatch_mo_detail' mo.pk %}"><i class="bi bi-file-earmark-text" aria-hidden="true"></i>Lệnh sản xuất</a>
+      <span class="sep" aria-hidden="true"></span>
+      <a href="{% url 'san_xuat:actual_cost_list' %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Danh sách</a>
+    </nav>
   </div>
   <div class="row g-3 mb-3">
     <div class="col-md-3"><div class="card border-0 shadow-sm"><div class="card-body">

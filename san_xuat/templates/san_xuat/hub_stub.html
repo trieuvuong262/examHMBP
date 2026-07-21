@@ -1,20 +1,19 @@
 {% extends 'base.html' %}
 
-{% block content %}
-<div class="container jp-page py-3 py-md-4 mb-5">
-    <div class="jp-page-header mb-3 mb-md-4">
-        <div>
-            <h2 class="fw-bold text-hm mb-1 jp-page-title">{{ hub_title }}</h2>
-            <p class="text-muted mb-0 small">{{ hub_subtitle }}</p>
-        </div>
-        <a href="{% url 'san_xuat:overview' %}" class="btn btn-outline-secondary btn-sm">
-            <i class="bi bi-arrow-left me-1"></i>Tổng quan
-        </a>
-    </div>
+{% block extra_head %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+{% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}
+{% endblock %}
 
-    <div class="alert alert-warning border-0 mb-4" role="status">
-        Trang scaffold — chưa lưu dữ liệu nghiệp vụ. Các chức năng kho / hồ sơ đang chạy
-        <strong>không bị thay đổi</strong>.
+{% block content %}
+<div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
+    <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+        <div class="jp-sx-detail-title">
+            <h2 class="jp-npl-mat-topbar-title w-100">{{ hub_title }}</h2>
+        </div>
+        <nav class="jp-sx-tools" aria-label="Công cụ">
+            <a href="{% url 'san_xuat:overview' %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Tổng quan</a>
+        </nav>
     </div>
 
     {% if next_steps %}

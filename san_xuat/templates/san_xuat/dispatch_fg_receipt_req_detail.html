@@ -1,83 +1,176 @@
 {% extends 'base.html' %}
 
+{% block extra_head %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+<style>
+.jp-sx-ycntp-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem 1rem;
+}
+@media (min-width: 768px) {
+  .jp-sx-ycntp-meta { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+.jp-sx-ycntp-meta .label {
+  font-size: 0.72rem;
+  color: var(--bs-secondary-color);
+  margin-bottom: 0.1rem;
+}
+.jp-sx-ycntp-meta .value {
+  font-weight: 600;
+  font-size: 0.95rem;
+  line-height: 1.25;
+}
+.jp-sx-ycntp-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.5rem 0.65rem;
+}
+.jp-sx-ycntp-actions form { margin: 0; }
+.jp-sx-ycntp-actions .btn,
+.jp-sx-ycntp-kv .btn,
+.jp-sx-ycntp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 1.75rem;
+  min-height: 1.75rem;
+  padding: 0 0.65rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  box-sizing: border-box;
+  border-width: 1px;
+}
+.jp-sx-ycntp-kv {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.45rem 0.5rem;
+}
+.jp-sx-ycntp-kv .field {
+  flex: 1 1 8rem;
+  min-width: 7rem;
+  max-width: 12rem;
+}
+.jp-sx-ycntp-kv .field label {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--bs-secondary-color);
+  margin-bottom: 0.15rem;
+}
+.jp-sx-ycntp-section {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--bs-secondary-color);
+  margin: 0 0 0.5rem;
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
-    <div class="jp-npl-mat-topbar">
-    <h2 class="jp-npl-mat-topbar-title">Yêu cầu nhập thành phẩm {{ fg_req.code }}</h2>
-    <div class="jp-npl-mat-topbar-actions ms-auto">
-      {% if can_print %}<a href="{% url 'san_xuat:print_ycntp' fg_req.pk %}?autoprint=1" target="_blank" rel="noopener" class="btn btn-outline-secondary btn-sm fw-bold">In A5</a>{% endif %}
-      <a href="{% url 'san_xuat:dispatch_fg_receipt_req' %}" class="btn btn-outline-secondary btn-sm fw-bold">Quay lại</a>
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title w-100">Yêu cầu nhập TP <span class="text-muted">({{ fg_req.code }})</span></h2>
+      <span class="badge {% if fg_req.status == 'draft' %}text-bg-secondary{% elif fg_req.status == 'submitted' %}text-bg-primary{% elif fg_req.status == 'done' %}text-bg-success{% elif fg_req.status == 'cancelled' %}text-bg-danger{% else %}text-bg-light text-dark border{% endif %}">
+        {{ fg_req.get_status_display }}
+      </span>
     </div>
+    <nav class="jp-sx-tools" aria-label="Công cụ">
+      {% if can_print %}<a href="{% url 'san_xuat:print_ycntp' fg_req.pk %}?autoprint=1" target="_blank" rel="noopener"><i class="bi bi-printer" aria-hidden="true"></i>In A5</a>{% endif %}
+      <span class="sep" aria-hidden="true"></span>
+      <a href="{% url 'san_xuat:dispatch_fg_receipt_req' %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại</a>
+    </nav>
   </div>
 
-  <div class="row g-3 mb-4">
-    <div class="col-12 col-lg-6">
-      <div class="card border-0 shadow-sm h-100">
-        <div class="card-body">
-          <div class="row g-3">
-            <div class="col-6">
-              <div class="small text-muted">Ngày yêu cầu</div>
-              <div>{{ fg_req.request_date|date:"d/m/Y" }}</div>
-            </div>
-            <div class="col-6">
-              <div class="small text-muted">Số lượng nhập thành phẩm</div>
-              <div class="fw-semibold">{{ fg_req.qty }}</div>
-            </div>
-            <div class="col-6">
-              <div class="small text-muted">Mã sản phẩm</div>
-              <div>{{ fg_req.production_order.product_code }}</div>
-            </div>
-            <div class="col-6">
-              <div class="small text-muted">Phiếu nhập KiotViet</div>
-              <div>
-                {% if fg_req.kv_purchase_kiotviet_id %}
-                <a href="{% url 'san_xuat:fg_purchase_detail' fg_req.kv_purchase_kiotviet_id %}">{{ fg_req.kv_purchase_code|default:fg_req.kv_purchase_kiotviet_id }}</a>
-                {% else %}—{% endif %}
-              </div>
-            </div>
-            <div class="col-12">
-              <div class="small text-muted">Ghi chú</div>
-              <div>{{ fg_req.notes|default:"—" }}</div>
-            </div>
+  <div class="card border-0 shadow-sm">
+    <div class="card-body">
+      <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+        <div class="min-w-0">
+          <div class="fw-semibold fs-5 mb-0">{{ fg_req.production_order.product_code }}</div>
+          <div class="text-muted small">
+            LSX
+            <a href="{% url 'san_xuat:dispatch_mo_detail' fg_req.production_order.pk %}">{{ fg_req.production_order.code }}</a>
+            {% if fg_req.production_order.product_name %} · {{ fg_req.production_order.product_name }}{% endif %}
           </div>
         </div>
+        {% if can_update and fg_req.status == 'draft' %}
+        <form method="post" class="jp-sx-ycntp-actions">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="submit">
+          <button type="submit" class="btn btn-hm">Gửi yêu cầu</button>
+        </form>
+        {% endif %}
       </div>
-    </div>
 
-    <div class="col-12 col-lg-6">
-      <div class="card border-0 shadow-sm h-100">
-        <div class="card-body">
-          <div class="small text-muted mb-3">Hành động</div>
-          {% if can_update and fg_req.status == 'draft' %}
-          <form method="post" class="mb-3">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="submit">
-            <button type="submit" class="btn btn-hm w-100">Gửi yêu cầu nhập thành phẩm</button>
-          </form>
-          {% endif %}
-
-          {% if can_update and not fg_req.kv_purchase_kiotviet_id %}
-          <form method="post">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="link_kv">
-            {% for field in link_form %}
-            <div class="mb-3">
-              <label class="form-label small text-muted" for="{{ field.id_for_label }}">{{ field.label }}</label>
-              {{ field }}
-              {% if field.errors %}<div class="text-danger small">{{ field.errors }}</div>{% endif %}
-            </div>
-            {% endfor %}
-            <button type="submit" class="btn btn-outline-hm w-100">Liên kết phiếu nhập KiotViet</button>
-          </form>
-          <div class="form-text mt-2">
-            Tra cứu phiếu nhập tại
-            <a href="{% url 'san_xuat:fg_purchase_lookup' %}">Kho sản phẩm → Phiếu nhập</a>.
-          </div>
-          {% elif fg_req.kv_purchase_kiotviet_id %}
-          <div class="text-muted small">Đã liên kết phiếu nhập KiotViet.</div>
-          {% endif %}
+      <div class="jp-sx-ycntp-meta">
+        <div>
+          <div class="label">Ngày yêu cầu</div>
+          <div class="value">{{ fg_req.request_date|date:"d/m/Y" }}</div>
         </div>
+        <div>
+          <div class="label">Số lượng</div>
+          <div class="value">{{ fg_req.qty }}</div>
+        </div>
+        <div>
+          <div class="label">Phiếu nhập KV</div>
+          <div class="value">
+            {% if fg_req.kv_purchase_kiotviet_id %}
+            <a href="{% url 'san_xuat:fg_purchase_detail' fg_req.kv_purchase_kiotviet_id %}">{{ fg_req.kv_purchase_code|default:fg_req.kv_purchase_kiotviet_id }}</a>
+            {% else %}—{% endif %}
+          </div>
+        </div>
+        {% if fg_req.production_stat %}
+        <div>
+          <div class="label">Thống kê nguồn</div>
+          <div class="value">
+            <a href="{% url 'san_xuat:dispatch_prod_stats_detail' fg_req.production_stat.pk %}">{{ fg_req.production_stat.code }}</a>
+          </div>
+        </div>
+        {% endif %}
       </div>
+
+      {% if fg_req.notes %}
+      <div class="mt-3 pt-3 border-top">
+        <div class="label text-muted small mb-1">Ghi chú</div>
+        <div class="small mb-0">{{ fg_req.notes }}</div>
+      </div>
+      {% endif %}
+
+      {% if can_update and not fg_req.kv_purchase_kiotviet_id %}
+      <div class="mt-3 pt-3 border-top">
+        <p class="jp-sx-ycntp-section">Liên kết phiếu nhập KiotViet</p>
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="link_kv">
+          <div class="jp-sx-ycntp-kv">
+            <div class="field">
+              <label for="{{ link_form.kv_purchase_code.id_for_label }}">Mã phiếu (PN…)</label>
+              {{ link_form.kv_purchase_code }}
+              {% if link_form.kv_purchase_code.errors %}<div class="text-danger small">{{ link_form.kv_purchase_code.errors }}</div>{% endif %}
+            </div>
+            <div class="field">
+              <label for="{{ link_form.kv_purchase_kiotviet_id.id_for_label }}">ID KiotViet</label>
+              {{ link_form.kv_purchase_kiotviet_id }}
+              {% if link_form.kv_purchase_kiotviet_id.errors %}<div class="text-danger small">{{ link_form.kv_purchase_kiotviet_id.errors }}</div>{% endif %}
+            </div>
+            <button type="submit" class="btn btn-outline-hm jp-sx-ycntp-btn">Liên kết</button>
+          </div>
+          {% if link_form.non_field_errors %}
+          <div class="text-danger small mt-2">{{ link_form.non_field_errors }}</div>
+          {% endif %}
+        </form>
+      </div>
+      {% elif fg_req.kv_purchase_kiotviet_id %}
+      <div class="mt-3 pt-3 border-top">
+        <div class="text-muted small mb-0">Đã liên kết phiếu nhập KiotViet.</div>
+      </div>
+      {% endif %}
     </div>
   </div>
 </div>

@@ -1,7 +1,6 @@
 {% extends 'san_xuat/print/base_a5.html' %}
 {% block print_body %}
 <div class="doc-title">Phiếu đóng gói</div>
-<div class="doc-sub">Số: <strong>{{ item.code }}</strong> · Ngày làm phiếu: <strong>{{ doc_date|date:"d/m/Y" }}</strong></div>
 
 <div class="meta-grid">
   <div><span class="label">Ngày đóng gói:</span> {{ item.pack_date|date:"d/m/Y" }}</div>

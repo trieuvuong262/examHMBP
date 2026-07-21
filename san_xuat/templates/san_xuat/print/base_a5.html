@@ -52,9 +52,25 @@
       width: 210mm;
       min-height: 148mm;
       margin: 12px auto;
-      padding: 4mm 4mm 3mm;
+      padding: 2mm;
       background: #fff;
       box-shadow: 0 2px 12px rgba(0,0,0,.18);
+    }
+    .print-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px 16px;
+      margin-bottom: 2px;
+    }
+    .print-header-co { min-width: 0; flex: 1 1 auto; }
+    .print-header-doc {
+      flex: 0 0 auto;
+      text-align: right;
+      font-size: 9.5pt;
+      line-height: 1.35;
+      white-space: nowrap;
+      padding-top: 1px;
     }
     .co-name {
       font-size: 12pt;
@@ -64,7 +80,7 @@
     }
     .co-meta { font-size: 9pt; color: var(--muted); }
     .doc-title {
-      margin: 4px 0 2px;
+      margin: 4px 0 6px;
       text-align: center;
       font-size: 13pt;
       font-weight: 700;
@@ -121,24 +137,11 @@
       color: var(--muted);
       font-size: 8pt;
       font-style: italic;
-      margin: 2px 0 28px;
-    }
-    .sig-box .line {
-      border-top: 1px solid var(--line);
-      margin: 0 2px;
-      padding-top: 2px;
-      font-size: 8pt;
-      color: var(--muted);
-    }
-    .footer-note {
-      margin-top: 6px;
-      font-size: 8pt;
-      color: var(--muted);
-      text-align: center;
+      margin: 2px 0 36px;
     }
     @page {
       size: A5 landscape;
-      margin: 3mm;
+      margin: 0;
     }
     @media print {
       html, body { background: #fff; }
@@ -147,7 +150,7 @@
         width: auto;
         min-height: auto;
         margin: 0;
-        padding: 0;
+        padding: 1.5mm;
         box-shadow: none;
       }
     }
@@ -157,13 +160,12 @@
   <div class="no-print">
     <button type="button" onclick="window.print()">In giấy A5 ngang</button>
     <a href="{{ back_url }}">Đóng</a>
-    <span class="hint">Khổ A5 ngang · lề sát 4 góc (≈3mm)</span>
+    <span class="hint">Khổ A5 ngang · lề tối thiểu · trong hộp thoại in chọn Lề: Không / Tối thiểu</span>
   </div>
   <div class="sheet">
     {% include 'san_xuat/print/includes/header.html' %}
     {% block print_body %}{% endblock %}
     {% include 'san_xuat/print/includes/signatures.html' %}
-    <div class="footer-note">In từ Portal JustPlay · {{ printed_at|date:"d/m/Y H:i" }}</div>
   </div>
   {% if autoprint %}
   <script>window.addEventListener('load', function () { window.print(); });</script>
