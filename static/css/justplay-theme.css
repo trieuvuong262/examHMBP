@@ -5652,30 +5652,26 @@ body.jp-tool-loading-active {
     body.jp-has-amis-header .jp-sidebar {
         display: flex;
         flex-direction: column;
-        position: relative;
-        top: auto;
-        left: auto;
-        bottom: auto;
-        align-self: stretch;
+        position: fixed;
+        top: var(--jp-topbar-h);
+        left: 0;
+        bottom: 0;
         height: auto;
-        min-height: 100%;
         max-height: none;
         overflow: hidden;
         flex-shrink: 0;
         width: var(--jp-sidebar-w);
+        z-index: 1040;
     }
 
     body.jp-has-amis-header .jp-sidebar-nav {
-        position: relative;
-        top: auto;
         flex: 1 1 auto;
         min-height: 0;
         min-width: 0;
         width: 100%;
         max-width: 100%;
-        height: calc(100vh - var(--jp-topbar-h));
-        height: calc(100dvh - var(--jp-topbar-h));
-        max-height: calc(100dvh - var(--jp-topbar-h));
+        height: auto;
+        max-height: none;
         overflow: hidden;
         padding-bottom: 0;
     }
@@ -5708,17 +5704,22 @@ body.jp-tool-loading-active {
     }
 
     body.jp-has-amis-header .jp-app-main {
-        margin-left: 0;
-        width: auto;
-        max-width: none;
-        flex: 1 1 auto;
+        margin-left: var(--jp-sidebar-w);
+        width: calc(100% - var(--jp-sidebar-w));
+        max-width: calc(100% - var(--jp-sidebar-w));
+        flex: none;
         min-width: 0;
+        transition: margin-left 0.22s ease, width 0.22s ease, max-width 0.22s ease;
     }
 
     html.jp-sidebar-collapsed body.jp-has-amis-header .jp-app-main {
-        margin-left: 0;
-        width: auto;
-        max-width: none;
+        margin-left: var(--jp-sidebar-w-collapsed);
+        width: calc(100% - var(--jp-sidebar-w-collapsed));
+        max-width: calc(100% - var(--jp-sidebar-w-collapsed));
+    }
+
+    html.jp-sidebar-collapsed body.jp-has-amis-header .jp-sidebar {
+        width: var(--jp-sidebar-w-collapsed);
     }
 
     html.jp-sidebar-collapsed .jp-sidebar {
@@ -6658,16 +6659,21 @@ body.jp-has-amis-header .jp-app-shell {
     flex-direction: column;
     min-height: 100vh;
     min-height: 100dvh;
+    padding-top: var(--jp-topbar-h);
 }
 
 body.jp-has-amis-header .jp-topbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1055;
     flex-shrink: 0;
     width: 100%;
 }
 
 body.jp-has-amis-header .jp-app-body {
-    display: flex;
-    align-items: stretch;
+    display: block;
     flex: 1 1 auto;
     width: 100%;
     min-width: 0;
