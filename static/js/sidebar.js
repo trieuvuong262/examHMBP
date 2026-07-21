@@ -43,6 +43,14 @@
         });
     }
 
+    function positionFlyout(group) {
+        var submenu = group.querySelector('.jp-sidebar-submenu');
+        var btn = group.querySelector('[data-jp-sidebar-group-toggle]');
+        if (!submenu || !btn) return;
+        var rect = btn.getBoundingClientRect();
+        submenu.style.top = rect.top + 'px';
+    }
+
     function bindFlyouts() {
         document.querySelectorAll('[data-jp-sidebar-group-toggle]').forEach(function (btn) {
             btn.addEventListener('click', function () {
@@ -54,6 +62,7 @@
                 if (!open) {
                     group.classList.add('is-flyout-open');
                     btn.setAttribute('aria-expanded', 'true');
+                    positionFlyout(group);
                 }
             });
         });
@@ -90,21 +99,9 @@
     }
 
     function bindCollapsedSidebarWheel() {
-        var nav = document.querySelector('.jp-sidebar-nav');
-        var menuScroll = document.querySelector('.jp-sidebar-menu-scroll');
-        if (!nav || !menuScroll) return;
-
-        // In collapsed desktop mode the nav becomes the scroll container,
-        // so forward wheel input from the menu area to keep scrolling natural.
-        menuScroll.addEventListener('wheel', function (event) {
-            if (!isCollapsed() || window.innerWidth < 992) return;
-
-            var canScroll = nav.scrollHeight > nav.clientHeight;
-            if (!canScroll) return;
-
-            nav.scrollTop += event.deltaY;
-            event.preventDefault();
-        }, { passive: false });
+        // When collapsed, .jp-sidebar-nav has overflow-y:auto so native scroll
+        // works. Flyouts use position:fixed positioned via JS so they are not
+        // clipped by the overflow container.
     }
 
     document.addEventListener('DOMContentLoaded', function () {

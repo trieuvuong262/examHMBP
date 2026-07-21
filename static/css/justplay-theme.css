@@ -5745,7 +5745,7 @@ body.jp-tool-loading-active {
     html.jp-sidebar-collapsed .jp-sidebar-nav {
         padding-left: 0.45rem;
         padding-right: 0;
-        overflow-x: visible;
+        overflow-x: hidden;
         overflow-y: auto;
         scrollbar-width: thin;
         scrollbar-color: var(--jp-sidebar-scroll-thumb) var(--jp-sidebar-scroll-track);
@@ -5758,7 +5758,6 @@ body.jp-tool-loading-active {
     html.jp-sidebar-collapsed .jp-sidebar-nav::-webkit-scrollbar-track {
         background: transparent;
         margin: 0.5rem 0;
-        border-radius: 0;
     }
 
     html.jp-sidebar-collapsed .jp-sidebar-nav::-webkit-scrollbar-thumb {
@@ -5853,8 +5852,8 @@ body.jp-tool-loading-active {
 
     html.jp-sidebar-collapsed .jp-sidebar-group .jp-sidebar-submenu {
         display: none !important;
-        position: absolute;
-        left: calc(100% + 0.35rem);
+        position: fixed;
+        left: var(--jp-sidebar-w-collapsed);
         top: 0;
         min-width: 210px;
         margin: 0;
