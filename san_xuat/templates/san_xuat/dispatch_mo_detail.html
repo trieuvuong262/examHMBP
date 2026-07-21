@@ -1,5 +1,19 @@
 {% extends 'base.html' %}
 
+{% block extra_head %}
+<style>
+.jp-sx-mo-next .btn {
+  padding: 0.55rem 0.85rem;
+  line-height: 1.25;
+}
+.jp-sx-mo-next .btn i {
+  font-size: 1.05rem;
+  opacity: 0.85;
+  flex: 0 0 auto;
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
     <div class="jp-npl-mat-topbar">
@@ -106,7 +120,12 @@
     <div class="col-12 col-lg-6">
       <div class="card border-0 shadow-sm h-100">
         <div class="card-body">
-          <div class="small text-muted mb-3">Hành động</div>
+          <div class="d-flex align-items-baseline justify-content-between gap-2 mb-3">
+            <h3 class="h6 mb-0 fw-semibold">Tiếp theo</h3>
+            {% if mo.status != 'draft' %}
+            <span class="small text-muted">Theo tiến độ lệnh</span>
+            {% endif %}
+          </div>
 
           {% if mo.status == 'draft' %}
             {% if can_update %}
@@ -140,42 +159,60 @@
                   </div>
                 </div>
                 <div class="d-flex flex-wrap gap-2 mt-3">
-                  <button type="submit" class="btn btn-sm btn-hm">Lưu</button>
+                  <button type="submit" class="btn btn-sm btn-hm fw-bold">Lưu</button>
                 </div>
               </form>
 
-              <form method="post" class="mb-3">
+              <form method="post">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="release"/>
-                <button type="submit" class="btn btn-sm btn-outline-success w-100">
-                  Release (chốt BOM active)
+                <button type="submit" class="btn btn-sm btn-outline-success fw-bold">
+                  Phát hành · chốt BOM active
                 </button>
               </form>
             {% else %}
-              <div class="text-muted small">
-                Bạn không có quyền cập nhật lệnh sản xuất.
-              </div>
+              <p class="text-muted small mb-0">Bạn không có quyền cập nhật lệnh sản xuất.</p>
             {% endif %}
           {% endif %}
 
           {% if mo.status != 'draft' %}
-            <div class="text-muted small mb-2">
-              Bước tiếp theo: tạo yêu cầu xuất từ BOM hoặc ghi Thống kê sản xuất theo ngày.
-            </div>
-            <div class="d-grid gap-2">
-              <form method="post">
+            <div class="jp-sx-mo-next d-flex flex-column gap-2">
+              <form method="post" class="m-0">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="create_ycx"/>
-                <button type="submit" class="btn btn-hm w-100">Tạo yêu cầu xuất từ BOM</button>
+                <button type="submit" class="btn btn-sm btn-hm fw-bold w-100 text-start">
+                  <span class="d-flex align-items-center gap-2">
+                    <i class="bi bi-box-arrow-up" aria-hidden="true"></i>
+                    <span>
+                      <span class="d-block">Xuất vật tư từ BOM</span>
+                      <span class="d-block small fw-normal opacity-75">Tạo yêu cầu xuất (YCX)</span>
+                    </span>
+                  </span>
+                </button>
               </form>
-              <a href="{% url 'san_xuat:dispatch_prod_stats_create' %}?mo={{ mo.pk }}" class="btn btn-outline-hm">
-                Ghi thống kê sản xuất / sản lượng
+              <a href="{% url 'san_xuat:dispatch_prod_stats_create' %}?mo={{ mo.pk }}"
+                 class="btn btn-sm btn-outline-hm fw-bold w-100 text-start">
+                <span class="d-flex align-items-center gap-2">
+                  <i class="bi bi-clipboard-data" aria-hidden="true"></i>
+                  <span>
+                    <span class="d-block">Ghi thống kê sản xuất</span>
+                    <span class="d-block small fw-normal text-muted">Sản lượng theo ngày / công đoạn</span>
+                  </span>
+                </span>
               </a>
               {% if mo.status == 'in_progress' or mo.status == 'done' %}
-              <form method="post">
+              <form method="post" class="m-0">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="create_ycntp"/>
-                <button type="submit" class="btn btn-outline-secondary w-100">Tạo yêu cầu nhập thành phẩm nhập thành phẩm</button>
+                <button type="submit" class="btn btn-sm btn-outline-secondary fw-bold w-100 text-start">
+                  <span class="d-flex align-items-center gap-2">
+                    <i class="bi bi-box-arrow-in-down" aria-hidden="true"></i>
+                    <span>
+                      <span class="d-block">Nhập thành phẩm</span>
+                      <span class="d-block small fw-normal text-muted">Tạo yêu cầu nhập TP (YCNTP)</span>
+                    </span>
+                  </span>
+                </button>
               </form>
               {% endif %}
             </div>
