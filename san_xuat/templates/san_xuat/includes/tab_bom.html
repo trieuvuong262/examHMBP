@@ -1,7 +1,7 @@
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-body">
         {% if can_update and meta_form and line_formset %}
-        <form method="post">
+        <form method="post" id="bom-form">
             {% csrf_token %}
             <input type="hidden" name="action" value="save_bom">
             <div class="row g-3 mb-3">
@@ -21,30 +21,43 @@
 
             {{ line_formset.management_form }}
             <div class="table-responsive">
-                <table class="table table-sm align-middle">
+                <table class="table table-sm align-middle mb-0">
                     <thead class="table-light">
                         <tr>
-                            <th style="min-width:14rem">NPL</th>
-                            <th>Định mức</th>
-                            <th>Hao hụt %</th>
-                            <th>Size</th>
+                            <th style="min-width:220px">Nguyên phụ liệu</th>
+                            <th style="width:100px" class="text-end">Định mức</th>
+                            <th style="width:72px">ĐVT</th>
+                            <th style="width:90px" class="text-end">Hao hụt %</th>
+                            <th style="width:80px">Size</th>
                             <th>Ghi chú</th>
-                            <th>TT</th>
-                            <th>Xóa</th>
+                            <th style="width:4rem">TT</th>
+                            <th style="width:40px"></th>
                             {% if issue_base_url %}<th style="width:1%"></th>{% endif %}
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="bom-lines-body">
                         {% for f in line_formset %}
-                        <tr>
+                        <tr class="bom-line-row">
                             {% for hidden in f.hidden_fields %}{{ hidden }}{% endfor %}
-                            <td>{{ f.material }}{% if f.material.errors %}<div class="text-danger small">{{ f.material.errors }}</div>{% endif %}</td>
-                            <td>{{ f.qty }}</td>
-                            <td>{{ f.scrap_pct }}</td>
+                            <td class="jp-npl-material-cell">
+                                <div class="jp-npl-material-field">{{ f.material }}{% if f.material.errors %}<div class="text-danger small">{{ f.material.errors }}</div>{% endif %}</div>
+                            </td>
+                            <td class="text-end">{{ f.qty }}{% if f.qty.errors %}<div class="text-danger small">{{ f.qty.errors }}</div>{% endif %}</td>
+                            <td class="jp-npl-line-unit-cell">
+                                <span class="jp-npl-line-unit text-muted small">{% if f.instance.material_id %}{{ f.instance.material.unit.name }}{% else %}—{% endif %}</span>
+                            </td>
+                            <td class="text-end">{{ f.scrap_pct }}</td>
                             <td>{{ f.size_code }}</td>
                             <td>{{ f.notes }}</td>
-                            <td style="width:4rem">{{ f.sort_order }}</td>
-                            <td class="text-center">{% if f.instance.pk %}{{ f.DELETE }}{% endif %}</td>
+                            <td>{{ f.sort_order }}</td>
+                            <td class="text-center">
+                                {% if f.DELETE %}
+                                <div class="d-none">{{ f.DELETE }}</div>
+                                <button type="button" class="btn btn-link btn-sm text-danger p-0 remove-bom-row" title="Xóa dòng">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                                {% endif %}
+                            </td>
                             {% if issue_base_url %}
                             <td class="text-center">
                                 {% if f.instance.pk and f.instance.material_id %}
@@ -62,8 +75,37 @@
                     </tbody>
                 </table>
             </div>
-            <button type="submit" class="btn btn-hm">Lưu BOM</button>
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-3">
+                <button type="button" class="btn btn-outline-hm btn-sm" id="add-bom-row">
+                    <i class="bi bi-plus-lg me-1"></i>Thêm NPL
+                </button>
+                <button type="submit" class="btn btn-hm">Lưu BOM</button>
+            </div>
         </form>
+
+        <template id="empty-bom-row-template">
+            {% with f=line_formset.empty_form %}
+            <tr class="bom-line-row">
+                {% for hidden in f.hidden_fields %}{{ hidden }}{% endfor %}
+                <td class="jp-npl-material-cell">
+                    <div class="jp-npl-material-field">{{ f.material }}</div>
+                </td>
+                <td class="text-end">{{ f.qty }}</td>
+                <td class="jp-npl-line-unit-cell"><span class="jp-npl-line-unit text-muted small">—</span></td>
+                <td class="text-end">{{ f.scrap_pct }}</td>
+                <td>{{ f.size_code }}</td>
+                <td>{{ f.notes }}</td>
+                <td>{{ f.sort_order }}</td>
+                <td class="text-center">
+                    <div class="d-none">{{ f.DELETE }}</div>
+                    <button type="button" class="btn btn-link btn-sm text-danger p-0 remove-bom-row" title="Xóa dòng">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </td>
+                {% if issue_base_url %}<td></td>{% endif %}
+            </tr>
+            {% endwith %}
+        </template>
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/css/tom-select.bootstrap5.min.css">
 <script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/js/tom-select.complete.min.js"></script>
@@ -71,6 +113,7 @@
 <script>
 (function () {
     var SEARCH_URL = '{% url "kho_npl:material_search" %}';
+    var materialInstances = new WeakMap();
 
     function normalizeText(v) {
         return String(v || '').toLowerCase()
@@ -111,9 +154,14 @@
         };
     }
 
+    function setLineUnit(row, unit) {
+        var el = row && row.querySelector('.jp-npl-line-unit');
+        if (el) el.textContent = (unit || '').trim() || '—';
+    }
+
     function initBomMaterialSelect(select) {
-        if (!select || select._bomTsInit || typeof TomSelect === 'undefined') return;
-        select._bomTsInit = true;
+        if (!select || materialInstances.has(select) || typeof TomSelect === 'undefined') return;
+        var row = select.closest('tr');
         var ts = new TomSelect(select, {
             maxItems: 1,
             valueField: 'id',
@@ -143,6 +191,12 @@
                     return '<div class="px-2 py-2 text-muted small">Đang tải...</div>';
                 },
             },
+            onChange: function (value) {
+                var unit = value && this.options[value]
+                    ? (this.options[value].unit_name || this.options[value].unit || '')
+                    : '';
+                setLineUnit(row, unit);
+            },
             onInitialize: function () {
                 if (this.wrapper) this.wrapper.classList.add('jp-npl-material-ts');
                 var val = (select.value || '').trim();
@@ -154,28 +208,50 @@
                 }
             },
         });
+        materialInstances.set(select, ts);
+    }
+
+    function destroyBomMaterialSelect(row) {
+        var select = row && row.querySelector('select.jp-npl-material-select');
+        var ts = select ? materialInstances.get(select) : null;
+        if (ts) {
+            ts.destroy();
+            materialInstances.delete(select);
+        }
     }
 
     document.querySelectorAll('select.jp-npl-material-select').forEach(initBomMaterialSelect);
 
-    /* Thêm dòng mới — khởi tạo TomSelect cho hàng vừa thêm */
-    var addRowBtn = document.querySelector('[name="action"][value="save_bom"]')
-        ? null
-        : document.querySelector('#add-row');
-    if (!addRowBtn) {
-        /* fallback: watch for new selects */
-        var observer = new MutationObserver(function (mutations) {
-            mutations.forEach(function (m) {
-                m.addedNodes.forEach(function (node) {
-                    if (node.nodeType !== 1) return;
-                    node.querySelectorAll && node.querySelectorAll('select.jp-npl-material-select').forEach(initBomMaterialSelect);
-                    if (node.matches && node.matches('select.jp-npl-material-select')) initBomMaterialSelect(node);
-                });
-            });
-        });
-        var tbody = document.querySelector('table tbody');
-        if (tbody) observer.observe(tbody, { childList: true, subtree: true });
-    }
+    var body = document.getElementById('bom-lines-body');
+    var tmpl = document.getElementById('empty-bom-row-template');
+    var totalForms = document.getElementById('id_lines-TOTAL_FORMS');
+
+    document.getElementById('add-bom-row')?.addEventListener('click', function () {
+        if (!body || !tmpl || !totalForms) return;
+        var idx = parseInt(totalForms.value, 10);
+        var html = tmpl.innerHTML.replace(/__prefix__/g, idx);
+        body.insertAdjacentHTML('beforeend', html);
+        totalForms.value = idx + 1;
+        var rows = body.querySelectorAll('.bom-line-row');
+        var lastRow = rows[rows.length - 1];
+        if (lastRow) {
+            initBomMaterialSelect(lastRow.querySelector('select.jp-npl-material-select'));
+        }
+    });
+
+    body?.addEventListener('click', function (e) {
+        var btn = e.target.closest('.remove-bom-row');
+        if (!btn) return;
+        var row = btn.closest('tr');
+        destroyBomMaterialSelect(row);
+        var del = row && row.querySelector('input[type=checkbox][name$="-DELETE"]');
+        if (del) {
+            del.checked = true;
+            row.style.display = 'none';
+        } else if (row) {
+            row.remove();
+        }
+    });
 })();
 </script>
         {% else %}
@@ -186,6 +262,7 @@
                         <th>Mã NPL</th>
                         <th>Tên</th>
                         <th class="text-end">Định mức</th>
+                        <th>ĐVT</th>
                         <th class="text-end">Hao hụt %</th>
                         <th>Size</th>
                         {% if issue_base_url %}<th style="width:1%"></th>{% endif %}
@@ -197,6 +274,7 @@
                         <td><strong>{{ line.material.code }}</strong></td>
                         <td>{{ line.material.name }}</td>
                         <td class="text-end">{{ line.qty }}</td>
+                        <td class="text-muted small">{{ line.material.unit.name|default:"—" }}</td>
                         <td class="text-end">{{ line.scrap_pct }}</td>
                         <td>{{ line.size_code|default:"—" }}</td>
                         {% if issue_base_url %}
@@ -211,7 +289,7 @@
                         {% endif %}
                     </tr>
                     {% empty %}
-                    <tr><td colspan="{% if issue_base_url %}6{% else %}5{% endif %}" class="text-muted text-center py-3">Chưa có dòng NPL.</td></tr>
+                    <tr><td colspan="{% if issue_base_url %}7{% else %}6{% endif %}" class="text-muted text-center py-3">Chưa có dòng NPL.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>

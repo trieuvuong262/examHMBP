@@ -20,7 +20,8 @@
 .sx-bom-table { font-size: .85rem; }
 .sx-bom-table thead th { color: #6c757d; font-weight: 500; border-bottom: 1px solid #dee2e6; padding: 0.3rem 0.6rem; }
 .sx-bom-table tbody td { padding: 0.35rem 0.6rem; border: none; vertical-align: middle; }
-.sx-bom-table tbody tr { border-bottom: 1px solid #f0f0f0; }
+.sx-bom-table tbody tr { border-bottom: 1px solid #f0f0f0; cursor: pointer; }
+.sx-bom-table tbody tr:hover { background: #eef2ff; }
 .sx-bom-table tbody tr:last-child { border-bottom: none; }
 .sx-bom-empty { color: #adb5bd; font-style: italic; font-size: .85rem; padding: 0.5rem 0; }
 .sx-bom-status-active  { background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
@@ -112,12 +113,11 @@
                                         <th class="text-end">Số NPL</th>
                                         <th class="text-end">Công đoạn</th>
                                         <th>Cập nhật</th>
-                                        <th></th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {% for bom in boms %}
-                                    <tr>
+                                    <tr data-href="{% url 'san_xuat:doc_detail' doc.pk %}?tab=bom&bom={{ bom.pk }}">
                                         <td class="fw-semibold">{{ bom.version_label }}</td>
                                         <td>
                                             {% if bom.status == 'active' %}
@@ -131,13 +131,6 @@
                                         <td class="text-end">{{ bom.line_count }}</td>
                                         <td class="text-end">{{ bom.step_count }}</td>
                                         <td class="text-muted">{{ bom.updated_at|date:"d/m/Y" }}</td>
-                                        <td class="text-end">
-                                            <a href="{% url 'san_xuat:doc_detail' doc.pk %}?tab=bom&bom={{ bom.pk }}"
-                                               class="btn btn-outline-hm btn-xs py-0 px-2"
-                                               onclick="event.stopPropagation()">
-                                                <i class="bi bi-pencil-square me-1"></i>Mở
-                                            </a>
-                                        </td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>
@@ -175,5 +168,11 @@ function sxToggleDoc(row) {
     panel.classList.toggle('d-none', isOpen);
     btn.classList.toggle('is-open', !isOpen);
 }
+
+document.querySelectorAll('.sx-bom-table tbody tr[data-href]').forEach(function (row) {
+    row.addEventListener('click', function () {
+        window.location.href = row.dataset.href;
+    });
+});
 </script>
 {% endblock %}
