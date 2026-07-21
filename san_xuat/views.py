@@ -4,7 +4,13 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_GET
 
 from assessment.decorators import module_perm_required
-from hrm.module_permissions import MODULE_SAN_XUAT, user_can_create_module, user_can_update_module
+from hrm.module_permissions import (
+    MODULE_SAN_XUAT,
+    user_can_create_module,
+    user_can_export_module,
+    user_can_print_module,
+    user_can_update_module,
+)
 from PortalJustPlay.list_search import apply_term_search, get_search_query
 from PortalJustPlay.pagination import paginate_queryset
 
@@ -29,6 +35,8 @@ def _perm_ctx(request):
     return {
         'can_create': user_can_create_module(request.user, MODULE_SAN_XUAT),
         'can_update': user_can_update_module(request.user, MODULE_SAN_XUAT),
+        'can_print': user_can_print_module(request.user, MODULE_SAN_XUAT),
+        'can_export': user_can_export_module(request.user, MODULE_SAN_XUAT),
     }
 
 

@@ -25,8 +25,10 @@
     </form>
     <div class="jp-npl-mat-topbar-actions">
       <a href="{% url 'san_xuat:team_hr_map' %}" class="btn btn-outline-secondary btn-sm fw-bold">Map tổ → NV</a>
+      {% if can_export %}
       <a href="{% url 'san_xuat:piece_rate_hr_export' %}?month={{ month_value }}&date_from={{ date_from|date:'Y-m-d' }}&date_to={{ date_to|date:'Y-m-d' }}"
          class="btn btn-outline-secondary btn-sm fw-bold">Xuất CSV cho nhân sự</a>
+      {% endif %}
       <a href="{% url 'san_xuat:ops_report' %}" class="btn btn-outline-secondary btn-sm fw-bold">Báo cáo vận hành</a>
     </div>
   </div>

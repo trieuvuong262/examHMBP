@@ -12,6 +12,7 @@ from hrm.module_permissions import (
     user_can_delete_module,
     user_can_edit_module,
     user_can_export_module,
+    user_can_print_module,
     user_can_update_module,
 )
 from hrm.permissions import portal_admin_denied_message
@@ -22,12 +23,13 @@ _ACTION_CHECKERS = {
     'update': user_can_update_module,
     'delete': user_can_delete_module,
     'export': user_can_export_module,
+    'print': user_can_print_module,
     'edit': user_can_edit_module,
 }
 
 
 def module_action_required(module_key: str, action: str = 'view', *, redirect_to: str = 'home_portal'):
-    """login_required + kiểm tra một quyền module (view/create/update/delete/export/edit)."""
+    """login_required + kiểm tra một quyền module (view/create/update/delete/export/print/edit)."""
     checker = _ACTION_CHECKERS.get(action, user_can_access_module)
 
     def decorator(view_func):

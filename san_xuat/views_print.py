@@ -57,7 +57,7 @@ def _bom_lines_for_mo(mo: SxProductionOrder) -> list[dict]:
     return bom_lines
 
 
-@module_perm_required(MODULE_SAN_XUAT, 'view')
+@module_perm_required(MODULE_SAN_XUAT, 'print')
 def print_mo(request, pk: int):
     mo = get_object_or_404(
         SxProductionOrder.objects.select_related('bom_version').prefetch_related(
@@ -78,7 +78,7 @@ def print_mo(request, pk: int):
     })
 
 
-@module_perm_required(MODULE_SAN_XUAT, 'view')
+@module_perm_required(MODULE_SAN_XUAT, 'print')
 def print_ycx(request, pk: int):
     req = get_object_or_404(
         SxMaterialIssueRequest.objects.select_related(
@@ -102,7 +102,7 @@ def print_ycx(request, pk: int):
     })
 
 
-@module_perm_required(MODULE_SAN_XUAT, 'view')
+@module_perm_required(MODULE_SAN_XUAT, 'print')
 def print_qc(request, pk: int):
     inspection = get_object_or_404(
         SxQcInspection.objects.select_related(
@@ -132,7 +132,7 @@ def print_qc(request, pk: int):
     })
 
 
-@module_perm_required(MODULE_SAN_XUAT, 'view')
+@module_perm_required(MODULE_SAN_XUAT, 'print')
 def print_packing(request, pk: int):
     item = get_object_or_404(
         SxPackingRecord.objects.select_related(
@@ -156,7 +156,7 @@ def print_packing(request, pk: int):
     })
 
 
-@module_perm_required(MODULE_SAN_XUAT, 'view')
+@module_perm_required(MODULE_SAN_XUAT, 'print')
 def print_ycntp(request, pk: int):
     fg_req = get_object_or_404(
         SxFgReceiptRequest.objects.select_related(
@@ -179,7 +179,7 @@ def print_ycntp(request, pk: int):
     })
 
 
-@module_perm_required(MODULE_SAN_XUAT, 'view')
+@module_perm_required(MODULE_SAN_XUAT, 'print')
 def print_handover(request, pk: int):
     handover = get_object_or_404(
         SxWipHandover.objects.select_related('production_order'),
@@ -199,7 +199,7 @@ def print_handover(request, pk: int):
     })
 
 
-@module_perm_required(MODULE_SAN_XUAT, 'view')
+@module_perm_required(MODULE_SAN_XUAT, 'print')
 def print_subcontract(request, pk: int):
     item = get_object_or_404(
         SxSubcontractOrder.objects.select_related('production_order').prefetch_related(
@@ -221,7 +221,7 @@ def print_subcontract(request, pk: int):
     })
 
 
-@module_perm_required(MODULE_SAN_XUAT, 'view')
+@module_perm_required(MODULE_SAN_XUAT, 'print')
 def print_ncr(request, pk: int):
     case = get_object_or_404(
         SxNcrCase.objects.select_related(
@@ -246,7 +246,7 @@ def print_ncr(request, pk: int):
     })
 
 
-@module_perm_required(MODULE_SAN_XUAT, 'view')
+@module_perm_required(MODULE_SAN_XUAT, 'print')
 def print_qc_alert(request, pk: int):
     alert = get_object_or_404(
         SxQcAlert.objects.select_related(

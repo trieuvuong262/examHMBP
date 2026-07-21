@@ -8,7 +8,8 @@
     <div class="jp-npl-mat-topbar">
     <h2 class="jp-npl-mat-topbar-title">Giao việc SX</h2>
     <div class="jp-npl-mat-topbar-actions ms-auto">
-      {% if can_create %}
+      {% include 'san_xuat/includes/sx_export_btn.html' with export_key='work_assignment_list' %}
+            {% if can_create %}
       <a href="{% url 'san_xuat:work_assignment_create' %}" class="btn btn-hm btn-sm fw-bold">Giao việc</a>
       {% endif %}
       

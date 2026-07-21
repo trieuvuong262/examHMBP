@@ -6,7 +6,10 @@
     <div>
       <h2 class="jp-npl-mat-topbar-title mb-0">Xử lý hàng không đạt</h2>
     </div>
-    <a href="{% url 'san_xuat:qc_alerts' %}" class="btn btn-outline-secondary btn-sm">Cảnh báo chất lượng</a>
+    <div class="jp-npl-mat-topbar-actions ms-auto d-flex gap-2">
+      {% include 'san_xuat/includes/sx_export_btn.html' with export_key='ncr_list' %}
+      <a href="{% url 'san_xuat:qc_alerts' %}" class="btn btn-outline-secondary btn-sm">Cảnh báo chất lượng</a>
+    </div>
   </div>
 
   {% include 'san_xuat/includes/sx_list_filter.html' %}

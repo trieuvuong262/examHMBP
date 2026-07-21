@@ -334,7 +334,7 @@ def staging_locations(request):
     )
 
 
-@module_perm_required(MODULE_SAN_XUAT, "view")
+@module_perm_required(MODULE_SAN_XUAT, "export")
 def piece_rate_hr_export(request):
     """CSV lương SP để HR/payroll import — ưu tiên mã NV từ SxTeamHrMap."""
     from san_xuat.services.overview import parse_overview_period

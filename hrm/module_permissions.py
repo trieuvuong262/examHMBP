@@ -344,6 +344,21 @@ def user_can_export_module(user, module_key: str) -> bool:
     return bool(get_user_module_perm(user, module_key).get(PERM_EXPORT))
 
 
+def user_can_print_module(user, module_key: str) -> bool:
+    if not is_portal_module_visible(module_key):
+        return False
+    if module_key not in ALL_MODULE_KEYS:
+        return True
+    if bypass_department_modules(user):
+        return True
+    if module_key not in get_user_enabled_modules(user):
+        return False
+    from hrm.group_permissions import PERM_PRINT, get_user_module_perm, module_supports_print
+    if not module_supports_print(module_key):
+        return False
+    return bool(get_user_module_perm(user, module_key).get(PERM_PRINT))
+
+
 def user_can_view_module(user, module_key: str) -> bool:
     """Alias — quyền xem module (phòng ban + vai trò)."""
     return user_can_access_module(user, module_key)

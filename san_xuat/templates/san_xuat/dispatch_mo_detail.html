@@ -5,7 +5,7 @@
     <div class="jp-npl-mat-topbar">
     <h2 class="jp-npl-mat-topbar-title">Lệnh sản xuất <span class="text-muted">({{ mo.code }})</span></h2>
     <div class="jp-npl-mat-topbar-actions ms-auto">
-      <a href="{% url 'san_xuat:print_mo' mo.pk %}?autoprint=1" target="_blank" rel="noopener" class="btn btn-outline-secondary btn-sm fw-bold">In A5</a>
+      {% if can_print %}<a href="{% url 'san_xuat:print_mo' mo.pk %}?autoprint=1" target="_blank" rel="noopener" class="btn btn-outline-secondary btn-sm fw-bold">In A5</a>{% endif %}
       <a href="{% url 'san_xuat:run_order_wizard_mo' mo.pk %}" class="btn btn-outline-hm btn-sm fw-bold">Wizard</a>
       <a href="{% url 'san_xuat:traceability' %}?query={{ mo.code }}&gaps=1" class="btn btn-outline-secondary btn-sm fw-bold">Thiếu bước?</a>
       <a href="{% url 'san_xuat:dispatch_mo' %}" class="btn btn-outline-secondary btn-sm fw-bold">Quay lại</a>

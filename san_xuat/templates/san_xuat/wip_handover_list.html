@@ -8,7 +8,8 @@
     <div class="jp-npl-mat-topbar">
     <h2 class="jp-npl-mat-topbar-title">Bàn giao bán thành phẩm</h2>
     <div class="jp-npl-mat-topbar-actions ms-auto">
-      {% if can_create %}
+      {% include 'san_xuat/includes/sx_export_btn.html' with export_key='dispatch_wip_handover' %}
+            {% if can_create %}
       <a href="{% url 'san_xuat:dispatch_wip_handover_create' %}" class="btn btn-hm btn-sm fw-bold">Tạo bàn giao</a>
       {% endif %}
       

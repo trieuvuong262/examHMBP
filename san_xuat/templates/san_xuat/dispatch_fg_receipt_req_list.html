@@ -8,7 +8,8 @@
     <div class="jp-npl-mat-topbar">
     <h2 class="jp-npl-mat-topbar-title">Yêu cầu nhập thành phẩm</h2>
     <div class="jp-npl-mat-topbar-actions ms-auto">
-      <a href="{% url 'san_xuat:dispatch_fg_receipt_req_create' %}" class="btn btn-hm btn-sm fw-bold">Tạo yêu cầu nhập thành phẩm</a>
+      {% include 'san_xuat/includes/sx_export_btn.html' with export_key='dispatch_fg_receipt_req' %}
+            <a href="{% url 'san_xuat:dispatch_fg_receipt_req_create' %}" class="btn btn-hm btn-sm fw-bold">Tạo yêu cầu nhập thành phẩm</a>
     </div>
   </div>
 

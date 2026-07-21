@@ -9,7 +9,8 @@
     <div class="jp-npl-mat-topbar">
     <h2 class="jp-npl-mat-topbar-title">Giá thành kế hoạch theo đơn</h2>
     <div class="jp-npl-mat-topbar-actions ms-auto">
-      {% if can_create %}
+      {% include 'san_xuat/includes/sx_export_btn.html' with export_key='costing_order_list' %}
+            {% if can_create %}
       <a href="{% url 'san_xuat:costing_order_create' %}" class="btn btn-hm btn-sm fw-bold">Tạo giá thành kế hoạch</a>
       {% endif %}
       

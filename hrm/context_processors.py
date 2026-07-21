@@ -35,6 +35,7 @@ from hrm.module_permissions import (
     user_can_delete_module,
     user_can_edit_module,
     user_can_export_module,
+    user_can_print_module,
     user_can_update_module,
 )
 from hrm.page_title import resolve_page_title
@@ -189,6 +190,8 @@ def portal_permissions(request):
             'jp_can_create_san_xuat': False,
             'jp_can_update_san_xuat': False,
             'jp_can_delete_san_xuat': False,
+            'jp_can_print_san_xuat': False,
+            'jp_can_export_san_xuat': False,
             'jp_can_edit_tasks': False,
             'jp_can_create_tasks': False,
             'jp_can_update_tasks': False,
@@ -320,6 +323,8 @@ def portal_permissions(request):
         'jp_can_create_san_xuat': user_can_create_module(user, MODULE_SAN_XUAT),
         'jp_can_update_san_xuat': user_can_update_module(user, MODULE_SAN_XUAT),
         'jp_can_delete_san_xuat': user_can_delete_module(user, MODULE_SAN_XUAT),
+        'jp_can_print_san_xuat': user_can_print_module(user, MODULE_SAN_XUAT),
+        'jp_can_export_san_xuat': user_can_export_module(user, MODULE_SAN_XUAT),
         'jp_can_edit_tasks': user_can_edit_module(user, MODULE_TASKS),
         'jp_can_create_tasks': user_can_create_module(user, MODULE_TASKS),
         'jp_can_update_tasks': user_can_update_module(user, MODULE_TASKS),

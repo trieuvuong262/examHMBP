@@ -8,7 +8,8 @@
       <div class="jp-npl-mat-topbar">
     <h2 class="jp-npl-mat-topbar-title">Yêu cầu kiểm tra</h2>
     <div class="jp-npl-mat-topbar-actions ms-auto">
-      {% if can_create %}
+      {% include 'san_xuat/includes/sx_export_btn.html' with export_key='qc_request' %}
+            {% if can_create %}
             <a href="{% url 'san_xuat:qc_request_create' %}" class="btn btn-hm btn-sm fw-bold">Tạo yêu cầu kiểm tra</a>
             {% endif %}
       

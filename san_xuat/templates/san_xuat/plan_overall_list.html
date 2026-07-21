@@ -8,7 +8,8 @@
     <div class="jp-npl-mat-topbar">
     <h2 class="jp-npl-mat-topbar-title">Kế hoạch tổng thể</h2>
     <div class="jp-npl-mat-topbar-actions ms-auto">
-      {% if can_create %}
+      {% include 'san_xuat/includes/sx_export_btn.html' with export_key='plan_overall' %}
+            {% if can_create %}
     <a href="{% url 'san_xuat:plan_overall_create' %}" class="btn btn-hm btn-sm fw-bold">Tạo kế hoạch tổng thể</a>
     {% endif %}
       

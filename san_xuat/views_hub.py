@@ -552,7 +552,7 @@ def costing_order_detail(request, pk: int):
     })
 
 
-@module_perm_required(MODULE_SAN_XUAT, 'view')
+@module_perm_required(MODULE_SAN_XUAT, 'export')
 def costing_order_export(request, pk: int):
     sheet = get_object_or_404(
         SxOrderPlanCost.objects.prefetch_related('lines__typed_extras__cost_type'),
@@ -2611,6 +2611,7 @@ def qc_criteria(request):
         fields=['code', 'name', 'group', 'kind'],
         labels=['Mã', 'Tên', 'Nhóm', 'Loại'],
         create_url_name='san_xuat:qc_criteria_create',
+        export_key='qc_criteria',
     )
 
 
@@ -2624,6 +2625,7 @@ def qc_criteria_group(request):
         fields=['code', 'name', 'is_active'],
         labels=['Mã', 'Tên', 'Active'],
         create_url_name='san_xuat:qc_criteria_group_create',
+        export_key='qc_criteria_group',
     )
 
 
@@ -2637,6 +2639,7 @@ def qc_sampling(request):
         fields=['code', 'name', 'method_type', 'sample_value'],
         labels=['Mã', 'Tên', 'Loại', 'Giá trị'],
         create_url_name='san_xuat:qc_sampling_create',
+        export_key='qc_sampling',
     )
 
 
@@ -2650,6 +2653,7 @@ def qc_standard_set(request):
         fields=['code', 'name', 'product_code', 'stage_name', 'defect_tolerance_pct', 'sampling_method'],
         labels=['Mã', 'Tên', 'Mã SP', 'Công đoạn', 'Ngưỡng %', 'Chọn mẫu'],
         create_url_name='san_xuat:qc_standard_set_create',
+        export_key='qc_standard_set',
     )
 
 
@@ -2663,6 +2667,7 @@ def qc_defect(request):
         fields=['code', 'name', 'group', 'severity'],
         labels=['Mã', 'Tên', 'Nhóm', 'Mức độ'],
         create_url_name='san_xuat:qc_defect_create',
+        export_key='qc_defect',
     )
 
 
@@ -2676,10 +2681,11 @@ def qc_defect_group(request):
         fields=['code', 'name', 'is_active'],
         labels=['Mã', 'Tên', 'Active'],
         create_url_name='san_xuat:qc_defect_group_create',
+        export_key='qc_defect_group',
     )
 
 
-def _qc_catalog_list(request, *, title, subtitle, model, fields, labels, create_url_name):
+def _qc_catalog_list(request, *, title, subtitle, model, fields, labels, create_url_name, export_key=''):
     qs = model.objects.filter(is_demo=False).order_by('code')[:200]
     return render(request, 'san_xuat/qc_catalog_list.html', {
         **_perm_ctx(request),
@@ -2688,6 +2694,7 @@ def _qc_catalog_list(request, *, title, subtitle, model, fields, labels, create_
         'columns': labels,
         'rows': _rows_from_queryset(qs, fields),
         'create_url_name': create_url_name,
+        'export_key': export_key,
     })
 
 
@@ -3003,6 +3010,10 @@ def ops_report(request):
         team_label=team_label,
     )
     if (request.GET.get('export') or '').strip() == 'csv':
+        from hrm.module_permissions import user_can_export_module
+        if not user_can_export_module(request.user, MODULE_SAN_XUAT):
+            messages.error(request, 'Bạn không có quyền xuất Excel/CSV.')
+            return redirect('san_xuat:ops_report')
         return export_ops_report_csv(report=report)
 
     has_filters = bool(

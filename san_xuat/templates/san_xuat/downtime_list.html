@@ -6,6 +6,9 @@
     <div>
       <h2 class="jp-npl-mat-topbar-title mb-0">Dừng chuyền / OEE</h2>
     </div>
+    <div class="jp-npl-mat-topbar-actions ms-auto">
+      {% include 'san_xuat/includes/sx_export_btn.html' with export_key='downtime_list' %}
+    </div>
   </div>
 
   {% include 'san_xuat/includes/sx_list_filter.html' %}

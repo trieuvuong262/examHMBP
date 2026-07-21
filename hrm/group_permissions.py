@@ -1,5 +1,5 @@
 """
-Nhóm quyền — 5 hành động / module: xem, thêm, sửa, xoá, xuất Excel.
+Nhóm quyền — hành động / module: xem, thêm, sửa, xoá, xuất Excel, in.
 
 Profile.permission_group là nguồn chính; fallback RoleModulePermission theo vai trò (tương thích cũ).
 """
@@ -12,8 +12,9 @@ PERM_CREATE = 'create'
 PERM_UPDATE = 'update'
 PERM_DELETE = 'delete'
 PERM_EXPORT = 'export'
+PERM_PRINT = 'print'
 
-PERM_ACTIONS = (PERM_VIEW, PERM_CREATE, PERM_UPDATE, PERM_DELETE, PERM_EXPORT)
+PERM_ACTIONS = (PERM_VIEW, PERM_CREATE, PERM_UPDATE, PERM_DELETE, PERM_EXPORT, PERM_PRINT)
 
 PERM_ACTION_LABELS = {
     PERM_VIEW: 'Xem',
@@ -21,6 +22,7 @@ PERM_ACTION_LABELS = {
     PERM_UPDATE: 'Sửa',
     PERM_DELETE: 'Xóa',
     PERM_EXPORT: 'Xuất Excel',
+    PERM_PRINT: 'In',
 }
 
 # Module có chức năng tải/xuất file Excel thực tế — các module khác ẩn cột Excel trong ma trận phân quyền.
@@ -31,6 +33,12 @@ MODULE_SUPPORTS_EXPORT = frozenset({
     'audit',        # Xuất nhật ký thao tác
     'kho_npl',      # Báo cáo tồn kho / sổ kho
     'utilities',    # Xuất Excel đặt cơm / ứng lương
+    'san_xuat',     # Xuất Excel giá thành kế hoạch
+})
+
+# Module có in phiếu giấy (A5…) — ẩn cột In với module khác.
+MODULE_SUPPORTS_PRINT = frozenset({
+    'san_xuat',
 })
 
 # Module chỉ dùng quyền Xem + Xuất Excel (ẩn Thêm/Sửa/Xóa trong ma trận phân quyền).
@@ -43,11 +51,17 @@ def module_supports_export(module_key: str) -> bool:
     return module_key in MODULE_SUPPORTS_EXPORT
 
 
+def module_supports_print(module_key: str) -> bool:
+    return module_key in MODULE_SUPPORTS_PRINT
+
+
 def module_permission_action_enabled(module_key: str, action: str) -> bool:
     if module_key in MODULE_VIEW_EXPORT_ONLY:
         return action in (PERM_VIEW, PERM_EXPORT)
     if action == PERM_EXPORT:
         return module_supports_export(module_key)
+    if action == PERM_PRINT:
+        return module_supports_print(module_key)
     return True
 
 
@@ -62,6 +76,8 @@ def menu_permission_action_enabled(module_key: str, menu_key: str | None, action
     if module_key in MODULE_VIEW_EXPORT_ONLY and submenu_perm_manage(module_key, menu_key):
         if action == PERM_EXPORT:
             return module_supports_export(module_key)
+        if action == PERM_PRINT:
+            return False
         return True
     return module_permission_action_enabled(module_key, action)
 
@@ -79,11 +95,11 @@ def empty_module_perm() -> dict:
 
 
 def legacy_entry_to_five_flags(entry, *, module_key: str | None = None) -> dict:
-    """Chuyển {view, edit} cũ → 5 quyền."""
+    """Chuyển {view, edit} cũ → quyền granular (gồm export/print khi module hỗ trợ)."""
     if not isinstance(entry, dict):
         return empty_module_perm()
 
-    granular_keys = (PERM_CREATE, PERM_UPDATE, PERM_DELETE, PERM_EXPORT)
+    granular_keys = (PERM_CREATE, PERM_UPDATE, PERM_DELETE, PERM_EXPORT, PERM_PRINT)
     if any(action in entry for action in granular_keys):
         return normalize_module_perm(entry, module_key=module_key)
 
@@ -98,6 +114,7 @@ def legacy_entry_to_five_flags(entry, *, module_key: str | None = None) -> dict:
             PERM_UPDATE: False,
             PERM_DELETE: False,
             PERM_EXPORT: edit,
+            PERM_PRINT: False,
         }
     return {
         PERM_VIEW: view,
@@ -105,6 +122,7 @@ def legacy_entry_to_five_flags(entry, *, module_key: str | None = None) -> dict:
         PERM_UPDATE: edit,
         PERM_DELETE: edit,
         PERM_EXPORT: edit if module_supports_export(module_key or '') else False,
+        PERM_PRINT: edit if module_supports_print(module_key or '') else False,
     }
 
 
@@ -115,11 +133,14 @@ def normalize_module_perm(raw: dict | None, *, module_key: str | None = None) ->
         result[action] = bool(source.get(action, False))
     if module_key and not module_supports_export(module_key):
         result[PERM_EXPORT] = False
+    if module_key and not module_supports_print(module_key):
+        result[PERM_PRINT] = False
     if module_key in MODULE_VIEW_EXPORT_ONLY:
         result[PERM_CREATE] = False
         result[PERM_UPDATE] = False
         result[PERM_DELETE] = False
-    if any(result[a] for a in (PERM_CREATE, PERM_UPDATE, PERM_DELETE, PERM_EXPORT)):
+        result[PERM_PRINT] = False
+    if any(result[a] for a in (PERM_CREATE, PERM_UPDATE, PERM_DELETE, PERM_EXPORT, PERM_PRINT)):
         result[PERM_VIEW] = True
     return result
 
@@ -141,6 +162,7 @@ def normalize_menu_perm(raw: dict | None, *, module_key: str, menu_key: str) -> 
             PERM_UPDATE: edit,
             PERM_DELETE: edit,
             PERM_EXPORT: edit and module_supports_export(module_key),
+            PERM_PRINT: False,
         }
     else:
         source = legacy_entry_to_five_flags(entry, module_key=module_key)
@@ -149,7 +171,7 @@ def normalize_menu_perm(raw: dict | None, *, module_key: str, menu_key: str) -> 
     for action in PERM_ACTIONS:
         if menu_permission_action_enabled(module_key, menu_key, action):
             result[action] = bool(source.get(action, False))
-    if any(result[a] for a in (PERM_CREATE, PERM_UPDATE, PERM_DELETE, PERM_EXPORT)):
+    if any(result[a] for a in (PERM_CREATE, PERM_UPDATE, PERM_DELETE, PERM_EXPORT, PERM_PRINT)):
         result[PERM_VIEW] = True
     return result
 

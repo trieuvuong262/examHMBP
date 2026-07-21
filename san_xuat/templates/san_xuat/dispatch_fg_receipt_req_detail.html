@@ -5,7 +5,7 @@
     <div class="jp-npl-mat-topbar">
     <h2 class="jp-npl-mat-topbar-title">Yêu cầu nhập thành phẩm {{ fg_req.code }}</h2>
     <div class="jp-npl-mat-topbar-actions ms-auto">
-      <a href="{% url 'san_xuat:print_ycntp' fg_req.pk %}?autoprint=1" target="_blank" rel="noopener" class="btn btn-outline-secondary btn-sm fw-bold">In A5</a>
+      {% if can_print %}<a href="{% url 'san_xuat:print_ycntp' fg_req.pk %}?autoprint=1" target="_blank" rel="noopener" class="btn btn-outline-secondary btn-sm fw-bold">In A5</a>{% endif %}
       <a href="{% url 'san_xuat:dispatch_fg_receipt_req' %}" class="btn btn-outline-secondary btn-sm fw-bold">Quay lại</a>
     </div>
   </div>

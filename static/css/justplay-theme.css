@@ -8617,6 +8617,7 @@ body.jp-monitor-modal-open {
 .jp-perm-legend-chip.jp-perm-legend-update { background: #fffbeb; color: #d97706; }
 .jp-perm-legend-chip.jp-perm-legend-delete { background: #fef2f2; color: #dc2626; }
 .jp-perm-legend-chip.jp-perm-legend-export { background: #f5f3ff; color: #7c3aed; }
+.jp-perm-legend-chip.jp-perm-legend-print { background: #f1f5f9; color: #475569; }
 
 .jp-perm-group-page .jp-perm-matrix-card {
     max-width: 100%;
@@ -8631,6 +8632,7 @@ body.jp-monitor-modal-open {
 .jp-perm-col-update { background: #fffdf5 !important; }
 .jp-perm-col-delete { background: #fff8f8 !important; }
 .jp-perm-col-export { background: #faf8ff !important; }
+.jp-perm-col-print { background: #f7fafc !important; }
 
 .jp-perm-action-cell {
     padding: 0.5rem 0.35rem !important;
@@ -9704,6 +9706,7 @@ body.jp-monitor-modal-open {
     .jp-perm-group-page .jp-perm-col-update::before { content: 'Sửa'; }
     .jp-perm-group-page .jp-perm-col-delete::before { content: 'Xóa'; }
     .jp-perm-group-page .jp-perm-col-export::before { content: 'Xuất Excel'; }
+    .jp-perm-group-page .jp-perm-col-print::before { content: 'In'; }
 
     .jp-perm-group-page .jp-perm-action-cell::before {
         font-size: 0.78rem;
@@ -9845,6 +9848,7 @@ body.jp-monitor-modal-open {
 [data-theme="dark"] .jp-perm-col-update { background: rgba(217, 119, 6, 0.08) !important; }
 [data-theme="dark"] .jp-perm-col-delete { background: rgba(220, 38, 38, 0.08) !important; }
 [data-theme="dark"] .jp-perm-col-export { background: rgba(124, 58, 237, 0.08) !important; }
+[data-theme="dark"] .jp-perm-col-print { background: rgba(71, 85, 105, 0.12) !important; }
 
 /* ============================================================
    Theme toggle

@@ -9,6 +9,7 @@ from hrm.group_permissions import (
     PERM_CREATE,
     PERM_DELETE,
     PERM_EXPORT,
+    PERM_PRINT,
     PERM_UPDATE,
     PERM_VIEW,
     empty_module_perm,
@@ -34,6 +35,7 @@ from hrm.submenu_registry import (
 _MENU_DEFER_PATH_PATTERNS = (
     re.compile(r'^/yeu-cau/de-xuat/\d+/?'),
     re.compile(r'^/yeu-cau/ho-tro/\d+/?'),
+    re.compile(r'^/san-xuat/xuat-excel/'),
     re.compile(r'^/reports/sx/\d+'),
     re.compile(r'^/reports/cn/\d+'),
     re.compile(r'^/reports/doc-image/\d+/'),
@@ -68,6 +70,7 @@ _MENU_ACTION_CHECKS = {
     PERM_UPDATE: lambda perm: bool(perm.get(PERM_UPDATE)),
     PERM_DELETE: lambda perm: bool(perm.get(PERM_DELETE)),
     PERM_EXPORT: lambda perm: bool(perm.get(PERM_EXPORT)),
+    PERM_PRINT: lambda perm: bool(perm.get(PERM_PRINT)),
     'edit': lambda perm: module_perm_allows_edit(perm),
 }
 
@@ -145,6 +148,10 @@ def user_can_delete_menu(user, module_key: str, menu_key: str) -> bool:
 
 def user_can_export_menu(user, module_key: str, menu_key: str) -> bool:
     return user_can_menu_action(user, module_key, menu_key, PERM_EXPORT)
+
+
+def user_can_print_menu(user, module_key: str, menu_key: str) -> bool:
+    return user_can_menu_action(user, module_key, menu_key, PERM_PRINT)
 
 
 def user_can_edit_menu(user, module_key: str, menu_key: str) -> bool:

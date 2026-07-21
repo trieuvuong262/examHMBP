@@ -96,6 +96,7 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
     MODULE_SAN_XUAT: [
         {'key': 'overview', 'label': 'Tổng quan', 'icon': 'bi-speedometer2'},
         {'key': 'orders', 'label': 'Đơn đặt hàng', 'icon': 'bi-cart-check'},
+        {'key': 'products_nvl', 'label': 'Sản phẩm – NVL', 'icon': 'bi-box'},
         {'key': 'docs', 'label': 'Hồ sơ SX', 'icon': 'bi-journal-text'},
         {'key': 'bom', 'label': 'BOM', 'icon': 'bi-diagram-3'},
         {'key': 'capacity', 'label': 'Năng lực SX', 'icon': 'bi-speedometer'},
@@ -288,15 +289,17 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     ('/kho-npl/danh-muc', MODULE_KHO_NPL, 'materials'),
     ('/kho-npl/canh-bao', MODULE_KHO_NPL, 'overview'),
     ('/kho-npl/tong-quan', MODULE_KHO_NPL, 'overview'),
-    # Sản xuất hub
+    # Sản xuất hub — prefix cụ thể trước; /san-xuat/ cuối cùng → overview
     ('/san-xuat/tong-quan', MODULE_SAN_XUAT, 'overview'),
     ('/san-xuat/don-hang', MODULE_SAN_XUAT, 'orders'),
+    ('/san-xuat/san-pham-nvl', MODULE_SAN_XUAT, 'products_nvl'),
     ('/san-xuat/ke-hoach/tong-the', MODULE_SAN_XUAT, 'plan_overall'),
     ('/san-xuat/ke-hoach/chi-tiet', MODULE_SAN_XUAT, 'plan_detail'),
     ('/san-xuat/ke-hoach/npl', MODULE_SAN_XUAT, 'plan_npl'),
     ('/san-xuat/ke-hoach/yeu-cau-mua-npl', MODULE_SAN_XUAT, 'npl_pr'),
     ('/san-xuat/ke-hoach/don-mua-hang', MODULE_SAN_XUAT, 'purchase_order'),
     ('/san-xuat/ke-hoach', MODULE_SAN_XUAT, 'plan'),
+    ('/san-xuat/dieu-phoi/chay-lenh-moi', MODULE_SAN_XUAT, 'mo'),
     ('/san-xuat/dieu-phoi/lenh-sx', MODULE_SAN_XUAT, 'mo'),
     ('/san-xuat/dieu-phoi/lenh-thao-do', MODULE_SAN_XUAT, 'disassembly'),
     ('/san-xuat/dieu-phoi/lich-sx', MODULE_SAN_XUAT, 'schedule'),
@@ -310,6 +313,7 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     ('/san-xuat/dieu-phoi', MODULE_SAN_XUAT, 'dispatch'),
     ('/san-xuat/chat-luong/yeu-cau', MODULE_SAN_XUAT, 'qc_request'),
     ('/san-xuat/chat-luong/phieu', MODULE_SAN_XUAT, 'qc_sheet'),
+    ('/san-xuat/chat-luong/canh-bao', MODULE_SAN_XUAT, 'qc'),
     ('/san-xuat/chat-luong/tieu-chi', MODULE_SAN_XUAT, 'qc_criteria'),
     ('/san-xuat/chat-luong/nhom-tieu-chi', MODULE_SAN_XUAT, 'qc_criteria_group'),
     ('/san-xuat/chat-luong/chon-mau', MODULE_SAN_XUAT, 'qc_sampling'),
@@ -317,8 +321,10 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     ('/san-xuat/chat-luong/loi', MODULE_SAN_XUAT, 'qc_defect'),
     ('/san-xuat/chat-luong/nhom-loi', MODULE_SAN_XUAT, 'qc_defect_group'),
     ('/san-xuat/chat-luong', MODULE_SAN_XUAT, 'qc'),
+    ('/san-xuat/gia-thanh/thuc-te', MODULE_SAN_XUAT, 'actual_cost'),
     ('/san-xuat/gia-thanh/dinh-muc', MODULE_SAN_XUAT, 'costing_norm'),
     ('/san-xuat/gia-thanh/theo-don', MODULE_SAN_XUAT, 'costing_so'),
+    ('/san-xuat/gia-thanh/loai-chi-phi', MODULE_SAN_XUAT, 'costing_hub'),
     ('/san-xuat/gia-thanh', MODULE_SAN_XUAT, 'costing_hub'),
     ('/san-xuat/kho-san-pham/hang-hoa', MODULE_SAN_XUAT, 'fg_products'),
     ('/san-xuat/kho-san-pham/ton-kho', MODULE_SAN_XUAT, 'fg_stock_list'),
@@ -328,6 +334,20 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     ('/san-xuat/thiet-lap', MODULE_SAN_XUAT, 'general_settings'),
     ('/san-xuat/quy-trinh', MODULE_SAN_XUAT, 'process'),
     ('/san-xuat/ho-so', MODULE_SAN_XUAT, 'docs'),
+    ('/san-xuat/bom', MODULE_SAN_XUAT, 'bom'),
+    ('/san-xuat/nang-luc', MODULE_SAN_XUAT, 'capacity'),
+    ('/san-xuat/shop-floor', MODULE_SAN_XUAT, 'shop_floor'),
+    ('/san-xuat/giao-viec', MODULE_SAN_XUAT, 'work_assign'),
+    ('/san-xuat/dung-chuyen', MODULE_SAN_XUAT, 'downtime'),
+    ('/san-xuat/luong-san-pham', MODULE_SAN_XUAT, 'piece_rate'),
+    ('/san-xuat/ncr', MODULE_SAN_XUAT, 'ncr'),
+    ('/san-xuat/dong-goi', MODULE_SAN_XUAT, 'packing'),
+    ('/san-xuat/thue-gia-cong', MODULE_SAN_XUAT, 'subcontract'),
+    ('/san-xuat/truy-xuat', MODULE_SAN_XUAT, 'traceability'),
+    ('/san-xuat/bao-cao-van-hanh', MODULE_SAN_XUAT, 'ops_report'),
+    ('/san-xuat/catalog', MODULE_SAN_XUAT, 'unified_catalog'),
+    ('/san-xuat/staging', MODULE_SAN_XUAT, 'staging'),
+    ('/san-xuat/api/', MODULE_SAN_XUAT, 'overview'),
     ('/san-xuat/', MODULE_SAN_XUAT, 'overview'),
     # KiotViet
     ('/kiotviet/phieu-nhap', MODULE_KIOTVIET, 'purchases'),
@@ -409,7 +429,9 @@ def perm_field_name(action: str, module_key: str, menu_key: str | None = None) -
 
 def parse_perm_field_name(field_name: str) -> tuple[str, str, str | None]:
     """Trả về (action, module_key, menu_key|None)."""
-    for action in ('view', 'create', 'update', 'delete', 'export'):
+    from hrm.group_permissions import PERM_ACTIONS
+
+    for action in PERM_ACTIONS:
         prefix = f'{action}_'
         if not field_name.startswith(prefix):
             continue

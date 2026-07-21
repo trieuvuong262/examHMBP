@@ -34,10 +34,12 @@ from hrm.group_permissions import (
     PERM_ACTIONS,
     PERM_ACTION_LABELS,
     PERM_EXPORT,
+    PERM_PRINT,
     aggregate_module_from_menus,
     module_permission_action_enabled,
     menu_permission_action_enabled,
     module_supports_export,
+    module_supports_print,
     normalize_group_permissions,
     normalize_module_entry,
 )
@@ -1075,7 +1077,7 @@ PERM_GROUP_MODULE_ICONS = {
 
 
 class PermissionGroupPermissionForm(forms.Form):
-    """Ma trận 5 quyền / module và menu con cho một nhóm."""
+    """Ma trận quyền / module và menu con cho một nhóm."""
 
     def __init__(self, *args, **kwargs):
         initial_perms = kwargs.pop('initial_permissions', None)
@@ -1158,6 +1160,7 @@ class PermissionGroupPermissionForm(forms.Form):
                 'label': label,
                 'icon': PERM_GROUP_MODULE_ICONS.get(module_key, 'bi-grid'),
                 'supports_export': module_supports_export(module_key),
+                'supports_print': module_supports_print(module_key),
                 'view_export_only': module_key in MODULE_VIEW_EXPORT_ONLY,
                 'has_submenus': bool(submenus),
                 'submenus': submenu_rows,
@@ -1187,6 +1190,7 @@ class PermissionGroupPermissionForm(forms.Form):
                     'module_key': row['key'],
                     'hub': 'learning',
                     'supports_export': row['supports_export'],
+                    'supports_print': row['supports_print'],
                     'view_export_only': row['view_export_only'],
                     'view_only': sm.get('view_only', submenu_perm_view_only(row['key'], sm['key'])),
                     'action_enabled': sm.get('action_enabled', {}),
@@ -1209,6 +1213,7 @@ class PermissionGroupPermissionForm(forms.Form):
                         'icon': 'bi-mortarboard',
                         'virtual': True,
                         'supports_export': False,
+                        'supports_print': False,
                         'view_export_only': False,
                         'has_submenus': True,
                         'submenus': hub_submenus,
@@ -1230,7 +1235,9 @@ class PermissionGroupPermissionForm(forms.Form):
             )
         if not menu_permission_action_enabled(module_key, menu_key, PERM_EXPORT):
             entry[PERM_EXPORT] = False
-        if any(entry[a] for a in ('create', 'update', 'delete', 'export')):
+        if not menu_permission_action_enabled(module_key, menu_key, PERM_PRINT):
+            entry[PERM_PRINT] = False
+        if any(entry[a] for a in ('create', 'update', 'delete', 'export', 'print')):
             entry['view'] = True
         return entry
 
@@ -1253,7 +1260,9 @@ class PermissionGroupPermissionForm(forms.Form):
                 }
                 if not module_supports_export(module_key):
                     module_entry[PERM_EXPORT] = False
-                if any(module_entry[a] for a in ('create', 'update', 'delete', 'export')):
+                if not module_supports_print(module_key):
+                    module_entry[PERM_PRINT] = False
+                if any(module_entry[a] for a in ('create', 'update', 'delete', 'export', 'print')):
                     module_entry['view'] = True
                 if not any(
                     any(menu_entry.get(a) for a in PERM_ACTIONS)
@@ -1273,7 +1282,9 @@ class PermissionGroupPermissionForm(forms.Form):
                 }
                 if not module_supports_export(module_key):
                     entry[PERM_EXPORT] = False
-                if any(entry[a] for a in ('create', 'update', 'delete', 'export')):
+                if not module_supports_print(module_key):
+                    entry[PERM_PRINT] = False
+                if any(entry[a] for a in ('create', 'update', 'delete', 'export', 'print')):
                     entry['view'] = True
             extras = {}
             for extra_key in MODULE_EXTRA_PERMS.get(module_key, ()):

@@ -9,7 +9,8 @@
       <h2 class="jp-npl-mat-topbar-title mb-0">Trả lại bán thành phẩm</h2>
     </div>
     <div class="jp-npl-mat-topbar-actions ms-auto">
-      {% if can_create %}
+      {% include 'san_xuat/includes/sx_export_btn.html' with export_key='dispatch_wip_return' %}
+            {% if can_create %}
       <a href="{% url 'san_xuat:dispatch_wip_return_create' %}" class="btn btn-hm btn-sm fw-bold">Tạo phiếu trả</a>
       {% endif %}
       <a href="{% url 'san_xuat:dispatch_wip_handover' %}" class="btn btn-outline-secondary btn-sm fw-bold">Bàn giao</a>

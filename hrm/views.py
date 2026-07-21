@@ -1275,6 +1275,7 @@ def _permission_group_form_context(meta_form, perm_form, title, *, group=None, i
         {'key': 'update', 'label': 'Sửa', 'icon': 'bi-pencil', 'tone': 'update'},
         {'key': 'delete', 'label': 'Xóa', 'icon': 'bi-trash', 'tone': 'delete'},
         {'key': 'export', 'label': 'Excel', 'icon': 'bi-file-earmark-spreadsheet', 'tone': 'export'},
+        {'key': 'print', 'label': 'In', 'icon': 'bi-printer', 'tone': 'print'},
     ]
     return {
         'meta_form': meta_form,

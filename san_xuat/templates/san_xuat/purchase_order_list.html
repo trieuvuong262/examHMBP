@@ -8,7 +8,8 @@
     <div class="jp-npl-mat-topbar">
     <h2 class="jp-npl-mat-topbar-title">Đơn mua hàng</h2>
     <div class="jp-npl-mat-topbar-actions ms-auto">
-      {% if can_create %}
+      {% include 'san_xuat/includes/sx_export_btn.html' with export_key='purchase_order' %}
+            {% if can_create %}
       <a href="{% url 'san_xuat:purchase_order_create' %}" class="btn btn-hm btn-sm fw-bold">Tạo đơn mua hàng</a>
       {% endif %}
       

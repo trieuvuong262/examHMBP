@@ -19,6 +19,7 @@ from hrm.module_permissions import (
     user_can_delete_module,
     user_can_edit_module,
     user_can_export_module,
+    user_can_print_module,
     user_can_update_module,
 )
 
@@ -34,6 +35,7 @@ _MODULE_ACTION_CHECKS = {
     'update': user_can_update_module,
     'delete': user_can_delete_module,
     'export': user_can_export_module,
+    'print': user_can_print_module,
     'edit': user_can_edit_module,
 }
 
@@ -81,7 +83,7 @@ def _user_can_module_action(user, module_key: str, action: str, request=None) ->
 
 def module_perm_required(module_key: str, action: str = 'edit'):
     """
-    Kiểm tra quyền chi tiết theo module: view | create | update | delete | export | edit.
+    Kiểm tra quyền chi tiết theo module: view | create | update | delete | export | print | edit.
     """
     def decorator(view_func):
         @wraps(view_func)

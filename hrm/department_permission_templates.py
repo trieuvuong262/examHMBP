@@ -39,8 +39,8 @@ M = {
 }
 
 
-def _f(view=False, create=False, update=False, delete=False, export=False) -> dict:
-    if any((create, update, delete, export)):
+def _f(view=False, create=False, update=False, delete=False, export=False, print_perm=False) -> dict:
+    if any((create, update, delete, export, print_perm)):
         view = True
     return {
         'view': bool(view),
@@ -48,14 +48,15 @@ def _f(view=False, create=False, update=False, delete=False, export=False) -> di
         'update': bool(update),
         'delete': bool(delete),
         'export': bool(export),
+        'print': bool(print_perm),
     }
 
 
 NONE = _f()
 VIEW = _f(view=True)
 EDIT = _f(view=True, create=True, update=True, delete=True)
-FULL = _f(view=True, create=True, update=True, delete=True, export=True)
-MGR = _f(view=True, create=True, update=True, delete=False, export=True)
+FULL = _f(view=True, create=True, update=True, delete=True, export=True, print_perm=True)
+MGR = _f(view=True, create=True, update=True, delete=False, export=True, print_perm=True)
 
 
 def _blank() -> dict:
@@ -154,7 +155,7 @@ def _san_xuat_menus(*, manager: bool) -> dict:
     """Menu hub SX — khớp submenu_registry MODULE_SAN_XUAT."""
     level = MGR if manager else VIEW
     keys = (
-        'overview', 'orders',
+        'overview', 'orders', 'products_nvl',
         'docs', 'bom', 'capacity',
         'plan', 'plan_overall', 'plan_detail', 'plan_npl', 'npl_pr', 'purchase_order',
         'npl_stock',

@@ -8,7 +8,8 @@
     <div class="jp-npl-mat-topbar">
     <h2 class="jp-npl-mat-topbar-title">Thống kê sản xuất</h2>
     <div class="jp-npl-mat-topbar-actions ms-auto">
-      {% if can_create %}
+      {% include 'san_xuat/includes/sx_export_btn.html' with export_key='dispatch_prod_stats' %}
+            {% if can_create %}
     <a href="{% url 'san_xuat:dispatch_prod_stats_create' %}" class="btn btn-hm btn-sm fw-bold">
       <i class="bi bi-plus-lg me-1"></i>Tạo thống kê sản xuất
     </a>

@@ -7,7 +7,9 @@
     <h2 class="jp-npl-mat-topbar-title">{{ sheet.code }}</h2>
     <div class="jp-npl-mat-topbar-actions ms-auto">
       <a href="{% url 'san_xuat:costing_cost_types' %}" class="btn btn-outline-secondary btn-sm fw-bold">Loại CP</a>
+      {% if can_export %}
       <a href="{% url 'san_xuat:costing_order_export' sheet.pk %}" class="btn btn-outline-hm btn-sm fw-bold">Xuất Excel</a>
+      {% endif %}
       <a href="{% url 'san_xuat:costing_by_order' %}" class="btn btn-outline-secondary btn-sm fw-bold">Quay lại</a>
     </div>
   </div>

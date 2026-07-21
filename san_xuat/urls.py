@@ -1,6 +1,7 @@
 from django.urls import path
 
-from san_xuat import views, views_hub, views_kv_embed, views_ops, views_print
+from san_xuat import views, views_hub, views_kv_embed, views_ops, views_print, views_export
+
 
 app_name = 'san_xuat'
 
@@ -132,4 +133,5 @@ urlpatterns = [
     path('bom/', views.bom_list, name='bom_list'),
     path('thiet-lap/', views_hub.general_settings, name='general_settings'),
     path('api/tim-ma-sp/', views.product_code_search, name='product_code_search'),
+    path('xuat-excel/<slug:export_key>/', views_export.list_export, name='list_export'),
 ]
