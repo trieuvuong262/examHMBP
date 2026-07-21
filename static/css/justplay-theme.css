@@ -6363,8 +6363,8 @@ html.jp-sidebar-collapsed .jp-sidebar-collapse-icon-collapsed {
 
 .jp-sidebar-nested-submenu {
     list-style: none;
-    margin: 0.05rem 0 0.15rem 1.55rem;
-    padding: 0.1rem 0 0.05rem 0.45rem;
+    margin: 0.05rem 0 0.15rem 0.65rem;
+    padding: 0.1rem 0 0.05rem 0.5rem;
     border-left: 1px solid rgba(255, 255, 255, 0.14);
     display: none;
     flex-direction: column;
@@ -6376,11 +6376,15 @@ html.jp-sidebar-collapsed .jp-sidebar-collapse-icon-collapsed {
     margin-bottom: 0.1rem;
 }
 
-/* Cấp 2 — chỉ thụt + rail; mũi tên ▶/▼ chỉ ở nhóm CÓ menu con */
+/* Cấp 2 — thụt nhẹ + rail; icon thẳng hàng với sublink cấp 1 (~2rem) */
 .jp-sidebar-nested-submenu > li > .jp-sidebar-sublink {
-    padding-left: 0.85rem !important;
+    padding-left: 0.75rem !important;
+    padding-right: 0.35rem !important;
     font-size: 0.78rem;
     font-weight: 500;
+    width: auto;
+    max-width: 100%;
+    box-sizing: border-box;
 }
 
 /* Nhóm depth2 (có con) — caret nhỏ hơn */
@@ -6394,8 +6398,8 @@ html.jp-sidebar-collapsed .jp-sidebar-collapse-icon-collapsed {
 }
 
 .jp-sidebar-nested-submenu--depth2 {
-    margin: 0.05rem 0 0.1rem 0.55rem;
-    padding: 0.08rem 0 0.05rem 0.4rem;
+    margin: 0.05rem 0 0.1rem 0.4rem;
+    padding: 0.08rem 0 0.05rem 0.45rem;
     border-left-style: dashed;
     border-left-color: rgba(255, 255, 255, 0.18);
 }
@@ -6404,9 +6408,10 @@ html.jp-sidebar-collapsed .jp-sidebar-collapse-icon-collapsed {
     display: flex;
 }
 
-/* Cấp 3 — thụt thêm */
+/* Cấp 3 — thụt thêm một chút so với cấp 2 */
 .jp-sidebar-nested-submenu.jp-sidebar-nested-submenu--depth2 > li > .jp-sidebar-sublink {
-    padding-left: 0.75rem !important;
+    padding-left: 0.65rem !important;
+    padding-right: 0.3rem !important;
     font-size: 0.75rem;
 }
 

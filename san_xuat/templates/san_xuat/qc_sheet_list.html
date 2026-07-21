@@ -38,7 +38,6 @@
                         <td class="npl-col" data-col="qty_fail">{{ inspection.qty_fail }}</td>
                         <td class="npl-col" data-col="result"><span class="badge bg-secondary-subtle text-secondary border">{{ inspection.get_result_display }}</span></td>
                                     {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=inspection %}
-<td class="npl-col" data-col="actions"><a href="{% url 'san_xuat:qc_sheet_detail' inspection.pk %}" class="btn btn-sm btn-outline-hm">Mở</a></td>
 </tr>
                 {% empty %}
                     <tr><td colspan="15" class="text-center text-muted py-4">Chưa có Phiếu kiểm tra thật.</td></tr>

@@ -55,9 +55,6 @@
               {% else %}—{% endif %}
             </td>
             {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=req %}
-<td class="npl-col" data-col="actions">
-              <a href="{% url 'san_xuat:dispatch_material_issue_req_detail' req.pk %}" class="btn btn-sm btn-outline-hm">Mở</a>
-            </td>
 </tr>
         {% empty %}
           <tr>

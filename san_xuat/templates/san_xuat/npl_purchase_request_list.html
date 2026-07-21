@@ -42,9 +42,6 @@
 <td class="npl-col" data-col="line_count">{{ req.lines.count }}</td>
             <td class="npl-col" data-col="status">{{ req.get_status_display }}</td>
                         {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=req %}
-<td class="npl-col" data-col="actions">
-              <a href="{% url 'san_xuat:npl_purchase_request_detail' req.pk %}" class="btn btn-sm btn-outline-hm">Mở</a>
-            </td>
 </tr>
         {% empty %}
           <tr><td colspan="13" class="text-muted small p-3">Chưa có yêu cầu mua.</td></tr>

@@ -36,7 +36,7 @@
               <a href="{% url 'san_xuat:npl_purchase_request_detail' order.purchase_request.pk %}">{{ order.purchase_request.code }}</a>
               {% else %}—{% endif %}
             </td>
-<td class="npl-col" data-col="total">{{ order.lines.count }}</td>
+<td class="npl-col text-end" data-col="line_count">{{ order.lines.count }}</td>
             <td class="npl-col" data-col="kv_receipt">
               {% if order.kv_purchase_kiotviet_id %}
               <a href="{% url 'kiotviet:purchase_detail' order.kv_purchase_kiotviet_id %}">{{ order.kv_purchase_code|default:order.kv_purchase_kiotviet_id }}</a>
@@ -44,9 +44,6 @@
             </td>
             <td class="npl-col" data-col="status">{{ order.get_status_display }}</td>
                         {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=order %}
-<td class="npl-col" data-col="actions">
-              <a href="{% url 'san_xuat:purchase_order_detail' order.pk %}" class="btn btn-sm btn-outline-hm">Mở</a>
-            </td>
 </tr>
         {% empty %}
           <tr><td colspan="13" class="text-muted small p-3">Chưa có đơn mua hàng.</td></tr>

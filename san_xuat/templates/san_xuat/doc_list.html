@@ -46,9 +46,6 @@
                         </td>
                         <td class="npl-col" data-col="updated_at">{{ doc.updated_at|date:"d/m/Y H:i" }}</td>
             {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=doc %}
-            <td class="npl-col" data-col="actions">
-                            <a href="{% url 'san_xuat:doc_detail' doc.pk %}" class="btn btn-sm btn-outline-hm">Mở</a>
-                        </td>
 </tr>
                     {% empty %}
                     <tr>

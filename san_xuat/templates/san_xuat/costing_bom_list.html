@@ -32,7 +32,7 @@
         </thead>
         <tbody>
         {% for doc, bom, costing in rows %}
-          <tr>
+          <tr class="jp-npl-catalog-row" data-href="{% url 'san_xuat:doc_detail' doc.pk %}?tab=costing&bom={{ bom.pk }}">
             <td class="npl-col" data-col="product_code"><strong>{{ costing.product_code|default:doc.product_code }}</strong></td>
             <td class="npl-col small" data-col="product_name">{{ costing.product_name|default:doc.product_name|default:"—" }}</td>
             <td class="npl-col text-end" data-col="material">{{ costing.material_cost|floatformat:0|intcomma }}</td>
@@ -44,9 +44,6 @@
               {{ costing.margin|floatformat:0|intcomma }}
             </td>
             {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=doc %}
-            <td class="npl-col text-end" data-col="actions">
-              <a href="{% url 'san_xuat:doc_detail' doc.pk %}?tab=costing&bom={{ bom.pk }}" class="btn btn-sm btn-outline-hm">Chi tiết</a>
-            </td>
           </tr>
         {% empty %}
           <tr>

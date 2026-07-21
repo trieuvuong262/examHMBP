@@ -87,10 +87,6 @@
                         <td class="npl-col" data-col="step_count">{{ bom.step_count }}</td>
                         <td class="npl-col" data-col="updated_at">{{ bom.updated_at|date:"d/m/Y H:i" }}</td>
                         {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=bom %}
-                        <td class="npl-col" data-col="actions">
-                            <a href="{% url 'san_xuat:doc_detail' bom.tech_doc_id %}?tab=bom&bom={{ bom.pk }}"
-                               class="btn btn-sm btn-outline-hm">Mở</a>
-                        </td>
                     </tr>
                     {% empty %}
                     <tr>

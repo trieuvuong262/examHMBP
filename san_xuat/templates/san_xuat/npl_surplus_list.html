@@ -41,9 +41,6 @@
             <td class="npl-col" data-col="status">{{ item.get_status_display }}</td>
             <td class="npl-col" data-col="stock_adj">{% if item.stock_adjustment %}{{ item.stock_adjustment.number }}{% else %}—{% endif %}</td>
                         {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=item %}
-<td class="npl-col" data-col="actions">
-              <a href="{% url 'san_xuat:dispatch_npl_surplus_detail' item.pk %}" class="btn btn-sm btn-outline-hm">Mở</a>
-            </td>
 </tr>
         {% empty %}
           <tr><td colspan="14" class="text-muted small p-3">Chưa có phiếu Nguyên phụ liệu thừa.</td></tr>

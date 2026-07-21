@@ -42,9 +42,6 @@
               {% else %}—{% endif %}
             </td>
                         {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=req %}
-<td class="npl-col" data-col="actions">
-              <a href="{% url 'san_xuat:dispatch_fg_receipt_req_detail' req.pk %}" class="btn btn-sm btn-outline-hm">Mở</a>
-            </td>
 </tr>
         {% empty %}
           <tr><td colspan="13" class="text-muted small p-3">Chưa có yêu cầu nhập thành phẩm.</td></tr>

@@ -35,9 +35,6 @@
 <td class="npl-col" data-col="line_count">{{ sheet.lines.count }}</td>
             <td class="npl-col" data-col="status">{{ sheet.get_status_display }}</td>
                         {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=sheet %}
-<td class="npl-col" data-col="actions">
-              <a href="{% url 'san_xuat:costing_sheet_detail' sheet.pk %}" class="btn btn-sm btn-outline-hm">Mở</a>
-            </td>
 </tr>
         {% empty %}
           <tr><td colspan="12" class="text-muted small p-3">Chưa có bảng GT chốt kỳ.</td></tr>

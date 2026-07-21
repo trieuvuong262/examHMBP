@@ -36,9 +36,6 @@
             <td class="npl-col" data-col="order_date">{{ item.order_date|date:"d/m/Y" }}</td>
             <td class="npl-col" data-col="status">{{ item.get_status_display }}</td>
                         {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=item %}
-<td class="npl-col" data-col="actions">
-              <a href="{% url 'san_xuat:dispatch_disassembly_detail' item.pk %}" class="btn btn-sm btn-outline-hm">Mở</a>
-            </td>
 </tr>
         {% empty %}
           <tr><td colspan="13" class="text-muted small p-3">Chưa có lệnh tháo dỡ.</td></tr>

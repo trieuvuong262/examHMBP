@@ -33,10 +33,11 @@
                         <td class="npl-col" data-col="mo">{% if req.production_order %}<a href="{% url 'san_xuat:dispatch_mo_detail' req.production_order.pk %}">{{ req.production_order.code }}</a>{% else %}—{% endif %}</td>
                         <td class="npl-col" data-col="product">{{ req.product_code }}</td>
                         <td class="npl-col" data-col="process">{{ req.stage_name|default:"—" }}</td>
-<td class="npl-col" data-col="request_date">{{ req.qty }}</td>
+                        <td class="npl-col text-end" data-col="qty">{{ req.qty }}</td>
+                        <td class="npl-col" data-col="request_date">{{ req.request_date|date:"d/m/Y" }}</td>
+                        <td class="npl-col" data-col="due_date">{% if req.due_date %}{{ req.due_date|date:"d/m/Y" }}{% else %}—{% endif %}</td>
                         <td class="npl-col" data-col="status"><span class="badge bg-secondary-subtle text-secondary border">{{ req.status }}</span></td>
                                     {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=req %}
-<td class="npl-col" data-col="actions"><a href="{% url 'san_xuat:qc_request_detail' req.pk %}" class="btn btn-sm btn-outline-hm">Mở</a></td>
 </tr>
                 {% empty %}
                     <tr><td colspan="13" class="text-center text-muted py-4">Chưa có Yêu cầu kiểm tra thật.</td></tr>

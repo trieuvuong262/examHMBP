@@ -44,16 +44,16 @@
               <div class="small">{{ order.product_code }}</div>
               <div class="text-muted small">{{ order.product_name|default:"—" }}</div>
             </td>
-            <td class="npl-col" data-col="qty">{{ order.qty }}</td>
+            <td class="npl-col text-end" data-col="qty">{{ order.qty }}</td>
+            <td class="npl-col text-end" data-col="qty_done">{{ order.qty_done }}</td>
+            <td class="npl-col small" data-col="team_label">{{ order.team_label|default:"—" }}</td>
             <td class="npl-col" data-col="order_date">{{ order.order_date|date:"d/m/Y" }}</td>
             <td class="npl-col" data-col="due_date">{% if order.due_date %}{{ order.due_date|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+            <td class="npl-col" data-col="planned_start">{% if order.planned_start %}{{ order.planned_start|date:"d/m/Y" }}{% else %}—{% endif %}</td>
             <td class="npl-col" data-col="status">
               <span class="badge bg-secondary-subtle text-secondary border">{{ order.get_status_display }}</span>
             </td>
             {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=order %}
-            <td class="npl-col" data-col="actions">
-              <a href="{% url 'san_xuat:dispatch_mo_detail' order.pk %}" class="btn btn-sm btn-outline-hm">Mở</a>
-            </td>
           </tr>
         {% empty %}
           <tr>

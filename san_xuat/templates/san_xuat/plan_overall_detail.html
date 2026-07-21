@@ -1,12 +1,105 @@
 {% extends 'base.html' %}
 
-{% block extra_head %}{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}{% endblock %}
+{% block extra_head %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+<style>
+.jp-sx-plan-next {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: stretch;
+}
+.jp-sx-plan-next .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  height: 1.75rem;
+  min-height: 1.75rem;
+  padding: 0 0.65rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  box-sizing: border-box;
+  border-width: 1px;
+}
+.jp-sx-plan-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem 1rem;
+}
+@media (min-width: 768px) {
+  .jp-sx-plan-meta { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+.jp-sx-plan-meta .label {
+  font-size: 0.72rem;
+  color: var(--bs-secondary-color);
+  margin-bottom: 0.1rem;
+}
+.jp-sx-plan-meta .value {
+  font-weight: 600;
+  font-size: 0.95rem;
+  line-height: 1.25;
+}
+.jp-sx-plan-section-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+.jp-sx-plan-section-head .title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--bs-secondary-color);
+  margin: 0;
+}
+.jp-sx-plan-related {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.jp-sx-plan-related a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 0.45rem;
+  text-decoration: none;
+  color: inherit;
+  font-size: 0.875rem;
+  transition: background-color .12s ease, border-color .12s ease;
+}
+.jp-sx-plan-related a:hover {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.12);
+}
+.jp-sx-plan-related .code {
+  font-weight: 600;
+}
+.jp-sx-plan-draft-card .card-body {
+  padding: 1rem 1.1rem;
+}
+.jp-sx-plan-draft-card .form-label {
+  margin-bottom: 0.2rem;
+}
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
   <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
     <div class="jp-sx-detail-title">
       <h2 class="jp-npl-mat-topbar-title w-100">{{ plan.code }}</h2>
+      <span class="badge {% if plan.status == 'draft' %}text-bg-secondary{% elif plan.status == 'confirmed' %}text-bg-primary{% elif plan.status == 'done' %}text-bg-success{% elif plan.status == 'cancelled' %}text-bg-danger{% else %}text-bg-light text-dark border{% endif %}">
+        {{ plan.get_status_display }}
+      </span>
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
       <span class="sep" aria-hidden="true"></span>
@@ -14,12 +107,75 @@
     </nav>
   </div>
 
-  <div class="row g-3 mb-4">
-    <div class="col-12 col-lg-8">
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-body">
+      <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+        <div class="min-w-0">
+          <div class="fw-semibold fs-5 mb-0">{{ plan.name }}</div>
+          <div class="text-muted small">{{ plan.date_from|date:"d/m/Y" }} → {{ plan.date_to|date:"d/m/Y" }}</div>
+        </div>
+        {% if plan.status == 'confirmed' %}
+        <div class="ms-auto">
+          <div class="small text-muted mb-1">Tiếp theo</div>
+          <div class="jp-sx-plan-next">
+            <a href="{% url 'san_xuat:plan_detail_create' %}?overall={{ plan.pk }}" class="btn btn-hm">
+              <i class="bi bi-calendar-week" aria-hidden="true"></i>KH chi tiết
+            </a>
+            <a href="{% url 'san_xuat:plan_npl_create' %}?overall={{ plan.pk }}" class="btn btn-outline-hm">
+              <i class="bi bi-box-seam" aria-hidden="true"></i>KH NPL
+            </a>
+          </div>
+        </div>
+        {% elif can_update and plan.status == 'draft' %}
+        <div class="ms-auto">
+          <div class="small text-muted mb-1">Tiếp theo</div>
+          <div class="jp-sx-plan-next">
+            <form method="post" class="d-inline-flex m-0">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="confirm">
+              <button type="submit" class="btn btn-hm">
+                <i class="bi bi-check2-circle" aria-hidden="true"></i>Xác nhận KHTT
+              </button>
+            </form>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+
+      <div class="jp-sx-plan-meta">
+        <div>
+          <div class="label">Kỳ kế hoạch</div>
+          <div class="value">{{ plan.date_from|date:"d/m/Y" }} – {{ plan.date_to|date:"d/m/Y" }}</div>
+        </div>
+        <div>
+          <div class="label">Nguồn</div>
+          <div class="value">{{ plan.get_source_display }}</div>
+        </div>
+        <div>
+          <div class="label">Dòng sản phẩm</div>
+          <div class="value">{{ plan.lines.count }}</div>
+        </div>
+        <div>
+          <div class="label">Tạo lúc</div>
+          <div class="value">{{ plan.created_at|date:"d/m/Y H:i" }}</div>
+        </div>
+      </div>
+
+      {% if plan.notes %}
+      <div class="mt-3 pt-3 border-top">
+        <div class="label text-muted small mb-1">Ghi chú</div>
+        <div class="small mb-0">{{ plan.notes }}</div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 {% if can_update and plan.status == 'draft' %}col-lg-8{% endif %}">
       <div class="card border-0 shadow-sm">
         <div class="card-body">
-          <div class="d-flex justify-content-between align-items-center mb-3">
-            <div class="small text-muted">Dòng sản phẩm</div>
+          <div class="jp-sx-plan-section-head">
+            <p class="title">Dòng sản phẩm</p>
             <span class="badge bg-secondary-subtle text-secondary border">{{ plan.lines.count }} dòng</span>
           </div>
           {% if plan.lines.all %}
@@ -41,52 +197,69 @@
                   <td class="small">{{ line.product_name|default:"—" }}</td>
                   <td class="text-end">{{ line.qty_required }}</td>
                   <td class="text-end">{{ line.qty_planned }}</td>
-                  <td class="small">
-                    {% if line.kv_order_code %}{{ line.kv_order_code }}{% else %}—{% endif %}
-                  </td>
+                  <td class="small">{% if line.kv_order_code %}{{ line.kv_order_code }}{% else %}—{% endif %}</td>
                 </tr>
               {% endfor %}
               </tbody>
             </table>
           </div>
           {% else %}
-          <div class="text-muted small">Chưa có dòng SP.</div>
+          <div class="text-muted small py-2">Chưa có dòng SP.</div>
           {% endif %}
         </div>
       </div>
 
-      {% if material_plans %}
-      <div class="card border-0 shadow-sm mt-3">
-        <div class="card-body">
-          <div class="small text-muted mb-2">kế hoạch nguyên phụ liệu liên quan (P2)</div>
-          <ul class="mb-0">
-          {% for mp in material_plans %}
-            <li><a href="{% url 'san_xuat:plan_npl_detail' mp.pk %}">{{ mp.code }}</a> — {{ mp.get_status_display }}</li>
-          {% endfor %}
-          </ul>
+      {% if material_plans or detail_plans %}
+      <div class="row g-3 mt-0">
+        {% if material_plans %}
+        <div class="col-12 {% if detail_plans %}col-lg-6{% endif %}">
+          <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+              <div class="jp-sx-plan-section-head">
+                <p class="title">Kế hoạch NPL</p>
+              </div>
+              <div class="jp-sx-plan-related">
+              {% for mp in material_plans %}
+                <a href="{% url 'san_xuat:plan_npl_detail' mp.pk %}">
+                  <span class="code">{{ mp.code }}</span>
+                  <span class="badge text-bg-light text-dark border">{{ mp.get_status_display }}</span>
+                </a>
+              {% endfor %}
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
-      {% endif %}
-
-      {% if detail_plans %}
-      <div class="card border-0 shadow-sm mt-3">
-        <div class="card-body">
-          <div class="small text-muted mb-2">kế hoạch chi tiết liên quan (P4)</div>
-          <ul class="mb-0">
-          {% for dp in detail_plans %}
-            <li><a href="{% url 'san_xuat:plan_detail_detail' dp.pk %}">{{ dp.code }}</a> — {{ dp.get_status_display }}</li>
-          {% endfor %}
-          </ul>
+        {% endif %}
+        {% if detail_plans %}
+        <div class="col-12 {% if material_plans %}col-lg-6{% endif %}">
+          <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+              <div class="jp-sx-plan-section-head">
+                <p class="title">Kế hoạch chi tiết</p>
+              </div>
+              <div class="jp-sx-plan-related">
+              {% for dp in detail_plans %}
+                <a href="{% url 'san_xuat:plan_detail_detail' dp.pk %}">
+                  <span class="code">{{ dp.code }}</span>
+                  <span class="badge text-bg-light text-dark border">{{ dp.get_status_display }}</span>
+                </a>
+              {% endfor %}
+              </div>
+            </div>
+          </div>
         </div>
+        {% endif %}
       </div>
       {% endif %}
     </div>
 
+    {% if can_update and plan.status == 'draft' %}
     <div class="col-12 col-lg-4">
-      {% if can_update and plan.status == 'draft' %}
-      <div class="card border-0 shadow-sm mb-3">
+      <div class="card border-0 shadow-sm jp-sx-plan-draft-card mb-3">
         <div class="card-body">
-          <div class="small text-muted mb-3">Thêm dòng SP (P0)</div>
+          <div class="jp-sx-plan-section-head">
+            <p class="title">Thêm dòng SP</p>
+          </div>
           <form method="post">
             {% csrf_token %}
             <input type="hidden" name="action" value="add_line">
@@ -101,9 +274,11 @@
         </div>
       </div>
 
-      <div class="card border-0 shadow-sm mb-3">
+      <div class="card border-0 shadow-sm jp-sx-plan-draft-card">
         <div class="card-body">
-          <div class="small text-muted mb-3">Import từ đơn KiotViet (P1)</div>
+          <div class="jp-sx-plan-section-head">
+            <p class="title">Import đơn KiotViet</p>
+          </div>
           <form method="post">
             {% csrf_token %}
             <input type="hidden" name="action" value="import_kv">
@@ -113,28 +288,16 @@
               {{ field }}
             </div>
             {% endfor %}
-            <button type="submit" class="btn btn-outline-secondary btn-sm">Import đơn KiotViet</button>
+            <button type="submit" class="btn btn-outline-secondary btn-sm">Import</button>
           </form>
-</div>
-      </div>
-
-      <form method="post">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="confirm">
-        <button type="submit" class="btn btn-hm btn-sm">Xác nhận kế hoạch tổng thể</button>
-      </form>
-      {% elif plan.status == 'confirmed' %}
-      <div class="card border-0 shadow-sm">
-        <div class="card-body d-grid gap-2">
-          <div class="small text-muted mb-1">Tiếp theo</div>
-          <a href="{% url 'san_xuat:plan_detail_create' %}?overall={{ plan.pk }}" class="btn btn-hm btn-sm">Lập KH chi tiết (P4)</a>
-          <a href="{% url 'san_xuat:plan_npl_create' %}?overall={{ plan.pk }}" class="btn btn-outline-hm btn-sm">Tính KH Nguyên vật liệu (P2)</a>
         </div>
       </div>
-      {% else %}
-      <div class="text-muted small">kế hoạch tổng thể đã khóa hoặc bạn không có quyền cập nhật.</div>
-      {% endif %}
     </div>
+    {% elif plan.status != 'draft' and plan.status != 'confirmed' %}
+    <div class="col-12 col-lg-4">
+      <div class="text-muted small">Kế hoạch tổng thể đã khóa hoặc bạn không có quyền cập nhật.</div>
+    </div>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

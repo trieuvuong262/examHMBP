@@ -30,6 +30,7 @@ alwaysApply: false
 - Bọc bảng: `jp-npl-mat-grid-wrap` + `table.jp-npl-mat-grid` + `id="{{ sx_list_table_id }}"`.
 - Header: `{% include 'san_xuat/includes/sx_list_grid_head.html' %}` — bấm sắp xếp, kéo mép cột đổi rộng.
 - Ô dữ liệu: `class="npl-col" data-col="<key>"` khớp `list_columns` trong view (`prepare_hub_list(..., list_key=...)`).
+- Cột mặc định: cột nghiệp vụ chính `default=True` trong `list_grid.py`; cột phụ (phiếu KV, người tạo, số dòng, chi tiết tài chính…) `default=False` — bỏ tick sẵn trong menu **Cột**.
 - Cuối trang: `{% include 'san_xuat/includes/sx_list_grid_scripts.html' %}`.
 
 ### Trang chi tiết / form (topbar detail)

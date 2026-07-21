@@ -42,8 +42,9 @@
               <a href="{% url 'san_xuat:dispatch_mo_detail' alert.production_order.pk %}">{{ alert.production_order.code }}</a>
             </td>
             <td class="npl-col" data-col="process">{{ alert.process_name|default:"—" }}</td>
-<td class="npl-col" data-col="qty">{{ alert.defect_rate }}%</td>
-            <td class="npl-col" data-col="message">{{ alert.tolerance_limit }}%</td>
+<td class="npl-col text-end" data-col="defect_rate">{{ alert.defect_rate }}%</td>
+            <td class="npl-col text-end" data-col="tolerance_limit">{{ alert.tolerance_limit }}%</td>
+            <td class="npl-col small" data-col="message">{{ alert.message|truncatechars:60|default:"—" }}</td>
             <td class="npl-col" data-col="status">
               {% if alert.status == 'open' %}
               <span class="badge text-bg-danger">Mở</span>
@@ -54,9 +55,6 @@
               {% endif %}
             </td>
                         {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=alert %}
-<td class="npl-col" data-col="actions">
-              <a href="{% url 'san_xuat:qc_alert_detail' alert.pk %}" class="btn btn-sm btn-outline-hm">Mở</a>
-            </td>
 </tr>
         {% empty %}
           <tr><td colspan="14" class="text-muted small p-3">Chưa có cảnh báo kiểm tra chất lượng.</td></tr>

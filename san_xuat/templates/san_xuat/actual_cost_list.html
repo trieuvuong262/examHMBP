@@ -26,7 +26,7 @@
         </thead>
         <tbody>
           {% for s in sheets %}
-          <tr>
+          <tr class="jp-npl-catalog-row" data-href="{% url 'san_xuat:actual_cost_mo' s.production_order_id %}">
             <td class="npl-col" data-col="code">{{ s.code }}</td>
             <td class="npl-col" data-col="mo">{{ s.production_order.code }}</td>
 <td class="npl-col" data-col="material">{{ s.material_cost|floatformat:0|intcomma }}</td>
@@ -35,7 +35,6 @@
             <td class="npl-col" data-col="total">{{ s.total_cost|floatformat:0|intcomma }}</td>
             <td class="npl-col" data-col="status">{{ s.get_status_display }}</td>
                         {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=s %}
-<td class="npl-col" data-col="actions"><a href="{% url 'san_xuat:actual_cost_mo' s.production_order_id %}">Chi tiết</a></td>
 </tr>
           {% empty %}
           <tr><td colspan="14" class="text-muted text-center py-3">Chưa có bảng chốt — mở từ lệnh sản xuất.</td></tr>
