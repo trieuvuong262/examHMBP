@@ -311,12 +311,6 @@
     font-size: .75rem;
     color: var(--sx-set-muted);
   }
-  .jp-sx-settings .jp-sx-set-intro {
-    font-size: .8125rem;
-    color: var(--sx-set-muted);
-    margin: 0 0 1.15rem;
-    line-height: 1.5;
-  }
   .jp-sx-settings .jp-sx-prefix-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
@@ -339,10 +333,6 @@
       <a href="{% url 'san_xuat:overview' %}" class="btn btn-outline-secondary btn-sm fw-bold">Tổng quan</a>
     </div>
   </div>
-
-  <p class="jp-sx-set-intro">
-    Cổng quy trình, chất lượng, năng lực và shop floor. Lưu trên hệ thống — có hiệu lực ngay.
-  </p>
 
   <form method="post" id="sx-general-settings-form">
     {% csrf_token %}
