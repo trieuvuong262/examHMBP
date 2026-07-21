@@ -19,7 +19,7 @@ alwaysApply: false
 ### Trang danh sách / hub (topbar list)
 
 - Topbar **bắt buộc `w-100`**: `jp-npl-mat-topbar jp-sx-detail-topbar w-100` + `jp-sx-detail-title` + `nav.jp-sx-tools`.
-- **Xuất Excel**: `btn btn-success btn-sm fw-bold` — cùng kích thước/style với nút Thêm (`btn btn-hm btn-sm fw-bold`) nhưng **màu xanh**.
+- **Xuất Excel**: `btn btn-sx-export btn-sm fw-bold` — cùng kích thước với Thêm, **màu xanh** (không dùng `btn-success` — theme HM map sang đỏ).
   - Include: `san_xuat/includes/sx_export_btn.html` với `export_key`.
 - **Thêm / Tạo**: `btn btn-hm btn-sm fw-bold` (đỏ HM).
 - Link phụ (Hồ sơ, BC…): soft link trong `jp-sx-tools` nếu không phải CTA chính.

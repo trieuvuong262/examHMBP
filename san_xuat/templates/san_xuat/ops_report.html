@@ -17,7 +17,7 @@
       <span class="small text-muted">{{ report.date_from|date:"d/m/Y" }} – {{ report.date_to|date:"d/m/Y" }}</span>
       {% if can_export %}
       <a href="?month={{ month_value }}&date_from={{ report.date_from|date:'Y-m-d' }}&date_to={{ report.date_to|date:'Y-m-d' }}&product_code={{ product_code }}&process_name={{ process_name }}&team_label={{ team_label }}&tab={{ active_tab }}&export=csv"
-         class="btn btn-success btn-sm fw-bold"><i class="bi bi-download me-1"></i>Xuất CSV</a>
+         class="btn btn-sx-export btn-sm fw-bold"><i class="bi bi-download me-1"></i>Xuất CSV</a>
       {% endif %}
       <a href="{% url 'san_xuat:overview' %}?month={{ month_value }}&date_from={{ report.date_from|date:'Y-m-d' }}&date_to={{ report.date_to|date:'Y-m-d' }}&product_code={{ product_code }}&team_label={{ team_label }}"><i class="bi bi-speedometer2" aria-hidden="true"></i>Tổng quan</a>
     </nav>

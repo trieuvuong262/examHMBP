@@ -29,13 +29,27 @@
     font-size: 0.875rem;
 }
 .jp-npl-material-catalog-page.jp-sx-page .jp-npl-mat-topbar-actions .btn,
-.jp-npl-material-catalog-page.jp-sx-product-page .jp-npl-mat-topbar-actions .btn {
+.jp-npl-material-catalog-page.jp-sx-product-page .jp-npl-mat-topbar-actions .btn,
+.jp-sx-page .jp-sx-tools .btn {
     height: var(--jp-npl-mat-ctl-h);
     min-height: var(--jp-npl-mat-ctl-h);
     display: inline-flex;
     align-items: center;
 }
-/* Nút topbar list: Xuất Excel (btn-success) + Thêm (btn-hm) sát phải */
+/* Xuất Excel — xanh (theme map btn-success → đỏ HM) */
+.jp-sx-page .btn-sx-export {
+    background-color: #198754 !important;
+    border: 1px solid #198754 !important;
+    color: #fff !important;
+}
+.jp-sx-page .btn-sx-export:hover,
+.jp-sx-page .btn-sx-export:focus {
+    background-color: #157347 !important;
+    border-color: #157347 !important;
+    color: #fff !important;
+    box-shadow: 0 4px 12px rgba(25, 135, 84, 0.28);
+}
+/* Nút topbar list: Xuất Excel (btn-sx-export) + Thêm (btn-hm) sát phải */
 .jp-npl-material-catalog-page.jp-sx-page .jp-npl-mat-topbar-actions,
 .jp-npl-material-catalog-page.jp-sx-product-page .jp-npl-mat-topbar-actions,
 .jp-sx-page .jp-npl-mat-topbar-actions {
