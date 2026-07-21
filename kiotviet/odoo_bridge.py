@@ -16,12 +16,15 @@ nên chạy lại nhiều lần không tạo trùng.
 from __future__ import annotations
 
 import base64
+import ipaddress
 import logging
+import socket
 import unicodedata
 import xmlrpc.client
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from decimal import Decimal, InvalidOperation
+from urllib.parse import urljoin, urlparse
 
 import requests
 
@@ -742,18 +745,100 @@ _IMAGE_TIMEOUT = 20
 _IMAGE_MAX_BYTES = 8 * 1024 * 1024  # bỏ ảnh > 8MB (Odoo image_1920 ~ đủ dùng)
 _IMAGE_DOWNLOAD_WORKERS = 12
 _IMAGE_BATCH = 48
+_IMAGE_MAX_REDIRECTS = 3
+# Chỉ CDN KiotViet — chặn SSRF khi image_urls trong DB bị đầu độc.
+_IMAGE_ALLOWED_HOST_SUFFIXES = ('.kiotviet.vn',)
+_IMAGE_ALLOWED_HOSTS = frozenset({'kiotviet.vn'})
+
+
+def _is_blocked_ip(ip_str: str) -> bool:
+    try:
+        ip = ipaddress.ip_address(ip_str)
+    except ValueError:
+        return True
+    return bool(
+        ip.is_private
+        or ip.is_loopback
+        or ip.is_link_local
+        or ip.is_multicast
+        or ip.is_reserved
+        or ip.is_unspecified
+    )
+
+
+def _image_host_allowed(host: str) -> bool:
+    host = (host or '').lower().rstrip('.')
+    if not host:
+        return False
+    if host in _IMAGE_ALLOWED_HOSTS:
+        return True
+    return any(host.endswith(suffix) for suffix in _IMAGE_ALLOWED_HOST_SUFFIXES)
+
+
+def _image_url_allowed(url: str) -> bool:
+    """HTTPS + host CDN KiotViet + DNS không trỏ IP nội bộ/metadata."""
+    try:
+        parsed = urlparse((url or '').strip())
+    except Exception:  # noqa: BLE001
+        return False
+    if parsed.scheme != 'https' or parsed.username or parsed.password:
+        return False
+    host = (parsed.hostname or '').lower().rstrip('.')
+    if not _image_host_allowed(host):
+        return False
+    # Từ chối IP literal (dù public) — bắt buộc hostname trong allowlist.
+    try:
+        ipaddress.ip_address(host)
+        return False
+    except ValueError:
+        pass
+    try:
+        infos = socket.getaddrinfo(host, 443, type=socket.SOCK_STREAM)
+    except OSError:
+        return False
+    if not infos:
+        return False
+    for info in infos:
+        if _is_blocked_ip(info[4][0]):
+            return False
+    return True
 
 
 def _download_image_b64(url: str) -> str | None:
-    if not url:
+    if not url or not _image_url_allowed(url):
         return None
+    current = url.strip()
     try:
-        resp = requests.get(url, timeout=_IMAGE_TIMEOUT, stream=True)
-        resp.raise_for_status()
-        content = resp.content
-        if not content or len(content) > _IMAGE_MAX_BYTES:
-            return None
-        return base64.b64encode(content).decode('ascii')
+        for _ in range(_IMAGE_MAX_REDIRECTS + 1):
+            if not _image_url_allowed(current):
+                return None
+            resp = requests.get(
+                current,
+                timeout=_IMAGE_TIMEOUT,
+                stream=True,
+                allow_redirects=False,
+            )
+            if resp.is_redirect or resp.status_code in (301, 302, 303, 307, 308):
+                location = resp.headers.get('Location')
+                if not location:
+                    return None
+                current = urljoin(current, location)
+                continue
+            resp.raise_for_status()
+            chunks: list[bytes] = []
+            total = 0
+            for chunk in resp.iter_content(64 * 1024):
+                if not chunk:
+                    continue
+                total += len(chunk)
+                if total > _IMAGE_MAX_BYTES:
+                    return None
+                chunks.append(chunk)
+            content = b''.join(chunks)
+            if not content:
+                return None
+            return base64.b64encode(content).decode('ascii')
+        return None
     except Exception:  # noqa: BLE001
         return None
 

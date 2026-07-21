@@ -1,3 +1,4 @@
+﻿import socket
 from unittest.mock import MagicMock, patch
 
 from django.contrib.auth.models import User
@@ -86,7 +87,7 @@ class KiotVietViewTests(TestCase):
             upsert_customer(self.retailer, {
                 'id': i,
                 'code': f'KH{i:02d}',
-                'name': f'Khách {i}',
+                'name': f'KhÃ¡ch {i}',
                 'modifiedDate': '2024-01-15T10:00:00',
             })
 
@@ -160,3 +161,72 @@ class KiotVietViewTests(TestCase):
         client.login(username='staff_no_kv', password='pass12345')
         response = client.get(reverse('kiotviet:customer_lookup'))
         self.assertRedirects(response, reverse('home_portal'))
+
+class ImageDownloadSsrfGuardTests(TestCase):
+    """Cháº·n SSRF khi táº£i áº£nh Ä‘áº©y Odoo â€” chá»‰ CDN KiotViet + IP cÃ´ng cá»™ng."""
+
+    @patch('kiotviet.odoo_bridge.socket.getaddrinfo')
+    def test_allows_kiotviet_cdn_https(self, mock_gai):
+        from kiotviet.odoo_bridge import _image_url_allowed
+
+        mock_gai.return_value = [
+            (socket.AF_INET, socket.SOCK_STREAM, 6, '', ('8.8.8.8', 443)),
+        ]
+        self.assertTrue(
+            _image_url_allowed('https://cdn-images.kiotviet.vn/path/a.jpg')
+        )
+        self.assertTrue(
+            _image_url_allowed('https://cdn2-retail-images.kiotviet.vn/x.png')
+        )
+
+    @patch('kiotviet.odoo_bridge.socket.getaddrinfo')
+    def test_rejects_non_allowlisted_and_http(self, mock_gai):
+        from kiotviet.odoo_bridge import _image_url_allowed
+
+        mock_gai.return_value = [
+            (socket.AF_INET, socket.SOCK_STREAM, 6, '', ('8.8.8.8', 443)),
+        ]
+        self.assertFalse(_image_url_allowed('http://cdn-images.kiotviet.vn/a.jpg'))
+        self.assertFalse(_image_url_allowed('https://evil.example/a.jpg'))
+        self.assertFalse(_image_url_allowed('https://127.0.0.1/a.jpg'))
+        self.assertFalse(_image_url_allowed('https://169.254.169.254/latest/meta-data/'))
+        self.assertFalse(
+            _image_url_allowed('https://user:pass@cdn-images.kiotviet.vn/a.jpg')
+        )
+
+    @patch('kiotviet.odoo_bridge.socket.getaddrinfo')
+    def test_rejects_dns_to_private_ip(self, mock_gai):
+        from kiotviet.odoo_bridge import _image_url_allowed
+
+        mock_gai.return_value = [
+            (socket.AF_INET, socket.SOCK_STREAM, 6, '', ('10.0.0.5', 443)),
+        ]
+        self.assertFalse(
+            _image_url_allowed('https://cdn-images.kiotviet.vn/ssrf.jpg')
+        )
+
+    @patch('kiotviet.odoo_bridge.socket.getaddrinfo')
+    @patch('kiotviet.odoo_bridge.requests.get')
+    def test_download_skips_disallowed_url(self, mock_get, mock_gai):
+        from kiotviet.odoo_bridge import _download_image_b64
+
+        mock_gai.return_value = [
+            (socket.AF_INET, socket.SOCK_STREAM, 6, '', ('8.8.8.8', 443)),
+        ]
+        self.assertIsNone(_download_image_b64('https://evil.example/a.jpg'))
+        mock_get.assert_not_called()
+
+    @patch('kiotviet.odoo_bridge.socket.getaddrinfo')
+    @patch('kiotviet.odoo_bridge.requests.get')
+    def test_download_rejects_redirect_off_allowlist(self, mock_get, mock_gai):
+        from kiotviet.odoo_bridge import _download_image_b64
+
+        mock_gai.return_value = [
+            (socket.AF_INET, socket.SOCK_STREAM, 6, '', ('8.8.8.8', 443)),
+        ]
+        redirect = MagicMock(status_code=302, is_redirect=True)
+        redirect.headers = {'Location': 'http://127.0.0.1/secret'}
+        mock_get.return_value = redirect
+        self.assertIsNone(
+            _download_image_b64('https://cdn-images.kiotviet.vn/a.jpg')
+        )
