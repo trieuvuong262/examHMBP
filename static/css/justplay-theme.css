@@ -5633,7 +5633,8 @@ body.jp-tool-loading-active {
     width: var(--jp-sidebar-w);
     background: var(--jp-sidebar-gradient);
     color: #fff;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: visible;
     border-right: 1px solid rgba(255, 255, 255, 0.06);
     z-index: 1040;
 }
@@ -5658,7 +5659,8 @@ body.jp-tool-loading-active {
         bottom: 0;
         height: auto;
         max-height: none;
-        overflow: hidden;
+        overflow-x: hidden;
+        overflow-y: visible;
         flex-shrink: 0;
         width: var(--jp-sidebar-w);
         z-index: 1040;
@@ -5898,16 +5900,13 @@ body.jp-tool-loading-active {
     flex: 1 1 auto;
     min-height: 0;
     min-width: 0;
-    width: calc(100% + 0.65rem);
+    width: 100%;
     max-width: none;
-    margin-right: -0.65rem;
     overflow-x: hidden;
     overflow-y: auto;
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
-    margin-top: 0;
-    margin-bottom: 0;
-    margin-left: 0;
+    margin: 0;
     padding: 0 0 0.2rem 0;
     scrollbar-width: thin;
     scrollbar-color: var(--jp-sidebar-scroll-thumb) var(--jp-sidebar-scroll-track);
@@ -5950,8 +5949,7 @@ body.jp-tool-loading-active {
 }
 
 .jp-sidebar-drawer .jp-sidebar-menu-scroll {
-    width: calc(100% + 0.65rem);
-    margin-right: -0.65rem;
+    width: 100%;
     padding-right: 0;
 }
 
@@ -7276,7 +7274,8 @@ body.jp-has-amis-header .jp-sidebar-brand {
 .jp-sidebar-drawer .offcanvas-body {
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: visible;
     padding: 0;
 }
 

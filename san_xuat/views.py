@@ -213,6 +213,15 @@ def doc_detail(request, pk):
         if step_formset is None and tab == 'process':
             step_formset = ProcessStepFormSet(instance=bom, prefix='steps')
 
+    from django.urls import reverse
+    from hrm.module_permissions import MODULE_KHO_NPL, user_can_create_module
+
+    issue_base_url = (
+        reverse('kho_npl:issue_create')
+        if user_can_create_module(request.user, MODULE_KHO_NPL)
+        else None
+    )
+
     return render(request, 'san_xuat/doc_detail.html', {
         'doc': doc,
         'tab': tab,
@@ -223,6 +232,7 @@ def doc_detail(request, pk):
         'meta_form': meta_form,
         'line_formset': line_formset,
         'step_formset': step_formset,
+        'issue_base_url': issue_base_url,
         **_perm_ctx(request),
     })
 

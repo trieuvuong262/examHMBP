@@ -31,6 +31,7 @@
                             <th>Ghi chú</th>
                             <th>TT</th>
                             <th>Xóa</th>
+                            {% if issue_base_url %}<th style="width:1%"></th>{% endif %}
                         </tr>
                     </thead>
                     <tbody>
@@ -44,6 +45,18 @@
                             <td>{{ f.notes }}</td>
                             <td style="width:4rem">{{ f.sort_order }}</td>
                             <td class="text-center">{% if f.instance.pk %}{{ f.DELETE }}{% endif %}</td>
+                            {% if issue_base_url %}
+                            <td class="text-center">
+                                {% if f.instance.pk and f.instance.material_id %}
+                                <a href="{{ issue_base_url }}?material={{ f.instance.material_id }}"
+                                   class="btn btn-outline-hm btn-xs py-0 px-2 text-nowrap"
+                                   title="Tạo phiếu xuất NPL này"
+                                   target="_blank">
+                                    <i class="bi bi-box-arrow-up-right"></i>
+                                </a>
+                                {% endif %}
+                            </td>
+                            {% endif %}
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -61,6 +74,7 @@
                         <th class="text-end">Định mức</th>
                         <th class="text-end">Hao hụt %</th>
                         <th>Size</th>
+                        {% if issue_base_url %}<th style="width:1%"></th>{% endif %}
                     </tr>
                 </thead>
                 <tbody>
@@ -71,9 +85,19 @@
                         <td class="text-end">{{ line.qty }}</td>
                         <td class="text-end">{{ line.scrap_pct }}</td>
                         <td>{{ line.size_code|default:"—" }}</td>
+                        {% if issue_base_url %}
+                        <td class="text-center">
+                            <a href="{{ issue_base_url }}?material={{ line.material.pk }}"
+                               class="btn btn-outline-hm btn-xs py-0 px-2 text-nowrap"
+                               title="Tạo phiếu xuất NPL này"
+                               target="_blank">
+                                <i class="bi bi-box-arrow-up-right me-1"></i>Xuất kho
+                            </a>
+                        </td>
+                        {% endif %}
                     </tr>
                     {% empty %}
-                    <tr><td colspan="5" class="text-muted text-center py-3">Chưa có dòng NPL.</td></tr>
+                    <tr><td colspan="{% if issue_base_url %}6{% else %}5{% endif %}" class="text-muted text-center py-3">Chưa có dòng NPL.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>

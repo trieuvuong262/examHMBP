@@ -89,10 +89,29 @@
         });
     }
 
+    function bindCollapsedSidebarWheel() {
+        var nav = document.querySelector('.jp-sidebar-nav');
+        var menuScroll = document.querySelector('.jp-sidebar-menu-scroll');
+        if (!nav || !menuScroll) return;
+
+        // In collapsed desktop mode the nav becomes the scroll container,
+        // so forward wheel input from the menu area to keep scrolling natural.
+        menuScroll.addEventListener('wheel', function (event) {
+            if (!isCollapsed() || window.innerWidth < 992) return;
+
+            var canScroll = nav.scrollHeight > nav.clientHeight;
+            if (!canScroll) return;
+
+            nav.scrollTop += event.deltaY;
+            event.preventDefault();
+        }, { passive: false });
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
         bindCollapseToggle();
         bindFlyouts();
         bindNavCollapseLinks();
+        bindCollapsedSidebarWheel();
         applyLinkTitles();
         setCollapsed(isCollapsed());
     });
