@@ -46,10 +46,11 @@
     --jp-sidebar-gradient: linear-gradient(180deg, var(--jp-black-900) 0%, var(--jp-black-800) 100%);
     --jp-sidebar-drawer-bg: var(--jp-black-900);
     --jp-sidebar-status-ring: var(--jp-black-900);
-    --jp-sidebar-scroll-w: 5px;
-    --jp-sidebar-scroll-track: rgba(255, 255, 255, 0.04);
-    --jp-sidebar-scroll-thumb: rgba(255, 255, 255, 0.22);
-    --jp-sidebar-scroll-thumb-hover: rgba(255, 255, 255, 0.38);
+    --jp-sidebar-scroll-w: 4px;
+    --jp-sidebar-scroll-track: transparent;
+    --jp-sidebar-scroll-thumb: rgba(255, 255, 255, 0.14);
+    --jp-sidebar-scroll-thumb-hover: rgba(255, 255, 255, 0.3);
+    --jp-sidebar-scroll-thumb-active: rgba(220, 38, 38, 0.42);
     --jp-page-bg: var(--hm-bg-light);
     --jp-surface-bg: #ffffff;
     --jp-surface-muted: #f8fafc;
@@ -5740,11 +5741,11 @@ body.jp-tool-loading-active {
 
     html.jp-sidebar-collapsed .jp-sidebar-nav {
         padding-left: 0.45rem;
-        padding-right: 0.45rem;
+        padding-right: 0;
         overflow-x: visible;
         overflow-y: auto;
         scrollbar-width: thin;
-        scrollbar-color: var(--jp-sidebar-scroll-thumb) transparent;
+        scrollbar-color: var(--jp-sidebar-scroll-thumb) var(--jp-sidebar-scroll-track);
     }
 
     html.jp-sidebar-collapsed .jp-sidebar-nav::-webkit-scrollbar {
@@ -5753,17 +5754,25 @@ body.jp-tool-loading-active {
 
     html.jp-sidebar-collapsed .jp-sidebar-nav::-webkit-scrollbar-track {
         background: transparent;
-        margin: 0.35rem 0;
+        margin: 0.5rem 0;
+        border-radius: 0;
     }
 
     html.jp-sidebar-collapsed .jp-sidebar-nav::-webkit-scrollbar-thumb {
-        background: var(--jp-sidebar-scroll-thumb);
-        border-radius: 999px;
-        border: 1px solid rgba(255, 255, 255, 0.06);
+        background-color: var(--jp-sidebar-scroll-thumb);
+        border-radius: 999px 0 0 999px;
+        border: none;
+        min-height: 2.75rem;
+        transition: background-color 0.2s ease;
     }
 
+    html.jp-sidebar-collapsed .jp-sidebar-nav:hover::-webkit-scrollbar-thumb,
     html.jp-sidebar-collapsed .jp-sidebar-nav::-webkit-scrollbar-thumb:hover {
-        background: var(--jp-sidebar-scroll-thumb-hover);
+        background-color: var(--jp-sidebar-scroll-thumb-hover);
+    }
+
+    html.jp-sidebar-collapsed .jp-sidebar-nav::-webkit-scrollbar-thumb:active {
+        background-color: var(--jp-sidebar-scroll-thumb-active);
     }
 
     html.jp-sidebar-collapsed .jp-sidebar-menu-scroll {
@@ -5888,16 +5897,19 @@ body.jp-tool-loading-active {
     flex: 1 1 auto;
     min-height: 0;
     min-width: 0;
-    max-width: 100%;
+    width: calc(100% + 0.65rem);
+    max-width: none;
+    margin-right: -0.65rem;
     overflow-x: hidden;
     overflow-y: auto;
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
-    scrollbar-gutter: stable;
-    margin: 0 -0.2rem;
-    padding: 0 0.15rem 0.2rem 0.35rem;
+    margin-top: 0;
+    margin-bottom: 0;
+    margin-left: 0;
+    padding: 0 0 0.2rem 0;
     scrollbar-width: thin;
-    scrollbar-color: var(--jp-sidebar-scroll-thumb) transparent;
+    scrollbar-color: var(--jp-sidebar-scroll-thumb) var(--jp-sidebar-scroll-track);
 }
 
 .jp-sidebar-menu-scroll::-webkit-scrollbar {
@@ -5906,38 +5918,40 @@ body.jp-tool-loading-active {
 
 .jp-sidebar-menu-scroll::-webkit-scrollbar-track {
     background: transparent;
-    margin: 0.35rem 0;
-    border-radius: 999px;
+    margin: 0.5rem 0;
+    border-radius: 0;
 }
 
 .jp-sidebar-menu-scroll::-webkit-scrollbar-thumb {
-    background: linear-gradient(
-        180deg,
-        var(--jp-sidebar-scroll-thumb) 0%,
-        rgba(255, 255, 255, 0.14) 100%
-    );
-    border-radius: 999px;
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    background-clip: padding-box;
-    min-height: 2.5rem;
-    transition: background 0.18s ease, border-color 0.18s ease;
+    background-color: var(--jp-sidebar-scroll-thumb);
+    border-radius: 999px 0 0 999px;
+    border: none;
+    min-height: 2.75rem;
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .jp-sidebar-menu-scroll:hover::-webkit-scrollbar-thumb {
-    background: linear-gradient(
-        180deg,
-        var(--jp-sidebar-scroll-thumb-hover) 0%,
-        rgba(255, 255, 255, 0.24) 100%
-    );
-    border-color: rgba(255, 255, 255, 0.12);
+    background-color: var(--jp-sidebar-scroll-thumb-hover);
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.jp-sidebar-menu-scroll::-webkit-scrollbar-thumb:hover {
+    background-color: var(--jp-sidebar-scroll-thumb-hover);
 }
 
 .jp-sidebar-menu-scroll::-webkit-scrollbar-thumb:active {
-    background: rgba(255, 255, 255, 0.42);
+    background-color: var(--jp-sidebar-scroll-thumb-active);
+    box-shadow: 0 0 6px rgba(220, 38, 38, 0.28);
 }
 
 .jp-sidebar-menu-scroll:hover {
     scrollbar-color: var(--jp-sidebar-scroll-thumb-hover) var(--jp-sidebar-scroll-track);
+}
+
+.jp-sidebar-drawer .jp-sidebar-menu-scroll {
+    width: calc(100% + 0.65rem);
+    margin-right: -0.65rem;
+    padding-right: 0;
 }
 
 .jp-sidebar-brand {

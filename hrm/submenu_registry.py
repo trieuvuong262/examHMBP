@@ -80,7 +80,6 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
         {'key': 'schedule_reminder', 'label': 'Nhắc lịch', 'icon': 'bi-alarm'},
     ],
     MODULE_KHO_NPL: [
-        {'key': 'overview', 'label': 'Tổng quan', 'icon': 'bi-speedometer2'},
         {'key': 'materials', 'label': 'Danh mục', 'icon': 'bi-tags'},
         {'key': 'material_stock', 'label': 'Tồn kho', 'icon': 'bi-boxes'},
         {'key': 'stock_cards', 'label': 'Thẻ kho', 'icon': 'bi-grid-3x3-gap'},
@@ -287,8 +286,8 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     ('/kho-npl/the-kho', MODULE_KHO_NPL, 'stock_cards'),
     ('/kho-npl/ton-kho-npl', MODULE_KHO_NPL, 'material_stock'),
     ('/kho-npl/danh-muc', MODULE_KHO_NPL, 'materials'),
-    ('/kho-npl/canh-bao', MODULE_KHO_NPL, 'overview'),
-    ('/kho-npl/tong-quan', MODULE_KHO_NPL, 'overview'),
+    ('/kho-npl/canh-bao', MODULE_KHO_NPL, 'material_stock'),
+    ('/kho-npl/tong-quan', MODULE_KHO_NPL, 'material_stock'),
     # Sản xuất hub — prefix cụ thể trước; /san-xuat/ cuối cùng → overview
     ('/san-xuat/tong-quan', MODULE_SAN_XUAT, 'overview'),
     ('/san-xuat/don-hang', MODULE_SAN_XUAT, 'orders'),

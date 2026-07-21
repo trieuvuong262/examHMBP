@@ -130,7 +130,7 @@ if qa_user:
     client = Client(HTTP_HOST='portal.justplay.vn')
     client.force_login(qa_user)
     page_urls = [
-        'kho_npl:overview',
+        'kho_npl:material_stock',
         'kho_npl:stock_cards',
         'kho_npl:stock_alerts',
         'kho_npl:material_list', 'kho_npl:material_stock', 'kho_npl:material_create',
@@ -179,11 +179,11 @@ if qa_user:
     if denied and not user_can_access_module(denied, MODULE_KHO_NPL):
         c2 = Client(HTTP_HOST='portal.justplay.vn')
         c2.force_login(denied)
-        r = c2.get(reverse('kho_npl:overview'))
+        r = c2.get(reverse('kho_npl:material_stock'))
         if r.status_code in (302, 403):
             ok(f'User {denied.username} không quyền → chặn ({r.status_code})')
         else:
-            warn(f'User {denied.username} không quyền nhưng GET overview → {r.status_code}')
+            warn(f'User {denied.username} không quyền nhưng GET tồn kho → {r.status_code}')
 
 
 # --- 4. E2E Workflow trên DB thật ---
@@ -398,19 +398,16 @@ try:
         else:
             warn(f'/kho-npl/ → {r.status_code}')
         r = client.get(reverse('kho_npl:overview'))
-        content = r.content.decode('utf-8', errors='replace')
-        checks = [
-            ('Tổng quan', 'Tiêu đề trang'),
-        ]
-        for needle, label in checks:
-            if needle in content:
-                ok(f'Overview HTML: {label}')
-            else:
-                fail(f'Overview HTML thiếu: {label}')
-        if 'jp-tab-pills' not in content:
-            ok('Overview: không có tab pills đầu trang')
+        if r.status_code in (301, 302):
+            ok(f'Legacy /tong-quan/ redirect → {r.status_code}')
         else:
-            fail('Overview vẫn còn jp-tab-pills — phải điều hướng qua sidebar')
+            fail('Legacy /tong-quan/', f'status={r.status_code}, expected redirect')
+        r_stock = client.get(reverse('kho_npl:material_stock'))
+        stock_content = r_stock.content.decode('utf-8', errors='replace')
+        if 'Tồn kho' in stock_content:
+            ok('Tồn kho NPL: tiêu đề trang')
+        else:
+            fail('Tồn kho NPL thiếu tiêu đề')
         r_xfer = client.get(reverse('kho_npl:transfer_hub') + '?tab=chuyen')
         xfer_content = r_xfer.content.decode('utf-8', errors='replace')
         if 'jp-npl-transfer-tabs' in xfer_content and 'Phiếu chuyển' in xfer_content:

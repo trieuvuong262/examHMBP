@@ -26,7 +26,7 @@ def check_user(uname, expect_create=None, expect_export=None):
     c = Client(HTTP_HOST=HOST)
     c.force_login(u)
     pages = [
-        reverse('kho_npl:overview'),
+        reverse('kho_npl:material_stock'),
         reverse('kho_npl:material_list'),
         reverse('kho_npl:receipt_list'),
         reverse('kho_npl:report_hub'),

@@ -4,7 +4,6 @@ from hrm.module_permissions import MODULE_KHO_NPL
 from kho_npl.reports_registry import report_hub_items
 
 NAV_ITEMS = [
-    {'key': 'overview', 'url_name': 'kho_npl:overview', 'label': 'Tổng quan', 'icon': 'bi-speedometer2'},
     {'key': 'materials', 'url_name': 'kho_npl:material_list', 'label': 'Danh mục', 'icon': 'bi-tags'},
     {'key': 'material_stock', 'url_name': 'kho_npl:material_stock', 'label': 'Tồn kho', 'icon': 'bi-boxes'},
     {'key': 'stock_cards', 'url_name': 'kho_npl:stock_cards', 'label': 'Thẻ kho', 'icon': 'bi-grid-3x3-gap'},

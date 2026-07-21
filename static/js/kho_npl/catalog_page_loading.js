@@ -8,7 +8,6 @@
     const MIN_VISIBLE_MS = 300;
 
     const ROUTE_MESSAGES = {
-        '/kho-npl/tong-quan/': 'Đang tải tổng quan…',
         '/kho-npl/danh-muc/': 'Đang tải danh mục…',
         '/kho-npl/ton-kho-npl/': 'Đang tải tồn kho…',
         '/kho-npl/the-kho/': 'Đang tải thẻ kho…',

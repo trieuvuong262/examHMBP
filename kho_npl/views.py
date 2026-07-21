@@ -1,38 +1,28 @@
 import json
 from datetime import date
 
-import pandas as pd
 from django.shortcuts import get_object_or_404, redirect, render
 
 from assessment.decorators import module_perm_required
 from hrm.module_permissions import MODULE_KHO_NPL
 from PortalJustPlay.list_search import get_search_query
-from kho_npl.material_search import apply_material_search, material_matches_query
+from kho_npl.material_search import material_matches_query
 from PortalJustPlay.pagination import paginate_queryset
 
 from kho_npl.choices import (
-    STOCK_STATUS_LABELS,
     STOCK_STATUS_LOW,
-    STOCK_STATUS_OK,
     STOCK_STATUS_OUT,
 )
-from kho_npl.category_tree import active_category_roots, category_cascade_for_filter, category_children_for_parent, category_filter_q
+from kho_npl.category_tree import active_category_roots, category_cascade_for_filter, category_children_for_parent
 from kho_npl.filter_utils import append_filter_params, parse_int_ids
-from kho_npl.models import Material, MaterialCategory, WarehouseLocation
-from kho_npl.overview_list_columns import (
-    OVERVIEW_LIST_COLUMNS,
-    OVERVIEW_LIST_SORT_FIELDS,
-    OVERVIEW_LIST_TOTAL_COL_WEIGHT,
-)
+from kho_npl.models import Material
 from kho_npl.stock_card_catalog_columns import (
     STOCK_CARD_CATALOG_COLUMNS,
     STOCK_CARD_CATALOG_SORT_FIELDS,
     STOCK_CARD_CATALOG_TOTAL_COL_WEIGHT,
 )
-from kho_npl.services.excel_export import dataframe_to_xlsx_response
 from kho_npl.services.scrap_warehouse import filter_storage_location_ids, source_locations_qs
-from kho_npl.catalog_labels import spec_label
-from kho_npl.services.stock import material_stock_rows, overview_stats, stock_rows_for_status
+from kho_npl.services.stock import material_stock_rows, stock_rows_for_status
 from kho_npl.services.stock_card import build_material_stock_card, diagnose_stock_mismatch
 from kho_npl.view_utils import nav_context, perm_context
 from kho_npl.views_material import _material_catalog_qs
@@ -58,95 +48,14 @@ def _filter_alert_rows(rows, search_query: str):
     return [r for r in rows if material_matches_query(r['material'], search_query)]
 
 
-OVERVIEW_STOCK_STATUS_CHOICES = (
-    ('', 'Tất cả'),
-    (STOCK_STATUS_OK, 'Đủ hàng'),
-    (STOCK_STATUS_LOW, 'Sắp thiếu'),
-    (STOCK_STATUS_OUT, 'Hết hàng'),
-)
-
-
-def _overview_sort(request):
-    sort_key = (request.GET.get('sort') or 'code').strip()
-    sort_dir = (request.GET.get('dir') or 'asc').strip().lower()
-    if sort_key not in OVERVIEW_LIST_SORT_FIELDS:
-        sort_key = 'code'
-    if sort_dir not in ('asc', 'desc'):
-        sort_dir = 'asc'
-    return sort_key, sort_dir
-
-
-def _overview_filtered_rows(request):
-    search_query = get_search_query(request)
-    category_ids = parse_int_ids(request, 'category')
-    status = (request.GET.get('status') or '').strip().lower()
-    if status not in (STOCK_STATUS_OK, STOCK_STATUS_LOW, STOCK_STATUS_OUT):
-        status = ''
-
-    qs = Material.objects.filter(is_active=True).select_related(
-        'category', 'unit', 'supplier', 'color', 'specification',
-    )
-    if category_ids:
-        qs = qs.filter(category_filter_q(category_ids))
-    if search_query:
-        qs = apply_material_search(qs, search_query)
-
-    rows = material_stock_rows(qs)
-    if status:
-        rows = [r for r in rows if r['status'] == status]
-
-    sort_key, sort_dir = _overview_sort(request)
-    sort_fn = OVERVIEW_LIST_SORT_FIELDS[sort_key]
-    rows.sort(key=sort_fn, reverse=(sort_dir == 'desc'))
-    return rows, search_query, category_ids, status, sort_key, sort_dir
-
-
 @module_perm_required(MODULE_KHO_NPL, 'view')
 def overview(request):
-    rows, search_query, category_ids, status, sort_key, sort_dir = _overview_filtered_rows(request)
-    stats = overview_stats()
-    page_obj, query_string = paginate_queryset(request, rows, per_page=25)
-    mat_perms = perm_context(request.user, 'materials')
-    return render(request, 'kho_npl/overview.html', {
-        **nav_context('overview', user=request.user),
-        **perm_context(request.user, 'overview'),
-        'can_create': mat_perms.get('can_create', False),
-        'stats': stats,
-        'page_obj': page_obj,
-        'query_string': query_string,
-        'search_query': search_query,
-        'category_roots': active_category_roots(),
-        'selected_categories': category_ids,
-        'selected_status': status,
-        'status_choices': OVERVIEW_STOCK_STATUS_CHOICES,
-        'list_columns': OVERVIEW_LIST_COLUMNS,
-        'total_col_weight': OVERVIEW_LIST_TOTAL_COL_WEIGHT,
-        'sort_key': sort_key,
-        'sort_dir': sort_dir,
-        'has_filters': bool(search_query or category_ids or status),
-    })
+    return redirect('kho_npl:material_stock')
 
 
 @module_perm_required(MODULE_KHO_NPL, 'export')
 def overview_export(request):
-    rows, _, _, _, _, _ = _overview_filtered_rows(request)
-    data = []
-    for row in rows:
-        mat = row['material']
-        data.append({
-            'Mã NPL': mat.code,
-            'Tên NPL': mat.name,
-            'Nhóm': mat.category.name,
-            'Màu': mat.color.name if mat.color_id else '',
-            'Quy cách': spec_label(mat.specification) if mat.specification_id else '',
-            'ĐVT': mat.unit.name,
-            'Tồn': float(row['total_qty']),
-            'Tối thiểu': float(mat.min_stock),
-            'Vị trí': row['primary_location'],
-            'Trạng thái': STOCK_STATUS_LABELS[row['status']],
-        })
-    df = pd.DataFrame(data)
-    return dataframe_to_xlsx_response(df, 'Tong_quan_ton_kho', 'Tong_quan')
+    return redirect('kho_npl:material_stock_export')
 
 
 def _parse_optional_date(value: str) -> date | None:
@@ -391,8 +300,8 @@ def stock_alerts(request):
         page_icon = 'bi-exclamation-triangle'
 
     return render(request, 'kho_npl/stock_alerts.html', {
-        **nav_context('overview', user=request.user),
-        **perm_context(request.user, 'overview'),
+        **nav_context('material_stock', user=request.user),
+        **perm_context(request.user, 'material_stock'),
         'page_obj': page_obj,
         'query_string': query_string,
         'search_query': search_query,
@@ -415,4 +324,4 @@ def settings_hub(request):
 
 @module_perm_required(MODULE_KHO_NPL, 'view')
 def hub_redirect(request):
-    return redirect('kho_npl:overview')
+    return redirect('kho_npl:material_stock')

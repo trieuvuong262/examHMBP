@@ -1,15 +1,5 @@
 {# Menu con Kho NPL — URL/view kho_npl không đổi. Dùng trong sidebar Sản xuất hoặc nhóm Kho NPL độc lập. #}
 {% load menu_perms %}
-{% jp_can_menu 'kho_npl' 'overview' as jp_can_kho_npl_overview %}
-{% if jp_can_kho_npl_overview %}
-<li>
-    <a href="{% url 'kho_npl:overview' %}"
-       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'overview' and 'kho-npl' in request.path %}active{% endif %}"
-       data-jp-npl-catalog-nav data-loading-message="Đang tải tổng quan…">
-        <i class="bi bi-speedometer2"></i><span>Tổng quan</span>
-    </a>
-</li>
-{% endif %}
 {% jp_can_menu 'kho_npl' 'materials' as jp_can_kho_npl_materials %}
 {% if jp_can_kho_npl_materials %}
 <li>

@@ -184,18 +184,3 @@ def balance_stock_rows(
     if status_filter:
         rows = [r for r in rows if r['status'] == status_filter]
     return rows
-
-
-def overview_stats():
-    rows = material_stock_rows()
-    total_materials = len(rows)
-    low_count = sum(1 for r in rows if r['status'] == STOCK_STATUS_LOW)
-    out_count = sum(1 for r in rows if r['status'] == STOCK_STATUS_OUT)
-    ok_count = sum(1 for r in rows if r['status'] == STOCK_STATUS_OK)
-    return {
-        'total_materials': total_materials,
-        'ok_count': ok_count,
-        'low_count': low_count,
-        'out_count': out_count,
-        'alert_rows': stock_rows_for_status(rows),
-    }

@@ -182,7 +182,7 @@ def _kho_npl_menus(*, manager: bool) -> dict:
     if manager:
         level = FULL
     keys = (
-        'overview', 'materials', 'material_stock', 'stock_cards',
+        'materials', 'material_stock', 'stock_cards',
         'receipts', 'issues', 'transfers', 'disposals',
         'adjustments', 'stocktakes', 'reports', 'settings',
     )
