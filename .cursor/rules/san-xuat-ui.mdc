@@ -14,17 +14,18 @@ alwaysApply: false
 - **Không** thu hẹp bằng `max-width: 720px` / `760px` / tương tự trên wrapper trang.
 - Form trải theo lưới Bootstrap (`col-*`) full chiều ngang container.
 
-## Topbar công cụ (In A5 / Quay lại / …)
+## Topbar công cụ (In A5 / Xuất Excel / Quay lại / …)
 
 Áp dụng mọi trang SX (detail / form / list / hub):
 
 - Topbar **bắt buộc `w-100`**: `jp-npl-mat-topbar … w-100`.
-- Trang có Quay lại / In A5 / Wizard / Truy vết:
+- Công cụ phụ (In A5, Xuất Excel/CSV, Wizard, Truy vết, Quay lại, link danh mục):
   - Include `san_xuat/includes/sx_detail_tools_styles.html`.
   - Markup: `jp-npl-mat-topbar jp-sx-detail-topbar w-100` + `jp-sx-detail-title` + `nav.jp-sx-tools`.
-  - Link gọn + icon Bootstrap Icons — **không** `btn btn-outline-* btn-sm` cho In A5 / Wizard / Truy vết / Quay lại.
-  - Pattern: … · `sep` · Quay lại (`bi-arrow-left`, `is-back`).
-- List: `Xuất Excel` / `Thêm` có thể giữ `btn-sm` (CTA danh sách); Quay lại vẫn soft link.
+  - **Soft link + icon** (`bi-printer`, `bi-download`, …) — **không** `btn btn-outline-* btn-sm`.
+  - List export: `{% include 'san_xuat/includes/sx_export_btn.html' with export_key='…' %}` trong `jp-sx-tools`.
+  - Pattern: In A5 · Xuất Excel · … · `sep` · Quay lại (`bi-arrow-left`, `is-back`).
+- Chỉ **CTA tạo mới** (Thêm / Tạo lệnh / Chạy lệnh mới) giữ `btn btn-hm btn-sm` trong `jp-sx-tools`.
 - Title trái · tools phải (`justify-content: space-between`).
 
 ## Copy & mô tả

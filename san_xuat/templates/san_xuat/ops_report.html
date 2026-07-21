@@ -16,8 +16,7 @@
     <nav class="jp-sx-tools" aria-label="Công cụ">
       <span class="small text-muted">{{ report.date_from|date:"d/m/Y" }} – {{ report.date_to|date:"d/m/Y" }}</span>
       {% if can_export %}
-      <a href="?month={{ month_value }}&date_from={{ report.date_from|date:'Y-m-d' }}&date_to={{ report.date_to|date:'Y-m-d' }}&product_code={{ product_code }}&process_name={{ process_name }}&team_label={{ team_label }}&tab={{ active_tab }}&export=csv"
-         class="btn btn-outline-hm btn-sm fw-bold">Xuất CSV</a>
+      <a href="?month={{ month_value }}&date_from={{ report.date_from|date:'Y-m-d' }}&date_to={{ report.date_to|date:'Y-m-d' }}&product_code={{ product_code }}&process_name={{ process_name }}&team_label={{ team_label }}&tab={{ active_tab }}&export=csv"><i class="bi bi-download" aria-hidden="true"></i>Xuất CSV</a>
       {% endif %}
       <a href="{% url 'san_xuat:overview' %}?month={{ month_value }}&date_from={{ report.date_from|date:'Y-m-d' }}&date_to={{ report.date_to|date:'Y-m-d' }}&product_code={{ product_code }}&team_label={{ team_label }}"><i class="bi bi-speedometer2" aria-hidden="true"></i>Tổng quan</a>
     </nav>
