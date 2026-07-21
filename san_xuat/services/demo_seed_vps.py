@@ -91,9 +91,9 @@ def clear_vps_demo(*, include_legacy_demo: bool = True) -> dict[str, int]:
     counts: dict[str, int] = {}
     code_q = models.Q(code__icontains='-VPS-') | models.Q(code__icontains='VPS-2026')
     for model in VPS_DELETE_ORDER:
-        q = models.Q(notes__startswith=VPS_DEMO_NOTE)
-        if hasattr(model, 'code'):
-            q = q | code_q
+        q = code_q if hasattr(model, 'code') else models.Q(pk__in=[])
+        if hasattr(model, 'notes'):
+            q = q | models.Q(notes__startswith=VPS_DEMO_NOTE)
         deleted, _ = model.objects.filter(q).delete()
         if deleted:
             counts[model.__name__] = deleted
