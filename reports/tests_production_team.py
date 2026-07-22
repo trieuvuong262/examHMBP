@@ -66,7 +66,7 @@ class ProductionTeamViewTests(TestCase):
         )
 
     def test_team_merges_shifts_on_same_day(self):
-        self._morning_report()
+        morning = self._morning_report()
         DailyWorkReport.objects.create(
             employee=self.member,
             report_date=self.today,
@@ -83,7 +83,8 @@ class ProductionTeamViewTests(TestCase):
             'to': self.today.isoformat(),
         })
         self.assertEqual(resp.status_code, 200)
-        self.assertContains(resp, '2 b\u00e1o c\u00e1o')
+        self.assertContains(resp, reverse('reports:detail_cn', args=[morning.pk]))
+        self.assertNotContains(resp, '2 báo cáo')
 
     def test_team_shows_employee_without_reports(self):
         self._morning_report()

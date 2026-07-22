@@ -76,10 +76,10 @@
     {% endif %}
 </td>
 <td class="text-end">
-    {% if row.production_report_count %}
-    {{ row.production_report_count }} báo cáo
-    {% if row.production_total_qty %} · SL {{ row.production_total_qty|prod_qty }}{% endif %}
-    {% if row.production_total_damaged %} · Hư {{ row.production_total_damaged|prod_qty }}{% endif %}
+    {% if row.production_total_qty or row.production_total_damaged %}
+    {% if row.production_total_qty %}SL {{ row.production_total_qty|prod_qty }}{% endif %}
+    {% if row.production_total_qty and row.production_total_damaged %} · {% endif %}
+    {% if row.production_total_damaged %}Hư {{ row.production_total_damaged|prod_qty }}{% endif %}
     {% else %}—{% endif %}
 </td>
 <td class="text-end text-nowrap">
