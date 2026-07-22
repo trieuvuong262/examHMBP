@@ -55,18 +55,29 @@ def auto_submit_report_date(now=None) -> date:
     return _local_now(now).date() - timedelta(days=1)
 
 
-def _unsubmitted_non_night_queryset(report_date: date):
+def _unsubmitted_non_night_base_qs():
     """BC SX chưa nộp, không phải ca tối (gồm MORNING / OVERTIME cũ)."""
     return (
         DailyWorkReport.objects.filter(
-            report_date=report_date,
             report_profile=REPORT_PROFILE_PRODUCTION,
             report_period=PERIOD_DAY,
         )
         .exclude(shift=DailyWorkReport.SHIFT_NIGHT)
         .exclude(status=DailyWorkReport.STATUS_SUBMITTED)
-        .select_related('employee', 'employee__profile')
-        .prefetch_related('production_products__hourly_entries')
+    )
+
+
+def _unsubmitted_non_night_queryset(*, report_date: date | None = None, date_from: date | None = None, date_to: date | None = None):
+    qs = _unsubmitted_non_night_base_qs()
+    if report_date is not None:
+        qs = qs.filter(report_date=report_date)
+    else:
+        if date_from is not None:
+            qs = qs.filter(report_date__gte=date_from)
+        if date_to is not None:
+            qs = qs.filter(report_date__lte=date_to)
+    return qs.select_related('employee', 'employee__profile').prefetch_related(
+        'production_products__hourly_entries',
     )
 
 
@@ -118,6 +129,7 @@ def auto_submit_one_report(report: DailyWorkReport, *, dry_run: bool = False) ->
         now = timezone.now()
         report.status = DailyWorkReport.STATUS_SUBMITTED
         report.submitted_at = now
+        report.auto_submitted = True
         report.report_profile = REPORT_PROFILE_PRODUCTION
         report.save()
         lock_production_steps_on_submit(report)
@@ -148,12 +160,17 @@ def auto_submit_unsubmitted_production_reports(
     dry_run: bool = False,
     force: bool = False,
     report_date: date | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
 ) -> dict:
     """
     11:30 hàng ngày: tự động gửi mọi BC SX chưa nộp của ngày hôm trước,
     trừ ca tối. Thời gian làm việc mặc định 9,50 giờ.
+
+    Có thể chạy tay theo khoảng: date_from / date_to (hoặc report_date một ngày).
     """
-    if not force and not is_auto_submit_window(now=now):
+    range_mode = bool(date_from or date_to) and report_date is None
+    if not force and not range_mode and not is_auto_submit_window(now=now):
         return {
             'submitted': 0,
             'skipped': 0,
@@ -161,11 +178,24 @@ def auto_submit_unsubmitted_production_reports(
             'reason': 'outside_auto_submit_window',
         }
 
-    target_date = report_date or auto_submit_report_date(now=now)
-    qs = _unsubmitted_non_night_queryset(target_date)
+    if range_mode:
+        qs = _unsubmitted_non_night_queryset(date_from=date_from, date_to=date_to).order_by(
+            'report_date', 'employee_id', 'shift',
+        )
+        if date_from and date_to:
+            date_label = f'{date_from.isoformat()}→{date_to.isoformat()}'
+        elif date_to:
+            date_label = f'…→{date_to.isoformat()}'
+        else:
+            date_label = f'{date_from.isoformat()}→…'
+    else:
+        target_date = report_date or auto_submit_report_date(now=now)
+        qs = _unsubmitted_non_night_queryset(report_date=target_date)
+        date_label = target_date.isoformat()
 
     submitted = skipped = failed = 0
     skip_reasons: dict[str, int] = {}
+    dates_touched: set[str] = set()
 
     for report in qs.iterator(chunk_size=50):
         try:
@@ -175,6 +205,7 @@ def auto_submit_unsubmitted_production_reports(
             failed += 1
             continue
 
+        dates_touched.add(report.report_date.isoformat())
         if result in ('submitted', 'dry_run'):
             submitted += 1
         else:
@@ -185,7 +216,8 @@ def auto_submit_unsubmitted_production_reports(
         'submitted': submitted,
         'skipped': skipped,
         'failed': failed,
-        'report_date': target_date.isoformat(),
+        'report_date': date_label,
+        'dates': sorted(dates_touched),
         'skip_reasons': skip_reasons,
     }
 

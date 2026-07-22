@@ -2270,9 +2270,11 @@ def save_proxy_shift_table(report: DailyWorkReport, rows: list[dict], user) -> d
     if groups:
         report.status = DailyWorkReport.STATUS_SUBMITTED
         report.submitted_at = timezone.now()
+        report.auto_submitted = False
         lock_production_steps_on_submit(report)
     else:
         report.status = DailyWorkReport.STATUS_DRAFT
+        report.auto_submitted = False
     report.save()
 
     if groups:
@@ -2849,9 +2851,11 @@ def save_proxy_shift_sessions(
     elif created:
         report.status = DailyWorkReport.STATUS_SUBMITTED
         report.submitted_at = timezone.now()
+        report.auto_submitted = False
         lock_production_steps_on_submit(report)
     else:
         report.status = DailyWorkReport.STATUS_DRAFT
+        report.auto_submitted = False
     report.save()
 
     if not content_edit_only and not preserve_draft and created:

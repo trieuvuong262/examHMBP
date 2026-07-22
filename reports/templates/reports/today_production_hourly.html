@@ -4,7 +4,7 @@
 
 {% block extra_head %}
 <link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260624a">
-<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260710a">
+<link rel="stylesheet" href="{% static 'css/reports-production-hourly.css' %}?v=20260722a">
 <style>
 /* Trang SX today: ẩn footer, sticky bar neo sát đáy như nút Gửi báo cáo */
 :root {
@@ -149,8 +149,12 @@
             </section>
 
             {% if is_submitted and can_edit and not is_locked %}
-            <div class="alert alert-success border-0 small mb-3">
+            <div class="alert {% if report.auto_submitted %}alert-info{% else %}alert-success{% endif %} border-0 small mb-3">
+                {% if report.auto_submitted %}
+                Hệ thống tự động gửi lúc {{ report.submitted_at|date:"H:i d/m/Y" }}.
+                {% else %}
                 Đã gửi lúc {{ report.submitted_at|date:"H:i d/m/Y" }}.
+                {% endif %}
                 {% if employee_edit_deadline %}
                 Có thể sửa công đoạn đã gửi đến {{ employee_edit_deadline|date:"H:i d/m/Y" }} — sau khi lưu bấm «Cập nhật báo cáo».
                 {% else %}
@@ -388,16 +392,25 @@
             {% if phase == 'review' and hourly_grid is not None %}
             <section class="jp-prod-review-main">
                 {% if production_summary_stats %}
-                <div class="alert alert-light border small mb-3 py-2">
+                <div class="alert {% if report.auto_submitted %}alert-info{% else %}alert-light{% endif %} border small mb-3 py-2">
+                    {% if report.auto_submitted %}
+                    <i class="bi bi-robot me-1"></i>
+                    Hệ thống tự động gửi lúc {{ report.submitted_at|date:"H:i d/m/Y" }}.
+                    {% else %}
                     <i class="bi bi-check-circle-fill text-success me-1"></i>
                     Đã gửi lúc {{ report.submitted_at|date:"H:i d/m/Y" }}.
+                    {% endif %}
                     {% if employee_edit_deadline and can_edit and not is_locked %}
                     Có thể sửa đến {{ employee_edit_deadline|date:"H:i d/m/Y" }} — bấm «Sửa báo cáo» bên dưới.
                     {% endif %}
                 </div>
                 {% elif is_submitted and production_summary_editable and can_edit and not is_locked %}
-                <div class="alert alert-success border-0 small mb-3 py-2">
+                <div class="alert {% if report.auto_submitted %}alert-info{% else %}alert-success{% endif %} border-0 small mb-3 py-2">
+                    {% if report.auto_submitted %}
+                    Hệ thống tự động gửi lúc {{ report.submitted_at|date:"H:i d/m/Y" }}.
+                    {% else %}
                     Đã gửi lúc {{ report.submitted_at|date:"H:i d/m/Y" }}.
+                    {% endif %}
                     {% if content_edit_only %}
                     Có thể sửa mã hàng, công đoạn, định mức, sản lượng, giờ công đoạn và thời gian làm việc — trước khi duyệt.
                     {% elif employee_edit_deadline %}

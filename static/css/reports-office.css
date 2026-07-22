@@ -1685,6 +1685,11 @@
     color: #166534;
 }
 
+.jp-report-badge--auto-submitted {
+    background: #e0f2fe;
+    color: #075985;
+}
+
 .jp-report-badge--draft {
     background: #fef3c7;
     color: #92400e;

@@ -1,4 +1,4 @@
-﻿from datetime import datetime, timedelta
+from datetime import datetime, timedelta
 from decimal import Decimal
 
 from django.contrib.auth.models import User
@@ -100,6 +100,7 @@ class ProductionReportAutoSubmitTests(TestCase):
         self.assertEqual(result, 'submitted')
         report.refresh_from_db()
         self.assertEqual(report.status, DailyWorkReport.STATUS_SUBMITTED)
+        self.assertTrue(report.auto_submitted)
         self.assertEqual(report.declared_work_hours, DEFAULT_DECLARED_WORK_HOURS)
         self.assertTrue(
             DailyWorkReportEditLog.objects.filter(

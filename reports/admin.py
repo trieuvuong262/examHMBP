@@ -36,9 +36,18 @@ class DailyWorkReportAdmin(admin.ModelAdmin):
         'attachment_count',
         'hod_reviewed',
         'hod_rejected',
+        'auto_submitted',
         'submitted_at',
     )
-    list_filter = ('status', 'report_profile', 'report_period', 'report_date', 'hod_reviewed', 'hod_rejected')
+    list_filter = (
+        'status',
+        'report_profile',
+        'report_period',
+        'report_date',
+        'hod_reviewed',
+        'hod_rejected',
+        'auto_submitted',
+    )
     search_fields = ('employee__username', 'employee__profile__full_name', 'title')
     date_hierarchy = 'report_date'
     readonly_fields = ('created_at', 'updated_at', 'submitted_at', 'draft_saved_at')

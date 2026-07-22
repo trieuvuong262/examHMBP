@@ -390,9 +390,12 @@ def _finalize_report_submission(report, action):
     if action == 'submit':
         report.status = DailyWorkReport.STATUS_SUBMITTED
         report.submitted_at = now
+        # Công nhân / tổ trưởng gửi thủ công — không còn đánh dấu tự động.
+        report.auto_submitted = False
         return 'Đã gửi báo cáo.'
     report.status = DailyWorkReport.STATUS_DRAFT
     report.submitted_at = None
+    report.auto_submitted = False
     report.draft_saved_at = now
     return 'Đã lưu nháp báo cáo.'
 
@@ -806,6 +809,9 @@ def proxy_report_entry(request):
             'label': label,
             'data': proxy_data,
             'is_submitted': bool(report.pk) and report.status == DailyWorkReport.STATUS_SUBMITTED,
+            'is_auto_submitted': bool(report.pk)
+            and report.status == DailyWorkReport.STATUS_SUBMITTED
+            and bool(getattr(report, 'auto_submitted', False)),
             'is_locked': bool(report.pk) and (
                 is_report_locked(report)
                 or getattr(report, 'hod_rejected', False)

@@ -138,6 +138,16 @@ def _production_row_flags(visible: list[DailyWorkReport]) -> dict:
             and report_has_manager_fixable_anomaly(report)
             for report in visible
         ),
+        'production_any_auto_submitted': any(
+            report.status == DailyWorkReport.STATUS_SUBMITTED
+            and getattr(report, 'auto_submitted', False)
+            for report in visible
+        ),
+        'production_all_auto_submitted': bool(visible) and all(
+            report.status == DailyWorkReport.STATUS_SUBMITTED
+            and getattr(report, 'auto_submitted', False)
+            for report in visible
+        ),
         'shift_badges': _shift_badges_for_reports(visible),
     }
 
