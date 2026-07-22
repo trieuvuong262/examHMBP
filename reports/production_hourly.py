@@ -233,7 +233,7 @@ def can_add_production_entry(viewer, report, *, can_submit: bool, is_proxy: bool
 
 
 def employee_self_submitted_production_report(report) -> bool:
-    """NV tự nộp báo cáo (không phải nhập hộ) — quản lý không được sửa giờ."""
+    """NV tự nộp báo cáo (không phải nhập hộ) — quản lý sửa qua content_edit_only."""
     return (
         bool(report and report.pk)
         and report.status == DailyWorkReport.STATUS_SUBMITTED
@@ -2345,7 +2345,12 @@ def _resolve_proxy_session_interval(
     snapshot: dict[int, dict],
     content_edit_only: bool,
 ) -> tuple[list[tuple[int, Decimal]], tuple[datetime, datetime] | None]:
-    """Xác định khung giờ giao — ưu tiên mốc datetime gốc khi sửa báo cáo đã nộp."""
+    """Xác định khung giờ giao — ưu tiên giờ form; thiếu thì lấy mốc gốc đã nộp."""
+    start_time = (sess.get('start_time') or '').strip()
+    end_time = (sess.get('end_time') or '').strip()
+    if start_time and end_time:
+        return _proxy_session_overlaps(report_date, shift, sess, slot_by_idx)
+
     product_id = parse_int(sess.get('product_id'), -1)
     if content_edit_only and product_id >= 0 and product_id in snapshot:
         snap = snapshot[product_id]
@@ -2415,8 +2420,11 @@ def _prepare_proxy_sessions_for_save(
         if content_edit_only:
             product_id = parse_int(sess.get('product_id'), -1)
             if product_id >= 0 and product_id in snapshot:
-                sess['start_time'] = snapshot[product_id]['start_time']
-                sess['end_time'] = snapshot[product_id]['end_time']
+                # Giữ giờ gốc chỉ khi form không gửi (công đoạn khóa / thiếu input).
+                if not (sess.get('start_time') or '').strip():
+                    sess['start_time'] = snapshot[product_id]['start_time']
+                if not (sess.get('end_time') or '').strip():
+                    sess['end_time'] = snapshot[product_id]['end_time']
 
         if not _proxy_session_has_input(sess):
             continue

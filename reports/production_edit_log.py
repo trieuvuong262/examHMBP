@@ -42,8 +42,9 @@ def snapshot_proxy_session_form(
     start = (sess.get('start_time') or '').strip()
     end = (sess.get('end_time') or '').strip()
     if content_edit_only and snapshot and product_id >= 0 and product_id in snapshot:
-        start = snapshot[product_id].get('start_time') or start
-        end = snapshot[product_id].get('end_time') or end
+        # Chỉ bổ sung giờ gốc khi form thiếu — quản lý được sửa giờ.
+        start = start or (snapshot[product_id].get('start_time') or '')
+        end = end or (snapshot[product_id].get('end_time') or '')
 
     norm = parse_decimal(sess.get('norm'))
     total = parse_non_negative_decimal(sess.get('total'), default=Decimal('0'))
