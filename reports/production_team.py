@@ -6,7 +6,7 @@ from collections import defaultdict
 from datetime import date, timedelta
 from decimal import Decimal
 
-from django.db.models import Count, Exists, OuterRef, Subquery, Sum, Value, DecimalField
+from django.db.models import Count, Exists, IntegerField, OuterRef, Subquery, Sum, Value, DecimalField
 from django.db.models.functions import Coalesce
 
 from hrm.permissions import (
@@ -15,7 +15,12 @@ from hrm.permissions import (
     ROLE_DIVISION_HEAD,
     ROLE_TEAM_LEADER,
 )
-from reports.models import DailyWorkReport, ProductionHourlyQuantity, ReportComment
+from reports.models import (
+    DailyWorkReport,
+    ProductionHourlyQuantity,
+    ProductionShiftProduct,
+    ReportComment,
+)
 from reports.period_utils import PERIOD_DAY
 from reports.production_shift_policy import (
     PRODUCTION_SHIFT_ORDER,
@@ -97,6 +102,7 @@ def _aggregate_production_row(reports: list[DailyWorkReport], visible_fn) -> dic
         )
     )
     total_qty = sum(int(getattr(report, 'total_qty', 0) or 0) for report in visible)
+    total_damaged = sum(int(getattr(report, 'total_damaged', 0) or 0) for report in visible)
     primary = visible[0] if visible else None
     all_submitted = bool(visible) and all(
         report.status == DailyWorkReport.STATUS_SUBMITTED for report in visible
@@ -121,6 +127,7 @@ def _aggregate_production_row(reports: list[DailyWorkReport], visible_fn) -> dic
         'production_reports': visible,
         'production_report_count': len(visible),
         'production_total_qty': total_qty,
+        'production_total_damaged': total_damaged,
         'production_all_submitted': all_submitted,
         'production_any_submitted': any_submitted,
         'production_all_reviewed': all_reviewed,
@@ -671,6 +678,15 @@ def _production_total_qty_subquery():
     )
 
 
+def _production_total_damaged_subquery():
+    return (
+        ProductionShiftProduct.objects.filter(report_id=OuterRef('pk'))
+        .values('report_id')
+        .annotate(total=Sum('total_damaged_quantity'))
+        .values('total')[:1]
+    )
+
+
 # =========================================================
 # BÁO CÁO TỔNG HỢP — ma trận hiệu suất theo NV × ngày
 # =========================================================
@@ -1074,6 +1090,10 @@ def query_production_team_reports(team_ids, date_from, date_to):
             total_qty=Coalesce(
                 Subquery(_production_total_qty_subquery()),
                 Value(0, output_field=DecimalField(max_digits=12, decimal_places=2)),
+            ),
+            total_damaged=Coalesce(
+                Subquery(_production_total_damaged_subquery()),
+                Value(0, output_field=IntegerField()),
             ),
             has_manager_comment=Exists(
                 ReportComment.objects.filter(daily_report=OuterRef('pk')).exclude(author_id=OuterRef('employee_id')),
