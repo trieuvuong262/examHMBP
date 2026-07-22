@@ -7,13 +7,14 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 from django.db import transaction
-from django.db.models import Q
 from django.utils import timezone
 
 from reports.models import DailyWorkReport, DailyWorkReportEditLog, ProductionReportReminderLog
 from reports.period_utils import PERIOD_DAY
 from reports.production_hourly import (
     build_hourly_grid,
+    discard_empty_active_sessions,
+    is_empty_active_session,
     lock_production_steps_on_submit,
     unfinalized_active_with_data,
     validate_production_submit_efficiency,
@@ -86,13 +87,18 @@ def _report_has_submittable_quantity(report: DailyWorkReport) -> bool:
     return bool(grid.get('rows')) and (grid.get('grand_total') or 0) > 0
 
 
-def can_auto_submit_report(report: DailyWorkReport) -> tuple[bool, str]:
+def can_auto_submit_report(
+    report: DailyWorkReport,
+    *,
+    ignore_empty_active: bool = False,
+) -> tuple[bool, str]:
     """Kiểm tra BC có thể tự gửi không."""
     if report.status == DailyWorkReport.STATUS_SUBMITTED:
         return False, 'already_submitted'
     if report.shift == DailyWorkReport.SHIFT_NIGHT:
         return False, 'night_shift'
-    if unfinalized_active_with_data(report):
+    blocker = unfinalized_active_with_data(report)
+    if blocker and not (ignore_empty_active and is_empty_active_session(blocker)):
         return False, 'unfinalized_session'
     if not _report_has_submittable_quantity(report):
         return False, 'no_quantity'
@@ -105,13 +111,13 @@ def can_auto_submit_report(report: DailyWorkReport) -> tuple[bool, str]:
 def auto_submit_one_report(report: DailyWorkReport, *, dry_run: bool = False) -> str:
     """
     Gửi một báo cáo — đặt giờ làm việc mặc định 9,50 nếu chưa có.
+    Xóa phiên ACTIVE trống trước khi gửi.
     Trả về: submitted | dry_run | skip reason.
     """
-    ok, reason = can_auto_submit_report(report)
-    if not ok:
-        return reason
-
     if dry_run:
+        ok, reason = can_auto_submit_report(report, ignore_empty_active=True)
+        if not ok:
+            return reason
         return 'dry_run'
 
     with transaction.atomic():
@@ -122,6 +128,12 @@ def auto_submit_one_report(report: DailyWorkReport, *, dry_run: bool = False) ->
         )
         if not report or report.status == DailyWorkReport.STATUS_SUBMITTED:
             return 'already_submitted'
+
+        discard_empty_active_sessions(report)
+
+        ok, reason = can_auto_submit_report(report)
+        if not ok:
+            return reason
 
         if report.declared_work_hours is None or report.declared_work_hours <= 0:
             report.declared_work_hours = DEFAULT_DECLARED_WORK_HOURS
@@ -143,7 +155,6 @@ def auto_submit_one_report(report: DailyWorkReport, *, dry_run: bool = False) ->
             detail=f'Thời gian làm việc: {report.declared_work_hours} giờ (mặc định 9,50 nếu trống).',
         )
 
-        # Dedupe theo (employee, date, shift) — shift có thể MORNING/OVERTIME
         ProductionReportReminderLog.objects.get_or_create(
             employee_id=report.employee_id,
             report_date=report.report_date,

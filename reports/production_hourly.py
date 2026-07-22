@@ -794,6 +794,35 @@ def active_has_hourly_data(product: ProductionShiftProduct) -> bool:
     return product.hourly_entries.filter(quantity__gt=0).exists()
 
 
+def is_empty_active_session(product: Optional[ProductionShiftProduct]) -> bool:
+    """Phiên ACTIVE trống — chưa có mã hàng / sản lượng / khung giờ (có thể xóa an toàn)."""
+    if not product or product.status != ProductionShiftProduct.STATUS_ACTIVE:
+        return False
+    if (product.product_code or '').strip() or (product.process_name or '').strip():
+        return False
+    if product.total_quantity is not None and product.total_quantity > 0:
+        return False
+    if product.hourly_entries.exists():
+        return False
+    return True
+
+
+def discard_empty_active_sessions(report: DailyWorkReport, *, dry_run: bool = False) -> int:
+    """Xóa mọi phiên ACTIVE trống trên báo cáo. Trả về số phiên (sẽ) xóa."""
+    if not report.pk:
+        return 0
+    empty = [
+        p
+        for p in report.production_products.filter(status=ProductionShiftProduct.STATUS_ACTIVE)
+        if is_empty_active_session(p)
+    ]
+    if dry_run or not empty:
+        return len(empty)
+    ids = [p.pk for p in empty]
+    deleted, _ = ProductionShiftProduct.objects.filter(pk__in=ids).delete()
+    return deleted
+
+
 def _entry_hours(entry: ProductionHourlyQuantity) -> Decimal:
     if entry.partial_hours is not None and entry.partial_hours > 0:
         return Decimal(str(entry.partial_hours))

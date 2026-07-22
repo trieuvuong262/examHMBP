@@ -145,3 +145,30 @@ class ProductionReportAutoSubmitTests(TestCase):
         ok, reason = can_auto_submit_report(report)
         self.assertFalse(ok)
         self.assertEqual(reason, 'no_quantity')
+
+    def test_discards_empty_active_then_submits(self):
+        report = self._report()
+        self._add_done_product(report)
+        ProductionShiftProduct.objects.create(
+            report=report,
+            product_code='',
+            process_name='',
+            sort_order=1,
+            first_slot_index=0,
+            status=ProductionShiftProduct.STATUS_ACTIVE,
+            started_at=timezone.now() - timedelta(hours=1),
+        )
+        ok, reason = can_auto_submit_report(report)
+        self.assertFalse(ok)
+        self.assertEqual(reason, 'unfinalized_session')
+        result = auto_submit_one_report(report)
+        self.assertEqual(result, 'submitted')
+        report.refresh_from_db()
+        self.assertEqual(report.status, DailyWorkReport.STATUS_SUBMITTED)
+        self.assertTrue(report.auto_submitted)
+        self.assertFalse(
+            ProductionShiftProduct.objects.filter(
+                report=report,
+                status=ProductionShiftProduct.STATUS_ACTIVE,
+            ).exists()
+        )
