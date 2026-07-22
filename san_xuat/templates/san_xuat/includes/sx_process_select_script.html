@@ -1,0 +1,97 @@
+{# Nút + cạnh dropdown công đoạn — thêm tên vào danh mục SxProcessName #}
+<script>
+(function () {
+  var addUrl = '{% url "san_xuat:process_catalog_add" %}';
+  var csrf = (document.querySelector('[name=csrfmiddlewaretoken]') || {}).value || '';
+  if (!csrf) {
+    var m = document.cookie.match(/(?:^|; )csrftoken=([^;]+)/);
+    csrf = m ? decodeURIComponent(m[1]) : '';
+  }
+
+  function wrapSelect(sel) {
+    if (!sel || sel.closest('.jp-sx-process-picker')) return;
+    var wrap = document.createElement('div');
+    wrap.className = 'input-group input-group-sm jp-sx-process-picker';
+    sel.parentNode.insertBefore(wrap, sel);
+    wrap.appendChild(sel);
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn btn-outline-secondary jp-sx-process-add';
+    btn.title = 'Thêm công đoạn vào danh mục';
+    btn.setAttribute('aria-label', 'Thêm công đoạn');
+    btn.innerHTML = '<i class="bi bi-plus-lg" aria-hidden="true"></i>';
+    wrap.appendChild(btn);
+  }
+
+  function addOptionToAll(name) {
+    document.querySelectorAll('select.jp-sx-process-select').forEach(function (sel) {
+      var exists = false;
+      Array.prototype.forEach.call(sel.options, function (opt) {
+        if ((opt.value || '').toLowerCase() === name.toLowerCase()) exists = true;
+      });
+      if (!exists) {
+        var opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name;
+        sel.appendChild(opt);
+      }
+    });
+  }
+
+  function onAddClick(btn) {
+    var wrap = btn.closest('.jp-sx-process-picker');
+    var sel = wrap && wrap.querySelector('select.jp-sx-process-select');
+    var name = window.prompt('Tên công đoạn mới:');
+    if (name == null) return;
+    name = String(name).trim();
+    if (!name) return;
+    fetch(addUrl, {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrf,
+      },
+      body: JSON.stringify({ name: name }),
+    })
+      .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
+      .then(function (res) {
+        if (!res.ok) {
+          window.alert((res.data && res.data.error) || 'Không thêm được công đoạn.');
+          return;
+        }
+        var saved = (res.data && res.data.name) || name;
+        addOptionToAll(saved);
+        if (sel) {
+          sel.value = saved;
+          sel.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      })
+      .catch(function () {
+        window.alert('Không thêm được công đoạn.');
+      });
+  }
+
+  function initAll() {
+    document.querySelectorAll('select.jp-sx-process-select').forEach(wrapSelect);
+  }
+
+  initAll();
+
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('.jp-sx-process-add');
+    if (btn) {
+      e.preventDefault();
+      onAddClick(btn);
+    }
+  });
+
+  /* Formset «Thêm dòng» — wrap select mới */
+  var addRowBtn = document.getElementById('add-process-row');
+  if (addRowBtn) {
+    addRowBtn.addEventListener('click', function () {
+      window.setTimeout(initAll, 0);
+    });
+  }
+})();
+</script>

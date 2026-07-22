@@ -270,6 +270,23 @@ class BomLine(models.Model):
         return self.substitute_material
 
 
+class SxProcessName(models.Model):
+    """Danh mục công đoạn dùng chung (hồ sơ BOM, lệnh SX, thống kê)."""
+
+    name = models.CharField(max_length=120, unique=True, verbose_name='Tên công đoạn')
+    sort_order = models.PositiveSmallIntegerField(default=100, db_index=True, verbose_name='Thứ tự')
+    is_active = models.BooleanField(default=True, db_index=True, verbose_name='Đang dùng')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['sort_order', 'name']
+        verbose_name = 'Danh mục công đoạn'
+        verbose_name_plural = 'Danh mục công đoạn'
+
+    def __str__(self):
+        return self.name
+
+
 class ProcessStep(models.Model):
     bom = models.ForeignKey(
         BomVersion,

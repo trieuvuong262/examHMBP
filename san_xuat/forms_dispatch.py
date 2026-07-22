@@ -49,22 +49,14 @@ def work_center_team_choices(*, extra_value: str = "") -> list[tuple[str, str]]:
 
 
 def bom_process_choices(bom, *, extra_value: str = "") -> list[tuple[str, str]]:
-    """Choices công đoạn từ BOM gắn lệnh SX."""
-    choices: list[tuple[str, str]] = [("", "— Chọn công đoạn —")]
-    seen: set[str] = set()
-    if bom is not None:
-        from san_xuat.models import ProcessStep
+    """Choices công đoạn từ danh mục chung (+ giá trị đang dùng).
 
-        for step in ProcessStep.objects.filter(bom=bom).order_by("sequence", "pk"):
-            name = (step.process_name or "").strip()
-            if not name or name.casefold() in seen:
-                continue
-            seen.add(name.casefold())
-            choices.append((name, name))
-    extra = (extra_value or "").strip()
-    if extra and extra.casefold() not in seen:
-        choices.append((extra, f"{extra} (đang dùng)"))
-    return choices
+    `bom` giữ tham số để tương thích chỗ gọi cũ; danh mục không phụ thuộc BOM.
+    """
+    from san_xuat.services.process_catalog import process_catalog_choices
+
+    _ = bom
+    return process_catalog_choices(extra_value=extra_value)
 
 
 class ProductionOrderCreateForm(forms.Form):
@@ -116,7 +108,10 @@ class ProductionOrderCreateForm(forms.Form):
         required=False,
         label="Công đoạn",
         choices=[],
-        widget=forms.Select(attrs=_SELECT_SM),
+        widget=forms.Select(attrs={
+            **_SELECT_SM,
+            "class": f"{_SELECT_SM['class']} jp-sx-process-select",
+        }),
     )
     notes = forms.CharField(
         required=False,
@@ -198,7 +193,10 @@ class ProductionOrderUpdateForm(forms.Form):
         required=False,
         label="Công đoạn",
         choices=[],
-        widget=forms.Select(attrs=_SELECT_SM),
+        widget=forms.Select(attrs={
+            **_SELECT_SM,
+            "class": f"{_SELECT_SM['class']} jp-sx-process-select",
+        }),
     )
     notes = forms.CharField(
         required=False,
@@ -247,10 +245,13 @@ class ProductionStatCreateForm(forms.Form):
         label="Ngày ghi nhận",
         widget=forms.DateInput(attrs=_DATE_SM),
     )
-    process_name = forms.CharField(
+    process_name = forms.ChoiceField(
         required=False,
         label="Công đoạn",
-        widget=forms.TextInput(attrs={"class": "form-control form-control-sm", "placeholder": "VD: May thân áo"}),
+        choices=[],
+        widget=forms.Select(attrs={
+            "class": "form-select form-select-sm jp-sx-process-select",
+        }),
     )
     qty_good = forms.DecimalField(
         max_digits=14,
@@ -294,6 +295,16 @@ class ProductionStatCreateForm(forms.Form):
             "placeholder": "Ghi chú (tuỳ chọn)",
         }),
     )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        data = args[0] if args else None
+        extra = ""
+        if data is not None:
+            extra = data.get("process_name") or ""
+        elif self.initial:
+            extra = self.initial.get("process_name") or ""
+        self.fields["process_name"].choices = bom_process_choices(None, extra_value=extra)
 
     def clean(self):
         cleaned = super().clean()

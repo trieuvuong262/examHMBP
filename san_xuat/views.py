@@ -1,7 +1,8 @@
 from django.contrib import messages
 from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
-from django.views.decorators.http import require_GET
+from django.views.decorators.http import require_GET, require_POST
+import json
 
 from assessment.decorators import module_perm_required
 from hrm.module_permissions import (
@@ -361,3 +362,29 @@ def design_file_serve(request, pk):
 def product_code_search(request):
     q = (request.GET.get('q') or '').strip()
     return JsonResponse({'results': search_kv_products(q, limit=30)})
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+@require_POST
+def process_catalog_add(request):
+    """Thêm tên công đoạn vào danh mục dùng chung."""
+    if not (
+        user_can_update_module(request.user, MODULE_SAN_XUAT)
+        or user_can_create_module(request.user, MODULE_SAN_XUAT)
+    ):
+        return JsonResponse({'error': 'Không có quyền thêm công đoạn.'}, status=403)
+    try:
+        payload = json.loads(request.body.decode('utf-8') or '{}')
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        payload = request.POST
+    name = (payload.get('name') if hasattr(payload, 'get') else '') or ''
+    name = str(name).strip()
+    if not name:
+        return JsonResponse({'error': 'Nhập tên công đoạn.'}, status=400)
+    from san_xuat.services.process_catalog import ensure_process_name
+
+    try:
+        row = ensure_process_name(name)
+    except ValueError as exc:
+        return JsonResponse({'error': str(exc)}, status=400)
+    return JsonResponse({'name': row.name, 'id': row.pk})

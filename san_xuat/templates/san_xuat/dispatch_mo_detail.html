@@ -246,9 +246,6 @@
               <div class="col-6 col-md-3">
                 <label class="form-label small text-muted">{{ update_form.process_name.label }}</label>
                 {{ update_form.process_name }}
-                {% if not mo.bom_version %}
-                <div class="form-text small">Gắn BOM để chọn công đoạn từ định mức.</div>
-                {% endif %}
               </div>
               <div class="col-6 col-md-3">
                 <label class="form-label small text-muted">{{ update_form.planned_start.label }}</label>
@@ -597,4 +594,5 @@
     </div>
   </div>
 </div>
+{% include 'san_xuat/includes/sx_process_select_script.html' %}
 {% endblock %}

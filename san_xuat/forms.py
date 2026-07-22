@@ -179,16 +179,39 @@ class BomLineForm(forms.ModelForm):
 
 
 class ProcessStepForm(forms.ModelForm):
+    process_name = forms.ChoiceField(
+        label='Công đoạn',
+        choices=[],
+        widget=forms.Select(attrs={
+            'class': 'form-select form-select-sm jp-sx-process-select',
+        }),
+    )
+
     class Meta:
         model = ProcessStep
         fields = ('sequence', 'process_name', 'norm_per_hour', 'cost_per_hour', 'notes')
         widgets = {
             'sequence': forms.NumberInput(attrs={'class': 'form-control form-control-sm', 'min': '1'}),
-            'process_name': forms.TextInput(attrs={'class': 'form-control form-control-sm'}),
             'norm_per_hour': forms.NumberInput(attrs={'class': 'form-control form-control-sm', 'step': '0.01', 'min': '0.01'}),
             'cost_per_hour': forms.NumberInput(attrs={'class': 'form-control form-control-sm', 'step': '0.01', 'min': '0'}),
             'notes': forms.TextInput(attrs={'class': 'form-control form-control-sm'}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from san_xuat.services.process_catalog import process_catalog_choices
+
+        extra = ''
+        if args:
+            # formset: field name like steps-0-process_name
+            prefix = self.prefix
+            key = f'{prefix}-process_name' if prefix else 'process_name'
+            extra = (args[0].get(key) if hasattr(args[0], 'get') else '') or ''
+        if not extra and self.instance and getattr(self.instance, 'process_name', None):
+            extra = self.instance.process_name
+        elif not extra and self.initial:
+            extra = self.initial.get('process_name') or ''
+        self.fields['process_name'].choices = process_catalog_choices(extra_value=extra)
 
 
 BomLineFormSet = inlineformset_factory(

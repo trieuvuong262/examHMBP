@@ -41,7 +41,7 @@
             </div>
             <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
                 <button type="button" class="btn btn-outline-hm btn-sm" id="add-process-row">
-                    <i class="bi bi-plus-lg me-1"></i>Thêm công đoạn
+                    <i class="bi bi-plus-lg me-1"></i>Thêm dòng
                 </button>
                 <button type="submit" class="btn btn-hm">Lưu công đoạn</button>
             </div>
@@ -94,6 +94,7 @@
             });
         })();
         </script>
+        {% include 'san_xuat/includes/sx_process_select_script.html' %}
         {% else %}
         <div class="table-responsive">
             <table class="table table-sm align-middle mb-0">

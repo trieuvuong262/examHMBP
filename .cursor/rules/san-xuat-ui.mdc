@@ -68,6 +68,12 @@ alwaysApply: false
 - **Không** dùng `floatformat:0` nếu giá trị có thể có phần lẻ hợp lệ (sẽ cắt mất).
 - Tiền VND (làm tròn đồng): vẫn được `{{ value|sx_num:0 }}` hoặc giữ `floatformat:0|intcomma` nếu đã có — ưu tiên `sx_num` cho thống nhất.
 
+## Công đoạn (danh mục)
+
+- Tên công đoạn lấy từ bảng **`SxProcessName`** (seed từ công đoạn phổ biến báo cáo SX).
+- Form **hồ sơ BOM**, **lệnh SX**, **thống kê SX**: dropdown `jp-sx-process-select` + nút **+** thêm tên vào danh mục (`api/cong-doan/`).
+- Không nhập free-text công đoạn trên form mới; giá trị cũ ngoài danh mục vẫn hiện kèm nhãn `(đang dùng)`.
+
 ## Copy & mô tả
 
 - **Không** thêm đoạn mô tả / hint giải thích quy trình trên UI.
