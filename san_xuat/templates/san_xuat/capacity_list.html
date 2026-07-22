@@ -100,17 +100,23 @@
     background: var(--sx-cap-track);
     overflow: hidden;
   }
-  .sx-cap-bar > span {
+  .sx-cap-bar > span,
+  .sx-cap-bar > .sx-cap-bar-fill {
     display: block;
     height: 100%;
+    width: 0;
     border-radius: inherit;
     background: var(--sx-cap-ok);
     max-width: 100%;
     transition: width .25s ease;
   }
-  .sx-cap-bar.is-warn > span { background: var(--sx-cap-warn); }
-  .sx-cap-bar.is-danger > span { background: var(--sx-cap-danger); }
-  .sx-cap-bar.is-util > span { background: #0284c7; }
+  .sx-cap-bar.is-warn > span,
+  .sx-cap-bar.is-warn > .sx-cap-bar-fill { background: var(--sx-cap-warn); }
+  .sx-cap-bar.is-danger > span,
+  .sx-cap-bar.is-danger > .sx-cap-bar-fill { background: var(--sx-cap-danger); }
+  .sx-cap-bar.is-util > span,
+  .sx-cap-bar.is-util > .sx-cap-bar-fill { background: #0284c7; }
+  .sx-cap-meter-val.is-util { color: #0284c7; }
   .sx-cap-legend {
     display: flex;
     flex-wrap: wrap;
@@ -227,21 +233,21 @@
                 <div class="sx-cap-meter-top">
                   <span class="sx-cap-meter-val is-danger">{{ row.load_pct }}%</span>
                 </div>
-                <div class="sx-cap-bar is-danger"><span style="width:{{ row.load_bar_pct }}%"></span></div>
+                <div class="sx-cap-bar is-danger"><span class="sx-cap-bar-fill" data-sx-cap-pct="{{ row.load_bar_pct }}"></span></div>
               </div>
               {% elif row.load_pct > capacity_load_warn_pct %}
               <div class="sx-cap-meter">
                 <div class="sx-cap-meter-top">
                   <span class="sx-cap-meter-val is-warn">{{ row.load_pct }}%</span>
                 </div>
-                <div class="sx-cap-bar is-warn"><span style="width:{{ row.load_bar_pct }}%"></span></div>
+                <div class="sx-cap-bar is-warn"><span class="sx-cap-bar-fill" data-sx-cap-pct="{{ row.load_bar_pct }}"></span></div>
               </div>
               {% else %}
               <div class="sx-cap-meter">
                 <div class="sx-cap-meter-top">
                   <span class="sx-cap-meter-val is-ok">{{ row.load_pct }}%</span>
                 </div>
-                <div class="sx-cap-bar"><span style="width:{{ row.load_bar_pct }}%"></span></div>
+                <div class="sx-cap-bar"><span class="sx-cap-bar-fill" data-sx-cap-pct="{{ row.load_bar_pct }}"></span></div>
               </div>
               {% endif %}
             </td>
@@ -249,9 +255,9 @@
             <td>
               <div class="sx-cap-meter">
                 <div class="sx-cap-meter-top">
-                  <span class="sx-cap-meter-val" style="color:#0284c7">{{ row.utilization_pct }}%</span>
+                  <span class="sx-cap-meter-val is-util">{{ row.utilization_pct }}%</span>
                 </div>
-                <div class="sx-cap-bar is-util"><span style="width:{{ row.util_bar_pct }}%"></span></div>
+                <div class="sx-cap-bar is-util"><span class="sx-cap-bar-fill" data-sx-cap-pct="{{ row.util_bar_pct }}"></span></div>
               </div>
             </td>
           </tr>
@@ -308,4 +314,13 @@
   </div>
 </div>
 {% include 'san_xuat/includes/sx_list_grid_scripts.html' %}
+<script>
+(function () {
+  document.querySelectorAll('.sx-cap-bar-fill[data-sx-cap-pct]').forEach(function (el) {
+    var n = parseInt(el.getAttribute('data-sx-cap-pct'), 10);
+    if (isNaN(n)) n = 0;
+    el.style.width = Math.max(0, Math.min(100, n)) + '%';
+  });
+})();
+</script>
 {% endblock %}
