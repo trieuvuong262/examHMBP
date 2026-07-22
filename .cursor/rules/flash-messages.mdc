@@ -1,0 +1,12 @@
+---
+description: Flash/Django messages chỉ hiện 3 giây trên toàn portal
+alwaysApply: true
+---
+
+# Thông báo flash (Django messages)
+
+- Mọi `messages.success` / `info` / `warning` / `error` render qua `templates/includes/flash_messages.html` (include trong `base.html`).
+- Flash **tự ẩn sau 3 giây** (`data-jp-flash-ms="3000"` + `static/js/flash-messages.js`).
+- Không tạo toast/alert flash riêng trong từng module — dùng `messages.*` chuẩn Django để hưởng auto-dismiss toàn site.
+- Alert trạng thái cố định trên trang (hướng dẫn, banner «đã duyệt», form validation inline) **không** gắn class `jp-flash-alert` — chỉ flash tạm thời mới auto-dismiss.
+- Đổi thời gian mặc định: sửa `data-jp-flash-ms` trong `flash_messages.html` và `DEFAULT_MS` trong `flash-messages.js` cho khớp.
