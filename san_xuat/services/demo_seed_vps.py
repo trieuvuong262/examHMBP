@@ -135,58 +135,48 @@ def seed_vps_hub(*, product_codes: list[str], user=None, visible: bool = True) -
     secondary = product_codes[1] if len(product_codes) > 1 else primary
     tertiary = product_codes[2] if len(product_codes) > 2 else secondary
 
-    # --- Năng lực / map HR ---
-    wc_may1, _ = SxWorkCenter.objects.update_or_create(
-        code='TO-MAY-1',
-        defaults={
-            'is_demo': demo,
-            'name': 'Tổ may 1',
-            'capacity_per_day': Decimal('320'),
-            'team_label': 'Tổ May 1',
-            'is_active': True,
-            'notes': note,
-        },
-    )
-    wc_may2, _ = SxWorkCenter.objects.update_or_create(
-        code='TO-MAY-2',
-        defaults={
-            'is_demo': demo,
-            'name': 'Tổ may 2',
-            'capacity_per_day': Decimal('280'),
-            'team_label': 'Tổ May 2',
-            'is_active': True,
-            'notes': note,
-        },
-    )
-    wc_dg, _ = SxWorkCenter.objects.update_or_create(
-        code='TO-DG',
-        defaults={
-            'is_demo': demo,
-            'name': 'Tổ đóng gói',
-            'capacity_per_day': Decimal('500'),
-            'team_label': 'Tổ ĐG',
-            'is_active': True,
-            'notes': note,
-        },
-    )
-    stats['work_centers'] = 3
+    # --- Năng lực / map HR: theo bộ phận thật phòng SẢN XUẤT ---
+    from san_xuat.services.capacity_from_hrm import sync_capacity_from_hrm
 
-    for team, emp_code, emp_name in [
-        ('Tổ May 1', 'NV001', 'Nguyễn Văn A'),
-        ('Tổ May 2', 'NV002', 'Trần Thị B'),
-        ('Tổ ĐG', 'NV003', 'Lê Văn C'),
-    ]:
-        SxTeamHrMap.objects.update_or_create(
-            team_label=team,
+    sync_stats = sync_capacity_from_hrm(reset_capacity=False, deactivate_legacy=True)
+    stats['work_centers'] = sync_stats.created + sync_stats.updated
+    stats['team_hr_maps'] = sync_stats.hr_maps
+    # Lấy tổ may / đóng gói thực tế cho các chứng từ demo bên dưới
+    wc_may1 = (
+        SxWorkCenter.objects.filter(is_active=True, is_demo=False, name__icontains='MAY')
+        .order_by('code')
+        .first()
+    )
+    wc_may2 = (
+        SxWorkCenter.objects.filter(is_active=True, is_demo=False, name__icontains='MAY')
+        .exclude(pk=getattr(wc_may1, 'pk', None))
+        .order_by('code')
+        .first()
+    )
+    wc_dg = (
+        SxWorkCenter.objects.filter(is_active=True, is_demo=False)
+        .filter(name__icontains='GẤP')
+        .order_by('code')
+        .first()
+    ) or wc_may1
+    if not wc_may1:
+        wc_may1, _ = SxWorkCenter.objects.update_or_create(
+            code='TO-MAY-1',
             defaults={
                 'is_demo': demo,
-                'employee_code': emp_code,
-                'employee_name': emp_name,
-                'notes': note,
+                'name': 'Tổ may 1',
+                'capacity_per_day': Decimal('320'),
+                'team_label': 'Tổ May 1',
                 'is_active': True,
+                'notes': note,
             },
         )
-    stats['team_hr_maps'] = 3
+        wc_may2 = wc_may1
+        wc_dg = wc_may1
+    if not wc_may2:
+        wc_may2 = wc_may1
+    if not wc_dg:
+        wc_dg = wc_may1
 
     for code, name in [('NHOM-POLO', 'Polo / T-shirt'), ('NHOM-SHORT', 'Quần short')]:
         SxProductGroup.objects.update_or_create(
@@ -316,14 +306,17 @@ def seed_vps_hub(*, product_codes: list[str], user=None, visible: bool = True) -
     stats['purchase_orders'] = 1
 
     # --- Lệnh sản xuất (nhiều trạng thái) ---
+    team_a = wc_may1.team_label or wc_may1.name
+    team_b = (wc_may2.team_label or wc_may2.name) if wc_may2 else team_a
+    team_pack = (wc_dg.team_label or wc_dg.name) if wc_dg else team_a
     mo_specs = [
-        ('LSX-2026-VPS-001', primary, SxProductionOrder.STATUS_IN_PROGRESS, Decimal('400'), Decimal('185'), 'Tổ May 1', 0),
-        ('LSX-2026-VPS-002', secondary, SxProductionOrder.STATUS_RELEASED, Decimal('250'), Decimal('0'), 'Tổ May 2', 1),
-        ('LSX-2026-VPS-003', tertiary, SxProductionOrder.STATUS_DRAFT, Decimal('150'), Decimal('0'), 'Tổ May 1', 2),
+        ('LSX-2026-VPS-001', primary, SxProductionOrder.STATUS_IN_PROGRESS, Decimal('400'), Decimal('185'), team_a, 0),
+        ('LSX-2026-VPS-002', secondary, SxProductionOrder.STATUS_RELEASED, Decimal('250'), Decimal('0'), team_b, 1),
+        ('LSX-2026-VPS-003', tertiary, SxProductionOrder.STATUS_DRAFT, Decimal('150'), Decimal('0'), team_a, 2),
         ('LSX-2026-VPS-004', product_codes[3] if len(product_codes) > 3 else primary,
-         SxProductionOrder.STATUS_DONE, Decimal('300'), Decimal('300'), 'Tổ May 1', 3),
+         SxProductionOrder.STATUS_DONE, Decimal('300'), Decimal('300'), team_a, 3),
         ('LSX-2026-VPS-005', product_codes[4] if len(product_codes) > 4 else secondary,
-         SxProductionOrder.STATUS_IN_PROGRESS, Decimal('200'), Decimal('80'), 'Tổ May 2', 4),
+         SxProductionOrder.STATUS_IN_PROGRESS, Decimal('200'), Decimal('80'), team_b, 4),
     ]
     mos: list[SxProductionOrder] = []
     for code, pcode, status, qty, qty_done, team, day_off in mo_specs:
@@ -413,7 +406,7 @@ def seed_vps_hub(*, product_codes: list[str], user=None, visible: bool = True) -
             'process_name': 'May thân áo',
             'qty_good': Decimal('120'),
             'qty_defect': Decimal('4'),
-            'team_label': 'Tổ May 1',
+            'team_label': team_a,
             'status': 'confirmed',
             'notes': note,
         },
@@ -427,7 +420,7 @@ def seed_vps_hub(*, product_codes: list[str], user=None, visible: bool = True) -
             'process_name': 'Ủi — đóng gói',
             'qty_good': Decimal('65'),
             'qty_defect': Decimal('1'),
-            'team_label': 'Tổ ĐG',
+            'team_label': team_pack,
             'status': 'confirmed',
             'notes': note,
         },
