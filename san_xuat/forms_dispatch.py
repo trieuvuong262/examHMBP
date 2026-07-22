@@ -132,6 +132,9 @@ class ProductionOrderCreateForm(forms.Form):
                     bom = get_working_bom(tech)
         self.fields["team_label"].choices = work_center_team_choices(extra_value=extra_team)
         self.fields["process_name"].choices = bom_process_choices(bom, extra_value=extra_process)
+
+
+class ProductionOrderUpdateForm(forms.Form):
     qty = forms.DecimalField(
         max_digits=14,
         decimal_places=2,
