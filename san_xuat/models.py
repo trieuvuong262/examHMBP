@@ -3,6 +3,13 @@ from decimal import Decimal
 from django.conf import settings
 from django.core.validators import MinValueValidator
 from django.db import models
+from django.urls import reverse
+
+from san_xuat.design_nas_storage import (
+    DesignDocNasStorage,
+    design_file_upload_to,
+    is_legacy_design_path,
+)
 
 
 class ProductTechDoc(models.Model):
@@ -70,7 +77,9 @@ class TechDocDesignFile(models.Model):
         verbose_name='Hồ sơ SX',
     )
     file = models.FileField(
-        upload_to='san_xuat/design/%Y/%m/',
+        upload_to=design_file_upload_to,
+        storage=DesignDocNasStorage(),
+        max_length=500,
         verbose_name='Tệp',
     )
     title = models.CharField(
@@ -105,6 +114,16 @@ class TechDocDesignFile(models.Model):
             return self.title.strip()
         name = (self.file.name or '').rsplit('/', 1)[-1]
         return name or f'Tài liệu #{self.pk}'
+
+    @property
+    def file_url(self) -> str:
+        if not self.file or not self.file.name:
+            return ''
+        if is_legacy_design_path(self.file.name):
+            return self.file.url
+        if not self.pk:
+            return ''
+        return reverse('san_xuat:design_file', kwargs={'pk': self.pk})
 
     @property
     def is_image(self) -> bool:

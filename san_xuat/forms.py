@@ -72,13 +72,16 @@ class TechDocDesignUploadForm(forms.Form):
     files = MultipleFileField(
         label='Tệp tài liệu',
         required=True,
+        widget=MultipleFileInput(attrs={
+            'class': 'form-control form-control-sm design-upload-control',
+        }),
     )
     title = forms.CharField(
         required=False,
         max_length=200,
         label='Tiêu đề chung',
         widget=forms.TextInput(attrs={
-            'class': 'form-control form-control-sm',
+            'class': 'form-control form-control-sm design-upload-control',
             'placeholder': 'Để trống = dùng tên file',
         }),
     )
@@ -86,7 +89,9 @@ class TechDocDesignUploadForm(forms.Form):
         required=False,
         max_length=255,
         label='Ghi chú',
-        widget=forms.TextInput(attrs={'class': 'form-control form-control-sm'}),
+        widget=forms.TextInput(attrs={
+            'class': 'form-control form-control-sm design-upload-control',
+        }),
     )
 
     def save(self, tech_doc, *, user=None):

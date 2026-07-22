@@ -45,7 +45,7 @@
             </strong>
         </div>
         {% if can_update %}
-        <form method="post">
+        <form method="post" data-loading-message="Đang chốt costing…">
             {% csrf_token %}
             <input type="hidden" name="action" value="snapshot">
             <button type="submit" class="btn btn-outline-hm btn-sm">Chốt costing</button>

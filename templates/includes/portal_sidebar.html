@@ -626,7 +626,9 @@
                         {% if jp_can_san_xuat_docs %}
                         <li>
                             <a href="{% url 'san_xuat:doc_list' %}"
-                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'doc_list' or request.resolver_match.url_name == 'doc_create' or request.resolver_match.url_name == 'doc_detail' or request.resolver_match.url_name == 'bom_list' %}active{% endif %}">
+                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'doc_list' or request.resolver_match.url_name == 'doc_create' or request.resolver_match.url_name == 'doc_detail' or request.resolver_match.url_name == 'bom_list' %}active{% endif %}"
+                               data-jp-npl-catalog-nav
+                               data-loading-message="Đang tải hồ sơ thiết kế…">
                                 <i class="bi bi-journal-text"></i><span>Hồ sơ thiết kế</span>
                             </a>
                         </li>

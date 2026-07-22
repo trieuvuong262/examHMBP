@@ -52,6 +52,35 @@ def issue_line_prefill_initial(
     return [line]
 
 
+def issue_line_prefill_from_bom(bom_id: int | None) -> tuple[list[dict], str]:
+    """Prefill nhiều dòng xuất từ BOM SX. Trả về (lines, product_code)."""
+    if not bom_id:
+        return [], ''
+    try:
+        from san_xuat.models import BomVersion
+        bom = (
+            BomVersion.objects.select_related('tech_doc')
+            .prefetch_related('lines__material')
+            .get(pk=bom_id)
+        )
+    except BomVersion.DoesNotExist:
+        return [], ''
+    except Exception:
+        return [], ''
+
+    lines: list[dict] = []
+    for bl in bom.lines.all():
+        if not bl.material_id or not bl.material.is_active:
+            continue
+        lines.append({
+            'material': bl.material_id,
+            'quantity': bl.qty,
+            'notes': f'BOM {bom.version_label}' + (f' · {bl.notes}' if bl.notes else ''),
+        })
+    product_code = bom.tech_doc.product_code if bom.tech_doc_id else ''
+    return lines, product_code
+
+
 def transfer_form_prefill_initial(from_location_id: int | None = None) -> dict:
     loc_pk = active_location_pk(from_location_id)
     return {'from_location': loc_pk} if loc_pk else {}

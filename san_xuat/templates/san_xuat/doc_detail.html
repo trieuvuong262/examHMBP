@@ -4,37 +4,44 @@
 {% block extra_head %}{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}{% endblock %}
 
 {% block content %}
-<div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
+<div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 py-md-4 mb-5"
+     data-loading-message="Đang tải hồ sơ…">
       <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
     <div class="jp-sx-detail-title">
       <h2 class="jp-npl-mat-topbar-title w-100">{{ doc.product_code }}</h2>
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
       <span class="sep" aria-hidden="true"></span>
-      <a href="{% url 'san_xuat:doc_list' %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại</a>
+      <a href="{% url 'san_xuat:doc_list' %}" class="is-back"
+         data-loading-message="Đang tải hồ sơ thiết kế…"><i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại</a>
     </nav>
   </div>
 
     <ul class="nav nav-tabs mb-3">
         <li class="nav-item">
             <a class="nav-link {% if tab == 'info' %}active{% endif %}"
-               href="?tab=info{% if bom %}&bom={{ bom.pk }}{% endif %}">Mô tả</a>
+               href="?tab=info{% if bom %}&bom={{ bom.pk }}{% endif %}"
+               data-loading-message="Đang tải mô tả…">Mô tả</a>
         </li>
         <li class="nav-item">
             <a class="nav-link {% if tab == 'bom' %}active{% endif %}"
-               href="?tab=bom{% if bom %}&bom={{ bom.pk }}{% endif %}">BOM</a>
+               href="?tab=bom{% if bom %}&bom={{ bom.pk }}{% endif %}"
+               data-loading-message="Đang tải BOM…">BOM</a>
         </li>
         <li class="nav-item">
             <a class="nav-link {% if tab == 'process' %}active{% endif %}"
-               href="?tab=process{% if bom %}&bom={{ bom.pk }}{% endif %}">Công đoạn</a>
+               href="?tab=process{% if bom %}&bom={{ bom.pk }}{% endif %}"
+               data-loading-message="Đang tải công đoạn…">Công đoạn</a>
         </li>
         <li class="nav-item">
             <a class="nav-link {% if tab == 'costing' %}active{% endif %}"
-               href="?tab=costing{% if bom %}&bom={{ bom.pk }}{% endif %}">Costing</a>
+               href="?tab=costing{% if bom %}&bom={{ bom.pk }}{% endif %}"
+               data-loading-message="Đang tải costing…">Costing</a>
         </li>
         <li class="nav-item">
             <a class="nav-link {% if tab == 'design' %}active{% endif %}"
-               href="?tab=design{% if bom %}&bom={{ bom.pk }}{% endif %}">Tài liệu TK</a>
+               href="?tab=design{% if bom %}&bom={{ bom.pk }}{% endif %}"
+               data-loading-message="Đang tải tài liệu…">Tài liệu</a>
         </li>
     </ul>
 

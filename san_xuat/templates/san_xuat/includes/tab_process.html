@@ -1,7 +1,7 @@
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-body">
         {% if can_update and step_formset %}
-        <form method="post">
+        <form method="post" data-loading-message="Đang lưu công đoạn…">
             {% csrf_token %}
             <input type="hidden" name="action" value="save_process">
             {{ step_formset.management_form }}

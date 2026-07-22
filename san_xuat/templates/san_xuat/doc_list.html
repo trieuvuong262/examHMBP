@@ -31,7 +31,8 @@
 {% endblock %}
 
 {% block content %}
-<div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
+<div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 py-md-4 mb-5"
+     data-loading-message="Đang tải hồ sơ thiết kế…">
     <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
         <div class="jp-sx-detail-title">
             <h2 class="jp-npl-mat-topbar-title w-100">Hồ sơ thiết kế</h2>
@@ -39,7 +40,8 @@
         <nav class="jp-sx-tools" aria-label="Công cụ">
             {% include 'san_xuat/includes/sx_export_btn.html' with export_key='doc_list' %}
             {% if can_create %}
-            <a href="{% url 'san_xuat:doc_create' %}" class="btn btn-hm btn-sm fw-bold">
+            <a href="{% url 'san_xuat:doc_create' %}" class="btn btn-hm btn-sm fw-bold"
+               data-loading-message="Đang mở form thêm hồ sơ…">
                 <i class="bi bi-plus-lg me-1"></i>Thêm hồ sơ
             </a>
             {% endif %}
@@ -72,6 +74,7 @@
                     <td>
                         <a href="{% url 'san_xuat:doc_detail' doc.pk %}"
                            class="fw-semibold text-decoration-none text-hm"
+                           data-loading-message="Đang tải hồ sơ…"
                            onclick="event.stopPropagation()">{{ doc.product_code }}</a>
                     </td>
                     <td class="text-muted">{{ doc.product_name|default:"—" }}</td>
@@ -117,7 +120,8 @@
                                 </thead>
                                 <tbody>
                                     {% for bom in boms %}
-                                    <tr data-href="{% url 'san_xuat:doc_detail' doc.pk %}?tab=bom&bom={{ bom.pk }}">
+                                    <tr class="jp-npl-catalog-row"
+                                        data-href="{% url 'san_xuat:doc_detail' doc.pk %}?tab=bom&bom={{ bom.pk }}">
                                         <td class="fw-semibold">{{ bom.version_label }}</td>
                                         <td>
                                             {% if bom.status == 'active' %}
@@ -136,7 +140,7 @@
                                 </tbody>
                             </table>
                             {% else %}
-                            <div class="sx-bom-empty">Chưa có phiên bản BOM — <a href="{% url 'san_xuat:doc_detail' doc.pk %}">Vào hồ sơ để tạo</a></div>
+                            <div class="sx-bom-empty">Chưa có phiên bản BOM — <a href="{% url 'san_xuat:doc_detail' doc.pk %}" data-loading-message="Đang tải hồ sơ…">Vào hồ sơ để tạo</a></div>
                             {% endif %}
                             {% endwith %}
                         </div>
@@ -169,10 +173,5 @@ function sxToggleDoc(row) {
     btn.classList.toggle('is-open', !isOpen);
 }
 
-document.querySelectorAll('.sx-bom-table tbody tr[data-href]').forEach(function (row) {
-    row.addEventListener('click', function () {
-        window.location.href = row.dataset.href;
-    });
-});
 </script>
 {% endblock %}

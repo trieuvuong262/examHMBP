@@ -17,6 +17,8 @@
         '/kho-npl/phieu-huy/': 'Đang tải phiếu hủy…',
         '/kho-npl/dieu-chinh/': 'Đang tải phiếu điều chỉnh…',
         '/kho-npl/kiem-ke/': 'Đang tải phiếu kiểm kê…',
+        '/san-xuat/ho-so/': 'Đang tải hồ sơ thiết kế…',
+        '/san-xuat/ho-so/them/': 'Đang mở form thêm hồ sơ…',
     };
 
     const STOCKTAKE_ROUTE_PATTERNS = [
@@ -27,6 +29,8 @@
     const DOC_DETAIL_ROUTE_PATTERNS = [
         [/^\/kho-npl\/dieu-chinh\/\d+\/$/, 'Đang tải chi tiết điều chỉnh…'],
         [/^\/kho-npl\/danh-muc\/\d+\/$/, 'Đang tải chi tiết NPL…'],
+        [/^\/san-xuat\/ho-so\/them\/$/, 'Đang mở form thêm hồ sơ…'],
+        [/^\/san-xuat\/ho-so\/\d+\/$/, 'Đang tải hồ sơ…'],
     ];
 
     let shownAt = 0;

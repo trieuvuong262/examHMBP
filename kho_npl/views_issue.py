@@ -36,6 +36,7 @@ from kho_npl.doc_list_columns import (
 )
 from kho_npl.doc_list_utils import ISSUE_STATUS_FILTER_CHOICES, doc_list_sort, doc_status_filter
 from kho_npl.doc_prefill import (
+    issue_line_prefill_from_bom,
     issue_line_prefill_initial,
     parse_doc_location_id,
     parse_doc_material_id,
@@ -151,10 +152,19 @@ def issue_detail(request, pk):
 @module_perm_required_methods(MODULE_KHO_NPL, get='create', post='create')
 def issue_create(request):
     issue = StockIssue()
+    bom_raw = (request.GET.get('bom') or '').strip()
+    bom_id = int(bom_raw) if bom_raw.isdigit() else None
+    bom_lines, product_code = issue_line_prefill_from_bom(bom_id)
+    if product_code:
+        issue.product_code = product_code
+
     if request.method == 'POST':
         action = request.POST.get('action', 'save')
         form, formset, doc = _save_issue_form(request, issue, is_create=True)
         if doc:
+            if product_code and not doc.product_code:
+                doc.product_code = product_code
+                doc.save(update_fields=['product_code'])
             if action == 'post':
                 try:
                     post_stock_issue(doc, request.user)
@@ -166,13 +176,31 @@ def issue_create(request):
                 messages.success(request, f'Đã lưu nháp phiếu {doc.number}.')
             return redirect('kho_npl:issue_detail', pk=doc.pk)
     if request.method != 'POST':
-        form = StockIssueForm(instance=issue, operator=request.user)
-        material_id = parse_doc_material_id(request)
-        location_id = parse_doc_location_id(request, 'location')
-        formset = StockIssueLineFormSet(
+        form_initial = {}
+        initial_lines = bom_lines
+        if product_code:
+            form_initial['issue_type'] = f'Xuất theo BOM {product_code}'
+            form_initial['notes'] = f'Prefill từ hồ sơ SX · BOM mã {product_code}'
+        if not initial_lines:
+            material_id = parse_doc_material_id(request)
+            location_id = parse_doc_location_id(request, 'location')
+            initial_lines = issue_line_prefill_initial(material_id, location_id)
+        form = StockIssueForm(instance=issue, operator=request.user, initial=form_initial)
+        from django.forms import inlineformset_factory
+        from kho_npl.forms import BaseStockIssueLineFormSet, StockIssueLineForm
+        from kho_npl.models import StockIssueLine
+        LineFormSet = inlineformset_factory(
+            StockIssue,
+            StockIssueLine,
+            form=StockIssueLineForm,
+            formset=BaseStockIssueLineFormSet,
+            extra=max(len(initial_lines), 1),
+            can_delete=True,
+        )
+        formset = LineFormSet(
             instance=issue,
             prefix='lines',
-            initial=issue_line_prefill_initial(material_id, location_id),
+            initial=initial_lines,
         )
     return render(request, 'kho_npl/issue_form.html', {
         **nav_context('issues', user=request.user),

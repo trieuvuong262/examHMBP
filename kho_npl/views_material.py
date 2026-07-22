@@ -157,6 +157,16 @@ def material_search(request):
                 if balance_map.get(material.pk, Decimal('0')) > 0
                 or material.pk not in stocked_elsewhere
             ]
+        elif materials:
+            from django.db.models import Sum
+            from kho_npl.services.scrap_warehouse import exclude_scrap_locations
+            material_ids = [m.pk for m in materials]
+            for row in (
+                exclude_scrap_locations(StockBalance.objects.filter(material_id__in=material_ids))
+                .values('material_id')
+                .annotate(total=Sum('quantity'))
+            ):
+                balance_map[row['material_id']] = row['total'] or Decimal('0')
     rows = []
     for material in materials:
         if location_id is not None:
@@ -164,8 +174,13 @@ def material_search(request):
             if in_stock_only and qty <= 0:
                 continue
             text = _material_stock_label(material, qty)
+            qty_out = float(qty)
+            qty_label = _material_qty_label(material, qty)
         else:
             text = _material_search_label(material)
+            qty = balance_map.get(material.pk)
+            qty_out = float(qty) if qty is not None else 0.0
+            qty_label = _material_qty_label(material, qty or Decimal('0')) if qty is not None else '0'
         rows.append({
             'id': material.pk,
             'text': text,
@@ -178,12 +193,8 @@ def material_search(request):
             'color': color_label(material.color) if material.color_id else '',
             'variant_group': material.variant_group or '',
             'base_price': float(material.base_price or 0),
-            'qty': float(balance_map.get(material.pk, Decimal('0'))) if location_id is not None else None,
-            'qty_label': (
-                _material_qty_label(material, balance_map.get(material.pk, Decimal('0')))
-                if location_id is not None
-                else ''
-            ),
+            'qty': qty_out,
+            'qty_label': qty_label,
         })
     return JsonResponse({'results': rows})
 

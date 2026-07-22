@@ -1,27 +1,52 @@
+<style>
+  /* Cùng chiều cao: tệp / tiêu đề / ghi chú / nút tải lên */
+  .design-upload-row .design-upload-control {
+    height: 2rem;
+    min-height: 2rem;
+    padding-top: 0.25rem;
+    padding-bottom: 0.25rem;
+    font-size: 0.875rem;
+    line-height: 1.25;
+  }
+  .design-upload-row input[type="file"].design-upload-control {
+    padding-top: 0.2rem;
+    padding-bottom: 0.2rem;
+  }
+  .design-upload-row .btn-upload {
+    height: 2rem;
+    min-height: 2rem;
+    padding-top: 0;
+    padding-bottom: 0;
+    font-size: 0.875rem;
+    line-height: 2rem;
+  }
+</style>
+
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-body">
         {% if can_update and design_form %}
-        <form method="post" enctype="multipart/form-data" class="mb-4">
+        <form method="post" enctype="multipart/form-data" class="mb-4"
+              data-loading-message="Đang tải lên tài liệu…">
             {% csrf_token %}
             <input type="hidden" name="action" value="upload_design">
-            <div class="row g-3 align-items-end">
+            <div class="row g-3 align-items-end design-upload-row">
                 <div class="col-md-5">
-                    <label class="form-label small fw-semibold" for="{{ design_form.files.id_for_label }}">
+                    <label class="form-label small fw-semibold mb-1" for="{{ design_form.files.id_for_label }}">
                         Tệp tài liệu <span class="text-danger">*</span>
                     </label>
                     {{ design_form.files }}
                     {% if design_form.files.errors %}<div class="text-danger small">{{ design_form.files.errors }}</div>{% endif %}
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label small" for="{{ design_form.title.id_for_label }}">Tiêu đề</label>
+                    <label class="form-label small mb-1" for="{{ design_form.title.id_for_label }}">Tiêu đề</label>
                     {{ design_form.title }}
                 </div>
                 <div class="col-md-2">
-                    <label class="form-label small" for="{{ design_form.notes.id_for_label }}">Ghi chú</label>
+                    <label class="form-label small mb-1" for="{{ design_form.notes.id_for_label }}">Ghi chú</label>
                     {{ design_form.notes }}
                 </div>
                 <div class="col-md-2">
-                    <button type="submit" class="btn btn-hm w-100">
+                    <button type="submit" class="btn btn-hm w-100 btn-upload">
                         <i class="bi bi-upload me-1"></i>Tải lên
                     </button>
                 </div>
@@ -47,24 +72,24 @@
                     <tr>
                         <td>
                             {% if f.is_image %}
-                            <a href="{{ f.file.url }}" target="_blank" rel="noopener">
-                                <img src="{{ f.file.url }}" alt="{{ f.display_name }}"
+                            <a href="{{ f.file_url }}" target="_blank" rel="noopener">
+                                <img src="{{ f.file_url }}" alt="{{ f.display_name }}"
                                      class="img-thumbnail" style="max-height:3rem;max-width:4rem;object-fit:cover;">
                             </a>
                             {% elif f.is_pdf %}
-                            <a href="{{ f.file.url }}" target="_blank" rel="noopener"
+                            <a href="{{ f.file_url }}" target="_blank" rel="noopener"
                                class="btn btn-outline-danger btn-sm py-0 px-2" title="Mở PDF">
                                 <i class="bi bi-file-earmark-pdf"></i>
                             </a>
                             {% else %}
-                            <a href="{{ f.file.url }}" target="_blank" rel="noopener"
+                            <a href="{{ f.file_url }}?download=1" target="_blank" rel="noopener"
                                class="btn btn-outline-secondary btn-sm py-0 px-2" title="Tải xuống">
                                 <i class="bi bi-file-earmark"></i>
                             </a>
                             {% endif %}
                         </td>
                         <td>
-                            <a href="{{ f.file.url }}" target="_blank" rel="noopener"
+                            <a href="{{ f.file_url }}" target="_blank" rel="noopener"
                                class="fw-semibold text-decoration-none">{{ f.display_name }}</a>
                         </td>
                         <td class="text-muted small">{{ f.notes|default:"—" }}</td>
@@ -73,7 +98,7 @@
                         </td>
                         <td class="small text-muted">{{ f.uploaded_at|date:"d/m/Y H:i" }}</td>
                         <td class="text-end text-nowrap">
-                            <a href="{{ f.file.url }}" class="btn btn-outline-hm btn-xs py-0 px-2" download
+                            <a href="{{ f.file_url }}?download=1" class="btn btn-outline-hm btn-xs py-0 px-2"
                                title="Tải xuống">
                                 <i class="bi bi-download"></i>
                             </a>

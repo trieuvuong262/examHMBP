@@ -1,5 +1,5 @@
 from django.contrib import messages
-from django.http import JsonResponse
+from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_GET
 
@@ -260,13 +260,41 @@ def doc_detail(request, pk):
             design_form = TechDocDesignUploadForm()
 
     from django.urls import reverse
+    from django.db.models import Sum
     from hrm.module_permissions import MODULE_KHO_NPL, user_can_create_module
+    from kho_npl.models import StockBalance
+    from kho_npl.services.scrap_warehouse import exclude_scrap_locations
 
     issue_base_url = (
         reverse('kho_npl:issue_create')
         if user_can_create_module(request.user, MODULE_KHO_NPL)
         else None
     )
+    issue_bom_url = None
+    bom_stock_map = {}
+    bom_stock_map_json = '{}'
+    if bom and issue_base_url and any(line.material_id for line in bom.lines.all()):
+        issue_bom_url = f'{issue_base_url}?bom={bom.pk}'
+    if bom:
+        import json
+        from decimal import Decimal
+        material_ids = [line.material_id for line in bom.lines.all() if line.material_id]
+        if material_ids:
+            for row in (
+                exclude_scrap_locations(StockBalance.objects.filter(material_id__in=material_ids))
+                .values('material_id')
+                .annotate(total=Sum('quantity'))
+            ):
+                bom_stock_map[row['material_id']] = row['total'] or Decimal('0')
+        for line in bom.lines.all():
+            line.stock_qty = bom_stock_map.get(line.material_id, Decimal('0'))
+        if line_formset is not None:
+            for f in line_formset:
+                mid = f.instance.material_id
+                f.instance.stock_qty = bom_stock_map.get(mid, Decimal('0')) if mid else None
+        bom_stock_map_json = json.dumps({
+            str(k): float(v) for k, v in bom_stock_map.items()
+        })
 
     return render(request, 'san_xuat/doc_detail.html', {
         'doc': doc,
@@ -282,8 +310,50 @@ def doc_detail(request, pk):
         'design_files': design_files,
         'desc_form': desc_form,
         'issue_base_url': issue_base_url,
+        'issue_bom_url': issue_bom_url,
+        'bom_stock_map': bom_stock_map,
+        'bom_stock_map_json': bom_stock_map_json,
         **_perm_ctx(request),
     })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+@require_GET
+def design_file_serve(request, pk):
+    import mimetypes
+
+    from san_xuat.design_nas_storage import design_file_abs_path, open_design_file
+
+    design_file = get_object_or_404(
+        TechDocDesignFile.objects.select_related('tech_doc'),
+        pk=pk,
+    )
+    path = design_file_abs_path(design_file)
+    if not path:
+        raise Http404
+
+    display_name = design_file.display_name or 'file'
+    # Prefer real basename for Content-Disposition / MIME
+    disk_name = path.name or display_name
+    content_type = mimetypes.guess_type(disk_name)[0] or 'application/octet-stream'
+    inline_types = {
+        'application/pdf',
+        'image/jpeg',
+        'image/png',
+        'image/gif',
+        'image/webp',
+        'image/bmp',
+        'image/svg+xml',
+    }
+    force_download = (request.GET.get('download') or '').strip() in ('1', 'true', 'yes')
+    as_attachment = force_download or content_type not in inline_types
+    response = FileResponse(
+        open_design_file(design_file),
+        content_type=content_type,
+        as_attachment=as_attachment,
+        filename=disk_name,
+    )
+    return response
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')

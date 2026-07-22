@@ -176,10 +176,12 @@ EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
 EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", True)
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "noreply@portal.justplay.vn")
 
-# Giới hạn dung lượng upload (báo cáo tuần, media…) — mặc định 100MB
+# Giới hạn dung lượng upload (báo cáo tuần, media…) — mặc định 100MB.
+# DATA_UPLOAD_MAX_MEMORY_SIZE=None: không chặn kích thước request (nginx đã client_max_body_size 0).
+# FILE_UPLOAD_MAX_MEMORY_SIZE vẫn dùng ngưỡng này để stream file lớn ra temp thay vì RAM.
 UPLOAD_MAX_MB = int(os.getenv('UPLOAD_MAX_MB', '100'))
 UPLOAD_MAX_BYTES = UPLOAD_MAX_MB * 1024 * 1024
-DATA_UPLOAD_MAX_MEMORY_SIZE = UPLOAD_MAX_BYTES
+DATA_UPLOAD_MAX_MEMORY_SIZE = None
 FILE_UPLOAD_MAX_MEMORY_SIZE = UPLOAD_MAX_BYTES
 # Admin xóa hàng loạt gửi 1 hidden field / dòng — mặc định Django chỉ 1000
 DATA_UPLOAD_MAX_NUMBER_FIELDS = int(os.getenv('DATA_UPLOAD_MAX_NUMBER_FIELDS', '20000'))
@@ -569,6 +571,11 @@ NAS_MONTHLY_REPORT_REL_PATH = os.getenv(
 NAS_ANNOUNCEMENT_REL_PATH = os.getenv(
     'NAS_ANNOUNCEMENT_REL_PATH',
     '99_LUU_TRU/1.2026/THONG_BAO',
+).strip('/')
+# Hồ sơ thiết kế SX — tài liệu TK lưu trên NAS, không lưu media VPS
+NAS_DESIGN_DOC_REL_PATH = os.getenv(
+    'NAS_DESIGN_DOC_REL_PATH',
+    '06_RnD_THIET_KE_SAN_PHAM/0.Portal',
 ).strip('/')
 PORTAL_BACKUP_SOURCE_DIRS = os.getenv('PORTAL_BACKUP_SOURCE_DIRS', '/app,/backup-source')
 PORTAL_BACKUP_INCLUDE_MEDIA = os.getenv('PORTAL_BACKUP_INCLUDE_MEDIA', '1').lower() in ('1', 'true', 'yes', 'on')

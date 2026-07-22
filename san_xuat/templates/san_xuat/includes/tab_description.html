@@ -1,7 +1,7 @@
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-body">
         {% if can_update and desc_form %}
-        <form method="post">
+        <form method="post" data-loading-message="Đang lưu mô tả…">
             {% csrf_token %}
             <input type="hidden" name="action" value="save_description">
             <div class="row g-3 mb-3">
