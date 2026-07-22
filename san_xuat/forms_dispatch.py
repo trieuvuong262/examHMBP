@@ -7,6 +7,24 @@ from django import forms
 _SELECT_SM = {"class": "form-select form-select-sm"}
 _INPUT_SM = {"class": "form-control form-control-sm"}
 _DATE_SM = {"class": "form-control form-control-sm jp-date-vn", "type": "date"}
+_PRODUCT_CODE_SELECT = {
+    "class": "form-select form-select-sm jp-sx-product-code-select",
+    "data-placeholder": "Gõ mã hoặc tên hàng hoá…",
+}
+
+
+def _product_code_choices(extra_value: str = "") -> list[tuple[str, str]]:
+    """Choices TomSelect — chỉ giữ giá trị đã chọn (load remote từ hàng hoá KV)."""
+    choices: list[tuple[str, str]] = [("", "— Chọn hàng hoá —")]
+    code = (extra_value or "").strip()
+    if not code:
+        return choices
+    from san_xuat.services.products import resolve_kv_product_ref
+
+    ref = resolve_kv_product_ref(code)
+    label = f"{code} — {ref.name}" if ref and ref.name else code
+    choices.append((code, label))
+    return choices
 
 
 def work_center_team_choices(*, extra_value: str = "") -> list[tuple[str, str]]:
@@ -57,10 +75,10 @@ class ProductionOrderCreateForm(forms.Form):
         widget=forms.TextInput(attrs=_INPUT_SM),
         label="Mã lệnh sản xuất",
     )
-    product_code = forms.CharField(
-        max_length=60,
+    product_code = forms.ChoiceField(
         label="Mã sản phẩm",
-        widget=forms.TextInput(attrs={**_INPUT_SM, "placeholder": "VD: SP008073"}),
+        choices=[],
+        widget=forms.Select(attrs=_PRODUCT_CODE_SELECT),
     )
     qty = forms.DecimalField(
         max_digits=14,
@@ -116,23 +134,35 @@ class ProductionOrderCreateForm(forms.Form):
         data = args[0] if args else None
         extra_team = ""
         extra_process = ""
+        extra_product = ""
         if data is not None:
             extra_team = data.get("team_label") or ""
             extra_process = data.get("process_name") or ""
+            extra_product = data.get("product_code") or ""
         elif self.initial:
             extra_team = self.initial.get("team_label") or ""
             extra_process = self.initial.get("process_name") or ""
-        if bom is None and data is not None:
-            product_code = (data.get("product_code") or "").strip()
-            if product_code:
-                from san_xuat.models import ProductTechDoc
-                from san_xuat.services.bom import get_working_bom
+            extra_product = self.initial.get("product_code") or ""
+        if bom is None and extra_product:
+            from san_xuat.models import ProductTechDoc
+            from san_xuat.services.bom import get_working_bom
 
-                tech = ProductTechDoc.objects.filter(product_code__iexact=product_code).first()
-                if tech:
-                    bom = get_working_bom(tech)
+            tech = ProductTechDoc.objects.filter(product_code__iexact=extra_product.strip()).first()
+            if tech:
+                bom = get_working_bom(tech)
+        self.fields["product_code"].choices = _product_code_choices(extra_product)
         self.fields["team_label"].choices = work_center_team_choices(extra_value=extra_team)
         self.fields["process_name"].choices = bom_process_choices(bom, extra_value=extra_process)
+
+    def clean_product_code(self):
+        code = (self.cleaned_data.get("product_code") or "").strip()
+        if not code:
+            raise forms.ValidationError("Chọn mã sản phẩm từ hàng hoá.")
+        from san_xuat.services.products import find_kv_product
+
+        if not find_kv_product(code):
+            raise forms.ValidationError(f"Mã {code} không có trong hàng hoá KiotViet.")
+        return code
 
 
 class ProductionOrderUpdateForm(forms.Form):

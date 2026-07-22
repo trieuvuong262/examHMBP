@@ -58,6 +58,7 @@
           <div class="col-md-6">
             <label class="form-label small text-muted">{{ create_form.product_code.label }}</label>
             {{ create_form.product_code }}
+            {% if create_form.product_code.errors %}<div class="text-danger small">{{ create_form.product_code.errors }}</div>{% endif %}
           </div>
           <div class="col-md-3">
             <label class="form-label small text-muted">{{ create_form.qty.label }}</label>
@@ -222,4 +223,5 @@
   </div>
   {% endif %}
 </div>
+{% include 'san_xuat/includes/sx_product_code_select_script.html' %}
 {% endblock %}

@@ -1,0 +1,55 @@
+{# TomSelect mã SP từ hàng hoá KiotViet — API san_xuat:product_code_search #}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/css/tom-select.bootstrap5.min.css">
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/js/tom-select.complete.min.js"></script>
+<script>
+(function () {
+  if (typeof TomSelect === 'undefined') return;
+  var searchUrl = '{% url "san_xuat:product_code_search" %}';
+  document.querySelectorAll('.jp-sx-product-code-select').forEach(function (select) {
+    if (!select || select.tomselect) return;
+    var initialValue = (select.value || '').trim();
+    var initialLabel = select.options[select.selectedIndex]
+      ? select.options[select.selectedIndex].textContent.trim()
+      : initialValue;
+
+    new TomSelect(select, {
+      maxOptions: 40,
+      maxItems: 1,
+      valueField: 'id',
+      labelField: 'text',
+      searchField: ['text', 'code', 'name'],
+      placeholder: select.dataset.placeholder || 'Gõ mã hoặc tên hàng hoá…',
+      dropdownParent: 'body',
+      openOnFocus: true,
+      loadThrottle: 220,
+      load: function (query, callback) {
+        fetch(searchUrl + '?q=' + encodeURIComponent(query || ''), {
+          headers: { 'Accept': 'application/json' },
+        })
+          .then(function (r) { return r.json(); })
+          .then(function (data) { callback(data.results || []); })
+          .catch(function () { callback(); });
+      },
+      render: {
+        option: function (data, escape) {
+          return '<div>' + escape(data.text || data.code || '') + '</div>';
+        },
+        item: function (data, escape) {
+          return '<div>' + escape(data.code || data.text || '') + '</div>';
+        },
+      },
+      onInitialize: function () {
+        if (!initialValue) return;
+        if (!this.options[initialValue]) {
+          this.addOption({
+            id: initialValue,
+            code: initialValue,
+            text: initialLabel || initialValue,
+          });
+        }
+        this.setValue(initialValue, true);
+      },
+    });
+  });
+})();
+</script>

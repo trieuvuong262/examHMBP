@@ -16,49 +16,23 @@
     </nav>
   </div>
 
-    <div class="card border-0 shadow-sm">
-        <div class="card-body p-4">
-            <form method="post" novalidate data-loading-message="Đang tạo hồ sơ…">
-                {% csrf_token %}
-                <div class="mb-3">
-                    <label class="form-label" for="{{ form.product_code.id_for_label }}">{{ form.product_code.label }}</label>
-                    {{ form.product_code }}
-                    <datalist id="sx-product-code-list"></datalist>
-{% if form.product_code.errors %}<div class="text-danger small">{{ form.product_code.errors }}</div>{% endif %}
-                </div>
-                <div class="mb-3">
-                    <label class="form-label" for="{{ form.notes.id_for_label }}">{{ form.notes.label }}</label>
-                    {{ form.notes }}
-                </div>
-                <button type="submit" class="btn btn-hm">Tạo hồ sơ + BOM nháp</button>
-            </form>
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-4">
+      <form method="post" novalidate data-loading-message="Đang tạo hồ sơ…">
+        {% csrf_token %}
+        <div class="mb-3">
+          <label class="form-label small text-muted" for="{{ form.product_code.id_for_label }}">{{ form.product_code.label }}</label>
+          {{ form.product_code }}
+          {% if form.product_code.errors %}<div class="text-danger small">{{ form.product_code.errors }}</div>{% endif %}
         </div>
+        <div class="mb-3">
+          <label class="form-label small text-muted" for="{{ form.notes.id_for_label }}">{{ form.notes.label }}</label>
+          {{ form.notes }}
+        </div>
+        <button type="submit" class="btn btn-hm">Tạo hồ sơ + BOM nháp</button>
+      </form>
     </div>
+  </div>
 </div>
-<script>
-(function () {
-  const input = document.getElementById('{{ form.product_code.id_for_label }}');
-  const list = document.getElementById('sx-product-code-list');
-  if (!input || !list) return;
-  let timer = null;
-  input.addEventListener('input', function () {
-    clearTimeout(timer);
-    const q = input.value.trim();
-    if (q.length < 2) return;
-    timer = setTimeout(function () {
-      fetch('{% url "san_xuat:product_code_search" %}?q=' + encodeURIComponent(q))
-        .then(r => r.json())
-        .then(data => {
-          list.innerHTML = '';
-          (data.results || []).forEach(row => {
-            const opt = document.createElement('option');
-            opt.value = row.code;
-            opt.label = row.text || row.code;
-            list.appendChild(opt);
-          });
-        });
-    }, 250);
-  });
-})();
-</script>
+{% include 'san_xuat/includes/sx_product_code_select_script.html' %}
 {% endblock %}

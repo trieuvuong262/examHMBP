@@ -5,22 +5,56 @@ from kho_npl.models import Material
 from san_xuat.models import BomLine, BomVersion, ProcessStep, ProductTechDoc, TechDocDesignFile
 
 
+_PRODUCT_CODE_SELECT = {
+    'class': 'form-select form-select-sm jp-sx-product-code-select',
+    'data-placeholder': 'Gõ mã hoặc tên hàng hoá…',
+}
+
+
+def _product_code_choices(extra_value: str = '') -> list[tuple[str, str]]:
+    choices: list[tuple[str, str]] = [('', '— Chọn hàng hoá —')]
+    code = (extra_value or '').strip()
+    if not code:
+        return choices
+    from san_xuat.services.products import resolve_kv_product_ref
+
+    ref = resolve_kv_product_ref(code)
+    label = f'{code} — {ref.name}' if ref and ref.name else code
+    choices.append((code, label))
+    return choices
+
+
 class ProductTechDocCreateForm(forms.Form):
-    product_code = forms.CharField(
-        max_length=60,
-        label='Mã sản phẩm (KiotViet)',
-        widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': 'VD: SP008073',
-            'autocomplete': 'off',
-            'list': 'sx-product-code-list',
-        }),
+    product_code = forms.ChoiceField(
+        label='Mã sản phẩm',
+        choices=[],
+        widget=forms.Select(attrs=_PRODUCT_CODE_SELECT),
     )
     notes = forms.CharField(
         required=False,
         label='Ghi chú',
-        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+        widget=forms.Textarea(attrs={'class': 'form-control form-control-sm', 'rows': 2}),
     )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        data = args[0] if args else None
+        extra = ''
+        if data is not None:
+            extra = data.get('product_code') or ''
+        elif self.initial:
+            extra = self.initial.get('product_code') or ''
+        self.fields['product_code'].choices = _product_code_choices(extra)
+
+    def clean_product_code(self):
+        code = (self.cleaned_data.get('product_code') or '').strip()
+        if not code:
+            raise forms.ValidationError('Chọn mã sản phẩm từ hàng hoá.')
+        from san_xuat.services.products import find_kv_product
+
+        if not find_kv_product(code):
+            raise forms.ValidationError(f'Mã {code} không có trong hàng hoá KiotViet.')
+        return code
 
 
 class ProductTechDocDescriptionForm(forms.ModelForm):
