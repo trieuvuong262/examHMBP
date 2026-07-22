@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load humanize %}
+{% load sx_format %}
 
 {% block extra_head %}{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}{% endblock %}
 
@@ -52,10 +53,10 @@
           <tr>
             <td><strong>{{ line.product_code }}</strong></td>
             <td class="small">{{ line.product_name|default:"—" }}</td>
-            <td class="text-end">{{ line.material_cost|floatformat:0|intcomma }}</td>
-            <td class="text-end">{{ line.labor_cost|floatformat:0|intcomma }}</td>
-            <td class="text-end">{{ line.overhead_cost|floatformat:0|intcomma }}</td>
-            <td class="text-end fw-semibold text-hm">{{ line.unit_cost|floatformat:0|intcomma }}</td>
+            <td class="text-end">{{ line.material_cost|sx_num }}</td>
+            <td class="text-end">{{ line.labor_cost|sx_num }}</td>
+            <td class="text-end">{{ line.overhead_cost|sx_num }}</td>
+            <td class="text-end fw-semibold text-hm">{{ line.unit_cost|sx_num }}</td>
           </tr>
         {% empty %}
           <tr><td colspan="6" class="text-muted small p-3">Chưa có dòng SP.</td></tr>

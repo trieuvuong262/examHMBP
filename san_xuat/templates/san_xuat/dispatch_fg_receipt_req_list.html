@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load sx_format %}
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
 {% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}
@@ -34,7 +35,7 @@
               <a href="{% url 'san_xuat:dispatch_mo_detail' req.production_order.pk %}">{{ req.production_order.code }}</a>
             </td>
             <td class="npl-col" data-col="request_date">{{ req.request_date|date:"d/m/Y" }}</td>
-<td class="npl-col" data-col="qty">{{ req.qty }}</td>
+<td class="npl-col" data-col="qty">{{ req.qty|sx_num }}</td>
             <td class="npl-col" data-col="status">{{ req.get_status_display }}</td>
             <td class="npl-col" data-col="kv_doc">
               {% if req.kv_purchase_kiotviet_id %}

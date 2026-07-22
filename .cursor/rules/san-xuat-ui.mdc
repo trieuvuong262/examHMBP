@@ -46,6 +46,28 @@ alwaysApply: false
 
 - Title trái · tools phải (`justify-content: space-between`).
 
+## Ô nhập ngày
+
+- Mọi `DateField` / `input type="date"` trên **form và bộ lọc** Sản xuất dùng class **`jp-date-vn`**.
+- Widget Django chuẩn:
+  - Form (sm): `attrs={"class": "form-control form-control-sm jp-date-vn", "type": "date"}`
+  - Bộ lọc: `class="form-control jp-date-vn"` (xem `sx_date_range_fields.html`)
+- Hiển thị **dd/mm/yyyy** qua flatpickr (`altInput` + `altFormat: 'd/m/Y'`); value submit vẫn `Y-m-d`.
+- Script global: `sx_date_range_filter_scripts.html` (đã include từ `base.html` khi `/san-xuat/`).
+  - Bộ lọc list: đổi ngày → auto-submit.
+  - Form chi tiết / tạo: chỉ mở calendar, **không** auto-submit.
+- **Không** dùng native date picker trần (không `jp-date-vn`) trên UI mới hoặc khi sửa form cũ.
+
+## Số liệu hiển thị
+
+- **Mặc định số nguyên** khi phần thập phân = 0 — **không** hiện `,00` / `.00`.
+- **Chỉ hiện phần thập phân** khi khác 0 (vd `12,5`, `0,25`, `1.234,56`).
+- Ngăn cách nghìn: dấu **chấm**; thập phân: dấu **phẩy** (kiểu VN).
+- Template: `{% load sx_format %}` rồi `{{ value|sx_num }}` (mặc định tối đa 4 số lẻ; tuỳ chọn `{{ value|sx_num:2 }}`).
+- **Không** in Decimal trần `{{ order.qty }}` (Django sẽ ra `10.00`).
+- **Không** dùng `floatformat:0` nếu giá trị có thể có phần lẻ hợp lệ (sẽ cắt mất).
+- Tiền VND (làm tròn đồng): vẫn được `{{ value|sx_num:0 }}` hoặc giữ `floatformat:0|intcomma` nếu đã có — ưu tiên `sx_num` cho thống nhất.
+
 ## Copy & mô tả
 
 - **Không** thêm đoạn mô tả / hint giải thích quy trình trên UI.
@@ -60,3 +82,4 @@ alwaysApply: false
 
 - Style shared: `san_xuat/templates/san_xuat/includes/sx_detail_tools_styles.html`
 - Ví dụ topbar: `dispatch_mo_detail.html`, `dispatch_material_issue_req_detail.html`
+- Filter số: `san_xuat/templatetags/sx_format.py` (`sx_num`)

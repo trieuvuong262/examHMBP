@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load sx_format %}
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
 {% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}
@@ -37,8 +38,8 @@
 <td class="npl-col" data-col="mo"><a href="{% url 'san_xuat:dispatch_mo_detail' stat.production_order.pk %}">{{ stat.production_order.code }}</a></td>
             <td class="npl-col" data-col="stat_date">{{ stat.stat_date|date:"d/m/Y" }}</td>
             <td class="npl-col" data-col="process">{{ stat.process_name|default:"—" }}</td>
-<td class="npl-col" data-col="qty_good">{{ stat.qty_good }}</td>
-            <td class="npl-col" data-col="qty_defect">{{ stat.qty_defect }}</td>
+<td class="npl-col" data-col="qty_good">{{ stat.qty_good|sx_num }}</td>
+            <td class="npl-col" data-col="qty_defect">{{ stat.qty_defect|sx_num }}</td>
             <td class="npl-col" data-col="status"><span class="badge bg-secondary-subtle text-secondary border">{{ stat.get_status_display }}</span></td>
                         {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=stat %}
 </tr>

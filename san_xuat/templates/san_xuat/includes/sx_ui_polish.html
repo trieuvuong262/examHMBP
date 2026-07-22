@@ -250,12 +250,15 @@
   gap: 0.5rem;
   align-items: flex-end;
 }
-/* flatpickr altInput — cùng khung form-control như báo cáo SX */
-.jp-sx-module .jp-team-filter-form .flatpickr-input {
+/* flatpickr altInput — dd/mm/yyyy (bộ lọc + form nghiệp vụ) */
+.jp-sx-module .jp-team-filter-form .flatpickr-input,
+.jp-sx-module .jp-date-vn + input.flatpickr-input,
+.jp-sx-module input.flatpickr-input.form-control {
   width: 100%;
 }
 .jp-sx-module .jp-team-filter-form input.flatpickr-input[readonly],
-.jp-sx-module .jp-team-filter-form .flatpickr-input.form-control {
+.jp-sx-module .jp-team-filter-form .flatpickr-input.form-control,
+.jp-sx-module input.flatpickr-input.form-control[readonly] {
   background-color: #fff;
   cursor: pointer;
 }

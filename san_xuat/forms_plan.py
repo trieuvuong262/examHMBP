@@ -4,6 +4,8 @@ from decimal import Decimal
 
 from django import forms
 
+_DATE_SM = {"class": "form-control form-control-sm jp-date-vn", "type": "date"}
+
 
 class OverallPlanCreateForm(forms.Form):
     code = forms.CharField(
@@ -19,11 +21,11 @@ class OverallPlanCreateForm(forms.Form):
     )
     date_from = forms.DateField(
         label="Từ ngày",
-        widget=forms.DateInput(attrs={"class": "form-control form-control-sm", "type": "date"}),
+        widget=forms.DateInput(attrs=_DATE_SM),
     )
     date_to = forms.DateField(
         label="Đến ngày",
-        widget=forms.DateInput(attrs={"class": "form-control form-control-sm", "type": "date"}),
+        widget=forms.DateInput(attrs=_DATE_SM),
     )
     notes = forms.CharField(
         required=False,
@@ -135,7 +137,7 @@ class NplPurchaseRequestCreateForm(forms.Form):
     due_date = forms.DateField(
         required=False,
         label="Hạn mua",
-        widget=forms.DateInput(attrs={"class": "form-control form-control-sm", "type": "date"}),
+        widget=forms.DateInput(attrs=_DATE_SM),
     )
     only_shortfall = forms.BooleanField(
         required=False,

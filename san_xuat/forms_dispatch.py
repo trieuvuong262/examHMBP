@@ -6,6 +6,7 @@ from django import forms
 
 _SELECT_SM = {"class": "form-select form-select-sm"}
 _INPUT_SM = {"class": "form-control form-control-sm"}
+_DATE_SM = {"class": "form-control form-control-sm jp-date-vn", "type": "date"}
 
 
 def work_center_team_choices(*, extra_value: str = "") -> list[tuple[str, str]]:
@@ -70,22 +71,22 @@ class ProductionOrderCreateForm(forms.Form):
     )
     order_date = forms.DateField(
         label="Ngày lập",
-        widget=forms.DateInput(attrs={**_INPUT_SM, "type": "date"}),
+        widget=forms.DateInput(attrs=_DATE_SM),
     )
     due_date = forms.DateField(
         required=False,
         label="Hạn",
-        widget=forms.DateInput(attrs={**_INPUT_SM, "type": "date"}),
+        widget=forms.DateInput(attrs=_DATE_SM),
     )
     planned_start = forms.DateField(
         required=False,
         label="Bắt đầu dự kiến",
-        widget=forms.DateInput(attrs={**_INPUT_SM, "type": "date"}),
+        widget=forms.DateInput(attrs=_DATE_SM),
     )
     planned_end = forms.DateField(
         required=False,
         label="Kết thúc dự kiến",
-        widget=forms.DateInput(attrs={**_INPUT_SM, "type": "date"}),
+        widget=forms.DateInput(attrs=_DATE_SM),
     )
     team_label = forms.ChoiceField(
         required=False,
@@ -145,17 +146,17 @@ class ProductionOrderUpdateForm(forms.Form):
     due_date = forms.DateField(
         required=False,
         label="Hạn",
-        widget=forms.DateInput(attrs={**_INPUT_SM, "type": "date"}),
+        widget=forms.DateInput(attrs=_DATE_SM),
     )
     planned_start = forms.DateField(
         required=False,
         label="Bắt đầu dự kiến",
-        widget=forms.DateInput(attrs={**_INPUT_SM, "type": "date"}),
+        widget=forms.DateInput(attrs=_DATE_SM),
     )
     planned_end = forms.DateField(
         required=False,
         label="Kết thúc dự kiến",
-        widget=forms.DateInput(attrs={**_INPUT_SM, "type": "date"}),
+        widget=forms.DateInput(attrs=_DATE_SM),
     )
     team_label = forms.ChoiceField(
         required=False,
@@ -214,7 +215,7 @@ class ProductionStatCreateForm(forms.Form):
     )
     stat_date = forms.DateField(
         label="Ngày ghi nhận",
-        widget=forms.DateInput(attrs={"class": "form-control form-control-sm", "type": "date"}),
+        widget=forms.DateInput(attrs=_DATE_SM),
     )
     process_name = forms.CharField(
         required=False,
@@ -341,7 +342,7 @@ class WipHandoverCreateForm(forms.Form):
     )
     handover_date = forms.DateField(
         label="Ngày bàn giao",
-        widget=forms.DateInput(attrs={"class": "form-control form-control-sm", "type": "date"}),
+        widget=forms.DateInput(attrs=_DATE_SM),
     )
     code = forms.CharField(
         max_length=40,
@@ -393,7 +394,7 @@ class DisassemblyCreateForm(forms.Form):
     )
     order_date = forms.DateField(
         label="Ngày lệnh tháo dỡ",
-        widget=forms.DateInput(attrs={"class": "form-control form-control-sm", "type": "date"}),
+        widget=forms.DateInput(attrs=_DATE_SM),
     )
     production_order = forms.ModelChoiceField(
         queryset=None,
@@ -456,7 +457,7 @@ class NplSurplusCreateForm(forms.Form):
     )
     recorded_at = forms.DateField(
         label="Ngày ghi nhận",
-        widget=forms.DateInput(attrs={"class": "form-control form-control-sm", "type": "date"}),
+        widget=forms.DateInput(attrs=_DATE_SM),
     )
     production_order = forms.ModelChoiceField(
         queryset=None,
@@ -518,7 +519,7 @@ class WipReturnCreateForm(forms.Form):
     )
     return_date = forms.DateField(
         label="Ngày trả",
-        widget=forms.DateInput(attrs={"class": "form-control form-control-sm", "type": "date"}),
+        widget=forms.DateInput(attrs=_DATE_SM),
     )
     reason = forms.CharField(
         required=False,
@@ -564,12 +565,12 @@ class ScheduleMoUpdateForm(forms.Form):
     planned_start = forms.DateField(
         required=False,
         label="Bắt đầu",
-        widget=forms.DateInput(attrs={"class": "form-control form-control-sm", "type": "date"}),
+        widget=forms.DateInput(attrs=_DATE_SM),
     )
     planned_end = forms.DateField(
         required=False,
         label="Kết thúc",
-        widget=forms.DateInput(attrs={"class": "form-control form-control-sm", "type": "date"}),
+        widget=forms.DateInput(attrs=_DATE_SM),
     )
     team_label = forms.CharField(
         required=False,

@@ -18,23 +18,41 @@ document.addEventListener('DOMContentLoaded', function () {
     }, typeof delay === 'number' ? delay : 0);
   }
 
+  function altInputClassFor(el) {
+    var cls = el.className || '';
+    return cls.indexOf('form-control-sm') !== -1
+      ? 'form-control form-control-sm'
+      : 'form-control';
+  }
+
+  function initJpDateVn(el, opts) {
+    if (!el || el._flatpickr) return;
+    if (!window.flatpickr) return;
+    var base = {
+      dateFormat: 'Y-m-d',
+      altInput: true,
+      altFormat: 'd/m/Y',
+      allowInput: true,
+      altInputClass: altInputClassFor(el),
+    };
+    if (opts) {
+      Object.keys(opts).forEach(function (k) { base[k] = opts[k]; });
+    }
+    flatpickr(el, base);
+  }
+
   function initSxDateForm(form) {
     if (!form || form.dataset.sxDateBound === '1') return;
     form.dataset.sxDateBound = '1';
 
-    if (window.flatpickr) {
-      flatpickr(form.querySelectorAll('.jp-date-vn'), {
-        dateFormat: 'Y-m-d',
-        altInput: true,
-        altFormat: 'd/m/Y',
-        allowInput: true,
+    form.querySelectorAll('.jp-date-vn').forEach(function (el) {
+      initJpDateVn(el, {
         onChange: function () { submitForm(form, 0); },
       });
-    } else {
-      form.querySelectorAll('.jp-date-vn').forEach(function (el) {
+      if (!window.flatpickr) {
         el.addEventListener('change', function () { submitForm(form, 0); });
-      });
-    }
+      }
+    });
 
     var monthEl = form.querySelector('input[type="month"][name="month"]');
     if (monthEl) {
@@ -67,6 +85,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
   FORM_IDS.forEach(function (id) {
     initSxDateForm(document.getElementById(id));
+  });
+
+  /* Form nghiệp vụ (LSX, QC…) — cùng style dd/mm/yyyy, không auto-submit */
+  document.querySelectorAll('.jp-date-vn').forEach(function (el) {
+    initJpDateVn(el);
   });
 });
 </script>

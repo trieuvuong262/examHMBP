@@ -4,6 +4,7 @@
 {% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}
 {% endblock %}
 {% load humanize %}
+{% load sx_format %}
 
 {% block content %}
 <div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 py-md-4 mb-5">
@@ -35,13 +36,13 @@
           <tr class="jp-npl-catalog-row" data-href="{% url 'san_xuat:doc_detail' doc.pk %}?tab=costing&bom={{ bom.pk }}">
             <td class="npl-col" data-col="product_code"><strong>{{ costing.product_code|default:doc.product_code }}</strong></td>
             <td class="npl-col small" data-col="product_name">{{ costing.product_name|default:doc.product_name|default:"—" }}</td>
-            <td class="npl-col text-end" data-col="material">{{ costing.material_cost|floatformat:0|intcomma }}</td>
-            <td class="npl-col text-end" data-col="labor">{{ costing.labor_cost|floatformat:0|intcomma }}</td>
-            <td class="npl-col text-end" data-col="overhead">{{ costing.overhead_cost|floatformat:0|intcomma }}</td>
-            <td class="npl-col text-end fw-semibold text-hm" data-col="total">{{ costing.total_cost|floatformat:0|intcomma }}</td>
-            <td class="npl-col text-end" data-col="sell_price">{{ costing.sell_price|floatformat:0|intcomma }}</td>
+            <td class="npl-col text-end" data-col="material">{{ costing.material_cost|sx_num }}</td>
+            <td class="npl-col text-end" data-col="labor">{{ costing.labor_cost|sx_num }}</td>
+            <td class="npl-col text-end" data-col="overhead">{{ costing.overhead_cost|sx_num }}</td>
+            <td class="npl-col text-end fw-semibold text-hm" data-col="total">{{ costing.total_cost|sx_num }}</td>
+            <td class="npl-col text-end" data-col="sell_price">{{ costing.sell_price|sx_num }}</td>
             <td class="npl-col text-end {% if costing.margin >= 0 %}text-success{% else %}text-danger{% endif %}" data-col="margin">
-              {{ costing.margin|floatformat:0|intcomma }}
+              {{ costing.margin|sx_num }}
             </td>
             {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=doc %}
           </tr>

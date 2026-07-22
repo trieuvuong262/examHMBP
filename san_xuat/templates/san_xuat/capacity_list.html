@@ -179,6 +179,7 @@
 </style>
 {% endblock %}
 {% load humanize %}
+{% load sx_format %}
 
 {% block content %}
 <div class="container jp-page jp-sx-page jp-npl-material-catalog-page sx-cap-page py-3 py-md-4 mb-5"
@@ -223,10 +224,10 @@
           <tr>
             <td>
               <div class="sx-cap-center-name">{{ row.center.name }}</div>
-              <div class="sx-cap-center-meta">{{ row.days }} ngày · NL/ngày {{ row.center.capacity_per_day|floatformat:0|intcomma }} {{ row.center.uom_label }}</div>
+              <div class="sx-cap-center-meta">{{ row.days }} ngày · NL/ngày {{ row.center.capacity_per_day|sx_num }} {{ row.center.uom_label }}</div>
             </td>
-            <td class="text-end sx-cap-num">{{ row.capacity_period|floatformat:0|intcomma }}</td>
-            <td class="text-end sx-cap-num">{{ row.assigned_open|floatformat:0|intcomma }}</td>
+            <td class="text-end sx-cap-num">{{ row.capacity_period|sx_num }}</td>
+            <td class="text-end sx-cap-num">{{ row.assigned_open|sx_num }}</td>
             <td>
               {% if row.load_pct > capacity_load_danger_pct %}
               <div class="sx-cap-meter">
@@ -251,7 +252,7 @@
               </div>
               {% endif %}
             </td>
-            <td class="text-end sx-cap-num">{{ row.output_period|floatformat:0|intcomma }}</td>
+            <td class="text-end sx-cap-num">{{ row.output_period|sx_num }}</td>
             <td>
               <div class="sx-cap-meter">
                 <div class="sx-cap-meter-top">
@@ -294,7 +295,7 @@
               <span class="sx-cap-center-name">{{ c.name }}</span>
             </td>
             <td class="npl-col small text-muted" data-col="team_label">{{ c.team_label|default:"—" }}</td>
-            <td class="npl-col text-end sx-cap-num" data-col="capacity">{{ c.capacity_per_day|floatformat:0|intcomma }}</td>
+            <td class="npl-col text-end sx-cap-num" data-col="capacity">{{ c.capacity_per_day|sx_num }}</td>
             <td class="npl-col" data-col="uom">{{ c.uom_label }}</td>
             <td class="npl-col" data-col="status">
               {% if c.is_active %}

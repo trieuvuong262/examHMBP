@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load sx_format %}
 
 {% block extra_head %}{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}{% endblock %}
 
@@ -43,11 +44,11 @@
             </div>
             <div class="col-6">
               <div class="small text-muted">Số lượng đạt</div>
-              <div class="fw-semibold">{{ stat.qty_good }}</div>
+              <div class="fw-semibold">{{ stat.qty_good|sx_num }}</div>
             </div>
             <div class="col-6">
               <div class="small text-muted">Số lượng lỗi</div>
-              <div class="fw-semibold">{{ stat.qty_defect }}</div>
+              <div class="fw-semibold">{{ stat.qty_defect|sx_num }}</div>
             </div>
             <div class="col-6">
               <div class="small text-muted">Tổ / chuyền</div>
@@ -55,7 +56,7 @@
             </div>
             <div class="col-6">
               <div class="small text-muted">Lệnh sản xuất hiện tại</div>
-              <div>{{ stat.production_order.get_status_display }} · Đã đạt {{ stat.production_order.qty_done }}/{{ stat.production_order.qty }}</div>
+              <div>{{ stat.production_order.get_status_display }} · Đã đạt {{ stat.production_order.qty_done|sx_num }}/{{ stat.production_order.qty|sx_num }}</div>
             </div>
             <div class="col-12">
               <div class="small text-muted">Ghi chú</div>

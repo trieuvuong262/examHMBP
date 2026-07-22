@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load humanize %}
+{% load sx_format %}
 
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
@@ -30,13 +31,13 @@
     <div class="col-6 col-md-2">
       <div class="border rounded-3 p-2 h-100">
         <div class="text-muted small">Đạt</div>
-        <div class="fw-semibold text-success">{{ report.qty_good|floatformat:0|intcomma }}</div>
+        <div class="fw-semibold text-success">{{ report.qty_good|sx_num }}</div>
       </div>
     </div>
     <div class="col-6 col-md-2">
       <div class="border rounded-3 p-2 h-100">
         <div class="text-muted small">Lỗi · %</div>
-        <div class="fw-semibold text-danger">{{ report.qty_defect|floatformat:0|intcomma }} · {{ report.defect_rate|floatformat:1 }}%</div>
+        <div class="fw-semibold text-danger">{{ report.qty_defect|sx_num }} · {{ report.defect_rate|floatformat:1 }}%</div>
       </div>
     </div>
     <div class="col-6 col-md-2">
@@ -54,7 +55,7 @@
     <div class="col-6 col-md-2">
       <div class="border rounded-3 p-2 h-100">
         <div class="text-muted small">Đóng gói</div>
-        <div class="fw-semibold">{{ report.packing_qty|floatformat:0|intcomma }}</div>
+        <div class="fw-semibold">{{ report.packing_qty|sx_num }}</div>
       </div>
     </div>
     <div class="col-6 col-md-2">
@@ -134,9 +135,9 @@
               {% if row.qty_good or row.qty_defect %}
               <tr>
                 <td>{{ row.label }}</td>
-                <td class="text-end text-success">{{ row.qty_good|floatformat:0|intcomma }}</td>
-                <td class="text-end text-danger">{{ row.qty_defect|floatformat:0|intcomma }}</td>
-                <td class="text-end fw-semibold">{{ row.qty_good|add:row.qty_defect|floatformat:0|intcomma }}</td>
+                <td class="text-end text-success">{{ row.qty_good|sx_num }}</td>
+                <td class="text-end text-danger">{{ row.qty_defect|sx_num }}</td>
+                <td class="text-end fw-semibold">{{ row.qty_good|add:row.qty_defect|sx_num }}</td>
               </tr>
               {% endif %}
             {% empty %}
@@ -160,8 +161,8 @@
               <tr>
                 <td class="fw-semibold">{{ row.product_code }}</td>
                 <td class="small">{{ row.product_name|default:"—" }}</td>
-                <td class="text-end">{{ row.qty_good|floatformat:0|intcomma }}</td>
-                <td class="text-end text-danger">{{ row.qty_defect|floatformat:0|intcomma }}</td>
+                <td class="text-end">{{ row.qty_good|sx_num }}</td>
+                <td class="text-end text-danger">{{ row.qty_defect|sx_num }}</td>
                 <td class="text-end">{{ row.defect_rate }}%</td>
               </tr>
             {% empty %}
@@ -187,8 +188,8 @@
                 {% for row in report.team_output %}
                   <tr>
                     <td>{{ row.team_label }}</td>
-                    <td class="text-end">{{ row.qty_good|floatformat:0|intcomma }}</td>
-                    <td class="text-end text-danger">{{ row.qty_defect|floatformat:0|intcomma }}</td>
+                    <td class="text-end">{{ row.qty_good|sx_num }}</td>
+                    <td class="text-end text-danger">{{ row.qty_defect|sx_num }}</td>
                     <td class="text-end">{{ row.defect_rate }}%</td>
                   </tr>
                 {% empty %}
@@ -211,8 +212,8 @@
                 {% for row in report.process_output %}
                   <tr>
                     <td>{{ row.process_name }}</td>
-                    <td class="text-end">{{ row.qty_good|floatformat:0|intcomma }}</td>
-                    <td class="text-end text-danger">{{ row.qty_defect|floatformat:0|intcomma }}</td>
+                    <td class="text-end">{{ row.qty_good|sx_num }}</td>
+                    <td class="text-end text-danger">{{ row.qty_defect|sx_num }}</td>
                     <td class="text-end">{{ row.defect_rate }}%</td>
                   </tr>
                 {% empty %}
@@ -257,8 +258,8 @@
                   <div class="text-muted small">{{ mo.product_name|default:"" }}</div>
                 </td>
                 <td class="small">{{ mo.team_label|default:"—" }}</td>
-                <td class="text-end">{{ mo.qty|floatformat:0|intcomma }}</td>
-                <td class="text-end">{{ mo.qty_done|floatformat:0|intcomma }}</td>
+                <td class="text-end">{{ mo.qty|sx_num }}</td>
+                <td class="text-end">{{ mo.qty_done|sx_num }}</td>
                 <td class="text-end small">{% if mo.qty %}{% widthratio mo.qty_done mo.qty 100 %}%{% else %}—{% endif %}</td>
                 <td><span class="badge bg-secondary-subtle text-secondary border">{{ mo.get_status_display }}</span></td>
               </tr>
@@ -284,7 +285,7 @@
                 <td><a href="{% url 'san_xuat:packing_detail' p.pk %}" class="text-decoration-none fw-semibold">{{ p.code }}</a></td>
                 <td class="small">{{ p.production_order.code }}</td>
                 <td class="small">{{ p.pack_date|date:"d/m/Y" }}</td>
-                <td class="text-end">{{ p.qty|floatformat:0|intcomma }}</td>
+                <td class="text-end">{{ p.qty|sx_num }}</td>
                 <td class="small">{{ p.lot_code|default:"—" }}</td>
               </tr>
             {% empty %}
@@ -347,7 +348,7 @@
             <tr>
               <td>Số lượng đạt / lỗi kỳ</td>
               <td class="text-end fw-semibold">
-                {{ report.qty_good|floatformat:0|intcomma }} / {{ report.qty_defect|floatformat:0|intcomma }}
+                {{ report.qty_good|sx_num }} / {{ report.qty_defect|sx_num }}
                 <span class="text-muted small">({{ report.defect_rate|floatformat:1 }}%)</span>
               </td>
             </tr>

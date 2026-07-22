@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load sx_format %}
 
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
@@ -115,7 +116,7 @@
         </div>
         <div>
           <div class="label">Số lượng</div>
-          <div class="value">{{ fg_req.qty }}</div>
+          <div class="value">{{ fg_req.qty|sx_num }}</div>
         </div>
         <div>
           <div class="label">Phiếu nhập KV</div>

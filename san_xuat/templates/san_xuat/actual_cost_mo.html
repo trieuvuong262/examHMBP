@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load humanize %}
+{% load sx_format %}
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
 {% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}
@@ -18,18 +19,18 @@
   </div>
   <div class="row g-3 mb-3">
     <div class="col-md-3"><div class="card border-0 shadow-sm"><div class="card-body">
-      <div class="small text-muted">Nguyên phụ liệu xuất</div><div class="fs-5">{{ br.material_cost|floatformat:0|intcomma }}</div>
+      <div class="small text-muted">Nguyên phụ liệu xuất</div><div class="fs-5">{{ br.material_cost|sx_num }}</div>
     </div></div></div>
     <div class="col-md-3"><div class="card border-0 shadow-sm"><div class="card-body">
-      <div class="small text-muted">Lương sản phẩm</div><div class="fs-5">{{ br.labor_cost|floatformat:0|intcomma }}</div>
+      <div class="small text-muted">Lương sản phẩm</div><div class="fs-5">{{ br.labor_cost|sx_num }}</div>
     </div></div></div>
     <div class="col-md-3"><div class="card border-0 shadow-sm"><div class="card-body">
-      <div class="small text-muted">Phí GC</div><div class="fs-5">{{ br.subcontract_cost|floatformat:0|intcomma }}</div>
+      <div class="small text-muted">Phí GC</div><div class="fs-5">{{ br.subcontract_cost|sx_num }}</div>
     </div></div></div>
     <div class="col-md-3"><div class="card border-0 shadow-sm"><div class="card-body">
       <div class="small text-muted">Tổng / đơn vị</div>
-      <div class="fs-5">{{ br.total_cost|floatformat:0|intcomma }}</div>
-      <div class="small text-muted">{{ br.unit_cost|floatformat:0|intcomma }} / SP (SL {{ br.qty_basis }})</div>
+      <div class="fs-5">{{ br.total_cost|sx_num }}</div>
+      <div class="small text-muted">{{ br.unit_cost|sx_num }} / SP (SL {{ br.qty_basis }})</div>
     </div></div></div>
   </div>
   {% if can_update %}
@@ -50,8 +51,8 @@
           <tr>
             <td>{{ l.issue }}</td><td>{{ l.material }}</td>
             <td class="text-end">{{ l.qty }}</td>
-            <td class="text-end">{{ l.unit_price|floatformat:0|intcomma }}</td>
-            <td class="text-end">{{ l.amount|floatformat:0|intcomma }}</td>
+            <td class="text-end">{{ l.unit_price|sx_num }}</td>
+            <td class="text-end">{{ l.amount|sx_num }}</td>
           </tr>
           {% empty %}
           <tr><td colspan="5" class="text-muted text-center py-2">Chưa có phiếu xuất post.</td></tr>

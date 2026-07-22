@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load sx_format %}
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
 {% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}
@@ -44,8 +45,8 @@
               <div class="small">{{ order.product_code }}</div>
               <div class="text-muted small">{{ order.product_name|default:"—" }}</div>
             </td>
-            <td class="npl-col text-end" data-col="qty">{{ order.qty }}</td>
-            <td class="npl-col text-end" data-col="qty_done">{{ order.qty_done }}</td>
+            <td class="npl-col text-end" data-col="qty">{{ order.qty|sx_num }}</td>
+            <td class="npl-col text-end" data-col="qty_done">{{ order.qty_done|sx_num }}</td>
             <td class="npl-col small" data-col="team_label">{{ order.team_label|default:"—" }}</td>
             <td class="npl-col" data-col="order_date">{{ order.order_date|date:"d/m/Y" }}</td>
             <td class="npl-col" data-col="due_date">{% if order.due_date %}{{ order.due_date|date:"d/m/Y" }}{% else %}—{% endif %}</td>

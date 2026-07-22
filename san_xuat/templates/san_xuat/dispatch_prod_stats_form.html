@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load sx_format %}
 
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
@@ -75,7 +76,7 @@
       <div class="jp-sx-stat-mo">
         <a class="code text-decoration-none" href="{% url 'san_xuat:dispatch_mo_detail' mo.pk %}">{{ mo.code }}</a>
         <span class="meta">{{ mo.product_code }}{% if mo.product_name %} · {{ mo.product_name }}{% endif %}</span>
-        <span class="meta">SL kế hoạch {{ mo.qty }} · Đã đạt {{ mo.qty_done }} · {{ mo.get_status_display }}</span>
+        <span class="meta">SL kế hoạch {{ mo.qty|sx_num }} · Đã đạt {{ mo.qty_done|sx_num }} · {{ mo.get_status_display }}</span>
       </div>
       {% else %}
       <div class="alert alert-warning border-0 small mb-3">Mở từ chi tiết lệnh sản xuất để ghi thống kê đúng lệnh.</div>

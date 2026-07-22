@@ -21,6 +21,7 @@ from san_xuat.hub_models import (
 
 _FORM_CONTROL = {"class": "form-control form-control-sm"}
 _FORM_SELECT = {"class": "form-select form-select-sm"}
+_DATE_SM = {"class": "form-control form-control-sm jp-date-vn", "type": "date"}
 
 
 class QcCriteriaGroupForm(forms.ModelForm):
@@ -115,8 +116,8 @@ class QcRequestForm(forms.ModelForm):
             "product_name": forms.TextInput(attrs=_FORM_CONTROL),
             "stage_name": forms.TextInput(attrs=_FORM_CONTROL),
             "qty": forms.NumberInput(attrs={**_FORM_CONTROL, "step": "0.01", "min": "0.01"}),
-            "request_date": forms.DateInput(attrs={**_FORM_CONTROL, "type": "date"}),
-            "due_date": forms.DateInput(attrs={**_FORM_CONTROL, "type": "date"}),
+            "request_date": forms.DateInput(attrs=_DATE_SM),
+            "due_date": forms.DateInput(attrs=_DATE_SM),
             "status": forms.Select(
                 attrs=_FORM_SELECT,
                 choices=[
@@ -164,7 +165,7 @@ class QcInspectionCreateForm(forms.Form):
     )
     inspected_at = forms.DateField(
         label="Ngày kiểm",
-        widget=forms.DateInput(attrs={**_FORM_CONTROL, "type": "date"}),
+        widget=forms.DateInput(attrs=_DATE_SM),
     )
     notes = forms.CharField(
         required=False,

@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load sx_format %}
 
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
@@ -207,8 +208,8 @@
                 <div class="fw-semibold small">{{ l.material_code }}</div>
                 <div class="text-muted small">{{ l.material_name }}</div>
               </td>
-              <td class="text-end small">{{ l.qty_requested }}</td>
-              <td class="text-end small">{{ l.qty_issued }}</td>
+              <td class="text-end small">{{ l.qty_requested|sx_num }}</td>
+              <td class="text-end small">{{ l.qty_issued|sx_num }}</td>
               <td>
                 {% if can_update and not req.stock_issue %}
                 <select name="loc_{{ l.pk }}" class="form-select form-select-sm" style="min-width:7.5rem;max-width:10rem">

@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load sx_format %}
 
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
@@ -159,11 +160,11 @@
       <div class="jp-sx-mo-meta">
         <div>
           <div class="label">Số lượng</div>
-          <div class="value">{{ mo.qty }}</div>
+          <div class="value">{{ mo.qty|sx_num }}</div>
         </div>
         <div>
           <div class="label">Đã đạt</div>
-          <div class="value">{{ mo.qty_done }}</div>
+          <div class="value">{{ mo.qty_done|sx_num }}</div>
         </div>
         <div>
           <div class="label">Ngày lập</div>
@@ -337,9 +338,9 @@
                     <div class="fw-semibold small">{{ bl.material_code }}</div>
                     <div class="text-muted small">{{ bl.material_name }}</div>
                   </td>
-                  <td class="text-end small">{{ bl.qty_per_unit }}</td>
+                  <td class="text-end small">{{ bl.qty_per_unit|sx_num }}</td>
                   <td class="text-end small text-muted">{{ bl.scrap_pct }}%</td>
-                  <td class="text-end fw-semibold small">{{ bl.qty_total }}</td>
+                  <td class="text-end fw-semibold small">{{ bl.qty_total|sx_num }}</td>
                 </tr>
               {% endfor %}
               </tbody>
@@ -424,7 +425,7 @@
                 <tr class="jp-npl-catalog-row" data-href="{% url 'san_xuat:dispatch_prod_stats_detail' stat.pk %}">
                   <td><strong class="small">{{ stat.code }}</strong></td>
                   <td class="small">{{ stat.process_name|default:"—" }}</td>
-                  <td class="text-end small">{{ stat.qty_good }}</td>
+                  <td class="text-end small">{{ stat.qty_good|sx_num }}</td>
                   <td class="small">{{ stat.get_status_display }}</td>
                   <td class="text-end">
                     <a href="{% url 'san_xuat:dispatch_prod_stats_detail' stat.pk %}" class="btn btn-sm btn-outline-hm">Mở</a>
@@ -466,7 +467,7 @@
               {% for req in fg_receipt_list %}
                 <tr class="jp-npl-catalog-row" data-href="{% url 'san_xuat:dispatch_fg_receipt_req_detail' req.pk %}">
                   <td><strong class="small">{{ req.code }}</strong></td>
-                  <td class="text-end small">{{ req.qty }}</td>
+                  <td class="text-end small">{{ req.qty|sx_num }}</td>
                   <td class="small">{{ req.get_status_display }}</td>
                   <td class="text-end">
                     <a href="{% url 'san_xuat:dispatch_fg_receipt_req_detail' req.pk %}" class="btn btn-sm btn-outline-hm">Mở</a>
@@ -499,7 +500,7 @@
               <thead class="table-light"><tr><th>Công đoạn</th><th class="text-end">Tồn</th></tr></thead>
               <tbody>
               {% for b in wip_balances %}
-                <tr><td class="small">{{ b.process_name }}</td><td class="text-end fw-semibold small">{{ b.qty }}</td></tr>
+                <tr><td class="small">{{ b.process_name }}</td><td class="text-end fw-semibold small">{{ b.qty|sx_num }}</td></tr>
               {% endfor %}
               </tbody>
             </table>
@@ -533,7 +534,7 @@
                 <tr class="jp-npl-catalog-row" data-href="{% url 'san_xuat:dispatch_wip_handover_detail' item.pk %}">
                   <td><strong class="small">{{ item.code }}</strong></td>
                   <td class="small">{{ item.from_process }} → {{ item.to_process }}</td>
-                  <td class="text-end small">{{ item.qty }}</td>
+                  <td class="text-end small">{{ item.qty|sx_num }}</td>
                   <td class="text-end">
                     <a href="{% url 'san_xuat:dispatch_wip_handover_detail' item.pk %}" class="btn btn-sm btn-outline-hm">Mở</a>
                   </td>

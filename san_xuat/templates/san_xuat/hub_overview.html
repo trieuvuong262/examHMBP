@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load humanize %}
+{% load sx_format %}
 
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
@@ -35,16 +36,16 @@
     <div class="col-6 col-lg-3">
       <div class="border rounded-3 p-3 h-100 border-start border-4 border-warning">
         <div class="text-muted small">Sản lượng còn làm</div>
-        <div class="fs-4 fw-semibold">{{ dash.qty_remaining|floatformat:0|intcomma }}</div>
-        <div class="small text-muted">{{ dash.qty_done|floatformat:0|intcomma }} / {{ dash.qty_planned|floatformat:0|intcomma }}</div>
+        <div class="fs-4 fw-semibold">{{ dash.qty_remaining|sx_num }}</div>
+        <div class="small text-muted">{{ dash.qty_done|sx_num }} / {{ dash.qty_planned|sx_num }}</div>
       </div>
     </div>
     <div class="col-6 col-lg-3">
       <a href="{% url 'san_xuat:dispatch_prod_stats' %}" class="text-decoration-none text-reset">
         <div class="border rounded-3 p-3 h-100 border-start border-4 border-success">
           <div class="text-muted small">Đạt trong kỳ</div>
-          <div class="fs-4 fw-semibold text-success">{{ dash.qty_good_period|floatformat:0|intcomma }}</div>
-          <div class="small text-muted">Lỗi {{ dash.qty_defect_period|floatformat:0|intcomma }} · {{ dash.defect_rate_pct }}%</div>
+          <div class="fs-4 fw-semibold text-success">{{ dash.qty_good_period|sx_num }}</div>
+          <div class="small text-muted">Lỗi {{ dash.qty_defect_period|sx_num }} · {{ dash.defect_rate_pct }}%</div>
         </div>
       </a>
     </div>
@@ -217,8 +218,8 @@
               {% for row in dash.top_products_output %}
                 <tr>
                   <td><strong>{{ row.product_code }}</strong>{% if row.product_name %}<div class="small text-muted">{{ row.product_name|truncatechars:32 }}</div>{% endif %}</td>
-                  <td class="text-end">{{ row.qty_good|floatformat:0|intcomma }}</td>
-                  <td class="text-end">{{ row.qty_defect|floatformat:0|intcomma }}</td>
+                  <td class="text-end">{{ row.qty_good|sx_num }}</td>
+                  <td class="text-end">{{ row.qty_defect|sx_num }}</td>
                 </tr>
               {% empty %}
                 <tr><td colspan="3" class="text-muted text-center py-3">Chưa có dữ liệu.</td></tr>
@@ -236,8 +237,8 @@
               {% for row in dash.team_output %}
                 <tr>
                   <td>{{ row.team_label }}</td>
-                  <td class="text-end">{{ row.qty_good|floatformat:0|intcomma }}</td>
-                  <td class="text-end text-danger">{{ row.qty_defect|floatformat:0|intcomma }}</td>
+                  <td class="text-end">{{ row.qty_good|sx_num }}</td>
+                  <td class="text-end text-danger">{{ row.qty_defect|sx_num }}</td>
                   <td class="text-end">{{ row.defect_rate }}%</td>
                 </tr>
               {% empty %}
@@ -276,7 +277,7 @@
               {% for row in dash.top_products_defect %}
                 <tr>
                   <td><strong>{{ row.product_code }}</strong></td>
-                  <td class="text-end text-danger">{{ row.qty_defect|floatformat:0|intcomma }}</td>
+                  <td class="text-end text-danger">{{ row.qty_defect|sx_num }}</td>
                   <td class="text-end {% if row.defect_rate >= 5 %}text-danger fw-semibold{% endif %}">{{ row.defect_rate }}%</td>
                 </tr>
               {% empty %}

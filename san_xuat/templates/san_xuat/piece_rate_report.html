@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load humanize %}
+{% load sx_format %}
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
 {% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}
@@ -53,7 +54,7 @@
     <div class="col-6 col-md-3">
       <div class="border rounded-3 p-3">
         <div class="text-muted small">Tổng lương sản phẩm</div>
-        <div class="fs-5 fw-semibold text-hm">{{ total_amount|floatformat:0|intcomma }}</div>
+        <div class="fs-5 fw-semibold text-hm">{{ total_amount|sx_num }}</div>
       </div>
     </div>
   </div>
@@ -81,8 +82,8 @@
             <td class="small">{{ r.production_order_code }}</td>
             <td class="small">{{ r.stat_code }}</td>
             <td class="text-end">{{ r.qty_good }}</td>
-            <td class="text-end">{{ r.piece_rate|floatformat:0|intcomma }}</td>
-            <td class="text-end fw-semibold">{{ r.amount|floatformat:0|intcomma }}</td>
+            <td class="text-end">{{ r.piece_rate|sx_num }}</td>
+            <td class="text-end fw-semibold">{{ r.amount|sx_num }}</td>
           </tr>
         {% empty %}
           <tr><td colspan="8" class="text-muted text-center py-3">Không có dữ liệu trong kỳ.</td></tr>

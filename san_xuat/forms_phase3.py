@@ -7,6 +7,8 @@ from decimal import Decimal
 from django import forms
 from django.forms import formset_factory
 
+_DATE_SM = {"class": "form-control form-control-sm jp-date-vn", "type": "date"}
+
 
 class TraceLookupForm(forms.Form):
     query = forms.CharField(
@@ -60,7 +62,7 @@ class WorkAssignmentCreateForm(forms.Form):
     due_date = forms.DateField(
         required=False,
         label="Hạn",
-        widget=forms.DateInput(attrs={"class": "form-control form-control-sm", "type": "date"}),
+        widget=forms.DateInput(attrs=_DATE_SM),
     )
     create_portal_task = forms.BooleanField(
         required=False,
@@ -171,7 +173,7 @@ class PackingCreateForm(forms.Form):
     )
     pack_date = forms.DateField(
         label="Ngày đóng gói",
-        widget=forms.DateInput(attrs={"class": "form-control form-control-sm", "type": "date"}),
+        widget=forms.DateInput(attrs=_DATE_SM),
     )
     carton_count = forms.IntegerField(
         min_value=0,
@@ -282,12 +284,12 @@ class SubcontractCreateForm(forms.Form):
     )
     order_date = forms.DateField(
         label="Ngày",
-        widget=forms.DateInput(attrs={"class": "form-control form-control-sm", "type": "date"}),
+        widget=forms.DateInput(attrs=_DATE_SM),
     )
     due_date = forms.DateField(
         required=False,
         label="Hạn",
-        widget=forms.DateInput(attrs={"class": "form-control form-control-sm", "type": "date"}),
+        widget=forms.DateInput(attrs=_DATE_SM),
     )
     production_order = forms.ModelChoiceField(
         queryset=None,

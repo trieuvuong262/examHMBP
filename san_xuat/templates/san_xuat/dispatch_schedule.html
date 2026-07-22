@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load sx_format %}
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
 
@@ -30,7 +31,7 @@
           {% for mo in day.orders %}
           <div class="border rounded-2 p-2 mb-2 small">
             <div><a href="{% url 'san_xuat:dispatch_mo_detail' mo.pk %}" class="fw-semibold">{{ mo.code }}</a></div>
-            <div class="text-muted">{{ mo.product_code }} · SL {{ mo.qty }}</div>
+            <div class="text-muted">{{ mo.product_code }} · SL {{ mo.qty|sx_num }}</div>
             {% if mo.team_label %}<div class="text-muted">{{ mo.team_label }}</div>{% endif %}
             <div class="text-muted">{{ mo.get_status_display }}</div>
           </div>

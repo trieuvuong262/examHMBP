@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from django import forms
 
+_DATE_SM = {"class": "form-control form-control-sm jp-date-vn", "type": "date"}
+
 
 class StandardCostSheetCreateForm(forms.Form):
     name = forms.CharField(
@@ -11,11 +13,11 @@ class StandardCostSheetCreateForm(forms.Form):
     )
     date_from = forms.DateField(
         label="Từ ngày",
-        widget=forms.DateInput(attrs={"class": "form-control form-control-sm", "type": "date"}),
+        widget=forms.DateInput(attrs=_DATE_SM),
     )
     date_to = forms.DateField(
         label="Đến ngày",
-        widget=forms.DateInput(attrs={"class": "form-control form-control-sm", "type": "date"}),
+        widget=forms.DateInput(attrs=_DATE_SM),
     )
     code = forms.CharField(
         max_length=40,
@@ -58,11 +60,11 @@ class OrderPlanCostCreateForm(forms.Form):
     )
     date_from = forms.DateField(
         label="Từ ngày",
-        widget=forms.DateInput(attrs={"class": "form-control form-control-sm", "type": "date"}),
+        widget=forms.DateInput(attrs=_DATE_SM),
     )
     date_to = forms.DateField(
         label="Đến ngày",
-        widget=forms.DateInput(attrs={"class": "form-control form-control-sm", "type": "date"}),
+        widget=forms.DateInput(attrs=_DATE_SM),
     )
     kv_order_code = forms.CharField(
         max_length=64,
