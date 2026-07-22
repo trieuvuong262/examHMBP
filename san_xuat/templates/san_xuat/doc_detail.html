@@ -17,6 +17,10 @@
 
     <ul class="nav nav-tabs mb-3">
         <li class="nav-item">
+            <a class="nav-link {% if tab == 'info' %}active{% endif %}"
+               href="?tab=info{% if bom %}&bom={{ bom.pk }}{% endif %}">Mô tả</a>
+        </li>
+        <li class="nav-item">
             <a class="nav-link {% if tab == 'bom' %}active{% endif %}"
                href="?tab=bom{% if bom %}&bom={{ bom.pk }}{% endif %}">BOM</a>
         </li>
@@ -28,9 +32,17 @@
             <a class="nav-link {% if tab == 'costing' %}active{% endif %}"
                href="?tab=costing{% if bom %}&bom={{ bom.pk }}{% endif %}">Costing</a>
         </li>
+        <li class="nav-item">
+            <a class="nav-link {% if tab == 'design' %}active{% endif %}"
+               href="?tab=design{% if bom %}&bom={{ bom.pk }}{% endif %}">Tài liệu TK</a>
+        </li>
     </ul>
 
-    {% if not bom %}
+    {% if tab == 'info' %}
+        {% include 'san_xuat/includes/tab_description.html' %}
+    {% elif tab == 'design' %}
+        {% include 'san_xuat/includes/tab_design.html' %}
+    {% elif not bom %}
     <div class="alert alert-warning">Hồ sơ chưa có phiên bản BOM.</div>
     {% elif tab == 'bom' %}
         {% include 'san_xuat/includes/tab_bom.html' %}

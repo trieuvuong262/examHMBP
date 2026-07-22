@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from san_xuat.models import BomLine, BomVersion, CostingSnapshot, ProcessStep, ProductTechDoc
+from san_xuat.models import BomLine, BomVersion, CostingSnapshot, ProcessStep, ProductTechDoc, TechDocDesignFile
 
 
 class BomLineInline(admin.TabularInline):
@@ -14,11 +14,18 @@ class ProcessStepInline(admin.TabularInline):
     extra = 0
 
 
+class TechDocDesignFileInline(admin.TabularInline):
+    model = TechDocDesignFile
+    extra = 0
+    readonly_fields = ('uploaded_at', 'uploaded_by')
+
+
 @admin.register(ProductTechDoc)
 class ProductTechDocAdmin(admin.ModelAdmin):
     list_display = ('product_code', 'product_name', 'is_active', 'updated_at')
     search_fields = ('product_code', 'product_name')
     list_filter = ('is_active',)
+    inlines = [TechDocDesignFileInline]
 
 
 @admin.register(BomVersion)

@@ -32,6 +32,12 @@ class ProductTechDoc(models.Model):
         verbose_name='KiotViet product id',
     )
     notes = models.TextField(blank=True, default='', verbose_name='Ghi chú')
+    description = models.TextField(
+        blank=True,
+        default='',
+        verbose_name='Mô tả chi tiết',
+        help_text='Mô tả kỹ thuật, yêu cầu sản xuất, lưu ý…',
+    )
     is_active = models.BooleanField(default=True, verbose_name='Đang dùng')
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -52,6 +58,62 @@ class ProductTechDoc(models.Model):
     def __str__(self):
         name = self.product_name or ''
         return f'{self.product_code} — {name}'.strip(' —')
+
+
+class TechDocDesignFile(models.Model):
+    """Tài liệu thiết kế đính kèm hồ sơ SX (PDF, ảnh, CAD...)."""
+
+    tech_doc = models.ForeignKey(
+        ProductTechDoc,
+        on_delete=models.CASCADE,
+        related_name='design_files',
+        verbose_name='Hồ sơ SX',
+    )
+    file = models.FileField(
+        upload_to='san_xuat/design/%Y/%m/',
+        verbose_name='Tệp',
+    )
+    title = models.CharField(
+        max_length=200,
+        blank=True,
+        default='',
+        verbose_name='Tiêu đề',
+        help_text='Để trống = dùng tên file.',
+    )
+    notes = models.CharField(max_length=255, blank=True, default='', verbose_name='Ghi chú')
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='san_xuat_design_uploads',
+        verbose_name='Người tải lên',
+    )
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-uploaded_at', '-pk']
+        verbose_name = 'Tài liệu thiết kế'
+        verbose_name_plural = 'Tài liệu thiết kế'
+
+    def __str__(self):
+        return self.display_name
+
+    @property
+    def display_name(self) -> str:
+        if self.title.strip():
+            return self.title.strip()
+        name = (self.file.name or '').rsplit('/', 1)[-1]
+        return name or f'Tài liệu #{self.pk}'
+
+    @property
+    def is_image(self) -> bool:
+        name = (self.file.name or '').lower()
+        return name.endswith(('.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'))
+
+    @property
+    def is_pdf(self) -> bool:
+        return (self.file.name or '').lower().endswith('.pdf')
 
 
 class BomVersion(models.Model):

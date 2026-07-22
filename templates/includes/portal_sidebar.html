@@ -618,7 +618,7 @@
                             aria-expanded="{% if '/san-xuat/ho-so' in request.path or '/san-xuat/bom' in request.path or '/san-xuat/nang-luc' in request.path %}true{% else %}false{% endif %}"
                             aria-controls="jp-sidebar-san-xuat-products-submenu">
                         <span class="jp-sidebar-nested-toggle-main">
-                            <i class="bi bi-box"></i><span>Hồ sơ SX</span>
+                            <i class="bi bi-box"></i><span>Hồ sơ</span>
                         </span>
                         <i class="bi bi-chevron-down jp-sidebar-nested-chevron" aria-hidden="true"></i>
                     </button>
@@ -627,7 +627,7 @@
                         <li>
                             <a href="{% url 'san_xuat:doc_list' %}"
                                class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'doc_list' or request.resolver_match.url_name == 'doc_create' or request.resolver_match.url_name == 'doc_detail' or request.resolver_match.url_name == 'bom_list' %}active{% endif %}">
-                                <i class="bi bi-journal-text"></i><span>Hồ sơ &amp; định mức</span>
+                                <i class="bi bi-journal-text"></i><span>Hồ sơ thiết kế</span>
                             </a>
                         </li>
                         {% endif %}

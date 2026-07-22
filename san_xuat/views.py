@@ -19,8 +19,10 @@ from san_xuat.forms import (
     BomVersionMetaForm,
     ProcessStepFormSet,
     ProductTechDocCreateForm,
+    ProductTechDocDescriptionForm,
+    TechDocDesignUploadForm,
 )
-from san_xuat.models import BomVersion, ProductTechDoc
+from san_xuat.models import BomVersion, ProductTechDoc, TechDocDesignFile
 from san_xuat.services.bom import (
     BomError,
     activate_bom,
@@ -175,23 +177,53 @@ def _get_bom_for_doc(doc: ProductTechDoc, bom_id: str | None) -> BomVersion | No
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def doc_detail(request, pk):
     doc = get_object_or_404(ProductTechDoc, pk=pk)
-    tab = (request.GET.get('tab') or 'bom').strip().lower()
-    if tab not in ('bom', 'process', 'costing'):
-        tab = 'bom'
+    tab = (request.GET.get('tab') or 'info').strip().lower()
+    if tab not in ('info', 'bom', 'process', 'costing', 'design'):
+        tab = 'info'
 
     bom = _get_bom_for_doc(doc, request.GET.get('bom'))
     versions = list(doc.bom_versions.order_by('-created_at'))
     costing = compute_costing(bom) if bom else None
     snapshots = list(bom.costing_snapshots.all()[:10]) if bom else []
+    design_files = list(doc.design_files.select_related('uploaded_by').all())
 
     line_formset = None
     step_formset = None
     meta_form = None
+    design_form = None
+    desc_form = None
     can_update = user_can_update_module(request.user, MODULE_SAN_XUAT)
 
-    if bom and can_update and request.method == 'POST':
+    if can_update and request.method == 'POST':
         action = (request.POST.get('action') or '').strip()
-        if action == 'save_bom' and tab == 'bom':
+        if action == 'save_description':
+            desc_form = ProductTechDocDescriptionForm(request.POST, instance=doc)
+            if desc_form.is_valid():
+                desc_form.save()
+                messages.success(request, 'Đã lưu mô tả hồ sơ.')
+                return redirect(f'{request.path}?tab=info')
+            tab = 'info'
+            messages.error(request, 'Không lưu được mô tả — kiểm tra lại.')
+        elif action == 'upload_design':
+            design_form = TechDocDesignUploadForm(request.POST, request.FILES)
+            if design_form.is_valid():
+                created = design_form.save(doc, user=request.user)
+                messages.success(request, f'Đã tải lên {len(created)} tài liệu thiết kế.')
+                return redirect(f'{request.path}?tab=design')
+            tab = 'design'
+            messages.error(request, 'Không tải lên được — kiểm tra lại tệp.')
+        elif action == 'delete_design':
+            file_id = request.POST.get('file_id')
+            try:
+                design_file = doc.design_files.get(pk=int(file_id))
+            except (TypeError, ValueError, TechDocDesignFile.DoesNotExist):
+                messages.error(request, 'Không tìm thấy tài liệu.')
+            else:
+                design_file.file.delete(save=False)
+                design_file.delete()
+                messages.success(request, 'Đã xóa tài liệu thiết kế.')
+            return redirect(f'{request.path}?tab=design')
+        elif bom and action == 'save_bom' and tab == 'bom':
             meta_form = BomVersionMetaForm(request.POST, instance=bom)
             line_formset = BomLineFormSet(request.POST, instance=bom, prefix='lines')
             if meta_form.is_valid() and line_formset.is_valid():
@@ -200,28 +232,32 @@ def doc_detail(request, pk):
                 messages.success(request, 'Đã lưu BOM.')
                 return redirect(f"{request.path}?tab=bom&bom={bom.pk}")
             messages.error(request, 'Không lưu được BOM — kiểm tra lại các dòng.')
-        elif action == 'save_process' and tab == 'process':
+        elif bom and action == 'save_process' and tab == 'process':
             step_formset = ProcessStepFormSet(request.POST, instance=bom, prefix='steps')
             if step_formset.is_valid():
                 step_formset.save()
                 messages.success(request, 'Đã lưu công đoạn.')
                 return redirect(f"{request.path}?tab=process&bom={bom.pk}")
             messages.error(request, 'Không lưu được công đoạn — kiểm tra lại.')
-        elif action == 'activate' and can_update:
+        elif bom and action == 'activate':
             activate_bom(bom)
             messages.success(request, f'Đã kích hoạt BOM {bom.version_label}.')
             return redirect(f"{request.path}?tab={tab}&bom={bom.pk}")
-        elif action == 'snapshot' and tab == 'costing':
+        elif bom and action == 'snapshot' and tab == 'costing':
             snap = save_costing_snapshot(bom, user=request.user)
             messages.success(request, f'Đã chốt costing: {snap.total_cost:,.0f} đ.')
             return redirect(f"{request.path}?tab=costing&bom={bom.pk}")
 
-    if bom and can_update:
-        if line_formset is None and tab == 'bom':
+    if can_update:
+        if tab == 'info' and desc_form is None:
+            desc_form = ProductTechDocDescriptionForm(instance=doc)
+        if bom and line_formset is None and tab == 'bom':
             meta_form = meta_form or BomVersionMetaForm(instance=bom)
             line_formset = BomLineFormSet(instance=bom, prefix='lines')
-        if step_formset is None and tab == 'process':
+        if bom and step_formset is None and tab == 'process':
             step_formset = ProcessStepFormSet(instance=bom, prefix='steps')
+        if tab == 'design' and design_form is None:
+            design_form = TechDocDesignUploadForm()
 
     from django.urls import reverse
     from hrm.module_permissions import MODULE_KHO_NPL, user_can_create_module
@@ -242,6 +278,9 @@ def doc_detail(request, pk):
         'meta_form': meta_form,
         'line_formset': line_formset,
         'step_formset': step_formset,
+        'design_form': design_form,
+        'design_files': design_files,
+        'desc_form': desc_form,
         'issue_base_url': issue_base_url,
         **_perm_ctx(request),
     })

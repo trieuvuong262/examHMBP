@@ -96,7 +96,7 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
         {'key': 'overview', 'label': 'Tổng quan', 'icon': 'bi-speedometer2'},
         {'key': 'orders', 'label': 'Đơn đặt hàng', 'icon': 'bi-cart-check'},
         {'key': 'products_nvl', 'label': 'Sản phẩm – NVL', 'icon': 'bi-box'},
-        {'key': 'docs', 'label': 'Hồ sơ SX', 'icon': 'bi-journal-text'},
+        {'key': 'docs', 'label': 'Hồ sơ thiết kế', 'icon': 'bi-journal-text'},
         {'key': 'bom', 'label': 'BOM', 'icon': 'bi-diagram-3'},
         {'key': 'capacity', 'label': 'Năng lực SX', 'icon': 'bi-speedometer'},
         {'key': 'plan', 'label': 'Kế hoạch sản xuất', 'icon': 'bi-calendar3'},
