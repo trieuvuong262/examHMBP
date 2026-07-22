@@ -642,17 +642,12 @@
                 if (efficiencyCheck.blocked) {
                     return;
                 }
-                var keepHours = modalEl.getAttribute('data-keep-work-hours');
-                if (keepHours) {
-                    setProdWorkHoursField(pendingForm, keepHours);
-                } else {
-                    var check = validateProdWorkHours(workHoursInput ? workHoursInput.value : '');
-                    if (!check.ok) {
-                        showWorkHoursError(check.message);
-                        return;
-                    }
-                    setProdWorkHoursField(pendingForm, check.value);
+                var check = validateProdWorkHours(workHoursInput ? workHoursInput.value : '');
+                if (!check.ok) {
+                    showWorkHoursError(check.message);
+                    return;
                 }
+                setProdWorkHoursField(pendingForm, check.value);
                 modal.hide();
                 var formToSubmit = pendingForm;
                 pendingForm = null;

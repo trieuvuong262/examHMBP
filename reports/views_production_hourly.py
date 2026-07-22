@@ -336,12 +336,63 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
     content_edit_only = _is_content_edit_only(request, report)
     content_edit_extra = _content_edit_redirect_extra(request)
 
-    if content_edit_only and action and action not in ('edit_session', 'add_session', 'delete_session'):
+    if content_edit_only and action and action not in (
+        'edit_session',
+        'add_session',
+        'delete_session',
+        'update_declared_work_hours',
+    ):
         messages.error(
             request,
-            'Chỉ được sửa / thêm / xóa công đoạn trên màn chỉnh sửa báo cáo đã nộp.',
+            'Chỉ được sửa / thêm / xóa công đoạn hoặc thời gian làm việc trên màn chỉnh sửa báo cáo đã nộp.',
         )
         return redirect(_production_redirect(report_date, shift, for_user or None, content_edit_extra))
+
+    if action == 'update_declared_work_hours':
+        review_extra = _review_redirect_extra(request, report, content_edit_only=content_edit_only)
+        from reports.production_hourly import viewer_may_edit_declared_work_hours
+
+        if not viewer_may_edit_declared_work_hours(request.user, report):
+            messages.warning(
+                request,
+                production_edit_denied_message(report, viewer=request.user)
+                or 'Không thể sửa thời gian làm việc.',
+            )
+            return redirect(_production_redirect(report_date, shift, for_user or None, review_extra))
+        if report.status == DailyWorkReport.STATUS_SUBMITTED and (
+            not content_edit_only and not _is_edit_steps_mode(request, report)
+        ):
+            messages.warning(request, 'Bấm «Sửa báo cáo» để chỉnh thời gian làm việc.')
+            return redirect(_production_redirect(report_date, shift, for_user or None, review_extra))
+        before_hours = report.declared_work_hours
+        work_hours, work_hours_err = resolve_declared_work_hours_for_save(
+            report,
+            request.POST.get('declared_work_hours'),
+            allow_keep_existing=False,
+        )
+        if work_hours_err:
+            messages.error(request, work_hours_err)
+            return redirect(_production_redirect(report_date, shift, for_user or None, review_extra))
+        if before_hours == work_hours:
+            messages.info(request, 'Thời gian làm việc không thay đổi.')
+            return redirect(_production_redirect(report_date, shift, for_user or None, review_extra))
+        report.declared_work_hours = work_hours
+        report.save(update_fields=['declared_work_hours', 'updated_at'])
+        from reports.report_edit_log import log_report_edit
+
+        before_txt = (
+            str(before_hours).rstrip('0').rstrip('.')
+            if before_hours is not None else '—'
+        )
+        after_txt = str(work_hours).rstrip('0').rstrip('.')
+        log_report_edit(
+            report,
+            request.user,
+            summary='Cập nhật thời gian làm việc.',
+            detail=f'Trước: {before_txt} giờ\nSau: {after_txt} giờ',
+        )
+        messages.success(request, f'Đã cập nhật thời gian làm việc: {after_txt} giờ.')
+        return redirect(_production_redirect(report_date, shift, for_user or None, review_extra))
 
     if action == 'start_shift':
         if not (

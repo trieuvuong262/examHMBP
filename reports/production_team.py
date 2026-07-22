@@ -6,7 +6,7 @@ from collections import defaultdict
 from datetime import date, timedelta
 from decimal import Decimal
 
-from django.db.models import Count, Exists, IntegerField, OuterRef, Subquery, Sum, Value, DecimalField
+from django.db.models import Exists, IntegerField, OuterRef, Subquery, Sum, Value, DecimalField
 from django.db.models.functions import Coalesce
 
 from hrm.permissions import (
@@ -35,6 +35,7 @@ from reports.production_hourly import (
     _report_efficiency_totals,
     _report_overall_efficiency_pct,
     compute_day_work_waste_summary,
+    list_production_products,
     report_has_manager_fixable_anomaly,
 )
 from reports.team_utils import (
@@ -92,52 +93,67 @@ def _shift_badges_for_reports(reports: list[DailyWorkReport]) -> list[dict]:
     return badges
 
 
-def _aggregate_production_row(reports: list[DailyWorkReport], visible_fn) -> dict:
-    visible = _visible_reports(reports, visible_fn)
-    visible.sort(
+def _sort_visible_production_reports(reports: list[DailyWorkReport]) -> list[DailyWorkReport]:
+    reports = list(reports)
+    reports.sort(
         key=lambda report: (
             PRODUCTION_SHIFT_ORDER.index(report.shift)
             if report.shift in PRODUCTION_SHIFT_ORDER
             else len(PRODUCTION_SHIFT_ORDER)
         )
     )
+    return reports
+
+
+def _production_row_flags(visible: list[DailyWorkReport]) -> dict:
+    """Cờ trạng thái / tóm tắt — không tính hiệu suất (dùng cho đếm thống kê)."""
     total_qty = sum(int(getattr(report, 'total_qty', 0) or 0) for report in visible)
     total_damaged = sum(int(getattr(report, 'total_damaged', 0) or 0) for report in visible)
     primary = visible[0] if visible else None
-    all_submitted = bool(visible) and all(
-        report.status == DailyWorkReport.STATUS_SUBMITTED for report in visible
-    )
-    any_submitted = any(
-        report.status == DailyWorkReport.STATUS_SUBMITTED for report in visible
-    )
-    all_reviewed = bool(visible) and all(report.hod_reviewed for report in visible)
-    any_rejected = bool(visible) and any(
-        getattr(report, 'hod_rejected', False) and not report.hod_reviewed
-        for report in visible
-    )
-    has_manager_comment = any(getattr(report, 'has_manager_comment', False) for report in visible)
-    has_employee_reply = any(getattr(report, 'has_employee_reply', False) for report in visible)
-    has_anomaly = any(
-        report.status != DailyWorkReport.STATUS_SUBMITTED
-        and report_has_manager_fixable_anomaly(report)
-        for report in visible
-    )
     return {
         'report': primary,
         'production_reports': visible,
         'production_report_count': len(visible),
         'production_total_qty': total_qty,
         'production_total_damaged': total_damaged,
-        'production_all_submitted': all_submitted,
-        'production_any_submitted': any_submitted,
-        'production_all_reviewed': all_reviewed,
-        'production_any_rejected': any_rejected,
-        'production_has_manager_comment': has_manager_comment,
-        'production_has_employee_reply': has_employee_reply,
-        'production_has_anomaly': has_anomaly,
-        'production_efficiency_pct': _weighted_efficiency_pct(visible),
+        'production_all_submitted': bool(visible) and all(
+            report.status == DailyWorkReport.STATUS_SUBMITTED for report in visible
+        ),
+        'production_any_submitted': any(
+            report.status == DailyWorkReport.STATUS_SUBMITTED for report in visible
+        ),
+        'production_all_reviewed': bool(visible) and all(report.hod_reviewed for report in visible),
+        'production_any_rejected': bool(visible) and any(
+            getattr(report, 'hod_rejected', False) and not report.hod_reviewed
+            for report in visible
+        ),
+        'production_has_manager_comment': any(
+            getattr(report, 'has_manager_comment', False) for report in visible
+        ),
+        'production_has_employee_reply': any(
+            getattr(report, 'has_employee_reply', False) for report in visible
+        ),
+        'production_has_anomaly': any(
+            report.status != DailyWorkReport.STATUS_SUBMITTED
+            and report_has_manager_fixable_anomaly(report)
+            for report in visible
+        ),
         'shift_badges': _shift_badges_for_reports(visible),
     }
+
+
+def _aggregate_production_row(
+    reports: list[DailyWorkReport],
+    visible_fn,
+    *,
+    compute_efficiency: bool = True,
+) -> dict:
+    visible = _sort_visible_production_reports(_visible_reports(reports, visible_fn))
+    row = _production_row_flags(visible)
+    row['production_efficiency_pct'] = (
+        _weighted_efficiency_pct(visible) if compute_efficiency and visible else None
+    )
+    return row
 
 
 def _visible_report(report, visible_fn) -> DailyWorkReport | None:
@@ -170,12 +186,28 @@ def _append_production_member_rows(
     *,
     date_from: date,
     date_to: date,
+    status_filter: str = '',
 ) -> None:
     by_date = _reports_by_employee_date(reports)
     skip_empty = is_production_no_report_exempt(member)
+    # Khi đang lọc trạng thái có BC (đã nộp/duyệt…), bỏ ngày trống — tránh dựng rồi lọc lại.
+    only_days_with_reports = status_filter in {
+        'submitted',
+        'missing',
+        'reviewed',
+        'rejected',
+        'not_reviewed',
+    }
     if by_date:
-        for report_date in sorted(_iter_dates(date_from, date_to), reverse=True):
+        day_iter = (
+            sorted(by_date.keys(), reverse=True)
+            if only_days_with_reports
+            else sorted(_iter_dates(date_from, date_to), reverse=True)
+        )
+        for report_date in day_iter:
             day_reports = by_date.get(report_date, [])
+            if only_days_with_reports and not day_reports:
+                continue
             agg = _aggregate_production_row(day_reports, visible_fn)
             if skip_empty and not agg['production_report_count']:
                 continue
@@ -185,7 +217,7 @@ def _append_production_member_rows(
                 **agg,
             })
         return
-    if skip_empty:
+    if skip_empty or only_days_with_reports:
         return
     rows.append({
         'member': member,
@@ -236,6 +268,7 @@ def build_production_team_department_groups(
     date_from: date,
     date_to: date,
     dept_filter: str = '',
+    status_filter: str = '',
 ):
     all_groups = build_report_team_department_groups(viewer, team)
     dept_choices = department_filter_choices(all_groups)
@@ -256,6 +289,7 @@ def build_production_team_department_groups(
                 visible_fn,
                 date_from=date_from,
                 date_to=date_to,
+                status_filter=status_filter,
             )
         department_groups.append({**group, 'rows': rows})
     return department_groups, dept_choices
@@ -269,7 +303,7 @@ def production_team_submitted_count(
 ) -> tuple[int, int]:
     submitted = 0
     for reports in reports_by_employee.values():
-        agg = _aggregate_production_row(reports, visible_fn)
+        agg = _aggregate_production_row(reports, visible_fn, compute_efficiency=False)
         if agg['production_any_submitted']:
             submitted += 1
     missing = team_count - submitted
@@ -290,7 +324,7 @@ def production_team_status_counts(
     no_report = 0
     for emp_id in team_ids:
         reports = reports_by_employee.get(emp_id, [])
-        agg = _aggregate_production_row(reports, visible_fn)
+        agg = _aggregate_production_row(reports, visible_fn, compute_efficiency=False)
         if agg['production_any_submitted']:
             submitted += 1
         elif agg['production_report_count'] > 0:
@@ -707,7 +741,7 @@ def _efficiency_totals_for_reports(
     total_expected = Decimal('0')
     for report in reports:
         qty, hours, expected = _report_efficiency_totals(
-            list(report.production_products.all()),
+            list_production_products(report),
         )
         total_qty += qty
         total_hours += hours
@@ -720,8 +754,14 @@ def _combined_efficiency_parts(reports) -> tuple[Decimal, Decimal]:
     weighted = Decimal('0')
     weight = Decimal('0')
     for report in reports:
-        products = list(report.production_products.prefetch_related('hourly_entries'))
-        quantity_pct = _report_overall_efficiency_pct(_products_for_productivity(products))
+        products = list_production_products(report)
+        productive = _products_for_productivity(products)
+        qty, hours, expected = _report_efficiency_totals(productive)
+        quantity_pct = (
+            float((qty / expected * 100).quantize(Decimal('0.01')))
+            if expected > 0 and hours > 0
+            else None
+        )
         day_times = compute_day_work_waste_summary(report, products)
         combined = _combined_efficiency_pct(
             quantity_pct,
@@ -729,9 +769,6 @@ def _combined_efficiency_parts(reports) -> tuple[Decimal, Decimal]:
         )
         if combined is None:
             continue
-        _qty, hours, _expected = _report_efficiency_totals(
-            _products_for_productivity(products),
-        )
         part_weight = hours if hours > 0 else Decimal('1')
         weighted += Decimal(str(combined)) * part_weight
         weight += part_weight
@@ -745,7 +782,7 @@ def _time_efficiency_parts(reports) -> tuple[Decimal, Decimal]:
     for report in reports:
         day_times = compute_day_work_waste_summary(
             report,
-            list(report.production_products.all()),
+            list_production_products(report),
         )
         pct = day_times.get('time_efficiency_pct')
         if pct is None:
@@ -779,7 +816,7 @@ def _weighted_efficiency_pct(reports: list[DailyWorkReport]) -> float | None:
 
 def report_overall_efficiency_pct(report) -> float | None:
     """Hiệu suất TB 1 báo cáo — khớp day_summary.avg_efficiency_pct."""
-    products = list(report.production_products.prefetch_related('hourly_entries'))
+    products = list_production_products(report)
     quantity_pct = _report_overall_efficiency_pct(_products_for_productivity(products))
     day_times = compute_day_work_waste_summary(report, products)
     return _combined_efficiency_pct(quantity_pct, day_times.get('time_efficiency_pct'))
@@ -1086,7 +1123,6 @@ def query_production_team_reports(team_ids, date_from, date_to):
         .order_by('-submitted_at', '-report_date', '-id')
         .select_related('employee', 'employee__profile')
         .annotate(
-            line_count=Count('lines'),
             total_qty=Coalesce(
                 Subquery(_production_total_qty_subquery()),
                 Value(0, output_field=DecimalField(max_digits=12, decimal_places=2)),

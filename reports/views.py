@@ -619,8 +619,11 @@ def proxy_report_entry(request):
         can_proxy_enter_daily_report,
         enrich_proxy_shift_sessions_for_anomaly_fix,
         employee_self_submitted_production_report,
+        manager_may_edit_submitted_production_report,
         report_has_manager_fixable_anomaly,
+        resolve_declared_work_hours_for_save,
         save_proxy_shift_sessions,
+        viewer_may_edit_declared_work_hours,
     )
     from reports.production_shift_policy import shift_display_label
     import json
@@ -699,7 +702,10 @@ def proxy_report_entry(request):
                     'hoặc thời gian công đoạn 0 phút.',
                 )
                 return redirect(_proxy_url(subject.id, post_shift))
-        elif is_report_locked(report) or is_report_edit_expired(report):
+        elif is_report_locked(report) or (
+            not lock_session_times and is_report_edit_expired(report)
+        ):
+            # BC NV tự nộp (lock_session_times): QL sửa đến khi duyệt — không khóa theo hạn lịch.
             messages.error(request, report_edit_denied_message(report))
             return redirect(_proxy_url(subject.id, post_shift))
         try:
@@ -708,14 +714,11 @@ def proxy_report_entry(request):
             sessions = []
         if not isinstance(sessions, list):
             sessions = []
-        can_edit_declared_work_hours = not (
-            is_report_locked(report) or is_report_edit_expired(report)
+        can_edit_declared_work_hours = viewer_may_edit_declared_work_hours(
+            request.user, report,
         )
-        if lock_session_times:
-            pass
-        elif can_edit_declared_work_hours and not preserve_draft:
-            from reports.production_hourly import resolve_declared_work_hours_for_save
-
+        if can_edit_declared_work_hours and not preserve_draft:
+            before_hours = report.declared_work_hours
             work_hours, work_hours_err = resolve_declared_work_hours_for_save(
                 report,
                 request.POST.get('declared_work_hours'),
@@ -725,6 +728,11 @@ def proxy_report_entry(request):
                 messages.error(request, work_hours_err)
                 return redirect(_proxy_url(subject.id, post_shift))
             report.declared_work_hours = work_hours
+            hours_changed = before_hours != work_hours
+        else:
+            hours_changed = False
+            before_hours = report.declared_work_hours
+            work_hours = before_hours
         try:
             result = save_proxy_shift_sessions(
                 report,
@@ -736,6 +744,20 @@ def proxy_report_entry(request):
         except ValueError as exc:
             messages.error(request, str(exc))
             return redirect(_proxy_url(subject.id, post_shift))
+        if hours_changed:
+            from reports.report_edit_log import log_report_edit
+
+            before_txt = (
+                str(before_hours).rstrip('0').rstrip('.')
+                if before_hours is not None else '—'
+            )
+            after_txt = str(work_hours).rstrip('0').rstrip('.')
+            log_report_edit(
+                report,
+                request.user,
+                summary='Cập nhật thời gian làm việc.',
+                detail=f'Trước: {before_txt} giờ\nSau: {after_txt} giờ',
+            )
         if not result.get('sessions') and sessions:
             messages.warning(
                 request,
@@ -766,8 +788,8 @@ def proxy_report_entry(request):
             report_profile=REPORT_PROFILE_PRODUCTION, shift=shift,
         )
         lock_session_times = employee_self_submitted_production_report(report)
-        can_edit_declared_work_hours = not (
-            is_report_locked(report) or is_report_edit_expired(report)
+        can_edit_declared_work_hours = viewer_may_edit_declared_work_hours(
+            request.user, report,
         )
         show_declared_work_hours = True
         has_anomaly = (
@@ -778,16 +800,25 @@ def proxy_report_entry(request):
         proxy_data = build_proxy_shift_sessions(report)
         if has_anomaly:
             proxy_data = enrich_proxy_shift_sessions_for_anomaly_fix(proxy_data, report)
+        manager_may_edit_submitted = manager_may_edit_submitted_production_report(report)
         tabs.append({
             'shift': shift,
             'label': label,
             'data': proxy_data,
             'is_submitted': bool(report.pk) and report.status == DailyWorkReport.STATUS_SUBMITTED,
-            'is_locked': bool(report.pk) and (is_report_locked(report) or is_report_edit_expired(report)),
+            'is_locked': bool(report.pk) and (
+                is_report_locked(report)
+                or getattr(report, 'hod_rejected', False)
+                or (
+                    not lock_session_times
+                    and not manager_may_edit_submitted
+                    and is_report_edit_expired(report)
+                )
+            ),
             'proxy_entered_by': report.proxy_entered_by if report.pk else None,
             'lock_session_times': lock_session_times,
             'declared_work_hours': report.declared_work_hours if report.pk else None,
-            'show_declared_work_hours': show_declared_work_hours and not lock_session_times and not has_anomaly,
+            'show_declared_work_hours': show_declared_work_hours and not has_anomaly,
             'can_edit_declared_work_hours': can_edit_declared_work_hours and not has_anomaly,
             'report_id': report.pk if report.pk else None,
             'detail_url': (
@@ -800,11 +831,7 @@ def proxy_report_entry(request):
             'can_manager_edit': (
                 lock_session_times
                 or not report.pk
-                or (
-                    bool(report.pk)
-                    and report.status == DailyWorkReport.STATUS_SUBMITTED
-                    and not (is_report_locked(report) or is_report_edit_expired(report))
-                )
+                or manager_may_edit_submitted
                 or has_anomaly
             ),
         })
@@ -2102,6 +2129,7 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
             date_from=date_from,
             date_to=date_to,
             dept_filter=dept_filter,
+            status_filter=status_filter,
         )
         review_counts = production_team_review_row_counts(department_groups)
         reviewed_count = review_counts['reviewed']

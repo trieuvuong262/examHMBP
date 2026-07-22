@@ -131,6 +131,41 @@ def employee_can_edit_submitted_report_steps(report: DailyWorkReport) -> bool:
     return production_employee_may_edit(report)
 
 
+def manager_may_edit_submitted_production_report(report: DailyWorkReport) -> bool:
+    """Quản lý sửa BC đã nộp — đến khi duyệt / không duyệt."""
+    if not report or not report.pk:
+        return False
+    if report.status != DailyWorkReport.STATUS_SUBMITTED:
+        return False
+    if report.hod_reviewed or getattr(report, 'hod_rejected', False):
+        return False
+    return True
+
+
+def viewer_may_edit_declared_work_hours(viewer, report: DailyWorkReport) -> bool:
+    """Sửa «Thời gian làm việc»: sau khi gửi được sửa; duyệt/không duyệt thì khóa.
+
+    - Công nhân: còn trong hạn 24h sau nộp (và chưa duyệt).
+    - Quản lý: được sửa đến khi duyệt / không duyệt (không bị hạn 24h của NV).
+    """
+    if not report or not report.pk or not viewer:
+        return False
+    if report.hod_reviewed or getattr(report, 'hod_rejected', False):
+        return False
+    if report.status != DailyWorkReport.STATUS_SUBMITTED:
+        # Nhập hộ / nháp: cho phép khai báo giờ khi lưu.
+        if report.employee_id == viewer.id:
+            return production_employee_may_edit(report)
+        return can_proxy_enter_daily_report(viewer, report.employee)
+    if report.employee_id == viewer.id:
+        return employee_can_edit_submitted_report_steps(report)
+    if can_edit_production_norms(viewer, report):
+        return manager_may_edit_submitted_production_report(report)
+    if can_proxy_enter_daily_report(viewer, report.employee):
+        return manager_may_edit_submitted_production_report(report)
+    return False
+
+
 def report_steps_editable_for_viewer(viewer, report: DailyWorkReport) -> bool:
     """Công đoạn đã hoàn tất có được sửa trên màn tổng kết hay không."""
     if not report or not report.pk:
@@ -140,7 +175,7 @@ def report_steps_editable_for_viewer(viewer, report: DailyWorkReport) -> bool:
             return False
         if report.hod_reviewed:
             return production_manager_may_edit(report)
-        return production_employee_may_edit(report)
+        return manager_may_edit_submitted_production_report(report)
     if report.employee_id != viewer.id:
         return False
     if report.status == DailyWorkReport.STATUS_SUBMITTED:
@@ -187,7 +222,7 @@ def can_edit_production_report(viewer, report, *, can_submit, is_proxy=False) ->
             return False
         if report.hod_reviewed:
             return production_manager_may_edit(report)
-        return production_employee_may_edit(report)
+        return manager_may_edit_submitted_production_report(report)
     if is_proxy:
         if not can_proxy_enter_daily_report(viewer, report.employee):
             return False
@@ -212,7 +247,7 @@ def can_operate_production_entry(viewer, report, *, can_submit: bool, is_proxy: 
             return False
         if report.hod_reviewed:
             return production_manager_may_edit(report)
-        return production_employee_may_edit(report)
+        return manager_may_edit_submitted_production_report(report)
     if not _production_entry_actor_ok(viewer, report, can_submit=can_submit, is_proxy=is_proxy):
         return False
     return production_employee_may_edit(report)
@@ -361,6 +396,21 @@ def _product_accounted_work_hours(product: ProductionShiftProduct) -> Decimal:
 
 def _products_for_productivity(products: list[ProductionShiftProduct]) -> list[ProductionShiftProduct]:
     return [product for product in products if not _product_is_zero_reason_only(product)]
+
+
+def list_production_products(report: DailyWorkReport) -> list[ProductionShiftProduct]:
+    """Lấy công đoạn; tái dùng prefetch cache nếu có (tránh N+1 trên danh sách)."""
+    if not report or not report.pk:
+        return []
+    cache = getattr(report, '_prefetched_objects_cache', None) or {}
+    if 'production_products' in cache:
+        products = list(report.production_products.all())
+    else:
+        products = list(
+            report.production_products.prefetch_related('hourly_entries').all()
+        )
+    products.sort(key=lambda product: (product.sort_order, product.id))
+    return products
 
 
 def _entry_is_filled(entry: ProductionHourlyQuantity) -> bool:
@@ -1994,9 +2044,7 @@ def product_has_manager_fixable_anomaly(product: ProductionShiftProduct) -> bool
 def anomaly_product_ids_for_report(report: DailyWorkReport) -> set[int]:
     if not report or not report.pk:
         return set()
-    products = list(
-        report.production_products.prefetch_related('hourly_entries').order_by('sort_order', 'id')
-    )
+    products = list_production_products(report)
     return {
         product.id
         for product in _products_for_productivity(products)

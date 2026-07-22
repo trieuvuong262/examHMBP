@@ -399,7 +399,7 @@
                 <div class="alert alert-success border-0 small mb-3 py-2">
                     Đã gửi lúc {{ report.submitted_at|date:"H:i d/m/Y" }}.
                     {% if content_edit_only %}
-                    Có thể sửa mã hàng, công đoạn, định mức, sản lượng và thời gian — trước khi duyệt.
+                    Có thể sửa mã hàng, công đoạn, định mức, sản lượng, giờ công đoạn và thời gian làm việc — trước khi duyệt.
                     {% elif employee_edit_deadline %}
                     Có thể sửa công đoạn đã gửi đến {{ employee_edit_deadline|date:"H:i d/m/Y" }} — sau khi lưu bấm «Cập nhật báo cáo».
                     {% endif %}
@@ -457,13 +457,13 @@
 
             {% if content_edit_only %}
             <div class="jp-prod-review-desktop-bar d-none d-md-flex">
-                <p class="text-muted small mb-0 me-auto">Có thể sửa mã hàng, công đoạn, định mức, sản lượng và thời gian.</p>
+                <p class="text-muted small mb-0 me-auto">Có thể sửa mã hàng, công đoạn, định mức, sản lượng, giờ công đoạn và thời gian làm việc.</p>
                 {% if detail_url %}
                 <a href="{{ detail_url }}" class="btn btn-outline-hm fw-bold px-4">Quay lại báo cáo</a>
                 {% endif %}
             </div>
             <div class="jp-prod-review-sticky d-md-none">
-                <p class="text-muted small mb-2">Có thể sửa mã hàng, công đoạn, định mức, sản lượng và thời gian.</p>
+                <p class="text-muted small mb-2">Có thể sửa mã hàng, công đoạn, định mức, sản lượng, giờ công đoạn và thời gian làm việc.</p>
                 {% if detail_url %}
                 <a href="{{ detail_url }}" class="btn btn-outline-hm w-100 fw-bold">Quay lại báo cáo</a>
                 {% endif %}
@@ -578,11 +578,11 @@
 {% endif %}
 
 {% if phase == 'review' %}
-<div class="modal fade jp-prod-modal" id="prodSubmitConfirmModal" tabindex="-1" aria-labelledby="prodSubmitConfirmTitle" aria-hidden="true"{% if is_submitted and report.declared_work_hours %} data-keep-work-hours="{{ report.declared_work_hours }}"{% endif %}>
+<div class="modal fade jp-prod-modal" id="prodSubmitConfirmModal" tabindex="-1" aria-labelledby="prodSubmitConfirmTitle" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow">
             <div class="modal-header border-0 pb-0">
-                <h5 class="modal-title fw-bold" id="prodSubmitConfirmTitle">Gửi báo cáo</h5>
+                <h5 class="modal-title fw-bold" id="prodSubmitConfirmTitle">{% if is_submitted %}Cập nhật báo cáo{% else %}Gửi báo cáo{% endif %}</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
             </div>
             <div class="modal-body">
@@ -594,7 +594,7 @@
                     <i class="bi bi-exclamation-octagon-fill me-1"></i>
                     <span id="prodEfficiencyErrorText">Số liệu bạn gửi sai. Vui lòng kiểm tra lại sản lượng và định mức.</span>
                 </div>
-                <div class="mb-3{% if is_submitted and report.declared_work_hours %} d-none{% endif %}" id="prodWorkHoursWrap">
+                <div class="mb-3" id="prodWorkHoursWrap">
                     <label for="prodWorkHoursInput" class="form-label fw-bold small mb-1">
                         Thời gian làm việc <span class="text-danger">*</span>
                     </label>
@@ -615,13 +615,13 @@
                     <div class="invalid-feedback" id="prodWorkHoursFeedback"></div>
                 </div>
                 <p class="small text-muted mb-0">
-                    Bấm <strong>Gửi báo cáo</strong> để chốt ca hoặc <strong>Huỷ</strong> để quay lại.
+                    Bấm <strong>{% if is_submitted %}Cập nhật báo cáo{% else %}Gửi báo cáo{% endif %}</strong> để chốt ca hoặc <strong>Huỷ</strong> để quay lại.
                 </p>
             </div>
             <div class="modal-footer border-0 pt-0 flex-nowrap gap-2">
                 <button type="button" class="btn btn-outline-secondary flex-grow-1" data-bs-dismiss="modal">Huỷ</button>
                 <button type="button" class="btn btn-hm fw-bold flex-grow-1" id="prodSubmitConfirmBtn">
-                    <i class="bi bi-send-fill me-1"></i>Gửi báo cáo
+                    <i class="bi bi-send-fill me-1"></i>{% if is_submitted %}Cập nhật báo cáo{% else %}Gửi báo cáo{% endif %}
                 </button>
             </div>
         </div>
@@ -663,5 +663,5 @@
 
 {% include 'reports/includes/report_submit_loading.html' %}
 {% if hourly_grid %}{{ hourly_grid|json_script:"hourly-grid-data" }}{% endif %}
-<script src="{% static 'js/reports-production-hourly.js' %}?v=20260710b"></script>
+<script src="{% static 'js/reports-production-hourly.js' %}?v=20260722a"></script>
 {% endblock %}
