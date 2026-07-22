@@ -92,15 +92,13 @@
                         <div class="jp-proxy-work-hours">
                             <label class="form-label jp-proxy-label mb-1" for="declared-work-hours-{{ tab.shift }}">Thời gian làm việc</label>
                             <div class="input-group input-group-sm jp-proxy-work-hours-input">
-                                <input type="number"
+                                <input type="text"
                                        class="form-control"
                                        id="declared-work-hours-{{ tab.shift }}"
                                        name="declared_work_hours"
-                                       min="7.50"
-                                       max="15.99"
-                                       step="0.01"
                                        inputmode="decimal"
-                                       placeholder="9,5"
+                                       autocomplete="off"
+                                       placeholder="9.5 hoặc 9,5"
                                        value="{% if tab.declared_work_hours %}{{ tab.declared_work_hours }}{% else %}9.5{% endif %}"
                                        {% if not tab.can_edit_declared_work_hours %}readonly disabled{% endif %}>
                                 <span class="input-group-text">giờ</span>

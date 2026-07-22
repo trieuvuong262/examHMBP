@@ -1955,10 +1955,18 @@ def shift_is_started(report: DailyWorkReport) -> bool:
 
 
 def parse_decimal(value, default=None):
+    """Nhận cả dấu chấm và dấu phẩy thập phân (9.5 / 9,5)."""
     if value in (None, ''):
         return default
     try:
-        return Decimal(str(value).replace(',', '.'))
+        text = (
+            str(value)
+            .strip()
+            .replace('\u00a0', '')
+            .replace(' ', '')
+            .replace(',', '.')
+        )
+        return Decimal(text)
     except (InvalidOperation, ValueError):
         return default
 

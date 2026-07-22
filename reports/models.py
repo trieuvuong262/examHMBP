@@ -627,3 +627,40 @@ class DailyWorkReportEditLog(models.Model):
         if profile and profile.full_name:
             return profile.full_name
         return self.edited_by.get_username()
+
+
+class ProductionReportReminderLog(models.Model):
+    """Đã gửi push nhắc nộp báo cáo SX — tránh gửi trùng theo ca/đợt."""
+
+    WAVE_1 = 1
+    WAVE_2 = 2
+    WAVE_CHOICES = (
+        (WAVE_1, 'Đợt 1'),
+        (WAVE_2, 'Đợt 2'),
+    )
+
+    employee = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='production_report_reminder_logs',
+        verbose_name='Nhân viên',
+    )
+    report_date = models.DateField(verbose_name='Ngày báo cáo')
+    shift = models.CharField(max_length=20, choices=DailyWorkReport.SHIFT_CHOICES, verbose_name='Ca')
+    wave = models.PositiveSmallIntegerField(choices=WAVE_CHOICES, verbose_name='Đợt nhắc')
+    sent_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['employee', 'report_date', 'shift', 'wave'],
+                name='uniq_prod_report_reminder_employee_date_shift_wave',
+            ),
+        ]
+        ordering = ['-sent_at']
+        verbose_name = 'Log nhắc nộp báo cáo SX'
+        verbose_name_plural = 'Log nhắc nộp báo cáo SX'
+
+    def __str__(self):
+        return f'{self.employee} · {self.report_date} · {self.shift} · đợt {self.wave}'
+

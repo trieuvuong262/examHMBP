@@ -599,16 +599,14 @@
                         Thời gian làm việc <span class="text-danger">*</span>
                     </label>
                     <div class="input-group">
-                        <input type="number"
+                        <input type="text"
                                class="form-control"
                                id="prodWorkHoursInput"
                                name="declared_work_hours"
                                required
-                               min="7.50"
-                               max="15.99"
-                               step="0.01"
                                inputmode="decimal"
-                               placeholder="9,5"
+                               autocomplete="off"
+                               placeholder="9.5 hoặc 9,5"
                                value="{% if report.declared_work_hours %}{{ report.declared_work_hours }}{% else %}9.5{% endif %}">
                         <span class="input-group-text">giờ</span>
                     </div>

@@ -4,6 +4,7 @@ from .models import (
     DailyWorkReport,
     DailyWorkReportAttachment,
     DailyWorkReportLine,
+    ProductionReportReminderLog,
     ReportComment,
     ReportCommentAttachment,
     WeeklyWorkReport,
@@ -116,3 +117,11 @@ class ReportCommentAdmin(admin.ModelAdmin):
     )
     readonly_fields = ('created_at',)
     inlines = [ReportCommentAttachmentInline]
+
+
+@admin.register(ProductionReportReminderLog)
+class ProductionReportReminderLogAdmin(admin.ModelAdmin):
+    list_display = ('employee', 'report_date', 'shift', 'wave', 'sent_at')
+    list_filter = ('shift', 'wave', 'report_date')
+    search_fields = ('employee__username', 'employee__profile__full_name')
+    readonly_fields = ('sent_at',)

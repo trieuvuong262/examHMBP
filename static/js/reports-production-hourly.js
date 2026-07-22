@@ -314,14 +314,18 @@
         });
     }
 
+    function normalizeDecimalInput(raw) {
+        return String(raw || '').trim().replace(/\s+/g, '').replace(/,/g, '.');
+    }
+
     function validateProdWorkHours(raw) {
-        var text = String(raw || '').trim().replace(',', '.');
+        var text = normalizeDecimalInput(raw);
         if (!text) {
             return { ok: false, message: 'Nhập thời gian làm việc.' };
         }
         var hours = parseFloat(text);
         if (isNaN(hours)) {
-            return { ok: false, message: 'Thời gian làm việc không hợp lệ.' };
+            return { ok: false, message: 'Thời gian làm việc không hợp lệ (vd. 9.5 hoặc 9,5).' };
         }
         if (hours < 7.5 || hours >= 16) {
             return { ok: false, message: 'Thời gian làm việc phải từ 7,50 đến 15,99 giờ.' };

@@ -362,6 +362,12 @@ else
   echo "    WARNING: scripts/setup-schedule-reminder-cron.sh not found"
 fi
 
+if [[ -f scripts/setup-production-report-reminder-cron.sh ]]; then
+  bash scripts/setup-production-report-reminder-cron.sh || echo "    WARNING: setup-production-report-reminder-cron.sh failed"
+else
+  echo "    WARNING: scripts/setup-production-report-reminder-cron.sh not found"
+fi
+
 verify_nas_rclone
 verify_nas_dsm
 
@@ -379,6 +385,7 @@ echo "  python manage.py generate_webpush_vapid_keys   # lần đầu — copy v
 echo "  sudo bash scripts/setup-meal-push-cron.sh"
 echo "Web push nhắc lịch (mỗi phút):"
 echo "  sudo bash scripts/setup-schedule-reminder-cron.sh"
+echo "  sudo bash scripts/setup-production-report-reminder-cron.sh"
 echo "Backup NAS 00:00 hàng ngày (DB + source + media):"
 echo "  sudo bash scripts/setup-backup-cron.sh"
 echo ""
