@@ -237,6 +237,21 @@ class CapacityLoadRow:
     load_pct: float
     utilization_pct: float
 
+    @property
+    def load_bar_pct(self) -> int:
+        """Độ rộng thanh tải (0–100), dùng cho CSS width — không phụ thuộc locale."""
+        try:
+            return max(0, min(100, int(round(float(self.load_pct)))))
+        except (TypeError, ValueError):
+            return 0
+
+    @property
+    def util_bar_pct(self) -> int:
+        try:
+            return max(0, min(100, int(round(float(self.utilization_pct)))))
+        except (TypeError, ValueError):
+            return 0
+
 
 def build_capacity_load(*, date_from, date_to) -> list[CapacityLoadRow]:
     days = max((date_to - date_from).days + 1, 1)
