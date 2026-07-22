@@ -134,6 +134,7 @@ urlpatterns = [
     path('bom/', views.bom_list, name='bom_list'),
     path('thiet-lap/', views_hub.general_settings, name='general_settings'),
     path('api/tim-ma-sp/', views.product_code_search, name='product_code_search'),
-    path('api/cong-doan/', views.process_catalog_add, name='process_catalog_add'),
+    path('api/cong-doan/', views.process_catalog_search, name='process_catalog_search'),
+    path('api/cong-doan/them/', views.process_catalog_add, name='process_catalog_add'),
     path('xuat-excel/<slug:export_key>/', views_export.list_export, name='list_export'),
 ]

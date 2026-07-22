@@ -365,6 +365,23 @@ def product_code_search(request):
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
+@require_GET
+def process_catalog_search(request):
+    """Gõ tìm công đoạn trong danh mục."""
+    q = (request.GET.get('q') or '').strip()
+    from san_xuat.models import SxProcessName
+
+    qs = SxProcessName.objects.filter(is_active=True).order_by('sort_order', 'name')
+    if q:
+        qs = qs.filter(name__icontains=q)
+    rows = [
+        {'id': row.name, 'name': row.name, 'text': row.name}
+        for row in qs[:40]
+    ]
+    return JsonResponse({'results': rows})
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
 @require_POST
 def process_catalog_add(request):
     """Thêm tên công đoạn vào danh mục dùng chung."""

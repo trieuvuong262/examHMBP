@@ -1,7 +1,23 @@
-{# Nút + cạnh dropdown công đoạn — thêm tên vào danh mục SxProcessName #}
+{# TomSelect gõ tìm công đoạn + nút thêm danh mục #}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/css/tom-select.bootstrap5.min.css">
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/js/tom-select.complete.min.js"></script>
+<style>
+.jp-sx-process-picker .ts-wrapper {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.jp-sx-process-picker .ts-control {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.jp-sx-process-picker .jp-sx-process-add {
+  flex: 0 0 auto;
+}
+</style>
 <script>
 (function () {
   var addUrl = '{% url "san_xuat:process_catalog_add" %}';
+  var searchUrl = '{% url "san_xuat:process_catalog_search" %}';
   var csrf = (document.querySelector('[name=csrfmiddlewaretoken]') || {}).value || '';
   if (!csrf) {
     var m = document.cookie.match(/(?:^|; )csrftoken=([^;]+)/);
@@ -23,8 +39,47 @@
     wrap.appendChild(btn);
   }
 
+  function initTomSelect(sel) {
+    if (!sel || sel.tomselect || typeof TomSelect === 'undefined') return;
+    new TomSelect(sel, {
+      maxOptions: 80,
+      maxItems: 1,
+      allowEmptyOption: true,
+      placeholder: sel.dataset.placeholder || 'Gõ tìm công đoạn…',
+      dropdownParent: 'body',
+      openOnFocus: true,
+      create: false,
+      sortField: { field: 'text', direction: 'asc' },
+      loadThrottle: 200,
+      /* Gõ tìm trên danh mục (local + API khi gõ) */
+      load: function (query, callback) {
+        var q = (query || '').trim();
+        if (!q) {
+          callback();
+          return;
+        }
+        fetch(searchUrl + '?q=' + encodeURIComponent(q), {
+          headers: { 'Accept': 'application/json' },
+        })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            callback((data.results || []).map(function (row) {
+              return { value: row.id || row.name, text: row.text || row.name };
+            }));
+          })
+          .catch(function () { callback(); });
+      },
+    });
+  }
+
   function addOptionToAll(name) {
     document.querySelectorAll('select.jp-sx-process-select').forEach(function (sel) {
+      if (sel.tomselect) {
+        if (!sel.tomselect.options[name]) {
+          sel.tomselect.addOption({ value: name, text: name });
+        }
+        return;
+      }
       var exists = false;
       Array.prototype.forEach.call(sel.options, function (opt) {
         if ((opt.value || '').toLowerCase() === name.toLowerCase()) exists = true;
@@ -62,7 +117,10 @@
         }
         var saved = (res.data && res.data.name) || name;
         addOptionToAll(saved);
-        if (sel) {
+        if (sel && sel.tomselect) {
+          sel.tomselect.addOption({ value: saved, text: saved });
+          sel.tomselect.setValue(saved, true);
+        } else if (sel) {
           sel.value = saved;
           sel.dispatchEvent(new Event('change', { bubbles: true }));
         }
@@ -73,7 +131,10 @@
   }
 
   function initAll() {
-    document.querySelectorAll('select.jp-sx-process-select').forEach(wrapSelect);
+    document.querySelectorAll('select.jp-sx-process-select').forEach(function (sel) {
+      wrapSelect(sel);
+      initTomSelect(sel);
+    });
   }
 
   initAll();
@@ -86,7 +147,6 @@
     }
   });
 
-  /* Formset «Thêm dòng» — wrap select mới */
   var addRowBtn = document.getElementById('add-process-row');
   if (addRowBtn) {
     addRowBtn.addEventListener('click', function () {

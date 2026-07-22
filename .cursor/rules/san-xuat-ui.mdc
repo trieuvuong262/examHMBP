@@ -71,7 +71,7 @@ alwaysApply: false
 ## Công đoạn (danh mục)
 
 - Tên công đoạn lấy từ bảng **`SxProcessName`** (seed từ công đoạn phổ biến báo cáo SX).
-- Form **hồ sơ BOM**, **lệnh SX**, **thống kê SX**: dropdown `jp-sx-process-select` + nút **+** thêm tên vào danh mục (`api/cong-doan/`).
+- Form **hồ sơ BOM**, **lệnh SX**, **thống kê SX**: dropdown `jp-sx-process-select` (TomSelect **gõ tìm**) + nút **+** thêm tên vào danh mục (`api/cong-doan/them/`; tìm: `api/cong-doan/?q=`).
 - Không nhập free-text công đoạn trên form mới; giá trị cũ ngoài danh mục vẫn hiện kèm nhãn `(đang dùng)`.
 
 ## Copy & mô tả
