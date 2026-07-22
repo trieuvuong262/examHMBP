@@ -11,6 +11,7 @@ from reports.models import DailyWorkReport, WeeklyWorkReport
 from reports.period_utils import PERIOD_DAY, PERIOD_MONTH, PERIOD_WEEK
 
 PRODUCTION_EDIT_WINDOW = timedelta(hours=24)
+PRODUCTION_MANAGER_EDIT_WINDOW = timedelta(days=7)
 
 
 def _report_reference_date(report) -> date:
@@ -61,13 +62,13 @@ def production_employee_edit_deadline(report):
 
 
 def production_manager_edit_deadline(report):
-    """Hạn sửa của quản lý sau khi duyệt báo cáo SX."""
+    """Hạn hoàn duyệt / sửa của quản lý — 1 tuần kể từ khi duyệt báo cáo SX."""
     if not report.hod_reviewed:
         return None
     reviewed_at = getattr(report, 'hod_reviewed_at', None) or report.submitted_at or report.updated_at
     if not reviewed_at:
         return None
-    return reviewed_at + PRODUCTION_EDIT_WINDOW
+    return reviewed_at + PRODUCTION_MANAGER_EDIT_WINDOW
 
 
 def is_production_employee_edit_expired(report) -> bool:
@@ -229,7 +230,7 @@ def production_edit_denied_message(report, *, viewer=None) -> str:
     if report.hod_reviewed:
         if viewer and can_review_user_report(viewer, report):
             if is_production_manager_edit_expired(report):
-                return 'Đã quá 24 giờ kể từ khi duyệt — không thể chỉnh sửa.'
+                return 'Đã quá 1 tuần kể từ khi duyệt — không thể hoàn duyệt hoặc chỉnh sửa.'
         return 'Báo cáo đã được duyệt — bạn không thể chỉnh sửa.'
     if report.status == DailyWorkReport.STATUS_SUBMITTED:
         deadline = production_employee_edit_deadline(report)

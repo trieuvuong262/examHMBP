@@ -1,5 +1,5 @@
 {% if report.is_production_report and report.status == 'SUBMITTED' and can_edit_norm %}
-{% if can_approve or can_unapprove %}
+{% if can_approve or can_unapprove or unapprove_locked %}
 <div class="card border-0 jp-report-section-card jp-prod-approve-card mb-3">
     <div class="card-body d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 py-3">
         <div>
@@ -7,12 +7,19 @@
                 <i class="bi bi-clipboard-check me-1" aria-hidden="true"></i>Duyệt báo cáo
             </div>
             {% if can_approve %}
-            <p class="small text-muted mb-0">Báo cáo đã nộp — bấm <strong>Duyệt</strong> để chốt. Sau khi duyệt, nhân viên không sửa được; quản lý sửa trong 24 giờ.</p>
+            <p class="small text-muted mb-0">Báo cáo đã nộp — bấm <strong>Duyệt</strong> để chốt. Sau khi duyệt, nhân viên không sửa được; quản lý có thể hoàn duyệt trong 1 tuần.</p>
             {% elif can_unapprove %}
             <p class="small text-muted mb-0">
                 Đã duyệt
                 {% if report.hod_reviewed_at %}lúc {{ report.hod_reviewed_at|date:"H:i d/m/Y" }}{% endif %}
-                — bấm <strong>Hoàn duyệt</strong> để mở lại cho nhân viên (trong hạn 24h sau khi nộp).
+                — bấm <strong>Hoàn duyệt</strong> để mở lại
+                {% if unapprove_deadline %}(hạn đến {{ unapprove_deadline|date:"H:i d/m/Y" }}){% else %}trong 1 tuần sau khi duyệt{% endif %}.
+            </p>
+            {% elif unapprove_locked %}
+            <p class="small text-muted mb-0">
+                Đã duyệt
+                {% if report.hod_reviewed_at %}lúc {{ report.hod_reviewed_at|date:"H:i d/m/Y" }}{% endif %}
+                — đã quá 1 tuần, <strong>không thể hoàn duyệt</strong>.
             </p>
             {% endif %}
         </div>
@@ -34,6 +41,10 @@
                     <i class="bi bi-arrow-counterclockwise me-1"></i>Hoàn duyệt
                 </button>
             </form>
+            {% elif unapprove_locked %}
+            <button type="button" class="btn btn-outline-secondary fw-bold" disabled title="Đã quá 1 tuần kể từ khi duyệt">
+                <i class="bi bi-lock-fill me-1"></i>Đã khóa
+            </button>
             {% endif %}
         </div>
     </div>

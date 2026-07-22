@@ -399,7 +399,7 @@
                 <div class="alert alert-success border-0 small mb-3 py-2">
                     Đã gửi lúc {{ report.submitted_at|date:"H:i d/m/Y" }}.
                     {% if content_edit_only %}
-                    Chỉ sửa mã hàng, công đoạn, định mức và sản lượng — không đổi thời gian.
+                    Có thể sửa mã hàng, công đoạn, định mức, sản lượng và thời gian — trước khi duyệt.
                     {% elif employee_edit_deadline %}
                     Có thể sửa công đoạn đã gửi đến {{ employee_edit_deadline|date:"H:i d/m/Y" }} — sau khi lưu bấm «Cập nhật báo cáo».
                     {% endif %}
@@ -457,13 +457,13 @@
 
             {% if content_edit_only %}
             <div class="jp-prod-review-desktop-bar d-none d-md-flex">
-                <p class="text-muted small mb-0 me-auto">Chỉ sửa mã hàng, công đoạn, định mức và sản lượng — không đổi thời gian.</p>
+                <p class="text-muted small mb-0 me-auto">Có thể sửa mã hàng, công đoạn, định mức, sản lượng và thời gian.</p>
                 {% if detail_url %}
                 <a href="{{ detail_url }}" class="btn btn-outline-hm fw-bold px-4">Quay lại báo cáo</a>
                 {% endif %}
             </div>
             <div class="jp-prod-review-sticky d-md-none">
-                <p class="text-muted small mb-2">Chỉ sửa mã hàng, công đoạn, định mức và sản lượng.</p>
+                <p class="text-muted small mb-2">Có thể sửa mã hàng, công đoạn, định mức, sản lượng và thời gian.</p>
                 {% if detail_url %}
                 <a href="{{ detail_url }}" class="btn btn-outline-hm w-100 fw-bold">Quay lại báo cáo</a>
                 {% endif %}

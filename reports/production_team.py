@@ -25,6 +25,8 @@ from reports.production_shift_policy import (
 )
 from reports.report_profile import REPORT_PROFILE_PRODUCTION
 from reports.production_hourly import (
+    _combined_efficiency_pct,
+    _products_for_productivity,
     _report_efficiency_totals,
     _report_overall_efficiency_pct,
     compute_day_work_waste_summary,
@@ -503,7 +505,7 @@ SUMMARY_METRIC_EFFICIENCY = 'efficiency'
 SUMMARY_METRIC_TIME = 'time'
 SUMMARY_METRIC_QUANTITY = 'quantity'
 SUMMARY_METRIC_CHOICES = (
-    (SUMMARY_METRIC_EFFICIENCY, 'Hiệu suất'),
+    (SUMMARY_METRIC_EFFICIENCY, 'Hiệu suất TB'),
     (SUMMARY_METRIC_TIME, 'Hiệu suất theo thời gian'),
     (SUMMARY_METRIC_QUANTITY, 'Sản lượng'),
 )
@@ -697,13 +699,27 @@ def _efficiency_totals_for_reports(
     return total_qty, total_hours, total_expected
 
 
-def _weighted_parts(reports) -> tuple[Decimal, Decimal]:
-    """Trả (hiệu suất tổng × tổng giờ, tổng giờ) — khớp chi tiết báo cáo."""
-    total_qty, total_hours, total_expected = _efficiency_totals_for_reports(reports)
-    if total_expected <= 0 or total_hours <= 0:
-        return Decimal('0'), Decimal('0')
-    aggregate_pct = total_qty / total_expected * Decimal('100')
-    return aggregate_pct * total_hours, total_hours
+def _combined_efficiency_parts(reports) -> tuple[Decimal, Decimal]:
+    """Trả (HS TB × trọng số giờ, tổng giờ) — HS TB = HS sản lượng × HS thời gian."""
+    weighted = Decimal('0')
+    weight = Decimal('0')
+    for report in reports:
+        products = list(report.production_products.prefetch_related('hourly_entries'))
+        quantity_pct = _report_overall_efficiency_pct(_products_for_productivity(products))
+        day_times = compute_day_work_waste_summary(report, products)
+        combined = _combined_efficiency_pct(
+            quantity_pct,
+            day_times.get('time_efficiency_pct'),
+        )
+        if combined is None:
+            continue
+        _qty, hours, _expected = _report_efficiency_totals(
+            _products_for_productivity(products),
+        )
+        part_weight = hours if hours > 0 else Decimal('1')
+        weighted += Decimal(str(combined)) * part_weight
+        weight += part_weight
+    return weighted, weight
 
 
 def _time_efficiency_parts(reports) -> tuple[Decimal, Decimal]:
@@ -741,20 +757,20 @@ def _pct_from_parts(weighted: Decimal, hours: Decimal) -> float | None:
 
 
 def _weighted_efficiency_pct(reports: list[DailyWorkReport]) -> float | None:
-    """Hiệu suất TB — ΣSL / Σ(định mức × giờ), khớp tab chi tiết báo cáo."""
-    total_qty, _total_hours, total_expected = _efficiency_totals_for_reports(reports)
-    if total_expected <= 0:
-        return None
-    return float((total_qty / total_expected * 100).quantize(Decimal('0.01')))
+    """Hiệu suất TB — HS sản lượng × HS thời gian (trọng số theo giờ công đoạn)."""
+    return _pct_from_parts(*_combined_efficiency_parts(reports))
 
 
 def report_overall_efficiency_pct(report) -> float | None:
-    """Hiệu suất trung bình 1 báo cáo — khớp build_productivity_report."""
-    return _report_overall_efficiency_pct(list(report.production_products.all()))
+    """Hiệu suất TB 1 báo cáo — khớp day_summary.avg_efficiency_pct."""
+    products = list(report.production_products.prefetch_related('hourly_entries'))
+    quantity_pct = _report_overall_efficiency_pct(_products_for_productivity(products))
+    day_times = compute_day_work_waste_summary(report, products)
+    return _combined_efficiency_pct(quantity_pct, day_times.get('time_efficiency_pct'))
 
 
 def _day_efficiency_pct(reports: list[DailyWorkReport]) -> float | None:
-    """Hiệu suất trung bình trong ngày — trọng số theo thời gian từng công đoạn."""
+    """Hiệu suất trung bình trong ngày — HS sản lượng × HS thời gian."""
     return _weighted_efficiency_pct(reports)
 
 
@@ -765,7 +781,7 @@ def _metric_parts(reports, metric: str) -> tuple[Decimal, Decimal]:
     if metric == SUMMARY_METRIC_QUANTITY:
         qty = _quantity_total(reports)
         return qty, (Decimal('1') if qty > 0 else Decimal('0'))
-    return _weighted_parts(reports)
+    return _combined_efficiency_parts(reports)
 
 
 def _metric_value_from_parts(numerator: Decimal, denominator: Decimal, metric: str) -> float | None:

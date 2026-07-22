@@ -2,13 +2,25 @@
 <div class="jp-prod-productivity-wrap">
 
     {% if productivity.day_summary %}
-    <div class="jp-prod-day-summary row g-3 mb-4 row-cols-2 row-cols-md-3 row-cols-xl-5">
+    <div class="jp-prod-day-summary row g-3 mb-4 row-cols-2 row-cols-md-3 row-cols-xl-4">
         <div class="col">
             <div class="jp-prod-day-summary-card h-100">
                 <div class="jp-prod-day-summary-label">Hiệu suất TB trong ngày</div>
                 <div class="jp-prod-day-summary-value">
                     {% if productivity.day_summary.avg_efficiency_pct is not None %}
                     <span class="jp-eff {{ productivity.day_summary.avg_efficiency_pct|summary_efficiency_class }}">{{ productivity.day_summary.avg_efficiency_pct|efficiency_pct_display:2 }}%</span>
+                    {% else %}
+                    <span class="text-muted">—</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col">
+            <div class="jp-prod-day-summary-card h-100">
+                <div class="jp-prod-day-summary-label">Hiệu suất sản lượng</div>
+                <div class="jp-prod-day-summary-value">
+                    {% if productivity.day_summary.quantity_efficiency_pct is not None %}
+                    <span class="jp-eff {{ productivity.day_summary.quantity_efficiency_pct|summary_efficiency_class }}">{{ productivity.day_summary.quantity_efficiency_pct|efficiency_pct_display:2 }}%</span>
                     {% else %}
                     <span class="text-muted">—</span>
                     {% endif %}
@@ -25,6 +37,12 @@
                     <span class="text-muted">—</span>
                     {% endif %}
                 </div>
+            </div>
+        </div>
+        <div class="col">
+            <div class="jp-prod-day-summary-card h-100">
+                <div class="jp-prod-day-summary-label">Tổng hư hỏng</div>
+                <div class="jp-prod-day-summary-value">{{ productivity.day_summary.total_damaged_display|default:"0" }}</div>
             </div>
         </div>
         <div class="col">

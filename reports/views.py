@@ -2408,13 +2408,26 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
         and not report.hod_reviewed
         and not is_rejected
     )
-    can_unapprove = (
+    can_unapprove = False
+    unapprove_locked = False
+    unapprove_deadline = None
+    if (
         can_edit_norm
         and report.is_production_report
         and report.status == DailyWorkReport.STATUS_SUBMITTED
         and report.hod_reviewed
         and not is_rejected
-    )
+    ):
+        from reports.report_lock import (
+            is_production_manager_edit_expired,
+            production_manager_edit_deadline,
+            production_manager_may_edit,
+        )
+        unapprove_deadline = production_manager_edit_deadline(report)
+        if production_manager_may_edit(report):
+            can_unapprove = True
+        elif is_production_manager_edit_expired(report):
+            unapprove_locked = True
 
     def _detail_redirect():
         query = team_list_query_from_request(request)
@@ -2440,23 +2453,29 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
         approve_production_report(report)
         messages.success(
             request,
-            'Đã duyệt báo cáo. Bấm Hoàn duyệt nếu cần mở lại cho nhân viên chỉnh sửa.',
+            'Đã duyệt báo cáo. Có thể hoàn duyệt trong vòng 1 tuần sau khi duyệt.',
         )
         return _detail_redirect()
 
     if (
         request.method == 'POST'
         and request.POST.get('action') == 'unapprove_report'
-        and can_unapprove
     ):
-        from reports.report_lock import unapprove_production_report
+        if can_unapprove:
+            from reports.report_lock import unapprove_production_report
 
-        unapprove_production_report(report)
-        messages.success(
-            request,
-            'Đã hoàn duyệt — nhân viên có thể chỉnh sửa lại nếu còn trong hạn 24 giờ.',
-        )
-        return _detail_redirect()
+            unapprove_production_report(report)
+            messages.success(
+                request,
+                'Đã hoàn duyệt — nhân viên có thể chỉnh sửa lại nếu còn trong hạn 24 giờ.',
+            )
+            return _detail_redirect()
+        if unapprove_locked:
+            messages.error(
+                request,
+                'Đã quá 1 tuần kể từ khi duyệt — không thể hoàn duyệt.',
+            )
+            return _detail_redirect()
 
     # Đánh dấu nhận xét đã đọc (comment không phải của mình)
     if request.method == 'GET':
@@ -2690,6 +2709,8 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
         'can_review': can_review,
         'can_approve': can_approve,
         'can_unapprove': can_unapprove,
+        'unapprove_locked': unapprove_locked,
+        'unapprove_deadline': unapprove_deadline,
         'can_comment': can_comment,
         'comments': _report_comments_queryset(report),
         'can_edit_norm': can_edit_norm,

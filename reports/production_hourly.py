@@ -309,7 +309,7 @@ def _product_zero_reason(product: ProductionShiftProduct) -> str:
 
 
 def _product_is_zero_reason_only(product: ProductionShiftProduct) -> bool:
-    """Phiên SL=0 chỉ ghi lý do — không đưa vào báo cáo năng suất/hiệu suất."""
+    """Phiên SL=0 chỉ ghi lý do — không tính hiệu suất sản lượng, vẫn ghi nhận giờ làm."""
     if product.total_quantity is None:
         return False
     try:
@@ -319,6 +319,44 @@ def _product_is_zero_reason_only(product: ProductionShiftProduct) -> bool:
     if qty != 0:
         return False
     return bool(_product_zero_reason(product))
+
+
+def _product_accounted_work_hours(product: ProductionShiftProduct) -> Decimal:
+    """Giờ ghi vào thời gian thực tế — gồm cả công đoạn SL=0 có lý do."""
+    if _product_is_zero_reason_only(product):
+        if product.started_at and product.ended_at:
+            return session_effective_hours(product)
+        hours = Decimal('0')
+        for entry in product.hourly_entries.all():
+            if not _entry_is_filled(entry):
+                continue
+            if entry.slot_index < product.first_slot_index:
+                continue
+            hours += _entry_hours(entry)
+        return hours
+
+    norm = product.norm_per_hour
+    if not norm or norm <= 0:
+        return Decimal('0')
+
+    session_mode = is_session_reported_product(product)
+    product_qty = Decimal('0')
+    product_hours = Decimal('0')
+    for entry in product.hourly_entries.all():
+        if not _entry_is_filled(entry):
+            continue
+        if entry.slot_index < product.first_slot_index:
+            continue
+        qty = entry.quantity or Decimal('0')
+        if qty <= 0:
+            continue
+        product_qty += Decimal(str(qty))
+        product_hours += _entry_hours(entry)
+    if product_qty <= 0:
+        return Decimal('0')
+    if session_mode and product.started_at and product.ended_at:
+        return session_effective_hours(product)
+    return product_hours
 
 
 def _products_for_productivity(products: list[ProductionShiftProduct]) -> list[ProductionShiftProduct]:
@@ -584,6 +622,8 @@ def update_session_product(
     damaged_quantity: int = 0,
     note: str = '',
     zero_reason: str = '',
+    start_time: str = '',
+    end_time: str = '',
     updated_by=None,
 ) -> ProductionShiftProduct:
     """Chỉnh sửa một công đoạn đã hoàn tất trên màn tổng kết — cập nhật thông tin + chia lại sản lượng."""
@@ -592,6 +632,33 @@ def update_session_product(
     norm = parse_decimal(norm_per_hour)
     total_qty = parse_non_negative_decimal(total_quantity, default=Decimal('0'))
     reason = (zero_reason or '').strip()
+    start_hm = (start_time or '').strip()
+    end_hm = (end_time or '').strip()
+
+    if start_hm or end_hm:
+        if not start_hm or not end_hm:
+            raise ValueError('Chọn đủ giờ bắt đầu và giờ kết thúc.')
+        report = product.report
+        shift = _shift_for_report(report)
+        interval = _proxy_clock_datetimes(report.report_date, shift, start_hm, end_hm)
+        if not interval:
+            raise ValueError('Giờ bắt đầu / kết thúc không hợp lệ hoặc nằm ngoài khung ca.')
+        start_dt, end_dt = interval
+        for row in report.production_products.filter(
+            started_at__isnull=False,
+            ended_at__isnull=False,
+        ).exclude(pk=product.pk).values('started_at', 'ended_at'):
+            old_start = row['started_at']
+            old_end = row['ended_at']
+            if old_start is None or old_end is None:
+                continue
+            if start_dt < old_end and end_dt > old_start:
+                raise ValueError(
+                    'Khoảng giờ bị chồng với công đoạn đã có. '
+                    'Có thể bắt đầu đúng bằng giờ kết thúc công đoạn trước.'
+                )
+        product.started_at = start_dt
+        product.ended_at = end_dt
 
     if total_qty == 0:
         if not reason:
@@ -1083,11 +1150,27 @@ def _zero_hour_step_label(product: ProductionShiftProduct) -> str:
 def _report_overall_efficiency_pct(
     products: list[ProductionShiftProduct],
 ) -> float | None:
-    """Hiệu suất TB trong ngày — trọng số theo giờ từng công đoạn: ΣSL / Σ(định mức × giờ)."""
+    """Hiệu suất sản lượng — trọng số theo giờ: ΣSL / Σ(định mức × giờ)."""
     total_qty, total_hours, total_expected = _report_efficiency_totals(products)
     if total_expected <= 0 or total_hours <= 0:
         return None
     return float((total_qty / total_expected * 100).quantize(Decimal('0.01')))
+
+
+def _combined_efficiency_pct(
+    quantity_efficiency_pct: float | None,
+    time_efficiency_pct: float | None,
+) -> float | None:
+    """Hiệu suất TB = hiệu suất sản lượng × hiệu suất thời gian."""
+    if quantity_efficiency_pct is None or time_efficiency_pct is None:
+        return None
+    return float(
+        (
+            Decimal(str(quantity_efficiency_pct))
+            * Decimal(str(time_efficiency_pct))
+            / Decimal('100')
+        ).quantize(Decimal('0.01'))
+    )
 
 
 def _work_item_from_entry(
@@ -1096,13 +1179,19 @@ def _work_item_from_entry(
     *,
     product_efficiency_pct: float | None = None,
 ) -> dict:
-    code = (product.product_code or '').strip() or '—'
-    process = (product.process_name or '').strip() or 'Chưa gắn mã'
-    efficiency_pct = (
-        product_efficiency_pct
-        if product_efficiency_pct is not None
-        else _product_efficiency_pct(product)
-    )
+    zero_only = _product_is_zero_reason_only(product)
+    if zero_only:
+        code = 'Sản lượng 0'
+        process = _product_zero_reason(product) or '—'
+        efficiency_pct = None
+    else:
+        code = (product.product_code or '').strip() or '—'
+        process = (product.process_name or '').strip() or 'Chưa gắn mã'
+        efficiency_pct = (
+            product_efficiency_pct
+            if product_efficiency_pct is not None
+            else _product_efficiency_pct(product)
+        )
     metrics = _slot_metrics_from_entry(
         product, entry, product_efficiency_pct=efficiency_pct,
     )
@@ -1119,7 +1208,8 @@ def _work_item_from_entry(
         'hours_display': _format_hours(metrics['hours']),
         'efficiency_pct': efficiency_pct,
         'damaged_quantity': entry.damaged_quantity or 0,
-        'note': (entry.note or '').strip(),
+        'note': (entry.note or '').strip() or (_product_zero_reason(product) if zero_only else ''),
+        'is_zero_reason_only': zero_only,
     }
 
 
@@ -1190,8 +1280,8 @@ def compute_day_work_waste_summary(
 ) -> dict:
     """Thời gian làm thực tế và hao phí = giờ khai báo − giờ thực tế.
 
-    `Thời gian thực tế` đồng bộ với tổng `Thời gian/H` theo từng công đoạn
-    (thay vì tính theo khoảng span từ công đoạn đầu tới công đoạn cuối).
+    `Thời gian thực tế` đồng bộ với tổng giờ từng công đoạn (kể cả SL=0 có lý do),
+    thay vì tính theo khoảng span từ công đoạn đầu tới công đoạn cuối.
     """
     empty = {
         'work_minutes': Decimal('0'),
@@ -1202,28 +1292,8 @@ def compute_day_work_waste_summary(
         'time_efficiency_pct': None,
     }
     work_hours = Decimal('0')
-    for product in _products_for_productivity(products):
-        norm = product.norm_per_hour
-        if not norm or norm <= 0:
-            continue
-        session_mode = is_session_reported_product(product)
-        product_qty = Decimal('0')
-        product_hours = Decimal('0')
-        for entry in product.hourly_entries.all():
-            if not _entry_is_filled(entry):
-                continue
-            if entry.slot_index < product.first_slot_index:
-                continue
-            qty = entry.quantity or Decimal('0')
-            if qty <= 0:
-                continue
-            product_qty += Decimal(str(qty))
-            product_hours += _entry_hours(entry)
-        if product_qty <= 0:
-            continue
-        if session_mode and product.started_at and product.ended_at:
-            product_hours = session_effective_hours(product)
-        work_hours += product_hours
+    for product in products:
+        work_hours += _product_accounted_work_hours(product)
 
     work_minutes = (work_hours * Decimal('60')).quantize(Decimal('1'))
     if work_minutes <= 0:
@@ -1282,7 +1352,8 @@ def build_work_day_timeline(report: DailyWorkReport) -> dict:
 
         entries_in_slot: list[tuple[ProductionShiftProduct, ProductionHourlyQuantity]] = []
         has_session_event = False
-        for product in productivity_products:
+        # Gồm cả SL=0 có lý do — thời gian vẫn ghi nhận, không tính là khoảng trống.
+        for product in products:
             if _session_event_in_slot(product, slot_start, slot_end):
                 has_session_event = True
             for entry in product.hourly_entries.all():
@@ -1350,8 +1421,53 @@ def build_productivity_report(report: DailyWorkReport) -> dict:
     productivity_products = _products_for_productivity(products)
 
     for product in products:
-        if _product_is_zero_reason_only(product):
+        zero_only = _product_is_zero_reason_only(product)
+        if zero_only:
+            reason = _product_zero_reason(product)
+            prod_hours = _product_accounted_work_hours(product)
+            started_display, ended_display = session_time_displays(product)
+            for entry in product.hourly_entries.order_by('slot_index'):
+                if not _entry_is_filled(entry):
+                    continue
+                if entry.slot_index < product.first_slot_index:
+                    continue
+                slot = slot_by_index(entry.slot_index, shift)
+                hours = _entry_hours(entry)
+                hourly_rows.append({
+                    'product_id': product.id,
+                    'slot_index': entry.slot_index,
+                    'slot_label': slot.label if slot else str(entry.slot_index),
+                    'product_code': 'Sản lượng 0',
+                    'process_name': reason or '—',
+                    'quantity': entry.quantity or 0,
+                    'norm_per_hour': None,
+                    'hours': float(hours),
+                    'hours_display': _format_hours(hours),
+                    'efficiency_pct': None,
+                    'zero_reason': reason,
+                    'damaged_quantity': entry.damaged_quantity or 0,
+                    'note': (entry.note or '').strip() or reason,
+                    'is_unfinalized': False,
+                    'is_zero_reason_only': True,
+                })
+            product_summaries.append({
+                'product_id': product.id,
+                'product_code': 'Sản lượng 0',
+                'process_name': reason or '—',
+                'quantity': 0,
+                'norm_per_hour': None,
+                'hours': float(prod_hours),
+                'hours_display': _format_hours(prod_hours),
+                'efficiency_pct': None,
+                'started_at_display': started_display,
+                'ended_at_display': ended_display,
+                'damaged_quantity': 0,
+                'note': reason,
+                'updated_by_name': product_updated_by_display(product, report),
+                'is_zero_reason_only': True,
+            })
             continue
+
         code = (product.product_code or '').strip() or '—'
         process = (product.process_name or '').strip() or 'Chưa gắn mã'
         norm = product.norm_per_hour
@@ -1395,6 +1511,7 @@ def build_productivity_report(report: DailyWorkReport) -> dict:
                 'damaged_quantity': entry.damaged_quantity,
                 'note': (entry.note or '').strip(),
                 'is_unfinalized': not (product.product_code or '').strip(),
+                'is_zero_reason_only': False,
             })
 
         if session_mode and prod_qty > 0 and norm and norm > 0:
@@ -1423,6 +1540,7 @@ def build_productivity_report(report: DailyWorkReport) -> dict:
                 'damaged_quantity': product.total_damaged_quantity or 0,
                 'note': (product.completion_note or '').strip(),
                 'updated_by_name': product_updated_by_display(product, report),
+                'is_zero_reason_only': False,
             })
 
     hourly_rows.sort(
@@ -1446,7 +1564,14 @@ def build_productivity_report(report: DailyWorkReport) -> dict:
         proxy_entered_by_name = user_display_name(report.proxy_entered_by)
 
     work_timeline = build_work_day_timeline(report)
-    day_times = compute_day_work_waste_summary(report, productivity_products)
+    day_times = compute_day_work_waste_summary(report, products)
+    quantity_efficiency_pct = overall_efficiency_pct
+    time_efficiency_pct = day_times['time_efficiency_pct']
+    avg_efficiency_pct = _combined_efficiency_pct(
+        quantity_efficiency_pct,
+        time_efficiency_pct,
+    )
+    total_damaged = sum(int(product.total_damaged_quantity or 0) for product in products)
 
     return {
         'hourly_rows': hourly_rows,
@@ -1459,8 +1584,11 @@ def build_productivity_report(report: DailyWorkReport) -> dict:
         'overall_efficiency_pct': overall_efficiency_pct,
         'overall_quantity_per_hour': overall_quantity_per_hour,
         'day_summary': {
-            'avg_efficiency_pct': overall_efficiency_pct,
-            'time_efficiency_pct': day_times['time_efficiency_pct'],
+            'avg_efficiency_pct': avg_efficiency_pct,
+            'quantity_efficiency_pct': quantity_efficiency_pct,
+            'time_efficiency_pct': time_efficiency_pct,
+            'total_damaged': total_damaged,
+            'total_damaged_display': format_production_quantity(total_damaged),
             'work_time_display': day_times['work_minutes_display'],
             'declared_work_time_display': _format_declared_work_hours(
                 getattr(report, 'declared_work_hours', None),

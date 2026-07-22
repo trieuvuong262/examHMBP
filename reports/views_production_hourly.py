@@ -339,7 +339,7 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
     if content_edit_only and action and action not in ('edit_session', 'add_session', 'delete_session'):
         messages.error(
             request,
-            'Chỉ được sửa mã hàng, công đoạn, định mức và sản lượng — không thể thay đổi thời gian.',
+            'Chỉ được sửa / thêm / xóa công đoạn trên màn chỉnh sửa báo cáo đã nộp.',
         )
         return redirect(_production_redirect(report_date, shift, for_user or None, content_edit_extra))
 
@@ -516,7 +516,10 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
             return redirect(_production_redirect(report_date, shift, for_user or None, 'phase=complete_product'))
         if completed:
             if total_qty == 0:
-                messages.success(request, f'Đã ghi nhận lý do sản lượng 0: {zero_reason[:120]}')
+                messages.success(
+                    request,
+                    f'Đã ghi nhận công đoạn sản lượng 0 ({zero_reason[:80]}) — thời gian vẫn tính vào báo cáo.',
+                )
             else:
                 messages.success(request, f'Đã lưu {code} — tổng {total_qty.normalize()} sản phẩm.')
             from reports.report_edit_log import log_report_edit
@@ -555,6 +558,8 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
         damaged_quantity = parse_int(request.POST.get('damaged_quantity'))
         note = (request.POST.get('note') or '').strip()
         zero_reason = (request.POST.get('zero_reason') or '').strip()
+        start_time = (request.POST.get('start_time') or '').strip()
+        end_time = (request.POST.get('end_time') or '').strip()
         if total_qty < 0:
             messages.error(request, 'Nhập sản lượng hợp lệ.')
             return redirect(_production_redirect(report_date, shift, for_user or None, review_extra))
@@ -574,6 +579,8 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
                 damaged_quantity=damaged_quantity,
                 note=note,
                 zero_reason=zero_reason,
+                start_time=start_time,
+                end_time=end_time,
                 updated_by=request.user,
             )
         except ValueError as exc:

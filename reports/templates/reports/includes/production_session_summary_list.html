@@ -155,11 +155,26 @@
                         <input type="number" name="total_quantity" class="form-control" min="0" step="0.01" required
                                inputmode="decimal" value="0" readonly>
                     </div>
+                    <div class="row g-2">
+                        <div class="col-6 mb-2">
+                            <label class="form-label fw-bold small mb-1">Giờ bắt đầu</label>
+                            <input type="time" name="start_time" class="form-control" step="60" required
+                                   value="{{ row.started_at_display }}">
+                        </div>
+                        <div class="col-6 mb-2">
+                            <label class="form-label fw-bold small mb-1">Giờ kết thúc</label>
+                            <input type="time" name="end_time" class="form-control" step="60" required
+                                   value="{{ row.ended_at_display }}">
+                        </div>
+                    </div>
                     <div class="mb-3">
                         <label class="form-label fw-bold small mb-1">Lý do sản lượng 0 <span class="text-danger">*</span></label>
                         <input type="text" name="zero_reason" class="form-control" maxlength="200" required
                                autocomplete="off" value="{{ row.zero_reason }}">
                     </div>
+                    <p class="small text-muted mb-3">
+                        Không cho chồng giờ với công đoạn đã có. Có thể bắt đầu đúng bằng giờ kết thúc công đoạn trước.
+                    </p>
                     {% else %}
                     <div class="mb-2">
                         <label class="form-label fw-bold small mb-1">Mã hàng</label>
@@ -185,6 +200,18 @@
                     </div>
                     <div class="row g-2">
                         <div class="col-6 mb-2">
+                            <label class="form-label fw-bold small mb-1">Giờ bắt đầu</label>
+                            <input type="time" name="start_time" class="form-control" step="60" required
+                                   value="{{ row.started_at_display }}">
+                        </div>
+                        <div class="col-6 mb-2">
+                            <label class="form-label fw-bold small mb-1">Giờ kết thúc</label>
+                            <input type="time" name="end_time" class="form-control" step="60" required
+                                   value="{{ row.ended_at_display }}">
+                        </div>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-6 mb-2">
                             <label class="form-label fw-bold small mb-1">Hư hỏng <span class="text-muted fw-normal">(tuỳ chọn)</span></label>
                             <input type="number" name="damaged_quantity" class="form-control" min="0" step="1"
                                    inputmode="numeric" value="{{ row.session_damaged }}">
@@ -200,6 +227,9 @@
                         <input type="text" name="note" class="form-control" maxlength="500"
                                autocomplete="off" value="{{ row.session_note }}">
                     </div>
+                    <p class="small text-muted mb-3">
+                        Không cho chồng giờ với công đoạn đã có. Có thể bắt đầu đúng bằng giờ kết thúc công đoạn trước.
+                    </p>
                     {% endif %}
                     <div class="d-flex gap-2">
                         <button type="submit" class="btn btn-hm fw-bold">Lưu thay đổi</button>
