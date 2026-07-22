@@ -637,17 +637,15 @@ SX_LIST_GRIDS: dict[str, dict[str, Any]] = {
     ),
     'capacity_catalog': _spec(
         _cols(
-            _col('code', 'Mã', required=True),
-            _col('name', 'Tên', weight=130),
-            _col('team_label', 'Nhãn Thống kê sản xuất', weight=140, default=False),
-            _col('capacity', 'Năng lực/ngày', weight=100, align='end'),
-            _col('uom', 'Đơn vị tính', weight=80, default=False),
+            _col('name', 'Tổ / chuyền', required=True, weight=160),
+            _col('team_label', 'Nhãn thống kê', weight=140, default=False),
+            _col('capacity', 'NL/ngày', weight=100, align='end'),
+            _col('uom', 'ĐVT', weight=70, default=False),
             _col('status', 'Trạng thái', weight=90),
             meta=True,
             actions=False,
         ),
         {
-            'code': 'code',
             'name': 'name',
             'team_label': 'team_label',
             'capacity': 'capacity_per_day',

@@ -160,19 +160,9 @@ def seed_vps_hub(*, product_codes: list[str], user=None, visible: bool = True) -
         .first()
     ) or wc_may1
     if not wc_may1:
-        wc_may1, _ = SxWorkCenter.objects.update_or_create(
-            code='TO-MAY-1',
-            defaults={
-                'is_demo': demo,
-                'name': 'Tổ may 1',
-                'capacity_per_day': Decimal('320'),
-                'team_label': 'Tổ May 1',
-                'is_active': True,
-                'notes': note,
-            },
+        raise RuntimeError(
+            'Chưa có tổ/chuyền HR (HRD-*). Chạy: python manage.py sync_capacity_from_hrm'
         )
-        wc_may2 = wc_may1
-        wc_dg = wc_may1
     if not wc_may2:
         wc_may2 = wc_may1
     if not wc_dg:

@@ -197,9 +197,9 @@ def sync_capacity_from_hrm(
     result.deactivated += stale.update(is_active=False)
 
     if deactivate_legacy:
-        result.deactivated += SxWorkCenter.objects.filter(
-            code__in=LEGACY_FAKE_CODES
-        ).update(is_active=False)
-        SxTeamHrMap.objects.filter(team_label__in=LEGACY_FAKE_TEAMS).update(is_active=False)
+        legacy_qs = SxWorkCenter.objects.filter(code__in=LEGACY_FAKE_CODES)
+        result.deactivated += legacy_qs.count()
+        legacy_qs.delete()
+        SxTeamHrMap.objects.filter(team_label__in=LEGACY_FAKE_TEAMS).delete()
 
     return result

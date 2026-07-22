@@ -941,7 +941,15 @@ def build():
         [
             "Lọc theo tháng / khoảng ngày, mã, tên tổ",
             "Xem năng lực kỳ, tải %, sản lượng đạt, tận dụng %",
-            "Nút <b>Thêm tổ/chuyền</b> (quyền Tạo) — khai báo công suất/ngày",
+            "Nút <b>Thêm tổ/chuyền</b> (quyền Tạo) — khai báo công suất/ngày "
+            "(hoặc đồng bộ từ bộ phận HR phòng SẢN XUẤT)",
+            "Công thức tải kỳ:",
+            "<b>NL kỳ</b> = NL/ngày × số ngày trong kỳ",
+            "<b>Còn lại</b> = tổng (SL lệnh − SL đã làm) của LSX còn giao việc mở trên tổ đó",
+            "<b>Tải %</b> = Còn lại ÷ NL kỳ × 100",
+            "<b>SX đạt kỳ</b> = tổng SL đạt (TKSX đã xác nhận) khớp nhãn tổ trong kỳ",
+            "<b>Tận dụng %</b> = SX đạt kỳ ÷ NL kỳ × 100",
+            "Màu vàng / đỏ theo ngưỡng cảnh báo tải (mặc định 80% / 100%)",
             "Không sửa trực tiếp trên bảng tải kỳ",
         ],
     )
@@ -1172,12 +1180,29 @@ def build():
     story.append(_table(qc_set_rows, [7.0 * cm, 2.0 * cm, 7.0 * cm]))
 
     story.append(P("9.5. Năng lực, danh sách & OEE", styles["H2VN"]))
+    story.append(
+        P(
+            "Màn <b>Năng lực SX</b> (/san-xuat/nang-luc/) tính tải theo khoảng ngày đã lọc. "
+            "Mỗi tổ/chuyền có <b>NL/ngày</b> (khai báo hoặc đồng bộ HR). Công thức:",
+            styles["BodyVN"],
+        )
+    )
+    story.append(
+        P(
+            "• <b>NL kỳ</b> = NL/ngày × số ngày trong kỳ<br/>"
+            "• <b>Còn lại</b> = tổng (SL lệnh − SL đã làm) của LSX còn giao việc mở trên tổ đó<br/>"
+            "• <b>Tải %</b> = Còn lại ÷ NL kỳ × 100<br/>"
+            "• <b>SX đạt kỳ</b> = tổng SL đạt (TKSX đã xác nhận) khớp nhãn tổ trong kỳ<br/>"
+            "• <b>Tận dụng %</b> = SX đạt kỳ ÷ NL kỳ × 100",
+            styles["BodyVN"],
+        )
+    )
     cap_rows = [
         [P("<b>Thiết lập</b>", h), P("<b>Mặc định</b>", h), P("<b>Ghi chú</b>", h)],
         [
             P("Ngưỡng cảnh báo / quá tải năng lực (%)", c),
             P("80 / 100", c),
-            P("Màu vàng / đỏ trên màn Năng lực SX", c),
+            P("Màu vàng / đỏ trên màn Năng lực SX (theo Tải %)", c),
         ],
         [
             P("Số ngày lọc danh sách mặc định", c),
