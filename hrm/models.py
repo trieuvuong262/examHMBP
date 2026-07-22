@@ -469,7 +469,9 @@ class Profile(models.Model):
                 user_obj.is_staff = False
                 user_obj.save()
 
-        if user_obj.username != 'admin' and not user_obj.is_superuser:
+        # Nghỉ làm → khóa đăng nhập Portal (kể cả Giám đốc/superuser).
+        # Chỉ tài khoản hệ thống `admin` được giữ nguyên.
+        if user_obj.username != 'admin':
             desired_active = self.is_employed
             if user_obj.is_active != desired_active:
                 user_obj.is_active = desired_active
