@@ -30,7 +30,7 @@ class BomVersionMetaForm(forms.ModelForm):
         widgets = {
             'version_label': forms.TextInput(attrs={'class': 'form-control'}),
             'overhead_pct': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0'}),
-            'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+            'notes': forms.TextInput(attrs={'class': 'form-control'}),
         }
 
 
