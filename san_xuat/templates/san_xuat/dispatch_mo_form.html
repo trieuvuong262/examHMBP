@@ -47,9 +47,14 @@
             <label class="form-label small text-muted" for="{{ form.planned_end.id_for_label }}">{{ form.planned_end.label }}</label>
             {{ form.planned_end }}
           </div>
-          <div class="col-12">
+          <div class="col-12 col-md-6">
             <label class="form-label small text-muted" for="{{ form.team_label.id_for_label }}">{{ form.team_label.label }}</label>
             {{ form.team_label }}
+          </div>
+          <div class="col-12 col-md-6">
+            <label class="form-label small text-muted" for="{{ form.process_name.id_for_label }}">{{ form.process_name.label }}</label>
+            {{ form.process_name }}
+            <div class="form-text small">Công đoạn lấy từ BOM của mã SP sau khi tạo lệnh (có thể sửa trên chi tiết).</div>
           </div>
           <div class="col-12">
             <label class="form-label small text-muted" for="{{ form.notes.id_for_label }}">{{ form.notes.label }}</label>

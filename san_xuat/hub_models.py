@@ -276,6 +276,13 @@ class SxProductionOrder(DemoMarkedModel):
     planned_start = models.DateField(null=True, blank=True)
     planned_end = models.DateField(null=True, blank=True)
     team_label = models.CharField(max_length=80, blank=True, default='')
+    process_name = models.CharField(
+        max_length=120,
+        blank=True,
+        default='',
+        verbose_name='Công đoạn',
+        help_text='Công đoạn chính trên lệnh (lấy từ BOM khi có).',
+    )
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT, db_index=True)
     is_sample = models.BooleanField(
         default=False,

@@ -1221,6 +1221,7 @@ def dispatch_mo_create(request):
                     planned_start=form.cleaned_data.get('planned_start'),
                     planned_end=form.cleaned_data.get('planned_end'),
                     team_label=form.cleaned_data.get('team_label') or '',
+                    process_name=form.cleaned_data.get('process_name') or '',
                     notes=form.cleaned_data.get('notes') or '',
                     user=request.user,
                 )
@@ -1432,25 +1433,27 @@ def dispatch_mo_detail(request, pk: int):
         .get(pk=pk)
     )
     can_update = _perm_ctx(request).get('can_update')
+    update_form = None
 
     # Handle actions
     if request.method == 'POST':
         action = (request.POST.get('action') or '').strip()
 
         if action == 'save' and mo.status == SxProductionOrder.STATUS_DRAFT and can_update:
-            form = ProductionOrderUpdateForm(request.POST)
+            form = ProductionOrderUpdateForm(request.POST, bom=mo.bom_version)
             if form.is_valid():
                 mo.qty = form.cleaned_data['qty']
                 mo.due_date = form.cleaned_data.get('due_date')
                 mo.planned_start = form.cleaned_data.get('planned_start')
                 mo.planned_end = form.cleaned_data.get('planned_end')
                 mo.team_label = form.cleaned_data.get('team_label') or ''
+                mo.process_name = form.cleaned_data.get('process_name') or ''
                 mo.notes = form.cleaned_data.get('notes') or ''
                 mo.save()
                 messages.success(request, 'Đã lưu LSX.')
                 return redirect('san_xuat:dispatch_mo_detail', pk=mo.pk)
             messages.error(request, 'Không lưu được LSX — kiểm tra lại form.')
-
+            update_form = form
         elif action == 'release' and mo.status == SxProductionOrder.STATUS_DRAFT and can_update:
             try:
                 mo_release(mo_id=mo.pk, user=request.user)
@@ -1502,14 +1505,19 @@ def dispatch_mo_detail(request, pk: int):
                 messages.success(request, f'Đã tạo yêu cầu nhập thành phẩm {fg_req.code}.')
                 return redirect('san_xuat:dispatch_fg_receipt_req_detail', pk=fg_req.pk)
 
-    update_form = ProductionOrderUpdateForm(initial={
-        'qty': mo.qty,
-        'due_date': mo.due_date,
-        'planned_start': mo.planned_start,
-        'planned_end': mo.planned_end,
-        'team_label': mo.team_label,
-        'notes': mo.notes,
-    })
+    if update_form is None:
+        update_form = ProductionOrderUpdateForm(
+            bom=mo.bom_version,
+            initial={
+                'qty': mo.qty,
+                'due_date': mo.due_date,
+                'planned_start': mo.planned_start,
+                'planned_end': mo.planned_end,
+                'team_label': mo.team_label,
+                'process_name': mo.process_name,
+                'notes': mo.notes,
+            },
+        )
 
     ycx_list = (
         mo.material_issue_requests.select_related('stock_issue')

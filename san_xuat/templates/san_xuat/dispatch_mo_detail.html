@@ -173,10 +173,14 @@
           <div class="label">Hạn</div>
           <div class="value">{% if mo.due_date %}{{ mo.due_date|date:"d/m/Y" }}{% else %}—{% endif %}</div>
         </div>
-        {% if mo.team_label %}
+        {% if mo.team_label or mo.process_name %}
         <div>
-          <div class="label">Tổ / công đoạn</div>
-          <div class="value">{{ mo.team_label }}</div>
+          <div class="label">Tổ / chuyền</div>
+          <div class="value">{{ mo.team_label|default:"—" }}</div>
+        </div>
+        <div>
+          <div class="label">Công đoạn</div>
+          <div class="value">{{ mo.process_name|default:"—" }}</div>
         </div>
         {% endif %}
         {% if mo.planned_start or mo.planned_end %}
@@ -234,9 +238,16 @@
                 <label class="form-label small text-muted">{{ update_form.due_date.label }}</label>
                 {{ update_form.due_date }}
               </div>
-              <div class="col-12 col-md-6">
+              <div class="col-6 col-md-3">
                 <label class="form-label small text-muted">{{ update_form.team_label.label }}</label>
                 {{ update_form.team_label }}
+              </div>
+              <div class="col-6 col-md-3">
+                <label class="form-label small text-muted">{{ update_form.process_name.label }}</label>
+                {{ update_form.process_name }}
+                {% if not mo.bom_version %}
+                <div class="form-text small">Gắn BOM để chọn công đoạn từ định mức.</div>
+                {% endif %}
               </div>
               <div class="col-6 col-md-3">
                 <label class="form-label small text-muted">{{ update_form.planned_start.label }}</label>

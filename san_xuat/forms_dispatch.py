@@ -4,55 +4,105 @@ from decimal import Decimal
 
 from django import forms
 
+_SELECT_SM = {"class": "form-select form-select-sm"}
+_INPUT_SM = {"class": "form-control form-control-sm"}
+
+
+def work_center_team_choices(*, extra_value: str = "") -> list[tuple[str, str]]:
+    """Choices tổ/chuyền từ Năng lực SX (SxWorkCenter)."""
+    from san_xuat.hub_models import SxWorkCenter
+
+    choices: list[tuple[str, str]] = [("", "— Chọn tổ / chuyền —")]
+    seen: set[str] = set()
+    for center in SxWorkCenter.objects.filter(is_active=True, is_demo=False).order_by("name"):
+        value = (center.team_label or center.name or "").strip()
+        if not value or value.casefold() in seen:
+            continue
+        seen.add(value.casefold())
+        label = center.name if center.name != value else value
+        if center.name and center.name != value:
+            label = f"{center.name}"
+        choices.append((value, label))
+    extra = (extra_value or "").strip()
+    if extra and extra.casefold() not in seen:
+        choices.append((extra, f"{extra} (đang dùng)"))
+    return choices
+
+
+def bom_process_choices(bom, *, extra_value: str = "") -> list[tuple[str, str]]:
+    """Choices công đoạn từ BOM gắn lệnh SX."""
+    choices: list[tuple[str, str]] = [("", "— Chọn công đoạn —")]
+    seen: set[str] = set()
+    if bom is not None:
+        from san_xuat.models import ProcessStep
+
+        for step in ProcessStep.objects.filter(bom=bom).order_by("sequence", "pk"):
+            name = (step.process_name or "").strip()
+            if not name or name.casefold() in seen:
+                continue
+            seen.add(name.casefold())
+            choices.append((name, name))
+    extra = (extra_value or "").strip()
+    if extra and extra.casefold() not in seen:
+        choices.append((extra, f"{extra} (đang dùng)"))
+    return choices
+
 
 class ProductionOrderCreateForm(forms.Form):
     code = forms.CharField(
         max_length=40,
         required=False,
         help_text="Để trống thì hệ thống tự sinh mã.",
-        widget=forms.TextInput(attrs={"class": "form-control form-control-sm"}),
+        widget=forms.TextInput(attrs=_INPUT_SM),
         label="Mã lệnh sản xuất",
     )
     product_code = forms.CharField(
         max_length=60,
         label="Mã sản phẩm",
-        widget=forms.TextInput(attrs={"class": "form-control form-control-sm", "placeholder": "VD: SP008073"}),
+        widget=forms.TextInput(attrs={**_INPUT_SM, "placeholder": "VD: SP008073"}),
     )
     qty = forms.DecimalField(
         max_digits=14,
         decimal_places=2,
         min_value=Decimal("0.01"),
-        widget=forms.NumberInput(attrs={"class": "form-control form-control-sm", "step": "0.01", "min": "0.01"}),
+        widget=forms.NumberInput(attrs={**_INPUT_SM, "step": "0.01", "min": "0.01"}),
         label="Số lượng",
     )
     order_date = forms.DateField(
         label="Ngày lập",
-        widget=forms.DateInput(attrs={"class": "form-control form-control-sm", "type": "date"}),
+        widget=forms.DateInput(attrs={**_INPUT_SM, "type": "date"}),
     )
     due_date = forms.DateField(
         required=False,
         label="Hạn",
-        widget=forms.DateInput(attrs={"class": "form-control form-control-sm", "type": "date"}),
+        widget=forms.DateInput(attrs={**_INPUT_SM, "type": "date"}),
     )
     planned_start = forms.DateField(
         required=False,
         label="Bắt đầu dự kiến",
-        widget=forms.DateInput(attrs={"class": "form-control form-control-sm", "type": "date"}),
+        widget=forms.DateInput(attrs={**_INPUT_SM, "type": "date"}),
     )
     planned_end = forms.DateField(
         required=False,
         label="Kết thúc dự kiến",
-        widget=forms.DateInput(attrs={"class": "form-control form-control-sm", "type": "date"}),
+        widget=forms.DateInput(attrs={**_INPUT_SM, "type": "date"}),
     )
-    team_label = forms.CharField(
+    team_label = forms.ChoiceField(
         required=False,
-        label="Tổ / công đoạn",
-        widget=forms.TextInput(attrs={"class": "form-control form-control-sm", "placeholder": "VD: Tổ May 1"}),
+        label="Tổ / chuyền",
+        choices=[],
+        widget=forms.Select(attrs=_SELECT_SM),
+    )
+    process_name = forms.ChoiceField(
+        required=False,
+        label="Công đoạn",
+        choices=[],
+        widget=forms.Select(attrs=_SELECT_SM),
     )
     notes = forms.CharField(
         required=False,
         label="Ghi chú",
-        widget=forms.Textarea(attrs={"class": "form-control form-control-sm", "rows": 3}),
+        widget=forms.Textarea(attrs={**_INPUT_SM, "rows": 3}),
     )
     is_sample = forms.BooleanField(
         required=False,
@@ -60,43 +110,84 @@ class ProductionOrderCreateForm(forms.Form):
         widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
     )
 
+    def __init__(self, *args, bom=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        data = args[0] if args else None
+        extra_team = ""
+        extra_process = ""
+        if data is not None:
+            extra_team = data.get("team_label") or ""
+            extra_process = data.get("process_name") or ""
+        elif self.initial:
+            extra_team = self.initial.get("team_label") or ""
+            extra_process = self.initial.get("process_name") or ""
+        if bom is None and data is not None:
+            product_code = (data.get("product_code") or "").strip()
+            if product_code:
+                from san_xuat.models import ProductTechDoc
+                from san_xuat.services.bom import get_working_bom
 
-class ProductionOrderUpdateForm(forms.Form):
+                tech = ProductTechDoc.objects.filter(product_code__iexact=product_code).first()
+                if tech:
+                    bom = get_working_bom(tech)
+        self.fields["team_label"].choices = work_center_team_choices(extra_value=extra_team)
+        self.fields["process_name"].choices = bom_process_choices(bom, extra_value=extra_process)
     qty = forms.DecimalField(
         max_digits=14,
         decimal_places=2,
         min_value=Decimal("0.01"),
-        widget=forms.NumberInput(attrs={"class": "form-control form-control-sm", "step": "0.01", "min": "0.01"}),
+        widget=forms.NumberInput(attrs={**_INPUT_SM, "step": "0.01", "min": "0.01"}),
         label="Số lượng",
     )
     due_date = forms.DateField(
         required=False,
         label="Hạn",
-        widget=forms.DateInput(attrs={"class": "form-control form-control-sm", "type": "date"}),
+        widget=forms.DateInput(attrs={**_INPUT_SM, "type": "date"}),
     )
     planned_start = forms.DateField(
         required=False,
         label="Bắt đầu dự kiến",
-        widget=forms.DateInput(attrs={"class": "form-control form-control-sm", "type": "date"}),
+        widget=forms.DateInput(attrs={**_INPUT_SM, "type": "date"}),
     )
     planned_end = forms.DateField(
         required=False,
         label="Kết thúc dự kiến",
-        widget=forms.DateInput(attrs={"class": "form-control form-control-sm", "type": "date"}),
+        widget=forms.DateInput(attrs={**_INPUT_SM, "type": "date"}),
     )
-    team_label = forms.CharField(
+    team_label = forms.ChoiceField(
         required=False,
-        label="Tổ / công đoạn",
-        widget=forms.TextInput(attrs={"class": "form-control form-control-sm", "placeholder": "VD: Tổ May 1"}),
+        label="Tổ / chuyền",
+        choices=[],
+        widget=forms.Select(attrs=_SELECT_SM),
+    )
+    process_name = forms.ChoiceField(
+        required=False,
+        label="Công đoạn",
+        choices=[],
+        widget=forms.Select(attrs=_SELECT_SM),
     )
     notes = forms.CharField(
         required=False,
         label="Ghi chú",
         widget=forms.TextInput(attrs={
-            "class": "form-control form-control-sm",
+            **_INPUT_SM,
             "placeholder": "Ghi chú (tuỳ chọn)",
         }),
     )
+
+    def __init__(self, *args, bom=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        data = args[0] if args else None
+        extra_team = ""
+        extra_process = ""
+        if data is not None:
+            extra_team = data.get("team_label") or ""
+            extra_process = data.get("process_name") or ""
+        elif self.initial:
+            extra_team = self.initial.get("team_label") or ""
+            extra_process = self.initial.get("process_name") or ""
+        self.fields["team_label"].choices = work_center_team_choices(extra_value=extra_team)
+        self.fields["process_name"].choices = bom_process_choices(bom, extra_value=extra_process)
 
 
 class MaterialIssueApproveForm(forms.Form):
