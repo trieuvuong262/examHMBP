@@ -198,6 +198,19 @@
         var endHm = parseHm(endStr);
         if (!reportDate || !startHm || !endHm) return null;
 
+        var windows = slotWindows(form);
+        function overlapWithShift(interval) {
+            var total = 0;
+            windows.forEach(function (win) {
+                var slotStart = combineLocal(reportDate, win.start_day_offset || 0, parseHm(win.start));
+                var slotEnd = combineLocal(reportDate, win.end_day_offset || 0, parseHm(win.end));
+                total += overlapMinutes(interval.start, interval.end, slotStart, slotEnd);
+            });
+            return total;
+        }
+
+        // Thử gắn giờ vào ngày báo cáo / ngày hôm sau — ca tối qua nửa đêm
+        // phải chọn khoảng giao khung ca (0h–5h = sáng hôm sau), không lấy sáng cùng ngày.
         var candidates = [];
         [0, 1].forEach(function (startOff) {
             var startDt = combineLocal(reportDate, startOff, startHm);
@@ -206,13 +219,20 @@
                 if (endDt <= startDt) {
                     endDt = new Date(endDt.getTime() + 86400000);
                 }
-                if (endDt > startDt) {
-                    candidates.push({ start: startDt, end: endDt });
+                if (endDt <= startDt) return;
+                var ov = overlapWithShift({ start: startDt, end: endDt });
+                if (ov > 0) {
+                    candidates.push({ start: startDt, end: endDt, overlap: ov });
                 }
             });
         });
         if (!candidates.length) return null;
-        candidates.sort(function (a, b) { return a.start - b.start; });
+        // Ưu tiên bắt đầu sớm nhất trong ca; nếu trùng thì khoảng ngắn hơn (đúng giờ KT đã chọn).
+        candidates.sort(function (a, b) {
+            var startDiff = a.start - b.start;
+            if (startDiff !== 0) return startDiff;
+            return (a.end - a.start) - (b.end - b.start);
+        });
         return candidates[0];
     }
 

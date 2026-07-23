@@ -2335,7 +2335,11 @@ def _parse_hhmm(value: str) -> time | None:
 
 
 def _proxy_clock_datetimes(report_date, shift: str, start_str: str, end_str: str):
-    """Chuyển giờ đồng hồ (HH:MM) thành khoảng datetime nằm trong ca."""
+    """Chuyển giờ đồng hồ (HH:MM) thành khoảng datetime nằm trong ca.
+
+    Ca tối qua nửa đêm: giờ sáng (0h–5h) phải gắn ngày hôm sau (start_day_offset=1),
+    không lấy sáng cùng ngày báo cáo.
+    """
     start_t = _parse_hhmm(start_str)
     end_t = _parse_hhmm(end_str)
     if not start_t or not end_t:
@@ -2348,22 +2352,24 @@ def _proxy_clock_datetimes(report_date, shift: str, start_str: str, end_str: str
     for start_off in (0, 1):
         start_day = report_date + timedelta(days=start_off)
         start_dt = timezone.make_aware(datetime.combine(start_day, start_t))
+        if start_dt < window_start or start_dt >= window_end:
+            continue
         for end_off in (0, 1, 2):
             end_day = report_date + timedelta(days=end_off)
             end_dt = timezone.make_aware(datetime.combine(end_day, end_t))
             if end_dt <= start_dt:
                 end_dt += timedelta(days=1)
-            if start_dt < window_start:
+            # Không clamp về hết ca — tránh kéo dài sai (vd 22h–2h → 22h–5h).
+            if end_dt > window_end or end_dt <= start_dt:
                 continue
-            if end_dt > window_end:
-                end_dt = window_end
-            if end_dt <= start_dt or end_dt > window_end:
+            if not slots_overlapping_interval(report_date, shift, start_dt, end_dt):
                 continue
             candidates.append((start_dt, end_dt))
 
     if not candidates:
         return None
-    candidates.sort(key=lambda pair: pair[0])
+    # Trong các khoảng hợp lệ: chọn mốc bắt đầu sớm nhất (trong khung ca).
+    candidates.sort(key=lambda pair: (pair[0], pair[1]))
     return candidates[0]
 
 
