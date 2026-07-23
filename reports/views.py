@@ -61,9 +61,13 @@ from reports.period_utils import (
     period_query_param,
     parse_team_date_range,
     parse_team_period_filter,
+    parse_team_range_span,
+    match_team_range_span,
     team_date_range_query_params,
     team_range_query_params,
     TEAM_MANAGEMENT_DEFAULT_SPAN_DAYS,
+    TEAM_PRODUCTION_DEFAULT_SPAN_DAYS,
+    TEAM_RANGE_SPAN_CHOICES,
     _parse_iso_date,
 )
 from reports.report_lock import (
@@ -2050,14 +2054,16 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
 
     # SX mặc định 3 ngày (nặng hơn VP); VP giữ 10 ngày.
     default_span = (
-        3
+        TEAM_PRODUCTION_DEFAULT_SPAN_DAYS
         if report_profile == REPORT_PROFILE_PRODUCTION
         else TEAM_MANAGEMENT_DEFAULT_SPAN_DAYS
     )
+    range_span_default = parse_team_range_span(request, default=default_span)
     date_from, date_to = parse_team_date_range(
         request,
-        default_span_days=default_span,
+        default_span_days=range_span_default,
     )
+    range_span = match_team_range_span(date_from, date_to)
     report_date = date_to
     if report_profile == REPORT_PROFILE_OFFICE:
         period_filter = parse_team_period_filter(request)
@@ -2168,9 +2174,11 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
     department_groups = sort_team_department_groups(department_groups, sort_key, sort_dir)
 
     if report_profile == REPORT_PROFILE_OFFICE:
-        base_params = team_date_range_query_params(date_from, date_to, period=period_filter)
+        base_params = team_date_range_query_params(
+            date_from, date_to, period=period_filter, span=range_span,
+        )
     else:
-        base_params = team_date_range_query_params(date_from, date_to)
+        base_params = team_date_range_query_params(date_from, date_to, span=range_span)
     if search_query:
         base_params['q'] = search_query
     if dept_filter:
@@ -2210,6 +2218,8 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
         'report_date': report_date,
         'range_from': date_from,
         'range_to': date_to,
+        'range_span': range_span,
+        'range_span_choices': TEAM_RANGE_SPAN_CHOICES,
         'selected_period': period_filter if report_profile == REPORT_PROFILE_OFFICE else '',
         'period_filter_choices': PERIOD_CHOICES if report_profile == REPORT_PROFILE_OFFICE else [],
         'submitted_count': submitted,

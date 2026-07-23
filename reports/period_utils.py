@@ -22,6 +22,15 @@ PERIOD_CHOICES = [
 PERIOD_LABELS = dict(PERIOD_CHOICES)
 
 TEAM_MANAGEMENT_DEFAULT_SPAN_DAYS = 10
+TEAM_PRODUCTION_DEFAULT_SPAN_DAYS = 3
+TEAM_RANGE_SPAN_CHOICES = (
+    (1, '1 ngày'),
+    (3, '3 ngày'),
+    (7, '7 ngày'),
+    (10, '10 ngày'),
+    (30, '30 ngày'),
+)
+TEAM_RANGE_SPAN_VALUES = frozenset(v for v, _ in TEAM_RANGE_SPAN_CHOICES)
 
 
 def parse_office_period(request) -> str:
@@ -200,13 +209,34 @@ def period_date_label(period: str) -> str:
     return 'Ngày báo cáo'
 
 
+def parse_team_range_span(request, *, default: int = TEAM_MANAGEMENT_DEFAULT_SPAN_DAYS) -> int:
+    """Preset khoảng ngày trên trang quản lý BC (1/3/7/10/30)."""
+    raw = (request.GET.get('span') or '').strip()
+    if raw.isdigit():
+        value = int(raw)
+        if value in TEAM_RANGE_SPAN_VALUES:
+            return value
+    if default in TEAM_RANGE_SPAN_VALUES:
+        return default
+    return TEAM_PRODUCTION_DEFAULT_SPAN_DAYS
+
+
+def match_team_range_span(date_from: date, date_to: date) -> int | None:
+    """Trả về preset khớp khoảng from→to, hoặc None nếu tùy chỉnh."""
+    days = (date_to - date_from).days + 1
+    if days in TEAM_RANGE_SPAN_VALUES:
+        return days
+    return None
+
+
 def parse_team_date_range(request, *, default_span_days: int = TEAM_MANAGEMENT_DEFAULT_SPAN_DAYS) -> tuple[date, date]:
     """Khoảng thời gian lọc trên trang quản lý BC (SX/VP)."""
     today = timezone.localdate()
     date_to = _parse_iso_date(request.GET.get('to')) or today
     date_from = _parse_iso_date(request.GET.get('from'))
+    span = parse_team_range_span(request, default=default_span_days)
     if not date_from:
-        date_from = date_to - timedelta(days=max(default_span_days - 1, 0))
+        date_from = date_to - timedelta(days=max(span - 1, 0))
     if date_from > date_to:
         date_from, date_to = date_to, date_from
     return date_from, date_to
@@ -220,13 +250,21 @@ def parse_team_period_filter(request) -> str:
     return ''
 
 
-def team_date_range_query_params(date_from: date, date_to: date, *, period: str = '') -> dict[str, str]:
+def team_date_range_query_params(
+    date_from: date,
+    date_to: date,
+    *,
+    period: str = '',
+    span: int | None = None,
+) -> dict[str, str]:
     params = {
         'from': date_from.isoformat(),
         'to': date_to.isoformat(),
     }
     if period:
         params['period'] = period
+    if span and span in TEAM_RANGE_SPAN_VALUES:
+        params['span'] = str(span)
     return params
 
 

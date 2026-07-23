@@ -28,6 +28,10 @@
     flex: 1 1 0;
     min-width: 0;
 }
+.jp-team-filter-dates > .jp-team-filter-span {
+    flex: 0 1 8.5rem;
+    min-width: 7.5rem;
+}
 .jp-team-filter-org-search {
     display: flex;
     flex-wrap: wrap;
@@ -54,9 +58,17 @@
         align-items: stretch;
         gap: 0.75rem;
     }
-    /* Hàng 1: Từ ngày | Đến ngày */
+    /* Hàng 1: Khoảng | Từ ngày | Đến ngày */
     .jp-team-filter-dates {
         width: 100%;
+        flex-wrap: wrap;
+    }
+    .jp-team-filter-dates > .jp-team-filter-span {
+        flex: 1 1 100%;
+        min-width: 0;
+    }
+    .jp-team-filter-dates > div:not(.jp-team-filter-span) {
+        flex: 1 1 calc(50% - 0.4rem);
     }
     /* Hàng 2: Bộ phận / Phòng ban + Tìm nhân viên */
     .jp-team-filter-org-search {
@@ -113,13 +125,26 @@
     <form method="get" id="teamReportFilterForm" class="card border-0 shadow-sm mb-4 jp-team-filter-form">
         <div class="card-body p-3 jp-team-filter-body">
             <div class="jp-team-filter-dates">
+                <div class="jp-team-filter-span">
+                    <label class="form-label fw-bold small mb-1">Khoảng thời gian</label>
+                    <select name="span" class="form-select" aria-label="Khoảng thời gian">
+                        {% for value, label in range_span_choices %}
+                        <option value="{{ value }}"{% if range_span == value %} selected{% endif %}>{{ label }}</option>
+                        {% empty %}
+                        <option value="3" selected>3 ngày</option>
+                        {% endfor %}
+                        {% if not range_span %}
+                        <option value="" selected>Tùy chỉnh</option>
+                        {% endif %}
+                    </select>
+                </div>
                 <div>
                     <label class="form-label fw-bold small mb-1">Từ ngày</label>
-                    <input type="date" name="from" value="{{ range_from|date:'Y-m-d' }}" class="form-control jp-date-vn">
+                    <input type="date" name="from" value="{{ range_from|date:'Y-m-d' }}" class="form-control jp-date-vn" id="teamRangeFrom">
                 </div>
                 <div>
                     <label class="form-label fw-bold small mb-1">Đến ngày</label>
-                    <input type="date" name="to" value="{{ range_to|date:'Y-m-d' }}" class="form-control jp-date-vn">
+                    <input type="date" name="to" value="{{ range_to|date:'Y-m-d' }}" class="form-control jp-date-vn" id="teamRangeTo">
                 </div>
             </div>
             {% block team_filter_period %}{% endblock %}
@@ -258,6 +283,25 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
+    function applySpanToFrom(spanDays) {
+        var toEl = form.querySelector('#teamRangeTo, input[name="to"]');
+        var fromEl = form.querySelector('#teamRangeFrom, input[name="from"]');
+        if (!toEl || !fromEl || !spanDays) return;
+        var toVal = toEl.value;
+        if (!toVal) return;
+        var parts = toVal.split('-').map(Number);
+        if (parts.length !== 3) return;
+        var d = new Date(parts[0], parts[1] - 1, parts[2]);
+        d.setDate(d.getDate() - (spanDays - 1));
+        var y = d.getFullYear();
+        var m = String(d.getMonth() + 1).padStart(2, '0');
+        var day = String(d.getDate()).padStart(2, '0');
+        fromEl.value = y + '-' + m + '-' + day;
+        if (fromEl._flatpickr) {
+            fromEl._flatpickr.setDate(fromEl.value, true);
+        }
+    }
+
     // Ngày (flatpickr) — tự tìm khi chọn xong
     if (window.flatpickr) {
         flatpickr('.jp-date-vn', {
@@ -273,9 +317,14 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // Select bộ lọc (Loại kỳ, Phòng ban, Bộ phận) — tự tìm khi đổi
-    form.querySelectorAll('select[name="period"], select[name="dept"], select[name="division"]').forEach(function (el) {
-        el.addEventListener('change', function () { submitForm(0); });
+    // Select bộ lọc (Khoảng thời gian, Loại kỳ, Phòng ban, Bộ phận) — tự tìm khi đổi
+    form.querySelectorAll('select[name="span"], select[name="period"], select[name="dept"], select[name="division"]').forEach(function (el) {
+        el.addEventListener('change', function () {
+            if (el.name === 'span' && el.value) {
+                applySpanToFrom(parseInt(el.value, 10));
+            }
+            submitForm(0);
+        });
     });
 
     // Ô tìm nhân viên — tự tìm sau khi ngừng gõ
