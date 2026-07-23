@@ -5,7 +5,7 @@
 set -Eeuo pipefail
 
 PROJECT_DIR="${PROJECT_DIR:-/opt/portaljustplay}"
-CRON_LINE="30 11 * * * cd ${PROJECT_DIR} && docker compose exec -T web python manage.py send_production_report_reminders >> /var/log/portal-prod-report-autosubmit.log 2>&1"
+CRON_LINE="30 11 * * * cd ${PROJECT_DIR} && /usr/bin/docker compose exec -T web python manage.py send_production_report_reminders --force >> /var/log/portal-prod-report-autosubmit.log 2>&1"
 
 if crontab -l 2>/dev/null | grep -qF 'send_production_report_reminders'; then
   # Cập nhật dòng cron cũ (*/5) sang 11:30 nếu còn.
