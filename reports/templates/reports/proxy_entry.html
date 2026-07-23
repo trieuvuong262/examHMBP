@@ -41,7 +41,7 @@
                         id="tab-btn-{{ tab.shift }}" data-bs-toggle="tab"
                         data-bs-target="#tab-{{ tab.shift }}" type="button" role="tab">
                     {{ tab.label }}
-                    {% if tab.is_auto_submitted %}<span class="badge jp-report-badge jp-report-badge--auto-submitted jp-proxy-tab-badge" title="Hệ thống tự động gửi lúc 11:30">Tự động gửi</span>
+                    {% if tab.is_auto_submitted %}<span class="badge jp-report-badge jp-report-badge--auto-submitted jp-proxy-tab-badge" title="Hệ thống tự động gửi lúc 23:30">Tự động gửi</span>
                     {% elif tab.is_submitted %}<span class="badge bg-success jp-proxy-tab-badge">Đã nộp</span>{% endif %}
                     {% if tab.is_locked %}<span class="badge bg-secondary jp-proxy-tab-badge">Khóa</span>{% endif %}
                 </button>
@@ -51,7 +51,7 @@
         {% elif tabs %}
         <div class="px-3 pt-3 pb-0">
             <span class="{{ tabs.0.shift|production_shift_badge_class }}">{{ tabs.0.label }}</span>
-            {% if tabs.0.is_auto_submitted %}<span class="badge jp-report-badge jp-report-badge--auto-submitted ms-2" title="Hệ thống tự động gửi lúc 11:30">Tự động gửi</span>
+            {% if tabs.0.is_auto_submitted %}<span class="badge jp-report-badge jp-report-badge--auto-submitted ms-2" title="Hệ thống tự động gửi lúc 23:30">Tự động gửi</span>
             {% elif tabs.0.is_submitted %}<span class="badge bg-success ms-2">Đã nộp</span>{% endif %}
             {% if tabs.0.is_locked %}<span class="badge bg-secondary ms-2">Khóa</span>{% endif %}
         </div>

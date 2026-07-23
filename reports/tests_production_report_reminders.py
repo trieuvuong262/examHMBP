@@ -75,16 +75,18 @@ class ProductionReportAutoSubmitTests(TestCase):
         )
         return product
 
-    def test_window_1130(self):
+    def test_window_2330(self):
         day = timezone.localdate()
         inside = timezone.make_aware(datetime.combine(
-            day, datetime.min.time().replace(hour=11, minute=32),
+            day, datetime.min.time().replace(hour=23, minute=32),
         ))
         outside = timezone.make_aware(datetime.combine(
-            day, datetime.min.time().replace(hour=12, minute=0),
+            day, datetime.min.time().replace(hour=11, minute=30),
         ))
         self.assertTrue(is_auto_submit_window(now=inside))
         self.assertFalse(is_auto_submit_window(now=outside))
+        from reports.production_report_reminders import auto_submit_report_date
+        self.assertEqual(auto_submit_report_date(now=inside), day)
 
     def test_skip_night_shift(self):
         report = self._report(shift=DailyWorkReport.SHIFT_NIGHT)

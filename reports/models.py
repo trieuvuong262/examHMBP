@@ -92,7 +92,7 @@ class DailyWorkReport(models.Model):
     auto_submitted = models.BooleanField(
         default=False,
         verbose_name='Hệ thống tự động gửi',
-        help_text='True khi báo cáo được gửi tự động lúc 11:30 (không phải công nhân / tổ trưởng gửi).',
+        help_text='True khi báo cáo được gửi tự động lúc 23:30 (không phải công nhân / tổ trưởng gửi).',
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

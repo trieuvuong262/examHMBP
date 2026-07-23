@@ -6,8 +6,8 @@ from reports.production_report_reminders import auto_submit_unsubmitted_producti
 
 class Command(BaseCommand):
     help = (
-        'Tự động gửi báo cáo SX chưa nộp (trừ ca tối) lúc 11:30 — '
-        'ngày báo cáo = hôm qua, thời gian làm việc mặc định 9,50 giờ. '
+        'Tự động gửi báo cáo SX ca sáng chưa nộp (trừ ca tối) lúc 23:30 — '
+        'ngày báo cáo = hôm nay, thời gian làm việc mặc định 9,50 giờ. '
         'Có thể chạy tay theo --date hoặc khoảng --until / --from.'
     )
 
@@ -20,13 +20,13 @@ class Command(BaseCommand):
         parser.add_argument(
             '--force',
             action='store_true',
-            help='Chạy ngoài khung 11:30 (dùng khi chạy tay).',
+            help='Chạy ngoài khung 23:30 (dùng khi chạy tay).',
         )
         parser.add_argument(
             '--date',
             dest='report_date',
             default='',
-            help='Một ngày báo cáo YYYY-MM-DD (mặc định cron: hôm qua).',
+            help='Một ngày báo cáo YYYY-MM-DD (mặc định cron: hôm nay).',
         )
         parser.add_argument(
             '--from',

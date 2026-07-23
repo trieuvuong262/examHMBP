@@ -1,4 +1,4 @@
-"""Tự động gửi báo cáo sản xuất chưa nộp — cron 11:30 hàng ngày."""
+"""Tự động gửi báo cáo sản xuất chưa nộp — cron 23:30 hàng ngày."""
 
 from __future__ import annotations
 
@@ -23,12 +23,12 @@ from reports.report_profile import REPORT_PROFILE_PRODUCTION
 
 logger = logging.getLogger(__name__)
 
-# 11:30 mỗi ngày (giờ VN) — cửa sổ grace vài phút nếu cron trễ.
-AUTO_SUBMIT_HOUR = 11
+# 23:30 mỗi ngày (giờ VN) — cửa sổ grace vài phút nếu cron trễ.
+AUTO_SUBMIT_HOUR = 23
 AUTO_SUBMIT_MINUTE = 30
 AUTO_SUBMIT_GRACE_MINUTES = 5
 DEFAULT_DECLARED_WORK_HOURS = Decimal('9.50')
-# Dùng wave=1 trong log dedupe cho đợt auto-submit 11:30.
+# Dùng wave=1 trong log dedupe cho đợt auto-submit 23:30.
 AUTO_SUBMIT_WAVE = ProductionReportReminderLog.WAVE_1
 
 
@@ -38,7 +38,7 @@ def _local_now(now=None) -> datetime:
 
 
 def is_auto_submit_window(now=None) -> bool:
-    """True trong khung 11:30–11:35 (giờ local)."""
+    """True trong khung 23:30–23:35 (giờ local)."""
     local_now = _local_now(now)
     target = local_now.replace(
         hour=AUTO_SUBMIT_HOUR,
@@ -52,8 +52,8 @@ def is_auto_submit_window(now=None) -> bool:
 
 
 def auto_submit_report_date(now=None) -> date:
-    """Ngày báo cáo cần chốt: hôm qua (đóng BC ngày trước lúc 11:30)."""
-    return _local_now(now).date() - timedelta(days=1)
+    """Ngày báo cáo cần chốt: hôm nay (ca sáng trong ngày, lúc 23:30)."""
+    return _local_now(now).date()
 
 
 def _unsubmitted_non_night_base_qs():
@@ -151,7 +151,7 @@ def auto_submit_one_report(report: DailyWorkReport, *, dry_run: bool = False) ->
             edited_by=None,
             actor_kind=DailyWorkReportEditLog.ACTOR_EMPLOYEE,
             action=DailyWorkReportEditLog.ACTION_SUBMIT,
-            summary='Hệ thống tự động gửi báo cáo lúc 11:30.',
+            summary='Hệ thống tự động gửi báo cáo lúc 23:30.',
             detail=f'Thời gian làm việc: {report.declared_work_hours} giờ (mặc định 9,50 nếu trống).',
         )
 
@@ -175,7 +175,7 @@ def auto_submit_unsubmitted_production_reports(
     date_to: date | None = None,
 ) -> dict:
     """
-    11:30 hàng ngày: tự động gửi mọi BC SX chưa nộp của ngày hôm trước,
+    23:30 hàng ngày: tự động gửi mọi BC SX ca sáng chưa nộp của ngày hôm nay,
     trừ ca tối. Thời gian làm việc mặc định 9,50 giờ.
 
     Có thể chạy tay theo khoảng: date_from / date_to (hoặc report_date một ngày).
