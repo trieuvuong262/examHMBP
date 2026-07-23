@@ -2048,9 +2048,15 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
             return redirect(today_url_for_user(request.user))
         return redirect('home_portal')
 
+    # SX mặc định 3 ngày (nặng hơn VP); VP giữ 10 ngày.
+    default_span = (
+        3
+        if report_profile == REPORT_PROFILE_PRODUCTION
+        else TEAM_MANAGEMENT_DEFAULT_SPAN_DAYS
+    )
     date_from, date_to = parse_team_date_range(
         request,
-        default_span_days=TEAM_MANAGEMENT_DEFAULT_SPAN_DAYS,
+        default_span_days=default_span,
     )
     report_date = date_to
     if report_profile == REPORT_PROFILE_OFFICE:
