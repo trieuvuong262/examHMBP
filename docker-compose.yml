@@ -23,7 +23,7 @@ services:
       context: .
       args:
         PYTHON_BASE_IMAGE: ${DOCKER_PYTHON_IMAGE:-python:3.13-slim}
-    command: gunicorn PortalJustPlay.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 300
+    command: gunicorn PortalJustPlay.wsgi:application --bind 0.0.0.0:8000 --workers 5 --timeout 300 --limit-request-line 16384 --limit-request-field_size 16384
     volumes:
       - static_volume:/app/staticfiles
       - media_volume:/app/media
