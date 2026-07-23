@@ -3,7 +3,7 @@ from decimal import Decimal
 
 from django.contrib import messages
 from django.db import IntegrityError
-from django.db.models import Count, Sum, Value
+from django.db.models import Count, Q, Sum, Value
 from django.db.models.functions import Coalesce
 from django.http import Http404
 from django.contrib.auth.decorators import login_required
@@ -58,6 +58,11 @@ from utilities.salary_rules import (
     is_salary_advance_open,
     salary_advance_window_label,
 )
+from utilities.date_range_filter import (
+    date_range_from_span,
+    date_range_span_context,
+    parse_date_range_span_from_request,
+)
 
 
 def _can_manage_meals(user) -> bool:
@@ -71,6 +76,55 @@ def _parse_meal_date(raw: str | None, *, default):
         return datetime.strptime(raw, '%Y-%m-%d').date()
     except ValueError:
         return default
+
+
+def _meal_summary_filters(request):
+    """Từ–đến ngày (preset span) + lọc món cho tổng hợp đặt cơm."""
+    default_to = current_orderable_meal_date() or next_orderable_meal_date() or timezone.localdate()
+    span = parse_date_range_span_from_request(request)
+
+    # Tương thích URL cũ ?meal_date=...
+    legacy = _parse_meal_date(request.GET.get('meal_date'), default=None)
+    date_from = _parse_meal_date(
+        request.GET.get('date_from') or request.GET.get('from'),
+        default=None,
+    )
+    date_to = _parse_meal_date(
+        request.GET.get('date_to') or request.GET.get('to'),
+        default=None,
+    )
+    if legacy and not date_from and not date_to:
+        date_from = date_to = legacy
+    if not date_to:
+        date_to = default_to
+    if not date_from:
+        date_from = date_range_from_span(date_to, span)
+    if date_from > date_to:
+        date_from, date_to = date_to, date_from
+
+    dish_raw = (request.GET.get('dish') or '').strip()
+    dish_id = int(dish_raw) if dish_raw.isdigit() else None
+    selected_dish = MealDish.objects.filter(pk=dish_id).first() if dish_id else None
+
+    return {
+        'date_from': date_from,
+        'date_to': date_to,
+        'dish_id': selected_dish.pk if selected_dish else None,
+        'selected_dish': selected_dish,
+        **date_range_span_context(date_from, date_to),
+    }
+
+
+def _meal_summary_query_string(filters: dict) -> str:
+    parts = [
+        f'date_from={filters["date_from"].isoformat()}',
+        f'date_to={filters["date_to"].isoformat()}',
+    ]
+    if filters.get('range_span'):
+        parts.append(f'span={filters["range_span"]}')
+    if filters.get('dish_id'):
+        parts.append(f'dish={filters["dish_id"]}')
+    return '&'.join(parts)
 
 
 def _can_manage_salary(user) -> bool:
@@ -263,37 +317,58 @@ def meal_day_menu(request):
 
 @module_perm_required(MODULE_UTILITIES, 'update')
 def meal_summary(request):
-    default_date = current_orderable_meal_date() or next_orderable_meal_date()
-    meal_date = _parse_meal_date(request.GET.get('meal_date'), default=default_date)
+    filters = _meal_summary_filters(request)
+    date_from = filters['date_from']
+    date_to = filters['date_to']
+    dish_id = filters['dish_id']
+
+    orders_qs = MealOrder.objects.filter(
+        meal_date__gte=date_from,
+        meal_date__lte=date_to,
+    )
+    if dish_id:
+        orders_qs = orders_qs.filter(dish_id=dish_id)
+
     orders = (
-        MealOrder.objects.filter(meal_date=meal_date)
+        orders_qs
         .select_related('employee__profile', 'employee__profile__department', 'dish')
         .annotate(
             employee_name=Coalesce('employee__profile__full_name', 'employee__username'),
             department_name=Coalesce('employee__profile__department__name', Value('')),
         )
-        .order_by('employee_name')
+        .order_by('meal_date', 'employee_name')
     )
     declines = (
-        MealOrderDecline.objects.filter(meal_date=meal_date)
+        MealOrderDecline.objects.filter(
+            meal_date__gte=date_from,
+            meal_date__lte=date_to,
+        )
         .select_related('employee__profile', 'employee__profile__department')
         .annotate(
             employee_name=Coalesce('employee__profile__full_name', 'employee__username'),
             department_name=Coalesce('employee__profile__department__name', Value('')),
         )
-        .order_by('employee_name')
+        .order_by('meal_date', 'employee_name')
     )
     totals = (
-        MealOrder.objects.filter(meal_date=meal_date)
+        orders_qs
         .values('dish__name')
         .annotate(count=Count('id'))
         .order_by('-count', 'dish__name')
     )
+    dishes = MealDish.objects.filter(is_active=True).order_by('sort_order', 'name')
+    if dish_id and not dishes.filter(pk=dish_id).exists():
+        dishes = MealDish.objects.filter(Q(is_active=True) | Q(pk=dish_id)).order_by('sort_order', 'name')
+
     return render(request, 'utilities/meal_summary.html', {
-        'meal_date': meal_date,
+        **filters,
+        'meal_date': date_to,
         'orders': orders,
         'declines': declines,
         'totals': totals,
+        'dishes': dishes,
+        'filter_query': _meal_summary_query_string(filters),
+        'show_meal_date_col': date_from != date_to,
         'can_export': user_can_export_menu(request.user, MODULE_UTILITIES, 'meal_ordering'),
         'can_manage': True,
     })
@@ -303,10 +378,12 @@ def meal_summary(request):
 def meal_summary_export(request):
     if not _can_manage_meals(request.user):
         raise Http404
-    meal_date = _parse_meal_date(request.GET.get('meal_date'), default=None)
-    if not meal_date:
-        raise Http404
-    return export_meal_summary_xlsx(meal_date)
+    filters = _meal_summary_filters(request)
+    return export_meal_summary_xlsx(
+        date_from=filters['date_from'],
+        date_to=filters['date_to'],
+        dish_id=filters['dish_id'],
+    )
 
 
 @module_perm_required(MODULE_UTILITIES, 'update')

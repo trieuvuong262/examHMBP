@@ -26,14 +26,34 @@ def _xlsx_response(sheets: dict[str, pd.DataFrame], filename_prefix: str) -> Htt
     return response
 
 
-def export_meal_summary_xlsx(meal_date) -> HttpResponse:
+def export_meal_summary_xlsx(
+    meal_date=None,
+    *,
+    date_from=None,
+    date_to=None,
+    dish_id: int | None = None,
+) -> HttpResponse:
+    if date_from is None and date_to is None and meal_date is not None:
+        date_from = date_to = meal_date
+    if date_from is None or date_to is None:
+        raise ValueError('Cần date_from/date_to hoặc meal_date')
+    if date_from > date_to:
+        date_from, date_to = date_to, date_from
+
+    qs = MealOrder.objects.filter(
+        meal_date__gte=date_from,
+        meal_date__lte=date_to,
+    )
+    if dish_id:
+        qs = qs.filter(dish_id=dish_id)
+
     rows = []
-    for order in MealOrder.objects.filter(meal_date=meal_date).select_related(
-        'employee__profile', 'dish',
-    ).order_by('employee__profile__full_name'):
+    for order in qs.select_related(
+        'employee__profile', 'employee__profile__department', 'dish',
+    ).order_by('meal_date', 'employee__profile__full_name'):
         profile = getattr(order.employee, 'profile', None)
         rows.append({
-            'Ngày ăn': meal_date.strftime('%d/%m/%Y'),
+            'Ngày ăn': order.meal_date.strftime('%d/%m/%Y'),
             'Nhân viên': profile.full_name if profile and profile.full_name else order.employee.username,
             'Phòng ban': profile.department.name if profile and profile.department_id else '',
             'Món': order.dish.name,
@@ -41,18 +61,21 @@ def export_meal_summary_xlsx(meal_date) -> HttpResponse:
             'Đặt lúc': timezone.localtime(order.created_at).strftime('%d/%m/%Y %H:%M'),
         })
     summary = (
-        MealOrder.objects.filter(meal_date=meal_date)
-        .values('dish__name')
+        qs.values('dish__name')
         .annotate(count=Count('id'))
         .order_by('-count', 'dish__name')
     )
     totals = [{'Món': row['dish__name'], 'Số lượng': row['count']} for row in summary]
+    if date_from == date_to:
+        prefix = f'dat_com_{date_from.isoformat()}'
+    else:
+        prefix = f'dat_com_{date_from.isoformat()}_{date_to.isoformat()}'
     return _xlsx_response(
         {
             'Chi_tiet': pd.DataFrame(rows or [{'Thông báo': 'Chưa có đơn'}]),
             'Tong_mon': pd.DataFrame(totals or [{'Món': '—', 'Số lượng': 0}]),
         },
-        f'dat_com_{meal_date.isoformat()}',
+        prefix,
     )
 
 
