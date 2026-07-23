@@ -29,6 +29,9 @@
                     </select>
                 </div>
                 <div class="col-md-2">
+                    {% include 'includes/date_range_span_select.html' with span_id='audit-log-span' range_span=filters.range_span range_span_choices=filters.range_span_choices %}
+                </div>
+                <div class="col-md-2">
                     <label class="form-label small fw-bold text-muted mb-1">Từ ngày</label>
                     <input type="date" name="from" class="form-control" value="{{ filters.from }}">
                 </div>
@@ -36,11 +39,11 @@
                     <label class="form-label small fw-bold text-muted mb-1">Đến ngày</label>
                     <input type="date" name="to" class="form-control" value="{{ filters.to }}">
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <label class="form-label small fw-bold text-muted mb-1">Tìm kiếm</label>
                     <input type="text" name="q" class="form-control" value="{{ filters.q }}" placeholder="Mô tả, tên máy, IP…">
                 </div>
-                <div class="col-md-2 d-flex gap-2">
+                <div class="col-md-1 d-flex gap-2">
                     <button type="submit" class="btn btn-hm text-white fw-bold flex-grow-1">
                         <i class="bi bi-search"></i>
                     </button>
@@ -109,4 +112,8 @@
         {% endif %}
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+{% include 'includes/date_range_span_script.html' %}
 {% endblock %}

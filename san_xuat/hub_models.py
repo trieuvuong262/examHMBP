@@ -1492,7 +1492,7 @@ class SxGeneralSettings(models.Model):
         default=100, verbose_name='Ngưỡng quá tải năng lực (%)',
     )
     list_default_date_range_days = models.PositiveSmallIntegerField(
-        default=7, verbose_name='Số ngày lọc danh sách mặc định',
+        default=3, verbose_name='Số ngày lọc danh sách mặc định',
     )
 
     # --- Kho & tích hợp ---

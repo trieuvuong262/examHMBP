@@ -1,5 +1,3 @@
-from datetime import timedelta
-
 import pandas as pd
 from django.shortcuts import render
 from django.utils import timezone
@@ -18,23 +16,29 @@ from kho_npl.services.reports import (
     report_stocktake_history_rows,
 )
 from kho_npl.view_utils import nav_context, perm_context, report_context
-
-
-def _default_date_range():
-    today = timezone.localdate()
-    return today - timedelta(days=30), today
+from utilities.date_range_filter import (
+    date_range_from_span,
+    date_range_span_context,
+    parse_date_range_span_from_request,
+)
 
 
 def _filter_params(request):
     date_from = _parse_date(request.GET.get('date_from'))
     date_to = _parse_date(request.GET.get('date_to'))
-    if not date_from and not date_to:
-        date_from, date_to = _default_date_range()
+    span = parse_date_range_span_from_request(request)
+    if not date_to:
+        date_to = timezone.localdate()
+    if not date_from:
+        date_from = date_range_from_span(date_to, span)
+    if date_from > date_to:
+        date_from, date_to = date_to, date_from
     return {
         'date_from': date_from,
         'date_to': date_to,
         'material_code': (request.GET.get('material') or '').strip(),
         'lsx': (request.GET.get('lsx') or '').strip(),
+        **date_range_span_context(date_from, date_to),
     }
 
 

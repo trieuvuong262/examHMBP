@@ -1,0 +1,23 @@
+{# Preset khoảng thời gian — dùng kèm Từ ngày / Đến ngày. #}
+{# Context: range_span (int|None), range_span_choices (optional) #}
+<div class="jp-team-filter-span{% if span_class %} {{ span_class }}{% endif %}">
+  <label class="form-label fw-bold small mb-1{% if compact %} visually-hidden{% endif %}" for="{{ span_id|default:'jp-range-span' }}">Khoảng thời gian</label>
+  <select name="span" id="{{ span_id|default:'jp-range-span' }}" class="form-select{% if select_sm %} form-select-sm{% endif %}" aria-label="Khoảng thời gian">
+    {% if range_span_choices %}
+      {% for value, label in range_span_choices %}
+      <option value="{{ value }}"{% if range_span == value %} selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    {% else %}
+      <option value="1"{% if range_span == 1 %} selected{% endif %}>1 ngày</option>
+      <option value="3"{% if range_span == 3 or not range_span %} selected{% endif %}>3 ngày</option>
+      <option value="7"{% if range_span == 7 %} selected{% endif %}>7 ngày</option>
+      <option value="10"{% if range_span == 10 %} selected{% endif %}>10 ngày</option>
+      <option value="30"{% if range_span == 30 %} selected{% endif %}>30 ngày</option>
+    {% endif %}
+    {% if range_span_choices and not range_span %}
+    <option value="" selected>Tùy chỉnh</option>
+    {% elif not range_span_choices and range_span and range_span != 1 and range_span != 3 and range_span != 7 and range_span != 10 and range_span != 30 %}
+    <option value="" selected>Tùy chỉnh</option>
+    {% endif %}
+  </select>
+</div>

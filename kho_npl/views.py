@@ -27,6 +27,7 @@ from kho_npl.services.stock_card import build_material_stock_card, diagnose_stoc
 from kho_npl.view_utils import nav_context, perm_context
 from kho_npl.views_material import _material_catalog_qs
 from kho_npl.views_settings import settings_hub_items
+from utilities.date_range_filter import date_range_span_context
 
 STOCK_ALERT_STATUS_CHOICES = {
     STOCK_STATUS_LOW: {
@@ -263,6 +264,7 @@ def stock_cards(request):
         'show_diagnosis': show_diagnosis,
         'date_from': date_from,
         'date_to': date_to,
+        **date_range_span_context(date_from, date_to),
         'catalog_page': catalog_page,
         'catalog_query_string': catalog_query_string,
         'catalog_select_base': request.path,

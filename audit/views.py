@@ -20,6 +20,11 @@ from hrm.module_permissions import (
     user_can_export_module,
     user_can_update_module,
 )
+from utilities.date_range_filter import (
+    date_range_from_span,
+    date_range_span_context,
+    parse_date_range_span_from_request,
+)
 
 from .models import PortalBackupJob, UserActivityLog
 from .portal_backup import PortalBackupError, latest_backup_job, start_backup_async
@@ -30,8 +35,33 @@ def _activity_log_queryset_from_request(request):
 
     user_id = request.GET.get('user', '').strip()
     q = get_search_query(request)
-    date_from = request.GET.get('from', '').strip()
-    date_to = request.GET.get('to', '').strip()
+    raw_from = request.GET.get('from', '').strip()
+    raw_to = request.GET.get('to', '').strip()
+    span = parse_date_range_span_from_request(request)
+
+    date_from = None
+    date_to = None
+    if raw_from:
+        try:
+            date_from = datetime.strptime(raw_from, '%Y-%m-%d').date()
+        except ValueError:
+            date_from = None
+    if raw_to:
+        try:
+            date_to = datetime.strptime(raw_to, '%Y-%m-%d').date()
+        except ValueError:
+            date_to = None
+
+    # Mặc định 3 ngày khi chưa chọn khoảng (trừ khi đang tìm kiếm/lọc user không kèm ngày).
+    if not raw_from and not raw_to and 'from' not in request.GET and 'to' not in request.GET:
+        date_to = timezone.localdate()
+        date_from = date_range_from_span(date_to, span)
+    elif not date_to and date_from:
+        date_to = timezone.localdate()
+    elif not date_from and date_to:
+        date_from = date_range_from_span(date_to, span)
+    if date_from and date_to and date_from > date_to:
+        date_from, date_to = date_to, date_from
 
     if user_id.isdigit():
         qs = qs.filter(user_id=int(user_id))
@@ -49,8 +79,9 @@ def _activity_log_queryset_from_request(request):
     return qs, {
         'user': user_id,
         'q': q,
-        'from': date_from,
-        'to': date_to,
+        'from': date_from.isoformat() if date_from else '',
+        'to': date_to.isoformat() if date_to else '',
+        **date_range_span_context(date_from, date_to),
     }
 
 

@@ -38,12 +38,15 @@
             <input type="hidden" name="for_user" value="{{ history_for_user_id }}">
             {% endif %}
             <div>
+                {% include 'includes/date_range_span_select.html' with span_id='my-reports-span' %}
+            </div>
+            <div>
                 <label class="form-label fw-bold small mb-1">{% if is_office_history %}Từ ngày nộp{% else %}Từ ngày{% endif %}</label>
-                <input type="date" name="from" value="{{ history_date_from|date:'Y-m-d' }}" class="form-control jp-date-vn">
+                <input type="date" name="from" value="{{ history_date_from|date:'Y-m-d' }}" class="form-control jp-date-vn" id="myRangeFrom">
             </div>
             <div>
                 <label class="form-label fw-bold small mb-1">{% if is_office_history %}Đến ngày nộp{% else %}Đến ngày{% endif %}</label>
-                <input type="date" name="to" value="{{ history_date_to|date:'Y-m-d' }}" class="form-control jp-date-vn">
+                <input type="date" name="to" value="{{ history_date_to|date:'Y-m-d' }}" class="form-control jp-date-vn" id="myRangeTo">
             </div>
             <div class="flex-grow-1" style="min-width: 220px;">
                 <label class="form-label fw-bold small mb-1">Tìm kiếm</label>
@@ -230,6 +233,7 @@
 
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+{% include 'includes/date_range_span_script.html' %}
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     var form = document.getElementById('myReportsFilterForm');

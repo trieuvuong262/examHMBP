@@ -8,6 +8,14 @@ from datetime import date, datetime, timedelta
 from django.utils import timezone
 
 from reports.week_utils import monday_of
+from utilities.date_range_filter import (
+    DATE_RANGE_DEFAULT_SPAN_DAYS as TEAM_MANAGEMENT_DEFAULT_SPAN_DAYS,
+    DATE_RANGE_DEFAULT_SPAN_DAYS as TEAM_PRODUCTION_DEFAULT_SPAN_DAYS,
+    DATE_RANGE_SPAN_CHOICES as TEAM_RANGE_SPAN_CHOICES,
+    DATE_RANGE_SPAN_VALUES as TEAM_RANGE_SPAN_VALUES,
+    match_date_range_span as match_team_range_span,
+    parse_date_range_span_from_request as parse_team_range_span,
+)
 
 PERIOD_DAY = 'day'
 PERIOD_WEEK = 'week'
@@ -20,17 +28,6 @@ PERIOD_CHOICES = [
 ]
 
 PERIOD_LABELS = dict(PERIOD_CHOICES)
-
-TEAM_MANAGEMENT_DEFAULT_SPAN_DAYS = 10
-TEAM_PRODUCTION_DEFAULT_SPAN_DAYS = 3
-TEAM_RANGE_SPAN_CHOICES = (
-    (1, '1 ngày'),
-    (3, '3 ngày'),
-    (7, '7 ngày'),
-    (10, '10 ngày'),
-    (30, '30 ngày'),
-)
-TEAM_RANGE_SPAN_VALUES = frozenset(v for v, _ in TEAM_RANGE_SPAN_CHOICES)
 
 
 def parse_office_period(request) -> str:
@@ -207,26 +204,6 @@ def period_date_label(period: str) -> str:
     if period == PERIOD_MONTH:
         return 'Tháng'
     return 'Ngày báo cáo'
-
-
-def parse_team_range_span(request, *, default: int = TEAM_MANAGEMENT_DEFAULT_SPAN_DAYS) -> int:
-    """Preset khoảng ngày trên trang quản lý BC (1/3/7/10/30)."""
-    raw = (request.GET.get('span') or '').strip()
-    if raw.isdigit():
-        value = int(raw)
-        if value in TEAM_RANGE_SPAN_VALUES:
-            return value
-    if default in TEAM_RANGE_SPAN_VALUES:
-        return default
-    return TEAM_PRODUCTION_DEFAULT_SPAN_DAYS
-
-
-def match_team_range_span(date_from: date, date_to: date) -> int | None:
-    """Trả về preset khớp khoảng from→to, hoặc None nếu tùy chỉnh."""
-    days = (date_to - date_from).days + 1
-    if days in TEAM_RANGE_SPAN_VALUES:
-        return days
-    return None
 
 
 def parse_team_date_range(request, *, default_span_days: int = TEAM_MANAGEMENT_DEFAULT_SPAN_DAYS) -> tuple[date, date]:

@@ -363,6 +363,9 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page.jp-npl-stock-card-page .j
                         {% endfor %}
                     </select>
                 </div>
+                <div class="jp-npl-mat-filter-field jp-npl-mat-filter-span">
+                    {% include 'includes/date_range_span_select.html' with span_id='sc-span' select_sm=1 compact=1 %}
+                </div>
                 <input type="date" class="form-control form-control-sm jp-npl-mat-filter-date" id="sc-from"
                        name="date_from" value="{{ date_from|date:'Y-m-d' }}" aria-label="Từ ngày" title="Từ ngày">
                 <input type="date" class="form-control form-control-sm jp-npl-mat-filter-date" id="sc-to"
@@ -662,6 +665,7 @@ body.jp-mat-col-resizing .jp-npl-material-catalog-page.jp-npl-stock-card-page .j
 {% endblock %}
 
 {% block scripts %}
+{% include 'includes/date_range_span_script.html' %}
 {% include 'kho_npl/includes/filter_multi_select_script.html' %}
 <script>
 (function () {

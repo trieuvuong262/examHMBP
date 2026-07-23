@@ -243,7 +243,7 @@ def overview(request):
     allowed_tabs = {'tong-hop', 'lenh-sx', 'san-luong', 'chat-luong', 'dung-chuyen'}
     if active_tab not in allowed_tabs:
         active_tab = 'tong-hop'
-    date_from, date_to, _filters = resolve_sx_period(request)
+    date_from, date_to, filters = resolve_sx_period(request)
     dash = build_overview_dashboard(
         date_from=date_from,
         date_to=date_to,
@@ -267,6 +267,7 @@ def overview(request):
         'filter_team_label': team_label,
         'active_tab': active_tab,
         'has_filters': has_filters,
+        **sx_filter_context(filters),
         'chart_mo_labels_json': _j([row['label'] for row in dash.mo_by_status]),
         'chart_mo_data_json': _j([row['count'] for row in dash.mo_by_status]),
         'chart_day_labels_json': _j([row['label'] for row in dash.production_by_day]),
@@ -3003,7 +3004,7 @@ def ops_report(request):
     from san_xuat.list_filters import resolve_sx_period
     from san_xuat.services.phase3 import build_ops_report, export_ops_report_csv
 
-    date_from, date_to, _filters = resolve_sx_period(request)
+    date_from, date_to, filters = resolve_sx_period(request)
     product_code = (request.GET.get('product_code') or '').strip()
     process_name = (request.GET.get('process_name') or '').strip()
     team_label = (request.GET.get('team_label') or '').strip()
@@ -3041,6 +3042,7 @@ def ops_report(request):
         'team_label': team_label,
         'active_tab': active_tab,
         'has_filters': has_filters,
+        **sx_filter_context(filters),
     })
 
 
@@ -3288,7 +3290,7 @@ def piece_rate_report(request):
     from san_xuat.list_filters import resolve_sx_period
     from san_xuat.services.phase3 import compute_piece_rate_pay
 
-    date_from, date_to, _filters = resolve_sx_period(request)
+    date_from, date_to, filters = resolve_sx_period(request)
     mo_raw = (request.GET.get('mo') or '').strip()
     mo_id = int(mo_raw) if mo_raw.isdigit() else None
     rows = compute_piece_rate_pay(date_from=date_from, date_to=date_to, production_order_id=mo_id)
@@ -3305,4 +3307,5 @@ def piece_rate_report(request):
         'unmapped_count': unmapped_count,
         'total_amount': total_amount,
         'total_qty': total_qty,
+        **sx_filter_context(filters),
     })

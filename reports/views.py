@@ -1450,14 +1450,22 @@ def _my_reports(request, daily_report_profile=None):
     elif not can_view_own_report_history(request.user, daily_report_profile):
         return redirect('home_portal')
 
-    # Bộ lọc từ ngày — đến ngày (mặc định 1 tuần gần nhất)
+    # Bộ lọc từ ngày — đến ngày (mặc định 3 ngày gần nhất)
     # VP: theo ngày nộp (submitted_at). SX / khác: theo kỳ hoặc thời điểm chỉnh sửa.
+    from utilities.date_range_filter import (
+        date_range_from_span,
+        date_range_span_context,
+        parse_date_range_span_from_request,
+    )
+
+    history_date_to = _parse_iso_date(request.GET.get('to')) or timezone.localdate()
+    span = parse_date_range_span_from_request(request)
     history_date_from = _parse_iso_date(request.GET.get('from'))
-    history_date_to = _parse_iso_date(request.GET.get('to'))
-    if not history_date_to:
-        history_date_to = timezone.localdate()
     if not history_date_from:
-        history_date_from = history_date_to - timedelta(days=6)
+        history_date_from = date_range_from_span(history_date_to, span)
+    if history_date_from > history_date_to:
+        history_date_from, history_date_to = history_date_to, history_date_from
+    range_span_ctx = date_range_span_context(history_date_from, history_date_to)
 
     if daily_report_profile == REPORT_PROFILE_OFFICE:
         reports_qs = meaningful_daily_reports_qs().filter(
@@ -1609,6 +1617,7 @@ def _my_reports(request, daily_report_profile=None):
         'is_edit_history': is_edit_history,
         'history_date_from': history_date_from,
         'history_date_to': history_date_to,
+        **range_span_ctx,
     }
     if is_edit_history:
         ctx['edit_logs'] = page_obj.object_list
@@ -1659,7 +1668,7 @@ TEAM_STATUS_NO_REPORT = 'no_report'
 TEAM_STATUS_REVIEWED = 'reviewed'
 TEAM_STATUS_NOT_REVIEWED = 'not_reviewed'
 TEAM_STATUS_REJECTED = 'rejected'
-TEAM_SUMMARY_DEFAULT_SPAN_DAYS = 7
+TEAM_SUMMARY_DEFAULT_SPAN_DAYS = 3
 
 
 def _summary_week_date_range(anchor_to=None):
@@ -1787,6 +1796,8 @@ def _render_production_summary_matrix(
         'search_query': search_query,
         'range_from': date_from,
         'range_to': date_to,
+        'range_span': match_team_range_span(date_from, date_to),
+        'range_span_choices': TEAM_RANGE_SPAN_CHOICES,
         'report_date': date_to,
         'team_count': team_count,
         'active_shift': shift_filter,
@@ -2052,12 +2063,8 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
             return redirect(today_url_for_user(request.user))
         return redirect('home_portal')
 
-    # SX mặc định 3 ngày (nặng hơn VP); VP giữ 10 ngày.
-    default_span = (
-        TEAM_PRODUCTION_DEFAULT_SPAN_DAYS
-        if report_profile == REPORT_PROFILE_PRODUCTION
-        else TEAM_MANAGEMENT_DEFAULT_SPAN_DAYS
-    )
+    # SX/VP cùng mặc định 3 ngày (preset khoảng thời gian).
+    default_span = TEAM_PRODUCTION_DEFAULT_SPAN_DAYS
     range_span_default = parse_team_range_span(request, default=default_span)
     date_from, date_to = parse_team_date_range(
         request,

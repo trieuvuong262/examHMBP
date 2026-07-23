@@ -1,5 +1,15 @@
-{# Từ ngày / Đến ngày — cùng pattern báo cáo VP team (flatpickr dd/mm/yyyy) #}
+{# Từ ngày / Đến ngày + preset khoảng thời gian (1/3/7/10/30, mặc định 3). #}
+<style>
+.jp-team-filter-dates { display: flex; flex-wrap: nowrap; gap: 0.75rem; align-items: flex-end; }
+.jp-team-filter-dates > div { flex: 1 1 0; min-width: 0; }
+.jp-team-filter-dates > .jp-team-filter-span { flex: 0 1 8.5rem; min-width: 7.5rem; }
+@media (max-width: 767.98px) {
+  .jp-team-filter-dates { flex-wrap: wrap; width: 100%; }
+  .jp-team-filter-dates > .jp-team-filter-span { flex: 1 1 100%; min-width: 0; }
+}
+</style>
 <div class="jp-team-filter-dates">
+  {% include 'includes/date_range_span_select.html' with span_id=id_prefix|default:'sx-filter'|add:'-span' %}
   <div>
     <label class="form-label fw-bold small mb-1" for="{{ id_prefix|default:'sx-filter' }}-date-from">Từ ngày</label>
     <input type="date"

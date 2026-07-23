@@ -11,7 +11,15 @@ from django.db.models.fields import DateField, DateTimeField
 from django.http import HttpRequest
 from django.utils import timezone
 
-LIST_DATE_RANGE_DAYS = 7
+from utilities.date_range_filter import (
+    DATE_RANGE_DEFAULT_SPAN_DAYS,
+    DATE_RANGE_SPAN_CHOICES,
+    date_range_span_context,
+    match_date_range_span,
+    parse_date_range_span_from_request,
+)
+
+LIST_DATE_RANGE_DAYS = DATE_RANGE_DEFAULT_SPAN_DAYS
 
 
 def default_list_date_range(*, days: int | None = None) -> tuple[date, date]:
@@ -20,7 +28,12 @@ def default_list_date_range(*, days: int | None = None) -> tuple[date, date]:
         try:
             from san_xuat.services.sx_settings import sx_int
 
-            days = sx_int("list_default_date_range_days", LIST_DATE_RANGE_DAYS, min_v=1, max_v=90)
+            days = sx_int(
+                "list_default_date_range_days",
+                LIST_DATE_RANGE_DAYS,
+                min_v=1,
+                max_v=90,
+            )
         except Exception:
             days = LIST_DATE_RANGE_DAYS
     today = timezone.localdate()
@@ -66,14 +79,16 @@ def parse_sx_date(raw: str) -> date | None:
 def _coalesce_list_date_range(
     parsed_from: date | None,
     parsed_to: date | None,
+    *,
+    span_days: int,
 ) -> tuple[date, date, bool]:
     """Điền ngày thiếu; dates_defaulted=True khi cả hai đầu vào đều rỗng."""
-    default_from, default_to = default_list_date_range()
+    default_from, default_to = default_list_date_range(days=span_days)
     if not parsed_from and not parsed_to:
         return default_from, default_to, True
 
-    date_from = parsed_from or default_from
     date_to = parsed_to or default_to
+    date_from = parsed_from or (date_to - timedelta(days=max(span_days - 1, 0)))
     if date_from > date_to:
         date_from, date_to = date_to, date_from
     return date_from, date_to, False
@@ -82,23 +97,25 @@ def _coalesce_list_date_range(
 def parse_sx_list_filters(request: HttpRequest) -> SxListFilters:
     code = (request.GET.get('code') or '').strip()
     name = (request.GET.get('name') or '').strip()
+    span_days = parse_date_range_span_from_request(request, default=LIST_DATE_RANGE_DAYS)
 
-    if 'date_from' in request.GET or 'date_to' in request.GET:
+    if 'date_from' in request.GET or 'date_to' in request.GET or 'span' in request.GET:
         raw_from = (request.GET.get('date_from') or '').strip()
         raw_to = (request.GET.get('date_to') or '').strip()
         date_from, date_to, dates_defaulted = _coalesce_list_date_range(
             parse_sx_date(raw_from),
             parse_sx_date(raw_to),
+            span_days=span_days,
         )
         return SxListFilters(
             code=code,
             name=name,
             date_from=date_from,
             date_to=date_to,
-            dates_defaulted=dates_defaulted,
+            dates_defaulted=dates_defaulted and 'date_from' not in request.GET and 'date_to' not in request.GET,
         )
 
-    date_from, date_to = default_list_date_range()
+    date_from, date_to = default_list_date_range(days=span_days)
     return SxListFilters(
         code=code,
         name=name,
@@ -162,6 +179,7 @@ def apply_sx_list_filters(qs: QuerySet, filters: SxListFilters, spec: SxFilterSp
 
 def sx_filter_context(filters: SxListFilters, *, preserve: dict[str, str] | None = None) -> dict[str, Any]:
     preserve = preserve or {}
+    span_ctx = date_range_span_context(filters.date_from, filters.date_to)
     return {
         'filter_code': filters.code,
         'filter_name': filters.name,
@@ -169,6 +187,7 @@ def sx_filter_context(filters: SxListFilters, *, preserve: dict[str, str] | None
         'filter_date_to': filters.date_to.isoformat() if filters.date_to else '',
         'has_list_filters': filters.has_filters,
         'list_filter_preserve': preserve,
+        **span_ctx,
     }
 
 

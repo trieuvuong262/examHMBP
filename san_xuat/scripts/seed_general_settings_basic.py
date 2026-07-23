@@ -21,7 +21,7 @@ cfg.trace_min_timeline_events = 4
 # Năng lực / OEE
 cfg.capacity_load_warn_pct = 80
 cfg.capacity_load_danger_pct = 100
-cfg.list_default_date_range_days = 7
+cfg.list_default_date_range_days = 3
 cfg.oee_shift_hours = 8
 
 # Kho / UI

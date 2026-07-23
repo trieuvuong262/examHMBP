@@ -1,0 +1,44 @@
+{# Shared JS: khi đổi select[name=span] → chỉnh input from theo input to rồi submit form. #}
+<script>
+(function () {
+  function pad2(n) { return String(n).padStart(2, '0'); }
+  function fmtYmd(d) {
+    return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+  }
+  function applySpanToFrom(form, spanDays) {
+    if (!form || !spanDays) return;
+    var toEl = form.querySelector('input[name="to"], input[name="date_to"], #teamRangeTo, #sc-to');
+    var fromEl = form.querySelector('input[name="from"], input[name="date_from"], #teamRangeFrom, #sc-from');
+    if (!toEl || !fromEl) return;
+    var toVal = (toEl.value || '').trim();
+    if (!toVal) {
+      var today = new Date();
+      toVal = fmtYmd(today);
+      toEl.value = toVal;
+      if (toEl._flatpickr) toEl._flatpickr.setDate(toVal, false);
+    }
+    var parts = toVal.split('-').map(Number);
+    if (parts.length !== 3 || !parts[0]) return;
+    var d = new Date(parts[0], parts[1] - 1, parts[2]);
+    d.setDate(d.getDate() - (spanDays - 1));
+    var fromVal = fmtYmd(d);
+    fromEl.value = fromVal;
+    if (fromEl._flatpickr) fromEl._flatpickr.setDate(fromVal, true);
+  }
+  function bindSpan(form) {
+    if (!form || form.dataset.jpSpanBound === '1') return;
+    form.dataset.jpSpanBound = '1';
+    var sel = form.querySelector('select[name="span"]');
+    if (!sel) return;
+    sel.addEventListener('change', function () {
+      if (sel.value) applySpanToFrom(form, parseInt(sel.value, 10));
+      if (typeof form.requestSubmit === 'function') form.requestSubmit();
+      else form.submit();
+    });
+  }
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('form').forEach(bindSpan);
+  });
+  window.jpApplyDateRangeSpan = applySpanToFrom;
+})();
+</script>
