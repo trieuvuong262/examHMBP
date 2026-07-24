@@ -54,11 +54,16 @@
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-header bg-white fw-bold">Tổng theo món</div>
                 <ul class="list-group list-group-flush">
-                    {% for row in totals %}
+                    {% for day in totals_by_day %}
+                    {% if show_meal_date_col %}
+                    <li class="list-group-item bg-light fw-bold small py-2">{{ day.date|date:"d/m/Y" }}</li>
+                    {% endif %}
+                    {% for row in day.rows %}
                     <li class="list-group-item d-flex justify-content-between">
                         <span>{{ row.dish__name }}</span>
                         <strong>{{ row.count }}</strong>
                     </li>
+                    {% endfor %}
                     {% empty %}
                     <li class="list-group-item text-muted">Chưa có đơn</li>
                     {% endfor %}

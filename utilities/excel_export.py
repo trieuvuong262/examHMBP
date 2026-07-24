@@ -60,20 +60,35 @@ def export_meal_summary_xlsx(
             'Ghi chú': order.note,
             'Đặt lúc': timezone.localtime(order.created_at).strftime('%d/%m/%Y %H:%M'),
         })
-    summary = (
-        qs.values('dish__name')
-        .annotate(count=Count('id'))
-        .order_by('-count', 'dish__name')
-    )
-    totals = [{'Món': row['dish__name'], 'Số lượng': row['count']} for row in summary]
     if date_from == date_to:
+        summary = (
+            qs.values('dish__name')
+            .annotate(count=Count('id'))
+            .order_by('-count', 'dish__name')
+        )
+        totals = [{'Món': row['dish__name'], 'Số lượng': row['count']} for row in summary]
+        empty_totals = [{'Món': '—', 'Số lượng': 0}]
         prefix = f'dat_com_{date_from.isoformat()}'
     else:
+        summary = (
+            qs.values('meal_date', 'dish__name')
+            .annotate(count=Count('id'))
+            .order_by('meal_date', '-count', 'dish__name')
+        )
+        totals = [
+            {
+                'Ngày ăn': row['meal_date'].strftime('%d/%m/%Y'),
+                'Món': row['dish__name'],
+                'Số lượng': row['count'],
+            }
+            for row in summary
+        ]
+        empty_totals = [{'Ngày ăn': '—', 'Món': '—', 'Số lượng': 0}]
         prefix = f'dat_com_{date_from.isoformat()}_{date_to.isoformat()}'
     return _xlsx_response(
         {
             'Chi_tiet': pd.DataFrame(rows or [{'Thông báo': 'Chưa có đơn'}]),
-            'Tong_mon': pd.DataFrame(totals or [{'Món': '—', 'Số lượng': 0}]),
+            'Tong_mon': pd.DataFrame(totals or empty_totals),
         },
         prefix,
     )

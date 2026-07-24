@@ -350,12 +350,30 @@ def meal_summary(request):
         )
         .order_by('meal_date', 'employee_name')
     )
-    totals = (
-        orders_qs
-        .values('dish__name')
-        .annotate(count=Count('id'))
-        .order_by('-count', 'dish__name')
-    )
+    show_meal_date_col = date_from != date_to
+    if show_meal_date_col:
+        totals_raw = (
+            orders_qs
+            .values('meal_date', 'dish__name')
+            .annotate(count=Count('id'))
+            .order_by('meal_date', '-count', 'dish__name')
+        )
+        totals_by_day = []
+        current = None
+        for row in totals_raw:
+            if current is None or current['date'] != row['meal_date']:
+                current = {'date': row['meal_date'], 'rows': []}
+                totals_by_day.append(current)
+            current['rows'].append({'dish__name': row['dish__name'], 'count': row['count']})
+    else:
+        day_rows = list(
+            orders_qs
+            .values('dish__name')
+            .annotate(count=Count('id'))
+            .order_by('-count', 'dish__name')
+        )
+        totals_by_day = [{'date': date_from, 'rows': day_rows}] if day_rows else []
+
     dishes = MealDish.objects.filter(is_active=True).order_by('sort_order', 'name')
     if dish_id and not dishes.filter(pk=dish_id).exists():
         dishes = MealDish.objects.filter(Q(is_active=True) | Q(pk=dish_id)).order_by('sort_order', 'name')
@@ -365,10 +383,10 @@ def meal_summary(request):
         'meal_date': date_to,
         'orders': orders,
         'declines': declines,
-        'totals': totals,
+        'totals_by_day': totals_by_day,
         'dishes': dishes,
         'filter_query': _meal_summary_query_string(filters),
-        'show_meal_date_col': date_from != date_to,
+        'show_meal_date_col': show_meal_date_col,
         'can_export': user_can_export_menu(request.user, MODULE_UTILITIES, 'meal_ordering'),
         'can_manage': True,
     })

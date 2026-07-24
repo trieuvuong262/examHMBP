@@ -264,23 +264,7 @@ def doc_detail(request, pk):
             except SkuError as exc:
                 messages.error(request, str(exc))
             else:
-                messages.success(request, f'Đã sinh / cập nhật {len(rows)} SKU cho Style {doc.product_code}.')
-            return redirect(f'{request.path}?tab=sku')
-        elif action == 'add_single_sku':
-            from san_xuat.services.sku_catalog import SkuError, get_or_create_sku
-
-            try:
-                sku = get_or_create_sku(
-                    style_code=doc.product_code,
-                    style_name=doc.product_name or '',
-                    color_code=request.POST.get('color_code') or '',
-                    size_label=request.POST.get('size_label') or '',
-                    user=request.user,
-                )
-            except SkuError as exc:
-                messages.error(request, str(exc))
-            else:
-                messages.success(request, f'Đã thêm SKU {sku.sku_code}.')
+                messages.success(request, f'Đã tạo / cập nhật {len(rows)} SKU cho Style {doc.product_code}.')
             return redirect(f'{request.path}?tab=sku')
 
     if can_update:

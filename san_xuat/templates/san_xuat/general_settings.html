@@ -340,6 +340,7 @@
         <a href="#sec-capacity">Năng lực</a>
         <a href="#sec-stock">Kho &amp; tích hợp</a>
         <a href="#sec-shopfloor">Shop floor</a>
+        <a href="#sec-sku">SKU (màu &amp; size)</a>
         <a href="#sec-prefix">Mã chứng từ</a>
       </nav>
 
@@ -640,6 +641,7 @@
           </div>
         </section>
 
+
         {# —— 6. Prefix —— #}
         <section class="jp-sx-set-panel" id="sec-prefix">
           <div class="jp-sx-set-panel-head">
@@ -681,6 +683,159 @@
       </div>
     </div>
   </form>
+
+  <div class="jp-sx-set-layout mt-3">
+    <div class="d-none d-lg-block" aria-hidden="true"></div>
+    <div>
+{# —— SKU catalog (ngoài form thiết lập chính) —— #}
+        <section class="jp-sx-set-panel" id="sec-sku">
+          <div class="jp-sx-set-panel-head">
+            <h3>SKU — danh mục màu &amp; size</h3>
+          </div>
+          <div class="jp-sx-set-panel-body px-3 py-3">
+            <p class="small text-muted mb-3 mb-md-4">
+              Dùng khi tạo SKU trên hồ sơ SX (<code>Style-Màu-Size</code>).
+              Cập nhật tại đây áp dụng cho toàn module.
+            </p>
+
+            <div class="row g-3 g-lg-4">
+              <div class="col-lg-7">
+                <h4 class="h6 fw-bold mb-2">Màu</h4>
+                {% if can_update %}
+                {% for c in sku_colors %}
+                <form method="post" id="sx-color-form-{{ c.pk }}" class="d-none">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="save_color">
+                  <input type="hidden" name="color_id" value="{{ c.pk }}">
+                </form>
+                {% endfor %}
+                {% endif %}
+                <div class="table-responsive border rounded-3 mb-2">
+                  <table class="table table-sm align-middle mb-0">
+                    <thead class="table-light">
+                      <tr>
+                        <th style="width:5.5rem">Mã</th>
+                        <th>Tên</th>
+                        <th style="width:4.5rem">TT</th>
+                        <th style="width:5rem">Dùng</th>
+                        {% if can_update %}<th style="width:4.5rem"></th>{% endif %}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for c in sku_colors %}
+                      <tr class="{% if not c.is_active %}opacity-50{% endif %}">
+                        <td><code class="small">{{ c.code }}</code></td>
+                        {% if can_update %}
+                        <td><input form="sx-color-form-{{ c.pk }}" type="text" name="color_name" value="{{ c.name }}" class="form-control form-control-sm" maxlength="80" required></td>
+                        <td><input form="sx-color-form-{{ c.pk }}" type="number" name="color_sort_order" value="{{ c.sort_order }}" class="form-control form-control-sm" min="0" step="1"></td>
+                        <td class="text-center">
+                          <input form="sx-color-form-{{ c.pk }}" type="checkbox" name="color_is_active" value="1" class="form-check-input" {% if c.is_active %}checked{% endif %} title="Đang dùng">
+                        </td>
+                        <td>
+                          <button form="sx-color-form-{{ c.pk }}" type="submit" class="btn btn-outline-hm btn-sm py-0 px-2">Lưu</button>
+                        </td>
+                        {% else %}
+                        <td>{{ c.name }}</td>
+                        <td>{{ c.sort_order }}</td>
+                        <td>{% if c.is_active %}Có{% else %}Không{% endif %}</td>
+                        {% endif %}
+                      </tr>
+                      {% empty %}
+                      <tr><td colspan="5" class="text-muted small">Chưa có màu.</td></tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+                {% if can_update %}
+                <form method="post" class="row g-2 align-items-end border rounded-3 p-2 bg-light">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="add_color">
+                  <div class="col-4 col-md-3">
+                    <label class="form-label small text-muted mb-0">Mã</label>
+                    <input type="text" name="color_code" class="form-control form-control-sm text-uppercase" placeholder="NVY" maxlength="20" required>
+                  </div>
+                  <div class="col-5 col-md-5">
+                    <label class="form-label small text-muted mb-0">Tên</label>
+                    <input type="text" name="color_name" class="form-control form-control-sm" placeholder="Navy" maxlength="80">
+                  </div>
+                  <div class="col-3 col-md-4">
+                    <button type="submit" class="btn btn-hm btn-sm w-100">Thêm màu</button>
+                  </div>
+                </form>
+                {% endif %}
+              </div>
+
+              <div class="col-lg-5">
+                <h4 class="h6 fw-bold mb-2">Size</h4>
+                {% if can_update %}
+                {% for s in sku_sizes %}
+                <form method="post" id="sx-size-form-{{ s.pk }}" class="d-none">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="save_size">
+                  <input type="hidden" name="size_id" value="{{ s.pk }}">
+                </form>
+                {% endfor %}
+                {% endif %}
+                <div class="table-responsive border rounded-3 mb-2">
+                  <table class="table table-sm align-middle mb-0">
+                    <thead class="table-light">
+                      <tr>
+                        <th style="width:5rem">Size</th>
+                        <th>Tên</th>
+                        <th style="width:4.5rem">TT</th>
+                        <th style="width:5rem">Dùng</th>
+                        {% if can_update %}<th style="width:4.5rem"></th>{% endif %}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for s in sku_sizes %}
+                      <tr class="{% if not s.is_active %}opacity-50{% endif %}">
+                        <td><code class="small">{{ s.code }}</code></td>
+                        {% if can_update %}
+                        <td><input form="sx-size-form-{{ s.pk }}" type="text" name="size_name" value="{{ s.name }}" class="form-control form-control-sm" maxlength="80"></td>
+                        <td><input form="sx-size-form-{{ s.pk }}" type="number" name="size_sort_order" value="{{ s.sort_order }}" class="form-control form-control-sm" min="0" step="1"></td>
+                        <td class="text-center">
+                          <input form="sx-size-form-{{ s.pk }}" type="checkbox" name="size_is_active" value="1" class="form-check-input" {% if s.is_active %}checked{% endif %} title="Đang dùng">
+                        </td>
+                        <td>
+                          <button form="sx-size-form-{{ s.pk }}" type="submit" class="btn btn-outline-hm btn-sm py-0 px-2">Lưu</button>
+                        </td>
+                        {% else %}
+                        <td>{{ s.name|default:s.code }}</td>
+                        <td>{{ s.sort_order }}</td>
+                        <td>{% if s.is_active %}Có{% else %}Không{% endif %}</td>
+                        {% endif %}
+                      </tr>
+                      {% empty %}
+                      <tr><td colspan="5" class="text-muted small">Chưa có size.</td></tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                </div>
+                {% if can_update %}
+                <form method="post" class="row g-2 align-items-end border rounded-3 p-2 bg-light">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="add_size">
+                  <div class="col-4">
+                    <label class="form-label small text-muted mb-0">Size</label>
+                    <input type="text" name="size_code" class="form-control form-control-sm text-uppercase" placeholder="XL" maxlength="20" required>
+                  </div>
+                  <div class="col-4">
+                    <label class="form-label small text-muted mb-0">Tên</label>
+                    <input type="text" name="size_name" class="form-control form-control-sm" placeholder="XL" maxlength="80">
+                  </div>
+                  <div class="col-4">
+                    <button type="submit" class="btn btn-hm btn-sm w-100">Thêm size</button>
+                  </div>
+                </form>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </section>
+    </div>
+  </div>
+
 </div>
 
 <script>

@@ -2903,9 +2903,16 @@ def traceability(request):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def general_settings(request):
-    """Thiết lập chung sản xuất — cổng quy trình, ngưỡng truy xuất."""
+    """Thiết lập chung sản xuất — cổng quy trình, ngưỡng truy xuất, danh mục SKU."""
     from san_xuat.forms_settings import SxGeneralSettingsForm
-    from san_xuat.hub_models import SxGeneralSettings
+    from san_xuat.hub_models import SxColor, SxGeneralSettings, SxSize
+    from san_xuat.services.sku_catalog import (
+        SkuError,
+        ensure_color,
+        ensure_size,
+        update_color,
+        update_size,
+    )
 
     cfg = SxGeneralSettings.load()
     can_update = _perm_ctx(request).get('can_update')
@@ -2914,6 +2921,64 @@ def general_settings(request):
         if not can_update:
             messages.error(request, 'Bạn không có quyền cập nhật thiết lập.')
             return redirect('san_xuat:general_settings')
+
+        action = (request.POST.get('action') or 'save_settings').strip()
+        redirect_sku = redirect(f"{reverse('san_xuat:general_settings')}#sec-sku")
+
+        if action == 'add_color':
+            try:
+                color = ensure_color(
+                    code=request.POST.get('color_code') or '',
+                    name=request.POST.get('color_name') or '',
+                    user=request.user,
+                )
+            except SkuError as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(request, f'Đã thêm / kích hoạt màu {color.code}.')
+            return redirect_sku
+
+        if action == 'save_color':
+            try:
+                color = update_color(
+                    color_id=int(request.POST.get('color_id') or 0),
+                    name=request.POST.get('color_name'),
+                    sort_order=request.POST.get('color_sort_order'),
+                    is_active=(request.POST.get('color_is_active') == '1'),
+                )
+            except (SkuError, TypeError, ValueError) as exc:
+                messages.error(request, str(exc) if isinstance(exc, SkuError) else 'Màu không hợp lệ.')
+            else:
+                messages.success(request, f'Đã cập nhật màu {color.code}.')
+            return redirect_sku
+
+        if action == 'add_size':
+            try:
+                size = ensure_size(
+                    code=request.POST.get('size_code') or '',
+                    name=request.POST.get('size_name') or '',
+                    user=request.user,
+                )
+            except SkuError as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(request, f'Đã thêm / kích hoạt size {size.code}.')
+            return redirect_sku
+
+        if action == 'save_size':
+            try:
+                size = update_size(
+                    size_id=int(request.POST.get('size_id') or 0),
+                    name=request.POST.get('size_name'),
+                    sort_order=request.POST.get('size_sort_order'),
+                    is_active=(request.POST.get('size_is_active') == '1'),
+                )
+            except (SkuError, TypeError, ValueError) as exc:
+                messages.error(request, str(exc) if isinstance(exc, SkuError) else 'Size không hợp lệ.')
+            else:
+                messages.success(request, f'Đã cập nhật size {size.code}.')
+            return redirect_sku
+
         form = SxGeneralSettingsForm(request.POST, instance=cfg)
         if form.is_valid():
             obj = form.save(commit=False)
@@ -2925,11 +2990,16 @@ def general_settings(request):
     else:
         form = SxGeneralSettingsForm(instance=cfg)
 
+    colors = list(SxColor.objects.order_by('sort_order', 'code'))
+    sizes = list(SxSize.objects.order_by('sort_order', 'code'))
+
     return render(request, 'san_xuat/general_settings.html', {
         **_perm_ctx(request),
         'form': form,
         'cfg': cfg,
         'can_update': can_update,
+        'sku_colors': colors,
+        'sku_sizes': sizes,
     })
 
 

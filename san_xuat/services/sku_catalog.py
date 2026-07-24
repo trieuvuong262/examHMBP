@@ -130,12 +130,15 @@ def ensure_color(*, code: str, name: str = "", user=None) -> SxColor:
         raise SkuError("Mã màu trống.")
     existing = SxColor.objects.filter(code__iexact=code).first()
     if existing:
+        fields: list[str] = []
         if not existing.is_active:
             existing.is_active = True
-            existing.save(update_fields=["is_active"])
-        if name and not existing.name:
-            existing.name = name.strip()[:80]
-            existing.save(update_fields=["name"])
+            fields.append("is_active")
+        if name and (name or "").strip() and existing.name != (name or "").strip()[:80]:
+            existing.name = (name or "").strip()[:80]
+            fields.append("name")
+        if fields:
+            existing.save(update_fields=fields)
         return existing
     max_order = SxColor.objects.order_by("-sort_order").values_list("sort_order", flat=True).first()
     return SxColor.objects.create(
@@ -154,9 +157,15 @@ def ensure_size(*, code: str, name: str = "", user=None) -> SxSize:
         raise SkuError("Size trống.")
     existing = SxSize.objects.filter(code__iexact=code).first()
     if existing:
+        fields: list[str] = []
         if not existing.is_active:
             existing.is_active = True
-            existing.save(update_fields=["is_active"])
+            fields.append("is_active")
+        if name and (name or "").strip() and existing.name != (name or "").strip()[:80]:
+            existing.name = (name or "").strip()[:80]
+            fields.append("name")
+        if fields:
+            existing.save(update_fields=fields)
         return existing
     max_order = SxSize.objects.order_by("-sort_order").values_list("sort_order", flat=True).first()
     return SxSize.objects.create(
@@ -167,6 +176,62 @@ def ensure_size(*, code: str, name: str = "", user=None) -> SxSize:
         is_demo=False,
         created_by=user,
     )
+
+
+def update_color(
+    *,
+    color_id: int,
+    name: str | None = None,
+    sort_order: int | None = None,
+    is_active: bool | None = None,
+) -> SxColor:
+    color = SxColor.objects.filter(pk=color_id).first()
+    if not color:
+        raise SkuError("Không tìm thấy màu.")
+    fields: list[str] = []
+    if name is not None:
+        color.name = (name or color.code).strip()[:80]
+        fields.append("name")
+    if sort_order is not None:
+        try:
+            color.sort_order = max(0, int(sort_order))
+        except (TypeError, ValueError) as exc:
+            raise SkuError("Thứ tự màu không hợp lệ.") from exc
+        fields.append("sort_order")
+    if is_active is not None:
+        color.is_active = bool(is_active)
+        fields.append("is_active")
+    if fields:
+        color.save(update_fields=fields)
+    return color
+
+
+def update_size(
+    *,
+    size_id: int,
+    name: str | None = None,
+    sort_order: int | None = None,
+    is_active: bool | None = None,
+) -> SxSize:
+    size = SxSize.objects.filter(pk=size_id).first()
+    if not size:
+        raise SkuError("Không tìm thấy size.")
+    fields: list[str] = []
+    if name is not None:
+        size.name = (name or size.code).strip()[:80]
+        fields.append("name")
+    if sort_order is not None:
+        try:
+            size.sort_order = max(0, int(sort_order))
+        except (TypeError, ValueError) as exc:
+            raise SkuError("Thứ tự size không hợp lệ.") from exc
+        fields.append("sort_order")
+    if is_active is not None:
+        size.is_active = bool(is_active)
+        fields.append("is_active")
+    if fields:
+        size.save(update_fields=fields)
+    return size
 
 
 def color_label_for(code: str) -> str:
@@ -376,7 +441,7 @@ def expand_style_matrix(
     colors = [normalize_token(c) for c in color_codes if normalize_token(c)]
     sizes = [normalize_token(s) for s in size_labels if normalize_token(s)]
     if not colors or not sizes:
-        raise SkuError("Cần ít nhất 1 màu và 1 size để sinh ma trận SKU.")
+        raise SkuError("Cần ít nhất 1 màu và 1 size để tạo danh sách SKU.")
     created: list[SxSku] = []
     for color in colors:
         for size in sizes:
