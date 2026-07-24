@@ -80,8 +80,12 @@ class MealDayOffering(models.Model):
         return self.dish_name or (self.dish.name if self.dish_id else '')
 
     def save(self, *args, **kwargs):
-        if self.is_offered and self.dish_id and not self.dish_name:
-            self.dish_name = self.dish.name
+        if self.is_offered and self.dish_id:
+            from utilities.meal_labels import normalize_dish_display
+            if not self.dish_name:
+                self.dish_name = normalize_dish_display(self.dish.name)
+            else:
+                self.dish_name = normalize_dish_display(self.dish_name)
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -119,8 +123,12 @@ class MealOrder(models.Model):
         return self.dish_name or (self.dish.name if self.dish_id else '')
 
     def save(self, *args, **kwargs):
-        if self.dish_id and not self.dish_name:
-            self.dish_name = self.dish.name
+        if self.dish_id:
+            from utilities.meal_labels import normalize_dish_display
+            if not self.dish_name:
+                self.dish_name = normalize_dish_display(self.dish.name)
+            else:
+                self.dish_name = normalize_dish_display(self.dish_name)
         super().save(*args, **kwargs)
 
     def __str__(self):

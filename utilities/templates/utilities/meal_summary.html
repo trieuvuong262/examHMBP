@@ -12,7 +12,7 @@
                 {% else %}
                 · {{ date_from|date:"d/m/Y" }} → {{ date_to|date:"d/m/Y" }}
                 {% endif %}
-                {% if selected_dish %} · {{ selected_dish.name }}{% endif %}
+                {% if dish_filter_value %} · {{ dish_filter_value }}{% elif selected_dish %} · {{ selected_dish.name }}{% endif %}
             </p>
         </div>
         {% if can_export %}
@@ -38,8 +38,8 @@
                     <label class="form-label fw-bold small mb-1" for="meal-dish">Món</label>
                     <select name="dish" id="meal-dish" class="form-select">
                         <option value="">Tất cả món</option>
-                        {% for dish in dishes %}
-                        <option value="{{ dish.pk }}"{% if dish_id == dish.pk %} selected{% endif %}>{{ dish.name }}</option>
+                        {% for opt in dish_choices %}
+                        <option value="{{ opt.value }}"{% if dish_filter_value and opt.value == dish_filter_value %} selected{% endif %}>{{ opt.label }}</option>
                         {% endfor %}
                     </select>
                 </div>

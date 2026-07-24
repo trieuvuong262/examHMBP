@@ -5,6 +5,7 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 
 from utilities.meal_rules import is_meal_order_window_open
+from utilities.meal_labels import dish_label_key, normalize_dish_display
 from utilities.models import MealDish, MealOrder, MealOrderSettings, SalaryAdvanceRequest
 from utilities.salary_rules import MAX_SALARY_ADVANCE, is_salary_advance_open
 
@@ -29,9 +30,20 @@ class MealDishForm(forms.ModelForm):
             )
 
     def clean_name(self):
-        name = self.cleaned_data.get('name')
+        name = normalize_dish_display(self.cleaned_data.get('name'))
         if self.lock_name and self.instance.pk:
             return self.instance.name
+        if not name:
+            raise ValidationError('Nhập tên món.')
+        key = dish_label_key(name)
+        qs = MealDish.objects.all()
+        if self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+        for other in qs.only('id', 'name'):
+            if dish_label_key(other.name) == key:
+                raise ValidationError(
+                    f'Đã có món «{other.name}» — không tạo trùng (không phân biệt hoa/thường).'
+                )
         return name
 
 
