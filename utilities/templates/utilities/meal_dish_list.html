@@ -4,6 +4,7 @@
 <div class="container jp-page py-3 py-md-4 mb-5">
     <div class="jp-page-header mb-3">
         <h2 class="fw-bold text-hm jp-page-title">Danh mục món cơm</h2>
+        <p class="text-muted small mb-0">Mỗi ngày khác món thì <strong>thêm món mới</strong> — không đổi tên món đã có đơn.</p>
     </div>
     {% include 'utilities/includes/meal_manage_nav.html' with active='dishes' %}
     <div class="d-flex justify-content-end mb-3">
@@ -19,11 +20,18 @@
                     {% for dish in dishes %}
                     <tr>
                         <td>{{ dish.sort_order }}</td>
-                        <td><strong>{{ dish.name }}</strong></td>
+                        <td>
+                            <strong>{{ dish.name }}</strong>
+                            {% if dish.has_orders %}
+                            <span class="badge bg-secondary-subtle text-secondary ms-1">Đã có đơn</span>
+                            {% endif %}
+                        </td>
                         <td>{% if dish.is_active %}<span class="badge bg-success-subtle text-success">Đang dùng</span>{% else %}<span class="badge bg-secondary-subtle text-secondary">Ẩn</span>{% endif %}</td>
                         <td class="text-end">
-                            <a href="{% url 'utilities:meal_dish_edit' dish.pk %}" class="btn btn-sm btn-outline-hm">Sửa</a>
+                            <a href="{% url 'utilities:meal_dish_edit' dish.pk %}" class="btn btn-sm btn-outline-hm">{% if dish.has_orders %}Chi tiết{% else %}Sửa{% endif %}</a>
+                            {% if not dish.has_orders %}
                             <a href="{% url 'utilities:meal_dish_delete' dish.pk %}" class="btn btn-sm btn-outline-danger">Xóa</a>
+                            {% endif %}
                         </td>
                     </tr>
                     {% empty %}

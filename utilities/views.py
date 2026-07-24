@@ -4,7 +4,7 @@ from decimal import Decimal
 from django.contrib import messages
 from django.db import IntegrityError
 from django.db.models import Count, Q, Sum, Value
-from django.db.models.functions import Coalesce
+from django.db.models.functions import Coalesce, NullIf
 from django.http import Http404
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
@@ -138,6 +138,16 @@ def _offered_dish_ids(meal_date):
     )
 
 
+def _meal_menu_lock_reason(meal_date) -> str | None:
+    """Trả về lý do khóa sửa menu ngày, hoặc None nếu còn sửa được."""
+    today = timezone.localdate()
+    if meal_date < today:
+        return 'Menu ngày đã qua đã khóa — chỉ xem, không sửa.'
+    if MealOrder.objects.filter(meal_date=meal_date).exists():
+        return 'Đã có đơn đặt cho ngày này — menu đã khóa để không lệch lịch sử.'
+    return None
+
+
 def _ensure_day_offerings(meal_date):
     dishes = MealDish.objects.filter(is_active=True)
     existing = {
@@ -163,14 +173,15 @@ def _meal_stats_rows(period: str, anchor_date):
         label = f'tuan_{start.isoformat()}'
     qs = (
         MealOrder.objects.filter(meal_date__gte=start, meal_date__lt=end)
-        .values('meal_date', 'dish__name')
+        .annotate(label=Coalesce(NullIf('dish_name', Value('')), 'dish__name'))
+        .values('meal_date', 'label')
         .annotate(count=Count('id'))
         .order_by('meal_date', '-count')
     )
     rows = [
         {
             'day': row['meal_date'].strftime('%d/%m/%Y'),
-            'dish': row['dish__name'],
+            'dish': row['label'],
             'count': row['count'],
         }
         for row in qs
@@ -218,6 +229,7 @@ def meal_home(request):
             order = form.save(commit=False)
             order.employee = request.user
             order.meal_date = meal_date
+            order.dish_name = order.dish.name
             order.save()
             messages.success(request, f'Đã đặt {order.dish.name} cho ngày {meal_date.strftime("%d/%m/%Y")}.')
             return redirect('utilities:meal_home')
@@ -241,7 +253,14 @@ def meal_home(request):
 
 @module_perm_required(MODULE_UTILITIES, 'update')
 def meal_dish_list(request):
-    dishes = MealDish.objects.all()
+    dishes = list(MealDish.objects.all())
+    ordered_ids = set(
+        MealOrder.objects.filter(dish_id__in=[d.pk for d in dishes])
+        .values_list('dish_id', flat=True)
+        .distinct()
+    )
+    for dish in dishes:
+        dish.has_orders = dish.pk in ordered_ids
     return render(request, 'utilities/meal_dish_list.html', {
         'dishes': dishes,
         'can_manage': True,
@@ -259,21 +278,34 @@ def meal_dish_create(request):
     else:
         next_order = MealDish.objects.count() + 1
         form = MealDishForm(initial={'sort_order': next_order, 'is_active': True})
-    return render(request, 'utilities/meal_dish_form.html', {'form': form, 'title': 'Thêm món'})
+    return render(request, 'utilities/meal_dish_form.html', {
+        'form': form,
+        'title': 'Thêm món',
+        'has_orders': False,
+        'lock_name': False,
+    })
 
 
 @module_perm_required(MODULE_UTILITIES, 'update')
 def meal_dish_edit(request, pk):
     dish = get_object_or_404(MealDish, pk=pk)
+    has_orders = MealOrder.objects.filter(dish=dish).exists()
+    lock_name = has_orders
     if request.method == 'POST':
-        form = MealDishForm(request.POST, instance=dish)
+        form = MealDishForm(request.POST, instance=dish, lock_name=lock_name)
         if form.is_valid():
             form.save()
             messages.success(request, 'Đã cập nhật món.')
             return redirect('utilities:meal_dish_list')
     else:
-        form = MealDishForm(instance=dish)
-    return render(request, 'utilities/meal_dish_form.html', {'form': form, 'title': 'Sửa món', 'dish': dish})
+        form = MealDishForm(instance=dish, lock_name=lock_name)
+    return render(request, 'utilities/meal_dish_form.html', {
+        'form': form,
+        'title': 'Sửa món',
+        'dish': dish,
+        'has_orders': has_orders,
+        'lock_name': lock_name,
+    })
 
 
 @module_perm_required(MODULE_UTILITIES, 'update')
@@ -282,6 +314,8 @@ def meal_dish_delete(request, pk):
     if request.method == 'POST':
         if MealOrder.objects.filter(dish=dish).exists():
             messages.error(request, 'Không xóa được — món đã có đơn đặt.')
+        elif MealDayOffering.objects.filter(dish=dish, is_offered=True).exists():
+            messages.error(request, 'Không xóa được — món đang/đã nằm trong menu ngày.')
         else:
             dish.delete()
             messages.success(request, 'Đã xóa món.')
@@ -299,18 +333,27 @@ def meal_day_menu(request):
 
     _ensure_day_offerings(meal_date)
     offerings = MealDayOffering.objects.filter(meal_date=meal_date).select_related('dish')
+    lock_reason = _meal_menu_lock_reason(meal_date)
+    menu_locked = lock_reason is not None
 
     if request.method == 'POST':
+        if menu_locked:
+            messages.error(request, lock_reason)
+            return redirect(f'{reverse("utilities:meal_day_menu")}?meal_date={meal_date.isoformat()}')
         selected = {int(pk) for pk in request.POST.getlist('offered') if pk.isdigit()}
         for row in offerings:
             row.is_offered = row.dish_id in selected
-            row.save(update_fields=['is_offered'])
+            if row.is_offered:
+                row.dish_name = row.dish.name
+            row.save(update_fields=['is_offered', 'dish_name'])
         messages.success(request, f'Đã cập nhật menu ngày {meal_date.strftime("%d/%m/%Y")}.')
         return redirect(f'{reverse("utilities:meal_day_menu")}?meal_date={meal_date.isoformat()}')
 
     return render(request, 'utilities/meal_day_menu.html', {
         'meal_date': meal_date,
         'offerings': offerings,
+        'menu_locked': menu_locked,
+        'lock_reason': lock_reason,
         'can_manage': True,
     })
 
@@ -352,7 +395,7 @@ def meal_summary(request):
     )
     show_meal_date_col = date_from != date_to
 
-    # Menu từng ngày (MealDayOffering) — không lấy cả danh mục MealDish chung.
+    # Menu từng ngày (MealDayOffering) — dùng snapshot tên món, không lấy tên danh mục hiện tại.
     offered_rows = list(
         MealDayOffering.objects.filter(
             meal_date__gte=date_from,
@@ -368,40 +411,50 @@ def meal_summary(request):
         if current_menu is None or current_menu['date'] != row.meal_date:
             current_menu = {'date': row.meal_date, 'dishes': []}
             menus_by_day.append(current_menu)
-        current_menu['dishes'].append(row.dish)
+        current_menu['dishes'].append({
+            'id': row.dish_id,
+            'name': row.dish_name or row.dish.name,
+        })
 
     order_counts = {
-        (row['meal_date'], row['dish__name']): row['count']
+        (row['meal_date'], row['label']): row['count']
         for row in (
             orders_qs
-            .values('meal_date', 'dish__name')
+            .annotate(label=Coalesce(NullIf('dish_name', Value('')), 'dish__name'))
+            .values('meal_date', 'label')
             .annotate(count=Count('id'))
         )
     }
     totals_by_day = []
     for day in menus_by_day:
-        rows = [
-            {
-                'dish__name': dish.name,
-                'count': order_counts.get((day['date'], dish.name), 0),
-            }
-            for dish in day['dishes']
-        ]
-        # Đơn món ngoài menu ngày (đặt trước khi HR đổi menu)
-        offered_names = {dish.name for dish in day['dishes']}
-        extras = [
-            {'dish__name': name, 'count': count}
-            for (d, name), count in order_counts.items()
-            if d == day['date'] and name not in offered_names
-        ]
-        extras.sort(key=lambda r: (-r['count'], r['dish__name']))
-        rows.extend(extras)
-        if filters.get('selected_dish'):
-            selected_name = filters['selected_dish'].name
-            rows = [r for r in rows if r['dish__name'] == selected_name]
+        if dish_id:
+            rows = [
+                {'dish__name': name, 'count': count}
+                for (d, name), count in order_counts.items()
+                if d == day['date']
+            ]
+            for dish in day['dishes']:
+                if dish['id'] == dish_id and not any(r['dish__name'] == dish['name'] for r in rows):
+                    rows.append({'dish__name': dish['name'], 'count': 0})
+            rows.sort(key=lambda r: (-r['count'], r['dish__name']))
+        else:
+            rows = [
+                {
+                    'dish__name': dish['name'],
+                    'count': order_counts.get((day['date'], dish['name']), 0),
+                }
+                for dish in day['dishes']
+            ]
+            offered_names = {dish['name'] for dish in day['dishes']}
+            extras = [
+                {'dish__name': name, 'count': count}
+                for (d, name), count in order_counts.items()
+                if d == day['date'] and name not in offered_names
+            ]
+            extras.sort(key=lambda r: (-r['count'], r['dish__name']))
+            rows.extend(extras)
         if rows:
-            totals_by_day.append({'date': day['date'], 'rows': rows})
-    # Ngày có đơn nhưng chưa cấu hình menu
+            totals_by_day.append({'date': day['date'], 'rows': rows})    # Ngày có đơn nhưng chưa cấu hình menu
     menu_dates = {day['date'] for day in menus_by_day}
     orphan_dates = sorted({d for (d, _name) in order_counts if d not in menu_dates})
     for d in orphan_dates:

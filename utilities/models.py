@@ -67,6 +67,8 @@ class MealDayOffering(models.Model):
         verbose_name='Món',
     )
     is_offered = models.BooleanField(default=False, verbose_name='Cho phép đặt')
+    # Tên món lúc HR lưu menu — không đổi khi đổi tên danh mục sau này.
+    dish_name = models.CharField(max_length=120, blank=True, verbose_name='Tên món (snapshot)')
 
     class Meta:
         unique_together = ('meal_date', 'dish')
@@ -74,9 +76,17 @@ class MealDayOffering(models.Model):
         verbose_name = 'Món trong ngày'
         verbose_name_plural = 'Món trong ngày'
 
+    def display_name(self) -> str:
+        return self.dish_name or (self.dish.name if self.dish_id else '')
+
+    def save(self, *args, **kwargs):
+        if self.is_offered and self.dish_id and not self.dish_name:
+            self.dish_name = self.dish.name
+        super().save(*args, **kwargs)
+
     def __str__(self):
         flag = '✓' if self.is_offered else '—'
-        return f'{self.meal_date} · {self.dish.name} {flag}'
+        return f'{self.meal_date} · {self.display_name()} {flag}'
 
 
 class MealOrder(models.Model):
@@ -93,6 +103,8 @@ class MealOrder(models.Model):
         related_name='orders',
         verbose_name='Món đã chọn',
     )
+    # Tên món lúc đặt — giữ nguyên dù HR đổi tên danh mục sau này.
+    dish_name = models.CharField(max_length=120, blank=True, verbose_name='Tên món (snapshot)')
     note = models.CharField(max_length=200, blank=True, verbose_name='Ghi chú')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -103,8 +115,16 @@ class MealOrder(models.Model):
         verbose_name = 'Đơn đặt cơm'
         verbose_name_plural = 'Đơn đặt cơm'
 
+    def display_name(self) -> str:
+        return self.dish_name or (self.dish.name if self.dish_id else '')
+
+    def save(self, *args, **kwargs):
+        if self.dish_id and not self.dish_name:
+            self.dish_name = self.dish.name
+        super().save(*args, **kwargs)
+
     def __str__(self):
-        return f'{self.employee} · {self.meal_date} · {self.dish.name}'
+        return f'{self.employee} · {self.meal_date} · {self.display_name()}'
 
 
 class MealOrderDecline(models.Model):

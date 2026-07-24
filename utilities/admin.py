@@ -33,33 +33,40 @@ class MealDishAdmin(admin.ModelAdmin):
     list_editable = ('sort_order', 'is_active')
     ordering = ('sort_order', 'name')
 
+    def get_readonly_fields(self, request, obj=None):
+        if obj and MealOrder.objects.filter(dish=obj).exists():
+            return ('name',)
+        return ()
+
 
 @admin.register(MealDayOffering)
 class MealDayOfferingAdmin(admin.ModelAdmin):
-    list_display = ('meal_date', 'dish', 'is_offered')
+    list_display = ('meal_date', 'dish', 'dish_name', 'is_offered')
     list_filter = ('is_offered', 'meal_date')
-    search_fields = ('dish__name',)
+    search_fields = ('dish__name', 'dish_name')
     list_select_related = ('dish',)
     autocomplete_fields = ('dish',)
     date_hierarchy = 'meal_date'
     ordering = ('-meal_date', 'dish__sort_order')
+    readonly_fields = ('dish_name',)
 
 
 @admin.register(MealOrder)
 class MealOrderAdmin(admin.ModelAdmin):
-    list_display = ('meal_date', 'employee', 'dish', 'note', 'created_at')
+    list_display = ('meal_date', 'employee', 'dish', 'dish_name', 'note', 'created_at')
     list_filter = ('meal_date', 'dish')
     search_fields = (
         'employee__username',
         'employee__profile__full_name',
         'dish__name',
+        'dish_name',
         'note',
     )
     list_select_related = ('employee', 'employee__profile', 'dish')
     raw_id_fields = ('employee',)
     autocomplete_fields = ('dish',)
     date_hierarchy = 'meal_date'
-    readonly_fields = ('created_at', 'updated_at')
+    readonly_fields = ('dish_name', 'created_at', 'updated_at')
     ordering = ('-meal_date', '-created_at')
 
 

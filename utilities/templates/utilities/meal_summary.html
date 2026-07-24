@@ -110,7 +110,7 @@
                             <tr>
                                 {% if show_meal_date_col %}<td class="text-muted small">{{ order.meal_date|date:"d/m/Y" }}</td>{% endif %}
                                 <td>{{ order.employee_name }}</td>
-                                <td>{{ order.dish.name }}</td>
+                                <td>{% firstof order.dish_name order.dish.name %}</td>
                                 <td class="text-muted small">{{ order.note|default:"—" }}</td>
                             </tr>
                             {% empty %}

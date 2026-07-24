@@ -29,7 +29,7 @@
 
     {% if existing_order %}
     <div class="alert alert-success border-0 shadow-sm">
-        Bạn đã đặt <strong>{{ existing_order.dish.name }}</strong>
+        Bạn đã đặt <strong>{% firstof existing_order.dish_name existing_order.dish.name %}</strong>
         {% if existing_order.note %}<span class="text-muted">— {{ existing_order.note }}</span>{% endif %}
         lúc {{ existing_order.created_at|date:"H:i d/m/Y" }}.
     </div>

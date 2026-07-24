@@ -19,6 +19,21 @@ class MealDishForm(forms.ModelForm):
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
 
+    def __init__(self, *args, lock_name: bool = False, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.lock_name = lock_name
+        if lock_name:
+            self.fields['name'].disabled = True
+            self.fields['name'].help_text = (
+                'Món đã có đơn — không đổi tên. Thêm món mới cho menu ngày khác.'
+            )
+
+    def clean_name(self):
+        name = self.cleaned_data.get('name')
+        if self.lock_name and self.instance.pk:
+            return self.instance.name
+        return name
+
 
 class MealOrderForm(forms.ModelForm):
     class Meta:

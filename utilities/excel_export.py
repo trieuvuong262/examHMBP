@@ -3,7 +3,8 @@
 from io import BytesIO
 
 import pandas as pd
-from django.db.models import Count, Sum
+from django.db.models import Count, Sum, Value
+from django.db.models.functions import Coalesce, NullIf
 from django.http import HttpResponse
 from django.utils import timezone
 
@@ -56,29 +57,32 @@ def export_meal_summary_xlsx(
             'Ngày ăn': order.meal_date.strftime('%d/%m/%Y'),
             'Nhân viên': profile.full_name if profile and profile.full_name else order.employee.username,
             'Phòng ban': profile.department.name if profile and profile.department_id else '',
-            'Món': order.dish.name,
+            'Món': order.display_name(),
             'Ghi chú': order.note,
             'Đặt lúc': timezone.localtime(order.created_at).strftime('%d/%m/%Y %H:%M'),
         })
+    labeled = qs.annotate(label=Coalesce(NullIf('dish_name', Value('')), 'dish__name'))
     if date_from == date_to:
         summary = (
-            qs.values('dish__name')
+            labeled
+            .values('label')
             .annotate(count=Count('id'))
-            .order_by('-count', 'dish__name')
+            .order_by('-count', 'label')
         )
-        totals = [{'Món': row['dish__name'], 'Số lượng': row['count']} for row in summary]
+        totals = [{'Món': row['label'], 'Số lượng': row['count']} for row in summary]
         empty_totals = [{'Món': '—', 'Số lượng': 0}]
         prefix = f'dat_com_{date_from.isoformat()}'
     else:
         summary = (
-            qs.values('meal_date', 'dish__name')
+            labeled
+            .values('meal_date', 'label')
             .annotate(count=Count('id'))
-            .order_by('meal_date', '-count', 'dish__name')
+            .order_by('meal_date', '-count', 'label')
         )
         totals = [
             {
                 'Ngày ăn': row['meal_date'].strftime('%d/%m/%Y'),
-                'Món': row['dish__name'],
+                'Món': row['label'],
                 'Số lượng': row['count'],
             }
             for row in summary

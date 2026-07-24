@@ -4,6 +4,10 @@
 <div class="container jp-page py-3 py-md-4 mb-5">
     <div class="jp-page-header mb-3">
         <h2 class="fw-bold text-hm jp-page-title">Menu món theo ngày</h2>
+        <p class="text-muted small mb-0">
+            Tick món cho ngày sắp tới. Mỗi ngày khác món thì <strong>thêm món mới</strong> trong Danh mục.
+            Menu ngày đã qua hoặc đã có đơn sẽ bị khóa.
+        </p>
     </div>
     {% include 'utilities/includes/meal_manage_nav.html' with active='menu' %}
     <form method="get" class="card border-0 shadow-sm mb-3">
@@ -15,6 +19,22 @@
             <button type="submit" class="btn btn-hm">Xem</button>
         </div>
     </form>
+
+    {% if menu_locked %}
+    <div class="alert alert-warning border-0 shadow-sm">{{ lock_reason }}</div>
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-4">
+            <div class="fw-bold small text-muted mb-2">Menu ngày {{ meal_date|date:"d/m/Y" }}</div>
+            <div class="d-flex flex-wrap gap-2">
+                {% for row in offerings %}
+                    {% if row.is_offered %}
+                    <span class="badge text-bg-light border fw-normal">{% firstof row.dish_name row.dish.name %}</span>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% else %}
     <form method="post" class="card border-0 shadow-sm">
         <div class="card-body p-4">
             {% csrf_token %}
@@ -32,5 +52,6 @@
             <button type="submit" class="btn btn-hm fw-bold mt-3">Lưu menu ngày {{ meal_date|date:"d/m/Y" }}</button>
         </div>
     </form>
+    {% endif %}
 </div>
 {% endblock %}
