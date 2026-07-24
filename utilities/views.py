@@ -351,38 +351,81 @@ def meal_summary(request):
         .order_by('meal_date', 'employee_name')
     )
     show_meal_date_col = date_from != date_to
-    if show_meal_date_col:
-        totals_raw = (
+
+    # Menu từng ngày (MealDayOffering) — không lấy cả danh mục MealDish chung.
+    offered_rows = list(
+        MealDayOffering.objects.filter(
+            meal_date__gte=date_from,
+            meal_date__lte=date_to,
+            is_offered=True,
+        )
+        .select_related('dish')
+        .order_by('meal_date', 'dish__sort_order', 'dish__name')
+    )
+    menus_by_day = []
+    current_menu = None
+    for row in offered_rows:
+        if current_menu is None or current_menu['date'] != row.meal_date:
+            current_menu = {'date': row.meal_date, 'dishes': []}
+            menus_by_day.append(current_menu)
+        current_menu['dishes'].append(row.dish)
+
+    order_counts = {
+        (row['meal_date'], row['dish__name']): row['count']
+        for row in (
             orders_qs
             .values('meal_date', 'dish__name')
             .annotate(count=Count('id'))
-            .order_by('meal_date', '-count', 'dish__name')
         )
-        totals_by_day = []
-        current = None
-        for row in totals_raw:
-            if current is None or current['date'] != row['meal_date']:
-                current = {'date': row['meal_date'], 'rows': []}
-                totals_by_day.append(current)
-            current['rows'].append({'dish__name': row['dish__name'], 'count': row['count']})
-    else:
-        day_rows = list(
-            orders_qs
-            .values('dish__name')
-            .annotate(count=Count('id'))
-            .order_by('-count', 'dish__name')
-        )
-        totals_by_day = [{'date': date_from, 'rows': day_rows}] if day_rows else []
+    }
+    totals_by_day = []
+    for day in menus_by_day:
+        rows = [
+            {
+                'dish__name': dish.name,
+                'count': order_counts.get((day['date'], dish.name), 0),
+            }
+            for dish in day['dishes']
+        ]
+        # Đơn món ngoài menu ngày (đặt trước khi HR đổi menu)
+        offered_names = {dish.name for dish in day['dishes']}
+        extras = [
+            {'dish__name': name, 'count': count}
+            for (d, name), count in order_counts.items()
+            if d == day['date'] and name not in offered_names
+        ]
+        extras.sort(key=lambda r: (-r['count'], r['dish__name']))
+        rows.extend(extras)
+        if filters.get('selected_dish'):
+            selected_name = filters['selected_dish'].name
+            rows = [r for r in rows if r['dish__name'] == selected_name]
+        if rows:
+            totals_by_day.append({'date': day['date'], 'rows': rows})
+    # Ngày có đơn nhưng chưa cấu hình menu
+    menu_dates = {day['date'] for day in menus_by_day}
+    orphan_dates = sorted({d for (d, _name) in order_counts if d not in menu_dates})
+    for d in orphan_dates:
+        rows = [
+            {'dish__name': name, 'count': count}
+            for (od, name), count in order_counts.items()
+            if od == d
+        ]
+        rows.sort(key=lambda r: (-r['count'], r['dish__name']))
+        if rows:
+            totals_by_day.append({'date': d, 'rows': rows})
+    totals_by_day.sort(key=lambda day: day['date'])
 
-    dishes = MealDish.objects.filter(is_active=True).order_by('sort_order', 'name')
+    offered_dish_ids = {row.dish_id for row in offered_rows}
+    dishes = MealDish.objects.filter(pk__in=offered_dish_ids).order_by('sort_order', 'name')
     if dish_id and not dishes.filter(pk=dish_id).exists():
-        dishes = MealDish.objects.filter(Q(is_active=True) | Q(pk=dish_id)).order_by('sort_order', 'name')
+        dishes = MealDish.objects.filter(Q(pk__in=offered_dish_ids) | Q(pk=dish_id)).order_by('sort_order', 'name')
 
     return render(request, 'utilities/meal_summary.html', {
         **filters,
         'meal_date': date_to,
         'orders': orders,
         'declines': declines,
+        'menus_by_day': menus_by_day,
         'totals_by_day': totals_by_day,
         'dishes': dishes,
         'filter_query': _meal_summary_query_string(filters),

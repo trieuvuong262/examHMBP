@@ -49,6 +49,29 @@
             </div>
         </div>
     </form>
+
+    {% if menus_by_day %}
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white fw-bold">Menu theo ngày</div>
+        <ul class="list-group list-group-flush">
+            {% for day in menus_by_day %}
+            <li class="list-group-item">
+                {% if show_meal_date_col %}
+                <div class="fw-bold small text-muted mb-1">{{ day.date|date:"d/m/Y" }}</div>
+                {% endif %}
+                <div class="d-flex flex-wrap gap-2">
+                    {% for dish in day.dishes %}
+                    <span class="badge text-bg-light border fw-normal">{{ dish.name }}</span>
+                    {% empty %}
+                    <span class="text-muted small">Chưa mở món</span>
+                    {% endfor %}
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
     <div class="row g-3 mb-3">
         <div class="col-md-5">
             <div class="card border-0 shadow-sm h-100">
@@ -65,7 +88,7 @@
                     </li>
                     {% endfor %}
                     {% empty %}
-                    <li class="list-group-item text-muted">Chưa có đơn</li>
+                    <li class="list-group-item text-muted">Chưa có đơn / chưa mở menu</li>
                     {% endfor %}
                 </ul>
             </div>
