@@ -70,11 +70,15 @@
                     {% for row in dish_totals %}
                     <li class="list-group-item">
                         <div class="d-flex justify-content-between gap-2 mb-1">
-                            <span>{{ forloop.counter }}. {{ row.dish }}</span>
-                            <strong>{{ row.count }} <span class="text-muted fw-normal small">({{ row.pct }}%)</span></strong>
+                            <span class="text-truncate pe-2">{{ forloop.counter }}. {{ row.dish }}</span>
+                            <strong class="text-nowrap">{{ row.count }} <span class="text-muted fw-normal small">({{ row.pct }}%)</span></strong>
                         </div>
-                        <div class="progress" style="height: 6px;">
-                            <div class="progress-bar bg-danger" role="progressbar" style="width: {{ row.pct }}%;" aria-valuenow="{{ row.pct }}" aria-valuemin="0" aria-valuemax="100"></div>
+                        <div class="progress" style="height: 8px;" title="{{ row.count }} đơn — {{ row.pct }}% tổng kỳ">
+                            <div class="progress-bar bg-danger" role="progressbar"
+                                 style="width: {{ row.bar }}%;"
+                                 aria-valuenow="{{ row.bar }}"
+                                 aria-valuemin="0"
+                                 aria-valuemax="100"></div>
                         </div>
                     </li>
                     {% empty %}

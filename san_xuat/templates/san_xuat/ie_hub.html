@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+    <div>
+      <h2 class="mb-0">Công đoạn / IE</h2>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+      {% if can_export %}
+      <a href="{% url 'san_xuat:ie_export' %}" class="btn btn-sm btn-outline-hm"><i class="bi bi-download me-1"></i>Xuất Excel</a>
+      {% endif %}
+      <a href="{% url 'san_xuat:ie_operation_list' %}" class="btn btn-sm btn-outline-hm"><i class="bi bi-list-ul me-1"></i>Thư viện công đoạn</a>
+      <a href="{% url 'san_xuat:ie_routing_list' %}" class="btn btn-sm btn-outline-hm"><i class="bi bi-diagram-3 me-1"></i>Routing mã hàng</a>
+      <a href="{% url 'san_xuat:ie_time_study_list' %}" class="btn btn-sm btn-outline-hm"><i class="bi bi-stopwatch me-1"></i>Bấm giờ</a>
+    </div>
+  </div>
+
+  <div class="row g-2 g-md-3 mb-3">
+    <div class="col-6 col-md-3 col-lg-2"><div class="card border-0 shadow-sm h-100"><div class="card-body py-2 px-3">
+      <div class="fs-4 fw-bold">{{ stats.groups }}</div><div class="text-muted small">Nhóm công đoạn</div></div></div></div>
+    <div class="col-6 col-md-3 col-lg-2"><div class="card border-0 shadow-sm h-100"><div class="card-body py-2 px-3">
+      <div class="fs-4 fw-bold">{{ stats.operations }}</div><div class="text-muted small">Công đoạn chuẩn</div></div></div></div>
+    <div class="col-6 col-md-3 col-lg-2"><div class="card border-0 shadow-sm h-100"><div class="card-body py-2 px-3">
+      <div class="fs-4 fw-bold">{{ stats.routings }}</div><div class="text-muted small">Routing mã hàng</div></div></div></div>
+    <div class="col-6 col-md-3 col-lg-2"><div class="card border-0 shadow-sm h-100"><div class="card-body py-2 px-3">
+      <div class="fs-4 fw-bold">{{ stats.routing_lines }}</div><div class="text-muted small">Dòng routing</div></div></div></div>
+    <div class="col-6 col-md-3 col-lg-2"><div class="card border-0 shadow-sm h-100"><div class="card-body py-2 px-3">
+      <div class="fs-4 fw-bold">{{ stats.time_studies }}</div><div class="text-muted small">Quan sát bấm giờ</div></div></div></div>
+    <div class="col-6 col-md-3 col-lg-2"><div class="card border-0 shadow-sm h-100"><div class="card-body py-2 px-3">
+      <div class="fs-4 fw-bold">{{ stats.machines }}</div><div class="text-muted small">Máy móc</div></div></div></div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-lg-7">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header bg-white fw-semibold">Routing mã hàng</div>
+        <div class="table-responsive">
+          <table class="table table-hover table-sm align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Mã hàng</th><th>Routing</th><th class="text-end">Công đoạn</th>
+                <th class="text-end">Tổng SMV (phút)</th><th></th>
+              </tr>
+            </thead>
+            <tbody>
+            {% for r in routings %}
+              <tr>
+                <td><div class="fw-semibold">{{ r.style_code }}</div><div class="text-muted small">{{ r.style_name|default:"—"|truncatechars:40 }}</div></td>
+                <td><span class="badge bg-light text-dark">{{ r.routing_rev }}</span> <span class="text-muted small">{{ r.routing_id }}</span></td>
+                <td class="text-end">{{ r.n_lines }}</td>
+                <td class="text-end fw-semibold">{{ r.sum_smv|default:0|floatformat:2 }}</td>
+                <td class="text-end"><a href="{% url 'san_xuat:ie_routing_detail' r.pk %}" class="btn btn-sm btn-outline-hm">Xem</a></td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="5" class="text-muted small p-3 text-center">Chưa có routing — hãy import file Excel.</td></tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-5">
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white fw-semibold">Import master data (Excel)</div>
+        <div class="card-body">
+          {% if can_create or can_update %}
+          <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="import">
+            <div class="mb-2">
+              <input type="file" name="excel_file" accept=".xlsx,.xlsm" class="form-control form-control-sm" required>
+              <div class="form-text">Đúng cấu trúc file <code>Just_Play_Master_Data_Ma_Cong_Doan_San_Xuat.xlsx</code> (8 sheet).</div>
+            </div>
+            <div class="form-check form-check-inline mb-2">
+              <input class="form-check-input" type="checkbox" name="dry_run" value="1" id="dryRun">
+              <label class="form-check-label small" for="dryRun">Chạy thử (không lưu)</label>
+            </div>
+            <div>
+              <button type="submit" class="btn btn-sm btn-hm fw-bold"><i class="bi bi-upload me-1"></i>Import</button>
+            </div>
+          </form>
+          {% else %}
+          <div class="text-muted small">Bạn không có quyền import. Liên hệ quản trị.</div>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white fw-semibold">Nhóm công đoạn theo khâu</div>
+        <div class="table-responsive">
+          <table class="table table-sm mb-0">
+            <thead class="table-light"><tr><th>Khâu sản xuất</th><th class="text-end">Số nhóm</th></tr></thead>
+            <tbody>
+            {% for row in stage_rows %}
+              <tr><td>{{ row.process_stage_label|default:"(chưa phân loại)" }}</td><td class="text-end">{{ row.n }}</td></tr>
+            {% empty %}
+              <tr><td colspan="2" class="text-muted small p-3 text-center">Chưa có dữ liệu.</td></tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

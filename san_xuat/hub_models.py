@@ -269,6 +269,15 @@ class SxProductionOrder(DemoMarkedModel):
     bom_version = models.ForeignKey(
         'san_xuat.BomVersion', on_delete=models.SET_NULL, null=True, blank=True, related_name='production_orders',
     )
+    routing = models.ForeignKey(
+        'san_xuat.SxRouting',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='production_orders',
+        verbose_name='Routing mã hàng',
+        help_text='Snapshot routing IE khi tạo lệnh (ưu tiên lấy từ BOM).',
+    )
     qty = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
     qty_done = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
     order_date = models.DateField()

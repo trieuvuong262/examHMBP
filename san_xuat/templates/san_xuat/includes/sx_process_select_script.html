@@ -1,4 +1,4 @@
-{# TomSelect gõ tìm công đoạn + nút thêm danh mục #}
+{# TomSelect gõ tìm công đoạn (tuỳ chọn nút thêm danh mục) #}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/css/tom-select.bootstrap5.min.css">
 <script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/js/tom-select.complete.min.js"></script>
 <style>
@@ -13,9 +13,13 @@
 .jp-sx-process-picker .jp-sx-process-add {
   flex: 0 0 auto;
 }
+.jp-sx-process-picker:not(:has(.jp-sx-process-add)) .ts-control {
+  border-radius: var(--bs-border-radius-sm, 0.25rem);
+}
 </style>
 <script>
 (function () {
+  var allowAdd = {% if process_select_allow_add == 0 or process_select_allow_add == '0' or process_select_allow_add == False %}false{% else %}true{% endif %};
   var addUrl = '{% url "san_xuat:process_catalog_add" %}';
   var searchUrl = '{% url "san_xuat:process_catalog_search" %}';
   var csrf = (document.querySelector('[name=csrfmiddlewaretoken]') || {}).value || '';
@@ -26,6 +30,7 @@
 
   function wrapSelect(sel) {
     if (!sel || sel.closest('.jp-sx-process-picker')) return;
+    if (!allowAdd) return;
     var wrap = document.createElement('div');
     wrap.className = 'input-group input-group-sm jp-sx-process-picker';
     sel.parentNode.insertBefore(wrap, sel);
@@ -51,7 +56,6 @@
       create: false,
       sortField: { field: 'text', direction: 'asc' },
       loadThrottle: 200,
-      /* Gõ tìm trên danh mục (local + API khi gõ) */
       load: function (query, callback) {
         var q = (query || '').trim();
         if (!q) {
@@ -139,13 +143,15 @@
 
   initAll();
 
-  document.addEventListener('click', function (e) {
-    var btn = e.target.closest('.jp-sx-process-add');
-    if (btn) {
-      e.preventDefault();
-      onAddClick(btn);
-    }
-  });
+  if (allowAdd) {
+    document.addEventListener('click', function (e) {
+      var btn = e.target.closest('.jp-sx-process-add');
+      if (btn) {
+        e.preventDefault();
+        onAddClick(btn);
+      }
+    });
+  }
 
   var addRowBtn = document.getElementById('add-process-row');
   if (addRowBtn) {

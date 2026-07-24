@@ -1,5 +1,48 @@
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-body">
+        {% if can_update and bom %}
+        <form method="post" class="mb-3" data-loading-message="Đang áp routing…">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="apply_routing">
+            <div class="d-flex flex-wrap align-items-end gap-2">
+                <div class="flex-grow-1" style="min-width:14rem">
+                    <label class="form-label small text-muted mb-1">Routing IE</label>
+                    <select name="routing_id" class="form-select form-select-sm" required>
+                        <option value="">— Chọn routing —</option>
+                        {% for r in routing_choices %}
+                        <option value="{{ r.pk }}" {% if bom.routing_id == r.pk %}selected{% endif %}>
+                            {{ r.style_code }} · {{ r.routing_rev }}{% if r.n_lines %} ({{ r.n_lines }} CĐ){% endif %}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="d-flex flex-wrap gap-2">
+                    <button type="submit" class="btn btn-sm btn-hm">
+                        <i class="bi bi-diagram-3 me-1"></i>Áp routing
+                    </button>
+                    {% if bom.routing_id %}
+                    <a href="{% url 'san_xuat:ie_routing_detail' bom.routing_id %}" class="btn btn-sm btn-outline-hm">
+                        <i class="bi bi-eye me-1"></i>Xem routing
+                    </a>
+                    {% else %}
+                    <a href="{% url 'san_xuat:ie_routing_list' %}" class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-eye me-1"></i>Xem routing
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </form>
+        {% elif bom and bom.routing_id %}
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+            <div class="small text-muted">
+                Routing: <a href="{% url 'san_xuat:ie_routing_detail' bom.routing_id %}">{{ bom.routing.routing_id }}</a>
+            </div>
+            <a href="{% url 'san_xuat:ie_routing_detail' bom.routing_id %}" class="btn btn-sm btn-outline-hm">
+                <i class="bi bi-eye me-1"></i>Xem routing
+            </a>
+        </div>
+        {% endif %}
+
         {% if can_update and step_formset %}
         <form method="post" data-loading-message="Đang lưu công đoạn…">
             {% csrf_token %}
@@ -94,7 +137,7 @@
             });
         })();
         </script>
-        {% include 'san_xuat/includes/sx_process_select_script.html' %}
+        {% include 'san_xuat/includes/sx_process_select_script.html' with process_select_allow_add=0 %}
         {% else %}
         <div class="table-responsive">
             <table class="table table-sm align-middle mb-0">
@@ -102,7 +145,9 @@
                     <tr>
                         <th>TT</th>
                         <th>Công đoạn</th>
+                        <th>Mã CĐ</th>
                         <th class="text-end">Định mức/giờ</th>
+                        <th class="text-end">Chuẩn (phút)</th>
                         <th class="text-end">Chi phí giờ</th>
                     </tr>
                 </thead>
@@ -111,11 +156,13 @@
                     <tr>
                         <td>{{ step.sequence }}</td>
                         <td>{{ step.process_name }}</td>
+                        <td class="small text-muted">{{ step.op_code|default:"—" }}</td>
                         <td class="text-end">{{ step.norm_per_hour }}</td>
+                        <td class="text-end">{{ step.std_time_minutes }}</td>
                         <td class="text-end">{{ step.cost_per_hour }}</td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="4" class="text-muted text-center py-3">Chưa có công đoạn.</td></tr>
+                    <tr><td colspan="6" class="text-muted text-center py-3">Chưa có công đoạn.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>

@@ -172,6 +172,15 @@ class BomVersion(models.Model):
         help_text='Phần trăm cộng thêm trên (NVL + nhân công).',
     )
     notes = models.TextField(blank=True, default='', verbose_name='Ghi chú')
+    routing = models.ForeignKey(
+        'san_xuat.SxRouting',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='bom_versions',
+        verbose_name='Routing mã hàng',
+        help_text='Quy trình công đoạn IE gắn với BOM này.',
+    )
     activated_at = models.DateTimeField(null=True, blank=True, verbose_name='Ngày kích hoạt')
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -296,6 +305,23 @@ class ProcessStep(models.Model):
     )
     sequence = models.PositiveSmallIntegerField(default=10, verbose_name='Thứ tự')
     process_name = models.CharField(max_length=120, verbose_name='Tên công đoạn')
+    operation = models.ForeignKey(
+        'san_xuat.SxOperation',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='bom_process_steps',
+        verbose_name='Công đoạn chuẩn (IE)',
+    )
+    op_code = models.CharField(max_length=30, blank=True, default='', db_index=True, verbose_name='Mã công đoạn')
+    routing_line = models.ForeignKey(
+        'san_xuat.SxRoutingLine',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='bom_process_steps',
+        verbose_name='Dòng routing',
+    )
     norm_per_hour = models.DecimalField(
         max_digits=10,
         decimal_places=2,
@@ -434,4 +460,18 @@ from san_xuat.hub_models import (  # noqa: E402,F401
     SxWipReturn,
     SxWorkAssignment,
     SxWorkCenter,
+)
+
+# IE / Master data mã công đoạn sản xuất
+from san_xuat.ie_models import (  # noqa: E402,F401
+    SxMachine,
+    SxOperation,
+    SxOperationGroup,
+    SxProcessStage,
+    SxRouting,
+    SxRoutingLine,
+    SxSkillLevel,
+    SxSmvSource,
+    SxStitchClass,
+    SxTimeStudy,
 )

@@ -1,6 +1,6 @@
 from django.urls import path
 
-from san_xuat import views, views_hub, views_kv_embed, views_ops, views_print, views_export
+from san_xuat import views, views_hub, views_ie, views_kv_embed, views_ops, views_print, views_export
 
 
 app_name = 'san_xuat'
@@ -132,6 +132,12 @@ urlpatterns = [
     path('ho-so/<int:pk>/', views.doc_detail, name='doc_detail'),
     path('ho-so/tai-lieu/<int:pk>/', views.design_file_serve, name='design_file'),
     path('bom/', views.bom_list, name='bom_list'),
+    path('cong-doan/', views_ie.ie_hub, name='ie_hub'),
+    path('cong-doan/xuat-excel/', views_ie.ie_export, name='ie_export'),
+    path('cong-doan/thu-vien/', views_ie.operation_list, name='ie_operation_list'),
+    path('cong-doan/routing/', views_ie.routing_list, name='ie_routing_list'),
+    path('cong-doan/routing/<int:pk>/', views_ie.routing_detail, name='ie_routing_detail'),
+    path('cong-doan/bam-gio/', views_ie.time_study_list, name='ie_time_study_list'),
     path('thiet-lap/', views_hub.general_settings, name='general_settings'),
     path('api/tim-ma-sp/', views.product_code_search, name='product_code_search'),
     path('api/cong-doan/', views.process_catalog_search, name='process_catalog_search'),

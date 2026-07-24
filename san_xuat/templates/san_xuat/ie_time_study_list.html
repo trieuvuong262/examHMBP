@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+    <div>
+      <h2 class="mb-0">Bấm giờ (time study)</h2>
+      <div class="text-muted small">{{ total }} quan sát. Duyệt sẽ lấy trung bình SMV các mẫu đã duyệt cùng mã hàng + công đoạn và cập nhật routing.</div>
+    </div>
+    <a href="{% url 'san_xuat:ie_hub' %}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Công đoạn / IE</a>
+  </div>
+
+  <form method="get" class="row g-2 mb-3">
+    <div class="col-md-4">
+      <input type="search" name="q" value="{{ term }}" class="form-control form-control-sm" placeholder="Tìm mã quan sát, công đoạn, công nhân…">
+    </div>
+    <div class="col-md-3">
+      <select name="status" class="form-select form-select-sm">
+        <option value="">— Tất cả trạng thái —</option>
+        {% for val, label in status_choices %}
+        <option value="{{ val }}" {% if val == status %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2"><button class="btn btn-sm btn-hm w-100">Lọc</button></div>
+  </form>
+
+  <div class="card border-0 shadow-sm overflow-hidden">
+    <div class="table-responsive">
+      <table class="table table-hover table-sm align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Mã QS</th><th>Công đoạn</th><th>Mã hàng</th><th class="text-end">Obs</th>
+            <th class="text-end">Cycle (s)</th><th class="text-end">Rating</th><th class="text-end">Allow %</th>
+            <th class="text-end">SMV tính</th><th class="text-end">SMV routing</th><th class="text-end">Lệch %</th>
+            <th>Duyệt</th>{% if can_update %}<th></th>{% endif %}
+          </tr>
+        </thead>
+        <tbody>
+        {% for t in items %}
+          <tr>
+            <td class="fw-semibold">{{ t.study_id }}</td>
+            <td>{{ t.op_code }}<div class="text-muted small">{{ t.op_name_vi|truncatechars:28 }}</div></td>
+            <td class="small">{{ t.style_code|default:"—" }}</td>
+            <td class="text-end">{{ t.obs_no }}</td>
+            <td class="text-end">{{ t.observed_cycle_sec|floatformat:1 }}</td>
+            <td class="text-end">{{ t.performance_rating|floatformat:2 }}</td>
+            <td class="text-end">{{ t.allowance_pct|floatformat:0 }}</td>
+            <td class="text-end fw-semibold">{{ t.calculated_smv|floatformat:3 }}</td>
+            <td class="text-end">{{ t.current_routing_smv|floatformat:3 }}</td>
+            <td class="text-end {% if t.variance_pct > 15 or t.variance_pct < -15 %}text-danger{% endif %}">{{ t.variance_pct|floatformat:1 }}</td>
+            <td class="small">{{ t.get_approval_status_display }}</td>
+            {% if can_update %}
+            <td class="text-nowrap">
+              {% if t.approval_status != 'approved' %}
+              <form method="post" class="d-inline">
+                {% csrf_token %}
+                <input type="hidden" name="pk" value="{{ t.pk }}">
+                <input type="hidden" name="action" value="approve">
+                <input type="hidden" name="update_routing" value="1">
+                <button type="submit" class="btn btn-sm btn-outline-success" title="Duyệt &amp; cập nhật SMV routing">Duyệt</button>
+              </form>
+              {% endif %}
+              {% if t.approval_status == 'pending' or t.approval_status == 'approved' %}
+              <form method="post" class="d-inline">
+                {% csrf_token %}
+                <input type="hidden" name="pk" value="{{ t.pk }}">
+                <input type="hidden" name="action" value="reject">
+                <button type="submit" class="btn btn-sm btn-outline-secondary">Từ chối</button>
+              </form>
+              <form method="post" class="d-inline">
+                {% csrf_token %}
+                <input type="hidden" name="pk" value="{{ t.pk }}">
+                <input type="hidden" name="action" value="remeasure">
+                <button type="submit" class="btn btn-sm btn-outline-warning">Đo lại</button>
+              </form>
+              {% endif %}
+            </td>
+            {% endif %}
+          </tr>
+        {% empty %}
+          <tr><td colspan="{% if can_update %}12{% else %}11{% endif %}" class="text-muted small p-3 text-center">Không có quan sát phù hợp.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {% include 'san_xuat/includes/ie_pagination.html' %}
+</div>
+{% endblock %}

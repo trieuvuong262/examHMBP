@@ -611,11 +611,11 @@
                 {% jp_can_menu 'san_xuat' 'bom' as jp_can_san_xuat_bom %}
                 {% jp_can_menu 'san_xuat' 'capacity' as jp_can_san_xuat_capacity %}
                 {% if jp_can_san_xuat_docs or jp_can_san_xuat_bom or jp_can_san_xuat_capacity %}
-                <li class="jp-sidebar-nested-group{% if '/san-xuat/ho-so' in request.path or '/san-xuat/bom' in request.path or '/san-xuat/nang-luc' in request.path %} is-open{% endif %}">
+                <li class="jp-sidebar-nested-group{% if '/san-xuat/ho-so' in request.path or '/san-xuat/bom' in request.path or '/san-xuat/nang-luc' in request.path or '/san-xuat/cong-doan' in request.path %} is-open{% endif %}">
                     <button type="button"
                             class="jp-sidebar-nested-toggle"
                             data-jp-sidebar-group-toggle
-                            aria-expanded="{% if '/san-xuat/ho-so' in request.path or '/san-xuat/bom' in request.path or '/san-xuat/nang-luc' in request.path %}true{% else %}false{% endif %}"
+                            aria-expanded="{% if '/san-xuat/ho-so' in request.path or '/san-xuat/bom' in request.path or '/san-xuat/nang-luc' in request.path or '/san-xuat/cong-doan' in request.path %}true{% else %}false{% endif %}"
                             aria-controls="jp-sidebar-san-xuat-products-submenu">
                         <span class="jp-sidebar-nested-toggle-main">
                             <i class="bi bi-box"></i><span>Hồ sơ</span>
@@ -638,6 +638,14 @@
                             <a href="{% url 'san_xuat:capacity_list' %}"
                                class="jp-sidebar-link jp-sidebar-sublink {% if 'nang-luc' in request.path %}active{% endif %}">
                                 <i class="bi bi-speedometer"></i><span>Năng lực SX</span>
+                            </a>
+                        </li>
+                        {% endif %}
+                        {% if jp_can_san_xuat_bom %}
+                        <li>
+                            <a href="{% url 'san_xuat:ie_hub' %}"
+                               class="jp-sidebar-link jp-sidebar-sublink {% if '/san-xuat/cong-doan' in request.path %}active{% endif %}">
+                                <i class="bi bi-diagram-3"></i><span>Công đoạn / IE</span>
                             </a>
                         </li>
                         {% endif %}

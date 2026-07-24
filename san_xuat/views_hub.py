@@ -1434,7 +1434,7 @@ def run_order_wizard(request, mo_id: int | None = None):
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def dispatch_mo_detail(request, pk: int):
     mo = (
-        SxProductionOrder.objects.select_related('bom_version__tech_doc')
+        SxProductionOrder.objects.select_related('bom_version__tech_doc', 'bom_version__routing', 'routing')
         .prefetch_related('bom_version__lines__material')
         .get(pk=pk)
     )

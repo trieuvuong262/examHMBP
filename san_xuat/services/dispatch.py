@@ -203,6 +203,7 @@ def create_mo_from_bom(
         product_code=tech_doc.product_code,
         product_name=tech_doc.product_name or "",
         bom_version=working_bom,
+        routing=getattr(working_bom, "routing", None),
         qty=qty,
         qty_done=Decimal("0"),
         order_date=order_date or timezone.localdate(),

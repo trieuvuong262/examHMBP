@@ -216,8 +216,11 @@ def _meal_stats_context(*, date_from, date_to):
         count_key='count',
     )
     total_orders = sum(r['count'] for r in dish_totals)
+    max_count = max((r['count'] for r in dish_totals), default=0)
     for row in dish_totals:
         row['pct'] = round(100 * row['count'] / total_orders, 1) if total_orders else 0
+        # Thanh xếp hạng: so với món đứng đầu (max = 100%), không phải % tổng kỳ.
+        row['bar'] = round(100 * row['count'] / max_count, 1) if max_count else 0
 
     daily = list(
         orders_qs

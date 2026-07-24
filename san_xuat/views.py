@@ -240,6 +240,29 @@ def doc_detail(request, pk):
                 messages.success(request, 'Đã lưu công đoạn.')
                 return redirect(f"{request.path}?tab=process&bom={bom.pk}")
             messages.error(request, 'Không lưu được công đoạn — kiểm tra lại.')
+        elif bom and action == 'apply_routing' and tab == 'process':
+            from san_xuat.ie_models import SxRouting
+            from san_xuat.services.ie_ops import IeOpsError, apply_routing_to_bom
+
+            rid = request.POST.get('routing_id')
+            routing = None
+            if rid and str(rid).isdigit():
+                routing = SxRouting.objects.filter(pk=int(rid), is_active=True).first()
+            if not routing:
+                messages.error(request, 'Chưa chọn routing hợp lệ.')
+            else:
+                try:
+                    result = apply_routing_to_bom(bom=bom, routing=routing, replace=True)
+                except IeOpsError as exc:
+                    messages.error(request, str(exc))
+                else:
+                    messages.success(
+                        request,
+                        f'Đã áp {result.routing_id}: tạo {result.steps_created} công đoạn BOM.',
+                    )
+                    for w in result.warnings[:10]:
+                        messages.warning(request, w)
+            return redirect(f'{request.path}?tab=process&bom={bom.pk}')
         elif bom and action == 'activate':
             activate_bom(bom)
             messages.success(request, f'Đã kích hoạt BOM {bom.version_label}.')
@@ -315,13 +338,36 @@ def doc_detail(request, pk):
             str(k): float(v) for k, v in bom_stock_map.items()
         })
 
+    from django.db.models import Count, Q
+
     from san_xuat.hub_models import SxColor, SxSize
+    from san_xuat.ie_models import SxRouting
     from san_xuat.services.sku_catalog import skus_for_style
 
     skus = list(skus_for_style(doc.product_code, active_only=False))
     colors = list(SxColor.objects.filter(is_active=True).order_by('sort_order', 'code'))
     sizes = list(SxSize.objects.filter(is_active=True).order_by('sort_order', 'code'))
     skus_active_count = sum(1 for s in skus if s.is_active)
+
+    routing_choices = []
+    if tab == 'process' and bom:
+        routing_choices = list(
+            SxRouting.objects.filter(is_active=True)
+            .annotate(n_lines=Count('lines'))
+            .filter(
+                Q(style_code__iexact=doc.product_code)
+                | Q(style_code__icontains=doc.product_code)
+                | Q(tech_doc=doc)
+            )
+            .order_by('style_code', 'routing_rev')
+        )
+        # Nếu chưa khớp mã hàng, vẫn liệt kê routing active để IE chọn thủ công.
+        if not routing_choices:
+            routing_choices = list(
+                SxRouting.objects.filter(is_active=True)
+                .annotate(n_lines=Count('lines'))
+                .order_by('style_code', 'routing_rev')[:80]
+            )
 
     return render(request, 'san_xuat/doc_detail.html', {
         'doc': doc,
@@ -344,6 +390,7 @@ def doc_detail(request, pk):
         'skus_active_count': skus_active_count,
         'colors': colors,
         'sizes': sizes,
+        'routing_choices': routing_choices,
         **_perm_ctx(request),
     })
 
