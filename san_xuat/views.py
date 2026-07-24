@@ -337,6 +337,7 @@ def doc_detail(request, pk):
     skus = list(skus_for_style(doc.product_code, active_only=False))
     colors = list(SxColor.objects.filter(is_active=True).order_by('sort_order', 'code'))
     sizes = list(SxSize.objects.filter(is_active=True).order_by('sort_order', 'code'))
+    skus_active_count = sum(1 for s in skus if s.is_active)
 
     return render(request, 'san_xuat/doc_detail.html', {
         'doc': doc,
@@ -356,6 +357,7 @@ def doc_detail(request, pk):
         'bom_stock_map': bom_stock_map,
         'bom_stock_map_json': bom_stock_map_json,
         'skus': skus,
+        'skus_active_count': skus_active_count,
         'colors': colors,
         'sizes': sizes,
         **_perm_ctx(request),

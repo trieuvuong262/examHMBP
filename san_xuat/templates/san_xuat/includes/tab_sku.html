@@ -1,91 +1,437 @@
-{% load sx_format %}
-<div class="card border-0 shadow-sm mb-3">
-  <div class="card-body">
-    <p class="small text-muted mb-3">
-      <strong>SKU</strong> = Style + Màu + Size.
-      Style hiện tại: <code>{{ doc.product_code }}</code>
-      — một Style có thể tạo hàng chục SKU (vd. 5 màu × 7 size = 35 SKU).
-    </p>
+<style>
+.jp-sx-sku-tab {
+  --sku-accent: var(--hm-primary, #dc2626);
+  --sku-line: var(--bs-border-color);
+  --sku-muted: var(--bs-secondary-color);
+}
+.jp-sx-sku-tab .jp-sx-sku-hero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem 1.5rem;
+  padding-bottom: 1rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--sku-line);
+}
+.jp-sx-sku-tab .jp-sx-sku-formula {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.4rem;
+  font-size: 0.92rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.jp-sx-sku-tab .jp-sx-sku-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.55rem;
+  border-radius: 0.35rem;
+  border: 1px solid var(--sku-line);
+  background: var(--bs-body-bg);
+  font-weight: 600;
+  font-size: 0.8125rem;
+  line-height: 1.3;
+}
+.jp-sx-sku-tab .jp-sx-sku-pill.is-style {
+  border-color: color-mix(in srgb, var(--sku-accent) 35%, var(--sku-line));
+  color: var(--sku-accent);
+  background: color-mix(in srgb, var(--sku-accent) 8%, transparent);
+}
+.jp-sx-sku-tab .jp-sx-sku-pill.is-result {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--sku-accent) 12%, transparent);
+  color: var(--sku-accent);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.78rem;
+}
+.jp-sx-sku-tab .jp-sx-sku-op {
+  color: var(--sku-muted);
+  font-weight: 500;
+  font-size: 0.85rem;
+}
+.jp-sx-sku-tab .jp-sx-sku-hint {
+  margin: 0.4rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--sku-muted);
+  max-width: 36rem;
+  line-height: 1.45;
+}
+.jp-sx-sku-tab .jp-sx-sku-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.65rem;
+}
+.jp-sx-sku-tab .jp-sx-sku-stat {
+  min-width: 4.75rem;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--sku-line);
+  border-radius: 0.45rem;
+  text-align: center;
+}
+.jp-sx-sku-tab .jp-sx-sku-stat .n {
+  display: block;
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--bs-body-color);
+}
+.jp-sx-sku-tab .jp-sx-sku-stat .l {
+  display: block;
+  margin-top: 0.1rem;
+  font-size: 0.7rem;
+  color: var(--sku-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.jp-sx-sku-tab .jp-sx-sku-section-title {
+  margin: 0 0 0.65rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--sku-muted);
+}
+.jp-sx-sku-tab .jp-sx-sku-builder {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+@media (min-width: 992px) {
+  .jp-sx-sku-tab .jp-sx-sku-builder {
+    grid-template-columns: 1.35fr 0.9fr;
+    align-items: start;
+  }
+}
+.jp-sx-sku-tab .jp-sx-sku-panel {
+  border: 1px solid var(--sku-line);
+  border-radius: 0.55rem;
+  padding: 0.9rem 1rem;
+  background: var(--bs-body-bg);
+}
+.jp-sx-sku-tab .jp-sx-sku-chip-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.jp-sx-sku-tab .jp-sx-sku-chip {
+  position: relative;
+  margin: 0;
+  cursor: pointer;
+  user-select: none;
+}
+.jp-sx-sku-tab .jp-sx-sku-chip input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.jp-sx-sku-tab .jp-sx-sku-chip span {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 3.4rem;
+  padding: 0.35rem 0.55rem;
+  border: 1px solid var(--sku-line);
+  border-radius: 0.4rem;
+  background: var(--bs-tertiary-bg, #f8f9fa);
+  transition: border-color .12s ease, background-color .12s ease, color .12s ease;
+}
+.jp-sx-sku-tab .jp-sx-sku-chip span strong {
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+}
+.jp-sx-sku-tab .jp-sx-sku-chip span small {
+  font-size: 0.68rem;
+  color: var(--sku-muted);
+  line-height: 1.2;
+  margin-top: 0.1rem;
+}
+.jp-sx-sku-tab .jp-sx-sku-chip input:checked + span {
+  border-color: color-mix(in srgb, var(--sku-accent) 55%, var(--sku-line));
+  background: color-mix(in srgb, var(--sku-accent) 10%, transparent);
+  color: var(--bs-body-color);
+}
+.jp-sx-sku-tab .jp-sx-sku-chip input:focus-visible + span {
+  outline: 2px solid color-mix(in srgb, var(--sku-accent) 45%, transparent);
+  outline-offset: 1px;
+}
+.jp-sx-sku-tab .jp-sx-sku-chip.is-size span {
+  min-width: 2.6rem;
+  align-items: center;
+}
+.jp-sx-sku-tab .jp-sx-sku-chip.is-size span strong {
+  font-size: 0.85rem;
+}
+.jp-sx-sku-tab .jp-sx-sku-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin-top: 0.85rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--sku-line);
+}
+.jp-sx-sku-tab .jp-sx-sku-preview {
+  font-size: 0.8125rem;
+  color: var(--sku-muted);
+}
+.jp-sx-sku-tab .jp-sx-sku-preview strong {
+  color: var(--bs-body-color);
+  font-variant-numeric: tabular-nums;
+}
+.jp-sx-sku-tab .jp-sx-sku-quick .row {
+  --bs-gutter-y: 0.65rem;
+}
+.jp-sx-sku-tab .jp-sx-sku-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.jp-sx-sku-tab .jp-sx-sku-table thead th {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--sku-muted);
+  font-weight: 700;
+  border-bottom-width: 1px;
+  white-space: nowrap;
+}
+.jp-sx-sku-tab .jp-sx-sku-table tbody td {
+  vertical-align: middle;
+  padding-top: 0.55rem;
+  padding-bottom: 0.55rem;
+}
+.jp-sx-sku-tab .jp-sx-sku-empty {
+  padding: 1.75rem 1rem;
+  text-align: center;
+  border: 1px dashed var(--sku-line);
+  border-radius: 0.55rem;
+  color: var(--sku-muted);
+}
+.jp-sx-sku-tab .jp-sx-sku-empty .t {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-weight: 600;
+  color: var(--bs-body-color);
+}
+</style>
 
-    {% if can_update %}
-    <form method="post" class="border rounded-3 p-3 mb-4 bg-light">
-      {% csrf_token %}
-      <input type="hidden" name="action" value="expand_sku_matrix">
-      <div class="row g-3 align-items-end">
-        <div class="col-md-5">
-          <label class="form-label small text-muted">Màu (giữ Ctrl/Cmd để chọn nhiều)</label>
-          <select name="color_codes" class="form-select form-select-sm" multiple size="6" required>
-            {% for c in colors %}
-            <option value="{{ c.code }}">{{ c.code }} — {{ c.name }}</option>
+<div class="jp-sx-sku-tab">
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-body">
+      <div class="jp-sx-sku-hero">
+        <div>
+          <div class="jp-sx-sku-formula" aria-label="Công thức SKU">
+            <span class="jp-sx-sku-pill is-style" title="Style">{{ doc.product_code }}</span>
+            <span class="jp-sx-sku-op">×</span>
+            <span class="jp-sx-sku-pill">Màu</span>
+            <span class="jp-sx-sku-op">×</span>
+            <span class="jp-sx-sku-pill">Size</span>
+            <span class="jp-sx-sku-op">→</span>
+            <span class="jp-sx-sku-pill is-result">{{ doc.product_code }}-NVY-M</span>
+          </div>
+          <p class="jp-sx-sku-hint">
+            Mỗi cặp màu × size tạo một SKU riêng. Style giữ nguyên trên lệnh SX;
+            biến thể chỉ tách ở thống kê, đóng gói và nhập thành phẩm.
+          </p>
+        </div>
+        <div class="jp-sx-sku-stats" aria-label="Thống kê SKU">
+          <div class="jp-sx-sku-stat">
+            <span class="n">{{ skus|length }}</span>
+            <span class="l">SKU</span>
+          </div>
+          <div class="jp-sx-sku-stat">
+            <span class="n">{{ skus_active_count }}</span>
+            <span class="l">Đang dùng</span>
+          </div>
+          <div class="jp-sx-sku-stat">
+            <span class="n">{{ colors|length }}</span>
+            <span class="l">Màu DM</span>
+          </div>
+          <div class="jp-sx-sku-stat">
+            <span class="n">{{ sizes|length }}</span>
+            <span class="l">Size DM</span>
+          </div>
+        </div>
+      </div>
+
+      {% if can_update %}
+      <div class="jp-sx-sku-builder">
+        <form method="post" class="jp-sx-sku-panel" id="jp-sx-sku-matrix-form" data-loading-message="Đang sinh ma trận SKU…">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="expand_sku_matrix">
+          <h3 class="jp-sx-sku-section-title">Sinh ma trận</h3>
+
+          <div class="mb-3">
+            <div class="small text-muted mb-2">Màu</div>
+            <div class="jp-sx-sku-chip-grid" data-sku-group="color">
+              {% for c in colors %}
+              <label class="jp-sx-sku-chip">
+                <input type="checkbox" name="color_codes" value="{{ c.code }}">
+                <span>
+                  <strong>{{ c.code }}</strong>
+                  <small>{{ c.name }}</small>
+                </span>
+              </label>
+              {% empty %}
+              <span class="small text-muted">Chưa có danh mục màu.</span>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="mb-1">
+            <div class="small text-muted mb-2">Size</div>
+            <div class="jp-sx-sku-chip-grid" data-sku-group="size">
+              {% for s in sizes %}
+              <label class="jp-sx-sku-chip is-size">
+                <input type="checkbox" name="size_labels" value="{{ s.code }}">
+                <span><strong>{{ s.code }}</strong></span>
+              </label>
+              {% empty %}
+              <span class="small text-muted">Chưa có danh mục size.</span>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="jp-sx-sku-actions">
+            <button type="submit" class="btn btn-hm btn-sm" id="jp-sx-sku-expand-btn" disabled>
+              Sinh ma trận SKU
+            </button>
+            <span class="jp-sx-sku-preview" id="jp-sx-sku-preview">Chọn ít nhất 1 màu và 1 size</span>
+          </div>
+        </form>
+
+        <form method="post" class="jp-sx-sku-panel jp-sx-sku-quick" data-loading-message="Đang thêm SKU…">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="add_single_sku">
+          <h3 class="jp-sx-sku-section-title">Thêm nhanh 1 SKU</h3>
+          <div class="row g-2 align-items-end">
+            <div class="col-sm-5">
+              <label class="form-label small text-muted mb-1" for="jp-sx-sku-quick-color">Màu</label>
+              <select name="color_code" id="jp-sx-sku-quick-color" class="form-select form-select-sm" required>
+                <option value="">Chọn màu</option>
+                {% for c in colors %}
+                <option value="{{ c.code }}">{{ c.code }} — {{ c.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-sm-3">
+              <label class="form-label small text-muted mb-1" for="jp-sx-sku-quick-size">Size</label>
+              <select name="size_label" id="jp-sx-sku-quick-size" class="form-select form-select-sm" required>
+                <option value="">Size</option>
+                {% for s in sizes %}
+                <option value="{{ s.code }}">{{ s.code }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-sm-4">
+              <button type="submit" class="btn btn-outline-hm btn-sm w-100">Thêm SKU</button>
+            </div>
+          </div>
+          <p class="small text-muted mb-0 mt-2" id="jp-sx-sku-quick-preview">
+            SKU sẽ là <span class="jp-sx-sku-code text-muted">{{ doc.product_code }}-…-…</span>
+          </p>
+        </form>
+      </div>
+      {% endif %}
+
+      <h3 class="jp-sx-sku-section-title">Danh sách SKU · Style {{ doc.product_code }}</h3>
+      {% if skus %}
+      <div class="table-responsive border rounded-3">
+        <table class="table table-sm table-hover align-middle mb-0 jp-sx-sku-table">
+          <thead class="table-light">
+            <tr>
+              <th>SKU</th>
+              <th>Màu</th>
+              <th style="width:4.5rem">Size</th>
+              <th style="width:6.5rem">Trạng thái</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for sku in skus %}
+            <tr>
+              <td><span class="jp-sx-sku-code">{{ sku.sku_code }}</span></td>
+              <td>
+                <span class="jp-sx-sku-pill" style="padding:0.12rem 0.4rem;font-size:0.75rem">{{ sku.color_code }}</span>
+                {% if sku.color_label %}<span class="text-muted small ms-1">{{ sku.color_label }}</span>{% endif %}
+              </td>
+              <td><span class="fw-semibold">{{ sku.size_label }}</span></td>
+              <td>
+                {% if sku.is_active %}
+                <span class="badge bg-success-subtle text-success border">Đang dùng</span>
+                {% else %}
+                <span class="badge bg-secondary-subtle text-secondary border">Tắt</span>
+                {% endif %}
+              </td>
+            </tr>
             {% endfor %}
-          </select>
-        </div>
-        <div class="col-md-5">
-          <label class="form-label small text-muted">Size (giữ Ctrl/Cmd để chọn nhiều)</label>
-          <select name="size_labels" class="form-select form-select-sm" multiple size="6" required>
-            {% for s in sizes %}
-            <option value="{{ s.code }}">{{ s.code }}{% if s.name and s.name != s.code %} — {{ s.name }}{% endif %}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="col-md-2">
-          <button type="submit" class="btn btn-hm btn-sm w-100">Sinh ma trận SKU</button>
-        </div>
+          </tbody>
+        </table>
       </div>
-    </form>
-
-    <form method="post" class="row g-2 align-items-end mb-4">
-      {% csrf_token %}
-      <input type="hidden" name="action" value="add_single_sku">
-      <div class="col-md-3">
-        <label class="form-label small text-muted">Màu</label>
-        <select name="color_code" class="form-select form-select-sm" required>
-          <option value="">—</option>
-          {% for c in colors %}
-          <option value="{{ c.code }}">{{ c.code }} — {{ c.name }}</option>
-          {% endfor %}
-        </select>
+      {% else %}
+      <div class="jp-sx-sku-empty">
+        <span class="t">Chưa có SKU cho Style này</span>
+        {% if can_update %}
+        Chọn màu × size bên trên rồi bấm <strong>Sinh ma trận SKU</strong>.
+        {% else %}
+        Liên hệ người có quyền cập nhật để tạo ma trận SKU.
+        {% endif %}
       </div>
-      <div class="col-md-2">
-        <label class="form-label small text-muted">Size</label>
-        <select name="size_label" class="form-select form-select-sm" required>
-          <option value="">—</option>
-          {% for s in sizes %}
-          <option value="{{ s.code }}">{{ s.code }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-md-3">
-        <button type="submit" class="btn btn-outline-hm btn-sm">Thêm 1 SKU</button>
-      </div>
-    </form>
-    {% endif %}
-
-    <div class="table-responsive">
-      <table class="table table-sm table-hover align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            <th>Style</th>
-            <th>Màu</th>
-            <th>Size</th>
-            <th>SKU</th>
-            <th>Trạng thái</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for sku in skus %}
-          <tr>
-            <td><code>{{ sku.style_code }}</code></td>
-            <td>{{ sku.color_code }}{% if sku.color_label %} <span class="text-muted">({{ sku.color_label }})</span>{% endif %}</td>
-            <td>{{ sku.size_label }}</td>
-            <td><strong>{{ sku.sku_code }}</strong></td>
-            <td>{% if sku.is_active %}<span class="badge text-bg-success">Đang dùng</span>{% else %}<span class="badge text-bg-secondary">Tắt</span>{% endif %}</td>
-          </tr>
-          {% empty %}
-          <tr><td colspan="5" class="text-muted">Chưa có SKU — chọn màu × size rồi sinh ma trận.</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
+      {% endif %}
     </div>
   </div>
 </div>
+
+{% if can_update %}
+<script>
+(function () {
+  var style = "{{ doc.product_code|escapejs }}";
+
+  var form = document.getElementById('jp-sx-sku-matrix-form');
+  var btn = document.getElementById('jp-sx-sku-expand-btn');
+  var preview = document.getElementById('jp-sx-sku-preview');
+  var quickColor = document.getElementById('jp-sx-sku-quick-color');
+  var quickSize = document.getElementById('jp-sx-sku-quick-size');
+  var quickPreview = document.getElementById('jp-sx-sku-quick-preview');
+
+  function countChecked(group) {
+    if (!form) return 0;
+    return form.querySelectorAll('[data-sku-group="' + group + '"] input:checked').length;
+  }
+
+  function refreshMatrixPreview() {
+    if (!btn || !preview) return;
+    var nc = countChecked('color');
+    var ns = countChecked('size');
+    var total = nc * ns;
+    btn.disabled = total <= 0;
+    if (total <= 0) {
+      preview.textContent = 'Chọn ít nhất 1 màu và 1 size';
+    } else {
+      preview.innerHTML = 'Sẽ tạo / cập nhật tối đa <strong>' + total + '</strong> SKU (' + nc + ' màu × ' + ns + ' size)';
+    }
+  }
+
+  function refreshQuickPreview() {
+    if (!quickPreview) return;
+    var c = (quickColor && quickColor.value) || '…';
+    var s = (quickSize && quickSize.value) || '…';
+    var code = style + '-' + c + '-' + s;
+    quickPreview.innerHTML = 'SKU sẽ là <span class="jp-sx-sku-code">' + code + '</span>';
+  }
+
+  if (form) {
+    form.addEventListener('change', refreshMatrixPreview);
+    refreshMatrixPreview();
+  }
+  if (quickColor) quickColor.addEventListener('change', refreshQuickPreview);
+  if (quickSize) quickSize.addEventListener('change', refreshQuickPreview);
+  refreshQuickPreview();
+})();
+</script>
+{% endif %}
