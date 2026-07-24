@@ -1,0 +1,29 @@
+{# Bộ lọc khoảng ngày chuẩn portal: span + Từ/Đến (jp-date-vn / flatpickr). #}
+<style>
+.jp-meal-filter-dates { display: flex; flex-wrap: nowrap; gap: 0.75rem; align-items: flex-end; }
+.jp-meal-filter-dates > div { flex: 1 1 0; min-width: 0; }
+.jp-meal-filter-dates > .jp-team-filter-span { flex: 0 1 8.5rem; min-width: 7.5rem; }
+@media (max-width: 767.98px) {
+  .jp-meal-filter-dates { flex-wrap: wrap; width: 100%; }
+  .jp-meal-filter-dates > .jp-team-filter-span { flex: 1 1 100%; min-width: 0; }
+}
+</style>
+<div class="jp-meal-filter-dates jp-team-filter-dates">
+  {% include 'includes/date_range_span_select.html' with span_id=span_id|default:'meal-range-span' %}
+  <div>
+    <label class="form-label fw-bold small mb-1" for="{{ from_id|default:'meal-date-from' }}">Từ ngày</label>
+    <input type="date"
+           name="date_from"
+           id="{{ from_id|default:'meal-date-from' }}"
+           value="{{ date_from|date:'Y-m-d' }}"
+           class="form-control jp-date-vn">
+  </div>
+  <div>
+    <label class="form-label fw-bold small mb-1" for="{{ to_id|default:'meal-date-to' }}">Đến ngày</label>
+    <input type="date"
+           name="date_to"
+           id="{{ to_id|default:'meal-date-to' }}"
+           value="{{ date_to|date:'Y-m-d' }}"
+           class="form-control jp-date-vn">
+  </div>
+</div>

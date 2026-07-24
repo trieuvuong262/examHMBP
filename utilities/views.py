@@ -85,7 +85,7 @@ def _parse_meal_date(raw: str | None, *, default):
 
 def _meal_summary_filters(request):
     """Từ–đến ngày (preset span) + lọc món cho tổng hợp đặt cơm."""
-    default_to = current_orderable_meal_date() or next_orderable_meal_date() or timezone.localdate()
+    default_to = timezone.localdate()
     span = parse_date_range_span_from_request(request)
 
     # Tương thích URL cũ ?meal_date=...

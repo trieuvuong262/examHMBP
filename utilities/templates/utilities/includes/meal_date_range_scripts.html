@@ -1,0 +1,27 @@
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+{% include 'includes/date_range_span_script.html' %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  function submitForm(form) {
+    if (!form) return;
+    if (typeof form.requestSubmit === 'function') form.requestSubmit();
+    else form.submit();
+  }
+
+  document.querySelectorAll('form .jp-date-vn').forEach(function (el) {
+    if (!el || el._flatpickr || !window.flatpickr) return;
+    var form = el.closest('form');
+    flatpickr(el, {
+      dateFormat: 'Y-m-d',
+      altInput: true,
+      altFormat: 'd/m/Y',
+      allowInput: true,
+      altInputClass: 'form-control',
+      onChange: function () {
+        if (form) submitForm(form);
+      },
+    });
+  });
+});
+</script>
