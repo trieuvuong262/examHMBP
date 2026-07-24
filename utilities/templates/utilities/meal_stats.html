@@ -62,24 +62,46 @@
         </div>
     </div>
 
+    <div class="row g-3 mb-3">
+        <div class="col-lg-7">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white fw-bold">Biểu đồ xếp hạng món</div>
+                <div class="card-body">
+                    {% if dish_totals %}
+                    <div class="jp-meal-chart-wrap" style="--jp-meal-dish-n: {{ dish_totals|length }};">
+                        <canvas id="mealDishChart" aria-label="Biểu đồ xếp hạng món"></canvas>
+                    </div>
+                    {% else %}
+                    <p class="text-muted mb-0 py-4 text-center">Chưa có dữ liệu</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-5">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white fw-bold">Biểu đồ đơn theo ngày</div>
+                <div class="card-body">
+                    {% if daily_rows %}
+                    <div class="jp-meal-chart-wrap jp-meal-chart-daily">
+                        <canvas id="mealDailyChart" aria-label="Biểu đồ đơn theo ngày"></canvas>
+                    </div>
+                    {% else %}
+                    <p class="text-muted mb-0 py-4 text-center">Chưa có dữ liệu</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="row g-3">
         <div class="col-md-6">
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-header bg-white fw-bold">Xếp hạng món (cả kỳ)</div>
                 <ul class="list-group list-group-flush">
                     {% for row in dish_totals %}
-                    <li class="list-group-item">
-                        <div class="d-flex justify-content-between gap-2 mb-1">
-                            <span class="text-truncate pe-2">{{ forloop.counter }}. {{ row.dish }}</span>
-                            <strong class="text-nowrap">{{ row.count }} <span class="text-muted fw-normal small">({{ row.pct }}%)</span></strong>
-                        </div>
-                        <div class="progress" style="height: 8px;" title="{{ row.count }} đơn — {{ row.pct }}% tổng kỳ">
-                            <div class="progress-bar bg-danger" role="progressbar"
-                                 style="width: {{ row.bar }}%;"
-                                 aria-valuenow="{{ row.bar }}"
-                                 aria-valuemin="0"
-                                 aria-valuemax="100"></div>
-                        </div>
+                    <li class="list-group-item d-flex justify-content-between gap-2 align-items-center">
+                        <span class="text-truncate pe-2">{{ forloop.counter }}. {{ row.dish }}</span>
+                        <strong class="text-nowrap">{{ row.count }} <span class="text-muted fw-normal small">({{ row.pct }}%)</span></strong>
                     </li>
                     {% empty %}
                     <li class="list-group-item text-muted">Chưa có dữ liệu</li>
@@ -116,8 +138,133 @@
         </div>
     </div>
 </div>
+
+<style>
+.jp-meal-chart-wrap {
+  position: relative;
+  width: 100%;
+  height: max(220px, calc(var(--jp-meal-dish-n, 4) * 36px));
+}
+.jp-meal-chart-daily {
+  height: 280px;
+}
+@media (max-width: 767.98px) {
+  .jp-meal-chart-wrap {
+    height: max(200px, calc(var(--jp-meal-dish-n, 4) * 32px));
+  }
+  .jp-meal-chart-daily {
+    height: 240px;
+  }
+}
+</style>
+{{ chart|json_script:"meal-stats-chart-data" }}
 {% endblock %}
 
 {% block scripts %}
 {% include 'utilities/includes/meal_date_range_scripts.html' %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+  const el = document.getElementById('meal-stats-chart-data');
+  if (!el || typeof Chart === 'undefined') return;
+  const data = JSON.parse(el.textContent);
+  const JP = '#dc2626';
+  const JP_SOFT = 'rgba(220, 38, 38, 0.75)';
+  const MUTED = '#94a3b8';
+  const defaults = { responsive: true, maintainAspectRatio: false };
+
+  const dishEl = document.getElementById('mealDishChart');
+  if (dishEl && data.dishes && data.dishes.labels.length) {
+    new Chart(dishEl, {
+      type: 'bar',
+      data: {
+        labels: data.dishes.labels,
+        datasets: [{
+          label: 'Số đơn',
+          data: data.dishes.counts,
+          backgroundColor: JP_SOFT,
+          borderColor: JP,
+          borderWidth: 1,
+          borderRadius: 4,
+          maxBarThickness: 28,
+        }],
+      },
+      options: {
+        ...defaults,
+        indexAxis: 'y',
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: function (ctx) {
+                const pct = (data.dishes.pcts || [])[ctx.dataIndex];
+                const n = ctx.raw;
+                return pct != null ? (n + ' đơn (' + String(pct).replace('.', ',') + '%)') : (n + ' đơn');
+              },
+            },
+          },
+        },
+        scales: {
+          x: {
+            beginAtZero: true,
+            ticks: { precision: 0 },
+            grid: { color: 'rgba(15, 23, 42, 0.06)' },
+          },
+          y: {
+            ticks: {
+              autoSkip: false,
+              callback: function (value) {
+                const label = this.getLabelForValue(value);
+                if (!label) return '';
+                return label.length > 28 ? label.slice(0, 26) + '…' : label;
+              },
+            },
+            grid: { display: false },
+          },
+        },
+      },
+    });
+  }
+
+  const dailyEl = document.getElementById('mealDailyChart');
+  if (dailyEl && data.daily && data.daily.labels.length) {
+    new Chart(dailyEl, {
+      type: 'bar',
+      data: {
+        labels: data.daily.labels,
+        datasets: [
+          {
+            label: 'Đặt',
+            data: data.daily.orders,
+            backgroundColor: JP,
+            borderRadius: 4,
+            maxBarThickness: 36,
+          },
+          {
+            label: 'Không đặt',
+            data: data.daily.declines,
+            backgroundColor: MUTED,
+            borderRadius: 4,
+            maxBarThickness: 36,
+          },
+        ],
+      },
+      options: {
+        ...defaults,
+        plugins: {
+          legend: { position: 'bottom', labels: { usePointStyle: true, padding: 12 } },
+        },
+        scales: {
+          x: { grid: { display: false } },
+          y: {
+            beginAtZero: true,
+            ticks: { precision: 0 },
+            grid: { color: 'rgba(15, 23, 42, 0.06)' },
+          },
+        },
+      },
+    });
+  }
+})();
+</script>
 {% endblock %}

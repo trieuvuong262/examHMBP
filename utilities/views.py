@@ -267,6 +267,18 @@ def _meal_stats_context(*, date_from, date_to):
             'days': days_span,
             'avg_per_day': round(total_orders / days_span, 1) if days_span else 0,
         },
+        'chart': {
+            'dishes': {
+                'labels': [r['dish'] for r in dish_totals],
+                'counts': [r['count'] for r in dish_totals],
+                'pcts': [r['pct'] for r in dish_totals],
+            },
+            'daily': {
+                'labels': [r['date'].strftime('%d/%m') for r in daily_rows],
+                'orders': [r['orders'] for r in daily_rows],
+                'declines': [r['declines'] for r in daily_rows],
+            },
+        },
     }
 
 
