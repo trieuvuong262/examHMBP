@@ -179,7 +179,7 @@ def _get_bom_for_doc(doc: ProductTechDoc, bom_id: str | None) -> BomVersion | No
 def doc_detail(request, pk):
     doc = get_object_or_404(ProductTechDoc, pk=pk)
     tab = (request.GET.get('tab') or 'info').strip().lower()
-    if tab not in ('info', 'bom', 'process', 'costing', 'design'):
+    if tab not in ('info', 'bom', 'process', 'costing', 'design', 'sku'):
         tab = 'info'
 
     bom = _get_bom_for_doc(doc, request.GET.get('bom'))
@@ -248,6 +248,40 @@ def doc_detail(request, pk):
             snap = save_costing_snapshot(bom, user=request.user)
             messages.success(request, f'Đã chốt costing: {snap.total_cost:,.0f} đ.')
             return redirect(f"{request.path}?tab=costing&bom={bom.pk}")
+        elif action == 'expand_sku_matrix':
+            from san_xuat.services.sku_catalog import SkuError, expand_style_matrix
+
+            colors = request.POST.getlist('color_codes')
+            sizes = request.POST.getlist('size_labels')
+            try:
+                rows = expand_style_matrix(
+                    style_code=doc.product_code,
+                    style_name=doc.product_name or '',
+                    color_codes=colors,
+                    size_labels=sizes,
+                    user=request.user,
+                )
+            except SkuError as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(request, f'Đã sinh / cập nhật {len(rows)} SKU cho Style {doc.product_code}.')
+            return redirect(f'{request.path}?tab=sku')
+        elif action == 'add_single_sku':
+            from san_xuat.services.sku_catalog import SkuError, get_or_create_sku
+
+            try:
+                sku = get_or_create_sku(
+                    style_code=doc.product_code,
+                    style_name=doc.product_name or '',
+                    color_code=request.POST.get('color_code') or '',
+                    size_label=request.POST.get('size_label') or '',
+                    user=request.user,
+                )
+            except SkuError as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(request, f'Đã thêm SKU {sku.sku_code}.')
+            return redirect(f'{request.path}?tab=sku')
 
     if can_update:
         if tab == 'info' and desc_form is None:
@@ -297,6 +331,13 @@ def doc_detail(request, pk):
             str(k): float(v) for k, v in bom_stock_map.items()
         })
 
+    from san_xuat.hub_models import SxColor, SxSize
+    from san_xuat.services.sku_catalog import skus_for_style
+
+    skus = list(skus_for_style(doc.product_code, active_only=False))
+    colors = list(SxColor.objects.filter(is_active=True).order_by('sort_order', 'code'))
+    sizes = list(SxSize.objects.filter(is_active=True).order_by('sort_order', 'code'))
+
     return render(request, 'san_xuat/doc_detail.html', {
         'doc': doc,
         'tab': tab,
@@ -314,6 +355,9 @@ def doc_detail(request, pk):
         'issue_bom_url': issue_bom_url,
         'bom_stock_map': bom_stock_map,
         'bom_stock_map_json': bom_stock_map_json,
+        'skus': skus,
+        'colors': colors,
+        'sizes': sizes,
         **_perm_ctx(request),
     })
 
@@ -405,3 +449,32 @@ def process_catalog_add(request):
     except ValueError as exc:
         return JsonResponse({'error': str(exc)}, status=400)
     return JsonResponse({'name': row.name, 'id': row.pk})
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+@require_GET
+def sku_search(request):
+    from san_xuat.services.sku_catalog import search_skus
+
+    q = (request.GET.get('q') or '').strip()
+    style = (request.GET.get('style') or request.GET.get('style_code') or '').strip()
+    try:
+        limit = int(request.GET.get('limit') or 30)
+    except (TypeError, ValueError):
+        limit = 30
+    return JsonResponse({'results': search_skus(q=q, style_code=style, limit=limit)})
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+@require_GET
+def sku_compose_preview(request):
+    from san_xuat.services.sku_catalog import SkuError, compose_sku_code
+
+    style = (request.GET.get('style') or request.GET.get('style_code') or '').strip()
+    color = (request.GET.get('color') or request.GET.get('color_code') or '').strip()
+    size = (request.GET.get('size') or request.GET.get('size_label') or '').strip()
+    try:
+        code = compose_sku_code(style_code=style, color_code=color, size_label=size)
+    except SkuError as exc:
+        return JsonResponse({'ok': False, 'error': str(exc), 'sku_code': ''}, status=400)
+    return JsonResponse({'ok': True, 'sku_code': code})

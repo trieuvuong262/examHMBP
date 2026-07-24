@@ -211,26 +211,38 @@ class PackingCreateForm(forms.Form):
         self.fields["fg_receipt"].label_from_instance = (
             lambda fg: f"{fg.code} · lệnh {fg.production_order.code if fg.production_order_id else '—'}"
         )
+        self.fields["production_order"].label_from_instance = (
+            lambda mo: f"{mo.code} · {mo.product_code} · SL {mo.qty}"
+        )
 
 
 class PackingLineForm(forms.Form):
-    sku_code = forms.CharField(
-        max_length=60,
+    color_code = forms.ChoiceField(
         required=False,
-        label="SKU",
-        widget=forms.TextInput(attrs={"class": "form-control form-control-sm"}),
+        label="Màu",
+        choices=[],
+        widget=forms.Select(attrs={"class": "form-select form-select-sm jp-sx-color-select"}),
     )
-    size_label = forms.CharField(
-        max_length=40,
+    size_label = forms.ChoiceField(
         required=False,
         label="Size",
-        widget=forms.TextInput(attrs={"class": "form-control form-control-sm"}),
+        choices=[],
+        widget=forms.Select(attrs={"class": "form-select form-select-sm jp-sx-size-select"}),
+    )
+    sku_code = forms.CharField(
+        max_length=100,
+        required=False,
+        label="SKU",
+        widget=forms.TextInput(attrs={
+            "class": "form-control form-control-sm jp-sx-sku-code",
+            "placeholder": "STYLE-COLOR-SIZE",
+            "readonly": True,
+        }),
     )
     color_label = forms.CharField(
         max_length=40,
         required=False,
-        label="Màu",
-        widget=forms.TextInput(attrs={"class": "form-control form-control-sm"}),
+        widget=forms.HiddenInput(),
     )
     qty = forms.DecimalField(
         max_digits=14,
@@ -247,6 +259,31 @@ class PackingLineForm(forms.Form):
         label="Thùng",
         widget=forms.NumberInput(attrs={"class": "form-control form-control-sm", "min": "0"}),
     )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from san_xuat.services.sku_catalog import color_choices, size_choices
+
+        data = args[0] if args else None
+        extra_color = ""
+        extra_size = ""
+        if data is not None:
+            extra_color = data.get("color_code") or ""
+            extra_size = data.get("size_label") or ""
+        elif self.initial:
+            extra_color = self.initial.get("color_code") or ""
+            extra_size = self.initial.get("size_label") or ""
+        self.fields["color_code"].choices = color_choices(extra_code=extra_color, blank_label="—")
+        self.fields["size_label"].choices = size_choices(extra_code=extra_size, blank_label="—")
+
+    def clean(self):
+        cleaned = super().clean()
+        from san_xuat.services.sku_catalog import color_label_for
+
+        color_code = (cleaned.get("color_code") or "").strip()
+        if color_code and not cleaned.get("color_label"):
+            cleaned["color_label"] = color_label_for(color_code)
+        return cleaned
 
 
 PackingLineFormSet = formset_factory(PackingLineForm, extra=3, can_delete=False)

@@ -50,6 +50,8 @@ class SxGeneralSettingsForm(forms.ModelForm):
             'gate_qc_pass_before_fg',
             'gate_open_qc_alert_before_fg',
             'gate_packing_before_done',
+            'gate_sku_on_stat',
+            'gate_sku_on_packing',
             'auto_create_qc_from_stat',
             'auto_create_defect_alert',
             'default_defect_tolerance_pct',
@@ -73,6 +75,8 @@ class SxGeneralSettingsForm(forms.ModelForm):
             'gate_qc_pass_before_fg': _SELECT,
             'gate_open_qc_alert_before_fg': _SELECT,
             'gate_packing_before_done': _SELECT,
+            'gate_sku_on_stat': _SELECT,
+            'gate_sku_on_packing': _SELECT,
             'auto_create_qc_from_stat': _CHECK,
             'auto_create_defect_alert': _CHECK,
             'default_defect_tolerance_pct': forms.NumberInput(

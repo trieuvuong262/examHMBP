@@ -138,10 +138,11 @@
       {% elif step == 5 and mo %}
       <h3 class="h6 mb-3">Bước 5 — Thống kê sản xuất</h3>
       {% if can_create and stat_form %}
-      <form method="post">
+      <form method="post" class="jp-sx-sku-row" data-sx-style-code="{{ mo.product_code }}">
         {% csrf_token %}
         <input type="hidden" name="action" value="create_stat">
         <input type="hidden" name="step" value="5">
+        <p class="small text-muted">Style: <strong>{{ mo.product_code }}</strong> — chọn màu + size để sinh SKU.</p>
         <div class="row g-3">
           <div class="col-md-4">
             <label class="form-label small text-muted">{{ stat_form.stat_date.label }}</label>
@@ -162,6 +163,19 @@
           <div class="col-md-4">
             <label class="form-label small text-muted">{{ stat_form.qty_defect.label }}</label>
             {{ stat_form.qty_defect }}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small text-muted">{{ stat_form.color_code.label }}</label>
+            {{ stat_form.color_code }}
+            {{ stat_form.color_label }}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small text-muted">{{ stat_form.size_label.label }}</label>
+            {{ stat_form.size_label }}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small text-muted">{{ stat_form.sku_code.label }}</label>
+            {{ stat_form.sku_code }}
           </div>
         </div>
         <button type="submit" class="btn btn-hm mt-3">Ghi &amp; xác nhận thống kê →</button>
@@ -225,4 +239,5 @@
 </div>
 {% include 'san_xuat/includes/sx_product_code_select_script.html' %}
 {% include 'san_xuat/includes/sx_process_select_script.html' %}
+{% include 'san_xuat/includes/sx_sku_compose_script.html' %}
 {% endblock %}

@@ -1,0 +1,91 @@
+{% load sx_format %}
+<div class="card border-0 shadow-sm mb-3">
+  <div class="card-body">
+    <p class="small text-muted mb-3">
+      <strong>SKU</strong> = Style + Màu + Size.
+      Style hiện tại: <code>{{ doc.product_code }}</code>
+      — một Style có thể tạo hàng chục SKU (vd. 5 màu × 7 size = 35 SKU).
+    </p>
+
+    {% if can_update %}
+    <form method="post" class="border rounded-3 p-3 mb-4 bg-light">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="expand_sku_matrix">
+      <div class="row g-3 align-items-end">
+        <div class="col-md-5">
+          <label class="form-label small text-muted">Màu (giữ Ctrl/Cmd để chọn nhiều)</label>
+          <select name="color_codes" class="form-select form-select-sm" multiple size="6" required>
+            {% for c in colors %}
+            <option value="{{ c.code }}">{{ c.code }} — {{ c.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-5">
+          <label class="form-label small text-muted">Size (giữ Ctrl/Cmd để chọn nhiều)</label>
+          <select name="size_labels" class="form-select form-select-sm" multiple size="6" required>
+            {% for s in sizes %}
+            <option value="{{ s.code }}">{{ s.code }}{% if s.name and s.name != s.code %} — {{ s.name }}{% endif %}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-2">
+          <button type="submit" class="btn btn-hm btn-sm w-100">Sinh ma trận SKU</button>
+        </div>
+      </div>
+    </form>
+
+    <form method="post" class="row g-2 align-items-end mb-4">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="add_single_sku">
+      <div class="col-md-3">
+        <label class="form-label small text-muted">Màu</label>
+        <select name="color_code" class="form-select form-select-sm" required>
+          <option value="">—</option>
+          {% for c in colors %}
+          <option value="{{ c.code }}">{{ c.code }} — {{ c.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small text-muted">Size</label>
+        <select name="size_label" class="form-select form-select-sm" required>
+          <option value="">—</option>
+          {% for s in sizes %}
+          <option value="{{ s.code }}">{{ s.code }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3">
+        <button type="submit" class="btn btn-outline-hm btn-sm">Thêm 1 SKU</button>
+      </div>
+    </form>
+    {% endif %}
+
+    <div class="table-responsive">
+      <table class="table table-sm table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Style</th>
+            <th>Màu</th>
+            <th>Size</th>
+            <th>SKU</th>
+            <th>Trạng thái</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for sku in skus %}
+          <tr>
+            <td><code>{{ sku.style_code }}</code></td>
+            <td>{{ sku.color_code }}{% if sku.color_label %} <span class="text-muted">({{ sku.color_label }})</span>{% endif %}</td>
+            <td>{{ sku.size_label }}</td>
+            <td><strong>{{ sku.sku_code }}</strong></td>
+            <td>{% if sku.is_active %}<span class="badge text-bg-success">Đang dùng</span>{% else %}<span class="badge text-bg-secondary">Tắt</span>{% endif %}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="5" class="text-muted">Chưa có SKU — chọn màu × size rồi sinh ma trận.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

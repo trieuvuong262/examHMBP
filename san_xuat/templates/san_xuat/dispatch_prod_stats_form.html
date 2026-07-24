@@ -70,19 +70,19 @@
     </nav>
   </div>
 
-  <div class="card border-0 shadow-sm jp-sx-stat-form">
+  <div class="card border-0 shadow-sm jp-sx-stat-form" {% if mo %}data-sx-style-code="{{ mo.product_code }}"{% endif %}>
     <div class="card-body">
       {% if mo %}
       <div class="jp-sx-stat-mo">
         <a class="code text-decoration-none" href="{% url 'san_xuat:dispatch_mo_detail' mo.pk %}">{{ mo.code }}</a>
-        <span class="meta">{{ mo.product_code }}{% if mo.product_name %} · {{ mo.product_name }}{% endif %}</span>
+        <span class="meta">Style {{ mo.product_code }}{% if mo.product_name %} · {{ mo.product_name }}{% endif %}</span>
         <span class="meta">SL kế hoạch {{ mo.qty|sx_num }} · Đã đạt {{ mo.qty_done|sx_num }} · {{ mo.get_status_display }}</span>
       </div>
       {% else %}
       <div class="alert alert-warning border-0 small mb-3">Mở từ chi tiết lệnh sản xuất để ghi thống kê đúng lệnh.</div>
       {% endif %}
 
-      <form method="post" novalidate>
+      <form method="post" class="jp-sx-sku-row" novalidate>
         {% csrf_token %}
         <input type="hidden" name="production_order" value="{% if mo %}{{ mo.pk }}{% endif %}">
         {% if form.non_field_errors %}
@@ -118,12 +118,14 @@
             {{ form.size_label }}
           </div>
           <div class="col-4 col-lg-2">
-            <label class="form-label" for="{{ form.color_label.id_for_label }}">{{ form.color_label.label }}</label>
+            <label class="form-label" for="{{ form.color_code.id_for_label }}">{{ form.color_code.label }}</label>
+            {{ form.color_code }}
             {{ form.color_label }}
           </div>
-          <div class="col-4 col-lg-2">
+          <div class="col-4 col-lg-3">
             <label class="form-label" for="{{ form.sku_code.id_for_label }}">{{ form.sku_code.label }}</label>
             {{ form.sku_code }}
+            <div class="form-text">Style–Màu–Size</div>
           </div>
           <div class="col-12 col-lg-3">
             <label class="form-label" for="{{ form.code.id_for_label }}">Mã phiếu</label>
@@ -143,4 +145,5 @@
   </div>
 </div>
 {% include 'san_xuat/includes/sx_process_select_script.html' %}
+{% include 'san_xuat/includes/sx_sku_compose_script.html' %}
 {% endblock %}

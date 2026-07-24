@@ -272,20 +272,32 @@ class ProductionStatCreateForm(forms.Form):
         label="Tổ / chuyền",
         widget=forms.TextInput(attrs={"class": "form-control form-control-sm", "placeholder": "VD: Tổ May 1"}),
     )
-    size_label = forms.CharField(
+    size_label = forms.ChoiceField(
         required=False,
         label="Size",
-        widget=forms.TextInput(attrs={"class": "form-control form-control-sm", "placeholder": "S/M/L"}),
+        choices=[],
+        widget=forms.Select(attrs={"class": "form-select form-select-sm jp-sx-size-select"}),
+    )
+    color_code = forms.ChoiceField(
+        required=False,
+        label="Màu",
+        choices=[],
+        widget=forms.Select(attrs={"class": "form-select form-select-sm jp-sx-color-select"}),
     )
     sku_code = forms.CharField(
         required=False,
         label="SKU",
-        widget=forms.TextInput(attrs={"class": "form-control form-control-sm"}),
+        help_text="Tự ghép Style–Màu–Size (vd. JP-TEE-260001-NVY-M). Có thể sửa tay.",
+        widget=forms.TextInput(attrs={
+            "class": "form-control form-control-sm jp-sx-sku-code",
+            "placeholder": "STYLE-COLOR-SIZE",
+            "readonly": True,
+        }),
     )
     color_label = forms.CharField(
         required=False,
-        label="Màu",
-        widget=forms.TextInput(attrs={"class": "form-control form-control-sm"}),
+        label="Tên màu (snapshot)",
+        widget=forms.HiddenInput(),
     )
     notes = forms.CharField(
         required=False,
@@ -298,13 +310,23 @@ class ProductionStatCreateForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        from san_xuat.services.sku_catalog import color_choices, size_choices
+
         data = args[0] if args else None
-        extra = ""
+        extra_process = ""
+        extra_color = ""
+        extra_size = ""
         if data is not None:
-            extra = data.get("process_name") or ""
+            extra_process = data.get("process_name") or ""
+            extra_color = data.get("color_code") or ""
+            extra_size = data.get("size_label") or ""
         elif self.initial:
-            extra = self.initial.get("process_name") or ""
-        self.fields["process_name"].choices = bom_process_choices(None, extra_value=extra)
+            extra_process = self.initial.get("process_name") or ""
+            extra_color = self.initial.get("color_code") or ""
+            extra_size = self.initial.get("size_label") or ""
+        self.fields["process_name"].choices = bom_process_choices(None, extra_value=extra_process)
+        self.fields["color_code"].choices = color_choices(extra_code=extra_color)
+        self.fields["size_label"].choices = size_choices(extra_code=extra_size)
 
     def clean(self):
         cleaned = super().clean()
@@ -312,6 +334,11 @@ class ProductionStatCreateForm(forms.Form):
         qty_defect = cleaned.get("qty_defect") or Decimal("0")
         if qty_good <= 0 and qty_defect <= 0:
             raise forms.ValidationError("Phải nhập ít nhất Số lượng đạt hoặc Số lượng lỗi lớn hơn 0.")
+        from san_xuat.services.sku_catalog import color_label_for
+
+        color_code = (cleaned.get("color_code") or "").strip()
+        if color_code and not cleaned.get("color_label"):
+            cleaned["color_label"] = color_label_for(color_code)
         return cleaned
 
 

@@ -11,17 +11,24 @@
       <h2 class="jp-npl-mat-topbar-title w-100">{{ doc.product_code }}</h2>
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
+      <a href="?tab=sku{% if bom %}&bom={{ bom.pk }}{% endif %}"
+         data-loading-message="Đang tải SKU…"><i class="bi bi-upc-scan" aria-hidden="true"></i>SKU</a>
       <span class="sep" aria-hidden="true"></span>
       <a href="{% url 'san_xuat:doc_list' %}" class="is-back"
          data-loading-message="Đang tải hồ sơ thiết kế…"><i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại</a>
     </nav>
   </div>
 
-    <ul class="nav nav-tabs mb-3">
+    <ul class="nav nav-tabs mb-3 flex-nowrap" style="overflow-x:auto;-webkit-overflow-scrolling:touch">
         <li class="nav-item">
             <a class="nav-link {% if tab == 'info' %}active{% endif %}"
                href="?tab=info{% if bom %}&bom={{ bom.pk }}{% endif %}"
                data-loading-message="Đang tải mô tả…">Mô tả</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if tab == 'sku' %}active{% endif %}"
+               href="?tab=sku{% if bom %}&bom={{ bom.pk }}{% endif %}"
+               data-loading-message="Đang tải SKU…">SKU</a>
         </li>
         <li class="nav-item">
             <a class="nav-link {% if tab == 'bom' %}active{% endif %}"
@@ -49,6 +56,8 @@
         {% include 'san_xuat/includes/tab_description.html' %}
     {% elif tab == 'design' %}
         {% include 'san_xuat/includes/tab_design.html' %}
+    {% elif tab == 'sku' %}
+        {% include 'san_xuat/includes/tab_sku.html' %}
     {% elif not bom %}
     <div class="alert alert-warning">Hồ sơ chưa có phiên bản BOM.</div>
     {% elif tab == 'bom' %}

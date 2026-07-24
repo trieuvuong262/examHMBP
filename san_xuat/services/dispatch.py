@@ -439,9 +439,14 @@ def create_production_stat(
     size_label: str = "",
     sku_code: str = "",
     color_label: str = "",
+    color_code: str = "",
     notes: str = "",
     code: str | None = None,
+    user=None,
 ) -> SxProductionStat:
+    from san_xuat.services.gates import check_sku_on_stat, enforce_gate
+    from san_xuat.services.sku_catalog import SkuError, resolve_sku_fields
+
     mo = SxProductionOrder.objects.select_for_update().get(pk=production_order_id)
     if mo.status not in (
         SxProductionOrder.STATUS_RELEASED,
@@ -452,6 +457,28 @@ def create_production_stat(
     if (qty_good or Decimal("0")) <= 0 and (qty_defect or Decimal("0")) <= 0:
         raise DispatchError("Phải nhập ít nhất SL đạt hoặc SL lỗi lớn hơn 0.")
 
+    enforce_gate(
+        check_sku_on_stat(
+            sku_code=sku_code,
+            color_code=color_code or color_label,
+            size_label=size_label,
+        )
+    )
+
+    try:
+        resolved = resolve_sku_fields(
+            style_code=mo.product_code,
+            style_name=mo.product_name or "",
+            sku_code=sku_code,
+            color_code=color_code,
+            color_label=color_label,
+            size_label=size_label,
+            user=user,
+            create_if_missing=True,
+        )
+    except SkuError as exc:
+        raise DispatchError(str(exc)) from exc
+
     stat = SxProductionStat.objects.create(
         code=_code("stat", SxProductionStat, code=code),
         production_order=mo,
@@ -460,9 +487,11 @@ def create_production_stat(
         qty_good=qty_good or Decimal("0"),
         qty_defect=qty_defect or Decimal("0"),
         team_label=(team_label or "").strip(),
-        size_label=(size_label or "").strip(),
-        sku_code=(sku_code or "").strip(),
-        color_label=(color_label or "").strip(),
+        sku=resolved.sku,
+        size_label=resolved.size_label,
+        sku_code=resolved.sku_code,
+        color_label=resolved.color_label,
+        color_code=resolved.color_code,
         status=SxProductionStat.STATUS_DRAFT,
         notes=notes or "",
     )
@@ -540,7 +569,9 @@ def create_fg_receipt_from_mo(
     enforce_gate(check_open_qc_alert_before_fg(mo=mo))
     enforce_gate(check_qc_pass_before_fg(mo=mo))
 
-    return SxFgReceiptRequest.objects.create(
+    from san_xuat.hub_models import SxFgReceiptLine
+
+    req = SxFgReceiptRequest.objects.create(
         code=_code("fg", SxFgReceiptRequest, code=code),
         production_order=mo,
         production_stat=stat,
@@ -550,6 +581,18 @@ def create_fg_receipt_from_mo(
         notes=notes or "",
         is_demo=False,
     )
+    # Khi YCNTP lấy từ TKSX có SKU → tạo 1 dòng biến thể (Style–Màu–Size).
+    if stat and (stat.sku_id or (stat.sku_code or "").strip()):
+        SxFgReceiptLine.objects.create(
+            receipt=req,
+            sku_id=stat.sku_id,
+            sku_code=(stat.sku_code or "").strip(),
+            size_label=(stat.size_label or "").strip(),
+            color_label=(stat.color_label or "").strip(),
+            color_code=(stat.color_code or "").strip(),
+            qty=receipt_qty,
+        )
+    return req
 
 
 @transaction.atomic

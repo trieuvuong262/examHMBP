@@ -328,7 +328,11 @@ def create_packing_record(
     code: str | None = None,
     notes: str = "",
     lines: list[dict] | None = None,
+    user=None,
 ) -> SxPackingRecord:
+    from san_xuat.services.gates import check_sku_on_packing_line, enforce_gate
+    from san_xuat.services.sku_catalog import SkuError, resolve_sku_fields
+
     mo = SxProductionOrder.objects.select_for_update().get(pk=production_order_id)
     line_rows = [
         row for row in (lines or [])
@@ -356,6 +360,43 @@ def create_packing_record(
             .first()
         )
 
+    resolved_lines: list[dict] = []
+    for idx, row in enumerate(line_rows, start=1):
+        try:
+            enforce_gate(
+                check_sku_on_packing_line(
+                    sku_code=row.get("sku_code") or "",
+                    color_code=row.get("color_code") or row.get("color_label") or "",
+                    size_label=row.get("size_label") or "",
+                    line_no=idx,
+                )
+            )
+        except Exception as exc:
+            # Gate raises DispatchError — giữ API phase3 thống nhất Phase3Error.
+            from san_xuat.services.dispatch import DispatchError
+
+            if isinstance(exc, DispatchError):
+                raise Phase3Error(str(exc)) from exc
+            raise
+        try:
+            resolved = resolve_sku_fields(
+                style_code=mo.product_code,
+                style_name=mo.product_name or "",
+                sku_code=row.get("sku_code") or "",
+                color_code=row.get("color_code") or "",
+                color_label=row.get("color_label") or "",
+                size_label=row.get("size_label") or "",
+                user=user,
+                create_if_missing=True,
+            )
+        except SkuError as exc:
+            raise Phase3Error(f"Dòng {idx}: {exc}") from exc
+        resolved_lines.append({
+            "resolved": resolved,
+            "qty": Decimal(str(row["qty"])).quantize(Decimal("0.01")),
+            "carton_count": max(int(row.get("carton_count") or 0), 0),
+        })
+
     item = SxPackingRecord.objects.create(
         code=_code("packing", SxPackingRecord, code=code),
         production_order=mo,
@@ -368,14 +409,17 @@ def create_packing_record(
         notes=notes or "",
         is_demo=False,
     )
-    for row in line_rows:
+    for row in resolved_lines:
+        resolved = row["resolved"]
         SxPackingLine.objects.create(
             packing=item,
-            sku_code=(row.get("sku_code") or "").strip(),
-            size_label=(row.get("size_label") or "").strip(),
-            color_label=(row.get("color_label") or "").strip(),
-            qty=Decimal(str(row["qty"])).quantize(Decimal("0.01")),
-            carton_count=max(int(row.get("carton_count") or 0), 0),
+            sku=resolved.sku,
+            sku_code=resolved.sku_code,
+            size_label=resolved.size_label,
+            color_label=resolved.color_label,
+            color_code=resolved.color_code,
+            qty=row["qty"],
+            carton_count=row["carton_count"],
         )
     return item
 

@@ -55,6 +55,22 @@
               <div>{{ stat.team_label|default:"—" }}</div>
             </div>
             <div class="col-6">
+              <div class="small text-muted">Style</div>
+              <div>{{ stat.production_order.product_code }}</div>
+            </div>
+            <div class="col-4">
+              <div class="small text-muted">Màu</div>
+              <div>{% if stat.color_code %}{{ stat.color_code }}{% if stat.color_label %} ({{ stat.color_label }}){% endif %}{% else %}{{ stat.color_label|default:"—" }}{% endif %}</div>
+            </div>
+            <div class="col-4">
+              <div class="small text-muted">Size</div>
+              <div>{{ stat.size_label|default:"—" }}</div>
+            </div>
+            <div class="col-4">
+              <div class="small text-muted">SKU</div>
+              <div><strong>{{ stat.sku_code|default:"—" }}</strong></div>
+            </div>
+            <div class="col-6">
               <div class="small text-muted">Lệnh sản xuất hiện tại</div>
               <div>{{ stat.production_order.get_status_display }} · Đã đạt {{ stat.production_order.qty_done|sx_num }}/{{ stat.production_order.qty|sx_num }}</div>
             </div>

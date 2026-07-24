@@ -13,33 +13,34 @@
       <a href="{% url back_url %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại</a>
     </nav>
   </div>
-  <div class="card border-0 shadow-sm">
+  <div class="card border-0 shadow-sm" id="jp-sx-packing-form-root">
     <div class="card-body">
-      <form method="post">
+      <form method="post" id="jp-sx-packing-form">
         {% csrf_token %}
         {% for field in form %}
-        <div class="mb-3">
+        <div class="mb-3"{% if field.name == 'production_order' %} id="jp-sx-packing-mo-wrap"{% endif %}>
           <label class="form-label small text-muted" for="{{ field.id_for_label }}">{{ field.label }}</label>
           {{ field }}
           {% if field.errors %}<div class="text-danger small">{{ field.errors }}</div>{% endif %}
         </div>
         {% endfor %}
 
-        <h3 class="h6 text-muted mt-3">Dòng size / SKU (tùy chọn)</h3>
+        <h3 class="h6 text-muted mt-3">Dòng SKU (Style–Màu–Size)</h3>
+        <p class="small text-muted">Chọn màu + size — hệ thống ghép SKU theo Style của lệnh sản xuất.</p>
         {{ line_formset.management_form }}
         <div class="table-responsive border rounded-3 mb-3">
           <table class="table table-hover table-sm mb-0">
             <thead class="table-light">
               <tr>
-                <th>SKU</th><th>Size</th><th>Màu</th><th>Số lượng</th><th>Thùng</th>
+                <th>Màu</th><th>Size</th><th>SKU</th><th>Số lượng</th><th>Thùng</th>
               </tr>
             </thead>
             <tbody>
             {% for f in line_formset %}
-              <tr>
-                <td>{{ f.sku_code }}</td>
+              <tr class="jp-sx-sku-row">
+                <td>{{ f.color_code }}{{ f.color_label }}</td>
                 <td>{{ f.size_label }}</td>
-                <td>{{ f.color_label }}</td>
+                <td>{{ f.sku_code }}</td>
                 <td>{{ f.qty }}</td>
                 <td>{{ f.carton_count }}</td>
               </tr>
@@ -52,4 +53,31 @@
     </div>
   </div>
 </div>
+<script>
+(function () {
+  var moSel = document.getElementById('id_production_order');
+  var root = document.getElementById('jp-sx-packing-form-root');
+  function syncStyle() {
+    if (!moSel || !root) return;
+    var opt = moSel.options[moSel.selectedIndex];
+    var text = opt ? (opt.textContent || '') : '';
+    var code = '';
+    // label_from_instance: "LSX · STYLE · SL qty"
+    var parts = text.split('·').map(function (p) { return p.trim(); });
+    if (parts.length >= 2) {
+      code = parts[1];
+    }
+    if (!code) {
+      var m = text.match(/\b([A-Z0-9][A-Z0-9\-_]{2,})\b/g);
+      code = m && m.length > 1 ? m[1] : (m ? m[0] : '');
+    }
+    if (code) root.setAttribute('data-sx-style-code', code.trim().toUpperCase());
+  }
+  if (moSel) {
+    moSel.addEventListener('change', syncStyle);
+    syncStyle();
+  }
+})();
+</script>
+{% include 'san_xuat/includes/sx_sku_compose_script.html' %}
 {% endblock %}

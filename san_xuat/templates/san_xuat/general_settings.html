@@ -434,6 +434,35 @@
               {{ f.as_widget }}
             </div>
             {% endwith %}
+
+            {% with f=form.gate_sku_on_stat %}
+            <div class="jp-sx-gate-row" data-gate>
+              <div>
+                <p class="jp-sx-gate-title">SKU (màu + size) khi ghi thống kê</p>
+                <p class="jp-sx-gate-hint small text-muted mb-0">SKU = Style–Màu–Size (vd. JP-TEE-260001-NVY-M)</p>
+              </div>
+              <div class="jp-sx-seg" role="group" aria-label="{{ f.label }}">
+                <button type="button" data-val="block">Chặn</button>
+                <button type="button" data-val="warn">Cảnh báo</button>
+                <button type="button" data-val="off">Tắt</button>
+              </div>
+              {{ f.as_widget }}
+            </div>
+            {% endwith %}
+
+            {% with f=form.gate_sku_on_packing %}
+            <div class="jp-sx-gate-row" data-gate>
+              <div>
+                <p class="jp-sx-gate-title">SKU trên dòng đóng gói có SL</p>
+              </div>
+              <div class="jp-sx-seg" role="group" aria-label="{{ f.label }}">
+                <button type="button" data-val="block">Chặn</button>
+                <button type="button" data-val="warn">Cảnh báo</button>
+                <button type="button" data-val="off">Tắt</button>
+              </div>
+              {{ f.as_widget }}
+            </div>
+            {% endwith %}
             </div>
 
             <div class="jp-sx-legend">

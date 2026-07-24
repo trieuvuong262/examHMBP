@@ -381,12 +381,14 @@ class CostingSnapshot(models.Model):
 # Hub: kế hoạch / điều phối / QC / giá thành KH (import để Django register models)
 from san_xuat.hub_models import (  # noqa: E402,F401
     SxActualCostSheet,
+    SxColor,
     SxCostType,
     SxDetailPlan,
     SxDetailPlanLine,
     SxDisassemblyOrder,
     SxDisassemblyOrderLine,
     SxDowntimeEvent,
+    SxFgReceiptLine,
     SxFgReceiptRequest,
     SxMaterialIssueRequest,
     SxMaterialIssueRequestLine,
@@ -420,6 +422,8 @@ from san_xuat.hub_models import (  # noqa: E402,F401
     SxQcSamplingMethod,
     SxQcStandardCriteria,
     SxQcStandardSet,
+    SxSize,
+    SxSku,
     SxStandardCostLine,
     SxStandardCostSheet,
     SxSubcontractMaterialLine,

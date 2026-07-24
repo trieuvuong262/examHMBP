@@ -136,5 +136,7 @@ urlpatterns = [
     path('api/tim-ma-sp/', views.product_code_search, name='product_code_search'),
     path('api/cong-doan/', views.process_catalog_search, name='process_catalog_search'),
     path('api/cong-doan/them/', views.process_catalog_add, name='process_catalog_add'),
+    path('api/sku/', views.sku_search, name='sku_search'),
+    path('api/sku/ghep/', views.sku_compose_preview, name='sku_compose_preview'),
     path('xuat-excel/<slug:export_key>/', views_export.list_export, name='list_export'),
 ]

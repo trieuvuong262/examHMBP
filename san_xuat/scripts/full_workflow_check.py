@@ -192,10 +192,14 @@ def run_e2e(user):
         qty_good=GOOD,
         qty_defect=Decimal("0"),
         team_label="Chuyen 1",
+        color_code="NVY",
+        size_label="M",
+        user=user,
     )
     st = confirm_stat(stat_id=st.pk)
     mo.refresh_from_db()
-    log("A6 TKSX", True, f"{st.code} good={st.qty_good} mo_done={mo.qty_done}")
+    log("A6 TKSX", True, f"{st.code} good={st.qty_good} sku={st.sku_code} mo_done={mo.qty_done}")
+    log("A6b SKU", bool(st.sku_code), f"sku={st.sku_code} color={st.color_code} size={st.size_label}")
 
     qc_req = create_request_from_stat(stat_id=st.pk)
     insp = create_inspection_from_request(request_id=qc_req.pk)
@@ -232,10 +236,16 @@ def run_e2e(user):
         production_order_id=mo.pk,
         pack_date=timezone.localdate(),
         fg_receipt_id=fg.pk,
-        lines=[{"size_label": "M", "color_label": "Trang", "qty": GOOD, "carton_count": 1}],
+        lines=[{"color_code": "NVY", "size_label": "M", "qty": GOOD, "carton_count": 1}],
+        user=user,
     )
     pack = confirm_packing_record(packing_id=pack.pk)
-    log("A9 Dong goi", True, f"{pack.code} lot={pack.lot_code}")
+    pack_line = pack.lines.first()
+    log(
+        "A9 Dong goi",
+        True,
+        f"{pack.code} lot={pack.lot_code} sku={getattr(pack_line, 'sku_code', '')}",
+    )
 
     t = trace_production(query=mo.code)
     ok_tr = bool(t.mo) and len(t.timeline) >= 4 and len(t.issue_batches) > 0

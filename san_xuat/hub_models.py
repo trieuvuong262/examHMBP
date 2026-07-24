@@ -421,9 +421,18 @@ class SxProductionStat(DemoMarkedModel):
     qty_good = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
     qty_defect = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
     team_label = models.CharField(max_length=80, blank=True, default='')
-    sku_code = models.CharField(max_length=60, blank=True, default='', verbose_name='SKU')
+    sku = models.ForeignKey(
+        'san_xuat.SxSku',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='production_stats',
+        verbose_name='SKU (master)',
+    )
+    sku_code = models.CharField(max_length=100, blank=True, default='', verbose_name='SKU')
     size_label = models.CharField(max_length=40, blank=True, default='', verbose_name='Size')
     color_label = models.CharField(max_length=40, blank=True, default='', verbose_name='Màu')
+    color_code = models.CharField(max_length=20, blank=True, default='', verbose_name='Mã màu')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT, db_index=True)
     notes = models.TextField(blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
@@ -754,9 +763,18 @@ class SxQcRequest(DemoMarkedModel):
     product_code = models.CharField(max_length=60, db_index=True)
     product_name = models.CharField(max_length=255, blank=True, default='')
     stage_name = models.CharField(max_length=120, blank=True, default='')
-    sku_code = models.CharField(max_length=60, blank=True, default='', verbose_name='SKU')
+    sku = models.ForeignKey(
+        'san_xuat.SxSku',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='qc_requests',
+        verbose_name='SKU (master)',
+    )
+    sku_code = models.CharField(max_length=100, blank=True, default='', verbose_name='SKU')
     size_label = models.CharField(max_length=40, blank=True, default='', verbose_name='Size')
     color_label = models.CharField(max_length=40, blank=True, default='', verbose_name='Màu')
+    color_code = models.CharField(max_length=20, blank=True, default='', verbose_name='Mã màu')
     qty = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
     request_date = models.DateField()
     due_date = models.DateField(null=True, blank=True)
@@ -1081,9 +1099,18 @@ class SxPackingRecord(DemoMarkedModel):
 
 class SxPackingLine(models.Model):
     packing = models.ForeignKey(SxPackingRecord, on_delete=models.CASCADE, related_name='lines')
-    sku_code = models.CharField(max_length=60, blank=True, default='', verbose_name='SKU')
+    sku = models.ForeignKey(
+        'san_xuat.SxSku',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='packing_lines',
+        verbose_name='SKU (master)',
+    )
+    sku_code = models.CharField(max_length=100, blank=True, default='', verbose_name='SKU')
     size_label = models.CharField(max_length=40, blank=True, default='', verbose_name='Size')
     color_label = models.CharField(max_length=40, blank=True, default='', verbose_name='Màu')
+    color_code = models.CharField(max_length=20, blank=True, default='', verbose_name='Mã màu')
     qty = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
     carton_count = models.PositiveIntegerField(default=0)
 
@@ -1302,6 +1329,99 @@ class SxProductGroup(DemoMarkedModel):
         return f'{self.code} — {self.name}'
 
 
+class SxColor(DemoMarkedModel):
+    """Danh mục màu — mã ngắn dùng ghép SKU (vd. NVY → Navy)."""
+
+    code = models.CharField(max_length=20, unique=True, verbose_name='Mã màu')
+    name = models.CharField(max_length=80, verbose_name='Tên màu')
+    sort_order = models.PositiveSmallIntegerField(default=100, db_index=True)
+    is_active = models.BooleanField(default=True, db_index=True)
+
+    class Meta:
+        ordering = ['sort_order', 'code']
+        verbose_name = 'Màu (SKU)'
+        verbose_name_plural = 'Màu (SKU)'
+
+    def __str__(self):
+        return f'{self.code} — {self.name}'
+
+
+class SxSize(DemoMarkedModel):
+    """Danh mục size — dùng ghép SKU (vd. M, L, XL)."""
+
+    code = models.CharField(max_length=20, unique=True, verbose_name='Size')
+    name = models.CharField(max_length=80, blank=True, default='', verbose_name='Tên hiển thị')
+    sort_order = models.PositiveSmallIntegerField(default=100, db_index=True)
+    is_active = models.BooleanField(default=True, db_index=True)
+
+    class Meta:
+        ordering = ['sort_order', 'code']
+        verbose_name = 'Size (SKU)'
+        verbose_name_plural = 'Size (SKU)'
+
+    def __str__(self):
+        return self.name or self.code
+
+
+class SxSku(DemoMarkedModel):
+    """SKU = Style + Màu + Size (vd. JP-TEE-260001-NVY-M).
+
+    Style neo theo product_code (hồ sơ SX / lệnh SX). Một Style có thể sinh
+    hàng chục SKU theo ma trận màu × size.
+    """
+
+    style_code = models.CharField(
+        max_length=60, db_index=True, verbose_name='Style (mã SP)',
+        help_text='Mã Style = product_code hồ sơ / lệnh sản xuất.',
+    )
+    style_name = models.CharField(max_length=255, blank=True, default='')
+    color_code = models.CharField(max_length=20, db_index=True, verbose_name='Mã màu')
+    color_label = models.CharField(max_length=80, blank=True, default='', verbose_name='Tên màu')
+    size_label = models.CharField(max_length=20, db_index=True, verbose_name='Size')
+    sku_code = models.CharField(max_length=100, unique=True, verbose_name='SKU')
+    is_active = models.BooleanField(default=True, db_index=True)
+    notes = models.CharField(max_length=255, blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['style_code', 'color_code', 'size_label']
+        verbose_name = 'SKU'
+        verbose_name_plural = 'SKU'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['style_code', 'color_code', 'size_label'],
+                name='sx_sku_style_color_size_uniq',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['style_code', 'is_active'], name='sx_sku_style_active_idx'),
+        ]
+
+    def __str__(self):
+        return self.sku_code
+
+
+class SxFgReceiptLine(models.Model):
+    """Dòng YCNTP theo SKU (Style–Màu–Size) — tổng qty dòng = header khi có dòng."""
+
+    receipt = models.ForeignKey(
+        SxFgReceiptRequest, on_delete=models.CASCADE, related_name='lines',
+    )
+    sku = models.ForeignKey(
+        SxSku, on_delete=models.SET_NULL, null=True, blank=True, related_name='fg_receipt_lines',
+    )
+    sku_code = models.CharField(max_length=100, blank=True, default='', verbose_name='SKU')
+    size_label = models.CharField(max_length=40, blank=True, default='', verbose_name='Size')
+    color_label = models.CharField(max_length=40, blank=True, default='', verbose_name='Màu')
+    color_code = models.CharField(max_length=20, blank=True, default='', verbose_name='Mã màu')
+    qty = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
+
+    class Meta:
+        ordering = ['pk']
+        verbose_name = 'Dòng nhập thành phẩm'
+        verbose_name_plural = 'Dòng nhập thành phẩm'
+
+
 class SxActualCostSheet(DemoMarkedModel):
     STATUS_DRAFT = 'draft'
     STATUS_CLOSED = 'closed'
@@ -1457,6 +1577,15 @@ class SxGeneralSettings(models.Model):
     gate_packing_before_done = models.CharField(
         max_length=10, choices=GATE_CHOICES, default=GATE_OFF,
         verbose_name='Đóng gói đã xác nhận trước khi hoàn thành lệnh',
+    )
+    gate_sku_on_stat = models.CharField(
+        max_length=10, choices=GATE_CHOICES, default=GATE_WARN,
+        verbose_name='Bắt buộc SKU (màu + size) khi ghi thống kê sản xuất',
+        help_text='SKU = Style + Màu + Size. Style lấy từ mã SP trên lệnh.',
+    )
+    gate_sku_on_packing = models.CharField(
+        max_length=10, choices=GATE_CHOICES, default=GATE_WARN,
+        verbose_name='Bắt buộc SKU trên mỗi dòng đóng gói có SL',
     )
 
     # --- Chất lượng & truy xuất ---

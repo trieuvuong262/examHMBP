@@ -1356,7 +1356,12 @@ def run_order_wizard(request, mo_id: int | None = None):
                         qty_good=stat_form.cleaned_data.get('qty_good') or Decimal('0'),
                         qty_defect=stat_form.cleaned_data.get('qty_defect') or Decimal('0'),
                         team_label=stat_form.cleaned_data.get('team_label') or mo.team_label or '',
+                        size_label=stat_form.cleaned_data.get('size_label') or '',
+                        sku_code=stat_form.cleaned_data.get('sku_code') or '',
+                        color_label=stat_form.cleaned_data.get('color_label') or '',
+                        color_code=stat_form.cleaned_data.get('color_code') or '',
                         notes=stat_form.cleaned_data.get('notes') or '',
+                        user=request.user,
                     )
                     from san_xuat.services.gates import check_issue_before_stat
                     gate = check_issue_before_stat(mo=mo)
@@ -1886,8 +1891,10 @@ def dispatch_prod_stats_create(request):
                     size_label=form.cleaned_data.get('size_label') or '',
                     sku_code=form.cleaned_data.get('sku_code') or '',
                     color_label=form.cleaned_data.get('color_label') or '',
+                    color_code=form.cleaned_data.get('color_code') or '',
                     notes=form.cleaned_data.get('notes') or '',
                     code=form.cleaned_data.get('code') or None,
+                    user=request.user,
                 )
             except DispatchError as exc:
                 messages.error(request, str(exc))
@@ -2023,7 +2030,7 @@ def dispatch_fg_receipt_req_create(request):
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def dispatch_fg_receipt_req_detail(request, pk: int):
     fg_req = get_object_or_404(
-        SxFgReceiptRequest.objects.select_related('production_order', 'production_stat'),
+        SxFgReceiptRequest.objects.select_related('production_order', 'production_stat').prefetch_related('lines'),
         pk=pk,
     )
     can_update = _perm_ctx(request).get('can_update')
@@ -3088,6 +3095,7 @@ def packing_create(request):
                     fg_receipt_id=fg.pk if fg else None,
                     notes=form.cleaned_data.get('notes') or '',
                     lines=lines,
+                    user=request.user,
                 )
             except Phase3Error as exc:
                 messages.error(request, str(exc))
@@ -3104,6 +3112,7 @@ def packing_create(request):
         'line_formset': line_formset,
         'title': 'Ghi nhận đóng gói',
         'back_url': 'san_xuat:packing_list',
+        'style_code': '',
     })
 
 

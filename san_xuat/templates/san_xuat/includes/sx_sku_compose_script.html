@@ -1,0 +1,55 @@
+{# Ghép SKU = Style + Màu + Size khi đổi select màu/size. #}
+<script>
+(function () {
+  function styleFromPage() {
+    var el = document.querySelector('[data-sx-style-code]');
+    if (el && el.getAttribute('data-sx-style-code')) {
+      return (el.getAttribute('data-sx-style-code') || '').trim().toUpperCase();
+    }
+    var input = document.getElementById('id_style_code_hint');
+    if (input) return (input.value || '').trim().toUpperCase();
+    return '';
+  }
+
+  function compose(style, color, size) {
+    style = (style || '').trim().toUpperCase();
+    color = (color || '').trim().toUpperCase();
+    size = (size || '').trim().toUpperCase();
+    if (!style || !color || !size) return '';
+    return style + '-' + color + '-' + size;
+  }
+
+  function refreshRow(row) {
+    if (!row) return;
+    var colorSel = row.querySelector('.jp-sx-color-select');
+    var sizeSel = row.querySelector('.jp-sx-size-select');
+    var skuInput = row.querySelector('.jp-sx-sku-code');
+    if (!skuInput) return;
+    var style = styleFromPage();
+    var color = colorSel ? colorSel.value : '';
+    var size = sizeSel ? sizeSel.value : '';
+    var code = compose(style, color, size);
+    if (code) {
+      skuInput.value = code;
+      skuInput.removeAttribute('readonly');
+      skuInput.setAttribute('readonly', 'readonly');
+    }
+  }
+
+  function bind(root) {
+    (root || document).querySelectorAll('.jp-sx-color-select, .jp-sx-size-select').forEach(function (sel) {
+      if (sel.dataset.skuBound) return;
+      sel.dataset.skuBound = '1';
+      sel.addEventListener('change', function () {
+        var row = sel.closest('.jp-sx-sku-row') || sel.closest('tr') || sel.closest('form') || document;
+        refreshRow(row);
+      });
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    bind(document);
+    document.querySelectorAll('.jp-sx-sku-row, form.jp-sx-stat-form, form').forEach(refreshRow);
+  });
+})();
+</script>

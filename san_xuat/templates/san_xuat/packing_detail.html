@@ -42,9 +42,9 @@
           <tbody>
           {% for ln in item.lines.all %}
             <tr>
-              <td>{{ ln.sku_code|default:"—" }}</td>
+              <td><strong>{{ ln.sku_code|default:"—" }}</strong></td>
               <td>{{ ln.size_label|default:"—" }}</td>
-              <td>{{ ln.color_label|default:"—" }}</td>
+              <td>{% if ln.color_code %}{{ ln.color_code }}{% if ln.color_label %} ({{ ln.color_label }}){% endif %}{% else %}{{ ln.color_label|default:"—" }}{% endif %}</td>
               <td class="text-end">{{ ln.qty }}</td>
               <td class="text-end">{{ ln.carton_count }}</td>
             </tr>

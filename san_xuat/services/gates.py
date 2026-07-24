@@ -31,6 +31,8 @@ _GATE_FIELD_MAP = {
     "SX_GATE_REQUIRE_QC_PASS_BEFORE_FG": "gate_qc_pass_before_fg",
     "SX_GATE_OPEN_QC_ALERT_BEFORE_FG": "gate_open_qc_alert_before_fg",
     "SX_GATE_PACKING_BEFORE_DONE": "gate_packing_before_done",
+    "SX_GATE_SKU_ON_STAT": "gate_sku_on_stat",
+    "SX_GATE_SKU_ON_PACKING": "gate_sku_on_packing",
 }
 
 
@@ -211,6 +213,58 @@ def check_packing_before_done(*, mo: SxProductionOrder) -> GateResult:
         message=(
             f"Lệnh {mo.code} chưa có phiếu đóng gói đã xác nhận — "
             "cần đóng gói trước khi hoàn thành lệnh."
+            if not ok
+            else ""
+        ),
+    )
+
+
+def check_sku_on_stat(
+    *,
+    sku_code: str = "",
+    color_code: str = "",
+    size_label: str = "",
+) -> GateResult:
+    from san_xuat.services.sku_catalog import sku_has_identity
+
+    mode = gate_mode("SX_GATE_SKU_ON_STAT", MODE_WARN)
+    if mode == MODE_OFF:
+        return GateResult(ok=True, mode=mode, code="sku_on_stat")
+    ok = sku_has_identity(sku_code=sku_code, color_code=color_code, size_label=size_label)
+    return GateResult(
+        ok=ok,
+        mode=mode,
+        code="sku_on_stat",
+        message=(
+            "Thiếu SKU trên thống kê sản xuất — chọn Màu + Size "
+            "(SKU = Style–Màu–Size, vd. JP-TEE-260001-NVY-M)."
+            if not ok
+            else ""
+        ),
+    )
+
+
+def check_sku_on_packing_line(
+    *,
+    sku_code: str = "",
+    color_code: str = "",
+    size_label: str = "",
+    line_no: int | None = None,
+) -> GateResult:
+    from san_xuat.services.sku_catalog import sku_has_identity
+
+    mode = gate_mode("SX_GATE_SKU_ON_PACKING", MODE_WARN)
+    if mode == MODE_OFF:
+        return GateResult(ok=True, mode=mode, code="sku_on_packing")
+    ok = sku_has_identity(sku_code=sku_code, color_code=color_code, size_label=size_label)
+    prefix = f"Dòng {line_no}: " if line_no else ""
+    return GateResult(
+        ok=ok,
+        mode=mode,
+        code="sku_on_packing",
+        message=(
+            f"{prefix}Thiếu SKU trên dòng đóng gói — chọn Màu + Size "
+            "(SKU = Style–Màu–Size)."
             if not ok
             else ""
         ),
