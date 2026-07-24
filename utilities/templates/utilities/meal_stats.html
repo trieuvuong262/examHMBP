@@ -20,13 +20,10 @@
     </div>
     {% include 'utilities/includes/meal_manage_nav.html' with active='stats' %}
 
-    <form method="get" id="mealStatsFilterForm" class="card border-0 shadow-sm mb-3 jp-team-filter-form">
+    <form method="get" id="mealStatsFilterForm" class="card border-0 shadow-sm mb-3">
         <div class="card-body p-3">
-            {% include 'utilities/includes/meal_date_range_fields.html' with span_id='meal-stats-span' from_id='meal-stats-from' to_id='meal-stats-to' %}
-            <div class="d-flex gap-2 mt-3">
-                <button type="submit" class="btn btn-hm btn-sm fw-bold">Lọc</button>
-                <a href="{% url 'utilities:meal_stats' %}" class="btn btn-light border" title="Xóa lọc"><i class="bi bi-x-lg"></i></a>
-            </div>
+            {% url 'utilities:meal_stats' as meal_stats_clear %}
+            {% include 'utilities/includes/meal_filter_bar.html' with span_id='meal-stats-span' from_id='meal-stats-from' to_id='meal-stats-to' clear_url=meal_stats_clear %}
         </div>
     </form>
 

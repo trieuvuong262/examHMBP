@@ -1,0 +1,116 @@
+{# Bộ lọc đặt cơm: 1 hàng (span | từ | đến | [món] | nút), mobile cuộn ngang. #}
+{# Context: date_from, date_to, span_id, from_id, to_id #}
+{# Optional: show_dish=1, dish_choices, dish_filter_value, clear_url #}
+<style>
+.jp-meal-filter-bar {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: flex-end;
+  gap: 0.5rem 0.65rem;
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  padding-bottom: 0.15rem;
+}
+.jp-meal-filter-bar > * {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+.jp-meal-filter-bar .jp-team-filter-span {
+  width: 7.25rem;
+}
+.jp-meal-filter-bar .jp-meal-filter-date {
+  width: 8.5rem;
+}
+.jp-meal-filter-bar .jp-meal-filter-dish {
+  flex: 1 1 11rem;
+  min-width: 9.5rem;
+  max-width: 18rem;
+}
+.jp-meal-filter-bar .jp-meal-filter-actions {
+  display: flex;
+  gap: 0.4rem;
+  align-items: flex-end;
+  margin-left: auto;
+}
+.jp-meal-filter-bar .form-label {
+  margin-bottom: 0.2rem;
+  white-space: nowrap;
+}
+.jp-meal-filter-bar .ts-wrapper {
+  width: 100%;
+}
+.jp-meal-filter-bar .ts-control {
+  min-height: calc(1.5em + 0.75rem + 2px);
+}
+@media (max-width: 767.98px) {
+  .jp-meal-filter-bar {
+    gap: 0.4rem;
+    align-items: center;
+  }
+  .jp-meal-filter-bar .form-label {
+    display: none;
+  }
+  .jp-meal-filter-bar .jp-team-filter-span {
+    width: 6.25rem;
+  }
+  .jp-meal-filter-bar .jp-meal-filter-date {
+    width: 7.25rem;
+  }
+  .jp-meal-filter-bar .jp-meal-filter-dish {
+    flex: 0 0 10rem;
+    min-width: 9rem;
+    max-width: none;
+  }
+  .jp-meal-filter-bar .jp-meal-filter-actions {
+    margin-left: 0;
+  }
+  .jp-meal-filter-bar .form-control,
+  .jp-meal-filter-bar .form-select,
+  .jp-meal-filter-bar .ts-control {
+    font-size: 0.875rem;
+    min-height: calc(1.5em + 0.5rem + 2px);
+    padding-top: 0.25rem;
+    padding-bottom: 0.25rem;
+  }
+}
+</style>
+<div class="jp-meal-filter-bar">
+  {% include 'includes/date_range_span_select.html' with span_id=span_id|default:'meal-range-span' compact=1 %}
+  <div class="jp-meal-filter-date">
+    <label class="form-label fw-bold small" for="{{ from_id|default:'meal-date-from' }}">Từ ngày</label>
+    <input type="date"
+           name="date_from"
+           id="{{ from_id|default:'meal-date-from' }}"
+           value="{{ date_from|date:'Y-m-d' }}"
+           class="form-control jp-date-vn"
+           title="Từ ngày"
+           aria-label="Từ ngày">
+  </div>
+  <div class="jp-meal-filter-date">
+    <label class="form-label fw-bold small" for="{{ to_id|default:'meal-date-to' }}">Đến ngày</label>
+    <input type="date"
+           name="date_to"
+           id="{{ to_id|default:'meal-date-to' }}"
+           value="{{ date_to|date:'Y-m-d' }}"
+           class="form-control jp-date-vn"
+           title="Đến ngày"
+           aria-label="Đến ngày">
+  </div>
+  {% if show_dish %}
+  <div class="jp-meal-filter-dish">
+    <label class="form-label fw-bold small" for="meal-dish">Món</label>
+    <select name="dish" id="meal-dish" class="form-select jp-meal-dish-select" placeholder="Gõ tìm món…" title="Món" aria-label="Món">
+      <option value="">Tất cả món</option>
+      {% for opt in dish_choices %}
+      <option value="{{ opt.value }}"{% if dish_filter_value and opt.value == dish_filter_value %} selected{% endif %}>{{ opt.label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  {% endif %}
+  <div class="jp-meal-filter-actions">
+    <button type="submit" class="btn btn-hm btn-sm fw-bold px-3">Lọc</button>
+    <a href="{{ clear_url|default:request.path }}" class="btn btn-light border btn-sm" title="Xóa lọc" aria-label="Xóa lọc"><i class="bi bi-x-lg"></i></a>
+  </div>
+</div>
