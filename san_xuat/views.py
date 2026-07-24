@@ -256,10 +256,16 @@ def doc_detail(request, pk):
                 except IeOpsError as exc:
                     messages.error(request, str(exc))
                 else:
-                    messages.success(
-                        request,
-                        f'Đã áp {result.routing_id}: tạo {result.steps_created} công đoạn BOM.',
-                    )
+                    if result.linked_only:
+                        messages.success(
+                            request,
+                            f'Đã gắn {result.routing_id} vào BOM (routing trống — giữ công đoạn hiện có).',
+                        )
+                    else:
+                        messages.success(
+                            request,
+                            f'Đã áp {result.routing_id}: tạo {result.steps_created} công đoạn BOM.',
+                        )
                     for w in result.warnings[:10]:
                         messages.warning(request, w)
             return redirect(f'{request.path}?tab=process&bom={bom.pk}')
@@ -482,6 +488,51 @@ def process_catalog_add(request):
     except ValueError as exc:
         return JsonResponse({'error': str(exc)}, status=400)
     return JsonResponse({'name': row.name, 'id': row.pk})
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+@require_POST
+def routing_create_api(request):
+    """Tạo routing trống thủ công (không cần Excel)."""
+    if not (
+        user_can_update_module(request.user, MODULE_SAN_XUAT)
+        or user_can_create_module(request.user, MODULE_SAN_XUAT)
+    ):
+        return JsonResponse({'error': 'Không có quyền tạo routing.'}, status=403)
+    try:
+        payload = json.loads(request.body.decode('utf-8') or '{}')
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        payload = request.POST
+
+    get = payload.get if hasattr(payload, 'get') else lambda *_: ''
+    label = str(get('label') or get('style_code') or get('routing_id') or '').strip()
+    tech_doc = None
+    doc_id = get('tech_doc_id')
+    if doc_id and str(doc_id).isdigit():
+        tech_doc = ProductTechDoc.objects.filter(pk=int(doc_id)).first()
+
+    from san_xuat.services.ie_ops import IeOpsError, create_blank_routing
+
+    try:
+        routing = create_blank_routing(
+            style_code=label,
+            routing_id=label,
+            style_name=str(get('style_name') or (tech_doc.product_name if tech_doc else '') or ''),
+            tech_doc=tech_doc,
+            user=request.user,
+        )
+    except IeOpsError as exc:
+        return JsonResponse({'error': str(exc)}, status=400)
+
+    text = f'{routing.style_code} · {routing.routing_rev} — {routing.routing_id} (0 CĐ)'
+    return JsonResponse({
+        'id': routing.pk,
+        'value': str(routing.pk),
+        'text': text,
+        'routing_id': routing.routing_id,
+        'style_code': routing.style_code,
+        'routing_rev': routing.routing_rev,
+    })
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')

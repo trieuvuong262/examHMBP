@@ -8,11 +8,16 @@
       <h2 class="mb-0">Công đoạn / IE</h2>
     </div>
     <div class="d-flex flex-wrap gap-2">
+      {% if can_create or can_update %}
+      <button type="button" class="btn btn-sm btn-hm" data-bs-toggle="modal" data-bs-target="#ieImportModal">
+        <i class="bi bi-upload me-1"></i>Import
+      </button>
+      {% endif %}
       {% if can_export %}
       <a href="{% url 'san_xuat:ie_export' %}" class="btn btn-sm btn-outline-hm"><i class="bi bi-download me-1"></i>Xuất Excel</a>
       {% endif %}
-      <a href="{% url 'san_xuat:ie_operation_list' %}" class="btn btn-sm btn-outline-hm"><i class="bi bi-list-ul me-1"></i>Thư viện công đoạn</a>
-      <a href="{% url 'san_xuat:ie_routing_list' %}" class="btn btn-sm btn-outline-hm"><i class="bi bi-diagram-3 me-1"></i>Routing mã hàng</a>
+      <a href="{% url 'san_xuat:ie_operation_list' %}" class="btn btn-sm btn-outline-hm"><i class="bi bi-list-ul me-1"></i>Thư viện</a>
+      <a href="{% url 'san_xuat:ie_routing_list' %}" class="btn btn-sm btn-outline-hm"><i class="bi bi-diagram-3 me-1"></i>Routing</a>
       <a href="{% url 'san_xuat:ie_time_study_list' %}" class="btn btn-sm btn-outline-hm"><i class="bi bi-stopwatch me-1"></i>Bấm giờ</a>
     </div>
   </div>
@@ -54,7 +59,7 @@
                 <td class="text-end"><a href="{% url 'san_xuat:ie_routing_detail' r.pk %}" class="btn btn-sm btn-outline-hm">Xem</a></td>
               </tr>
             {% empty %}
-              <tr><td colspan="5" class="text-muted small p-3 text-center">Chưa có routing — hãy import file Excel.</td></tr>
+              <tr><td colspan="5" class="text-muted small p-3 text-center">Chưa có routing — thêm mới hoặc import Excel.</td></tr>
             {% endfor %}
             </tbody>
           </table>
@@ -63,48 +68,218 @@
     </div>
 
     <div class="col-lg-5">
+      {% if can_create or can_update %}
       <div class="card border-0 shadow-sm mb-3">
-        <div class="card-header bg-white fw-semibold">Import master data (Excel)</div>
+        <div class="card-header bg-white fw-semibold">Thêm</div>
         <div class="card-body">
-          {% if can_create or can_update %}
-          <form method="post" enctype="multipart/form-data">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="import">
-            <div class="mb-2">
-              <input type="file" name="excel_file" accept=".xlsx,.xlsm" class="form-control form-control-sm" required>
-              <div class="form-text">Đúng cấu trúc file <code>Just_Play_Master_Data_Ma_Cong_Doan_San_Xuat.xlsx</code> (8 sheet).</div>
-            </div>
-            <div class="form-check form-check-inline mb-2">
-              <input class="form-check-input" type="checkbox" name="dry_run" value="1" id="dryRun">
-              <label class="form-check-label small" for="dryRun">Chạy thử (không lưu)</label>
-            </div>
-            <div>
-              <button type="submit" class="btn btn-sm btn-hm fw-bold"><i class="bi bi-upload me-1"></i>Import</button>
-            </div>
-          </form>
-          {% else %}
-          <div class="text-muted small">Bạn không có quyền import. Liên hệ quản trị.</div>
-          {% endif %}
-        </div>
-      </div>
+          <style>
+            .ie-add-tabs {
+              display: grid;
+              grid-template-columns: repeat(4, minmax(0, 1fr));
+              gap: .4rem;
+              margin-bottom: 1rem;
+            }
+            .ie-add-tabs .btn {
+              min-height: 2.25rem;
+              padding: .35rem .25rem;
+              font-size: .8rem;
+              line-height: 1.15;
+              white-space: normal;
+            }
+            .ie-add-tabs .btn.active {
+              background: var(--bs-primary, #0d6efd);
+              border-color: var(--bs-primary, #0d6efd);
+              color: #fff;
+            }
+          </style>
+          <div class="ie-add-tabs" role="tablist">
+            <button class="btn btn-outline-secondary active" data-bs-toggle="tab" data-bs-target="#ie-tab-group" type="button" role="tab">Nhóm</button>
+            <button class="btn btn-outline-secondary" data-bs-toggle="tab" data-bs-target="#ie-tab-op" type="button" role="tab">CĐ chuẩn</button>
+            <button class="btn btn-outline-secondary" data-bs-toggle="tab" data-bs-target="#ie-tab-routing" type="button" role="tab">Routing</button>
+            <button class="btn btn-outline-secondary" data-bs-toggle="tab" data-bs-target="#ie-tab-ts" type="button" role="tab">Bấm giờ</button>
+          </div>
 
-      <div class="card border-0 shadow-sm">
-        <div class="card-header bg-white fw-semibold">Nhóm công đoạn theo khâu</div>
-        <div class="table-responsive">
-          <table class="table table-sm mb-0">
-            <thead class="table-light"><tr><th>Khâu sản xuất</th><th class="text-end">Số nhóm</th></tr></thead>
-            <tbody>
-            {% for row in stage_rows %}
-              <tr><td>{{ row.process_stage_label|default:"(chưa phân loại)" }}</td><td class="text-end">{{ row.n }}</td></tr>
-            {% empty %}
-              <tr><td colspan="2" class="text-muted small p-3 text-center">Chưa có dữ liệu.</td></tr>
-            {% endfor %}
-            </tbody>
-          </table>
+          <div class="tab-content">
+            <div class="tab-pane fade show active" id="ie-tab-group">
+              <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="create_group">
+                <div class="mb-2">
+                  <label class="form-label small text-muted mb-1">Mã nhóm <span class="text-danger">*</span></label>
+                  <input type="text" name="group_code" class="form-control form-control-sm" required maxlength="30" placeholder="VD: SEW-NEK">
+                </div>
+                <div class="mb-2">
+                  <label class="form-label small text-muted mb-1">Tên nhóm <span class="text-danger">*</span></label>
+                  <input type="text" name="group_name" class="form-control form-control-sm" required maxlength="150" placeholder="VD: May cổ">
+                </div>
+                <div class="mb-2">
+                  <label class="form-label small text-muted mb-1">Khâu SX</label>
+                  <input type="text" name="process_stage_label" class="form-control form-control-sm" maxlength="100" placeholder="VD: May lắp ráp">
+                </div>
+                <div class="mb-3">
+                  <label class="form-label small text-muted mb-1">Cụm chi tiết</label>
+                  <input type="text" name="product_part" class="form-control form-control-sm" maxlength="120" placeholder="Tuỳ chọn">
+                </div>
+                <button type="submit" class="btn btn-sm btn-hm"><i class="bi bi-plus-lg me-1"></i>Tạo nhóm</button>
+              </form>
+            </div>
+
+            <div class="tab-pane fade" id="ie-tab-op">
+              <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="create_operation">
+                <div class="row g-2">
+                  <div class="col-7">
+                    <label class="form-label small text-muted mb-1">Mã CĐ <span class="text-danger">*</span></label>
+                    <input type="text" name="op_code" class="form-control form-control-sm" required maxlength="30" placeholder="VD: SEW-1005">
+                  </div>
+                  <div class="col-5">
+                    <label class="form-label small text-muted mb-1">Phiên bản</label>
+                    <input type="text" name="op_rev" class="form-control form-control-sm" value="R01" maxlength="10">
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label small text-muted mb-1">Tên công đoạn <span class="text-danger">*</span></label>
+                    <input type="text" name="name_vi" class="form-control form-control-sm" required maxlength="200" placeholder="VD: May cổ áo">
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label small text-muted mb-1">Nhóm</label>
+                    <select name="group_id" class="form-select form-select-sm">
+                      <option value="">— MANUAL (tự tạo) —</option>
+                      {% for g in operation_groups %}
+                      <option value="{{ g.pk }}">{{ g.code }} — {{ g.name }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  <div class="col-6">
+                    <label class="form-label small text-muted mb-1">SMV (phút)</label>
+                    <input type="number" name="base_smv_min" class="form-control form-control-sm" step="0.0001" min="0" placeholder="0">
+                  </div>
+                  <div class="col-6">
+                    <label class="form-label small text-muted mb-1">Mã máy</label>
+                    <input type="text" name="machine_code" class="form-control form-control-sm" maxlength="40" placeholder="Tuỳ chọn">
+                  </div>
+                </div>
+                <div class="mt-3">
+                  <button type="submit" class="btn btn-sm btn-hm"><i class="bi bi-plus-lg me-1"></i>Tạo công đoạn</button>
+                </div>
+              </form>
+            </div>
+
+            <div class="tab-pane fade" id="ie-tab-routing">
+              <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="create_routing">
+                <div class="mb-2">
+                  <label class="form-label small text-muted mb-1">Mã hàng <span class="text-danger">*</span></label>
+                  <input type="text" name="style_code" class="form-control form-control-sm" required maxlength="60" placeholder="VD: JP-JK-TRACK-EX">
+                </div>
+                <div class="mb-2">
+                  <label class="form-label small text-muted mb-1">Tên mã hàng</label>
+                  <input type="text" name="style_name" class="form-control form-control-sm" maxlength="255" placeholder="Tuỳ chọn">
+                </div>
+                <div class="mb-3">
+                  <label class="form-label small text-muted mb-1">Phiên bản</label>
+                  <input type="text" name="routing_rev" class="form-control form-control-sm" value="R01" maxlength="10">
+                </div>
+                <button type="submit" class="btn btn-sm btn-hm"><i class="bi bi-plus-lg me-1"></i>Tạo routing</button>
+              </form>
+            </div>
+
+            <div class="tab-pane fade" id="ie-tab-ts">
+              <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="create_time_study">
+                <div class="row g-2">
+                  <div class="col-6">
+                    <label class="form-label small text-muted mb-1">Mã CĐ <span class="text-danger">*</span></label>
+                    <input type="text" name="ts_op_code" class="form-control form-control-sm" required maxlength="30" placeholder="SEW-1005">
+                  </div>
+                  <div class="col-6">
+                    <label class="form-label small text-muted mb-1">Mã hàng</label>
+                    <input type="text" name="ts_style_code" class="form-control form-control-sm" maxlength="60" placeholder="Tuỳ chọn">
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label small text-muted mb-1">Tên công đoạn</label>
+                    <input type="text" name="ts_op_name" class="form-control form-control-sm" maxlength="200" placeholder="Tự lấy nếu có trong thư viện">
+                  </div>
+                  <div class="col-6">
+                    <label class="form-label small text-muted mb-1">Chu kỳ (giây) <span class="text-danger">*</span></label>
+                    <input type="number" name="observed_cycle_sec" class="form-control form-control-sm" required step="0.01" min="0" placeholder="0">
+                  </div>
+                  <div class="col-6">
+                    <label class="form-label small text-muted mb-1">Bất thường (giây)</label>
+                    <input type="number" name="abnormal_sec" class="form-control form-control-sm" step="0.01" min="0" value="0">
+                  </div>
+                  <div class="col-4">
+                    <label class="form-label small text-muted mb-1">Hệ số tốc độ</label>
+                    <input type="number" name="performance_rating" class="form-control form-control-sm" step="0.001" min="0" value="1">
+                  </div>
+                  <div class="col-4">
+                    <label class="form-label small text-muted mb-1">Phụ cấp %</label>
+                    <input type="number" name="allowance_pct" class="form-control form-control-sm" step="0.01" min="0" value="0">
+                  </div>
+                  <div class="col-4">
+                    <label class="form-label small text-muted mb-1">SMV routing</label>
+                    <input type="number" name="current_routing_smv" class="form-control form-control-sm" step="0.0001" min="0" value="0">
+                  </div>
+                </div>
+                <div class="mt-3">
+                  <button type="submit" class="btn btn-sm btn-hm"><i class="bi bi-plus-lg me-1"></i>Tạo bấm giờ</button>
+                </div>
+              </form>
+            </div>
+          </div>
         </div>
       </div>
+      {% endif %}
     </div>
   </div>
-
 </div>
+
+{% if can_create or can_update %}
+<div class="modal fade" id="ieImportModal" tabindex="-1" aria-labelledby="ieImportModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="import">
+        <div class="modal-header">
+          <h5 class="modal-title" id="ieImportModalLabel">Import Excel</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label small text-muted mb-1">File master data</label>
+            <input type="file" name="excel_file" accept=".xlsx,.xlsm" class="form-control form-control-sm" required>
+            <div class="form-text">Đúng cấu trúc file Just_Play_Master_Data… (xlsx).</div>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="dry_run" value="1" id="dryRunModal">
+            <label class="form-check-label small" for="dryRunModal">Chạy thử (không lưu)</label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Huỷ</button>
+          <button type="submit" class="btn btn-sm btn-hm"><i class="bi bi-upload me-1"></i>Import</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<script>
+(function () {
+  var tabs = document.querySelector('.ie-add-tabs');
+  if (!tabs) return;
+  tabs.addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-bs-toggle="tab"]');
+    if (!btn || !tabs.contains(btn)) return;
+    tabs.querySelectorAll('[data-bs-toggle="tab"]').forEach(function (b) {
+      b.classList.remove('active');
+    });
+    btn.classList.add('active');
+  });
+})();
+</script>
 {% endblock %}
