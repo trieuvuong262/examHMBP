@@ -36,7 +36,7 @@
                 </div>
                 <div class="col-6 col-md-3">
                     <label class="form-label fw-bold small mb-1" for="meal-dish">Món</label>
-                    <select name="dish" id="meal-dish" class="form-select">
+                    <select name="dish" id="meal-dish" class="form-select jp-meal-dish-select" placeholder="Gõ để tìm món…">
                         <option value="">Tất cả món</option>
                         {% for opt in dish_choices %}
                         <option value="{{ opt.value }}"{% if dish_filter_value and opt.value == dish_filter_value %} selected{% endif %}>{{ opt.label }}</option>
@@ -156,16 +156,37 @@
 
 {% block scripts %}
 {% include 'includes/date_range_span_script.html' %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/css/tom-select.bootstrap5.min.css">
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/js/tom-select.complete.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     var form = document.getElementById('mealSummaryFilterForm');
     if (!form) return;
     var dishEl = form.querySelector('select[name="dish"]');
-    if (dishEl) {
-        dishEl.addEventListener('change', function () {
-            if (typeof form.requestSubmit === 'function') form.requestSubmit();
-            else form.submit();
+    if (!dishEl) return;
+
+    function submitFilter() {
+        if (typeof form.requestSubmit === 'function') form.requestSubmit();
+        else form.submit();
+    }
+
+    if (typeof TomSelect !== 'undefined') {
+        new TomSelect(dishEl, {
+            maxItems: 1,
+            maxOptions: null,
+            allowEmptyOption: true,
+            create: false,
+            sortField: { field: 'text', direction: 'asc' },
+            searchField: ['text'],
+            placeholder: 'Gõ để tìm món…',
+            plugins: ['clear_button'],
+            dropdownParent: 'body',
+            onChange: function () {
+                submitFilter();
+            },
         });
+    } else {
+        dishEl.addEventListener('change', submitFilter);
     }
 });
 </script>
