@@ -34,7 +34,6 @@ from utilities.forms import (
     MealDishForm,
     MealOrderForm,
     MealOrderSettingsForm,
-    MealStatsFilterForm,
     SalaryAdvanceForm,
 )
 from utilities.meal_rules import (
@@ -159,34 +158,39 @@ def _ensure_day_offerings(meal_date):
             MealDayOffering.objects.create(meal_date=meal_date, dish=dish, is_offered=False)
 
 
-def _meal_stats_rows(period: str, anchor_date):
-    if period == MealStatsFilterForm.PERIOD_MONTH:
-        start = anchor_date.replace(day=1)
-        if start.month == 12:
-            end = start.replace(year=start.year + 1, month=1, day=1)
-        else:
-            end = start.replace(month=start.month + 1, day=1)
-        label = start.strftime('%m/%Y')
-    else:
-        start = anchor_date - timedelta(days=anchor_date.weekday())
-        end = start + timedelta(days=7)
-        label = f'tuan_{start.isoformat()}'
+def _meal_stats_rows(*, date_from, date_to):
     qs = (
-        MealOrder.objects.filter(meal_date__gte=start, meal_date__lt=end)
+        MealOrder.objects.filter(meal_date__gte=date_from, meal_date__lte=date_to)
         .annotate(label=Coalesce(NullIf('dish_name', Value('')), 'dish__name'))
         .values('meal_date', 'label')
         .annotate(count=Count('id'))
-        .order_by('meal_date', '-count')
+        .order_by('meal_date', '-count', 'label')
     )
     rows = [
         {
             'day': row['meal_date'].strftime('%d/%m/%Y'),
+            'meal_date': row['meal_date'],
             'dish': row['label'],
             'count': row['count'],
         }
         for row in qs
     ]
-    return rows, label
+    if date_from == date_to:
+        period_label = date_from.isoformat()
+    else:
+        period_label = f'{date_from.isoformat()}_{date_to.isoformat()}'
+    return rows, period_label
+
+
+def _meal_stats_totals(rows):
+    """Gộp số lượng theo tên món trên cả khoảng."""
+    totals = {}
+    for row in rows:
+        totals[row['dish']] = totals.get(row['dish'], 0) + row['count']
+    return sorted(
+        [{'dish': name, 'count': count} for name, count in totals.items()],
+        key=lambda r: (-r['count'], r['dish']),
+    )
 
 
 @module_perm_required(MODULE_UTILITIES, 'view')
@@ -502,25 +506,25 @@ def meal_summary_export(request):
 
 @module_perm_required(MODULE_UTILITIES, 'update')
 def meal_stats(request):
-    today = timezone.localdate()
-    if request.method == 'GET' and request.GET.get('period'):
-        filter_form = MealStatsFilterForm(request.GET)
-    else:
-        filter_form = MealStatsFilterForm(initial={
-            'period': MealStatsFilterForm.PERIOD_WEEK,
-            'anchor_date': today,
-        })
-    stats_rows = []
-    period_label = ''
-    if filter_form.is_valid():
-        stats_rows, period_label = _meal_stats_rows(
-            filter_form.cleaned_data['period'],
-            filter_form.cleaned_data['anchor_date'],
-        )
+    filters = _meal_summary_filters(request)
+    date_from = filters['date_from']
+    date_to = filters['date_to']
+    stats_rows, period_label = _meal_stats_rows(date_from=date_from, date_to=date_to)
+    stats_by_day = []
+    current = None
+    for row in stats_rows:
+        if current is None or current['date'] != row['meal_date']:
+            current = {'date': row['meal_date'], 'rows': []}
+            stats_by_day.append(current)
+        current['rows'].append(row)
     return render(request, 'utilities/meal_stats.html', {
-        'filter_form': filter_form,
+        **filters,
         'stats_rows': stats_rows,
+        'stats_by_day': stats_by_day,
+        'stats_totals': _meal_stats_totals(stats_rows),
         'period_label': period_label,
+        'filter_query': _meal_summary_query_string({**filters, 'dish_id': None}),
+        'show_meal_date_col': date_from != date_to,
         'can_export': user_can_export_menu(request.user, MODULE_UTILITIES, 'meal_ordering'),
         'can_manage': True,
     })
@@ -530,12 +534,10 @@ def meal_stats(request):
 def meal_stats_export(request):
     if not _can_manage_meals(request.user):
         raise Http404
-    filter_form = MealStatsFilterForm(request.GET)
-    if not filter_form.is_valid():
-        raise Http404
+    filters = _meal_summary_filters(request)
     rows, label = _meal_stats_rows(
-        filter_form.cleaned_data['period'],
-        filter_form.cleaned_data['anchor_date'],
+        date_from=filters['date_from'],
+        date_to=filters['date_to'],
     )
     return export_meal_stats_xlsx(rows, period_label=label)
 

@@ -144,24 +144,6 @@ class MealOrderSettingsForm(forms.ModelForm):
         return cleaned
 
 
-class MealStatsFilterForm(forms.Form):
-    PERIOD_WEEK = 'week'
-    PERIOD_MONTH = 'month'
-    PERIOD_CHOICES = (
-        (PERIOD_WEEK, 'Theo tuần'),
-        (PERIOD_MONTH, 'Theo tháng'),
-    )
-    period = forms.ChoiceField(
-        choices=PERIOD_CHOICES,
-        initial=PERIOD_WEEK,
-        widget=forms.Select(attrs={'class': 'form-select'}),
-    )
-    anchor_date = forms.DateField(
-        label='Tham chiếu',
-        widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-    )
-
-
 class ScheduleReminderForm(forms.ModelForm):
     weekdays = forms.MultipleChoiceField(
         label='Các thứ trong tuần',
