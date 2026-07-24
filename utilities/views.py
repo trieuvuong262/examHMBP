@@ -158,28 +158,79 @@ def _ensure_day_offerings(meal_date):
             MealDayOffering.objects.create(meal_date=meal_date, dish=dish, is_offered=False)
 
 
-def _meal_stats_rows(*, date_from, date_to):
-    qs = (
-        MealOrder.objects.filter(meal_date__gte=date_from, meal_date__lte=date_to)
+def _meal_stats_context(*, date_from, date_to):
+    """Số liệu gộp theo kỳ — khác Tổng hợp (chi tiết từng đơn/người)."""
+    orders_qs = MealOrder.objects.filter(meal_date__gte=date_from, meal_date__lte=date_to)
+    declines_qs = MealOrderDecline.objects.filter(meal_date__gte=date_from, meal_date__lte=date_to)
+
+    labeled = (
+        orders_qs
         .annotate(label=Coalesce(NullIf('dish_name', Value('')), 'dish__name'))
         .values('meal_date', 'label')
         .annotate(count=Count('id'))
         .order_by('meal_date', '-count', 'label')
     )
-    rows = [
+    stats_rows = [
         {
             'day': row['meal_date'].strftime('%d/%m/%Y'),
             'meal_date': row['meal_date'],
             'dish': row['label'],
             'count': row['count'],
         }
-        for row in qs
+        for row in labeled
     ]
+
+    dish_totals = _meal_stats_totals(stats_rows)
+    total_orders = sum(r['count'] for r in dish_totals)
+    for row in dish_totals:
+        row['pct'] = round(100 * row['count'] / total_orders, 1) if total_orders else 0
+
+    daily = list(
+        orders_qs
+        .values('meal_date')
+        .annotate(orders=Count('id'))
+        .order_by('meal_date')
+    )
+    decline_by_day = {
+        row['meal_date']: row['c']
+        for row in declines_qs.values('meal_date').annotate(c=Count('id'))
+    }
+    daily_rows = [
+        {
+            'date': row['meal_date'],
+            'orders': row['orders'],
+            'declines': decline_by_day.get(row['meal_date'], 0),
+        }
+        for row in daily
+    ]
+    # Ngày chỉ có decline, không có đơn
+    for d, c in sorted(decline_by_day.items()):
+        if not any(r['date'] == d for r in daily_rows):
+            daily_rows.append({'date': d, 'orders': 0, 'declines': c})
+    daily_rows.sort(key=lambda r: r['date'])
+
+    days_span = (date_to - date_from).days + 1
+    total_declines = declines_qs.count()
+    people = orders_qs.values('employee_id').distinct().count()
+
     if date_from == date_to:
         period_label = date_from.isoformat()
     else:
         period_label = f'{date_from.isoformat()}_{date_to.isoformat()}'
-    return rows, period_label
+
+    return {
+        'stats_rows': stats_rows,
+        'dish_totals': dish_totals,
+        'daily_rows': daily_rows,
+        'period_label': period_label,
+        'kpi': {
+            'orders': total_orders,
+            'declines': total_declines,
+            'people': people,
+            'days': days_span,
+            'avg_per_day': round(total_orders / days_span, 1) if days_span else 0,
+        },
+    }
 
 
 def _meal_stats_totals(rows):
@@ -509,22 +560,11 @@ def meal_stats(request):
     filters = _meal_summary_filters(request)
     date_from = filters['date_from']
     date_to = filters['date_to']
-    stats_rows, period_label = _meal_stats_rows(date_from=date_from, date_to=date_to)
-    stats_by_day = []
-    current = None
-    for row in stats_rows:
-        if current is None or current['date'] != row['meal_date']:
-            current = {'date': row['meal_date'], 'rows': []}
-            stats_by_day.append(current)
-        current['rows'].append(row)
+    stats = _meal_stats_context(date_from=date_from, date_to=date_to)
     return render(request, 'utilities/meal_stats.html', {
         **filters,
-        'stats_rows': stats_rows,
-        'stats_by_day': stats_by_day,
-        'stats_totals': _meal_stats_totals(stats_rows),
-        'period_label': period_label,
+        **stats,
         'filter_query': _meal_summary_query_string({**filters, 'dish_id': None}),
-        'show_meal_date_col': date_from != date_to,
         'can_export': user_can_export_menu(request.user, MODULE_UTILITIES, 'meal_ordering'),
         'can_manage': True,
     })
@@ -535,11 +575,11 @@ def meal_stats_export(request):
     if not _can_manage_meals(request.user):
         raise Http404
     filters = _meal_summary_filters(request)
-    rows, label = _meal_stats_rows(
+    stats = _meal_stats_context(
         date_from=filters['date_from'],
         date_to=filters['date_to'],
     )
-    return export_meal_stats_xlsx(rows, period_label=label)
+    return export_meal_stats_xlsx(stats['stats_rows'], period_label=stats['period_label'])
 
 
 @module_perm_required(MODULE_UTILITIES, 'update')
