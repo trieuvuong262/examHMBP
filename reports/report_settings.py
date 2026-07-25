@@ -43,6 +43,18 @@ def report_auto_submit_time() -> time:
     return time(23, 30)
 
 
+def report_night_auto_submit_enabled() -> bool:
+    return report_bool('night_auto_submit_enabled', True)
+
+
+def report_night_auto_submit_time() -> time:
+    cfg = load_report_settings()
+    value = getattr(cfg, 'night_auto_submit_time', None)
+    if isinstance(value, time):
+        return value
+    return time(5, 0)
+
+
 def report_approve_deadline_hours() -> int:
     return report_int('approve_deadline_hours', 24, min_v=1, max_v=168)
 
@@ -79,6 +91,10 @@ def report_manager_edit_window() -> timedelta:
 
 def report_default_declared_work_hours() -> Decimal:
     return report_decimal('default_declared_work_hours', '9.50')
+
+
+def report_night_default_declared_work_hours() -> Decimal:
+    return report_decimal('night_default_declared_work_hours', '9.50')
 
 
 def report_work_hours_min() -> Decimal:

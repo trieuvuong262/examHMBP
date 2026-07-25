@@ -20,17 +20,28 @@ from reports.production_hourly import (
     validate_production_submit_efficiency,
 )
 from reports.report_profile import REPORT_PROFILE_PRODUCTION
-from reports.report_settings import report_auto_submit_time, report_default_declared_work_hours
+from reports.report_settings import (
+    report_auto_submit_time,
+    report_default_declared_work_hours,
+    report_night_auto_submit_enabled,
+    report_night_auto_submit_time,
+    report_night_default_declared_work_hours,
+)
 
 logger = logging.getLogger(__name__)
 
-# Fallback khi chưa đọc được thiết lập — giữ hành vi cũ 23:30.
+KIND_MORNING = 'morning'
+KIND_NIGHT = 'night'
+
+# Fallback khi chưa đọc được thiết lập.
 AUTO_SUBMIT_HOUR = 23
 AUTO_SUBMIT_MINUTE = 30
+NIGHT_AUTO_SUBMIT_HOUR = 5
+NIGHT_AUTO_SUBMIT_MINUTE = 0
 AUTO_SUBMIT_GRACE_MINUTES = 5
 DEFAULT_DECLARED_WORK_HOURS = Decimal('9.50')
-# Dùng wave=1 trong log dedupe cho đợt auto-submit.
-AUTO_SUBMIT_WAVE = ProductionReportReminderLog.WAVE_1
+AUTO_SUBMIT_WAVE_MORNING = ProductionReportReminderLog.WAVE_1
+AUTO_SUBMIT_WAVE_NIGHT = ProductionReportReminderLog.WAVE_2
 
 
 def _local_now(now=None) -> datetime:
@@ -38,24 +49,39 @@ def _local_now(now=None) -> datetime:
     return timezone.localtime(now)
 
 
-def _configured_auto_submit_time() -> time:
+def _configured_auto_submit_time(kind: str = KIND_MORNING) -> time:
     try:
+        if kind == KIND_NIGHT:
+            return report_night_auto_submit_time()
         return report_auto_submit_time()
     except Exception:
+        if kind == KIND_NIGHT:
+            return time(NIGHT_AUTO_SUBMIT_HOUR, NIGHT_AUTO_SUBMIT_MINUTE)
         return time(AUTO_SUBMIT_HOUR, AUTO_SUBMIT_MINUTE)
 
 
-def _default_declared_work_hours() -> Decimal:
+def _default_declared_work_hours(kind: str = KIND_MORNING) -> Decimal:
     try:
+        if kind == KIND_NIGHT:
+            return report_night_default_declared_work_hours()
         return report_default_declared_work_hours()
     except Exception:
         return DEFAULT_DECLARED_WORK_HOURS
 
 
-def is_auto_submit_window(now=None) -> bool:
+def _night_auto_submit_enabled() -> bool:
+    try:
+        return report_night_auto_submit_enabled()
+    except Exception:
+        return True
+
+
+def is_auto_submit_window(now=None, *, kind: str = KIND_MORNING) -> bool:
     """True trong khung giờ tự nộp ± grace (giờ local theo thiết lập chung)."""
+    if kind == KIND_NIGHT and not _night_auto_submit_enabled():
+        return False
     local_now = _local_now(now)
-    submit_at = _configured_auto_submit_time()
+    submit_at = _configured_auto_submit_time(kind)
     target = local_now.replace(
         hour=submit_at.hour,
         minute=submit_at.minute,
@@ -67,24 +93,36 @@ def is_auto_submit_window(now=None) -> bool:
     return (local_now - target) <= timedelta(minutes=AUTO_SUBMIT_GRACE_MINUTES)
 
 
-def auto_submit_report_date(now=None) -> date:
-    """Ngày báo cáo cần chốt: hôm nay (ca sáng trong ngày, lúc giờ tự nộp)."""
-    return _local_now(now).date()
+def auto_submit_report_date(now=None, *, kind: str = KIND_MORNING) -> date:
+    """Ngày báo cáo cần chốt.
 
-def _unsubmitted_non_night_base_qs():
-    """BC SX chưa nộp, không phải ca tối (gồm MORNING / OVERTIME cũ)."""
-    return (
-        DailyWorkReport.objects.filter(
-            report_profile=REPORT_PROFILE_PRODUCTION,
-            report_period=PERIOD_DAY,
-        )
-        .exclude(shift=DailyWorkReport.SHIFT_NIGHT)
-        .exclude(status=DailyWorkReport.STATUS_SUBMITTED)
-    )
+    - Ca sáng: hôm nay.
+    - Ca tối: hôm qua (ca bắt đầu 17h hôm trước, kết thúc ~5h hôm nay).
+    """
+    today = _local_now(now).date()
+    if kind == KIND_NIGHT:
+        return today - timedelta(days=1)
+    return today
 
 
-def _unsubmitted_non_night_queryset(*, report_date: date | None = None, date_from: date | None = None, date_to: date | None = None):
-    qs = _unsubmitted_non_night_base_qs()
+def _unsubmitted_base_qs(*, kind: str = KIND_MORNING):
+    qs = DailyWorkReport.objects.filter(
+        report_profile=REPORT_PROFILE_PRODUCTION,
+        report_period=PERIOD_DAY,
+    ).exclude(status=DailyWorkReport.STATUS_SUBMITTED)
+    if kind == KIND_NIGHT:
+        return qs.filter(shift=DailyWorkReport.SHIFT_NIGHT)
+    return qs.exclude(shift=DailyWorkReport.SHIFT_NIGHT)
+
+
+def _unsubmitted_queryset(
+    *,
+    kind: str = KIND_MORNING,
+    report_date: date | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
+):
+    qs = _unsubmitted_base_qs(kind=kind)
     if report_date is not None:
         qs = qs.filter(report_date=report_date)
     else:
@@ -97,6 +135,20 @@ def _unsubmitted_non_night_queryset(*, report_date: date | None = None, date_fro
     )
 
 
+# Alias cũ — giữ tương thích import.
+def _unsubmitted_non_night_base_qs():
+    return _unsubmitted_base_qs(kind=KIND_MORNING)
+
+
+def _unsubmitted_non_night_queryset(*, report_date: date | None = None, date_from: date | None = None, date_to: date | None = None):
+    return _unsubmitted_queryset(
+        kind=KIND_MORNING,
+        report_date=report_date,
+        date_from=date_from,
+        date_to=date_to,
+    )
+
+
 def _report_has_submittable_quantity(report: DailyWorkReport) -> bool:
     grid = build_hourly_grid(report)
     return bool(grid.get('rows')) and (grid.get('grand_total') or 0) > 0
@@ -105,12 +157,16 @@ def _report_has_submittable_quantity(report: DailyWorkReport) -> bool:
 def can_auto_submit_report(
     report: DailyWorkReport,
     *,
+    kind: str = KIND_MORNING,
     ignore_empty_active: bool = False,
 ) -> tuple[bool, str]:
     """Kiểm tra BC có thể tự gửi không."""
     if report.status == DailyWorkReport.STATUS_SUBMITTED:
         return False, 'already_submitted'
-    if report.shift == DailyWorkReport.SHIFT_NIGHT:
+    if kind == KIND_NIGHT:
+        if report.shift != DailyWorkReport.SHIFT_NIGHT:
+            return False, 'not_night_shift'
+    elif report.shift == DailyWorkReport.SHIFT_NIGHT:
         return False, 'night_shift'
     blocker = unfinalized_active_with_data(report)
     if blocker and not (ignore_empty_active and is_empty_active_session(blocker)):
@@ -123,14 +179,15 @@ def can_auto_submit_report(
     return True, ''
 
 
-def auto_submit_one_report(report: DailyWorkReport, *, dry_run: bool = False) -> str:
-    """
-    Gửi một báo cáo — đặt giờ làm việc mặc định 9,50 nếu chưa có.
-    Xóa phiên ACTIVE trống trước khi gửi.
-    Trả về: submitted | dry_run | skip reason.
-    """
+def auto_submit_one_report(
+    report: DailyWorkReport,
+    *,
+    kind: str = KIND_MORNING,
+    dry_run: bool = False,
+) -> str:
+    """Gửi một báo cáo — đặt giờ làm việc mặc định nếu chưa có."""
     if dry_run:
-        ok, reason = can_auto_submit_report(report, ignore_empty_active=True)
+        ok, reason = can_auto_submit_report(report, kind=kind, ignore_empty_active=True)
         if not ok:
             return reason
         return 'dry_run'
@@ -146,12 +203,12 @@ def auto_submit_one_report(report: DailyWorkReport, *, dry_run: bool = False) ->
 
         discard_empty_active_sessions(report)
 
-        ok, reason = can_auto_submit_report(report)
+        ok, reason = can_auto_submit_report(report, kind=kind)
         if not ok:
             return reason
 
         if report.declared_work_hours is None or report.declared_work_hours <= 0:
-            report.declared_work_hours = _default_declared_work_hours()
+            report.declared_work_hours = _default_declared_work_hours(kind)
 
         now = timezone.now()
         report.status = DailyWorkReport.STATUS_SUBMITTED
@@ -161,57 +218,64 @@ def auto_submit_one_report(report: DailyWorkReport, *, dry_run: bool = False) ->
         report.save()
         lock_production_steps_on_submit(report)
 
-        submit_at = _configured_auto_submit_time()
+        submit_at = _configured_auto_submit_time(kind)
+        shift_label = 'ca tối' if kind == KIND_NIGHT else 'ca sáng'
         DailyWorkReportEditLog.objects.create(
             report=report,
             edited_by=None,
             actor_kind=DailyWorkReportEditLog.ACTOR_EMPLOYEE,
             action=DailyWorkReportEditLog.ACTION_SUBMIT,
             summary=(
-                f'Hệ thống tự động gửi báo cáo lúc '
+                f'Hệ thống tự động gửi báo cáo {shift_label} lúc '
                 f'{submit_at.hour:02d}:{submit_at.minute:02d}.'
             ),
             detail=f'Thời gian làm việc: {report.declared_work_hours} giờ.',
         )
 
+        wave = AUTO_SUBMIT_WAVE_NIGHT if kind == KIND_NIGHT else AUTO_SUBMIT_WAVE_MORNING
         ProductionReportReminderLog.objects.get_or_create(
             employee_id=report.employee_id,
             report_date=report.report_date,
-            shift=report.shift or DailyWorkReport.SHIFT_MORNING,
-            wave=AUTO_SUBMIT_WAVE,
+            shift=report.shift or (
+                DailyWorkReport.SHIFT_NIGHT if kind == KIND_NIGHT else DailyWorkReport.SHIFT_MORNING
+            ),
+            wave=wave,
         )
 
     return 'submitted'
 
 
-def auto_submit_unsubmitted_production_reports(
+def _merge_stats(base: dict, extra: dict) -> dict:
+    skip_reasons = dict(base.get('skip_reasons') or {})
+    for key, count in (extra.get('skip_reasons') or {}).items():
+        skip_reasons[key] = skip_reasons.get(key, 0) + count
+    dates = sorted(set(base.get('dates') or []) | set(extra.get('dates') or []))
+    labels = [x for x in (base.get('report_date'), extra.get('report_date')) if x]
+    return {
+        'submitted': base.get('submitted', 0) + extra.get('submitted', 0),
+        'skipped': base.get('skipped', 0) + extra.get('skipped', 0),
+        'failed': base.get('failed', 0) + extra.get('failed', 0),
+        'report_date': ' · '.join(labels) if labels else None,
+        'dates': dates,
+        'skip_reasons': skip_reasons,
+    }
+
+
+def _run_auto_submit_kind(
     *,
-    now=None,
+    kind: str,
     dry_run: bool = False,
-    force: bool = False,
     report_date: date | None = None,
     date_from: date | None = None,
     date_to: date | None = None,
 ) -> dict:
-    """
-    23:30 hàng ngày: tự động gửi mọi BC SX ca sáng chưa nộp của ngày hôm nay,
-    trừ ca tối. Thời gian làm việc mặc định 9,50 giờ.
-
-    Có thể chạy tay theo khoảng: date_from / date_to (hoặc report_date một ngày).
-    """
     range_mode = bool(date_from or date_to) and report_date is None
-    if not force and not range_mode and not is_auto_submit_window(now=now):
-        return {
-            'submitted': 0,
-            'skipped': 0,
-            'failed': 0,
-            'reason': 'outside_auto_submit_window',
-        }
-
     if range_mode:
-        qs = _unsubmitted_non_night_queryset(date_from=date_from, date_to=date_to).order_by(
-            'report_date', 'employee_id', 'shift',
-        )
+        qs = _unsubmitted_queryset(
+            kind=kind,
+            date_from=date_from,
+            date_to=date_to,
+        ).order_by('report_date', 'employee_id', 'shift')
         if date_from and date_to:
             date_label = f'{date_from.isoformat()}→{date_to.isoformat()}'
         elif date_to:
@@ -219,9 +283,9 @@ def auto_submit_unsubmitted_production_reports(
         else:
             date_label = f'{date_from.isoformat()}→…'
     else:
-        target_date = report_date or auto_submit_report_date(now=now)
-        qs = _unsubmitted_non_night_queryset(report_date=target_date)
-        date_label = target_date.isoformat()
+        target_date = report_date or auto_submit_report_date(kind=kind)
+        qs = _unsubmitted_queryset(kind=kind, report_date=target_date)
+        date_label = f'{target_date.isoformat()}({kind})'
 
     submitted = skipped = failed = 0
     skip_reasons: dict[str, int] = {}
@@ -229,9 +293,9 @@ def auto_submit_unsubmitted_production_reports(
 
     for report in qs.iterator(chunk_size=50):
         try:
-            result = auto_submit_one_report(report, dry_run=dry_run)
+            result = auto_submit_one_report(report, kind=kind, dry_run=dry_run)
         except Exception:
-            logger.exception('Auto-submit failed for report pk=%s', report.pk)
+            logger.exception('Auto-submit failed for report pk=%s kind=%s', report.pk, kind)
             failed += 1
             continue
 
@@ -250,6 +314,74 @@ def auto_submit_unsubmitted_production_reports(
         'dates': sorted(dates_touched),
         'skip_reasons': skip_reasons,
     }
+
+
+def auto_submit_unsubmitted_production_reports(
+    *,
+    now=None,
+    dry_run: bool = False,
+    force: bool = False,
+    report_date: date | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
+) -> dict:
+    """
+    Cron mỗi 5 phút:
+    - Khung giờ ca sáng → tự nộp ca sáng hôm nay.
+    - Khung giờ ca tối → tự nộp ca tối của hôm qua (ngày bắt đầu 17h).
+
+    Chạy tay (--force / --date / khoảng): xử lý cả ca sáng và ca tối (nếu bật).
+    """
+    range_mode = bool(date_from or date_to) and report_date is None
+    morning_due = force or range_mode or bool(report_date) or is_auto_submit_window(now=now, kind=KIND_MORNING)
+    night_due = (
+        _night_auto_submit_enabled()
+        and (force or range_mode or bool(report_date) or is_auto_submit_window(now=now, kind=KIND_NIGHT))
+    )
+
+    if not morning_due and not night_due:
+        return {
+            'submitted': 0,
+            'skipped': 0,
+            'failed': 0,
+            'reason': 'outside_auto_submit_window',
+        }
+
+    stats: dict = {
+        'submitted': 0,
+        'skipped': 0,
+        'failed': 0,
+        'dates': [],
+        'skip_reasons': {},
+        'report_date': None,
+    }
+    if morning_due:
+        stats = _merge_stats(
+            stats,
+            _run_auto_submit_kind(
+                kind=KIND_MORNING,
+                dry_run=dry_run,
+                report_date=report_date,
+                date_from=date_from,
+                date_to=date_to,
+            ),
+        )
+    if night_due:
+        # Cron night: ngày BC = hôm qua. Force/--date: dùng đúng report_date được chỉ định.
+        night_report_date = report_date
+        if not force and not range_mode and not report_date:
+            night_report_date = auto_submit_report_date(now=now, kind=KIND_NIGHT)
+        stats = _merge_stats(
+            stats,
+            _run_auto_submit_kind(
+                kind=KIND_NIGHT,
+                dry_run=dry_run,
+                report_date=night_report_date,
+                date_from=date_from,
+                date_to=date_to,
+            ),
+        )
+    return stats
 
 
 # Tên cũ — giữ để command/migrate gọi không gãy.

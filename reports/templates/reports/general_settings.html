@@ -193,6 +193,26 @@
                     </div>
                     {% if form.default_declared_work_hours.errors %}<div class="px-3 pb-2 text-danger small">{{ form.default_declared_work_hours.errors }}</div>{% endif %}
                     <div class="jp-rs-row">
+                        <p class="jp-rs-row-label">{{ form.night_auto_submit_enabled.label }}</p>
+                        <div class="form-check form-switch">
+                            {{ form.night_auto_submit_enabled }}
+                            <label class="form-check-label" for="{{ form.night_auto_submit_enabled.id_for_label }}">{{ form.night_auto_submit_enabled.label }}</label>
+                        </div>
+                    </div>
+                    <div class="jp-rs-row">
+                        <p class="jp-rs-row-label">{{ form.night_auto_submit_time.label }}</p>
+                        <div class="jp-rs-field">{{ form.night_auto_submit_time }}</div>
+                    </div>
+                    {% if form.night_auto_submit_time.errors %}<div class="px-3 pb-2 text-danger small">{{ form.night_auto_submit_time.errors }}</div>{% endif %}
+                    <div class="jp-rs-row">
+                        <p class="jp-rs-row-label">{{ form.night_default_declared_work_hours.label }}</p>
+                        <div class="jp-rs-field">
+                            {{ form.night_default_declared_work_hours }}
+                            <span class="jp-rs-unit">giờ</span>
+                        </div>
+                    </div>
+                    {% if form.night_default_declared_work_hours.errors %}<div class="px-3 pb-2 text-danger small">{{ form.night_default_declared_work_hours.errors }}</div>{% endif %}
+                    <div class="jp-rs-row">
                         <p class="jp-rs-row-label">{{ form.auto_approve_proxy_reports.label }}</p>
                         <div class="form-check form-switch">
                             {{ form.auto_approve_proxy_reports }}

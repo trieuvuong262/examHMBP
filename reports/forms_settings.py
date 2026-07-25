@@ -14,8 +14,11 @@ _DEC = forms.NumberInput(attrs={'class': 'form-control', 'min': 0.01, 'step': 0.
 _LABELS = {
     'workers_may_edit_stage_time': 'Công nhân được sửa',
     'managers_may_edit_stage_time': 'Quản lý được sửa',
-    'auto_submit_time': 'Giờ tự động nộp',
-    'default_declared_work_hours': 'Giờ làm việc mặc định',
+    'auto_submit_time': 'Giờ tự nộp ca sáng',
+    'default_declared_work_hours': 'Giờ mặc định ca sáng',
+    'night_auto_submit_enabled': 'Bật tự nộp ca tối',
+    'night_auto_submit_time': 'Giờ tự nộp ca tối',
+    'night_default_declared_work_hours': 'Giờ mặc định ca tối',
     'auto_approve_proxy_reports': 'Tự duyệt báo cáo nhập hộ',
     'work_hours_min': 'Tối thiểu',
     'work_hours_max': 'Tối đa',
@@ -34,6 +37,9 @@ class ReportsGeneralSettingsForm(forms.ModelForm):
             'managers_may_edit_stage_time',
             'auto_submit_time',
             'default_declared_work_hours',
+            'night_auto_submit_enabled',
+            'night_auto_submit_time',
+            'night_default_declared_work_hours',
             'auto_approve_proxy_reports',
             'work_hours_min',
             'work_hours_max',
@@ -47,6 +53,9 @@ class ReportsGeneralSettingsForm(forms.ModelForm):
             'managers_may_edit_stage_time': _CHECK,
             'auto_submit_time': _TIME,
             'default_declared_work_hours': _DEC,
+            'night_auto_submit_enabled': _CHECK,
+            'night_auto_submit_time': _TIME,
+            'night_default_declared_work_hours': _DEC,
             'auto_approve_proxy_reports': _CHECK,
             'work_hours_min': _DEC,
             'work_hours_max': _DEC,
@@ -69,17 +78,15 @@ class ReportsGeneralSettingsForm(forms.ModelForm):
             )
         low = cleaned.get('work_hours_min')
         high = cleaned.get('work_hours_max')
-        default_h = cleaned.get('default_declared_work_hours')
+        for field in ('default_declared_work_hours', 'night_default_declared_work_hours'):
+            default_h = cleaned.get(field)
+            if (
+                default_h is not None
+                and low is not None
+                and high is not None
+                and (default_h < low or default_h >= high)
+            ):
+                self.add_error(field, 'Giờ mặc định phải nằm trong khoảng giờ hợp lệ.')
         if low is not None and high is not None and low >= high:
             self.add_error('work_hours_max', 'Giờ tối đa phải lớn hơn giờ tối thiểu.')
-        if (
-            default_h is not None
-            and low is not None
-            and high is not None
-            and (default_h < low or default_h >= high)
-        ):
-            self.add_error(
-                'default_declared_work_hours',
-                'Giờ mặc định phải nằm trong khoảng giờ hợp lệ.',
-            )
         return cleaned

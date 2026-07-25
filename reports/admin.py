@@ -142,6 +142,9 @@ class ReportsGeneralSettingsAdmin(admin.ModelAdmin):
     list_display = (
         'auto_submit_time',
         'default_declared_work_hours',
+        'night_auto_submit_enabled',
+        'night_auto_submit_time',
+        'night_default_declared_work_hours',
         'work_hours_min',
         'work_hours_max',
         'auto_approve_proxy_reports',

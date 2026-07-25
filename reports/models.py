@@ -686,8 +686,24 @@ class ReportsGeneralSettings(models.Model):
     )
     auto_submit_time = models.TimeField(
         default=time(23, 30),
-        verbose_name='Giờ tự động nộp báo cáo',
+        verbose_name='Giờ tự động nộp ca sáng',
         help_text='Giờ local trên VPS — cron chạy mỗi 5 phút trong cửa sổ grace.',
+    )
+    night_auto_submit_enabled = models.BooleanField(
+        default=True,
+        verbose_name='Bật tự động nộp ca tối',
+    )
+    night_auto_submit_time = models.TimeField(
+        default=time(5, 0),
+        verbose_name='Giờ tự động nộp ca tối',
+        help_text='Thường sau khi ca tối kết thúc (~5h). Ngày BC = ngày bắt đầu 17h hôm trước.',
+    )
+    night_default_declared_work_hours = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal('9.50'),
+        validators=[MinValueValidator(Decimal('0.01')), MaxValueValidator(Decimal('23.99'))],
+        verbose_name='Giờ làm việc mặc định ca tối',
     )
     approve_deadline_hours = models.PositiveSmallIntegerField(
         default=24,
@@ -783,6 +799,18 @@ class ReportsGeneralSettings(models.Model):
         ):
             errors['default_declared_work_hours'] = (
                 'Giờ mặc định phải nằm trong khoảng giờ hợp lệ.'
+            )
+        if (
+            self.night_default_declared_work_hours is not None
+            and self.work_hours_min is not None
+            and self.work_hours_max is not None
+            and (
+                self.night_default_declared_work_hours < self.work_hours_min
+                or self.night_default_declared_work_hours >= self.work_hours_max
+            )
+        ):
+            errors['night_default_declared_work_hours'] = (
+                'Giờ mặc định ca tối phải nằm trong khoảng giờ hợp lệ.'
             )
         if errors:
             raise ValidationError(errors)

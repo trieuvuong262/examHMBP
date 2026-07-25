@@ -6,8 +6,8 @@ from reports.production_report_reminders import auto_submit_unsubmitted_producti
 
 class Command(BaseCommand):
     help = (
-        'Tự động gửi báo cáo SX ca sáng chưa nộp (trừ ca tối) theo giờ trong '
-        'Thiết lập chung báo cáo — ngày báo cáo = hôm nay, thời gian làm việc mặc định 9,50 giờ. '
+        'Tự động gửi báo cáo SX chưa nộp theo giờ trong Thiết lập chung: '
+        'ca sáng (hôm nay) và ca tối (ngày bắt đầu 17h hôm trước, nếu bật). '
         'Có thể chạy tay theo --date hoặc khoảng --until / --from.'
     )
 
