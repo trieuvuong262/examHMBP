@@ -9,7 +9,15 @@ from django.utils import timezone
 
 from reports.models import DailyWorkReport, WeeklyWorkReport
 from reports.period_utils import PERIOD_DAY, PERIOD_MONTH, PERIOD_WEEK
+from reports.report_settings import (
+    report_approve_deadline_hours,
+    report_auto_reject_deadline_hours,
+    report_auto_reject_window,
+    report_manager_edit_window,
+    report_unapprove_deadline_days,
+)
 
+# Fallback khi chưa migrate / DB lỗi — giữ hành vi cũ.
 PRODUCTION_EDIT_WINDOW = timedelta(hours=24)
 PRODUCTION_MANAGER_EDIT_WINDOW = timedelta(days=7)
 
@@ -42,9 +50,28 @@ def is_production_report(report) -> bool:
     return bool(getattr(report, 'is_production_report', False))
 
 
+def production_approve_deadline(report):
+    """Hạn duyệt (SLA) — X giờ kể từ khi nhân viên gửi báo cáo."""
+    if report.status != DailyWorkReport.STATUS_SUBMITTED or not report.submitted_at:
+        return None
+    return report.submitted_at + timedelta(hours=report_approve_deadline_hours())
+
+
+def is_production_approve_overdue(report) -> bool:
+    """True khi quá hạn duyệt nhưng chưa duyệt / chưa không duyệt."""
+    if report.hod_reviewed or getattr(report, 'hod_rejected', False):
+        return False
+    deadline = production_approve_deadline(report)
+    if not deadline:
+        return False
+    return timezone.now() > deadline
+
+
 def production_auto_reject_deadline(report):
-    """Hạn «Không duyệt» — 24h kể từ khi nhân viên gửi báo cáo."""
-    return production_employee_edit_deadline(report)
+    """Hạn «Không duyệt» — Y giờ kể từ khi nhân viên gửi báo cáo."""
+    if report.status != DailyWorkReport.STATUS_SUBMITTED or not report.submitted_at:
+        return None
+    return report.submitted_at + report_auto_reject_window()
 
 
 def is_production_auto_reject_expired(report) -> bool:
@@ -55,20 +82,18 @@ def is_production_auto_reject_expired(report) -> bool:
 
 
 def production_employee_edit_deadline(report):
-    """Hạn sửa của nhân viên sau khi nộp báo cáo SX."""
-    if report.status != DailyWorkReport.STATUS_SUBMITTED or not report.submitted_at:
-        return None
-    return report.submitted_at + PRODUCTION_EDIT_WINDOW
+    """Hạn sửa của nhân viên sau khi nộp báo cáo SX (= hạn không duyệt Y)."""
+    return production_auto_reject_deadline(report)
 
 
 def production_manager_edit_deadline(report):
-    """Hạn hoàn duyệt / sửa của quản lý — 1 tuần kể từ khi duyệt báo cáo SX."""
+    """Hạn hoàn duyệt / sửa của quản lý — N ngày kể từ khi duyệt báo cáo SX."""
     if not report.hod_reviewed:
         return None
     reviewed_at = getattr(report, 'hod_reviewed_at', None) or report.submitted_at or report.updated_at
     if not reviewed_at:
         return None
-    return reviewed_at + PRODUCTION_MANAGER_EDIT_WINDOW
+    return reviewed_at + report_manager_edit_window()
 
 
 def is_production_employee_edit_expired(report) -> bool:
@@ -121,11 +146,12 @@ def auto_reject_expired_production_reports(
     date_from=None,
     date_to=None,
 ) -> int:
-    """Chuyển báo cáo SX quá 24h kể từ khi nộp mà chưa duyệt sang «Không duyệt»."""
+    """Chuyển báo cáo SX quá hạn không duyệt mà chưa duyệt sang «Không duyệt»."""
     from reports.report_profile import REPORT_PROFILE_PRODUCTION
 
     now = timezone.now()
-    cutoff = now - PRODUCTION_EDIT_WINDOW
+    hours = report_auto_reject_deadline_hours()
+    cutoff = now - timedelta(hours=hours)
     qs = DailyWorkReport.objects.filter(
         report_profile=REPORT_PROFILE_PRODUCTION,
         status=DailyWorkReport.STATUS_SUBMITTED,
@@ -218,26 +244,33 @@ def report_edit_denied_message(report) -> str:
 def production_edit_denied_message(report, *, viewer=None) -> str:
     from hrm.permissions import can_review_user_report
 
+    reject_hours = report_auto_reject_deadline_hours()
+    unapprove_days = report_unapprove_deadline_days()
+
     if getattr(report, 'hod_rejected', False) and not report.hod_reviewed:
         deadline = production_auto_reject_deadline(report)
         if deadline:
             local_deadline = timezone.localtime(deadline)
             return (
                 'Báo cáo đã chuyển sang trạng thái không duyệt — '
-                f'quá 24 giờ kể từ khi nộp ({local_deadline.strftime("%H:%M %d/%m/%Y")}).'
+                f'quá {reject_hours} giờ kể từ khi nộp '
+                f'({local_deadline.strftime("%H:%M %d/%m/%Y")}).'
             )
         return 'Báo cáo đã chuyển sang trạng thái không duyệt — không thể chỉnh sửa.'
     if report.hod_reviewed:
         if viewer and can_review_user_report(viewer, report):
             if is_production_manager_edit_expired(report):
-                return 'Đã quá 1 tuần kể từ khi duyệt — không thể hoàn duyệt hoặc chỉnh sửa.'
+                return (
+                    f'Đã quá {unapprove_days} ngày kể từ khi duyệt — '
+                    'không thể hoàn duyệt hoặc chỉnh sửa.'
+                )
         return 'Báo cáo đã được duyệt — bạn không thể chỉnh sửa.'
     if report.status == DailyWorkReport.STATUS_SUBMITTED:
         deadline = production_employee_edit_deadline(report)
         if deadline and timezone.now() > deadline:
             local_deadline = timezone.localtime(deadline)
             return (
-                'Đã quá 24 giờ kể từ khi nộp — hạn sửa '
+                f'Đã quá {reject_hours} giờ kể từ khi nộp — hạn sửa '
                 f'{local_deadline.strftime("%H:%M %d/%m/%Y")}.'
             )
     if is_report_edit_expired(report):

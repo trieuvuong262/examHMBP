@@ -31,6 +31,8 @@
                     {% endif %}
                     {% elif report.is_production_report and report.is_hod_rejected %}
                     <span class="badge jp-report-badge jp-report-badge--rejected">Không duyệt</span>
+                    {% elif report.is_production_report and approve_overdue %}
+                    <span class="badge text-bg-warning" title="{% if approve_deadline %}Hạn duyệt: {{ approve_deadline|date:'H:i d/m/Y' }}{% endif %}">Quá hạn duyệt</span>
                     {% endif %}
                     {% if report.is_proxy_entered %}
                     <span class="badge bg-warning text-dark" title="Nhập bởi {{ report.proxy_entered_by.profile.full_name|default:report.proxy_entered_by.username }}">

@@ -23,6 +23,7 @@ MENU_DAILY_CN_DETAIL = 'daily_cn_detail'
 MENU_DAILY_VP = 'daily_vp'
 MENU_DAILY_VP_DETAIL = 'daily_vp_detail'
 MENU_REPORT_STATS = 'report_stats'
+MENU_GENERAL_SETTINGS = 'general_settings'
 
 MENU_WEEKLY_CN = 'weekly_cn'
 MENU_WEEKLY_CN_DETAIL = 'weekly_cn_detail'

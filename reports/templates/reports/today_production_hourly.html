@@ -158,7 +158,7 @@
                 {% if employee_edit_deadline %}
                 Có thể sửa công đoạn đã gửi đến {{ employee_edit_deadline|date:"H:i d/m/Y" }} — sau khi lưu bấm «Cập nhật báo cáo».
                 {% else %}
-                Có thể chỉnh sửa trong 24 giờ sau khi nộp, trước khi cấp trên duyệt.
+                Có thể chỉnh sửa trong hạn sau khi nộp, trước khi cấp trên duyệt.
                 {% endif %}
             </div>
             {% elif is_locked and not can_edit %}
@@ -168,7 +168,7 @@
             {% elif is_edit_expired %}
             <div class="alert alert-secondary border-0 small mb-3">
                 {% if is_submitted %}
-                Đã quá 24 giờ kể từ khi nộp — không thể chỉnh sửa.
+                Đã quá hạn kể từ khi nộp — không thể chỉnh sửa.
                 {% else %}
                 Đã quá hạn chỉnh sửa — chỉ được sửa đến hết ngày {{ report.last_editable_on|date:"d/m/Y" }}.
                 {% endif %}
@@ -412,7 +412,7 @@
                     Đã gửi lúc {{ report.submitted_at|date:"H:i d/m/Y" }}.
                     {% endif %}
                     {% if content_edit_only %}
-                    Có thể sửa mã hàng, công đoạn, định mức, sản lượng, giờ công đoạn và thời gian làm việc — trước khi duyệt.
+                    Có thể sửa mã hàng, công đoạn, định mức, sản lượng{% if may_edit_stage_time %}, giờ công đoạn{% endif %} và thời gian làm việc — trước khi duyệt.
                     {% elif employee_edit_deadline %}
                     Có thể sửa công đoạn đã gửi đến {{ employee_edit_deadline|date:"H:i d/m/Y" }} — sau khi lưu bấm «Cập nhật báo cáo».
                     {% endif %}
@@ -423,7 +423,7 @@
                 </div>
                 {% elif is_edit_expired and is_submitted %}
                 <div class="alert alert-secondary border-0 small mb-3 py-2">
-                    Đã quá 24 giờ kể từ khi nộp — không thể chỉnh sửa.
+                    Đã quá hạn kể từ khi nộp — không thể chỉnh sửa.
                 </div>
                 {% endif %}
 

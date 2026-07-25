@@ -14,6 +14,7 @@ urlpatterns = [
     path('sx/team/tong-hop/xuat-excel/', views.team_summary_cn_export, name='team_summary_cn_export'),
     path('sx/thong-ke/', views.report_stats_cn, name='report_stats_cn'),
     path('sx/thong-ke/xuat-excel/', views.report_stats_cn_export, name='report_stats_cn_export'),
+    path('sx/thiet-lap/', views.general_settings, name='general_settings'),
     path('sx/my/', views.my_reports_cn, name='my_cn'),
     path('sx/copy-yesterday/', views.copy_yesterday_cn, name='copy_yesterday_cn'),
     path('sx/<int:pk>/export/', views.report_detail_export_cn, name='detail_export_cn'),

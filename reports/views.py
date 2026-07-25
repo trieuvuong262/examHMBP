@@ -21,6 +21,7 @@ from assessment.decorators import module_perm_required
 
 logger = logging.getLogger(__name__)
 from hrm.module_permissions import MODULE_REPORTS
+from hrm.menu_permissions import user_can_access_menu, user_can_update_menu
 from hrm.permissions import (
     can_comment_on_user_report,
     can_comment_on_user_weekly_report,
@@ -205,6 +206,42 @@ def _is_allowed_ckeditor_image(upload) -> bool:
 
 def _reports_access_required(view_func):
     return module_perm_required(MODULE_REPORTS, 'view')(view_func)
+
+
+@_reports_access_required
+def general_settings(request):
+    """Thiết lập chung báo cáo SX — quyền sửa giờ, auto-submit, hạn duyệt."""
+    from reports.forms_settings import ReportsGeneralSettingsForm
+    from reports.models import ReportsGeneralSettings
+    from reports.navigation import MENU_GENERAL_SETTINGS
+
+    if not user_can_access_menu(request.user, MODULE_REPORTS, MENU_GENERAL_SETTINGS):
+        messages.error(request, 'Bạn không có quyền xem thiết lập chung báo cáo.')
+        return redirect('reports:hub')
+
+    cfg = ReportsGeneralSettings.load()
+    can_update = user_can_update_menu(request.user, MODULE_REPORTS, MENU_GENERAL_SETTINGS)
+
+    if request.method == 'POST':
+        if not can_update:
+            messages.error(request, 'Bạn không có quyền cập nhật thiết lập.')
+            return redirect('reports:general_settings')
+        form = ReportsGeneralSettingsForm(request.POST, instance=cfg)
+        if form.is_valid():
+            obj = form.save(commit=False)
+            obj.updated_by = request.user
+            obj.save()
+            messages.success(request, 'Đã lưu thiết lập chung báo cáo.')
+            return redirect('reports:general_settings')
+        messages.error(request, 'Không lưu được — kiểm tra lại form.')
+    else:
+        form = ReportsGeneralSettingsForm(instance=cfg)
+
+    return render(request, 'reports/general_settings.html', {
+        'form': form,
+        'cfg': cfg,
+        'can_update': can_update,
+    })
 
 
 _WEEKLY_SUBMIT_VIEWS = frozenset({
@@ -2468,6 +2505,30 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
     can_unapprove = False
     unapprove_locked = False
     unapprove_deadline = None
+    approve_deadline = None
+    auto_reject_deadline = None
+    approve_overdue = False
+    approve_deadline_hours = None
+    auto_reject_deadline_hours = None
+    unapprove_deadline_days = None
+    if report.is_production_report and report.status == DailyWorkReport.STATUS_SUBMITTED:
+        from reports.report_lock import (
+            is_production_approve_overdue,
+            production_approve_deadline,
+            production_auto_reject_deadline,
+        )
+        from reports.report_settings import (
+            report_approve_deadline_hours,
+            report_auto_reject_deadline_hours,
+            report_unapprove_deadline_days,
+        )
+
+        approve_deadline = production_approve_deadline(report)
+        auto_reject_deadline = production_auto_reject_deadline(report)
+        approve_overdue = is_production_approve_overdue(report)
+        approve_deadline_hours = report_approve_deadline_hours()
+        auto_reject_deadline_hours = report_auto_reject_deadline_hours()
+        unapprove_deadline_days = report_unapprove_deadline_days()
     if (
         can_edit_norm
         and report.is_production_report
@@ -2506,11 +2567,13 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
         and can_approve
     ):
         from reports.report_lock import approve_production_report
+        from reports.report_settings import report_unapprove_deadline_days
 
         approve_production_report(report)
+        days = report_unapprove_deadline_days()
         messages.success(
             request,
-            'Đã duyệt báo cáo. Có thể hoàn duyệt trong vòng 1 tuần sau khi duyệt.',
+            f'Đã duyệt báo cáo. Có thể hoàn duyệt trong vòng {days} ngày sau khi duyệt.',
         )
         return _detail_redirect()
 
@@ -2520,17 +2583,22 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
     ):
         if can_unapprove:
             from reports.report_lock import unapprove_production_report
+            from reports.report_settings import report_auto_reject_deadline_hours
 
             unapprove_production_report(report)
+            hours = report_auto_reject_deadline_hours()
             messages.success(
                 request,
-                'Đã hoàn duyệt — nhân viên có thể chỉnh sửa lại nếu còn trong hạn 24 giờ.',
+                f'Đã hoàn duyệt — nhân viên có thể chỉnh sửa lại nếu còn trong hạn {hours} giờ.',
             )
             return _detail_redirect()
         if unapprove_locked:
+            from reports.report_settings import report_unapprove_deadline_days
+
+            days = report_unapprove_deadline_days()
             messages.error(
                 request,
-                'Đã quá 1 tuần kể từ khi duyệt — không thể hoàn duyệt.',
+                f'Đã quá {days} ngày kể từ khi duyệt — không thể hoàn duyệt.',
             )
             return _detail_redirect()
 
@@ -2768,6 +2836,12 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
         'can_unapprove': can_unapprove,
         'unapprove_locked': unapprove_locked,
         'unapprove_deadline': unapprove_deadline,
+        'approve_deadline': approve_deadline,
+        'auto_reject_deadline': auto_reject_deadline,
+        'approve_overdue': approve_overdue,
+        'approve_deadline_hours': approve_deadline_hours,
+        'auto_reject_deadline_hours': auto_reject_deadline_hours,
+        'unapprove_deadline_days': unapprove_deadline_days,
         'can_comment': can_comment,
         'comments': _report_comments_queryset(report),
         'can_edit_norm': can_edit_norm,

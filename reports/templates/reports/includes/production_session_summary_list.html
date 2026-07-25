@@ -75,7 +75,7 @@
 </div>
 {% endif %}
 
-{% if content_edit_only and can_edit and not is_locked %}
+{% if content_edit_only and can_edit and not is_locked and may_edit_stage_time %}
 <div class="jp-prod-session-start-next mb-3">
     <button type="button" class="btn btn-outline-hm fw-bold w-100 w-md-auto" data-bs-toggle="collapse"
             data-bs-target="#session-add-new" aria-expanded="false" aria-controls="session-add-new">
@@ -219,12 +219,20 @@
                         <div class="col-6 mb-2">
                             <label class="form-label fw-bold small mb-1">Giờ bắt đầu</label>
                             <input type="time" name="start_time" class="form-control" step="60" required
-                                   value="{{ row.started_at_display }}">
+                                   value="{{ row.started_at_display }}"
+                                   {% if not may_edit_stage_time %}readonly disabled{% endif %}>
+                            {% if not may_edit_stage_time %}
+                            <input type="hidden" name="start_time" value="{{ row.started_at_display }}">
+                            {% endif %}
                         </div>
                         <div class="col-6 mb-2">
                             <label class="form-label fw-bold small mb-1">Giờ kết thúc</label>
                             <input type="time" name="end_time" class="form-control" step="60" required
-                                   value="{{ row.ended_at_display }}">
+                                   value="{{ row.ended_at_display }}"
+                                   {% if not may_edit_stage_time %}readonly disabled{% endif %}>
+                            {% if not may_edit_stage_time %}
+                            <input type="hidden" name="end_time" value="{{ row.ended_at_display }}">
+                            {% endif %}
                         </div>
                     </div>
                     <div class="mb-3">
@@ -233,7 +241,11 @@
                                autocomplete="off" value="{{ row.zero_reason }}">
                     </div>
                     <p class="small text-muted mb-3">
+                        {% if may_edit_stage_time %}
                         Không cho chồng giờ với công đoạn đã có. Có thể bắt đầu đúng bằng giờ kết thúc công đoạn trước.
+                        {% else %}
+                        Thời gian công đoạn đang bị khóa theo thiết lập chung.
+                        {% endif %}
                     </p>
                     {% else %}
                     <div class="mb-2">
@@ -262,12 +274,20 @@
                         <div class="col-6 mb-2">
                             <label class="form-label fw-bold small mb-1">Giờ bắt đầu</label>
                             <input type="time" name="start_time" class="form-control" step="60" required
-                                   value="{{ row.started_at_display }}">
+                                   value="{{ row.started_at_display }}"
+                                   {% if not may_edit_stage_time %}readonly disabled{% endif %}>
+                            {% if not may_edit_stage_time %}
+                            <input type="hidden" name="start_time" value="{{ row.started_at_display }}">
+                            {% endif %}
                         </div>
                         <div class="col-6 mb-2">
                             <label class="form-label fw-bold small mb-1">Giờ kết thúc</label>
                             <input type="time" name="end_time" class="form-control" step="60" required
-                                   value="{{ row.ended_at_display }}">
+                                   value="{{ row.ended_at_display }}"
+                                   {% if not may_edit_stage_time %}readonly disabled{% endif %}>
+                            {% if not may_edit_stage_time %}
+                            <input type="hidden" name="end_time" value="{{ row.ended_at_display }}">
+                            {% endif %}
                         </div>
                     </div>
                     <div class="row g-2">
@@ -288,7 +308,11 @@
                                autocomplete="off" value="{{ row.session_note }}">
                     </div>
                     <p class="small text-muted mb-3">
+                        {% if may_edit_stage_time %}
                         Không cho chồng giờ với công đoạn đã có. Có thể bắt đầu đúng bằng giờ kết thúc công đoạn trước.
+                        {% else %}
+                        Thời gian công đoạn đang bị khóa theo thiết lập chung.
+                        {% endif %}
                     </p>
                     {% endif %}
                     <div class="d-flex gap-2">

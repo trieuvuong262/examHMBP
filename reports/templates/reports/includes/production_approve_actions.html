@@ -7,19 +7,28 @@
                 <i class="bi bi-clipboard-check me-1" aria-hidden="true"></i>Duyệt báo cáo
             </div>
             {% if can_approve %}
-            <p class="small text-muted mb-0">Báo cáo đã nộp — bấm <strong>Duyệt</strong> để chốt. Sau khi duyệt, nhân viên không sửa được; quản lý có thể hoàn duyệt trong 1 tuần.</p>
+            <p class="small text-muted mb-0">
+                Báo cáo đã nộp — bấm <strong>Duyệt</strong> để chốt.
+                {% if approve_deadline %}
+                Hạn duyệt: <strong>{{ approve_deadline|date:"H:i d/m/Y" }}</strong>{% if approve_overdue %} <span class="badge text-bg-warning">Quá hạn duyệt</span>{% endif %}.
+                {% endif %}
+                {% if auto_reject_deadline %}
+                Tự «Không duyệt» sau: <strong>{{ auto_reject_deadline|date:"H:i d/m/Y" }}</strong>.
+                {% endif %}
+                Sau khi duyệt, nhân viên không sửa được; quản lý có thể hoàn duyệt trong {% if unapprove_deadline_days %}{{ unapprove_deadline_days }} ngày{% else %}1 tuần{% endif %}.
+            </p>
             {% elif can_unapprove %}
             <p class="small text-muted mb-0">
                 Đã duyệt
                 {% if report.hod_reviewed_at %}lúc {{ report.hod_reviewed_at|date:"H:i d/m/Y" }}{% endif %}
                 — bấm <strong>Hoàn duyệt</strong> để mở lại
-                {% if unapprove_deadline %}(hạn đến {{ unapprove_deadline|date:"H:i d/m/Y" }}){% else %}trong 1 tuần sau khi duyệt{% endif %}.
+                {% if unapprove_deadline %}(hạn đến {{ unapprove_deadline|date:"H:i d/m/Y" }}){% elif unapprove_deadline_days %}trong {{ unapprove_deadline_days }} ngày sau khi duyệt{% else %}trong 1 tuần sau khi duyệt{% endif %}.
             </p>
             {% elif unapprove_locked %}
             <p class="small text-muted mb-0">
                 Đã duyệt
                 {% if report.hod_reviewed_at %}lúc {{ report.hod_reviewed_at|date:"H:i d/m/Y" }}{% endif %}
-                — đã quá 1 tuần, <strong>không thể hoàn duyệt</strong>.
+                — đã quá {% if unapprove_deadline_days %}{{ unapprove_deadline_days }} ngày{% else %}1 tuần{% endif %}, <strong>không thể hoàn duyệt</strong>.
             </p>
             {% endif %}
         </div>
@@ -42,7 +51,7 @@
                 </button>
             </form>
             {% elif unapprove_locked %}
-            <button type="button" class="btn btn-outline-secondary fw-bold" disabled title="Đã quá 1 tuần kể từ khi duyệt">
+            <button type="button" class="btn btn-outline-secondary fw-bold" disabled title="Đã quá hạn hoàn duyệt">
                 <i class="bi bi-lock-fill me-1"></i>Đã khóa
             </button>
             {% endif %}

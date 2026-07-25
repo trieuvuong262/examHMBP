@@ -31,8 +31,13 @@
         </button>
     </form>
     {% elif can_edit_norm and unapprove_locked %}
-    <span class="badge text-bg-secondary" title="Đã quá 1 tuần kể từ khi duyệt">
+    <span class="badge text-bg-secondary" title="Đã quá hạn hoàn duyệt">
         <i class="bi bi-lock-fill me-1"></i>Đã khóa hoàn duyệt
+    </span>
+    {% endif %}
+    {% if can_edit_norm and can_approve and approve_overdue %}
+    <span class="badge text-bg-warning" title="{% if approve_deadline %}Hạn duyệt: {{ approve_deadline|date:'H:i d/m/Y' }}{% endif %}">
+        Quá hạn duyệt
     </span>
     {% endif %}
     {% if edit_report_url %}

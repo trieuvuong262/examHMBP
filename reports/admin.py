@@ -7,6 +7,7 @@ from .models import (
     ProductionReportReminderLog,
     ReportComment,
     ReportCommentAttachment,
+    ReportsGeneralSettings,
     WeeklyWorkReport,
     WeeklyWorkReportAttachment,
 )
@@ -134,3 +135,23 @@ class ProductionReportReminderLogAdmin(admin.ModelAdmin):
     list_filter = ('shift', 'wave', 'report_date')
     search_fields = ('employee__username', 'employee__profile__full_name')
     readonly_fields = ('sent_at',)
+
+
+@admin.register(ReportsGeneralSettings)
+class ReportsGeneralSettingsAdmin(admin.ModelAdmin):
+    list_display = (
+        'workers_may_edit_stage_time',
+        'managers_may_edit_stage_time',
+        'auto_submit_time',
+        'approve_deadline_hours',
+        'auto_reject_deadline_hours',
+        'unapprove_deadline_days',
+        'updated_at',
+    )
+    readonly_fields = ('updated_at',)
+
+    def has_add_permission(self, request):
+        return not ReportsGeneralSettings.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        return False

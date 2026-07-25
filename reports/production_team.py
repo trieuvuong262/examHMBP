@@ -107,6 +107,8 @@ def _sort_visible_production_reports(reports: list[DailyWorkReport]) -> list[Dai
 
 def _production_row_flags(visible: list[DailyWorkReport]) -> dict:
     """Cờ trạng thái / tóm tắt — không tính hiệu suất (dùng cho đếm thống kê)."""
+    from reports.report_lock import is_production_approve_overdue
+
     total_qty = sum(int(getattr(report, 'total_qty', 0) or 0) for report in visible)
     total_damaged = sum(int(getattr(report, 'total_damaged', 0) or 0) for report in visible)
     primary = visible[0] if visible else None
@@ -125,6 +127,13 @@ def _production_row_flags(visible: list[DailyWorkReport]) -> dict:
         'production_all_reviewed': bool(visible) and all(report.hod_reviewed for report in visible),
         'production_any_rejected': bool(visible) and any(
             getattr(report, 'hod_rejected', False) and not report.hod_reviewed
+            for report in visible
+        ),
+        'production_any_approve_overdue': any(
+            report.status == DailyWorkReport.STATUS_SUBMITTED
+            and not report.hod_reviewed
+            and not getattr(report, 'hod_rejected', False)
+            and is_production_approve_overdue(report)
             for report in visible
         ),
         'production_has_manager_comment': any(

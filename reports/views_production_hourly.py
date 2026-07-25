@@ -45,6 +45,7 @@ from reports.production_hourly import (
     product_is_submitted_locked,
     product_may_be_edited_by,
     production_server_now,
+    viewer_may_edit_stage_time,
     parse_decimal,
     parse_non_negative_decimal,
     delete_production_products,
@@ -609,8 +610,9 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
         damaged_quantity = parse_int(request.POST.get('damaged_quantity'))
         note = (request.POST.get('note') or '').strip()
         zero_reason = (request.POST.get('zero_reason') or '').strip()
-        start_time = (request.POST.get('start_time') or '').strip()
-        end_time = (request.POST.get('end_time') or '').strip()
+        may_edit_time = viewer_may_edit_stage_time(request.user, report)
+        start_time = (request.POST.get('start_time') or '').strip() if may_edit_time else ''
+        end_time = (request.POST.get('end_time') or '').strip() if may_edit_time else ''
         if total_qty < 0:
             messages.error(request, 'Nhập sản lượng hợp lệ.')
             return redirect(_production_redirect(report_date, shift, for_user or None, review_extra))
@@ -633,6 +635,7 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
                 start_time=start_time,
                 end_time=end_time,
                 updated_by=request.user,
+                allow_edit_stage_time=may_edit_time,
             )
         except ValueError as exc:
             messages.error(request, str(exc))
@@ -704,6 +707,9 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
         if not content_edit_only:
             messages.error(request, 'Chỉ có thể thêm công đoạn ở màn chỉnh sửa báo cáo đã nộp.')
             return redirect(_production_redirect(report_date, shift, for_user or None, 'phase=review'))
+        if not viewer_may_edit_stage_time(request.user, report):
+            messages.error(request, 'Không được phép sửa thời gian công đoạn theo thiết lập chung.')
+            return redirect(_production_redirect(report_date, shift, for_user or None, content_edit_extra))
         code = (request.POST.get('product_code') or '').strip()
         process = (request.POST.get('process_name') or '').strip()
         norm = parse_decimal(request.POST.get('norm_per_hour'))
@@ -1291,6 +1297,11 @@ def today_production_hourly(request, report_date, report_context_common):
         'production_entry_closed': is_production_entry_closed(report) if report and report.pk else False,
         'is_edit_expired': is_edit_expired,
         'employee_edit_deadline': employee_edit_deadline,
+        'may_edit_stage_time': (
+            viewer_may_edit_stage_time(request.user, report)
+            if report and report.pk
+            else True
+        ),
         'phase': phase,
         'shift_started': started,
         'current_product': current_product,

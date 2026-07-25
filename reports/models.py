@@ -1,6 +1,8 @@
 import os
+from datetime import time
 
 from django.conf import settings
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 from reports.period_utils import PERIOD_CHOICES, PERIOD_DAY
@@ -668,4 +670,75 @@ class ProductionReportReminderLog(models.Model):
 
     def __str__(self):
         return f'{self.employee} · {self.report_date} · {self.shift} · đợt {self.wave}'
+
+
+class ReportsGeneralSettings(models.Model):
+    """Singleton (pk=1) — thiết lập chung module Báo cáo SX."""
+
+    workers_may_edit_stage_time = models.BooleanField(
+        default=True,
+        verbose_name='Công nhân được sửa thời gian công đoạn',
+    )
+    managers_may_edit_stage_time = models.BooleanField(
+        default=True,
+        verbose_name='Quản lý được sửa thời gian công đoạn',
+    )
+    auto_submit_time = models.TimeField(
+        default=time(23, 30),
+        verbose_name='Giờ tự động nộp báo cáo',
+        help_text='Giờ local trên VPS — cron chạy mỗi 5 phút trong cửa sổ grace.',
+    )
+    approve_deadline_hours = models.PositiveSmallIntegerField(
+        default=24,
+        validators=[MinValueValidator(1), MaxValueValidator(168)],
+        verbose_name='Thời hạn duyệt (giờ)',
+        help_text='Sau khi nộp — hạn SLA duyệt (badge quá hạn). Quản lý vẫn duyệt được đến hạn không duyệt.',
+    )
+    unapprove_deadline_days = models.PositiveSmallIntegerField(
+        default=7,
+        validators=[MinValueValidator(1), MaxValueValidator(90)],
+        verbose_name='Thời hạn hoàn duyệt (ngày)',
+        help_text='Số ngày sau khi duyệt mà quản lý còn được hoàn duyệt.',
+    )
+    auto_reject_deadline_hours = models.PositiveSmallIntegerField(
+        default=24,
+        validators=[MinValueValidator(1), MaxValueValidator(168)],
+        verbose_name='Thời hạn không duyệt (giờ)',
+        help_text='Sau khi nộp — quá hạn tự chuyển «Không duyệt». Cũng là hạn CN sửa sau nộp.',
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='+',
+        verbose_name='Cập nhật bởi',
+    )
+
+    class Meta:
+        verbose_name = 'Thiết lập chung báo cáo'
+        verbose_name_plural = 'Thiết lập chung báo cáo'
+
+    def __str__(self):
+        return 'Thiết lập chung báo cáo'
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        if (
+            self.auto_reject_deadline_hours is not None
+            and self.approve_deadline_hours is not None
+            and self.auto_reject_deadline_hours < self.approve_deadline_hours
+        ):
+            raise ValidationError({
+                'auto_reject_deadline_hours': (
+                    'Thời hạn không duyệt phải lớn hơn hoặc bằng thời hạn duyệt.'
+                ),
+            })
+
+    @classmethod
+    def load(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
 

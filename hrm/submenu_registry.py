@@ -42,6 +42,7 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
             'icon': 'bi-table',
             'perm_view_only': True,
         },
+        {'key': 'general_settings', 'label': 'Thiết lập chung', 'icon': 'bi-gear'},
         {'key': 'daily_vp', 'label': 'Báo cáo VP', 'icon': 'bi-clipboard-check'},
         {'key': 'daily_vp_detail', 'label': 'Quản lý BC (VP)', 'icon': 'bi-people-fill'},
     ],
@@ -208,6 +209,7 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     ('/exams/', MODULE_ASSESSMENT, 'exams'),
     # Báo cáo — SX (sản xuất)
     ('/reports/sx/thong-ke', MODULE_REPORTS, 'report_stats'),
+    ('/reports/sx/thiet-lap', MODULE_REPORTS, 'general_settings'),
     ('/reports/sx/team', MODULE_REPORTS, 'daily_cn_detail'),
     ('/reports/sx/my', MODULE_REPORTS, 'daily_cn'),
     ('/reports/sx/copy-yesterday', MODULE_REPORTS, 'daily_cn'),

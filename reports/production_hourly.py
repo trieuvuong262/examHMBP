@@ -183,6 +183,17 @@ def report_steps_editable_for_viewer(viewer, report: DailyWorkReport) -> bool:
     return production_employee_may_edit(report)
 
 
+def viewer_may_edit_stage_time(viewer, report: DailyWorkReport) -> bool:
+    """Có được sửa started_at/ended_at công đoạn theo thiết lập chung."""
+    from reports.report_settings import managers_may_edit_stage_time, workers_may_edit_stage_time
+
+    if not viewer or not report:
+        return False
+    if report.employee_id == viewer.id:
+        return workers_may_edit_stage_time()
+    return managers_may_edit_stage_time()
+
+
 def product_may_be_edited_by(
     viewer,
     report,
@@ -675,6 +686,7 @@ def update_session_product(
     start_time: str = '',
     end_time: str = '',
     updated_by=None,
+    allow_edit_stage_time: bool | None = None,
 ) -> ProductionShiftProduct:
     """Chỉnh sửa một công đoạn đã hoàn tất trên màn tổng kết — cập nhật thông tin + chia lại sản lượng."""
     code = (product_code or '').strip()
@@ -686,6 +698,11 @@ def update_session_product(
     end_hm = (end_time or '').strip()
 
     if start_hm or end_hm:
+        if allow_edit_stage_time is False:
+            raise ValueError('Không được phép sửa thời gian công đoạn theo thiết lập chung.')
+        if allow_edit_stage_time is None and updated_by is not None:
+            if not viewer_may_edit_stage_time(updated_by, product.report):
+                raise ValueError('Không được phép sửa thời gian công đoạn theo thiết lập chung.')
         if not start_hm or not end_hm:
             raise ValueError('Chọn đủ giờ bắt đầu và giờ kết thúc.')
         report = product.report

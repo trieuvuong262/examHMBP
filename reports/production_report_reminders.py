@@ -1,9 +1,9 @@
-"""Tự động gửi báo cáo sản xuất chưa nộp — cron 23:30 hàng ngày."""
+"""Tự động gửi báo cáo sản xuất chưa nộp — cron theo giờ thiết lập chung."""
 
 from __future__ import annotations
 
 import logging
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 
 from django.db import transaction
@@ -20,15 +20,16 @@ from reports.production_hourly import (
     validate_production_submit_efficiency,
 )
 from reports.report_profile import REPORT_PROFILE_PRODUCTION
+from reports.report_settings import report_auto_submit_time
 
 logger = logging.getLogger(__name__)
 
-# 23:30 mỗi ngày (giờ VN) — cửa sổ grace vài phút nếu cron trễ.
+# Fallback khi chưa đọc được thiết lập — giữ hành vi cũ 23:30.
 AUTO_SUBMIT_HOUR = 23
 AUTO_SUBMIT_MINUTE = 30
 AUTO_SUBMIT_GRACE_MINUTES = 5
 DEFAULT_DECLARED_WORK_HOURS = Decimal('9.50')
-# Dùng wave=1 trong log dedupe cho đợt auto-submit 23:30.
+# Dùng wave=1 trong log dedupe cho đợt auto-submit.
 AUTO_SUBMIT_WAVE = ProductionReportReminderLog.WAVE_1
 
 
@@ -37,12 +38,20 @@ def _local_now(now=None) -> datetime:
     return timezone.localtime(now)
 
 
+def _configured_auto_submit_time() -> time:
+    try:
+        return report_auto_submit_time()
+    except Exception:
+        return time(AUTO_SUBMIT_HOUR, AUTO_SUBMIT_MINUTE)
+
+
 def is_auto_submit_window(now=None) -> bool:
-    """True trong khung 23:30–23:35 (giờ local)."""
+    """True trong khung giờ tự nộp ± grace (giờ local theo thiết lập chung)."""
     local_now = _local_now(now)
+    submit_at = _configured_auto_submit_time()
     target = local_now.replace(
-        hour=AUTO_SUBMIT_HOUR,
-        minute=AUTO_SUBMIT_MINUTE,
+        hour=submit_at.hour,
+        minute=submit_at.minute,
         second=0,
         microsecond=0,
     )
@@ -52,9 +61,8 @@ def is_auto_submit_window(now=None) -> bool:
 
 
 def auto_submit_report_date(now=None) -> date:
-    """Ngày báo cáo cần chốt: hôm nay (ca sáng trong ngày, lúc 23:30)."""
+    """Ngày báo cáo cần chốt: hôm nay (ca sáng trong ngày, lúc giờ tự nộp)."""
     return _local_now(now).date()
-
 
 def _unsubmitted_non_night_base_qs():
     """BC SX chưa nộp, không phải ca tối (gồm MORNING / OVERTIME cũ)."""
