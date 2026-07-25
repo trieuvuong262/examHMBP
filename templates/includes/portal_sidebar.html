@@ -209,6 +209,15 @@
                     </a>
                 </li>
                 {% endif %}
+                {% jp_can_menu 'reports' 'general_settings' as jp_can_reports_settings %}
+                {% if jp_can_reports_settings %}
+                <li>
+                    <a href="{% url 'reports:general_settings' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.namespace == 'reports' and request.resolver_match.url_name == 'general_settings' %}active{% endif %}">
+                        <i class="bi bi-gear"></i><span>Thiết lập chung</span>
+                    </a>
+                </li>
+                {% endif %}
                 {% jp_can_menu 'reports' 'daily_vp' as jp_can_reports_daily_vp %}
                 {% if jp_can_reports_daily_vp %}
                 <li>
