@@ -8,7 +8,8 @@ Usage:
 
 from __future__ import annotations
 
-from datetime import time, timedelta
+from datetime import datetime, time, timedelta
+from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.test import Client
@@ -17,7 +18,12 @@ from django.utils import timezone
 
 from reports.forms_settings import ReportsGeneralSettingsForm
 from reports.models import DailyWorkReport, ReportsGeneralSettings
-from reports.production_report_reminders import is_auto_submit_window
+from reports.production_report_reminders import (
+    KIND_MORNING,
+    KIND_NIGHT,
+    auto_submit_report_date,
+    is_auto_submit_window,
+)
 from reports.report_lock import (
     production_approve_deadline,
     production_auto_reject_deadline,
@@ -30,6 +36,10 @@ from reports.report_settings import (
     report_approve_deadline_hours,
     report_auto_reject_deadline_hours,
     report_auto_submit_time,
+    report_employee_edit_deadline_hours,
+    report_night_auto_submit_enabled,
+    report_night_auto_submit_time,
+    report_night_default_declared_work_hours,
     report_unapprove_deadline_days,
     workers_may_edit_stage_time,
 )
@@ -47,6 +57,27 @@ def fail(msg, detail=''):
     print(f'  FAIL: {msg}' + (f' -- {detail}' if detail else ''))
 
 
+def _form_data(**overrides):
+    base = {
+        'workers_may_edit_stage_time': True,
+        'managers_may_edit_stage_time': True,
+        'auto_submit_time': '23:30',
+        'default_declared_work_hours': '9.50',
+        'night_auto_submit_enabled': True,
+        'night_auto_submit_time': '05:00',
+        'night_default_declared_work_hours': '9.50',
+        'auto_approve_proxy_reports': True,
+        'work_hours_min': '7.50',
+        'work_hours_max': '16',
+        'approve_deadline_hours': 24,
+        'auto_reject_deadline_hours': 24,
+        'employee_edit_deadline_hours': 24,
+        'unapprove_deadline_days': 7,
+    }
+    base.update(overrides)
+    return base
+
+
 print('=== ReportsGeneralSettings smoke ===')
 
 cfg = ReportsGeneralSettings.load()
@@ -56,64 +87,59 @@ else:
     ok('singleton load pk=1')
 
 # Snapshot để restore
-snap = {
-    'workers_may_edit_stage_time': cfg.workers_may_edit_stage_time,
-    'managers_may_edit_stage_time': cfg.managers_may_edit_stage_time,
-    'auto_submit_time': cfg.auto_submit_time,
-    'approve_deadline_hours': cfg.approve_deadline_hours,
-    'unapprove_deadline_days': cfg.unapprove_deadline_days,
-    'auto_reject_deadline_hours': cfg.auto_reject_deadline_hours,
-}
+snap_fields = (
+    'workers_may_edit_stage_time',
+    'managers_may_edit_stage_time',
+    'auto_submit_time',
+    'default_declared_work_hours',
+    'night_auto_submit_enabled',
+    'night_auto_submit_time',
+    'night_default_declared_work_hours',
+    'auto_approve_proxy_reports',
+    'work_hours_min',
+    'work_hours_max',
+    'approve_deadline_hours',
+    'auto_reject_deadline_hours',
+    'employee_edit_deadline_hours',
+    'unapprove_deadline_days',
+)
+snap = {k: getattr(cfg, k) for k in snap_fields}
 
 try:
     cfg.workers_may_edit_stage_time = False
     cfg.managers_may_edit_stage_time = True
     cfg.auto_submit_time = time(22, 15)
+    cfg.default_declared_work_hours = Decimal('9.50')
+    cfg.night_auto_submit_enabled = True
+    cfg.night_auto_submit_time = time(5, 0)
+    cfg.night_default_declared_work_hours = Decimal('8.00')
     cfg.approve_deadline_hours = 12
     cfg.auto_reject_deadline_hours = 36
+    cfg.employee_edit_deadline_hours = 18
     cfg.unapprove_deadline_days = 5
     cfg.save()
 
-    if workers_may_edit_stage_time() is not False:
-        fail('workers_may_edit_stage_time')
-    else:
-        ok('workers_may_edit_stage_time=False')
-
-    if managers_may_edit_stage_time() is not True:
-        fail('managers_may_edit_stage_time')
-    else:
-        ok('managers_may_edit_stage_time=True')
-
-    if report_auto_submit_time() != time(22, 15):
-        fail('auto_submit_time', str(report_auto_submit_time()))
-    else:
-        ok('auto_submit_time=22:15')
-
-    if report_approve_deadline_hours() != 12:
-        fail('approve_deadline_hours')
-    else:
-        ok('approve_deadline_hours=12')
-
-    if report_auto_reject_deadline_hours() != 36:
-        fail('auto_reject_deadline_hours')
-    else:
-        ok('auto_reject_deadline_hours=36')
-
-    if report_unapprove_deadline_days() != 5:
-        fail('unapprove_deadline_days')
-    else:
-        ok('unapprove_deadline_days=5')
+    checks = [
+        (workers_may_edit_stage_time() is False, 'workers_may_edit_stage_time=False'),
+        (managers_may_edit_stage_time() is True, 'managers_may_edit_stage_time=True'),
+        (report_auto_submit_time() == time(22, 15), 'auto_submit_time=22:15'),
+        (report_night_auto_submit_enabled() is True, 'night_auto_submit_enabled=True'),
+        (report_night_auto_submit_time() == time(5, 0), 'night_auto_submit_time=05:00'),
+        (report_night_default_declared_work_hours() == Decimal('8.00'), 'night_default_hours=8.00'),
+        (report_approve_deadline_hours() == 12, 'approve_deadline_hours=12'),
+        (report_auto_reject_deadline_hours() == 36, 'auto_reject_deadline_hours=36'),
+        (report_employee_edit_deadline_hours() == 18, 'employee_edit_deadline_hours=18'),
+        (report_unapprove_deadline_days() == 5, 'unapprove_deadline_days=5'),
+    ]
+    for passed, label in checks:
+        if passed:
+            ok(label)
+        else:
+            fail(label)
 
     # Form: Y < X bị từ chối
     bad = ReportsGeneralSettingsForm(
-        data={
-            'workers_may_edit_stage_time': True,
-            'managers_may_edit_stage_time': True,
-            'auto_submit_time': '23:30',
-            'approve_deadline_hours': 24,
-            'unapprove_deadline_days': 7,
-            'auto_reject_deadline_hours': 12,
-        },
+        data=_form_data(approve_deadline_hours=24, auto_reject_deadline_hours=12),
         instance=cfg,
     )
     if bad.is_valid():
@@ -122,20 +148,22 @@ try:
         ok('form rejects auto_reject < approve')
 
     good = ReportsGeneralSettingsForm(
-        data={
-            'workers_may_edit_stage_time': True,
-            'managers_may_edit_stage_time': True,
-            'auto_submit_time': '23:30',
-            'approve_deadline_hours': 12,
-            'unapprove_deadline_days': 7,
-            'auto_reject_deadline_hours': 24,
-        },
+        data=_form_data(approve_deadline_hours=12, auto_reject_deadline_hours=24),
         instance=cfg,
     )
     if not good.is_valid():
         fail('form should accept Y >= X', str(good.errors))
     else:
         ok('form accepts Y >= X')
+
+    bad_night_hours = ReportsGeneralSettingsForm(
+        data=_form_data(night_default_declared_work_hours='20'),
+        instance=cfg,
+    )
+    if bad_night_hours.is_valid():
+        fail('form should reject night hours out of range')
+    else:
+        ok('form rejects night default hours out of range')
 
     # Deadlines trên báo cáo giả
     User = get_user_model()
@@ -153,53 +181,74 @@ try:
             hod_reviewed=False,
             hod_rejected=False,
         )
-        # Không save — chỉ tính deadline
         approve_dl = production_approve_deadline(report)
         reject_dl = production_auto_reject_deadline(report)
         edit_dl = production_employee_edit_deadline(report)
-        if not approve_dl or (approve_dl - now - timedelta(hours=12)).total_seconds() > 2:
+        if not approve_dl or abs((approve_dl - now - timedelta(hours=12)).total_seconds()) > 2:
             fail('approve deadline not ~12h', str(approve_dl))
         else:
             ok('approve deadline = submitted + 12h')
-        if not reject_dl or (reject_dl - now - timedelta(hours=36)).total_seconds() > 2:
+        if not reject_dl or abs((reject_dl - now - timedelta(hours=36)).total_seconds()) > 2:
             fail('reject deadline not ~36h', str(reject_dl))
         else:
             ok('reject deadline = submitted + 36h')
-        if edit_dl != reject_dl:
-            fail('employee edit deadline should equal reject deadline')
+        if not edit_dl or abs((edit_dl - now - timedelta(hours=18)).total_seconds()) > 2:
+            fail('employee edit deadline not ~18h', str(edit_dl))
         else:
-            ok('employee edit deadline == reject deadline (Y)')
+            ok('employee edit deadline = submitted + 18h')
 
         report.hod_reviewed = True
         report.hod_reviewed_at = now
         mgr_dl = production_manager_edit_deadline(report)
-        if not mgr_dl or (mgr_dl - now - timedelta(days=5)).total_seconds() > 2:
+        if not mgr_dl or abs((mgr_dl - now - timedelta(days=5)).total_seconds()) > 2:
             fail('unapprove deadline not ~5d', str(mgr_dl))
         else:
             ok('unapprove deadline = reviewed + 5d')
 
-    # Auto-submit window theo giờ cấu hình
-    local = timezone.localtime()
-    target = local.replace(hour=22, minute=15, second=0, microsecond=0)
-    in_window = target + timedelta(minutes=2)
-    out_window = target - timedelta(minutes=1)
-    if not is_auto_submit_window(now=in_window):
-        fail('is_auto_submit_window inside grace')
-    else:
-        ok('auto-submit window inside grace')
-    if is_auto_submit_window(now=out_window):
-        fail('is_auto_submit_window before target')
-    else:
-        ok('auto-submit window closed before target')
+    # Auto-submit windows
+    today = timezone.localdate()
+    morn_in = timezone.make_aware(datetime.combine(today, time(22, 17)))
+    morn_out = timezone.make_aware(datetime.combine(today, time(22, 14)))
+    night_in = timezone.make_aware(datetime.combine(today, time(5, 2)))
+    night_out = timezone.make_aware(datetime.combine(today, time(4, 59)))
 
-    # URL
+    if not is_auto_submit_window(now=morn_in, kind=KIND_MORNING):
+        fail('morning window inside grace')
+    else:
+        ok('morning auto-submit window inside grace')
+    if is_auto_submit_window(now=morn_out, kind=KIND_MORNING):
+        fail('morning window before target')
+    else:
+        ok('morning auto-submit window closed before target')
+    if not is_auto_submit_window(now=night_in, kind=KIND_NIGHT):
+        fail('night window inside grace')
+    else:
+        ok('night auto-submit window inside grace')
+    if is_auto_submit_window(now=night_out, kind=KIND_NIGHT):
+        fail('night window before target')
+    else:
+        ok('night auto-submit window closed before target')
+    if is_auto_submit_window(now=night_in, kind=KIND_MORNING):
+        fail('night time should not open morning window')
+    else:
+        ok('night time does not open morning window')
+
+    if auto_submit_report_date(kind=KIND_MORNING) != today:
+        fail('morning report_date should be today')
+    else:
+        ok('morning report_date = today')
+    if auto_submit_report_date(kind=KIND_NIGHT) != today - timedelta(days=1):
+        fail('night report_date should be yesterday')
+    else:
+        ok('night report_date = yesterday')
+
+    # Page content has night fields
     url = reverse('reports:general_settings')
     if url != '/reports/sx/thiet-lap/':
         fail('settings URL', url)
     else:
         ok(f'settings URL {url}')
 
-    # HTTP — staff/superuser nếu có
     admin = User.objects.filter(is_superuser=True).first() or User.objects.filter(is_staff=True).first()
     if admin:
         from django.conf import settings as dj_settings
@@ -214,7 +263,20 @@ try:
         client.force_login(admin)
         r = client.get(url)
         if r.status_code == 200:
+            body = r.content.decode('utf-8', errors='ignore')
             ok(f'GET settings as {admin.username} -> 200')
+            for needle in (
+                'id_auto_submit_time',
+                'id_night_auto_submit_enabled',
+                'id_night_auto_submit_time',
+                'id_night_default_declared_work_hours',
+                'id_approve_deadline_hours',
+                'id_auto_reject_deadline_hours',
+            ):
+                if needle in body:
+                    ok(f'page contains {needle}')
+                else:
+                    fail(f'page missing {needle}')
         elif r.status_code in (301, 302):
             ok(f'GET settings as {admin.username} -> redirect {r.status_code} (menu perm?)')
         else:
@@ -226,6 +288,18 @@ try:
         fail('MENU_GENERAL_SETTINGS constant')
     else:
         ok('MENU_GENERAL_SETTINGS=general_settings')
+
+    # Cron dry-run: cả morning + night khi force
+    from reports.production_report_reminders import auto_submit_unsubmitted_production_reports
+
+    stats = auto_submit_unsubmitted_production_reports(dry_run=True, force=True)
+    if stats.get('failed', 0) != 0:
+        fail('force dry-run failed', str(stats))
+    else:
+        ok(
+            f"force dry-run submitted={stats.get('submitted', 0)} "
+            f"skipped={stats.get('skipped', 0)} failed=0"
+        )
 
 finally:
     for k, v in snap.items():
