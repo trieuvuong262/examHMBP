@@ -20,7 +20,7 @@ from reports.production_hourly import (
     validate_production_submit_efficiency,
 )
 from reports.report_profile import REPORT_PROFILE_PRODUCTION
-from reports.report_settings import report_auto_submit_time
+from reports.report_settings import report_auto_submit_time, report_default_declared_work_hours
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +43,13 @@ def _configured_auto_submit_time() -> time:
         return report_auto_submit_time()
     except Exception:
         return time(AUTO_SUBMIT_HOUR, AUTO_SUBMIT_MINUTE)
+
+
+def _default_declared_work_hours() -> Decimal:
+    try:
+        return report_default_declared_work_hours()
+    except Exception:
+        return DEFAULT_DECLARED_WORK_HOURS
 
 
 def is_auto_submit_window(now=None) -> bool:
@@ -144,7 +151,7 @@ def auto_submit_one_report(report: DailyWorkReport, *, dry_run: bool = False) ->
             return reason
 
         if report.declared_work_hours is None or report.declared_work_hours <= 0:
-            report.declared_work_hours = DEFAULT_DECLARED_WORK_HOURS
+            report.declared_work_hours = _default_declared_work_hours()
 
         now = timezone.now()
         report.status = DailyWorkReport.STATUS_SUBMITTED
@@ -154,13 +161,17 @@ def auto_submit_one_report(report: DailyWorkReport, *, dry_run: bool = False) ->
         report.save()
         lock_production_steps_on_submit(report)
 
+        submit_at = _configured_auto_submit_time()
         DailyWorkReportEditLog.objects.create(
             report=report,
             edited_by=None,
             actor_kind=DailyWorkReportEditLog.ACTOR_EMPLOYEE,
             action=DailyWorkReportEditLog.ACTION_SUBMIT,
-            summary='Hệ thống tự động gửi báo cáo lúc 23:30.',
-            detail=f'Thời gian làm việc: {report.declared_work_hours} giờ (mặc định 9,50 nếu trống).',
+            summary=(
+                f'Hệ thống tự động gửi báo cáo lúc '
+                f'{submit_at.hour:02d}:{submit_at.minute:02d}.'
+            ),
+            detail=f'Thời gian làm việc: {report.declared_work_hours} giờ.',
         )
 
         ProductionReportReminderLog.objects.get_or_create(

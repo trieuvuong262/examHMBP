@@ -107,18 +107,30 @@
   .jp-report-settings .jp-rs-grid {
     display: grid;
   }
+  .jp-report-settings .jp-rs-grid-2 {
+    display: grid;
+  }
   @media (min-width: 768px) {
     .jp-report-settings .jp-rs-grid {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
-    .jp-report-settings .jp-rs-grid .jp-rs-row {
+    .jp-report-settings .jp-rs-grid-2 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .jp-report-settings .jp-rs-grid .jp-rs-row,
+    .jp-report-settings .jp-rs-grid-2 .jp-rs-row {
       flex-direction: column;
       align-items: flex-start;
       border-bottom: 0;
       border-right: 1px solid var(--rs-border);
     }
-    .jp-report-settings .jp-rs-grid .jp-rs-row:last-child {
+    .jp-report-settings .jp-rs-grid .jp-rs-row:nth-child(2n),
+    .jp-report-settings .jp-rs-grid-2 .jp-rs-row:nth-child(2n) {
       border-right: 0;
+    }
+    .jp-report-settings .jp-rs-grid .jp-rs-row:nth-child(-n+2),
+    .jp-report-settings .jp-rs-grid-2 .jp-rs-row:nth-child(-n+2) {
+      border-bottom: 1px solid var(--rs-border);
     }
   }
 </style>
@@ -149,18 +161,14 @@
                         <p class="jp-rs-row-label">{{ form.workers_may_edit_stage_time.label }}</p>
                         <div class="form-check form-switch">
                             {{ form.workers_may_edit_stage_time }}
-                            <label class="form-check-label" for="{{ form.workers_may_edit_stage_time.id_for_label }}">
-                                {{ form.workers_may_edit_stage_time.label }}
-                            </label>
+                            <label class="form-check-label" for="{{ form.workers_may_edit_stage_time.id_for_label }}">{{ form.workers_may_edit_stage_time.label }}</label>
                         </div>
                     </div>
                     <div class="jp-rs-row">
                         <p class="jp-rs-row-label">{{ form.managers_may_edit_stage_time.label }}</p>
                         <div class="form-check form-switch">
                             {{ form.managers_may_edit_stage_time }}
-                            <label class="form-check-label" for="{{ form.managers_may_edit_stage_time.id_for_label }}">
-                                {{ form.managers_may_edit_stage_time.label }}
-                            </label>
+                            <label class="form-check-label" for="{{ form.managers_may_edit_stage_time.id_for_label }}">{{ form.managers_may_edit_stage_time.label }}</label>
                         </div>
                     </div>
                 </div>
@@ -173,13 +181,48 @@
                 <div class="jp-rs-panel-body">
                     <div class="jp-rs-row">
                         <p class="jp-rs-row-label">{{ form.auto_submit_time.label }}</p>
+                        <div class="jp-rs-field">{{ form.auto_submit_time }}</div>
+                    </div>
+                    {% if form.auto_submit_time.errors %}<div class="px-3 pb-2 text-danger small">{{ form.auto_submit_time.errors }}</div>{% endif %}
+                    <div class="jp-rs-row">
+                        <p class="jp-rs-row-label">{{ form.default_declared_work_hours.label }}</p>
                         <div class="jp-rs-field">
-                            {{ form.auto_submit_time }}
+                            {{ form.default_declared_work_hours }}
+                            <span class="jp-rs-unit">giờ</span>
                         </div>
                     </div>
-                    {% if form.auto_submit_time.errors %}
-                    <div class="px-3 pb-2 text-danger small">{{ form.auto_submit_time.errors }}</div>
-                    {% endif %}
+                    {% if form.default_declared_work_hours.errors %}<div class="px-3 pb-2 text-danger small">{{ form.default_declared_work_hours.errors }}</div>{% endif %}
+                    <div class="jp-rs-row">
+                        <p class="jp-rs-row-label">{{ form.auto_approve_proxy_reports.label }}</p>
+                        <div class="form-check form-switch">
+                            {{ form.auto_approve_proxy_reports }}
+                            <label class="form-check-label" for="{{ form.auto_approve_proxy_reports.id_for_label }}">{{ form.auto_approve_proxy_reports.label }}</label>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="jp-rs-panel">
+                <div class="jp-rs-panel-head">
+                    <h3>Khoảng giờ hợp lệ</h3>
+                </div>
+                <div class="jp-rs-panel-body jp-rs-grid-2">
+                    <div class="jp-rs-row">
+                        <p class="jp-rs-row-label">{{ form.work_hours_min.label }}</p>
+                        <div class="jp-rs-field">
+                            {{ form.work_hours_min }}
+                            <span class="jp-rs-unit">giờ</span>
+                        </div>
+                        {% if form.work_hours_min.errors %}<div class="text-danger small">{{ form.work_hours_min.errors }}</div>{% endif %}
+                    </div>
+                    <div class="jp-rs-row">
+                        <p class="jp-rs-row-label">{{ form.work_hours_max.label }}</p>
+                        <div class="jp-rs-field">
+                            {{ form.work_hours_max }}
+                            <span class="jp-rs-unit">giờ</span>
+                        </div>
+                        {% if form.work_hours_max.errors %}<div class="text-danger small">{{ form.work_hours_max.errors }}</div>{% endif %}
+                    </div>
                 </div>
             </section>
 
@@ -194,9 +237,7 @@
                             {{ form.approve_deadline_hours }}
                             <span class="jp-rs-unit">giờ</span>
                         </div>
-                        {% if form.approve_deadline_hours.errors %}
-                        <div class="text-danger small">{{ form.approve_deadline_hours.errors }}</div>
-                        {% endif %}
+                        {% if form.approve_deadline_hours.errors %}<div class="text-danger small">{{ form.approve_deadline_hours.errors }}</div>{% endif %}
                     </div>
                     <div class="jp-rs-row">
                         <p class="jp-rs-row-label">{{ form.auto_reject_deadline_hours.label }}</p>
@@ -204,9 +245,15 @@
                             {{ form.auto_reject_deadline_hours }}
                             <span class="jp-rs-unit">giờ</span>
                         </div>
-                        {% if form.auto_reject_deadline_hours.errors %}
-                        <div class="text-danger small">{{ form.auto_reject_deadline_hours.errors }}</div>
-                        {% endif %}
+                        {% if form.auto_reject_deadline_hours.errors %}<div class="text-danger small">{{ form.auto_reject_deadline_hours.errors }}</div>{% endif %}
+                    </div>
+                    <div class="jp-rs-row">
+                        <p class="jp-rs-row-label">{{ form.employee_edit_deadline_hours.label }}</p>
+                        <div class="jp-rs-field">
+                            {{ form.employee_edit_deadline_hours }}
+                            <span class="jp-rs-unit">giờ</span>
+                        </div>
+                        {% if form.employee_edit_deadline_hours.errors %}<div class="text-danger small">{{ form.employee_edit_deadline_hours.errors }}</div>{% endif %}
                     </div>
                     <div class="jp-rs-row">
                         <p class="jp-rs-row-label">{{ form.unapprove_deadline_days.label }}</p>
@@ -214,9 +261,7 @@
                             {{ form.unapprove_deadline_days }}
                             <span class="jp-rs-unit">ngày</span>
                         </div>
-                        {% if form.unapprove_deadline_days.errors %}
-                        <div class="text-danger small">{{ form.unapprove_deadline_days.errors }}</div>
-                        {% endif %}
+                        {% if form.unapprove_deadline_days.errors %}<div class="text-danger small">{{ form.unapprove_deadline_days.errors }}</div>{% endif %}
                     </div>
                 </div>
             </section>

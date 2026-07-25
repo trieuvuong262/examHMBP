@@ -2510,6 +2510,7 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
     approve_overdue = False
     approve_deadline_hours = None
     auto_reject_deadline_hours = None
+    employee_edit_deadline_hours = None
     unapprove_deadline_days = None
     if report.is_production_report and report.status == DailyWorkReport.STATUS_SUBMITTED:
         from reports.report_lock import (
@@ -2520,6 +2521,7 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
         from reports.report_settings import (
             report_approve_deadline_hours,
             report_auto_reject_deadline_hours,
+            report_employee_edit_deadline_hours,
             report_unapprove_deadline_days,
         )
 
@@ -2528,6 +2530,7 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
         approve_overdue = is_production_approve_overdue(report)
         approve_deadline_hours = report_approve_deadline_hours()
         auto_reject_deadline_hours = report_auto_reject_deadline_hours()
+        employee_edit_deadline_hours = report_employee_edit_deadline_hours()
         unapprove_deadline_days = report_unapprove_deadline_days()
     if (
         can_edit_norm
@@ -2583,10 +2586,10 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
     ):
         if can_unapprove:
             from reports.report_lock import unapprove_production_report
-            from reports.report_settings import report_auto_reject_deadline_hours
+            from reports.report_settings import report_employee_edit_deadline_hours
 
             unapprove_production_report(report)
-            hours = report_auto_reject_deadline_hours()
+            hours = report_employee_edit_deadline_hours()
             messages.success(
                 request,
                 f'Đã hoàn duyệt — nhân viên có thể chỉnh sửa lại nếu còn trong hạn {hours} giờ.',
@@ -2841,6 +2844,7 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
         'approve_overdue': approve_overdue,
         'approve_deadline_hours': approve_deadline_hours,
         'auto_reject_deadline_hours': auto_reject_deadline_hours,
+        'employee_edit_deadline_hours': employee_edit_deadline_hours,
         'unapprove_deadline_days': unapprove_deadline_days,
         'can_comment': can_comment,
         'comments': _report_comments_queryset(report),

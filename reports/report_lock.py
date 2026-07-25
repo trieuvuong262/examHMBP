@@ -13,6 +13,8 @@ from reports.report_settings import (
     report_approve_deadline_hours,
     report_auto_reject_deadline_hours,
     report_auto_reject_window,
+    report_employee_edit_deadline_hours,
+    report_employee_edit_window,
     report_manager_edit_window,
     report_unapprove_deadline_days,
 )
@@ -82,8 +84,10 @@ def is_production_auto_reject_expired(report) -> bool:
 
 
 def production_employee_edit_deadline(report):
-    """Hạn sửa của nhân viên sau khi nộp báo cáo SX (= hạn không duyệt Y)."""
-    return production_auto_reject_deadline(report)
+    """Hạn sửa của nhân viên sau khi nộp báo cáo SX."""
+    if report.status != DailyWorkReport.STATUS_SUBMITTED or not report.submitted_at:
+        return None
+    return report.submitted_at + report_employee_edit_window()
 
 
 def production_manager_edit_deadline(report):
@@ -204,7 +208,11 @@ def approve_production_report(report) -> None:
 
 
 def auto_approve_fully_proxy_entered_report(report) -> bool:
-    """Báo cáo SX nhập hộ toàn bộ — mặc định đã duyệt."""
+    """Báo cáo SX nhập hộ toàn bộ — mặc định đã duyệt (theo thiết lập chung)."""
+    from reports.report_settings import auto_approve_proxy_reports
+
+    if not auto_approve_proxy_reports():
+        return False
     if not report or not report.pk:
         return False
     if not is_production_report(report):
@@ -245,6 +253,7 @@ def production_edit_denied_message(report, *, viewer=None) -> str:
     from hrm.permissions import can_review_user_report
 
     reject_hours = report_auto_reject_deadline_hours()
+    edit_hours = report_employee_edit_deadline_hours()
     unapprove_days = report_unapprove_deadline_days()
 
     if getattr(report, 'hod_rejected', False) and not report.hod_reviewed:
@@ -270,7 +279,7 @@ def production_edit_denied_message(report, *, viewer=None) -> str:
         if deadline and timezone.now() > deadline:
             local_deadline = timezone.localtime(deadline)
             return (
-                f'Đã quá {reject_hours} giờ kể từ khi nộp — hạn sửa '
+                f'Đã quá {edit_hours} giờ kể từ khi nộp — hạn sửa '
                 f'{local_deadline.strftime("%H:%M %d/%m/%Y")}.'
             )
     if is_report_edit_expired(report):

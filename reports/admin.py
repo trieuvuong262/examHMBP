@@ -140,11 +140,14 @@ class ProductionReportReminderLogAdmin(admin.ModelAdmin):
 @admin.register(ReportsGeneralSettings)
 class ReportsGeneralSettingsAdmin(admin.ModelAdmin):
     list_display = (
-        'workers_may_edit_stage_time',
-        'managers_may_edit_stage_time',
         'auto_submit_time',
+        'default_declared_work_hours',
+        'work_hours_min',
+        'work_hours_max',
+        'auto_approve_proxy_reports',
         'approve_deadline_hours',
         'auto_reject_deadline_hours',
+        'employee_edit_deadline_hours',
         'unapprove_deadline_days',
         'updated_at',
     )

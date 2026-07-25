@@ -1,5 +1,6 @@
 import os
 from datetime import time
+from decimal import Decimal
 
 from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator
@@ -704,7 +705,37 @@ class ReportsGeneralSettings(models.Model):
         default=24,
         validators=[MinValueValidator(1), MaxValueValidator(168)],
         verbose_name='Thời hạn không duyệt (giờ)',
-        help_text='Sau khi nộp — quá hạn tự chuyển «Không duyệt». Cũng là hạn CN sửa sau nộp.',
+        help_text='Sau khi nộp — quá hạn tự chuyển «Không duyệt».',
+    )
+    employee_edit_deadline_hours = models.PositiveSmallIntegerField(
+        default=24,
+        validators=[MinValueValidator(1), MaxValueValidator(168)],
+        verbose_name='Thời hạn CN sửa sau nộp (giờ)',
+    )
+    default_declared_work_hours = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal('9.50'),
+        validators=[MinValueValidator(Decimal('0.01')), MaxValueValidator(Decimal('23.99'))],
+        verbose_name='Giờ làm việc mặc định khi tự nộp',
+    )
+    work_hours_min = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal('7.50'),
+        validators=[MinValueValidator(Decimal('0.01')), MaxValueValidator(Decimal('23.99'))],
+        verbose_name='Giờ làm việc tối thiểu',
+    )
+    work_hours_max = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal('16.00'),
+        validators=[MinValueValidator(Decimal('0.01')), MaxValueValidator(Decimal('24.00'))],
+        verbose_name='Giờ làm việc tối đa (không gồm)',
+    )
+    auto_approve_proxy_reports = models.BooleanField(
+        default=True,
+        verbose_name='Tự duyệt báo cáo nhập hộ toàn bộ',
     )
     updated_at = models.DateTimeField(auto_now=True)
     updated_by = models.ForeignKey(
@@ -726,16 +757,35 @@ class ReportsGeneralSettings(models.Model):
     def clean(self):
         from django.core.exceptions import ValidationError
 
+        errors = {}
         if (
             self.auto_reject_deadline_hours is not None
             and self.approve_deadline_hours is not None
             and self.auto_reject_deadline_hours < self.approve_deadline_hours
         ):
-            raise ValidationError({
-                'auto_reject_deadline_hours': (
-                    'Thời hạn không duyệt phải lớn hơn hoặc bằng thời hạn duyệt.'
-                ),
-            })
+            errors['auto_reject_deadline_hours'] = (
+                'Thời hạn không duyệt phải lớn hơn hoặc bằng thời hạn duyệt.'
+            )
+        if (
+            self.work_hours_min is not None
+            and self.work_hours_max is not None
+            and self.work_hours_min >= self.work_hours_max
+        ):
+            errors['work_hours_max'] = 'Giờ tối đa phải lớn hơn giờ tối thiểu.'
+        if (
+            self.default_declared_work_hours is not None
+            and self.work_hours_min is not None
+            and self.work_hours_max is not None
+            and (
+                self.default_declared_work_hours < self.work_hours_min
+                or self.default_declared_work_hours >= self.work_hours_max
+            )
+        ):
+            errors['default_declared_work_hours'] = (
+                'Giờ mặc định phải nằm trong khoảng giờ hợp lệ.'
+            )
+        if errors:
+            raise ValidationError(errors)
 
     @classmethod
     def load(cls):

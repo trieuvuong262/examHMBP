@@ -8,7 +8,7 @@
             <div class="modal-body">
                 <p class="mb-0">
                     Nhân viên có thể sửa lại nếu còn trong hạn
-                    {% if auto_reject_deadline_hours %}{{ auto_reject_deadline_hours }} giờ{% else %}24 giờ{% endif %}
+                    {% if employee_edit_deadline_hours %}{{ employee_edit_deadline_hours }} giờ{% else %}24 giờ{% endif %}
                     sau khi nộp. Quản lý chỉ hoàn duyệt được trong
                     {% if unapprove_deadline_days %}{{ unapprove_deadline_days }} ngày{% else %}1 tuần{% endif %}
                     sau khi duyệt.

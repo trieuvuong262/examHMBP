@@ -2029,13 +2029,30 @@ PRODUCTION_WORK_HOURS_MAX = Decimal('16')
 PRODUCTION_MAX_SUBMIT_EFFICIENCY_PCT = 200
 
 
+def _production_work_hours_bounds():
+    from reports.report_settings import report_work_hours_max, report_work_hours_min
+
+    try:
+        low = report_work_hours_min()
+        high = report_work_hours_max()
+    except Exception:
+        low = PRODUCTION_WORK_HOURS_MIN
+        high = PRODUCTION_WORK_HOURS_MAX
+    if low >= high:
+        return PRODUCTION_WORK_HOURS_MIN, PRODUCTION_WORK_HOURS_MAX
+    return low, high
+
+
 def validate_production_work_hours(value):
-    """Thời gian làm việc khi gửi báo cáo SX: bắt buộc, từ 7,50h đến dưới 16h."""
+    """Thời gian làm việc khi gửi báo cáo SX: bắt buộc, trong khoảng thiết lập chung."""
     hours = parse_decimal(value)
     if hours is None:
         return None, 'Nhập thời gian làm việc.'
-    if hours < PRODUCTION_WORK_HOURS_MIN or hours >= PRODUCTION_WORK_HOURS_MAX:
-        return None, 'Thời gian làm việc phải từ 7,50 đến 15,99 giờ.'
+    low, high = _production_work_hours_bounds()
+    if hours < low or hours >= high:
+        low_s = f'{low:.2f}'.replace('.', ',')
+        high_s = f'{(high - Decimal("0.01")):.2f}'.replace('.', ',')
+        return None, f'Thời gian làm việc phải từ {low_s} đến {high_s} giờ.'
     return hours, ''
 
 
