@@ -610,7 +610,12 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
         damaged_quantity = parse_int(request.POST.get('damaged_quantity'))
         note = (request.POST.get('note') or '').strip()
         zero_reason = (request.POST.get('zero_reason') or '').strip()
-        may_edit_time = viewer_may_edit_stage_time(request.user, report)
+        may_edit_time = viewer_may_edit_stage_time(
+            request.user,
+            report,
+            product=product,
+            for_wrong_stage=content_edit_only,
+        )
         start_time = (request.POST.get('start_time') or '').strip() if may_edit_time else ''
         end_time = (request.POST.get('end_time') or '').strip() if may_edit_time else ''
         if total_qty < 0:
@@ -707,7 +712,7 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
         if not content_edit_only:
             messages.error(request, 'Chỉ có thể thêm công đoạn ở màn chỉnh sửa báo cáo đã nộp.')
             return redirect(_production_redirect(report_date, shift, for_user or None, 'phase=review'))
-        if not viewer_may_edit_stage_time(request.user, report):
+        if not viewer_may_edit_stage_time(request.user, report, for_wrong_stage=True):
             messages.error(request, 'Không được phép sửa thời gian công đoạn theo thiết lập chung.')
             return redirect(_production_redirect(report_date, shift, for_user or None, content_edit_extra))
         code = (request.POST.get('product_code') or '').strip()
@@ -1298,7 +1303,11 @@ def today_production_hourly(request, report_date, report_context_common):
         'is_edit_expired': is_edit_expired,
         'employee_edit_deadline': employee_edit_deadline,
         'may_edit_stage_time': (
-            viewer_may_edit_stage_time(request.user, report)
+            viewer_may_edit_stage_time(
+                request.user,
+                report,
+                for_wrong_stage=content_edit_only,
+            )
             if report and report.pk
             else True
         ),

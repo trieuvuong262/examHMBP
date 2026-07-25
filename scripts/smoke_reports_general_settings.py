@@ -24,6 +24,7 @@ from reports.production_report_reminders import (
     auto_submit_report_date,
     is_auto_submit_window,
 )
+from reports.production_hourly import viewer_may_edit_stage_time
 from reports.report_lock import (
     production_approve_deadline,
     production_auto_reject_deadline,
@@ -32,6 +33,7 @@ from reports.report_lock import (
 )
 from reports.report_profile import REPORT_PROFILE_PRODUCTION
 from reports.report_settings import (
+    allow_edit_wrong_stage_time,
     managers_may_edit_stage_time,
     report_approve_deadline_hours,
     report_auto_reject_deadline_hours,
@@ -61,6 +63,7 @@ def _form_data(**overrides):
     base = {
         'workers_may_edit_stage_time': True,
         'managers_may_edit_stage_time': True,
+        'allow_edit_wrong_stage_time': True,
         'auto_submit_time': '23:30',
         'default_declared_work_hours': '9.50',
         'night_auto_submit_enabled': True,
@@ -90,6 +93,7 @@ else:
 snap_fields = (
     'workers_may_edit_stage_time',
     'managers_may_edit_stage_time',
+    'allow_edit_wrong_stage_time',
     'auto_submit_time',
     'default_declared_work_hours',
     'night_auto_submit_enabled',
@@ -107,7 +111,8 @@ snap = {k: getattr(cfg, k) for k in snap_fields}
 
 try:
     cfg.workers_may_edit_stage_time = False
-    cfg.managers_may_edit_stage_time = True
+    cfg.managers_may_edit_stage_time = False
+    cfg.allow_edit_wrong_stage_time = True
     cfg.auto_submit_time = time(22, 15)
     cfg.default_declared_work_hours = Decimal('9.50')
     cfg.night_auto_submit_enabled = True
@@ -121,7 +126,8 @@ try:
 
     checks = [
         (workers_may_edit_stage_time() is False, 'workers_may_edit_stage_time=False'),
-        (managers_may_edit_stage_time() is True, 'managers_may_edit_stage_time=True'),
+        (managers_may_edit_stage_time() is False, 'managers_may_edit_stage_time=False'),
+        (allow_edit_wrong_stage_time() is True, 'allow_edit_wrong_stage_time=True'),
         (report_auto_submit_time() == time(22, 15), 'auto_submit_time=22:15'),
         (report_night_auto_submit_enabled() is True, 'night_auto_submit_enabled=True'),
         (report_night_auto_submit_time() == time(5, 0), 'night_auto_submit_time=05:00'),
@@ -136,6 +142,30 @@ try:
             ok(label)
         else:
             fail(label)
+
+    # Override: tắt quyền sửa giờ thường nhưng bật «báo cáo sai» → vẫn sửa được khi for_wrong_stage
+    admin_user = get_user_model().objects.filter(is_superuser=True).first()
+    worker = get_user_model().objects.order_by('id').first()
+    if admin_user and worker:
+        fake_report = DailyWorkReport(employee=worker)
+        if viewer_may_edit_stage_time(admin_user, fake_report):
+            fail('manager should not edit stage time when managers_may_edit=False')
+        else:
+            ok('managers_may_edit=False blocks normal stage time edit')
+        if not viewer_may_edit_stage_time(admin_user, fake_report, for_wrong_stage=True):
+            fail('for_wrong_stage should allow stage time when allow_edit_wrong=True')
+        else:
+            ok('for_wrong_stage allows stage time despite managers_may_edit=False')
+        cfg.allow_edit_wrong_stage_time = False
+        cfg.save()
+        if viewer_may_edit_stage_time(admin_user, fake_report, for_wrong_stage=True):
+            fail('for_wrong_stage should block when allow_edit_wrong=False')
+        else:
+            ok('for_wrong_stage blocked when allow_edit_wrong=False')
+        cfg.allow_edit_wrong_stage_time = True
+        cfg.save()
+    else:
+        ok('skip wrong-stage override (no users)')
 
     # Form: Y < X bị từ chối
     bad = ReportsGeneralSettingsForm(
@@ -266,6 +296,8 @@ try:
             body = r.content.decode('utf-8', errors='ignore')
             ok(f'GET settings as {admin.username} -> 200')
             for needle in (
+                'id_managers_may_edit_stage_time',
+                'id_allow_edit_wrong_stage_time',
                 'id_auto_submit_time',
                 'id_night_auto_submit_enabled',
                 'id_night_auto_submit_time',

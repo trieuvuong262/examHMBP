@@ -113,5 +113,10 @@ def managers_may_edit_stage_time() -> bool:
     return report_bool('managers_may_edit_stage_time', True)
 
 
+def allow_edit_wrong_stage_time() -> bool:
+    """Báo cáo / công đoạn sai — vẫn cho sửa giờ dù tắt quyền sửa giờ thường."""
+    return report_bool('allow_edit_wrong_stage_time', True)
+
+
 def auto_approve_proxy_reports() -> bool:
     return report_bool('auto_approve_proxy_reports', True)

@@ -684,6 +684,11 @@ class ReportsGeneralSettings(models.Model):
         default=True,
         verbose_name='Quản lý được sửa thời gian công đoạn',
     )
+    allow_edit_wrong_stage_time = models.BooleanField(
+        default=True,
+        verbose_name='Báo cáo sai: cho sửa thời gian công đoạn sai',
+        help_text='Khi bật — vẫn sửa được giờ công đoạn sai dù đã tắt quyền sửa giờ thường.',
+    )
     auto_submit_time = models.TimeField(
         default=time(23, 30),
         verbose_name='Giờ tự động nộp ca sáng',

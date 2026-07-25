@@ -39,7 +39,7 @@
         <div class="row g-2 jp-proxy-session-meta">
             <div class="col-6 col-lg-2">
                 <label class="form-label jp-proxy-label">Giờ bắt đầu</label>
-                {% if session_locked %}
+                {% if session_locked or sess.lock_stage_times %}
                 <div class="form-control form-control-sm bg-light text-muted s-start-time-readonly">{{ sess.start_time|default:"—" }}</div>
                 <input type="hidden" class="s-start-time" value="{{ sess.start_time }}">
                 {% else %}
@@ -48,7 +48,7 @@
             </div>
             <div class="col-6 col-lg-2">
                 <label class="form-label jp-proxy-label">Giờ kết thúc</label>
-                {% if session_locked %}
+                {% if session_locked or sess.lock_stage_times %}
                 <div class="form-control form-control-sm bg-light text-muted s-end-time-readonly">{{ sess.end_time|default:"—" }}</div>
                 <input type="hidden" class="s-end-time" value="{{ sess.end_time }}">
                 {% else %}

@@ -171,6 +171,13 @@
                             <label class="form-check-label" for="{{ form.managers_may_edit_stage_time.id_for_label }}">{{ form.managers_may_edit_stage_time.label }}</label>
                         </div>
                     </div>
+                    <div class="jp-rs-row">
+                        <p class="jp-rs-row-label">{{ form.allow_edit_wrong_stage_time.label }}</p>
+                        <div class="form-check form-switch">
+                            {{ form.allow_edit_wrong_stage_time }}
+                            <label class="form-check-label" for="{{ form.allow_edit_wrong_stage_time.id_for_label }}">{{ form.allow_edit_wrong_stage_time.label }}</label>
+                        </div>
+                    </div>
                 </div>
             </section>
 

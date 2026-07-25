@@ -183,12 +183,31 @@ def report_steps_editable_for_viewer(viewer, report: DailyWorkReport) -> bool:
     return production_employee_may_edit(report)
 
 
-def viewer_may_edit_stage_time(viewer, report: DailyWorkReport) -> bool:
-    """Có được sửa started_at/ended_at công đoạn theo thiết lập chung."""
-    from reports.report_settings import managers_may_edit_stage_time, workers_may_edit_stage_time
+def viewer_may_edit_stage_time(
+    viewer,
+    report: DailyWorkReport,
+    *,
+    product: ProductionShiftProduct | None = None,
+    for_wrong_stage: bool = False,
+) -> bool:
+    """Có được sửa started_at/ended_at công đoạn theo thiết lập chung.
+
+    for_wrong_stage / product sai: nếu bật «Báo cáo sai: cho sửa giờ công đoạn sai»
+    thì vẫn cho sửa dù đã tắt quyền sửa giờ thường của CN/QL.
+    """
+    from reports.report_settings import (
+        allow_edit_wrong_stage_time,
+        managers_may_edit_stage_time,
+        workers_may_edit_stage_time,
+    )
 
     if not viewer or not report:
         return False
+    wrong = for_wrong_stage
+    if not wrong and product is not None:
+        wrong = product_has_manager_fixable_anomaly(product)
+    if wrong and allow_edit_wrong_stage_time():
+        return True
     if report.employee_id == viewer.id:
         return workers_may_edit_stage_time()
     return managers_may_edit_stage_time()
@@ -2550,11 +2569,14 @@ def build_proxy_shift_sessions(report: DailyWorkReport) -> dict:
 
 def enrich_proxy_shift_sessions_for_anomaly_fix(data: dict, report: DailyWorkReport) -> dict:
     """Đánh dấu công đoạn đúng (khóa) / sai (cho sửa) trên form sửa báo cáo chưa nộp."""
+    from reports.report_settings import allow_edit_wrong_stage_time
+
     if not report or not report.pk or report.status == DailyWorkReport.STATUS_SUBMITTED:
         return data
     anomaly_ids = anomaly_product_ids_for_report(report)
     if not anomaly_ids:
         return data
+    may_edit_wrong_times = allow_edit_wrong_stage_time()
     sessions = []
     for sess in data.get('sessions') or []:
         product_id = sess.get('product_id')
@@ -2563,6 +2585,7 @@ def enrich_proxy_shift_sessions_for_anomaly_fix(data: dict, report: DailyWorkRep
             **sess,
             'is_anomaly': is_anomaly,
             'session_locked': not is_anomaly,
+            'lock_stage_times': bool(is_anomaly and not may_edit_wrong_times),
         })
     return {**data, 'sessions': sessions, 'anomaly_fix_mode': True}
 
@@ -2620,6 +2643,8 @@ def _resolve_proxy_session_interval(
 
 def _normalize_anomaly_fix_sessions(report: DailyWorkReport, sessions: list[dict]) -> list[dict]:
     """Chỉ cho sửa công đoạn sai — công đoạn đúng giữ nguyên từ DB."""
+    from reports.report_settings import allow_edit_wrong_stage_time
+
     products = list(
         report.production_products.prefetch_related('hourly_entries').order_by('sort_order', 'id')
     )
@@ -2649,10 +2674,19 @@ def _normalize_anomaly_fix_sessions(report: DailyWorkReport, sessions: list[dict
             'Phải giữ nguyên các công đoạn đúng — không được xóa công đoạn đã khóa.'
         )
 
+    may_edit_wrong_times = allow_edit_wrong_stage_time()
     normalized: list[dict] = []
     for product in products:
         if product.id in anomaly_ids:
-            normalized.append(submitted_by_id[product.id])
+            sess = submitted_by_id[product.id]
+            if not may_edit_wrong_times:
+                locked = locked_forms[product.id]
+                sess = {
+                    **sess,
+                    'start_time': locked.get('start_time') or '',
+                    'end_time': locked.get('end_time') or '',
+                }
+            normalized.append(sess)
         else:
             normalized.append(locked_forms[product.id])
     return normalized
@@ -2675,10 +2709,17 @@ def _prepare_proxy_sessions_for_save(
         if content_edit_only:
             product_id = parse_int(sess.get('product_id'), -1)
             if product_id >= 0 and product_id in snapshot:
-                # Giữ giờ gốc chỉ khi form không gửi (công đoạn khóa / thiếu input).
-                if not (sess.get('start_time') or '').strip():
+                from reports.report_settings import (
+                    allow_edit_wrong_stage_time,
+                    managers_may_edit_stage_time,
+                )
+                may_change_times = (
+                    managers_may_edit_stage_time() or allow_edit_wrong_stage_time()
+                )
+                # Giữ giờ gốc khi form không gửi, hoặc khi thiết lập không cho sửa giờ.
+                if not may_change_times or not (sess.get('start_time') or '').strip():
                     sess['start_time'] = snapshot[product_id]['start_time']
-                if not (sess.get('end_time') or '').strip():
+                if not may_change_times or not (sess.get('end_time') or '').strip():
                     sess['end_time'] = snapshot[product_id]['end_time']
 
         if not _proxy_session_has_input(sess):
