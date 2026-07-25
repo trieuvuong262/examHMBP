@@ -1,100 +1,234 @@
 {% extends 'base.html' %}
 
+{% block extra_head %}
+<style>
+  .jp-report-settings {
+    --rs-border: #e2e8f0;
+    --rs-soft: #f8fafc;
+    --rs-muted: #64748b;
+  }
+  .jp-report-settings .jp-rs-top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem 1rem;
+    margin-bottom: 1.25rem;
+  }
+  .jp-report-settings .jp-rs-title {
+    margin: 0;
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--hm-primary, #dc2626);
+  }
+  .jp-report-settings .jp-rs-meta {
+    margin: 0;
+    font-size: .8125rem;
+    color: var(--rs-muted);
+  }
+  .jp-report-settings .jp-rs-panel {
+    background: #fff;
+    border: 1px solid var(--rs-border);
+    border-radius: .75rem;
+    margin-bottom: 1rem;
+    overflow: hidden;
+  }
+  .jp-report-settings .jp-rs-panel-head {
+    padding: .85rem 1.15rem;
+    background: var(--rs-soft);
+    border-bottom: 1px solid var(--rs-border);
+  }
+  .jp-report-settings .jp-rs-panel-head h3 {
+    margin: 0;
+    font-size: .95rem;
+    font-weight: 700;
+    color: #0f172a;
+  }
+  .jp-report-settings .jp-rs-panel-body {
+    padding: .25rem 0;
+  }
+  .jp-report-settings .jp-rs-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: .9rem 1.15rem;
+    border-bottom: 1px solid var(--rs-border);
+  }
+  .jp-report-settings .jp-rs-row:last-child {
+    border-bottom: 0;
+  }
+  .jp-report-settings .jp-rs-row-label {
+    margin: 0;
+    font-size: .9375rem;
+    font-weight: 600;
+    color: #0f172a;
+  }
+  .jp-report-settings .jp-rs-row .form-check {
+    margin: 0;
+    min-height: 0;
+    padding-left: 2.5em;
+  }
+  .jp-report-settings .jp-rs-row .form-check-input {
+    width: 2.5em;
+    height: 1.35em;
+    margin-left: -2.5em;
+    cursor: pointer;
+  }
+  .jp-report-settings .jp-rs-row .form-check-label {
+    display: none;
+  }
+  .jp-report-settings .jp-rs-field {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    flex-shrink: 0;
+  }
+  .jp-report-settings .jp-rs-field .form-control {
+    width: 6.5rem;
+    text-align: center;
+  }
+  .jp-report-settings .jp-rs-field .form-control[type="time"] {
+    width: 8rem;
+  }
+  .jp-report-settings .jp-rs-unit {
+    font-size: .875rem;
+    color: var(--rs-muted);
+    font-weight: 600;
+    min-width: 2.25rem;
+  }
+  .jp-report-settings .jp-rs-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .75rem;
+    margin-top: 1.25rem;
+  }
+  .jp-report-settings .jp-rs-grid {
+    display: grid;
+  }
+  @media (min-width: 768px) {
+    .jp-report-settings .jp-rs-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .jp-report-settings .jp-rs-grid .jp-rs-row {
+      flex-direction: column;
+      align-items: flex-start;
+      border-bottom: 0;
+      border-right: 1px solid var(--rs-border);
+    }
+    .jp-report-settings .jp-rs-grid .jp-rs-row:last-child {
+      border-right: 0;
+    }
+  }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container jp-page py-3 py-md-4 mb-5">
-    <div class="jp-page-header mb-3">
-        <h2 class="fw-bold text-hm jp-page-title">Thiết lập chung báo cáo</h2>
-        <p class="text-muted small mb-0">Cấu hình quyền sửa giờ công đoạn, giờ tự nộp và các hạn duyệt báo cáo SX.</p>
+<div class="container jp-page jp-report-settings py-3 py-md-4 mb-5">
+    <div class="jp-rs-top">
+        <h2 class="jp-rs-title">Thiết lập chung</h2>
+        {% if cfg.updated_at %}
+        <p class="jp-rs-meta">Cập nhật {{ cfg.updated_at|date:"H:i d/m/Y" }}</p>
+        {% endif %}
     </div>
 
-    <form method="post" class="card border-0 shadow-sm">
-        <div class="card-body p-4">
-            {% csrf_token %}
-            {% if form.non_field_errors %}
-            <div class="alert alert-danger">{{ form.non_field_errors }}</div>
-            {% endif %}
+    <form method="post">
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+        <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+        {% endif %}
 
-            <fieldset {% if not can_update %}disabled{% endif %}>
-                <h6 class="fw-bold text-hm mb-3">Sửa thời gian công đoạn</h6>
-                <div class="form-check form-switch mb-3">
-                    {{ form.workers_may_edit_stage_time }}
-                    <label class="form-check-label" for="{{ form.workers_may_edit_stage_time.id_for_label }}">
-                        {{ form.workers_may_edit_stage_time.label }}
-                    </label>
+        <fieldset {% if not can_update %}disabled{% endif %}>
+            <section class="jp-rs-panel">
+                <div class="jp-rs-panel-head">
+                    <h3>Sửa thời gian công đoạn</h3>
                 </div>
-                <div class="form-check form-switch mb-4">
-                    {{ form.managers_may_edit_stage_time }}
-                    <label class="form-check-label" for="{{ form.managers_may_edit_stage_time.id_for_label }}">
-                        {{ form.managers_may_edit_stage_time.label }}
-                    </label>
+                <div class="jp-rs-panel-body">
+                    <div class="jp-rs-row">
+                        <p class="jp-rs-row-label">{{ form.workers_may_edit_stage_time.label }}</p>
+                        <div class="form-check form-switch">
+                            {{ form.workers_may_edit_stage_time }}
+                            <label class="form-check-label" for="{{ form.workers_may_edit_stage_time.id_for_label }}">
+                                {{ form.workers_may_edit_stage_time.label }}
+                            </label>
+                        </div>
+                    </div>
+                    <div class="jp-rs-row">
+                        <p class="jp-rs-row-label">{{ form.managers_may_edit_stage_time.label }}</p>
+                        <div class="form-check form-switch">
+                            {{ form.managers_may_edit_stage_time }}
+                            <label class="form-check-label" for="{{ form.managers_may_edit_stage_time.id_for_label }}">
+                                {{ form.managers_may_edit_stage_time.label }}
+                            </label>
+                        </div>
+                    </div>
                 </div>
+            </section>
 
-                <h6 class="fw-bold text-hm mb-3">Tự động nộp</h6>
-                <div class="mb-4" style="max-width: 12rem;">
-                    <label class="form-label fw-bold" for="{{ form.auto_submit_time.id_for_label }}">
-                        {{ form.auto_submit_time.label }}
-                    </label>
-                    {{ form.auto_submit_time }}
-                    {% if form.auto_submit_time.help_text %}
-                    <div class="form-text">{{ form.auto_submit_time.help_text }}</div>
+            <section class="jp-rs-panel">
+                <div class="jp-rs-panel-head">
+                    <h3>Tự động nộp</h3>
+                </div>
+                <div class="jp-rs-panel-body">
+                    <div class="jp-rs-row">
+                        <p class="jp-rs-row-label">{{ form.auto_submit_time.label }}</p>
+                        <div class="jp-rs-field">
+                            {{ form.auto_submit_time }}
+                        </div>
+                    </div>
+                    {% if form.auto_submit_time.errors %}
+                    <div class="px-3 pb-2 text-danger small">{{ form.auto_submit_time.errors }}</div>
                     {% endif %}
-                    {% if form.auto_submit_time.errors %}<div class="text-danger small">{{ form.auto_submit_time.errors }}</div>{% endif %}
                 </div>
+            </section>
 
-                <h6 class="fw-bold text-hm mb-3">Hạn duyệt / hoàn duyệt / không duyệt</h6>
-                <div class="row g-3 mb-2">
-                    <div class="col-md-4">
-                        <label class="form-label fw-bold" for="{{ form.approve_deadline_hours.id_for_label }}">
-                            {{ form.approve_deadline_hours.label }}
-                        </label>
-                        <div class="input-group">
+            <section class="jp-rs-panel">
+                <div class="jp-rs-panel-head">
+                    <h3>Hạn duyệt</h3>
+                </div>
+                <div class="jp-rs-panel-body jp-rs-grid">
+                    <div class="jp-rs-row">
+                        <p class="jp-rs-row-label">{{ form.approve_deadline_hours.label }}</p>
+                        <div class="jp-rs-field">
                             {{ form.approve_deadline_hours }}
-                            <span class="input-group-text">giờ</span>
+                            <span class="jp-rs-unit">giờ</span>
                         </div>
-                        {% if form.approve_deadline_hours.help_text %}
-                        <div class="form-text">{{ form.approve_deadline_hours.help_text }}</div>
+                        {% if form.approve_deadline_hours.errors %}
+                        <div class="text-danger small">{{ form.approve_deadline_hours.errors }}</div>
                         {% endif %}
-                        {% if form.approve_deadline_hours.errors %}<div class="text-danger small">{{ form.approve_deadline_hours.errors }}</div>{% endif %}
                     </div>
-                    <div class="col-md-4">
-                        <label class="form-label fw-bold" for="{{ form.auto_reject_deadline_hours.id_for_label }}">
-                            {{ form.auto_reject_deadline_hours.label }}
-                        </label>
-                        <div class="input-group">
+                    <div class="jp-rs-row">
+                        <p class="jp-rs-row-label">{{ form.auto_reject_deadline_hours.label }}</p>
+                        <div class="jp-rs-field">
                             {{ form.auto_reject_deadline_hours }}
-                            <span class="input-group-text">giờ</span>
+                            <span class="jp-rs-unit">giờ</span>
                         </div>
-                        {% if form.auto_reject_deadline_hours.help_text %}
-                        <div class="form-text">{{ form.auto_reject_deadline_hours.help_text }}</div>
+                        {% if form.auto_reject_deadline_hours.errors %}
+                        <div class="text-danger small">{{ form.auto_reject_deadline_hours.errors }}</div>
                         {% endif %}
-                        {% if form.auto_reject_deadline_hours.errors %}<div class="text-danger small">{{ form.auto_reject_deadline_hours.errors }}</div>{% endif %}
                     </div>
-                    <div class="col-md-4">
-                        <label class="form-label fw-bold" for="{{ form.unapprove_deadline_days.id_for_label }}">
-                            {{ form.unapprove_deadline_days.label }}
-                        </label>
-                        <div class="input-group">
+                    <div class="jp-rs-row">
+                        <p class="jp-rs-row-label">{{ form.unapprove_deadline_days.label }}</p>
+                        <div class="jp-rs-field">
                             {{ form.unapprove_deadline_days }}
-                            <span class="input-group-text">ngày</span>
+                            <span class="jp-rs-unit">ngày</span>
                         </div>
-                        {% if form.unapprove_deadline_days.help_text %}
-                        <div class="form-text">{{ form.unapprove_deadline_days.help_text }}</div>
+                        {% if form.unapprove_deadline_days.errors %}
+                        <div class="text-danger small">{{ form.unapprove_deadline_days.errors }}</div>
                         {% endif %}
-                        {% if form.unapprove_deadline_days.errors %}<div class="text-danger small">{{ form.unapprove_deadline_days.errors }}</div>{% endif %}
                     </div>
                 </div>
-            </fieldset>
+            </section>
+        </fieldset>
 
+        <div class="jp-rs-actions">
             {% if can_update %}
-            <button type="submit" class="btn btn-hm fw-bold mt-3">Lưu thiết lập</button>
+            <button type="submit" class="btn btn-hm fw-bold px-4">Lưu</button>
             {% else %}
-            <p class="text-muted small mb-0 mt-3">Bạn chỉ được xem — không có quyền cập nhật.</p>
+            <p class="jp-rs-meta mb-0">Chỉ xem — không có quyền cập nhật.</p>
             {% endif %}
         </div>
     </form>
-
-    {% if cfg.updated_at %}
-    <p class="text-muted small mt-3 mb-0">Cập nhật lần cuối: {{ cfg.updated_at|date:"H:i d/m/Y" }}{% if cfg.updated_by %} — {{ cfg.updated_by }}{% endif %}</p>
-    {% endif %}
 </div>
 {% endblock %}

@@ -10,6 +10,15 @@ _CHECK = forms.CheckboxInput(attrs={'class': 'form-check-input', 'role': 'switch
 _TIME = forms.TimeInput(attrs={'class': 'form-control', 'type': 'time', 'step': 60})
 _NUM = forms.NumberInput(attrs={'class': 'form-control', 'min': 1})
 
+_LABELS = {
+    'workers_may_edit_stage_time': 'Công nhân được sửa',
+    'managers_may_edit_stage_time': 'Quản lý được sửa',
+    'auto_submit_time': 'Giờ tự động nộp',
+    'approve_deadline_hours': 'Thời hạn duyệt',
+    'auto_reject_deadline_hours': 'Thời hạn không duyệt',
+    'unapprove_deadline_days': 'Thời hạn hoàn duyệt',
+}
+
 
 class ReportsGeneralSettingsForm(forms.ModelForm):
     class Meta:
@@ -19,8 +28,8 @@ class ReportsGeneralSettingsForm(forms.ModelForm):
             'managers_may_edit_stage_time',
             'auto_submit_time',
             'approve_deadline_hours',
-            'unapprove_deadline_days',
             'auto_reject_deadline_hours',
+            'unapprove_deadline_days',
         )
         widgets = {
             'workers_may_edit_stage_time': _CHECK,
@@ -30,6 +39,8 @@ class ReportsGeneralSettingsForm(forms.ModelForm):
             'unapprove_deadline_days': _NUM,
             'auto_reject_deadline_hours': _NUM,
         }
+        labels = _LABELS
+        help_texts = {key: '' for key in _LABELS}
 
     def clean(self):
         cleaned = super().clean()
