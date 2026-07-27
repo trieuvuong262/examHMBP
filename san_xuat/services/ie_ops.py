@@ -854,7 +854,7 @@ def delete_routing_line(*, routing: SxRouting, line_pk: int) -> None:
 
 
 def build_ie_dashboard() -> dict:
-    """Số liệu dashboard kiểu sheet 07_DASHBOARD."""
+    """Số liệu dashboard kiểu sheet 07_DASHBOARD + dữ liệu biểu đồ."""
     from django.db.models import Avg, Count, Sum, Q as DQ
 
     style_rows = []
@@ -871,6 +871,8 @@ def build_ie_dashboard() -> dict:
         )
         .order_by('style_code', 'routing_rev')
     ):
+        total = r.sum_smv or Decimal('0')
+        sew = r.sew_smv or Decimal('0')
         style_rows.append({
             'style_code': r.style_code,
             'product_family': r.product_family or r.style_name,
@@ -879,9 +881,13 @@ def build_ie_dashboard() -> dict:
             'pk': r.pk,
             'approval_status': r.approval_status,
             'operation_count': r.n_lines or 0,
-            'total_smv': r.sum_smv or Decimal('0'),
-            'sewing_smv': r.sew_smv or Decimal('0'),
+            'total_smv': total,
+            'sewing_smv': sew,
+            'other_smv': total - sew,
             'avg_target_efficiency': r.avg_target_eff or Decimal('0'),
+            'sew_share_pct': (
+                _q(sew / total * Decimal('100'), '0.1') if total else Decimal('0')
+            ),
         })
 
     high_var = list(
@@ -892,29 +898,61 @@ def build_ie_dashboard() -> dict:
         .order_by('-smv_variance_pct')[:40]
     )
     pending_ops = SxOperation.objects.exclude(status=SxOperation.STATUS_APPROVED).count()
+    ops_approved = SxOperation.objects.filter(status=SxOperation.STATUS_APPROVED).count()
+    ops_total = SxOperation.objects.count()
     pending_routings = SxRouting.objects.exclude(approval_status=SxRouting.APPROVAL_APPROVED).count()
+    routings_approved = SxRouting.objects.filter(approval_status=SxRouting.APPROVAL_APPROVED).count()
     zero_smv_lines = SxRoutingLine.objects.filter(applied_unit_smv__lte=0).count()
     ts_total = SxTimeStudy.objects.count()
     ts_linked = SxTimeStudy.objects.exclude(operation_id=None).count()
+    ts_approved = SxTimeStudy.objects.filter(approval_status=SxTimeStudy.APPROVAL_APPROVED).count()
+    ts_pending = SxTimeStudy.objects.filter(approval_status=SxTimeStudy.APPROVAL_PENDING).count()
+    high_var_count = SxRoutingLine.objects.filter(
+        DQ(smv_variance_pct__gt=VARIANCE_LIMIT_PCT) | DQ(smv_variance_pct__lt=-VARIANCE_LIMIT_PCT)
+    ).count()
+    max_smv = max((float(r['total_smv'] or 0) for r in style_rows), default=0) or 1
+    for r in style_rows:
+        r['smv_bar_pct'] = round(float(r['total_smv'] or 0) / max_smv * 100, 1)
+        r['sew_bar_pct'] = round(float(r['sewing_smv'] or 0) / max_smv * 100, 1)
+        r['other_bar_pct'] = max(0.0, round(r['smv_bar_pct'] - r['sew_bar_pct'], 1))
+
+    chart_style_labels = [r['style_code'] for r in style_rows]
+    chart_total_smv = [float(r['total_smv'] or 0) for r in style_rows]
+    chart_sew_smv = [float(r['sewing_smv'] or 0) for r in style_rows]
+    chart_other_smv = [float(r['other_smv'] or 0) for r in style_rows]
 
     return {
         'style_rows': style_rows,
         'high_var_lines': high_var,
         'pending_ops': pending_ops,
+        'ops_approved': ops_approved,
+        'ops_approval_pct': round(ops_approved / ops_total * 100, 1) if ops_total else 0,
         'pending_routings': pending_routings,
+        'routings_approved': routings_approved,
         'zero_smv_lines': zero_smv_lines,
-        'high_var_count': SxRoutingLine.objects.filter(
-            DQ(smv_variance_pct__gt=VARIANCE_LIMIT_PCT) | DQ(smv_variance_pct__lt=-VARIANCE_LIMIT_PCT)
-        ).count(),
+        'high_var_count': high_var_count,
         'groups': SxOperationGroup.objects.count(),
-        'operations': SxOperation.objects.count(),
+        'operations': ops_total,
         'routings': SxRouting.objects.count(),
         'routing_lines': SxRoutingLine.objects.count(),
         'time_studies': ts_total,
         'time_studies_linked': ts_linked,
         'time_studies_unlinked': ts_total - ts_linked,
+        'time_studies_approved': ts_approved,
+        'time_studies_pending': ts_pending,
+        'ts_link_pct': round(ts_linked / ts_total * 100, 1) if ts_total else 0,
         'styles': SxRouting.objects.values('style_code').distinct().count(),
         'variance_limit': VARIANCE_LIMIT_PCT,
+        'max_smv': max_smv,
+        'total_smv_all': sum((r['total_smv'] for r in style_rows), Decimal('0')),
+        'total_sew_smv_all': sum((r['sewing_smv'] for r in style_rows), Decimal('0')),
+        'chart_style_labels': chart_style_labels,
+        'chart_total_smv': chart_total_smv,
+        'chart_sew_smv': chart_sew_smv,
+        'chart_other_smv': chart_other_smv,
+        'chart_op_status': [ops_approved, pending_ops],
+        'chart_routing_status': [routings_approved, pending_routings],
+        'chart_ts_status': [ts_approved, ts_pending, max(0, ts_total - ts_approved - ts_pending)],
     }
 
 

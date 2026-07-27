@@ -669,10 +669,19 @@ def time_study_list(request):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def ie_dashboard(request):
+    import json
+
     data = build_ie_dashboard()
     return render(request, 'san_xuat/ie_dashboard.html', {
         **_perm_ctx(request),
         **data,
+        'chart_style_labels_json': json.dumps(data['chart_style_labels'], ensure_ascii=False),
+        'chart_total_smv_json': json.dumps(data['chart_total_smv']),
+        'chart_sew_smv_json': json.dumps(data['chart_sew_smv']),
+        'chart_other_smv_json': json.dumps(data['chart_other_smv']),
+        'chart_op_status_json': json.dumps(data['chart_op_status']),
+        'chart_routing_status_json': json.dumps(data['chart_routing_status']),
+        'chart_ts_status_json': json.dumps(data['chart_ts_status']),
     })
 
 
