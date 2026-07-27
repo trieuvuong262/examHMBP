@@ -39,7 +39,7 @@ def is_production_report_user(user) -> bool:
     return get_report_profile(user) == REPORT_PROFILE_PRODUCTION
 
 
-def filter_team_members_for_report_profile(team, report_profile: str):
+def filter_team_members_for_report_profile(team, report_profile: str, *, viewer=None):
     """Lọc danh sách NV team theo loại báo cáo.
 
     SX: NV phòng sản xuất (công nhân).
@@ -48,12 +48,16 @@ def filter_team_members_for_report_profile(team, report_profile: str):
     if report_profile == REPORT_PROFILE_PRODUCTION:
         return team.filter(profile__department__report_profile=REPORT_PROFILE_PRODUCTION)
     if report_profile == REPORT_PROFILE_OFFICE:
-        return _office_team_members(team)
+        return _office_team_members(team, viewer=viewer)
     return team
 
 
-def _office_team_members(team):
-    """NV hiển thị trên Quản lý BC (VP) — không loại NV văn phòng trong phòng SX."""
+def _office_team_members(team, *, viewer=None):
+    """NV hiển thị trên Quản lý BC (VP) — không loại NV văn phòng trong phòng SX.
+
+    Nếu viewer là manager cụ thể (không phải company-wide), tất cả prod_dept đã được
+    gán làm cấp dưới đều được hiển thị mà không cần lịch sử BC VP hay menu daily_vp.
+    """
     from hrm.menu_permissions import user_can_access_menu
     from hrm.module_permissions import MODULE_REPORTS
 
@@ -61,6 +65,13 @@ def _office_team_members(team):
     prod_dept = team.filter(profile__department__report_profile=REPORT_PROFILE_PRODUCTION)
     if not prod_dept.exists():
         return office_dept
+
+    # Nếu viewer là manager cụ thể (không phải company-wide), tất cả subordinates
+    # trong prod_dept đều được hiển thị — manager đã chủ động gán họ vào VP team.
+    if viewer is not None:
+        from hrm.permissions import has_company_wide_report_access
+        if not has_company_wide_report_access(viewer):
+            return (office_dept | prod_dept).distinct()
 
     from reports.models import DailyWorkReport
 

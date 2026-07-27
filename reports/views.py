@@ -1712,7 +1712,7 @@ def _team_queryset(viewer, search_query, *, report_profile: str | None = None):
         'profile__division',
     ).order_by('profile__department__sort_order', 'profile__full_name', 'username')
     if report_profile:
-        team = filter_team_members_for_report_profile(team, report_profile)
+        team = filter_team_members_for_report_profile(team, report_profile, viewer=viewer)
     return apply_user_search(team, search_query)
 
 
