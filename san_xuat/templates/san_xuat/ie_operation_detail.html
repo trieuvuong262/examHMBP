@@ -42,7 +42,7 @@
           <label class="form-label small mb-0">Nhóm</label>
           <select name="group_id" class="form-select form-select-sm ie-ts" {% if not can_update %}disabled{% endif %} required>
             {% for g in groups %}
-            <option value="{{ g.pk }}" {% if g.pk == op.group_id %}selected{% endif %}>{{ g.code }} — {{ g.name }}</option>
+            <option value="{{ g.pk }}" {% if g.pk == op.group_id %}selected{% endif %}>{{ g.name }}</option>
             {% endfor %}
           </select>
         </div>
