@@ -24,7 +24,7 @@
     </div>
   </div>
 
-  <form method="post" class="card border-0 shadow-sm mb-3">
+  <form method="post" class="card border-0 shadow-sm mb-3" id="ie-op-form">
     {% csrf_token %}
     <input type="hidden" name="action" value="save_operation">
     <div class="card-body">
@@ -37,9 +37,10 @@
           <label class="form-label small mb-0">Tên (EN)</label>
           <input type="text" name="name_en" class="form-control form-control-sm" maxlength="200" value="{{ op.name_en }}" {% if not can_update %}readonly{% endif %}>
         </div>
+
         <div class="col-md-4">
           <label class="form-label small mb-0">Nhóm</label>
-          <select name="group_id" class="form-select form-select-sm" {% if not can_update %}disabled{% endif %}>
+          <select name="group_id" class="form-select form-select-sm ie-ts" {% if not can_update %}disabled{% endif %} required>
             {% for g in groups %}
             <option value="{{ g.pk }}" {% if g.pk == op.group_id %}selected{% endif %}>{{ g.code }} — {{ g.name }}</option>
             {% endfor %}
@@ -47,7 +48,7 @@
         </div>
         <div class="col-md-4">
           <label class="form-label small mb-0">SMV thư viện (phút)</label>
-          <input type="text" name="base_smv_min" class="form-control form-control-sm" value="{{ op.base_smv_min }}" {% if not can_update %}readonly{% endif %}>
+          <input type="number" name="base_smv_min" class="form-control form-control-sm" step="0.0001" min="0" value="{{ op.base_smv_min }}" {% if not can_update %}readonly{% endif %}>
           <div class="form-text">Đổi SMV khi đã duyệt → về nháp, cần duyệt lại.</div>
         </div>
         <div class="col-md-4">
@@ -61,33 +62,88 @@
             {% endfor %}
           </select>
         </div>
+
         <div class="col-md-3">
           <label class="form-label small mb-0">Khâu SX</label>
-          <input type="text" name="process_stage_label" class="form-control form-control-sm" value="{{ op.process_stage_label }}" {% if not can_update %}readonly{% endif %}>
+          <select name="process_stage_label" class="form-select form-select-sm" {% if not can_update %}disabled{% endif %}>
+            <option value="">— Chọn khâu —</option>
+            {% for s in process_stages %}
+            <option value="{{ s.name }}" {% if s.name == op.process_stage_label %}selected{% endif %}>{{ s.name }}</option>
+            {% endfor %}
+          </select>
         </div>
         <div class="col-md-3">
           <label class="form-label small mb-0">Cụm chi tiết</label>
-          <input type="text" name="product_part" class="form-control form-control-sm" value="{{ op.product_part }}" {% if not can_update %}readonly{% endif %}>
+          <select name="product_part" class="form-select form-select-sm ie-ts" {% if not can_update %}disabled{% endif %}>
+            <option value="">— Chọn cụm —</option>
+            {% for p in product_parts %}
+            <option value="{{ p }}" {% if p == op.product_part %}selected{% endif %}>{{ p }}</option>
+            {% endfor %}
+          </select>
         </div>
         <div class="col-md-3">
-          <label class="form-label small mb-0">Máy (mã)</label>
-          <input type="text" name="machine_code" class="form-control form-control-sm" value="{{ op.machine_code }}" {% if not can_update %}readonly{% endif %}>
+          <label class="form-label small mb-0">Máy móc</label>
+          <select name="machine_code" class="form-select form-select-sm ie-ts" {% if not can_update %}disabled{% endif %}>
+            <option value="">— Không chọn —</option>
+            {% for m in machines %}
+            <option value="{{ m.code }}" {% if m.code == op.machine_code %}selected{% endif %}>{{ m.code }} — {{ m.name }}</option>
+            {% endfor %}
+          </select>
         </div>
         <div class="col-md-3">
           <label class="form-label small mb-0">Bậc kỹ năng</label>
-          <input type="text" name="skill_level_label" class="form-control form-control-sm" value="{{ op.skill_level_label }}" {% if not can_update %}readonly{% endif %}>
+          <select name="skill_level_label" class="form-select form-select-sm" {% if not can_update %}disabled{% endif %}>
+            <option value="">— Không chọn —</option>
+            {% for s in skill_levels %}
+            <option value="{{ s.name }}" {% if s.name == op.skill_level_label or s.code == op.skill_level_label %}selected{% endif %}>{{ s.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label small mb-0">Lớp mũi may</label>
+          <select name="stitch_class_code" class="form-select form-select-sm" {% if not can_update %}disabled{% endif %}>
+            <option value="">— Không chọn —</option>
+            {% for s in stitch_classes %}
+            <option value="{{ s.code }}" {% if op.stitch_class_id == s.pk %}selected{% endif %}>{{ s.code }}{% if s.name and s.name != s.code %} — {{ s.name }}{% endif %}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small mb-0">Nguồn SMV</label>
+          <select name="smv_source_code" class="form-select form-select-sm" {% if not can_update %}disabled{% endif %}>
+            <option value="">— Không chọn —</option>
+            {% for s in smv_sources %}
+            <option value="{{ s.code }}" {% if op.smv_source_id == s.pk %}selected{% endif %}>{{ s.name }}</option>
+            {% endfor %}
+          </select>
         </div>
         <div class="col-md-3">
           <label class="form-label small mb-0">Đơn vị SMV</label>
-          <input type="text" name="smv_basis" class="form-control form-control-sm" value="{{ op.smv_basis }}" {% if not can_update %}readonly{% endif %}>
+          <select name="smv_basis" class="form-select form-select-sm ie-ts" {% if not can_update %}disabled{% endif %}>
+            <option value="">— Chọn đơn vị —</option>
+            {% for b in smv_basis_choices %}
+            <option value="{{ b }}" {% if b == op.smv_basis %}selected{% endif %}>{{ b }}</option>
+            {% endfor %}
+          </select>
         </div>
         <div class="col-md-3">
           <label class="form-label small mb-0">IE owner</label>
-          <input type="text" name="ie_owner" class="form-control form-control-sm" value="{{ op.ie_owner }}" {% if not can_update %}readonly{% endif %}>
+          <select name="ie_owner" class="form-select form-select-sm" {% if not can_update %}disabled{% endif %}>
+            <option value="">— Không chọn —</option>
+            {% for o in ie_owners %}
+            <option value="{{ o }}" {% if o == op.ie_owner %}selected{% endif %}>{{ o }}</option>
+            {% endfor %}
+          </select>
         </div>
+
         <div class="col-md-6">
           <label class="form-label small mb-0">Lý do phiên bản</label>
           <input type="text" name="revision_reason" class="form-control form-control-sm" value="{{ op.revision_reason }}" {% if not can_update %}readonly{% endif %}>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label small mb-0">Ghi chú</label>
+          <input type="text" name="notes" class="form-control form-control-sm" value="{{ op.notes }}" {% if not can_update %}readonly{% endif %}>
         </div>
         <div class="col-12">
           <label class="form-label small mb-0">Mô tả phương pháp</label>
@@ -104,10 +160,6 @@
         <div class="col-md-6">
           <label class="form-label small mb-0">Link video</label>
           <input type="url" name="video_url" class="form-control form-control-sm" value="{{ op.video_url }}" {% if not can_update %}readonly{% endif %}>
-        </div>
-        <div class="col-12">
-          <label class="form-label small mb-0">Ghi chú</label>
-          <input type="text" name="notes" class="form-control form-control-sm" value="{{ op.notes }}" {% if not can_update %}readonly{% endif %}>
         </div>
       </div>
       {% if can_update %}
@@ -139,4 +191,26 @@
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+{% if can_update %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/css/tom-select.bootstrap5.min.css">
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/js/tom-select.complete.min.js"></script>
+<script>
+(function () {
+  if (typeof TomSelect === 'undefined') return;
+  document.querySelectorAll('#ie-op-form select.ie-ts').forEach(function (sel) {
+    if (sel.tomselect) return;
+    new TomSelect(sel, {
+      allowEmptyOption: true,
+      create: false,
+      maxOptions: null,
+      sortField: { field: 'text', direction: 'asc' },
+      plugins: ['clear_button'],
+    });
+  });
+})();
+</script>
+{% endif %}
 {% endblock %}

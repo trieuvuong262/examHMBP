@@ -399,6 +399,8 @@ def update_operation(
     method_variant: str | None = None,
     machine_code: str | None = None,
     skill_level_label: str | None = None,
+    stitch_class_code: str | None = None,
+    smv_source_code: str | None = None,
     base_smv_min: Decimal | None = None,
     smv_basis: str | None = None,
     qc_criteria: str | None = None,
@@ -413,7 +415,7 @@ def update_operation(
     if operation is None:
         raise IeOpsError('Thiếu công đoạn.')
 
-    from san_xuat.ie_models import SxIeAuditLog, SxMachine
+    from san_xuat.ie_models import SxIeAuditLog, SxMachine, SxSkillLevel, SxSmvSource, SxStitchClass
     from san_xuat.services.ie_audit import log_ie_event
 
     changes: dict = {}
@@ -443,14 +445,59 @@ def update_operation(
     _set('process_stage_label', None if process_stage_label is None else process_stage_label.strip()[:100])
     _set('product_part', None if product_part is None else product_part.strip()[:120])
     _set('method_variant', None if method_variant is None else method_variant.strip())
+
     if machine_code is not None:
         code = machine_code.strip()[:40]
         machine = SxMachine.objects.filter(code=code).first() if code else None
         _set('machine_code', code)
         if operation.machine_id != (machine.pk if machine else None):
-            changes['machine'] = {'from': str(operation.machine_id or ''), 'to': str(machine.pk if machine else '')}
+            changes['machine'] = {
+                'from': str(operation.machine_id or ''),
+                'to': str(machine.pk if machine else ''),
+            }
             operation.machine = machine
-    _set('skill_level_label', None if skill_level_label is None else skill_level_label.strip()[:60])
+
+    if skill_level_label is not None:
+        label = skill_level_label.strip()[:60]
+        skill = None
+        if label:
+            skill = (
+                SxSkillLevel.objects.filter(name=label).first()
+                or SxSkillLevel.objects.filter(code=label).first()
+            )
+        _set('skill_level_label', label)
+        if operation.skill_level_id != (skill.pk if skill else None):
+            changes['skill_level'] = {
+                'from': str(operation.skill_level_id or ''),
+                'to': str(skill.pk if skill else ''),
+            }
+            operation.skill_level = skill
+
+    if stitch_class_code is not None:
+        code = stitch_class_code.strip()[:40]
+        stitch = SxStitchClass.objects.filter(code=code).first() if code else None
+        if operation.stitch_class_id != (stitch.pk if stitch else None):
+            changes['stitch_class'] = {
+                'from': str(operation.stitch_class_id or ''),
+                'to': str(stitch.pk if stitch else ''),
+            }
+            operation.stitch_class = stitch
+
+    if smv_source_code is not None:
+        code = smv_source_code.strip()[:40]
+        src = None
+        if code:
+            src = (
+                SxSmvSource.objects.filter(code=code).first()
+                or SxSmvSource.objects.filter(name=code).first()
+            )
+        if operation.smv_source_id != (src.pk if src else None):
+            changes['smv_source'] = {
+                'from': str(operation.smv_source_id or ''),
+                'to': str(src.pk if src else ''),
+            }
+            operation.smv_source = src
+
     if base_smv_min is not None:
         if base_smv_min < 0:
             raise IeOpsError('SMV không được âm.')
@@ -467,7 +514,6 @@ def update_operation(
         allowed = {c[0] for c in SxOperation.STATUS_CHOICES}
         if status not in allowed:
             raise IeOpsError('Trạng thái không hợp lệ.')
-        # Không tự duyệt qua form sửa — dùng nút Duyệt.
         if status == SxOperation.STATUS_APPROVED and operation.status != SxOperation.STATUS_APPROVED:
             raise IeOpsError('Dùng nút Duyệt để phê duyệt công đoạn.')
         _set('status', status)
@@ -477,13 +523,15 @@ def update_operation(
         operation.status = SxOperation.STATUS_DRAFT
         operation.approved_by = ''
         operation.approved_at = None
-        changes['status'] = {'from': SxOperation.STATUS_APPROVED, 'to': SxOperation.STATUS_DRAFT, 'reason': 'smv_changed'}
+        changes['status'] = {
+            'from': SxOperation.STATUS_APPROVED,
+            'to': SxOperation.STATUS_DRAFT,
+            'reason': 'smv_changed',
+        }
 
     if not changes:
         return operation
 
-    fields = list(changes.keys())
-    # Always touch updated_at
     operation.save()
     action = SxIeAuditLog.ACTION_SMV_CHANGE if smv_changed else SxIeAuditLog.ACTION_UPDATE
     log_ie_event(

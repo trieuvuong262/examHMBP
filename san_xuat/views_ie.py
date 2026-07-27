@@ -412,7 +412,10 @@ def operation_list(request):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def operation_detail(request, pk: int):
-    op = get_object_or_404(SxOperation.objects.select_related('group', 'machine'), pk=pk)
+    op = get_object_or_404(
+        SxOperation.objects.select_related('group', 'machine', 'skill_level', 'stitch_class', 'smv_source'),
+        pk=pk,
+    )
     perms = _perm_ctx(request)
 
     if request.method == 'POST':
@@ -444,6 +447,8 @@ def operation_detail(request, pk: int):
                     method_variant=request.POST.get('method_variant'),
                     machine_code=request.POST.get('machine_code'),
                     skill_level_label=request.POST.get('skill_level_label'),
+                    stitch_class_code=request.POST.get('stitch_class_code'),
+                    smv_source_code=request.POST.get('smv_source_code'),
                     base_smv_min=smv,
                     smv_basis=request.POST.get('smv_basis'),
                     qc_criteria=request.POST.get('qc_criteria'),
@@ -461,10 +466,43 @@ def operation_detail(request, pk: int):
             messages.error(request, str(exc))
         return redirect('san_xuat:ie_operation_detail', pk=op.pk)
 
+    product_parts = list(
+        SxOperation.objects.exclude(product_part='')
+        .order_by('product_part')
+        .values_list('product_part', flat=True)
+        .distinct()
+    )
+    if op.product_part and op.product_part not in product_parts:
+        product_parts = [op.product_part] + product_parts
+    smv_basis_choices = list(
+        SxOperation.objects.exclude(smv_basis='')
+        .order_by('smv_basis')
+        .values_list('smv_basis', flat=True)
+        .distinct()
+    )
+    if op.smv_basis and op.smv_basis not in smv_basis_choices:
+        smv_basis_choices = [op.smv_basis] + smv_basis_choices
+    ie_owners = list(
+        SxOperation.objects.exclude(ie_owner='')
+        .order_by('ie_owner')
+        .values_list('ie_owner', flat=True)
+        .distinct()
+    )
+    if op.ie_owner and op.ie_owner not in ie_owners:
+        ie_owners = [op.ie_owner] + ie_owners
+
     return render(request, 'san_xuat/ie_operation_detail.html', {
         **perms,
         'op': op,
         'groups': SxOperationGroup.objects.filter(is_active=True).order_by('sort_order', 'code'),
+        'machines': SxMachine.objects.filter(is_active=True).order_by('sort_order', 'code'),
+        'skill_levels': SxSkillLevel.objects.filter(is_active=True).order_by('sort_order', 'code'),
+        'process_stages': SxProcessStage.objects.filter(is_active=True).order_by('sort_order', 'code'),
+        'stitch_classes': SxStitchClass.objects.filter(is_active=True).order_by('sort_order', 'code'),
+        'smv_sources': SxSmvSource.objects.filter(is_active=True).order_by('sort_order', 'code'),
+        'product_parts': product_parts,
+        'smv_basis_choices': smv_basis_choices,
+        'ie_owners': ie_owners,
         'status_choices': [
             c for c in SxOperation.STATUS_CHOICES if c[0] != SxOperation.STATUS_APPROVED
         ],
