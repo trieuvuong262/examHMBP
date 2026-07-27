@@ -66,7 +66,7 @@
                  value="{% if edit_line %}{{ edit_line.seq_no }}{% endif %}" placeholder="auto">
         </div>
         <div class="col-6 col-md-2">
-          <label class="form-label small mb-0">Mã CĐ</label>
+          <label class="form-label small mb-0">Mã CĐ <span class="text-danger">*</span></label>
           <input type="text" name="op_code" class="form-control form-control-sm" required maxlength="30"
                  value="{% if edit_line %}{{ edit_line.op_code }}{% endif %}" placeholder="SEW-…">
         </div>
@@ -86,7 +86,7 @@
                  value="{% if edit_line %}{{ edit_line.qty_per_garment }}{% else %}1{% endif %}">
         </div>
         <div class="col-4 col-md-1">
-          <label class="form-label small mb-0">SMV áp dụng</label>
+          <label class="form-label small mb-0">SMV áp dụng <span class="text-danger">*</span></label>
           <input type="text" name="applied_unit_smv" class="form-control form-control-sm" required
                  value="{% if edit_line %}{{ edit_line.applied_unit_smv }}{% endif %}">
         </div>
@@ -200,5 +200,7 @@
   </form>
   {% endfor %}
   {% endif %}
+
+  {% include 'san_xuat/includes/ie_smv_glossary.html' %}
 </div>
 {% endblock %}

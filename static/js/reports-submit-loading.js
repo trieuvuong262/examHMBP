@@ -159,12 +159,36 @@
         document.body.classList.remove('jp-report-submit-success-open');
     }
 
-    function showErrorModal() {
+    function showErrorModal(httpStatus) {
         hide();
         hideSuccess();
         if (!errorOverlay) {
             window.alert('Gửi báo cáo thất bại. Vui lòng kiểm tra kết nối mạng rồi gửi lại.');
             return;
+        }
+        var titleEl = document.getElementById('jpReportSubmitErrorTitle');
+        var detailEl = document.getElementById('jpReportSubmitErrorDetail');
+        var listEl = document.getElementById('jpReportSubmitErrorSteps');
+        if (httpStatus && httpStatus >= 400) {
+            if (titleEl) titleEl.textContent = 'Gửi báo cáo thất bại';
+            if (detailEl) {
+                detailEl.textContent = 'Máy chủ không lưu được báo cáo (mã ' + httpStatus + '). Vui lòng:';
+            }
+            if (listEl) {
+                listEl.innerHTML =
+                    '<li class="mb-1">Kiểm tra đã chọn đúng ngày/tuần báo cáo</li>' +
+                    '<li class="mb-1">Thử tải lại trang rồi gửi lại</li>' +
+                    '<li>Nếu vẫn lỗi, báo bộ phận IT kèm thời điểm gửi</li>';
+            }
+        } else {
+            if (titleEl) titleEl.textContent = 'Gửi báo cáo thất bại';
+            if (detailEl) detailEl.textContent = 'Không gửi được báo cáo. Vui lòng:';
+            if (listEl) {
+                listEl.innerHTML =
+                    '<li class="mb-1">Kiểm tra kết nối mạng (Wi‑Fi / dữ liệu di động)</li>' +
+                    '<li class="mb-1">Đợi mạng ổn định rồi thử lại</li>' +
+                    '<li>Bấm <strong>Gửi báo cáo</strong> lần nữa</li>';
+            }
         }
         errorOverlay.hidden = false;
         document.body.classList.add('jp-report-submit-error-open');
@@ -231,6 +255,15 @@
         if (!form || !canStartSubmit()) return false;
         beginSubmitLock();
         syncCkEditor();
+        // Đồng bộ bảng trước khi FormData — submit capture + stopImmediatePropagation
+        // chặn listener syncHidden của sheet.js.
+        var sheetHidden = form.querySelector('#id_spreadsheet_data');
+        if (sheetHidden && form.id === 'office-report-form') {
+            var sheetTable = document.getElementById('jpOfficeSheet');
+            if (sheetTable && typeof window.jpOfficeSheetSync === 'function') {
+                window.jpOfficeSheetSync();
+            }
+        }
         show(getSubmitMessage(form));
 
         var fd = buildFormData(form, submitter || null);
@@ -247,12 +280,14 @@
             },
         }).then(function (resp) {
             if (!resp.ok) {
-                throw new Error('HTTP ' + resp.status);
+                var err = new Error('HTTP ' + resp.status);
+                err.httpStatus = resp.status;
+                throw err;
             }
             showSuccess(resp.url || url);
-        }).catch(function () {
+        }).catch(function (err) {
             enableSubmitControls();
-            showErrorModal();
+            showErrorModal(err && err.httpStatus ? err.httpStatus : 0);
         });
         return true;
     }

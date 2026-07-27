@@ -982,52 +982,89 @@ def _today_office_report(request, report_date, *, report_period: str = PERIOD_DA
         form = OfficeDailyWorkReportForm(request.POST, request.FILES, instance=report, report_period=report_period)
         delete_ids = [int(pk) for pk in request.POST.getlist('delete_attachments') if pk.isdigit()]
         if form.is_valid():
-            _delete_daily_attachments(report, delete_ids)
-            was_submitted = bool(report.pk and report.status == DailyWorkReport.STATUS_SUBMITTED)
-            report = form.save(commit=False)
-            report.report_profile = REPORT_PROFILE_OFFICE
-            report.report_period = report_period
-            report.report_date = anchor_date_for_period(
+            target_date = anchor_date_for_period(
                 form.cleaned_data.get('report_date') or report_date,
                 report_period,
             )
-            report.shift = ''
-            messages.success(request, _finalize_report_submission(report, action))
-            report.save()
-            from reports.models import DailyWorkReportEditLog
-            from reports.report_edit_log import log_report_edit
-
-            log_report_edit(
-                report,
-                request.user,
-                action=(
-                    DailyWorkReportEditLog.ACTION_RESUBMIT
-                    if was_submitted
-                    else DailyWorkReportEditLog.ACTION_SUBMIT
-                ),
-                summary=(
-                    'Cập nhật báo cáo văn phòng.'
-                    if was_submitted
-                    else 'Gửi báo cáo văn phòng.'
-                ),
-            )
-            has_uploads = bool(
-                request.FILES.getlist('link_images')
-                or request.FILES.getlist('link_files'),
-            )
-            if has_uploads:
+            # Form chọn kỳ khác bản load từ URL → chuyển sang đúng bản ghi kỳ đó
+            # (tránh UPDATE report_date đè unique employee+date+profile+period+shift).
+            if report.report_date != target_date:
+                report = _ensure_daily_report_saved(
+                    _load_daily_report(
+                        request.user,
+                        target_date,
+                        report_profile=REPORT_PROFILE_OFFICE,
+                        report_period=report_period,
+                    ),
+                )
+                form = OfficeDailyWorkReportForm(
+                    request.POST,
+                    request.FILES,
+                    instance=report,
+                    report_period=report_period,
+                )
+            if form.is_valid():
+                _delete_daily_attachments(report, delete_ids)
+                was_submitted = bool(report.pk and report.status == DailyWorkReport.STATUS_SUBMITTED)
+                report = form.save(commit=False)
+                report.report_profile = REPORT_PROFILE_OFFICE
+                report.report_period = report_period
+                report.report_date = target_date
+                report.shift = ''
+                messages.success(request, _finalize_report_submission(report, action))
                 try:
-                    save_daily_uploads(
-                        report,
-                        link_images=request.FILES.getlist('link_images'),
-                        link_files=request.FILES.getlist('link_files'),
+                    report.save()
+                except Exception:
+                    logger.exception(
+                        'Office report save failed user=%s period=%s date=%s',
+                        request.user.pk,
+                        report_period,
+                        target_date,
                     )
-                except OSError as exc:
-                    logger.exception('Daily report attachment save failed: %s', exc)
-                    mark_storage_unavailable()
-            return redirect(
-                f'{reverse("reports:today_vp")}?{urlencode(period_query_param(report_period, report.report_date))}',
-            )
+                    messages.error(
+                        request,
+                        'Không lưu được báo cáo (có thể đã có báo cáo cùng kỳ). '
+                        'Thử chọn đúng tuần/ngày rồi gửi lại.',
+                    )
+                    return redirect(
+                        f'{reverse("reports:today_vp")}?'
+                        f'{urlencode(period_query_param(report_period, target_date))}',
+                    )
+                from reports.models import DailyWorkReportEditLog
+                from reports.report_edit_log import log_report_edit
+
+                log_report_edit(
+                    report,
+                    request.user,
+                    action=(
+                        DailyWorkReportEditLog.ACTION_RESUBMIT
+                        if was_submitted
+                        else DailyWorkReportEditLog.ACTION_SUBMIT
+                    ),
+                    summary=(
+                        'Cập nhật báo cáo văn phòng.'
+                        if was_submitted
+                        else 'Gửi báo cáo văn phòng.'
+                    ),
+                )
+                has_uploads = bool(
+                    request.FILES.getlist('link_images')
+                    or request.FILES.getlist('link_files'),
+                )
+                if has_uploads:
+                    try:
+                        save_daily_uploads(
+                            report,
+                            link_images=request.FILES.getlist('link_images'),
+                            link_files=request.FILES.getlist('link_files'),
+                        )
+                    except OSError as exc:
+                        logger.exception('Daily report attachment save failed: %s', exc)
+                        mark_storage_unavailable()
+                return redirect(
+                    f'{reverse("reports:today_vp")}?'
+                    f'{urlencode(period_query_param(report_period, report.report_date))}',
+                )
     else:
         form = OfficeDailyWorkReportForm(instance=report, report_period=report_period)
 
@@ -2111,7 +2148,8 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
     report_date = date_to
     if report_profile == REPORT_PROFILE_OFFICE:
         period_filter = parse_team_period_filter(request)
-        report_period = period_filter or PERIOD_DAY
+        # Rỗng = «Tất cả» (ngày + tuần + tháng) — không ép PERIOD_DAY.
+        report_period = period_filter
     else:
         period_filter = ''
         report_period = PERIOD_DAY

@@ -716,7 +716,7 @@
                     <thead class="table-light">
                       <tr>
                         <th style="width:5.5rem">Mã</th>
-                        <th>Tên</th>
+                        <th>Tên <span class="text-danger">*</span></th>
                         <th style="width:4.5rem">TT</th>
                         <th style="width:5rem">Dùng</th>
                         {% if can_update %}<th style="width:4.5rem"></th>{% endif %}
@@ -752,7 +752,7 @@
                   {% csrf_token %}
                   <input type="hidden" name="action" value="add_color">
                   <div class="col-4 col-md-3">
-                    <label class="form-label small text-muted mb-0">Mã</label>
+                    <label class="form-label small text-muted mb-0">Mã <span class="text-danger">*</span></label>
                     <input type="text" name="color_code" class="form-control form-control-sm text-uppercase" placeholder="NVY" maxlength="20" required>
                   </div>
                   <div class="col-5 col-md-5">
@@ -818,7 +818,7 @@
                   {% csrf_token %}
                   <input type="hidden" name="action" value="add_size">
                   <div class="col-4">
-                    <label class="form-label small text-muted mb-0">Size</label>
+                    <label class="form-label small text-muted mb-0">Size <span class="text-danger">*</span></label>
                     <input type="text" name="size_code" class="form-control form-control-sm text-uppercase" placeholder="XL" maxlength="20" required>
                   </div>
                   <div class="col-4">
@@ -851,7 +851,7 @@
               {% csrf_token %}
               <input type="hidden" name="action" value="add_ie_approver">
               <div class="col-md-6">
-                <label class="form-label small mb-0">Username</label>
+                <label class="form-label small mb-0">Username <span class="text-danger">*</span></label>
                 <input type="text" name="username" class="form-control form-control-sm" required placeholder="vd. nguyenvana" list="ie-sx-users">
                 <datalist id="ie-sx-users">
                   {% for u in ie_candidate_users %}<option value="{{ u.username }}">{{ u.get_full_name }}</option>{% endfor %}

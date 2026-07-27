@@ -16,7 +16,7 @@
       <form method="post" class="row g-2 align-items-end">
         {% csrf_token %}
         <div class="col-md-4">
-          <label class="form-label small">Mã quét (lệnh / thống kê sản xuất)</label>
+          <label class="form-label small">Mã quét (lệnh / thống kê sản xuất) <span class="text-danger">*</span></label>
           <input name="scan" class="form-control form-control-lg" autofocus placeholder="Ví dụ: Lệnh sản xuất-… hoặc Thống kê sản xuất-…" required>
         </div>
         <div class="col-md-3">

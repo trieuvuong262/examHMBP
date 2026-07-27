@@ -30,10 +30,24 @@ def normalize_spreadsheet_json(raw) -> dict:
     if not isinstance(raw, dict):
         return copy.deepcopy(DEFAULT_SPREADSHEET)
 
-    columns = [str(c) for c in raw.get('columns') or DEFAULT_SPREADSHEET['columns']]
+    columns_raw = raw.get('columns')
+    if not isinstance(columns_raw, list) or not columns_raw:
+        # Format cũ / lạ: {cols: N, data: [...]} hoặc thiếu columns
+        cols_count = raw.get('cols')
+        if isinstance(cols_count, int) and cols_count > 0:
+            columns = ['' for _ in range(cols_count)]
+        else:
+            columns = list(DEFAULT_SPREADSHEET['columns'])
+    else:
+        columns = [str(c) for c in columns_raw]
     if not columns:
         columns = ['', '', '']
-    rows_in = raw.get('rows') or []
+
+    rows_in = raw.get('rows')
+    if not isinstance(rows_in, list):
+        # rows là số (đếm) hoặc thiếu — thử lấy mảng data
+        rows_in = raw.get('data') if isinstance(raw.get('data'), list) else []
+
     rows = []
     for row in rows_in:
         if not isinstance(row, list):

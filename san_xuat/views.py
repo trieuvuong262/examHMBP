@@ -295,6 +295,19 @@ def doc_detail(request, pk):
             else:
                 messages.success(request, f'Đã tạo / cập nhật {len(rows)} SKU cho Style {doc.product_code}.')
             return redirect(f'{request.path}?tab=sku')
+        elif action == 'delete_sku':
+            from san_xuat.services.sku_catalog import SkuError, delete_sku
+
+            try:
+                deleted = delete_sku(
+                    sku_id=request.POST.get('sku_id'),
+                    style_code=doc.product_code,
+                )
+            except SkuError as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(request, f'Đã xóa SKU {deleted.sku_code}.')
+            return redirect(f'{request.path}?tab=sku')
 
     if can_update:
         if tab == 'info' and desc_form is None:

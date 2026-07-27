@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load sx_format %}
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
 
@@ -56,28 +57,28 @@
         <input type="hidden" name="step" value="1">
         <div class="row g-3">
           <div class="col-md-6">
-            <label class="form-label small text-muted">{{ create_form.product_code.label }}</label>
+            <label class="form-label small text-muted">{{ create_form.product_code.label }}{{ create_form.product_code|sx_req_star }}</label>
             {{ create_form.product_code }}
             {% if create_form.product_code.errors %}<div class="text-danger small">{{ create_form.product_code.errors }}</div>{% endif %}
           </div>
           <div class="col-md-3">
-            <label class="form-label small text-muted">{{ create_form.qty.label }}</label>
+            <label class="form-label small text-muted">{{ create_form.qty.label }}{{ create_form.qty|sx_req_star }}</label>
             {{ create_form.qty }}
           </div>
           <div class="col-md-3">
-            <label class="form-label small text-muted">{{ create_form.order_date.label }}</label>
+            <label class="form-label small text-muted">{{ create_form.order_date.label }}{{ create_form.order_date|sx_req_star }}</label>
             {{ create_form.order_date }}
           </div>
           <div class="col-md-6">
-            <label class="form-label small text-muted">{{ create_form.team_label.label }}</label>
+            <label class="form-label small text-muted">{{ create_form.team_label.label }}{{ create_form.team_label|sx_req_star }}</label>
             {{ create_form.team_label }}
           </div>
           <div class="col-md-6">
-            <label class="form-label small text-muted">{{ create_form.due_date.label }}</label>
+            <label class="form-label small text-muted">{{ create_form.due_date.label }}{{ create_form.due_date|sx_req_star }}</label>
             {{ create_form.due_date }}
           </div>
           <div class="col-12">
-            <label class="form-label small text-muted">{{ create_form.notes.label }}</label>
+            <label class="form-label small text-muted">{{ create_form.notes.label }}{{ create_form.notes|sx_req_star }}</label>
             {{ create_form.notes }}
           </div>
         </div>
@@ -145,36 +146,36 @@
         <p class="small text-muted">Style: <strong>{{ mo.product_code }}</strong> — chọn màu + size để sinh SKU.</p>
         <div class="row g-3">
           <div class="col-md-4">
-            <label class="form-label small text-muted">{{ stat_form.stat_date.label }}</label>
+            <label class="form-label small text-muted">{{ stat_form.stat_date.label }}{{ stat_form.stat_date|sx_req_star }}</label>
             {{ stat_form.stat_date }}
           </div>
           <div class="col-md-4">
-            <label class="form-label small text-muted">{{ stat_form.process_name.label }}</label>
+            <label class="form-label small text-muted">{{ stat_form.process_name.label }}{{ stat_form.process_name|sx_req_star }}</label>
             {{ stat_form.process_name }}
           </div>
           <div class="col-md-4">
-            <label class="form-label small text-muted">{{ stat_form.team_label.label }}</label>
+            <label class="form-label small text-muted">{{ stat_form.team_label.label }}{{ stat_form.team_label|sx_req_star }}</label>
             {{ stat_form.team_label }}
           </div>
           <div class="col-md-4">
-            <label class="form-label small text-muted">{{ stat_form.qty_good.label }}</label>
+            <label class="form-label small text-muted">{{ stat_form.qty_good.label }}{{ stat_form.qty_good|sx_req_star }}</label>
             {{ stat_form.qty_good }}
           </div>
           <div class="col-md-4">
-            <label class="form-label small text-muted">{{ stat_form.qty_defect.label }}</label>
+            <label class="form-label small text-muted">{{ stat_form.qty_defect.label }}{{ stat_form.qty_defect|sx_req_star }}</label>
             {{ stat_form.qty_defect }}
           </div>
           <div class="col-md-4">
-            <label class="form-label small text-muted">{{ stat_form.color_code.label }}</label>
+            <label class="form-label small text-muted">{{ stat_form.color_code.label }}{{ stat_form.color_code|sx_req_star }}</label>
             {{ stat_form.color_code }}
             {{ stat_form.color_label }}
           </div>
           <div class="col-md-4">
-            <label class="form-label small text-muted">{{ stat_form.size_label.label }}</label>
+            <label class="form-label small text-muted">{{ stat_form.size_label.label }}{{ stat_form.size_label|sx_req_star }}</label>
             {{ stat_form.size_label }}
           </div>
           <div class="col-md-4">
-            <label class="form-label small text-muted">{{ stat_form.sku_code.label }}</label>
+            <label class="form-label small text-muted">{{ stat_form.sku_code.label }}{{ stat_form.sku_code|sx_req_star }}</label>
             {{ stat_form.sku_code }}
           </div>
         </div>

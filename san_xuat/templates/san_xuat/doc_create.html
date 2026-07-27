@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 
+{% load sx_format %}
 {% block extra_head %}{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}{% endblock %}
 
 {% block content %}
@@ -21,12 +22,12 @@
       <form method="post" novalidate data-loading-message="Đang tạo hồ sơ…">
         {% csrf_token %}
         <div class="mb-3">
-          <label class="form-label small text-muted" for="{{ form.product_code.id_for_label }}">{{ form.product_code.label }}</label>
+          <label class="form-label small text-muted" for="{{ form.product_code.id_for_label }}">{{ form.product_code.label }}{{ form.product_code|sx_req_star }}</label>
           {{ form.product_code }}
           {% if form.product_code.errors %}<div class="text-danger small">{{ form.product_code.errors }}</div>{% endif %}
         </div>
         <div class="mb-3">
-          <label class="form-label small text-muted" for="{{ form.notes.id_for_label }}">{{ form.notes.label }}</label>
+          <label class="form-label small text-muted" for="{{ form.notes.id_for_label }}">{{ form.notes.label }}{{ form.notes|sx_req_star }}</label>
           {{ form.notes }}
         </div>
         <button type="submit" class="btn btn-hm">Tạo hồ sơ + BOM nháp</button>

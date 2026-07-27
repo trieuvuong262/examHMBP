@@ -32,9 +32,9 @@
     <div class="card-body">
       <form method="post" class="row g-2 align-items-end">
         {% csrf_token %}
-        <div class="col-md-3"><label class="form-label small">Lý do</label>
+        <div class="col-md-3"><label class="form-label small">Lý do <span class="text-danger">*</span></label>
           <input name="reason" class="form-control form-control-sm" required></div>
-        <div class="col-md-2"><label class="form-label small">Phút</label>
+        <div class="col-md-2"><label class="form-label small">Phút <span class="text-danger">*</span></label>
           <input name="minutes" type="number" min="1" class="form-control form-control-sm" required></div>
         <div class="col-md-3"><label class="form-label small">Tổ/NL</label>
           <select name="work_center" class="form-select form-select-sm">

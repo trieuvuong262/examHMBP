@@ -465,6 +465,28 @@ def skus_for_style(style_code: str, *, active_only: bool = True):
     return qs.order_by("color_code", "size_label")
 
 
+@transaction.atomic
+def delete_sku(*, sku_id: int | str | None = None, style_code: str = "") -> SxSku:
+    """Xóa SKU khỏi danh sách Style. FK liên quan (TKSX/QC/đóng gói/YCNTP) SET_NULL."""
+    style = normalize_style(style_code)
+    try:
+        pk = int(sku_id) if sku_id is not None and str(sku_id).strip() != "" else None
+    except (TypeError, ValueError) as exc:
+        raise SkuError("SKU không hợp lệ.") from exc
+    if pk is None:
+        raise SkuError("Thiếu SKU cần xóa.")
+    sku = SxSku.objects.filter(pk=pk).first()
+    if sku is None:
+        raise SkuError("Không tìm thấy SKU.")
+    if style and sku.style_code.upper() != style:
+        raise SkuError(f"SKU {sku.sku_code} không thuộc Style {style}.")
+    code = sku.sku_code
+    sku.delete()
+    # Return a detached stub for messaging (pk cleared after delete).
+    sku.sku_code = code
+    return sku
+
+
 def search_skus(*, q: str = "", style_code: str = "", limit: int = 30) -> list[dict]:
     qs = SxSku.objects.filter(is_active=True)
     style = normalize_style(style_code)

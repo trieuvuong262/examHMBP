@@ -1,3 +1,4 @@
+{% load sx_format %}
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-body">
         {% if can_update and meta_form and line_formset %}
@@ -6,15 +7,15 @@
             <input type="hidden" name="action" value="save_bom">
             <div class="row g-3 mb-3">
                 <div class="col-md-3">
-                    <label class="form-label small">Phiên bản</label>
+                    <label class="form-label small">Phiên bản{{ meta_form.version_label|sx_req_star }}</label>
                     {{ meta_form.version_label }}
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label small">Phụ phí (%)</label>
+                    <label class="form-label small">Phụ phí (%){{ meta_form.overhead_pct|sx_req_star }}</label>
                     {{ meta_form.overhead_pct }}
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label small">Ghi chú BOM</label>
+                    <label class="form-label small">Ghi chú BOM{{ meta_form.notes|sx_req_star }}</label>
                     {{ meta_form.notes }}
                 </div>
             </div>
@@ -24,8 +25,8 @@
                 <table class="table table-sm align-middle mb-0">
                     <thead class="table-light">
                         <tr>
-                            <th style="min-width:220px">Nguyên phụ liệu</th>
-                            <th style="width:100px" class="text-end">Định mức</th>
+                            <th style="min-width:220px">Nguyên phụ liệu <span class="text-danger">*</span></th>
+                            <th style="width:100px" class="text-end">Định mức <span class="text-danger">*</span></th>
                             <th style="width:72px">ĐVT</th>
                             <th style="width:100px" class="text-end">Tồn kho</th>
                             <th style="width:120px">Ghi chú</th>

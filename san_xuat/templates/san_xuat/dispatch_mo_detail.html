@@ -248,31 +248,31 @@
             <input type="hidden" name="action" value="save"/>
             <div class="row g-2">
               <div class="col-6 col-md-3">
-                <label class="form-label small text-muted">{{ update_form.qty.label }}</label>
+                <label class="form-label small text-muted">{{ update_form.qty.label }}{{ update_form.qty|sx_req_star }}</label>
                 {{ update_form.qty }}
               </div>
               <div class="col-6 col-md-3">
-                <label class="form-label small text-muted">{{ update_form.due_date.label }}</label>
+                <label class="form-label small text-muted">{{ update_form.due_date.label }}{{ update_form.due_date|sx_req_star }}</label>
                 {{ update_form.due_date }}
               </div>
               <div class="col-6 col-md-3">
-                <label class="form-label small text-muted">{{ update_form.team_label.label }}</label>
+                <label class="form-label small text-muted">{{ update_form.team_label.label }}{{ update_form.team_label|sx_req_star }}</label>
                 {{ update_form.team_label }}
               </div>
               <div class="col-6 col-md-3">
-                <label class="form-label small text-muted">{{ update_form.process_name.label }}</label>
+                <label class="form-label small text-muted">{{ update_form.process_name.label }}{{ update_form.process_name|sx_req_star }}</label>
                 {{ update_form.process_name }}
               </div>
               <div class="col-6 col-md-3">
-                <label class="form-label small text-muted">{{ update_form.planned_start.label }}</label>
+                <label class="form-label small text-muted">{{ update_form.planned_start.label }}{{ update_form.planned_start|sx_req_star }}</label>
                 {{ update_form.planned_start }}
               </div>
               <div class="col-6 col-md-3">
-                <label class="form-label small text-muted">{{ update_form.planned_end.label }}</label>
+                <label class="form-label small text-muted">{{ update_form.planned_end.label }}{{ update_form.planned_end|sx_req_star }}</label>
                 {{ update_form.planned_end }}
               </div>
               <div class="col-12">
-                <label class="form-label small text-muted">{{ update_form.notes.label }}</label>
+                <label class="form-label small text-muted">{{ update_form.notes.label }}{{ update_form.notes|sx_req_star }}</label>
                 {{ update_form.notes }}
               </div>
             </div>

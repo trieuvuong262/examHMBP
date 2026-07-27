@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 
+{% load sx_format %}
 {% block extra_head %}{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}{% endblock %}
 
 {% block content %}
@@ -97,11 +98,11 @@
             {% csrf_token %}
             <input type="hidden" name="action" value="receive">
             <div class="mb-2">
-              <label class="form-label small text-muted">{{ receive_form.qty_received.label }}</label>
+              <label class="form-label small text-muted">{{ receive_form.qty_received.label }}{{ receive_form.qty_received|sx_req_star }}</label>
               {{ receive_form.qty_received }}
             </div>
             <div class="mb-2">
-              <label class="form-label small text-muted">{{ receive_form.material_code.label }}</label>
+              <label class="form-label small text-muted">{{ receive_form.material_code.label }}{{ receive_form.material_code|sx_req_star }}</label>
               {{ receive_form.material_code }}
             </div>
             <div class="mb-2">{{ receive_form.material_name }}</div>

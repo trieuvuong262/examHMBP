@@ -91,39 +91,39 @@
 
         <div class="row g-2 g-md-3">
           <div class="col-6 col-lg-2">
-            <label class="form-label" for="{{ form.stat_date.id_for_label }}">{{ form.stat_date.label }}</label>
+            <label class="form-label" for="{{ form.stat_date.id_for_label }}">{{ form.stat_date.label }}{{ form.stat_date|sx_req_star }}</label>
             {{ form.stat_date }}
           </div>
           <div class="col-6 col-lg-3">
-            <label class="form-label" for="{{ form.process_name.id_for_label }}">{{ form.process_name.label }}</label>
+            <label class="form-label" for="{{ form.process_name.id_for_label }}">{{ form.process_name.label }}{{ form.process_name|sx_req_star }}</label>
             {{ form.process_name }}
           </div>
           <div class="col-12 col-lg-3">
-            <label class="form-label" for="{{ form.team_label.id_for_label }}">{{ form.team_label.label }}</label>
+            <label class="form-label" for="{{ form.team_label.id_for_label }}">{{ form.team_label.label }}{{ form.team_label|sx_req_star }}</label>
             {{ form.team_label }}
           </div>
           <div class="col-6 col-lg-2">
-            <label class="form-label" for="{{ form.qty_good.id_for_label }}">{{ form.qty_good.label }}</label>
+            <label class="form-label" for="{{ form.qty_good.id_for_label }}">{{ form.qty_good.label }}{{ form.qty_good|sx_req_star }}</label>
             {{ form.qty_good }}
             {% if form.qty_good.errors %}<div class="text-danger small">{{ form.qty_good.errors }}</div>{% endif %}
           </div>
           <div class="col-6 col-lg-2">
-            <label class="form-label" for="{{ form.qty_defect.id_for_label }}">{{ form.qty_defect.label }}</label>
+            <label class="form-label" for="{{ form.qty_defect.id_for_label }}">{{ form.qty_defect.label }}{{ form.qty_defect|sx_req_star }}</label>
             {{ form.qty_defect }}
             {% if form.qty_defect.errors %}<div class="text-danger small">{{ form.qty_defect.errors }}</div>{% endif %}
           </div>
 
           <div class="col-4 col-lg-2">
-            <label class="form-label" for="{{ form.size_label.id_for_label }}">{{ form.size_label.label }}</label>
+            <label class="form-label" for="{{ form.size_label.id_for_label }}">{{ form.size_label.label }}{{ form.size_label|sx_req_star }}</label>
             {{ form.size_label }}
           </div>
           <div class="col-4 col-lg-2">
-            <label class="form-label" for="{{ form.color_code.id_for_label }}">{{ form.color_code.label }}</label>
+            <label class="form-label" for="{{ form.color_code.id_for_label }}">{{ form.color_code.label }}{{ form.color_code|sx_req_star }}</label>
             {{ form.color_code }}
             {{ form.color_label }}
           </div>
           <div class="col-4 col-lg-3">
-            <label class="form-label" for="{{ form.sku_code.id_for_label }}">{{ form.sku_code.label }}</label>
+            <label class="form-label" for="{{ form.sku_code.id_for_label }}">{{ form.sku_code.label }}{{ form.sku_code|sx_req_star }}</label>
             {{ form.sku_code }}
             <div class="form-text">Style–Màu–Size</div>
           </div>
@@ -132,7 +132,7 @@
             {{ form.code }}
           </div>
           <div class="col-12 col-lg-3">
-            <label class="form-label" for="{{ form.notes.id_for_label }}">{{ form.notes.label }}</label>
+            <label class="form-label" for="{{ form.notes.id_for_label }}">{{ form.notes.label }}{{ form.notes|sx_req_star }}</label>
             {{ form.notes }}
           </div>
         </div>

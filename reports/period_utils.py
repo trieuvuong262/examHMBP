@@ -31,11 +31,19 @@ PERIOD_LABELS = dict(PERIOD_CHOICES)
 
 
 def parse_office_period(request) -> str:
-    raw = (
-        request.GET.get('period')
-        or request.POST.get('period')
-        or PERIOD_DAY
-    )
+    # POST: ưu tiên body form (user đổi tab/kỳ rồi gửi) — tránh dính period cũ trên URL.
+    if getattr(request, 'method', 'GET').upper() == 'POST':
+        raw = (
+            request.POST.get('period')
+            or request.GET.get('period')
+            or PERIOD_DAY
+        )
+    else:
+        raw = (
+            request.GET.get('period')
+            or request.POST.get('period')
+            or PERIOD_DAY
+        )
     raw = (raw or PERIOD_DAY).strip().lower()
     if raw in (PERIOD_DAY, PERIOD_WEEK, PERIOD_MONTH):
         return raw
@@ -85,22 +93,42 @@ def _parse_month_value(raw: str | None) -> date | None:
 
 def parse_period_anchor_date(request, period: str) -> date:
     today = timezone.localdate()
+    is_post = getattr(request, 'method', 'GET').upper() == 'POST'
     if period == PERIOD_MONTH:
-        raw = (
-            request.GET.get('month')
-            or request.POST.get('month')
-            or request.GET.get('date')
-            or request.POST.get('report_date')
-        )
+        # POST: ưu tiên month/report_date trong form — tránh ghi đè nhầm tháng trên URL.
+        if is_post:
+            raw = (
+                request.POST.get('month')
+                or request.POST.get('report_date')
+                or request.GET.get('month')
+                or request.GET.get('date')
+            )
+        else:
+            raw = (
+                request.GET.get('month')
+                or request.POST.get('month')
+                or request.GET.get('date')
+                or request.POST.get('report_date')
+            )
         parsed = _parse_month_value(raw)
         return parsed or first_day_of_month(today)
     if period == PERIOD_WEEK:
-        raw = (
-            request.GET.get('week')
-            or request.POST.get('week_start')
-            or request.GET.get('date')
-            or request.POST.get('report_date')
-        )
+        # POST: ưu tiên ngày tuần user chọn trên form. Trước đây GET ?date=...
+        # thắng report_date → load báo cáo tuần A rồi save sang tuần B (trùng unique → 500).
+        if is_post:
+            raw = (
+                request.POST.get('week_start')
+                or request.POST.get('report_date')
+                or request.GET.get('week')
+                or request.GET.get('date')
+            )
+        else:
+            raw = (
+                request.GET.get('week')
+                or request.POST.get('week_start')
+                or request.GET.get('date')
+                or request.POST.get('report_date')
+            )
         parsed = _parse_iso_date(raw)
         if parsed:
             return monday_of(parsed)
@@ -111,10 +139,16 @@ def parse_period_anchor_date(request, period: str) -> date:
         if today <= last_week_end + timedelta(days=1):
             return last_week_monday
         return monday_of(today)
-    raw = (
-        request.GET.get('date')
-        or request.POST.get('report_date')
-    )
+    if is_post:
+        raw = (
+            request.POST.get('report_date')
+            or request.GET.get('date')
+        )
+    else:
+        raw = (
+            request.GET.get('date')
+            or request.POST.get('report_date')
+        )
     parsed = _parse_iso_date(raw)
     return parsed or today
 

@@ -290,6 +290,8 @@
       {% endif %}
     </div>
   </div>
+
+  {% include 'san_xuat/includes/ie_smv_glossary.html' %}
 </div>
 
 {% if can_create or can_update %}
@@ -305,7 +307,7 @@
         </div>
         <div class="modal-body">
           <div class="mb-3">
-            <label class="form-label small text-muted mb-1">File master data</label>
+            <label class="form-label small text-muted mb-1">File master data <span class="text-danger">*</span></label>
             <input type="file" name="excel_file" accept=".xlsx,.xlsm" class="form-control form-control-sm" required>
             <div class="form-text">Đúng cấu trúc file Just_Play_Master_Data… (xlsx).</div>
           </div>

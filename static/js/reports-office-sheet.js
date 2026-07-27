@@ -103,4 +103,6 @@
 
     loadInitial();
     render();
+
+    window.jpOfficeSheetSync = syncHidden;
 })();

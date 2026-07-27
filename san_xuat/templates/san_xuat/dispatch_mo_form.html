@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 
+{% load sx_format %}
 {% block extra_head %}{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}{% endblock %}
 
 {% block content %}
@@ -20,44 +21,44 @@
         {% csrf_token %}
         <div class="row g-3">
           <div class="col-12 col-md-6">
-            <label class="form-label small text-muted" for="{{ form.code.id_for_label }}">{{ form.code.label }}</label>
+            <label class="form-label small text-muted" for="{{ form.code.id_for_label }}">{{ form.code.label }}{{ form.code|sx_req_star }}</label>
             {{ form.code }}
           </div>
           <div class="col-12 col-md-6">
-            <label class="form-label small text-muted" for="{{ form.product_code.id_for_label }}">{{ form.product_code.label }}</label>
+            <label class="form-label small text-muted" for="{{ form.product_code.id_for_label }}">{{ form.product_code.label }}{{ form.product_code|sx_req_star }}</label>
             {{ form.product_code }}
             {% if form.product_code.errors %}<div class="text-danger small">{{ form.product_code.errors }}</div>{% endif %}
           </div>
           <div class="col-12 col-md-4">
-            <label class="form-label small text-muted" for="{{ form.qty.id_for_label }}">{{ form.qty.label }}</label>
+            <label class="form-label small text-muted" for="{{ form.qty.id_for_label }}">{{ form.qty.label }}{{ form.qty|sx_req_star }}</label>
             {{ form.qty }}
           </div>
           <div class="col-12 col-md-4">
-            <label class="form-label small text-muted" for="{{ form.order_date.id_for_label }}">{{ form.order_date.label }}</label>
+            <label class="form-label small text-muted" for="{{ form.order_date.id_for_label }}">{{ form.order_date.label }}{{ form.order_date|sx_req_star }}</label>
             {{ form.order_date }}
           </div>
           <div class="col-12 col-md-4">
-            <label class="form-label small text-muted" for="{{ form.due_date.id_for_label }}">{{ form.due_date.label }}</label>
+            <label class="form-label small text-muted" for="{{ form.due_date.id_for_label }}">{{ form.due_date.label }}{{ form.due_date|sx_req_star }}</label>
             {{ form.due_date }}
           </div>
           <div class="col-12 col-md-6">
-            <label class="form-label small text-muted" for="{{ form.planned_start.id_for_label }}">{{ form.planned_start.label }}</label>
+            <label class="form-label small text-muted" for="{{ form.planned_start.id_for_label }}">{{ form.planned_start.label }}{{ form.planned_start|sx_req_star }}</label>
             {{ form.planned_start }}
           </div>
           <div class="col-12 col-md-6">
-            <label class="form-label small text-muted" for="{{ form.planned_end.id_for_label }}">{{ form.planned_end.label }}</label>
+            <label class="form-label small text-muted" for="{{ form.planned_end.id_for_label }}">{{ form.planned_end.label }}{{ form.planned_end|sx_req_star }}</label>
             {{ form.planned_end }}
           </div>
           <div class="col-12 col-md-6">
-            <label class="form-label small text-muted" for="{{ form.team_label.id_for_label }}">{{ form.team_label.label }}</label>
+            <label class="form-label small text-muted" for="{{ form.team_label.id_for_label }}">{{ form.team_label.label }}{{ form.team_label|sx_req_star }}</label>
             {{ form.team_label }}
           </div>
           <div class="col-12 col-md-6">
-            <label class="form-label small text-muted" for="{{ form.process_name.id_for_label }}">{{ form.process_name.label }}</label>
+            <label class="form-label small text-muted" for="{{ form.process_name.id_for_label }}">{{ form.process_name.label }}{{ form.process_name|sx_req_star }}</label>
             {{ form.process_name }}
           </div>
           <div class="col-12">
-            <label class="form-label small text-muted" for="{{ form.notes.id_for_label }}">{{ form.notes.label }}</label>
+            <label class="form-label small text-muted" for="{{ form.notes.id_for_label }}">{{ form.notes.label }}{{ form.notes|sx_req_star }}</label>
             {{ form.notes }}
           </div>
         </div>

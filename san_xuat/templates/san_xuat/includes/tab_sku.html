@@ -306,6 +306,7 @@
               <th>Màu</th>
               <th style="width:4.5rem">Size</th>
               <th style="width:6.5rem">Trạng thái</th>
+              {% if can_update %}<th style="width:4rem" class="text-end"></th>{% endif %}
             </tr>
           </thead>
           <tbody>
@@ -324,6 +325,19 @@
                 <span class="badge bg-secondary-subtle text-secondary border">Tắt</span>
                 {% endif %}
               </td>
+              {% if can_update %}
+              <td class="text-end">
+                <form method="post" class="d-inline" data-loading-message="Đang xóa SKU…"
+                      onsubmit="return confirm('Xóa SKU {{ sku.sku_code }}?');">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="delete_sku">
+                  <input type="hidden" name="sku_id" value="{{ sku.pk }}">
+                  <button type="submit" class="btn btn-link btn-sm text-danger p-0" title="Xóa SKU">
+                    <i class="bi bi-trash" aria-hidden="true"></i><span class="visually-hidden">Xóa</span>
+                  </button>
+                </form>
+              </td>
+              {% endif %}
             </tr>
             {% endfor %}
           </tbody>

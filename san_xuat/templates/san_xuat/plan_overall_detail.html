@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 
+{% load sx_format %}
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
 <style>
@@ -265,7 +266,7 @@
             <input type="hidden" name="action" value="add_line">
             {% for field in line_form %}
             <div class="mb-2">
-              <label class="form-label small text-muted" for="{{ field.id_for_label }}">{{ field.label }}</label>
+              <label class="form-label small text-muted" for="{{ field.id_for_label }}">{{ field.label }}{{ field|sx_req_star }}</label>
               {{ field }}
             </div>
             {% endfor %}
@@ -284,7 +285,7 @@
             <input type="hidden" name="action" value="import_kv">
             {% for field in import_form %}
             <div class="mb-2">
-              <label class="form-label small text-muted" for="{{ field.id_for_label }}">{{ field.label }}</label>
+              <label class="form-label small text-muted" for="{{ field.id_for_label }}">{{ field.label }}{{ field|sx_req_star }}</label>
               {{ field }}
             </div>
             {% endfor %}

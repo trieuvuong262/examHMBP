@@ -60,7 +60,9 @@
                 <input type="hidden" name="update_routing" value="1">
                 {% if t.variance_pct > 15 or t.variance_pct < -15 %}
                 <input type="text" name="variance_explanation" class="form-control form-control-sm"
-                       style="width:9rem" maxlength="500" placeholder="Giải trình lệch >15%" required
+                       style="width:9rem" maxlength="500" placeholder="Giải trình lệch >15% *" required
+                       title="Bắt buộc khi lệch >15%"
+                       aria-label="Giải trình lệch >15% (bắt buộc)"
                        value="{{ t.variance_explanation }}">
                 {% endif %}
                 <button type="submit" class="btn btn-sm btn-outline-success" title="Duyệt &amp; cập nhật SMV routing">Duyệt</button>

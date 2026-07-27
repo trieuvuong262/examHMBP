@@ -28,7 +28,7 @@
     </li>
     <li class="nav-item" role="presentation">
         <a class="nav-link rounded-pill fw-semibold {% if office_period == 'week' %}active{% endif %}"
-           href="{% url base_url_name %}?period=week&date={{ nav_date|date:'Y-m-d' }}{% if extra_query %}&{{ extra_query }}{% endif %}">
+           href="{% url base_url_name %}?period=week{% if office_period == 'week' %}&date={{ nav_date|date:'Y-m-d' }}{% endif %}{% if extra_query %}&{{ extra_query }}{% endif %}">
             Tuần
         </a>
     </li>

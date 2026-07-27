@@ -50,3 +50,14 @@ def sx_num(value, max_decimals=4):
     except (TypeError, ValueError):
         decimals = 4
     return format_sx_num(value, decimals)
+
+
+@register.filter(name="sx_req_star")
+def sx_req_star(bound_field):
+    """Append red * when a BoundField is required (for form labels)."""
+    from django.utils.safestring import mark_safe
+
+    field = getattr(bound_field, "field", None)
+    if field is not None and getattr(field, "required", False):
+        return mark_safe(' <span class="text-danger">*</span>')
+    return ""

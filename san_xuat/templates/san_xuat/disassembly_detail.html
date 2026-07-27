@@ -47,11 +47,11 @@
             {% csrf_token %}
             <input type="hidden" name="action" value="add_line">
             <div class="col-md-5">
-              <label class="form-label small text-muted">Mã nguyên phụ liệu</label>
+              <label class="form-label small text-muted">Mã nguyên phụ liệu <span class="text-danger">*</span></label>
               <input type="text" name="material_code" class="form-control form-control-sm" required>
             </div>
             <div class="col-md-4">
-              <label class="form-label small text-muted">Số lượng</label>
+              <label class="form-label small text-muted">Số lượng <span class="text-danger">*</span></label>
               <input type="number" name="material_qty" class="form-control form-control-sm" step="0.0001" min="0.0001" required>
             </div>
             <div class="col-md-3">

@@ -21,11 +21,11 @@
       <form method="post" class="row g-2 align-items-end">
         {% csrf_token %}
         <div class="col-md-3">
-          <label class="form-label small">Nhãn tổ (TKSX)</label>
+          <label class="form-label small">Nhãn tổ (TKSX) <span class="text-danger">*</span></label>
           <input name="team_label" class="form-control form-control-sm" required placeholder="VD: Tổ May 1">
         </div>
         <div class="col-md-3">
-          <label class="form-label small">Mã NV</label>
+          <label class="form-label small">Mã NV <span class="text-danger">*</span></label>
           <input name="employee_code" class="form-control form-control-sm" required>
         </div>
         <div class="col-md-4">

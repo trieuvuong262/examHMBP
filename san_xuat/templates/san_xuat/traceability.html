@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load sx_format %}
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
 {% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}
@@ -150,7 +151,7 @@
 
   <form method="get" class="jp-sx-trace-search" role="search">
     <div class="field">
-      <label class="form-label small text-muted mb-1" for="{{ form.query.id_for_label }}">{{ form.query.label }}</label>
+      <label class="form-label small text-muted mb-1" for="{{ form.query.id_for_label }}">{{ form.query.label }}{{ form.query|sx_req_star }}</label>
       {{ form.query }}
     </div>
     {% if show_gaps %}<input type="hidden" name="gaps" value="1">{% endif %}
