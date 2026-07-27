@@ -23,19 +23,59 @@
   </div>
 
   <div class="row g-2 g-md-3 mb-3">
-    <div class="col-6 col-md-3 col-lg-2"><div class="card border-0 shadow-sm h-100"><div class="card-body py-2 px-3">
-      <div class="fs-4 fw-bold">{{ stats.groups }}</div><div class="text-muted small">Nhóm công đoạn</div></div></div></div>
-    <div class="col-6 col-md-3 col-lg-2"><div class="card border-0 shadow-sm h-100"><div class="card-body py-2 px-3">
-      <div class="fs-4 fw-bold">{{ stats.operations }}</div><div class="text-muted small">Công đoạn chuẩn</div></div></div></div>
-    <div class="col-6 col-md-3 col-lg-2"><div class="card border-0 shadow-sm h-100"><div class="card-body py-2 px-3">
-      <div class="fs-4 fw-bold">{{ stats.routings }}</div><div class="text-muted small">Routing mã hàng</div></div></div></div>
-    <div class="col-6 col-md-3 col-lg-2"><div class="card border-0 shadow-sm h-100"><div class="card-body py-2 px-3">
-      <div class="fs-4 fw-bold">{{ stats.routing_lines }}</div><div class="text-muted small">Dòng routing</div></div></div></div>
-    <div class="col-6 col-md-3 col-lg-2"><div class="card border-0 shadow-sm h-100"><div class="card-body py-2 px-3">
-      <div class="fs-4 fw-bold">{{ stats.time_studies }}</div><div class="text-muted small">Quan sát bấm giờ</div></div></div></div>
-    <div class="col-6 col-md-3 col-lg-2"><div class="card border-0 shadow-sm h-100"><div class="card-body py-2 px-3">
-      <div class="fs-4 fw-bold">{{ stats.machines }}</div><div class="text-muted small">Máy móc</div></div></div></div>
+    <div class="col-6 col-md-3 col-lg-2">
+      <a href="{% url 'san_xuat:ie_group_list' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body ie-stat-card">
+        <div class="card-body py-2 px-3">
+          <div class="fs-4 fw-bold">{{ stats.groups }}</div>
+          <div class="text-muted small">Nhóm công đoạn</div>
+        </div>
+      </a>
+    </div>
+    <div class="col-6 col-md-3 col-lg-2">
+      <a href="{% url 'san_xuat:ie_operation_list' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body ie-stat-card">
+        <div class="card-body py-2 px-3">
+          <div class="fs-4 fw-bold">{{ stats.operations }}</div>
+          <div class="text-muted small">Công đoạn chuẩn</div>
+        </div>
+      </a>
+    </div>
+    <div class="col-6 col-md-3 col-lg-2">
+      <a href="{% url 'san_xuat:ie_routing_list' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body ie-stat-card">
+        <div class="card-body py-2 px-3">
+          <div class="fs-4 fw-bold">{{ stats.routings }}</div>
+          <div class="text-muted small">Routing mã hàng</div>
+        </div>
+      </a>
+    </div>
+    <div class="col-6 col-md-3 col-lg-2">
+      <a href="{% url 'san_xuat:ie_routing_line_list' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body ie-stat-card">
+        <div class="card-body py-2 px-3">
+          <div class="fs-4 fw-bold">{{ stats.routing_lines }}</div>
+          <div class="text-muted small">Dòng routing</div>
+        </div>
+      </a>
+    </div>
+    <div class="col-6 col-md-3 col-lg-2">
+      <a href="{% url 'san_xuat:ie_time_study_list' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body ie-stat-card">
+        <div class="card-body py-2 px-3">
+          <div class="fs-4 fw-bold">{{ stats.time_studies }}</div>
+          <div class="text-muted small">Quan sát bấm giờ</div>
+        </div>
+      </a>
+    </div>
+    <div class="col-6 col-md-3 col-lg-2">
+      <a href="{% url 'san_xuat:ie_machine_list' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body ie-stat-card">
+        <div class="card-body py-2 px-3">
+          <div class="fs-4 fw-bold">{{ stats.machines }}</div>
+          <div class="text-muted small">Máy móc</div>
+        </div>
+      </a>
+    </div>
   </div>
+  <style>
+    .ie-stat-card { transition: box-shadow .15s ease, transform .15s ease; }
+    .ie-stat-card:hover { box-shadow: 0 .35rem 1rem rgba(0,0,0,.12) !important; transform: translateY(-1px); }
+  </style>
 
   <div class="row g-3">
     <div class="col-lg-7">

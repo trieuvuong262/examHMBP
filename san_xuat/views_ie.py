@@ -167,7 +167,7 @@ def ie_hub(request):
                 messages.error(request, str(exc))
                 return redirect('san_xuat:ie_hub')
             messages.success(request, f'Đã tạo nhóm {group.code}.')
-            return redirect('san_xuat:ie_hub')
+            return redirect(f"{reverse('san_xuat:ie_group_list')}?q={group.code}")
 
         if action == 'create_time_study':
             if not (perms['can_create'] or perms['can_update']):
@@ -237,6 +237,71 @@ def ie_hub(request):
 @require_GET
 def ie_export(request):
     return export_operation_master_response()
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+def group_list(request):
+    qs = SxOperationGroup.objects.annotate(n_ops=Count('operations')).all()
+    term = (request.GET.get('q') or '').strip()
+    if term:
+        qs = qs.filter(
+            Q(code__icontains=term)
+            | Q(name__icontains=term)
+            | Q(process_stage_label__icontains=term)
+            | Q(product_part__icontains=term)
+        )
+    qs = qs.order_by('sort_order', 'code')
+    page_obj, query_string = paginate_queryset(request, qs)
+    return render(request, 'san_xuat/ie_group_list.html', {
+        **_perm_ctx(request),
+        'page_obj': page_obj,
+        'items': page_obj.object_list,
+        'query_string': query_string,
+        'term': term,
+        'total': qs.count(),
+    })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+def machine_list(request):
+    qs = SxMachine.objects.annotate(n_ops=Count('operations')).all()
+    term = (request.GET.get('q') or '').strip()
+    if term:
+        qs = qs.filter(Q(code__icontains=term) | Q(name__icontains=term) | Q(notes__icontains=term))
+    qs = qs.order_by('sort_order', 'code')
+    page_obj, query_string = paginate_queryset(request, qs)
+    return render(request, 'san_xuat/ie_machine_list.html', {
+        **_perm_ctx(request),
+        'page_obj': page_obj,
+        'items': page_obj.object_list,
+        'query_string': query_string,
+        'term': term,
+        'total': qs.count(),
+    })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+def routing_line_list(request):
+    qs = SxRoutingLine.objects.select_related('routing', 'operation', 'machine', 'work_center').all()
+    term = (request.GET.get('q') or '').strip()
+    if term:
+        qs = qs.filter(
+            Q(op_code__icontains=term)
+            | Q(op_name_vi__icontains=term)
+            | Q(routing__style_code__icontains=term)
+            | Q(routing__routing_id__icontains=term)
+            | Q(machine_code__icontains=term)
+        )
+    qs = qs.order_by('routing__style_code', 'routing__routing_rev', 'seq_no')
+    page_obj, query_string = paginate_queryset(request, qs)
+    return render(request, 'san_xuat/ie_routing_line_list.html', {
+        **_perm_ctx(request),
+        'page_obj': page_obj,
+        'items': page_obj.object_list,
+        'query_string': query_string,
+        'term': term,
+        'total': qs.count(),
+    })
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
