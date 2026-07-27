@@ -53,11 +53,16 @@
             {% if can_update %}
             <td class="text-nowrap">
               {% if t.approval_status != 'approved' %}
-              <form method="post" class="d-inline">
+              <form method="post" class="d-inline-flex flex-wrap align-items-center gap-1">
                 {% csrf_token %}
                 <input type="hidden" name="pk" value="{{ t.pk }}">
                 <input type="hidden" name="action" value="approve">
                 <input type="hidden" name="update_routing" value="1">
+                {% if t.variance_pct > 15 or t.variance_pct < -15 %}
+                <input type="text" name="variance_explanation" class="form-control form-control-sm"
+                       style="width:9rem" maxlength="500" placeholder="Giải trình lệch >15%" required
+                       value="{{ t.variance_explanation }}">
+                {% endif %}
                 <button type="submit" class="btn btn-sm btn-outline-success" title="Duyệt &amp; cập nhật SMV routing">Duyệt</button>
               </form>
               {% endif %}

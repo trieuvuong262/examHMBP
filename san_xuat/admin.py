@@ -104,7 +104,7 @@ class SxRoutingLineInline(admin.TabularInline):
 
 @admin.register(SxRouting)
 class SxRoutingAdmin(admin.ModelAdmin):
-    list_display = ('routing_id', 'style_code', 'routing_rev', 'is_active', 'updated_at')
+    list_display = ('routing_id', 'style_code', 'routing_rev', 'approval_status', 'is_active', 'updated_at')
     list_filter = ('is_active', 'product_family')
     search_fields = ('routing_id', 'style_code', 'style_name')
     inlines = [SxRoutingLineInline]

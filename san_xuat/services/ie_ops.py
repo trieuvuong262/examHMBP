@@ -1,4 +1,11 @@
-"""Nghiệp vụ IE: áp routing vào BOM, duyệt bấm giờ cập nhật SMV routing."""
+"""Nghiệp vụ IE: áp routing vào BOM, duyệt bấm giờ cập nhật SMV routing.
+
+Kiểm soát theo 00_HUONG_DAN:
+1. SMV phải > 0 khi duyệt/phát hành
+2. Routing đã gắn lệnh SX bị khóa — phải tạo REV mới
+3. |SMV_VARIANCE_PCT| > 15% bắt buộc giải trình trước khi duyệt
+4. Luồng duyệt OP / routing (Approver)
+"""
 
 from __future__ import annotations
 
@@ -7,6 +14,7 @@ from decimal import Decimal, ROUND_HALF_UP
 
 from django.db import transaction
 from django.db.models import Avg, Q
+from django.utils import timezone
 
 from san_xuat.ie_models import SxOperation, SxOperationGroup, SxRouting, SxRoutingLine, SxTimeStudy
 from san_xuat.models import BomVersion, ProcessStep
@@ -15,6 +23,9 @@ from san_xuat.services.process_catalog import ensure_process_name
 
 class IeOpsError(Exception):
     pass
+
+
+VARIANCE_LIMIT_PCT = Decimal('15')
 
 
 def _q(value: Decimal, places: str = '0.0001') -> Decimal:
@@ -31,6 +42,48 @@ def _match_op_codes(op_code: str) -> Q:
     if parts:
         q |= Q(op_code__iendswith=f'-{parts[-1]}')
     return q
+
+
+def assert_smv_positive(smv, *, label: str = 'SMV') -> Decimal:
+    try:
+        value = Decimal(str(smv)) if smv is not None else Decimal('0')
+    except Exception as exc:
+        raise IeOpsError(f'{label} không hợp lệ.') from exc
+    if value <= 0:
+        raise IeOpsError(f'{label} phải > 0 (theo 00_HUONG_DAN — kiểm soát phát hành).')
+    return value
+
+
+def is_routing_locked(routing: SxRouting) -> bool:
+    """Routing đã gắn lệnh sản xuất thì khóa sửa đè (nguyên tắc 5)."""
+    if routing is None:
+        return False
+    from san_xuat.hub_models import SxProductionOrder
+
+    return SxProductionOrder.objects.filter(routing_id=routing.pk).exists()
+
+
+def assert_routing_editable(routing: SxRouting) -> None:
+    if is_routing_locked(routing):
+        raise IeOpsError(
+            f'Routing {routing.routing_id} đã gắn lệnh SX — không được sửa đè. '
+            f'Hãy tạo phiên bản (REV) mới.'
+        )
+
+
+def require_variance_explanation(variance_pct, explanation: str, *, label: str = '') -> None:
+    try:
+        pct = Decimal(str(variance_pct or 0))
+    except Exception:
+        pct = Decimal('0')
+    if abs(pct) <= VARIANCE_LIMIT_PCT:
+        return
+    if not (explanation or '').strip():
+        prefix = f'{label}: ' if label else ''
+        raise IeOpsError(
+            f'{prefix}|Chênh lệch SMV| = {pct}% > {VARIANCE_LIMIT_PCT}% — '
+            f'cần giải trình trước khi duyệt (00_HUONG_DAN).'
+        )
 
 
 @dataclass
@@ -124,6 +177,7 @@ def create_blank_routing(
         routing_rev=rev,
         tech_doc=tech_doc,
         is_active=True,
+        approval_status=SxRouting.APPROVAL_DRAFT,
         notes='Tạo tay (không import Excel)',
         created_by=user if getattr(user, 'is_authenticated', False) else None,
     )
@@ -283,6 +337,7 @@ def apply_routing_to_bom(*, bom: BomVersion, routing: SxRouting, replace: bool =
     - std_time_minutes = tổng SMV công đoạn (qty × SMV áp dụng)
     - norm_per_hour = 60 / SMV áp dụng (cái/giờ trên 1 đơn vị cơ sở)
     - Routing trống: chỉ gắn BOM, giữ nguyên công đoạn hiện có (nhập tay).
+    - Phát hành: SMV áp dụng phải > 0 trên mọi dòng có công đoạn.
     """
     if bom is None:
         raise IeOpsError('Thiếu BOM.')
@@ -302,6 +357,12 @@ def apply_routing_to_bom(*, bom: BomVersion, routing: SxRouting, replace: bool =
         return result
 
     if replace:
+        zero_smv = [ln.op_code for ln in lines if (ln.applied_unit_smv or Decimal('0')) <= 0]
+        if zero_smv:
+            raise IeOpsError(
+                f'Không áp routing: còn {len(zero_smv)} dòng SMV ≤ 0 '
+                f'({", ".join(zero_smv[:5])}{"…" if len(zero_smv) > 5 else ""}).'
+            )
         bom.process_steps.all().delete()
 
     for line in lines:
@@ -341,11 +402,146 @@ def apply_routing_to_bom(*, bom: BomVersion, routing: SxRouting, replace: bool =
 
 
 @transaction.atomic
+def approve_operation(*, operation: SxOperation, user=None) -> SxOperation:
+    """Duyệt công đoạn chuẩn (Approver) — bắt buộc BASE_SMV_MIN > 0."""
+    if operation is None:
+        raise IeOpsError('Thiếu công đoạn.')
+    assert_smv_positive(operation.base_smv_min, label=f'{operation.op_code} BASE_SMV_MIN')
+    operation.status = SxOperation.STATUS_APPROVED
+    operation.approved_by = (
+        getattr(user, 'get_full_name', lambda: '')()
+        or getattr(user, 'username', '')
+        or operation.approved_by
+        or 'Approver'
+    )[:120]
+    operation.approved_at = timezone.now()
+    operation.save(update_fields=['status', 'approved_by', 'approved_at', 'updated_at'])
+    return operation
+
+
+@transaction.atomic
+def approve_routing(*, routing: SxRouting, user=None) -> SxRouting:
+    """Duyệt routing phát hành — SMV > 0 + giải trình lệch > 15%."""
+    if routing is None:
+        raise IeOpsError('Thiếu routing.')
+    lines = list(routing.lines.order_by('seq_no'))
+    if not lines:
+        raise IeOpsError(f'Routing {routing.routing_id} chưa có công đoạn.')
+    for line in lines:
+        assert_smv_positive(line.applied_unit_smv, label=f'{line.op_code} APPLIED_UNIT_SMV')
+        require_variance_explanation(
+            line.smv_variance_pct,
+            line.variance_explanation,
+            label=f'{line.op_code}#{line.seq_no}',
+        )
+    routing.approval_status = SxRouting.APPROVAL_APPROVED
+    routing.approved_by = (
+        getattr(user, 'get_full_name', lambda: '')()
+        or getattr(user, 'username', '')
+        or routing.approved_by
+        or 'Approver'
+    )[:120]
+    routing.approved_at = timezone.now()
+    if not routing.effective_from:
+        routing.effective_from = timezone.localdate()
+    routing.is_active = True
+    routing.save(update_fields=[
+        'approval_status', 'approved_by', 'approved_at', 'effective_from', 'is_active', 'updated_at',
+    ])
+    return routing
+
+
+@transaction.atomic
+def reject_routing(*, routing: SxRouting, user=None) -> SxRouting:
+    if routing is None:
+        raise IeOpsError('Thiếu routing.')
+    assert_routing_editable(routing)
+    routing.approval_status = SxRouting.APPROVAL_REJECTED
+    routing.save(update_fields=['approval_status', 'updated_at'])
+    return routing
+
+
+@transaction.atomic
+def clone_routing_revision(*, routing: SxRouting, user=None) -> SxRouting:
+    """Tạo REV mới copy toàn bộ dòng — dùng khi routing đã khóa / đã phát hành."""
+    if routing is None:
+        raise IeOpsError('Thiếu routing.')
+    new_rev = _next_routing_rev(routing.style_code, preferred='R01')
+    # Prefer next after current
+    try:
+        cur_n = int((routing.routing_rev or 'R01').lstrip('R') or '1')
+        preferred = f'R{cur_n + 1:02d}'
+        new_rev = _next_routing_rev(routing.style_code, preferred=preferred)
+    except ValueError:
+        pass
+    rid = f'{routing.style_code}-{new_rev}'
+    clone = SxRouting.objects.create(
+        routing_id=rid,
+        style_code=routing.style_code,
+        style_name=routing.style_name,
+        product_family=routing.product_family,
+        routing_rev=new_rev,
+        tech_doc=routing.tech_doc,
+        effective_from=None,
+        is_active=True,
+        approval_status=SxRouting.APPROVAL_DRAFT,
+        ie_owner=routing.ie_owner,
+        notes=f'Clone từ {routing.routing_id}'[:255],
+        created_by=user if getattr(user, 'is_authenticated', False) else None,
+    )
+    for line in routing.lines.order_by('seq_no'):
+        SxRoutingLine.objects.create(
+            routing=clone,
+            seq_no=line.seq_no,
+            operation=line.operation,
+            op_code=line.op_code,
+            op_rev=line.op_rev,
+            op_name_vi=line.op_name_vi,
+            group_code=line.group_code,
+            qty_per_garment=line.qty_per_garment,
+            library_unit_smv=line.library_unit_smv,
+            applied_unit_smv=line.applied_unit_smv,
+            machine=line.machine,
+            machine_code=line.machine_code,
+            work_center=line.work_center,
+            work_center_code=line.work_center_code,
+            predecessor_seq=line.predecessor_seq,
+            parallel_group=line.parallel_group,
+            bundle_size=line.bundle_size,
+            skill_level_label=line.skill_level_label,
+            critical_qc=line.critical_qc,
+            target_efficiency=line.target_efficiency,
+            notes=line.notes,
+            variance_explanation=line.variance_explanation,
+        )
+    return clone
+
+
+@transaction.atomic
+def save_routing_line_explanations(*, routing: SxRouting, explanations: dict[int, str]) -> int:
+    """Lưu giải trình lệch SMV theo pk dòng. Routing khóa thì không cho sửa."""
+    assert_routing_editable(routing)
+    updated = 0
+    for pk, text in explanations.items():
+        line = routing.lines.filter(pk=pk).first()
+        if not line:
+            continue
+        line.variance_explanation = (text or '')[:500]
+        line.save(update_fields=['variance_explanation'])
+        updated += 1
+    if routing.approval_status == SxRouting.APPROVAL_APPROVED:
+        routing.approval_status = SxRouting.APPROVAL_PENDING
+        routing.save(update_fields=['approval_status', 'updated_at'])
+    return updated
+
+
+@transaction.atomic
 def approve_time_study(
     *,
     study: SxTimeStudy,
     update_library: bool = False,
     update_routing: bool = True,
+    variance_explanation: str = '',
 ) -> ApproveTimeStudyResult:
     """Duyệt một quan sát bấm giờ và (tuỳ chọn) cập nhật SMV routing / thư viện.
 
@@ -354,8 +550,18 @@ def approve_time_study(
     if study is None:
         raise IeOpsError('Thiếu quan sát bấm giờ.')
 
+    assert_smv_positive(study.calculated_smv, label=f'{study.study_id} CALCULATED_SMV')
+
+    if abs(study.variance_pct or 0) > VARIANCE_LIMIT_PCT:
+        require_variance_explanation(
+            study.variance_pct,
+            variance_explanation or study.variance_explanation,
+            label=study.study_id,
+        )
+        study.variance_explanation = (variance_explanation or study.variance_explanation)[:500]
+
     study.approval_status = SxTimeStudy.APPROVAL_APPROVED
-    study.save(update_fields=['approval_status'])
+    study.save(update_fields=['approval_status', 'variance_explanation'])
 
     result = ApproveTimeStudyResult(study_id=study.study_id)
     op_code = (study.op_code or '').strip()
@@ -378,7 +584,7 @@ def approve_time_study(
         result.warnings.append('Chưa có SMV tính toán hợp lệ để cập nhật.')
         return result
 
-    new_smv = _q(Decimal(str(avg_smv)), '0.0001')
+    new_smv = assert_smv_positive(avg_smv, label='SMV trung bình duyệt')
     result.new_smv = new_smv
     result.sample_count = sample_count
 
@@ -395,15 +601,34 @@ def approve_time_study(
         ])
 
     if update_routing and style_code:
-        lines = SxRoutingLine.objects.filter(
-            routing__style_code=style_code,
-            routing__is_active=True,
-        ).filter(_match_op_codes(op_code))
+        lines = list(
+            SxRoutingLine.objects.filter(
+                routing__style_code=style_code,
+                routing__is_active=True,
+            ).filter(_match_op_codes(op_code)).select_related('routing')
+        )
+        skipped_locked = 0
         for line in lines:
+            if is_routing_locked(line.routing):
+                skipped_locked += 1
+                continue
+            old_lib = line.library_unit_smv or Decimal('0')
             line.applied_unit_smv = new_smv
+            line.recompute()
+            if abs(line.smv_variance_pct or 0) > VARIANCE_LIMIT_PCT:
+                expl = (variance_explanation or study.variance_explanation or '').strip()
+                require_variance_explanation(line.smv_variance_pct, expl, label=line.op_code)
+                line.variance_explanation = expl[:500]
             line.save()
+            if line.routing.approval_status == SxRouting.APPROVAL_APPROVED:
+                line.routing.approval_status = SxRouting.APPROVAL_PENDING
+                line.routing.save(update_fields=['approval_status', 'updated_at'])
             result.routing_lines_updated += 1
-        if result.routing_lines_updated == 0:
+        if skipped_locked:
+            result.warnings.append(
+                f'{skipped_locked} dòng routing đã khóa (gắn lệnh SX) — bỏ qua, hãy tạo REV mới.'
+            )
+        if result.routing_lines_updated == 0 and not skipped_locked:
             result.warnings.append(
                 f'Không tìm thấy dòng routing active cho {style_code} / {op_code}.'
             )
@@ -417,9 +642,14 @@ def approve_time_study(
         if op is None:
             result.warnings.append(f'Không tìm thấy công đoạn thư viện {op_code}.')
         else:
-            op.base_smv_min = new_smv
-            op.save(update_fields=['base_smv_min', 'updated_at'])
-            result.library_updated = True
+            if op.status == SxOperation.STATUS_APPROVED:
+                result.warnings.append(
+                    f'{op.op_code}/{op.op_rev} đã duyệt — không sửa đè SMV thư viện; tạo OP_REV mới nếu cần.'
+                )
+            else:
+                op.base_smv_min = new_smv
+                op.save(update_fields=['base_smv_min', 'updated_at'])
+                result.library_updated = True
 
     return result
 

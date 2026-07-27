@@ -221,6 +221,7 @@ class SxOperation(models.Model):
     effective_to = models.DateField(null=True, blank=True, verbose_name='Ngày hết hiệu lực')
     ie_owner = models.CharField(max_length=120, blank=True, default='', verbose_name='Người quản lý')
     approved_by = models.CharField(max_length=120, blank=True, default='', verbose_name='Người duyệt')
+    approved_at = models.DateTimeField(null=True, blank=True, verbose_name='Ngày duyệt')
     revision_reason = models.CharField(max_length=255, blank=True, default='', verbose_name='Lý do phiên bản')
     work_instruction_url = models.URLField(max_length=500, blank=True, default='', verbose_name='Link hướng dẫn')
     video_url = models.URLField(max_length=500, blank=True, default='', verbose_name='Link video')
@@ -260,6 +261,17 @@ class SxOperation(models.Model):
 class SxRouting(models.Model):
     """Quy trình mã hàng (ROUTING_ID = STYLE + REV) — 03_ROUTING_MA_HANG (header)."""
 
+    APPROVAL_DRAFT = 'draft'
+    APPROVAL_PENDING = 'pending'
+    APPROVAL_APPROVED = 'approved'
+    APPROVAL_REJECTED = 'rejected'
+    APPROVAL_CHOICES = [
+        (APPROVAL_DRAFT, 'Nháp'),
+        (APPROVAL_PENDING, 'Chờ duyệt'),
+        (APPROVAL_APPROVED, 'Đã duyệt'),
+        (APPROVAL_REJECTED, 'Từ chối'),
+    ]
+
     routing_id = models.CharField(max_length=80, unique=True, db_index=True, verbose_name='Mã routing')
     style_code = models.CharField(max_length=60, db_index=True, verbose_name='Mã hàng')
     style_name = models.CharField(max_length=255, blank=True, default='', verbose_name='Tên mã hàng')
@@ -275,7 +287,16 @@ class SxRouting(models.Model):
     )
     effective_from = models.DateField(null=True, blank=True, verbose_name='Ngày hiệu lực')
     is_active = models.BooleanField(default=True, db_index=True, verbose_name='Đang áp dụng')
+    approval_status = models.CharField(
+        max_length=20,
+        choices=APPROVAL_CHOICES,
+        default=APPROVAL_DRAFT,
+        db_index=True,
+        verbose_name='Trạng thái duyệt',
+    )
     ie_owner = models.CharField(max_length=120, blank=True, default='', verbose_name='Người lập')
+    approved_by = models.CharField(max_length=120, blank=True, default='', verbose_name='Người duyệt')
+    approved_at = models.DateTimeField(null=True, blank=True, verbose_name='Ngày duyệt')
     notes = models.CharField(max_length=255, blank=True, default='', verbose_name='Ghi chú')
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -304,6 +325,10 @@ class SxRouting(models.Model):
     @property
     def operation_count(self) -> int:
         return self.lines.count()
+
+    @property
+    def is_approved(self) -> bool:
+        return self.approval_status == self.APPROVAL_APPROVED
 
 
 class SxRoutingLine(models.Model):
@@ -393,6 +418,13 @@ class SxRoutingLine(models.Model):
         verbose_name='Hiệu suất mục tiêu (%)',
     )
     notes = models.CharField(max_length=255, blank=True, default='', verbose_name='Ghi chú')
+    variance_explanation = models.CharField(
+        max_length=500,
+        blank=True,
+        default='',
+        verbose_name='Giải trình lệch SMV',
+        help_text='Bắt buộc khi |chênh lệch| > 15% trước khi duyệt phát hành.',
+    )
 
     class Meta:
         ordering = ['routing', 'seq_no']
@@ -523,6 +555,13 @@ class SxTimeStudy(models.Model):
         default=APPROVAL_PENDING,
         db_index=True,
         verbose_name='Trạng thái duyệt',
+    )
+    variance_explanation = models.CharField(
+        max_length=500,
+        blank=True,
+        default='',
+        verbose_name='Giải trình lệch SMV',
+        help_text='Bắt buộc khi |chênh lệch| > 15% lúc duyệt cập nhật routing.',
     )
     notes = models.CharField(max_length=255, blank=True, default='', verbose_name='Ghi chú')
     created_at = models.DateTimeField(auto_now_add=True)

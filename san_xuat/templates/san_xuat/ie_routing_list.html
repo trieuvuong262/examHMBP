@@ -24,7 +24,7 @@
           <tr>
             <th>Mã hàng</th><th>Tên</th><th>Nhóm SP</th><th>Rev</th>
             <th class="text-end">Công đoạn</th><th class="text-end">Tổng SMV (phút)</th>
-            <th>Áp dụng</th><th></th>
+            <th>Áp dụng</th><th>Duyệt</th><th></th>
           </tr>
         </thead>
         <tbody>
@@ -37,10 +37,11 @@
             <td class="text-end">{{ r.n_lines }}</td>
             <td class="text-end fw-semibold">{{ r.sum_smv|default:0|floatformat:2 }}</td>
             <td>{% if r.is_active %}<span class="badge bg-success-subtle text-success">Có</span>{% else %}<span class="badge bg-light text-muted">Không</span>{% endif %}</td>
+            <td class="small">{{ r.get_approval_status_display }}</td>
             <td class="text-end"><a href="{% url 'san_xuat:ie_routing_detail' r.pk %}" class="btn btn-sm btn-outline-hm">Xem</a></td>
           </tr>
         {% empty %}
-          <tr><td colspan="8" class="text-muted small p-3 text-center">Không có routing phù hợp.</td></tr>
+          <tr><td colspan="9" class="text-muted small p-3 text-center">Không có routing phù hợp.</td></tr>
         {% endfor %}
         </tbody>
       </table>

@@ -358,6 +358,16 @@ def _import_routings(wb, result: ImportResult) -> None:
     for routing_id in order_ids:
         recs = grouped[routing_id]
         head = recs[0]
+        existing = SxRouting.objects.filter(routing_id=routing_id).first()
+        if existing is not None:
+            from san_xuat.hub_models import SxProductionOrder
+
+            if SxProductionOrder.objects.filter(routing_id=existing.pk).exists():
+                result.warnings.append(
+                    f'[Routing] {routing_id}: đã gắn lệnh SX — bỏ qua import (không sửa đè).'
+                )
+                continue
+
         routing, created = SxRouting.objects.update_or_create(
             routing_id=routing_id,
             defaults={
@@ -369,6 +379,7 @@ def _import_routings(wb, result: ImportResult) -> None:
                 'is_active': _yesno(head.get('TRẠNG THÁI ÁP DỤNG')) if head.get('TRẠNG THÁI ÁP DỤNG') is not None else True,
                 'ie_owner': _s(head.get('NGƯỜI LẬP')),
                 'notes': _s(head.get('NOTES')),
+                'approval_status': SxRouting.APPROVAL_APPROVED,
             },
         )
         result.bump('routing', created)
@@ -385,6 +396,11 @@ def _import_routings(wb, result: ImportResult) -> None:
             applied = _dec(rec.get('ĐỊNH MỨC THỜI GIAN')) or Decimal('0')
             library = _dec(rec.get('ĐỊNH MỨC THEO PHIÊN BẢN')) or Decimal('0')
             qty = _dec(rec.get('SỐ LƯỢNG')) or _dec(rec.get('SỐ LƯỢNG ')) or Decimal('1')
+            variance_text = ''
+            if library and applied and library > 0:
+                pct = abs((applied - library) / library * Decimal('100'))
+                if pct > VARIANCE_WARN_PCT:
+                    variance_text = f'Import Excel — lệch {pct.quantize(Decimal("0.01"))}%'
             line = SxRoutingLine(
                 routing=routing,
                 seq_no=seq,
@@ -402,6 +418,7 @@ def _import_routings(wb, result: ImportResult) -> None:
                 work_center_code=wc_code,
                 skill_level_label=_s(rec.get('BẬC CÔNG ĐOẠN')),
                 notes=_s(rec.get('NOTES')),
+                variance_explanation=variance_text[:500],
             )
             line.save()
             result.bump('routing_line', True)

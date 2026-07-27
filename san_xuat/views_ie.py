@@ -35,7 +35,17 @@ from san_xuat.ie_models import (
     SxStitchClass,
     SxTimeStudy,
 )
-from san_xuat.services.ie_ops import IeOpsError, approve_time_study, reject_time_study
+from san_xuat.services.ie_ops import (
+    IeOpsError,
+    approve_operation,
+    approve_routing,
+    approve_time_study,
+    clone_routing_revision,
+    is_routing_locked,
+    reject_routing,
+    reject_time_study,
+    save_routing_line_explanations,
+)
 from san_xuat.services.operation_master import (
     OperationMasterImportError,
     export_operation_master_response,
@@ -306,6 +316,21 @@ def routing_line_list(request):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def operation_list(request):
+    perms = _perm_ctx(request)
+    if request.method == 'POST' and perms['can_update']:
+        action = (request.POST.get('action') or '').strip()
+        pk = request.POST.get('pk')
+        op = SxOperation.objects.filter(pk=int(pk)).first() if pk and str(pk).isdigit() else None
+        if action == 'approve_operation' and op:
+            try:
+                approve_operation(operation=op, user=request.user)
+                messages.success(request, f'Đã duyệt {op.op_code}/{op.op_rev}.')
+            except IeOpsError as exc:
+                messages.error(request, str(exc))
+        else:
+            messages.error(request, 'Không duyệt được công đoạn.')
+        return redirect(request.get_full_path() if request.GET else 'san_xuat:ie_operation_list')
+
     qs = SxOperation.objects.select_related('group', 'machine', 'skill_level').all()
 
     term = (request.GET.get('q') or '').strip()
@@ -326,7 +351,7 @@ def operation_list(request):
     qs = qs.order_by('op_code', 'op_rev')
     page_obj, query_string = paginate_queryset(request, qs)
     return render(request, 'san_xuat/ie_operation_list.html', {
-        **_perm_ctx(request),
+        **perms,
         'page_obj': page_obj,
         'items': page_obj.object_list,
         'query_string': query_string,
@@ -367,12 +392,44 @@ def routing_list(request):
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def routing_detail(request, pk: int):
     routing = get_object_or_404(SxRouting, pk=pk)
+    perms = _perm_ctx(request)
+    locked = is_routing_locked(routing)
+
+    if request.method == 'POST' and perms['can_update']:
+        action = (request.POST.get('action') or '').strip()
+        try:
+            if action == 'approve_routing':
+                approve_routing(routing=routing, user=request.user)
+                messages.success(request, f'Đã duyệt routing {routing.routing_id}.')
+            elif action == 'reject_routing':
+                reject_routing(routing=routing, user=request.user)
+                messages.success(request, f'Đã từ chối routing {routing.routing_id}.')
+            elif action == 'clone_revision':
+                clone = clone_routing_revision(routing=routing, user=request.user)
+                messages.success(request, f'Đã tạo phiên bản mới {clone.routing_id}.')
+                return redirect('san_xuat:ie_routing_detail', pk=clone.pk)
+            elif action == 'save_explanations':
+                explanations = {}
+                for key, val in request.POST.items():
+                    if key.startswith('expl_') and key[5:].isdigit():
+                        explanations[int(key[5:])] = val
+                n = save_routing_line_explanations(routing=routing, explanations=explanations)
+                messages.success(request, f'Đã lưu {n} giải trình lệch SMV.')
+            else:
+                messages.error(request, 'Hành động không hợp lệ.')
+        except IeOpsError as exc:
+            messages.error(request, str(exc))
+        return redirect('san_xuat:ie_routing_detail', pk=routing.pk)
+
     lines = routing.lines.select_related('operation', 'machine', 'work_center').order_by('seq_no')
+    high_var = [l for l in lines if abs(l.smv_variance_pct or 0) > 15]
     return render(request, 'san_xuat/ie_routing_detail.html', {
-        **_perm_ctx(request),
+        **perms,
         'routing': routing,
         'lines': lines,
         'total_smv': routing.total_smv,
+        'locked': locked,
+        'high_var_count': len(high_var),
     })
 
 
@@ -396,6 +453,7 @@ def time_study_list(request):
                     study=study,
                     update_routing=request.POST.get('update_routing') != '0',
                     update_library=request.POST.get('update_library') == '1',
+                    variance_explanation=(request.POST.get('variance_explanation') or '').strip(),
                 )
                 msg = (
                     f'Đã duyệt {result.study_id}. SMV mới {result.new_smv} phút '
