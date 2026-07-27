@@ -5,10 +5,13 @@
   <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
     <div>
       <h2 class="mb-0">Dashboard IE</h2>
-      <div class="text-muted small">SMV theo mã hàng · cảnh báo lệch &gt; {{ variance_limit }}% · công đoạn / routing chưa duyệt</div>
+      <div class="text-muted small">SMV theo mã hàng · hiệu suất mục tiêu · lệch &gt; {{ variance_limit }}% · chưa duyệt</div>
     </div>
     <div class="d-flex flex-wrap gap-2">
       <a href="{% url 'san_xuat:ie_hub' %}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Công đoạn / IE</a>
+      {% if can_export %}
+      <a href="{% url 'san_xuat:ie_export' %}" class="btn btn-sm btn-outline-hm"><i class="bi bi-download me-1"></i>Xuất Excel (07_DASHBOARD)</a>
+      {% endif %}
       <a href="{% url 'san_xuat:ie_operation_list' %}?status=draft" class="btn btn-sm btn-outline-hm">OP chưa duyệt</a>
       <a href="{% url 'san_xuat:ie_routing_list' %}" class="btn btn-sm btn-outline-hm">Routing</a>
     </div>
@@ -40,8 +43,8 @@
     </div>
     <div class="col-6 col-md-3 col-lg">
       <div class="card border-0 shadow-sm h-100"><div class="card-body py-2 px-3">
-        <div class="fs-4 fw-bold {% if zero_smv_lines %}text-danger{% endif %}">{{ zero_smv_lines }}</div>
-        <div class="text-muted small">Dòng SMV = 0</div>
+        <div class="fs-4 fw-bold {% if time_studies_unlinked %}text-warning{% endif %}">{{ time_studies_linked }}/{{ time_studies }}</div>
+        <div class="text-muted small">TS gắn FK</div>
       </div></div>
     </div>
   </div>
@@ -58,6 +61,7 @@
                 <th class="text-end"># CĐ</th>
                 <th class="text-end">Tổng SMV</th>
                 <th class="text-end">SMV may</th>
+                <th class="text-end">Target eff %</th>
                 <th></th>
               </tr>
             </thead>
@@ -76,10 +80,11 @@
                 <td class="text-end">{{ r.operation_count }}</td>
                 <td class="text-end fw-semibold">{{ r.total_smv|floatformat:2 }}</td>
                 <td class="text-end">{{ r.sewing_smv|floatformat:2 }}</td>
+                <td class="text-end">{{ r.avg_target_efficiency|floatformat:1 }}</td>
                 <td><a href="{% url 'san_xuat:ie_routing_detail' r.pk %}" class="btn btn-sm btn-outline-secondary py-0">Xem</a></td>
               </tr>
             {% empty %}
-              <tr><td colspan="7" class="text-muted small p-3 text-center">Chưa có routing.</td></tr>
+              <tr><td colspan="8" class="text-muted small p-3 text-center">Chưa có routing.</td></tr>
             {% endfor %}
             </tbody>
           </table>

@@ -603,3 +603,55 @@ class SxTimeStudy(models.Model):
     def save(self, *args, **kwargs):
         self.recompute()
         super().save(*args, **kwargs)
+
+
+# ---------------------------------------------------------------------------
+# Nhật ký IE (import / duyệt / đổi SMV)
+# ---------------------------------------------------------------------------
+
+
+class SxIeAuditLog(models.Model):
+    """Nhật ký thao tác master data công đoạn (IE)."""
+
+    ACTION_IMPORT = 'import'
+    ACTION_EXPORT = 'export'
+    ACTION_APPROVE = 'approve'
+    ACTION_REJECT = 'reject'
+    ACTION_SMV_CHANGE = 'smv_change'
+    ACTION_UPDATE = 'update'
+    ACTION_CREATE = 'create'
+    ACTION_LINK = 'link'
+    ACTION_CHOICES = [
+        (ACTION_IMPORT, 'Import'),
+        (ACTION_EXPORT, 'Xuất Excel'),
+        (ACTION_APPROVE, 'Duyệt'),
+        (ACTION_REJECT, 'Từ chối'),
+        (ACTION_SMV_CHANGE, 'Đổi SMV'),
+        (ACTION_UPDATE, 'Cập nhật'),
+        (ACTION_CREATE, 'Tạo mới'),
+        (ACTION_LINK, 'Gắn liên kết'),
+    ]
+
+    action = models.CharField(max_length=20, choices=ACTION_CHOICES, db_index=True)
+    object_type = models.CharField(max_length=40, blank=True, default='', db_index=True)
+    object_id = models.CharField(max_length=80, blank=True, default='', db_index=True)
+    object_repr = models.CharField(max_length=255, blank=True, default='')
+    summary = models.CharField(max_length=500, blank=True, default='')
+    changes = models.JSONField(default=dict, blank=True)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='sx_ie_audit_logs',
+    )
+    username = models.CharField(max_length=150, blank=True, default='', db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Nhật ký IE'
+        verbose_name_plural = 'Nhật ký IE'
+
+    def __str__(self) -> str:
+        return f'{self.action} {self.object_repr or self.object_id}'

@@ -51,6 +51,44 @@ def _match_op_codes(op_code: str) -> Q:
     return q
 
 
+def resolve_operation(op_code: str, op_rev: str | None = None) -> SxOperation | None:
+    """Tìm công đoạn thư viện — ưu tiên khớp đúng, rồi mã rút gọn."""
+    op_code = (op_code or '').strip()
+    if not op_code:
+        return None
+    rev = (op_rev or '').strip() or None
+    if rev:
+        hit = SxOperation.objects.filter(op_code=op_code, op_rev=rev).first()
+        if hit:
+            return hit
+    hit = SxOperation.objects.filter(op_code=op_code).order_by('-op_rev').first()
+    if hit:
+        return hit
+    qs = SxOperation.objects.filter(_match_op_codes(op_code))
+    if rev:
+        hit = qs.filter(op_rev=rev).order_by('op_code').first()
+        if hit:
+            return hit
+    return qs.order_by('-op_rev', 'op_code').first()
+
+
+def link_time_studies_to_operations(*, only_unlinked: bool = True) -> dict:
+    """Gắn FK operation cho time study (mã rút gọn → mã đầy đủ)."""
+    qs = SxTimeStudy.objects.all()
+    if only_unlinked:
+        qs = qs.filter(operation__isnull=True)
+    linked = skipped = 0
+    for study in qs.iterator():
+        op = resolve_operation(study.op_code, study.op_rev)
+        if not op:
+            skipped += 1
+            continue
+        study.operation = op
+        study.save(update_fields=['operation'])
+        linked += 1
+    return {'linked': linked, 'skipped': skipped, 'total': linked + skipped}
+
+
 def assert_smv_positive(smv, *, label: str = 'SMV') -> Decimal:
     try:
         value = Decimal(str(smv)) if smv is not None else Decimal('0')
@@ -306,7 +344,7 @@ def create_time_study(
     if observed_cycle_sec is None or observed_cycle_sec < 0:
         raise IeOpsError('Chu kỳ quan sát (giây) không hợp lệ.')
 
-    op = SxOperation.objects.filter(op_code=op_code).order_by('-op_rev').first()
+    op = resolve_operation(op_code, op_rev)
     if not op_name_vi and op:
         op_name_vi = op.name_vi
     if not op_rev and op:
@@ -320,13 +358,13 @@ def create_time_study(
     if SxTimeStudy.objects.filter(study_id=sid).exists():
         raise IeOpsError(f'Mã quan sát {sid} đã tồn tại.')
 
-    return SxTimeStudy.objects.create(
+    study = SxTimeStudy.objects.create(
         study_id=sid,
         study_date=date.today(),
         style_code=(style_code or '')[:60],
         operation=op,
         op_code=op_code[:30],
-        op_rev=(op_rev or 'R01')[:10],
+        op_rev=(op_rev or (op.op_rev if op else 'R01'))[:10],
         op_name_vi=(op_name_vi or '')[:200],
         observed_cycle_sec=observed_cycle_sec,
         abnormal_sec=abnormal_sec if abnormal_sec is not None else Decimal('0'),
@@ -335,6 +373,133 @@ def create_time_study(
         current_routing_smv=current_routing_smv if current_routing_smv is not None else Decimal('0'),
         notes='Tạo tay (không import Excel)',
     )
+    from san_xuat.ie_models import SxIeAuditLog
+    from san_xuat.services.ie_audit import log_ie_event
+
+    log_ie_event(
+        action=SxIeAuditLog.ACTION_CREATE,
+        summary=f'Tạo time study {study.study_id}',
+        object_type='SxTimeStudy',
+        object_id=study.pk,
+        object_repr=study.study_id,
+    )
+    return study
+
+
+@transaction.atomic
+def update_operation(
+    *,
+    operation: SxOperation,
+    user=None,
+    name_vi: str | None = None,
+    name_en: str | None = None,
+    group: SxOperationGroup | None = None,
+    process_stage_label: str | None = None,
+    product_part: str | None = None,
+    method_variant: str | None = None,
+    machine_code: str | None = None,
+    skill_level_label: str | None = None,
+    base_smv_min: Decimal | None = None,
+    smv_basis: str | None = None,
+    qc_criteria: str | None = None,
+    status: str | None = None,
+    ie_owner: str | None = None,
+    revision_reason: str | None = None,
+    notes: str | None = None,
+    work_instruction_url: str | None = None,
+    video_url: str | None = None,
+) -> SxOperation:
+    """Cập nhật công đoạn chuẩn trên UI. Đổi SMV khi đã duyệt → về nháp."""
+    if operation is None:
+        raise IeOpsError('Thiếu công đoạn.')
+
+    from san_xuat.ie_models import SxIeAuditLog, SxMachine
+    from san_xuat.services.ie_audit import log_ie_event
+
+    changes: dict = {}
+    old_smv = operation.base_smv_min
+
+    def _set(field: str, value, *, cast=None):
+        if value is None:
+            return
+        if cast:
+            value = cast(value)
+        current = getattr(operation, field)
+        if current != value:
+            changes[field] = {'from': str(current), 'to': str(value)}
+            setattr(operation, field, value)
+
+    if name_vi is not None:
+        name = name_vi.strip()
+        if not name:
+            raise IeOpsError('Tên công đoạn không được trống.')
+        ensure_process_name(name)
+        _set('name_vi', name[:200])
+    _set('name_en', None if name_en is None else name_en.strip()[:200])
+    if group is not None:
+        if operation.group_id != group.pk:
+            changes['group'] = {'from': operation.group.code, 'to': group.code}
+            operation.group = group
+    _set('process_stage_label', None if process_stage_label is None else process_stage_label.strip()[:100])
+    _set('product_part', None if product_part is None else product_part.strip()[:120])
+    _set('method_variant', None if method_variant is None else method_variant.strip())
+    if machine_code is not None:
+        code = machine_code.strip()[:40]
+        machine = SxMachine.objects.filter(code=code).first() if code else None
+        _set('machine_code', code)
+        if operation.machine_id != (machine.pk if machine else None):
+            changes['machine'] = {'from': str(operation.machine_id or ''), 'to': str(machine.pk if machine else '')}
+            operation.machine = machine
+    _set('skill_level_label', None if skill_level_label is None else skill_level_label.strip()[:60])
+    if base_smv_min is not None:
+        if base_smv_min < 0:
+            raise IeOpsError('SMV không được âm.')
+        _set('base_smv_min', base_smv_min)
+    _set('smv_basis', None if smv_basis is None else smv_basis.strip()[:60])
+    _set('qc_criteria', None if qc_criteria is None else qc_criteria.strip())
+    _set('ie_owner', None if ie_owner is None else ie_owner.strip()[:120])
+    _set('revision_reason', None if revision_reason is None else revision_reason.strip()[:255])
+    _set('notes', None if notes is None else notes.strip()[:255])
+    _set('work_instruction_url', None if work_instruction_url is None else work_instruction_url.strip()[:500])
+    _set('video_url', None if video_url is None else video_url.strip()[:500])
+
+    if status is not None:
+        allowed = {c[0] for c in SxOperation.STATUS_CHOICES}
+        if status not in allowed:
+            raise IeOpsError('Trạng thái không hợp lệ.')
+        # Không tự duyệt qua form sửa — dùng nút Duyệt.
+        if status == SxOperation.STATUS_APPROVED and operation.status != SxOperation.STATUS_APPROVED:
+            raise IeOpsError('Dùng nút Duyệt để phê duyệt công đoạn.')
+        _set('status', status)
+
+    smv_changed = 'base_smv_min' in changes
+    if smv_changed and operation.status == SxOperation.STATUS_APPROVED:
+        operation.status = SxOperation.STATUS_DRAFT
+        operation.approved_by = ''
+        operation.approved_at = None
+        changes['status'] = {'from': SxOperation.STATUS_APPROVED, 'to': SxOperation.STATUS_DRAFT, 'reason': 'smv_changed'}
+
+    if not changes:
+        return operation
+
+    fields = list(changes.keys())
+    # Always touch updated_at
+    operation.save()
+    action = SxIeAuditLog.ACTION_SMV_CHANGE if smv_changed else SxIeAuditLog.ACTION_UPDATE
+    log_ie_event(
+        action=action,
+        summary=(
+            f'Đổi SMV {operation.op_code}/{operation.op_rev}: {old_smv} → {operation.base_smv_min}'
+            if smv_changed
+            else f'Cập nhật {operation.op_code}/{operation.op_rev}'
+        ),
+        object_type='SxOperation',
+        object_id=operation.pk,
+        object_repr=f'{operation.op_code}/{operation.op_rev}',
+        changes=changes,
+        user=user,
+    )
+    return operation
 
 
 @transaction.atomic
@@ -423,6 +588,18 @@ def approve_operation(*, operation: SxOperation, user=None) -> SxOperation:
     )[:120]
     operation.approved_at = timezone.now()
     operation.save(update_fields=['status', 'approved_by', 'approved_at', 'updated_at'])
+    from san_xuat.ie_models import SxIeAuditLog
+    from san_xuat.services.ie_audit import log_ie_event
+
+    log_ie_event(
+        action=SxIeAuditLog.ACTION_APPROVE,
+        summary=f'Duyệt OP {operation.op_code}/{operation.op_rev} SMV={operation.base_smv_min}',
+        object_type='SxOperation',
+        object_id=operation.pk,
+        object_repr=f'{operation.op_code}/{operation.op_rev}',
+        changes={'status': {'to': operation.status}, 'smv': str(operation.base_smv_min)},
+        user=user,
+    )
     return operation
 
 
@@ -455,6 +632,17 @@ def approve_routing(*, routing: SxRouting, user=None) -> SxRouting:
     routing.save(update_fields=[
         'approval_status', 'approved_by', 'approved_at', 'effective_from', 'is_active', 'updated_at',
     ])
+    from san_xuat.ie_models import SxIeAuditLog
+    from san_xuat.services.ie_audit import log_ie_event
+
+    log_ie_event(
+        action=SxIeAuditLog.ACTION_APPROVE,
+        summary=f'Duyệt routing {routing.routing_id} ({len(lines)} dòng)',
+        object_type='SxRouting',
+        object_id=routing.pk,
+        object_repr=routing.routing_id,
+        user=user,
+    )
     return routing
 
 
@@ -575,9 +763,7 @@ def upsert_routing_line(
         raise IeOpsError('Nhập mã công đoạn.')
     op_rev = (op_rev or 'R01').strip() or 'R01'
     name = (op_name_vi or '').strip()
-    op = SxOperation.objects.filter(op_code=op_code, op_rev=op_rev).first()
-    if op is None:
-        op = SxOperation.objects.filter(op_code=op_code).order_by('-op_rev').first()
+    op = resolve_operation(op_code, op_rev)
     if not name and op:
         name = op.name_vi
     if not name:
@@ -596,10 +782,12 @@ def upsert_routing_line(
     wc = SxWorkCenter.objects.filter(code=(work_center_code or '').strip()).first() if work_center_code else None
 
     line = None
+    old_smv = None
     if line_pk:
         line = routing.lines.filter(pk=line_pk).first()
         if line is None:
             raise IeOpsError('Không tìm thấy dòng routing.')
+        old_smv = line.applied_unit_smv
     if seq_no is None:
         last = routing.lines.order_by('-seq_no').values_list('seq_no', flat=True).first() or 0
         seq_no = int(last) + 10
@@ -637,6 +825,21 @@ def upsert_routing_line(
         line.variance_explanation = variance_explanation[:500]
     line.save()
     _mark_routing_pending(routing)
+    if old_smv is not None and old_smv != line.applied_unit_smv:
+        from san_xuat.ie_models import SxIeAuditLog
+        from san_xuat.services.ie_audit import log_ie_event
+
+        log_ie_event(
+            action=SxIeAuditLog.ACTION_SMV_CHANGE,
+            summary=(
+                f'Đổi SMV dòng {routing.routing_id}#{line.seq_no} {line.op_code}: '
+                f'{old_smv} → {line.applied_unit_smv}'
+            ),
+            object_type='SxRoutingLine',
+            object_id=line.pk,
+            object_repr=f'{routing.routing_id}#{line.seq_no}',
+            changes={'applied_unit_smv': {'from': str(old_smv), 'to': str(line.applied_unit_smv)}},
+        )
     return line
 
 
@@ -652,7 +855,7 @@ def delete_routing_line(*, routing: SxRouting, line_pk: int) -> None:
 
 def build_ie_dashboard() -> dict:
     """Số liệu dashboard kiểu sheet 07_DASHBOARD."""
-    from django.db.models import Count, Sum, Q as DQ
+    from django.db.models import Avg, Count, Sum, Q as DQ
 
     style_rows = []
     for r in (
@@ -664,6 +867,7 @@ def build_ie_dashboard() -> dict:
                 'lines__total_operation_smv',
                 filter=DQ(lines__op_code__istartswith='SEW') | DQ(lines__group_code__istartswith='SEW'),
             ),
+            avg_target_eff=Avg('lines__target_efficiency'),
         )
         .order_by('style_code', 'routing_rev')
     ):
@@ -677,6 +881,7 @@ def build_ie_dashboard() -> dict:
             'operation_count': r.n_lines or 0,
             'total_smv': r.sum_smv or Decimal('0'),
             'sewing_smv': r.sew_smv or Decimal('0'),
+            'avg_target_efficiency': r.avg_target_eff or Decimal('0'),
         })
 
     high_var = list(
@@ -689,6 +894,8 @@ def build_ie_dashboard() -> dict:
     pending_ops = SxOperation.objects.exclude(status=SxOperation.STATUS_APPROVED).count()
     pending_routings = SxRouting.objects.exclude(approval_status=SxRouting.APPROVAL_APPROVED).count()
     zero_smv_lines = SxRoutingLine.objects.filter(applied_unit_smv__lte=0).count()
+    ts_total = SxTimeStudy.objects.count()
+    ts_linked = SxTimeStudy.objects.exclude(operation_id=None).count()
 
     return {
         'style_rows': style_rows,
@@ -703,7 +910,10 @@ def build_ie_dashboard() -> dict:
         'operations': SxOperation.objects.count(),
         'routings': SxRouting.objects.count(),
         'routing_lines': SxRoutingLine.objects.count(),
-        'time_studies': SxTimeStudy.objects.count(),
+        'time_studies': ts_total,
+        'time_studies_linked': ts_linked,
+        'time_studies_unlinked': ts_total - ts_linked,
+        'styles': SxRouting.objects.values('style_code').distinct().count(),
         'variance_limit': VARIANCE_LIMIT_PCT,
     }
 
@@ -715,6 +925,7 @@ def approve_time_study(
     update_library: bool = False,
     update_routing: bool = True,
     variance_explanation: str = '',
+    user=None,
 ) -> ApproveTimeStudyResult:
     """Duyệt một quan sát bấm giờ và (tuỳ chọn) cập nhật SMV routing / thư viện.
 
@@ -734,7 +945,9 @@ def approve_time_study(
         study.variance_explanation = (variance_explanation or study.variance_explanation)[:500]
 
     study.approval_status = SxTimeStudy.APPROVAL_APPROVED
-    study.save(update_fields=['approval_status', 'variance_explanation'])
+    if study.operation_id is None:
+        study.operation = resolve_operation(study.op_code, study.op_rev)
+    study.save(update_fields=['approval_status', 'variance_explanation', 'operation'])
 
     result = ApproveTimeStudyResult(study_id=study.study_id)
     op_code = (study.op_code or '').strip()
@@ -824,6 +1037,28 @@ def approve_time_study(
                 op.save(update_fields=['base_smv_min', 'updated_at'])
                 result.library_updated = True
 
+    from san_xuat.ie_models import SxIeAuditLog
+    from san_xuat.services.ie_audit import log_ie_event
+
+    log_ie_event(
+        action=SxIeAuditLog.ACTION_APPROVE if result.routing_lines_updated == 0 and not result.library_updated
+        else SxIeAuditLog.ACTION_SMV_CHANGE,
+        summary=(
+            f'Duyệt time study {study.study_id} → SMV {new_smv} '
+            f'(routing {result.routing_lines_updated} dòng'
+            f'{", thư viện" if result.library_updated else ""})'
+        ),
+        object_type='SxTimeStudy',
+        object_id=study.pk,
+        object_repr=study.study_id,
+        changes={
+            'new_smv': str(new_smv),
+            'sample_count': sample_count,
+            'routing_lines_updated': result.routing_lines_updated,
+            'library_updated': result.library_updated,
+        },
+        user=user,
+    )
     return result
 
 

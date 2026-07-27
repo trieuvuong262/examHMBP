@@ -42,15 +42,15 @@
           <tr>
             <th>Mã CĐ</th><th>Rev</th><th>Tên công đoạn</th><th>Nhóm</th>
             <th>Khâu SX</th><th>Máy</th><th class="text-end">SMV (phút)</th>
-            <th class="text-end">SP/giờ</th><th>Trạng thái</th>{% if can_approve %}<th></th>{% endif %}
+            <th class="text-end">SP/giờ</th><th>Trạng thái</th>{% if can_approve or can_update %}<th></th>{% endif %}
           </tr>
         </thead>
         <tbody>
         {% for op in items %}
           <tr>
-            <td class="fw-semibold">{{ op.op_code }}</td>
+            <td class="fw-semibold"><a href="{% url 'san_xuat:ie_operation_detail' op.pk %}" class="text-decoration-none">{{ op.op_code }}</a></td>
             <td><span class="badge bg-light text-dark">{{ op.op_rev }}</span></td>
-            <td>{{ op.name_vi }}{% if op.name_en %}<div class="text-muted small">{{ op.name_en }}</div>{% endif %}</td>
+            <td><a href="{% url 'san_xuat:ie_operation_detail' op.pk %}" class="text-decoration-none text-body">{{ op.name_vi }}</a>{% if op.name_en %}<div class="text-muted small">{{ op.name_en }}</div>{% endif %}</td>
             <td class="small">{{ op.group.code }}</td>
             <td class="small">{{ op.process_stage_label|default:"—" }}</td>
             <td class="small">{{ op.machine_code|default:"—" }}</td>
@@ -59,6 +59,7 @@
             <td>{{ op.get_status_display }}</td>
             {% if can_approve %}
             <td class="text-nowrap">
+              <a href="{% url 'san_xuat:ie_operation_detail' op.pk %}" class="btn btn-sm btn-outline-secondary py-0">Sửa</a>
               {% if op.status != 'approved' %}
               <form method="post" class="d-inline">
                 {% csrf_token %}
@@ -68,10 +69,14 @@
               </form>
               {% endif %}
             </td>
+            {% elif can_update %}
+            <td class="text-nowrap">
+              <a href="{% url 'san_xuat:ie_operation_detail' op.pk %}" class="btn btn-sm btn-outline-secondary py-0">Sửa</a>
+            </td>
             {% endif %}
           </tr>
         {% empty %}
-          <tr><td colspan="{% if can_approve %}10{% else %}9{% endif %}" class="text-muted small p-3 text-center">Không có công đoạn phù hợp.</td></tr>
+          <tr><td colspan="{% if can_approve or can_update %}10{% else %}9{% endif %}" class="text-muted small p-3 text-center">Không có công đoạn phù hợp.</td></tr>
         {% endfor %}
         </tbody>
       </table>

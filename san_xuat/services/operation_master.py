@@ -32,6 +32,7 @@ from san_xuat.ie_models import (
     SxTimeStudy,
 )
 from san_xuat.hub_models import SxWorkCenter
+from san_xuat.services.ie_ops import link_time_studies_to_operations, resolve_operation
 
 # Tên sheet
 SHEET_REF = '05_DM_THAM_CHIEU'
@@ -39,6 +40,7 @@ SHEET_GROUP = '01_DM_NHOM_CONG_DOAN'
 SHEET_LIB = '02_THU_VIEN_CONG_DOAN'
 SHEET_ROUTING = '03_ROUTING_MA_HANG'
 SHEET_TIMESTUDY = '04_DU_LIEU_TIME_STUDY'
+SHEET_DASHBOARD = '07_DASHBOARD'
 
 VARIANCE_WARN_PCT = Decimal('15')
 
@@ -404,7 +406,7 @@ def _import_routings(wb, result: ImportResult) -> None:
             line = SxRoutingLine(
                 routing=routing,
                 seq_no=seq,
-                operation=SxOperation.objects.filter(op_code=op_code, op_rev=op_rev).first(),
+                operation=resolve_operation(op_code, op_rev),
                 op_code=op_code,
                 op_rev=op_rev,
                 op_name_vi=_s(rec.get('TÊN CÔNG ĐOẠN')),
@@ -451,7 +453,7 @@ def _import_time_studies(wb, result: ImportResult) -> None:
                 'shift': _s(rec.get('SHIFT')),
                 'style_code': _s(rec.get('STYLE_CODE')),
                 'routing_rev': _s(rec.get('ROUTING_REV')),
-                'operation': SxOperation.objects.filter(op_code=op_code, op_rev=op_rev).first(),
+                'operation': resolve_operation(op_code, op_rev),
                 'op_code': op_code,
                 'op_rev': op_rev,
                 'op_name_vi': _s(rec.get('OP_NAME_VI')),
@@ -478,7 +480,7 @@ def _import_time_studies(wb, result: ImportResult) -> None:
 # --- Entry point -----------------------------------------------------------
 
 
-def import_operation_master(source, *, dry_run: bool = False) -> ImportResult:
+def import_operation_master(source, *, dry_run: bool = False, user=None) -> ImportResult:
     """Import toàn bộ master data mã công đoạn từ file Excel.
 
     ``source`` là đường dẫn file hoặc file-like (upload). ``dry_run=True`` sẽ
@@ -506,11 +508,35 @@ def import_operation_master(source, *, dry_run: bool = False) -> ImportResult:
             _import_operations(wb, result)
             _import_routings(wb, result)
             _import_time_studies(wb, result)
+            link_stats = link_time_studies_to_operations(only_unlinked=True)
+            if link_stats['linked']:
+                result.warnings.append(
+                    f"Đã gắn FK time study → operation: {link_stats['linked']} quan sát."
+                )
             if dry_run:
                 transaction.set_rollback(True)
     finally:
         wb.close()
 
+    if not dry_run:
+        from san_xuat.ie_models import SxIeAuditLog
+        from san_xuat.services.ie_audit import log_ie_event
+
+        log_ie_event(
+            action=SxIeAuditLog.ACTION_IMPORT,
+            summary=(
+                f'Import master data — tạo {result.total_created}, '
+                f'cập nhật {result.total_updated}'
+            ),
+            object_type='OperationMaster',
+            object_repr='import_excel',
+            changes={
+                'created': result.created,
+                'updated': result.updated,
+                'warnings': len(result.warnings),
+            },
+            user=user,
+        )
     return result
 
 
@@ -688,15 +714,63 @@ def export_operation_master_workbook():
         'VALID_SAMPLE', 'IE_OBSERVER', 'CONDITIONS', 'APPROVAL_STATUS', 'NOTES',
     ], ts_rows)
 
+    # 07_DASHBOARD
+    from datetime import date as _date_cls
+
+    from san_xuat.services.ie_ops import build_ie_dashboard
+
+    dash = build_ie_dashboard()
+    ws = wb.create_sheet(SHEET_DASHBOARD)
+    ws.append(['JUST PLAY – CẤU TRÚC DỮ LIỆU MÃ CÔNG ĐOẠN SẢN XUẤT'])
+    ws.append([])
+    ws.append([])
+    ws.append(['Chỉ số', 'Giá trị', '', 'Chỉ số', 'Giá trị'])
+    ws.append(['Số nhóm công đoạn', dash['groups'], '', 'Số mã hàng mẫu', dash['styles']])
+    ws.append(['Số công đoạn chuẩn', dash['operations'], '', 'Số quan sát time study', dash['time_studies']])
+    ws.append(['Số dòng routing mẫu', dash['routing_lines'], '', 'Ngày tạo file', _date_cls.today().isoformat()])
+    ws.append(['Time study đã gắn FK', dash['time_studies_linked'], '', 'OP chưa duyệt', dash['pending_ops']])
+    ws.append(['Dòng lệch >15%', dash['high_var_count'], '', 'Routing chưa duyệt', dash['pending_routings']])
+    ws.append([])
+    ws.append([])
+    ws.append([
+        'STYLE_CODE', 'PRODUCT_FAMILY', 'OPERATION_COUNT', 'TOTAL_ROUTING_SMV',
+        'SEWING_SMV', 'AVG_TARGET_EFFICIENCY_PCT', 'ROUTING_ID', 'APPROVAL_STATUS',
+    ])
+    for row in dash['style_rows']:
+        ws.append([
+            row['style_code'],
+            row['product_family'],
+            row['operation_count'],
+            float(row['total_smv'] or 0),
+            float(row['sewing_smv'] or 0),
+            float(row['avg_target_efficiency'] or 0),
+            row['routing_id'],
+            row['approval_status'],
+        ])
+    ws.append([])
+    ws.append(['CẢNH BÁO LỆCH SMV > 15%'])
+    ws.append(['STYLE', 'OP_CODE', 'SEQ', 'VARIANCE_PCT', 'EXPLANATION'])
+    for line in dash['high_var_lines']:
+        ws.append([
+            line.routing.style_code,
+            line.op_code,
+            line.seq_no,
+            float(line.smv_variance_pct or 0),
+            line.variance_explanation or '',
+        ])
+
     return wb
 
 
-def export_operation_master_response():
+def export_operation_master_response(*, user=None):
     """HttpResponse file Excel master data mã công đoạn."""
     import io
     from datetime import datetime
 
     from django.http import HttpResponse
+
+    from san_xuat.ie_models import SxIeAuditLog
+    from san_xuat.services.ie_audit import log_ie_event
 
     wb = export_operation_master_workbook()
     buf = io.BytesIO()
@@ -708,5 +782,12 @@ def export_operation_master_response():
     )
     response['Content-Disposition'] = (
         f'attachment; filename=Just_Play_Master_Data_Ma_Cong_Doan_{stamp}.xlsx'
+    )
+    log_ie_event(
+        action=SxIeAuditLog.ACTION_EXPORT,
+        summary='Xuất Excel master data công đoạn (gồm 07_DASHBOARD)',
+        object_type='OperationMaster',
+        object_repr='export_excel',
+        user=user,
     )
     return response

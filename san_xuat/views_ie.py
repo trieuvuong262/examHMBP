@@ -24,6 +24,7 @@ from hrm.module_permissions import (
 from PortalJustPlay.pagination import paginate_queryset
 
 from san_xuat.ie_models import (
+    SxIeAuditLog,
     SxMachine,
     SxOperation,
     SxOperationGroup,
@@ -49,9 +50,11 @@ from san_xuat.services.ie_ops import (
     clone_routing_revision,
     delete_routing_line,
     is_routing_locked,
+    link_time_studies_to_operations,
     reject_routing,
     reject_time_study,
     save_routing_line_explanations,
+    update_operation,
     upsert_routing_line,
 )
 from san_xuat.services.operation_master import (
@@ -99,7 +102,7 @@ def ie_hub(request):
                 return redirect('san_xuat:ie_hub')
             dry_run = request.POST.get('dry_run') == '1'
             try:
-                result = import_operation_master(upload, dry_run=dry_run)
+                result = import_operation_master(upload, dry_run=dry_run, user=request.user)
             except OperationMasterImportError as exc:
                 messages.error(request, f'Lỗi import: {exc}')
                 return redirect('san_xuat:ie_hub')
@@ -235,6 +238,27 @@ def ie_hub(request):
             )
             return redirect('san_xuat:ie_time_study_list')
 
+        if action == 'link_time_studies':
+            if not perms['can_update']:
+                messages.error(request, 'Bạn không có quyền gắn liên kết.')
+                return redirect('san_xuat:ie_hub')
+            stats = link_time_studies_to_operations(only_unlinked=True)
+            from san_xuat.services.ie_audit import log_ie_event
+
+            log_ie_event(
+                action=SxIeAuditLog.ACTION_LINK,
+                summary=f"Gắn FK time study → operation: {stats['linked']} quan sát",
+                object_type='SxTimeStudy',
+                object_repr='bulk_link',
+                changes=stats,
+                user=request.user,
+            )
+            messages.success(
+                request,
+                f"Đã gắn {stats['linked']} quan sát; bỏ qua {stats['skipped']}.",
+            )
+            return redirect('san_xuat:ie_hub')
+
     stats = {
         'machines': SxMachine.objects.count(),
         'stitch_classes': SxStitchClass.objects.count(),
@@ -265,7 +289,7 @@ def ie_hub(request):
 @module_perm_required(MODULE_SAN_XUAT, 'export')
 @require_GET
 def ie_export(request):
-    return export_operation_master_response()
+    return export_operation_master_response(user=request.user)
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
@@ -383,6 +407,70 @@ def operation_list(request):
         'groups': SxOperationGroup.objects.order_by('sort_order', 'code'),
         'status_choices': SxOperation.STATUS_CHOICES,
         'total': qs.count(),
+    })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+def operation_detail(request, pk: int):
+    op = get_object_or_404(SxOperation.objects.select_related('group', 'machine'), pk=pk)
+    perms = _perm_ctx(request)
+
+    if request.method == 'POST':
+        action = (request.POST.get('action') or '').strip()
+        try:
+            if action == 'approve_operation':
+                if not perms['can_approve']:
+                    raise IeOpsError('Bạn không có quyền duyệt công đoạn.')
+                approve_operation(operation=op, user=request.user)
+                messages.success(request, f'Đã duyệt {op.op_code}/{op.op_rev}.')
+            elif action == 'save_operation':
+                if not perms['can_update']:
+                    raise IeOpsError('Bạn không có quyền sửa công đoạn.')
+                group = None
+                gid = (request.POST.get('group_id') or '').strip()
+                if gid.isdigit():
+                    group = SxOperationGroup.objects.filter(pk=int(gid)).first()
+                smv_raw = (request.POST.get('base_smv_min') or '').strip()
+                smv = _dec(smv_raw) if smv_raw != '' else None
+                status = (request.POST.get('status') or '').strip() or None
+                update_operation(
+                    operation=op,
+                    user=request.user,
+                    name_vi=request.POST.get('name_vi'),
+                    name_en=request.POST.get('name_en'),
+                    group=group,
+                    process_stage_label=request.POST.get('process_stage_label'),
+                    product_part=request.POST.get('product_part'),
+                    method_variant=request.POST.get('method_variant'),
+                    machine_code=request.POST.get('machine_code'),
+                    skill_level_label=request.POST.get('skill_level_label'),
+                    base_smv_min=smv,
+                    smv_basis=request.POST.get('smv_basis'),
+                    qc_criteria=request.POST.get('qc_criteria'),
+                    status=status if status != SxOperation.STATUS_APPROVED else None,
+                    ie_owner=request.POST.get('ie_owner'),
+                    revision_reason=request.POST.get('revision_reason'),
+                    notes=request.POST.get('notes'),
+                    work_instruction_url=request.POST.get('work_instruction_url'),
+                    video_url=request.POST.get('video_url'),
+                )
+                messages.success(request, f'Đã lưu {op.op_code}/{op.op_rev}.')
+            else:
+                messages.error(request, 'Hành động không hợp lệ.')
+        except IeOpsError as exc:
+            messages.error(request, str(exc))
+        return redirect('san_xuat:ie_operation_detail', pk=op.pk)
+
+    return render(request, 'san_xuat/ie_operation_detail.html', {
+        **perms,
+        'op': op,
+        'groups': SxOperationGroup.objects.filter(is_active=True).order_by('sort_order', 'code'),
+        'status_choices': [
+            c for c in SxOperation.STATUS_CHOICES if c[0] != SxOperation.STATUS_APPROVED
+        ],
+        'audit_logs': SxIeAuditLog.objects.filter(
+            object_type='SxOperation', object_id=str(op.pk)
+        )[:20],
     })
 
 
@@ -525,6 +613,7 @@ def time_study_list(request):
                     update_routing=request.POST.get('update_routing') != '0',
                     update_library=request.POST.get('update_library') == '1',
                     variance_explanation=(request.POST.get('variance_explanation') or '').strip(),
+                    user=request.user,
                 )
                 msg = (
                     f'Đã duyệt {result.study_id}. SMV mới {result.new_smv} phút '
@@ -584,4 +673,31 @@ def ie_dashboard(request):
     return render(request, 'san_xuat/ie_dashboard.html', {
         **_perm_ctx(request),
         **data,
+    })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+def ie_audit_list(request):
+    qs = SxIeAuditLog.objects.select_related('user').all()
+    term = (request.GET.get('q') or '').strip()
+    if term:
+        qs = qs.filter(
+            Q(summary__icontains=term)
+            | Q(object_repr__icontains=term)
+            | Q(username__icontains=term)
+            | Q(object_type__icontains=term)
+        )
+    action = (request.GET.get('action') or '').strip()
+    if action:
+        qs = qs.filter(action=action)
+    page_obj, query_string = paginate_queryset(request, qs)
+    return render(request, 'san_xuat/ie_audit_list.html', {
+        **_perm_ctx(request),
+        'page_obj': page_obj,
+        'items': page_obj.object_list,
+        'query_string': query_string,
+        'term': term,
+        'action': action,
+        'action_choices': SxIeAuditLog.ACTION_CHOICES,
+        'total': qs.count(),
     })

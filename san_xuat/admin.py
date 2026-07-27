@@ -2,6 +2,7 @@ from django.contrib import admin
 
 from san_xuat.models import BomLine, BomVersion, CostingSnapshot, ProcessStep, ProductTechDoc, TechDocDesignFile
 from san_xuat.ie_models import (
+    SxIeAuditLog,
     SxMachine,
     SxOperation,
     SxOperationGroup,
@@ -116,3 +117,11 @@ class SxTimeStudyAdmin(admin.ModelAdmin):
     list_filter = ('approval_status', 'style_code')
     search_fields = ('study_id', 'op_code', 'op_name_vi', 'operator_id')
     readonly_fields = ('net_observed_sec', 'normal_time_sec', 'standard_time_sec', 'calculated_smv', 'variance_pct')
+
+
+@admin.register(SxIeAuditLog)
+class SxIeAuditLogAdmin(admin.ModelAdmin):
+    list_display = ('created_at', 'action', 'object_type', 'object_repr', 'username', 'summary')
+    list_filter = ('action', 'object_type')
+    search_fields = ('summary', 'object_repr', 'username', 'object_id')
+    readonly_fields = ('created_at',)
