@@ -22,20 +22,20 @@
           <i class="bi bi-files me-1"></i>Tạo REV mới
         </button>
       </form>
-      {% if not locked and routing.approval_status != 'approved' %}
+      {% endif %}
+      {% if can_approve and not locked and routing.approval_status != 'approved' %}
       <form method="post" class="d-inline">
         {% csrf_token %}
         <input type="hidden" name="action" value="approve_routing">
         <button type="submit" class="btn btn-sm btn-hm">Duyệt phát hành</button>
       </form>
       {% endif %}
-      {% if not locked and routing.approval_status != 'rejected' %}
+      {% if can_approve and not locked and routing.approval_status != 'rejected' %}
       <form method="post" class="d-inline">
         {% csrf_token %}
         <input type="hidden" name="action" value="reject_routing">
         <button type="submit" class="btn btn-sm btn-outline-secondary">Từ chối</button>
       </form>
-      {% endif %}
       {% endif %}
       <a href="{% url 'san_xuat:ie_routing_list' %}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Danh sách</a>
     </div>
@@ -52,6 +52,83 @@
       <div class="fs-4 fw-bold">{{ total_smv|floatformat:2 }}</div><div class="text-muted small">Tổng SMV (phút)</div></div></div></div>
   </div>
 
+  {% if can_update and not locked %}
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-body py-3">
+      <h3 class="h6 mb-3">{% if edit_line %}Sửa dòng #{{ edit_line.seq_no }}{% else %}Thêm dòng routing{% endif %}</h3>
+      <form method="post" class="row g-2 align-items-end">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="{% if edit_line %}edit_line{% else %}add_line{% endif %}">
+        {% if edit_line %}<input type="hidden" name="line_pk" value="{{ edit_line.pk }}">{% endif %}
+        <div class="col-6 col-md-1">
+          <label class="form-label small mb-0">SEQ</label>
+          <input type="number" name="seq_no" class="form-control form-control-sm" min="1"
+                 value="{% if edit_line %}{{ edit_line.seq_no }}{% endif %}" placeholder="auto">
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label small mb-0">Mã CĐ</label>
+          <input type="text" name="op_code" class="form-control form-control-sm" required maxlength="30"
+                 value="{% if edit_line %}{{ edit_line.op_code }}{% endif %}" placeholder="SEW-…">
+        </div>
+        <div class="col-4 col-md-1">
+          <label class="form-label small mb-0">Rev</label>
+          <input type="text" name="op_rev" class="form-control form-control-sm" maxlength="10"
+                 value="{% if edit_line %}{{ edit_line.op_rev }}{% else %}R01{% endif %}">
+        </div>
+        <div class="col-8 col-md-3">
+          <label class="form-label small mb-0">Tên công đoạn</label>
+          <input type="text" name="op_name_vi" class="form-control form-control-sm" maxlength="200"
+                 value="{% if edit_line %}{{ edit_line.op_name_vi }}{% endif %}" placeholder="Tự lấy từ thư viện nếu trống">
+        </div>
+        <div class="col-4 col-md-1">
+          <label class="form-label small mb-0">SL/SP</label>
+          <input type="text" name="qty_per_garment" class="form-control form-control-sm"
+                 value="{% if edit_line %}{{ edit_line.qty_per_garment }}{% else %}1{% endif %}">
+        </div>
+        <div class="col-4 col-md-1">
+          <label class="form-label small mb-0">SMV áp dụng</label>
+          <input type="text" name="applied_unit_smv" class="form-control form-control-sm" required
+                 value="{% if edit_line %}{{ edit_line.applied_unit_smv }}{% endif %}">
+        </div>
+        <div class="col-4 col-md-1">
+          <label class="form-label small mb-0">SMV TV</label>
+          <input type="text" name="library_unit_smv" class="form-control form-control-sm"
+                 value="{% if edit_line %}{{ edit_line.library_unit_smv }}{% endif %}" placeholder="auto">
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label small mb-0">Máy</label>
+          <input type="text" name="machine_code" class="form-control form-control-sm" list="ie-machine-codes"
+                 value="{% if edit_line %}{{ edit_line.machine_code }}{% endif %}" maxlength="40">
+          <datalist id="ie-machine-codes">
+            {% for m in machines %}<option value="{{ m.code }}">{{ m.name }}</option>{% endfor %}
+          </datalist>
+        </div>
+        <div class="col-6 col-md-2">
+          <label class="form-label small mb-0">Nhóm</label>
+          <input type="text" name="group_code" class="form-control form-control-sm" maxlength="30"
+                 value="{% if edit_line %}{{ edit_line.group_code }}{% endif %}">
+        </div>
+        <div class="col-12 col-md-3">
+          <label class="form-label small mb-0">Giải trình lệch (&gt;15%)</label>
+          <input type="text" name="variance_explanation" class="form-control form-control-sm" maxlength="500"
+                 value="{% if edit_line %}{{ edit_line.variance_explanation }}{% endif %}">
+        </div>
+        <div class="col-12 col-md-3">
+          <label class="form-label small mb-0">Ghi chú</label>
+          <input type="text" name="notes" class="form-control form-control-sm" maxlength="255"
+                 value="{% if edit_line %}{{ edit_line.notes }}{% endif %}">
+        </div>
+        <div class="col-auto">
+          <button type="submit" class="btn btn-sm btn-hm">{% if edit_line %}Lưu dòng{% else %}Thêm dòng{% endif %}</button>
+          {% if edit_line %}
+          <a href="{% url 'san_xuat:ie_routing_detail' routing.pk %}" class="btn btn-sm btn-outline-secondary">Hủy</a>
+          {% endif %}
+        </div>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
   <form method="post">
     {% csrf_token %}
     <input type="hidden" name="action" value="save_explanations">
@@ -64,6 +141,7 @@
               <th class="text-end">SL/SP</th><th class="text-end">SMV thư viện</th>
               <th class="text-end">SMV áp dụng</th><th class="text-end">Tổng SMV</th>
               <th class="text-end">Lệch %</th><th>Máy</th><th>Giải trình (&gt;15%)</th>
+              {% if can_update and not locked %}<th></th>{% endif %}
             </tr>
           </thead>
           <tbody>
@@ -91,9 +169,16 @@
                   <span class="text-muted small">—</span>
                 {% endif %}
               </td>
+              {% if can_update and not locked %}
+              <td class="text-nowrap">
+                <a href="?edit={{ l.pk }}" class="btn btn-sm btn-outline-secondary py-0">Sửa</a>
+                <button type="submit" form="del-line-{{ l.pk }}" class="btn btn-sm btn-outline-danger py-0"
+                        onclick="return confirm('Xóa dòng {{ l.op_code }}?');">Xóa</button>
+              </td>
+              {% endif %}
             </tr>
           {% empty %}
-            <tr><td colspan="11" class="text-muted small p-3 text-center">Routing chưa có công đoạn.</td></tr>
+            <tr><td colspan="{% if can_update and not locked %}12{% else %}11{% endif %}" class="text-muted small p-3 text-center">Routing chưa có công đoạn.</td></tr>
           {% endfor %}
           </tbody>
         </table>
@@ -105,5 +190,15 @@
     </div>
     {% endif %}
   </form>
+
+  {% if can_update and not locked %}
+  {% for l in lines %}
+  <form method="post" id="del-line-{{ l.pk }}" class="d-none">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="delete_line">
+    <input type="hidden" name="line_pk" value="{{ l.pk }}">
+  </form>
+  {% endfor %}
+  {% endif %}
 </div>
 {% endblock %}

@@ -16,11 +16,19 @@
       {% if can_export %}
       <a href="{% url 'san_xuat:ie_export' %}" class="btn btn-sm btn-outline-hm"><i class="bi bi-download me-1"></i>Xuất Excel</a>
       {% endif %}
+      <a href="{% url 'san_xuat:ie_dashboard' %}" class="btn btn-sm btn-outline-hm"><i class="bi bi-speedometer2 me-1"></i>Dashboard</a>
       <a href="{% url 'san_xuat:ie_operation_list' %}" class="btn btn-sm btn-outline-hm"><i class="bi bi-list-ul me-1"></i>Thư viện</a>
       <a href="{% url 'san_xuat:ie_routing_list' %}" class="btn btn-sm btn-outline-hm"><i class="bi bi-diagram-3 me-1"></i>Routing</a>
       <a href="{% url 'san_xuat:ie_time_study_list' %}" class="btn btn-sm btn-outline-hm"><i class="bi bi-stopwatch me-1"></i>Bấm giờ</a>
     </div>
   </div>
+
+  {% if can_update and not approver_group_ready %}
+  <div class="alert alert-info py-2 small mb-3">
+    Chưa gán nhóm <code>{{ approver_group_name }}</code> — tạm thời ai có quyền sửa SX đều duyệt được.
+    Gán Approver tại <a href="{% url 'san_xuat:general_settings' %}#sec-ie-approver">Thiết lập SX</a>.
+  </div>
+  {% endif %}
 
   <div class="row g-2 g-md-3 mb-3">
     <div class="col-6 col-md-3 col-lg-2">

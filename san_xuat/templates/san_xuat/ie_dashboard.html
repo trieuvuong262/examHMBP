@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+    <div>
+      <h2 class="mb-0">Dashboard IE</h2>
+      <div class="text-muted small">SMV theo mã hàng · cảnh báo lệch &gt; {{ variance_limit }}% · công đoạn / routing chưa duyệt</div>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+      <a href="{% url 'san_xuat:ie_hub' %}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Công đoạn / IE</a>
+      <a href="{% url 'san_xuat:ie_operation_list' %}?status=draft" class="btn btn-sm btn-outline-hm">OP chưa duyệt</a>
+      <a href="{% url 'san_xuat:ie_routing_list' %}" class="btn btn-sm btn-outline-hm">Routing</a>
+    </div>
+  </div>
+
+  <div class="row g-2 g-md-3 mb-3">
+    <div class="col-6 col-md-3 col-lg">
+      <div class="card border-0 shadow-sm h-100"><div class="card-body py-2 px-3">
+        <div class="fs-4 fw-bold">{{ operations }}</div><div class="text-muted small">Công đoạn</div>
+      </div></div>
+    </div>
+    <div class="col-6 col-md-3 col-lg">
+      <div class="card border-0 shadow-sm h-100"><div class="card-body py-2 px-3">
+        <div class="fs-4 fw-bold {% if pending_ops %}text-warning{% endif %}">{{ pending_ops }}</div>
+        <div class="text-muted small">OP chưa duyệt</div>
+      </div></div>
+    </div>
+    <div class="col-6 col-md-3 col-lg">
+      <div class="card border-0 shadow-sm h-100"><div class="card-body py-2 px-3">
+        <div class="fs-4 fw-bold {% if pending_routings %}text-warning{% endif %}">{{ pending_routings }}</div>
+        <div class="text-muted small">Routing chưa duyệt</div>
+      </div></div>
+    </div>
+    <div class="col-6 col-md-3 col-lg">
+      <div class="card border-0 shadow-sm h-100"><div class="card-body py-2 px-3">
+        <div class="fs-4 fw-bold {% if high_var_count %}text-danger{% endif %}">{{ high_var_count }}</div>
+        <div class="text-muted small">Dòng lệch &gt; {{ variance_limit }}%</div>
+      </div></div>
+    </div>
+    <div class="col-6 col-md-3 col-lg">
+      <div class="card border-0 shadow-sm h-100"><div class="card-body py-2 px-3">
+        <div class="fs-4 fw-bold {% if zero_smv_lines %}text-danger{% endif %}">{{ zero_smv_lines }}</div>
+        <div class="text-muted small">Dòng SMV = 0</div>
+      </div></div>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-lg-7">
+      <div class="card border-0 shadow-sm overflow-hidden">
+        <div class="card-header bg-white py-2"><strong>SMV theo mã hàng</strong></div>
+        <div class="table-responsive">
+          <table class="table table-sm table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Style</th><th>Routing</th><th>Duyệt</th>
+                <th class="text-end"># CĐ</th>
+                <th class="text-end">Tổng SMV</th>
+                <th class="text-end">SMV may</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+            {% for r in style_rows %}
+              <tr>
+                <td class="fw-semibold">{{ r.style_code }}
+                  {% if r.product_family %}<div class="text-muted small">{{ r.product_family }}</div>{% endif %}
+                </td>
+                <td class="small">{{ r.routing_id }} <span class="badge bg-light text-dark">{{ r.routing_rev }}</span></td>
+                <td>
+                  <span class="badge {% if r.approval_status == 'approved' %}bg-success{% elif r.approval_status == 'rejected' %}bg-danger{% else %}bg-secondary{% endif %}">
+                    {{ r.approval_status }}
+                  </span>
+                </td>
+                <td class="text-end">{{ r.operation_count }}</td>
+                <td class="text-end fw-semibold">{{ r.total_smv|floatformat:2 }}</td>
+                <td class="text-end">{{ r.sewing_smv|floatformat:2 }}</td>
+                <td><a href="{% url 'san_xuat:ie_routing_detail' r.pk %}" class="btn btn-sm btn-outline-secondary py-0">Xem</a></td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="7" class="text-muted small p-3 text-center">Chưa có routing.</td></tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-5">
+      <div class="card border-0 shadow-sm overflow-hidden">
+        <div class="card-header bg-white py-2"><strong>Cảnh báo lệch SMV &gt; {{ variance_limit }}%</strong></div>
+        <div class="table-responsive" style="max-height:28rem">
+          <table class="table table-sm table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr><th>Style</th><th>OP</th><th class="text-end">Lệch %</th><th>Giải trình</th></tr>
+            </thead>
+            <tbody>
+            {% for l in high_var_lines %}
+              <tr>
+                <td class="small"><a href="{% url 'san_xuat:ie_routing_detail' l.routing_id %}">{{ l.routing.style_code }}</a></td>
+                <td class="small fw-semibold">{{ l.op_code }}</td>
+                <td class="text-end text-danger">{{ l.smv_variance_pct|floatformat:1 }}</td>
+                <td class="small">{{ l.variance_explanation|default:"—"|truncatechars:40 }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="4" class="text-muted small p-3 text-center">Không có dòng lệch vượt ngưỡng.</td></tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

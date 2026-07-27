@@ -16,7 +16,14 @@ from django.db import transaction
 from django.db.models import Avg, Q
 from django.utils import timezone
 
-from san_xuat.ie_models import SxOperation, SxOperationGroup, SxRouting, SxRoutingLine, SxTimeStudy
+from san_xuat.ie_models import (
+    SxMachine,
+    SxOperation,
+    SxOperationGroup,
+    SxRouting,
+    SxRoutingLine,
+    SxTimeStudy,
+)
 from san_xuat.models import BomVersion, ProcessStep
 from san_xuat.services.process_catalog import ensure_process_name
 
@@ -533,6 +540,172 @@ def save_routing_line_explanations(*, routing: SxRouting, explanations: dict[int
         routing.approval_status = SxRouting.APPROVAL_PENDING
         routing.save(update_fields=['approval_status', 'updated_at'])
     return updated
+
+
+def _mark_routing_pending(routing: SxRouting) -> None:
+    if routing.approval_status == SxRouting.APPROVAL_APPROVED:
+        routing.approval_status = SxRouting.APPROVAL_PENDING
+        routing.approved_by = ''
+        routing.approved_at = None
+        routing.save(update_fields=['approval_status', 'approved_by', 'approved_at', 'updated_at'])
+
+
+@transaction.atomic
+def upsert_routing_line(
+    *,
+    routing: SxRouting,
+    line_pk: int | None = None,
+    seq_no: int | None = None,
+    op_code: str = '',
+    op_rev: str = 'R01',
+    op_name_vi: str = '',
+    group_code: str = '',
+    qty_per_garment: Decimal | None = None,
+    applied_unit_smv: Decimal | None = None,
+    library_unit_smv: Decimal | None = None,
+    machine_code: str = '',
+    work_center_code: str = '',
+    variance_explanation: str = '',
+    notes: str = '',
+) -> SxRoutingLine:
+    """Thêm hoặc sửa một dòng routing (tay)."""
+    assert_routing_editable(routing)
+    op_code = (op_code or '').strip().upper()
+    if not op_code:
+        raise IeOpsError('Nhập mã công đoạn.')
+    op_rev = (op_rev or 'R01').strip() or 'R01'
+    name = (op_name_vi or '').strip()
+    op = SxOperation.objects.filter(op_code=op_code, op_rev=op_rev).first()
+    if op is None:
+        op = SxOperation.objects.filter(op_code=op_code).order_by('-op_rev').first()
+    if not name and op:
+        name = op.name_vi
+    if not name:
+        raise IeOpsError('Nhập tên công đoạn.')
+
+    qty = qty_per_garment if qty_per_garment is not None else Decimal('1')
+    applied = applied_unit_smv if applied_unit_smv is not None else Decimal('0')
+    library = library_unit_smv
+    if library is None:
+        library = op.base_smv_min if op else Decimal('0')
+    if applied < 0 or qty < 0 or (library or 0) < 0:
+        raise IeOpsError('SL/SMV không được âm.')
+
+    machine = SxMachine.objects.filter(code=(machine_code or '').strip()).first() if machine_code else None
+    from san_xuat.hub_models import SxWorkCenter
+    wc = SxWorkCenter.objects.filter(code=(work_center_code or '').strip()).first() if work_center_code else None
+
+    line = None
+    if line_pk:
+        line = routing.lines.filter(pk=line_pk).first()
+        if line is None:
+            raise IeOpsError('Không tìm thấy dòng routing.')
+    if seq_no is None:
+        last = routing.lines.order_by('-seq_no').values_list('seq_no', flat=True).first() or 0
+        seq_no = int(last) + 10
+    else:
+        seq_no = int(seq_no)
+        conflict_qs = routing.lines.filter(seq_no=seq_no)
+        if line is not None:
+            conflict_qs = conflict_qs.exclude(pk=line.pk)
+        if conflict_qs.exists():
+            raise IeOpsError(f'SEQ {seq_no} đã tồn tại trên routing này.')
+
+    ensure_process_name(name)
+    if line is None:
+        line = SxRoutingLine(routing=routing)
+
+    line.seq_no = seq_no
+    line.operation = op
+    line.op_code = op_code[:30]
+    line.op_rev = op_rev[:10]
+    line.op_name_vi = name[:200]
+    line.group_code = (group_code or (op.group.code if op else ''))[:30]
+    line.qty_per_garment = qty
+    line.library_unit_smv = library or Decimal('0')
+    line.applied_unit_smv = applied
+    line.machine = machine
+    line.machine_code = (machine_code or (machine.code if machine else ''))[:40]
+    line.work_center = wc
+    line.work_center_code = (work_center_code or (wc.code if wc else ''))[:40]
+    line.notes = (notes or '')[:255]
+    line.recompute()
+    if abs(line.smv_variance_pct or 0) > VARIANCE_LIMIT_PCT:
+        require_variance_explanation(line.smv_variance_pct, variance_explanation, label=op_code)
+        line.variance_explanation = (variance_explanation or '')[:500]
+    elif variance_explanation:
+        line.variance_explanation = variance_explanation[:500]
+    line.save()
+    _mark_routing_pending(routing)
+    return line
+
+
+@transaction.atomic
+def delete_routing_line(*, routing: SxRouting, line_pk: int) -> None:
+    assert_routing_editable(routing)
+    line = routing.lines.filter(pk=line_pk).first()
+    if line is None:
+        raise IeOpsError('Không tìm thấy dòng routing.')
+    line.delete()
+    _mark_routing_pending(routing)
+
+
+def build_ie_dashboard() -> dict:
+    """Số liệu dashboard kiểu sheet 07_DASHBOARD."""
+    from django.db.models import Count, Sum, Q as DQ
+
+    style_rows = []
+    for r in (
+        SxRouting.objects.filter(is_active=True)
+        .annotate(
+            n_lines=Count('lines'),
+            sum_smv=Sum('lines__total_operation_smv'),
+            sew_smv=Sum(
+                'lines__total_operation_smv',
+                filter=DQ(lines__op_code__istartswith='SEW') | DQ(lines__group_code__istartswith='SEW'),
+            ),
+        )
+        .order_by('style_code', 'routing_rev')
+    ):
+        style_rows.append({
+            'style_code': r.style_code,
+            'product_family': r.product_family or r.style_name,
+            'routing_id': r.routing_id,
+            'routing_rev': r.routing_rev,
+            'pk': r.pk,
+            'approval_status': r.approval_status,
+            'operation_count': r.n_lines or 0,
+            'total_smv': r.sum_smv or Decimal('0'),
+            'sewing_smv': r.sew_smv or Decimal('0'),
+        })
+
+    high_var = list(
+        SxRoutingLine.objects.filter(
+            DQ(smv_variance_pct__gt=VARIANCE_LIMIT_PCT) | DQ(smv_variance_pct__lt=-VARIANCE_LIMIT_PCT)
+        )
+        .select_related('routing')
+        .order_by('-smv_variance_pct')[:40]
+    )
+    pending_ops = SxOperation.objects.exclude(status=SxOperation.STATUS_APPROVED).count()
+    pending_routings = SxRouting.objects.exclude(approval_status=SxRouting.APPROVAL_APPROVED).count()
+    zero_smv_lines = SxRoutingLine.objects.filter(applied_unit_smv__lte=0).count()
+
+    return {
+        'style_rows': style_rows,
+        'high_var_lines': high_var,
+        'pending_ops': pending_ops,
+        'pending_routings': pending_routings,
+        'zero_smv_lines': zero_smv_lines,
+        'high_var_count': SxRoutingLine.objects.filter(
+            DQ(smv_variance_pct__gt=VARIANCE_LIMIT_PCT) | DQ(smv_variance_pct__lt=-VARIANCE_LIMIT_PCT)
+        ).count(),
+        'groups': SxOperationGroup.objects.count(),
+        'operations': SxOperation.objects.count(),
+        'routings': SxRouting.objects.count(),
+        'routing_lines': SxRoutingLine.objects.count(),
+        'time_studies': SxTimeStudy.objects.count(),
+        'variance_limit': VARIANCE_LIMIT_PCT,
+    }
 
 
 @transaction.atomic

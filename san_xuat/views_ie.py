@@ -35,16 +35,24 @@ from san_xuat.ie_models import (
     SxStitchClass,
     SxTimeStudy,
 )
+from san_xuat.ie_permissions import (
+    IE_APPROVER_GROUP,
+    ie_approver_group_has_members,
+    user_can_approve_ie,
+)
 from san_xuat.services.ie_ops import (
     IeOpsError,
     approve_operation,
     approve_routing,
     approve_time_study,
+    build_ie_dashboard,
     clone_routing_revision,
+    delete_routing_line,
     is_routing_locked,
     reject_routing,
     reject_time_study,
     save_routing_line_explanations,
+    upsert_routing_line,
 )
 from san_xuat.services.operation_master import (
     OperationMasterImportError,
@@ -58,7 +66,18 @@ def _perm_ctx(request):
         'can_create': user_can_create_module(request.user, MODULE_SAN_XUAT),
         'can_update': user_can_update_module(request.user, MODULE_SAN_XUAT),
         'can_export': user_can_export_module(request.user, MODULE_SAN_XUAT),
+        'can_approve': user_can_approve_ie(request.user),
+        'approver_group_ready': ie_approver_group_has_members(),
+        'approver_group_name': IE_APPROVER_GROUP,
     }
+
+
+def _dec(raw, default='0'):
+    from decimal import Decimal, InvalidOperation
+    try:
+        return Decimal(str(raw if raw not in (None, '') else default))
+    except (InvalidOperation, TypeError, ValueError):
+        return Decimal(default)
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
@@ -317,16 +336,19 @@ def routing_line_list(request):
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def operation_list(request):
     perms = _perm_ctx(request)
-    if request.method == 'POST' and perms['can_update']:
+    if request.method == 'POST':
         action = (request.POST.get('action') or '').strip()
         pk = request.POST.get('pk')
         op = SxOperation.objects.filter(pk=int(pk)).first() if pk and str(pk).isdigit() else None
         if action == 'approve_operation' and op:
-            try:
-                approve_operation(operation=op, user=request.user)
-                messages.success(request, f'Đã duyệt {op.op_code}/{op.op_rev}.')
-            except IeOpsError as exc:
-                messages.error(request, str(exc))
+            if not perms['can_approve']:
+                messages.error(request, 'Bạn không có quyền duyệt công đoạn (cần nhóm Approver IE).')
+            else:
+                try:
+                    approve_operation(operation=op, user=request.user)
+                    messages.success(request, f'Đã duyệt {op.op_code}/{op.op_rev}.')
+                except IeOpsError as exc:
+                    messages.error(request, str(exc))
         else:
             messages.error(request, 'Không duyệt được công đoạn.')
         return redirect(request.get_full_path() if request.GET else 'san_xuat:ie_operation_list')
@@ -395,26 +417,67 @@ def routing_detail(request, pk: int):
     perms = _perm_ctx(request)
     locked = is_routing_locked(routing)
 
-    if request.method == 'POST' and perms['can_update']:
+    if request.method == 'POST':
         action = (request.POST.get('action') or '').strip()
         try:
             if action == 'approve_routing':
+                if not perms['can_approve']:
+                    raise IeOpsError('Bạn không có quyền duyệt routing (cần nhóm Approver IE).')
                 approve_routing(routing=routing, user=request.user)
                 messages.success(request, f'Đã duyệt routing {routing.routing_id}.')
             elif action == 'reject_routing':
+                if not perms['can_approve']:
+                    raise IeOpsError('Bạn không có quyền từ chối routing (cần nhóm Approver IE).')
                 reject_routing(routing=routing, user=request.user)
                 messages.success(request, f'Đã từ chối routing {routing.routing_id}.')
             elif action == 'clone_revision':
+                if not perms['can_update']:
+                    raise IeOpsError('Bạn không có quyền tạo phiên bản routing.')
                 clone = clone_routing_revision(routing=routing, user=request.user)
                 messages.success(request, f'Đã tạo phiên bản mới {clone.routing_id}.')
                 return redirect('san_xuat:ie_routing_detail', pk=clone.pk)
             elif action == 'save_explanations':
+                if not perms['can_update']:
+                    raise IeOpsError('Bạn không có quyền sửa giải trình.')
                 explanations = {}
                 for key, val in request.POST.items():
                     if key.startswith('expl_') and key[5:].isdigit():
                         explanations[int(key[5:])] = val
                 n = save_routing_line_explanations(routing=routing, explanations=explanations)
                 messages.success(request, f'Đã lưu {n} giải trình lệch SMV.')
+            elif action in ('add_line', 'edit_line'):
+                if not perms['can_update']:
+                    raise IeOpsError('Bạn không có quyền sửa dòng routing.')
+                line_pk = request.POST.get('line_pk')
+                line_pk = int(line_pk) if line_pk and str(line_pk).isdigit() else None
+                seq_raw = (request.POST.get('seq_no') or '').strip()
+                upsert_routing_line(
+                    routing=routing,
+                    line_pk=line_pk if action == 'edit_line' else None,
+                    seq_no=int(seq_raw) if seq_raw.isdigit() else None,
+                    op_code=(request.POST.get('op_code') or '').strip(),
+                    op_rev=(request.POST.get('op_rev') or 'R01').strip(),
+                    op_name_vi=(request.POST.get('op_name_vi') or '').strip(),
+                    group_code=(request.POST.get('group_code') or '').strip(),
+                    qty_per_garment=_dec(request.POST.get('qty_per_garment'), '1'),
+                    applied_unit_smv=_dec(request.POST.get('applied_unit_smv')),
+                    library_unit_smv=_dec(request.POST.get('library_unit_smv'))
+                    if (request.POST.get('library_unit_smv') or '').strip() != ''
+                    else None,
+                    machine_code=(request.POST.get('machine_code') or '').strip(),
+                    work_center_code=(request.POST.get('work_center_code') or '').strip(),
+                    variance_explanation=(request.POST.get('variance_explanation') or '').strip(),
+                    notes=(request.POST.get('notes') or '').strip(),
+                )
+                messages.success(request, 'Đã lưu dòng routing.')
+            elif action == 'delete_line':
+                if not perms['can_update']:
+                    raise IeOpsError('Bạn không có quyền xóa dòng routing.')
+                line_pk = request.POST.get('line_pk')
+                if not line_pk or not str(line_pk).isdigit():
+                    raise IeOpsError('Thiếu dòng cần xóa.')
+                delete_routing_line(routing=routing, line_pk=int(line_pk))
+                messages.success(request, 'Đã xóa dòng routing.')
             else:
                 messages.error(request, 'Hành động không hợp lệ.')
         except IeOpsError as exc:
@@ -423,6 +486,10 @@ def routing_detail(request, pk: int):
 
     lines = routing.lines.select_related('operation', 'machine', 'work_center').order_by('seq_no')
     high_var = [l for l in lines if abs(l.smv_variance_pct or 0) > 15]
+    edit_line = None
+    edit_pk = (request.GET.get('edit') or '').strip()
+    if edit_pk.isdigit() and perms['can_update'] and not locked:
+        edit_line = routing.lines.filter(pk=int(edit_pk)).first()
     return render(request, 'san_xuat/ie_routing_detail.html', {
         **perms,
         'routing': routing,
@@ -430,6 +497,8 @@ def routing_detail(request, pk: int):
         'total_smv': routing.total_smv,
         'locked': locked,
         'high_var_count': len(high_var),
+        'edit_line': edit_line,
+        'machines': SxMachine.objects.filter(is_active=True).order_by('sort_order', 'code')[:200],
     })
 
 
@@ -437,7 +506,7 @@ def routing_detail(request, pk: int):
 def time_study_list(request):
     perms = _perm_ctx(request)
 
-    if request.method == 'POST' and perms['can_update']:
+    if request.method == 'POST':
         action = (request.POST.get('action') or '').strip()
         pk = request.POST.get('pk')
         study = None
@@ -449,6 +518,8 @@ def time_study_list(request):
 
         try:
             if action == 'approve':
+                if not perms['can_approve']:
+                    raise IeOpsError('Bạn không có quyền duyệt bấm giờ (cần nhóm Approver IE).')
                 result = approve_time_study(
                     study=study,
                     update_routing=request.POST.get('update_routing') != '0',
@@ -465,9 +536,13 @@ def time_study_list(request):
                 for w in result.warnings:
                     messages.warning(request, w)
             elif action == 'reject':
+                if not perms['can_update']:
+                    raise IeOpsError('Bạn không có quyền từ chối quan sát.')
                 reject_time_study(study=study, status=SxTimeStudy.APPROVAL_REJECTED)
                 messages.success(request, f'Đã từ chối {study.study_id}.')
             elif action == 'remeasure':
+                if not perms['can_update']:
+                    raise IeOpsError('Bạn không có quyền đánh dấu đo lại.')
                 reject_time_study(study=study, status=SxTimeStudy.APPROVAL_REMEASURE)
                 messages.success(request, f'Đánh dấu cần đo lại: {study.study_id}.')
             else:
@@ -500,4 +575,13 @@ def time_study_list(request):
         'status': status,
         'status_choices': SxTimeStudy.APPROVAL_CHOICES,
         'total': qs.count(),
+    })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+def ie_dashboard(request):
+    data = build_ie_dashboard()
+    return render(request, 'san_xuat/ie_dashboard.html', {
+        **_perm_ctx(request),
+        **data,
     })

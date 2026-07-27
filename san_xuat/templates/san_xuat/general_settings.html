@@ -341,6 +341,7 @@
         <a href="#sec-stock">Kho &amp; tích hợp</a>
         <a href="#sec-shopfloor">Shop floor</a>
         <a href="#sec-sku">SKU (màu &amp; size)</a>
+        <a href="#sec-ie-approver">Approver IE</a>
         <a href="#sec-prefix">Mã chứng từ</a>
       </nav>
 
@@ -830,6 +831,66 @@
                 </form>
                 {% endif %}
               </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="jp-sx-set-panel" id="sec-ie-approver">
+          <div class="jp-sx-set-panel-head">
+            <h3>Approver IE — duyệt mã công đoạn / routing</h3>
+          </div>
+          <div class="jp-sx-set-panel-body px-3 py-3">
+            <p class="small text-muted mb-3">
+              Nhóm Django <code>{{ ie_approver_group_name }}</code> tách quyền duyệt khỏi quyền lập IE.
+              {% if not ie_approver_ready %}
+              <span class="text-warning">Chưa có thành viên — tạm thời ai có quyền sửa SX đều duyệt được.</span>
+              {% endif %}
+            </p>
+            {% if can_update %}
+            <form method="post" class="row g-2 align-items-end mb-3">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="add_ie_approver">
+              <div class="col-md-6">
+                <label class="form-label small mb-0">Username</label>
+                <input type="text" name="username" class="form-control form-control-sm" required placeholder="vd. nguyenvana" list="ie-sx-users">
+                <datalist id="ie-sx-users">
+                  {% for u in ie_candidate_users %}<option value="{{ u.username }}">{{ u.get_full_name }}</option>{% endfor %}
+                </datalist>
+              </div>
+              <div class="col-auto">
+                <button type="submit" class="btn btn-sm btn-hm">Thêm Approver</button>
+              </div>
+            </form>
+            {% endif %}
+            <div class="table-responsive border rounded-3">
+              <table class="table table-sm align-middle mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th>Username</th><th>Họ tên</th>
+                    {% if can_update %}<th style="width:5rem"></th>{% endif %}
+                  </tr>
+                </thead>
+                <tbody>
+                {% for u in ie_approvers %}
+                  <tr>
+                    <td><code>{{ u.username }}</code></td>
+                    <td>{{ u.get_full_name|default:"—" }}</td>
+                    {% if can_update %}
+                    <td>
+                      <form method="post" class="d-inline">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="remove_ie_approver">
+                        <input type="hidden" name="username" value="{{ u.username }}">
+                        <button type="submit" class="btn btn-sm btn-outline-danger py-0">Gỡ</button>
+                      </form>
+                    </td>
+                    {% endif %}
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="{% if can_update %}3{% else %}2{% endif %}" class="text-muted small p-3 text-center">Chưa gán Approver.</td></tr>
+                {% endfor %}
+                </tbody>
+              </table>
             </div>
           </div>
         </section>

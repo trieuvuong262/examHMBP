@@ -2979,6 +2979,26 @@ def general_settings(request):
                 messages.success(request, f'Đã cập nhật size {size.code}.')
             return redirect_sku
 
+        if action in ('add_ie_approver', 'remove_ie_approver'):
+            from django.contrib.auth import get_user_model
+            from san_xuat.ie_permissions import IE_APPROVER_GROUP, ensure_ie_approver_group
+
+            redirect_ie = redirect(f"{reverse('san_xuat:general_settings')}#sec-ie-approver")
+            username = (request.POST.get('username') or '').strip()
+            User = get_user_model()
+            user = User.objects.filter(username__iexact=username).first() if username else None
+            if not user:
+                messages.error(request, 'Không tìm thấy user.')
+                return redirect_ie
+            group = ensure_ie_approver_group()
+            if action == 'add_ie_approver':
+                group.user_set.add(user)
+                messages.success(request, f'Đã thêm {user.username} vào nhóm {IE_APPROVER_GROUP}.')
+            else:
+                group.user_set.remove(user)
+                messages.success(request, f'Đã gỡ {user.username} khỏi nhóm {IE_APPROVER_GROUP}.')
+            return redirect_ie
+
         form = SxGeneralSettingsForm(request.POST, instance=cfg)
         if form.is_valid():
             obj = form.save(commit=False)
@@ -2993,6 +3013,18 @@ def general_settings(request):
     colors = list(SxColor.objects.order_by('sort_order', 'code'))
     sizes = list(SxSize.objects.order_by('sort_order', 'code'))
 
+    from django.contrib.auth import get_user_model
+    from san_xuat.ie_permissions import (
+        IE_APPROVER_GROUP,
+        ensure_ie_approver_group,
+        ie_approver_group_has_members,
+    )
+
+    ie_group = ensure_ie_approver_group()
+    ie_approvers = list(ie_group.user_set.order_by('username'))
+    User = get_user_model()
+    ie_candidate_users = list(User.objects.filter(is_active=True).order_by('username')[:300])
+
     return render(request, 'san_xuat/general_settings.html', {
         **_perm_ctx(request),
         'form': form,
@@ -3000,6 +3032,10 @@ def general_settings(request):
         'can_update': can_update,
         'sku_colors': colors,
         'sku_sizes': sizes,
+        'ie_approver_group_name': IE_APPROVER_GROUP,
+        'ie_approver_ready': ie_approver_group_has_members(),
+        'ie_approvers': ie_approvers,
+        'ie_candidate_users': ie_candidate_users,
     })
 
 

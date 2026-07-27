@@ -42,7 +42,7 @@
           <tr>
             <th>Mã CĐ</th><th>Rev</th><th>Tên công đoạn</th><th>Nhóm</th>
             <th>Khâu SX</th><th>Máy</th><th class="text-end">SMV (phút)</th>
-            <th class="text-end">SP/giờ</th><th>Trạng thái</th>{% if can_update %}<th></th>{% endif %}
+            <th class="text-end">SP/giờ</th><th>Trạng thái</th>{% if can_approve %}<th></th>{% endif %}
           </tr>
         </thead>
         <tbody>
@@ -57,7 +57,7 @@
             <td class="text-end">{{ op.base_smv_min|floatformat:3 }}</td>
             <td class="text-end">{{ op.std_capacity_pcs_hour|floatformat:0 }}</td>
             <td>{{ op.get_status_display }}</td>
-            {% if can_update %}
+            {% if can_approve %}
             <td class="text-nowrap">
               {% if op.status != 'approved' %}
               <form method="post" class="d-inline">
@@ -71,7 +71,7 @@
             {% endif %}
           </tr>
         {% empty %}
-          <tr><td colspan="{% if can_update %}10{% else %}9{% endif %}" class="text-muted small p-3 text-center">Không có công đoạn phù hợp.</td></tr>
+          <tr><td colspan="{% if can_approve %}10{% else %}9{% endif %}" class="text-muted small p-3 text-center">Không có công đoạn phù hợp.</td></tr>
         {% endfor %}
         </tbody>
       </table>

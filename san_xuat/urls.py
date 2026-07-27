@@ -133,6 +133,7 @@ urlpatterns = [
     path('ho-so/tai-lieu/<int:pk>/', views.design_file_serve, name='design_file'),
     path('bom/', views.bom_list, name='bom_list'),
     path('cong-doan/', views_ie.ie_hub, name='ie_hub'),
+    path('cong-doan/dashboard/', views_ie.ie_dashboard, name='ie_dashboard'),
     path('cong-doan/xuat-excel/', views_ie.ie_export, name='ie_export'),
     path('cong-doan/nhom/', views_ie.group_list, name='ie_group_list'),
     path('cong-doan/thu-vien/', views_ie.operation_list, name='ie_operation_list'),

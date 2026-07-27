@@ -33,7 +33,7 @@
             <th>Mã QS</th><th>Công đoạn</th><th>Mã hàng</th><th class="text-end">Obs</th>
             <th class="text-end">Cycle (s)</th><th class="text-end">Rating</th><th class="text-end">Allow %</th>
             <th class="text-end">SMV tính</th><th class="text-end">SMV routing</th><th class="text-end">Lệch %</th>
-            <th>Duyệt</th>{% if can_update %}<th></th>{% endif %}
+            <th>Duyệt</th>{% if can_approve or can_update %}<th></th>{% endif %}
           </tr>
         </thead>
         <tbody>
@@ -50,9 +50,9 @@
             <td class="text-end">{{ t.current_routing_smv|floatformat:3 }}</td>
             <td class="text-end {% if t.variance_pct > 15 or t.variance_pct < -15 %}text-danger{% endif %}">{{ t.variance_pct|floatformat:1 }}</td>
             <td class="small">{{ t.get_approval_status_display }}</td>
-            {% if can_update %}
+            {% if can_approve or can_update %}
             <td class="text-nowrap">
-              {% if t.approval_status != 'approved' %}
+              {% if can_approve and t.approval_status != 'approved' %}
               <form method="post" class="d-inline-flex flex-wrap align-items-center gap-1">
                 {% csrf_token %}
                 <input type="hidden" name="pk" value="{{ t.pk }}">
@@ -66,7 +66,7 @@
                 <button type="submit" class="btn btn-sm btn-outline-success" title="Duyệt &amp; cập nhật SMV routing">Duyệt</button>
               </form>
               {% endif %}
-              {% if t.approval_status == 'pending' or t.approval_status == 'approved' %}
+              {% if can_update and t.approval_status == 'pending' or can_update and t.approval_status == 'approved' %}
               <form method="post" class="d-inline">
                 {% csrf_token %}
                 <input type="hidden" name="pk" value="{{ t.pk }}">
@@ -84,7 +84,7 @@
             {% endif %}
           </tr>
         {% empty %}
-          <tr><td colspan="{% if can_update %}12{% else %}11{% endif %}" class="text-muted small p-3 text-center">Không có quan sát phù hợp.</td></tr>
+          <tr><td colspan="{% if can_approve or can_update %}12{% else %}11{% endif %}" class="text-muted small p-3 text-center">Không có quan sát phù hợp.</td></tr>
         {% endfor %}
         </tbody>
       </table>
