@@ -1,7 +1,10 @@
 {% extends 'base.html' %}
 
 {% load sx_format %}
-{% block extra_head %}{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}{% endblock %}
+{% block extra_head %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+{% include 'san_xuat/includes/sx_mo_styles.html' %}
+{% endblock %}
 
 {% block content %}
 <div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
@@ -15,41 +18,76 @@
     </nav>
   </div>
 
-  <div class="card border-0 shadow-sm">
-    <div class="card-body p-4">
-      <form method="post" novalidate>
-        {% csrf_token %}
+  <div class="card jp-mo-form-card">
+    <div class="jp-mo-form-hero">
+      <div class="eyebrow">Lệnh sản xuất</div>
+      <p class="lead">Chọn mã SX từ kho sản phẩm — mã lệnh tự sinh theo mẫu <span class="font-monospace">LSX-{mã SX}-0001</span>.</p>
+    </div>
+
+    <form method="post" novalidate>
+      {% csrf_token %}
+      {% if form.non_field_errors %}
+      <div class="alert alert-danger mx-3 mt-3 mb-0 py-2 small">{{ form.non_field_errors }}</div>
+      {% endif %}
+
+      <div class="jp-mo-section">
+        <div class="jp-mo-section-label">
+          <span class="num">1</span>
+          <h3>Mã SX &amp; mã lệnh</h3>
+          <span class="hint">Bắt buộc</span>
+        </div>
         <div class="row g-3">
-          <div class="col-12 col-md-6">
+          <div class="col-12 col-lg-6">
             <label class="form-label small text-muted" for="{{ form.product_code.id_for_label }}">{{ form.product_code.label }}{{ form.product_code|sx_req_star }}</label>
             {{ form.product_code }}
-            {% if form.product_code.errors %}<div class="text-danger small">{{ form.product_code.errors }}</div>{% endif %}
+            {% if form.product_code.errors %}<div class="text-danger small mt-1">{{ form.product_code.errors }}</div>{% endif %}
           </div>
-          <div class="col-12 col-md-6">
+          <div class="col-12 col-lg-6">
             <label class="form-label small text-muted" for="{{ form.code.id_for_label }}">{{ form.code.label }}</label>
             {{ form.code }}
             {% if form.code.help_text %}<div class="form-text">{{ form.code.help_text }}</div>{% endif %}
           </div>
-          <div class="col-12 col-md-4">
+        </div>
+      </div>
+
+      <div class="jp-mo-section">
+        <div class="jp-mo-section-label">
+          <span class="num">2</span>
+          <h3>Số lượng &amp; lịch</h3>
+        </div>
+        <div class="row g-3">
+          <div class="col-6 col-md-4">
             <label class="form-label small text-muted" for="{{ form.qty.id_for_label }}">{{ form.qty.label }}{{ form.qty|sx_req_star }}</label>
             {{ form.qty }}
+            {% if form.qty.errors %}<div class="text-danger small mt-1">{{ form.qty.errors }}</div>{% endif %}
           </div>
-          <div class="col-12 col-md-4">
+          <div class="col-6 col-md-4">
             <label class="form-label small text-muted" for="{{ form.order_date.id_for_label }}">{{ form.order_date.label }}{{ form.order_date|sx_req_star }}</label>
             {{ form.order_date }}
+            {% if form.order_date.errors %}<div class="text-danger small mt-1">{{ form.order_date.errors }}</div>{% endif %}
           </div>
-          <div class="col-12 col-md-4">
+          <div class="col-6 col-md-4">
             <label class="form-label small text-muted" for="{{ form.due_date.id_for_label }}">{{ form.due_date.label }}{{ form.due_date|sx_req_star }}</label>
             {{ form.due_date }}
           </div>
-          <div class="col-12 col-md-6">
+          <div class="col-6 col-md-6">
             <label class="form-label small text-muted" for="{{ form.planned_start.id_for_label }}">{{ form.planned_start.label }}{{ form.planned_start|sx_req_star }}</label>
             {{ form.planned_start }}
           </div>
-          <div class="col-12 col-md-6">
+          <div class="col-6 col-md-6">
             <label class="form-label small text-muted" for="{{ form.planned_end.id_for_label }}">{{ form.planned_end.label }}{{ form.planned_end|sx_req_star }}</label>
             {{ form.planned_end }}
           </div>
+        </div>
+      </div>
+
+      <div class="jp-mo-section">
+        <div class="jp-mo-section-label">
+          <span class="num">3</span>
+          <h3>Tổ / công đoạn</h3>
+          <span class="hint">Tùy chọn</span>
+        </div>
+        <div class="row g-3">
           <div class="col-12 col-md-6">
             <label class="form-label small text-muted" for="{{ form.team_label.id_for_label }}">{{ form.team_label.label }}{{ form.team_label|sx_req_star }}</label>
             {{ form.team_label }}
@@ -57,6 +95,7 @@
           <div class="col-12 col-md-6">
             <label class="form-label small text-muted" for="{{ form.process_name.id_for_label }}">{{ form.process_name.label }}{{ form.process_name|sx_req_star }}</label>
             {{ form.process_name }}
+            {% if form.process_name.errors %}<div class="text-danger small mt-1">{{ form.process_name.errors }}</div>{% endif %}
           </div>
           <div class="col-12">
             <label class="form-label small text-muted" for="{{ form.notes.id_for_label }}">{{ form.notes.label }}{{ form.notes|sx_req_star }}</label>
@@ -71,13 +110,15 @@
           </div>
           {% endif %}
         </div>
+      </div>
 
-        <div class="d-flex flex-wrap gap-2 mt-4">
-          <button type="submit" class="btn btn-hm">Tạo lệnh sản xuất</button>
-          <a href="{% url 'san_xuat:dispatch_mo' %}" class="btn btn-outline-secondary">Hủy</a>
-        </div>
-      </form>
-    </div>
+      <div class="jp-mo-form-actions">
+        <button type="submit" class="btn btn-hm">
+          <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Tạo lệnh sản xuất
+        </button>
+        <a href="{% url 'san_xuat:dispatch_mo' %}" class="btn btn-outline-secondary">Hủy</a>
+      </div>
+    </form>
   </div>
 </div>
 {% include 'san_xuat/includes/sx_product_code_select_script.html' %}
@@ -87,16 +128,38 @@
   var productSel = document.getElementById('id_product_code');
   var codeInput = document.getElementById('id_code');
   if (!productSel || !codeInput) return;
+  codeInput.classList.add('jp-mo-code-preview');
+  var previewUrl = '{% url "san_xuat:mo_code_preview" %}';
+  var timer = null;
+
   function preview() {
-    var code = (productSel.value || '').trim().toUpperCase();
-    codeInput.value = code ? ('LSX-' + code + '-####') : '';
+    var code = (productSel.value || '').trim();
+    if (!code) {
+      codeInput.value = '';
+      return;
+    }
+    fetch(previewUrl + '?product_code=' + encodeURIComponent(code), {
+      headers: { 'Accept': 'application/json' },
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        codeInput.value = (data && data.code) || '';
+      })
+      .catch(function () {
+        codeInput.value = '';
+      });
   }
-  productSel.addEventListener('change', preview);
-  // TomSelect may replace select — also listen on parent
+
+  function schedulePreview() {
+    if (timer) window.clearTimeout(timer);
+    timer = window.setTimeout(preview, 120);
+  }
+
+  productSel.addEventListener('change', schedulePreview);
   document.addEventListener('change', function (e) {
-    if (e.target && e.target.id === 'id_product_code') preview();
+    if (e.target && e.target.id === 'id_product_code') schedulePreview();
   });
-  preview();
+  schedulePreview();
 })();
 </script>
 {% endblock %}

@@ -462,6 +462,18 @@ def product_code_search(request):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 @require_GET
+def mo_code_preview(request):
+    """Xem trước mã LSX sẽ sinh theo mã SX."""
+    product_code = (request.GET.get('product_code') or '').strip()
+    if not product_code:
+        return JsonResponse({'code': ''})
+    from san_xuat.services.dispatch import _next_mo_code_for_product
+
+    return JsonResponse({'code': _next_mo_code_for_product(product_code)})
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+@require_GET
 def process_catalog_search(request):
     """Gõ tìm công đoạn chuẩn trong thư viện IE."""
     q = (request.GET.get('q') or '').strip()

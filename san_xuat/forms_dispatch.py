@@ -82,7 +82,7 @@ class ProductionOrderCreateForm(forms.Form):
         max_length=100,
         required=False,
         label="Mã lệnh sản xuất",
-        help_text="Hệ thống tự sinh theo mã SX (vd. LSX-JP-TEE-260001-0001).",
+        help_text="Tự sinh: LSX-{mã SX}-{stt}, vd. LSX-JP-POLO-00-SP008376-0001.",
         widget=forms.TextInput(attrs={
             **_INPUT_SM,
             "disabled": True,

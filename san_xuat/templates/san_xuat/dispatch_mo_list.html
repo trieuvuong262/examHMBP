@@ -3,6 +3,7 @@
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
 {% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}
+{% include 'san_xuat/includes/sx_mo_styles.html' %}
 {% endblock %}
 
 {% block content %}
@@ -27,7 +28,7 @@
   </div>
 
   {% include 'san_xuat/includes/sx_list_filter.html' %}
-  <div class="card border-0 shadow-sm overflow-hidden">
+  <div class="card border-0 shadow-sm overflow-hidden jp-mo-panel">
     <div class="jp-npl-mat-grid-wrap">
       <table class="table table-hover align-middle mb-0 jp-npl-mat-grid" id="{{ sx_list_table_id }}">
         <thead class="table-light">
@@ -39,26 +40,46 @@
         {% for order in orders %}
           <tr class="jp-npl-catalog-row" data-href="{% url 'san_xuat:dispatch_mo_detail' order.pk %}">
             <td class="npl-col" data-col="code">
-              <a href="{% url 'san_xuat:dispatch_mo_detail' order.pk %}" class="text-decoration-none fw-semibold">{{ order.code }}</a>
+              <a href="{% url 'san_xuat:dispatch_mo_detail' order.pk %}" class="text-decoration-none fw-semibold jp-mo-list-code">{{ order.code }}</a>
+              {% if order.is_sample %}<span class="badge text-bg-warning-subtle text-warning-emphasis border ms-1" style="font-size:.65rem;">Mẫu</span>{% endif %}
             </td>
             <td class="npl-col" data-col="product">
-              <div class="small">{{ order.product_code }}</div>
-              <div class="text-muted small">{{ order.product_name|default:"—" }}</div>
+              <div class="fw-semibold small">{{ order.product_code }}</div>
+              <div class="text-muted small text-truncate" style="max-width:14rem;">{{ order.product_name|default:"—" }}</div>
             </td>
             <td class="npl-col text-end" data-col="qty">{{ order.qty|sx_num }}</td>
-            <td class="npl-col text-end" data-col="qty_done">{{ order.qty_done|sx_num }}</td>
+            <td class="npl-col text-end" data-col="qty_done">
+              <div class="jp-mo-qty ms-auto">
+                <span>{{ order.qty_done|sx_num }}</span>
+                {% if order.qty %}
+                {% widthratio order.qty_done order.qty 100 as pct %}
+                <div class="jp-mo-qty-bar" title="{{ pct }}%"><span style="width: {% if pct > 100 %}100{% else %}{{ pct }}{% endif %}%;"></span></div>
+                {% endif %}
+              </div>
+            </td>
             <td class="npl-col small" data-col="team_label">{{ order.team_label|default:"—" }}</td>
             <td class="npl-col" data-col="order_date">{{ order.order_date|date:"d/m/Y" }}</td>
             <td class="npl-col" data-col="due_date">{% if order.due_date %}{{ order.due_date|date:"d/m/Y" }}{% else %}—{% endif %}</td>
             <td class="npl-col" data-col="planned_start">{% if order.planned_start %}{{ order.planned_start|date:"d/m/Y" }}{% else %}—{% endif %}</td>
             <td class="npl-col" data-col="status">
-              <span class="badge bg-secondary-subtle text-secondary border">{{ order.get_status_display }}</span>
+              <span class="jp-mo-status is-{{ order.status }}">{{ order.get_status_display }}</span>
             </td>
             {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=order %}
           </tr>
         {% empty %}
           <tr>
-            <td colspan="{{ list_columns|length }}" class="text-center text-muted py-4">Chưa có lệnh sản xuất.</td>
+            <td colspan="{{ list_columns|length }}" class="p-0">
+              <div class="jp-mo-empty">
+                <div class="icon" aria-hidden="true"><i class="bi bi-clipboard2-plus"></i></div>
+                <div class="fw-semibold text-body mb-1">Chưa có lệnh sản xuất</div>
+                <div class="small mb-3">Tạo lệnh mới hoặc chạy wizard để bắt đầu quy trình SX.</div>
+                {% if can_create %}
+                <a href="{% url 'san_xuat:dispatch_mo_create' %}" class="btn btn-hm btn-sm fw-bold">
+                  <i class="bi bi-plus-lg me-1"></i>Tạo lệnh
+                </a>
+                {% endif %}
+              </div>
+            </td>
           </tr>
         {% endfor %}
         </tbody>
