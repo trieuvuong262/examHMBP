@@ -168,13 +168,16 @@ def merge_in_ep(apps, schema_editor):
     if merge is not None:
         merge.delete()
 
-    # Đồng bộ nhãn work center / HR map nếu bảng đã có
+    # Đồng bộ nhãn work center / HR map — savepoint để lỗi SX không phá transaction HR
+    from django.db import transaction
+
     try:
         SxWorkCenter = apps.get_model('san_xuat', 'SxWorkCenter')
         SxTeamHrMap = apps.get_model('san_xuat', 'SxTeamHrMap')
     except LookupError:
         return
 
+    sid = transaction.savepoint()
     try:
         code = f'HRD-{keep.pk}'
         for center in SxWorkCenter.objects.filter(code__iexact=code):
@@ -185,13 +188,18 @@ def merge_in_ep(apps, schema_editor):
         if merge_pk is not None:
             SxWorkCenter.objects.filter(code__iexact=f'HRD-{merge_pk}').update(is_active=False)
 
+        keep_map = SxTeamHrMap.objects.filter(team_label__iexact=KEEP_NAME).order_by('pk').first()
         for label in list(SOURCE_NAMES) + list(MERGE_NAMES):
             for row in SxTeamHrMap.objects.filter(team_label__iexact=label):
-                row.team_label = KEEP_NAME
-                row.save(update_fields=['team_label'])
+                if keep_map is None:
+                    row.team_label = KEEP_NAME
+                    row.save(update_fields=['team_label'])
+                    keep_map = row
+                elif row.pk != keep_map.pk:
+                    row.delete()
+        transaction.savepoint_commit(sid)
     except Exception:
-        # Bảng SX chưa migrate / không có trên môi trường này — bỏ qua.
-        return
+        transaction.savepoint_rollback(sid)
 
 
 def noop(apps, schema_editor):
