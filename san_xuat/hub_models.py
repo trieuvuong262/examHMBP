@@ -311,6 +311,44 @@ class SxProductionOrder(DemoMarkedModel):
         return self.code
 
 
+class SxProductionOrderLine(models.Model):
+    """Dòng kế hoạch LSX theo SKU (mã SX–màu–size). Tổng qty dòng = header.qty."""
+
+    production_order = models.ForeignKey(
+        SxProductionOrder,
+        on_delete=models.CASCADE,
+        related_name='lines',
+        verbose_name='Lệnh sản xuất',
+    )
+    sku = models.ForeignKey(
+        'san_xuat.SxSku',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='production_order_lines',
+        verbose_name='SKU (master)',
+    )
+    sku_code = models.CharField(max_length=100, blank=True, default='', verbose_name='SKU')
+    size_label = models.CharField(max_length=40, blank=True, default='', verbose_name='Size')
+    color_label = models.CharField(max_length=40, blank=True, default='', verbose_name='Màu')
+    color_code = models.CharField(max_length=20, blank=True, default='', verbose_name='Mã màu')
+    qty = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
+
+    class Meta:
+        ordering = ['color_code', 'size_label', 'pk']
+        verbose_name = 'Dòng lệnh sản xuất'
+        verbose_name_plural = 'Dòng lệnh sản xuất'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['production_order', 'color_code', 'size_label'],
+                name='sx_mo_line_color_size_uniq',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.sku_code or self.color_code}/{self.size_label} × {self.qty}'
+
+
 class SxDisassemblyOrder(DemoMarkedModel):
     STATUS_DRAFT = 'draft'
     STATUS_CONFIRMED = 'confirmed'

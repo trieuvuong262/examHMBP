@@ -93,8 +93,15 @@ class ProductionOrderCreateForm(forms.Form):
         max_digits=14,
         decimal_places=2,
         min_value=Decimal("0.01"),
-        widget=forms.NumberInput(attrs={**_INPUT_SM, "step": "0.01", "min": "0.01"}),
-        label="Số lượng",
+        required=False,
+        widget=forms.NumberInput(attrs={
+            **_INPUT_SM,
+            "step": "0.01",
+            "min": "0.01",
+            "class": f"{_INPUT_SM['class']} jp-mo-qty-total",
+        }),
+        label="Số lượng tổng",
+        help_text="Tự cộng từ ma trận size/màu; hoặc nhập tay nếu mã SX chưa có biến thể.",
     )
     order_date = forms.DateField(
         label="Ngày lập",
@@ -190,14 +197,25 @@ class ProductionOrderCreateForm(forms.Form):
     def clean_process_name(self):
         return _clean_standard_process_name(self.cleaned_data.get("process_name"))
 
+    def clean(self):
+        cleaned = super().clean()
+        # Dòng SKU được parse ở view; ở đây chỉ cho phép qty trống (view sẽ validate).
+        return cleaned
+
 
 class ProductionOrderUpdateForm(forms.Form):
     qty = forms.DecimalField(
         max_digits=14,
         decimal_places=2,
         min_value=Decimal("0.01"),
-        widget=forms.NumberInput(attrs={**_INPUT_SM, "step": "0.01", "min": "0.01"}),
-        label="Số lượng",
+        required=False,
+        widget=forms.NumberInput(attrs={
+            **_INPUT_SM,
+            "step": "0.01",
+            "min": "0.01",
+            "class": f"{_INPUT_SM['class']} jp-mo-qty-total",
+        }),
+        label="Số lượng tổng",
     )
     due_date = forms.DateField(
         required=False,

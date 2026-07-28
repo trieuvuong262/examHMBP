@@ -4,6 +4,7 @@
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
 {% include 'san_xuat/includes/sx_mo_styles.html' %}
+{% include 'san_xuat/includes/sx_mo_matrix_styles.html' %}
 {% endblock %}
 
 {% block content %}
@@ -53,12 +54,17 @@
       <div class="jp-mo-section">
         <div class="jp-mo-section-label">
           <span class="num">2</span>
-          <h3>Số lượng &amp; lịch</h3>
+          <h3>Số lượng theo màu × size</h3>
+          <span class="hint">Kế hoạch biến thể</span>
+        </div>
+        <div id="jp-mo-matrix-host" class="mb-3">
+          <div class="jp-mo-matrix-empty">Chọn mã SX để hiện ma trận màu × size.</div>
         </div>
         <div class="row g-3">
           <div class="col-6 col-md-4">
             <label class="form-label small text-muted" for="{{ form.qty.id_for_label }}">{{ form.qty.label }}{{ form.qty|sx_req_star }}</label>
             {{ form.qty }}
+            {% if form.qty.help_text %}<div class="form-text">{{ form.qty.help_text }}</div>{% endif %}
             {% if form.qty.errors %}<div class="text-danger small mt-1">{{ form.qty.errors }}</div>{% endif %}
           </div>
           <div class="col-6 col-md-4">
@@ -123,6 +129,7 @@
 </div>
 {% include 'san_xuat/includes/sx_product_code_select_script.html' %}
 {% include 'san_xuat/includes/sx_process_select_script.html' %}
+{% include 'san_xuat/includes/sx_mo_matrix_script.html' %}
 <script>
 (function () {
   var productSel = document.getElementById('id_product_code');

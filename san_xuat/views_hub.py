@@ -1209,13 +1209,16 @@ def dispatch_mo(request):
 
 @module_perm_required(MODULE_SAN_XUAT, 'create')
 def dispatch_mo_create(request):
+    from san_xuat.services.dispatch import parse_mo_lines_from_post
+
     if request.method == 'POST':
         form = ProductionOrderCreateForm(request.POST)
+        lines = parse_mo_lines_from_post(request.POST)
         if form.is_valid():
             try:
                 mo = create_mo_from_bom(
                     product_code=form.cleaned_data['product_code'],
-                    qty=form.cleaned_data['qty'],
+                    qty=form.cleaned_data.get('qty'),
                     order_date=form.cleaned_data.get('order_date') or timezone.localdate(),
                     due_date=form.cleaned_data.get('due_date'),
                     planned_start=form.cleaned_data.get('planned_start'),
@@ -1225,6 +1228,7 @@ def dispatch_mo_create(request):
                     notes=form.cleaned_data.get('notes') or '',
                     user=request.user,
                     is_sample=bool(form.cleaned_data.get('is_sample')),
+                    lines=lines,
                 )
             except DispatchError as exc:
                 messages.error(request, str(exc))
@@ -1434,7 +1438,7 @@ def run_order_wizard(request, mo_id: int | None = None):
 def dispatch_mo_detail(request, pk: int):
     mo = (
         SxProductionOrder.objects.select_related('bom_version__tech_doc', 'bom_version__routing', 'routing')
-        .prefetch_related('bom_version__lines__material')
+        .prefetch_related('bom_version__lines__material', 'lines')
         .get(pk=pk)
     )
     can_update = _perm_ctx(request).get('can_update')
@@ -1445,20 +1449,33 @@ def dispatch_mo_detail(request, pk: int):
         action = (request.POST.get('action') or '').strip()
 
         if action == 'save' and mo.status == SxProductionOrder.STATUS_DRAFT and can_update:
+            from san_xuat.services.dispatch import parse_mo_lines_from_post, update_draft_mo
+
             form = ProductionOrderUpdateForm(request.POST, bom=mo.bom_version)
+            lines = parse_mo_lines_from_post(request.POST)
             if form.is_valid():
-                mo.qty = form.cleaned_data['qty']
-                mo.due_date = form.cleaned_data.get('due_date')
-                mo.planned_start = form.cleaned_data.get('planned_start')
-                mo.planned_end = form.cleaned_data.get('planned_end')
-                mo.team_label = form.cleaned_data.get('team_label') or ''
-                mo.process_name = form.cleaned_data.get('process_name') or ''
-                mo.notes = form.cleaned_data.get('notes') or ''
-                mo.save()
-                messages.success(request, 'Đã lưu LSX.')
-                return redirect('san_xuat:dispatch_mo_detail', pk=mo.pk)
-            messages.error(request, 'Không lưu được LSX — kiểm tra lại form.')
-            update_form = form
+                try:
+                    update_draft_mo(
+                        mo=mo,
+                        qty=form.cleaned_data.get('qty'),
+                        due_date=form.cleaned_data.get('due_date'),
+                        planned_start=form.cleaned_data.get('planned_start'),
+                        planned_end=form.cleaned_data.get('planned_end'),
+                        team_label=form.cleaned_data.get('team_label') or '',
+                        process_name=form.cleaned_data.get('process_name') or '',
+                        notes=form.cleaned_data.get('notes') or '',
+                        lines=lines,
+                        user=request.user,
+                    )
+                except DispatchError as exc:
+                    messages.error(request, str(exc))
+                    update_form = form
+                else:
+                    messages.success(request, 'Đã lưu LSX.')
+                    return redirect('san_xuat:dispatch_mo_detail', pk=mo.pk)
+            else:
+                messages.error(request, 'Không lưu được LSX — kiểm tra lại form.')
+                update_form = form
         elif action == 'release' and mo.status == SxProductionOrder.STATUS_DRAFT and can_update:
             try:
                 mo_release(mo_id=mo.pk, user=request.user)
@@ -1561,10 +1578,19 @@ def dispatch_mo_detail(request, pk: int):
     from san_xuat.services.mo_progress import build_mo_progress
 
     progress = build_mo_progress(mo)
+    mo_lines = list(mo.lines.all())
+    import json
+    mo_line_qty_json = json.dumps({
+        f'{(ln.color_code or "").upper()}||{(ln.size_label or "").upper()}': str(ln.qty)
+        for ln in mo_lines
+        if (ln.color_code or "").strip() and (ln.size_label or "").strip()
+    })
 
     return render(request, 'san_xuat/dispatch_mo_detail.html', {
         **_perm_ctx(request),
         'mo': mo,
+        'mo_lines': mo_lines,
+        'mo_line_qty_json': mo_line_qty_json,
         'update_form': update_form,
         'can_update': can_update,
         'ycx_list': ycx_list,

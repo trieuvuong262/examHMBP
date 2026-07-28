@@ -35,6 +35,7 @@ from san_xuat.hub_models import (
     SxNplSurplus,
     SxOverallPlan,
     SxProductionOrder,
+    SxProductionOrderLine,
     SxProductionStat,
     SxQcAlert,
     SxWipBalance,
@@ -201,7 +202,7 @@ def _allocate_batches(material: Material, qty_needed: Decimal) -> list[tuple[Mat
 def create_mo_from_bom(
     *,
     product_code: str,
-    qty: Decimal,
+    qty: Decimal | None = None,
     code: str | None = None,
     order_date=None,
     due_date=None,
@@ -213,12 +214,18 @@ def create_mo_from_bom(
     user=None,
     detail_plan_id: int | None = None,
     is_sample: bool = False,
+    lines: list[dict] | None = None,
 ) -> SxProductionOrder:
     product_code = (product_code or "").strip()
     if not product_code:
         raise DispatchError("Thiếu mã sản phẩm.")
+
+    normalized_lines = normalize_mo_lines(lines or [])
+    line_total = sum((row["qty"] for row in normalized_lines), Decimal("0"))
+    if normalized_lines:
+        qty = line_total
     if qty is None or qty <= 0:
-        raise DispatchError("SL phải > 0.")
+        raise DispatchError("SL phải > 0 — nhập tổng hoặc số lượng theo size/màu.")
 
     tech_doc = ProductTechDoc.objects.filter(product_code__iexact=product_code).first()
     if not tech_doc:
@@ -250,6 +257,257 @@ def create_mo_from_bom(
         is_sample=bool(is_sample),
         created_by=user,
     )
+    if normalized_lines:
+        replace_mo_lines(mo, normalized_lines, style_code=tech_doc.product_code, user=user)
+    return mo
+
+
+def normalize_mo_lines(raw_lines: list[dict]) -> list[dict]:
+    """Chuẩn hoá dòng LSX: bỏ qty≤0, gom trùng màu+size."""
+    from san_xuat.services.sku_catalog import normalize_token
+
+    buckets: dict[tuple[str, str], dict] = {}
+    for raw in raw_lines or []:
+        if not isinstance(raw, dict):
+            continue
+        try:
+            qty = Decimal(str(raw.get("qty") or "0"))
+        except Exception:
+            continue
+        if qty <= 0:
+            continue
+        color = normalize_token(raw.get("color_code") or "")
+        size = normalize_token(raw.get("size_label") or "")
+        if not color or not size:
+            raise DispatchError("Mỗi dòng LSX cần mã màu và size.")
+        color_label = (raw.get("color_label") or "").strip() or color
+        sku_code = (raw.get("sku_code") or "").strip().upper()
+        key = (color, size)
+        if key in buckets:
+            buckets[key]["qty"] += qty
+        else:
+            buckets[key] = {
+                "color_code": color,
+                "color_label": color_label,
+                "size_label": size,
+                "sku_code": sku_code,
+                "qty": qty,
+                "sku_id": raw.get("sku_id") or raw.get("sku"),
+            }
+    return list(buckets.values())
+
+
+def replace_mo_lines(
+    mo: SxProductionOrder,
+    lines: list[dict],
+    *,
+    style_code: str = "",
+    user=None,
+) -> Decimal:
+    """Ghi đè dòng SKU của LSX; trả về tổng qty."""
+    from san_xuat.services.sku_catalog import compose_sku_code, get_or_create_sku, normalize_token
+
+    style = normalize_token(style_code or mo.product_code)
+    normalized = normalize_mo_lines(lines)
+    mo.lines.all().delete()
+    total = Decimal("0")
+    for row in normalized:
+        color = row["color_code"]
+        size = row["size_label"]
+        qty = row["qty"]
+        sku = None
+        sku_id = row.get("sku_id")
+        if sku_id:
+            from san_xuat.hub_models import SxSku
+            try:
+                sku = SxSku.objects.filter(pk=int(sku_id)).first()
+            except (TypeError, ValueError):
+                sku = None
+        if sku is None:
+            sku = get_or_create_sku(
+                style_code=style,
+                color_code=color,
+                size_label=size,
+                color_label=row.get("color_label") or "",
+                style_name=mo.product_name or "",
+                sku_code=row.get("sku_code") or "",
+                user=user,
+            )
+        sku_code = sku.sku_code if sku else (
+            row.get("sku_code")
+            or compose_sku_code(style_code=style, color_code=color, size_label=size)
+        )
+        color_label = (row.get("color_label") or "").strip()
+        if not color_label and sku:
+            color_label = sku.color_label or color
+        if not color_label:
+            color_label = color
+        SxProductionOrderLine.objects.create(
+            production_order=mo,
+            sku=sku,
+            sku_code=sku_code,
+            color_code=color,
+            color_label=color_label,
+            size_label=size,
+            qty=qty,
+        )
+        total += qty
+    return total
+
+
+def parse_mo_lines_from_post(post) -> list[dict]:
+    """Đọc dòng từ POST: line_qty__{COLOR}__{SIZE} (+ optional line_label__{COLOR})."""
+    from san_xuat.services.sku_catalog import normalize_token
+
+    lines: list[dict] = []
+    for key, raw in post.items():
+        if not key.startswith("line_qty__"):
+            continue
+        parts = key.split("__", 2)
+        if len(parts) != 3:
+            continue
+        _, color, size = parts
+        color = normalize_token(color)
+        size = normalize_token(size)
+        if not color or not size:
+            continue
+        try:
+            qty = Decimal(str(raw or "0").replace(",", "").strip() or "0")
+        except Exception:
+            qty = Decimal("0")
+        if qty <= 0:
+            continue
+        label = (post.get(f"line_label__{color}") or "").strip()
+        sku_code = (post.get(f"line_sku__{color}__{size}") or "").strip()
+        lines.append({
+            "color_code": color,
+            "color_label": label or color,
+            "size_label": size,
+            "sku_code": sku_code,
+            "qty": qty,
+        })
+    return lines
+
+
+def mo_sku_matrix(*, style_code: str, existing_lines=None) -> dict:
+    """Ma trận màu × size cho form LSX — ưu tiên SxSku, fallback kho SP."""
+    from collections import OrderedDict
+
+    from san_xuat.services.sku_catalog import normalize_token, skus_for_style
+
+    style = normalize_token(style_code)
+    qty_map: dict[tuple[str, str], Decimal] = {}
+    for line in existing_lines or []:
+        if isinstance(line, dict):
+            c = normalize_token(line.get("color_code") or "")
+            s = normalize_token(line.get("size_label") or "")
+            q = line.get("qty") or Decimal("0")
+        else:
+            c = normalize_token(getattr(line, "color_code", "") or "")
+            s = normalize_token(getattr(line, "size_label", "") or "")
+            q = getattr(line, "qty", Decimal("0")) or Decimal("0")
+        if c and s:
+            qty_map[(c, s)] = Decimal(str(q))
+
+    colors: OrderedDict[str, str] = OrderedDict()
+    sizes: list[str] = []
+    size_set: set[str] = set()
+    cells: list[dict] = []
+
+    skus = list(skus_for_style(style)) if style else []
+    if skus:
+        for sku in skus:
+            c = normalize_token(sku.color_code)
+            s = normalize_token(sku.size_label)
+            if not c or not s:
+                continue
+            if c not in colors:
+                colors[c] = (sku.color_label or c).strip() or c
+            if s not in size_set:
+                size_set.add(s)
+                sizes.append(s)
+            cells.append({
+                "color_code": c,
+                "color_label": colors[c],
+                "size_label": s,
+                "sku_code": sku.sku_code,
+                "sku_id": sku.pk,
+                "qty": str(qty_map.get((c, s), Decimal("0"))),
+            })
+    else:
+        try:
+            from kho_san_pham.models import Product
+            products = list(
+                Product.objects.filter(style_code__iexact=style, is_active=True)
+                .exclude(size_label="")
+                .order_by("color_code", "size_label")
+            )
+        except Exception:
+            products = []
+        for p in products:
+            c = normalize_token(p.color_code)
+            s = normalize_token(p.size_label)
+            if not c or not s:
+                continue
+            if c not in colors:
+                colors[c] = (p.color_label or c).strip() or c
+            if s not in size_set:
+                size_set.add(s)
+                sizes.append(s)
+            cells.append({
+                "color_code": c,
+                "color_label": colors[c],
+                "size_label": s,
+                "sku_code": (p.code or "").strip().upper(),
+                "sku_id": None,
+                "qty": str(qty_map.get((c, s), Decimal("0"))),
+            })
+
+    return {
+        "style_code": style,
+        "colors": [{"code": c, "label": colors[c]} for c in colors],
+        "sizes": sizes,
+        "cells": cells,
+        "has_matrix": bool(cells),
+    }
+
+
+@transaction.atomic
+def update_draft_mo(
+    *,
+    mo: SxProductionOrder,
+    qty: Decimal | None = None,
+    due_date=None,
+    planned_start=None,
+    planned_end=None,
+    team_label: str = "",
+    process_name: str = "",
+    notes: str = "",
+    lines: list[dict] | None = None,
+    user=None,
+) -> SxProductionOrder:
+    if mo.status != SxProductionOrder.STATUS_DRAFT:
+        raise DispatchError("Chỉ sửa được lệnh đang nháp.")
+    if lines is not None:
+        normalized = normalize_mo_lines(lines)
+        if normalized:
+            mo.qty = replace_mo_lines(mo, normalized, style_code=mo.product_code, user=user)
+        elif qty is not None and qty > 0:
+            mo.lines.all().delete()
+            mo.qty = qty
+        else:
+            raise DispatchError("SL phải > 0 — nhập tổng hoặc số lượng theo size/màu.")
+    elif qty is not None:
+        if qty <= 0:
+            raise DispatchError("SL phải > 0.")
+        mo.qty = qty
+    mo.due_date = due_date
+    mo.planned_start = planned_start
+    mo.planned_end = planned_end
+    mo.team_label = team_label or ""
+    mo.process_name = (process_name or "").strip()
+    mo.notes = notes or ""
+    mo.save()
     return mo
 
 

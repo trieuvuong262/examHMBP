@@ -1,0 +1,198 @@
+<script>
+(function () {
+  var matrixUrl = '{% url "san_xuat:mo_sku_matrix" %}';
+  var productSel = document.getElementById('id_product_code');
+  var host = document.getElementById('jp-mo-matrix-host');
+  var qtyInput = document.querySelector('.jp-mo-qty-total') || document.getElementById('id_qty');
+  if (!host) return;
+
+  var timer = null;
+  var initialQtys = {};
+  try {
+    initialQtys = JSON.parse(host.getAttribute('data-initial-qtys') || '{}') || {};
+  } catch (e) {
+    initialQtys = {};
+  }
+
+  function cellKey(color, size) {
+    return String(color || '').toUpperCase() + '||' + String(size || '').toUpperCase();
+  }
+
+  function sumMatrix() {
+    var total = 0;
+    host.querySelectorAll('.jp-mo-matrix-input').forEach(function (inp) {
+      var v = parseFloat(String(inp.value || '0').replace(',', '.'));
+      if (!isNaN(v) && v > 0) total += v;
+    });
+    return total;
+  }
+
+  function syncQty() {
+    if (!qtyInput) return;
+    var total = sumMatrix();
+    var hasCells = !!host.querySelector('.jp-mo-matrix-input');
+    if (hasCells) {
+      qtyInput.value = total > 0 ? String(total) : '';
+      qtyInput.readOnly = true;
+      qtyInput.classList.add('jp-mo-code-preview');
+    } else {
+      qtyInput.readOnly = false;
+      qtyInput.classList.remove('jp-mo-code-preview');
+    }
+    var foot = host.querySelector('[data-mo-matrix-total]');
+    if (foot) foot.textContent = total > 0 ? String(total) : '0';
+  }
+
+  function render(data) {
+    if (!data || !data.has_matrix || !(data.cells || []).length) {
+      host.innerHTML =
+        '<div class="jp-mo-matrix-empty">Mã SX này chưa có biến thể màu×size trong danh mục SKU / kho SP. ' +
+        'Nhập <strong>số lượng tổng</strong> bên dưới, hoặc bổ sung SKU trước.</div>';
+      syncQty();
+      return;
+    }
+    var sizes = data.sizes || [];
+    var colors = data.colors || [];
+    var byKey = {};
+    (data.cells || []).forEach(function (c) {
+      byKey[cellKey(c.color_code, c.size_label)] = c;
+    });
+
+    var html = '<div class="jp-mo-matrix-wrap"><table class="jp-mo-matrix"><thead><tr>';
+    html += '<th>Màu \\ Size</th>';
+    sizes.forEach(function (s) {
+      html += '<th>' + escapeHtml(s) + '</th>';
+    });
+    html += '<th>Σ màu</th></tr></thead><tbody>';
+
+    colors.forEach(function (col) {
+      var code = col.code;
+      var label = col.label || code;
+      html += '<tr>';
+      html +=
+        '<th>' +
+        escapeHtml(label) +
+        (label !== code ? ' <span class="text-muted fw-normal">(' + escapeHtml(code) + ')</span>' : '') +
+        '<input type="hidden" name="line_label__' + escapeAttr(code) + '" value="' + escapeAttr(label) + '">' +
+        '</th>';
+      sizes.forEach(function (s) {
+        var cell = byKey[cellKey(code, s)];
+        if (!cell) {
+          html += '<td class="text-muted">—</td>';
+          return;
+        }
+        var init = initialQtys[cellKey(code, s)];
+        if (init == null || init === '') init = cell.qty || '';
+        if (String(init) === '0') init = '';
+        html +=
+          '<td>' +
+          '<input type="number" min="0" step="1" class="form-control form-control-sm jp-mo-matrix-input" ' +
+          'name="line_qty__' +
+          escapeAttr(code) +
+          '__' +
+          escapeAttr(s) +
+          '" value="' +
+          escapeAttr(init) +
+          '" inputmode="numeric">' +
+          '<input type="hidden" name="line_sku__' +
+          escapeAttr(code) +
+          '__' +
+          escapeAttr(s) +
+          '" value="' +
+          escapeAttr(cell.sku_code || '') +
+          '">' +
+          '</td>';
+      });
+      html += '<td class="fw-semibold" data-row-sum="' + escapeAttr(code) + '">0</td>';
+      html += '</tr>';
+    });
+
+    html += '<tr><th>Σ size</th>';
+    sizes.forEach(function (s) {
+      html += '<td class="fw-semibold" data-col-sum="' + escapeAttr(s) + '">0</td>';
+    });
+    html += '<td class="fw-bold text-danger" data-mo-matrix-total>0</td></tr>';
+    html += '</tbody></table></div>';
+    html +=
+      '<div class="jp-mo-matrix-foot"><span>Tổng lệnh: <span class="total" data-mo-matrix-total>0</span></span>' +
+      '<span class="text-muted small">Chỉ các ô &gt; 0 được lưu thành dòng kế hoạch.</span></div>';
+    host.innerHTML = html;
+    refreshRowColSums();
+    syncQty();
+  }
+
+  function refreshRowColSums() {
+    var rowSums = {};
+    var colSums = {};
+    host.querySelectorAll('.jp-mo-matrix-input').forEach(function (inp) {
+      var name = inp.getAttribute('name') || '';
+      var parts = name.split('__');
+      if (parts.length !== 3) return;
+      var color = parts[1];
+      var size = parts[2];
+      var v = parseFloat(String(inp.value || '0').replace(',', '.'));
+      if (isNaN(v) || v < 0) v = 0;
+      rowSums[color] = (rowSums[color] || 0) + v;
+      colSums[size] = (colSums[size] || 0) + v;
+    });
+    host.querySelectorAll('[data-row-sum]').forEach(function (el) {
+      var n = rowSums[el.getAttribute('data-row-sum')] || 0;
+      el.textContent = n ? String(n) : '0';
+    });
+    host.querySelectorAll('[data-col-sum]').forEach(function (el) {
+      var n = colSums[el.getAttribute('data-col-sum')] || 0;
+      el.textContent = n ? String(n) : '0';
+    });
+  }
+
+  function escapeHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+  function escapeAttr(s) {
+    return escapeHtml(s);
+  }
+
+  function load() {
+    var code = productSel ? (productSel.value || '').trim() : (host.getAttribute('data-style-code') || '').trim();
+    if (!code) {
+      host.innerHTML = '<div class="jp-mo-matrix-empty">Chọn mã SX để hiện ma trận màu × size.</div>';
+      syncQty();
+      return;
+    }
+    host.innerHTML = '<div class="jp-mo-matrix-empty">Đang tải biến thể…</div>';
+    fetch(matrixUrl + '?product_code=' + encodeURIComponent(code), {
+      headers: { Accept: 'application/json' },
+    })
+      .then(function (r) {
+        return r.json();
+      })
+      .then(render)
+      .catch(function () {
+        host.innerHTML = '<div class="jp-mo-matrix-empty text-danger">Không tải được ma trận SKU.</div>';
+      });
+  }
+
+  function schedule() {
+    if (timer) window.clearTimeout(timer);
+    timer = window.setTimeout(load, 120);
+  }
+
+  if (productSel) {
+    productSel.addEventListener('change', schedule);
+    document.addEventListener('change', function (e) {
+      if (e.target && e.target.id === 'id_product_code') schedule();
+    });
+  }
+  host.addEventListener('input', function (e) {
+    if (e.target && e.target.classList.contains('jp-mo-matrix-input')) {
+      refreshRowColSums();
+      syncQty();
+    }
+  });
+  schedule();
+})();
+</script>

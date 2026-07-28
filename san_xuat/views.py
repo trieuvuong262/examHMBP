@@ -474,6 +474,16 @@ def mo_code_preview(request):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 @require_GET
+def mo_sku_matrix_api(request):
+    """Ma trận màu × size theo mã SX (cho form tạo/sửa LSX)."""
+    style = (request.GET.get('product_code') or request.GET.get('style') or '').strip()
+    from san_xuat.services.dispatch import mo_sku_matrix
+
+    return JsonResponse(mo_sku_matrix(style_code=style))
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+@require_GET
 def process_catalog_search(request):
     """Gõ tìm công đoạn chuẩn trong thư viện IE."""
     q = (request.GET.get('q') or '').strip()
