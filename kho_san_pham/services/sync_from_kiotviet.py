@@ -3,7 +3,8 @@
 - Tạo mới khi chưa có (theo kiotviet_id / mã).
 - Bổ sung Size/Màu trống từ thuộc tính KV.
 - Khi có map nhóm hàng → loại: gom size, mã gốc = size nhỏ nhất,
-  Style ``JP-{LOẠI}-{ROOT}``, SKU ``{Style}-{Size}`` (có màu thì thêm màu).
+  Style ``JP-{LOẠI}-{NHÓM}-{ROOT}`` (vd. ``JP-JKT-00-SP007105``, ``JP-SET-SC-SP002771``),
+  SKU ``{Style}-{Size}`` (có màu thì thêm màu).
 """
 
 from __future__ import annotations
@@ -217,8 +218,26 @@ def _group_key(name: str, color_label: str) -> str:
     return f'{base}||{color}'
 
 
+def _is_matrix_size(size_label: str) -> bool:
+    """Size ma trận (S/M/L/…) — khác OS / trống (phụ kiện 1 mã = 1 Style)."""
+    label = (size_label or '').strip().upper()
+    if not label or label in {'OS', 'ONE', 'ONESIZE', 'FREE', 'F'}:
+        return False
+    return True
+
+
+def _variant_group_key(*, name: str, color_label: str, size_label: str, kiotviet_code: str) -> str:
+    """Gom size thật theo tên+màu; không size → mỗi mã KV một nhóm."""
+    if _is_matrix_size(size_label):
+        return _group_key(name, color_label)
+    code = (kiotviet_code or '').strip().upper() or '—'
+    return f'single:{code}'
+
+
 def _is_temp_code(product: Product) -> bool:
-    """SKU tạm = trùng mã KV hoặc trống Style chuẩn JP-…"""
+    """SKU tạm = trùng mã KV hoặc trống Style chuẩn JP-… hoặc gắn ID KV đuôi."""
+    import re
+
     kv = (product.kiotviet_code or '').strip().upper()
     code = (product.code or '').strip().upper()
     style = (product.style_code or '').strip().upper()
@@ -228,6 +247,9 @@ def _is_temp_code(product: Product) -> bool:
         return True
     if style and not style.startswith(f'{DEFAULT_BRAND}-'):
         # Style cũ = tên SP từ lần sync trước
+        return True
+    # JP-…-OS-31972720 (đụng SKU rồi gắn kiotviet_id)
+    if re.search(r'-\d{6,}$', code):
         return True
     return False
 
@@ -317,7 +339,6 @@ def _apply_style_to_product(
         except Exception:  # noqa: BLE001
             new_sku = ''
         if new_sku and (product.code or '').strip().upper() != new_sku:
-            # Tránh đụng SKU đã dùng bởi SP khác
             clash = (
                 Product.objects.filter(code__iexact=new_sku)
                 .exclude(pk=product.pk)
@@ -326,6 +347,7 @@ def _apply_style_to_product(
             if not clash:
                 product.code = new_sku
                 changed = True
+            # Trùng SKU: không gắn ID vào mã — để bước nhóm single-SKU sửa Style
 
     if changed:
         product.synced_at = timezone.now()
@@ -383,11 +405,16 @@ def sync_thanh_pham_from_kiotviet(*, retailer: str | None = None, deactivate_mis
         .order_by('code', 'kiotviet_id')
     )
 
-    # Gom theo tên + màu để chọn mã KV gốc (size nhỏ nhất)
+    # Gom theo tên + màu (size ma trận) hoặc từng mã KV (không size / OS)
     buckets: dict[str, list[tuple]] = defaultdict(list)
     for kv in qs:
         fields = _build_base_fields(kv, retailer=retailer)
-        key = _group_key(fields['name'], fields['color_label'])
+        key = _variant_group_key(
+            name=fields['name'],
+            color_label=fields['color_label'],
+            size_label=fields['size_label'],
+            kiotviet_code=fields['kiotviet_code'],
+        )
         buckets[key].append((kv, fields))
 
     for _key, items in buckets.items():
@@ -476,7 +503,26 @@ def sync_thanh_pham_from_kiotviet(*, retailer: str | None = None, deactivate_mis
                     except Exception:
                         sku = fields['kiotviet_code'] or f'KV-{kv.kiotviet_id}'
                     if Product.objects.filter(code__iexact=sku).exists():
-                        sku = f'{sku}-{kv.kiotviet_id}'
+                        # Trùng (thường OS): Style = mã KV của chính SP — không gắn ID đuôi
+                        own = fields['kiotviet_code']
+                        if own and catalog_type and (
+                            own != root_kv_code or not _is_matrix_size(create_size)
+                        ):
+                            style_own, _ = get_or_create_kv_style(
+                                product_type=catalog_type,
+                                root_kiotviet_code=own,
+                                name=fields['name'],
+                                brand=DEFAULT_BRAND,
+                            )
+                            style = style_own
+                            sku = _compose_variant_sku(
+                                style_code=style.code,
+                                color_code=fields['color_code'],
+                                size_label=create_size,
+                            )
+                        if Product.objects.filter(code__iexact=sku).exists():
+                            # Fallback tạm = mã KV (không JP-…-OS-{id})
+                            sku = own or f'KV-{kv.kiotviet_id}'
                     fields_create = dict(fields)
                     fields_create['size_label'] = create_size
                     _create_product_from_kv(
@@ -556,7 +602,13 @@ def apply_style_sku_for_existing_products() -> SyncResult:
         if not (product.unit or '').strip() and fields['unit']:
             product.unit = fields['unit']
         meta[product.pk] = fields
-        key = _group_key(fields['name'] or product.name, fields['color_label'] or product.color_label)
+        size_for_group = (product.size_label or fields.get('size_label') or '').strip()
+        key = _variant_group_key(
+            name=fields['name'] or product.name,
+            color_label=fields['color_label'] or product.color_label,
+            size_label=size_for_group,
+            kiotviet_code=fields.get('kiotviet_code') or product.kiotviet_code,
+        )
         buckets[key].append(product)
 
     for _key, group in buckets.items():
@@ -596,10 +648,192 @@ def apply_style_sku_for_existing_products() -> SyncResult:
                 size_label=size_label,
                 color_code=fields.get('color_code') or product.color_code,
                 color_label=fields.get('color_label') or product.color_label,
-                force_sku=_is_temp_code(product),
+                force_sku=_is_temp_code(product) or (
+                    not _is_matrix_size(size_label)
+                    and (product.kiotviet_code or '').strip().upper()
+                    and style.root_kiotviet_code.upper() != (product.kiotviet_code or '').strip().upper()
+                ),
             ):
                 result.updated += 1
             else:
                 result.skipped += 1
+
+    # Sửa phụ kiện one-size còn gắn đuôi kiotviet_id
+    repair = repair_single_sku_os_codes()
+    result.updated += repair.updated
+    result.errors.extend(repair.errors)
+
+    # Chèn nhóm mặc định 00 (JP-JKT-SP… → JP-JKT-00-SP…)
+    repair_g = repair_default_style_group()
+    result.updated += repair_g.updated
+    result.errors.extend(repair_g.errors)
+
+    return result
+
+
+def _style_missing_default_group(style_code: str) -> bool:
+    """True nếu Style dạng ``JP-JKT-SP007105`` (thiếu nhóm 00)."""
+    parts = (style_code or '').strip().upper().split('-')
+    return (
+        len(parts) == 3
+        and parts[0] == DEFAULT_BRAND
+        and parts[2].startswith('SP')
+    )
+
+
+@transaction.atomic
+def repair_default_style_group() -> SyncResult:
+    """Chèn nhóm mặc định ``00``: ``JP-JKT-SP007105`` → ``JP-JKT-00-SP007105``.
+
+    Loại đã có nhóm trong mã (``SET-SC``, ``ACC-BALO``) giữ nguyên.
+    """
+    from kho_san_pham.catalog_models import ProductStyle, ProductType
+    from kho_san_pham.services.code_structure import get_or_create_kv_style, type_code_has_group
+
+    result = SyncResult()
+    qs = (
+        Product.objects.filter(sync_source=SYNC_SOURCE_KIOTVIET)
+        .exclude(style_code='')
+        .select_related('catalog_type')
+    )
+    for product in qs.iterator(chunk_size=200):
+        if not _style_missing_default_group(product.style_code):
+            result.skipped += 1
+            continue
+        parts = product.style_code.strip().upper().split('-')
+        catalog_type = product.catalog_type
+        if not catalog_type:
+            catalog_type = ProductType.objects.filter(code__iexact=parts[1]).first()
+        if not catalog_type or type_code_has_group(catalog_type.code):
+            result.skipped += 1
+            continue
+
+        root = parts[2]
+        old_style = ProductStyle.objects.filter(code__iexact=product.style_code).first()
+        if old_style and old_style.root_kiotviet_code:
+            root = old_style.root_kiotviet_code
+
+        try:
+            style, _ = get_or_create_kv_style(
+                product_type=catalog_type,
+                root_kiotviet_code=root,
+                name=product.name,
+                brand=DEFAULT_BRAND,
+            )
+        except Exception as exc:  # noqa: BLE001
+            result.errors.append((f'{product.code}: {exc}')[:200])
+            continue
+
+        size = (product.size_label or '').strip().upper() or 'OS'
+        try:
+            sku = _compose_variant_sku(
+                style_code=style.code,
+                color_code=product.color_code or '',
+                size_label=size,
+            )
+        except Exception as exc:  # noqa: BLE001
+            result.errors.append((f'{product.code}: {exc}')[:200])
+            continue
+
+        if (
+            (product.style_code or '').upper() == style.code
+            and (product.code or '').upper() == sku.upper()
+        ):
+            result.skipped += 1
+            continue
+
+        clash = Product.objects.filter(code__iexact=sku).exclude(pk=product.pk).exists()
+        if clash:
+            # Vẫn nâng Style (có nhóm); giữ mã hiện tại nếu SKU chuẩn bị trùng
+            if (product.style_code or '').upper() != style.code:
+                product.style_code = style.code
+                if product.catalog_type_id != catalog_type.pk:
+                    product.catalog_type = catalog_type
+                product.synced_at = timezone.now()
+                product.save()
+                result.updated += 1
+                result.errors.append(
+                    f'{product.kiotviet_code or product.pk}: Style → {style.code}, SKU giữ {product.code} (trùng {sku})'
+                )
+            else:
+                result.errors.append(f'{product.kiotviet_code or product.pk}: SKU {sku} đã tồn tại')
+                result.skipped += 1
+            continue
+
+        product.style_code = style.code
+        product.code = sku
+        if product.catalog_type_id != catalog_type.pk:
+            product.catalog_type = catalog_type
+        product.synced_at = timezone.now()
+        product.save()
+        result.updated += 1
+
+    return result
+
+
+@transaction.atomic
+def repair_single_sku_os_codes() -> SyncResult:
+    """Sửa phụ kiện / SP không size: mỗi mã KV → Style riêng ``JP-TYPE-{KV}``, SKU ``…-OS``.
+
+    Xử lý mã lệch dạng ``JP-ACC-SP8516465-OS-31972720``.
+    """
+    import re
+
+    from kho_san_pham.services.code_structure import get_or_create_kv_style
+
+    result = SyncResult()
+    qs = (
+        Product.objects.filter(sync_source=SYNC_SOURCE_KIOTVIET)
+        .exclude(kiotviet_code='')
+        .exclude(catalog_type_id=None)
+        .select_related('catalog_type')
+    )
+    for product in qs.iterator(chunk_size=200):
+        size = (product.size_label or '').strip().upper() or 'OS'
+        # Ma trận size giữ group theo tên — chỉ sửa SP one-size / phụ kiện
+        if _is_matrix_size(size):
+            result.skipped += 1
+            continue
+        own_kv = (product.kiotviet_code or '').strip()
+        if not own_kv or not product.catalog_type_id:
+            result.skipped += 1
+            continue
+        try:
+            style, _ = get_or_create_kv_style(
+                product_type=product.catalog_type,
+                root_kiotviet_code=own_kv,
+                name=product.name,
+                brand=DEFAULT_BRAND,
+            )
+            sku = _compose_variant_sku(
+                style_code=style.code,
+                color_code=product.color_code or '',
+                size_label=size,
+            )
+        except Exception as exc:  # noqa: BLE001
+            result.errors.append((f'{own_kv}: {exc}')[:200])
+            continue
+
+        if (
+            (product.style_code or '').upper() == style.code
+            and (product.code or '').upper() == sku.upper()
+            and (product.size_label or '').upper() == size
+        ):
+            result.skipped += 1
+            continue
+
+        clash = Product.objects.filter(code__iexact=sku).exclude(pk=product.pk).exists()
+        if clash:
+            # Nếu chính mã đích đang thuộc SP khác có cùng KV style đúng — bỏ qua
+            result.errors.append(f'{own_kv}: SKU {sku} đã tồn tại')
+            result.skipped += 1
+            continue
+
+        product.style_code = style.code
+        product.code = sku
+        product.size_label = size
+        product.synced_at = timezone.now()
+        product.save(update_fields=['style_code', 'code', 'size_label', 'synced_at', 'updated_at'])
+        result.updated += 1
 
     return result

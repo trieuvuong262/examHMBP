@@ -36,9 +36,9 @@ STATUS_CHOICES = (
 
 
 def _list_status(request) -> str:
-    status = (request.GET.get('status') or 'all').strip().lower()
+    status = (request.GET.get('status') or 'active').strip().lower()
     if status not in {k for k, _ in STATUS_CHOICES}:
-        return 'all'
+        return 'active'
     return status
 
 
@@ -182,7 +182,7 @@ def product_detail(request, pk: int):
 
 @module_perm_required_methods(MODULE_KHO_SAN_PHAM, get='create', post='create')
 def product_create(request):
-    initial = {}
+    initial = {'is_active': True}
     type_hint = (request.GET.get('type') or '').strip()
     if type_hint in PRODUCT_TYPE_LABELS:
         initial['product_type'] = type_hint

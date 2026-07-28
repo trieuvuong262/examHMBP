@@ -7,6 +7,7 @@ from django.utils import timezone
 
 from kho_san_pham.choices import (
     DEFAULT_BRAND,
+    DEFAULT_STYLE_GROUP,
     KV_MAP_MATCH_CONTAINS,
     KV_MAP_MATCH_EXACT,
     STYLE_SOURCE_KIOTVIET,
@@ -21,6 +22,22 @@ class CodeStructureError(Exception):
 
 def normalize_type_code(value: str) -> str:
     return (value or '').strip().upper()
+
+
+def type_code_has_group(type_code: str) -> bool:
+    """Loại đã gắn nhóm trong mã (SET-SC, ACC-BALO) — không chèn nhóm mặc định."""
+    return '-' in normalize_type_code(type_code)
+
+
+def compose_kv_style_suffix(*, type_code: str, root_kiotviet_code: str, group: str = DEFAULT_STYLE_GROUP) -> str:
+    """Hậu tố Style KV: ``00-SP007105`` hoặc ``SP002771`` nếu loại đã có nhóm."""
+    root = (root_kiotviet_code or '').strip().upper()
+    if not root:
+        raise CodeStructureError('Thiếu mã KV gốc.')
+    if type_code_has_group(type_code):
+        return root
+    grp = (group or DEFAULT_STYLE_GROUP).strip().upper() or DEFAULT_STYLE_GROUP
+    return f'{grp}-{root}'
 
 
 def compose_style_code(*, brand: str, type_code: str, suffix: str) -> str:
@@ -88,11 +105,17 @@ def get_or_create_kv_style(
     root_kiotviet_code: str,
     name: str = '',
     brand: str = DEFAULT_BRAND,
+    group: str = DEFAULT_STYLE_GROUP,
 ) -> tuple[ProductStyle, bool]:
     root = (root_kiotviet_code or '').strip()
     if not root:
         raise CodeStructureError('Thiếu mã KV gốc.')
-    code = compose_style_code(brand=brand, type_code=product_type.code, suffix=root)
+    suffix = compose_kv_style_suffix(
+        type_code=product_type.code,
+        root_kiotviet_code=root,
+        group=group,
+    )
+    code = compose_style_code(brand=brand, type_code=product_type.code, suffix=suffix)
     existing = ProductStyle.objects.filter(code__iexact=code).first()
     if existing:
         fields: list[str] = []
@@ -108,6 +131,25 @@ def get_or_create_kv_style(
         if fields:
             existing.save(update_fields=fields + ['updated_at'])
         return existing, False
+    # Style cũ thiếu nhóm (JP-JKT-SP007105) → nâng lên mã chuẩn nếu còn
+    legacy = None
+    if not type_code_has_group(product_type.code):
+        legacy_code = compose_style_code(brand=brand, type_code=product_type.code, suffix=root)
+        legacy = ProductStyle.objects.filter(code__iexact=legacy_code).first()
+    if legacy:
+        if ProductStyle.objects.filter(code__iexact=code).exclude(pk=legacy.pk).exists():
+            legacy.is_active = False
+            legacy.save(update_fields=['is_active', 'updated_at'])
+            existing = ProductStyle.objects.filter(code__iexact=code).first()
+            return existing, False
+        legacy.code = code
+        if name and not legacy.name:
+            legacy.name = name.strip()[:500]
+        if root:
+            legacy.root_kiotviet_code = root
+        legacy.is_active = True
+        legacy.save()
+        return legacy, False
     style = ProductStyle.objects.create(
         code=code,
         product_type=product_type,

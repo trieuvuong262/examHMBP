@@ -25,6 +25,8 @@ STYLE_SOURCE_CHOICES = [
 ]
 
 DEFAULT_BRAND = 'JP'
+# Nhóm mặc định khi loại chưa có phân nhóm (JKT → JP-JKT-00-…; SET-SC đã có nhóm sẵn)
+DEFAULT_STYLE_GROUP = '00'
 
 # Seed danh mục loại mã (TEE, SET-SC, …)
 DEFAULT_CATALOG_TYPES: list[tuple[str, str, int]] = [

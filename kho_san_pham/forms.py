@@ -96,6 +96,8 @@ class ProductForm(forms.ModelForm):
         self.fields['description'].required = False
         self.fields['notes'].required = False
         self.fields['is_active'].required = False
+        if not (self.instance and self.instance.pk):
+            self.fields['is_active'].initial = True
         self.fields['code'].label = 'SKU'
         self.fields['style_code'].label = 'Style'
         self.fields['catalog_type'].label = 'Loại mã'
