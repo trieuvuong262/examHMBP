@@ -6,6 +6,8 @@
 .ksp-product-description { line-height: 1.5; word-break: break-word; }
 .ksp-product-description p { margin-bottom: 0.5rem; }
 .ksp-product-description p:last-child { margin-bottom: 0; }
+.ksp-barcode-wrap { max-width: 100%; }
+.ksp-barcode-svg { max-width: 100%; height: auto; }
 </style>
 {% endblock %}
 
@@ -73,10 +75,19 @@
                         <div class="col-sm-4"><span class="text-muted">Size</span><div class="fw-semibold">{{ product.size_label|default:"—" }}</div></div>
                         <div class="col-sm-4"><span class="text-muted">Mã kế toán</span><div class="fw-semibold">{{ product.accounting_code|default:"—" }}</div></div>
                         <div class="col-sm-4"><span class="text-muted">Mã KiotViet</span><div class="fw-semibold">{{ product.kiotviet_code|default:"—" }}</div></div>
-                        <div class="col-sm-4"><span class="text-muted">Mã vạch</span><div class="fw-semibold">{{ product.bar_code|default:"—" }}</div></div>
                         <div class="col-sm-4"><span class="text-muted">ĐVT</span><div class="fw-semibold">{{ product.unit|default:"—" }}</div></div>
                         <div class="col-sm-4"><span class="text-muted">Giá bán</span><div class="fw-semibold">{% if product.base_price %}{{ product.base_price|floatformat:0|intcomma }} ₫{% else %}—{% endif %}</div></div>
                         <div class="col-sm-4"><span class="text-muted">Đồng bộ lúc</span><div class="fw-semibold">{% if product.synced_at %}{{ product.synced_at|date:"d/m/Y H:i" }}{% else %}—{% endif %}</div></div>
+                        <div class="col-12 mt-2">
+                            <span class="text-muted d-block mb-1">Mã vạch</span>
+                            {% if product.bar_code %}
+                            <div class="ksp-barcode-wrap border rounded bg-white px-3 py-2 d-inline-block">
+                                <svg id="ksp-barcode" class="ksp-barcode-svg"></svg>
+                            </div>
+                            {% else %}
+                            <div class="fw-semibold">—</div>
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -93,4 +104,40 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+{% if product.bar_code %}
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+<script>
+(function () {
+    var code = "{{ product.bar_code|escapejs }}";
+    var el = document.getElementById('ksp-barcode');
+    if (!el || typeof JsBarcode !== 'function') return;
+    var opts = {
+        width: 2,
+        height: 64,
+        margin: 8,
+        displayValue: true,
+        fontSize: 14,
+        textMargin: 4,
+        background: '#ffffff',
+        lineColor: '#111111'
+    };
+    try {
+        if (/^\d{13}$/.test(code)) {
+            JsBarcode(el, code, Object.assign({ format: 'EAN13' }, opts));
+        } else if (/^\d{12}$/.test(code)) {
+            JsBarcode(el, code, Object.assign({ format: 'UPC' }, opts));
+        } else if (/^\d{8}$/.test(code)) {
+            JsBarcode(el, code, Object.assign({ format: 'EAN8' }, opts));
+        } else {
+            JsBarcode(el, code, Object.assign({ format: 'CODE128' }, opts));
+        }
+    } catch (err) {
+        JsBarcode(el, code, Object.assign({ format: 'CODE128' }, opts));
+    }
+})();
+</script>
+{% endif %}
 {% endblock %}

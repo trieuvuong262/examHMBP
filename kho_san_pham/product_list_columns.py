@@ -4,7 +4,7 @@ PRODUCT_LIST_COLUMNS = [
     {'key': 'style_code', 'label': 'Style', 'default': True, 'required': False, 'weight': 110},
     {'key': 'color_code', 'label': 'Màu', 'default': True, 'required': False, 'weight': 70},
     {'key': 'size_label', 'label': 'Size', 'default': True, 'required': False, 'weight': 50},
-    {'key': 'accounting_code', 'label': 'Mã KT', 'default': True, 'required': False, 'weight': 90},
+    {'key': 'accounting_code', 'label': 'Mã KT', 'default': False, 'required': False, 'weight': 90},
     {'key': 'kiotviet_code', 'label': 'Mã KV', 'default': True, 'required': False, 'weight': 90},
     {'key': 'name', 'label': 'Tên', 'default': True, 'required': False, 'weight': 140},
     {'key': 'product_type', 'label': 'Loại', 'default': True, 'required': False, 'weight': 80},
