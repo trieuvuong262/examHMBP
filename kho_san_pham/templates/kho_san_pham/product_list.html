@@ -59,22 +59,6 @@ html[data-theme="dark"] .ksp-catalog-table .kv-product-group-expandable.kv-expan
             <button type="button" class="btn btn-outline-hm btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#kspImportModal">
                 <i class="bi bi-upload me-1"></i>Nhập Excel
             </button>
-            {% endif %}
-            {% if can_update %}
-            <button type="button" class="btn btn-outline-secondary btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#kspAccountingImportModal"
-                    title="File danh sách tên HĐ / tem nhãn / Kiot">
-                <i class="bi bi-upc me-1"></i>Nhập mã KT
-            </button>
-            <form method="post" action="{% url 'kho_san_pham:product_generate_barcodes' %}" class="d-inline"
-                  onsubmit="return confirm('Tạo mã vạch EAN-13 mới cho TẤT CẢ sản phẩm?');">
-                {% csrf_token %}
-                <input type="hidden" name="force" value="1">
-                <button type="submit" class="btn btn-outline-secondary btn-sm fw-bold" title="Sinh mã vạch EAN-13 nội bộ (đầu 20…)">
-                    <i class="bi bi-upc-scan me-1"></i>Sinh mã vạch
-                </button>
-            </form>
-            {% endif %}
-            {% if can_create %}
             <form method="post" action="{% url 'kho_san_pham:product_sync_kv' %}" class="d-inline">
                 {% csrf_token %}
                 <button type="submit" class="btn btn-outline-secondary btn-sm fw-bold" title="Chỉ thêm mã mới từ KiotViet — không ghi đè SP đã có">
@@ -242,9 +226,6 @@ html[data-theme="dark"] .ksp-catalog-table .kv-product-group-expandable.kv-expan
 {% if can_create %}
 {% include 'kho_san_pham/includes/product_import_modal.html' %}
 {% endif %}
-{% if can_update %}
-{% include 'kho_san_pham/includes/accounting_import_modal.html' %}
-{% endif %}
 {% endblock %}
 
 {% block scripts %}
@@ -392,61 +373,6 @@ html[data-theme="dark"] .ksp-catalog-table .kv-product-group-expandable.kv-expan
             if (loading) loading.classList.add('d-none');
             submit.disabled = true;
         });
-    }
-})();
-{% endif %}
-
-{% if can_update %}
-(function () {
-    var form = document.getElementById('ksp-accounting-import-form');
-    var drop = document.getElementById('ksp-acc-import-drop');
-    var input = document.getElementById('ksp-acc-excel-file');
-    var submit = document.getElementById('ksp-acc-import-submit');
-    var meta = document.getElementById('ksp-acc-import-file-meta');
-    var modal = document.getElementById('kspAccountingImportModal');
-    if (!form || !drop || !input || !submit) return;
-
-    function isExcel(name) {
-        var lower = (name || '').toLowerCase();
-        return lower.endsWith('.xlsx') || lower.endsWith('.xls');
-    }
-    function setFile(file) {
-        if (!file) {
-            input.value = '';
-            drop.classList.remove('has-file');
-            meta.classList.add('d-none');
-            meta.textContent = '';
-            submit.disabled = true;
-            return;
-        }
-        if (!isExcel(file.name)) {
-            alert('Chỉ chấp nhận file Excel (.xlsx hoặc .xls).');
-            setFile(null);
-            return;
-        }
-        var dt = new DataTransfer();
-        dt.items.add(file);
-        input.files = dt.files;
-        drop.classList.add('has-file');
-        meta.classList.remove('d-none');
-        meta.textContent = file.name;
-        submit.disabled = false;
-    }
-    input.addEventListener('change', function () {
-        setFile(input.files && input.files[0] ? input.files[0] : null);
-    });
-    ['dragenter', 'dragover'].forEach(function (ev) {
-        drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add('is-dragover'); });
-    });
-    ['dragleave', 'drop'].forEach(function (ev) {
-        drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.remove('is-dragover'); });
-    });
-    drop.addEventListener('drop', function (e) {
-        var file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
-        setFile(file || null);
-    });
-    if (modal) {
-        modal.addEventListener('hidden.bs.modal', function () { setFile(null); });
     }
 })();
 {% endif %}
