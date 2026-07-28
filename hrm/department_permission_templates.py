@@ -35,6 +35,7 @@ M = {
     'odoo': 'odoo',
     'san_xuat': 'san_xuat',
     'kho_npl': 'kho_npl',
+    'kho_san_pham': 'kho_san_pham',
     'kiotviet': 'kiotviet',
 }
 
@@ -189,6 +190,12 @@ def _kho_npl_menus(*, manager: bool) -> dict:
     return {key: dict(level) for key in keys}
 
 
+def _kho_san_pham_menus(*, manager: bool) -> dict:
+    """Menu Kho sản phẩm — nằm dưới Sản xuất trên sidebar."""
+    level = FULL if manager else VIEW
+    return {key: dict(level) for key in ('products',)}
+
+
 def _kiotviet_menus(*, manager: bool) -> dict:
     level = VIEW  # tra cứu — chỉ xem
     keys = ('customers', 'orders', 'invoices', 'products', 'stock', 'purchases')
@@ -196,12 +203,14 @@ def _kiotviet_menus(*, manager: bool) -> dict:
 
 
 def _sx_stack(*, manager: bool) -> dict:
-    """Sản xuất hub + Kho NPL + KiotViet (menu lồng sidebar)."""
+    """Sản xuất hub + Kho NPL + Kho SP + KiotViet (menu lồng sidebar)."""
     sx_level = MGR if manager else VIEW
     npl_level = FULL if manager else VIEW
+    ksp_level = FULL if manager else VIEW
     return _build(
         _module_with_menus(M['san_xuat'], _san_xuat_menus(manager=manager), module_perm=sx_level),
         _module_with_menus(M['kho_npl'], _kho_npl_menus(manager=manager), module_perm=npl_level),
+        _module_with_menus(M['kho_san_pham'], _kho_san_pham_menus(manager=manager), module_perm=ksp_level),
         _module_with_menus(M['kiotviet'], _kiotviet_menus(manager=manager), module_perm=VIEW),
     )
 

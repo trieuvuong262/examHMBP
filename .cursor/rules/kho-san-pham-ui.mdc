@@ -1,0 +1,41 @@
+---
+description: UI Kho sản phẩm — danh mục thành phẩm / hàng hoá, sync KV 1 chiều
+globs: kho_san_pham/**/*
+alwaysApply: false
+---
+
+# Kho sản phẩm — quy ước
+
+## Phạm vi module
+
+- **Chỉ** master data danh mục sản phẩm (thành phẩm + hàng hoá). Không NPL.
+- Module **Bán hàng** (`kiotviet`) giữ nguyên — tra cứu mirror KV, không tạo/sửa SP tại đó.
+- Phiếu nhập/xuất/tồn kho sản phẩm: giai đoạn sau — chưa thêm menu giả.
+
+## Hai loại sản phẩm
+
+| Loại | Key | Nguồn |
+|------|-----|--------|
+| Thành phẩm | `thanh_pham` | Đồng bộ **1 chiều** KiotViet → portal; không đẩy ngược |
+| Hàng hoá | `hang_hoa` | Tạo/sửa tay trên portal (mua về bán, không SX) |
+
+## Ba mã
+
+- `code` — mã sản phẩm (khóa nghiệp vụ portal, unique)
+- `accounting_code` — mã kế toán (optional, unique khi có)
+- `kiotviet_code` — mã trên KiotViet (optional; thành phẩm sync luôn có)
+
+Quy tắc sinh mã: chờ hướng dẫn nghiệp vụ — không hard-code prefix tạm trong UI.
+
+## Sync KiotViet
+
+- Khớp theo `kiotviet_id` (ưu tiên) rồi `kiotviet_code`.
+- Sync ghi đè field từ KV (tên, ĐVT, giá, ảnh, barcode…); **không** ghi đè `code` / `accounting_code` đã có.
+- Field nguồn KV trên thành phẩm sync: readonly trên form sửa.
+
+## Điều hướng / UI
+
+- Menu con chỉ qua sidebar (pattern Kho NPL) — không pill tab nội bộ.
+- Topbar / grid: tái dùng class `jp-npl-mat-*` cho đồng bộ giao diện kho.
+- Flash: `messages.*` chuẩn portal (auto-dismiss 3s).
+- Không thêm đoạn hướng dẫn dài dưới field.

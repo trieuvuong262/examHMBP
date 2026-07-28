@@ -1,0 +1,240 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block extra_head %}
+{% include 'kho_npl/includes/material_catalog_page_head.html' %}
+{% include 'kho_npl/includes/material_list_table_styles.html' %}
+{% endblock %}
+
+{% block content %}
+<div class="container jp-page jp-npl-material-catalog-page py-3 py-md-4 mb-5" data-loading-message="Đang tải danh mục…">
+    <div class="jp-npl-mat-topbar">
+        <h2 class="jp-npl-mat-topbar-title">Kho sản phẩm</h2>
+        <form method="get" class="jp-npl-mat-topbar-search" id="ksp-search-form">
+            <div class="jp-npl-mat-search-row">
+                <select name="type" id="ksp-type" class="form-select form-select-sm jp-npl-mat-status-select" aria-label="Loại">
+                    <option value="">Mọi loại</option>
+                    {% for value, label in type_choices %}
+                    <option value="{{ value }}" {% if selected_type == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+                <div class="input-group input-group-sm jp-npl-mat-filter-field jp-npl-mat-search-input">
+                    <input type="search" class="form-control" id="ksp-q" name="q"
+                           value="{{ search_query }}" placeholder="Mã SP, mã KT, mã KV, tên…" autocomplete="off" aria-label="Tìm">
+                </div>
+                <select name="status" id="ksp-status" class="form-select form-select-sm jp-npl-mat-status-select" aria-label="Trạng thái">
+                    {% for value, label in status_choices %}
+                    <option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="btn btn-hm btn-sm fw-bold">Tìm</button>
+                {% if has_filters %}
+                <a href="{% url 'kho_san_pham:product_list' %}" class="btn btn-outline-secondary btn-sm fw-bold px-2" title="Xóa lọc">×</a>
+                {% endif %}
+            </div>
+        </form>
+        <div class="jp-npl-mat-topbar-actions">
+            {% if can_export %}
+            <a href="{% url 'kho_san_pham:product_export' %}{% if query_string %}?{{ query_string }}{% endif %}"
+               class="btn btn-outline-secondary btn-sm fw-bold" title="Xuất Excel">
+                <i class="bi bi-download me-1"></i>Xuất Excel
+            </a>
+            {% endif %}
+            {% if can_create %}
+            <button type="button" class="btn btn-outline-hm btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#kspImportModal">
+                <i class="bi bi-upload me-1"></i>Nhập Excel
+            </button>
+            <form method="post" action="{% url 'kho_san_pham:product_sync_kv' %}" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline-secondary btn-sm fw-bold" title="Đồng bộ thành phẩm từ mirror KiotViet">
+                    <i class="bi bi-arrow-repeat me-1"></i>Đồng bộ KV
+                </button>
+            </form>
+            <a href="{% url 'kho_san_pham:product_create' %}?type=hang_hoa" class="btn btn-hm btn-sm fw-bold">
+                <i class="bi bi-plus-lg me-1"></i>Thêm
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="jp-npl-mat-grid-wrap">
+            <table class="table table-hover align-middle mb-0 jp-npl-mat-grid" id="ksp-product-table">
+                <thead class="table-light">
+                    <tr>
+                        {% for col in list_columns %}
+                        <th class="npl-col {% if col.key == 'base_price' %}text-end{% elif col.key == 'image' %}text-center{% endif %}"
+                            data-col="{{ col.key }}" style="width:{% widthratio col.weight total_col_weight 100 %}%">
+                            {{ col.label }}
+                        </th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for product in page_obj %}
+                    <tr class="{% if not product.is_active %}table-secondary{% endif %}"
+                        style="cursor:pointer"
+                        onclick="location.href='{% url 'kho_san_pham:product_detail' product.pk %}'">
+                        <td class="npl-col text-center" data-col="image">
+                            {% if product.display_image_url %}
+                            <img src="{{ product.display_image_url }}" alt="" class="rounded" style="width:36px;height:36px;object-fit:cover">
+                            {% else %}
+                            <span class="text-muted"><i class="bi bi-image"></i></span>
+                            {% endif %}
+                        </td>
+                        <td class="npl-col" data-col="code"><code class="text-hm">{{ product.code }}</code></td>
+                        <td class="npl-col" data-col="accounting_code">{{ product.accounting_code|default:"—" }}</td>
+                        <td class="npl-col" data-col="kiotviet_code">{{ product.kiotviet_code|default:"—" }}</td>
+                        <td class="npl-col" data-col="name">{{ product.name }}</td>
+                        <td class="npl-col" data-col="product_type">
+                            {% if product.is_thanh_pham %}
+                            <span class="badge text-bg-primary">Thành phẩm</span>
+                            {% else %}
+                            <span class="badge text-bg-secondary">Hàng hoá</span>
+                            {% endif %}
+                        </td>
+                        <td class="npl-col" data-col="unit">{{ product.unit|default:"—" }}</td>
+                        <td class="npl-col" data-col="category">{{ product.category_name|default:"—" }}</td>
+                        <td class="npl-col text-end" data-col="base_price">
+                            {% if product.base_price %}{{ product.base_price|floatformat:0|intcomma }}{% else %}—{% endif %}
+                        </td>
+                        <td class="npl-col" data-col="status">
+                            {% if product.is_active %}
+                            <span class="badge text-bg-success">Đang dùng</span>
+                            {% else %}
+                            <span class="badge text-bg-secondary">Ngừng</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="{{ list_columns|length }}" class="text-center text-muted py-4">
+                            Chưa có sản phẩm. Thêm hàng hoá hoặc đồng bộ thành phẩm từ KiotViet.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {% if page_obj.paginator.num_pages > 1 %}
+    <div class="d-flex justify-content-center mt-3">
+        {% include 'includes/pagination.html' with page_obj=page_obj query_string=query_string %}
+    </div>
+    {% endif %}
+</div>
+
+{% if can_create %}
+{% include 'kho_san_pham/includes/product_import_modal.html' %}
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+    var form = document.getElementById('ksp-search-form');
+    if (!form) return;
+    function submitFilters() {
+        if (form.requestSubmit) form.requestSubmit();
+        else form.submit();
+    }
+    ['ksp-type', 'ksp-status'].forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) el.addEventListener('change', submitFilters);
+    });
+})();
+{% if can_create %}
+(function () {
+    var form = document.getElementById('ksp-import-form');
+    var drop = document.getElementById('ksp-import-drop');
+    var input = document.getElementById('ksp-excel-file');
+    var submit = document.getElementById('ksp-import-submit');
+    var meta = document.getElementById('ksp-import-file-meta');
+    var modal = document.getElementById('kspImportModal');
+    if (!form || !drop || !input || !submit) return;
+
+    var MAX_MB = 10;
+
+    function formatSize(bytes) {
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+
+    function isExcel(name) {
+        var lower = (name || '').toLowerCase();
+        return lower.endsWith('.xlsx') || lower.endsWith('.xls');
+    }
+
+    function setFile(file) {
+        if (!file) {
+            input.value = '';
+            drop.classList.remove('has-file');
+            meta.classList.add('d-none');
+            meta.textContent = '';
+            submit.disabled = true;
+            return;
+        }
+        if (!isExcel(file.name)) {
+            alert('Chỉ chấp nhận file Excel (.xlsx hoặc .xls).');
+            setFile(null);
+            return;
+        }
+        if (file.size > MAX_MB * 1024 * 1024) {
+            alert('File quá lớn. Tối đa ' + MAX_MB + ' MB.');
+            setFile(null);
+            return;
+        }
+        var dt = new DataTransfer();
+        dt.items.add(file);
+        input.files = dt.files;
+        drop.classList.add('has-file');
+        meta.classList.remove('d-none');
+        meta.textContent = file.name + ' (' + formatSize(file.size) + ')';
+        submit.disabled = false;
+    }
+
+    input.addEventListener('change', function () {
+        setFile(input.files && input.files[0] ? input.files[0] : null);
+    });
+
+    ['dragenter', 'dragover'].forEach(function (ev) {
+        drop.addEventListener(ev, function (e) {
+            e.preventDefault();
+            drop.classList.add('is-dragover');
+        });
+    });
+    ['dragleave', 'drop'].forEach(function (ev) {
+        drop.addEventListener(ev, function (e) {
+            e.preventDefault();
+            drop.classList.remove('is-dragover');
+        });
+    });
+    drop.addEventListener('drop', function (e) {
+        var file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+        setFile(file || null);
+    });
+
+    form.addEventListener('submit', function () {
+        submit.disabled = true;
+        var label = form.querySelector('.jp-npl-import-submit-label');
+        var loading = form.querySelector('.jp-npl-import-submit-loading');
+        if (label) label.classList.add('d-none');
+        if (loading) loading.classList.remove('d-none');
+    });
+
+    if (modal) {
+        modal.addEventListener('hidden.bs.modal', function () {
+            setFile(null);
+            var label = form.querySelector('.jp-npl-import-submit-label');
+            var loading = form.querySelector('.jp-npl-import-submit-loading');
+            if (label) label.classList.remove('d-none');
+            if (loading) loading.classList.add('d-none');
+            submit.disabled = true;
+        });
+    }
+})();
+{% endif %}
+</script>
+{% endblock %}

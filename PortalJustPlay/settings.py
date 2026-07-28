@@ -220,6 +220,7 @@ INSTALLED_APPS = [
     'kiotviet.apps.KiotvietConfig',
     'zalo.apps.ZaloConfig',
     'kho_npl.apps.KhoNplConfig',
+    'kho_san_pham.apps.KhoSanPhamConfig',
     'san_xuat.apps.SanXuatConfig',
     'nas_storage.apps.NasStorageConfig',
     'tools.apps.ToolsConfig',

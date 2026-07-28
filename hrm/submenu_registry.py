@@ -14,6 +14,7 @@ from hrm.module_permissions import (
     MODULE_SURVEYS,
     MODULE_HO_TRO,
     MODULE_KHO_NPL,
+    MODULE_KHO_SAN_PHAM,
     MODULE_KIOTVIET,
     MODULE_SAN_XUAT,
     MODULE_NAS_STORAGE,
@@ -92,6 +93,9 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
         {'key': 'stocktakes', 'label': 'Phiếu kiểm kê', 'icon': 'bi-clipboard-check'},
         {'key': 'reports', 'label': 'Báo cáo', 'icon': 'bi-file-earmark-bar-graph'},
         {'key': 'settings', 'label': 'Thiết lập', 'icon': 'bi-gear'},
+    ],
+    MODULE_KHO_SAN_PHAM: [
+        {'key': 'products', 'label': 'Danh mục', 'icon': 'bi-tags'},
     ],
     MODULE_SAN_XUAT: [
         {'key': 'overview', 'label': 'Tổng quan', 'icon': 'bi-speedometer2'},
@@ -291,6 +295,8 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     ('/kho-npl/danh-muc', MODULE_KHO_NPL, 'materials'),
     ('/kho-npl/canh-bao', MODULE_KHO_NPL, 'material_stock'),
     ('/kho-npl/tong-quan', MODULE_KHO_NPL, 'material_stock'),
+    ('/kho-san-pham/danh-muc', MODULE_KHO_SAN_PHAM, 'products'),
+    ('/kho-san-pham/', MODULE_KHO_SAN_PHAM, 'products'),
     # Sản xuất hub — prefix cụ thể trước; /san-xuat/ cuối cùng → overview
     ('/san-xuat/tong-quan', MODULE_SAN_XUAT, 'overview'),
     ('/san-xuat/don-hang', MODULE_SAN_XUAT, 'orders'),

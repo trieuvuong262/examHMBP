@@ -25,6 +25,7 @@ from hrm.module_permissions import (
     MODULE_UTILITIES,
     MODULE_KIOTVIET,
     MODULE_KHO_NPL,
+    MODULE_KHO_SAN_PHAM,
     MODULE_SAN_XUAT,
     MODULE_ODOO,
     MODULE_TRAINING,
@@ -130,6 +131,7 @@ def portal_permissions(request):
             'jp_can_kiotviet': False,
             'jp_can_odoo': False,
             'jp_can_kho_npl': False,
+            'jp_can_kho_san_pham': False,
             'jp_can_san_xuat': False,
             'jp_can_assign_tasks': False,
             'jp_can_create_internal_project': False,
@@ -263,6 +265,7 @@ def portal_permissions(request):
         'jp_can_kiotviet': _jp_can_kiotviet(user),
         'jp_can_odoo': False,  # Tạm ẩn menu Odoo
         'jp_can_kho_npl': user_can_access_module(user, MODULE_KHO_NPL),
+        'jp_can_kho_san_pham': user_can_access_module(user, MODULE_KHO_SAN_PHAM),
         'jp_can_san_xuat': user_can_access_module(user, MODULE_SAN_XUAT),
         'jp_can_assign_tasks': can_assign_tasks(user),
         'jp_can_create_internal_project': can_create_internal_project(user),

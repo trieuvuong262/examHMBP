@@ -581,12 +581,29 @@
             </ul>
         </li>
         {% endif %}
-        {% if jp_can_san_xuat %}
-        <li class="jp-sidebar-group{% if 'san-xuat' in request.path or 'kho-npl' in request.path or 'kiotviet' in request.path %} is-open{% endif %}">
+        {% if jp_can_kho_san_pham and not jp_can_san_xuat %}
+        <li class="jp-sidebar-group{% if 'kho-san-pham' in request.path %} is-open{% endif %}">
             <button type="button"
                     class="jp-sidebar-group-toggle"
                     data-jp-sidebar-group-toggle
-                    aria-expanded="{% if 'san-xuat' in request.path or 'kho-npl' in request.path or 'kiotviet' in request.path %}true{% else %}false{% endif %}"
+                    aria-expanded="{% if 'kho-san-pham' in request.path %}true{% else %}false{% endif %}"
+                    aria-controls="jp-sidebar-kho-sp-submenu">
+                <span class="jp-sidebar-group-toggle-main">
+                    <i class="bi bi-box-seam"></i><span>Kho sản phẩm</span>
+                </span>
+                <i class="bi bi-chevron-down jp-sidebar-group-chevron" aria-hidden="true"></i>
+            </button>
+            <ul class="jp-sidebar-submenu" id="jp-sidebar-kho-sp-submenu">
+                {% include 'includes/kho_san_pham_sidebar_items.html' %}
+            </ul>
+        </li>
+        {% endif %}
+        {% if jp_can_san_xuat %}
+        <li class="jp-sidebar-group{% if 'san-xuat' in request.path or 'kho-npl' in request.path or 'kho-san-pham' in request.path or 'kiotviet' in request.path %} is-open{% endif %}">
+            <button type="button"
+                    class="jp-sidebar-group-toggle"
+                    data-jp-sidebar-group-toggle
+                    aria-expanded="{% if 'san-xuat' in request.path or 'kho-npl' in request.path or 'kho-san-pham' in request.path or 'kiotviet' in request.path %}true{% else %}false{% endif %}"
                     aria-controls="jp-sidebar-san-xuat-submenu">
                 <span class="jp-sidebar-group-toggle-main">
                     <i class="bi bi-clipboard2-data"></i><span>Sản xuất</span>
@@ -757,6 +774,25 @@
                     </button>
                     <ul class="jp-sidebar-nested-submenu" id="jp-sidebar-san-xuat-stock-submenu">
                         {% include 'includes/kho_npl_sidebar_items.html' %}
+                    </ul>
+                </li>
+                {% endif %}
+
+                {# —— 4b. Kho sản phẩm —— #}
+                {% if jp_can_kho_san_pham %}
+                <li class="jp-sidebar-nested-group{% if 'kho-san-pham' in request.path %} is-open{% endif %}">
+                    <button type="button"
+                            class="jp-sidebar-nested-toggle"
+                            data-jp-sidebar-group-toggle
+                            aria-expanded="{% if 'kho-san-pham' in request.path %}true{% else %}false{% endif %}"
+                            aria-controls="jp-sidebar-san-xuat-kho-sp-submenu">
+                        <span class="jp-sidebar-nested-toggle-main">
+                            <i class="bi bi-box-seam"></i><span>Kho sản phẩm</span>
+                        </span>
+                        <i class="bi bi-chevron-down jp-sidebar-nested-chevron" aria-hidden="true"></i>
+                    </button>
+                    <ul class="jp-sidebar-nested-submenu" id="jp-sidebar-san-xuat-kho-sp-submenu">
+                        {% include 'includes/kho_san_pham_sidebar_items.html' %}
                     </ul>
                 </li>
                 {% endif %}

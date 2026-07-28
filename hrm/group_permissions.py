@@ -310,6 +310,7 @@ MODULE_LIST_META = {
     'kiotviet': {'icon': 'bi-shop', 'short': 'KV'},
     'odoo': {'icon': 'bi-boxes', 'short': 'ERP'},
     'kho_npl': {'icon': 'bi-boxes', 'short': 'NPL'},
+    'kho_san_pham': {'icon': 'bi-box-seam', 'short': 'SP'},
 }
 
 

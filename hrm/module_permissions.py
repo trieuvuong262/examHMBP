@@ -35,6 +35,7 @@ MODULE_SURVEYS = 'surveys'
 MODULE_UTILITIES = 'utilities'
 MODULE_KIOTVIET = 'kiotviet'
 MODULE_KHO_NPL = 'kho_npl'
+MODULE_KHO_SAN_PHAM = 'kho_san_pham'
 MODULE_SAN_XUAT = 'san_xuat'
 MODULE_ODOO = 'odoo'
 
@@ -62,6 +63,7 @@ _ALL_MODULE_CHOICES = [
     (MODULE_ODOO, 'Odoo'),
     (MODULE_SAN_XUAT, 'Sản xuất'),
     (MODULE_KHO_NPL, 'Kho Nguyên Phụ Liệu'),
+    (MODULE_KHO_SAN_PHAM, 'Kho sản phẩm'),
     (MODULE_KIOTVIET, 'KiotViet'),
     (MODULE_NAS_STORAGE, 'NAS'),
     (MODULE_DOCUMENTS, 'Tài liệu & Hỏi đáp'),
@@ -140,6 +142,7 @@ DEPARTMENT_MENU_SECTIONS = [
         'modules': _visible_module_list([
             MODULE_SAN_XUAT,
             MODULE_KHO_NPL,
+            MODULE_KHO_SAN_PHAM,
             MODULE_KIOTVIET,
         ]),
     },
@@ -204,6 +207,7 @@ PATH_MODULE_RULES = [
     ('/kiotviet/', MODULE_KIOTVIET),
     ('/odoo/', MODULE_ODOO),
     ('/kho-npl/', MODULE_KHO_NPL),
+    ('/kho-san-pham/', MODULE_KHO_SAN_PHAM),
     ('/san-xuat/', MODULE_SAN_XUAT),
 ]
 
