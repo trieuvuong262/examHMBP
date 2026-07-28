@@ -25,3 +25,8 @@ cookies*.txt
 *.pyz
 *.toc
 base_library.zip
+
+# local dumps (do not commit)
+tmp_kho_sp_data.json
+tmp_*.json
+
