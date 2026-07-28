@@ -5,9 +5,11 @@
   --jp-mo-muted: #64748b;
   --jp-mo-line: #e2e8f0;
   --jp-mo-surface: #f8fafc;
-  --jp-mo-accent: #0f766e;
-  --jp-mo-accent-soft: #f0fdfa;
-  --jp-mo-brand: var(--hm-red, #dc2626);
+  --jp-mo-accent: var(--hm-primary, #dc2626);
+  --jp-mo-accent-soft: #fef2f2;
+  --jp-mo-accent-mid: #fecaca;
+  --jp-mo-accent-ink: #991b1b;
+  --jp-mo-brand: var(--hm-primary, #dc2626);
 }
 
 /* —— Status pills —— */
@@ -34,7 +36,7 @@
 }
 .jp-mo-status.is-draft { color: #475569; background: #f1f5f9; border-color: #e2e8f0; }
 .jp-mo-status.is-released { color: #0369a1; background: #e0f2fe; border-color: #bae6fd; }
-.jp-mo-status.is-in_progress { color: #0f766e; background: #ccfbf1; border-color: #99f6e4; }
+.jp-mo-status.is-in_progress { color: #b91c1c; background: #fef2f2; border-color: #fecaca; }
 .jp-mo-status.is-done { color: #15803d; background: #dcfce7; border-color: #bbf7d0; }
 .jp-mo-status.is-cancelled { color: #b91c1c; background: #fee2e2; border-color: #fecaca; }
 
@@ -57,7 +59,7 @@
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #0d9488, #14b8a6);
+  background: linear-gradient(90deg, #dc2626, #f87171);
 }
 
 /* —— Form sections —— */
@@ -70,7 +72,7 @@
 .jp-mo-form-hero {
   padding: 1.1rem 1.25rem 1rem;
   background:
-    linear-gradient(135deg, rgba(15, 118, 110, 0.08) 0%, rgba(248, 250, 252, 0.95) 55%),
+    linear-gradient(135deg, rgba(220, 38, 38, 0.09) 0%, rgba(248, 250, 252, 0.95) 55%),
     var(--jp-mo-surface);
   border-bottom: 1px solid var(--jp-mo-line);
 }
@@ -128,8 +130,8 @@
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   letter-spacing: 0.01em;
   background: var(--jp-mo-accent-soft) !important;
-  border-color: #99f6e4 !important;
-  color: #134e4a !important;
+  border-color: var(--jp-mo-accent-mid) !important;
+  color: var(--jp-mo-accent-ink) !important;
   font-weight: 600;
 }
 .jp-mo-form-actions {
@@ -161,7 +163,7 @@
   gap: 1rem;
   padding: 1.15rem 1.25rem 1rem;
   background:
-    linear-gradient(120deg, rgba(15, 118, 110, 0.07) 0%, transparent 42%),
+    linear-gradient(120deg, rgba(220, 38, 38, 0.07) 0%, transparent 42%),
     #fff;
   border-bottom: 1px solid var(--jp-mo-line);
 }
@@ -213,7 +215,7 @@
 .jp-mo-progress-ring .bar > span {
   display: block;
   height: 100%;
-  background: linear-gradient(90deg, #0d9488, #2dd4bf);
+  background: linear-gradient(90deg, #dc2626, #f87171);
   border-radius: inherit;
 }
 .jp-mo-meta {
@@ -258,9 +260,9 @@
   color: var(--jp-mo-muted);
 }
 .jp-mo-steps .chip.is-done {
-  background: #ecfdf5;
-  border-color: #a7f3d0;
-  color: #047857;
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #b91c1c;
 }
 .jp-mo-next {
   display: flex;
