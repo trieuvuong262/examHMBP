@@ -14,7 +14,10 @@ from kho_san_pham.choices import (
 
 
 class Product(models.Model):
-    """Danh mục kho sản phẩm — thành phẩm (sync KV) hoặc hàng hoá (nhập tay)."""
+    """Danh mục kho sản phẩm — 1 dòng = 1 SKU (Style–Màu–Size), như hồ sơ thiết kế.
+
+    ``code`` = SKU ghép: ``{style}-{color}-{size}`` (vd. JP-TEE-260001-NVY-M).
+    """
 
     product_type = models.CharField(
         max_length=20,
@@ -23,7 +26,41 @@ class Product(models.Model):
         db_index=True,
         verbose_name='Loại',
     )
-    code = models.CharField(max_length=64, unique=True, verbose_name='Mã sản phẩm')
+    # Loại mã chuẩn (TEE / SET-SC / …) — khác trường product_type thanh_pham|hang_hoa
+    catalog_type = models.ForeignKey(
+        'kho_san_pham.ProductType',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='products',
+        verbose_name='Loại mã',
+    )
+    # SKU = Style-[Màu-]Size; Style = JP-{LOẠI}-{hậu tố}
+    style_code = models.CharField(
+        max_length=80,
+        blank=True,
+        default='',
+        db_index=True,
+        verbose_name='Style',
+        help_text='Mã Style (vd. JP-TEE-260001, JP-SET-SC-SP002771).',
+    )
+    color_code = models.CharField(max_length=20, blank=True, default='', db_index=True, verbose_name='Mã màu')
+    color_label = models.CharField(max_length=80, blank=True, default='', verbose_name='Tên màu')
+    size_label = models.CharField(max_length=20, blank=True, default='', db_index=True, verbose_name='Size')
+    code = models.CharField(
+        max_length=100,
+        unique=True,
+        verbose_name='SKU',
+        help_text='SKU = Style-Màu-Size (vd. JP-TEE-260001-NVY-M).',
+    )
+    sx_sku = models.ForeignKey(
+        'san_xuat.SxSku',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='kho_sp_products',
+        verbose_name='SKU SX',
+    )
     accounting_code = models.CharField(
         max_length=64,
         blank=True,
@@ -83,9 +120,9 @@ class Product(models.Model):
 
     class Meta:
         db_table = 'kho_sp_product'
-        ordering = ['code']
-        verbose_name = 'Sản phẩm'
-        verbose_name_plural = 'Sản phẩm'
+        ordering = ['style_code', 'color_code', 'size_label', 'code']
+        verbose_name = 'Sản phẩm (SKU)'
+        verbose_name_plural = 'Sản phẩm (SKU)'
         constraints = [
             models.UniqueConstraint(
                 fields=['accounting_code'],
@@ -96,6 +133,7 @@ class Product(models.Model):
         indexes = [
             models.Index(fields=['product_type', 'is_active']),
             models.Index(fields=['kiotviet_code']),
+            models.Index(fields=['style_code', 'is_active']),
         ]
 
     def __str__(self):
@@ -119,8 +157,17 @@ class Product(models.Model):
             return self.image.url
         return (self.image_url or '').strip()
 
+    @property
+    def sku_parts_display(self) -> str:
+        parts = [p for p in (self.style_code, self.color_code, self.size_label) if p]
+        return ' · '.join(parts) if parts else ''
+
     def save(self, *args, **kwargs):
-        self.code = (self.code or '').strip()
+        self.code = (self.code or '').strip().upper()
+        self.style_code = (self.style_code or '').strip().upper()
+        self.color_code = (self.color_code or '').strip().upper()
+        self.color_label = (self.color_label or '').strip()
+        self.size_label = (self.size_label or '').strip().upper()
         self.accounting_code = (self.accounting_code or '').strip()
         self.kiotviet_code = (self.kiotviet_code or '').strip()
         self.name = (self.name or '').strip()
@@ -128,3 +175,8 @@ class Product(models.Model):
         self.bar_code = (self.bar_code or '').strip()
         self.unit = (self.unit or '').strip()
         super().save(*args, **kwargs)
+
+
+# Re-export catalog models so Django registers them with the app.
+from kho_san_pham.catalog_models import ProductStyle, ProductType, ProductTypeKvMap  # noqa: E402,F401
+

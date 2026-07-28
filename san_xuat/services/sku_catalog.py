@@ -61,13 +61,14 @@ def normalize_style(value: str) -> str:
     return (value or "").strip().upper()[:60]
 
 
-def compose_sku_code(*, style_code: str, color_code: str, size_label: str) -> str:
+def compose_sku_code(*, style_code: str, color_code: str = "", size_label: str) -> str:
+    """Ghép SKU: ``{Style}-{Color}-{Size}`` hoặc ``{Style}-{Size}`` khi không có màu."""
     style = normalize_style(style_code)
-    color = normalize_token(color_code)
+    color = normalize_token(color_code) if color_code else ""
     size = normalize_token(size_label)
-    if not style or not color or not size:
-        raise SkuError("Thiếu Style / mã màu / size để ghép SKU.")
-    code = f"{style}-{color}-{size}"
+    if not style or not size:
+        raise SkuError("Thiếu Style / size để ghép SKU.")
+    code = f"{style}-{color}-{size}" if color else f"{style}-{size}"
     if len(code) > 100:
         raise SkuError("Mã SKU vượt quá 100 ký tự — rút ngắn Style/màu/size.")
     return code
@@ -255,18 +256,21 @@ def get_or_create_sku(
     ensure_catalog: bool = True,
 ) -> SxSku:
     style = normalize_style(style_code)
-    color = normalize_token(color_code)
+    color = normalize_token(color_code) if color_code else ""
     size = normalize_token(size_label)
     if not style:
         raise SkuError("Thiếu Style (mã SP).")
-    if not color or not size:
-        raise SkuError("SKU cần đủ mã màu và size.")
+    if not size:
+        raise SkuError("SKU cần size.")
 
     if ensure_catalog:
-        ensure_color(code=color, name=color_label, user=user)
+        if color:
+            ensure_color(code=color, name=color_label, user=user)
         ensure_size(code=size, user=user)
 
-    label = (color_label or "").strip() or color_label_for(color)
+    label = (color_label or "").strip()
+    if color:
+        label = label or color_label_for(color)
     composed = (sku_code or "").strip().upper() or compose_sku_code(
         style_code=style, color_code=color, size_label=size,
     )
@@ -304,19 +308,26 @@ def get_or_create_sku(
 
 
 def parse_sku_code(sku_code: str, *, style_hint: str = "") -> tuple[str, str, str] | None:
-    """Tách STYLE-COLOR-SIZE. Style có thể chứa dấu '-' nên ưu tiên style_hint."""
+    """Tách STYLE-COLOR-SIZE hoặc STYLE-SIZE (color=''). Style có thể chứa '-'."""
     code = (sku_code or "").strip().upper()
     if not code:
         return None
     style_hint = normalize_style(style_hint)
     if style_hint and code.startswith(style_hint + "-"):
         rest = code[len(style_hint) + 1 :]
+        if not rest:
+            return None
         parts = rest.rsplit("-", 1)
         if len(parts) == 2 and parts[0] and parts[1]:
+            # Có thể là COLOR-SIZE hoặc chỉ một đoạn SIZE nếu rest không có '-'
             return style_hint, parts[0], parts[1]
+        return style_hint, "", rest
     parts = code.rsplit("-", 2)
     if len(parts) == 3 and all(parts):
         return parts[0], parts[1], parts[2]
+    parts2 = code.rsplit("-", 1)
+    if len(parts2) == 2 and all(parts2):
+        return parts2[0], "", parts2[1]
     return None
 
 

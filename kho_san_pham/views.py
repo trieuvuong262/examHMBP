@@ -17,17 +17,14 @@ from kho_san_pham.choices import (
 )
 from kho_san_pham.forms import ProductForm
 from kho_san_pham.models import Product
-from kho_san_pham.product_list_columns import (
-    PRODUCT_LIST_COLUMNS,
-    PRODUCT_LIST_SORT_FIELDS,
-    PRODUCT_LIST_TOTAL_COL_WEIGHT,
-)
+from kho_san_pham.product_list_columns import PRODUCT_LIST_SORT_FIELDS
 from kho_san_pham.services.product_import_export import (
     ProductImportError,
     export_products_xlsx,
     import_products_from_excel,
     sample_template_xlsx,
 )
+from kho_san_pham.services.style_groups import format_style_group, group_products_by_style
 from kho_san_pham.services.sync_from_kiotviet import sync_thanh_pham_from_kiotviet
 from kho_san_pham.view_utils import nav_context, perm_context
 
@@ -76,6 +73,10 @@ def _product_list_qs(request):
     if search_query:
         qs = qs.filter(
             Q(code__icontains=search_query)
+            | Q(style_code__icontains=search_query)
+            | Q(color_code__icontains=search_query)
+            | Q(color_label__icontains=search_query)
+            | Q(size_label__icontains=search_query)
             | Q(accounting_code__icontains=search_query)
             | Q(kiotviet_code__icontains=search_query)
             | Q(name__icontains=search_query)
@@ -98,7 +99,10 @@ def hub_redirect(request):
 @module_perm_required(MODULE_KHO_SAN_PHAM, 'view')
 def product_list(request):
     qs, search_query, status, product_type, sort_key, sort_dir = _product_list_qs(request)
-    page_obj, query_string = paginate_queryset(request, qs, per_page=40)
+    # Gom theo Style trước khi phân trang (giống Bán hàng – Hàng hoá)
+    products = list(qs[:2000])
+    groups = [format_style_group(g) for g in group_products_by_style(products)]
+    page_obj, query_string = paginate_queryset(request, groups, per_page=40)
     return render(request, 'kho_san_pham/product_list.html', {
         **nav_context('products', user=request.user),
         **perm_context(request.user, 'products'),
@@ -109,12 +113,9 @@ def product_list(request):
         'status_choices': STATUS_CHOICES,
         'selected_type': product_type,
         'type_choices': PRODUCT_TYPE_CHOICES,
-        'list_columns': PRODUCT_LIST_COLUMNS,
-        'total_col_weight': PRODUCT_LIST_TOTAL_COL_WEIGHT,
-        'sort_key': sort_key,
-        'sort_dir': sort_dir,
         'type_labels': PRODUCT_TYPE_LABELS,
         'has_filters': bool(search_query or status != 'all' or product_type),
+        'expand_search_hits': bool(search_query),
     })
 
 
@@ -167,12 +168,15 @@ def product_import(request):
 
 @module_perm_required(MODULE_KHO_SAN_PHAM, 'view')
 def product_detail(request, pk: int):
+    from kiotviet.formatters import format_description_html
+
     product = get_object_or_404(Product, pk=pk)
     return render(request, 'kho_san_pham/product_detail.html', {
         **nav_context('products', user=request.user),
         **perm_context(request.user, 'products'),
         'product': product,
         'type_labels': PRODUCT_TYPE_LABELS,
+        'description_html': format_description_html(product.description),
     })
 
 

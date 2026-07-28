@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5">
+    <div class="jp-npl-mat-topbar">
+        <h2 class="jp-npl-mat-topbar-title">Loại sản phẩm</h2>
+        <form method="get" class="jp-npl-mat-topbar-search">
+            <div class="jp-npl-mat-search-row">
+                <div class="input-group input-group-sm jp-npl-mat-search-input">
+                    <input type="search" class="form-control" name="q" value="{{ search_query }}"
+                           placeholder="Mã / tên loại…" autocomplete="off">
+                </div>
+                <button type="submit" class="btn btn-hm btn-sm fw-bold">Tìm</button>
+            </div>
+        </form>
+        <div class="jp-npl-mat-topbar-actions">
+            <a href="{% url 'kho_san_pham:code_settings_hub' %}" class="btn btn-outline-secondary btn-sm">Hub</a>
+            {% if can_create %}
+            <a href="{% url 'kho_san_pham:type_create' %}" class="btn btn-hm btn-sm fw-bold">
+                <i class="bi bi-plus-lg me-1"></i>Thêm
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Mã loại</th>
+                        <th>Nội dung</th>
+                        <th class="text-end">STT</th>
+                        <th class="text-end">Style</th>
+                        <th class="text-end">SP</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in page_obj %}
+                    <tr>
+                        <td class="fw-semibold">{{ row.code }}</td>
+                        <td>{{ row.name }}</td>
+                        <td class="text-end">{{ row.sort_order }}</td>
+                        <td class="text-end">{{ row.style_count }}</td>
+                        <td class="text-end">{{ row.product_count }}</td>
+                        <td class="text-end">
+                            {% if can_update %}
+                            <a href="{% url 'kho_san_pham:type_edit' row.pk %}" class="btn btn-outline-secondary btn-sm">Sửa</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6" class="text-muted text-center py-4">Chưa có loại.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% include 'includes/pagination.html' %}
+</div>
+{% endblock %}

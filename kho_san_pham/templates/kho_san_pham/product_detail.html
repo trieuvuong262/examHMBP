@@ -1,6 +1,14 @@
 {% extends 'base.html' %}
 {% load humanize %}
 
+{% block extra_head %}
+<style>
+.ksp-product-description { line-height: 1.5; word-break: break-word; }
+.ksp-product-description p { margin-bottom: 0.5rem; }
+.ksp-product-description p:last-child { margin-bottom: 0; }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container jp-page py-3 py-md-4 mb-5">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
@@ -40,6 +48,9 @@
                     <div class="text-muted small mb-1">{{ product.category_name|default:"—" }}</div>
                     <div class="fw-bold text-hm mb-1"><code>{{ product.code }}</code></div>
                     <h1 class="h3 fw-bold mb-2">{{ product.name }}</h1>
+                    {% if product.sku_parts_display %}
+                    <div class="small text-muted mb-2">{{ product.sku_parts_display }}</div>
+                    {% endif %}
                     <div class="d-flex flex-wrap gap-2 mb-3">
                         {% if product.is_thanh_pham %}
                         <span class="badge text-bg-primary">Thành phẩm</span>
@@ -56,6 +67,10 @@
                         {% endif %}
                     </div>
                     <div class="row g-2 small">
+                        <div class="col-sm-4"><span class="text-muted">SKU</span><div class="fw-semibold"><code>{{ product.code }}</code></div></div>
+                        <div class="col-sm-4"><span class="text-muted">Style</span><div class="fw-semibold">{{ product.style_code|default:"—" }}</div></div>
+                        <div class="col-sm-4"><span class="text-muted">Màu</span><div class="fw-semibold">{% if product.color_label and product.color_code and product.color_code|lower != product.color_label|lower %}{{ product.color_code }} — {{ product.color_label }}{% elif product.color_label %}{{ product.color_label }}{% elif product.color_code %}{{ product.color_code }}{% else %}—{% endif %}</div></div>
+                        <div class="col-sm-4"><span class="text-muted">Size</span><div class="fw-semibold">{{ product.size_label|default:"—" }}</div></div>
                         <div class="col-sm-4"><span class="text-muted">Mã kế toán</span><div class="fw-semibold">{{ product.accounting_code|default:"—" }}</div></div>
                         <div class="col-sm-4"><span class="text-muted">Mã KiotViet</span><div class="fw-semibold">{{ product.kiotviet_code|default:"—" }}</div></div>
                         <div class="col-sm-4"><span class="text-muted">Mã vạch</span><div class="fw-semibold">{{ product.bar_code|default:"—" }}</div></div>
@@ -65,9 +80,14 @@
                     </div>
                 </div>
             </div>
-            {% if product.description or product.notes %}
+            {% if description_html or product.notes %}
             <hr>
-            {% if product.description %}<div class="mb-2"><div class="text-muted small">Mô tả</div>{{ product.description|linebreaksbr }}</div>{% endif %}
+            {% if description_html %}
+            <div class="mb-2">
+                <div class="text-muted small mb-1">Mô tả</div>
+                <div class="ksp-product-description">{{ description_html|safe }}</div>
+            </div>
+            {% endif %}
             {% if product.notes %}<div><div class="text-muted small">Ghi chú</div>{{ product.notes|linebreaksbr }}</div>{% endif %}
             {% endif %}
         </div>

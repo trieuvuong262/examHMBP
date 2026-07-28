@@ -1,4 +1,4 @@
-"""Xuất / nhập Excel danh mục kho sản phẩm."""
+"""Xuất / nhập Excel danh mục kho sản phẩm (SKU = Style–Màu–Size)."""
 
 from __future__ import annotations
 
@@ -17,7 +17,11 @@ from kho_san_pham.choices import (
 from kho_san_pham.models import Product
 
 EXCEL_HEADERS = [
-    'Mã sản phẩm',
+    'SKU',
+    'Style',
+    'Mã màu',
+    'Tên màu',
+    'Size',
     'Mã kế toán',
     'Mã KiotViet',
     'Tên',
@@ -33,9 +37,16 @@ EXCEL_HEADERS = [
 ]
 
 _HEADER_ALIASES = {
-    'ma san pham': 'Mã sản phẩm',
-    'ma sp': 'Mã sản phẩm',
-    'ma': 'Mã sản phẩm',
+    'sku': 'SKU',
+    'ma san pham': 'SKU',
+    'ma sp': 'SKU',
+    'ma': 'SKU',
+    'style': 'Style',
+    'ma style': 'Style',
+    'ma mau': 'Mã màu',
+    'mau': 'Mã màu',
+    'ten mau': 'Tên màu',
+    'size': 'Size',
     'ma ke toan': 'Mã kế toán',
     'ma kt': 'Mã kế toán',
     'ma kiotviet': 'Mã KiotViet',
@@ -76,7 +87,6 @@ def _normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
     mapping = {}
     for col in df.columns:
         key = str(col).strip().lower()
-        # bỏ dấu để map alias không dấu
         key_ascii = (
             key.replace('ă', 'a').replace('â', 'a').replace('á', 'a').replace('à', 'a')
             .replace('ả', 'a').replace('ã', 'a').replace('ạ', 'a')
@@ -137,7 +147,11 @@ def _parse_product_type(value) -> str:
 
 def product_to_row(product: Product) -> dict:
     return {
-        'Mã sản phẩm': product.code,
+        'SKU': product.code,
+        'Style': product.style_code or '',
+        'Mã màu': product.color_code or '',
+        'Tên màu': product.color_label or '',
+        'Size': product.size_label or '',
         'Mã kế toán': product.accounting_code or '',
         'Mã KiotViet': product.kiotviet_code or '',
         'Tên': product.name,
@@ -161,16 +175,20 @@ def products_to_dataframe(qs) -> pd.DataFrame:
 
 
 def export_products_xlsx(qs) -> HttpResponse:
-    df = products_to_dataframe(qs.order_by('code'))
+    df = products_to_dataframe(qs.order_by('style_code', 'color_code', 'size_label', 'code'))
     return dataframe_to_xlsx_response(df, 'danh_muc_kho_sp', sheet_name='Danh_muc_SP')
 
 
 def sample_template_xlsx() -> HttpResponse:
     sample = pd.DataFrame([{
-        'Mã sản phẩm': 'SP-001',
+        'SKU': 'JP-TEE-260001-NVY-M',
+        'Style': 'JP-TEE-260001',
+        'Mã màu': 'NVY',
+        'Tên màu': 'Navy',
+        'Size': 'M',
         'Mã kế toán': 'KT-001',
         'Mã KiotViet': '',
-        'Tên': 'Sản phẩm mẫu',
+        'Tên': 'Tee Navy M',
         'Tên đầy đủ': '',
         'Loại': 'Hàng hoá',
         'Mã vạch': '',
@@ -189,7 +207,16 @@ class ProductImportError(Exception):
 
 
 def import_products_from_excel(file_obj, *, user=None) -> dict:
-    """Import danh mục — tạo mới hoặc cập nhật theo mã sản phẩm."""
+    """Import danh mục — tạo mới hoặc cập nhật theo SKU."""
+    from san_xuat.services.sku_catalog import (
+        SkuError,
+        compose_sku_code,
+        get_or_create_sku,
+        normalize_style,
+        normalize_token,
+        parse_sku_code,
+    )
+
     try:
         df = pd.read_excel(file_obj)
     except Exception as exc:
@@ -199,9 +226,9 @@ def import_products_from_excel(file_obj, *, user=None) -> dict:
         raise ProductImportError('File Excel không có dữ liệu.')
 
     df = _normalize_columns(df)
-    missing = [h for h in ('Mã sản phẩm', 'Tên') if h not in df.columns]
-    if missing:
-        raise ProductImportError(f'Thiếu cột bắt buộc: {", ".join(missing)}')
+    # Chấp nhận cột cũ «Mã sản phẩm» đã map thành SKU qua alias
+    if 'SKU' not in df.columns and 'Tên' not in df.columns:
+        raise ProductImportError('Thiếu cột bắt buộc: SKU hoặc Tên.')
 
     created = 0
     updated = 0
@@ -210,20 +237,34 @@ def import_products_from_excel(file_obj, *, user=None) -> dict:
 
     for idx, row in df.iterrows():
         line_no = int(idx) + 2
-        code = _parse_text(row.get('Mã sản phẩm'))
+        style = normalize_style(_parse_text(row.get('Style')))
+        color = normalize_token(_parse_text(row.get('Mã màu')))
+        size = normalize_token(_parse_text(row.get('Size')))
+        color_label = _parse_text(row.get('Tên màu'))
+        code = _parse_text(row.get('SKU')).upper()
         name = _parse_text(row.get('Tên'))
+
+        if style and size:
+            try:
+                code = compose_sku_code(style_code=style, color_code=color, size_label=size)
+            except SkuError as exc:
+                errors.append(f'Dòng {line_no}: {exc}')
+                skipped += 1
+                continue
+        elif code and (not style or not size):
+            parsed = parse_sku_code(code, style_hint=style)
+            if parsed:
+                style, color, size = parsed
 
         if not code and not name:
             skipped += 1
             continue
         if not code:
-            errors.append(f'Dòng {line_no}: thiếu Mã sản phẩm.')
+            errors.append(f'Dòng {line_no}: thiếu SKU (hoặc Style+Size).')
             skipped += 1
             continue
         if not name:
-            errors.append(f'Dòng {line_no} ({code}): thiếu Tên.')
-            skipped += 1
-            continue
+            name = style or code
 
         accounting_code = _parse_text(row.get('Mã kế toán'))
         if accounting_code:
@@ -244,7 +285,6 @@ def import_products_from_excel(file_obj, *, user=None) -> dict:
         notes = _parse_text(row.get('Ghi chú'))
 
         if existing and existing.is_kv_synced:
-            # Thành phẩm sync KV: chỉ cập nhật mã KT / ghi chú / trạng thái
             existing.accounting_code = accounting_code
             existing.notes = notes
             existing.is_active = is_active
@@ -253,6 +293,10 @@ def import_products_from_excel(file_obj, *, user=None) -> dict:
             continue
 
         defaults = {
+            'style_code': style,
+            'color_code': color,
+            'color_label': color_label,
+            'size_label': size,
             'accounting_code': accounting_code,
             'kiotviet_code': _parse_text(row.get('Mã KiotViet')),
             'name': name,
@@ -268,13 +312,35 @@ def import_products_from_excel(file_obj, *, user=None) -> dict:
             'sync_source': SYNC_SOURCE_MANUAL,
         }
 
+        sx_sku = None
+        if style and size:
+            try:
+                sx_sku = get_or_create_sku(
+                    style_code=style,
+                    color_code=color,
+                    size_label=size,
+                    color_label=color_label,
+                    style_name=name,
+                    sku_code=code,
+                    user=user,
+                )
+                code = sx_sku.sku_code
+                defaults['color_label'] = sx_sku.color_label or color_label
+            except Exception:  # noqa: BLE001
+                pass
+
         if existing:
             for key, value in defaults.items():
                 setattr(existing, key, value)
+            existing.code = code
+            if sx_sku:
+                existing.sx_sku = sx_sku
             existing.save()
             updated += 1
         else:
             product = Product(code=code, **defaults)
+            if sx_sku:
+                product.sx_sku = sx_sku
             if user is not None:
                 product.created_by = user
             product.save()

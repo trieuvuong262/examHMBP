@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5">
+    <div class="jp-page-header mb-3 d-flex justify-content-between align-items-start gap-2">
+        <h2 class="fw-bold text-hm mb-0 jp-page-title">{% if is_edit %}Sửa map{% else %}Thêm map KV → loại{% endif %}</h2>
+        <a href="{{ cancel_url }}" class="btn btn-outline-secondary btn-sm">Quay lại</a>
+    </div>
+    <div class="card border-0 shadow-sm">
+        <div class="card-body">
+            <form method="post" novalidate>
+                {% csrf_token %}
+                {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+                <div class="row g-3">
+                    <div class="col-md-5">
+                        <label class="form-label fw-bold small">Nhóm hàng KV</label>
+                        {{ form.match_value }}
+                        {% if form.match_value.errors %}<div class="text-danger small">{{ form.match_value.errors }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold small">Kiểu khớp</label>
+                        {{ form.match_mode }}
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold small">Loại mã</label>
+                        {{ form.product_type }}
+                        {% if form.product_type.errors %}<div class="text-danger small">{{ form.product_type.errors }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold small">Ưu tiên</label>
+                        {{ form.priority }}
+                    </div>
+                    <div class="col-md-9">
+                        <label class="form-label fw-bold small">Ghi chú</label>
+                        {{ form.notes }}
+                    </div>
+                    <div class="col-12">
+                        <div class="form-check">{{ form.is_active }}
+                            <label class="form-check-label" for="{{ form.is_active.id_for_label }}">Đang dùng</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-4 d-flex gap-2">
+                    <button type="submit" class="btn btn-hm btn-sm fw-bold">Lưu</button>
+                    <a href="{{ cancel_url }}" class="btn btn-outline-secondary btn-sm">Hủy</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

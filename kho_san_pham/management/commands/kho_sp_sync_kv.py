@@ -4,7 +4,10 @@ from kho_san_pham.services.sync_from_kiotviet import sync_thanh_pham_from_kiotvi
 
 
 class Command(BaseCommand):
-    help = 'Đồng bộ thành phẩm 1 chiều từ mirror KiotViet (kv_product) → kho sản phẩm'
+    help = (
+        'Đồng bộ thành phẩm từ mirror KiotViet → kho sản phẩm. '
+        'Chỉ tạo mã mới; bỏ qua SP đã có (không ghi đè bản đã sửa).'
+    )
 
     def add_arguments(self, parser):
         parser.add_argument(

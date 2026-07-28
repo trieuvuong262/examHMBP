@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5">
+    <div class="jp-npl-mat-topbar">
+        <h2 class="jp-npl-mat-topbar-title">Style</h2>
+        <form method="get" class="jp-npl-mat-topbar-search">
+            <div class="jp-npl-mat-search-row">
+                <select name="type" class="form-select form-select-sm jp-npl-mat-status-select">
+                    <option value="">Mọi loại</option>
+                    {% for t in types %}
+                    <option value="{{ t.code }}" {% if selected_type == t.code %}selected{% endif %}>{{ t.code }}</option>
+                    {% endfor %}
+                </select>
+                <div class="input-group input-group-sm jp-npl-mat-search-input">
+                    <input type="search" class="form-control" name="q" value="{{ search_query }}"
+                           placeholder="Style / tên / mã KV…" autocomplete="off">
+                </div>
+                <button type="submit" class="btn btn-hm btn-sm fw-bold">Tìm</button>
+            </div>
+        </form>
+        <div class="jp-npl-mat-topbar-actions">
+            <a href="{% url 'kho_san_pham:code_settings_hub' %}" class="btn btn-outline-secondary btn-sm">Hub</a>
+            {% if can_create %}
+            <a href="{% url 'kho_san_pham:style_create' %}" class="btn btn-hm btn-sm fw-bold">
+                <i class="bi bi-plus-lg me-1"></i>Tạo Style
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Mã Style</th>
+                        <th>Loại</th>
+                        <th>Tên</th>
+                        <th>Nguồn</th>
+                        <th>KV gốc</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in page_obj %}
+                    <tr>
+                        <td class="fw-semibold">{{ row.code }}</td>
+                        <td>{{ row.product_type.code }}</td>
+                        <td>{{ row.name|default:"—" }}</td>
+                        <td>{{ row.get_source_display }}</td>
+                        <td>{{ row.root_kiotviet_code|default:"—" }}</td>
+                        <td class="text-end">
+                            {% if can_update %}
+                            <a href="{% url 'kho_san_pham:style_edit' row.pk %}" class="btn btn-outline-secondary btn-sm">Sửa</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6" class="text-muted text-center py-4">Chưa có Style.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% include 'includes/pagination.html' %}
+</div>
+{% endblock %}

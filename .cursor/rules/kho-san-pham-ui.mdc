@@ -19,19 +19,22 @@ alwaysApply: false
 | Thành phẩm | `thanh_pham` | Đồng bộ **1 chiều** KiotViet → portal; không đẩy ngược |
 | Hàng hoá | `hang_hoa` | Tạo/sửa tay trên portal (mua về bán, không SX) |
 
-## Ba mã
+## Ba mã + SKU
 
-- `code` — mã sản phẩm (khóa nghiệp vụ portal, unique)
+- `code` — **SKU** = `Style-[Màu-]Size` (vd. `JP-SET-SC-SP002771-S` hoặc `JP-TEE-260001-NVY-M`)
+- `style_code` — Style = `JP-{LOẠI}-{hậu tố}` (tay: `JP-TEE-260001`; sync KV: `JP-SET-SC-SP002771` = size nhỏ nhất)
+- `catalog_type` — FK loại mã (TEE, SET-SC, ACC-BALO, …) trong **Thiết lập mã**
 - `accounting_code` — mã kế toán (optional, unique khi có)
 - `kiotviet_code` — mã trên KiotViet (optional; thành phẩm sync luôn có)
+- Liên kết `sx_sku` → bảng `SxSku` khi đủ Style–Size
 
-Quy tắc sinh mã: chờ hướng dẫn nghiệp vụ — không hard-code prefix tạm trong UI.
+Thiết lập: menu **Thiết lập mã** — loại, Style tay, map nhóm hàng KV → loại. Sync chỉ sinh Style/SKU chuẩn khi đã map loại.
 
 ## Sync KiotViet
 
-- Khớp theo `kiotviet_id` (ưu tiên) rồi `kiotviet_code`.
-- Sync ghi đè field từ KV (tên, ĐVT, giá, ảnh, barcode…); **không** ghi đè `code` / `accounting_code` đã có.
-- Field nguồn KV trên thành phẩm sync: readonly trên form sửa.
+- **Chỉ tạo mã mới** hoặc bổ sung Size/Style trống. Không ghi đè Style/SKU đã chuẩn hóa.
+- Gom theo tên (+ màu): mã KV gốc = size nhỏ nhất → Style `JP-{LOẠI}-{ROOT}`.
+- Không đẩy ngược portal → KiotViet.
 
 ## Điều hướng / UI
 

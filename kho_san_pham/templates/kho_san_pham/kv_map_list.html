@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5">
+    <div class="jp-npl-mat-topbar">
+        <h2 class="jp-npl-mat-topbar-title">Map nhóm hàng KV</h2>
+        <form method="get" class="jp-npl-mat-topbar-search">
+            <div class="jp-npl-mat-search-row">
+                <div class="input-group input-group-sm jp-npl-mat-search-input">
+                    <input type="search" class="form-control" name="q" value="{{ search_query }}"
+                           placeholder="Nhóm hàng / loại…" autocomplete="off">
+                </div>
+                <button type="submit" class="btn btn-hm btn-sm fw-bold">Tìm</button>
+            </div>
+        </form>
+        <div class="jp-npl-mat-topbar-actions">
+            <a href="{% url 'kho_san_pham:code_settings_hub' %}" class="btn btn-outline-secondary btn-sm">Hub</a>
+            {% if can_create %}
+            <a href="{% url 'kho_san_pham:kv_map_create' %}" class="btn btn-hm btn-sm fw-bold">
+                <i class="bi bi-plus-lg me-1"></i>Thêm
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Nhóm hàng KV</th>
+                        <th>Kiểu</th>
+                        <th>→ Loại</th>
+                        <th class="text-end">Ưu tiên</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in page_obj %}
+                    <tr>
+                        <td class="fw-semibold">{{ row.match_value }}</td>
+                        <td>{{ row.get_match_mode_display }}</td>
+                        <td>{{ row.product_type.code }} — {{ row.product_type.name }}</td>
+                        <td class="text-end">{{ row.priority }}</td>
+                        <td class="text-end text-nowrap">
+                            {% if can_update %}
+                            <a href="{% url 'kho_san_pham:kv_map_edit' row.pk %}" class="btn btn-outline-secondary btn-sm">Sửa</a>
+                            {% endif %}
+                            {% if can_delete %}
+                            <form method="post" action="{% url 'kho_san_pham:kv_map_delete' row.pk %}" class="d-inline"
+                                  onsubmit="return confirm('Xóa map này?');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-outline-danger btn-sm">Xóa</button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5" class="text-muted text-center py-4">Chưa có map — sync KV sẽ giữ mã tạm.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% include 'includes/pagination.html' %}
+</div>
+{% endblock %}

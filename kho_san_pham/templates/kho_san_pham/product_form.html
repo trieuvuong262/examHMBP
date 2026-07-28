@@ -7,6 +7,7 @@
             <h2 class="fw-bold text-hm mb-1 jp-page-title">
                 {% if is_edit %}Sửa sản phẩm{% else %}Thêm sản phẩm{% endif %}
             </h2>
+            <div class="small text-muted">SKU = Style − [Màu −] Size (vd. JP-SET-SC-SP002771-S)</div>
         </div>
         <a href="{{ cancel_url }}" class="btn btn-outline-secondary btn-sm">
             <i class="bi bi-arrow-left me-1"></i>Quay lại
@@ -16,28 +17,49 @@
     <div class="card border-0 shadow-sm">
         <div class="card-body p-3 p-md-4">
             {% if product and product.is_kv_synced %}
-            <div class="alert alert-secondary py-2 small mb-3">Thành phẩm sync KV — chỉ sửa mã SP / mã KT / ghi chú.</div>
+            <div class="alert alert-secondary py-2 small mb-3">Thành phẩm sync KV — chỉ sửa mã KT / ghi chú.</div>
             {% endif %}
-            <form method="post" enctype="multipart/form-data" novalidate>
+            <form method="post" enctype="multipart/form-data" novalidate id="ksp-product-form">
                 {% csrf_token %}
                 {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
                 <div class="row g-3">
-                    <div class="col-md-4">
-                        <label class="form-label fw-bold small" for="{{ form.product_type.id_for_label }}">Loại</label>
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold small" for="{{ form.product_type.id_for_label }}">Loại SP</label>
                         {{ form.product_type }}
                         {% if form.product_type.errors %}<div class="text-danger small">{{ form.product_type.errors }}</div>{% endif %}
                     </div>
-                    <div class="col-md-4">
-                        <label class="form-label fw-bold small" for="{{ form.code.id_for_label }}">Mã sản phẩm</label>
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold small" for="{{ form.catalog_type.id_for_label }}">Loại mã</label>
+                        {{ form.catalog_type }}
+                        {% if form.catalog_type.errors %}<div class="text-danger small">{{ form.catalog_type.errors }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold small" for="{{ form.style_code.id_for_label }}">Style</label>
+                        {{ form.style_code }}
+                        {% if form.style_code.errors %}<div class="text-danger small">{{ form.style_code.errors }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold small" for="{{ form.color_code.id_for_label }}">Màu</label>
+                        {{ form.color_code }}
+                        {% if form.color_code.errors %}<div class="text-danger small">{{ form.color_code.errors }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold small" for="{{ form.size_label.id_for_label }}">Size</label>
+                        {{ form.size_label }}
+                        {% if form.size_label.errors %}<div class="text-danger small">{{ form.size_label.errors }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold small" for="{{ form.code.id_for_label }}">SKU</label>
                         {{ form.code }}
+                        <div class="form-text" id="ksp-sku-preview">Tự ghép khi có Style + Size (màu tùy chọn)</div>
                         {% if form.code.errors %}<div class="text-danger small">{{ form.code.errors }}</div>{% endif %}
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <label class="form-label fw-bold small" for="{{ form.accounting_code.id_for_label }}">Mã kế toán</label>
                         {{ form.accounting_code }}
                         {% if form.accounting_code.errors %}<div class="text-danger small">{{ form.accounting_code.errors }}</div>{% endif %}
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <label class="form-label fw-bold small" for="{{ form.kiotviet_code.id_for_label }}">Mã KiotViet</label>
                         {{ form.kiotviet_code }}
                         {% if form.kiotviet_code.errors %}<div class="text-danger small">{{ form.kiotviet_code.errors }}</div>{% endif %}
@@ -47,26 +69,26 @@
                         {{ form.name }}
                         {% if form.name.errors %}<div class="text-danger small">{{ form.name.errors }}</div>{% endif %}
                     </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold small" for="{{ form.unit.id_for_label }}">ĐVT</label>
+                        {{ form.unit }}
+                    </div>
                     <div class="col-md-6">
                         <label class="form-label fw-bold small" for="{{ form.full_name.id_for_label }}">Tên đầy đủ</label>
                         {{ form.full_name }}
                     </div>
                     <div class="col-md-3">
-                        <label class="form-label fw-bold small" for="{{ form.unit.id_for_label }}">ĐVT</label>
-                        {{ form.unit }}
-                    </div>
-                    <div class="col-md-3">
                         <label class="form-label fw-bold small" for="{{ form.bar_code.id_for_label }}">Mã vạch</label>
                         {{ form.bar_code }}
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold small" for="{{ form.base_price.id_for_label }}">Giá bán (₫)</label>
+                        {{ form.base_price }}
+                        {% if form.base_price.errors %}<div class="text-danger small">{{ form.base_price.errors }}</div>{% endif %}
                     </div>
                     <div class="col-md-4">
                         <label class="form-label fw-bold small" for="{{ form.category_name.id_for_label }}">Nhóm hàng</label>
                         {{ form.category_name }}
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label fw-bold small" for="{{ form.base_price.id_for_label }}">Giá bán (₫)</label>
-                        {{ form.base_price }}
-                        {% if form.base_price.errors %}<div class="text-danger small">{{ form.base_price.errors }}</div>{% endif %}
                     </div>
                     <div class="col-md-4">
                         <label class="form-label fw-bold small" for="{{ form.image.id_for_label }}">Hình ảnh</label>
@@ -97,4 +119,43 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+    var styleEl = document.getElementById('id_style_code');
+    var colorEl = document.getElementById('id_color_code');
+    var sizeEl = document.getElementById('id_size_label');
+    var codeEl = document.getElementById('id_code');
+    var preview = document.getElementById('ksp-sku-preview');
+    if (!styleEl || !colorEl || !sizeEl || !codeEl) return;
+
+    var autoFilled = !codeEl.value;
+    function norm(v) {
+        return (v || '').trim().toUpperCase().replace(/\s+/g, '');
+    }
+    function compose() {
+        var s = norm(styleEl.value);
+        var c = norm(colorEl.value);
+        var z = norm(sizeEl.value);
+        if (!s || !z) {
+            if (preview) preview.textContent = 'Tự ghép khi có Style + Size (màu tùy chọn)';
+            return;
+        }
+        var sku = c ? (s + '-' + c + '-' + z) : (s + '-' + z);
+        if (preview) preview.textContent = '→ ' + sku;
+        if (autoFilled || !codeEl.value) {
+            codeEl.value = sku;
+            autoFilled = true;
+        }
+    }
+    codeEl.addEventListener('input', function () { autoFilled = false; });
+    [styleEl, colorEl, sizeEl].forEach(function (el) {
+        el.addEventListener('change', compose);
+        el.addEventListener('input', compose);
+    });
+    compose();
+})();
+</script>
 {% endblock %}

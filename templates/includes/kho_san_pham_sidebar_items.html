@@ -1,12 +1,22 @@
 {# Menu con Kho sản phẩm — sidebar Sản xuất hoặc nhóm độc lập. #}
 {% load menu_perms %}
 {% jp_can_menu 'kho_san_pham' 'products' as jp_can_ksp_products %}
+{% jp_can_menu 'kho_san_pham' 'code_settings' as jp_can_ksp_codes %}
 {% if jp_can_ksp_products %}
 <li>
     <a href="{% url 'kho_san_pham:product_list' %}"
-       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.namespace == 'kho_san_pham' %}active{% endif %}"
+       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'product_list' or request.resolver_match.url_name == 'product_detail' or request.resolver_match.url_name == 'product_create' or request.resolver_match.url_name == 'product_edit' %}active{% endif %}"
        data-jp-npl-catalog-nav data-loading-message="Đang tải kho sản phẩm…">
         <i class="bi bi-tags"></i><span>Danh mục</span>
+    </a>
+</li>
+{% endif %}
+{% if jp_can_ksp_codes %}
+<li>
+    <a href="{% url 'kho_san_pham:code_settings_hub' %}"
+       class="jp-sidebar-link jp-sidebar-sublink {% if 'thiet-lap-ma' in request.path %}active{% endif %}"
+       data-loading-message="Đang tải thiết lập mã…">
+        <i class="bi bi-upc"></i><span>Thiết lập mã</span>
     </a>
 </li>
 {% endif %}

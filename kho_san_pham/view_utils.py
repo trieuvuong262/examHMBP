@@ -3,6 +3,7 @@ from hrm.module_permissions import MODULE_KHO_SAN_PHAM
 
 NAV_ITEMS = [
     {'key': 'products', 'url_name': 'kho_san_pham:product_list', 'label': 'Danh mục', 'icon': 'bi-tags'},
+    {'key': 'code_settings', 'url_name': 'kho_san_pham:code_settings_hub', 'label': 'Thiết lập mã', 'icon': 'bi-upc'},
 ]
 
 

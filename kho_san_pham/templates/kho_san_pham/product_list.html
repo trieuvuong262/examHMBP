@@ -3,7 +3,22 @@
 
 {% block extra_head %}
 {% include 'kho_npl/includes/material_catalog_page_head.html' %}
-{% include 'kho_npl/includes/material_list_table_styles.html' %}
+<style>
+.ksp-catalog-table .kv-product-group-expandable { cursor: pointer; }
+.ksp-catalog-table .kv-product-group-expandable.kv-expanded { background-color: rgba(220, 38, 38, 0.04); }
+.ksp-catalog-table .kv-group-expand-label { cursor: pointer; }
+.ksp-catalog-table .kv-group-expand-label:hover { text-decoration: underline; }
+.ksp-catalog-table .kv-product-variant-row td {
+    background-color: #f8f9fa;
+    font-size: 0.875rem;
+    border-top: none;
+}
+.ksp-catalog-table .kv-product-variant-row td:first-child {
+    box-shadow: inset 3px 0 0 #dc2626;
+}
+html[data-theme="dark"] .ksp-catalog-table .kv-product-variant-row td { background-color: rgba(255, 255, 255, 0.04); }
+html[data-theme="dark"] .ksp-catalog-table .kv-product-group-expandable.kv-expanded { background-color: rgba(255, 255, 255, 0.03); }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -20,7 +35,7 @@
                 </select>
                 <div class="input-group input-group-sm jp-npl-mat-filter-field jp-npl-mat-search-input">
                     <input type="search" class="form-control" id="ksp-q" name="q"
-                           value="{{ search_query }}" placeholder="Mã SP, mã KT, mã KV, tên…" autocomplete="off" aria-label="Tìm">
+                           value="{{ search_query }}" placeholder="SKU, Style, màu, size, tên…" autocomplete="off" aria-label="Tìm">
                 </div>
                 <select name="status" id="ksp-status" class="form-select form-select-sm jp-npl-mat-status-select" aria-label="Trạng thái">
                     {% for value, label in status_choices %}
@@ -46,7 +61,7 @@
             </button>
             <form method="post" action="{% url 'kho_san_pham:product_sync_kv' %}" class="d-inline">
                 {% csrf_token %}
-                <button type="submit" class="btn btn-outline-secondary btn-sm fw-bold" title="Đồng bộ thành phẩm từ mirror KiotViet">
+                <button type="submit" class="btn btn-outline-secondary btn-sm fw-bold" title="Chỉ thêm mã mới từ KiotViet — không ghi đè SP đã có">
                     <i class="bi bi-arrow-repeat me-1"></i>Đồng bộ KV
                 </button>
             </form>
@@ -58,57 +73,125 @@
     </div>
 
     <div class="card border-0 shadow-sm">
-        <div class="jp-npl-mat-grid-wrap">
-            <table class="table table-hover align-middle mb-0 jp-npl-mat-grid" id="ksp-product-table">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 jp-table-mobile-stack ksp-catalog-table" id="kspProductCatalogTable">
                 <thead class="table-light">
                     <tr>
-                        {% for col in list_columns %}
-                        <th class="npl-col {% if col.key == 'base_price' %}text-end{% elif col.key == 'image' %}text-center{% endif %}"
-                            data-col="{{ col.key }}" style="width:{% widthratio col.weight total_col_weight 100 %}%">
-                            {{ col.label }}
-                        </th>
-                        {% endfor %}
+                        <th style="width:2.25rem;" class="px-1"></th>
+                        <th class="d-none d-md-table-cell" style="width:3.5rem;"></th>
+                        <th>Mã hàng</th>
+                        <th>Tên</th>
+                        <th class="d-none d-md-table-cell" style="min-width:10rem;">Nhóm hàng</th>
+                        <th class="d-none d-lg-table-cell">ĐVT</th>
+                        <th class="d-none d-lg-table-cell">Loại</th>
+                        <th class="text-end">Giá bán</th>
+                        <th></th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for product in page_obj %}
-                    <tr class="{% if not product.is_active %}table-secondary{% endif %}"
-                        style="cursor:pointer"
-                        onclick="location.href='{% url 'kho_san_pham:product_detail' product.pk %}'">
-                        <td class="npl-col text-center" data-col="image">
-                            {% if product.display_image_url %}
-                            <img src="{{ product.display_image_url }}" alt="" class="rounded" style="width:36px;height:36px;object-fit:cover">
-                            {% else %}
-                            <span class="text-muted"><i class="bi bi-image"></i></span>
+                    {% for item in page_obj %}
+                    <tr class="{% if item.is_group %}kv-product-group-expandable{% endif %}{% if not item.is_active %} table-secondary{% endif %}{% if expand_search_hits and item.is_group %} kv-expanded{% endif %}"
+                        {% if item.is_group %}
+                        data-kv-group-id="{{ item.group_key }}"
+                        role="button"
+                        tabindex="0"
+                        aria-expanded="{% if expand_search_hits %}true{% else %}false{% endif %}"
+                        {% endif %}>
+                        <td class="px-1 text-center text-muted" data-label="">
+                            {% if item.is_group %}
+                            <i class="bi bi-chevron-{% if expand_search_hits %}up{% else %}down{% endif %} kv-expand-icon" aria-hidden="true"></i>
                             {% endif %}
                         </td>
-                        <td class="npl-col" data-col="code"><code class="text-hm">{{ product.code }}</code></td>
-                        <td class="npl-col" data-col="accounting_code">{{ product.accounting_code|default:"—" }}</td>
-                        <td class="npl-col" data-col="kiotviet_code">{{ product.kiotviet_code|default:"—" }}</td>
-                        <td class="npl-col" data-col="name">{{ product.name }}</td>
-                        <td class="npl-col" data-col="product_type">
-                            {% if product.is_thanh_pham %}
+                        <td class="d-none d-md-table-cell">
+                            {% if item.image_url %}
+                            <img src="{{ item.image_url }}" alt="" class="rounded border"
+                                 style="width:40px;height:40px;object-fit:cover;">
+                            {% else %}
+                            <span class="text-muted small">—</span>
+                            {% endif %}
+                        </td>
+                        <td data-label="Mã">
+                            {% if item.is_group %}
+                            <code class="kv-group-expand-label text-hm">{{ item.style_code }}</code>
+                            {% else %}
+                            <a href="{% url 'kho_san_pham:product_detail' item.id %}" class="text-decoration-none">
+                                <code>{{ item.code }}</code>
+                            </a>
+                            {% endif %}
+                        </td>
+                        <td data-label="Tên">
+                            {% if item.is_group %}
+                            <span class="kv-group-expand-label fw-semibold text-hm">{{ item.name }}</span>
+                            <span class="badge bg-light text-muted border ms-1">{{ item.variant_count }} SKU</span>
+                            {% else %}
+                            <a href="{% url 'kho_san_pham:product_detail' item.id %}" class="text-decoration-none fw-semibold text-hm">{{ item.name }}</a>
+                            {% endif %}
+                        </td>
+                        <td data-label="Nhóm hàng" class="d-none d-md-table-cell small">{{ item.category_name }}</td>
+                        <td data-label="ĐVT" class="d-none d-lg-table-cell">{{ item.unit }}</td>
+                        <td data-label="Loại" class="d-none d-lg-table-cell">
+                            {% if item.product_type == 'thanh_pham' %}
                             <span class="badge text-bg-primary">Thành phẩm</span>
                             {% else %}
                             <span class="badge text-bg-secondary">Hàng hoá</span>
                             {% endif %}
                         </td>
-                        <td class="npl-col" data-col="unit">{{ product.unit|default:"—" }}</td>
-                        <td class="npl-col" data-col="category">{{ product.category_name|default:"—" }}</td>
-                        <td class="npl-col text-end" data-col="base_price">
-                            {% if product.base_price %}{{ product.base_price|floatformat:0|intcomma }}{% else %}—{% endif %}
+                        <td data-label="Giá" class="text-end">
+                            {% if item.min_price is not None and item.max_price is not None and item.min_price != item.max_price %}
+                            {{ item.min_price|floatformat:0|intcomma }} – {{ item.max_price|floatformat:0|intcomma }}
+                            {% elif item.base_price is not None %}{{ item.base_price|floatformat:0|intcomma }}{% else %}—{% endif %}
                         </td>
-                        <td class="npl-col" data-col="status">
-                            {% if product.is_active %}
-                            <span class="badge text-bg-success">Đang dùng</span>
-                            {% else %}
-                            <span class="badge text-bg-secondary">Ngừng</span>
-                            {% endif %}
+                        <td class="text-end">
+                            <a href="{% url 'kho_san_pham:product_detail' item.id %}" class="btn btn-sm btn-outline-hm">Chi tiết</a>
                         </td>
                     </tr>
+                    {% if item.is_group %}
+                    {% for variant in item.variants %}
+                    <tr class="kv-product-variant-row{% if not expand_search_hits %} d-none{% endif %}{% if not variant.is_active %} table-secondary{% endif %}"
+                        data-kv-variants-for="{{ item.group_key }}">
+                        <td class="px-1"></td>
+                        <td class="d-none d-md-table-cell">
+                            {% if variant.image_url %}
+                            <img src="{{ variant.image_url }}" alt="" class="rounded border"
+                                 style="width:40px;height:40px;object-fit:cover;">
+                            {% else %}
+                            <span class="text-muted small">—</span>
+                            {% endif %}
+                        </td>
+                        <td data-label="SKU" class="ps-md-4">
+                            <a href="{% url 'kho_san_pham:product_detail' variant.id %}" class="text-decoration-none">
+                                <code>{{ variant.code }}</code>
+                            </a>
+                        </td>
+                        <td data-label="Biến thể">
+                            <div class="d-flex flex-wrap align-items-center gap-2">
+                                {% if variant.image_url %}
+                                <img src="{{ variant.image_url }}" alt="" class="rounded border d-md-none flex-shrink-0"
+                                     style="width:36px;height:36px;object-fit:cover;">
+                                {% endif %}
+                                {% if variant.color_label or variant.color_code %}
+                                <span class="badge bg-light text-dark border">{% if variant.color_label %}{{ variant.color_label }}{% else %}{{ variant.color_code }}{% endif %}</span>
+                                {% endif %}
+                                {% if variant.size_label and variant.size_label != '—' %}
+                                <span class="badge bg-light text-dark border">Size {{ variant.size_label }}</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td class="d-none d-md-table-cell text-muted small">—</td>
+                        <td class="d-none d-lg-table-cell text-muted small">{{ item.unit }}</td>
+                        <td class="d-none d-lg-table-cell text-muted small">—</td>
+                        <td data-label="Giá" class="text-end">
+                            {% if variant.base_price is not None %}{{ variant.base_price|floatformat:0|intcomma }}{% else %}—{% endif %}
+                        </td>
+                        <td class="text-end">
+                            <a href="{% url 'kho_san_pham:product_detail' variant.id %}" class="btn btn-sm btn-outline-secondary">Chi tiết</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% endif %}
                     {% empty %}
                     <tr>
-                        <td colspan="{{ list_columns|length }}" class="text-center text-muted py-4">
+                        <td colspan="9" class="text-center text-muted py-4">
                             Chưa có sản phẩm. Thêm hàng hoá hoặc đồng bộ thành phẩm từ KiotViet.
                         </td>
                     </tr>
@@ -144,6 +227,48 @@
         if (el) el.addEventListener('change', submitFilters);
     });
 })();
+
+(function () {
+    function toggleGroup(row) {
+        var groupId = row.dataset.kvGroupId;
+        if (!groupId) return;
+        var expanded = !row.classList.contains('kv-expanded');
+        row.classList.toggle('kv-expanded', expanded);
+        row.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+        var icon = row.querySelector('.kv-expand-icon');
+        if (icon) {
+            icon.classList.toggle('bi-chevron-down', !expanded);
+            icon.classList.toggle('bi-chevron-up', expanded);
+        }
+        document.querySelectorAll('[data-kv-variants-for="' + groupId + '"]').forEach(function (variantRow) {
+            variantRow.classList.toggle('d-none', !expanded);
+        });
+    }
+
+    function shouldIgnoreClick(target) {
+        return Boolean(target.closest('a.btn, a[href], button, input, select, textarea, label'));
+    }
+
+    document.querySelectorAll('.kv-product-group-expandable').forEach(function (row) {
+        row.addEventListener('click', function (event) {
+            if (shouldIgnoreClick(event.target)) return;
+            toggleGroup(row);
+        });
+        row.querySelectorAll('.kv-group-expand-label').forEach(function (label) {
+            label.addEventListener('click', function (event) {
+                event.stopPropagation();
+                toggleGroup(row);
+            });
+        });
+        row.addEventListener('keydown', function (event) {
+            if (event.key !== 'Enter' && event.key !== ' ') return;
+            if (event.target.closest('a.btn, a[href]')) return;
+            event.preventDefault();
+            toggleGroup(row);
+        });
+    });
+})();
+
 {% if can_create %}
 (function () {
     var form = document.getElementById('ksp-import-form');
