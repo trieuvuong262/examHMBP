@@ -17,6 +17,7 @@ urlpatterns = [
     path('danh-muc/<int:pk>/', views.product_detail, name='product_detail'),
     path('danh-muc/<int:pk>/sua/', views.product_edit, name='product_edit'),
     path('danh-muc/<int:pk>/ngung/', views.product_deactivate, name='product_deactivate'),
+    path('danh-muc/<int:pk>/dung-lai/', views.product_reactivate, name='product_reactivate'),
     path('danh-muc/<int:pk>/xoa/', views.product_delete, name='product_delete'),
     # Thiết lập mã
     path('thiet-lap-ma/', views_code_settings.code_settings_hub, name='code_settings_hub'),

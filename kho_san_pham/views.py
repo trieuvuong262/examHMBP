@@ -292,6 +292,21 @@ def product_deactivate(request, pk: int):
     })
 
 
+@module_perm_required_methods(MODULE_KHO_SAN_PHAM, get='update', post='update')
+def product_reactivate(request, pk: int):
+    product = get_object_or_404(Product, pk=pk)
+    if request.method == 'POST':
+        product.is_active = True
+        product.save(update_fields=['is_active', 'updated_at'])
+        messages.success(request, f'Đã dùng lại {product.code}.')
+        return redirect('kho_san_pham:product_detail', pk=product.pk)
+    return render(request, 'kho_san_pham/product_confirm_reactivate.html', {
+        **nav_context('products', user=request.user),
+        **perm_context(request.user, 'products'),
+        'product': product,
+    })
+
+
 @module_perm_required_methods(MODULE_KHO_SAN_PHAM, get='delete', post='delete')
 def product_delete(request, pk: int):
     product = get_object_or_404(Product, pk=pk)

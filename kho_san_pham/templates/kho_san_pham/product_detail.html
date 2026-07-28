@@ -27,6 +27,10 @@
             <a href="{% url 'kho_san_pham:product_deactivate' product.pk %}" class="btn btn-outline-danger btn-sm">
                 <i class="bi bi-slash-circle me-1"></i>Ngừng dùng
             </a>
+            {% elif can_update and not product.is_active %}
+            <a href="{% url 'kho_san_pham:product_reactivate' product.pk %}" class="btn btn-outline-success btn-sm">
+                <i class="bi bi-check-circle me-1"></i>Dùng lại
+            </a>
             {% endif %}
             {% if can_delete and not product.is_kv_synced %}
             <a href="{% url 'kho_san_pham:product_delete' product.pk %}" class="btn btn-danger btn-sm">
