@@ -15,7 +15,7 @@ DEFAULT_DEPARTMENTS = [
 
 DEFAULT_DIVISIONS = [
     'QC',
-    'Ép logo',
+    'IN ÉP',
     'Giao Hàng',
     'HCNS',
     'Marketing',

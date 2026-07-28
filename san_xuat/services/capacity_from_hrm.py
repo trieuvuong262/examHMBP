@@ -24,8 +24,8 @@ _SP_PER_HEAD_RULES: tuple[tuple[tuple[str, ...], Decimal], ...] = (
     (('co dien', 'cơ điện'), Decimal('0')),
     (('may',), Decimal('14')),
     (('cat', 'cắt', 'trai', 'trải'), Decimal('25')),
-    (('in nhiet', 'in nhiệt', 'in '), Decimal('20')),
-    (('ep logo', 'ép logo', 'ep '), Decimal('22')),
+    (('in ep', 'in ép', 'in nhiet', 'in nhiệt', 'ep logo', 'ép logo', 'in '), Decimal('21')),
+    (('ep ',), Decimal('21')),
     (('ui', 'ủi'), Decimal('30')),
     (('gap', 'gấp'), Decimal('35')),
 )
