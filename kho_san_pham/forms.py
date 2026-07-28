@@ -134,30 +134,7 @@ class ProductForm(forms.ModelForm):
         )
         self._color_name_map = {c.code.upper(): c.name for c in colors}
 
-        kv_locked = bool(inst and inst.pk and inst.is_kv_synced)
-        if kv_locked:
-            for name in (
-                'product_type',
-                'catalog_type',
-                'style_code',
-                'color_code',
-                'size_label',
-                'name',
-                'full_name',
-                'bar_code',
-                'unit',
-                'category_name',
-                'base_price',
-                'kiotviet_code',
-                'code',
-            ):
-                if name in self.fields:
-                    self.fields[name].disabled = True
-                    self.fields[name].required = False
-
     def clean_code(self):
-        if self.fields['code'].disabled:
-            return self.instance.code
         return (self.cleaned_data.get('code') or '').strip().upper()
 
     def clean_accounting_code(self):
@@ -165,13 +142,9 @@ class ProductForm(forms.ModelForm):
         return (self.cleaned_data.get('accounting_code') or '').strip()
 
     def clean_kiotviet_code(self):
-        if self.fields['kiotviet_code'].disabled:
-            return self.instance.kiotviet_code
         return (self.cleaned_data.get('kiotviet_code') or '').strip()
 
     def clean_product_type(self):
-        if self.fields['product_type'].disabled:
-            return self.instance.product_type
         value = self.cleaned_data.get('product_type') or PRODUCT_TYPE_HANG_HOA
         if value not in {PRODUCT_TYPE_THANH_PHAM, PRODUCT_TYPE_HANG_HOA}:
             raise forms.ValidationError('Loại sản phẩm không hợp lệ.')
@@ -179,21 +152,6 @@ class ProductForm(forms.ModelForm):
 
     def clean(self):
         cleaned = super().clean()
-        if self.fields.get('name') and self.fields['name'].disabled:
-            cleaned['name'] = self.instance.name
-            cleaned['full_name'] = self.instance.full_name
-            cleaned['bar_code'] = self.instance.bar_code
-            cleaned['unit'] = self.instance.unit
-            cleaned['category_name'] = self.instance.category_name
-            cleaned['base_price'] = self.instance.base_price
-            cleaned['product_type'] = self.instance.product_type
-            cleaned['catalog_type'] = self.instance.catalog_type
-            cleaned['kiotviet_code'] = self.instance.kiotviet_code
-            cleaned['style_code'] = self.instance.style_code
-            cleaned['color_code'] = self.instance.color_code
-            cleaned['size_label'] = self.instance.size_label
-            cleaned['code'] = self.instance.code
-            return cleaned
 
         from san_xuat.services.sku_catalog import SkuError, compose_sku_code, normalize_style, normalize_token
 

@@ -273,21 +273,12 @@ def import_products_from_excel(file_obj, *, user=None) -> dict:
         is_active = _parse_bool(row.get('Đang dùng'))
         notes = _parse_text(row.get('Ghi chú'))
 
-        if existing and existing.is_kv_synced:
-            existing.accounting_code = accounting_code
-            existing.notes = notes
-            existing.is_active = is_active
-            existing.save(update_fields=['accounting_code', 'notes', 'is_active', 'updated_at'])
-            updated += 1
-            continue
-
         defaults = {
             'style_code': style,
             'color_code': color,
             'color_label': color_label,
             'size_label': size,
             'accounting_code': accounting_code,
-            'kiotviet_code': _parse_text(row.get('Mã KiotViet')),
             'name': name,
             'full_name': _parse_text(row.get('Tên đầy đủ')),
             'product_type': product_type,
@@ -298,8 +289,13 @@ def import_products_from_excel(file_obj, *, user=None) -> dict:
             'description': _parse_text(row.get('Mô tả')),
             'notes': notes,
             'is_active': is_active,
-            'sync_source': SYNC_SOURCE_MANUAL,
         }
+        kv_code = _parse_text(row.get('Mã KiotViet'))
+        if kv_code:
+            defaults['kiotviet_code'] = kv_code
+        # SP sync KV: giữ nguồn; SP mới / tay = nhập tay
+        if not (existing and existing.is_kv_synced):
+            defaults['sync_source'] = SYNC_SOURCE_MANUAL
 
         sx_sku = None
         if style and size:
