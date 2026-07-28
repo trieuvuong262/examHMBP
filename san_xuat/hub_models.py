@@ -260,7 +260,7 @@ class SxProductionOrder(DemoMarkedModel):
         (STATUS_CANCELLED, 'Hủy'),
     ]
 
-    code = models.CharField(max_length=40, unique=True, verbose_name='Mã lệnh sản xuất')
+    code = models.CharField(max_length=100, unique=True, verbose_name='Mã lệnh sản xuất')
     product_code = models.CharField(max_length=60, db_index=True)
     product_name = models.CharField(max_length=255, blank=True, default='')
     detail_plan = models.ForeignKey(

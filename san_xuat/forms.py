@@ -225,6 +225,15 @@ class ProcessStepForm(forms.ModelForm):
             extra = self.initial.get('process_name') or ''
         self.fields['process_name'].choices = process_catalog_choices(extra_value=extra)
 
+    def clean_process_name(self):
+        from san_xuat.services.process_catalog import resolve_standard_process_name
+
+        name = (self.cleaned_data.get('process_name') or '').strip()
+        standard = resolve_standard_process_name(name)
+        if not standard:
+            raise forms.ValidationError('Công đoạn phải chọn từ thư viện chuẩn Công đoạn / IE.')
+        return standard
+
 
 BomLineFormSet = inlineformset_factory(
     BomVersion,

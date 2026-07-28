@@ -1,7 +1,8 @@
-"""Danh mục công đoạn SX — choices + thêm mới."""
+"""Danh mục công đoạn chuẩn dùng chung từ module IE."""
 
 from __future__ import annotations
 
+from san_xuat.ie_models import SxOperation
 from san_xuat.models import SxProcessName
 
 # Seed từ công đoạn phổ biến trên báo cáo SX (đã chuẩn hoá).
@@ -57,11 +58,44 @@ def seed_default_process_names() -> int:
     return created
 
 
+_STANDARD_STATUSES = [
+    SxOperation.STATUS_APPROVED,
+    SxOperation.STATUS_TRIAL,
+    SxOperation.STATUS_DRAFT,
+]
+
+
+def _standard_operation_names() -> list[str]:
+    """Tên công đoạn chuẩn từ thư viện IE, ưu tiên trạng thái đang dùng."""
+    rows = (
+        SxOperation.objects.filter(status__in=_STANDARD_STATUSES)
+        .exclude(name_vi="")
+        .values_list("name_vi", flat=True)
+        .distinct()
+        .order_by("name_vi")
+    )
+    return [(row or "").strip() for row in rows if (row or "").strip()]
+
+
+def resolve_standard_process_name(name: str) -> str:
+    """Chuẩn hoá về đúng tên công đoạn trong thư viện IE."""
+    raw = (name or "").strip()
+    if not raw:
+        return ""
+    match = (
+        SxOperation.objects.filter(status__in=_STANDARD_STATUSES, name_vi__iexact=raw)
+        .exclude(name_vi="")
+        .order_by("name_vi")
+        .values_list("name_vi", flat=True)
+        .first()
+    )
+    return (match or "").strip()
+
+
 def process_catalog_choices(*, extra_value: str = "", blank_label: str = "— Chọn công đoạn —") -> list[tuple[str, str]]:
     choices: list[tuple[str, str]] = [("", blank_label)]
     seen: set[str] = set()
-    for row in SxProcessName.objects.filter(is_active=True).order_by("sort_order", "name"):
-        name = (row.name or "").strip()
+    for name in _standard_operation_names():
         if not name or name.casefold() in seen:
             continue
         seen.add(name.casefold())
@@ -73,6 +107,7 @@ def process_catalog_choices(*, extra_value: str = "", blank_label: str = "— Ch
 
 
 def ensure_process_name(name: str) -> SxProcessName:
+    """Đồng bộ mirror legacy SxProcessName cho các luồng cũ."""
     name = (name or "").strip()
     if not name:
         raise ValueError("Tên công đoạn trống.")

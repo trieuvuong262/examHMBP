@@ -147,7 +147,6 @@ urlpatterns = [
     path('thiet-lap/', views_hub.general_settings, name='general_settings'),
     path('api/tim-ma-sp/', views.product_code_search, name='product_code_search'),
     path('api/cong-doan/', views.process_catalog_search, name='process_catalog_search'),
-    path('api/cong-doan/them/', views.process_catalog_add, name='process_catalog_add'),
     path('api/routing/them/', views.routing_create_api, name='routing_create_api'),
     path('api/sku/', views.sku_search, name='sku_search'),
     path('api/sku/ghep/', views.sku_compose_preview, name='sku_compose_preview'),

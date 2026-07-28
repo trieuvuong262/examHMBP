@@ -463,44 +463,21 @@ def product_code_search(request):
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 @require_GET
 def process_catalog_search(request):
-    """Gõ tìm công đoạn trong danh mục."""
+    """Gõ tìm công đoạn chuẩn trong thư viện IE."""
     q = (request.GET.get('q') or '').strip()
-    from san_xuat.models import SxProcessName
+    from san_xuat.services.process_catalog import process_catalog_choices
 
-    qs = SxProcessName.objects.filter(is_active=True).order_by('sort_order', 'name')
-    if q:
-        qs = qs.filter(name__icontains=q)
-    rows = [
-        {'id': row.name, 'name': row.name, 'text': row.name}
-        for row in qs[:40]
-    ]
+    rows = []
+    for value, label in process_catalog_choices(extra_value='', blank_label='')[:200]:
+        name = (value or '').strip()
+        if not name:
+            continue
+        if q and q.casefold() not in name.casefold():
+            continue
+        rows.append({'id': name, 'name': name, 'text': name})
+        if len(rows) >= 40:
+            break
     return JsonResponse({'results': rows})
-
-
-@module_perm_required(MODULE_SAN_XUAT, 'view')
-@require_POST
-def process_catalog_add(request):
-    """Thêm tên công đoạn vào danh mục dùng chung."""
-    if not (
-        user_can_update_module(request.user, MODULE_SAN_XUAT)
-        or user_can_create_module(request.user, MODULE_SAN_XUAT)
-    ):
-        return JsonResponse({'error': 'Không có quyền thêm công đoạn.'}, status=403)
-    try:
-        payload = json.loads(request.body.decode('utf-8') or '{}')
-    except (json.JSONDecodeError, UnicodeDecodeError):
-        payload = request.POST
-    name = (payload.get('name') if hasattr(payload, 'get') else '') or ''
-    name = str(name).strip()
-    if not name:
-        return JsonResponse({'error': 'Nhập tên công đoạn.'}, status=400)
-    from san_xuat.services.process_catalog import ensure_process_name
-
-    try:
-        row = ensure_process_name(name)
-    except ValueError as exc:
-        return JsonResponse({'error': str(exc)}, status=400)
-    return JsonResponse({'name': row.name, 'id': row.pk})
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')

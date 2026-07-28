@@ -1216,7 +1216,6 @@ def dispatch_mo_create(request):
                 mo = create_mo_from_bom(
                     product_code=form.cleaned_data['product_code'],
                     qty=form.cleaned_data['qty'],
-                    code=form.cleaned_data.get('code') or None,
                     order_date=form.cleaned_data.get('order_date') or timezone.localdate(),
                     due_date=form.cleaned_data.get('due_date'),
                     planned_start=form.cleaned_data.get('planned_start'),
@@ -1225,6 +1224,7 @@ def dispatch_mo_create(request):
                     process_name=form.cleaned_data.get('process_name') or '',
                     notes=form.cleaned_data.get('notes') or '',
                     user=request.user,
+                    is_sample=bool(form.cleaned_data.get('is_sample')),
                 )
             except DispatchError as exc:
                 messages.error(request, str(exc))
@@ -1307,7 +1307,6 @@ def run_order_wizard(request, mo_id: int | None = None):
                     mo = create_mo_from_bom(
                         product_code=create_form.cleaned_data['product_code'],
                         qty=create_form.cleaned_data['qty'],
-                        code=create_form.cleaned_data.get('code') or None,
                         order_date=create_form.cleaned_data.get('order_date') or timezone.localdate(),
                         due_date=create_form.cleaned_data.get('due_date'),
                         planned_start=create_form.cleaned_data.get('planned_start'),

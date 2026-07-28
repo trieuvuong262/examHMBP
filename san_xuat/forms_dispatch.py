@@ -60,18 +60,34 @@ def bom_process_choices(bom, *, extra_value: str = "") -> list[tuple[str, str]]:
     return process_catalog_choices(extra_value=extra_value)
 
 
+def _clean_standard_process_name(raw_name: str) -> str:
+    from san_xuat.services.process_catalog import resolve_standard_process_name
+
+    name = (raw_name or "").strip()
+    if not name:
+        return ""
+    standard = resolve_standard_process_name(name)
+    if not standard:
+        raise forms.ValidationError("Công đoạn phải chọn từ thư viện chuẩn Công đoạn / IE.")
+    return standard
+
+
 class ProductionOrderCreateForm(forms.Form):
-    code = forms.CharField(
-        max_length=40,
-        required=False,
-        help_text="Để trống thì hệ thống tự sinh mã.",
-        widget=forms.TextInput(attrs=_INPUT_SM),
-        label="Mã lệnh sản xuất",
-    )
     product_code = forms.ChoiceField(
         label="Mã SX",
         choices=[],
         widget=forms.Select(attrs=_PRODUCT_CODE_SELECT),
+    )
+    code = forms.CharField(
+        max_length=100,
+        required=False,
+        label="Mã lệnh sản xuất",
+        help_text="Hệ thống tự sinh theo mã SX (vd. LSX-JP-TEE-260001-0001).",
+        widget=forms.TextInput(attrs={
+            **_INPUT_SM,
+            "disabled": True,
+            "placeholder": "Tự sinh sau khi chọn mã SX",
+        }),
     )
     qty = forms.DecimalField(
         max_digits=14,
@@ -171,6 +187,9 @@ class ProductionOrderCreateForm(forms.Form):
                 return existing
         return ref.code
 
+    def clean_process_name(self):
+        return _clean_standard_process_name(self.cleaned_data.get("process_name"))
+
 
 class ProductionOrderUpdateForm(forms.Form):
     qty = forms.DecimalField(
@@ -232,6 +251,9 @@ class ProductionOrderUpdateForm(forms.Form):
             extra_process = self.initial.get("process_name") or ""
         self.fields["team_label"].choices = work_center_team_choices(extra_value=extra_team)
         self.fields["process_name"].choices = bom_process_choices(bom, extra_value=extra_process)
+
+    def clean_process_name(self):
+        return _clean_standard_process_name(self.cleaned_data.get("process_name"))
 
 
 class MaterialIssueApproveForm(forms.Form):
@@ -339,6 +361,9 @@ class ProductionStatCreateForm(forms.Form):
         self.fields["process_name"].choices = bom_process_choices(None, extra_value=extra_process)
         self.fields["color_code"].choices = color_choices(extra_code=extra_color)
         self.fields["size_label"].choices = size_choices(extra_code=extra_size)
+
+    def clean_process_name(self):
+        return _clean_standard_process_name(self.cleaned_data.get("process_name"))
 
     def clean(self):
         cleaned = super().clean()

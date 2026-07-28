@@ -67,6 +67,38 @@ def _next_code(prefix: str, model, *, field: str = "code") -> str:
     return f"{base}{n + 1:04d}"
 
 
+def _next_mo_code_for_product(product_code: str) -> str:
+    """Sinh mã LSX theo mã SX: ``LSX-{MÃ_SX}-0001`` (stt theo từng mã SX)."""
+    import re
+
+    product = (product_code or "").strip().upper()
+    product = re.sub(r"[^A-Z0-9\-]", "", product)
+    if not product:
+        return _next_code(sx_prefix("mo", "LSX"), SxProductionOrder)
+
+    root = sx_prefix("mo", "LSX")
+    # Giữ tối đa 100 ký tự: root + '-' + product + '-' + 4 số
+    seq_len = 4
+    max_product = 100 - (len(root) + 2 + seq_len)
+    if max_product < 8:
+        max_product = 8
+    product = product[:max_product]
+    base = f"{root}-{product}-"
+    latest = (
+        SxProductionOrder.objects.filter(code__startswith=base)
+        .order_by("-code")
+        .values_list("code", flat=True)
+        .first()
+    )
+    n = 1
+    if latest:
+        try:
+            n = int(str(latest).rsplit("-", 1)[-1]) + 1
+        except ValueError:
+            n = 1
+    return f"{base}{n:04d}"
+
+
 def _code(kind: str, model, *, code: str | None = None, field: str = "code", fallback: str | None = None):
     raw = (code or "").strip()
     if raw:
@@ -196,7 +228,7 @@ def create_mo_from_bom(
     if not working_bom:
         raise DispatchError(f"Mã {product_code} chưa có BOM để tính.")
 
-    mo_code = _code("mo", SxProductionOrder, code=code)
+    mo_code = (code or "").strip() or _next_mo_code_for_product(tech_doc.product_code)
 
     mo = SxProductionOrder.objects.create(
         code=mo_code,
