@@ -22,7 +22,6 @@
   <div class="card jp-mo-form-card">
     <div class="jp-mo-form-hero">
       <div class="eyebrow">Lệnh sản xuất</div>
-      <p class="lead">Chọn mã SX từ kho sản phẩm — mã lệnh tự sinh theo mẫu <span class="font-monospace">LSX-{mã SX}-0001</span>.</p>
     </div>
 
     <form method="post" novalidate>
@@ -46,7 +45,7 @@
           <div class="col-12 col-lg-6">
             <label class="form-label small text-muted" for="{{ form.code.id_for_label }}">{{ form.code.label }}</label>
             {{ form.code }}
-            {% if form.code.help_text %}<div class="form-text">{{ form.code.help_text }}</div>{% endif %}
+            {% if form.code.errors %}<div class="text-danger small mt-1">{{ form.code.errors }}</div>{% endif %}
           </div>
         </div>
       </div>
@@ -64,7 +63,6 @@
           <div class="col-6 col-md-4">
             <label class="form-label small text-muted" for="{{ form.qty.id_for_label }}">{{ form.qty.label }}{{ form.qty|sx_req_star }}</label>
             {{ form.qty }}
-            {% if form.qty.help_text %}<div class="form-text">{{ form.qty.help_text }}</div>{% endif %}
             {% if form.qty.errors %}<div class="text-danger small mt-1">{{ form.qty.errors }}</div>{% endif %}
           </div>
           <div class="col-6 col-md-4">

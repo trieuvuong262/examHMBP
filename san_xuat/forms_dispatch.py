@@ -82,7 +82,6 @@ class ProductionOrderCreateForm(forms.Form):
         max_length=100,
         required=False,
         label="Mã lệnh sản xuất",
-        help_text="Tự sinh: LSX-{mã SX}-{stt}, vd. LSX-JP-POLO-00-SP008376-0001.",
         widget=forms.TextInput(attrs={
             **_INPUT_SM,
             "disabled": True,
@@ -101,7 +100,6 @@ class ProductionOrderCreateForm(forms.Form):
             "class": f"{_INPUT_SM['class']} jp-mo-qty-total",
         }),
         label="Số lượng tổng",
-        help_text="Tự cộng từ ma trận size/màu; hoặc nhập tay nếu mã SX chưa có biến thể.",
     )
     order_date = forms.DateField(
         label="Ngày lập",
