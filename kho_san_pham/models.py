@@ -123,17 +123,12 @@ class Product(models.Model):
         ordering = ['style_code', 'color_code', 'size_label', 'code']
         verbose_name = 'Sản phẩm (SKU)'
         verbose_name_plural = 'Sản phẩm (SKU)'
-        constraints = [
-            models.UniqueConstraint(
-                fields=['accounting_code'],
-                condition=~models.Q(accounting_code=''),
-                name='kho_sp_product_accounting_code_uniq',
-            ),
-        ]
+        constraints = []
         indexes = [
             models.Index(fields=['product_type', 'is_active']),
             models.Index(fields=['kiotviet_code']),
             models.Index(fields=['style_code', 'is_active']),
+            models.Index(fields=['accounting_code']),
         ]
 
     def __str__(self):

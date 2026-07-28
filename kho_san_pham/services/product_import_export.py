@@ -267,17 +267,6 @@ def import_products_from_excel(file_obj, *, user=None) -> dict:
             name = style or code
 
         accounting_code = _parse_text(row.get('Mã kế toán'))
-        if accounting_code:
-            conflict = (
-                Product.objects
-                .filter(accounting_code__iexact=accounting_code)
-                .exclude(code__iexact=code)
-                .exists()
-            )
-            if conflict:
-                errors.append(f'Dòng {line_no} ({code}): mã kế toán "{accounting_code}" đã dùng.')
-                skipped += 1
-                continue
 
         existing = Product.objects.filter(code__iexact=code).first()
         product_type = _parse_product_type(row.get('Loại'))

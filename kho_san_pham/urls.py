@@ -10,6 +10,7 @@ urlpatterns = [
     path('danh-muc/xuat-excel/', views.product_export, name='product_export'),
     path('danh-muc/mau-excel/', views.product_import_template, name='product_import_template'),
     path('danh-muc/nhap-excel/', views.product_import, name='product_import'),
+    path('danh-muc/nhap-ma-ke-toan/', views.product_import_accounting, name='product_import_accounting'),
     path('danh-muc/them/', views.product_create, name='product_create'),
     path('danh-muc/dong-bo-kv/', views.product_sync_kv, name='product_sync_kv'),
     path('danh-muc/<int:pk>/', views.product_detail, name='product_detail'),

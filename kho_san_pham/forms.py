@@ -161,15 +161,8 @@ class ProductForm(forms.ModelForm):
         return (self.cleaned_data.get('code') or '').strip().upper()
 
     def clean_accounting_code(self):
-        value = (self.cleaned_data.get('accounting_code') or '').strip()
-        if not value:
-            return ''
-        qs = Product.objects.filter(accounting_code__iexact=value).exclude(accounting_code='')
-        if self.instance.pk:
-            qs = qs.exclude(pk=self.instance.pk)
-        if qs.exists():
-            raise forms.ValidationError('Mã kế toán đã tồn tại.')
-        return value
+        # Cùng mã KT dùng chung nhiều SKU / size (theo file HĐ–tem nhãn).
+        return (self.cleaned_data.get('accounting_code') or '').strip()
 
     def clean_kiotviet_code(self):
         if self.fields['kiotviet_code'].disabled:

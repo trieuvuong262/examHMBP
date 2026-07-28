@@ -127,11 +127,21 @@ def format_style_group(group: StyleGroup) -> dict:
     else:
         code_label = '—'
 
+    accounting_codes = sorted({
+        (v.accounting_code or '').strip()
+        for v in group.variants
+        if (v.accounting_code or '').strip()
+    })
+    accounting_label = accounting_codes[0] if len(accounting_codes) == 1 else (
+        f'{accounting_codes[0]}…' if accounting_codes else '—'
+    )
+
     return {
         'id': group.representative_id,
         'group_key': group.key,
         'code': code_label,
         'style_code': group.style_code or '—',
+        'accounting_code': accounting_label,
         'name': group.name,
         'category_name': group.category_name or '—',
         'unit': group.unit or '—',

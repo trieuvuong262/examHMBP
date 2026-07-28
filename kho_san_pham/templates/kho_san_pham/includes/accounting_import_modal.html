@@ -1,0 +1,30 @@
+<div class="modal fade" id="kspAccountingImportModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form action="{% url 'kho_san_pham:product_import_accounting' %}" method="post" enctype="multipart/form-data"
+              class="modal-content border-0 shadow" id="ksp-accounting-import-form">
+            {% csrf_token %}
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold">Nhập mã kế toán</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body">
+                <p class="small text-muted mb-3">
+                    File danh sách tên HĐ / tem nhãn / Kiot: cột <strong>Mã sản phẩm</strong> → mã kế toán,
+                    khớp theo <strong>Tên Kiot</strong> (hoặc tên HĐ). Cùng một mã gắn cho mọi size cùng nhóm.
+                </p>
+                <label class="jp-npl-import-drop d-block mb-0" id="ksp-acc-import-drop" for="ksp-acc-excel-file">
+                    <input type="file" class="d-none" id="ksp-acc-excel-file" name="excel_file" accept=".xlsx,.xls" required>
+                    <div class="fw-semibold" id="ksp-acc-import-drop-title">Kéo thả file hoặc bấm để chọn</div>
+                    <div class="small text-muted" id="ksp-acc-import-drop-hint">.xlsx — vd. TEN SP HD, TEM NHAN-KIOT.xlsx</div>
+                    <div class="jp-npl-import-file-meta fw-semibold text-success mt-2 d-none" id="ksp-acc-import-file-meta"></div>
+                </label>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Huỷ</button>
+                <button type="submit" class="btn btn-hm fw-bold" id="ksp-acc-import-submit" disabled>
+                    <i class="bi bi-upc me-1"></i>Cập nhật mã KT
+                </button>
+            </div>
+        </form>
+    </div>
+</div>

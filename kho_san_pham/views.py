@@ -24,6 +24,7 @@ from kho_san_pham.services.product_import_export import (
     import_products_from_excel,
     sample_template_xlsx,
 )
+from kho_san_pham.services.accounting_import import import_accounting_from_invoice_excel
 from kho_san_pham.services.style_groups import format_style_group, group_products_by_style
 from kho_san_pham.services.sync_from_kiotviet import sync_thanh_pham_from_kiotviet
 from kho_san_pham.view_utils import nav_context, perm_context
@@ -163,6 +164,39 @@ def product_import(request):
             request,
             f'Còn {result["error_count"] - len(result["errors"])} lỗi khác (chỉ hiển thị 20 dòng đầu).',
         )
+    return redirect('kho_san_pham:product_list')
+
+
+@module_perm_required_methods(MODULE_KHO_SAN_PHAM, post='update')
+def product_import_accounting(request):
+    """Nhập mã kế toán từ file HĐ / tem nhãn / Kiot (cột Mã sản phẩm)."""
+    if request.method != 'POST':
+        return redirect('kho_san_pham:product_list')
+    file_obj = request.FILES.get('excel_file')
+    if not file_obj:
+        messages.error(request, 'Chọn file Excel trước khi nhập mã kế toán.')
+        return redirect('kho_san_pham:product_list')
+    if not file_obj.name.lower().endswith(('.xlsx', '.xls')):
+        messages.error(request, 'Chỉ chấp nhận file Excel (.xlsx hoặc .xls).')
+        return redirect('kho_san_pham:product_list')
+    result = import_accounting_from_invoice_excel(file_obj)
+    if result.updated:
+        messages.success(
+            request,
+            f'Đã gán mã kế toán cho {result.updated} SKU '
+            f'({result.styles_touched} Style).',
+        )
+    elif not result.errors and not result.unmatched_rows:
+        messages.warning(request, 'Không có dòng nào để cập nhật.')
+    if result.skipped and result.updated:
+        messages.info(request, f'{result.skipped} SKU đã đúng mã — bỏ qua.')
+    if result.unmatched_rows:
+        messages.warning(
+            request,
+            f'{result.unmatched_rows} dòng trên file không khớp tên Kiot/HĐ.',
+        )
+    for err in result.errors[:15]:
+        messages.warning(request, err)
     return redirect('kho_san_pham:product_list')
 
 
