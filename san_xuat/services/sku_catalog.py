@@ -1,7 +1,7 @@
-"""SKU = Style + Màu + Size (vd. JP-TEE-260001-NVY-M).
+"""SKU = Mã SX + Màu + Size (vd. JP-TEE-260001-NVY-M).
 
-Style neo theo product_code hồ sơ / lệnh SX. Catalog màu + size dùng chung;
-ma trận SKU gắn từng Style.
+Mã SX neo theo product_code hồ sơ / lệnh SX. Catalog màu + size dùng chung;
+ma trận SKU gắn từng mã SX.
 """
 
 from __future__ import annotations
@@ -62,15 +62,15 @@ def normalize_style(value: str) -> str:
 
 
 def compose_sku_code(*, style_code: str, color_code: str = "", size_label: str) -> str:
-    """Ghép SKU: ``{Style}-{Color}-{Size}`` hoặc ``{Style}-{Size}`` khi không có màu."""
+    """Ghép SKU: ``{Mã SX}-{Màu}-{Size}`` hoặc ``{Mã SX}-{Size}`` khi không có màu."""
     style = normalize_style(style_code)
     color = normalize_token(color_code) if color_code else ""
     size = normalize_token(size_label)
     if not style or not size:
-        raise SkuError("Thiếu Style / size để ghép SKU.")
+        raise SkuError("Thiếu mã SX / size để ghép SKU.")
     code = f"{style}-{color}-{size}" if color else f"{style}-{size}"
     if len(code) > 100:
-        raise SkuError("Mã SKU vượt quá 100 ký tự — rút ngắn Style/màu/size.")
+        raise SkuError("Mã SKU vượt quá 100 ký tự — rút ngắn mã SX/màu/size.")
     return code
 
 
@@ -259,7 +259,7 @@ def get_or_create_sku(
     color = normalize_token(color_code) if color_code else ""
     size = normalize_token(size_label)
     if not style:
-        raise SkuError("Thiếu Style (mã SP).")
+        raise SkuError("Thiếu mã SX (mã SP).")
     if not size:
         raise SkuError("SKU cần size.")
 
@@ -308,7 +308,7 @@ def get_or_create_sku(
 
 
 def parse_sku_code(sku_code: str, *, style_hint: str = "") -> tuple[str, str, str] | None:
-    """Tách STYLE-COLOR-SIZE hoặc STYLE-SIZE (color=''). Style có thể chứa '-'."""
+    """Tách MÃ-SX-MÀU-SIZE hoặc MÃ-SX-SIZE (color=''). Mã SX có thể chứa '-'."""
     code = (sku_code or "").strip().upper()
     if not code:
         return None
@@ -368,7 +368,7 @@ def resolve_sku_fields(
 
     has_pair = bool(color and size)
     if require_complete and not has_pair and not raw_sku:
-        raise SkuError("Cần chọn Màu và Size để tạo SKU (Style–Màu–Size).")
+        raise SkuError("Cần chọn Màu và Size để tạo SKU (Mã SX–Màu–Size).")
 
     if not has_pair and not raw_sku:
         return ResolvedSku(
@@ -448,7 +448,7 @@ def expand_style_matrix(
 ) -> list[SxSku]:
     style = normalize_style(style_code)
     if not style:
-        raise SkuError("Thiếu Style.")
+        raise SkuError("Thiếu mã SX.")
     colors = [normalize_token(c) for c in color_codes if normalize_token(c)]
     sizes = [normalize_token(s) for s in size_labels if normalize_token(s)]
     if not colors or not sizes:
@@ -478,7 +478,7 @@ def skus_for_style(style_code: str, *, active_only: bool = True):
 
 @transaction.atomic
 def delete_sku(*, sku_id: int | str | None = None, style_code: str = "") -> SxSku:
-    """Xóa SKU khỏi danh sách Style. FK liên quan (TKSX/QC/đóng gói/YCNTP) SET_NULL."""
+    """Xóa SKU khỏi danh sách mã SX. FK liên quan (TKSX/QC/đóng gói/YCNTP) SET_NULL."""
     style = normalize_style(style_code)
     try:
         pk = int(sku_id) if sku_id is not None and str(sku_id).strip() != "" else None
@@ -490,7 +490,7 @@ def delete_sku(*, sku_id: int | str | None = None, style_code: str = "") -> SxSk
     if sku is None:
         raise SkuError("Không tìm thấy SKU.")
     if style and sku.style_code.upper() != style:
-        raise SkuError(f"SKU {sku.sku_code} không thuộc Style {style}.")
+        raise SkuError(f"SKU {sku.sku_code} không thuộc mã SX {style}.")
     code = sku.sku_code
     sku.delete()
     # Return a detached stub for messaging (pk cleared after delete).

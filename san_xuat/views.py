@@ -31,7 +31,7 @@ from san_xuat.services.bom import (
     get_working_bom,
 )
 from san_xuat.services.costing import compute_costing, save_costing_snapshot
-from san_xuat.services.products import search_kv_products
+from san_xuat.services.products import search_products
 
 
 def _perm_ctx(request):
@@ -293,7 +293,7 @@ def doc_detail(request, pk):
             except SkuError as exc:
                 messages.error(request, str(exc))
             else:
-                messages.success(request, f'Đã tạo / cập nhật {len(rows)} SKU cho Style {doc.product_code}.')
+                messages.success(request, f'Đã tạo / cập nhật {len(rows)} SKU cho mã SX {doc.product_code}.')
             return redirect(f'{request.path}?tab=sku')
         elif action == 'delete_sku':
             from san_xuat.services.sku_catalog import SkuError, delete_sku
@@ -457,7 +457,7 @@ def design_file_serve(request, pk):
 @require_GET
 def product_code_search(request):
     q = (request.GET.get('q') or '').strip()
-    return JsonResponse({'results': search_kv_products(q, limit=30)})
+    return JsonResponse({'results': search_products(q, limit=30)})
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')

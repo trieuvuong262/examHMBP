@@ -314,10 +314,10 @@ def products_nvl(request):
     from san_xuat.models import BomVersion, ProductTechDoc
 
     docs = ProductTechDoc.objects.all()
-    kv_count = 0
+    kho_sp_count = 0
     try:
-        from kiotviet.models import KvProduct
-        kv_count = KvProduct.objects.count()
+        from kho_san_pham.models import Product
+        kho_sp_count = Product.objects.filter(is_active=True).count()
     except Exception:
         pass
     return render(request, 'san_xuat/hub_products_nvl.html', {
@@ -327,7 +327,7 @@ def products_nvl(request):
         'bom_active': BomVersion.objects.filter(status=BomVersion.STATUS_ACTIVE).count(),
         'material_active': Material.objects.filter(is_active=True).count()
         if hasattr(Material, 'is_active') else Material.objects.count(),
-        'kv_product_count': kv_count,
+        'kho_sp_count': kho_sp_count,
     })
 
 

@@ -582,7 +582,7 @@ def create_fg_receipt_from_mo(
         notes=notes or "",
         is_demo=False,
     )
-    # Khi YCNTP lấy từ TKSX có SKU → tạo 1 dòng biến thể (Style–Màu–Size).
+    # Khi YCNTP lấy từ TKSX có SKU → tạo 1 dòng biến thể (Mã SX–Màu–Size).
     if stat and (stat.sku_id or (stat.sku_code or "").strip()):
         SxFgReceiptLine.objects.create(
             receipt=req,

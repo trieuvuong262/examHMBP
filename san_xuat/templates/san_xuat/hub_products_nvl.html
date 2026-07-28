@@ -14,12 +14,12 @@
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
       <a href="{% url 'kho_npl:material_list' %}"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>Danh mục NPL</a>
-      <a href="{% url 'san_xuat:fg_product_lookup' %}"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>Hàng hoá KV</a>
+      <a href="{% url 'kho_san_pham:product_list' %}"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>Kho sản phẩm</a>
     </nav>
   </div>
 
   <p class="text-muted small mb-3">
-    SoT: Thành phẩm → KiotViet · NPL → Kho NPL · BOM / quy trình / costing → Hồ sơ SX.
+    SoT: Thành phẩm → Kho SP · NPL → Kho NPL · BOM / quy trình / costing → Hồ sơ SX.
   </p>
 
   <div class="jp-sx-stat-grid">
@@ -37,15 +37,15 @@
       <div class="value">{{ material_active }}</div>
     </div>
     <div class="jp-sx-stat">
-      <div class="label">Hàng hoá KV</div>
-      <div class="value">{{ kv_product_count }}</div>
+      <div class="label">Kho sản phẩm</div>
+      <div class="value">{{ kho_sp_count }}</div>
     </div>
   </div>
 
   <div class="jp-sx-section-title">Danh mục &amp; định mức</div>
   <div class="jp-sx-hub-links mb-2">
-    <a href="{% url 'san_xuat:fg_product_lookup' %}" class="jp-sx-hub-link">
-      <span><i class="bi bi-box-seam me-2"></i>Thành phẩm (KV)</span>
+    <a href="{% url 'kho_san_pham:product_list' %}" class="jp-sx-hub-link">
+      <span><i class="bi bi-box-seam me-2"></i>Kho sản phẩm</span>
       <i class="bi bi-chevron-right"></i>
     </a>
     <a href="{% url 'kho_npl:material_list' %}" class="jp-sx-hub-link">

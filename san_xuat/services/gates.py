@@ -237,7 +237,7 @@ def check_sku_on_stat(
         code="sku_on_stat",
         message=(
             "Thiếu SKU trên thống kê sản xuất — chọn Màu + Size "
-            "(SKU = Style–Màu–Size, vd. JP-TEE-260001-NVY-M)."
+            "(SKU = Mã SX–Màu–Size, vd. JP-TEE-260001-NVY-M)."
             if not ok
             else ""
         ),
@@ -264,7 +264,7 @@ def check_sku_on_packing_line(
         code="sku_on_packing",
         message=(
             f"{prefix}Thiếu SKU trên dòng đóng gói — chọn Màu + Size "
-            "(SKU = Style–Màu–Size)."
+            "(SKU = Mã SX–Màu–Size)."
             if not ok
             else ""
         ),

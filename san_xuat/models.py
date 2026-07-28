@@ -13,7 +13,7 @@ from san_xuat.design_nas_storage import (
 
 
 class ProductTechDoc(models.Model):
-    """Hồ sơ tài liệu sản xuất neo theo mã hàng KiotViet."""
+    """Hồ sơ tài liệu sản xuất neo theo mã SX gốc trong kho sản phẩm."""
 
     product_code = models.CharField(
         max_length=60,

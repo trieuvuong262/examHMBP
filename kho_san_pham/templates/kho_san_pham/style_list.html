@@ -39,17 +39,19 @@
                         <th>Tên</th>
                         <th>Nguồn</th>
                         <th>KV gốc</th>
+                        <th class="text-end">SKU</th>
                         <th></th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for row in page_obj %}
                     <tr>
-                        <td class="fw-semibold">{{ row.code }}</td>
+                        <td class="fw-semibold"><code>{{ row.code }}</code></td>
                         <td>{{ row.product_type.code }}</td>
                         <td>{{ row.name|default:"—" }}</td>
                         <td>{{ row.get_source_display }}</td>
                         <td>{{ row.root_kiotviet_code|default:"—" }}</td>
+                        <td class="text-end">{{ row.product_count }}</td>
                         <td class="text-end">
                             {% if can_update %}
                             <a href="{% url 'kho_san_pham:style_edit' row.pk %}" class="btn btn-outline-secondary btn-sm">Sửa</a>
@@ -57,7 +59,7 @@
                         </td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="6" class="text-muted text-center py-4">Chưa có Style.</td></tr>
+                    <tr><td colspan="7" class="text-muted text-center py-4">Chưa có Style.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>

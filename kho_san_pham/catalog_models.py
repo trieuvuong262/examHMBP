@@ -36,7 +36,10 @@ class ProductType(models.Model):
 
 
 class ProductStyle(models.Model):
-    """Mã Style = JP-{LOẠI}-{NHÓM?}-{hậu tố} (vd. JP-TEE-260001, JP-JKT-00-SP007105, JP-SET-SC-SP002771)."""
+    """Mã Style = JP-{LOẠI}-{NHÓM?}-{hậu tố}.
+
+    Ví dụ: ``JP-TEE-00-260001`` (tay), ``JP-JKT-00-SP007105`` (KV), ``JP-SET-SC-SP002771`` (loại đã có nhóm).
+    """
 
     code = models.CharField(max_length=80, unique=True, verbose_name='Mã Style')
     product_type = models.ForeignKey(

@@ -82,7 +82,12 @@ def create_manual_style(
     )
     if seq < 1 or seq > 9999:
         raise CodeStructureError('STT Style phải từ 1 đến 9999.')
-    suffix = f'{yy:02d}{seq:04d}'
+    # Cùng quy tắc nhóm với Style KV: TEE → JP-TEE-00-260001; SET-SC → JP-SET-SC-260001
+    seq_part = f'{yy:02d}{seq:04d}'
+    if type_code_has_group(product_type.code):
+        suffix = seq_part
+    else:
+        suffix = f'{DEFAULT_STYLE_GROUP}-{seq_part}'
     code = compose_style_code(brand=brand, type_code=product_type.code, suffix=suffix)
     if ProductStyle.objects.filter(code__iexact=code).exists():
         raise CodeStructureError(f'Style {code} đã tồn tại.')

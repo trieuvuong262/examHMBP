@@ -1373,15 +1373,15 @@ class SxSize(DemoMarkedModel):
 
 
 class SxSku(DemoMarkedModel):
-    """SKU = Style + Màu + Size (vd. JP-TEE-260001-NVY-M).
+    """SKU = Mã SX + Màu + Size (vd. JP-TEE-260001-NVY-M).
 
-    Style neo theo product_code (hồ sơ SX / lệnh SX). Một Style có thể sinh
+    Mã SX neo theo product_code (hồ sơ SX / lệnh SX). Một mã SX có thể sinh
     hàng chục SKU theo ma trận màu × size.
     """
 
     style_code = models.CharField(
-        max_length=60, db_index=True, verbose_name='Style (mã SP)',
-        help_text='Mã Style = product_code hồ sơ / lệnh sản xuất.',
+        max_length=60, db_index=True, verbose_name='Mã SX',
+        help_text='Mã SX = product_code hồ sơ / lệnh sản xuất.',
     )
     style_name = models.CharField(max_length=255, blank=True, default='')
     color_code = models.CharField(max_length=20, db_index=True, verbose_name='Mã màu')
@@ -1411,7 +1411,7 @@ class SxSku(DemoMarkedModel):
 
 
 class SxFgReceiptLine(models.Model):
-    """Dòng YCNTP theo SKU (Style–Màu–Size) — tổng qty dòng = header khi có dòng."""
+    """Dòng YCNTP theo SKU (Mã SX–Màu–Size) — tổng qty dòng = header khi có dòng."""
 
     receipt = models.ForeignKey(
         SxFgReceiptRequest, on_delete=models.CASCADE, related_name='lines',
@@ -1590,7 +1590,7 @@ class SxGeneralSettings(models.Model):
     gate_sku_on_stat = models.CharField(
         max_length=10, choices=GATE_CHOICES, default=GATE_WARN,
         verbose_name='Bắt buộc SKU (màu + size) khi ghi thống kê sản xuất',
-        help_text='SKU = Style + Màu + Size. Style lấy từ mã SP trên lệnh.',
+        help_text='SKU = Mã SX + Màu + Size. Mã SX lấy từ mã SP trên lệnh.',
     )
     gate_sku_on_packing = models.CharField(
         max_length=10, choices=GATE_CHOICES, default=GATE_WARN,

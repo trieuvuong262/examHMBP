@@ -16,6 +16,10 @@
                         <label class="form-label fw-bold small">Mã loại</label>
                         {{ form.code }}
                         {% if form.code.errors %}<div class="text-danger small">{{ form.code.errors }}</div>{% endif %}
+                        <div class="form-text">
+                            Một đoạn (<code>TEE</code>, <code>JKT</code>) → Style thêm nhóm <code>00</code>.
+                            Đã có nhóm (<code>SET-SC</code>, <code>ACC-BALO</code>) → giữ nguyên.
+                        </div>
                     </div>
                     <div class="col-md-5">
                         <label class="form-label fw-bold small">Nội dung</label>

@@ -7,7 +7,7 @@ from decimal import Decimal
 
 from kho_npl.services.batches import material_avg_price
 from san_xuat.models import BomVersion, CostingSnapshot
-from san_xuat.services.products import resolve_kv_product_ref
+from san_xuat.services.products import resolve_product_ref
 
 ZERO = Decimal('0')
 QTY = Decimal('0.0001')
@@ -127,7 +127,7 @@ def compute_costing(bom: BomVersion) -> CostingResult:
     overhead = (base * result.overhead_pct / Decimal('100')).quantize(MONEY)
     total = (base + overhead).quantize(MONEY)
 
-    ref = resolve_kv_product_ref(bom.tech_doc.product_code)
+    ref = resolve_product_ref(bom.tech_doc.product_code)
     sell = _d(ref.base_price) if ref else ZERO
     if ref and ref.name and not result.product_name:
         result.product_name = ref.name

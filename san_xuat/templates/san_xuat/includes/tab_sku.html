@@ -215,7 +215,7 @@
       <div class="jp-sx-sku-hero">
         <div>
           <div class="jp-sx-sku-formula" aria-label="Công thức SKU">
-            <span class="jp-sx-sku-pill is-style" title="Style">{{ doc.product_code }}</span>
+            <span class="jp-sx-sku-pill is-style" title="Mã SX">{{ doc.product_code }}</span>
             <span class="jp-sx-sku-op">×</span>
             <span class="jp-sx-sku-pill">Màu</span>
             <span class="jp-sx-sku-op">×</span>
@@ -224,7 +224,7 @@
             <span class="jp-sx-sku-pill is-result">{{ doc.product_code }}-NVY-M</span>
           </div>
           <p class="jp-sx-sku-hint">
-            Mỗi cặp màu × size tạo một SKU riêng. Style giữ nguyên trên lệnh SX;
+            Mỗi cặp màu × size tạo một SKU riêng. Mã SX giữ nguyên trên lệnh SX;
             biến thể chỉ tách ở thống kê, đóng gói và nhập thành phẩm.
           </p>
         </div>
@@ -296,7 +296,7 @@
       </div>
       {% endif %}
 
-      <h3 class="jp-sx-sku-section-title">Danh sách SKU · Style {{ doc.product_code }}</h3>
+      <h3 class="jp-sx-sku-section-title">Danh sách SKU · Mã SX {{ doc.product_code }}</h3>
       {% if skus %}
       <div class="table-responsive border rounded-3">
         <table class="table table-sm table-hover align-middle mb-0 jp-sx-sku-table">
@@ -345,7 +345,7 @@
       </div>
       {% else %}
       <div class="jp-sx-sku-empty">
-        <span class="t">Chưa có SKU cho Style này</span>
+        <span class="t">Chưa có SKU cho mã SX này</span>
         {% if can_update %}
         Chọn màu × size bên trên rồi bấm <strong>Tạo danh sách SKU</strong>.
         {% else %}

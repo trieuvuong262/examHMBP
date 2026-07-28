@@ -143,7 +143,7 @@
         {% csrf_token %}
         <input type="hidden" name="action" value="create_stat">
         <input type="hidden" name="step" value="5">
-        <p class="small text-muted">Style: <strong>{{ mo.product_code }}</strong> — chọn màu + size để sinh SKU.</p>
+        <p class="small text-muted">Mã SX: <strong>{{ mo.product_code }}</strong> — chọn màu + size để sinh SKU.</p>
         <div class="row g-3">
           <div class="col-md-4">
             <label class="form-label small text-muted">{{ stat_form.stat_date.label }}{{ stat_form.stat_date|sx_req_star }}</label>

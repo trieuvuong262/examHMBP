@@ -7,26 +7,27 @@ from san_xuat.models import BomLine, BomVersion, ProcessStep, ProductTechDoc, Te
 
 _PRODUCT_CODE_SELECT = {
     'class': 'form-select form-select-sm jp-sx-product-code-select',
-    'data-placeholder': 'Gõ mã hoặc tên hàng hoá…',
+    'data-placeholder': 'Gõ mã SX hoặc tên sản phẩm…',
 }
 
 
 def _product_code_choices(extra_value: str = '') -> list[tuple[str, str]]:
-    choices: list[tuple[str, str]] = [('', '— Chọn hàng hoá —')]
+    choices: list[tuple[str, str]] = [('', '— Chọn mã SX (kho SP) —')]
     code = (extra_value or '').strip()
     if not code:
         return choices
-    from san_xuat.services.products import resolve_kv_product_ref
+    from san_xuat.services.products import resolve_product_ref
 
-    ref = resolve_kv_product_ref(code)
-    label = f'{code} — {ref.name}' if ref and ref.name else code
-    choices.append((code, label))
+    ref = resolve_product_ref(code)
+    label_code = ref.code if ref else code
+    label = f'{label_code} — {ref.name}' if ref and ref.name else label_code
+    choices.append((label_code, label))
     return choices
 
 
 class ProductTechDocCreateForm(forms.Form):
     product_code = forms.ChoiceField(
-        label='Mã sản phẩm',
+        label='Mã SX',
         choices=[],
         widget=forms.Select(attrs=_PRODUCT_CODE_SELECT),
     )
@@ -49,12 +50,23 @@ class ProductTechDocCreateForm(forms.Form):
     def clean_product_code(self):
         code = (self.cleaned_data.get('product_code') or '').strip()
         if not code:
-            raise forms.ValidationError('Chọn mã sản phẩm từ hàng hoá.')
-        from san_xuat.services.products import find_kv_product
+            raise forms.ValidationError('Chọn mã sản phẩm từ kho sản phẩm.')
+        from san_xuat.models import ProductTechDoc
+        from san_xuat.services.products import resolve_product_ref
 
-        if not find_kv_product(code):
-            raise forms.ValidationError(f'Mã {code} không có trong hàng hoá KiotViet.')
-        return code
+        ref = resolve_product_ref(code)
+        if not ref:
+            raise forms.ValidationError(f'Mã {code} không có trong kho sản phẩm.')
+        # Giữ mã hồ sơ đã có (tương thích hồ sơ cũ neo mã KV)
+        for candidate in (code, ref.code):
+            existing = (
+                ProductTechDoc.objects.filter(product_code__iexact=candidate)
+                .values_list('product_code', flat=True)
+                .first()
+            )
+            if existing:
+                return existing
+        return ref.code
 
 
 class ProductTechDocDescriptionForm(forms.ModelForm):

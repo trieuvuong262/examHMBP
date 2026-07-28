@@ -98,6 +98,11 @@ def type_edit(request, pk):
 
 @module_perm_required(MODULE_KHO_SAN_PHAM, 'view')
 def style_list(request):
+    from django.db.models import Count, IntegerField, OuterRef, Subquery, Value
+    from django.db.models.functions import Coalesce
+
+    from kho_san_pham.models import Product
+
     search_query = get_search_query(request)
     show_inactive = request.GET.get('inactive') == '1'
     type_filter = (request.GET.get('type') or '').strip().upper()
@@ -112,7 +117,16 @@ def style_list(request):
             | Q(name__icontains=search_query)
             | Q(root_kiotviet_code__icontains=search_query)
         )
-    qs = qs.order_by('code')
+    prod_count = (
+        Product.objects.filter(style_code=OuterRef('code'))
+        .order_by()
+        .values('style_code')
+        .annotate(c=Count('id'))
+        .values('c')[:1]
+    )
+    qs = qs.annotate(
+        product_count=Coalesce(Subquery(prod_count, output_field=IntegerField()), Value(0)),
+    ).order_by('code')
     page_obj, query_string = paginate_queryset(request, qs, per_page=40)
     types = ProductType.objects.filter(is_active=True).order_by('sort_order', 'code')
     return render(request, 'kho_san_pham/style_list.html', {
@@ -238,13 +252,15 @@ def kv_map_delete(request, pk):
 @module_perm_required_methods(MODULE_KHO_SAN_PHAM, get='update', post='update')
 @require_POST
 def assign_codes_from_maps(request):
-    """Gán loại + sinh Style/SKU cho SP sync KV còn mã tạm (code = kiotviet_code)."""
+    """Áp map KV + chuẩn hóa Style/SKU (nhóm 00, OS) cho SP sync."""
     from kho_san_pham.services.sync_from_kiotviet import apply_style_sku_for_existing_products
 
     result = apply_style_sku_for_existing_products()
     messages.success(
         request,
-        f'Gán mã: cập nhật {result.updated} · bỏ qua {result.skipped}'
-        + (f' · lỗi {len(result.errors)}' if result.errors else ''),
+        f'Gán / chuẩn hóa mã: cập nhật {result.updated} · bỏ qua {result.skipped}'
+        + (f' · cảnh báo {len(result.errors)}' if result.errors else ''),
     )
+    for err in (result.errors or [])[:8]:
+        messages.warning(request, err)
     return redirect('kho_san_pham:code_settings_hub')

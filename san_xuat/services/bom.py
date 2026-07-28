@@ -6,7 +6,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from san_xuat.models import BomVersion, ProductTechDoc
-from san_xuat.services.products import resolve_kv_product_ref
+from san_xuat.services.products import resolve_product_ref
 
 
 class BomError(Exception):
@@ -45,15 +45,20 @@ def create_tech_doc(
     code = (product_code or '').strip()
     if not code:
         raise BomError('Thiếu mã sản phẩm.')
+
+    ref = resolve_product_ref(code)
+    if not ref:
+        raise BomError(f'Mã {code} không có trong kho sản phẩm.')
+    code = ref.code
+
     if ProductTechDoc.objects.filter(product_code__iexact=code).exists():
         raise BomError(f'Hồ sơ SX cho mã {code} đã tồn tại.')
 
-    ref = resolve_kv_product_ref(code)
     doc = ProductTechDoc(
         product_code=code,
-        product_name=ref.name if ref else '',
-        product_image_url=ref.image_url if ref else '',
-        kv_product_id=ref.kiotviet_id if ref else None,
+        product_name=ref.name or '',
+        product_image_url=ref.image_url or '',
+        kv_product_id=ref.kiotviet_id,
         notes=notes or '',
         created_by=user if getattr(user, 'is_authenticated', False) else None,
     )
