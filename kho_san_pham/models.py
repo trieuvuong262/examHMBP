@@ -130,6 +130,13 @@ class Product(models.Model):
             models.Index(fields=['style_code', 'is_active']),
             models.Index(fields=['accounting_code'], name='kho_sp_prod_account_b08923_idx'),
         ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['bar_code'],
+                condition=~models.Q(bar_code=''),
+                name='kho_sp_product_bar_code_uniq',
+            ),
+        ]
 
     def __str__(self):
         return f'{self.code} — {self.name}'

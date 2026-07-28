@@ -254,5 +254,8 @@ class ProductForm(forms.ModelForm):
             except Exception:  # noqa: BLE001
                 pass
         if commit:
+            if not (product.bar_code or '').strip():
+                from kho_san_pham.services.barcode import allocate_barcode
+                product.bar_code = allocate_barcode()
             product.save()
         return product

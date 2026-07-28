@@ -200,6 +200,26 @@ def product_import_accounting(request):
     return redirect('kho_san_pham:product_list')
 
 
+@module_perm_required_methods(MODULE_KHO_SAN_PHAM, post='update')
+def product_generate_barcodes(request):
+    """Sinh mã vạch EAN-13 nội bộ cho toàn bộ (hoặc chỉ SP trống)."""
+    from kho_san_pham.services.barcode import assign_barcodes_to_all_products
+
+    if request.method != 'POST':
+        return redirect('kho_san_pham:product_list')
+    force = (request.POST.get('force') or '1').strip() != '0'
+    result = assign_barcodes_to_all_products(force=force)
+    if result.updated:
+        messages.success(
+            request,
+            f'Đã gán {result.updated} mã vạch EAN-13'
+            f'{" (tạo mới toàn bộ)" if force else " (chỉ SP trống)"}.',
+        )
+    else:
+        messages.info(request, 'Không có sản phẩm nào cần gán mã vạch.')
+    return redirect('kho_san_pham:product_list')
+
+
 @module_perm_required(MODULE_KHO_SAN_PHAM, 'view')
 def product_detail(request, pk: int):
     from kiotviet.formatters import format_description_html

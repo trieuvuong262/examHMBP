@@ -22,6 +22,7 @@ class StyleVariant:
     is_active: bool
     product_type: str
     accounting_code: str
+    bar_code: str
     kiotviet_code: str
 
 
@@ -64,6 +65,7 @@ def _variant_from_product(product: Product) -> StyleVariant:
         is_active=bool(product.is_active),
         product_type=product.product_type,
         accounting_code=product.accounting_code or '',
+        bar_code=product.bar_code or '',
         kiotviet_code=product.kiotviet_code or '',
     )
 
@@ -135,6 +137,14 @@ def format_style_group(group: StyleGroup) -> dict:
     accounting_label = accounting_codes[0] if len(accounting_codes) == 1 else (
         f'{accounting_codes[0]}…' if accounting_codes else '—'
     )
+    barcodes = sorted({
+        (v.bar_code or '').strip()
+        for v in group.variants
+        if (v.bar_code or '').strip()
+    })
+    barcode_label = barcodes[0] if len(barcodes) == 1 else (
+        f'{barcodes[0]}…' if barcodes else '—'
+    )
 
     return {
         'id': group.representative_id,
@@ -142,6 +152,7 @@ def format_style_group(group: StyleGroup) -> dict:
         'code': code_label,
         'style_code': group.style_code or '—',
         'accounting_code': accounting_label,
+        'bar_code': barcode_label,
         'name': group.name,
         'category_name': group.category_name or '—',
         'unit': group.unit or '—',
@@ -165,6 +176,7 @@ def format_style_group(group: StyleGroup) -> dict:
                 'image_url': v.image_url,
                 'is_active': v.is_active,
                 'accounting_code': v.accounting_code or '—',
+                'bar_code': v.bar_code or '—',
                 'kiotviet_code': v.kiotviet_code or '—',
             }
             for v in group.variants

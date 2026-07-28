@@ -65,6 +65,14 @@ html[data-theme="dark"] .ksp-catalog-table .kv-product-group-expandable.kv-expan
                     title="File danh sách tên HĐ / tem nhãn / Kiot">
                 <i class="bi bi-upc me-1"></i>Nhập mã KT
             </button>
+            <form method="post" action="{% url 'kho_san_pham:product_generate_barcodes' %}" class="d-inline"
+                  onsubmit="return confirm('Tạo mã vạch EAN-13 mới cho TẤT CẢ sản phẩm?');">
+                {% csrf_token %}
+                <input type="hidden" name="force" value="1">
+                <button type="submit" class="btn btn-outline-secondary btn-sm fw-bold" title="Sinh mã vạch EAN-13 nội bộ (đầu 20…)">
+                    <i class="bi bi-upc-scan me-1"></i>Sinh mã vạch
+                </button>
+            </form>
             {% endif %}
             {% if can_create %}
             <form method="post" action="{% url 'kho_san_pham:product_sync_kv' %}" class="d-inline">
@@ -89,6 +97,7 @@ html[data-theme="dark"] .ksp-catalog-table .kv-product-group-expandable.kv-expan
                         <th class="d-none d-md-table-cell" style="width:3.5rem;"></th>
                         <th>Mã hàng</th>
                         <th class="d-none d-xl-table-cell">Mã KT</th>
+                        <th class="d-none d-xl-table-cell">Mã vạch</th>
                         <th>Tên</th>
                         <th class="d-none d-md-table-cell" style="min-width:10rem;">Nhóm hàng</th>
                         <th class="d-none d-lg-table-cell">ĐVT</th>
@@ -132,6 +141,13 @@ html[data-theme="dark"] .ksp-catalog-table .kv-product-group-expandable.kv-expan
                         <td data-label="Mã KT" class="d-none d-xl-table-cell">
                             {% if item.accounting_code and item.accounting_code != '—' %}
                             <code class="small">{{ item.accounting_code }}</code>
+                            {% else %}
+                            <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td data-label="Mã vạch" class="d-none d-xl-table-cell">
+                            {% if item.bar_code and item.bar_code != '—' %}
+                            <code class="small">{{ item.bar_code }}</code>
                             {% else %}
                             <span class="text-muted">—</span>
                             {% endif %}
@@ -190,6 +206,13 @@ html[data-theme="dark"] .ksp-catalog-table .kv-product-group-expandable.kv-expan
                         <td data-label="Mã KT" class="d-none d-xl-table-cell">
                             {% if variant.accounting_code and variant.accounting_code != '—' %}
                             <code class="small">{{ variant.accounting_code }}</code>
+                            {% else %}
+                            <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td data-label="Mã vạch" class="d-none d-xl-table-cell">
+                            {% if variant.bar_code and variant.bar_code != '—' %}
+                            <code class="small">{{ variant.bar_code }}</code>
                             {% else %}
                             <span class="text-muted">—</span>
                             {% endif %}

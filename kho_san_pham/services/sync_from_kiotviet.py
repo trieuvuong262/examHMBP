@@ -356,6 +356,9 @@ def _apply_style_to_product(
 
 
 def _create_product_from_kv(kv, fields: dict, *, style_code: str, code: str, catalog_type=None) -> Product:
+    from kho_san_pham.services.barcode import allocate_barcode
+
+    bar_code = (fields.get('bar_code') or '').strip() or allocate_barcode()
     product = Product(
         code=code,
         style_code=style_code,
@@ -369,7 +372,7 @@ def _create_product_from_kv(kv, fields: dict, *, style_code: str, code: str, cat
         kiotviet_code=fields['kiotviet_code'],
         name=fields['name'],
         full_name=fields['full_name'],
-        bar_code=fields['bar_code'],
+        bar_code=bar_code,
         unit=fields['unit'],
         category_name=fields['category_name'],
         category_path=fields['category_path'],
@@ -458,6 +461,10 @@ def sync_thanh_pham_from_kiotviet(*, retailer: str | None = None, deactivate_mis
                         changed = True
                     if not (existing.unit or '').strip() and fields['unit']:
                         existing.unit = fields['unit']
+                        changed = True
+                    if not (existing.bar_code or '').strip():
+                        from kho_san_pham.services.barcode import allocate_barcode
+                        existing.bar_code = fields['bar_code'] or allocate_barcode()
                         changed = True
 
                     effective_size = (size_label or existing.size_label or '').strip().upper()
