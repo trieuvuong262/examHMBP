@@ -128,7 +128,7 @@ class Product(models.Model):
             models.Index(fields=['product_type', 'is_active']),
             models.Index(fields=['kiotviet_code']),
             models.Index(fields=['style_code', 'is_active']),
-            models.Index(fields=['accounting_code']),
+            models.Index(fields=['accounting_code'], name='kho_sp_prod_account_b08923_idx'),
         ]
 
     def __str__(self):
