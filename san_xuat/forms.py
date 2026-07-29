@@ -1,5 +1,4 @@
 from django import forms
-from django.db.models import Q
 from django.forms import inlineformset_factory
 
 from kho_npl.models import Material
@@ -213,7 +212,7 @@ class ProcessStepForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        from san_xuat.hub_models import SxWorkCenter
+        from san_xuat.services.capacity_from_hrm import hr_work_centers_qs
         from san_xuat.services.process_catalog import process_catalog_choices
 
         extra = ''
@@ -228,13 +227,10 @@ class ProcessStepForm(forms.ModelForm):
             extra = self.initial.get('process_name') or ''
         self.fields['process_name'].choices = process_catalog_choices(extra_value=extra)
 
-        wc_qs = SxWorkCenter.objects.filter(is_active=True, is_demo=False).order_by('name', 'code')
-        # Giữ bộ phận đang gắn dù đã tắt
+        keep_ids = []
         if self.instance and self.instance.work_center_id:
-            wc_qs = SxWorkCenter.objects.filter(
-                Q(pk=self.instance.work_center_id) | Q(is_active=True, is_demo=False)
-            ).distinct().order_by('name', 'code')
-        self.fields['work_center'].queryset = wc_qs
+            keep_ids = [self.instance.work_center_id]
+        self.fields['work_center'].queryset = hr_work_centers_qs(include_inactive_ids=keep_ids)
         self.fields['work_center'].required = False
         self.fields['work_center'].empty_label = '— Chọn bộ phận —'
         self.fields['work_center'].label = 'Bộ phận chịu trách nhiệm'

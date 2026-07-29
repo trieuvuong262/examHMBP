@@ -25,6 +25,7 @@ from san_xuat.ie_models import (
     SxTimeStudy,
 )
 from san_xuat.models import BomVersion, ProcessStep
+from san_xuat.services.capacity_from_hrm import map_ie_center_to_hr
 from san_xuat.services.process_catalog import ensure_process_name
 
 
@@ -611,7 +612,7 @@ def apply_routing_to_bom(*, bom: BomVersion, routing: SxRouting, replace: bool =
             routing_line=line,
             norm_per_hour=norm,
             std_time_minutes=_q(total_smv, '0.01'),
-            work_center=line.work_center,
+            work_center=map_ie_center_to_hr(line.work_center),
             cost_per_hour=Decimal('0'),
             piece_rate=Decimal('0'),
             notes=f'IE {line.op_code}/{line.op_rev}'[:255],

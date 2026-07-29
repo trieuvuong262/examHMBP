@@ -51,10 +51,15 @@ class Command(BaseCommand):
                     transaction.set_rollback(True)
                 return
 
+            from san_xuat.services.capacity_from_hrm import remap_process_steps_to_hr
+
+            remapped = remap_process_steps_to_hr()
+
             self.stdout.write(f'Phòng ban: {result.department}')
             self.stdout.write(
                 f'Tạo {result.created} · cập nhật {result.updated} · '
-                f'tắt {result.deactivated} · map HR {result.hr_maps}'
+                f'tắt {result.deactivated} · map HR {result.hr_maps} · '
+                f'remap công đoạn {remapped}'
             )
             for line in result.centers or []:
                 self.stdout.write(f'  - {line}')

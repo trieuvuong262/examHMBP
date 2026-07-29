@@ -3070,6 +3070,29 @@ def capacity_list(request):
     from san_xuat.list_filters import resolve_sx_period
     from san_xuat.services.phase3 import build_capacity_load
 
+    can_update = _perm_ctx(request).get('can_update')
+    if request.method == 'POST' and (request.POST.get('action') or '').strip() == 'sync_from_hrm':
+        if not can_update:
+            messages.error(request, 'Bạn không có quyền đồng bộ năng lực.')
+            return redirect('san_xuat:capacity_list')
+        from san_xuat.services.capacity_from_hrm import (
+            remap_process_steps_to_hr,
+            sync_capacity_from_hrm,
+        )
+
+        result = sync_capacity_from_hrm()
+        if not result.department:
+            messages.error(request, 'Không tìm thấy phòng ban SẢN XUẤT trên HR.')
+        else:
+            remapped = remap_process_steps_to_hr()
+            messages.success(
+                request,
+                f'Đã đồng bộ từ HR ({result.department}): '
+                f'+{result.created} · cập nhật {result.updated} · tắt {result.deactivated} · '
+                f'remap công đoạn {remapped}.',
+            )
+        return redirect('san_xuat:capacity_list')
+
     month = (request.GET.get('month') or '').strip()
     date_from, date_to, filters = resolve_sx_period(request)
 

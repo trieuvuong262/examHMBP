@@ -8,6 +8,7 @@ from datetime import date
 from decimal import Decimal
 
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from hrm.models import Department, Division, Profile
@@ -16,8 +17,21 @@ from san_xuat.hub_models import SxTeamHrMap, SxWorkCenter
 
 SX_DEPT_NAMES = ('SẢN XUẤT', 'SAN XUAT')
 CODE_PREFIX = 'HRD-'
-LEGACY_FAKE_CODES = frozenset({'TO-MAY-1', 'TO-MAY-2', 'TO-DG'})
-LEGACY_FAKE_TEAMS = frozenset({'Tổ May 1', 'Tổ May 2', 'Tổ ĐG'})
+LEGACY_FAKE_CODES = frozenset({
+    'TO-MAY-1', 'TO-MAY-2', 'TO-DG', 'TO-FULLCHECK', 'CHUYEN-01',
+})
+LEGACY_FAKE_TEAMS = frozenset({'Tổ May 1', 'Tổ May 2', 'Tổ ĐG', 'Chuyen 1'})
+
+# Mã IE (WC-*) → bộ phận HR phòng SẢN XUẤT (khớp tên Division đã fold).
+_IE_WC_TO_HR_KEYS: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
+    (('wc-cut', 'wc-fusing', 'cut', 'fusing'), ('cat', 'trai', 'trai vai')),
+    (('wc-print', 'print', 'ep'), ('in ep', 'in ')),
+    (('wc-sew', 'sew', 'may'), ('may',)),
+    (('wc-finish', 'finish', 'ui', 'press'), ('ui',)),
+    (('wc-pack', 'pack', 'gap'), ('gap', 'gap xep')),
+    # QC: gắn MAY nếu không có bộ phận QC riêng
+    (('wc-qc', 'qc', 'fullcheck'), ('may',)),
+)
 
 # SP/người/ngày ước lượng theo loại chuyền (IE chỉnh lại sau trên UI).
 _SP_PER_HEAD_RULES: tuple[tuple[tuple[str, ...], Decimal], ...] = (
@@ -48,6 +62,50 @@ def sp_per_head_for_division(name: str) -> Decimal:
 
 def work_center_code_for_division(division_id: int) -> str:
     return f'{CODE_PREFIX}{int(division_id)}'
+
+
+def hr_work_centers_qs(*, include_inactive_ids: list[int] | None = None):
+    """Bộ phận chịu trách nhiệm = tổ HRD-* đồng bộ từ HR phòng SẢN XUẤT."""
+    qs = SxWorkCenter.objects.filter(
+        code__istartswith=CODE_PREFIX,
+        is_active=True,
+        is_demo=False,
+    )
+    extra_ids = [int(x) for x in (include_inactive_ids or []) if x]
+    if extra_ids:
+        qs = SxWorkCenter.objects.filter(
+            Q(pk__in=extra_ids)
+            | Q(code__istartswith=CODE_PREFIX, is_active=True, is_demo=False)
+        ).distinct()
+    return qs.order_by('name', 'code')
+
+
+def map_ie_center_to_hr(center: SxWorkCenter | None) -> SxWorkCenter | None:
+    """Map work center IE (WC-*) sang bộ phận HRD-* nếu có."""
+    if center is None:
+        return None
+    if (center.code or '').upper().startswith(CODE_PREFIX):
+        return center if center.is_active else None
+
+    needle = _fold(f'{center.code} {center.name} {center.team_label}')
+    hr_centers = list(
+        SxWorkCenter.objects.filter(
+            code__istartswith=CODE_PREFIX,
+            is_active=True,
+            is_demo=False,
+        )
+    )
+    if not hr_centers:
+        return None
+
+    for ie_keys, hr_keys in _IE_WC_TO_HR_KEYS:
+        if not any(k in needle for k in ie_keys):
+            continue
+        for hc in hr_centers:
+            folded_name = _fold(f'{hc.name} {hc.team_label}')
+            if any(k in folded_name for k in hr_keys):
+                return hc
+    return None
 
 
 def _sx_department() -> Department | None:
@@ -98,8 +156,13 @@ def sync_capacity_from_hrm(
     reset_capacity: bool = False,
     deactivate_legacy: bool = True,
     include_support: bool = True,
+    deactivate_non_hr: bool = True,
 ) -> SyncCapacityResult:
-    """Tạo/cập nhật SxWorkCenter theo Division phòng SẢN XUẤT trên HR."""
+    """Tạo/cập nhật SxWorkCenter theo Division phòng SẢN XUẤT trên HR.
+
+    deactivate_non_hr: tắt các tổ không phải HRD-* (WC IE, tổ tay cũ) để danh sách
+    bộ phận chỉ còn bộ phận thật từ HR. Mã WC-* vẫn giữ bản ghi cho FK routing IE.
+    """
     result = SyncCapacityResult()
     dept = _sx_department()
     if not dept:
@@ -137,12 +200,11 @@ def sync_capacity_from_hrm(
             'name': team_label,
             'team_label': team_label,
             'uom_label': 'SP',
-            'is_active': True if staff > 0 or not is_support else False,
+            # Luôn hiện trong chọn bộ phận; NL có thể = 0 nếu chưa có headcount
+            'is_active': True,
             'notes': notes,
             'is_demo': False,
         }
-        if is_support and staff == 0:
-            defaults_common['is_active'] = False
 
         center = SxWorkCenter.objects.filter(code__iexact=code).first()
         if center is None:
@@ -202,4 +264,30 @@ def sync_capacity_from_hrm(
         legacy_qs.delete()
         SxTeamHrMap.objects.filter(team_label__in=LEGACY_FAKE_TEAMS).delete()
 
+    if deactivate_non_hr:
+        # Giữ bản ghi WC-* / tổ tay cho FK, nhưng tắt để không hiện chọn bộ phận
+        non_hr = SxWorkCenter.objects.filter(is_demo=False, is_active=True).exclude(
+            code__istartswith=CODE_PREFIX
+        )
+        result.deactivated += non_hr.update(is_active=False)
+
     return result
+
+
+def remap_process_steps_to_hr() -> int:
+    """Gắn lại ProcessStep.work_center từ WC IE → bộ phận HRD-* (nếu map được)."""
+    from san_xuat.models import ProcessStep
+
+    updated = 0
+    qs = (
+        ProcessStep.objects.filter(work_center__isnull=False)
+        .exclude(work_center__code__istartswith=CODE_PREFIX)
+        .select_related('work_center')
+    )
+    for step in qs.iterator():
+        mapped = map_ie_center_to_hr(step.work_center)
+        if mapped and mapped.pk != step.work_center_id:
+            step.work_center = mapped
+            step.save(update_fields=['work_center'])
+            updated += 1
+    return updated

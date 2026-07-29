@@ -49,12 +49,12 @@ def _bom_version_choices(product_code: str = "") -> list[tuple[str, str]]:
 
 
 def work_center_team_choices(*, extra_value: str = "") -> list[tuple[str, str]]:
-    """Choices tổ/chuyền từ Năng lực SX (SxWorkCenter)."""
-    from san_xuat.hub_models import SxWorkCenter
+    """Choices tổ/chuyền = bộ phận HR phòng SẢN XUẤT (HRD-*)."""
+    from san_xuat.services.capacity_from_hrm import hr_work_centers_qs
 
     choices: list[tuple[str, str]] = [("", "— Chọn tổ / chuyền —")]
     seen: set[str] = set()
-    for center in SxWorkCenter.objects.filter(is_active=True, is_demo=False).order_by("name"):
+    for center in hr_work_centers_qs():
         value = (center.team_label or center.name or "").strip()
         if not value or value.casefold() in seen:
             continue
