@@ -1,7 +1,60 @@
 {% extends 'base.html' %}
 {% load humanize %}
 
-{% block extra_head %}{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}{% endblock %}
+{% block extra_head %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+<style>
+.jp-sx-bom-versions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.5rem;
+  margin-bottom: 0.85rem;
+  padding: 0.65rem 0.75rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.65rem;
+}
+.jp-sx-bom-versions .label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #64748b;
+  margin-right: 0.25rem;
+}
+.jp-sx-bom-ver {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0.55rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-decoration: none;
+  color: #334155;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+}
+.jp-sx-bom-ver:hover { border-color: #fca5a5; color: #b91c1c; }
+.jp-sx-bom-ver.is-current {
+  border-color: #dc2626;
+  color: #b91c1c;
+  background: #fef2f2;
+}
+.jp-sx-bom-ver .st {
+  font-size: 0.68rem;
+  font-weight: 700;
+  opacity: 0.85;
+}
+.jp-sx-bom-ver-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-left: auto;
+}
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 py-md-4 mb-5"
@@ -17,6 +70,51 @@
       <a href="{% url 'san_xuat:doc_list' %}" class="is-back"
          data-loading-message="Đang tải hồ sơ thiết kế…"><i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại</a>
     </nav>
+  </div>
+
+  <div class="jp-sx-bom-versions">
+    <span class="label">Phiên bản BOM</span>
+    {% for v in versions %}
+    <a class="jp-sx-bom-ver {% if bom and v.pk == bom.pk %}is-current{% endif %}"
+       href="?tab={{ tab }}&bom={{ v.pk }}"
+       data-loading-message="Đang tải {{ v.version_label }}…">
+      {{ v.version_label }}
+      <span class="st">
+        {% if v.status == 'active' %}Đang dùng{% elif v.status == 'draft' %}Nháp{% else %}Lưu trữ{% endif %}
+      </span>
+    </a>
+    {% empty %}
+    <span class="text-muted small">Chưa có phiên bản</span>
+    {% endfor %}
+    {% if can_update %}
+    <div class="jp-sx-bom-ver-actions">
+      {% if bom and bom.status != 'active' %}
+      <form method="post" class="d-inline">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="activate">
+        <button type="submit" class="btn btn-outline-success btn-sm fw-bold">Kích hoạt {{ bom.version_label }}</button>
+      </form>
+      {% endif %}
+      {% if bom %}
+      <form method="post" class="d-inline">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="new_bom">
+        <input type="hidden" name="copy" value="1">
+        <button type="submit" class="btn btn-outline-hm btn-sm fw-bold"
+                title="Tạo version mới, copy NPL + công đoạn từ bản đang xem">
+          <i class="bi bi-files me-1"></i>Version mới (sao chép)
+        </button>
+      </form>
+      {% endif %}
+      <form method="post" class="d-inline">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="new_bom">
+        <button type="submit" class="btn btn-hm btn-sm fw-bold">
+          <i class="bi bi-plus-lg me-1"></i>Version trống
+        </button>
+      </form>
+    </div>
+    {% endif %}
   </div>
 
     <ul class="nav nav-tabs mb-3 flex-nowrap" style="overflow-x:auto;-webkit-overflow-scrolling:touch">
@@ -59,7 +157,10 @@
     {% elif tab == 'sku' %}
         {% include 'san_xuat/includes/tab_sku.html' %}
     {% elif not bom %}
-    <div class="alert alert-warning">Hồ sơ chưa có phiên bản BOM.</div>
+    <div class="alert alert-warning mb-0">
+      Hồ sơ chưa có phiên bản BOM.
+      {% if can_update %}Bấm <strong>Version trống</strong> ở trên để tạo bản đầu tiên.{% endif %}
+    </div>
     {% elif tab == 'bom' %}
         {% include 'san_xuat/includes/tab_bom.html' %}
     {% elif tab == 'process' %}

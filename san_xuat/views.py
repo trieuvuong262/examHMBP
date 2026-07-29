@@ -27,6 +27,7 @@ from san_xuat.models import BomVersion, ProductTechDoc, TechDocDesignFile
 from san_xuat.services.bom import (
     BomError,
     activate_bom,
+    create_bom_version,
     create_tech_doc,
     get_working_bom,
 )
@@ -269,6 +270,26 @@ def doc_detail(request, pk):
                     for w in result.warnings[:10]:
                         messages.warning(request, w)
             return redirect(f'{request.path}?tab=process&bom={bom.pk}')
+        elif action == 'new_bom' and can_update:
+            copy_flag = (request.POST.get('copy') or '').strip() in ('1', 'true', 'yes', 'on')
+            copy_from = None
+            if copy_flag:
+                copy_from = bom or get_working_bom(doc)
+            try:
+                new_bom = create_bom_version(
+                    doc,
+                    user=request.user,
+                    copy_from=copy_from,
+                )
+            except BomError as exc:
+                messages.error(request, str(exc))
+                return redirect(f'{request.path}?tab=bom' + (f'&bom={bom.pk}' if bom else ''))
+            messages.success(
+                request,
+                f'Đã tạo phiên bản BOM {new_bom.version_label}'
+                + (' (sao chép từ bản trước).' if copy_from else '.'),
+            )
+            return redirect(f'{request.path}?tab=bom&bom={new_bom.pk}')
         elif bom and action == 'activate':
             activate_bom(bom)
             messages.success(request, f'Đã kích hoạt BOM {bom.version_label}.')
