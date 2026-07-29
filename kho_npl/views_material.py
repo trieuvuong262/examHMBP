@@ -98,6 +98,7 @@ def material_search(request):
     q = (request.GET.get('q') or '').strip()
     location_id = _parse_positive_int(request.GET.get('location_id'))
     in_stock_only = (request.GET.get('in_stock_only') or '').strip().lower() in ('1', 'true', 'yes')
+    limit_param = _parse_positive_int(request.GET.get('limit'))
     if location_id and in_stock_only:
         qs = (
             Material.objects.filter(
@@ -127,10 +128,11 @@ def material_search(request):
             qs = apply_material_search_strict(qs, q)
         if location_id and not q:
             browse_limit = 1000
-        elif q:
+        elif location_id and q:
             browse_limit = 50
         else:
-            browse_limit = 40
+            # Không theo kho (BOM / tìm tổng): mặc định 40/50, cho phép tăng tới 200
+            browse_limit = min(limit_param or (50 if q else 40), 200)
         materials = list(qs.order_by('name', 'code')[:browse_limit])
         if q:
             materials.sort(key=lambda m: material_relevance_sort_key(m, q))

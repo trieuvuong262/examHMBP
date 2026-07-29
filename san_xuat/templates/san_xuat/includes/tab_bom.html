@@ -22,13 +22,13 @@
 
             {{ line_formset.management_form }}
             <div class="table-responsive">
-                <table class="table table-sm align-middle mb-0">
+                <table class="table table-sm align-middle mb-0 jp-sx-bom-npl-table">
                     <thead class="table-light">
                         <tr>
-                            <th style="min-width:220px">Nguyên phụ liệu <span class="text-danger">*</span></th>
+                            <th style="min-width:280px">Nguyên phụ liệu <span class="text-danger">*</span></th>
                             <th style="width:100px" class="text-end">Định mức <span class="text-danger">*</span></th>
                             <th style="width:72px">ĐVT</th>
-                            <th style="width:100px" class="text-end">Tồn kho</th>
+                            <th style="width:110px" class="text-end">Tồn (mọi kho)</th>
                             <th style="width:120px">Ghi chú</th>
                             <th style="width:4rem">TT</th>
                             <th style="width:40px"></th>
@@ -66,6 +66,7 @@
                     </tbody>
                 </table>
             </div>
+            <div class="form-text small mt-1 mb-0">Dropdown NPL: tên trái · tồn phải (tổng mọi kho, không gồm kho phế).</div>
             <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-3">
                 <div class="d-flex flex-wrap gap-2">
                     <button type="button" class="btn btn-outline-hm btn-sm" id="add-bom-row">
@@ -105,6 +106,17 @@
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/css/tom-select.bootstrap5.min.css">
 <script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/js/tom-select.complete.min.js"></script>
+<style>
+/* Dropdown NPL BOM: cùng layout phiếu xuất (tên trái · tồn phải) */
+#bom-form .jp-npl-material-field .ts-wrapper,
+#bom-form .jp-npl-material-ts {
+  width: 100%;
+  max-width: 100%;
+}
+#bom-form .ts-dropdown .jp-npl-material-option.is-name-stock {
+  min-width: min(22rem, 88vw);
+}
+</style>
 
 <script>
 (function () {
@@ -117,29 +129,34 @@
             .normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd');
     }
 
-    function formatStock(qty) {
+    function formatStock(qty, unit) {
         if (qty == null || qty === '') return '—';
         var n = Number(qty);
         if (!Number.isFinite(n)) return '—';
-        return n.toLocaleString('vi-VN', { maximumFractionDigits: 4 });
+        var text = n.toLocaleString('vi-VN', { maximumFractionDigits: 4 });
+        return unit ? (text + ' ' + unit) : text;
+    }
+
+    function stockLabel(data) {
+        if (data && data.qty_label) return String(data.qty_label);
+        if (!data || data.qty == null || data.qty === '') return '0';
+        return formatStock(data.qty, data.unit_name || data.unit || '');
     }
 
     function renderOption(data, escape) {
+        // Giống phiếu xuất: tên trái · tồn phải (tổng mọi kho)
         var name = escape(data.name || data.text || '');
-        var code = escape(data.code || '');
-        var unit = escape(data.unit_name || data.unit || '');
-        var stock = escape(data.qty_label || formatStock(data.qty) || '0');
-        var meta = [code, unit].filter(Boolean).join(' · ');
-        return '<div style="padding:4px 8px">'
-            + '<div style="font-weight:500">' + name + '</div>'
-            + '<div class="text-muted small">' + (meta ? meta + ' · ' : '') + 'Tồn: ' + stock + '</div>'
+        var stock = escape(stockLabel(data) || '0');
+        return '<div class="jp-npl-material-option is-name-stock" title="' + name + ' — ' + stock + '">'
+            + '<span class="jp-npl-material-option-name">' + name + '</span>'
+            + '<span class="jp-npl-material-option-meta text-muted small">' + stock + '</span>'
             + '</div>';
     }
 
     function renderItem(data, escape) {
         var name = data.name || data.text || '';
-        var code = data.code || '';
-        return '<div>' + escape(code ? code + ' — ' + name : name) + '</div>';
+        return '<div class="jp-npl-material-item"><span class="jp-npl-material-item-name">'
+            + escape(name) + '</span></div>';
     }
 
     function scoreFactory(query) {
@@ -148,8 +165,11 @@
             if (!terms.length) return 1;
             var name = normalizeText(data.name || '');
             var code = normalizeText(data.code || '');
+            var nameCompact = name.replace(/\s+/g, '');
+            var codeCompact = code.replace(/\s+/g, '');
             var allMatch = terms.every(function (t) {
-                return name.indexOf(t) !== -1 || code.indexOf(t) !== -1;
+                return name.indexOf(t) !== -1 || code.indexOf(t) !== -1
+                    || nameCompact.indexOf(t) !== -1 || codeCompact.indexOf(t) !== -1;
             });
             if (!allMatch) return 0;
             var q = normalizeText(query).trim();
@@ -164,29 +184,23 @@
         if (el) el.textContent = (unit || '').trim() || '—';
     }
 
-    function setLineStock(row, qty) {
-        var el = row && row.querySelector('.jp-npl-stock-qty');
-        if (!el) return;
-        el.textContent = formatStock(qty);
-        el.classList.toggle('text-danger', Number(qty) === 0);
-        el.classList.toggle('text-muted', qty == null || qty === '');
-    }
-
     function initBomMaterialSelect(select) {
         if (!select || materialInstances.has(select) || typeof TomSelect === 'undefined') return;
         var row = select.closest('tr');
         var ts = new TomSelect(select, {
+            maxOptions: null,
             maxItems: 1,
             valueField: 'id',
             labelField: 'name',
             searchField: [],
-            placeholder: select.dataset.placeholder || '— Gõ mã hoặc tên NPL —',
+            placeholder: select.dataset.placeholder || 'Gõ tên NPL…',
             dropdownParent: 'body',
             openOnFocus: true,
             preload: 'focus',
             loadThrottle: 220,
             load: function (query, callback) {
-                var url = SEARCH_URL + '?q=' + encodeURIComponent(query || '');
+                // Không truyền location_id → tồn gộp mọi kho (API material_search)
+                var url = SEARCH_URL + '?q=' + encodeURIComponent(query || '') + '&limit=120';
                 fetch(url, { headers: { 'Accept': 'application/json' } })
                     .then(function (r) { return r.json(); })
                     .then(function (data) { callback(data.results || []); })
@@ -208,8 +222,21 @@
                 var opt = value ? this.options[value] : null;
                 var unit = opt ? (opt.unit_name || opt.unit || '') : '';
                 setLineUnit(row, unit);
-                var stock = opt && opt.qty != null ? opt.qty : (value ? STOCK_MAP[String(value)] : null);
-                setLineStock(row, stock);
+                var stockEl = row && row.querySelector('.jp-npl-stock-qty');
+                if (!stockEl) return;
+                if (opt && (opt.qty_label || opt.qty != null)) {
+                    stockEl.textContent = opt.qty_label || formatStock(opt.qty, unit);
+                    stockEl.classList.toggle('text-danger', Number(opt.qty) === 0);
+                    stockEl.classList.remove('text-muted');
+                } else if (value && STOCK_MAP[String(value)] != null) {
+                    stockEl.textContent = formatStock(STOCK_MAP[String(value)], unit);
+                    stockEl.classList.toggle('text-danger', Number(STOCK_MAP[String(value)]) === 0);
+                    stockEl.classList.remove('text-muted');
+                } else {
+                    stockEl.textContent = '—';
+                    stockEl.classList.add('text-muted');
+                    stockEl.classList.remove('text-danger');
+                }
             },
             onInitialize: function () {
                 if (this.wrapper) this.wrapper.classList.add('jp-npl-material-ts');
@@ -217,16 +244,30 @@
                 if (val && !this.options[val]) {
                     var label = (select.options[select.selectedIndex] || {}).textContent || val;
                     label = label.trim();
+                    // Option text Django thường: "CODE — Name" → lấy phần tên
+                    var nameOnly = label;
+                    var sep = label.indexOf(' — ');
+                    if (sep > 0) nameOnly = label.slice(sep + 3).trim() || label;
                     this.addOption({
                         id: val,
-                        name: label,
+                        name: nameOnly,
                         text: label,
-                        code: '',
+                        code: sep > 0 ? label.slice(0, sep).trim() : '',
                         qty: STOCK_MAP[String(val)],
+                        qty_label: STOCK_MAP[String(val)] != null
+                            ? formatStock(STOCK_MAP[String(val)])
+                            : '',
                     });
                     this.setValue(val, true);
                 }
-                if (val) setLineStock(row, STOCK_MAP[String(val)]);
+                if (val && STOCK_MAP[String(val)] != null) {
+                    var stockEl = row && row.querySelector('.jp-npl-stock-qty');
+                    if (stockEl) {
+                        stockEl.textContent = formatStock(STOCK_MAP[String(val)]);
+                        stockEl.classList.toggle('text-danger', Number(STOCK_MAP[String(val)]) === 0);
+                        stockEl.classList.remove('text-muted');
+                    }
+                }
             },
         });
         materialInstances.set(select, ts);
