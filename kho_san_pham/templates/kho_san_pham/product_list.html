@@ -143,11 +143,16 @@ html[data-theme="dark"] .ksp-catalog-table .kv-product-group-expandable.kv-expan
                             {% elif item.base_price is not None %}{{ item.base_price|floatformat:0|intcomma }}{% else %}—{% endif %}
                         </td>
                         <td data-label="Trạng thái">
+                            <div class="d-flex flex-wrap gap-1">
                             {% if item.is_active %}
                             <span class="badge text-bg-success">Đang dùng</span>
                             {% else %}
                             <span class="badge text-bg-secondary">Ngừng dùng</span>
                             {% endif %}
+                            {% if item.has_tech_doc %}
+                            <span class="badge text-bg-primary" title="Đã có hồ sơ thiết kế SX">Hồ sơ SX</span>
+                            {% endif %}
+                            </div>
                         </td>
                         <td class="text-end">
                             <a href="{% url 'kho_san_pham:product_detail' item.id %}" class="btn btn-sm btn-outline-hm">Chi tiết</a>

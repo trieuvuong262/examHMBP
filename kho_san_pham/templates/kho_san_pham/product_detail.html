@@ -8,6 +8,9 @@
 .ksp-product-description p:last-child { margin-bottom: 0; }
 .ksp-barcode-wrap { max-width: 100%; }
 .ksp-barcode-svg { max-width: 100%; height: auto; }
+.ksp-sx-doc-card {
+  border-left: 3px solid var(--hm-primary, #dc2626) !important;
+}
 </style>
 {% endblock %}
 
@@ -107,6 +110,60 @@
             {% endif %}
         </div>
     </div>
+
+    {% if can_view_sx %}
+    <div class="card border-0 shadow-sm mb-3 ksp-sx-doc-card">
+        <div class="card-body p-3 p-md-4">
+            <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
+                <div class="min-w-0">
+                    <div class="text-muted small text-uppercase fw-semibold mb-1" style="letter-spacing:.04em">Sản xuất</div>
+                    <h2 class="h5 fw-bold mb-2">Hồ sơ thiết kế</h2>
+                    <div class="small text-muted mb-2">Mã SX: <code>{{ sx_code }}</code></div>
+                    {% if tech_doc %}
+                    <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+                        <span class="badge text-bg-success">Đã có hồ sơ</span>
+                        {% if working_bom %}
+                        <span class="badge bg-light text-muted border">BOM {{ working_bom.version_label }}</span>
+                        {% else %}
+                        <span class="badge text-bg-warning">Chưa có BOM</span>
+                        {% endif %}
+                    </div>
+                    <div class="small text-muted">
+                        {% if tech_doc.product_name %}{{ tech_doc.product_name }} · {% endif %}
+                        Cập nhật {{ tech_doc.updated_at|date:"d/m/Y H:i" }}
+                    </div>
+                    {% else %}
+                    <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+                        <span class="badge text-bg-secondary">Chưa có hồ sơ</span>
+                    </div>
+                    <div class="small text-muted">Tạo hồ sơ để khai BOM, công đoạn rồi lập lệnh sản xuất.</div>
+                    {% endif %}
+                </div>
+                <div class="d-flex flex-wrap gap-2">
+                    {% if tech_doc %}
+                    <a href="{% url 'san_xuat:doc_detail' tech_doc.pk %}" class="btn btn-outline-hm btn-sm fw-bold">
+                        <i class="bi bi-folder2-open me-1"></i>Xem hồ sơ
+                    </a>
+                    {% if can_create_sx %}
+                    <a href="{% url 'san_xuat:dispatch_mo_create' %}?product={{ sx_code|urlencode }}"
+                       class="btn btn-hm btn-sm fw-bold"
+                       title="Tạo lệnh sản xuất từ hồ sơ này">
+                        <i class="bi bi-play-circle me-1"></i>Thực hiện lệnh sản xuất
+                    </a>
+                    {% endif %}
+                    {% elif can_create_sx %}
+                    <a href="{% url 'san_xuat:doc_create' %}?code={{ sx_code|urlencode }}"
+                       class="btn btn-hm btn-sm fw-bold">
+                        <i class="bi bi-plus-lg me-1"></i>Thêm hồ sơ thiết kế
+                    </a>
+                    {% else %}
+                    <span class="small text-muted align-self-center">Không có quyền tạo hồ sơ SX.</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}
 

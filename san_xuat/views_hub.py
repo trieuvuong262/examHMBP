@@ -1239,7 +1239,14 @@ def dispatch_mo_create(request):
         else:
             messages.error(request, 'Không tạo được lệnh sản xuất — kiểm tra lại form.')
     else:
-        form = ProductionOrderCreateForm(initial={'order_date': timezone.localdate()})
+        initial = {'order_date': timezone.localdate()}
+        prefill = (
+            (request.GET.get('product') or request.GET.get('code') or request.GET.get('product_code') or '')
+            .strip()
+        )
+        if prefill:
+            initial['product_code'] = prefill
+        form = ProductionOrderCreateForm(initial=initial)
     return render(request, 'san_xuat/dispatch_mo_form.html', {
         **_perm_ctx(request),
         'form': form,

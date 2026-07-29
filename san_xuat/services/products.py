@@ -100,6 +100,46 @@ def resolve_product_ref(product_code: str) -> ProductRef | None:
     return None
 
 
+def product_sx_code(product) -> str:
+    """Mã SX chuẩn dùng cho hồ sơ / LSX (ưu tiên style_code)."""
+    if product is None:
+        return ''
+    ref = resolve_product_ref(
+        (getattr(product, 'style_code', None) or getattr(product, 'code', None) or '')
+    )
+    if ref:
+        return ref.code
+    return _norm(getattr(product, 'style_code', None) or getattr(product, 'code', None) or '')
+
+
+def find_tech_doc_for_product(product):
+    """Tìm ProductTechDoc gắn với sản phẩm kho SP (style / SKU / mã KV)."""
+    if product is None:
+        return None
+    from san_xuat.models import ProductTechDoc
+
+    seen: set[str] = set()
+    candidates: list[str] = []
+    for raw in (
+        product_sx_code(product),
+        getattr(product, 'style_code', None),
+        getattr(product, 'code', None),
+        getattr(product, 'kiotviet_code', None),
+    ):
+        code = _norm(raw)
+        key = code.casefold()
+        if not code or key in seen:
+            continue
+        seen.add(key)
+        candidates.append(code)
+
+    for code in candidates:
+        doc = ProductTechDoc.objects.filter(product_code__iexact=code).first()
+        if doc:
+            return doc
+    return None
+
+
 def search_products(q: str = '', *, limit: int = 30) -> list[dict]:
     """TomSelect: danh sách mã SX từ kho SP (gom nhiều SKU theo style_code)."""
     q = _norm(q)

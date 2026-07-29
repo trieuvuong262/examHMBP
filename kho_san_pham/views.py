@@ -104,6 +104,40 @@ def product_list(request):
     products = list(qs[:2000])
     groups = [format_style_group(g) for g in group_products_by_style(products)]
     page_obj, query_string = paginate_queryset(request, groups, per_page=40)
+
+    # Đánh dấu nhóm đã có hồ sơ thiết kế (theo mã SX / style)
+    from django.db.models import Q
+    from san_xuat.models import ProductTechDoc
+
+    candidate_codes: set[str] = set()
+    for item in page_obj.object_list:
+        style = (item.get('style_code') or '').strip()
+        if style and style != '—':
+            candidate_codes.add(style)
+        for v in item.get('variants') or []:
+            code = (getattr(v, 'code', None) or '').strip()
+            if code:
+                candidate_codes.add(code)
+    doc_codes: set[str] = set()
+    if candidate_codes:
+        q_docs = Q()
+        for c in candidate_codes:
+            q_docs |= Q(product_code__iexact=c)
+        doc_codes = {
+            (code or '').casefold()
+            for code in ProductTechDoc.objects.filter(q_docs).values_list('product_code', flat=True)
+        }
+    for item in page_obj.object_list:
+        style = (item.get('style_code') or '').strip()
+        hit = bool(style and style != '—' and style.casefold() in doc_codes)
+        if not hit:
+            for v in item.get('variants') or []:
+                code = (getattr(v, 'code', None) or '').strip()
+                if code and code.casefold() in doc_codes:
+                    hit = True
+                    break
+        item['has_tech_doc'] = hit
+
     return render(request, 'kho_san_pham/product_list.html', {
         **nav_context('products', user=request.user),
         **perm_context(request.user, 'products'),
@@ -223,14 +257,30 @@ def product_generate_barcodes(request):
 @module_perm_required(MODULE_KHO_SAN_PHAM, 'view')
 def product_detail(request, pk: int):
     from kiotviet.formatters import format_description_html
+    from hrm.module_permissions import (
+        MODULE_SAN_XUAT,
+        user_can_create_module,
+        user_can_view_module,
+    )
+    from san_xuat.services.bom import get_working_bom
+    from san_xuat.services.products import find_tech_doc_for_product, product_sx_code
 
     product = get_object_or_404(Product, pk=pk)
+    tech_doc = find_tech_doc_for_product(product)
+    working_bom = get_working_bom(tech_doc) if tech_doc else None
+    sx_code = (tech_doc.product_code if tech_doc else product_sx_code(product)) or product.code
+
     return render(request, 'kho_san_pham/product_detail.html', {
         **nav_context('products', user=request.user),
         **perm_context(request.user, 'products'),
         'product': product,
         'type_labels': PRODUCT_TYPE_LABELS,
         'description_html': format_description_html(product.description),
+        'tech_doc': tech_doc,
+        'working_bom': working_bom,
+        'sx_code': sx_code,
+        'can_view_sx': user_can_view_module(request.user, MODULE_SAN_XUAT),
+        'can_create_sx': user_can_create_module(request.user, MODULE_SAN_XUAT),
     })
 
 
