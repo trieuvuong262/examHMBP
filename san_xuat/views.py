@@ -26,7 +26,6 @@ from san_xuat.forms import (
 from san_xuat.models import BomVersion, ProductTechDoc, TechDocDesignFile
 from san_xuat.services.bom import (
     BomError,
-    activate_bom,
     create_bom_version,
     create_tech_doc,
     get_working_bom,
@@ -275,9 +274,11 @@ def doc_detail(request, pk):
             copy_from = None
             if copy_flag:
                 copy_from = bom or get_working_bom(doc)
+            custom_label = (request.POST.get('version_label') or '').strip()
             try:
                 new_bom = create_bom_version(
                     doc,
+                    version_label=custom_label or None,
                     user=request.user,
                     copy_from=copy_from,
                 )
@@ -290,10 +291,6 @@ def doc_detail(request, pk):
                 + (' (sao chép từ bản trước).' if copy_from else '.'),
             )
             return redirect(f'{request.path}?tab=bom&bom={new_bom.pk}')
-        elif bom and action == 'activate':
-            activate_bom(bom)
-            messages.success(request, f'Đã kích hoạt BOM {bom.version_label}.')
-            return redirect(f"{request.path}?tab={tab}&bom={bom.pk}")
         elif bom and action == 'snapshot' and tab == 'costing':
             snap = save_costing_snapshot(bom, user=request.user)
             messages.success(request, f'Đã chốt costing: {snap.total_cost:,.0f} đ.')
@@ -501,6 +498,28 @@ def mo_sku_matrix_api(request):
     from san_xuat.services.dispatch import mo_sku_matrix
 
     return JsonResponse(mo_sku_matrix(style_code=style))
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+@require_GET
+def mo_bom_versions_api(request):
+    """Danh sách phiên bản BOM ngang hàng theo mã SX."""
+    product_code = (request.GET.get('product_code') or '').strip()
+    from san_xuat.models import ProductTechDoc
+
+    results = []
+    if product_code:
+        doc = ProductTechDoc.objects.filter(product_code__iexact=product_code).first()
+        if doc:
+            for bom in doc.bom_versions.order_by('created_at', 'id'):
+                note = (bom.notes or '').strip()
+                results.append({
+                    'id': bom.pk,
+                    'label': bom.version_label,
+                    'text': f'{bom.version_label}' + (f' — {note[:40]}' if note else ''),
+                    'notes': note,
+                })
+    return JsonResponse({'results': results})
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')

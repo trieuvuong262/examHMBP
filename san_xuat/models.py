@@ -140,9 +140,9 @@ class BomVersion(models.Model):
     STATUS_ACTIVE = 'active'
     STATUS_ARCHIVED = 'archived'
     STATUS_CHOICES = [
-        (STATUS_DRAFT, 'Nháp'),
-        (STATUS_ACTIVE, 'Đang dùng'),
-        (STATUS_ARCHIVED, 'Lưu trữ'),
+        (STATUS_DRAFT, 'Sẵn sàng'),
+        (STATUS_ACTIVE, 'Sẵn sàng'),
+        (STATUS_ARCHIVED, 'Sẵn sàng'),
     ]
 
     tech_doc = models.ForeignKey(
@@ -155,6 +155,7 @@ class BomVersion(models.Model):
         max_length=40,
         default='v1',
         verbose_name='Phiên bản',
+        help_text='Tên bản BOM ngang hàng, vd. v1, Nội bộ, Gia công.',
     )
     status = models.CharField(
         max_length=20,

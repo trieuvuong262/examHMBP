@@ -28,6 +28,26 @@ def _product_code_choices(extra_value: str = "") -> list[tuple[str, str]]:
     return choices
 
 
+def _bom_version_choices(product_code: str = "") -> list[tuple[str, str]]:
+    """Các phiên bản BOM ngang hàng của hồ sơ SX."""
+    choices: list[tuple[str, str]] = [("", "— Chọn phiên bản BOM —")]
+    code = (product_code or "").strip()
+    if not code:
+        return choices
+    from san_xuat.models import ProductTechDoc
+
+    doc = ProductTechDoc.objects.filter(product_code__iexact=code).first()
+    if not doc:
+        return choices
+    for bom in doc.bom_versions.order_by("created_at", "id"):
+        note = (bom.notes or "").strip()
+        label = bom.version_label
+        if note:
+            label = f"{label} — {note[:40]}"
+        choices.append((str(bom.pk), label))
+    return choices
+
+
 def work_center_team_choices(*, extra_value: str = "") -> list[tuple[str, str]]:
     """Choices tổ/chuyền từ Năng lực SX (SxWorkCenter)."""
     from san_xuat.hub_models import SxWorkCenter
@@ -86,6 +106,16 @@ class ProductionOrderCreateForm(forms.Form):
             **_INPUT_SM,
             "disabled": True,
             "placeholder": "Tự sinh sau khi chọn mã SX",
+        }),
+    )
+    bom_version = forms.ChoiceField(
+        required=False,
+        label="Phiên bản BOM",
+        choices=[],
+        widget=forms.Select(attrs={
+            **_SELECT_SM,
+            "id": "id_bom_version",
+            "class": f"{_SELECT_SM['class']} jp-mo-bom-version",
         }),
     )
     qty = forms.DecimalField(
@@ -170,6 +200,7 @@ class ProductionOrderCreateForm(forms.Form):
         self.fields["product_code"].choices = _product_code_choices(extra_product)
         self.fields["team_label"].choices = work_center_team_choices(extra_value=extra_team)
         self.fields["process_name"].choices = bom_process_choices(bom, extra_value=extra_process)
+        self.fields["bom_version"].choices = _bom_version_choices(extra_product)
 
     def clean_product_code(self):
         code = (self.cleaned_data.get("product_code") or "").strip()
@@ -192,12 +223,20 @@ class ProductionOrderCreateForm(forms.Form):
                 return existing
         return ref.code
 
+    def clean_bom_version(self):
+        raw = (self.cleaned_data.get("bom_version") or "").strip()
+        if not raw:
+            return None
+        try:
+            return int(raw)
+        except (TypeError, ValueError):
+            raise forms.ValidationError("Phiên bản BOM không hợp lệ.")
+
     def clean_process_name(self):
         return _clean_standard_process_name(self.cleaned_data.get("process_name"))
 
     def clean(self):
         cleaned = super().clean()
-        # Dòng SKU được parse ở view; ở đây chỉ cho phép qty trống (view sẽ validate).
         return cleaned
 
 

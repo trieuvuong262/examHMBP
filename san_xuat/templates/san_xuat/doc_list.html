@@ -89,11 +89,7 @@
                         {% with boms=doc.bom_versions.all %}
                         {% if boms %}
                             {% for bom in boms %}
-                                {% if bom.status == 'active' %}
-                                <span class="badge sx-bom-status-active me-1">{{ bom.version_label }} Đang dùng</span>
-                                {% elif bom.status == 'draft' %}
-                                <span class="badge sx-bom-status-draft me-1">{{ bom.version_label }} Nháp</span>
-                                {% endif %}
+                                <span class="badge bg-light text-dark border me-1">{{ bom.version_label }}</span>
                             {% endfor %}
                         {% else %}
                             <span class="text-muted">Chưa có BOM</span>
@@ -112,7 +108,6 @@
                                 <thead>
                                     <tr>
                                         <th>Phiên bản</th>
-                                        <th>Trạng thái</th>
                                         <th class="text-end">Số NPL</th>
                                         <th class="text-end">Công đoạn</th>
                                         <th>Cập nhật</th>
@@ -123,15 +118,6 @@
                                     <tr class="jp-npl-catalog-row"
                                         data-href="{% url 'san_xuat:doc_detail' doc.pk %}?tab=bom&bom={{ bom.pk }}">
                                         <td class="fw-semibold">{{ bom.version_label }}</td>
-                                        <td>
-                                            {% if bom.status == 'active' %}
-                                            <span class="badge sx-bom-status-active">Đang dùng</span>
-                                            {% elif bom.status == 'draft' %}
-                                            <span class="badge sx-bom-status-draft">Nháp</span>
-                                            {% else %}
-                                            <span class="badge sx-bom-status-archived">Lưu trữ</span>
-                                            {% endif %}
-                                        </td>
                                         <td class="text-end">{{ bom.line_count }}</td>
                                         <td class="text-end">{{ bom.step_count }}</td>
                                         <td class="text-muted">{{ bom.updated_at|date:"d/m/Y" }}</td>

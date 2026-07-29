@@ -1229,6 +1229,7 @@ def dispatch_mo_create(request):
                     user=request.user,
                     is_sample=bool(form.cleaned_data.get('is_sample')),
                     lines=lines,
+                    bom_version_id=form.cleaned_data.get('bom_version'),
                 )
             except DispatchError as exc:
                 messages.error(request, str(exc))

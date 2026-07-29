@@ -1,4 +1,8 @@
-"""BOM lifecycle: tạo phiên bản, đảm bảo tối đa 1 active / hồ sơ."""
+"""BOM lifecycle: nhiều phiên bản ngang hàng trên cùng hồ sơ SX.
+
+Mỗi version (vd. Nội bộ / Gia công) đều dùng được — không còn mô hình
+1 bản «đang dùng» và các bản còn lại bị lưu trữ.
+"""
 
 from __future__ import annotations
 
@@ -14,23 +18,22 @@ class BomError(Exception):
 
 
 def get_active_bom(tech_doc: ProductTechDoc) -> BomVersion | None:
+    """BOM mặc định khi không chỉ định — lấy bản mới nhất (mọi version ngang hàng)."""
+    return get_working_bom(tech_doc)
+
+
+def get_working_bom(tech_doc: ProductTechDoc) -> BomVersion | None:
+    """Bản BOM mới nhất của hồ sơ (các version ngang hàng)."""
     return (
-        tech_doc.bom_versions.filter(status=BomVersion.STATUS_ACTIVE)
-        .prefetch_related('lines__material', 'process_steps')
+        tech_doc.bom_versions.prefetch_related('lines__material', 'process_steps')
+        .order_by('-created_at', '-id')
         .first()
     )
 
 
-def get_working_bom(tech_doc: ProductTechDoc) -> BomVersion | None:
-    """Ưu tiên BOM active; nếu không có thì lấy draft mới nhất."""
-    active = get_active_bom(tech_doc)
-    if active:
-        return active
-    return (
-        tech_doc.bom_versions.filter(status=BomVersion.STATUS_DRAFT)
-        .prefetch_related('lines__material', 'process_steps')
-        .order_by('-created_at')
-        .first()
+def list_bom_versions(tech_doc: ProductTechDoc):
+    return tech_doc.bom_versions.prefetch_related('lines__material', 'process_steps').order_by(
+        'created_at', 'id'
     )
 
 
@@ -75,29 +78,17 @@ def create_tech_doc(
 
 @transaction.atomic
 def activate_bom(bom: BomVersion) -> BomVersion:
-    """Chuyển BOM sang active; archive các bản active khác cùng hồ sơ."""
-    tech_doc = bom.tech_doc
-    tech_doc.bom_versions.filter(status=BomVersion.STATUS_ACTIVE).exclude(pk=bom.pk).update(
-        status=BomVersion.STATUS_ARCHIVED,
-    )
-    bom.status = BomVersion.STATUS_ACTIVE
-    bom.activated_at = timezone.now()
-    bom.save(update_fields=['status', 'activated_at', 'updated_at'])
+    """Giữ API cũ — không archive các version khác (các bản ngang hàng)."""
+    if not bom.activated_at:
+        bom.activated_at = timezone.now()
+        bom.save(update_fields=['activated_at', 'updated_at'])
     return bom
 
 
 @transaction.atomic
 def ensure_single_active(tech_doc: ProductTechDoc) -> None:
-    """Sửa dữ liệu lệch: giữ BOM active mới nhất, archive phần còn lại."""
-    actives = list(
-        tech_doc.bom_versions.filter(status=BomVersion.STATUS_ACTIVE).order_by('-activated_at', '-id'),
-    )
-    if len(actives) <= 1:
-        return
-    keep = actives[0]
-    tech_doc.bom_versions.filter(
-        status=BomVersion.STATUS_ACTIVE,
-    ).exclude(pk=keep.pk).update(status=BomVersion.STATUS_ARCHIVED)
+    """Không còn ép 1 active — giữ hàm để tương thích chỗ gọi cũ."""
+    return
 
 
 def next_version_label(tech_doc: ProductTechDoc) -> str:

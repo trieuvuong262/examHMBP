@@ -47,6 +47,11 @@
             {{ form.code }}
             {% if form.code.errors %}<div class="text-danger small mt-1">{{ form.code.errors }}</div>{% endif %}
           </div>
+          <div class="col-12 col-lg-6">
+            <label class="form-label small text-muted" for="{{ form.bom_version.id_for_label }}">{{ form.bom_version.label }}</label>
+            {{ form.bom_version }}
+            {% if form.bom_version.errors %}<div class="text-danger small mt-1">{{ form.bom_version.errors }}</div>{% endif %}
+          </div>
         </div>
       </div>
 
@@ -132,9 +137,11 @@
 (function () {
   var productSel = document.getElementById('id_product_code');
   var codeInput = document.getElementById('id_code');
+  var bomSel = document.getElementById('id_bom_version');
   if (!productSel || !codeInput) return;
   codeInput.classList.add('jp-mo-code-preview');
   var previewUrl = '{% url "san_xuat:mo_code_preview" %}';
+  var bomUrl = '{% url "san_xuat:mo_bom_versions" %}';
   var timer = null;
 
   function preview() {
@@ -155,16 +162,50 @@
       });
   }
 
-  function schedulePreview() {
-    if (timer) window.clearTimeout(timer);
-    timer = window.setTimeout(preview, 120);
+  function loadBomVersions() {
+    if (!bomSel) return;
+    var code = (productSel.value || '').trim();
+    var keep = bomSel.value;
+    bomSel.innerHTML = '';
+    var blank = document.createElement('option');
+    blank.value = '';
+    blank.textContent = code ? '— Chọn phiên bản BOM —' : '— Chọn mã SX trước —';
+    bomSel.appendChild(blank);
+    if (!code) return;
+    fetch(bomUrl + '?product_code=' + encodeURIComponent(code), {
+      headers: { 'Accept': 'application/json' },
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        var rows = (data && data.results) || [];
+        rows.forEach(function (row) {
+          var opt = document.createElement('option');
+          opt.value = String(row.id);
+          opt.textContent = row.text || row.label;
+          bomSel.appendChild(opt);
+        });
+        if (keep && Array.prototype.some.call(bomSel.options, function (o) { return o.value === keep; })) {
+          bomSel.value = keep;
+        } else if (rows.length === 1) {
+          bomSel.value = String(rows[0].id);
+        }
+      })
+      .catch(function () {});
   }
 
-  productSel.addEventListener('change', schedulePreview);
+  function schedule() {
+    if (timer) window.clearTimeout(timer);
+    timer = window.setTimeout(function () {
+      preview();
+      loadBomVersions();
+    }, 120);
+  }
+
+  productSel.addEventListener('change', schedule);
   document.addEventListener('change', function (e) {
-    if (e.target && e.target.id === 'id_product_code') schedulePreview();
+    if (e.target && e.target.id === 'id_product_code') schedule();
   });
-  schedulePreview();
+  schedule();
 })();
 </script>
 {% endblock %}

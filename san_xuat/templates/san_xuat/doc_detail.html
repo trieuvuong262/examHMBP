@@ -77,40 +77,33 @@
     {% for v in versions %}
     <a class="jp-sx-bom-ver {% if bom and v.pk == bom.pk %}is-current{% endif %}"
        href="?tab={{ tab }}&bom={{ v.pk }}"
-       data-loading-message="Đang tải {{ v.version_label }}…">
+       data-loading-message="Đang tải {{ v.version_label }}…"
+       title="{% if v.notes %}{{ v.notes }}{% else %}{{ v.version_label }}{% endif %}">
       {{ v.version_label }}
-      <span class="st">
-        {% if v.status == 'active' %}Đang dùng{% elif v.status == 'draft' %}Nháp{% else %}Lưu trữ{% endif %}
-      </span>
     </a>
     {% empty %}
     <span class="text-muted small">Chưa có phiên bản</span>
     {% endfor %}
     {% if can_update %}
     <div class="jp-sx-bom-ver-actions">
-      {% if bom and bom.status != 'active' %}
-      <form method="post" class="d-inline">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="activate">
-        <button type="submit" class="btn btn-outline-success btn-sm fw-bold">Kích hoạt {{ bom.version_label }}</button>
-      </form>
-      {% endif %}
       {% if bom %}
       <form method="post" class="d-inline">
         {% csrf_token %}
         <input type="hidden" name="action" value="new_bom">
         <input type="hidden" name="copy" value="1">
         <button type="submit" class="btn btn-outline-hm btn-sm fw-bold"
-                title="Tạo version mới, copy NPL + công đoạn từ bản đang xem">
+                title="Tạo version ngang hàng, copy NPL + công đoạn từ bản đang xem">
           <i class="bi bi-files me-1"></i>Version mới (sao chép)
         </button>
       </form>
       {% endif %}
-      <form method="post" class="d-inline">
+      <form method="post" class="d-inline-flex align-items-center gap-1">
         {% csrf_token %}
         <input type="hidden" name="action" value="new_bom">
+        <input type="text" name="version_label" class="form-control form-control-sm"
+               style="width:7.5rem" placeholder="vd. Gia công" maxlength="40">
         <button type="submit" class="btn btn-hm btn-sm fw-bold">
-          <i class="bi bi-plus-lg me-1"></i>Version trống
+          <i class="bi bi-plus-lg me-1"></i>Thêm
         </button>
       </form>
     </div>
@@ -159,7 +152,7 @@
     {% elif not bom %}
     <div class="alert alert-warning mb-0">
       Hồ sơ chưa có phiên bản BOM.
-      {% if can_update %}Bấm <strong>Version trống</strong> ở trên để tạo bản đầu tiên.{% endif %}
+      {% if can_update %}Nhập tên (vd. <em>Nội bộ</em> / <em>Gia công</em>) rồi bấm <strong>Thêm</strong>.{% endif %}
     </div>
     {% elif tab == 'bom' %}
         {% include 'san_xuat/includes/tab_bom.html' %}

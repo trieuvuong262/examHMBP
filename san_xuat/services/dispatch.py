@@ -215,6 +215,7 @@ def create_mo_from_bom(
     detail_plan_id: int | None = None,
     is_sample: bool = False,
     lines: list[dict] | None = None,
+    bom_version_id: int | None = None,
 ) -> SxProductionOrder:
     product_code = (product_code or "").strip()
     if not product_code:
@@ -231,7 +232,15 @@ def create_mo_from_bom(
     if not tech_doc:
         raise DispatchError(f"Chưa có hồ sơ SX cho mã {product_code}.")
 
-    working_bom = get_working_bom(tech_doc)
+    working_bom = None
+    if bom_version_id:
+        from san_xuat.models import BomVersion
+
+        working_bom = BomVersion.objects.filter(pk=bom_version_id, tech_doc=tech_doc).first()
+        if not working_bom:
+            raise DispatchError("Phiên bản BOM không thuộc hồ sơ mã SX này.")
+    if working_bom is None:
+        working_bom = get_working_bom(tech_doc)
     if not working_bom:
         raise DispatchError(f"Mã {product_code} chưa có BOM để tính.")
 
@@ -521,7 +530,7 @@ def mo_release(*, mo_id: int, user) -> SxProductionOrder:
     if not mo.bom_version_id:
         raise DispatchError("Lệnh sản xuất chưa gắn BOM.")
 
-    # Đảm bảo BOM gắn vào MO là BOM active (archive BOM active khác nếu cần).
+    # Không archive BOM khác — các version ngang hàng (nội bộ / gia công…).
     activate_bom(mo.bom_version)
 
     mo.status = SxProductionOrder.STATUS_RELEASED
