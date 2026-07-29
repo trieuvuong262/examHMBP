@@ -1,6 +1,14 @@
 <style>
-  /* Cùng chiều cao: tệp / tiêu đề / ghi chú / nút tải lên */
-  .design-upload-row .design-upload-control {
+  /* Cùng chiều cao + full width trong cột: tệp / tiêu đề / ghi chú / nút tải lên */
+  .design-upload-row > [class*="col-"] {
+    display: flex;
+    flex-direction: column;
+  }
+  .design-upload-row .design-upload-control,
+  .design-upload-row input[type="file"].design-upload-control {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
     height: 2rem;
     min-height: 2rem;
     padding-top: 0.25rem;
@@ -13,6 +21,7 @@
     padding-bottom: 0.2rem;
   }
   .design-upload-row .btn-upload {
+    width: 100%;
     height: 2rem;
     min-height: 2rem;
     padding-top: 0;

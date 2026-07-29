@@ -70,4 +70,26 @@
 .jp-sx-page .table:not(.jp-npl-mat-grid) td {
   vertical-align: middle;
 }
+
+/* Form control: select / text / file cùng full-width trong ô chứa */
+.jp-sx-page form .form-control,
+.jp-sx-page form .form-select,
+.jp-sx-page form input[type="file"],
+.jp-sx-page form .ts-wrapper {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.jp-sx-page .input-group > .form-control,
+.jp-sx-page .input-group > .form-select,
+.jp-sx-page .input-group > .ts-wrapper {
+  width: 1%;
+  flex: 1 1 auto;
+}
+.jp-sx-page .form-control.w-auto,
+.jp-sx-page .form-select.w-auto,
+.jp-sx-page .jp-npl-mat-search-row .form-select.jp-sx-filter-select {
+  width: auto;
+  max-width: none;
+}
 </style>

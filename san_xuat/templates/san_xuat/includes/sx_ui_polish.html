@@ -149,6 +149,99 @@
   border-color: var(--sx-red);
   box-shadow: 0 0 0 0.2rem rgba(220, 38, 38, 0.15);
 }
+
+/* --- Cân chiều rộng: dropdown = text = file (toàn module SX) --- */
+.jp-sx-module {
+  --jp-sx-ctl-h-sm: 38px;
+}
+.jp-sx-module form .form-control,
+.jp-sx-module form .form-select,
+.jp-sx-module form input[type="file"],
+.jp-sx-module form input[type="file"].form-control,
+.jp-sx-module form .ts-wrapper,
+.jp-sx-module form .ts-wrapper.form-select,
+.jp-sx-module form .ts-wrapper.form-select-sm,
+.jp-sx-module .mb-3 > .form-control,
+.jp-sx-module .mb-3 > .form-select,
+.jp-sx-module .mb-3 > .ts-wrapper,
+.jp-sx-module [class*="col-"] > .form-control,
+.jp-sx-module [class*="col-"] > .form-select,
+.jp-sx-module [class*="col-"] > .ts-wrapper,
+.jp-sx-module [class*="col-"] > input[type="file"],
+.jp-sx-module .jp-team-filter-org > .form-control,
+.jp-sx-module .jp-team-filter-org > .form-select,
+.jp-sx-module .jp-team-filter-org > .ts-wrapper,
+.jp-sx-module .jp-form-field > .form-control,
+.jp-sx-module .jp-form-field > .form-select,
+.jp-sx-module .jp-form-field > .ts-wrapper,
+.jp-sx-module td > .form-control,
+.jp-sx-module td > .form-select,
+.jp-sx-module td > .ts-wrapper,
+.jp-sx-module .design-upload-row .design-upload-control,
+.jp-sx-module .design-upload-row input[type="file"] {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* TomSelect: khung bằng form-control-sm */
+.jp-sx-module form .ts-wrapper.form-select,
+.jp-sx-module form .ts-wrapper.form-select-sm,
+.jp-sx-module td .ts-wrapper.form-select,
+.jp-sx-module td .ts-wrapper.form-select-sm,
+.jp-sx-module [class*="col-"] > .ts-wrapper.form-select,
+.jp-sx-module [class*="col-"] > .ts-wrapper.form-select-sm {
+  display: block;
+  min-height: var(--jp-sx-ctl-h-sm);
+  border: 1px solid var(--bs-border-color, #ced4da);
+  border-radius: var(--bs-border-radius-sm, 0.25rem);
+  background-color: var(--bs-body-bg, #fff);
+  padding: 0;
+}
+.jp-sx-module form .ts-wrapper.form-select.focus,
+.jp-sx-module form .ts-wrapper.form-select-sm.focus,
+.jp-sx-module td .ts-wrapper.form-select.focus,
+.jp-sx-module td .ts-wrapper.form-select-sm.focus {
+  border-color: var(--sx-red, #dc2626);
+  box-shadow: 0 0 0 0.2rem rgba(220, 38, 38, 0.15);
+}
+.jp-sx-module form .ts-wrapper.form-select-sm .ts-control,
+.jp-sx-module td .ts-wrapper.form-select-sm .ts-control,
+.jp-sx-module [class*="col-"] > .ts-wrapper.form-select-sm .ts-control {
+  min-height: calc(var(--jp-sx-ctl-h-sm) - 2px);
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  border: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+.jp-sx-module form .ts-wrapper .ts-control > input,
+.jp-sx-module td .ts-wrapper .ts-control > input {
+  font-size: inherit !important;
+}
+
+/* input-group: để Bootstrap chia flex, không ép 100% */
+.jp-sx-module .input-group > .form-control,
+.jp-sx-module .input-group > .form-select,
+.jp-sx-module .input-group > .ts-wrapper {
+  width: 1%;
+  flex: 1 1 auto;
+  max-width: 100%;
+}
+
+/* Ngoại lệ: filter compact / width cố ý hẹp */
+.jp-sx-module .form-control.w-auto,
+.jp-sx-module .form-select.w-auto,
+.jp-sx-module .jp-npl-mat-search-row .form-select.jp-sx-filter-select,
+.jp-sx-module .jp-npl-mat-search-row .form-select-sm.jp-sx-filter-select,
+.jp-sx-module .form-select[style*="width:auto"],
+.jp-sx-module .form-control[style*="width:auto"],
+.jp-sx-module .form-select[style*="max-width"],
+.jp-sx-module .form-control[style*="max-width"] {
+  width: auto;
+  max-width: none;
+}
 .jp-sx-module .nav-tabs {
   border-bottom-color: rgba(15, 23, 42, 0.1);
   gap: 0.15rem;
