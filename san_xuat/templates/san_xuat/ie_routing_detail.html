@@ -104,6 +104,19 @@
           </datalist>
         </div>
         <div class="col-6 col-md-2">
+          <label class="form-label small mb-0">Bộ phận</label>
+          <select name="work_center_code" class="form-select form-select-sm">
+            <option value="">— Chọn bộ phận —</option>
+            {% for wc in work_centers %}
+            <option value="{{ wc.code }}"
+              {% if edit_line and edit_line.work_center_code == wc.code %}selected
+              {% elif not edit_line and wc.code == default_work_center_code %}selected{% endif %}>
+              {{ wc.name }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-6 col-md-2">
           <label class="form-label small mb-0">Nhóm</label>
           <input type="text" name="group_code" class="form-control form-control-sm" maxlength="30"
                  value="{% if edit_line %}{{ edit_line.group_code }}{% endif %}">
@@ -137,7 +150,7 @@
         <table class="table table-hover table-sm align-middle mb-0">
           <thead class="table-light">
             <tr>
-              <th class="text-end">#</th><th>Mã CĐ</th><th>Công đoạn</th><th>Nhóm</th>
+              <th class="text-end">#</th><th>Mã CĐ</th><th>Công đoạn</th><th>Nhóm</th><th>Bộ phận</th>
               <th class="text-end">SL/SP</th><th class="text-end">SMV thư viện</th>
               <th class="text-end">SMV áp dụng</th><th class="text-end">Tổng SMV</th>
               <th class="text-end">Lệch %</th><th>Máy</th><th>Giải trình (&gt;15%)</th>
@@ -151,6 +164,11 @@
               <td class="fw-semibold">{{ l.op_code }}<div class="text-muted small">{{ l.op_rev }}</div></td>
               <td>{{ l.op_name_vi }}</td>
               <td class="small">{{ l.group_code|default:"—" }}</td>
+              <td class="small">
+                {% if l.work_center %}{{ l.work_center.name }}
+                {% elif l.work_center_code %}{{ l.work_center_code }}
+                {% else %}—{% endif %}
+              </td>
               <td class="text-end">{{ l.qty_per_garment|floatformat:"-3" }}</td>
               <td class="text-end">{{ l.library_unit_smv|floatformat:3 }}</td>
               <td class="text-end">{{ l.applied_unit_smv|floatformat:3 }}</td>
@@ -178,7 +196,7 @@
               {% endif %}
             </tr>
           {% empty %}
-            <tr><td colspan="{% if can_update and not locked %}12{% else %}11{% endif %}" class="text-muted small p-3 text-center">Routing chưa có công đoạn.</td></tr>
+            <tr><td colspan="{% if can_update and not locked %}13{% else %}12{% endif %}" class="text-muted small p-3 text-center">Routing chưa có công đoạn.</td></tr>
           {% endfor %}
           </tbody>
         </table>

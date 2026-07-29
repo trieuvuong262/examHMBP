@@ -221,16 +221,22 @@ def _import_reference(wb, result: ImportResult) -> None:
             result.bump(key, created)
 
     for order, code in enumerate(_col_values(ws, 'WORK_CENTER'), start=1):
-        _, created = SxWorkCenter.objects.get_or_create(
-            code=code, defaults={'name': code, 'is_active': True, 'is_demo': False},
-        )
-        result.bump('work_center', created)
+        # Không tạo thêm WC IE — bộ phận chuẩn lấy từ HR (HRD-*). Chỉ bỏ qua mã lạ.
+        from san_xuat.services.capacity_from_hrm import resolve_work_center_code
+        if resolve_work_center_code(code):
+            result.bump('work_center', False)
+        else:
+            result.warnings.append(
+                f'[Ref] WORK_CENTER {code} không map được sang bộ phận HR — bỏ qua (dùng Đồng bộ HR).'
+            )
 
 
 def _import_groups(wb, result: ImportResult) -> None:
     if SHEET_GROUP not in wb.sheetnames:
         result.warnings.append(f'Không thấy sheet {SHEET_GROUP}, bỏ qua nhóm công đoạn.')
         return
+    from san_xuat.services.capacity_from_hrm import resolve_work_center_code
+
     seen = set()
     for order, rec in enumerate(_sheet_dicts(wb[SHEET_GROUP]), start=1):
         code = _s(rec.get('MÃ NHÓM'))
@@ -243,7 +249,7 @@ def _import_groups(wb, result: ImportResult) -> None:
         stage_label = _s(rec.get('KHÂU SẢN XUẤT'))
         wc_code = _s(rec.get('DEFAULT_WORK_CENTER'))
         stage = SxProcessStage.objects.filter(name=stage_label).first() if stage_label else None
-        wc = SxWorkCenter.objects.filter(code=wc_code).first() if wc_code else None
+        wc = resolve_work_center_code(wc_code, name_hint=f'{stage_label} {_s(rec.get("TÊN NHÓM"))}')
         _, created = SxOperationGroup.objects.update_or_create(
             code=code,
             defaults={
@@ -253,7 +259,7 @@ def _import_groups(wb, result: ImportResult) -> None:
                 'product_part': _s(rec.get('SẢN PHẨM CẦN')),
                 'description': _s(rec.get('MÔ TẢ CHI TIẾT')),
                 'default_work_center': wc,
-                'default_work_center_code': wc_code,
+                'default_work_center_code': wc.code if wc else '',
                 'data_owner': _s(rec.get('NGƯỜI LẬP')),
                 'effective_from': _date(rec.get('NGÀY HIỆU LỰC')),
                 'is_active': _yesno(rec.get('HIỆU LỰC')) if rec.get('HIỆU LỰC') is not None else True,
@@ -262,6 +268,8 @@ def _import_groups(wb, result: ImportResult) -> None:
             },
         )
         result.bump('group', created)
+        if wc_code and not wc:
+            result.warnings.append(f'[Nhóm] {code}: DEFAULT_WORK_CENTER {wc_code} không map được sang bộ phận HR.')
 
 
 def _import_operations(wb, result: ImportResult) -> None:
@@ -403,6 +411,11 @@ def _import_routings(wb, result: ImportResult) -> None:
                 pct = abs((applied - library) / library * Decimal('100'))
                 if pct > VARIANCE_WARN_PCT:
                     variance_text = f'Import Excel — lệch {pct.quantize(Decimal("0.01"))}%'
+            from san_xuat.services.capacity_from_hrm import resolve_work_center_code
+            wc = resolve_work_center_code(
+                wc_code,
+                name_hint=f'{_s(rec.get("MÃ NHÓM"))} {_s(rec.get("TÊN CÔNG ĐOẠN"))}',
+            )
             line = SxRoutingLine(
                 routing=routing,
                 seq_no=seq,
@@ -416,8 +429,8 @@ def _import_routings(wb, result: ImportResult) -> None:
                 applied_unit_smv=applied,
                 machine=SxMachine.objects.filter(code=machine_code).first() if machine_code else None,
                 machine_code=machine_code,
-                work_center=SxWorkCenter.objects.filter(code=wc_code).first() if wc_code else None,
-                work_center_code=wc_code,
+                work_center=wc,
+                work_center_code=wc.code if wc else '',
                 skill_level_label=_s(rec.get('BẬC CÔNG ĐOẠN')),
                 notes=_s(rec.get('NOTES')),
                 variance_explanation=variance_text[:500],

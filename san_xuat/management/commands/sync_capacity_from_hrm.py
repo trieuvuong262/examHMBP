@@ -12,13 +12,13 @@ from __future__ import annotations
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
-from san_xuat.services.capacity_from_hrm import sync_capacity_from_hrm
+from san_xuat.services.capacity_from_hrm import remap_all_to_hr, sync_capacity_from_hrm
 
 
 class Command(BaseCommand):
     help = (
         'Đồng bộ danh mục Năng lực SX (tổ/chuyền) theo bộ phận HR phòng SẢN XUẤT; '
-        'tắt tổ demo TO-MAY-1/2/ĐG.'
+        'remap nhóm/routing IE + công đoạn hồ sơ sang HRD-*.'
     )
 
     def add_arguments(self, parser):
@@ -51,15 +51,14 @@ class Command(BaseCommand):
                     transaction.set_rollback(True)
                 return
 
-            from san_xuat.services.capacity_from_hrm import remap_process_steps_to_hr
-
-            remapped = remap_process_steps_to_hr()
+            remapped = remap_all_to_hr()
 
             self.stdout.write(f'Phòng ban: {result.department}')
             self.stdout.write(
                 f'Tạo {result.created} · cập nhật {result.updated} · '
                 f'tắt {result.deactivated} · map HR {result.hr_maps} · '
-                f'remap công đoạn {remapped}'
+                f'remap BOM {remapped["process_steps"]} · '
+                f'nhóm IE {remapped["groups"]} · dòng routing {remapped["routing_lines"]}'
             )
             for line in result.centers or []:
                 self.stdout.write(f'  - {line}')

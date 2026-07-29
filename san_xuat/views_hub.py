@@ -3076,7 +3076,7 @@ def capacity_list(request):
             messages.error(request, 'Bạn không có quyền đồng bộ năng lực.')
             return redirect('san_xuat:capacity_list')
         from san_xuat.services.capacity_from_hrm import (
-            remap_process_steps_to_hr,
+            remap_all_to_hr,
             sync_capacity_from_hrm,
         )
 
@@ -3084,12 +3084,13 @@ def capacity_list(request):
         if not result.department:
             messages.error(request, 'Không tìm thấy phòng ban SẢN XUẤT trên HR.')
         else:
-            remapped = remap_process_steps_to_hr()
+            remapped = remap_all_to_hr()
             messages.success(
                 request,
                 f'Đã đồng bộ từ HR ({result.department}): '
                 f'+{result.created} · cập nhật {result.updated} · tắt {result.deactivated} · '
-                f'remap công đoạn {remapped}.',
+                f'remap BOM {remapped["process_steps"]} · nhóm IE {remapped["groups"]} · '
+                f'dòng routing {remapped["routing_lines"]}.',
             )
         return redirect('san_xuat:capacity_list')
 

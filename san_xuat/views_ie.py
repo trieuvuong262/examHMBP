@@ -294,7 +294,11 @@ def ie_export(request):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def group_list(request):
-    qs = SxOperationGroup.objects.annotate(n_ops=Count('operations')).all()
+    qs = (
+        SxOperationGroup.objects.select_related('default_work_center')
+        .annotate(n_ops=Count('operations'))
+        .all()
+    )
     term = (request.GET.get('q') or '').strip()
     if term:
         qs = qs.filter(
@@ -302,6 +306,8 @@ def group_list(request):
             | Q(name__icontains=term)
             | Q(process_stage_label__icontains=term)
             | Q(product_part__icontains=term)
+            | Q(default_work_center__name__icontains=term)
+            | Q(default_work_center_code__icontains=term)
         )
     qs = qs.order_by('sort_order', 'code')
     page_obj, query_string = paginate_queryset(request, qs)
@@ -344,6 +350,8 @@ def routing_line_list(request):
             | Q(routing__style_code__icontains=term)
             | Q(routing__routing_id__icontains=term)
             | Q(machine_code__icontains=term)
+            | Q(work_center_code__icontains=term)
+            | Q(work_center__name__icontains=term)
         )
     qs = qs.order_by('routing__style_code', 'routing__routing_rev', 'seq_no')
     page_obj, query_string = paginate_queryset(request, qs)
@@ -616,6 +624,8 @@ def routing_detail(request, pk: int):
     edit_pk = (request.GET.get('edit') or '').strip()
     if edit_pk.isdigit() and perms['can_update'] and not locked:
         edit_line = routing.lines.filter(pk=int(edit_pk)).first()
+    from san_xuat.services.capacity_from_hrm import hr_work_centers_qs
+    work_centers = list(hr_work_centers_qs())
     return render(request, 'san_xuat/ie_routing_detail.html', {
         **perms,
         'routing': routing,
@@ -625,6 +635,8 @@ def routing_detail(request, pk: int):
         'high_var_count': len(high_var),
         'edit_line': edit_line,
         'machines': SxMachine.objects.filter(is_active=True).order_by('sort_order', 'code')[:200],
+        'work_centers': work_centers,
+        'default_work_center_code': '',
     })
 
 

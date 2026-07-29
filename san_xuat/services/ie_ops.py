@@ -827,8 +827,25 @@ def upsert_routing_line(
         raise IeOpsError('SL/SMV không được âm.')
 
     machine = SxMachine.objects.filter(code=(machine_code or '').strip()).first() if machine_code else None
-    from san_xuat.hub_models import SxWorkCenter
-    wc = SxWorkCenter.objects.filter(code=(work_center_code or '').strip()).first() if work_center_code else None
+    from san_xuat.services.capacity_from_hrm import resolve_work_center_code
+
+    wc_code_raw = (work_center_code or '').strip()
+    if not wc_code_raw and group_code:
+        from san_xuat.ie_models import SxOperationGroup
+        grp = SxOperationGroup.objects.filter(code=(group_code or '').strip()).select_related(
+            'default_work_center'
+        ).first()
+        if grp and (grp.default_work_center_code or grp.default_work_center_id):
+            wc_code_raw = grp.default_work_center_code or (
+                grp.default_work_center.code if grp.default_work_center_id else ''
+            )
+    if not wc_code_raw and op and op.group_id:
+        grp = op.group
+        if grp and (grp.default_work_center_code or grp.default_work_center_id):
+            wc_code_raw = grp.default_work_center_code or (
+                grp.default_work_center.code if grp.default_work_center_id else ''
+            )
+    wc = resolve_work_center_code(wc_code_raw, name_hint=f'{group_code} {name}')
 
     line = None
     old_smv = None
@@ -864,7 +881,7 @@ def upsert_routing_line(
     line.machine = machine
     line.machine_code = (machine_code or (machine.code if machine else ''))[:40]
     line.work_center = wc
-    line.work_center_code = (work_center_code or (wc.code if wc else ''))[:40]
+    line.work_center_code = (wc.code if wc else wc_code_raw)[:40]
     line.notes = (notes or '')[:255]
     line.recompute()
     if abs(line.smv_variance_pct or 0) > VARIANCE_LIMIT_PCT:

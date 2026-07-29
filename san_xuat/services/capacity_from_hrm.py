@@ -80,32 +80,108 @@ def hr_work_centers_qs(*, include_inactive_ids: list[int] | None = None):
     return qs.order_by('name', 'code')
 
 
+def _pick_hr_by_keys(hr_centers: list[SxWorkCenter], hr_keys: tuple[str, ...]) -> SxWorkCenter | None:
+    """Ưu tiên tên khớp ngắn/gần đúng (MAY trước MAY (152A…))."""
+    hits: list[tuple[int, SxWorkCenter]] = []
+    for hc in hr_centers:
+        folded_name = _fold(f'{hc.name} {hc.team_label}')
+        for key in hr_keys:
+            if key == folded_name or folded_name.startswith(key + ' ') or folded_name.startswith(key + '('):
+                hits.append((0, hc))
+                break
+            if key in folded_name:
+                hits.append((len(folded_name), hc))
+                break
+    if not hits:
+        return None
+    hits.sort(key=lambda x: (x[0], x[1].code))
+    return hits[0][1]
+
+
 def map_ie_center_to_hr(center: SxWorkCenter | None) -> SxWorkCenter | None:
     """Map work center IE (WC-*) sang bộ phận HRD-* nếu có."""
     if center is None:
         return None
-    if (center.code or '').upper().startswith(CODE_PREFIX):
-        return center if center.is_active else None
-
-    needle = _fold(f'{center.code} {center.name} {center.team_label}')
-    hr_centers = list(
-        SxWorkCenter.objects.filter(
-            code__istartswith=CODE_PREFIX,
-            is_active=True,
-            is_demo=False,
-        )
+    return resolve_work_center_code(center.code) or (
+        center if (center.code or '').upper().startswith(CODE_PREFIX) and center.is_active else None
     )
+
+
+def resolve_work_center_code(code: str | None, *, name_hint: str = '') -> SxWorkCenter | None:
+    """Resolve mã WC/HRD (hoặc tên) → bộ phận HRD-* đang active."""
+    raw = (code or '').strip()
+    hint = (name_hint or '').strip()
+    if not raw and not hint:
+        return None
+
+    if raw.upper().startswith(CODE_PREFIX):
+        return SxWorkCenter.objects.filter(
+            code__iexact=raw, is_active=True, is_demo=False,
+        ).first()
+
+    # Đã là HRD nhưng viết thường / đã tắt → thử theo mã
+    direct = SxWorkCenter.objects.filter(code__iexact=raw).first() if raw else None
+    if direct and (direct.code or '').upper().startswith(CODE_PREFIX) and direct.is_active:
+        return direct
+
+    needle = _fold(f'{raw} {hint}')
+    hr_centers = list(hr_work_centers_qs())
     if not hr_centers:
         return None
 
+    # Map theo bảng IE → HR
     for ie_keys, hr_keys in _IE_WC_TO_HR_KEYS:
-        if not any(k in needle for k in ie_keys):
-            continue
-        for hc in hr_centers:
-            folded_name = _fold(f'{hc.name} {hc.team_label}')
-            if any(k in folded_name for k in hr_keys):
-                return hc
+        if any(k in needle for k in ie_keys):
+            hit = _pick_hr_by_keys(hr_centers, hr_keys)
+            if hit:
+                return hit
+
+    # Khớp trực tiếp tên bộ phận HR
+    for hc in hr_centers:
+        folded = _fold(f'{hc.name} {hc.team_label} {hc.code}')
+        if needle and (needle == folded or needle in folded or folded in needle):
+            return hc
     return None
+
+
+def remap_ie_master_to_hr() -> dict[str, int]:
+    """Gắn lại nhóm công đoạn + dòng routing từ WC IE → bộ phận HRD-*."""
+    from san_xuat.ie_models import SxOperationGroup, SxRoutingLine
+
+    stats = {'groups': 0, 'routing_lines': 0}
+
+    for group in SxOperationGroup.objects.select_related('default_work_center').iterator():
+        mapped = resolve_work_center_code(
+            group.default_work_center_code or (group.default_work_center.code if group.default_work_center_id else ''),
+            name_hint=f'{group.process_stage_label} {group.name}',
+        )
+        if mapped is None:
+            continue
+        if (
+            group.default_work_center_id == mapped.pk
+            and (group.default_work_center_code or '') == mapped.code
+        ):
+            continue
+        group.default_work_center = mapped
+        group.default_work_center_code = mapped.code
+        group.save(update_fields=['default_work_center', 'default_work_center_code', 'updated_at'])
+        stats['groups'] += 1
+
+    for line in SxRoutingLine.objects.select_related('work_center').iterator():
+        mapped = resolve_work_center_code(
+            line.work_center_code or (line.work_center.code if line.work_center_id else ''),
+            name_hint=f'{line.group_code} {line.op_name_vi}',
+        )
+        if mapped is None:
+            continue
+        if line.work_center_id == mapped.pk and (line.work_center_code or '') == mapped.code:
+            continue
+        line.work_center = mapped
+        line.work_center_code = mapped.code
+        line.save(update_fields=['work_center', 'work_center_code'])
+        stats['routing_lines'] += 1
+
+    return stats
 
 
 def _sx_department() -> Department | None:
@@ -291,3 +367,13 @@ def remap_process_steps_to_hr() -> int:
             step.save(update_fields=['work_center'])
             updated += 1
     return updated
+
+
+def remap_all_to_hr() -> dict[str, int]:
+    """Đồng bộ lại toàn bộ tham chiếu bộ phận (BOM + IE) sang HRD-*."""
+    ie = remap_ie_master_to_hr()
+    return {
+        'process_steps': remap_process_steps_to_hr(),
+        'groups': ie['groups'],
+        'routing_lines': ie['routing_lines'],
+    }

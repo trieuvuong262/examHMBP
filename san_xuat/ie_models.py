@@ -116,9 +116,9 @@ class SxOperationGroup(models.Model):
         null=True,
         blank=True,
         related_name='operation_groups',
-        verbose_name='Work center mặc định',
+        verbose_name='Bộ phận mặc định',
     )
-    default_work_center_code = models.CharField(max_length=40, blank=True, default='', verbose_name='WC mặc định (mã)')
+    default_work_center_code = models.CharField(max_length=40, blank=True, default='', verbose_name='Bộ phận mặc định (mã)')
     data_owner = models.CharField(max_length=120, blank=True, default='', verbose_name='Bộ phận quản lý')
     effective_from = models.DateField(null=True, blank=True, verbose_name='Ngày hiệu lực')
     sort_order = models.PositiveSmallIntegerField(default=100, db_index=True, verbose_name='Thứ tự')
@@ -403,9 +403,9 @@ class SxRoutingLine(models.Model):
         null=True,
         blank=True,
         related_name='routing_lines',
-        verbose_name='Work center',
+        verbose_name='Bộ phận chịu trách nhiệm',
     )
-    work_center_code = models.CharField(max_length=40, blank=True, default='', verbose_name='WC (mã)')
+    work_center_code = models.CharField(max_length=40, blank=True, default='', verbose_name='Bộ phận (mã)')
     predecessor_seq = models.PositiveIntegerField(null=True, blank=True, verbose_name='Công đoạn trước')
     parallel_group = models.CharField(max_length=40, blank=True, default='', verbose_name='Nhóm song song')
     bundle_size = models.PositiveIntegerField(null=True, blank=True, verbose_name='Cỡ bó')
