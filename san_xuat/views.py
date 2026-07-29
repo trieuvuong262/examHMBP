@@ -183,6 +183,14 @@ def doc_detail(request, pk):
         tab = 'info'
 
     bom = _get_bom_for_doc(doc, request.GET.get('bom'))
+    if bom:
+        # Prefetch bộ phận trên từng công đoạn
+        bom = (
+            BomVersion.objects.filter(pk=bom.pk)
+            .prefetch_related('lines__material', 'process_steps__work_center')
+            .select_related('routing')
+            .first()
+        )
     versions = list(doc.bom_versions.order_by('-created_at'))
     costing = compute_costing(bom) if bom else None
     snapshots = list(bom.costing_snapshots.all()[:10]) if bom else []

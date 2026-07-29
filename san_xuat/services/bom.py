@@ -133,8 +133,14 @@ def create_bom_version(
                 bom=bom,
                 sequence=step.sequence,
                 process_name=step.process_name,
+                operation=step.operation,
+                op_code=step.op_code,
+                routing_line=step.routing_line,
                 norm_per_hour=step.norm_per_hour,
                 cost_per_hour=step.cost_per_hour,
+                piece_rate=step.piece_rate,
+                std_time_minutes=step.std_time_minutes,
+                work_center=step.work_center,
                 notes=step.notes,
             )
     return bom

@@ -31,6 +31,7 @@
                     {% endif %}
                 </div>
             </div>
+            <div class="form-text mt-1">Áp routing sẽ kéo công đoạn + bộ phận (work center) từ IE nếu đã gắn trên từng dòng.</div>
         </form>
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/css/tom-select.bootstrap5.min.css">
         <script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/js/tom-select.complete.min.js"></script>
@@ -71,7 +72,8 @@
                     <thead class="table-light">
                         <tr>
                             <th>TT <span class="text-danger">*</span></th>
-                            <th style="min-width:12rem">Công đoạn <span class="text-danger">*</span></th>
+                            <th style="min-width:11rem">Công đoạn <span class="text-danger">*</span></th>
+                            <th style="min-width:10rem">Bộ phận chịu trách nhiệm</th>
                             <th>Định mức (cái/giờ) <span class="text-danger">*</span></th>
                             <th>Chi phí giờ</th>
                             <th>Ghi chú</th>
@@ -83,7 +85,8 @@
                         <tr class="process-line-row">
                             {% for hidden in f.hidden_fields %}{{ hidden }}{% endfor %}
                             <td style="width:4.5rem">{{ f.sequence }}</td>
-                            <td>{{ f.process_name }}</td>
+                            <td>{{ f.process_name }}{% if f.process_name.errors %}<div class="text-danger small">{{ f.process_name.errors }}</div>{% endif %}</td>
+                            <td>{{ f.work_center }}{% if f.work_center.errors %}<div class="text-danger small">{{ f.work_center.errors }}</div>{% endif %}</td>
                             <td>{{ f.norm_per_hour }}</td>
                             <td>{{ f.cost_per_hour }}</td>
                             <td>{{ f.notes }}</td>
@@ -114,6 +117,7 @@
                 {% for hidden in f.hidden_fields %}{{ hidden }}{% endfor %}
                 <td style="width:4.5rem">{{ f.sequence }}</td>
                 <td>{{ f.process_name }}</td>
+                <td>{{ f.work_center }}</td>
                 <td>{{ f.norm_per_hour }}</td>
                 <td>{{ f.cost_per_hour }}</td>
                 <td>{{ f.notes }}</td>
@@ -163,6 +167,7 @@
                     <tr>
                         <th>TT</th>
                         <th>Công đoạn</th>
+                        <th>Bộ phận chịu trách nhiệm</th>
                         <th>Mã CĐ</th>
                         <th class="text-end">Định mức/giờ</th>
                         <th class="text-end">Chuẩn (phút)</th>
@@ -174,13 +179,19 @@
                     <tr>
                         <td>{{ step.sequence }}</td>
                         <td>{{ step.process_name }}</td>
+                        <td class="small">
+                          {% if step.work_center_id %}
+                            {{ step.work_center.name }}
+                            {% if step.work_center.team_label %}<span class="text-muted">({{ step.work_center.team_label }})</span>{% endif %}
+                          {% else %}—{% endif %}
+                        </td>
                         <td class="small text-muted">{{ step.op_code|default:"—" }}</td>
                         <td class="text-end">{{ step.norm_per_hour }}</td>
                         <td class="text-end">{{ step.std_time_minutes }}</td>
                         <td class="text-end">{{ step.cost_per_hour }}</td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="6" class="text-muted text-center py-3">Chưa có công đoạn.</td></tr>
+                    <tr><td colspan="7" class="text-muted text-center py-3">Chưa có công đoạn.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>

@@ -1,4 +1,5 @@
 from django import forms
+from django.db.models import Q
 from django.forms import inlineformset_factory
 
 from kho_npl.models import Material
@@ -201,9 +202,10 @@ class ProcessStepForm(forms.ModelForm):
 
     class Meta:
         model = ProcessStep
-        fields = ('sequence', 'process_name', 'norm_per_hour', 'cost_per_hour', 'notes')
+        fields = ('sequence', 'process_name', 'work_center', 'norm_per_hour', 'cost_per_hour', 'notes')
         widgets = {
             'sequence': forms.NumberInput(attrs={'class': 'form-control form-control-sm', 'min': '1'}),
+            'work_center': forms.Select(attrs={'class': 'form-select form-select-sm'}),
             'norm_per_hour': forms.NumberInput(attrs={'class': 'form-control form-control-sm', 'step': '0.01', 'min': '0.01'}),
             'cost_per_hour': forms.NumberInput(attrs={'class': 'form-control form-control-sm', 'step': '0.01', 'min': '0'}),
             'notes': forms.TextInput(attrs={'class': 'form-control form-control-sm'}),
@@ -211,6 +213,7 @@ class ProcessStepForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        from san_xuat.hub_models import SxWorkCenter
         from san_xuat.services.process_catalog import process_catalog_choices
 
         extra = ''
@@ -224,6 +227,17 @@ class ProcessStepForm(forms.ModelForm):
         elif not extra and self.initial:
             extra = self.initial.get('process_name') or ''
         self.fields['process_name'].choices = process_catalog_choices(extra_value=extra)
+
+        wc_qs = SxWorkCenter.objects.filter(is_active=True, is_demo=False).order_by('name', 'code')
+        # Giữ bộ phận đang gắn dù đã tắt
+        if self.instance and self.instance.work_center_id:
+            wc_qs = SxWorkCenter.objects.filter(
+                Q(pk=self.instance.work_center_id) | Q(is_active=True, is_demo=False)
+            ).distinct().order_by('name', 'code')
+        self.fields['work_center'].queryset = wc_qs
+        self.fields['work_center'].required = False
+        self.fields['work_center'].empty_label = '— Chọn bộ phận —'
+        self.fields['work_center'].label = 'Bộ phận chịu trách nhiệm'
 
     def clean_process_name(self):
         from san_xuat.services.process_catalog import resolve_standard_process_name

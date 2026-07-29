@@ -358,7 +358,8 @@ class ProcessStep(models.Model):
         null=True,
         blank=True,
         related_name='process_steps',
-        verbose_name='Tổ / máy (NL)',
+        verbose_name='Bộ phận chịu trách nhiệm',
+        help_text='Bộ phận / tổ thuộc phòng Sản xuất phụ trách công đoạn này.',
     )
     notes = models.CharField(max_length=255, blank=True, default='', verbose_name='Ghi chú')
 
