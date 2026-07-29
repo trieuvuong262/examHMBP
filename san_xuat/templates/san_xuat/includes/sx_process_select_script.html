@@ -5,9 +5,31 @@
 (function () {
   var searchUrl = '{% url "san_xuat:process_catalog_search" %}';
 
+  // Tìm dropdown bộ phận cùng hàng với công đoạn
+  function findWorkCenterSelect(processSel) {
+    var row = processSel.closest('tr');
+    if (!row) return null;
+    return row.querySelector('select[name$="-work_center"], select[id$="-work_center"], select.jp-sx-work-center-select');
+  }
+
+  // Điền bộ phận mặc định nếu dòng chưa chọn bộ phận
+  function applyDefaultWorkCenter(processSel, wcId) {
+    if (!wcId) return;
+    var wcSel = findWorkCenterSelect(processSel);
+    if (!wcSel) return;
+    var current = wcSel.tomselect ? wcSel.tomselect.getValue() : wcSel.value;
+    if (current) return; // đã có → không ghi đè
+    if (wcSel.tomselect) {
+      wcSel.tomselect.setValue(String(wcId));
+    } else {
+      var opt = wcSel.querySelector('option[value="' + wcId + '"]');
+      if (opt) wcSel.value = wcId;
+    }
+  }
+
   function initTomSelect(sel) {
     if (!sel || sel.tomselect || typeof TomSelect === 'undefined') return;
-    new TomSelect(sel, {
+    var ts = new TomSelect(sel, {
       maxOptions: 80,
       maxItems: 1,
       allowEmptyOption: true,
@@ -19,20 +41,28 @@
       loadThrottle: 200,
       load: function (query, callback) {
         var q = (query || '').trim();
-        if (!q) {
-          callback();
-          return;
-        }
+        if (!q) { callback(); return; }
         fetch(searchUrl + '?q=' + encodeURIComponent(q), {
           headers: { 'Accept': 'application/json' },
         })
           .then(function (r) { return r.json(); })
           .then(function (data) {
             callback((data.results || []).map(function (row) {
-              return { value: row.id || row.name, text: row.text || row.name };
+              return {
+                value: row.id || row.name,
+                text: row.text || row.name,
+                default_work_center_id: row.default_work_center_id || null,
+              };
             }));
           })
           .catch(function () { callback(); });
+      },
+      onChange: function (value) {
+        if (!value) return;
+        var opt = this.options[value];
+        if (opt && opt.default_work_center_id) {
+          applyDefaultWorkCenter(sel, opt.default_work_center_id);
+        }
       },
     });
   }

@@ -533,20 +533,49 @@ def mo_bom_versions_api(request):
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 @require_GET
 def process_catalog_search(request):
-    """Gõ tìm công đoạn chuẩn trong thư viện IE."""
-    q = (request.GET.get('q') or '').strip()
-    from san_xuat.services.process_catalog import process_catalog_choices
+    """Gõ tìm công đoạn chuẩn trong thư viện IE.
 
-    rows = []
-    for value, label in process_catalog_choices(extra_value='', blank_label='')[:200]:
-        name = (value or '').strip()
-        if not name:
+    Trả thêm default_work_center_id để JS tự điền bộ phận khi chọn công đoạn.
+    """
+    q = (request.GET.get('q') or '').strip()
+    from django.db.models import Q as _Q
+
+    from san_xuat.ie_models import SxOperation
+    from san_xuat.services.process_catalog import _STANDARD_STATUSES
+
+    # Lấy từ IE: name_vi + default_work_center qua group
+    qs = (
+        SxOperation.objects.filter(status__in=_STANDARD_STATUSES)
+        .exclude(name_vi='')
+        .select_related('group__default_work_center')
+        .order_by('name_vi')
+    )
+    if q:
+        qs = qs.filter(name_vi__icontains=q)
+
+    seen: dict[str, dict] = {}
+    for op in qs[:300]:
+        name = (op.name_vi or '').strip()
+        if not name or name.casefold() in seen:
             continue
-        if q and q.casefold() not in name.casefold():
-            continue
-        rows.append({'id': name, 'name': name, 'text': name})
-        if len(rows) >= 40:
+        grp = op.group
+        wc_id = None
+        wc_name = ''
+        if grp:
+            if grp.default_work_center_id:
+                wc_id = grp.default_work_center_id
+                wc_name = grp.default_work_center.name if grp.default_work_center_id else ''
+        seen[name.casefold()] = {
+            'id': name,
+            'name': name,
+            'text': name,
+            'default_work_center_id': wc_id,
+            'default_work_center_name': wc_name,
+        }
+        if len(seen) >= 60:
             break
+
+    rows = list(seen.values())
     return JsonResponse({'results': rows})
 
 
