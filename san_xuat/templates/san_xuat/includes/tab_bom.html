@@ -241,31 +241,53 @@
             onInitialize: function () {
                 if (this.wrapper) this.wrapper.classList.add('jp-npl-material-ts');
                 var val = (select.value || '').trim();
-                if (val && !this.options[val]) {
-                    var label = (select.options[select.selectedIndex] || {}).textContent || val;
-                    label = label.trim();
-                    // Option text Django thường: "CODE — Name" → lấy phần tên
+                var self = this;
+                if (val) {
+                    var opt = this.options[val];
+                    var label = (select.options[select.selectedIndex] || {}).textContent || (opt && (opt.name || opt.text)) || val;
+                    label = String(label).trim();
                     var nameOnly = label;
                     var sep = label.indexOf(' — ');
                     if (sep > 0) nameOnly = label.slice(sep + 3).trim() || label;
-                    this.addOption({
+                    var mappedQty = STOCK_MAP[String(val)];
+                    this.updateOption(val, {
                         id: val,
-                        name: nameOnly,
+                        name: (opt && opt.name) || nameOnly,
                         text: label,
-                        code: sep > 0 ? label.slice(0, sep).trim() : '',
-                        qty: STOCK_MAP[String(val)],
-                        qty_label: STOCK_MAP[String(val)] != null
-                            ? formatStock(STOCK_MAP[String(val)])
-                            : '',
+                        code: (opt && opt.code) || (sep > 0 ? label.slice(0, sep).trim() : ''),
+                        unit_name: (opt && (opt.unit_name || opt.unit)) || '',
+                        qty: mappedQty != null ? mappedQty : (opt && opt.qty),
+                        qty_label: mappedQty != null
+                            ? formatStock(mappedQty)
+                            : ((opt && opt.qty_label) || ''),
                     });
-                    this.setValue(val, true);
-                }
-                if (val && STOCK_MAP[String(val)] != null) {
-                    var stockEl = row && row.querySelector('.jp-npl-stock-qty');
-                    if (stockEl) {
-                        stockEl.textContent = formatStock(STOCK_MAP[String(val)]);
-                        stockEl.classList.toggle('text-danger', Number(STOCK_MAP[String(val)]) === 0);
-                        stockEl.classList.remove('text-muted');
+                    if (mappedQty != null) {
+                        var stockEl = row && row.querySelector('.jp-npl-stock-qty');
+                        if (stockEl) {
+                            stockEl.textContent = formatStock(mappedQty);
+                            stockEl.classList.toggle('text-danger', Number(mappedQty) === 0);
+                            stockEl.classList.remove('text-muted');
+                        }
+                    } else {
+                        // Dòng đã chọn nhưng chưa có trong STOCK_MAP → lấy tồn tổng mọi kho
+                        fetch(SEARCH_URL + '?q=' + encodeURIComponent(nameOnly) + '&limit=20', {
+                            headers: { 'Accept': 'application/json' },
+                        })
+                            .then(function (r) { return r.json(); })
+                            .then(function (data) {
+                                var hit = (data.results || []).find(function (x) {
+                                    return String(x.id) === String(val);
+                                });
+                                if (!hit) return;
+                                self.updateOption(val, Object.assign({}, self.options[val] || {}, hit));
+                                var stockEl2 = row && row.querySelector('.jp-npl-stock-qty');
+                                if (stockEl2) {
+                                    stockEl2.textContent = hit.qty_label || formatStock(hit.qty, hit.unit_name || hit.unit || '');
+                                    stockEl2.classList.toggle('text-danger', Number(hit.qty) === 0);
+                                    stockEl2.classList.remove('text-muted');
+                                }
+                            })
+                            .catch(function () {});
                     }
                 }
             },

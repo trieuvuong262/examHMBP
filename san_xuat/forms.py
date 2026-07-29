@@ -176,7 +176,10 @@ class BomLineForm(forms.ModelForm):
         model = BomLine
         fields = ('material', 'qty', 'notes', 'sort_order')
         widgets = {
-            'material': forms.Select(attrs={'class': 'form-select form-select-sm jp-npl-material-select', 'data-placeholder': '— Gõ mã hoặc tên NPL —'}),
+            'material': forms.Select(attrs={
+                'class': 'form-select form-select-sm jp-npl-material-select',
+                'data-placeholder': 'Gõ tên NPL…',
+            }),
             'qty': forms.NumberInput(attrs={'class': 'form-control form-control-sm', 'step': '0.0001', 'min': '0'}),
             'notes': forms.TextInput(attrs={'class': 'form-control form-control-sm'}),
             'sort_order': forms.NumberInput(attrs={'class': 'form-control form-control-sm', 'min': '0'}),
@@ -184,10 +187,32 @@ class BomLineForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['material'].queryset = Material.objects.filter(is_active=True).select_related(
-            'unit', 'category',
-        ).order_by('code')
-        self.fields['material'].empty_label = '— Chọn NPL —'
+        # Giống phiếu xuất: không nhét cả danh mục vào <select> (TomSelect sẽ hiện tồn = 0).
+        # Chỉ giữ NPL đã chọn; tìm kiếm lấy tồn qua API material_search.
+        material_id = None
+        if self.instance.pk and self.instance.material_id:
+            material_id = self.instance.material_id
+        elif self.initial.get('material'):
+            material_id = self.initial['material']
+        if material_id:
+            self.fields['material'].queryset = (
+                Material.objects.filter(pk=material_id).select_related('unit')
+            )
+            self.fields['material'].label_from_instance = lambda m: m.name
+        else:
+            self.fields['material'].queryset = Material.objects.none()
+        self.fields['material'].empty_label = None
+
+    def full_clean(self):
+        if self.data:
+            posted = self.data.get(self.add_prefix('material'))
+            if posted and str(posted).isdigit():
+                self.fields['material'].queryset = (
+                    Material.objects.filter(pk=int(posted), is_active=True).select_related('unit')
+                )
+            else:
+                self.fields['material'].queryset = Material.objects.filter(is_active=True).select_related('unit')
+        super().full_clean()
 
 
 class ProcessStepForm(forms.ModelForm):
