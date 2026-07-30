@@ -1844,13 +1844,13 @@ body .modal-backdrop.show {
 
 .jp-prod-summary-row.is-manager-updated,
 .jp-prod-summary-row.is-manager-updated > td {
-    background: #fecaca !important;
-    color: #991b1b !important;
+    background: transparent !important;
+    color: #dc2626 !important;
 }
 
 .jp-prod-summary-row.is-manager-updated:hover,
 .jp-prod-summary-row.is-manager-updated:hover > td {
-    background: #fca5a5 !important;
+    background: #f1f5f9 !important;
 }
 
 .jp-prod-summary-row.is-manager-updated .jp-prod-code-pill,
@@ -1859,8 +1859,9 @@ body .modal-backdrop.show {
 .jp-prod-summary-row.is-manager-updated .jp-prod-norm-display,
 .jp-prod-summary-row.is-manager-updated .jp-prod-note-val,
 .jp-prod-summary-row.is-manager-updated .jp-prod-proxy-name,
+.jp-prod-summary-row.is-manager-updated .jp-prod-damaged-val,
 .jp-prod-summary-row.is-manager-updated .text-muted {
-    color: #991b1b !important;
+    color: #dc2626 !important;
 }
 
 .jp-prod-summary-row.is-manager-updated .jp-prod-proxy-name {
@@ -1868,7 +1869,7 @@ body .modal-backdrop.show {
 }
 
 .jp-prod-summary-row.is-manager-updated .jp-eff.is-none {
-    color: #b91c1c !important;
+    color: #dc2626 !important;
 }
 
 .jp-prod-editable-cell,
