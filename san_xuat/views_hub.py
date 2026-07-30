@@ -1459,7 +1459,7 @@ def run_order_wizard(request, mo_id: int | None = None):
 def dispatch_mo_detail(request, pk: int):
     mo = (
         SxProductionOrder.objects.select_related('bom_version__tech_doc', 'bom_version__routing', 'routing')
-        .prefetch_related('bom_version__lines__material', 'lines')
+        .prefetch_related('bom_version__lines__material', 'bom_version__process_steps__work_center', 'lines')
         .get(pk=pk)
     )
     can_update = _perm_ctx(request).get('can_update')
@@ -1470,10 +1470,15 @@ def dispatch_mo_detail(request, pk: int):
         action = (request.POST.get('action') or '').strip()
 
         if action == 'save' and mo.status == SxProductionOrder.STATUS_DRAFT and can_update:
-            from san_xuat.services.dispatch import parse_mo_lines_from_post, update_draft_mo
+            from san_xuat.services.dispatch import (
+                parse_mo_lines_from_post,
+                parse_mo_process_steps_from_post,
+                update_draft_mo,
+            )
 
             form = ProductionOrderUpdateForm(request.POST, bom=mo.bom_version)
             lines = parse_mo_lines_from_post(request.POST)
+            process_steps = parse_mo_process_steps_from_post(request.POST)
             if form.is_valid():
                 try:
                     update_draft_mo(
@@ -1486,6 +1491,7 @@ def dispatch_mo_detail(request, pk: int):
                         process_name=form.cleaned_data.get('process_name') or '',
                         notes=form.cleaned_data.get('notes') or '',
                         lines=lines,
+                        process_steps=process_steps,
                         user=request.user,
                     )
                 except DispatchError as exc:
@@ -1597,6 +1603,7 @@ def dispatch_mo_detail(request, pk: int):
             })
 
     from san_xuat.services.mo_progress import build_mo_progress
+    from san_xuat.services.capacity_from_hrm import hr_work_centers_qs
 
     progress = build_mo_progress(mo)
     mo_lines = list(mo.lines.all())
@@ -1606,6 +1613,26 @@ def dispatch_mo_detail(request, pk: int):
         for ln in mo_lines
         if (ln.color_code or "").strip() and (ln.size_label or "").strip()
     })
+    team_options = [
+        {
+            'id': c.pk,
+            'label': (c.team_label or c.name or c.code or '').strip(),
+        }
+        for c in hr_work_centers_qs()
+    ]
+    mo_process_steps = []
+    if mo.bom_version_id:
+        for s in mo.bom_version.process_steps.select_related('work_center').order_by('sequence', 'id')[:80]:
+            mo_process_steps.append({
+                'id': s.pk,
+                'sequence': s.sequence,
+                'process_name': s.process_name,
+                'work_center_id': s.work_center_id,
+                'team_label': (
+                    (s.work_center.team_label or s.work_center.name)
+                    if s.work_center_id else ''
+                ),
+            })
 
     return render(request, 'san_xuat/dispatch_mo_detail.html', {
         **_perm_ctx(request),
@@ -1621,6 +1648,8 @@ def dispatch_mo_detail(request, pk: int):
         'wip_handover_list': wip_handover_list,
         'bom_lines': bom_lines,
         'progress': progress,
+        'team_options_json': json.dumps(team_options, ensure_ascii=False),
+        'mo_process_steps_json': json.dumps(mo_process_steps, ensure_ascii=False),
     })
 
 

@@ -592,6 +592,7 @@ def update_draft_mo(
     process_name: str = "",
     notes: str = "",
     lines: list[dict] | None = None,
+    process_steps: list[dict] | None = None,
     user=None,
 ) -> SxProductionOrder:
     if mo.status != SxProductionOrder.STATUS_DRAFT:
@@ -609,6 +610,22 @@ def update_draft_mo(
         if qty <= 0:
             raise DispatchError("SL phải > 0.")
         mo.qty = qty
+    if process_steps and mo.bom_version_id:
+        apply_bom_process_edits(mo.bom_version, process_steps)
+        first = (
+            mo.bom_version.process_steps.select_related("work_center")
+            .order_by("sequence", "id")
+            .first()
+        )
+        if first:
+            process_name = (first.process_name or process_name or "").strip()
+            if first.work_center_id:
+                team_label = (
+                    first.work_center.team_label
+                    or first.work_center.name
+                    or team_label
+                    or ""
+                ).strip()
     mo.due_date = due_date
     mo.planned_start = planned_start
     mo.planned_end = planned_end
