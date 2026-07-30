@@ -12,7 +12,7 @@ from django.db import models as dj_models
 from django.db import transaction
 from django.utils import timezone
 
-from kho_npl.choices import DOC_STATUS_POSTED, ISSUE_TYPE_PRODUCTION
+from kho_npl.choices import DOC_STATUS_DRAFT, DOC_STATUS_POSTED, ISSUE_TYPE_PRODUCTION
 from kho_npl.models import (
     Material,
     MaterialBatch,
@@ -145,6 +145,7 @@ def _split_stock_locations(
     qty_needed: Decimal,
     *,
     preferred: WarehouseLocation | None = None,
+    allow_partial: bool = False,
 ) -> list[tuple[WarehouseLocation, Decimal]]:
     """Chia qty_needed theo nhiều vị trí (ưu tiên preferred, rồi theo mã vị trí)."""
     remaining = (qty_needed or Decimal("0")).quantize(Decimal("0.001"))
@@ -171,14 +172,19 @@ def _split_stock_locations(
         _take(preferred)
     for loc in WarehouseLocation.objects.filter(is_active=True).order_by("code"):
         _take(loc)
-    if remaining > 0:
+    if remaining > 0 and not allow_partial:
         raise DispatchError(
             f"Không đủ tồn kho cho {material.code}: thiếu {remaining} (cần {qty_needed})."
         )
     return splits
 
 
-def _allocate_batches(material: Material, qty_needed: Decimal) -> list[tuple[MaterialBatch, Decimal]]:
+def _allocate_batches(
+    material: Material,
+    qty_needed: Decimal,
+    *,
+    allow_partial: bool = False,
+) -> list[tuple[MaterialBatch, Decimal]]:
     """Phân bổ qty_needed theo các lô còn tồn (chia nhiều batch nếu cần)."""
     remaining = qty_needed
     allocations: list[tuple[MaterialBatch, Decimal]] = []
@@ -191,11 +197,22 @@ def _allocate_batches(material: Material, qty_needed: Decimal) -> list[tuple[Mat
         if take > 0:
             allocations.append((batch, take))
             remaining -= take
-    if remaining > 0:
+    if remaining > 0 and not allow_partial:
         raise DispatchError(
             f"Không đủ tồn theo lô cho {material.code}: thiếu {remaining} (cần {qty_needed})."
         )
     return allocations
+
+
+def _ycx_line_remaining(line) -> Decimal:
+    requested = (line.qty_requested or Decimal("0")).quantize(Decimal("0.001"))
+    issued = (line.qty_issued or Decimal("0")).quantize(Decimal("0.001"))
+    left = requested - issued
+    return left if left > 0 else Decimal("0")
+
+
+def _ycx_has_remaining(req: SxMaterialIssueRequest) -> bool:
+    return any(_ycx_line_remaining(line) > 0 for line in req.lines.all())
 
 
 @transaction.atomic
@@ -738,49 +755,106 @@ def approve_material_issue(
     request_id: int,
     user,
     attachment=None,
+    allow_partial: bool = False,
 ) -> ApprovedIssueResult:
+    """Duyệt YCX → tạo/ghi sổ phiếu xuất NPL.
+
+    ``allow_partial=True``: xuất phần còn tồn (bỏ qua dòng hết hàng), trạng thái
+    ``partial`` nếu còn thiếu — có thể gọi lại (bổ sung) khi có hàng.
+    """
     req = (
         SxMaterialIssueRequest.objects.select_for_update()
-        .select_related("production_order")
+        .select_related("production_order", "stock_issue")
         .prefetch_related("lines")
         .get(pk=request_id)
     )
 
-    if req.stock_issue_id:
-        raise DispatchError("Yêu cầu xuất đã có phiếu xuất kho liên quan.")
-    if req.status not in ("draft", "submitted", "approved"):
+    if req.status not in ("draft", "submitted", "approved", "partial"):
         raise DispatchError("Yêu cầu xuất không ở trạng thái có thể duyệt.")
     if not req.production_order_id:
         raise DispatchError("Yêu cầu xuất thiếu tham chiếu LSX.")
+    if not _ycx_has_remaining(req) and req.status in ("partial", "done"):
+        raise DispatchError("Yêu cầu xuất đã xuất đủ — không còn SL cần bổ sung.")
 
     mo = req.production_order
-    issue = StockIssue(
-        number=next_issue_number(),
-        issue_date=timezone.localdate(),
-        issue_type=ISSUE_TYPE_PRODUCTION,
-        production_order=mo.code,
-        product_code=mo.product_code,
-        issued_by=user,
-        created_by=user,
-        recipient=user,
-        notes=req.notes or "",
-    )
-    # Attachment: nếu có thì post ngay sau khi tạo lines.
-    if attachment is not None:
-        issue.attachment = attachment
-    issue.save()
+    existing = req.stock_issue
+    issue: StockIssue
+    is_supplement = False
 
-    # Tạo StockIssueLine theo từng dòng YCX.
+    if existing_id := req.stock_issue_id:
+        existing = StockIssue.objects.select_for_update().get(pk=existing_id)
+        if existing.status == DOC_STATUS_POSTED:
+            if not allow_partial:
+                raise DispatchError("Yêu cầu xuất đã có phiếu xuất kho liên quan.")
+            if not _ycx_has_remaining(req):
+                raise DispatchError("Yêu cầu xuất đã xuất đủ.")
+            is_supplement = True
+            issue = StockIssue(
+                number=next_issue_number(),
+                issue_date=timezone.localdate(),
+                issue_type=ISSUE_TYPE_PRODUCTION,
+                production_order=mo.code,
+                product_code=mo.product_code,
+                issued_by=user,
+                created_by=user,
+                recipient=user,
+                notes=(req.notes or "") + f" (Bổ sung {req.code})",
+            )
+            if attachment is not None:
+                issue.attachment = attachment
+            issue.save()
+        elif existing.status == DOC_STATUS_DRAFT:
+            # Phiếu nháp trước đó: dựng lại dòng theo tồn hiện tại (đặc biệt khi partial).
+            existing.lines.all().delete()
+            issue = existing
+            if attachment is not None:
+                issue.attachment = attachment
+                issue.save(update_fields=["attachment"])
+        else:
+            raise DispatchError(
+                f"Phiếu xuất liên kết đang ở trạng thái không thể duyệt ({existing.status})."
+            )
+    else:
+        issue = StockIssue(
+            number=next_issue_number(),
+            issue_date=timezone.localdate(),
+            issue_type=ISSUE_TYPE_PRODUCTION,
+            production_order=mo.code,
+            product_code=mo.product_code,
+            issued_by=user,
+            created_by=user,
+            recipient=user,
+            notes=req.notes or "",
+        )
+        if attachment is not None:
+            issue.attachment = attachment
+        issue.save()
+
+    # Tạo StockIssueLine theo phần còn lại của từng dòng YCX.
     issue_lines: list[StockIssueLine] = []
+    issued_by_line: dict[int, Decimal] = {}
     for line in req.lines.all().order_by("id"):
-        qty_needed = (line.qty_requested or Decimal("0")).quantize(Decimal("0.001"))
+        qty_needed = _ycx_line_remaining(line)
         if qty_needed <= 0:
             continue
 
         material = _resolve_material_by_code(line.material_code)
         preferred = getattr(line, "preferred_location", None)
-        loc_splits = _split_stock_locations(material, qty_needed, preferred=preferred)
-        allocations = _allocate_batches(material, qty_needed)
+        loc_splits = _split_stock_locations(
+            material, qty_needed, preferred=preferred, allow_partial=allow_partial
+        )
+        if not loc_splits:
+            if allow_partial:
+                continue
+            raise DispatchError(f"Không đủ tồn kho cho {material.code}.")
+        qty_take = sum((q for _, q in loc_splits), Decimal("0")).quantize(Decimal("0.001"))
+        allocations = _allocate_batches(material, qty_take, allow_partial=allow_partial)
+        if not allocations:
+            if allow_partial:
+                continue
+            raise DispatchError(f"Không đủ tồn theo lô cho {material.code}.")
+
+        line_issued = Decimal("0")
         alloc_i = 0
         alloc_left = allocations[0][1] if allocations else Decimal("0")
         for location, loc_qty in loc_splits:
@@ -791,6 +865,7 @@ def approve_material_issue(
                 take = take.quantize(Decimal("0.001"))
                 if take <= 0:
                     break
+                note_prefix = "Bổ sung" if is_supplement else "Yêu cầu xuất"
                 issue_lines.append(
                     StockIssueLine(
                         issue=issue,
@@ -799,9 +874,10 @@ def approve_material_issue(
                         location=location,
                         batch=batch,
                         unit_price=Decimal("0"),
-                        notes=f"Yêu cầu xuất {req.code} @ {location.code}",
+                        notes=f"{note_prefix} {req.code} @ {location.code}",
                     )
                 )
+                line_issued += take
                 need -= take
                 alloc_left -= take
                 if alloc_left <= 0:
@@ -809,12 +885,19 @@ def approve_material_issue(
                     alloc_left = (
                         allocations[alloc_i][1] if alloc_i < len(allocations) else Decimal("0")
                     )
+        if line_issued > 0:
+            issued_by_line[line.pk] = line_issued
+
     if not issue_lines:
+        if allow_partial:
+            raise DispatchError(
+                "Không có tồn khả dụng để xuất. Nhập kho NPL rồi dùng «Bổ sung xuất»."
+            )
         raise DispatchError("Yêu cầu xuất không có dòng NPL với SL cần xuất > 0.")
     StockIssueLine.objects.bulk_create(issue_lines)
 
     req.stock_issue = issue
-    # Nếu chưa upload chứng từ đính kèm thì chỉ tạo phiếu nháp.
+    # Nếu chưa upload chứng từ đính kèm thì chỉ tạo phiếu nháp (chưa trừ tồn).
     if attachment is None:
         req.status = "approved"
         req.save(update_fields=["stock_issue", "status"])
@@ -824,17 +907,29 @@ def approve_material_issue(
     try:
         issue = post_stock_issue(issue, user)
     except (IssueWorkflowError, BatchWorkflowError) as exc:
-        # Nếu post lỗi, để người dùng xử lý lại phiếu xuất kho nháp — vẫn giữ link phiếu.
-        req.status = "approved"
+        req.status = "partial" if allow_partial else "approved"
         req.save(update_fields=["stock_issue", "status"])
         raise DispatchError(str(exc)) from exc
 
-    # post thành công: cập nhật qty_issued = qty_requested cho tất cả dòng YCX.
-    SxMaterialIssueRequestLine.objects.filter(request=req).update(
-        qty_issued=dj_models.F("qty_requested"),
-    )
+    # Cộng dồn qty_issued theo phần vừa xuất (không ghi đè nếu bổ sung).
+    for line in req.lines.all():
+        add = issued_by_line.get(line.pk)
+        if not add:
+            continue
+        line.qty_issued = ((line.qty_issued or Decimal("0")) + add).quantize(Decimal("0.001"))
+        # Không vượt quá yêu cầu
+        if line.qty_issued > (line.qty_requested or Decimal("0")):
+            line.qty_issued = line.qty_requested or Decimal("0")
+        line.save(update_fields=["qty_issued"])
 
-    req.status = "done" if issue.status == DOC_STATUS_POSTED else "approved"
+    # Refresh remaining sau khi cập nhật qty_issued
+    req.refresh_from_db()
+    lines = list(req.lines.all())
+    still_short = any(_ycx_line_remaining(ln) > 0 for ln in lines)
+    if issue.status == DOC_STATUS_POSTED:
+        req.status = "partial" if still_short else "done"
+    else:
+        req.status = "approved"
     req.save(update_fields=["stock_issue", "status"])
     from kho_npl.services.reservation import consume_reservations_for_ycx
 

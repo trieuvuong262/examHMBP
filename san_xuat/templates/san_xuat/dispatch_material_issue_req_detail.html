@@ -80,6 +80,7 @@
   background: var(--bs-tertiary-bg, #f8f9fa);
   color: var(--bs-body-color);
 }
+.jp-sx-ycx-short td { background: rgba(220, 38, 38, 0.06); }
 </style>
 {% endblock %}
 
@@ -88,10 +89,11 @@
   <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
     <div class="jp-sx-detail-title">
       <h2 class="jp-npl-mat-topbar-title w-100">Yêu cầu xuất VT <span class="text-muted">({{ req.code }})</span></h2>
-      <span class="badge {% if req.status == 'draft' %}text-bg-secondary{% elif req.status == 'submitted' %}text-bg-info{% elif req.status == 'approved' %}text-bg-primary{% elif req.status == 'done' %}text-bg-success{% elif req.status == 'cancelled' %}text-bg-danger{% else %}text-bg-light text-dark border{% endif %}">
+      <span class="badge {% if req.status == 'draft' %}text-bg-secondary{% elif req.status == 'submitted' %}text-bg-info{% elif req.status == 'approved' %}text-bg-primary{% elif req.status == 'partial' %}text-bg-warning{% elif req.status == 'done' %}text-bg-success{% elif req.status == 'cancelled' %}text-bg-danger{% else %}text-bg-light text-dark border{% endif %}">
         {% if req.status == 'draft' %}Nháp
         {% elif req.status == 'submitted' %}Đã gửi
         {% elif req.status == 'approved' %}Đã duyệt
+        {% elif req.status == 'partial' %}Xuất một phần
         {% elif req.status == 'done' %}Hoàn thành
         {% elif req.status == 'cancelled' %}Hủy
         {% else %}{{ req.status }}{% endif %}
@@ -153,24 +155,39 @@
       </div>
       {% endif %}
 
-      {% if can_update and not req.stock_issue %}
-        {% if req.status == 'draft' or req.status == 'submitted' or req.status == 'approved' %}
+      {% if req.status == 'partial' and ycx_has_remaining %}
+      <div class="mt-3 pt-3 border-top">
+        <div class="small text-warning-emphasis mb-0">
+          Đã xuất một phần — các dòng còn thiếu có thể bổ sung khi kho có hàng.
+        </div>
+      </div>
+      {% endif %}
+
+      {% if ycx_can_approve %}
         <div class="mt-3 pt-3 border-top">
-          <p class="jp-sx-ycx-section">Duyệt xuất kho</p>
+          <p class="jp-sx-ycx-section">{% if req.status == 'partial' %}Bổ sung xuất kho{% else %}Duyệt xuất kho{% endif %}</p>
           <form method="post" enctype="multipart/form-data" class="jp-sx-ycx-actions">
             {% csrf_token %}
-            <input type="hidden" name="action" value="approve"/>
             <div class="field">
-              <label for="{{ form.attachment.id_for_label }}">Chứng từ (tuỳ chọn)</label>
+              <label for="{{ form.attachment.id_for_label }}">Chứng từ (bắt buộc khi ghi sổ)</label>
               {{ form.attachment }}
             </div>
-            <button type="submit" class="btn btn-hm">Duyệt xuất</button>
+            {% if req.status != 'partial' %}
+            <button type="submit" name="action" value="approve" class="btn btn-hm">Duyệt xuất đủ</button>
+            <button type="submit" name="action" value="approve_partial" class="btn btn-outline-danger">Xuất phần có tồn</button>
+            {% else %}
+            <button type="submit" name="action" value="approve_partial" class="btn btn-hm">Bổ sung xuất</button>
+            {% endif %}
           </form>
+          {% if req.status != 'partial' %}
+          <p class="small text-muted mt-2 mb-0">
+            «Xuất phần có tồn» xuất các NPL còn hàng, giữ lại phần thiếu để bổ sung sau.
+          </p>
+          {% endif %}
         </div>
-        {% endif %}
-      {% elif req.stock_issue %}
+      {% elif req.stock_issue and req.status == 'done' %}
       <div class="mt-3 pt-3 border-top">
-        <div class="text-muted small mb-0">Đã liên kết phiếu xuất kho.</div>
+        <div class="text-muted small mb-0">Đã xuất đủ và liên kết phiếu xuất kho.</div>
       </div>
       {% endif %}
     </div>
@@ -183,7 +200,7 @@
         <span class="small text-muted">{{ line_rows|length }} dòng</span>
       </div>
 
-      {% if can_update and not req.stock_issue %}
+      {% if ycx_can_edit_loc %}
       <form method="post">
         {% csrf_token %}
         <input type="hidden" name="action" value="save_locations">
@@ -196,6 +213,7 @@
               <th>NPL</th>
               <th class="text-end">SL YC</th>
               <th class="text-end">Đã xuất</th>
+              <th class="text-end">Còn thiếu</th>
               <th>Vị trí ưu tiên</th>
               <th>Tồn theo VT</th>
             </tr>
@@ -203,15 +221,17 @@
           <tbody>
           {% for row in line_rows %}
             {% with l=row.line %}
-            <tr>
+            <tr class="{% if row.short %}jp-sx-ycx-short{% endif %}">
               <td>
                 <div class="fw-semibold small">{{ l.material_code }}</div>
                 <div class="text-muted small">{{ l.material_name }}</div>
+                {% if row.short %}<div class="small text-danger">Thiếu tồn</div>{% endif %}
               </td>
               <td class="text-end small">{{ l.qty_requested|sx_num }}</td>
               <td class="text-end small">{{ l.qty_issued|sx_num }}</td>
+              <td class="text-end small {% if row.remaining %}fw-semibold{% endif %}">{{ row.remaining|sx_num }}</td>
               <td>
-                {% if can_update and not req.stock_issue %}
+                {% if ycx_can_edit_loc %}
                 <select name="loc_{{ l.pk }}" class="form-select form-select-sm" style="min-width:7.5rem;max-width:10rem">
                   <option value="">Tự chia</option>
                   {% for loc in locations %}
@@ -230,13 +250,13 @@
             </tr>
             {% endwith %}
           {% empty %}
-            <tr><td colspan="5" class="text-muted small p-3">Chưa có dòng NPL.</td></tr>
+            <tr><td colspan="6" class="text-muted small p-3">Chưa có dòng NPL.</td></tr>
           {% endfor %}
           </tbody>
         </table>
       </div>
 
-      {% if can_update and not req.stock_issue %}
+      {% if ycx_can_edit_loc %}
         <div class="jp-sx-ycx-actions mt-3">
           <button type="submit" class="btn btn-outline-secondary">Lưu vị trí</button>
         </div>

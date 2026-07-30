@@ -47,7 +47,15 @@
             </td>
             <td class="npl-col" data-col="request_date">{{ req.request_date|date:"d/m/Y" }}</td>
             <td class="npl-col" data-col="status">
-              <span class="badge bg-secondary-subtle text-secondary border">{{ req.status }}</span>
+              <span class="badge {% if req.status == 'done' %}text-bg-success{% elif req.status == 'partial' %}text-bg-warning{% elif req.status == 'approved' %}text-bg-primary{% elif req.status == 'cancelled' %}text-bg-danger{% else %}bg-secondary-subtle text-secondary border{% endif %}">
+                {% if req.status == 'draft' %}Nháp
+                {% elif req.status == 'submitted' %}Đã gửi
+                {% elif req.status == 'approved' %}Đã duyệt
+                {% elif req.status == 'partial' %}Xuất một phần
+                {% elif req.status == 'done' %}Hoàn thành
+                {% elif req.status == 'cancelled' %}Hủy
+                {% else %}{{ req.status }}{% endif %}
+              </span>
             </td>
             <td class="npl-col" data-col="issue_doc">
               {% if req.stock_issue %}

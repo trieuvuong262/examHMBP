@@ -327,7 +327,7 @@ def pending_material_issue_qs():
     """Hàng đợi duyệt xuất: nháp/đã gửi và chưa có phiếu xuất."""
     return (
         SxMaterialIssueRequest.objects.filter(is_demo=False, stock_issue__isnull=True)
-        .filter(status__in=("draft", "submitted", "approved"))
+        .filter(status__in=("draft", "submitted", "approved", "partial"))
         .select_related("production_order")
         .order_by("request_date", "pk")
     )

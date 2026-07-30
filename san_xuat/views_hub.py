@@ -1849,13 +1849,17 @@ def dispatch_material_issue_req(request):
 
 
 def _ycx_detail_context(req):
+    from decimal import Decimal
+
     from kho_npl.models import StockBalance, WarehouseLocation
 
     locations = list(WarehouseLocation.objects.filter(is_active=True).order_by('code')[:200])
     line_rows = []
+    has_remaining = False
     for line in req.lines.select_related('preferred_location').all():
         balances = []
         mat = None
+        stock_total = Decimal('0')
         code = (line.material_code or '').strip()
         if code:
             from kho_npl.models import Material
@@ -1866,8 +1870,27 @@ def _ycx_detail_context(req):
                 .select_related('location')
                 .order_by('location__code')[:12]
             )
-        line_rows.append({'line': line, 'balances': balances})
-    return {'locations': locations, 'line_rows': line_rows}
+            stock_total = sum((b.quantity for b in balances), Decimal('0'))
+        qty_req = line.qty_requested or Decimal('0')
+        qty_iss = line.qty_issued or Decimal('0')
+        remaining = qty_req - qty_iss
+        if remaining < 0:
+            remaining = Decimal('0')
+        if remaining > 0:
+            has_remaining = True
+        short = remaining > 0 and stock_total < remaining
+        line_rows.append({
+            'line': line,
+            'balances': balances,
+            'stock_total': stock_total,
+            'remaining': remaining,
+            'short': short,
+        })
+    return {
+        'locations': locations,
+        'line_rows': line_rows,
+        'ycx_has_remaining': has_remaining,
+    }
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
@@ -1883,7 +1906,14 @@ def dispatch_material_issue_req_detail(request, pk: int):
 
     if request.method == 'POST':
         action = (request.POST.get('action') or '').strip()
-        if action == 'save_locations' and can_update and not req.stock_issue_id:
+        ycx_editable_loc = can_update and req.status in (
+            'draft', 'submitted', 'approved', 'partial',
+        ) and (
+            not req.stock_issue_id
+            or req.status == 'partial'
+            or getattr(req.stock_issue, 'status', '') == 'draft'
+        )
+        if action == 'save_locations' and ycx_editable_loc:
             from kho_npl.models import WarehouseLocation
 
             updated = 0
@@ -1902,19 +1932,36 @@ def dispatch_material_issue_req_detail(request, pk: int):
             )
             return redirect('san_xuat:dispatch_material_issue_req_detail', pk=req.pk)
 
-        if action == 'approve' and can_update and req.status in ('draft', 'submitted', 'approved'):
+        if action in ('approve', 'approve_partial') and can_update and req.status in (
+            'draft', 'submitted', 'approved', 'partial',
+        ):
             form = MaterialIssueApproveForm(request.POST, request.FILES)
             if form.is_valid():
+                allow_partial = action == 'approve_partial'
                 try:
                     res = approve_material_issue(
                         request_id=req.pk,
                         user=request.user,
                         attachment=form.cleaned_data.get('attachment') or None,
+                        allow_partial=allow_partial,
                     )
                 except DispatchError as exc:
                     messages.error(request, str(exc))
                 else:
-                    messages.success(request, f'Yêu cầu xuất {res.request.code} đã duyệt.')
+                    if res.request.status == 'partial':
+                        messages.success(
+                            request,
+                            f'Đã xuất phần có tồn cho {res.request.code}. '
+                            f'Còn thiếu sẽ bổ sung khi có hàng (phiếu {res.stock_issue.number}).',
+                        )
+                    elif allow_partial:
+                        messages.success(
+                            request,
+                            f'Đã bổ sung xuất đủ cho {res.request.code} '
+                            f'(phiếu {res.stock_issue.number}).',
+                        )
+                    else:
+                        messages.success(request, f'Yêu cầu xuất {res.request.code} đã duyệt.')
                     return redirect('san_xuat:dispatch_material_issue_req_detail', pk=res.request.pk)
             else:
                 messages.error(request, 'Không duyệt được yêu cầu xuất — kiểm tra lại form.')
@@ -1922,12 +1969,33 @@ def dispatch_material_issue_req_detail(request, pk: int):
     else:
         form = MaterialIssueApproveForm()
 
+    ycx_can_edit_loc = bool(
+        can_update
+        and req.status not in ('done', 'cancelled')
+        and (
+            not req.stock_issue_id
+            or req.status == 'partial'
+            or getattr(req.stock_issue, 'status', '') == 'draft'
+        )
+    )
+    ycx_can_approve = bool(
+        can_update
+        and req.status in ('draft', 'submitted', 'approved', 'partial')
+        and (
+            not req.stock_issue_id
+            or req.status == 'partial'
+            or getattr(req.stock_issue, 'status', '') == 'draft'
+        )
+    )
+
     return render(request, 'san_xuat/dispatch_material_issue_req_detail.html', {
         **_perm_ctx(request),
         'req': req,
         'form': form,
         'can_update': can_update,
         'stock_issue': stock_issue,
+        'ycx_can_edit_loc': ycx_can_edit_loc,
+        'ycx_can_approve': ycx_can_approve,
         **_ycx_detail_context(req),
     })
 
