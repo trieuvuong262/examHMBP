@@ -111,8 +111,15 @@
       {% endif %}
       {% if mo.bom_version %}
       <div>
-        <div class="label">BOM</div>
-        <div class="value">{{ mo.bom_version.version_label }}</div>
+        <div class="label">Hồ sơ thiết kế</div>
+        <div class="value">
+          <a href="{% url 'san_xuat:doc_detail' mo.bom_version.tech_doc_id %}?tab=bom&bom={{ mo.bom_version_id }}">
+            {{ mo.bom_version.version_label }}
+          </a>
+          {% if mo.bom_version.tech_doc %}
+          <div class="small text-muted">{{ mo.bom_version.tech_doc.product_code }}</div>
+          {% endif %}
+        </div>
       </div>
       {% endif %}
       {% if mo.routing_id %}
@@ -286,8 +293,16 @@
       <div class="card jp-mo-panel h-100">
         <div class="card-body">
           <div class="jp-mo-section-head">
-            <p class="title">BOM{% if mo.bom_version %} · {{ mo.bom_version.version_label }}{% endif %}</p>
-            <span class="count text-muted">{{ bom_lines|length }} dòng</span>
+            <p class="title">
+              {% if mo.bom_version %}
+              <a href="{% url 'san_xuat:doc_detail' mo.bom_version.tech_doc_id %}?tab=bom&bom={{ mo.bom_version_id }}" class="text-decoration-none text-reset">
+                Hồ sơ thiết kế · {{ mo.bom_version.version_label }}
+              </a>
+              {% else %}
+              Hồ sơ thiết kế
+              {% endif %}
+            </p>
+            <span class="count text-muted">{{ bom_lines|length }} dòng NPL</span>
           </div>
           {% if bom_lines %}
           <div class="table-responsive">
@@ -315,8 +330,13 @@
               </tbody>
             </table>
           </div>
+          {% elif mo.bom_version %}
+          <div class="text-muted small mb-2">Hồ sơ đã gắn nhưng chưa có định mức NPL.</div>
+          <a href="{% url 'san_xuat:doc_detail' mo.bom_version.tech_doc_id %}?tab=bom&bom={{ mo.bom_version_id }}" class="btn btn-sm btn-outline-hm">
+            <i class="bi bi-box-arrow-up-right me-1"></i>Mở hồ sơ · thêm NPL
+          </a>
           {% else %}
-          <div class="text-muted small mb-0">Chưa có dòng BOM.</div>
+          <div class="text-muted small mb-0">Chưa gắn hồ sơ thiết kế.</div>
           {% endif %}
         </div>
       </div>
