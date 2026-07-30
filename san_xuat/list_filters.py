@@ -393,7 +393,7 @@ SX_FILTER_WORK_CENTER = SxFilterSpec(name_fields=('name', 'team_label'), date_fi
 SX_FILTER_TECH_DOC = SxFilterSpec(
     code_fields=('product_code',),
     name_fields=('product_name', 'notes'),
-    date_field='updated_at',
+    # Không lọc theo ngày — danh sách hồ sơ luôn hiện đầy đủ
 )
 SX_FILTER_BOM = SxFilterSpec(
     code_fields=('tech_doc__product_code', 'version_label'),

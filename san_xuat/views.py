@@ -80,12 +80,13 @@ def doc_list(request):
     ).order_by('-created_at')
     qs = qs.prefetch_related(Prefetch('bom_versions', queryset=bom_qs))
 
-    page_obj, query_string = paginate_queryset(request, qs)
+    page_obj, query_string = paginate_queryset(request, qs, per_page=500)
     return render(request, 'san_xuat/doc_list.html', {
         'page_obj': page_obj,
         'query_string': query_string,
         'search_query': search_query,
         'total_count': ProductTechDoc.objects.count(),
+        'hide_sx_date_filter': True,
         **sx_filter_context(filters),
         **sx_list_grid_context(request, 'doc_list'),
         **_perm_ctx(request),
