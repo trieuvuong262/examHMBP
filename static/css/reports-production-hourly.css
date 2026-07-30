@@ -1834,6 +1834,14 @@ body .modal-backdrop.show {
     background: #f1f5f9 !important;
 }
 
+.jp-prod-summary-row.is-zero-qty {
+    background: #f8fafc;
+}
+
+.jp-prod-summary-row.is-zero-qty .jp-prod-qty-val {
+    color: #64748b;
+}
+
 .jp-prod-editable-cell,
 .jp-prod-norm-cell {
     display: inline-flex;

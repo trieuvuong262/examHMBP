@@ -374,14 +374,12 @@ def _product_zero_reason(product: ProductionShiftProduct) -> str:
 
 
 def _product_is_zero_reason_only(product: ProductionShiftProduct) -> bool:
-    """Phiên SL=0 chỉ ghi lý do — không tính hiệu suất sản lượng, vẫn ghi nhận giờ làm."""
-    if product.total_quantity is None:
-        return False
-    try:
-        qty = Decimal(str(product.total_quantity))
-    except (InvalidOperation, TypeError, ValueError):
-        return False
-    if qty != 0:
+    """Phiên SL=0 chỉ ghi lý do — không tính hiệu suất sản lượng, vẫn ghi nhận giờ làm.
+
+    Nhận cả phiên session (`total_quantity=0`) lẫn nhập theo khung giờ
+    (`total_quantity` còn None nhưng có ô SL=0 kèm lý do).
+    """
+    if _product_has_positive_quantity(product):
         return False
     return bool(_product_zero_reason(product))
 
@@ -425,7 +423,22 @@ def _product_accounted_work_hours(product: ProductionShiftProduct) -> Decimal:
 
 
 def _products_for_productivity(products: list[ProductionShiftProduct]) -> list[ProductionShiftProduct]:
-    return [product for product in products if not _product_is_zero_reason_only(product)]
+    """Chỉ công đoạn có SL > 0 — SL=0 không tính vào hiệu suất sản lượng."""
+    return [product for product in products if _product_has_positive_quantity(product)]
+
+
+def _product_should_appear_in_summary(product: ProductionShiftProduct) -> bool:
+    """Công đoạn đã ghi nhận — hiện ở chi tiết kể cả khi sản lượng = 0."""
+    if _product_is_zero_reason_only(product):
+        return True
+    if product.status == ProductionShiftProduct.STATUS_DONE:
+        return True
+    if is_session_reported_product(product) and product.ended_at:
+        return True
+    return any(
+        _entry_is_filled(entry) and entry.slot_index >= product.first_slot_index
+        for entry in product.hourly_entries.all()
+    )
 
 
 def list_production_products(report: DailyWorkReport) -> list[ProductionShiftProduct]:
@@ -1130,6 +1143,14 @@ def _slot_metrics_from_entry(
 
     qty = entry.quantity
     if qty <= 0:
+        # Ô SL=0 có lý do: vẫn hiện số 0 / giờ, không tính hiệu suất.
+        if _entry_is_filled(entry):
+            return {
+                'efficiency_pct': None,
+                'quantity_per_hour': 0.0,
+                'slot_quantity': Decimal('0'),
+                'hours': float(hours),
+            }
         return empty
 
     overall_eff = (
@@ -1634,8 +1655,8 @@ def build_productivity_report(report: DailyWorkReport) -> dict:
                 prod_hours = session_effective_hours(product)
                 prod_expected = norm * prod_hours
 
+        started_display, ended_display = session_time_displays(product)
         if prod_qty > 0 and norm and norm > 0:
-            started_display, ended_display = session_time_displays(product)
             product_summaries.append({
                 'product_id': product.id,
                 'product_code': code,
@@ -1656,6 +1677,28 @@ def build_productivity_report(report: DailyWorkReport) -> dict:
                 'note': (product.completion_note or '').strip(),
                 'updated_by_name': product_updated_by_display(product, report),
                 'is_zero_reason_only': False,
+            })
+        elif _product_should_appear_in_summary(product) and not _product_has_positive_quantity(product):
+            # Công đoạn SL=0: hiện ở chi tiết báo cáo, không tính hiệu suất.
+            display_hours = _product_accounted_work_hours(product)
+            if display_hours <= 0 and product.started_at and product.ended_at:
+                display_hours = session_effective_hours(product)
+            reason = _product_zero_reason(product)
+            product_summaries.append({
+                'product_id': product.id,
+                'product_code': code,
+                'process_name': process,
+                'quantity': 0,
+                'norm_per_hour': float(norm) if norm and norm > 0 else None,
+                'hours': float(display_hours),
+                'hours_display': _format_hours(display_hours),
+                'efficiency_pct': None,
+                'started_at_display': started_display,
+                'ended_at_display': ended_display,
+                'damaged_quantity': product.total_damaged_quantity or 0,
+                'note': (product.completion_note or '').strip() or reason,
+                'updated_by_name': product_updated_by_display(product, report),
+                'is_zero_reason_only': True,
             })
 
     hourly_rows.sort(
