@@ -539,7 +539,7 @@ def mo_bom_versions_api(request):
                             if s.work_center_id else ''
                         ),
                     }
-                    for s in bom.process_steps.select_related('work_center').order_by('sequence', 'id')[:20]
+                    for s in bom.process_steps.select_related('work_center').order_by('sequence', 'id')[:80]
                 ]
                 results.append({
                     'id': bom.pk,
