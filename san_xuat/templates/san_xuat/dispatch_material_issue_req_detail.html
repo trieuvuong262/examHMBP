@@ -225,7 +225,7 @@
               <td>
                 <div class="fw-semibold small">{{ l.material_code }}</div>
                 <div class="text-muted small">{{ l.material_name }}</div>
-                {% if row.short %}<div class="small text-danger">Thiếu tồn</div>{% endif %}
+                {% if row.short %}<div class="small text-danger">Không đủ (tồn {{ row.stock_total|sx_num }} / cần {{ row.remaining|sx_num }})</div>{% endif %}
               </td>
               <td class="text-end small">{{ l.qty_requested|sx_num }}</td>
               <td class="text-end small">{{ l.qty_issued|sx_num }}</td>

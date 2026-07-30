@@ -1879,12 +1879,16 @@ def _ycx_detail_context(req):
         if remaining > 0:
             has_remaining = True
         short = remaining > 0 and stock_total < remaining
+        shortfall = (remaining - stock_total) if short else Decimal('0')
+        if shortfall < 0:
+            shortfall = Decimal('0')
         line_rows.append({
             'line': line,
             'balances': balances,
             'stock_total': stock_total,
             'remaining': remaining,
             'short': short,
+            'shortfall': shortfall,
         })
     return {
         'locations': locations,
