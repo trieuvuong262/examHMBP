@@ -530,7 +530,7 @@ def mo_bom_versions_api(request):
                     text = f'{label} · {n_steps} công đoạn'
                 if note:
                     text = f'{text} — {note[:40]}'
-    steps = [
+                steps = [
                     {
                         'id': s.pk,
                         'sequence': s.sequence,
