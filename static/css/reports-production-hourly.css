@@ -1842,6 +1842,20 @@ body .modal-backdrop.show {
     color: #64748b;
 }
 
+.jp-prod-summary-row.is-manager-updated {
+    background: #fef2f2 !important;
+    box-shadow: inset 3px 0 0 #dc2626;
+}
+
+.jp-prod-summary-row.is-manager-updated:hover {
+    background: #fee2e2 !important;
+}
+
+.jp-prod-summary-row.is-manager-updated .jp-prod-proxy-name {
+    color: #b91c1c;
+    font-weight: 700;
+}
+
 .jp-prod-editable-cell,
 .jp-prod-norm-cell {
     display: inline-flex;

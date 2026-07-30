@@ -88,7 +88,7 @@
             </thead>
             <tbody>
                 {% for row in productivity.product_summaries %}
-                <tr class="jp-prod-summary-row{% if row.is_zero_reason_only %} is-zero-qty{% endif %}" data-product-id="{{ row.product_id }}" data-quantity="{{ row.quantity }}" data-hours="{{ row.hours }}">
+                <tr class="jp-prod-summary-row{% if row.is_zero_reason_only %} is-zero-qty{% endif %}{% if row.updated_by_name %} is-manager-updated{% endif %}" data-product-id="{{ row.product_id }}" data-quantity="{{ row.quantity }}" data-hours="{{ row.hours }}">
                     <td class="text-center text-muted">{{ forloop.counter }}</td>
                     <td>
                         <span class="jp-prod-code-pill jp-prod-code-display">{{ row.product_code }}</span>
