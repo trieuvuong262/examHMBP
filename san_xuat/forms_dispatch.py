@@ -29,8 +29,8 @@ def _product_code_choices(extra_value: str = "") -> list[tuple[str, str]]:
 
 
 def _bom_version_choices(product_code: str = "") -> list[tuple[str, str]]:
-    """Các phiên bản BOM ngang hàng của hồ sơ SX."""
-    choices: list[tuple[str, str]] = [("", "— Chọn phiên bản BOM —")]
+    """Các hồ sơ thiết kế (BOM version) của mã SX — dùng để gắn LSX + lấy tổ/công đoạn."""
+    choices: list[tuple[str, str]] = [("", "— Chọn hồ sơ thiết kế —")]
     code = (product_code or "").strip()
     if not code:
         return choices
@@ -39,13 +39,35 @@ def _bom_version_choices(product_code: str = "") -> list[tuple[str, str]]:
     doc = ProductTechDoc.objects.filter(product_code__iexact=code).first()
     if not doc:
         return choices
-    for bom in doc.bom_versions.order_by("created_at", "id"):
+    for bom in doc.bom_versions.prefetch_related("process_steps").order_by("created_at", "id"):
+        n_steps = bom.process_steps.count()
         note = (bom.notes or "").strip()
-        label = bom.version_label
+        label = bom.version_label or f"#{bom.pk}"
+        if n_steps:
+            label = f"{label} · {n_steps} công đoạn"
         if note:
             label = f"{label} — {note[:40]}"
         choices.append((str(bom.pk), label))
     return choices
+
+
+def _process_defaults_from_bom(bom) -> tuple[str, str]:
+    """(team_label, process_name) từ công đoạn đầu của hồ sơ/BOM."""
+    if bom is None:
+        return "", ""
+    step = (
+        bom.process_steps.select_related("work_center")
+        .order_by("sequence", "id")
+        .first()
+    )
+    if not step:
+        return "", ""
+    process_name = (step.process_name or "").strip()
+    team = ""
+    wc = step.work_center
+    if wc:
+        team = (wc.team_label or wc.name or "").strip()
+    return team, process_name
 
 
 def work_center_team_choices(*, extra_value: str = "") -> list[tuple[str, str]]:
@@ -110,7 +132,7 @@ class ProductionOrderCreateForm(forms.Form):
     )
     bom_version = forms.ChoiceField(
         required=False,
-        label="Phiên bản BOM",
+        label="Hồ sơ thiết kế",
         choices=[],
         widget=forms.Select(attrs={
             **_SELECT_SM,

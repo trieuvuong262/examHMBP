@@ -238,7 +238,7 @@ def create_mo_from_bom(
 
         working_bom = BomVersion.objects.filter(pk=bom_version_id, tech_doc=tech_doc).first()
         if not working_bom:
-            raise DispatchError("Phiên bản BOM không thuộc hồ sơ mã SX này.")
+            raise DispatchError("Hồ sơ thiết kế không thuộc mã SX này.")
     if working_bom is None:
         working_bom = get_working_bom(tech_doc)
     if not working_bom:

@@ -138,11 +138,43 @@
   var productSel = document.getElementById('id_product_code');
   var codeInput = document.getElementById('id_code');
   var bomSel = document.getElementById('id_bom_version');
+  var teamSel = document.getElementById('id_team_label');
+  var processSel = document.getElementById('id_process_name');
   if (!productSel || !codeInput) return;
   codeInput.classList.add('jp-mo-code-preview');
   var previewUrl = '{% url "san_xuat:mo_code_preview" %}';
   var bomUrl = '{% url "san_xuat:mo_bom_versions" %}';
   var timer = null;
+  var bomMeta = {};
+
+  function setSelectValue(sel, value) {
+    if (!sel || value == null || value === '') return;
+    var str = String(value);
+    if (sel.tomselect) {
+      if (!sel.tomselect.options[str]) {
+        sel.tomselect.addOption({ value: str, text: str });
+      }
+      sel.tomselect.setValue(str, true);
+      return;
+    }
+    var has = Array.prototype.some.call(sel.options, function (o) { return o.value === str; });
+    if (!has) {
+      var opt = document.createElement('option');
+      opt.value = str;
+      opt.textContent = str;
+      sel.appendChild(opt);
+    }
+    sel.value = str;
+  }
+
+  function applyBomDefaults(bomId, force) {
+    var meta = bomMeta[String(bomId)];
+    if (!meta) return;
+    var teamEmpty = !teamSel || !(teamSel.tomselect ? teamSel.tomselect.getValue() : teamSel.value);
+    var processEmpty = !processSel || !(processSel.tomselect ? processSel.tomselect.getValue() : processSel.value);
+    if (force || teamEmpty) setSelectValue(teamSel, meta.team_label || '');
+    if (force || processEmpty) setSelectValue(processSel, meta.process_name || '');
+  }
 
   function preview() {
     var code = (productSel.value || '').trim();
@@ -167,9 +199,10 @@
     var code = (productSel.value || '').trim();
     var keep = bomSel.value;
     bomSel.innerHTML = '';
+    bomMeta = {};
     var blank = document.createElement('option');
     blank.value = '';
-    blank.textContent = code ? '— Chọn phiên bản BOM —' : '— Chọn mã SX trước —';
+    blank.textContent = code ? '— Chọn hồ sơ thiết kế —' : '— Chọn mã SX trước —';
     bomSel.appendChild(blank);
     if (!code) return;
     fetch(bomUrl + '?product_code=' + encodeURIComponent(code), {
@@ -183,11 +216,17 @@
           opt.value = String(row.id);
           opt.textContent = row.text || row.label;
           bomSel.appendChild(opt);
+          bomMeta[String(row.id)] = row;
         });
+        var picked = '';
         if (keep && Array.prototype.some.call(bomSel.options, function (o) { return o.value === keep; })) {
-          bomSel.value = keep;
+          picked = keep;
         } else if (rows.length === 1) {
-          bomSel.value = String(rows[0].id);
+          picked = String(rows[0].id);
+        }
+        if (picked) {
+          bomSel.value = picked;
+          applyBomDefaults(picked, true);
         }
       })
       .catch(function () {});
@@ -205,6 +244,11 @@
   document.addEventListener('change', function (e) {
     if (e.target && e.target.id === 'id_product_code') schedule();
   });
+  if (bomSel) {
+    bomSel.addEventListener('change', function () {
+      applyBomDefaults(bomSel.value, true);
+    });
+  }
   schedule();
 })();
 </script>

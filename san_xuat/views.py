@@ -511,21 +511,46 @@ def mo_sku_matrix_api(request):
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 @require_GET
 def mo_bom_versions_api(request):
-    """Danh sách phiên bản BOM ngang hàng theo mã SX."""
+    """Danh sách hồ sơ thiết kế (BOM) theo mã SX — kèm gợi ý tổ / công đoạn."""
     product_code = (request.GET.get('product_code') or '').strip()
+    from san_xuat.forms_dispatch import _process_defaults_from_bom
     from san_xuat.models import ProductTechDoc
 
     results = []
     if product_code:
         doc = ProductTechDoc.objects.filter(product_code__iexact=product_code).first()
         if doc:
-            for bom in doc.bom_versions.order_by('created_at', 'id'):
+            for bom in doc.bom_versions.prefetch_related('process_steps__work_center').order_by('created_at', 'id'):
                 note = (bom.notes or '').strip()
+                n_steps = bom.process_steps.count()
+                team, process = _process_defaults_from_bom(bom)
+                label = bom.version_label or f'#{bom.pk}'
+                text = label
+                if n_steps:
+                    text = f'{label} · {n_steps} công đoạn'
+                if note:
+                    text = f'{text} — {note[:40]}'
+                steps = [
+                    {
+                        'sequence': s.sequence,
+                        'process_name': s.process_name,
+                        'team_label': (
+                            (s.work_center.team_label or s.work_center.name)
+                            if s.work_center_id else ''
+                        ),
+                    }
+                    for s in bom.process_steps.select_related('work_center').order_by('sequence', 'id')[:20]
+                ]
                 results.append({
                     'id': bom.pk,
-                    'label': bom.version_label,
-                    'text': f'{bom.version_label}' + (f' — {note[:40]}' if note else ''),
+                    'tech_doc_id': doc.pk,
+                    'label': label,
+                    'text': text,
                     'notes': note,
+                    'n_steps': n_steps,
+                    'team_label': team,
+                    'process_name': process,
+                    'process_steps': steps,
                 })
     return JsonResponse({'results': results})
 
