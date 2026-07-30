@@ -1842,18 +1842,33 @@ body .modal-backdrop.show {
     color: #64748b;
 }
 
-.jp-prod-summary-row.is-manager-updated {
-    background: #fef2f2 !important;
-    box-shadow: inset 3px 0 0 #dc2626;
+.jp-prod-summary-row.is-manager-updated,
+.jp-prod-summary-row.is-manager-updated > td {
+    background: #fecaca !important;
+    color: #991b1b !important;
 }
 
-.jp-prod-summary-row.is-manager-updated:hover {
-    background: #fee2e2 !important;
+.jp-prod-summary-row.is-manager-updated:hover,
+.jp-prod-summary-row.is-manager-updated:hover > td {
+    background: #fca5a5 !important;
+}
+
+.jp-prod-summary-row.is-manager-updated .jp-prod-code-pill,
+.jp-prod-summary-row.is-manager-updated .jp-prod-process-display,
+.jp-prod-summary-row.is-manager-updated .jp-prod-qty-val,
+.jp-prod-summary-row.is-manager-updated .jp-prod-norm-display,
+.jp-prod-summary-row.is-manager-updated .jp-prod-note-val,
+.jp-prod-summary-row.is-manager-updated .jp-prod-proxy-name,
+.jp-prod-summary-row.is-manager-updated .text-muted {
+    color: #991b1b !important;
 }
 
 .jp-prod-summary-row.is-manager-updated .jp-prod-proxy-name {
-    color: #b91c1c;
     font-weight: 700;
+}
+
+.jp-prod-summary-row.is-manager-updated .jp-eff.is-none {
+    color: #b91c1c !important;
 }
 
 .jp-prod-editable-cell,
