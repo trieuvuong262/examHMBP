@@ -764,7 +764,7 @@ def approve_material_issue(
     """
     req = (
         SxMaterialIssueRequest.objects.select_for_update()
-        .select_related("production_order", "stock_issue")
+        .select_related("production_order")
         .prefetch_related("lines")
         .get(pk=request_id)
     )
