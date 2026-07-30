@@ -252,7 +252,7 @@ class ProductionOrderCreateForm(forms.Form):
         try:
             return int(raw)
         except (TypeError, ValueError):
-            raise forms.ValidationError("Phiên bản BOM không hợp lệ.")
+            raise forms.ValidationError("Hồ sơ thiết kế không hợp lệ.")
 
     def clean_process_name(self):
         return _clean_standard_process_name(self.cleaned_data.get("process_name"))
