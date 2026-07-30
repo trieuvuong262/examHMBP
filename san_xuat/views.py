@@ -530,10 +530,12 @@ def mo_bom_versions_api(request):
                     text = f'{label} · {n_steps} công đoạn'
                 if note:
                     text = f'{text} — {note[:40]}'
-                steps = [
+    steps = [
                     {
+                        'id': s.pk,
                         'sequence': s.sequence,
                         'process_name': s.process_name,
+                        'work_center_id': s.work_center_id,
                         'team_label': (
                             (s.work_center.team_label or s.work_center.name)
                             if s.work_center_id else ''

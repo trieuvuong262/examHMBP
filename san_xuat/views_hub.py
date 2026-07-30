@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from decimal import Decimal
 
 from django.contrib import messages
@@ -1209,11 +1210,13 @@ def dispatch_mo(request):
 
 @module_perm_required(MODULE_SAN_XUAT, 'create')
 def dispatch_mo_create(request):
-    from san_xuat.services.dispatch import parse_mo_lines_from_post
+    from san_xuat.services.capacity_from_hrm import hr_work_centers_qs
+    from san_xuat.services.dispatch import parse_mo_lines_from_post, parse_mo_process_steps_from_post
 
     if request.method == 'POST':
         form = ProductionOrderCreateForm(request.POST)
         lines = parse_mo_lines_from_post(request.POST)
+        process_steps = parse_mo_process_steps_from_post(request.POST)
         if form.is_valid():
             try:
                 mo = create_mo_from_bom(
@@ -1230,6 +1233,7 @@ def dispatch_mo_create(request):
                     is_sample=bool(form.cleaned_data.get('is_sample')),
                     lines=lines,
                     bom_version_id=form.cleaned_data.get('bom_version'),
+                    process_steps=process_steps,
                 )
             except DispatchError as exc:
                 messages.error(request, str(exc))
@@ -1247,10 +1251,19 @@ def dispatch_mo_create(request):
         if prefill:
             initial['product_code'] = prefill
         form = ProductionOrderCreateForm(initial=initial)
+
+    team_options = [
+        {
+            'id': c.pk,
+            'label': (c.team_label or c.name or c.code or '').strip(),
+        }
+        for c in hr_work_centers_qs()
+    ]
     return render(request, 'san_xuat/dispatch_mo_form.html', {
         **_perm_ctx(request),
         'form': form,
         'mode': 'create',
+        'team_options_json': json.dumps(team_options, ensure_ascii=False),
     })
 
 

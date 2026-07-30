@@ -216,6 +216,7 @@ def create_mo_from_bom(
     is_sample: bool = False,
     lines: list[dict] | None = None,
     bom_version_id: int | None = None,
+    process_steps: list[dict] | None = None,
 ) -> SxProductionOrder:
     product_code = (product_code or "").strip()
     if not product_code:
@@ -244,6 +245,24 @@ def create_mo_from_bom(
     if not working_bom:
         raise DispatchError(f"Mã {product_code} chưa có BOM để tính.")
 
+    if process_steps:
+        apply_bom_process_edits(working_bom, process_steps)
+        # Đồng bộ tổ / công đoạn chính từ dòng đầu sau khi chỉnh
+        first = (
+            working_bom.process_steps.select_related("work_center")
+            .order_by("sequence", "id")
+            .first()
+        )
+        if first:
+            process_name = (first.process_name or process_name or "").strip()
+            if first.work_center_id:
+                team_label = (
+                    first.work_center.team_label
+                    or first.work_center.name
+                    or team_label
+                    or ""
+                ).strip()
+
     mo_code = (code or "").strip() or _next_mo_code_for_product(tech_doc.product_code)
 
     mo = SxProductionOrder.objects.create(
@@ -269,6 +288,86 @@ def create_mo_from_bom(
     if normalized_lines:
         replace_mo_lines(mo, normalized_lines, style_code=tech_doc.product_code, user=user)
     return mo
+
+
+def parse_mo_process_steps_from_post(post) -> list[dict] | None:
+    """Đọc bảng công đoạn chỉnh sửa từ form tạo LSX. None = không gửi bảng."""
+    raw_total = post.get("mo_steps-TOTAL_FORMS")
+    if raw_total is None:
+        return None
+    try:
+        total = int(raw_total)
+    except (TypeError, ValueError):
+        return []
+    rows: list[dict] = []
+    for i in range(max(0, total)):
+        prefix = f"mo_steps-{i}-"
+        if str(post.get(f"{prefix}DELETE") or "").lower() in ("1", "on", "true", "yes"):
+            continue
+        name = (post.get(f"{prefix}process_name") or "").strip()
+        if not name:
+            continue
+        step_id = (post.get(f"{prefix}id") or "").strip()
+        seq_raw = (post.get(f"{prefix}sequence") or "").strip()
+        wc_raw = (post.get(f"{prefix}work_center") or "").strip()
+        try:
+            seq = int(seq_raw) if seq_raw else (i + 1) * 10
+        except ValueError:
+            seq = (i + 1) * 10
+        try:
+            wc_id = int(wc_raw) if wc_raw else None
+        except ValueError:
+            wc_id = None
+        try:
+            pk = int(step_id) if step_id else None
+        except ValueError:
+            pk = None
+        rows.append({
+            "id": pk,
+            "sequence": seq,
+            "process_name": name,
+            "work_center_id": wc_id,
+        })
+    return rows
+
+
+@transaction.atomic
+def apply_bom_process_edits(bom, steps: list[dict]) -> int:
+    """Cập nhật công đoạn hồ sơ (BOM) theo bảng chỉnh trên form LSX."""
+    from san_xuat.models import ProcessStep
+    from san_xuat.services.process_catalog import ensure_process_name, resolve_standard_process_name
+
+    keep_ids: list[int] = []
+    for i, row in enumerate(steps or []):
+        raw_name = (row.get("process_name") or "").strip()
+        if not raw_name:
+            continue
+        name = resolve_standard_process_name(raw_name) or raw_name
+        ensure_process_name(name)
+        seq = int(row.get("sequence") or (i + 1) * 10)
+        wc_id = row.get("work_center_id")
+        step = None
+        step_id = row.get("id")
+        if step_id:
+            step = bom.process_steps.filter(pk=step_id).first()
+        if step is None:
+            step = ProcessStep(
+                bom=bom,
+                sequence=seq,
+                process_name=name,
+                work_center_id=wc_id,
+                norm_per_hour=Decimal("60"),
+            )
+            step.save()
+        else:
+            step.sequence = seq
+            step.process_name = name
+            step.work_center_id = wc_id
+            step.save(update_fields=["sequence", "process_name", "work_center_id"])
+        keep_ids.append(step.pk)
+
+    deleted, _ = bom.process_steps.exclude(pk__in=keep_ids).delete()
+    return len(keep_ids)
 
 
 def normalize_mo_lines(raw_lines: list[dict]) -> list[dict]:
