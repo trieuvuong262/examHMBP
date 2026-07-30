@@ -112,6 +112,7 @@ from san_xuat.forms_dispatch import (
     ProductionStatCreateForm,
     WipHandoverCreateForm,
     WipReturnCreateForm,
+    production_stat_initial_from_mo,
 )
 from san_xuat.forms_qc import (
     QcCriteriaForm,
@@ -1308,7 +1309,11 @@ def run_order_wizard(request, mo_id: int | None = None):
 
     mo = None
     if mo_id:
-        mo = get_object_or_404(SxProductionOrder, pk=mo_id, is_demo=False)
+        mo = get_object_or_404(
+            SxProductionOrder.objects.select_related('bom_version').prefetch_related('lines'),
+            pk=mo_id,
+            is_demo=False,
+        )
 
     step_param = request.GET.get('step') or request.POST.get('step')
     try:
@@ -1370,7 +1375,7 @@ def run_order_wizard(request, mo_id: int | None = None):
                 return redirect(f"{reverse('san_xuat:run_order_wizard_mo', kwargs={'mo_id': mo.pk})}?step=4")
 
         elif mo and action == 'create_stat' and can.get('can_create'):
-            stat_form = ProductionStatCreateForm(request.POST)
+            stat_form = ProductionStatCreateForm(request.POST, mo=mo)
             if stat_form.is_valid():
                 try:
                     st = create_production_stat(
@@ -1436,11 +1441,10 @@ def run_order_wizard(request, mo_id: int | None = None):
             .first()
         )
         if step == 5 and stat_form is None:
-            stat_form = ProductionStatCreateForm(initial={
-                'stat_date': timezone.localdate(),
-                'team_label': mo.team_label or '',
-                'qty_good': mo.qty,
-            })
+            stat_form = ProductionStatCreateForm(
+                initial=production_stat_initial_from_mo(mo),
+                mo=mo,
+            )
 
     return render(request, 'san_xuat/run_order_wizard.html', {
         **can,
@@ -2021,11 +2025,19 @@ def dispatch_prod_stats(request):
 
 @module_perm_required(MODULE_SAN_XUAT, 'create')
 def dispatch_prod_stats_create(request):
-    mo_id = request.GET.get('mo')
-    mo = get_object_or_404(SxProductionOrder, pk=mo_id) if mo_id else None
+    mo_id = request.GET.get('mo') or request.POST.get('production_order')
+    mo = None
+    if mo_id:
+        mo = get_object_or_404(
+            SxProductionOrder.objects.select_related('bom_version').prefetch_related('lines'),
+            pk=mo_id,
+        )
     if request.method == 'POST':
-        mo = get_object_or_404(SxProductionOrder, pk=request.POST.get('production_order'))
-        form = ProductionStatCreateForm(request.POST)
+        mo = get_object_or_404(
+            SxProductionOrder.objects.select_related('bom_version').prefetch_related('lines'),
+            pk=request.POST.get('production_order'),
+        )
+        form = ProductionStatCreateForm(request.POST, mo=mo)
         if form.is_valid():
             try:
                 stat = create_production_stat(
@@ -2051,15 +2063,24 @@ def dispatch_prod_stats_create(request):
         else:
             messages.error(request, 'Không tạo được TKSX — kiểm tra lại form.')
     else:
-        initial = {'stat_date': timezone.localdate()}
-        if mo:
-            initial['team_label'] = mo.team_label
-            initial['qty_good'] = mo.qty
-        form = ProductionStatCreateForm(initial=initial)
+        form = ProductionStatCreateForm(
+            initial=production_stat_initial_from_mo(mo),
+            mo=mo,
+        )
+    mo_line_qty = []
+    if mo:
+        for ln in mo.lines.all():
+            mo_line_qty.append({
+                'color': (ln.color_code or '').strip().upper(),
+                'size': (ln.size_label or '').strip().upper(),
+                'qty': str(ln.qty or 0),
+                'sku': (ln.sku_code or '').strip().upper(),
+            })
     return render(request, 'san_xuat/dispatch_prod_stats_form.html', {
         **_perm_ctx(request),
         'form': form,
         'mo': mo,
+        'mo_line_qty_json': mo_line_qty,
     })
 
 

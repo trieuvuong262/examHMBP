@@ -378,10 +378,11 @@ class ProductionStatCreateForm(forms.Form):
         label="Số lượng lỗi",
         widget=forms.NumberInput(attrs={"class": "form-control form-control-sm", "step": "0.01", "min": "0"}),
     )
-    team_label = forms.CharField(
+    team_label = forms.ChoiceField(
         required=False,
         label="Tổ / chuyền",
-        widget=forms.TextInput(attrs={"class": "form-control form-control-sm", "placeholder": "VD: Tổ May 1"}),
+        choices=[],
+        widget=forms.Select(attrs={"class": "form-select form-select-sm"}),
     )
     size_label = forms.ChoiceField(
         required=False,
@@ -419,25 +420,60 @@ class ProductionStatCreateForm(forms.Form):
         }),
     )
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, mo=None, **kwargs):
         super().__init__(*args, **kwargs)
         from san_xuat.services.sku_catalog import color_choices, size_choices
 
         data = args[0] if args else None
         extra_process = ""
+        extra_team = ""
         extra_color = ""
         extra_size = ""
         if data is not None:
             extra_process = data.get("process_name") or ""
+            extra_team = data.get("team_label") or ""
             extra_color = data.get("color_code") or ""
             extra_size = data.get("size_label") or ""
         elif self.initial:
             extra_process = self.initial.get("process_name") or ""
+            extra_team = self.initial.get("team_label") or ""
             extra_color = self.initial.get("color_code") or ""
             extra_size = self.initial.get("size_label") or ""
-        self.fields["process_name"].choices = bom_process_choices(None, extra_value=extra_process)
-        self.fields["color_code"].choices = color_choices(extra_code=extra_color)
-        self.fields["size_label"].choices = size_choices(extra_code=extra_size)
+
+        bom = getattr(mo, "bom_version", None) if mo is not None else None
+        self.fields["process_name"].choices = bom_process_choices(bom, extra_value=extra_process)
+        self.fields["team_label"].choices = work_center_team_choices(extra_value=extra_team)
+
+        mo_color_choices: list[tuple[str, str]] | None = None
+        mo_size_choices: list[tuple[str, str]] | None = None
+        if mo is not None:
+            lines = list(mo.lines.all())
+            if lines:
+                colors: dict[str, str] = {}
+                sizes: list[str] = []
+                seen_sizes: set[str] = set()
+                for ln in lines:
+                    c = (ln.color_code or "").strip().upper()
+                    if c and c not in colors:
+                        colors[c] = (ln.color_label or c).strip() or c
+                    s = (ln.size_label or "").strip().upper()
+                    if s and s not in seen_sizes:
+                        seen_sizes.add(s)
+                        sizes.append(s)
+                mo_color_choices = [("", "— Chọn màu —")] + [
+                    (code, f"{code} — {name}" if name and name != code else code)
+                    for code, name in colors.items()
+                ]
+                mo_size_choices = [("", "— Chọn size —")] + [(s, s) for s in sizes]
+                extra_c = (extra_color or "").strip().upper()
+                if extra_c and extra_c not in colors:
+                    mo_color_choices.append((extra_c, f"{extra_c} (đang dùng)"))
+                extra_s = (extra_size or "").strip().upper()
+                if extra_s and extra_s not in seen_sizes:
+                    mo_size_choices.append((extra_s, f"{extra_s} (đang dùng)"))
+
+        self.fields["color_code"].choices = mo_color_choices or color_choices(extra_code=extra_color)
+        self.fields["size_label"].choices = mo_size_choices or size_choices(extra_code=extra_size)
 
     def clean_process_name(self):
         return _clean_standard_process_name(self.cleaned_data.get("process_name"))
@@ -454,6 +490,68 @@ class ProductionStatCreateForm(forms.Form):
         if color_code and not cleaned.get("color_label"):
             cleaned["color_label"] = color_label_for(color_code)
         return cleaned
+
+
+def production_stat_initial_from_mo(mo) -> dict:
+    """Giá trị mặc định form TKSX khi mở từ LSX (?mo=)."""
+    from django.utils import timezone
+
+    initial: dict = {"stat_date": timezone.localdate(), "qty_good": Decimal("0"), "qty_defect": Decimal("0")}
+    if mo is None:
+        return initial
+
+    team = (mo.team_label or "").strip()
+    process = (mo.process_name or "").strip()
+    if not team or not process:
+        t2, p2 = _process_defaults_from_bom(getattr(mo, "bom_version", None))
+        team = team or t2
+        process = process or p2
+    if team:
+        initial["team_label"] = team
+    if process:
+        initial["process_name"] = process
+
+    remaining = (mo.qty or Decimal("0")) - (mo.qty_done or Decimal("0"))
+    if remaining < 0:
+        remaining = Decimal("0")
+
+    lines = list(mo.lines.all())
+    if len(lines) == 1:
+        ln = lines[0]
+        if (ln.color_code or "").strip():
+            initial["color_code"] = (ln.color_code or "").strip().upper()
+            initial["color_label"] = (ln.color_label or "").strip()
+        if (ln.size_label or "").strip():
+            initial["size_label"] = (ln.size_label or "").strip().upper()
+        if (ln.sku_code or "").strip():
+            initial["sku_code"] = (ln.sku_code or "").strip().upper()
+        initial["qty_good"] = ln.qty or remaining
+    elif lines:
+        colors = {
+            (ln.color_code or "").strip().upper()
+            for ln in lines
+            if (ln.color_code or "").strip()
+        }
+        sizes = {
+            (ln.size_label or "").strip().upper()
+            for ln in lines
+            if (ln.size_label or "").strip()
+        }
+        if len(colors) == 1:
+            code = next(iter(colors))
+            initial["color_code"] = code
+            for ln in lines:
+                if (ln.color_code or "").strip().upper() == code:
+                    initial["color_label"] = (ln.color_label or "").strip()
+                    break
+        if len(sizes) == 1:
+            initial["size_label"] = next(iter(sizes))
+        # Nhiều SKU: không điền sẵn SL tổng — user chọn màu/size rồi nhập SL
+        initial["qty_good"] = Decimal("0")
+    else:
+        initial["qty_good"] = remaining if remaining > 0 else (mo.qty or Decimal("0"))
+
+    return initial
 
 
 class FgReceiptCreateForm(forms.Form):

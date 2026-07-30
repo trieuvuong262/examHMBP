@@ -82,6 +82,7 @@
       <div class="alert alert-warning border-0 small mb-3">Mở từ chi tiết lệnh sản xuất để ghi thống kê đúng lệnh.</div>
       {% endif %}
 
+      {% if mo_line_qty_json %}{{ mo_line_qty_json|json_script:"mo-line-qty-data" }}{% endif %}
       <form method="post" class="jp-sx-sku-row" novalidate>
         {% csrf_token %}
         <input type="hidden" name="production_order" value="{% if mo %}{{ mo.pk }}{% endif %}">
@@ -146,4 +147,37 @@
 </div>
 {% include 'san_xuat/includes/sx_process_select_script.html' %}
 {% include 'san_xuat/includes/sx_sku_compose_script.html' %}
+<script>
+(function () {
+  var dataEl = document.getElementById('mo-line-qty-data');
+  if (!dataEl) return;
+  var lines = [];
+  try { lines = JSON.parse(dataEl.textContent || '[]') || []; } catch (e) { lines = []; }
+  if (!lines.length) return;
+  var form = document.querySelector('form.jp-sx-sku-row');
+  if (!form) return;
+  var colorSel = form.querySelector('.jp-sx-color-select');
+  var sizeSel = form.querySelector('.jp-sx-size-select');
+  var qtyInput = form.querySelector('#id_qty_good');
+  var skuInput = form.querySelector('.jp-sx-sku-code');
+  function applyLineQty() {
+    if (!colorSel || !sizeSel || !qtyInput) return;
+    var color = (colorSel.value || '').trim().toUpperCase();
+    var size = (sizeSel.value || '').trim().toUpperCase();
+    if (!color || !size) return;
+    for (var i = 0; i < lines.length; i++) {
+      var ln = lines[i];
+      if ((ln.color || '') === color && (ln.size || '') === size) {
+        qtyInput.value = ln.qty || qtyInput.value;
+        if (skuInput && ln.sku) {
+          skuInput.value = ln.sku;
+        }
+        break;
+      }
+    }
+  }
+  if (colorSel) colorSel.addEventListener('change', applyLineQty);
+  if (sizeSel) sizeSel.addEventListener('change', applyLineQty);
+})();
+</script>
 {% endblock %}
