@@ -374,7 +374,7 @@ def _product_zero_reason(product: ProductionShiftProduct) -> str:
 
 
 def _product_is_zero_reason_only(product: ProductionShiftProduct) -> bool:
-    """Phiên SL=0 chỉ ghi lý do — không tính vào hiệu suất (sản lượng & thời gian).
+    """Phiên SL=0 chỉ ghi lý do — không tính hiệu suất sản lượng; giờ vẫn ghi nhận thời gian thực tế.
 
     Nhận cả phiên session (`total_quantity=0`) lẫn nhập theo khung giờ
     (`total_quantity` còn None nhưng có ô SL=0 kèm lý do).
@@ -385,7 +385,12 @@ def _product_is_zero_reason_only(product: ProductionShiftProduct) -> bool:
 
 
 def _product_display_work_hours(product: ProductionShiftProduct) -> Decimal:
-    """Giờ hiện trên dòng công đoạn — gồm cả SL=0 (để xem), không dùng cho hiệu suất."""
+    """Giờ hiện trên dòng công đoạn — khớp giờ ghi nhận thời gian thực tế."""
+    return _product_accounted_work_hours(product)
+
+
+def _product_accounted_work_hours(product: ProductionShiftProduct) -> Decimal:
+    """Giờ ghi vào thời gian thực tế / hiệu suất thời gian — gồm cả công đoạn SL=0."""
     if not _product_has_positive_quantity(product):
         if product.started_at and product.ended_at:
             return session_effective_hours(product)
@@ -397,13 +402,6 @@ def _product_display_work_hours(product: ProductionShiftProduct) -> Decimal:
                 continue
             hours += _entry_hours(entry)
         return hours
-    return _product_accounted_work_hours(product)
-
-
-def _product_accounted_work_hours(product: ProductionShiftProduct) -> Decimal:
-    """Giờ ghi vào thời gian thực tế / hiệu suất thời gian — bỏ qua công đoạn SL=0."""
-    if not _product_has_positive_quantity(product):
-        return Decimal('0')
 
     norm = product.norm_per_hour
     if not norm or norm <= 0:
@@ -1423,8 +1421,8 @@ def compute_day_work_waste_summary(
 ) -> dict:
     """Thời gian làm thực tế và hao phí = giờ khai báo − giờ thực tế.
 
-    `Thời gian thực tế` = tổng giờ công đoạn có sản lượng > 0.
-    Công đoạn SL=0 vẫn hiện trên bảng nhưng không cộng vào đây / hiệu suất thời gian.
+    `Thời gian thực tế` = tổng giờ mọi công đoạn đã ghi nhận (kể cả SL=0).
+    Công đoạn SL=0 không tính hiệu suất sản lượng nhưng vẫn cộng giờ vào đây.
     """
     empty = {
         'work_minutes': Decimal('0'),
@@ -1688,8 +1686,6 @@ def build_productivity_report(report: DailyWorkReport) -> dict:
         elif _product_should_appear_in_summary(product) and not _product_has_positive_quantity(product):
             # Công đoạn SL=0: hiện ở chi tiết báo cáo, không tính hiệu suất.
             display_hours = _product_display_work_hours(product)
-            if display_hours <= 0 and product.started_at and product.ended_at:
-                display_hours = session_effective_hours(product)
             reason = _product_zero_reason(product)
             product_summaries.append({
                 'product_id': product.id,
