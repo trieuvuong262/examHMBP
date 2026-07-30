@@ -107,14 +107,6 @@
             <label class="form-label small text-muted" for="{{ form.notes.id_for_label }}">{{ form.notes.label }}{{ form.notes|sx_req_star }}</label>
             {{ form.notes }}
           </div>
-          {% if form.is_sample %}
-          <div class="col-12">
-            <div class="form-check">
-              {{ form.is_sample }}
-              <label class="form-check-label" for="{{ form.is_sample.id_for_label }}">{{ form.is_sample.label }}</label>
-            </div>
-          </div>
-          {% endif %}
         </div>
       </div>
 
@@ -258,7 +250,6 @@
       + '<div class="d-flex flex-wrap gap-2 mt-2">'
       + '<button type="button" class="btn btn-outline-hm btn-sm" id="mo-add-step-row">'
       + '<i class="bi bi-plus-lg me-1"></i>Thêm công đoạn</button>'
-      + '<span class="form-text align-self-center">Chỉnh tại đây sẽ cập nhật luôn hồ sơ thiết kế khi tạo LSX.</span>'
       + '</div>';
 
     if (typeof window.jpSxInitProcessSelects === 'function') {
