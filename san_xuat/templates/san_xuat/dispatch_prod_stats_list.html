@@ -12,6 +12,8 @@
       <h2 class="jp-npl-mat-topbar-title w-100">Thống kê sản xuất</h2>
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
+      <a href="{% url 'san_xuat:dispatch_prod_stats' %}?tab=mine"><i class="bi bi-person-workspace" aria-hidden="true"></i>Công đoạn của tôi</a>
+      <a href="{% url 'san_xuat:dispatch_prod_stats' %}?tab=stats" class="fw-bold"><i class="bi bi-list-ul" aria-hidden="true"></i>Phiếu TKSX</a>
       {% include 'san_xuat/includes/sx_export_btn.html' with export_key='dispatch_prod_stats' %}
             {% if can_create %}
     <a href="{% url 'san_xuat:dispatch_prod_stats_create' %}" class="btn btn-hm btn-sm fw-bold">

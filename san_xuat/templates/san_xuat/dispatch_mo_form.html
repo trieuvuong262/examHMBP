@@ -135,6 +135,7 @@
   var previewUrl = '{% url "san_xuat:mo_code_preview" %}';
   var bomUrl = '{% url "san_xuat:mo_bom_versions" %}';
   var TEAM_OPTIONS = {{ team_options_json|default:"[]"|safe }};
+  var MANAGER_OPTIONS = {{ manager_options_json|default:"[]"|safe }};
   var timer = null;
   var bomMeta = {};
   var stepCount = 0;
@@ -162,6 +163,17 @@
       if (String(TEAM_OPTIONS[i].id) === String(wcId)) return TEAM_OPTIONS[i].label || '';
     }
     return '';
+  }
+
+  function managerOptionsHtml(selectedId) {
+    var html = '<option value="">— Chọn quản lý —</option>';
+    (MANAGER_OPTIONS || []).forEach(function (m) {
+      var sel = selectedId && String(m.id) === String(selectedId) ? ' selected' : '';
+      var label = m.label || '';
+      if (m.role) label += ' · ' + m.role;
+      html += '<option value="' + m.id + '"' + sel + '>' + escapeHtml(label) + '</option>';
+    });
+    return html;
   }
 
   function syncHeaderFromFirstRow() {
@@ -196,6 +208,7 @@
     var seq = step.sequence != null ? step.sequence : (idx + 1) * 10;
     var name = step.process_name || '';
     var wcId = step.work_center_id || '';
+    var mgrId = step.manager_id || '';
     var processOpts = name
       ? '<option value="' + escapeHtml(name) + '" selected>' + escapeHtml(name) + '</option>'
       : '<option value="">— Chọn công đoạn —</option>';
@@ -212,6 +225,11 @@
       + '<td>'
       + '<select name="mo_steps-' + idx + '-work_center" class="form-select form-select-sm">'
       + teamOptionsHtml(wcId)
+      + '</select>'
+      + '</td>'
+      + '<td>'
+      + '<select name="mo_steps-' + idx + '-manager" class="form-select form-select-sm">'
+      + managerOptionsHtml(mgrId)
       + '</select>'
       + '</td>'
       + '<td class="text-center" style="width:2.5rem">'
@@ -240,7 +258,7 @@
       '<div class="table-responsive border rounded">'
       + '<table class="table table-sm align-middle mb-0">'
       + '<thead class="table-light"><tr>'
-      + '<th>TT</th><th>Công đoạn</th><th>Tổ / bộ phận</th><th></th>'
+      + '<th>TT</th><th>Công đoạn</th><th>Tổ / bộ phận</th><th>Quản lý</th><th></th>'
       + '</tr></thead>'
       + '<tbody id="mo-steps-body">' + rows + '</tbody></table></div>'
       + '<input type="hidden" name="mo_steps-TOTAL_FORMS" id="id_mo_steps-TOTAL_FORMS" value="' + stepCount + '">'
@@ -250,7 +268,8 @@
       + '<div class="d-flex flex-wrap gap-2 mt-2">'
       + '<button type="button" class="btn btn-outline-hm btn-sm" id="mo-add-step-row">'
       + '<i class="bi bi-plus-lg me-1"></i>Thêm công đoạn</button>'
-      + '</div>';
+      + '</div>'
+      + '<p class="small text-muted mt-2 mb-0">Chọn quản lý (TP / TBP / tổ trưởng) cho từng công đoạn — bắt buộc trước khi phát hành.</p>';
 
     if (typeof window.jpSxInitProcessSelects === 'function') {
       window.jpSxInitProcessSelects();

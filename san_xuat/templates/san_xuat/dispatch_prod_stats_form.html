@@ -86,8 +86,16 @@
       <form method="post" class="jp-sx-sku-row" novalidate>
         {% csrf_token %}
         <input type="hidden" name="production_order" value="{% if mo %}{{ mo.pk }}{% endif %}">
+        {% if mo_step %}<input type="hidden" name="mo_process_step" value="{{ mo_step.pk }}">{% endif %}
         {% if form.non_field_errors %}
         <div class="text-danger small mb-2">{{ form.non_field_errors }}</div>
+        {% endif %}
+
+        {% if mo_step %}
+        <div class="alert alert-light border small mb-3">
+          Ghi TKSX công đoạn <strong>{{ mo_step.process_name }}</strong>
+          {% if mo_step.team_label %} · {{ mo_step.team_label }}{% endif %}
+        </div>
         {% endif %}
 
         <div class="row g-2 g-md-3">

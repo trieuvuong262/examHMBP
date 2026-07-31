@@ -32,6 +32,8 @@ from san_xuat.hub_models import (
     SxFgReceiptRequest,
     SxMaterialIssueRequest,
     SxMaterialIssueRequestLine,
+    SxMoProcessAssignee,
+    SxMoProcessStep,
     SxNplSurplus,
     SxOverallPlan,
     SxProductionOrder,
@@ -304,6 +306,8 @@ def create_mo_from_bom(
     )
     if normalized_lines:
         replace_mo_lines(mo, normalized_lines, style_code=tech_doc.product_code, user=user)
+    # Snapshot công đoạn + quản lý theo LSX (không lưu manager lên BOM)
+    sync_mo_process_steps(mo, process_steps)
     return mo
 
 
@@ -339,13 +343,140 @@ def parse_mo_process_steps_from_post(post) -> list[dict] | None:
             pk = int(step_id) if step_id else None
         except ValueError:
             pk = None
+        mgr_raw = (post.get(f"{prefix}manager") or "").strip()
+        try:
+            manager_id = int(mgr_raw) if mgr_raw else None
+        except ValueError:
+            manager_id = None
         rows.append({
             "id": pk,
             "sequence": seq,
             "process_name": name,
             "work_center_id": wc_id,
+            "manager_id": manager_id,
         })
     return rows
+
+
+@transaction.atomic
+def sync_mo_process_steps(mo: SxProductionOrder, steps: list[dict] | None = None) -> int:
+    """Upsert SxMoProcessStep theo LSX từ form (hoặc copy từ BOM nếu steps=None).
+
+    Xóa/tạo lại snapshot; giữ assignees theo tên công đoạn khi rename không đổi.
+    """
+    from san_xuat.models import ProcessStep
+
+    if steps is None:
+        if not mo.bom_version_id:
+            mo.mo_process_steps.all().delete()
+            return 0
+        bom_rows = list(
+            ProcessStep.objects.filter(bom_id=mo.bom_version_id)
+            .order_by("sequence", "id")
+        )
+        steps = [
+            {
+                "id": s.pk,
+                "sequence": s.sequence or ((i + 1) * 10),
+                "process_name": s.process_name,
+                "work_center_id": s.work_center_id,
+                "manager_id": None,
+            }
+            for i, s in enumerate(bom_rows)
+        ]
+        # Giữ manager/assignee đã có nếu chỉ refresh từ BOM
+        existing_mgr = {
+            (s.process_name or "").strip().casefold(): s.manager_id
+            for s in mo.mo_process_steps.all()
+        }
+        for row in steps:
+            key = (row.get("process_name") or "").strip().casefold()
+            if key in existing_mgr and row.get("manager_id") is None:
+                row["manager_id"] = existing_mgr[key]
+
+    old_assignees: dict[str, list[tuple[int, int | None]]] = {}
+    for step in mo.mo_process_steps.prefetch_related("assignees"):
+        key = (step.process_name or "").strip().casefold()
+        old_assignees[key] = [
+            (a.user_id, a.assigned_by_id) for a in step.assignees.all()
+        ]
+
+    mo.mo_process_steps.all().delete()
+
+    bom_name_to_id: dict[str, int] = {}
+    if mo.bom_version_id:
+        for s in ProcessStep.objects.filter(bom_id=mo.bom_version_id).order_by("sequence", "id"):
+            key = (s.process_name or "").strip().casefold()
+            if key and key not in bom_name_to_id:
+                bom_name_to_id[key] = s.pk
+
+    created = 0
+    used_seqs: set[int] = set()
+    for i, row in enumerate(steps or []):
+        name = (row.get("process_name") or "").strip()
+        if not name:
+            continue
+        seq = int(row.get("sequence") or (i + 1) * 10)
+        while seq in used_seqs:
+            seq += 1
+        used_seqs.add(seq)
+        key = name.casefold()
+        bom_id = row.get("id") or bom_name_to_id.get(key)
+        step = SxMoProcessStep.objects.create(
+            production_order=mo,
+            sequence=seq,
+            process_name=name,
+            work_center_id=row.get("work_center_id"),
+            manager_id=row.get("manager_id"),
+            bom_process_step_id=bom_id,
+        )
+        for user_id, by_id in old_assignees.get(key, []):
+            if not user_id:
+                continue
+            SxMoProcessAssignee.objects.get_or_create(
+                mo_process_step=step,
+                user_id=user_id,
+                defaults={"assigned_by_id": by_id},
+            )
+        created += 1
+    return created
+
+
+def user_can_stat_mo_step(*, user, step: SxMoProcessStep) -> bool:
+    if not user or not getattr(user, "is_authenticated", False):
+        return False
+    if getattr(user, "is_superuser", False):
+        return True
+    return SxMoProcessAssignee.objects.filter(mo_process_step=step, user=user).exists()
+
+
+def user_can_manage_mo_step(*, user, step: SxMoProcessStep) -> bool:
+    if not user or not getattr(user, "is_authenticated", False):
+        return False
+    if getattr(user, "is_superuser", False):
+        return True
+    return step.manager_id == user.pk
+
+
+def assert_user_can_create_stat(*, user, mo: SxProductionOrder, process_name: str) -> SxMoProcessStep:
+    """Chỉ assignee (hoặc superuser) được ghi TKSX cho công đoạn trên LSX."""
+    name = (process_name or "").strip()
+    if not name:
+        raise DispatchError("Thiếu công đoạn thống kê.")
+    step = (
+        SxMoProcessStep.objects.filter(production_order=mo, process_name__iexact=name)
+        .order_by("sequence", "id")
+        .first()
+    )
+    if step is None:
+        raise DispatchError(
+            f"Công đoạn «{name}» chưa được gắn trên LSX — liên hệ điều phối."
+        )
+    if not user_can_stat_mo_step(user=user, step=step):
+        raise DispatchError(
+            "Chỉ nhân viên được phân công mới được ghi thống kê cho công đoạn này."
+        )
+    return step
 
 
 @transaction.atomic
@@ -650,6 +781,10 @@ def update_draft_mo(
     mo.process_name = (process_name or "").strip()
     mo.notes = notes or ""
     mo.save()
+    if process_steps is not None:
+        sync_mo_process_steps(mo, process_steps)
+    elif not mo.mo_process_steps.exists() and mo.bom_version_id:
+        sync_mo_process_steps(mo, None)
     return mo
 
 
@@ -662,6 +797,20 @@ def mo_release(*, mo_id: int, user) -> SxProductionOrder:
         raise DispatchError("Chỉ Lệnh sản xuất trạng thái Nháp mới được release.")
     if not mo.bom_version_id:
         raise DispatchError("Lệnh sản xuất chưa gắn BOM.")
+
+    if not mo.mo_process_steps.exists():
+        sync_mo_process_steps(mo, None)
+    missing = list(
+        mo.mo_process_steps.filter(manager_id=None).values_list("process_name", flat=True)[:8]
+    )
+    if missing:
+        names = ", ".join(missing)
+        raise DispatchError(
+            f"Chưa chọn quản lý công đoạn: {names}. "
+            f"Gán Trưởng phòng / bộ phận / tổ trưởng trước khi phát hành."
+        )
+    if not mo.mo_process_steps.exists():
+        raise DispatchError("Lệnh chưa có công đoạn — bổ sung tổ / công đoạn trước khi phát hành.")
 
     # Không archive BOM khác — các version ngang hàng (nội bộ / gia công…).
     activate_bom(mo.bom_version)
@@ -967,6 +1116,8 @@ def create_production_stat(
         raise DispatchError("Chỉ ghi Thống kê sản xuất khi Lệnh sản xuất đã release.")
     if (qty_good or Decimal("0")) <= 0 and (qty_defect or Decimal("0")) <= 0:
         raise DispatchError("Phải nhập ít nhất SL đạt hoặc SL lỗi lớn hơn 0.")
+
+    assert_user_can_create_stat(user=user, mo=mo, process_name=process_name)
 
     enforce_gate(
         check_sku_on_stat(

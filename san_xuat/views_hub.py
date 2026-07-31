@@ -53,6 +53,8 @@ from san_xuat.hub_models import (
     SxFgReceiptRequest,
     SxMaterialIssueRequest,
     SxMaterialPlan,
+    SxMoProcessAssignee,
+    SxMoProcessStep,
     SxNplPurchaseRequest,
     SxNplSurplus,
     SxOrderPlanCost,
@@ -131,6 +133,7 @@ from san_xuat.services.dispatch import (
     update_mo_schedule,
     DispatchError,
     approve_material_issue,
+    assert_user_can_create_stat,
     build_material_issue_request,
     confirm_disassembly_order,
     confirm_npl_surplus,
@@ -151,6 +154,8 @@ from san_xuat.services.dispatch import (
     mo_release,
     set_disassembly_lines,
     submit_fg_receipt,
+    user_can_manage_mo_step,
+    user_can_stat_mo_step,
 )
 from san_xuat.services.costing import list_costing_from_active_boms
 from san_xuat.services.costing_export import export_order_plan_cost_xlsx
@@ -1260,11 +1265,14 @@ def dispatch_mo_create(request):
         }
         for c in hr_work_centers_qs()
     ]
+    from san_xuat.forms_dispatch import mo_manager_candidate_options
+
     return render(request, 'san_xuat/dispatch_mo_form.html', {
         **_perm_ctx(request),
         'form': form,
         'mode': 'create',
         'team_options_json': json.dumps(team_options, ensure_ascii=False),
+        'manager_options_json': json.dumps(mo_manager_candidate_options(), ensure_ascii=False),
     })
 
 
@@ -1625,7 +1633,30 @@ def dispatch_mo_detail(request, pk: int):
         for c in hr_work_centers_qs()
     ]
     mo_process_steps = []
-    if mo.bom_version_id:
+    # Ưu tiên snapshot LSX (có manager); fallback BOM
+    mo_steps_qs = list(
+        mo.mo_process_steps.select_related('work_center', 'manager', 'manager__profile')
+        .order_by('sequence', 'id')[:80]
+    )
+    if mo_steps_qs:
+        for s in mo_steps_qs:
+            mgr_label = ''
+            if s.manager_id:
+                p = getattr(s.manager, 'profile', None)
+                mgr_label = (
+                    (getattr(p, 'full_name', None) or '') if p else ''
+                ).strip() or (s.manager.get_full_name() or s.manager.username)
+            mo_process_steps.append({
+                'id': s.bom_process_step_id or '',
+                'mo_step_id': s.pk,
+                'sequence': s.sequence,
+                'process_name': s.process_name,
+                'work_center_id': s.work_center_id,
+                'team_label': s.team_label,
+                'manager_id': s.manager_id or '',
+                'manager_label': mgr_label,
+            })
+    elif mo.bom_version_id:
         for s in mo.bom_version.process_steps.select_related('work_center').order_by('sequence', 'id')[:80]:
             mo_process_steps.append({
                 'id': s.pk,
@@ -1636,7 +1667,11 @@ def dispatch_mo_detail(request, pk: int):
                     (s.work_center.team_label or s.work_center.name)
                     if s.work_center_id else ''
                 ),
+                'manager_id': '',
+                'manager_label': '',
             })
+
+    from san_xuat.forms_dispatch import mo_manager_candidate_options
 
     return render(request, 'san_xuat/dispatch_mo_detail.html', {
         **_perm_ctx(request),
@@ -1653,6 +1688,7 @@ def dispatch_mo_detail(request, pk: int):
         'bom_lines': bom_lines,
         'progress': progress,
         'team_options_json': json.dumps(team_options, ensure_ascii=False),
+        'manager_options_json': json.dumps(mo_manager_candidate_options(), ensure_ascii=False),
         'mo_process_steps_json': json.dumps(mo_process_steps, ensure_ascii=False),
     })
 
@@ -2010,36 +2046,213 @@ def dispatch_material_issue_req_detail(request, pk: int):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def dispatch_prod_stats(request):
-    base_qs = (
-        SxProductionStat.objects.filter(is_demo=False)
-        .order_by('-stat_date', '-pk')
-        .select_related('production_order')
+    """Tab mặc định: công đoạn của tôi; ?tab=stats = danh sách phiếu TKSX."""
+    tab = (request.GET.get('tab') or 'mine').strip().lower()
+    if tab not in ('mine', 'stats'):
+        tab = 'mine'
+
+    if tab == 'stats':
+        base_qs = (
+            SxProductionStat.objects.filter(is_demo=False)
+            .order_by('-stat_date', '-pk')
+            .select_related('production_order')
+        )
+        stats, fctx = prepare_hub_list(request, base_qs, SX_FILTER_PROD_STAT, list_key='dispatch_prod_stat')
+        return render(request, 'san_xuat/dispatch_prod_stats_list.html', {
+            **_perm_ctx(request),
+            'stats': stats,
+            'tab': tab,
+            **fctx,
+        })
+
+    user = request.user
+    managed = (
+        SxMoProcessStep.objects.filter(manager=user)
+        .exclude(production_order__status=SxProductionOrder.STATUS_CANCELLED)
+        .select_related('production_order', 'work_center', 'manager')
+        .prefetch_related('assignees')
+        .order_by('-production_order_id', 'sequence', 'id')
     )
-    stats, fctx = prepare_hub_list(request, base_qs, SX_FILTER_PROD_STAT, list_key='dispatch_prod_stat')
-    return render(request, 'san_xuat/dispatch_prod_stats_list.html', {
+    assigned = (
+        SxMoProcessStep.objects.filter(assignees__user=user)
+        .exclude(production_order__status=SxProductionOrder.STATUS_CANCELLED)
+        .select_related('production_order', 'work_center', 'manager')
+        .prefetch_related('assignees')
+        .order_by('-production_order_id', 'sequence', 'id')
+        .distinct()
+    )
+    # Gộp không trùng
+    seen: set[int] = set()
+    my_steps = []
+    for step in list(managed) + list(assigned):
+        if step.pk in seen:
+            continue
+        seen.add(step.pk)
+        mo = step.production_order
+        confirmed = SxProductionStat.objects.filter(
+            production_order=mo,
+            process_name__iexact=step.process_name,
+            status=SxProductionStat.STATUS_CONFIRMED,
+            is_demo=False,
+        )
+        qty_good = sum((s.qty_good or Decimal('0') for s in confirmed), Decimal('0'))
+        my_steps.append({
+            'step': step,
+            'mo': mo,
+            'assignee_count': step.assignees.count(),
+            'qty_good': qty_good,
+            'is_manager': step.manager_id == user.pk,
+            'is_assignee': user_can_stat_mo_step(user=user, step=step),
+        })
+
+    return render(request, 'san_xuat/dispatch_mo_process_board.html', {
         **_perm_ctx(request),
+        'tab': tab,
+        'my_steps': my_steps,
+    })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+def dispatch_mo_process_step_detail(request, pk: int):
+    step = get_object_or_404(
+        SxMoProcessStep.objects.select_related(
+            'production_order', 'work_center', 'manager', 'manager__profile',
+        ).prefetch_related('assignees__user__profile'),
+        pk=pk,
+    )
+    mo = step.production_order
+    can_update = _perm_ctx(request).get('can_update')
+    is_manager = user_can_manage_mo_step(user=request.user, step=step)
+    is_assignee = user_can_stat_mo_step(user=request.user, step=step)
+    # Điều phối được gán quản lý khi bước chưa có manager
+    can_set_manager = bool(can_update and (is_manager or not step.manager_id or request.user.is_superuser))
+    can_assign = bool(is_manager or request.user.is_superuser)
+
+    if request.method == 'POST':
+        action = (request.POST.get('action') or '').strip()
+        if action == 'set_manager' and can_set_manager:
+            raw = (request.POST.get('manager_id') or '').strip()
+            mgr = None
+            if raw.isdigit():
+                from django.contrib.auth import get_user_model
+                mgr = get_user_model().objects.filter(pk=int(raw), is_active=True).first()
+            step.manager = mgr
+            step.save(update_fields=['manager'])
+            messages.success(request, 'Đã cập nhật quản lý công đoạn.')
+            return redirect('san_xuat:dispatch_mo_process_step_detail', pk=step.pk)
+
+        if action == 'assign' and can_assign:
+            raw_ids = request.POST.getlist('assignee_ids')
+            keep: set[int] = set()
+            for raw in raw_ids:
+                if not str(raw).isdigit():
+                    continue
+                uid = int(raw)
+                keep.add(uid)
+                SxMoProcessAssignee.objects.get_or_create(
+                    mo_process_step=step,
+                    user_id=uid,
+                    defaults={'assigned_by': request.user},
+                )
+            SxMoProcessAssignee.objects.filter(mo_process_step=step).exclude(user_id__in=keep).delete()
+            messages.success(request, f'Đã phân {len(keep)} nhân viên ghi thống kê.')
+            return redirect('san_xuat:dispatch_mo_process_step_detail', pk=step.pk)
+
+        if action == 'assign_self' and can_assign:
+            SxMoProcessAssignee.objects.get_or_create(
+                mo_process_step=step,
+                user=request.user,
+                defaults={'assigned_by': request.user},
+            )
+            messages.success(request, 'Đã tự phân bạn vào công đoạn này.')
+            return redirect('san_xuat:dispatch_mo_process_step_detail', pk=step.pk)
+
+    stats = (
+        SxProductionStat.objects.filter(
+            production_order=mo,
+            process_name__iexact=step.process_name,
+            is_demo=False,
+        )
+        .order_by('-stat_date', '-pk')[:30]
+    )
+
+    from san_xuat.forms_dispatch import mo_manager_candidate_options
+    assignee_candidates = []
+    # Gợi ý: subordinates của manager + chính manager
+    if step.manager_id:
+        profile = getattr(step.manager, 'profile', None)
+        if profile is not None and hasattr(profile, 'subordinates'):
+            for u in profile.subordinates.filter(is_active=True).select_related('profile')[:200]:
+                p = getattr(u, 'profile', None)
+                label = ((getattr(p, 'full_name', None) or '') if p else '').strip() or u.username
+                assignee_candidates.append({'id': u.pk, 'label': label})
+        assignee_candidates.insert(0, {
+            'id': step.manager_id,
+            'label': (
+                (getattr(getattr(step.manager, 'profile', None), 'full_name', None) or '')
+                or step.manager.get_full_name()
+                or step.manager.username
+            ),
+        })
+    # Dedup
+    seen_u: set[int] = set()
+    uniq_cand = []
+    for c in assignee_candidates:
+        if c['id'] in seen_u:
+            continue
+        seen_u.add(c['id'])
+        uniq_cand.append(c)
+
+    assigned_ids = {a.user_id for a in step.assignees.all()}
+
+    return render(request, 'san_xuat/dispatch_mo_process_step_detail.html', {
+        **_perm_ctx(request),
+        'step': step,
+        'mo': mo,
         'stats': stats,
-        **fctx,
+        'is_manager': is_manager,
+        'is_assignee': is_assignee,
+        'can_set_manager': can_set_manager,
+        'can_assign': can_assign,
+        'manager_options': mo_manager_candidate_options(),
+        'assignee_candidates': uniq_cand,
+        'assigned_ids': assigned_ids,
     })
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'create')
 def dispatch_prod_stats_create(request):
     mo_id = request.GET.get('mo') or request.POST.get('production_order')
+    step_id = request.GET.get('step') or request.POST.get('mo_process_step')
     mo = None
-    if mo_id:
+    mo_step = None
+    if step_id:
+        mo_step = get_object_or_404(
+            SxMoProcessStep.objects.select_related('production_order', 'work_center'),
+            pk=step_id,
+        )
+        mo = mo_step.production_order
+    elif mo_id:
         mo = get_object_or_404(
             SxProductionOrder.objects.select_related('bom_version').prefetch_related('lines'),
             pk=mo_id,
         )
+
     if request.method == 'POST':
         mo = get_object_or_404(
             SxProductionOrder.objects.select_related('bom_version').prefetch_related('lines'),
             pk=request.POST.get('production_order'),
         )
-        form = ProductionStatCreateForm(request.POST, mo=mo)
+        step_post = (request.POST.get('mo_process_step') or '').strip()
+        if step_post.isdigit():
+            mo_step = SxMoProcessStep.objects.filter(pk=int(step_post), production_order=mo).first()
+        form = ProductionStatCreateForm(request.POST, mo=mo, mo_step=mo_step, user=request.user)
         if form.is_valid():
             try:
+                if mo_step:
+                    assert_user_can_create_stat(
+                        user=request.user, mo=mo, process_name=mo_step.process_name,
+                    )
                 stat = create_production_stat(
                     production_order_id=mo.pk,
                     stat_date=form.cleaned_data['stat_date'],
@@ -2063,9 +2276,18 @@ def dispatch_prod_stats_create(request):
         else:
             messages.error(request, 'Không tạo được TKSX — kiểm tra lại form.')
     else:
+        if mo_step and not user_can_stat_mo_step(user=request.user, step=mo_step):
+            messages.error(request, 'Bạn chưa được phân ghi thống kê cho công đoạn này.')
+            return redirect('san_xuat:dispatch_mo_process_step_detail', pk=mo_step.pk)
+        initial = production_stat_initial_from_mo(mo)
+        if mo_step:
+            initial['process_name'] = mo_step.process_name
+            initial['team_label'] = mo_step.team_label or initial.get('team_label') or ''
         form = ProductionStatCreateForm(
-            initial=production_stat_initial_from_mo(mo),
+            initial=initial,
             mo=mo,
+            mo_step=mo_step,
+            user=request.user,
         )
     mo_line_qty = []
     if mo:
@@ -2080,6 +2302,7 @@ def dispatch_prod_stats_create(request):
         **_perm_ctx(request),
         'form': form,
         'mo': mo,
+        'mo_step': mo_step,
         'mo_line_qty_json': mo_line_qty,
     })
 

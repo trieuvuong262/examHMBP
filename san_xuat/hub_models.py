@@ -349,6 +349,102 @@ class SxProductionOrderLine(models.Model):
         return f'{self.sku_code or self.color_code}/{self.size_label} × {self.qty}'
 
 
+class SxMoProcessStep(models.Model):
+    """Công đoạn gắn theo từng LSX + người quản lý (không lưu trên BOM dùng chung)."""
+
+    production_order = models.ForeignKey(
+        SxProductionOrder,
+        on_delete=models.CASCADE,
+        related_name='mo_process_steps',
+        verbose_name='Lệnh sản xuất',
+    )
+    sequence = models.PositiveSmallIntegerField(default=10, verbose_name='Thứ tự')
+    process_name = models.CharField(max_length=120, verbose_name='Công đoạn')
+    work_center = models.ForeignKey(
+        'san_xuat.SxWorkCenter',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='mo_process_steps',
+        verbose_name='Tổ / bộ phận',
+    )
+    manager = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='sx_managed_mo_steps',
+        verbose_name='Quản lý công đoạn',
+    )
+    bom_process_step_id = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        db_index=True,
+        verbose_name='ID công đoạn BOM nguồn',
+    )
+
+    class Meta:
+        ordering = ['sequence', 'id']
+        verbose_name = 'Công đoạn LSX'
+        verbose_name_plural = 'Công đoạn LSX'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['production_order', 'sequence'],
+                name='sx_mo_process_step_seq_uniq',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.production_order_id}:{self.sequence}. {self.process_name}'
+
+    @property
+    def team_label(self) -> str:
+        wc = self.work_center
+        if not wc:
+            return ''
+        return (wc.team_label or wc.name or '').strip()
+
+
+class SxMoProcessAssignee(models.Model):
+    """Nhân viên được phân ghi TKSX cho một công đoạn LSX."""
+
+    mo_process_step = models.ForeignKey(
+        SxMoProcessStep,
+        on_delete=models.CASCADE,
+        related_name='assignees',
+        verbose_name='Công đoạn LSX',
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='sx_mo_process_assignments',
+        verbose_name='Nhân viên',
+    )
+    assigned_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='sx_mo_process_assignments_made',
+        verbose_name='Người phân',
+    )
+    assigned_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['id']
+        verbose_name = 'Phân công ghi TKSX'
+        verbose_name_plural = 'Phân công ghi TKSX'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['mo_process_step', 'user'],
+                name='sx_mo_process_assignee_uniq',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.mo_process_step_id} → {self.user_id}'
+
+
 class SxDisassemblyOrder(DemoMarkedModel):
     STATUS_DRAFT = 'draft'
     STATUS_CONFIRMED = 'confirmed'

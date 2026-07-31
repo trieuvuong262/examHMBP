@@ -91,6 +91,42 @@ def work_center_team_choices(*, extra_value: str = "") -> list[tuple[str, str]]:
     return choices
 
 
+def mo_manager_candidate_options() -> list[dict]:
+    """User picker options: tổ trưởng / trưởng bộ phận / trưởng phòng / giám đốc."""
+    from django.contrib.auth import get_user_model
+
+    from hrm.permissions import MANAGER_ROLES
+
+    User = get_user_model()
+    qs = (
+        User.objects.filter(
+            is_active=True,
+            profile__role__in=MANAGER_ROLES,
+        )
+        .select_related("profile")
+        .order_by("profile__full_name", "username")[:400]
+    )
+    rows: list[dict] = []
+    for u in qs:
+        profile = getattr(u, "profile", None)
+        if profile is not None and hasattr(profile, "is_employed") and not profile.is_employed:
+            continue
+        label = ""
+        if profile is not None:
+            label = (getattr(profile, "full_name", None) or "").strip()
+        if not label:
+            label = (u.get_full_name() or "").strip() or u.username
+        role = ""
+        if profile is not None:
+            getter = getattr(profile, "get_role_display", None)
+            if callable(getter):
+                role = getter() or ""
+            else:
+                role = getattr(profile, "role", "") or ""
+        rows.append({"id": u.pk, "label": label, "role": role})
+    return rows
+
+
 def bom_process_choices(bom, *, extra_value: str = "") -> list[tuple[str, str]]:
     """Choices công đoạn từ danh mục chung (+ giá trị đang dùng).
 
@@ -420,7 +456,7 @@ class ProductionStatCreateForm(forms.Form):
         }),
     )
 
-    def __init__(self, *args, mo=None, **kwargs):
+    def __init__(self, *args, mo=None, mo_step=None, user=None, **kwargs):
         super().__init__(*args, **kwargs)
         from san_xuat.services.sku_catalog import color_choices, size_choices
 
@@ -441,8 +477,40 @@ class ProductionStatCreateForm(forms.Form):
             extra_size = self.initial.get("size_label") or ""
 
         bom = getattr(mo, "bom_version", None) if mo is not None else None
-        self.fields["process_name"].choices = bom_process_choices(bom, extra_value=extra_process)
+
+        # Công đoạn: nếu vào từ bước LSX hoặc user thường → chỉ bước được phân
+        process_choices = None
+        if mo_step is not None:
+            process_choices = [
+                ("", "— Chọn công đoạn —"),
+                (mo_step.process_name, mo_step.process_name),
+            ]
+            self.fields["process_name"].widget.attrs["readonly"] = True
+            self.fields["process_name"].disabled = False
+        elif mo is not None and user is not None and not getattr(user, "is_superuser", False):
+            from san_xuat.hub_models import SxMoProcessStep
+
+            allowed = (
+                SxMoProcessStep.objects.filter(production_order=mo, assignees__user=user)
+                .order_by("sequence", "id")
+                .distinct()
+            )
+            process_choices = [("", "— Chọn công đoạn —")] + [
+                (s.process_name, s.process_name) for s in allowed
+            ]
+            if extra_process and extra_process not in {v for v, _ in process_choices}:
+                process_choices.append((extra_process, f"{extra_process} (đang dùng)"))
+
+        if process_choices is not None:
+            self.fields["process_name"].choices = process_choices
+        else:
+            self.fields["process_name"].choices = bom_process_choices(bom, extra_value=extra_process)
+
         self.fields["team_label"].choices = work_center_team_choices(extra_value=extra_team)
+        if mo_step is not None and mo_step.team_label:
+            # Khóa tổ theo bước
+            team = mo_step.team_label
+            self.fields["team_label"].choices = work_center_team_choices(extra_value=team)
 
         mo_color_choices: list[tuple[str, str]] | None = None
         mo_size_choices: list[tuple[str, str]] | None = None

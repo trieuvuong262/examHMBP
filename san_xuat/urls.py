@@ -43,6 +43,7 @@ urlpatterns = [
     path('dieu-phoi/thong-ke-sx/', views_hub.dispatch_prod_stats, name='dispatch_prod_stats'),
     path('dieu-phoi/thong-ke-sx/them/', views_hub.dispatch_prod_stats_create, name='dispatch_prod_stats_create'),
     path('dieu-phoi/thong-ke-sx/<int:pk>/', views_hub.dispatch_prod_stats_detail, name='dispatch_prod_stats_detail'),
+    path('dieu-phoi/cong-doan-lsx/<int:pk>/', views_hub.dispatch_mo_process_step_detail, name='dispatch_mo_process_step_detail'),
     path('dieu-phoi/yeu-cau-nhap-tp/', views_hub.dispatch_fg_receipt_req, name='dispatch_fg_receipt_req'),
     path('dieu-phoi/yeu-cau-nhap-tp/them/', views_hub.dispatch_fg_receipt_req_create, name='dispatch_fg_receipt_req_create'),
     path('dieu-phoi/yeu-cau-nhap-tp/<int:pk>/', views_hub.dispatch_fg_receipt_req_detail, name='dispatch_fg_receipt_req_detail'),

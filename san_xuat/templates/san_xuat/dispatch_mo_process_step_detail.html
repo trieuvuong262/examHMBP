@@ -1,0 +1,184 @@
+{% extends 'base.html' %}
+{% load sx_format %}
+{% block extra_head %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+{% endblock %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title w-100">{{ step.process_name }}</h2>
+      <span class="badge text-bg-light text-dark border">{{ mo.code }}</span>
+    </div>
+    <nav class="jp-sx-tools" aria-label="Công cụ">
+      <a href="{% url 'san_xuat:dispatch_mo_detail' mo.pk %}"><i class="bi bi-file-earmark-gear" aria-hidden="true"></i>{{ mo.code }}</a>
+      <span class="sep" aria-hidden="true"></span>
+      <a href="{% url 'san_xuat:dispatch_prod_stats' %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Công đoạn của tôi</a>
+    </nav>
+  </div>
+
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-body">
+      <div class="row g-3 small">
+        <div class="col-md-3">
+          <div class="text-muted">Mã SX</div>
+          <div class="fw-semibold">{{ mo.product_code }}</div>
+        </div>
+        <div class="col-md-3">
+          <div class="text-muted">Tổ / bộ phận</div>
+          <div class="fw-semibold">{{ step.team_label|default:"—" }}</div>
+        </div>
+        <div class="col-md-3">
+          <div class="text-muted">Quản lý</div>
+          <div class="fw-semibold">
+            {% if step.manager %}
+              {% firstof step.manager.profile.full_name step.manager.get_full_name step.manager.username %}
+            {% else %}—{% endif %}
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="text-muted">SL kế hoạch LSX</div>
+          <div class="fw-semibold">{{ mo.qty|sx_num }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% if can_set_manager %}
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-body">
+      <h3 class="h6 mb-2">Gán quản lý công đoạn</h3>
+      <form method="post" class="row g-2 align-items-end">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="set_manager">
+        <div class="col-md-6">
+          <label class="form-label small text-muted">Quản lý (TP / TBP / tổ trưởng)</label>
+          <select name="manager_id" class="form-select form-select-sm">
+            <option value="">— Chọn —</option>
+            {% for m in manager_options %}
+            <option value="{{ m.id }}" {% if step.manager_id == m.id %}selected{% endif %}>{{ m.label }}{% if m.role %} · {{ m.role }}{% endif %}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-auto">
+          <button type="submit" class="btn btn-sm btn-outline-hm">Lưu quản lý</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if can_assign %}
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-body">
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+        <h3 class="h6 mb-0">Phân nhân viên ghi TKSX</h3>
+        <form method="post" class="d-inline">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="assign_self">
+          <button type="submit" class="btn btn-sm btn-outline-secondary">Tự phân tôi</button>
+        </form>
+      </div>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="assign">
+        {% if assignee_candidates %}
+        <div class="row g-2 mb-2">
+          {% for c in assignee_candidates %}
+          <div class="col-md-4">
+            <label class="form-check small">
+              <input type="checkbox" class="form-check-input" name="assignee_ids" value="{{ c.id }}"
+                     {% if c.id in assigned_ids %}checked{% endif %}>
+              {{ c.label }}
+            </label>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p class="small text-muted">Chưa có gợi ý cấp dưới — dùng ô nhập ID hoặc gán quản lý có subordinates.</p>
+        {% endif %}
+        <div class="mb-2">
+          <label class="form-label small text-muted">Thêm user id (cách nhau dấu phẩy)</label>
+          <input type="text" name="assignee_ids_extra" class="form-control form-control-sm" placeholder="vd. 12,15" id="jp-extra-assignees">
+        </div>
+        <button type="submit" class="btn btn-sm btn-hm">Lưu phân công</button>
+      </form>
+      <script>
+      (function () {
+        var form = document.currentScript.previousElementSibling;
+        if (!form || form.tagName !== 'FORM') {
+          form = document.querySelector('form input[name="action"][value="assign"]');
+          if (form) form = form.closest('form');
+        }
+        if (!form) return;
+        form.addEventListener('submit', function () {
+          var extra = document.getElementById('jp-extra-assignees');
+          if (!extra || !extra.value.trim()) return;
+          extra.value.split(',').forEach(function (raw) {
+            var id = (raw || '').trim();
+            if (!/^\d+$/.test(id)) return;
+            var inp = document.createElement('input');
+            inp.type = 'hidden';
+            inp.name = 'assignee_ids';
+            inp.value = id;
+            form.appendChild(inp);
+          });
+        });
+      })();
+      </script>
+      {% if step.assignees.all %}
+      <div class="mt-3 small">
+        <div class="text-muted mb-1">Đã phân:</div>
+        <ul class="mb-0">
+          {% for a in step.assignees.all %}
+          <li>{% firstof a.user.profile.full_name a.user.get_full_name a.user.username %}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-body d-flex flex-wrap justify-content-between align-items-center gap-2">
+      <div>
+        <h3 class="h6 mb-1">Ghi thống kê</h3>
+        <p class="small text-muted mb-0">Chỉ nhân viên được phân mới tạo được TKSX cho công đoạn này.</p>
+      </div>
+      {% if is_assignee %}
+      <a href="{% url 'san_xuat:dispatch_prod_stats_create' %}?mo={{ mo.pk }}&step={{ step.pk }}" class="btn btn-hm btn-sm">Tạo thống kê</a>
+      {% else %}
+      <span class="small text-muted">Bạn chưa được phân ghi TKSX.</span>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body">
+      <h3 class="h6 mb-3">Phiếu TKSX gần đây</h3>
+      <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0">
+          <thead class="table-light">
+            <tr><th>Mã</th><th>Ngày</th><th class="text-end">Đạt</th><th class="text-end">Lỗi</th><th>TT</th></tr>
+          </thead>
+          <tbody>
+          {% for s in stats %}
+            <tr>
+              <td><a href="{% url 'san_xuat:dispatch_prod_stats_detail' s.pk %}">{{ s.code }}</a></td>
+              <td>{{ s.stat_date|date:"d/m/Y" }}</td>
+              <td class="text-end">{{ s.qty_good|sx_num }}</td>
+              <td class="text-end">{{ s.qty_defect|sx_num }}</td>
+              <td>{{ s.get_status_display }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="5" class="text-muted small p-3">Chưa có phiếu.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
