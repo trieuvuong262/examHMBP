@@ -1216,7 +1216,6 @@ def dispatch_mo(request):
 
 @module_perm_required(MODULE_SAN_XUAT, 'create')
 def dispatch_mo_create(request):
-    from san_xuat.services.capacity_from_hrm import hr_work_centers_qs
     from san_xuat.services.dispatch import parse_mo_lines_from_post, parse_mo_process_steps_from_post
 
     if request.method == 'POST':
@@ -1258,14 +1257,10 @@ def dispatch_mo_create(request):
             initial['product_code'] = prefill
         form = ProductionOrderCreateForm(initial=initial)
 
-    team_options = [
-        {
-            'id': c.pk,
-            'label': (c.team_label or c.name or c.code or '').strip(),
-        }
-        for c in hr_work_centers_qs()
-    ]
     from san_xuat.forms_dispatch import mo_manager_candidate_options
+    from san_xuat.services.capacity_from_hrm import work_center_options_with_default_manager
+
+    team_options = work_center_options_with_default_manager()
 
     return render(request, 'san_xuat/dispatch_mo_form.html', {
         **_perm_ctx(request),
@@ -1615,7 +1610,6 @@ def dispatch_mo_detail(request, pk: int):
             })
 
     from san_xuat.services.mo_progress import build_mo_progress
-    from san_xuat.services.capacity_from_hrm import hr_work_centers_qs
 
     progress = build_mo_progress(mo)
     mo_lines = list(mo.lines.all())
@@ -1625,13 +1619,18 @@ def dispatch_mo_detail(request, pk: int):
         for ln in mo_lines
         if (ln.color_code or "").strip() and (ln.size_label or "").strip()
     })
-    team_options = [
-        {
-            'id': c.pk,
-            'label': (c.team_label or c.name or c.code or '').strip(),
-        }
-        for c in hr_work_centers_qs()
-    ]
+    from san_xuat.forms_dispatch import mo_manager_candidate_options
+    from san_xuat.services.capacity_from_hrm import (
+        default_manager_user_id_for_work_center,
+        work_center_options_with_default_manager,
+    )
+
+    team_options = work_center_options_with_default_manager()
+    default_mgr_by_wc = {
+        t['id']: t['default_manager_id']
+        for t in team_options
+        if t.get('default_manager_id')
+    }
     mo_process_steps = []
     # Ưu tiên snapshot LSX (có manager); fallback BOM
     mo_steps_qs = list(
@@ -1658,6 +1657,9 @@ def dispatch_mo_detail(request, pk: int):
             })
     elif mo.bom_version_id:
         for s in mo.bom_version.process_steps.select_related('work_center').order_by('sequence', 'id')[:80]:
+            mgr_id = default_mgr_by_wc.get(s.work_center_id) or ''
+            if not mgr_id and s.work_center_id:
+                mgr_id = default_manager_user_id_for_work_center(s.work_center_id) or ''
             mo_process_steps.append({
                 'id': s.pk,
                 'sequence': s.sequence,
@@ -1667,11 +1669,9 @@ def dispatch_mo_detail(request, pk: int):
                     (s.work_center.team_label or s.work_center.name)
                     if s.work_center_id else ''
                 ),
-                'manager_id': '',
+                'manager_id': mgr_id,
                 'manager_label': '',
             })
-
-    from san_xuat.forms_dispatch import mo_manager_candidate_options
 
     return render(request, 'san_xuat/dispatch_mo_detail.html', {
         **_perm_ctx(request),

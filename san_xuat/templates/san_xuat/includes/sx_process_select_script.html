@@ -23,8 +23,31 @@
       wcSel.tomselect.setValue(String(wcId));
     } else {
       var opt = wcSel.querySelector('option[value="' + wcId + '"]');
-      if (opt) wcSel.value = wcId;
+      if (opt) wcSel.value = String(wcId);
     }
+    wcSel.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
+  function applyDefaultManagerFromWc(processSel, wcId) {
+    if (!wcId) return;
+    var row = processSel.closest('tr');
+    if (!row) return;
+    var mgrSel = row.querySelector('select[name$="-manager"]');
+    if (!mgrSel || mgrSel.value) return;
+    var defId = '';
+    var teams = window.JP_MO_TEAM_OPTIONS || [];
+    for (var i = 0; i < teams.length; i++) {
+      if (String(teams[i].id) === String(wcId)) {
+        defId = teams[i].default_manager_id || '';
+        break;
+      }
+    }
+    if (!defId) {
+      var wcSel = findWorkCenterSelect(processSel);
+      var opt = wcSel && wcSel.querySelector('option[value="' + wcId + '"]');
+      if (opt) defId = opt.getAttribute('data-default-manager') || '';
+    }
+    if (defId) mgrSel.value = String(defId);
   }
 
   function initTomSelect(sel) {
@@ -63,6 +86,11 @@
         if (opt && opt.default_work_center_id) {
           applyDefaultWorkCenter(sel, opt.default_work_center_id);
         }
+        var wcSel = findWorkCenterSelect(sel);
+        var wcVal = wcSel
+          ? (wcSel.tomselect ? wcSel.tomselect.getValue() : wcSel.value)
+          : '';
+        if (wcVal) applyDefaultManagerFromWc(sel, wcVal);
       },
     });
   }

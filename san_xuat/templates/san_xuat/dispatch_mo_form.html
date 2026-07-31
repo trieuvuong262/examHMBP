@@ -136,6 +136,7 @@
   var bomUrl = '{% url "san_xuat:mo_bom_versions" %}';
   var TEAM_OPTIONS = {{ team_options_json|default:"[]"|safe }};
   var MANAGER_OPTIONS = {{ manager_options_json|default:"[]"|safe }};
+  window.JP_MO_TEAM_OPTIONS = TEAM_OPTIONS;
   var timer = null;
   var bomMeta = {};
   var stepCount = 0;
@@ -152,7 +153,8 @@
     var html = '<option value="">— Chọn tổ / bộ phận —</option>';
     TEAM_OPTIONS.forEach(function (t) {
       var sel = selectedId && String(t.id) === String(selectedId) ? ' selected' : '';
-      html += '<option value="' + t.id + '"' + sel + '>' + escapeHtml(t.label) + '</option>';
+      var dm = t.default_manager_id ? ' data-default-manager="' + t.default_manager_id + '"' : '';
+      html += '<option value="' + t.id + '"' + sel + dm + '>' + escapeHtml(t.label) + '</option>';
     });
     return html;
   }
@@ -163,6 +165,26 @@
       if (String(TEAM_OPTIONS[i].id) === String(wcId)) return TEAM_OPTIONS[i].label || '';
     }
     return '';
+  }
+
+  function defaultManagerForWc(wcId) {
+    if (!wcId) return '';
+    for (var i = 0; i < TEAM_OPTIONS.length; i++) {
+      if (String(TEAM_OPTIONS[i].id) === String(wcId)) {
+        return TEAM_OPTIONS[i].default_manager_id || '';
+      }
+    }
+    return '';
+  }
+
+  function applyDefaultManager(row, wcId, force) {
+    if (!row) return;
+    var mgrSel = row.querySelector('select[name$="-manager"]');
+    if (!mgrSel) return;
+    var defId = defaultManagerForWc(wcId);
+    if (!defId) return;
+    if (!force && mgrSel.value) return;
+    mgrSel.value = String(defId);
   }
 
   function managerOptionsHtml(selectedId) {
@@ -208,7 +230,7 @@
     var seq = step.sequence != null ? step.sequence : (idx + 1) * 10;
     var name = step.process_name || '';
     var wcId = step.work_center_id || '';
-    var mgrId = step.manager_id || '';
+    var mgrId = step.manager_id || defaultManagerForWc(wcId) || '';
     var processOpts = name
       ? '<option value="' + escapeHtml(name) + '" selected>' + escapeHtml(name) + '</option>'
       : '<option value="">— Chọn công đoạn —</option>';
@@ -386,10 +408,14 @@
       syncHeaderFromFirstRow();
     });
     previewHost.addEventListener('change', function (e) {
-      if (e.target && (
-        e.target.matches('select[name$="-process_name"]')
-        || e.target.matches('select[name$="-work_center"]')
-      )) {
+      if (!e.target) return;
+      if (e.target.matches('select[name$="-work_center"]')) {
+        var row = e.target.closest('tr.mo-step-row');
+        applyDefaultManager(row, e.target.value, true);
+        syncHeaderFromFirstRow();
+        return;
+      }
+      if (e.target.matches('select[name$="-process_name"]')) {
         syncHeaderFromFirstRow();
       }
     });

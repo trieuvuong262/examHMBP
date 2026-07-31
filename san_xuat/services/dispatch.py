@@ -348,6 +348,10 @@ def parse_mo_process_steps_from_post(post) -> list[dict] | None:
             manager_id = int(mgr_raw) if mgr_raw else None
         except ValueError:
             manager_id = None
+        if manager_id is None and wc_id:
+            from san_xuat.services.capacity_from_hrm import default_manager_user_id_for_work_center
+
+            manager_id = default_manager_user_id_for_work_center(wc_id)
         rows.append({
             "id": pk,
             "sequence": seq,
@@ -393,6 +397,20 @@ def sync_mo_process_steps(mo: SxProductionOrder, steps: list[dict] | None = None
             key = (row.get("process_name") or "").strip().casefold()
             if key in existing_mgr and row.get("manager_id") is None:
                 row["manager_id"] = existing_mgr[key]
+
+    from san_xuat.services.capacity_from_hrm import default_manager_user_id_for_work_center
+
+    _mgr_cache: dict[int, int | None] = {}
+    for row in steps or []:
+        if row.get("manager_id"):
+            continue
+        wc_id = row.get("work_center_id")
+        if not wc_id:
+            continue
+        wc_key = int(wc_id)
+        if wc_key not in _mgr_cache:
+            _mgr_cache[wc_key] = default_manager_user_id_for_work_center(wc_key)
+        row["manager_id"] = _mgr_cache[wc_key]
 
     old_assignees: dict[str, list[tuple[int, int | None]]] = {}
     for step in mo.mo_process_steps.prefetch_related("assignees"):

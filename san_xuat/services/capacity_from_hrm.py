@@ -198,17 +198,118 @@ def _head_profile(division: Division) -> Profile | None:
         .select_related('user')
         .order_by('pk')
     )
-    # 1) Vai trò tổ trưởng / trưởng bộ phận
-    for role in (ROLE_TEAM_LEADER, ROLE_DIVISION_HEAD):
+    # 1) Trưởng bộ phận trước, rồi tổ trưởng
+    for role in (ROLE_DIVISION_HEAD, ROLE_TEAM_LEADER):
         hit = qs.filter(role=role).first()
         if hit:
             return hit
-    # 2) Chức danh chứa tổ trưởng / TT
+    # 2) Chức danh chứa tổ trưởng / TT / trưởng bộ phận
     for p in qs:
         pos = _fold(p.job_position or '')
-        if 'to truong' in pos or pos.startswith('tt ') or '(tt ' in pos or ' tt ' in pos:
+        if (
+            'truong bo phan' in pos
+            or 'to truong' in pos
+            or pos.startswith('tt ')
+            or '(tt ' in pos
+            or ' tt ' in pos
+        ):
             return p
     return None
+
+
+def division_id_from_work_center_code(code: str | None) -> int | None:
+    """Parse pk Division từ mã HRD-{id}."""
+    raw = (code or '').strip()
+    if not raw.upper().startswith(CODE_PREFIX.upper()):
+        return None
+    suffix = raw[len(CODE_PREFIX) :]
+    try:
+        return int(suffix)
+    except (TypeError, ValueError):
+        return None
+
+
+def default_manager_user_id_for_work_center(work_center_id: int | None) -> int | None:
+    """User pk trưởng bộ phận (HR) tương ứng tổ/bộ phận SxWorkCenter."""
+    if not work_center_id:
+        return None
+    center = SxWorkCenter.objects.filter(pk=int(work_center_id)).first()
+    if center is None:
+        return None
+    if not (center.code or '').upper().startswith(CODE_PREFIX.upper()):
+        mapped = map_ie_center_to_hr(center)
+        if mapped is None:
+            return None
+        center = mapped
+    div_id = division_id_from_work_center_code(center.code)
+    if not div_id:
+        return None
+    div = Division.objects.filter(pk=div_id).first()
+    if div is None:
+        return None
+    head = _head_profile(div)
+    if head is None or not head.user_id:
+        return None
+    return int(head.user_id)
+
+
+def work_center_options_with_default_manager(
+    *,
+    include_inactive_ids: list[int] | None = None,
+) -> list[dict]:
+    """Options dropdown tổ LSX: id, label, default_manager_id (trưởng BP HR)."""
+    centers = list(hr_work_centers_qs(include_inactive_ids=include_inactive_ids))
+    div_ids: list[int] = []
+    center_div: dict[int, int] = {}
+    for c in centers:
+        div_id = division_id_from_work_center_code(c.code)
+        if div_id:
+            center_div[c.pk] = div_id
+            div_ids.append(div_id)
+    head_by_div: dict[int, int] = {}
+    if div_ids:
+        uniq = list(dict.fromkeys(div_ids))
+        profiles = (
+            Profile.objects.filter(division_id__in=uniq, is_employed=True)
+            .select_related('user')
+            .order_by('pk')
+        )
+        by_div: dict[int, list[Profile]] = {}
+        for p in profiles:
+            by_div.setdefault(p.division_id, []).append(p)
+        for div_id, plist in by_div.items():
+            head = None
+            for role in (ROLE_DIVISION_HEAD, ROLE_TEAM_LEADER):
+                head = next((p for p in plist if p.role == role and p.user_id), None)
+                if head:
+                    break
+            if head is None:
+                for p in plist:
+                    if not p.user_id:
+                        continue
+                    pos = _fold(p.job_position or '')
+                    if (
+                        'truong bo phan' in pos
+                        or 'to truong' in pos
+                        or pos.startswith('tt ')
+                        or '(tt ' in pos
+                        or ' tt ' in pos
+                    ):
+                        head = p
+                        break
+            if head and head.user_id:
+                head_by_div[div_id] = int(head.user_id)
+    rows: list[dict] = []
+    for c in centers:
+        label = (c.team_label or c.name or c.code or '').strip()
+        div_id = center_div.get(c.pk)
+        mgr_id = head_by_div.get(div_id) if div_id else None
+        rows.append({
+            'id': c.pk,
+            'label': label,
+            'default_manager_id': mgr_id or '',
+        })
+    return rows
 
 
 @dataclass
