@@ -18,11 +18,23 @@
     return String(color || '').toUpperCase() + '||' + String(size || '').toUpperCase();
   }
 
+  /** SL màu×size chỉ số nguyên (bỏ .00 từ Decimal). */
+  function asIntQty(v) {
+    if (v == null || v === '') return '';
+    var n = Math.round(parseFloat(String(v).replace(',', '.')));
+    if (isNaN(n) || n <= 0) return '';
+    return String(n);
+  }
+
+  function readInt(inp) {
+    var n = Math.round(parseFloat(String((inp && inp.value) || '0').replace(',', '.')));
+    return isNaN(n) || n < 0 ? 0 : n;
+  }
+
   function sumMatrix() {
     var total = 0;
     host.querySelectorAll('.jp-mo-matrix-input').forEach(function (inp) {
-      var v = parseFloat(String(inp.value || '0').replace(',', '.'));
-      if (!isNaN(v) && v > 0) total += v;
+      total += readInt(inp);
     });
     return total;
   }
@@ -39,8 +51,9 @@
       qtyInput.readOnly = false;
       qtyInput.classList.remove('jp-mo-code-preview');
     }
-    var foot = host.querySelector('[data-mo-matrix-total]');
-    if (foot) foot.textContent = total > 0 ? String(total) : '0';
+    host.querySelectorAll('[data-mo-matrix-total]').forEach(function (foot) {
+      foot.textContent = total > 0 ? String(total) : '0';
+    });
   }
 
   function render(data) {
@@ -81,9 +94,8 @@
           html += '<td class="text-muted">—</td>';
           return;
         }
-        var init = initialQtys[cellKey(code, s)];
-        if (init == null || init === '') init = cell.qty || '';
-        if (String(init) === '0') init = '';
+        var init = asIntQty(initialQtys[cellKey(code, s)]);
+        if (!init) init = asIntQty(cell.qty);
         html +=
           '<td>' +
           '<input type="number" min="0" step="1" class="form-control form-control-sm jp-mo-matrix-input" ' +
@@ -129,8 +141,7 @@
       if (parts.length !== 3) return;
       var color = parts[1];
       var size = parts[2];
-      var v = parseFloat(String(inp.value || '0').replace(',', '.'));
-      if (isNaN(v) || v < 0) v = 0;
+      var v = readInt(inp);
       rowSums[color] = (rowSums[color] || 0) + v;
       colSums[size] = (colSums[size] || 0) + v;
     });
@@ -188,6 +199,14 @@
   }
   host.addEventListener('input', function (e) {
     if (e.target && e.target.classList.contains('jp-mo-matrix-input')) {
+      refreshRowColSums();
+      syncQty();
+    }
+  });
+  host.addEventListener('change', function (e) {
+    if (e.target && e.target.classList.contains('jp-mo-matrix-input')) {
+      var cleaned = asIntQty(e.target.value);
+      if (String(e.target.value) !== cleaned) e.target.value = cleaned;
       refreshRowColSums();
       syncQty();
     }

@@ -536,8 +536,23 @@ def apply_bom_process_edits(bom, steps: list[dict]) -> int:
     return len(keep_ids)
 
 
+def format_mo_line_qty(qty) -> str:
+    """SL màu×size luôn là số nguyên (chuỗi hiển thị / JSON)."""
+    from decimal import ROUND_HALF_UP
+
+    try:
+        d = Decimal(str(qty if qty is not None else "0").replace(",", "").strip() or "0")
+    except Exception:
+        return ""
+    if d <= 0:
+        return ""
+    return str(int(d.to_integral_value(rounding=ROUND_HALF_UP)))
+
+
 def normalize_mo_lines(raw_lines: list[dict]) -> list[dict]:
-    """Chuẩn hoá dòng LSX: bỏ qty≤0, gom trùng màu+size."""
+    """Chuẩn hoá dòng LSX: bỏ qty≤0, gom trùng màu+size, làm tròn số nguyên."""
+    from decimal import ROUND_HALF_UP
+
     from san_xuat.services.sku_catalog import normalize_token
 
     buckets: dict[tuple[str, str], dict] = {}
@@ -545,9 +560,10 @@ def normalize_mo_lines(raw_lines: list[dict]) -> list[dict]:
         if not isinstance(raw, dict):
             continue
         try:
-            qty = Decimal(str(raw.get("qty") or "0"))
+            qty = Decimal(str(raw.get("qty") or "0").replace(",", "").strip() or "0")
         except Exception:
             continue
+        qty = qty.to_integral_value(rounding=ROUND_HALF_UP)
         if qty <= 0:
             continue
         color = normalize_token(raw.get("color_code") or "")
@@ -646,7 +662,10 @@ def parse_mo_lines_from_post(post) -> list[dict]:
         if not color or not size:
             continue
         try:
+            from decimal import ROUND_HALF_UP
+
             qty = Decimal(str(raw or "0").replace(",", "").strip() or "0")
+            qty = qty.to_integral_value(rounding=ROUND_HALF_UP)
         except Exception:
             qty = Decimal("0")
         if qty <= 0:
@@ -706,7 +725,7 @@ def mo_sku_matrix(*, style_code: str, existing_lines=None) -> dict:
                 "size_label": s,
                 "sku_code": sku.sku_code,
                 "sku_id": sku.pk,
-                "qty": str(qty_map.get((c, s), Decimal("0"))),
+                "qty": format_mo_line_qty(qty_map.get((c, s), Decimal("0"))),
             })
     else:
         try:
@@ -734,7 +753,7 @@ def mo_sku_matrix(*, style_code: str, existing_lines=None) -> dict:
                 "size_label": s,
                 "sku_code": (p.code or "").strip().upper(),
                 "sku_id": None,
-                "qty": str(qty_map.get((c, s), Decimal("0"))),
+                "qty": format_mo_line_qty(qty_map.get((c, s), Decimal("0"))),
             })
 
     return {

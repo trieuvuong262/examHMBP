@@ -1614,10 +1614,13 @@ def dispatch_mo_detail(request, pk: int):
     progress = build_mo_progress(mo)
     mo_lines = list(mo.lines.all())
     import json
+    from san_xuat.services.dispatch import format_mo_line_qty
+
     mo_line_qty_json = json.dumps({
-        f'{(ln.color_code or "").upper()}||{(ln.size_label or "").upper()}': str(ln.qty)
+        f'{(ln.color_code or "").upper()}||{(ln.size_label or "").upper()}': format_mo_line_qty(ln.qty)
         for ln in mo_lines
         if (ln.color_code or "").strip() and (ln.size_label or "").strip()
+        and format_mo_line_qty(ln.qty)
     })
     from san_xuat.forms_dispatch import mo_manager_candidate_options
     from san_xuat.services.capacity_from_hrm import (
@@ -2291,11 +2294,13 @@ def dispatch_prod_stats_create(request):
         )
     mo_line_qty = []
     if mo:
+        from san_xuat.services.dispatch import format_mo_line_qty
+
         for ln in mo.lines.all():
             mo_line_qty.append({
                 'color': (ln.color_code or '').strip().upper(),
                 'size': (ln.size_label or '').strip().upper(),
-                'qty': str(ln.qty or 0),
+                'qty': format_mo_line_qty(ln.qty) or '0',
                 'sku': (ln.sku_code or '').strip().upper(),
             })
     return render(request, 'san_xuat/dispatch_prod_stats_form.html', {
