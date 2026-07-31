@@ -97,7 +97,8 @@
 .jp-mo-section:last-of-type { border-bottom: 0; }
 .jp-mo-section-label {
   display: flex;
-  align-items: baseline;
+  align-items: center;
+  flex-wrap: wrap;
   gap: 0.5rem;
   margin-bottom: 0.85rem;
 }
@@ -122,9 +123,11 @@
   letter-spacing: 0.01em;
 }
 .jp-mo-section-label .hint {
-  margin-left: auto;
   font-size: 0.75rem;
   color: var(--jp-mo-muted);
+}
+.jp-mo-section-label .jp-mo-fold-btn {
+  margin-left: auto;
 }
 .jp-mo-code-preview {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -304,6 +307,11 @@
   font-size: 0.88rem;
   color: var(--jp-mo-ink);
 }
+.jp-mo-section-head .jp-mo-fold-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
 .jp-mo-panel {
   border: 0;
   border-radius: 0.75rem;
@@ -330,5 +338,59 @@
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.82rem;
   letter-spacing: -0.01em;
+}
+
+/* —— Collapsible blocks (màu×size / tổ·công đoạn) —— */
+.jp-mo-fold.is-collapsed .jp-mo-fold-body {
+  display: none;
+}
+.jp-mo-fold-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.55rem;
+  border: 1px solid var(--jp-mo-line);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--jp-mo-muted);
+  font-size: 0.72rem;
+  font-weight: 650;
+  line-height: 1.3;
+  white-space: nowrap;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.jp-mo-fold-btn:hover {
+  color: var(--jp-mo-ink);
+  border-color: #cbd5e1;
+  background: var(--jp-mo-surface);
+}
+.jp-mo-fold-btn .bi {
+  font-size: 0.78rem;
+  transition: transform 0.15s ease;
+}
+.jp-mo-fold.is-collapsed .jp-mo-fold-btn .bi {
+  transform: rotate(-180deg);
+}
+.jp-mo-fold-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.65rem;
+}
+.jp-mo-fold-head .jp-mo-fold-title {
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 750;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--jp-mo-muted);
+}
+.jp-mo-fold-head .jp-mo-fold-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 </style>

@@ -1,0 +1,23 @@
+<script>
+(function () {
+  function setFold(root, collapsed) {
+    if (!root) return;
+    root.classList.toggle('is-collapsed', !!collapsed);
+    var btn = root.querySelector('.jp-mo-fold-btn');
+    if (!btn) return;
+    btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    var label = btn.querySelector('[data-fold-label]');
+    if (label) label.textContent = collapsed ? 'Mở rộng' : 'Thu gọn';
+  }
+
+  document.querySelectorAll('[data-jp-mo-fold]').forEach(function (root) {
+    var btn = root.querySelector('.jp-mo-fold-btn');
+    if (!btn) return;
+    setFold(root, root.classList.contains('is-collapsed'));
+    btn.addEventListener('click', function (e) {
+      e.preventDefault();
+      setFold(root, !root.classList.contains('is-collapsed'));
+    });
+  });
+})();
+</script>

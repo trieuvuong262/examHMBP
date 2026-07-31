@@ -61,8 +61,19 @@
           <h3>Số lượng theo màu × size</h3>
           <span class="hint">Kế hoạch biến thể</span>
         </div>
-        <div id="jp-mo-matrix-host" class="mb-3">
-          <div class="jp-mo-matrix-empty">Chọn mã SX để hiện ma trận màu × size.</div>
+        <div class="jp-mo-fold" data-jp-mo-fold>
+          <div class="jp-mo-fold-head">
+            <p class="jp-mo-fold-title">Kế hoạch theo màu × size</p>
+            <button type="button" class="jp-mo-fold-btn" aria-expanded="true">
+              <i class="bi bi-chevron-up" aria-hidden="true"></i>
+              <span data-fold-label>Thu gọn</span>
+            </button>
+          </div>
+          <div class="jp-mo-fold-body">
+            <div id="jp-mo-matrix-host" class="mb-3">
+              <div class="jp-mo-matrix-empty">Chọn mã SX để hiện ma trận màu × size.</div>
+            </div>
+          </div>
         </div>
         <div class="row g-3">
           <div class="col-6 col-md-4">
@@ -96,8 +107,19 @@
           <h3>Tổ / công đoạn</h3>
           <span class="hint">Chỉnh theo hồ sơ thiết kế</span>
         </div>
-        <div id="jp-mo-process-preview" class="mb-3">
-          <div class="small text-muted">Chọn hồ sơ thiết kế để tải tổ / công đoạn.</div>
+        <div class="jp-mo-fold" data-jp-mo-fold>
+          <div class="jp-mo-fold-head">
+            <p class="jp-mo-fold-title">Tổ / công đoạn (theo hồ sơ thiết kế)</p>
+            <button type="button" class="jp-mo-fold-btn" aria-expanded="true">
+              <i class="bi bi-chevron-up" aria-hidden="true"></i>
+              <span data-fold-label>Thu gọn</span>
+            </button>
+          </div>
+          <div class="jp-mo-fold-body">
+            <div id="jp-mo-process-preview" class="mb-3">
+              <div class="small text-muted">Chọn hồ sơ thiết kế để tải tổ / công đoạn.</div>
+            </div>
+          </div>
         </div>
         {# Đồng bộ từ dòng đầu bảng công đoạn khi submit #}
         <input type="hidden" name="team_label" id="id_team_label" value="{{ form.team_label.value|default:'' }}">
@@ -122,6 +144,7 @@
 {% include 'san_xuat/includes/sx_product_code_select_script.html' %}
 {% include 'san_xuat/includes/sx_process_select_script.html' %}
 {% include 'san_xuat/includes/sx_mo_matrix_script.html' %}
+{% include 'san_xuat/includes/sx_mo_fold_script.html' %}
 <script>
 (function () {
   var productSel = document.getElementById('id_product_code');
