@@ -92,8 +92,12 @@ def work_center_team_choices(*, extra_value: str = "") -> list[tuple[str, str]]:
 
 
 def mo_manager_candidate_options() -> list[dict]:
-    """User picker options: tổ trưởng / trưởng bộ phận / trưởng phòng / giám đốc."""
+    """User picker options: tổ trưởng / trưởng bộ phận / trưởng phòng / giám đốc.
+
+    Không gồm tài khoản admin / superuser.
+    """
     from django.contrib.auth import get_user_model
+    from django.db.models import Q
 
     from hrm.permissions import MANAGER_ROLES
 
@@ -103,11 +107,16 @@ def mo_manager_candidate_options() -> list[dict]:
             is_active=True,
             profile__role__in=MANAGER_ROLES,
         )
+        .exclude(Q(is_superuser=True) | Q(username__iexact="admin"))
         .select_related("profile")
         .order_by("profile__full_name", "username")[:400]
     )
     rows: list[dict] = []
     for u in qs:
+        if getattr(u, "is_superuser", False):
+            continue
+        if (u.username or "").strip().casefold() == "admin":
+            continue
         profile = getattr(u, "profile", None)
         if profile is not None and hasattr(profile, "is_employed") and not profile.is_employed:
             continue
