@@ -913,13 +913,13 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
                 extra = 'phase=proxy' if editing_for_other else 'phase=review'
                 return redirect(_production_redirect(report_date, shift, for_user or None, extra))
             report.declared_work_hours = work_hours
+        report.report_profile = REPORT_PROFILE_PRODUCTION
         msg = _finalize_report_submission(report, action)
         if action == 'submit':
             lock_production_steps_on_submit(report)
         if action == 'submit' and was_submitted:
             msg = 'Đã cập nhật báo cáo.'
         messages.success(request, msg)
-        report.report_profile = REPORT_PROFILE_PRODUCTION
         report.save()
         from reports.models import DailyWorkReportEditLog
         from reports.report_edit_log import log_report_edit

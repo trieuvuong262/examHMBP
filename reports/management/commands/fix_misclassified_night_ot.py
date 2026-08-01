@@ -146,7 +146,10 @@ def merge_night_into_morning(night: DailyWorkReport, morning: DailyWorkReport) -
     ):
         morning.status = DailyWorkReport.STATUS_SUBMITTED
         morning.submitted_at = night.submitted_at or morning.submitted_at
-        morning.save(update_fields=['status', 'submitted_at', 'updated_at'])
+        morning.submit_clicked_at = night.submit_clicked_at or morning.submit_clicked_at
+        morning.save(
+            update_fields=['status', 'submitted_at', 'submit_clicked_at', 'updated_at']
+        )
 
     night.delete()
     return stats

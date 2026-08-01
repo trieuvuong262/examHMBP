@@ -210,11 +210,14 @@ def auto_submit_one_report(
         if report.declared_work_hours is None or report.declared_work_hours <= 0:
             report.declared_work_hours = _default_declared_work_hours(kind)
 
+        from reports.report_submit_time import resolve_submitted_at
+
         now = timezone.now()
-        report.status = DailyWorkReport.STATUS_SUBMITTED
-        report.submitted_at = now
-        report.auto_submitted = True
         report.report_profile = REPORT_PROFILE_PRODUCTION
+        report.status = DailyWorkReport.STATUS_SUBMITTED
+        report.submit_clicked_at = now
+        report.submitted_at = resolve_submitted_at(report, now)
+        report.auto_submitted = True
         report.save()
         lock_production_steps_on_submit(report)
 

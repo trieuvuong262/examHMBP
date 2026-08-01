@@ -39,6 +39,7 @@ class DailyWorkReportAdmin(admin.ModelAdmin):
         'hod_rejected',
         'auto_submitted',
         'submitted_at',
+        'submit_clicked_at',
     )
     list_filter = (
         'status',
@@ -51,7 +52,13 @@ class DailyWorkReportAdmin(admin.ModelAdmin):
     )
     search_fields = ('employee__username', 'employee__profile__full_name', 'title')
     date_hierarchy = 'report_date'
-    readonly_fields = ('created_at', 'updated_at', 'submitted_at', 'draft_saved_at')
+    readonly_fields = (
+        'created_at',
+        'updated_at',
+        'submitted_at',
+        'submit_clicked_at',
+        'draft_saved_at',
+    )
     inlines = [DailyWorkReportLineInline, DailyWorkReportAttachmentInline]
 
     @admin.display(description='Đính kèm')

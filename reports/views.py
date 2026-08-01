@@ -427,15 +427,19 @@ def _ensure_daily_report_saved(report):
 
 
 def _finalize_report_submission(report, action):
+    from reports.report_submit_time import resolve_submitted_at
+
     now = timezone.now()
     if action == 'submit':
         report.status = DailyWorkReport.STATUS_SUBMITTED
-        report.submitted_at = now
+        report.submit_clicked_at = now
+        report.submitted_at = resolve_submitted_at(report, now)
         # Công nhân / tổ trưởng gửi thủ công — không còn đánh dấu tự động.
         report.auto_submitted = False
         return 'Đã gửi báo cáo.'
     report.status = DailyWorkReport.STATUS_DRAFT
     report.submitted_at = None
+    report.submit_clicked_at = None
     report.auto_submitted = False
     report.draft_saved_at = now
     return 'Đã lưu nháp báo cáo.'
@@ -1389,6 +1393,7 @@ def copy_prev_vp(request):
     report.shift = ''
     report.status = DailyWorkReport.STATUS_DRAFT
     report.submitted_at = None
+    report.submit_clicked_at = None
     report.draft_saved_at = None
     report.title = source.title
     report.spreadsheet_json = source.spreadsheet_json
@@ -1436,6 +1441,7 @@ def copy_yesterday(request, *, report_profile: str):
         report.shift = ''
     report.status = DailyWorkReport.STATUS_DRAFT
     report.submitted_at = None
+    report.submit_clicked_at = None
     report.draft_saved_at = None
     if report_profile == REPORT_PROFILE_OFFICE:
         report.title = source.title

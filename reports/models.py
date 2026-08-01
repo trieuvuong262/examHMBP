@@ -65,6 +65,15 @@ class DailyWorkReport(models.Model):
     )
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT)
     submitted_at = models.DateTimeField(null=True, blank=True)
+    submit_clicked_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='Bấm gửi lúc',
+        help_text=(
+            'Thời điểm thật báo cáo chuyển sang Đã gửi. Ca tối hiển thị submitted_at theo lúc '
+            'bắt đầu công đoạn đầu tiên, nên hạn duyệt / hạn sửa tính theo trường này.'
+        ),
+    )
     draft_saved_at = models.DateTimeField(null=True, blank=True, verbose_name='Lưu nháp lúc')
     hod_reviewed = models.BooleanField(default=False, verbose_name='HOD đã duyệt')
     hod_reviewed_at = models.DateTimeField(null=True, blank=True, verbose_name='HOD duyệt lúc')

@@ -5,10 +5,12 @@ from __future__ import annotations
 import calendar
 from datetime import date, timedelta
 
+from django.db.models.functions import Coalesce
 from django.utils import timezone
 
 from reports.models import DailyWorkReport, WeeklyWorkReport
 from reports.period_utils import PERIOD_DAY, PERIOD_MONTH, PERIOD_WEEK
+from reports.report_submit_time import submit_anchor_at
 from reports.report_settings import (
     report_approve_deadline_hours,
     report_auto_reject_deadline_hours,
@@ -54,9 +56,10 @@ def is_production_report(report) -> bool:
 
 def production_approve_deadline(report):
     """Hạn duyệt (SLA) — X giờ kể từ khi nhân viên gửi báo cáo."""
-    if report.status != DailyWorkReport.STATUS_SUBMITTED or not report.submitted_at:
+    anchor = submit_anchor_at(report)
+    if report.status != DailyWorkReport.STATUS_SUBMITTED or not anchor:
         return None
-    return report.submitted_at + timedelta(hours=report_approve_deadline_hours())
+    return anchor + timedelta(hours=report_approve_deadline_hours())
 
 
 def is_production_approve_overdue(report) -> bool:
@@ -71,9 +74,10 @@ def is_production_approve_overdue(report) -> bool:
 
 def production_auto_reject_deadline(report):
     """Hạn «Không duyệt» — Y giờ kể từ khi nhân viên gửi báo cáo."""
-    if report.status != DailyWorkReport.STATUS_SUBMITTED or not report.submitted_at:
+    anchor = submit_anchor_at(report)
+    if report.status != DailyWorkReport.STATUS_SUBMITTED or not anchor:
         return None
-    return report.submitted_at + report_auto_reject_window()
+    return anchor + report_auto_reject_window()
 
 
 def is_production_auto_reject_expired(report) -> bool:
@@ -85,16 +89,17 @@ def is_production_auto_reject_expired(report) -> bool:
 
 def production_employee_edit_deadline(report):
     """Hạn sửa của nhân viên sau khi nộp báo cáo SX."""
-    if report.status != DailyWorkReport.STATUS_SUBMITTED or not report.submitted_at:
+    anchor = submit_anchor_at(report)
+    if report.status != DailyWorkReport.STATUS_SUBMITTED or not anchor:
         return None
-    return report.submitted_at + report_employee_edit_window()
+    return anchor + report_employee_edit_window()
 
 
 def production_manager_edit_deadline(report):
     """Hạn hoàn duyệt / sửa của quản lý — N ngày kể từ khi duyệt báo cáo SX."""
     if not report.hod_reviewed:
         return None
-    reviewed_at = getattr(report, 'hod_reviewed_at', None) or report.submitted_at or report.updated_at
+    reviewed_at = getattr(report, 'hod_reviewed_at', None) or submit_anchor_at(report) or report.updated_at
     if not reviewed_at:
         return None
     return reviewed_at + report_manager_edit_window()
@@ -156,13 +161,16 @@ def auto_reject_expired_production_reports(
     now = timezone.now()
     hours = report_auto_reject_deadline_hours()
     cutoff = now - timedelta(hours=hours)
-    qs = DailyWorkReport.objects.filter(
-        report_profile=REPORT_PROFILE_PRODUCTION,
-        status=DailyWorkReport.STATUS_SUBMITTED,
-        hod_reviewed=False,
-        hod_rejected=False,
-        submitted_at__isnull=False,
-        submitted_at__lte=cutoff,
+    qs = (
+        DailyWorkReport.objects.filter(
+            report_profile=REPORT_PROFILE_PRODUCTION,
+            status=DailyWorkReport.STATUS_SUBMITTED,
+            hod_reviewed=False,
+            hod_rejected=False,
+            submitted_at__isnull=False,
+        )
+        .annotate(submit_anchor=Coalesce('submit_clicked_at', 'submitted_at'))
+        .filter(submit_anchor__lte=cutoff)
     )
     if employee_ids is not None:
         qs = qs.filter(employee_id__in=employee_ids)
@@ -170,7 +178,14 @@ def auto_reject_expired_production_reports(
         qs = qs.filter(report_date__gte=date_from)
     if date_to is not None:
         qs = qs.filter(report_date__lte=date_to)
-    return qs.update(hod_rejected=True, hod_rejected_at=now, updated_at=now)
+    expired_ids = list(qs.values_list('pk', flat=True))
+    if not expired_ids:
+        return 0
+    return DailyWorkReport.objects.filter(pk__in=expired_ids).update(
+        hod_rejected=True,
+        hod_rejected_at=now,
+        updated_at=now,
+    )
 
 
 def ensure_production_report_approval_state(report) -> bool:

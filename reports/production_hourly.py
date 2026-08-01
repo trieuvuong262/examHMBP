@@ -2396,8 +2396,12 @@ def save_proxy_shift_table(report: DailyWorkReport, rows: list[dict], user) -> d
     if not report.shift_started_at:
         report.shift_started_at = _slot_start_dt(report.report_date, slots[0])
     if groups:
+        from reports.report_submit_time import resolve_submitted_at
+
+        now = timezone.now()
         report.status = DailyWorkReport.STATUS_SUBMITTED
-        report.submitted_at = timezone.now()
+        report.submit_clicked_at = now
+        report.submitted_at = resolve_submitted_at(report, now)
         report.auto_submitted = False
         lock_production_steps_on_submit(report)
     else:
@@ -2891,6 +2895,7 @@ def save_proxy_shift_sessions(
 
     prior_status = report.status
     prior_submitted_at = report.submitted_at
+    prior_submit_clicked_at = report.submit_clicked_at
 
     if preserve_draft:
         sessions = _normalize_anomaly_fix_sessions(report, sessions)
@@ -3002,11 +3007,16 @@ def save_proxy_shift_sessions(
     if content_edit_only or preserve_draft:
         report.status = prior_status
         report.submitted_at = prior_submitted_at
+        report.submit_clicked_at = prior_submit_clicked_at
         if created and report.status == DailyWorkReport.STATUS_DRAFT:
             report.draft_saved_at = timezone.now()
     elif created:
+        from reports.report_submit_time import resolve_submitted_at
+
+        now = timezone.now()
         report.status = DailyWorkReport.STATUS_SUBMITTED
-        report.submitted_at = timezone.now()
+        report.submit_clicked_at = now
+        report.submitted_at = resolve_submitted_at(report, now)
         report.auto_submitted = False
         lock_production_steps_on_submit(report)
     else:

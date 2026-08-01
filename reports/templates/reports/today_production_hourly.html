@@ -151,7 +151,7 @@
             {% if is_submitted and can_edit and not is_locked %}
             <div class="alert {% if report.auto_submitted %}alert-info{% else %}alert-success{% endif %} border-0 small mb-3">
                 {% if report.auto_submitted %}
-                Hệ thống tự động gửi lúc {{ report.submitted_at|date:"H:i d/m/Y" }}.
+                Hệ thống tự động gửi lúc {{ report.submit_clicked_at|default:report.submitted_at|date:"H:i d/m/Y" }}.
                 {% else %}
                 Đã gửi lúc {{ report.submitted_at|date:"H:i d/m/Y" }}.
                 {% endif %}
@@ -395,7 +395,7 @@
                 <div class="alert {% if report.auto_submitted %}alert-info{% else %}alert-light{% endif %} border small mb-3 py-2">
                     {% if report.auto_submitted %}
                     <i class="bi bi-robot me-1"></i>
-                    Hệ thống tự động gửi lúc {{ report.submitted_at|date:"H:i d/m/Y" }}.
+                    Hệ thống tự động gửi lúc {{ report.submit_clicked_at|default:report.submitted_at|date:"H:i d/m/Y" }}.
                     {% else %}
                     <i class="bi bi-check-circle-fill text-success me-1"></i>
                     Đã gửi lúc {{ report.submitted_at|date:"H:i d/m/Y" }}.
@@ -407,7 +407,7 @@
                 {% elif is_submitted and production_summary_editable and can_edit and not is_locked %}
                 <div class="alert {% if report.auto_submitted %}alert-info{% else %}alert-success{% endif %} border-0 small mb-3 py-2">
                     {% if report.auto_submitted %}
-                    Hệ thống tự động gửi lúc {{ report.submitted_at|date:"H:i d/m/Y" }}.
+                    Hệ thống tự động gửi lúc {{ report.submit_clicked_at|default:report.submitted_at|date:"H:i d/m/Y" }}.
                     {% else %}
                     Đã gửi lúc {{ report.submitted_at|date:"H:i d/m/Y" }}.
                     {% endif %}
