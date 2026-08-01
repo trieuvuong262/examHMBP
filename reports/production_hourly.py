@@ -3028,6 +3028,10 @@ def save_proxy_shift_sessions(
         from reports.report_lock import auto_approve_fully_proxy_entered_report
 
         auto_approve_fully_proxy_entered_report(report)
+    elif content_edit_only and created:
+        from reports.report_lock import auto_approve_manager_edited_report
+
+        auto_approve_manager_edited_report(report, user)
 
     from reports.models import DailyWorkReportEditLog
     from reports.report_edit_log import log_report_edit

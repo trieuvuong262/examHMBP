@@ -120,3 +120,8 @@ def allow_edit_wrong_stage_time() -> bool:
 
 def auto_approve_proxy_reports() -> bool:
     return report_bool('auto_approve_proxy_reports', True)
+
+
+def auto_approve_manager_edited_reports() -> bool:
+    """QL / tổ trưởng sửa báo cáo SX đã nộp — chốt duyệt luôn."""
+    return report_bool('auto_approve_manager_edited_reports', True)

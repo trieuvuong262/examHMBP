@@ -242,6 +242,34 @@ def auto_approve_fully_proxy_entered_report(report) -> bool:
     return True
 
 
+def manager_edited_report_may_auto_approve(report, editor) -> bool:
+    # Cùng điều kiện với nút «Duyệt» trên trang chi tiết (can_approve).
+    from reports.production_hourly import can_edit_production_norms
+    from reports.report_settings import auto_approve_manager_edited_reports
+
+    if not auto_approve_manager_edited_reports():
+        return False
+    if not report or not report.pk or not editor:
+        return False
+    if not is_production_report(report):
+        return False
+    if report.status != DailyWorkReport.STATUS_SUBMITTED:
+        return False
+    if report.hod_reviewed or getattr(report, 'hod_rejected', False):
+        return False
+    if report.employee_id == getattr(editor, 'id', None):
+        return False
+    return can_edit_production_norms(editor, report)
+
+
+def auto_approve_manager_edited_report(report, editor) -> bool:
+    """QL / tổ trưởng sửa báo cáo SX đã nộp — chốt duyệt luôn (theo thiết lập chung)."""
+    if not manager_edited_report_may_auto_approve(report, editor):
+        return False
+    approve_production_report(report)
+    return True
+
+
 def unapprove_production_report(report) -> None:
     report.hod_reviewed = False
     report.hod_reviewed_at = None

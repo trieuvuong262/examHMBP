@@ -227,6 +227,14 @@ def _production_redirect(report_date, shift='', for_user_id=None, extra=None):
     return url
 
 
+def _approve_after_manager_edit(request, report) -> None:
+    """QL / tổ trưởng vừa sửa báo cáo đã nộp — chốt duyệt luôn."""
+    from reports.report_lock import auto_approve_manager_edited_report
+
+    if auto_approve_manager_edited_report(report, request.user):
+        messages.info(request, 'Báo cáo đã chuyển sang trạng thái «Đã duyệt».')
+
+
 def _is_content_edit_only(request, report) -> bool:
     if not report or not report.pk:
         return False
@@ -393,6 +401,7 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
             detail=f'Trước: {before_txt} giờ\nSau: {after_txt} giờ',
         )
         messages.success(request, f'Đã cập nhật thời gian làm việc: {after_txt} giờ.')
+        _approve_after_manager_edit(request, report)
         return redirect(_production_redirect(report_date, shift, for_user or None, review_extra))
 
     if action == 'start_shift':
@@ -661,6 +670,7 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
             summary=f'Chỉnh sửa công đoạn {(code or product.product_code or "").strip() or "—"}.',
             detail=format_session_change_detail(before=before_snap, after=after_snap),
         )
+        _approve_after_manager_edit(request, report)
         return redirect(_production_redirect(report_date, shift, for_user or None, review_extra))
 
     if action == 'delete_session':
@@ -706,6 +716,7 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
             detail=format_session_change_detail(before=before_snap),
         )
         messages.success(request, f'Đã xóa công đoạn {label}.')
+        _approve_after_manager_edit(request, report)
         return redirect(_production_redirect(report_date, shift, for_user or None, review_extra))
 
     if action == 'add_session':
@@ -766,6 +777,7 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
             detail=format_session_change_detail(after=after_snap),
         )
         messages.success(request, f'Đã thêm công đoạn {code}.')
+        _approve_after_manager_edit(request, report)
         return redirect(_production_redirect(report_date, shift, for_user or None, content_edit_extra))
 
     if action == 'finalize_product':

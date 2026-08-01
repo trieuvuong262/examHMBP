@@ -767,6 +767,11 @@ class ReportsGeneralSettings(models.Model):
         default=True,
         verbose_name='Tự duyệt báo cáo nhập hộ toàn bộ',
     )
+    auto_approve_manager_edited_reports = models.BooleanField(
+        default=True,
+        verbose_name='Tự duyệt khi quản lý sửa báo cáo đã nộp',
+        help_text='Quản lý / tổ trưởng sửa, thêm, xóa công đoạn hoặc thời gian làm việc — báo cáo chuyển sang Đã duyệt.',
+    )
     updated_at = models.DateTimeField(auto_now=True)
     updated_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,

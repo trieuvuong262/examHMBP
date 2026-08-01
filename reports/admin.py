@@ -158,6 +158,7 @@ class ReportsGeneralSettingsAdmin(admin.ModelAdmin):
         'work_hours_min',
         'work_hours_max',
         'auto_approve_proxy_reports',
+        'auto_approve_manager_edited_reports',
         'approve_deadline_hours',
         'auto_reject_deadline_hours',
         'employee_edit_deadline_hours',

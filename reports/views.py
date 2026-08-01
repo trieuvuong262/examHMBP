@@ -2720,6 +2720,7 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
         if deleted or count:
             from reports.models import DailyWorkReportEditLog
             from reports.report_edit_log import log_report_edit
+            from reports.report_lock import auto_approve_manager_edited_report
 
             parts = []
             if deleted:
@@ -2732,6 +2733,8 @@ def _report_detail_core(request, pk, *, detail_url_name: str):
                 summary='Quản lý ' + ' và '.join(parts) + '.',
                 detail=change_detail,
             )
+            if auto_approve_manager_edited_report(report, request.user):
+                messages.info(request, 'Báo cáo đã chuyển sang trạng thái «Đã duyệt».')
         return _detail_redirect()
 
     can_comment = can_comment_on_user_report(request.user, report)
