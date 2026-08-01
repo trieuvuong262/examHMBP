@@ -8,6 +8,7 @@ from utilities.models import (
     MealOrderSettings,
     SalaryAdvanceDecline,
     SalaryAdvanceRequest,
+    SalaryAdvanceSettings,
     ScheduleReminder,
     ScheduleReminderPushLog,
 )
@@ -20,6 +21,18 @@ class MealOrderSettingsAdmin(admin.ModelAdmin):
 
     def has_add_permission(self, request):
         return not MealOrderSettings.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(SalaryAdvanceSettings)
+class SalaryAdvanceSettingsAdmin(admin.ModelAdmin):
+    list_display = ('is_enabled', 'open_day_start', 'open_day_end', 'max_amount', 'updated_at')
+    readonly_fields = ('updated_at',)
+
+    def has_add_permission(self, request):
+        return not SalaryAdvanceSettings.objects.exists()
 
     def has_delete_permission(self, request, obj=None):
         return False

@@ -6,8 +6,19 @@ from django.utils import timezone
 
 from utilities.meal_rules import is_meal_order_window_open
 from utilities.meal_labels import dish_label_key, normalize_dish_display
-from utilities.models import MealDish, MealOrder, MealOrderSettings, SalaryAdvanceRequest
-from utilities.salary_rules import MAX_SALARY_ADVANCE, is_salary_advance_open
+from utilities.models import (
+    MealDish,
+    MealOrder,
+    MealOrderSettings,
+    SalaryAdvanceRequest,
+    SalaryAdvanceSettings,
+)
+from utilities.salary_rules import (
+    ABSOLUTE_MAX_SALARY_ADVANCE,
+    get_max_salary_advance,
+    is_salary_advance_open,
+    salary_advance_window_label,
+)
 
 
 class MealDishForm(forms.ModelForm):
@@ -88,7 +99,6 @@ class SalaryAdvanceForm(forms.ModelForm):
             'amount': forms.NumberInput(attrs={
                 'class': 'form-control',
                 'min': 1000,
-                'max': int(MAX_SALARY_ADVANCE),
                 'step': 1000,
                 'placeholder': 'Số tiền (VNĐ)',
             }),
@@ -99,13 +109,16 @@ class SalaryAdvanceForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.employee = employee
         self.request_month = request_month
+        self.max_amount = get_max_salary_advance()
+        self.fields['amount'].widget.attrs['max'] = int(self.max_amount)
 
     def clean_amount(self):
         amount = self.cleaned_data.get('amount')
         if amount is None:
             return amount
-        if amount > MAX_SALARY_ADVANCE:
-            raise ValidationError(f'Số tiền tối đa {MAX_SALARY_ADVANCE:,.0f}đ.')
+        max_amount = get_max_salary_advance()
+        if amount > max_amount:
+            raise ValidationError(f'Số tiền tối đa {max_amount:,.0f}đ.')
         if amount <= 0:
             raise ValidationError('Số tiền phải lớn hơn 0.')
         return amount
@@ -113,7 +126,7 @@ class SalaryAdvanceForm(forms.ModelForm):
     def clean(self):
         cleaned = super().clean()
         if not is_salary_advance_open():
-            raise ValidationError('Ứng lương chỉ mở vào ngày 18 và 19 hàng tháng.')
+            raise ValidationError(f'Ứng lương chỉ mở vào {salary_advance_window_label().lower()}.')
         employee = self.employee or getattr(self.instance, 'employee', None)
         month = self.request_month or getattr(self.instance, 'request_month', None)
         if employee and month:
@@ -153,6 +166,53 @@ class MealOrderSettingsForm(forms.ModelForm):
         end = cleaned.get('order_end_time')
         if start and end and end <= start:
             raise ValidationError('Giờ kết thúc phải sau giờ bắt đầu.')
+        return cleaned
+
+
+class SalaryAdvanceSettingsForm(forms.ModelForm):
+    class Meta:
+        model = SalaryAdvanceSettings
+        fields = ('is_enabled', 'open_day_start', 'open_day_end', 'max_amount')
+        widgets = {
+            'is_enabled': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'open_day_start': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': 1,
+                'max': 31,
+                'step': 1,
+            }),
+            'open_day_end': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': 1,
+                'max': 31,
+                'step': 1,
+            }),
+            'max_amount': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': 1000,
+                'max': int(ABSOLUTE_MAX_SALARY_ADVANCE),
+                'step': 1000,
+            }),
+        }
+        labels = {
+            'is_enabled': 'Bật ứng lương',
+            'open_day_start': 'Ngày bắt đầu trong tháng',
+            'open_day_end': 'Ngày kết thúc trong tháng',
+            'max_amount': 'Mức ứng tối đa (VNĐ)',
+        }
+        help_texts = {
+            'is_enabled': 'Tắt = đóng đăng ký dù đang trong khung ngày.',
+            'open_day_start': 'Ví dụ 18 = mở từ ngày 18.',
+            'open_day_end': 'Ví dụ 19 = đóng hết ngày 19.',
+            'max_amount': f'Tối đa hệ thống: {ABSOLUTE_MAX_SALARY_ADVANCE:,.0f}đ.',
+        }
+
+    def clean(self):
+        cleaned = super().clean()
+        start = cleaned.get('open_day_start')
+        end = cleaned.get('open_day_end')
+        if start and end and end < start:
+            raise ValidationError('Ngày kết thúc phải lớn hơn hoặc bằng ngày bắt đầu.')
         return cleaned
 
 

@@ -35,6 +35,7 @@ from utilities.forms import (
     MealOrderForm,
     MealOrderSettingsForm,
     SalaryAdvanceForm,
+    SalaryAdvanceSettingsForm,
 )
 from utilities.meal_labels import (
     dish_label_key,
@@ -56,10 +57,12 @@ from utilities.models import (
     MealOrderDecline,
     MealOrderSettings,
     SalaryAdvanceRequest,
+    SalaryAdvanceSettings,
     ScheduleReminder,
 )
 from utilities.salary_rules import (
     current_advance_month,
+    get_max_salary_advance,
     is_salary_advance_open,
     salary_advance_window_label,
 )
@@ -720,9 +723,11 @@ def salary_home(request):
         )
 
     history = SalaryAdvanceRequest.objects.filter(employee=request.user).order_by('-request_month')[:12]
+    max_amount = get_max_salary_advance()
     return render(request, 'utilities/salary_home.html', {
         'window_open': window_open,
         'window_label': salary_advance_window_label(),
+        'max_amount': max_amount,
         'request_month': month,
         'existing_request': existing,
         'form': form,
@@ -788,6 +793,25 @@ def salary_stats(request):
     return render(request, 'utilities/salary_stats.html', {
         'stats_rows': rows,
         'can_export': user_can_export_menu(request.user, MODULE_UTILITIES, 'salary_advance'),
+        'can_manage': True,
+    })
+
+
+@module_perm_required(MODULE_UTILITIES, 'update')
+def salary_settings(request):
+    settings = SalaryAdvanceSettings.load()
+    if request.method == 'POST':
+        form = SalaryAdvanceSettingsForm(request.POST, instance=settings)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Đã cập nhật thiết lập ứng lương.')
+            return redirect('utilities:salary_settings')
+    else:
+        form = SalaryAdvanceSettingsForm(instance=settings)
+    return render(request, 'utilities/salary_settings.html', {
+        'form': form,
+        'settings': settings,
+        'window_label': salary_advance_window_label(),
         'can_manage': True,
     })
 

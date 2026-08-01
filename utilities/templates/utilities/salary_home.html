@@ -6,7 +6,7 @@
     <div class="jp-page-header mb-3 mb-md-4 d-flex flex-wrap justify-content-between gap-2">
         <div>
             <h2 class="fw-bold text-hm jp-page-title">Ứng lương</h2>
-            <p class="text-muted small mb-0">{{ window_label }} · Tối đa 1 lần/tháng/tài khoản</p>
+            <p class="text-muted small mb-0">{{ window_label }} · Tối đa {{ max_amount|intcomma }}đ · 1 lần/tháng/tài khoản</p>
         </div>
         {% if can_manage %}
         <a href="{% url 'utilities:salary_manage' %}" class="btn btn-outline-hm btn-sm">Quản lý (HR)</a>
@@ -40,6 +40,7 @@
                 <div class="mb-3">
                     <label class="form-label fw-bold">Số tiền (VNĐ)</label>
                     {{ form.amount }}
+                    <div class="form-text">Tối đa {{ max_amount|intcomma }}đ</div>
                     {% if form.amount.errors %}<div class="text-danger small">{{ form.amount.errors }}</div>{% endif %}
                 </div>
                 <div class="mb-3">

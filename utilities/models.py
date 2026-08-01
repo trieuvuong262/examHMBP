@@ -6,7 +6,7 @@ from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
-from utilities.salary_rules import MAX_SALARY_ADVANCE
+from utilities.salary_rules import ABSOLUTE_MAX_SALARY_ADVANCE, DEFAULT_MAX_SALARY_ADVANCE
 
 
 def normalize_request_month(value):
@@ -35,6 +35,56 @@ class MealOrderSettings(models.Model):
 
     def __str__(self):
         return 'Thiết lập đặt cơm'
+
+    @classmethod
+    def load(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+
+class SalaryAdvanceSettings(models.Model):
+    """Singleton — khung ngày mở ứng lương + mức ứng tối đa (pk=1)."""
+
+    is_enabled = models.BooleanField(
+        default=True,
+        verbose_name='Bật ứng lương',
+        help_text='Tắt = đóng đăng ký bất kể ngày trong tháng.',
+    )
+    open_day_start = models.PositiveSmallIntegerField(
+        default=18,
+        validators=[MinValueValidator(1), MaxValueValidator(31)],
+        verbose_name='Ngày bắt đầu',
+        help_text='Ngày trong tháng bắt đầu mở ứng (1–31).',
+    )
+    open_day_end = models.PositiveSmallIntegerField(
+        default=19,
+        validators=[MinValueValidator(1), MaxValueValidator(31)],
+        verbose_name='Ngày kết thúc',
+        help_text='Ngày trong tháng kết thúc mở ứng (1–31).',
+    )
+    max_amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=0,
+        default=DEFAULT_MAX_SALARY_ADVANCE,
+        validators=[
+            MinValueValidator(Decimal('1000')),
+            MaxValueValidator(ABSOLUTE_MAX_SALARY_ADVANCE),
+        ],
+        verbose_name='Mức ứng tối đa (VNĐ)',
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Thiết lập ứng lương'
+        verbose_name_plural = 'Thiết lập ứng lương'
+
+    def __str__(self):
+        return 'Thiết lập ứng lương'
+
+    def clean(self):
+        super().clean()
+        if self.open_day_start and self.open_day_end and self.open_day_end < self.open_day_start:
+            raise ValidationError({'open_day_end': 'Ngày kết thúc phải ≥ ngày bắt đầu.'})
 
     @classmethod
     def load(cls):
@@ -173,7 +223,7 @@ class SalaryAdvanceRequest(models.Model):
         decimal_places=0,
         validators=[
             MinValueValidator(Decimal('1')),
-            MaxValueValidator(MAX_SALARY_ADVANCE),
+            MaxValueValidator(ABSOLUTE_MAX_SALARY_ADVANCE),
         ],
         verbose_name='Số tiền (VNĐ)',
     )
