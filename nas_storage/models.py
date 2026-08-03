@@ -102,7 +102,10 @@ class NasAccessGroup(models.Model):
     portal_browse_all = models.BooleanField(
         default=False,
         verbose_name='Duyệt tất cả share (Portal)',
-        help_text='Thành viên nhóm xem được mọi share trên menu Duyệt thư mục.',
+        help_text=(
+            'Thành viên nhóm xem được mọi share trên Portal và được gán quyền đầy đủ '
+            '(đọc/ghi/quản trị) trên tất cả thư mục NAS đã đăng ký.'
+        ),
     )
     portal_members = models.ManyToManyField(
         User,

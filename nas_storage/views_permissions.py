@@ -365,8 +365,8 @@ def group_edit(request, pk=None):
                 stats = sync_browse_all_share_permissions()
                 messages.info(
                     request,
-                    f'Đã gán quyền đọc {stats["permissions_created"] + stats["permissions_updated"]} '
-                    f'cặp nhóm–share cho nhóm xem tất cả.',
+                    f'Đã gán quyền đầy đủ {stats["permissions_created"] + stats["permissions_updated"]} '
+                    f'cặp nhóm–thư mục cho nhóm xem tất cả.',
                 )
             messages.success(request, 'Đã lưu nhóm quyền NAS.')
             return redirect('nas_storage:group_list')

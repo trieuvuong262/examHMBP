@@ -190,9 +190,10 @@ def all_share_portal_roots() -> list[NasRootEntry]:
 
 def sync_browse_all_share_permissions(*, apply_to_nas: bool = False) -> dict:
     """
-  Tạo quyền đọc trên mọi share cho nhóm có portal_browse_all.
-  Trả về thống kê permissions created/updated.
-  """
+    Gán quyền đầy đủ (Read + Write + Administration) trên mọi thư mục
+    cho nhóm có portal_browse_all (vd. TGD / Tổng giám đốc).
+    Trả về thống kê permissions created/updated.
+    """
     from nas_storage.models import NasAccessGroup, NasFolderPermission, NasShareFolder
     from nas_storage.nas_acl_apply import apply_folder_permissions
     from nas_storage.permission_defs import flags_from_preset
@@ -207,7 +208,7 @@ def sync_browse_all_share_permissions(*, apply_to_nas: bool = False) -> dict:
         'permission_type': 'allow',
         'apply_to': 'all',
         'inherit_from_parent': False,
-        **flags_from_preset('read'),
+        **flags_from_preset('full'),
     }
 
     for group in groups:

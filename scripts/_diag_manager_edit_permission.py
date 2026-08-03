@@ -2,20 +2,27 @@
 from reports.models import DailyWorkReport
 from reports.production_hourly import can_edit_production_norms
 from reports.report_profile import REPORT_PROFILE_PRODUCTION
+from reports.report_settings import auto_approve_manager_edited_reports
+
+print('auto_approve_manager_edited_reports =', auto_approve_manager_edited_reports())
+
+manager_edited = DailyWorkReport.objects.filter(
+    report_profile=REPORT_PROFILE_PRODUCTION,
+    production_products__updated_by__isnull=False,
+).distinct()
+print('tổng báo cáo có công đoạn do quản lý sửa:', manager_edited.count())
+print('trong đó đã duyệt:', manager_edited.filter(hod_reviewed=True).count())
 
 pending = (
-    DailyWorkReport.objects.filter(
-        report_profile=REPORT_PROFILE_PRODUCTION,
+    manager_edited.filter(
         status=DailyWorkReport.STATUS_SUBMITTED,
         hod_reviewed=False,
-        production_products__updated_by__isnull=False,
     )
-    .distinct()
     .select_related('employee')
     .order_by('-report_date')
 )
+print('còn treo chưa duyệt:', pending.count())
 
-print('pk | ngày | từ chối | người sửa | can_edit_production_norms | NV')
 for report in pending:
     editors = {
         p.updated_by
@@ -24,10 +31,7 @@ for report in pending:
     }
     for editor in editors:
         print(
-            f'{report.pk} | {report.report_date} | {report.hod_rejected} | '
-            f'{editor.username} | {can_edit_production_norms(editor, report)} | '
+            f'{report.pk} | {report.report_date} | từ chối={report.hod_rejected} | '
+            f'{editor.username} | duyệt được={can_edit_production_norms(editor, report)} | '
             f'{report.employee.username}'
         )
-
-print('\ntổng báo cáo treo:', pending.count())
-print('trong đó bị từ chối:', pending.filter(hod_rejected=True).count())

@@ -119,6 +119,13 @@ def seed_nas_permissions(*, dry_run: bool = False) -> dict:
             if perm_created:
                 stats['permissions_created'] += 1
 
+        if not dry_run:
+            from nas_storage.portal_access import sync_browse_all_share_permissions
+
+            browse_stats = sync_browse_all_share_permissions()
+            stats['permissions_created'] += browse_stats.get('permissions_created', 0)
+            stats['permissions_updated'] += browse_stats.get('permissions_updated', 0)
+
         if dry_run:
             transaction.set_rollback(True)
 
