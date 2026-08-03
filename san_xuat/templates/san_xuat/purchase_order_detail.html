@@ -28,8 +28,11 @@
               <thead class="table-light">
                 <tr>
                   <th>Nguyên phụ liệu</th>
+                  <th>Ngày cần</th>
                   <th class="text-end">SL đặt</th>
+                  <th class="text-end">Đơn giá</th>
                   <th class="text-end">Số lượng nhập</th>
+                  <th class="text-end">Còn lại</th>
                 </tr>
               </thead>
               <tbody>
@@ -39,15 +42,30 @@
                     <div class="fw-semibold small">{{ line.material_code }}</div>
                     <div class="text-muted small">{{ line.material_name|default:"—" }}</div>
                   </td>
+                  <td class="small">{% if line.need_date %}{{ line.need_date|date:"d/m/Y" }}{% else %}—{% endif %}</td>
                   <td class="text-end">{{ line.qty_ordered }}</td>
+                  <td class="text-end">{{ line.unit_price|floatformat:0 }}</td>
                   <td class="text-end {% if line.qty_received %}text-success fw-semibold{% endif %}">
                     {% if line.qty_received %}{{ line.qty_received }}{% else %}—{% endif %}
                   </td>
+                  <td class="text-end {% if line.qty_remaining %}text-danger{% else %}text-muted{% endif %}">
+                    {{ line.qty_remaining }}
+                  </td>
                 </tr>
               {% empty %}
-                <tr><td colspan="3" class="text-muted small">Chưa có dòng nguyên vật liệu.</td></tr>
+                <tr><td colspan="6" class="text-muted small">Chưa có dòng nguyên vật liệu.</td></tr>
               {% endfor %}
               </tbody>
+              {% if po.lines.all %}
+              <tfoot class="table-light">
+                <tr class="fw-semibold">
+                  <td colspan="3">Tổng</td>
+                  <td class="text-end">{{ total_amount|floatformat:0 }}</td>
+                  <td></td>
+                  <td class="text-end">{{ remaining_qty }}</td>
+                </tr>
+              </tfoot>
+              {% endif %}
             </table>
           </div>
         </div>
@@ -55,6 +73,68 @@
     </div>
 
     <div class="col-12 col-lg-5">
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body">
+          <div class="small text-muted mb-2">Thông tin đơn</div>
+          <dl class="row mb-0 small">
+            <dt class="col-5 fw-normal text-muted">Nhà cung cấp</dt>
+            <dd class="col-7">{{ po.supplier.name|default:po.supplier_name|default:"—" }}</dd>
+            <dt class="col-5 fw-normal text-muted">Ngày hàng về dự kiến</dt>
+            <dd class="col-7">
+              {% if po.expected_date %}{{ po.expected_date|date:"d/m/Y" }}{% else %}—{% endif %}
+            </dd>
+            <dt class="col-5 fw-normal text-muted">Trạng thái</dt>
+            <dd class="col-7">{{ po.get_status_display }}</dd>
+          </dl>
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body">
+          <div class="small text-muted mb-2">Nhập kho nguyên phụ liệu</div>
+
+          {% if stock_receipts %}
+          <ul class="list-unstyled small mb-3">
+            {% for r in stock_receipts %}
+            <li class="mb-1">
+              <a href="{% url 'kho_npl:receipt_detail' r.pk %}">{{ r.number }}</a>
+              — {{ r.get_status_display }} · {{ r.receipt_date|date:"d/m/Y" }}
+            </li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <div class="text-muted small mb-3">Chưa có phiếu nhập kho nào.</div>
+          {% endif %}
+
+          {% if can_update and po.status != 'draft' and remaining_qty %}
+          <form method="post" class="row g-2 align-items-end mb-2">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="create_receipt">
+            {% for field in receipt_form %}
+            <div class="col-12">
+              <label class="form-label small text-muted mb-1" for="{{ field.id_for_label }}">{{ field.label }}</label>
+              {{ field }}
+            </div>
+            {% endfor %}
+            <div class="col-12">
+              <button type="submit" class="btn btn-hm btn-sm">Tạo phiếu nhập kho</button>
+            </div>
+          </form>
+          <div class="text-muted small mb-2">
+            Phiếu tạo ra ở trạng thái nháp — vào Kho NPL đính kèm chứng từ rồi ghi sổ để cộng tồn.
+          </div>
+          {% endif %}
+
+          {% if can_update and stock_receipts %}
+          <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="sync_receipt">
+            <button type="submit" class="btn btn-outline-hm btn-sm">Cập nhật SL đã nhập từ kho</button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+
       <div class="card border-0 shadow-sm mb-3">
         <div class="card-body">
           <div class="small text-muted mb-2">Phiếu nhập KiotViet</div>
@@ -89,10 +169,13 @@
             <input type="hidden" name="action" value="confirm">
             <button type="submit" class="btn btn-hm btn-sm">Xác nhận đơn mua hàng</button>
           </form>
-          {% elif po.status == 'confirmed' and can_update and not po.kv_purchase_kiotviet_id %}
-          <div class="text-muted small">Đơn mua hàng đã xác nhận — liên kết phiếu nhập KiotViet để đánh dấu đã nhập.</div>
+          {% elif po.status == 'confirmed' and can_update %}
+          <div class="text-muted small">
+            Đơn mua hàng đã xác nhận — tạo phiếu nhập kho NPL (khuyến nghị) hoặc
+            liên kết phiếu nhập KiotViet để ghi nhận hàng về.
+          </div>
           {% elif po.status == 'received' %}
-          <div class="text-success small">Đơn mua hàng đã nhập (liên kết KV).</div>
+          <div class="text-success small">Đơn mua hàng đã nhập đủ.</div>
           {% else %}
           <div class="text-muted small">Đơn mua hàng đã xử lý hoặc bạn không có quyền cập nhật.</div>
           {% endif %}

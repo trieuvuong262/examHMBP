@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+
+{% block extra_head %}{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}{% endblock %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title mb-0 w-100">Nhật ký kế hoạch sản xuất</h2>
+      <div class="small text-muted">Ai tạo, xác nhận, xếp lịch lại, đóng hay hủy kế hoạch — và lúc nào.</div>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-body">
+      <form method="get" class="row g-2 align-items-end">
+        <div class="col-md-3">
+          <label class="form-label small mb-1" for="auditObject">Đối tượng</label>
+          <select id="auditObject" name="object_type" class="form-select form-select-sm">
+            <option value="">Tất cả</option>
+            {% for key, label in object_choices %}
+            <option value="{{ key }}" {% if object_type == key %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small mb-1" for="auditAction">Thao tác</label>
+          <select id="auditAction" name="action" class="form-select form-select-sm">
+            <option value="">Tất cả</option>
+            {% for key, label in action_choices %}
+            <option value="{{ key }}" {% if action_value == key %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small mb-1" for="auditFrom">Từ ngày</label>
+          <input type="date" id="auditFrom" name="from" value="{{ date_from|date:'Y-m-d' }}"
+                 class="form-control form-control-sm">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small mb-1" for="auditTo">Đến ngày</label>
+          <input type="date" id="auditTo" name="to" value="{{ date_to|date:'Y-m-d' }}"
+                 class="form-control form-control-sm">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small mb-1" for="auditSearch">Tìm mã / người</label>
+          <input type="search" id="auditSearch" name="q" value="{{ search }}"
+                 class="form-control form-control-sm" placeholder="KHTT-2026...">
+        </div>
+        <div class="col-md-1">
+          <button class="btn btn-hm btn-sm w-100">Lọc</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {% if truncated %}
+  <div class="alert alert-light border small" role="status">
+    Chỉ hiện 300 dòng gần nhất — thu hẹp khoảng ngày để xem sâu hơn.
+  </div>
+  {% endif %}
+
+  <div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+      <table class="table table-sm table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th style="width: 150px;">Thời điểm</th>
+            <th style="width: 130px;">Thao tác</th>
+            <th style="width: 180px;">Đối tượng</th>
+            <th>Diễn giải</th>
+            <th style="width: 150px;">Người thực hiện</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for log in logs %}
+          <tr>
+            <td class="small text-muted">{{ log.created_at|date:"H:i d/m/Y" }}</td>
+            <td><span class="badge text-bg-light border">{{ log.get_action_display }}</span></td>
+            <td>
+              <div class="fw-semibold small">{{ log.object_code|default:"—" }}</div>
+              <div class="text-muted small">{{ log.object_type }}</div>
+            </td>
+            <td class="small">{{ log.summary|default:"—" }}</td>
+            <td class="small">{{ log.username|default:"Hệ thống" }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5" class="text-muted small p-3">Chưa có thao tác nào được ghi nhận.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

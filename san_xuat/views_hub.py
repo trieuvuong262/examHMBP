@@ -789,7 +789,7 @@ def plan_overall_detail(request, pk: int):
 
         elif action == 'confirm' and can_update and plan.status == SxOverallPlan.STATUS_DRAFT:
             try:
-                plan = confirm_overall_plan(plan_id=plan.pk)
+                plan = confirm_overall_plan(plan_id=plan.pk, user=request.user)
             except PlanningError as exc:
                 messages.error(request, str(exc))
             else:
@@ -798,7 +798,7 @@ def plan_overall_detail(request, pk: int):
 
         elif action == 'close' and can_update:
             try:
-                plan = close_plan(model=SxOverallPlan, plan_id=plan.pk)
+                plan = close_plan(model=SxOverallPlan, plan_id=plan.pk, user=request.user)
             except PlanningError as exc:
                 messages.error(request, str(exc))
             else:
@@ -811,6 +811,7 @@ def plan_overall_detail(request, pk: int):
                     model=SxOverallPlan,
                     plan_id=plan.pk,
                     reason=request.POST.get('reason') or '',
+                    user=request.user,
                 )
             except PlanningError as exc:
                 messages.error(request, str(exc))
@@ -886,7 +887,7 @@ def plan_overall_detail(request, pk: int):
 
         elif action == 'recompute_netting' and can_update:
             try:
-                res = recompute_plan_netting(plan_id=plan.pk)
+                res = recompute_plan_netting(plan_id=plan.pk, user=request.user)
             except PlanningError as exc:
                 messages.error(request, str(exc))
             else:
@@ -1095,6 +1096,7 @@ def plan_detail_create(request):
                     overall_plan_id=overall.pk,
                     code=form.cleaned_data.get('code') or None,
                     name=form.cleaned_data.get('name') or '',
+                    user=request.user,
                 )
             except PlanningError as exc:
                 messages.error(request, str(exc))
@@ -1134,7 +1136,7 @@ def plan_detail_detail(request, pk: int):
         action = (request.POST.get('action') or '').strip()
         if action == 'confirm' and can_update and detail.status == SxOverallPlan.STATUS_DRAFT:
             try:
-                detail = confirm_detail_plan(plan_id=detail.pk)
+                detail = confirm_detail_plan(plan_id=detail.pk, user=request.user)
             except PlanningError as exc:
                 messages.error(request, str(exc))
             else:
@@ -1145,7 +1147,9 @@ def plan_detail_detail(request, pk: int):
                 messages.error(request, 'KHCT không gắn KHTT nguồn.')
             else:
                 try:
-                    detail = explode_detail_plan_from_overall(overall_plan_id=detail.overall_plan_id)
+                    detail = explode_detail_plan_from_overall(
+                        overall_plan_id=detail.overall_plan_id, user=request.user,
+                    )
                 except PlanningError as exc:
                     messages.error(request, str(exc))
                 else:
@@ -1169,6 +1173,7 @@ def plan_detail_detail(request, pk: int):
                 try:
                     res = schedule_detail_plan_by_capacity(
                         overall_plan_id=detail.overall_plan_id,
+                        user=request.user,
                     )
                 except PlanningError as exc:
                     messages.error(request, str(exc))
@@ -1208,7 +1213,7 @@ def plan_detail_detail(request, pk: int):
                 return redirect('san_xuat:plan_detail_detail', pk=detail.pk)
         elif action == 'close' and can_update:
             try:
-                detail = close_plan(model=SxDetailPlan, plan_id=detail.pk)
+                detail = close_plan(model=SxDetailPlan, plan_id=detail.pk, user=request.user)
             except PlanningError as exc:
                 messages.error(request, str(exc))
             else:
@@ -1220,6 +1225,7 @@ def plan_detail_detail(request, pk: int):
                     model=SxDetailPlan,
                     plan_id=detail.pk,
                     reason=request.POST.get('reason') or '',
+                    user=request.user,
                 )
             except PlanningError as exc:
                 messages.error(request, str(exc))
@@ -1337,6 +1343,7 @@ def plan_npl_create(request):
                     overall_plan_id=overall.pk,
                     code=form.cleaned_data.get('code') or None,
                     name=form.cleaned_data.get('name') or '',
+                    user=request.user,
                 )
             except PlanningError as exc:
                 messages.error(request, str(exc))
@@ -1369,7 +1376,7 @@ def plan_npl_detail(request, pk: int):
         action = (request.POST.get('action') or '').strip()
         if action == 'confirm' and can_update and mat_plan.status == SxOverallPlan.STATUS_DRAFT:
             try:
-                mat_plan = confirm_material_plan(plan_id=mat_plan.pk)
+                mat_plan = confirm_material_plan(plan_id=mat_plan.pk, user=request.user)
             except PlanningError as exc:
                 messages.error(request, str(exc))
             else:
@@ -1380,7 +1387,9 @@ def plan_npl_detail(request, pk: int):
                 messages.error(request, 'KHNVL không gắn KHTT nguồn.')
             else:
                 try:
-                    mat_plan = explode_material_plan(overall_plan_id=mat_plan.overall_plan_id)
+                    mat_plan = explode_material_plan(
+                        overall_plan_id=mat_plan.overall_plan_id, user=request.user,
+                    )
                 except PlanningError as exc:
                     messages.error(request, str(exc))
                 else:
@@ -1388,7 +1397,7 @@ def plan_npl_detail(request, pk: int):
                     return redirect('san_xuat:plan_npl_detail', pk=mat_plan.pk)
         elif action == 'close' and can_update:
             try:
-                mat_plan = close_plan(model=SxMaterialPlan, plan_id=mat_plan.pk)
+                mat_plan = close_plan(model=SxMaterialPlan, plan_id=mat_plan.pk, user=request.user)
             except PlanningError as exc:
                 messages.error(request, str(exc))
             else:
@@ -1400,6 +1409,7 @@ def plan_npl_detail(request, pk: int):
                     model=SxMaterialPlan,
                     plan_id=mat_plan.pk,
                     reason=request.POST.get('reason') or '',
+                    user=request.user,
                 )
             except PlanningError as exc:
                 messages.error(request, str(exc))
@@ -1410,6 +1420,10 @@ def plan_npl_detail(request, pk: int):
     shortfall_total = sum((line.qty_shortfall or 0 for line in lines_all), Decimal('0'))
     reserved_total = sum((line.qty_reserved or 0 for line in lines_all), Decimal('0'))
     purchase_requests = mat_plan.purchase_requests.filter(is_demo=False).order_by('-created_at')
+    need_dates = [line.need_date for line in lines_all if line.need_date]
+
+    from san_xuat.services.planning import npl_prep_days
+
     return render(request, 'san_xuat/plan_npl_detail.html', {
         **_perm_ctx(request),
         'mat_plan': mat_plan,
@@ -1417,6 +1431,9 @@ def plan_npl_detail(request, pk: int):
         'shortfall_total': shortfall_total,
         'reserved_total': reserved_total,
         'purchase_requests': purchase_requests,
+        'earliest_need': min(need_dates) if need_dates else None,
+        'prep_days': npl_prep_days(),
+        'today': timezone.localdate(),
     })
 
 
@@ -1449,6 +1466,7 @@ def npl_purchase_request_create(request):
                     code=form.cleaned_data.get('code') or None,
                     due_date=form.cleaned_data.get('due_date'),
                     notes=form.cleaned_data.get('notes') or '',
+                    user=request.user,
                 )
             except PlanningError as exc:
                 messages.error(request, str(exc))
@@ -1543,8 +1561,11 @@ def purchase_order_create(request):
                 po = build_po_from_purchase_request(
                     purchase_request_id=pr.pk,
                     supplier_name=form.cleaned_data.get('supplier_name') or '',
+                    supplier=form.cleaned_data.get('supplier'),
+                    expected_date=form.cleaned_data.get('expected_date'),
                     code=form.cleaned_data.get('code') or None,
                     notes=form.cleaned_data.get('notes') or '',
+                    user=request.user,
                 )
             except PlanningError as exc:
                 messages.error(request, str(exc))
@@ -1568,25 +1589,70 @@ def purchase_order_create(request):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def purchase_order_detail(request, pk: int):
+    from san_xuat.forms_plan import PoReceiptForm
+    from san_xuat.services.po_receipt import (
+        create_receipt_from_po,
+        po_receipts,
+        sync_po_received_from_po_receipts,
+    )
+
     po = get_object_or_404(
         SxPurchaseOrder.objects.select_related(
             'purchase_request',
             'purchase_request__material_plan',
+            'supplier',
+            'stock_receipt',
         ).prefetch_related('lines'),
         pk=pk,
     )
     can_update = _perm_ctx(request).get('can_update')
     link_form = FgReceiptLinkKvForm()
+    receipt_form = PoReceiptForm()
     if request.method == 'POST':
         action = (request.POST.get('action') or '').strip()
         if action == 'confirm' and can_update and po.status == SxPurchaseOrder.STATUS_DRAFT:
             try:
-                po = confirm_purchase_order(order_id=po.pk)
+                po = confirm_purchase_order(order_id=po.pk, user=request.user)
             except PlanningError as exc:
                 messages.error(request, str(exc))
             else:
                 messages.success(request, f'DMH {po.code} đã xác nhận.')
                 return redirect('san_xuat:purchase_order_detail', pk=po.pk)
+        elif action == 'create_receipt' and can_update:
+            receipt_form = PoReceiptForm(request.POST)
+            if receipt_form.is_valid():
+                try:
+                    receipt = create_receipt_from_po(
+                        order_id=po.pk,
+                        user=request.user,
+                        receipt_date=receipt_form.cleaned_data.get('receipt_date'),
+                        location=receipt_form.cleaned_data.get('location'),
+                        notes=receipt_form.cleaned_data.get('notes') or '',
+                    )
+                except PlanningError as exc:
+                    messages.error(request, str(exc))
+                else:
+                    messages.success(
+                        request,
+                        f'Đã tạo phiếu nhập kho {receipt.number}. '
+                        'Vào Kho NPL đính kèm chứng từ rồi ghi sổ để cộng tồn.',
+                    )
+                    return redirect('san_xuat:purchase_order_detail', pk=po.pk)
+            else:
+                messages.error(request, 'Không tạo được phiếu nhập — kiểm tra lại thông tin.')
+        elif action == 'sync_receipt' and can_update:
+            result = sync_po_received_from_po_receipts(order_id=po.pk, user=request.user)
+            if result['receipts'] == 0:
+                messages.info(request, 'Chưa có phiếu nhập kho nào được ghi sổ cho đơn mua hàng này.')
+            elif result['updated'] or result['status_changed']:
+                messages.success(
+                    request,
+                    f"Đã cập nhật {result['updated']} dòng từ {result['receipts']} phiếu nhập"
+                    + (' — đơn mua hàng đã nhập đủ.' if result['received_full'] else '.'),
+                )
+            else:
+                messages.info(request, 'Số lượng đã nhập không thay đổi.')
+            return redirect('san_xuat:purchase_order_detail', pk=po.pk)
         elif action == 'link_kv' and can_update and not po.kv_purchase_kiotviet_id:
             link_form = FgReceiptLinkKvForm(request.POST)
             if link_form.is_valid():
@@ -1602,11 +1668,18 @@ def purchase_order_detail(request, pk: int):
                     messages.success(request, f'Đã liên kết phiếu nhập KV {po.kv_purchase_code}.')
                     return redirect('san_xuat:purchase_order_detail', pk=po.pk)
             messages.error(request, 'Không liên kết được phiếu nhập KV.')
+    lines_all = list(po.lines.all())
+    total_amount = sum((ln.amount for ln in lines_all), Decimal('0'))
+    remaining_qty = sum((ln.qty_remaining for ln in lines_all), Decimal('0'))
     return render(request, 'san_xuat/purchase_order_detail.html', {
         **_perm_ctx(request),
         'po': po,
         'can_update': can_update,
         'link_form': link_form,
+        'receipt_form': receipt_form,
+        'stock_receipts': po_receipts(po),
+        'total_amount': total_amount,
+        'remaining_qty': remaining_qty,
     })
 
 
@@ -3976,6 +4049,39 @@ def _parse_iso_date_safe(raw: str):
         return datetime.strptime(text, '%Y-%m-%d').date()
     except ValueError:
         return None
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+def plan_audit_log(request):
+    """Nhật ký thao tác kế hoạch — ai đổi kế hoạch, đổi lúc nào (P4)."""
+    from san_xuat.hub_models import SxPlanAuditLog
+    from san_xuat.services.plan_audit import OBJECT_LABELS, plan_audit_qs
+
+    object_type = (request.GET.get('object_type') or '').strip()
+    action = (request.GET.get('action') or '').strip()
+    search = (request.GET.get('q') or '').strip()
+    date_from = _parse_iso_date_safe(request.GET.get('from'))
+    date_to = _parse_iso_date_safe(request.GET.get('to'))
+
+    qs = plan_audit_qs(object_type=object_type, action=action, search=search)
+    if date_from:
+        qs = qs.filter(created_at__date__gte=date_from)
+    if date_to:
+        qs = qs.filter(created_at__date__lte=date_to)
+
+    logs = list(qs[:300])
+    return render(request, 'san_xuat/plan_audit_log.html', {
+        **_perm_ctx(request),
+        'logs': logs,
+        'object_type': object_type,
+        'action_value': action,
+        'search': search,
+        'date_from': date_from,
+        'date_to': date_to,
+        'object_choices': sorted(OBJECT_LABELS.items(), key=lambda kv: kv[1]),
+        'action_choices': SxPlanAuditLog.ACTION_CHOICES,
+        'truncated': len(logs) >= 300,
+    })
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'create')

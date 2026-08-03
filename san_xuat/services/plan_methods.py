@@ -407,7 +407,7 @@ def load_mps_demand(
 # ---------------------------------------------------------------------------
 
 @transaction.atomic
-def recompute_plan_netting(*, plan_id: int) -> dict:
+def recompute_plan_netting(*, plan_id: int, user=None) -> dict:
     """Tính lại tồn/WIP và nhu cầu thực cho toàn bộ dòng KHTT."""
     plan = SxOverallPlan.objects.select_for_update().prefetch_related('lines').get(pk=plan_id)
     if plan.status not in (SxOverallPlan.STATUS_DRAFT, SxOverallPlan.STATUS_CONFIRMED):
@@ -438,6 +438,18 @@ def recompute_plan_netting(*, plan_id: int) -> dict:
             covered += 1
     SxOverallPlanLine.objects.bulk_update(
         lines, ['qty_gross', 'qty_on_hand', 'qty_wip', 'qty_planned'],
+    )
+    from san_xuat.services.plan_audit import log_plan_action
+
+    log_plan_action(
+        action='netting',
+        obj=plan,
+        summary=(
+            f'Tính lại nhu cầu thực {plan.code}: {len(lines)} dòng, '
+            f'{covered} dòng đã đủ tồn/WIP.'
+        ),
+        changes={'updated': len(lines), 'covered': covered, 'apply_netting': plan.apply_netting},
+        user=user,
     )
     return {'updated': len(lines), 'covered': covered}
 

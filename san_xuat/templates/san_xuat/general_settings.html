@@ -338,6 +338,7 @@
         <a href="#sec-gates" class="is-active">Cổng quy trình</a>
         <a href="#sec-qc">Chất lượng</a>
         <a href="#sec-capacity">Năng lực</a>
+        <a href="#sec-planning">Lập kế hoạch</a>
         <a href="#sec-stock">Kho &amp; tích hợp</a>
         <a href="#sec-shopfloor">Shop floor</a>
         <a href="#sec-sku">SKU (màu &amp; size)</a>
@@ -576,6 +577,72 @@
               <div class="jp-sx-metric-input">
                 {{ form.oee_shift_hours }}
                 <span class="jp-sx-metric-unit">giờ / ca</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {# —— 3b. Lập kế hoạch —— #}
+        <section class="jp-sx-set-panel" id="sec-planning">
+          <div class="jp-sx-set-panel-head">
+            <h3>Lập kế hoạch</h3>
+          </div>
+          <div class="jp-sx-set-panel-body">
+            <div class="jp-sx-metric-grid">
+              <div class="jp-sx-metric-row">
+                <div class="jp-sx-toggle-copy">
+                  <strong>{{ form.plan_capacity_mode.label }}</strong>
+                  <span class="text-muted small d-block">{{ form.plan_capacity_mode.help_text }}</span>
+                </div>
+                <div class="jp-sx-metric-input">
+                  {{ form.plan_capacity_mode }}
+                </div>
+                {% if form.plan_capacity_mode.errors %}
+                <div class="text-danger small mt-1">{{ form.plan_capacity_mode.errors }}</div>
+                {% endif %}
+              </div>
+              <div class="jp-sx-metric-row">
+                <div class="jp-sx-toggle-copy">
+                  <strong>{{ form.plan_workdays.label }}</strong>
+                  <span class="text-muted small d-block">{{ form.plan_workdays.help_text }}</span>
+                </div>
+                <div class="jp-sx-metric-input">
+                  {{ form.plan_workdays }}
+                </div>
+                {% if form.plan_workdays.errors %}
+                <div class="text-danger small mt-1">{{ form.plan_workdays.errors }}</div>
+                {% endif %}
+              </div>
+              <div class="jp-sx-metric-row">
+                <div class="jp-sx-toggle-copy">
+                  <strong>{{ form.npl_prep_days.label }}</strong>
+                  <span class="text-muted small d-block">{{ form.npl_prep_days.help_text }}</span>
+                </div>
+                <div class="jp-sx-metric-input">
+                  {{ form.npl_prep_days }}
+                  <span class="jp-sx-metric-unit">ngày</span>
+                </div>
+              </div>
+              <div class="jp-sx-metric-row">
+                <div class="jp-sx-toggle-copy">
+                  <strong>{{ form.mo_late_alert_days.label }}</strong>
+                  <span class="text-muted small d-block">{{ form.mo_late_alert_days.help_text }}</span>
+                </div>
+                <div class="jp-sx-metric-input">
+                  {{ form.mo_late_alert_days }}
+                  <span class="jp-sx-metric-unit">ngày</span>
+                </div>
+              </div>
+            </div>
+            <div class="jp-sx-toggle-grid">
+              <div class="jp-sx-toggle-row">
+                <div class="jp-sx-toggle-copy">
+                  <strong>{{ form.plan_block_over_capacity.label }}</strong>
+                  <span class="text-muted small d-block">{{ form.plan_block_over_capacity.help_text }}</span>
+                </div>
+                <div class="form-check form-switch">
+                  {{ form.plan_block_over_capacity }}
+                </div>
               </div>
             </div>
           </div>

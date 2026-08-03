@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from decimal import Decimal, ROUND_HALF_UP
 
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from san_xuat.hub_models import (
@@ -104,19 +105,93 @@ def compute_sample_qty(method: SxQcSamplingMethod | None, production_qty: Decima
     qty = production_qty or Decimal("0")
     if qty <= 0:
         return SampleResult(required_qty=Decimal("0"), max_defect_allowed=Decimal("0"))
+    max_defect = Decimal("0")
+    method_type = (getattr(method, "method_type", "") or "").strip()
+
     if not method:
         from san_xuat.services.sx_settings import sx_int
 
         required = Decimal(str(sx_int("default_sample_qty", 5, min_v=1, max_v=9999)))
-    elif (method.method_type or "").strip() == "percent":
+    elif method_type == SxQcSamplingMethod.TYPE_AQL:
+        from san_xuat.services.aql import AqlError, aql_sample_plan
+
+        try:
+            plan = aql_sample_plan(
+                lot_size=qty,
+                aql=method.aql_level,
+                inspection_level=method.inspection_level,
+            )
+        except AqlError:
+            required = Decimal("1")
+        else:
+            required = Decimal(plan.sample_size)
+            max_defect = Decimal(plan.accept)
+    elif method_type == SxQcSamplingMethod.TYPE_PERCENT:
         pct = method.sample_value or Decimal("0")
         required = ((qty * pct) / Decimal("100")).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
     else:
         required = (method.sample_value or Decimal("0")).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
     if required <= 0:
         required = Decimal("1")
-    max_defect = Decimal("0")
+    if required > qty:
+        required = qty.quantize(Decimal("1"), rounding=ROUND_HALF_UP)
     return SampleResult(required_qty=required, max_defect_allowed=max_defect)
+
+
+def aql_plan_for_request(qc_request: SxQcRequest) -> object | None:
+    """Kế hoạch AQL của một YCKT — dùng để hiện rõ mẫu/Ac trên phiếu kiểm tra."""
+    standard = (
+        SxQcStandardSet.objects.filter(
+            is_demo=False,
+            is_active=True,
+            product_code__in=[qc_request.product_code or "", ""],
+        )
+        .order_by("-product_code")
+        .first()
+    )
+    method = getattr(standard, "sampling_method", None)
+    if not method or (method.method_type or "").strip() != SxQcSamplingMethod.TYPE_AQL:
+        return None
+    from san_xuat.services.aql import AqlError, aql_sample_plan
+
+    try:
+        return aql_sample_plan(
+            lot_size=qc_request.qty or Decimal("0"),
+            aql=method.aql_level,
+            inspection_level=method.inspection_level,
+        )
+    except AqlError:
+        return None
+
+
+def stage_requires_inspection(*, product_code: str, stage_name: str) -> bool:
+    """Công đoạn có được đánh dấu QC trọng yếu trên routing IE hay không."""
+    stage = (stage_name or "").strip()
+    code = (product_code or "").strip()
+    if not stage or not code:
+        return False
+    from san_xuat.services.scheduling import product_routing
+
+    routing = product_routing(code)
+    target = stage.casefold()
+    for step in routing.steps:
+        if (step.process_name or "").strip().casefold() != target:
+            continue
+        line = getattr(step, "source_line", None)
+        if line is not None and getattr(line, "critical_qc", False):
+            return True
+
+    from san_xuat.ie_models import SxRouting, SxRoutingLine
+
+    routing_ids = SxRouting.objects.filter(style_code__iexact=code).values_list("pk", flat=True)
+    if not routing_ids:
+        return False
+    return SxRoutingLine.objects.filter(
+        routing_id__in=list(routing_ids),
+        critical_qc=True,
+    ).filter(
+        Q(op_name_vi__iexact=stage) | Q(op_code__iexact=stage),
+    ).exists()
 
 
 @transaction.atomic
@@ -217,8 +292,16 @@ def process_stat_qc_link(*, stat_id: int) -> StatQcLinkResult:
     if stat.status != SxProductionStat.STATUS_CONFIRMED:
         raise QcError("Chỉ nối QC sau khi TKSX đã xác nhận.")
 
+    # Công đoạn được IE đánh dấu "QC trọng yếu" thì luôn phải kiểm, kể cả khi
+    # thiết lập chung đã tắt tự sinh YCKT.
+    mo = stat.production_order
+    critical = stage_requires_inspection(
+        product_code=getattr(mo, "product_code", "") or "",
+        stage_name=stat.process_name or "",
+    )
+
     qc_request = None
-    if sx_bool("auto_create_qc_from_stat", True):
+    if critical or sx_bool("auto_create_qc_from_stat", True):
         try:
             qc_request = create_request_from_stat(stat_id=stat.pk, auto=True)
         except QcError:
@@ -423,7 +506,15 @@ def create_inspection_from_request(
             .first()
         )
 
-    sample = compute_sample_qty(getattr(standard, "sampling_method", None), qc_req.qty or Decimal("0"))
+    method = getattr(standard, "sampling_method", None)
+    sample = compute_sample_qty(method, qc_req.qty or Decimal("0"))
+    if (getattr(method, "method_type", "") or "") == SxQcSamplingMethod.TYPE_AQL:
+        aql_note = (
+            f"AQL {method.aql_level}% · mức {method.inspection_level} · "
+            f"lô {qc_req.qty} → mẫu {sample.required_qty}, "
+            f"chấp nhận ≤ {sample.max_defect_allowed} lỗi"
+        )
+        notes = f"{notes}\n{aql_note}".strip() if notes else aql_note
     inspection = SxQcInspection.objects.create(
         code=_code("qc_sheet", SxQcInspection, code=code),
         qc_request=qc_req,
@@ -491,12 +582,20 @@ def finalize_inspection(
         raise QcError("Tổng SL đạt + lỗi vượt quá SL mẫu.")
 
     failed_criteria = inspection.criteria_lines.filter(is_pass=False).exists()
+
+    # Số lỗi được phép: AQL cho phép tới Ac lỗi trên mẫu; các cách lấy mẫu khác = 0.
+    allowed_defects = Decimal("0")
+    method = getattr(inspection.standard_set, "sampling_method", None)
+    if method and (method.method_type or "") == SxQcSamplingMethod.TYPE_AQL:
+        lot_qty = getattr(inspection.qc_request, "qty", None) or sample_qty
+        allowed_defects = compute_sample_qty(method, lot_qty).max_defect_allowed
+
     inspection.qty_pass = pass_qty
     inspection.qty_fail = fail_qty
     inspection.notes = notes or inspection.notes
     inspection.result = (
         SxQcInspection.RESULT_FAIL
-        if fail_qty > 0 or failed_criteria
+        if fail_qty > allowed_defects or failed_criteria
         else SxQcInspection.RESULT_PASS
     )
     inspection.status = "done"

@@ -32,7 +32,16 @@
         <div class="small text-muted">Chỉ giữ được phần tồn đang có</div>
       </div>
     </div>
-    <div class="col-md-6 d-flex align-items-center flex-wrap gap-2">
+    <div class="col-md-3">
+      <div class="border rounded-3 p-3 h-100">
+        <div class="text-muted small">Ngày cần sớm nhất</div>
+        <div class="fs-5 fw-semibold {% if earliest_need and earliest_need < today %}text-danger{% endif %}">
+          {% if earliest_need %}{{ earliest_need|date:"d/m/Y" }}{% else %}—{% endif %}
+        </div>
+        <div class="small text-muted">Chuẩn bị trước {{ prep_days }} ngày sản xuất</div>
+      </div>
+    </div>
+    <div class="col-md-3 d-flex align-items-center flex-wrap gap-2">
       {% if mat_plan.status == 'confirmed' and shortfall_total > 0 %}
       <a href="{% url 'san_xuat:npl_purchase_request_create' %}?plan={{ mat_plan.pk }}" class="btn btn-hm btn-sm">Tạo yêu cầu mua nguyên phụ liệu từ shortfall</a>
       {% endif %}
@@ -75,6 +84,7 @@
         <thead class="table-light">
           <tr>
             <th>Nguyên phụ liệu</th>
+            <th>Ngày cần</th>
             <th class="text-end">Nhu cầu</th>
             <th class="text-end">Tồn hiện tại</th>
             <th class="text-end">Dự kiến về</th>
@@ -89,6 +99,9 @@
               <div class="fw-semibold small">{{ line.material_code }}</div>
               <div class="text-muted small">{{ line.material_name|default:"—" }}</div>
             </td>
+            <td class="small {% if line.need_date and line.need_date < today %}text-danger fw-semibold{% endif %}">
+              {% if line.need_date %}{{ line.need_date|date:"d/m/Y" }}{% else %}—{% endif %}
+            </td>
             <td class="text-end">{{ line.qty_required }}</td>
             <td class="text-end">{{ line.qty_on_hand }}</td>
             <td class="text-end">{{ line.qty_expected_inbound }}</td>
@@ -96,7 +109,7 @@
             <td class="text-end fw-semibold {% if line.qty_shortfall %}text-danger{% endif %}">{{ line.qty_shortfall }}</td>
           </tr>
         {% empty %}
-          <tr><td colspan="6" class="text-muted small p-3">Chưa có dòng nguyên vật liệu.</td></tr>
+          <tr><td colspan="7" class="text-muted small p-3">Chưa có dòng nguyên vật liệu.</td></tr>
         {% endfor %}
         </tbody>
       </table>

@@ -782,6 +782,15 @@
                             </ul>
                         </li>
                         {% endif %}
+                        {% jp_can_menu 'san_xuat' 'plan_audit' as jp_can_san_xuat_plan_audit %}
+                        {% if jp_can_san_xuat_plan_audit or jp_can_san_xuat_plan %}
+                        <li>
+                            <a href="{% url 'san_xuat:plan_audit_log' %}"
+                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'plan_audit_log' %}active{% endif %}">
+                                <i class="bi bi-journal-check"></i><span>Nhật ký kế hoạch</span>
+                            </a>
+                        </li>
+                        {% endif %}
                     </ul>
                 </li>
                 {% endif %}

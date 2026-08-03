@@ -365,11 +365,23 @@ class PurchaseOrderCreateForm(forms.Form):
         label="YCM nguồn",
         widget=forms.Select(attrs={"class": "form-select form-select-sm"}),
     )
+    supplier = forms.ModelChoiceField(
+        queryset=None,
+        required=False,
+        label="Nhà cung cấp (danh mục kho)",
+        help_text="Chọn để tạo được phiếu nhập kho NPL trực tiếp từ đơn mua hàng.",
+        widget=forms.Select(attrs={"class": "form-select form-select-sm"}),
+    )
     supplier_name = forms.CharField(
         max_length=200,
         required=False,
-        label="Nhà cung cấp",
+        label="Nhà cung cấp (tự nhập)",
         widget=forms.TextInput(attrs={"class": "form-control form-control-sm"}),
+    )
+    expected_date = forms.DateField(
+        required=False,
+        label="Ngày hàng về dự kiến",
+        widget=forms.DateInput(attrs={"class": "form-control form-control-sm", "type": "date"}),
     )
     code = forms.CharField(
         max_length=40,
@@ -384,6 +396,7 @@ class PurchaseOrderCreateForm(forms.Form):
     )
 
     def __init__(self, *args, **kwargs):
+        from kho_npl.models import Supplier
         from san_xuat.hub_models import SxNplPurchaseRequest
 
         super().__init__(*args, **kwargs)
@@ -394,4 +407,34 @@ class PurchaseOrderCreateForm(forms.Form):
             )
             .select_related("material_plan")
             .order_by("-created_at", "-pk")
+        )
+        self.fields["supplier"].queryset = Supplier.objects.filter(is_active=True).order_by("name")
+
+
+class PoReceiptForm(forms.Form):
+    """Tạo phiếu nhập kho NPL từ đơn mua hàng."""
+
+    receipt_date = forms.DateField(
+        required=False,
+        label="Ngày nhập",
+        widget=forms.DateInput(attrs={"class": "form-control form-control-sm", "type": "date"}),
+    )
+    location = forms.ModelChoiceField(
+        queryset=None,
+        required=False,
+        label="Vị trí nhập",
+        widget=forms.Select(attrs={"class": "form-select form-select-sm"}),
+    )
+    notes = forms.CharField(
+        required=False,
+        label="Ghi chú",
+        widget=forms.TextInput(attrs={"class": "form-control form-control-sm"}),
+    )
+
+    def __init__(self, *args, **kwargs):
+        from kho_npl.models import WarehouseLocation
+
+        super().__init__(*args, **kwargs)
+        self.fields["location"].queryset = (
+            WarehouseLocation.objects.filter(is_active=True).order_by("code")
         )

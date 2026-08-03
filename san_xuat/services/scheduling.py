@@ -207,6 +207,7 @@ def schedule_detail_plan_by_capacity(
     overall_plan_id: int,
     code: str | None = None,
     name: str = '',
+    user=None,
 ) -> ScheduleResult:
     """Lập KHCT bằng cách nạp dần sản lượng vào quỹ phút của từng tổ theo ngày.
 
@@ -389,6 +390,28 @@ def schedule_detail_plan_by_capacity(
         joined = ' · '.join(notes)
         detail.notes = f'{detail.notes}\n{joined}'.strip() if detail.notes else joined
         detail.save(update_fields=['notes'])
+
+    from san_xuat.services.plan_audit import log_plan_action
+
+    log_plan_action(
+        action='reschedule',
+        obj=detail,
+        summary=(
+            f'Xếp lịch theo định mức từ {overall.code}: {result.lines_created} dòng, '
+            f'{result.days_used} ngày, SL {result.scheduled_qty}'
+            + (f', {len(result.unscheduled)} mã chưa xếp hết' if result.unscheduled else '')
+            + '.'
+        ),
+        changes={
+            'overall_plan': overall.code,
+            'lines': result.lines_created,
+            'days_used': result.days_used,
+            'scheduled_qty': str(result.scheduled_qty),
+            'unscheduled': [u['product_code'] for u in result.unscheduled],
+            'no_routing': sorted(set(result.no_routing)),
+        },
+        user=user,
+    )
     return result
 
 

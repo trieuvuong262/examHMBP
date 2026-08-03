@@ -269,6 +269,13 @@ class SxMaterialPlanLine(models.Model):
         verbose_name='Đã giữ chỗ',
         help_text='Số lượng thực tế giữ được trong kho khi xác nhận kế hoạch.',
     )
+    need_date = models.DateField(
+        null=True,
+        blank=True,
+        db_index=True,
+        verbose_name='Ngày cần',
+        help_text='Ngày muộn nhất NPL phải có mặt tại kho (ngày SX sớm nhất − số ngày chuẩn bị).',
+    )
 
     class Meta:
         ordering = ['id']
@@ -312,6 +319,7 @@ class SxNplPurchaseRequestLine(models.Model):
     material_code = models.CharField(max_length=60)
     material_name = models.CharField(max_length=255, blank=True, default='')
     qty = models.DecimalField(max_digits=14, decimal_places=4, default=Decimal('0'))
+    need_date = models.DateField(null=True, blank=True, verbose_name='Ngày cần')
 
     class Meta:
         ordering = ['id']
@@ -329,8 +337,26 @@ class SxPurchaseOrder(DemoMarkedModel):
 
     code = models.CharField(max_length=40, unique=True, verbose_name='Mã DMH')
     supplier_name = models.CharField(max_length=200, blank=True, default='')
+    supplier = models.ForeignKey(
+        'kho_npl.Supplier',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='sx_purchase_orders',
+        verbose_name='Nhà cung cấp (kho NPL)',
+        help_text='Chọn NCC trong danh mục kho để tạo phiếu nhập kho trực tiếp từ DMH.',
+    )
+    expected_date = models.DateField(null=True, blank=True, verbose_name='Ngày hàng về dự kiến')
     purchase_request = models.ForeignKey(
         SxNplPurchaseRequest, on_delete=models.SET_NULL, null=True, blank=True, related_name='purchase_orders',
+    )
+    stock_receipt = models.ForeignKey(
+        'kho_npl.StockReceipt',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='sx_purchase_orders',
+        verbose_name='Phiếu nhập kho NPL',
     )
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT, db_index=True)
     kv_purchase_kiotviet_id = models.BigIntegerField(null=True, blank=True, verbose_name='KV purchase id')
@@ -353,9 +379,25 @@ class SxPurchaseOrderLine(models.Model):
     material_name = models.CharField(max_length=255, blank=True, default='')
     qty_ordered = models.DecimalField(max_digits=14, decimal_places=4, default=Decimal('0'))
     qty_received = models.DecimalField(max_digits=14, decimal_places=4, default=Decimal('0'))
+    unit_price = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal('0'),
+        validators=[MinValueValidator(Decimal('0'))],
+        verbose_name='Đơn giá mua',
+    )
+    need_date = models.DateField(null=True, blank=True, verbose_name='Ngày cần')
 
     class Meta:
         ordering = ['id']
+
+    @property
+    def qty_remaining(self) -> Decimal:
+        return max(Decimal('0'), (self.qty_ordered or Decimal('0')) - (self.qty_received or Decimal('0')))
+
+    @property
+    def amount(self) -> Decimal:
+        return (self.qty_ordered or Decimal('0')) * (self.unit_price or Decimal('0'))
 
 
 # --- Điều phối ---
@@ -927,10 +969,54 @@ class SxQcCriteria(DemoMarkedModel):
 
 
 class SxQcSamplingMethod(DemoMarkedModel):
+    TYPE_FIXED = 'fixed_qty'
+    TYPE_PERCENT = 'percent'
+    TYPE_AQL = 'aql'
+    TYPE_CHOICES = [
+        (TYPE_FIXED, 'Số mẫu cố định'),
+        (TYPE_PERCENT, 'Tỷ lệ % lô'),
+        (TYPE_AQL, 'AQL — ISO 2859-1 (một lần, kiểm thường)'),
+    ]
+
+    LEVEL_S1 = 'S-1'
+    LEVEL_S2 = 'S-2'
+    LEVEL_S3 = 'S-3'
+    LEVEL_S4 = 'S-4'
+    LEVEL_I = 'I'
+    LEVEL_II = 'II'
+    LEVEL_III = 'III'
+    LEVEL_CHOICES = [
+        (LEVEL_S1, 'S-1 (đặc biệt)'),
+        (LEVEL_S2, 'S-2 (đặc biệt)'),
+        (LEVEL_S3, 'S-3 (đặc biệt)'),
+        (LEVEL_S4, 'S-4 (đặc biệt)'),
+        (LEVEL_I, 'I (giảm nhẹ)'),
+        (LEVEL_II, 'II (thông dụng)'),
+        (LEVEL_III, 'III (siết chặt)'),
+    ]
+
     code = models.CharField(max_length=40, unique=True)
     name = models.CharField(max_length=200)
-    method_type = models.CharField(max_length=20, default='fixed_qty')
-    sample_value = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('5'))
+    method_type = models.CharField(
+        max_length=20, choices=TYPE_CHOICES, default=TYPE_FIXED, verbose_name='Cách lấy mẫu',
+    )
+    sample_value = models.DecimalField(
+        max_digits=10, decimal_places=2, default=Decimal('5'),
+        verbose_name='Giá trị (số mẫu hoặc %)',
+    )
+    aql_level = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal('2.5'),
+        verbose_name='AQL (%)',
+        help_text='Mức chất lượng chấp nhận — dùng khi cách lấy mẫu là AQL.',
+    )
+    inspection_level = models.CharField(
+        max_length=5,
+        choices=LEVEL_CHOICES,
+        default=LEVEL_II,
+        verbose_name='Mức kiểm tra',
+    )
     is_active = models.BooleanField(default=True)
 
     class Meta:
@@ -1287,6 +1373,55 @@ class SxOrderPlanCostLineExtra(models.Model):
 
 
 # --- Giai đoạn 3 / ops (0014–0018) ---
+
+
+class SxPlanAuditLog(models.Model):
+    """Nhật ký thao tác kế hoạch sản xuất (tạo / xác nhận / xếp lịch / đóng / hủy)."""
+
+    ACTION_CREATE = 'create'
+    ACTION_UPDATE = 'update'
+    ACTION_CONFIRM = 'confirm'
+    ACTION_CLOSE = 'close'
+    ACTION_CANCEL = 'cancel'
+    ACTION_RESCHEDULE = 'reschedule'
+    ACTION_NETTING = 'netting'
+    ACTION_EXPLODE = 'explode'
+    ACTION_RECEIPT = 'receipt'
+    ACTION_CHOICES = [
+        (ACTION_CREATE, 'Tạo mới'),
+        (ACTION_UPDATE, 'Cập nhật'),
+        (ACTION_CONFIRM, 'Xác nhận'),
+        (ACTION_CLOSE, 'Đóng'),
+        (ACTION_CANCEL, 'Hủy'),
+        (ACTION_RESCHEDULE, 'Xếp lịch lại'),
+        (ACTION_NETTING, 'Tính net nhu cầu'),
+        (ACTION_EXPLODE, 'Bung nhu cầu'),
+        (ACTION_RECEIPT, 'Nhập kho'),
+    ]
+
+    action = models.CharField(max_length=20, choices=ACTION_CHOICES, db_index=True, verbose_name='Thao tác')
+    object_type = models.CharField(max_length=40, blank=True, default='', db_index=True, verbose_name='Đối tượng')
+    object_id = models.CharField(max_length=80, blank=True, default='', db_index=True)
+    object_code = models.CharField(max_length=100, blank=True, default='', db_index=True, verbose_name='Mã')
+    summary = models.CharField(max_length=500, blank=True, default='', verbose_name='Diễn giải')
+    changes = models.JSONField(default=dict, blank=True)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='sx_plan_audit_logs',
+    )
+    username = models.CharField(max_length=150, blank=True, default='', db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+        verbose_name = 'Nhật ký kế hoạch SX'
+        verbose_name_plural = 'Nhật ký kế hoạch SX'
+
+    def __str__(self):
+        return f'{self.action} {self.object_code or self.object_id}'
 
 
 class SxHoliday(models.Model):
@@ -1959,6 +2094,16 @@ class SxGeneralSettings(models.Model):
         default='1111110',
         verbose_name='Ngày làm việc trong tuần',
         help_text='7 ký tự 0/1 theo Thứ 2 → Chủ nhật. Mặc định 1111110 = nghỉ Chủ nhật.',
+    )
+    npl_prep_days = models.PositiveSmallIntegerField(
+        default=2,
+        verbose_name='Số ngày chuẩn bị NPL trước khi sản xuất',
+        help_text='Ngày cần NPL = ngày sản xuất sớm nhất của mã hàng − số ngày này.',
+    )
+    mo_late_alert_days = models.PositiveSmallIntegerField(
+        default=3,
+        verbose_name='Cảnh báo lệnh sản xuất sắp tới hạn (ngày)',
+        help_text='Hiện nhắc việc ở trang chủ khi lệnh còn ít hơn số ngày này mà chưa xong.',
     )
 
     # --- Kho & tích hợp ---

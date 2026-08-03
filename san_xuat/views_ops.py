@@ -231,28 +231,16 @@ def downtime_list(request):
             return redirect("san_xuat:downtime_list")
         messages.error(request, "Cần lý do và số phút > 0.")
 
-    # OEE thô: available minutes (ca × NL) vs downtime
-    from san_xuat.services.sx_settings import sx_int
+    # OEE đầy đủ: Sẵn sàng × Hiệu suất × Chất lượng
+    from san_xuat.services.oee import build_oee_rows
 
-    shift_hours = sx_int("oee_shift_hours", 8, min_v=1, max_v=24)
     centers = list(SxWorkCenter.objects.filter(is_active=True, is_demo=False))
-    oee_rows = []
     today = timezone.localdate()
-    month_start = today.replace(day=1)
-    for wc in centers:
-        dt_min = (
-            SxDowntimeEvent.objects.filter(
-                is_demo=False,
-                work_center=wc,
-                event_date__gte=month_start,
-                event_date__lte=today,
-            ).aggregate(t=Sum("minutes"))["t"]
-            or 0
-        )
-        days = max((today - month_start).days + 1, 1)
-        available = days * shift_hours * 60
-        avail_pct = max(0, 100 - (100 * dt_min / available)) if available else 0
-        oee_rows.append({"wc": wc, "downtime_min": dt_min, "availability_pct": round(avail_pct, 1)})
+    oee_from = _parse_oee_date(request.GET.get("oee_from")) or today.replace(day=1)
+    oee_to = _parse_oee_date(request.GET.get("oee_to")) or today
+    if oee_from > oee_to:
+        oee_from, oee_to = oee_to, oee_from
+    oee = build_oee_rows(date_from=oee_from, date_to=oee_to)
 
     return render(
         request,
@@ -262,12 +250,28 @@ def downtime_list(request):
             "events": events,
             "centers": centers,
             "mos": SxProductionOrder.objects.filter(is_demo=False).order_by("-order_date")[:50],
-            "oee_rows": oee_rows,
-            "oee_shift_hours": shift_hours,
+            "oee": oee,
+            "oee_rows": oee["rows"],
+            "oee_total": oee["total"],
+            "oee_from": oee_from,
+            "oee_to": oee_to,
+            "oee_shift_hours": oee["shift_hours"],
             "can_create": can_create,
             **fctx,
         },
     )
+
+
+def _parse_oee_date(raw: str | None):
+    from datetime import date as _date
+
+    text = (raw or "").strip()
+    if not text:
+        return None
+    try:
+        return _date.fromisoformat(text)
+    except ValueError:
+        return None
 
 
 @module_perm_required(MODULE_SAN_XUAT, "view")

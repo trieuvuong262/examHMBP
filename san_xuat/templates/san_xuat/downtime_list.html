@@ -15,18 +15,98 @@
 
   {% include 'san_xuat/includes/sx_list_filter.html' %}
 
-  {% if oee_rows %}
-  <div class="row g-2 mb-3">
-    {% for r in oee_rows %}
-    <div class="col-md-4">
-      <div class="card border-0 shadow-sm"><div class="card-body py-2">
-        <div class="fw-semibold">{{ r.wc.name }}</div>
-        <div class="small text-muted">Dừng {{ r.downtime_min }} phút · Availability ~{{ r.availability_pct }}%</div>
-      </div></div>
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-body pb-2">
+      <div class="d-flex flex-wrap align-items-end justify-content-between gap-2 mb-2">
+        <div>
+          <div class="fw-semibold">OEE = Sẵn sàng × Hiệu suất × Chất lượng</div>
+          <div class="small text-muted">
+            {{ oee.days }} ngày làm việc · ca {{ oee_shift_hours }} giờ ·
+            Hiệu suất tính từ định mức SMV trên routing, Chất lượng từ thống kê sản xuất đã xác nhận.
+          </div>
+        </div>
+        <form method="get" class="row g-2 align-items-end">
+          {% for key, value in request.GET.items %}{% if key != 'oee_from' and key != 'oee_to' %}
+          <input type="hidden" name="{{ key }}" value="{{ value }}">
+          {% endif %}{% endfor %}
+          <div class="col-auto">
+            <label class="form-label small mb-1" for="oeeFrom">Từ ngày</label>
+            <input type="date" id="oeeFrom" name="oee_from" value="{{ oee_from|date:'Y-m-d' }}"
+                   class="form-control form-control-sm">
+          </div>
+          <div class="col-auto">
+            <label class="form-label small mb-1" for="oeeTo">Đến ngày</label>
+            <input type="date" id="oeeTo" name="oee_to" value="{{ oee_to|date:'Y-m-d' }}"
+                   class="form-control form-control-sm">
+          </div>
+          <div class="col-auto"><button class="btn btn-outline-hm btn-sm">Xem</button></div>
+        </form>
+      </div>
+
+      {% if oee.centers_without_smv %}
+      <div class="alert alert-warning border-0 py-2 small mb-2" role="status">
+        Chưa có định mức SMV nên không tính được Hiệu suất cho:
+        {{ oee.centers_without_smv|join:", " }}. Bổ sung thời gian công đoạn trong BOM / routing IE.
+      </div>
+      {% endif %}
+
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Tổ / chuyền</th>
+              <th class="text-end">Phút ca</th>
+              <th class="text-end">Phút dừng</th>
+              <th class="text-end">Phút chạy</th>
+              <th class="text-end">Phút định mức</th>
+              <th class="text-end">Đạt / Lỗi</th>
+              <th class="text-end">Sẵn sàng</th>
+              <th class="text-end">Hiệu suất</th>
+              <th class="text-end">Chất lượng</th>
+              <th class="text-end">OEE</th>
+            </tr>
+          </thead>
+          <tbody>
+          {% for r in oee_rows %}
+            <tr>
+              <td>
+                <div class="fw-semibold small">{{ r.label }}</div>
+                {% if r.qty_no_smv %}<div class="text-muted small">{{ r.qty_no_smv }} cái chưa có SMV</div>{% endif %}
+              </td>
+              <td class="text-end">{{ r.planned_minutes }}</td>
+              <td class="text-end {% if r.downtime_minutes %}text-danger{% endif %}">{{ r.downtime_minutes }}</td>
+              <td class="text-end">{{ r.operating_minutes }}</td>
+              <td class="text-end">{{ r.earned_minutes }}</td>
+              <td class="text-end">{{ r.qty_good }} / {{ r.qty_defect }}</td>
+              <td class="text-end">{{ r.availability_pct }}%</td>
+              <td class="text-end">{% if r.has_smv %}{{ r.performance_pct }}%{% else %}—{% endif %}</td>
+              <td class="text-end">{% if r.has_output %}{{ r.quality_pct }}%{% else %}—{% endif %}</td>
+              <td class="text-end fw-semibold">{% if r.has_smv %}{{ r.oee_pct }}%{% else %}—{% endif %}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="10" class="text-muted small p-3">Chưa khai báo tổ/chuyền nào đang hoạt động.</td></tr>
+          {% endfor %}
+          </tbody>
+          {% if oee_rows %}
+          <tfoot class="table-light">
+            <tr class="fw-semibold">
+              <td>{{ oee_total.label }}</td>
+              <td class="text-end">{{ oee_total.planned_minutes }}</td>
+              <td class="text-end">{{ oee_total.downtime_minutes }}</td>
+              <td class="text-end">{{ oee_total.operating_minutes }}</td>
+              <td class="text-end">{{ oee_total.earned_minutes }}</td>
+              <td class="text-end">{{ oee_total.qty_good }} / {{ oee_total.qty_defect }}</td>
+              <td class="text-end">{{ oee_total.availability_pct }}%</td>
+              <td class="text-end">{% if oee_total.has_smv %}{{ oee_total.performance_pct }}%{% else %}—{% endif %}</td>
+              <td class="text-end">{% if oee_total.has_output %}{{ oee_total.quality_pct }}%{% else %}—{% endif %}</td>
+              <td class="text-end">{% if oee_total.has_smv %}{{ oee_total.oee_pct }}%{% else %}—{% endif %}</td>
+            </tr>
+          </tfoot>
+          {% endif %}
+        </table>
+      </div>
     </div>
-    {% endfor %}
   </div>
-  {% endif %}
   {% if can_create %}
   <div class="card border-0 shadow-sm mb-3">
     <div class="card-body">

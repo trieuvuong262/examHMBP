@@ -25,6 +25,7 @@ from hrm.module_permissions import (
     MODULE_EQUIPMENT,
     MODULE_FEEDBACK,
     MODULE_HO_TRO,
+    MODULE_SAN_XUAT,
     MODULE_TASKS,
     MODULE_TRAINING,
     user_can_access_module,
@@ -386,6 +387,96 @@ def _utilities_widgets(user):
         return []
 
 
+def _san_xuat_widgets(user):
+    """Nhắc việc sản xuất: lệnh trễ hạn, lệnh sắp tới hạn, NPL chưa về (P4)."""
+    if not user_can_access_module(user, MODULE_SAN_XUAT):
+        return []
+
+    from django.db.utils import DatabaseError, OperationalError, ProgrammingError
+
+    try:
+        from san_xuat.hub_models import SxProductionOrder, SxPurchaseOrder
+        from san_xuat.services.sx_settings import sx_int
+    except ImportError:
+        return []
+
+    today = timezone.localdate()
+    widgets = []
+    open_statuses = (
+        SxProductionOrder.STATUS_RELEASED,
+        SxProductionOrder.STATUS_IN_PROGRESS,
+    )
+
+    try:
+        horizon_days = sx_int('mo_late_alert_days', 3, min_v=0, max_v=60)
+        open_mos = list(
+            SxProductionOrder.objects.filter(is_demo=False, status__in=open_statuses)
+            .only('code', 'qty', 'qty_done', 'due_date', 'planned_end')
+        )
+        open_pos = list(
+            SxPurchaseOrder.objects.filter(
+                is_demo=False,
+                status=SxPurchaseOrder.STATUS_CONFIRMED,
+                expected_date__lt=today,
+            ).prefetch_related('lines')
+        )
+    except (ProgrammingError, OperationalError, DatabaseError):
+        return []
+
+    late = []
+    soon = []
+    for mo in open_mos:
+        deadline = mo.due_date or mo.planned_end
+        if not deadline:
+            continue
+        if (mo.qty_done or 0) >= (mo.qty or 0):
+            continue
+        if deadline < today:
+            late.append(mo)
+        elif (deadline - today).days <= horizon_days:
+            soon.append(mo)
+
+    if late:
+        sample = ', '.join(mo.code for mo in late[:3])
+        widgets.append({
+            'level': 'danger',
+            'icon': 'bi-exclamation-octagon-fill',
+            'title': 'Lệnh sản xuất trễ hạn',
+            'text': f'{len(late)} lệnh đã quá hạn mà chưa hoàn thành ({sample}).',
+            'url': reverse('san_xuat:dispatch_mo') + '?status=in_progress',
+            'action': 'Xem lệnh',
+            'badge': len(late),
+        })
+    if soon:
+        widgets.append({
+            'level': 'warning',
+            'icon': 'bi-hourglass-split',
+            'title': 'Lệnh sản xuất sắp tới hạn',
+            'text': f'{len(soon)} lệnh tới hạn trong {horizon_days} ngày tới.',
+            'url': reverse('san_xuat:dispatch_mo'),
+            'action': 'Xem lệnh',
+            'badge': len(soon),
+        })
+
+    pending_pos = [
+        po for po in open_pos
+        if any((ln.qty_ordered or 0) > (ln.qty_received or 0) for ln in po.lines.all())
+    ]
+    if pending_pos:
+        sample = ', '.join(po.code for po in pending_pos[:3])
+        widgets.append({
+            'level': 'warning',
+            'icon': 'bi-truck',
+            'title': 'Nguyên phụ liệu chưa về',
+            'text': f'{len(pending_pos)} đơn mua hàng đã quá ngày hàng về dự kiến ({sample}).',
+            'url': reverse('san_xuat:purchase_order'),
+            'action': 'Xem đơn mua',
+            'badge': len(pending_pos),
+        })
+
+    return widgets
+
+
 def _report_comment_widgets(user):
     """Widget nhận xét báo cáo chưa đọc — cho cả nhân viên (quản lý nhận xét) và quản lý (NV phản hồi)."""
     widgets = []
@@ -610,6 +701,7 @@ def get_portal_dashboard(user):
     widgets.extend(_equipment_it_widgets(user))
     widgets.extend(_feedback_widgets(user))
     widgets.extend(_utilities_widgets(user))
+    widgets.extend(_san_xuat_widgets(user))
     widgets.extend(_report_comment_widgets(user))
 
     # --- HOD / GM: team chưa nộp BC ---

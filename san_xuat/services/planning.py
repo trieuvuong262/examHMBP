@@ -28,6 +28,7 @@ from san_xuat.hub_models import (
 )
 from san_xuat.models import ProductTechDoc
 from san_xuat.services.bom import get_active_bom
+from san_xuat.services.plan_audit import log_plan_action
 from san_xuat.services.sx_settings import sx_prefix
 
 
@@ -146,7 +147,7 @@ def add_overall_plan_line(
 
 
 @transaction.atomic
-def confirm_overall_plan(*, plan_id: int) -> SxOverallPlan:
+def confirm_overall_plan(*, plan_id: int, user=None) -> SxOverallPlan:
     plan = SxOverallPlan.objects.select_for_update().prefetch_related("lines").get(pk=plan_id)
     if plan.status != SxOverallPlan.STATUS_DRAFT:
         raise PlanningError("KHTT đã xác nhận hoặc không ở trạng thái nháp.")
@@ -154,6 +155,14 @@ def confirm_overall_plan(*, plan_id: int) -> SxOverallPlan:
         raise PlanningError("KHTT phải có ít nhất một dòng sản phẩm.")
     plan.status = SxOverallPlan.STATUS_CONFIRMED
     plan.save(update_fields=["status"])
+    total = sum((ln.qty_planned or Decimal("0") for ln in plan.lines.all()), Decimal("0"))
+    log_plan_action(
+        action="confirm",
+        obj=plan,
+        summary=f"Xác nhận KHTT {plan.code} ({plan.get_plan_method_display()}) — tổng SL {total}.",
+        changes={"lines": plan.lines.count(), "qty_planned": str(total)},
+        user=user,
+    )
     return plan
 
 
@@ -217,12 +226,56 @@ def build_overall_lines_from_kv_order(
     return created
 
 
+def npl_prep_days() -> int:
+    """Số ngày chuẩn bị NPL trước ngày sản xuất (Thiết lập chung)."""
+    from san_xuat.services.sx_settings import sx_int
+
+    return sx_int("npl_prep_days", 2, min_v=0, max_v=120)
+
+
+def product_start_dates(overall: SxOverallPlan) -> dict[str, object]:
+    """Ngày sản xuất sớm nhất của từng mã SP trong một KHTT.
+
+    Ưu tiên KHCT đã lập (ngày thật); nếu chưa có KHCT thì dùng hạn giao trên
+    dòng KHTT, cuối cùng mới lấy ngày bắt đầu kỳ.
+    """
+    out: dict[str, object] = {}
+    rows = (
+        SxDetailPlanLine.objects.filter(plan__overall_plan_id=overall.pk)
+        .exclude(plan__status=SxOverallPlan.STATUS_CANCELLED)
+        .values_list("product_code", "plan_date")
+    )
+    for product_code, plan_date in rows:
+        key = (product_code or "").strip().casefold()
+        if not key or not plan_date:
+            continue
+        current = out.get(key)
+        if current is None or plan_date < current:
+            out[key] = plan_date
+
+    for line in overall.lines.all():
+        key = (line.product_code or "").strip().casefold()
+        if not key or key in out:
+            continue
+        out[key] = line.due_date or overall.date_from
+    return out
+
+
+def _shift_days(day, days: int):
+    from datetime import timedelta
+
+    if not day:
+        return None
+    return day - timedelta(days=max(0, days))
+
+
 @transaction.atomic
 def explode_material_plan(
     *,
     overall_plan_id: int,
     code: str | None = None,
     name: str = "",
+    user=None,
 ) -> SxMaterialPlan:
     overall = (
         SxOverallPlan.objects.select_for_update()
@@ -236,7 +289,11 @@ def explode_material_plan(
 
     material_req: dict[str, Decimal] = {}
     material_names: dict[str, str] = {}
+    material_need: dict[str, object] = {}
     skipped_products: list[str] = []
+
+    start_dates = product_start_dates(overall)
+    prep_days = npl_prep_days()
 
     for line in overall.lines.all():
         qty_planned = line.qty_planned or line.qty_required or Decimal("0")
@@ -251,11 +308,16 @@ def explode_material_plan(
         if not bom:
             skipped_products.append(product_code)
             continue
+        product_start = start_dates.get(product_code.casefold()) or overall.date_from
+        need_date = _shift_days(product_start, prep_days)
         for bl in bom.lines.select_related("material").all():
             mat_code = bl.material.code
             need = bl.qty_with_scrap * qty_planned
             material_req[mat_code] = material_req.get(mat_code, Decimal("0")) + need
             material_names[mat_code] = bl.material.name
+            current = material_need.get(mat_code)
+            if need_date and (current is None or need_date < current):
+                material_need[mat_code] = need_date
 
     if not material_req:
         raise PlanningError("Không explode được NVL — cần BOM active cho ít nhất một mã SP.")
@@ -304,9 +366,20 @@ def explode_material_plan(
                 qty_on_hand=on_hand.quantize(Decimal("0.0001")),
                 qty_expected_inbound=inbound.quantize(Decimal("0.0001")),
                 qty_shortfall=shortfall.quantize(Decimal("0.0001")),
+                need_date=material_need.get(mat_code),
             )
         )
     SxMaterialPlanLine.objects.bulk_create(create_lines)
+    log_plan_action(
+        action="explode",
+        obj=mat_plan,
+        summary=(
+            f"Bung nhu cầu NPL từ {overall.code}: {len(create_lines)} mã, "
+            f"chuẩn bị trước {prep_days} ngày."
+        ),
+        changes={"overall_plan": overall.code, "lines": len(create_lines), "prep_days": prep_days},
+        user=user,
+    )
     return mat_plan
 
 
@@ -332,7 +405,7 @@ def _expected_inbound_qty(material_code: str) -> Decimal:
 
 
 @transaction.atomic
-def confirm_material_plan(*, plan_id: int) -> SxMaterialPlan:
+def confirm_material_plan(*, plan_id: int, user=None) -> SxMaterialPlan:
     plan = SxMaterialPlan.objects.select_for_update().prefetch_related("lines").get(pk=plan_id)
     if plan.status != SxOverallPlan.STATUS_DRAFT:
         raise PlanningError("KHNVL đã xác nhận hoặc không ở trạng thái nháp.")
@@ -343,6 +416,13 @@ def confirm_material_plan(*, plan_id: int) -> SxMaterialPlan:
     from kho_npl.services.reservation import upsert_reservations_for_khnvl
 
     upsert_reservations_for_khnvl(plan=plan)
+    log_plan_action(
+        action="confirm",
+        obj=plan,
+        summary=f"Xác nhận KHNVL {plan.code} và giữ chỗ tồn kho.",
+        changes={"lines": plan.lines.count()},
+        user=user,
+    )
     return plan
 
 
@@ -354,6 +434,7 @@ def build_pr_from_material_plan(
     code: str | None = None,
     due_date=None,
     notes: str = "",
+    user=None,
 ) -> SxNplPurchaseRequest:
     mat_plan = (
         SxMaterialPlan.objects.select_for_update()
@@ -369,6 +450,11 @@ def build_pr_from_material_plan(
     if not lines_qs.exists():
         raise PlanningError("Không có dòng shortfall để tạo YCM.")
 
+    # Hạn YCM = ngày cần sớm nhất trong các dòng đưa vào yêu cầu (time-phased)
+    need_dates = [ln.need_date for ln in lines_qs if ln.need_date]
+    earliest_need = min(need_dates) if need_dates else None
+    resolved_due = due_date or earliest_need
+
     pr = (
         SxNplPurchaseRequest.objects.filter(
             material_plan=mat_plan,
@@ -380,7 +466,7 @@ def build_pr_from_material_plan(
     )
     if pr:
         pr.lines.all().delete()
-        pr.due_date = due_date or pr.due_date
+        pr.due_date = resolved_due or pr.due_date
         pr.notes = notes or pr.notes
         pr.save(update_fields=["due_date", "notes"])
     else:
@@ -388,7 +474,7 @@ def build_pr_from_material_plan(
             code=_code("npl_pr", SxNplPurchaseRequest, code=code),
             material_plan=mat_plan,
             request_date=timezone.localdate(),
-            due_date=due_date,
+            due_date=resolved_due,
             status=SxNplPurchaseRequest.STATUS_DRAFT,
             notes=notes or "",
             is_demo=False,
@@ -400,11 +486,26 @@ def build_pr_from_material_plan(
             material_code=line.material_code,
             material_name=line.material_name,
             qty=(line.qty_shortfall if only_shortfall else line.qty_required).quantize(Decimal("0.0001")),
+            need_date=line.need_date,
         )
         for line in lines_qs
         if (line.qty_shortfall if only_shortfall else line.qty_required) > 0
     ]
     SxNplPurchaseRequestLine.objects.bulk_create(create_lines)
+    log_plan_action(
+        action="create",
+        obj=pr,
+        summary=(
+            f"Tạo YCM từ {mat_plan.code}: {len(create_lines)} mã"
+            + (f", hạn {resolved_due:%d/%m/%Y}" if resolved_due else "")
+        ),
+        changes={
+            "material_plan": mat_plan.code,
+            "lines": len(create_lines),
+            "due_date": resolved_due.isoformat() if resolved_due else None,
+        },
+        user=user,
+    )
     return pr
 
 
@@ -450,6 +551,7 @@ def explode_detail_plan_from_overall(
     overall_plan_id: int,
     code: str | None = None,
     name: str = "",
+    user=None,
 ) -> SxDetailPlan:
     overall = (
         SxOverallPlan.objects.select_for_update()
@@ -535,6 +637,13 @@ def explode_detail_plan_from_overall(
     if not create_lines:
         raise PlanningError("Không tạo được dòng KHCT — kiểm tra SL kế hoạch trên KHTT.")
     SxDetailPlanLine.objects.bulk_create(create_lines)
+    log_plan_action(
+        action="explode",
+        obj=detail,
+        summary=f"Chia đều KHCT từ {overall.code}: {len(create_lines)} dòng / {num_days} ngày làm việc.",
+        changes={"overall_plan": overall.code, "lines": len(create_lines), "days": num_days},
+        user=user,
+    )
     return detail
 
 
@@ -661,7 +770,7 @@ def check_detail_plan_capacity(*, plan_id: int) -> list[CapacityDayWarning]:
 
 
 @transaction.atomic
-def cancel_plan(*, model, plan_id: int, reason: str = "") -> object:
+def cancel_plan(*, model, plan_id: int, reason: str = "", user=None) -> object:
     """Hủy KHTT / KHCT / KHNVL (chỉ khi chưa hoàn thành)."""
     plan = model.objects.select_for_update().get(pk=plan_id)
     if plan.status == SxOverallPlan.STATUS_CANCELLED:
@@ -676,17 +785,25 @@ def cancel_plan(*, model, plan_id: int, reason: str = "") -> object:
         from kho_npl.services.reservation import release_reservations_for_khnvl
 
         release_reservations_for_khnvl(plan=plan)
+    log_plan_action(
+        action="cancel",
+        obj=plan,
+        summary=f"Hủy {plan.code}" + (f" — {reason.strip()}" if (reason or "").strip() else "."),
+        changes={"reason": (reason or "").strip()},
+        user=user,
+    )
     return plan
 
 
 @transaction.atomic
-def close_plan(*, model, plan_id: int) -> object:
+def close_plan(*, model, plan_id: int, user=None) -> object:
     """Đóng (hoàn thành) kế hoạch — chỉ từ trạng thái đã xác nhận."""
     plan = model.objects.select_for_update().get(pk=plan_id)
     if plan.status != SxOverallPlan.STATUS_CONFIRMED:
         raise PlanningError("Chỉ đóng kế hoạch đã xác nhận.")
     plan.status = SxOverallPlan.STATUS_DONE
     plan.save(update_fields=["status"])
+    log_plan_action(action="close", obj=plan, summary=f"Đóng {plan.code}.", user=user)
     return plan
 
 
@@ -831,7 +948,9 @@ def assign_detail_plan_work_centers(*, plan_id: int, overwrite: bool = False) ->
 
 
 @transaction.atomic
-def confirm_detail_plan(*, plan_id: int, allow_over_capacity: bool | None = None) -> SxDetailPlan:
+def confirm_detail_plan(
+    *, plan_id: int, allow_over_capacity: bool | None = None, user=None,
+) -> SxDetailPlan:
     from san_xuat.services.sx_settings import sx_bool
 
     plan = SxDetailPlan.objects.select_for_update().prefetch_related("lines").get(pk=plan_id)
@@ -861,6 +980,16 @@ def confirm_detail_plan(*, plan_id: int, allow_over_capacity: bool | None = None
         plan.notes = f"{plan.notes}\n{note}".strip() if plan.notes else note
     plan.status = SxOverallPlan.STATUS_CONFIRMED
     plan.save(update_fields=["status", "notes"] if over else ["status"])
+    log_plan_action(
+        action="confirm",
+        obj=plan,
+        summary=(
+            f"Xác nhận KHCT {plan.code}"
+            + (f" — có {len(over)} ngày vượt năng lực." if over else ".")
+        ),
+        changes={"over_capacity_days": len(over) if over else 0},
+        user=user,
+    )
     return plan
 
 
@@ -871,6 +1000,9 @@ def build_po_from_purchase_request(
     supplier_name: str = "",
     code: str | None = None,
     notes: str = "",
+    supplier=None,
+    expected_date=None,
+    user=None,
 ) -> SxPurchaseOrder:
     pr = (
         SxNplPurchaseRequest.objects.select_for_update()
@@ -891,21 +1023,33 @@ def build_po_from_purchase_request(
         .order_by("-id")
         .first()
     )
+    resolved_name = (supplier_name or "").strip() or (getattr(supplier, "name", "") or "").strip()
     if po:
         po.lines.all().delete()
-        po.supplier_name = (supplier_name or "").strip() or po.supplier_name
+        po.supplier_name = resolved_name or po.supplier_name
+        po.supplier = supplier or po.supplier
+        po.expected_date = expected_date or po.expected_date
         po.notes = notes or po.notes
-        po.save(update_fields=["supplier_name", "notes"])
+        po.save(update_fields=["supplier_name", "supplier", "expected_date", "notes"])
     else:
         po = SxPurchaseOrder.objects.create(
             code=_code("po", SxPurchaseOrder, code=code),
-            supplier_name=(supplier_name or "").strip(),
+            supplier_name=resolved_name,
+            supplier=supplier,
+            expected_date=expected_date or pr.due_date,
             purchase_request=pr,
             status=SxPurchaseOrder.STATUS_DRAFT,
             notes=notes or "",
             is_demo=False,
         )
 
+    # Giá mua gợi ý = giá cơ bản của NPL trong kho (người mua có thể sửa sau)
+    price_map = {
+        (mat.code or "").strip().upper(): mat.base_price or Decimal("0")
+        for mat in Material.objects.filter(
+            code__in=[ln.material_code for ln in pr.lines.all()],
+        )
+    }
     create_lines = [
         SxPurchaseOrderLine(
             order=po,
@@ -913,6 +1057,8 @@ def build_po_from_purchase_request(
             material_name=line.material_name,
             qty_ordered=line.qty.quantize(Decimal("0.0001")),
             qty_received=Decimal("0"),
+            unit_price=price_map.get((line.material_code or "").strip().upper(), Decimal("0")),
+            need_date=line.need_date,
         )
         for line in pr.lines.all()
         if line.qty > 0
@@ -920,11 +1066,18 @@ def build_po_from_purchase_request(
     if not create_lines:
         raise PlanningError("YCM không có SL mua > 0.")
     SxPurchaseOrderLine.objects.bulk_create(create_lines)
+    log_plan_action(
+        action="create",
+        obj=po,
+        summary=f"Tạo DMH từ {pr.code}: {len(create_lines)} mã NPL, NCC {resolved_name or '—'}.",
+        changes={"purchase_request": pr.code, "lines": len(create_lines), "supplier": resolved_name},
+        user=user,
+    )
     return po
 
 
 @transaction.atomic
-def confirm_purchase_order(*, order_id: int) -> SxPurchaseOrder:
+def confirm_purchase_order(*, order_id: int, user=None) -> SxPurchaseOrder:
     po = SxPurchaseOrder.objects.select_for_update().prefetch_related("lines").get(pk=order_id)
     if po.status != SxPurchaseOrder.STATUS_DRAFT:
         raise PlanningError("Chỉ xác nhận DMH ở trạng thái nháp.")
@@ -932,6 +1085,7 @@ def confirm_purchase_order(*, order_id: int) -> SxPurchaseOrder:
         raise PlanningError("DMH phải có ít nhất một dòng NVL.")
     po.status = SxPurchaseOrder.STATUS_CONFIRMED
     po.save(update_fields=["status"])
+    log_plan_action(action="confirm", obj=po, summary=f"Xác nhận DMH {po.code}.", user=user)
     return po
 
 
