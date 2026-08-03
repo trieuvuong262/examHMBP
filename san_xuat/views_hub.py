@@ -1671,6 +1671,7 @@ def purchase_order_detail(request, pk: int):
     lines_all = list(po.lines.all())
     total_amount = sum((ln.amount for ln in lines_all), Decimal('0'))
     remaining_qty = sum((ln.qty_remaining for ln in lines_all), Decimal('0'))
+    lines_without_price = [ln.material_code for ln in lines_all if (ln.unit_price or 0) <= 0]
     return render(request, 'san_xuat/purchase_order_detail.html', {
         **_perm_ctx(request),
         'po': po,
@@ -1680,6 +1681,7 @@ def purchase_order_detail(request, pk: int):
         'stock_receipts': po_receipts(po),
         'total_amount': total_amount,
         'remaining_qty': remaining_qty,
+        'lines_without_price': lines_without_price,
     })
 
 

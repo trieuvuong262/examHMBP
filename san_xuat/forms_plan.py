@@ -421,8 +421,8 @@ class PoReceiptForm(forms.Form):
     )
     location = forms.ModelChoiceField(
         queryset=None,
-        required=False,
         label="Vị trí nhập",
+        help_text="Chọn đúng kho nhận hàng — phiếu nhập sẽ cộng tồn vào vị trí này.",
         widget=forms.Select(attrs={"class": "form-select form-select-sm"}),
     )
     notes = forms.CharField(
@@ -438,3 +438,9 @@ class PoReceiptForm(forms.Form):
         self.fields["location"].queryset = (
             WarehouseLocation.objects.filter(is_active=True).order_by("code")
         )
+        if not self.is_bound and not self.initial.get("location"):
+            from san_xuat.services.po_receipt import default_receipt_location
+
+            suggested = default_receipt_location()
+            if suggested is not None:
+                self.fields["location"].initial = suggested.pk

@@ -27,14 +27,17 @@ _Q3 = Decimal('0.001')
 
 
 def default_receipt_location() -> WarehouseLocation | None:
-    """Vị trí nhập mặc định — kho thường đầu tiên đang dùng."""
+    """Vị trí nhập gợi ý — kho thường được tạo sớm nhất (thường là kho chính).
+
+    Chỉ dùng khi người nhập không chọn vị trí; màn hình DMH luôn bắt chọn.
+    """
     return (
         WarehouseLocation.objects.filter(
             is_active=True, location_kind=WarehouseLocation.KIND_STOCK,
         )
-        .order_by('code')
+        .order_by('pk')
         .first()
-        or WarehouseLocation.objects.filter(is_active=True).order_by('code').first()
+        or WarehouseLocation.objects.filter(is_active=True).order_by('pk').first()
     )
 
 

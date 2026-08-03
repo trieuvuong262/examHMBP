@@ -621,7 +621,7 @@ class PurchaseOrderPageTests(TestCase):
         self.user = _director('p4po')
         self.client.force_login(self.user)
         _material('VAI-PAGE')
-        WarehouseLocation.objects.create(
+        self.location = WarehouseLocation.objects.create(
             code='KHO-PAGE', name='Kho', location_kind=WarehouseLocation.KIND_STOCK,
         )
         self.po = SxPurchaseOrder.objects.create(
@@ -640,11 +640,22 @@ class PurchaseOrderPageTests(TestCase):
     def test_create_receipt_action(self):
         resp = self.client.post(
             reverse('san_xuat:purchase_order_detail', args=[self.po.pk]),
+            {'action': 'create_receipt', 'location': self.location.pk},
+            follow=True,
+        )
+        self.assertEqual(resp.status_code, 200)
+        receipt = StockReceipt.objects.filter(po_number='DMH-PAGE-1').first()
+        self.assertIsNotNone(receipt)
+        self.assertEqual(receipt.lines.first().location, self.location)
+
+    def test_create_receipt_requires_location(self):
+        resp = self.client.post(
+            reverse('san_xuat:purchase_order_detail', args=[self.po.pk]),
             {'action': 'create_receipt'},
             follow=True,
         )
         self.assertEqual(resp.status_code, 200)
-        self.assertTrue(StockReceipt.objects.filter(po_number='DMH-PAGE-1').exists())
+        self.assertFalse(StockReceipt.objects.filter(po_number='DMH-PAGE-1').exists())
 
     def test_downtime_page_renders_oee(self):
         _center('T-PAGE', 'Tổ trang', heads=2)

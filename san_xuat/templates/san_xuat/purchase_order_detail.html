@@ -123,6 +123,12 @@
           <div class="text-muted small mb-2">
             Phiếu tạo ra ở trạng thái nháp — vào Kho NPL đính kèm chứng từ rồi ghi sổ để cộng tồn.
           </div>
+          {% if lines_without_price %}
+          <div class="alert alert-warning border-0 py-2 small mb-0" role="status">
+            {{ lines_without_price|length }} mã chưa có đơn giá ({{ lines_without_price|join:", "|truncatechars:60 }}) —
+            kho phải nhập đơn giá trên phiếu nhập trước khi ghi sổ.
+          </div>
+          {% endif %}
           {% endif %}
 
           {% if can_update and stock_receipts %}
