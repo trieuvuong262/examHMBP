@@ -932,6 +932,11 @@ def _recompute_mo_progress(mo: SxProductionOrder) -> SxProductionOrder:
     elif qty_done < (mo.qty or Decimal("0")) and mo.status == SxProductionOrder.STATUS_DONE:
         mo.status = SxProductionOrder.STATUS_IN_PROGRESS if qty_done > 0 else SxProductionOrder.STATUS_RELEASED
     mo.save(update_fields=["qty_done", "status"])
+    # Đóng KHCT khi toàn bộ LSX của kế hoạch đã hoàn thành
+    if mo.status == SxProductionOrder.STATUS_DONE and mo.detail_plan_id:
+        from san_xuat.services.planning import maybe_close_detail_plan
+
+        maybe_close_detail_plan(mo.detail_plan_id)
     return mo
 
 
@@ -1366,7 +1371,9 @@ def create_mos_from_detail_plan(
 
     created: list[SxProductionOrder] = []
     skipped = 0
-    for line in plan.lines.filter(qty__gt=0).order_by("plan_date", "product_code"):
+    for line in plan.lines.select_related("work_center").filter(qty__gt=0).order_by(
+        "plan_date", "product_code"
+    ):
         exists = SxProductionOrder.objects.filter(
             is_demo=False,
             detail_plan=plan,
@@ -1376,6 +1383,11 @@ def create_mos_from_detail_plan(
         if exists:
             skipped += 1
             continue
+        # Ưu tiên tổ đã phân trên dòng KHCT, fallback tham số hàm
+        line_team = (line.team_label or "").strip()
+        if not line_team and line.work_center_id:
+            wc = line.work_center
+            line_team = (wc.team_label or wc.name or "").strip()
         mo = create_mo_from_bom(
             product_code=line.product_code,
             qty=line.qty,
@@ -1383,7 +1395,7 @@ def create_mos_from_detail_plan(
             due_date=line.plan_date,
             planned_start=line.plan_date,
             planned_end=line.plan_date,
-            team_label=team_label,
+            team_label=line_team or team_label,
             notes=notes or f"Từ KHCT {plan.code}",
             detail_plan_id=plan.pk,
         )

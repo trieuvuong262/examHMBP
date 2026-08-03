@@ -174,18 +174,24 @@ from san_xuat.services.planning import (
     PlanningError,
     add_overall_plan_line,
     approve_npl_purchase_request,
+    assign_detail_plan_work_centers,
     build_overall_lines_from_kv_order,
     build_po_from_purchase_request,
     build_pr_from_material_plan,
+    cancel_plan,
+    check_detail_plan_capacity,
+    close_plan,
     confirm_detail_plan,
     confirm_material_plan,
     confirm_overall_plan,
     confirm_purchase_order,
     create_overall_plan,
+    detail_plan_progress,
     explode_detail_plan_from_overall,
     explode_material_plan,
     link_kv_purchase_to_po,
     reject_npl_purchase_request,
+    resolve_daily_capacity,
     submit_npl_purchase_request,
 )
 from san_xuat.services.qc import (
@@ -754,6 +760,28 @@ def plan_overall_detail(request, pk: int):
                 messages.success(request, f'KHTT {plan.code} đã xác nhận.')
                 return redirect('san_xuat:plan_overall_detail', pk=plan.pk)
 
+        elif action == 'close' and can_update:
+            try:
+                plan = close_plan(model=SxOverallPlan, plan_id=plan.pk)
+            except PlanningError as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(request, f'Đã đóng KHTT {plan.code}.')
+                return redirect('san_xuat:plan_overall_detail', pk=plan.pk)
+
+        elif action == 'cancel' and can_update:
+            try:
+                plan = cancel_plan(
+                    model=SxOverallPlan,
+                    plan_id=plan.pk,
+                    reason=request.POST.get('reason') or '',
+                )
+            except PlanningError as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(request, f'Đã hủy KHTT {plan.code}.')
+                return redirect('san_xuat:plan_overall_detail', pk=plan.pk)
+
     material_plans = plan.material_plans.filter(is_demo=False).order_by('-created_at')
     detail_plans = plan.detail_plans.filter(is_demo=False).order_by('-created_at')
     return render(request, 'san_xuat/plan_overall_detail.html', {
@@ -862,6 +890,38 @@ def plan_detail_detail(request, pk: int):
                 else:
                     messages.info(request, 'Không có LSX mới — các dòng đã có LSX tương ứng.')
                 return redirect('san_xuat:plan_detail_detail', pk=detail.pk)
+        elif action == 'assign_teams' and can_update:
+            overwrite = bool(request.POST.get('overwrite'))
+            try:
+                count = assign_detail_plan_work_centers(plan_id=detail.pk, overwrite=overwrite)
+            except PlanningError as exc:
+                messages.error(request, str(exc))
+            else:
+                if count:
+                    messages.success(request, f'Đã phân tổ cho {count} dòng kế hoạch.')
+                else:
+                    messages.info(request, 'Tất cả dòng đã có tổ — chọn "ghi đè" nếu muốn phân lại.')
+                return redirect('san_xuat:plan_detail_detail', pk=detail.pk)
+        elif action == 'close' and can_update:
+            try:
+                detail = close_plan(model=SxDetailPlan, plan_id=detail.pk)
+            except PlanningError as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(request, f'Đã đóng KHCT {detail.code}.')
+                return redirect('san_xuat:plan_detail_detail', pk=detail.pk)
+        elif action == 'cancel' and can_update:
+            try:
+                detail = cancel_plan(
+                    model=SxDetailPlan,
+                    plan_id=detail.pk,
+                    reason=request.POST.get('reason') or '',
+                )
+            except PlanningError as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(request, f'Đã hủy KHCT {detail.code}.')
+                return redirect('san_xuat:plan_detail_detail', pk=detail.pk)
 
     dates: list = []
     day = detail.date_from
@@ -869,11 +929,20 @@ def plan_detail_detail(request, pk: int):
         dates.append(day)
         day += timedelta(days=1)
 
+    from san_xuat.services.work_calendar import holiday_dates, workdays_labels, workdays_pattern
+
+    wd_bits = workdays_pattern()
+    holidays = holiday_dates(detail.date_from, detail.date_to)
+    off_days = {d for d in dates if wd_bits[d.weekday()] != '1' or d in holidays}
+
     products: dict[str, str] = {}
     grid: dict[str, dict] = defaultdict(dict)
+    teams: dict[str, set] = defaultdict(set)
     for line in detail.lines.all():
         products[line.product_code] = line.product_name
         grid[line.product_code][line.plan_date] = line.qty
+        if (line.team_label or '').strip():
+            teams[line.product_code].add(line.team_label.strip())
 
     product_rows = []
     for code in sorted(products.keys()):
@@ -882,19 +951,31 @@ def plan_detail_detail(request, pk: int):
         for plan_date in dates:
             qty = grid[code].get(plan_date, Decimal('0'))
             row_total += qty
-            cells.append({'date': plan_date, 'qty': qty})
+            cells.append({
+                'date': plan_date,
+                'qty': qty,
+                'is_off': plan_date in off_days,
+            })
         product_rows.append({
             'code': code,
             'name': products[code],
             'cells': cells,
             'total': row_total,
+            'teams': sorted(teams.get(code, ())),
         })
 
+    cap = resolve_daily_capacity(overall_plan_id=detail.overall_plan_id)
     date_totals = []
     for plan_date in dates:
         total = sum((grid[code].get(plan_date, Decimal('0')) for code in products), Decimal('0'))
-        date_totals.append({'date': plan_date, 'total': total})
+        date_totals.append({
+            'date': plan_date,
+            'total': total,
+            'is_off': plan_date in off_days,
+            'is_over': bool(cap.capacity > 0 and total > cap.capacity),
+        })
 
+    lines_all = list(detail.lines.all())
     production_orders = detail.production_orders.filter(is_demo=False).order_by('planned_start', 'code')
     return render(request, 'san_xuat/plan_detail_detail.html', {
         **_perm_ctx(request),
@@ -904,6 +985,15 @@ def plan_detail_detail(request, pk: int):
         'product_rows': product_rows,
         'date_totals': date_totals,
         'production_orders': production_orders,
+        'capacity_info': cap,
+        'capacity_warnings': check_detail_plan_capacity(plan_id=detail.pk),
+        'plan_progress': detail_plan_progress(detail),
+        'workdays_labels': workdays_labels(wd_bits),
+        'holiday_count': len(holidays),
+        'lines_without_team': sum(
+            1 for ln in lines_all if not (ln.team_label or '').strip() and not ln.work_center_id
+        ),
+        'lines_total': len(lines_all),
     })
 
 
@@ -984,13 +1074,36 @@ def plan_npl_detail(request, pk: int):
                 else:
                     messages.success(request, f'Đã cập nhật tồn/shortfall cho KHNVL {mat_plan.code}.')
                     return redirect('san_xuat:plan_npl_detail', pk=mat_plan.pk)
-    shortfall_total = sum((line.qty_shortfall or 0 for line in mat_plan.lines.all()), Decimal('0'))
+        elif action == 'close' and can_update:
+            try:
+                mat_plan = close_plan(model=SxMaterialPlan, plan_id=mat_plan.pk)
+            except PlanningError as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(request, f'Đã đóng KHNVL {mat_plan.code}.')
+                return redirect('san_xuat:plan_npl_detail', pk=mat_plan.pk)
+        elif action == 'cancel' and can_update:
+            try:
+                mat_plan = cancel_plan(
+                    model=SxMaterialPlan,
+                    plan_id=mat_plan.pk,
+                    reason=request.POST.get('reason') or '',
+                )
+            except PlanningError as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(request, f'Đã hủy KHNVL {mat_plan.code} và giải phóng giữ chỗ.')
+                return redirect('san_xuat:plan_npl_detail', pk=mat_plan.pk)
+    lines_all = list(mat_plan.lines.all())
+    shortfall_total = sum((line.qty_shortfall or 0 for line in lines_all), Decimal('0'))
+    reserved_total = sum((line.qty_reserved or 0 for line in lines_all), Decimal('0'))
     purchase_requests = mat_plan.purchase_requests.filter(is_demo=False).order_by('-created_at')
     return render(request, 'san_xuat/plan_npl_detail.html', {
         **_perm_ctx(request),
         'mat_plan': mat_plan,
         'can_update': can_update,
         'shortfall_total': shortfall_total,
+        'reserved_total': reserved_total,
         'purchase_requests': purchase_requests,
     })
 

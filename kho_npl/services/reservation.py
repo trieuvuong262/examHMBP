@@ -93,7 +93,11 @@ def release_reservations_for_ycx(*, ycx_code: str) -> int:
 
 @transaction.atomic
 def upsert_reservations_for_khnvl(*, plan) -> list[StockReservation]:
-    """Giữ chỗ theo shortfall KHNVL đã xác nhận (qty_required − inbound, capped by available)."""
+    """Giữ chỗ tồn NPL cho KHNVL đã xác nhận.
+
+    Giữ tối đa phần tồn khả dụng đang có (không thể giữ hàng chưa về). Số thực
+    giữ được ghi lại vào `qty_reserved` của từng dòng KHNVL để biết còn hở bao nhiêu.
+    """
     from san_xuat.hub_models import SxMaterialPlan
 
     if not isinstance(plan, SxMaterialPlan):
@@ -106,26 +110,51 @@ def upsert_reservations_for_khnvl(*, plan) -> list[StockReservation]:
     ).update(status=StockReservation.STATUS_RELEASED)
 
     created: list[StockReservation] = []
+    touched_lines = []
     for line in plan.lines.all():
         qty = (line.qty_required or Decimal("0")).quantize(Decimal("0.001"))
-        if qty <= 0:
-            continue
-        mat = Material.objects.filter(code__iexact=line.material_code, is_active=True).first()
-        if not mat:
-            continue
-        # Chỉ giữ phần có thể cover bằng available hiện tại
-        avail = material_available_qty(mat)
-        hold = min(qty, avail)
-        if hold <= 0:
-            continue
-        created.append(
-            StockReservation.objects.create(
-                material=mat,
-                quantity=hold,
-                ref_type=StockReservation.REF_KHNVL,
-                ref_code=plan.code,
-                status=StockReservation.STATUS_ACTIVE,
-                notes=f"KHNVL {plan.code}",
-            )
-        )
+        hold = Decimal("0")
+        if qty > 0:
+            mat = Material.objects.filter(code__iexact=line.material_code, is_active=True).first()
+            if mat:
+                # Chỉ giữ phần tồn khả dụng đang thực có
+                avail = material_available_qty(mat)
+                hold = min(qty, avail)
+                if hold > 0:
+                    created.append(
+                        StockReservation.objects.create(
+                            material=mat,
+                            quantity=hold,
+                            ref_type=StockReservation.REF_KHNVL,
+                            ref_code=plan.code,
+                            status=StockReservation.STATUS_ACTIVE,
+                            notes=f"KHNVL {plan.code}",
+                        )
+                    )
+        if line.qty_reserved != hold:
+            line.qty_reserved = hold
+            touched_lines.append(line)
+    if touched_lines:
+        type(touched_lines[0]).objects.bulk_update(touched_lines, ["qty_reserved"])
     return created
+
+
+def release_reservations_for_khnvl(*, plan) -> int:
+    """Giải phóng toàn bộ giữ chỗ của một KHNVL (khi hủy kế hoạch)."""
+    from san_xuat.hub_models import SxMaterialPlan
+
+    if not isinstance(plan, SxMaterialPlan):
+        plan = SxMaterialPlan.objects.prefetch_related("lines").get(pk=plan)
+
+    freed = StockReservation.objects.filter(
+        ref_type=StockReservation.REF_KHNVL,
+        ref_code=plan.code,
+        status=StockReservation.STATUS_ACTIVE,
+    ).update(status=StockReservation.STATUS_RELEASED)
+
+    lines = list(plan.lines.exclude(qty_reserved=Decimal("0")))
+    if lines:
+        for ln in lines:
+            ln.qty_reserved = Decimal("0")
+        type(lines[0]).objects.bulk_update(lines, ["qty_reserved"])
+    return freed

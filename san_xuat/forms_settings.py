@@ -59,6 +59,9 @@ class SxGeneralSettingsForm(forms.ModelForm):
             'trace_min_timeline_events',
             'capacity_load_warn_pct',
             'capacity_load_danger_pct',
+            'plan_capacity_mode',
+            'plan_block_over_capacity',
+            'plan_workdays',
             'list_default_date_range_days',
             'oee_shift_hours',
             'ycx_auto_reserve_stock',
@@ -86,6 +89,12 @@ class SxGeneralSettingsForm(forms.ModelForm):
             'trace_min_timeline_events': forms.NumberInput(attrs={'class': 'form-control', 'min': 1, 'max': 20}),
             'capacity_load_warn_pct': forms.NumberInput(attrs={'class': 'form-control', 'min': 1, 'max': 200}),
             'capacity_load_danger_pct': forms.NumberInput(attrs={'class': 'form-control', 'min': 1, 'max': 200}),
+            'plan_capacity_mode': forms.Select(attrs={'class': 'form-select'}),
+            'plan_workdays': forms.TextInput(attrs={
+                'class': 'form-control',
+                'maxlength': 7,
+                'placeholder': '1111110',
+            }),
             'list_default_date_range_days': forms.NumberInput(attrs={'class': 'form-control', 'min': 1, 'max': 90}),
             'oee_shift_hours': forms.NumberInput(attrs={'class': 'form-control', 'min': 1, 'max': 24}),
             'ycx_auto_reserve_stock': _CHECK,
@@ -107,6 +116,18 @@ class SxGeneralSettingsForm(forms.ModelForm):
                 'capacity_load_warn_pct',
                 'Ngưỡng cảnh báo không được lớn hơn ngưỡng quá tải.',
             )
+        raw_days = (cleaned.get('plan_workdays') or '').strip()
+        if raw_days:
+            from san_xuat.services.work_calendar import normalize_workdays
+
+            bits = ''.join(ch for ch in raw_days if ch in '01')
+            if len(bits) != 7 or '1' not in bits:
+                self.add_error(
+                    'plan_workdays',
+                    'Cần đúng 7 ký tự 0/1 (Thứ 2 → Chủ nhật) và có ít nhất một ngày làm việc.',
+                )
+            else:
+                cleaned['plan_workdays'] = normalize_workdays(bits)
         for name in _PREFIX_FIELDS:
             raw = (cleaned.get(name) or '').strip().upper()
             raw = re.sub(r'[^A-Z0-9\-]', '', raw)

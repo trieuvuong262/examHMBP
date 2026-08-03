@@ -431,8 +431,6 @@ def explode_detail_plan_from_overall(
     code: str | None = None,
     name: str = "",
 ) -> SxDetailPlan:
-    from datetime import timedelta
-
     overall = (
         SxOverallPlan.objects.select_for_update()
         .prefetch_related("lines")
@@ -445,9 +443,15 @@ def explode_detail_plan_from_overall(
     if overall.date_from > overall.date_to:
         raise PlanningError("KHTT có kỳ ngày không hợp lệ.")
 
-    num_days = (overall.date_to - overall.date_from).days + 1
-    if num_days <= 0:
-        raise PlanningError("KHTT không có ngày trong kỳ.")
+    from san_xuat.services.work_calendar import working_days
+
+    plan_days = working_days(overall.date_from, overall.date_to)
+    if not plan_days:
+        raise PlanningError(
+            "Kỳ KHTT không có ngày làm việc nào — kiểm tra lịch làm việc "
+            "và ngày nghỉ trong Thiết lập chung."
+        )
+    num_days = len(plan_days)
 
     detail = (
         SxDetailPlan.objects.filter(
@@ -458,7 +462,13 @@ def explode_detail_plan_from_overall(
         .order_by("-id")
         .first()
     )
+    # Giữ lại tổ đã gán tay để refresh không mất công phân tổ
+    kept_teams: dict[tuple, tuple[str, int | None]] = {}
     if detail:
+        for ln in detail.lines.all():
+            if (ln.team_label or "").strip() or ln.work_center_id:
+                key = ((ln.product_code or "").strip().casefold(), ln.plan_date)
+                kept_teams[key] = (ln.team_label or "", ln.work_center_id)
         detail.lines.all().delete()
         detail.date_from = overall.date_from
         detail.date_to = overall.date_to
@@ -482,13 +492,15 @@ def explode_detail_plan_from_overall(
             continue
         daily_qty = (qty_planned / Decimal(num_days)).quantize(Decimal("0.01"))
         remainder = qty_planned - (daily_qty * num_days)
-        for day_offset in range(num_days):
-            plan_date = overall.date_from + timedelta(days=day_offset)
+        for idx, plan_date in enumerate(plan_days):
             qty = daily_qty
-            if day_offset == num_days - 1:
+            if idx == num_days - 1:
                 qty = (qty + remainder).quantize(Decimal("0.01"))
             if qty <= 0:
                 continue
+            team_label, work_center_id = kept_teams.get(
+                ((line.product_code or "").strip().casefold(), plan_date), ("", None)
+            )
             create_lines.append(
                 SxDetailPlanLine(
                     plan=detail,
@@ -496,6 +508,8 @@ def explode_detail_plan_from_overall(
                     product_code=line.product_code,
                     product_name=line.product_name,
                     qty=qty,
+                    team_label=team_label,
+                    work_center_id=work_center_id,
                 )
             )
     if not create_lines:
@@ -533,27 +547,78 @@ class CapacityDayWarning:
     team_label: str = ""
 
 
-def check_detail_plan_capacity(*, plan_id: int) -> list[CapacityDayWarning]:
-    """So sánh tổng SL KHCT theo ngày với tổng NL tổ/ngày (finite capacity)."""
-    from san_xuat.hub_models import SxWorkCenter
+@dataclass
+class DailyCapacity:
+    """Năng lực khả dụng mỗi ngày + cách tính đã dùng."""
 
-    plan = SxDetailPlan.objects.prefetch_related("lines").get(pk=plan_id)
-    centers = list(
-        SxWorkCenter.objects.filter(is_active=True, is_demo=False).order_by("code")
+    capacity: Decimal
+    mode: str
+    bottleneck_label: str = ""
+    center_count: int = 0
+
+    @property
+    def is_bottleneck(self) -> bool:
+        from san_xuat.hub_models import SxGeneralSettings
+
+        return self.mode == SxGeneralSettings.CAP_MODE_BOTTLENECK
+
+
+def resolve_daily_capacity(*, overall_plan_id: int | None = None) -> DailyCapacity:
+    """Năng lực SX / ngày.
+
+    Chế độ `bottleneck` (mặc định): sản phẩm đi tuần tự qua các công đoạn nên
+    năng lực dây chuyền = công đoạn hẹp nhất, không phải tổng các tổ.
+    Chế độ `total`: cộng dồn — chỉ đúng khi các tổ chạy độc lập.
+    """
+    from san_xuat.hub_models import SxGeneralSettings, SxWorkCenter
+
+    cfg = SxGeneralSettings.load()
+    mode = (
+        getattr(cfg, "plan_capacity_mode", SxGeneralSettings.CAP_MODE_BOTTLENECK)
+        or SxGeneralSettings.CAP_MODE_BOTTLENECK
     )
-    total_cap = sum((c.capacity_per_day or Decimal("0") for c in centers), Decimal("0"))
-    if total_cap <= 0:
-        # Fallback: sum capacity_per_day trên dòng KHTT nếu có
-        if plan.overall_plan_id:
-            from san_xuat.hub_models import SxOverallPlanLine
 
-            total_cap = sum(
-                (
-                    ln.capacity_per_day or Decimal("0")
-                    for ln in SxOverallPlanLine.objects.filter(plan_id=plan.overall_plan_id)
-                ),
-                Decimal("0"),
+    centers = [
+        c
+        for c in SxWorkCenter.objects.filter(is_active=True, is_demo=False).order_by("code")
+        if (c.capacity_per_day or Decimal("0")) > 0
+    ]
+    if centers:
+        if mode == SxGeneralSettings.CAP_MODE_TOTAL:
+            cap = sum((c.capacity_per_day for c in centers), Decimal("0"))
+            return DailyCapacity(
+                capacity=cap, mode=mode, bottleneck_label="", center_count=len(centers)
             )
+        narrow = min(centers, key=lambda c: c.capacity_per_day)
+        return DailyCapacity(
+            capacity=narrow.capacity_per_day,
+            mode=mode,
+            bottleneck_label=(narrow.team_label or narrow.name or narrow.code),
+            center_count=len(centers),
+        )
+
+    # Fallback: capacity_per_day khai trên dòng KHTT
+    if overall_plan_id:
+        from san_xuat.hub_models import SxOverallPlanLine
+
+        caps = [
+            ln.capacity_per_day or Decimal("0")
+            for ln in SxOverallPlanLine.objects.filter(plan_id=overall_plan_id)
+            if (ln.capacity_per_day or Decimal("0")) > 0
+        ]
+        if caps:
+            cap = min(caps) if mode == SxGeneralSettings.CAP_MODE_BOTTLENECK else sum(caps, Decimal("0"))
+            return DailyCapacity(capacity=cap, mode=mode, bottleneck_label="(theo KHTT)")
+
+    return DailyCapacity(capacity=Decimal("0"), mode=mode)
+
+
+def check_detail_plan_capacity(*, plan_id: int) -> list[CapacityDayWarning]:
+    """So sánh SL KHCT theo ngày với năng lực khả dụng/ngày (finite capacity)."""
+    plan = SxDetailPlan.objects.prefetch_related("lines").get(pk=plan_id)
+    cap = resolve_daily_capacity(overall_plan_id=plan.overall_plan_id)
+    if cap.capacity <= 0:
+        return []
 
     by_day: dict = {}
     for line in plan.lines.all():
@@ -562,31 +627,182 @@ def check_detail_plan_capacity(*, plan_id: int) -> list[CapacityDayWarning]:
 
     warnings: list[CapacityDayWarning] = []
     for day, qty in sorted(by_day.items()):
-        if total_cap > 0 and qty > total_cap:
+        if qty > cap.capacity:
             warnings.append(
                 CapacityDayWarning(
                     plan_date=day,
                     qty_planned=qty.quantize(Decimal("0.01")),
-                    capacity_total=total_cap.quantize(Decimal("0.01")),
-                    over_by=(qty - total_cap).quantize(Decimal("0.01")),
+                    capacity_total=cap.capacity.quantize(Decimal("0.01")),
+                    over_by=(qty - cap.capacity).quantize(Decimal("0.01")),
+                    team_label=cap.bottleneck_label,
                 )
             )
     return warnings
 
 
-def assign_detail_plan_work_centers(*, plan_id: int) -> int:
-    """Gán tổ NL round-robin vào dòng KHCT chưa có team (MVP)."""
+@transaction.atomic
+def cancel_plan(*, model, plan_id: int, reason: str = "") -> object:
+    """Hủy KHTT / KHCT / KHNVL (chỉ khi chưa hoàn thành)."""
+    plan = model.objects.select_for_update().get(pk=plan_id)
+    if plan.status == SxOverallPlan.STATUS_CANCELLED:
+        raise PlanningError("Kế hoạch đã hủy trước đó.")
+    if plan.status == SxOverallPlan.STATUS_DONE:
+        raise PlanningError("Kế hoạch đã hoàn thành — không thể hủy.")
+    plan.status = SxOverallPlan.STATUS_CANCELLED
+    note = f"Hủy: {reason.strip()}" if (reason or "").strip() else "Đã hủy kế hoạch."
+    plan.notes = f"{plan.notes}\n{note}".strip() if plan.notes else note
+    plan.save(update_fields=["status", "notes"])
+    if model is SxMaterialPlan:
+        from kho_npl.services.reservation import release_reservations_for_khnvl
+
+        release_reservations_for_khnvl(plan=plan)
+    return plan
+
+
+@transaction.atomic
+def close_plan(*, model, plan_id: int) -> object:
+    """Đóng (hoàn thành) kế hoạch — chỉ từ trạng thái đã xác nhận."""
+    plan = model.objects.select_for_update().get(pk=plan_id)
+    if plan.status != SxOverallPlan.STATUS_CONFIRMED:
+        raise PlanningError("Chỉ đóng kế hoạch đã xác nhận.")
+    plan.status = SxOverallPlan.STATUS_DONE
+    plan.save(update_fields=["status"])
+    return plan
+
+
+def detail_plan_progress(plan) -> dict:
+    """Tiến độ KHCT theo LSX đã sinh."""
+    if not isinstance(plan, SxDetailPlan):
+        plan = SxDetailPlan.objects.prefetch_related("lines", "production_orders").get(pk=plan)
+    plan_qty = sum((ln.qty or Decimal("0") for ln in plan.lines.all()), Decimal("0"))
+    mos = [mo for mo in plan.production_orders.all() if not mo.is_demo]
+    mo_total = len(mos)
+    done_qty = sum((mo.qty_done or Decimal("0") for mo in mos), Decimal("0"))
+    from san_xuat.hub_models import SxProductionOrder as _MO
+
+    mo_done = sum(1 for mo in mos if mo.status == _MO.STATUS_DONE)
+    mo_open = sum(
+        1
+        for mo in mos
+        if mo.status in (_MO.STATUS_DRAFT, _MO.STATUS_RELEASED, _MO.STATUS_IN_PROGRESS)
+    )
+    pct = (done_qty / plan_qty * Decimal("100")) if plan_qty > 0 else Decimal("0")
+    return {
+        "plan_qty": plan_qty.quantize(Decimal("0.01")),
+        "done_qty": done_qty.quantize(Decimal("0.01")),
+        "percent": pct.quantize(Decimal("0.1")),
+        "mo_total": mo_total,
+        "mo_done": mo_done,
+        "mo_open": mo_open,
+        "all_mo_done": bool(mo_total) and mo_open == 0,
+    }
+
+
+def maybe_close_detail_plan(plan_or_id) -> bool:
+    """Tự đóng KHCT khi mọi LSX đã hoàn thành. Trả True nếu vừa đóng."""
+    plan = plan_or_id
+    if not isinstance(plan, SxDetailPlan):
+        plan = SxDetailPlan.objects.filter(pk=plan_or_id).first()
+    if plan is None or plan.status != SxOverallPlan.STATUS_CONFIRMED:
+        return False
+    progress = detail_plan_progress(plan)
+    if not progress["all_mo_done"]:
+        return False
+    plan.status = SxOverallPlan.STATUS_DONE
+    plan.save(update_fields=["status"])
+    maybe_close_overall_plan(plan.overall_plan_id)
+    return True
+
+
+def maybe_close_overall_plan(overall_plan_id: int | None) -> bool:
+    """Tự đóng KHTT khi mọi KHCT thuộc nó đã hoàn thành/hủy."""
+    if not overall_plan_id:
+        return False
+    overall = SxOverallPlan.objects.filter(pk=overall_plan_id).first()
+    if overall is None or overall.status != SxOverallPlan.STATUS_CONFIRMED:
+        return False
+    details = list(SxDetailPlan.objects.filter(overall_plan=overall, is_demo=False))
+    if not details:
+        return False
+    open_states = (SxOverallPlan.STATUS_DRAFT, SxOverallPlan.STATUS_CONFIRMED)
+    if any(d.status in open_states for d in details):
+        return False
+    overall.status = SxOverallPlan.STATUS_DONE
+    overall.save(update_fields=["status"])
+    return True
+
+
+def _work_center_by_product_routing(product_code: str):
+    """Tổ phụ trách công đoạn đầu tiên theo routing/BOM của mã SP."""
+    code = (product_code or "").strip()
+    if not code:
+        return None
+    doc = ProductTechDoc.objects.filter(product_code__iexact=code, is_active=True).first()
+    if not doc:
+        doc = ProductTechDoc.objects.filter(product_code__iexact=code).first()
+    if not doc:
+        return None
+    bom = get_active_bom(doc)
+    if bom:
+        step = (
+            bom.process_steps.select_related("work_center")
+            .filter(work_center__isnull=False)
+            .order_by("sequence", "id")
+            .first()
+        )
+        if step and step.work_center and step.work_center.is_active:
+            return step.work_center
+    routing = getattr(bom, "routing", None) if bom else None
+    if routing:
+        rline = (
+            routing.lines.select_related("work_center")
+            .filter(work_center__isnull=False)
+            .order_by("seq_no")
+            .first()
+        )
+        if rline and rline.work_center and rline.work_center.is_active:
+            return rline.work_center
+    return None
+
+
+@transaction.atomic
+def assign_detail_plan_work_centers(*, plan_id: int, overwrite: bool = False) -> int:
+    """Gán tổ cho dòng KHCT.
+
+    Ưu tiên tổ phụ trách công đoạn đầu theo routing/BOM của mã SP; mã nào chưa
+    khai routing thì chia luân phiên (round-robin) trên các tổ đang hoạt động.
+    """
     from san_xuat.hub_models import SxWorkCenter
 
-    plan = SxDetailPlan.objects.prefetch_related("lines").get(pk=plan_id)
+    plan = SxDetailPlan.objects.select_for_update().prefetch_related("lines").get(pk=plan_id)
+    if plan.status != SxOverallPlan.STATUS_DRAFT:
+        raise PlanningError("Chỉ phân tổ khi KHCT đang nháp.")
+
     centers = list(
-        SxWorkCenter.objects.filter(is_active=True, is_demo=False).order_by("code")
+        SxWorkCenter.objects.filter(is_active=True, is_demo=False)
+        .exclude(capacity_per_day__lte=0)
+        .order_by("code")
     )
     if not centers:
-        return 0
+        raise PlanningError(
+            "Chưa có tổ nào đang hoạt động có năng lực > 0 — khai báo tại Năng lực SX."
+        )
+
+    rows = plan.lines.all().order_by("plan_date", "id")
+    if not overwrite:
+        rows = rows.filter(team_label="", work_center__isnull=True)
+
+    routing_cache: dict[str, object] = {}
     updated = 0
-    for idx, line in enumerate(plan.lines.filter(team_label="").order_by("plan_date", "id")):
-        wc = centers[idx % len(centers)]
+    rr = 0
+    for line in rows:
+        key = (line.product_code or "").strip().casefold()
+        if key not in routing_cache:
+            routing_cache[key] = _work_center_by_product_routing(line.product_code)
+        wc = routing_cache[key]
+        if wc is None:
+            wc = centers[rr % len(centers)]
+            rr += 1
         line.work_center = wc
         line.team_label = wc.team_label or wc.name
         line.save(update_fields=["work_center", "team_label"])
@@ -595,24 +811,32 @@ def assign_detail_plan_work_centers(*, plan_id: int) -> int:
 
 
 @transaction.atomic
-def confirm_detail_plan(*, plan_id: int, allow_over_capacity: bool = True) -> SxDetailPlan:
+def confirm_detail_plan(*, plan_id: int, allow_over_capacity: bool | None = None) -> SxDetailPlan:
+    from san_xuat.services.sx_settings import sx_bool
+
     plan = SxDetailPlan.objects.select_for_update().prefetch_related("lines").get(pk=plan_id)
     if plan.status != SxOverallPlan.STATUS_DRAFT:
         raise PlanningError("KHCT đã xác nhận hoặc không ở trạng thái nháp.")
     if not plan.lines.exists():
         raise PlanningError("KHCT phải có ít nhất một dòng theo ngày.")
+
+    if allow_over_capacity is None:
+        allow_over_capacity = not sx_bool("plan_block_over_capacity", True)
+
     over = check_detail_plan_capacity(plan_id=plan.pk)
     if over and not allow_over_capacity:
         first = over[0]
+        where = f" tại {first.team_label}" if first.team_label else ""
         raise PlanningError(
-            f"KHCT vượt năng lực ngày {first.plan_date}: "
-            f"kế hoạch {first.qty_planned} > NL {first.capacity_total} "
-            f"(dư {first.over_by})."
+            f"KHCT vượt năng lực ngày {first.plan_date:%d/%m/%Y}{where}: "
+            f"kế hoạch {first.qty_planned} > năng lực {first.capacity_total} "
+            f"(dư {first.over_by}). Giãn kỳ kế hoạch, giảm sản lượng, "
+            f"hoặc tắt chặn tại Thiết lập chung."
         )
     if over:
         note = (
-            f"Cảnh báo NL: {len(over)} ngày vượt capacity "
-            f"(vd {over[0].plan_date}: +{over[0].over_by})."
+            f"Cảnh báo NL: {len(over)} ngày vượt năng lực "
+            f"(vd {over[0].plan_date:%d/%m/%Y}: +{over[0].over_by})."
         )
         plan.notes = f"{plan.notes}\n{note}".strip() if plan.notes else note
     plan.status = SxOverallPlan.STATUS_CONFIRMED

@@ -125,6 +125,22 @@
             <a href="{% url 'san_xuat:plan_npl_create' %}?overall={{ plan.pk }}" class="btn btn-outline-hm">
               <i class="bi bi-box-seam" aria-hidden="true"></i>KH NPL
             </a>
+            {% if can_update %}
+            <form method="post" class="d-inline-flex m-0" onsubmit="return confirm('Đóng kế hoạch tổng thể này?');">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="close">
+              <button type="submit" class="btn btn-outline-primary">
+                <i class="bi bi-check2-all" aria-hidden="true"></i>Đóng KH
+              </button>
+            </form>
+            <form method="post" class="d-inline-flex m-0" onsubmit="return confirm('Hủy kế hoạch tổng thể này?');">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="cancel">
+              <button type="submit" class="btn btn-outline-danger">
+                <i class="bi bi-x-circle" aria-hidden="true"></i>Hủy KH
+              </button>
+            </form>
+            {% endif %}
           </div>
         </div>
         {% elif can_update and plan.status == 'draft' %}
@@ -136,6 +152,13 @@
               <input type="hidden" name="action" value="confirm">
               <button type="submit" class="btn btn-hm">
                 <i class="bi bi-check2-circle" aria-hidden="true"></i>Xác nhận KHTT
+              </button>
+            </form>
+            <form method="post" class="d-inline-flex m-0" onsubmit="return confirm('Hủy kế hoạch tổng thể này?');">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="cancel">
+              <button type="submit" class="btn btn-outline-danger">
+                <i class="bi bi-x-circle" aria-hidden="true"></i>Hủy KH
               </button>
             </form>
           </div>

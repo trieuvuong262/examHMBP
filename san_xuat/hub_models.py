@@ -154,6 +154,13 @@ class SxMaterialPlanLine(models.Model):
     qty_expected_inbound = models.DecimalField(
         max_digits=14, decimal_places=4, default=Decimal('0'), verbose_name='Dự kiến về (PO mở)',
     )
+    qty_reserved = models.DecimalField(
+        max_digits=14,
+        decimal_places=4,
+        default=Decimal('0'),
+        verbose_name='Đã giữ chỗ',
+        help_text='Số lượng thực tế giữ được trong kho khi xác nhận kế hoạch.',
+    )
 
     class Meta:
         ordering = ['id']
@@ -1174,6 +1181,22 @@ class SxOrderPlanCostLineExtra(models.Model):
 # --- Giai đoạn 3 / ops (0014–0018) ---
 
 
+class SxHoliday(models.Model):
+    """Ngày nghỉ / lễ — loại khỏi lịch phân bổ kế hoạch chi tiết."""
+
+    holiday_date = models.DateField(unique=True, verbose_name='Ngày nghỉ')
+    name = models.CharField(max_length=120, blank=True, default='', verbose_name='Nội dung')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['holiday_date']
+        verbose_name = 'Ngày nghỉ sản xuất'
+        verbose_name_plural = 'Ngày nghỉ sản xuất'
+
+    def __str__(self):
+        return f'{self.holiday_date:%d/%m/%Y} {self.name}'.strip()
+
+
 class SxWorkCenter(DemoMarkedModel):
     code = models.CharField(max_length=40, unique=True, verbose_name='Mã tổ/chuyền')
     name = models.CharField(max_length=120)
@@ -1765,6 +1788,38 @@ class SxGeneralSettings(models.Model):
     )
     list_default_date_range_days = models.PositiveSmallIntegerField(
         default=3, verbose_name='Số ngày lọc danh sách mặc định',
+    )
+
+    # --- Lập kế hoạch (P1) ---
+    CAP_MODE_BOTTLENECK = 'bottleneck'
+    CAP_MODE_TOTAL = 'total'
+    CAP_MODE_CHOICES = [
+        (
+            CAP_MODE_BOTTLENECK,
+            'Công đoạn hẹp nhất (đúng dây chuyền) — khuyến nghị',
+        ),
+        (CAP_MODE_TOTAL, 'Tổng năng lực các tổ (chỉ khi các tổ chạy độc lập)'),
+    ]
+    plan_capacity_mode = models.CharField(
+        max_length=20,
+        choices=CAP_MODE_CHOICES,
+        default=CAP_MODE_BOTTLENECK,
+        verbose_name='Cách tính năng lực khi lập kế hoạch',
+        help_text=(
+            'Sản phẩm đi tuần tự qua các công đoạn nên năng lực dây chuyền '
+            'bằng công đoạn hẹp nhất, không phải tổng các tổ.'
+        ),
+    )
+    plan_block_over_capacity = models.BooleanField(
+        default=True,
+        verbose_name='Chặn xác nhận kế hoạch chi tiết khi vượt năng lực',
+        help_text='Tắt = chỉ ghi cảnh báo vào ghi chú kế hoạch.',
+    )
+    plan_workdays = models.CharField(
+        max_length=7,
+        default='1111110',
+        verbose_name='Ngày làm việc trong tuần',
+        help_text='7 ký tự 0/1 theo Thứ 2 → Chủ nhật. Mặc định 1111110 = nghỉ Chủ nhật.',
     )
 
     # --- Kho & tích hợp ---

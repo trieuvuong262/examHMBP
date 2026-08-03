@@ -1,12 +1,31 @@
 {% extends 'base.html' %}
 
-{% block extra_head %}{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}{% endblock %}
+{% block extra_head %}{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+<style>
+  .jp-plan-off { background: #f8fafc; color: #cbd5e1; }
+  .jp-plan-over { background: #fee2e2; color: #991b1b; font-weight: 700; }
+  .jp-plan-kpi { display: flex; flex-wrap: wrap; gap: .75rem; }
+  .jp-plan-kpi > div {
+    flex: 1 1 160px; border: 1px solid #e9edf2; border-radius: .6rem;
+    padding: .6rem .8rem; background: #fbfcfe;
+  }
+  .jp-plan-kpi .lbl { font-size: .72rem; color: #64748b; text-transform: uppercase; }
+  .jp-plan-kpi .val { font-size: 1.05rem; font-weight: 700; color: #1f2937; }
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
   <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
     <div class="jp-sx-detail-title">
-      <h2 class="jp-npl-mat-topbar-title w-100">{{ detail_plan.code }}</h2>
+      <h2 class="jp-npl-mat-topbar-title w-100">
+        {{ detail_plan.code }}
+        {% if detail_plan.status == 'draft' %}<span class="badge bg-secondary-subtle text-secondary-emphasis">Nháp</span>
+        {% elif detail_plan.status == 'confirmed' %}<span class="badge bg-success-subtle text-success">Đã xác nhận</span>
+        {% elif detail_plan.status == 'done' %}<span class="badge bg-primary-subtle text-primary">Hoàn thành</span>
+        {% elif detail_plan.status == 'cancelled' %}<span class="badge bg-danger-subtle text-danger">Đã hủy</span>
+        {% endif %}
+      </h2>
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
       <span class="sep" aria-hidden="true"></span>
@@ -14,28 +33,104 @@
     </nav>
   </div>
 
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-body">
+      <div class="jp-plan-kpi">
+        <div>
+          <div class="lbl">Năng lực / ngày</div>
+          <div class="val">{{ capacity_info.capacity|floatformat:"-2" }}</div>
+          <div class="small text-muted">
+            {% if capacity_info.is_bottleneck %}
+              Công đoạn hẹp nhất{% if capacity_info.bottleneck_label %}: {{ capacity_info.bottleneck_label }}{% endif %}
+            {% else %}
+              Tổng {{ capacity_info.center_count }} tổ
+            {% endif %}
+          </div>
+        </div>
+        <div>
+          <div class="lbl">Ngày làm việc</div>
+          <div class="val">{{ dates|length }} ngày lịch</div>
+          <div class="small text-muted">
+            {{ workdays_labels|join:", " }}{% if holiday_count %} · {{ holiday_count }} ngày nghỉ lễ{% endif %}
+          </div>
+        </div>
+        <div>
+          <div class="lbl">Phân tổ</div>
+          <div class="val">
+            {% if lines_without_team %}{{ lines_without_team }}/{{ lines_total }} chưa có tổ{% else %}Đủ tổ{% endif %}
+          </div>
+          <div class="small text-muted">{{ lines_total }} dòng kế hoạch</div>
+        </div>
+        <div>
+          <div class="lbl">Tiến độ</div>
+          <div class="val">{{ plan_progress.percent }}%</div>
+          <div class="small text-muted">
+            {{ plan_progress.done_qty }}/{{ plan_progress.plan_qty }} ·
+            LSX {{ plan_progress.mo_done }}/{{ plan_progress.mo_total }} xong
+          </div>
+        </div>
+      </div>
+
+      {% if capacity_warnings %}
+      <div class="alert alert-warning border-0 mt-3 mb-0 py-2 small">
+        <i class="bi bi-exclamation-triangle-fill me-1"></i>
+        <strong>{{ capacity_warnings|length }} ngày vượt năng lực.</strong>
+        Ví dụ {{ capacity_warnings.0.plan_date|date:"d/m/Y" }}:
+        kế hoạch {{ capacity_warnings.0.qty_planned }} &gt; năng lực {{ capacity_warnings.0.capacity_total }}
+        (dư {{ capacity_warnings.0.over_by }}). Giãn kỳ kế hoạch hoặc giảm sản lượng.
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
   <div class="d-flex flex-wrap gap-2 mb-3">
-    {% if can_update %}
+    {% if can_update and detail_plan.status == 'draft' %}
     <form method="post" class="d-inline">
       {% csrf_token %}
       <input type="hidden" name="action" value="refresh">
       <button type="submit" class="btn btn-outline-secondary btn-sm">Cập nhật phân bổ</button>
     </form>
-    {% if detail_plan.status == 'draft' %}
+    <form method="post" class="d-inline">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="assign_teams">
+      <button type="submit" class="btn btn-outline-hm btn-sm">
+        <i class="bi bi-people me-1"></i>Phân tổ tự động
+      </button>
+    </form>
+    <form method="post" class="d-inline"
+          onsubmit="return confirm('Phân lại tổ cho TẤT CẢ dòng, ghi đè tổ đã gán?');">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="assign_teams">
+      <input type="hidden" name="overwrite" value="1">
+      <button type="submit" class="btn btn-outline-secondary btn-sm">Phân lại toàn bộ</button>
+    </form>
     <form method="post" class="d-inline">
       {% csrf_token %}
       <input type="hidden" name="action" value="confirm">
       <button type="submit" class="btn btn-hm btn-sm">Xác nhận kế hoạch chi tiết</button>
     </form>
     {% endif %}
-    {% endif %}
+
     {% if can_update and detail_plan.status == 'confirmed' %}
     <form method="post" class="d-inline">
       {% csrf_token %}
       <input type="hidden" name="action" value="generate_mos">
       <button type="submit" class="btn btn-hm btn-sm">Sinh Lệnh sản xuất từ kế hoạch chi tiết</button>
     </form>
-    <a href="{% url 'san_xuat:dispatch_schedule' %}" class="btn btn-outline-hm btn-sm">Lịch SX (D4)</a>
+    <a href="{% url 'san_xuat:dispatch_schedule' %}" class="btn btn-outline-hm btn-sm">Lịch SX</a>
+    <form method="post" class="d-inline" onsubmit="return confirm('Đóng kế hoạch chi tiết này?');">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="close">
+      <button type="submit" class="btn btn-outline-primary btn-sm">Đóng kế hoạch</button>
+    </form>
+    {% endif %}
+
+    {% if can_update and detail_plan.status != 'done' and detail_plan.status != 'cancelled' %}
+    <form method="post" class="d-inline" onsubmit="return confirm('Hủy kế hoạch chi tiết này?');">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="cancel">
+      <button type="submit" class="btn btn-outline-danger btn-sm">Hủy kế hoạch</button>
+    </form>
     {% endif %}
   </div>
 
@@ -46,8 +141,9 @@
           <tr>
             <th class="sticky-start bg-light">Mã sản phẩm</th>
             <th>Tên</th>
-            {% for dt in dates %}
-            <th class="text-end small">{{ dt|date:"d/m" }}</th>
+            <th>Tổ</th>
+            {% for item in date_totals %}
+            <th class="text-end small {% if item.is_off %}jp-plan-off{% endif %}">{{ item.date|date:"d/m" }}</th>
             {% endfor %}
             <th class="text-end">Tổng</th>
           </tr>
@@ -57,21 +153,24 @@
           <tr>
             <td class="sticky-start bg-white"><strong>{{ row.code }}</strong></td>
             <td class="small">{{ row.name|default:"—" }}</td>
+            <td class="small">
+              {% if row.teams %}{{ row.teams|join:", " }}{% else %}<span class="text-muted">—</span>{% endif %}
+            </td>
             {% for cell in row.cells %}
-            <td class="text-end small">{% if cell.qty %}{{ cell.qty }}{% else %}—{% endif %}</td>
+            <td class="text-end small {% if cell.is_off %}jp-plan-off{% endif %}">{% if cell.qty %}{{ cell.qty }}{% else %}—{% endif %}</td>
             {% endfor %}
             <td class="text-end fw-semibold">{{ row.total }}</td>
           </tr>
         {% empty %}
-          <tr><td colspan="{{ dates|length|add:3 }}" class="text-muted small p-3">Chưa có dòng theo ngày.</td></tr>
+          <tr><td colspan="{{ dates|length|add:4 }}" class="text-muted small p-3">Chưa có dòng theo ngày.</td></tr>
         {% endfor %}
         </tbody>
         {% if product_rows %}
         <tfoot class="table-light">
           <tr>
-            <th colspan="2" class="small">Tổng theo ngày</th>
+            <th colspan="3" class="small">Tổng theo ngày</th>
             {% for item in date_totals %}
-            <th class="text-end small">{{ item.total }}</th>
+            <th class="text-end small {% if item.is_over %}jp-plan-over{% elif item.is_off %}jp-plan-off{% endif %}">{{ item.total }}</th>
             {% endfor %}
             <th></th>
           </tr>
@@ -79,17 +178,22 @@
         {% endif %}
       </table>
     </div>
+    <div class="card-footer bg-white border-top small text-muted">
+      Ô nền xám = ngày nghỉ (không phân bổ) · Ô nền đỏ = tổng ngày vượt năng lực
+    </div>
   </div>
 
   {% if production_orders %}
   <div class="card border-0 shadow-sm mt-3">
     <div class="card-body">
-      <div class="small text-muted mb-2">Lệnh sản xuất từ kế hoạch chi tiết (D4+)</div>
+      <div class="small text-muted mb-2">Lệnh sản xuất từ kế hoạch chi tiết</div>
       <ul class="mb-0">
       {% for mo in production_orders %}
         <li>
           <a href="{% url 'san_xuat:dispatch_mo_detail' mo.pk %}">{{ mo.code }}</a>
-          — {{ mo.product_code }} · {{ mo.planned_start|date:"d/m/Y" }} · {{ mo.get_status_display }}
+          — {{ mo.product_code }} · {{ mo.planned_start|date:"d/m/Y" }}
+          {% if mo.team_label %}· {{ mo.team_label }}{% endif %}
+          · {{ mo.get_status_display }}
         </li>
       {% endfor %}
       </ul>
