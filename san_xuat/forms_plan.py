@@ -19,6 +19,10 @@ class OverallPlanCreateForm(forms.Form):
         label="Tên kế hoạch",
         widget=forms.TextInput(attrs={"class": "form-control form-control-sm"}),
     )
+    plan_method = forms.ChoiceField(
+        label="Phương án sản xuất",
+        widget=forms.RadioSelect(attrs={"class": "form-check-input"}),
+    )
     date_from = forms.DateField(
         label="Từ ngày",
         widget=forms.DateInput(attrs=_DATE_SM),
@@ -27,11 +31,176 @@ class OverallPlanCreateForm(forms.Form):
         label="Đến ngày",
         widget=forms.DateInput(attrs=_DATE_SM),
     )
+    mps_bucket = forms.ChoiceField(
+        required=False,
+        label="Chu kỳ lịch trình (MPS)",
+        widget=forms.Select(attrs={"class": "form-select form-select-sm"}),
+    )
+    frozen_until = forms.DateField(
+        required=False,
+        label="Đóng băng đến ngày (MPS)",
+        widget=forms.DateInput(attrs=_DATE_SM),
+    )
+    apply_netting = forms.BooleanField(
+        required=False,
+        initial=True,
+        label="Trừ tồn thành phẩm và hàng đang sản xuất",
+        widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
+    )
     notes = forms.CharField(
         required=False,
         label="Ghi chú",
         widget=forms.Textarea(attrs={"class": "form-control form-control-sm", "rows": 3}),
     )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from san_xuat.hub_models import SxOverallPlan
+
+        self.fields["plan_method"].choices = SxOverallPlan.METHOD_CHOICES
+        self.fields["mps_bucket"].choices = SxOverallPlan.BUCKET_CHOICES
+        if not self.is_bound:
+            self.fields["plan_method"].initial = SxOverallPlan.METHOD_MTO
+            self.fields["mps_bucket"].initial = SxOverallPlan.BUCKET_WEEK
+
+    def clean(self):
+        cleaned = super().clean()
+        from san_xuat.hub_models import SxOverallPlan
+
+        date_from = cleaned.get("date_from")
+        date_to = cleaned.get("date_to")
+        if date_from and date_to and date_from > date_to:
+            self.add_error("date_to", "Ngày kết thúc phải sau ngày bắt đầu.")
+        frozen = cleaned.get("frozen_until")
+        if frozen:
+            if cleaned.get("plan_method") != SxOverallPlan.METHOD_MPS:
+                cleaned["frozen_until"] = None
+            elif date_to and frozen > date_to:
+                self.add_error("frozen_until", "Không được vượt quá ngày kết thúc kỳ.")
+        return cleaned
+
+
+class MtoLoadOrdersForm(forms.Form):
+    """Chọn nhiều đơn đặt hàng KiotViet để nạp nhu cầu."""
+
+    kv_order_ids = forms.CharField(
+        label="Đơn đặt hàng",
+        widget=forms.HiddenInput(),
+        help_text="Danh sách id đơn KiotViet, phân tách bằng dấu phẩy.",
+    )
+    replace = forms.BooleanField(
+        required=False,
+        initial=True,
+        label="Thay toàn bộ dòng hiện có",
+        widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
+    )
+
+    def clean_kv_order_ids(self):
+        raw = (self.cleaned_data.get("kv_order_ids") or "").strip()
+        ids = [p.strip() for p in raw.replace(";", ",").split(",") if p.strip()]
+        bad = [p for p in ids if not p.isdigit()]
+        if bad:
+            raise forms.ValidationError("Danh sách đơn không hợp lệ.")
+        if not ids:
+            raise forms.ValidationError("Chọn ít nhất một đơn đặt hàng.")
+        return [int(p) for p in ids]
+
+
+class MtsLoadForm(forms.Form):
+    """Chọn mã SP thiếu tồn để nạp vào kế hoạch."""
+
+    product_codes = forms.CharField(
+        required=False,
+        label="Mã sản phẩm",
+        widget=forms.HiddenInput(),
+        help_text="Để trống = lấy toàn bộ mã đang dưới mức tồn tối thiểu.",
+    )
+    replace = forms.BooleanField(
+        required=False,
+        initial=True,
+        label="Thay toàn bộ dòng hiện có",
+        widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
+    )
+
+    def clean_product_codes(self):
+        raw = (self.cleaned_data.get("product_codes") or "").strip()
+        if not raw:
+            return []
+        return [p.strip() for p in raw.replace(";", ",").split(",") if p.strip()]
+
+
+class MpsLineForm(forms.Form):
+    """Nhập một ô lịch trình chủ (mã SP × kỳ)."""
+
+    product_code = forms.CharField(
+        max_length=60,
+        label="Mã SP",
+        widget=forms.TextInput(attrs={"class": "form-control form-control-sm", "placeholder": "VD: SP008073"}),
+    )
+    bucket_start = forms.DateField(
+        label="Kỳ",
+        widget=forms.DateInput(attrs=_DATE_SM),
+    )
+    qty = forms.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        min_value=Decimal("0.01"),
+        label="Sản lượng",
+        widget=forms.NumberInput(attrs={"class": "form-control form-control-sm", "step": "0.01", "min": "0.01"}),
+    )
+
+
+class StockPolicyForm(forms.Form):
+    """Chính sách tồn thành phẩm (MTS)."""
+
+    product_code = forms.CharField(
+        max_length=60,
+        label="Mã sản phẩm",
+        widget=forms.TextInput(attrs={"class": "form-control form-control-sm", "placeholder": "VD: SP008073"}),
+    )
+    product_name = forms.CharField(
+        required=False,
+        max_length=255,
+        label="Tên sản phẩm",
+        widget=forms.TextInput(attrs={"class": "form-control form-control-sm"}),
+    )
+    min_stock = forms.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        min_value=Decimal("0"),
+        label="Tồn tối thiểu",
+        widget=forms.NumberInput(attrs={"class": "form-control form-control-sm", "step": "1", "min": "0"}),
+    )
+    max_stock = forms.DecimalField(
+        required=False,
+        max_digits=14,
+        decimal_places=2,
+        min_value=Decimal("0"),
+        label="Tồn mục tiêu",
+        widget=forms.NumberInput(attrs={"class": "form-control form-control-sm", "step": "1", "min": "0"}),
+    )
+    lead_time_days = forms.IntegerField(
+        required=False,
+        min_value=0,
+        max_value=365,
+        initial=0,
+        label="Thời gian chờ (ngày)",
+        widget=forms.NumberInput(attrs={"class": "form-control form-control-sm", "min": "0"}),
+    )
+    is_active = forms.BooleanField(
+        required=False,
+        initial=True,
+        label="Đang áp dụng",
+        widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
+    )
+
+    def clean(self):
+        cleaned = super().clean()
+        min_stock = cleaned.get("min_stock") or Decimal("0")
+        max_stock = cleaned.get("max_stock") or Decimal("0")
+        if max_stock and max_stock < min_stock:
+            self.add_error("max_stock", "Tồn mục tiêu phải lớn hơn hoặc bằng tồn tối thiểu.")
+        return cleaned
 
 
 class OverallPlanLineForm(forms.Form):

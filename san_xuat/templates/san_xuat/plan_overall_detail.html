@@ -168,12 +168,29 @@
 
       <div class="jp-sx-plan-meta">
         <div>
+          <div class="label">Phương án</div>
+          <div class="value">
+            {% if is_mto %}MTO — theo đơn đặt hàng
+            {% elif is_mts %}MTS — bù tồn kho
+            {% else %}MPS — lịch trình chủ{% endif %}
+          </div>
+        </div>
+        <div>
           <div class="label">Kỳ kế hoạch</div>
           <div class="value">{{ plan.date_from|date:"d/m/Y" }} – {{ plan.date_to|date:"d/m/Y" }}</div>
         </div>
+        {% if is_mps %}
         <div>
-          <div class="label">Nguồn</div>
-          <div class="value">{{ plan.get_source_display }}</div>
+          <div class="label">Chu kỳ / đóng băng</div>
+          <div class="value">
+            {{ plan.get_mps_bucket_display }}
+            {% if plan.frozen_until %}· đến {{ plan.frozen_until|date:"d/m/Y" }}{% endif %}
+          </div>
+        </div>
+        {% endif %}
+        <div>
+          <div class="label">Trừ tồn &amp; đang SX</div>
+          <div class="value">{% if plan.apply_netting %}Có{% else %}Không{% endif %}</div>
         </div>
         <div>
           <div class="label">Dòng sản phẩm</div>
@@ -184,6 +201,17 @@
           <div class="value">{{ plan.created_at|date:"d/m/Y H:i" }}</div>
         </div>
       </div>
+
+      {% if has_netting_data %}
+      <div class="mt-3 pt-3 border-top">
+        <div class="d-flex flex-wrap gap-3 small">
+          <span class="text-muted">Nhu cầu gộp: <strong class="text-dark">{{ line_totals.gross|floatformat:"-2" }}</strong></span>
+          <span class="text-muted">− Tồn TP: <strong class="text-success">{{ line_totals.on_hand|floatformat:"-2" }}</strong></span>
+          <span class="text-muted">− Đang SX: <strong class="text-primary">{{ line_totals.wip|floatformat:"-2" }}</strong></span>
+          <span class="text-muted">= Cần sản xuất: <strong class="text-hm">{{ line_totals.planned|floatformat:"-2" }}</strong></span>
+        </div>
+      </div>
+      {% endif %}
 
       {% if plan.notes %}
       <div class="mt-3 pt-3 border-top">
@@ -209,9 +237,12 @@
                 <tr>
                   <th>Mã sản phẩm</th>
                   <th>Tên</th>
-                  <th class="text-end">SL YC</th>
-                  <th class="text-end">SL KH</th>
-                  <th>Đơn KV</th>
+                  <th class="text-end">Nhu cầu gộp</th>
+                  <th class="text-end">Tồn TP</th>
+                  <th class="text-end">Đang SX</th>
+                  <th class="text-end">Cần SX</th>
+                  {% if is_mps %}<th>Kỳ</th>{% else %}<th>Hạn giao</th>{% endif %}
+                  {% if is_mto %}<th>Đơn KV</th>{% endif %}
                 </tr>
               </thead>
               <tbody>
@@ -219,19 +250,95 @@
                 <tr>
                   <td><strong>{{ line.product_code }}</strong></td>
                   <td class="small">{{ line.product_name|default:"—" }}</td>
-                  <td class="text-end">{{ line.qty_required }}</td>
-                  <td class="text-end">{{ line.qty_planned }}</td>
+                  <td class="text-end">{{ line.qty_gross|floatformat:"-2" }}</td>
+                  <td class="text-end {% if line.qty_on_hand %}text-success{% else %}text-muted{% endif %}">
+                    {% if line.qty_on_hand %}−{{ line.qty_on_hand|floatformat:"-2" }}{% else %}—{% endif %}
+                  </td>
+                  <td class="text-end {% if line.qty_wip %}text-primary{% else %}text-muted{% endif %}">
+                    {% if line.qty_wip %}−{{ line.qty_wip|floatformat:"-2" }}{% else %}—{% endif %}
+                  </td>
+                  <td class="text-end fw-semibold">{{ line.qty_planned|floatformat:"-2" }}</td>
+                  <td class="small">
+                    {% if is_mps %}
+                      {% if line.bucket_start %}{{ line.bucket_start|date:"d/m/Y" }}{% else %}—{% endif %}
+                    {% else %}
+                      {% if line.due_date %}{{ line.due_date|date:"d/m/Y" }}{% else %}—{% endif %}
+                    {% endif %}
+                  </td>
+                  {% if is_mto %}
                   <td class="small">{% if line.kv_order_code %}{{ line.kv_order_code }}{% else %}—{% endif %}</td>
+                  {% endif %}
                 </tr>
               {% endfor %}
               </tbody>
             </table>
           </div>
           {% else %}
-          <div class="text-muted small py-2">Chưa có dòng SP.</div>
+          <div class="text-muted small py-2">
+            Chưa có dòng SP —
+            {% if is_mto %}chọn đơn đặt hàng ở bảng bên để nạp nhu cầu.
+            {% elif is_mts %}nạp các mã đang thiếu tồn ở bảng bên.
+            {% else %}nhập sản lượng cho từng kỳ ở lưới lịch trình bên dưới.{% endif %}
+          </div>
           {% endif %}
         </div>
       </div>
+
+      {% if is_mps and mps_buckets %}
+      <div class="card border-0 shadow-sm mt-3">
+        <div class="card-body">
+          <div class="jp-sx-plan-section-head">
+            <p class="title">Lịch trình chủ ({{ plan.get_mps_bucket_display|lower }})</p>
+            {% if plan.frozen_until %}
+            <span class="badge bg-secondary-subtle text-secondary-emphasis">
+              Đóng băng đến {{ plan.frozen_until|date:"d/m/Y" }}
+            </span>
+            {% endif %}
+          </div>
+          <div class="table-responsive">
+            <table class="table table-sm table-bordered mb-0 align-middle">
+              <thead class="table-light">
+                <tr>
+                  <th>Mã sản phẩm</th>
+                  {% for b in mps_buckets %}
+                  <th class="text-end small {% if b.is_frozen %}table-secondary{% endif %}">
+                    {{ b.label }}
+                    {% if b.is_frozen %}<i class="bi bi-lock-fill" title="Đã đóng băng"></i>{% endif %}
+                  </th>
+                  {% endfor %}
+                  <th class="text-end">Tổng</th>
+                </tr>
+              </thead>
+              <tbody>
+              {% for row in mps_grid %}
+                <tr>
+                  <td>
+                    <strong class="small">{{ row.code }}</strong>
+                    <div class="text-muted small">{{ row.name|default:"—"|truncatechars:28 }}</div>
+                  </td>
+                  {% for cell in row.bucket_cells %}
+                  <td class="text-end small {% if cell.bucket.is_frozen %}table-secondary{% endif %}">
+                    {% if cell.line %}{{ cell.line.qty_planned|floatformat:"-2" }}{% else %}—{% endif %}
+                  </td>
+                  {% endfor %}
+                  <td class="text-end fw-semibold">{{ row.total|floatformat:"-2" }}</td>
+                </tr>
+              {% empty %}
+                <tr>
+                  <td colspan="{{ mps_buckets|length|add:2 }}" class="text-muted small p-3 text-center">
+                    Chưa có sản lượng nào — nhập ở khung «Nhập lịch trình» bên phải.
+                  </td>
+                </tr>
+              {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <p class="text-muted small mb-0 mt-2">
+            Ô nền xám = kỳ đã đóng băng, không sửa được sản lượng.
+          </p>
+        </div>
+      </div>
+      {% endif %}
 
       {% if material_plans or detail_plans %}
       <div class="row g-3 mt-0">
@@ -279,10 +386,148 @@
 
     {% if can_update and plan.status == 'draft' %}
     <div class="col-12 col-lg-4">
+
+      {% if is_mto %}
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body">
+          <div class="jp-sx-plan-section-head">
+            <p class="title">Nạp nhu cầu từ đơn đặt hàng</p>
+          </div>
+          <form method="get" class="input-group input-group-sm mb-2">
+            <input type="search" name="kv_q" value="{{ kv_q }}" class="form-control"
+                   placeholder="Tìm mã đơn / khách hàng...">
+            <button type="submit" class="btn btn-outline-secondary">Tìm</button>
+          </form>
+          {% if kv_orders %}
+          <form method="post" id="mtoForm">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="load_mto">
+            <input type="hidden" name="kv_order_ids" id="mtoOrderIds">
+            <div class="border rounded-3 overflow-auto mb-2" style="max-height: 320px;">
+              <table class="table table-sm table-hover mb-0 align-middle">
+                <tbody>
+                {% for o in kv_orders %}
+                  <tr>
+                    <td style="width: 36px;" class="text-center">
+                      <input type="checkbox" class="form-check-input jp-kv-pick" value="{{ o.kiotviet_id }}">
+                    </td>
+                    <td>
+                      <div class="small fw-semibold">{{ o.code }}</div>
+                      <div class="text-muted small">
+                        {{ o.customer_name|default:"—"|truncatechars:24 }}
+                        {% if o.purchase_date %}· {{ o.purchase_date|date:"d/m/Y" }}{% endif %}
+                      </div>
+                    </td>
+                    <td class="text-end small text-nowrap">
+                      {{ o.line_count }} dòng<br>
+                      <span class="text-muted">SL {{ o.total_qty|floatformat:"-2" }}</span>
+                    </td>
+                  </tr>
+                {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            <div class="form-check mb-2">
+              <input type="checkbox" class="form-check-input" name="replace" id="mtoReplace" checked>
+              <label class="form-check-label small" for="mtoReplace">Thay toàn bộ dòng hiện có</label>
+            </div>
+            <button type="submit" class="btn btn-hm btn-sm w-100 fw-bold">
+              <i class="bi bi-download me-1"></i>Nạp nhu cầu đã chọn
+            </button>
+          </form>
+          <p class="text-muted small mb-0 mt-2">
+            Nhiều đơn cùng mã hàng sẽ được gộp thành một dòng, hạn giao lấy ngày sớm nhất.
+          </p>
+          {% else %}
+          <p class="text-muted small mb-0">
+            Không tìm thấy đơn đặt hàng nào{% if kv_q %} khớp «{{ kv_q }}»{% endif %}.
+            Đồng bộ KiotViet trước khi lập kế hoạch MTO.
+          </p>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
+
+      {% if is_mts %}
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body">
+          <div class="jp-sx-plan-section-head">
+            <p class="title">Nạp nhu cầu bù tồn</p>
+          </div>
+          {% if restock_rows %}
+          <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="load_mts">
+            <div class="border rounded-3 overflow-auto mb-2" style="max-height: 320px;">
+              <table class="table table-sm mb-0 align-middle">
+                <tbody>
+                {% for r in restock_rows %}
+                  <tr>
+                    <td>
+                      <div class="small fw-semibold">{{ r.policy.product_code }}</div>
+                      <div class="text-muted small">
+                        Tồn {{ r.qty_on_hand|floatformat:"-2" }} · đang SX {{ r.qty_wip|floatformat:"-2" }}
+                        / min {{ r.policy.min_stock|floatformat:"-2" }}
+                      </div>
+                    </td>
+                    <td class="text-end small fw-bold text-danger text-nowrap">
+                      +{{ r.qty_suggest|floatformat:"-2" }}
+                    </td>
+                  </tr>
+                {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            <div class="form-check mb-2">
+              <input type="checkbox" class="form-check-input" name="replace" id="mtsReplace" checked>
+              <label class="form-check-label small" for="mtsReplace">Thay toàn bộ dòng hiện có</label>
+            </div>
+            <button type="submit" class="btn btn-hm btn-sm w-100 fw-bold">
+              <i class="bi bi-download me-1"></i>Nạp {{ restock_rows|length }} mã cần bù
+            </button>
+          </form>
+          {% else %}
+          <p class="text-muted small mb-2">
+            Không có mã nào dưới mức tồn tối thiểu.
+          </p>
+          <a href="{% url 'san_xuat:stock_policy_list' %}" class="btn btn-outline-hm btn-sm w-100">
+            Khai báo chính sách tồn
+          </a>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
+
+      {% if is_mps %}
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body">
+          <div class="jp-sx-plan-section-head">
+            <p class="title">Nhập lịch trình</p>
+          </div>
+          <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="load_mps">
+            {% for field in mps_line_form %}
+            <div class="mb-2">
+              <label class="form-label small text-muted" for="{{ field.id_for_label }}">{{ field.label }}{{ field|sx_req_star }}</label>
+              {{ field }}
+              {% if field.errors %}<div class="text-danger small">{{ field.errors }}</div>{% endif %}
+            </div>
+            {% endfor %}
+            <button type="submit" class="btn btn-hm btn-sm w-100 fw-bold">Ghi vào lịch trình</button>
+          </form>
+          <p class="text-muted small mb-0 mt-2">
+            Ngày sẽ tự quy về mốc đầu {{ plan.get_mps_bucket_display|lower }}.
+            Nhập lại cùng mã + cùng kỳ sẽ ghi đè sản lượng.
+          </p>
+        </div>
+      </div>
+      {% endif %}
+
       <div class="card border-0 shadow-sm jp-sx-plan-draft-card mb-3">
         <div class="card-body">
           <div class="jp-sx-plan-section-head">
-            <p class="title">Thêm dòng SP</p>
+            <p class="title">Thêm dòng SP thủ công</p>
           </div>
           <form method="post">
             {% csrf_token %}
@@ -297,6 +542,20 @@
           </form>
         </div>
       </div>
+
+      {% if plan.apply_netting and plan.lines.all %}
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body">
+          <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="recompute_netting">
+            <button type="submit" class="btn btn-outline-secondary btn-sm w-100">
+              <i class="bi bi-arrow-repeat me-1"></i>Tính lại tồn &amp; nhu cầu thực
+            </button>
+          </form>
+        </div>
+      </div>
+      {% endif %}
 
       <div class="card border-0 shadow-sm jp-sx-plan-draft-card">
         <div class="card-body">
@@ -324,4 +583,23 @@
     {% endif %}
   </div>
 </div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    var form = document.getElementById('mtoForm');
+    if (!form) return;
+    form.addEventListener('submit', function (e) {
+      var picked = [];
+      document.querySelectorAll('.jp-kv-pick:checked').forEach(function (cb) {
+        picked.push(cb.value);
+      });
+      if (!picked.length) {
+        e.preventDefault();
+        alert('Chọn ít nhất một đơn đặt hàng.');
+        return;
+      }
+      document.getElementById('mtoOrderIds').value = picked.join(',');
+    });
+  });
+</script>
 {% endblock %}

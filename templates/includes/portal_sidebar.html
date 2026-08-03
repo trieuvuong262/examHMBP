@@ -686,7 +686,9 @@
                 {% jp_can_menu 'san_xuat' 'plan_npl' as jp_can_san_xuat_plan_npl %}
                 {% jp_can_menu 'san_xuat' 'npl_pr' as jp_can_san_xuat_npl_pr %}
                 {% jp_can_menu 'san_xuat' 'purchase_order' as jp_can_san_xuat_po %}
-                {% if jp_can_san_xuat_plan or jp_can_san_xuat_plan_overall or jp_can_san_xuat_plan_detail or jp_can_san_xuat_plan_npl or jp_can_san_xuat_npl_pr or jp_can_san_xuat_po %}
+                {% jp_can_menu 'san_xuat' 'stock_policy' as jp_can_san_xuat_stock_policy %}
+                {% jp_can_menu 'san_xuat' 'restock' as jp_can_san_xuat_restock %}
+                {% if jp_can_san_xuat_plan or jp_can_san_xuat_plan_overall or jp_can_san_xuat_plan_detail or jp_can_san_xuat_plan_npl or jp_can_san_xuat_npl_pr or jp_can_san_xuat_po or jp_can_san_xuat_stock_policy or jp_can_san_xuat_restock %}
                 <li class="jp-sidebar-nested-group{% if '/san-xuat/ke-hoach' in request.path %} is-open{% endif %}">
                     <button type="button"
                             class="jp-sidebar-nested-toggle"
@@ -712,6 +714,22 @@
                             <a href="{% url 'san_xuat:plan_detail' %}"
                                class="jp-sidebar-link jp-sidebar-sublink {% if 'plan_detail' in request.resolver_match.url_name %}active{% endif %}">
                                 <i class="bi bi-list-columns"></i><span>KH chi tiết</span>
+                            </a>
+                        </li>
+                        {% endif %}
+                        {% if jp_can_san_xuat_restock or jp_can_san_xuat_plan %}
+                        <li>
+                            <a href="{% url 'san_xuat:restock_suggestions' %}"
+                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'restock_suggestions' %}active{% endif %}">
+                                <i class="bi bi-lightbulb"></i><span>Đề xuất bù tồn</span>
+                            </a>
+                        </li>
+                        {% endif %}
+                        {% if jp_can_san_xuat_stock_policy or jp_can_san_xuat_plan %}
+                        <li>
+                            <a href="{% url 'san_xuat:stock_policy_list' %}"
+                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'stock_policy_list' %}active{% endif %}">
+                                <i class="bi bi-sliders"></i><span>Chính sách tồn TP</span>
                             </a>
                         </li>
                         {% endif %}

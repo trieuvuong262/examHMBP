@@ -437,6 +437,7 @@ from san_xuat.hub_models import (  # noqa: E402,F401
     SxProductGroup,
     SxProductionOrder,
     SxProductionOrderLine,
+    SxProductStockPolicy,
     SxProductionStat,
     SxPurchaseOrder,
     SxPurchaseOrderLine,

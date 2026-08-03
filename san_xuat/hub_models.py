@@ -53,6 +53,50 @@ class SxOverallPlan(DemoMarkedModel):
         (SOURCE_SALES_ORDER, 'Từ đơn KV'),
     ]
     source = models.CharField(max_length=20, choices=SOURCE_CHOICES, default=SOURCE_FORECAST)
+
+    # --- Phương án lập kế hoạch (P2) ---
+    METHOD_MTO = 'mto'
+    METHOD_MTS = 'mts'
+    METHOD_MPS = 'mps'
+    METHOD_CHOICES = [
+        (METHOD_MTO, 'MTO — Sản xuất theo đơn đặt hàng'),
+        (METHOD_MTS, 'MTS — Sản xuất theo nhu cầu lưu trữ (tồn kho)'),
+        (METHOD_MPS, 'MPS — Sản xuất theo lịch trình chủ'),
+    ]
+    plan_method = models.CharField(
+        max_length=10,
+        choices=METHOD_CHOICES,
+        default=METHOD_MTO,
+        db_index=True,
+        verbose_name='Phương án sản xuất',
+    )
+    BUCKET_DAY = 'day'
+    BUCKET_WEEK = 'week'
+    BUCKET_MONTH = 'month'
+    BUCKET_CHOICES = [
+        (BUCKET_DAY, 'Theo ngày'),
+        (BUCKET_WEEK, 'Theo tuần'),
+        (BUCKET_MONTH, 'Theo tháng'),
+    ]
+    mps_bucket = models.CharField(
+        max_length=10,
+        choices=BUCKET_CHOICES,
+        default=BUCKET_WEEK,
+        verbose_name='Chu kỳ lịch trình (MPS)',
+        help_text='Đơn vị chia kỳ khi lập lịch trình chủ.',
+    )
+    frozen_until = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name='Đóng băng đến ngày',
+        help_text='MPS: không cho sửa sản lượng trong vùng đã đóng băng.',
+    )
+    apply_netting = models.BooleanField(
+        default=True,
+        verbose_name='Trừ tồn thành phẩm & hàng đang SX',
+        help_text='Nhu cầu thực = nhu cầu gộp − tồn khả dụng − SL đang sản xuất.',
+    )
+
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT, db_index=True)
     notes = models.TextField(blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
@@ -76,10 +120,74 @@ class SxOverallPlanLine(models.Model):
     kv_order_kiotviet_id = models.BigIntegerField(null=True, blank=True, verbose_name='KV order id')
     kv_order_code = models.CharField(max_length=64, blank=True, default='', verbose_name='Mã đơn KV')
 
+    # --- Netting (P2): lưu vết cách ra con số qty_planned ---
+    qty_gross = models.DecimalField(
+        max_digits=14, decimal_places=2, default=Decimal('0'),
+        verbose_name='Nhu cầu gộp',
+        help_text='Tổng nhu cầu trước khi trừ tồn / hàng đang SX.',
+    )
+    qty_on_hand = models.DecimalField(
+        max_digits=14, decimal_places=2, default=Decimal('0'),
+        verbose_name='Tồn TP khả dụng',
+    )
+    qty_wip = models.DecimalField(
+        max_digits=14, decimal_places=2, default=Decimal('0'),
+        verbose_name='Đang sản xuất',
+        help_text='SL còn lại trên các lệnh sản xuất chưa hoàn thành.',
+    )
+    due_date = models.DateField(null=True, blank=True, verbose_name='Hạn giao')
+    bucket_start = models.DateField(
+        null=True, blank=True, db_index=True,
+        verbose_name='Đầu kỳ lịch trình',
+        help_text='MPS: mốc đầu tuần/tháng của dòng.',
+    )
+
     class Meta:
         ordering = ['id']
         verbose_name = 'Dòng KHTT'
         verbose_name_plural = 'Dòng KHTT'
+
+
+class SxProductStockPolicy(DemoMarkedModel):
+    """Chính sách tồn thành phẩm — cơ sở cho phương án MTS (sản xuất bù tồn)."""
+
+    product_code = models.CharField(
+        max_length=60, unique=True, db_index=True, verbose_name='Mã sản phẩm',
+    )
+    product_name = models.CharField(max_length=255, blank=True, default='', verbose_name='Tên SP')
+    min_stock = models.DecimalField(
+        max_digits=14, decimal_places=2, default=Decimal('0'),
+        verbose_name='Tồn tối thiểu',
+        help_text='Xuống dưới mức này thì đề xuất sản xuất bù.',
+    )
+    max_stock = models.DecimalField(
+        max_digits=14, decimal_places=2, default=Decimal('0'),
+        verbose_name='Tồn mục tiêu',
+        help_text='Sản xuất bù lên tới mức này. Để 0 = bù đúng bằng tồn tối thiểu.',
+    )
+    lead_time_days = models.PositiveSmallIntegerField(
+        default=0, verbose_name='Thời gian chờ (ngày)',
+        help_text='Số ngày cần để có hàng — dùng tính hạn cần NVL.',
+    )
+    is_active = models.BooleanField(default=True, db_index=True, verbose_name='Đang áp dụng')
+    notes = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['product_code']
+        verbose_name = 'Chính sách tồn thành phẩm'
+        verbose_name_plural = 'Chính sách tồn thành phẩm'
+
+    def __str__(self):
+        return f'{self.product_code} (min {self.min_stock})'
+
+    @property
+    def target_stock(self):
+        """Mức bù mục tiêu — max_stock nếu khai, ngược lại min_stock."""
+        if (self.max_stock or Decimal('0')) > 0:
+            return self.max_stock
+        return self.min_stock or Decimal('0')
 
 
 class SxDetailPlan(DemoMarkedModel):

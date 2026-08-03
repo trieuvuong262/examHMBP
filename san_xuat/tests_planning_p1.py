@@ -269,3 +269,76 @@ class MaterialPlanReservationTests(TestCase):
         )
         release_reservations_for_khnvl(plan=plan)
         self.assertEqual(plan.lines.first().qty_reserved, Decimal('0'))
+
+
+class PlanPageRenderTests(TestCase):
+    """Trang kế hoạch phải render được với context P1 mới."""
+
+    def setUp(self):
+        from django.contrib.auth.models import User
+
+        from hrm.models import Profile
+        from hrm.permissions import ROLE_DIRECTOR
+
+        self.user = User.objects.create_user('p1admin', 'p1@test.local', 'x')
+        profile, _ = Profile.objects.get_or_create(user=self.user)
+        # Vai trò Giám đốc → toàn quyền module (signal hrm.models set is_superuser)
+        profile.role = ROLE_DIRECTOR
+        profile.save()
+        self.user.refresh_from_db()
+        self.client.force_login(self.user)
+        SxWorkCenter.objects.create(code='T-CUT', name='Cắt', capacity_per_day=Decimal('300'))
+        SxWorkCenter.objects.create(code='T-PRINT', name='In', capacity_per_day=Decimal('240'))
+        SxHoliday.objects.create(holiday_date=date(2026, 8, 5), name='Nghỉ lễ test')
+
+        self.overall = create_overall_plan(
+            name='KH render', date_from=date(2026, 8, 3), date_to=date(2026, 8, 9),
+        )
+        add_overall_plan_line(
+            plan_id=self.overall.pk, product_code='SP-RENDER', qty_planned=Decimal('500'),
+        )
+        confirm_overall_plan(plan_id=self.overall.pk)
+        self.detail = explode_detail_plan_from_overall(overall_plan_id=self.overall.pk)
+
+    def test_detail_plan_page_renders(self):
+        from django.urls import reverse
+
+        resp = self.client.get(reverse('san_xuat:plan_detail_detail', args=[self.detail.pk]))
+        self.assertEqual(resp.status_code, 200)
+        body = resp.content.decode('utf-8', 'ignore')
+        self.assertIn('Phân tổ tự động', body)
+        self.assertIn('Năng lực / ngày', body)
+        self.assertIn('Công đoạn hẹp nhất', body)
+        self.assertNotIn('Traceback', body)
+
+    def test_overall_plan_page_renders(self):
+        from django.urls import reverse
+
+        resp = self.client.get(reverse('san_xuat:plan_overall_detail', args=[self.overall.pk]))
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn('Hủy KH', resp.content.decode('utf-8', 'ignore'))
+
+    def test_assign_teams_via_post(self):
+        from django.urls import reverse
+
+        url = reverse('san_xuat:plan_detail_detail', args=[self.detail.pk])
+        resp = self.client.post(url, {'action': 'assign_teams'}, follow=True)
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(
+            all((ln.team_label or '').strip() for ln in self.detail.lines.all()),
+            'POST phân tổ phải gán tổ cho mọi dòng',
+        )
+
+    def test_holiday_has_no_plan_qty(self):
+        dates = {ln.plan_date for ln in self.detail.lines.all()}
+        self.assertNotIn(date(2026, 8, 5), dates, 'Ngày nghỉ lễ không được phân bổ')
+        self.assertNotIn(date(2026, 8, 9), dates, 'Chủ nhật không được phân bổ')
+
+    def test_cancel_via_post(self):
+        from django.urls import reverse
+
+        url = reverse('san_xuat:plan_detail_detail', args=[self.detail.pk])
+        self.client.post(url, {'action': 'cancel', 'reason': 'Test hủy'}, follow=True)
+        self.detail.refresh_from_db()
+        self.assertEqual(self.detail.status, SxOverallPlan.STATUS_CANCELLED)
+        self.assertIn('Test hủy', self.detail.notes)

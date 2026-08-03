@@ -80,15 +80,34 @@ def create_overall_plan(
     source: str = SxOverallPlan.SOURCE_FORECAST,
     notes: str = "",
     user=None,
+    plan_method: str = SxOverallPlan.METHOD_MTO,
+    mps_bucket: str = SxOverallPlan.BUCKET_WEEK,
+    frozen_until=None,
+    apply_netting: bool = True,
 ) -> SxOverallPlan:
     if date_from and date_to and date_from > date_to:
         raise PlanningError("Ngày bắt đầu không được sau ngày kết thúc.")
+    method = plan_method or SxOverallPlan.METHOD_MTO
+    valid_methods = {m for m, _ in SxOverallPlan.METHOD_CHOICES}
+    if method not in valid_methods:
+        raise PlanningError("Phương án sản xuất không hợp lệ.")
+    # MTO luôn gắn nguồn đơn bán; MTS/MPS là dự báo / nhập tay
+    if method == SxOverallPlan.METHOD_MTO:
+        source = SxOverallPlan.SOURCE_SALES_ORDER
+    else:
+        source = source or SxOverallPlan.SOURCE_FORECAST
+    if frozen_until and date_to and frozen_until > date_to:
+        raise PlanningError("Ngày đóng băng không được vượt quá ngày kết thúc kỳ.")
     return SxOverallPlan.objects.create(
         code=_code("plan_overall", SxOverallPlan, code=code),
         name=(name or "").strip() or "Kế hoạch tổng thể",
         date_from=date_from or timezone.localdate(),
         date_to=date_to or timezone.localdate(),
-        source=source or SxOverallPlan.SOURCE_FORECAST,
+        source=source,
+        plan_method=method,
+        mps_bucket=mps_bucket or SxOverallPlan.BUCKET_WEEK,
+        frozen_until=frozen_until if method == SxOverallPlan.METHOD_MPS else None,
+        apply_netting=bool(apply_netting),
         status=SxOverallPlan.STATUS_DRAFT,
         notes=notes or "",
         is_demo=False,
@@ -121,6 +140,7 @@ def add_overall_plan_line(
         product_name=(product_name or "").strip() or _resolve_product_name(code),
         qty_required=qty_required if qty_required is not None else qty,
         qty_planned=qty,
+        qty_gross=qty_required if qty_required is not None else qty,
         capacity_per_day=capacity_per_day or Decimal("0"),
     )
 

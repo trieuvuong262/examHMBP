@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from datetime import timedelta
 from decimal import Decimal
 
 from django.contrib import messages
@@ -82,14 +83,30 @@ from san_xuat.hub_models import (
 from san_xuat.models import ProcessStep, ProductTechDoc
 from san_xuat.views import _perm_ctx
 from san_xuat.forms_costing import CostTypeForm, OrderPlanCostCreateForm, StandardCostSheetCreateForm
+from san_xuat.services.plan_methods import (
+    bucket_start_for,
+    is_bucket_frozen,
+    list_open_kv_orders,
+    load_mps_demand,
+    load_mto_demand,
+    load_mts_demand,
+    mps_buckets,
+    recompute_plan_netting,
+    upsert_stock_policy,
+)
+from san_xuat.services.demand import build_restock_suggestions
 from san_xuat.forms_plan import (
     DetailPlanExplodeForm,
     ImportKvOrderForm,
     MaterialPlanExplodeForm,
+    MpsLineForm,
+    MtoLoadOrdersForm,
+    MtsLoadForm,
     NplPurchaseRequestCreateForm,
     OverallPlanCreateForm,
     OverallPlanLineForm,
     PurchaseOrderCreateForm,
+    StockPolicyForm,
 )
 from san_xuat.forms_phase3 import (
     PackingCreateForm,
@@ -688,19 +705,32 @@ def plan_overall_create(request):
                     date_to=form.cleaned_data['date_to'],
                     code=form.cleaned_data.get('code') or None,
                     notes=form.cleaned_data.get('notes') or '',
+                    plan_method=form.cleaned_data.get('plan_method'),
+                    mps_bucket=form.cleaned_data.get('mps_bucket') or SxOverallPlan.BUCKET_WEEK,
+                    frozen_until=form.cleaned_data.get('frozen_until'),
+                    apply_netting=form.cleaned_data.get('apply_netting', True),
+                    user=request.user,
                 )
             except PlanningError as exc:
                 messages.error(request, str(exc))
             else:
-                messages.success(request, f'Đã tạo KHTT {plan.code}.')
+                messages.success(
+                    request,
+                    f'Đã tạo KHTT {plan.code} — phương án {plan.get_plan_method_display()}.',
+                )
                 return redirect('san_xuat:plan_overall_detail', pk=plan.pk)
         messages.error(request, 'Không tạo được KHTT — kiểm tra lại form.')
     else:
         today = timezone.localdate()
-        form = OverallPlanCreateForm(initial={'date_from': today, 'date_to': today})
+        form = OverallPlanCreateForm(initial={
+            'date_from': today,
+            'date_to': today,
+            'apply_netting': True,
+        })
     return render(request, 'san_xuat/plan_overall_form.html', {
         **_perm_ctx(request),
         'form': form,
+        'method_choices': SxOverallPlan.METHOD_CHOICES,
     })
 
 
@@ -782,8 +812,135 @@ def plan_overall_detail(request, pk: int):
                 messages.success(request, f'Đã hủy KHTT {plan.code}.')
                 return redirect('san_xuat:plan_overall_detail', pk=plan.pk)
 
+        # --- P2: nạp nhu cầu theo phương án ---
+        elif action == 'load_mto' and can_update:
+            mto_form = MtoLoadOrdersForm(request.POST)
+            if mto_form.is_valid():
+                try:
+                    res = load_mto_demand(
+                        plan_id=plan.pk,
+                        kv_order_ids=mto_form.cleaned_data['kv_order_ids'],
+                        replace=mto_form.cleaned_data.get('replace', True),
+                    )
+                except PlanningError as exc:
+                    messages.error(request, str(exc))
+                else:
+                    msg = f'Đã nạp {res["written"]} mã sản phẩm từ đơn đặt hàng.'
+                    if res['covered']:
+                        msg += (
+                            f' {res["covered"]} mã đã đủ tồn/đang SX nên bỏ qua: '
+                            f'{", ".join(res["covered_codes"][:5])}.'
+                        )
+                    messages.success(request, msg)
+                    return redirect('san_xuat:plan_overall_detail', pk=plan.pk)
+            messages.error(request, 'Chưa chọn đơn đặt hàng hợp lệ.')
+
+        elif action == 'load_mts' and can_update:
+            mts_form = MtsLoadForm(request.POST)
+            if mts_form.is_valid():
+                try:
+                    res = load_mts_demand(
+                        plan_id=plan.pk,
+                        product_codes=mts_form.cleaned_data.get('product_codes') or None,
+                        replace=mts_form.cleaned_data.get('replace', True),
+                    )
+                except PlanningError as exc:
+                    messages.error(request, str(exc))
+                else:
+                    messages.success(
+                        request, f'Đã nạp {res["written"]} mã sản phẩm cần bù tồn.',
+                    )
+                    return redirect('san_xuat:plan_overall_detail', pk=plan.pk)
+            messages.error(request, 'Không nạp được nhu cầu bù tồn.')
+
+        elif action == 'load_mps' and can_update:
+            mps_form = MpsLineForm(request.POST)
+            if mps_form.is_valid():
+                try:
+                    res = load_mps_demand(
+                        plan_id=plan.pk,
+                        rows=[{
+                            'product_code': mps_form.cleaned_data['product_code'],
+                            'qty': mps_form.cleaned_data['qty'],
+                            'bucket_start': mps_form.cleaned_data['bucket_start'],
+                        }],
+                        replace=False,
+                    )
+                except PlanningError as exc:
+                    messages.error(request, str(exc))
+                else:
+                    if res['frozen_skipped']:
+                        messages.warning(
+                            request, 'Kỳ đã đóng băng — không ghi được sản lượng.',
+                        )
+                    else:
+                        messages.success(request, 'Đã cập nhật lịch trình chủ.')
+                    return redirect('san_xuat:plan_overall_detail', pk=plan.pk)
+            messages.error(request, 'Không cập nhật được lịch trình — kiểm tra lại form.')
+
+        elif action == 'recompute_netting' and can_update:
+            try:
+                res = recompute_plan_netting(plan_id=plan.pk)
+            except PlanningError as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(
+                    request,
+                    f'Đã tính lại nhu cầu cho {res["updated"]} dòng '
+                    f'({res["covered"]} dòng đã đủ tồn).',
+                )
+                return redirect('san_xuat:plan_overall_detail', pk=plan.pk)
+
     material_plans = plan.material_plans.filter(is_demo=False).order_by('-created_at')
     detail_plans = plan.detail_plans.filter(is_demo=False).order_by('-created_at')
+
+    # --- P2: dữ liệu theo phương án ---
+    is_mto = plan.plan_method == SxOverallPlan.METHOD_MTO
+    is_mts = plan.plan_method == SxOverallPlan.METHOD_MTS
+    is_mps = plan.plan_method == SxOverallPlan.METHOD_MPS
+
+    kv_orders = []
+    restock_rows = []
+    buckets = []
+    mps_grid = []
+    if can_update and plan.status == SxOverallPlan.STATUS_DRAFT:
+        if is_mto:
+            kv_orders = list_open_kv_orders(
+                limit=60, search=request.GET.get('kv_q') or '',
+            )
+        elif is_mts:
+            restock_rows = build_restock_suggestions()
+
+    if is_mps:
+        buckets = mps_buckets(plan)
+        by_product: dict[str, dict] = {}
+        for ln in plan.lines.all():
+            row = by_product.setdefault(ln.product_code, {
+                'code': ln.product_code,
+                'name': ln.product_name,
+                'cells': {},
+                'total': Decimal('0'),
+            })
+            key = ln.bucket_start or plan.date_from
+            row['cells'][key] = ln
+            row['total'] += (ln.qty_planned or Decimal('0'))
+        for row in sorted(by_product.values(), key=lambda r: r['code']):
+            row['bucket_cells'] = [
+                {
+                    'bucket': b,
+                    'line': row['cells'].get(b['start']),
+                }
+                for b in buckets
+            ]
+            mps_grid.append(row)
+
+    lines = list(plan.lines.all())
+    totals = {
+        'gross': sum((ln.qty_gross or Decimal('0')) for ln in lines),
+        'on_hand': sum((ln.qty_on_hand or Decimal('0')) for ln in lines),
+        'wip': sum((ln.qty_wip or Decimal('0')) for ln in lines),
+        'planned': sum((ln.qty_planned or Decimal('0')) for ln in lines),
+    }
     return render(request, 'san_xuat/plan_overall_detail.html', {
         **_perm_ctx(request),
         'plan': plan,
@@ -792,6 +949,115 @@ def plan_overall_detail(request, pk: int):
         'import_form': import_form,
         'material_plans': material_plans,
         'detail_plans': detail_plans,
+        'is_mto': is_mto,
+        'is_mts': is_mts,
+        'is_mps': is_mps,
+        'kv_orders': kv_orders,
+        'kv_q': request.GET.get('kv_q') or '',
+        'restock_rows': restock_rows,
+        'mps_buckets': buckets,
+        'mps_grid': mps_grid,
+        'mps_line_form': MpsLineForm(),
+        'line_totals': totals,
+        'has_netting_data': any((ln.qty_on_hand or ln.qty_wip) for ln in lines),
+    })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+def stock_policy_list(request):
+    """Chính sách tồn thành phẩm — nền cho phương án MTS."""
+    from san_xuat.hub_models import SxProductStockPolicy
+
+    can_update = _perm_ctx(request).get('can_update')
+    form = StockPolicyForm()
+
+    if request.method == 'POST' and can_update:
+        action = (request.POST.get('action') or '').strip()
+        if action == 'delete':
+            pk = (request.POST.get('pk') or '').strip()
+            if pk.isdigit():
+                SxProductStockPolicy.objects.filter(pk=int(pk)).delete()
+                messages.success(request, 'Đã xóa chính sách tồn.')
+            return redirect('san_xuat:stock_policy_list')
+        form = StockPolicyForm(request.POST)
+        if form.is_valid():
+            try:
+                policy = upsert_stock_policy(
+                    product_code=form.cleaned_data['product_code'],
+                    product_name=form.cleaned_data.get('product_name') or '',
+                    min_stock=form.cleaned_data['min_stock'],
+                    max_stock=form.cleaned_data.get('max_stock'),
+                    lead_time_days=form.cleaned_data.get('lead_time_days') or 0,
+                    is_active=form.cleaned_data.get('is_active', True),
+                )
+            except PlanningError as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(request, f'Đã lưu chính sách tồn cho {policy.product_code}.')
+                return redirect('san_xuat:stock_policy_list')
+        else:
+            messages.error(request, 'Không lưu được — kiểm tra lại form.')
+
+    search = (request.GET.get('q') or '').strip()
+    qs = SxProductStockPolicy.objects.filter(is_demo=False)
+    if search:
+        from django.db.models import Q
+
+        qs = qs.filter(Q(product_code__icontains=search) | Q(product_name__icontains=search))
+    policies = list(qs.order_by('product_code'))
+
+    suggestions = build_restock_suggestions(include_covered=True)
+    by_code = {s.policy.pk: s for s in suggestions}
+    rows = [{'policy': p, 'stat': by_code.get(p.pk)} for p in policies]
+    need_count = sum(1 for s in suggestions if s.qty_suggest > 0)
+
+    return render(request, 'san_xuat/stock_policy_list.html', {
+        **_perm_ctx(request),
+        'rows': rows,
+        'form': form,
+        'can_update': can_update,
+        'search_query': search,
+        'total_count': len(policies),
+        'need_count': need_count,
+    })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+def restock_suggestions(request):
+    """Đề xuất sản xuất bù tồn — có thể tạo KHTT (MTS) trực tiếp."""
+    can_create = _perm_ctx(request).get('can_create')
+    rows = build_restock_suggestions()
+
+    if request.method == 'POST' and can_create:
+        codes = [c for c in request.POST.getlist('product_codes') if (c or '').strip()]
+        if not codes:
+            messages.error(request, 'Chưa chọn mã sản phẩm nào.')
+            return redirect('san_xuat:restock_suggestions')
+        today = timezone.localdate()
+        span = 6
+        try:
+            plan = create_overall_plan(
+                name=f'Bù tồn {today:%d/%m/%Y}',
+                date_from=today,
+                date_to=today + timedelta(days=span),
+                plan_method=SxOverallPlan.METHOD_MTS,
+                apply_netting=True,
+                user=request.user,
+            )
+            load_mts_demand(plan_id=plan.pk, product_codes=codes, replace=True)
+        except PlanningError as exc:
+            messages.error(request, str(exc))
+        else:
+            messages.success(
+                request, f'Đã tạo KHTT {plan.code} với {len(codes)} mã cần bù tồn.',
+            )
+            return redirect('san_xuat:plan_overall_detail', pk=plan.pk)
+
+    return render(request, 'san_xuat/restock_suggestions.html', {
+        **_perm_ctx(request),
+        'rows': rows,
+        'can_create': can_create,
+        'total_suggest': sum((r.qty_suggest for r in rows), Decimal('0')),
     })
 
 

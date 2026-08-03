@@ -1,34 +1,171 @@
 {% extends 'base.html' %}
 
 {% load sx_format %}
-{% block extra_head %}{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}{% endblock %}
+{% block extra_head %}{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+<style>
+  .jp-method-card {
+    display: block; cursor: pointer; height: 100%;
+    border: 2px solid #e9edf2; border-radius: .75rem;
+    padding: .9rem 1rem; background: #fff; transition: all .12s ease;
+  }
+  .jp-method-card:hover { border-color: #cbd5e1; }
+  .jp-method-card:has(input:checked) {
+    border-color: var(--hm-primary, #d21f3c);
+    background: #fff8f9;
+    box-shadow: 0 0 0 3px rgba(210, 31, 60, .08);
+  }
+  .jp-method-card .jp-method-title { font-weight: 700; color: #1f2937; }
+  .jp-method-card .jp-method-desc { font-size: .8rem; color: #64748b; line-height: 1.45; }
+  .jp-method-tag {
+    display: inline-block; font-size: .68rem; font-weight: 700;
+    padding: .1rem .45rem; border-radius: 999px;
+    background: #f1f5f9; color: #475569; margin-bottom: .3rem;
+  }
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
-  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
-    <div class="jp-sx-detail-title">
-      <h2 class="jp-npl-mat-topbar-title w-100">Tạo kế hoạch tổng thể</h2>
+  <div class="jp-page-header mb-3 mb-md-4">
+    <div class="jp-page-header-main">
+      <h2 class="jp-page-title fw-bold text-dark mb-1">Tạo kế hoạch tổng thể</h2>
+      <p class="text-muted small mb-0">Chọn phương án phù hợp với cách bạn xác định nhu cầu sản xuất.</p>
     </div>
-    <nav class="jp-sx-tools" aria-label="Công cụ">
-      <span class="sep" aria-hidden="true"></span>
-      <a href="{% url 'san_xuat:plan_overall' %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại</a>
-    </nav>
+    <a href="{% url 'san_xuat:plan_overall' %}" class="btn btn-outline-secondary">
+      <i class="bi bi-arrow-left me-1"></i>Quay lại
+    </a>
   </div>
 
-  <div class="card border-0 shadow-sm">
-    <div class="card-body">
-      <form method="post">
-        {% csrf_token %}
-        {% for field in form %}
-        <div class="mb-3">
-          <label class="form-label small text-muted" for="{{ field.id_for_label }}">{{ field.label }}{{ field|sx_req_star }}</label>
-          {{ field }}
-          {% if field.errors %}<div class="text-danger small">{{ field.errors }}</div>{% endif %}
+  <form method="post">
+    {% csrf_token %}
+
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-header bg-white border-bottom py-3">
+        <h6 class="fw-bold mb-0">1. Phương án sản xuất</h6>
+      </div>
+      <div class="card-body">
+        <div class="row g-2">
+          {% for radio in form.plan_method %}
+          <div class="col-12 col-lg-4">
+            <label class="jp-method-card">
+              <div class="d-flex align-items-start gap-2">
+                {{ radio.tag }}
+                <div>
+                  {% if radio.data.value == 'mto' %}
+                  <span class="jp-method-tag">Theo đơn</span>
+                  <div class="jp-method-title">MTO</div>
+                  <div class="jp-method-desc">
+                    Nhu cầu lấy từ đơn đặt hàng KiotViet. Dùng khi sản xuất đúng theo
+                    đơn khách đã chốt, hạn giao theo ngày đặt.
+                  </div>
+                  {% elif radio.data.value == 'mts' %}
+                  <span class="jp-method-tag">Theo tồn kho</span>
+                  <div class="jp-method-title">MTS</div>
+                  <div class="jp-method-desc">
+                    Nhu cầu tính từ chính sách tồn thành phẩm — sản xuất bù khi tồn
+                    xuống dưới mức tối thiểu. Dùng cho hàng bán thường xuyên.
+                  </div>
+                  {% else %}
+                  <span class="jp-method-tag">Theo lịch trình</span>
+                  <div class="jp-method-title">MPS</div>
+                  <div class="jp-method-desc">
+                    Lịch trình chủ theo tuần/tháng, nhập sản lượng cho từng kỳ.
+                    Có thể đóng băng các kỳ gần để giữ ổn định sản xuất.
+                  </div>
+                  {% endif %}
+                </div>
+              </div>
+            </label>
+          </div>
+          {% endfor %}
         </div>
-        {% endfor %}
-        <button type="submit" class="btn btn-hm">Tạo kế hoạch tổng thể</button>
-      </form>
+        {% if form.plan_method.errors %}<div class="text-danger small mt-2">{{ form.plan_method.errors }}</div>{% endif %}
+      </div>
     </div>
-  </div>
+
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-header bg-white border-bottom py-3">
+        <h6 class="fw-bold mb-0">2. Thông tin kế hoạch</h6>
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-8">
+            <label class="form-label fw-bold small mb-1" for="{{ form.name.id_for_label }}">
+              {{ form.name.label }}{{ form.name|sx_req_star }}
+            </label>
+            {{ form.name }}
+            {% if form.name.errors %}<div class="text-danger small">{{ form.name.errors }}</div>{% endif %}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-bold small mb-1" for="{{ form.code.id_for_label }}">{{ form.code.label }}</label>
+            {{ form.code }}
+            <div class="form-text small">Để trống để hệ thống tự sinh mã.</div>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label fw-bold small mb-1" for="{{ form.date_from.id_for_label }}">
+              {{ form.date_from.label }}{{ form.date_from|sx_req_star }}
+            </label>
+            {{ form.date_from }}
+            {% if form.date_from.errors %}<div class="text-danger small">{{ form.date_from.errors }}</div>{% endif %}
+          </div>
+          <div class="col-md-3">
+            <label class="form-label fw-bold small mb-1" for="{{ form.date_to.id_for_label }}">
+              {{ form.date_to.label }}{{ form.date_to|sx_req_star }}
+            </label>
+            {{ form.date_to }}
+            {% if form.date_to.errors %}<div class="text-danger small">{{ form.date_to.errors }}</div>{% endif %}
+          </div>
+          <div class="col-md-3" data-jp-mps-only>
+            <label class="form-label fw-bold small mb-1" for="{{ form.mps_bucket.id_for_label }}">{{ form.mps_bucket.label }}</label>
+            {{ form.mps_bucket }}
+          </div>
+          <div class="col-md-3" data-jp-mps-only>
+            <label class="form-label fw-bold small mb-1" for="{{ form.frozen_until.id_for_label }}">{{ form.frozen_until.label }}</label>
+            {{ form.frozen_until }}
+            {% if form.frozen_until.errors %}<div class="text-danger small">{{ form.frozen_until.errors }}</div>{% endif %}
+          </div>
+          <div class="col-12">
+            <div class="form-check">
+              {{ form.apply_netting }}
+              <label class="form-check-label" for="{{ form.apply_netting.id_for_label }}">
+                {{ form.apply_netting.label }}
+              </label>
+              <div class="form-text small">
+                Nhu cầu thực = nhu cầu gộp − tồn thành phẩm khả dụng − số lượng đang sản xuất.
+                Tắt nếu muốn nhập sản lượng thủ công.
+              </div>
+            </div>
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-bold small mb-1" for="{{ form.notes.id_for_label }}">{{ form.notes.label }}</label>
+            {{ form.notes }}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {% if form.non_field_errors %}
+    <div class="alert alert-danger border-0 shadow-sm">{{ form.non_field_errors }}</div>
+    {% endif %}
+
+    <div class="d-flex justify-content-end gap-2">
+      <a href="{% url 'san_xuat:plan_overall' %}" class="btn btn-light border">Hủy</a>
+      <button type="submit" class="btn btn-hm fw-bold px-4">Tạo kế hoạch tổng thể</button>
+    </div>
+  </form>
 </div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    var radios = document.querySelectorAll('input[name="plan_method"]');
+    var mpsOnly = document.querySelectorAll('[data-jp-mps-only]');
+    function sync() {
+      var picked = document.querySelector('input[name="plan_method"]:checked');
+      var isMps = picked && picked.value === 'mps';
+      mpsOnly.forEach(function (el) { el.style.display = isMps ? '' : 'none'; });
+    }
+    radios.forEach(function (r) { r.addEventListener('change', sync); });
+    sync();
+  });
+</script>
 {% endblock %}
