@@ -137,6 +137,35 @@ class WorkCenterForm(forms.Form):
         widget=forms.TextInput(attrs={"class": "form-control form-control-sm"}),
         help_text="Để trống = dùng tên tổ/chuyền.",
     )
+    headcount = forms.IntegerField(
+        required=False,
+        min_value=0,
+        max_value=2000,
+        initial=0,
+        label="Số nhân sự",
+        widget=forms.NumberInput(attrs={"class": "form-control form-control-sm", "min": "0"}),
+        help_text="Đồng bộ HR sẽ ghi đè số này.",
+    )
+    shift_minutes_per_head = forms.IntegerField(
+        required=False,
+        min_value=0,
+        max_value=1440,
+        initial=480,
+        label="Phút làm việc / người / ngày",
+        widget=forms.NumberInput(attrs={"class": "form-control form-control-sm", "min": "0"}),
+        help_text="480 phút = 8 giờ một ca.",
+    )
+    efficiency_pct = forms.DecimalField(
+        required=False,
+        max_digits=5,
+        decimal_places=2,
+        min_value=Decimal("0"),
+        max_value=Decimal("100"),
+        initial=Decimal("85"),
+        label="Hiệu suất (%)",
+        widget=forms.NumberInput(attrs={"class": "form-control form-control-sm", "step": "0.5", "min": "0", "max": "100"}),
+        help_text="Phần thời gian thực sự tạo ra sản phẩm — dùng khi xếp lịch theo định mức.",
+    )
     is_active = forms.BooleanField(
         required=False,
         initial=True,

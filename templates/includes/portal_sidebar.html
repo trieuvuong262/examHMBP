@@ -662,8 +662,17 @@
                         {% if jp_can_san_xuat_capacity %}
                         <li>
                             <a href="{% url 'san_xuat:capacity_list' %}"
-                               class="jp-sidebar-link jp-sidebar-sublink {% if 'nang-luc' in request.path %}active{% endif %}">
+                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'capacity_list' or request.resolver_match.url_name == 'capacity_create' %}active{% endif %}">
                                 <i class="bi bi-speedometer"></i><span>Năng lực SX</span>
+                            </a>
+                        </li>
+                        {% endif %}
+                        {% jp_can_menu 'san_xuat' 'capacity_load' as jp_can_san_xuat_capacity_load %}
+                        {% if jp_can_san_xuat_capacity_load or jp_can_san_xuat_capacity %}
+                        <li>
+                            <a href="{% url 'san_xuat:capacity_load_matrix' %}"
+                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'capacity_load_matrix' %}active{% endif %}">
+                                <i class="bi bi-bar-chart-steps"></i><span>Tải theo tổ</span>
                             </a>
                         </li>
                         {% endif %}

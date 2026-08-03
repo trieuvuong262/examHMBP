@@ -190,6 +190,9 @@ def upsert_work_center(
     notes: str = "",
     center_id: int | None = None,
     user=None,
+    headcount: int | None = None,
+    shift_minutes_per_head: int | None = None,
+    efficiency_pct: Decimal | None = None,
 ) -> SxWorkCenter:
     code = (code or "").strip().upper()
     name = (name or "").strip()
@@ -199,6 +202,14 @@ def upsert_work_center(
         raise Phase3Error("Năng lực/ngày không hợp lệ.")
     capacity_per_day = Decimal(str(capacity_per_day)).quantize(Decimal("0.01"))
     team_label = (team_label or "").strip() or name
+
+    heads = max(0, int(headcount or 0))
+    shift = int(shift_minutes_per_head) if shift_minutes_per_head is not None else 480
+    shift = max(0, min(1440, shift))
+    eff = Decimal(str(efficiency_pct)) if efficiency_pct is not None else Decimal("85")
+    if eff < 0 or eff > 100:
+        raise Phase3Error("Hiệu suất phải trong khoảng 0–100%.")
+
     if center_id:
         center = SxWorkCenter.objects.select_for_update().get(pk=center_id)
         if SxWorkCenter.objects.filter(code__iexact=code).exclude(pk=center.pk).exists():
@@ -210,6 +221,9 @@ def upsert_work_center(
         center.team_label = team_label
         center.is_active = is_active
         center.notes = notes or ""
+        center.headcount = heads
+        center.shift_minutes_per_head = shift
+        center.efficiency_pct = eff
         center.save()
         return center
     if SxWorkCenter.objects.filter(code__iexact=code).exists():
@@ -222,6 +236,9 @@ def upsert_work_center(
         team_label=team_label,
         is_active=is_active,
         notes=notes or "",
+        headcount=heads,
+        shift_minutes_per_head=shift,
+        efficiency_pct=eff,
         is_demo=False,
         created_by=user,
     )

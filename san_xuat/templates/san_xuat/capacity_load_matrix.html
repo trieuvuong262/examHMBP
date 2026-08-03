@@ -1,0 +1,148 @@
+{% extends 'base.html' %}
+
+{% block extra_head %}{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+<style>
+  .jp-load-table { border-collapse: separate; border-spacing: 0; font-size: .78rem; }
+  .jp-load-table th, .jp-load-table td { padding: .3rem .35rem; text-align: center; white-space: nowrap; }
+  .jp-load-table thead th { background: #f8fafc; font-weight: 700; position: sticky; top: 0; z-index: 2; }
+  .jp-load-center { text-align: left !important; min-width: 190px; position: sticky; left: 0; background: #fff; z-index: 1; }
+  .jp-load-table thead .jp-load-center { z-index: 3; }
+  .jp-load-cell { border: 1px solid #eef2f6; }
+  .jp-load-ok    { background: #f0fdf4; color: #166534; }
+  .jp-load-warn  { background: #fef9c3; color: #854d0e; }
+  .jp-load-over  { background: #fee2e2; color: #991b1b; font-weight: 700; }
+  .jp-load-idle  { background: #fff; color: #cbd5e1; }
+  .jp-load-legend { display: flex; flex-wrap: wrap; gap: .75rem; font-size: .78rem; }
+  .jp-load-legend span i { display: inline-block; width: 14px; height: 14px; border-radius: 3px; vertical-align: -2px; margin-right: .3rem; border: 1px solid #e2e8f0; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid jp-page jp-sx-page py-3 py-md-4 mb-5">
+  <div class="jp-page-header mb-3 mb-md-4">
+    <div class="jp-page-header-main">
+      <h2 class="jp-page-title fw-bold text-dark mb-1">Tải năng lực theo tổ</h2>
+      <p class="text-muted small mb-0">
+        Phút cần (sản lượng × định mức SMV) so với quỹ phút của từng tổ, theo từng ngày làm việc.
+      </p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      <a href="{% url 'san_xuat:capacity_list' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-speedometer me-1"></i>Danh mục năng lực
+      </a>
+      <a href="{% url 'san_xuat:plan_detail' %}" class="btn btn-outline-hm">Kế hoạch chi tiết</a>
+    </div>
+  </div>
+
+  <form method="get" class="card border-0 shadow-sm mb-3">
+    <div class="card-body p-3 d-flex flex-wrap gap-3 align-items-end">
+      <div>
+        <label class="form-label fw-bold small mb-1">Từ ngày</label>
+        <input type="date" name="from" value="{{ date_from|date:'Y-m-d' }}" class="form-control jp-date-vn">
+      </div>
+      <div>
+        <label class="form-label fw-bold small mb-1">Đến ngày</label>
+        <input type="date" name="to" value="{{ date_to|date:'Y-m-d' }}" class="form-control jp-date-vn">
+      </div>
+      <div>
+        <label class="form-label fw-bold small mb-1">Nguồn tải</label>
+        <select name="src" class="form-select">
+          <option value="all" {% if src == 'all' %}selected{% endif %}>Kế hoạch + Lệnh SX</option>
+          <option value="plan" {% if src == 'plan' %}selected{% endif %}>Chỉ kế hoạch chi tiết</option>
+          <option value="mo" {% if src == 'mo' %}selected{% endif %}>Chỉ lệnh sản xuất</option>
+        </select>
+      </div>
+      <button type="submit" class="btn btn-hm px-4">Xem</button>
+    </div>
+  </form>
+
+  {% if centers_no_minutes %}
+  <div class="alert alert-warning border-0 shadow-sm py-2 small">
+    <i class="bi bi-exclamation-triangle-fill me-1"></i>
+    {{ centers_no_minutes|length }} tổ chưa khai số nhân sự / phút làm việc nên không tính được tải:
+    {% for wc in centers_no_minutes %}<strong>{{ wc.name }}</strong>{% if not forloop.last %}, {% endif %}{% endfor %}.
+    Đồng bộ nhân sự hoặc khai tại <a href="{% url 'san_xuat:capacity_list' %}">Năng lực SX</a>.
+  </div>
+  {% endif %}
+
+  {% if matrix.rows %}
+  <div class="card border-0 shadow-sm">
+    <div class="table-responsive" style="max-height: 70vh;">
+      <table class="table table-sm mb-0 jp-load-table">
+        <thead>
+          <tr>
+            <th class="jp-load-center">Tổ / chuyền</th>
+            {% for d in matrix.days %}
+            <th>{{ d|date:"d/m" }}</th>
+            {% endfor %}
+            <th>Tải kỳ</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for row in matrix.rows %}
+          <tr>
+            <td class="jp-load-center">
+              <div class="fw-semibold">{{ row.center.name }}</div>
+              <div class="text-muted" style="font-size: .72rem;">
+                {{ row.center.headcount }} người ·
+                {{ row.center.available_minutes_per_day|floatformat:"0" }} phút/ngày
+                ({{ row.center.efficiency_pct|floatformat:"-2" }}%)
+              </div>
+            </td>
+            {% for cell in row.cells %}
+            <td class="jp-load-cell
+              {% if not cell.load.has_data %}jp-load-idle
+              {% elif cell.load.load_pct >= danger_pct %}jp-load-over
+              {% elif cell.load.load_pct >= warn_pct %}jp-load-warn
+              {% else %}jp-load-ok{% endif %}"
+              title="{{ cell.day|date:'d/m/Y' }} — cần {{ cell.load.minutes_needed|floatformat:'0' }} / có {{ cell.load.minutes_available|floatformat:'0' }} phút">
+              {% if cell.load.has_data %}{{ cell.load.load_pct|floatformat:"0" }}%{% else %}—{% endif %}
+            </td>
+            {% endfor %}
+            <td class="{% if row.load_pct >= danger_pct %}jp-load-over{% elif row.load_pct >= warn_pct %}jp-load-warn{% elif row.minutes_needed %}jp-load-ok{% else %}jp-load-idle{% endif %}">
+              {% if row.minutes_needed %}{{ row.load_pct|floatformat:"0" }}%{% else %}—{% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr>
+            <th class="jp-load-center">Tổng toàn xưởng</th>
+            {% for t in matrix.totals %}
+            <th class="{% if t.is_over %}jp-load-over{% endif %}"
+                title="cần {{ t.minutes_needed|floatformat:'0' }} / có {{ t.minutes_available|floatformat:'0' }} phút">
+              {{ t.minutes_needed|floatformat:"0" }}
+            </th>
+            {% endfor %}
+            <th></th>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    <div class="card-footer bg-white border-top">
+      <div class="jp-load-legend text-muted">
+        <span><i class="jp-load-ok"></i>Dưới {{ warn_pct }}%</span>
+        <span><i class="jp-load-warn"></i>{{ warn_pct }}–{{ danger_pct }}%</span>
+        <span><i class="jp-load-over"></i>Quá tải (từ {{ danger_pct }}%)</span>
+        <span><i class="jp-load-idle"></i>Không có tải</span>
+        <span class="ms-auto">Dòng cuối = tổng phút cần toàn xưởng mỗi ngày.</span>
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <div class="card border-0 shadow-sm">
+    <div class="card-body text-center py-5">
+      <i class="bi bi-clipboard-data text-muted" style="font-size: 2rem;"></i>
+      <p class="text-muted mb-1 mt-2">Chưa tính được tải năng lực.</p>
+      <p class="text-muted small mb-3">
+        Cần đồng thời: tổ có khai số nhân sự, và mã sản phẩm có định mức thời gian (SMV) trên BOM/routing.
+      </p>
+      <div class="d-flex gap-2 justify-content-center flex-wrap">
+        <a href="{% url 'san_xuat:capacity_list' %}" class="btn btn-outline-hm">Khai năng lực tổ</a>
+        <a href="{% url 'san_xuat:ie_routing_list' %}" class="btn btn-outline-secondary">Routing / định mức</a>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

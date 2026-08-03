@@ -381,6 +381,8 @@ def sync_capacity_from_hrm(
             'is_active': True,
             'notes': notes,
             'is_demo': False,
+            # P3: số nhân sự để tính phút khả dụng khi xếp lịch theo SMV
+            'headcount': staff,
         }
 
         center = SxWorkCenter.objects.filter(code__iexact=code).first()
@@ -398,6 +400,7 @@ def sync_capacity_from_hrm(
             center.is_active = defaults_common['is_active']
             center.notes = defaults_common['notes']
             center.is_demo = False
+            center.headcount = staff
             if reset_capacity or center.capacity_per_day is None or center.capacity_per_day <= 0:
                 center.capacity_per_day = estimated
             center.save()

@@ -95,6 +95,12 @@ from san_xuat.services.plan_methods import (
     upsert_stock_policy,
 )
 from san_xuat.services.demand import build_restock_suggestions
+from san_xuat.services.scheduling import (
+    build_load_matrix,
+    check_detail_plan_center_capacity,
+    product_routing,
+    schedule_detail_plan_by_capacity,
+)
 from san_xuat.forms_plan import (
     DetailPlanExplodeForm,
     ImportKvOrderForm,
@@ -1156,6 +1162,38 @@ def plan_detail_detail(request, pk: int):
                 else:
                     messages.info(request, 'Không có LSX mới — các dòng đã có LSX tương ứng.')
                 return redirect('san_xuat:plan_detail_detail', pk=detail.pk)
+        elif action == 'reschedule' and can_update and detail.status == SxOverallPlan.STATUS_DRAFT:
+            if not detail.overall_plan_id:
+                messages.error(request, 'KHCT không gắn KHTT nguồn.')
+            else:
+                try:
+                    res = schedule_detail_plan_by_capacity(
+                        overall_plan_id=detail.overall_plan_id,
+                    )
+                except PlanningError as exc:
+                    messages.error(request, str(exc))
+                else:
+                    msg = (
+                        f'Đã xếp lịch theo định mức: {res.lines_created} dòng, '
+                        f'{res.days_used} ngày, SL {res.scheduled_qty}.'
+                    )
+                    messages.success(request, msg)
+                    if res.unscheduled:
+                        head = res.unscheduled[0]
+                        messages.warning(
+                            request,
+                            f'{len(res.unscheduled)} mã không xếp hết trong kỳ '
+                            f'(vd {head["product_code"]} còn {head["qty_left"]}) — '
+                            f'giãn kỳ kế hoạch hoặc tăng nhân sự.',
+                        )
+                    if res.no_routing:
+                        messages.info(
+                            request,
+                            'Chưa có định mức thời gian nên chia đều: '
+                            f'{", ".join(sorted(set(res.no_routing))[:6])}.',
+                        )
+                    return redirect('san_xuat:plan_detail_detail', pk=res.detail_plan.pk)
+
         elif action == 'assign_teams' and can_update:
             overwrite = bool(request.POST.get('overwrite'))
             try:
@@ -1253,6 +1291,14 @@ def plan_detail_detail(request, pk: int):
         'production_orders': production_orders,
         'capacity_info': cap,
         'capacity_warnings': check_detail_plan_capacity(plan_id=detail.pk),
+        'center_warnings': check_detail_plan_center_capacity(plan_id=detail.pk),
+        'routing_rows': [
+            {
+                'code': code,
+                'routing': product_routing(code),
+            }
+            for code in sorted({ln.product_code for ln in lines_all})
+        ],
         'plan_progress': detail_plan_progress(detail),
         'workdays_labels': workdays_labels(wd_bits),
         'holiday_count': len(holidays),
@@ -3878,6 +3924,60 @@ def capacity_list(request):
     })
 
 
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+def capacity_load_matrix(request):
+    """Tải năng lực theo tổ × ngày, tính bằng phút từ định mức SMV."""
+    from san_xuat.services.sx_settings import sx_int
+
+    today = timezone.localdate()
+    raw_from = (request.GET.get('from') or '').strip()
+    raw_to = (request.GET.get('to') or '').strip()
+    date_from = _parse_iso_date_safe(raw_from) or (today - timedelta(days=today.weekday()))
+    date_to = _parse_iso_date_safe(raw_to) or (date_from + timedelta(days=13))
+    if date_to < date_from:
+        date_from, date_to = date_to, date_from
+    # Giới hạn 60 ngày để bảng không quá rộng
+    if (date_to - date_from).days > 60:
+        date_to = date_from + timedelta(days=60)
+
+    include_plan = request.GET.get('src') != 'mo'
+    include_mo = request.GET.get('src') != 'plan'
+
+    matrix = build_load_matrix(
+        date_from=date_from,
+        date_to=date_to,
+        include_plan=include_plan,
+        include_mo=include_mo,
+    )
+    centers_no_minutes = [
+        wc
+        for wc in SxWorkCenter.objects.filter(is_active=True, is_demo=False).order_by('code')
+        if wc.available_minutes_per_day <= 0
+    ]
+    return render(request, 'san_xuat/capacity_load_matrix.html', {
+        **_perm_ctx(request),
+        'date_from': date_from,
+        'date_to': date_to,
+        'matrix': matrix,
+        'src': request.GET.get('src') or 'all',
+        'warn_pct': sx_int('capacity_load_warn_pct', 80, min_v=1, max_v=200),
+        'danger_pct': sx_int('capacity_load_danger_pct', 100, min_v=1, max_v=200),
+        'centers_no_minutes': centers_no_minutes,
+    })
+
+
+def _parse_iso_date_safe(raw: str):
+    from datetime import datetime
+
+    text = (raw or '').strip()
+    if not text:
+        return None
+    try:
+        return datetime.strptime(text, '%Y-%m-%d').date()
+    except ValueError:
+        return None
+
+
 @module_perm_required(MODULE_SAN_XUAT, 'create')
 def capacity_create(request):
     from san_xuat.services.phase3 import Phase3Error, upsert_work_center
@@ -3894,15 +3994,26 @@ def capacity_create(request):
                     team_label=form.cleaned_data.get('team_label') or '',
                     is_active=bool(form.cleaned_data.get('is_active')),
                     notes=form.cleaned_data.get('notes') or '',
+                    headcount=form.cleaned_data.get('headcount'),
+                    shift_minutes_per_head=form.cleaned_data.get('shift_minutes_per_head'),
+                    efficiency_pct=form.cleaned_data.get('efficiency_pct'),
                 )
             except Phase3Error as exc:
                 messages.error(request, str(exc))
             else:
-                messages.success(request, f'Đã thêm {center.code}.')
+                messages.success(
+                    request,
+                    f'Đã thêm {center.code} — quỹ {center.available_minutes_per_day} phút/ngày.',
+                )
                 return redirect('san_xuat:capacity_list')
         messages.error(request, 'Không lưu được tổ/chuyền.')
     else:
-        form = WorkCenterForm(initial={'is_active': True, 'uom_label': 'SP'})
+        form = WorkCenterForm(initial={
+            'is_active': True,
+            'uom_label': 'SP',
+            'shift_minutes_per_head': 480,
+            'efficiency_pct': Decimal('85'),
+        })
     return render(request, 'san_xuat/phase3_form.html', {
         **_perm_ctx(request),
         'form': form,

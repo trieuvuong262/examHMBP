@@ -1312,6 +1312,25 @@ class SxWorkCenter(DemoMarkedModel):
         max_digits=14, decimal_places=2, default=Decimal('0'), verbose_name='Năng lực/ngày',
     )
     uom_label = models.CharField(max_length=40, blank=True, default='SP')
+
+    # --- Năng lực theo thời gian (P3) — nền để xếp lịch bằng SMV ---
+    headcount = models.PositiveSmallIntegerField(
+        default=0,
+        verbose_name='Số nhân sự',
+        help_text='Đồng bộ từ cơ cấu HR phòng Sản xuất.',
+    )
+    shift_minutes_per_head = models.PositiveSmallIntegerField(
+        default=480,
+        verbose_name='Phút làm việc / người / ngày',
+        help_text='Mặc định 480 phút = 8 giờ một ca.',
+    )
+    efficiency_pct = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal('85'),
+        verbose_name='Hiệu suất (%)',
+        help_text='Tỷ lệ thời gian thực sự tạo ra sản phẩm — dùng khi xếp lịch theo SMV.',
+    )
     team_label = models.CharField(
         max_length=80,
         blank=True,
@@ -1330,6 +1349,18 @@ class SxWorkCenter(DemoMarkedModel):
 
     def __str__(self):
         return f'{self.code} — {self.name}'
+
+    @property
+    def available_minutes_per_day(self) -> Decimal:
+        """Phút hữu ích mỗi ngày = số người × phút/ca × hiệu suất."""
+        heads = Decimal(self.headcount or 0)
+        shift = Decimal(self.shift_minutes_per_head or 0)
+        eff = (self.efficiency_pct or Decimal('0')) / Decimal('100')
+        return (heads * shift * eff).quantize(Decimal('0.01'))
+
+    @property
+    def has_minute_capacity(self) -> bool:
+        return self.available_minutes_per_day > 0
 
 
 class SxPackingRecord(DemoMarkedModel):
