@@ -546,19 +546,25 @@ def approve_step(step, *, actor, note='', procurement_assignee=None):
     unlocked = _complete_step(step, actor=actor, note=note)
     request_obj = step.request
 
-    if step.step_code == ServiceRequestStep.STEP_DIVISION_HEAD:
-        for child in unlocked:
-            if child.step_code == ServiceRequestStep.STEP_PROCUREMENT_QUOTE:
-                child.assignee = procurement_assignee
-                child.status = ServiceRequestStep.STATUS_IN_PROGRESS
-                child.save(update_fields=['assignee', 'status'])
-                log_action(
-                    request_obj,
-                    actor=actor,
-                    action='assigned',
-                    message=f'Chỉ định Thu mua → {procurement_assignee.username}',
-                    step=child,
-                )
+    if step.step_code == ServiceRequestStep.STEP_DIVISION_HEAD and procurement_assignee:
+        # Gán Thu mua ngay cả khi bước báo giá còn bị chặn (còn Trưởng phòng ở giữa)
+        quote_step = request_obj.steps.filter(
+            step_code=ServiceRequestStep.STEP_PROCUREMENT_QUOTE,
+        ).first()
+        if quote_step and not quote_step.assignee_id:
+            quote_step.assignee = procurement_assignee
+            update_fields = ['assignee']
+            if quote_step.status in ServiceRequestStep.OPEN_HANDLER_STATUSES:
+                quote_step.status = ServiceRequestStep.STATUS_IN_PROGRESS
+                update_fields.append('status')
+            quote_step.save(update_fields=update_fields)
+            log_action(
+                request_obj,
+                actor=actor,
+                action='assigned',
+                message=f'Chỉ định Thu mua → {procurement_assignee.username}',
+                step=quote_step,
+            )
 
     if not _maybe_complete_request(request_obj, actor=actor):
         for child in unlocked:
@@ -598,15 +604,20 @@ def reject_step(step, *, actor, reason):
 
 @transaction.atomic
 def claim_step(step, *, actor):
-    if step.assignee_rule not in {
-        RequestTypeStepTemplate.RULE_DEPARTMENT_QUEUE,
-        RequestTypeStepTemplate.RULE_DIRECTOR,
-    }:
-        raise ValueError('Bước này không cần tiếp nhận.')
+    """Tiếp nhận bước chưa gán người (queue / GĐ / cấp trên bị thiếu assignee)."""
     if step.assignee_id:
         raise ValueError('Bước đã có người tiếp nhận.')
     if step.status not in ServiceRequestStep.OPEN_HANDLER_STATUSES:
         raise ValueError('Bước không thể tiếp nhận.')
+
+    claimable_rules = {
+        RequestTypeStepTemplate.RULE_DEPARTMENT_QUEUE,
+        RequestTypeStepTemplate.RULE_DIRECTOR,
+        # Bước cấp trên tạo ra nhưng không resolve được manager → GĐ/handler tiếp nhận thay
+        RequestTypeStepTemplate.RULE_DIRECT_MANAGER,
+    }
+    if step.assignee_rule not in claimable_rules:
+        raise ValueError('Bước này không cần tiếp nhận.')
 
     step.assignee = actor
     if step.is_execution:

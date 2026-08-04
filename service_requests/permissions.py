@@ -211,13 +211,15 @@ def can_handle_step(user, step: ServiceRequestStep) -> bool:
 def can_claim_step(user, step: ServiceRequestStep) -> bool:
     if not can_handle_step(user, step):
         return False
+    if step.assignee_id:
+        return False
+    # GĐ (hoặc handler) tiếp nhận bước cấp trên khi tạo phiếu không gán được manager
     if step.step_code in {
         ServiceRequestStep.STEP_DIVISION_HEAD,
         ServiceRequestStep.STEP_DEPARTMENT_HEAD,
-    } and is_director(user):
-        return not step.assignee_id
-    if step.assignee_id:
-        return False
+        ServiceRequestStep.STEP_TEAM_LEADER,
+    } and step.assignee_rule == RequestTypeStepTemplate.RULE_DIRECT_MANAGER:
+        return True
     return step.assignee_rule in {
         RequestTypeStepTemplate.RULE_DEPARTMENT_QUEUE,
         RequestTypeStepTemplate.RULE_DIRECTOR,
