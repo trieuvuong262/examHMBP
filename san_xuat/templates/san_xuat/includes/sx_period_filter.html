@@ -1,5 +1,11 @@
 <form method="get" id="sxPeriodFilterForm" class="card border-0 shadow-sm mb-4 jp-team-filter-form">
   {% if tab_value %}<input type="hidden" name="tab" id="sx-filter-tab" value="{{ tab_value }}">{% endif %}
+  {% if view_value %}<input type="hidden" name="view" value="{{ view_value }}">{% endif %}
+  {% if list_filter_preserve %}
+  {% for key, val in list_filter_preserve.items %}
+  {% if key != 'view' %}<input type="hidden" name="{{ key }}" value="{{ val }}">{% endif %}
+  {% endfor %}
+  {% endif %}
   <div class="card-body p-3 jp-team-filter-body">
     {% include 'san_xuat/includes/sx_date_range_fields.html' with id_prefix='sx-period' date_from=date_from date_to=date_to %}
     <div class="jp-team-filter-period">

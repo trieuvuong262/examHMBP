@@ -713,12 +713,45 @@ def plan_progress_monitor(request):
         team_label=team_label,
         product_code=product_code,
     )
+    view_mode = (request.GET.get('view') or 'table').strip().lower()
+    if view_mode not in ('table', 'kanban'):
+        view_mode = 'table'
+
+    kanban_columns = [
+        {
+            'key': 'danger',
+            'label': 'Cần xử lý',
+            'hint': 'Lệnh trễ / QC mở',
+            'rows': [r for r in board.rows if r.status == 'danger'],
+        },
+        {
+            'key': 'warn',
+            'label': 'Cảnh báo',
+            'hint': 'Chưa có sản lượng / dừng / lỗi cao',
+            'rows': [r for r in board.rows if r.status == 'warn'],
+        },
+        {
+            'key': 'ok',
+            'label': 'Đúng tiến độ',
+            'hint': 'Đang chạy ổn',
+            'rows': [r for r in board.rows if r.status == 'ok'],
+        },
+        {
+            'key': 'idle',
+            'label': 'Chưa có việc',
+            'hint': 'Tổ chưa gắn kế hoạch / lệnh',
+            'rows': [r for r in board.rows if r.status == 'idle'],
+        },
+    ]
+
     has_filters = bool(
         product_code or team_label or month or date_from_raw or date_to_raw
     )
     return render(request, 'san_xuat/plan_progress_monitor.html', {
         **_perm_ctx(request),
         'board': board,
+        'view_mode': view_mode,
+        'kanban_columns': kanban_columns,
         'month_value': f'{date_from.year:04d}-{date_from.month:02d}',
         'filter_product_code': product_code,
         'filter_team_label': team_label,
@@ -726,7 +759,7 @@ def plan_progress_monitor(request):
         'is_today_default': (
             date_from == date_to == timezone.localdate() and not has_filters
         ),
-        **sx_filter_context(filters),
+        **sx_filter_context(filters, preserve={'view': view_mode} if view_mode != 'table' else None),
     })
 
 

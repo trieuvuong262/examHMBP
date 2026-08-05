@@ -6,93 +6,648 @@
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
 {% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}
 <style>
+  .jp-prog-page {
+    --prog-ok: #15803d;
+    --prog-ok-bg: #ecfdf5;
+    --prog-warn: #b45309;
+    --prog-warn-bg: #fffbeb;
+    --prog-danger: #b91c1c;
+    --prog-danger-bg: #fef2f2;
+    --prog-idle: #64748b;
+    --prog-idle-bg: #f8fafc;
+    --prog-surface: #ffffff;
+    --prog-line: #e8edf3;
+    --prog-muted: #64748b;
+    --prog-ink: #0f172a;
+    --prog-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+    --prog-radius: 0.85rem;
+  }
+
+  .jp-prog-page {
+    position: relative;
+  }
+  .jp-prog-page::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 11rem;
+    background:
+      radial-gradient(ellipse 70% 90% at 8% -20%, rgba(220, 38, 38, 0.10), transparent 55%),
+      radial-gradient(ellipse 50% 80% at 92% 0%, rgba(15, 23, 42, 0.05), transparent 50%),
+      linear-gradient(180deg, #f8fafc 0%, transparent 100%);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .jp-prog-page > * { position: relative; z-index: 1; }
+
+  .jp-prog-hero {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem 1.25rem;
+    margin-bottom: 1.1rem;
+  }
+  .jp-prog-hero-copy h2 {
+    margin: 0;
+    font-size: clamp(1.35rem, 2vw, 1.7rem);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--prog-ink);
+    line-height: 1.2;
+  }
+  .jp-prog-hero-copy p {
+    margin: 0.35rem 0 0;
+    color: var(--prog-muted);
+    font-size: 0.9rem;
+    max-width: 36rem;
+  }
+  .jp-prog-hero-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.45rem;
+    margin-top: 0.65rem;
+  }
+  .jp-prog-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.28rem 0.7rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: #fff;
+    border: 1px solid var(--prog-line);
+    color: var(--prog-ink);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  }
+  .jp-prog-chip i { color: var(--hm-primary); font-size: 0.9em; }
+  .jp-prog-chip.is-live {
+    background: var(--hm-primary-soft);
+    border-color: rgba(220, 38, 38, 0.18);
+    color: var(--hm-primary);
+  }
+  .jp-prog-chip.is-live i { animation: jp-prog-pulse 1.8s ease-in-out infinite; }
+
+  .jp-prog-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .jp-prog-seg {
+    display: inline-flex;
+    padding: 0.2rem;
+    background: #fff;
+    border: 1px solid var(--prog-line);
+    border-radius: 0.65rem;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  }
+  .jp-prog-seg a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.4rem 0.85rem;
+    border-radius: 0.5rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--prog-muted);
+    text-decoration: none;
+    transition: background .15s ease, color .15s ease, box-shadow .15s ease;
+  }
+  .jp-prog-seg a:hover { color: var(--prog-ink); background: #f8fafc; }
+  .jp-prog-seg a.is-active {
+    background: var(--hm-primary);
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(220, 38, 38, 0.25);
+  }
+  .jp-prog-tool-links {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 0.15rem;
+  }
+  .jp-prog-tool-links a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.4rem 0.7rem;
+    border-radius: 0.5rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--prog-muted);
+    text-decoration: none;
+    transition: background .12s ease, color .12s ease;
+  }
+  .jp-prog-tool-links a:hover {
+    background: rgba(15, 23, 42, 0.05);
+    color: var(--prog-ink);
+  }
+  .jp-prog-tool-links a.is-accent { color: var(--hm-primary); }
+  .jp-prog-tool-links a.is-accent:hover { background: var(--hm-primary-soft); }
+
+  .jp-prog-kpi {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.85rem;
+    margin-bottom: 1.15rem;
+  }
+  @media (min-width: 992px) {
+    .jp-prog-kpi { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  }
+  .jp-prog-kpi-card {
+    position: relative;
+    overflow: hidden;
+    background: var(--prog-surface);
+    border: 1px solid var(--prog-line);
+    border-radius: var(--prog-radius);
+    padding: 1rem 1.05rem 0.95rem;
+    box-shadow: var(--prog-shadow);
+    text-decoration: none;
+    color: inherit;
+    display: block;
+    height: 100%;
+    transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+    animation: jp-prog-rise .45s ease both;
+  }
+  .jp-prog-kpi-card:nth-child(2) { animation-delay: .05s; }
+  .jp-prog-kpi-card:nth-child(3) { animation-delay: .1s; }
+  .jp-prog-kpi-card:nth-child(4) { animation-delay: .15s; }
+  a.jp-prog-kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.09);
+    border-color: rgba(220, 38, 38, 0.22);
+  }
+  .jp-prog-kpi-card::after {
+    content: "";
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 4px;
+    background: var(--kpi-accent, var(--hm-primary));
+  }
+  .jp-prog-kpi-card.is-hm { --kpi-accent: var(--hm-primary); }
+  .jp-prog-kpi-card.is-ok { --kpi-accent: var(--prog-ok); }
+  .jp-prog-kpi-card.is-danger { --kpi-accent: var(--prog-danger); }
+  .jp-prog-kpi-card.is-muted { --kpi-accent: #94a3b8; }
+  .jp-prog-kpi-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.55rem;
+  }
+  .jp-prog-kpi-label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--prog-muted);
+    letter-spacing: 0.01em;
+  }
+  .jp-prog-kpi-icon {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 0.55rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--hm-primary-soft);
+    color: var(--hm-primary);
+    flex: 0 0 auto;
+  }
+  .jp-prog-kpi-card.is-ok .jp-prog-kpi-icon { background: var(--prog-ok-bg); color: var(--prog-ok); }
+  .jp-prog-kpi-card.is-danger .jp-prog-kpi-icon { background: var(--prog-danger-bg); color: var(--prog-danger); }
+  .jp-prog-kpi-card.is-muted .jp-prog-kpi-icon { background: #f1f5f9; color: #64748b; }
+  .jp-prog-kpi-value {
+    font-size: clamp(1.45rem, 2.2vw, 1.85rem);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    color: var(--prog-ink);
+  }
+  .jp-prog-kpi-card.is-hm .jp-prog-kpi-value { color: var(--hm-primary); }
+  .jp-prog-kpi-card.is-ok .jp-prog-kpi-value { color: var(--prog-ok); }
+  .jp-prog-kpi-card.is-danger .jp-prog-kpi-value { color: var(--prog-danger); }
+  .jp-prog-kpi-foot {
+    margin-top: 0.35rem;
+    font-size: 0.75rem;
+    color: var(--prog-muted);
+  }
+
   .jp-prog-bar {
-    height: 8px; border-radius: 999px; background: #eef2f6; overflow: hidden;
+    height: 7px;
+    border-radius: 999px;
+    background: #eef2f6;
+    overflow: hidden;
   }
   .jp-prog-bar > span {
-    display: block; height: 100%; border-radius: 999px; background: var(--hm-primary, #0d6efd);
+    display: block;
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #f87171, var(--hm-primary));
+    transition: width .4s ease;
   }
-  .jp-prog-bar.is-warn > span { background: #d97706; }
-  .jp-prog-bar.is-danger > span { background: #dc2626; }
-  .jp-prog-bar.is-ok > span { background: #16a34a; }
+  .jp-prog-bar.is-warn > span { background: linear-gradient(90deg, #fbbf24, #d97706); }
+  .jp-prog-bar.is-danger > span { background: linear-gradient(90deg, #f87171, #dc2626); }
+  .jp-prog-bar.is-ok > span { background: linear-gradient(90deg, #4ade80, #16a34a); }
+  .jp-prog-bar.is-idle > span { background: #94a3b8; }
+
   .jp-prog-status {
-    display: inline-block; min-width: 4.5rem; text-align: center;
-    font-size: .72rem; font-weight: 700; padding: .15rem .45rem; border-radius: .35rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    min-width: 0;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    letter-spacing: 0.01em;
   }
-  .jp-prog-status.is-ok { background: #dcfce7; color: #166534; }
-  .jp-prog-status.is-warn { background: #fef3c7; color: #92400e; }
-  .jp-prog-status.is-danger { background: #fee2e2; color: #991b1b; }
-  .jp-prog-status.is-idle { background: #f1f5f9; color: #64748b; }
-  .jp-prog-mo-list { list-style: none; padding: 0; margin: 0; font-size: .78rem; }
-  .jp-prog-mo-list li { display: flex; gap: .5rem; flex-wrap: wrap; padding: .15rem 0; }
-  .jp-prog-alert { font-size: .75rem; }
+  .jp-prog-status.is-ok { background: var(--prog-ok-bg); color: var(--prog-ok); }
+  .jp-prog-status.is-warn { background: var(--prog-warn-bg); color: var(--prog-warn); }
+  .jp-prog-status.is-danger { background: var(--prog-danger-bg); color: var(--prog-danger); }
+  .jp-prog-status.is-idle { background: #f1f5f9; color: var(--prog-idle); }
+  .jp-prog-status::before {
+    content: "";
+    width: 0.4rem;
+    height: 0.4rem;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  .jp-prog-panel {
+    background: var(--prog-surface);
+    border: 1px solid var(--prog-line);
+    border-radius: var(--prog-radius);
+    box-shadow: var(--prog-shadow);
+    overflow: hidden;
+    animation: jp-prog-rise .5s ease .12s both;
+  }
+  .jp-prog-table {
+    margin: 0;
+    font-size: 0.875rem;
+  }
+  .jp-prog-table thead th {
+    background: #f8fafc;
+    border-bottom: 1px solid var(--prog-line);
+    color: #475569;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    padding: 0.75rem 0.85rem;
+  }
+  .jp-prog-table tbody td {
+    padding: 0.9rem 0.85rem;
+    border-color: #f1f5f9;
+    vertical-align: middle;
+  }
+  .jp-prog-table tbody tr {
+    transition: background .12s ease;
+  }
+  .jp-prog-table tbody tr:hover { background: #fafbfc; }
+  .jp-prog-table tbody tr.is-danger { box-shadow: inset 3px 0 0 var(--prog-danger); }
+  .jp-prog-table tbody tr.is-warn { box-shadow: inset 3px 0 0 var(--prog-warn); }
+  .jp-prog-table tbody tr.is-ok { box-shadow: inset 3px 0 0 var(--prog-ok); }
+  .jp-prog-team-name { font-weight: 700; color: var(--prog-ink); }
+  .jp-prog-team-code { font-size: 0.75rem; color: var(--prog-muted); margin-top: 0.1rem; }
+  .jp-prog-mo-list { list-style: none; padding: 0; margin: 0; font-size: 0.78rem; }
+  .jp-prog-mo-list li {
+    display: flex;
+    gap: 0.45rem;
+    flex-wrap: wrap;
+    align-items: baseline;
+    padding: 0.2rem 0;
+    border-top: 1px dashed #f1f5f9;
+  }
+  .jp-prog-mo-list li:first-child { border-top: 0; padding-top: 0; }
+  .jp-prog-mo-list a {
+    font-weight: 700;
+    color: var(--hm-primary);
+    text-decoration: none;
+  }
+  .jp-prog-mo-list a:hover { text-decoration: underline; }
+  .jp-prog-alert {
+    font-size: 0.7rem;
+    font-weight: 600;
+    border-radius: 999px;
+    padding: 0.2rem 0.55rem;
+  }
+
+  .jp-prog-kanban-wrap {
+    width: 100%;
+    overflow-x: auto;
+    padding-bottom: 0.35rem;
+  }
+  .jp-prog-kanban {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(250px, 1fr));
+    gap: 0.9rem;
+    min-width: 1040px;
+    min-height: 26rem;
+  }
+  .jp-prog-kanban-col {
+    display: flex;
+    flex-direction: column;
+    background: rgba(248, 250, 252, 0.9);
+    border: 1px solid var(--prog-line);
+    border-radius: var(--prog-radius);
+    min-height: 22rem;
+    max-height: 72vh;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(15, 23, 42, 0.03);
+  }
+  .jp-prog-kanban-col-head {
+    padding: 0.9rem 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 0.5rem;
+    border-bottom: 1px solid var(--prog-line);
+    background: #fff;
+  }
+  .jp-prog-kanban-col-head .title {
+    font-size: 0.82rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
+  .jp-prog-kanban-col-head .hint {
+    font-size: 0.72rem;
+    color: var(--prog-muted);
+    font-weight: 500;
+    margin-top: 0.15rem;
+  }
+  .jp-prog-kanban-col.is-danger .jp-prog-kanban-col-head .title { color: var(--prog-danger); }
+  .jp-prog-kanban-col.is-warn .jp-prog-kanban-col-head .title { color: var(--prog-warn); }
+  .jp-prog-kanban-col.is-ok .jp-prog-kanban-col-head .title { color: var(--prog-ok); }
+  .jp-prog-kanban-col.is-idle .jp-prog-kanban-col-head .title { color: var(--prog-idle); }
+  .jp-prog-kanban-count {
+    min-width: 1.6rem;
+    height: 1.6rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 800;
+    background: #f1f5f9;
+    color: #334155;
+  }
+  .jp-prog-kanban-col.is-danger .jp-prog-kanban-count { background: var(--prog-danger-bg); color: var(--prog-danger); }
+  .jp-prog-kanban-col.is-warn .jp-prog-kanban-count { background: var(--prog-warn-bg); color: var(--prog-warn); }
+  .jp-prog-kanban-col.is-ok .jp-prog-kanban-count { background: var(--prog-ok-bg); color: var(--prog-ok); }
+  .jp-prog-kanban-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+  }
+  .jp-prog-card {
+    background: #fff;
+    border: 1px solid var(--prog-line);
+    border-radius: 0.75rem;
+    padding: 0.9rem;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+    border-left: 3px solid #cbd5e1;
+  }
+  .jp-prog-card.is-danger { border-left-color: var(--prog-danger); }
+  .jp-prog-card.is-warn { border-left-color: var(--prog-warn); }
+  .jp-prog-card.is-ok { border-left-color: var(--prog-ok); }
+  .jp-prog-card.is-idle { border-left-color: #94a3b8; }
+  .jp-prog-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 22px rgba(15, 23, 42, 0.08);
+    border-color: #dbe3ec;
+  }
+  .jp-prog-card-title { font-weight: 800; font-size: 0.95rem; color: var(--prog-ink); }
+  .jp-prog-card-meta { font-size: 0.72rem; color: var(--prog-muted); margin-top: 0.1rem; }
+  .jp-prog-card-metrics {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.35rem;
+    margin: 0.75rem 0 0.55rem;
+    padding: 0.55rem 0.35rem;
+    background: #f8fafc;
+    border-radius: 0.55rem;
+    font-size: 0.7rem;
+    text-align: center;
+    color: var(--prog-muted);
+  }
+  .jp-prog-card-metrics strong {
+    display: block;
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: var(--prog-ink);
+    letter-spacing: -0.02em;
+  }
+  .jp-prog-kanban-empty {
+    text-align: center;
+    color: #94a3b8;
+    font-size: 0.8rem;
+    padding: 2rem 0.5rem;
+    border: 1px dashed #e2e8f0;
+    border-radius: 0.65rem;
+    background: rgba(255,255,255,0.6);
+  }
+
+  .jp-prog-footnote {
+    margin-top: 0.85rem;
+    font-size: 0.78rem;
+    color: var(--prog-muted);
+  }
+  .jp-prog-empty {
+    border: 1px dashed #cbd5e1;
+    border-radius: var(--prog-radius);
+    background: #fff;
+    padding: 2.5rem 1.25rem;
+    text-align: center;
+    color: var(--prog-muted);
+  }
+
+  @keyframes jp-prog-rise {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes jp-prog-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.45; }
+  }
+
+  @media (max-width: 767.98px) {
+    .jp-prog-hero { align-items: stretch; }
+    .jp-prog-toolbar { width: 100%; }
+    .jp-prog-seg { width: 100%; }
+    .jp-prog-seg a { flex: 1; justify-content: center; }
+  }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 py-md-4 mb-5">
-  <div class="jp-npl-mat-topbar jp-sx-detail-topbar mb-3 w-100">
-    <div class="jp-sx-detail-title">
-      <h2 class="jp-npl-mat-topbar-title mb-0 w-100">Giám sát tiến độ</h2>
-      <p class="text-muted small mb-0">
-        Theo dõi tiến độ làm việc của các tổ theo kế hoạch chi tiết và thống kê sản xuất.
-        {% if is_today_default %}<span class="badge text-bg-light border ms-1">Hôm nay</span>{% endif %}
-      </p>
+<div class="{% if view_mode == 'kanban' %}container-fluid{% else %}container{% endif %} jp-page jp-sx-page jp-npl-material-catalog-page jp-prog-page py-3 py-md-4 mb-5">
+
+  <div class="jp-prog-hero">
+    <div class="jp-prog-hero-copy">
+      <h2>Giám sát tiến độ</h2>
+      <p>Theo dõi tiến độ các tổ theo kế hoạch chi tiết và thống kê sản xuất — nhìn nhanh tổ nào trễ, tổ nào đúng nhịp.</p>
+      <div class="jp-prog-hero-meta">
+        <span class="jp-prog-chip">
+          <i class="bi bi-calendar3" aria-hidden="true"></i>
+          {{ board.date_from|date:"d/m/Y" }}{% if board.date_from != board.date_to %} – {{ board.date_to|date:"d/m/Y" }}{% endif %}
+        </span>
+        {% if is_today_default %}
+        <span class="jp-prog-chip is-live"><i class="bi bi-broadcast" aria-hidden="true"></i>Hôm nay</span>
+        {% endif %}
+        <span class="jp-prog-chip"><i class="bi bi-people" aria-hidden="true"></i>{{ board.teams_total }} tổ</span>
+      </div>
     </div>
-    <nav class="jp-sx-tools" aria-label="Công cụ">
-      <span class="small text-muted">{{ board.date_from|date:"d/m/Y" }}{% if board.date_from != board.date_to %} – {{ board.date_to|date:"d/m/Y" }}{% endif %}</span>
-      <a href="{% url 'san_xuat:plan_detail' %}" class="is-accent"><i class="bi bi-list-columns" aria-hidden="true"></i>KH chi tiết</a>
-      <a href="{% url 'san_xuat:capacity_load_matrix' %}" class="is-accent"><i class="bi bi-bar-chart-steps" aria-hidden="true"></i>Tải theo tổ</a>
-      <a href="{% url 'san_xuat:overview' %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Tổng quan</a>
-    </nav>
+    <div class="jp-prog-toolbar">
+      <div class="jp-prog-seg" role="group" aria-label="Chế độ xem">
+        <a href="?view=table&date_from={{ board.date_from|date:'Y-m-d' }}&date_to={{ board.date_to|date:'Y-m-d' }}&product_code={{ filter_product_code }}&team_label={{ filter_team_label }}{% if month_value %}&month={{ month_value }}{% endif %}"
+           class="{% if view_mode == 'table' %}is-active{% endif %}">
+          <i class="bi bi-table" aria-hidden="true"></i>Bảng
+        </a>
+        <a href="?view=kanban&date_from={{ board.date_from|date:'Y-m-d' }}&date_to={{ board.date_to|date:'Y-m-d' }}&product_code={{ filter_product_code }}&team_label={{ filter_team_label }}{% if month_value %}&month={{ month_value }}{% endif %}"
+           class="{% if view_mode == 'kanban' %}is-active{% endif %}">
+          <i class="bi bi-kanban" aria-hidden="true"></i>Kanban
+        </a>
+      </div>
+      <div class="jp-prog-tool-links">
+        <a href="{% url 'san_xuat:plan_detail' %}" class="is-accent"><i class="bi bi-list-columns" aria-hidden="true"></i>KH chi tiết</a>
+        <a href="{% url 'san_xuat:capacity_load_matrix' %}" class="is-accent"><i class="bi bi-bar-chart-steps" aria-hidden="true"></i>Tải theo tổ</a>
+        <a href="{% url 'san_xuat:overview' %}"><i class="bi bi-arrow-left" aria-hidden="true"></i>Tổng quan</a>
+      </div>
+    </div>
   </div>
 
   {% url 'san_xuat:plan_progress_monitor' as prog_clear_url %}
-  {% include 'san_xuat/includes/sx_period_filter.html' with date_from=board.date_from date_to=board.date_to product_code=filter_product_code team_label=filter_team_label show_process=False clear_url=prog_clear_url has_filters=has_filters %}
+  {% if view_mode == 'kanban' %}
+    {% with clear_kanban=prog_clear_url|add:'?view=kanban' %}
+    {% include 'san_xuat/includes/sx_period_filter.html' with date_from=board.date_from date_to=board.date_to product_code=filter_product_code team_label=filter_team_label show_process=False clear_url=clear_kanban has_filters=has_filters view_value='kanban' %}
+    {% endwith %}
+  {% else %}
+    {% include 'san_xuat/includes/sx_period_filter.html' with date_from=board.date_from date_to=board.date_to product_code=filter_product_code team_label=filter_team_label show_process=False clear_url=prog_clear_url has_filters=has_filters %}
+  {% endif %}
 
-  <div class="row g-3 mb-3">
-    <div class="col-6 col-lg-3">
-      <div class="border rounded-3 p-3 h-100 border-start border-4 border-hm">
-        <div class="text-muted small">Tổ có hoạt động</div>
-        <div class="fs-4 fw-semibold text-hm">{{ board.teams_active }}</div>
-        <div class="small text-muted">/ {{ board.teams_total }} tổ</div>
+  <div class="jp-prog-kpi">
+    <div class="jp-prog-kpi-card is-hm">
+      <div class="jp-prog-kpi-top">
+        <div class="jp-prog-kpi-label">Tổ có hoạt động</div>
+        <span class="jp-prog-kpi-icon"><i class="bi bi-people-fill" aria-hidden="true"></i></span>
       </div>
+      <div class="jp-prog-kpi-value">{{ board.teams_active }}</div>
+      <div class="jp-prog-kpi-foot">/ {{ board.teams_total }} tổ trong danh mục</div>
     </div>
-    <div class="col-6 col-lg-3">
-      <div class="border rounded-3 p-3 h-100 border-start border-4 border-success">
-        <div class="text-muted small">Tiến độ kế hoạch</div>
-        <div class="fs-4 fw-semibold text-success">{{ board.progress_pct_overall }}%</div>
-        <div class="small text-muted">{{ board.qty_good_total|sx_num }} / {{ board.qty_planned_total|sx_num }}</div>
+    <div class="jp-prog-kpi-card is-ok">
+      <div class="jp-prog-kpi-top">
+        <div class="jp-prog-kpi-label">Tiến độ kế hoạch</div>
+        <span class="jp-prog-kpi-icon"><i class="bi bi-speedometer2" aria-hidden="true"></i></span>
       </div>
+      <div class="jp-prog-kpi-value">{{ board.progress_pct_overall }}%</div>
+      <div class="jp-prog-kpi-foot">{{ board.qty_good_total|sx_num }} / {{ board.qty_planned_total|sx_num }} đạt / KH</div>
     </div>
-    <div class="col-6 col-lg-3">
-      <div class="border rounded-3 p-3 h-100 border-start border-4 {% if board.teams_late %}border-danger{% else %}border-secondary{% endif %}">
-        <div class="text-muted small">Tổ có lệnh trễ</div>
-        <div class="fs-4 fw-semibold {% if board.teams_late %}text-danger{% endif %}">{{ board.teams_late }}</div>
-        <div class="small text-muted">{{ board.teams_no_output }} tổ chưa có sản lượng</div>
+    <div class="jp-prog-kpi-card {% if board.teams_late %}is-danger{% else %}is-muted{% endif %}">
+      <div class="jp-prog-kpi-top">
+        <div class="jp-prog-kpi-label">Tổ có lệnh trễ</div>
+        <span class="jp-prog-kpi-icon"><i class="bi bi-alarm" aria-hidden="true"></i></span>
       </div>
+      <div class="jp-prog-kpi-value">{{ board.teams_late }}</div>
+      <div class="jp-prog-kpi-foot">{{ board.teams_no_output }} tổ chưa có sản lượng</div>
     </div>
-    <div class="col-6 col-lg-3">
-      <a href="{% url 'san_xuat:qc_alerts' %}" class="text-decoration-none text-reset">
-        <div class="border rounded-3 p-3 h-100 border-start border-4 {% if board.qc_alerts_open %}border-danger{% else %}border-secondary{% endif %}">
-          <div class="text-muted small">Cảnh báo QC / dừng</div>
-          <div class="fs-4 fw-semibold {% if board.qc_alerts_open %}text-danger{% endif %}">{{ board.qc_alerts_open }}</div>
-          <div class="small text-muted">Dừng {{ board.downtime_minutes_total|intcomma }} phút · lỗi {{ board.qty_defect_total|sx_num }}</div>
-        </div>
-      </a>
-    </div>
+    <a href="{% url 'san_xuat:qc_alerts' %}" class="jp-prog-kpi-card {% if board.qc_alerts_open %}is-danger{% else %}is-muted{% endif %}">
+      <div class="jp-prog-kpi-top">
+        <div class="jp-prog-kpi-label">Cảnh báo QC / dừng</div>
+        <span class="jp-prog-kpi-icon"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i></span>
+      </div>
+      <div class="jp-prog-kpi-value">{{ board.qc_alerts_open }}</div>
+      <div class="jp-prog-kpi-foot">Dừng {{ board.downtime_minutes_total|intcomma }} phút · lỗi {{ board.qty_defect_total|sx_num }}</div>
+    </a>
   </div>
 
   {% if board.rows %}
-  <div class="table-responsive border rounded-3">
-    <table class="table table-hover align-middle mb-0 jp-npl-catalog-table">
-      <thead class="table-light">
+
+  {% if view_mode == 'kanban' %}
+  <div class="jp-prog-kanban-wrap">
+    <div class="jp-prog-kanban" role="list">
+      {% for col in kanban_columns %}
+      <section class="jp-prog-kanban-col is-{{ col.key }}" aria-label="{{ col.label }}">
+        <header class="jp-prog-kanban-col-head">
+          <div>
+            <div class="title">{{ col.label }}</div>
+            <div class="hint">{{ col.hint }}</div>
+          </div>
+          <span class="jp-prog-kanban-count">{{ col.rows|length }}</span>
+        </header>
+        <div class="jp-prog-kanban-body">
+          {% for row in col.rows %}
+          <article class="jp-prog-card is-{{ row.status }}" role="listitem">
+            <div class="d-flex justify-content-between align-items-start gap-2">
+              <div>
+                <div class="jp-prog-card-title">{{ row.team_label }}</div>
+                {% if row.work_center %}
+                <div class="jp-prog-card-meta">{{ row.work_center.code }}</div>
+                {% endif %}
+              </div>
+              <span class="jp-prog-status is-{{ row.status }}">
+                {% if row.status == 'danger' %}Xử lý
+                {% elif row.status == 'warn' %}Cảnh báo
+                {% elif row.status == 'ok' %}Ổn
+                {% else %}Trống{% endif %}
+              </span>
+            </div>
+            <div class="jp-prog-card-metrics">
+              <div><strong>{{ row.qty_planned|sx_num }}</strong>KH</div>
+              <div><strong class="text-success">{{ row.qty_good|sx_num }}</strong>Đạt</div>
+              <div><strong class="{% if row.qty_defect %}text-danger{% endif %}">{{ row.qty_defect|sx_num }}</strong>Lỗi</div>
+            </div>
+            <div class="d-flex justify-content-between small mb-1">
+              <span class="fw-semibold">{{ row.progress_pct }}%</span>
+              <span class="text-muted">LSX {{ row.mo_open }}{% if row.mo_late %} · <span class="text-danger fw-semibold">trễ {{ row.mo_late }}</span>{% endif %}</span>
+            </div>
+            <div class="jp-prog-bar is-{{ row.status }} mb-2"><span style="width: {{ row.progress_bar_pct }}%"></span></div>
+            {% if row.downtime_minutes %}
+            <div class="small text-muted mb-1"><i class="bi bi-pause-circle me-1" aria-hidden="true"></i>Dừng {{ row.downtime_minutes }}′</div>
+            {% endif %}
+            {% if row.alerts %}
+            <div class="d-flex flex-wrap gap-1 mb-2">
+              {% for a in row.alerts %}
+              <span class="badge jp-prog-alert {% if a.severity == 'danger' %}text-bg-danger{% else %}text-bg-warning text-dark{% endif %}">{{ a.message }}</span>
+              {% endfor %}
+            </div>
+            {% endif %}
+            {% if row.mos %}
+            <ul class="jp-prog-mo-list">
+              {% for mo in row.mos %}
+              <li>
+                <a href="{% url 'san_xuat:dispatch_mo_detail' mo.pk %}">{{ mo.code }}</a>
+                <span class="text-muted">{{ mo.product_code }}</span>
+                <span>{{ mo.progress_pct }}%</span>
+                {% if mo.is_late %}<span class="text-danger fw-semibold">trễ</span>{% endif %}
+              </li>
+              {% endfor %}
+            </ul>
+            {% endif %}
+          </article>
+          {% empty %}
+          <div class="jp-prog-kanban-empty">Không có tổ ở cột này</div>
+          {% endfor %}
+        </div>
+      </section>
+      {% endfor %}
+    </div>
+  </div>
+  {% else %}
+  <div class="jp-prog-panel table-responsive">
+    <table class="table table-hover align-middle mb-0 jp-prog-table">
+      <thead>
         <tr>
-          <th style="min-width:9rem">Tổ / chuyền</th>
+          <th style="min-width:10rem">Tổ / chuyền</th>
           <th class="text-end">KH</th>
           <th class="text-end">Đạt</th>
           <th class="text-end">Lỗi</th>
-          <th style="min-width:8rem">Tiến độ</th>
+          <th style="min-width:9rem">Tiến độ</th>
           <th class="text-center">LSX</th>
           <th class="text-center">Trễ</th>
           <th class="text-end">Dừng</th>
@@ -101,11 +656,11 @@
       </thead>
       <tbody>
         {% for row in board.rows %}
-        <tr>
+        <tr class="is-{{ row.status }}">
           <td>
-            <div class="fw-semibold">{{ row.team_label }}</div>
+            <div class="jp-prog-team-name">{{ row.team_label }}</div>
             {% if row.work_center %}
-            <div class="small text-muted">{{ row.work_center.code }}</div>
+            <div class="jp-prog-team-code">{{ row.work_center.code }}</div>
             {% endif %}
             <span class="jp-prog-status is-{{ row.status }} mt-1">
               {% if row.status == 'danger' %}Cần xử lý
@@ -114,19 +669,19 @@
               {% else %}Chưa có việc{% endif %}
             </span>
           </td>
-          <td class="text-end">{{ row.qty_planned|sx_num }}</td>
-          <td class="text-end text-success">{{ row.qty_good|sx_num }}</td>
-          <td class="text-end {% if row.qty_defect %}text-danger{% endif %}">{{ row.qty_defect|sx_num }}</td>
+          <td class="text-end fw-semibold">{{ row.qty_planned|sx_num }}</td>
+          <td class="text-end text-success fw-semibold">{{ row.qty_good|sx_num }}</td>
+          <td class="text-end {% if row.qty_defect %}text-danger fw-semibold{% endif %}">{{ row.qty_defect|sx_num }}</td>
           <td>
             <div class="d-flex justify-content-between small mb-1">
-              <span>{{ row.progress_pct }}%</span>
+              <span class="fw-semibold">{{ row.progress_pct }}%</span>
               {% if row.defect_rate_pct %}<span class="text-muted">lỗi {{ row.defect_rate_pct }}%</span>{% endif %}
             </div>
             <div class="jp-prog-bar is-{{ row.status }}"><span style="width: {{ row.progress_bar_pct }}%"></span></div>
           </td>
           <td class="text-center">{{ row.mo_open }}</td>
           <td class="text-center {% if row.mo_late %}text-danger fw-bold{% endif %}">{{ row.mo_late }}</td>
-          <td class="text-end">{% if row.downtime_minutes %}{{ row.downtime_minutes }}′{% else %}—{% endif %}</td>
+          <td class="text-end text-muted">{% if row.downtime_minutes %}{{ row.downtime_minutes }}′{% else %}—{% endif %}</td>
           <td>
             {% if row.alerts %}
             <div class="d-flex flex-wrap gap-1 mb-1">
@@ -155,16 +710,21 @@
       </tbody>
     </table>
   </div>
-  <p class="small text-muted mt-2 mb-0">
+  {% endif %}
+
+  <p class="jp-prog-footnote">
     Tiến độ = sản lượng đạt (TKSX đã xác nhận) / kế hoạch chi tiết trong kỳ.
     Nếu chưa có KHCT thì ước lượng theo trung bình tiến độ lệnh đang mở của tổ.
   </p>
   {% else %}
-  <div class="border rounded-3 p-4 text-center text-muted">
+  <div class="jp-prog-empty">
+    <div class="mb-2"><i class="bi bi-inboxes" style="font-size:1.6rem;opacity:.45" aria-hidden="true"></i></div>
     Không có tổ nào trong phạm vi lọc.
     {% if not has_filters %}
-    Hãy khai <a href="{% url 'san_xuat:capacity_list' %}">năng lực SX (tổ/chuyền)</a>
-    hoặc gắn tổ trên kế hoạch chi tiết / lệnh sản xuất.
+    <div class="mt-2">
+      Hãy khai <a href="{% url 'san_xuat:capacity_list' %}">năng lực SX (tổ/chuyền)</a>
+      hoặc gắn tổ trên kế hoạch chi tiết / lệnh sản xuất.
+    </div>
     {% endif %}
   </div>
   {% endif %}
