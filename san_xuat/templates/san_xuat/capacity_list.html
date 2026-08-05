@@ -191,6 +191,9 @@
     <nav class="jp-sx-tools" aria-label="Công cụ">
       {% include 'san_xuat/includes/sx_export_btn.html' with export_key='capacity_list' %}
       {% if can_update %}
+      <a href="{% url 'san_xuat:capacity_setup' %}" class="btn btn-hm btn-sm fw-bold">
+        <i class="bi bi-sliders me-1"></i>Thiết lập năng lực
+      </a>
       <form method="post" class="d-inline" data-loading-message="Đang đồng bộ từ HR…">
         {% csrf_token %}
         <input type="hidden" name="action" value="sync_from_hrm">

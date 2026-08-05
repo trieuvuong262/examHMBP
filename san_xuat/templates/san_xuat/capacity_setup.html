@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+
+{% block extra_head %}{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+<style>
+  .jp-cap-setup-table th { font-size: .75rem; white-space: nowrap; }
+  .jp-cap-setup-table td { vertical-align: middle; }
+  .jp-cap-setup-table input { min-width: 7rem; }
+  .jp-cap-setup-name { min-width: 14rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
+  <div class="jp-page-header mb-3">
+    <div class="jp-page-header-main">
+      <h2 class="jp-page-title fw-bold text-dark mb-1">Thiết lập năng lực sản xuất</h2>
+      <p class="text-muted small mb-0">Chỉnh năng lực sản phẩm và quỹ phút của các tổ/chuyền đang dùng.</p>
+    </div>
+    <a href="{% url 'san_xuat:capacity_list' %}" class="btn btn-outline-secondary">
+      <i class="bi bi-arrow-left me-1"></i>Quay lại
+    </a>
+  </div>
+
+  <div class="alert alert-light border small">
+    <strong>Quỹ phút hữu ích/ngày</strong> = số nhân sự × phút/người/ngày × hiệu suất.
+    <strong>Nhân sự</strong> chỉ lấy từ module Nhân sự (HR) qua nút Đồng bộ HR — không sửa trên màn này.
+    Năng lực/ngày đã chỉnh &gt; 0 vẫn được giữ khi đồng bộ lại.
+  </div>
+
+  <form method="post" class="card border-0 shadow-sm">
+    {% csrf_token %}
+    {{ formset.management_form }}
+    <div class="table-responsive">
+      <table class="table table-sm table-hover mb-0 jp-cap-setup-table">
+        <thead class="table-light">
+          <tr>
+            <th>Tổ / chuyền</th>
+            <th class="text-end">NL/ngày (SP)</th>
+            <th class="text-end">Nhân sự <span class="text-muted fw-normal">(từ HR)</span></th>
+            <th class="text-end">Phút/người/ngày</th>
+            <th class="text-end">Hiệu suất (%)</th>
+            <th class="text-end">Phút hữu ích/ngày</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for form in formset %}
+          <tr>
+            <td class="jp-cap-setup-name">
+              {{ form.id }}
+              <strong>{{ form.instance.name }}</strong>
+              <div class="small text-muted">{{ form.instance.code }}</div>
+              {% for hidden in form.hidden_fields %}{% if hidden.name != 'id' %}{{ hidden }}{% endif %}{% endfor %}
+            </td>
+            <td>{{ form.capacity_per_day }}{{ form.capacity_per_day.errors }}</td>
+            <td class="text-end">
+              <span class="fw-semibold">{{ form.instance.headcount }}</span>
+              <div class="small text-muted">Chỉ Đồng bộ HR</div>
+            </td>
+            <td>{{ form.shift_minutes_per_head }}{{ form.shift_minutes_per_head.errors }}</td>
+            <td>{{ form.efficiency_pct }}{{ form.efficiency_pct.errors }}</td>
+            <td class="text-end fw-semibold">{{ form.instance.available_minutes_per_day|floatformat:"0" }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6" class="text-center text-muted py-4">Chưa có tổ/chuyền đang dùng.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="card-footer bg-white d-flex justify-content-end gap-2">
+      <a href="{% url 'san_xuat:capacity_list' %}" class="btn btn-light border">Hủy</a>
+      <button type="submit" class="btn btn-hm fw-bold px-4">
+        <i class="bi bi-check-lg me-1"></i>Lưu thiết lập
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -4121,6 +4121,59 @@ def capacity_load_matrix(request):
     })
 
 
+@module_perm_required(MODULE_SAN_XUAT, 'update')
+def capacity_setup(request):
+    """Chỉnh nhanh các tham số năng lực của toàn bộ tổ/chuyền đang dùng."""
+    from django import forms
+    from django.forms import modelformset_factory
+
+    class CompactNumberInput(forms.NumberInput):
+        """Hiển thị số không ép đuôi .00."""
+
+        def format_value(self, value):
+            if value in self.empty_values:
+                return None
+            try:
+                text = format(Decimal(str(value)), 'f')
+            except Exception:
+                return super().format_value(value)
+            if '.' in text:
+                text = text.rstrip('0').rstrip('.')
+            return text or '0'
+
+    class CapacitySetupForm(forms.ModelForm):
+        class Meta:
+            model = SxWorkCenter
+            fields = ('capacity_per_day', 'shift_minutes_per_head', 'efficiency_pct')
+            widgets = {
+                'capacity_per_day': CompactNumberInput(
+                    attrs={'class': 'form-control form-control-sm text-end', 'min': '0', 'step': 'any'},
+                ),
+                'shift_minutes_per_head': forms.NumberInput(
+                    attrs={'class': 'form-control form-control-sm text-end', 'min': '0', 'max': '1440'},
+                ),
+                'efficiency_pct': CompactNumberInput(
+                    attrs={'class': 'form-control form-control-sm text-end', 'min': '0', 'max': '100', 'step': 'any'},
+                ),
+            }
+
+    # Nhân sự chỉ lấy từ HR (Đồng bộ HR) — không cho sửa tay trên màn này.
+    CapacityFormSet = modelformset_factory(SxWorkCenter, form=CapacitySetupForm, extra=0)
+    centers = SxWorkCenter.objects.filter(is_demo=False, is_active=True).order_by('code')
+    formset = CapacityFormSet(request.POST or None, queryset=centers)
+    if request.method == 'POST':
+        if formset.is_valid():
+            changed = len(formset.save())
+            messages.success(request, f'Đã cập nhật năng lực cho {changed} tổ/chuyền.')
+            return redirect('san_xuat:capacity_list')
+        messages.error(request, 'Không lưu được thiết lập — kiểm tra lại các giá trị.')
+
+    return render(request, 'san_xuat/capacity_setup.html', {
+        **_perm_ctx(request),
+        'formset': formset,
+    })
+
+
 def _parse_iso_date_safe(raw: str):
     from datetime import datetime
 

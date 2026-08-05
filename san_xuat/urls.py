@@ -118,6 +118,7 @@ urlpatterns = [
     path('giao-viec/them/', views_hub.work_assignment_create, name='work_assignment_create'),
     path('truy-xuat/', views_hub.traceability, name='traceability'),
     path('nang-luc/', views_hub.capacity_list, name='capacity_list'),
+    path('nang-luc/thiet-lap/', views_hub.capacity_setup, name='capacity_setup'),
     path('nang-luc/tai-theo-to/', views_hub.capacity_load_matrix, name='capacity_load_matrix'),
     path('ke-hoach/nhat-ky/', views_hub.plan_audit_log, name='plan_audit_log'),
     path('nang-luc/them/', views_hub.capacity_create, name='capacity_create'),
