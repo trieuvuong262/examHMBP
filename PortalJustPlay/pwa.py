@@ -78,3 +78,19 @@ def portal_service_worker(request):
     response['Service-Worker-Allowed'] = '/'
     response['Cache-Control'] = 'no-cache'
     return response
+
+
+# File xác minh domain Zalo Developers (đặt tại root, không qua /static/).
+ZALO_DOMAIN_VERIFIER_FILENAME = (
+    'zalo_verifierJkUCT9Va0dHBbeT2puK0VXksi7dtm6eYCZ8q.html'
+)
+
+
+@require_GET
+def zalo_domain_verifier(request):
+    """Public HTML để Zalo crawl xác minh ownership domain portal.justplay.vn."""
+    path = Path(settings.BASE_DIR) / 'static' / ZALO_DOMAIN_VERIFIER_FILENAME
+    content = path.read_text(encoding='utf-8')
+    response = HttpResponse(content, content_type='text/html; charset=utf-8')
+    response['Cache-Control'] = 'no-cache'
+    return response

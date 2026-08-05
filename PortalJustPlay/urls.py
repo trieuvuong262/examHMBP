@@ -7,12 +7,18 @@ from django.contrib.auth import views as auth_views
 from hrm.views import MyPasswordChangeView, update_avatar
 from hrm.views_guide import user_guide, user_guide_edit, user_guide_edit_section
 from PortalJustPlay import ckeditor_upload
-from PortalJustPlay.pwa import portal_service_worker, site_manifest
+from PortalJustPlay.pwa import (
+    ZALO_DOMAIN_VERIFIER_FILENAME,
+    portal_service_worker,
+    site_manifest,
+    zalo_domain_verifier,
+)
 from audit.views_login import PortalLoginView
 
 urlpatterns = [
     path('sw.js', portal_service_worker, name='portal_service_worker'),
     path('manifest.webmanifest', site_manifest, name='site_manifest'),
+    path(ZALO_DOMAIN_VERIFIER_FILENAME, zalo_domain_verifier, name='zalo_domain_verifier'),
     path('admin-panel/', admin.site.urls),
     path('accounts/login/', PortalLoginView.as_view(), name='login'),
     path('accounts/', include('zalo.urls')),

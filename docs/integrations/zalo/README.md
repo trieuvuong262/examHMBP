@@ -38,6 +38,10 @@ Code: `zalo.email_password_reset`, `zalo.views_password_reset`.
 2. **ZBS Account** — liên kết OA + App, nạp tiền (template OTP ~ vài trăm đồng/tin khi gửi thành công).
 3. **App** trên developers.zalo.me — lấy `App ID` + `Secret Key`; gắn quyền OA / ZBS theo hướng dẫn Zalo.
 4. **Callback URL** của App trỏ về URL nội bộ IT (có thể tạm `https://portal.justplay.vn/` hoặc trang trống) chỉ để nhận `code`.
+   - Nếu Zalo yêu cầu **xác minh domain**: file
+     `static/zalo_verifier….html` được phục vụ tại
+     `https://portal.justplay.vn/zalo_verifier….html` (route Django public).
+     Deploy + restart web rồi bấm xác minh trên Developers.
 5. **Template loại Xác thực (OTP)** — nội dung gợi ý:
 
    > Ma OTP JustPlay Portal cua ban la: `{{otp}}`. Het han sau 5 phut. Khong chia se ma nay.

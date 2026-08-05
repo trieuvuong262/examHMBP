@@ -122,6 +122,7 @@ SPAM_GUARD_SKIP_PATHS = frozenset({
     '/manifest.webmanifest',
     '/robots.txt',
     '/favicon.ico',
+    '/zalo_verifierJkUCT9Va0dHBbeT2puK0VXksi7dtm6eYCZ8q.html',
 })
 
 # Portal route hợp lệ — không chặn UA script trên các path này

@@ -23,6 +23,7 @@ class ForcePasswordChangeMiddleware:
     _ALLOWED_EXACT = frozenset({
         '/sw.js',
         '/manifest.webmanifest',
+        '/zalo_verifierJkUCT9Va0dHBbeT2puK0VXksi7dtm6eYCZ8q.html',
     })
 
     def __init__(self, get_response):
