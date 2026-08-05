@@ -687,6 +687,7 @@ def plan_stub(request):
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def plan_progress_monitor(request):
     """Giám sát tiến độ theo tổ — màn cho giám đốc / KHSX."""
+    from san_xuat.list_filters import resolve_sx_period
     from san_xuat.services.team_progress import build_team_progress_board
 
     product_code = (request.GET.get('product_code') or '').strip()
