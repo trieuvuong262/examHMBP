@@ -4131,7 +4131,7 @@ def capacity_setup(request):
         """Hiển thị số không ép đuôi .00."""
 
         def format_value(self, value):
-            if value in self.empty_values:
+            if value is None or value == '':
                 return None
             try:
                 text = format(Decimal(str(value)), 'f')
