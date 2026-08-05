@@ -12,6 +12,7 @@ MATERIAL_LIST_COLUMNS = [
     {'key': 'supplier', 'label': 'NCC', 'default': True, 'required': False, 'weight': 150},
     {'key': 'min_stock', 'label': 'Tối thiểu', 'default': True, 'required': False, 'weight': 50},
     {'key': 'base_price', 'label': 'Giá', 'default': True, 'required': False, 'weight': 80},
+    {'key': 'base_price_total', 'label': 'Tổng giá', 'default': True, 'required': False, 'weight': 90},
     {'key': 'status', 'label': 'Trạng thái', 'default': True, 'required': False, 'weight': 100},
 ]
 
@@ -31,5 +32,6 @@ MATERIAL_LIST_SORT_FIELDS = {
     'supplier': 'supplier__name',
     'min_stock': 'min_stock',
     'base_price': 'base_price',
+    'base_price_total': 'base_price',
     'status': 'is_active',
 }

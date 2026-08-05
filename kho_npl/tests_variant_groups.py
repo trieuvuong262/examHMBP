@@ -49,6 +49,27 @@ class VariantGroupServiceTests(TestCase):
         self.assertEqual(groups[0]['variant_count'], 2)
         self.assertEqual(groups[0]['group_name'], 'VAI-SIEU')
 
+    def test_catalog_group_base_price_total_and_avg(self):
+        m1 = Material.objects.create(
+            code='VAI-P-01', name='P1', category=self.category,
+            unit=self.unit, variant_group='P', base_price=Decimal('10000'),
+        )
+        m2 = Material.objects.create(
+            code='VAI-P-02', name='P2', category=self.category,
+            unit=self.unit, variant_group='P', base_price=Decimal('20000'),
+        )
+        m3 = Material.objects.create(
+            code='VAI-P-03', name='P3', category=self.category,
+            unit=self.unit, variant_group='P', base_price=Decimal('0'),
+        )
+        groups = group_materials([m1, m2, m3])
+        self.assertEqual(len(groups), 1)
+        g = groups[0]
+        self.assertEqual(g['base_price_total'], Decimal('30000'))
+        self.assertEqual(g['base_price_avg'], Decimal('15000.00'))
+        # Gia cot don = BQ khi cac ma khac gia
+        self.assertEqual(g['base_price'], Decimal('15000.00'))
+
     def test_do_not_group_different_category_or_unit(self):
         m1 = Material.objects.create(
             code='VAI-X-01', name='X1', category=self.category,

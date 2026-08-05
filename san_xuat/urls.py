@@ -11,6 +11,7 @@ urlpatterns = [
     path('don-hang/', views_hub.redirect_orders, name='redirect_orders'),
     path('san-pham-nvl/', views_hub.products_nvl, name='products_nvl'),
     path('ke-hoach/', views_hub.plan_stub, name='plan_stub'),
+    path('ke-hoach/giam-sat-tien-do/', views_hub.plan_progress_monitor, name='plan_progress_monitor'),
     path('ke-hoach/tong-the/', views_hub.plan_overall, name='plan_overall'),
     path('ke-hoach/tong-the/them/', views_hub.plan_overall_create, name='plan_overall_create'),
     path('ke-hoach/tong-the/<int:pk>/', views_hub.plan_overall_detail, name='plan_overall_detail'),

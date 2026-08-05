@@ -685,6 +685,52 @@ def plan_stub(request):
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
+def plan_progress_monitor(request):
+    """Giám sát tiến độ theo tổ — màn cho giám đốc / KHSX."""
+    from san_xuat.services.team_progress import build_team_progress_board
+
+    product_code = (request.GET.get('product_code') or '').strip()
+    team_label = (request.GET.get('team_label') or '').strip()
+    month = (request.GET.get('month') or '').strip()
+    date_from_raw = (request.GET.get('date_from') or '').strip()
+    date_to_raw = (request.GET.get('date_to') or '').strip()
+
+    # Mặc định: hôm nay (board vận hành). Có filter kỳ → dùng resolve_sx_period.
+    if month or date_from_raw or date_to_raw:
+        date_from, date_to, filters = resolve_sx_period(request)
+    else:
+        today = timezone.localdate()
+        date_from = date_to = today
+        filters = SxListFilters(
+            date_from=today,
+            date_to=today,
+            dates_defaulted=True,
+        )
+
+    board = build_team_progress_board(
+        date_from=date_from,
+        date_to=date_to,
+        team_label=team_label,
+        product_code=product_code,
+    )
+    has_filters = bool(
+        product_code or team_label or month or date_from_raw or date_to_raw
+    )
+    return render(request, 'san_xuat/plan_progress_monitor.html', {
+        **_perm_ctx(request),
+        'board': board,
+        'month_value': f'{date_from.year:04d}-{date_from.month:02d}',
+        'filter_product_code': product_code,
+        'filter_team_label': team_label,
+        'has_filters': has_filters,
+        'is_today_default': (
+            date_from == date_to == timezone.localdate() and not has_filters
+        ),
+        **sx_filter_context(filters),
+    })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
 def plan_overall(request):
     base_qs = (
         SxOverallPlan.objects.filter(is_demo=False)

@@ -690,6 +690,7 @@
 
                 {# —— 3. Kế hoạch —— #}
                 {% jp_can_menu 'san_xuat' 'plan' as jp_can_san_xuat_plan %}
+                {% jp_can_menu 'san_xuat' 'plan_progress' as jp_can_san_xuat_plan_progress %}
                 {% jp_can_menu 'san_xuat' 'plan_overall' as jp_can_san_xuat_plan_overall %}
                 {% jp_can_menu 'san_xuat' 'plan_detail' as jp_can_san_xuat_plan_detail %}
                 {% jp_can_menu 'san_xuat' 'plan_npl' as jp_can_san_xuat_plan_npl %}
@@ -697,7 +698,7 @@
                 {% jp_can_menu 'san_xuat' 'purchase_order' as jp_can_san_xuat_po %}
                 {% jp_can_menu 'san_xuat' 'stock_policy' as jp_can_san_xuat_stock_policy %}
                 {% jp_can_menu 'san_xuat' 'restock' as jp_can_san_xuat_restock %}
-                {% if jp_can_san_xuat_plan or jp_can_san_xuat_plan_overall or jp_can_san_xuat_plan_detail or jp_can_san_xuat_plan_npl or jp_can_san_xuat_npl_pr or jp_can_san_xuat_po or jp_can_san_xuat_stock_policy or jp_can_san_xuat_restock %}
+                {% if jp_can_san_xuat_plan or jp_can_san_xuat_plan_progress or jp_can_san_xuat_plan_overall or jp_can_san_xuat_plan_detail or jp_can_san_xuat_plan_npl or jp_can_san_xuat_npl_pr or jp_can_san_xuat_po or jp_can_san_xuat_stock_policy or jp_can_san_xuat_restock %}
                 <li class="jp-sidebar-nested-group{% if '/san-xuat/ke-hoach' in request.path %} is-open{% endif %}">
                     <button type="button"
                             class="jp-sidebar-nested-toggle"
@@ -710,6 +711,14 @@
                         <i class="bi bi-chevron-down jp-sidebar-nested-chevron" aria-hidden="true"></i>
                     </button>
                     <ul class="jp-sidebar-nested-submenu" id="jp-sidebar-san-xuat-plan-submenu">
+                        {% if jp_can_san_xuat_plan_progress or jp_can_san_xuat_plan %}
+                        <li>
+                            <a href="{% url 'san_xuat:plan_progress_monitor' %}"
+                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'plan_progress_monitor' %}active{% endif %}">
+                                <i class="bi bi-clipboard-data"></i><span>Giám sát tiến độ</span>
+                            </a>
+                        </li>
+                        {% endif %}
                         {% if jp_can_san_xuat_plan_overall or jp_can_san_xuat_plan %}
                         <li>
                             <a href="{% url 'san_xuat:plan_overall' %}"

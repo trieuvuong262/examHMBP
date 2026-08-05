@@ -84,6 +84,19 @@ def group_materials(materials) -> list[dict]:
     for key, items in buckets.items():
         items = sorted(items, key=lambda m: ((m.code or '').upper(), m.pk))
         rep = items[0]
+        prices = [m.base_price or Decimal('0') for m in items]
+        base_price_total = sum(prices, Decimal('0'))
+        priced = [p for p in prices if p > 0]
+        if priced:
+            base_price_avg = (sum(priced, Decimal('0')) / len(priced)).quantize(Decimal('0.01'))
+        else:
+            base_price_avg = Decimal('0')
+        # Giá cột đơn: cùng giá → hiện giá đó; khác nhau → trung bình các mã có giá
+        unique_prices = set(prices)
+        if len(unique_prices) == 1:
+            base_price = prices[0]
+        else:
+            base_price = base_price_avg if base_price_avg > 0 else None
         groups.append({
             'key': _safe_group_dom_key(key, rep),
             'group_name': _group_display_name(items),
@@ -96,12 +109,9 @@ def group_materials(materials) -> list[dict]:
             'is_active': any(m.is_active for m in items),
             'min_stock': min((m.min_stock for m in items), default=Decimal('0')),
             'supplier': next((m.supplier for m in items if m.supplier_id), None),
-            # Giá cơ bản: hiện khi các mã trong nhóm cùng giá, khác nhau thì để trống
-            'base_price': (
-                items[0].base_price
-                if len({m.base_price for m in items}) == 1
-                else None
-            ),
+            'base_price': base_price,
+            'base_price_avg': base_price_avg,
+            'base_price_total': base_price_total,
         })
     return groups
 
@@ -180,6 +190,7 @@ def sort_catalog_groups(groups: list[dict], sort_key: str, sort_dir: str) -> lis
             'supplier': (g['supplier'].name if g.get('supplier') else '').lower(),
             'min_stock': g.get('min_stock') or Decimal('0'),
             'base_price': g.get('base_price') if g.get('base_price') is not None else (rep.base_price or Decimal('0')),
+            'base_price_total': g.get('base_price_total') or Decimal('0'),
             'status': 1 if g.get('is_active') else 0,
             'variant_group': (g['group_name'] or '').lower(),
         }

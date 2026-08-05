@@ -158,7 +158,7 @@ def _san_xuat_menus(*, manager: bool) -> dict:
     keys = (
         'overview', 'orders', 'products_nvl',
         'docs', 'bom', 'capacity',
-        'plan', 'plan_overall', 'plan_detail', 'plan_npl', 'npl_pr', 'purchase_order',
+        'plan', 'plan_progress', 'plan_overall', 'plan_detail', 'plan_npl', 'npl_pr', 'purchase_order',
         'npl_stock',
         'dispatch', 'mo', 'schedule', 'material_issue_req', 'prod_stats',
         'wip_handover', 'wip_return', 'handover_status', 'fg_receipt_req',

@@ -1,0 +1,172 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% load sx_format %}
+
+{% block extra_head %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+{% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}
+<style>
+  .jp-prog-bar {
+    height: 8px; border-radius: 999px; background: #eef2f6; overflow: hidden;
+  }
+  .jp-prog-bar > span {
+    display: block; height: 100%; border-radius: 999px; background: var(--hm-primary, #0d6efd);
+  }
+  .jp-prog-bar.is-warn > span { background: #d97706; }
+  .jp-prog-bar.is-danger > span { background: #dc2626; }
+  .jp-prog-bar.is-ok > span { background: #16a34a; }
+  .jp-prog-status {
+    display: inline-block; min-width: 4.5rem; text-align: center;
+    font-size: .72rem; font-weight: 700; padding: .15rem .45rem; border-radius: .35rem;
+  }
+  .jp-prog-status.is-ok { background: #dcfce7; color: #166534; }
+  .jp-prog-status.is-warn { background: #fef3c7; color: #92400e; }
+  .jp-prog-status.is-danger { background: #fee2e2; color: #991b1b; }
+  .jp-prog-status.is-idle { background: #f1f5f9; color: #64748b; }
+  .jp-prog-mo-list { list-style: none; padding: 0; margin: 0; font-size: .78rem; }
+  .jp-prog-mo-list li { display: flex; gap: .5rem; flex-wrap: wrap; padding: .15rem 0; }
+  .jp-prog-alert { font-size: .75rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 py-md-4 mb-5">
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar mb-3 w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title mb-0 w-100">Giám sát tiến độ</h2>
+      <p class="text-muted small mb-0">
+        Theo dõi tiến độ làm việc của các tổ theo kế hoạch chi tiết và thống kê sản xuất.
+        {% if is_today_default %}<span class="badge text-bg-light border ms-1">Hôm nay</span>{% endif %}
+      </p>
+    </div>
+    <nav class="jp-sx-tools" aria-label="Công cụ">
+      <span class="small text-muted">{{ board.date_from|date:"d/m/Y" }}{% if board.date_from != board.date_to %} – {{ board.date_to|date:"d/m/Y" }}{% endif %}</span>
+      <a href="{% url 'san_xuat:plan_detail' %}" class="is-accent"><i class="bi bi-list-columns" aria-hidden="true"></i>KH chi tiết</a>
+      <a href="{% url 'san_xuat:capacity_load_matrix' %}" class="is-accent"><i class="bi bi-bar-chart-steps" aria-hidden="true"></i>Tải theo tổ</a>
+      <a href="{% url 'san_xuat:overview' %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Tổng quan</a>
+    </nav>
+  </div>
+
+  {% url 'san_xuat:plan_progress_monitor' as prog_clear_url %}
+  {% include 'san_xuat/includes/sx_period_filter.html' with date_from=board.date_from date_to=board.date_to product_code=filter_product_code team_label=filter_team_label show_process=False clear_url=prog_clear_url has_filters=has_filters %}
+
+  <div class="row g-3 mb-3">
+    <div class="col-6 col-lg-3">
+      <div class="border rounded-3 p-3 h-100 border-start border-4 border-hm">
+        <div class="text-muted small">Tổ có hoạt động</div>
+        <div class="fs-4 fw-semibold text-hm">{{ board.teams_active }}</div>
+        <div class="small text-muted">/ {{ board.teams_total }} tổ</div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="border rounded-3 p-3 h-100 border-start border-4 border-success">
+        <div class="text-muted small">Tiến độ kế hoạch</div>
+        <div class="fs-4 fw-semibold text-success">{{ board.progress_pct_overall }}%</div>
+        <div class="small text-muted">{{ board.qty_good_total|sx_num }} / {{ board.qty_planned_total|sx_num }}</div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <div class="border rounded-3 p-3 h-100 border-start border-4 {% if board.teams_late %}border-danger{% else %}border-secondary{% endif %}">
+        <div class="text-muted small">Tổ có lệnh trễ</div>
+        <div class="fs-4 fw-semibold {% if board.teams_late %}text-danger{% endif %}">{{ board.teams_late }}</div>
+        <div class="small text-muted">{{ board.teams_no_output }} tổ chưa có sản lượng</div>
+      </div>
+    </div>
+    <div class="col-6 col-lg-3">
+      <a href="{% url 'san_xuat:qc_alerts' %}" class="text-decoration-none text-reset">
+        <div class="border rounded-3 p-3 h-100 border-start border-4 {% if board.qc_alerts_open %}border-danger{% else %}border-secondary{% endif %}">
+          <div class="text-muted small">Cảnh báo QC / dừng</div>
+          <div class="fs-4 fw-semibold {% if board.qc_alerts_open %}text-danger{% endif %}">{{ board.qc_alerts_open }}</div>
+          <div class="small text-muted">Dừng {{ board.downtime_minutes_total|intcomma }} phút · lỗi {{ board.qty_defect_total|sx_num }}</div>
+        </div>
+      </a>
+    </div>
+  </div>
+
+  {% if board.rows %}
+  <div class="table-responsive border rounded-3">
+    <table class="table table-hover align-middle mb-0 jp-npl-catalog-table">
+      <thead class="table-light">
+        <tr>
+          <th style="min-width:9rem">Tổ / chuyền</th>
+          <th class="text-end">KH</th>
+          <th class="text-end">Đạt</th>
+          <th class="text-end">Lỗi</th>
+          <th style="min-width:8rem">Tiến độ</th>
+          <th class="text-center">LSX</th>
+          <th class="text-center">Trễ</th>
+          <th class="text-end">Dừng</th>
+          <th>Cảnh báo / lệnh đang chạy</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in board.rows %}
+        <tr>
+          <td>
+            <div class="fw-semibold">{{ row.team_label }}</div>
+            {% if row.work_center %}
+            <div class="small text-muted">{{ row.work_center.code }}</div>
+            {% endif %}
+            <span class="jp-prog-status is-{{ row.status }} mt-1">
+              {% if row.status == 'danger' %}Cần xử lý
+              {% elif row.status == 'warn' %}Cảnh báo
+              {% elif row.status == 'ok' %}Đúng tiến độ
+              {% else %}Chưa có việc{% endif %}
+            </span>
+          </td>
+          <td class="text-end">{{ row.qty_planned|sx_num }}</td>
+          <td class="text-end text-success">{{ row.qty_good|sx_num }}</td>
+          <td class="text-end {% if row.qty_defect %}text-danger{% endif %}">{{ row.qty_defect|sx_num }}</td>
+          <td>
+            <div class="d-flex justify-content-between small mb-1">
+              <span>{{ row.progress_pct }}%</span>
+              {% if row.defect_rate_pct %}<span class="text-muted">lỗi {{ row.defect_rate_pct }}%</span>{% endif %}
+            </div>
+            <div class="jp-prog-bar is-{{ row.status }}"><span style="width: {{ row.progress_bar_pct }}%"></span></div>
+          </td>
+          <td class="text-center">{{ row.mo_open }}</td>
+          <td class="text-center {% if row.mo_late %}text-danger fw-bold{% endif %}">{{ row.mo_late }}</td>
+          <td class="text-end">{% if row.downtime_minutes %}{{ row.downtime_minutes }}′{% else %}—{% endif %}</td>
+          <td>
+            {% if row.alerts %}
+            <div class="d-flex flex-wrap gap-1 mb-1">
+              {% for a in row.alerts %}
+              <span class="badge jp-prog-alert {% if a.severity == 'danger' %}text-bg-danger{% else %}text-bg-warning text-dark{% endif %}">{{ a.message }}</span>
+              {% endfor %}
+            </div>
+            {% endif %}
+            {% if row.mos %}
+            <ul class="jp-prog-mo-list">
+              {% for mo in row.mos %}
+              <li>
+                <a href="{% url 'san_xuat:dispatch_mo_detail' mo.pk %}">{{ mo.code }}</a>
+                <span class="text-muted">{{ mo.product_code }}</span>
+                <span>{{ mo.qty_done|sx_num }}/{{ mo.qty|sx_num }} ({{ mo.progress_pct }}%)</span>
+                {% if mo.is_late %}<span class="text-danger">trễ{% if mo.due_date %} {{ mo.due_date|date:"d/m" }}{% endif %}</span>{% endif %}
+              </li>
+              {% endfor %}
+            </ul>
+            {% elif not row.alerts %}
+            <span class="text-muted small">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="small text-muted mt-2 mb-0">
+    Tiến độ = sản lượng đạt (TKSX đã xác nhận) / kế hoạch chi tiết trong kỳ.
+    Nếu chưa có KHCT thì ước lượng theo trung bình tiến độ lệnh đang mở của tổ.
+  </p>
+  {% else %}
+  <div class="border rounded-3 p-4 text-center text-muted">
+    Không có tổ nào trong phạm vi lọc.
+    {% if not has_filters %}
+    Hãy khai <a href="{% url 'san_xuat:capacity_list' %}">năng lực SX (tổ/chuyền)</a>
+    hoặc gắn tổ trên kế hoạch chi tiết / lệnh sản xuất.
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
