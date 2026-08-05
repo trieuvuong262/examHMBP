@@ -21,12 +21,6 @@
     </a>
   </div>
 
-  <div class="alert alert-light border small">
-    <strong>Quỹ phút hữu ích/ngày</strong> = số nhân sự × phút/người/ngày × hiệu suất.
-    <strong>Nhân sự</strong> chỉ lấy từ module Nhân sự (HR) qua nút Đồng bộ HR — không sửa trên màn này.
-    Năng lực/ngày đã chỉnh &gt; 0 vẫn được giữ khi đồng bộ lại.
-  </div>
-
   <form method="post" class="card border-0 shadow-sm">
     {% csrf_token %}
     {{ formset.management_form }}
@@ -36,7 +30,7 @@
           <tr>
             <th>Tổ / chuyền</th>
             <th class="text-end">NL/ngày (SP)</th>
-            <th class="text-end">Nhân sự <span class="text-muted fw-normal">(từ HR)</span></th>
+            <th class="text-end">Nhân sự</th>
             <th class="text-end">Phút/người/ngày</th>
             <th class="text-end">Hiệu suất (%)</th>
             <th class="text-end">Phút hữu ích/ngày</th>
@@ -52,10 +46,7 @@
               {% for hidden in form.hidden_fields %}{% if hidden.name != 'id' %}{{ hidden }}{% endif %}{% endfor %}
             </td>
             <td>{{ form.capacity_per_day }}{{ form.capacity_per_day.errors }}</td>
-            <td class="text-end">
-              <span class="fw-semibold">{{ form.instance.headcount }}</span>
-              <div class="small text-muted">Chỉ Đồng bộ HR</div>
-            </td>
+            <td class="text-end fw-semibold">{{ form.instance.headcount }}</td>
             <td>{{ form.shift_minutes_per_head }}{{ form.shift_minutes_per_head.errors }}</td>
             <td>{{ form.efficiency_pct }}{{ form.efficiency_pct.errors }}</td>
             <td class="text-end fw-semibold">{{ form.instance.available_minutes_per_day|floatformat:"0" }}</td>
