@@ -9,9 +9,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
+from urllib.parse import urlencode
 
 from django.db.models import Q, Sum
 from django.db.models.functions import Coalesce
+from django.urls import reverse
 from django.utils import timezone
 
 from san_xuat.hub_models import (
@@ -59,6 +61,28 @@ def resolve_team_key(label: str, *, centers: list[SxWorkCenter]) -> str:
     return t
 
 
+def _sx_url(name: str, *, pk: int | None = None, query: dict | None = None) -> str:
+    if pk is not None:
+        path = reverse(f"san_xuat:{name}", kwargs={"pk": pk})
+    else:
+        path = reverse(f"san_xuat:{name}")
+    if not query:
+        return path
+    cleaned = {k: v for k, v in query.items() if v not in (None, "")}
+    if not cleaned:
+        return path
+    return f"{path}?{urlencode(cleaned)}"
+
+
+def _period_query(date_from: date, date_to: date, **extra) -> dict:
+    q = {
+        "date_from": date_from.isoformat(),
+        "date_to": date_to.isoformat(),
+    }
+    q.update(extra)
+    return q
+
+
 @dataclass
 class TeamMoBrief:
     pk: int
@@ -78,6 +102,8 @@ class TeamProgressAlert:
     kind: str
     message: str
     severity: str  # warn | danger
+    url: str = ""
+    action_label: str = ""
 
 
 @dataclass
@@ -97,6 +123,8 @@ class TeamProgressRow:
     status: str = "idle"  # ok | warn | danger | idle
     mos: list[TeamMoBrief] = field(default_factory=list)
     alerts: list[TeamProgressAlert] = field(default_factory=list)
+    action_url: str = ""
+    action_label: str = ""
 
     @property
     def progress_bar_pct(self) -> int:
@@ -342,12 +370,26 @@ def build_team_progress_board(
         )
 
         alerts: list[TeamProgressAlert] = []
+        team_name = row.team_label if row.team_label != "(Chưa gắn tổ)" else ""
+        late_mo = next((m for m in row.mos if m.is_late), None)
+        first_mo = row.mos[0] if row.mos else None
+
         if row.mo_late:
+            late_url = (
+                _sx_url("dispatch_mo_detail", pk=late_mo.pk)
+                if late_mo
+                else _sx_url(
+                    "dispatch_mo",
+                    query=_period_query(date_from, date_to, name=team_name),
+                )
+            )
             alerts.append(
                 TeamProgressAlert(
                     kind="late",
                     message=f"{row.mo_late} lệnh quá hạn",
                     severity="danger",
+                    url=late_url,
+                    action_label="Xem lệnh trễ",
                 )
             )
         if row.qc_alerts_open:
@@ -356,14 +398,31 @@ def build_team_progress_board(
                     kind="qc",
                     message=f"{row.qc_alerts_open} cảnh báo QC mở",
                     severity="danger",
+                    url=_sx_url(
+                        "qc_alerts",
+                        query={"status": SxQcAlert.STATUS_OPEN, "name": team_name},
+                    ),
+                    action_label="Xử lý QC",
                 )
             )
         if row.qty_planned > 0 and row.qty_good <= 0 and date_to >= today:
+            if first_mo:
+                no_out_url = _sx_url(
+                    "dispatch_prod_stats_create",
+                    query={"mo": first_mo.pk},
+                )
+            else:
+                no_out_url = _sx_url(
+                    "dispatch_prod_stats",
+                    query=_period_query(date_from, date_to, name=team_name),
+                )
             alerts.append(
                 TeamProgressAlert(
                     kind="no_output",
                     message="Có kế hoạch nhưng chưa ghi nhận sản lượng",
                     severity="warn",
+                    url=no_out_url,
+                    action_label="Ghi nhận TKSX",
                 )
             )
         if row.downtime_minutes >= 60:
@@ -372,6 +431,11 @@ def build_team_progress_board(
                     kind="downtime",
                     message=f"Dừng chuyền {row.downtime_minutes} phút",
                     severity="warn",
+                    url=_sx_url(
+                        "downtime_list",
+                        query=_period_query(date_from, date_to, name=team_name),
+                    ),
+                    action_label="Xem dừng chuyền",
                 )
             )
         if row.defect_rate_pct >= 5 and total_out > 0:
@@ -380,10 +444,33 @@ def build_team_progress_board(
                     kind="defect",
                     message=f"Tỷ lệ lỗi {row.defect_rate_pct}%",
                     severity="warn",
+                    url=_sx_url(
+                        "dispatch_prod_stats",
+                        query=_period_query(date_from, date_to, name=team_name),
+                    ),
+                    action_label="Xem thống kê SX",
                 )
             )
         row.alerts = alerts
         row.status = _row_status(row)
+
+        # CTA chính: ưu tiên cảnh báo đầu (đã xếp danger trước), không thì lệnh / KH / năng lực
+        if alerts:
+            row.action_url = alerts[0].url
+            row.action_label = alerts[0].action_label or "Xử lý"
+        elif first_mo:
+            row.action_url = _sx_url("dispatch_mo_detail", pk=first_mo.pk)
+            row.action_label = "Xem lệnh SX"
+        elif row.qty_planned > 0:
+            row.action_url = _sx_url(
+                "plan_detail",
+                query=_period_query(date_from, date_to, name=team_name),
+            )
+            row.action_label = "Xem kế hoạch chi tiết"
+        else:
+            row.action_url = _sx_url("capacity_list", query={"name": team_name} if team_name else None)
+            row.action_label = "Khai năng lực tổ"
+
         rows.append(row)
 
     rank = {"danger": 0, "warn": 1, "ok": 2, "idle": 3}

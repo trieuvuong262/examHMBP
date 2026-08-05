@@ -56,12 +56,6 @@
     color: var(--prog-ink);
     line-height: 1.2;
   }
-  .jp-prog-hero-copy p {
-    margin: 0.35rem 0 0;
-    color: var(--prog-muted);
-    font-size: 0.9rem;
-    max-width: 36rem;
-  }
   .jp-prog-hero-meta {
     display: flex;
     flex-wrap: wrap;
@@ -405,6 +399,7 @@
     gap: 0.7rem;
   }
   .jp-prog-card {
+    position: relative;
     background: #fff;
     border: 1px solid var(--prog-line);
     border-radius: 0.75rem;
@@ -422,6 +417,41 @@
     box-shadow: 0 10px 22px rgba(15, 23, 42, 0.08);
     border-color: #dbe3ec;
   }
+  .jp-prog-card .stretched-link::after { z-index: 1; }
+  .jp-prog-card .jp-prog-hit {
+    position: relative;
+    z-index: 2;
+  }
+  .jp-prog-card-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    margin-top: 0.65rem;
+    padding: 0.35rem 0.65rem;
+    border-radius: 0.45rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-decoration: none;
+    background: var(--hm-primary-soft);
+    color: var(--hm-primary);
+    position: relative;
+    z-index: 2;
+  }
+  .jp-prog-card-cta:hover {
+    background: rgba(220, 38, 38, 0.14);
+    color: var(--hm-primary-dark, #b91c1c);
+  }
+  .jp-prog-card.is-ok .jp-prog-card-cta,
+  .jp-prog-card.is-idle .jp-prog-card-cta {
+    background: #f1f5f9;
+    color: #334155;
+  }
+  a.jp-prog-alert {
+    text-decoration: none;
+    cursor: pointer;
+  }
+  a.jp-prog-alert:hover { filter: brightness(0.96); }
+
   .jp-prog-card-title { font-weight: 800; font-size: 0.95rem; color: var(--prog-ink); }
   .jp-prog-card-meta { font-size: 0.72rem; color: var(--prog-muted); margin-top: 0.1rem; }
   .jp-prog-card-metrics {
@@ -453,11 +483,6 @@
     background: rgba(255,255,255,0.6);
   }
 
-  .jp-prog-footnote {
-    margin-top: 0.85rem;
-    font-size: 0.78rem;
-    color: var(--prog-muted);
-  }
   .jp-prog-empty {
     border: 1px dashed #cbd5e1;
     border-radius: var(--prog-radius);
@@ -491,7 +516,6 @@
   <div class="jp-prog-hero">
     <div class="jp-prog-hero-copy">
       <h2>Giám sát tiến độ</h2>
-      <p>Theo dõi tiến độ các tổ theo kế hoạch chi tiết và thống kê sản xuất — nhìn nhanh tổ nào trễ, tổ nào đúng nhịp.</p>
       <div class="jp-prog-hero-meta">
         <span class="jp-prog-chip">
           <i class="bi bi-calendar3" aria-hidden="true"></i>
@@ -549,6 +573,7 @@
       <div class="jp-prog-kpi-foot">{{ board.qty_good_total|sx_num }} / {{ board.qty_planned_total|sx_num }} đạt / KH</div>
     </div>
     <div class="jp-prog-kpi-card {% if board.teams_late %}is-danger{% else %}is-muted{% endif %}">
+      <a href="{% url 'san_xuat:dispatch_mo' %}?date_from={{ board.date_from|date:'Y-m-d' }}&date_to={{ board.date_to|date:'Y-m-d' }}" class="stretched-link" aria-label="Xem lệnh sản xuất"></a>
       <div class="jp-prog-kpi-top">
         <div class="jp-prog-kpi-label">Tổ có lệnh trễ</div>
         <span class="jp-prog-kpi-icon"><i class="bi bi-alarm" aria-hidden="true"></i></span>
@@ -583,6 +608,9 @@
         <div class="jp-prog-kanban-body">
           {% for row in col.rows %}
           <article class="jp-prog-card is-{{ row.status }}" role="listitem">
+            {% if row.action_url %}
+            <a href="{{ row.action_url }}" class="stretched-link" aria-label="{{ row.action_label }} — {{ row.team_label }}"></a>
+            {% endif %}
             <div class="d-flex justify-content-between align-items-start gap-2">
               <div>
                 <div class="jp-prog-card-title">{{ row.team_label }}</div>
@@ -608,17 +636,21 @@
             </div>
             <div class="jp-prog-bar is-{{ row.status }} mb-2"><span style="width: {{ row.progress_bar_pct }}%"></span></div>
             {% if row.downtime_minutes %}
-            <div class="small text-muted mb-1"><i class="bi bi-pause-circle me-1" aria-hidden="true"></i>Dừng {{ row.downtime_minutes }}′</div>
+            <div class="small text-muted mb-1 jp-prog-hit">
+              <a class="text-decoration-none text-muted" href="{% url 'san_xuat:downtime_list' %}?date_from={{ board.date_from|date:'Y-m-d' }}&date_to={{ board.date_to|date:'Y-m-d' }}&name={{ row.team_label|urlencode }}">
+                <i class="bi bi-pause-circle me-1" aria-hidden="true"></i>Dừng {{ row.downtime_minutes }}′
+              </a>
+            </div>
             {% endif %}
             {% if row.alerts %}
-            <div class="d-flex flex-wrap gap-1 mb-2">
+            <div class="d-flex flex-wrap gap-1 mb-2 jp-prog-hit">
               {% for a in row.alerts %}
-              <span class="badge jp-prog-alert {% if a.severity == 'danger' %}text-bg-danger{% else %}text-bg-warning text-dark{% endif %}">{{ a.message }}</span>
+              <a href="{{ a.url }}" class="badge jp-prog-alert {% if a.severity == 'danger' %}text-bg-danger{% else %}text-bg-warning text-dark{% endif %}" title="{{ a.action_label }}">{{ a.message }}</a>
               {% endfor %}
             </div>
             {% endif %}
             {% if row.mos %}
-            <ul class="jp-prog-mo-list">
+            <ul class="jp-prog-mo-list jp-prog-hit">
               {% for mo in row.mos %}
               <li>
                 <a href="{% url 'san_xuat:dispatch_mo_detail' mo.pk %}">{{ mo.code }}</a>
@@ -628,6 +660,9 @@
               </li>
               {% endfor %}
             </ul>
+            {% endif %}
+            {% if row.action_url %}
+            <span class="jp-prog-card-cta">{{ row.action_label }} <i class="bi bi-arrow-right" aria-hidden="true"></i></span>
             {% endif %}
           </article>
           {% empty %}
@@ -686,7 +721,7 @@
             {% if row.alerts %}
             <div class="d-flex flex-wrap gap-1 mb-1">
               {% for a in row.alerts %}
-              <span class="badge jp-prog-alert {% if a.severity == 'danger' %}text-bg-danger{% else %}text-bg-warning text-dark{% endif %}">{{ a.message }}</span>
+              <a href="{{ a.url }}" class="badge jp-prog-alert {% if a.severity == 'danger' %}text-bg-danger{% else %}text-bg-warning text-dark{% endif %}" title="{{ a.action_label }}">{{ a.message }}</a>
               {% endfor %}
             </div>
             {% endif %}
@@ -712,10 +747,6 @@
   </div>
   {% endif %}
 
-  <p class="jp-prog-footnote">
-    Tiến độ = sản lượng đạt (TKSX đã xác nhận) / kế hoạch chi tiết trong kỳ.
-    Nếu chưa có KHCT thì ước lượng theo trung bình tiến độ lệnh đang mở của tổ.
-  </p>
   {% else %}
   <div class="jp-prog-empty">
     <div class="mb-2"><i class="bi bi-inboxes" style="font-size:1.6rem;opacity:.45" aria-hidden="true"></i></div>

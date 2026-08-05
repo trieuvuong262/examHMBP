@@ -317,7 +317,7 @@ SX_FILTER_COST_TYPE = SxFilterSpec(date_field='created_at')
 
 SX_FILTER_MO = SxFilterSpec(
     code_fields=('code', 'product_code'),
-    name_fields=('product_name',),
+    name_fields=('product_name', 'team_label'),
     date_field='order_date',
 )
 SX_FILTER_DISASSEMBLY = SxFilterSpec(
@@ -332,7 +332,7 @@ SX_FILTER_MATERIAL_ISSUE = SxFilterSpec(
 )
 SX_FILTER_PROD_STAT = SxFilterSpec(
     code_fields=('code', 'production_order__code', 'production_order__product_code'),
-    name_fields=('production_order__product_name', 'process_name'),
+    name_fields=('production_order__product_name', 'process_name', 'team_label'),
     date_field='stat_date',
 )
 SX_FILTER_FG_RECEIPT = SxFilterSpec(
@@ -368,7 +368,12 @@ SX_FILTER_QC_SHEET = SxFilterSpec(
 )
 SX_FILTER_QC_ALERT = SxFilterSpec(
     code_fields=('code', 'production_order__code', 'production_order__product_code'),
-    name_fields=('production_order__product_name', 'message', 'process_name'),
+    name_fields=(
+        'production_order__product_name',
+        'production_order__team_label',
+        'message',
+        'process_name',
+    ),
     date_field='created_at',
 )
 SX_FILTER_QC_CATALOG = SxFilterSpec()
