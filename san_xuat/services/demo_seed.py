@@ -27,11 +27,16 @@ SPORTSWEAR_BOM_LINES: list[tuple[str, Decimal, Decimal, int]] = [
 ]
 
 SPORTSWEAR_PROCESS_STEPS: list[tuple[int, str, Decimal, Decimal]] = [
-    (10, 'Cắt vải theo rập', Decimal('20'), Decimal('45000')),
-    (20, 'May thân áo', Decimal('8'), Decimal('35000')),
-    (30, 'In / thêu logo', Decimal('12'), Decimal('40000')),
-    (40, 'QC thành phẩm', Decimal('30'), Decimal('30000')),
-    (50, 'Ủi — đóng gói', Decimal('25'), Decimal('30000')),
+    (10, 'Trải — cắt vải theo rập', Decimal('18'), Decimal('45000')),
+    (20, 'Ép keo / dán chi tiết', Decimal('22'), Decimal('40000')),
+    (30, 'In logo / họa tiết', Decimal('14'), Decimal('42000')),
+    (40, 'Thêu logo', Decimal('10'), Decimal('48000')),
+    (50, 'May thân áo', Decimal('8'), Decimal('35000')),
+    (60, 'May tay — cổ — nẹp', Decimal('10'), Decimal('36000')),
+    (70, 'Ủi định hình', Decimal('28'), Decimal('30000')),
+    (80, 'QC bán thành phẩm', Decimal('35'), Decimal('28000')),
+    (90, 'QC thành phẩm', Decimal('30'), Decimal('30000')),
+    (100, 'Đóng gói — dán tem', Decimal('25'), Decimal('30000')),
 ]
 
 DEFAULT_OVERHEAD_PCT = Decimal('5')

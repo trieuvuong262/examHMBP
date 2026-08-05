@@ -4,7 +4,8 @@ Seed dữ liệu demo Sản xuất trên VPS — hiển thị trên UI, không �
 Usage:
     python manage.py seed_san_xuat_vps_demo
     python manage.py seed_san_xuat_vps_demo --clear
-    python manage.py seed_san_xuat_vps_demo --limit 8 --codes SP008073,SP008074
+    python manage.py seed_san_xuat_vps_demo --reseed --force-lines --limit 10
+    python manage.py seed_san_xuat_vps_demo --limit 10 --codes SP008073,SP008074
 """
 
 from __future__ import annotations
@@ -39,8 +40,8 @@ class Command(BaseCommand):
         parser.add_argument(
             '--limit',
             type=int,
-            default=8,
-            help='Số hồ sơ SX tối đa (mặc định 8).',
+            default=10,
+            help='Số hồ sơ SX tối đa (mặc định 10).',
         )
         parser.add_argument(
             '--user',
@@ -50,19 +51,28 @@ class Command(BaseCommand):
         parser.add_argument(
             '--force-lines',
             action='store_true',
-            help='Ghi lại dòng BOM/công đoạn mẫu.',
+            help='Ghi lại dòng BOM/công đoạn mẫu (10 quy trình).',
         )
         parser.add_argument(
             '--keep-legacy-demo',
             action='store_true',
-            help='Khi --clear: không xóa demo cũ is_demo=True (*-DEMO-*).',
+            help='Khi --clear/--reseed: không xóa demo cũ is_demo=True (*-DEMO-*).',
+        )
+        parser.add_argument(
+            '--reseed',
+            action='store_true',
+            help='Xóa seed VPS/KHSX demo rồi tạo lại (không đụng kho NPL).',
         )
 
     def handle(self, *args, **options):
-        if options['clear']:
+        if options['clear'] and not options['reseed']:
             counts = clear_vps_demo(include_legacy_demo=not options['keep_legacy_demo'])
             self.stdout.write(self.style.SUCCESS(f'Đã xóa seed VPS: {counts}'))
             return
+
+        if options['reseed'] or options['clear']:
+            counts = clear_vps_demo(include_legacy_demo=not options['keep_legacy_demo'])
+            self.stdout.write(self.style.SUCCESS(f'Đã xóa seed VPS: {counts}'))
 
         user = self._resolve_user(options['user'])
         codes = self._resolve_codes(options)
@@ -92,7 +102,7 @@ class Command(BaseCommand):
 
         self.stdout.write('')
         self.stdout.write('Mở nhanh:')
-        self.stdout.write('  /san-xuat/tong-quan/')
+        self.stdout.write('  /san-xuat/ke-hoach/giam-sat-tien-do/?view=kanban')
         self.stdout.write('  /san-xuat/dieu-phoi/lenh-sx/')
         self.stdout.write('  /san-xuat/truy-xuat/?query=LSX-2026-VPS-001&gaps=1')
         self.stdout.write('Không tạo phiếu xuất kho NPL / không sync KiotViet.')

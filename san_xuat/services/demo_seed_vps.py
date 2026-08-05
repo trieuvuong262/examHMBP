@@ -33,6 +33,7 @@ from san_xuat.hub_models import (
     SxProductionStat,
     SxPurchaseOrder,
     SxPurchaseOrderLine,
+    SxQcAlert,
     SxQcCriteria,
     SxQcCriteriaGroup,
     SxQcDefect,
@@ -61,9 +62,12 @@ from san_xuat.services.demo_seed import (
 from san_xuat.services.demo_seed_hub import HUB_DEMO_MODELS_DELETE_ORDER, clear_demo_hub
 
 VPS_DEMO_NOTE = '[VPS-DEMO SX]'
+VPS_DEMO_NOTE_KHSX = '[VPS-DEMO KHSX]'
+VPS_DEMO_NOTE_PREFIXES = (VPS_DEMO_NOTE, VPS_DEMO_NOTE_KHSX)
 
 VPS_DELETE_ORDER = (
     SxNcrCase,
+    SxQcAlert,
     SxDowntimeEvent,
     SxWorkAssignment,
     SxPackingRecord,
@@ -87,19 +91,28 @@ def _notes(visible: bool, extra: str = '') -> str:
 
 @transaction.atomic
 def clear_vps_demo(*, include_legacy_demo: bool = True) -> dict[str, int]:
-    """Xóa dữ liệu seed VPS (notes / mã *-VPS-*)."""
+    """Xóa dữ liệu seed VPS / KHSX demo (notes / mã *-VPS-* / *-KHSX-DEMO*).
+
+    Không đụng phiếu kho NPL (`kho_npl`) hay chứng từ KiotViet.
+    """
     counts: dict[str, int] = {}
-    code_q = models.Q(code__icontains='-VPS-') | models.Q(code__icontains='VPS-2026')
+    code_q = (
+        models.Q(code__icontains='-VPS-')
+        | models.Q(code__icontains='VPS-2026')
+        | models.Q(code__icontains='KHSX-DEMO')
+    )
+    notes_q = models.Q()
+    for prefix in VPS_DEMO_NOTE_PREFIXES:
+        notes_q |= models.Q(notes__startswith=prefix)
+
     for model in VPS_DELETE_ORDER:
         q = code_q if hasattr(model, 'code') else models.Q(pk__in=[])
         if hasattr(model, 'notes'):
-            q = q | models.Q(notes__startswith=VPS_DEMO_NOTE)
+            q = q | notes_q
         deleted, _ = model.objects.filter(q).delete()
         if deleted:
             counts[model.__name__] = deleted
-    tech_deleted, _ = ProductTechDoc.objects.filter(notes__startswith=VPS_DEMO_NOTE).delete()
-    if tech_deleted:
-        counts['ProductTechDoc'] = tech_deleted
+    # Không xóa ProductTechDoc theo notes VPS — tránh mất hồ sơ SP thật đã gắn nhãn seed.
     if include_legacy_demo:
         legacy = clear_demo_hub()
         counts['legacy_hub'] = legacy
@@ -222,14 +235,20 @@ def seed_vps_hub(*, product_codes: list[str], user=None, visible: bool = True) -
         },
     )
     SxDetailPlanLine.objects.filter(plan=detail).delete()
-    for day in range(5):
+    # 10 ngày/tổ trong kỳ — gắn work center để giám sát tiến độ đọc được
+    wc_cycle = [wc for wc in (wc_may1, wc_may2, wc_dg) if wc]
+    for day in range(10):
         code = product_codes[day % len(product_codes)]
+        wc = wc_cycle[day % len(wc_cycle)]
+        team = (wc.team_label or wc.name) if wc else ''
         SxDetailPlanLine.objects.create(
             plan=detail,
-            plan_date=week_start + timedelta(days=day),
+            plan_date=week_start + timedelta(days=day % 7),
             product_code=code,
             product_name=_product_name(code),
-            qty=Decimal('70') + day * 5,
+            qty=Decimal('60') + day * 8,
+            team_label=team,
+            work_center=wc,
         )
     stats['detail_plans'] = 1
 
@@ -295,21 +314,27 @@ def seed_vps_hub(*, product_codes: list[str], user=None, visible: bool = True) -
     )
     stats['purchase_orders'] = 1
 
-    # --- Lệnh sản xuất (nhiều trạng thái) ---
+    # --- 10 lệnh SX (10 quy trình / kịch bản trạng thái) ---
     team_a = wc_may1.team_label or wc_may1.name
     team_b = (wc_may2.team_label or wc_may2.name) if wc_may2 else team_a
     team_pack = (wc_dg.team_label or wc_dg.name) if wc_dg else team_a
+    # (code, product_idx, status, qty, qty_done, team, day_off, due_offset, process)
+    # due_offset < 0 → quá hạn (cột Cần xử lý)
     mo_specs = [
-        ('LSX-2026-VPS-001', primary, SxProductionOrder.STATUS_IN_PROGRESS, Decimal('400'), Decimal('185'), team_a, 0),
-        ('LSX-2026-VPS-002', secondary, SxProductionOrder.STATUS_RELEASED, Decimal('250'), Decimal('0'), team_b, 1),
-        ('LSX-2026-VPS-003', tertiary, SxProductionOrder.STATUS_DRAFT, Decimal('150'), Decimal('0'), team_a, 2),
-        ('LSX-2026-VPS-004', product_codes[3] if len(product_codes) > 3 else primary,
-         SxProductionOrder.STATUS_DONE, Decimal('300'), Decimal('300'), team_a, 3),
-        ('LSX-2026-VPS-005', product_codes[4] if len(product_codes) > 4 else secondary,
-         SxProductionOrder.STATUS_IN_PROGRESS, Decimal('200'), Decimal('80'), team_b, 4),
+        ('LSX-2026-VPS-001', 0, SxProductionOrder.STATUS_IN_PROGRESS, Decimal('400'), Decimal('185'), team_a, 0, -2, 'May thân áo'),
+        ('LSX-2026-VPS-002', 1, SxProductionOrder.STATUS_RELEASED, Decimal('250'), Decimal('0'), team_b, 1, 5, 'Trải — cắt vải theo rập'),
+        ('LSX-2026-VPS-003', 2, SxProductionOrder.STATUS_DRAFT, Decimal('150'), Decimal('0'), team_a, 2, 8, 'Ép keo / dán chi tiết'),
+        ('LSX-2026-VPS-004', 3, SxProductionOrder.STATUS_DONE, Decimal('300'), Decimal('300'), team_a, 3, 2, 'Đóng gói — dán tem'),
+        ('LSX-2026-VPS-005', 4, SxProductionOrder.STATUS_IN_PROGRESS, Decimal('200'), Decimal('80'), team_b, 4, -1, 'May tay — cổ — nẹp'),
+        ('LSX-2026-VPS-006', 0, SxProductionOrder.STATUS_IN_PROGRESS, Decimal('220'), Decimal('40'), team_pack, 1, 4, 'Ủi định hình'),
+        ('LSX-2026-VPS-007', 1, SxProductionOrder.STATUS_RELEASED, Decimal('180'), Decimal('0'), team_a, 2, 6, 'In logo / họa tiết'),
+        ('LSX-2026-VPS-008', 2, SxProductionOrder.STATUS_IN_PROGRESS, Decimal('160'), Decimal('95'), team_b, 0, 3, 'Thêu logo'),
+        ('LSX-2026-VPS-009', 3, SxProductionOrder.STATUS_IN_PROGRESS, Decimal('140'), Decimal('20'), team_a, 3, 7, 'QC bán thành phẩm'),
+        ('LSX-2026-VPS-010', 4, SxProductionOrder.STATUS_RELEASED, Decimal('120'), Decimal('0'), team_pack, 4, 9, 'QC thành phẩm'),
     ]
     mos: list[SxProductionOrder] = []
-    for code, pcode, status, qty, qty_done, team, day_off in mo_specs:
+    for code, pidx, status, qty, qty_done, team, day_off, due_off, process in mo_specs:
+        pcode = product_codes[pidx % len(product_codes)]
         bom = _active_bom(pcode)
         mo, _ = SxProductionOrder.objects.update_or_create(
             code=code,
@@ -317,15 +342,16 @@ def seed_vps_hub(*, product_codes: list[str], user=None, visible: bool = True) -
                 'is_demo': demo,
                 'product_code': pcode,
                 'product_name': _product_name(pcode),
-                'detail_plan': detail if day_off < 3 else None,
+                'detail_plan': detail if day_off < 5 else None,
                 'bom_version': bom,
                 'qty': qty,
                 'qty_done': qty_done,
                 'order_date': week_start + timedelta(days=day_off),
-                'due_date': week_start + timedelta(days=10 + day_off),
+                'due_date': today + timedelta(days=due_off),
                 'planned_start': week_start + timedelta(days=day_off),
                 'planned_end': week_start + timedelta(days=8 + day_off),
                 'team_label': team,
+                'process_name': process,
                 'status': status,
                 'notes': note,
                 'created_by': user,
@@ -392,7 +418,7 @@ def seed_vps_hub(*, product_codes: list[str], user=None, visible: bool = True) -
         defaults={
             'is_demo': demo,
             'production_order': mo_main,
-            'stat_date': week_start + timedelta(days=3),
+            'stat_date': today,
             'process_name': 'May thân áo',
             'qty_good': Decimal('120'),
             'qty_defect': Decimal('4'),
@@ -401,21 +427,28 @@ def seed_vps_hub(*, product_codes: list[str], user=None, visible: bool = True) -
             'notes': note,
         },
     )
-    SxProductionStat.objects.update_or_create(
-        code='TKSX-2026-VPS-002',
-        defaults={
-            'is_demo': demo,
-            'production_order': mo_main,
-            'stat_date': week_start + timedelta(days=4),
-            'process_name': 'Ủi — đóng gói',
-            'qty_good': Decimal('65'),
-            'qty_defect': Decimal('1'),
-            'team_label': team_pack,
-            'status': 'confirmed',
-            'notes': note,
-        },
-    )
-    stats['production_stats'] = 2
+    extra_stats = [
+        ('TKSX-2026-VPS-002', mo_main, today, 'Ủi định hình', Decimal('65'), Decimal('1'), team_pack),
+        ('TKSX-2026-VPS-003', mos[7], today, 'Thêu logo', Decimal('90'), Decimal('8'), team_b),  # lỗi cao
+        ('TKSX-2026-VPS-004', mos[5], today, 'Ủi định hình', Decimal('35'), Decimal('0'), team_pack),
+        ('TKSX-2026-VPS-005', mos[8], today, 'QC bán thành phẩm', Decimal('18'), Decimal('2'), team_a),
+    ]
+    for code, mo, sdate, proc, good, defect, team in extra_stats:
+        SxProductionStat.objects.update_or_create(
+            code=code,
+            defaults={
+                'is_demo': demo,
+                'production_order': mo,
+                'stat_date': sdate,
+                'process_name': proc,
+                'qty_good': good,
+                'qty_defect': defect,
+                'team_label': team,
+                'status': 'confirmed',
+                'notes': note,
+            },
+        )
+    stats['production_stats'] = 1 + len(extra_stats)
 
     fg_main, _ = SxFgReceiptRequest.objects.update_or_create(
         code='YCNTP-2026-VPS-001',
@@ -657,9 +690,9 @@ def seed_vps_hub(*, product_codes: list[str], user=None, visible: bool = True) -
     stats['work_assignments'] = 4
 
     for idx, (mo, wc, mins, reason) in enumerate([
-        (mo_main, wc_may1, 45, 'Máy may hỏng kim'),
+        (mo_main, wc_may1, 75, 'Máy may hỏng kim — chờ bảo trì'),
         (mo_main, wc_may1, 30, 'Thiếu chỉ tạm thời'),
-        (mos[4], wc_may2, 20, 'Chờ NVL từ kho'),
+        (mos[4], wc_may2, 90, 'Chờ NVL từ kho / dừng chuyền'),
     ]):
         SxDowntimeEvent.objects.update_or_create(
             code=f'DC-2026-VPS-{idx + 1:02d}',
@@ -667,13 +700,47 @@ def seed_vps_hub(*, product_codes: list[str], user=None, visible: bool = True) -
                 'is_demo': demo,
                 'production_order': mo,
                 'work_center': wc,
-                'event_date': week_start + timedelta(days=2 + idx),
+                'team_label': (wc.team_label or wc.name) if wc else '',
+                'event_date': today,
                 'minutes': mins,
                 'reason': reason,
                 'notes': note,
             },
         )
     stats['downtime'] = 3
+
+    SxQcAlert.objects.update_or_create(
+        code='CBQC-2026-VPS-001',
+        defaults={
+            'is_demo': demo,
+            'alert_type': SxQcAlert.TYPE_DEFECT_RATE,
+            'production_order': mos[7],
+            'production_stat': SxProductionStat.objects.filter(code='TKSX-2026-VPS-003').first(),
+            'process_name': 'Thêu logo',
+            'defect_rate': Decimal('8.2'),
+            'tolerance_limit': Decimal('5'),
+            'qty_good': Decimal('90'),
+            'qty_defect': Decimal('8'),
+            'message': f'Tỷ lệ lỗi thêu vượt ngưỡng — tổ {team_b}',
+            'status': SxQcAlert.STATUS_OPEN,
+        },
+    )
+    SxQcAlert.objects.update_or_create(
+        code='CBQC-2026-VPS-002',
+        defaults={
+            'is_demo': demo,
+            'alert_type': SxQcAlert.TYPE_QC_FAIL,
+            'production_order': mo_main,
+            'process_name': 'QC thành phẩm',
+            'defect_rate': Decimal('6.0'),
+            'tolerance_limit': Decimal('5'),
+            'qty_good': Decimal('112'),
+            'qty_defect': Decimal('8'),
+            'message': f'Phiếu QC không đạt — tổ {team_a}',
+            'status': SxQcAlert.STATUS_OPEN,
+        },
+    )
+    stats['qc_alerts'] = 2
 
     SxNcrCase.objects.update_or_create(
         code='NCR-2026-VPS-001',
