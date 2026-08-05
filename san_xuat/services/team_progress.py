@@ -202,6 +202,10 @@ def build_team_progress_board(
 
     rows_map: dict[str, TeamProgressRow] = {}
     for wc in centers:
+        # Bỏ tổ hỗ trợ / chưa khai NL (SP/ngày = 0) khỏi danh sách mặc định —
+        # chỉ hiện nếu có KHCT / LSX / TKSX gắn vào.
+        if (wc.capacity_per_day or Decimal("0")) <= 0:
+            continue
         display = _norm(wc.team_label) or _norm(wc.name) or wc.code
         if not _matches_team_filter(display, wc.code, team_filter):
             continue
@@ -468,8 +472,19 @@ def build_team_progress_board(
             )
             row.action_label = "Xem kế hoạch chi tiết"
         else:
-            row.action_url = _sx_url("capacity_list", query={"name": team_name} if team_name else None)
-            row.action_label = "Khai năng lực tổ"
+            wc = row.work_center
+            has_cap = bool(
+                wc
+                and (
+                    (wc.capacity_per_day or Decimal("0")) > 0
+                    or wc.available_minutes_per_day > 0
+                )
+            )
+            row.action_url = _sx_url(
+                "capacity_list",
+                query={"name": team_name} if team_name else None,
+            )
+            row.action_label = "Xem năng lực tổ" if has_cap else "Khai năng lực tổ"
 
         rows.append(row)
 

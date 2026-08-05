@@ -151,35 +151,49 @@ def seed_vps_hub(*, product_codes: list[str], user=None, visible: bool = True) -
     # --- Năng lực / map HR: theo bộ phận thật phòng SẢN XUẤT ---
     from san_xuat.services.capacity_from_hrm import sync_capacity_from_hrm
 
-    sync_stats = sync_capacity_from_hrm(reset_capacity=False, deactivate_legacy=True)
+    sync_stats = sync_capacity_from_hrm(reset_capacity=True, deactivate_legacy=True)
     stats['work_centers'] = sync_stats.created + sync_stats.updated
     stats['team_hr_maps'] = sync_stats.hr_maps
-    # Lấy tổ may / đóng gói thực tế cho các chứng từ demo bên dưới
-    wc_may1 = (
-        SxWorkCenter.objects.filter(is_active=True, is_demo=False, name__icontains='MAY')
-        .order_by('code')
-        .first()
-    )
+
+    def _wc(*name_parts: str) -> SxWorkCenter | None:
+        qs = SxWorkCenter.objects.filter(is_active=True, is_demo=False)
+        for part in name_parts:
+            hit = qs.filter(name__icontains=part).order_by('code').first()
+            if hit:
+                return hit
+        return None
+
+    # Tổ theo khối xưởng 7–8–9 (+ hoàn thiện)
+    wc_cut = _wc('CẮT', 'TRẢI')
+    wc_print = _wc('IN ÉP', 'IN ', 'ÉP')
+    wc_may1 = _wc('MAY')
     wc_may2 = (
         SxWorkCenter.objects.filter(is_active=True, is_demo=False, name__icontains='MAY')
         .exclude(pk=getattr(wc_may1, 'pk', None))
         .order_by('code')
         .first()
     )
-    wc_dg = (
-        SxWorkCenter.objects.filter(is_active=True, is_demo=False)
-        .filter(name__icontains='GẤP')
-        .order_by('code')
-        .first()
-    ) or wc_may1
+    wc_iron = _wc('ỦI')
+    wc_dg = _wc('GẤP', 'ĐG')
     if not wc_may1:
         raise RuntimeError(
             'Chưa có tổ/chuyền HR (HRD-*). Chạy: python manage.py sync_capacity_from_hrm'
         )
     if not wc_may2:
         wc_may2 = wc_may1
+    if not wc_cut:
+        wc_cut = wc_may1
+    if not wc_print:
+        wc_print = wc_may1
+    if not wc_iron:
+        wc_iron = wc_dg or wc_may1
     if not wc_dg:
         wc_dg = wc_may1
+
+    def _team(wc: SxWorkCenter | None, fallback: str = '') -> str:
+        if not wc:
+            return fallback
+        return (wc.team_label or wc.name or fallback).strip()
 
     for code, name in [('NHOM-POLO', 'Polo / T-shirt'), ('NHOM-SHORT', 'Quần short')]:
         SxProductGroup.objects.update_or_create(
@@ -235,12 +249,12 @@ def seed_vps_hub(*, product_codes: list[str], user=None, visible: bool = True) -
         },
     )
     SxDetailPlanLine.objects.filter(plan=detail).delete()
-    # 10 ngày/tổ trong kỳ — gắn work center để giám sát tiến độ đọc được
-    wc_cycle = [wc for wc in (wc_may1, wc_may2, wc_dg) if wc]
+    # 10 dòng KHCT — trải đều Cắt / In–ép / May / Ủi / Gấp
+    wc_cycle = [wc for wc in (wc_cut, wc_print, wc_may1, wc_may2, wc_iron, wc_dg) if wc]
     for day in range(10):
         code = product_codes[day % len(product_codes)]
         wc = wc_cycle[day % len(wc_cycle)]
-        team = (wc.team_label or wc.name) if wc else ''
+        team = _team(wc)
         SxDetailPlanLine.objects.create(
             plan=detail,
             plan_date=week_start + timedelta(days=day % 7),
@@ -314,21 +328,24 @@ def seed_vps_hub(*, product_codes: list[str], user=None, visible: bool = True) -
     )
     stats['purchase_orders'] = 1
 
-    # --- 10 lệnh SX (10 quy trình / kịch bản trạng thái) ---
-    team_a = wc_may1.team_label or wc_may1.name
-    team_b = (wc_may2.team_label or wc_may2.name) if wc_may2 else team_a
-    team_pack = (wc_dg.team_label or wc_dg.name) if wc_dg else team_a
+    # --- 10 lệnh SX (khối 7 Cắt → 8 In/thêu/ép → 9 May → hoàn thiện) ---
+    team_cut = _team(wc_cut)
+    team_print = _team(wc_print)
+    team_a = _team(wc_may1)
+    team_b = _team(wc_may2, team_a)
+    team_iron = _team(wc_iron, team_a)
+    team_pack = _team(wc_dg, team_a)
     # (code, product_idx, status, qty, qty_done, team, day_off, due_offset, process)
     # due_offset < 0 → quá hạn (cột Cần xử lý)
     mo_specs = [
         ('LSX-2026-VPS-001', 0, SxProductionOrder.STATUS_IN_PROGRESS, Decimal('400'), Decimal('185'), team_a, 0, -2, 'May thân áo'),
-        ('LSX-2026-VPS-002', 1, SxProductionOrder.STATUS_RELEASED, Decimal('250'), Decimal('0'), team_b, 1, 5, 'Trải — cắt vải theo rập'),
-        ('LSX-2026-VPS-003', 2, SxProductionOrder.STATUS_DRAFT, Decimal('150'), Decimal('0'), team_a, 2, 8, 'Ép keo / dán chi tiết'),
-        ('LSX-2026-VPS-004', 3, SxProductionOrder.STATUS_DONE, Decimal('300'), Decimal('300'), team_a, 3, 2, 'Đóng gói — dán tem'),
+        ('LSX-2026-VPS-002', 1, SxProductionOrder.STATUS_RELEASED, Decimal('250'), Decimal('0'), team_cut, 1, 5, 'Trải — cắt vải theo rập'),
+        ('LSX-2026-VPS-003', 2, SxProductionOrder.STATUS_DRAFT, Decimal('150'), Decimal('0'), team_print, 2, 8, 'Ép keo / dán chi tiết'),
+        ('LSX-2026-VPS-004', 3, SxProductionOrder.STATUS_DONE, Decimal('300'), Decimal('300'), team_pack, 3, 2, 'Đóng gói — dán tem'),
         ('LSX-2026-VPS-005', 4, SxProductionOrder.STATUS_IN_PROGRESS, Decimal('200'), Decimal('80'), team_b, 4, -1, 'May tay — cổ — nẹp'),
-        ('LSX-2026-VPS-006', 0, SxProductionOrder.STATUS_IN_PROGRESS, Decimal('220'), Decimal('40'), team_pack, 1, 4, 'Ủi định hình'),
-        ('LSX-2026-VPS-007', 1, SxProductionOrder.STATUS_RELEASED, Decimal('180'), Decimal('0'), team_a, 2, 6, 'In logo / họa tiết'),
-        ('LSX-2026-VPS-008', 2, SxProductionOrder.STATUS_IN_PROGRESS, Decimal('160'), Decimal('95'), team_b, 0, 3, 'Thêu logo'),
+        ('LSX-2026-VPS-006', 0, SxProductionOrder.STATUS_IN_PROGRESS, Decimal('220'), Decimal('40'), team_iron, 1, 4, 'Ủi định hình'),
+        ('LSX-2026-VPS-007', 1, SxProductionOrder.STATUS_RELEASED, Decimal('180'), Decimal('0'), team_print, 2, 6, 'In logo / họa tiết'),
+        ('LSX-2026-VPS-008', 2, SxProductionOrder.STATUS_IN_PROGRESS, Decimal('160'), Decimal('95'), team_print, 0, 3, 'Thêu logo'),
         ('LSX-2026-VPS-009', 3, SxProductionOrder.STATUS_IN_PROGRESS, Decimal('140'), Decimal('20'), team_a, 3, 7, 'QC bán thành phẩm'),
         ('LSX-2026-VPS-010', 4, SxProductionOrder.STATUS_RELEASED, Decimal('120'), Decimal('0'), team_pack, 4, 9, 'QC thành phẩm'),
     ]
@@ -428,9 +445,9 @@ def seed_vps_hub(*, product_codes: list[str], user=None, visible: bool = True) -
         },
     )
     extra_stats = [
-        ('TKSX-2026-VPS-002', mo_main, today, 'Ủi định hình', Decimal('65'), Decimal('1'), team_pack),
-        ('TKSX-2026-VPS-003', mos[7], today, 'Thêu logo', Decimal('90'), Decimal('8'), team_b),  # lỗi cao
-        ('TKSX-2026-VPS-004', mos[5], today, 'Ủi định hình', Decimal('35'), Decimal('0'), team_pack),
+        ('TKSX-2026-VPS-002', mos[5], today, 'Ủi định hình', Decimal('65'), Decimal('1'), team_iron),
+        ('TKSX-2026-VPS-003', mos[7], today, 'Thêu logo', Decimal('90'), Decimal('8'), team_print),  # lỗi cao
+        ('TKSX-2026-VPS-004', mos[5], today, 'Ủi định hình', Decimal('35'), Decimal('0'), team_iron),
         ('TKSX-2026-VPS-005', mos[8], today, 'QC bán thành phẩm', Decimal('18'), Decimal('2'), team_a),
     ]
     for code, mo, sdate, proc, good, defect, team in extra_stats:
@@ -669,8 +686,8 @@ def seed_vps_hub(*, product_codes: list[str], user=None, visible: bool = True) -
 
     for idx, (mo, wc, title) in enumerate([
         (mo_main, wc_may1, 'May thân áo — lô 1'),
-        (mo_main, wc_dg, 'Đóng gói xuất kho'),
-        (mos[1], wc_may2, 'Chuẩn bị chuyền may'),
+        (mos[3], wc_dg, 'Đóng gói xuất kho'),
+        (mos[1], wc_cut, 'Trải — cắt theo rập'),
         (mos[4], wc_may2, 'May thân — lô 2'),
     ]):
         SxWorkAssignment.objects.update_or_create(

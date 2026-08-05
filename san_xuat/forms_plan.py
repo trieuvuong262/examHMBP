@@ -21,7 +21,7 @@ class OverallPlanCreateForm(forms.Form):
     )
     plan_method = forms.ChoiceField(
         label="Phương án sản xuất",
-        widget=forms.RadioSelect(attrs={"class": "form-check-input"}),
+        widget=forms.Select(attrs={"class": "form-select form-select-sm"}),
     )
     date_from = forms.DateField(
         label="Từ ngày",
