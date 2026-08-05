@@ -17,7 +17,7 @@ from django.utils import timezone
 from audit.login_security import resolve_user_by_login_identifier
 from audit.services.password_sync import notify_external_password_changed
 from hrm.models import Profile
-from hrm.phone import format_phone_vn, is_valid_vn_mobile, mask_phone_vn
+from hrm.phone import format_phone_vn, is_valid_vn_mobile, mask_phone_vn, normalize_phone
 from zalo.client import ZaloAPIError
 from zalo.models import PasswordResetOtp
 from zalo.services import send_password_reset_otp
@@ -96,7 +96,7 @@ def _user_eligible(user: User | None) -> tuple[bool, str]:
             return False, ''
     if not profile.is_employed:
         return False, ''
-    phone = (profile.phone or '').strip()
+    phone = normalize_phone(profile.phone or '')
     if not is_valid_vn_mobile(phone):
         return False, ''
     return True, phone

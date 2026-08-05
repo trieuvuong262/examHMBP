@@ -1,16 +1,18 @@
 # Zalo OA + ZBS Template Message (OTP quên mật khẩu Portal)
 
-> **P2:** quên mật khẩu trên login — chọn **Email** (đang dùng) hoặc **Zalo** (bảo trì).  
+> **P2:** quên mật khẩu trên login — chọn **Email** hoặc **Zalo** (OTP).  
 > Email: có sẵn → gửi link; chưa có → nhập email → lưu hồ sơ → gửi link.  
+> Zalo: gửi OTP tới SĐT trên hồ sơ (`Profile.phone`).  
 > URL: `/accounts/forgot-password/`.
 
 ## Luồng quên mật khẩu (user)
 
 1. Login → **Quên mật khẩu?**
-2. Nhập username / mã NS → chọn **Email** (Zalo hiện “Bảo trì”)
-3. **Đã có email:** thông báo kiểm tra hộp thư  
-   **Chưa có email:** nhập email → lưu `User.email` → gửi mail
-4. Mở link trong email → đặt mật khẩu mới → đăng nhập
+2. Nhập username / mã NS → chọn **Email** hoặc **Zalo**
+3. **Email — đã có email:** thông báo kiểm tra hộp thư  
+   **Email — chưa có email:** nhập email → lưu `User.email` → gửi mail  
+   **Zalo:** nhận OTP trên Zalo → nhập OTP → đặt mật khẩu mới
+4. (Email) Mở link trong email → đặt mật khẩu mới → đăng nhập
 
 | URL | Việc |
 |-----|------|

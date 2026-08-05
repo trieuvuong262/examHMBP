@@ -1,4 +1,4 @@
-"""Views quên mật khẩu — chọn Zalo (bảo trì) hoặc Email."""
+"""Views quên mật khẩu — chọn Zalo OTP hoặc Email."""
 
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_protect
 from django.views.decorators.debug import sensitive_post_parameters
 
+from audit.utils import get_client_ip
 from zalo.email_password_reset import (
     SESSION_EMAIL_USER_ID,
     get_user_from_uidb64,
@@ -24,6 +25,7 @@ from zalo.password_reset import (
     complete_password_reset,
     get_reset_record,
     phone_display_for_record,
+    request_password_reset_otp,
     resolve_user_for_password_reset,
     verify_password_reset_otp,
 )
@@ -64,11 +66,15 @@ class ForgotPasswordRequestView(View):
             return render(request, self.template_name, ctx, status=400)
 
         if channel == 'zalo':
-            messages.warning(
-                request,
-                'Kênh Zalo đang bảo trì. Vui lòng chọn Email để đặt lại mật khẩu.',
-            )
-            ctx['channel'] = 'email'
+            result = request_password_reset_otp(identifier, ip=get_client_ip(request))
+            if not result.ok:
+                messages.error(request, result.message)
+                return render(request, self.template_name, ctx, status=400)
+            if result.session_token:
+                request.session[SESSION_KEY] = result.session_token
+            messages.success(request, result.message)
+            if result.session_token:
+                return redirect('password_reset_otp')
             return render(request, self.template_name, ctx)
 
         if channel != 'email':
@@ -192,7 +198,7 @@ class ForgotPasswordConfirmView(View):
         return redirect('login')
 
 
-# --- Zalo OTP (giữ cho khi hết bảo trì; hiện UI chính không dẫn vào) ---
+# --- Zalo OTP ---
 
 @method_decorator(never_cache, name='dispatch')
 @method_decorator(csrf_protect, name='dispatch')
@@ -205,7 +211,7 @@ class ForgotPasswordOtpView(View):
             return denied
         record = get_reset_record(request.session.get(SESSION_KEY))
         if not record or record.status not in ('pending', 'verified'):
-            messages.warning(request, 'Kênh Zalo đang bảo trì. Vui lòng dùng Email.')
+            messages.warning(request, 'Vui lòng yêu cầu mã OTP trước.')
             return redirect('password_reset_request')
         if record.is_expired() and record.status == 'pending':
             messages.error(request, 'Mã OTP đã hết hạn. Vui lòng yêu cầu mã mới.')
