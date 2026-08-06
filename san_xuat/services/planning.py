@@ -153,6 +153,21 @@ def add_overall_plan_line(
 
 
 @transaction.atomic
+def remove_overall_plan_lines(*, plan_id: int, line_ids: list[int]) -> int:
+    """Xóa các dòng KHTT đã chọn (chỉ khi nháp)."""
+    plan = SxOverallPlan.objects.select_for_update().get(pk=plan_id)
+    if plan.status != SxOverallPlan.STATUS_DRAFT:
+        raise PlanningError("Chỉ xóa dòng khi KHTT đang nháp.")
+    ids = [int(x) for x in (line_ids or []) if str(x).isdigit() or isinstance(x, int)]
+    if not ids:
+        raise PlanningError("Chưa chọn dòng sản phẩm để xóa.")
+    deleted, _ = plan.lines.filter(pk__in=ids).delete()
+    if not deleted:
+        raise PlanningError("Không tìm thấy dòng đã chọn trên kế hoạch này.")
+    return int(deleted)
+
+
+@transaction.atomic
 def confirm_overall_plan(*, plan_id: int, user=None) -> SxOverallPlan:
     plan = SxOverallPlan.objects.select_for_update().prefetch_related("lines").get(pk=plan_id)
     if plan.status != SxOverallPlan.STATUS_DRAFT:

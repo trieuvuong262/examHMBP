@@ -214,6 +214,7 @@ from san_xuat.services.planning import (
     explode_material_plan,
     link_kv_purchase_to_po,
     reject_npl_purchase_request,
+    remove_overall_plan_lines,
     resolve_daily_capacity,
     submit_npl_purchase_request,
 )
@@ -861,6 +862,16 @@ def plan_overall_detail(request, pk: int):
                     messages.success(request, 'Đã thêm dòng SP.')
                     return redirect('san_xuat:plan_overall_detail', pk=plan.pk)
             messages.error(request, 'Không thêm được dòng — kiểm tra lại form.')
+
+        elif action == 'remove_lines' and can_update and plan.status == SxOverallPlan.STATUS_DRAFT:
+            raw_ids = request.POST.getlist('line_ids')
+            try:
+                removed = remove_overall_plan_lines(plan_id=plan.pk, line_ids=raw_ids)
+            except PlanningError as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(request, f'Đã xóa {removed} dòng sản phẩm.')
+                return redirect('san_xuat:plan_overall_detail', pk=plan.pk)
 
         elif action == 'import_kv' and can_update and plan.status == SxOverallPlan.STATUS_DRAFT:
             import_form = ImportKvOrderForm(request.POST)
