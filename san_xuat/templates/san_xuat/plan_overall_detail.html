@@ -358,7 +358,7 @@
           {% else %}
           <p class="text-muted small mb-2">
             Không có mã khớp bộ lọc{% if mts_q %} «{{ mts_q }}»{% endif %}.
-            Khai chính sách tồn hoặc tạo hồ sơ thiết kế để hiện trong danh sách.
+            Danh sách lấy từ chính sách tồn, hồ sơ thiết kế và kho sản phẩm (đang active).
           </p>
           <a href="{% url 'san_xuat:stock_policy_list' %}" class="btn btn-outline-hm btn-sm">
             Khai báo chính sách tồn

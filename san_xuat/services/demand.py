@@ -250,7 +250,13 @@ def build_mts_stock_board(
     stock_filter: str = 'all',
     sort: str = 'on_hand',
 ) -> list[RestockSuggestion]:
-    """Bảng tồn TP cho MTS — chính sách tồn + (tuỳ chọn) hồ sơ thiết kế chưa khai chính sách.
+    """Bảng tồn TP cho MTS.
+
+    Nguồn mã (khi ``only_policies=False``):
+      1. Chính sách tồn đang active
+      2. Hồ sơ thiết kế active chưa có chính sách
+      3. Kho sản phẩm (``kho_san_pham.Product`` active) — theo mã Style
+         (hoặc SKU nếu chưa có Style), chưa có ở (1)/(2)
 
     ``stock_filter``: all | zero | need | ok
     ``sort``: on_hand | -on_hand | code | -code | suggest | -suggest
@@ -260,25 +266,46 @@ def build_mts_stock_board(
         for p in SxProductStockPolicy.objects.filter(is_active=True, is_demo=False)
     }
     entries: list[SxProductStockPolicy] = list(policies.values())
+    seen: set[str] = set(policies.keys())
+
+    def _add_virtual(code: str, name: str = '') -> None:
+        key = (code or '').strip().upper()
+        if not key or key in seen:
+            return
+        seen.add(key)
+        entries.append(
+            SxProductStockPolicy(
+                product_code=(code or '').strip(),
+                product_name=(name or '').strip(),
+                min_stock=Decimal('0'),
+                max_stock=Decimal('0'),
+                lead_time_days=0,
+                is_active=True,
+            )
+        )
 
     if not only_policies:
         from san_xuat.models import ProductTechDoc
 
         for doc in ProductTechDoc.objects.filter(is_active=True).order_by('product_code'):
-            key = (doc.product_code or '').strip().upper()
-            if not key or key in policies:
-                continue
-            # Bản ghi ảo — không lưu DB; min=0 để vẫn hiện tồn, đề xuất = 0
-            entries.append(
-                SxProductStockPolicy(
-                    product_code=doc.product_code,
-                    product_name=doc.product_name or '',
-                    min_stock=Decimal('0'),
-                    max_stock=Decimal('0'),
-                    lead_time_days=0,
-                    is_active=True,
-                )
+            _add_virtual(doc.product_code, doc.product_name or '')
+
+        try:
+            from kho_san_pham.models import Product
+        except ImportError:
+            Product = None  # type: ignore[misc, assignment]
+
+        if Product is not None:
+            # Một dòng / Style (mã SX); fallback SKU khi chưa gắn Style.
+            prod_qs = (
+                Product.objects.filter(is_active=True)
+                .order_by('style_code', 'code')
+                .values_list('style_code', 'code', 'name', 'full_name')
             )
+            for style_code, sku, name, full_name in prod_qs.iterator(chunk_size=1000):
+                code = (style_code or '').strip() or (sku or '').strip()
+                label = (name or full_name or '').strip()
+                _add_virtual(code, label)
 
     if not entries:
         return []
