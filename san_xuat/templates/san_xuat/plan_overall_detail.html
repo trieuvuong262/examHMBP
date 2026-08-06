@@ -231,17 +231,6 @@
         </div>
       </div>
 
-      {% if has_netting_data %}
-      <div class="mt-3 pt-3 border-top">
-        <div class="d-flex flex-wrap gap-3 small">
-          <span class="text-muted">Nhu cầu gộp: <strong class="text-dark">{{ line_totals.gross|floatformat:"-2" }}</strong></span>
-          <span class="text-muted">− Tồn TP: <strong class="text-success">{{ line_totals.on_hand|floatformat:"-2" }}</strong></span>
-          <span class="text-muted">− Đang SX: <strong class="text-primary">{{ line_totals.wip|floatformat:"-2" }}</strong></span>
-          <span class="text-muted">= Cần sản xuất: <strong class="text-hm">{{ line_totals.planned|floatformat:"-2" }}</strong></span>
-        </div>
-      </div>
-      {% endif %}
-
       {% if plan.notes %}
       <div class="mt-3 pt-3 border-top">
         <div class="label text-muted small mb-1">Ghi chú</div>
