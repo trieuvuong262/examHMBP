@@ -168,16 +168,22 @@ class MpsLineForm(forms.Form):
 class StockPolicyForm(forms.Form):
     """Chính sách tồn thành phẩm (MTS)."""
 
-    product_code = forms.CharField(
-        max_length=60,
+    product_code = forms.ChoiceField(
         label="Mã sản phẩm",
-        widget=forms.TextInput(attrs={"class": "form-control form-control-sm", "placeholder": "VD: SP008073"}),
+        choices=[],
+        widget=forms.Select(attrs={
+            "class": "form-select form-select-sm jp-sx-product-code-select",
+            "data-placeholder": "Gõ mã SX hoặc tên sản phẩm…",
+        }),
     )
     product_name = forms.CharField(
         required=False,
         max_length=255,
         label="Tên sản phẩm",
-        widget=forms.TextInput(attrs={"class": "form-control form-control-sm"}),
+        widget=forms.TextInput(attrs={
+            "class": "form-control form-control-sm",
+            "id": "id_product_name",
+        }),
     )
     min_stock = forms.DecimalField(
         max_digits=14,
@@ -209,12 +215,42 @@ class StockPolicyForm(forms.Form):
         widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
     )
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from san_xuat.forms import _product_code_choices
+
+        data = args[0] if args else None
+        extra = ''
+        if data is not None:
+            extra = data.get('product_code') or ''
+        elif self.initial:
+            extra = self.initial.get('product_code') or ''
+        self.fields['product_code'].choices = _product_code_choices(extra)
+
+    def clean_product_code(self):
+        code = (self.cleaned_data.get('product_code') or '').strip()
+        if not code:
+            raise forms.ValidationError('Chọn mã sản phẩm từ kho sản phẩm.')
+        from san_xuat.services.products import resolve_product_ref
+
+        ref = resolve_product_ref(code)
+        if not ref:
+            raise forms.ValidationError(f'Mã {code} không có trong kho sản phẩm.')
+        return ref.code
+
     def clean(self):
         cleaned = super().clean()
         min_stock = cleaned.get("min_stock") or Decimal("0")
         max_stock = cleaned.get("max_stock") or Decimal("0")
         if max_stock and max_stock < min_stock:
             self.add_error("max_stock", "Tồn mục tiêu phải lớn hơn hoặc bằng tồn tối thiểu.")
+        # Tự điền tên nếu để trống
+        if cleaned.get('product_code') and not (cleaned.get('product_name') or '').strip():
+            from san_xuat.services.products import resolve_product_ref
+
+            ref = resolve_product_ref(cleaned['product_code'])
+            if ref and ref.name:
+                cleaned['product_name'] = ref.name
         return cleaned
 
 

@@ -47,7 +47,7 @@
             <button type="submit" class="btn btn-hm fw-bold w-100">Lưu chính sách</button>
           </form>
           <p class="text-muted small mb-0 mt-3">
-            Nhập lại mã đã có sẽ cập nhật chính sách cũ. Tồn mục tiêu để trống = bù đúng bằng tồn tối thiểu.
+            Chọn lại mã đã có sẽ cập nhật chính sách cũ. Tồn mục tiêu để trống = bù đúng bằng tồn tối thiểu.
           </p>
         </div>
       </div>
@@ -133,4 +133,33 @@
     </div>
   </div>
 </div>
+{% if can_update %}
+{% include 'san_xuat/includes/sx_product_code_select_script.html' %}
+<script>
+(function () {
+  var select = document.querySelector('.jp-sx-product-code-select');
+  var nameInput = document.getElementById('id_product_name');
+  if (!select || !nameInput) return;
+  function fillName() {
+    var ts = select.tomselect;
+    if (!ts) return;
+    var val = ts.getValue();
+    var opt = val ? ts.options[val] : null;
+    if (opt && (opt.name || '').trim()) {
+      nameInput.value = opt.name.trim();
+    }
+  }
+  var tries = 0;
+  var timer = setInterval(function () {
+    tries += 1;
+    if (select.tomselect || tries > 40) {
+      clearInterval(timer);
+      if (!select.tomselect) return;
+      select.tomselect.on('item_add', fillName);
+      select.tomselect.on('change', fillName);
+    }
+  }, 50);
+})();
+</script>
+{% endif %}
 {% endblock %}
