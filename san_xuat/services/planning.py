@@ -37,21 +37,25 @@ class PlanningError(Exception):
 
 
 def _next_code(prefix: str, model, *, field: str = "code") -> str:
+    """Sinh mã {prefix}-{year}-{seq:04d} — lấy max số thứ tự số, bỏ qua mã không chuẩn.
+
+    Tránh trùng khi mã mới nhất theo id không phải dạng số (vd. KHTT-2026-Q3-VPS)
+    hoặc khi đã xóa/tạo lại làm lệch count.
+    """
     year = timezone.localdate().year
     base = f"{prefix}-{year}-"
-    latest = (
-        model.objects.filter(**{f"{field}__startswith": base})
-        .order_by("-id")
-        .values_list(field, flat=True)
-        .first()
-    )
-    if not latest:
-        return f"{base}0001"
-    try:
-        seq = int(latest.rsplit("-", 1)[-1]) + 1
-    except ValueError:
-        seq = model.objects.filter(**{f"{field}__startswith": base}).count() + 1
-    return f"{base}{seq:04d}"
+    seq = 0
+    for raw in model.objects.filter(**{f"{field}__startswith": base}).values_list(field, flat=True):
+        suffix = (raw or "").rsplit("-", 1)[-1]
+        if suffix.isdigit():
+            seq = max(seq, int(suffix))
+    # Tăng dần đến khi mã còn trống (chịu được race nhẹ / mã tay trùng)
+    for _ in range(10000):
+        seq += 1
+        candidate = f"{base}{seq:04d}"
+        if not model.objects.filter(**{field: candidate}).exists():
+            return candidate
+    raise PlanningError(f"Không sinh được mã mới với tiền tố {base}.")
 
 
 def _code(kind: str, model, *, code: str | None = None, field: str = "code"):
@@ -99,9 +103,11 @@ def create_overall_plan(
         source = source or SxOverallPlan.SOURCE_FORECAST
     if frozen_until and date_to and frozen_until > date_to:
         raise PlanningError("Ngày đóng băng không được vượt quá ngày kết thúc kỳ.")
+    resolved_code = _code("plan_overall", SxOverallPlan, code=code)
+    if SxOverallPlan.objects.filter(code__iexact=resolved_code).exists():
+        raise PlanningError(f"Mã kế hoạch đã tồn tại: {resolved_code}")
     return SxOverallPlan.objects.create(
-        code=_code("plan_overall", SxOverallPlan, code=code),
-        name=(name or "").strip() or "Kế hoạch tổng thể",
+        code=resolved_code,        name=(name or "").strip() or "Kế hoạch tổng thể",
         date_from=date_from or timezone.localdate(),
         date_to=date_to or timezone.localdate(),
         source=source,

@@ -109,12 +109,6 @@ class MtoLoadOrdersForm(forms.Form):
 class MtsLoadForm(forms.Form):
     """Chọn mã SP thiếu tồn để nạp vào kế hoạch."""
 
-    product_codes = forms.CharField(
-        required=False,
-        label="Mã sản phẩm",
-        widget=forms.HiddenInput(),
-        help_text="Để trống = lấy toàn bộ mã đang dưới mức tồn tối thiểu.",
-    )
     replace = forms.BooleanField(
         required=False,
         initial=True,
@@ -122,11 +116,32 @@ class MtsLoadForm(forms.Form):
         widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
     )
 
-    def clean_product_codes(self):
-        raw = (self.cleaned_data.get("product_codes") or "").strip()
-        if not raw:
-            return []
-        return [p.strip() for p in raw.replace(";", ",").split(",") if p.strip()]
+    def clean(self):
+        cleaned = super().clean()
+        raw_list = []
+        if hasattr(self.data, "getlist"):
+            raw_list = self.data.getlist("product_codes")
+        codes: list[str] = []
+        for item in raw_list:
+            text = (item or "").strip()
+            if not text:
+                continue
+            # Hỗ trợ cả chuỗi "A,B,C" từ hidden field cũ
+            if "," in text or ";" in text:
+                codes.extend(p.strip() for p in text.replace(";", ",").split(",") if p.strip())
+            else:
+                codes.append(text)
+        # unique giữ thứ tự
+        seen: set[str] = set()
+        ordered: list[str] = []
+        for code in codes:
+            key = code.upper()
+            if key in seen:
+                continue
+            seen.add(key)
+            ordered.append(code)
+        cleaned["product_codes"] = ordered
+        return cleaned
 
 
 class MpsLineForm(forms.Form):

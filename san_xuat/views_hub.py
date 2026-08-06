@@ -94,7 +94,7 @@ from san_xuat.services.plan_methods import (
     recompute_plan_netting,
     upsert_stock_policy,
 )
-from san_xuat.services.demand import build_restock_suggestions
+from san_xuat.services.demand import build_mts_stock_board, build_restock_suggestions
 from san_xuat.services.scheduling import (
     build_load_matrix,
     check_detail_plan_center_capacity,
@@ -799,6 +799,17 @@ def plan_overall_create(request):
                 )
             except PlanningError as exc:
                 messages.error(request, str(exc))
+            except Exception as exc:
+                # Tránh 500 khi trùng mã / lỗi DB bất ngờ
+                from django.db import IntegrityError
+
+                if isinstance(exc, IntegrityError):
+                    messages.error(
+                        request,
+                        'Không tạo được KHTT — mã kế hoạch bị trùng. Thử lại hoặc nhập mã khác.',
+                    )
+                else:
+                    raise
             else:
                 messages.success(
                     request,
@@ -925,20 +936,25 @@ def plan_overall_detail(request, pk: int):
         elif action == 'load_mts' and can_update:
             mts_form = MtsLoadForm(request.POST)
             if mts_form.is_valid():
-                try:
-                    res = load_mts_demand(
-                        plan_id=plan.pk,
-                        product_codes=mts_form.cleaned_data.get('product_codes') or None,
-                        replace=mts_form.cleaned_data.get('replace', True),
-                    )
-                except PlanningError as exc:
-                    messages.error(request, str(exc))
+                codes = mts_form.cleaned_data.get('product_codes') or []
+                if not codes:
+                    messages.error(request, 'Chọn ít nhất một sản phẩm để nạp vào kế hoạch.')
                 else:
-                    messages.success(
-                        request, f'Đã nạp {res["written"]} mã sản phẩm cần bù tồn.',
-                    )
-                    return redirect('san_xuat:plan_overall_detail', pk=plan.pk)
-            messages.error(request, 'Không nạp được nhu cầu bù tồn.')
+                    try:
+                        res = load_mts_demand(
+                            plan_id=plan.pk,
+                            product_codes=codes,
+                            replace=mts_form.cleaned_data.get('replace', True),
+                        )
+                    except PlanningError as exc:
+                        messages.error(request, str(exc))
+                    else:
+                        messages.success(
+                            request, f'Đã nạp {res["written"]} mã sản phẩm cần bù tồn.',
+                        )
+                        return redirect('san_xuat:plan_overall_detail', pk=plan.pk)
+            else:
+                messages.error(request, 'Không nạp được nhu cầu bù tồn.')
 
         elif action == 'load_mps' and can_update:
             mps_form = MpsLineForm(request.POST)
@@ -988,6 +1004,9 @@ def plan_overall_detail(request, pk: int):
 
     kv_orders = []
     restock_rows = []
+    mts_stock_filter = (request.GET.get('mts_stock') or 'all').strip().lower()
+    mts_sort = (request.GET.get('mts_sort') or 'on_hand').strip()
+    mts_q = (request.GET.get('mts_q') or '').strip()
     buckets = []
     mps_grid = []
     if can_update and plan.status == SxOverallPlan.STATUS_DRAFT:
@@ -996,7 +1015,17 @@ def plan_overall_detail(request, pk: int):
                 limit=60, search=request.GET.get('kv_q') or '',
             )
         elif is_mts:
-            restock_rows = build_restock_suggestions()
+            if mts_stock_filter not in {'all', 'zero', 'need', 'ok'}:
+                mts_stock_filter = 'all'
+            if mts_sort not in {'on_hand', '-on_hand', 'code', '-code', 'suggest', '-suggest'}:
+                mts_sort = 'on_hand'
+            restock_rows = build_mts_stock_board(
+                include_covered=True,
+                only_policies=False,
+                search=mts_q,
+                stock_filter=mts_stock_filter,
+                sort=mts_sort,
+            )
 
     if is_mps:
         buckets = mps_buckets(plan)
@@ -1042,6 +1071,11 @@ def plan_overall_detail(request, pk: int):
         'kv_orders': kv_orders,
         'kv_q': request.GET.get('kv_q') or '',
         'restock_rows': restock_rows,
+        'mts_q': mts_q,
+        'mts_stock_filter': mts_stock_filter,
+        'mts_sort': mts_sort,
+        'mts_zero_count': sum(1 for r in restock_rows if r.is_zero_stock),
+        'mts_need_count': sum(1 for r in restock_rows if r.needs_restock),
         'mps_buckets': buckets,
         'mps_grid': mps_grid,
         'mps_line_form': MpsLineForm(),

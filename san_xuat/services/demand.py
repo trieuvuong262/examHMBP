@@ -225,23 +225,70 @@ class RestockSuggestion:
     def coverage(self) -> Decimal:
         return _q(self.qty_on_hand + self.qty_wip)
 
+    @property
+    def needs_restock(self) -> bool:
+        return self.qty_suggest > 0
+
+    @property
+    def is_zero_stock(self) -> bool:
+        return self.qty_on_hand <= 0
+
 
 def build_restock_suggestions(*, include_covered: bool = False) -> list[RestockSuggestion]:
     """Danh sách SP có tồn (kể cả hàng đang SX) dưới mức tối thiểu.
 
     SL đề xuất = tồn mục tiêu − tồn khả dụng − SL đang sản xuất.
     """
-    policies = list(
-        SxProductStockPolicy.objects.filter(is_active=True, is_demo=False).order_by('product_code')
-    )
-    if not policies:
+    return build_mts_stock_board(include_covered=include_covered, only_policies=True)
+
+
+def build_mts_stock_board(
+    *,
+    include_covered: bool = True,
+    only_policies: bool = False,
+    search: str = '',
+    stock_filter: str = 'all',
+    sort: str = 'on_hand',
+) -> list[RestockSuggestion]:
+    """Bảng tồn TP cho MTS — chính sách tồn + (tuỳ chọn) hồ sơ thiết kế chưa khai chính sách.
+
+    ``stock_filter``: all | zero | need | ok
+    ``sort``: on_hand | -on_hand | code | -code | suggest | -suggest
+    """
+    policies = {
+        (p.product_code or '').strip().upper(): p
+        for p in SxProductStockPolicy.objects.filter(is_active=True, is_demo=False)
+    }
+    entries: list[SxProductStockPolicy] = list(policies.values())
+
+    if not only_policies:
+        from san_xuat.models import ProductTechDoc
+
+        for doc in ProductTechDoc.objects.filter(is_active=True).order_by('product_code'):
+            key = (doc.product_code or '').strip().upper()
+            if not key or key in policies:
+                continue
+            # Bản ghi ảo — không lưu DB; min=0 để vẫn hiện tồn, đề xuất = 0
+            entries.append(
+                SxProductStockPolicy(
+                    product_code=doc.product_code,
+                    product_name=doc.product_name or '',
+                    min_stock=Decimal('0'),
+                    max_stock=Decimal('0'),
+                    lead_time_days=0,
+                    is_active=True,
+                )
+            )
+
+    if not entries:
         return []
-    codes = [p.product_code for p in policies]
+
+    codes = [p.product_code for p in entries]
     stock = {k.strip().upper(): v for k, v in fg_stock_map(codes).items()}
     wip = wip_qty_map(codes)
 
     out: list[RestockSuggestion] = []
-    for policy in policies:
+    for policy in entries:
         key = (policy.product_code or '').strip().upper()
         on_hand = stock.get(key, Decimal('0'))
         on_wip = wip.get(key, Decimal('0'))
@@ -250,6 +297,9 @@ def build_restock_suggestions(*, include_covered: bool = False) -> list[RestockS
         suggest = Decimal('0')
         if coverage < min_stock:
             suggest = _q(max(Decimal('0'), policy.target_stock - coverage))
+        # Hết tồn, chưa khai chính sách: đề xuất mặc định 1 để chọn nạp KHTT
+        if suggest <= 0 and on_hand <= 0 and not getattr(policy, 'pk', None):
+            suggest = Decimal('1')
         if suggest <= 0 and not include_covered:
             continue
         out.append(
@@ -259,5 +309,34 @@ def build_restock_suggestions(*, include_covered: bool = False) -> list[RestockS
                 qty_wip=_q(on_wip),
                 qty_suggest=suggest,
             )
+        )
+
+    term = (search or '').strip().lower()
+    if term:
+        out = [
+            r for r in out
+            if term in (r.policy.product_code or '').lower()
+            or term in (r.policy.product_name or '').lower()
+        ]
+
+    filt = (stock_filter or 'all').strip().lower()
+    if filt == 'zero':
+        out = [r for r in out if r.is_zero_stock]
+    elif filt == 'need':
+        out = [r for r in out if r.needs_restock]
+    elif filt == 'ok':
+        out = [r for r in out if not r.needs_restock and not r.is_zero_stock]
+
+    reverse = sort.startswith('-')
+    key = (sort[1:] if reverse else sort) or 'on_hand'
+    if key == 'code':
+        out.sort(key=lambda r: (r.policy.product_code or '').upper(), reverse=reverse)
+    elif key == 'suggest':
+        out.sort(key=lambda r: (r.qty_suggest, (r.policy.product_code or '').upper()), reverse=reverse)
+    else:
+        # on_hand: mặc định tồn thấp → cao (hết tồn lên đầu)
+        out.sort(
+            key=lambda r: (r.qty_on_hand, (r.policy.product_code or '').upper()),
+            reverse=reverse,
         )
     return out

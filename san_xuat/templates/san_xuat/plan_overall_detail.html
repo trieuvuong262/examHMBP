@@ -223,7 +223,147 @@
   </div>
 
   <div class="row g-3">
-    <div class="col-12 {% if can_update and plan.status == 'draft' %}col-lg-8{% endif %}">
+    <div class="col-12 {% if can_update and plan.status == 'draft' and not is_mts %}col-lg-8{% endif %}">
+
+      {% if can_update and plan.status == 'draft' and is_mts %}
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body">
+          <div class="jp-sx-plan-section-head mb-3">
+            <p class="title mb-0">Nạp nhu cầu bù tồn</p>
+            <div class="d-flex flex-wrap gap-2 small">
+              <span class="badge bg-danger-subtle text-danger border">Hết tồn {{ mts_zero_count }}</span>
+              <span class="badge bg-warning-subtle text-warning-emphasis border">Cần bù {{ mts_need_count }}</span>
+              <span class="badge bg-secondary-subtle text-secondary border">{{ restock_rows|length }} mã</span>
+            </div>
+          </div>
+
+          <form method="get" class="row g-2 align-items-end mb-3">
+            <div class="col-md-4">
+              <label class="form-label small text-muted mb-1">Tìm kiếm</label>
+              <input type="search" name="mts_q" value="{{ mts_q }}" class="form-control form-control-sm"
+                     placeholder="Mã hoặc tên sản phẩm…" autocomplete="off">
+            </div>
+            <div class="col-md-3">
+              <label class="form-label small text-muted mb-1">Lọc tồn</label>
+              <select name="mts_stock" class="form-select form-select-sm">
+                <option value="all" {% if mts_stock_filter == 'all' %}selected{% endif %}>Tất cả</option>
+                <option value="zero" {% if mts_stock_filter == 'zero' %}selected{% endif %}>Tồn = 0</option>
+                <option value="need" {% if mts_stock_filter == 'need' %}selected{% endif %}>Cần bù tồn</option>
+                <option value="ok" {% if mts_stock_filter == 'ok' %}selected{% endif %}>Đủ tồn</option>
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label small text-muted mb-1">Sắp xếp</label>
+              <select name="mts_sort" class="form-select form-select-sm">
+                <option value="on_hand" {% if mts_sort == 'on_hand' %}selected{% endif %}>Tồn tăng dần</option>
+                <option value="-on_hand" {% if mts_sort == '-on_hand' %}selected{% endif %}>Tồn giảm dần</option>
+                <option value="suggest" {% if mts_sort == 'suggest' %}selected{% endif %}>Đề xuất tăng dần</option>
+                <option value="-suggest" {% if mts_sort == '-suggest' %}selected{% endif %}>Đề xuất giảm dần</option>
+                <option value="code" {% if mts_sort == 'code' %}selected{% endif %}>Mã A→Z</option>
+                <option value="-code" {% if mts_sort == '-code' %}selected{% endif %}>Mã Z→A</option>
+              </select>
+            </div>
+            <div class="col-md-2">
+              <button type="submit" class="btn btn-outline-hm btn-sm w-100">Lọc</button>
+            </div>
+          </form>
+
+          {% if restock_rows %}
+          <form method="post" id="mtsForm">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="load_mts">
+            <div class="table-responsive border rounded-3" style="max-height: 420px;">
+              <table class="table table-sm table-hover mb-0 align-middle">
+                <thead class="table-light sticky-top">
+                  <tr>
+                    <th style="width:36px" class="text-center">
+                      <input type="checkbox" class="form-check-input" id="mtsCheckAll" title="Chọn tất cả">
+                    </th>
+                    <th>Sản phẩm</th>
+                    <th class="text-end">Min</th>
+                    <th class="text-end">Tồn</th>
+                    <th class="text-end">Đang SX</th>
+                    <th class="text-end">Phủ</th>
+                    <th class="text-end">Đề xuất</th>
+                  </tr>
+                </thead>
+                <tbody>
+                {% for r in restock_rows %}
+                  <tr class="{% if r.is_zero_stock %}table-danger{% elif r.needs_restock %}table-warning{% endif %}">
+                    <td class="text-center">
+                      <input type="checkbox" class="form-check-input jp-mts-pick" name="product_codes"
+                             value="{{ r.policy.product_code }}"
+                             {% if r.needs_restock or r.is_zero_stock %}checked{% endif %}>
+                    </td>
+                    <td>
+                      <div class="fw-semibold small">{{ r.policy.product_code }}</div>
+                      <div class="text-muted small">{{ r.policy.product_name|default:"—"|truncatechars:48 }}</div>
+                      {% if not r.policy.pk %}
+                      <div class="text-muted" style="font-size:.68rem">Chưa khai chính sách tồn</div>
+                      {% endif %}
+                    </td>
+                    <td class="text-end small">{{ r.policy.min_stock|floatformat:"-2" }}</td>
+                    <td class="text-end small fw-semibold {% if r.is_zero_stock %}text-danger{% endif %}">
+                      {{ r.qty_on_hand|floatformat:"-2" }}
+                    </td>
+                    <td class="text-end small">{{ r.qty_wip|floatformat:"-2" }}</td>
+                    <td class="text-end small">{{ r.coverage|floatformat:"-2" }}</td>
+                    <td class="text-end small fw-bold {% if r.needs_restock %}text-danger{% else %}text-muted{% endif %}">
+                      {% if r.qty_suggest %}{{ r.qty_suggest|floatformat:"-2" }}{% else %}—{% endif %}
+                    </td>
+                  </tr>
+                {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            <div class="d-flex flex-wrap gap-3 align-items-center mt-3">
+              <div class="form-check mb-0">
+                <input type="checkbox" class="form-check-input" name="replace" id="mtsReplace" checked>
+                <label class="form-check-label small" for="mtsReplace">Thay toàn bộ dòng hiện có</label>
+              </div>
+              <button type="submit" class="btn btn-hm btn-sm fw-bold ms-auto">
+                <i class="bi bi-download me-1"></i>Nạp mã đã chọn vào KHTT
+              </button>
+              <a href="{% url 'san_xuat:stock_policy_list' %}" class="btn btn-outline-secondary btn-sm">
+                Chính sách tồn
+              </a>
+              {% if plan.apply_netting and plan.lines.all %}
+              <button type="submit" form="mtsRecomputeForm" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-repeat me-1"></i>Tính lại tồn
+              </button>
+              {% endif %}
+            </div>
+          </form>
+          {% if plan.apply_netting and plan.lines.all %}
+          <form method="post" id="mtsRecomputeForm" class="d-none">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="recompute_netting">
+          </form>
+          {% endif %}
+          <script>
+            document.addEventListener('DOMContentLoaded', function () {
+              var all = document.getElementById('mtsCheckAll');
+              if (!all) return;
+              all.addEventListener('change', function () {
+                document.querySelectorAll('.jp-mts-pick').forEach(function (cb) {
+                  cb.checked = all.checked;
+                });
+              });
+            });
+          </script>
+          {% else %}
+          <p class="text-muted small mb-2">
+            Không có mã khớp bộ lọc{% if mts_q %} «{{ mts_q }}»{% endif %}.
+            Khai chính sách tồn hoặc tạo hồ sơ thiết kế để hiện trong danh sách.
+          </p>
+          <a href="{% url 'san_xuat:stock_policy_list' %}" class="btn btn-outline-hm btn-sm">
+            Khai báo chính sách tồn
+          </a>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
+
       <div class="card border-0 shadow-sm">
         <div class="card-body">
           <div class="jp-sx-plan-section-head">
@@ -277,7 +417,7 @@
           <div class="text-muted small py-2">
             Chưa có dòng SP —
             {% if is_mto %}chọn đơn đặt hàng ở bảng bên để nạp nhu cầu.
-            {% elif is_mts %}nạp các mã đang thiếu tồn ở bảng bên.
+            {% elif is_mts %}chọn sản phẩm cần bù tồn ở bảng trên.
             {% else %}nhập sản lượng cho từng kỳ ở lưới lịch trình bên dưới.{% endif %}
           </div>
           {% endif %}
@@ -384,7 +524,7 @@
       {% endif %}
     </div>
 
-    {% if can_update and plan.status == 'draft' %}
+    {% if can_update and plan.status == 'draft' and not is_mts %}
     <div class="col-12 col-lg-4">
 
       {% if is_mto %}
@@ -448,56 +588,6 @@
       </div>
       {% endif %}
 
-      {% if is_mts %}
-      <div class="card border-0 shadow-sm mb-3">
-        <div class="card-body">
-          <div class="jp-sx-plan-section-head">
-            <p class="title">Nạp nhu cầu bù tồn</p>
-          </div>
-          {% if restock_rows %}
-          <form method="post">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="load_mts">
-            <div class="border rounded-3 overflow-auto mb-2" style="max-height: 320px;">
-              <table class="table table-sm mb-0 align-middle">
-                <tbody>
-                {% for r in restock_rows %}
-                  <tr>
-                    <td>
-                      <div class="small fw-semibold">{{ r.policy.product_code }}</div>
-                      <div class="text-muted small">
-                        Tồn {{ r.qty_on_hand|floatformat:"-2" }} · đang SX {{ r.qty_wip|floatformat:"-2" }}
-                        / min {{ r.policy.min_stock|floatformat:"-2" }}
-                      </div>
-                    </td>
-                    <td class="text-end small fw-bold text-danger text-nowrap">
-                      +{{ r.qty_suggest|floatformat:"-2" }}
-                    </td>
-                  </tr>
-                {% endfor %}
-                </tbody>
-              </table>
-            </div>
-            <div class="form-check mb-2">
-              <input type="checkbox" class="form-check-input" name="replace" id="mtsReplace" checked>
-              <label class="form-check-label small" for="mtsReplace">Thay toàn bộ dòng hiện có</label>
-            </div>
-            <button type="submit" class="btn btn-hm btn-sm w-100 fw-bold">
-              <i class="bi bi-download me-1"></i>Nạp {{ restock_rows|length }} mã cần bù
-            </button>
-          </form>
-          {% else %}
-          <p class="text-muted small mb-2">
-            Không có mã nào dưới mức tồn tối thiểu.
-          </p>
-          <a href="{% url 'san_xuat:stock_policy_list' %}" class="btn btn-outline-hm btn-sm w-100">
-            Khai báo chính sách tồn
-          </a>
-          {% endif %}
-        </div>
-      </div>
-      {% endif %}
-
       {% if is_mps %}
       <div class="card border-0 shadow-sm mb-3">
         <div class="card-body">
@@ -524,25 +614,6 @@
       </div>
       {% endif %}
 
-      <div class="card border-0 shadow-sm jp-sx-plan-draft-card mb-3">
-        <div class="card-body">
-          <div class="jp-sx-plan-section-head">
-            <p class="title">Thêm dòng SP thủ công</p>
-          </div>
-          <form method="post">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="add_line">
-            {% for field in line_form %}
-            <div class="mb-2">
-              <label class="form-label small text-muted" for="{{ field.id_for_label }}">{{ field.label }}{{ field|sx_req_star }}</label>
-              {{ field }}
-            </div>
-            {% endfor %}
-            <button type="submit" class="btn btn-outline-hm btn-sm">Thêm dòng</button>
-          </form>
-        </div>
-      </div>
-
       {% if plan.apply_netting and plan.lines.all %}
       <div class="card border-0 shadow-sm mb-3">
         <div class="card-body">
@@ -557,6 +628,7 @@
       </div>
       {% endif %}
 
+      {% if is_mto %}
       <div class="card border-0 shadow-sm jp-sx-plan-draft-card">
         <div class="card-body">
           <div class="jp-sx-plan-section-head">
@@ -575,6 +647,7 @@
           </form>
         </div>
       </div>
+      {% endif %}
     </div>
     {% elif plan.status != 'draft' and plan.status != 'confirmed' %}
     <div class="col-12 col-lg-4">

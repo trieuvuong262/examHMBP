@@ -251,16 +251,19 @@ def load_mts_demand(
     _require_draft(plan)
     _assert_method(plan, SxOverallPlan.METHOD_MTS, 'bù tồn kho')
 
-    suggestions = build_restock_suggestions()
+    from san_xuat.services.demand import build_mts_stock_board
+
+    suggestions = build_mts_stock_board(include_covered=True, only_policies=False)
     if product_codes:
         wanted = {(c or '').strip().upper() for c in product_codes if (c or '').strip()}
         suggestions = [
             s for s in suggestions if (s.policy.product_code or '').strip().upper() in wanted
         ]
+    # Chỉ nạp mã có SL đề xuất > 0
+    suggestions = [s for s in suggestions if s.qty_suggest > 0]
     if not suggestions:
         raise PlanningError(
-            'Không có mã sản phẩm nào dưới mức tồn tối thiểu. '
-            'Khai báo chính sách tồn thành phẩm trước.'
+            'Không có mã nào để nạp. Chọn sản phẩm cần bù, hoặc khai chính sách tồn thành phẩm.'
         )
 
     # SL đề xuất đã trừ tồn + WIP nên không netting lần hai
