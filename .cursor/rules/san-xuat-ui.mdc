@@ -74,6 +74,16 @@ alwaysApply: false
 - Form **hồ sơ BOM**, **lệnh SX**, **thống kê SX**: dropdown `jp-sx-process-select` (TomSelect **gõ tìm**) + nút **+** thêm tên vào danh mục (`api/cong-doan/them/`; tìm: `api/cong-doan/?q=`).
 - Không nhập free-text công đoạn trên form mới; giá trị cũ ngoài danh mục vẫn hiện kèm nhãn `(đang dùng)`.
 
+## Nút hành động
+
+- Nút nhỏ (`btn-sm` / ~`1.75–1.9rem` cao), **không** full-width thô.
+- **Chữ phải nằm giữa nút** (cả ngang và dọc):
+  - `display: inline-flex; align-items: center; justify-content: center;`
+  - Khi cố định `height`, dùng `padding: 0 …` (không padding trên/dưới lệch) + `line-height: 1`.
+  - Áp dụng cho **mọi** biến thể: `btn-hm`, `btn-outline-*`, `btn-outline-secondary` — outline dễ lệch chữ lên trên nếu thiếu flex center.
+- Hàng nút trong card: `align-items: center`; form trong hàng dùng `inline-flex` + `align-items: center` (ô input + nút cùng baseline).
+- CTA phụ (vd. KHSX / Giá thành) có thể đẩy sang phải bằng spacer `flex: 1`; nút xác nhận/từ chối giữ trái.
+
 ## Copy & mô tả
 
 - **Không** thêm đoạn mô tả / hint giải thích quy trình trên UI.
@@ -82,7 +92,6 @@ alwaysApply: false
   - «Duyệt sẽ chia theo nhiều vị trí nếu một vị trí không đủ…»
   - `form-text` / `alert` hướng dẫn dài dưới field hoặc section.
 - Nhãn ngắn; chỉ giữ label field cần thiết. Không thêm câu giải thích bên dưới.
-- Nút hành động nhỏ (`~1.75rem`), không full-width thô.
 
 ## Tham chiếu
 
