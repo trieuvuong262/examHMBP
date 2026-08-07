@@ -1,7 +1,7 @@
 # Thiết kế: Kế hoạch sản xuất (Portal)
 
-> **SoT hiện tại (2026-08):** bảng điều khiển theo **đơn đã xác nhận** tại `/san-xuat/ke-hoach/bang/` — không còn lấy chứng từ KHTT/KHCT làm trung tâm UI.  
-> KHTT/KHCT vẫn giữ cho NVL / netting / lịch sử AMIS-like.  
+> **SoT hiện tại (2026-08):** bảng điều khiển theo **đơn đã xác nhận** tại `/san-xuat/ke-hoach/bang/`.  
+> **Đã bỏ UI** Giám sát tiến độ / KHTT / KHCT (URL cũ redirect về board). Model KHTT/KHCT còn trong DB cho NVL / lịch sử.  
 > Nguồn khảo sát cũ: [AMIS overall-plan](https://demoamisapp.misa.vn/production/production-plan/overall-plan).
 
 ## 0. Luồng Portal mới (MTO phase 1)

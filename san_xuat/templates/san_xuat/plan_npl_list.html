@@ -34,9 +34,7 @@
             <td class="npl-col" data-col="code"><strong>{{ plan.code }}</strong></td>
             <td class="npl-col" data-col="name">{{ plan.name }}</td>
             <td class="npl-col" data-col="overall">
-              {% if plan.overall_plan %}
-              <a href="{% url 'san_xuat:plan_overall_detail' plan.overall_plan.pk %}">{{ plan.overall_plan.code }}</a>
-              {% else %}—{% endif %}
+              {% if plan.overall_plan %}{{ plan.overall_plan.code }}{% else %}—{% endif %}
             </td>
 <td class="npl-col" data-col="line_count">{{ plan.lines.count }}</td>
             <td class="npl-col" data-col="status">{{ plan.get_status_display }}</td>

@@ -51,7 +51,7 @@
         {% endif %}
       </div>
 
-      {% if can_confirm or can_plan or order.confirm_status == 'confirmed' %}
+      {% if can_confirm or order.confirm_status == 'confirmed' %}
       <div class="d-flex flex-wrap gap-2 mt-3 pt-3 border-top">
         {% if can_confirm and order.confirm_status == 'draft' %}
         <form method="post">
@@ -70,20 +70,8 @@
         </form>
         {% endif %}
         {% if order.confirm_status == 'confirmed' %}
-        {% if can_plan %}
-        <form method="post">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="create_mto_plan">
-          <button type="submit" class="btn btn-outline-hm btn-sm fw-bold">
-            Tạo KHTT MTO &amp; nạp nhu cầu
-          </button>
-        </form>
-        {% endif %}
         <a href="{% url 'san_xuat:plan_board' %}?q={{ order.code|urlencode }}" class="btn btn-hm btn-sm fw-bold">
-          Bảng kế hoạch SX
-        </a>
-        <a href="{% url 'san_xuat:plan_overall_create' %}?method=mto" class="btn btn-outline-secondary btn-sm">
-          Tới danh sách KHTT
+          Kế hoạch sản xuất
         </a>
         {% endif %}
         <a href="{% url 'san_xuat:costing_by_order' %}?q={{ order.code|urlencode }}" class="btn btn-outline-secondary btn-sm">
@@ -128,45 +116,25 @@
     </div>
   </div>
 
-  <div class="row g-3">
-    <div class="col-md-6">
-      <div class="card border-0 shadow-sm h-100">
-        <div class="card-body">
-          <h6 class="fw-bold mb-3">Kế hoạch tổng thể liên quan</h6>
-          {% for p in related_plans %}
-          <a href="{% url 'san_xuat:plan_overall_detail' p.pk %}" class="d-flex justify-content-between border rounded-3 px-3 py-2 mb-2 text-decoration-none text-dark">
-            <span class="fw-semibold">{{ p.code }}</span>
-            <span class="small text-muted">{{ p.get_status_display }}</span>
-          </a>
-          {% empty %}
-          <p class="text-muted small mb-0">Chưa gắn KHTT. Xác nhận đơn rồi nạp vào kế hoạch MTO.</p>
-          {% endfor %}
-          {% if mto_drafts and order.confirm_status == 'confirmed' %}
-          <p class="small text-muted mt-3 mb-1">KHTT MTO đang nháp (nạp thủ công trên trang kế hoạch):</p>
-          {% for p in mto_drafts %}
-          <a href="{% url 'san_xuat:plan_overall_detail' p.pk %}" class="small d-block">{{ p.code }} — {{ p.name|truncatechars:40 }}</a>
-          {% endfor %}
-          {% endif %}
-        </div>
+  <div class="card border-0 shadow-sm">
+    <div class="card-body">
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <h6 class="fw-bold mb-0">Lệnh sản xuất liên quan</h6>
+        {% if order.confirm_status == 'confirmed' %}
+        <a href="{% url 'san_xuat:plan_board' %}?q={{ order.code|urlencode }}" class="btn btn-outline-secondary btn-sm">Mở kế hoạch SX</a>
+        {% endif %}
       </div>
-    </div>
-    <div class="col-md-6">
-      <div class="card border-0 shadow-sm h-100">
-        <div class="card-body">
-          <h6 class="fw-bold mb-3">Lệnh sản xuất liên quan</h6>
-          {% for mo in related_mos %}
-          <a href="{% url 'san_xuat:dispatch_mo_detail' mo.pk %}" class="d-flex justify-content-between border rounded-3 px-3 py-2 mb-2 text-decoration-none text-dark">
-            <span>
-              <span class="fw-semibold">{{ mo.code }}</span>
-              <span class="text-muted small"> · {{ mo.product_code }}</span>
-            </span>
-            <span class="small text-muted">{{ mo.get_status_display }}</span>
-          </a>
-          {% empty %}
-          <p class="text-muted small mb-0">Chưa có LSX. Sinh lệnh từ KHCT sau khi lập kế hoạch chi tiết.</p>
-          {% endfor %}
-        </div>
-      </div>
+      {% for mo in related_mos %}
+      <a href="{% url 'san_xuat:dispatch_mo_detail' mo.pk %}" class="d-flex justify-content-between border rounded-3 px-3 py-2 mb-2 text-decoration-none text-dark">
+        <span>
+          <span class="fw-semibold">{{ mo.code }}</span>
+          <span class="text-muted small"> · {{ mo.product_code }}</span>
+        </span>
+        <span class="small text-muted">{{ mo.get_status_display }}</span>
+      </a>
+      {% empty %}
+      <p class="text-muted small mb-0">Chưa có LSX. Vào kế hoạch sản xuất → Chuyển SX để tạo lệnh.</p>
+      {% endfor %}
     </div>
   </div>
 </div>

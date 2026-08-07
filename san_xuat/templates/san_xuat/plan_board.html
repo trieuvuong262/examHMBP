@@ -4,258 +4,595 @@
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
 <style>
-  .jp-plan-board-tabs .nav-link { font-size: .9rem; }
-  .jp-plan-pipe .badge { font-weight: 500; }
-  .jp-plan-load-over { background: #fde8e8; }
-  .jp-plan-process { max-width: 220px; }
+  .jp-pb {
+    --pb-ink: #0f172a;
+    --pb-muted: #64748b;
+    --pb-line: #e8edf3;
+    --pb-surface: #fff;
+    --pb-wait: #b45309;
+    --pb-wait-bg: #fffbeb;
+    --pb-rank: #0369a1;
+    --pb-rank-bg: #e0f2fe;
+    --pb-hold: #64748b;
+    --pb-hold-bg: #f1f5f9;
+    --pb-go: #1d4ed8;
+    --pb-go-bg: #eff6ff;
+    --pb-run: #b91c1c;
+    --pb-run-bg: #fef2f2;
+    --pb-done: #15803d;
+    --pb-done-bg: #ecfdf5;
+    --pb-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+    --pb-radius: 0.85rem;
+    position: relative;
+  }
+  .jp-pb::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 12rem;
+    background:
+      radial-gradient(ellipse 65% 90% at 6% -25%, rgba(220, 38, 38, 0.09), transparent 55%),
+      radial-gradient(ellipse 45% 70% at 96% 0%, rgba(3, 105, 161, 0.07), transparent 50%),
+      linear-gradient(180deg, #f8fafc 0%, transparent 100%);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .jp-pb > * { position: relative; z-index: 1; }
+
+  .jp-pb-hero {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.15rem;
+  }
+  .jp-pb-hero h2 {
+    margin: 0;
+    font-size: clamp(1.35rem, 2vw, 1.7rem);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--pb-ink);
+    line-height: 1.2;
+  }
+  .jp-pb-hero p {
+    margin: 0.4rem 0 0;
+    color: var(--pb-muted);
+    font-size: 0.9rem;
+    max-width: 36rem;
+  }
+
+  .jp-pb-pipe {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 0.5rem;
+    margin-bottom: 1.1rem;
+  }
+  @media (max-width: 992px) {
+    .jp-pb-pipe { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  }
+  @media (max-width: 576px) {
+    .jp-pb-pipe { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  .jp-pb-stage {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    background: var(--pb-surface);
+    border: 1px solid var(--pb-line);
+    border-radius: var(--pb-radius);
+    padding: 0.75rem 0.85rem;
+    box-shadow: var(--pb-shadow);
+    transition: transform .15s ease, border-color .15s ease;
+  }
+  .jp-pb-stage:hover { transform: translateY(-1px); border-color: #cbd5e1; color: inherit; }
+  .jp-pb-stage.is-active { border-color: rgba(220, 38, 38, 0.35); box-shadow: 0 8px 24px rgba(220, 38, 38, 0.08); }
+  .jp-pb-stage-label {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--pb-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 0.25rem;
+  }
+  .jp-pb-stage-num {
+    font-size: 1.55rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1;
+    color: var(--pb-ink);
+  }
+  .jp-pb-stage.is-wait .jp-pb-stage-num { color: var(--pb-wait); }
+  .jp-pb-stage.is-rank .jp-pb-stage-num { color: var(--pb-rank); }
+  .jp-pb-stage.is-hold .jp-pb-stage-num { color: var(--pb-hold); }
+  .jp-pb-stage.is-go .jp-pb-stage-num { color: var(--pb-go); }
+  .jp-pb-stage.is-run .jp-pb-stage-num { color: var(--pb-run); }
+  .jp-pb-stage.is-done .jp-pb-stage-num { color: var(--pb-done); }
+
+  .jp-pb-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    align-items: center;
+    margin-bottom: 1rem;
+    font-size: 0.85rem;
+    color: var(--pb-muted);
+  }
+  .jp-pb-summary strong { color: var(--pb-ink); font-weight: 700; }
+
+  .jp-pb-tabs {
+    display: inline-flex;
+    padding: 0.22rem;
+    background: #fff;
+    border: 1px solid var(--pb-line);
+    border-radius: 0.7rem;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+  }
+  .jp-pb-tabs a {
+    padding: 0.45rem 0.95rem;
+    border-radius: 0.55rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--pb-muted);
+    text-decoration: none;
+  }
+  .jp-pb-tabs a:hover { color: var(--pb-ink); }
+  .jp-pb-tabs a.active {
+    background: var(--hm-primary, #dc2626);
+    color: #fff;
+  }
+
+  .jp-pb-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+    margin-bottom: 1rem;
+  }
+  .jp-pb-toolbar .form-control { max-width: 280px; }
+
+  .jp-pb-load-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 0.65rem;
+    margin-bottom: 1.25rem;
+  }
+  .jp-pb-load-card {
+    background: var(--pb-surface);
+    border: 1px solid var(--pb-line);
+    border-radius: var(--pb-radius);
+    padding: 0.85rem 1rem;
+    box-shadow: var(--pb-shadow);
+  }
+  .jp-pb-load-card.is-over { border-color: rgba(185, 28, 28, 0.35); background: var(--pb-run-bg); }
+  .jp-pb-load-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.5rem;
+    margin-bottom: 0.45rem;
+  }
+  .jp-pb-load-name { font-weight: 700; font-size: 0.9rem; color: var(--pb-ink); }
+  .jp-pb-load-pct { font-weight: 800; font-size: 0.95rem; }
+  .jp-pb-load-pct.is-ok { color: var(--pb-done); }
+  .jp-pb-load-pct.is-warn { color: var(--pb-wait); }
+  .jp-pb-load-pct.is-bad { color: var(--pb-run); }
+  .jp-pb-meter {
+    height: 0.55rem;
+    background: #e2e8f0;
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .jp-pb-meter > span {
+    display: block;
+    height: 100%;
+    border-radius: 999px;
+    background: #38bdf8;
+    max-width: 100%;
+  }
+  .jp-pb-meter.is-warn > span { background: #f59e0b; }
+  .jp-pb-meter.is-bad > span { background: #ef4444; max-width: 100%; }
+  .jp-pb-load-meta {
+    margin-top: 0.4rem;
+    font-size: 0.75rem;
+    color: var(--pb-muted);
+  }
+
+  .jp-pb-list { display: flex; flex-direction: column; gap: 0.65rem; }
+
+  .jp-pb-ticket {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 0.85rem 1rem;
+    align-items: center;
+    background: var(--pb-surface);
+    border: 1px solid var(--pb-line);
+    border-radius: var(--pb-radius);
+    padding: 0.9rem 1rem;
+    box-shadow: var(--pb-shadow);
+    border-left: 4px solid #94a3b8;
+  }
+  .jp-pb-ticket.is-high { border-left-color: #dc2626; }
+  .jp-pb-ticket.is-normal { border-left-color: #0284c7; }
+  .jp-pb-ticket.is-low { border-left-color: #94a3b8; }
+  .jp-pb-ticket.is-hold {
+    opacity: 0.78;
+    background: var(--pb-hold-bg);
+    border-left-color: #64748b;
+  }
+  .jp-pb-ticket.is-overdue { background: linear-gradient(90deg, #fef2f2 0%, #fff 42%); }
+
+  .jp-pb-rank {
+    width: 2.6rem;
+    height: 2.6rem;
+    border-radius: 0.7rem;
+    display: grid;
+    place-items: center;
+    font-weight: 800;
+    font-size: 1.05rem;
+    background: var(--pb-rank-bg);
+    color: var(--pb-rank);
+    flex-shrink: 0;
+  }
+  .jp-pb-ticket.is-hold .jp-pb-rank { background: #e2e8f0; color: #64748b; }
+
+  .jp-pb-main { min-width: 0; }
+  .jp-pb-title-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.35rem 0.65rem;
+    margin-bottom: 0.2rem;
+  }
+  .jp-pb-code {
+    font-weight: 800;
+    font-size: 1.05rem;
+    color: var(--pb-ink);
+    text-decoration: none;
+    letter-spacing: -0.02em;
+  }
+  .jp-pb-code:hover { color: var(--hm-primary, #dc2626); }
+  .jp-pb-customer { color: var(--pb-muted); font-size: 0.88rem; }
+  .jp-pb-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.75rem;
+    font-size: 0.8rem;
+    color: var(--pb-muted);
+    margin-bottom: 0.45rem;
+  }
+  .jp-pb-meta .is-late { color: var(--pb-run); font-weight: 700; }
+  .jp-pb-meta strong { color: var(--pb-ink); font-weight: 700; }
+
+  .jp-pb-steps {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+  }
+  .jp-pb-step {
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.15rem 0.45rem;
+    border-radius: 0.35rem;
+    background: #f1f5f9;
+    color: #334155;
+    border: 1px solid #e2e8f0;
+  }
+  .jp-pb-step.is-empty { color: var(--pb-muted); font-weight: 500; background: transparent; border-style: dashed; }
+
+  .jp-pb-side {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.45rem;
+    min-width: 9.5rem;
+  }
+  .jp-pb-prio form { margin: 0; }
+  .jp-pb-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    justify-content: flex-end;
+  }
+  .jp-pb-hold-form {
+    display: flex;
+    gap: 0.3rem;
+    align-items: center;
+  }
+  .jp-pb-hold-form .form-control { width: 6.5rem; }
+
+  .jp-pb-progress {
+    height: 0.45rem;
+    background: #e2e8f0;
+    border-radius: 999px;
+    overflow: hidden;
+    margin-top: 0.45rem;
+    max-width: 14rem;
+  }
+  .jp-pb-progress > span {
+    display: block;
+    height: 100%;
+    background: var(--hm-primary, #dc2626);
+    border-radius: 999px;
+  }
+
+  .jp-pb-empty {
+    text-align: center;
+    padding: 2.5rem 1rem;
+    color: var(--pb-muted);
+    background: var(--pb-surface);
+    border: 1px dashed var(--pb-line);
+    border-radius: var(--pb-radius);
+  }
+  .jp-pb-empty a { font-weight: 600; }
+
+  @media (max-width: 768px) {
+    .jp-pb-ticket {
+      grid-template-columns: auto 1fr;
+    }
+    .jp-pb-side {
+      grid-column: 1 / -1;
+      align-items: stretch;
+      flex-direction: row;
+      flex-wrap: wrap;
+      justify-content: flex-start;
+    }
+  }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid jp-page jp-sx-page py-3 py-md-4 mb-5 px-3 px-lg-4">
-  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
-    <div class="jp-sx-detail-title">
-      <h2 class="jp-npl-mat-topbar-title w-100">Kế hoạch sản xuất</h2>
+<div class="container-fluid jp-page jp-sx-page jp-pb py-3 py-md-4 mb-5 px-3 px-lg-4">
+  <div class="jp-pb-hero">
+    <div>
+      <h2>Kế hoạch sản xuất</h2>
+      <p>Đơn đã xác nhận → xếp theo hạn / ưu tiên / năng lực → chuyển xuống xưởng. Cùng một bức tranh cho KD, GĐ và planner.</p>
     </div>
-    <nav class="jp-sx-tools" aria-label="Công cụ">
+    <div class="d-flex flex-wrap gap-2">
       {% if can_schedule %}
-      <form method="post" class="d-inline">
+      <form method="post">
         {% csrf_token %}
         <input type="hidden" name="action" value="recompute">
-        <button type="submit" class="btn btn-hm btn-sm fw-bold">Xếp hạng lại</button>
+        <button type="submit" class="btn btn-hm btn-sm fw-bold">
+          <i class="bi bi-sort-numeric-down me-1" aria-hidden="true"></i>Xếp hạng lại
+        </button>
       </form>
       {% endif %}
-    </nav>
-  </div>
-
-  <p class="small text-muted mb-3">
-    Đơn đặt hàng <strong>đã xác nhận</strong> vào hàng đợi → xếp theo ưu tiên / hạn / năng lực → chuyển xuống LSX.
-    (MTS/MPS sẽ bổ sung sau.)
-  </p>
-
-  <div class="d-flex flex-wrap gap-2 mb-3 jp-plan-pipe small">
-    <span class="badge bg-warning-subtle text-warning-emphasis border">Chờ xếp {{ counts.queued }}</span>
-    <span class="badge bg-info-subtle text-info-emphasis border">Đã xếp {{ counts.ranked }}</span>
-    <span class="badge bg-secondary-subtle text-secondary border">Tạm giữ {{ counts.on_hold }}</span>
-    <span class="badge bg-primary-subtle text-primary border">Đã chuyển {{ counts.released }}</span>
-    <span class="badge bg-primary text-white">Đang SX {{ counts.in_progress }}</span>
-    <span class="badge bg-success-subtle text-success border">Xong {{ counts.done }}</span>
-    <span class="badge bg-light text-dark border">SL chờ (dòng) {{ qty_summary.total_qty|floatformat:"-2" }} · {{ qty_summary.order_count }} đơn</span>
-  </div>
-
-  <ul class="nav nav-tabs jp-plan-board-tabs mb-3">
-    <li class="nav-item">
-      <a class="nav-link {% if tab == 'queue' %}active{% endif %}"
-         href="{% url 'san_xuat:plan_board' %}?tab=queue{% if search_query %}&q={{ search_query|urlencode }}{% endif %}">Hàng đợi</a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link {% if tab == 'load' %}active{% endif %}"
-         href="{% url 'san_xuat:plan_board' %}?tab=load{% if search_query %}&q={{ search_query|urlencode }}{% endif %}">Tải &amp; xếp</a>
-    </li>
-    <li class="nav-item">
-      <a class="nav-link {% if tab == 'released' %}active{% endif %}"
-         href="{% url 'san_xuat:plan_board' %}?tab=released{% if search_query %}&q={{ search_query|urlencode }}{% endif %}">Đã chuyển SX</a>
-    </li>
-  </ul>
-
-  <form method="get" class="mb-3 d-flex flex-wrap gap-2 align-items-end">
-    <input type="hidden" name="tab" value="{{ tab }}">
-    <div class="flex-grow-1" style="min-width:200px">
-      <label class="form-label small text-muted mb-1">Tìm đơn</label>
-      <input type="search" name="q" value="{{ search_query }}" class="form-control form-control-sm"
-             placeholder="Mã đơn / khách…" autocomplete="off">
+      <a href="{% url 'san_xuat:sales_order_confirm_list' %}" class="btn btn-outline-secondary btn-sm">Đơn chờ xác nhận</a>
     </div>
+  </div>
+
+  <div class="jp-pb-pipe" role="list">
+    <a class="jp-pb-stage is-wait {% if tab == 'queue' %}is-active{% endif %}" href="{% url 'san_xuat:plan_board' %}?tab=queue" role="listitem">
+      <span class="jp-pb-stage-label">Chờ xếp</span>
+      <span class="jp-pb-stage-num">{{ counts.queued }}</span>
+    </a>
+    <a class="jp-pb-stage is-rank {% if tab == 'queue' %}is-active{% endif %}" href="{% url 'san_xuat:plan_board' %}?tab=queue" role="listitem">
+      <span class="jp-pb-stage-label">Đã xếp</span>
+      <span class="jp-pb-stage-num">{{ counts.ranked }}</span>
+    </a>
+    <a class="jp-pb-stage is-hold {% if tab == 'queue' %}is-active{% endif %}" href="{% url 'san_xuat:plan_board' %}?tab=queue" role="listitem">
+      <span class="jp-pb-stage-label">Tạm giữ</span>
+      <span class="jp-pb-stage-num">{{ counts.on_hold }}</span>
+    </a>
+    <a class="jp-pb-stage is-go {% if tab == 'released' %}is-active{% endif %}" href="{% url 'san_xuat:plan_board' %}?tab=released" role="listitem">
+      <span class="jp-pb-stage-label">Đã chuyển</span>
+      <span class="jp-pb-stage-num">{{ counts.released }}</span>
+    </a>
+    <a class="jp-pb-stage is-run {% if tab == 'released' %}is-active{% endif %}" href="{% url 'san_xuat:plan_board' %}?tab=released" role="listitem">
+      <span class="jp-pb-stage-label">Đang SX</span>
+      <span class="jp-pb-stage-num">{{ counts.in_progress }}</span>
+    </a>
+    <a class="jp-pb-stage is-done {% if tab == 'released' %}is-active{% endif %}" href="{% url 'san_xuat:plan_board' %}?tab=released" role="listitem">
+      <span class="jp-pb-stage-label">Hoàn thành</span>
+      <span class="jp-pb-stage-num">{{ counts.done }}</span>
+    </a>
+  </div>
+
+  <div class="jp-pb-summary">
+    <span>Đang chờ xử lý: <strong>{{ qty_summary.order_count }}</strong> đơn</span>
+    <span>·</span>
+    <span>Tổng SL dòng: <strong>{{ qty_summary.total_qty|floatformat:"-2" }}</strong></span>
+  </div>
+
+  <div class="jp-pb-tabs" role="tablist">
+    <a role="tab" class="{% if tab == 'queue' %}active{% endif %}"
+       href="{% url 'san_xuat:plan_board' %}?tab=queue{% if search_query %}&q={{ search_query|urlencode }}{% endif %}">Hàng đợi</a>
+    <a role="tab" class="{% if tab == 'load' %}active{% endif %}"
+       href="{% url 'san_xuat:plan_board' %}?tab=load{% if search_query %}&q={{ search_query|urlencode }}{% endif %}">Tải &amp; xếp</a>
+    <a role="tab" class="{% if tab == 'released' %}active{% endif %}"
+       href="{% url 'san_xuat:plan_board' %}?tab=released{% if search_query %}&q={{ search_query|urlencode }}{% endif %}">Đã chuyển SX</a>
+  </div>
+
+  <form method="get" class="jp-pb-toolbar">
+    <input type="hidden" name="tab" value="{{ tab }}">
+    <input type="search" name="q" value="{{ search_query }}" class="form-control form-control-sm"
+           placeholder="Tìm mã đơn / khách…" autocomplete="off">
     <button type="submit" class="btn btn-outline-secondary btn-sm">Lọc</button>
   </form>
 
-  {% if tab == 'queue' or tab == 'load' %}
-  {% if tab == 'load' and load_data %}
-  <div class="card border-0 shadow-sm mb-3">
-    <div class="card-body">
-      <h6 class="fw-bold mb-2">Tải theo tổ ({{ load_data.days|length }} ngày làm việc tới)</h6>
-      {% if load_data.rows %}
-      <div class="table-responsive">
-        <table class="table table-sm align-middle mb-0 small">
-          <thead class="table-light">
-            <tr>
-              <th>Tổ</th>
-              <th class="text-end">Phút cần</th>
-              <th class="text-end">Phút quỹ</th>
-              <th class="text-end">% tải</th>
-            </tr>
-          </thead>
-          <tbody>
-          {% for row in load_data.rows %}
-            <tr class="{% if row.load_pct > 100 %}jp-plan-load-over{% endif %}">
-              <td>{{ row.center.code }} — {{ row.center.team_label|default:row.center.name }}</td>
-              <td class="text-end">{{ row.minutes_needed|floatformat:"-1" }}</td>
-              <td class="text-end">{{ row.minutes_available|floatformat:"-1" }}</td>
-              <td class="text-end">{{ row.load_pct|floatformat:0 }}%{% if row.over_days %} · quá {{ row.over_days }} ngày{% endif %}</td>
-            </tr>
-          {% empty %}
-            <tr><td colspan="4" class="text-muted">Chưa có dữ liệu tải (thiếu năng lực tổ hoặc chưa có KHCT/LSX).</td></tr>
-          {% endfor %}
-          </tbody>
-        </table>
+  {% if tab == 'load' %}
+  <div class="mb-2 d-flex justify-content-between align-items-baseline flex-wrap gap-2">
+    <h3 class="h6 fw-bold mb-0">Tải theo tổ · {{ load_data.days|length }} ngày làm việc tới</h3>
+    <a href="{% url 'san_xuat:capacity_load_matrix' %}" class="small">Xem ma trận tải đầy đủ</a>
+  </div>
+  {% if load_data and load_data.rows %}
+  <div class="jp-pb-load-grid">
+    {% for row in load_data.rows %}
+    {% with pct=row.load_pct %}
+    <div class="jp-pb-load-card {% if pct > 100 %}is-over{% endif %}">
+      <div class="jp-pb-load-head">
+        <span class="jp-pb-load-name">{{ row.center.team_label|default:row.center.name|default:row.center.code }}</span>
+        <span class="jp-pb-load-pct {% if pct > 100 %}is-bad{% elif pct > 80 %}is-warn{% else %}is-ok{% endif %}">
+          {{ pct|floatformat:0 }}%
+        </span>
       </div>
-      {% else %}
-      <p class="text-muted small mb-0">Chưa cấu hình năng lực tổ — vào Hồ sơ → Năng lực SX / Tải theo tổ.</p>
-      {% endif %}
-      <p class="small text-muted mt-2 mb-0">Bảng dưới: thứ tự đề xuất chuyển SX (cùng hàng đợi).</p>
+      <div class="jp-pb-meter {% if pct > 100 %}is-bad{% elif pct > 80 %}is-warn{% endif %}">
+        <span style="width:{% if pct > 100 %}100{% else %}{{ pct|floatformat:0 }}{% endif %}%"></span>
+      </div>
+      <div class="jp-pb-load-meta">
+        {{ row.minutes_needed|floatformat:"-0" }} / {{ row.minutes_available|floatformat:"-0" }} phút
+        {% if row.over_days %} · quá tải {{ row.over_days }} ngày{% endif %}
+      </div>
     </div>
+    {% endwith %}
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="jp-pb-empty mb-3">
+    Chưa có dữ liệu tải tổ. Cấu hình năng lực tại Hồ sơ → Năng lực SX.
   </div>
   {% endif %}
+  <h3 class="h6 fw-bold mb-2">Thứ tự đề xuất chuyển SX</h3>
+  {% endif %}
 
-  <div class="card border-0 shadow-sm">
-    <div class="table-responsive">
-      <table class="table table-sm table-hover align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            <th>#</th>
-            <th>Đơn</th>
-            <th>Khách</th>
-            <th>Hạn SX</th>
-            <th class="text-end">SL</th>
-            <th>Ưu tiên</th>
-            <th>Công đoạn</th>
-            <th class="text-end">Chu kỳ (phút)</th>
-            <th class="text-end">Điểm</th>
-            <th>TT</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-        {% for row in queue_rows %}
-          <tr>
-            <td class="text-muted">{{ row.order.plan_rank|default:"—" }}</td>
-            <td>
-              <a href="{% url 'san_xuat:sales_order_detail' row.order.pk %}" class="fw-bold text-decoration-none">
-                {{ row.order.code }}
-              </a>
-            </td>
-            <td class="small">{{ row.order.customer_name|default:"—" }}</td>
-            <td class="small {% if row.is_overdue %}text-danger fw-semibold{% endif %}">
-              {% if row.order.due_date %}{{ row.order.due_date|date:"d/m/Y" }}{% else %}—{% endif %}
+  {% if tab == 'queue' or tab == 'load' %}
+  <div class="jp-pb-list">
+    {% for row in queue_rows %}
+    <article class="jp-pb-ticket is-{{ row.order.plan_priority }}{% if row.order.plan_status == 'on_hold' %} is-hold{% endif %}{% if row.is_overdue %} is-overdue{% endif %}">
+      <div class="jp-pb-rank" title="Thứ tự xếp">{{ row.order.plan_rank|default:"·" }}</div>
+      <div class="jp-pb-main">
+        <div class="jp-pb-title-row">
+          <a class="jp-pb-code" href="{% url 'san_xuat:sales_order_detail' row.order.pk %}">{{ row.order.code }}</a>
+          <span class="jp-pb-customer">{{ row.order.customer_name|default:"—" }}</span>
+        </div>
+        <div class="jp-pb-meta">
+          <span>
+            Hạn
+            {% if row.order.due_date %}
+              <strong class="{% if row.is_overdue %}is-late{% endif %}">{{ row.order.due_date|date:"d/m/Y" }}</strong>
               {% if row.days_to_due is not None %}
-                <span class="text-muted">({{ row.days_to_due }}n)</span>
+                {% if row.is_overdue %}<span class="is-late">· trễ {{ row.days_to_due|stringformat:"d"|cut:"-" }} ngày</span>
+                {% else %}· còn {{ row.days_to_due }} ngày{% endif %}
               {% endif %}
-            </td>
-            <td class="text-end">{{ row.total_qty|floatformat:"-2" }}</td>
-            <td>
-              {% if can_schedule %}
-              <form method="post" class="d-inline">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="set_priority">
-                <input type="hidden" name="order_id" value="{{ row.order.pk }}">
-                <select name="priority" class="form-select form-select-sm" style="width:auto"
-                        onchange="this.form.submit()">
-                  {% for val, lab in priority_choices %}
-                  <option value="{{ val }}" {% if row.order.plan_priority == val %}selected{% endif %}>{{ lab }}</option>
-                  {% endfor %}
-                </select>
-              </form>
-              {% else %}
-              <span class="small">{{ row.order.get_plan_priority_display }}</span>
-              {% endif %}
-            </td>
-            <td class="small jp-plan-process text-truncate" title="{{ row.process_names|join:', ' }}">
-              {% if row.process_names %}{{ row.process_names|join:", " }}{% else %}
-                <span class="text-muted">Chưa có routing</span>
-              {% endif %}
-            </td>
-            <td class="text-end small">{% if row.has_routing %}{{ row.cycle_minutes|floatformat:"-1" }}{% else %}—{% endif %}</td>
-            <td class="text-end small">{{ row.score|floatformat:"-1" }}</td>
-            <td class="small">{{ row.order.get_plan_status_display }}</td>
-            <td class="text-end text-nowrap">
-              {% if can_release and row.order.plan_status != 'on_hold' %}
-              <form method="post" class="d-inline">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="release">
-                <input type="hidden" name="order_id" value="{{ row.order.pk }}">
-                <button type="submit" class="btn btn-hm btn-sm fw-bold"
-                        onclick="return confirm('Chuyển {{ row.order.code }} xuống sản xuất (tạo LSX)?');">
-                  Chuyển SX
-                </button>
-              </form>
-              {% endif %}
-              {% if can_schedule %}
-                {% if row.order.plan_status == 'on_hold' %}
-                <form method="post" class="d-inline">
-                  {% csrf_token %}
-                  <input type="hidden" name="action" value="unhold">
-                  <input type="hidden" name="order_id" value="{{ row.order.pk }}">
-                  <button type="submit" class="btn btn-outline-secondary btn-sm">Bỏ giữ</button>
-                </form>
-                {% else %}
-                <form method="post" class="d-inline-flex gap-1 align-items-center">
-                  {% csrf_token %}
-                  <input type="hidden" name="action" value="hold">
-                  <input type="hidden" name="order_id" value="{{ row.order.pk }}">
-                  <input type="text" name="reason" class="form-control form-control-sm" style="width:100px"
-                         placeholder="Lý do" maxlength="200">
-                  <button type="submit" class="btn btn-outline-secondary btn-sm">Giữ</button>
-                </form>
-                {% endif %}
-              {% endif %}
-            </td>
-          </tr>
-        {% empty %}
-          <tr>
-            <td colspan="11" class="text-muted small p-4 text-center">
-              Chưa có đơn chờ xếp.
-              <a href="{% url 'san_xuat:sales_order_confirm_list' %}">Xác nhận đơn đặt hàng</a> để đưa vào hàng đợi.
-            </td>
-          </tr>
-        {% endfor %}
-        </tbody>
-      </table>
+            {% else %}<strong>—</strong>{% endif %}
+          </span>
+          <span>SL <strong>{{ row.total_qty|floatformat:"-2" }}</strong> · {{ row.line_count }} dòng</span>
+          <span>
+            Chu kỳ
+            {% if row.has_routing %}<strong>{{ row.cycle_minutes|floatformat:"-0" }}</strong> phút{% else %}<strong class="text-muted">chưa có SMV</strong>{% endif %}
+          </span>
+          <span>Điểm <strong>{{ row.score|floatformat:"-0" }}</strong></span>
+          <span>{{ row.order.get_plan_status_display }}</span>
+        </div>
+        <div class="jp-pb-steps">
+          {% for name in row.process_names %}
+          <span class="jp-pb-step">{{ name }}</span>
+          {% empty %}
+          <span class="jp-pb-step is-empty">Chưa gắn công đoạn / routing</span>
+          {% endfor %}
+        </div>
+        {% if row.order.plan_hold_reason %}
+        <div class="small text-muted mt-1">Giữ: {{ row.order.plan_hold_reason }}</div>
+        {% endif %}
+      </div>
+      <div class="jp-pb-side">
+        {% if can_schedule %}
+        <div class="jp-pb-prio">
+          <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="set_priority">
+            <input type="hidden" name="order_id" value="{{ row.order.pk }}">
+            <select name="priority" class="form-select form-select-sm" onchange="this.form.submit()" aria-label="Ưu tiên">
+              {% for val, lab in priority_choices %}
+              <option value="{{ val }}" {% if row.order.plan_priority == val %}selected{% endif %}>{{ lab }}</option>
+              {% endfor %}
+            </select>
+          </form>
+        </div>
+        {% else %}
+        <span class="small fw-semibold">{{ row.order.get_plan_priority_display }}</span>
+        {% endif %}
+        <div class="jp-pb-actions">
+          {% if can_release and row.order.plan_status != 'on_hold' %}
+          <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="release">
+            <input type="hidden" name="order_id" value="{{ row.order.pk }}">
+            <button type="submit" class="btn btn-hm btn-sm fw-bold"
+                    onclick="return confirm('Chuyển {{ row.order.code }} xuống sản xuất (tạo LSX)?');">
+              Chuyển SX
+            </button>
+          </form>
+          {% endif %}
+          {% if can_schedule %}
+            {% if row.order.plan_status == 'on_hold' %}
+            <form method="post">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="unhold">
+              <input type="hidden" name="order_id" value="{{ row.order.pk }}">
+              <button type="submit" class="btn btn-outline-secondary btn-sm">Bỏ giữ</button>
+            </form>
+            {% else %}
+            <form method="post" class="jp-pb-hold-form">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="hold">
+              <input type="hidden" name="order_id" value="{{ row.order.pk }}">
+              <input type="text" name="reason" class="form-control form-control-sm" placeholder="Lý do giữ" maxlength="200">
+              <button type="submit" class="btn btn-outline-secondary btn-sm">Giữ</button>
+            </form>
+            {% endif %}
+          {% endif %}
+        </div>
+      </div>
+    </article>
+    {% empty %}
+    <div class="jp-pb-empty">
+      Chưa có đơn trong hàng đợi.
+      <a href="{% url 'san_xuat:sales_order_confirm_list' %}">Xác nhận đơn đặt hàng</a>
+      để đưa vào kế hoạch.
     </div>
+    {% endfor %}
   </div>
   {% endif %}
 
   {% if tab == 'released' %}
-  <div class="card border-0 shadow-sm">
-    <div class="table-responsive">
-      <table class="table table-sm table-hover align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            <th>Đơn</th>
-            <th>Khách</th>
-            <th>Hạn / ETA</th>
-            <th class="text-end">LSX</th>
-            <th class="text-end">Tiến độ</th>
-            <th>TT</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-        {% for row in released_rows %}
-          <tr>
-            <td>
-              <a href="{% url 'san_xuat:sales_order_detail' row.order.pk %}" class="fw-bold text-decoration-none">
-                {{ row.order.code }}
-              </a>
-            </td>
-            <td class="small">{{ row.order.customer_name|default:"—" }}</td>
-            <td class="small {% if row.is_overdue %}text-danger{% endif %}">
-              {% if row.eta_date %}{{ row.eta_date|date:"d/m/Y" }}{% else %}—{% endif %}
-            </td>
-            <td class="text-end">{{ row.mo_count }}{% if row.mo_open %} <span class="text-muted">(mở {{ row.mo_open }})</span>{% endif %}</td>
-            <td class="text-end">
-              {{ row.qty_done|floatformat:"-2" }} / {{ row.qty_planned|floatformat:"-2" }}
-              <span class="text-muted">({{ row.progress_pct|floatformat:0 }}%)</span>
-            </td>
-            <td class="small">{{ row.order.get_plan_status_display }}</td>
-            <td class="text-end">
-              <a href="{% url 'san_xuat:dispatch_mo' %}?q={{ row.order.code|urlencode }}" class="btn btn-outline-secondary btn-sm">LSX</a>
-            </td>
-          </tr>
-        {% empty %}
-          <tr><td colspan="7" class="text-muted small p-4 text-center">Chưa có đơn chuyển xuống sản xuất.</td></tr>
-        {% endfor %}
-        </tbody>
-      </table>
+  <div class="jp-pb-list">
+    {% for row in released_rows %}
+    <article class="jp-pb-ticket is-{{ row.order.plan_priority }}{% if row.is_overdue %} is-overdue{% endif %}">
+      <div class="jp-pb-rank" title="Tiến độ">{{ row.progress_pct|floatformat:0 }}%</div>
+      <div class="jp-pb-main">
+        <div class="jp-pb-title-row">
+          <a class="jp-pb-code" href="{% url 'san_xuat:sales_order_detail' row.order.pk %}">{{ row.order.code }}</a>
+          <span class="jp-pb-customer">{{ row.order.customer_name|default:"—" }}</span>
+        </div>
+        <div class="jp-pb-meta">
+          <span>
+            ETA
+            {% if row.eta_date %}
+              <strong class="{% if row.is_overdue %}is-late{% endif %}">{{ row.eta_date|date:"d/m/Y" }}</strong>
+            {% else %}<strong>—</strong>{% endif %}
+          </span>
+          <span>LSX <strong>{{ row.mo_count }}</strong>{% if row.mo_open %} · mở {{ row.mo_open }}{% endif %}</span>
+          <span>
+            Đã làm <strong>{{ row.qty_done|floatformat:"-2" }}</strong>
+            / {{ row.qty_planned|floatformat:"-2" }}
+          </span>
+          <span>{{ row.order.get_plan_status_display }}</span>
+        </div>
+        <div class="jp-pb-progress" title="{{ row.progress_pct|floatformat:0 }}%">
+          <span style="width: {% if row.progress_pct > 100 %}100{% else %}{{ row.progress_pct|floatformat:0 }}{% endif %}%"></span>
+        </div>
+        <div class="jp-pb-steps mt-2">
+          {% for name in row.process_names %}
+          <span class="jp-pb-step">{{ name }}</span>
+          {% empty %}
+          <span class="jp-pb-step is-empty">Routing theo LSX</span>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="jp-pb-side">
+        <a href="{% url 'san_xuat:dispatch_mo' %}?q={{ row.order.code|urlencode }}" class="btn btn-outline-secondary btn-sm">Xem LSX</a>
+      </div>
+    </article>
+    {% empty %}
+    <div class="jp-pb-empty">
+      Chưa có đơn chuyển xuống sản xuất. Vào tab <strong>Hàng đợi</strong> và bấm <strong>Chuyển SX</strong>.
     </div>
+    {% endfor %}
   </div>
   {% endif %}
 </div>

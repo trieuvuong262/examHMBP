@@ -560,14 +560,13 @@ def sales_order_detail(request, pk: int):
         return handle_menu_access_denied(request, MODULE_SAN_XUAT, 'orders')
 
     from san_xuat.forms_sales_order import SalesOrderRejectForm
-    from san_xuat.hub_models import SxOverallPlan, SxSalesOrder
+    from san_xuat.hub_models import SxSalesOrder
     from san_xuat.services.sales_orders import (
         PROD_STATUS_LABELS,
         confirm_sales_order,
         production_status_summary,
         reject_sales_order,
         related_mos,
-        related_overall_plans,
     )
 
     order = get_object_or_404(
@@ -576,7 +575,6 @@ def sales_order_detail(request, pk: int):
         is_demo=False,
     )
     can_confirm = user_can_update_menu(request.user, MODULE_SAN_XUAT, 'order_confirm')
-    can_plan = _perm_ctx(request).get('can_update')
     reject_form = SalesOrderRejectForm()
 
     if request.method == 'POST':
@@ -604,59 +602,18 @@ def sales_order_detail(request, pk: int):
                 else:
                     messages.success(request, f'Đã từ chối đơn {order.code}.')
                     return redirect('san_xuat:sales_order_detail', pk=order.pk)
-        elif (
-            action == 'create_mto_plan'
-            and can_plan
-            and order.confirm_status == SxSalesOrder.CONFIRM_CONFIRMED
-        ):
-            # Tạo KHTT MTO nháp rồi redirect nạp đơn
-            from san_xuat.services.planning import create_overall_plan
-
-            today = timezone.localdate()
-            try:
-                plan = create_overall_plan(
-                    name=f'KHTT từ {order.code}',
-                    date_from=today,
-                    date_to=order.due_date or today,
-                    plan_method=SxOverallPlan.METHOD_MTO,
-                    source=SxOverallPlan.SOURCE_SALES_ORDER,
-                    user=request.user,
-                )
-                from san_xuat.services.plan_methods import load_mto_demand
-
-                load_mto_demand(
-                    plan_id=plan.pk,
-                    sales_order_ids=[order.pk],
-                    replace=True,
-                )
-            except PlanningError as exc:
-                messages.error(request, str(exc))
-            else:
-                messages.success(request, f'Đã tạo KHTT {plan.code} và nạp nhu cầu từ {order.code}.')
-                return redirect('san_xuat:plan_overall_detail', pk=plan.pk)
 
     prod_status = production_status_summary(order)
-    plans = related_overall_plans(order)
     mos = related_mos(order)
-    mto_drafts = list(
-        SxOverallPlan.objects.filter(
-            is_demo=False,
-            status=SxOverallPlan.STATUS_DRAFT,
-            plan_method=SxOverallPlan.METHOD_MTO,
-        ).order_by('-created_at')[:20]
-    )
 
     return render(request, 'san_xuat/sales_order_detail.html', {
         **_perm_ctx(request),
         'order': order,
         'can_confirm': can_confirm,
-        'can_plan': can_plan,
         'reject_form': reject_form,
         'prod_status': prod_status,
         'prod_label': PROD_STATUS_LABELS.get(prod_status, prod_status),
-        'related_plans': plans,
         'related_mos': mos,
-        'mto_drafts': mto_drafts,
     })
 
 
@@ -1141,417 +1098,26 @@ def plan_board(request):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def plan_progress_monitor(request):
-    """Giám sát tiến độ theo tổ — màn cho giám đốc / KHSX."""
-    from san_xuat.list_filters import resolve_sx_period
-    from san_xuat.services.team_progress import build_team_progress_board
-
-    product_code = (request.GET.get('product_code') or '').strip()
-    team_label = (request.GET.get('team_label') or '').strip()
-    month = (request.GET.get('month') or '').strip()
-    date_from_raw = (request.GET.get('date_from') or '').strip()
-    date_to_raw = (request.GET.get('date_to') or '').strip()
-
-    # Mặc định: hôm nay (board vận hành). Có filter kỳ → dùng resolve_sx_period.
-    if month or date_from_raw or date_to_raw:
-        date_from, date_to, filters = resolve_sx_period(request)
-    else:
-        today = timezone.localdate()
-        date_from = date_to = today
-        filters = SxListFilters(
-            date_from=today,
-            date_to=today,
-            dates_defaulted=True,
-        )
-
-    board = build_team_progress_board(
-        date_from=date_from,
-        date_to=date_to,
-        team_label=team_label,
-        product_code=product_code,
-    )
-    view_mode = (request.GET.get('view') or 'table').strip().lower()
-    if view_mode not in ('table', 'kanban'):
-        view_mode = 'table'
-
-    kanban_columns = [
-        {
-            'key': 'danger',
-            'label': 'Cần xử lý',
-            'hint': 'Lệnh trễ / QC mở',
-            'rows': [r for r in board.rows if r.status == 'danger'],
-        },
-        {
-            'key': 'warn',
-            'label': 'Cảnh báo',
-            'hint': 'Chưa có sản lượng / dừng / lỗi cao',
-            'rows': [r for r in board.rows if r.status == 'warn'],
-        },
-        {
-            'key': 'ok',
-            'label': 'Đúng tiến độ',
-            'hint': 'Đang chạy ổn',
-            'rows': [r for r in board.rows if r.status == 'ok'],
-        },
-        {
-            'key': 'idle',
-            'label': 'Chưa có việc',
-            'hint': 'Tổ chưa gắn kế hoạch / lệnh',
-            'rows': [r for r in board.rows if r.status == 'idle'],
-        },
-    ]
-
-    has_filters = bool(
-        product_code or team_label or month or date_from_raw or date_to_raw
-    )
-    return render(request, 'san_xuat/plan_progress_monitor.html', {
-        **_perm_ctx(request),
-        'board': board,
-        'view_mode': view_mode,
-        'kanban_columns': kanban_columns,
-        'month_value': f'{date_from.year:04d}-{date_from.month:02d}',
-        'filter_product_code': product_code,
-        'filter_team_label': team_label,
-        'has_filters': has_filters,
-        'is_today_default': (
-            date_from == date_to == timezone.localdate() and not has_filters
-        ),
-        **sx_filter_context(filters, preserve={'view': view_mode} if view_mode != 'table' else None),
-    })
+    """Đã gộp vào bảng kế hoạch SX (tab Đã chuyển SX)."""
+    return redirect(f"{reverse('san_xuat:plan_board')}?tab=released")
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def plan_overall(request):
-    base_qs = (
-        SxOverallPlan.objects.filter(is_demo=False)
-        .prefetch_related('lines')
-        .order_by('-date_from', '-pk')
-    )
-    plans, fctx = prepare_hub_list(request, base_qs, SX_FILTER_PLAN_PERIOD, list_key='plan_overall')
-    return render(request, 'san_xuat/plan_overall_list.html', {
-        **_perm_ctx(request),
-        'plans': plans,
-        **fctx,
-    })
+    """Đã gộp vào bảng kế hoạch SX theo đơn — URL cũ redirect."""
+    return redirect('san_xuat:plan_board')
 
 
-@module_perm_required(MODULE_SAN_XUAT, 'create')
+@module_perm_required(MODULE_SAN_XUAT, 'view')
 def plan_overall_create(request):
-    if request.method == 'POST':
-        form = OverallPlanCreateForm(request.POST)
-        if form.is_valid():
-            try:
-                plan = create_overall_plan(
-                    name=form.cleaned_data['name'],
-                    date_from=form.cleaned_data['date_from'],
-                    date_to=form.cleaned_data['date_to'],
-                    code=form.cleaned_data.get('code') or None,
-                    notes=form.cleaned_data.get('notes') or '',
-                    plan_method=form.cleaned_data.get('plan_method'),
-                    mps_bucket=form.cleaned_data.get('mps_bucket') or SxOverallPlan.BUCKET_WEEK,
-                    frozen_until=form.cleaned_data.get('frozen_until'),
-                    apply_netting=form.cleaned_data.get('apply_netting', True),
-                    user=request.user,
-                )
-            except PlanningError as exc:
-                messages.error(request, str(exc))
-            except Exception as exc:
-                # Tránh 500 khi trùng mã / lỗi DB bất ngờ
-                from django.db import IntegrityError
-
-                if isinstance(exc, IntegrityError):
-                    messages.error(
-                        request,
-                        'Không tạo được KHTT — mã kế hoạch bị trùng. Thử lại hoặc nhập mã khác.',
-                    )
-                else:
-                    raise
-            else:
-                messages.success(
-                    request,
-                    f'Đã tạo KHTT {plan.code} — phương án {plan.get_plan_method_display()}.',
-                )
-                return redirect('san_xuat:plan_overall_detail', pk=plan.pk)
-        messages.error(request, 'Không tạo được KHTT — kiểm tra lại form.')
-    else:
-        today = timezone.localdate()
-        form = OverallPlanCreateForm(initial={
-            'date_from': today,
-            'date_to': today,
-            'apply_netting': True,
-        })
-    return render(request, 'san_xuat/plan_overall_form.html', {
-        **_perm_ctx(request),
-        'form': form,
-        'method_choices': SxOverallPlan.METHOD_CHOICES,
-    })
+    """Đã gộp vào bảng kế hoạch SX theo đơn — URL cũ redirect."""
+    return redirect('san_xuat:plan_board')
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def plan_overall_detail(request, pk: int):
-    plan = get_object_or_404(
-        SxOverallPlan.objects.prefetch_related('lines', 'material_plans', 'detail_plans'),
-        pk=pk,
-    )
-    can_update = _perm_ctx(request).get('can_update')
-    line_form = OverallPlanLineForm()
-    import_form = ImportKvOrderForm()
-
-    if request.method == 'POST':
-        action = (request.POST.get('action') or '').strip()
-        if action == 'add_line' and can_update and plan.status == SxOverallPlan.STATUS_DRAFT:
-            line_form = OverallPlanLineForm(request.POST)
-            if line_form.is_valid():
-                try:
-                    add_overall_plan_line(
-                        plan_id=plan.pk,
-                        product_code=line_form.cleaned_data['product_code'],
-                        qty_planned=line_form.cleaned_data['qty_planned'],
-                        qty_required=line_form.cleaned_data.get('qty_required'),
-                        product_name=line_form.cleaned_data.get('product_name') or '',
-                        capacity_per_day=line_form.cleaned_data.get('capacity_per_day') or Decimal('0'),
-                    )
-                except PlanningError as exc:
-                    messages.error(request, str(exc))
-                else:
-                    messages.success(request, 'Đã thêm dòng SP.')
-                    return redirect('san_xuat:plan_overall_detail', pk=plan.pk)
-            messages.error(request, 'Không thêm được dòng — kiểm tra lại form.')
-
-        elif action == 'remove_lines' and can_update and plan.status == SxOverallPlan.STATUS_DRAFT:
-            raw_ids = request.POST.getlist('line_ids')
-            try:
-                removed = remove_overall_plan_lines(plan_id=plan.pk, line_ids=raw_ids)
-            except PlanningError as exc:
-                messages.error(request, str(exc))
-            else:
-                messages.success(request, f'Đã xóa {removed} dòng sản phẩm.')
-                return redirect('san_xuat:plan_overall_detail', pk=plan.pk)
-
-        elif action == 'import_kv' and can_update and plan.status == SxOverallPlan.STATUS_DRAFT:
-            import_form = ImportKvOrderForm(request.POST)
-            if import_form.is_valid():
-                try:
-                    created = build_overall_lines_from_kv_order(
-                        plan_id=plan.pk,
-                        kv_order_kiotviet_id=import_form.cleaned_data.get('kv_order_kiotviet_id'),
-                        kv_order_code=import_form.cleaned_data.get('kv_order_code') or '',
-                    )
-                except PlanningError as exc:
-                    messages.error(request, str(exc))
-                else:
-                    messages.success(request, f'Đã import {len(created)} dòng từ đơn KV.')
-                    return redirect('san_xuat:plan_overall_detail', pk=plan.pk)
-            messages.error(request, 'Không import được đơn KV.')
-
-        elif action == 'confirm' and can_update and plan.status == SxOverallPlan.STATUS_DRAFT:
-            try:
-                plan = confirm_overall_plan(plan_id=plan.pk, user=request.user)
-            except PlanningError as exc:
-                messages.error(request, str(exc))
-            else:
-                messages.success(request, f'KHTT {plan.code} đã xác nhận.')
-                return redirect('san_xuat:plan_overall_detail', pk=plan.pk)
-
-        elif action == 'close' and can_update:
-            try:
-                plan = close_plan(model=SxOverallPlan, plan_id=plan.pk, user=request.user)
-            except PlanningError as exc:
-                messages.error(request, str(exc))
-            else:
-                messages.success(request, f'Đã đóng KHTT {plan.code}.')
-                return redirect('san_xuat:plan_overall_detail', pk=plan.pk)
-
-        elif action == 'cancel' and can_update:
-            try:
-                plan = cancel_plan(
-                    model=SxOverallPlan,
-                    plan_id=plan.pk,
-                    reason=request.POST.get('reason') or '',
-                    user=request.user,
-                )
-            except PlanningError as exc:
-                messages.error(request, str(exc))
-            else:
-                messages.success(request, f'Đã hủy KHTT {plan.code}.')
-                return redirect('san_xuat:plan_overall_detail', pk=plan.pk)
-
-        # --- P2: nạp nhu cầu theo phương án ---
-        elif action == 'load_mto' and can_update:
-            mto_form = MtoLoadOrdersForm(request.POST)
-            if mto_form.is_valid():
-                try:
-                    res = load_mto_demand(
-                        plan_id=plan.pk,
-                        sales_order_ids=mto_form.cleaned_data['sales_order_ids'],
-                        replace=mto_form.cleaned_data.get('replace', True),
-                    )
-                except PlanningError as exc:
-                    messages.error(request, str(exc))
-                else:
-                    msg = f'Đã nạp {res["written"]} mã sản phẩm từ đơn đặt hàng.'
-                    if res['covered']:
-                        msg += (
-                            f' {res["covered"]} mã đã đủ tồn/đang SX nên bỏ qua: '
-                            f'{", ".join(res["covered_codes"][:5])}.'
-                        )
-                    messages.success(request, msg)
-                    return redirect('san_xuat:plan_overall_detail', pk=plan.pk)
-            messages.error(request, 'Chưa chọn đơn đặt hàng hợp lệ.')
-
-        elif action == 'load_mts' and can_update:
-            mts_form = MtsLoadForm(request.POST)
-            if mts_form.is_valid():
-                codes = mts_form.cleaned_data.get('product_codes') or []
-                if not codes:
-                    messages.error(request, 'Chọn ít nhất một sản phẩm để nạp vào kế hoạch.')
-                else:
-                    try:
-                        res = load_mts_demand(
-                            plan_id=plan.pk,
-                            product_codes=codes,
-                            replace=mts_form.cleaned_data.get('replace', True),
-                        )
-                    except PlanningError as exc:
-                        messages.error(request, str(exc))
-                    else:
-                        messages.success(
-                            request, f'Đã nạp {res["written"]} mã sản phẩm cần bù tồn.',
-                        )
-                        return redirect('san_xuat:plan_overall_detail', pk=plan.pk)
-            else:
-                messages.error(request, 'Không nạp được nhu cầu bù tồn.')
-
-        elif action == 'load_mps' and can_update:
-            mps_form = MpsLineForm(request.POST)
-            if mps_form.is_valid():
-                try:
-                    res = load_mps_demand(
-                        plan_id=plan.pk,
-                        rows=[{
-                            'product_code': mps_form.cleaned_data['product_code'],
-                            'qty': mps_form.cleaned_data['qty'],
-                            'bucket_start': mps_form.cleaned_data['bucket_start'],
-                        }],
-                        replace=False,
-                    )
-                except PlanningError as exc:
-                    messages.error(request, str(exc))
-                else:
-                    if res['frozen_skipped']:
-                        messages.warning(
-                            request, 'Kỳ đã đóng băng — không ghi được sản lượng.',
-                        )
-                    else:
-                        messages.success(request, 'Đã cập nhật lịch trình chủ.')
-                    return redirect('san_xuat:plan_overall_detail', pk=plan.pk)
-            messages.error(request, 'Không cập nhật được lịch trình — kiểm tra lại form.')
-
-        elif action == 'recompute_netting' and can_update:
-            try:
-                res = recompute_plan_netting(plan_id=plan.pk, user=request.user)
-            except PlanningError as exc:
-                messages.error(request, str(exc))
-            else:
-                messages.success(
-                    request,
-                    f'Đã tính lại nhu cầu cho {res["updated"]} dòng '
-                    f'({res["covered"]} dòng đã đủ tồn).',
-                )
-                return redirect('san_xuat:plan_overall_detail', pk=plan.pk)
-
-    material_plans = plan.material_plans.filter(is_demo=False).order_by('-created_at')
-    detail_plans = plan.detail_plans.filter(is_demo=False).order_by('-created_at')
-
-    # --- P2: dữ liệu theo phương án ---
-    is_mto = plan.plan_method == SxOverallPlan.METHOD_MTO
-    is_mts = plan.plan_method == SxOverallPlan.METHOD_MTS
-    is_mps = plan.plan_method == SxOverallPlan.METHOD_MPS
-
-    kv_orders = []
-    sales_orders = []
-    restock_rows = []
-    mts_stock_filter = (request.GET.get('mts_stock') or 'all').strip().lower()
-    mts_sort = (request.GET.get('mts_sort') or 'on_hand').strip()
-    mts_q = (request.GET.get('mts_q') or '').strip()
-    buckets = []
-    mps_grid = []
-    if can_update and plan.status == SxOverallPlan.STATUS_DRAFT:
-        if is_mto:
-            from san_xuat.services.sales_orders import list_confirmed_orders_for_mto
-
-            sales_orders = list_confirmed_orders_for_mto(
-                limit=60, search=request.GET.get('so_q') or '',
-            )
-        elif is_mts:
-            if mts_stock_filter not in {'all', 'zero', 'need', 'ok'}:
-                mts_stock_filter = 'all'
-            if mts_sort not in {'on_hand', '-on_hand', 'code', '-code', 'suggest', '-suggest'}:
-                mts_sort = 'on_hand'
-            restock_rows = build_mts_stock_board(
-                include_covered=True,
-                only_policies=False,
-                search=mts_q,
-                stock_filter=mts_stock_filter,
-                sort=mts_sort,
-            )
-
-    if is_mps:
-        buckets = mps_buckets(plan)
-        by_product: dict[str, dict] = {}
-        for ln in plan.lines.all():
-            row = by_product.setdefault(ln.product_code, {
-                'code': ln.product_code,
-                'name': ln.product_name,
-                'cells': {},
-                'total': Decimal('0'),
-            })
-            key = ln.bucket_start or plan.date_from
-            row['cells'][key] = ln
-            row['total'] += (ln.qty_planned or Decimal('0'))
-        for row in sorted(by_product.values(), key=lambda r: r['code']):
-            row['bucket_cells'] = [
-                {
-                    'bucket': b,
-                    'line': row['cells'].get(b['start']),
-                }
-                for b in buckets
-            ]
-            mps_grid.append(row)
-
-    lines = list(plan.lines.all())
-    totals = {
-        'gross': sum((ln.qty_gross or Decimal('0')) for ln in lines),
-        'on_hand': sum((ln.qty_on_hand or Decimal('0')) for ln in lines),
-        'wip': sum((ln.qty_wip or Decimal('0')) for ln in lines),
-        'planned': sum((ln.qty_planned or Decimal('0')) for ln in lines),
-    }
-    return render(request, 'san_xuat/plan_overall_detail.html', {
-        **_perm_ctx(request),
-        'plan': plan,
-        'can_update': can_update,
-        'line_form': line_form,
-        'import_form': import_form,
-        'material_plans': material_plans,
-        'detail_plans': detail_plans,
-        'is_mto': is_mto,
-        'is_mts': is_mts,
-        'is_mps': is_mps,
-        'kv_orders': kv_orders,
-        'sales_orders': sales_orders,
-        'kv_q': request.GET.get('kv_q') or '',
-        'so_q': request.GET.get('so_q') or '',
-        'restock_rows': restock_rows,
-        'mts_q': mts_q,
-        'mts_stock_filter': mts_stock_filter,
-        'mts_sort': mts_sort,
-        'mts_zero_count': sum(1 for r in restock_rows if r.is_zero_stock),
-        'mts_need_count': sum(1 for r in restock_rows if r.needs_restock),
-        'mps_buckets': buckets,
-        'mps_grid': mps_grid,
-        'mps_line_form': MpsLineForm(),
-        'line_totals': totals,
-        'has_netting_data': any((ln.qty_on_hand or ln.qty_wip) for ln in lines),
-    })
+    """Đã gộp vào bảng kế hoạch SX theo đơn — URL cũ redirect."""
+    return redirect('san_xuat:plan_board')
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
@@ -1640,9 +1206,11 @@ def restock_suggestions(request):
             messages.error(request, str(exc))
         else:
             messages.success(
-                request, f'Đã tạo KHTT {plan.code} với {len(codes)} mã cần bù tồn.',
+                request,
+                f'Đã ghi nhu cầu bù tồn ({len(codes)} mã, mã nội bộ {plan.code}). '
+                f'Tiếp theo dùng Kế hoạch NPL nếu cần explode vật tư.',
             )
-            return redirect('san_xuat:plan_overall_detail', pk=plan.pk)
+            return redirect('san_xuat:plan_board')
 
     return render(request, 'san_xuat/restock_suggestions.html', {
         **_perm_ctx(request),
@@ -1654,249 +1222,20 @@ def restock_suggestions(request):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def plan_detail(request):
-    base_qs = (
-        SxDetailPlan.objects.filter(is_demo=False)
-        .select_related('overall_plan')
-        .prefetch_related('lines')
-        .order_by('-date_from', '-pk')
-    )
-    plans, fctx = prepare_hub_list(request, base_qs, SX_FILTER_PLAN_PERIOD, list_key='plan_detail')
-    return render(request, 'san_xuat/plan_detail_list.html', {
-        **_perm_ctx(request),
-        'plans': plans,
-        **fctx,
-    })
+    """Đã gộp vào bảng kế hoạch SX theo đơn — URL cũ redirect."""
+    return redirect('san_xuat:plan_board')
 
 
-@module_perm_required(MODULE_SAN_XUAT, 'create')
+@module_perm_required(MODULE_SAN_XUAT, 'view')
 def plan_detail_create(request):
-    overall = None
-    if request.method == 'POST':
-        form = DetailPlanExplodeForm(request.POST)
-        if form.is_valid():
-            overall = form.cleaned_data['overall_plan']
-            try:
-                detail = explode_detail_plan_from_overall(
-                    overall_plan_id=overall.pk,
-                    code=form.cleaned_data.get('code') or None,
-                    name=form.cleaned_data.get('name') or '',
-                    user=request.user,
-                )
-            except PlanningError as exc:
-                messages.error(request, str(exc))
-            else:
-                messages.success(
-                    request,
-                    f'Đã lập KHCT {detail.code} ({detail.lines.count()} dòng theo ngày).',
-                )
-                return redirect('san_xuat:plan_detail_detail', pk=detail.pk)
-        messages.error(request, 'Không tạo được KHCT — kiểm tra lại form.')
-    else:
-        initial = {}
-        overall_id = request.GET.get('overall')
-        if overall_id and str(overall_id).isdigit():
-            overall = get_object_or_404(SxOverallPlan, pk=int(overall_id))
-            initial['overall_plan'] = overall.pk
-        form = DetailPlanExplodeForm(initial=initial)
-    return render(request, 'san_xuat/plan_detail_form.html', {
-        **_perm_ctx(request),
-        'form': form,
-        'overall': overall,
-    })
+    """Đã gộp vào bảng kế hoạch SX theo đơn — URL cũ redirect."""
+    return redirect('san_xuat:plan_board')
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def plan_detail_detail(request, pk: int):
-    from collections import defaultdict
-    from datetime import timedelta
-
-    detail = get_object_or_404(
-        SxDetailPlan.objects.select_related('overall_plan')
-        .prefetch_related('lines', 'production_orders'),
-        pk=pk,
-    )
-    can_update = _perm_ctx(request).get('can_update')
-    if request.method == 'POST':
-        action = (request.POST.get('action') or '').strip()
-        if action == 'confirm' and can_update and detail.status == SxOverallPlan.STATUS_DRAFT:
-            try:
-                detail = confirm_detail_plan(plan_id=detail.pk, user=request.user)
-            except PlanningError as exc:
-                messages.error(request, str(exc))
-            else:
-                messages.success(request, f'KHCT {detail.code} đã xác nhận.')
-                return redirect('san_xuat:plan_detail_detail', pk=detail.pk)
-        elif action == 'refresh' and can_update:
-            if not detail.overall_plan_id:
-                messages.error(request, 'KHCT không gắn KHTT nguồn.')
-            else:
-                try:
-                    detail = explode_detail_plan_from_overall(
-                        overall_plan_id=detail.overall_plan_id, user=request.user,
-                    )
-                except PlanningError as exc:
-                    messages.error(request, str(exc))
-                else:
-                    messages.success(request, f'Đã cập nhật phân bổ ngày cho KHCT {detail.code}.')
-                    return redirect('san_xuat:plan_detail_detail', pk=detail.pk)
-        elif action == 'generate_mos' and can_update and detail.status == SxOverallPlan.STATUS_CONFIRMED:
-            try:
-                created = create_mos_from_detail_plan(detail_plan_id=detail.pk)
-            except DispatchError as exc:
-                messages.error(request, str(exc))
-            else:
-                if created:
-                    messages.success(request, f'Đã tạo {len(created)} LSX từ KHCT {detail.code}.')
-                else:
-                    messages.info(request, 'Không có LSX mới — các dòng đã có LSX tương ứng.')
-                return redirect('san_xuat:plan_detail_detail', pk=detail.pk)
-        elif action == 'reschedule' and can_update and detail.status == SxOverallPlan.STATUS_DRAFT:
-            if not detail.overall_plan_id:
-                messages.error(request, 'KHCT không gắn KHTT nguồn.')
-            else:
-                try:
-                    res = schedule_detail_plan_by_capacity(
-                        overall_plan_id=detail.overall_plan_id,
-                        user=request.user,
-                    )
-                except PlanningError as exc:
-                    messages.error(request, str(exc))
-                else:
-                    msg = (
-                        f'Đã xếp lịch theo định mức: {res.lines_created} dòng, '
-                        f'{res.days_used} ngày, SL {res.scheduled_qty}.'
-                    )
-                    messages.success(request, msg)
-                    if res.unscheduled:
-                        head = res.unscheduled[0]
-                        messages.warning(
-                            request,
-                            f'{len(res.unscheduled)} mã không xếp hết trong kỳ '
-                            f'(vd {head["product_code"]} còn {head["qty_left"]}) — '
-                            f'giãn kỳ kế hoạch hoặc tăng nhân sự.',
-                        )
-                    if res.no_routing:
-                        messages.info(
-                            request,
-                            'Chưa có định mức thời gian nên chia đều: '
-                            f'{", ".join(sorted(set(res.no_routing))[:6])}.',
-                        )
-                    return redirect('san_xuat:plan_detail_detail', pk=res.detail_plan.pk)
-
-        elif action == 'assign_teams' and can_update:
-            overwrite = bool(request.POST.get('overwrite'))
-            try:
-                count = assign_detail_plan_work_centers(plan_id=detail.pk, overwrite=overwrite)
-            except PlanningError as exc:
-                messages.error(request, str(exc))
-            else:
-                if count:
-                    messages.success(request, f'Đã phân tổ cho {count} dòng kế hoạch.')
-                else:
-                    messages.info(request, 'Tất cả dòng đã có tổ — chọn "ghi đè" nếu muốn phân lại.')
-                return redirect('san_xuat:plan_detail_detail', pk=detail.pk)
-        elif action == 'close' and can_update:
-            try:
-                detail = close_plan(model=SxDetailPlan, plan_id=detail.pk, user=request.user)
-            except PlanningError as exc:
-                messages.error(request, str(exc))
-            else:
-                messages.success(request, f'Đã đóng KHCT {detail.code}.')
-                return redirect('san_xuat:plan_detail_detail', pk=detail.pk)
-        elif action == 'cancel' and can_update:
-            try:
-                detail = cancel_plan(
-                    model=SxDetailPlan,
-                    plan_id=detail.pk,
-                    reason=request.POST.get('reason') or '',
-                    user=request.user,
-                )
-            except PlanningError as exc:
-                messages.error(request, str(exc))
-            else:
-                messages.success(request, f'Đã hủy KHCT {detail.code}.')
-                return redirect('san_xuat:plan_detail_detail', pk=detail.pk)
-
-    dates: list = []
-    day = detail.date_from
-    while day <= detail.date_to:
-        dates.append(day)
-        day += timedelta(days=1)
-
-    from san_xuat.services.work_calendar import holiday_dates, workdays_labels, workdays_pattern
-
-    wd_bits = workdays_pattern()
-    holidays = holiday_dates(detail.date_from, detail.date_to)
-    off_days = {d for d in dates if wd_bits[d.weekday()] != '1' or d in holidays}
-
-    products: dict[str, str] = {}
-    grid: dict[str, dict] = defaultdict(dict)
-    teams: dict[str, set] = defaultdict(set)
-    for line in detail.lines.all():
-        products[line.product_code] = line.product_name
-        grid[line.product_code][line.plan_date] = line.qty
-        if (line.team_label or '').strip():
-            teams[line.product_code].add(line.team_label.strip())
-
-    product_rows = []
-    for code in sorted(products.keys()):
-        cells = []
-        row_total = Decimal('0')
-        for plan_date in dates:
-            qty = grid[code].get(plan_date, Decimal('0'))
-            row_total += qty
-            cells.append({
-                'date': plan_date,
-                'qty': qty,
-                'is_off': plan_date in off_days,
-            })
-        product_rows.append({
-            'code': code,
-            'name': products[code],
-            'cells': cells,
-            'total': row_total,
-            'teams': sorted(teams.get(code, ())),
-        })
-
-    cap = resolve_daily_capacity(overall_plan_id=detail.overall_plan_id)
-    date_totals = []
-    for plan_date in dates:
-        total = sum((grid[code].get(plan_date, Decimal('0')) for code in products), Decimal('0'))
-        date_totals.append({
-            'date': plan_date,
-            'total': total,
-            'is_off': plan_date in off_days,
-            'is_over': bool(cap.capacity > 0 and total > cap.capacity),
-        })
-
-    lines_all = list(detail.lines.all())
-    production_orders = detail.production_orders.filter(is_demo=False).order_by('planned_start', 'code')
-    return render(request, 'san_xuat/plan_detail_detail.html', {
-        **_perm_ctx(request),
-        'detail_plan': detail,
-        'can_update': can_update,
-        'dates': dates,
-        'product_rows': product_rows,
-        'date_totals': date_totals,
-        'production_orders': production_orders,
-        'capacity_info': cap,
-        'capacity_warnings': check_detail_plan_capacity(plan_id=detail.pk),
-        'center_warnings': check_detail_plan_center_capacity(plan_id=detail.pk),
-        'routing_rows': [
-            {
-                'code': code,
-                'routing': product_routing(code),
-            }
-            for code in sorted({ln.product_code for ln in lines_all})
-        ],
-        'plan_progress': detail_plan_progress(detail),
-        'workdays_labels': workdays_labels(wd_bits),
-        'holiday_count': len(holidays),
-        'lines_without_team': sum(
-            1 for ln in lines_all if not (ln.team_label or '').strip() and not ln.work_center_id
-        ),
-        'lines_total': len(lines_all),
-    })
+    """Đã gộp vào bảng kế hoạch SX theo đơn — URL cũ redirect."""
+    return redirect('san_xuat:plan_board')
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
