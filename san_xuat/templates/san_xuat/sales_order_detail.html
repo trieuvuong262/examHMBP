@@ -1,7 +1,33 @@
 {% extends 'base.html' %}
 
 {% load sx_format %}
-{% block extra_head %}{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}{% endblock %}
+{% block extra_head %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+<style>
+  .jp-so-actions .jp-so-link {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.15rem 0.45rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    line-height: 1.3;
+    color: var(--bs-secondary-color);
+    text-decoration: none;
+    border-radius: 0.35rem;
+    white-space: nowrap;
+  }
+  .jp-so-actions .jp-so-link:hover {
+    color: var(--bs-body-color);
+    background: rgba(0, 0, 0, 0.045);
+  }
+  .jp-so-actions .btn {
+    font-weight: 600;
+  }
+  .jp-so-actions form {
+    margin: 0;
+  }
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
@@ -52,16 +78,16 @@
       </div>
 
       {% if can_confirm or order.confirm_status == 'confirmed' %}
-      <div class="d-flex flex-wrap gap-2 mt-3 pt-3 border-top">
+      <div class="d-flex flex-wrap gap-2 align-items-center mt-3 pt-3 border-top jp-so-actions">
         {% if can_confirm and order.confirm_status == 'draft' %}
-        <form method="post">
+        <form method="post" class="d-inline">
           {% csrf_token %}
           <input type="hidden" name="action" value="confirm">
-          <button type="submit" class="btn btn-hm btn-sm fw-bold">Xác nhận</button>
+          <button type="submit" class="btn btn-hm btn-sm">Xác nhận</button>
         </form>
         {% endif %}
         {% if can_confirm and order.confirm_status != 'rejected' %}
-        <form method="post" class="d-flex flex-wrap gap-2 align-items-center">
+        <form method="post" class="d-inline-flex flex-wrap gap-1 align-items-center">
           {% csrf_token %}
           <input type="hidden" name="action" value="reject">
           {{ reject_form.reason }}
@@ -70,13 +96,9 @@
         </form>
         {% endif %}
         {% if order.confirm_status == 'confirmed' %}
-        <a href="{% url 'san_xuat:plan_board' %}?q={{ order.code|urlencode }}" class="btn btn-hm btn-sm fw-bold">
-          Kế hoạch sản xuất
-        </a>
+        <a href="{% url 'san_xuat:plan_board' %}?q={{ order.code|urlencode }}" class="jp-so-link">Kế hoạch SX</a>
         {% endif %}
-        <a href="{% url 'san_xuat:costing_by_order' %}?q={{ order.code|urlencode }}" class="btn btn-outline-secondary btn-sm">
-          Giá thành theo đơn
-        </a>
+        <a href="{% url 'san_xuat:costing_by_order' %}?q={{ order.code|urlencode }}" class="jp-so-link">Giá thành theo đơn</a>
       </div>
       {% endif %}
     </div>
@@ -121,7 +143,7 @@
       <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
         <h6 class="fw-bold mb-0">Lệnh sản xuất liên quan</h6>
         {% if order.confirm_status == 'confirmed' %}
-        <a href="{% url 'san_xuat:plan_board' %}?q={{ order.code|urlencode }}" class="btn btn-outline-secondary btn-sm">Mở kế hoạch SX</a>
+        <a href="{% url 'san_xuat:plan_board' %}?q={{ order.code|urlencode }}" class="jp-so-link">Mở kế hoạch SX</a>
         {% endif %}
       </div>
       {% for mo in related_mos %}
