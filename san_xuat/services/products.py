@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from decimal import Decimal
 
 from django.db.models import Q
 
@@ -210,22 +211,18 @@ def search_products(q: str = '', *, limit: int = 30) -> list[dict]:
         for r in rows:
             qty = stock.get(r['code'], None)
             if qty is None:
-                # thử khớp không phân biệt hoa thường
                 qty = next(
                     (v for k, v in stock.items() if k.casefold() == r['code'].casefold()),
-                    None,
+                    Decimal('0'),
                 )
-            if qty is None:
-                r['stock_qty'] = None
-                r['stock_label'] = '—'
-            else:
-                r['stock_qty'] = str(qty)
-                text = f'{qty:f}'.rstrip('0').rstrip('.')
-                r['stock_label'] = text or '0'
+            qty = Decimal(str(qty or 0))
+            r['stock_qty'] = str(qty)
+            text = format(qty, 'f').rstrip('0').rstrip('.')
+            r['stock_label'] = text or '0'
     except Exception:
         for r in rows:
-            r['stock_qty'] = None
-            r['stock_label'] = '—'
+            r['stock_qty'] = '0'
+            r['stock_label'] = '0'
 
     return rows
 

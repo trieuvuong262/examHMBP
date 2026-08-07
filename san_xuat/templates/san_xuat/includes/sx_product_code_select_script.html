@@ -48,14 +48,16 @@
       stockEl.classList.remove('text-danger', 'fw-semibold');
       return;
     }
-    var label = (opt.stock_label != null && opt.stock_label !== '')
-      ? String(opt.stock_label)
-      : '—';
-    stockEl.textContent = label;
     var qty = parseFloat(opt.stock_qty);
-    stockEl.classList.toggle('text-muted', label === '—' || !Number.isFinite(qty));
-    stockEl.classList.toggle('text-danger', Number.isFinite(qty) && qty <= 0);
-    stockEl.classList.toggle('fw-semibold', Number.isFinite(qty) && qty > 0);
+    var label = (opt.stock_label != null && String(opt.stock_label).trim() !== '')
+      ? String(opt.stock_label).trim()
+      : (Number.isFinite(qty) ? String(qty) : '0');
+    if (label === '—' || label === '') label = Number.isFinite(qty) ? String(qty) : '0';
+    stockEl.textContent = label;
+    var n = Number.isFinite(qty) ? qty : parseFloat(label);
+    stockEl.classList.toggle('text-muted', !Number.isFinite(n));
+    stockEl.classList.toggle('text-danger', Number.isFinite(n) && n <= 0);
+    stockEl.classList.toggle('fw-semibold', Number.isFinite(n) && n > 0);
   }
 
   function initProductCodeSelect(select) {
