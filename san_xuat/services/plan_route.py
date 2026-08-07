@@ -407,12 +407,8 @@ def move_kanban_card(
         raise PlanningError('Loại thẻ không hợp lệ.')
 
     if card_type == CARD_ORDER:
-        step = (
-            SxSalesOrderPlanStep.objects.select_for_update()
-            .select_related('sales_order', 'work_center')
-            .get(pk=card_id)
-        )
-        order = step.sales_order
+        step = SxSalesOrderPlanStep.objects.select_for_update().get(pk=card_id)
+        order = SxSalesOrder.objects.get(pk=step.sales_order_id)
         if order.confirm_status != SxSalesOrder.CONFIRM_CONFIRMED:
             raise PlanningError('Đơn chưa xác nhận.')
         if order.production_orders.filter(is_demo=False).exclude(
@@ -439,15 +435,14 @@ def move_kanban_card(
                     raise PlanningError('Tổ không hợp lệ.')
                 step.work_center_id = int(target_key)
             step.save(update_fields=['work_center_id'])
-        step.refresh_from_db()
+        step = (
+            SxSalesOrderPlanStep.objects.select_related('work_center')
+            .get(pk=step.pk)
+        )
         return _card_from_order_step(order, step)
 
-    step = (
-        SxMoProcessStep.objects.select_for_update()
-        .select_related('production_order', 'production_order__sales_order', 'work_center')
-        .get(pk=card_id)
-    )
-    mo = step.production_order
+    step = SxMoProcessStep.objects.select_for_update().get(pk=card_id)
+    mo = SxProductionOrder.objects.select_related('sales_order').get(pk=step.production_order_id)
     if mo.status == SxProductionOrder.STATUS_CANCELLED:
         raise PlanningError('LSX đã hủy.')
 
@@ -482,7 +477,10 @@ def move_kanban_card(
             step.work_center_id = int(target_key)
         step.save(update_fields=['work_center_id'])
 
-    step.refresh_from_db()
+    step = (
+        SxMoProcessStep.objects.select_related('work_center', 'production_order', 'production_order__sales_order')
+        .get(pk=step.pk)
+    )
     return _card_from_mo_step(step)
 
 
