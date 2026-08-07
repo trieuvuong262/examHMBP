@@ -4060,14 +4060,8 @@ def capacity_list(request):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def capacity_load_matrix(request):
-    """Tải theo tổ — một mức Tải % / tổ (không ma trận ngày)."""
-    centers = list(
-        SxWorkCenter.objects.filter(is_active=True, is_demo=False).order_by('code')
-    )
-    return render(request, 'san_xuat/capacity_load_matrix.html', {
-        **_perm_ctx(request),
-        'centers': centers,
-    })
+    """Bookmark cũ /tai-theo-to/ → gộp vào Năng lực SX."""
+    return redirect('san_xuat:capacity_list')
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'update')

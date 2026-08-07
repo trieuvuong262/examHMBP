@@ -97,8 +97,8 @@
           <li class="text-muted">… còn {{ center_warnings|length|add:"-4" }} trường hợp khác.</li>
           {% endif %}
         </ul>
-        <a href="{% url 'san_xuat:capacity_load_matrix' %}?from={{ detail_plan.date_from|date:'Y-m-d' }}&amp;to={{ detail_plan.date_to|date:'Y-m-d' }}"
-           class="d-inline-block mt-1">Xem Tải theo tổ</a>
+        <a href="{% url 'san_xuat:capacity_list' %}"
+           class="d-inline-block mt-1">Xem Năng lực SX</a>
       </div>
       {% endif %}
 

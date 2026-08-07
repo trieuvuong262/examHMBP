@@ -106,11 +106,11 @@ alwaysApply: false
 - Sau khi có LSX: kéo thẻ `SxMoProcessStep` để đổi `planned_date` / `process_name` / `work_center`.
 - Include UI: `san_xuat/includes/plan_board_kanban.html`.
 
-## Tải theo tổ
+## Tải theo tổ (gộp Năng lực SX)
 
-- **Tải %** (`SxWorkCenter.efficiency_pct`): một mức theo tổ — 80 thiếu người · 100 bình thường · 150 tăng ca. Cố định đến khi sửa.
+- **Tải %** (`SxWorkCenter.efficiency_pct`): một mức theo tổ — 80 thiếu người · 100 bình thường · 150 tăng ca.
 - Quỹ phút hữu ích/ngày = `nhân sự × phút/ca × (Tải % / 100)`.
-- Màn `/san-xuat/nang-luc/tai-theo-to/` = danh sách Tải theo tổ (không ma trận nhu cầu SMV theo ngày).
+- Không menu riêng: xem/chỉnh trên **Năng lực SX** + **Thiết lập**. URL `/nang-luc/tai-theo-to/` redirect về danh sách năng lực.
 
 ## Copy & mô tả
 
