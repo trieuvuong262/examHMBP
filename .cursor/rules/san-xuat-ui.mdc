@@ -111,6 +111,7 @@ alwaysApply: false
 - **Tải %** (`SxWorkCenter.efficiency_pct`): một mức theo tổ — 80 thiếu người · 100 bình thường · 150 tăng ca.
 - Quỹ phút hữu ích/ngày = `nhân sự × phút/ca × (Tải % / 100)`.
 - Không menu riêng: xem/chỉnh trên **Năng lực SX** + **Thiết lập**. URL `/nang-luc/tai-theo-to/` redirect về danh sách năng lực.
+- Board kế hoạch tab **Năng lực** (`tab=load`): chỉ **hiển thị** năng lực tổ (tham khảo) — không auto-schedule, không tính lại ETA/rank, không chặn chuyển SX.
 
 ## Copy & mô tả
 

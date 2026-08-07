@@ -443,7 +443,7 @@ def release_order_to_production(*, order_id: int, user=None) -> list[SxProductio
 
 
 def load_snapshot_for_board(*, days: int = 14) -> dict:
-    """Tải % theo tổ — danh sách đơn giản cho tab xếp lịch."""
+    """Năng lực tổ (tham khảo) cho tab board — không xếp lịch."""
     centers = list(
         SxWorkCenter.objects.filter(is_active=True, is_demo=False).order_by('code')
     )

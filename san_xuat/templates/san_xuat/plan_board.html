@@ -446,7 +446,7 @@
     <a role="tab" class="{% if tab == 'queue' %}active{% endif %}"
        href="{% url 'san_xuat:plan_board' %}?mode=list&tab=queue{% if search_query %}&q={{ search_query|urlencode }}{% endif %}">Hàng đợi</a>
     <a role="tab" class="{% if tab == 'load' %}active{% endif %}"
-       href="{% url 'san_xuat:plan_board' %}?mode=list&tab=load{% if search_query %}&q={{ search_query|urlencode }}{% endif %}">Tải &amp; xếp</a>
+       href="{% url 'san_xuat:plan_board' %}?mode=list&tab=load{% if search_query %}&q={{ search_query|urlencode }}{% endif %}">Năng lực</a>
     <a role="tab" class="{% if tab == 'released' %}active{% endif %}"
        href="{% url 'san_xuat:plan_board' %}?mode=list&tab=released{% if search_query %}&q={{ search_query|urlencode }}{% endif %}">Đã chuyển SX</a>
   </div>
@@ -474,8 +474,11 @@
 
   {% if tab == 'load' %}
   <div class="mb-2 d-flex justify-content-between align-items-baseline flex-wrap gap-2">
-    <h3 class="h6 fw-bold mb-0">Tải theo tổ</h3>
-    <a href="{% url 'san_xuat:capacity_setup' %}" class="small">Chỉnh Tải %</a>
+    <h3 class="h6 fw-bold mb-0">Năng lực tổ</h3>
+    <span class="d-flex gap-3 small">
+      <a href="{% url 'san_xuat:capacity_list' %}">Năng lực SX</a>
+      <a href="{% url 'san_xuat:capacity_setup' %}">Thiết lập</a>
+    </span>
   </div>
   {% if load_data and load_data.centers %}
   <div class="jp-pb-load-grid">
@@ -485,14 +488,19 @@
       <div class="jp-pb-load-head">
         <span class="jp-pb-load-name">{{ wc.team_label|default:wc.name|default:wc.code }}</span>
         <span class="jp-pb-load-pct {% if pct > 100 %}is-bad{% elif pct < 100 %}is-warn{% else %}is-ok{% endif %}">
-          {{ pct|floatformat:"-2" }}%
+          Tải {{ pct|floatformat:"-2" }}%
         </span>
       </div>
       <div class="jp-pb-meter {% if pct > 100 %}is-bad{% elif pct < 100 %}is-warn{% endif %}">
         <span style="width:{% if pct > 100 %}100{% else %}{{ pct|floatformat:0 }}{% endif %}%"></span>
       </div>
       <div class="jp-pb-load-meta">
-        {{ wc.headcount }} người · {{ wc.available_minutes_per_day|floatformat:"0" }} phút/ngày
+        {{ wc.code }}
+        · {{ wc.headcount }} người · {{ wc.shift_minutes_per_head }} phút/ca
+        · {{ wc.available_minutes_per_day|floatformat:"0" }} phút hữu ích/ngày
+      </div>
+      <div class="jp-pb-load-meta">
+        NL/ngày {{ wc.capacity_per_day|floatformat:"-2" }} {{ wc.uom_label|default:"SP" }}
       </div>
     </div>
     {% endwith %}
@@ -500,7 +508,7 @@
   </div>
   {% else %}
   <div class="jp-pb-empty mb-3">
-    Chưa có tổ. Cấu hình tại Năng lực SX → Thiết lập Tải %.
+    Chưa có tổ. Cấu hình tại Năng lực SX.
   </div>
   {% endif %}
   <h3 class="h6 fw-bold mb-2">Thứ tự đề xuất chuyển SX</h3>
