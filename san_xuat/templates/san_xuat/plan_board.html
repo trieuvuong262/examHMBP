@@ -1,0 +1,262 @@
+{% extends 'base.html' %}
+
+{% load sx_format %}
+{% block extra_head %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+<style>
+  .jp-plan-board-tabs .nav-link { font-size: .9rem; }
+  .jp-plan-pipe .badge { font-weight: 500; }
+  .jp-plan-load-over { background: #fde8e8; }
+  .jp-plan-process { max-width: 220px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid jp-page jp-sx-page py-3 py-md-4 mb-5 px-3 px-lg-4">
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title w-100">Kế hoạch sản xuất</h2>
+    </div>
+    <nav class="jp-sx-tools" aria-label="Công cụ">
+      {% if can_schedule %}
+      <form method="post" class="d-inline">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="recompute">
+        <button type="submit" class="btn btn-hm btn-sm fw-bold">Xếp hạng lại</button>
+      </form>
+      {% endif %}
+    </nav>
+  </div>
+
+  <p class="small text-muted mb-3">
+    Đơn đặt hàng <strong>đã xác nhận</strong> vào hàng đợi → xếp theo ưu tiên / hạn / năng lực → chuyển xuống LSX.
+    (MTS/MPS sẽ bổ sung sau.)
+  </p>
+
+  <div class="d-flex flex-wrap gap-2 mb-3 jp-plan-pipe small">
+    <span class="badge bg-warning-subtle text-warning-emphasis border">Chờ xếp {{ counts.queued }}</span>
+    <span class="badge bg-info-subtle text-info-emphasis border">Đã xếp {{ counts.ranked }}</span>
+    <span class="badge bg-secondary-subtle text-secondary border">Tạm giữ {{ counts.on_hold }}</span>
+    <span class="badge bg-primary-subtle text-primary border">Đã chuyển {{ counts.released }}</span>
+    <span class="badge bg-primary text-white">Đang SX {{ counts.in_progress }}</span>
+    <span class="badge bg-success-subtle text-success border">Xong {{ counts.done }}</span>
+    <span class="badge bg-light text-dark border">SL chờ (dòng) {{ qty_summary.total_qty|floatformat:"-2" }} · {{ qty_summary.order_count }} đơn</span>
+  </div>
+
+  <ul class="nav nav-tabs jp-plan-board-tabs mb-3">
+    <li class="nav-item">
+      <a class="nav-link {% if tab == 'queue' %}active{% endif %}"
+         href="{% url 'san_xuat:plan_board' %}?tab=queue{% if search_query %}&q={{ search_query|urlencode }}{% endif %}">Hàng đợi</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link {% if tab == 'load' %}active{% endif %}"
+         href="{% url 'san_xuat:plan_board' %}?tab=load{% if search_query %}&q={{ search_query|urlencode }}{% endif %}">Tải &amp; xếp</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link {% if tab == 'released' %}active{% endif %}"
+         href="{% url 'san_xuat:plan_board' %}?tab=released{% if search_query %}&q={{ search_query|urlencode }}{% endif %}">Đã chuyển SX</a>
+    </li>
+  </ul>
+
+  <form method="get" class="mb-3 d-flex flex-wrap gap-2 align-items-end">
+    <input type="hidden" name="tab" value="{{ tab }}">
+    <div class="flex-grow-1" style="min-width:200px">
+      <label class="form-label small text-muted mb-1">Tìm đơn</label>
+      <input type="search" name="q" value="{{ search_query }}" class="form-control form-control-sm"
+             placeholder="Mã đơn / khách…" autocomplete="off">
+    </div>
+    <button type="submit" class="btn btn-outline-secondary btn-sm">Lọc</button>
+  </form>
+
+  {% if tab == 'queue' or tab == 'load' %}
+  {% if tab == 'load' and load_data %}
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-body">
+      <h6 class="fw-bold mb-2">Tải theo tổ ({{ load_data.days|length }} ngày làm việc tới)</h6>
+      {% if load_data.rows %}
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0 small">
+          <thead class="table-light">
+            <tr>
+              <th>Tổ</th>
+              <th class="text-end">Phút cần</th>
+              <th class="text-end">Phút quỹ</th>
+              <th class="text-end">% tải</th>
+            </tr>
+          </thead>
+          <tbody>
+          {% for row in load_data.rows %}
+            <tr class="{% if row.load_pct > 100 %}jp-plan-load-over{% endif %}">
+              <td>{{ row.center.code }} — {{ row.center.team_label|default:row.center.name }}</td>
+              <td class="text-end">{{ row.minutes_needed|floatformat:"-1" }}</td>
+              <td class="text-end">{{ row.minutes_available|floatformat:"-1" }}</td>
+              <td class="text-end">{{ row.load_pct|floatformat:0 }}%{% if row.over_days %} · quá {{ row.over_days }} ngày{% endif %}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="4" class="text-muted">Chưa có dữ liệu tải (thiếu năng lực tổ hoặc chưa có KHCT/LSX).</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="text-muted small mb-0">Chưa cấu hình năng lực tổ — vào Hồ sơ → Năng lực SX / Tải theo tổ.</p>
+      {% endif %}
+      <p class="small text-muted mt-2 mb-0">Bảng dưới: thứ tự đề xuất chuyển SX (cùng hàng đợi).</p>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+      <table class="table table-sm table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>#</th>
+            <th>Đơn</th>
+            <th>Khách</th>
+            <th>Hạn SX</th>
+            <th class="text-end">SL</th>
+            <th>Ưu tiên</th>
+            <th>Công đoạn</th>
+            <th class="text-end">Chu kỳ (phút)</th>
+            <th class="text-end">Điểm</th>
+            <th>TT</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for row in queue_rows %}
+          <tr>
+            <td class="text-muted">{{ row.order.plan_rank|default:"—" }}</td>
+            <td>
+              <a href="{% url 'san_xuat:sales_order_detail' row.order.pk %}" class="fw-bold text-decoration-none">
+                {{ row.order.code }}
+              </a>
+            </td>
+            <td class="small">{{ row.order.customer_name|default:"—" }}</td>
+            <td class="small {% if row.is_overdue %}text-danger fw-semibold{% endif %}">
+              {% if row.order.due_date %}{{ row.order.due_date|date:"d/m/Y" }}{% else %}—{% endif %}
+              {% if row.days_to_due is not None %}
+                <span class="text-muted">({{ row.days_to_due }}n)</span>
+              {% endif %}
+            </td>
+            <td class="text-end">{{ row.total_qty|floatformat:"-2" }}</td>
+            <td>
+              {% if can_schedule %}
+              <form method="post" class="d-inline">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="set_priority">
+                <input type="hidden" name="order_id" value="{{ row.order.pk }}">
+                <select name="priority" class="form-select form-select-sm" style="width:auto"
+                        onchange="this.form.submit()">
+                  {% for val, lab in priority_choices %}
+                  <option value="{{ val }}" {% if row.order.plan_priority == val %}selected{% endif %}>{{ lab }}</option>
+                  {% endfor %}
+                </select>
+              </form>
+              {% else %}
+              <span class="small">{{ row.order.get_plan_priority_display }}</span>
+              {% endif %}
+            </td>
+            <td class="small jp-plan-process text-truncate" title="{{ row.process_names|join:', ' }}">
+              {% if row.process_names %}{{ row.process_names|join:", " }}{% else %}
+                <span class="text-muted">Chưa có routing</span>
+              {% endif %}
+            </td>
+            <td class="text-end small">{% if row.has_routing %}{{ row.cycle_minutes|floatformat:"-1" }}{% else %}—{% endif %}</td>
+            <td class="text-end small">{{ row.score|floatformat:"-1" }}</td>
+            <td class="small">{{ row.order.get_plan_status_display }}</td>
+            <td class="text-end text-nowrap">
+              {% if can_release and row.order.plan_status != 'on_hold' %}
+              <form method="post" class="d-inline">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="release">
+                <input type="hidden" name="order_id" value="{{ row.order.pk }}">
+                <button type="submit" class="btn btn-hm btn-sm fw-bold"
+                        onclick="return confirm('Chuyển {{ row.order.code }} xuống sản xuất (tạo LSX)?');">
+                  Chuyển SX
+                </button>
+              </form>
+              {% endif %}
+              {% if can_schedule %}
+                {% if row.order.plan_status == 'on_hold' %}
+                <form method="post" class="d-inline">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="unhold">
+                  <input type="hidden" name="order_id" value="{{ row.order.pk }}">
+                  <button type="submit" class="btn btn-outline-secondary btn-sm">Bỏ giữ</button>
+                </form>
+                {% else %}
+                <form method="post" class="d-inline-flex gap-1 align-items-center">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="hold">
+                  <input type="hidden" name="order_id" value="{{ row.order.pk }}">
+                  <input type="text" name="reason" class="form-control form-control-sm" style="width:100px"
+                         placeholder="Lý do" maxlength="200">
+                  <button type="submit" class="btn btn-outline-secondary btn-sm">Giữ</button>
+                </form>
+                {% endif %}
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="11" class="text-muted small p-4 text-center">
+              Chưa có đơn chờ xếp.
+              <a href="{% url 'san_xuat:sales_order_confirm_list' %}">Xác nhận đơn đặt hàng</a> để đưa vào hàng đợi.
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if tab == 'released' %}
+  <div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+      <table class="table table-sm table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Đơn</th>
+            <th>Khách</th>
+            <th>Hạn / ETA</th>
+            <th class="text-end">LSX</th>
+            <th class="text-end">Tiến độ</th>
+            <th>TT</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for row in released_rows %}
+          <tr>
+            <td>
+              <a href="{% url 'san_xuat:sales_order_detail' row.order.pk %}" class="fw-bold text-decoration-none">
+                {{ row.order.code }}
+              </a>
+            </td>
+            <td class="small">{{ row.order.customer_name|default:"—" }}</td>
+            <td class="small {% if row.is_overdue %}text-danger{% endif %}">
+              {% if row.eta_date %}{{ row.eta_date|date:"d/m/Y" }}{% else %}—{% endif %}
+            </td>
+            <td class="text-end">{{ row.mo_count }}{% if row.mo_open %} <span class="text-muted">(mở {{ row.mo_open }})</span>{% endif %}</td>
+            <td class="text-end">
+              {{ row.qty_done|floatformat:"-2" }} / {{ row.qty_planned|floatformat:"-2" }}
+              <span class="text-muted">({{ row.progress_pct|floatformat:0 }}%)</span>
+            </td>
+            <td class="small">{{ row.order.get_plan_status_display }}</td>
+            <td class="text-end">
+              <a href="{% url 'san_xuat:dispatch_mo' %}?q={{ row.order.code|urlencode }}" class="btn btn-outline-secondary btn-sm">LSX</a>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="7" class="text-muted small p-4 text-center">Chưa có đơn chuyển xuống sản xuất.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

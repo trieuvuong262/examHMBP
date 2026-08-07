@@ -1,9 +1,36 @@
 # Thiết kế: Kế hoạch sản xuất (Portal)
 
-> Nguồn khảo sát: [AMIS Sản xuất demo](https://demoamisapp.misa.vn/production/production-plan/overall-plan) — tenant **Công ty Cổ phần may** (2026-07-16).  
-> Menu Portal đã scaffold: [`hub-portal.md`](./hub-portal.md) § Kế hoạch sản xuất.
+> **SoT hiện tại (2026-08):** bảng điều khiển theo **đơn đã xác nhận** tại `/san-xuat/ke-hoach/bang/` — không còn lấy chứng từ KHTT/KHCT làm trung tâm UI.  
+> KHTT/KHCT vẫn giữ cho NVL / netting / lịch sử AMIS-like.  
+> Nguồn khảo sát cũ: [AMIS overall-plan](https://demoamisapp.misa.vn/production/production-plan/overall-plan).
 
-## 1. Luồng AMIS (benchmark)
+## 0. Luồng Portal mới (MTO phase 1)
+
+```text
+ĐĐH xác nhận ──► Hàng đợi kế hoạch SX
+                      │ xếp hạng (ưu tiên, hạn, chu kỳ, FIFO)
+                      │ + xem tải tổ
+                      ▼
+                 Chuyển xuống SX ──► LSX (gắn sales_order)
+                      │
+                      ▼
+                 Đang SX / Hoàn thành (đồng bộ từ LSX)
+```
+
+| Tab | Path | Việc |
+|-----|------|------|
+| Hàng đợi | `?tab=queue` | Đơn chờ / đã xếp / tạm giữ; ưu tiên; chuyển SX |
+| Tải & xếp | `?tab=load` | Tải tổ 14 ngày + cùng hàng đợi |
+| Đã chuyển SX | `?tab=released` | Tiến độ LSX / ETA |
+
+Menu quyền: `plan_board` (view = xem; update = xếp/giữ; create|update = chuyển SX).  
+Code: [`services/plan_board.py`](../../san_xuat/services/plan_board.py), view `plan_board`.
+
+**Phase sau:** swimlane MTS/MPS trên cùng board.
+
+---
+
+## 1. Luồng AMIS (benchmark — tham chiếu)
 
 ```text
 Đơn đặt hàng / Dự báo nhu cầu

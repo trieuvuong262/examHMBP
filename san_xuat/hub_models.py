@@ -75,6 +75,57 @@ class SxSalesOrder(DemoMarkedModel):
     )
     kv_order_code = models.CharField(max_length=64, blank=True, default='', verbose_name='Mã đơn KV')
     notes = models.TextField(blank=True, default='')
+
+    # --- Kế hoạch SX theo đơn (board) ---
+    PLAN_QUEUED = 'queued'
+    PLAN_RANKED = 'ranked'
+    PLAN_RELEASED = 'released'
+    PLAN_IN_PROGRESS = 'in_progress'
+    PLAN_DONE = 'done'
+    PLAN_ON_HOLD = 'on_hold'
+    PLAN_STATUS_CHOICES = [
+        (PLAN_QUEUED, 'Chờ xếp'),
+        (PLAN_RANKED, 'Đã xếp hạng'),
+        (PLAN_RELEASED, 'Đã chuyển SX'),
+        (PLAN_IN_PROGRESS, 'Đang sản xuất'),
+        (PLAN_DONE, 'Hoàn thành'),
+        (PLAN_ON_HOLD, 'Tạm giữ'),
+    ]
+    PRIORITY_HIGH = 'high'
+    PRIORITY_NORMAL = 'normal'
+    PRIORITY_LOW = 'low'
+    PRIORITY_CHOICES = [
+        (PRIORITY_HIGH, 'Cao'),
+        (PRIORITY_NORMAL, 'Thường'),
+        (PRIORITY_LOW, 'Thấp'),
+    ]
+    plan_status = models.CharField(
+        max_length=20,
+        choices=PLAN_STATUS_CHOICES,
+        default=PLAN_QUEUED,
+        db_index=True,
+        verbose_name='TT kế hoạch SX',
+    )
+    plan_priority = models.CharField(
+        max_length=10,
+        choices=PRIORITY_CHOICES,
+        default=PRIORITY_NORMAL,
+        db_index=True,
+        verbose_name='Ưu tiên SX',
+    )
+    plan_rank = models.PositiveIntegerField(
+        null=True, blank=True, db_index=True, verbose_name='Thứ tự xếp',
+    )
+    plan_score = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True, verbose_name='Điểm xếp hạng',
+    )
+    plan_queued_at = models.DateTimeField(
+        null=True, blank=True, verbose_name='Vào hàng đợi lúc',
+    )
+    plan_hold_reason = models.CharField(
+        max_length=500, blank=True, default='', verbose_name='Lý do tạm giữ',
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

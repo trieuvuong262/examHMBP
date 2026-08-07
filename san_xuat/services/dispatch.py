@@ -232,6 +232,7 @@ def create_mo_from_bom(
     notes: str = "",
     user=None,
     detail_plan_id: int | None = None,
+    sales_order_id: int | None = None,
     is_sample: bool = False,
     lines: list[dict] | None = None,
     bom_version_id: int | None = None,
@@ -301,6 +302,7 @@ def create_mo_from_bom(
         status=SxProductionOrder.STATUS_DRAFT,
         notes=notes or "",
         detail_plan_id=detail_plan_id,
+        sales_order_id=sales_order_id,
         is_sample=bool(is_sample),
         created_by=user,
     )

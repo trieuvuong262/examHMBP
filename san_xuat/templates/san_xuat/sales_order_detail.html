@@ -11,6 +11,10 @@
       <span class="badge {% if order.confirm_status == 'draft' %}text-bg-secondary{% elif order.confirm_status == 'confirmed' %}text-bg-primary{% else %}text-bg-danger{% endif %}">
         {{ order.get_confirm_status_display }}
       </span>
+      {% if order.confirm_status == 'confirmed' %}
+      <span class="badge bg-light text-dark border">KH: {{ order.get_plan_status_display }}</span>
+      <span class="badge bg-light text-dark border">Ưu tiên: {{ order.get_plan_priority_display }}</span>
+      {% endif %}
       <span class="badge bg-light text-dark border">{{ prod_label }}</span>
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
@@ -75,6 +79,9 @@
           </button>
         </form>
         {% endif %}
+        <a href="{% url 'san_xuat:plan_board' %}?q={{ order.code|urlencode }}" class="btn btn-hm btn-sm fw-bold">
+          Bảng kế hoạch SX
+        </a>
         <a href="{% url 'san_xuat:plan_overall_create' %}?method=mto" class="btn btn-outline-secondary btn-sm">
           Tới danh sách KHTT
         </a>

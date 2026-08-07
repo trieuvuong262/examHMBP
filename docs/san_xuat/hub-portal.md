@@ -17,10 +17,11 @@ UX vận hành chính nằm trên **Portal** (`/san-xuat/`), không dùng Odoo l
 |-----|------------|---------|
 | Tổng quan | `/san-xuat/tong-quan/` | KPI nhẹ + lối tắt |
 | Đơn đặt hàng | `/san-xuat/don-hang/` | CRUD Portal — [don-dat-hang.md](./don-dat-hang.md) |
-| **Kế hoạch sản xuất** (nhóm) | `/san-xuat/ke-hoach/` | Landing 5 mục — thiết kế: [ke-hoach-san-xuat.md](./ke-hoach-san-xuat.md) |
-| → Kế hoạch tổng thể | `/san-xuat/ke-hoach/tong-the/` | Stub → P0/P1 |
-| → Kế hoạch chi tiết | `/san-xuat/ke-hoach/chi-tiet/` | Stub → P4 |
-| → Kế hoạch NPL | `/san-xuat/ke-hoach/npl/` | Stub → P2 |
+| **Kế hoạch sản xuất** (nhóm) | `/san-xuat/ke-hoach/` | Redirect → bảng theo đơn |
+| → Bảng kế hoạch (theo đơn) | `/san-xuat/ke-hoach/bang/` | SoT MTO — [ke-hoach-san-xuat.md](./ke-hoach-san-xuat.md) §0 |
+| → Kế hoạch tổng thể | `/san-xuat/ke-hoach/tong-the/` | KHTT (phụ) |
+| → Kế hoạch chi tiết | `/san-xuat/ke-hoach/chi-tiet/` | KHCT (phụ) |
+| → Kế hoạch NPL | `/san-xuat/ke-hoach/npl/` | KHNVL |
 | → Yêu cầu mua NPL | `/san-xuat/ke-hoach/yeu-cau-mua-npl/` | Stub → P3 |
 | → Đơn mua hàng | `/san-xuat/ke-hoach/don-mua-hang/` | Stub (+ link KV phiếu nhập) → P5 mỏng |
 | Điều phối (nhóm) | `/san-xuat/dieu-phoi/` | Landing — thiết kế: [dieu-phoi.md](./dieu-phoi.md) |

@@ -10,8 +10,9 @@
 Tạo tay ──► SxSalesOrder (nháp)
                   │ xác nhận
                   ▼
-            Đã xác nhận ──► Nạp KHTT MTO ──► KHCT ──► LSX
-                  │
+            Đã xác nhận ──► Hàng đợi Kế hoạch SX (board)
+                  │              │ xếp hạng → Chuyển xuống SX → LSX
+                  │              └── (tuỳ chọn) Nạp KHTT MTO
                   └── Giá thành theo mã đơn
 ```
 

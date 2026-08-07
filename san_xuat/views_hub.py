@@ -1012,7 +1012,131 @@ def costing_cost_type_edit(request, pk: int):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def plan_stub(request):
-    return render(request, 'san_xuat/hub_plan.html', {**_perm_ctx(request)})
+    return redirect('san_xuat:plan_board')
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+def plan_board(request):
+    """Kế hoạch SX theo đơn — hàng đợi / tải & xếp / đã chuyển SX (MTO phase 1)."""
+    from san_xuat.hub_models import SxSalesOrder
+    from san_xuat.services.plan_board import (
+        PLAN_STATUS_LABELS,
+        PRIORITY_LABELS,
+        QUEUE_STATUSES,
+        build_plan_board_rows,
+        confirmed_order_qty_summary,
+        hold_plan_order,
+        load_snapshot_for_board,
+        pipeline_counts,
+        recompute_plan_ranks,
+        release_order_to_production,
+        set_plan_priority,
+        sync_plan_status,
+        unhold_plan_order,
+    )
+    from san_xuat.services.planning import PlanningError
+
+    menu_key = 'plan_board'
+    if not (
+        user_can_access_menu(request.user, MODULE_SAN_XUAT, menu_key)
+        or user_can_access_menu(request.user, MODULE_SAN_XUAT, 'plan')
+    ):
+        return handle_menu_access_denied(request, MODULE_SAN_XUAT, menu_key)
+
+    can_schedule = (
+        user_can_update_menu(request.user, MODULE_SAN_XUAT, menu_key)
+        or user_can_update_menu(request.user, MODULE_SAN_XUAT, 'plan')
+    )
+    can_release = (
+        user_can_create_menu(request.user, MODULE_SAN_XUAT, menu_key)
+        or user_can_update_menu(request.user, MODULE_SAN_XUAT, menu_key)
+        or user_can_update_menu(request.user, MODULE_SAN_XUAT, 'plan')
+    )
+
+    tab = (request.GET.get('tab') or 'queue').strip()
+    if tab not in {'queue', 'load', 'released'}:
+        tab = 'queue'
+    q = (request.GET.get('q') or '').strip()
+
+    if request.method == 'POST':
+        action = (request.POST.get('action') or '').strip()
+        try:
+            order_id = int(request.POST.get('order_id') or 0)
+        except (TypeError, ValueError):
+            order_id = 0
+
+        try:
+            if action == 'recompute' and can_schedule:
+                n = recompute_plan_ranks()
+                messages.success(request, f'Đã xếp lại {n} đơn theo điểm ưu tiên / hạn / chu kỳ.')
+            elif action == 'set_priority' and can_schedule and order_id:
+                set_plan_priority(
+                    order_id=order_id,
+                    priority=(request.POST.get('priority') or '').strip(),
+                )
+                messages.success(request, 'Đã cập nhật ưu tiên.')
+            elif action == 'hold' and can_schedule and order_id:
+                hold_plan_order(
+                    order_id=order_id,
+                    reason=(request.POST.get('reason') or '').strip(),
+                )
+                messages.success(request, 'Đã tạm giữ đơn trên hàng đợi.')
+            elif action == 'unhold' and can_schedule and order_id:
+                unhold_plan_order(order_id=order_id)
+                messages.success(request, 'Đã bỏ giữ — đơn về chờ xếp.')
+            elif action == 'release' and can_release and order_id:
+                created = release_order_to_production(order_id=order_id, user=request.user)
+                messages.success(
+                    request,
+                    f'Đã chuyển xuống SX — tạo {len(created)} LSX.',
+                )
+                return redirect(f"{reverse('san_xuat:plan_board')}?tab=released")
+            else:
+                if action:
+                    messages.error(request, 'Bạn không có quyền thực hiện thao tác này.')
+        except PlanningError as exc:
+            messages.error(request, str(exc))
+        return redirect(f"{reverse('san_xuat:plan_board')}?tab={tab}&q={q}")
+
+    counts = pipeline_counts()
+    qty_summary = confirmed_order_qty_summary()
+    load_data = None
+    queue_rows = []
+    released_rows = []
+
+    if tab == 'queue':
+        queue_rows = build_plan_board_rows(statuses=QUEUE_STATUSES, search=q)
+    elif tab == 'load':
+        load_data = load_snapshot_for_board(days=14)
+        queue_rows = build_plan_board_rows(statuses=QUEUE_STATUSES, search=q)
+    else:
+        released_rows = build_plan_board_rows(
+            statuses=(
+                SxSalesOrder.PLAN_RELEASED,
+                SxSalesOrder.PLAN_IN_PROGRESS,
+                SxSalesOrder.PLAN_DONE,
+            ),
+            search=q,
+            include_released=True,
+        )
+        for row in released_rows:
+            sync_plan_status(row.order)
+
+    return render(request, 'san_xuat/plan_board.html', {
+        **_perm_ctx(request),
+        'tab': tab,
+        'search_query': q,
+        'counts': counts,
+        'qty_summary': qty_summary,
+        'queue_rows': queue_rows,
+        'released_rows': released_rows,
+        'load_data': load_data,
+        'can_schedule': can_schedule,
+        'can_release': can_release,
+        'plan_status_labels': PLAN_STATUS_LABELS,
+        'priority_labels': PRIORITY_LABELS,
+        'priority_choices': SxSalesOrder.PRIORITY_CHOICES,
+    })
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')

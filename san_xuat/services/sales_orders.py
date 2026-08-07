@@ -153,7 +153,14 @@ def confirm_sales_order(*, order_id: int) -> SxSalesOrder:
         raise PlanningError('Đơn chưa có dòng sản phẩm.')
     order.confirm_status = SxSalesOrder.CONFIRM_CONFIRMED
     order.reject_reason = ''
-    order.save(update_fields=['confirm_status', 'reject_reason', 'updated_at'])
+    order.plan_status = SxSalesOrder.PLAN_QUEUED
+    if not order.plan_queued_at:
+        order.plan_queued_at = timezone.now()
+    order.plan_hold_reason = ''
+    order.save(update_fields=[
+        'confirm_status', 'reject_reason',
+        'plan_status', 'plan_queued_at', 'plan_hold_reason', 'updated_at',
+    ])
     return order
 
 
