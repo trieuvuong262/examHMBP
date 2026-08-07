@@ -13,10 +13,10 @@ from django.db import transaction
 from django.db.models import Prefetch, Sum
 from django.utils import timezone
 
-from san_xuat.hub_models import SxProductionOrder, SxSalesOrder, SxSalesOrderLine
+from san_xuat.hub_models import SxProductionOrder, SxSalesOrder, SxSalesOrderLine, SxWorkCenter
 from san_xuat.services.dispatch import DispatchError, create_mo_from_bom
 from san_xuat.services.planning import PlanningError
-from san_xuat.services.scheduling import build_load_matrix, product_routing
+from san_xuat.services.scheduling import product_routing
 
 _Q2 = Decimal('0.01')
 
@@ -443,10 +443,11 @@ def release_order_to_production(*, order_id: int, user=None) -> list[SxProductio
 
 
 def load_snapshot_for_board(*, days: int = 14) -> dict:
-    """Nhu cầu vs năng lực theo tổ (reuse build_load_matrix) cho tab xếp lịch."""
-    today = timezone.localdate()
-    date_to = today + timedelta(days=max(1, days) - 1)
-    return build_load_matrix(date_from=today, date_to=date_to)
+    """Tải % theo tổ — danh sách đơn giản cho tab xếp lịch."""
+    centers = list(
+        SxWorkCenter.objects.filter(is_active=True, is_demo=False).order_by('code')
+    )
+    return {'centers': centers}
 
 
 def confirmed_order_qty_summary() -> dict:

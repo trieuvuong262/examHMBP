@@ -102,7 +102,6 @@ from san_xuat.services.plan_methods import (
 )
 from san_xuat.services.demand import build_mts_stock_board, build_restock_suggestions
 from san_xuat.services.scheduling import (
-    build_load_matrix,
     check_detail_plan_center_capacity,
     product_routing,
     schedule_detail_plan_by_capacity,
@@ -4061,43 +4060,13 @@ def capacity_list(request):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def capacity_load_matrix(request):
-    """Nhu cầu vs năng lực: phút SMV × ngày so với quỹ phút tổ (đã nhân Tải %)."""
-    from san_xuat.services.sx_settings import sx_int
-
-    today = timezone.localdate()
-    raw_from = (request.GET.get('from') or '').strip()
-    raw_to = (request.GET.get('to') or '').strip()
-    date_from = _parse_iso_date_safe(raw_from) or (today - timedelta(days=today.weekday()))
-    date_to = _parse_iso_date_safe(raw_to) or (date_from + timedelta(days=13))
-    if date_to < date_from:
-        date_from, date_to = date_to, date_from
-    # Giới hạn 60 ngày để bảng không quá rộng
-    if (date_to - date_from).days > 60:
-        date_to = date_from + timedelta(days=60)
-
-    include_plan = request.GET.get('src') != 'mo'
-    include_mo = request.GET.get('src') != 'plan'
-
-    matrix = build_load_matrix(
-        date_from=date_from,
-        date_to=date_to,
-        include_plan=include_plan,
-        include_mo=include_mo,
+    """Tải theo tổ — một mức Tải % / tổ (không ma trận ngày)."""
+    centers = list(
+        SxWorkCenter.objects.filter(is_active=True, is_demo=False).order_by('code')
     )
-    centers_no_minutes = [
-        wc
-        for wc in SxWorkCenter.objects.filter(is_active=True, is_demo=False).order_by('code')
-        if wc.available_minutes_per_day <= 0
-    ]
     return render(request, 'san_xuat/capacity_load_matrix.html', {
         **_perm_ctx(request),
-        'date_from': date_from,
-        'date_to': date_to,
-        'matrix': matrix,
-        'src': request.GET.get('src') or 'all',
-        'warn_pct': sx_int('capacity_load_warn_pct', 80, min_v=1, max_v=200),
-        'danger_pct': sx_int('capacity_load_danger_pct', 100, min_v=1, max_v=200),
-        'centers_no_minutes': centers_no_minutes,
+        'centers': centers,
     })
 
 
