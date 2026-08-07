@@ -687,11 +687,18 @@
     </form>
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
 <script>
 (function () {
   var bomApi = "{% url 'san_xuat:mo_bom_versions' %}";
   var modalEl = document.getElementById('jpReleaseBomModal');
-  if (!modalEl || typeof bootstrap === 'undefined') return;
+  if (!modalEl) return;
+  if (typeof bootstrap === 'undefined') {
+    console.error('Bootstrap chưa sẵn sàng — không mở được modal Chuyển SX.');
+    return;
+  }
   var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
   var form = document.getElementById('jpReleaseBomForm');
   var rowsHost = document.getElementById('jpReleaseBomRows');
@@ -721,7 +728,7 @@
   }
 
   function loadBoms(productCode, selectEl, previewEl) {
-    selectEl.innerHTML = '<option value=\"\">Đang tải…</option>';
+    selectEl.innerHTML = '<option value="">Đang tải…</option>';
     previewEl.innerHTML = '';
     fetch(bomApi + '?product_code=' + encodeURIComponent(productCode), {
       headers: { 'Accept': 'application/json' },
@@ -732,8 +739,8 @@
         var results = (data && data.results) || [];
         selectEl.innerHTML = '';
         if (!results.length) {
-          selectEl.innerHTML = '<option value=\"\">— Chưa có hồ sơ thiết kế —</option>';
-          previewEl.innerHTML = '<div class=\"small text-danger mt-1\">Mã này chưa có BOM. Tạo hồ sơ thiết kế trước.</div>';
+          selectEl.innerHTML = '<option value="">— Chưa có hồ sơ thiết kế —</option>';
+          previewEl.innerHTML = '<div class="small text-danger mt-1">Mã này chưa có BOM. Tạo hồ sơ thiết kế trước.</div>';
           return;
         }
         results.forEach(function (b, idx) {
@@ -748,7 +755,7 @@
         previewEl.innerHTML = renderSteps(sel ? JSON.parse(sel.dataset.steps || '[]') : []);
       })
       .catch(function () {
-        selectEl.innerHTML = '<option value=\"\">Không tải được hồ sơ</option>';
+        selectEl.innerHTML = '<option value="">Không tải được hồ sơ</option>';
       });
   }
 
@@ -778,13 +785,13 @@
         var wrap = document.createElement('div');
         wrap.className = 'border rounded-3 p-3';
         wrap.innerHTML =
-          '<div class=\"fw-semibold mb-1\">' + escapeHtml(code) +
-          (p.name ? ' <span class=\"text-muted fw-normal\">— ' + escapeHtml(p.name) + '</span>' : '') +
+          '<div class="fw-semibold mb-1">' + escapeHtml(code) +
+          (p.name ? ' <span class="text-muted fw-normal">— ' + escapeHtml(p.name) + '</span>' : '') +
           '</div>' +
-          '<div class=\"small text-muted mb-2\">SL ' + escapeHtml(p.qty || '') + '</div>' +
-          '<label class=\"form-label small fw-bold mb-1\">Hồ sơ thiết kế</label>' +
-          '<select class=\"form-select form-select-sm jp-release-bom-select\" name=\"bom_for__' + escapeHtml(code) + '\" required></select>' +
-          '<div class=\"jp-release-bom-preview\"></div>';
+          '<div class="small text-muted mb-2">SL ' + escapeHtml(p.qty || '') + '</div>' +
+          '<label class="form-label small fw-bold mb-1">Hồ sơ thiết kế</label>' +
+          '<select class="form-select form-select-sm jp-release-bom-select" name="bom_for__' + escapeHtml(code) + '" required></select>' +
+          '<div class="jp-release-bom-preview"></div>';
         rowsHost.appendChild(wrap);
         var selectEl = wrap.querySelector('select');
         var previewEl = wrap.querySelector('.jp-release-bom-preview');
