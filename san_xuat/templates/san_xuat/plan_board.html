@@ -38,7 +38,7 @@
     pointer-events: none;
     z-index: 0;
   }
-  .jp-pb > * { position: relative; z-index: 1; }
+  .jp-pb > *:not(.modal) { position: relative; z-index: 1; }
 
   .jp-pb-hero {
     display: flex;
@@ -687,6 +687,41 @@
     </form>
   </div>
 </div>
+
+{# Modal chỉnh lộ trình đơn — ngoài .jp-pb để tránh z-index/backdrop kẹt #}
+<div class="modal fade" id="jpKbRouteModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Chỉnh lộ trình · <span id="jpKbRouteOrderCode"></span></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="jpKbRouteOrderId" value="">
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-2" id="jpKbRouteTable">
+            <thead>
+              <tr>
+                <th style="width:4rem">TT</th>
+                <th>Công đoạn</th>
+                <th style="width:11rem">Tổ</th>
+                <th style="width:8rem">Ngày KH</th>
+                <th style="width:3rem"></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <button type="button" class="btn btn-outline-secondary btn-sm" id="jpKbRouteAdd">+ Thêm công đoạn</button>
+        <div class="small text-danger mt-2 d-none" id="jpKbRouteErr"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Hủy</button>
+        <button type="button" class="btn btn-hm btn-sm fw-bold" id="jpKbRouteSave">Lưu lộ trình</button>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -938,6 +973,10 @@
 
   function getRouteModal() {
     if (!modalEl || typeof bootstrap === 'undefined') return null;
+    // Backdrop Bootstrap gắn vào body — modal cũng phải ở body, không nằm stacking context trang
+    if (modalEl.parentElement !== document.body) {
+      document.body.appendChild(modalEl);
+    }
     return bootstrap.Modal.getOrCreateInstance(modalEl);
   }
 
@@ -988,25 +1027,31 @@
       document.getElementById('jpKbRouteOrderId').value = orderId;
       document.getElementById('jpKbRouteOrderCode').textContent = orderCode;
       errEl.classList.add('d-none');
+      errEl.textContent = '';
       tbody.innerHTML = '';
       var modal = getRouteModal();
       if (!modal) {
         alert('Không mở được cửa sổ lộ trình (Bootstrap chưa sẵn sàng).');
         return;
       }
+      // Mở ngay để không bị kẹt backdrop khi API chậm / lỗi
+      modal.show();
+      tbody.innerHTML = '<tr><td colspan="5" class="text-muted small">Đang tải lộ trình…</td></tr>';
       postForm({ action: 'get_route', order_id: orderId, mode: 'route', tab: axis }).then(function (res) {
+        tbody.innerHTML = '';
         if (!res.ok) {
           errEl.textContent = res.error || 'Không tải được lộ trình.';
           errEl.classList.remove('d-none');
-        } else {
-          (res.steps || []).forEach(addRow);
-          if (!(res.steps || []).length) addRow({});
+          addRow({});
+          return;
         }
-        modal.show();
+        (res.steps || []).forEach(addRow);
+        if (!(res.steps || []).length) addRow({});
       }).catch(function () {
+        tbody.innerHTML = '';
         errEl.textContent = 'Không tải được lộ trình.';
         errEl.classList.remove('d-none');
-        modal.show();
+        addRow({});
       });
     });
   });

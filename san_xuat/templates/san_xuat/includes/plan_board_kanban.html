@@ -160,38 +160,3 @@
   <div class="jp-pb-empty w-100">Chưa có thẻ lộ trình.</div>
   {% endfor %}
 </div>
-
-{# Modal chỉnh lộ trình đơn #}
-<div class="modal fade" id="jpKbRouteModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-scrollable">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Chỉnh lộ trình · <span id="jpKbRouteOrderCode"></span></h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
-      </div>
-      <div class="modal-body">
-        <input type="hidden" id="jpKbRouteOrderId" value="">
-        <div class="table-responsive">
-          <table class="table table-sm align-middle mb-2" id="jpKbRouteTable">
-            <thead>
-              <tr>
-                <th style="width:4rem">TT</th>
-                <th>Công đoạn</th>
-                <th style="width:11rem">Tổ</th>
-                <th style="width:8rem">Ngày KH</th>
-                <th style="width:3rem"></th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </div>
-        <button type="button" class="btn btn-outline-secondary btn-sm" id="jpKbRouteAdd">+ Thêm công đoạn</button>
-        <div class="small text-danger mt-2 d-none" id="jpKbRouteErr"></div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Hủy</button>
-        <button type="button" class="btn btn-hm btn-sm fw-bold" id="jpKbRouteSave">Lưu lộ trình</button>
-      </div>
-    </div>
-  </div>
-</div>
