@@ -113,6 +113,11 @@ alwaysApply: false
 - Không menu riêng: xem/chỉnh trên **Năng lực SX** + **Thiết lập**. URL `/nang-luc/tai-theo-to/` redirect về danh sách năng lực.
 - Board kế hoạch tab **Năng lực** (`tab=load`): chỉ **hiển thị** năng lực tổ (tham khảo) — không auto-schedule, không tính lại ETA/rank, không chặn chuyển SX.
 
+## Formset / bảng dòng
+
+- **Không** hiện checkbox `DELETE` trần để xóa dòng.
+- Ẩn checkbox (`d-none`) + nút xóa (icon `bi-x-lg`, `btn-link text-danger`) — click đánh dấu DELETE và ẩn dòng (pattern BOM / LSX / ĐĐH).
+
 ## Copy & mô tả
 
 - **Không** thêm đoạn mô tả / hint giải thích quy trình trên UI.

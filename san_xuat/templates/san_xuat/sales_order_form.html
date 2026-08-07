@@ -39,18 +39,18 @@
         <h6 class="fw-bold mb-3">Dòng sản phẩm</h6>
         {{ formset.management_form }}
         <div class="table-responsive">
-          <table class="table table-sm align-middle">
+          <table class="table table-sm align-middle" id="jp-so-lines-table">
             <thead class="table-light">
               <tr>
                 <th style="min-width:200px">Mã SP</th>
                 <th>Tên</th>
                 <th style="width:110px">Số lượng</th>
-                <th style="width:60px"></th>
+                <th style="width:3rem"></th>
               </tr>
             </thead>
             <tbody>
             {% for f in formset %}
-              <tr>
+              <tr class="jp-so-line-row">
                 <td>
                   {{ f.product_code }}
                   {% if f.product_code.errors %}<div class="text-danger small">{{ f.product_code.errors }}</div>{% endif %}
@@ -58,7 +58,12 @@
                 <td>{{ f.product_name }}</td>
                 <td>{{ f.qty }}</td>
                 <td class="text-center">
-                  {% if f.DELETE %}{{ f.DELETE }}{% endif %}
+                  {% if f.DELETE %}
+                  <div class="d-none">{{ f.DELETE }}</div>
+                  <button type="button" class="btn btn-link btn-sm text-danger p-0 jp-so-remove-row" title="Xóa dòng" aria-label="Xóa dòng">
+                    <i class="bi bi-x-lg" aria-hidden="true"></i>
+                  </button>
+                  {% endif %}
                 </td>
               </tr>
             {% endfor %}
@@ -72,4 +77,23 @@
   </form>
 </div>
 {% include 'san_xuat/includes/sx_product_code_select_script.html' %}
+<script>
+(function () {
+  var body = document.querySelector('#jp-so-lines-table tbody');
+  if (!body) return;
+  body.addEventListener('click', function (e) {
+    var btn = e.target.closest('.jp-so-remove-row');
+    if (!btn) return;
+    var row = btn.closest('tr');
+    if (!row) return;
+    var del = row.querySelector('input[type=checkbox][name$="-DELETE"]');
+    if (del) {
+      del.checked = true;
+      row.style.display = 'none';
+    } else {
+      row.remove();
+    }
+  });
+})();
+</script>
 {% endblock %}
