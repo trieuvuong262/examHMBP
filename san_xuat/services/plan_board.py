@@ -21,9 +21,20 @@ from san_xuat.services.scheduling import build_load_matrix, product_routing
 _Q2 = Decimal('0.01')
 
 PRIORITY_WEIGHT = {
+    SxSalesOrder.PRIORITY_CRITICAL: Decimal('5000'),
+    SxSalesOrder.PRIORITY_URGENT: Decimal('2000'),
     SxSalesOrder.PRIORITY_HIGH: Decimal('1000'),
     SxSalesOrder.PRIORITY_NORMAL: Decimal('100'),
     SxSalesOrder.PRIORITY_LOW: Decimal('10'),
+}
+
+# Màu mức độ gấp (board ticket / badge) — đồng bộ CSS `.jp-pb-urgency` / `.jp-pb-ticket.is-*`
+PRIORITY_COLORS = {
+    SxSalesOrder.PRIORITY_CRITICAL: '#991b1b',  # đỏ đậm
+    SxSalesOrder.PRIORITY_URGENT: '#c2410c',    # cam
+    SxSalesOrder.PRIORITY_HIGH: '#a16207',      # vàng hổ phách
+    SxSalesOrder.PRIORITY_NORMAL: '#0369a1',    # xanh
+    SxSalesOrder.PRIORITY_LOW: '#64748b',       # xám
 }
 
 PLAN_STATUS_LABELS = dict(SxSalesOrder.PLAN_STATUS_CHOICES)
@@ -312,11 +323,13 @@ def recompute_plan_ranks(*, only_queue: bool = True) -> int:
 @transaction.atomic
 def set_plan_priority(*, order_id: int, priority: str) -> SxSalesOrder:
     if priority not in {
+        SxSalesOrder.PRIORITY_CRITICAL,
+        SxSalesOrder.PRIORITY_URGENT,
         SxSalesOrder.PRIORITY_HIGH,
         SxSalesOrder.PRIORITY_NORMAL,
         SxSalesOrder.PRIORITY_LOW,
     }:
-        raise PlanningError('Ưu tiên không hợp lệ.')
+        raise PlanningError('Mức độ gấp không hợp lệ.')
     order = SxSalesOrder.objects.select_for_update().get(pk=order_id, is_demo=False)
     if order.confirm_status != SxSalesOrder.CONFIRM_CONFIRMED:
         raise PlanningError('Chỉ xếp đơn đã xác nhận.')

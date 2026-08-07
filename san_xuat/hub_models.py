@@ -91,10 +91,14 @@ class SxSalesOrder(DemoMarkedModel):
         (PLAN_DONE, 'Hoàn thành'),
         (PLAN_ON_HOLD, 'Tạm giữ'),
     ]
-    PRIORITY_HIGH = 'high'
-    PRIORITY_NORMAL = 'normal'
-    PRIORITY_LOW = 'low'
+    PRIORITY_CRITICAL = 'critical'  # Rất gấp
+    PRIORITY_URGENT = 'urgent'      # Gấp
+    PRIORITY_HIGH = 'high'          # Cao
+    PRIORITY_NORMAL = 'normal'      # Thường
+    PRIORITY_LOW = 'low'            # Thấp
     PRIORITY_CHOICES = [
+        (PRIORITY_CRITICAL, 'Rất gấp'),
+        (PRIORITY_URGENT, 'Gấp'),
         (PRIORITY_HIGH, 'Cao'),
         (PRIORITY_NORMAL, 'Thường'),
         (PRIORITY_LOW, 'Thấp'),
@@ -107,11 +111,11 @@ class SxSalesOrder(DemoMarkedModel):
         verbose_name='TT kế hoạch SX',
     )
     plan_priority = models.CharField(
-        max_length=10,
+        max_length=12,
         choices=PRIORITY_CHOICES,
         default=PRIORITY_NORMAL,
         db_index=True,
-        verbose_name='Ưu tiên SX',
+        verbose_name='Mức độ gấp',
     )
     plan_rank = models.PositiveIntegerField(
         null=True, blank=True, db_index=True, verbose_name='Thứ tự xếp',

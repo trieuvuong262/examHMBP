@@ -84,6 +84,20 @@ alwaysApply: false
 - Hàng nút trong card: `align-items: center`; form trong hàng dùng `inline-flex` + `align-items: center` (ô input + nút cùng baseline).
 - CTA phụ (vd. KHSX / Giá thành) có thể đẩy sang phải bằng spacer `flex: 1`; nút xác nhận/từ chối giữ trái.
 
+## Mức độ gấp (kế hoạch SX theo đơn)
+
+- **Đúng 5 cấp**, phân biệt bằng màu — không gộp về 3 cấp Cao/Thường/Thấp:
+  | Key | Nhãn | Màu |
+  |---|---|---|
+  | `critical` | Rất gấp | đỏ đậm `#991b1b` |
+  | `urgent` | Gấp | cam `#c2410c` |
+  | `high` | Cao | hổ phách `#a16207` |
+  | `normal` | Thường | xanh `#0369a1` |
+  | `low` | Thấp | xám `#64748b` |
+- Ticket board: `border-left` theo cấp + badge `.jp-pb-urgency.is-<key>`.
+- Style dùng chung: `san_xuat/includes/sx_plan_urgency_styles.html`.
+- Có chú giải màu trên board; dropdown chọn mức cũng tô màu theo cấp đang chọn.
+
 ## Copy & mô tả
 
 - **Không** thêm đoạn mô tả / hint giải thích quy trình trên UI.

@@ -3,6 +3,7 @@
 {% load sx_format %}
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+{% include 'san_xuat/includes/sx_plan_urgency_styles.html' %}
 <style>
   .jp-so-actions {
     display: flex;
@@ -59,7 +60,7 @@
       </span>
       {% if order.confirm_status == 'confirmed' %}
       <span class="badge bg-light text-dark border">KH: {{ order.get_plan_status_display }}</span>
-      <span class="badge bg-light text-dark border">Ưu tiên: {{ order.get_plan_priority_display }}</span>
+      <span class="jp-pb-urgency is-{{ order.plan_priority }}">{{ order.get_plan_priority_display }}</span>
       {% endif %}
       <span class="badge bg-light text-dark border">{{ prod_label }}</span>
     </div>

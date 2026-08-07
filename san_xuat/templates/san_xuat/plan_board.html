@@ -3,6 +3,7 @@
 {% load sx_format %}
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+{% include 'san_xuat/includes/sx_plan_urgency_styles.html' %}
 <style>
   .jp-pb {
     --pb-ink: #0f172a;
@@ -215,15 +216,29 @@
     box-shadow: var(--pb-shadow);
     border-left: 4px solid #94a3b8;
   }
-  .jp-pb-ticket.is-high { border-left-color: #dc2626; }
-  .jp-pb-ticket.is-normal { border-left-color: #0284c7; }
-  .jp-pb-ticket.is-low { border-left-color: #94a3b8; }
+  /* 5 cấp mức độ gấp — màu biên trái ticket */
+  .jp-pb-ticket.is-critical { border-left-color: #991b1b; }
+  .jp-pb-ticket.is-urgent { border-left-color: #c2410c; }
+  .jp-pb-ticket.is-high { border-left-color: #a16207; }
+  .jp-pb-ticket.is-normal { border-left-color: #0369a1; }
+  .jp-pb-ticket.is-low { border-left-color: #64748b; }
   .jp-pb-ticket.is-hold {
     opacity: 0.78;
     background: var(--pb-hold-bg);
     border-left-color: #64748b;
   }
   .jp-pb-ticket.is-overdue { background: linear-gradient(90deg, #fef2f2 0%, #fff 42%); }
+
+  .jp-pb-urgency-legend {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem 0.55rem;
+    margin: 0 0 1rem;
+    font-size: 0.8rem;
+    color: var(--pb-muted);
+  }
+  .jp-pb-urgency-legend > span:first-child { font-weight: 600; margin-right: 0.15rem; }
 
   .jp-pb-rank {
     width: 2.6rem;
@@ -291,6 +306,16 @@
     min-width: 9.5rem;
   }
   .jp-pb-prio form { margin: 0; }
+  .jp-pb-prio select {
+    min-width: 7.5rem;
+    font-weight: 600;
+    border-width: 1.5px;
+  }
+  .jp-pb-prio.is-critical select { color: #991b1b; border-color: #fca5a5; background: #fef2f2; }
+  .jp-pb-prio.is-urgent select { color: #c2410c; border-color: #fdba74; background: #fff7ed; }
+  .jp-pb-prio.is-high select { color: #a16207; border-color: #fcd34d; background: #fffbeb; }
+  .jp-pb-prio.is-normal select { color: #0369a1; border-color: #7dd3fc; background: #e0f2fe; }
+  .jp-pb-prio.is-low select { color: #475569; border-color: #cbd5e1; background: #f1f5f9; }
   .jp-pb-actions {
     display: flex;
     flex-wrap: wrap;
@@ -407,6 +432,13 @@
        href="{% url 'san_xuat:plan_board' %}?tab=released{% if search_query %}&q={{ search_query|urlencode }}{% endif %}">Đã chuyển SX</a>
   </div>
 
+  <div class="jp-pb-urgency-legend" aria-label="Mức độ gấp">
+    <span>Mức độ gấp:</span>
+    {% for val, lab in priority_choices %}
+    <span class="jp-pb-urgency is-{{ val }}">{{ lab }}</span>
+    {% endfor %}
+  </div>
+
   <form method="get" class="jp-pb-toolbar">
     <input type="hidden" name="tab" value="{{ tab }}">
     <input type="search" name="q" value="{{ search_query }}" class="form-control form-control-sm"
@@ -457,6 +489,7 @@
       <div class="jp-pb-main">
         <div class="jp-pb-title-row">
           <a class="jp-pb-code" href="{% url 'san_xuat:sales_order_detail' row.order.pk %}">{{ row.order.code }}</a>
+          <span class="jp-pb-urgency is-{{ row.order.plan_priority }}">{{ row.order.get_plan_priority_display }}</span>
           <span class="jp-pb-customer">{{ row.order.customer_name|default:"—" }}</span>
         </div>
         <div class="jp-pb-meta">
@@ -491,12 +524,12 @@
       </div>
       <div class="jp-pb-side">
         {% if can_schedule %}
-        <div class="jp-pb-prio">
+        <div class="jp-pb-prio is-{{ row.order.plan_priority }}">
           <form method="post">
             {% csrf_token %}
             <input type="hidden" name="action" value="set_priority">
             <input type="hidden" name="order_id" value="{{ row.order.pk }}">
-            <select name="priority" class="form-select form-select-sm" onchange="this.form.submit()" aria-label="Ưu tiên">
+            <select name="priority" class="form-select form-select-sm" onchange="this.form.submit()" aria-label="Mức độ gấp">
               {% for val, lab in priority_choices %}
               <option value="{{ val }}" {% if row.order.plan_priority == val %}selected{% endif %}>{{ lab }}</option>
               {% endfor %}
@@ -504,7 +537,7 @@
           </form>
         </div>
         {% else %}
-        <span class="small fw-semibold">{{ row.order.get_plan_priority_display }}</span>
+        <span class="jp-pb-urgency is-{{ row.order.plan_priority }}">{{ row.order.get_plan_priority_display }}</span>
         {% endif %}
         <div class="jp-pb-actions">
           {% if can_release and row.order.plan_status != 'on_hold' %}
@@ -557,6 +590,7 @@
       <div class="jp-pb-main">
         <div class="jp-pb-title-row">
           <a class="jp-pb-code" href="{% url 'san_xuat:sales_order_detail' row.order.pk %}">{{ row.order.code }}</a>
+          <span class="jp-pb-urgency is-{{ row.order.plan_priority }}">{{ row.order.get_plan_priority_display }}</span>
           <span class="jp-pb-customer">{{ row.order.customer_name|default:"—" }}</span>
         </div>
         <div class="jp-pb-meta">
