@@ -160,11 +160,11 @@ class WorkCenterForm(forms.Form):
         max_digits=5,
         decimal_places=2,
         min_value=Decimal("0"),
-        max_value=Decimal("100"),
-        initial=Decimal("85"),
-        label="Hiệu suất (%)",
-        widget=forms.NumberInput(attrs={"class": "form-control form-control-sm", "step": "0.5", "min": "0", "max": "100"}),
-        help_text="Phần thời gian thực sự tạo ra sản phẩm — dùng khi xếp lịch theo định mức.",
+        max_value=Decimal("200"),
+        initial=Decimal("100"),
+        label="Tải (%)",
+        widget=forms.NumberInput(attrs={"class": "form-control form-control-sm", "step": "0.5", "min": "0", "max": "200"}),
+        help_text="80 = thiếu người; 100 = bình thường; 150 = tăng ca. Nhân vào quỹ phút hữu ích.",
     )
     is_active = forms.BooleanField(
         required=False,

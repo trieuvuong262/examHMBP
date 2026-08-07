@@ -107,7 +107,7 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
         {'key': 'docs', 'label': 'Hồ sơ thiết kế', 'icon': 'bi-journal-text'},
         {'key': 'bom', 'label': 'BOM', 'icon': 'bi-diagram-3'},
         {'key': 'capacity', 'label': 'Năng lực SX', 'icon': 'bi-speedometer'},
-        {'key': 'capacity_load', 'label': 'Tải năng lực theo tổ', 'icon': 'bi-bar-chart-steps'},
+        {'key': 'capacity_load', 'label': 'Nhu cầu vs năng lực', 'icon': 'bi-bar-chart-steps'},
         {'key': 'plan', 'label': 'Kế hoạch sản xuất', 'icon': 'bi-calendar3'},
         {'key': 'plan_board', 'label': 'Kế hoạch sản xuất (theo đơn)', 'icon': 'bi-kanban'},
         {'key': 'plan_progress', 'label': 'Giám sát tiến độ (đã gộp)', 'icon': 'bi-clipboard-data'},

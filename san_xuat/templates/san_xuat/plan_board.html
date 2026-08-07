@@ -474,8 +474,8 @@
 
   {% if tab == 'load' %}
   <div class="mb-2 d-flex justify-content-between align-items-baseline flex-wrap gap-2">
-    <h3 class="h6 fw-bold mb-0">Tải theo tổ · {{ load_data.days|length }} ngày làm việc tới</h3>
-    <a href="{% url 'san_xuat:capacity_load_matrix' %}" class="small">Xem ma trận tải đầy đủ</a>
+    <h3 class="h6 fw-bold mb-0">Nhu cầu vs năng lực · {{ load_data.days|length }} ngày làm việc tới</h3>
+    <a href="{% url 'san_xuat:capacity_load_matrix' %}" class="small">Xem ma trận đầy đủ</a>
   </div>
   {% if load_data and load_data.rows %}
   <div class="jp-pb-load-grid">

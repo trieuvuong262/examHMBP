@@ -4061,7 +4061,7 @@ def capacity_list(request):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def capacity_load_matrix(request):
-    """Tải năng lực theo tổ × ngày, tính bằng phút từ định mức SMV."""
+    """Nhu cầu vs năng lực: phút SMV × ngày so với quỹ phút tổ (đã nhân Tải %)."""
     from san_xuat.services.sx_settings import sx_int
 
     today = timezone.localdate()
@@ -4133,9 +4133,29 @@ def capacity_setup(request):
                     attrs={'class': 'form-control form-control-sm text-end', 'min': '0', 'max': '1440'},
                 ),
                 'efficiency_pct': CompactNumberInput(
-                    attrs={'class': 'form-control form-control-sm text-end', 'min': '0', 'max': '100', 'step': 'any'},
+                    attrs={'class': 'form-control form-control-sm text-end', 'min': '0', 'max': '200', 'step': 'any'},
                 ),
             }
+            labels = {
+                'efficiency_pct': 'Tải (%)',
+            }
+
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.fields['efficiency_pct'].label = 'Tải (%)'
+            self.fields['efficiency_pct'].help_text = (
+                '80 = thiếu người; 100 = bình thường; 150 = tăng ca.'
+            )
+            self.fields['efficiency_pct'].max_value = Decimal('200')
+            self.fields['efficiency_pct'].min_value = Decimal('0')
+
+        def clean_efficiency_pct(self):
+            value = self.cleaned_data.get('efficiency_pct')
+            if value is None:
+                return Decimal('100')
+            if value < 0 or value > 200:
+                raise forms.ValidationError('Tải phải trong khoảng 0–200%.')
+            return value
 
     # Nhân sự chỉ lấy từ HR (Đồng bộ HR) — không cho sửa tay trên màn này.
     CapacityFormSet = modelformset_factory(SxWorkCenter, form=CapacitySetupForm, extra=0)
@@ -4233,7 +4253,7 @@ def capacity_create(request):
             'is_active': True,
             'uom_label': 'SP',
             'shift_minutes_per_head': 480,
-            'efficiency_pct': Decimal('85'),
+            'efficiency_pct': Decimal('100'),
         })
     return render(request, 'san_xuat/phase3_form.html', {
         **_perm_ctx(request),

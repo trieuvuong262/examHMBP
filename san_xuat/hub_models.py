@@ -8,7 +8,7 @@ from __future__ import annotations
 from decimal import Decimal
 
 from django.conf import settings
-from django.core.validators import MinValueValidator
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 
@@ -1686,16 +1686,20 @@ class SxWorkCenter(DemoMarkedModel):
     efficiency_pct = models.DecimalField(
         max_digits=5,
         decimal_places=2,
-        default=Decimal('85'),
-        verbose_name='Hiệu suất (%)',
-        help_text='Tỷ lệ thời gian thực sự tạo ra sản phẩm — dùng khi xếp lịch theo SMV.',
+        default=Decimal('100'),
+        verbose_name='Tải (%)',
+        help_text='Hệ số năng lực tổ so với bình thường: 80 = thiếu người, 100 = bình thường, 150 = tăng ca. Nhân vào quỹ phút hữu ích.',
+        validators=[
+            MinValueValidator(Decimal('0')),
+            MaxValueValidator(Decimal('200')),
+        ],
     )
     team_label = models.CharField(
         max_length=80,
         blank=True,
         default='',
         verbose_name='Nhãn tổ (khớp thống kê sản xuất)',
-        help_text='Khớp field team_label trên TKSX để tính tải thực tế.',
+        help_text='Khớp field team_label trên TKSX để đối chiếu sản lượng thực tế.',
     )
     is_active = models.BooleanField(default=True, db_index=True)
     notes = models.TextField(blank=True, default='')
@@ -1711,11 +1715,11 @@ class SxWorkCenter(DemoMarkedModel):
 
     @property
     def available_minutes_per_day(self) -> Decimal:
-        """Phút hữu ích mỗi ngày = số người × phút/ca × hiệu suất."""
+        """Phút hữu ích mỗi ngày = số người × phút/ca × tải %."""
         heads = Decimal(self.headcount or 0)
         shift = Decimal(self.shift_minutes_per_head or 0)
-        eff = (self.efficiency_pct or Decimal('0')) / Decimal('100')
-        return (heads * shift * eff).quantize(Decimal('0.01'))
+        load = (self.efficiency_pct or Decimal('0')) / Decimal('100')
+        return (heads * shift * load).quantize(Decimal('0.01'))
 
     @property
     def has_minute_capacity(self) -> bool:
@@ -2279,10 +2283,10 @@ class SxGeneralSettings(models.Model):
 
     # --- Năng lực & danh sách ---
     capacity_load_warn_pct = models.PositiveSmallIntegerField(
-        default=80, verbose_name='Ngưỡng cảnh báo tải năng lực (%)',
+        default=80, verbose_name='Ngưỡng cảnh báo lấp đầy (%)',
     )
     capacity_load_danger_pct = models.PositiveSmallIntegerField(
-        default=100, verbose_name='Ngưỡng quá tải năng lực (%)',
+        default=100, verbose_name='Ngưỡng quá lấp đầy (%)',
     )
     list_default_date_range_days = models.PositiveSmallIntegerField(
         default=3, verbose_name='Số ngày lọc danh sách mặc định',

@@ -443,7 +443,7 @@ def release_order_to_production(*, order_id: int, user=None) -> list[SxProductio
 
 
 def load_snapshot_for_board(*, days: int = 14) -> dict:
-    """Tải theo tổ (reuse build_load_matrix) cho tab xếp lịch."""
+    """Nhu cầu vs năng lực theo tổ (reuse build_load_matrix) cho tab xếp lịch."""
     today = timezone.localdate()
     date_to = today + timedelta(days=max(1, days) - 1)
     return build_load_matrix(date_from=today, date_to=date_to)

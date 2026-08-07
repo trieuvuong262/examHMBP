@@ -21,14 +21,14 @@
 <div class="container-fluid jp-page jp-sx-page py-3 py-md-4 mb-5">
   <div class="jp-page-header mb-3 mb-md-4">
     <div class="jp-page-header-main">
-      <h2 class="jp-page-title fw-bold text-dark mb-1">Tải năng lực theo tổ</h2>
+      <h2 class="jp-page-title fw-bold text-dark mb-1">Nhu cầu vs năng lực</h2>
       <p class="text-muted small mb-0">
-        Phút cần (sản lượng × định mức SMV) so với quỹ phút của từng tổ, theo từng ngày làm việc.
+        Phút cần (sản lượng × định mức SMV) so với quỹ phút của từng tổ (đã nhân Tải %), theo ngày làm việc.
       </p>
     </div>
     <div class="d-flex gap-2 flex-wrap">
       <a href="{% url 'san_xuat:capacity_list' %}" class="btn btn-outline-secondary">
-        <i class="bi bi-speedometer me-1"></i>Danh mục năng lực
+        <i class="bi bi-speedometer me-1"></i>Năng lực / Tải tổ
       </a>
       <a href="{% url 'san_xuat:plan_detail' %}" class="btn btn-outline-hm">Kế hoạch chi tiết</a>
     </div>
@@ -45,7 +45,7 @@
         <input type="date" name="to" value="{{ date_to|date:'Y-m-d' }}" class="form-control jp-date-vn">
       </div>
       <div>
-        <label class="form-label fw-bold small mb-1">Nguồn tải</label>
+        <label class="form-label fw-bold small mb-1">Nguồn nhu cầu</label>
         <select name="src" class="form-select">
           <option value="all" {% if src == 'all' %}selected{% endif %}>Kế hoạch + Lệnh SX</option>
           <option value="plan" {% if src == 'plan' %}selected{% endif %}>Chỉ kế hoạch chi tiết</option>
@@ -59,7 +59,7 @@
   {% if centers_no_minutes %}
   <div class="alert alert-warning border-0 shadow-sm py-2 small">
     <i class="bi bi-exclamation-triangle-fill me-1"></i>
-    {{ centers_no_minutes|length }} tổ chưa khai số nhân sự / phút làm việc nên không tính được tải:
+    {{ centers_no_minutes|length }} tổ chưa khai số nhân sự / phút làm việc nên không tính được:
     {% for wc in centers_no_minutes %}<strong>{{ wc.name }}</strong>{% if not forloop.last %}, {% endif %}{% endfor %}.
     Đồng bộ nhân sự hoặc khai tại <a href="{% url 'san_xuat:capacity_list' %}">Năng lực SX</a>.
   </div>
@@ -75,7 +75,7 @@
             {% for d in matrix.days %}
             <th>{{ d|date:"d/m" }}</th>
             {% endfor %}
-            <th>Tải kỳ</th>
+            <th>Lấp đầy kỳ</th>
           </tr>
         </thead>
         <tbody>
@@ -85,8 +85,8 @@
               <div class="fw-semibold">{{ row.center.name }}</div>
               <div class="text-muted" style="font-size: .72rem;">
                 {{ row.center.headcount }} người ·
-                {{ row.center.available_minutes_per_day|floatformat:"0" }} phút/ngày
-                ({{ row.center.efficiency_pct|floatformat:"-2" }}%)
+                {{ row.center.available_minutes_per_day|floatformat:"0" }} phút/ngày ·
+                Tải {{ row.center.efficiency_pct|floatformat:"-2" }}%
               </div>
             </td>
             {% for cell in row.cells %}
@@ -121,11 +121,11 @@
     </div>
     <div class="card-footer bg-white border-top">
       <div class="jp-load-legend text-muted">
-        <span><i class="jp-load-ok"></i>Dưới {{ warn_pct }}%</span>
+        <span><i class="jp-load-ok"></i>Lấp đầy dưới {{ warn_pct }}%</span>
         <span><i class="jp-load-warn"></i>{{ warn_pct }}–{{ danger_pct }}%</span>
-        <span><i class="jp-load-over"></i>Quá tải (từ {{ danger_pct }}%)</span>
-        <span><i class="jp-load-idle"></i>Không có tải</span>
-        <span class="ms-auto">Dòng cuối = tổng phút cần toàn xưởng mỗi ngày.</span>
+        <span><i class="jp-load-over"></i>Quá quỹ (từ {{ danger_pct }}%)</span>
+        <span><i class="jp-load-idle"></i>Không có nhu cầu</span>
+        <span class="ms-auto">Ô = lấp đầy ngày (nhu cầu ÷ quỹ phút). Tải tổ chỉnh tại Năng lực SX.</span>
       </div>
     </div>
   </div>
@@ -133,12 +133,12 @@
   <div class="card border-0 shadow-sm">
     <div class="card-body text-center py-5">
       <i class="bi bi-clipboard-data text-muted" style="font-size: 2rem;"></i>
-      <p class="text-muted mb-1 mt-2">Chưa tính được tải năng lực.</p>
+      <p class="text-muted mb-1 mt-2">Chưa tính được nhu cầu vs năng lực.</p>
       <p class="text-muted small mb-3">
         Cần đồng thời: tổ có khai số nhân sự, và mã sản phẩm có định mức thời gian (SMV) trên BOM/routing.
       </p>
       <div class="d-flex gap-2 justify-content-center flex-wrap">
-        <a href="{% url 'san_xuat:capacity_list' %}" class="btn btn-outline-hm">Khai năng lực tổ</a>
+        <a href="{% url 'san_xuat:capacity_list' %}" class="btn btn-outline-hm">Khai năng lực / Tải tổ</a>
         <a href="{% url 'san_xuat:ie_routing_list' %}" class="btn btn-outline-secondary">Routing / định mức</a>
       </div>
     </div>

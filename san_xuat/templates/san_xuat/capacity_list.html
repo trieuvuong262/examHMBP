@@ -214,7 +214,7 @@
   {% include 'san_xuat/includes/sx_capacity_filter.html' %}
 
   <div class="sx-cap-section-head">
-    <h3>Tải theo kỳ</h3>
+    <h3>Lấp đầy theo kỳ</h3>
     <span class="sx-cap-period">{{ date_from|date:"d/m/Y" }} – {{ date_to|date:"d/m/Y" }}</span>
   </div>
 
@@ -226,7 +226,8 @@
             <th>Tổ / chuyền</th>
             <th class="text-end">NL kỳ</th>
             <th class="text-end">Còn lại</th>
-            <th style="min-width:8.5rem">Tải</th>
+            <th class="text-end" style="min-width:4.5rem">Tải %</th>
+            <th style="min-width:8.5rem">Lấp đầy</th>
             <th class="text-end">SX đạt</th>
             <th style="min-width:8.5rem">Tận dụng</th>
           </tr>
@@ -240,6 +241,7 @@
             </td>
             <td class="text-end sx-cap-num">{{ row.capacity_period|sx_num }}</td>
             <td class="text-end sx-cap-num">{{ row.assigned_open|sx_num }}</td>
+            <td class="text-end sx-cap-num">{{ row.center.efficiency_pct|sx_num }}%</td>
             <td>
               {% if row.load_pct > capacity_load_danger_pct %}
               <div class="sx-cap-meter">
@@ -275,16 +277,16 @@
             </td>
           </tr>
         {% empty %}
-          <tr><td colspan="6" class="text-muted small p-4 text-center">Chưa có tổ/chuyền đang dùng.</td></tr>
+          <tr><td colspan="7" class="text-muted small p-4 text-center">Chưa có tổ/chuyền đang dùng.</td></tr>
         {% endfor %}
         </tbody>
       </table>
     </div>
     {% if load_rows %}
     <div class="sx-cap-legend">
-      <span><i class="lg-ok" aria-hidden="true"></i>Tải ≤ {{ capacity_load_warn_pct }}%</span>
+      <span><i class="lg-ok" aria-hidden="true"></i>Lấp đầy ≤ {{ capacity_load_warn_pct }}%</span>
       <span><i class="lg-warn" aria-hidden="true"></i>Cảnh báo &gt; {{ capacity_load_warn_pct }}%</span>
-      <span><i class="lg-danger" aria-hidden="true"></i>Quá tải &gt; {{ capacity_load_danger_pct }}%</span>
+      <span><i class="lg-danger" aria-hidden="true"></i>Quá quỹ &gt; {{ capacity_load_danger_pct }}%</span>
     </div>
     {% endif %}
   </div>
@@ -334,9 +336,10 @@
           (Cắt/trải 25 · In ép 21 · May 14 · Ủi 30 · Gấp xếp 35 · khác 12). Có thể chỉnh tay, số chỉnh tay được giữ khi đồng bộ lại.</li>
         <li><strong>NL kỳ</strong> = NL/ngày × số ngày trong kỳ đang lọc.</li>
         <li><strong>Còn lại</strong> = tổng số lượng chưa làm xong (SL − đã đạt) của các lệnh SX đang mở gắn với tổ qua giao việc.</li>
-        <li><strong>Tải %</strong> = Còn lại ÷ NL kỳ — vượt {{ capacity_load_warn_pct }}% cảnh báo, vượt {{ capacity_load_danger_pct }}% quá tải.</li>
+        <li><strong>Lấp đầy %</strong> = Còn lại ÷ NL kỳ — vượt {{ capacity_load_warn_pct }}% cảnh báo, vượt {{ capacity_load_danger_pct }}% quá quỹ.</li>
+        <li><strong>Tải %</strong> = hệ số năng lực tổ (80 thiếu người · 100 bình thường · 150 tăng ca) — chỉnh tại Thiết lập; nhân vào quỹ phút hữu ích.</li>
         <li><strong>SX đạt</strong> = tổng SP đạt trên thống kê SX đã xác nhận trong kỳ (khớp nhãn tổ); <strong>Tận dụng %</strong> = SX đạt ÷ NL kỳ.</li>
-        <li><strong>Phút hữu ích/ngày</strong> = số nhân sự × phút/ca (mặc định 480) × hiệu suất (mặc định 85%) — dùng khi xếp lịch theo định mức SMV ở màn <a href="{% url 'san_xuat:capacity_load_matrix' %}">Tải theo tổ</a>.</li>
+        <li><strong>Phút hữu ích/ngày</strong> = số nhân sự × phút/ca (mặc định 480) × Tải % — dùng xếp lịch SMV ở màn <a href="{% url 'san_xuat:capacity_load_matrix' %}">Nhu cầu vs năng lực</a>.</li>
       </ul>
     </div>
   </div>

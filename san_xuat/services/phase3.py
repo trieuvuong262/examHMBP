@@ -206,9 +206,9 @@ def upsert_work_center(
     heads = max(0, int(headcount or 0))
     shift = int(shift_minutes_per_head) if shift_minutes_per_head is not None else 480
     shift = max(0, min(1440, shift))
-    eff = Decimal(str(efficiency_pct)) if efficiency_pct is not None else Decimal("85")
-    if eff < 0 or eff > 100:
-        raise Phase3Error("Hiệu suất phải trong khoảng 0–100%.")
+    eff = Decimal(str(efficiency_pct)) if efficiency_pct is not None else Decimal("100")
+    if eff < 0 or eff > 200:
+        raise Phase3Error("Tải phải trong khoảng 0–200%.")
 
     if center_id:
         center = SxWorkCenter.objects.select_for_update().get(pk=center_id)
