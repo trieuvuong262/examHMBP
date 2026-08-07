@@ -4,27 +4,23 @@
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
 <style>
-  .jp-so-actions .jp-so-link {
-    display: inline-flex;
-    align-items: center;
-    padding: 0.15rem 0.45rem;
-    font-size: 0.8125rem;
-    font-weight: 500;
-    line-height: 1.3;
-    color: var(--bs-secondary-color);
-    text-decoration: none;
-    border-radius: 0.35rem;
-    white-space: nowrap;
-  }
-  .jp-so-actions .jp-so-link:hover {
-    color: var(--bs-body-color);
-    background: rgba(0, 0, 0, 0.045);
-  }
-  .jp-so-actions .btn {
-    font-weight: 600;
+  .jp-so-actions {
+    gap: 0.5rem !important;
   }
   .jp-so-actions form {
     margin: 0;
+    width: auto;
+    flex: 0 0 auto;
+  }
+  .jp-so-actions .btn {
+    flex: 0 0 auto;
+    width: auto !important;
+    min-height: 1.9rem;
+    padding: 0.25rem 0.7rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    line-height: 1.25;
+    white-space: nowrap;
   }
 </style>
 {% endblock %}
@@ -96,9 +92,13 @@
         </form>
         {% endif %}
         {% if order.confirm_status == 'confirmed' %}
-        <a href="{% url 'san_xuat:plan_board' %}?q={{ order.code|urlencode }}" class="jp-so-link">Kế hoạch SX</a>
+        <a href="{% url 'san_xuat:plan_board' %}?q={{ order.code|urlencode }}" class="btn btn-hm btn-sm">
+          Kế hoạch sản xuất
+        </a>
         {% endif %}
-        <a href="{% url 'san_xuat:costing_by_order' %}?q={{ order.code|urlencode }}" class="jp-so-link">Giá thành theo đơn</a>
+        <a href="{% url 'san_xuat:costing_by_order' %}?q={{ order.code|urlencode }}" class="btn btn-outline-secondary btn-sm">
+          Giá thành theo đơn
+        </a>
       </div>
       {% endif %}
     </div>
@@ -143,7 +143,7 @@
       <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
         <h6 class="fw-bold mb-0">Lệnh sản xuất liên quan</h6>
         {% if order.confirm_status == 'confirmed' %}
-        <a href="{% url 'san_xuat:plan_board' %}?q={{ order.code|urlencode }}" class="jp-so-link">Mở kế hoạch SX</a>
+        <a href="{% url 'san_xuat:plan_board' %}?q={{ order.code|urlencode }}" class="btn btn-outline-secondary btn-sm">Mở kế hoạch SX</a>
         {% endif %}
       </div>
       {% for mo in related_mos %}
