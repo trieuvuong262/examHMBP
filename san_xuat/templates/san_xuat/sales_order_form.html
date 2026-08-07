@@ -17,7 +17,7 @@
     </nav>
   </div>
 
-  <form method="post">
+  <form method="post" id="jp-so-form">
     {% csrf_token %}
     <div class="card border-0 shadow-sm mb-3">
       <div class="card-body">
@@ -70,17 +70,69 @@
             </tbody>
           </table>
         </div>
+        <div class="mt-3">
+          <button type="button" class="btn btn-outline-hm btn-sm fw-bold" id="jp-so-add-row">
+            <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Thêm sản phẩm
+          </button>
+        </div>
       </div>
     </div>
 
     <button type="submit" class="btn btn-hm fw-bold">Lưu đơn</button>
   </form>
 </div>
+
+<template id="jp-so-empty-row">
+  {% with f=formset.empty_form %}
+  <tr class="jp-so-line-row">
+    <td>{{ f.product_code }}</td>
+    <td>{{ f.product_name }}</td>
+    <td>{{ f.qty }}</td>
+    <td class="text-center">
+      {% if f.DELETE %}
+      <div class="d-none">{{ f.DELETE }}</div>
+      <button type="button" class="btn btn-link btn-sm text-danger p-0 jp-so-remove-row" title="Xóa dòng" aria-label="Xóa dòng">
+        <i class="bi bi-x-lg" aria-hidden="true"></i>
+      </button>
+      {% endif %}
+    </td>
+  </tr>
+  {% endwith %}
+</template>
+
 {% include 'san_xuat/includes/sx_product_code_select_script.html' %}
 <script>
 (function () {
   var body = document.querySelector('#jp-so-lines-table tbody');
-  if (!body) return;
+  var addBtn = document.getElementById('jp-so-add-row');
+  var tpl = document.getElementById('jp-so-empty-row');
+  var totalInput = document.getElementById('id_lines-TOTAL_FORMS');
+  if (!body || !addBtn || !tpl || !totalInput) return;
+
+  function reindexAttrs(root, idx) {
+    root.querySelectorAll('[name], [id], [for]').forEach(function (el) {
+      ['name', 'id', 'for'].forEach(function (attr) {
+        var v = el.getAttribute(attr);
+        if (!v) return;
+        el.setAttribute(attr, v.replace(/__prefix__/g, String(idx)));
+      });
+    });
+  }
+
+  addBtn.addEventListener('click', function () {
+    var idx = parseInt(totalInput.value, 10) || 0;
+    var node = tpl.content.cloneNode(true);
+    var row = node.querySelector('tr');
+    if (!row) return;
+    reindexAttrs(row, idx);
+    body.appendChild(row);
+    totalInput.value = String(idx + 1);
+    var select = row.querySelector('.jp-sx-product-code-select');
+    if (select && typeof window.jpInitProductCodeSelect === 'function') {
+      window.jpInitProductCodeSelect(select);
+    }
+  });
+
   body.addEventListener('click', function (e) {
     var btn = e.target.closest('.jp-so-remove-row');
     if (!btn) return;

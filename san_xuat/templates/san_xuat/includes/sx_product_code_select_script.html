@@ -35,14 +35,14 @@
     if (name) nameInput.value = name;
   }
 
-  document.querySelectorAll('.jp-sx-product-code-select').forEach(function (select) {
-    if (!select || select.tomselect) return;
+  function initProductCodeSelect(select) {
+    if (!select || select.tomselect) return null;
     var initialValue = (select.value || '').trim();
     var initialLabel = select.options[select.selectedIndex]
       ? select.options[select.selectedIndex].textContent.trim()
       : initialValue;
 
-    new TomSelect(select, {
+    return new TomSelect(select, {
       maxOptions: 40,
       maxItems: 1,
       valueField: 'id',
@@ -88,6 +88,10 @@
         fillNameFromOption(select, this.options[value]);
       },
     });
-  });
+  }
+
+  window.jpInitProductCodeSelect = initProductCodeSelect;
+
+  document.querySelectorAll('.jp-sx-product-code-select').forEach(initProductCodeSelect);
 })();
 </script>

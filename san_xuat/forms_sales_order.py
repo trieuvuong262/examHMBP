@@ -88,7 +88,7 @@ class SalesOrderLineForm(forms.Form):
 
 SalesOrderLineFormSet = forms.formset_factory(
     SalesOrderLineForm,
-    extra=3,
+    extra=1,
     can_delete=True,
     min_num=1,
     validate_min=True,
