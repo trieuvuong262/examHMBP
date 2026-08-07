@@ -98,6 +98,14 @@ alwaysApply: false
 - Style dùng chung: `san_xuat/includes/sx_plan_urgency_styles.html`.
 - Có chú giải màu trên board; dropdown chọn mức cũng tô màu theo cấp đang chọn.
 
+## Lộ trình Kanban (board kế hoạch)
+
+- Nút **Lộ trình** / **Danh sách** trên hero board (`mode=route|list`).
+- Lộ trình có **3 tab**: Theo ngày | Theo công đoạn | Theo tổ — cột ngang scroll, thẻ kéo thả (HTML5 + fetch).
+- Snapshot công đoạn theo đơn (`SxSalesOrderPlanStep`) — chỉnh trước khi chuyển SX; không sửa BOM gốc.
+- Sau khi có LSX: kéo thẻ `SxMoProcessStep` để đổi `planned_date` / `process_name` / `work_center`.
+- Include UI: `san_xuat/includes/plan_board_kanban.html`.
+
 ## Copy & mô tả
 
 - **Không** thêm đoạn mô tả / hint giải thích quy trình trên UI.

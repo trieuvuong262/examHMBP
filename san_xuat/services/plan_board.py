@@ -370,9 +370,12 @@ def unhold_plan_order(*, order_id: int) -> SxSalesOrder:
 @transaction.atomic
 def release_order_to_production(*, order_id: int, user=None) -> list[SxProductionOrder]:
     """Chuyển đơn xuống SX: tạo LSX theo từng dòng SP, gắn sales_order."""
+    from san_xuat.services.dispatch import sync_mo_process_steps
+    from san_xuat.services.plan_route import ensure_order_plan_steps, plan_steps_as_mo_dicts
+
     order = (
         SxSalesOrder.objects.select_for_update()
-        .prefetch_related('lines')
+        .prefetch_related('lines', 'plan_steps')
         .get(pk=order_id, is_demo=False)
     )
     if order.confirm_status != SxSalesOrder.CONFIRM_CONFIRMED:
@@ -386,6 +389,9 @@ def release_order_to_production(*, order_id: int, user=None) -> list[SxProductio
     if not lines:
         raise PlanningError('Đơn không có dòng sản phẩm.')
 
+    ensure_order_plan_steps(order)
+    route_steps = plan_steps_as_mo_dicts(order)
+
     created: list[SxProductionOrder] = []
     errors: list[str] = []
     for ln in lines:
@@ -397,6 +403,7 @@ def release_order_to_production(*, order_id: int, user=None) -> list[SxProductio
         if exists:
             continue
         try:
+            # Không truyền process_steps vào create_mo_from_bom (tránh sửa BOM).
             mo = create_mo_from_bom(
                 product_code=ln.product_code,
                 qty=ln.qty_to_produce,
@@ -406,6 +413,8 @@ def release_order_to_production(*, order_id: int, user=None) -> list[SxProductio
                 user=user,
                 sales_order_id=order.pk,
             )
+            if route_steps:
+                sync_mo_process_steps(mo, route_steps)
             if ln.product_name and not mo.product_name:
                 mo.product_name = ln.product_name
                 mo.save(update_fields=['product_name'])

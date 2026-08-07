@@ -374,14 +374,23 @@
   <div class="jp-pb-hero">
     <div>
       <h2>Kế hoạch sản xuất</h2>
-      <p>Đơn đã xác nhận → xếp theo hạn / ưu tiên / năng lực → chuyển xuống xưởng. Cùng một bức tranh cho KD, GĐ và planner.</p>
+      <p>Đơn đã xác nhận → xếp theo hạn / ưu tiên / năng lực → chuyển xuống xưởng.</p>
     </div>
     <div class="d-flex flex-wrap gap-2">
-      {% if can_schedule %}
+      {% if mode == 'route' %}
+      <a href="{% url 'san_xuat:plan_board' %}?mode=list&tab=queue{% if search_query %}&q={{ search_query|urlencode }}{% endif %}"
+         class="btn btn-outline-secondary btn-sm">Danh sách</a>
+      {% else %}
+      <a href="{% url 'san_xuat:plan_board' %}?mode=route&tab=day{% if search_query %}&q={{ search_query|urlencode }}{% endif %}"
+         class="btn btn-hm btn-sm fw-bold">
+        <i class="bi bi-kanban me-1" aria-hidden="true"></i>Lộ trình
+      </a>
+      {% endif %}
+      {% if can_schedule and mode == 'list' %}
       <form method="post">
         {% csrf_token %}
         <input type="hidden" name="action" value="recompute">
-        <button type="submit" class="btn btn-hm btn-sm fw-bold">
+        <button type="submit" class="btn btn-outline-secondary btn-sm fw-bold">
           <i class="bi bi-sort-numeric-down me-1" aria-hidden="true"></i>Xếp hạng lại
         </button>
       </form>
@@ -391,27 +400,27 @@
   </div>
 
   <div class="jp-pb-pipe" role="list">
-    <a class="jp-pb-stage is-wait {% if tab == 'queue' %}is-active{% endif %}" href="{% url 'san_xuat:plan_board' %}?tab=queue" role="listitem">
+    <a class="jp-pb-stage is-wait {% if mode == 'list' and tab == 'queue' %}is-active{% endif %}" href="{% url 'san_xuat:plan_board' %}?mode=list&tab=queue" role="listitem">
       <span class="jp-pb-stage-label">Chờ xếp</span>
       <span class="jp-pb-stage-num">{{ counts.queued }}</span>
     </a>
-    <a class="jp-pb-stage is-rank {% if tab == 'queue' %}is-active{% endif %}" href="{% url 'san_xuat:plan_board' %}?tab=queue" role="listitem">
+    <a class="jp-pb-stage is-rank {% if mode == 'list' and tab == 'queue' %}is-active{% endif %}" href="{% url 'san_xuat:plan_board' %}?mode=list&tab=queue" role="listitem">
       <span class="jp-pb-stage-label">Đã xếp</span>
       <span class="jp-pb-stage-num">{{ counts.ranked }}</span>
     </a>
-    <a class="jp-pb-stage is-hold {% if tab == 'queue' %}is-active{% endif %}" href="{% url 'san_xuat:plan_board' %}?tab=queue" role="listitem">
+    <a class="jp-pb-stage is-hold {% if mode == 'list' and tab == 'queue' %}is-active{% endif %}" href="{% url 'san_xuat:plan_board' %}?mode=list&tab=queue" role="listitem">
       <span class="jp-pb-stage-label">Tạm giữ</span>
       <span class="jp-pb-stage-num">{{ counts.on_hold }}</span>
     </a>
-    <a class="jp-pb-stage is-go {% if tab == 'released' %}is-active{% endif %}" href="{% url 'san_xuat:plan_board' %}?tab=released" role="listitem">
+    <a class="jp-pb-stage is-go {% if mode == 'list' and tab == 'released' %}is-active{% endif %}" href="{% url 'san_xuat:plan_board' %}?mode=list&tab=released" role="listitem">
       <span class="jp-pb-stage-label">Đã chuyển</span>
       <span class="jp-pb-stage-num">{{ counts.released }}</span>
     </a>
-    <a class="jp-pb-stage is-run {% if tab == 'released' %}is-active{% endif %}" href="{% url 'san_xuat:plan_board' %}?tab=released" role="listitem">
+    <a class="jp-pb-stage is-run {% if mode == 'list' and tab == 'released' %}is-active{% endif %}" href="{% url 'san_xuat:plan_board' %}?mode=list&tab=released" role="listitem">
       <span class="jp-pb-stage-label">Đang SX</span>
       <span class="jp-pb-stage-num">{{ counts.in_progress }}</span>
     </a>
-    <a class="jp-pb-stage is-done {% if tab == 'released' %}is-active{% endif %}" href="{% url 'san_xuat:plan_board' %}?tab=released" role="listitem">
+    <a class="jp-pb-stage is-done {% if mode == 'list' and tab == 'released' %}is-active{% endif %}" href="{% url 'san_xuat:plan_board' %}?mode=list&tab=released" role="listitem">
       <span class="jp-pb-stage-label">Hoàn thành</span>
       <span class="jp-pb-stage-num">{{ counts.done }}</span>
     </a>
@@ -423,14 +432,25 @@
     <span>Tổng SL dòng: <strong>{{ qty_summary.total_qty|floatformat:"-2" }}</strong></span>
   </div>
 
+  {% if mode == 'route' %}
+  <div class="jp-pb-tabs" role="tablist">
+    <a role="tab" class="{% if tab == axis_day %}active{% endif %}"
+       href="{% url 'san_xuat:plan_board' %}?mode=route&tab=day{% if search_query %}&q={{ search_query|urlencode }}{% endif %}">Theo ngày</a>
+    <a role="tab" class="{% if tab == axis_process %}active{% endif %}"
+       href="{% url 'san_xuat:plan_board' %}?mode=route&tab=process{% if search_query %}&q={{ search_query|urlencode }}{% endif %}">Theo công đoạn</a>
+    <a role="tab" class="{% if tab == axis_team %}active{% endif %}"
+       href="{% url 'san_xuat:plan_board' %}?mode=route&tab=team{% if search_query %}&q={{ search_query|urlencode }}{% endif %}">Theo tổ</a>
+  </div>
+  {% else %}
   <div class="jp-pb-tabs" role="tablist">
     <a role="tab" class="{% if tab == 'queue' %}active{% endif %}"
-       href="{% url 'san_xuat:plan_board' %}?tab=queue{% if search_query %}&q={{ search_query|urlencode }}{% endif %}">Hàng đợi</a>
+       href="{% url 'san_xuat:plan_board' %}?mode=list&tab=queue{% if search_query %}&q={{ search_query|urlencode }}{% endif %}">Hàng đợi</a>
     <a role="tab" class="{% if tab == 'load' %}active{% endif %}"
-       href="{% url 'san_xuat:plan_board' %}?tab=load{% if search_query %}&q={{ search_query|urlencode }}{% endif %}">Tải &amp; xếp</a>
+       href="{% url 'san_xuat:plan_board' %}?mode=list&tab=load{% if search_query %}&q={{ search_query|urlencode }}{% endif %}">Tải &amp; xếp</a>
     <a role="tab" class="{% if tab == 'released' %}active{% endif %}"
-       href="{% url 'san_xuat:plan_board' %}?tab=released{% if search_query %}&q={{ search_query|urlencode }}{% endif %}">Đã chuyển SX</a>
+       href="{% url 'san_xuat:plan_board' %}?mode=list&tab=released{% if search_query %}&q={{ search_query|urlencode }}{% endif %}">Đã chuyển SX</a>
   </div>
+  {% endif %}
 
   <div class="jp-pb-urgency-legend" aria-label="Mức độ gấp">
     <span>Mức độ gấp:</span>
@@ -440,11 +460,17 @@
   </div>
 
   <form method="get" class="jp-pb-toolbar">
+    <input type="hidden" name="mode" value="{{ mode }}">
     <input type="hidden" name="tab" value="{{ tab }}">
     <input type="search" name="q" value="{{ search_query }}" class="form-control form-control-sm"
            placeholder="Tìm mã đơn / khách…" autocomplete="off">
     <button type="submit" class="btn btn-outline-secondary btn-sm">Lọc</button>
   </form>
+
+  {% if mode == 'route' %}
+  {% csrf_token %}
+  {% include 'san_xuat/includes/plan_board_kanban.html' %}
+  {% else %}
 
   {% if tab == 'load' %}
   <div class="mb-2 d-flex justify-content-between align-items-baseline flex-wrap gap-2">
@@ -629,5 +655,6 @@
     {% endfor %}
   </div>
   {% endif %}
+  {% endif %}{# mode list #}
 </div>
 {% endblock %}

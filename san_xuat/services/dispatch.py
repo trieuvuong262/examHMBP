@@ -442,11 +442,21 @@ def sync_mo_process_steps(mo: SxProductionOrder, steps: list[dict] | None = None
         used_seqs.add(seq)
         key = name.casefold()
         bom_id = row.get("id") or bom_name_to_id.get(key)
+        planned_date = row.get("planned_date")
+        status = (row.get("status") or SxMoProcessStep.STATUS_PENDING).strip()
+        if status not in {
+            SxMoProcessStep.STATUS_PENDING,
+            SxMoProcessStep.STATUS_IN_PROGRESS,
+            SxMoProcessStep.STATUS_DONE,
+        }:
+            status = SxMoProcessStep.STATUS_PENDING
         step = SxMoProcessStep.objects.create(
             production_order=mo,
             sequence=seq,
             process_name=name,
             work_center_id=row.get("work_center_id"),
+            planned_date=planned_date,
+            status=status,
             manager_id=row.get("manager_id"),
             bom_process_step_id=bom_id,
         )

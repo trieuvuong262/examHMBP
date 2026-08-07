@@ -172,6 +172,52 @@ class SxSalesOrderLine(models.Model):
         return (base * (Decimal('1') + rate / Decimal('100'))).quantize(Decimal('0.01'))
 
 
+class SxSalesOrderPlanStep(models.Model):
+    """Snapshot lộ trình công đoạn theo đơn (chỉnh trên board, không sửa BOM)."""
+
+    sales_order = models.ForeignKey(
+        SxSalesOrder,
+        on_delete=models.CASCADE,
+        related_name='plan_steps',
+        verbose_name='Đơn đặt hàng',
+    )
+    sequence = models.PositiveSmallIntegerField(default=10, verbose_name='Thứ tự')
+    process_name = models.CharField(max_length=120, verbose_name='Công đoạn')
+    work_center = models.ForeignKey(
+        'san_xuat.SxWorkCenter',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='sales_order_plan_steps',
+        verbose_name='Tổ / bộ phận',
+    )
+    planned_date = models.DateField(null=True, blank=True, db_index=True, verbose_name='Ngày kế hoạch')
+    minutes_per_unit = models.DecimalField(
+        max_digits=12, decimal_places=4, default=Decimal('0'), verbose_name='Phút / cái',
+    )
+
+    class Meta:
+        ordering = ['sequence', 'id']
+        verbose_name = 'Công đoạn kế hoạch đơn'
+        verbose_name_plural = 'Công đoạn kế hoạch đơn'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['sales_order', 'sequence'],
+                name='sx_so_plan_step_seq_uniq',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.sales_order_id}:{self.sequence}. {self.process_name}'
+
+    @property
+    def team_label(self) -> str:
+        wc = self.work_center
+        if not wc:
+            return ''
+        return (wc.team_label or wc.name or '').strip()
+
+
 # --- Kế hoạch ---
 
 
@@ -670,6 +716,15 @@ class SxProductionOrderLine(models.Model):
 class SxMoProcessStep(models.Model):
     """Công đoạn gắn theo từng LSX + người quản lý (không lưu trên BOM dùng chung)."""
 
+    STATUS_PENDING = 'pending'
+    STATUS_IN_PROGRESS = 'in_progress'
+    STATUS_DONE = 'done'
+    STATUS_CHOICES = [
+        (STATUS_PENDING, 'Chờ'),
+        (STATUS_IN_PROGRESS, 'Đang làm'),
+        (STATUS_DONE, 'Xong'),
+    ]
+
     production_order = models.ForeignKey(
         SxProductionOrder,
         on_delete=models.CASCADE,
@@ -685,6 +740,14 @@ class SxMoProcessStep(models.Model):
         blank=True,
         related_name='mo_process_steps',
         verbose_name='Tổ / bộ phận',
+    )
+    planned_date = models.DateField(null=True, blank=True, db_index=True, verbose_name='Ngày kế hoạch')
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default=STATUS_PENDING,
+        db_index=True,
+        verbose_name='TT công đoạn',
     )
     manager = models.ForeignKey(
         settings.AUTH_USER_MODEL,

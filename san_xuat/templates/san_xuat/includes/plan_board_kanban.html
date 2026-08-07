@@ -1,0 +1,377 @@
+{# Kanban lộ trình — include từ plan_board.html #}
+<style>
+  .jp-kb-board {
+    display: flex;
+    gap: 0.65rem;
+    overflow-x: auto;
+    padding-bottom: 0.75rem;
+    align-items: flex-start;
+    min-height: 18rem;
+  }
+  .jp-kb-col {
+    flex: 0 0 15.5rem;
+    max-width: 15.5rem;
+    background: #f8fafc;
+    border: 1px solid var(--pb-line, #e8edf3);
+    border-radius: 0.75rem;
+    min-height: 16rem;
+    display: flex;
+    flex-direction: column;
+  }
+  .jp-kb-col-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.35rem;
+    padding: 0.55rem 0.7rem;
+    border-bottom: 1px solid var(--pb-line, #e8edf3);
+    font-weight: 700;
+    font-size: 0.82rem;
+    color: var(--pb-ink, #0f172a);
+  }
+  .jp-kb-col-count {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--pb-muted, #64748b);
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 999px;
+    padding: 0.05rem 0.4rem;
+  }
+  .jp-kb-col-body {
+    flex: 1;
+    padding: 0.45rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    min-height: 8rem;
+  }
+  .jp-kb-col.is-over {
+    outline: 2px solid #0369a1;
+    outline-offset: -2px;
+    background: #eff6ff;
+  }
+  .jp-kb-card {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-left: 3px solid #94a3b8;
+    border-radius: 0.55rem;
+    padding: 0.5rem 0.55rem;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+    cursor: grab;
+    user-select: none;
+  }
+  .jp-kb-card:active { cursor: grabbing; }
+  .jp-kb-card.is-critical { border-left-color: #991b1b; }
+  .jp-kb-card.is-urgent { border-left-color: #c2410c; }
+  .jp-kb-card.is-high { border-left-color: #a16207; }
+  .jp-kb-card.is-normal { border-left-color: #0369a1; }
+  .jp-kb-card.is-low { border-left-color: #64748b; }
+  .jp-kb-card.is-dragging { opacity: 0.45; }
+  .jp-kb-card-top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem 0.4rem;
+    margin-bottom: 0.2rem;
+  }
+  .jp-kb-card-code {
+    font-weight: 700;
+    font-size: 0.8rem;
+    color: var(--pb-ink, #0f172a);
+    text-decoration: none;
+  }
+  .jp-kb-card-code:hover { color: var(--hm-primary, #dc2626); }
+  .jp-kb-card-meta {
+    font-size: 0.72rem;
+    color: var(--pb-muted, #64748b);
+    line-height: 1.35;
+  }
+  .jp-kb-card-actions {
+    margin-top: 0.35rem;
+    display: flex;
+    gap: 0.3rem;
+  }
+  .jp-kb-card-actions .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 1.55rem;
+    padding: 0 0.45rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    line-height: 1;
+  }
+  .jp-kb-hint {
+    font-size: 0.8rem;
+    color: var(--pb-muted, #64748b);
+    margin: 0 0 0.75rem;
+  }
+</style>
+
+<p class="jp-kb-hint">
+  {% if can_schedule %}Kéo thẻ giữa các cột để xếp ngày / đổi công đoạn / gán tổ.
+  {% else %}Chế độ xem — không thể kéo thẻ.
+  {% endif %}
+</p>
+
+<div class="jp-kb-board" id="jp-kb-board" data-axis="{{ tab }}" data-can-schedule="{{ can_schedule|yesno:'1,0' }}">
+  {% for col in kanban.columns %}
+  <section class="jp-kb-col" data-col-key="{{ col.key }}">
+    <header class="jp-kb-col-head">
+      <span>{{ col.label }}</span>
+      <span class="jp-kb-col-count">{{ col.cards|length }}</span>
+    </header>
+    <div class="jp-kb-col-body" data-drop-zone="1">
+      {% for card in col.cards %}
+      <article class="jp-kb-card is-{{ card.plan_priority }}"
+               draggable="{% if can_schedule %}true{% else %}false{% endif %}"
+               data-card-type="{{ card.card_type }}"
+               data-card-id="{{ card.card_id }}"
+               data-order-id="{{ card.order_id }}"
+               data-editable-route="{{ card.editable_route|yesno:'1,0' }}">
+        <div class="jp-kb-card-top">
+          {% if card.order_code %}
+          <a class="jp-kb-card-code" href="{% url 'san_xuat:sales_order_detail' card.order_id %}">{{ card.order_code }}</a>
+          {% endif %}
+          {% if card.mo_code %}
+          <span class="small text-muted">{{ card.mo_code }}</span>
+          {% endif %}
+          <span class="jp-pb-urgency is-{{ card.plan_priority }}">{% for val, lab in priority_choices %}{% if val == card.plan_priority %}{{ lab }}{% endif %}{% endfor %}</span>
+        </div>
+        <div class="jp-kb-card-meta">
+          {% if card.customer_name %}{{ card.customer_name }} · {% endif %}
+          <strong>{{ card.process_name|default:"—" }}</strong>
+          {% if card.work_center_label %} · {{ card.work_center_label }}{% endif %}
+        </div>
+        {% if can_schedule and card.editable_route %}
+        <div class="jp-kb-card-actions">
+          <button type="button" class="btn btn-outline-secondary btn-sm jp-kb-edit-route"
+                  data-order-id="{{ card.order_id }}" data-order-code="{{ card.order_code }}">
+            Lộ trình
+          </button>
+        </div>
+        {% endif %}
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+  {% empty %}
+  <div class="jp-pb-empty w-100">Chưa có thẻ lộ trình.</div>
+  {% endfor %}
+</div>
+
+{# Modal chỉnh lộ trình đơn #}
+<div class="modal fade" id="jpKbRouteModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Chỉnh lộ trình · <span id="jpKbRouteOrderCode"></span></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="jpKbRouteOrderId" value="">
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-2" id="jpKbRouteTable">
+            <thead>
+              <tr>
+                <th style="width:4rem">TT</th>
+                <th>Công đoạn</th>
+                <th style="width:11rem">Tổ</th>
+                <th style="width:8rem">Ngày KH</th>
+                <th style="width:3rem"></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <button type="button" class="btn btn-outline-secondary btn-sm" id="jpKbRouteAdd">+ Thêm công đoạn</button>
+        <div class="small text-danger mt-2 d-none" id="jpKbRouteErr"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Hủy</button>
+        <button type="button" class="btn btn-hm btn-sm fw-bold" id="jpKbRouteSave">Lưu lộ trình</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const board = document.getElementById('jp-kb-board');
+  if (!board) return;
+  const canSchedule = board.dataset.canSchedule === '1';
+  const axis = board.dataset.axis || 'day';
+  const csrf = document.querySelector('input[name=csrfmiddlewaretoken]')?.value
+    || document.cookie.split(';').map(s => s.trim()).find(s => s.startsWith('csrftoken='))?.split('=')[1]
+    || '';
+  const postUrl = '{% url "san_xuat:plan_board" %}';
+
+  const processNames = {{ route_process_names_json|safe }};
+  const workCenters = {{ route_work_centers_json|safe }};
+
+  function postForm(data) {
+    const body = new URLSearchParams();
+    Object.entries(data).forEach(([k, v]) => body.append(k, v == null ? '' : String(v)));
+    return fetch(postUrl + '?mode=route&tab=' + encodeURIComponent(axis), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-CSRFToken': csrf,
+        'Accept': 'application/json',
+      },
+      body: body.toString(),
+      credentials: 'same-origin',
+    }).then(r => r.json().then(j => ({ okHttp: r.ok, ...j })));
+  }
+
+  if (canSchedule) {
+    let dragCard = null;
+    board.querySelectorAll('.jp-kb-card[draggable=true]').forEach(card => {
+      card.addEventListener('dragstart', (e) => {
+        dragCard = card;
+        card.classList.add('is-dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', card.dataset.cardId);
+      });
+      card.addEventListener('dragend', () => {
+        card.classList.remove('is-dragging');
+        board.querySelectorAll('.jp-kb-col.is-over').forEach(c => c.classList.remove('is-over'));
+        dragCard = null;
+      });
+    });
+    board.querySelectorAll('.jp-kb-col').forEach(col => {
+      const zone = col.querySelector('[data-drop-zone]');
+      if (!zone) return;
+      col.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        col.classList.add('is-over');
+      });
+      col.addEventListener('dragleave', () => col.classList.remove('is-over'));
+      col.addEventListener('drop', (e) => {
+        e.preventDefault();
+        col.classList.remove('is-over');
+        if (!dragCard) return;
+        const targetKey = col.dataset.colKey || '';
+        const cardType = dragCard.dataset.cardType;
+        const cardId = dragCard.dataset.cardId;
+        zone.appendChild(dragCard);
+        postForm({
+          action: 'move_card',
+          mode: 'route',
+          axis: axis,
+          tab: axis,
+          card_type: cardType,
+          card_id: cardId,
+          target_key: targetKey,
+        }).then(res => {
+          if (!res.ok) {
+            alert(res.error || 'Không cập nhật được thẻ.');
+            location.reload();
+          } else {
+            col.querySelector('.jp-kb-col-count').textContent = zone.querySelectorAll('.jp-kb-card').length;
+          }
+        }).catch(() => location.reload());
+      });
+    });
+  }
+
+  /* Route editor */
+  const modalEl = document.getElementById('jpKbRouteModal');
+  const tbody = document.querySelector('#jpKbRouteTable tbody');
+  const errEl = document.getElementById('jpKbRouteErr');
+  let bsModal = null;
+  if (modalEl && window.bootstrap) {
+    bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
+  }
+
+  function wcOptions(selected) {
+    let html = '<option value="">—</option>';
+    workCenters.forEach(wc => {
+      const sel = String(wc.id) === String(selected || '') ? ' selected' : '';
+      html += `<option value="${wc.id}"${sel}>${wc.label}</option>`;
+    });
+    return html;
+  }
+
+  function processOptions(selected) {
+    const set = new Set(processNames);
+    if (selected && !set.has(selected)) processNames.unshift(selected);
+    let html = '';
+    processNames.forEach(n => {
+      const sel = n === selected ? ' selected' : '';
+      html += `<option value="${n.replace(/"/g, '&quot;')}"${sel}>${n}</option>`;
+    });
+    if (!processNames.length) {
+      html = `<option value="${(selected || '').replace(/"/g, '&quot;')}" selected>${selected || '—'}</option>`;
+    }
+    return html;
+  }
+
+  function addRow(step) {
+    const tr = document.createElement('tr');
+    const seq = step?.sequence || ((tbody.children.length + 1) * 10);
+    tr.innerHTML = `
+      <td><input type="number" class="form-control form-control-sm jp-kb-seq" value="${seq}" min="1" step="1"></td>
+      <td><select class="form-select form-select-sm jp-kb-process">${processOptions(step?.process_name || '')}</select></td>
+      <td><select class="form-select form-select-sm jp-kb-wc">${wcOptions(step?.work_center_id || '')}</select></td>
+      <td><input type="date" class="form-control form-control-sm jp-date-vn jp-kb-date" value="${step?.planned_date || ''}"></td>
+      <td><button type="button" class="btn btn-link btn-sm text-danger p-0 jp-kb-del" aria-label="Xóa">&times;</button></td>`;
+    tbody.appendChild(tr);
+    tr.querySelector('.jp-kb-del').addEventListener('click', () => tr.remove());
+  }
+
+  document.querySelectorAll('.jp-kb-edit-route').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const orderId = btn.dataset.orderId;
+      const orderCode = btn.dataset.orderCode || '';
+      document.getElementById('jpKbRouteOrderId').value = orderId;
+      document.getElementById('jpKbRouteOrderCode').textContent = orderCode;
+      errEl.classList.add('d-none');
+      tbody.innerHTML = '';
+      postForm({ action: 'get_route', order_id: orderId, mode: 'route', tab: axis }).then(res => {
+        if (!res.ok) {
+          errEl.textContent = res.error || 'Không tải được lộ trình.';
+          errEl.classList.remove('d-none');
+        } else {
+          (res.steps || []).forEach(addRow);
+          if (!(res.steps || []).length) addRow({});
+        }
+        bsModal?.show();
+      });
+    });
+  });
+
+  document.getElementById('jpKbRouteAdd')?.addEventListener('click', () => addRow({}));
+
+  document.getElementById('jpKbRouteSave')?.addEventListener('click', () => {
+    const orderId = document.getElementById('jpKbRouteOrderId').value;
+    const steps = [];
+    tbody.querySelectorAll('tr').forEach((tr, i) => {
+      const name = tr.querySelector('.jp-kb-process')?.value?.trim();
+      if (!name) return;
+      steps.push({
+        sequence: parseInt(tr.querySelector('.jp-kb-seq')?.value || ((i + 1) * 10), 10),
+        process_name: name,
+        work_center_id: tr.querySelector('.jp-kb-wc')?.value || '',
+        planned_date: tr.querySelector('.jp-kb-date')?.value || '',
+      });
+    });
+    postForm({
+      action: 'save_route',
+      order_id: orderId,
+      mode: 'route',
+      tab: axis,
+      steps_json: JSON.stringify(steps),
+    }).then(res => {
+      if (!res.ok) {
+        errEl.textContent = res.error || 'Lưu thất bại.';
+        errEl.classList.remove('d-none');
+        return;
+      }
+      location.reload();
+    });
+  });
+})();
+</script>
