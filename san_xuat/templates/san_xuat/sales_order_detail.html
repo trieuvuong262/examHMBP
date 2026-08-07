@@ -140,9 +140,7 @@
             <tr>
               <th>Mã SP</th>
               <th>Tên</th>
-              <th class="text-end">SL đặt</th>
-              <th class="text-end">Sai hỏng %</th>
-              <th class="text-end">SL cần SX</th>
+              <th class="text-end">SL</th>
               <th>Hạn dòng</th>
             </tr>
           </thead>
@@ -152,12 +150,10 @@
               <td><strong>{{ ln.product_code }}</strong></td>
               <td class="small">{{ ln.product_name|default:"—" }}</td>
               <td class="text-end">{{ ln.qty|floatformat:"-2" }}</td>
-              <td class="text-end">{{ ln.qty_scrap_rate|floatformat:"-2" }}</td>
-              <td class="text-end fw-semibold">{{ ln.qty_to_produce|floatformat:"-2" }}</td>
               <td class="small">{% if ln.due_date %}{{ ln.due_date|date:"d/m/Y" }}{% else %}—{% endif %}</td>
             </tr>
           {% empty %}
-            <tr><td colspan="6" class="text-muted small">Chưa có dòng.</td></tr>
+            <tr><td colspan="4" class="text-muted small">Chưa có dòng.</td></tr>
           {% endfor %}
           </tbody>
         </table>

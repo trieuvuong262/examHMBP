@@ -445,7 +445,7 @@ def sales_order_create(request):
                         product_code=code,
                         product_name=f.cleaned_data.get('product_name') or '',
                         qty=qty,
-                        qty_scrap_rate=f.cleaned_data.get('qty_scrap_rate') or Decimal('0'),
+                        qty_scrap_rate=Decimal('0'),
                     )
                 )
             try:

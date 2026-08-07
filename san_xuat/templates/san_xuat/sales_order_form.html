@@ -45,7 +45,6 @@
                 <th style="min-width:200px">Mã SP</th>
                 <th>Tên</th>
                 <th style="width:110px">SL</th>
-                <th style="width:100px">Sai hỏng %</th>
                 <th style="width:60px"></th>
               </tr>
             </thead>
@@ -58,7 +57,6 @@
                 </td>
                 <td>{{ f.product_name }}</td>
                 <td>{{ f.qty }}</td>
-                <td>{{ f.qty_scrap_rate }}</td>
                 <td class="text-center">
                   {% if f.DELETE %}{{ f.DELETE }}{% endif %}
                 </td>

@@ -63,15 +63,6 @@ class SalesOrderLineForm(forms.Form):
         label='Số lượng',
         widget=forms.NumberInput(attrs={'class': 'form-control form-control-sm', 'step': '0.01', 'min': '0.01'}),
     )
-    qty_scrap_rate = forms.DecimalField(
-        required=False,
-        max_digits=7,
-        decimal_places=2,
-        min_value=Decimal('0'),
-        initial=Decimal('0'),
-        label='Tỷ lệ sai hỏng %',
-        widget=forms.NumberInput(attrs={'class': 'form-control form-control-sm', 'step': '0.01', 'min': '0'}),
-    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
