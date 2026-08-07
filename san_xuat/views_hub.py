@@ -330,8 +330,249 @@ def overview(request):
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
-def redirect_orders(request):
-    return redirect('kiotviet:order_lookup')
+def sales_order_list(request):
+    """Danh sách đơn đặt hàng sản xuất (SoT Portal)."""
+    from san_xuat.forms_sales_order import KvImportOrdersForm
+    from san_xuat.hub_models import SxSalesOrder
+    from san_xuat.services.plan_methods import list_open_kv_orders
+    from san_xuat.services.sales_orders import (
+        PROD_STATUS_LABELS,
+        import_from_kv_orders,
+        production_status_summary,
+    )
+
+    can_update = _perm_ctx(request).get('can_update')
+    if request.method == 'POST' and can_update:
+        action = (request.POST.get('action') or '').strip()
+        if action == 'import_kv':
+            form = KvImportOrdersForm(request.POST)
+            if form.is_valid():
+                try:
+                    created = import_from_kv_orders(
+                        kv_order_ids=form.cleaned_data['kv_order_ids'],
+                        user=request.user,
+                    )
+                except PlanningError as exc:
+                    messages.error(request, str(exc))
+                else:
+                    messages.success(
+                        request,
+                        f'Đã import / cập nhật {len(created)} đơn từ KiotViet.',
+                    )
+                    return redirect('san_xuat:sales_order_list')
+            else:
+                messages.error(request, 'Chọn đơn KiotViet hợp lệ để import.')
+
+    q = (request.GET.get('q') or '').strip()
+    confirm = (request.GET.get('confirm') or '').strip()
+    qs = SxSalesOrder.objects.filter(is_demo=False).prefetch_related('lines')
+    if q:
+        from django.db.models import Q
+
+        qs = qs.filter(
+            Q(code__icontains=q)
+            | Q(customer_name__icontains=q)
+            | Q(kv_order_code__icontains=q)
+        )
+    if confirm in {
+        SxSalesOrder.CONFIRM_DRAFT,
+        SxSalesOrder.CONFIRM_CONFIRMED,
+        SxSalesOrder.CONFIRM_REJECTED,
+    }:
+        qs = qs.filter(confirm_status=confirm)
+
+    orders = list(qs.order_by('-request_date', '-id')[:300])
+    rows = []
+    chip_counts = {
+        'all': len(orders),
+        'chua_xac_nhan': 0,
+        'chua_sx': 0,
+        'chua_du_lenh': 0,
+        'dang_sx': 0,
+        'hoan_thanh': 0,
+        'tu_choi': 0,
+    }
+    for o in orders:
+        st = production_status_summary(o)
+        if st in chip_counts:
+            chip_counts[st] += 1
+        rows.append({
+            'order': o,
+            'line_count': o.lines.count(),
+            'total_qty': sum((ln.qty for ln in o.lines.all()), start=Decimal('0')),
+            'prod_status': st,
+            'prod_label': PROD_STATUS_LABELS.get(st, st),
+        })
+
+    kv_orders = []
+    if can_update:
+        kv_orders = list_open_kv_orders(limit=40, search=request.GET.get('kv_q') or '')
+
+    return render(request, 'san_xuat/sales_order_list.html', {
+        **_perm_ctx(request),
+        'rows': rows,
+        'search_query': q,
+        'confirm_filter': confirm,
+        'chip_counts': chip_counts,
+        'kv_orders': kv_orders,
+        'kv_q': (request.GET.get('kv_q') or '').strip(),
+        'can_update': can_update,
+    })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'create')
+def sales_order_create(request):
+    from san_xuat.forms_sales_order import SalesOrderHeaderForm, SalesOrderLineFormSet
+    from san_xuat.services.sales_orders import LineInput, create_sales_order
+
+    header = SalesOrderHeaderForm(
+        request.POST or None,
+        initial={'request_date': timezone.localdate()},
+    )
+    formset = SalesOrderLineFormSet(request.POST or None, prefix='lines')
+
+    if request.method == 'POST':
+        if header.is_valid() and formset.is_valid():
+            lines: list[LineInput] = []
+            for f in formset:
+                if not hasattr(f, 'cleaned_data') or not f.cleaned_data:
+                    continue
+                if f.cleaned_data.get('DELETE'):
+                    continue
+                code = (f.cleaned_data.get('product_code') or '').strip()
+                qty = f.cleaned_data.get('qty')
+                if not code or not qty:
+                    continue
+                lines.append(
+                    LineInput(
+                        product_code=code,
+                        product_name=f.cleaned_data.get('product_name') or '',
+                        qty=qty,
+                        qty_scrap_rate=f.cleaned_data.get('qty_scrap_rate') or Decimal('0'),
+                    )
+                )
+            try:
+                order = create_sales_order(
+                    code=header.cleaned_data.get('code') or '',
+                    customer_name=header.cleaned_data.get('customer_name') or '',
+                    request_date=header.cleaned_data['request_date'],
+                    due_date=header.cleaned_data.get('due_date'),
+                    notes=header.cleaned_data.get('notes') or '',
+                    lines=lines,
+                    user=request.user,
+                )
+            except PlanningError as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(request, f'Đã tạo đơn {order.code}.')
+                return redirect('san_xuat:sales_order_detail', pk=order.pk)
+        messages.error(request, 'Không tạo được đơn — kiểm tra lại form.')
+
+    return render(request, 'san_xuat/sales_order_form.html', {
+        **_perm_ctx(request),
+        'header': header,
+        'formset': formset,
+        'is_create': True,
+    })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+def sales_order_detail(request, pk: int):
+    from san_xuat.forms_sales_order import SalesOrderRejectForm
+    from san_xuat.hub_models import SxOverallPlan, SxSalesOrder
+    from san_xuat.services.sales_orders import (
+        PROD_STATUS_LABELS,
+        confirm_sales_order,
+        production_status_summary,
+        reject_sales_order,
+        related_mos,
+        related_overall_plans,
+    )
+
+    order = get_object_or_404(
+        SxSalesOrder.objects.prefetch_related('lines'),
+        pk=pk,
+        is_demo=False,
+    )
+    can_update = _perm_ctx(request).get('can_update')
+    reject_form = SalesOrderRejectForm()
+
+    if request.method == 'POST' and can_update:
+        action = (request.POST.get('action') or '').strip()
+        if action == 'confirm' and order.confirm_status == SxSalesOrder.CONFIRM_DRAFT:
+            try:
+                confirm_sales_order(order_id=order.pk)
+            except PlanningError as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(request, f'Đã xác nhận đơn {order.code}.')
+                return redirect('san_xuat:sales_order_detail', pk=order.pk)
+        elif action == 'reject':
+            reject_form = SalesOrderRejectForm(request.POST)
+            if reject_form.is_valid():
+                try:
+                    reject_sales_order(
+                        order_id=order.pk,
+                        reason=reject_form.cleaned_data.get('reason') or '',
+                    )
+                except PlanningError as exc:
+                    messages.error(request, str(exc))
+                else:
+                    messages.success(request, f'Đã từ chối đơn {order.code}.')
+                    return redirect('san_xuat:sales_order_detail', pk=order.pk)
+        elif action == 'create_mto_plan' and order.confirm_status == SxSalesOrder.CONFIRM_CONFIRMED:
+            # Tạo KHTT MTO nháp rồi redirect nạp đơn
+            from san_xuat.services.planning import create_overall_plan
+
+            today = timezone.localdate()
+            try:
+                plan = create_overall_plan(
+                    name=f'KHTT từ {order.code}',
+                    date_from=today,
+                    date_to=order.due_date or today,
+                    plan_method=SxOverallPlan.METHOD_MTO,
+                    source=SxOverallPlan.SOURCE_SALES_ORDER,
+                    user=request.user,
+                )
+                from san_xuat.services.plan_methods import load_mto_demand
+
+                load_mto_demand(
+                    plan_id=plan.pk,
+                    sales_order_ids=[order.pk],
+                    replace=True,
+                )
+            except PlanningError as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(request, f'Đã tạo KHTT {plan.code} và nạp nhu cầu từ {order.code}.')
+                return redirect('san_xuat:plan_overall_detail', pk=plan.pk)
+
+    prod_status = production_status_summary(order)
+    plans = related_overall_plans(order)
+    mos = related_mos(order)
+    mto_drafts = list(
+        SxOverallPlan.objects.filter(
+            is_demo=False,
+            status=SxOverallPlan.STATUS_DRAFT,
+            plan_method=SxOverallPlan.METHOD_MTO,
+        ).order_by('-created_at')[:20]
+    )
+
+    return render(request, 'san_xuat/sales_order_detail.html', {
+        **_perm_ctx(request),
+        'order': order,
+        'can_update': can_update,
+        'reject_form': reject_form,
+        'prod_status': prod_status,
+        'prod_label': PROD_STATUS_LABELS.get(prod_status, prod_status),
+        'related_plans': plans,
+        'related_mos': mos,
+        'mto_drafts': mto_drafts,
+    })
+
+
+# backward-compatible name (menu cũ)
+redirect_orders = sales_order_list
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
@@ -928,7 +1169,7 @@ def plan_overall_detail(request, pk: int):
                 try:
                     res = load_mto_demand(
                         plan_id=plan.pk,
-                        kv_order_ids=mto_form.cleaned_data['kv_order_ids'],
+                        sales_order_ids=mto_form.cleaned_data['sales_order_ids'],
                         replace=mto_form.cleaned_data.get('replace', True),
                     )
                 except PlanningError as exc:
@@ -1014,6 +1255,7 @@ def plan_overall_detail(request, pk: int):
     is_mps = plan.plan_method == SxOverallPlan.METHOD_MPS
 
     kv_orders = []
+    sales_orders = []
     restock_rows = []
     mts_stock_filter = (request.GET.get('mts_stock') or 'all').strip().lower()
     mts_sort = (request.GET.get('mts_sort') or 'on_hand').strip()
@@ -1022,8 +1264,10 @@ def plan_overall_detail(request, pk: int):
     mps_grid = []
     if can_update and plan.status == SxOverallPlan.STATUS_DRAFT:
         if is_mto:
-            kv_orders = list_open_kv_orders(
-                limit=60, search=request.GET.get('kv_q') or '',
+            from san_xuat.services.sales_orders import list_confirmed_orders_for_mto
+
+            sales_orders = list_confirmed_orders_for_mto(
+                limit=60, search=request.GET.get('so_q') or '',
             )
         elif is_mts:
             if mts_stock_filter not in {'all', 'zero', 'need', 'ok'}:
@@ -1080,7 +1324,9 @@ def plan_overall_detail(request, pk: int):
         'is_mts': is_mts,
         'is_mps': is_mps,
         'kv_orders': kv_orders,
+        'sales_orders': sales_orders,
         'kv_q': request.GET.get('kv_q') or '',
+        'so_q': request.GET.get('so_q') or '',
         'restock_rows': restock_rows,
         'mts_q': mts_q,
         'mts_stock_filter': mts_stock_filter,

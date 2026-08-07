@@ -621,13 +621,13 @@
                     </a>
                 </li>
                 {% endif %}
-                {# Đơn ĐH: chỉ hiện khi không có menu Bán hàng (tránh trùng KV) #}
+                {# Đơn đặt hàng SX (SoT Portal) #}
                 {% jp_can_menu 'san_xuat' 'orders' as jp_can_san_xuat_orders %}
-                {% if jp_can_san_xuat_orders and not jp_can_kiotviet %}
+                {% if jp_can_san_xuat_orders %}
                 <li>
-                    <a href="{% url 'san_xuat:redirect_orders' %}"
-                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'redirect_orders' %}active{% endif %}">
-                        <i class="bi bi-cart-check"></i><span>Đơn ĐH</span>
+                    <a href="{% url 'san_xuat:sales_order_list' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'sales_order_list' or request.resolver_match.url_name == 'sales_order_create' or request.resolver_match.url_name == 'sales_order_detail' or request.resolver_match.url_name == 'redirect_orders' %}active{% endif %}">
+                        <i class="bi bi-cart-check"></i><span>Đơn đặt hàng</span>
                     </a>
                 </li>
                 {% endif %}

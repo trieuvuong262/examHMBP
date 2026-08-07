@@ -31,7 +31,7 @@
 | AMIS Sản xuất | Portal | Trạng thái |
 |---------------|--------|------------|
 | **Tổng quan** | `/san-xuat/tong-quan/` | ✅ KPI + chart + Top 10 + dừng chuyền + lệnh theo TT (kiểu AMIS) |
-| **Đơn đặt hàng** | → KiotViet | ✅ Deep-link |
+| **Đơn đặt hàng** | `/san-xuat/don-hang/` | ✅ SoT Portal — [`don-dat-hang.md`](./don-dat-hang.md) |
 | **Kế hoạch SX** (5 mục) | KHTT / KHCT / KHNVL / YCM / DMH | ✅ P0–P5 CRUD + workflow |
 | **Điều phối** | LSX, YCX, TKSX, YCNTP, lịch, BTP, tháo dỡ, NPL thừa… | ✅ D0–D6 — trả BTP còn mỏng |
 | **Giao việc** | `/san-xuat/giao-viec/` (+ `tasks`) | ✅ Gắn LSX / tổ / WorkTask |
@@ -277,14 +277,17 @@ Chuỗi tối thiểu đã có:
 
 ## 10. Tài liệu khảo sát AMIS (raw)
 
-Thư mục workspace (ngoài repo docs):
+Thư mục workspace (ngoài / cạnh repo docs):
 
 | Thư mục | Nội dung |
 |---------|----------|
-| `_amis_plan_survey/` | Menu + màn kế hoạch SX |
+| `_amis_plan_survey/` | Menu + màn kế hoạch SX (`d:\Project\`) |
 | `_amis_dispatch_survey/` | Điều phối & thực thi |
 | `_amis_qc_survey/` | Kiểm tra chất lượng |
 | `_amis_costing_survey/` | Giá thành kế hoạch |
+| `PortalJustPlay/_amis_survey/` | Đơn đặt hàng (2026-08-07, tenant OMIGA) |
+
+Doc tổng hợp ĐĐH: [`don-dat-hang.md`](./don-dat-hang.md).
 
 ---
 

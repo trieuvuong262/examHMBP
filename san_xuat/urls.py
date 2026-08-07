@@ -8,7 +8,11 @@ app_name = 'san_xuat'
 urlpatterns = [
     path('', views.hub, name='hub'),
     path('tong-quan/', views_hub.overview, name='overview'),
-    path('don-hang/', views_hub.redirect_orders, name='redirect_orders'),
+    path('don-hang/', views_hub.sales_order_list, name='sales_order_list'),
+    path('don-hang/them/', views_hub.sales_order_create, name='sales_order_create'),
+    path('don-hang/<int:pk>/', views_hub.sales_order_detail, name='sales_order_detail'),
+    # alias cũ
+    path('don-hang-kv/', views_hub.sales_order_list, name='redirect_orders'),
     path('san-pham-nvl/', views_hub.products_nvl, name='products_nvl'),
     path('ke-hoach/', views_hub.plan_stub, name='plan_stub'),
     path('ke-hoach/giam-sat-tien-do/', views_hub.plan_progress_monitor, name='plan_progress_monitor'),

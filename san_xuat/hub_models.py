@@ -27,6 +27,96 @@ class DemoMarkedModel(models.Model):
         abstract = True
 
 
+# --- Đơn đặt hàng (SoT Portal, MTO) ---
+
+
+class SxSalesOrder(DemoMarkedModel):
+    """Đơn đặt hàng sản xuất — đầu vào MTO (có thể import từ KiotViet)."""
+
+    CONFIRM_DRAFT = 'draft'
+    CONFIRM_CONFIRMED = 'confirmed'
+    CONFIRM_REJECTED = 'rejected'
+    CONFIRM_CHOICES = [
+        (CONFIRM_DRAFT, 'Nháp / chưa xác nhận'),
+        (CONFIRM_CONFIRMED, 'Đã xác nhận'),
+        (CONFIRM_REJECTED, 'Từ chối'),
+    ]
+
+    TYPE_PRODUCTION = 'production'
+    TYPE_CHOICES = [
+        (TYPE_PRODUCTION, 'Sản xuất'),
+    ]
+
+    SOURCE_MANUAL = 'manual'
+    SOURCE_KIOTVIET = 'kiotviet'
+    SOURCE_CHOICES = [
+        (SOURCE_MANUAL, 'Tạo tay'),
+        (SOURCE_KIOTVIET, 'KiotViet'),
+    ]
+
+    code = models.CharField(max_length=40, unique=True, verbose_name='Số đơn hàng')
+    customer_name = models.CharField(max_length=255, blank=True, default='', verbose_name='Khách hàng')
+    request_date = models.DateField(verbose_name='Ngày yêu cầu')
+    due_date = models.DateField(null=True, blank=True, verbose_name='Hạn sản xuất')
+    order_type = models.CharField(
+        max_length=20, choices=TYPE_CHOICES, default=TYPE_PRODUCTION, verbose_name='Loại đơn',
+    )
+    confirm_status = models.CharField(
+        max_length=20, choices=CONFIRM_CHOICES, default=CONFIRM_DRAFT, db_index=True,
+        verbose_name='Trạng thái xác nhận',
+    )
+    reject_reason = models.CharField(max_length=500, blank=True, default='', verbose_name='Lý do từ chối')
+    source = models.CharField(
+        max_length=20, choices=SOURCE_CHOICES, default=SOURCE_MANUAL, db_index=True,
+        verbose_name='Nguồn đơn',
+    )
+    kv_order_kiotviet_id = models.BigIntegerField(
+        null=True, blank=True, unique=True, verbose_name='KV order id',
+    )
+    kv_order_code = models.CharField(max_length=64, blank=True, default='', verbose_name='Mã đơn KV')
+    notes = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-request_date', '-id']
+        verbose_name = 'Đơn đặt hàng'
+        verbose_name_plural = 'Đơn đặt hàng'
+
+    def __str__(self):
+        return self.code
+
+
+class SxSalesOrderLine(models.Model):
+    order = models.ForeignKey(
+        SxSalesOrder, on_delete=models.CASCADE, related_name='lines', verbose_name='Đơn đặt hàng',
+    )
+    product_code = models.CharField(max_length=60, db_index=True, verbose_name='Mã sản phẩm')
+    product_name = models.CharField(max_length=255, blank=True, default='', verbose_name='Tên sản phẩm')
+    qty = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'), verbose_name='Số lượng')
+    qty_scrap_rate = models.DecimalField(
+        max_digits=7, decimal_places=2, default=Decimal('0'),
+        verbose_name='Tỷ lệ sai hỏng (%)',
+    )
+    uom = models.CharField(max_length=30, blank=True, default='', verbose_name='ĐVT')
+    due_date = models.DateField(null=True, blank=True, verbose_name='Hạn giao dòng')
+    sort_order = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ['sort_order', 'id']
+        verbose_name = 'Dòng đơn đặt hàng'
+        verbose_name_plural = 'Dòng đơn đặt hàng'
+
+    @property
+    def qty_to_produce(self) -> Decimal:
+        """SL cần SX = qty × (1 + scrap%/100)."""
+        base = self.qty or Decimal('0')
+        rate = self.qty_scrap_rate or Decimal('0')
+        if rate <= 0:
+            return base
+        return (base * (Decimal('1') + rate / Decimal('100'))).quantize(Decimal('0.01'))
+
+
 # --- Kế hoạch ---
 
 
@@ -119,6 +209,14 @@ class SxOverallPlanLine(models.Model):
     capacity_per_day = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
     kv_order_kiotviet_id = models.BigIntegerField(null=True, blank=True, verbose_name='KV order id')
     kv_order_code = models.CharField(max_length=64, blank=True, default='', verbose_name='Mã đơn KV')
+    sales_order = models.ForeignKey(
+        'san_xuat.SxSalesOrder',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='overall_plan_lines',
+        verbose_name='Đơn đặt hàng',
+    )
 
     # --- Netting (P2): lưu vết cách ra con số qty_planned ---
     qty_gross = models.DecimalField(
@@ -450,6 +548,14 @@ class SxProductionOrder(DemoMarkedModel):
         help_text='Công đoạn chính trên lệnh (lấy từ BOM khi có).',
     )
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT, db_index=True)
+    sales_order = models.ForeignKey(
+        'san_xuat.SxSalesOrder',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='production_orders',
+        verbose_name='Đơn đặt hàng',
+    )
     is_sample = models.BooleanField(
         default=False,
         db_index=True,

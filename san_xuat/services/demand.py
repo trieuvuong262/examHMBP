@@ -128,6 +128,7 @@ class DemandItem:
     due_date: date | None = None
     kv_order_code: str = ''
     kv_order_kiotviet_id: int | None = None
+    sales_order_id: int | None = None
     note: str = ''
 
     @property
@@ -198,6 +199,7 @@ def merge_by_product(items: list[DemandItem]) -> list[DemandItem]:
                 due_date=item.due_date,
                 kv_order_code=item.kv_order_code,
                 kv_order_kiotviet_id=item.kv_order_kiotviet_id,
+                sales_order_id=item.sales_order_id,
                 note=item.note,
             )
             continue
@@ -207,6 +209,10 @@ def merge_by_product(items: list[DemandItem]) -> list[DemandItem]:
         if item.kv_order_code and item.kv_order_code not in cur.kv_order_code:
             joined = f'{cur.kv_order_code}, {item.kv_order_code}'.strip(', ')
             cur.kv_order_code = joined[:64]
+        if cur.sales_order_id and item.sales_order_id and cur.sales_order_id != item.sales_order_id:
+            cur.sales_order_id = None
+        elif not cur.sales_order_id and item.sales_order_id:
+            cur.sales_order_id = item.sales_order_id
     return sorted(bucket.values(), key=lambda it: it.product_code)
 
 

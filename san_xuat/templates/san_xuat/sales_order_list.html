@@ -1,0 +1,137 @@
+{% extends 'base.html' %}
+
+{% load sx_format %}
+{% block extra_head %}{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}{% endblock %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title w-100">Đơn đặt hàng</h2>
+    </div>
+    <nav class="jp-sx-tools" aria-label="Công cụ">
+      {% if can_create or can_update %}
+      <a href="{% url 'san_xuat:sales_order_create' %}" class="btn btn-hm btn-sm fw-bold">Thêm đơn</a>
+      {% endif %}
+    </nav>
+  </div>
+
+  <form method="get" class="card border-0 shadow-sm mb-3">
+    <div class="card-body p-3 d-flex flex-wrap gap-2 align-items-end">
+      <div class="flex-grow-1" style="min-width:200px">
+        <label class="form-label small text-muted mb-1">Tìm kiếm</label>
+        <input type="search" name="q" value="{{ search_query }}" class="form-control form-control-sm"
+               placeholder="Mã đơn / khách / mã KV…" autocomplete="off">
+      </div>
+      <div style="min-width:160px">
+        <label class="form-label small text-muted mb-1">Xác nhận</label>
+        <select name="confirm" class="form-select form-select-sm">
+          <option value="">Tất cả</option>
+          <option value="draft" {% if confirm_filter == 'draft' %}selected{% endif %}>Chưa xác nhận</option>
+          <option value="confirmed" {% if confirm_filter == 'confirmed' %}selected{% endif %}>Đã xác nhận</option>
+          <option value="rejected" {% if confirm_filter == 'rejected' %}selected{% endif %}>Từ chối</option>
+        </select>
+      </div>
+      <button type="submit" class="btn btn-hm btn-sm">Lọc</button>
+    </div>
+  </form>
+
+  <div class="d-flex flex-wrap gap-2 mb-3 small">
+    <span class="badge bg-secondary-subtle text-secondary border">Tất cả {{ chip_counts.all }}</span>
+    <span class="badge bg-warning-subtle text-warning-emphasis border">Chưa xác nhận {{ chip_counts.chua_xac_nhan }}</span>
+    <span class="badge bg-light text-dark border">Chưa SX {{ chip_counts.chua_sx }}</span>
+    <span class="badge bg-info-subtle text-info-emphasis border">Chưa đủ lệnh {{ chip_counts.chua_du_lenh }}</span>
+    <span class="badge bg-primary-subtle text-primary border">Đang SX {{ chip_counts.dang_sx }}</span>
+    <span class="badge bg-success-subtle text-success border">Hoàn thành {{ chip_counts.hoan_thanh }}</span>
+  </div>
+
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="table-responsive">
+      <table class="table table-sm table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Số đơn</th>
+            <th>Khách hàng</th>
+            <th>Ngày yêu cầu</th>
+            <th>Hạn SX</th>
+            <th class="text-end">Dòng</th>
+            <th class="text-end">SL</th>
+            <th>Xác nhận</th>
+            <th>TT sản xuất</th>
+            <th>Nguồn</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for row in rows %}
+          <tr style="cursor:pointer" onclick="location.href='{% url 'san_xuat:sales_order_detail' row.order.pk %}'">
+            <td><strong>{{ row.order.code }}</strong>
+              {% if row.order.kv_order_code %}
+              <div class="text-muted" style="font-size:.7rem">KV {{ row.order.kv_order_code }}</div>
+              {% endif %}
+            </td>
+            <td class="small">{{ row.order.customer_name|default:"—" }}</td>
+            <td class="small">{{ row.order.request_date|date:"d/m/Y" }}</td>
+            <td class="small">{% if row.order.due_date %}{{ row.order.due_date|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+            <td class="text-end">{{ row.line_count }}</td>
+            <td class="text-end">{{ row.total_qty|floatformat:"-2" }}</td>
+            <td class="small">{{ row.order.get_confirm_status_display }}</td>
+            <td class="small">{{ row.prod_label }}</td>
+            <td class="small">{{ row.order.get_source_display }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="9" class="text-muted small p-4 text-center">Chưa có đơn đặt hàng. Thêm tay hoặc import từ KiotViet.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {% if can_update %}
+  <div class="card border-0 shadow-sm">
+    <div class="card-body">
+      <h6 class="fw-bold mb-2">Import từ KiotViet</h6>
+      <form method="get" class="input-group input-group-sm mb-2" style="max-width:360px">
+        <input type="search" name="kv_q" value="{{ kv_q }}" class="form-control" placeholder="Tìm đơn KV…">
+        <button class="btn btn-outline-secondary" type="submit">Tìm</button>
+      </form>
+      {% if kv_orders %}
+      <form method="post" id="kvImportForm">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="import_kv">
+        <input type="hidden" name="kv_order_ids" id="kvImportIds">
+        <div class="border rounded-3 overflow-auto mb-2" style="max-height:240px">
+          <table class="table table-sm mb-0">
+            <tbody>
+            {% for o in kv_orders %}
+              <tr>
+                <td style="width:36px" class="text-center">
+                  <input type="checkbox" class="form-check-input jp-kv-import" value="{{ o.kiotviet_id }}">
+                </td>
+                <td>
+                  <div class="small fw-semibold">{{ o.code }}</div>
+                  <div class="text-muted small">{{ o.customer_name|default:"—"|truncatechars:32 }}</div>
+                </td>
+                <td class="text-end small">{{ o.line_count }} dòng · SL {{ o.total_qty|floatformat:"-2" }}</td>
+              </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <button type="submit" class="btn btn-outline-hm btn-sm">Import đơn đã chọn</button>
+      </form>
+      <script>
+        document.getElementById('kvImportForm').addEventListener('submit', function (e) {
+          var ids = [];
+          document.querySelectorAll('.jp-kv-import:checked').forEach(function (cb) { ids.push(cb.value); });
+          if (!ids.length) { e.preventDefault(); alert('Chọn ít nhất một đơn KV.'); return; }
+          document.getElementById('kvImportIds').value = ids.join(',');
+        });
+      </script>
+      {% else %}
+      <p class="text-muted small mb-0">Không có đơn KV để import{% if kv_q %} khớp «{{ kv_q }}»{% endif %}.</p>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

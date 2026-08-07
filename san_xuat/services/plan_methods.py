@@ -83,6 +83,7 @@ def _write_lines(
                 due_date=item.due_date,
                 kv_order_code=(item.kv_order_code or '')[:64],
                 kv_order_kiotviet_id=item.kv_order_kiotviet_id,
+                sales_order_id=item.sales_order_id,
             )
         )
     if rows:
@@ -207,15 +208,22 @@ def collect_mto_demand(
 def load_mto_demand(
     *,
     plan_id: int,
-    kv_order_ids: list[int],
+    sales_order_ids: list[int] | None = None,
+    kv_order_ids: list[int] | None = None,
     replace: bool = True,
 ) -> dict:
-    """Nạp nhu cầu MTO vào KHTT (gộp theo mã SP + netting)."""
+    """Nạp nhu cầu MTO vào KHTT — ưu tiên ĐĐH Portal; fallback đơn KV (legacy)."""
     plan = SxOverallPlan.objects.select_for_update().get(pk=plan_id)
     _require_draft(plan)
     _assert_method(plan, SxOverallPlan.METHOD_MTO, 'theo đơn đặt hàng')
 
-    raw = collect_mto_demand(kv_order_ids=kv_order_ids)
+    so_ids = [int(x) for x in (sales_order_ids or []) if str(x).strip().isdigit()]
+    if so_ids:
+        from san_xuat.services.sales_orders import collect_mto_demand_from_sales_orders
+
+        raw = collect_mto_demand_from_sales_orders(sales_order_ids=so_ids)
+    else:
+        raw = collect_mto_demand(kv_order_ids=kv_order_ids or [])
     merged = merge_by_product(raw)
     netted = apply_netting(merged, enabled=plan.apply_netting)
     written = _write_lines(plan, netted, replace=replace)

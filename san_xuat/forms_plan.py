@@ -81,12 +81,12 @@ class OverallPlanCreateForm(forms.Form):
 
 
 class MtoLoadOrdersForm(forms.Form):
-    """Chọn nhiều đơn đặt hàng KiotViet để nạp nhu cầu."""
+    """Chọn nhiều đơn đặt hàng Portal (ĐĐH đã xác nhận) để nạp nhu cầu."""
 
-    kv_order_ids = forms.CharField(
+    sales_order_ids = forms.CharField(
         label="Đơn đặt hàng",
         widget=forms.HiddenInput(),
-        help_text="Danh sách id đơn KiotViet, phân tách bằng dấu phẩy.",
+        help_text="Danh sách id ĐĐH Portal, phân tách bằng dấu phẩy.",
     )
     replace = forms.BooleanField(
         required=False,
@@ -95,8 +95,8 @@ class MtoLoadOrdersForm(forms.Form):
         widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
     )
 
-    def clean_kv_order_ids(self):
-        raw = (self.cleaned_data.get("kv_order_ids") or "").strip()
+    def clean_sales_order_ids(self):
+        raw = (self.cleaned_data.get("sales_order_ids") or "").strip()
         ids = [p.strip() for p in raw.replace(";", ",").split(",") if p.strip()]
         bad = [p for p in ids if not p.isdigit()]
         if bad:

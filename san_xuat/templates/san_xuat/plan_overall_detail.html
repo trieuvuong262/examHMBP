@@ -616,29 +616,30 @@
         <div class="card-body">
           <div class="jp-sx-plan-section-head">
             <p class="title">Nạp nhu cầu từ đơn đặt hàng</p>
+            <a href="{% url 'san_xuat:sales_order_list' %}" class="small">Quản lý đơn</a>
           </div>
           <form method="get" id="mtoFilterForm" class="input-group input-group-sm mb-2">
-            <input type="search" name="kv_q" value="{{ kv_q }}" class="form-control"
+            <input type="search" name="so_q" value="{{ so_q }}" class="form-control"
                    placeholder="Tìm mã đơn / khách hàng..." autocomplete="off">
           </form>
-          {% if kv_orders %}
+          {% if sales_orders %}
           <form method="post" id="mtoForm">
             {% csrf_token %}
             <input type="hidden" name="action" value="load_mto">
-            <input type="hidden" name="kv_order_ids" id="mtoOrderIds">
+            <input type="hidden" name="sales_order_ids" id="mtoOrderIds">
             <div class="border rounded-3 overflow-auto mb-2" style="max-height: 320px;">
               <table class="table table-sm table-hover mb-0 align-middle">
                 <tbody>
-                {% for o in kv_orders %}
+                {% for o in sales_orders %}
                   <tr>
                     <td style="width: 36px;" class="text-center">
-                      <input type="checkbox" class="form-check-input jp-kv-pick" value="{{ o.kiotviet_id }}">
+                      <input type="checkbox" class="form-check-input jp-so-pick" value="{{ o.id }}">
                     </td>
                     <td>
                       <div class="small fw-semibold">{{ o.code }}</div>
                       <div class="text-muted small">
                         {{ o.customer_name|default:"—"|truncatechars:24 }}
-                        {% if o.purchase_date %}· {{ o.purchase_date|date:"d/m/Y" }}{% endif %}
+                        {% if o.due_date %}· hạn {{ o.due_date|date:"d/m/Y" }}{% endif %}
                       </div>
                     </td>
                     <td class="text-end small text-nowrap">
@@ -659,18 +660,18 @@
             </button>
           </form>
           <p class="text-muted small mb-0 mt-2">
-            Nhiều đơn cùng mã hàng sẽ được gộp thành một dòng, hạn giao lấy ngày sớm nhất.
+            Chỉ hiện đơn đã xác nhận. Nhiều đơn cùng mã SP sẽ gộp một dòng.
           </p>
           {% else %}
           <p class="text-muted small mb-0">
-            Không tìm thấy đơn đặt hàng nào{% if kv_q %} khớp «{{ kv_q }}»{% endif %}.
-            Đồng bộ KiotViet trước khi lập kế hoạch MTO.
+            Không có đơn đã xác nhận{% if so_q %} khớp «{{ so_q }}»{% endif %}.
+            <a href="{% url 'san_xuat:sales_order_list' %}">Tạo / xác nhận đơn</a> trước khi nạp.
           </p>
           {% endif %}
           <script>
             document.addEventListener('DOMContentLoaded', function () {
               var form = document.getElementById('mtoFilterForm');
-              var input = form && form.querySelector('[name="kv_q"]');
+              var input = form && form.querySelector('[name="so_q"]');
               if (!input) return;
               var t;
               input.addEventListener('input', function () {
@@ -758,7 +759,7 @@
     if (!form) return;
     form.addEventListener('submit', function (e) {
       var picked = [];
-      document.querySelectorAll('.jp-kv-pick:checked').forEach(function (cb) {
+      document.querySelectorAll('.jp-so-pick:checked').forEach(function (cb) {
         picked.push(cb.value);
       });
       if (!picked.length) {

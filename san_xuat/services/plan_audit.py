@@ -19,6 +19,8 @@ OBJECT_LABELS = {
     'SxNplPurchaseRequest': 'Yêu cầu mua NPL',
     'SxPurchaseOrder': 'Đơn mua hàng',
     'SxProductStockPolicy': 'Chính sách tồn TP',
+    'SxSalesOrder': 'Đơn đặt hàng',
+    'SxSalesOrderLine': 'Dòng đơn đặt hàng',
 }
 
 
