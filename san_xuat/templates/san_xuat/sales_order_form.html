@@ -44,6 +44,7 @@
               <tr>
                 <th style="min-width:200px">Mã SP</th>
                 <th>Tên</th>
+                <th class="text-end" style="width:7rem">Tồn kho</th>
                 <th style="width:110px">Số lượng</th>
                 <th style="width:3rem"></th>
               </tr>
@@ -56,6 +57,9 @@
                   {% if f.product_code.errors %}<div class="text-danger small">{{ f.product_code.errors }}</div>{% endif %}
                 </td>
                 <td>{{ f.product_name }}</td>
+                <td class="text-end">
+                  <span class="jp-so-stock-qty text-muted">—</span>
+                </td>
                 <td>{{ f.qty }}</td>
                 <td class="text-center">
                   {% if f.DELETE %}
@@ -87,6 +91,7 @@
   <tr class="jp-so-line-row">
     <td>{{ f.product_code }}</td>
     <td>{{ f.product_name }}</td>
+    <td class="text-end"><span class="jp-so-stock-qty text-muted">—</span></td>
     <td>{{ f.qty }}</td>
     <td class="text-center">
       {% if f.DELETE %}

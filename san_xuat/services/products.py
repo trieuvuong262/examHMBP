@@ -183,23 +183,49 @@ def search_products(q: str = '', *, limit: int = 30) -> list[dict]:
         if style:
             name = (product.name or product.full_name or '').strip()
             if _add(style, name, product.base_price or 0):
-                return rows
+                break
         else:
             sku = (product.code or '').strip()
             name = (product.name or product.full_name or '').strip()
             if _add(sku, name, product.base_price or 0):
-                return rows
+                break
 
-    style_qs = ProductStyle.objects.filter(is_active=True).order_by('code')
-    if q:
-        style_qs = style_qs.filter(
-            Q(code__icontains=q)
-            | Q(name__icontains=q)
-            | Q(root_kiotviet_code__icontains=q),
-        )
-    for style in style_qs[:limit]:
-        if _add((style.code or '').strip(), (style.name or '').strip()):
-            break
+    if len(rows) < limit:
+        style_qs = ProductStyle.objects.filter(is_active=True).order_by('code')
+        if q:
+            style_qs = style_qs.filter(
+                Q(code__icontains=q)
+                | Q(name__icontains=q)
+                | Q(root_kiotviet_code__icontains=q),
+            )
+        for style in style_qs[:limit]:
+            if _add((style.code or '').strip(), (style.name or '').strip()):
+                break
+
+    # Tồn TP khả dụng (KV) — tham khảo trên form ĐĐH / TomSelect
+    try:
+        from san_xuat.services.demand import fg_stock_map
+
+        stock = fg_stock_map([r['code'] for r in rows])
+        for r in rows:
+            qty = stock.get(r['code'], None)
+            if qty is None:
+                # thử khớp không phân biệt hoa thường
+                qty = next(
+                    (v for k, v in stock.items() if k.casefold() == r['code'].casefold()),
+                    None,
+                )
+            if qty is None:
+                r['stock_qty'] = None
+                r['stock_label'] = '—'
+            else:
+                r['stock_qty'] = str(qty)
+                text = f'{qty:f}'.rstrip('0').rstrip('.')
+                r['stock_label'] = text or '0'
+    except Exception:
+        for r in rows:
+            r['stock_qty'] = None
+            r['stock_label'] = '—'
 
     return rows
 

@@ -25,14 +25,37 @@
 
   function fillNameFromOption(select, opt) {
     var nameInput = findNameInput(select);
-    if (!nameInput || !opt) return;
-    var name = (opt.name || '').trim();
-    if (!name && (opt.text || '')) {
-      var text = String(opt.text);
-      var parts = text.split(/\s+[—–-]\s+/);
-      if (parts.length > 1) name = parts.slice(1).join(' - ').trim();
+    if (nameInput && opt) {
+      var name = (opt.name || '').trim();
+      if (!name && (opt.text || '')) {
+        var text = String(opt.text);
+        var parts = text.split(/\s+[—–-]\s+/);
+        if (parts.length > 1) name = parts.slice(1).join(' - ').trim();
+      }
+      if (name) nameInput.value = name;
     }
-    if (name) nameInput.value = name;
+    fillStockFromOption(select, opt);
+  }
+
+  function fillStockFromOption(select, opt) {
+    var row = select.closest('tr') || select.closest('.row');
+    if (!row) return;
+    var stockEl = row.querySelector('.jp-so-stock-qty');
+    if (!stockEl) return;
+    if (!opt) {
+      stockEl.textContent = '—';
+      stockEl.classList.add('text-muted');
+      stockEl.classList.remove('text-danger', 'fw-semibold');
+      return;
+    }
+    var label = (opt.stock_label != null && opt.stock_label !== '')
+      ? String(opt.stock_label)
+      : '—';
+    stockEl.textContent = label;
+    var qty = parseFloat(opt.stock_qty);
+    stockEl.classList.toggle('text-muted', label === '—' || !Number.isFinite(qty));
+    stockEl.classList.toggle('text-danger', Number.isFinite(qty) && qty <= 0);
+    stockEl.classList.toggle('fw-semibold', Number.isFinite(qty) && qty > 0);
   }
 
   function initProductCodeSelect(select) {
@@ -84,7 +107,10 @@
         fillNameFromOption(select, this.options[value]);
       },
       onChange: function (value) {
-        if (!value) return;
+        if (!value) {
+          fillStockFromOption(select, null);
+          return;
+        }
         fillNameFromOption(select, this.options[value]);
       },
     });
