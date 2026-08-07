@@ -10,6 +10,10 @@
     align-items: center;
     gap: 0.5rem;
   }
+  .jp-so-actions-spacer {
+    flex: 1 1 auto;
+    min-width: 0.5rem;
+  }
   .jp-so-actions form {
     display: inline-flex;
     flex-wrap: nowrap;
@@ -109,6 +113,7 @@
                   onclick="return confirm('Từ chối đơn {{ order.code }}?');">Từ chối</button>
         </form>
         {% endif %}
+        <span class="jp-so-actions-spacer" aria-hidden="true"></span>
         {% if order.confirm_status == 'confirmed' %}
         <a href="{% url 'san_xuat:plan_board' %}?q={{ order.code|urlencode }}" class="btn btn-hm btn-sm">
           Kế hoạch sản xuất
