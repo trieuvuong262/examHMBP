@@ -5,21 +5,38 @@
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
 <style>
   .jp-so-actions {
-    gap: 0.5rem !important;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
   }
   .jp-so-actions form {
+    display: inline-flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.4rem;
     margin: 0;
     width: auto;
     flex: 0 0 auto;
   }
+  .jp-so-actions .jp-so-reject-reason {
+    width: 10.5rem;
+    min-width: 8rem;
+    max-width: 14rem;
+    flex: 0 0 auto;
+    height: 1.9rem;
+    padding-top: 0.2rem;
+    padding-bottom: 0.2rem;
+    font-size: 0.8125rem;
+  }
   .jp-so-actions .btn {
     flex: 0 0 auto;
     width: auto !important;
-    min-height: 1.9rem;
-    padding: 0.25rem 0.7rem;
+    height: 1.9rem;
+    padding: 0.2rem 0.7rem;
     font-size: 0.8125rem;
     font-weight: 600;
-    line-height: 1.25;
+    line-height: 1.2;
     white-space: nowrap;
   }
 </style>
@@ -74,19 +91,20 @@
       </div>
 
       {% if can_confirm or order.confirm_status == 'confirmed' %}
-      <div class="d-flex flex-wrap gap-2 align-items-center mt-3 pt-3 border-top jp-so-actions">
+      <div class="jp-so-actions mt-3 pt-3 border-top">
         {% if can_confirm and order.confirm_status == 'draft' %}
-        <form method="post" class="d-inline">
+        <form method="post">
           {% csrf_token %}
           <input type="hidden" name="action" value="confirm">
           <button type="submit" class="btn btn-hm btn-sm">Xác nhận</button>
         </form>
         {% endif %}
         {% if can_confirm and order.confirm_status != 'rejected' %}
-        <form method="post" class="d-inline-flex flex-wrap gap-1 align-items-center">
+        <form method="post">
           {% csrf_token %}
           <input type="hidden" name="action" value="reject">
-          {{ reject_form.reason }}
+          <input type="text" name="reason" class="form-control form-control-sm jp-so-reject-reason"
+                 placeholder="Nhập lý do…" maxlength="500" value="{{ reject_form.reason.value|default:'' }}">
           <button type="submit" class="btn btn-outline-danger btn-sm"
                   onclick="return confirm('Từ chối đơn {{ order.code }}?');">Từ chối</button>
         </form>
