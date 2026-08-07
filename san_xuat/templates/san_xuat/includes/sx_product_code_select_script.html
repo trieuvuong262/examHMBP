@@ -1,7 +1,6 @@
 {# TomSelect mã SX từ kho sản phẩm — API san_xuat:product_code_search
    Chọn mã → tự điền ô tên cùng dòng (product_name) nếu có. #}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/css/tom-select.bootstrap5.min.css">
-<script src="https://cdn.jsdelivr.net/npm/tom-select.complete.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/js/tom-select.complete.min.js"></script>
 <script>
 (function () {
@@ -15,8 +14,7 @@
     }
     var id = select.id || '';
     if (id && id.indexOf('product_code') !== -1) {
-      var nameId = id.replace('product_code', 'product_name');
-      var byId = document.getElementById(nameId);
+      var byId = document.getElementById(id.replace('product_code', 'product_name'));
       if (byId) return byId;
     }
     var row = select.closest('tr') || select.closest('.row') || select.closest('form');
@@ -31,11 +29,9 @@
     if (!nameInput || !opt) return;
     var name = (opt.name || '').trim();
     if (!name && (opt.text || '')) {
-      // text dạng "CODE — Name"
       var text = String(opt.text);
-      var sep = text.indexOf('—');
-      if (sep < 0) sep = text.indexOf('-');
-      if (sep >= 0) name = text.slice(sep + 1).trim();
+      var parts = text.split(/\s+[—–-]\s+/);
+      if (parts.length > 1) name = parts.slice(1).join(' - ').trim();
     }
     if (name) nameInput.value = name;
   }
