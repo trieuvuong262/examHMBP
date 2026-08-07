@@ -819,4 +819,240 @@
   });
 })();
 </script>
+{% if mode == 'route' %}
+<script>
+(function () {
+  var board = document.getElementById('jp-kb-board');
+  if (!board) return;
+  var canSchedule = board.dataset.canSchedule === '1';
+  var axis = board.dataset.axis || 'day';
+  var csrfEl = document.querySelector('input[name=csrfmiddlewaretoken]');
+  var csrf = csrfEl ? csrfEl.value : '';
+  if (!csrf) {
+    var m = document.cookie.match(/(?:^|; )csrftoken=([^;]+)/);
+    csrf = m ? decodeURIComponent(m[1]) : '';
+  }
+  var postUrl = '{% url "san_xuat:plan_board" %}';
+  var processNames = {{ route_process_names_json|safe }};
+  var workCenters = {{ route_work_centers_json|safe }};
+
+  function refreshColCounts() {
+    board.querySelectorAll('.jp-kb-col').forEach(function (col) {
+      var zone = col.querySelector('[data-drop-zone]');
+      var countEl = col.querySelector('.jp-kb-col-count');
+      if (zone && countEl) {
+        countEl.textContent = String(zone.querySelectorAll('.jp-kb-card').length);
+      }
+    });
+  }
+
+  function postForm(data) {
+    var body = new URLSearchParams();
+    Object.keys(data).forEach(function (k) {
+      body.append(k, data[k] == null ? '' : String(data[k]));
+    });
+    return fetch(postUrl + '?mode=route&tab=' + encodeURIComponent(axis), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-CSRFToken': csrf,
+        'Accept': 'application/json',
+      },
+      body: body.toString(),
+      credentials: 'same-origin',
+    }).then(function (r) {
+      return r.json().then(function (j) {
+        j.okHttp = r.ok;
+        return j;
+      });
+    });
+  }
+
+  if (canSchedule) {
+    var dragCard = null;
+    var dragFromCol = null;
+    board.querySelectorAll('.jp-kb-card[draggable=true]').forEach(function (card) {
+      card.addEventListener('dragstart', function (e) {
+        if (e.target.closest('a, button, input, select, textarea')) {
+          e.preventDefault();
+          return;
+        }
+        dragCard = card;
+        dragFromCol = card.closest('.jp-kb-col');
+        card.classList.add('is-dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', card.dataset.cardId || '');
+      });
+      card.addEventListener('dragend', function () {
+        card.classList.remove('is-dragging');
+        board.querySelectorAll('.jp-kb-col.is-over').forEach(function (c) {
+          c.classList.remove('is-over');
+        });
+        dragCard = null;
+        dragFromCol = null;
+      });
+    });
+    board.querySelectorAll('.jp-kb-col').forEach(function (col) {
+      var zone = col.querySelector('[data-drop-zone]');
+      if (!zone) return;
+      col.addEventListener('dragover', function (e) {
+        e.preventDefault();
+        col.classList.add('is-over');
+      });
+      col.addEventListener('dragleave', function () {
+        col.classList.remove('is-over');
+      });
+      col.addEventListener('drop', function (e) {
+        e.preventDefault();
+        col.classList.remove('is-over');
+        if (!dragCard) return;
+        var targetKey = col.dataset.colKey || '';
+        var cardType = dragCard.dataset.cardType;
+        var cardId = dragCard.dataset.cardId;
+        zone.appendChild(dragCard);
+        refreshColCounts();
+        postForm({
+          action: 'move_card',
+          mode: 'route',
+          axis: axis,
+          tab: axis,
+          card_type: cardType,
+          card_id: cardId,
+          target_key: targetKey,
+        }).then(function (res) {
+          if (!res.ok) {
+            alert(res.error || 'Không cập nhật được thẻ.');
+            location.reload();
+          }
+        }).catch(function () {
+          location.reload();
+        });
+      });
+    });
+  }
+
+  var modalEl = document.getElementById('jpKbRouteModal');
+  var tbody = document.querySelector('#jpKbRouteTable tbody');
+  var errEl = document.getElementById('jpKbRouteErr');
+
+  function getRouteModal() {
+    if (!modalEl || typeof bootstrap === 'undefined') return null;
+    return bootstrap.Modal.getOrCreateInstance(modalEl);
+  }
+
+  function wcOptions(selected) {
+    var html = '<option value="">—</option>';
+    workCenters.forEach(function (wc) {
+      var sel = String(wc.id) === String(selected || '') ? ' selected' : '';
+      html += '<option value="' + wc.id + '"' + sel + '>' + wc.label + '</option>';
+    });
+    return html;
+  }
+
+  function processOptions(selected) {
+    var set = {};
+    processNames.forEach(function (n) { set[n] = true; });
+    if (selected && !set[selected]) processNames.unshift(selected);
+    var html = '';
+    processNames.forEach(function (n) {
+      var sel = n === selected ? ' selected' : '';
+      html += '<option value="' + String(n).replace(/"/g, '&quot;') + '"' + sel + '>' + n + '</option>';
+    });
+    if (!processNames.length) {
+      html = '<option value="' + String(selected || '').replace(/"/g, '&quot;') + '" selected>' + (selected || '—') + '</option>';
+    }
+    return html;
+  }
+
+  function addRow(step) {
+    step = step || {};
+    var tr = document.createElement('tr');
+    var seq = step.sequence || ((tbody.children.length + 1) * 10);
+    tr.innerHTML =
+      '<td><input type="number" class="form-control form-control-sm jp-kb-seq" value="' + seq + '" min="1" step="1"></td>' +
+      '<td><select class="form-select form-select-sm jp-kb-process">' + processOptions(step.process_name || '') + '</select></td>' +
+      '<td><select class="form-select form-select-sm jp-kb-wc">' + wcOptions(step.work_center_id || '') + '</select></td>' +
+      '<td><input type="date" class="form-control form-control-sm jp-date-vn jp-kb-date" value="' + (step.planned_date || '') + '"></td>' +
+      '<td><button type="button" class="btn btn-link btn-sm text-danger p-0 jp-kb-del" aria-label="Xóa">&times;</button></td>';
+    tbody.appendChild(tr);
+    tr.querySelector('.jp-kb-del').addEventListener('click', function () { tr.remove(); });
+  }
+
+  document.querySelectorAll('.jp-kb-edit-route').forEach(function (btn) {
+    btn.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      var orderId = btn.getAttribute('data-order-id');
+      var orderCode = btn.getAttribute('data-order-code') || '';
+      document.getElementById('jpKbRouteOrderId').value = orderId;
+      document.getElementById('jpKbRouteOrderCode').textContent = orderCode;
+      errEl.classList.add('d-none');
+      tbody.innerHTML = '';
+      var modal = getRouteModal();
+      if (!modal) {
+        alert('Không mở được cửa sổ lộ trình (Bootstrap chưa sẵn sàng).');
+        return;
+      }
+      postForm({ action: 'get_route', order_id: orderId, mode: 'route', tab: axis }).then(function (res) {
+        if (!res.ok) {
+          errEl.textContent = res.error || 'Không tải được lộ trình.';
+          errEl.classList.remove('d-none');
+        } else {
+          (res.steps || []).forEach(addRow);
+          if (!(res.steps || []).length) addRow({});
+        }
+        modal.show();
+      }).catch(function () {
+        errEl.textContent = 'Không tải được lộ trình.';
+        errEl.classList.remove('d-none');
+        modal.show();
+      });
+    });
+  });
+
+  var addBtn = document.getElementById('jpKbRouteAdd');
+  if (addBtn) addBtn.addEventListener('click', function () { addRow({}); });
+
+  var saveBtn = document.getElementById('jpKbRouteSave');
+  if (saveBtn) {
+    saveBtn.addEventListener('click', function () {
+      var orderId = document.getElementById('jpKbRouteOrderId').value;
+      var steps = [];
+      tbody.querySelectorAll('tr').forEach(function (tr, i) {
+        var nameEl = tr.querySelector('.jp-kb-process');
+        var name = nameEl ? String(nameEl.value || '').trim() : '';
+        if (!name) return;
+        var seqEl = tr.querySelector('.jp-kb-seq');
+        var wcEl = tr.querySelector('.jp-kb-wc');
+        var dateEl = tr.querySelector('.jp-kb-date');
+        steps.push({
+          sequence: parseInt((seqEl && seqEl.value) || ((i + 1) * 10), 10),
+          process_name: name,
+          work_center_id: (wcEl && wcEl.value) || '',
+          planned_date: (dateEl && dateEl.value) || '',
+        });
+      });
+      postForm({
+        action: 'save_route',
+        order_id: orderId,
+        mode: 'route',
+        tab: axis,
+        steps_json: JSON.stringify(steps),
+      }).then(function (res) {
+        if (!res.ok) {
+          errEl.textContent = res.error || 'Lưu thất bại.';
+          errEl.classList.remove('d-none');
+          return;
+        }
+        location.reload();
+      }).catch(function () {
+        errEl.textContent = 'Lưu thất bại.';
+        errEl.classList.remove('d-none');
+      });
+    });
+  }
+})();
+</script>
+{% endif %}
 {% endblock %}
