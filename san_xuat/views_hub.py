@@ -1135,7 +1135,19 @@ def plan_board(request):
                 unhold_plan_order(order_id=order_id)
                 messages.success(request, 'Đã bỏ giữ — đơn về chờ xếp.')
             elif action == 'release' and can_release and order_id:
-                created = release_order_to_production(order_id=order_id, user=request.user)
+                bom_by_product: dict[str, int] = {}
+                for key, val in request.POST.items():
+                    if not key.startswith('bom_for__'):
+                        continue
+                    code = key[len('bom_for__'):].strip()
+                    raw = (val or '').strip()
+                    if code and raw.isdigit():
+                        bom_by_product[code] = int(raw)
+                created = release_order_to_production(
+                    order_id=order_id,
+                    user=request.user,
+                    bom_by_product=bom_by_product,
+                )
                 messages.success(
                     request,
                     f'Đã chuyển xuống SX — tạo {len(created)} LSX.',

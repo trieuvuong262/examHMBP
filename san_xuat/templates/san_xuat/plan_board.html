@@ -574,15 +574,14 @@
         {% endif %}
         <div class="jp-pb-actions">
           {% if can_release and row.order.plan_status != 'on_hold' %}
-          <form method="post">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="release">
-            <input type="hidden" name="order_id" value="{{ row.order.pk }}">
-            <button type="submit" class="btn btn-hm btn-sm fw-bold"
-                    onclick="return confirm('Chuyển {{ row.order.code }} xuống sản xuất (tạo LSX)?');">
-              Chuyển SX
-            </button>
-          </form>
+          {{ row.release_products|json_script:row.release_script_id }}
+          <button type="button" class="btn btn-hm btn-sm fw-bold"
+                  data-jp-release-open
+                  data-order-id="{{ row.order.pk }}"
+                  data-order-code="{{ row.order.code }}"
+                  data-products-id="{{ row.release_script_id }}">
+            Chuyển SX
+          </button>
           {% endif %}
           {% if can_schedule %}
             {% if row.order.plan_status == 'on_hold' %}
@@ -664,4 +663,153 @@
   {% endif %}
   {% endif %}{# mode list #}
 </div>
+
+{# Modal chọn hồ sơ thiết kế khi Chuyển SX #}
+<div class="modal fade" id="jpReleaseBomModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <form method="post" class="modal-content" id="jpReleaseBomForm">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="release">
+      <input type="hidden" name="order_id" id="jpReleaseOrderId" value="">
+      <div class="modal-header">
+        <h5 class="modal-title">Chuyển SX — chọn hồ sơ thiết kế</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+      </div>
+      <div class="modal-body">
+        <p class="small text-muted mb-3" id="jpReleaseOrderLabel"></p>
+        <div id="jpReleaseBomRows" class="d-flex flex-column gap-3"></div>
+        <div id="jpReleaseBomEmpty" class="text-muted small d-none">Không có dòng sản phẩm để chuyển.</div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Hủy</button>
+        <button type="submit" class="btn btn-hm fw-bold" id="jpReleaseBomSubmit">Chuyển SX</button>
+      </div>
+    </form>
+  </div>
+</div>
+<script>
+(function () {
+  var bomApi = "{% url 'san_xuat:mo_bom_versions' %}";
+  var modalEl = document.getElementById('jpReleaseBomModal');
+  if (!modalEl || typeof bootstrap === 'undefined') return;
+  var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+  var form = document.getElementById('jpReleaseBomForm');
+  var rowsHost = document.getElementById('jpReleaseBomRows');
+  var emptyEl = document.getElementById('jpReleaseBomEmpty');
+  var orderIdInput = document.getElementById('jpReleaseOrderId');
+  var orderLabel = document.getElementById('jpReleaseOrderLabel');
+  var submitBtn = document.getElementById('jpReleaseBomSubmit');
+
+  function escapeHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function renderSteps(steps) {
+    if (!steps || !steps.length) {
+      return '<div class="small text-muted mt-1">Chưa có công đoạn trên hồ sơ này.</div>';
+    }
+    var html = '<div class="jp-pb-steps mt-2">';
+    steps.forEach(function (s) {
+      var label = s.process_name || '—';
+      if (s.team_label) label += ' · ' + s.team_label;
+      html += '<span class="jp-pb-step">' + escapeHtml(label) + '</span>';
+    });
+    html += '</div>';
+    return html;
+  }
+
+  function loadBoms(productCode, selectEl, previewEl) {
+    selectEl.innerHTML = '<option value=\"\">Đang tải…</option>';
+    previewEl.innerHTML = '';
+    fetch(bomApi + '?product_code=' + encodeURIComponent(productCode), {
+      headers: { 'Accept': 'application/json' },
+      credentials: 'same-origin'
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        var results = (data && data.results) || [];
+        selectEl.innerHTML = '';
+        if (!results.length) {
+          selectEl.innerHTML = '<option value=\"\">— Chưa có hồ sơ thiết kế —</option>';
+          previewEl.innerHTML = '<div class=\"small text-danger mt-1\">Mã này chưa có BOM. Tạo hồ sơ thiết kế trước.</div>';
+          return;
+        }
+        results.forEach(function (b, idx) {
+          var opt = document.createElement('option');
+          opt.value = String(b.id);
+          opt.textContent = b.text || b.label || ('#' + b.id);
+          opt.dataset.steps = JSON.stringify(b.process_steps || []);
+          if (idx === results.length - 1) opt.selected = true; // mặc định BOM mới nhất
+          selectEl.appendChild(opt);
+        });
+        var sel = selectEl.options[selectEl.selectedIndex];
+        previewEl.innerHTML = renderSteps(sel ? JSON.parse(sel.dataset.steps || '[]') : []);
+      })
+      .catch(function () {
+        selectEl.innerHTML = '<option value=\"\">Không tải được hồ sơ</option>';
+      });
+  }
+
+  document.querySelectorAll('[data-jp-release-open]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var orderId = btn.getAttribute('data-order-id');
+      var orderCode = btn.getAttribute('data-order-code') || '';
+      var scriptId = btn.getAttribute('data-products-id');
+      var products = [];
+      var script = scriptId ? document.getElementById(scriptId) : null;
+      if (script) {
+        try { products = JSON.parse(script.textContent || '[]'); } catch (e) { products = []; }
+      }
+      orderIdInput.value = orderId || '';
+      orderLabel.textContent = 'Đơn ' + orderCode + ' — chọn hồ sơ (BOM + công đoạn) cho từng mã.';
+      rowsHost.innerHTML = '';
+      if (!products.length) {
+        emptyEl.classList.remove('d-none');
+        submitBtn.disabled = true;
+        modal.show();
+        return;
+      }
+      emptyEl.classList.add('d-none');
+      submitBtn.disabled = false;
+      products.forEach(function (p) {
+        var code = p.code || '';
+        var wrap = document.createElement('div');
+        wrap.className = 'border rounded-3 p-3';
+        wrap.innerHTML =
+          '<div class=\"fw-semibold mb-1\">' + escapeHtml(code) +
+          (p.name ? ' <span class=\"text-muted fw-normal\">— ' + escapeHtml(p.name) + '</span>' : '') +
+          '</div>' +
+          '<div class=\"small text-muted mb-2\">SL ' + escapeHtml(p.qty || '') + '</div>' +
+          '<label class=\"form-label small fw-bold mb-1\">Hồ sơ thiết kế</label>' +
+          '<select class=\"form-select form-select-sm jp-release-bom-select\" name=\"bom_for__' + escapeHtml(code) + '\" required></select>' +
+          '<div class=\"jp-release-bom-preview\"></div>';
+        rowsHost.appendChild(wrap);
+        var selectEl = wrap.querySelector('select');
+        var previewEl = wrap.querySelector('.jp-release-bom-preview');
+        selectEl.addEventListener('change', function () {
+          var opt = selectEl.options[selectEl.selectedIndex];
+          var steps = [];
+          try { steps = JSON.parse(opt.dataset.steps || '[]'); } catch (e) {}
+          previewEl.innerHTML = renderSteps(steps);
+        });
+        loadBoms(code, selectEl, previewEl);
+      });
+      modal.show();
+    });
+  });
+
+  form.addEventListener('submit', function (ev) {
+    var selects = form.querySelectorAll('.jp-release-bom-select');
+    for (var i = 0; i < selects.length; i++) {
+      if (!selects[i].value) {
+        ev.preventDefault();
+        alert('Chọn hồ sơ thiết kế cho mọi mã sản phẩm.');
+        return;
+      }
+    }
+  });
+})();
+</script>
 {% endblock %}

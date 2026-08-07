@@ -77,6 +77,8 @@ class PlanBoardRow:
     progress_pct: Decimal = field(default_factory=lambda: Decimal('0'))
     eta_date: date | None = None
     derived_status: str = SxSalesOrder.PLAN_QUEUED
+    release_products: list[dict] = field(default_factory=list)
+    release_script_id: str = ''
 
 
 def enqueue_on_confirm(order: SxSalesOrder) -> None:
@@ -249,6 +251,23 @@ def build_plan_board_rows(
             days_need = max(1, int((hours / 8.0) + 0.999))
             eta = today + timedelta(days=days_need)
 
+        # Gom mã SP unique cho modal Chuyển SX (chọn BOM)
+        release_products: list[dict] = []
+        seen_codes: set[str] = set()
+        for ln in lines:
+            if (ln.qty or 0) <= 0:
+                continue
+            code = (ln.product_code or '').strip()
+            key = code.casefold()
+            if not code or key in seen_codes:
+                continue
+            seen_codes.add(key)
+            release_products.append({
+                'code': code,
+                'name': (ln.product_name or '').strip(),
+                'qty': str(ln.qty_to_produce),
+            })
+
         rows.append(PlanBoardRow(
             order=order,
             total_qty=_q(total_qty),
@@ -266,6 +285,8 @@ def build_plan_board_rows(
             progress_pct=pct,
             eta_date=eta,
             derived_status=derived,
+            release_products=release_products,
+            release_script_id=f'jp-release-products-{order.pk}',
         ))
 
     rows.sort(
@@ -368,10 +389,15 @@ def unhold_plan_order(*, order_id: int) -> SxSalesOrder:
 
 
 @transaction.atomic
-def release_order_to_production(*, order_id: int, user=None) -> list[SxProductionOrder]:
-    """Chuyển đơn xuống SX: tạo LSX theo từng dòng SP, gắn sales_order."""
+def release_order_to_production(
+    *,
+    order_id: int,
+    user=None,
+    bom_by_product: dict[str, int] | None = None,
+) -> list[SxProductionOrder]:
+    """Chuyển đơn xuống SX: tạo LSX theo từng dòng SP, gắn sales_order + BOM đã chọn."""
+    from san_xuat.models import BomVersion, ProcessStep
     from san_xuat.services.dispatch import sync_mo_process_steps
-    from san_xuat.services.plan_route import ensure_order_plan_steps, plan_steps_as_mo_dicts
 
     order = (
         SxSalesOrder.objects.select_for_update()
@@ -389,43 +415,80 @@ def release_order_to_production(*, order_id: int, user=None) -> list[SxProductio
     if not lines:
         raise PlanningError('Đơn không có dòng sản phẩm.')
 
-    ensure_order_plan_steps(order)
-    route_steps = plan_steps_as_mo_dicts(order)
+    bom_map: dict[str, int] = {}
+    for raw_code, raw_id in (bom_by_product or {}).items():
+        code = (raw_code or '').strip()
+        if not code or not raw_id:
+            continue
+        try:
+            bom_map[code.casefold()] = int(raw_id)
+        except (TypeError, ValueError):
+            raise PlanningError(f'{code}: hồ sơ thiết kế không hợp lệ.')
+
+    # planned_date từ lộ trình Kanban (nếu có) — khớp theo tên công đoạn
+    planned_by_name = {
+        (s.process_name or '').strip().casefold(): s.planned_date
+        for s in order.plan_steps.all()
+        if s.planned_date
+    }
 
     created: list[SxProductionOrder] = []
     errors: list[str] = []
     for ln in lines:
-        # Tránh tạo trùng nếu đã có LSX cùng mã SP chưa hủy
         exists = order.production_orders.filter(
             is_demo=False,
             product_code__iexact=ln.product_code,
         ).exclude(status=SxProductionOrder.STATUS_CANCELLED).exists()
         if exists:
             continue
+
+        code = (ln.product_code or '').strip()
+        bom_id = bom_map.get(code.casefold())
+        if not bom_id:
+            raise PlanningError(f'{code}: chưa chọn hồ sơ thiết kế (BOM).')
+        bom = BomVersion.objects.filter(pk=bom_id).select_related('tech_doc').first()
+        if not bom or (bom.tech_doc.product_code or '').strip().casefold() != code.casefold():
+            raise PlanningError(f'{code}: hồ sơ thiết kế không thuộc mã này.')
+
         try:
-            # Không truyền process_steps vào create_mo_from_bom (tránh sửa BOM).
             mo = create_mo_from_bom(
-                product_code=ln.product_code,
+                product_code=code,
                 qty=ln.qty_to_produce,
                 order_date=timezone.localdate(),
                 due_date=ln.due_date or order.due_date,
                 notes=f'Từ ĐĐH {order.code}',
                 user=user,
                 sales_order_id=order.pk,
+                bom_version_id=bom_id,
             )
-            if route_steps:
-                sync_mo_process_steps(mo, route_steps)
+            # create_mo_from_bom đã snapshot CD từ BOM; gắn lại planned_date Kanban nếu khớp tên
+            if planned_by_name and mo.bom_version_id:
+                bom_rows = list(
+                    ProcessStep.objects.filter(bom_id=mo.bom_version_id).order_by('sequence', 'id')
+                )
+                step_dicts = []
+                for i, s in enumerate(bom_rows):
+                    key = (s.process_name or '').strip().casefold()
+                    step_dicts.append({
+                        'id': s.pk,
+                        'sequence': s.sequence or ((i + 1) * 10),
+                        'process_name': s.process_name,
+                        'work_center_id': s.work_center_id,
+                        'planned_date': planned_by_name.get(key),
+                        'manager_id': None,
+                    })
+                if step_dicts:
+                    sync_mo_process_steps(mo, step_dicts)
             if ln.product_name and not mo.product_name:
                 mo.product_name = ln.product_name
                 mo.save(update_fields=['product_name'])
             created.append(mo)
         except DispatchError as exc:
-            errors.append(f'{ln.product_code}: {exc}')
+            errors.append(f'{code}: {exc}')
 
     if not created and errors:
         raise PlanningError('Không tạo được LSX: ' + '; '.join(errors[:5]))
     if not created:
-        # Đã có LSX sẵn
         sync_plan_status(order)
         return list(
             order.production_orders.filter(is_demo=False).exclude(
@@ -436,9 +499,6 @@ def release_order_to_production(*, order_id: int, user=None) -> list[SxProductio
     order.plan_status = SxSalesOrder.PLAN_RELEASED
     order.plan_hold_reason = ''
     order.save(update_fields=['plan_status', 'plan_hold_reason', 'updated_at'])
-    if errors:
-        # Một phần thành công — vẫn release
-        pass
     return created
 
 
