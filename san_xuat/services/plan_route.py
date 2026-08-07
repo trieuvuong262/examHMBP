@@ -400,6 +400,7 @@ def move_kanban_card(
     axis: str,
     target_key: str,
 ) -> KanbanCard:
+    """Cập nhật vị trí thẻ Kanban. Không dùng select_for_update+select_related (PG outer join)."""
     target_key = (target_key or '').strip() or UNASSIGNED_KEY
     if axis not in AXES:
         raise PlanningError('Trục Kanban không hợp lệ.')
@@ -407,7 +408,10 @@ def move_kanban_card(
         raise PlanningError('Loại thẻ không hợp lệ.')
 
     if card_type == CARD_ORDER:
-        step = SxSalesOrderPlanStep.objects.select_for_update().get(pk=card_id)
+        try:
+            step = SxSalesOrderPlanStep.objects.get(pk=card_id)
+        except SxSalesOrderPlanStep.DoesNotExist as exc:
+            raise PlanningError('Không tìm thấy thẻ lộ trình đơn.') from exc
         order = SxSalesOrder.objects.get(pk=step.sales_order_id)
         if order.confirm_status != SxSalesOrder.CONFIRM_CONFIRMED:
             raise PlanningError('Đơn chưa xác nhận.')
@@ -435,14 +439,14 @@ def move_kanban_card(
                     raise PlanningError('Tổ không hợp lệ.')
                 step.work_center_id = int(target_key)
             step.save(update_fields=['work_center_id'])
-        step = (
-            SxSalesOrderPlanStep.objects.select_related('work_center')
-            .get(pk=step.pk)
-        )
+        step = SxSalesOrderPlanStep.objects.select_related('work_center').get(pk=step.pk)
         return _card_from_order_step(order, step)
 
-    step = SxMoProcessStep.objects.select_for_update().get(pk=card_id)
-    mo = SxProductionOrder.objects.select_related('sales_order').get(pk=step.production_order_id)
+    try:
+        step = SxMoProcessStep.objects.get(pk=card_id)
+    except SxMoProcessStep.DoesNotExist as exc:
+        raise PlanningError('Không tìm thấy thẻ công đoạn LSX.') from exc
+    mo = SxProductionOrder.objects.get(pk=step.production_order_id)
     if mo.status == SxProductionOrder.STATUS_CANCELLED:
         raise PlanningError('LSX đã hủy.')
 
@@ -456,16 +460,15 @@ def move_kanban_card(
         if target_key == UNASSIGNED_KEY:
             raise PlanningError('Công đoạn không được để trống — chọn tên công đoạn.')
         step.process_name = target_key[:120]
-        # Kéo sang cột công đoạn khác → đang làm; nếu trùng tên bước hiện tại giữ status
         if step.status == SxMoProcessStep.STATUS_DONE:
             step.status = SxMoProcessStep.STATUS_IN_PROGRESS
         elif step.status == SxMoProcessStep.STATUS_PENDING:
             step.status = SxMoProcessStep.STATUS_IN_PROGRESS
         step.save(update_fields=['process_name', 'status'])
-        if mo.status == SxProductionOrder.STATUS_DRAFT:
-            mo.status = SxProductionOrder.STATUS_IN_PROGRESS
-            mo.save(update_fields=['status'])
-        elif mo.status == SxProductionOrder.STATUS_RELEASED:
+        if mo.status in {
+            SxProductionOrder.STATUS_DRAFT,
+            SxProductionOrder.STATUS_RELEASED,
+        }:
             mo.status = SxProductionOrder.STATUS_IN_PROGRESS
             mo.save(update_fields=['status'])
     else:
@@ -478,8 +481,9 @@ def move_kanban_card(
         step.save(update_fields=['work_center_id'])
 
     step = (
-        SxMoProcessStep.objects.select_related('work_center', 'production_order', 'production_order__sales_order')
-        .get(pk=step.pk)
+        SxMoProcessStep.objects.select_related(
+            'work_center', 'production_order', 'production_order__sales_order',
+        ).get(pk=step.pk)
     )
     return _card_from_mo_step(step)
 
