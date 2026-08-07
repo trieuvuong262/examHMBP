@@ -25,14 +25,18 @@
 
   function fillNameFromOption(select, opt) {
     var nameInput = findNameInput(select);
-    if (nameInput && opt) {
-      var name = (opt.name || '').trim();
-      if (!name && (opt.text || '')) {
-        var text = String(opt.text);
-        var parts = text.split(/\s+[—–-]\s+/);
-        if (parts.length > 1) name = parts.slice(1).join(' - ').trim();
+    if (nameInput) {
+      if (!opt) {
+        nameInput.value = '';
+      } else {
+        var name = (opt.name || '').trim();
+        if (!name && (opt.text || '')) {
+          var text = String(opt.text);
+          var parts = text.split(/\s+[—–-]\s+/);
+          if (parts.length > 1) name = parts.slice(1).join(' - ').trim();
+        }
+        nameInput.value = name || '';
       }
-      if (name) nameInput.value = name;
     }
     fillStockFromOption(select, opt);
   }
@@ -110,7 +114,7 @@
       },
       onChange: function (value) {
         if (!value) {
-          fillStockFromOption(select, null);
+          fillNameFromOption(select, null);
           return;
         }
         fillNameFromOption(select, this.options[value]);

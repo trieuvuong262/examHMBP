@@ -54,7 +54,11 @@ class SalesOrderLineForm(forms.Form):
         required=False,
         max_length=255,
         label='Tên',
-        widget=forms.TextInput(attrs={'class': 'form-control form-control-sm'}),
+        widget=forms.TextInput(attrs={
+            'class': 'form-control-plaintext form-control-sm px-0',
+            'readonly': True,
+            'tabindex': '-1',
+        }),
     )
     qty = forms.DecimalField(
         max_digits=14,
