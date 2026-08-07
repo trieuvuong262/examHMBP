@@ -1,10 +1,45 @@
-{# TomSelect mã SX từ kho sản phẩm — API san_xuat:product_code_search #}
+{# TomSelect mã SX từ kho sản phẩm — API san_xuat:product_code_search
+   Chọn mã → tự điền ô tên cùng dòng (product_name) nếu có. #}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/css/tom-select.bootstrap5.min.css">
+<script src="https://cdn.jsdelivr.net/npm/tom-select.complete.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/js/tom-select.complete.min.js"></script>
 <script>
 (function () {
   if (typeof TomSelect === 'undefined') return;
   var searchUrl = '{% url "san_xuat:product_code_search" %}';
+
+  function findNameInput(select) {
+    var target = (select.dataset.fillName || '').trim();
+    if (target) {
+      return document.querySelector(target) || document.getElementById(target.replace(/^#/, ''));
+    }
+    var id = select.id || '';
+    if (id && id.indexOf('product_code') !== -1) {
+      var nameId = id.replace('product_code', 'product_name');
+      var byId = document.getElementById(nameId);
+      if (byId) return byId;
+    }
+    var row = select.closest('tr') || select.closest('.row') || select.closest('form');
+    if (row) {
+      return row.querySelector('input[name$="product_name"], textarea[name$="product_name"], #id_product_name');
+    }
+    return document.getElementById('id_product_name');
+  }
+
+  function fillNameFromOption(select, opt) {
+    var nameInput = findNameInput(select);
+    if (!nameInput || !opt) return;
+    var name = (opt.name || '').trim();
+    if (!name && (opt.text || '')) {
+      // text dạng "CODE — Name"
+      var text = String(opt.text);
+      var sep = text.indexOf('—');
+      if (sep < 0) sep = text.indexOf('-');
+      if (sep >= 0) name = text.slice(sep + 1).trim();
+    }
+    if (name) nameInput.value = name;
+  }
+
   document.querySelectorAll('.jp-sx-product-code-select').forEach(function (select) {
     if (!select || select.tomselect) return;
     var initialValue = (select.value || '').trim();
@@ -45,9 +80,17 @@
             id: initialValue,
             code: initialValue,
             text: initialLabel || initialValue,
+            name: '',
           });
         }
         this.setValue(initialValue, true);
+      },
+      onItemAdd: function (value) {
+        fillNameFromOption(select, this.options[value]);
+      },
+      onChange: function (value) {
+        if (!value) return;
+        fillNameFromOption(select, this.options[value]);
       },
     });
   });
