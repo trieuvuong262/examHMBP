@@ -100,7 +100,9 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
     ],
     MODULE_SAN_XUAT: [
         {'key': 'overview', 'label': 'Tổng quan', 'icon': 'bi-speedometer2'},
-        {'key': 'orders', 'label': 'Đơn đặt hàng', 'icon': 'bi-cart-check'},
+        {'key': 'orders', 'label': 'Danh sách đơn đặt hàng', 'icon': 'bi-cart-check'},
+        {'key': 'order_create', 'label': 'Lên đơn đặt hàng', 'icon': 'bi-cart-plus'},
+        {'key': 'order_confirm', 'label': 'Xác nhận đơn đặt hàng', 'icon': 'bi-check2-square'},
         {'key': 'products_nvl', 'label': 'Sản phẩm – NVL', 'icon': 'bi-box'},
         {'key': 'docs', 'label': 'Hồ sơ thiết kế', 'icon': 'bi-journal-text'},
         {'key': 'bom', 'label': 'BOM', 'icon': 'bi-diagram-3'},
@@ -306,6 +308,8 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     ('/kho-san-pham/', MODULE_KHO_SAN_PHAM, 'products'),
     # Sản xuất hub — prefix cụ thể trước; /san-xuat/ cuối cùng → overview
     ('/san-xuat/tong-quan', MODULE_SAN_XUAT, 'overview'),
+    ('/san-xuat/don-hang/them', MODULE_SAN_XUAT, 'order_create'),
+    ('/san-xuat/don-hang/xac-nhan', MODULE_SAN_XUAT, 'order_confirm'),
     ('/san-xuat/don-hang', MODULE_SAN_XUAT, 'orders'),
     ('/san-xuat/san-pham-nvl', MODULE_SAN_XUAT, 'products_nvl'),
     ('/san-xuat/ke-hoach/giam-sat-tien-do', MODULE_SAN_XUAT, 'plan_progress'),

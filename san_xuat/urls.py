@@ -10,6 +10,7 @@ urlpatterns = [
     path('tong-quan/', views_hub.overview, name='overview'),
     path('don-hang/', views_hub.sales_order_list, name='sales_order_list'),
     path('don-hang/them/', views_hub.sales_order_create, name='sales_order_create'),
+    path('don-hang/xac-nhan/', views_hub.sales_order_confirm_list, name='sales_order_confirm_list'),
     path('don-hang/<int:pk>/', views_hub.sales_order_detail, name='sales_order_detail'),
     # alias cũ
     path('don-hang-kv/', views_hub.sales_order_list, name='redirect_orders'),

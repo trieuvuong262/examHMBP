@@ -35,6 +35,8 @@ from hrm.submenu_registry import (
 _MENU_DEFER_PATH_PATTERNS = (
     re.compile(r'^/yeu-cau/de-xuat/\d+/?'),
     re.compile(r'^/yeu-cau/ho-tro/\d+/?'),
+    # Chi tiết ĐĐH: view tự kiểm tra orders | order_create | order_confirm
+    re.compile(r'^/san-xuat/don-hang/\d+/?'),
     re.compile(r'^/san-xuat/xuat-excel/'),
     re.compile(r'^/reports/sx/\d+'),
     re.compile(r'^/reports/cn/\d+'),

@@ -47,16 +47,16 @@
         {% endif %}
       </div>
 
-      {% if can_update %}
+      {% if can_confirm or can_plan or order.confirm_status == 'confirmed' %}
       <div class="d-flex flex-wrap gap-2 mt-3 pt-3 border-top">
-        {% if order.confirm_status == 'draft' %}
+        {% if can_confirm and order.confirm_status == 'draft' %}
         <form method="post">
           {% csrf_token %}
           <input type="hidden" name="action" value="confirm">
           <button type="submit" class="btn btn-hm btn-sm fw-bold">Xác nhận</button>
         </form>
         {% endif %}
-        {% if order.confirm_status != 'rejected' %}
+        {% if can_confirm and order.confirm_status != 'rejected' %}
         <form method="post" class="d-flex flex-wrap gap-2 align-items-center">
           {% csrf_token %}
           <input type="hidden" name="action" value="reject">
@@ -66,6 +66,7 @@
         </form>
         {% endif %}
         {% if order.confirm_status == 'confirmed' %}
+        {% if can_plan %}
         <form method="post">
           {% csrf_token %}
           <input type="hidden" name="action" value="create_mto_plan">
@@ -73,6 +74,7 @@
             Tạo KHTT MTO &amp; nạp nhu cầu
           </button>
         </form>
+        {% endif %}
         <a href="{% url 'san_xuat:plan_overall_create' %}?method=mto" class="btn btn-outline-secondary btn-sm">
           Tới danh sách KHTT
         </a>

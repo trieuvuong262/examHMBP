@@ -12,6 +12,12 @@ from django.urls import reverse
 from django.utils import timezone
 
 from assessment.decorators import module_perm_required
+from hrm.menu_permissions import (
+    handle_menu_access_denied,
+    user_can_access_menu,
+    user_can_create_menu,
+    user_can_update_menu,
+)
 from hrm.module_permissions import MODULE_SAN_XUAT
 
 from san_xuat.hub_list import _rows_from_queryset, hub_list_page
@@ -329,9 +335,21 @@ def overview(request):
     })
 
 
+def _user_can_sales_order_page(user) -> bool:
+    """Chi tiết ĐĐH: được vào nếu có bất kỳ menu ĐĐH nào."""
+    return (
+        user_can_access_menu(user, MODULE_SAN_XUAT, 'orders')
+        or user_can_access_menu(user, MODULE_SAN_XUAT, 'order_create')
+        or user_can_access_menu(user, MODULE_SAN_XUAT, 'order_confirm')
+    )
+
+
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def sales_order_list(request):
     """Danh sách đơn đặt hàng sản xuất (SoT Portal)."""
+    if not user_can_access_menu(request.user, MODULE_SAN_XUAT, 'orders'):
+        return handle_menu_access_denied(request, MODULE_SAN_XUAT, 'orders')
+
     from san_xuat.hub_models import SxSalesOrder
     from san_xuat.services.sales_orders import (
         PROD_STATUS_LABELS,
@@ -378,17 +396,30 @@ def sales_order_list(request):
             'prod_label': PROD_STATUS_LABELS.get(st, st),
         })
 
+    can_create_order = user_can_create_menu(
+        request.user, MODULE_SAN_XUAT, 'order_create',
+    ) or user_can_access_menu(request.user, MODULE_SAN_XUAT, 'order_create')
+
     return render(request, 'san_xuat/sales_order_list.html', {
         **_perm_ctx(request),
         'rows': rows,
         'search_query': q,
         'confirm_filter': confirm,
         'chip_counts': chip_counts,
+        'can_create_order': can_create_order,
     })
 
 
-@module_perm_required(MODULE_SAN_XUAT, 'create')
+@module_perm_required(MODULE_SAN_XUAT, 'view')
 def sales_order_create(request):
+    if not user_can_access_menu(request.user, MODULE_SAN_XUAT, 'order_create'):
+        return handle_menu_access_denied(request, MODULE_SAN_XUAT, 'order_create')
+    if request.method == 'POST' and not (
+        user_can_create_menu(request.user, MODULE_SAN_XUAT, 'order_create')
+        or user_can_update_menu(request.user, MODULE_SAN_XUAT, 'order_create')
+    ):
+        return handle_menu_access_denied(request, MODULE_SAN_XUAT, 'order_create')
+
     from san_xuat.forms_sales_order import SalesOrderHeaderForm, SalesOrderLineFormSet
     from san_xuat.services.sales_orders import LineInput, create_sales_order
 
@@ -444,7 +475,90 @@ def sales_order_create(request):
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
+def sales_order_confirm_list(request):
+    """Hàng đợi xác nhận đơn đặt hàng (nháp)."""
+    if not user_can_access_menu(request.user, MODULE_SAN_XUAT, 'order_confirm'):
+        return handle_menu_access_denied(request, MODULE_SAN_XUAT, 'order_confirm')
+
+    from san_xuat.forms_sales_order import SalesOrderRejectForm
+    from san_xuat.hub_models import SxSalesOrder
+    from san_xuat.services.sales_orders import (
+        PROD_STATUS_LABELS,
+        confirm_sales_order,
+        production_status_summary,
+        reject_sales_order,
+    )
+
+    can_confirm = user_can_update_menu(request.user, MODULE_SAN_XUAT, 'order_confirm')
+    reject_form = SalesOrderRejectForm()
+
+    if request.method == 'POST' and can_confirm:
+        action = (request.POST.get('action') or '').strip()
+        try:
+            order_id = int(request.POST.get('order_id') or 0)
+        except (TypeError, ValueError):
+            order_id = 0
+        if order_id and action == 'confirm':
+            try:
+                order = confirm_sales_order(order_id=order_id)
+            except PlanningError as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(request, f'Đã xác nhận đơn {order.code}.')
+            return redirect('san_xuat:sales_order_confirm_list')
+        if order_id and action == 'reject':
+            reject_form = SalesOrderRejectForm(request.POST)
+            if reject_form.is_valid():
+                try:
+                    order = reject_sales_order(
+                        order_id=order_id,
+                        reason=reject_form.cleaned_data.get('reason') or '',
+                    )
+                except PlanningError as exc:
+                    messages.error(request, str(exc))
+                else:
+                    messages.success(request, f'Đã từ chối đơn {order.code}.')
+                return redirect('san_xuat:sales_order_confirm_list')
+
+    q = (request.GET.get('q') or '').strip()
+    qs = SxSalesOrder.objects.filter(
+        is_demo=False,
+        confirm_status=SxSalesOrder.CONFIRM_DRAFT,
+    ).prefetch_related('lines')
+    if q:
+        from django.db.models import Q
+
+        qs = qs.filter(
+            Q(code__icontains=q)
+            | Q(customer_name__icontains=q)
+        )
+
+    orders = list(qs.order_by('request_date', 'id')[:300])
+    rows = []
+    for o in orders:
+        st = production_status_summary(o)
+        rows.append({
+            'order': o,
+            'line_count': o.lines.count(),
+            'total_qty': sum((ln.qty for ln in o.lines.all()), start=Decimal('0')),
+            'prod_status': st,
+            'prod_label': PROD_STATUS_LABELS.get(st, st),
+        })
+
+    return render(request, 'san_xuat/sales_order_confirm_list.html', {
+        **_perm_ctx(request),
+        'rows': rows,
+        'search_query': q,
+        'can_confirm': can_confirm,
+        'reject_form': reject_form,
+    })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
 def sales_order_detail(request, pk: int):
+    if not _user_can_sales_order_page(request.user):
+        return handle_menu_access_denied(request, MODULE_SAN_XUAT, 'orders')
+
     from san_xuat.forms_sales_order import SalesOrderRejectForm
     from san_xuat.hub_models import SxOverallPlan, SxSalesOrder
     from san_xuat.services.sales_orders import (
@@ -461,11 +575,14 @@ def sales_order_detail(request, pk: int):
         pk=pk,
         is_demo=False,
     )
-    can_update = _perm_ctx(request).get('can_update')
+    can_confirm = user_can_update_menu(request.user, MODULE_SAN_XUAT, 'order_confirm')
+    can_plan = _perm_ctx(request).get('can_update')
     reject_form = SalesOrderRejectForm()
 
-    if request.method == 'POST' and can_update:
+    if request.method == 'POST':
         action = (request.POST.get('action') or '').strip()
+        if action in {'confirm', 'reject'} and not can_confirm:
+            return handle_menu_access_denied(request, MODULE_SAN_XUAT, 'order_confirm')
         if action == 'confirm' and order.confirm_status == SxSalesOrder.CONFIRM_DRAFT:
             try:
                 confirm_sales_order(order_id=order.pk)
@@ -487,7 +604,11 @@ def sales_order_detail(request, pk: int):
                 else:
                     messages.success(request, f'Đã từ chối đơn {order.code}.')
                     return redirect('san_xuat:sales_order_detail', pk=order.pk)
-        elif action == 'create_mto_plan' and order.confirm_status == SxSalesOrder.CONFIRM_CONFIRMED:
+        elif (
+            action == 'create_mto_plan'
+            and can_plan
+            and order.confirm_status == SxSalesOrder.CONFIRM_CONFIRMED
+        ):
             # Tạo KHTT MTO nháp rồi redirect nạp đơn
             from san_xuat.services.planning import create_overall_plan
 
@@ -528,7 +649,8 @@ def sales_order_detail(request, pk: int):
     return render(request, 'san_xuat/sales_order_detail.html', {
         **_perm_ctx(request),
         'order': order,
-        'can_update': can_update,
+        'can_confirm': can_confirm,
+        'can_plan': can_plan,
         'reject_form': reject_form,
         'prod_status': prod_status,
         'prod_label': PROD_STATUS_LABELS.get(prod_status, prod_status),

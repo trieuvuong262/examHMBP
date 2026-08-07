@@ -26,11 +26,14 @@ Tạo tay ──► SxSalesOrder (nháp)
 
 ## 3. URL
 
-| Path | View |
-|------|------|
-| `/san-xuat/don-hang/` | List + lọc |
-| `/san-xuat/don-hang/them/` | Tạo đơn |
-| `/san-xuat/don-hang/<pk>/` | Chi tiết: xác nhận / từ chối / tạo KHTT MTO |
+| Path | View | Menu quyền |
+|------|------|------------|
+| `/san-xuat/don-hang/` | Danh sách | `orders` |
+| `/san-xuat/don-hang/them/` | Lên đơn | `order_create` |
+| `/san-xuat/don-hang/xac-nhan/` | Hàng đợi xác nhận (nháp) | `order_confirm` |
+| `/san-xuat/don-hang/<pk>/` | Chi tiết; xác nhận/từ chối cần `order_confirm` (update) | bất kỳ menu ĐĐH |
+
+Sidebar: nhóm **Đơn đặt hàng** → Danh sách / Lên đơn đặt hàng / Xác nhận đơn đặt hàng.
 
 ## 4. Liên kết chức năng
 

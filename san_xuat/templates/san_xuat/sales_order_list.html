@@ -10,8 +10,8 @@
       <h2 class="jp-npl-mat-topbar-title w-100">Đơn đặt hàng</h2>
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
-      {% if can_create or can_update %}
-      <a href="{% url 'san_xuat:sales_order_create' %}" class="btn btn-hm btn-sm fw-bold">Thêm đơn</a>
+      {% if can_create_order %}
+      <a href="{% url 'san_xuat:sales_order_create' %}" class="btn btn-hm btn-sm fw-bold">Lên đơn</a>
       {% endif %}
     </nav>
   </div>

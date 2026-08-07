@@ -156,7 +156,7 @@ def _san_xuat_menus(*, manager: bool) -> dict:
     """Menu hub SX — khớp submenu_registry MODULE_SAN_XUAT."""
     level = MGR if manager else VIEW
     keys = (
-        'overview', 'orders', 'products_nvl',
+        'overview', 'orders', 'order_create', 'order_confirm', 'products_nvl',
         'docs', 'bom', 'capacity',
         'plan', 'plan_progress', 'plan_overall', 'plan_detail', 'plan_npl', 'npl_pr', 'purchase_order',
         'npl_stock',
