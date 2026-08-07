@@ -34,14 +34,6 @@
           <div class="text-muted">Hạn sản xuất</div>
           <div class="fw-semibold">{% if order.due_date %}{{ order.due_date|date:"d/m/Y" }}{% else %}—{% endif %}</div>
         </div>
-        <div class="col-md-2">
-          <div class="text-muted">Nguồn</div>
-          <div class="fw-semibold">{{ order.get_source_display }}</div>
-        </div>
-        <div class="col-md-3">
-          <div class="text-muted">Mã KV</div>
-          <div class="fw-semibold">{{ order.kv_order_code|default:"—" }}</div>
-        </div>
         {% if order.notes %}
         <div class="col-12">
           <div class="text-muted">Ghi chú</div>

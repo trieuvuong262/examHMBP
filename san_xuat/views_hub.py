@@ -332,36 +332,11 @@ def overview(request):
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def sales_order_list(request):
     """Danh sách đơn đặt hàng sản xuất (SoT Portal)."""
-    from san_xuat.forms_sales_order import KvImportOrdersForm
     from san_xuat.hub_models import SxSalesOrder
-    from san_xuat.services.plan_methods import list_open_kv_orders
     from san_xuat.services.sales_orders import (
         PROD_STATUS_LABELS,
-        import_from_kv_orders,
         production_status_summary,
     )
-
-    can_update = _perm_ctx(request).get('can_update')
-    if request.method == 'POST' and can_update:
-        action = (request.POST.get('action') or '').strip()
-        if action == 'import_kv':
-            form = KvImportOrdersForm(request.POST)
-            if form.is_valid():
-                try:
-                    created = import_from_kv_orders(
-                        kv_order_ids=form.cleaned_data['kv_order_ids'],
-                        user=request.user,
-                    )
-                except PlanningError as exc:
-                    messages.error(request, str(exc))
-                else:
-                    messages.success(
-                        request,
-                        f'Đã import / cập nhật {len(created)} đơn từ KiotViet.',
-                    )
-                    return redirect('san_xuat:sales_order_list')
-            else:
-                messages.error(request, 'Chọn đơn KiotViet hợp lệ để import.')
 
     q = (request.GET.get('q') or '').strip()
     confirm = (request.GET.get('confirm') or '').strip()
@@ -372,7 +347,6 @@ def sales_order_list(request):
         qs = qs.filter(
             Q(code__icontains=q)
             | Q(customer_name__icontains=q)
-            | Q(kv_order_code__icontains=q)
         )
     if confirm in {
         SxSalesOrder.CONFIRM_DRAFT,
@@ -404,19 +378,12 @@ def sales_order_list(request):
             'prod_label': PROD_STATUS_LABELS.get(st, st),
         })
 
-    kv_orders = []
-    if can_update:
-        kv_orders = list_open_kv_orders(limit=40, search=request.GET.get('kv_q') or '')
-
     return render(request, 'san_xuat/sales_order_list.html', {
         **_perm_ctx(request),
         'rows': rows,
         'search_query': q,
         'confirm_filter': confirm,
         'chip_counts': chip_counts,
-        'kv_orders': kv_orders,
-        'kv_q': (request.GET.get('kv_q') or '').strip(),
-        'can_update': can_update,
     })
 
 

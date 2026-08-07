@@ -111,17 +111,3 @@ class SalesOrderRejectForm(forms.Form):
         label='Lý do từ chối',
         widget=forms.TextInput(attrs={'class': 'form-control form-control-sm', 'placeholder': 'Nhập lý do…'}),
     )
-
-
-class KvImportOrdersForm(forms.Form):
-    kv_order_ids = forms.CharField(widget=forms.HiddenInput())
-
-    def clean_kv_order_ids(self):
-        raw = (self.cleaned_data.get('kv_order_ids') or '').strip()
-        ids = [p.strip() for p in raw.replace(';', ',').split(',') if p.strip()]
-        bad = [p for p in ids if not p.isdigit()]
-        if bad:
-            raise forms.ValidationError('Danh sách đơn KV không hợp lệ.')
-        if not ids:
-            raise forms.ValidationError('Chọn ít nhất một đơn KiotViet.')
-        return [int(p) for p in ids]

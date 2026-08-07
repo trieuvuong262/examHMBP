@@ -16,7 +16,7 @@ UX vận hành chính nằm trên **Portal** (`/san-xuat/`), không dùng Odoo l
 | Mục | URL Portal | Hành vi |
 |-----|------------|---------|
 | Tổng quan | `/san-xuat/tong-quan/` | KPI nhẹ + lối tắt |
-| Đơn đặt hàng | `/san-xuat/don-hang/` | CRUD Portal + import KV — [don-dat-hang.md](./don-dat-hang.md) |
+| Đơn đặt hàng | `/san-xuat/don-hang/` | CRUD Portal — [don-dat-hang.md](./don-dat-hang.md) |
 | **Kế hoạch sản xuất** (nhóm) | `/san-xuat/ke-hoach/` | Landing 5 mục — thiết kế: [ke-hoach-san-xuat.md](./ke-hoach-san-xuat.md) |
 | → Kế hoạch tổng thể | `/san-xuat/ke-hoach/tong-the/` | Stub → P0/P1 |
 | → Kế hoạch chi tiết | `/san-xuat/ke-hoach/chi-tiet/` | Stub → P4 |

@@ -7,12 +7,12 @@
 ## 1. Vai trò
 
 ```text
-Tạo tay / Import KV ──► SxSalesOrder (nháp)
-                              │ xác nhận
-                              ▼
-                        Đã xác nhận ──► Nạp KHTT MTO ──► KHCT ──► LSX
-                              │
-                              └── Giá thành theo mã đơn
+Tạo tay ──► SxSalesOrder (nháp)
+                  │ xác nhận
+                  ▼
+            Đã xác nhận ──► Nạp KHTT MTO ──► KHCT ──► LSX
+                  │
+                  └── Giá thành theo mã đơn
 ```
 
 ## 2. Model
@@ -28,7 +28,7 @@ Tạo tay / Import KV ──► SxSalesOrder (nháp)
 
 | Path | View |
 |------|------|
-| `/san-xuat/don-hang/` | List + import KV |
+| `/san-xuat/don-hang/` | List + lọc |
 | `/san-xuat/don-hang/them/` | Tạo đơn |
 | `/san-xuat/don-hang/<pk>/` | Chi tiết: xác nhận / từ chối / tạo KHTT MTO |
 
@@ -40,7 +40,7 @@ Tạo tay / Import KV ──► SxSalesOrder (nháp)
 | Detail ĐĐH | Nút «Tạo KHTT MTO & nạp nhu cầu» |
 | KHCT / LSX | Luồng Portal giữ nguyên; detail ĐĐH liệt kê KHTT/LSX liên quan |
 | Giá thành theo đơn | Link `?q=` mã ĐĐH |
-| KiotViet | Import → tạo ĐĐH Portal (không phải màn chính) |
+| KiotViet | Không import vào ĐĐH (phase hiện tại) |
 
 ## 5. Phase 1 không làm
 
