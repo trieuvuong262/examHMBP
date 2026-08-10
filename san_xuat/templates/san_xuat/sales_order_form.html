@@ -8,7 +8,6 @@
     display: grid;
     grid-template-columns: repeat(6, minmax(2.6rem, 1fr));
     gap: .25rem;
-    margin-top: .35rem;
     min-width: 17rem;
   }
   .jp-so-size-cell {
@@ -31,6 +30,28 @@
   .jp-so-size-cell input.is-filled {
     background: #ecfdf5;
     border-color: #6ee7b7;
+  }
+  .jp-so-qty-stack {
+    display: flex;
+    flex-direction: column;
+    gap: .4rem;
+    min-width: 17rem;
+  }
+  .jp-so-qty-total-wrap {
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+  }
+  .jp-so-qty-total-wrap > label {
+    margin: 0;
+    font-size: .7rem;
+    font-weight: 700;
+    color: #64748b;
+    white-space: nowrap;
+  }
+  .jp-so-qty-total-wrap .jp-so-qty-total {
+    max-width: 6.5rem;
+    margin-left: auto;
   }
   #jp-so-lines-table th.jp-so-qty-col,
   #jp-so-lines-table td.jp-so-qty-col {
@@ -83,7 +104,7 @@
                 <th style="min-width:200px">Mã SP</th>
                 <th>Tên</th>
                 <th class="text-end" style="width:7rem">Tồn kho</th>
-                <th class="jp-so-qty-col">Số lượng (tổng + size)</th>
+                <th class="jp-so-qty-col">Số lượng (size → tổng)</th>
                 <th style="width:3rem"></th>
               </tr>
             </thead>
@@ -99,18 +120,24 @@
                   <span class="jp-so-stock-qty text-muted">—</span>
                 </td>
                 <td class="jp-so-qty-col">
-                  {{ f.qty }}
                   {{ f.size_qtys }}
-                  <div class="jp-so-size-grid" data-role="size-qtys">
-                    {% for sz in suggest_sizes %}
-                    <label class="jp-so-size-cell">
-                      <span>{{ sz }}</span>
-                      <input type="number" class="form-control form-control-sm jp-so-size-qty"
-                             data-size="{{ sz }}" value="0" min="0" step="1" inputmode="numeric"
-                             aria-label="SL size {{ sz }}">
-                    </label>
-                    {% endfor %}
+                  <div class="jp-so-qty-stack">
+                    <div class="jp-so-size-grid" data-role="size-qtys">
+                      {% for sz in suggest_sizes %}
+                      <label class="jp-so-size-cell">
+                        <span>{{ sz }}</span>
+                        <input type="number" class="form-control form-control-sm jp-so-size-qty"
+                               data-size="{{ sz }}" value="0" min="0" step="1" inputmode="numeric"
+                               aria-label="SL size {{ sz }}">
+                      </label>
+                      {% endfor %}
+                    </div>
+                    <div class="jp-so-qty-total-wrap">
+                      <label for="{{ f.qty.id_for_label }}">Tổng</label>
+                      {{ f.qty }}
+                    </div>
                   </div>
+                  {% if f.qty.errors %}<div class="text-danger small">{{ f.qty.errors }}</div>{% endif %}
                 </td>
                 <td class="text-center">
                   {% if f.DELETE %}
@@ -144,17 +171,22 @@
     <td>{{ f.product_name }}</td>
     <td class="text-end"><span class="jp-so-stock-qty text-muted">—</span></td>
     <td class="jp-so-qty-col">
-      {{ f.qty }}
       {{ f.size_qtys }}
-      <div class="jp-so-size-grid" data-role="size-qtys">
-        {% for sz in suggest_sizes %}
-        <label class="jp-so-size-cell">
-          <span>{{ sz }}</span>
-          <input type="number" class="form-control form-control-sm jp-so-size-qty"
-                 data-size="{{ sz }}" value="0" min="0" step="1" inputmode="numeric"
-                 aria-label="SL size {{ sz }}">
-        </label>
-        {% endfor %}
+      <div class="jp-so-qty-stack">
+        <div class="jp-so-size-grid" data-role="size-qtys">
+          {% for sz in suggest_sizes %}
+          <label class="jp-so-size-cell">
+            <span>{{ sz }}</span>
+            <input type="number" class="form-control form-control-sm jp-so-size-qty"
+                   data-size="{{ sz }}" value="0" min="0" step="1" inputmode="numeric"
+                   aria-label="SL size {{ sz }}">
+          </label>
+          {% endfor %}
+        </div>
+        <div class="jp-so-qty-total-wrap">
+          <label for="{{ f.qty.id_for_label }}">Tổng</label>
+          {{ f.qty }}
+        </div>
       </div>
     </td>
     <td class="text-center">
