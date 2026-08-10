@@ -1,60 +1,34 @@
-"""Danh mục công đoạn chuẩn dùng chung từ module IE."""
+"""Danh mục công đoạn chuẩn dùng chung từ module IE + mẫu progress."""
 
 from __future__ import annotations
 
 from san_xuat.ie_models import SxOperation
 from san_xuat.models import SxProcessName
+from san_xuat.services.progress_template import canonical_process_label, progress_steps
 
-# Seed từ công đoạn phổ biến trên báo cáo SX (đã chuẩn hoá).
-DEFAULT_PROCESS_NAMES: list[tuple[str, int]] = [
-    ("Ủi", 10),
-    ("Kiểm", 20),
-    ("Gấp xếp", 30),
-    ("Cắt chỉ", 40),
-    ("Kiểm lỗi", 50),
-    ("Kiểm hàng", 60),
-    ("Diễu đáy sau", 70),
-    ("Diễu đáy trước", 80),
-    ("Diễu dây", 90),
-    ("Tra tay", 100),
-    ("Tra bo cổ", 110),
-    ("Tra bo tay", 120),
-    ("Ép logo", 130),
-    ("Ép nhãn size", 140),
-    ("Ép lai", 150),
-    ("Vắt sườn", 160),
-    ("Vắt vai", 170),
-    ("Ráp đáy", 180),
-    ("Ráp sườn", 190),
-    ("Ráp vai", 200),
-    ("May dây cổ", 210),
-    ("Nối bo cổ", 220),
-    ("Nhiễu cổ trước", 230),
-    ("Dán tem gấp xếp", 240),
-    ("Bấm mạc", 250),
-    ("Vô thun quần", 260),
-    ("Dập lưng quần", 270),
-    ("Lấy dấu đóng nút", 280),
-    ("Chạy phi", 290),
-    ("In chuyển nhiệt", 300),
-    ("Cắt vải theo rập", 310),
-    ("In / thêu logo", 320),
-    ("May thân áo", 330),
-    ("QC thành phẩm", 340),
-    ("Ủi — đóng gói", 350),
-    ("Đóng gói", 360),
-]
+
+def default_process_names() -> list[tuple[str, int]]:
+    """Tên + thứ tự từ mẫu công đoạn chuẩn JustPlay."""
+    return [(s.label, s.sequence) for s in progress_steps()]
+
+
+# Giữ alias cũ cho migration / import tham chiếu
+DEFAULT_PROCESS_NAMES: list[tuple[str, int]] = default_process_names()
 
 
 def seed_default_process_names() -> int:
     created = 0
-    for name, order in DEFAULT_PROCESS_NAMES:
-        _, was_created = SxProcessName.objects.get_or_create(
+    for name, order in default_process_names():
+        obj, was_created = SxProcessName.objects.get_or_create(
             name=name,
             defaults={"sort_order": order, "is_active": True},
         )
         if was_created:
             created += 1
+        elif obj.sort_order != order or not obj.is_active:
+            obj.sort_order = order
+            obj.is_active = True
+            obj.save(update_fields=["sort_order", "is_active"])
     return created
 
 
@@ -66,7 +40,15 @@ _STANDARD_STATUSES = [
 
 
 def _standard_operation_names() -> list[str]:
-    """Tên công đoạn chuẩn từ thư viện IE, ưu tiên trạng thái đang dùng."""
+    """Tên công đoạn chuẩn: ưu tiên thứ tự mẫu, rồi bổ sung từ thư viện IE."""
+    seen: set[str] = set()
+    names: list[str] = []
+    for step in progress_steps():
+        label = (step.label or "").strip()
+        if not label or label.casefold() in seen:
+            continue
+        seen.add(label.casefold())
+        names.append(label)
     rows = (
         SxOperation.objects.filter(status__in=_STANDARD_STATUSES)
         .exclude(name_vi="")
@@ -74,14 +56,31 @@ def _standard_operation_names() -> list[str]:
         .distinct()
         .order_by("name_vi")
     )
-    return [(row or "").strip() for row in rows if (row or "").strip()]
+    for row in rows:
+        label = (row or "").strip()
+        if not label or label.casefold() in seen:
+            continue
+        seen.add(label.casefold())
+        names.append(label)
+    return names
 
 
 def resolve_standard_process_name(name: str) -> str:
-    """Chuẩn hoá về đúng tên công đoạn trong thư viện IE."""
+    """Chuẩn hoá về đúng tên công đoạn trong mẫu / thư viện IE."""
     raw = (name or "").strip()
     if not raw:
         return ""
+    canon = canonical_process_label(raw)
+    match = (
+        SxOperation.objects.filter(status__in=_STANDARD_STATUSES, name_vi__iexact=canon)
+        .exclude(name_vi="")
+        .order_by("name_vi")
+        .values_list("name_vi", flat=True)
+        .first()
+    )
+    if match:
+        return (match or "").strip()
+    # fallback exact raw
     match = (
         SxOperation.objects.filter(status__in=_STANDARD_STATUSES, name_vi__iexact=raw)
         .exclude(name_vi="")
@@ -89,7 +88,7 @@ def resolve_standard_process_name(name: str) -> str:
         .values_list("name_vi", flat=True)
         .first()
     )
-    return (match or "").strip()
+    return (match or canon or raw).strip()
 
 
 def process_catalog_choices(*, extra_value: str = "", blank_label: str = "— Chọn công đoạn —") -> list[tuple[str, str]]:
@@ -108,7 +107,7 @@ def process_catalog_choices(*, extra_value: str = "", blank_label: str = "— Ch
 
 def ensure_process_name(name: str) -> SxProcessName:
     """Đồng bộ mirror legacy SxProcessName cho các luồng cũ."""
-    name = (name or "").strip()
+    name = canonical_process_label(name) or (name or "").strip()
     if not name:
         raise ValueError("Tên công đoạn trống.")
     if len(name) > 120:
@@ -118,6 +117,9 @@ def ensure_process_name(name: str) -> SxProcessName:
         if not existing.is_active:
             existing.is_active = True
             existing.save(update_fields=["is_active"])
+        if existing.name != name:
+            existing.name = name
+            existing.save(update_fields=["name"])
         return existing
     max_order = SxProcessName.objects.order_by("-sort_order").values_list("sort_order", flat=True).first()
     return SxProcessName.objects.create(

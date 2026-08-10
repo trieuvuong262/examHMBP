@@ -1,0 +1,29 @@
+"""Đồng bộ thư viện công đoạn chuẩn JustPlay.
+
+Usage:
+  python manage.py sync_process_master
+  python manage.py sync_process_master --retire-missing
+"""
+
+from django.core.management.base import BaseCommand
+
+from san_xuat.services.sync_process_master import sync_standard_process_library
+
+
+class Command(BaseCommand):
+    help = 'Đồng bộ SxOperation / nhóm / khâu / SxProcessName từ mẫu công đoạn chuẩn'
+
+    def add_arguments(self, parser):
+        parser.add_argument(
+            '--retire-missing',
+            action='store_true',
+            help='Ngưng dùng các OP đã sync trước đó nhưng không còn trong mẫu',
+        )
+
+    def handle(self, *args, **options):
+        stats = sync_standard_process_library(retire_missing=options['retire_missing'])
+        self.stdout.write(self.style.SUCCESS(
+            'Synced stages={stages} groups={groups} '
+            'ops_created={ops_created} ops_updated={ops_updated} '
+            'ops_retired={ops_retired} process_names={process_names}'.format(**stats)
+        ))
