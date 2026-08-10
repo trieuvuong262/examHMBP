@@ -1,0 +1,457 @@
+{# Modal launcher menu Sản xuất — chỉ áp dụng module SX #}
+<style>
+  .jp-sx-launcher-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1080;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.25rem;
+    background: rgba(8, 10, 14, 0.72);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity .28s ease, visibility .28s ease;
+  }
+  .jp-sx-launcher-backdrop.is-open {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+  }
+  .jp-sx-launcher-panel {
+    width: min(920px, 100%);
+    max-height: min(88vh, 720px);
+    overflow: auto;
+    border-radius: 1.25rem;
+    padding: 1.35rem 1.35rem 1.5rem;
+    background: linear-gradient(165deg, rgba(28, 30, 36, 0.96), rgba(14, 16, 20, 0.98));
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 28px 80px rgba(0, 0, 0, 0.45);
+    transform: translateY(18px) scale(.96);
+    opacity: 0;
+    transition: transform .34s cubic-bezier(.22, 1, .36, 1), opacity .28s ease;
+  }
+  .jp-sx-launcher-backdrop.is-open .jp-sx-launcher-panel {
+    transform: none;
+    opacity: 1;
+  }
+  .jp-sx-launcher-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.15rem;
+  }
+  .jp-sx-launcher-head h2 {
+    margin: 0;
+    font-size: 1.2rem;
+    font-weight: 800;
+    color: #fff;
+    letter-spacing: .01em;
+  }
+  .jp-sx-launcher-head p {
+    margin: .25rem 0 0;
+    font-size: .8125rem;
+    color: rgba(255, 255, 255, 0.62);
+  }
+  .jp-sx-launcher-close {
+    flex: 0 0 auto;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.06);
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform .2s ease, background .2s ease, border-color .2s ease;
+  }
+  .jp-sx-launcher-close:hover {
+    background: var(--hm-primary);
+    border-color: #fff;
+    transform: rotate(90deg) scale(1.05);
+  }
+  .jp-sx-launcher-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr));
+    gap: .85rem;
+  }
+  .jp-sx-tile {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    text-decoration: none;
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: .55rem;
+    padding: .55rem .35rem .7rem;
+    border-radius: .9rem;
+    cursor: pointer;
+    transition: transform .22s cubic-bezier(.22, 1, .36, 1), background .2s ease;
+  }
+  .jp-sx-tile:hover,
+  .jp-sx-tile:focus-visible {
+    background: rgba(255, 255, 255, 0.06);
+    transform: translateY(-4px);
+    outline: none;
+  }
+  .jp-sx-tile:hover .jp-sx-tile-icon,
+  .jp-sx-tile:focus-visible .jp-sx-tile-icon {
+    transform: scale(1.08) rotate(-3deg);
+    box-shadow: 0 12px 28px rgba(220, 38, 38, 0.45);
+    border-color: #fff;
+  }
+  .jp-sx-tile-icon {
+    width: 3.65rem;
+    height: 3.65rem;
+    border-radius: 1.05rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--hm-primary);
+    border: 2px solid #fff;
+    color: #fff;
+    font-size: 1.45rem;
+    box-shadow: 0 8px 20px rgba(220, 38, 38, 0.28);
+    transition: transform .25s cubic-bezier(.22, 1, .36, 1), box-shadow .25s ease, border-color .2s ease;
+  }
+  .jp-sx-tile-label {
+    font-size: .78rem;
+    font-weight: 700;
+    text-align: center;
+    line-height: 1.25;
+    color: rgba(255, 255, 255, 0.92);
+    max-width: 7.2rem;
+  }
+  .jp-sx-tile.is-active .jp-sx-tile-icon {
+    outline: 2px solid #fff;
+    outline-offset: 3px;
+  }
+  @keyframes jp-sx-tile-in {
+    from { opacity: 0; transform: translateY(12px) scale(.92); }
+    to { opacity: 1; transform: none; }
+  }
+  .jp-sx-launcher-backdrop.is-open .jp-sx-tile {
+    animation: jp-sx-tile-in .38s cubic-bezier(.22, 1, .36, 1) both;
+  }
+  .jp-sx-launcher-backdrop.is-open .jp-sx-tile:nth-child(1) { animation-delay: .02s; }
+  .jp-sx-launcher-backdrop.is-open .jp-sx-tile:nth-child(2) { animation-delay: .04s; }
+  .jp-sx-launcher-backdrop.is-open .jp-sx-tile:nth-child(3) { animation-delay: .06s; }
+  .jp-sx-launcher-backdrop.is-open .jp-sx-tile:nth-child(4) { animation-delay: .08s; }
+  .jp-sx-launcher-backdrop.is-open .jp-sx-tile:nth-child(5) { animation-delay: .1s; }
+  .jp-sx-launcher-backdrop.is-open .jp-sx-tile:nth-child(6) { animation-delay: .12s; }
+  .jp-sx-launcher-backdrop.is-open .jp-sx-tile:nth-child(7) { animation-delay: .14s; }
+  .jp-sx-launcher-backdrop.is-open .jp-sx-tile:nth-child(8) { animation-delay: .16s; }
+  .jp-sx-launcher-backdrop.is-open .jp-sx-tile:nth-child(9) { animation-delay: .18s; }
+  .jp-sx-launcher-backdrop.is-open .jp-sx-tile:nth-child(10) { animation-delay: .2s; }
+  .jp-sx-launcher-backdrop.is-open .jp-sx-tile:nth-child(11) { animation-delay: .22s; }
+  .jp-sx-launcher-backdrop.is-open .jp-sx-tile:nth-child(12) { animation-delay: .24s; }
+
+  /* Focus mode: chỉ hiện area đang mở trong nhóm Sản xuất */
+  body.jp-sx-focus #jp-sidebar-san-xuat-submenu > [data-sx-area] {
+    display: none !important;
+  }
+  body.jp-sx-focus[data-sx-area] #jp-sidebar-san-xuat-submenu > [data-sx-area] {
+    /* overridden per area below via attr selector from JS class on body */
+  }
+  body.jp-sx-focus[data-sx-area="overview"] #jp-sidebar-san-xuat-submenu > [data-sx-area="overview"],
+  body.jp-sx-focus[data-sx-area="orders"] #jp-sidebar-san-xuat-submenu > [data-sx-area="orders"],
+  body.jp-sx-focus[data-sx-area="docs"] #jp-sidebar-san-xuat-submenu > [data-sx-area="docs"],
+  body.jp-sx-focus[data-sx-area="plan"] #jp-sidebar-san-xuat-submenu > [data-sx-area="plan"],
+  body.jp-sx-focus[data-sx-area="kho_npl"] #jp-sidebar-san-xuat-submenu > [data-sx-area="kho_npl"],
+  body.jp-sx-focus[data-sx-area="dispatch"] #jp-sidebar-san-xuat-submenu > [data-sx-area="dispatch"],
+  body.jp-sx-focus[data-sx-area="team_work"] #jp-sidebar-san-xuat-submenu > [data-sx-area="team_work"],
+  body.jp-sx-focus[data-sx-area="shop"] #jp-sidebar-san-xuat-submenu > [data-sx-area="shop"],
+  body.jp-sx-focus[data-sx-area="qc"] #jp-sidebar-san-xuat-submenu > [data-sx-area="qc"],
+  body.jp-sx-focus[data-sx-area="kho_sp"] #jp-sidebar-san-xuat-submenu > [data-sx-area="kho_sp"],
+  body.jp-sx-focus[data-sx-area="report"] #jp-sidebar-san-xuat-submenu > [data-sx-area="report"],
+  body.jp-sx-focus[data-sx-area="kiotviet"] #jp-sidebar-san-xuat-submenu > [data-sx-area="kiotviet"],
+  body.jp-sx-focus[data-sx-area="settings"] #jp-sidebar-san-xuat-submenu > [data-sx-area="settings"] {
+    display: list-item !important;
+  }
+  body.jp-sx-focus #jp-sidebar-san-xuat-submenu .jp-sidebar-nested-toggle {
+    display: none !important;
+  }
+  body.jp-sx-focus #jp-sidebar-san-xuat-submenu .jp-sidebar-nested-submenu {
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+  }
+  /* Focus SX: ẩn hết menu portal khác — chỉ còn nhóm Sản xuất + submenu area */
+  body.jp-sx-focus .jp-sidebar-menu > li:not(.jp-sx-group) {
+    display: none !important;
+  }
+  body.jp-sx-focus .jp-sidebar-profile {
+    display: none !important;
+  }
+  body.jp-sx-focus .jp-sidebar-footer {
+    display: none !important;
+  }
+  /* Khi focus SX: luôn mở nhóm Sản xuất */
+  body.jp-sx-focus .jp-sx-group > .jp-sidebar-submenu {
+    display: block !important;
+  }
+  /* Nút Đổi chức năng chỉ hiện khi đang trong 1 area */
+  body.jp-sx-focus .jp-sx-switch-wrap {
+    display: list-item !important;
+  }
+  .jp-sx-switch-wrap {
+    display: none !important;
+    list-style: none;
+    width: 100%;
+    padding: 0;
+    margin: 0;
+  }
+  body.jp-sx-focus .jp-sx-group > .jp-sidebar-group-toggle .jp-sidebar-group-chevron {
+    display: none;
+  }
+  /* Thanh công cụ tối giản khi đang trong SX: về portal + đổi chức năng */
+  .jp-sx-focus-tools {
+    display: none;
+    gap: .35rem;
+    padding: .35rem .4rem .15rem;
+    margin: 0 .15rem .35rem;
+  }
+  body.jp-sx-focus .jp-sx-focus-tools {
+    display: flex;
+  }
+  .jp-sx-focus-tools a,
+  .jp-sx-focus-tools button {
+    flex: 1 1 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .35rem;
+    min-height: 2rem;
+    padding: .3rem .5rem;
+    border-radius: .45rem;
+    border: 1px solid var(--bs-border-color, #e2e8f0);
+    background: #fff;
+    color: #334155;
+    font-size: .72rem;
+    font-weight: 700;
+    text-decoration: none;
+  }
+  .jp-sx-focus-tools a:hover,
+  .jp-sx-focus-tools button:hover {
+    border-color: var(--hm-primary);
+    color: var(--hm-primary);
+  }
+</style>
+
+<div class="jp-sx-launcher-backdrop" id="jpSxLauncher" hidden aria-hidden="true">
+  <div class="jp-sx-launcher-panel" role="dialog" aria-modal="true" aria-labelledby="jpSxLauncherTitle">
+    <div class="jp-sx-launcher-head">
+      <div>
+        <h2 id="jpSxLauncherTitle">Sản xuất</h2>
+        <p>Chọn chức năng để tiếp tục</p>
+      </div>
+      <button type="button" class="jp-sx-launcher-close" data-jp-sx-launcher-close aria-label="Đóng">
+        <i class="bi bi-x-lg" aria-hidden="true"></i>
+      </button>
+    </div>
+    <div class="jp-sx-launcher-grid" id="jpSxLauncherGrid"></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var backdrop = document.getElementById('jpSxLauncher');
+  var grid = document.getElementById('jpSxLauncherGrid');
+  if (!backdrop || !grid) return;
+
+  var AREA_RULES = [
+    { area: 'orders', test: function (p) { return p.indexOf('/san-xuat/don-hang') !== -1; } },
+    { area: 'docs', test: function (p) {
+      return p.indexOf('/san-xuat/ho-so') !== -1
+        || p.indexOf('/san-xuat/bom') !== -1
+        || p.indexOf('/san-xuat/nang-luc') !== -1
+        || p.indexOf('/san-xuat/cong-doan') !== -1;
+    }},
+    { area: 'plan', test: function (p) { return p.indexOf('/san-xuat/ke-hoach') !== -1; } },
+    { area: 'kho_npl', test: function (p) { return p.indexOf('/kho-npl') !== -1; } },
+    { area: 'dispatch', test: function (p) {
+      return p.indexOf('/san-xuat/dieu-phoi') !== -1 || p.indexOf('/san-xuat/thue-gia-cong') !== -1;
+    }},
+    { area: 'team_work', test: function (p) { return p.indexOf('/san-xuat/cong-viec-to') !== -1; } },
+    { area: 'shop', test: function (p) {
+      return p.indexOf('/shop-floor') !== -1
+        || p.indexOf('/dung-chuyen') !== -1
+        || p.indexOf('/luong-san-pham') !== -1;
+    }},
+    { area: 'qc', test: function (p) {
+      return p.indexOf('/san-xuat/chat-luong') !== -1 || p.indexOf('/san-xuat/ncr') !== -1;
+    }},
+    { area: 'kho_sp', test: function (p) { return p.indexOf('/kho-san-pham') !== -1; } },
+    { area: 'report', test: function (p) {
+      return p.indexOf('/san-xuat/truy-xuat') !== -1 || p.indexOf('/san-xuat/bao-cao-van-hanh') !== -1;
+    }},
+    { area: 'kiotviet', test: function (p) { return p.indexOf('/kiotviet') !== -1; } },
+    { area: 'settings', test: function (p) { return p.indexOf('/san-xuat/thiet-lap') !== -1; } },
+    { area: 'overview', test: function (p) {
+      return p === '/san-xuat/' || p === '/san-xuat' || p.indexOf('/san-xuat/tong-quan') !== -1;
+    }},
+  ];
+
+  function pathNow() {
+    return (window.location.pathname || '').replace(/\/+$/, '') || '/';
+  }
+
+  function detectArea(path) {
+    path = path || pathNow();
+    for (var i = 0; i < AREA_RULES.length; i++) {
+      if (AREA_RULES[i].test(path)) return AREA_RULES[i].area;
+    }
+    if (path.indexOf('/san-xuat') === 0) return 'overview';
+    return null;
+  }
+
+  function sidebarRoots() {
+    return document.querySelectorAll('#jp-sidebar-san-xuat-submenu');
+  }
+
+  function firstSidebarRoot() {
+    return document.querySelector('#jp-sidebar-san-xuat-submenu');
+  }
+
+  function areaMeta(areaEl) {
+    var icon = areaEl.getAttribute('data-sx-icon') || 'bi-grid';
+    var label = areaEl.getAttribute('data-sx-label') || 'Chức năng';
+    var href = areaEl.getAttribute('data-sx-href') || '';
+    var leaf = areaEl.getAttribute('data-sx-leaf') === '1';
+    if (!href) {
+      var a = areaEl.querySelector('a[href]');
+      if (a) href = a.getAttribute('href') || '';
+    }
+    return { icon: icon, label: label, href: href, leaf: leaf, area: areaEl.getAttribute('data-sx-area') };
+  }
+
+  function buildGrid() {
+    var root = firstSidebarRoot();
+    if (!root) return;
+    grid.innerHTML = '';
+    var seen = {};
+    root.querySelectorAll(':scope > [data-sx-area]').forEach(function (el) {
+      var meta = areaMeta(el);
+      if (!meta.area || seen[meta.area] || !meta.href) return;
+      seen[meta.area] = true;
+      var tile = document.createElement('a');
+      tile.className = 'jp-sx-tile';
+      tile.href = meta.href;
+      tile.setAttribute('data-sx-area', meta.area);
+      if (meta.leaf) tile.setAttribute('data-sx-leaf', '1');
+      tile.innerHTML =
+        '<span class="jp-sx-tile-icon" aria-hidden="true"><i class="bi ' + meta.icon + '"></i></span>'
+        + '<span class="jp-sx-tile-label"></span>';
+      tile.querySelector('.jp-sx-tile-label').textContent = meta.label;
+      var current = document.body.getAttribute('data-sx-area');
+      if (current && current === meta.area) tile.classList.add('is-active');
+      grid.appendChild(tile);
+    });
+  }
+
+  function openLauncher() {
+    buildGrid();
+    backdrop.hidden = false;
+    backdrop.setAttribute('aria-hidden', 'false');
+    requestAnimationFrame(function () {
+      backdrop.classList.add('is-open');
+    });
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeLauncher() {
+    backdrop.classList.remove('is-open');
+    backdrop.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+    setTimeout(function () {
+      if (!backdrop.classList.contains('is-open')) backdrop.hidden = true;
+    }, 300);
+  }
+
+  function setCollapsed(collapsed) {
+    document.documentElement.classList.toggle('jp-sidebar-collapsed', collapsed);
+    try {
+      if (collapsed) {
+        sessionStorage.setItem('jp_sx_leaf_collapse', '1');
+      } else if (sessionStorage.getItem('jp_sx_leaf_collapse') === '1') {
+        sessionStorage.removeItem('jp_sx_leaf_collapse');
+        localStorage.setItem('jp_sidebar_collapsed', '0');
+      }
+    } catch (e) {}
+    document.querySelectorAll('[data-jp-sidebar-collapse]').forEach(function (btn) {
+      btn.setAttribute('aria-pressed', collapsed ? 'true' : 'false');
+    });
+  }
+
+  function applyFocus(area) {
+    var roots = sidebarRoots();
+    if (!area) {
+      document.body.classList.remove('jp-sx-focus', 'jp-sx-leaf');
+      document.body.removeAttribute('data-sx-area');
+      roots.forEach(function (root) {
+        var g = root.closest('.jp-sx-group');
+        if (g) g.classList.remove('is-open');
+      });
+      return;
+    }
+    document.body.classList.add('jp-sx-focus');
+    document.body.setAttribute('data-sx-area', area);
+    var leaf = false;
+    var root0 = firstSidebarRoot();
+    if (root0) {
+      var el = root0.querySelector(':scope > [data-sx-area="' + area + '"]');
+      if (el && el.getAttribute('data-sx-leaf') === '1') leaf = true;
+    }
+    document.body.classList.toggle('jp-sx-leaf', leaf);
+    roots.forEach(function (root) {
+      var g = root.closest('.jp-sx-group');
+      if (g) {
+        g.classList.add('is-open');
+        var tog = g.querySelector(':scope > .jp-sidebar-group-toggle');
+        if (tog) tog.setAttribute('aria-expanded', 'true');
+      }
+      var active = root.querySelector(':scope > [data-sx-area="' + area + '"]');
+      if (active) active.classList.add('is-open');
+    });
+    if (leaf) {
+      setCollapsed(true);
+    } else if (sessionStorage.getItem('jp_sx_leaf_collapse') === '1') {
+      setCollapsed(false);
+    }
+  }
+
+  document.addEventListener('click', function (e) {
+    var openBtn = e.target.closest('[data-jp-sx-launcher]');
+    if (openBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      openLauncher();
+      return;
+    }
+    if (e.target.closest('[data-jp-sx-launcher-close]')) {
+      closeLauncher();
+      return;
+    }
+    if (e.target === backdrop) {
+      closeLauncher();
+    }
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && backdrop.classList.contains('is-open')) {
+      closeLauncher();
+    }
+  });
+
+  var area = detectArea();
+  if (area) applyFocus(area);
+})();
+</script>
