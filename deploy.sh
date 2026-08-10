@@ -286,8 +286,8 @@ compose exec -T web python manage.py seed_kho_npl_category_tree
 echo "==> 8c) Sync NPL colors + backfill material colors"
 compose exec -T web python manage.py seed_kho_npl_material_colors
 
-echo "==> 8d) Sync thư viện công đoạn chuẩn SX"
-compose exec -T web python manage.py sync_process_master
+echo "==> 8d) Sync thư viện công đoạn chuẩn SX (purge OP thừa)"
+compose exec -T web python manage.py sync_process_master --purge
 
 verify_nas_rclone() {
   echo "==> Verify NAS rclone in web container"
