@@ -9,11 +9,17 @@
   }
   .jp-so-suggest-modal .modal-title { font-size: 1rem; font-weight: 700; }
   .jp-so-suggest-modal .modal-body { padding: 1rem 1.1rem 1.15rem; }
+  .jp-so-suggest-modal.is-sizes-collapsed .jp-so-sg-col-extra {
+    display: none !important;
+  }
+  .jp-so-suggest-modal .modal-dialog.jp-so-sg-wide {
+    max-width: min(1180px, 98vw);
+  }
   .jp-so-suggest-sheet {
     width: 100%;
     border-collapse: collapse;
     font-size: .8125rem;
-    table-layout: fixed;
+    table-layout: auto;
   }
   .jp-so-suggest-sheet th,
   .jp-so-suggest-sheet td {
@@ -121,9 +127,9 @@
   }
 </style>
 
-<div class="modal fade jp-so-suggest-modal" id="jpSoSuggestModal" tabindex="-1"
+<div class="modal fade jp-so-suggest-modal is-sizes-collapsed" id="jpSoSuggestModal" tabindex="-1"
      aria-labelledby="jpSoSuggestModalTitle" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable" id="jp-so-sg-dialog">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="jpSoSuggestModalTitle">
@@ -137,27 +143,27 @@
             <thead>
               <tr>
                 <th class="jp-so-sg-label">Size</th>
-                {% for sz in suggest_sizes %}
-                <th class="jp-so-sg-size" data-size="{{ sz }}">{{ sz }}</th>
+                {% for sz in suggest_sizes_all %}
+                <th class="jp-so-sg-size{% if sz not in suggest_sizes %} jp-so-sg-col-extra{% endif %}" data-size="{{ sz }}">{{ sz }}</th>
                 {% endfor %}
               </tr>
             </thead>
             <tbody>
               <tr>
                 <th class="jp-so-sg-label" scope="row">Hệ số</th>
-                <td class="jp-so-sg-input-cell" colspan="{{ suggest_sizes|length }}">
+                <td class="jp-so-sg-input-cell" colspan="{{ suggest_sizes_all|length }}">
                   <input type="number" id="jp-so-sg-coef" value="2" min="0" step="0.1" inputmode="decimal" aria-label="Hệ số">
                 </td>
               </tr>
               <tr>
                 <th class="jp-so-sg-label" scope="row">Làm tròn</th>
-                <td class="jp-so-sg-input-cell" colspan="{{ suggest_sizes|length }}">
+                <td class="jp-so-sg-input-cell" colspan="{{ suggest_sizes_all|length }}">
                   <input type="number" id="jp-so-sg-round" value="50" min="1" step="1" inputmode="numeric" aria-label="Làm tròn">
                 </td>
               </tr>
               <tr>
                 <th class="jp-so-sg-label" scope="row">Loại hàng</th>
-                <td class="jp-so-sg-input-cell jp-so-sg-text-cell jp-so-sg-product-cell" colspan="{{ suggest_sizes|length }}">
+                <td class="jp-so-sg-input-cell jp-so-sg-text-cell jp-so-sg-product-cell" colspan="{{ suggest_sizes_all|length }}">
                   <select id="jp-so-sg-product" class="jp-so-sg-product-select" data-placeholder="Gõ mã SX / tên từ kho sản phẩm…" aria-label="Loại hàng">
                     <option value="">Chọn mã SX từ kho sản phẩm…</option>
                   </select>
@@ -166,46 +172,52 @@
               </tr>
               <tr>
                 <th class="jp-so-sg-label" scope="row">Thời gian dự đoán</th>
-                <td class="jp-so-sg-input-cell jp-so-sg-text-cell" colspan="{{ suggest_sizes|length }}">
+                <td class="jp-so-sg-input-cell jp-so-sg-text-cell" colspan="{{ suggest_sizes_all|length }}">
                   <input type="text" id="jp-so-sg-period" value="30 ngày" maxlength="60" aria-label="Thời gian dự đoán">
                 </td>
               </tr>
-              <tr>
+              <tr class="jp-so-sg-stock-row">
                 <th class="jp-so-sg-label" scope="row">Tồn kho thực tế</th>
-                {% for sz in suggest_sizes %}
-                <td class="jp-so-sg-input-cell">
+                {% for sz in suggest_sizes_all %}
+                <td class="jp-so-sg-input-cell{% if sz not in suggest_sizes %} jp-so-sg-col-extra{% endif %}">
                   <input type="number" class="jp-so-sg-stock" data-size="{{ sz }}" value="0" min="0" step="1" inputmode="numeric" aria-label="Tồn {{ sz }}">
                 </td>
                 {% endfor %}
               </tr>
-              <tr>
+              <tr class="jp-so-sg-vel-row">
                 <th class="jp-so-sg-label" scope="row">Tốc độ tiêu thụ</th>
-                {% for sz in suggest_sizes %}
-                <td class="jp-so-sg-input-cell">
+                {% for sz in suggest_sizes_all %}
+                <td class="jp-so-sg-input-cell{% if sz not in suggest_sizes %} jp-so-sg-col-extra{% endif %}">
                   <input type="number" class="jp-so-sg-velocity" data-size="{{ sz }}" value="0" min="0" step="1" inputmode="numeric" aria-label="Tiêu thụ {{ sz }}">
                 </td>
                 {% endfor %}
               </tr>
               <tr>
                 <th class="jp-so-sg-label" scope="row">Công thức đề xuất</th>
-                <td class="jp-so-sg-formula" colspan="{{ suggest_sizes|length }}">
+                <td class="jp-so-sg-formula" colspan="{{ suggest_sizes_all|length }}">
                   (Tốc độ tiêu thụ × hệ số) − Tồn kho thực tế
                 </td>
               </tr>
-              <tr>
+              <tr class="jp-so-sg-raw-row">
                 <th class="jp-so-sg-label" scope="row">Giá trị sau khi tính</th>
-                {% for sz in suggest_sizes %}
-                <td class="jp-so-sg-calc jp-so-sg-raw" data-size="{{ sz }}">0</td>
+                {% for sz in suggest_sizes_all %}
+                <td class="jp-so-sg-calc jp-so-sg-raw{% if sz not in suggest_sizes %} jp-so-sg-col-extra{% endif %}" data-size="{{ sz }}">0</td>
                 {% endfor %}
               </tr>
-              <tr>
+              <tr class="jp-so-sg-out-row">
                 <th class="jp-so-sg-label" scope="row">Giá trị đề xuất</th>
-                {% for sz in suggest_sizes %}
-                <td class="jp-so-sg-suggest jp-so-sg-out" data-size="{{ sz }}">0</td>
+                {% for sz in suggest_sizes_all %}
+                <td class="jp-so-sg-suggest jp-so-sg-out{% if sz not in suggest_sizes %} jp-so-sg-col-extra{% endif %}" data-size="{{ sz }}">0</td>
                 {% endfor %}
               </tr>
             </tbody>
           </table>
+        </div>
+        <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+          <button type="button" class="btn btn-outline-hm btn-sm fw-bold" id="jp-so-sg-expand" aria-expanded="false">
+            <i class="bi bi-arrows-expand me-1" aria-hidden="true"></i><span class="jp-so-sg-expand-label">Mở rộng size</span>
+          </button>
+          <span class="small text-muted">Mặc định: S · M · L · XL · 2XL · 3XL</span>
         </div>
         <p class="jp-so-suggest-hint mb-0">
           Chọn <strong>Loại hàng</strong> từ kho sản phẩm → tồn theo size tự điền.

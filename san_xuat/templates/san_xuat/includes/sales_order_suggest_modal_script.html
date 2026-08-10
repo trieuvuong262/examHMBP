@@ -2,7 +2,13 @@
 <script>
 (function () {
   var DEFAULT_SIZES = {{ suggest_sizes_json|safe }};
-  var SIZES = DEFAULT_SIZES.slice();
+  var ALL_SIZES = {{ suggest_sizes_all_json|safe }};
+  var SIZES = ALL_SIZES.slice();
+  var SIZE_ALIASES = {
+    XXL: '2XL', '2XL': '2XL',
+    XXXL: '3XL', '3XL': '3XL',
+    '4XL': '4XL', '5XL': '5XL', '6XL': '6XL',
+  };
   var stockUrl = '{% url "san_xuat:suggest_qty_stock" %}';
   var modalEl = document.getElementById('jpSoSuggestModal');
   var openBtn = document.getElementById('jp-so-suggest-open');
@@ -15,10 +21,12 @@
   var periodEl = document.getElementById('jp-so-sg-period');
   var totalEl = document.getElementById('jp-so-sg-total');
   var breakdownEl = document.getElementById('jp-so-sg-breakdown');
-  var sheet = document.getElementById('jp-so-suggest-sheet');
+  var expandBtn = document.getElementById('jp-so-sg-expand');
+  var dialogEl = document.getElementById('jp-so-sg-dialog');
   var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
   var activeQtyInput = null;
   var productTs = null;
+  var expanded = false;
 
   function num(el, fallback) {
     if (!el) return fallback;
@@ -37,6 +45,13 @@
     return String(Math.round(n));
   }
 
+  function canonSize(raw) {
+    var s = String(raw || '').trim().toUpperCase();
+    if (!s) return '';
+    if (SIZE_ALIASES[s]) return SIZE_ALIASES[s];
+    return s;
+  }
+
   function stockInput(size) {
     return modalEl.querySelector('.jp-so-sg-stock[data-size="' + size + '"]');
   }
@@ -50,77 +65,39 @@
     return modalEl.querySelector('.jp-so-sg-out[data-size="' + size + '"]');
   }
 
-  function setColspan(n) {
-    modalEl.querySelectorAll('td[colspan]').forEach(function (td) {
-      td.setAttribute('colspan', String(n));
-    });
+  function visibleSizes() {
+    return expanded ? ALL_SIZES.slice() : DEFAULT_SIZES.slice();
   }
 
-  function rebuildSizeColumns(sizes, stockMap) {
-    SIZES = (sizes && sizes.length) ? sizes.slice() : DEFAULT_SIZES.slice();
+  function setExpanded(on) {
+    expanded = !!on;
+    modalEl.classList.toggle('is-sizes-collapsed', !expanded);
+    if (dialogEl) dialogEl.classList.toggle('jp-so-sg-wide', expanded);
+    if (expandBtn) {
+      expandBtn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+      var label = expandBtn.querySelector('.jp-so-sg-expand-label');
+      var icon = expandBtn.querySelector('i');
+      if (label) label.textContent = expanded ? 'Thu gọn size' : 'Mở rộng size';
+      if (icon) {
+        icon.className = expanded ? 'bi bi-arrows-collapse me-1' : 'bi bi-arrows-expand me-1';
+      }
+    }
+    recalc();
+  }
+
+  function applyStockMap(stockMap) {
     stockMap = stockMap || {};
-    var theadRow = sheet.querySelector('thead tr');
-    if (theadRow) {
-      theadRow.innerHTML = '<th class="jp-so-sg-label">Size</th>' + SIZES.map(function (sz) {
-        return '<th class="jp-so-sg-size" data-size="' + sz + '">' + sz + '</th>';
-      }).join('');
-    }
-
-    var stockRow = sheet.querySelector('tr.jp-so-sg-stock-row');
-    var velRow = sheet.querySelector('tr.jp-so-sg-vel-row');
-    var rawRow = sheet.querySelector('tr.jp-so-sg-raw-row');
-    var outRow = sheet.querySelector('tr.jp-so-sg-out-row');
-    if (!stockRow) {
-      // gắn class lần đầu
-      var rows = sheet.querySelectorAll('tbody tr');
-      rows.forEach(function (tr) {
-        var label = (tr.querySelector('th') || {}).textContent || '';
-        if (label.indexOf('Tồn kho') !== -1) tr.classList.add('jp-so-sg-stock-row');
-        if (label.indexOf('Tốc độ') !== -1) tr.classList.add('jp-so-sg-vel-row');
-        if (label.indexOf('sau khi tính') !== -1) tr.classList.add('jp-so-sg-raw-row');
-        if (label.indexOf('Giá trị đề xuất') !== -1) tr.classList.add('jp-so-sg-out-row');
-      });
-      stockRow = sheet.querySelector('tr.jp-so-sg-stock-row');
-      velRow = sheet.querySelector('tr.jp-so-sg-vel-row');
-      rawRow = sheet.querySelector('tr.jp-so-sg-raw-row');
-      outRow = sheet.querySelector('tr.jp-so-sg-out-row');
-    }
-
-    function keepVel(sz) {
-      var el = velocityInput(sz);
-      return el ? el.value : '0';
-    }
-    var oldVel = {};
-    SIZES.forEach(function (sz) { oldVel[sz] = keepVel(sz); });
-    // also keep previous velocities by scanning old inputs before wipe
-    modalEl.querySelectorAll('.jp-so-sg-velocity').forEach(function (el) {
-      oldVel[el.getAttribute('data-size')] = el.value;
+    ALL_SIZES.forEach(function (sz) {
+      var el = stockInput(sz);
+      if (!el) return;
+      if (Object.prototype.hasOwnProperty.call(stockMap, sz)) {
+        el.value = String(Math.round(Number(stockMap[sz]) || 0));
+        el.classList.add('is-from-kho');
+      } else {
+        el.value = '0';
+        el.classList.remove('is-from-kho');
+      }
     });
-
-    if (stockRow) {
-      stockRow.innerHTML = '<th class="jp-so-sg-label" scope="row">Tồn kho thực tế</th>' + SIZES.map(function (sz) {
-        var st = stockMap[sz] != null ? stockMap[sz] : 0;
-        var fromKho = stockMap[sz] != null;
-        return '<td class="jp-so-sg-input-cell"><input type="number" class="jp-so-sg-stock' + (fromKho ? ' is-from-kho' : '') + '" data-size="' + sz + '" value="' + st + '" min="0" step="1" inputmode="numeric" aria-label="Tồn ' + sz + '"></td>';
-      }).join('');
-    }
-    if (velRow) {
-      velRow.innerHTML = '<th class="jp-so-sg-label" scope="row">Tốc độ tiêu thụ</th>' + SIZES.map(function (sz) {
-        var v = oldVel[sz] != null ? oldVel[sz] : '0';
-        return '<td class="jp-so-sg-input-cell"><input type="number" class="jp-so-sg-velocity" data-size="' + sz + '" value="' + v + '" min="0" step="1" inputmode="numeric" aria-label="Tiêu thụ ' + sz + '"></td>';
-      }).join('');
-    }
-    if (rawRow) {
-      rawRow.innerHTML = '<th class="jp-so-sg-label" scope="row">Giá trị sau khi tính</th>' + SIZES.map(function (sz) {
-        return '<td class="jp-so-sg-calc jp-so-sg-raw" data-size="' + sz + '">0</td>';
-      }).join('');
-    }
-    if (outRow) {
-      outRow.innerHTML = '<th class="jp-so-sg-label" scope="row">Giá trị đề xuất</th>' + SIZES.map(function (sz) {
-        return '<td class="jp-so-sg-suggest jp-so-sg-out" data-size="' + sz + '">0</td>';
-      }).join('');
-    }
-    setColspan(SIZES.length);
     recalc();
   }
 
@@ -129,7 +106,11 @@
     var step = num(roundEl, 50);
     var total = 0;
     var parts = [];
-    SIZES.forEach(function (sz) {
+    var vis = visibleSizes();
+    var visSet = {};
+    vis.forEach(function (sz) { visSet[sz] = true; });
+
+    ALL_SIZES.forEach(function (sz) {
       var stock = num(stockInput(sz), 0);
       var vel = num(velocityInput(sz), 0);
       var raw = (vel * coef) - stock;
@@ -138,8 +119,10 @@
       var sugEl = outCell(sz);
       if (rawEl) rawEl.textContent = fmt(raw);
       if (sugEl) sugEl.textContent = fmt(sug);
-      total += sug;
-      if (sug > 0) parts.push(sz + ':' + fmt(sug));
+      if (visSet[sz]) {
+        total += sug;
+        if (sug > 0) parts.push(sz + ':' + fmt(sug));
+      }
     });
     if (totalEl) totalEl.textContent = fmt(total);
     if (breakdownEl) {
@@ -160,7 +143,7 @@
     style = (style || '').trim();
     if (!style) {
       if (productMeta) productMeta.textContent = '';
-      rebuildSizeColumns(DEFAULT_SIZES, {});
+      applyStockMap({});
       return;
     }
     if (productMeta) productMeta.textContent = 'Đang tải tồn theo size…';
@@ -169,22 +152,31 @@
     })
       .then(function (r) { return r.json(); })
       .then(function (data) {
-        var sizes = (data.sizes || []).map(function (row) { return row.size; }).filter(Boolean);
         var stockMap = {};
+        var matched = 0;
         (data.sizes || []).forEach(function (row) {
-          stockMap[row.size] = Math.round(Number(row.stock_qty) || Number(row.stock) || 0);
+          var sz = canonSize(row.size);
+          if (!sz || ALL_SIZES.indexOf(sz) === -1) return;
+          stockMap[sz] = (stockMap[sz] || 0) + (Number(row.stock_qty) || Number(row.stock) || 0);
+          matched += 1;
         });
-        if (!sizes.length) sizes = DEFAULT_SIZES.slice();
-        rebuildSizeColumns(sizes, data.found ? stockMap : {});
+        applyStockMap(data.found ? stockMap : {});
+
+        // Nếu hàng trẻ em (size số) mà đang thu gọn → tự mở rộng
+        var hasNumeric = (data.sizes || []).some(function (row) {
+          return /^[0-9]+$/.test(String(row.size || '').trim());
+        });
+        if (hasNumeric && !expanded) setExpanded(true);
+
         if (productMeta) {
           if (data.found) {
             var bits = [];
             if (data.name) bits.push(data.name);
-            bits.push(sizes.length + ' size');
+            bits.push(matched + '/' + (data.sizes || []).length + ' size khớp');
             if ((data.colors || []).length) bits.push((data.colors.length) + ' màu');
             productMeta.textContent = 'Kho SP: ' + bits.join(' · ');
           } else {
-            productMeta.textContent = 'Không thấy biến thể size trong kho SP — dùng size mặc định.';
+            productMeta.textContent = 'Không thấy biến thể size trong kho SP.';
           }
         }
       })
@@ -238,11 +230,13 @@
     if (periodEl) periodEl.value = '30 ngày';
     if (productTs) productTs.clear(true);
     if (productMeta) productMeta.textContent = '';
-    rebuildSizeColumns(DEFAULT_SIZES, {});
-    SIZES.forEach(function (sz) {
+    ALL_SIZES.forEach(function (sz) {
+      var s = stockInput(sz);
       var v = velocityInput(sz);
+      if (s) { s.value = '0'; s.classList.remove('is-from-kho'); }
       if (v) v.value = '0';
     });
+    setExpanded(false);
     recalc();
   }
 
@@ -297,7 +291,6 @@
     qty.dispatchEvent(new Event('input', { bubbles: true }));
     qty.dispatchEvent(new Event('change', { bubbles: true }));
 
-    // Đồng bộ mã SP dòng nếu đang trống
     var row = qty.closest('tr');
     if (row && productTs && productTs.getValue()) {
       var sel = row.querySelector('.jp-sx-product-code-select');
@@ -324,7 +317,7 @@
       var product = productLabel();
       var period = (periodEl && periodEl.value || '').trim();
       var parts = [];
-      SIZES.forEach(function (sz) {
+      visibleSizes().forEach(function (sz) {
         var sug = parseInt((outCell(sz) || {}).textContent || '0', 10) || 0;
         if (sug > 0) parts.push(sz + '=' + sug);
       });
@@ -339,18 +332,19 @@
   }
 
   function copyTable() {
+    var sizes = visibleSizes();
     var coef = num(coefEl, 2);
     var step = num(roundEl, 50);
     var lines = [];
-    lines.push('Size\t' + SIZES.join('\t'));
+    lines.push('Size\t' + sizes.join('\t'));
     lines.push('Hệ số\t' + coef);
     lines.push('Làm tròn\t' + step);
     lines.push('Loại hàng\t' + productLabel());
     lines.push('Thời gian dự đoán\t' + ((periodEl && periodEl.value) || ''));
-    lines.push('Tồn kho thực tế\t' + SIZES.map(function (sz) { return fmt(num(stockInput(sz), 0)); }).join('\t'));
-    lines.push('Tốc độ tiêu thụ\t' + SIZES.map(function (sz) { return fmt(num(velocityInput(sz), 0)); }).join('\t'));
-    lines.push('Giá trị sau khi tính\t' + SIZES.map(function (sz) { return (rawCell(sz) || {}).textContent || '0'; }).join('\t'));
-    lines.push('Giá trị đề xuất\t' + SIZES.map(function (sz) { return (outCell(sz) || {}).textContent || '0'; }).join('\t'));
+    lines.push('Tồn kho thực tế\t' + sizes.map(function (sz) { return fmt(num(stockInput(sz), 0)); }).join('\t'));
+    lines.push('Tốc độ tiêu thụ\t' + sizes.map(function (sz) { return fmt(num(velocityInput(sz), 0)); }).join('\t'));
+    lines.push('Giá trị sau khi tính\t' + sizes.map(function (sz) { return (rawCell(sz) || {}).textContent || '0'; }).join('\t'));
+    lines.push('Giá trị đề xuất\t' + sizes.map(function (sz) { return (outCell(sz) || {}).textContent || '0'; }).join('\t'));
     var text = lines.join('\n');
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text).then(function () {
@@ -365,18 +359,14 @@
     }
   }
 
-  // Gắn class hàng size để rebuild
-  (function tagRows() {
-    sheet.querySelectorAll('tbody tr').forEach(function (tr) {
-      var label = (tr.querySelector('th') || {}).textContent || '';
-      if (label.indexOf('Tồn kho') !== -1) tr.classList.add('jp-so-sg-stock-row');
-      if (label.indexOf('Tốc độ') !== -1) tr.classList.add('jp-so-sg-vel-row');
-      if (label.indexOf('sau khi tính') !== -1) tr.classList.add('jp-so-sg-raw-row');
-      if (label.indexOf('Giá trị đề xuất') !== -1) tr.classList.add('jp-so-sg-out-row');
-    });
-  })();
-
   initProductSelect();
+  setExpanded(false);
+
+  if (expandBtn) {
+    expandBtn.addEventListener('click', function () {
+      setExpanded(!expanded);
+    });
+  }
 
   modalEl.addEventListener('show.bs.modal', function () {
     initProductSelect();

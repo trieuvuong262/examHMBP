@@ -306,11 +306,15 @@ def suggest_style_size_stock(style_code: str) -> dict:
     by_size: dict[str, Decimal] = defaultdict(lambda: Decimal('0'))
     sku_count: dict[str, int] = defaultdict(int)
     colors: dict[str, str] = {}
+    _size_alias = {
+        'XXL': '2XL', '2XL': '2XL',
+        'XXXL': '3XL', '3XL': '3XL',
+    }
     for p in products:
         size = (p.size_label or '').strip().upper()
         if not size:
-            # Không có size → gộp vào cột «—» / dùng mã SKU ngắn
             size = '—'
+        size = _size_alias.get(size, size)
         by_size[size] += _qty_for(p)
         sku_count[size] += 1
         color = (p.color_code or '').strip().upper()
