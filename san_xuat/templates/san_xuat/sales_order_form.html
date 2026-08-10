@@ -4,58 +4,70 @@
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
 <style>
+  .jp-so-qty-row {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: flex-end;
+    gap: .35rem .45rem;
+    min-width: 22rem;
+  }
   .jp-so-size-grid {
     display: grid;
-    grid-template-columns: repeat(6, minmax(2.6rem, 1fr));
-    gap: .25rem;
-    min-width: 17rem;
+    grid-template-columns: repeat(6, minmax(2.4rem, 2.85rem));
+    gap: .2rem;
+    flex: 0 0 auto;
   }
   .jp-so-size-cell {
     display: flex;
     flex-direction: column;
     align-items: stretch;
-    gap: .1rem;
+    gap: .05rem;
     margin: 0;
-    font-size: .65rem;
+    font-size: .62rem;
     font-weight: 700;
     color: #64748b;
     text-align: center;
+    line-height: 1.1;
   }
   .jp-so-size-cell input {
     text-align: center;
-    padding: .15rem .1rem;
+    padding: .2rem .1rem;
     font-size: .75rem;
     font-weight: 600;
+    height: calc(1.5em + .5rem + 2px);
   }
   .jp-so-size-cell input.is-filled {
     background: #ecfdf5;
     border-color: #6ee7b7;
   }
-  .jp-so-qty-stack {
-    display: flex;
-    flex-direction: column;
-    gap: .4rem;
-    min-width: 17rem;
-  }
   .jp-so-qty-total-wrap {
     display: flex;
-    align-items: center;
-    gap: .4rem;
-  }
-  .jp-so-qty-total-wrap > label {
+    flex-direction: column;
+    align-items: stretch;
+    gap: .05rem;
+    flex: 0 0 4.75rem;
     margin: 0;
-    font-size: .7rem;
+    font-size: .62rem;
     font-weight: 700;
     color: #64748b;
-    white-space: nowrap;
+    text-align: center;
+    line-height: 1.1;
   }
   .jp-so-qty-total-wrap .jp-so-qty-total {
-    max-width: 6.5rem;
-    margin-left: auto;
+    width: 100%;
+    text-align: center;
+    padding: .2rem .25rem;
+    font-size: .75rem;
+    font-weight: 700;
+    height: calc(1.5em + .5rem + 2px);
   }
   #jp-so-lines-table th.jp-so-qty-col,
   #jp-so-lines-table td.jp-so-qty-col {
-    min-width: 18rem;
+    min-width: 23rem;
+    width: 23rem;
+  }
+  #jp-so-lines-table td {
+    vertical-align: middle;
   }
 </style>
 {% endblock %}
@@ -121,7 +133,7 @@
                 </td>
                 <td class="jp-so-qty-col">
                   {{ f.size_qtys }}
-                  <div class="jp-so-qty-stack">
+                  <div class="jp-so-qty-row">
                     <div class="jp-so-size-grid" data-role="size-qtys">
                       {% for sz in suggest_sizes %}
                       <label class="jp-so-size-cell">
@@ -132,10 +144,10 @@
                       </label>
                       {% endfor %}
                     </div>
-                    <div class="jp-so-qty-total-wrap">
-                      <label for="{{ f.qty.id_for_label }}">Tổng</label>
+                    <label class="jp-so-qty-total-wrap" for="{{ f.qty.id_for_label }}">
+                      <span>Tổng</span>
                       {{ f.qty }}
-                    </div>
+                    </label>
                   </div>
                   {% if f.qty.errors %}<div class="text-danger small">{{ f.qty.errors }}</div>{% endif %}
                 </td>
@@ -172,7 +184,7 @@
     <td class="text-end"><span class="jp-so-stock-qty text-muted">—</span></td>
     <td class="jp-so-qty-col">
       {{ f.size_qtys }}
-      <div class="jp-so-qty-stack">
+      <div class="jp-so-qty-row">
         <div class="jp-so-size-grid" data-role="size-qtys">
           {% for sz in suggest_sizes %}
           <label class="jp-so-size-cell">
@@ -183,10 +195,10 @@
           </label>
           {% endfor %}
         </div>
-        <div class="jp-so-qty-total-wrap">
-          <label for="{{ f.qty.id_for_label }}">Tổng</label>
+        <label class="jp-so-qty-total-wrap" for="{{ f.qty.id_for_label }}">
+          <span>Tổng</span>
           {{ f.qty }}
-        </div>
+        </label>
       </div>
     </td>
     <td class="text-center">
