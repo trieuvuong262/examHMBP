@@ -43,6 +43,30 @@ class LineInput:
     qty_scrap_rate: Decimal = Decimal('0')
     uom: str = ''
     due_date: date | None = None
+    size_qtys: dict | None = None
+
+
+def normalize_size_qtys(raw) -> dict[str, Decimal]:
+    """Chuẩn hóa map size → SL (bỏ size ≤ 0)."""
+    if not raw:
+        return {}
+    if isinstance(raw, str):
+        import json
+        try:
+            raw = json.loads(raw)
+        except (TypeError, ValueError):
+            return {}
+    if not isinstance(raw, dict):
+        return {}
+    out: dict[str, Decimal] = {}
+    for key, val in raw.items():
+        size = str(key or '').strip()
+        if not size:
+            continue
+        qty = _q(val)
+        if qty > 0:
+            out[size] = qty
+    return out
 
 
 @dataclass
@@ -125,12 +149,14 @@ def _replace_lines(order: SxSalesOrder, lines: list[LineInput]) -> None:
         qty = _q(ln.qty)
         if not code or qty <= 0:
             continue
+        size_map = normalize_size_qtys(getattr(ln, 'size_qtys', None))
         rows.append(
             SxSalesOrderLine(
                 order=order,
                 product_code=code[:60],
                 product_name=_resolve_name(code, ln.product_name),
                 qty=qty,
+                size_qtys={k: float(v) for k, v in size_map.items()},
                 qty_scrap_rate=_q(ln.qty_scrap_rate),
                 uom=(ln.uom or '').strip()[:30],
                 due_date=ln.due_date or order.due_date,

@@ -141,6 +141,7 @@
               <th>Mã SP</th>
               <th>Tên</th>
               <th class="text-end">Số lượng</th>
+              <th>Theo size</th>
               <th>Hạn dòng</th>
             </tr>
           </thead>
@@ -150,10 +151,19 @@
               <td><strong>{{ ln.product_code }}</strong></td>
               <td class="small">{{ ln.product_name|default:"—" }}</td>
               <td class="text-end">{{ ln.qty|sx_num }}</td>
+              <td class="small">
+                {% if ln.size_qtys %}
+                  {% for sz, q in ln.size_qtys.items %}
+                    <span class="me-1">{{ sz }}:{{ q|sx_num }}</span>
+                  {% endfor %}
+                {% else %}
+                  —
+                {% endif %}
+              </td>
               <td class="small">{% if ln.due_date %}{{ ln.due_date|date:"d/m/Y" }}{% else %}—{% endif %}</td>
             </tr>
           {% empty %}
-            <tr><td colspan="4" class="text-muted small">Chưa có dòng.</td></tr>
+            <tr><td colspan="5" class="text-muted small">Chưa có dòng.</td></tr>
           {% endfor %}
           </tbody>
         </table>

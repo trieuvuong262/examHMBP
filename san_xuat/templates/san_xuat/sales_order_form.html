@@ -3,6 +3,40 @@
 {% load sx_format %}
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+<style>
+  .jp-so-size-grid {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(2.6rem, 1fr));
+    gap: .25rem;
+    margin-top: .35rem;
+    min-width: 17rem;
+  }
+  .jp-so-size-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: .1rem;
+    margin: 0;
+    font-size: .65rem;
+    font-weight: 700;
+    color: #64748b;
+    text-align: center;
+  }
+  .jp-so-size-cell input {
+    text-align: center;
+    padding: .15rem .1rem;
+    font-size: .75rem;
+    font-weight: 600;
+  }
+  .jp-so-size-cell input.is-filled {
+    background: #ecfdf5;
+    border-color: #6ee7b7;
+  }
+  #jp-so-lines-table th.jp-so-qty-col,
+  #jp-so-lines-table td.jp-so-qty-col {
+    min-width: 18rem;
+  }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -49,7 +83,7 @@
                 <th style="min-width:200px">Mã SP</th>
                 <th>Tên</th>
                 <th class="text-end" style="width:7rem">Tồn kho</th>
-                <th style="width:110px">Số lượng</th>
+                <th class="jp-so-qty-col">Số lượng (tổng + size)</th>
                 <th style="width:3rem"></th>
               </tr>
             </thead>
@@ -64,7 +98,20 @@
                 <td class="text-end">
                   <span class="jp-so-stock-qty text-muted">—</span>
                 </td>
-                <td>{{ f.qty }}</td>
+                <td class="jp-so-qty-col">
+                  {{ f.qty }}
+                  {{ f.size_qtys }}
+                  <div class="jp-so-size-grid" data-role="size-qtys">
+                    {% for sz in suggest_sizes %}
+                    <label class="jp-so-size-cell">
+                      <span>{{ sz }}</span>
+                      <input type="number" class="form-control form-control-sm jp-so-size-qty"
+                             data-size="{{ sz }}" value="0" min="0" step="1" inputmode="numeric"
+                             aria-label="SL size {{ sz }}">
+                    </label>
+                    {% endfor %}
+                  </div>
+                </td>
                 <td class="text-center">
                   {% if f.DELETE %}
                   <div class="d-none">{{ f.DELETE }}</div>
@@ -96,7 +143,20 @@
     <td>{{ f.product_code }}</td>
     <td>{{ f.product_name }}</td>
     <td class="text-end"><span class="jp-so-stock-qty text-muted">—</span></td>
-    <td>{{ f.qty }}</td>
+    <td class="jp-so-qty-col">
+      {{ f.qty }}
+      {{ f.size_qtys }}
+      <div class="jp-so-size-grid" data-role="size-qtys">
+        {% for sz in suggest_sizes %}
+        <label class="jp-so-size-cell">
+          <span>{{ sz }}</span>
+          <input type="number" class="form-control form-control-sm jp-so-size-qty"
+                 data-size="{{ sz }}" value="0" min="0" step="1" inputmode="numeric"
+                 aria-label="SL size {{ sz }}">
+        </label>
+        {% endfor %}
+      </div>
+    </td>
     <td class="text-center">
       {% if f.DELETE %}
       <div class="d-none">{{ f.DELETE }}</div>
@@ -132,6 +192,101 @@
     });
   }
 
+  function readSizeMap(row) {
+    var map = {};
+    row.querySelectorAll('.jp-so-size-qty').forEach(function (inp) {
+      var sz = (inp.getAttribute('data-size') || '').trim();
+      var n = parseFloat(inp.value);
+      if (!sz || !Number.isFinite(n) || n <= 0) return;
+      map[sz] = Math.round(n);
+    });
+    return map;
+  }
+
+  function writeSizeMap(row, map) {
+    map = map || {};
+    var merged = {};
+    Object.keys(map).forEach(function (sz) {
+      var n = Number(map[sz]) || 0;
+      if (n > 0) merged[sz] = Math.round(n);
+    });
+    row.querySelectorAll('.jp-so-size-qty').forEach(function (inp) {
+      var sz = (inp.getAttribute('data-size') || '').trim();
+      var n = Number(merged[sz]) || 0;
+      inp.value = n > 0 ? String(Math.round(n)) : '0';
+      inp.classList.toggle('is-filled', n > 0);
+      if (n > 0) merged[sz] = Math.round(n);
+    });
+    var hidden = row.querySelector('.jp-so-size-qtys-json, input[name$="-size_qtys"]');
+    if (hidden) hidden.value = JSON.stringify(merged);
+  }
+
+  function syncSizeJson(row) {
+    var hidden = row.querySelector('.jp-so-size-qtys-json, input[name$="-size_qtys"]');
+    if (!hidden) return;
+    var map = readSizeMap(row);
+    // Giữ size ngoài lưới mặc định (vd. 1–15) nếu đã có trong JSON
+    try {
+      var prev = hidden.value ? JSON.parse(hidden.value) : {};
+      if (prev && typeof prev === 'object') {
+        Object.keys(prev).forEach(function (sz) {
+          if (map[sz] != null) return;
+          var inp = row.querySelector('.jp-so-size-qty[data-size="' + sz + '"]');
+          if (inp) return;
+          var n = Number(prev[sz]) || 0;
+          if (n > 0) map[sz] = Math.round(n);
+        });
+      }
+    } catch (e) { /* ignore */ }
+    hidden.value = JSON.stringify(map);
+  }
+
+  function sumSizes(row) {
+    var map = readSizeMap(row);
+    var total = 0;
+    Object.keys(map).forEach(function (k) { total += map[k]; });
+    return total;
+  }
+
+  function applySizesToTotal(row) {
+    var total = sumSizes(row);
+    var qty = row.querySelector('.jp-so-qty-total, input[name$="-qty"]');
+    if (qty && total > 0) {
+      qty.value = String(total);
+      qty.dispatchEvent(new Event('input', { bubbles: true }));
+      qty.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    syncSizeJson(row);
+  }
+
+  function hydrateRow(row) {
+    var hidden = row.querySelector('.jp-so-size-qtys-json, input[name$="-size_qtys"]');
+    if (!hidden || !hidden.value) {
+      syncSizeJson(row);
+      return;
+    }
+    try {
+      var map = JSON.parse(hidden.value);
+      if (map && typeof map === 'object') writeSizeMap(row, map);
+    } catch (e) {
+      syncSizeJson(row);
+    }
+  }
+
+  body.querySelectorAll('tr.jp-so-line-row').forEach(hydrateRow);
+
+  body.addEventListener('input', function (e) {
+    var inp = e.target.closest('.jp-so-size-qty');
+    if (!inp) return;
+    var row = inp.closest('tr');
+    if (!row) return;
+    inp.classList.toggle('is-filled', (parseFloat(inp.value) || 0) > 0);
+    applySizesToTotal(row);
+  });
+
+  window.jpSoWriteLineSizeQtys = writeSizeMap;
+  window.jpSoSyncLineSizeJson = syncSizeJson;
+
   addBtn.addEventListener('click', function () {
     var idx = parseInt(totalInput.value, 10) || 0;
     var node = tpl.content.cloneNode(true);
@@ -140,6 +295,7 @@
     reindexAttrs(row, idx);
     body.appendChild(row);
     totalInput.value = String(idx + 1);
+    hydrateRow(row);
     var select = row.querySelector('.jp-sx-product-code-select');
     if (select && typeof window.jpInitProductCodeSelect === 'function') {
       window.jpInitProductCodeSelect(select);

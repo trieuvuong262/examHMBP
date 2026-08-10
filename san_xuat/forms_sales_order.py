@@ -65,7 +65,12 @@ class SalesOrderLineForm(forms.Form):
         decimal_places=2,
         min_value=Decimal('0.01'),
         label='Số lượng',
-        widget=forms.NumberInput(attrs={'class': 'form-control form-control-sm', 'step': '0.01', 'min': '0.01'}),
+        widget=forms.NumberInput(attrs={'class': 'form-control form-control-sm jp-so-qty-total', 'step': '0.01', 'min': '0.01'}),
+    )
+    size_qtys = forms.CharField(
+        required=False,
+        label='SL theo size',
+        widget=forms.HiddenInput(attrs={'class': 'jp-so-size-qtys-json'}),
     )
 
     def __init__(self, *args, **kwargs):
@@ -77,6 +82,11 @@ class SalesOrderLineForm(forms.Form):
         elif self.initial:
             extra = self.initial.get('product_code') or ''
         self.fields['product_code'].choices = _product_code_choices(extra)
+        if self.initial and isinstance(self.initial.get('size_qtys'), dict):
+            import json
+            self.initial['size_qtys'] = json.dumps(
+                self.initial['size_qtys'], ensure_ascii=False, separators=(',', ':'),
+            )
 
     def clean_product_code(self):
         code = (self.cleaned_data.get('product_code') or '').strip()
@@ -89,6 +99,14 @@ class SalesOrderLineForm(forms.Form):
             raise forms.ValidationError(f'Mã {code} không có trong kho sản phẩm.')
         return ref.code
 
+    def clean_size_qtys(self):
+        from san_xuat.services.sales_orders import normalize_size_qtys
+        import json
+
+        raw = self.cleaned_data.get('size_qtys') or ''
+        size_map = normalize_size_qtys(raw)
+        # Lưu lại dạng JSON gọn để view đọc
+        return json.dumps({k: float(v) for k, v in size_map.items()}, ensure_ascii=False)
 
 SalesOrderLineFormSet = forms.formset_factory(
     SalesOrderLineForm,

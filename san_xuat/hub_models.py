@@ -149,6 +149,11 @@ class SxSalesOrderLine(models.Model):
     product_code = models.CharField(max_length=60, db_index=True, verbose_name='Mã sản phẩm')
     product_name = models.CharField(max_length=255, blank=True, default='', verbose_name='Tên sản phẩm')
     qty = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'), verbose_name='Số lượng')
+    size_qtys = models.JSONField(
+        default=dict, blank=True,
+        verbose_name='SL theo size',
+        help_text='Ví dụ {"S": 100, "M": 200}',
+    )
     qty_scrap_rate = models.DecimalField(
         max_digits=7, decimal_places=2, default=Decimal('0'),
         verbose_name='Tỷ lệ sai hỏng (%)',

@@ -346,6 +346,33 @@
     qty.dispatchEvent(new Event('change', { bubbles: true }));
 
     var row = qty.closest('tr');
+    if (row) {
+      var sizeMap = {};
+      visibleSizes().forEach(function (sz) {
+        var sug = parseInt((outCell(sz) || {}).textContent || '0', 10) || 0;
+        if (sug > 0) sizeMap[sz] = sug;
+      });
+      // Size ngoài bộ mặc định (1–15, 4XL…) cũng ghi nếu đang mở rộng
+      ALL_SIZES.forEach(function (sz) {
+        if (sizeMap[sz]) return;
+        var sug = parseInt((outCell(sz) || {}).textContent || '0', 10) || 0;
+        if (sug > 0) sizeMap[sz] = sug;
+      });
+      if (typeof window.jpSoWriteLineSizeQtys === 'function') {
+        window.jpSoWriteLineSizeQtys(row, sizeMap);
+      } else {
+        Object.keys(sizeMap).forEach(function (sz) {
+          var inp = row.querySelector('.jp-so-size-qty[data-size="' + sz + '"]');
+          if (inp) {
+            inp.value = String(sizeMap[sz]);
+            inp.classList.add('is-filled');
+          }
+        });
+        var hidden = row.querySelector('.jp-so-size-qtys-json, input[name$="-size_qtys"]');
+        if (hidden) hidden.value = JSON.stringify(sizeMap);
+      }
+    }
+
     if (row && productTs && productTs.getValue()) {
       var sel = row.querySelector('.jp-sx-product-code-select');
       if (sel && !(sel.value || (sel.tomselect && sel.tomselect.getValue()))) {

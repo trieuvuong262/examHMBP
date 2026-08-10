@@ -436,12 +436,19 @@ def sales_order_create(request):
                 qty = f.cleaned_data.get('qty')
                 if not code or not qty:
                     continue
+                import json
+                size_raw = f.cleaned_data.get('size_qtys') or '{}'
+                try:
+                    size_qtys = json.loads(size_raw) if isinstance(size_raw, str) else (size_raw or {})
+                except (TypeError, ValueError):
+                    size_qtys = {}
                 lines.append(
                     LineInput(
                         product_code=code,
                         product_name=f.cleaned_data.get('product_name') or '',
                         qty=qty,
                         qty_scrap_rate=Decimal('0'),
+                        size_qtys=size_qtys if isinstance(size_qtys, dict) else {},
                     )
                 )
             try:
