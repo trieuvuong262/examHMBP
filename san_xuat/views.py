@@ -489,6 +489,16 @@ def product_code_search(request):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 @require_GET
+def suggest_qty_stock_api(request):
+    """Tồn theo size từ kho SP — dùng công cụ đề xuất SL trên form lên đơn."""
+    style = (request.GET.get('style') or request.GET.get('product_code') or '').strip()
+    from san_xuat.services.products import suggest_style_size_stock
+
+    return JsonResponse(suggest_style_size_stock(style))
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+@require_GET
 def mo_code_preview(request):
     """Xem trước mã LSX sẽ sinh theo mã SX."""
     product_code = (request.GET.get('product_code') or '').strip()

@@ -66,6 +66,30 @@
     text-align: left;
     padding-left: .45rem;
   }
+  .jp-so-suggest-sheet .jp-so-sg-product-cell {
+    background: #fde047;
+    padding: .35rem .45rem;
+  }
+  .jp-so-suggest-sheet .jp-so-sg-product-cell .ts-wrapper {
+    background: transparent;
+  }
+  .jp-so-suggest-sheet .jp-so-sg-product-cell .ts-control {
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    min-height: 1.75rem;
+    padding: .15rem .25rem !important;
+    font-weight: 600;
+  }
+  .jp-so-suggest-sheet .jp-so-sg-product-meta {
+    font-size: .72rem;
+    font-weight: 500;
+    margin-top: .15rem;
+    padding-left: .25rem;
+  }
+  .jp-so-suggest-sheet .jp-so-sg-stock.is-from-kho {
+    color: #1e3a8a;
+  }
   .jp-so-suggest-sheet .jp-so-sg-formula {
     background: #e2e8f0;
     font-weight: 600;
@@ -133,8 +157,11 @@
               </tr>
               <tr>
                 <th class="jp-so-sg-label" scope="row">Loại hàng</th>
-                <td class="jp-so-sg-input-cell jp-so-sg-text-cell" colspan="{{ suggest_sizes|length }}">
-                  <input type="text" id="jp-so-sg-product" value="" placeholder="Vd. Striker Trắng" maxlength="120" aria-label="Loại hàng">
+                <td class="jp-so-sg-input-cell jp-so-sg-text-cell jp-so-sg-product-cell" colspan="{{ suggest_sizes|length }}">
+                  <select id="jp-so-sg-product" class="jp-so-sg-product-select" data-placeholder="Gõ mã SX / tên từ kho sản phẩm…" aria-label="Loại hàng">
+                    <option value="">Chọn mã SX từ kho sản phẩm…</option>
+                  </select>
+                  <div class="jp-so-sg-product-meta text-muted" id="jp-so-sg-product-meta"></div>
                 </td>
               </tr>
               <tr>
@@ -181,7 +208,8 @@
           </table>
         </div>
         <p class="jp-so-suggest-hint mb-0">
-          Ô vàng nhập tay · kết quả cập nhật ngay. Đề xuất = làm tròn <em>lên</em> theo bước «Làm tròn».
+          Chọn <strong>Loại hàng</strong> từ kho sản phẩm → tồn theo size tự điền.
+          Ô vàng còn lại nhập tay · đề xuất = làm tròn <em>lên</em> theo bước «Làm tròn».
         </p>
         <div class="jp-so-suggest-total">
           <span>Tổng đề xuất: <strong id="jp-so-sg-total">0</strong></span>
