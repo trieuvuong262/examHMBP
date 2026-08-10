@@ -41,7 +41,7 @@
       </div>
     </div>
     <div class="col-6 col-lg-3">
-      <a href="{% url 'san_xuat:dispatch_prod_stats' %}" class="text-decoration-none text-reset">
+      <a href="{% url 'san_xuat:overview' %}?tab=san-luong&month={{ month_value }}&date_from={{ dash.date_from|date:'Y-m-d' }}&date_to={{ dash.date_to|date:'Y-m-d' }}&product_code={{ filter_product_code }}&team_label={{ filter_team_label }}" class="text-decoration-none text-reset">
         <div class="border rounded-3 p-3 h-100 border-start border-4 border-success">
           <div class="text-muted small">Đạt trong kỳ</div>
           <div class="fs-4 fw-semibold text-success">{{ dash.qty_good_period|sx_num }}</div>
@@ -73,9 +73,6 @@
     <li class="nav-item" role="presentation">
       <button class="nav-link {% if active_tab == 'chat-luong' %}active{% endif %}" id="tab-chat-luong" data-bs-toggle="tab" data-bs-target="#pane-chat-luong" type="button" role="tab" data-ov-tab="chat-luong">Chất lượng</button>
     </li>
-    <li class="nav-item" role="presentation">
-      <button class="nav-link {% if active_tab == 'dung-chuyen' %}active{% endif %}" id="tab-dung-chuyen" data-bs-toggle="tab" data-bs-target="#pane-dung-chuyen" type="button" role="tab" data-ov-tab="dung-chuyen">Dừng chuyền</button>
-    </li>
   </ul>
 
   <div class="tab-content" id="ovTabContent">
@@ -90,8 +87,8 @@
           </div>
         </div>
         <div class="col-6 col-md-3">
-          <a href="{% url 'san_xuat:plan_stub' %}" class="border rounded-3 p-3 h-100 d-block text-decoration-none text-reset">
-            <div class="text-muted small">Kế hoạch tổng thể</div>
+          <a href="{% url 'san_xuat:plan_board' %}" class="border rounded-3 p-3 h-100 d-block text-decoration-none text-reset">
+            <div class="text-muted small">Kế hoạch sản xuất</div>
             <div class="fs-5 fw-semibold text-hm">{{ dash.plan_count }}</div>
           </a>
         </div>
@@ -102,9 +99,9 @@
           </a>
         </div>
         <div class="col-6 col-md-3">
-          <a href="{% url 'san_xuat:downtime_list' %}" class="border rounded-3 p-3 h-100 d-block text-decoration-none text-reset">
-            <div class="text-muted small">Dừng chuyền kỳ</div>
-            <div class="fs-5 fw-semibold text-hm">{{ dash.downtime_minutes_total|intcomma }} phút</div>
+          <a href="{% url 'san_xuat:team_work_board' 'cat' %}" class="border rounded-3 p-3 h-100 d-block text-decoration-none text-reset">
+            <div class="text-muted small">Tổ có sản lượng kỳ</div>
+            <div class="fs-5 fw-semibold text-hm">{{ dash.team_output|length }}</div>
           </a>
         </div>
       </div>
@@ -312,46 +309,6 @@
       </div>
     </div>
 
-    {# —— Dừng chuyền —— #}
-    <div class="tab-pane fade {% if active_tab == 'dung-chuyen' %}show active{% endif %}" id="pane-dung-chuyen" role="tabpanel">
-      <div class="row g-3 mb-3">
-        <div class="col-12 col-lg-7">
-          <div class="border rounded-3 p-3 h-100 jp-sx-chart-card">
-            <div class="d-flex justify-content-between mb-2">
-              <div class="fw-semibold">Phút dừng theo lý do</div>
-              <a href="{% url 'san_xuat:downtime_list' %}" class="small text-hm">{{ dash.downtime_minutes_total|intcomma }} phút →</a>
-            </div>
-            <div class="sx-chart-wrap"><canvas id="sxDowntimeChart"></canvas></div>
-          </div>
-        </div>
-        <div class="col-12 col-lg-5">
-          <div class="border rounded-3 p-3 h-100 jp-sx-chart-card">
-            <div class="fw-semibold mb-2">Tỷ trọng lý do dừng</div>
-            <div class="sx-chart-wrap"><canvas id="sxDowntimePieChart"></canvas></div>
-          </div>
-        </div>
-      </div>
-      <div class="card border-0 shadow-sm overflow-hidden">
-        <div class="px-3 py-2 border-bottom fw-semibold">Chi tiết lý do</div>
-        <table class="table table-sm table-hover mb-0">
-          <thead class="table-light">
-            <tr><th>Lý do</th><th class="text-end">Phút</th><th class="text-end">%</th><th class="text-end">Số lần</th></tr>
-          </thead>
-          <tbody>
-          {% for row in dash.downtime_by_reason %}
-            <tr>
-              <td>{{ row.reason }}</td>
-              <td class="text-end">{{ row.minutes|intcomma }}</td>
-              <td class="text-end">{{ row.pct }}%</td>
-              <td class="text-end">{{ row.events }}</td>
-            </tr>
-          {% empty %}
-            <tr><td colspan="4" class="text-muted text-center py-3">Chưa ghi nhận dừng chuyền.</td></tr>
-          {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
   </div>
 </div>
 
@@ -370,8 +327,6 @@
   const dayGood = {{ chart_day_good_json|safe }};
   const dayDefect = {{ chart_day_defect_json|safe }};
   const qcData = {{ chart_qc_data_json|safe }};
-  const dtLabels = {{ chart_dt_labels_json|safe }};
-  const dtData = {{ chart_dt_data_json|safe }};
   const orderLabels = {{ chart_order_labels_json|safe }};
   const orderData = {{ chart_order_data_json|safe }};
   const teamLabels = {{ chart_team_labels_json|safe }};
@@ -478,8 +433,6 @@
     sxTeamChart: () => stackedBar('sxTeamChart', teamLabels, teamGood, teamDefect),
     sxProcessChart: () => stackedBar('sxProcessChart', processLabels, processGood, processDefect),
     sxDefectRateChart: () => bar('sxDefectRateChart', defectLabels, defectRate, 'rgba(220,38,38,.6)'),
-    sxDowntimeChart: () => bar('sxDowntimeChart', dtLabels, dtData, 'rgba(245,158,11,.7)'),
-    sxDowntimePieChart: () => doughnut('sxDowntimePieChart', dtLabels.length ? dtLabels : ['—'], dtData.length ? dtData : [0]),
   };
 
   function ensureChartsIn(pane) {

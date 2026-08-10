@@ -278,7 +278,7 @@ def overview(request):
     product_code = (request.GET.get('product_code') or '').strip()
     team_label = (request.GET.get('team_label') or '').strip()
     active_tab = (request.GET.get('tab') or 'tong-hop').strip().lower()
-    allowed_tabs = {'tong-hop', 'lenh-sx', 'san-luong', 'chat-luong', 'dung-chuyen'}
+    allowed_tabs = {'tong-hop', 'lenh-sx', 'san-luong', 'chat-luong'}
     if active_tab not in allowed_tabs:
         active_tab = 'tong-hop'
     date_from, date_to, filters = resolve_sx_period(request)
@@ -312,8 +312,6 @@ def overview(request):
         'chart_day_good_json': _j([row['qty_good'] for row in dash.production_by_day]),
         'chart_day_defect_json': _j([row['qty_defect'] for row in dash.production_by_day]),
         'chart_qc_data_json': _j([dash.qc_pass, dash.qc_fail, dash.qc_pending]),
-        'chart_dt_labels_json': _j([row['reason'][:40] for row in dash.downtime_by_reason]),
-        'chart_dt_data_json': _j([row['minutes'] for row in dash.downtime_by_reason]),
         'chart_order_labels_json': _j([row['label'] for row in dash.orders_by_sx_status]),
         'chart_order_data_json': _j([row['count'] for row in dash.orders_by_sx_status]),
         'chart_team_labels_json': _j([row['team_label'] for row in dash.team_output]),
