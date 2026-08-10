@@ -23,7 +23,11 @@ class SalesOrderHeaderForm(forms.Form):
         required=False,
         max_length=255,
         label='Khách hàng',
-        widget=forms.TextInput(attrs={'class': 'form-control form-control-sm'}),
+        widget=forms.TextInput(attrs={
+            'class': 'form-control form-control-sm jp-so-customer-select',
+            'placeholder': 'Gõ tên, mã KH hoặc SĐT…',
+            'autocomplete': 'off',
+        }),
     )
     request_date = forms.DateField(
         label='Ngày yêu cầu',

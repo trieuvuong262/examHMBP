@@ -42,6 +42,44 @@ def browse_customers(
     return rows, total
 
 
+def search_customers(q: str = '', *, limit: int = 30, retailer: str | None = None) -> list[dict]:
+    """TomSelect: gõ tìm khách hàng mirror KiotViet (tên / mã / SĐT)."""
+    retailer = retailer or current_retailer()
+    limit = max(1, min(int(limit or 30), 50))
+    qs = _active(KvCustomer.objects.all(), retailer).order_by('name', 'kiotviet_id')
+    term = (q or '').strip()
+    if term:
+        qs = qs.filter(
+            Q(name__icontains=term)
+            | Q(code__icontains=term)
+            | Q(contact_number__icontains=term)
+        )
+    out: list[dict] = []
+    seen: set[str] = set()
+    for obj in qs[:limit]:
+        name = (obj.name or '').strip()
+        code = (obj.code or '').strip()
+        phone = (obj.contact_number or '').strip()
+        value = name or code
+        if not value:
+            continue
+        key = value.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        parts = [p for p in (code, name, phone) if p]
+        out.append({
+            'id': value,
+            'text': ' — '.join(parts) if parts else value,
+            'name': name,
+            'code': code,
+            'phone': phone,
+        })
+        if len(out) >= limit:
+            break
+    return out
+
+
 def get_customer(retailer: str, customer_id: int) -> dict | None:
     obj = KvCustomer.objects.filter(
         retailer=retailer,

@@ -183,7 +183,16 @@
         HEADER_FIELDS.forEach(function (name) {
             var el = headerEl(name);
             if (!el) return;
-            if (h[name] != null && h[name] !== '') el.value = h[name];
+            if (h[name] == null || h[name] === '') return;
+            if (name === 'customer_name' && el.tomselect) {
+                var val = String(h[name]);
+                if (!el.tomselect.options[val]) {
+                    el.tomselect.addOption({ id: val, text: val, name: val, code: '', phone: '' });
+                }
+                el.tomselect.setValue(val, true);
+                return;
+            }
+            el.value = h[name];
         });
 
         var lines = draft.lines || [];

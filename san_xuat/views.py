@@ -489,6 +489,16 @@ def product_code_search(request):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 @require_GET
+def customer_search(request):
+    """TomSelect: khách hàng từ mirror KiotViet (kv_customer)."""
+    q = (request.GET.get('q') or '').strip()
+    from kiotviet.local_lookup import search_customers
+
+    return JsonResponse({'results': search_customers(q, limit=30)})
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+@require_GET
 def suggest_qty_stock_api(request):
     """Tồn + tốc độ tiêu thụ (bán KV N ngày) theo size — công cụ đề xuất SL."""
     style = (request.GET.get('style') or request.GET.get('product_code') or '').strip()

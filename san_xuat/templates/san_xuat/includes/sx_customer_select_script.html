@@ -1,0 +1,61 @@
+{# TomSelect khách hàng KiotViet — san_xuat:customer_search #}
+<script>
+(function () {
+  if (typeof TomSelect === 'undefined') return;
+  var searchUrl = '{% url "san_xuat:customer_search" %}';
+
+  function initCustomerSelect(el) {
+    if (!el || el.tomselect) return null;
+    var initial = (el.value || '').trim();
+
+    return new TomSelect(el, {
+      maxItems: 1,
+      maxOptions: 40,
+      valueField: 'id',
+      labelField: 'text',
+      searchField: ['text', 'name', 'code', 'phone'],
+      placeholder: el.placeholder || 'Gõ tên, mã KH hoặc SĐT…',
+      create: true,
+      createOnBlur: true,
+      persist: false,
+      allowEmptyOption: true,
+      openOnFocus: true,
+      loadThrottle: 220,
+      load: function (query, callback) {
+        fetch(searchUrl + '?q=' + encodeURIComponent(query || ''), {
+          headers: { 'Accept': 'application/json' },
+        })
+          .then(function (r) { return r.json(); })
+          .then(function (data) { callback(data.results || []); })
+          .catch(function () { callback(); });
+      },
+      render: {
+        option: function (data, escape) {
+          var title = escape(data.text || data.name || data.id || '');
+          var sub = '';
+          if (data.phone && data.code) {
+            sub = '<div class="text-muted small">' + escape(data.code) + (data.phone ? ' · ' + escape(data.phone) : '') + '</div>';
+          }
+          return '<div>' + title + sub + '</div>';
+        },
+        item: function (data, escape) {
+          return '<div>' + escape(data.name || data.id || data.text || '') + '</div>';
+        },
+        option_create: function (data, escape) {
+          return '<div class="create">Dùng «' + escape(data.input) + '»</div>';
+        },
+      },
+      onInitialize: function () {
+        if (!initial) return;
+        if (!this.options[initial]) {
+          this.addOption({ id: initial, text: initial, name: initial, code: '', phone: '' });
+        }
+        this.setValue(initial, true);
+      },
+    });
+  }
+
+  window.jpInitCustomerSelect = initCustomerSelect;
+  document.querySelectorAll('.jp-so-customer-select').forEach(initCustomerSelect);
+})();
+</script>

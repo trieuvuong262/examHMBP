@@ -162,6 +162,7 @@ urlpatterns = [
     path('cong-doan/nhat-ky/', views_ie.ie_audit_list, name='ie_audit_list'),
     path('thiet-lap/', views_hub.general_settings, name='general_settings'),
     path('api/tim-ma-sp/', views.product_code_search, name='product_code_search'),
+    path('api/tim-khach-hang/', views.customer_search, name='customer_search'),
     path('api/de-xuat-sl/ton-size/', views.suggest_qty_stock_api, name='suggest_qty_stock'),
     path('api/lenh-sx/ma-tiep/', views.mo_code_preview, name='mo_code_preview'),
     path('api/lenh-sx/ma-tran-sku/', views.mo_sku_matrix_api, name='mo_sku_matrix'),
