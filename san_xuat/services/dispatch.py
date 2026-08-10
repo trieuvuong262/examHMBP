@@ -504,7 +504,7 @@ def assert_user_can_create_stat(*, user, mo: SxProductionOrder, process_name: st
         )
     if not user_can_stat_mo_step(user=user, step=step):
         raise DispatchError(
-            "Chỉ nhân viên được phân công mới được ghi thống kê cho công đoạn này."
+            "Chỉ nhân viên được phân công tại Công việc tổ mới được ghi thống kê cho công đoạn này."
         )
     return step
 

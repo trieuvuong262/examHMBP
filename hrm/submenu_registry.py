@@ -139,7 +139,7 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
         {'key': 'disassembly', 'label': 'Lệnh tháo dỡ', 'icon': 'bi-box-arrow-up'},
         {'key': 'npl_surplus', 'label': 'NPL thừa', 'icon': 'bi-recycle'},
         {'key': 'shop_floor', 'label': 'Xác nhận xưởng', 'icon': 'bi-phone'},
-        {'key': 'work_assign', 'label': 'Giao việc SX', 'icon': 'bi-person-workspace'},
+        {'key': 'work_assign', 'label': 'Giao việc SX (đã chuyển Công việc tổ)', 'icon': 'bi-person-workspace'},
         {'key': 'downtime', 'label': 'Dừng chuyền / OEE', 'icon': 'bi-pause-circle'},
         {'key': 'piece_rate', 'label': 'Lương sản phẩm', 'icon': 'bi-cash-coin'},
         {'key': 'qc', 'label': 'Kiểm tra chất lượng', 'icon': 'bi-clipboard-check'},

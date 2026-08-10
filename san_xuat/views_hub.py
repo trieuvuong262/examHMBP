@@ -43,7 +43,6 @@ from san_xuat.list_filters import (
     SX_FILTER_SUBCONTRACT,
     SX_FILTER_WIP_HANDOVER,
     SX_FILTER_WIP_RETURN,
-    SX_FILTER_WORK_ASSIGN,
     SX_FILTER_WORK_CENTER,
     apply_sx_list_filters,
     default_list_date_range,
@@ -83,7 +82,6 @@ from san_xuat.hub_models import (
     SxSubcontractOrder,
     SxWipHandover,
     SxWipReturn,
-    SxWorkAssignment,
     SxWorkCenter,
 )
 from san_xuat.models import ProcessStep, ProductTechDoc
@@ -127,7 +125,6 @@ from san_xuat.forms_phase3 import (
     SubcontractOutLineFormSet,
     SubcontractReceiveForm,
     TraceLookupForm,
-    WorkAssignmentCreateForm,
     WorkCenterForm,
 )
 from san_xuat.forms_dispatch import (
@@ -2779,9 +2776,7 @@ def dispatch_mo_process_step_detail(request, pk: int):
     can_update = _perm_ctx(request).get('can_update')
     is_manager = user_can_manage_mo_step(user=request.user, step=step)
     is_assignee = user_can_stat_mo_step(user=request.user, step=step)
-    # Điều phối được gán quản lý khi bước chưa có manager
     can_set_manager = bool(can_update and (is_manager or not step.manager_id or request.user.is_superuser))
-    can_assign = bool(is_manager or request.user.is_superuser)
 
     if request.method == 'POST':
         action = (request.POST.get('action') or '').strip()
@@ -2795,31 +2790,11 @@ def dispatch_mo_process_step_detail(request, pk: int):
             step.save(update_fields=['manager'])
             messages.success(request, 'Đã cập nhật quản lý công đoạn.')
             return redirect('san_xuat:dispatch_mo_process_step_detail', pk=step.pk)
-
-        if action == 'assign' and can_assign:
-            raw_ids = request.POST.getlist('assignee_ids')
-            keep: set[int] = set()
-            for raw in raw_ids:
-                if not str(raw).isdigit():
-                    continue
-                uid = int(raw)
-                keep.add(uid)
-                SxMoProcessAssignee.objects.get_or_create(
-                    mo_process_step=step,
-                    user_id=uid,
-                    defaults={'assigned_by': request.user},
-                )
-            SxMoProcessAssignee.objects.filter(mo_process_step=step).exclude(user_id__in=keep).delete()
-            messages.success(request, f'Đã phân {len(keep)} nhân viên ghi thống kê.')
-            return redirect('san_xuat:dispatch_mo_process_step_detail', pk=step.pk)
-
-        if action == 'assign_self' and can_assign:
-            SxMoProcessAssignee.objects.get_or_create(
-                mo_process_step=step,
-                user=request.user,
-                defaults={'assigned_by': request.user},
+        if action in ('assign', 'assign_self'):
+            messages.info(
+                request,
+                'Phân công nhân viên ghi TKSX đã chuyển sang menu Công việc tổ.',
             )
-            messages.success(request, 'Đã tự phân bạn vào công đoạn này.')
             return redirect('san_xuat:dispatch_mo_process_step_detail', pk=step.pk)
 
     stats = (
@@ -2832,33 +2807,23 @@ def dispatch_mo_process_step_detail(request, pk: int):
     )
 
     from san_xuat.forms_dispatch import mo_manager_candidate_options
-    assignee_candidates = []
-    # Gợi ý: subordinates của manager + chính manager
-    if step.manager_id:
-        profile = getattr(step.manager, 'profile', None)
-        if profile is not None and hasattr(profile, 'subordinates'):
-            for u in profile.subordinates.filter(is_active=True).select_related('profile')[:200]:
-                p = getattr(u, 'profile', None)
-                label = ((getattr(p, 'full_name', None) or '') if p else '').strip() or u.username
-                assignee_candidates.append({'id': u.pk, 'label': label})
-        assignee_candidates.insert(0, {
-            'id': step.manager_id,
-            'label': (
-                (getattr(getattr(step.manager, 'profile', None), 'full_name', None) or '')
-                or step.manager.get_full_name()
-                or step.manager.username
-            ),
-        })
-    # Dedup
-    seen_u: set[int] = set()
-    uniq_cand = []
-    for c in assignee_candidates:
-        if c['id'] in seen_u:
-            continue
-        seen_u.add(c['id'])
-        uniq_cand.append(c)
+    from san_xuat.services.progress_template import team_slug_for_process_label
 
-    assigned_ids = {a.user_id for a in step.assignees.all()}
+    assignee_labels = []
+    for a in step.assignees.all():
+        u = a.user
+        prof = getattr(u, 'profile', None)
+        label = ((getattr(prof, 'full_name', None) or '') if prof else '').strip()
+        label = label or u.get_full_name() or u.username
+        assignee_labels.append(label)
+
+    team_slug = team_slug_for_process_label(step.process_name)
+    team_work_url = ''
+    if team_slug:
+        team_work_url = (
+            f"{reverse('san_xuat:team_work_board', kwargs={'slug': team_slug})}"
+            f"?q={mo.code}"
+        )
 
     return render(request, 'san_xuat/dispatch_mo_process_step_detail.html', {
         **_perm_ctx(request),
@@ -2868,10 +2833,9 @@ def dispatch_mo_process_step_detail(request, pk: int):
         'is_manager': is_manager,
         'is_assignee': is_assignee,
         'can_set_manager': can_set_manager,
-        'can_assign': can_assign,
-        'manager_options': mo_manager_candidate_options(),
-        'assignee_candidates': uniq_cand,
-        'assigned_ids': assigned_ids,
+        'manager_options': mo_manager_candidate_options() if can_set_manager else [],
+        'assignee_labels': assignee_labels,
+        'team_work_url': team_work_url,
     })
 
 
@@ -2932,7 +2896,7 @@ def dispatch_prod_stats_create(request):
             messages.error(request, 'Không tạo được TKSX — kiểm tra lại form.')
     else:
         if mo_step and not user_can_stat_mo_step(user=request.user, step=mo_step):
-            messages.error(request, 'Bạn chưa được phân ghi thống kê cho công đoạn này.')
+            messages.error(request, 'Bạn chưa được phân ghi thống kê (Công việc tổ) cho công đoạn này.')
             return redirect('san_xuat:dispatch_mo_process_step_detail', pk=mo_step.pk)
         initial = production_stat_initial_from_mo(mo)
         if mo_step:
@@ -3836,42 +3800,9 @@ def process_stub(request):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def work_assignment_list(request):
-    from san_xuat.services.phase3 import Phase3Error, complete_work_assignment
-
-    qs = (
-        SxWorkAssignment.objects.filter(is_demo=False)
-        .select_related('production_order', 'work_center', 'work_task', 'assignee')
-        .order_by('-created_at', '-pk')
-    )
-    status_filter = (request.GET.get('status') or '').strip()
-    if status_filter:
-        qs = qs.filter(status=status_filter)
-    items, fctx = prepare_hub_list(request, qs, SX_FILTER_WORK_ASSIGN, list_key='work_assignment')
-    can_update = _perm_ctx(request).get('can_update')
-    if request.method == 'POST' and can_update:
-        action = (request.POST.get('action') or '').strip()
-        pk = request.POST.get('pk')
-        if action == 'complete' and pk and str(pk).isdigit():
-            try:
-                item = complete_work_assignment(assignment_id=int(pk))
-            except Phase3Error as exc:
-                messages.error(request, str(exc))
-            else:
-                messages.success(request, f'Đã hoàn thành {item.code}.')
-            return redirect('san_xuat:work_assignment_list')
-    return render(request, 'san_xuat/work_assignment_list.html', {
-        **_perm_ctx(request),
-        'items': items,
-        'status_filter': status_filter,
-        'list_filter_status_options': [
-            ('', 'Tất cả TT'),
-            ('open', 'Đang giao'),
-            ('done', 'Hoàn thành'),
-            ('cancelled', 'Hủy'),
-        ],
-        'list_filter_status_value': status_filter,
-        **fctx,
-    })
+    """Đã thay bằng Công việc tổ — giữ URL cũ để bookmark không 404."""
+    messages.info(request, 'Giao việc SX đã chuyển sang Công việc tổ (phân công theo bộ phận).')
+    return redirect('san_xuat:team_work_hub')
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
@@ -3960,51 +3891,11 @@ def team_work_board(request, slug: str):
     })
 
 
-@module_perm_required(MODULE_SAN_XUAT, 'create')
+@module_perm_required(MODULE_SAN_XUAT, 'view')
 def work_assignment_create(request):
-    from san_xuat.services.phase3 import Phase3Error, create_work_assignment
-
-    if request.method == 'POST':
-        form = WorkAssignmentCreateForm(request.POST, assigner=request.user)
-        if form.is_valid():
-            center = form.cleaned_data.get('work_center')
-            assignee = form.cleaned_data.get('assignee')
-            create_task = bool(form.cleaned_data.get('create_portal_task'))
-            try:
-                item = create_work_assignment(
-                    production_order_id=form.cleaned_data['production_order'].pk,
-                    title=form.cleaned_data['title'],
-                    process_name=form.cleaned_data.get('process_name') or '',
-                    assignee_label=form.cleaned_data.get('assignee_label') or '',
-                    due_date=form.cleaned_data.get('due_date'),
-                    notes=form.cleaned_data.get('notes') or '',
-                    work_center_id=center.pk if center else None,
-                    assignee_id=assignee.pk if assignee else None,
-                    create_portal_task=create_task,
-                    assigner=request.user if create_task else None,
-                )
-            except Phase3Error as exc:
-                messages.error(request, str(exc))
-            else:
-                msg = f'Đã tạo giao việc {item.code}.'
-                if item.work_task_id:
-                    msg += f' Đã tạo WorkTask #{item.work_task_id}.'
-                messages.success(request, msg)
-                return redirect('san_xuat:work_assignment_list')
-        messages.error(request, 'Không tạo được giao việc.')
-    else:
-        initial = {'create_portal_task': True}
-        mo_id = request.GET.get('mo')
-        if mo_id and str(mo_id).isdigit():
-            initial['production_order'] = int(mo_id)
-        form = WorkAssignmentCreateForm(initial=initial, assigner=request.user)
-    return render(request, 'san_xuat/phase3_form.html', {
-        **_perm_ctx(request),
-        'form': form,
-        'title': 'Giao việc theo LSX',
-        'back_url': 'san_xuat:work_assignment_list',
-        'hint': 'Tick «Tạo công việc module Công việc» để đẩy sang tasks (cần chọn người nhận portal).',
-    })
+    """Đã thay bằng Công việc tổ — giữ URL cũ để bookmark không 404."""
+    messages.info(request, 'Giao việc SX đã chuyển sang Công việc tổ (phân công theo bộ phận).')
+    return redirect('san_xuat:team_work_hub')
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')

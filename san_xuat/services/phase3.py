@@ -1048,7 +1048,7 @@ def _build_timeline(result: TraceResult) -> list[TraceEvent]:
             kind="gv",
             label=f"GV {gv.code}",
             detail=f"{gv.title} · {gv.get_status_display()}",
-            url_name="san_xuat:work_assignment_list",
+            url_name="san_xuat:team_work_hub",
             url_pk=None,
         ))
 

@@ -180,7 +180,7 @@
             <div class="text-muted small">{{ result.mo.product_code }} — {{ result.mo.product_name|default:"—" }}</div>
           </div>
           <nav class="jp-sx-tools" aria-label="Thao tác lệnh">
-            <a href="{% url 'san_xuat:work_assignment_create' %}?mo={{ result.mo.pk }}"><i class="bi bi-person-plus" aria-hidden="true"></i>Giao việc</a>
+            <a href="{% url 'san_xuat:team_work_hub' %}"><i class="bi bi-people" aria-hidden="true"></i>Công việc tổ</a>
             <a href="{% url 'san_xuat:packing_create' %}"><i class="bi bi-box-seam" aria-hidden="true"></i>Đóng gói</a>
             <span class="sep" aria-hidden="true"></span>
             {% if show_gaps %}

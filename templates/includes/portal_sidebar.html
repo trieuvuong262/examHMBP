@@ -1048,16 +1048,15 @@
                 {% endif %}
 
                 {# —— 6. Vận hành xưởng —— #}
-                {% jp_can_menu 'san_xuat' 'work_assign' as jp_can_san_xuat_work %}
                 {% jp_can_menu 'san_xuat' 'piece_rate' as jp_can_san_xuat_piece %}
                 {% jp_can_menu 'san_xuat' 'shop_floor' as jp_can_san_xuat_sf %}
                 {% jp_can_menu 'san_xuat' 'downtime' as jp_can_san_xuat_dt %}
-                {% if jp_can_san_xuat_work or jp_can_san_xuat_piece or jp_can_san_xuat_sf or jp_can_san_xuat_dt %}
-                <li class="jp-sidebar-nested-group{% if 'giao-viec' in request.path or 'luong-san-pham' in request.path or 'shop-floor' in request.path or 'dung-chuyen' in request.path %} is-open{% endif %}">
+                {% if jp_can_san_xuat_piece or jp_can_san_xuat_sf or jp_can_san_xuat_dt %}
+                <li class="jp-sidebar-nested-group{% if 'luong-san-pham' in request.path or 'shop-floor' in request.path or 'dung-chuyen' in request.path %} is-open{% endif %}">
                     <button type="button"
                             class="jp-sidebar-nested-toggle"
                             data-jp-sidebar-group-toggle
-                            aria-expanded="{% if 'giao-viec' in request.path or 'luong-san-pham' in request.path or 'shop-floor' in request.path or 'dung-chuyen' in request.path %}true{% else %}false{% endif %}"
+                            aria-expanded="{% if 'luong-san-pham' in request.path or 'shop-floor' in request.path or 'dung-chuyen' in request.path %}true{% else %}false{% endif %}"
                             aria-controls="jp-sidebar-san-xuat-work-submenu">
                         <span class="jp-sidebar-nested-toggle-main">
                             <i class="bi bi-person-workspace"></i><span>Vận hành xưởng</span>
@@ -1070,14 +1069,6 @@
                             <a href="{% url 'san_xuat:shop_floor' %}"
                                class="jp-sidebar-link jp-sidebar-sublink {% if 'shop-floor' in request.path %}active{% endif %}">
                                 <i class="bi bi-phone"></i><span>Xác nhận xưởng</span>
-                            </a>
-                        </li>
-                        {% endif %}
-                        {% if jp_can_san_xuat_work %}
-                        <li>
-                            <a href="{% url 'san_xuat:work_assignment_list' %}"
-                               class="jp-sidebar-link jp-sidebar-sublink {% if 'giao-viec' in request.path %}active{% endif %}">
-                                <i class="bi bi-person-workspace"></i><span>Giao việc SX</span>
                             </a>
                         </li>
                         {% endif %}

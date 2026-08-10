@@ -143,6 +143,17 @@ def step_by_label(label: str) -> ProgressStepDef | None:
     return None
 
 
+def team_slug_for_process_label(label: str) -> str | None:
+    """Slug URL Công việc tổ từ tên công đoạn (vd. Lá cổ → inep)."""
+    sd = step_by_label(label)
+    if not sd:
+        return None
+    for slug, group_key, _menu_key, _lab in TEAM_SLUGS:
+        if group_key == sd.group:
+            return slug
+    return None
+
+
 def label_to_key_map() -> dict[str, str]:
     return {s.label.casefold(): s.key for s in progress_steps()}
 
