@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load sx_format %}
 
 {% block extra_head %}{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
 <style>
@@ -49,7 +50,7 @@
             <td class="text-end fw-semibold">{{ form.instance.headcount }}</td>
             <td>{{ form.shift_minutes_per_head }}{{ form.shift_minutes_per_head.errors }}</td>
             <td>{{ form.efficiency_pct }}{{ form.efficiency_pct.errors }}</td>
-            <td class="text-end fw-semibold">{{ form.instance.available_minutes_per_day|floatformat:"0" }}</td>
+            <td class="text-end fw-semibold">{{ form.instance.available_minutes_per_day|sx_num }}</td>
           </tr>
         {% empty %}
           <tr><td colspan="6" class="text-center text-muted py-4">Chưa có tổ/chuyền đang dùng.</td></tr>

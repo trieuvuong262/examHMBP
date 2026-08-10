@@ -638,7 +638,7 @@
             {% if row.downtime_minutes %}
             <div class="small text-muted mb-1 jp-prog-hit">
               <a class="text-decoration-none text-muted" href="{% url 'san_xuat:downtime_list' %}?date_from={{ board.date_from|date:'Y-m-d' }}&date_to={{ board.date_to|date:'Y-m-d' }}&name={{ row.team_label|urlencode }}">
-                <i class="bi bi-pause-circle me-1" aria-hidden="true"></i>Dừng {{ row.downtime_minutes }}′
+                <i class="bi bi-pause-circle me-1" aria-hidden="true"></i>Dừng {{ row.downtime_minutes|sx_num }}′
               </a>
             </div>
             {% endif %}
@@ -716,7 +716,7 @@
           </td>
           <td class="text-center">{{ row.mo_open }}</td>
           <td class="text-center {% if row.mo_late %}text-danger fw-bold{% endif %}">{{ row.mo_late }}</td>
-          <td class="text-end text-muted">{% if row.downtime_minutes %}{{ row.downtime_minutes }}′{% else %}—{% endif %}</td>
+          <td class="text-end text-muted">{% if row.downtime_minutes %}{{ row.downtime_minutes|sx_num }}′{% else %}—{% endif %}</td>
           <td>
             {% if row.alerts %}
             <div class="d-flex flex-wrap gap-1 mb-1">

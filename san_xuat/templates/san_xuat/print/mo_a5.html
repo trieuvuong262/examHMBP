@@ -1,4 +1,5 @@
 {% extends 'san_xuat/print/base_a5.html' %}
+{% load sx_format %}
 {% block print_body %}
 <div class="doc-title">Lệnh sản xuất</div>
 
@@ -6,8 +7,8 @@
   <div><span class="label">Mã SP:</span> <strong>{{ mo.product_code }}</strong></div>
   <div><span class="label">Trạng thái:</span> {{ mo.get_status_display }}</div>
   <div class="full"><span class="label">Tên SP:</span> {{ mo.product_name|default:"—" }}</div>
-  <div><span class="label">Số lượng lệnh:</span> <strong>{{ mo.qty }}</strong></div>
-  <div><span class="label">SL đạt:</span> {{ mo.qty_done }}</div>
+  <div><span class="label">Số lượng lệnh:</span> <strong>{{ mo.qty|sx_num }}</strong></div>
+  <div><span class="label">SL đạt:</span> {{ mo.qty_done|sx_num }}</div>
   <div><span class="label">Ngày lập lệnh sản xuất:</span> {{ mo.order_date|date:"d/m/Y" }}</div>
   <div><span class="label">Hạn:</span> {% if mo.due_date %}{{ mo.due_date|date:"d/m/Y" }}{% else %}—{% endif %}</div>
   <div><span class="label">KH bắt đầu:</span> {% if mo.planned_start %}{{ mo.planned_start|date:"d/m/Y" }}{% else %}—{% endif %}</div>
@@ -35,9 +36,9 @@
         <strong>{{ bl.material_code }}</strong><br>
         {{ bl.material_name }}
       </td>
-      <td class="text-end">{{ bl.qty_per_unit }}</td>
+      <td class="text-end">{{ bl.qty_per_unit|sx_num }}</td>
       <td class="text-center">{{ bl.scrap_pct }}%</td>
-      <td class="text-end"><strong>{{ bl.qty_total }}</strong></td>
+      <td class="text-end"><strong>{{ bl.qty_total|sx_num }}</strong></td>
     </tr>
   {% endfor %}
   </tbody>

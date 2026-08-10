@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load sx_format %}
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
@@ -22,7 +23,7 @@
           <div class="row g-2">
             <div class="col-6"><div class="small text-muted">Lệnh sản xuất</div>
               <a href="{% url 'san_xuat:dispatch_mo_detail' case.production_order.pk %}">{{ case.production_order.code }}</a></div>
-            <div class="col-6"><div class="small text-muted">Số lượng</div><div>{{ case.qty }}</div></div>
+            <div class="col-6"><div class="small text-muted">Số lượng</div><div>{{ case.qty|sx_num }}</div></div>
             <div class="col-6"><div class="small text-muted">Công đoạn</div><div>{{ case.process_name|default:"—" }}</div></div>
             {% if case.alert %}<div class="col-6"><div class="small text-muted">Cảnh báo</div>
               <a href="{% url 'san_xuat:qc_alert_detail' case.alert.pk %}">{{ case.alert.code }}</a></div>{% endif %}

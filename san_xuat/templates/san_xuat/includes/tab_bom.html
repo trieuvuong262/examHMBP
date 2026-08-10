@@ -132,7 +132,7 @@
         if (qty == null || qty === '') return '—';
         var n = Number(qty);
         if (!Number.isFinite(n)) return '—';
-        var text = n.toLocaleString('vi-VN', { maximumFractionDigits: 4 });
+        var text = n.toLocaleString('vi-VN', { minimumFractionDigits: 0, maximumFractionDigits: 4 });
         return unit ? (text + ' ' + unit) : text;
     }
 
@@ -354,7 +354,7 @@
                     <tr>
                         <td><strong>{{ line.material.code }}</strong></td>
                         <td>{{ line.material.name }}</td>
-                        <td class="text-end">{{ line.qty }}</td>
+                        <td class="text-end">{{ line.qty|sx_num }}</td>
                         <td class="text-muted small">{{ line.material.unit.name|default:"—" }}</td>
                         <td class="text-end{% if line.stock_qty == 0 %} text-danger{% endif %}">{{ line.stock_qty|default:0 }}</td>
                     </tr>

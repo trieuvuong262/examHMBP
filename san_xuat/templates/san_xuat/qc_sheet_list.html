@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load sx_format %}
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
 
@@ -33,9 +34,9 @@
                         <td class="npl-col" data-col="qc_request">{% if inspection.qc_request %}<a href="{% url 'san_xuat:qc_request_detail' inspection.qc_request.pk %}">{{ inspection.qc_request.code }}</a>{% else %}—{% endif %}</td>
                         <td class="npl-col" data-col="inspected_at">{{ inspection.inspected_at|date:"d/m/Y" }}</td>
                         <td class="npl-col" data-col="standard">{{ inspection.standard_set|default:"—" }}</td>
-<td class="npl-col" data-col="qty_sample">{{ inspection.qty_sample }}</td>
-                        <td class="npl-col" data-col="qty_pass">{{ inspection.qty_pass }}</td>
-                        <td class="npl-col" data-col="qty_fail">{{ inspection.qty_fail }}</td>
+<td class="npl-col" data-col="qty_sample">{{ inspection.qty_sample|sx_num }}</td>
+                        <td class="npl-col" data-col="qty_pass">{{ inspection.qty_pass|sx_num }}</td>
+                        <td class="npl-col" data-col="qty_fail">{{ inspection.qty_fail|sx_num }}</td>
                         <td class="npl-col" data-col="result"><span class="badge bg-secondary-subtle text-secondary border">{{ inspection.get_result_display }}</span></td>
                                     {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=inspection %}
 </tr>

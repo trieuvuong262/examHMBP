@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load sx_format %}
 {% block extra_head %}{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
 {% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}{% endblock %}
 {% block content %}
@@ -71,13 +72,13 @@
             <tr>
               <td>
                 <div class="fw-semibold small">{{ r.label }}</div>
-                {% if r.qty_no_smv %}<div class="text-muted small">{{ r.qty_no_smv }} cái chưa có SMV</div>{% endif %}
+                {% if r.qty_no_smv %}<div class="text-muted small">{{ r.qty_no_smv|sx_num }} cái chưa có SMV</div>{% endif %}
               </td>
-              <td class="text-end">{{ r.planned_minutes }}</td>
-              <td class="text-end {% if r.downtime_minutes %}text-danger{% endif %}">{{ r.downtime_minutes }}</td>
+              <td class="text-end">{{ r.planned_minutes|sx_num }}</td>
+              <td class="text-end {% if r.downtime_minutes %}text-danger{% endif %}">{{ r.downtime_minutes|sx_num }}</td>
               <td class="text-end">{{ r.operating_minutes }}</td>
               <td class="text-end">{{ r.earned_minutes }}</td>
-              <td class="text-end">{{ r.qty_good }} / {{ r.qty_defect }}</td>
+              <td class="text-end">{{ r.qty_good|sx_num }} / {{ r.qty_defect|sx_num }}</td>
               <td class="text-end">{{ r.availability_pct }}%</td>
               <td class="text-end">{% if r.has_smv %}{{ r.performance_pct }}%{% else %}—{% endif %}</td>
               <td class="text-end">{% if r.has_output %}{{ r.quality_pct }}%{% else %}—{% endif %}</td>
@@ -91,11 +92,11 @@
           <tfoot class="table-light">
             <tr class="fw-semibold">
               <td>{{ oee_total.label }}</td>
-              <td class="text-end">{{ oee_total.planned_minutes }}</td>
-              <td class="text-end">{{ oee_total.downtime_minutes }}</td>
+              <td class="text-end">{{ oee_total.planned_minutes|sx_num }}</td>
+              <td class="text-end">{{ oee_total.downtime_minutes|sx_num }}</td>
               <td class="text-end">{{ oee_total.operating_minutes }}</td>
               <td class="text-end">{{ oee_total.earned_minutes }}</td>
-              <td class="text-end">{{ oee_total.qty_good }} / {{ oee_total.qty_defect }}</td>
+              <td class="text-end">{{ oee_total.qty_good|sx_num }} / {{ oee_total.qty_defect|sx_num }}</td>
               <td class="text-end">{{ oee_total.availability_pct }}%</td>
               <td class="text-end">{% if oee_total.has_smv %}{{ oee_total.performance_pct }}%{% else %}—{% endif %}</td>
               <td class="text-end">{% if oee_total.has_output %}{{ oee_total.quality_pct }}%{% else %}—{% endif %}</td>

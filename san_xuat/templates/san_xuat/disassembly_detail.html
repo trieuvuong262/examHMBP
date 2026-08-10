@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load sx_format %}
 
 {% block extra_head %}{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}{% endblock %}
 
@@ -33,7 +34,7 @@
                 <tr>
                   <td><strong>{{ line.material_code }}</strong></td>
                   <td class="small">{{ line.material_name|default:"—" }}</td>
-                  <td class="text-end">{{ line.qty }}</td>
+                  <td class="text-end">{{ line.qty|sx_num }}</td>
                 </tr>
               {% empty %}
                 <tr><td colspan="3" class="text-muted small p-3">Chưa có dòng thu hồi.</td></tr>

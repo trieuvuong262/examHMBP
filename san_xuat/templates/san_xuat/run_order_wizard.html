@@ -33,7 +33,7 @@
   </div>
 
   {% if mo %}
-  <div class="small text-muted mb-3">{{ mo.product_code }} · SL {{ mo.qty }} · {{ mo.get_status_display }}</div>
+  <div class="small text-muted mb-3">{{ mo.product_code }} · SL {{ mo.qty|sx_num }} · {{ mo.get_status_display }}</div>
   {% endif %}
 
   <div class="jp-wizard-bar"><span style="width: {% widthratio step 7 100 %}%;"></span></div>

@@ -31,7 +31,7 @@
                         </div>
                         <div class="col-6">
                             <div class="small text-muted">SL mẫu</div>
-                            <div class="fw-semibold">{{ inspection.qty_sample }}</div>
+                            <div class="fw-semibold">{{ inspection.qty_sample|sx_num }}</div>
                         </div>
                         <div class="col-6">
                             <div class="small text-muted">Trạng thái phiếu</div>
@@ -40,7 +40,7 @@
                         {% if inspection.status == 'done' %}
                         <div class="col-6">
                             <div class="small text-muted">Số lượng đạt / lỗi</div>
-                            <div class="fw-semibold">{{ inspection.qty_pass }} / {{ inspection.qty_fail }}</div>
+                            <div class="fw-semibold">{{ inspection.qty_pass|sx_num }} / {{ inspection.qty_fail|sx_num }}</div>
                         </div>
                         {% endif %}
                     </div>
@@ -133,7 +133,7 @@
                     {% if inspection.defect_lines.all %}
                     <ul class="mb-0 small">
                     {% for line in inspection.defect_lines.all %}
-                        <li>{{ line.defect.name }} × {{ line.qty }}</li>
+                        <li>{{ line.defect.name }} × {{ line.qty|sx_num }}</li>
                     {% endfor %}
                     </ul>
                     {% else %}

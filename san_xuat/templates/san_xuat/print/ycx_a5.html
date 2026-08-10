@@ -1,4 +1,5 @@
 {% extends 'san_xuat/print/base_a5.html' %}
+{% load sx_format %}
 {% block print_body %}
 <div class="doc-title">Yêu cầu xuất vật tư</div>
 
@@ -6,7 +7,7 @@
   <div><span class="label">Lệnh sản xuất:</span> <strong>{{ mo.code }}</strong></div>
   <div><span class="label">Trạng thái yêu cầu xuất:</span> {{ req.status }}</div>
   <div><span class="label">Mã SP:</span> {{ mo.product_code }}</div>
-  <div><span class="label">SL lệnh:</span> {{ mo.qty }}</div>
+  <div><span class="label">SL lệnh:</span> {{ mo.qty|sx_num }}</div>
   <div class="full"><span class="label">Tên SP:</span> {{ mo.product_name|default:"—" }}</div>
   <div><span class="label">Ngày YC:</span> {{ req.request_date|date:"d/m/Y" }}</div>
   <div><span class="label">Tổ:</span> {{ mo.team_label|default:"—" }}</div>
@@ -31,8 +32,8 @@
         <strong>{{ line.material_code }}</strong><br>
         {{ line.material_name }}
       </td>
-      <td class="text-end">{{ line.qty_requested }}</td>
-      <td class="text-end">{{ line.qty_issued }}</td>
+      <td class="text-end">{{ line.qty_requested|sx_num }}</td>
+      <td class="text-end">{{ line.qty_issued|sx_num }}</td>
       <td class="text-center">{{ line.preferred_location.code|default:"—" }}</td>
     </tr>
   {% empty %}

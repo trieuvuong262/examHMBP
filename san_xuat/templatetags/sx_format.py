@@ -43,6 +43,19 @@ def format_sx_num(value, max_decimals: int = 4) -> str:
     return f"{'-' if neg else ''}{_vn_group_int(int(text))}"
 
 
+def format_sx_num_input(value, max_decimals: int = 4) -> str:
+    """Số gọn cho value= input (dấu chấm thập phân, không nhóm nghìn)."""
+    d = _to_decimal(value)
+    if d is None:
+        return ""
+    if max_decimals < 0:
+        max_decimals = 0
+    quantized = d.quantize(Decimal(10) ** -max_decimals, rounding=ROUND_HALF_UP)
+    if quantized == quantized.to_integral_value():
+        return str(int(quantized))
+    return f"{quantized:.{max_decimals}f}".rstrip("0").rstrip(".") or "0"
+
+
 @register.filter(name="sx_num")
 def sx_num(value, max_decimals=4):
     try:
@@ -50,6 +63,15 @@ def sx_num(value, max_decimals=4):
     except (TypeError, ValueError):
         decimals = 4
     return format_sx_num(value, decimals)
+
+
+@register.filter(name="sx_num_input")
+def sx_num_input(value, max_decimals=4):
+    try:
+        decimals = int(max_decimals)
+    except (TypeError, ValueError):
+        decimals = 4
+    return format_sx_num_input(value, decimals)
 
 
 @register.filter(name="sx_req_star")

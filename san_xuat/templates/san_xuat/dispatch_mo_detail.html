@@ -305,9 +305,9 @@
               {% for row in progress.qty_rows %}
                 <tr>
                   <td class="small">{{ row.label }}</td>
-                  <td class="text-end small">{{ row.planned }}</td>
-                  <td class="text-end fw-semibold small">{{ row.actual }}</td>
-                  <td class="text-end text-muted small">{% if row.pct != None %}{{ row.pct|floatformat:0 }}%{% else %}—{% endif %}</td>
+                  <td class="text-end small">{{ row.planned|sx_num }}</td>
+                  <td class="text-end fw-semibold small">{{ row.actual|sx_num }}</td>
+                  <td class="text-end text-muted small">{% if row.pct != None %}{{ row.pct|sx_num }}%{% else %}—{% endif %}</td>
                 </tr>
               {% endfor %}
               </tbody>

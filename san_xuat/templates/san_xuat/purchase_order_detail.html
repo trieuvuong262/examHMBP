@@ -43,13 +43,13 @@
                     <div class="text-muted small">{{ line.material_name|default:"—" }}</div>
                   </td>
                   <td class="small">{% if line.need_date %}{{ line.need_date|date:"d/m/Y" }}{% else %}—{% endif %}</td>
-                  <td class="text-end">{{ line.qty_ordered }}</td>
-                  <td class="text-end">{{ line.unit_price|floatformat:0 }}</td>
+                  <td class="text-end">{{ line.qty_ordered|sx_num }}</td>
+                  <td class="text-end">{{ line.unit_price|sx_num }}</td>
                   <td class="text-end {% if line.qty_received %}text-success fw-semibold{% endif %}">
-                    {% if line.qty_received %}{{ line.qty_received }}{% else %}—{% endif %}
+                    {% if line.qty_received %}{{ line.qty_received|sx_num }}{% else %}—{% endif %}
                   </td>
                   <td class="text-end {% if line.qty_remaining %}text-danger{% else %}text-muted{% endif %}">
-                    {{ line.qty_remaining }}
+                    {{ line.qty_remaining|sx_num }}
                   </td>
                 </tr>
               {% empty %}
@@ -60,9 +60,9 @@
               <tfoot class="table-light">
                 <tr class="fw-semibold">
                   <td colspan="3">Tổng</td>
-                  <td class="text-end">{{ total_amount|floatformat:0 }}</td>
+                  <td class="text-end">{{ total_amount|sx_num }}</td>
                   <td></td>
-                  <td class="text-end">{{ remaining_qty }}</td>
+                  <td class="text-end">{{ remaining_qty|sx_num }}</td>
                 </tr>
               </tfoot>
               {% endif %}

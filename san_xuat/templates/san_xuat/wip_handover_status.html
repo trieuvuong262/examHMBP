@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load sx_format %}
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
 
@@ -56,7 +57,7 @@
               <a href="{% url 'san_xuat:dispatch_mo_detail' b.production_order.pk %}">{{ b.production_order.code }}</a>
             </td>
             <td>{{ b.process_name }}</td>
-            <td class="text-end fw-semibold">{{ b.qty }}</td>
+            <td class="text-end fw-semibold">{{ b.qty|sx_num }}</td>
           </tr>
         {% empty %}
           <tr><td colspan="3" class="text-muted small p-3">Chưa có tồn — xác nhận thống kê SX / bàn giao sẽ cập nhật sổ.</td></tr>
@@ -85,7 +86,7 @@
             <td><a href="{% url 'san_xuat:dispatch_wip_handover_detail' item.pk %}">{{ item.code }}</a></td>
             <td class="small">{{ item.production_order.code }}</td>
             <td class="small">{{ item.from_process }} → {{ item.to_process }}</td>
-            <td class="text-end">{{ item.qty }}</td>
+            <td class="text-end">{{ item.qty|sx_num }}</td>
             <td class="small">{{ item.handover_date|date:"d/m/Y" }}</td>
             <td class="small">{{ item.get_status_display }}</td>
           </tr>

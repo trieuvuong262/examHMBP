@@ -21,8 +21,8 @@
       <div class="border rounded-3 p-3 mb-3">
         <div class="row g-3 small">
           <div class="col-6"><div class="text-muted">SP</div><div class="fw-semibold">{{ item.product_code }}</div>{{ item.product_name }}</div>
-          <div class="col-3"><div class="text-muted">SL đặt</div><div class="fs-5 fw-semibold">{{ item.qty }}</div></div>
-          <div class="col-3"><div class="text-muted">Số lượng nhận</div><div class="fs-5 fw-semibold">{{ item.qty_received }}</div></div>
+          <div class="col-3"><div class="text-muted">SL đặt</div><div class="fs-5 fw-semibold">{{ item.qty|sx_num }}</div></div>
+          <div class="col-3"><div class="text-muted">Số lượng nhận</div><div class="fs-5 fw-semibold">{{ item.qty_received|sx_num }}</div></div>
           <div class="col-6"><div class="text-muted">Công đoạn</div><div>{{ item.process_name|default:"—" }}</div></div>
           <div class="col-6"><div class="text-muted">Lệnh sản xuất</div>
             <div>{% if item.production_order %}<a href="{% url 'san_xuat:dispatch_mo_detail' item.production_order_id %}">{{ item.production_order.code }}</a>{% else %}—{% endif %}</div>
@@ -40,7 +40,7 @@
             <tr>
               <td>{{ ln.material_code }}</td>
               <td>{{ ln.material_name|default:"—" }}</td>
-              <td class="text-end">{{ ln.qty }} {{ ln.uom_label }}</td>
+              <td class="text-end">{{ ln.qty|sx_num }} {{ ln.uom_label }}</td>
               <td>{{ ln.lot_code|default:"—" }}</td>
             </tr>
           {% empty %}
@@ -71,7 +71,7 @@
             <tr>
               <td>{{ ln.material_code }}</td>
               <td>{{ ln.material_name|default:"—" }}</td>
-              <td class="text-end">{{ ln.qty }}</td>
+              <td class="text-end">{{ ln.qty|sx_num }}</td>
               <td>{{ ln.lot_code|default:"—" }}</td>
             </tr>
           {% empty %}

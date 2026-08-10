@@ -1,4 +1,5 @@
 {% extends 'san_xuat/print/base_a5.html' %}
+{% load sx_format %}
 {% block print_body %}
 <div class="doc-title">Phiếu đóng gói</div>
 
@@ -8,7 +9,7 @@
   <div><span class="label">Lệnh sản xuất:</span> <strong>{{ mo.code }}</strong></div>
   <div><span class="label">Mã lô:</span> <strong>{{ item.lot_code|default:"—" }}</strong></div>
   <div><span class="label">Mã SP:</span> {{ mo.product_code }}</div>
-  <div><span class="label">SL đóng gói:</span> <strong>{{ item.qty }}</strong></div>
+  <div><span class="label">SL đóng gói:</span> <strong>{{ item.qty|sx_num }}</strong></div>
   <div class="full"><span class="label">Tên SP:</span> {{ mo.product_name|default:"—" }}</div>
   <div><span class="label">Số thùng/kiện:</span> {{ item.carton_count }}</div>
   <div><span class="label">Yêu cầu nhập thành phẩm:</span> {% if item.fg_receipt %}{{ item.fg_receipt.code }}{% else %}—{% endif %}</div>
@@ -34,7 +35,7 @@
       <td>{{ ln.sku_code|default:"—" }}</td>
       <td class="text-center">{{ ln.size_label|default:"—" }}</td>
       <td class="text-center">{{ ln.color_label|default:"—" }}</td>
-      <td class="text-end">{{ ln.qty }}</td>
+      <td class="text-end">{{ ln.qty|sx_num }}</td>
       <td class="text-end">{{ ln.carton_count }}</td>
     </tr>
   {% endfor %}

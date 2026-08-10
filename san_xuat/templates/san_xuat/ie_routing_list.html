@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load sx_format %}
 
 {% block content %}
 <div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
@@ -35,7 +36,7 @@
             <td class="small">{{ r.product_family|default:"—"|truncatechars:36 }}</td>
             <td><span class="badge bg-light text-dark">{{ r.routing_rev }}</span></td>
             <td class="text-end">{{ r.n_lines }}</td>
-            <td class="text-end fw-semibold">{{ r.sum_smv|default:0|floatformat:2 }}</td>
+            <td class="text-end fw-semibold">{{ r.sum_smv|default:0|sx_num }}</td>
             <td>{% if r.is_active %}<span class="badge bg-success-subtle text-success">Có</span>{% else %}<span class="badge bg-light text-muted">Không</span>{% endif %}</td>
             <td class="small">{{ r.get_approval_status_display }}</td>
             <td class="text-end"><a href="{% url 'san_xuat:ie_routing_detail' r.pk %}" class="btn btn-sm btn-outline-hm">Xem</a></td>

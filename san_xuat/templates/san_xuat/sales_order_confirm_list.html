@@ -50,7 +50,7 @@
             <td class="small">{{ row.order.request_date|date:"d/m/Y" }}</td>
             <td class="small">{% if row.order.due_date %}{{ row.order.due_date|date:"d/m/Y" }}{% else %}—{% endif %}</td>
             <td class="text-end">{{ row.line_count }}</td>
-            <td class="text-end">{{ row.total_qty|floatformat:"-2" }}</td>
+            <td class="text-end">{{ row.total_qty|sx_num }}</td>
             <td class="text-end text-nowrap">
               {% if can_confirm %}
               <form method="post" class="d-inline">

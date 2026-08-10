@@ -246,21 +246,21 @@
               {% if row.load_pct > capacity_load_danger_pct %}
               <div class="sx-cap-meter">
                 <div class="sx-cap-meter-top">
-                  <span class="sx-cap-meter-val is-danger">{{ row.load_pct }}%</span>
+                  <span class="sx-cap-meter-val is-danger">{{ row.load_pct|sx_num }}%</span>
                 </div>
                 <div class="sx-cap-bar is-danger"><span class="sx-cap-bar-fill" data-sx-cap-pct="{{ row.load_bar_pct }}"></span></div>
               </div>
               {% elif row.load_pct > capacity_load_warn_pct %}
               <div class="sx-cap-meter">
                 <div class="sx-cap-meter-top">
-                  <span class="sx-cap-meter-val is-warn">{{ row.load_pct }}%</span>
+                  <span class="sx-cap-meter-val is-warn">{{ row.load_pct|sx_num }}%</span>
                 </div>
                 <div class="sx-cap-bar is-warn"><span class="sx-cap-bar-fill" data-sx-cap-pct="{{ row.load_bar_pct }}"></span></div>
               </div>
               {% else %}
               <div class="sx-cap-meter">
                 <div class="sx-cap-meter-top">
-                  <span class="sx-cap-meter-val is-ok">{{ row.load_pct }}%</span>
+                  <span class="sx-cap-meter-val is-ok">{{ row.load_pct|sx_num }}%</span>
                 </div>
                 <div class="sx-cap-bar"><span class="sx-cap-bar-fill" data-sx-cap-pct="{{ row.load_bar_pct }}"></span></div>
               </div>

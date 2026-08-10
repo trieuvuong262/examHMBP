@@ -1,4 +1,5 @@
 {% extends 'san_xuat/print/base_a5.html' %}
+{% load sx_format %}
 {% block print_body %}
 <div class="doc-title">Cảnh báo chất lượng</div>
 
@@ -11,7 +12,7 @@
   <div><span class="label">Tỷ lệ lỗi:</span> <strong>{{ alert.defect_rate }}%</strong></div>
   <div class="full"><span class="label">Tên SP:</span> {{ mo.product_name|default:"—" }}</div>
   <div><span class="label">Ngưỡng:</span> {{ alert.tolerance_limit }}%</div>
-  <div><span class="label">SL đạt / lỗi:</span> {{ alert.qty_good }} / {{ alert.qty_defect }}</div>
+  <div><span class="label">SL đạt / lỗi:</span> {{ alert.qty_good|sx_num }} / {{ alert.qty_defect|sx_num }}</div>
   <div class="full"><span class="label">Thống kê SX nguồn:</span> {% if alert.production_stat %}{{ alert.production_stat.code }}{% else %}—{% endif %}</div>
   <div class="full"><span class="label">Phiếu kiểm tra liên quan:</span> {% if alert.qc_inspection %}{{ alert.qc_inspection.code }}{% else %}—{% endif %}</div>
   <div class="full"><span class="label">Yêu cầu kiểm tra:</span> {% if alert.qc_request %}{{ alert.qc_request.code }}{% else %}—{% endif %}</div>

@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load sx_format %}
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
 {% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}
@@ -48,7 +49,7 @@
           <tr>
             <td>{{ mo.code }}{% if mo.is_sample %} <span class="badge text-bg-info">Mẫu</span>{% endif %}</td>
             <td>{{ mo.product_code }}</td>
-            <td>{{ mo.qty_done }}/{{ mo.qty }}</td>
+            <td>{{ mo.qty_done|sx_num }}/{{ mo.qty|sx_num }}</td>
             <td>{{ mo.team_label|default:"—" }}</td>
             <td><a class="btn btn-outline-secondary btn-sm" href="{% url 'san_xuat:dispatch_mo_detail' mo.pk %}">Chi tiết</a></td>
           </tr>

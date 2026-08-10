@@ -429,7 +429,7 @@
   <div class="jp-pb-summary">
     <span>Đang chờ xử lý: <strong>{{ qty_summary.order_count }}</strong> đơn</span>
     <span>·</span>
-    <span>Tổng SL dòng: <strong>{{ qty_summary.total_qty|floatformat:"-2" }}</strong></span>
+    <span>Tổng SL dòng: <strong>{{ qty_summary.total_qty|sx_num }}</strong></span>
   </div>
 
   {% if mode == 'route' %}
@@ -488,7 +488,7 @@
       <div class="jp-pb-load-head">
         <span class="jp-pb-load-name">{{ wc.team_label|default:wc.name|default:wc.code }}</span>
         <span class="jp-pb-load-pct {% if pct > 100 %}is-bad{% elif pct < 100 %}is-warn{% else %}is-ok{% endif %}">
-          Tải {{ pct|floatformat:"-2" }}%
+          Tải {{ pct|sx_num }}%
         </span>
       </div>
       <div class="jp-pb-meter {% if pct > 100 %}is-bad{% elif pct < 100 %}is-warn{% endif %}">
@@ -497,10 +497,10 @@
       <div class="jp-pb-load-meta">
         {{ wc.code }}
         · {{ wc.headcount }} người · {{ wc.shift_minutes_per_head }} phút/ca
-        · {{ wc.available_minutes_per_day|floatformat:"0" }} phút hữu ích/ngày
+        · {{ wc.available_minutes_per_day|sx_num }} phút hữu ích/ngày
       </div>
       <div class="jp-pb-load-meta">
-        NL/ngày {{ wc.capacity_per_day|floatformat:"-2" }} {{ wc.uom_label|default:"SP" }}
+        NL/ngày {{ wc.capacity_per_day|sx_num }} {{ wc.uom_label|default:"SP" }}
       </div>
     </div>
     {% endwith %}
@@ -536,12 +536,12 @@
               {% endif %}
             {% else %}<strong>—</strong>{% endif %}
           </span>
-          <span>SL <strong>{{ row.total_qty|floatformat:"-2" }}</strong> · {{ row.line_count }} dòng</span>
+          <span>SL <strong>{{ row.total_qty|sx_num }}</strong> · {{ row.line_count }} dòng</span>
           <span>
             Chu kỳ
-            {% if row.has_routing %}<strong>{{ row.cycle_minutes|floatformat:"-0" }}</strong> phút{% else %}<strong class="text-muted">chưa có SMV</strong>{% endif %}
+            {% if row.has_routing %}<strong>{{ row.cycle_minutes|sx_num }}</strong> phút{% else %}<strong class="text-muted">chưa có SMV</strong>{% endif %}
           </span>
-          <span>Điểm <strong>{{ row.score|floatformat:"-0" }}</strong></span>
+          <span>Điểm <strong>{{ row.score|sx_num }}</strong></span>
           <span>{{ row.order.get_plan_status_display }}</span>
         </div>
         <div class="jp-pb-steps">
@@ -618,7 +618,7 @@
   <div class="jp-pb-list">
     {% for row in released_rows %}
     <article class="jp-pb-ticket is-{{ row.order.plan_priority }}{% if row.is_overdue %} is-overdue{% endif %}">
-      <div class="jp-pb-rank" title="Tiến độ">{{ row.progress_pct|floatformat:0 }}%</div>
+      <div class="jp-pb-rank" title="Tiến độ">{{ row.progress_pct|sx_num }}%</div>
       <div class="jp-pb-main">
         <div class="jp-pb-title-row">
           <a class="jp-pb-code" href="{% url 'san_xuat:sales_order_detail' row.order.pk %}">{{ row.order.code }}</a>
@@ -634,12 +634,12 @@
           </span>
           <span>Lệnh sản xuất <strong>{{ row.mo_count }}</strong>{% if row.mo_open %} · mở {{ row.mo_open }}{% endif %}</span>
           <span>
-            Đã làm <strong>{{ row.qty_done|floatformat:"-2" }}</strong>
-            / {{ row.qty_planned|floatformat:"-2" }}
+            Đã làm <strong>{{ row.qty_done|sx_num }}</strong>
+            / {{ row.qty_planned|sx_num }}
           </span>
           <span>{{ row.order.get_plan_status_display }}</span>
         </div>
-        <div class="jp-pb-progress" title="{{ row.progress_pct|floatformat:0 }}%">
+        <div class="jp-pb-progress" title="{{ row.progress_pct|sx_num }}%">
           <span style="width: {% if row.progress_pct > 100 %}100{% else %}{{ row.progress_pct|floatformat:0 }}{% endif %}%"></span>
         </div>
         <div class="jp-pb-steps mt-2">

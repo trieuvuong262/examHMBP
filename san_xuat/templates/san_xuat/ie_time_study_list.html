@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load sx_format %}
 
 {% block content %}
 <div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
@@ -43,12 +44,12 @@
             <td>{{ t.op_code }}<div class="text-muted small">{{ t.op_name_vi|truncatechars:28 }}</div></td>
             <td class="small">{{ t.style_code|default:"—" }}</td>
             <td class="text-end">{{ t.obs_no }}</td>
-            <td class="text-end">{{ t.observed_cycle_sec|floatformat:1 }}</td>
-            <td class="text-end">{{ t.performance_rating|floatformat:2 }}</td>
-            <td class="text-end">{{ t.allowance_pct|floatformat:0 }}</td>
-            <td class="text-end fw-semibold">{{ t.calculated_smv|floatformat:3 }}</td>
-            <td class="text-end">{{ t.current_routing_smv|floatformat:3 }}</td>
-            <td class="text-end {% if t.variance_pct > 15 or t.variance_pct < -15 %}text-danger{% endif %}">{{ t.variance_pct|floatformat:1 }}</td>
+            <td class="text-end">{{ t.observed_cycle_sec|sx_num:1 }}</td>
+            <td class="text-end">{{ t.performance_rating|sx_num }}</td>
+            <td class="text-end">{{ t.allowance_pct|sx_num }}</td>
+            <td class="text-end fw-semibold">{{ t.calculated_smv|sx_num }}</td>
+            <td class="text-end">{{ t.current_routing_smv|sx_num }}</td>
+            <td class="text-end {% if t.variance_pct > 15 or t.variance_pct < -15 %}text-danger{% endif %}">{{ t.variance_pct|sx_num:1 }}</td>
             <td class="small">{{ t.get_approval_status_display }}</td>
             {% if can_approve or can_update %}
             <td class="text-nowrap">

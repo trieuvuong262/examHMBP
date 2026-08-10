@@ -1,4 +1,5 @@
 {% extends 'san_xuat/print/base_a5.html' %}
+{% load sx_format %}
 {% block print_body %}
 <div class="doc-title">Bàn giao bán thành phẩm</div>
 
@@ -6,7 +7,7 @@
   <div><span class="label">Lệnh sản xuất:</span> <strong>{{ mo.code }}</strong></div>
   <div><span class="label">Trạng thái:</span> {{ handover.get_status_display }}</div>
   <div><span class="label">Mã SP:</span> {{ mo.product_code }}</div>
-  <div><span class="label">SL bàn giao:</span> <strong>{{ handover.qty }}</strong></div>
+  <div><span class="label">SL bàn giao:</span> <strong>{{ handover.qty|sx_num }}</strong></div>
   <div class="full"><span class="label">Tên SP:</span> {{ mo.product_name|default:"—" }}</div>
   <div><span class="label">Từ công đoạn:</span> {{ handover.from_process|default:"—" }}</div>
   <div><span class="label">Đến công đoạn:</span> {{ handover.to_process|default:"—" }}</div>

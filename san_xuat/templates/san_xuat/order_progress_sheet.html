@@ -52,7 +52,7 @@
     {% if sheet.order_code %}<span>Đơn <strong>{{ sheet.order_code }}</strong></span>{% endif %}
     <span>SP <strong>{{ sheet.product_code }}</strong>{% if sheet.product_name %} — {{ sheet.product_name }}{% endif %}</span>
     {% if sheet.color_summary %}<span>Màu <strong>{{ sheet.color_summary }}</strong></span>{% endif %}
-    <span>Tổng SL <strong>{{ sheet.total_qty|floatformat:"-2" }}</strong></span>
+    <span>Tổng SL <strong>{{ sheet.total_qty|sx_num }}</strong></span>
   </div>
 
   {% if not sheet.sizes %}
@@ -81,9 +81,9 @@
         {% for row in sheet.done_rows %}
         <tr>
           <td class="sticky-col">{{ row.size_label }}</td>
-          <td class="qty-plan">{{ row.qty|floatformat:"-2" }}</td>
+          <td class="qty-plan">{{ row.qty|sx_num }}</td>
           {% for v in row.values %}
-          <td class="done">{% if v %}{{ v|floatformat:"-2" }}{% else %}0{% endif %}</td>
+          <td class="done">{% if v %}{{ v|sx_num }}{% else %}0{% endif %}</td>
           {% endfor %}
         </tr>
         {% endfor %}
@@ -92,9 +92,9 @@
         {% for row in sheet.remain_rows %}
         <tr>
           <td class="sticky-col">{{ row.size_label }}</td>
-          <td class="qty-plan">{{ row.qty|floatformat:"-2" }}</td>
+          <td class="qty-plan">{{ row.qty|sx_num }}</td>
           {% for v in row.values %}
-          <td class="remain">{% if v %}{{ v|floatformat:"-2" }}{% else %}0{% endif %}</td>
+          <td class="remain">{% if v %}{{ v|sx_num }}{% else %}0{% endif %}</td>
           {% endfor %}
         </tr>
         {% endfor %}
@@ -106,7 +106,7 @@
           <td class="sticky-col">{{ row.stat_date|date:"d/m/Y" }} · {{ row.size_label }}</td>
           <td class="qty-plan">—</td>
           {% for v in row.values %}
-          <td>{% if v %}{{ v|floatformat:"-2" }}{% else %}0{% endif %}</td>
+          <td>{% if v %}{{ v|sx_num }}{% else %}0{% endif %}</td>
           {% endfor %}
         </tr>
         {% endfor %}

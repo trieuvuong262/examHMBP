@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load sx_format %}
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
 {% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}
@@ -34,7 +35,7 @@
           <tr class="jp-npl-catalog-row" data-href="{% url 'san_xuat:packing_detail' item.pk %}">
             <td class="npl-col" data-col="code"><strong>{{ item.code }}</strong></td>
             <td class="npl-col" data-col="mo">{{ item.production_order.code }}</td>
-<td class="npl-col" data-col="qty">{{ item.qty }}</td>
+<td class="npl-col" data-col="qty">{{ item.qty|sx_num }}</td>
             <td class="npl-col" data-col="lot">{{ item.lot_code|default:"—" }}</td>
             <td class="npl-col" data-col="pack_date">{{ item.pack_date|date:"d/m/Y" }}</td>
             <td class="npl-col" data-col="status">{{ item.get_status_display }}</td>

@@ -71,7 +71,7 @@
               <tr>
                 <td><strong>{{ row.line.product_code }}</strong></td>
                 <td class="small">{{ row.line.product_name|default:"—" }}</td>
-                <td class="text-end">{{ row.line.qty }}</td>
+                <td class="text-end">{{ row.line.qty|sx_num }}</td>
                 <td class="text-end">{{ row.line.unit_cost|sx_num }}</td>
                 {% for cell in row.cells %}
                 <td class="text-end" style="min-width: 110px;">
@@ -114,7 +114,7 @@
             <tr>
               <td><strong>{{ row.line.product_code }}</strong></td>
               <td class="small">{{ row.line.product_name|default:"—" }}</td>
-              <td class="text-end">{{ row.line.qty }}</td>
+              <td class="text-end">{{ row.line.qty|sx_num }}</td>
               <td class="text-end">{{ row.line.unit_cost|sx_num }}</td>
               {% for cell in row.cells %}
               <td class="text-end">{{ cell.amount|sx_num }}</td>

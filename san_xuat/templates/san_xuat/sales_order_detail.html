@@ -149,7 +149,7 @@
             <tr>
               <td><strong>{{ ln.product_code }}</strong></td>
               <td class="small">{{ ln.product_name|default:"—" }}</td>
-              <td class="text-end">{{ ln.qty|floatformat:"-2" }}</td>
+              <td class="text-end">{{ ln.qty|sx_num }}</td>
               <td class="small">{% if ln.due_date %}{{ ln.due_date|date:"d/m/Y" }}{% else %}—{% endif %}</td>
             </tr>
           {% empty %}

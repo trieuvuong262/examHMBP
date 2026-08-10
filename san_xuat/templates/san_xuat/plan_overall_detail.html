@@ -317,14 +317,14 @@
                       <div class="text-muted" style="font-size:.68rem">Chưa khai chính sách tồn</div>
                       {% endif %}
                     </td>
-                    <td class="text-end small">{{ r.policy.min_stock|floatformat:"-2" }}</td>
+                    <td class="text-end small">{{ r.policy.min_stock|sx_num }}</td>
                     <td class="text-end small fw-semibold {% if r.is_zero_stock %}text-danger{% endif %}">
-                      {{ r.qty_on_hand|floatformat:"-2" }}
+                      {{ r.qty_on_hand|sx_num }}
                     </td>
-                    <td class="text-end small">{{ r.qty_wip|floatformat:"-2" }}</td>
-                    <td class="text-end small">{{ r.coverage|floatformat:"-2" }}</td>
+                    <td class="text-end small">{{ r.qty_wip|sx_num }}</td>
+                    <td class="text-end small">{{ r.coverage|sx_num }}</td>
                     <td class="text-end small fw-bold {% if r.needs_restock %}text-danger{% else %}text-muted{% endif %}">
-                      {% if r.qty_suggest %}{{ r.qty_suggest|floatformat:"-2" }}{% else %}—{% endif %}
+                      {% if r.qty_suggest %}{{ r.qty_suggest|sx_num }}{% else %}—{% endif %}
                     </td>
                   </tr>
                 {% endfor %}
@@ -445,14 +445,14 @@
                   {% endif %}
                   <td><strong>{{ line.product_code }}</strong></td>
                   <td class="small">{{ line.product_name|default:"—" }}</td>
-                  <td class="text-end">{{ line.qty_gross|floatformat:"-2" }}</td>
+                  <td class="text-end">{{ line.qty_gross|sx_num }}</td>
                   <td class="text-end {% if line.qty_on_hand %}text-success{% else %}text-muted{% endif %}">
-                    {% if line.qty_on_hand %}−{{ line.qty_on_hand|floatformat:"-2" }}{% else %}—{% endif %}
+                    {% if line.qty_on_hand %}−{{ line.qty_on_hand|sx_num }}{% else %}—{% endif %}
                   </td>
                   <td class="text-end {% if line.qty_wip %}text-primary{% else %}text-muted{% endif %}">
-                    {% if line.qty_wip %}−{{ line.qty_wip|floatformat:"-2" }}{% else %}—{% endif %}
+                    {% if line.qty_wip %}−{{ line.qty_wip|sx_num }}{% else %}—{% endif %}
                   </td>
-                  <td class="text-end fw-semibold">{{ line.qty_planned|floatformat:"-2" }}</td>
+                  <td class="text-end fw-semibold">{{ line.qty_planned|sx_num }}</td>
                   <td class="small">
                     {% if is_mps %}
                       {% if line.bucket_start %}{{ line.bucket_start|date:"d/m/Y" }}{% else %}—{% endif %}
@@ -542,10 +542,10 @@
                   </td>
                   {% for cell in row.bucket_cells %}
                   <td class="text-end small {% if cell.bucket.is_frozen %}table-secondary{% endif %}">
-                    {% if cell.line %}{{ cell.line.qty_planned|floatformat:"-2" }}{% else %}—{% endif %}
+                    {% if cell.line %}{{ cell.line.qty_planned|sx_num }}{% else %}—{% endif %}
                   </td>
                   {% endfor %}
-                  <td class="text-end fw-semibold">{{ row.total|floatformat:"-2" }}</td>
+                  <td class="text-end fw-semibold">{{ row.total|sx_num }}</td>
                 </tr>
               {% empty %}
                 <tr>
@@ -644,7 +644,7 @@
                     </td>
                     <td class="text-end small text-nowrap">
                       {{ o.line_count }} dòng<br>
-                      <span class="text-muted">SL {{ o.total_qty|floatformat:"-2" }}</span>
+                      <span class="text-muted">SL {{ o.total_qty|sx_num }}</span>
                     </td>
                   </tr>
                 {% endfor %}

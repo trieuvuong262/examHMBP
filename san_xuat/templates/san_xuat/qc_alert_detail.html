@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load sx_format %}
 
 {% block extra_head %}{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}{% endblock %}
 
@@ -41,7 +42,7 @@
             </div>
             <div class="col-6">
               <div class="small text-muted">Số lượng đạt / lỗi</div>
-              <div>{{ alert.qty_good }} / {{ alert.qty_defect }}</div>
+              <div>{{ alert.qty_good|sx_num }} / {{ alert.qty_defect|sx_num }}</div>
             </div>
             <div class="col-6">
               <div class="small text-muted">Thời điểm</div>

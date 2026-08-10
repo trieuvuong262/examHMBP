@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load sx_format %}
 
 {% block extra_head %}{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
 <style>
@@ -38,7 +39,7 @@
       <div class="jp-plan-kpi">
         <div>
           <div class="lbl">Năng lực / ngày</div>
-          <div class="val">{{ capacity_info.capacity|floatformat:"-2" }}</div>
+          <div class="val">{{ capacity_info.capacity|sx_num }}</div>
           <div class="small text-muted">
             {% if capacity_info.is_bottleneck %}
               Công đoạn hẹp nhất{% if capacity_info.bottleneck_label %}: {{ capacity_info.bottleneck_label }}{% endif %}
@@ -65,7 +66,7 @@
           <div class="lbl">Tiến độ</div>
           <div class="val">{{ plan_progress.percent }}%</div>
           <div class="small text-muted">
-            {{ plan_progress.done_qty }}/{{ plan_progress.plan_qty }} ·
+            {{ plan_progress.done_qty|sx_num }}/{{ plan_progress.plan_qty|sx_num }} ·
             Lệnh sản xuất {{ plan_progress.mo_done }}/{{ plan_progress.mo_total }} xong
           </div>
         </div>
@@ -76,8 +77,8 @@
         <i class="bi bi-exclamation-triangle-fill me-1"></i>
         <strong>{{ capacity_warnings|length }} ngày vượt năng lực.</strong>
         Ví dụ {{ capacity_warnings.0.plan_date|date:"d/m/Y" }}:
-        kế hoạch {{ capacity_warnings.0.qty_planned }} &gt; năng lực {{ capacity_warnings.0.capacity_total }}
-        (dư {{ capacity_warnings.0.over_by }}). Giãn kỳ kế hoạch hoặc giảm sản lượng.
+        kế hoạch {{ capacity_warnings.0.qty_planned|sx_num }} &gt; năng lực {{ capacity_warnings.0.capacity_total|sx_num }}
+        (dư {{ capacity_warnings.0.over_by|sx_num }}). Giãn kỳ kế hoạch hoặc giảm sản lượng.
       </div>
       {% endif %}
 
@@ -89,8 +90,8 @@
           {% for w in center_warnings|slice:":4" %}
           <li>
             {{ w.plan_date|date:"d/m/Y" }} · <strong>{{ w.center.name }}</strong> —
-            cần {{ w.minutes_needed|floatformat:"0" }} phút / có {{ w.minutes_available|floatformat:"0" }} phút
-            ({{ w.load_pct|floatformat:"0" }}%)
+            cần {{ w.minutes_needed|sx_num }} phút / có {{ w.minutes_available|sx_num }} phút
+            ({{ w.load_pct|sx_num }}%)
           </li>
           {% endfor %}
           {% if center_warnings|length > 4 %}
@@ -110,7 +111,7 @@
           <span class="badge {% if r.routing.has_time_data %}bg-light text-dark border{% else %}bg-warning-subtle text-warning-emphasis border border-warning{% endif %}">
             {{ r.code }}:
             {% if r.routing.has_time_data %}
-              {{ r.routing.total_smv|floatformat:"-2" }} phút/cái · {{ r.routing.steps|length }} công đoạn
+              {{ r.routing.total_smv|sx_num }} phút/cái · {{ r.routing.steps|length }} công đoạn
             {% else %}
               chưa có định mức
             {% endif %}
@@ -205,7 +206,7 @@
               {% if row.teams %}{{ row.teams|join:", " }}{% else %}<span class="text-muted">—</span>{% endif %}
             </td>
             {% for cell in row.cells %}
-            <td class="text-end small {% if cell.is_off %}jp-plan-off{% endif %}">{% if cell.qty %}{{ cell.qty }}{% else %}—{% endif %}</td>
+            <td class="text-end small {% if cell.is_off %}jp-plan-off{% endif %}">{% if cell.qty %}{{ cell.qty|sx_num }}{% else %}—{% endif %}</td>
             {% endfor %}
             <td class="text-end fw-semibold">{{ row.total }}</td>
           </tr>

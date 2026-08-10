@@ -81,7 +81,7 @@
             <td>{{ r.process_name }}</td>
             <td class="small">{{ r.production_order_code }}</td>
             <td class="small">{{ r.stat_code }}</td>
-            <td class="text-end">{{ r.qty_good }}</td>
+            <td class="text-end">{{ r.qty_good|sx_num }}</td>
             <td class="text-end">{{ r.piece_rate|sx_num }}</td>
             <td class="text-end fw-semibold">{{ r.amount|sx_num }}</td>
           </tr>

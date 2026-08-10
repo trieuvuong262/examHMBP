@@ -37,7 +37,7 @@
     <div class="col-6 col-md-2">
       <div class="border rounded-3 p-2 h-100">
         <div class="text-muted small">Lỗi · %</div>
-        <div class="fw-semibold text-danger">{{ report.qty_defect|sx_num }} · {{ report.defect_rate|floatformat:1 }}%</div>
+        <div class="fw-semibold text-danger">{{ report.qty_defect|sx_num }} · {{ report.defect_rate|sx_num:1 }}%</div>
       </div>
     </div>
     <div class="col-6 col-md-2">
@@ -349,7 +349,7 @@
               <td>Số lượng đạt / lỗi kỳ</td>
               <td class="text-end fw-semibold">
                 {{ report.qty_good|sx_num }} / {{ report.qty_defect|sx_num }}
-                <span class="text-muted small">({{ report.defect_rate|floatformat:1 }}%)</span>
+                <span class="text-muted small">({{ report.defect_rate|sx_num:1 }}%)</span>
               </td>
             </tr>
           </tbody>

@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load sx_format %}
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
 
@@ -31,7 +32,7 @@
           <tr class="{% if item.status == 'draft' %}table-warning{% endif %} jp-npl-catalog-row" data-href="{% url 'san_xuat:dispatch_disassembly_detail' item.pk %}">
             <td class="npl-col" data-col="code"><strong>{{ item.code }}</strong></td>
             <td class="npl-col" data-col="product">{{ item.product_code }}{% if item.product_name %} — {{ item.product_name }}{% endif %}</td>
-<td class="npl-col" data-col="qty">{{ item.qty }}</td>
+<td class="npl-col" data-col="qty">{{ item.qty|sx_num }}</td>
             <td class="npl-col" data-col="mo">{% if item.production_order %}<a href="{% url 'san_xuat:dispatch_mo_detail' item.production_order.pk %}">{{ item.production_order.code }}</a>{% else %}—{% endif %}</td>
             <td class="npl-col" data-col="order_date">{{ item.order_date|date:"d/m/Y" }}</td>
             <td class="npl-col" data-col="status">{{ item.get_status_display }}</td>

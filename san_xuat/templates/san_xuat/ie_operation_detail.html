@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load sx_format %}
 
 {% block content %}
 <div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
@@ -51,7 +52,7 @@
         </div>
         <div class="col-md-4">
           <label class="form-label small mb-1">SMV thư viện (phút)</label>
-          <input type="number" name="base_smv_min" class="form-control form-control-sm" step="0.0001" min="0" value="{{ op.base_smv_min }}" {% if not can_update %}readonly{% endif %}>
+          <input type="number" name="base_smv_min" class="form-control form-control-sm" step="0.0001" min="0" value="{{ op.base_smv_min|sx_num_input }}" {% if not can_update %}readonly{% endif %}>
         </div>
         <div class="col-md-4">
           <label class="form-label small mb-1">Trạng thái</label>

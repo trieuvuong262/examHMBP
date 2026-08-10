@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load sx_format %}
 
 {% block extra_head %}{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}{% endblock %}
 
@@ -19,7 +20,7 @@
     <div class="col-lg-7">
       <div class="border rounded-3 p-3 mb-3">
         <div class="row g-3">
-          <div class="col-6"><div class="small text-muted">Số lượng</div><div class="fs-5 fw-semibold">{{ item.qty }}</div></div>
+          <div class="col-6"><div class="small text-muted">Số lượng</div><div class="fs-5 fw-semibold">{{ item.qty|sx_num }}</div></div>
           <div class="col-6"><div class="small text-muted">Thùng/kiện</div><div>{{ item.carton_count }}</div></div>
           <div class="col-6"><div class="small text-muted">Mã lô</div><div>{{ item.lot_code|default:"—" }}</div></div>
           <div class="col-6"><div class="small text-muted">Ngày</div><div>{{ item.pack_date|date:"d/m/Y" }}</div></div>
@@ -45,7 +46,7 @@
               <td><strong>{{ ln.sku_code|default:"—" }}</strong></td>
               <td>{{ ln.size_label|default:"—" }}</td>
               <td>{% if ln.color_code %}{{ ln.color_code }}{% if ln.color_label %} ({{ ln.color_label }}){% endif %}{% else %}{{ ln.color_label|default:"—" }}{% endif %}</td>
-              <td class="text-end">{{ ln.qty }}</td>
+              <td class="text-end">{{ ln.qty|sx_num }}</td>
               <td class="text-end">{{ ln.carton_count }}</td>
             </tr>
           {% endfor %}

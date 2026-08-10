@@ -1,4 +1,5 @@
 {% extends 'san_xuat/print/base_a5.html' %}
+{% load sx_format %}
 {% block print_body %}
 <div class="doc-title">Phiếu kiểm tra chất lượng</div>
 
@@ -11,9 +12,9 @@
   <div><span class="label">Công đoạn:</span> {% if qc_request %}{{ qc_request.stage_name|default:"—" }}{% else %}—{% endif %}</div>
   <div class="full"><span class="label">Tên SP:</span> {% if qc_request %}{{ qc_request.product_name|default:"—" }}{% elif mo %}{{ mo.product_name|default:"—" }}{% else %}—{% endif %}</div>
   <div><span class="label">Bộ TC:</span> {{ inspection.standard_set|default:"—" }}</div>
-  <div><span class="label">SL mẫu:</span> {{ inspection.qty_sample }}</div>
-  <div><span class="label">SL đạt:</span> {{ inspection.qty_pass }}</div>
-  <div><span class="label">SL lỗi:</span> {{ inspection.qty_fail }}</div>
+  <div><span class="label">SL mẫu:</span> {{ inspection.qty_sample|sx_num }}</div>
+  <div><span class="label">SL đạt:</span> {{ inspection.qty_pass|sx_num }}</div>
+  <div><span class="label">SL lỗi:</span> {{ inspection.qty_fail|sx_num }}</div>
 </div>
 
 {% if criteria_lines %}
@@ -56,7 +57,7 @@
     <tr>
       <td class="text-center">{{ forloop.counter }}</td>
       <td>{{ line.defect.name }}</td>
-      <td class="text-end">{{ line.qty }}</td>
+      <td class="text-end">{{ line.qty|sx_num }}</td>
       <td>{{ line.notes|default:"" }}</td>
     </tr>
   {% endfor %}

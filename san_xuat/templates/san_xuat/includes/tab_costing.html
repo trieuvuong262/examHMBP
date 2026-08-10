@@ -76,7 +76,7 @@
                                 <strong>{{ row.material_code }}</strong>
                                 <div class="small text-muted">{{ row.material_name }}</div>
                             </td>
-                            <td class="text-end">{{ row.qty_with_scrap }} {% if row.unit_name %}{{ row.unit_name }}{% endif %}</td>
+                            <td class="text-end">{{ row.qty_with_scrap|sx_num }} {% if row.unit_name %}{{ row.unit_name }}{% endif %}</td>
                             <td class="text-end">{{ row.unit_price|sx_num }}</td>
                             <td class="text-end">{{ row.amount|sx_num }}</td>
                         </tr>

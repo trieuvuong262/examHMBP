@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load sx_format %}
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
 {% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}{% endblock %}
@@ -31,7 +32,7 @@
             <td class="npl-col" data-col="code">{{ c.code }}</td>
             <td class="npl-col" data-col="mo">{{ c.production_order.code }}</td>
             <td class="npl-col" data-col="disposition">{{ c.get_disposition_display }}</td>
-            <td class="npl-col" data-col="qty">{{ c.qty }}</td>
+            <td class="npl-col" data-col="qty">{{ c.qty|sx_num }}</td>
             <td class="npl-col" data-col="status">{{ c.get_status_display }}</td>
             {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=c %}
 </tr>

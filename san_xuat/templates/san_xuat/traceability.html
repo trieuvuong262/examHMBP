@@ -193,11 +193,11 @@
         <div class="jp-sx-trace-meta">
           <div>
             <div class="label">Số lượng</div>
-            <div class="value">{{ result.mo.qty }}</div>
+            <div class="value">{{ result.mo.qty|sx_num }}</div>
           </div>
           <div>
             <div class="label">Đã làm</div>
-            <div class="value">{{ result.mo.qty_done }}</div>
+            <div class="value">{{ result.mo.qty_done|sx_num }}</div>
           </div>
           <div>
             <div class="label">Ngày lập</div>
@@ -299,7 +299,7 @@
                   <a href="?query={{ b.batch_code|urlencode }}">{{ b.batch_code }}</a>
                   {% else %}—{% endif %}
                 </td>
-                <td class="text-end">{{ b.qty }}</td>
+                <td class="text-end">{{ b.qty|sx_num }}</td>
                 <td>{{ b.location }}</td>
               </tr>
               {% empty %}
@@ -349,7 +349,7 @@
                 {% for p in result.packing %}
                 <li>
                   <a href="{% url 'san_xuat:packing_detail' p.pk %}">{{ p.code }}</a>
-                  <span class="muted">{{ p.qty }} · lô {{ p.lot_code|default:"—" }}</span>
+                  <span class="muted">{{ p.qty|sx_num }} · lô {{ p.lot_code|default:"—" }}</span>
                 </li>
                 {% endfor %}
               </ul>

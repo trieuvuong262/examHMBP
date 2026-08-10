@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load sx_format %}
 
 {% block extra_head %}{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}{% endblock %}
 
@@ -31,7 +32,7 @@
                 </div>
                 <div class="col-6">
                     <div class="small text-muted">SL kiểm</div>
-                    <div>{{ qc_req.qty }}</div>
+                    <div>{{ qc_req.qty|sx_num }}</div>
                 </div>
                 <div class="col-6">
                     <div class="small text-muted">Ngày yêu cầu</div>

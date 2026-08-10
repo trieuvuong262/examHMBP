@@ -30,7 +30,7 @@
     <div class="col-md-3"><div class="card border-0 shadow-sm"><div class="card-body">
       <div class="small text-muted">Tổng / đơn vị</div>
       <div class="fs-5">{{ br.total_cost|sx_num }}</div>
-      <div class="small text-muted">{{ br.unit_cost|sx_num }} / SP (SL {{ br.qty_basis }})</div>
+      <div class="small text-muted">{{ br.unit_cost|sx_num }} / SP (SL {{ br.qty_basis|sx_num }})</div>
     </div></div></div>
   </div>
   {% if can_update %}
@@ -50,7 +50,7 @@
           {% for l in br.material_lines %}
           <tr>
             <td>{{ l.issue }}</td><td>{{ l.material }}</td>
-            <td class="text-end">{{ l.qty }}</td>
+            <td class="text-end">{{ l.qty|sx_num }}</td>
             <td class="text-end">{{ l.unit_price|sx_num }}</td>
             <td class="text-end">{{ l.amount|sx_num }}</td>
           </tr>

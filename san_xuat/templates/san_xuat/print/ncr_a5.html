@@ -1,4 +1,5 @@
 {% extends 'san_xuat/print/base_a5.html' %}
+{% load sx_format %}
 {% block print_body %}
 <div class="doc-title">Xử lý hàng không đạt (NCR)</div>
 
@@ -6,7 +7,7 @@
   <div><span class="label">Lệnh sản xuất:</span> <strong>{{ mo.code }}</strong></div>
   <div><span class="label">Trạng thái:</span> {{ case.get_status_display }}</div>
   <div><span class="label">Mã SP:</span> {{ mo.product_code }}</div>
-  <div><span class="label">Số lượng:</span> <strong>{{ case.qty }}</strong></div>
+  <div><span class="label">Số lượng:</span> <strong>{{ case.qty|sx_num }}</strong></div>
   <div class="full"><span class="label">Tên SP:</span> {{ mo.product_name|default:"—" }}</div>
   <div><span class="label">Công đoạn:</span> {{ case.process_name|default:"—" }}</div>
   <div><span class="label">Hướng xử lý:</span> <strong>{{ case.get_disposition_display }}</strong></div>
