@@ -124,9 +124,13 @@
       onChange: function (value) {
         if (!value) {
           fillNameFromOption(select, null);
-          return;
+        } else {
+          fillNameFromOption(select, this.options[value]);
         }
-        fillNameFromOption(select, this.options[value]);
+        select.dispatchEvent(new CustomEvent('jp-so-product-changed', {
+          bubbles: true,
+          detail: { productCode: value || '' },
+        }));
       },
     });
   }

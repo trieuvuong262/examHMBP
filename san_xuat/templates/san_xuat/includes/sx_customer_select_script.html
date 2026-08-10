@@ -3,10 +3,15 @@
 (function () {
   if (typeof TomSelect === 'undefined') return;
   var searchUrl = '{% url "san_xuat:customer_search" %}';
+  var PLACEHOLDER = 'Gõ tên, mã KH hoặc SĐT…';
 
   function initCustomerSelect(el) {
     if (!el || el.tomselect) return null;
     var initial = (el.value || '').trim();
+    var initialLabel = el.options && el.selectedIndex >= 0 && el.options[el.selectedIndex]
+      ? el.options[el.selectedIndex].textContent.trim()
+      : initial;
+    var ph = el.dataset.placeholder || PLACEHOLDER;
 
     return new TomSelect(el, {
       maxItems: 1,
@@ -14,11 +19,15 @@
       valueField: 'id',
       labelField: 'text',
       searchField: ['text', 'name', 'code', 'phone'],
-      placeholder: el.placeholder || 'Gõ tên, mã KH hoặc SĐT…',
-      create: true,
+      placeholder: ph,
+      create: function (input) {
+        input = (input || '').trim();
+        if (!input) return false;
+        return { id: input, text: input, name: input, code: '', phone: '' };
+      },
       createOnBlur: true,
       persist: false,
-      allowEmptyOption: true,
+      dropdownParent: 'body',
       openOnFocus: true,
       loadThrottle: 220,
       load: function (query, callback) {
@@ -33,8 +42,11 @@
         option: function (data, escape) {
           var title = escape(data.text || data.name || data.id || '');
           var sub = '';
-          if (data.phone && data.code) {
-            sub = '<div class="text-muted small">' + escape(data.code) + (data.phone ? ' · ' + escape(data.phone) : '') + '</div>';
+          if (data.code || data.phone) {
+            var bits = [];
+            if (data.code) bits.push(escape(data.code));
+            if (data.phone) bits.push(escape(data.phone));
+            sub = '<div class="text-muted small">' + bits.join(' · ') + '</div>';
           }
           return '<div>' + title + sub + '</div>';
         },
@@ -46,9 +58,21 @@
         },
       },
       onInitialize: function () {
-        if (!initial) return;
+        if (this.control_input) {
+          this.control_input.setAttribute('placeholder', ph);
+        }
+        if (!initial) {
+          this.clear(true);
+          return;
+        }
         if (!this.options[initial]) {
-          this.addOption({ id: initial, text: initial, name: initial, code: '', phone: '' });
+          this.addOption({
+            id: initial,
+            text: initialLabel || initial,
+            name: initial,
+            code: '',
+            phone: '',
+          });
         }
         this.setValue(initial, true);
       },

@@ -447,6 +447,8 @@ def sales_order_create(request):
                         qty=qty,
                         qty_scrap_rate=Decimal('0'),
                         size_qtys=size_qtys if isinstance(size_qtys, dict) else {},
+                        bom_version_id=f.cleaned_data.get('bom_version_id'),
+                        routing_id=f.cleaned_data.get('routing_id'),
                     )
                 )
             try:
@@ -520,7 +522,7 @@ def sales_order_confirm_list(request):
             order_id = 0
         if order_id and action == 'confirm':
             try:
-                order = confirm_sales_order(order_id=order_id)
+                order = confirm_sales_order(order_id=order_id, user=request.user)
             except PlanningError as exc:
                 messages.error(request, str(exc))
             else:
@@ -586,11 +588,13 @@ def sales_order_detail(request, pk: int):
         confirm_sales_order,
         production_status_summary,
         reject_sales_order,
-        related_mos,
     )
 
     order = get_object_or_404(
-        SxSalesOrder.objects.select_related('created_by').prefetch_related('lines'),
+        SxSalesOrder.objects.select_related('created_by', 'confirmed_by').prefetch_related(
+            'lines__bom_version__tech_doc',
+            'lines__routing',
+        ),
         pk=pk,
         is_demo=False,
     )
@@ -603,7 +607,7 @@ def sales_order_detail(request, pk: int):
             return handle_menu_access_denied(request, MODULE_SAN_XUAT, 'order_confirm')
         if action == 'confirm' and order.confirm_status == SxSalesOrder.CONFIRM_DRAFT:
             try:
-                confirm_sales_order(order_id=order.pk)
+                confirm_sales_order(order_id=order.pk, user=request.user)
             except PlanningError as exc:
                 messages.error(request, str(exc))
             else:
@@ -624,7 +628,6 @@ def sales_order_detail(request, pk: int):
                     return redirect('san_xuat:sales_order_detail', pk=order.pk)
 
     prod_status = production_status_summary(order)
-    mos = related_mos(order)
 
     return render(request, 'san_xuat/sales_order_detail.html', {
         **_perm_ctx(request),
@@ -633,7 +636,6 @@ def sales_order_detail(request, pk: int):
         'reject_form': reject_form,
         'prod_status': prod_status,
         'prod_label': PROD_STATUS_LABELS.get(prod_status, prod_status),
-        'related_mos': mos,
     })
 
 
@@ -1157,17 +1159,22 @@ def plan_board(request):
                 messages.success(request, 'Đã bỏ giữ — đơn về chờ xếp.')
             elif action == 'release' and can_release and order_id:
                 bom_by_product: dict[str, int] = {}
+                routing_by_product: dict[str, int] = {}
                 for key, val in request.POST.items():
-                    if not key.startswith('bom_for__'):
-                        continue
-                    code = key[len('bom_for__'):].strip()
                     raw = (val or '').strip()
-                    if code and raw.isdigit():
-                        bom_by_product[code] = int(raw)
+                    if key.startswith('bom_for__'):
+                        code = key[len('bom_for__'):].strip()
+                        if code and raw.isdigit():
+                            bom_by_product[code] = int(raw)
+                    elif key.startswith('routing_for__'):
+                        code = key[len('routing_for__'):].strip()
+                        if code and raw.isdigit():
+                            routing_by_product[code] = int(raw)
                 created = release_order_to_production(
                     order_id=order_id,
                     user=request.user,
                     bom_by_product=bom_by_product,
+                    routing_by_product=routing_by_product,
                 )
                 messages.success(
                     request,

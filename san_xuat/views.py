@@ -1,4 +1,5 @@
 from django.contrib import messages
+from django.db.models import Q
 from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_GET, require_POST
@@ -495,6 +496,59 @@ def customer_search(request):
     from kiotviet.local_lookup import search_customers
 
     return JsonResponse({'results': search_customers(q, limit=30)})
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+@require_GET
+def sales_order_line_versions_api(request):
+    """BOM + routing theo mã SP — dùng dropdown dòng đơn đặt hàng."""
+    from django.urls import reverse
+
+    from san_xuat.ie_models import SxRouting
+    from san_xuat.models import ProductTechDoc
+
+    product_code = (request.GET.get('product_code') or '').strip()
+    payload = {
+        'product_code': product_code,
+        'tech_doc_id': None,
+        'doc_url': '',
+        'create_url': reverse('san_xuat:doc_create') + (
+            f'?code={product_code}' if product_code else ''
+        ),
+        'bom_versions': [],
+        'routings': [],
+    }
+    if not product_code:
+        return JsonResponse(payload)
+
+    doc = ProductTechDoc.objects.filter(product_code__iexact=product_code).first()
+    if doc:
+        payload['tech_doc_id'] = doc.pk
+        payload['doc_url'] = reverse('san_xuat:doc_detail', kwargs={'pk': doc.pk})
+        for bom in doc.bom_versions.order_by('created_at', 'id'):
+            label = bom.version_label or f'#{bom.pk}'
+            note = (bom.notes or '').strip()
+            text = label
+            if note:
+                text = f'{label} — {note[:40]}'
+            payload['bom_versions'].append({'id': bom.pk, 'text': text, 'label': label})
+        routings = SxRouting.objects.filter(
+            Q(style_code__iexact=product_code) | Q(tech_doc_id=doc.pk)
+        ).order_by('routing_rev', 'id')
+    else:
+        routings = SxRouting.objects.filter(style_code__iexact=product_code).order_by(
+            'routing_rev', 'id',
+        )
+
+    for rt in routings:
+        rev = (rt.routing_rev or '').strip() or f'#{rt.pk}'
+        status = rt.get_approval_status_display() if hasattr(rt, 'get_approval_status_display') else ''
+        text = f'{rev}'
+        if status:
+            text = f'{rev} · {status}'
+        payload['routings'].append({'id': rt.pk, 'text': text, 'label': rev})
+
+    return JsonResponse(payload)
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')

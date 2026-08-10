@@ -88,6 +88,13 @@
   #jp-so-lines-table td.jp-so-actions-col {
     vertical-align: bottom;
   }
+  /* TomSelect KH: đảm bảo placeholder hiện khi chưa chọn */
+  #jp-so-form .ts-wrapper:has(.jp-so-customer-select) .ts-control .placeholder,
+  #jp-so-form select.jp-so-customer-select + .ts-wrapper .ts-control .placeholder {
+    display: inline-block !important;
+    opacity: 1;
+    color: #6c757d;
+  }
 </style>
 {% endblock %}
 
@@ -168,8 +175,10 @@
           <table class="table table-sm align-middle" id="jp-so-lines-table">
             <thead class="table-light">
               <tr>
-                <th style="min-width:200px">Mã SP</th>
+                <th style="min-width:180px">Mã SP</th>
                 <th>Tên</th>
+                <th style="min-width:9rem">Phiên bản BOM</th>
+                <th style="min-width:9rem">Phiên bản công đoạn</th>
                 <th class="text-end" style="width:7rem">Tồn kho</th>
                 <th class="jp-so-size-col">Size</th>
                 <th class="jp-so-actions-col">Tổng</th>
@@ -183,6 +192,14 @@
                   {% if f.product_code.errors %}<div class="text-danger small">{{ f.product_code.errors }}</div>{% endif %}
                 </td>
                 <td>{{ f.product_name }}</td>
+                <td>
+                  {{ f.bom_version_id }}
+                  {% if f.bom_version_id.errors %}<div class="text-danger small">{{ f.bom_version_id.errors }}</div>{% endif %}
+                </td>
+                <td>
+                  {{ f.routing_id }}
+                  {% if f.routing_id.errors %}<div class="text-danger small">{{ f.routing_id.errors }}</div>{% endif %}
+                </td>
                 <td class="text-end">
                   <span class="jp-so-stock-qty text-muted">—</span>
                 </td>
@@ -238,6 +255,8 @@
   <tr class="jp-so-line-row">
     <td>{{ f.product_code }}</td>
     <td>{{ f.product_name }}</td>
+    <td>{{ f.bom_version_id }}</td>
+    <td>{{ f.routing_id }}</td>
     <td class="text-end"><span class="jp-so-stock-qty text-muted">—</span></td>
     <td class="jp-so-size-col">
       {{ f.size_qtys }}
@@ -453,6 +472,9 @@
     if (select && typeof window.jpInitProductCodeSelect === 'function') {
       window.jpInitProductCodeSelect(select);
     }
+    if (typeof window.jpSoLoadLineVersions === 'function') {
+      window.jpSoLoadLineVersions(row, '', '');
+    }
   });
 
   body.addEventListener('click', function (e) {
@@ -470,6 +492,97 @@
   });
 })();
 </script>
+<script>
+(function () {
+  var versionsUrl = '{% url "san_xuat:sales_order_line_versions" %}';
+  var CREATE_VAL = '__create__';
+
+  function productCodeOf(row) {
+    var sel = row.querySelector('.jp-sx-product-code-select, select[name$="-product_code"]');
+    return sel ? (sel.value || '').trim() : '';
+  }
+
+  function fillSelect(sel, items, emptyLabel, createUrl, keepValue) {
+    if (!sel) return;
+    var prev = keepValue != null ? String(keepValue) : (sel.value || '');
+    sel.innerHTML = '';
+    var opt0 = document.createElement('option');
+    opt0.value = '';
+    opt0.textContent = emptyLabel;
+    sel.appendChild(opt0);
+    (items || []).forEach(function (it) {
+      var opt = document.createElement('option');
+      opt.value = String(it.id);
+      opt.textContent = it.text || it.label || String(it.id);
+      sel.appendChild(opt);
+    });
+    if (!(items || []).length && createUrl) {
+      var createOpt = document.createElement('option');
+      createOpt.value = CREATE_VAL;
+      createOpt.textContent = '＋ Tạo BOM / công đoạn → hồ sơ';
+      createOpt.dataset.createUrl = createUrl;
+      sel.appendChild(createOpt);
+    }
+    if (prev && prev !== CREATE_VAL) {
+      var found = Array.prototype.some.call(sel.options, function (o) { return o.value === prev; });
+      if (found) sel.value = prev;
+    }
+  }
+
+  function loadVersions(row, keepBom, keepRouting) {
+    var code = productCodeOf(row);
+    var bomSel = row.querySelector('.jp-so-bom-select, select[name$="-bom_version_id"]');
+    var rtSel = row.querySelector('.jp-so-routing-select, select[name$="-routing_id"]');
+    if (!code) {
+      fillSelect(bomSel, [], '— BOM —', '', '');
+      fillSelect(rtSel, [], '— Công đoạn —', '', '');
+      return;
+    }
+    fetch(versionsUrl + '?product_code=' + encodeURIComponent(code), {
+      headers: { 'Accept': 'application/json' },
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        var createUrl = data.doc_url
+          ? (data.doc_url + (data.doc_url.indexOf('?') >= 0 ? '&' : '?') + 'tab=bom')
+          : (data.create_url || '');
+        fillSelect(bomSel, data.bom_versions || [], '— BOM —', createUrl, keepBom);
+        fillSelect(rtSel, data.routings || [], '— Công đoạn —', createUrl, keepRouting);
+      })
+      .catch(function () {
+        fillSelect(bomSel, [], '— BOM —', '', keepBom);
+        fillSelect(rtSel, [], '— Công đoạn —', '', keepRouting);
+      });
+  }
+
+  window.jpSoLoadLineVersions = loadVersions;
+
+  document.addEventListener('jp-so-product-changed', function (e) {
+    var row = e.target && e.target.closest ? e.target.closest('tr.jp-so-line-row') : null;
+    if (!row) return;
+    loadVersions(row, '', '');
+  });
+
+  document.addEventListener('change', function (e) {
+    var sel = e.target;
+    if (!sel || !sel.matches) return;
+    if (!sel.matches('.jp-so-bom-select, .jp-so-routing-select, select[name$="-bom_version_id"], select[name$="-routing_id"]')) {
+      return;
+    }
+    if (sel.value !== CREATE_VAL) return;
+    var opt = sel.options[sel.selectedIndex];
+    var url = (opt && opt.dataset.createUrl) || '';
+    sel.value = '';
+    if (url) window.open(url, '_blank', 'noopener');
+  });
+
+  document.querySelectorAll('#jp-so-lines-table tbody tr.jp-so-line-row').forEach(function (row) {
+    var bomSel = row.querySelector('.jp-so-bom-select, select[name$="-bom_version_id"]');
+    var rtSel = row.querySelector('.jp-so-routing-select, select[name$="-routing_id"]');
+    loadVersions(row, bomSel ? bomSel.value : '', rtSel ? rtSel.value : '');
+  });
+})();
+</script>
 {% include 'san_xuat/includes/sales_order_suggest_modal_script.html' %}
-<script src="{% static 'js/sales-order-autosave.js' %}?v=20260810a"></script>
+<script src="{% static 'js/sales-order-autosave.js' %}?v=20260810b"></script>
 {% endblock %}

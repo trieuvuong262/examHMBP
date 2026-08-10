@@ -677,7 +677,7 @@
       <input type="hidden" name="action" value="release">
       <input type="hidden" name="order_id" id="jpReleaseOrderId" value="">
       <div class="modal-header">
-        <h5 class="modal-title">Chuyển SX — chọn hồ sơ thiết kế</h5>
+        <h5 class="modal-title">Chuyển SX — BOM & công đoạn</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
       </div>
       <div class="modal-body">
@@ -733,6 +733,7 @@
 <script>
 (function () {
   var bomApi = "{% url 'san_xuat:mo_bom_versions' %}";
+  var versionsApi = "{% url 'san_xuat:sales_order_line_versions' %}";
   var modalEl = document.getElementById('jpReleaseBomModal');
   if (!modalEl) return;
   if (typeof bootstrap === 'undefined') {
@@ -767,7 +768,24 @@
     return html;
   }
 
-  function loadBoms(productCode, selectEl, previewEl) {
+  function selectPreferred(selectEl, preferredId, fallbackLast) {
+    if (!selectEl || !selectEl.options.length) return;
+    var pref = preferredId != null && preferredId !== '' ? String(preferredId) : '';
+    var found = false;
+    if (pref) {
+      Array.prototype.forEach.call(selectEl.options, function (opt) {
+        if (opt.value === pref) {
+          opt.selected = true;
+          found = true;
+        }
+      });
+    }
+    if (!found && fallbackLast && selectEl.options.length) {
+      selectEl.options[selectEl.options.length - 1].selected = true;
+    }
+  }
+
+  function loadBoms(productCode, selectEl, previewEl, preferredBomId) {
     selectEl.innerHTML = '<option value="">Đang tải…</option>';
     previewEl.innerHTML = '';
     fetch(bomApi + '?product_code=' + encodeURIComponent(productCode), {
@@ -783,19 +801,43 @@
           previewEl.innerHTML = '<div class="small text-danger mt-1">Mã này chưa có BOM. Tạo hồ sơ thiết kế trước.</div>';
           return;
         }
-        results.forEach(function (b, idx) {
+        results.forEach(function (b) {
           var opt = document.createElement('option');
           opt.value = String(b.id);
           opt.textContent = b.text || b.label || ('#' + b.id);
           opt.dataset.steps = JSON.stringify(b.process_steps || []);
-          if (idx === results.length - 1) opt.selected = true; // mặc định BOM mới nhất
           selectEl.appendChild(opt);
         });
+        selectPreferred(selectEl, preferredBomId, true);
         var sel = selectEl.options[selectEl.selectedIndex];
         previewEl.innerHTML = renderSteps(sel ? JSON.parse(sel.dataset.steps || '[]') : []);
       })
       .catch(function () {
         selectEl.innerHTML = '<option value="">Không tải được hồ sơ</option>';
+      });
+  }
+
+  function loadRoutings(productCode, selectEl, preferredRoutingId) {
+    if (!selectEl) return;
+    selectEl.innerHTML = '<option value="">Đang tải…</option>';
+    fetch(versionsApi + '?product_code=' + encodeURIComponent(productCode), {
+      headers: { 'Accept': 'application/json' },
+      credentials: 'same-origin'
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        var results = (data && data.routings) || [];
+        selectEl.innerHTML = '<option value="">— Không chọn / theo BOM —</option>';
+        results.forEach(function (rt) {
+          var opt = document.createElement('option');
+          opt.value = String(rt.id);
+          opt.textContent = rt.text || rt.label || ('#' + rt.id);
+          selectEl.appendChild(opt);
+        });
+        selectPreferred(selectEl, preferredRoutingId, false);
+      })
+      .catch(function () {
+        selectEl.innerHTML = '<option value="">— Không chọn —</option>';
       });
   }
 
@@ -810,7 +852,7 @@
         try { products = JSON.parse(script.textContent || '[]'); } catch (e) { products = []; }
       }
       orderIdInput.value = orderId || '';
-      orderLabel.textContent = 'Đơn ' + orderCode + ' — chọn hồ sơ (BOM + công đoạn) cho từng mã.';
+      orderLabel.textContent = 'Đơn ' + orderCode + ' — BOM / công đoạn mặc định từ ĐĐH (có thể đổi trước khi chuyển).';
       rowsHost.innerHTML = '';
       if (!products.length) {
         emptyEl.classList.remove('d-none');
@@ -829,11 +871,20 @@
           (p.name ? ' <span class="text-muted fw-normal">— ' + escapeHtml(p.name) + '</span>' : '') +
           '</div>' +
           '<div class="small text-muted mb-2">SL ' + escapeHtml(p.qty || '') + '</div>' +
-          '<label class="form-label small fw-bold mb-1">Hồ sơ thiết kế</label>' +
+          '<div class="row g-2">' +
+          '<div class="col-md-6">' +
+          '<label class="form-label small fw-bold mb-1">Phiên bản BOM</label>' +
           '<select class="form-select form-select-sm jp-release-bom-select" name="bom_for__' + escapeHtml(code) + '" required></select>' +
-          '<div class="jp-release-bom-preview"></div>';
+          '<div class="jp-release-bom-preview"></div>' +
+          '</div>' +
+          '<div class="col-md-6">' +
+          '<label class="form-label small fw-bold mb-1">Phiên bản công đoạn</label>' +
+          '<select class="form-select form-select-sm jp-release-routing-select" name="routing_for__' + escapeHtml(code) + '"></select>' +
+          '</div>' +
+          '</div>';
         rowsHost.appendChild(wrap);
-        var selectEl = wrap.querySelector('select');
+        var selectEl = wrap.querySelector('.jp-release-bom-select');
+        var routingEl = wrap.querySelector('.jp-release-routing-select');
         var previewEl = wrap.querySelector('.jp-release-bom-preview');
         selectEl.addEventListener('change', function () {
           var opt = selectEl.options[selectEl.selectedIndex];
@@ -841,7 +892,8 @@
           try { steps = JSON.parse(opt.dataset.steps || '[]'); } catch (e) {}
           previewEl.innerHTML = renderSteps(steps);
         });
-        loadBoms(code, selectEl, previewEl);
+        loadBoms(code, selectEl, previewEl, p.bom_version_id || '');
+        loadRoutings(code, routingEl, p.routing_id || '');
       });
       modal.show();
     });

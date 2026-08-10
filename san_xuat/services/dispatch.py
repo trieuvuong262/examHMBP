@@ -236,6 +236,7 @@ def create_mo_from_bom(
     is_sample: bool = False,
     lines: list[dict] | None = None,
     bom_version_id: int | None = None,
+    routing_id: int | None = None,
     process_steps: list[dict] | None = None,
 ) -> SxProductionOrder:
     product_code = (product_code or "").strip()
@@ -283,6 +284,14 @@ def create_mo_from_bom(
                     or ""
                 ).strip()
 
+    routing = None
+    if routing_id:
+        from san_xuat.ie_models import SxRouting
+
+        routing = SxRouting.objects.filter(pk=routing_id).first()
+    if routing is None:
+        routing = getattr(working_bom, "routing", None)
+
     mo_code = (code or "").strip() or _next_mo_code_for_product(tech_doc.product_code)
 
     mo = SxProductionOrder.objects.create(
@@ -290,7 +299,7 @@ def create_mo_from_bom(
         product_code=tech_doc.product_code,
         product_name=tech_doc.product_name or "",
         bom_version=working_bom,
-        routing=getattr(working_bom, "routing", None),
+        routing=routing,
         qty=qty,
         qty_done=Decimal("0"),
         order_date=order_date or timezone.localdate(),

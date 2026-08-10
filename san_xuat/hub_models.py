@@ -65,6 +65,15 @@ class SxSalesOrder(DemoMarkedModel):
         max_length=20, choices=CONFIRM_CHOICES, default=CONFIRM_DRAFT, db_index=True,
         verbose_name='Trạng thái xác nhận',
     )
+    confirmed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='sx_sales_orders_confirmed',
+        verbose_name='Người xác nhận',
+    )
+    confirmed_at = models.DateTimeField(null=True, blank=True, verbose_name='Thời gian xác nhận')
     reject_reason = models.CharField(max_length=500, blank=True, default='', verbose_name='Lý do từ chối')
     source = models.CharField(
         max_length=20, choices=SOURCE_CHOICES, default=SOURCE_MANUAL, db_index=True,
@@ -158,6 +167,22 @@ class SxSalesOrderLine(models.Model):
         default=dict, blank=True,
         verbose_name='SL theo size',
         help_text='Ví dụ {"S": 100, "M": 200}',
+    )
+    bom_version = models.ForeignKey(
+        'san_xuat.BomVersion',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='sales_order_lines',
+        verbose_name='Phiên bản BOM',
+    )
+    routing = models.ForeignKey(
+        'san_xuat.SxRouting',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='sales_order_lines',
+        verbose_name='Phiên bản công đoạn',
     )
     qty_scrap_rate = models.DecimalField(
         max_digits=7, decimal_places=2, default=Decimal('0'),

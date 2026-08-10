@@ -45,9 +45,15 @@
             var nameEl = row.querySelector('input[name$="-product_name"]');
             var qtyEl = row.querySelector('.jp-so-qty-total, input[name$="-qty"]');
             var sizeEl = row.querySelector('.jp-so-size-qtys-json, input[name$="-size_qtys"]');
+            var bomEl = row.querySelector('.jp-so-bom-select, select[name$="-bom_version_id"]');
+            var rtEl = row.querySelector('.jp-so-routing-select, select[name$="-routing_id"]');
             var code = codeEl ? (codeEl.value || '').trim() : '';
             var name = nameEl ? (nameEl.value || '').trim() : '';
             var qty = qtyEl ? (qtyEl.value || '').trim() : '';
+            var bomId = bomEl ? (bomEl.value || '').trim() : '';
+            var routingId = rtEl ? (rtEl.value || '').trim() : '';
+            if (bomId === '__create__') bomId = '';
+            if (routingId === '__create__') routingId = '';
             var sizeRaw = sizeEl ? (sizeEl.value || '').trim() : '';
             var sizeQtys = {};
             if (sizeRaw) {
@@ -56,12 +62,14 @@
                     if (parsed && typeof parsed === 'object') sizeQtys = parsed;
                 } catch (e) { /* ignore */ }
             }
-            if (!code && !name && (!qty || qty === '0') && !Object.keys(sizeQtys).length) return;
+            if (!code && !name && (!qty || qty === '0') && !Object.keys(sizeQtys).length && !bomId && !routingId) return;
             lines.push({
                 product_code: code,
                 product_name: name,
                 qty: qty,
                 size_qtys: sizeQtys,
+                bom_version_id: bomId,
+                routing_id: routingId,
             });
         });
         return lines;
@@ -212,6 +220,9 @@
             } else {
                 var hidden = row.querySelector('.jp-so-size-qtys-json, input[name$="-size_qtys"]');
                 if (hidden) hidden.value = JSON.stringify(sizeMap);
+            }
+            if (typeof window.jpSoLoadLineVersions === 'function') {
+                window.jpSoLoadLineVersions(row, line.bom_version_id || '', line.routing_id || '');
             }
         });
     }

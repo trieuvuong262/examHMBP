@@ -21,7 +21,10 @@ def _product_code_choices(extra_value: str = '') -> list[tuple[str, str]]:
     ref = resolve_product_ref(code)
     label_code = ref.code if ref else code
     label = f'{label_code} — {ref.name}' if ref and ref.name else label_code
-    choices.append((label_code, label))
+    # Giá trị submit (TomSelect id) phải có trong choices — có thể khác mã chuẩn hoá.
+    choices.append((code, label))
+    if label_code != code:
+        choices.append((label_code, label))
     return choices
 
 

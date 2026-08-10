@@ -95,6 +95,16 @@
           <div class="text-muted">Hạn sản xuất</div>
           <div class="fw-semibold">{% if order.due_date %}{{ order.due_date|date:"d/m/Y" }}{% else %}—{% endif %}</div>
         </div>
+        <div class="col-md-4">
+          <div class="text-muted">Người xác nhận</div>
+          <div class="fw-semibold">
+            {% if order.confirmed_by %}{{ order.confirmed_by.get_full_name|default:order.confirmed_by.username }}{% else %}—{% endif %}
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="text-muted">Thời gian xác nhận</div>
+          <div class="fw-semibold">{% if order.confirmed_at %}{{ order.confirmed_at|date:"d/m/Y H:i:s" }}{% else %}—{% endif %}</div>
+        </div>
         {% if order.notes %}
         <div class="col-12">
           <div class="text-muted">Ghi chú</div>
@@ -127,7 +137,7 @@
           <button type="submit" class="btn btn-hm btn-sm">Xác nhận</button>
         </form>
         {% endif %}
-        {% if can_confirm and order.confirm_status != 'rejected' %}
+        {% if can_confirm and order.confirm_status == 'draft' %}
         <form method="post">
           {% csrf_token %}
           <input type="hidden" name="action" value="reject">
@@ -143,9 +153,6 @@
           Kế hoạch sản xuất
         </a>
         {% endif %}
-        <a href="{% url 'san_xuat:costing_by_order' %}?q={{ order.code|urlencode }}" class="btn btn-outline-secondary btn-sm">
-          Giá thành theo đơn
-        </a>
       </div>
       {% endif %}
     </div>
@@ -160,6 +167,8 @@
             <tr>
               <th>Mã SP</th>
               <th>Tên</th>
+              <th>BOM</th>
+              <th>Công đoạn</th>
               <th class="text-end">Số lượng</th>
               <th>Theo size</th>
               <th>Hạn dòng</th>
@@ -170,6 +179,24 @@
             <tr>
               <td><strong>{{ ln.product_code }}</strong></td>
               <td class="small">{{ ln.product_name|default:"—" }}</td>
+              <td class="small">
+                {% if ln.bom_version %}
+                  {% if ln.bom_version.tech_doc_id %}
+                  <a href="{% url 'san_xuat:doc_detail' ln.bom_version.tech_doc_id %}?tab=bom&bom={{ ln.bom_version_id }}" class="text-decoration-none">
+                    {{ ln.bom_version.version_label|default:ln.bom_version_id }}
+                  </a>
+                  {% else %}
+                  {{ ln.bom_version.version_label|default:ln.bom_version_id }}
+                  {% endif %}
+                {% else %}—{% endif %}
+              </td>
+              <td class="small">
+                {% if ln.routing %}
+                  <a href="{% url 'san_xuat:ie_routing_detail' ln.routing_id %}" class="text-decoration-none">
+                    {{ ln.routing.routing_rev|default:ln.routing_id }}
+                  </a>
+                {% else %}—{% endif %}
+              </td>
               <td class="text-end">{{ ln.qty|sx_num }}</td>
               <td class="small">
                 {% if ln.size_qtys %}
@@ -183,33 +210,11 @@
               <td class="small">{% if ln.due_date %}{{ ln.due_date|date:"d/m/Y" }}{% else %}—{% endif %}</td>
             </tr>
           {% empty %}
-            <tr><td colspan="5" class="text-muted small">Chưa có dòng.</td></tr>
+            <tr><td colspan="7" class="text-muted small">Chưa có dòng.</td></tr>
           {% endfor %}
           </tbody>
         </table>
       </div>
-    </div>
-  </div>
-
-  <div class="card border-0 shadow-sm">
-    <div class="card-body">
-      <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-        <h6 class="fw-bold mb-0">Lệnh sản xuất liên quan</h6>
-        {% if order.confirm_status == 'confirmed' %}
-        <a href="{% url 'san_xuat:plan_board' %}?q={{ order.code|urlencode }}" class="btn btn-outline-secondary btn-sm">Mở kế hoạch SX</a>
-        {% endif %}
-      </div>
-      {% for mo in related_mos %}
-      <a href="{% url 'san_xuat:dispatch_mo_detail' mo.pk %}" class="d-flex justify-content-between border rounded-3 px-3 py-2 mb-2 text-decoration-none text-dark">
-        <span>
-          <span class="fw-semibold">{{ mo.code }}</span>
-          <span class="text-muted small"> · {{ mo.product_code }}</span>
-        </span>
-        <span class="small text-muted">{{ mo.get_status_display }}</span>
-      </a>
-      {% empty %}
-      <p class="text-muted small mb-0">Chưa có lệnh sản xuất. Vào kế hoạch sản xuất → Chuyển SX để tạo lệnh.</p>
-      {% endfor %}
     </div>
   </div>
 </div>

@@ -251,7 +251,7 @@ def build_plan_board_rows(
             days_need = max(1, int((hours / 8.0) + 0.999))
             eta = today + timedelta(days=days_need)
 
-        # Gom mã SP unique cho modal Chuyển SX (chọn BOM)
+        # Gom mã SP unique cho modal Chuyển SX (chọn BOM) — kèm mặc định từ ĐĐH
         release_products: list[dict] = []
         seen_codes: set[str] = set()
         for ln in lines:
@@ -266,6 +266,8 @@ def build_plan_board_rows(
                 'code': code,
                 'name': (ln.product_name or '').strip(),
                 'qty': str(ln.qty_to_produce),
+                'bom_version_id': ln.bom_version_id or None,
+                'routing_id': ln.routing_id or None,
             })
 
         rows.append(PlanBoardRow(
@@ -394,6 +396,7 @@ def release_order_to_production(
     order_id: int,
     user=None,
     bom_by_product: dict[str, int] | None = None,
+    routing_by_product: dict[str, int] | None = None,
 ) -> list[SxProductionOrder]:
     """Chuyển đơn xuống SX: tạo LSX theo từng dòng SP, gắn sales_order + BOM đã chọn."""
     from san_xuat.models import BomVersion, ProcessStep
@@ -415,15 +418,20 @@ def release_order_to_production(
     if not lines:
         raise PlanningError('Đơn không có dòng sản phẩm.')
 
-    bom_map: dict[str, int] = {}
-    for raw_code, raw_id in (bom_by_product or {}).items():
-        code = (raw_code or '').strip()
-        if not code or not raw_id:
-            continue
-        try:
-            bom_map[code.casefold()] = int(raw_id)
-        except (TypeError, ValueError):
-            raise PlanningError(f'{code}: hồ sơ thiết kế không hợp lệ.')
+    def _id_map(raw_map: dict[str, int] | None) -> dict[str, int]:
+        out: dict[str, int] = {}
+        for raw_code, raw_id in (raw_map or {}).items():
+            code = (raw_code or '').strip()
+            if not code or not raw_id:
+                continue
+            try:
+                out[code.casefold()] = int(raw_id)
+            except (TypeError, ValueError):
+                raise PlanningError(f'{code}: giá trị không hợp lệ.')
+        return out
+
+    bom_map = _id_map(bom_by_product)
+    routing_map = _id_map(routing_by_product)
 
     # planned_date từ lộ trình Kanban (nếu có) — khớp theo tên công đoạn
     planned_by_name = {
@@ -443,12 +451,13 @@ def release_order_to_production(
             continue
 
         code = (ln.product_code or '').strip()
-        bom_id = bom_map.get(code.casefold())
+        bom_id = bom_map.get(code.casefold()) or ln.bom_version_id
         if not bom_id:
             raise PlanningError(f'{code}: chưa chọn hồ sơ thiết kế (BOM).')
         bom = BomVersion.objects.filter(pk=bom_id).select_related('tech_doc').first()
         if not bom or (bom.tech_doc.product_code or '').strip().casefold() != code.casefold():
             raise PlanningError(f'{code}: hồ sơ thiết kế không thuộc mã này.')
+        routing_id = routing_map.get(code.casefold()) or ln.routing_id
 
         try:
             mo = create_mo_from_bom(
@@ -460,6 +469,7 @@ def release_order_to_production(
                 user=user,
                 sales_order_id=order.pk,
                 bom_version_id=bom_id,
+                routing_id=routing_id,
             )
             # create_mo_from_bom đã snapshot CD từ BOM; gắn lại planned_date Kanban nếu khớp tên
             if planned_by_name and mo.bom_version_id:

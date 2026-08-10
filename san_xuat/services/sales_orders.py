@@ -44,6 +44,8 @@ class LineInput:
     uom: str = ''
     due_date: date | None = None
     size_qtys: dict | None = None
+    bom_version_id: int | None = None
+    routing_id: int | None = None
 
 
 def normalize_size_qtys(raw) -> dict[str, Decimal]:
@@ -154,6 +156,16 @@ def _replace_lines(order: SxSalesOrder, lines: list[LineInput]) -> None:
         if not code or qty <= 0:
             continue
         size_map = normalize_size_qtys(getattr(ln, 'size_qtys', None))
+        bom_id = getattr(ln, 'bom_version_id', None) or None
+        routing_id = getattr(ln, 'routing_id', None) or None
+        try:
+            bom_id = int(bom_id) if bom_id else None
+        except (TypeError, ValueError):
+            bom_id = None
+        try:
+            routing_id = int(routing_id) if routing_id else None
+        except (TypeError, ValueError):
+            routing_id = None
         rows.append(
             SxSalesOrderLine(
                 order=order,
@@ -161,6 +173,8 @@ def _replace_lines(order: SxSalesOrder, lines: list[LineInput]) -> None:
                 product_name=_resolve_name(code, ln.product_name),
                 qty=qty,
                 size_qtys={k: float(v) for k, v in size_map.items()},
+                bom_version_id=bom_id,
+                routing_id=routing_id,
                 qty_scrap_rate=_q(ln.qty_scrap_rate),
                 uom=(ln.uom or '').strip()[:30],
                 due_date=ln.due_date or order.due_date,
@@ -173,7 +187,7 @@ def _replace_lines(order: SxSalesOrder, lines: list[LineInput]) -> None:
 
 
 @transaction.atomic
-def confirm_sales_order(*, order_id: int) -> SxSalesOrder:
+def confirm_sales_order(*, order_id: int, user=None) -> SxSalesOrder:
     order = SxSalesOrder.objects.select_for_update().prefetch_related('lines').get(pk=order_id)
     if order.confirm_status == SxSalesOrder.CONFIRM_CONFIRMED:
         return order
@@ -183,12 +197,14 @@ def confirm_sales_order(*, order_id: int) -> SxSalesOrder:
         raise PlanningError('Đơn chưa có dòng sản phẩm.')
     order.confirm_status = SxSalesOrder.CONFIRM_CONFIRMED
     order.reject_reason = ''
+    order.confirmed_at = timezone.now()
+    order.confirmed_by = user if getattr(user, 'is_authenticated', False) else None
     order.plan_status = SxSalesOrder.PLAN_QUEUED
     if not order.plan_queued_at:
         order.plan_queued_at = timezone.now()
     order.plan_hold_reason = ''
     order.save(update_fields=[
-        'confirm_status', 'reject_reason',
+        'confirm_status', 'reject_reason', 'confirmed_at', 'confirmed_by',
         'plan_status', 'plan_queued_at', 'plan_hold_reason', 'updated_at',
     ])
     return order
@@ -204,7 +220,11 @@ def reject_sales_order(*, order_id: int, reason: str = '') -> SxSalesOrder:
         raise PlanningError('Đơn đã gắn kế hoạch / lệnh SX — không thể từ chối.')
     order.confirm_status = SxSalesOrder.CONFIRM_REJECTED
     order.reject_reason = (reason or '').strip()[:500]
-    order.save(update_fields=['confirm_status', 'reject_reason', 'updated_at'])
+    order.confirmed_at = None
+    order.confirmed_by = None
+    order.save(update_fields=[
+        'confirm_status', 'reject_reason', 'confirmed_at', 'confirmed_by', 'updated_at',
+    ])
     return order
 
 
