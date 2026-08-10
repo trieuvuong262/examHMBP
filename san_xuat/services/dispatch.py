@@ -481,6 +481,96 @@ def sync_mo_process_steps(mo: SxProductionOrder, steps: list[dict] | None = None
     return created
 
 
+def steps_dicts_from_routing(routing_id: int | None) -> list[dict]:
+    """Snapshot công đoạn từ phiên bản routing IE."""
+    if not routing_id:
+        return []
+    from san_xuat.ie_models import SxRoutingLine
+
+    out: list[dict] = []
+    lines = (
+        SxRoutingLine.objects.filter(routing_id=int(routing_id))
+        .select_related("work_center", "operation")
+        .order_by("seq_no", "id")
+    )
+    for i, ln in enumerate(lines):
+        name = (ln.op_name_vi or "").strip() or (ln.op_code or "").strip()
+        if not name and ln.operation_id:
+            name = (getattr(ln.operation, "name_vi", None) or ln.operation.op_code or "").strip()
+        if not name:
+            continue
+        wc_id = ln.work_center_id
+        if not wc_id and (ln.work_center_code or "").strip():
+            from san_xuat.hub_models import SxWorkCenter
+
+            wc = SxWorkCenter.objects.filter(
+                code__iexact=(ln.work_center_code or "").strip(),
+                is_demo=False,
+            ).first()
+            wc_id = wc.pk if wc else None
+        out.append({
+            "sequence": ln.seq_no or ((i + 1) * 10),
+            "process_name": name,
+            "work_center_id": wc_id,
+            "manager_id": None,
+        })
+    return out
+
+
+def enrich_mo_step_work_centers(mo: SxProductionOrder) -> int:
+    """Bổ sung bộ phận + quản lý cho CD thiếu — map theo mẫu Công việc tổ nếu cần."""
+    from san_xuat.services.capacity_from_hrm import default_manager_user_id_for_work_center
+    from san_xuat.services.order_progress_sheet import work_center_map
+    from san_xuat.services.progress_template import step_by_label
+
+    wc_map = work_center_map()
+    updated = 0
+    for step in mo.mo_process_steps.all():
+        fields: list[str] = []
+        if not step.work_center_id:
+            sd = step_by_label(step.process_name or "")
+            if sd:
+                wc = wc_map.get(sd.work_center_code)
+                if wc:
+                    step.work_center = wc
+                    fields.append("work_center")
+        if not step.manager_id and step.work_center_id:
+            mid = default_manager_user_id_for_work_center(step.work_center_id)
+            if mid:
+                step.manager_id = mid
+                fields.append("manager")
+        if fields:
+            step.save(update_fields=fields)
+            updated += 1
+    return updated
+
+
+@transaction.atomic
+def publish_mo_to_team_work(*, mo_id: int) -> SxProductionOrder:
+    """Phát hành LSX sau Chuyển SX để hiện trên Công việc tổ (tổ trưởng phân CN).
+
+    Không bắt buộc đã gán đủ quản lý CD như mo_release thủ công — chỉ cần có CD.
+    """
+    from san_xuat.services.bom import activate_bom
+
+    mo = SxProductionOrder.objects.select_for_update().get(pk=mo_id)
+    if mo.status == SxProductionOrder.STATUS_CANCELLED:
+        raise DispatchError("Lệnh đã hủy.")
+    if not mo.mo_process_steps.exists():
+        sync_mo_process_steps(mo, None)
+    enrich_mo_step_work_centers(mo)
+    if not mo.mo_process_steps.exists():
+        raise DispatchError(
+            f"{mo.code}: chưa có công đoạn — chọn BOM/routing có CD hoặc bổ sung trên LSX."
+        )
+    if mo.bom_version_id:
+        activate_bom(mo.bom_version)
+    if mo.status == SxProductionOrder.STATUS_DRAFT:
+        mo.status = SxProductionOrder.STATUS_RELEASED
+        mo.save(update_fields=["status"])
+    return mo
+
+
 def user_can_stat_mo_step(*, user, step: SxMoProcessStep) -> bool:
     if not user or not getattr(user, "is_authenticated", False):
         return False

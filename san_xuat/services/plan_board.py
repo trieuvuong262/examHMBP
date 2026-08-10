@@ -400,7 +400,11 @@ def release_order_to_production(
 ) -> list[SxProductionOrder]:
     """Chuyển đơn xuống SX: tạo LSX theo từng dòng SP, gắn sales_order + BOM đã chọn."""
     from san_xuat.models import BomVersion, ProcessStep
-    from san_xuat.services.dispatch import sync_mo_process_steps
+    from san_xuat.services.dispatch import (
+        publish_mo_to_team_work,
+        steps_dicts_from_routing,
+        sync_mo_process_steps,
+    )
 
     order = (
         SxSalesOrder.objects.select_for_update()
@@ -459,6 +463,7 @@ def release_order_to_production(
             raise PlanningError(f'{code}: hồ sơ thiết kế không thuộc mã này.')
         routing_id = routing_map.get(code.casefold()) or ln.routing_id
 
+        mo = None
         try:
             mo = create_mo_from_bom(
                 product_code=code,
@@ -471,8 +476,16 @@ def release_order_to_production(
                 bom_version_id=bom_id,
                 routing_id=routing_id,
             )
-            # create_mo_from_bom đã snapshot CD từ BOM; gắn lại planned_date Kanban nếu khớp tên
-            if planned_by_name and mo.bom_version_id:
+            # Ưu tiên snapshot CD từ routing đã chọn; không thì BOM (+ ngày KH Kanban)
+            routing_steps = steps_dicts_from_routing(routing_id)
+            if routing_steps:
+                if planned_by_name:
+                    for row in routing_steps:
+                        key = (row.get('process_name') or '').strip().casefold()
+                        if key in planned_by_name:
+                            row['planned_date'] = planned_by_name[key]
+                sync_mo_process_steps(mo, routing_steps)
+            elif planned_by_name and mo.bom_version_id:
                 bom_rows = list(
                     ProcessStep.objects.filter(bom_id=mo.bom_version_id).order_by('sequence', 'id')
                 )
@@ -492,8 +505,13 @@ def release_order_to_production(
             if ln.product_name and not mo.product_name:
                 mo.product_name = ln.product_name
                 mo.save(update_fields=['product_name'])
+            # Phát hành để hiện trên Công việc tổ (tổ trưởng phân công nhân)
+            publish_mo_to_team_work(mo_id=mo.pk)
+            mo.refresh_from_db()
             created.append(mo)
         except DispatchError as exc:
+            if mo is not None and getattr(mo, 'pk', None):
+                mo.delete()
             errors.append(f'{code}: {exc}')
 
     if not created and errors:

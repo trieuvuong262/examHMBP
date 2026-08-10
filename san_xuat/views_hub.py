@@ -1178,7 +1178,7 @@ def plan_board(request):
                 )
                 messages.success(
                     request,
-                    f'Đã chuyển xuống SX — tạo {len(created)} lệnh sản xuất.',
+                    f'Đã chuyển xuống SX — tạo {len(created)} lệnh sản xuất (đã phát hành vào Công việc tổ).',
                 )
                 return redirect(f"{reverse('san_xuat:plan_board')}?mode=list&tab=released")
             else:
