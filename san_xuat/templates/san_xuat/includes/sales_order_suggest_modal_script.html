@@ -186,35 +186,37 @@
   }
 
   function initProductSelect() {
-    if (!productEl) return;
+    if (!productEl) return false;
     if (productTs || productEl.tomselect) {
       productTs = productTs || productEl.tomselect;
-      return;
+      return !!productTs;
     }
     if (typeof TomSelect === 'undefined') {
       console.warn('[jp-so-suggest] TomSelect chưa sẵn sàng');
-      return;
+      return false;
     }
+    var searchUrl = '{% url "san_xuat:product_code_search" %}';
     productTs = new TomSelect(productEl, {
       maxOptions: 40,
       maxItems: 1,
       valueField: 'id',
       labelField: 'text',
       searchField: ['text', 'code', 'name'],
-      placeholder: productEl.dataset.placeholder || 'Gõ mã SX hoặc tên từ kho sản phẩm…',
-      dropdownParent: 'body',
-      dropdownClass: 'ts-dropdown jp-so-sg-ts-dropdown',
+      placeholder: productEl.dataset.placeholder || 'Gõ mã SX hoặc tên sản phẩm…',
+      // Giữ dropdown trong modal (tránh z-index / focus trap)
+      dropdownParent: modalEl.querySelector('.modal-body') || 'body',
       openOnFocus: true,
-      preload: 'focus',
+      preload: true,
       loadThrottle: 200,
-      // Kết quả remote — không lọc lại local (tránh dropdown trống)
-      score: function () { return 1; },
-      shouldLoad: function (query) {
-        return true;
+      create: false,
+      // score phải trả về FUNCTION — không được return số
+      score: function () {
+        return function () { return 1; };
       },
+      shouldLoad: function () { return true; },
       load: function (query, callback) {
         var self = this;
-        fetch('{% url "san_xuat:product_code_search" %}?q=' + encodeURIComponent(query || ''), {
+        fetch(searchUrl + '?q=' + encodeURIComponent(query || ''), {
           headers: { 'Accept': 'application/json' },
           credentials: 'same-origin',
         })
@@ -223,11 +225,8 @@
             return r.json();
           })
           .then(function (data) {
-            var rows = data.results || [];
-            callback(rows);
-            if (rows.length && self.control_input && document.activeElement === self.control_input) {
-              self.open();
-            }
+            callback(data.results || []);
+            try { self.open(); } catch (e) {}
           })
           .catch(function () { callback(); });
       },
@@ -245,14 +244,15 @@
         no_results: function () {
           return '<div class="no-results">Không tìm thấy sản phẩm</div>';
         },
+        loading: function () {
+          return '<div class="spinner-border spinner-border-sm" role="status"></div>';
+        },
       },
     });
     productTs.on('change', function (value) {
       loadStockForStyle(value || '');
     });
-    productTs.on('type', function () {
-      if (!productTs.isOpen) productTs.open();
-    });
+    return true;
   }
 
   function resetDefaults() {
@@ -390,7 +390,7 @@
     }
   }
 
-  initProductSelect();
+  // Chỉ init khi modal đã hiện (tránh TomSelect lỗi khi display:none)
   setExpanded(false);
 
   if (expandBtn) {
@@ -400,14 +400,20 @@
   }
 
   modalEl.addEventListener('shown.bs.modal', function () {
-    initProductSelect();
+    var ok = initProductSelect();
     seedFromForm();
-    // Retry nếu CDN TomSelect chậm
-    if (!productTs && typeof TomSelect === 'undefined') {
+    if (!ok) {
       setTimeout(function () {
         initProductSelect();
         seedFromForm();
-      }, 400);
+        if (productTs) {
+          try { productTs.focus(); } catch (e) {}
+        }
+      }, 350);
+    } else if (productTs) {
+      setTimeout(function () {
+        try { productTs.focus(); } catch (e) {}
+      }, 80);
     }
   });
 

@@ -96,9 +96,40 @@
   .jp-so-suggest-sheet .jp-so-sg-stock.is-from-kho {
     color: #1e3a8a;
   }
-  /* TomSelect gắn body — phải cao hơn Bootstrap modal (1055) */
-  body > .ts-dropdown.jp-so-sg-ts-dropdown {
-    z-index: 2000 !important;
+  /* TomSelect trong modal — nổi trên nội dung bảng */
+  .jp-so-suggest-modal .ts-dropdown {
+    z-index: 1065 !important;
+  }
+  .jp-so-sg-toolbar {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: .65rem .85rem;
+    margin-bottom: .85rem;
+  }
+  .jp-so-sg-toolbar .jp-so-sg-field label {
+    display: block;
+    font-size: .78rem;
+    font-weight: 700;
+    color: #334155;
+    margin-bottom: .25rem;
+  }
+  .jp-so-sg-toolbar .jp-so-sg-field-product {
+    grid-column: 1 / -1;
+  }
+  .jp-so-sg-toolbar .form-control,
+  .jp-so-sg-toolbar .ts-control {
+    border: 1px solid #94a3b8 !important;
+    border-radius: .4rem !important;
+    background: #fde047 !important;
+    min-height: 2.15rem;
+    font-weight: 600;
+  }
+  .jp-so-sg-toolbar .ts-wrapper.single .ts-control {
+    padding: .35rem .55rem !important;
+  }
+  .jp-so-sg-product-meta {
+    font-size: .72rem;
+    margin-top: .25rem;
   }
   .jp-so-suggest-sheet .jp-so-sg-formula {
     background: #e2e8f0;
@@ -142,6 +173,27 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
       </div>
       <div class="modal-body">
+        <div class="jp-so-sg-toolbar">
+          <div class="jp-so-sg-field">
+            <label for="jp-so-sg-coef">Hệ số</label>
+            <input type="number" class="form-control form-control-sm" id="jp-so-sg-coef" value="2" min="0" step="0.1" inputmode="decimal">
+          </div>
+          <div class="jp-so-sg-field">
+            <label for="jp-so-sg-round">Làm tròn</label>
+            <input type="number" class="form-control form-control-sm" id="jp-so-sg-round" value="50" min="1" step="1" inputmode="numeric">
+          </div>
+          <div class="jp-so-sg-field jp-so-sg-field-product">
+            <label for="jp-so-sg-product">Loại hàng (kho sản phẩm)</label>
+            <select id="jp-so-sg-product" class="jp-so-sg-product-select" data-placeholder="Gõ mã SX hoặc tên sản phẩm…" aria-label="Loại hàng">
+              <option value="">Gõ mã SX hoặc tên sản phẩm…</option>
+            </select>
+            <div class="jp-so-sg-product-meta text-muted" id="jp-so-sg-product-meta"></div>
+          </div>
+          <div class="jp-so-sg-field jp-so-sg-field-product">
+            <label for="jp-so-sg-period">Thời gian dự đoán</label>
+            <input type="text" class="form-control form-control-sm" id="jp-so-sg-period" value="30 ngày" maxlength="60">
+          </div>
+        </div>
         <div class="table-responsive">
           <table class="jp-so-suggest-sheet" id="jp-so-suggest-sheet">
             <thead>
@@ -153,33 +205,6 @@
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <th class="jp-so-sg-label" scope="row">Hệ số</th>
-                <td class="jp-so-sg-input-cell" colspan="{{ suggest_sizes_all|length }}">
-                  <input type="number" id="jp-so-sg-coef" value="2" min="0" step="0.1" inputmode="decimal" aria-label="Hệ số">
-                </td>
-              </tr>
-              <tr>
-                <th class="jp-so-sg-label" scope="row">Làm tròn</th>
-                <td class="jp-so-sg-input-cell" colspan="{{ suggest_sizes_all|length }}">
-                  <input type="number" id="jp-so-sg-round" value="50" min="1" step="1" inputmode="numeric" aria-label="Làm tròn">
-                </td>
-              </tr>
-              <tr>
-                <th class="jp-so-sg-label" scope="row">Loại hàng</th>
-                <td class="jp-so-sg-input-cell jp-so-sg-text-cell jp-so-sg-product-cell" colspan="{{ suggest_sizes_all|length }}">
-                  <select id="jp-so-sg-product" class="jp-so-sg-product-select" data-placeholder="Gõ mã SX / tên từ kho sản phẩm…" aria-label="Loại hàng">
-                    <option value="">Chọn mã SX từ kho sản phẩm…</option>
-                  </select>
-                  <div class="jp-so-sg-product-meta text-muted" id="jp-so-sg-product-meta"></div>
-                </td>
-              </tr>
-              <tr>
-                <th class="jp-so-sg-label" scope="row">Thời gian dự đoán</th>
-                <td class="jp-so-sg-input-cell jp-so-sg-text-cell" colspan="{{ suggest_sizes_all|length }}">
-                  <input type="text" id="jp-so-sg-period" value="30 ngày" maxlength="60" aria-label="Thời gian dự đoán">
-                </td>
-              </tr>
               <tr class="jp-so-sg-stock-row">
                 <th class="jp-so-sg-label" scope="row">Tồn kho thực tế</th>
                 {% for sz in suggest_sizes_all %}
