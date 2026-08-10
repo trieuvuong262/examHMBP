@@ -41,13 +41,39 @@ GROUPS: tuple[ProgressGroup, ...] = (
     ProgressGroup('GIAO_HANG', 'GIAO HÀNG THÀNH PHẨM', WC_GH),
 )
 
+# slug URL ↔ group key ↔ menu key
+TEAM_SLUGS: tuple[tuple[str, str, str, str], ...] = (
+    # slug, group_key, menu_key, short_label
+    ('cat', 'CAT', 'team_work_cat', 'Cắt'),
+    ('inep', 'IN_EP', 'team_work_inep', 'In - Ép'),
+    ('theu', 'THEU', 'team_work_theu', 'Thêu'),
+    ('may', 'MAY', 'team_work_may', 'May'),
+    ('ht', 'HOAN_THANH', 'team_work_ht', 'Ủi - Gấp xếp'),
+    ('gh', 'GIAO_HANG', 'team_work_gh', 'Giao hàng TP'),
+)
+
+
+def team_by_slug(slug: str) -> dict | None:
+    s = (slug or '').strip().lower()
+    for item_slug, group_key, menu_key, label in TEAM_SLUGS:
+        if item_slug == s:
+            grp = next((g for g in GROUPS if g.key == group_key), None)
+            return {
+                'slug': item_slug,
+                'group_key': group_key,
+                'menu_key': menu_key,
+                'label': label,
+                'group_label': grp.label if grp else label,
+                'work_center_code': grp.work_center_code if grp else '',
+            }
+    return None
+
+
 # CD con — May rút gọn (đủ dùng v1; mở rộng trong list này không đổi schema)
 _STEPS_RAW: tuple[tuple[str, str, str, str], ...] = (
-    # key, label, group, wc
     ('cat_ao', 'Áo TT + TS + Tay', 'CAT', WC_CAT),
     ('cat_quan', 'Quần', 'CAT', WC_CAT),
     ('cat_phoi', 'Phối quần', 'CAT', WC_CAT),
-    # IN-ÉP = ép keo + in CN
     ('inep_la_co', 'Lá cổ', 'IN_EP', WC_IN_EP),
     ('inep_tru', 'Trụ', 'IN_EP', WC_IN_EP),
     ('inep_in_giay', 'In giấy', 'IN_EP', WC_IN_EP),
@@ -56,7 +82,6 @@ _STEPS_RAW: tuple[tuple[str, str, str, str], ...] = (
     ('inep_tay', 'Tay', 'IN_EP', WC_IN_EP),
     ('theu_ao', 'TT áo', 'THEU', WC_THEU),
     ('theu_quan', 'TT quần', 'THEU', WC_THEU),
-    # May (rút gọn)
     ('may_la_co', 'May 2 lớp lá cổ', 'MAY', WC_MAY),
     ('may_mi_la_co', 'Mí lá cổ', 'MAY', WC_MAY),
     ('may_rap_vai', 'Ráp vai', 'MAY', WC_MAY),
@@ -87,6 +112,10 @@ def progress_steps() -> list[ProgressStepDef]:
             )
         )
     return out
+
+
+def steps_for_group(group_key: str) -> list[ProgressStepDef]:
+    return [s for s in progress_steps() if s.group == group_key]
 
 
 def progress_groups_with_steps() -> list[tuple[ProgressGroup, list[ProgressStepDef]]]:

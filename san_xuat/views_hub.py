@@ -3874,6 +3874,100 @@ def work_assignment_list(request):
     })
 
 
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+def team_work_hub(request):
+    """Hub Công việc tổ → tổ đầu tiên user có quyền."""
+    from san_xuat.services.progress_template import TEAM_SLUGS
+
+    for slug, _gk, menu_key, _label in TEAM_SLUGS:
+        if (
+            user_can_access_menu(request.user, MODULE_SAN_XUAT, menu_key)
+            or user_can_access_menu(request.user, MODULE_SAN_XUAT, 'team_work')
+        ):
+            return redirect('san_xuat:team_work_board', slug=slug)
+    if user_can_access_menu(request.user, MODULE_SAN_XUAT, 'team_work'):
+        return redirect('san_xuat:team_work_board', slug='cat')
+    return handle_menu_access_denied(request, MODULE_SAN_XUAT, 'team_work')
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+def team_work_board(request, slug: str):
+    """Bảng công việc theo tổ — phân công CD con cho NV."""
+    from san_xuat.services.planning import PlanningError
+    from san_xuat.services.progress_template import TEAM_SLUGS, team_by_slug
+    from san_xuat.services.team_work import (
+        assignee_candidate_options,
+        assign_team_work,
+        build_team_work_rows,
+    )
+
+    team_meta = team_by_slug(slug)
+    if not team_meta:
+        messages.error(request, 'Tổ không hợp lệ.')
+        return redirect('san_xuat:team_work_hub')
+
+    menu_key = team_meta['menu_key']
+    if not (
+        user_can_access_menu(request.user, MODULE_SAN_XUAT, menu_key)
+        or user_can_access_menu(request.user, MODULE_SAN_XUAT, 'team_work')
+    ):
+        return handle_menu_access_denied(request, MODULE_SAN_XUAT, menu_key)
+
+    can_assign = (
+        user_can_update_menu(request.user, MODULE_SAN_XUAT, menu_key)
+        or user_can_update_menu(request.user, MODULE_SAN_XUAT, 'team_work')
+        or user_can_create_menu(request.user, MODULE_SAN_XUAT, menu_key)
+    )
+
+    if request.method == 'POST' and can_assign:
+        action = (request.POST.get('action') or '').strip()
+        if action == 'assign':
+            try:
+                mo_id = int(request.POST.get('mo_id') or 0)
+            except (TypeError, ValueError):
+                mo_id = 0
+            process_key = (request.POST.get('process_key') or '').strip()
+            raw_ids = request.POST.getlist('assignee_ids')
+            user_ids = [int(x) for x in raw_ids if str(x).isdigit()]
+            try:
+                assign_team_work(
+                    mo_id=mo_id,
+                    process_key=process_key,
+                    user_ids=user_ids,
+                    assigned_by=request.user,
+                )
+                messages.success(request, 'Đã cập nhật phân công.')
+            except PlanningError as exc:
+                messages.error(request, str(exc))
+            except Exception as exc:
+                messages.error(request, str(exc))
+            return redirect(f"{reverse('san_xuat:team_work_board', kwargs={'slug': slug})}?q={(request.GET.get('q') or request.POST.get('q') or '').strip()}")
+
+    q = (request.GET.get('q') or '').strip()
+    try:
+        team, rows = build_team_work_rows(slug=slug, search=q)
+    except PlanningError as exc:
+        messages.error(request, str(exc))
+        return redirect('san_xuat:team_work_hub')
+
+    team_tabs = []
+    for s, _gk, mk, lab in TEAM_SLUGS:
+        if user_can_access_menu(request.user, MODULE_SAN_XUAT, mk) or user_can_access_menu(
+            request.user, MODULE_SAN_XUAT, 'team_work',
+        ):
+            team_tabs.append({'slug': s, 'label': lab, 'menu_key': mk})
+
+    return render(request, 'san_xuat/team_work_board.html', {
+        **_perm_ctx(request),
+        'team': team,
+        'rows': rows,
+        'team_tabs': team_tabs,
+        'search_query': q,
+        'can_assign': can_assign,
+        'assignee_candidates': assignee_candidate_options() if can_assign else [],
+    })
+
+
 @module_perm_required(MODULE_SAN_XUAT, 'create')
 def work_assignment_create(request):
     from san_xuat.services.phase3 import Phase3Error, create_work_assignment

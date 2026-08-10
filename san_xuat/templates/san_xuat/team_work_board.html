@@ -1,0 +1,116 @@
+{% extends 'base.html' %}
+{% load sx_format %}
+
+{% block extra_head %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+<style>
+  .jp-tw { --tw-ink:#0f172a; --tw-muted:#64748b; --tw-line:#e2e8f0; }
+  .jp-tw-tabs { display:flex; flex-wrap:wrap; gap:.35rem; margin:0 0 1rem; }
+  .jp-tw-tabs a {
+    display:inline-flex; align-items:center; padding:.35rem .75rem;
+    border-radius:999px; border:1px solid var(--tw-line); font-size:.82rem; font-weight:600;
+    color:var(--tw-muted); text-decoration:none; background:#fff;
+  }
+  .jp-tw-tabs a:hover { color:var(--tw-ink); border-color:#cbd5e1; }
+  .jp-tw-tabs a.active { color:#fff; background:#0f172a; border-color:#0f172a; }
+  .jp-tw-table { font-size:.85rem; }
+  .jp-tw-table th { white-space:nowrap; }
+  .jp-tw-assignees { color:var(--tw-muted); font-size:.8rem; }
+  .jp-tw-assignees strong { color:var(--tw-ink); font-weight:600; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid jp-page jp-sx-page jp-tw py-3 py-md-4 mb-5 px-3 px-lg-4">
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title w-100">Công việc tổ · {{ team.label }}</h2>
+    </div>
+  </div>
+
+  <div class="jp-tw-tabs" role="tablist">
+    {% for t in team_tabs %}
+    <a role="tab" class="{% if t.slug == team.slug %}active{% endif %}"
+       href="{% url 'san_xuat:team_work_board' t.slug %}{% if search_query %}?q={{ search_query|urlencode }}{% endif %}">{{ t.label }}</a>
+    {% endfor %}
+  </div>
+
+  <form method="get" class="d-flex flex-wrap gap-2 mb-3">
+    <input type="search" name="q" value="{{ search_query }}" class="form-control form-control-sm" style="max-width:16rem"
+           placeholder="Tìm LSX / mã SP…" autocomplete="off">
+    <button type="submit" class="btn btn-outline-secondary btn-sm">Lọc</button>
+  </form>
+
+  <div class="table-responsive border rounded-3 bg-white">
+    <table class="table table-sm align-middle mb-0 jp-tw-table">
+      <thead class="table-light">
+        <tr>
+          <th>LSX</th>
+          <th>Sản phẩm</th>
+          <th>Công đoạn</th>
+          <th>TT</th>
+          <th>Người được gán</th>
+          {% if can_assign %}<th style="width:14rem">Phân công</th>{% endif %}
+        </tr>
+      </thead>
+      <tbody>
+      {% for row in rows %}
+        <tr>
+          <td>
+            <a href="{% url 'san_xuat:dispatch_mo_detail' row.mo.pk %}" class="fw-semibold text-decoration-none">{{ row.mo.code }}</a>
+            {% if row.mo.sales_order_id %}
+            <div class="small text-muted">{{ row.mo.sales_order.code }}</div>
+            {% endif %}
+          </td>
+          <td>
+            <div class="fw-semibold">{{ row.mo.product_code }}</div>
+            <div class="small text-muted text-truncate" style="max-width:14rem">{{ row.mo.product_name|default:"" }}</div>
+          </td>
+          <td>{{ row.step_def.label }}</td>
+          <td class="small">
+            {% if row.mo_step %}
+              {% if row.status == 'done' %}Xong
+              {% elif row.status == 'in_progress' %}Đang làm
+              {% else %}Chờ{% endif %}
+            {% else %}
+              <span class="text-muted">Chưa gắn LSX</span>
+            {% endif %}
+          </td>
+          <td class="jp-tw-assignees">
+            {% for a in row.assignees %}
+              <strong>{{ a.label }}</strong>{% if not forloop.last %}, {% endif %}
+            {% empty %}
+              <span class="text-muted">—</span>
+            {% endfor %}
+          </td>
+          {% if can_assign %}
+          <td>
+            <form method="post" class="d-flex flex-wrap gap-1 align-items-start">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="assign">
+              <input type="hidden" name="mo_id" value="{{ row.mo.pk }}">
+              <input type="hidden" name="process_key" value="{{ row.step_def.key }}">
+              <input type="hidden" name="q" value="{{ search_query }}">
+              <select name="assignee_ids" class="form-select form-select-sm" multiple size="3" style="min-width:9rem">
+                {% for c in assignee_candidates %}
+                <option value="{{ c.id }}" {% for a in row.assignees %}{% if a.id == c.id %}selected{% endif %}{% endfor %}>{{ c.label }}</option>
+                {% endfor %}
+              </select>
+              <button type="submit" class="btn btn-hm btn-sm fw-bold">Gán</button>
+            </form>
+          </td>
+          {% endif %}
+        </tr>
+      {% empty %}
+        <tr>
+          <td colspan="{% if can_assign %}6{% else %}5{% endif %}" class="text-muted text-center py-4">
+            Chưa có LSX đang chạy cho tổ này.
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="small text-muted mt-2 mb-0">Chọn một hoặc nhiều NV (Ctrl/Cmd), bấm Gán. CD chưa có trên LSX sẽ được tạo từ mẫu cố định.</p>
+</div>
+{% endblock %}

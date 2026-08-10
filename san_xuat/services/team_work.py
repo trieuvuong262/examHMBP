@@ -1,0 +1,183 @@
+"""Công việc tổ — hàng đợi CD theo bộ phận (mẫu cố định)."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+
+from django.contrib.auth import get_user_model
+from django.db import transaction
+from django.db.models import Prefetch
+
+from san_xuat.hub_models import (
+    SxMoProcessAssignee,
+    SxMoProcessStep,
+    SxProductionOrder,
+)
+from san_xuat.services.order_progress_sheet import ensure_progress_work_centers, work_center_map
+from san_xuat.services.planning import PlanningError
+from san_xuat.services.progress_template import (
+    ProgressStepDef,
+    steps_for_group,
+    team_by_slug,
+)
+
+
+@dataclass
+class TeamWorkRow:
+    mo: SxProductionOrder
+    step_def: ProgressStepDef
+    mo_step: SxMoProcessStep | None
+    assignees: list = field(default_factory=list)
+    status: str = ''
+
+
+def build_team_work_rows(*, slug: str, search: str = '') -> tuple[dict, list[TeamWorkRow]]:
+    team = team_by_slug(slug)
+    if not team:
+        raise PlanningError('Tổ không hợp lệ.')
+    ensure_progress_work_centers()
+    step_defs = steps_for_group(team['group_key'])
+    labels = {(s.label or '').strip().casefold(): s for s in step_defs}
+    label_set = set(labels.keys())
+
+    qs = (
+        SxProductionOrder.objects.filter(is_demo=False)
+        .exclude(status=SxProductionOrder.STATUS_CANCELLED)
+        .exclude(status=SxProductionOrder.STATUS_DRAFT)
+        .select_related('sales_order')
+        .prefetch_related(
+            Prefetch(
+                'mo_process_steps',
+                queryset=SxMoProcessStep.objects.select_related('work_center').prefetch_related(
+                    'assignees__user__profile',
+                ),
+            ),
+        )
+        .order_by('-order_date', '-pk')
+    )
+    term = (search or '').strip()
+    if term:
+        from django.db.models import Q
+
+        qs = qs.filter(
+            Q(code__icontains=term)
+            | Q(product_code__icontains=term)
+            | Q(product_name__icontains=term)
+            | Q(sales_order__code__icontains=term)
+        )
+
+    rows: list[TeamWorkRow] = []
+    for mo in qs[:80]:
+        by_name: dict[str, SxMoProcessStep] = {}
+        for st in mo.mo_process_steps.all():
+            key = (st.process_name or '').strip().casefold()
+            if key in label_set and key not in by_name:
+                by_name[key] = st
+
+        for sd in step_defs:
+            lk = sd.label.casefold()
+            mo_step = by_name.get(lk)
+            assignees = []
+            status = ''
+            if mo_step:
+                status = mo_step.status or ''
+                for a in mo_step.assignees.all():
+                    u = a.user
+                    p = getattr(u, 'profile', None)
+                    label = ((getattr(p, 'full_name', None) or '') if p else '').strip()
+                    label = label or u.get_full_name() or u.username
+                    assignees.append({'id': u.pk, 'label': label})
+            rows.append(
+                TeamWorkRow(
+                    mo=mo,
+                    step_def=sd,
+                    mo_step=mo_step,
+                    assignees=assignees,
+                    status=status,
+                )
+            )
+    return team, rows
+
+
+def ensure_mo_step_for_template(
+    *,
+    mo: SxProductionOrder,
+    step_def: ProgressStepDef,
+) -> SxMoProcessStep:
+    existing = (
+        SxMoProcessStep.objects.filter(
+            production_order=mo,
+            process_name__iexact=step_def.label,
+        )
+        .order_by('sequence', 'id')
+        .first()
+    )
+    if existing:
+        return existing
+    wc_map = work_center_map()
+    wc = wc_map.get(step_def.work_center_code)
+    max_seq = (
+        SxMoProcessStep.objects.filter(production_order=mo)
+        .order_by('-sequence')
+        .values_list('sequence', flat=True)
+        .first()
+    ) or 0
+    step = SxMoProcessStep.objects.create(
+        production_order=mo,
+        sequence=max(int(max_seq) + 10, step_def.sequence),
+        process_name=step_def.label,
+        work_center=wc,
+        status=SxMoProcessStep.STATUS_PENDING,
+    )
+    return step
+
+
+@transaction.atomic
+def assign_team_work(
+    *,
+    mo_id: int,
+    process_key: str,
+    user_ids: list[int],
+    assigned_by=None,
+) -> SxMoProcessStep:
+    from san_xuat.services.progress_template import step_by_key
+
+    sd = step_by_key(process_key)
+    if not sd:
+        raise PlanningError('Công đoạn không thuộc mẫu.')
+    mo = SxProductionOrder.objects.select_for_update().get(pk=mo_id, is_demo=False)
+    if mo.status in (SxProductionOrder.STATUS_DRAFT, SxProductionOrder.STATUS_CANCELLED):
+        raise PlanningError('LSX chưa phát hành hoặc đã hủy.')
+    step = ensure_mo_step_for_template(mo=mo, step_def=sd)
+    User = get_user_model()
+    keep: set[int] = set()
+    for uid in user_ids:
+        if not uid:
+            continue
+        if not User.objects.filter(pk=uid, is_active=True).exists():
+            continue
+        keep.add(int(uid))
+        SxMoProcessAssignee.objects.get_or_create(
+            mo_process_step=step,
+            user_id=uid,
+            defaults={'assigned_by': assigned_by if getattr(assigned_by, 'is_authenticated', False) else None},
+        )
+    SxMoProcessAssignee.objects.filter(mo_process_step=step).exclude(user_id__in=keep).delete()
+    return step
+
+
+def assignee_candidate_options(*, limit: int = 200) -> list[dict]:
+    """Danh sách NV gợi ý gán (user active có profile)."""
+    User = get_user_model()
+    out: list[dict] = []
+    qs = (
+        User.objects.filter(is_active=True)
+        .select_related('profile')
+        .order_by('username')[:limit]
+    )
+    for u in qs:
+        p = getattr(u, 'profile', None)
+        label = ((getattr(p, 'full_name', None) or '') if p else '').strip()
+        label = label or u.get_full_name() or u.username
+        out.append({'id': u.pk, 'label': label})
+    return out

@@ -161,6 +161,8 @@ def _san_xuat_menus(*, manager: bool) -> dict:
         'plan', 'plan_board', 'plan_progress', 'plan_overall', 'plan_detail', 'plan_npl', 'npl_pr', 'purchase_order',
         'npl_stock',
         'dispatch', 'mo', 'schedule', 'material_issue_req', 'prod_stats',
+        'team_work', 'team_work_cat', 'team_work_inep', 'team_work_theu',
+        'team_work_may', 'team_work_ht', 'team_work_gh',
         'wip_handover', 'wip_return', 'handover_status', 'fg_receipt_req',
         'disassembly', 'npl_surplus',
         'shop_floor', 'work_assign', 'downtime', 'piece_rate',

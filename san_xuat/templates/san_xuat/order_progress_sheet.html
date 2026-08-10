@@ -115,49 +115,5 @@
     </table>
   </div>
   {% endif %}
-
-  {% if can_update and sheet.sizes %}
-  <div class="jp-ops-entry">
-    <h3>Ghi SL tiến độ</h3>
-    <form method="post" class="row g-2 align-items-end">
-      {% csrf_token %}
-      <input type="hidden" name="action" value="record">
-      <div class="col-md-2">
-        <label class="form-label small text-muted" for="id_stat_date">Ngày</label>
-        <input type="date" name="stat_date" id="id_stat_date" class="form-control form-control-sm jp-date-vn" value="{{ today|date:'Y-m-d' }}" required>
-      </div>
-      <div class="col-md-3">
-        <label class="form-label small text-muted" for="id_process_key">Công đoạn</label>
-        <select name="process_key" id="id_process_key" class="form-select form-select-sm" required>
-          {% for group, steps in sheet.groups %}
-          {% if steps %}
-          <optgroup label="{{ group.label }}">
-            {% for s in steps %}
-            <option value="{{ s.key }}">{{ s.label }}</option>
-            {% endfor %}
-          </optgroup>
-          {% endif %}
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-md-2">
-        <label class="form-label small text-muted" for="id_size_label">Size</label>
-        <select name="size_label" id="id_size_label" class="form-select form-select-sm" required>
-          {% for row in sheet.sizes %}
-          <option value="{{ row.size_label }}">{{ row.size_label }} ({{ row.qty|floatformat:"-2" }})</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="col-md-2">
-        <label class="form-label small text-muted" for="id_qty">SL đạt</label>
-        <input type="number" name="qty" id="id_qty" class="form-control form-control-sm" min="0.01" step="0.01" required>
-      </div>
-      <div class="col-md-2">
-        <button type="submit" class="btn btn-hm btn-sm fw-bold">Ghi nhận</button>
-      </div>
-    </form>
-    <p class="small text-muted mb-0 mt-2">Ép keo + In chuyển nhiệt gom trong nhóm <strong>IN - Ép</strong>. Dữ liệu lưu vào thống kê sản xuất (TKSX).</p>
-  </div>
-  {% endif %}
 </div>
 {% endblock %}
