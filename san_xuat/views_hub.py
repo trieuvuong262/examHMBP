@@ -59,7 +59,6 @@ from san_xuat.hub_models import (
     SxFgReceiptRequest,
     SxMaterialIssueRequest,
     SxMaterialPlan,
-    SxMoProcessAssignee,
     SxMoProcessStep,
     SxNplPurchaseRequest,
     SxNplSurplus,
@@ -3830,6 +3829,7 @@ def team_work_board(request, slug: str):
         assignee_candidate_options,
         assign_team_work,
         build_team_work_rows,
+        group_team_work_jobs,
     )
 
     team_meta = team_by_slug(slug)
@@ -3884,7 +3884,7 @@ def team_work_board(request, slug: str):
     return render(request, 'san_xuat/team_work_board.html', {
         **_perm_ctx(request),
         'team': team,
-        'rows': rows,
+        'jobs': group_team_work_jobs(rows),
         'search_query': q,
         'can_assign': can_assign,
         'assignee_candidates': assignee_candidate_options() if can_assign else [],

@@ -31,6 +31,40 @@ class TeamWorkRow:
     status: str = ''
 
 
+@dataclass
+class TeamWorkJob:
+    mo: SxProductionOrder
+    rows: list[TeamWorkRow]
+    step_count: int = 0
+    assigned_count: int = 0
+    done_count: int = 0
+    run_count: int = 0
+    wait_count: int = 0
+
+
+def group_team_work_jobs(rows: list[TeamWorkRow]) -> list[TeamWorkJob]:
+    """Gom CD theo LSX — mỗi LSX là một việc."""
+    jobs: list[TeamWorkJob] = []
+    by_mo: dict[int, TeamWorkJob] = {}
+    for row in rows:
+        job = by_mo.get(row.mo.pk)
+        if job is None:
+            job = TeamWorkJob(mo=row.mo, rows=[])
+            by_mo[row.mo.pk] = job
+            jobs.append(job)
+        job.rows.append(row)
+        job.step_count += 1
+        if row.assignees:
+            job.assigned_count += 1
+        if row.status == 'done':
+            job.done_count += 1
+        elif row.status == 'in_progress':
+            job.run_count += 1
+        else:
+            job.wait_count += 1
+    return jobs
+
+
 def build_team_work_rows(*, slug: str, search: str = '') -> tuple[dict, list[TeamWorkRow]]:
     team = team_by_slug(slug)
     if not team:
