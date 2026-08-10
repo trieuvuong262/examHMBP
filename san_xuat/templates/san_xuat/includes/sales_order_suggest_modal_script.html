@@ -185,73 +185,65 @@
       });
   }
 
-  function initProductSelect() {
-    if (!productEl) return false;
-    if (productTs || productEl.tomselect) {
-      productTs = productTs || productEl.tomselect;
-      return !!productTs;
-    }
-    if (typeof TomSelect === 'undefined') {
-      console.warn('[jp-so-suggest] TomSelect chưa sẵn sàng');
-      return false;
-    }
-    var searchUrl = '{% url "san_xuat:product_code_search" %}';
-    productTs = new TomSelect(productEl, {
-      maxOptions: 40,
-      maxItems: 1,
-      valueField: 'id',
-      labelField: 'text',
-      searchField: ['text', 'code', 'name'],
-      placeholder: productEl.dataset.placeholder || 'Gõ mã SX hoặc tên sản phẩm…',
-      // Giữ dropdown trong modal (tránh z-index / focus trap)
-      dropdownParent: modalEl.querySelector('.modal-body') || 'body',
-      openOnFocus: true,
-      preload: true,
-      loadThrottle: 200,
-      create: false,
-      // score phải trả về FUNCTION — không được return số
-      score: function () {
-        return function () { return 1; };
-      },
-      shouldLoad: function () { return true; },
-      load: function (query, callback) {
-        var self = this;
-        fetch(searchUrl + '?q=' + encodeURIComponent(query || ''), {
-          headers: { 'Accept': 'application/json' },
-          credentials: 'same-origin',
-        })
-          .then(function (r) {
-            if (!r.ok) throw new Error('HTTP ' + r.status);
-            return r.json();
-          })
-          .then(function (data) {
-            callback(data.results || []);
-            try { self.open(); } catch (e) {}
-          })
-          .catch(function () { callback(); });
-      },
-      render: {
-        option: function (data, escape) {
-          var stock = (data.stock_label != null && String(data.stock_label) !== '')
-            ? (' · tồn ' + escape(String(data.stock_label)))
-            : '';
-          return '<div><strong>' + escape(data.code || '') + '</strong> — '
-            + escape(data.name || data.text || '') + stock + '</div>';
-        },
-        item: function (data, escape) {
-          return '<div>' + escape(data.code || data.text || '') + '</div>';
-        },
-        no_results: function () {
-          return '<div class="no-results">Không tìm thấy sản phẩm</div>';
-        },
-        loading: function () {
-          return '<div class="spinner-border spinner-border-sm" role="status"></div>';
-        },
-      },
-    });
+  var productBound = false;
+
+  function bindProductChange() {
+    if (!productTs || productBound) return;
+    productBound = true;
     productTs.on('change', function (value) {
       loadStockForStyle(value || '');
     });
+  }
+
+  function initProductSelect() {
+    if (!productEl) return false;
+    if (productEl.tomselect) {
+      productTs = productEl.tomselect;
+      bindProductChange();
+      return true;
+    }
+    if (productTs) {
+      bindProductChange();
+      return true;
+    }
+    // Dùng đúng helper đang chạy tốt ở cột «Mã SP» (dropdownParent=body)
+    if (typeof window.jpInitProductCodeSelect === 'function') {
+      productTs = window.jpInitProductCodeSelect(productEl);
+    } else if (typeof TomSelect !== 'undefined') {
+      var searchUrl = '{% url "san_xuat:product_code_search" %}';
+      productTs = new TomSelect(productEl, {
+        maxOptions: 40,
+        maxItems: 1,
+        valueField: 'id',
+        labelField: 'text',
+        searchField: ['text', 'code', 'name'],
+        placeholder: productEl.dataset.placeholder || 'Gõ mã SX hoặc tên sản phẩm…',
+        dropdownParent: 'body',
+        openOnFocus: true,
+        loadThrottle: 220,
+        load: function (query, callback) {
+          fetch(searchUrl + '?q=' + encodeURIComponent(query || ''), {
+            headers: { 'Accept': 'application/json' },
+          })
+            .then(function (r) { return r.json(); })
+            .then(function (data) { callback(data.results || []); })
+            .catch(function () { callback(); });
+        },
+        render: {
+          option: function (data, escape) {
+            return '<div>' + escape(data.text || data.code || '') + '</div>';
+          },
+          item: function (data, escape) {
+            return '<div>' + escape(data.code || data.text || '') + '</div>';
+          },
+        },
+      });
+    } else {
+      console.warn('[jp-so-suggest] TomSelect / jpInitProductCodeSelect chưa sẵn sàng');
+      return false;
+    }
+    if (!productTs) return false;
+    bindProductChange();
     return true;
   }
 
