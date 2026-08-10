@@ -28,9 +28,10 @@ def _q(v) -> Decimal:
     return Decimal(str(v or 0))
 
 
-def ensure_progress_work_centers() -> list[SxWorkCenter]:
-    """Tạo/ cập nhật các tổ trong mẫu (gồm IN-ÉP)."""
+def ensure_progress_work_centers(*, deactivate_others: bool = False) -> list[SxWorkCenter]:
+    """Tạo/cập nhật 6 tổ chuẩn (Cắt → Giao hàng thành phẩm)."""
     out: list[SxWorkCenter] = []
+    keep = {code for code, _n, _t in WC_SEED}
     for code, name, team in WC_SEED:
         wc, created = SxWorkCenter.objects.get_or_create(
             code=code,
@@ -42,17 +43,38 @@ def ensure_progress_work_centers() -> list[SxWorkCenter]:
             },
         )
         update_fields: list[str] = []
-        if not created:
-            if not (wc.team_label or '').strip():
-                wc.team_label = team
-                update_fields.append('team_label')
-            if not wc.is_active:
-                wc.is_active = True
-                update_fields.append('is_active')
-            if update_fields:
-                wc.save(update_fields=update_fields)
+        if (wc.name or '') != name:
+            wc.name = name
+            update_fields.append('name')
+        if (wc.team_label or '') != team:
+            wc.team_label = team
+            update_fields.append('team_label')
+        if not wc.is_active:
+            wc.is_active = True
+            update_fields.append('is_active')
+        if wc.is_demo:
+            wc.is_demo = False
+            update_fields.append('is_demo')
+        if update_fields:
+            wc.save(update_fields=update_fields)
         out.append(wc)
+    if deactivate_others:
+        SxWorkCenter.objects.filter(is_demo=False, is_active=True).exclude(
+            code__in=keep,
+        ).update(is_active=False)
     return out
+
+
+def standard_work_centers_qs():
+    """QuerySet tổ/chuyền chuẩn cho Năng lực SX / Công việc tổ."""
+    ensure_progress_work_centers()
+    codes = [code for code, _n, _t in WC_SEED]
+    # Giữ thứ tự theo mẫu
+    by_code = {
+        wc.code: wc
+        for wc in SxWorkCenter.objects.filter(code__in=codes, is_demo=False)
+    }
+    return [by_code[c] for c in codes if c in by_code]
 
 
 def work_center_map() -> dict[str, SxWorkCenter]:

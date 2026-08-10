@@ -22,13 +22,14 @@ LEGACY_FAKE_CODES = frozenset({
 })
 LEGACY_FAKE_TEAMS = frozenset({'Tổ May 1', 'Tổ May 2', 'Tổ ĐG', 'Chuyen 1'})
 
-# Mã IE (WC-*) → bộ phận HR phòng SẢN XUẤT (khớp tên Division đã fold).
+# Mã IE (WC-* + tổ chuẩn) → bộ phận HR phòng SẢN XUẤT (khớp tên Division đã fold).
 _IE_WC_TO_HR_KEYS: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
-    (('wc-cut', 'wc-fusing', 'cut', 'fusing'), ('cat', 'trai', 'trai vai')),
-    (('wc-print', 'print', 'ep'), ('in ep', 'in ')),
+    (('wc-cut', 'wc-fusing', 'cut', 'fusing', 'cat'), ('cat', 'trai', 'trai vai')),
+    (('wc-print', 'print', 'ep', 'in-ep', 'in_ep'), ('in ep', 'in ')),
+    (('theu', 'wc-embroider'), ('theu',)),
     (('wc-sew', 'sew', 'may'), ('may',)),
-    (('wc-finish', 'finish', 'ui', 'press'), ('ui',)),
-    (('wc-pack', 'pack', 'gap'), ('gap', 'gap xep')),
+    (('wc-finish', 'finish', 'ui', 'press', 'ht'), ('ui', 'gap', 'gap xep')),
+    (('wc-pack', 'pack', 'gap', 'gh'), ('giao hang', 'thanh pham', 'tp', 'gap')),
     # QC: gắn MAY nếu không có bộ phận QC riêng
     (('wc-qc', 'qc', 'fullcheck'), ('may',)),
 )
@@ -445,13 +446,69 @@ def sync_capacity_from_hrm(
         SxTeamHrMap.objects.filter(team_label__in=LEGACY_FAKE_TEAMS).delete()
 
     if deactivate_non_hr:
-        # Giữ bản ghi WC-* / tổ tay cho FK, nhưng tắt để không hiện chọn bộ phận
-        non_hr = SxWorkCenter.objects.filter(is_demo=False, is_active=True).exclude(
-            code__istartswith=CODE_PREFIX
+        # Giữ 6 tổ chuẩn (Cắt…GH) đang dùng trên Năng lực / Công việc tổ;
+        # chỉ tắt tổ tay / mã lẻ khác — HRD-* vẫn quản lý riêng.
+        from san_xuat.services.progress_template import standard_work_center_codes
+
+        non_hr = (
+            SxWorkCenter.objects.filter(is_demo=False, is_active=True)
+            .exclude(code__istartswith=CODE_PREFIX)
+            .exclude(code__in=standard_work_center_codes())
         )
         result.deactivated += non_hr.update(is_active=False)
 
+    # Đồng bộ headcount / NL ước lượng từ bộ phận HR → 6 tổ chuẩn (nếu map được)
+    _apply_hr_headcount_to_standard_centers()
+
     return result
+
+
+def _apply_hr_headcount_to_standard_centers() -> int:
+    """Gán headcount + capacity từ HRD-* khớp tên vào CAT / IN-EP / …"""
+    from san_xuat.services.order_progress_sheet import ensure_progress_work_centers
+    from san_xuat.services.progress_template import (
+        WC_CAT,
+        WC_GH,
+        WC_HT,
+        WC_IN_EP,
+        WC_MAY,
+        WC_THEU,
+    )
+
+    ensure_progress_work_centers()
+    hr_centers = list(hr_work_centers_qs())
+    if not hr_centers:
+        return 0
+    mapping: tuple[tuple[str, tuple[str, ...]], ...] = (
+        (WC_CAT, ('cat', 'trai', 'trai vai')),
+        (WC_IN_EP, ('in ep', 'in ', 'ep logo', 'ep ')),
+        (WC_THEU, ('theu',)),
+        (WC_MAY, ('may',)),
+        (WC_HT, ('ui', 'gap', 'gap xep')),
+        (WC_GH, ('giao hang', 'thanh pham', 'tp')),
+    )
+    updated = 0
+    for code, keys in mapping:
+        hc = _pick_hr_by_keys(hr_centers, keys)
+        wc = SxWorkCenter.objects.filter(code=code, is_demo=False).first()
+        if not hc or not wc:
+            continue
+        fields: list[str] = []
+        if (wc.headcount or 0) != (hc.headcount or 0):
+            wc.headcount = hc.headcount or 0
+            fields.append('headcount')
+        if (hc.capacity_per_day or 0) > 0 and (
+            not wc.capacity_per_day or wc.capacity_per_day <= 0
+        ):
+            wc.capacity_per_day = hc.capacity_per_day
+            fields.append('capacity_per_day')
+        if not wc.is_active:
+            wc.is_active = True
+            fields.append('is_active')
+        if fields:
+            wc.save(update_fields=fields)
+            updated += 1
+    return updated
 
 
 def remap_process_steps_to_hr() -> int:

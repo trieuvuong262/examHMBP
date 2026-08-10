@@ -234,3 +234,8 @@ WC_SEED: tuple[tuple[str, str, str], ...] = (
     (WC_HT, 'Ủi - Gấp xếp', 'Ủi - Gấp xếp'),
     (WC_GH, 'Giao hàng thành phẩm', 'Giao hàng thành phẩm'),
 )
+
+
+def standard_work_center_codes() -> frozenset[str]:
+    """Mã tổ/chuyền chuẩn (Cắt → Giao hàng thành phẩm)."""
+    return frozenset(code for code, _name, _team in WC_SEED)

@@ -4128,10 +4128,21 @@ def capacity_list(request):
     month = (request.GET.get('month') or '').strip()
     date_from, date_to, filters = resolve_sx_period(request)
 
+    from san_xuat.services.order_progress_sheet import ensure_progress_work_centers
+    from san_xuat.services.progress_template import standard_work_center_codes
+
+    ensure_progress_work_centers()
+    seed_codes = list(standard_work_center_codes())
+    # Thứ tự theo mẫu: Cắt → In-Ép → Thêu → May → Ủi-Gấp → GH
+    from san_xuat.services.progress_template import WC_SEED
+
+    seed_order = {code: i for i, (code, _n, _t) in enumerate(WC_SEED)}
     base_centers = (
-        SxWorkCenter.objects.filter(is_demo=False)
+        SxWorkCenter.objects.filter(
+            is_demo=False,
+            code__in=seed_codes,
+        )
         .select_related('created_by')
-        .order_by('code')
     )
     from san_xuat.list_grid import apply_sx_list_sort, sx_list_grid_context
 
@@ -4140,6 +4151,12 @@ def capacity_list(request):
         request,
         'capacity_catalog',
     )
+    # Không sort tay → giữ thứ tự mẫu
+    if not (request.GET.get('sort') or '').strip():
+        centers = sorted(
+            list(centers),
+            key=lambda wc: seed_order.get(wc.code, 999),
+        )
     load_rows = build_capacity_load(date_from=date_from, date_to=date_to)
     preserve = {'month': month} if month else None
     from san_xuat.services.sx_settings import sx_int
@@ -4224,7 +4241,22 @@ def capacity_setup(request):
 
     # Nhân sự chỉ lấy từ HR (Đồng bộ HR) — không cho sửa tay trên màn này.
     CapacityFormSet = modelformset_factory(SxWorkCenter, form=CapacitySetupForm, extra=0)
-    centers = SxWorkCenter.objects.filter(is_demo=False, is_active=True).order_by('code')
+    from django.db.models import Case, IntegerField, Value, When
+
+    from san_xuat.services.order_progress_sheet import ensure_progress_work_centers
+    from san_xuat.services.progress_template import WC_SEED, standard_work_center_codes
+
+    ensure_progress_work_centers()
+    order_whens = [When(code=code, then=Value(i)) for i, (code, _n, _t) in enumerate(WC_SEED)]
+    centers = (
+        SxWorkCenter.objects.filter(
+            is_demo=False,
+            is_active=True,
+            code__in=standard_work_center_codes(),
+        )
+        .annotate(_seed_ord=Case(*order_whens, default=Value(999), output_field=IntegerField()))
+        .order_by('_seed_ord', 'code')
+    )
     formset = CapacityFormSet(request.POST or None, queryset=centers)
     if request.method == 'POST':
         if formset.is_valid():

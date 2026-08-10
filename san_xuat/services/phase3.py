@@ -271,8 +271,10 @@ class CapacityLoadRow:
 
 
 def build_capacity_load(*, date_from, date_to) -> list[CapacityLoadRow]:
+    from san_xuat.services.order_progress_sheet import standard_work_centers_qs
+
     days = max((date_to - date_from).days + 1, 1)
-    centers = list(SxWorkCenter.objects.filter(is_demo=False, is_active=True).order_by("code"))
+    centers = standard_work_centers_qs()
     rows: list[CapacityLoadRow] = []
     for center in centers:
         capacity = (center.capacity_per_day or Decimal("0")) * days

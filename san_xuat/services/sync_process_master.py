@@ -122,6 +122,7 @@ def sync_standard_process_library(
         'ops_deleted': 0,
         'process_names': 0,
         'process_names_deactivated': 0,
+        'work_centers_deactivated': 0,
     }
 
     group_by_key: dict[str, SxOperationGroup] = {}
@@ -235,5 +236,15 @@ def sync_standard_process_library(
                 st.is_active = False
                 st.save(update_fields=['is_active'])
                 stats['stages_deactivated'] += 1
+
+        # Năng lực SX: chỉ giữ 6 tổ chuẩn đang dùng
+        from san_xuat.hub_models import SxWorkCenter
+        from san_xuat.services.progress_template import standard_work_center_codes
+
+        ensure_progress_work_centers(deactivate_others=False)
+        stale_wc = SxWorkCenter.objects.filter(is_demo=False, is_active=True).exclude(
+            code__in=standard_work_center_codes(),
+        )
+        stats['work_centers_deactivated'] = stale_wc.update(is_active=False)
 
     return stats
