@@ -3894,7 +3894,7 @@ def team_work_hub(request):
 def team_work_board(request, slug: str):
     """Bảng công việc theo tổ — phân công CD con cho NV."""
     from san_xuat.services.planning import PlanningError
-    from san_xuat.services.progress_template import TEAM_SLUGS, team_by_slug
+    from san_xuat.services.progress_template import team_by_slug
     from san_xuat.services.team_work import (
         assignee_candidate_options,
         assign_team_work,
@@ -3950,18 +3950,10 @@ def team_work_board(request, slug: str):
         messages.error(request, str(exc))
         return redirect('san_xuat:team_work_hub')
 
-    team_tabs = []
-    for s, _gk, mk, lab in TEAM_SLUGS:
-        if user_can_access_menu(request.user, MODULE_SAN_XUAT, mk) or user_can_access_menu(
-            request.user, MODULE_SAN_XUAT, 'team_work',
-        ):
-            team_tabs.append({'slug': s, 'label': lab, 'menu_key': mk})
-
     return render(request, 'san_xuat/team_work_board.html', {
         **_perm_ctx(request),
         'team': team,
         'rows': rows,
-        'team_tabs': team_tabs,
         'search_query': q,
         'can_assign': can_assign,
         'assignee_candidates': assignee_candidate_options() if can_assign else [],
