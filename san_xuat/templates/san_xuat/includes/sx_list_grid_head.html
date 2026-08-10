@@ -1,6 +1,6 @@
 {% for col in list_columns %}
 <th class="npl-col jp-mat-th{% if col.align == 'end' %} text-end{% elif col.align == 'center' %} text-center{% endif %}"
-    data-col="{{ col.key }}" style="width:{% widthratio col.weight total_col_weight 100 %}%">
+    data-col="{{ col.key }}" data-weight="{{ col.weight }}" style="width:{% widthratio col.weight total_col_weight 100 %}%">
     {% if col.sortable|default:True and col.key != 'actions' %}
     <button type="button" class="jp-mat-th-sort{% if sort_key == col.key %} is-active{% endif %}"
             data-sort="{{ col.key }}" title="Sắp xếp theo {{ col.label }}">

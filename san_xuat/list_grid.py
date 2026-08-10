@@ -100,7 +100,7 @@ SX_LIST_GRIDS: dict[str, dict[str, Any]] = {
             _col('code', 'Mã', required=True),
             _col('product', 'Sản phẩm tháo', weight=130),
             _col('qty', 'Số lượng', weight=80, align='end'),
-            _col('mo', 'Lệnh sản xuất', weight=110, default=False),
+            _col('mo', 'Lệnh sản xuất', weight=140, default=False),
             _col('order_date', 'Ngày', weight=90),
             _col('status', 'Trạng thái', weight=100),
             actions=False,
@@ -120,7 +120,7 @@ SX_LIST_GRIDS: dict[str, dict[str, Any]] = {
     'dispatch_material_issue': _spec(
         _cols(
             _col('code', 'Mã', required=True),
-            _col('mo', 'Lệnh sản xuất', weight=120),
+            _col('mo', 'Lệnh sản xuất', weight=150),
             _col('request_date', 'Ngày', weight=90),
             _col('status', 'Trạng thái', weight=100),
             _col('issue_doc', 'Phiếu xuất', weight=110, default=False),
@@ -139,7 +139,7 @@ SX_LIST_GRIDS: dict[str, dict[str, Any]] = {
     'dispatch_prod_stat': _spec(
         _cols(
             _col('code', 'Mã', required=True),
-            _col('mo', 'Lệnh sản xuất', weight=120),
+            _col('mo', 'Lệnh sản xuất', weight=150),
             _col('stat_date', 'Ngày', weight=90),
             _col('process', 'Công đoạn', weight=110),
             _col('qty_good', 'Đạt', weight=70, align='end'),
@@ -163,7 +163,7 @@ SX_LIST_GRIDS: dict[str, dict[str, Any]] = {
     'dispatch_fg_receipt': _spec(
         _cols(
             _col('code', 'Mã', required=True),
-            _col('mo', 'Lệnh sản xuất', weight=120),
+            _col('mo', 'Lệnh sản xuất', weight=150),
             _col('request_date', 'Ngày', weight=90),
             _col('qty', 'Số lượng', weight=80, align='end'),
             _col('status', 'Trạng thái', weight=100),
@@ -186,7 +186,7 @@ SX_LIST_GRIDS: dict[str, dict[str, Any]] = {
             _col('code', 'Mã', required=True),
             _col('material', 'NPL', weight=130),
             _col('qty', 'Số lượng', weight=80, align='end'),
-            _col('source', 'Lệnh sản xuất / tháo dỡ', weight=130),
+            _col('source', 'Lệnh sản xuất / tháo dỡ', weight=160),
             _col('recorded_at', 'Ngày', weight=90),
             _col('status', 'Trạng thái', weight=100),
             _col('stock_adj', 'Điều chỉnh kho', weight=90, default=False),
@@ -207,7 +207,7 @@ SX_LIST_GRIDS: dict[str, dict[str, Any]] = {
     'wip_handover': _spec(
         _cols(
             _col('code', 'Mã', required=True),
-            _col('mo', 'Lệnh sản xuất', weight=120),
+            _col('mo', 'Lệnh sản xuất', weight=150),
             _col('from_process', 'Từ công đoạn', weight=110),
             _col('to_process', 'Đến công đoạn', weight=110),
             _col('qty', 'Số lượng', weight=80, align='end'),
@@ -230,7 +230,7 @@ SX_LIST_GRIDS: dict[str, dict[str, Any]] = {
     'wip_return': _spec(
         _cols(
             _col('code', 'Mã', required=True),
-            _col('mo', 'Lệnh sản xuất', weight=120),
+            _col('mo', 'Lệnh sản xuất', weight=150),
             _col('from_process', 'Từ công đoạn', weight=110),
             _col('to_process', 'Về công đoạn', weight=110),
             _col('qty', 'Số lượng', weight=80, align='end'),
@@ -253,7 +253,7 @@ SX_LIST_GRIDS: dict[str, dict[str, Any]] = {
     'qc_request': _spec(
         _cols(
             _col('code', 'Mã', required=True),
-            _col('mo', 'Lệnh sản xuất', weight=120),
+            _col('mo', 'Lệnh sản xuất', weight=150),
             _col('product', 'Mã sản phẩm', weight=110),
             _col('process', 'Công đoạn', weight=110, default=False),
             _col('qty', 'Số lượng', weight=80, align='end'),
@@ -278,7 +278,7 @@ SX_LIST_GRIDS: dict[str, dict[str, Any]] = {
     'qc_sheet': _spec(
         _cols(
             _col('code', 'Mã', required=True),
-            _col('qc_request', 'Yêu cầu kiểm tra', weight=130, default=False),
+            _col('qc_request', 'Yêu cầu kiểm tra', weight=150, default=False),
             _col('inspected_at', 'Ngày kiểm', weight=100),
             _col('standard', 'Bộ tiêu chuẩn', weight=120, default=False),
             _col('qty_sample', 'Mẫu', weight=70, align='end', default=False),
@@ -305,7 +305,7 @@ SX_LIST_GRIDS: dict[str, dict[str, Any]] = {
         _cols(
             _col('code', 'Mã', required=True),
             _col('alert_type', 'Loại', weight=90, default=False),
-            _col('mo', 'Lệnh sản xuất', weight=120),
+            _col('mo', 'Lệnh sản xuất', weight=150),
             _col('process', 'Công đoạn', weight=110),
             _col('defect_rate', 'Tỷ lệ lỗi', weight=90, align='end'),
             _col('tolerance_limit', 'Ngưỡng', weight=80, align='end', default=False),
@@ -330,7 +330,7 @@ SX_LIST_GRIDS: dict[str, dict[str, Any]] = {
     'work_assignment': _spec(
         _cols(
             _col('code', 'Mã', required=True),
-            _col('mo', 'Lệnh sản xuất', weight=120),
+            _col('mo', 'Lệnh sản xuất', weight=150),
             _col('title', 'Tiêu đề', weight=130),
             _col('assignee', 'Tổ / công đoạn / người', weight=150),
             _col('work_task', 'WorkTask', weight=100, default=False),
@@ -353,7 +353,7 @@ SX_LIST_GRIDS: dict[str, dict[str, Any]] = {
     'packing': _spec(
         _cols(
             _col('code', 'Mã', required=True),
-            _col('mo', 'Lệnh sản xuất', weight=120),
+            _col('mo', 'Lệnh sản xuất', weight=150),
             _col('qty', 'Số lượng', weight=80, align='end'),
             _col('lot', 'Lô', weight=90, default=False),
             _col('pack_date', 'Ngày', weight=90),
@@ -561,7 +561,7 @@ SX_LIST_GRIDS: dict[str, dict[str, Any]] = {
     'ncr': _spec(
         _cols(
             _col('code', 'Mã', required=True),
-            _col('mo', 'Lệnh sản xuất', weight=120),
+            _col('mo', 'Lệnh sản xuất', weight=150),
             _col('disposition', 'Hướng xử lý', weight=120, default=False),
             _col('qty', 'Số lượng', weight=80, align='end'),
             _col('status', 'Trạng thái', weight=100),
@@ -580,7 +580,7 @@ SX_LIST_GRIDS: dict[str, dict[str, Any]] = {
     'actual_cost': _spec(
         _cols(
             _col('code', 'Mã', required=True),
-            _col('mo', 'Lệnh sản xuất', weight=120),
+            _col('mo', 'Lệnh sản xuất', weight=150),
             _col('material', 'Nguyên phụ liệu', weight=100, align='end', default=False),
             _col('labor', 'Nhân công', weight=90, align='end', default=False),
             _col('subcontract', 'Gia công', weight=90, align='end', default=False),
@@ -607,7 +607,7 @@ SX_LIST_GRIDS: dict[str, dict[str, Any]] = {
             _col('reason', 'Lý do', weight=150),
             _col('minutes', 'Phút', weight=70, align='end'),
             _col('team', 'Tổ', weight=100),
-            _col('mo', 'Lệnh sản xuất', weight=120),
+            _col('mo', 'Lệnh sản xuất', weight=150),
             meta=False,
         ),
         {
@@ -749,12 +749,12 @@ def sx_list_grid_context(request: HttpRequest, list_key: str) -> dict[str, Any]:
     return {
         'list_key': list_key,
         'list_columns': cols,
-        'total_col_weight': sum(c['weight'] for c in cols),
+        'total_col_weight': sum(c['weight'] for c in cols) or 1,
         'sort_key': sort_key,
         'sort_dir': sort_dir,
         'sx_default_sort_key': spec.get('default_sort') or 'code',
         'sx_list_table_id': f'sx-list-{list_key}',
-        'sx_list_storage_key': f'san_xuat_{list_key}_cols_v2',
+        'sx_list_storage_key': f'san_xuat_{list_key}_cols_v3',
         'sx_col_btn_id': f'sx-col-btn-{list_key}',
         'sx_col_prefix': f'sx-col-{list_key}',
         'sx_col_toggle_class': f'sx-col-toggle-{list_key}',
