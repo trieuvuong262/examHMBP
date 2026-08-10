@@ -461,11 +461,15 @@ def sales_order_create(request):
                 return redirect('san_xuat:sales_order_detail', pk=order.pk)
         messages.error(request, 'Không tạo được đơn — kiểm tra lại form.')
 
+    # Size mặc định công cụ đề xuất SL (khớp bảng kế hoạch size)
+    suggest_sizes = ['S', 'M', 'L', 'XL', 'XXL', 'XXXL']
     return render(request, 'san_xuat/sales_order_form.html', {
         **_perm_ctx(request),
         'header': header,
         'formset': formset,
         'is_create': True,
+        'suggest_sizes': suggest_sizes,
+        'suggest_sizes_json': json.dumps(suggest_sizes, ensure_ascii=False),
     })
 
 

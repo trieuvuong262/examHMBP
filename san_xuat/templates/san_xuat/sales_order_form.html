@@ -12,6 +12,9 @@
       <h2 class="jp-npl-mat-topbar-title w-100">Lên đơn đặt hàng</h2>
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
+      <button type="button" class="btn btn-outline-hm btn-sm fw-bold" id="jp-so-suggest-open">
+        <i class="bi bi-calculator me-1" aria-hidden="true"></i>Đề xuất SL
+      </button>
       <span class="sep" aria-hidden="true"></span>
       <a href="{% url 'san_xuat:sales_order_list' %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại</a>
     </nav>
@@ -106,6 +109,7 @@
 </template>
 
 {% include 'san_xuat/includes/sx_product_code_select_script.html' %}
+{% include 'san_xuat/includes/sales_order_suggest_modal.html' %}
 <script>
 (function () {
   var body = document.querySelector('#jp-so-lines-table tbody');

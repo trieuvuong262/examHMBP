@@ -1,0 +1,408 @@
+{# Công cụ đề xuất SL theo size — (tiêu thụ × hệ số) − tồn → làm tròn lên #}
+<style>
+  .jp-so-suggest-modal .modal-dialog { max-width: min(960px, 96vw); }
+  .jp-so-suggest-modal .modal-content { border: 0; border-radius: .85rem; overflow: hidden; }
+  .jp-so-suggest-modal .modal-header {
+    background: #f8fafc;
+    border-bottom: 1px solid var(--bs-border-color);
+    padding: .85rem 1.1rem;
+  }
+  .jp-so-suggest-modal .modal-title { font-size: 1rem; font-weight: 700; }
+  .jp-so-suggest-modal .modal-body { padding: 1rem 1.1rem 1.15rem; }
+  .jp-so-suggest-sheet {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .8125rem;
+    table-layout: fixed;
+  }
+  .jp-so-suggest-sheet th,
+  .jp-so-suggest-sheet td {
+    border: 1px solid #94a3b8;
+    padding: .28rem .35rem;
+    vertical-align: middle;
+  }
+  .jp-so-suggest-sheet .jp-so-sg-label {
+    background: #93c5fd;
+    font-weight: 700;
+    color: #0f172a;
+    width: 11.5rem;
+    white-space: nowrap;
+  }
+  .jp-so-suggest-sheet .jp-so-sg-size {
+    background: #f8fafc;
+    text-align: center;
+    font-weight: 700;
+    color: #334155;
+  }
+  .jp-so-suggest-sheet .jp-so-sg-input-cell { background: #fde047; padding: .15rem; }
+  .jp-so-suggest-sheet .jp-so-sg-input-cell input {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    text-align: center;
+    font-weight: 600;
+    font-size: .8125rem;
+    padding: .2rem .15rem;
+    color: #0f172a;
+    outline: none;
+  }
+  .jp-so-suggest-sheet .jp-so-sg-input-cell input:focus {
+    background: #fffbeb;
+    border-radius: .2rem;
+  }
+  .jp-so-suggest-sheet .jp-so-sg-calc {
+    background: #bbf7d0;
+    text-align: center;
+    font-weight: 700;
+    color: #14532d;
+  }
+  .jp-so-suggest-sheet .jp-so-sg-suggest {
+    background: #f9a8d4;
+    text-align: center;
+    font-weight: 800;
+    color: #9d174d;
+  }
+  .jp-so-suggest-sheet .jp-so-sg-text-cell input {
+    text-align: left;
+    padding-left: .45rem;
+  }
+  .jp-so-suggest-sheet .jp-so-sg-formula {
+    background: #e2e8f0;
+    font-weight: 600;
+    color: #334155;
+    font-size: .78rem;
+  }
+  .jp-so-suggest-hint {
+    font-size: .78rem;
+    color: var(--bs-secondary-color);
+    margin: .65rem 0 0;
+  }
+  .jp-so-suggest-total {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .5rem 1rem;
+    margin-top: .85rem;
+    padding: .55rem .75rem;
+    background: #f8fafc;
+    border: 1px solid var(--bs-border-color);
+    border-radius: .5rem;
+    font-size: .875rem;
+  }
+  .jp-so-suggest-total strong { font-variant-numeric: tabular-nums; }
+  @media (max-width: 767.98px) {
+    .jp-so-suggest-sheet .jp-so-sg-label { width: 7.5rem; white-space: normal; font-size: .72rem; }
+    .jp-so-suggest-sheet th,
+    .jp-so-suggest-sheet td { font-size: .72rem; }
+  }
+</style>
+
+<div class="modal fade jp-so-suggest-modal" id="jpSoSuggestModal" tabindex="-1"
+     aria-labelledby="jpSoSuggestModalTitle" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="jpSoSuggestModalTitle">
+          <i class="bi bi-calculator me-1" aria-hidden="true"></i>Công cụ đề xuất số lượng
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+      </div>
+      <div class="modal-body">
+        <div class="table-responsive">
+          <table class="jp-so-suggest-sheet" id="jp-so-suggest-sheet">
+            <thead>
+              <tr>
+                <th class="jp-so-sg-label">Size</th>
+                {% for sz in suggest_sizes %}
+                <th class="jp-so-sg-size" data-size="{{ sz }}">{{ sz }}</th>
+                {% endfor %}
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th class="jp-so-sg-label" scope="row">Hệ số</th>
+                <td class="jp-so-sg-input-cell" colspan="{{ suggest_sizes|length }}">
+                  <input type="number" id="jp-so-sg-coef" value="2" min="0" step="0.1" inputmode="decimal" aria-label="Hệ số">
+                </td>
+              </tr>
+              <tr>
+                <th class="jp-so-sg-label" scope="row">Làm tròn</th>
+                <td class="jp-so-sg-input-cell" colspan="{{ suggest_sizes|length }}">
+                  <input type="number" id="jp-so-sg-round" value="50" min="1" step="1" inputmode="numeric" aria-label="Làm tròn">
+                </td>
+              </tr>
+              <tr>
+                <th class="jp-so-sg-label" scope="row">Loại hàng</th>
+                <td class="jp-so-sg-input-cell jp-so-sg-text-cell" colspan="{{ suggest_sizes|length }}">
+                  <input type="text" id="jp-so-sg-product" value="" placeholder="Vd. Striker Trắng" maxlength="120" aria-label="Loại hàng">
+                </td>
+              </tr>
+              <tr>
+                <th class="jp-so-sg-label" scope="row">Thời gian dự đoán</th>
+                <td class="jp-so-sg-input-cell jp-so-sg-text-cell" colspan="{{ suggest_sizes|length }}">
+                  <input type="text" id="jp-so-sg-period" value="30 ngày" maxlength="60" aria-label="Thời gian dự đoán">
+                </td>
+              </tr>
+              <tr>
+                <th class="jp-so-sg-label" scope="row">Tồn kho thực tế</th>
+                {% for sz in suggest_sizes %}
+                <td class="jp-so-sg-input-cell">
+                  <input type="number" class="jp-so-sg-stock" data-size="{{ sz }}" value="0" min="0" step="1" inputmode="numeric" aria-label="Tồn {{ sz }}">
+                </td>
+                {% endfor %}
+              </tr>
+              <tr>
+                <th class="jp-so-sg-label" scope="row">Tốc độ tiêu thụ</th>
+                {% for sz in suggest_sizes %}
+                <td class="jp-so-sg-input-cell">
+                  <input type="number" class="jp-so-sg-velocity" data-size="{{ sz }}" value="0" min="0" step="1" inputmode="numeric" aria-label="Tiêu thụ {{ sz }}">
+                </td>
+                {% endfor %}
+              </tr>
+              <tr>
+                <th class="jp-so-sg-label" scope="row">Công thức đề xuất</th>
+                <td class="jp-so-sg-formula" colspan="{{ suggest_sizes|length }}">
+                  (Tốc độ tiêu thụ × hệ số) − Tồn kho thực tế
+                </td>
+              </tr>
+              <tr>
+                <th class="jp-so-sg-label" scope="row">Giá trị sau khi tính</th>
+                {% for sz in suggest_sizes %}
+                <td class="jp-so-sg-calc jp-so-sg-raw" data-size="{{ sz }}">0</td>
+                {% endfor %}
+              </tr>
+              <tr>
+                <th class="jp-so-sg-label" scope="row">Giá trị đề xuất</th>
+                {% for sz in suggest_sizes %}
+                <td class="jp-so-sg-suggest jp-so-sg-out" data-size="{{ sz }}">0</td>
+                {% endfor %}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="jp-so-suggest-hint mb-0">
+          Ô vàng nhập tay · kết quả cập nhật ngay. Đề xuất = làm tròn <em>lên</em> theo bước «Làm tròn».
+        </p>
+        <div class="jp-so-suggest-total">
+          <span>Tổng đề xuất: <strong id="jp-so-sg-total">0</strong></span>
+          <span class="text-muted" id="jp-so-sg-breakdown"></span>
+        </div>
+      </div>
+      <div class="modal-footer flex-wrap gap-2">
+        <button type="button" class="btn btn-outline-secondary btn-sm" id="jp-so-sg-reset">Đặt lại</button>
+        <button type="button" class="btn btn-outline-hm btn-sm fw-bold" id="jp-so-sg-copy">Sao chép bảng</button>
+        <button type="button" class="btn btn-hm btn-sm fw-bold" id="jp-so-sg-apply">
+          Áp dụng tổng vào dòng sản phẩm
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var SIZES = {{ suggest_sizes_json|safe }};
+  var modalEl = document.getElementById('jpSoSuggestModal');
+  var openBtn = document.getElementById('jp-so-suggest-open');
+  if (!modalEl || !openBtn || !window.bootstrap) return;
+
+  var coefEl = document.getElementById('jp-so-sg-coef');
+  var roundEl = document.getElementById('jp-so-sg-round');
+  var productEl = document.getElementById('jp-so-sg-product');
+  var periodEl = document.getElementById('jp-so-sg-period');
+  var totalEl = document.getElementById('jp-so-sg-total');
+  var breakdownEl = document.getElementById('jp-so-sg-breakdown');
+  var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+  var activeQtyInput = null;
+
+  function num(el, fallback) {
+    if (!el) return fallback;
+    var v = parseFloat(String(el.value || '').replace(',', '.'));
+    return Number.isFinite(v) ? v : fallback;
+  }
+
+  function roundUp(value, step) {
+    if (!Number.isFinite(value) || value <= 0) return 0;
+    var s = step > 0 ? step : 1;
+    return Math.ceil(value / s) * s;
+  }
+
+  function fmt(n) {
+    if (!Number.isFinite(n)) return '0';
+    return String(Math.round(n));
+  }
+
+  function stockInput(size) {
+    return modalEl.querySelector('.jp-so-sg-stock[data-size="' + size + '"]');
+  }
+  function velocityInput(size) {
+    return modalEl.querySelector('.jp-so-sg-velocity[data-size="' + size + '"]');
+  }
+  function rawCell(size) {
+    return modalEl.querySelector('.jp-so-sg-raw[data-size="' + size + '"]');
+  }
+  function outCell(size) {
+    return modalEl.querySelector('.jp-so-sg-out[data-size="' + size + '"]');
+  }
+
+  function recalc() {
+    var coef = num(coefEl, 2);
+    var step = num(roundEl, 50);
+    var total = 0;
+    var parts = [];
+    SIZES.forEach(function (sz) {
+      var stock = num(stockInput(sz), 0);
+      var vel = num(velocityInput(sz), 0);
+      var raw = (vel * coef) - stock;
+      var sug = roundUp(raw, step);
+      var rawEl = rawCell(sz);
+      var sugEl = outCell(sz);
+      if (rawEl) rawEl.textContent = fmt(raw);
+      if (sugEl) sugEl.textContent = fmt(sug);
+      total += sug;
+      if (sug > 0) parts.push(sz + ':' + fmt(sug));
+    });
+    if (totalEl) totalEl.textContent = fmt(total);
+    if (breakdownEl) {
+      breakdownEl.textContent = parts.length ? ('(' + parts.join(' · ') + ')') : '';
+    }
+    return total;
+  }
+
+  function resetDefaults() {
+    if (coefEl) coefEl.value = '2';
+    if (roundEl) roundEl.value = '50';
+    if (productEl) productEl.value = '';
+    if (periodEl) periodEl.value = '30 ngày';
+    SIZES.forEach(function (sz) {
+      var s = stockInput(sz);
+      var v = velocityInput(sz);
+      if (s) s.value = '0';
+      if (v) v.value = '0';
+    });
+    recalc();
+  }
+
+  function seedFromForm() {
+    var nameInput = document.querySelector('#jp-so-lines-table tbody tr.jp-so-line-row:not([style*="display: none"]) input[name$="-product_name"]');
+    if (productEl && nameInput && nameInput.value && !productEl.value) {
+      productEl.value = nameInput.value.trim();
+    }
+    var stockCells = document.querySelectorAll('#jp-so-lines-table tbody tr.jp-so-line-row:not([style*="display: none"])');
+    // Nếu chỉ 1 dòng và tồn kho hiển thị số — gợi ý vào size đầu (S) khi toàn 0
+    if (stockCells.length === 1) {
+      var allZero = SIZES.every(function (sz) { return num(stockInput(sz), 0) === 0; });
+      if (allZero) {
+        var stockText = (stockCells[0].querySelector('.jp-so-stock-qty') || {}).textContent || '';
+        var stockN = parseFloat(String(stockText).replace(/[^\d.-]/g, ''));
+        if (Number.isFinite(stockN) && stockN > 0 && stockInput('S')) {
+          stockInput('S').value = String(Math.round(stockN));
+        }
+      }
+    }
+    recalc();
+  }
+
+  function findTargetQtyInput() {
+    if (activeQtyInput && document.body.contains(activeQtyInput)) {
+      var row = activeQtyInput.closest('tr');
+      if (row && row.style.display !== 'none') return activeQtyInput;
+    }
+    var rows = document.querySelectorAll('#jp-so-lines-table tbody tr.jp-so-line-row');
+    for (var i = 0; i < rows.length; i++) {
+      var r = rows[i];
+      if (r.style.display === 'none') continue;
+      var del = r.querySelector('input[type=checkbox][name$="-DELETE"]');
+      if (del && del.checked) continue;
+      var qty = r.querySelector('input[name$="-qty"]');
+      if (qty) return qty;
+    }
+    return null;
+  }
+
+  function applyToForm() {
+    var total = recalc();
+    var qty = findTargetQtyInput();
+    if (!qty) {
+      window.alert('Chưa có dòng sản phẩm để áp dụng. Thêm sản phẩm trước.');
+      return;
+    }
+    qty.value = String(Math.round(total));
+    qty.dispatchEvent(new Event('input', { bubbles: true }));
+    qty.dispatchEvent(new Event('change', { bubbles: true }));
+    qty.focus();
+    qty.classList.add('border-success');
+    setTimeout(function () { qty.classList.remove('border-success'); }, 1200);
+
+    var notes = document.getElementById('id_notes');
+    if (notes) {
+      var product = (productEl && productEl.value || '').trim();
+      var period = (periodEl && periodEl.value || '').trim();
+      var parts = [];
+      SIZES.forEach(function (sz) {
+        var sug = parseInt((outCell(sz) || {}).textContent || '0', 10) || 0;
+        if (sug > 0) parts.push(sz + '=' + sug);
+      });
+      var line = 'Đề xuất' + (product ? ' ' + product : '')
+        + (period ? ' (' + period + ')' : '')
+        + ': tổng ' + Math.round(total)
+        + (parts.length ? ' [' + parts.join(', ') + ']' : '');
+      var cur = (notes.value || '').trim();
+      notes.value = cur ? (cur + '\n' + line) : line;
+    }
+    modal.hide();
+  }
+
+  function copyTable() {
+    var coef = num(coefEl, 2);
+    var step = num(roundEl, 50);
+    var lines = [];
+    lines.push('Size\t' + SIZES.join('\t'));
+    lines.push('Hệ số\t' + coef);
+    lines.push('Làm tròn\t' + step);
+    lines.push('Loại hàng\t' + ((productEl && productEl.value) || ''));
+    lines.push('Thời gian dự đoán\t' + ((periodEl && periodEl.value) || ''));
+    lines.push('Tồn kho thực tế\t' + SIZES.map(function (sz) { return fmt(num(stockInput(sz), 0)); }).join('\t'));
+    lines.push('Tốc độ tiêu thụ\t' + SIZES.map(function (sz) { return fmt(num(velocityInput(sz), 0)); }).join('\t'));
+    lines.push('Giá trị sau khi tính\t' + SIZES.map(function (sz) { return (rawCell(sz) || {}).textContent || '0'; }).join('\t'));
+    lines.push('Giá trị đề xuất\t' + SIZES.map(function (sz) { return (outCell(sz) || {}).textContent || '0'; }).join('\t'));
+    var text = lines.join('\n');
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () {
+        var btn = document.getElementById('jp-so-sg-copy');
+        if (!btn) return;
+        var old = btn.textContent;
+        btn.textContent = 'Đã sao chép';
+        setTimeout(function () { btn.textContent = old; }, 1200);
+      });
+    } else {
+      window.prompt('Sao chép bảng:', text);
+    }
+  }
+
+  openBtn.addEventListener('click', function () {
+    seedFromForm();
+    modal.show();
+  });
+
+  modalEl.addEventListener('input', function (e) {
+    if (e.target && e.target.matches('input')) recalc();
+  });
+
+  var resetBtn = document.getElementById('jp-so-sg-reset');
+  var copyBtn = document.getElementById('jp-so-sg-copy');
+  var applyBtn = document.getElementById('jp-so-sg-apply');
+  if (resetBtn) resetBtn.addEventListener('click', resetDefaults);
+  if (copyBtn) copyBtn.addEventListener('click', copyTable);
+  if (applyBtn) applyBtn.addEventListener('click', applyToForm);
+
+  document.addEventListener('focusin', function (e) {
+    var t = e.target;
+    if (t && t.matches && t.matches('#jp-so-lines-table input[name$="-qty"]')) {
+      activeQtyInput = t;
+    }
+  });
+
+  recalc();
+})();
+</script>
