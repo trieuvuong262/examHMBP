@@ -23,7 +23,7 @@
   var breakdownEl = document.getElementById('jp-so-sg-breakdown');
   var expandBtn = document.getElementById('jp-so-sg-expand');
   var dialogEl = document.getElementById('jp-so-sg-dialog');
-  var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+  var modal = bootstrap.Modal.getOrCreateInstance(modalEl, { focus: false });
   var activeQtyInput = null;
   var productTs = null;
   var expanded = false;
@@ -186,8 +186,15 @@
   }
 
   function initProductSelect() {
-    if (!productEl || productTs) return;
-    if (typeof TomSelect === 'undefined') return;
+    if (!productEl) return;
+    if (productTs || productEl.tomselect) {
+      productTs = productTs || productEl.tomselect;
+      return;
+    }
+    if (typeof TomSelect === 'undefined') {
+      console.warn('[jp-so-suggest] TomSelect chưa sẵn sàng');
+      return;
+    }
     productTs = new TomSelect(productEl, {
       maxOptions: 40,
       maxItems: 1,
@@ -196,14 +203,32 @@
       searchField: ['text', 'code', 'name'],
       placeholder: productEl.dataset.placeholder || 'Gõ mã SX hoặc tên từ kho sản phẩm…',
       dropdownParent: 'body',
+      dropdownClass: 'ts-dropdown jp-so-sg-ts-dropdown',
       openOnFocus: true,
-      loadThrottle: 220,
+      preload: 'focus',
+      loadThrottle: 200,
+      // Kết quả remote — không lọc lại local (tránh dropdown trống)
+      score: function () { return 1; },
+      shouldLoad: function (query) {
+        return true;
+      },
       load: function (query, callback) {
+        var self = this;
         fetch('{% url "san_xuat:product_code_search" %}?q=' + encodeURIComponent(query || ''), {
           headers: { 'Accept': 'application/json' },
+          credentials: 'same-origin',
         })
-          .then(function (r) { return r.json(); })
-          .then(function (data) { callback(data.results || []); })
+          .then(function (r) {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.json();
+          })
+          .then(function (data) {
+            var rows = data.results || [];
+            callback(rows);
+            if (rows.length && self.control_input && document.activeElement === self.control_input) {
+              self.open();
+            }
+          })
           .catch(function () { callback(); });
       },
       render: {
@@ -217,10 +242,16 @@
         item: function (data, escape) {
           return '<div>' + escape(data.code || data.text || '') + '</div>';
         },
+        no_results: function () {
+          return '<div class="no-results">Không tìm thấy sản phẩm</div>';
+        },
       },
     });
     productTs.on('change', function (value) {
       loadStockForStyle(value || '');
+    });
+    productTs.on('type', function () {
+      if (!productTs.isOpen) productTs.open();
     });
   }
 
@@ -368,9 +399,16 @@
     });
   }
 
-  modalEl.addEventListener('show.bs.modal', function () {
+  modalEl.addEventListener('shown.bs.modal', function () {
     initProductSelect();
     seedFromForm();
+    // Retry nếu CDN TomSelect chậm
+    if (!productTs && typeof TomSelect === 'undefined') {
+      setTimeout(function () {
+        initProductSelect();
+        seedFromForm();
+      }, 400);
+    }
   });
 
   modalEl.addEventListener('input', function (e) {
