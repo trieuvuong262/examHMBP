@@ -95,7 +95,7 @@
         <div class="min-w-0">
           <div class="fw-semibold fs-5 mb-0">{{ fg_req.production_order.product_code }}</div>
           <div class="text-muted small">
-            LSX
+            Lệnh sản xuất
             <a href="{% url 'san_xuat:dispatch_mo_detail' fg_req.production_order.pk %}">{{ fg_req.production_order.code }}</a>
             {% if fg_req.production_order.product_name %} · {{ fg_req.production_order.product_name }}{% endif %}
           </div>

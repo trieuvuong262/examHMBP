@@ -42,13 +42,13 @@
     </div>
     <div class="col-6 col-md-2">
       <div class="border rounded-3 p-2 h-100">
-        <div class="text-muted small">LSX mở / xong</div>
+        <div class="text-muted small">Lệnh sản xuất mở / xong</div>
         <div class="fw-semibold">{{ report.mo_open }} / {{ report.mo_done }}</div>
       </div>
     </div>
     <div class="col-6 col-md-2">
       <div class="border rounded-3 p-2 h-100">
-        <div class="text-muted small">YCX · YCNTP</div>
+        <div class="text-muted small">Yêu cầu xuất · Yêu cầu nhập thành phẩm</div>
         <div class="fw-semibold">{{ report.ycx_count }} · {{ report.ycntp_count }}</div>
       </div>
     </div>
@@ -80,7 +80,7 @@
       <button class="nav-link {% if active_tab == 'theo-to' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#pane-theo-to" type="button" role="tab" data-ops-tab="theo-to">Theo tổ / CĐ</button>
     </li>
     <li class="nav-item" role="presentation">
-      <button class="nav-link {% if active_tab == 'lenh-sx' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#pane-lenh-sx" type="button" role="tab" data-ops-tab="lenh-sx">Lệnh SX</button>
+      <button class="nav-link {% if active_tab == 'lenh-sx' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#pane-lenh-sx" type="button" role="tab" data-ops-tab="lenh-sx">Lệnh sản xuất</button>
     </li>
     <li class="nav-item" role="presentation">
       <button class="nav-link {% if active_tab == 'dong-goi' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#pane-dong-goi" type="button" role="tab" data-ops-tab="dong-goi">Đóng gói</button>
@@ -277,7 +277,7 @@
         <div class="table-responsive">
           <table class="table table-hover table-sm mb-0 align-middle">
             <thead class="table-light">
-              <tr><th>Mã</th><th>LSX</th><th>Ngày</th><th class="text-end">SL</th><th>Lô</th></tr>
+              <tr><th>Mã</th><th>Lệnh sản xuất</th><th>Ngày</th><th class="text-end">SL</th><th>Lô</th></tr>
             </thead>
             <tbody>
             {% for p in report.packing_rows %}

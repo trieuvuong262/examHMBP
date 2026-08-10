@@ -143,11 +143,11 @@
     </div>
   </div>
 
-  <p class="jp-tw-meta">Mỗi LSX là một việc — các công đoạn tổ {{ team.label }} gom trong cùng thẻ. Ghi SL vẫn qua TKSX.</p>
+  <p class="jp-tw-meta">Mỗi lệnh sản xuất là một việc — các công đoạn tổ {{ team.label }} gom trong cùng thẻ. Ghi số lượng vẫn qua thống kê SX.</p>
 
   <form method="get" class="jp-tw-toolbar">
     <input type="search" name="q" value="{{ search_query }}" class="form-control form-control-sm jp-tw-search"
-           placeholder="Tìm LSX / mã SP / đơn hàng…" autocomplete="off">
+           placeholder="Tìm lệnh sản xuất / mã SP / đơn hàng…" autocomplete="off">
     <button type="submit" class="btn btn-outline-secondary btn-sm">Lọc</button>
     {% if search_query %}
     <a href="{% url 'san_xuat:team_work_board' team.slug %}" class="btn btn-link btn-sm text-decoration-none">Xóa lọc</a>
@@ -221,7 +221,7 @@
     {% endfor %}
   </div>
   {% else %}
-  <div class="jp-tw-empty-board">Chưa có LSX đang chạy cho tổ này.</div>
+  <div class="jp-tw-empty-board">Chưa có lệnh sản xuất đang chạy cho tổ này.</div>
   {% endif %}
 </div>
 

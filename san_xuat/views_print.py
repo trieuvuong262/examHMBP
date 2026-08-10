@@ -68,7 +68,7 @@ def print_mo(request, pk: int):
     )
     return render(request, 'san_xuat/print/mo_a5.html', {
         **_print_base_ctx(
-            print_title=f'In LSX {mo.code}',
+            print_title=f'In lệnh sản xuất {mo.code}',
             back_url=reverse('san_xuat:dispatch_mo_detail', args=[mo.pk]),
             signature_key='mo',
             doc_code=mo.code,
@@ -92,7 +92,7 @@ def print_ycx(request, pk: int):
     mo = req.production_order
     return render(request, 'san_xuat/print/ycx_a5.html', {
         **_print_base_ctx(
-            print_title=f'In YCX {req.code}',
+            print_title=f'In yêu cầu xuất {req.code}',
             back_url=reverse('san_xuat:dispatch_material_issue_req_detail', args=[req.pk]),
             signature_key='ycx',
             doc_code=req.code,
@@ -121,7 +121,7 @@ def print_qc(request, pk: int):
     mo = qc_request.production_order if qc_request else None
     return render(request, 'san_xuat/print/qc_a5.html', {
         **_print_base_ctx(
-            print_title=f'In PKT {inspection.code}',
+            print_title=f'In phiếu kiểm tra {inspection.code}',
             back_url=reverse('san_xuat:qc_sheet_detail', args=[inspection.pk]),
             signature_key='qc',
             doc_code=inspection.code,
@@ -173,7 +173,7 @@ def print_ycntp(request, pk: int):
     mo = fg_req.production_order
     return render(request, 'san_xuat/print/ycntp_a5.html', {
         **_print_base_ctx(
-            print_title=f'In YCNTP {fg_req.code}',
+            print_title=f'In yêu cầu nhập thành phẩm {fg_req.code}',
             back_url=reverse('san_xuat:dispatch_fg_receipt_req_detail', args=[fg_req.pk]),
             signature_key='ycntp',
             doc_code=fg_req.code,
@@ -216,7 +216,7 @@ def print_subcontract(request, pk: int):
     )
     return render(request, 'san_xuat/print/subcontract_a5.html', {
         **_print_base_ctx(
-            print_title=f'In GC {item.code}',
+            print_title=f'In thuê gia công {item.code}',
             back_url=reverse('san_xuat:subcontract_detail', args=[item.pk]),
             signature_key='subcontract',
             doc_code=item.code,
@@ -242,7 +242,7 @@ def print_ncr(request, pk: int):
     )
     return render(request, 'san_xuat/print/ncr_a5.html', {
         **_print_base_ctx(
-            print_title=f'In NCR {case.code}',
+            print_title=f'In không phù hợp {case.code}',
             back_url=reverse('san_xuat:ncr_detail', args=[case.pk]),
             signature_key='ncr',
             doc_code=case.code,

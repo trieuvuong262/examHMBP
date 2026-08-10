@@ -38,7 +38,7 @@
           </div>
         </div>
         <div class="col-md-3">
-          <div class="text-muted">SL kế hoạch LSX</div>
+          <div class="text-muted">SL kế hoạch lệnh sản xuất</div>
           <div class="fw-semibold">{{ mo.qty|sx_num }}</div>
         </div>
       </div>
@@ -73,7 +73,7 @@
     <div class="card-body">
       <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-2">
         <div>
-          <h3 class="h6 mb-1">Nhân viên ghi TKSX</h3>
+          <h3 class="h6 mb-1">Nhân viên ghi thống kê SX</h3>
           <p class="small text-muted mb-0">Phân công tại <strong>Công việc tổ</strong>. Tại đây chỉ xem và ghi thống kê.</p>
         </div>
         {% if team_work_url %}
@@ -102,19 +102,19 @@
     <div class="card-body d-flex flex-wrap justify-content-between align-items-center gap-2">
       <div>
         <h3 class="h6 mb-1">Ghi thống kê</h3>
-        <p class="small text-muted mb-0">Chỉ nhân viên đã được phân trên Công việc tổ mới tạo được TKSX.</p>
+        <p class="small text-muted mb-0">Chỉ nhân viên đã được phân trên Công việc tổ mới tạo được thống kê SX.</p>
       </div>
       {% if is_assignee %}
       <a href="{% url 'san_xuat:dispatch_prod_stats_create' %}?mo={{ mo.pk }}&step={{ step.pk }}" class="btn btn-hm btn-sm">Tạo thống kê</a>
       {% else %}
-      <span class="small text-muted">Bạn chưa được phân ghi TKSX cho công đoạn này.</span>
+      <span class="small text-muted">Bạn chưa được phân ghi thống kê SX cho công đoạn này.</span>
       {% endif %}
     </div>
   </div>
 
   <div class="card border-0 shadow-sm">
     <div class="card-body">
-      <h3 class="h6 mb-3">Phiếu TKSX gần đây</h3>
+      <h3 class="h6 mb-3">Phiếu thống kê SX gần đây</h3>
       <div class="table-responsive">
         <table class="table table-sm table-hover mb-0">
           <thead class="table-light">

@@ -3,7 +3,7 @@
 <div class="doc-title">Cảnh báo chất lượng</div>
 
 <div class="meta-grid">
-  <div><span class="label">Lệnh SX:</span> <strong>{{ mo.code }}</strong></div>
+  <div><span class="label">Lệnh sản xuất:</span> <strong>{{ mo.code }}</strong></div>
   <div><span class="label">Trạng thái:</span> {{ alert.get_status_display }}</div>
   <div><span class="label">Loại:</span> {{ alert.get_alert_type_display }}</div>
   <div><span class="label">Công đoạn:</span> {{ alert.process_name|default:"—" }}</div>
@@ -12,9 +12,9 @@
   <div class="full"><span class="label">Tên SP:</span> {{ mo.product_name|default:"—" }}</div>
   <div><span class="label">Ngưỡng:</span> {{ alert.tolerance_limit }}%</div>
   <div><span class="label">SL đạt / lỗi:</span> {{ alert.qty_good }} / {{ alert.qty_defect }}</div>
-  <div class="full"><span class="label">TKSX nguồn:</span> {% if alert.production_stat %}{{ alert.production_stat.code }}{% else %}—{% endif %}</div>
-  <div class="full"><span class="label">PKT liên quan:</span> {% if alert.qc_inspection %}{{ alert.qc_inspection.code }}{% else %}—{% endif %}</div>
-  <div class="full"><span class="label">YCKT:</span> {% if alert.qc_request %}{{ alert.qc_request.code }}{% else %}—{% endif %}</div>
+  <div class="full"><span class="label">Thống kê SX nguồn:</span> {% if alert.production_stat %}{{ alert.production_stat.code }}{% else %}—{% endif %}</div>
+  <div class="full"><span class="label">Phiếu kiểm tra liên quan:</span> {% if alert.qc_inspection %}{{ alert.qc_inspection.code }}{% else %}—{% endif %}</div>
+  <div class="full"><span class="label">Yêu cầu kiểm tra:</span> {% if alert.qc_request %}{{ alert.qc_request.code }}{% else %}—{% endif %}</div>
 </div>
 
 <div class="notes"><span class="label">Nội dung cảnh báo:</span> {{ alert.message|default:"—" }}</div>

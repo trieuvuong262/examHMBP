@@ -536,7 +536,7 @@ def add_subcontract_material_line(
         raise Phase3Error("Lệnh GC đã kết thúc.")
     material_code = (material_code or "").strip()
     if not material_code:
-        raise Phase3Error("Thiếu mã NVL/BTP.")
+        raise Phase3Error("Thiếu mã NPL/bán thành phẩm.")
     if qty is None or qty <= 0:
         raise Phase3Error("SL dòng phải > 0.")
     if direction not in {
@@ -588,7 +588,7 @@ def advance_subcontract_order(
     update_fields = ["status"]
     if to_status == SxSubcontractOrder.STATUS_SENT:
         if not order.material_lines.filter(direction=SxSubcontractMaterialLine.DIRECTION_OUT).exists():
-            raise Phase3Error("Cần ít nhất 1 dòng xuất NVL/BTP trước khi gửi GC.")
+            raise Phase3Error("Cần ít nhất 1 dòng xuất NPL/bán thành phẩm trước khi gửi GC.")
         order.sent_at = now
         update_fields.append("sent_at")
     elif to_status == SxSubcontractOrder.STATUS_RECEIVED:
@@ -644,7 +644,7 @@ def _post_subcontract_stock_out(*, order: SxSubcontractOrder, user) -> None:
         order.material_lines.filter(direction=SxSubcontractMaterialLine.DIRECTION_OUT)
     )
     if not out_lines:
-        raise Phase3Error("Không có dòng xuất NVL/BTP để trừ kho.")
+        raise Phase3Error("Không có dòng xuất NPL/bán thành phẩm để trừ kho.")
 
     issue_lines = []
     missing = []
@@ -681,7 +681,7 @@ def _post_subcontract_stock_out(*, order: SxSubcontractOrder, user) -> None:
                     )
     if missing:
         raise Phase3Error(
-            "Mã NVL/BTP chưa có trong kho_npl: " + ", ".join(missing)
+            "Mã NPL/bán thành phẩm chưa có trong kho_npl: " + ", ".join(missing)
         )
     if not issue_lines:
         raise Phase3Error("Không tạo được dòng xuất kho — kiểm tra số lượng dòng OUT.")
@@ -1016,7 +1016,7 @@ def _build_timeline(result: TraceResult) -> list[TraceEvent]:
         events.append(TraceEvent(
             when=getattr(qc, "request_date", None) or getattr(qc, "created_at", None),
             kind="qc",
-            label=f"YCKT {qc.code}",
+            label=f"Yêu cầu kiểm tra {qc.code}",
             detail=str(qc.status or "—"),
             url_name="san_xuat:qc_request_detail",
             url_pk=qc.pk,
@@ -1079,7 +1079,7 @@ def trace_production(*, query: str) -> TraceResult:
     q = (query or "").strip()
     result = TraceResult(query=q)
     if not q:
-        result.message = "Nhập mã LSX, YCNTP, phiếu KV, YCX, lô ĐG, lô NPL, GC hoặc GV."
+        result.message = "Nhập mã lệnh sản xuất, yêu cầu nhập thành phẩm, phiếu KV, yêu cầu xuất, lô đóng gói, lô NPL, gia công hoặc giao việc."
         return result
 
     mo = _resolve_mo_from_query(q, result)
@@ -1472,7 +1472,7 @@ def build_ops_report(
             "name": "Xuất NVL / nhập thành phẩm",
             "group": "Kho",
             "tab": "kho",
-            "metric": f"YCX {report.ycx_count} · YCNTP {report.ycntp_count}",
+            "metric": f"Yêu cầu xuất {report.ycx_count} · Yêu cầu nhập thành phẩm {report.ycntp_count}",
         },
     ]
     return report
@@ -1496,8 +1496,8 @@ def export_ops_report_csv(*, report: OpsReport) -> HttpResponse:
     writer.writerow(["Đóng gói", report.packing_qty])
     writer.writerow(["GC mở", report.subcontract_open])
     writer.writerow(["Giao việc mở", report.work_open])
-    writer.writerow(["YCX trong kỳ", report.ycx_count])
-    writer.writerow(["YCNTP trong kỳ", report.ycntp_count])
+    writer.writerow(["Yêu cầu xuất trong kỳ", report.ycx_count])
+    writer.writerow(["Yêu cầu nhập thành phẩm trong kỳ", report.ycntp_count])
     writer.writerow(["Dừng chuyền (phút)", report.downtime_minutes])
     writer.writerow([])
     writer.writerow(["Ngày", "Đạt", "Lỗi"])
@@ -1519,7 +1519,7 @@ def export_ops_report_csv(*, report: OpsReport) -> HttpResponse:
             row["qty_good"], row["qty_defect"], row["defect_rate"],
         ])
     writer.writerow([])
-    writer.writerow(["LSX", "SP", "SL", "Đã làm", "TT"])
+    writer.writerow(["Lệnh sản xuất", "Sản phẩm", "Số lượng", "Đã làm", "Trạng thái"])
     for mo in report.mo_rows:
         writer.writerow([mo.code, mo.product_code, mo.qty, mo.qty_done, mo.get_status_display()])
 

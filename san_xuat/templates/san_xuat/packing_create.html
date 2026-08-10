@@ -63,7 +63,7 @@
     var opt = moSel.options[moSel.selectedIndex];
     var text = opt ? (opt.textContent || '') : '';
     var code = '';
-    // label_from_instance: "LSX · STYLE · SL qty"
+    // label_from_instance: "Lệnh sản xuất · STYLE · SL qty"
     var parts = text.split('·').map(function (p) { return p.trim(); });
     if (parts.length >= 2) {
       code = parts[1];

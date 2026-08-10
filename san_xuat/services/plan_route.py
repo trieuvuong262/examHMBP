@@ -140,7 +140,7 @@ def replace_order_plan_steps(*, order_id: int, steps: list[dict]) -> list[SxSale
     if order.production_orders.filter(is_demo=False).exclude(
         status=SxProductionOrder.STATUS_CANCELLED,
     ).exists():
-        raise PlanningError('Đơn đã có LSX — chỉnh công đoạn trên lệnh SX / kéo Kanban.')
+        raise PlanningError('Đơn đã có lệnh sản xuất — chỉnh công đoạn trên lệnh sản xuất / kéo Kanban.')
 
     cleaned: list[dict] = []
     for i, raw in enumerate(steps or []):
@@ -420,7 +420,7 @@ def move_kanban_card(
         if order.production_orders.filter(is_demo=False).exclude(
             status=SxProductionOrder.STATUS_CANCELLED,
         ).exists():
-            raise PlanningError('Đơn đã có LSX — kéo thẻ công đoạn LSX.')
+            raise PlanningError('Đơn đã có lệnh sản xuất — kéo thẻ công đoạn lệnh sản xuất.')
 
         if axis == AXIS_DAY:
             if target_key == UNASSIGNED_KEY:
@@ -447,10 +447,10 @@ def move_kanban_card(
     try:
         step = SxMoProcessStep.objects.get(pk=card_id)
     except SxMoProcessStep.DoesNotExist as exc:
-        raise PlanningError('Không tìm thấy thẻ công đoạn LSX.') from exc
+        raise PlanningError('Không tìm thấy thẻ công đoạn lệnh sản xuất.') from exc
     mo = SxProductionOrder.objects.get(pk=step.production_order_id)
     if mo.status == SxProductionOrder.STATUS_CANCELLED:
-        raise PlanningError('LSX đã hủy.')
+        raise PlanningError('Lệnh sản xuất đã hủy.')
 
     if axis == AXIS_DAY:
         if target_key == UNASSIGNED_KEY:

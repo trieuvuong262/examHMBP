@@ -181,7 +181,7 @@ def assign_team_work(
         raise PlanningError('Công đoạn không thuộc mẫu.')
     mo = SxProductionOrder.objects.select_for_update().get(pk=mo_id, is_demo=False)
     if mo.status in (SxProductionOrder.STATUS_DRAFT, SxProductionOrder.STATUS_CANCELLED):
-        raise PlanningError('LSX chưa phát hành hoặc đã hủy.')
+        raise PlanningError('Lệnh sản xuất chưa phát hành hoặc đã hủy.')
     step = ensure_mo_step_for_template(mo=mo, step_def=sd)
     User = get_user_model()
     keep: set[int] = set()

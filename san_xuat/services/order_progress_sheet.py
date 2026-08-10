@@ -283,9 +283,9 @@ def record_progress_qty(
     mo = SxProductionOrder.objects.select_for_update().get(pk=mo_id, is_demo=False)
     # Không select_related(sales_order) cùng FOR UPDATE (PG outer join)
     if mo.status == SxProductionOrder.STATUS_CANCELLED:
-        raise PlanningError('LSX đã hủy.')
+        raise PlanningError('Lệnh sản xuất đã hủy.')
     if mo.status == SxProductionOrder.STATUS_DRAFT:
-        raise PlanningError('LSX còn nháp — phát hành trước khi ghi tiến độ.')
+        raise PlanningError('Lệnh sản xuất còn nháp — phát hành trước khi ghi tiến độ.')
 
     size = (size_label or '').strip()
     if size == 'Tổng':

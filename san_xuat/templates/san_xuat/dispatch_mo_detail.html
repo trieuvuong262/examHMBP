@@ -509,7 +509,7 @@
         <div class="card-body">
           <div class="jp-mo-section-head">
             <div>
-              <p class="title">Tồn BTP</p>
+              <p class="title">Tồn bán thành phẩm</p>
               <div class="count">{{ wip_balances|length }} công đoạn</div>
             </div>
             <a href="{% url 'san_xuat:dispatch_handover_status' %}" class="btn btn-sm btn-outline-secondary">Sổ tồn</a>
@@ -526,12 +526,12 @@
             </table>
           </div>
           {% else %}
-          <div class="text-muted small mb-3">Chưa có tồn BTP.</div>
+          <div class="text-muted small mb-3">Chưa có tồn bán thành phẩm.</div>
           {% endif %}
 
           <div class="jp-mo-section-head border-top pt-3">
             <div>
-              <p class="title">Bàn giao BTP</p>
+              <p class="title">Bàn giao bán thành phẩm</p>
               <div class="count">{{ wip_handover_list|length }} phiếu</div>
             </div>
             {% if mo.status != 'draft' and mo.status != 'cancelled' %}

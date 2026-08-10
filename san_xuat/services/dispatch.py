@@ -500,7 +500,7 @@ def assert_user_can_create_stat(*, user, mo: SxProductionOrder, process_name: st
     )
     if step is None:
         raise DispatchError(
-            f"Công đoạn «{name}» chưa được gắn trên LSX — liên hệ điều phối."
+            f"Công đoạn «{name}» chưa được gắn trên lệnh sản xuất — liên hệ điều phối."
         )
     if not user_can_stat_mo_step(user=user, step=step):
         raise DispatchError(
@@ -581,7 +581,7 @@ def normalize_mo_lines(raw_lines: list[dict]) -> list[dict]:
         color = normalize_token(raw.get("color_code") or "")
         size = normalize_token(raw.get("size_label") or "")
         if not color or not size:
-            raise DispatchError("Mỗi dòng LSX cần mã màu và size.")
+            raise DispatchError("Mỗi dòng lệnh sản xuất cần mã màu và size.")
         color_label = (raw.get("color_label") or "").strip() or color
         sku_code = (raw.get("sku_code") or "").strip().upper()
         key = (color, size)
@@ -975,7 +975,7 @@ def approve_material_issue(
     if req.status not in ("draft", "submitted", "approved", "partial"):
         raise DispatchError("Yêu cầu xuất không ở trạng thái có thể duyệt.")
     if not req.production_order_id:
-        raise DispatchError("Yêu cầu xuất thiếu tham chiếu LSX.")
+        raise DispatchError("Yêu cầu xuất thiếu tham chiếu lệnh sản xuất.")
     if not _ycx_has_remaining(req) and req.status in ("partial", "done"):
         raise DispatchError("Yêu cầu xuất đã xuất đủ — không còn SL cần bổ sung.")
 
@@ -1263,7 +1263,7 @@ def create_fg_receipt_from_mo(
         if not stat:
             raise DispatchError("Thống kê sản xuất không thuộc Lệnh sản xuất này.")
         if stat.status != SxProductionStat.STATUS_CONFIRMED:
-            raise DispatchError("Thống kê sản xuất phải đã xác nhận trước khi lập YCNTP.")
+            raise DispatchError("Thống kê sản xuất phải đã xác nhận trước khi lập yêu cầu nhập thành phẩm.")
 
     receipt_qty = qty
     if receipt_qty is None:
@@ -1379,7 +1379,7 @@ def create_mos_from_detail_plan(
         .get(pk=detail_plan_id)
     )
     if plan.status != SxOverallPlan.STATUS_CONFIRMED:
-        raise DispatchError("KHCT phải đã xác nhận trước khi sinh LSX.")
+        raise DispatchError("Kế hoạch chi tiết phải đã xác nhận trước khi sinh lệnh sản xuất.")
 
     created: list[SxProductionOrder] = []
     skipped = 0
@@ -1417,7 +1417,7 @@ def create_mos_from_detail_plan(
         created.append(mo)
 
     if not created and skipped == 0:
-        raise DispatchError("KHCT không có dòng SL > 0 để tạo LSX.")
+        raise DispatchError("Kế hoạch chi tiết không có dòng SL > 0 để tạo lệnh sản xuất.")
     return created
 
 
@@ -1430,7 +1430,7 @@ def _adjust_wip_balance(
 ) -> SxWipBalance:
     name = (process_name or "").strip()
     if not name:
-        raise DispatchError("Thiếu tên công đoạn khi cập nhật tồn BTP.")
+        raise DispatchError("Thiếu tên công đoạn khi cập nhật tồn bán thành phẩm.")
     bal, _ = SxWipBalance.objects.select_for_update().get_or_create(
         production_order=production_order,
         process_name=name,
@@ -1439,7 +1439,7 @@ def _adjust_wip_balance(
     new_qty = (bal.qty or Decimal("0")) + Decimal(str(delta))
     if not allow_negative and new_qty < 0:
         raise DispatchError(
-            f"Tồn BTP tại «{name}» không đủ (có {bal.qty}, trừ {abs(delta)})."
+            f"Tồn bán thành phẩm tại «{name}» không đủ (có {bal.qty}, trừ {abs(delta)})."
         )
     bal.qty = new_qty.quantize(Decimal("0.01"))
     bal.save(update_fields=["qty", "updated_at"])
@@ -1470,7 +1470,7 @@ def create_wip_handover(
         SxProductionOrder.STATUS_IN_PROGRESS,
         SxProductionOrder.STATUS_DONE,
     ):
-        raise DispatchError("Chỉ bàn giao BTP khi Lệnh sản xuất đã release.")
+        raise DispatchError("Chỉ bàn giao bán thành phẩm khi Lệnh sản xuất đã release.")
     if qty is None or qty <= 0:
         raise DispatchError("SL bàn giao phải > 0.")
     if not (from_process or "").strip() or not (to_process or "").strip():
@@ -1566,7 +1566,7 @@ def create_wip_return(
         SxProductionOrder.STATUS_IN_PROGRESS,
         SxProductionOrder.STATUS_DONE,
     ):
-        raise DispatchError("Chỉ trả BTP khi Lệnh sản xuất đã release.")
+        raise DispatchError("Chỉ trả bán thành phẩm khi Lệnh sản xuất đã release.")
     if qty is None or qty <= 0:
         raise DispatchError("SL trả phải > 0.")
 
@@ -1698,7 +1698,7 @@ def explode_disassembly_from_bom(*, order_id: int) -> SxDisassemblyOrder:
 
     order = SxDisassemblyOrder.objects.select_for_update().get(pk=order_id)
     if order.status != SxDisassemblyOrder.STATUS_DRAFT:
-        raise DispatchError("Chỉ explode BOM khi LTD nháp.")
+        raise DispatchError("Chỉ explode BOM khi lệnh tháo dỡ nháp.")
     doc = ProductTechDoc.objects.filter(product_code__iexact=order.product_code, is_active=True).first()
     if not doc:
         raise DispatchError(f"Không có hồ sơ SX cho {order.product_code}.")
@@ -1824,7 +1824,7 @@ def set_disassembly_lines(*, order_id: int, lines: list[dict]) -> SxDisassemblyO
 
     order = SxDisassemblyOrder.objects.select_for_update().get(pk=order_id)
     if order.status != SxDisassemblyOrder.STATUS_DRAFT:
-        raise DispatchError("Chỉ sửa dòng thu hồi khi LTD ở trạng thái nháp.")
+        raise DispatchError("Chỉ sửa dòng thu hồi khi lệnh tháo dỡ ở trạng thái nháp.")
     order.lines.all().delete()
     create_lines: list[SxDisassemblyOrderLine] = []
     for raw in lines:
@@ -1861,9 +1861,9 @@ def confirm_disassembly_order(*, order_id: int, create_surplus: bool = True) -> 
         .get(pk=order_id)
     )
     if order.status != SxDisassemblyOrder.STATUS_DRAFT:
-        raise DispatchError("Chỉ xác nhận LTD ở trạng thái nháp.")
+        raise DispatchError("Chỉ xác nhận lệnh tháo dỡ ở trạng thái nháp.")
     if not order.lines.exists():
-        raise DispatchError("LTD phải có ít nhất một dòng nguyên phụ liệu thu hồi.")
+        raise DispatchError("Lệnh tháo dỡ phải có ít nhất một dòng nguyên phụ liệu thu hồi.")
 
     if create_surplus:
         for line in order.lines.all():
@@ -1876,7 +1876,7 @@ def confirm_disassembly_order(*, order_id: int, create_surplus: bool = True) -> 
                 qty=line.qty,
                 recorded_at=timezone.localdate(),
                 status=SxNplSurplus.STATUS_DRAFT,
-                notes=f"Từ LTD {order.code}",
+                notes=f"Từ lệnh tháo dỡ {order.code}",
                 is_demo=False,
             )
 

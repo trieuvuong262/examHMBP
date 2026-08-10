@@ -27,7 +27,7 @@
     <div class="col-6 col-lg-3">
       <a href="{% url 'san_xuat:dispatch_mo' %}" class="text-decoration-none text-reset">
         <div class="border rounded-3 p-3 h-100 border-start border-4 border-hm">
-          <div class="text-muted small">Lệnh SX chưa xong</div>
+          <div class="text-muted small">Lệnh sản xuất chưa xong</div>
           <div class="fs-4 fw-semibold text-hm">{{ dash.mo_open }}</div>
           <div class="small text-muted">{{ dash.mo_done }} hoàn thành · {{ dash.mo_completion_pct }}%</div>
         </div>
@@ -65,7 +65,7 @@
       <button class="nav-link {% if active_tab == 'tong-hop' %}active{% endif %}" id="tab-tong-hop" data-bs-toggle="tab" data-bs-target="#pane-tong-hop" type="button" role="tab" data-ov-tab="tong-hop">Tổng hợp</button>
     </li>
     <li class="nav-item" role="presentation">
-      <button class="nav-link {% if active_tab == 'lenh-sx' %}active{% endif %}" id="tab-lenh-sx" data-bs-toggle="tab" data-bs-target="#pane-lenh-sx" type="button" role="tab" data-ov-tab="lenh-sx">Lệnh SX</button>
+      <button class="nav-link {% if active_tab == 'lenh-sx' %}active{% endif %}" id="tab-lenh-sx" data-bs-toggle="tab" data-bs-target="#pane-lenh-sx" type="button" role="tab" data-ov-tab="lenh-sx">Lệnh sản xuất</button>
     </li>
     <li class="nav-item" role="presentation">
       <button class="nav-link {% if active_tab == 'san-luong' %}active{% endif %}" id="tab-san-luong" data-bs-toggle="tab" data-bs-target="#pane-san-luong" type="button" role="tab" data-ov-tab="san-luong">Sản lượng</button>
@@ -97,7 +97,7 @@
         </div>
         <div class="col-6 col-md-3">
           <a href="{% url 'san_xuat:qc_request' %}" class="border rounded-3 p-3 h-100 d-block text-decoration-none text-reset">
-            <div class="text-muted small">YCKT đang mở</div>
+            <div class="text-muted small">Yêu cầu kiểm tra đang mở</div>
             <div class="fs-5 fw-semibold text-hm">{{ dash.qc_open_requests }}</div>
           </a>
         </div>
@@ -130,7 +130,7 @@
       </div>
     </div>
 
-    {# —— Lệnh SX —— #}
+    {# —— Lệnh sản xuất —— #}
     <div class="tab-pane fade {% if active_tab == 'lenh-sx' %}show active{% endif %}" id="pane-lenh-sx" role="tabpanel">
       <div class="row g-3 mb-3">
         <div class="col-12 col-lg-6">
@@ -294,7 +294,7 @@
               <a href="{% url 'san_xuat:qc_alerts' %}" class="small text-hm">Tất cả →</a>
             </div>
             <table class="table table-sm table-hover mb-0">
-              <thead class="table-light"><tr><th>Mã</th><th>LSX</th><th class="text-end">% lỗi</th></tr></thead>
+              <thead class="table-light"><tr><th>Mã</th><th>Lệnh sản xuất</th><th class="text-end">% lỗi</th></tr></thead>
               <tbody>
               {% for alert in dash.recent_alerts %}
                 <tr class="jp-npl-catalog-row" data-href="{% url 'san_xuat:qc_alert_detail' alert.pk %}">

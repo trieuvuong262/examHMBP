@@ -8,7 +8,7 @@
   <div class="full"><span class="label">Tên SP:</span> {{ mo.product_name|default:"—" }}</div>
   <div><span class="label">Số lượng lệnh:</span> <strong>{{ mo.qty }}</strong></div>
   <div><span class="label">SL đạt:</span> {{ mo.qty_done }}</div>
-  <div><span class="label">Ngày lập LSX:</span> {{ mo.order_date|date:"d/m/Y" }}</div>
+  <div><span class="label">Ngày lập lệnh sản xuất:</span> {{ mo.order_date|date:"d/m/Y" }}</div>
   <div><span class="label">Hạn:</span> {% if mo.due_date %}{{ mo.due_date|date:"d/m/Y" }}{% else %}—{% endif %}</div>
   <div><span class="label">KH bắt đầu:</span> {% if mo.planned_start %}{{ mo.planned_start|date:"d/m/Y" }}{% else %}—{% endif %}</div>
   <div><span class="label">KH kết thúc:</span> {% if mo.planned_end %}{{ mo.planned_end|date:"d/m/Y" }}{% else %}—{% endif %}</div>

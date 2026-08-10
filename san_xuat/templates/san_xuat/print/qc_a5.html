@@ -5,8 +5,8 @@
 <div class="meta-grid">
   <div><span class="label">Ngày kiểm:</span> {{ inspection.inspected_at|date:"d/m/Y" }}</div>
   <div><span class="label">Kết quả:</span> <strong>{{ inspection.get_result_display }}</strong></div>
-  <div><span class="label">YCKT:</span> {% if qc_request %}{{ qc_request.code }}{% else %}—{% endif %}</div>
-  <div><span class="label">LSX:</span> {% if mo %}{{ mo.code }}{% else %}—{% endif %}</div>
+  <div><span class="label">Yêu cầu kiểm tra:</span> {% if qc_request %}{{ qc_request.code }}{% else %}—{% endif %}</div>
+  <div><span class="label">Lệnh sản xuất:</span> {% if mo %}{{ mo.code }}{% else %}—{% endif %}</div>
   <div><span class="label">Mã SP:</span> {% if qc_request %}{{ qc_request.product_code }}{% elif mo %}{{ mo.product_code }}{% else %}—{% endif %}</div>
   <div><span class="label">Công đoạn:</span> {% if qc_request %}{{ qc_request.stage_name|default:"—" }}{% else %}—{% endif %}</div>
   <div class="full"><span class="label">Tên SP:</span> {% if qc_request %}{{ qc_request.product_name|default:"—" }}{% elif mo %}{{ mo.product_name|default:"—" }}{% else %}—{% endif %}</div>

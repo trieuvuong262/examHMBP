@@ -1146,7 +1146,7 @@ def plan_board(request):
                 )
                 messages.success(
                     request,
-                    f'Đã chuyển xuống SX — tạo {len(created)} LSX.',
+                    f'Đã chuyển xuống SX — tạo {len(created)} lệnh sản xuất.',
                 )
                 return redirect(f"{reverse('san_xuat:plan_board')}?mode=list&tab=released")
             else:
@@ -1496,9 +1496,9 @@ def plan_npl_create(request):
             except PlanningError as exc:
                 messages.error(request, str(exc))
             else:
-                messages.success(request, f'Đã tính KHNVL {mat_plan.code} ({mat_plan.lines.count()} dòng NVL).')
+                messages.success(request, f'Đã tính kế hoạch NPL {mat_plan.code} ({mat_plan.lines.count()} dòng NVL).')
                 return redirect('san_xuat:plan_npl_detail', pk=mat_plan.pk)
-        messages.error(request, 'Không tạo được KHNVL — kiểm tra lại form.')
+        messages.error(request, 'Không tạo được kế hoạch NPL — kiểm tra lại form.')
     else:
         initial = {}
         overall_id = request.GET.get('overall')
@@ -1528,11 +1528,11 @@ def plan_npl_detail(request, pk: int):
             except PlanningError as exc:
                 messages.error(request, str(exc))
             else:
-                messages.success(request, f'KHNVL {mat_plan.code} đã xác nhận.')
+                messages.success(request, f'Kế hoạch NPL {mat_plan.code} đã xác nhận.')
                 return redirect('san_xuat:plan_npl_detail', pk=mat_plan.pk)
         elif action == 'refresh' and can_update:
             if not mat_plan.overall_plan_id:
-                messages.error(request, 'KHNVL không gắn KHTT nguồn.')
+                messages.error(request, 'Kế hoạch NPL không gắn kế hoạch tổng thể nguồn.')
             else:
                 try:
                     mat_plan = explode_material_plan(
@@ -1541,7 +1541,7 @@ def plan_npl_detail(request, pk: int):
                 except PlanningError as exc:
                     messages.error(request, str(exc))
                 else:
-                    messages.success(request, f'Đã cập nhật tồn/shortfall cho KHNVL {mat_plan.code}.')
+                    messages.success(request, f'Đã cập nhật tồn/shortfall cho kế hoạch NPL {mat_plan.code}.')
                     return redirect('san_xuat:plan_npl_detail', pk=mat_plan.pk)
         elif action == 'close' and can_update:
             try:
@@ -1549,7 +1549,7 @@ def plan_npl_detail(request, pk: int):
             except PlanningError as exc:
                 messages.error(request, str(exc))
             else:
-                messages.success(request, f'Đã đóng KHNVL {mat_plan.code}.')
+                messages.success(request, f'Đã đóng kế hoạch NPL {mat_plan.code}.')
                 return redirect('san_xuat:plan_npl_detail', pk=mat_plan.pk)
         elif action == 'cancel' and can_update:
             try:
@@ -1562,7 +1562,7 @@ def plan_npl_detail(request, pk: int):
             except PlanningError as exc:
                 messages.error(request, str(exc))
             else:
-                messages.success(request, f'Đã hủy KHNVL {mat_plan.code} và giải phóng giữ chỗ.')
+                messages.success(request, f'Đã hủy kế hoạch NPL {mat_plan.code} và giải phóng giữ chỗ.')
                 return redirect('san_xuat:plan_npl_detail', pk=mat_plan.pk)
     lines_all = list(mat_plan.lines.all())
     shortfall_total = sum((line.qty_shortfall or 0 for line in lines_all), Decimal('0'))
@@ -1619,9 +1619,9 @@ def npl_purchase_request_create(request):
             except PlanningError as exc:
                 messages.error(request, str(exc))
             else:
-                messages.success(request, f'Đã tạo YCM {pr.code} ({pr.lines.count()} dòng NVL).')
+                messages.success(request, f'Đã tạo yêu cầu mua NPL {pr.code} ({pr.lines.count()} dòng NVL).')
                 return redirect('san_xuat:npl_purchase_request_detail', pk=pr.pk)
-        messages.error(request, 'Không tạo được YCM — kiểm tra lại form.')
+        messages.error(request, 'Không tạo được yêu cầu mua NPL — kiểm tra lại form.')
     else:
         initial = {'only_shortfall': True}
         plan_id = request.GET.get('plan')
@@ -1652,7 +1652,7 @@ def npl_purchase_request_detail(request, pk: int):
             except PlanningError as exc:
                 messages.error(request, str(exc))
             else:
-                messages.success(request, f'YCM {pr.code} đã gửi duyệt.')
+                messages.success(request, f'Yêu cầu mua NPL {pr.code} đã gửi duyệt.')
                 return redirect('san_xuat:npl_purchase_request_detail', pk=pr.pk)
         elif action == 'approve' and can_update and pr.status == SxNplPurchaseRequest.STATUS_SUBMITTED:
             try:
@@ -1660,7 +1660,7 @@ def npl_purchase_request_detail(request, pk: int):
             except PlanningError as exc:
                 messages.error(request, str(exc))
             else:
-                messages.success(request, f'YCM {pr.code} đã duyệt.')
+                messages.success(request, f'Yêu cầu mua NPL {pr.code} đã duyệt.')
                 return redirect('san_xuat:npl_purchase_request_detail', pk=pr.pk)
         elif action == 'reject' and can_update and pr.status == SxNplPurchaseRequest.STATUS_SUBMITTED:
             try:
@@ -1671,7 +1671,7 @@ def npl_purchase_request_detail(request, pk: int):
             except PlanningError as exc:
                 messages.error(request, str(exc))
             else:
-                messages.success(request, f'YCM {pr.code} đã từ chối.')
+                messages.success(request, f'Yêu cầu mua NPL {pr.code} đã từ chối.')
                 return redirect('san_xuat:npl_purchase_request_detail', pk=pr.pk)
     purchase_orders = pr.purchase_orders.filter(is_demo=False).order_by('-created_at')
     return render(request, 'san_xuat/npl_purchase_request_detail.html', {
@@ -1718,9 +1718,9 @@ def purchase_order_create(request):
             except PlanningError as exc:
                 messages.error(request, str(exc))
             else:
-                messages.success(request, f'Đã tạo DMH {po.code} ({po.lines.count()} dòng NVL).')
+                messages.success(request, f'Đã tạo đơn mua hàng {po.code} ({po.lines.count()} dòng NVL).')
                 return redirect('san_xuat:purchase_order_detail', pk=po.pk)
-        messages.error(request, 'Không tạo được DMH — kiểm tra lại form.')
+        messages.error(request, 'Không tạo được đơn mua hàng — kiểm tra lại form.')
     else:
         initial = {}
         pr_id = request.GET.get('pr')
@@ -1764,7 +1764,7 @@ def purchase_order_detail(request, pk: int):
             except PlanningError as exc:
                 messages.error(request, str(exc))
             else:
-                messages.success(request, f'DMH {po.code} đã xác nhận.')
+                messages.success(request, f'Đơn mua hàng {po.code} đã xác nhận.')
                 return redirect('san_xuat:purchase_order_detail', pk=po.pk)
         elif action == 'create_receipt' and can_update:
             receipt_form = PoReceiptForm(request.POST)
@@ -2153,10 +2153,10 @@ def dispatch_mo_detail(request, pk: int):
                     messages.error(request, str(exc))
                     update_form = form
                 else:
-                    messages.success(request, 'Đã lưu LSX.')
+                    messages.success(request, 'Đã lưu lệnh sản xuất.')
                     return redirect('san_xuat:dispatch_mo_detail', pk=mo.pk)
             else:
-                messages.error(request, 'Không lưu được LSX — kiểm tra lại form.')
+                messages.error(request, 'Không lưu được lệnh sản xuất — kiểm tra lại form.')
                 update_form = form
         elif action == 'release' and mo.status == SxProductionOrder.STATUS_DRAFT and can_update:
             try:
@@ -2382,9 +2382,9 @@ def dispatch_disassembly_create(request):
             except DispatchError as exc:
                 messages.error(request, str(exc))
             else:
-                messages.success(request, f'Đã tạo LTD {order.code}.')
+                messages.success(request, f'Đã tạo lệnh tháo dỡ {order.code}.')
                 return redirect('san_xuat:dispatch_disassembly_detail', pk=order.pk)
-        messages.error(request, 'Không tạo được LTD — kiểm tra lại form.')
+        messages.error(request, 'Không tạo được lệnh tháo dỡ — kiểm tra lại form.')
     else:
         form = DisassemblyCreateForm(initial={'order_date': timezone.localdate()})
     return render(request, 'san_xuat/disassembly_form.html', {
@@ -2792,7 +2792,7 @@ def dispatch_mo_process_step_detail(request, pk: int):
         if action in ('assign', 'assign_self'):
             messages.info(
                 request,
-                'Phân công nhân viên ghi TKSX đã chuyển sang menu Công việc tổ.',
+                'Phân công nhân viên ghi thống kê SX đã chuyển sang menu Công việc tổ.',
             )
             return redirect('san_xuat:dispatch_mo_process_step_detail', pk=step.pk)
 
@@ -2889,10 +2889,10 @@ def dispatch_prod_stats_create(request):
             except DispatchError as exc:
                 messages.error(request, str(exc))
             else:
-                messages.success(request, f'Đã tạo TKSX {stat.code}.')
+                messages.success(request, f'Đã tạo thống kê SX {stat.code}.')
                 return redirect('san_xuat:dispatch_prod_stats_detail', pk=stat.pk)
         else:
-            messages.error(request, 'Không tạo được TKSX — kiểm tra lại form.')
+            messages.error(request, 'Không tạo được thống kê SX — kiểm tra lại form.')
     else:
         if mo_step and not user_can_stat_mo_step(user=request.user, step=mo_step):
             messages.error(request, 'Bạn chưa được phân ghi thống kê (Công việc tổ) cho công đoạn này.')
@@ -2958,7 +2958,7 @@ def dispatch_prod_stats_detail(request, pk: int):
             except QcError as exc:
                 messages.error(request, str(exc))
             else:
-                messages.success(request, f'Đã tạo YCKT {qc_req.code} từ TKSX.')
+                messages.success(request, f'Đã tạo yêu cầu kiểm tra {qc_req.code} từ thống kê SX.')
                 return redirect('san_xuat:qc_request_detail', pk=qc_req.pk)
 
     qc_requests = stat.qc_requests.filter(is_demo=False).order_by('-request_date', '-pk')
@@ -3012,12 +3012,12 @@ def dispatch_fg_receipt_req_create(request):
             except DispatchError as exc:
                 messages.error(request, str(exc))
             else:
-                messages.success(request, f'Đã tạo YCNTP {fg_req.code}.')
+                messages.success(request, f'Đã tạo yêu cầu nhập thành phẩm {fg_req.code}.')
                 return redirect('san_xuat:dispatch_fg_receipt_req_detail', pk=fg_req.pk)
         elif not mo:
-            messages.error(request, 'Thiếu LSX nguồn.')
+            messages.error(request, 'Thiếu lệnh sản xuất nguồn.')
         else:
-            messages.error(request, 'Không tạo được YCNTP — kiểm tra lại form.')
+            messages.error(request, 'Không tạo được yêu cầu nhập thành phẩm — kiểm tra lại form.')
     else:
         initial = {}
         mo_id = request.GET.get('mo')
@@ -3054,7 +3054,7 @@ def dispatch_fg_receipt_req_detail(request, pk: int):
             except DispatchError as exc:
                 messages.error(request, str(exc))
             else:
-                messages.success(request, f'YCNTP {fg_req.code} đã gửi.')
+                messages.success(request, f'Yêu cầu nhập thành phẩm {fg_req.code} đã gửi.')
                 return redirect('san_xuat:dispatch_fg_receipt_req_detail', pk=fg_req.pk)
         elif action == 'link_kv' and can_update:
             link_form = FgReceiptLinkKvForm(request.POST)
@@ -3398,9 +3398,9 @@ def qc_request_create(request):
                 qc_req.code = _next_code(sx_prefix('qc_req'), SxQcRequest)
             qc_req.is_demo = False
             qc_req.save()
-            messages.success(request, f'Đã tạo YCKT {qc_req.code}.')
+            messages.success(request, f'Đã tạo yêu cầu kiểm tra {qc_req.code}.')
             return redirect('san_xuat:qc_request_detail', pk=qc_req.pk)
-        messages.error(request, 'Không tạo được YCKT - kiểm tra lại form.')
+        messages.error(request, 'Không tạo được yêu cầu kiểm tra - kiểm tra lại form.')
     else:
         initial = {}
         mo_id = request.GET.get('mo')
@@ -3477,9 +3477,9 @@ def qc_sheet_create(request):
             except QcError as exc:
                 messages.error(request, str(exc))
             else:
-                messages.success(request, f'Đã tạo PKT {inspection.code}.')
+                messages.success(request, f'Đã tạo phiếu kiểm tra {inspection.code}.')
                 return redirect('san_xuat:qc_sheet_detail', pk=inspection.pk)
-        messages.error(request, 'Không tạo được PKT - kiểm tra lại form.')
+        messages.error(request, 'Không tạo được phiếu kiểm tra - kiểm tra lại form.')
     else:
         initial = {}
         req_id = request.GET.get('request')
@@ -3574,9 +3574,9 @@ def qc_sheet_detail(request, pk: int):
                 except QcError as exc:
                     messages.error(request, str(exc))
                 else:
-                    messages.success(request, f'PKT {inspection.code} đã chốt kết quả.')
+                    messages.success(request, f'Phiếu kiểm tra {inspection.code} đã chốt kết quả.')
                     return redirect('san_xuat:qc_sheet_detail', pk=inspection.pk)
-            messages.error(request, 'Không chốt được PKT - kiểm tra lại dữ liệu.')
+            messages.error(request, 'Không chốt được phiếu kiểm tra - kiểm tra lại dữ liệu.')
     else:
         finalize_form = QcInspectionFinalizeForm(instance=inspection)
 

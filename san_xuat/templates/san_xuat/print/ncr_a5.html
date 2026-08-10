@@ -3,7 +3,7 @@
 <div class="doc-title">Xử lý hàng không đạt (NCR)</div>
 
 <div class="meta-grid">
-  <div><span class="label">Lệnh SX:</span> <strong>{{ mo.code }}</strong></div>
+  <div><span class="label">Lệnh sản xuất:</span> <strong>{{ mo.code }}</strong></div>
   <div><span class="label">Trạng thái:</span> {{ case.get_status_display }}</div>
   <div><span class="label">Mã SP:</span> {{ mo.product_code }}</div>
   <div><span class="label">Số lượng:</span> <strong>{{ case.qty }}</strong></div>
@@ -12,7 +12,7 @@
   <div><span class="label">Hướng xử lý:</span> <strong>{{ case.get_disposition_display }}</strong></div>
   <div class="full"><span class="label">Cảnh báo QC:</span> {% if case.alert %}{{ case.alert.code }}{% else %}—{% endif %}</div>
   <div class="full"><span class="label">Lệnh tái SX:</span> {% if case.remake_order %}{{ case.remake_order.code }}{% else %}—{% endif %}</div>
-  <div class="full"><span class="label">TKSX sửa hàng:</span> {% if case.rework_stat %}{{ case.rework_stat.code }}{% else %}—{% endif %}</div>
+  <div class="full"><span class="label">Thống kê SX sửa hàng:</span> {% if case.rework_stat %}{{ case.rework_stat.code }}{% else %}—{% endif %}</div>
 </div>
 
 <div class="notes"><span class="label">Ghi chú:</span> {{ case.notes|default:"—" }}</div>

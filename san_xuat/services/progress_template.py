@@ -49,7 +49,7 @@ TEAM_SLUGS: tuple[tuple[str, str, str, str], ...] = (
     ('theu', 'THEU', 'team_work_theu', 'Thêu'),
     ('may', 'MAY', 'team_work_may', 'May'),
     ('ht', 'HOAN_THANH', 'team_work_ht', 'Ủi - Gấp xếp'),
-    ('gh', 'GIAO_HANG', 'team_work_gh', 'Giao hàng TP'),
+    ('gh', 'GIAO_HANG', 'team_work_gh', 'Giao hàng thành phẩm'),
 )
 
 
@@ -95,7 +95,7 @@ _STEPS_RAW: tuple[tuple[str, str, str, str], ...] = (
     ('ht_kiem', 'Kiểm hàng', 'HOAN_THANH', WC_HT),
     ('ht_ui', 'Ủi', 'HOAN_THANH', WC_HT),
     ('ht_gap', 'Gấp xếp', 'HOAN_THANH', WC_HT),
-    ('gh_tp', 'Giao hàng TP', 'GIAO_HANG', WC_GH),
+    ('gh_tp', 'Giao hàng thành phẩm', 'GIAO_HANG', WC_GH),
 )
 
 
@@ -165,5 +165,5 @@ WC_SEED: tuple[tuple[str, str, str], ...] = (
     (WC_THEU, 'Thêu', 'Thêu'),
     (WC_MAY, 'May', 'May'),
     (WC_HT, 'Hoàn thành', 'Hoàn thành'),
-    (WC_GH, 'Giao hàng TP', 'Giao hàng TP'),
+    (WC_GH, 'Giao hàng thành phẩm', 'Giao hàng thành phẩm'),
 )

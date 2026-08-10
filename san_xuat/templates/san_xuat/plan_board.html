@@ -632,7 +632,7 @@
               <strong class="{% if row.is_overdue %}is-late{% endif %}">{{ row.eta_date|date:"d/m/Y" }}</strong>
             {% else %}<strong>—</strong>{% endif %}
           </span>
-          <span>LSX <strong>{{ row.mo_count }}</strong>{% if row.mo_open %} · mở {{ row.mo_open }}{% endif %}</span>
+          <span>Lệnh sản xuất <strong>{{ row.mo_count }}</strong>{% if row.mo_open %} · mở {{ row.mo_open }}{% endif %}</span>
           <span>
             Đã làm <strong>{{ row.qty_done|floatformat:"-2" }}</strong>
             / {{ row.qty_planned|floatformat:"-2" }}
@@ -646,7 +646,7 @@
           {% for name in row.process_names %}
           <span class="jp-pb-step">{{ name }}</span>
           {% empty %}
-          <span class="jp-pb-step is-empty">Routing theo LSX</span>
+          <span class="jp-pb-step is-empty">Routing theo lệnh sản xuất</span>
           {% endfor %}
         </div>
       </div>
@@ -656,7 +656,7 @@
           <a href="{% url 'san_xuat:order_progress_sheet' mo.pk %}" class="btn btn-hm btn-sm fw-bold">Tiến độ</a>
           {% endif %}
         {% endfor %}
-        <a href="{% url 'san_xuat:dispatch_mo' %}?q={{ row.order.code|urlencode }}" class="btn btn-outline-secondary btn-sm">Xem LSX</a>
+        <a href="{% url 'san_xuat:dispatch_mo' %}?q={{ row.order.code|urlencode }}" class="btn btn-outline-secondary btn-sm">Xem lệnh sản xuất</a>
       </div>
     </article>
     {% empty %}

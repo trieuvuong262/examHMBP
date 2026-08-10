@@ -4,7 +4,7 @@
 
 <div class="meta-grid">
   <div class="full"><span class="label">Đơn vị GC:</span> <strong>{{ item.vendor_name }}</strong></div>
-  <div><span class="label">Lệnh SX:</span> {% if mo %}{{ mo.code }}{% else %}—{% endif %}</div>
+  <div><span class="label">Lệnh sản xuất:</span> {% if mo %}{{ mo.code }}{% else %}—{% endif %}</div>
   <div><span class="label">Trạng thái:</span> {{ item.get_status_display }}</div>
   <div><span class="label">Mã SP:</span> {{ item.product_code }}</div>
   <div><span class="label">Công đoạn:</span> {{ item.process_name|default:"—" }}</div>

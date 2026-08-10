@@ -41,14 +41,14 @@
       <h2 class="jp-npl-mat-topbar-title w-100">Phiếu theo dõi tiến độ</h2>
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
-      <a href="{% url 'san_xuat:dispatch_mo_detail' mo.pk %}"><i class="bi bi-file-earmark-text" aria-hidden="true"></i>LSX</a>
+      <a href="{% url 'san_xuat:dispatch_mo_detail' mo.pk %}"><i class="bi bi-file-earmark-text" aria-hidden="true"></i>Lệnh sản xuất</a>
       <span class="sep" aria-hidden="true"></span>
       <a href="{% url 'san_xuat:plan_board' %}?mode=list&tab=released" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Kế hoạch</a>
     </nav>
   </div>
 
   <div class="jp-ops-meta">
-    <span>LSX <strong>{{ mo.code }}</strong></span>
+    <span>Lệnh sản xuất <strong>{{ mo.code }}</strong></span>
     {% if sheet.order_code %}<span>Đơn <strong>{{ sheet.order_code }}</strong></span>{% endif %}
     <span>SP <strong>{{ sheet.product_code }}</strong>{% if sheet.product_name %} — {{ sheet.product_name }}{% endif %}</span>
     {% if sheet.color_summary %}<span>Màu <strong>{{ sheet.color_summary }}</strong></span>{% endif %}
@@ -56,7 +56,7 @@
   </div>
 
   {% if not sheet.sizes %}
-  <div class="alert alert-warning">LSX chưa có dòng size. Nhập ma trận màu×size trên lệnh sản xuất trước.</div>
+  <div class="alert alert-warning">Lệnh sản xuất chưa có dòng size. Nhập ma trận màu×size trên lệnh sản xuất trước.</div>
   {% else %}
   <div class="jp-ops-wrap mb-3">
     <table class="jp-ops-table">

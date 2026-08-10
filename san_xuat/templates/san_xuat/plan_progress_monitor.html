@@ -539,7 +539,7 @@
         </a>
       </div>
       <div class="jp-prog-tool-links">
-        <a href="{% url 'san_xuat:plan_detail' %}" class="is-accent"><i class="bi bi-list-columns" aria-hidden="true"></i>KH chi tiết</a>
+        <a href="{% url 'san_xuat:plan_detail' %}" class="is-accent"><i class="bi bi-list-columns" aria-hidden="true"></i>Kế hoạch chi tiết</a>
         <a href="{% url 'san_xuat:capacity_list' %}" class="is-accent"><i class="bi bi-speedometer" aria-hidden="true"></i>Năng lực SX</a>
         <a href="{% url 'san_xuat:overview' %}"><i class="bi bi-arrow-left" aria-hidden="true"></i>Tổng quan</a>
       </div>
@@ -632,7 +632,7 @@
             </div>
             <div class="d-flex justify-content-between small mb-1">
               <span class="fw-semibold">{{ row.progress_pct }}%</span>
-              <span class="text-muted">LSX {{ row.mo_open }}{% if row.mo_late %} · <span class="text-danger fw-semibold">trễ {{ row.mo_late }}</span>{% endif %}</span>
+              <span class="text-muted">Lệnh sản xuất {{ row.mo_open }}{% if row.mo_late %} · <span class="text-danger fw-semibold">trễ {{ row.mo_late }}</span>{% endif %}</span>
             </div>
             <div class="jp-prog-bar is-{{ row.status }} mb-2"><span style="width: {{ row.progress_bar_pct }}%"></span></div>
             {% if row.downtime_minutes %}
@@ -683,7 +683,7 @@
           <th class="text-end">Đạt</th>
           <th class="text-end">Lỗi</th>
           <th style="min-width:9rem">Tiến độ</th>
-          <th class="text-center">LSX</th>
+          <th class="text-center">Lệnh sản xuất</th>
           <th class="text-center">Trễ</th>
           <th class="text-end">Dừng</th>
           <th>Cảnh báo / lệnh đang chạy</th>

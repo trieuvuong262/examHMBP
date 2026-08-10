@@ -705,7 +705,7 @@
                         <li>
                             <a href="{% url 'san_xuat:ie_hub' %}"
                                class="jp-sidebar-link jp-sidebar-sublink {% if '/san-xuat/cong-doan' in request.path %}active{% endif %}">
-                                <i class="bi bi-diagram-3"></i><span>Công đoạn / IE</span>
+                                <i class="bi bi-diagram-3"></i><span>Công đoạn / định mức</span>
                             </a>
                         </li>
                         {% endif %}
@@ -754,7 +754,7 @@
                         <li>
                             <a href="{% url 'san_xuat:stock_policy_list' %}"
                                class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'stock_policy_list' %}active{% endif %}">
-                                <i class="bi bi-sliders"></i><span>Chính sách tồn TP</span>
+                                <i class="bi bi-sliders"></i><span>Chính sách tồn thành phẩm</span>
                             </a>
                         </li>
                         {% endif %}
@@ -762,7 +762,7 @@
                         <li>
                             <a href="{% url 'san_xuat:plan_npl' %}"
                                class="jp-sidebar-link jp-sidebar-sublink {% if 'plan_npl' in request.resolver_match.url_name %}active{% endif %}">
-                                <i class="bi bi-boxes"></i><span>KHNVL</span>
+                                <i class="bi bi-boxes"></i><span>Kế hoạch NPL</span>
                             </a>
                         </li>
                         {% endif %}
@@ -783,7 +783,7 @@
                                 <li>
                                     <a href="{% url 'san_xuat:npl_purchase_request' %}"
                                        class="jp-sidebar-link jp-sidebar-sublink {% if 'npl_purchase_request' in request.resolver_match.url_name %}active{% endif %}">
-                                        <i class="bi bi-cart-plus"></i><span>YCM NPL</span>
+                                        <i class="bi bi-cart-plus"></i><span>Yêu cầu mua NPL</span>
                                     </a>
                                 </li>
                                 {% endif %}
@@ -791,7 +791,7 @@
                                 <li>
                                     <a href="{% url 'san_xuat:purchase_order' %}"
                                        class="jp-sidebar-link jp-sidebar-sublink {% if 'purchase_order' in request.resolver_match.url_name %}active{% endif %}">
-                                        <i class="bi bi-receipt"></i><span>DMH</span>
+                                        <i class="bi bi-receipt"></i><span>Đơn mua hàng</span>
                                     </a>
                                 </li>
                                 {% endif %}
@@ -849,7 +849,7 @@
                 </li>
                 {% endif %}
 
-                {# —— 5. Điều phối (theo luồng LSX) —— #}
+                {# —— 5. Điều phối (theo luồng lệnh sản xuất) —— #}
                 {% jp_can_menu 'san_xuat' 'dispatch' as jp_can_san_xuat_dispatch %}
                 {% jp_can_menu 'san_xuat' 'mo' as jp_can_san_xuat_mo %}
                 {% jp_can_menu 'san_xuat' 'schedule' as jp_can_san_xuat_schedule %}
@@ -878,7 +878,7 @@
                         <li>
                             <a href="{% url 'san_xuat:dispatch_mo' %}"
                                class="jp-sidebar-link jp-sidebar-sublink {% if 'dispatch_mo' in request.resolver_match.url_name %}active{% endif %}">
-                                <i class="bi bi-file-earmark-gear"></i><span>Lệnh sản xuất</span>
+                                <i class="bi bi-card-checklist"></i><span>Lệnh sản xuất</span>
                             </a>
                         </li>
                         {% endif %}
@@ -894,7 +894,7 @@
                         <li>
                             <a href="{% url 'san_xuat:dispatch_material_issue_req' %}"
                                class="jp-sidebar-link jp-sidebar-sublink {% if 'dispatch_material_issue' in request.resolver_match.url_name %}active{% endif %}">
-                                <i class="bi bi-box-arrow-right"></i><span>YCX NVL</span>
+                                <i class="bi bi-box-arrow-right"></i><span>Yêu cầu xuất vật tư</span>
                             </a>
                         </li>
                         {% endif %}
@@ -902,7 +902,7 @@
                         <li>
                             <a href="{% url 'san_xuat:dispatch_prod_stats' %}"
                                class="jp-sidebar-link jp-sidebar-sublink {% if 'dispatch_prod_stats' in request.resolver_match.url_name %}active{% endif %}">
-                                <i class="bi bi-bar-chart"></i><span>TKSX</span>
+                                <i class="bi bi-bar-chart"></i><span>Thống kê SX</span>
                             </a>
                         </li>
                         {% endif %}
@@ -910,7 +910,7 @@
                         <li>
                             <a href="{% url 'san_xuat:dispatch_wip_handover' %}"
                                class="jp-sidebar-link jp-sidebar-sublink {% if 'dispatch_wip_handover' in request.resolver_match.url_name %}active{% endif %}">
-                                <i class="bi bi-arrow-left-right"></i><span>Bàn giao BTP</span>
+                                <i class="bi bi-arrow-left-right"></i><span>Bàn giao bán thành phẩm</span>
                             </a>
                         </li>
                         {% endif %}
@@ -918,7 +918,7 @@
                         <li>
                             <a href="{% url 'san_xuat:dispatch_wip_return' %}"
                                class="jp-sidebar-link jp-sidebar-sublink {% if 'dispatch_wip_return' in request.resolver_match.url_name %}active{% endif %}">
-                                <i class="bi bi-box-seam"></i><span>Trả lại BTP</span>
+                                <i class="bi bi-box-seam"></i><span>Trả lại bán thành phẩm</span>
                             </a>
                         </li>
                         {% endif %}
@@ -926,7 +926,7 @@
                         <li>
                             <a href="{% url 'san_xuat:dispatch_handover_status' %}"
                                class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'dispatch_handover_status' %}active{% endif %}">
-                                <i class="bi bi-clipboard-data"></i><span>Tồn BTP / bàn giao</span>
+                                <i class="bi bi-clipboard-data"></i><span>Tồn bán thành phẩm / bàn giao</span>
                             </a>
                         </li>
                         {% endif %}
@@ -934,7 +934,7 @@
                         <li>
                             <a href="{% url 'san_xuat:dispatch_fg_receipt_req' %}"
                                class="jp-sidebar-link jp-sidebar-sublink {% if 'dispatch_fg_receipt' in request.resolver_match.url_name %}active{% endif %}">
-                                <i class="bi bi-box-arrow-in-down"></i><span>YCNTP</span>
+                                <i class="bi bi-box-arrow-in-down"></i><span>Yêu cầu nhập thành phẩm</span>
                             </a>
                         </li>
                         {% endif %}
@@ -955,7 +955,7 @@
                                 <li>
                                     <a href="{% url 'san_xuat:dispatch_disassembly' %}"
                                        class="jp-sidebar-link jp-sidebar-sublink {% if 'dispatch_disassembly' in request.resolver_match.url_name %}active{% endif %}">
-                                        <i class="bi bi-box-arrow-up"></i><span>LTD</span>
+                                        <i class="bi bi-box-arrow-up"></i><span>Lệnh tháo dỡ</span>
                                     </a>
                                 </li>
                                 {% endif %}
@@ -1039,7 +1039,7 @@
                         <li>
                             <a href="{% url 'san_xuat:team_work_board' 'gh' %}"
                                class="jp-sidebar-link jp-sidebar-sublink {% if '/cong-viec-to/gh' in request.path %}active{% endif %}">
-                                <i class="bi bi-truck"></i><span>Giao hàng TP</span>
+                                <i class="bi bi-truck"></i><span>Giao hàng thành phẩm</span>
                             </a>
                         </li>
                         {% endif %}
@@ -1076,7 +1076,7 @@
                         <li>
                             <a href="{% url 'san_xuat:downtime_list' %}"
                                class="jp-sidebar-link jp-sidebar-sublink {% if 'dung-chuyen' in request.path %}active{% endif %}">
-                                <i class="bi bi-pause-circle"></i><span>Dừng chuyền / OEE</span>
+                                <i class="bi bi-pause-circle"></i><span>Dừng chuyền / hiệu suất</span>
                             </a>
                         </li>
                         {% endif %}
@@ -1084,7 +1084,7 @@
                         <li>
                             <a href="{% url 'san_xuat:piece_rate_report' %}"
                                class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'piece_rate_report' or request.resolver_match.url_name == 'piece_rate_hr_export' %}active{% endif %}">
-                                <i class="bi bi-cash-coin"></i><span>Lương SP</span>
+                                <i class="bi bi-cash-coin"></i><span>Lương sản phẩm</span>
                             </a>
                         </li>
                         {% endif %}
@@ -1107,7 +1107,7 @@
                             aria-expanded="{% if '/san-xuat/chat-luong' in request.path or '/san-xuat/ncr' in request.path %}true{% else %}false{% endif %}"
                             aria-controls="jp-sidebar-san-xuat-qc-submenu">
                         <span class="jp-sidebar-nested-toggle-main">
-                            <i class="bi bi-clipboard-check"></i><span>QC</span>
+                            <i class="bi bi-clipboard-check"></i><span>Kiểm tra chất lượng</span>
                         </span>
                         <i class="bi bi-chevron-down jp-sidebar-nested-chevron" aria-hidden="true"></i>
                     </button>
@@ -1116,7 +1116,7 @@
                         <li>
                             <a href="{% url 'san_xuat:qc_request' %}"
                                class="jp-sidebar-link jp-sidebar-sublink {% if 'qc_request' in request.resolver_match.url_name %}active{% endif %}">
-                                <i class="bi bi-clipboard-plus"></i><span>YCKT</span>
+                                <i class="bi bi-clipboard-plus"></i><span>Yêu cầu kiểm tra</span>
                             </a>
                         </li>
                         {% endif %}
@@ -1124,7 +1124,7 @@
                         <li>
                             <a href="{% url 'san_xuat:qc_sheet' %}"
                                class="jp-sidebar-link jp-sidebar-sublink {% if 'qc_sheet' in request.resolver_match.url_name %}active{% endif %}">
-                                <i class="bi bi-clipboard-check"></i><span>PKT</span>
+                                <i class="bi bi-clipboard-check"></i><span>Phiếu kiểm tra</span>
                             </a>
                         </li>
                         {% endif %}
@@ -1140,7 +1140,7 @@
                         <li>
                             <a href="{% url 'san_xuat:ncr_list' %}"
                                class="jp-sidebar-link jp-sidebar-sublink {% if '/san-xuat/ncr' in request.path %}active{% endif %}">
-                                <i class="bi bi-exclamation-octagon"></i><span>NCR</span>
+                                <i class="bi bi-exclamation-octagon"></i><span>Không phù hợp</span>
                             </a>
                         </li>
                         {% endif %}
@@ -1148,7 +1148,7 @@
                         <li>
                             <a href="{% url 'san_xuat:qc_stub' %}"
                                class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'qc_stub' or 'qc_criteria' in request.resolver_match.url_name or 'qc_sampling' in request.resolver_match.url_name or 'qc_standard' in request.resolver_match.url_name or 'qc_defect' in request.resolver_match.url_name %}active{% endif %}">
-                                <i class="bi bi-journal-bookmark"></i><span>Tiêu chuẩn</span>
+                                <i class="bi bi-journal-bookmark"></i><span>Tiêu chuẩn chất lượng</span>
                             </a>
                         </li>
                         {% endif %}
@@ -1167,7 +1167,7 @@
                             aria-expanded="{% if 'dong-goi' in request.path or 'thue-gia-cong' in request.path %}true{% else %}false{% endif %}"
                             aria-controls="jp-sidebar-san-xuat-packing-submenu">
                         <span class="jp-sidebar-nested-toggle-main">
-                            <i class="bi bi-box2"></i><span>Đóng gói / GC</span>
+                            <i class="bi bi-box2"></i><span>Đóng gói / gia công</span>
                         </span>
                         <i class="bi bi-chevron-down jp-sidebar-nested-chevron" aria-hidden="true"></i>
                     </button>
@@ -1184,7 +1184,7 @@
                         <li>
                             <a href="{% url 'san_xuat:subcontract_list' %}"
                                class="jp-sidebar-link jp-sidebar-sublink {% if 'thue-gia-cong' in request.path %}active{% endif %}">
-                                <i class="bi bi-building"></i><span>Thuê GC</span>
+                                <i class="bi bi-building"></i><span>Thuê gia công</span>
                             </a>
                         </li>
                         {% endif %}
@@ -1214,7 +1214,7 @@
                         <li>
                             <a href="{% url 'san_xuat:redirect_costing' %}"
                                class="jp-sidebar-link jp-sidebar-sublink {% if '/san-xuat/gia-thanh' in request.path and '/gia-thanh/thuc-te' not in request.path or request.GET.tab == 'costing' and '/gia-thanh/thuc-te' not in request.path %}active{% endif %}">
-                                <i class="bi bi-cash-stack"></i><span>GT kế hoạch</span>
+                                <i class="bi bi-cash-stack"></i><span>Giá thành kế hoạch</span>
                             </a>
                         </li>
                         {% endif %}
@@ -1222,7 +1222,7 @@
                         <li>
                             <a href="{% url 'san_xuat:actual_cost_list' %}"
                                class="jp-sidebar-link jp-sidebar-sublink {% if '/gia-thanh/thuc-te' in request.path %}active{% endif %}">
-                                <i class="bi bi-cash"></i><span>GT thực tế</span>
+                                <i class="bi bi-cash"></i><span>Giá thành thực tế</span>
                             </a>
                         </li>
                         {% endif %}
@@ -1250,7 +1250,7 @@
                         <li>
                             <a href="{% url 'san_xuat:traceability' %}"
                                class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'traceability' %}active{% endif %}">
-                                <i class="bi bi-search"></i><span>Truy xuất</span>
+                                <i class="bi bi-search"></i><span>Truy xuất nguồn gốc</span>
                             </a>
                         </li>
                         {% endif %}
@@ -1258,7 +1258,7 @@
                         <li>
                             <a href="{% url 'san_xuat:ops_report' %}"
                                class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'ops_report' %}active{% endif %}">
-                                <i class="bi bi-graph-up"></i><span>BC vận hành</span>
+                                <i class="bi bi-graph-up"></i><span>Báo cáo vận hành</span>
                             </a>
                         </li>
                         {% endif %}
