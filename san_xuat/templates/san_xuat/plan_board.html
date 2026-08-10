@@ -651,6 +651,11 @@
         </div>
       </div>
       <div class="jp-pb-side">
+        {% for mo in row.order.production_orders.all %}
+          {% if not mo.is_demo and mo.status != 'cancelled' %}
+          <a href="{% url 'san_xuat:order_progress_sheet' mo.pk %}" class="btn btn-hm btn-sm fw-bold">Tiến độ</a>
+          {% endif %}
+        {% endfor %}
         <a href="{% url 'san_xuat:dispatch_mo' %}?q={{ row.order.code|urlencode }}" class="btn btn-outline-secondary btn-sm">Xem LSX</a>
       </div>
     </article>

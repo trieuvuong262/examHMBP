@@ -72,7 +72,7 @@ def _q(value, places: str = '0.0001') -> Decimal:
 
 
 def ensure_order_plan_steps(order: SxSalesOrder) -> list[SxSalesOrderPlanStep]:
-    """Seed snapshot từ routing dòng SP nếu đơn chưa có bước."""
+    """Seed snapshot từ routing dòng SP nếu đơn chưa có bước; fallback mẫu cố định."""
     existing = list(order.plan_steps.select_related('work_center').order_by('sequence', 'id'))
     if existing:
         return existing
@@ -101,7 +101,9 @@ def ensure_order_plan_steps(order: SxSalesOrder) -> list[SxSalesOrderPlanStep]:
                     prev['work_center_id'] = step.work_center_id
 
     if not merged:
-        return []
+        from san_xuat.services.order_progress_sheet import seed_order_plan_steps_from_template
+
+        return seed_order_plan_steps_from_template(order)
 
     rows = sorted(merged.values(), key=lambda r: (r['sequence'], r['process_name']))
     created: list[SxSalesOrderPlanStep] = []

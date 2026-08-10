@@ -1251,6 +1251,87 @@ def plan_progress_monitor(request):
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
+def order_progress_sheet(request, mo_id: int):
+    """Phiếu theo dõi tiến độ ra hàng — size × công đoạn mẫu cố định."""
+    from datetime import date as date_cls
+    from decimal import Decimal, InvalidOperation
+
+    from san_xuat.hub_models import SxProductionOrder
+    from san_xuat.services.order_progress_sheet import (
+        build_progress_sheet,
+        ensure_progress_work_centers,
+        record_progress_qty,
+    )
+    from san_xuat.services.planning import PlanningError
+    from san_xuat.services.progress_template import progress_steps
+
+    menu_key = 'plan_board'
+    if not (
+        user_can_access_menu(request.user, MODULE_SAN_XUAT, menu_key)
+        or user_can_access_menu(request.user, MODULE_SAN_XUAT, 'plan')
+        or user_can_access_menu(request.user, MODULE_SAN_XUAT, 'dispatch_mo')
+    ):
+        return handle_menu_access_denied(request, MODULE_SAN_XUAT, menu_key)
+
+    can_update = (
+        user_can_update_menu(request.user, MODULE_SAN_XUAT, menu_key)
+        or user_can_update_menu(request.user, MODULE_SAN_XUAT, 'plan')
+        or user_can_create_menu(request.user, MODULE_SAN_XUAT, menu_key)
+    )
+
+    mo = (
+        SxProductionOrder.objects.filter(pk=mo_id, is_demo=False)
+        .select_related('sales_order')
+        .first()
+    )
+    if not mo:
+        messages.error(request, 'Không tìm thấy lệnh sản xuất.')
+        return redirect('san_xuat:plan_board')
+
+    ensure_progress_work_centers()
+
+    if request.method == 'POST' and can_update:
+        action = (request.POST.get('action') or '').strip()
+        if action == 'record':
+            try:
+                qty = Decimal(str(request.POST.get('qty') or '0').replace(',', '').strip() or '0')
+            except (InvalidOperation, ValueError):
+                qty = Decimal('0')
+            raw_date = (request.POST.get('stat_date') or '').strip()
+            try:
+                stat_date = date_cls.fromisoformat(raw_date) if raw_date else None
+            except ValueError:
+                stat_date = None
+            try:
+                record_progress_qty(
+                    mo_id=mo.pk,
+                    process_key=(request.POST.get('process_key') or '').strip(),
+                    size_label=(request.POST.get('size_label') or '').strip(),
+                    qty=qty,
+                    stat_date=stat_date,
+                    user=request.user,
+                )
+                messages.success(request, 'Đã ghi SL tiến độ.')
+            except PlanningError as exc:
+                messages.error(request, str(exc))
+            except Exception as exc:
+                messages.error(request, str(exc))
+            return redirect('san_xuat:order_progress_sheet', mo_id=mo.pk)
+
+    sheet = build_progress_sheet(mo)
+    flat_steps = progress_steps()
+
+    return render(request, 'san_xuat/order_progress_sheet.html', {
+        **_perm_ctx(request),
+        'mo': mo,
+        'sheet': sheet,
+        'flat_steps': flat_steps,
+        'can_update': can_update,
+        'today': timezone.localdate(),
+    })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
 def plan_overall(request):
     """Đã gộp vào bảng kế hoạch SX theo đơn — URL cũ redirect."""
     return redirect('san_xuat:plan_board')
