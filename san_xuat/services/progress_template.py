@@ -33,12 +33,12 @@ class ProgressStepDef:
 
 
 GROUPS: tuple[ProgressGroup, ...] = (
-    ProgressGroup('CAT', 'CẮT', WC_CAT),
-    ProgressGroup('IN_EP', 'IN - ÉP', WC_IN_EP),
-    ProgressGroup('THEU', 'THÊU', WC_THEU),
-    ProgressGroup('MAY', 'CÔNG ĐOẠN MAY', WC_MAY),
+    ProgressGroup('CAT', 'Cắt', WC_CAT),
+    ProgressGroup('IN_EP', 'In - Ép', WC_IN_EP),
+    ProgressGroup('THEU', 'Thêu', WC_THEU),
+    ProgressGroup('MAY', 'May', WC_MAY),
     ProgressGroup('HOAN_THANH', 'Ủi - Gấp xếp', WC_HT),
-    ProgressGroup('GIAO_HANG', 'GIAO HÀNG THÀNH PHẨM', WC_GH),
+    ProgressGroup('GIAO_HANG', 'Giao hàng thành phẩm', WC_GH),
 )
 
 # slug URL ↔ group key ↔ menu key

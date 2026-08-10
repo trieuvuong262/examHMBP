@@ -297,7 +297,7 @@ def group_list(request):
     qs = (
         SxOperationGroup.objects.select_related('default_work_center')
         .annotate(n_ops=Count('operations'))
-        .all()
+        .filter(is_active=True)
     )
     term = (request.GET.get('q') or '').strip()
     if term:
@@ -415,7 +415,7 @@ def operation_list(request):
         'term': term,
         'group_code': group_code,
         'status': status,
-        'groups': SxOperationGroup.objects.order_by('sort_order', 'code'),
+        'groups': SxOperationGroup.objects.filter(is_active=True).order_by('sort_order', 'code'),
         'status_choices': SxOperation.STATUS_CHOICES,
         'total': qs.count(),
     })

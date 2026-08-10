@@ -33,6 +33,7 @@ class Command(BaseCommand):
         )
         self.stdout.write(self.style.SUCCESS(
             'Synced stages={stages} groups={groups} '
+            'groups_deactivated={groups_deactivated} stages_deactivated={stages_deactivated} '
             'ops_created={ops_created} ops_updated={ops_updated} '
             'ops_retired={ops_retired} ops_deleted={ops_deleted} '
             'process_names={process_names} '

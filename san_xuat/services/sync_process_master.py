@@ -11,7 +11,6 @@ from san_xuat.ie_models import SxOperation, SxOperationGroup, SxProcessStage
 from san_xuat.services.process_catalog import ensure_process_name
 from san_xuat.services.progress_template import (
     GROUPS,
-    WC_SEED,
     progress_steps,
 )
 
@@ -115,6 +114,8 @@ def sync_standard_process_library(
     stats = {
         'stages': 0,
         'groups': 0,
+        'groups_deactivated': 0,
+        'stages_deactivated': 0,
         'ops_created': 0,
         'ops_updated': 0,
         'ops_retired': 0,
@@ -124,18 +125,19 @@ def sync_standard_process_library(
     }
 
     group_by_key: dict[str, SxOperationGroup] = {}
+    keep_group_codes: set[str] = set()
+    keep_stage_codes: set[str] = set()
     for i, grp in enumerate(GROUPS):
         code, stage_code = _GROUP_META[grp.key]
+        keep_group_codes.add(code)
+        keep_stage_codes.add(stage_code)
         stage = _ensure_stage(stage_code, grp.label, sort_order=(i + 1) * 10)
         stats['stages'] += 1
-        wc_code = grp.work_center_code
-        # Prefer WC_SEED display name for group name short form
-        wc_name = next((n for c, n, _t in WC_SEED if c == wc_code), grp.label)
         og = _ensure_group(
             code=code,
-            name=wc_name,
+            name=grp.label,
             stage=stage,
-            wc_code=wc_code,
+            wc_code=grp.work_center_code,
             sort_order=(i + 1) * 10,
         )
         group_by_key[grp.key] = og
@@ -212,5 +214,26 @@ def sync_standard_process_library(
                 pn.is_active = False
                 pn.save(update_fields=['is_active'])
                 stats['process_names_deactivated'] += 1
+
+        # Chỉ giữ 6 nhóm chuẩn — tắt nhóm / khâu thừa
+        stale_groups = SxOperationGroup.objects.exclude(code__in=keep_group_codes)
+        for g in stale_groups:
+            if purge_missing and not g.operations.exists():
+                g.delete()
+                stats['groups_deactivated'] += 1
+            elif g.is_active:
+                g.is_active = False
+                g.save(update_fields=['is_active'])
+                stats['groups_deactivated'] += 1
+
+        stale_stages = SxProcessStage.objects.exclude(code__in=keep_stage_codes)
+        for st in stale_stages:
+            if purge_missing and not st.operation_groups.exists():
+                st.delete()
+                stats['stages_deactivated'] += 1
+            elif st.is_active:
+                st.is_active = False
+                st.save(update_fields=['is_active'])
+                stats['stages_deactivated'] += 1
 
     return stats
