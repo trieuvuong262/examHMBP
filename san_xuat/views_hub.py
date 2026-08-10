@@ -436,7 +436,6 @@ def sales_order_create(request):
                 qty = f.cleaned_data.get('qty')
                 if not code or not qty:
                     continue
-                import json
                 size_raw = f.cleaned_data.get('size_qtys') or '{}'
                 try:
                     size_qtys = json.loads(size_raw) if isinstance(size_raw, str) else (size_raw or {})
