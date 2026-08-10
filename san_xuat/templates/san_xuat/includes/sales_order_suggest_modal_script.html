@@ -262,7 +262,8 @@
             return '<div>' + escape(data.text || data.code || '') + '</div>';
           },
           item: function (data, escape) {
-            return '<div>' + escape(data.code || data.text || '') + '</div>';
+            var label = data.text || (data.code && data.name ? (data.code + ' — ' + data.name) : (data.code || ''));
+            return '<div>' + escape(label) + '</div>';
           },
         },
       });

@@ -70,6 +70,15 @@
     var initialLabel = select.options[select.selectedIndex]
       ? select.options[select.selectedIndex].textContent.trim()
       : initialValue;
+    var itemUsesText = (select.dataset.itemLabel || '').trim() === 'text';
+
+    function itemLabel(data) {
+      if (itemUsesText) {
+        if (data.text) return data.text;
+        if (data.code && data.name) return data.code + ' — ' + data.name;
+      }
+      return data.code || data.text || '';
+    }
 
     return new TomSelect(select, {
       maxOptions: 40,
@@ -94,7 +103,7 @@
           return '<div>' + escape(data.text || data.code || '') + '</div>';
         },
         item: function (data, escape) {
-          return '<div>' + escape(data.code || data.text || '') + '</div>';
+          return '<div>' + escape(itemLabel(data)) + '</div>';
         },
       },
       onInitialize: function () {
