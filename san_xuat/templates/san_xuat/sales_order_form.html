@@ -1,21 +1,15 @@
 {% extends 'base.html' %}
 
+{% load static %}
 {% load sx_format %}
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
 <style>
-  .jp-so-qty-row {
-    display: flex;
-    flex-wrap: nowrap;
-    align-items: flex-end;
-    gap: .35rem .45rem;
-    min-width: 22rem;
-  }
   .jp-so-size-grid {
-    display: grid;
-    grid-template-columns: repeat(6, minmax(2.4rem, 2.85rem));
+    display: flex;
+    flex-wrap: wrap;
     gap: .2rem;
-    flex: 0 0 auto;
+    max-width: 28rem;
   }
   .jp-so-size-cell {
     display: flex;
@@ -23,6 +17,8 @@
     align-items: stretch;
     gap: .05rem;
     margin: 0;
+    width: 2.55rem;
+    flex: 0 0 2.55rem;
     font-size: .62rem;
     font-weight: 700;
     color: #64748b;
@@ -40,12 +36,18 @@
     background: #ecfdf5;
     border-color: #6ee7b7;
   }
+  .jp-so-line-actions {
+    display: inline-flex;
+    align-items: flex-end;
+    gap: .35rem;
+    white-space: nowrap;
+  }
   .jp-so-qty-total-wrap {
     display: flex;
     flex-direction: column;
     align-items: stretch;
     gap: .05rem;
-    flex: 0 0 4.75rem;
+    width: 4.5rem;
     margin: 0;
     font-size: .62rem;
     font-weight: 700;
@@ -61,13 +63,30 @@
     font-weight: 700;
     height: calc(1.5em + .5rem + 2px);
   }
-  #jp-so-lines-table th.jp-so-qty-col,
-  #jp-so-lines-table td.jp-so-qty-col {
-    min-width: 23rem;
-    width: 23rem;
+  .jp-so-line-actions .jp-so-remove-row {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: calc(1.5em + .5rem + 2px);
+    flex: 0 0 auto;
+  }
+  #jp-so-lines-table th.jp-so-size-col,
+  #jp-so-lines-table td.jp-so-size-col {
+    min-width: 16rem;
+  }
+  #jp-so-lines-table th.jp-so-actions-col,
+  #jp-so-lines-table td.jp-so-actions-col {
+    width: 7.5rem;
+    min-width: 7.5rem;
+    text-align: right;
+    vertical-align: bottom;
   }
   #jp-so-lines-table td {
     vertical-align: middle;
+  }
+  #jp-so-lines-table td.jp-so-actions-col {
+    vertical-align: bottom;
   }
 </style>
 {% endblock %}
@@ -88,19 +107,55 @@
     </nav>
   </div>
 
-  <form method="post" id="jp-so-form">
+  <form method="post" id="jp-so-form" enctype="multipart/form-data">
     {% csrf_token %}
     <div class="card border-0 shadow-sm mb-3">
       <div class="card-body">
         <h6 class="fw-bold mb-3">Thông tin chung</h6>
         <div class="row g-3">
-          {% for field in header %}
-          <div class="col-md-{% if field.name == 'notes' %}12{% else %}6{% endif %}">
-            <label class="form-label small text-muted" for="{{ field.id_for_label }}">{{ field.label }}{{ field|sx_req_star }}</label>
-            {{ field }}
-            {% if field.errors %}<div class="text-danger small">{{ field.errors }}</div>{% endif %}
+          <div class="col-md-4">
+            <label class="form-label small text-muted" for="jp-so-created-by">Người lên đơn</label>
+            <input type="text" class="form-control form-control-sm" id="jp-so-created-by"
+                   value="{{ order_creator_label }}" readonly tabindex="-1">
           </div>
-          {% endfor %}
+          <div class="col-md-4">
+            <label class="form-label small text-muted" for="jp-so-created-at">Ngày lên đơn</label>
+            <input type="text" class="form-control form-control-sm" id="jp-so-created-at"
+                   value="{{ order_created_at|date:'d/m/Y H:i:s' }}" readonly tabindex="-1">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small text-muted" for="{{ header.customer_name.id_for_label }}">{{ header.customer_name.label }}{{ header.customer_name|sx_req_star }}</label>
+            {{ header.customer_name }}
+            {% if header.customer_name.errors %}<div class="text-danger small">{{ header.customer_name.errors }}</div>{% endif %}
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label small text-muted" for="{{ header.code.id_for_label }}">{{ header.code.label }}{{ header.code|sx_req_star }}</label>
+            {{ header.code }}
+            {% if header.code.errors %}<div class="text-danger small">{{ header.code.errors }}</div>{% endif %}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small text-muted" for="{{ header.request_date.id_for_label }}">{{ header.request_date.label }}{{ header.request_date|sx_req_star }}</label>
+            {{ header.request_date }}
+            {% if header.request_date.errors %}<div class="text-danger small">{{ header.request_date.errors }}</div>{% endif %}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small text-muted" for="{{ header.due_date.id_for_label }}">{{ header.due_date.label }}{{ header.due_date|sx_req_star }}</label>
+            {{ header.due_date }}
+            {% if header.due_date.errors %}<div class="text-danger small">{{ header.due_date.errors }}</div>{% endif %}
+          </div>
+
+          <div class="col-md-8">
+            <label class="form-label small text-muted" for="{{ header.notes.id_for_label }}">{{ header.notes.label }}{{ header.notes|sx_req_star }}</label>
+            {{ header.notes }}
+            {% if header.notes.errors %}<div class="text-danger small">{{ header.notes.errors }}</div>{% endif %}
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label small text-muted" for="{{ header.attachment.id_for_label }}">{{ header.attachment.label }}{{ header.attachment|sx_req_star }}</label>
+            {{ header.attachment }}
+            {% if header.attachment.errors %}<div class="text-danger small">{{ header.attachment.errors }}</div>{% endif %}
+          </div>
         </div>
       </div>
     </div>
@@ -116,8 +171,8 @@
                 <th style="min-width:200px">Mã SP</th>
                 <th>Tên</th>
                 <th class="text-end" style="width:7rem">Tồn kho</th>
-                <th class="jp-so-qty-col">Số lượng (size → tổng)</th>
-                <th style="width:3rem"></th>
+                <th class="jp-so-size-col">Size</th>
+                <th class="jp-so-actions-col">Tổng</th>
               </tr>
             </thead>
             <tbody>
@@ -131,33 +186,33 @@
                 <td class="text-end">
                   <span class="jp-so-stock-qty text-muted">—</span>
                 </td>
-                <td class="jp-so-qty-col">
+                <td class="jp-so-size-col">
                   {{ f.size_qtys }}
-                  <div class="jp-so-qty-row">
-                    <div class="jp-so-size-grid" data-role="size-qtys">
-                      {% for sz in suggest_sizes %}
-                      <label class="jp-so-size-cell">
-                        <span>{{ sz }}</span>
-                        <input type="number" class="form-control form-control-sm jp-so-size-qty"
-                               data-size="{{ sz }}" value="0" min="0" step="1" inputmode="numeric"
-                               aria-label="SL size {{ sz }}">
-                      </label>
-                      {% endfor %}
-                    </div>
+                  <div class="jp-so-size-grid" data-role="size-qtys">
+                    {% for sz in suggest_sizes %}
+                    <label class="jp-so-size-cell">
+                      <span>{{ sz }}</span>
+                      <input type="number" class="form-control form-control-sm jp-so-size-qty"
+                             data-size="{{ sz }}" value="0" min="0" step="1" inputmode="numeric"
+                             aria-label="SL size {{ sz }}">
+                    </label>
+                    {% endfor %}
+                  </div>
+                </td>
+                <td class="jp-so-actions-col">
+                  <div class="jp-so-line-actions">
                     <label class="jp-so-qty-total-wrap" for="{{ f.qty.id_for_label }}">
                       <span>Tổng</span>
                       {{ f.qty }}
                     </label>
+                    {% if f.DELETE %}
+                    <div class="d-none">{{ f.DELETE }}</div>
+                    <button type="button" class="btn btn-link btn-sm text-danger p-0 jp-so-remove-row" title="Xóa dòng" aria-label="Xóa dòng">
+                      <i class="bi bi-x-lg" aria-hidden="true"></i>
+                    </button>
+                    {% endif %}
                   </div>
                   {% if f.qty.errors %}<div class="text-danger small">{{ f.qty.errors }}</div>{% endif %}
-                </td>
-                <td class="text-center">
-                  {% if f.DELETE %}
-                  <div class="d-none">{{ f.DELETE }}</div>
-                  <button type="button" class="btn btn-link btn-sm text-danger p-0 jp-so-remove-row" title="Xóa dòng" aria-label="Xóa dòng">
-                    <i class="bi bi-x-lg" aria-hidden="true"></i>
-                  </button>
-                  {% endif %}
                 </td>
               </tr>
             {% endfor %}
@@ -172,7 +227,9 @@
       </div>
     </div>
 
-    <button type="submit" class="btn btn-hm fw-bold">Lưu đơn</button>
+    <div class="d-flex justify-content-end">
+      <button type="submit" class="btn btn-hm fw-bold">Lưu đơn</button>
+    </div>
   </form>
 </div>
 
@@ -182,32 +239,32 @@
     <td>{{ f.product_code }}</td>
     <td>{{ f.product_name }}</td>
     <td class="text-end"><span class="jp-so-stock-qty text-muted">—</span></td>
-    <td class="jp-so-qty-col">
+    <td class="jp-so-size-col">
       {{ f.size_qtys }}
-      <div class="jp-so-qty-row">
-        <div class="jp-so-size-grid" data-role="size-qtys">
-          {% for sz in suggest_sizes %}
-          <label class="jp-so-size-cell">
-            <span>{{ sz }}</span>
-            <input type="number" class="form-control form-control-sm jp-so-size-qty"
-                   data-size="{{ sz }}" value="0" min="0" step="1" inputmode="numeric"
-                   aria-label="SL size {{ sz }}">
-          </label>
-          {% endfor %}
-        </div>
+      <div class="jp-so-size-grid" data-role="size-qtys">
+        {% for sz in suggest_sizes %}
+        <label class="jp-so-size-cell">
+          <span>{{ sz }}</span>
+          <input type="number" class="form-control form-control-sm jp-so-size-qty"
+                 data-size="{{ sz }}" value="0" min="0" step="1" inputmode="numeric"
+                 aria-label="SL size {{ sz }}">
+        </label>
+        {% endfor %}
+      </div>
+    </td>
+    <td class="jp-so-actions-col">
+      <div class="jp-so-line-actions">
         <label class="jp-so-qty-total-wrap" for="{{ f.qty.id_for_label }}">
           <span>Tổng</span>
           {{ f.qty }}
         </label>
+        {% if f.DELETE %}
+        <div class="d-none">{{ f.DELETE }}</div>
+        <button type="button" class="btn btn-link btn-sm text-danger p-0 jp-so-remove-row" title="Xóa dòng" aria-label="Xóa dòng">
+          <i class="bi bi-x-lg" aria-hidden="true"></i>
+        </button>
+        {% endif %}
       </div>
-    </td>
-    <td class="text-center">
-      {% if f.DELETE %}
-      <div class="d-none">{{ f.DELETE }}</div>
-      <button type="button" class="btn btn-link btn-sm text-danger p-0 jp-so-remove-row" title="Xóa dòng" aria-label="Xóa dòng">
-        <i class="bi bi-x-lg" aria-hidden="true"></i>
-      </button>
-      {% endif %}
     </td>
   </tr>
   {% endwith %}
@@ -247,6 +304,55 @@
     return map;
   }
 
+  function ensureSizeInputs(row, sizes) {
+    var grid = row.querySelector('[data-role="size-qtys"]');
+    if (!grid) return;
+    var want = {};
+    (sizes || []).forEach(function (sz) {
+      sz = String(sz || '').trim();
+      if (sz) want[sz] = true;
+    });
+    grid.querySelectorAll('.jp-so-size-qty').forEach(function (inp) {
+      var sz = (inp.getAttribute('data-size') || '').trim();
+      if (sz) want[sz] = true;
+    });
+    var order = [];
+    var seen = {};
+    function push(sz) {
+      if (!want[sz] || seen[sz]) return;
+      seen[sz] = true;
+      order.push(sz);
+    }
+    (window.jpSoAllSizes || []).forEach(push);
+    Object.keys(want).forEach(push);
+    if (!order.length) return;
+
+    var values = {};
+    grid.querySelectorAll('.jp-so-size-qty').forEach(function (inp) {
+      var sz = (inp.getAttribute('data-size') || '').trim();
+      if (sz) values[sz] = inp.value;
+    });
+    grid.innerHTML = '';
+    order.forEach(function (sz) {
+      var label = document.createElement('label');
+      label.className = 'jp-so-size-cell';
+      var span = document.createElement('span');
+      span.textContent = sz;
+      var inp = document.createElement('input');
+      inp.type = 'number';
+      inp.className = 'form-control form-control-sm jp-so-size-qty';
+      inp.setAttribute('data-size', sz);
+      inp.value = values[sz] != null && values[sz] !== '' ? values[sz] : '0';
+      inp.min = '0';
+      inp.step = '1';
+      inp.inputMode = 'numeric';
+      inp.setAttribute('aria-label', 'SL size ' + sz);
+      label.appendChild(span);
+      label.appendChild(inp);
+      grid.appendChild(label);
+    });
+  }
+
   function writeSizeMap(row, map) {
     map = map || {};
     var merged = {};
@@ -254,6 +360,7 @@
       var n = Number(map[sz]) || 0;
       if (n > 0) merged[sz] = Math.round(n);
     });
+    ensureSizeInputs(row, Object.keys(merged));
     row.querySelectorAll('.jp-so-size-qty').forEach(function (inp) {
       var sz = (inp.getAttribute('data-size') || '').trim();
       var n = Number(merged[sz]) || 0;
@@ -329,6 +436,7 @@
   });
 
   window.jpSoWriteLineSizeQtys = writeSizeMap;
+  window.jpSoEnsureLineSizes = ensureSizeInputs;
   window.jpSoSyncLineSizeJson = syncSizeJson;
 
   addBtn.addEventListener('click', function () {
@@ -362,4 +470,5 @@
 })();
 </script>
 {% include 'san_xuat/includes/sales_order_suggest_modal_script.html' %}
+<script src="{% static 'js/sales-order-autosave.js' %}?v=20260810a"></script>
 {% endblock %}

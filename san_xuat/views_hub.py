@@ -418,6 +418,7 @@ def sales_order_create(request):
 
     header = SalesOrderHeaderForm(
         request.POST or None,
+        request.FILES or None,
         initial={'request_date': timezone.localdate()},
     )
     formset = SalesOrderLineFormSet(request.POST or None, prefix='lines')
@@ -455,6 +456,7 @@ def sales_order_create(request):
                     request_date=header.cleaned_data['request_date'],
                     due_date=header.cleaned_data.get('due_date'),
                     notes=header.cleaned_data.get('notes') or '',
+                    attachment=header.cleaned_data.get('attachment') or None,
                     lines=lines,
                     user=request.user,
                 )
@@ -471,11 +473,20 @@ def sales_order_create(request):
         '1', '3', '5', '7', '9', '11', '13', '15',
         'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL', '6XL',
     ]
+    u = request.user
+    profile = getattr(u, 'profile', None)
+    order_creator_label = (
+        (getattr(profile, 'full_name', None) or '').strip()
+        or (u.get_full_name() or '').strip()
+        or u.get_username()
+    )
     return render(request, 'san_xuat/sales_order_form.html', {
         **_perm_ctx(request),
         'header': header,
         'formset': formset,
         'is_create': True,
+        'order_creator_label': order_creator_label,
+        'order_created_at': timezone.localtime(),
         'suggest_sizes': suggest_sizes,
         'suggest_sizes_json': json.dumps(suggest_sizes, ensure_ascii=False),
         'suggest_sizes_all': suggest_sizes_all,
@@ -579,7 +590,7 @@ def sales_order_detail(request, pk: int):
     )
 
     order = get_object_or_404(
-        SxSalesOrder.objects.prefetch_related('lines'),
+        SxSalesOrder.objects.select_related('created_by').prefetch_related('lines'),
         pk=pk,
         is_demo=False,
     )

@@ -3,6 +3,8 @@
 (function () {
   var DEFAULT_SIZES = {{ suggest_sizes_json|safe }};
   var ALL_SIZES = {{ suggest_sizes_all_json|safe }};
+  window.jpSoDefaultSizes = DEFAULT_SIZES;
+  window.jpSoAllSizes = ALL_SIZES;
   var SIZES = ALL_SIZES.slice();
   var SIZE_ALIASES = {
     XXL: '2XL', '2XL': '2XL',
@@ -358,6 +360,10 @@
         var sug = parseInt((outCell(sz) || {}).textContent || '0', 10) || 0;
         if (sug > 0) sizeMap[sz] = sug;
       });
+      // Hiện đủ size đang mở trong modal (kể cả SL = 0) để dòng SP khớp lưới đề xuất
+      if (typeof window.jpSoEnsureLineSizes === 'function') {
+        window.jpSoEnsureLineSizes(row, visibleSizes());
+      }
       if (typeof window.jpSoWriteLineSizeQtys === 'function') {
         window.jpSoWriteLineSizeQtys(row, sizeMap);
       } else {

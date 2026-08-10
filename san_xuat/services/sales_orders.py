@@ -97,9 +97,10 @@ def create_sales_order(
     source: str = SxSalesOrder.SOURCE_MANUAL,
     kv_order_kiotviet_id: int | None = None,
     kv_order_code: str = '',
+    attachment=None,
 ) -> SxSalesOrder:
     req = request_date or timezone.localdate()
-    order = SxSalesOrder.objects.create(
+    order = SxSalesOrder(
         code=(code or '').strip() or next_sales_order_code(),
         customer_name=(customer_name or '').strip()[:255],
         request_date=req,
@@ -112,6 +113,9 @@ def create_sales_order(
         created_by=user if getattr(user, 'is_authenticated', False) else None,
         is_demo=False,
     )
+    if attachment is not None:
+        order.attachment = attachment
+    order.save()
     if lines:
         _replace_lines(order, lines)
     return order

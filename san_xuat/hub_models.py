@@ -75,6 +75,11 @@ class SxSalesOrder(DemoMarkedModel):
     )
     kv_order_code = models.CharField(max_length=64, blank=True, default='', verbose_name='Mã đơn KV')
     notes = models.TextField(blank=True, default='')
+    attachment = models.FileField(
+        upload_to='san_xuat/sales_orders/%Y/%m/',
+        blank=True,
+        verbose_name='File đính kèm',
+    )
 
     # --- Kế hoạch SX theo đơn (board) ---
     PLAN_QUEUED = 'queued'

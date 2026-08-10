@@ -30,14 +30,21 @@ class SalesOrderHeaderForm(forms.Form):
         widget=forms.DateInput(attrs={'class': 'form-control form-control-sm jp-date-vn', 'type': 'date'}),
     )
     due_date = forms.DateField(
-        required=False,
         label='Hạn sản xuất',
         widget=forms.DateInput(attrs={'class': 'form-control form-control-sm jp-date-vn', 'type': 'date'}),
     )
     notes = forms.CharField(
         required=False,
         label='Ghi chú',
-        widget=forms.Textarea(attrs={'class': 'form-control form-control-sm', 'rows': 2}),
+        widget=forms.TextInput(attrs={'class': 'form-control form-control-sm'}),
+    )
+    attachment = forms.FileField(
+        required=False,
+        label='File đính kèm',
+        widget=forms.ClearableFileInput(attrs={
+            'class': 'form-control form-control-sm',
+            'accept': 'image/*,.pdf,.doc,.docx,.xls,.xlsx',
+        }),
     )
 
 

@@ -73,15 +73,25 @@
   <div class="card border-0 shadow-sm mb-3">
     <div class="card-body">
       <div class="row g-3 small">
-        <div class="col-md-3">
+        <div class="col-md-4">
+          <div class="text-muted">Người lên đơn</div>
+          <div class="fw-semibold">
+            {% if order.created_by %}{{ order.created_by.get_full_name|default:order.created_by.username }}{% else %}—{% endif %}
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="text-muted">Ngày lên đơn</div>
+          <div class="fw-semibold">{% if order.created_at %}{{ order.created_at|date:"d/m/Y H:i:s" }}{% else %}—{% endif %}</div>
+        </div>
+        <div class="col-md-4">
           <div class="text-muted">Khách hàng</div>
           <div class="fw-semibold">{{ order.customer_name|default:"—" }}</div>
         </div>
-        <div class="col-md-2">
+        <div class="col-md-4">
           <div class="text-muted">Ngày yêu cầu</div>
           <div class="fw-semibold">{{ order.request_date|date:"d/m/Y" }}</div>
         </div>
-        <div class="col-md-2">
+        <div class="col-md-4">
           <div class="text-muted">Hạn sản xuất</div>
           <div class="fw-semibold">{% if order.due_date %}{{ order.due_date|date:"d/m/Y" }}{% else %}—{% endif %}</div>
         </div>
@@ -89,6 +99,16 @@
         <div class="col-12">
           <div class="text-muted">Ghi chú</div>
           <div>{{ order.notes }}</div>
+        </div>
+        {% endif %}
+        {% if order.attachment %}
+        <div class="col-12">
+          <div class="text-muted">File đính kèm</div>
+          <div>
+            <a href="{{ order.attachment.url }}" target="_blank" rel="noopener">
+              <i class="bi bi-paperclip me-1" aria-hidden="true"></i>{{ order.attachment.name }}
+            </a>
+          </div>
         </div>
         {% endif %}
         {% if order.reject_reason %}
