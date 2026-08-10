@@ -17,7 +17,6 @@
   var coefEl = document.getElementById('jp-so-sg-coef');
   var roundEl = document.getElementById('jp-so-sg-round');
   var productEl = document.getElementById('jp-so-sg-product');
-  var productMeta = document.getElementById('jp-so-sg-product-meta');
   var periodEl = document.getElementById('jp-so-sg-period');
   var totalEl = document.getElementById('jp-so-sg-total');
   var breakdownEl = document.getElementById('jp-so-sg-breakdown');
@@ -136,7 +135,6 @@
     style = (style || '').trim();
     var days = periodDays();
     if (!style) {
-      if (productMeta) productMeta.textContent = '';
       if (periodMeta) {
         periodMeta.textContent = 'Tốc độ tiêu thụ = tổng SL bán KiotViet trong ' + days + ' ngày gần nhất';
       }
@@ -144,7 +142,6 @@
       applyVelocityMap({});
       return;
     }
-    if (productMeta) productMeta.textContent = 'Đang tải tồn + tiêu thụ KV…';
     fetch(stockUrl + '?style=' + encodeURIComponent(style) + '&days=' + encodeURIComponent(String(days)), {
       headers: { 'Accept': 'application/json' },
       credentials: 'same-origin',
@@ -153,13 +150,11 @@
       .then(function (data) {
         var stockMap = {};
         var velMap = {};
-        var matched = 0;
         (data.sizes || []).forEach(function (row) {
           var sz = canonSize(row.size);
           if (!sz || ALL_SIZES.indexOf(sz) === -1) return;
           stockMap[sz] = (stockMap[sz] || 0) + (Number(row.stock_qty) || Number(row.stock) || 0);
           velMap[sz] = (velMap[sz] || 0) + (Number(row.velocity_qty) || Number(row.velocity) || 0);
-          matched += 1;
         });
         applyStockMap(data.found ? stockMap : {});
         applyVelocityMap(data.found ? velMap : {});
@@ -176,23 +171,8 @@
             ? ('Tiêu thụ KV ' + days + ' ngày (' + from + ' → ' + to + ')')
             : ('Tốc độ tiêu thụ = tổng SL bán KiotViet trong ' + days + ' ngày gần nhất');
         }
-        if (productMeta) {
-          if (data.found) {
-            var bits = [];
-            if (data.name) bits.push(data.name);
-            bits.push(matched + ' size');
-            var soldTotal = 0;
-            Object.keys(velMap).forEach(function (k) { soldTotal += Number(velMap[k]) || 0; });
-            bits.push('bán ' + Math.round(soldTotal));
-            productMeta.textContent = 'Kho SP + KV: ' + bits.join(' · ');
-          } else {
-            productMeta.textContent = 'Không thấy biến thể size trong kho SP.';
-          }
-        }
       })
-      .catch(function () {
-        if (productMeta) productMeta.textContent = 'Không tải được tồn / tiêu thụ.';
-      });
+      .catch(function () {});
   }
 
   function recalc() {
@@ -300,7 +280,6 @@
     if (roundEl) roundEl.value = '50';
     if (periodEl) periodEl.value = '30';
     if (productTs) productTs.clear(true);
-    if (productMeta) productMeta.textContent = '';
     if (periodMeta) {
       periodMeta.textContent = 'Tốc độ tiêu thụ = tổng SL bán KiotViet trong 30 ngày gần nhất';
     }

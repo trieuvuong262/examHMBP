@@ -88,12 +88,6 @@
     padding: .15rem .25rem !important;
     font-weight: 600;
   }
-  .jp-so-suggest-sheet .jp-so-sg-product-meta {
-    font-size: .72rem;
-    font-weight: 500;
-    margin-top: .15rem;
-    padding-left: .25rem;
-  }
   .jp-so-suggest-sheet .jp-so-sg-stock.is-from-kho,
   .jp-so-suggest-sheet .jp-so-sg-velocity.is-from-kv {
     color: #1e3a8a;
@@ -148,11 +142,6 @@
     color: #334155;
     font-size: .78rem;
   }
-  .jp-so-suggest-hint {
-    font-size: .78rem;
-    color: var(--bs-secondary-color);
-    margin: .65rem 0 0;
-  }
   .jp-so-suggest-total {
     display: flex;
     flex-wrap: wrap;
@@ -201,7 +190,6 @@
                     aria-label="Loại hàng">
               <option value="">Gõ mã SX hoặc tên sản phẩm…</option>
             </select>
-            <div class="jp-so-sg-product-meta text-muted" id="jp-so-sg-product-meta"></div>
           </div>
           <div class="jp-so-sg-field">
             <label for="jp-so-sg-period">Thời gian dự đoán (ngày)</label>
@@ -267,10 +255,6 @@
           </button>
           <span class="small text-muted">Mặc định: S · M · L · XL · 2XL · 3XL</span>
         </div>
-        <p class="jp-so-suggest-hint mb-0">
-          Chọn <strong>Loại hàng</strong> → tồn + tốc độ tiêu thụ (bán KV theo số ngày) tự điền.
-          Có thể sửa tay · đề xuất = làm tròn <em>lên</em> theo bước «Làm tròn».
-        </p>
         <div class="jp-so-suggest-total">
           <span>Tổng đề xuất: <strong id="jp-so-sg-total">0</strong></span>
           <span class="text-muted" id="jp-so-sg-breakdown"></span>
