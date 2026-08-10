@@ -12,7 +12,8 @@
       <h2 class="jp-npl-mat-topbar-title w-100">Lên đơn đặt hàng</h2>
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
-      <button type="button" class="btn btn-outline-hm btn-sm fw-bold" id="jp-so-suggest-open">
+      <button type="button" class="btn btn-outline-hm btn-sm fw-bold" id="jp-so-suggest-open"
+              data-bs-toggle="modal" data-bs-target="#jpSoSuggestModal">
         <i class="bi bi-calculator me-1" aria-hidden="true"></i>Đề xuất SL
       </button>
       <span class="sep" aria-hidden="true"></span>
@@ -110,6 +111,9 @@
 
 {% include 'san_xuat/includes/sx_product_code_select_script.html' %}
 {% include 'san_xuat/includes/sales_order_suggest_modal.html' %}
+{% endblock %}
+
+{% block scripts %}
 <script>
 (function () {
   var body = document.querySelector('#jp-so-lines-table tbody');
@@ -157,4 +161,5 @@
   });
 })();
 </script>
+{% include 'san_xuat/includes/sales_order_suggest_modal_script.html' %}
 {% endblock %}
