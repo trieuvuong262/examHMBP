@@ -94,7 +94,8 @@
     margin-top: .15rem;
     padding-left: .25rem;
   }
-  .jp-so-suggest-sheet .jp-so-sg-stock.is-from-kho {
+  .jp-so-suggest-sheet .jp-so-sg-stock.is-from-kho,
+  .jp-so-suggest-sheet .jp-so-sg-velocity.is-from-kv {
     color: #1e3a8a;
   }
   /* Dropdown TomSelect gắn body — phải trên Bootstrap modal (1055) */
@@ -196,9 +197,14 @@
             </select>
             <div class="jp-so-sg-product-meta text-muted" id="jp-so-sg-product-meta"></div>
           </div>
-          <div class="jp-so-sg-field jp-so-sg-field-product">
-            <label for="jp-so-sg-period">Thời gian dự đoán</label>
-            <input type="text" class="form-control form-control-sm" id="jp-so-sg-period" value="30 ngày" maxlength="60">
+          <div class="jp-so-sg-field">
+            <label for="jp-so-sg-period">Thời gian dự đoán (ngày)</label>
+            <input type="number" class="form-control form-control-sm" id="jp-so-sg-period"
+                   value="30" min="1" max="365" step="1" inputmode="numeric"
+                   aria-label="Số ngày dự đoán">
+            <div class="jp-so-sg-product-meta text-muted" id="jp-so-sg-period-meta">
+              Tốc độ tiêu thụ = tổng SL bán KiotViet trong N ngày gần nhất
+            </div>
           </div>
         </div>
         <div class="table-responsive">
@@ -256,8 +262,8 @@
           <span class="small text-muted">Mặc định: S · M · L · XL · 2XL · 3XL</span>
         </div>
         <p class="jp-so-suggest-hint mb-0">
-          Chọn <strong>Loại hàng</strong> từ kho sản phẩm → tồn theo size tự điền.
-          Ô vàng còn lại nhập tay · đề xuất = làm tròn <em>lên</em> theo bước «Làm tròn».
+          Chọn <strong>Loại hàng</strong> → tồn + tốc độ tiêu thụ (bán KV theo số ngày) tự điền.
+          Có thể sửa tay · đề xuất = làm tròn <em>lên</em> theo bước «Làm tròn».
         </p>
         <div class="jp-so-suggest-total">
           <span>Tổng đề xuất: <strong id="jp-so-sg-total">0</strong></span>

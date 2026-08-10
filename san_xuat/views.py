@@ -490,11 +490,15 @@ def product_code_search(request):
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 @require_GET
 def suggest_qty_stock_api(request):
-    """Tồn theo size từ kho SP — dùng công cụ đề xuất SL trên form lên đơn."""
+    """Tồn + tốc độ tiêu thụ (bán KV N ngày) theo size — công cụ đề xuất SL."""
     style = (request.GET.get('style') or request.GET.get('product_code') or '').strip()
+    try:
+        days = int(request.GET.get('days') or 30)
+    except (TypeError, ValueError):
+        days = 30
     from san_xuat.services.products import suggest_style_size_stock
 
-    return JsonResponse(suggest_style_size_stock(style))
+    return JsonResponse(suggest_style_size_stock(style, days=days))
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')

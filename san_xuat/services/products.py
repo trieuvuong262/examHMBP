@@ -227,23 +227,35 @@ def search_products(q: str = '', *, limit: int = 30) -> list[dict]:
     return rows
 
 
-def suggest_style_size_stock(style_code: str) -> dict:
-    """Tồn TP theo size cho 1 Style (mã SX) — lấy từ kho sản phẩm + KV.
+def suggest_style_size_stock(style_code: str, *, days: int = 30) -> dict:
+    """Tồn TP + tốc độ tiêu thụ (bán KV) theo size cho 1 Style.
 
-    Trả về:
-      style_code, name, sizes: [{size, stock, sku_count}], colors (tuỳ chọn)
+    ``days``: số ngày gần nhất lấy từ hóa đơn KiotViet (mặc định 30).
     """
     from collections import defaultdict
+    from datetime import timedelta
+
+    from django.db.models import Q, Sum
+    from django.db.models.functions import Upper
+    from django.utils import timezone
 
     from san_xuat.services.demand import fg_stock_map
 
     style = _norm(style_code)
+    try:
+        days_n = max(1, min(int(days or 30), 365))
+    except (TypeError, ValueError):
+        days_n = 30
+
     empty = {
         'style_code': style,
         'name': '',
+        'days': days_n,
         'sizes': [],
         'colors': [],
         'found': False,
+        'sold_from': '',
+        'sold_to': '',
     }
     if not style:
         return empty
@@ -270,7 +282,6 @@ def suggest_style_size_stock(style_code: str) -> dict:
             empty['name'] = ref.name
         return empty
 
-    # Chuẩn hoá về style_code đại diện
     style_canon = (products[0].style_code or '').strip() or style
     name = (products[0].name or products[0].full_name or '').strip()
     for p in products:
@@ -304,43 +315,111 @@ def suggest_style_size_stock(style_code: str) -> dict:
         return Decimal('0')
 
     by_size: dict[str, Decimal] = defaultdict(lambda: Decimal('0'))
+    sold_by_size: dict[str, Decimal] = defaultdict(lambda: Decimal('0'))
     sku_count: dict[str, int] = defaultdict(int)
     colors: dict[str, str] = {}
     _size_alias = {
         'XXL': '2XL', '2XL': '2XL',
         'XXXL': '3XL', '3XL': '3XL',
     }
+    code_to_size: dict[str, str] = {}
+    kid_to_size: dict[int, str] = {}
+
     for p in products:
-        size = (p.size_label or '').strip().upper()
-        if not size:
-            size = '—'
+        size = (p.size_label or '').strip().upper() or '—'
         size = _size_alias.get(size, size)
         by_size[size] += _qty_for(p)
         sku_count[size] += 1
         color = (p.color_code or '').strip().upper()
         if color and color not in colors:
             colors[color] = (p.color_label or color).strip() or color
+        for raw in (p.code, p.kiotviet_code):
+            c = _norm(raw)
+            if c:
+                code_to_size[c.upper()] = size
+        if p.kiotviet_id:
+            kid_to_size[int(p.kiotviet_id)] = size
 
-    ordered = sorted(by_size.keys(), key=_size_sort_key)
+    # —— Tốc độ tiêu thụ = tổng SL bán KV trong N ngày ——
+    now = timezone.now()
+    since = now - timedelta(days=days_n)
+    sold_from = since.date().isoformat()
+    sold_to = now.date().isoformat()
+    try:
+        from kiotviet.models import KvInvoice, KvInvoiceLine
+        from kiotviet.sync_service import current_retailer
+
+        retailer = current_retailer()
+        invoice_ids = (
+            KvInvoice.objects.filter(
+                retailer=retailer,
+                purchase_date__gte=since,
+            )
+            .exclude(status=2)  # 2 = đã hủy (KV)
+            .values('kiotviet_id')
+        )
+        line_q = Q()
+        if kid_to_size:
+            line_q |= Q(product_kiotviet_id__in=list(kid_to_size.keys()))
+        if code_to_size:
+            line_q |= Q(code_u__in=list(code_to_size.keys()))
+        if line_q:
+            rows = (
+                KvInvoiceLine.objects.filter(
+                    retailer=retailer,
+                    invoice_kiotviet_id__in=invoice_ids,
+                )
+                .annotate(code_u=Upper('product_code'))
+                .filter(line_q)
+                .values('product_kiotviet_id', 'code_u')
+                .annotate(qty=Sum('quantity'))
+            )
+            for row in rows:
+                size = ''
+                kid = row.get('product_kiotviet_id')
+                if kid is not None:
+                    size = kid_to_size.get(int(kid), '')
+                if not size:
+                    size = code_to_size.get((row.get('code_u') or '').upper(), '')
+                if not size:
+                    continue
+                sold_by_size[size] += Decimal(str(row.get('qty') or 0))
+    except Exception:
+        # Không có KV / lỗi sync — để velocity = 0
+        pass
+
+    ordered = sorted(set(by_size.keys()) | set(sold_by_size.keys()), key=_size_sort_key)
     sizes = []
     for sz in ordered:
-        qty = by_size[sz]
+        qty = by_size.get(sz, Decimal('0'))
+        sold = sold_by_size.get(sz, Decimal('0'))
+        if sold < 0:
+            sold = Decimal('0')
         if qty == qty.to_integral_value():
             stock_label = str(int(qty))
         else:
             stock_label = format(qty.quantize(Decimal('0.01')), 'f').rstrip('0').rstrip('.')
+        if sold == sold.to_integral_value():
+            sold_label = str(int(sold))
+        else:
+            sold_label = format(sold.quantize(Decimal('0.01')), 'f').rstrip('0').rstrip('.')
         sizes.append({
             'size': sz,
             'stock': stock_label or '0',
             'stock_qty': float(qty),
-            'sku_count': sku_count[sz],
+            'velocity': sold_label or '0',
+            'velocity_qty': float(sold),
+            'sku_count': sku_count.get(sz, 0),
         })
     return {
         'style_code': style_canon,
         'name': name,
+        'days': days_n,
         'sizes': sizes,
         'colors': [{'code': c, 'label': colors[c]} for c in colors],
         'found': True,
+        'sold_from': sold_from,
+        'sold_to': sold_to,
     }
 
 

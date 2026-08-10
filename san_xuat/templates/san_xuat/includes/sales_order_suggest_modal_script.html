@@ -85,6 +85,16 @@
     recalc();
   }
 
+  var periodMeta = document.getElementById('jp-so-sg-period-meta');
+
+  function periodDays() {
+    var d = Math.round(num(periodEl, 30));
+    if (d < 1) d = 1;
+    if (d > 365) d = 365;
+    if (periodEl && String(periodEl.value) !== String(d)) periodEl.value = String(d);
+    return d;
+  }
+
   function applyStockMap(stockMap) {
     stockMap = stockMap || {};
     ALL_SIZES.forEach(function (sz) {
@@ -99,6 +109,90 @@
       }
     });
     recalc();
+  }
+
+  function applyVelocityMap(velMap) {
+    velMap = velMap || {};
+    ALL_SIZES.forEach(function (sz) {
+      var el = velocityInput(sz);
+      if (!el) return;
+      if (Object.prototype.hasOwnProperty.call(velMap, sz)) {
+        el.value = String(Math.round(Number(velMap[sz]) || 0));
+        el.classList.add('is-from-kv');
+      } else {
+        el.value = '0';
+        el.classList.remove('is-from-kv');
+      }
+    });
+    recalc();
+  }
+
+  function currentStyle() {
+    if (productTs && productTs.getValue()) return String(productTs.getValue() || '').trim();
+    return (productEl && productEl.value || '').trim();
+  }
+
+  function loadStockForStyle(style) {
+    style = (style || '').trim();
+    var days = periodDays();
+    if (!style) {
+      if (productMeta) productMeta.textContent = '';
+      if (periodMeta) {
+        periodMeta.textContent = 'Tốc độ tiêu thụ = tổng SL bán KiotViet trong ' + days + ' ngày gần nhất';
+      }
+      applyStockMap({});
+      applyVelocityMap({});
+      return;
+    }
+    if (productMeta) productMeta.textContent = 'Đang tải tồn + tiêu thụ KV…';
+    fetch(stockUrl + '?style=' + encodeURIComponent(style) + '&days=' + encodeURIComponent(String(days)), {
+      headers: { 'Accept': 'application/json' },
+      credentials: 'same-origin',
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        var stockMap = {};
+        var velMap = {};
+        var matched = 0;
+        (data.sizes || []).forEach(function (row) {
+          var sz = canonSize(row.size);
+          if (!sz || ALL_SIZES.indexOf(sz) === -1) return;
+          stockMap[sz] = (stockMap[sz] || 0) + (Number(row.stock_qty) || Number(row.stock) || 0);
+          velMap[sz] = (velMap[sz] || 0) + (Number(row.velocity_qty) || Number(row.velocity) || 0);
+          matched += 1;
+        });
+        applyStockMap(data.found ? stockMap : {});
+        applyVelocityMap(data.found ? velMap : {});
+
+        var hasNumeric = (data.sizes || []).some(function (row) {
+          return /^[0-9]+$/.test(String(row.size || '').trim());
+        });
+        if (hasNumeric && !expanded) setExpanded(true);
+
+        if (periodMeta) {
+          var from = data.sold_from || '';
+          var to = data.sold_to || '';
+          periodMeta.textContent = from && to
+            ? ('Tiêu thụ KV ' + days + ' ngày (' + from + ' → ' + to + ')')
+            : ('Tốc độ tiêu thụ = tổng SL bán KiotViet trong ' + days + ' ngày gần nhất');
+        }
+        if (productMeta) {
+          if (data.found) {
+            var bits = [];
+            if (data.name) bits.push(data.name);
+            bits.push(matched + ' size');
+            var soldTotal = 0;
+            Object.keys(velMap).forEach(function (k) { soldTotal += Number(velMap[k]) || 0; });
+            bits.push('bán ' + Math.round(soldTotal));
+            productMeta.textContent = 'Kho SP + KV: ' + bits.join(' · ');
+          } else {
+            productMeta.textContent = 'Không thấy biến thể size trong kho SP.';
+          }
+        }
+      })
+      .catch(function () {
+        if (productMeta) productMeta.textContent = 'Không tải được tồn / tiêu thụ.';
+      });
   }
 
   function recalc() {
@@ -137,52 +231,6 @@
       if (opt) return (opt.name || opt.text || opt.code || '').trim();
     }
     return (productEl && productEl.value) || '';
-  }
-
-  function loadStockForStyle(style) {
-    style = (style || '').trim();
-    if (!style) {
-      if (productMeta) productMeta.textContent = '';
-      applyStockMap({});
-      return;
-    }
-    if (productMeta) productMeta.textContent = 'Đang tải tồn theo size…';
-    fetch(stockUrl + '?style=' + encodeURIComponent(style), {
-      headers: { 'Accept': 'application/json' },
-    })
-      .then(function (r) { return r.json(); })
-      .then(function (data) {
-        var stockMap = {};
-        var matched = 0;
-        (data.sizes || []).forEach(function (row) {
-          var sz = canonSize(row.size);
-          if (!sz || ALL_SIZES.indexOf(sz) === -1) return;
-          stockMap[sz] = (stockMap[sz] || 0) + (Number(row.stock_qty) || Number(row.stock) || 0);
-          matched += 1;
-        });
-        applyStockMap(data.found ? stockMap : {});
-
-        // Nếu hàng trẻ em (size số) mà đang thu gọn → tự mở rộng
-        var hasNumeric = (data.sizes || []).some(function (row) {
-          return /^[0-9]+$/.test(String(row.size || '').trim());
-        });
-        if (hasNumeric && !expanded) setExpanded(true);
-
-        if (productMeta) {
-          if (data.found) {
-            var bits = [];
-            if (data.name) bits.push(data.name);
-            bits.push(matched + '/' + (data.sizes || []).length + ' size khớp');
-            if ((data.colors || []).length) bits.push((data.colors.length) + ' màu');
-            productMeta.textContent = 'Kho SP: ' + bits.join(' · ');
-          } else {
-            productMeta.textContent = 'Không thấy biến thể size trong kho SP.';
-          }
-        }
-      })
-      .catch(function () {
-        if (productMeta) productMeta.textContent = 'Không tải được tồn kho.';
-      });
   }
 
   var productBound = false;
@@ -250,14 +298,17 @@
   function resetDefaults() {
     if (coefEl) coefEl.value = '2';
     if (roundEl) roundEl.value = '50';
-    if (periodEl) periodEl.value = '30 ngày';
+    if (periodEl) periodEl.value = '30';
     if (productTs) productTs.clear(true);
     if (productMeta) productMeta.textContent = '';
+    if (periodMeta) {
+      periodMeta.textContent = 'Tốc độ tiêu thụ = tổng SL bán KiotViet trong 30 ngày gần nhất';
+    }
     ALL_SIZES.forEach(function (sz) {
       var s = stockInput(sz);
       var v = velocityInput(sz);
       if (s) { s.value = '0'; s.classList.remove('is-from-kho'); }
-      if (v) v.value = '0';
+      if (v) { v.value = '0'; v.classList.remove('is-from-kv'); }
     });
     setExpanded(false);
     recalc();
@@ -338,7 +389,7 @@
     var notes = document.getElementById('id_notes');
     if (notes) {
       var product = productLabel();
-      var period = (periodEl && periodEl.value || '').trim();
+      var period = periodDays() + ' ngày';
       var parts = [];
       visibleSizes().forEach(function (sz) {
         var sug = parseInt((outCell(sz) || {}).textContent || '0', 10) || 0;
@@ -363,7 +414,7 @@
     lines.push('Hệ số\t' + coef);
     lines.push('Làm tròn\t' + step);
     lines.push('Loại hàng\t' + productLabel());
-    lines.push('Thời gian dự đoán\t' + ((periodEl && periodEl.value) || ''));
+    lines.push('Thời gian dự đoán\t' + periodDays() + ' ngày');
     lines.push('Tồn kho thực tế\t' + sizes.map(function (sz) { return fmt(num(stockInput(sz), 0)); }).join('\t'));
     lines.push('Tốc độ tiêu thụ\t' + sizes.map(function (sz) { return fmt(num(velocityInput(sz), 0)); }).join('\t'));
     lines.push('Giá trị sau khi tính\t' + sizes.map(function (sz) { return (rawCell(sz) || {}).textContent || '0'; }).join('\t'));
@@ -410,7 +461,17 @@
   });
 
   modalEl.addEventListener('input', function (e) {
-    if (e.target && e.target.matches('input')) recalc();
+    if (!e.target || !e.target.matches) return;
+    if (e.target.id === 'jp-so-sg-period') {
+      // Đổi số ngày → tải lại tiêu thụ KV
+      var t = e.target._jpDaysTimer;
+      if (t) clearTimeout(t);
+      e.target._jpDaysTimer = setTimeout(function () {
+        loadStockForStyle(currentStyle());
+      }, 350);
+      return;
+    }
+    if (e.target.matches('input')) recalc();
   });
 
   var resetBtn = document.getElementById('jp-so-sg-reset');
