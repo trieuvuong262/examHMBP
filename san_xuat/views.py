@@ -591,11 +591,14 @@ def mo_sku_matrix_api(request):
 @require_GET
 def mo_bom_versions_api(request):
     """Danh sách hồ sơ thiết kế (BOM) theo mã SX — kèm gợi ý tổ / công đoạn."""
+    from django.urls import reverse
+
     product_code = (request.GET.get('product_code') or '').strip()
     from san_xuat.forms_dispatch import _process_defaults_from_bom
     from san_xuat.models import ProductTechDoc
 
     results = []
+    doc = None
     if product_code:
         doc = ProductTechDoc.objects.filter(product_code__iexact=product_code).first()
         if doc:
@@ -633,7 +636,15 @@ def mo_bom_versions_api(request):
                     'process_name': process,
                     'process_steps': steps,
                 })
-    return JsonResponse({'results': results})
+    return JsonResponse({
+        'results': results,
+        'product_code': product_code,
+        'tech_doc_id': doc.pk if doc else None,
+        'doc_url': reverse('san_xuat:doc_detail', kwargs={'pk': doc.pk}) if doc else '',
+        'create_url': reverse('san_xuat:doc_create') + (
+            f'?code={product_code}' if product_code else ''
+        ),
+    })
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')

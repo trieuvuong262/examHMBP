@@ -681,7 +681,6 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
       </div>
       <div class="modal-body">
-        <p class="small text-muted mb-3" id="jpReleaseOrderLabel"></p>
         <div id="jpReleaseBomRows" class="d-flex flex-column gap-3"></div>
         <div id="jpReleaseBomEmpty" class="text-muted small d-none">Không có dòng sản phẩm để chuyển.</div>
       </div>
@@ -734,6 +733,8 @@
 (function () {
   var bomApi = "{% url 'san_xuat:mo_bom_versions' %}";
   var versionsApi = "{% url 'san_xuat:sales_order_line_versions' %}";
+  var docCreateUrl = "{% url 'san_xuat:doc_create' %}";
+  var CREATE_VAL = '__create__';
   var modalEl = document.getElementById('jpReleaseBomModal');
   if (!modalEl) return;
   if (typeof bootstrap === 'undefined') {
@@ -745,7 +746,6 @@
   var rowsHost = document.getElementById('jpReleaseBomRows');
   var emptyEl = document.getElementById('jpReleaseBomEmpty');
   var orderIdInput = document.getElementById('jpReleaseOrderId');
-  var orderLabel = document.getElementById('jpReleaseOrderLabel');
   var submitBtn = document.getElementById('jpReleaseBomSubmit');
 
   function escapeHtml(s) {
@@ -754,18 +754,52 @@
       .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
-  function renderSteps(steps) {
-    if (!steps || !steps.length) {
-      return '<div class="small text-muted mt-1">Chưa có công đoạn trên hồ sơ này.</div>';
+  function hosocreateUrl(productCode, data) {
+    if (data && data.doc_url) {
+      return data.doc_url + (String(data.doc_url).indexOf('?') >= 0 ? '&' : '?') + 'tab=bom';
     }
-    var html = '<div class="jp-pb-steps mt-2">';
+    if (data && data.create_url) return data.create_url;
+    return docCreateUrl + (productCode ? ('?code=' + encodeURIComponent(productCode)) : '');
+  }
+
+  function appendCreateOption(selectEl, createUrl, label) {
+    if (!selectEl || !createUrl) return;
+    var opt = document.createElement('option');
+    opt.value = CREATE_VAL;
+    opt.textContent = label || '＋ Tạo BOM / công đoạn → hồ sơ';
+    opt.dataset.createUrl = createUrl;
+    selectEl.appendChild(opt);
+  }
+
+  function bindCreateOpen(selectEl) {
+    if (!selectEl || selectEl.dataset.jpCreateBound === '1') return;
+    selectEl.dataset.jpCreateBound = '1';
+    selectEl.addEventListener('change', function () {
+      if (selectEl.value !== CREATE_VAL) return;
+      var opt = selectEl.options[selectEl.selectedIndex];
+      var url = (opt && opt.dataset.createUrl) || '';
+      selectEl.value = '';
+      if (url) window.open(url, '_blank', 'noopener');
+    });
+  }
+
+  function renderSteps(steps, editUrl) {
+    if (!steps || !steps.length) {
+      var html = '<div class="small text-muted mt-1">Chưa có công đoạn trên hồ sơ này.';
+      if (editUrl) {
+        html += ' <a href="' + escapeHtml(editUrl) + '" target="_blank" rel="noopener">＋ Thêm công đoạn</a>';
+      }
+      html += '</div>';
+      return html;
+    }
+    var out = '<div class="jp-pb-steps mt-2">';
     steps.forEach(function (s) {
       var label = s.process_name || '—';
       if (s.team_label) label += ' · ' + s.team_label;
-      html += '<span class="jp-pb-step">' + escapeHtml(label) + '</span>';
+      out += '<span class="jp-pb-step">' + escapeHtml(label) + '</span>';
     });
-    html += '</div>';
-    return html;
+    out += '</div>';
+    return out;
   }
 
   function selectPreferred(selectEl, preferredId, fallbackLast) {
@@ -780,14 +814,20 @@
         }
       });
     }
-    if (!found && fallbackLast && selectEl.options.length) {
-      selectEl.options[selectEl.options.length - 1].selected = true;
+    if (!found && fallbackLast) {
+      for (var i = selectEl.options.length - 1; i >= 0; i--) {
+        if (selectEl.options[i].value && selectEl.options[i].value !== CREATE_VAL) {
+          selectEl.options[i].selected = true;
+          break;
+        }
+      }
     }
   }
 
   function loadBoms(productCode, selectEl, previewEl, preferredBomId) {
     selectEl.innerHTML = '<option value="">Đang tải…</option>';
     previewEl.innerHTML = '';
+    bindCreateOpen(selectEl);
     fetch(bomApi + '?product_code=' + encodeURIComponent(productCode), {
       headers: { 'Accept': 'application/json' },
       credentials: 'same-origin'
@@ -795,10 +835,21 @@
       .then(function (r) { return r.json(); })
       .then(function (data) {
         var results = (data && data.results) || [];
+        var createUrl = hosocreateUrl(productCode, data);
+        selectEl.dataset.createUrl = createUrl;
         selectEl.innerHTML = '';
         if (!results.length) {
-          selectEl.innerHTML = '<option value="">— Chưa có hồ sơ thiết kế —</option>';
-          previewEl.innerHTML = '<div class="small text-danger mt-1">Mã này chưa có BOM. Tạo hồ sơ thiết kế trước.</div>';
+          var empty = document.createElement('option');
+          empty.value = '';
+          empty.textContent = '— Chưa có hồ sơ thiết kế —';
+          selectEl.appendChild(empty);
+          appendCreateOption(selectEl, createUrl, '＋ Tạo BOM / công đoạn → hồ sơ');
+          previewEl.innerHTML =
+            '<div class="small text-danger mt-1">Mã này chưa có BOM. ' +
+            (createUrl
+              ? '<a href="' + escapeHtml(createUrl) + '" target="_blank" rel="noopener">Tạo hồ sơ thiết kế</a> rồi mở lại Chuyển SX.'
+              : 'Tạo hồ sơ thiết kế trước.') +
+            '</div>';
           return;
         }
         results.forEach(function (b) {
@@ -810,16 +861,20 @@
         });
         selectPreferred(selectEl, preferredBomId, true);
         var sel = selectEl.options[selectEl.selectedIndex];
-        previewEl.innerHTML = renderSteps(sel ? JSON.parse(sel.dataset.steps || '[]') : []);
+        var steps = [];
+        try { steps = sel ? JSON.parse(sel.dataset.steps || '[]') : []; } catch (e) {}
+        previewEl.innerHTML = renderSteps(steps, createUrl);
       })
       .catch(function () {
         selectEl.innerHTML = '<option value="">Không tải được hồ sơ</option>';
+        appendCreateOption(selectEl, hosocreateUrl(productCode, null), '＋ Tạo BOM / công đoạn → hồ sơ');
       });
   }
 
   function loadRoutings(productCode, selectEl, preferredRoutingId) {
     if (!selectEl) return;
     selectEl.innerHTML = '<option value="">Đang tải…</option>';
+    bindCreateOpen(selectEl);
     fetch(versionsApi + '?product_code=' + encodeURIComponent(productCode), {
       headers: { 'Accept': 'application/json' },
       credentials: 'same-origin'
@@ -827,24 +882,32 @@
       .then(function (r) { return r.json(); })
       .then(function (data) {
         var results = (data && data.routings) || [];
-        selectEl.innerHTML = '<option value="">— Không chọn / theo BOM —</option>';
+        var createUrl = hosocreateUrl(productCode, data);
+        selectEl.innerHTML = '';
+        var empty = document.createElement('option');
+        empty.value = '';
+        empty.textContent = results.length ? '— Không chọn / theo BOM —' : '— Chưa có phiên bản công đoạn —';
+        selectEl.appendChild(empty);
         results.forEach(function (rt) {
           var opt = document.createElement('option');
           opt.value = String(rt.id);
           opt.textContent = rt.text || rt.label || ('#' + rt.id);
           selectEl.appendChild(opt);
         });
+        if (!results.length) {
+          appendCreateOption(selectEl, createUrl, '＋ Tạo BOM / công đoạn → hồ sơ');
+        }
         selectPreferred(selectEl, preferredRoutingId, false);
       })
       .catch(function () {
         selectEl.innerHTML = '<option value="">— Không chọn —</option>';
+        appendCreateOption(selectEl, hosocreateUrl(productCode, null), '＋ Tạo BOM / công đoạn → hồ sơ');
       });
   }
 
   document.querySelectorAll('[data-jp-release-open]').forEach(function (btn) {
     btn.addEventListener('click', function () {
       var orderId = btn.getAttribute('data-order-id');
-      var orderCode = btn.getAttribute('data-order-code') || '';
       var scriptId = btn.getAttribute('data-products-id');
       var products = [];
       var script = scriptId ? document.getElementById(scriptId) : null;
@@ -852,7 +915,6 @@
         try { products = JSON.parse(script.textContent || '[]'); } catch (e) { products = []; }
       }
       orderIdInput.value = orderId || '';
-      orderLabel.textContent = 'Đơn ' + orderCode + ' — BOM / công đoạn mặc định từ ĐĐH (có thể đổi trước khi chuyển).';
       rowsHost.innerHTML = '';
       if (!products.length) {
         emptyEl.classList.remove('d-none');
@@ -887,10 +949,11 @@
         var routingEl = wrap.querySelector('.jp-release-routing-select');
         var previewEl = wrap.querySelector('.jp-release-bom-preview');
         selectEl.addEventListener('change', function () {
+          if (selectEl.value === CREATE_VAL) return;
           var opt = selectEl.options[selectEl.selectedIndex];
           var steps = [];
-          try { steps = JSON.parse(opt.dataset.steps || '[]'); } catch (e) {}
-          previewEl.innerHTML = renderSteps(steps);
+          try { steps = JSON.parse((opt && opt.dataset.steps) || '[]'); } catch (e) {}
+          previewEl.innerHTML = renderSteps(steps, selectEl.dataset.createUrl || '');
         });
         loadBoms(code, selectEl, previewEl, p.bom_version_id || '');
         loadRoutings(code, routingEl, p.routing_id || '');
@@ -902,9 +965,10 @@
   form.addEventListener('submit', function (ev) {
     var selects = form.querySelectorAll('.jp-release-bom-select');
     for (var i = 0; i < selects.length; i++) {
-      if (!selects[i].value) {
+      var v = selects[i].value;
+      if (!v || v === CREATE_VAL) {
         ev.preventDefault();
-        alert('Chọn hồ sơ thiết kế cho mọi mã sản phẩm.');
+        alert('Chọn hồ sơ thiết kế cho mọi mã sản phẩm. Nếu chưa có, chọn «Tạo BOM / công đoạn» rồi tải lại.');
         return;
       }
     }

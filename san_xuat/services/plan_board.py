@@ -17,6 +17,7 @@ from san_xuat.hub_models import SxProductionOrder, SxSalesOrder, SxSalesOrderLin
 from san_xuat.services.dispatch import DispatchError, create_mo_from_bom
 from san_xuat.services.planning import PlanningError
 from san_xuat.services.scheduling import product_routing
+from san_xuat.templatetags.sx_format import format_sx_num_input
 
 _Q2 = Decimal('0.01')
 
@@ -265,7 +266,7 @@ def build_plan_board_rows(
             release_products.append({
                 'code': code,
                 'name': (ln.product_name or '').strip(),
-                'qty': str(ln.qty_to_produce),
+                'qty': format_sx_num_input(ln.qty_to_produce),
                 'bom_version_id': ln.bom_version_id or None,
                 'routing_id': ln.routing_id or None,
             })

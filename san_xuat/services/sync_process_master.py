@@ -5,6 +5,7 @@ from __future__ import annotations
 from decimal import Decimal
 
 from django.db import transaction
+from django.db.models import ProtectedError
 
 from san_xuat.ie_models import SxOperation, SxOperationGroup, SxProcessStage
 from san_xuat.services.process_catalog import ensure_process_name
@@ -93,13 +94,20 @@ def _ensure_group(
 
 
 @transaction.atomic
-def sync_standard_process_library(*, retire_missing: bool = False) -> dict[str, int]:
+def sync_standard_process_library(
+    *,
+    retire_missing: bool = False,
+    purge_missing: bool = False,
+) -> dict[str, int]:
     """Upsert SxProcessStage / SxOperationGroup / SxOperation / SxProcessName từ mẫu.
 
     - op_code = KEY viết hoa (vd. MAY_RAP_VAI)
     - name_vi = nhãn chuẩn
     - status = approved
+    - purge_missing: xoá mọi OP không còn trong mẫu (fallback retire nếu bị PROTECT)
+    - retire_missing: chỉ đánh dấu retired (không xoá)
     """
+    from san_xuat.models import SxProcessName
     from san_xuat.services.order_progress_sheet import ensure_progress_work_centers
 
     ensure_progress_work_centers()
@@ -110,7 +118,9 @@ def sync_standard_process_library(*, retire_missing: bool = False) -> dict[str, 
         'ops_created': 0,
         'ops_updated': 0,
         'ops_retired': 0,
+        'ops_deleted': 0,
         'process_names': 0,
+        'process_names_deactivated': 0,
     }
 
     group_by_key: dict[str, SxOperationGroup] = {}
@@ -132,10 +142,12 @@ def sync_standard_process_library(*, retire_missing: bool = False) -> dict[str, 
         stats['groups'] += 1
 
     keep_codes: set[str] = set()
+    keep_labels: set[str] = set()
     for step in progress_steps():
         og = group_by_key[step.group]
         op_code = step.key.upper()
         keep_codes.add(op_code)
+        keep_labels.add(step.label.casefold())
         stage_label = next((g.label for g in GROUPS if g.key == step.group), '')
         defaults = {
             'group': og,
@@ -163,14 +175,42 @@ def sync_standard_process_library(*, retire_missing: bool = False) -> dict[str, 
             if changed:
                 op.save()
                 stats['ops_updated'] += 1
+            # Xoá bản trùng cùng op_code (rev khác)
+            extras = SxOperation.objects.filter(op_code=op_code).exclude(pk=op.pk)
+            if extras.exists():
+                if purge_missing:
+                    deleted, _ = extras.delete()
+                    stats['ops_deleted'] += deleted
+                else:
+                    stats['ops_retired'] += extras.exclude(
+                        status=SxOperation.STATUS_RETIRED,
+                    ).update(status=SxOperation.STATUS_RETIRED)
 
         ensure_process_name(step.label)
         stats['process_names'] += 1
 
-    if retire_missing:
-        qs = SxOperation.objects.filter(
-            notes='Đồng bộ từ mẫu công đoạn chuẩn',
-        ).exclude(op_code__in=keep_codes).exclude(status=SxOperation.STATUS_RETIRED)
-        stats['ops_retired'] = qs.update(status=SxOperation.STATUS_RETIRED)
+    if purge_missing or retire_missing:
+        stale = SxOperation.objects.exclude(op_code__in=keep_codes)
+        if purge_missing:
+            for op in list(stale):
+                try:
+                    op.delete()
+                    stats['ops_deleted'] += 1
+                except ProtectedError:
+                    if op.status != SxOperation.STATUS_RETIRED:
+                        op.status = SxOperation.STATUS_RETIRED
+                        op.save(update_fields=['status'])
+                        stats['ops_retired'] += 1
+        else:
+            stats['ops_retired'] += stale.exclude(
+                status=SxOperation.STATUS_RETIRED,
+            ).update(status=SxOperation.STATUS_RETIRED)
+
+        # Tắt tên CD legacy không còn trong mẫu
+        for pn in SxProcessName.objects.filter(is_active=True):
+            if (pn.name or '').strip().casefold() not in keep_labels:
+                pn.is_active = False
+                pn.save(update_fields=['is_active'])
+                stats['process_names_deactivated'] += 1
 
     return stats

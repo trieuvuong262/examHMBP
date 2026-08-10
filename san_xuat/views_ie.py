@@ -401,6 +401,9 @@ def operation_list(request):
     status = (request.GET.get('status') or '').strip()
     if status:
         qs = qs.filter(status=status)
+    else:
+        # Mặc định ẩn OP đã ngưng — thư viện chỉ hiện bộ chuẩn đang dùng
+        qs = qs.exclude(status=SxOperation.STATUS_RETIRED)
 
     qs = qs.order_by('op_code', 'op_rev')
     page_obj, query_string = paginate_queryset(request, qs)

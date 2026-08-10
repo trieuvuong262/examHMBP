@@ -3,6 +3,7 @@
 Usage:
   python manage.py sync_process_master
   python manage.py sync_process_master --retire-missing
+  python manage.py sync_process_master --purge
 """
 
 from django.core.management.base import BaseCommand
@@ -17,13 +18,23 @@ class Command(BaseCommand):
         parser.add_argument(
             '--retire-missing',
             action='store_true',
-            help='Ngưng dùng các OP đã sync trước đó nhưng không còn trong mẫu',
+            help='Ngưng dùng các OP không còn trong mẫu (không xoá)',
+        )
+        parser.add_argument(
+            '--purge',
+            action='store_true',
+            help='Xoá mọi OP không còn trong mẫu (chỉ giữ Cắt / In-Ép / Thêu / May / HT / GH chuẩn)',
         )
 
     def handle(self, *args, **options):
-        stats = sync_standard_process_library(retire_missing=options['retire_missing'])
+        stats = sync_standard_process_library(
+            retire_missing=options['retire_missing'],
+            purge_missing=options['purge'],
+        )
         self.stdout.write(self.style.SUCCESS(
             'Synced stages={stages} groups={groups} '
             'ops_created={ops_created} ops_updated={ops_updated} '
-            'ops_retired={ops_retired} process_names={process_names}'.format(**stats)
+            'ops_retired={ops_retired} ops_deleted={ops_deleted} '
+            'process_names={process_names} '
+            'process_names_deactivated={process_names_deactivated}'.format(**stats)
         ))

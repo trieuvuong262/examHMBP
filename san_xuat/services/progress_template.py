@@ -37,7 +37,7 @@ GROUPS: tuple[ProgressGroup, ...] = (
     ProgressGroup('IN_EP', 'IN - ÉP', WC_IN_EP),
     ProgressGroup('THEU', 'THÊU', WC_THEU),
     ProgressGroup('MAY', 'CÔNG ĐOẠN MAY', WC_MAY),
-    ProgressGroup('HOAN_THANH', 'HOÀN THÀNH', WC_HT),
+    ProgressGroup('HOAN_THANH', 'Ủi - Gấp xếp', WC_HT),
     ProgressGroup('GIAO_HANG', 'GIAO HÀNG THÀNH PHẨM', WC_GH),
 )
 
@@ -122,7 +122,7 @@ _STEPS_RAW: tuple[tuple[str, str, str, str], ...] = (
     ('may_kiem_quan', 'Kiểm quần', 'MAY', WC_MAY),
     ('may_cat_chi_quan', 'Cắt chỉ quần', 'MAY', WC_MAY),
     ('may_giao', 'Giao hàng may', 'MAY', WC_MAY),
-    # —— Hoàn thành ——
+    # —— Ủi - Gấp xếp ——
     ('ht_kiem', 'Kiểm hàng', 'HOAN_THANH', WC_HT),
     ('ht_ui', 'Ủi', 'HOAN_THANH', WC_HT),
     ('ht_gap', 'Gấp xếp', 'HOAN_THANH', WC_HT),
@@ -231,6 +231,6 @@ WC_SEED: tuple[tuple[str, str, str], ...] = (
     (WC_IN_EP, 'In - Ép', 'In - Ép'),
     (WC_THEU, 'Thêu', 'Thêu'),
     (WC_MAY, 'May', 'May'),
-    (WC_HT, 'Hoàn thành', 'Hoàn thành'),
+    (WC_HT, 'Ủi - Gấp xếp', 'Ủi - Gấp xếp'),
     (WC_GH, 'Giao hàng thành phẩm', 'Giao hàng thành phẩm'),
 )
