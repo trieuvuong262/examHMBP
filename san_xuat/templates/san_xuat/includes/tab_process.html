@@ -1,3 +1,4 @@
+{% load sx_format %}
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-body">
         {% if can_update and bom %}
@@ -38,31 +39,9 @@
             <div class="form-text mt-1">Áp routing gộp theo nhóm (Cắt, In-Ép, May…) thay vì từng công đoạn chi tiết. Bỏ tick nếu cần kéo đủ dòng IE.</div>
         </form>
 
-        {% if process_groups %}
-        <form method="post" class="mb-3 p-2 bg-light rounded border" data-loading-message="Đang thêm nhóm công đoạn…">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="apply_process_groups">
-            <div class="small text-muted mb-2">Chọn nhóm công đoạn (không cần chọn từng CĐ trong thư viện):</div>
-            <div class="d-flex flex-wrap gap-3 mb-2">
-                {% for g in process_groups %}
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox" name="group_code" value="{{ g.code }}"
-                           id="grp-{{ g.code }}" {% if g.selected %}checked{% endif %}>
-                    <label class="form-check-label" for="grp-{{ g.code }}">{{ g.name }}</label>
-                </div>
-                {% endfor %}
-            </div>
-            <div class="form-check mb-2">
-                <input class="form-check-input" type="checkbox" name="replace_steps" value="1" id="id_replace_steps">
-                <label class="form-check-label small" for="id_replace_steps">Xóa công đoạn chi tiết hiện có, chỉ giữ nhóm đã chọn</label>
-            </div>
-            <button type="submit" class="btn btn-sm btn-outline-hm">
-                <i class="bi bi-plus-lg me-1"></i>Thêm nhóm đã chọn
-            </button>
-        </form>
-        {% endif %}
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/css/tom-select.bootstrap5.min.css">
         <script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/js/tom-select.complete.min.js"></script>
+        <style>.ts-dropdown { z-index: 2000; }</style>
         <script>
         (function () {
             var sel = document.getElementById('id_routing_ie_select');
@@ -214,9 +193,9 @@
                           {% else %}—{% endif %}
                         </td>
                         <td class="small text-muted">{{ step.op_code|default:"—" }}</td>
-                        <td class="text-end">{{ step.norm_per_hour }}</td>
-                        <td class="text-end">{{ step.std_time_minutes }}</td>
-                        <td class="text-end">{{ step.cost_per_hour }}</td>
+                        <td class="text-end">{{ step.norm_per_hour|sx_num }}</td>
+                        <td class="text-end">{{ step.std_time_minutes|sx_num }}</td>
+                        <td class="text-end">{{ step.cost_per_hour|sx_num }}</td>
                     </tr>
                     {% empty %}
                     <tr><td colspan="7" class="text-muted text-center py-3">Chưa có công đoạn.</td></tr>

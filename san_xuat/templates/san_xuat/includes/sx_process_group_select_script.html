@@ -1,8 +1,12 @@
-{# TomSelect nhóm công đoạn (không tìm ~50 CĐ chi tiết) #}
+{# TomSelect nhóm công đoạn (không tìm ~50 CĐ chi tiết) + bộ phận HR #}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/css/tom-select.bootstrap5.min.css">
 <script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/js/tom-select.complete.min.js"></script>
 <script>
 (function () {
+  function isInTemplate(el) {
+    return !!(el && el.closest && el.closest('template'));
+  }
+
   function findWorkCenterSelect(processSel) {
     var row = processSel.closest('tr');
     if (!row) return null;
@@ -15,11 +19,18 @@
     if (!wcSel) return;
     var current = wcSel.tomselect ? wcSel.tomselect.getValue() : wcSel.value;
     if (current) return;
+    var value = String(wcId);
     if (wcSel.tomselect) {
-      wcSel.tomselect.setValue(String(wcId));
+      if (!wcSel.tomselect.options[value]) {
+        var raw = wcSel.querySelector('option[value="' + value + '"]');
+        if (raw) {
+          wcSel.tomselect.addOption({ value: value, text: (raw.textContent || '').trim() });
+        }
+      }
+      wcSel.tomselect.setValue(value);
     } else {
-      var opt = wcSel.querySelector('option[value="' + wcId + '"]');
-      if (opt) wcSel.value = String(wcId);
+      var opt = wcSel.querySelector('option[value="' + value + '"]');
+      if (opt) wcSel.value = value;
     }
     wcSel.dispatchEvent(new Event('change', { bubbles: true }));
   }
@@ -39,8 +50,22 @@
     return '';
   }
 
-  function initTomSelect(sel) {
-    if (!sel || sel.tomselect || typeof TomSelect === 'undefined') return;
+  function initWorkCenterSelect(sel) {
+    if (!sel || sel.tomselect || typeof TomSelect === 'undefined' || isInTemplate(sel)) return;
+    new TomSelect(sel, {
+      maxOptions: 80,
+      maxItems: 1,
+      allowEmptyOption: true,
+      placeholder: sel.dataset.placeholder || 'Chọn bộ phận HR…',
+      dropdownParent: 'body',
+      openOnFocus: true,
+      create: false,
+      sortField: { field: 'text', direction: 'asc' },
+    });
+  }
+
+  function initGroupSelect(sel) {
+    if (!sel || sel.tomselect || typeof TomSelect === 'undefined' || isInTemplate(sel)) return;
     new TomSelect(sel, {
       maxOptions: 80,
       maxItems: 1,
@@ -70,10 +95,20 @@
     });
   }
 
-  function initAll() {
+  function fillEmptyWorkCenters() {
     document.querySelectorAll('select.jp-sx-process-group-select').forEach(function (sel) {
-      initTomSelect(sel);
+      if (isInTemplate(sel)) return;
+      var value = sel.tomselect ? sel.tomselect.getValue() : sel.value;
+      if (!value) return;
+      var wcId = defaultWcFromSelect(sel, value);
+      if (wcId) applyDefaultWorkCenter(sel, wcId);
     });
+  }
+
+  function initAll() {
+    document.querySelectorAll('select.jp-sx-work-center-select, select[name$="-work_center"]').forEach(initWorkCenterSelect);
+    document.querySelectorAll('select.jp-sx-process-group-select').forEach(initGroupSelect);
+    fillEmptyWorkCenters();
   }
 
   initAll();

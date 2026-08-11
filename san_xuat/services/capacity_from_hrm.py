@@ -67,18 +67,16 @@ def work_center_code_for_division(division_id: int) -> str:
 
 def hr_work_centers_qs(*, include_inactive_ids: list[int] | None = None):
     """Bộ phận chịu trách nhiệm = tổ HRD-* đồng bộ từ HR phòng SẢN XUẤT."""
-    qs = SxWorkCenter.objects.filter(
-        code__istartswith=CODE_PREFIX,
-        is_active=True,
-        is_demo=False,
-    )
+    hr_filter = Q(code__istartswith=CODE_PREFIX, is_active=True, is_demo=False)
     extra_ids = [int(x) for x in (include_inactive_ids or []) if x]
     if extra_ids:
-        qs = SxWorkCenter.objects.filter(
-            Q(pk__in=extra_ids)
-            | Q(code__istartswith=CODE_PREFIX, is_active=True, is_demo=False)
-        ).distinct()
-    return qs.order_by('name', 'code')
+        qs = SxWorkCenter.objects.filter(Q(pk__in=extra_ids) | hr_filter).distinct()
+    else:
+        qs = SxWorkCenter.objects.filter(hr_filter)
+    qs = qs.order_by('name', 'code')
+    if extra_ids or qs.exists():
+        return qs
+    return SxWorkCenter.objects.filter(is_active=True, is_demo=False).order_by('name', 'code')
 
 
 def _pick_hr_by_keys(hr_centers: list[SxWorkCenter], hr_keys: tuple[str, ...]) -> SxWorkCenter | None:

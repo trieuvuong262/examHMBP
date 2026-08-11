@@ -742,6 +742,13 @@ def apply_routing_to_bom(
                 ).first() if _code else None
                 if grp:
                     wc = map_ie_center_to_hr(grp.default_work_center)
+            if wc is None:
+                from san_xuat.services.capacity_from_hrm import resolve_work_center_code
+
+                wc = resolve_work_center_code(
+                    glines[0].work_center_code or _code,
+                    name_hint=name,
+                )
 
             ProcessStep.objects.create(
                 bom=bom,

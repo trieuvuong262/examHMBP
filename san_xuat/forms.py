@@ -4,6 +4,17 @@ from django.forms.models import BaseInlineFormSet
 
 from kho_npl.models import Material
 from san_xuat.models import BomLine, BomVersion, ProcessStep, ProductTechDoc, TechDocDesignFile
+from san_xuat.templatetags.sx_format import format_sx_num_input
+
+
+class CompactNumberInput(forms.NumberInput):
+    """Hiển thị số gọn: 60 thay vì 60,00 / 60.00."""
+
+    def format_value(self, value):
+        if value is None or value == '':
+            return None
+        text = format_sx_num_input(value, 4)
+        return text if text != '' else None
 
 
 _PRODUCT_CODE_SELECT = {
@@ -254,15 +265,18 @@ class ProcessStepForm(forms.ModelForm):
         fields = ('sequence', 'process_name', 'work_center', 'norm_per_hour', 'cost_per_hour', 'notes')
         widgets = {
             'sequence': forms.NumberInput(attrs={'class': 'form-control form-control-sm', 'min': '1'}),
-            'work_center': forms.Select(attrs={'class': 'form-select form-select-sm'}),
-            'norm_per_hour': forms.NumberInput(attrs={'class': 'form-control form-control-sm', 'step': '0.01', 'min': '0.01'}),
-            'cost_per_hour': forms.NumberInput(attrs={'class': 'form-control form-control-sm', 'step': '0.01', 'min': '0'}),
+            'work_center': forms.Select(attrs={
+                'class': 'form-select form-select-sm jp-sx-work-center-select',
+                'data-placeholder': 'Chọn bộ phận HR…',
+            }),
+            'norm_per_hour': CompactNumberInput(attrs={'class': 'form-control form-control-sm', 'step': 'any', 'min': '0.01'}),
+            'cost_per_hour': CompactNumberInput(attrs={'class': 'form-control form-control-sm', 'step': 'any', 'min': '0'}),
             'notes': forms.TextInput(attrs={'class': 'form-control form-control-sm'}),
         }
 
     def __init__(self, *args, group_rows=None, **kwargs):
         super().__init__(*args, **kwargs)
-        from san_xuat.services.capacity_from_hrm import hr_work_centers_qs
+        from san_xuat.services.capacity_from_hrm import hr_work_centers_qs, map_ie_center_to_hr
         from san_xuat.services.process_catalog import process_group_choices, process_group_meta, process_group_rows
 
         extra = ''
@@ -285,13 +299,27 @@ class ProcessStepForm(forms.ModelForm):
 
         keep_ids = []
         if self.instance and self.instance.work_center_id:
-            keep_ids = [self.instance.work_center_id]
+            mapped_current = map_ie_center_to_hr(self.instance.work_center)
+            if mapped_current:
+                keep_ids = [mapped_current.pk]
+                if not self.data:
+                    self.initial['work_center'] = mapped_current.pk
+            else:
+                keep_ids = [self.instance.work_center_id]
         wc_ids = {m.get('default_work_center_id') for m in meta.values() if m.get('default_work_center_id')}
         keep_ids = list({*keep_ids, *wc_ids})
         self.fields['work_center'].queryset = hr_work_centers_qs(include_inactive_ids=keep_ids)
         self.fields['work_center'].required = False
         self.fields['work_center'].empty_label = '— Chọn bộ phận —'
         self.fields['work_center'].label = 'Bộ phận chịu trách nhiệm'
+        self.fields['work_center'].label_from_instance = lambda obj: (
+            f'{obj.name} ({obj.team_label})'
+            if obj.team_label and obj.team_label != obj.name
+            else (obj.name or obj.code)
+        )
+        for fname in ('norm_per_hour', 'cost_per_hour'):
+            self.fields[fname].localize = False
+            self.fields[fname].widget.is_localized = False
 
     def clean_process_name(self):
         from san_xuat.services.process_catalog import resolve_process_group_name
@@ -310,7 +338,13 @@ class ProcessStepForm(forms.ModelForm):
         if code:
             instance.op_code = code[:30]
             instance.operation = None
-        if not instance.work_center_id and info.get('default_work_center_id'):
+        from san_xuat.services.capacity_from_hrm import map_ie_center_to_hr
+
+        if instance.work_center_id:
+            mapped = map_ie_center_to_hr(instance.work_center)
+            if mapped:
+                instance.work_center = mapped
+        elif info.get('default_work_center_id'):
             instance.work_center_id = info['default_work_center_id']
         if commit:
             instance.save()

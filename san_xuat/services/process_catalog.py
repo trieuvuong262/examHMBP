@@ -109,6 +109,24 @@ def process_catalog_choices(*, extra_value: str = "", blank_label: str = "— Ch
     return choices
 
 
+def _hr_work_center_id(
+    *,
+    work_center=None,
+    work_center_code: str = '',
+    name_hint: str = '',
+) -> int | None:
+    """ID bộ phận HRD-* (Năng lực SX / HR) — không để ID tổ IE WC-*."""
+    from san_xuat.services.capacity_from_hrm import map_ie_center_to_hr, resolve_work_center_code
+
+    mapped = map_ie_center_to_hr(work_center) if work_center is not None else None
+    if mapped is None:
+        mapped = resolve_work_center_code(
+            work_center_code or (getattr(work_center, 'code', None) or ''),
+            name_hint=name_hint,
+        )
+    return mapped.pk if mapped else None
+
+
 def process_group_rows() -> list[dict]:
     """Nhóm công đoạn cho tab hồ sơ BOM (không liệt kê ~50 CĐ chi tiết)."""
     rows: list[dict] = []
@@ -131,7 +149,11 @@ def process_group_rows() -> list[dict]:
             "code": code,
             "name": name,
             "text": f"{code} — {name}" if code and code.casefold() != key else name,
-            "default_work_center_id": grp.default_work_center_id,
+            "default_work_center_id": _hr_work_center_id(
+                work_center=grp.default_work_center,
+                work_center_code=grp.default_work_center_code or '',
+                name_hint=f'{grp.process_stage_label} {name} {code}',
+            ),
             "sort_order": grp.sort_order or 100,
         })
     if rows:
@@ -145,7 +167,10 @@ def process_group_rows() -> list[dict]:
             "code": grp.key,
             "name": name,
             "text": name,
-            "default_work_center_id": None,
+            "default_work_center_id": _hr_work_center_id(
+                work_center_code=grp.work_center_code,
+                name_hint=name,
+            ),
             "sort_order": (i + 1) * 10,
         })
     return rows
