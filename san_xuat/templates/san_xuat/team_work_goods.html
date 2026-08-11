@@ -5,7 +5,7 @@
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
 {% include 'san_xuat/includes/sx_plan_urgency_styles.html' %}
 <style>
-  .jp-gp { --gp-ink:#0f172a; --gp-muted:#64748b; --gp-line:#e8edf3; --gp-soft:#f4f7fb; --gp-accent:#0f766e; }
+  .jp-gp { --gp-ink:#0f172a; --gp-muted:#64748b; --gp-line:#e8edf3; --gp-soft:#f4f7fb; --gp-accent:#e11d48; --gp-accent-soft:#fff1f2; }
   .jp-gp-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .75rem; margin: 0 0 1rem; }
   @media (max-width: 767px) { .jp-gp-kpis { grid-template-columns: 1fr 1fr; } }
   .jp-gp-kpi {
@@ -16,17 +16,6 @@
   .jp-gp-kpi .val { font-size: 1.45rem; font-weight: 800; color: var(--gp-ink); letter-spacing: -.02em; line-height: 1.2; }
   .jp-gp-kpi.is-hot .val { color: #c2410c; }
   .jp-gp-kpi.is-late .val { color: #991b1b; }
-  .jp-gp-chips { display: flex; flex-wrap: wrap; gap: .4rem; margin: 0 0 .65rem; }
-  .jp-gp-chip {
-    display: inline-flex; align-items: center; gap: .35rem;
-    padding: .28rem .7rem; border-radius: 999px; text-decoration: none;
-    border: 1px solid var(--gp-line); background: #fff; color: var(--gp-ink);
-    font-size: .78rem; font-weight: 700;
-  }
-  .jp-gp-chip:hover { border-color: #99f6e4; color: var(--gp-accent); }
-  .jp-gp-chip.is-on { background: #ccfbf1; border-color: #5eead4; color: #115e59; }
-  .jp-gp-chip .n { color: var(--gp-muted); font-weight: 800; }
-  .jp-gp-chip.is-on .n, .jp-gp-chip.has-hot .n { color: #c2410c; }
   .jp-gp-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: .65rem; margin: 0 0 1rem; }
   .jp-gp-toolbar .jp-gp-search { flex: 1 1 14rem; max-width: 22rem; min-width: 12rem; }
   .jp-gp-jobs { display: flex; flex-direction: column; gap: .85rem; }
@@ -61,11 +50,11 @@
     border: 1px solid var(--gp-line); border-radius: .85rem; padding: .65rem .7rem; background: #fff;
     text-decoration: none; color: inherit; display: block;
   }
-  .jp-gp-cell:hover { border-color: #99f6e4; }
-  .jp-gp-cell.is-done { background: #f0fdf4; border-color: #bbf7d0; }
+  .jp-gp-cell:hover { border-color: #fda4af; }
+  .jp-gp-cell.is-done { background: var(--gp-accent-soft); border-color: #fecdd3; }
   .jp-gp-cell.is-run { background: #f0f9ff; border-color: #bae6fd; }
   .jp-gp-cell.is-wait { background: #fff7ed; border-color: #fed7aa; }
-  .jp-gp-cell.is-current { outline: 2px solid #0f766e; outline-offset: -1px; }
+  .jp-gp-cell.is-current { outline: 2px solid #fb7185; outline-offset: -1px; }
   .jp-gp-arrow {
     flex: 0 0 1.1rem; display: flex; align-items: center; justify-content: center;
     color: #94a3b8; font-size: .8rem;
@@ -111,33 +100,11 @@
     </div>
   </div>
 
-  <div class="jp-gp-chips" role="navigation" aria-label="Mức độ gấp">
-    {% for k in board.kinds %}
-    <a class="jp-gp-chip{% if board.filter_kind == k.key %} is-on{% endif %}{% if k.key == 'hot' or k.key == 'late' %} has-hot{% endif %}"
-       href="{% url 'san_xuat:team_work_goods' %}{% if k.key %}?kind={{ k.key }}{% endif %}{% if board.filter_team %}{% if k.key %}&amp;{% else %}?{% endif %}team={{ board.filter_team }}{% endif %}{% if board.search %}{% if k.key or board.filter_team %}&amp;{% else %}?{% endif %}q={{ board.search|urlencode }}{% endif %}">
-      {{ k.label }} <span class="n">{{ k.count }}</span>
-    </a>
-    {% endfor %}
-  </div>
-
-  <div class="jp-gp-chips" role="navigation" aria-label="Hàng đang ở tổ">
-    <a class="jp-gp-chip{% if not board.filter_team %} is-on{% endif %}"
-       href="{% url 'san_xuat:team_work_goods' %}{% if board.filter_kind %}?kind={{ board.filter_kind }}{% endif %}{% if board.search %}{% if board.filter_kind %}&amp;{% else %}?{% endif %}q={{ board.search|urlencode }}{% endif %}">Tất cả tổ</a>
-    {% for t in board.teams %}
-    <a class="jp-gp-chip{% if board.filter_team == t.slug %} is-on{% endif %}"
-       href="{% url 'san_xuat:team_work_goods' %}?team={{ t.slug }}{% if board.filter_kind %}&amp;kind={{ board.filter_kind }}{% endif %}{% if board.search %}&amp;q={{ board.search|urlencode }}{% endif %}">
-      {{ t.label }}
-    </a>
-    {% endfor %}
-  </div>
-
   <form method="get" class="jp-gp-toolbar">
-    {% if board.filter_kind %}<input type="hidden" name="kind" value="{{ board.filter_kind }}">{% endif %}
-    {% if board.filter_team %}<input type="hidden" name="team" value="{{ board.filter_team }}">{% endif %}
     <input type="search" name="q" value="{{ board.search }}" class="form-control form-control-sm jp-gp-search"
            placeholder="Tìm lệnh sản xuất / mã SP / đơn hàng…" autocomplete="off">
     <button type="submit" class="btn btn-outline-secondary btn-sm">Lọc</button>
-    {% if board.search or board.filter_kind or board.filter_team %}
+    {% if board.search %}
     <a href="{% url 'san_xuat:team_work_goods' %}" class="btn btn-link btn-sm text-decoration-none">Xóa lọc</a>
     {% endif %}
   </form>
@@ -193,7 +160,7 @@
   </div>
   {% else %}
   <div class="jp-gp-empty">
-    {% if board.search or board.filter_kind or board.filter_team %}
+    {% if board.search %}
     Không có lệnh khớp bộ lọc.
     {% else %}
     Chưa có lệnh đang chạy — phát hành lệnh rồi cập nhật SL trên từng tổ.

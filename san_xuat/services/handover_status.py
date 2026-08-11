@@ -21,7 +21,8 @@ from san_xuat.services.progress_template import (
     step_by_label,
 )
 
-# Bước đại diện lượng ra khỏi tổ. Không có thì lấy max SL các CD trong tổ.
+# Bước đại diện lượng ra khỏi tổ. Không có thì lấy min SL các CD của tổ trên lệnh
+# (áo/quần/phối cắt đủ mới tính 1 bộ — không lấy max một CD).
 TEAM_OUTPUT_STEP: dict[str, str | None] = {
     "CAT": None,
     "IN_EP": None,
@@ -88,19 +89,43 @@ def _slug_for_group(group_key: str) -> str:
     return ""
 
 
+def _required_step_keys(mo: SxProductionOrder, group_key: str) -> set[str]:
+    keys: set[str] = set()
+    rel = getattr(mo, "mo_process_steps", None)
+    if rel is None:
+        return keys
+    try:
+        steps = rel.all()
+    except Exception:
+        steps = rel
+    for ps in steps:
+        sd = step_by_label(getattr(ps, "process_name", "") or "")
+        if sd and sd.group == group_key:
+            keys.add(sd.key)
+    return keys
+
+
 def _group_output(
     *,
     group_key: str,
     step_qty: dict[str, Decimal],
     group_steps: list[ProgressStepDef],
+    required_keys: set[str] | None = None,
 ) -> Decimal:
     out_key = TEAM_OUTPUT_STEP.get(group_key)
     if out_key:
         designated = _q(step_qty.get(out_key))
         if designated > 0:
             return designated
-    vals = [_q(step_qty.get(s.key)) for s in group_steps]
-    return max(vals) if vals else Decimal("0")
+    keys = [s.key for s in group_steps]
+    if required_keys:
+        need = [k for k in keys if k in required_keys]
+        if need:
+            return min(_q(step_qty.get(k)) for k in need)
+    recorded = [_q(step_qty.get(s.key)) for s in group_steps if _q(step_qty.get(s.key)) > 0]
+    if not recorded:
+        return Decimal("0")
+    return min(recorded)
 
 
 def _cell_status(*, done: Decimal, incoming: Decimal, waiting: Decimal) -> str:
@@ -140,13 +165,19 @@ def _build_row(
 
     for i, grp in enumerate(GROUPS):
         g_steps = steps_by_group.get(grp.key, [])
+        required = _required_step_keys(mo, grp.key)
         done = Decimal("0")
         for size in size_labels:
             step_qty = {
                 s.key: _q(step_size_qty.get((size, s.key)))
                 for s in g_steps
             }
-            done += _group_output(group_key=grp.key, step_qty=step_qty, group_steps=g_steps)
+            done += _group_output(
+                group_key=grp.key,
+                step_qty=step_qty,
+                group_steps=g_steps,
+                required_keys=required,
+            )
         incoming = plan if i == 0 else prev_output
         waiting = incoming - done
         if waiting < 0:
@@ -230,7 +261,8 @@ def build_handover_board(*, search: str = "", team_slug: str = "", limit: int = 
             Prefetch(
                 "lines",
                 queryset=SxProductionOrderLine.objects.order_by("size_label", "id"),
-            )
+            ),
+            "mo_process_steps",
         )
         .order_by("-order_date", "-pk")
     )

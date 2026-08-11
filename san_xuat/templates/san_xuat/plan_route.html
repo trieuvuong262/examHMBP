@@ -4,35 +4,56 @@
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
 <style>
-  .jp-tl { --tl-ink:#0f172a; --tl-muted:#64748b; --tl-line:#e8edf3; --tl-soft:#f8fafc; --tl-today:#dc2626; }
+  .jp-tl { --tl-ink:#0f172a; --tl-muted:#64748b; --tl-line:#e8edf3; --tl-soft:#f8fafc; --tl-today:#dc2626; --tl-label:16rem; --tl-day:2.2rem; }
   .jp-tl-nav { display:flex; flex-wrap:wrap; align-items:center; gap:.5rem 1rem; margin:0 0 1rem; }
   .jp-tl-range { font-weight:800; color:var(--tl-ink); letter-spacing:-.02em; }
-  .jp-tl-hint { color:var(--tl-muted); font-size:.82rem; margin:0; }
   .jp-tl-wrap { overflow:auto; border:1px solid var(--tl-line); border-radius:1rem; background:#fff; }
-  .jp-tl-table { min-width:52rem; width:100%; border-collapse:separate; border-spacing:0; }
-  .jp-tl-table th, .jp-tl-table td { border-bottom:1px solid var(--tl-line); vertical-align:middle; }
-  .jp-tl-table thead th {
-    position:sticky; top:0; z-index:2; background:#fff;
-    font-size:.68rem; font-weight:700; color:var(--tl-muted); text-align:center;
-    padding:.35rem 0; border-bottom:1px solid var(--tl-line);
+  .jp-tl-grid { min-width: calc(var(--tl-label) + var(--tl-days) * var(--tl-day)); }
+  .jp-tl-row {
+    display: grid;
+    grid-template-columns: var(--tl-label) 1fr;
+    border-bottom: 1px solid var(--tl-line);
+    min-width: 100%;
   }
-  .jp-tl-table thead th.is-weekend { background:#f8fafc; }
-  .jp-tl-table thead th.is-today { color:var(--tl-today); background:#fef2f2; }
+  .jp-tl-row:last-child { border-bottom: 0; }
+  .jp-tl-head {
+    position: sticky; top: 0; z-index: 4; background: #fff;
+    border-bottom: 1px solid var(--tl-line);
+  }
   .jp-tl-label {
-    position:sticky; left:0; z-index:3; background:#fff;
-    width:16rem; min-width:16rem; max-width:16rem;
-    padding:.65rem .85rem; text-align:left; border-right:1px solid var(--tl-line);
+    position: sticky; left: 0; z-index: 3; background: #fff;
+    padding: .55rem .85rem; border-right: 1px solid var(--tl-line);
   }
-  .jp-tl-table thead .jp-tl-label { z-index:4; }
+  .jp-tl-head .jp-tl-label {
+    z-index: 5; font-size: .68rem; font-weight: 700; color: var(--tl-muted);
+    display: flex; align-items: center;
+  }
+  .jp-tl-days {
+    display: grid;
+    grid-template-columns: repeat(var(--tl-days), minmax(var(--tl-day), 1fr));
+    min-width: 0;
+  }
+  .jp-tl-day {
+    font-size: .68rem; font-weight: 700; color: var(--tl-muted);
+    text-align: center; padding: .4rem 0; white-space: nowrap;
+    border-left: 1px solid var(--tl-line);
+  }
+  .jp-tl-day:first-child, .jp-tl-slot:first-child { border-left: 0; }
+  .jp-tl-day.is-weekend, .jp-tl-slot.is-weekend { background: #f8fafc; }
+  .jp-tl-day.is-today { color: var(--tl-today); background: #fef2f2; }
+  .jp-tl-slot.is-today { background: #fef2f2; }
   .jp-tl-code { font-weight:800; color:var(--tl-ink); text-decoration:none; font-size:.88rem; }
-  .jp-tl-code:hover { color:#0f766e; }
+  .jp-tl-code:hover { color:#dc2626; }
   .jp-tl-sub { color:var(--tl-muted); font-size:.75rem; margin-top:.15rem; }
-  .jp-tl-track { position:relative; height:2.1rem; padding:.35rem 0; }
+  .jp-tl-track { position: relative; min-height: 2.35rem; }
+  .jp-tl-slot { min-height: 2.35rem; border-left: 1px solid var(--tl-line); grid-row: 1; }
   .jp-tl-bar {
-    position:absolute; top:.35rem; height:1.4rem; border-radius:999px;
-    display:flex; align-items:center; padding:0 .55rem;
-    font-size:.68rem; font-weight:700; color:#fff; white-space:nowrap; overflow:hidden;
-    min-width:.55rem;
+    grid-row: 1;
+    align-self: center;
+    height: 1.4rem; margin: 0 3px; border-radius: 999px;
+    display: flex; align-items: center; padding: 0 .45rem; z-index: 2;
+    font-size: .68rem; font-weight: 700; color: #fff; white-space: nowrap;
+    overflow: hidden; min-width: 0; text-decoration: none;
   }
   .jp-tl-bar.is-draft { background:#64748b; }
   .jp-tl-bar.is-released { background:#0284c7; }
@@ -40,8 +61,8 @@
   .jp-tl-bar.is-done { background:#15803d; }
   .jp-tl-bar.is-late { box-shadow:inset 0 0 0 2px #7f1d1d; }
   .jp-tl-today {
-    position:absolute; top:0; bottom:0; width:1px; background:var(--tl-today);
-    pointer-events:none; z-index:1;
+    grid-row: 1; justify-self: center; width: 1px; background: var(--tl-today);
+    pointer-events: none; z-index: 1;
   }
   .jp-tl-empty {
     border:1px dashed var(--tl-line); border-radius:1rem; padding:2.4rem 1rem;
@@ -66,59 +87,75 @@
     </nav>
   </div>
 
+  <form method="get" id="sxPlanRouteFilterForm" class="card border-0 shadow-sm mb-3 jp-team-filter-form" role="search" aria-label="Bộ lọc ngày lộ trình">
+    <div class="card-body p-3 jp-team-filter-body">
+      {% include 'san_xuat/includes/sx_date_range_fields.html' with id_prefix='sx-route' date_from=board.range_start date_to=board.range_end %}
+      <div class="jp-team-filter-period">
+        <label class="form-label fw-bold small mb-1" for="sx-route-month">Tháng</label>
+        <input type="month" name="month" id="sx-route-month" value="{{ month_value }}" class="form-control">
+      </div>
+      <div class="jp-team-filter-org-search">
+        <div class="jp-team-filter-org flex-grow-1">
+          <label class="form-label fw-bold small mb-1" for="sx-route-q">Tìm lệnh</label>
+          <input type="search" name="q" id="sx-route-q" value="{{ board.search }}" class="form-control"
+                 placeholder="Mã lệnh / mã SX / tổ…" autocomplete="off">
+        </div>
+      </div>
+      <div class="jp-team-filter-actions">
+        <button type="submit" class="btn btn-hm btn-sm fw-bold">Lọc</button>
+        {% if has_filters %}
+        <a href="{% url 'san_xuat:plan_route' %}" class="btn btn-light border" title="Xóa bộ lọc"><i class="bi bi-x-lg"></i></a>
+        {% endif %}
+      </div>
+    </div>
+  </form>
+
   <div class="jp-tl-nav">
-    <a class="btn btn-outline-secondary btn-sm" href="?from={{ board.prev_from|date:'Y-m-d' }}{% if board.search %}&q={{ board.search|urlencode }}{% endif %}">← 2 tuần</a>
-    <a class="btn btn-outline-secondary btn-sm" href="?from={{ today_monday|date:'Y-m-d' }}{% if board.search %}&q={{ board.search|urlencode }}{% endif %}">Hôm nay</a>
-    <a class="btn btn-outline-secondary btn-sm" href="?from={{ board.next_from|date:'Y-m-d' }}{% if board.search %}&q={{ board.search|urlencode }}{% endif %}">2 tuần →</a>
+    <a class="btn btn-outline-secondary btn-sm" href="?date_from={{ board.prev_from|date:'Y-m-d' }}&amp;date_to={{ board.prev_to|date:'Y-m-d' }}{% if board.search %}&amp;q={{ board.search|urlencode }}{% endif %}">← Trước</a>
+    <a class="btn btn-outline-secondary btn-sm" href="?date_from={{ today_monday|date:'Y-m-d' }}&amp;date_to={{ today_end|date:'Y-m-d' }}{% if board.search %}&amp;q={{ board.search|urlencode }}{% endif %}">Hôm nay</a>
+    <a class="btn btn-outline-secondary btn-sm" href="?date_from={{ board.next_from|date:'Y-m-d' }}&amp;date_to={{ board.next_to|date:'Y-m-d' }}{% if board.search %}&amp;q={{ board.search|urlencode }}{% endif %}">Sau →</a>
     <span class="jp-tl-range">{{ board.range_start|date:"d/m/Y" }} – {{ board.range_end|date:"d/m/Y" }}</span>
-    <form method="get" class="d-flex gap-2 ms-auto" style="min-width:16rem;max-width:24rem;flex:1">
-      <input type="hidden" name="from" value="{{ board.range_start|date:'Y-m-d' }}">
-      <input type="search" name="q" value="{{ board.search }}" class="form-control form-control-sm" placeholder="Tìm mã lệnh / mã SX / tổ…" autocomplete="off">
-      <button type="submit" class="btn btn-outline-secondary btn-sm">Lọc</button>
-    </form>
   </div>
-  <p class="jp-tl-hint">Thanh thời gian theo <strong>ngày bắt đầu dự kiến</strong> → <strong>ngày kết thúc dự kiến</strong> của lệnh sản xuất.</p>
 
   {% if board.rows %}
   <div class="jp-tl-wrap">
-    <table class="jp-tl-table">
-      <thead>
-        <tr>
-          <th class="jp-tl-label">Lệnh</th>
+    <div class="jp-tl-grid" style="--tl-days: {{ board.days|length }}">
+      <div class="jp-tl-row jp-tl-head">
+        <div class="jp-tl-label">Lệnh</div>
+        <div class="jp-tl-days">
           {% for d in board.days %}
-          <th class="{% if d == board.today %}is-today{% elif d|date:'w' == '0' or d|date:'w' == '6' %}is-weekend{% endif %}">{{ d|date:"d/m" }}</th>
+          <div class="jp-tl-day{% if d == board.today %} is-today{% elif d|date:'w' == '0' or d|date:'w' == '6' %} is-weekend{% endif %}">{{ d|date:"d/m" }}</div>
           {% endfor %}
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in board.rows %}
-        <tr>
-          <td class="jp-tl-label">
-            <a class="jp-tl-code" href="{% url 'san_xuat:dispatch_mo_detail' row.mo.pk %}">{{ row.mo.code }}</a>
-            <div class="jp-tl-sub">
-              {{ row.mo.product_code }}
-              {% if row.mo.team_label %} · {{ row.mo.team_label }}{% endif %}
-              · {{ row.mo.get_status_display }}
-            </div>
-            <div class="jp-tl-sub">{{ row.start|date:"d/m" }} → {{ row.end|date:"d/m" }} · {{ row.span_days }} ngày</div>
-          </td>
-          <td colspan="{{ board.days|length }}">
-            <div class="jp-tl-track">
-              {% if board.today_left_pct is not None %}
-              <span class="jp-tl-today" style="left:{{ board.today_left_pct }}%"></span>
-              {% endif %}
-              <a class="jp-tl-bar is-{{ row.status_key }}{% if row.is_late %} is-late{% endif %}"
-                 href="{% url 'san_xuat:dispatch_mo_detail' row.mo.pk %}"
-                 style="left:{{ row.left_pct }}%;width:{{ row.width_pct }}%"
-                 title="{{ row.mo.code }} · {{ row.start|date:'d/m/Y' }} – {{ row.end|date:'d/m/Y' }}">
-                SL {{ row.mo.qty|sx_num }}
-              </a>
-            </div>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+        </div>
+      </div>
+      {% for row in board.rows %}
+      <div class="jp-tl-row">
+        <div class="jp-tl-label">
+          <a class="jp-tl-code" href="{% url 'san_xuat:dispatch_mo_detail' row.mo.pk %}">{{ row.mo.code }}</a>
+          <div class="jp-tl-sub">
+            {{ row.mo.product_code }}
+            {% if row.mo.team_label %} · {{ row.mo.team_label }}{% endif %}
+            · {{ row.mo.get_status_display }}
+          </div>
+          <div class="jp-tl-sub">{{ row.start|date:"d/m" }} → {{ row.end|date:"d/m" }} · {{ row.span_days }} ngày</div>
+        </div>
+        <div class="jp-tl-days jp-tl-track">
+          {% for d in board.days %}
+          <div class="jp-tl-slot{% if d == board.today %} is-today{% elif d|date:'w' == '0' or d|date:'w' == '6' %} is-weekend{% endif %}"></div>
+          {% endfor %}
+          {% if board.today_col %}
+          <span class="jp-tl-today" style="grid-column: {{ board.today_col }} / span 1"></span>
+          {% endif %}
+          <a class="jp-tl-bar is-{{ row.status_key }}{% if row.is_late %} is-late{% endif %}"
+             href="{% url 'san_xuat:dispatch_mo_detail' row.mo.pk %}"
+             style="grid-column: {{ row.col_start }} / {{ row.col_end }}"
+             title="{{ row.mo.code }} · {{ row.start|date:'d/m/Y' }} – {{ row.end|date:'d/m/Y' }}">
+            SL {{ row.mo.qty|sx_num }}
+          </a>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
   </div>
   {% else %}
   <div class="jp-tl-empty">

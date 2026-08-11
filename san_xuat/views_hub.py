@@ -1153,8 +1153,10 @@ def plan_board(request):
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def plan_route(request):
     """Lộ trình sản xuất — timeline theo ngày bắt đầu / kết thúc dự kiến của LSX."""
-    from datetime import datetime
+    from calendar import monthrange
+    from datetime import date as date_cls
 
+    from san_xuat.list_filters import date_range_span_context, parse_sx_date
     from san_xuat.services.plan_board import _monday_on_or_before, build_mo_timeline
 
     menu_key = 'plan_route'
@@ -1165,21 +1167,37 @@ def plan_route(request):
     ):
         return handle_menu_access_denied(request, MODULE_SAN_XUAT, menu_key)
 
-    raw_from = (request.GET.get('from') or '').strip()
-    range_from = None
-    if raw_from:
+    raw_from = (request.GET.get('date_from') or request.GET.get('from') or '').strip()
+    raw_to = (request.GET.get('date_to') or '').strip()
+    month = (request.GET.get('month') or '').strip()
+    range_from = parse_sx_date(raw_from)
+    range_to = parse_sx_date(raw_to)
+    if not range_from and not range_to and month:
         try:
-            range_from = datetime.strptime(raw_from, '%Y-%m-%d').date()
-        except ValueError:
-            range_from = None
+            y, m = month.split('-', 1)
+            year, mon = int(y), int(m)
+            last = monthrange(year, mon)[1]
+            range_from = date_cls(year, mon, 1)
+            range_to = date_cls(year, mon, last)
+        except (ValueError, IndexError):
+            pass
+
+    q = (request.GET.get('q') or '').strip()
     board = build_mo_timeline(
         range_from=range_from,
-        search=(request.GET.get('q') or '').strip(),
+        range_to=range_to,
+        search=q,
     )
+    today_start = _monday_on_or_before(board.today)
+    has_filters = bool(raw_from or raw_to or month or q or request.GET.get('span'))
     return render(request, 'san_xuat/plan_route.html', {
         **_perm_ctx(request),
         'board': board,
-        'today_monday': _monday_on_or_before(board.today),
+        'today_monday': today_start,
+        'today_end': today_start + timedelta(days=27),
+        'has_filters': has_filters,
+        'month_value': f'{board.range_start.year:04d}-{board.range_start.month:02d}',
+        **date_range_span_context(board.range_start, board.range_end),
     })
 
 
@@ -3657,8 +3675,6 @@ def team_work_goods(request):
 
     board = build_goods_progress_board(
         search=(request.GET.get('q') or '').strip(),
-        kind=(request.GET.get('kind') or '').strip().lower(),
-        team_slug=(request.GET.get('team') or '').strip().lower(),
     )
     return render(request, 'san_xuat/team_work_goods.html', {
         **_perm_ctx(request),
