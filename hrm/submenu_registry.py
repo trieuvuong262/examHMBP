@@ -316,7 +316,6 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     ('/san-xuat/ke-hoach/don-mua-hang', MODULE_SAN_XUAT, 'purchase_order'),
     ('/san-xuat/ke-hoach/nhat-ky', MODULE_SAN_XUAT, 'plan_audit'),
     ('/san-xuat/ke-hoach', MODULE_SAN_XUAT, 'plan_board'),
-    ('/san-xuat/dieu-phoi/chay-lenh-moi', MODULE_SAN_XUAT, 'mo'),
     ('/san-xuat/dieu-phoi/lenh-sx', MODULE_SAN_XUAT, 'mo'),
     ('/san-xuat/dieu-phoi/lenh-thao-do', MODULE_SAN_XUAT, 'disassembly'),
     ('/san-xuat/dieu-phoi/lich-sx', MODULE_SAN_XUAT, 'schedule'),

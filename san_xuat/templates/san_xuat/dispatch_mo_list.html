@@ -16,9 +16,6 @@
     <nav class="jp-sx-tools" aria-label="Công cụ">
       {% include 'san_xuat/includes/sx_export_btn.html' with export_key='dispatch_mo' %}
       {% if can_create %}
-      <a href="{% url 'san_xuat:run_order_wizard' %}" class="btn btn-outline-hm btn-sm fw-bold">
-        <i class="bi bi-magic me-1"></i>Chạy lệnh mới
-      </a>
       <a href="{% url 'san_xuat:dispatch_mo_create' %}" class="btn btn-hm btn-sm fw-bold">
         <i class="bi bi-plus-lg me-1"></i>Tạo lệnh
       </a>
@@ -72,7 +69,7 @@
               <div class="jp-mo-empty">
                 <div class="icon" aria-hidden="true"><i class="bi bi-clipboard2-plus"></i></div>
                 <div class="fw-semibold text-body mb-1">Chưa có lệnh sản xuất</div>
-                <div class="small mb-3">Tạo lệnh mới hoặc chạy wizard để bắt đầu quy trình SX.</div>
+                <div class="small mb-3">Tạo lệnh mới để bắt đầu quy trình sản xuất.</div>
                 {% if can_create %}
                 <a href="{% url 'san_xuat:dispatch_mo_create' %}" class="btn btn-hm btn-sm fw-bold">
                   <i class="bi bi-plus-lg me-1"></i>Tạo lệnh

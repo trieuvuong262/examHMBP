@@ -10,6 +10,11 @@
     --jp-btn-radius: 6px;
     --jp-radius-xl: 8px;
     --jp-touch: 44px;
+    --jp-font-sans: 'Gotham', system-ui, -apple-system, sans-serif;
+}
+
+body {
+    font-family: var(--jp-font-sans);
 }
 
 body.bg-100,

@@ -639,6 +639,10 @@ def mo_bom_versions_api(request):
     product_code = (request.GET.get('product_code') or '').strip()
     from san_xuat.forms_dispatch import _process_defaults_from_bom
     from san_xuat.models import ProductTechDoc
+    from san_xuat.services.capacity_from_hrm import (
+        default_manager_user_id_for_work_center,
+        mo_form_work_center_id,
+    )
 
     results = []
     doc = None
@@ -655,19 +659,25 @@ def mo_bom_versions_api(request):
                     text = f'{label} · {n_steps} công đoạn'
                 if note:
                     text = f'{text} — {note[:40]}'
-                steps = [
-                    {
+                steps = []
+                for s in bom.process_steps.select_related('work_center').order_by('sequence', 'id')[:80]:
+                    wc_id = mo_form_work_center_id(
+                        work_center=s.work_center,
+                        work_center_id=s.work_center_id,
+                        work_center_code=(s.work_center.code if s.work_center_id else '') or '',
+                        name_hint=s.process_name or '',
+                    ) or s.work_center_id
+                    steps.append({
                         'id': s.pk,
                         'sequence': s.sequence,
                         'process_name': s.process_name,
-                        'work_center_id': s.work_center_id,
+                        'work_center_id': wc_id,
+                        'manager_id': default_manager_user_id_for_work_center(wc_id) or '',
                         'team_label': (
                             (s.work_center.team_label or s.work_center.name)
                             if s.work_center_id else ''
                         ),
-                    }
-                    for s in bom.process_steps.select_related('work_center').order_by('sequence', 'id')[:80]
-                ]
+                    })
                 results.append({
                     'id': bom.pk,
                     'tech_doc_id': doc.pk,

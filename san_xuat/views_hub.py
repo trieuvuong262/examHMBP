@@ -1899,8 +1899,14 @@ def dispatch_mo(request):
 
 @module_perm_required(MODULE_SAN_XUAT, 'create')
 def dispatch_mo_create(request):
-    from san_xuat.services.dispatch import parse_mo_lines_from_post, parse_mo_process_steps_from_post
+    from san_xuat.services.dispatch import (
+        format_mo_line_qty,
+        parse_mo_lines_from_post,
+        parse_mo_process_steps_from_post,
+    )
 
+    lines: list = []
+    process_steps = None
     if request.method == 'POST':
         form = ProductionOrderCreateForm(request.POST)
         lines = parse_mo_lines_from_post(request.POST)
@@ -1940,209 +1946,36 @@ def dispatch_mo_create(request):
             initial['product_code'] = prefill
         form = ProductionOrderCreateForm(initial=initial)
 
-    from san_xuat.forms_dispatch import mo_manager_candidate_options
+    from san_xuat.forms_dispatch import mo_manager_options_with_team_defaults
     from san_xuat.services.capacity_from_hrm import work_center_options_with_default_manager
 
     team_options = work_center_options_with_default_manager()
+    mo_line_qty_json = json.dumps({
+        f'{(ln.get("color_code") or "").upper()}||{(ln.get("size_label") or "").upper()}': format_mo_line_qty(ln.get("qty"))
+        for ln in lines
+        if (ln.get("color_code") or "").strip() and (ln.get("size_label") or "").strip()
+        and format_mo_line_qty(ln.get("qty"))
+    })
 
     return render(request, 'san_xuat/dispatch_mo_form.html', {
         **_perm_ctx(request),
         'form': form,
         'mode': 'create',
         'team_options_json': json.dumps(team_options, ensure_ascii=False),
-        'manager_options_json': json.dumps(mo_manager_candidate_options(), ensure_ascii=False),
+        'manager_options_json': json.dumps(
+            mo_manager_options_with_team_defaults(team_options), ensure_ascii=False,
+        ),
+        'mo_line_qty_json': mo_line_qty_json,
+        'posted_steps_json': json.dumps(process_steps or [], ensure_ascii=False),
     })
-
-
-WIZARD_STEPS = [
-    (1, 'Tạo lệnh'),
-    (2, 'Phát hành'),
-    (3, 'Xuất vật tư'),
-    (4, 'Duyệt xuất kho'),
-    (5, 'Thống kê sản xuất'),
-    (6, 'Kiểm tra chất lượng'),
-    (7, 'Nhập thành phẩm & đóng gói'),
-]
-
-
-def _wizard_step_for_mo(mo) -> int:
-    from san_xuat.services.mo_progress import build_mo_progress
-
-    progress = build_mo_progress(mo)
-    for step in progress.steps:
-        if step.done:
-            continue
-        if step.key == 'created':
-            return 1
-        if step.key == 'released':
-            return 2
-        if step.key == 'issue':
-            has_ycx = mo.material_issue_requests.filter(is_demo=False).exists()
-            return 4 if has_ycx else 3
-        if step.key == 'stat':
-            return 5
-        if step.key == 'qc':
-            return 6
-        if step.key in ('fg', 'packing'):
-            return 7
-    return 7
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def run_order_wizard(request, mo_id: int | None = None):
-    """Wizard «Chạy lệnh mới» — 7 bước có thanh tiến độ."""
-    from san_xuat.services.mo_progress import build_mo_progress, pending_material_issue_qs
-
-    mo = None
+    """Wizard đã bỏ — bookmark cũ chuyển về lệnh sản xuất."""
     if mo_id:
-        mo = get_object_or_404(
-            SxProductionOrder.objects.select_related('bom_version').prefetch_related('lines'),
-            pk=mo_id,
-            is_demo=False,
-        )
-
-    step_param = request.GET.get('step') or request.POST.get('step')
-    try:
-        step = int(step_param) if step_param else (_wizard_step_for_mo(mo) if mo else 1)
-    except (TypeError, ValueError):
-        step = 1
-    step = max(1, min(7, step))
-
-    can = _perm_ctx(request)
-    can_update = can.get('can_update')
-    create_form = ProductionOrderCreateForm(initial={'order_date': timezone.localdate()})
-    stat_form = None
-
-    if request.method == 'POST':
-        action = (request.POST.get('action') or '').strip()
-
-        if action == 'create_mo' and can.get('can_create'):
-            create_form = ProductionOrderCreateForm(request.POST)
-            if create_form.is_valid():
-                try:
-                    mo = create_mo_from_bom(
-                        product_code=create_form.cleaned_data['product_code'],
-                        qty=create_form.cleaned_data['qty'],
-                        order_date=create_form.cleaned_data.get('order_date') or timezone.localdate(),
-                        due_date=create_form.cleaned_data.get('due_date'),
-                        planned_start=create_form.cleaned_data.get('planned_start'),
-                        planned_end=create_form.cleaned_data.get('planned_end'),
-                        team_label=create_form.cleaned_data.get('team_label') or '',
-                        notes=create_form.cleaned_data.get('notes') or '',
-                        user=request.user,
-                    )
-                except DispatchError as exc:
-                    messages.error(request, str(exc))
-                else:
-                    messages.success(request, f'Đã tạo lệnh {mo.code}. Tiếp tục phát hành.')
-                    return redirect(f"{reverse('san_xuat:run_order_wizard_mo', kwargs={'mo_id': mo.pk})}?step=2")
-            else:
-                messages.error(request, 'Không tạo được lệnh — kiểm tra form.')
-                step = 1
-
-        elif mo and action == 'release' and can_update:
-            try:
-                mo_release(mo_id=mo.pk, user=request.user)
-            except DispatchError as exc:
-                messages.error(request, str(exc))
-            else:
-                messages.success(request, f'Đã phát hành {mo.code}.')
-                return redirect(f"{reverse('san_xuat:run_order_wizard_mo', kwargs={'mo_id': mo.pk})}?step=3")
-
-        elif mo and action == 'create_ycx' and can_update:
-            try:
-                req = build_material_issue_request(
-                    production_order_id=mo.pk, user=request.user, notes='Từ wizard chạy lệnh',
-                )
-            except DispatchError as exc:
-                messages.error(request, str(exc))
-            else:
-                messages.success(request, f'Đã tạo yêu cầu xuất {req.code}. Chuyển kho duyệt.')
-                return redirect(f"{reverse('san_xuat:run_order_wizard_mo', kwargs={'mo_id': mo.pk})}?step=4")
-
-        elif mo and action == 'create_stat' and can.get('can_create'):
-            stat_form = ProductionStatCreateForm(request.POST, mo=mo)
-            if stat_form.is_valid():
-                try:
-                    st = create_production_stat(
-                        production_order_id=mo.pk,
-                        stat_date=stat_form.cleaned_data.get('stat_date') or timezone.localdate(),
-                        process_name=stat_form.cleaned_data.get('process_name') or '',
-                        qty_good=stat_form.cleaned_data.get('qty_good') or Decimal('0'),
-                        qty_defect=stat_form.cleaned_data.get('qty_defect') or Decimal('0'),
-                        team_label=stat_form.cleaned_data.get('team_label') or mo.team_label or '',
-                        size_label=stat_form.cleaned_data.get('size_label') or '',
-                        sku_code=stat_form.cleaned_data.get('sku_code') or '',
-                        color_label=stat_form.cleaned_data.get('color_label') or '',
-                        color_code=stat_form.cleaned_data.get('color_code') or '',
-                        notes=stat_form.cleaned_data.get('notes') or '',
-                        user=request.user,
-                    )
-                    from san_xuat.services.gates import check_issue_before_stat
-                    gate = check_issue_before_stat(mo=mo)
-                    if gate.should_warn:
-                        messages.warning(request, gate.message)
-                    st = confirm_stat(stat_id=st.pk)
-                except DispatchError as exc:
-                    messages.error(request, str(exc))
-                else:
-                    messages.success(request, f'Đã ghi và xác nhận thống kê {st.code}.')
-                    return redirect(f"{reverse('san_xuat:run_order_wizard_mo', kwargs={'mo_id': mo.pk})}?step=6")
-            else:
-                messages.error(request, 'Không tạo được thống kê — kiểm tra form.')
-                step = 5
-
-        elif mo and action == 'create_ycntp' and can_update:
-            from san_xuat.services.gates import (
-                check_open_qc_alert_before_fg,
-                check_qc_pass_before_fg,
-                check_stat_before_fg,
-            )
-
-            for gate in (
-                check_stat_before_fg(mo=mo),
-                check_open_qc_alert_before_fg(mo=mo),
-                check_qc_pass_before_fg(mo=mo),
-            ):
-                if gate.should_warn:
-                    messages.warning(request, gate.message)
-            try:
-                fg = create_fg_receipt_from_mo(production_order_id=mo.pk)
-            except DispatchError as exc:
-                messages.error(request, str(exc))
-            else:
-                messages.success(request, f'Đã tạo yêu cầu nhập thành phẩm {fg.code}.')
-                return redirect('san_xuat:dispatch_fg_receipt_req_detail', pk=fg.pk)
-
-    if mo and not mo_id:
-        return redirect('san_xuat:run_order_wizard_mo', mo_id=mo.pk)
-
-    progress = build_mo_progress(mo) if mo else None
-    latest_ycx = None
-    if mo:
-        latest_ycx = (
-            mo.material_issue_requests.filter(is_demo=False)
-            .select_related('stock_issue')
-            .order_by('-pk')
-            .first()
-        )
-        if step == 5 and stat_form is None:
-            stat_form = ProductionStatCreateForm(
-                initial=production_stat_initial_from_mo(mo),
-                mo=mo,
-            )
-
-    return render(request, 'san_xuat/run_order_wizard.html', {
-        **can,
-        'mo': mo,
-        'step': step,
-        'steps': WIZARD_STEPS,
-        'progress': progress,
-        'create_form': create_form,
-        'stat_form': stat_form,
-        'latest_ycx': latest_ycx,
-        'pending_ycx_count': pending_material_issue_qs().count(),
-    })
+        return redirect('san_xuat:dispatch_mo_detail', pk=mo_id)
+    return redirect('san_xuat:dispatch_mo')
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
@@ -2308,9 +2141,10 @@ def dispatch_mo_detail(request, pk: int):
         if (ln.color_code or "").strip() and (ln.size_label or "").strip()
         and format_mo_line_qty(ln.qty)
     })
-    from san_xuat.forms_dispatch import mo_manager_candidate_options
+    from san_xuat.forms_dispatch import mo_manager_options_with_team_defaults
     from san_xuat.services.capacity_from_hrm import (
         default_manager_user_id_for_work_center,
+        mo_form_work_center_id,
         work_center_options_with_default_manager,
     )
 
@@ -2346,14 +2180,20 @@ def dispatch_mo_detail(request, pk: int):
             })
     elif mo.bom_version_id:
         for s in mo.bom_version.process_steps.select_related('work_center').order_by('sequence', 'id')[:80]:
-            mgr_id = default_mgr_by_wc.get(s.work_center_id) or ''
-            if not mgr_id and s.work_center_id:
-                mgr_id = default_manager_user_id_for_work_center(s.work_center_id) or ''
+            wc_id = mo_form_work_center_id(
+                work_center=s.work_center,
+                work_center_id=s.work_center_id,
+                work_center_code=(s.work_center.code if s.work_center_id else '') or '',
+                name_hint=s.process_name or '',
+            ) or s.work_center_id
+            mgr_id = default_mgr_by_wc.get(wc_id) or ''
+            if not mgr_id and wc_id:
+                mgr_id = default_manager_user_id_for_work_center(wc_id) or ''
             mo_process_steps.append({
                 'id': s.pk,
                 'sequence': s.sequence,
                 'process_name': s.process_name,
-                'work_center_id': s.work_center_id,
+                'work_center_id': wc_id,
                 'team_label': (
                     (s.work_center.team_label or s.work_center.name)
                     if s.work_center_id else ''
@@ -2378,7 +2218,9 @@ def dispatch_mo_detail(request, pk: int):
         'bom_lines': bom_lines,
         'progress': progress,
         'team_options_json': json.dumps(team_options, ensure_ascii=False),
-        'manager_options_json': json.dumps(mo_manager_candidate_options(), ensure_ascii=False),
+        'manager_options_json': json.dumps(
+            mo_manager_options_with_team_defaults(team_options), ensure_ascii=False,
+        ),
         'mo_process_steps_json': json.dumps(mo_process_steps, ensure_ascii=False),
     })
 

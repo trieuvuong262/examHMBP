@@ -64,6 +64,10 @@
     --jp-dropdown-bg: #ffffff;
     --jp-footer-bg: #ffffff;
     --jp-footer-border: #e2e8f0;
+
+    --jp-font-sans: 'Gotham', system-ui, -apple-system, sans-serif;
+    --bs-font-sans-serif: var(--jp-font-sans);
+    --bs-body-font-family: var(--jp-font-sans);
 }
 
 /* --- Brand utilities --- */
@@ -268,10 +272,11 @@
 html {
     -webkit-text-size-adjust: 100%;
     scroll-behavior: smooth;
+    font-family: var(--jp-font-sans);
 }
 
 body {
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-family: var(--jp-font-sans);
     background-color: var(--hm-bg-light);
     display: flex;
     flex-direction: column;
@@ -4412,7 +4417,7 @@ body.jp-tool-loading-active {
     justify-content: center;
     padding: 0 0.5rem;
     color: #fff;
-    font-family: Inter, system-ui, sans-serif;
+    font-family: var(--jp-font-sans);
     font-size: 0.72rem;
     font-weight: 800;
     text-transform: uppercase;
@@ -4573,7 +4578,7 @@ body.jp-tool-loading-active {
 }
 
 .jp-org-tree-action-icon {
-    font-family: Inter, system-ui, sans-serif;
+    font-family: var(--jp-font-sans);
     font-size: 11px;
     font-weight: 700;
     fill: var(--hm-primary-dark);
@@ -4678,7 +4683,7 @@ body.jp-tool-loading-active {
 }
 
 .jp-org-tree-pill-label {
-    font-family: Inter, system-ui, sans-serif;
+    font-family: var(--jp-font-sans);
     font-size: 13px;
     font-weight: 700;
     fill: #1e293b;
@@ -4691,7 +4696,7 @@ body.jp-tool-loading-active {
 }
 
 .jp-org-tree-pill-sub {
-    font-family: Inter, system-ui, sans-serif;
+    font-family: var(--jp-font-sans);
     font-size: 10px;
     font-weight: 600;
     fill: #64748b;
@@ -4705,7 +4710,7 @@ body.jp-tool-loading-active {
 }
 
 .jp-org-tree-pill-badge-txt {
-    font-family: Inter, system-ui, sans-serif;
+    font-family: var(--jp-font-sans);
     font-size: 10px;
     font-weight: 800;
     fill: var(--hm-primary);
@@ -4772,7 +4777,7 @@ body.jp-tool-loading-active {
 }
 
 .jp-org-tree-expand-icon {
-    font-family: Inter, system-ui, sans-serif;
+    font-family: var(--jp-font-sans);
     font-size: 11px;
     font-weight: 800;
     fill: var(--hm-primary);
@@ -11330,7 +11335,7 @@ body.jp-monitor-modal-open {
     border: 1px solid #cbd5e1 !important;
     border-radius: 2px !important;
     box-shadow: 0 2px 12px rgba(15, 23, 42, 0.12);
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: var(--jp-font-sans);
     font-size: 1rem;
     line-height: 1.65;
     color: #0f172a;
@@ -11342,7 +11347,7 @@ body.jp-monitor-modal-open {
 }
 
 .jp-ckeditor-content {
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: var(--jp-font-sans);
     line-height: 1.65;
 }
 

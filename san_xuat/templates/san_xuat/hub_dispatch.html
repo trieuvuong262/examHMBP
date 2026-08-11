@@ -26,11 +26,6 @@
     {% endif %}
 
     <div class="d-flex flex-wrap gap-2 mb-4">
-      {% if can_create %}
-      <a href="{% url 'san_xuat:run_order_wizard' %}" class="btn btn-hm btn-sm fw-bold">
-        <i class="bi bi-magic me-1"></i>Chạy lệnh mới (wizard)
-      </a>
-      {% endif %}
       <a href="{% url 'san_xuat:dispatch_material_issue_req' %}?queue=pending" class="btn btn-outline-warning btn-sm">
         Hàng đợi xuất vật tư{% if pending_ycx_count %} ({{ pending_ycx_count }}){% endif %}
       </a>

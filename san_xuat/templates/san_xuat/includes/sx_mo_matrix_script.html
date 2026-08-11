@@ -60,7 +60,7 @@
     if (!data || !data.has_matrix || !(data.cells || []).length) {
       host.innerHTML =
         '<div class="jp-mo-matrix-empty">Mã SX này chưa có biến thể màu×size trong danh mục SKU / kho SP. ' +
-        'Nhập <strong>số lượng tổng</strong> bên dưới, hoặc bổ sung SKU trước.</div>';
+        'Bổ sung SKU trước khi tạo lệnh — số lượng theo màu × size là bắt buộc.</div>';
       syncQty();
       return;
     }

@@ -115,16 +115,14 @@ def _hr_work_center_id(
     work_center_code: str = '',
     name_hint: str = '',
 ) -> int | None:
-    """ID bộ phận HRD-* (Năng lực SX / HR) — không để ID tổ IE WC-*."""
-    from san_xuat.services.capacity_from_hrm import map_ie_center_to_hr, resolve_work_center_code
+    """ID tổ trên form LSX (HRD-* nếu có, không thì CAT/MAY/…) — không để ID IE WC-*."""
+    from san_xuat.services.capacity_from_hrm import mo_form_work_center_id
 
-    mapped = map_ie_center_to_hr(work_center) if work_center is not None else None
-    if mapped is None:
-        mapped = resolve_work_center_code(
-            work_center_code or (getattr(work_center, 'code', None) or ''),
-            name_hint=name_hint,
-        )
-    return mapped.pk if mapped else None
+    return mo_form_work_center_id(
+        work_center=work_center,
+        work_center_code=work_center_code,
+        name_hint=name_hint,
+    )
 
 
 def process_group_rows() -> list[dict]:

@@ -18,7 +18,6 @@
     <nav class="jp-sx-tools" aria-label="Công cụ lệnh sản xuất">
       {% if can_print %}      <a href="{% url 'san_xuat:print_mo' mo.pk %}?autoprint=1" target="_blank" rel="noopener"><i class="bi bi-printer" aria-hidden="true"></i>In A5</a>{% endif %}
       <a href="{% url 'san_xuat:order_progress_sheet' mo.pk %}"><i class="bi bi-table" aria-hidden="true"></i>Tiến độ</a>
-      <a href="{% url 'san_xuat:run_order_wizard_mo' mo.pk %}" class="is-accent"><i class="bi bi-magic" aria-hidden="true"></i>Wizard</a>
       <a href="{% url 'san_xuat:traceability' %}?query={{ mo.code }}&gaps=1"><i class="bi bi-signpost-split" aria-hidden="true"></i>Truy vết</a>
       <span class="sep" aria-hidden="true"></span>
       <a href="{% url 'san_xuat:dispatch_mo' %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại</a>

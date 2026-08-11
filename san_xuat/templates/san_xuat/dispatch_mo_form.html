@@ -33,7 +33,7 @@
       <div class="jp-mo-section">
         <div class="jp-mo-section-label">
           <span class="num">1</span>
-          <h3>Mã SX &amp; mã lệnh</h3>
+          <h3>Mã SX &amp; mã lệnh <span class="text-danger">*</span></h3>
           <span class="hint">Bắt buộc</span>
         </div>
         <div class="row g-3">
@@ -48,7 +48,7 @@
             {% if form.code.errors %}<div class="text-danger small mt-1">{{ form.code.errors }}</div>{% endif %}
           </div>
           <div class="col-12 col-lg-6">
-            <label class="form-label small text-muted" for="{{ form.bom_version.id_for_label }}">{{ form.bom_version.label }}</label>
+            <label class="form-label small text-muted" for="{{ form.bom_version.id_for_label }}">{{ form.bom_version.label }}{{ form.bom_version|sx_req_star }}</label>
             {{ form.bom_version }}
             {% if form.bom_version.errors %}<div class="text-danger small mt-1">{{ form.bom_version.errors }}</div>{% endif %}
           </div>
@@ -58,21 +58,22 @@
       <div class="jp-mo-section">
         <div class="jp-mo-section-label">
           <span class="num">2</span>
-          <h3>Số lượng theo màu × size</h3>
-          <span class="hint">Kế hoạch biến thể</span>
+          <h3>Số lượng theo màu × size <span class="text-danger">*</span></h3>
+          <span class="hint">Bắt buộc</span>
         </div>
         <div class="jp-mo-fold" data-jp-mo-fold>
           <div class="jp-mo-fold-head">
-            <p class="jp-mo-fold-title">Kế hoạch theo màu × size</p>
             <button type="button" class="jp-mo-fold-btn" aria-expanded="true">
               <i class="bi bi-chevron-up" aria-hidden="true"></i>
               <span data-fold-label>Thu gọn</span>
             </button>
           </div>
           <div class="jp-mo-fold-body">
-            <div id="jp-mo-matrix-host" class="mb-3">
+            {{ form.variant_plan }}
+            <div id="jp-mo-matrix-host" class="mb-3" data-initial-qtys="{{ mo_line_qty_json|default:'{}' }}">
               <div class="jp-mo-matrix-empty">Chọn mã SX để hiện ma trận màu × size.</div>
             </div>
+            <div id="jp-mo-matrix-error" class="text-danger small mt-1"{% if not form.variant_plan.errors %} hidden{% endif %}>{{ form.variant_plan.errors }}</div>
           </div>
         </div>
         <div class="row g-3">
@@ -104,12 +105,11 @@
       <div class="jp-mo-section">
         <div class="jp-mo-section-label">
           <span class="num">3</span>
-          <h3>Tổ / công đoạn</h3>
-          <span class="hint">Chỉnh theo hồ sơ thiết kế</span>
+          <h3>Tổ / công đoạn <span class="text-danger">*</span></h3>
+          <span class="hint">Bắt buộc</span>
         </div>
         <div class="jp-mo-fold" data-jp-mo-fold>
           <div class="jp-mo-fold-head">
-            <p class="jp-mo-fold-title">Tổ / công đoạn (theo hồ sơ thiết kế)</p>
             <button type="button" class="jp-mo-fold-btn" aria-expanded="true">
               <i class="bi bi-chevron-up" aria-hidden="true"></i>
               <span data-fold-label>Thu gọn</span>
@@ -119,6 +119,7 @@
             <div id="jp-mo-process-preview" class="mb-3">
               <div class="small text-muted">Chọn hồ sơ thiết kế để tải tổ / công đoạn.</div>
             </div>
+            <div id="jp-mo-steps-error" class="text-danger small mt-1"{% if not form.process_name.errors %} hidden{% endif %}>{{ form.process_name.errors }}</div>
           </div>
         </div>
         {# Đồng bộ từ dòng đầu bảng công đoạn khi submit #}
@@ -126,7 +127,7 @@
         <input type="hidden" name="process_name" id="id_process_name" value="{{ form.process_name.value|default:'' }}">
         <div class="row g-3">
           <div class="col-12">
-            <label class="form-label small text-muted" for="{{ form.notes.id_for_label }}">{{ form.notes.label }}{{ form.notes|sx_req_star }}</label>
+            <label class="form-label small text-muted" for="{{ form.notes.id_for_label }}">{{ form.notes.label }}</label>
             {{ form.notes }}
           </div>
         </div>
@@ -159,6 +160,7 @@
   var bomUrl = '{% url "san_xuat:mo_bom_versions" %}';
   var TEAM_OPTIONS = {{ team_options_json|default:"[]"|safe }};
   var MANAGER_OPTIONS = {{ manager_options_json|default:"[]"|safe }};
+  var POSTED_STEPS = {{ posted_steps_json|default:"[]"|safe }};
   window.JP_MO_TEAM_OPTIONS = TEAM_OPTIONS;
   var timer = null;
   var bomMeta = {};
@@ -190,34 +192,67 @@
     return '';
   }
 
-  function defaultManagerForWc(wcId) {
-    if (!wcId) return '';
+  function teamMeta(wcId) {
+    if (!wcId) return null;
     for (var i = 0; i < TEAM_OPTIONS.length; i++) {
-      if (String(TEAM_OPTIONS[i].id) === String(wcId)) {
-        return TEAM_OPTIONS[i].default_manager_id || '';
-      }
+      if (String(TEAM_OPTIONS[i].id) === String(wcId)) return TEAM_OPTIONS[i];
     }
-    return '';
+    return null;
+  }
+
+  function defaultManagerForWc(wcId) {
+    var meta = teamMeta(wcId);
+    return (meta && meta.default_manager_id) || '';
+  }
+
+  function ensureManagerOption(sel, id, label, role) {
+    if (!sel || !id) return;
+    if (sel.querySelector('option[value="' + String(id) + '"]')) return;
+    var opt = document.createElement('option');
+    opt.value = String(id);
+    var text = label || ('#' + id);
+    if (role) text += ' · ' + role;
+    opt.textContent = text;
+    sel.appendChild(opt);
   }
 
   function applyDefaultManager(row, wcId, force) {
     if (!row) return;
     var mgrSel = row.querySelector('select[name$="-manager"]');
     if (!mgrSel) return;
-    var defId = defaultManagerForWc(wcId);
+    var meta = teamMeta(wcId);
+    var defId = (meta && meta.default_manager_id) || '';
     if (!defId) return;
     if (!force && mgrSel.value) return;
+    ensureManagerOption(
+      mgrSel,
+      defId,
+      (meta && meta.default_manager_label) || '',
+      (meta && meta.default_manager_role) || ''
+    );
     mgrSel.value = String(defId);
   }
 
   function managerOptionsHtml(selectedId) {
     var html = '<option value="">— Chọn quản lý —</option>';
+    var seen = {};
     (MANAGER_OPTIONS || []).forEach(function (m) {
+      seen[String(m.id)] = true;
       var sel = selectedId && String(m.id) === String(selectedId) ? ' selected' : '';
       var label = m.label || '';
       if (m.role) label += ' · ' + m.role;
       html += '<option value="' + m.id + '"' + sel + '>' + escapeHtml(label) + '</option>';
     });
+    if (selectedId && !seen[String(selectedId)]) {
+      var extraLabel = String(selectedId);
+      TEAM_OPTIONS.forEach(function (t) {
+        if (String(t.default_manager_id) === String(selectedId) && t.default_manager_label) {
+          extraLabel = t.default_manager_label;
+          if (t.default_manager_role) extraLabel += ' · ' + t.default_manager_role;
+        }
+      });
+      html += '<option value="' + escapeHtml(selectedId) + '" selected>' + escapeHtml(extraLabel) + '</option>';
+    }
     return html;
   }
 
@@ -313,12 +348,15 @@
       + '<div class="d-flex flex-wrap gap-2 mt-2">'
       + '<button type="button" class="btn btn-outline-hm btn-sm" id="mo-add-step-row">'
       + '<i class="bi bi-plus-lg me-1"></i>Thêm công đoạn</button>'
-      + '</div>'
-      + '<p class="small text-muted mt-2 mb-0">Chọn quản lý (TP / TBP / tổ trưởng) cho từng công đoạn — bắt buộc trước khi phát hành.</p>';
+      + '</div>';
 
     if (typeof window.jpSxInitProcessSelects === 'function') {
       window.jpSxInitProcessSelects();
     }
+    previewHost.querySelectorAll('tr.mo-step-row').forEach(function (row) {
+      var wcSel = row.querySelector('select[name$="-work_center"]');
+      if (wcSel && wcSel.value) applyDefaultManager(row, wcSel.value, false);
+    });
     syncHeaderFromFirstRow();
   }
 
@@ -378,7 +416,12 @@
         }
         if (picked) {
           bomSel.value = picked;
-          applyBomDefaults(picked);
+          if (POSTED_STEPS && POSTED_STEPS.length) {
+            renderProcessEditor({ process_steps: POSTED_STEPS });
+            POSTED_STEPS = [];
+          } else {
+            applyBomDefaults(picked);
+          }
         }
       })
       .catch(function () {});
@@ -444,10 +487,61 @@
     });
   }
 
+  function setSectionError(el, msg) {
+    if (!el) return;
+    if (msg) {
+      el.hidden = false;
+      el.textContent = msg;
+    } else {
+      el.hidden = true;
+      el.textContent = '';
+    }
+  }
+
+  function matrixQtyTotal() {
+    var total = 0;
+    document.querySelectorAll('.jp-mo-matrix-input').forEach(function (inp) {
+      var n = parseInt(String(inp.value || '0').replace(',', ''), 10);
+      if (!isNaN(n) && n > 0) total += n;
+    });
+    return total;
+  }
+
+  function hasCompleteProcessStep() {
+    if (!previewHost) return false;
+    var ok = false;
+    previewHost.querySelectorAll('tr.mo-step-row:not([data-deleted="1"])').forEach(function (row) {
+      var nameSel = row.querySelector('select[name$="-process_name"]');
+      var wcSel = row.querySelector('select[name$="-work_center"]');
+      var nameVal = nameSel && nameSel.tomselect ? nameSel.tomselect.getValue() : (nameSel && nameSel.value);
+      var wcVal = wcSel && wcSel.value;
+      if (nameVal && wcVal) ok = true;
+    });
+    return ok;
+  }
+
   var form = productSel.closest('form');
   if (form) {
-    form.addEventListener('submit', function () {
+    form.addEventListener('submit', function (e) {
       syncHeaderFromFirstRow();
+      var matrixErr = document.getElementById('jp-mo-matrix-error');
+      var stepsErr = document.getElementById('jp-mo-steps-error');
+      var missing = [];
+      if (!productSel.value) missing.push('mã SX');
+      if (bomSel && !bomSel.value) missing.push('hồ sơ thiết kế');
+      var hasMatrix = !!document.querySelector('.jp-mo-matrix-input');
+      var matrixOk = hasMatrix ? matrixQtyTotal() > 0 : false;
+      setSectionError(matrixErr, matrixOk ? '' : 'Nhập số lượng theo màu × size (ít nhất một ô SL > 0).');
+      if (!matrixOk) missing.push('số lượng màu × size');
+      var qtyEl = document.getElementById('id_qty');
+      var qtyVal = qtyEl ? parseFloat(String(qtyEl.value || '0').replace(',', '.')) : 0;
+      if (!qtyVal || qtyVal <= 0) missing.push('số lượng tổng');
+      var stepsOk = hasCompleteProcessStep();
+      setSectionError(stepsErr, stepsOk ? '' : 'Chọn tổ / công đoạn: ít nhất một dòng có công đoạn và tổ / bộ phận.');
+      if (!stepsOk) missing.push('tổ / công đoạn');
+      if (missing.length) {
+        e.preventDefault();
+      }
     });
   }
 

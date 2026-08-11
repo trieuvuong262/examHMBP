@@ -94,7 +94,6 @@ LIST_AND_HUB_URLS = [
     'san_xuat:purchase_order',
     'san_xuat:purchase_order_create',
     'san_xuat:dispatch_stub',
-    'san_xuat:run_order_wizard',
     'san_xuat:dispatch_mo',
     'san_xuat:dispatch_mo_create',
     'san_xuat:dispatch_disassembly',

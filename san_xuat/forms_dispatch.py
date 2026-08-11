@@ -11,6 +11,7 @@ _DATE_SM = {"class": "form-control form-control-sm jp-date-vn", "type": "date"}
 _PRODUCT_CODE_SELECT = {
     "class": "form-select form-select-sm jp-sx-product-code-select",
     "data-placeholder": "Gõ mã SX hoặc tên sản phẩm…",
+    "required": "required",
 }
 
 
@@ -137,6 +138,23 @@ def mo_manager_candidate_options() -> list[dict]:
     return rows
 
 
+def mo_manager_options_with_team_defaults(team_options: list[dict] | None = None) -> list[dict]:
+    """Picker quản lý LSX + tổ trưởng mặc định theo tổ (nếu chưa có trong list)."""
+    rows = mo_manager_candidate_options()
+    seen = {m["id"] for m in rows}
+    for t in team_options or []:
+        mid = t.get("default_manager_id")
+        if not mid or mid in seen:
+            continue
+        rows.append({
+            "id": mid,
+            "label": t.get("default_manager_label") or f"#{mid}",
+            "role": t.get("default_manager_role") or "",
+        })
+        seen.add(mid)
+    return rows
+
+
 def bom_process_choices(bom, *, extra_value: str = "") -> list[tuple[str, str]]:
     """Choices công đoạn từ danh mục chung (+ giá trị đang dùng).
 
@@ -164,6 +182,7 @@ class ProductionOrderCreateForm(forms.Form):
     product_code = forms.ChoiceField(
         label="Mã SX",
         choices=[],
+        error_messages={"required": "Chọn mã SX."},
         widget=forms.Select(attrs=_PRODUCT_CODE_SELECT),
     )
     code = forms.CharField(
@@ -177,25 +196,33 @@ class ProductionOrderCreateForm(forms.Form):
         }),
     )
     bom_version = forms.ChoiceField(
-        required=False,
+        required=True,
         label="Hồ sơ thiết kế",
         choices=[],
+        error_messages={"required": "Chọn hồ sơ thiết kế."},
         widget=forms.Select(attrs={
             **_SELECT_SM,
             "id": "id_bom_version",
             "class": f"{_SELECT_SM['class']} jp-mo-bom-version",
+            "required": "required",
         }),
     )
     qty = forms.DecimalField(
         max_digits=14,
         decimal_places=2,
         min_value=Decimal("0.01"),
-        required=False,
+        required=True,
+        error_messages={
+            "required": "Nhập số lượng tổng.",
+            "min_value": "Số lượng tổng phải lớn hơn 0.",
+            "invalid": "Số lượng tổng không hợp lệ.",
+        },
         widget=forms.NumberInput(attrs={
             **_INPUT_SM,
-            "step": "0.01",
-            "min": "0.01",
+            "step": "1",
+            "min": "1",
             "class": f"{_INPUT_SM['class']} jp-mo-qty-total",
+            "required": "required",
         }),
         label="Số lượng tổng",
     )
@@ -237,6 +264,11 @@ class ProductionOrderCreateForm(forms.Form):
         required=False,
         label="Ghi chú",
         widget=forms.Textarea(attrs={**_INPUT_SM, "rows": 3}),
+    )
+    variant_plan = forms.CharField(
+        required=False,
+        label="Số lượng theo màu × size",
+        widget=forms.HiddenInput(),
     )
     is_sample = forms.BooleanField(
         required=False,
@@ -294,7 +326,7 @@ class ProductionOrderCreateForm(forms.Form):
     def clean_bom_version(self):
         raw = (self.cleaned_data.get("bom_version") or "").strip()
         if not raw:
-            return None
+            raise forms.ValidationError("Chọn hồ sơ thiết kế.")
         try:
             return int(raw)
         except (TypeError, ValueError):
@@ -305,6 +337,32 @@ class ProductionOrderCreateForm(forms.Form):
 
     def clean(self):
         cleaned = super().clean()
+        if not self.data:
+            return cleaned
+        from san_xuat.services.dispatch import (
+            parse_mo_lines_from_post,
+            parse_mo_process_steps_from_post,
+        )
+
+        lines = parse_mo_lines_from_post(self.data)
+        if not lines:
+            self.add_error(
+                "variant_plan",
+                "Nhập số lượng theo màu × size (ít nhất một ô SL > 0).",
+            )
+        steps = parse_mo_process_steps_from_post(self.data)
+        named = [s for s in (steps or []) if (s.get("process_name") or "").strip()]
+        complete = [s for s in named if s.get("work_center_id")]
+        if not complete:
+            self.add_error(
+                "process_name",
+                "Chọn tổ / công đoạn: ít nhất một dòng có công đoạn và tổ / bộ phận.",
+            )
+        elif len(complete) != len(named):
+            self.add_error(
+                "process_name",
+                "Mỗi công đoạn phải chọn tổ / bộ phận.",
+            )
         return cleaned
 
 

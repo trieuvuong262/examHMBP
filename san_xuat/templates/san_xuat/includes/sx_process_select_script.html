@@ -35,10 +35,14 @@
     var mgrSel = row.querySelector('select[name$="-manager"]');
     if (!mgrSel || mgrSel.value) return;
     var defId = '';
+    var defLabel = '';
+    var defRole = '';
     var teams = window.JP_MO_TEAM_OPTIONS || [];
     for (var i = 0; i < teams.length; i++) {
       if (String(teams[i].id) === String(wcId)) {
         defId = teams[i].default_manager_id || '';
+        defLabel = teams[i].default_manager_label || '';
+        defRole = teams[i].default_manager_role || '';
         break;
       }
     }
@@ -47,7 +51,14 @@
       var opt = wcSel && wcSel.querySelector('option[value="' + wcId + '"]');
       if (opt) defId = opt.getAttribute('data-default-manager') || '';
     }
-    if (defId) mgrSel.value = String(defId);
+    if (!defId) return;
+    if (!mgrSel.querySelector('option[value="' + String(defId) + '"]')) {
+      var extra = document.createElement('option');
+      extra.value = String(defId);
+      extra.textContent = defLabel ? (defRole ? defLabel + ' · ' + defRole : defLabel) : ('#' + defId);
+      mgrSel.appendChild(extra);
+    }
+    mgrSel.value = String(defId);
   }
 
   function initTomSelect(sel) {

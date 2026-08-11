@@ -25,7 +25,7 @@ LEGACY_FAKE_TEAMS = frozenset({'Tổ May 1', 'Tổ May 2', 'Tổ ĐG', 'Chuyen 1
 # Mã IE (WC-* + tổ chuẩn) → bộ phận HR phòng SẢN XUẤT (khớp tên Division đã fold).
 _IE_WC_TO_HR_KEYS: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
     (('wc-cut', 'wc-fusing', 'cut', 'fusing', 'cat'), ('cat', 'trai', 'trai vai')),
-    (('wc-print', 'print', 'ep', 'in-ep', 'in_ep'), ('in ep', 'in ')),
+    (('wc-print', 'print', 'in-ep', 'in_ep', 'in ep', 'ep logo'), ('in ep', 'in-ep')),
     (('theu', 'wc-embroider'), ('theu',)),
     (('wc-sew', 'sew', 'may'), ('may',)),
     (('wc-finish', 'finish', 'ui', 'press', 'ht'), ('ui', 'gap', 'gap xep')),
@@ -191,29 +191,94 @@ def _sx_department() -> Department | None:
     return Department.objects.filter(name__icontains='SẢN XUẤT').first()
 
 
-def _head_profile(division: Division) -> Profile | None:
-    qs = (
-        Profile.objects.filter(division=division, is_employed=True)
-        .select_related('user')
-        .order_by('pk')
+def _is_team_lead_title(job_position: str) -> bool:
+    """Chức danh tổ trưởng / trưởng BP — không dùng viết tắt TT (dễ dính 'TT in ép')."""
+    pos = _fold(job_position or '')
+    return 'truong bo phan' in pos or 'to truong' in pos
+
+
+def _manager_rank(profile: Profile) -> tuple[int, str, int]:
+    """Ưu tiên TBP → tổ trưởng (role + chức danh) → tổ trưởng (chỉ role)."""
+    pos = _fold(profile.job_position or '')
+    role = profile.role or ''
+    titled = 'to truong' in pos or 'truong bo phan' in pos
+    if role == ROLE_DIVISION_HEAD or 'truong bo phan' in pos:
+        rank = 0
+    elif role == ROLE_TEAM_LEADER and titled:
+        rank = 1
+    elif role == ROLE_TEAM_LEADER:
+        rank = 2
+    elif titled:
+        rank = 3
+    else:
+        rank = 4
+    return (rank, profile.employee_code or '', profile.pk)
+
+
+def _manager_profile_for_division(division_id: int) -> Profile | None:
+    """Trưởng BP / tổ trưởng của bộ phận — vị trí chính + kiêm nhiệm."""
+    from hrm.concurrent_positions import heads_for_division
+    from hrm.models import ProfileConcurrentPosition
+
+    div = Division.objects.filter(pk=division_id).first()
+    if div is None:
+        return None
+    heads = [
+        p for p in heads_for_division(div.department_id, division_id)
+        if p.user_id
+    ]
+    if heads:
+        heads.sort(key=_manager_rank)
+        return heads[0]
+
+    primary = list(
+        Profile.objects.filter(
+            division_id=division_id,
+            is_employed=True,
+            user__is_active=True,
+        ).filter(
+            Q(role=ROLE_TEAM_LEADER) | Q(role=ROLE_DIVISION_HEAD),
+        ).select_related('user')
     )
-    # 1) Trưởng bộ phận trước, rồi tổ trưởng
-    for role in (ROLE_DIVISION_HEAD, ROLE_TEAM_LEADER):
-        hit = qs.filter(role=role).first()
-        if hit:
-            return hit
-    # 2) Chức danh chứa tổ trưởng / TT / trưởng bộ phận
-    for p in qs:
-        pos = _fold(p.job_position or '')
-        if (
-            'truong bo phan' in pos
-            or 'to truong' in pos
-            or pos.startswith('tt ')
-            or '(tt ' in pos
-            or ' tt ' in pos
-        ):
-            return p
-    return None
+    titled = list(
+        Profile.objects.filter(
+            division_id=division_id,
+            is_employed=True,
+            user__is_active=True,
+        ).select_related('user')
+    )
+    primary.extend(p for p in titled if _is_team_lead_title(p.job_position or '') and p.user_id)
+
+    conc_ids = list(
+        ProfileConcurrentPosition.objects.filter(
+            is_active=True,
+            division_id=division_id,
+            profile__is_employed=True,
+            profile__user__is_active=True,
+        ).filter(
+            Q(role__in={ROLE_TEAM_LEADER, ROLE_DIVISION_HEAD})
+            | Q(job_position__icontains='Tổ trưởng')
+            | Q(job_position__icontains='Trưởng bộ phận'),
+        ).values_list('profile_id', flat=True)
+    )
+    if conc_ids:
+        extra = list(
+            Profile.objects.filter(pk__in=conc_ids, is_employed=True).select_related('user')
+        )
+        seen = {p.pk for p in primary}
+        for p in extra:
+            if p.pk not in seen and p.user_id:
+                primary.append(p)
+
+    candidates = [p for p in primary if p.user_id]
+    if not candidates:
+        return None
+    candidates.sort(key=_manager_rank)
+    return candidates[0]
+
+
+def _head_profile(division: Division) -> Profile | None:
+    return _manager_profile_for_division(division.pk)
 
 
 def division_id_from_work_center_code(code: str | None) -> int | None:
@@ -228,85 +293,196 @@ def division_id_from_work_center_code(code: str | None) -> int | None:
         return None
 
 
-def default_manager_user_id_for_work_center(work_center_id: int | None) -> int | None:
-    """User pk trưởng bộ phận (HR) tương ứng tổ/bộ phận SxWorkCenter."""
-    if not work_center_id:
-        return None
-    center = SxWorkCenter.objects.filter(pk=int(work_center_id)).first()
+_WC_CODE_TO_SLUG = {
+    'CAT': 'cat',
+    'IN-EP': 'inep',
+    'THEU': 'theu',
+    'MAY': 'may',
+    'HT': 'ht',
+    'GH': 'gh',
+}
+
+
+def team_slug_for_work_center(center: SxWorkCenter | None) -> str | None:
+    """Slug tổ chuẩn (cat/inep/…) từ SxWorkCenter HRD-* hoặc CAT/MAY/…"""
     if center is None:
         return None
-    if not (center.code or '').upper().startswith(CODE_PREFIX.upper()):
-        mapped = map_ie_center_to_hr(center)
-        if mapped is None:
-            return None
-        center = mapped
-    div_id = division_id_from_work_center_code(center.code)
-    if not div_id:
+    code = (center.code or '').strip().upper()
+    if code in _WC_CODE_TO_SLUG:
+        return _WC_CODE_TO_SLUG[code]
+
+    did = division_id_from_work_center_code(center.code)
+    if did:
+        from san_xuat.hub_models import SxTeamDivisionMap
+
+        slug = (
+            SxTeamDivisionMap.objects.filter(division_id=did, is_demo=False)
+            .order_by('-is_active', 'id')
+            .values_list('team_slug', flat=True)
+            .first()
+        )
+        if slug:
+            return slug
+        div = Division.objects.filter(pk=did).first()
+        if div is not None:
+            return _team_slug_from_folded(_fold(div.name))
+    return _team_slug_from_folded(_fold(f'{center.code} {center.name} {center.team_label}'))
+
+
+def _team_slug_from_folded(folded: str) -> str | None:
+    if not folded:
         return None
-    div = Division.objects.filter(pk=div_id).first()
-    if div is None:
-        return None
-    head = _head_profile(div)
-    if head is None or not head.user_id:
-        return None
-    return int(head.user_id)
+    rules: tuple[tuple[tuple[str, ...], str], ...] = (
+        (('in-ep', 'in_ep', 'in ep', 'wc-print', 'ep logo'), 'inep'),
+        (('giao hang', 'thanh pham', 'wc-pack', 'pack'), 'gh'),
+        (('gap xep', 'wc-finish', 'finish'), 'ht'),
+        (('wc-embroider', 'theu'), 'theu'),
+        (('wc-cut', 'wc-fusing', 'fusing', 'trai vai', 'cat'), 'cat'),
+        (('wc-sew', 'sew', 'may'), 'may'),
+        (('ui', 'ht'), 'ht'),
+        (('gh',), 'gh'),
+    )
+    for keys, slug in rules:
+        if any(k == folded or k in folded for k in keys):
+            return slug
+    return None
+
+
+def division_ids_for_work_center(center: SxWorkCenter | None) -> list[int]:
+    """Bộ phận HR tương ứng tổ trên form LSX."""
+    if center is None:
+        return []
+    did = division_id_from_work_center_code(center.code)
+    if did:
+        return [did]
+
+    mapped = map_ie_center_to_hr(center)
+    if mapped is not None:
+        did = division_id_from_work_center_code(mapped.code)
+        if did:
+            return [did]
+
+    slug = team_slug_for_work_center(center)
+    if not slug:
+        return []
+
+    from san_xuat.hub_models import SxTeamDivisionMap
+
+    rows = list(
+        SxTeamDivisionMap.objects.filter(team_slug=slug, is_demo=False)
+        .order_by('-is_active', 'id')
+        .values_list('division_id', 'is_active')
+    )
+    active = [int(d) for d, is_on in rows if is_on]
+    if active:
+        return list(dict.fromkeys(active))
+    if rows:
+        return list(dict.fromkeys(int(d) for d, _ in rows))
+
+    try:
+        from san_xuat.services.team_division_map import suggest_maps_from_names
+
+        suggested = suggest_maps_from_names().get(slug) or []
+        if suggested:
+            return list(dict.fromkeys(int(x) for x in suggested))
+    except Exception:
+        pass
+    return []
+
+
+def _profile_manager_label(profile: Profile) -> tuple[str, str]:
+    name = (profile.full_name or '').strip()
+    user = getattr(profile, 'user', None)
+    if not name and user is not None:
+        name = (user.get_full_name() or user.username or '').strip()
+    role = ''
+    getter = getattr(profile, 'get_role_display', None)
+    if callable(getter):
+        role = getter() or ''
+    else:
+        role = profile.role or ''
+    return name, role
+
+
+def default_manager_user_id_for_work_center(work_center_id: int | None) -> int | None:
+    """User pk trưởng BP / tổ trưởng HR tương ứng tổ/bộ phận SxWorkCenter."""
+    info = default_manager_info_for_work_center(work_center_id)
+    return info.get('id') or None
+
+
+def default_manager_info_for_work_center(work_center_id: int | None) -> dict:
+    """id / label / role quản lý mặc định theo tổ."""
+    empty = {'id': '', 'label': '', 'role': ''}
+    if not work_center_id:
+        return empty
+    try:
+        center = SxWorkCenter.objects.filter(pk=int(work_center_id)).first()
+    except (TypeError, ValueError):
+        return empty
+    if center is None:
+        return empty
+    for did in division_ids_for_work_center(center):
+        head = _manager_profile_for_division(did)
+        if head is None or not head.user_id:
+            continue
+        label, role = _profile_manager_label(head)
+        return {'id': int(head.user_id), 'label': label, 'role': role}
+    return empty
+
+
+def mo_form_work_center_id(
+    *,
+    work_center=None,
+    work_center_id: int | None = None,
+    work_center_code: str = '',
+    name_hint: str = '',
+) -> int | None:
+    """ID tổ hiện trên dropdown LSX (HRD-* nếu có, không thì CAT/MAY/…)."""
+    center = work_center
+    if center is None and work_center_id:
+        try:
+            center = SxWorkCenter.objects.filter(pk=int(work_center_id)).first()
+        except (TypeError, ValueError):
+            center = None
+    options = list(hr_work_centers_qs())
+    option_pks = {int(c.pk) for c in options}
+    if center is not None and int(center.pk) in option_pks:
+        return int(center.pk)
+
+    code = (work_center_code or (getattr(center, 'code', None) or '')).strip()
+    hint = (name_hint or '').strip()
+    if not hint and center is not None:
+        hint = f'{center.team_label or ""} {center.name or ""}'
+    slug = team_slug_for_work_center(center) if center is not None else None
+    if not slug:
+        slug = _team_slug_from_folded(_fold(f'{code} {hint}'))
+    if slug:
+        for opt in options:
+            if team_slug_for_work_center(opt) == slug:
+                return int(opt.pk)
+
+    mapped = resolve_work_center_code(code, name_hint=hint)
+    if mapped is not None:
+        return int(mapped.pk)
+    return int(center.pk) if center is not None else None
 
 
 def work_center_options_with_default_manager(
     *,
     include_inactive_ids: list[int] | None = None,
 ) -> list[dict]:
-    """Options dropdown tổ LSX: id, label, default_manager_id (trưởng BP HR)."""
+    """Options dropdown tổ LSX: id, label, default_manager_id (TBP / tổ trưởng HR)."""
     centers = list(hr_work_centers_qs(include_inactive_ids=include_inactive_ids))
-    div_ids: list[int] = []
-    center_div: dict[int, int] = {}
-    for c in centers:
-        div_id = division_id_from_work_center_code(c.code)
-        if div_id:
-            center_div[c.pk] = div_id
-            div_ids.append(div_id)
-    head_by_div: dict[int, int] = {}
-    if div_ids:
-        uniq = list(dict.fromkeys(div_ids))
-        profiles = (
-            Profile.objects.filter(division_id__in=uniq, is_employed=True)
-            .select_related('user')
-            .order_by('pk')
-        )
-        by_div: dict[int, list[Profile]] = {}
-        for p in profiles:
-            by_div.setdefault(p.division_id, []).append(p)
-        for div_id, plist in by_div.items():
-            head = None
-            for role in (ROLE_DIVISION_HEAD, ROLE_TEAM_LEADER):
-                head = next((p for p in plist if p.role == role and p.user_id), None)
-                if head:
-                    break
-            if head is None:
-                for p in plist:
-                    if not p.user_id:
-                        continue
-                    pos = _fold(p.job_position or '')
-                    if (
-                        'truong bo phan' in pos
-                        or 'to truong' in pos
-                        or pos.startswith('tt ')
-                        or '(tt ' in pos
-                        or ' tt ' in pos
-                    ):
-                        head = p
-                        break
-            if head and head.user_id:
-                head_by_div[div_id] = int(head.user_id)
     rows: list[dict] = []
     for c in centers:
         label = (c.team_label or c.name or c.code or '').strip()
-        div_id = center_div.get(c.pk)
-        mgr_id = head_by_div.get(div_id) if div_id else None
+        info = default_manager_info_for_work_center(c.pk)
         rows.append({
             'id': c.pk,
             'label': label,
-            'default_manager_id': mgr_id or '',
+            'default_manager_id': info['id'] or '',
+            'default_manager_label': info['label'] or '',
+            'default_manager_role': info['role'] or '',
         })
     return rows
 

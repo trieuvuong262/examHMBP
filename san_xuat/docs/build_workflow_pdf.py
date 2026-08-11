@@ -310,7 +310,7 @@ def build():
     )
     story.append(
         P(
-            "Ngày cập nhật: 21/07/2026 · v2 (Kho NPL · danh sách · lọc ngày · Chạy lệnh mới)",
+            "Ngày cập nhật: 21/07/2026 · v2 (Kho NPL · danh sách · lọc ngày)",
             styles["SmallVN"],
         )
     )
@@ -673,22 +673,8 @@ def build():
         None,
         [
             "Xem / lọc danh sách lệnh (bấm dòng mở chi tiết; Xuất Excel; menu Cột)",
-            "Nút <b>Chạy lệnh mới</b> (quyền Tạo) → wizard /dieu-phoi/chay-lenh-moi/",
             "Nút <b>Tạo lệnh</b> (quyền Tạo) — form tạo từ định mức BOM (mã SP, số lượng, tổ)",
         ],
-    )
-    screen_block(
-        story,
-        styles,
-        "Chạy lệnh mới (wizard)",
-        "/san-xuat/dieu-phoi/chay-lenh-moi/",
-        None,
-        [
-            "Wizard hướng dẫn từng bước: chọn sản phẩm / BOM → số lượng / tổ → tạo lệnh",
-            "Có thể tiếp tục wizard từ lệnh đã tạo: /chay-lenh-moi/<mã lệnh>/",
-            "Phù hợp người mới hoặc chạy nhanh một lệnh đơn giản",
-        ],
-        "Sau khi có lệnh Nháp, vào chi tiết lệnh để Phát hành và các bước tiếp theo.",
     )
     screen_block(
         story,
