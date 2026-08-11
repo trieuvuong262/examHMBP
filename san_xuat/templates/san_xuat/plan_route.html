@@ -4,73 +4,148 @@
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
 <style>
-  .jp-tl { --tl-ink:#0f172a; --tl-muted:#64748b; --tl-line:#e8edf3; --tl-soft:#f8fafc; --tl-today:#dc2626; --tl-label:16rem; --tl-day:2.2rem; }
-  .jp-tl-nav { display:flex; flex-wrap:wrap; align-items:center; gap:.5rem 1rem; margin:0 0 1rem; }
-  .jp-tl-range { font-weight:800; color:var(--tl-ink); letter-spacing:-.02em; }
-  .jp-tl-wrap { overflow:auto; border:1px solid var(--tl-line); border-radius:1rem; background:#fff; }
+  .jp-tl {
+    --tl-ink:#0f172a; --tl-muted:#64748b; --tl-line:#eef2f6; --tl-soft:#f8fafc;
+    --tl-today:#dc2626; --tl-label:17.5rem; --tl-day:2.45rem;
+  }
+  .jp-tl-wrap {
+    overflow: auto;
+    border: 1px solid #e8edf3;
+    border-radius: 1rem;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(15,23,42,.04), 0 8px 24px rgba(15,23,42,.04);
+  }
+  .jp-tl-toolbar {
+    display: flex; flex-wrap: wrap; align-items: center; gap: .55rem .75rem;
+    padding: .7rem 1rem; border-bottom: 1px solid var(--tl-line); background: #fff;
+    position: sticky; left: 0; z-index: 6;
+  }
+  .jp-tl-shift {
+    display: inline-flex; align-items: center; gap: .3rem;
+  }
+  .jp-tl-shift a {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 1.85rem; height: 1.85rem; border-radius: .45rem;
+    border: 1px solid #e2e8f0; color: #334155; text-decoration: none; font-size: .9rem;
+    background: #fff;
+  }
+  .jp-tl-shift a:hover { border-color: #fecaca; color: #dc2626; background: #fff1f2; }
+  .jp-tl-range { font-weight: 800; color: var(--tl-ink); letter-spacing: -.02em; font-size: .92rem; }
+  .jp-tl-count { color: var(--tl-muted); font-size: .78rem; font-weight: 600; }
+  .jp-tl-legend {
+    display: flex; flex-wrap: wrap; gap: .45rem .7rem; margin-left: auto;
+    font-size: .72rem; font-weight: 700; color: var(--tl-muted);
+  }
+  .jp-tl-legend i {
+    display: inline-block; width: .7rem; height: .7rem; border-radius: .2rem;
+    vertical-align: -1px; margin-right: .28rem;
+  }
   .jp-tl-grid { min-width: calc(var(--tl-label) + var(--tl-days) * var(--tl-day)); }
   .jp-tl-row {
     display: grid;
     grid-template-columns: var(--tl-label) 1fr;
-    border-bottom: 1px solid var(--tl-line);
     min-width: 100%;
+    border-bottom: 1px solid var(--tl-line);
   }
   .jp-tl-row:last-child { border-bottom: 0; }
+  .jp-tl-body .jp-tl-row:hover .jp-tl-label,
+  .jp-tl-body .jp-tl-row:hover .jp-tl-track { background: #fff8f8; }
   .jp-tl-head {
-    position: sticky; top: 0; z-index: 4; background: #fff;
-    border-bottom: 1px solid var(--tl-line);
+    position: sticky; top: 0; z-index: 5; background: #fff;
+    border-bottom: 1px solid #e2e8f0;
+    box-shadow: 0 1px 0 rgba(15,23,42,.04);
   }
   .jp-tl-label {
     position: sticky; left: 0; z-index: 3; background: #fff;
-    padding: .55rem .85rem; border-right: 1px solid var(--tl-line);
+    padding: .55rem .9rem; border-right: 1px solid #e8edf3;
   }
   .jp-tl-head .jp-tl-label {
-    z-index: 5; font-size: .68rem; font-weight: 700; color: var(--tl-muted);
-    display: flex; align-items: center;
+    z-index: 7; font-size: .68rem; font-weight: 800; color: var(--tl-muted);
+    letter-spacing: .04em; text-transform: uppercase;
+    display: flex; align-items: flex-end; padding-bottom: .55rem;
   }
+  .jp-tl-axis { min-width: 0; display: flex; flex-direction: column; }
   .jp-tl-days {
     display: grid;
     grid-template-columns: repeat(var(--tl-days), minmax(var(--tl-day), 1fr));
     min-width: 0;
   }
+  .jp-tl-month {
+    font-size: .68rem; font-weight: 800; color: #9f1239;
+    background: #fff1f2; text-align: center; padding: .28rem 0;
+    border-left: 1px solid #fecdd3; white-space: nowrap;
+  }
+  .jp-tl-month:first-child { border-left: 0; }
   .jp-tl-day {
-    font-size: .68rem; font-weight: 700; color: var(--tl-muted);
-    text-align: center; padding: .4rem 0; white-space: nowrap;
-    border-left: 1px solid var(--tl-line);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 0; padding: .22rem 0 .28rem; border-left: 1px solid var(--tl-line);
+    line-height: 1.15;
   }
-  .jp-tl-day:first-child, .jp-tl-slot:first-child { border-left: 0; }
-  .jp-tl-day.is-weekend, .jp-tl-slot.is-weekend { background: #f8fafc; }
-  .jp-tl-day.is-today { color: var(--tl-today); background: #fef2f2; }
+  .jp-tl-day .n { font-size: .72rem; font-weight: 800; color: var(--tl-ink); }
+  .jp-tl-day .w { font-size: .58rem; font-weight: 700; color: var(--tl-muted); }
+  .jp-tl-day.is-weekend .n, .jp-tl-day.is-weekend .w { color: #94a3b8; }
+  .jp-tl-day.is-today { background: #fef2f2; }
+  .jp-tl-day.is-today .n, .jp-tl-day.is-today .w { color: var(--tl-today); }
+  .jp-tl-day.is-week-start { border-left-color: #cbd5e1; }
+  .jp-tl-code { font-weight: 800; color: var(--tl-ink); text-decoration: none; font-size: .86rem; letter-spacing: -.01em; }
+  .jp-tl-code:hover { color: var(--tl-today); }
+  .jp-tl-sub { color: var(--tl-muted); font-size: .74rem; margin-top: .12rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .jp-tl-meta { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem; margin-top: .28rem; }
+  .jp-tl-st {
+    display: inline-flex; align-items: center; padding: .08rem .42rem; border-radius: 999px;
+    font-size: .65rem; font-weight: 800; letter-spacing: .01em;
+  }
+  .jp-tl-st.is-draft { background: #f1f5f9; color: #475569; }
+  .jp-tl-st.is-released { background: #fff1f2; color: #9f1239; }
+  .jp-tl-st.is-in_progress { background: #fee2e2; color: #b91c1c; }
+  .jp-tl-st.is-done { background: #dcfce7; color: #166534; }
+  .jp-tl-st.is-late { background: #7f1d1d; color: #fff; }
+  .jp-tl-dates { color: var(--tl-muted); font-size: .68rem; font-weight: 600; }
+  .jp-tl-track { position: relative; min-height: 3rem; }
+  .jp-tl-slot {
+    min-height: 3rem; border-left: 1px solid var(--tl-line); grid-row: 1;
+  }
+  .jp-tl-slot.is-weekend { background: #fafbfc; }
   .jp-tl-slot.is-today { background: #fef2f2; }
-  .jp-tl-code { font-weight:800; color:var(--tl-ink); text-decoration:none; font-size:.88rem; }
-  .jp-tl-code:hover { color:#dc2626; }
-  .jp-tl-sub { color:var(--tl-muted); font-size:.75rem; margin-top:.15rem; }
-  .jp-tl-track { position: relative; min-height: 2.35rem; }
-  .jp-tl-slot { min-height: 2.35rem; border-left: 1px solid var(--tl-line); grid-row: 1; }
+  .jp-tl-slot.is-week-start { border-left-color: #cbd5e1; }
   .jp-tl-bar {
-    grid-row: 1;
-    align-self: center;
-    height: 1.4rem; margin: 0 3px; border-radius: 999px;
-    display: flex; align-items: center; padding: 0 .45rem; z-index: 2;
-    font-size: .68rem; font-weight: 700; color: #fff; white-space: nowrap;
+    grid-row: 1; align-self: center; height: 1.55rem;
+    margin: 0 2px; border-radius: .45rem;
+    display: flex; align-items: center; justify-content: center;
+    padding: 0 .4rem; z-index: 2;
+    font-size: .68rem; font-weight: 800; color: #fff; white-space: nowrap;
     overflow: hidden; min-width: 0; text-decoration: none;
+    box-shadow: 0 1px 2px rgba(15,23,42,.12);
   }
-  .jp-tl-bar.is-draft { background:#64748b; }
-  .jp-tl-bar.is-released { background:#0284c7; }
-  .jp-tl-bar.is-in_progress { background:#c2410c; }
-  .jp-tl-bar.is-done { background:#15803d; }
-  .jp-tl-bar.is-late { box-shadow:inset 0 0 0 2px #7f1d1d; }
+  .jp-tl-bar:hover { filter: brightness(1.05); }
+  .jp-tl-bar.is-draft { background: #94a3b8; }
+  .jp-tl-bar.is-released { background: #fb7185; }
+  .jp-tl-bar.is-in_progress { background: #dc2626; }
+  .jp-tl-bar.is-done { background: #16a34a; }
+  .jp-tl-bar.is-late { background: #9f1239; }
+  .jp-tl-bar.is-clip-l { border-top-left-radius: 0; border-bottom-left-radius: 0; margin-left: 0; }
+  .jp-tl-bar.is-clip-r { border-top-right-radius: 0; border-bottom-right-radius: 0; margin-right: 0; }
   .jp-tl-today {
-    grid-row: 1; justify-self: center; width: 1px; background: var(--tl-today);
-    pointer-events: none; z-index: 1;
+    grid-row: 1; justify-self: center; width: 2px; background: var(--tl-today);
+    pointer-events: none; z-index: 1; opacity: .85;
   }
   .jp-tl-empty {
-    border:1px dashed var(--tl-line); border-radius:1rem; padding:2.4rem 1rem;
-    text-align:center; color:var(--tl-muted); background:#fff;
+    border: 1px dashed #e2e8f0; border-radius: 1rem; padding: 2.4rem 1rem;
+    text-align: center; color: var(--tl-muted); background: #fff;
   }
-  .jp-tl-unsched { margin-top:1.1rem; }
-  .jp-tl-unsched h3 { font-size:.82rem; font-weight:800; margin:0 0 .5rem; }
-  .jp-tl-unsched a { font-weight:700; text-decoration:none; }
+  .jp-tl-unsched {
+    margin-top: 1rem; border: 1px solid #e8edf3; border-radius: 1rem;
+    padding: .85rem 1rem; background: #fff;
+  }
+  .jp-tl-unsched h3 { font-size: .78rem; font-weight: 800; margin: 0 0 .55rem; color: var(--tl-ink); }
+  .jp-tl-chips { display: flex; flex-wrap: wrap; gap: .35rem; }
+  .jp-tl-chip {
+    display: inline-flex; align-items: center;
+    padding: .18rem .55rem; border-radius: 999px;
+    background: #f8fafc; border: 1px solid #e2e8f0;
+    color: #334155; font-size: .75rem; font-weight: 700; text-decoration: none;
+  }
+  .jp-tl-chip:hover { border-color: #fecaca; color: #dc2626; background: #fff1f2; }
 </style>
 {% endblock %}
 
@@ -110,51 +185,72 @@
     </div>
   </form>
 
-  <div class="jp-tl-nav">
-    <a class="btn btn-outline-secondary btn-sm" href="?date_from={{ board.prev_from|date:'Y-m-d' }}&amp;date_to={{ board.prev_to|date:'Y-m-d' }}{% if board.search %}&amp;q={{ board.search|urlencode }}{% endif %}">← Trước</a>
-    <a class="btn btn-outline-secondary btn-sm" href="?date_from={{ today_monday|date:'Y-m-d' }}&amp;date_to={{ today_end|date:'Y-m-d' }}{% if board.search %}&amp;q={{ board.search|urlencode }}{% endif %}">Hôm nay</a>
-    <a class="btn btn-outline-secondary btn-sm" href="?date_from={{ board.next_from|date:'Y-m-d' }}&amp;date_to={{ board.next_to|date:'Y-m-d' }}{% if board.search %}&amp;q={{ board.search|urlencode }}{% endif %}">Sau →</a>
-    <span class="jp-tl-range">{{ board.range_start|date:"d/m/Y" }} – {{ board.range_end|date:"d/m/Y" }}</span>
-  </div>
-
   {% if board.rows %}
   <div class="jp-tl-wrap">
+    <div class="jp-tl-toolbar">
+      <div class="jp-tl-shift">
+        <a href="?date_from={{ board.prev_from|date:'Y-m-d' }}&amp;date_to={{ board.prev_to|date:'Y-m-d' }}{% if board.search %}&amp;q={{ board.search|urlencode }}{% endif %}" title="Khoảng trước"><i class="bi bi-chevron-left"></i></a>
+        <a href="?date_from={{ today_monday|date:'Y-m-d' }}&amp;date_to={{ today_end|date:'Y-m-d' }}{% if board.search %}&amp;q={{ board.search|urlencode }}{% endif %}" title="Về tuần này" style="width:auto;padding:0 .55rem;font-size:.72rem;font-weight:800">Hôm nay</a>
+        <a href="?date_from={{ board.next_from|date:'Y-m-d' }}&amp;date_to={{ board.next_to|date:'Y-m-d' }}{% if board.search %}&amp;q={{ board.search|urlencode }}{% endif %}" title="Khoảng sau"><i class="bi bi-chevron-right"></i></a>
+      </div>
+      <span class="jp-tl-range">{{ board.range_start|date:"d/m/Y" }} – {{ board.range_end|date:"d/m/Y" }}</span>
+      <span class="jp-tl-count">{{ board.rows|length }} lệnh</span>
+      <div class="jp-tl-legend" aria-label="Chú thích trạng thái">
+        <span><i style="background:#fb7185"></i>Phát hành</span>
+        <span><i style="background:#dc2626"></i>Đang SX</span>
+        <span><i style="background:#16a34a"></i>Xong</span>
+        <span><i style="background:#9f1239"></i>Trễ</span>
+      </div>
+    </div>
     <div class="jp-tl-grid" style="--tl-days: {{ board.days|length }}">
       <div class="jp-tl-row jp-tl-head">
         <div class="jp-tl-label">Lệnh</div>
-        <div class="jp-tl-days">
-          {% for d in board.days %}
-          <div class="jp-tl-day{% if d == board.today %} is-today{% elif d|date:'w' == '0' or d|date:'w' == '6' %} is-weekend{% endif %}">{{ d|date:"d/m" }}</div>
-          {% endfor %}
+        <div class="jp-tl-axis">
+          <div class="jp-tl-days">
+            {% for m in board.month_spans %}
+            <div class="jp-tl-month" style="grid-column: span {{ m.span }}">{{ m.label }}</div>
+            {% endfor %}
+          </div>
+          <div class="jp-tl-days">
+            {% for d in board.days %}
+            <div class="jp-tl-day{% if d.is_today %} is-today{% endif %}{% if d.is_weekend %} is-weekend{% endif %}{% if d.is_week_start %} is-week-start{% endif %}">
+              <span class="n">{{ d.day }}</span>
+              <span class="w">{{ d.weekday }}</span>
+            </div>
+            {% endfor %}
+          </div>
         </div>
       </div>
+      <div class="jp-tl-body">
       {% for row in board.rows %}
       <div class="jp-tl-row">
         <div class="jp-tl-label">
           <a class="jp-tl-code" href="{% url 'san_xuat:dispatch_mo_detail' row.mo.pk %}">{{ row.mo.code }}</a>
-          <div class="jp-tl-sub">
-            {{ row.mo.product_code }}
-            {% if row.mo.team_label %} · {{ row.mo.team_label }}{% endif %}
-            · {{ row.mo.get_status_display }}
+          <div class="jp-tl-sub" title="{{ row.mo.product_code }}{% if row.mo.product_name %} — {{ row.mo.product_name }}{% endif %}">
+            {{ row.mo.product_code }}{% if row.mo.product_name %} · {{ row.mo.product_name }}{% endif %}
           </div>
-          <div class="jp-tl-sub">{{ row.start|date:"d/m" }} → {{ row.end|date:"d/m" }} · {{ row.span_days }} ngày</div>
+          <div class="jp-tl-meta">
+            <span class="jp-tl-st is-{{ row.status_key }}{% if row.is_late %} is-late{% endif %}">{{ row.status_label }}</span>
+            <span class="jp-tl-dates">{{ row.start|date:"d/m" }} → {{ row.end|date:"d/m" }}</span>
+          </div>
         </div>
         <div class="jp-tl-days jp-tl-track">
           {% for d in board.days %}
-          <div class="jp-tl-slot{% if d == board.today %} is-today{% elif d|date:'w' == '0' or d|date:'w' == '6' %} is-weekend{% endif %}"></div>
+          <div class="jp-tl-slot{% if d.is_today %} is-today{% endif %}{% if d.is_weekend %} is-weekend{% endif %}{% if d.is_week_start %} is-week-start{% endif %}"></div>
           {% endfor %}
           {% if board.today_col %}
           <span class="jp-tl-today" style="grid-column: {{ board.today_col }} / span 1"></span>
           {% endif %}
-          <a class="jp-tl-bar is-{{ row.status_key }}{% if row.is_late %} is-late{% endif %}"
+          <a class="jp-tl-bar is-{{ row.status_key }}{% if row.is_late %} is-late{% endif %}{% if row.clips_left %} is-clip-l{% endif %}{% if row.clips_right %} is-clip-r{% endif %}"
              href="{% url 'san_xuat:dispatch_mo_detail' row.mo.pk %}"
              style="grid-column: {{ row.col_start }} / {{ row.col_end }}"
-             title="{{ row.mo.code }} · {{ row.start|date:'d/m/Y' }} – {{ row.end|date:'d/m/Y' }}">
-            SL {{ row.mo.qty|sx_num }}
+             title="{{ row.mo.code }} · {{ row.start|date:'d/m/Y' }} – {{ row.end|date:'d/m/Y' }} · {{ row.status_label }}">
+            {{ row.bar_text }}
           </a>
         </div>
       </div>
       {% endfor %}
+      </div>
     </div>
   </div>
   {% else %}
@@ -166,10 +262,10 @@
 
   {% if board.unscheduled %}
   <div class="jp-tl-unsched">
-    <h3>Lệnh chưa có ngày dự kiến ({{ board.unscheduled|length }})</h3>
-    <div class="small">
+    <h3>Chưa xếp ngày dự kiến · {{ board.unscheduled|length }}</h3>
+    <div class="jp-tl-chips">
       {% for mo in board.unscheduled %}
-        <a href="{% url 'san_xuat:dispatch_mo_detail' mo.pk %}">{{ mo.code }}</a>{% if not forloop.last %} · {% endif %}
+        <a class="jp-tl-chip" href="{% url 'san_xuat:dispatch_mo_detail' mo.pk %}">{{ mo.code }}</a>
       {% endfor %}
     </div>
   </div>

@@ -543,6 +543,19 @@ TIMELINE_DAYS = 28
 TIMELINE_MAX_DAYS = 93
 
 
+_WD_VN = ('T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN')
+
+
+@dataclass
+class TimelineDay:
+    date: date
+    day: int
+    weekday: str
+    is_today: bool
+    is_weekend: bool
+    is_week_start: bool
+
+
 @dataclass
 class MoTimelineRow:
     mo: SxProductionOrder
@@ -551,16 +564,22 @@ class MoTimelineRow:
     col_start: int
     col_end: int
     span_days: int
+    vis_days: int
+    bar_text: str
     is_today: bool
     is_late: bool
+    clips_left: bool
+    clips_right: bool
     status_key: str
+    status_label: str
 
 
 @dataclass
 class MoTimelineBoard:
     range_start: date
     range_end: date
-    days: list[date]
+    days: list[TimelineDay]
+    month_spans: list[dict]
     rows: list[MoTimelineRow]
     today: date
     today_col: int | None
@@ -604,6 +623,28 @@ def build_mo_timeline(
         end = start + timedelta(days=TIMELINE_MAX_DAYS - 1)
         span = TIMELINE_MAX_DAYS
     day_list = [start + timedelta(days=i) for i in range(span)]
+    axis_days: list[TimelineDay] = []
+    month_spans: list[dict] = []
+    for d in day_list:
+        axis_days.append(
+            TimelineDay(
+                date=d,
+                day=d.day,
+                weekday=_WD_VN[d.weekday()],
+                is_today=d == today,
+                is_weekend=d.weekday() >= 5,
+                is_week_start=d.weekday() == 0,
+            )
+        )
+        key = (d.year, d.month)
+        if month_spans and month_spans[-1]['key'] == key:
+            month_spans[-1]['span'] += 1
+        else:
+            month_spans.append({
+                'key': key,
+                'label': f'Tháng {d.month:02d}/{d.year}',
+                'span': 1,
+            })
 
     qs = (
         SxProductionOrder.objects.filter(is_demo=False)
@@ -643,6 +684,12 @@ def build_mo_timeline(
         length = (vis_end - vis_start).days + 1
         col_start = offset + 1
         col_end = offset + length + 1
+        if length >= 6:
+            bar_text = f"{vis_start.strftime('%d/%m')} – {vis_end.strftime('%d/%m')}"
+        elif length >= 3:
+            bar_text = f"SL {format_sx_num_input(mo.qty)}"
+        else:
+            bar_text = ''
         rows.append(MoTimelineRow(
             mo=mo,
             start=bar_start,
@@ -650,9 +697,14 @@ def build_mo_timeline(
             col_start=col_start,
             col_end=col_end,
             span_days=(bar_end - bar_start).days + 1,
+            vis_days=length,
+            bar_text=bar_text,
             is_today=start <= today <= end and bar_start <= today <= bar_end,
             is_late=bool(bar_end < today and mo.status != SxProductionOrder.STATUS_DONE),
+            clips_left=bar_start < start,
+            clips_right=bar_end > end,
             status_key=mo.status,
+            status_label=mo.get_status_display(),
         ))
 
     today_col = (today - start).days + 1 if start <= today <= end else None
@@ -660,7 +712,8 @@ def build_mo_timeline(
     return MoTimelineBoard(
         range_start=start,
         range_end=end,
-        days=day_list,
+        days=axis_days,
+        month_spans=month_spans,
         rows=rows,
         today=today,
         today_col=today_col,
