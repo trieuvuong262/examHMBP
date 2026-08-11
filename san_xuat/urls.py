@@ -123,6 +123,7 @@ urlpatterns = [
     path('staging/', views_ops.staging_locations, name='staging_locations'),
     path('giao-viec/', views_hub.work_assignment_list, name='work_assignment_list'),
     path('giao-viec/them/', views_hub.work_assignment_create, name='work_assignment_create'),
+    path('cong-viec-to/map-bo-phan/', views_hub.team_division_map, name='team_division_map'),
     path('cong-viec-to/', views_hub.team_work_hub, name='team_work_hub'),
     path('cong-viec-to/<slug:slug>/', views_hub.team_work_board, name='team_work_board'),
     path('truy-xuat/', views_hub.traceability, name='traceability'),

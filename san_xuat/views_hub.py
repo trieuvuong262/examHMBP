@@ -3898,6 +3898,7 @@ def team_work_board(request, slug: str):
                     process_key=process_key,
                     user_ids=user_ids,
                     assigned_by=request.user,
+                    team_slug=slug,
                 )
                 messages.success(request, 'Đã cập nhật phân công.')
             except PlanningError as exc:
@@ -3913,13 +3914,94 @@ def team_work_board(request, slug: str):
         messages.error(request, str(exc))
         return redirect('san_xuat:team_work_hub')
 
+    from san_xuat.services.team_division_map import has_mapped_divisions
+
+    can_map = (
+        user_can_update_menu(request.user, MODULE_SAN_XUAT, 'team_work')
+        or user_can_update_menu(request.user, MODULE_SAN_XUAT, 'general_settings')
+    )
+    mapped = has_mapped_divisions(slug)
+
+    assignee_candidates = []
+    if can_assign:
+        assignee_candidates = assignee_candidate_options(slug=slug, assigner=request.user)
+        # Giữ option cho NV đã gán (có thể ngoài pool sau khi đổi map) để không mất khi mở modal.
+        seen = {c['id'] for c in assignee_candidates}
+        for row in rows:
+            for a in row.assignees:
+                if a['id'] not in seen:
+                    assignee_candidates.append({'id': a['id'], 'label': a['label']})
+                    seen.add(a['id'])
+
     return render(request, 'san_xuat/team_work_board.html', {
         **_perm_ctx(request),
         'team': team,
         'jobs': group_team_work_jobs(rows),
         'search_query': q,
         'can_assign': can_assign,
-        'assignee_candidates': assignee_candidate_options() if can_assign else [],
+        'can_map_divisions': can_map,
+        'team_has_division_map': mapped,
+        'assignee_candidates': assignee_candidates,
+    })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+def team_division_map(request):
+    """Map thủ công Bộ phận HR → Tổ chuyền (Công việc tổ)."""
+    from san_xuat.services.team_division_map import (
+        current_maps_by_slug,
+        save_team_maps,
+        suggest_maps_from_names,
+        sx_production_divisions,
+        team_slug_choices,
+    )
+
+    can_edit = (
+        user_can_update_menu(request.user, MODULE_SAN_XUAT, 'team_work')
+        or user_can_update_menu(request.user, MODULE_SAN_XUAT, 'general_settings')
+    )
+    if not (
+        can_edit
+        or user_can_access_menu(request.user, MODULE_SAN_XUAT, 'team_work')
+        or user_can_access_menu(request.user, MODULE_SAN_XUAT, 'general_settings')
+    ):
+        return handle_menu_access_denied(request, MODULE_SAN_XUAT, 'team_work')
+
+    selected = current_maps_by_slug()
+
+    if request.method == 'POST' and can_edit:
+        action = (request.POST.get('action') or '').strip()
+        if action == 'suggest':
+            selected = suggest_maps_from_names()
+            messages.info(request, 'Đã điền gợi ý theo tên bộ phận — kiểm tra rồi bấm Lưu để áp dụng.')
+        elif action == 'save':
+            payload: dict[str, list[int]] = {}
+            for slug, _label in team_slug_choices():
+                raw = request.POST.getlist(f'divisions_{slug}')
+                payload[slug] = [int(x) for x in raw if str(x).isdigit()]
+            stats = save_team_maps(payload, saved_by=request.user)
+            messages.success(
+                request,
+                f"Đã lưu map: thêm {stats['created']}, cập nhật {stats['updated']}, "
+                f"tắt {stats['deactivated']}.",
+            )
+            return redirect('san_xuat:team_division_map')
+
+    divisions = list(sx_production_divisions().select_related('department'))
+    teams = [
+        {
+            'slug': slug,
+            'label': label,
+            'selected_ids': set(selected.get(slug) or []),
+        }
+        for slug, label in team_slug_choices()
+    ]
+
+    return render(request, 'san_xuat/team_division_map.html', {
+        **_perm_ctx(request),
+        'teams': teams,
+        'divisions': divisions,
+        'can_edit': can_edit,
     })
 
 

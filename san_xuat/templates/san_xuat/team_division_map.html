@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+{% block extra_head %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/css/tom-select.bootstrap5.min.css">
+<style>
+  .jp-tdm-meta { color: #64748b; font-size: .86rem; margin: 0 0 1rem; max-width: 48rem; }
+  .jp-tdm-grid { display: flex; flex-direction: column; gap: .85rem; }
+  .jp-tdm-card {
+    border: 1px solid #e8edf3; border-radius: 1rem; background: #fff; overflow: hidden;
+  }
+  .jp-tdm-card-head {
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+    gap: .5rem 1rem; padding: .85rem 1.1rem; background: #f4f7fb; border-bottom: 1px solid #e8edf3;
+  }
+  .jp-tdm-card-title { font-weight: 800; font-size: 1rem; margin: 0; color: #0f172a; }
+  .jp-tdm-card-body { padding: 1rem 1.1rem 1.15rem; }
+  .jp-tdm-card .ts-wrapper.form-select { padding: 0; border: 0; min-height: 0; }
+  .jp-tdm-card .ts-control {
+    border: 1px solid #e8edf3 !important; border-radius: .75rem !important;
+    min-height: 2.6rem; padding: .4rem .6rem !important; box-shadow: none !important;
+  }
+  .jp-tdm-actions {
+    display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1.1rem; align-items: center;
+  }
+  .jp-tdm-empty { color: #94a3b8; font-size: .85rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page py-3 mb-5">
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title mb-0 w-100">Map bộ phận → tổ chuyền</h2>
+    </div>
+    <nav class="jp-sx-tools" aria-label="Công cụ">
+      <a href="{% url 'san_xuat:team_work_hub' %}" class="is-back">
+        <i class="bi bi-arrow-left" aria-hidden="true"></i>Công việc tổ
+      </a>
+    </nav>
+  </div>
+
+  <p class="jp-tdm-meta">
+    Gắn bộ phận Nhân sự (phòng Sản xuất) với từng tổ trên menu Công việc tổ.
+    Tổ trưởng chỉ phân công được cấp dưới (kể cả cấp dưới ở vị trí kiêm nhiệm) thuộc các bộ phận đã map.
+    Mỗi bộ phận chỉ thuộc một tổ.
+  </p>
+
+  {% if not divisions %}
+  <div class="alert alert-warning">
+    Chưa có bộ phận active trong phòng Sản xuất trên Nhân sự. Tạo bộ phận trước rồi quay lại map.
+  </div>
+  {% endif %}
+
+  <form method="post" id="jpTdmForm">
+    {% csrf_token %}
+    <div class="jp-tdm-grid">
+      {% for team in teams %}
+      <section class="jp-tdm-card">
+        <header class="jp-tdm-card-head">
+          <h3 class="jp-tdm-card-title">{{ team.label }}</h3>
+          <span class="badge text-bg-light border">{{ team.slug }}</span>
+        </header>
+        <div class="jp-tdm-card-body">
+          {% if divisions %}
+          <label class="form-label small fw-semibold" for="jpTdmSelect-{{ team.slug }}">Bộ phận HR</label>
+          <select id="jpTdmSelect-{{ team.slug }}"
+                  name="divisions_{{ team.slug }}"
+                  class="jp-tdm-select"
+                  multiple
+                  {% if not can_edit %}disabled{% endif %}
+                  placeholder="Chọn bộ phận…">
+            {% for div in divisions %}
+            <option value="{{ div.pk }}"
+                    {% if div.pk in team.selected_ids %}selected{% endif %}>
+              {{ div.name }}{% if div.department %} · {{ div.department.name }}{% endif %}
+            </option>
+            {% endfor %}
+          </select>
+          {% else %}
+          <p class="jp-tdm-empty mb-0">Không có bộ phận để chọn.</p>
+          {% endif %}
+        </div>
+      </section>
+      {% endfor %}
+    </div>
+
+    {% if can_edit %}
+    <div class="jp-tdm-actions">
+      <button type="submit" name="action" value="save" class="btn btn-hm fw-bold">
+        <i class="bi bi-check2 me-1"></i>Lưu map
+      </button>
+      <button type="submit" name="action" value="suggest" class="btn btn-outline-secondary">
+        <i class="bi bi-magic me-1"></i>Gợi ý theo tên
+      </button>
+      <span class="small text-muted">Gợi ý chỉ điền form — cần Lưu mới ghi nhận.</span>
+    </div>
+    {% else %}
+    <p class="small text-muted mt-3 mb-0">Bạn chỉ xem được map. Cần quyền cập nhật Công việc tổ hoặc Thiết lập SX để chỉnh.</p>
+    {% endif %}
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if divisions and can_edit %}
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/js/tom-select.complete.min.js"></script>
+<script>
+(function () {
+  if (typeof TomSelect === 'undefined') return;
+  document.querySelectorAll('.jp-tdm-select').forEach(function (el) {
+    new TomSelect(el, {
+      plugins: ['remove_button'],
+      maxOptions: 200,
+      create: false,
+      persist: false,
+      closeAfterSelect: false,
+      placeholder: 'Chọn bộ phận…',
+    });
+  });
+})();
+</script>
+{% endif %}
+{% endblock %}

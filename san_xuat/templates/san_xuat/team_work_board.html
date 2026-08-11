@@ -141,9 +141,27 @@
     <div class="jp-sx-detail-title">
       <h2 class="jp-npl-mat-topbar-title w-100">Công việc tổ · {{ team.label }}</h2>
     </div>
+    {% if can_map_divisions %}
+    <nav class="jp-sx-tools" aria-label="Công cụ">
+      <a href="{% url 'san_xuat:team_division_map' %}">
+        <i class="bi bi-diagram-3" aria-hidden="true"></i>Map bộ phận
+      </a>
+    </nav>
+    {% endif %}
   </div>
 
   <p class="jp-tw-meta">Mỗi lệnh sản xuất là một việc — các công đoạn tổ {{ team.label }} gom trong cùng thẻ. Ghi số lượng vẫn qua thống kê SX.</p>
+
+  {% if can_assign and not team_has_division_map %}
+  <div class="alert alert-warning py-2 px-3 mb-3">
+    Tổ <strong>{{ team.label }}</strong> chưa map bộ phận Nhân sự — danh sách phân công đang trống.
+    {% if can_map_divisions %}
+    <a href="{% url 'san_xuat:team_division_map' %}" class="alert-link">Map bộ phận ngay</a>.
+    {% else %}
+    Liên hệ quản trị để map bộ phận với tổ chuyền.
+    {% endif %}
+  </div>
+  {% endif %}
 
   <form method="get" class="jp-tw-toolbar">
     <input type="search" name="q" value="{{ search_query }}" class="form-control form-control-sm jp-tw-search"
@@ -246,7 +264,11 @@
           <option value="{{ c.id }}">{{ c.label }}</option>
           {% endfor %}
         </select>
-        <p class="small text-muted mt-2 mb-0">Có thể chọn nhiều người. Bỏ hết chọn rồi lưu để gỡ phân công.</p>
+        <p class="small text-muted mt-2 mb-0">
+          Chỉ hiện NV thuộc bộ phận đã map
+          {% if not team_has_division_map %}(chưa map){% endif %}
+          — tổ trưởng chỉ thấy cấp dưới (kể cả kiêm nhiệm). Có thể chọn nhiều người; bỏ hết chọn rồi lưu để gỡ phân công.
+        </p>
       </div>
       <div class="modal-footer border-0 pt-0 px-3 pb-3">
         <button type="button" class="btn btn-light" data-bs-dismiss="modal">Hủy</button>

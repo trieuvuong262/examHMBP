@@ -2244,6 +2244,54 @@ class SxTeamHrMap(DemoMarkedModel):
         return self.team_label
 
 
+class SxTeamDivisionMap(DemoMarkedModel):
+    """Map thủ công Bộ phận HR → Tổ chuyền (Công việc tổ)."""
+
+    TEAM_SLUG_CHOICES = [
+        ('cat', 'Cắt'),
+        ('inep', 'In - Ép'),
+        ('theu', 'Thêu'),
+        ('may', 'May'),
+        ('ht', 'Ủi - Gấp xếp'),
+        ('gh', 'Giao hàng thành phẩm'),
+    ]
+
+    team_slug = models.CharField(
+        max_length=20,
+        choices=TEAM_SLUG_CHOICES,
+        db_index=True,
+        verbose_name='Tổ chuyền',
+    )
+    division = models.ForeignKey(
+        'hrm.Division',
+        on_delete=models.CASCADE,
+        related_name='sx_team_maps',
+        verbose_name='Bộ phận (HR)',
+    )
+    notes = models.CharField(max_length=255, blank=True, default='')
+    is_active = models.BooleanField(default=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['team_slug', 'division__sort_order', 'division__name']
+        verbose_name = 'Map bộ phận → tổ chuyền'
+        verbose_name_plural = 'Map bộ phận → tổ chuyền'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['division'],
+                name='san_xuat_team_division_map_division_uniq',
+            ),
+            models.UniqueConstraint(
+                fields=['team_slug', 'division'],
+                name='san_xuat_team_division_map_slug_div_uniq',
+            ),
+        ]
+
+    def __str__(self):
+        div_name = self.division.name if self.division_id else '?'
+        return f'{self.team_slug} ← {div_name}'
+
+
 class SxGeneralSettings(models.Model):
     """Singleton (pk=1) — thiết lập chung module Sản xuất (cổng quy trình, QC, năng lực…)."""
 

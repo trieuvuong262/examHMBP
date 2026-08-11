@@ -166,6 +166,18 @@ def ensure_mo_step_for_template(
     return step
 
 
+def _team_slug_for_process_key(process_key: str) -> str | None:
+    from san_xuat.services.progress_template import TEAM_SLUGS, step_by_key
+
+    sd = step_by_key(process_key)
+    if not sd:
+        return None
+    for slug, group_key, _menu, _label in TEAM_SLUGS:
+        if group_key == sd.group:
+            return slug
+    return None
+
+
 @transaction.atomic
 def assign_team_work(
     *,
@@ -173,24 +185,39 @@ def assign_team_work(
     process_key: str,
     user_ids: list[int],
     assigned_by=None,
+    team_slug: str | None = None,
 ) -> SxMoProcessStep:
     from san_xuat.services.progress_template import step_by_key
+    from san_xuat.services.team_division_map import assignee_candidate_ids_for_team
 
     sd = step_by_key(process_key)
     if not sd:
         raise PlanningError('Công đoạn không thuộc mẫu.')
+    slug = (team_slug or '').strip().lower() or _team_slug_for_process_key(process_key)
+    if not slug:
+        raise PlanningError('Không xác định được tổ chuyền của công đoạn.')
+
     mo = SxProductionOrder.objects.select_for_update().get(pk=mo_id, is_demo=False)
     if mo.status in (SxProductionOrder.STATUS_DRAFT, SxProductionOrder.STATUS_CANCELLED):
         raise PlanningError('Lệnh sản xuất chưa phát hành hoặc đã hủy.')
     step = ensure_mo_step_for_template(mo=mo, step_def=sd)
     User = get_user_model()
+    allowed = assignee_candidate_ids_for_team(slug, assigned_by) if assigned_by is not None else set()
+    already = set(
+        SxMoProcessAssignee.objects.filter(mo_process_step=step).values_list('user_id', flat=True),
+    )
     keep: set[int] = set()
     for uid in user_ids:
         if not uid:
             continue
+        uid = int(uid)
+        if assigned_by is not None and uid not in allowed and uid not in already:
+            raise PlanningError(
+                'Nhân viên không thuộc phạm vi tổ/bộ phận đã map hoặc không phải cấp dưới của bạn.',
+            )
         if not User.objects.filter(pk=uid, is_active=True).exists():
             continue
-        keep.add(int(uid))
+        keep.add(uid)
         SxMoProcessAssignee.objects.get_or_create(
             mo_process_step=step,
             user_id=uid,
@@ -200,18 +227,12 @@ def assign_team_work(
     return step
 
 
-def assignee_candidate_options(*, limit: int = 200) -> list[dict]:
-    """Danh sách NV gợi ý gán (user active có profile)."""
-    User = get_user_model()
-    out: list[dict] = []
-    qs = (
-        User.objects.filter(is_active=True)
-        .select_related('profile')
-        .order_by('username')[:limit]
-    )
-    for u in qs:
-        p = getattr(u, 'profile', None)
-        label = ((getattr(p, 'full_name', None) or '') if p else '').strip()
-        label = label or u.get_full_name() or u.username
-        out.append({'id': u.pk, 'label': label})
-    return out
+def assignee_candidate_options(*, slug: str = '', assigner=None, limit: int = 300) -> list[dict]:
+    """Danh sách NV gợi ý gán theo map bộ phận + phạm vi tổ trưởng."""
+    from san_xuat.services.team_division_map import assignee_candidates_for_team
+
+    if slug and assigner is not None:
+        return assignee_candidates_for_team(slug, assigner, limit=limit)
+
+    # Legacy fallback — tránh lộ toàn công ty khi thiếu slug/assigner
+    return []
