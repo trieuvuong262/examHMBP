@@ -70,6 +70,34 @@ def _perm_ctx(request):
     }
 
 
+def _create_routing_from_post(request, *, fail_redirect: str):
+    perms = _perm_ctx(request)
+    if not (perms['can_create'] or perms['can_update']):
+        messages.error(request, 'Bạn không có quyền tạo routing.')
+        return redirect(fail_redirect)
+    from san_xuat.services.ie_ops import create_blank_routing
+
+    style_code = (request.POST.get('style_code') or '').strip()
+    style_name = (request.POST.get('style_name') or '').strip()
+    routing_rev = (request.POST.get('routing_rev') or 'R01').strip() or 'R01'
+    if not style_code:
+        messages.error(request, 'Nhập mã hàng.')
+        return redirect(fail_redirect)
+    seed = f'{style_code}-{routing_rev}'
+    try:
+        routing = create_blank_routing(
+            style_code=seed,
+            routing_id=seed,
+            style_name=style_name,
+            user=request.user,
+        )
+    except IeOpsError as exc:
+        messages.error(request, str(exc))
+        return redirect(fail_redirect)
+    messages.success(request, f'Đã tạo routing {routing.routing_id}.')
+    return redirect('san_xuat:ie_routing_detail', pk=routing.pk)
+
+
 def _dec(raw, default='0'):
     from decimal import Decimal, InvalidOperation
     try:
@@ -115,30 +143,7 @@ def ie_hub(request):
             return redirect('san_xuat:ie_hub')
 
         if action == 'create_routing':
-            if not (perms['can_create'] or perms['can_update']):
-                messages.error(request, 'Bạn không có quyền tạo routing.')
-                return redirect('san_xuat:ie_hub')
-            from san_xuat.services.ie_ops import create_blank_routing
-
-            style_code = (request.POST.get('style_code') or '').strip()
-            style_name = (request.POST.get('style_name') or '').strip()
-            routing_rev = (request.POST.get('routing_rev') or 'R01').strip() or 'R01'
-            if not style_code:
-                messages.error(request, 'Nhập mã hàng.')
-                return redirect('san_xuat:ie_hub')
-            seed = f'{style_code}-{routing_rev}'
-            try:
-                routing = create_blank_routing(
-                    style_code=seed,
-                    routing_id=seed,
-                    style_name=style_name,
-                    user=request.user,
-                )
-            except IeOpsError as exc:
-                messages.error(request, str(exc))
-                return redirect('san_xuat:ie_hub')
-            messages.success(request, f'Đã tạo routing tay {routing.routing_id}.')
-            return redirect('san_xuat:ie_routing_detail', pk=routing.pk)
+            return _create_routing_from_post(request, fail_redirect='san_xuat:ie_hub')
 
         if action == 'create_operation':
             if not (perms['can_create'] or perms['can_update']):
@@ -449,6 +454,9 @@ def operation_detail(request, pk: int):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def routing_list(request):
+    if request.method == 'POST' and request.POST.get('action') == 'create_routing':
+        return _create_routing_from_post(request, fail_redirect='san_xuat:ie_routing_list')
+
     qs = SxRouting.objects.annotate(
         n_lines=Count('lines'),
         sum_smv=Sum('lines__total_operation_smv'),

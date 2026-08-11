@@ -8,7 +8,14 @@
       <h2 class="mb-0">Routing mã hàng</h2>
       <div class="text-muted small">{{ total }} quy trình mã hàng.</div>
     </div>
-    <a href="{% url 'san_xuat:ie_hub' %}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Công đoạn / IE</a>
+    <div class="d-flex flex-wrap gap-2">
+      {% if can_create or can_update %}
+      <button type="button" class="btn btn-sm btn-hm" data-bs-toggle="modal" data-bs-target="#ieAddRoutingModal">
+        <i class="bi bi-plus-lg me-1"></i>Thêm routing
+      </button>
+      {% endif %}
+      <a href="{% url 'san_xuat:ie_hub' %}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Công đoạn / IE</a>
+    </div>
   </div>
 
   <form method="get" class="row g-2 mb-3">
@@ -51,4 +58,39 @@
 
   {% include 'san_xuat/includes/ie_pagination.html' %}
 </div>
+
+{% if can_create or can_update %}
+<div class="modal fade" id="ieAddRoutingModal" tabindex="-1" aria-labelledby="ieAddRoutingModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="create_routing">
+        <div class="modal-header">
+          <h5 class="modal-title" id="ieAddRoutingModalLabel">Thêm routing</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-2">
+            <label class="form-label small text-muted mb-1">Mã hàng <span class="text-danger">*</span></label>
+            <input type="text" name="style_code" class="form-control form-control-sm" required maxlength="60" placeholder="VD: JP-JK-TRACK-EX">
+          </div>
+          <div class="mb-2">
+            <label class="form-label small text-muted mb-1">Tên mã hàng</label>
+            <input type="text" name="style_name" class="form-control form-control-sm" maxlength="255" placeholder="Tuỳ chọn">
+          </div>
+          <div>
+            <label class="form-label small text-muted mb-1">Phiên bản</label>
+            <input type="text" name="routing_rev" class="form-control form-control-sm" value="R01" maxlength="10">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Huỷ</button>
+          <button type="submit" class="btn btn-sm btn-hm"><i class="bi bi-plus-lg me-1"></i>Tạo routing</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
 {% endblock %}
