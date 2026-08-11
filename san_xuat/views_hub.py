@@ -3943,6 +3943,100 @@ def team_work_board(request, slug: str):
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
+def team_work_progress(request, slug: str, mo_id: int):
+    """Phiếu tiến độ theo tổ — xem/ghi SL công đoạn của tổ, không cần vào KHSX."""
+    from datetime import date as date_cls
+    from decimal import Decimal, InvalidOperation
+
+    from san_xuat.hub_models import SxProductionOrder
+    from san_xuat.services.order_progress_sheet import (
+        build_progress_sheet,
+        ensure_progress_work_centers,
+        record_progress_qty,
+    )
+    from san_xuat.services.planning import PlanningError
+    from san_xuat.services.progress_template import steps_for_group, team_by_slug
+
+    team_meta = team_by_slug(slug)
+    if not team_meta:
+        messages.error(request, 'Tổ không hợp lệ.')
+        return redirect('san_xuat:team_work_hub')
+
+    menu_key = team_meta['menu_key']
+    if not (
+        user_can_access_menu(request.user, MODULE_SAN_XUAT, menu_key)
+        or user_can_access_menu(request.user, MODULE_SAN_XUAT, 'team_work')
+    ):
+        return handle_menu_access_denied(request, MODULE_SAN_XUAT, menu_key)
+
+    can_update = (
+        user_can_update_menu(request.user, MODULE_SAN_XUAT, menu_key)
+        or user_can_update_menu(request.user, MODULE_SAN_XUAT, 'team_work')
+        or user_can_create_menu(request.user, MODULE_SAN_XUAT, menu_key)
+    )
+
+    mo = (
+        SxProductionOrder.objects.filter(pk=mo_id, is_demo=False)
+        .exclude(status=SxProductionOrder.STATUS_CANCELLED)
+        .exclude(status=SxProductionOrder.STATUS_DRAFT)
+        .select_related('sales_order')
+        .first()
+    )
+    if not mo:
+        messages.error(request, 'Không tìm thấy lệnh sản xuất đang chạy.')
+        return redirect('san_xuat:team_work_board', slug=slug)
+
+    group_key = team_meta['group_key']
+    team_steps = steps_for_group(group_key)
+    allowed_keys = {s.key for s in team_steps}
+    ensure_progress_work_centers()
+
+    if request.method == 'POST' and can_update:
+        action = (request.POST.get('action') or '').strip()
+        if action == 'record':
+            process_key = (request.POST.get('process_key') or '').strip()
+            if process_key not in allowed_keys:
+                messages.error(request, 'Công đoạn không thuộc tổ này.')
+                return redirect('san_xuat:team_work_progress', slug=slug, mo_id=mo.pk)
+            try:
+                qty = Decimal(str(request.POST.get('qty') or '0').replace(',', '').strip() or '0')
+            except (InvalidOperation, ValueError):
+                qty = Decimal('0')
+            raw_date = (request.POST.get('stat_date') or '').strip()
+            try:
+                stat_date = date_cls.fromisoformat(raw_date) if raw_date else None
+            except ValueError:
+                stat_date = None
+            try:
+                record_progress_qty(
+                    mo_id=mo.pk,
+                    process_key=process_key,
+                    size_label=(request.POST.get('size_label') or '').strip(),
+                    qty=qty,
+                    stat_date=stat_date,
+                    user=request.user,
+                )
+                messages.success(request, 'Đã ghi SL tiến độ.')
+            except PlanningError as exc:
+                messages.error(request, str(exc))
+            except Exception as exc:
+                messages.error(request, str(exc))
+            return redirect('san_xuat:team_work_progress', slug=slug, mo_id=mo.pk)
+
+    sheet = build_progress_sheet(mo, group_key=group_key)
+
+    return render(request, 'san_xuat/team_work_progress.html', {
+        **_perm_ctx(request),
+        'team': team_meta,
+        'mo': mo,
+        'sheet': sheet,
+        'flat_steps': team_steps,
+        'can_update': can_update,
+        'today': timezone.localdate(),
+    })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
 def team_division_map(request):
     """Bookmark cũ → Thiết lập chung · Map bộ phận."""
     return redirect(f"{reverse('san_xuat:general_settings')}#sec-team-map")

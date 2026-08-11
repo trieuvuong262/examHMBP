@@ -1,0 +1,161 @@
+{% extends 'base.html' %}
+{% load sx_format %}
+
+{% block extra_head %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+<style>
+  .jp-ops-sheet { --ops-ink:#0f172a; --ops-muted:#64748b; --ops-line:#e2e8f0; --ops-accent:#0f766e; }
+  .jp-ops-meta { display:flex; flex-wrap:wrap; gap:.35rem 1.25rem; color:var(--ops-muted); font-size:.88rem; margin:.5rem 0 1rem; }
+  .jp-ops-meta strong { color:var(--ops-ink); }
+  .jp-ops-wrap { overflow:auto; border:1px solid var(--ops-line); border-radius:.65rem; background:#fff; max-height:70vh; }
+  .jp-ops-table { border-collapse:separate; border-spacing:0; font-size:.78rem; min-width:100%; }
+  .jp-ops-table th, .jp-ops-table td {
+    border-right:1px solid var(--ops-line); border-bottom:1px solid var(--ops-line);
+    padding:.35rem .45rem; white-space:nowrap; text-align:center; vertical-align:middle;
+  }
+  .jp-ops-table thead th { position:sticky; z-index:2; background:#f8fafc; font-weight:700; }
+  .jp-ops-table thead tr.group th { top:0; background:#ccfbf1; color:#115e59; }
+  .jp-ops-table thead tr.steps th { top:1.65rem; background:#f1f5f9; font-weight:600; max-width:6.5rem; overflow:hidden; text-overflow:ellipsis; }
+  .jp-ops-table .sticky-col {
+    position:sticky; left:0; z-index:3; background:#fff; text-align:left; font-weight:700; min-width:4.2rem;
+    box-shadow:1px 0 0 var(--ops-line);
+  }
+  .jp-ops-table thead .sticky-col { z-index:4; background:#f8fafc; }
+  .jp-ops-table .qty-plan { color:var(--ops-muted); font-weight:600; min-width:3.2rem; }
+  .jp-ops-table .done { color:#0369a1; font-weight:700; }
+  .jp-ops-table .remain { color:#b91c1c; font-weight:600; }
+  .jp-ops-table .sec-label td { background:#f8fafc; font-weight:700; text-align:left; color:var(--ops-muted); }
+  .jp-ops-table .daily { background:#fffbeb; }
+  .jp-ops-entry {
+    border:1px solid var(--ops-line); border-radius:.75rem; padding:1rem 1.1rem; background:#fff; margin-top:1rem;
+  }
+  .jp-ops-entry h3 { font-size:.95rem; font-weight:700; margin:0 0 .75rem; color:var(--ops-ink); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid jp-page jp-sx-page jp-ops-sheet py-3 py-md-4 mb-5 px-3 px-lg-4">
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title w-100">Tiến độ tổ · {{ team.label }}</h2>
+    </div>
+    <nav class="jp-sx-tools" aria-label="Công cụ">
+      <a href="{% url 'san_xuat:dispatch_mo_detail' mo.pk %}"><i class="bi bi-file-earmark-text" aria-hidden="true"></i>Lệnh sản xuất</a>
+      <span class="sep" aria-hidden="true"></span>
+      <a href="{% url 'san_xuat:team_work_board' team.slug %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Công việc tổ</a>
+    </nav>
+  </div>
+
+  <div class="jp-ops-meta">
+    <span>Lệnh sản xuất <strong>{{ mo.code }}</strong></span>
+    {% if sheet.order_code %}<span>Đơn <strong>{{ sheet.order_code }}</strong></span>{% endif %}
+    <span>SP <strong>{{ sheet.product_code }}</strong>{% if sheet.product_name %} — {{ sheet.product_name }}{% endif %}</span>
+    {% if sheet.color_summary %}<span>Màu <strong>{{ sheet.color_summary }}</strong></span>{% endif %}
+    <span>Tổng SL <strong>{{ sheet.total_qty|sx_num }}</strong></span>
+    <span>Chỉ công đoạn tổ <strong>{{ team.label }}</strong></span>
+  </div>
+
+  {% if not flat_steps %}
+  <div class="alert alert-warning">Tổ này chưa có công đoạn mẫu.</div>
+  {% elif not sheet.sizes %}
+  <div class="alert alert-warning">Lệnh sản xuất chưa có dòng size. Nhập ma trận màu×size trên lệnh sản xuất trước.</div>
+  {% else %}
+  <div class="jp-ops-wrap mb-3">
+    <table class="jp-ops-table">
+      <thead>
+        <tr class="group">
+          <th class="sticky-col" rowspan="2">Size</th>
+          <th rowspan="2">SL KH</th>
+          {% for group, steps in sheet.groups %}
+          {% if steps %}<th colspan="{{ steps|length }}">{{ group.label }}</th>{% endif %}
+          {% endfor %}
+        </tr>
+        <tr class="steps">
+          {% for group, steps in sheet.groups %}
+          {% for s in steps %}
+          <th title="{{ s.label }}">{{ s.label }}</th>
+          {% endfor %}
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="sec-label"><td class="sticky-col" colspan="{{ flat_steps|length|add:2 }}">SL thực hiện</td></tr>
+        {% for row in sheet.done_rows %}
+        <tr>
+          <td class="sticky-col">{{ row.size_label }}</td>
+          <td class="qty-plan">{{ row.qty|sx_num }}</td>
+          {% for v in row.values %}
+          <td class="done">{% if v %}{{ v|sx_num }}{% else %}0{% endif %}</td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+
+        <tr class="sec-label"><td class="sticky-col" colspan="{{ flat_steps|length|add:2 }}">SL còn thiếu</td></tr>
+        {% for row in sheet.remain_rows %}
+        <tr>
+          <td class="sticky-col">{{ row.size_label }}</td>
+          <td class="qty-plan">{{ row.qty|sx_num }}</td>
+          {% for v in row.values %}
+          <td class="remain">{% if v %}{{ v|sx_num }}{% else %}0{% endif %}</td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+
+        {% if sheet.daily_display %}
+        <tr class="sec-label"><td class="sticky-col" colspan="{{ flat_steps|length|add:2 }}">Theo ngày (tổ {{ team.label }})</td></tr>
+        {% for row in sheet.daily_display %}
+        <tr class="daily">
+          <td class="sticky-col">{{ row.stat_date|date:"d/m/Y" }} · {{ row.size_label }}</td>
+          <td class="qty-plan">—</td>
+          {% for v in row.values %}
+          <td>{% if v %}{{ v|sx_num }}{% else %}0{% endif %}</td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if can_update %}
+  <div class="jp-ops-entry">
+    <h3>Ghi SL tiến độ tổ {{ team.label }}</h3>
+    <form method="post" class="row g-2 align-items-end">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="record">
+      <div class="col-md-3">
+        <label class="form-label small mb-0">Công đoạn</label>
+        <select name="process_key" class="form-select form-select-sm" required>
+          <option value="">— Chọn —</option>
+          {% for s in flat_steps %}
+          <option value="{{ s.key }}">{{ s.label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small mb-0">Size</label>
+        <select name="size_label" class="form-select form-select-sm" required>
+          {% for sz in sheet.sizes %}
+          <option value="{{ sz.size_label }}">{{ sz.size_label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small mb-0">SL đạt</label>
+        <input type="number" name="qty" class="form-control form-control-sm" min="0.01" step="any" required>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small mb-0">Ngày</label>
+        <input type="date" name="stat_date" class="form-control form-control-sm" value="{{ today|date:'Y-m-d' }}">
+      </div>
+      <div class="col-md-2">
+        <button type="submit" class="btn btn-hm btn-sm fw-bold w-100">
+          <i class="bi bi-check2 me-1"></i>Ghi SL
+        </button>
+      </div>
+    </form>
+  </div>
+  {% endif %}
+  {% endif %}
+</div>
+{% endblock %}

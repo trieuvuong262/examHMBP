@@ -169,11 +169,22 @@ def _size_plans(mo: SxProductionOrder) -> list[SizePlanRow]:
     return []
 
 
-def build_progress_sheet(mo: SxProductionOrder) -> ProgressSheet:
-    steps = progress_steps()
-    groups = progress_groups_with_steps()
+def build_progress_sheet(
+    mo: SxProductionOrder,
+    *,
+    group_key: str | None = None,
+) -> ProgressSheet:
+    all_steps = progress_steps()
+    all_groups = progress_groups_with_steps()
+    gk = (group_key or '').strip().upper()
+    if gk:
+        groups = [(g, steps) for g, steps in all_groups if g.key == gk]
+        steps = [s for s in all_steps if s.group == gk]
+    else:
+        groups = all_groups
+        steps = all_steps
     sizes = _size_plans(mo)
-    label_map = {s.label.casefold(): s for s in steps}
+    label_map = {s.label.casefold(): s for s in all_steps}
 
     stats = list(
         SxProductionStat.objects.filter(

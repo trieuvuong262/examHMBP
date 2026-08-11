@@ -52,6 +52,10 @@
     color: var(--tw-muted); font-size: .72rem; font-weight: 700;
   }
   .jp-tw-stat-pill strong { color: var(--tw-ink); font-weight: 800; }
+  a.jp-tw-stat-pill {
+    border-color: #99f6e4; background: var(--tw-accent-soft); color: #0f766e;
+  }
+  a.jp-tw-stat-pill:hover { background: #99f6e4; color: #115e59; }
   .jp-tw-steps { list-style: none; margin: 0; padding: 0; }
   .jp-tw-step {
     display: grid;
@@ -96,6 +100,10 @@
   .jp-tw-empty-board {
     border: 1px dashed var(--tw-line); border-radius: 1rem;
     padding: 2.5rem 1rem; text-align: center; color: var(--tw-muted); background: #fff;
+  }
+  .jp-tw-modal .modal-dialog {
+    max-width: min(42rem, calc(100vw - 1.5rem));
+    width: 100%;
   }
   .jp-tw-modal .modal-content { border: 0; border-radius: 1rem; overflow: hidden; }
   .jp-tw-modal .modal-header {
@@ -150,7 +158,7 @@
     {% endif %}
   </div>
 
-  <p class="jp-tw-meta">Mỗi lệnh sản xuất là một việc — các công đoạn tổ {{ team.label }} gom trong cùng thẻ. Ghi số lượng vẫn qua thống kê SX.</p>
+  <p class="jp-tw-meta">Mỗi lệnh sản xuất là một việc — phân công công đoạn tổ {{ team.label }}, xem/ghi tiến độ ngay tại đây (không cần vào KHSX).</p>
 
   {% if can_assign and not team_has_division_map %}
   <div class="alert alert-warning py-2 px-3 mb-3">
@@ -190,6 +198,11 @@
           </div>
         </div>
         <div class="jp-tw-job-stats">
+          <a href="{% url 'san_xuat:team_work_progress' team.slug job.mo.pk %}"
+             class="jp-tw-stat-pill text-decoration-none"
+             title="Xem tiến độ tổ {{ team.label }}">
+            <i class="bi bi-bar-chart-steps"></i> Tiến độ
+          </a>
           <span class="jp-tw-stat-pill">Đã gán <strong>{{ job.assigned_count }}</strong>/{{ job.step_count }}</span>
           {% if job.run_count %}<span class="jp-tw-stat-pill">Đang làm <strong>{{ job.run_count }}</strong></span>{% endif %}
           {% if job.done_count %}<span class="jp-tw-stat-pill">Xong <strong>{{ job.done_count }}</strong></span>{% endif %}
@@ -245,7 +258,7 @@
 
 {% if can_assign %}
 <div class="modal fade jp-tw-modal" id="jpTwAssignModal" tabindex="-1" aria-labelledby="jpTwAssignModalTitle" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
     <form method="post" class="modal-content" id="jpTwAssignForm">
       {% csrf_token %}
       <input type="hidden" name="action" value="assign">
