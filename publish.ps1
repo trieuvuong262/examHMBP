@@ -43,12 +43,15 @@ if (-not (Test-Path (Join-Path $Root ".git"))) {
 Write-Host "==> git add ."
 Invoke-Git @("add", ".")
 
-$porcelain = & git status --porcelain 2>&1
-if ($porcelain) {
+$staged = & git diff --cached --name-only
+if ($LASTEXITCODE -ne 0) {
+    throw "git failed: git diff --cached --name-only (exit $LASTEXITCODE)"
+}
+if ($staged) {
     Write-Host "==> git commit -m `"$commitMsg`""
     Invoke-Git @("commit", "-m", $commitMsg)
 } else {
-    Write-Host "    No changes - skip commit."
+    Write-Host "    No staged changes - skip commit."
 }
 
 Write-Host "==> git push"
