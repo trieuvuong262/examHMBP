@@ -1,5 +1,6 @@
 from django import forms
 from django.forms import inlineformset_factory
+from django.forms.models import BaseInlineFormSet
 
 from kho_npl.models import Material
 from san_xuat.models import BomLine, BomVersion, ProcessStep, ProductTechDoc, TechDocDesignFile
@@ -218,12 +219,33 @@ class BomLineForm(forms.ModelForm):
         super().full_clean()
 
 
+class ProcessGroupSelect(forms.Select):
+    """Select nhóm công đoạn, gắn bộ phận mặc định lên từng option."""
+
+    def __init__(self, *args, group_meta=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.group_meta = group_meta or {}
+
+    def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
+        option = super().create_option(name, value, label, selected, index, subindex=subindex, attrs=attrs)
+        key = str(value) if value not in (None, '') else ''
+        meta = self.group_meta.get(key) or self.group_meta.get(key.casefold()) or {}
+        wc_id = meta.get('default_work_center_id')
+        if wc_id:
+            option['attrs']['data-default-work-center-id'] = str(wc_id)
+        code = meta.get('code')
+        if code:
+            option['attrs']['data-group-code'] = code
+        return option
+
+
 class ProcessStepForm(forms.ModelForm):
     process_name = forms.ChoiceField(
-        label='Công đoạn',
+        label='Nhóm công đoạn',
         choices=[],
-        widget=forms.Select(attrs={
-            'class': 'form-select form-select-sm jp-sx-process-select',
+        widget=ProcessGroupSelect(attrs={
+            'class': 'form-select form-select-sm jp-sx-process-group-select',
+            'data-placeholder': 'Chọn nhóm công đoạn…',
         }),
     )
 
@@ -238,10 +260,10 @@ class ProcessStepForm(forms.ModelForm):
             'notes': forms.TextInput(attrs={'class': 'form-control form-control-sm'}),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, group_rows=None, **kwargs):
         super().__init__(*args, **kwargs)
         from san_xuat.services.capacity_from_hrm import hr_work_centers_qs
-        from san_xuat.services.process_catalog import process_catalog_choices
+        from san_xuat.services.process_catalog import process_group_choices, process_group_meta, process_group_rows
 
         extra = ''
         if args:
@@ -253,24 +275,59 @@ class ProcessStepForm(forms.ModelForm):
             extra = self.instance.process_name
         elif not extra and self.initial:
             extra = self.initial.get('process_name') or ''
-        self.fields['process_name'].choices = process_catalog_choices(extra_value=extra)
+        rows = group_rows if group_rows is not None else process_group_rows()
+        meta = process_group_meta(rows)
+        self._group_meta = meta
+        widget = self.fields['process_name'].widget
+        if isinstance(widget, ProcessGroupSelect):
+            widget.group_meta = meta
+        self.fields['process_name'].choices = process_group_choices(extra_value=extra, rows=rows)
 
         keep_ids = []
         if self.instance and self.instance.work_center_id:
             keep_ids = [self.instance.work_center_id]
+        wc_ids = {m.get('default_work_center_id') for m in meta.values() if m.get('default_work_center_id')}
+        keep_ids = list({*keep_ids, *wc_ids})
         self.fields['work_center'].queryset = hr_work_centers_qs(include_inactive_ids=keep_ids)
         self.fields['work_center'].required = False
         self.fields['work_center'].empty_label = '— Chọn bộ phận —'
         self.fields['work_center'].label = 'Bộ phận chịu trách nhiệm'
 
     def clean_process_name(self):
-        from san_xuat.services.process_catalog import resolve_standard_process_name
+        from san_xuat.services.process_catalog import resolve_process_group_name
 
         name = (self.cleaned_data.get('process_name') or '').strip()
-        standard = resolve_standard_process_name(name)
+        standard = resolve_process_group_name(name)
         if not standard:
-            raise forms.ValidationError('Công đoạn phải chọn từ thư viện chuẩn Công đoạn / IE.')
+            raise forms.ValidationError('Phải chọn nhóm công đoạn.')
         return standard
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        meta = getattr(self, '_group_meta', None) or {}
+        info = meta.get(instance.process_name) or meta.get((instance.process_name or '').casefold()) or {}
+        code = (info.get('code') or '').strip()
+        if code:
+            instance.op_code = code[:30]
+            instance.operation = None
+        if not instance.work_center_id and info.get('default_work_center_id'):
+            instance.work_center_id = info['default_work_center_id']
+        if commit:
+            instance.save()
+        return instance
+
+
+class ProcessStepBaseFormSet(BaseInlineFormSet):
+    def __init__(self, *args, **kwargs):
+        from san_xuat.services.process_catalog import process_group_rows
+
+        self._group_rows = process_group_rows()
+        super().__init__(*args, **kwargs)
+
+    def get_form_kwargs(self, index):
+        kwargs = super().get_form_kwargs(index)
+        kwargs['group_rows'] = getattr(self, '_group_rows', None)
+        return kwargs
 
 
 BomLineFormSet = inlineformset_factory(
@@ -285,6 +342,7 @@ ProcessStepFormSet = inlineformset_factory(
     BomVersion,
     ProcessStep,
     form=ProcessStepForm,
+    formset=ProcessStepBaseFormSet,
     extra=1,
     can_delete=True,
 )

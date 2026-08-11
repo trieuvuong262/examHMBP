@@ -101,7 +101,7 @@
           <input type="text" name="machine_code" class="form-control form-control-sm" list="ie-machine-codes"
                  value="{% if edit_line %}{{ edit_line.machine_code }}{% endif %}" maxlength="40">
           <datalist id="ie-machine-codes">
-            {% for m in machines %}<option value="{{ m.code }}">{{ m.name }}</option>{% endfor %}
+            {% for m in machines %}<option value="{{ m.code }}">{{ m.code }} — {{ m.name }}</option>{% endfor %}
           </datalist>
         </div>
         <div class="col-6 col-md-2">
@@ -220,6 +220,5 @@
   {% endfor %}
   {% endif %}
 
-  {% include 'san_xuat/includes/ie_smv_glossary.html' %}
 </div>
 {% endblock %}

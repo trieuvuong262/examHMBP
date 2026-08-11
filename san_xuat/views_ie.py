@@ -3,7 +3,6 @@
 - Trang tổng quan + import/export file Excel.
 - Thư viện công đoạn chuẩn.
 - Routing mã hàng (danh sách + chi tiết).
-- Dữ liệu bấm giờ (time study) + duyệt cập nhật SMV.
 """
 
 from __future__ import annotations
@@ -25,7 +24,6 @@ from PortalJustPlay.pagination import paginate_queryset
 
 from san_xuat.ie_models import (
     SxIeAuditLog,
-    SxMachine,
     SxOperation,
     SxOperationGroup,
     SxProcessStage,
@@ -34,8 +32,8 @@ from san_xuat.ie_models import (
     SxSkillLevel,
     SxSmvSource,
     SxStitchClass,
-    SxTimeStudy,
 )
+from san_xuat.services.production_machines import ie_machine_options, production_machine_count
 from san_xuat.ie_permissions import (
     IE_APPROVER_GROUP,
     ie_approver_group_has_members,
@@ -45,14 +43,11 @@ from san_xuat.services.ie_ops import (
     IeOpsError,
     approve_operation,
     approve_routing,
-    approve_time_study,
     build_ie_dashboard,
     clone_routing_revision,
     delete_routing_line,
     is_routing_locked,
-    link_time_studies_to_operations,
     reject_routing,
-    reject_time_study,
     save_routing_line_explanations,
     update_operation,
     upsert_routing_line,
@@ -201,66 +196,8 @@ def ie_hub(request):
             messages.success(request, f'Đã tạo nhóm {group.code}.')
             return redirect(f"{reverse('san_xuat:ie_group_list')}?q={group.code}")
 
-        if action == 'create_time_study':
-            if not (perms['can_create'] or perms['can_update']):
-                messages.error(request, 'Bạn không có quyền tạo bấm giờ.')
-                return redirect('san_xuat:ie_hub')
-            from decimal import Decimal, InvalidOperation
-
-            from san_xuat.services.ie_ops import create_time_study
-
-            def _dec(key, default='0'):
-                raw = (request.POST.get(key) or '').strip()
-                if not raw:
-                    return Decimal(default)
-                try:
-                    return Decimal(raw)
-                except (InvalidOperation, ValueError) as exc:
-                    raise IeOpsError(f'Giá trị {key} không hợp lệ.') from exc
-
-            try:
-                study = create_time_study(
-                    op_code=(request.POST.get('ts_op_code') or '').strip(),
-                    op_name_vi=(request.POST.get('ts_op_name') or '').strip(),
-                    style_code=(request.POST.get('ts_style_code') or '').strip(),
-                    observed_cycle_sec=_dec('observed_cycle_sec'),
-                    abnormal_sec=_dec('abnormal_sec'),
-                    performance_rating=_dec('performance_rating', '1'),
-                    allowance_pct=_dec('allowance_pct'),
-                    current_routing_smv=_dec('current_routing_smv'),
-                )
-            except IeOpsError as exc:
-                messages.error(request, str(exc))
-                return redirect('san_xuat:ie_hub')
-            messages.success(
-                request,
-                f'Đã tạo bấm giờ {study.study_id} — SMV tính = {study.calculated_smv} phút.',
-            )
-            return redirect('san_xuat:ie_time_study_list')
-
-        if action == 'link_time_studies':
-            if not perms['can_update']:
-                messages.error(request, 'Bạn không có quyền gắn liên kết.')
-                return redirect('san_xuat:ie_hub')
-            stats = link_time_studies_to_operations(only_unlinked=True)
-            from san_xuat.services.ie_audit import log_ie_event
-
-            log_ie_event(
-                action=SxIeAuditLog.ACTION_LINK,
-                summary=f"Gắn FK time study → operation: {stats['linked']} quan sát",
-                object_type='SxTimeStudy',
-                object_repr='bulk_link',
-                changes=stats,
-                user=request.user,
-            )
-            messages.success(
-                request,
-                f"Đã gắn {stats['linked']} quan sát; bỏ qua {stats['skipped']}.",
-            )
-            return redirect('san_xuat:ie_hub')
-
     stats = {
-        'machines': SxMachine.objects.count(),
+        'machines': production_machine_count(),
         'stitch_classes': SxStitchClass.objects.count(),
         'skill_levels': SxSkillLevel.objects.count(),
         'smv_sources': SxSmvSource.objects.count(),
@@ -270,7 +207,6 @@ def ie_hub(request):
         'operations_approved': SxOperation.objects.filter(status=SxOperation.STATUS_APPROVED).count(),
         'routings': SxRouting.objects.count(),
         'routing_lines': SxRoutingLine.objects.count(),
-        'time_studies': SxTimeStudy.objects.count(),
     }
     routings = (
         SxRouting.objects.annotate(
@@ -283,6 +219,7 @@ def ie_hub(request):
         'stats': stats,
         'routings': routings,
         'operation_groups': SxOperationGroup.objects.filter(is_active=True).order_by('sort_order', 'code'),
+        'machines': ie_machine_options(),
     })
 
 
@@ -323,20 +260,7 @@ def group_list(request):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def machine_list(request):
-    qs = SxMachine.objects.annotate(n_ops=Count('operations')).all()
-    term = (request.GET.get('q') or '').strip()
-    if term:
-        qs = qs.filter(Q(code__icontains=term) | Q(name__icontains=term) | Q(notes__icontains=term))
-    qs = qs.order_by('sort_order', 'code')
-    page_obj, query_string = paginate_queryset(request, qs)
-    return render(request, 'san_xuat/ie_machine_list.html', {
-        **_perm_ctx(request),
-        'page_obj': page_obj,
-        'items': page_obj.object_list,
-        'query_string': query_string,
-        'term': term,
-        'total': qs.count(),
-    })
+    return redirect('equipment:device_list_production')
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
@@ -506,7 +430,7 @@ def operation_detail(request, pk: int):
         **perms,
         'op': op,
         'groups': SxOperationGroup.objects.filter(is_active=True).order_by('sort_order', 'code'),
-        'machines': SxMachine.objects.filter(is_active=True).order_by('sort_order', 'code'),
+        'machines': ie_machine_options(extra_code=op.machine_code),
         'skill_levels': SxSkillLevel.objects.filter(is_active=True).order_by('sort_order', 'code'),
         'process_stages': SxProcessStage.objects.filter(is_active=True).order_by('sort_order', 'code'),
         'stitch_classes': SxStitchClass.objects.filter(is_active=True).order_by('sort_order', 'code'),
@@ -637,7 +561,7 @@ def routing_detail(request, pk: int):
         'locked': locked,
         'high_var_count': len(high_var),
         'edit_line': edit_line,
-        'machines': SxMachine.objects.filter(is_active=True).order_by('sort_order', 'code')[:200],
+        'machines': ie_machine_options(extra_code=(edit_line.machine_code if edit_line else '')),
         'work_centers': work_centers,
         'default_work_center_code': '',
     })
@@ -645,79 +569,7 @@ def routing_detail(request, pk: int):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def time_study_list(request):
-    perms = _perm_ctx(request)
-
-    if request.method == 'POST':
-        action = (request.POST.get('action') or '').strip()
-        pk = request.POST.get('pk')
-        study = None
-        if pk and str(pk).isdigit():
-            study = SxTimeStudy.objects.filter(pk=int(pk)).first()
-        if not study:
-            messages.error(request, 'Không tìm thấy quan sát.')
-            return redirect('san_xuat:ie_time_study_list')
-
-        try:
-            if action == 'approve':
-                if not perms['can_approve']:
-                    raise IeOpsError('Bạn không có quyền duyệt bấm giờ (cần nhóm Approver IE).')
-                result = approve_time_study(
-                    study=study,
-                    update_routing=request.POST.get('update_routing') != '0',
-                    update_library=request.POST.get('update_library') == '1',
-                    variance_explanation=(request.POST.get('variance_explanation') or '').strip(),
-                    user=request.user,
-                )
-                msg = (
-                    f'Đã duyệt {result.study_id}. SMV mới {result.new_smv} phút '
-                    f'(n={result.sample_count}), cập nhật {result.routing_lines_updated} dòng routing'
-                )
-                if result.library_updated:
-                    msg += ', đã cập nhật thư viện'
-                messages.success(request, msg + '.')
-                for w in result.warnings:
-                    messages.warning(request, w)
-            elif action == 'reject':
-                if not perms['can_update']:
-                    raise IeOpsError('Bạn không có quyền từ chối quan sát.')
-                reject_time_study(study=study, status=SxTimeStudy.APPROVAL_REJECTED)
-                messages.success(request, f'Đã từ chối {study.study_id}.')
-            elif action == 'remeasure':
-                if not perms['can_update']:
-                    raise IeOpsError('Bạn không có quyền đánh dấu đo lại.')
-                reject_time_study(study=study, status=SxTimeStudy.APPROVAL_REMEASURE)
-                messages.success(request, f'Đánh dấu cần đo lại: {study.study_id}.')
-            else:
-                messages.error(request, 'Hành động không hợp lệ.')
-        except IeOpsError as exc:
-            messages.error(request, str(exc))
-        return redirect(request.get_full_path() if request.GET else 'san_xuat:ie_time_study_list')
-
-    qs = SxTimeStudy.objects.select_related('operation').all()
-    term = (request.GET.get('q') or '').strip()
-    if term:
-        qs = qs.filter(
-            Q(study_id__icontains=term)
-            | Q(op_code__icontains=term)
-            | Q(op_name_vi__icontains=term)
-            | Q(operator_id__icontains=term)
-            | Q(style_code__icontains=term)
-        )
-    status = (request.GET.get('status') or '').strip()
-    if status:
-        qs = qs.filter(approval_status=status)
-    qs = qs.order_by('op_code', 'obs_no', 'study_id')
-    page_obj, query_string = paginate_queryset(request, qs)
-    return render(request, 'san_xuat/ie_time_study_list.html', {
-        **perms,
-        'page_obj': page_obj,
-        'items': page_obj.object_list,
-        'query_string': query_string,
-        'term': term,
-        'status': status,
-        'status_choices': SxTimeStudy.APPROVAL_CHOICES,
-        'total': qs.count(),
-    })
+    return redirect('san_xuat:ie_hub')
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')

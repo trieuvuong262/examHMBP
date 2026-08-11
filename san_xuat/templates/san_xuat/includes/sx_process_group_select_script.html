@@ -1,0 +1,89 @@
+{# TomSelect nhóm công đoạn (không tìm ~50 CĐ chi tiết) #}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/css/tom-select.bootstrap5.min.css">
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/js/tom-select.complete.min.js"></script>
+<script>
+(function () {
+  function findWorkCenterSelect(processSel) {
+    var row = processSel.closest('tr');
+    if (!row) return null;
+    return row.querySelector('select[name$="-work_center"], select[id$="-work_center"], select.jp-sx-work-center-select');
+  }
+
+  function applyDefaultWorkCenter(processSel, wcId) {
+    if (!wcId) return;
+    var wcSel = findWorkCenterSelect(processSel);
+    if (!wcSel) return;
+    var current = wcSel.tomselect ? wcSel.tomselect.getValue() : wcSel.value;
+    if (current) return;
+    if (wcSel.tomselect) {
+      wcSel.tomselect.setValue(String(wcId));
+    } else {
+      var opt = wcSel.querySelector('option[value="' + wcId + '"]');
+      if (opt) wcSel.value = String(wcId);
+    }
+    wcSel.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
+  function cssEscape(value) {
+    if (window.CSS && typeof CSS.escape === 'function') return CSS.escape(value);
+    return String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  }
+
+  function defaultWcFromSelect(sel, value) {
+    if (!sel || !value) return '';
+    var raw = sel.querySelector('option[value="' + cssEscape(value) + '"]');
+    if (raw) return raw.getAttribute('data-default-work-center-id') || '';
+    if (sel.tomselect && sel.tomselect.options[value]) {
+      return sel.tomselect.options[value].default_work_center_id || '';
+    }
+    return '';
+  }
+
+  function initTomSelect(sel) {
+    if (!sel || sel.tomselect || typeof TomSelect === 'undefined') return;
+    new TomSelect(sel, {
+      maxOptions: 80,
+      maxItems: 1,
+      allowEmptyOption: true,
+      placeholder: sel.dataset.placeholder || 'Chọn nhóm công đoạn…',
+      dropdownParent: 'body',
+      openOnFocus: true,
+      create: false,
+      onChange: function (value) {
+        if (!value) return;
+        var opt = this.options[value] || {};
+        var wcId = opt.default_work_center_id || defaultWcFromSelect(sel, value);
+        if (wcId) applyDefaultWorkCenter(sel, wcId);
+      },
+      render: {
+        option: function (data, escape) {
+          return '<div>' + escape(data.text) + '</div>';
+        }
+      }
+    });
+    Array.prototype.forEach.call(sel.options || [], function (opt) {
+      if (!opt.value || !sel.tomselect) return;
+      var wc = opt.getAttribute('data-default-work-center-id');
+      if (wc && sel.tomselect.options[opt.value]) {
+        sel.tomselect.options[opt.value].default_work_center_id = wc;
+      }
+    });
+  }
+
+  function initAll() {
+    document.querySelectorAll('select.jp-sx-process-group-select').forEach(function (sel) {
+      initTomSelect(sel);
+    });
+  }
+
+  initAll();
+  window.jpSxInitProcessGroupSelects = initAll;
+
+  var addRowBtn = document.getElementById('add-process-row');
+  if (addRowBtn) {
+    addRowBtn.addEventListener('click', function () {
+      window.setTimeout(initAll, 0);
+    });
+  }
+})();
+</script>

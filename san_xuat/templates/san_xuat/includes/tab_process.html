@@ -6,7 +6,7 @@
             <input type="hidden" name="action" value="apply_routing">
             <div class="d-flex flex-wrap align-items-end gap-2">
                 <div class="flex-grow-1" style="min-width:14rem">
-                    <label class="form-label small text-muted mb-1">Routing IE <span class="text-danger">*</span></label>
+                    <label class="form-label small text-muted mb-1">Routing IE</label>
                     <select name="routing_id" id="id_routing_ie_select" class="form-select form-select-sm" required>
                         <option value="">— Chọn routing —</option>
                         {% for r in routing_choices %}
@@ -31,8 +31,36 @@
                     {% endif %}
                 </div>
             </div>
-            <div class="form-text mt-1">Áp routing kéo công đoạn từ IE; bộ phận chịu trách nhiệm map sang bộ phận HR phòng Sản xuất (có thể chỉnh lại bên dưới).</div>
+            <div class="form-check mt-2">
+                <input class="form-check-input" type="checkbox" name="by_group" value="1" id="id_apply_by_group" checked>
+                <label class="form-check-label small" for="id_apply_by_group">Gộp theo nhóm công đoạn</label>
+            </div>
+            <div class="form-text mt-1">Áp routing gộp theo nhóm (Cắt, In-Ép, May…) thay vì từng công đoạn chi tiết. Bỏ tick nếu cần kéo đủ dòng IE.</div>
         </form>
+
+        {% if process_groups %}
+        <form method="post" class="mb-3 p-2 bg-light rounded border" data-loading-message="Đang thêm nhóm công đoạn…">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="apply_process_groups">
+            <div class="small text-muted mb-2">Chọn nhóm công đoạn (không cần chọn từng CĐ trong thư viện):</div>
+            <div class="d-flex flex-wrap gap-3 mb-2">
+                {% for g in process_groups %}
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="group_code" value="{{ g.code }}"
+                           id="grp-{{ g.code }}" {% if g.selected %}checked{% endif %}>
+                    <label class="form-check-label" for="grp-{{ g.code }}">{{ g.name }}</label>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" name="replace_steps" value="1" id="id_replace_steps">
+                <label class="form-check-label small" for="id_replace_steps">Xóa công đoạn chi tiết hiện có, chỉ giữ nhóm đã chọn</label>
+            </div>
+            <button type="submit" class="btn btn-sm btn-outline-hm">
+                <i class="bi bi-plus-lg me-1"></i>Thêm nhóm đã chọn
+            </button>
+        </form>
+        {% endif %}
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/css/tom-select.bootstrap5.min.css">
         <script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/js/tom-select.complete.min.js"></script>
         <script>
@@ -72,7 +100,7 @@
                     <thead class="table-light">
                         <tr>
                             <th>TT <span class="text-danger">*</span></th>
-                            <th style="min-width:11rem">Công đoạn <span class="text-danger">*</span></th>
+                            <th style="min-width:11rem">Nhóm công đoạn <span class="text-danger">*</span></th>
                             <th style="min-width:10rem">Bộ phận chịu trách nhiệm</th>
                             <th>Định mức (cái/giờ) <span class="text-danger">*</span></th>
                             <th>Chi phí giờ</th>
@@ -159,14 +187,14 @@
             });
         })();
         </script>
-        {% include 'san_xuat/includes/sx_process_select_script.html' %}
+        {% include 'san_xuat/includes/sx_process_group_select_script.html' %}
         {% else %}
         <div class="table-responsive">
             <table class="table table-sm align-middle mb-0">
                 <thead class="table-light">
                     <tr>
                         <th>TT</th>
-                        <th>Công đoạn</th>
+                        <th>Nhóm công đoạn</th>
                         <th>Bộ phận chịu trách nhiệm</th>
                         <th>Mã CĐ</th>
                         <th class="text-end">Định mức/giờ</th>

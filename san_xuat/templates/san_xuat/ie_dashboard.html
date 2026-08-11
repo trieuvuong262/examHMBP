@@ -42,18 +42,6 @@
       </a>
     </div>
     <div class="col-6 col-lg-3">
-      <a href="{% url 'san_xuat:ie_time_study_list' %}" class="text-decoration-none text-reset">
-        <div class="border rounded-3 p-3 h-100 border-start border-4 border-primary">
-          <div class="text-muted small">Bấm giờ (time study)</div>
-          <div class="fs-4 fw-semibold text-primary">{{ time_studies }}</div>
-          <div class="small text-muted">Gắn FK {{ time_studies_linked }}/{{ time_studies }} · {{ ts_link_pct }}%</div>
-          <div class="progress mt-2" style="height:.35rem">
-            <div class="progress-bar bg-primary" style="width:{{ ts_link_pct }}%"></div>
-          </div>
-        </div>
-      </a>
-    </div>
-    <div class="col-6 col-lg-3">
       <div class="border rounded-3 p-3 h-100 border-start border-4 {% if high_var_count or zero_smv_lines or pending_ops %}border-danger{% else %}border-secondary{% endif %}">
         <div class="text-muted small">Cần xử lý</div>
         <div class="fs-4 fw-semibold {% if high_var_count or pending_ops %}text-danger{% else %}text-hm{% endif %}">
@@ -85,17 +73,13 @@
           <div class="border rounded-3 p-3 h-100 jp-sx-chart-card">
             <div class="fw-semibold mb-2">Trạng thái duyệt</div>
             <div class="row g-2">
-              <div class="col-4">
+              <div class="col-6">
                 <div class="small text-muted text-center mb-1">OP</div>
                 <div class="sx-chart-wrap" style="height:120px"><canvas id="ieOpStatusChart"></canvas></div>
               </div>
-              <div class="col-4">
+              <div class="col-6">
                 <div class="small text-muted text-center mb-1">Routing</div>
                 <div class="sx-chart-wrap" style="height:120px"><canvas id="ieRoutingStatusChart"></canvas></div>
-              </div>
-              <div class="col-4">
-                <div class="small text-muted text-center mb-1">Time study</div>
-                <div class="sx-chart-wrap" style="height:120px"><canvas id="ieTsStatusChart"></canvas></div>
               </div>
             </div>
           </div>
@@ -105,7 +89,7 @@
             <div class="fw-semibold mb-2">Thư viện nhanh</div>
             <div class="d-flex flex-wrap gap-2">
               <a href="{% url 'san_xuat:ie_group_list' %}" class="badge rounded-pill text-bg-light border text-decoration-none px-3 py-2">{{ groups }} nhóm</a>
-              <a href="{% url 'san_xuat:ie_machine_list' %}" class="badge rounded-pill text-bg-light border text-decoration-none px-3 py-2">Máy móc</a>
+              <a href="{% url 'equipment:device_list_production' %}" class="badge rounded-pill text-bg-light border text-decoration-none px-3 py-2">Máy</a>
               <a href="{% url 'san_xuat:ie_operation_list' %}?status=draft" class="badge rounded-pill {% if pending_ops %}text-bg-warning{% else %}text-bg-light border{% endif %} text-decoration-none px-3 py-2">{{ pending_ops }} OP chờ duyệt</a>
               <a href="{% url 'san_xuat:ie_routing_list' %}" class="badge rounded-pill {% if pending_routings %}text-bg-warning{% else %}text-bg-light border{% endif %} text-decoration-none px-3 py-2">{{ pending_routings }} routing chờ</a>
             </div>
@@ -195,7 +179,6 @@
   const otherSmv = {{ chart_other_smv_json|safe }};
   const opStatus = {{ chart_op_status_json|safe }};
   const routingStatus = {{ chart_routing_status_json|safe }};
-  const tsStatus = {{ chart_ts_status_json|safe }};
 
   const red = '#dc2626', green = '#16a34a', slate = '#94a3b8', amber = '#f59e0b', blue = '#2563eb';
 
@@ -263,7 +246,6 @@
 
   doughnut('ieOpStatusChart', ['Đã duyệt', 'Chưa duyệt'], opStatus, [green, amber]);
   doughnut('ieRoutingStatusChart', ['Đã duyệt', 'Chưa duyệt'], routingStatus, [green, amber]);
-  doughnut('ieTsStatusChart', ['Đã duyệt', 'Chờ', 'Khác'], tsStatus, [green, amber, slate]);
 })();
 </script>
 {% endblock %}

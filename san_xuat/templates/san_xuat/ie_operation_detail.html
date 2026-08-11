@@ -85,11 +85,11 @@
           </select>
         </div>
         <div class="col-md-4">
-          <label class="form-label small mb-1">Máy móc</label>
+          <label class="form-label small mb-1">Máy</label>
           <select name="machine_code" class="form-select form-select-sm ie-ts" {% if not can_update %}disabled{% endif %}>
             <option value="">— Không chọn —</option>
             {% for m in machines %}
-            <option value="{{ m.code }}" {% if m.code == op.machine_code %}selected{% endif %}>{{ m.name }}</option>
+            <option value="{{ m.code }}" {% if m.code == op.machine_code %}selected{% endif %}>{{ m.code }} — {{ m.name }}</option>
             {% endfor %}
           </select>
         </div>
@@ -195,7 +195,6 @@
     </div>
   </div>
 
-  {% include 'san_xuat/includes/ie_smv_glossary.html' %}
 </div>
 
 <style>

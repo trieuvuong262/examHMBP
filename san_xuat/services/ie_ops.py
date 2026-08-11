@@ -551,21 +551,46 @@ def update_operation(
     return operation
 
 
+def _routing_line_group(line: SxRoutingLine) -> tuple[str, str]:
+    """Mã + tên nhóm công đoạn của một dòng routing."""
+    op = line.operation
+    if op is not None and op.group_id:
+        grp = op.group
+        return (grp.code or '').strip(), (grp.name or grp.code or '').strip()
+    code = (line.group_code or '').strip()
+    if code:
+        grp = SxOperationGroup.objects.filter(code__iexact=code).first()
+        if grp:
+            return (grp.code or '').strip(), (grp.name or grp.code or '').strip()
+        return code, code
+    name = (line.op_name_vi or line.op_code or '').strip()
+    return name, name
+
+
 @transaction.atomic
-def apply_routing_to_bom(*, bom: BomVersion, routing: SxRouting, replace: bool = True) -> ApplyRoutingResult:
+def apply_routing_to_bom(
+    *,
+    bom: BomVersion,
+    routing: SxRouting,
+    replace: bool = True,
+    by_group: bool = False,
+) -> ApplyRoutingResult:
     """Gắn routing vào BOM và đồng bộ ProcessStep từ dòng routing.
 
     - std_time_minutes = tổng SMV công đoạn (qty × SMV áp dụng)
     - norm_per_hour = 60 / SMV áp dụng (cái/giờ trên 1 đơn vị cơ sở)
     - Routing trống: chỉ gắn BOM, giữ nguyên công đoạn hiện có (nhập tay).
     - Phát hành: SMV áp dụng phải > 0 trên mọi dòng có công đoạn.
+    - by_group=True: gộp thành một bước BOM theo nhóm công đoạn (không tạo ~50 CĐ).
     """
     if bom is None:
         raise IeOpsError('Thiếu BOM.')
     if routing is None:
         raise IeOpsError('Thiếu routing.')
 
-    lines = list(routing.lines.select_related('operation', 'work_center').order_by('seq_no'))
+    lines = list(
+        routing.lines.select_related('operation__group', 'work_center').order_by('seq_no')
+    )
     result = ApplyRoutingResult(routing_id=routing.routing_id)
     bom.routing = routing
     bom.save(update_fields=['routing', 'updated_at'])
@@ -585,6 +610,68 @@ def apply_routing_to_bom(*, bom: BomVersion, routing: SxRouting, replace: bool =
                 f'({", ".join(zero_smv[:5])}{"…" if len(zero_smv) > 5 else ""}).'
             )
         bom.process_steps.all().delete()
+
+    if by_group:
+        buckets: dict[str, list[SxRoutingLine]] = {}
+        order: list[str] = []
+        for line in lines:
+            code, name = _routing_line_group(line)
+            if not name:
+                result.warnings.append(f'Bỏ qua seq {line.seq_no}: thiếu nhóm/tên công đoạn.')
+                continue
+            key = (code or name).casefold()
+            if key not in buckets:
+                buckets[key] = []
+                order.append(key)
+            buckets[key].append(line)
+
+        seq = 0
+        for key in order:
+            glines = buckets[key]
+            _code, name = _routing_line_group(glines[0])
+            ensure_process_name(name)
+            seq += 10
+            applied_sum = sum(
+                (ln.applied_unit_smv or Decimal('0')) * (ln.qty_per_garment or Decimal('1'))
+                for ln in glines
+            )
+            total_smv = sum((ln.total_operation_smv or Decimal('0')) for ln in glines)
+            if applied_sum > 0:
+                norm = _q(Decimal('60') / applied_sum, '0.01')
+                if norm < Decimal('0.01'):
+                    norm = Decimal('0.01')
+            else:
+                norm = Decimal('0.01')
+                result.warnings.append(f'{name}: SMV = 0 → đặt định mức tối thiểu 0.01 cái/giờ.')
+
+            wc = None
+            for ln in glines:
+                wc = map_ie_center_to_hr(ln.work_center)
+                if wc:
+                    break
+            if wc is None:
+                grp = SxOperationGroup.objects.filter(code__iexact=_code).select_related(
+                    'default_work_center'
+                ).first() if _code else None
+                if grp:
+                    wc = map_ie_center_to_hr(grp.default_work_center)
+
+            ProcessStep.objects.create(
+                bom=bom,
+                sequence=seq,
+                process_name=name[:120],
+                operation=None,
+                op_code=(_code or '')[:30],
+                routing_line=glines[0],
+                norm_per_hour=norm,
+                std_time_minutes=_q(total_smv, '0.01'),
+                work_center=wc,
+                cost_per_hour=Decimal('0'),
+                piece_rate=Decimal('0'),
+                notes=f'IE nhóm {name} ({len(glines)} CĐ)'[:255],
+            )
+            result.steps_created += 1
+        return result
 
     for line in lines:
         name = (line.op_name_vi or line.op_code or '').strip()

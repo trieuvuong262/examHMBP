@@ -261,8 +261,19 @@ def doc_detail(request, pk):
             if not routing:
                 messages.error(request, 'Chưa chọn routing hợp lệ.')
             else:
+                by_group = (request.POST.get('by_group') or '').strip().lower() in (
+                    '1',
+                    'on',
+                    'true',
+                    'yes',
+                )
                 try:
-                    result = apply_routing_to_bom(bom=bom, routing=routing, replace=True)
+                    result = apply_routing_to_bom(
+                        bom=bom,
+                        routing=routing,
+                        replace=True,
+                        by_group=by_group,
+                    )
                 except IeOpsError as exc:
                     messages.error(request, str(exc))
                 else:
@@ -272,12 +283,31 @@ def doc_detail(request, pk):
                             f'Đã gắn {result.routing_id} vào BOM (routing trống — giữ công đoạn hiện có).',
                         )
                     else:
+                        kind = 'nhóm công đoạn' if by_group else 'công đoạn'
                         messages.success(
                             request,
-                            f'Đã áp {result.routing_id}: tạo {result.steps_created} công đoạn BOM.',
+                            f'Đã áp {result.routing_id}: tạo {result.steps_created} {kind} BOM.',
                         )
                     for w in result.warnings[:10]:
                         messages.warning(request, w)
+            return redirect(f'{request.path}?tab=process&bom={bom.pk}')
+        elif bom and action == 'apply_process_groups' and tab == 'process':
+            from san_xuat.services.process_catalog import apply_process_groups_to_bom
+
+            codes = request.POST.getlist('group_code')
+            replace = (request.POST.get('replace_steps') or '').strip().lower() in (
+                '1',
+                'on',
+                'true',
+                'yes',
+            )
+            created = apply_process_groups_to_bom(bom, codes, replace=replace)
+            if not codes:
+                messages.error(request, 'Chưa chọn nhóm công đoạn.')
+            elif created:
+                messages.success(request, f'Đã thêm {created} nhóm công đoạn vào BOM.')
+            else:
+                messages.info(request, 'Các nhóm đã chọn đã có trên BOM.')
             return redirect(f'{request.path}?tab=process&bom={bom.pk}')
         elif action == 'new_bom' and can_update:
             copy_flag = (request.POST.get('copy') or '').strip() in ('1', 'true', 'yes', 'on')
@@ -397,7 +427,11 @@ def doc_detail(request, pk):
     skus_active_count = sum(1 for s in skus if s.is_active)
 
     routing_choices = []
+    process_groups = []
+    selected_group_codes = set()
     if tab == 'process' and bom:
+        from san_xuat.services.process_catalog import process_group_rows
+
         routing_choices = list(
             SxRouting.objects.filter(is_active=True)
             .annotate(n_lines=Count('lines'))
@@ -415,6 +449,16 @@ def doc_detail(request, pk):
                 .annotate(n_lines=Count('lines'))
                 .order_by('style_code', 'routing_rev')[:80]
             )
+        process_groups = process_group_rows()
+        for step in bom.process_steps.all():
+            if step.op_code:
+                selected_group_codes.add(step.op_code.upper())
+            if step.process_name:
+                selected_group_codes.add(step.process_name.casefold())
+        for grp in process_groups:
+            code = (grp.get('code') or '').upper()
+            name = (grp.get('name') or '').casefold()
+            grp['selected'] = code in selected_group_codes or name in selected_group_codes
 
     return render(request, 'san_xuat/doc_detail.html', {
         'doc': doc,
@@ -438,6 +482,8 @@ def doc_detail(request, pk):
         'colors': colors,
         'sizes': sizes,
         'routing_choices': routing_choices,
+        'process_groups': process_groups,
+        'selected_group_codes': selected_group_codes,
         **_perm_ctx(request),
     })
 
