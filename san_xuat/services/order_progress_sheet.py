@@ -256,7 +256,19 @@ def build_progress_sheet(
         cells = matrix.get(row.size_label, {})
         done_vals = [cells[s.key].done if s.key in cells else Decimal('0') for s in steps]
         rem_vals = [cells[s.key].remaining if s.key in cells else row.qty for s in steps]
-        done_rows.append({'size_label': row.size_label, 'qty': row.qty, 'values': done_vals})
+        done_rows.append({
+            'size_label': row.size_label,
+            'qty': row.qty,
+            'values': done_vals,
+            'cells': [
+                {
+                    'key': s.key,
+                    'done': cells[s.key].done if s.key in cells else Decimal('0'),
+                    'remain': cells[s.key].remaining if s.key in cells else row.qty,
+                }
+                for s in steps
+            ],
+        })
         remain_rows.append({'size_label': row.size_label, 'qty': row.qty, 'values': rem_vals})
 
     daily_display: list[dict] = []
@@ -382,6 +394,92 @@ def record_progress_qty(
         mo.save(update_fields=['status'])
     _recompute_mo_progress(mo)
     return stat
+
+
+def _confirmed_stats_for_cell(*, mo, step, size: str):
+    from django.db.models import Q
+
+    qs = SxProductionStat.objects.filter(
+        production_order=mo,
+        is_demo=False,
+        status=SxProductionStat.STATUS_CONFIRMED,
+        process_name__iexact=step.label,
+    )
+    if not size:
+        qs = qs.filter(Q(size_label='') | Q(size_label__iexact='Tổng'))
+    else:
+        qs = qs.filter(size_label__iexact=size)
+    return qs.order_by('-stat_date', '-pk')
+
+
+@transaction.atomic
+def set_progress_done_qty(
+    *,
+    mo_id: int,
+    process_key: str,
+    size_label: str,
+    qty: Decimal,
+    user=None,
+) -> dict:
+    """Đặt tổng SL thực hiện của một ô (size × công đoạn) — không cộng dồn."""
+    from django.db.models import Sum
+
+    from san_xuat.services.dispatch import _recompute_mo_progress
+
+    step = step_by_key(process_key)
+    if not step:
+        raise PlanningError('Công đoạn không thuộc mẫu cố định.')
+    qty = _q(qty)
+    if qty < 0:
+        raise PlanningError('SL không được âm.')
+
+    mo = SxProductionOrder.objects.select_for_update().get(pk=mo_id, is_demo=False)
+    if mo.status == SxProductionOrder.STATUS_CANCELLED:
+        raise PlanningError('Lệnh sản xuất đã hủy.')
+    if mo.status == SxProductionOrder.STATUS_DRAFT:
+        raise PlanningError('Lệnh sản xuất còn nháp — phát hành trước khi ghi tiến độ.')
+
+    size = (size_label or '').strip()
+    if size == 'Tổng':
+        size = ''
+
+    current = _q(
+        _confirmed_stats_for_cell(mo=mo, step=step, size=size)
+        .aggregate(t=Sum('qty_good'))
+        .get('t')
+    )
+    if qty == current:
+        return {'done': current, 'changed': False}
+
+    if qty > current:
+        record_progress_qty(
+            mo_id=mo.pk,
+            process_key=process_key,
+            size_label=size_label,
+            qty=qty - current,
+            user=user,
+        )
+    else:
+        need_cut = current - qty
+        for stat in _confirmed_stats_for_cell(mo=mo, step=step, size=size):
+            if need_cut <= 0:
+                break
+            good = _q(stat.qty_good)
+            if good <= need_cut:
+                need_cut -= good
+                stat.delete()
+            else:
+                stat.qty_good = good - need_cut
+                stat.save(update_fields=['qty_good'])
+                need_cut = Decimal('0')
+        _recompute_mo_progress(mo)
+
+    done = _q(
+        _confirmed_stats_for_cell(mo=mo, step=step, size=size)
+        .aggregate(t=Sum('qty_good'))
+        .get('t')
+    )
+    return {'done': done, 'changed': True}
 
 
 def seed_order_plan_steps_from_template(order) -> list:

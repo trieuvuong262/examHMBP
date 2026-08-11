@@ -52,10 +52,9 @@
     color: var(--tw-muted); font-size: .72rem; font-weight: 700;
   }
   .jp-tw-stat-pill strong { color: var(--tw-ink); font-weight: 800; }
-  a.jp-tw-stat-pill {
-    border-color: #99f6e4; background: var(--tw-accent-soft); color: #0f766e;
+  .jp-tw-job-actions {
+    display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .5rem;
   }
-  a.jp-tw-stat-pill:hover { background: #99f6e4; color: #115e59; }
   .jp-tw-steps { list-style: none; margin: 0; padding: 0; }
   .jp-tw-step {
     display: grid;
@@ -89,14 +88,7 @@
   }
   .jp-tw-chip i { font-size: .72rem; color: var(--tw-muted); }
   .jp-tw-empty { color: var(--tw-muted); font-size: .8rem; }
-  .jp-tw-assign-btn {
-    display: inline-flex; align-items: center; gap: .35rem;
-    border: 1px solid var(--tw-line); background: #fff; color: var(--tw-ink);
-    border-radius: .65rem; padding: .35rem .7rem; font-size: .78rem; font-weight: 700;
-    white-space: nowrap;
-  }
-  .jp-tw-assign-btn:hover { border-color: #99f6e4; background: var(--tw-accent-soft); color: var(--tw-accent); }
-  .jp-tw-assign-btn.is-filled { border-color: #99f6e4; background: var(--tw-accent-soft); color: #0f766e; }
+  .jp-tw-step .btn { white-space: nowrap; }
   .jp-tw-empty-board {
     border: 1px dashed var(--tw-line); border-radius: 1rem;
     padding: 2.5rem 1rem; text-align: center; color: var(--tw-muted); background: #fff;
@@ -104,14 +96,21 @@
   .jp-tw-modal .modal-dialog {
     max-width: min(42rem, calc(100vw - 1.5rem));
     width: 100%;
+    margin: 1.25rem auto;
   }
-  .jp-tw-modal .modal-content { border: 0; border-radius: 1rem; overflow: hidden; }
+  .jp-tw-modal .modal-content {
+    border: 0; border-radius: 1rem; overflow: visible;
+    min-height: min(36rem, calc(100vh - 2.5rem));
+  }
   .jp-tw-modal .modal-header {
     background: var(--tw-soft); border-bottom: 1px solid var(--tw-line);
-    padding: 1rem 1.15rem;
+    padding: 1rem 1.15rem; border-radius: 1rem 1rem 0 0;
   }
   .jp-tw-modal .modal-title { font-size: 1rem; font-weight: 700; }
-  .jp-tw-modal .modal-body { padding: 1.15rem; }
+  .jp-tw-modal .modal-body {
+    padding: 1.15rem 1.15rem 1.5rem;
+    min-height: 18rem;
+  }
   .jp-tw-modal .jp-tw-modal-meta { color: var(--tw-muted); font-size: .84rem; margin: 0 0 1rem; }
   .jp-tw-modal .ts-wrapper.form-select { padding: 0; border: 0; min-height: 0; }
   .jp-tw-modal .ts-control {
@@ -119,12 +118,22 @@
     min-height: 2.75rem; padding: .45rem .65rem !important; box-shadow: none !important;
   }
   .jp-tw-modal .ts-control:focus-within {
-    border-color: #5eead4 !important;
-    box-shadow: 0 0 0 .2rem rgba(15,118,110,.12) !important;
+    border-color: #fecaca !important;
+    box-shadow: 0 0 0 .2rem rgba(220,38,38,.12) !important;
   }
   .jp-tw-modal .ts-control .item {
-    background: var(--tw-accent-soft) !important; color: #115e59 !important;
+    background: #fee2e2 !important; color: #991b1b !important;
     border: 0 !important; border-radius: 999px !important; font-weight: 600;
+  }
+  body > .ts-dropdown.jp-tw-dropdown {
+    z-index: 2000 !important;
+    max-height: min(22rem, 50vh) !important;
+    border: 1px solid var(--tw-line, #e8edf3) !important;
+    border-radius: .75rem !important;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, .14) !important;
+  }
+  body > .ts-dropdown.jp-tw-dropdown .ts-dropdown-content {
+    max-height: min(22rem, 50vh) !important;
   }
   @media (max-width: 767.98px) {
     .jp-tw-step {
@@ -138,7 +147,7 @@
     .jp-tw-step > .jp-tw-status-wrap { grid-area: status; justify-self: end; }
     .jp-tw-step > .jp-tw-people,
     .jp-tw-step > .jp-tw-empty { grid-area: people; }
-    .jp-tw-step > .jp-tw-assign-btn { grid-area: action; justify-self: start; }
+    .jp-tw-step > .btn { grid-area: action; justify-self: start; }
   }
 </style>
 {% endblock %}
@@ -197,12 +206,10 @@
             {% if job.mo.qty %} · SL {{ job.mo.qty|sx_num }}{% endif %}
           </div>
         </div>
-        <div class="jp-tw-job-stats">
+        <div class="jp-tw-job-actions">
           <a href="{% url 'san_xuat:team_work_progress' team.slug job.mo.pk %}"
-             class="jp-tw-stat-pill text-decoration-none"
-             title="Xem tiến độ tổ {{ team.label }}">
-            <i class="bi bi-bar-chart-steps"></i> Tiến độ
-          </a>
+             class="btn btn-hm btn-sm fw-bold"
+             title="Xem tiến độ tổ {{ team.label }}">Tiến độ</a>
           <span class="jp-tw-stat-pill">Đã gán <strong>{{ job.assigned_count }}</strong>/{{ job.step_count }}</span>
           {% if job.run_count %}<span class="jp-tw-stat-pill">Đang làm <strong>{{ job.run_count }}</strong></span>{% endif %}
           {% if job.done_count %}<span class="jp-tw-stat-pill">Xong <strong>{{ job.done_count }}</strong></span>{% endif %}
@@ -240,9 +247,9 @@
           </div>
           {% if can_assign %}
           <button type="button"
-                  class="jp-tw-assign-btn{% if row.assignees %} is-filled{% endif %}"
+                  class="btn btn-sm {% if row.assignees %}btn-hm{% else %}btn-outline-hm{% endif %} fw-bold"
                   data-jp-tw-assign>
-            <i class="bi bi-people"></i>{% if row.assignees %}Đổi{% else %}Phân công{% endif %}
+            {% if row.assignees %}Đổi{% else %}Phân công{% endif %}
           </button>
           {% endif %}
         </li>
@@ -284,10 +291,8 @@
         </p>
       </div>
       <div class="modal-footer border-0 pt-0 px-3 pb-3">
-        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Hủy</button>
-        <button type="submit" class="btn btn-hm fw-bold">
-          <i class="bi bi-check2 me-1"></i>Lưu phân công
-        </button>
+        <button type="button" class="btn btn-outline-hm" data-bs-dismiss="modal">Hủy</button>
+        <button type="submit" class="btn btn-hm fw-bold">Lưu phân công</button>
       </div>
     </form>
   </div>
@@ -311,6 +316,8 @@
     persist: false,
     closeAfterSelect: false,
     placeholder: 'Tìm và chọn nhân viên…',
+    dropdownParent: 'body',
+    dropdownClass: 'ts-dropdown jp-tw-dropdown',
     render: {
       no_results: function () {
         return '<div class="no-results">Không tìm thấy nhân viên</div>';

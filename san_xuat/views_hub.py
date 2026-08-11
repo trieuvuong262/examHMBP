@@ -3945,14 +3945,13 @@ def team_work_board(request, slug: str):
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def team_work_progress(request, slug: str, mo_id: int):
     """Phiếu tiến độ theo tổ — xem/ghi SL công đoạn của tổ, không cần vào KHSX."""
-    from datetime import date as date_cls
     from decimal import Decimal, InvalidOperation
 
     from san_xuat.hub_models import SxProductionOrder
     from san_xuat.services.order_progress_sheet import (
         build_progress_sheet,
         ensure_progress_work_centers,
-        record_progress_qty,
+        set_progress_done_qty,
     )
     from san_xuat.services.planning import PlanningError
     from san_xuat.services.progress_template import steps_for_group, team_by_slug
@@ -3992,35 +3991,64 @@ def team_work_progress(request, slug: str, mo_id: int):
     ensure_progress_work_centers()
 
     if request.method == 'POST' and can_update:
+        from django.http import JsonResponse
+
         action = (request.POST.get('action') or '').strip()
-        if action == 'record':
+        wants_json = (
+            request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+            or 'application/json' in (request.headers.get('Accept') or '')
+        )
+        if action in ('record', 'set_done'):
             process_key = (request.POST.get('process_key') or '').strip()
-            if process_key not in allowed_keys:
-                messages.error(request, 'Công đoạn không thuộc tổ này.')
-                return redirect('san_xuat:team_work_progress', slug=slug, mo_id=mo.pk)
+            size_label = (request.POST.get('size_label') or '').strip()
             try:
                 qty = Decimal(str(request.POST.get('qty') or '0').replace(',', '').strip() or '0')
             except (InvalidOperation, ValueError):
                 qty = Decimal('0')
-            raw_date = (request.POST.get('stat_date') or '').strip()
+            if process_key not in allowed_keys:
+                msg = 'Công đoạn không thuộc tổ này.'
+                if wants_json:
+                    return JsonResponse({'ok': False, 'error': msg}, status=400)
+                messages.error(request, msg)
+                return redirect('san_xuat:team_work_progress', slug=slug, mo_id=mo.pk)
             try:
-                stat_date = date_cls.fromisoformat(raw_date) if raw_date else None
-            except ValueError:
-                stat_date = None
-            try:
-                record_progress_qty(
+                result = set_progress_done_qty(
                     mo_id=mo.pk,
                     process_key=process_key,
-                    size_label=(request.POST.get('size_label') or '').strip(),
+                    size_label=size_label,
                     qty=qty,
-                    stat_date=stat_date,
                     user=request.user,
                 )
-                messages.success(request, 'Đã ghi SL tiến độ.')
             except PlanningError as exc:
+                if wants_json:
+                    return JsonResponse({'ok': False, 'error': str(exc)}, status=400)
                 messages.error(request, str(exc))
+                return redirect('san_xuat:team_work_progress', slug=slug, mo_id=mo.pk)
             except Exception as exc:
+                if wants_json:
+                    return JsonResponse({'ok': False, 'error': str(exc)}, status=400)
                 messages.error(request, str(exc))
+                return redirect('san_xuat:team_work_progress', slug=slug, mo_id=mo.pk)
+            if wants_json:
+                plan_qty = Decimal('0')
+                for row in build_progress_sheet(mo, group_key=group_key).done_rows:
+                    if row['size_label'] == size_label or (
+                        size_label == 'Tổng' and row['size_label'] == 'Tổng'
+                    ):
+                        plan_qty = Decimal(str(row['qty'] or 0))
+                        break
+                done = Decimal(str(result['done'] or 0))
+                remain = plan_qty - done
+                if remain < 0:
+                    remain = Decimal('0')
+                return JsonResponse({
+                    'ok': True,
+                    'changed': result['changed'],
+                    'done': str(done),
+                    'remain': str(remain),
+                })
+            if result['changed']:
+                messages.success(request, 'Đã cập nhật SL thực hiện.')
             return redirect('san_xuat:team_work_progress', slug=slug, mo_id=mo.pk)
 
     sheet = build_progress_sheet(mo, group_key=group_key)
