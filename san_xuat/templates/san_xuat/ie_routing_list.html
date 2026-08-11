@@ -82,7 +82,7 @@
 <div class="modal fade" id="ieAddRoutingModal" tabindex="-1" aria-labelledby="ieAddRoutingModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
-      <form method="post">
+      <form method="post" novalidate>
         {% csrf_token %}
         <input type="hidden" name="action" value="create_routing">
         <div class="modal-header">
@@ -91,12 +91,17 @@
         </div>
         <div class="modal-body">
           <div class="mb-2">
-            <label class="form-label small text-muted mb-1">Mã hàng <span class="text-danger">*</span></label>
-            <input type="text" name="style_code" class="form-control form-control-sm" required maxlength="60" placeholder="VD: JP-JK-TRACK-EX">
+            <label class="form-label small text-muted mb-1" for="ieAddRoutingStyleCode">Mã hàng <span class="text-danger">*</span></label>
+            <select name="style_code" id="ieAddRoutingStyleCode" class="form-select form-select-sm jp-sx-product-code-select" required
+                    data-placeholder="Gõ mã SX hoặc tên sản phẩm…"
+                    data-fill-name="#ieAddRoutingStyleName"
+                    data-item-label="text">
+              <option value="">— Chọn mã hàng (kho SP) —</option>
+            </select>
           </div>
           <div class="mb-2">
-            <label class="form-label small text-muted mb-1">Tên mã hàng</label>
-            <input type="text" name="style_name" class="form-control form-control-sm" maxlength="255" placeholder="Tuỳ chọn">
+            <label class="form-label small text-muted mb-1" for="ieAddRoutingStyleName">Tên mã hàng</label>
+            <input type="text" name="style_name" id="ieAddRoutingStyleName" class="form-control form-control-sm" maxlength="255" placeholder="Tự điền khi chọn mã">
           </div>
           <div>
             <label class="form-label small text-muted mb-1">Phiên bản</label>
@@ -111,6 +116,22 @@
     </div>
   </div>
 </div>
+{% include 'san_xuat/includes/sx_product_code_select_script.html' %}
+<style>
+  .ts-dropdown { z-index: 2000; }
+</style>
+<script>
+(function () {
+  var modal = document.getElementById('ieAddRoutingModal');
+  if (!modal) return;
+  modal.addEventListener('shown.bs.modal', function () {
+    var sel = document.getElementById('ieAddRoutingStyleCode');
+    if (!sel) return;
+    if (!sel.tomselect && window.jpInitProductCodeSelect) window.jpInitProductCodeSelect(sel);
+    if (sel.tomselect) sel.tomselect.focus();
+  });
+})();
+</script>
 {% endif %}
 
 {% if can_update %}

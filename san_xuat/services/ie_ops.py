@@ -213,8 +213,18 @@ def create_blank_routing(
     if SxRouting.objects.filter(routing_id=rid).exists():
         raise IeOpsError(f'Routing {rid} đã tồn tại.')
 
+    if tech_doc is None:
+        from san_xuat.models import ProductTechDoc
+
+        tech_doc = ProductTechDoc.objects.filter(product_code__iexact=style).first()
     if not style_name and tech_doc is not None:
         style_name = (getattr(tech_doc, 'product_name', None) or '')[:255]
+    if not style_name:
+        from san_xuat.services.products import resolve_product_ref
+
+        ref = resolve_product_ref(style)
+        if ref:
+            style_name = ref.name
 
     return SxRouting.objects.create(
         routing_id=rid,

@@ -88,7 +88,25 @@ def _create_routing_from_post(request, *, fail_redirect: str):
     style_name = (request.POST.get('style_name') or '').strip()
     routing_rev = (request.POST.get('routing_rev') or 'R01').strip() or 'R01'
     if not style_code:
-        messages.error(request, 'Nhập mã hàng.')
+        messages.error(request, 'Chọn mã hàng từ kho sản phẩm.')
+        return redirect(fail_redirect)
+    from san_xuat.models import ProductTechDoc
+    from san_xuat.services.products import resolve_product_ref
+
+    ref = resolve_product_ref(style_code)
+    tech_doc = ProductTechDoc.objects.filter(product_code__iexact=style_code).first()
+    if ref:
+        style_code = ref.code
+        if not style_name:
+            style_name = ref.name
+        if tech_doc is None:
+            tech_doc = ProductTechDoc.objects.filter(product_code__iexact=ref.code).first()
+    elif tech_doc:
+        style_code = tech_doc.product_code
+        if not style_name:
+            style_name = tech_doc.product_name
+    else:
+        messages.error(request, f'Mã hàng {style_code} không có trong kho sản phẩm.')
         return redirect(fail_redirect)
     seed = f'{style_code}-{routing_rev}'
     try:
@@ -96,6 +114,7 @@ def _create_routing_from_post(request, *, fail_redirect: str):
             style_code=seed,
             routing_id=seed,
             style_name=style_name,
+            tech_doc=tech_doc,
             user=request.user,
         )
     except IeOpsError as exc:
