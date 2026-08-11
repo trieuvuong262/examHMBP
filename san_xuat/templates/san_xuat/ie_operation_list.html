@@ -8,7 +8,14 @@
       <h2 class="mb-0">Thư viện công đoạn</h2>
       <div class="text-muted small">{{ total }} công đoạn chuẩn (OP_CODE + phiên bản).</div>
     </div>
-    <a href="{% url 'san_xuat:ie_hub' %}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Công đoạn / IE</a>
+    <div class="d-flex flex-wrap gap-2">
+      {% if can_create or can_update %}
+      <button type="button" class="btn btn-sm btn-hm" data-bs-toggle="modal" data-bs-target="#ieAddOpModal">
+        <i class="bi bi-plus-lg me-1"></i>Thêm công đoạn
+      </button>
+      {% endif %}
+      <a href="{% url 'san_xuat:ie_hub' %}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Công đoạn / IE</a>
+    </div>
   </div>
 
   <form method="get" class="row g-2 mb-3">
@@ -69,10 +76,24 @@
                 <button type="submit" class="btn btn-sm btn-outline-success" title="Duyệt (SMV phải > 0)">Duyệt</button>
               </form>
               {% endif %}
+              {% if can_update %}
+              <form method="post" class="d-inline" onsubmit="return confirm('Xóa {{ op.op_code }}/{{ op.op_rev }}?');">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="delete_operation">
+                <input type="hidden" name="pk" value="{{ op.pk }}">
+                <button type="submit" class="btn btn-sm btn-outline-danger py-0">Xóa</button>
+              </form>
+              {% endif %}
             </td>
             {% elif can_update %}
             <td class="text-nowrap">
               <a href="{% url 'san_xuat:ie_operation_detail' op.pk %}" class="btn btn-sm btn-outline-secondary py-0">Sửa</a>
+              <form method="post" class="d-inline" onsubmit="return confirm('Xóa {{ op.op_code }}/{{ op.op_rev }}?');">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="delete_operation">
+                <input type="hidden" name="pk" value="{{ op.pk }}">
+                <button type="submit" class="btn btn-sm btn-outline-danger py-0">Xóa</button>
+              </form>
             </td>
             {% endif %}
           </tr>
@@ -86,4 +107,61 @@
 
   {% include 'san_xuat/includes/ie_pagination.html' %}
 </div>
+
+{% if can_create or can_update %}
+<div class="modal fade" id="ieAddOpModal" tabindex="-1" aria-labelledby="ieAddOpModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="create_operation">
+        <div class="modal-header">
+          <h5 class="modal-title" id="ieAddOpModalLabel">Thêm công đoạn chuẩn</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-2">
+            <div class="col-7">
+              <label class="form-label small text-muted mb-1">Mã CĐ <span class="text-danger">*</span></label>
+              <input type="text" name="op_code" class="form-control form-control-sm" required maxlength="30" placeholder="VD: SEW-1005">
+            </div>
+            <div class="col-5">
+              <label class="form-label small text-muted mb-1">Phiên bản</label>
+              <input type="text" name="op_rev" class="form-control form-control-sm" value="R01" maxlength="10">
+            </div>
+            <div class="col-12">
+              <label class="form-label small text-muted mb-1">Tên công đoạn <span class="text-danger">*</span></label>
+              <input type="text" name="name_vi" class="form-control form-control-sm" required maxlength="200" placeholder="VD: May cổ áo">
+            </div>
+            <div class="col-12">
+              <label class="form-label small text-muted mb-1">Nhóm</label>
+              <select name="group_id" class="form-select form-select-sm">
+                <option value="">— MANUAL (tự tạo) —</option>
+                {% for g in groups %}
+                <option value="{{ g.pk }}">{{ g.code }} — {{ g.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-6">
+              <label class="form-label small text-muted mb-1">SMV (phút)</label>
+              <input type="number" name="base_smv_min" class="form-control form-control-sm" step="0.0001" min="0" placeholder="0">
+            </div>
+            <div class="col-6">
+              <label class="form-label small text-muted mb-1">Máy</label>
+              <input type="text" name="machine_code" class="form-control form-control-sm" list="ie-op-machine-codes" maxlength="40" placeholder="Chọn máy thiết bị SX">
+              <datalist id="ie-op-machine-codes">
+                {% for m in machines %}<option value="{{ m.code }}">{{ m.code }} — {{ m.name }}</option>{% endfor %}
+              </datalist>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Huỷ</button>
+          <button type="submit" class="btn btn-sm btn-hm"><i class="bi bi-plus-lg me-1"></i>Tạo công đoạn</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
 {% endblock %}

@@ -14,6 +14,7 @@ from decimal import Decimal, ROUND_HALF_UP
 
 from django.db import transaction
 from django.db.models import Avg, Q
+from django.db.models.deletion import ProtectedError
 from django.utils import timezone
 
 from san_xuat.ie_models import (
@@ -320,6 +321,82 @@ def create_operation_group(
         product_part=(product_part or '')[:120],
         notes='Tạo tay (không import Excel)',
     )
+
+
+def update_operation_group(
+    *,
+    group: SxOperationGroup,
+    name: str,
+    process_stage_label: str = '',
+    product_part: str = '',
+) -> SxOperationGroup:
+    name = (name or '').strip()
+    if group is None:
+        raise IeOpsError('Thiếu nhóm công đoạn.')
+    if not name:
+        raise IeOpsError('Nhập tên nhóm.')
+    group.name = name[:150]
+    group.process_stage_label = (process_stage_label or '')[:100]
+    group.product_part = (product_part or '')[:120]
+    group.save(update_fields=['name', 'process_stage_label', 'product_part', 'updated_at'])
+    return group
+
+
+def delete_operation_group(*, group: SxOperationGroup) -> None:
+    if group is None:
+        raise IeOpsError('Thiếu nhóm công đoạn.')
+    n = group.operations.count()
+    if n:
+        raise IeOpsError(
+            f'Không xóa được nhóm {group.code}: còn {n} công đoạn. '
+            f'Hãy chuyển công đoạn sang nhóm khác trước.'
+        )
+    try:
+        group.delete()
+    except ProtectedError as exc:
+        raise IeOpsError(f'Không xóa được nhóm {group.code}: đang được tham chiếu.') from exc
+
+
+def delete_operation(*, operation: SxOperation) -> str:
+    if operation is None:
+        raise IeOpsError('Thiếu công đoạn.')
+    label = f'{operation.op_code}/{operation.op_rev}'
+    try:
+        operation.delete()
+    except ProtectedError as exc:
+        raise IeOpsError(f'Không xóa được {label}: đang được tham chiếu.') from exc
+    return label
+
+
+def update_routing_header(
+    *,
+    routing: SxRouting,
+    style_name: str | None = None,
+    notes: str | None = None,
+    is_active: bool | None = None,
+) -> SxRouting:
+    if routing is None:
+        raise IeOpsError('Thiếu routing.')
+    if style_name is not None:
+        routing.style_name = (style_name or '')[:255]
+    if notes is not None:
+        routing.notes = (notes or '')[:255]
+    if is_active is not None:
+        routing.is_active = bool(is_active)
+    routing.save()
+    return routing
+
+
+def delete_routing(*, routing: SxRouting) -> str:
+    if routing is None:
+        raise IeOpsError('Thiếu routing.')
+    assert_routing_editable(routing)
+    rid = routing.routing_id
+    try:
+        routing.delete()
+    except ProtectedError as exc:
+        raise IeOpsError(f'Không xóa được {rid}: đang được tham chiếu (lệnh SX / đơn hàng).') from exc
+    return rid
 
 
 @transaction.atomic

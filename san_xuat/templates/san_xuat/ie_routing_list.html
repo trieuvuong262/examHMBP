@@ -46,10 +46,29 @@
             <td class="text-end fw-semibold">{{ r.sum_smv|default:0|sx_num }}</td>
             <td>{% if r.is_active %}<span class="badge bg-success-subtle text-success">Có</span>{% else %}<span class="badge bg-light text-muted">Không</span>{% endif %}</td>
             <td class="small">{{ r.get_approval_status_display }}</td>
-            <td class="text-end"><a href="{% url 'san_xuat:ie_routing_detail' r.pk %}" class="btn btn-sm btn-outline-hm">Xem</a></td>
+            <td class="text-nowrap text-end">
+              <a href="{% url 'san_xuat:ie_routing_detail' r.pk %}" class="btn btn-sm btn-outline-hm">Xem</a>
+              {% if can_update %}
+              <button type="button" class="btn btn-sm btn-outline-secondary py-0 ie-edit-routing"
+                      data-bs-toggle="modal" data-bs-target="#ieEditRoutingModal"
+                      data-pk="{{ r.pk }}"
+                      data-id="{{ r.routing_id }}"
+                      data-name="{{ r.style_name }}"
+                      data-notes="{{ r.notes }}"
+                      data-active="{% if r.is_active %}1{% else %}0{% endif %}">Sửa</button>
+              {% if r.pk not in locked_routing_ids %}
+              <form method="post" class="d-inline" onsubmit="return confirm('Xóa routing {{ r.routing_id }}?');">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="delete_routing">
+                <input type="hidden" name="pk" value="{{ r.pk }}">
+                <button type="submit" class="btn btn-sm btn-outline-danger py-0">Xóa</button>
+              </form>
+              {% endif %}
+              {% endif %}
+            </td>
           </tr>
         {% empty %}
-          <tr><td colspan="9" class="text-muted small p-3 text-center">Không có routing phù hợp.</td></tr>
+          <tr><td colspan="9" class="text-muted small p-3 text-center">Không có routing phù hợp. Bấm Thêm routing để tạo mới.</td></tr>
         {% endfor %}
         </tbody>
       </table>
@@ -92,5 +111,56 @@
     </div>
   </div>
 </div>
+{% endif %}
+
+{% if can_update %}
+<div class="modal fade" id="ieEditRoutingModal" tabindex="-1" aria-labelledby="ieEditRoutingModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="update_routing">
+        <input type="hidden" name="pk" id="ieEditRoutingPk">
+        <div class="modal-header">
+          <h5 class="modal-title" id="ieEditRoutingModalLabel">Sửa routing</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-2">
+            <label class="form-label small text-muted mb-1">Mã routing</label>
+            <input type="text" id="ieEditRoutingId" class="form-control form-control-sm" readonly>
+          </div>
+          <div class="mb-2">
+            <label class="form-label small text-muted mb-1">Tên mã hàng</label>
+            <input type="text" name="style_name" id="ieEditRoutingName" class="form-control form-control-sm" maxlength="255">
+          </div>
+          <div class="mb-2">
+            <label class="form-label small text-muted mb-1">Ghi chú</label>
+            <input type="text" name="notes" id="ieEditRoutingNotes" class="form-control form-control-sm" maxlength="255">
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="is_active" value="1" id="ieEditRoutingActive">
+            <label class="form-check-label small" for="ieEditRoutingActive">Đang áp dụng</label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Huỷ</button>
+          <button type="submit" class="btn btn-sm btn-hm">Lưu</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<script>
+document.getElementById('ieEditRoutingModal').addEventListener('show.bs.modal', function (ev) {
+  var btn = ev.relatedTarget;
+  if (!btn) return;
+  document.getElementById('ieEditRoutingPk').value = btn.getAttribute('data-pk') || '';
+  document.getElementById('ieEditRoutingId').value = btn.getAttribute('data-id') || '';
+  document.getElementById('ieEditRoutingName').value = btn.getAttribute('data-name') || '';
+  document.getElementById('ieEditRoutingNotes').value = btn.getAttribute('data-notes') || '';
+  document.getElementById('ieEditRoutingActive').checked = btn.getAttribute('data-active') === '1';
+});
+</script>
 {% endif %}
 {% endblock %}

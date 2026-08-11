@@ -7,7 +7,14 @@
       <h2 class="mb-0">Nhóm công đoạn</h2>
       <div class="text-muted small">{{ total }} nhóm.</div>
     </div>
-    <a href="{% url 'san_xuat:ie_hub' %}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Công đoạn / IE</a>
+    <div class="d-flex flex-wrap gap-2">
+      {% if can_create or can_update %}
+      <button type="button" class="btn btn-sm btn-hm" data-bs-toggle="modal" data-bs-target="#ieAddGroupModal">
+        <i class="bi bi-plus-lg me-1"></i>Thêm nhóm
+      </button>
+      {% endif %}
+      <a href="{% url 'san_xuat:ie_hub' %}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Công đoạn / IE</a>
+    </div>
   </div>
 
   <form method="get" class="row g-2 mb-3">
@@ -24,6 +31,7 @@
           <tr>
             <th>Mã nhóm</th><th>Tên nhóm</th><th>Khâu SX</th><th>Bộ phận</th><th>Cụm chi tiết</th>
             <th class="text-end">Số CĐ</th><th>Đang dùng</th>
+            {% if can_update %}<th></th>{% endif %}
           </tr>
         </thead>
         <tbody>
@@ -42,9 +50,26 @@
               <a href="{% url 'san_xuat:ie_operation_list' %}?group={{ g.code }}">{{ g.n_ops }}</a>
             </td>
             <td>{% if g.is_active %}<span class="badge bg-success-subtle text-success">Có</span>{% else %}<span class="badge bg-light text-muted">Không</span>{% endif %}</td>
+            {% if can_update %}
+            <td class="text-nowrap text-end">
+              <button type="button" class="btn btn-sm btn-outline-secondary py-0 ie-edit-group"
+                      data-bs-toggle="modal" data-bs-target="#ieEditGroupModal"
+                      data-pk="{{ g.pk }}"
+                      data-code="{{ g.code }}"
+                      data-name="{{ g.name }}"
+                      data-stage="{{ g.process_stage_label }}"
+                      data-part="{{ g.product_part }}">Sửa</button>
+              <form method="post" class="d-inline" onsubmit="return confirm('Xóa nhóm {{ g.code }}?');">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="delete_group">
+                <input type="hidden" name="pk" value="{{ g.pk }}">
+                <button type="submit" class="btn btn-sm btn-outline-danger py-0" {% if g.n_ops %}title="Chuyển công đoạn sang nhóm khác trước"{% endif %}>Xóa</button>
+              </form>
+            </td>
+            {% endif %}
           </tr>
         {% empty %}
-          <tr><td colspan="7" class="text-muted small p-3 text-center">Không có nhóm phù hợp.</td></tr>
+          <tr><td colspan="{% if can_update %}8{% else %}7{% endif %}" class="text-muted small p-3 text-center">Không có nhóm phù hợp.</td></tr>
         {% endfor %}
         </tbody>
       </table>
@@ -53,4 +78,94 @@
 
   {% include 'san_xuat/includes/ie_pagination.html' %}
 </div>
+
+{% if can_create or can_update %}
+<div class="modal fade" id="ieAddGroupModal" tabindex="-1" aria-labelledby="ieAddGroupModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="create_group">
+        <div class="modal-header">
+          <h5 class="modal-title" id="ieAddGroupModalLabel">Thêm nhóm</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-2">
+            <label class="form-label small text-muted mb-1">Mã nhóm <span class="text-danger">*</span></label>
+            <input type="text" name="group_code" class="form-control form-control-sm" required maxlength="30" placeholder="VD: SEW-NEK">
+          </div>
+          <div class="mb-2">
+            <label class="form-label small text-muted mb-1">Tên nhóm <span class="text-danger">*</span></label>
+            <input type="text" name="group_name" class="form-control form-control-sm" required maxlength="150" placeholder="VD: May cổ">
+          </div>
+          <div class="mb-2">
+            <label class="form-label small text-muted mb-1">Khâu SX</label>
+            <input type="text" name="process_stage_label" class="form-control form-control-sm" maxlength="100" placeholder="VD: May lắp ráp">
+          </div>
+          <div>
+            <label class="form-label small text-muted mb-1">Cụm chi tiết</label>
+            <input type="text" name="product_part" class="form-control form-control-sm" maxlength="120" placeholder="Tuỳ chọn">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Huỷ</button>
+          <button type="submit" class="btn btn-sm btn-hm"><i class="bi bi-plus-lg me-1"></i>Tạo nhóm</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% if can_update %}
+<div class="modal fade" id="ieEditGroupModal" tabindex="-1" aria-labelledby="ieEditGroupModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="update_group">
+        <input type="hidden" name="pk" id="ieEditGroupPk">
+        <div class="modal-header">
+          <h5 class="modal-title" id="ieEditGroupModalLabel">Sửa nhóm</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-2">
+            <label class="form-label small text-muted mb-1">Mã nhóm</label>
+            <input type="text" id="ieEditGroupCode" class="form-control form-control-sm" readonly>
+          </div>
+          <div class="mb-2">
+            <label class="form-label small text-muted mb-1">Tên nhóm <span class="text-danger">*</span></label>
+            <input type="text" name="group_name" id="ieEditGroupName" class="form-control form-control-sm" required maxlength="150">
+          </div>
+          <div class="mb-2">
+            <label class="form-label small text-muted mb-1">Khâu SX</label>
+            <input type="text" name="process_stage_label" id="ieEditGroupStage" class="form-control form-control-sm" maxlength="100">
+          </div>
+          <div>
+            <label class="form-label small text-muted mb-1">Cụm chi tiết</label>
+            <input type="text" name="product_part" id="ieEditGroupPart" class="form-control form-control-sm" maxlength="120">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Huỷ</button>
+          <button type="submit" class="btn btn-sm btn-hm">Lưu</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<script>
+document.getElementById('ieEditGroupModal').addEventListener('show.bs.modal', function (ev) {
+  var btn = ev.relatedTarget;
+  if (!btn) return;
+  document.getElementById('ieEditGroupPk').value = btn.getAttribute('data-pk') || '';
+  document.getElementById('ieEditGroupCode').value = btn.getAttribute('data-code') || '';
+  document.getElementById('ieEditGroupName').value = btn.getAttribute('data-name') || '';
+  document.getElementById('ieEditGroupStage').value = btn.getAttribute('data-stage') || '';
+  document.getElementById('ieEditGroupPart').value = btn.getAttribute('data-part') || '';
+});
+</script>
+{% endif %}
 {% endblock %}

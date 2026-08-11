@@ -8,7 +8,14 @@
       <h2 class="mb-0">Dòng routing</h2>
       <div class="text-muted small">{{ total }} dòng công đoạn theo mã hàng.</div>
     </div>
-    <a href="{% url 'san_xuat:ie_hub' %}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Công đoạn / IE</a>
+    <div class="d-flex flex-wrap gap-2">
+      {% if can_update %}
+      <button type="button" class="btn btn-sm btn-hm" data-bs-toggle="modal" data-bs-target="#ieAddLineModal">
+        <i class="bi bi-plus-lg me-1"></i>Thêm dòng
+      </button>
+      {% endif %}
+      <a href="{% url 'san_xuat:ie_hub' %}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Công đoạn / IE</a>
+    </div>
   </div>
 
   <form method="get" class="row g-2 mb-3">
@@ -44,8 +51,18 @@
             <td class="text-end">{{ l.applied_unit_smv|sx_num }}</td>
             <td class="text-end fw-semibold">{{ l.total_operation_smv|sx_num }}</td>
             <td class="small">{{ l.machine_code|default:"—" }}</td>
-            <td class="text-end">
+            <td class="text-nowrap text-end">
               <a href="{% url 'san_xuat:ie_routing_detail' l.routing_id %}" class="btn btn-sm btn-outline-hm">Routing</a>
+              {% if can_update and l.routing_id not in locked_routing_ids %}
+              <a href="{% url 'san_xuat:ie_routing_detail' l.routing_id %}?edit={{ l.pk }}" class="btn btn-sm btn-outline-secondary py-0">Sửa</a>
+              <form method="post" class="d-inline" onsubmit="return confirm('Xóa dòng {{ l.op_code }}?');">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="delete_line">
+                <input type="hidden" name="routing_id" value="{{ l.routing_id }}">
+                <input type="hidden" name="line_pk" value="{{ l.pk }}">
+                <button type="submit" class="btn btn-sm btn-outline-danger py-0">Xóa</button>
+              </form>
+              {% endif %}
             </td>
           </tr>
         {% empty %}
@@ -58,4 +75,37 @@
 
   {% include 'san_xuat/includes/ie_pagination.html' %}
 </div>
+
+{% if can_update %}
+<div class="modal fade" id="ieAddLineModal" tabindex="-1" aria-labelledby="ieAddLineModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="goto_add_line">
+        <div class="modal-header">
+          <h5 class="modal-title" id="ieAddLineModalLabel">Thêm dòng routing</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+        </div>
+        <div class="modal-body">
+          <label class="form-label small text-muted mb-1">Chọn routing <span class="text-danger">*</span></label>
+          <select name="routing_id" class="form-select form-select-sm" required>
+            <option value="">— Chọn mã hàng —</option>
+            {% for r in routings %}
+            <option value="{{ r.pk }}" {% if r.pk in locked_routing_ids %}disabled{% endif %}>
+              {{ r.style_code }} / {{ r.routing_rev }}{% if r.pk in locked_routing_ids %} (đã khóa){% endif %}
+            </option>
+            {% endfor %}
+          </select>
+          <div class="form-text">Mở màn hình routing để thêm / sửa / xóa từng dòng công đoạn.</div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Huỷ</button>
+          <button type="submit" class="btn btn-sm btn-hm">Mở routing</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
 {% endblock %}

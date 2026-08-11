@@ -45,11 +45,18 @@ from san_xuat.services.ie_ops import (
     approve_routing,
     build_ie_dashboard,
     clone_routing_revision,
+    create_blank_operation,
+    create_operation_group,
+    delete_operation,
+    delete_operation_group,
+    delete_routing,
     delete_routing_line,
     is_routing_locked,
     reject_routing,
     save_routing_line_explanations,
     update_operation,
+    update_operation_group,
+    update_routing_header,
     upsert_routing_line,
 )
 from san_xuat.services.operation_master import (
@@ -142,65 +149,6 @@ def ie_hub(request):
                 messages.warning(request, f'… và {len(result.warnings) - 15} cảnh báo khác.')
             return redirect('san_xuat:ie_hub')
 
-        if action == 'create_routing':
-            return _create_routing_from_post(request, fail_redirect='san_xuat:ie_hub')
-
-        if action == 'create_operation':
-            if not (perms['can_create'] or perms['can_update']):
-                messages.error(request, 'Bạn không có quyền tạo công đoạn.')
-                return redirect('san_xuat:ie_hub')
-            from decimal import Decimal, InvalidOperation
-
-            from san_xuat.services.ie_ops import create_blank_operation
-
-            op_code = (request.POST.get('op_code') or '').strip()
-            name_vi = (request.POST.get('name_vi') or '').strip()
-            op_rev = (request.POST.get('op_rev') or 'R01').strip() or 'R01'
-            group_id = (request.POST.get('group_id') or '').strip()
-            machine_code = (request.POST.get('machine_code') or '').strip()
-            smv_raw = (request.POST.get('base_smv_min') or '').strip()
-            try:
-                smv = Decimal(smv_raw) if smv_raw else Decimal('0')
-            except (InvalidOperation, ValueError):
-                messages.error(request, 'SMV không hợp lệ.')
-                return redirect('san_xuat:ie_hub')
-            group = None
-            if group_id.isdigit():
-                group = SxOperationGroup.objects.filter(pk=int(group_id)).first()
-            try:
-                op = create_blank_operation(
-                    op_code=op_code,
-                    name_vi=name_vi,
-                    group=group,
-                    op_rev=op_rev,
-                    base_smv_min=smv,
-                    machine_code=machine_code,
-                )
-            except IeOpsError as exc:
-                messages.error(request, str(exc))
-                return redirect('san_xuat:ie_hub')
-            messages.success(request, f'Đã tạo công đoạn chuẩn {op.op_code}/{op.op_rev}.')
-            return redirect(f"{reverse('san_xuat:ie_operation_list')}?q={op.op_code}")
-
-        if action == 'create_group':
-            if not (perms['can_create'] or perms['can_update']):
-                messages.error(request, 'Bạn không có quyền tạo nhóm.')
-                return redirect('san_xuat:ie_hub')
-            from san_xuat.services.ie_ops import create_operation_group
-
-            try:
-                group = create_operation_group(
-                    code=(request.POST.get('group_code') or '').strip(),
-                    name=(request.POST.get('group_name') or '').strip(),
-                    process_stage_label=(request.POST.get('process_stage_label') or '').strip(),
-                    product_part=(request.POST.get('product_part') or '').strip(),
-                )
-            except IeOpsError as exc:
-                messages.error(request, str(exc))
-                return redirect('san_xuat:ie_hub')
-            messages.success(request, f'Đã tạo nhóm {group.code}.')
-            return redirect(f"{reverse('san_xuat:ie_group_list')}?q={group.code}")
-
     stats = {
         'machines': production_machine_count(),
         'stitch_classes': SxStitchClass.objects.count(),
@@ -223,8 +171,6 @@ def ie_hub(request):
         **perms,
         'stats': stats,
         'routings': routings,
-        'operation_groups': SxOperationGroup.objects.filter(is_active=True).order_by('sort_order', 'code'),
-        'machines': ie_machine_options(),
     })
 
 
@@ -236,6 +182,50 @@ def ie_export(request):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def group_list(request):
+    perms = _perm_ctx(request)
+    if request.method == 'POST':
+        action = (request.POST.get('action') or '').strip()
+        back = request.get_full_path() if request.GET else reverse('san_xuat:ie_group_list')
+        if not (perms['can_create'] or perms['can_update']):
+            messages.error(request, 'Bạn không có quyền sửa nhóm công đoạn.')
+            return redirect(back)
+        pk = (request.POST.get('pk') or '').strip()
+        group = SxOperationGroup.objects.filter(pk=int(pk)).first() if pk.isdigit() else None
+        try:
+            if action == 'create_group':
+                group = create_operation_group(
+                    code=(request.POST.get('group_code') or '').strip(),
+                    name=(request.POST.get('group_name') or '').strip(),
+                    process_stage_label=(request.POST.get('process_stage_label') or '').strip(),
+                    product_part=(request.POST.get('product_part') or '').strip(),
+                )
+                messages.success(request, f'Đã tạo nhóm {group.code}.')
+            elif action == 'update_group':
+                if not perms['can_update']:
+                    raise IeOpsError('Bạn không có quyền sửa nhóm.')
+                if not group:
+                    raise IeOpsError('Thiếu nhóm công đoạn.')
+                update_operation_group(
+                    group=group,
+                    name=(request.POST.get('group_name') or '').strip(),
+                    process_stage_label=(request.POST.get('process_stage_label') or '').strip(),
+                    product_part=(request.POST.get('product_part') or '').strip(),
+                )
+                messages.success(request, f'Đã lưu nhóm {group.code}.')
+            elif action == 'delete_group':
+                if not perms['can_update']:
+                    raise IeOpsError('Bạn không có quyền xóa nhóm.')
+                if not group:
+                    raise IeOpsError('Thiếu nhóm công đoạn.')
+                code = group.code
+                delete_operation_group(group=group)
+                messages.success(request, f'Đã xóa nhóm {code}.')
+            else:
+                messages.error(request, 'Hành động không hợp lệ.')
+        except IeOpsError as exc:
+            messages.error(request, str(exc))
+        return redirect(back)
+
     qs = (
         SxOperationGroup.objects.select_related('default_work_center')
         .annotate(n_ops=Count('operations'))
@@ -254,7 +244,7 @@ def group_list(request):
     qs = qs.order_by('sort_order', 'code')
     page_obj, query_string = paginate_queryset(request, qs)
     return render(request, 'san_xuat/ie_group_list.html', {
-        **_perm_ctx(request),
+        **perms,
         'page_obj': page_obj,
         'items': page_obj.object_list,
         'query_string': query_string,
@@ -270,6 +260,33 @@ def machine_list(request):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def routing_line_list(request):
+    perms = _perm_ctx(request)
+    if request.method == 'POST':
+        action = (request.POST.get('action') or '').strip()
+        back = request.get_full_path() if request.GET else reverse('san_xuat:ie_routing_line_list')
+        if action == 'goto_add_line':
+            rid = (request.POST.get('routing_id') or '').strip()
+            routing = SxRouting.objects.filter(pk=int(rid)).first() if rid.isdigit() else None
+            if not routing:
+                messages.error(request, 'Chọn routing để thêm dòng.')
+                return redirect(back)
+            return redirect('san_xuat:ie_routing_detail', pk=routing.pk)
+        if action == 'delete_line':
+            if not perms['can_update']:
+                messages.error(request, 'Bạn không có quyền xóa dòng routing.')
+                return redirect(back)
+            rid = (request.POST.get('routing_id') or '').strip()
+            line_pk = (request.POST.get('line_pk') or '').strip()
+            routing = SxRouting.objects.filter(pk=int(rid)).first() if rid.isdigit() else None
+            try:
+                if not routing or not line_pk.isdigit():
+                    raise IeOpsError('Thiếu dòng cần xóa.')
+                delete_routing_line(routing=routing, line_pk=int(line_pk))
+                messages.success(request, 'Đã xóa dòng routing.')
+            except IeOpsError as exc:
+                messages.error(request, str(exc))
+            return redirect(back)
+
     qs = SxRoutingLine.objects.select_related('routing', 'operation', 'machine', 'work_center').all()
     term = (request.GET.get('q') or '').strip()
     if term:
@@ -284,13 +301,19 @@ def routing_line_list(request):
         )
     qs = qs.order_by('routing__style_code', 'routing__routing_rev', 'seq_no')
     page_obj, query_string = paginate_queryset(request, qs)
+    from san_xuat.hub_models import SxProductionOrder
+    locked_routing_ids = set(
+        SxProductionOrder.objects.filter(routing_id__isnull=False).values_list('routing_id', flat=True)
+    )
     return render(request, 'san_xuat/ie_routing_line_list.html', {
-        **_perm_ctx(request),
+        **perms,
         'page_obj': page_obj,
         'items': page_obj.object_list,
         'query_string': query_string,
         'term': term,
         'total': qs.count(),
+        'routings': SxRouting.objects.filter(is_active=True).order_by('style_code', 'routing_rev')[:200],
+        'locked_routing_ids': locked_routing_ids,
     })
 
 
@@ -299,20 +322,49 @@ def operation_list(request):
     perms = _perm_ctx(request)
     if request.method == 'POST':
         action = (request.POST.get('action') or '').strip()
+        back = request.get_full_path() if request.GET else reverse('san_xuat:ie_operation_list')
         pk = request.POST.get('pk')
         op = SxOperation.objects.filter(pk=int(pk)).first() if pk and str(pk).isdigit() else None
-        if action == 'approve_operation' and op:
-            if not perms['can_approve']:
-                messages.error(request, 'Bạn không có quyền duyệt công đoạn (cần nhóm Approver IE).')
-            else:
+        try:
+            if action == 'approve_operation' and op:
+                if not perms['can_approve']:
+                    raise IeOpsError('Bạn không có quyền duyệt công đoạn (cần nhóm Approver IE).')
+                approve_operation(operation=op, user=request.user)
+                messages.success(request, f'Đã duyệt {op.op_code}/{op.op_rev}.')
+            elif action == 'create_operation':
+                if not (perms['can_create'] or perms['can_update']):
+                    raise IeOpsError('Bạn không có quyền tạo công đoạn.')
+                from decimal import Decimal, InvalidOperation
+
+                smv_raw = (request.POST.get('base_smv_min') or '').strip()
                 try:
-                    approve_operation(operation=op, user=request.user)
-                    messages.success(request, f'Đã duyệt {op.op_code}/{op.op_rev}.')
-                except IeOpsError as exc:
-                    messages.error(request, str(exc))
-        else:
-            messages.error(request, 'Không duyệt được công đoạn.')
-        return redirect(request.get_full_path() if request.GET else 'san_xuat:ie_operation_list')
+                    smv = Decimal(smv_raw) if smv_raw else Decimal('0')
+                except (InvalidOperation, ValueError) as exc:
+                    raise IeOpsError('SMV không hợp lệ.') from exc
+                group = None
+                group_id = (request.POST.get('group_id') or '').strip()
+                if group_id.isdigit():
+                    group = SxOperationGroup.objects.filter(pk=int(group_id)).first()
+                created = create_blank_operation(
+                    op_code=(request.POST.get('op_code') or '').strip(),
+                    name_vi=(request.POST.get('name_vi') or '').strip(),
+                    group=group,
+                    op_rev=(request.POST.get('op_rev') or 'R01').strip() or 'R01',
+                    base_smv_min=smv,
+                    machine_code=(request.POST.get('machine_code') or '').strip(),
+                )
+                messages.success(request, f'Đã tạo công đoạn {created.op_code}/{created.op_rev}.')
+                return redirect('san_xuat:ie_operation_detail', pk=created.pk)
+            elif action == 'delete_operation' and op:
+                if not perms['can_update']:
+                    raise IeOpsError('Bạn không có quyền xóa công đoạn.')
+                label = delete_operation(operation=op)
+                messages.success(request, f'Đã xóa {label}.')
+            else:
+                messages.error(request, 'Hành động không hợp lệ.')
+        except IeOpsError as exc:
+            messages.error(request, str(exc))
+        return redirect(back)
 
     qs = SxOperation.objects.select_related('group', 'machine', 'skill_level').all()
 
@@ -346,6 +398,7 @@ def operation_list(request):
         'status': status,
         'groups': SxOperationGroup.objects.filter(is_active=True).order_by('sort_order', 'code'),
         'status_choices': SxOperation.STATUS_CHOICES,
+        'machines': ie_machine_options(),
         'total': qs.count(),
     })
 
@@ -400,6 +453,12 @@ def operation_detail(request, pk: int):
                     video_url=request.POST.get('video_url'),
                 )
                 messages.success(request, f'Đã lưu {op.op_code}/{op.op_rev}.')
+            elif action == 'delete_operation':
+                if not perms['can_update']:
+                    raise IeOpsError('Bạn không có quyền xóa công đoạn.')
+                label = delete_operation(operation=op)
+                messages.success(request, f'Đã xóa {label}.')
+                return redirect('san_xuat:ie_operation_list')
             else:
                 messages.error(request, 'Hành động không hợp lệ.')
         except IeOpsError as exc:
@@ -454,8 +513,35 @@ def operation_detail(request, pk: int):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def routing_list(request):
-    if request.method == 'POST' and request.POST.get('action') == 'create_routing':
-        return _create_routing_from_post(request, fail_redirect='san_xuat:ie_routing_list')
+    perms = _perm_ctx(request)
+    if request.method == 'POST':
+        action = (request.POST.get('action') or '').strip()
+        if action == 'create_routing':
+            return _create_routing_from_post(request, fail_redirect='san_xuat:ie_routing_list')
+        back = request.get_full_path() if request.GET else reverse('san_xuat:ie_routing_list')
+        pk = (request.POST.get('pk') or '').strip()
+        routing = SxRouting.objects.filter(pk=int(pk)).first() if pk.isdigit() else None
+        try:
+            if action == 'update_routing' and routing:
+                if not perms['can_update']:
+                    raise IeOpsError('Bạn không có quyền sửa routing.')
+                update_routing_header(
+                    routing=routing,
+                    style_name=(request.POST.get('style_name') or '').strip(),
+                    notes=(request.POST.get('notes') or '').strip(),
+                    is_active=request.POST.get('is_active') == '1',
+                )
+                messages.success(request, f'Đã lưu routing {routing.routing_id}.')
+            elif action == 'delete_routing' and routing:
+                if not perms['can_update']:
+                    raise IeOpsError('Bạn không có quyền xóa routing.')
+                rid = delete_routing(routing=routing)
+                messages.success(request, f'Đã xóa routing {rid}.')
+            else:
+                messages.error(request, 'Hành động không hợp lệ.')
+        except IeOpsError as exc:
+            messages.error(request, str(exc))
+        return redirect(back)
 
     qs = SxRouting.objects.annotate(
         n_lines=Count('lines'),
@@ -470,13 +556,18 @@ def routing_list(request):
         )
     qs = qs.order_by('style_code', 'routing_rev')
     page_obj, query_string = paginate_queryset(request, qs)
+    from san_xuat.hub_models import SxProductionOrder
+    locked_routing_ids = set(
+        SxProductionOrder.objects.filter(routing_id__isnull=False).values_list('routing_id', flat=True)
+    )
     return render(request, 'san_xuat/ie_routing_list.html', {
-        **_perm_ctx(request),
+        **perms,
         'page_obj': page_obj,
         'items': page_obj.object_list,
         'query_string': query_string,
         'term': term,
         'total': qs.count(),
+        'locked_routing_ids': locked_routing_ids,
     })
 
 
@@ -547,6 +638,22 @@ def routing_detail(request, pk: int):
                     raise IeOpsError('Thiếu dòng cần xóa.')
                 delete_routing_line(routing=routing, line_pk=int(line_pk))
                 messages.success(request, 'Đã xóa dòng routing.')
+            elif action == 'save_header':
+                if not perms['can_update']:
+                    raise IeOpsError('Bạn không có quyền sửa routing.')
+                update_routing_header(
+                    routing=routing,
+                    style_name=(request.POST.get('style_name') or '').strip(),
+                    notes=(request.POST.get('notes') or '').strip(),
+                    is_active=request.POST.get('is_active') == '1',
+                )
+                messages.success(request, f'Đã lưu routing {routing.routing_id}.')
+            elif action == 'delete_routing':
+                if not perms['can_update']:
+                    raise IeOpsError('Bạn không có quyền xóa routing.')
+                rid = delete_routing(routing=routing)
+                messages.success(request, f'Đã xóa routing {rid}.')
+                return redirect('san_xuat:ie_routing_list')
             else:
                 messages.error(request, 'Hành động không hợp lệ.')
         except IeOpsError as exc:
