@@ -11,6 +11,7 @@
     --jp-radius-xl: 8px;
     --jp-touch: 44px;
     --jp-font-sans: 'Gotham', system-ui, -apple-system, sans-serif;
+    --jp-font-emphasis: 'Gotham Ultra', 'Gotham', system-ui, -apple-system, sans-serif;
 }
 
 body {
@@ -55,7 +56,8 @@ body.bg-100,
 
 .jp-auth-header h3 {
     font-size: 1.15rem;
-    font-weight: 700;
+    font-family: var(--jp-font-emphasis);
+    font-weight: 400;
     letter-spacing: 0.04em;
     margin: 0 0 0.25rem;
 }
@@ -69,7 +71,8 @@ body.bg-100,
     color: var(--jp-black-900) !important;
     text-transform: uppercase;
     font-size: 0.75rem !important;
-    font-weight: 700 !important;
+    font-family: var(--jp-font-emphasis) !important;
+    font-weight: 400 !important;
     letter-spacing: 0.03em;
     margin-bottom: 0.5rem !important;
 }
@@ -96,7 +99,8 @@ body.bg-100,
     border: none !important;
     border-radius: var(--jp-btn-radius) !important;
     color: #ffffff !important;
-    font-weight: 700 !important;
+    font-family: var(--jp-font-emphasis) !important;
+    font-weight: 400 !important;
     min-height: var(--jp-touch);
     padding: 0.65rem 1rem !important;
 }
@@ -160,7 +164,8 @@ body.bg-100,
     background-color: var(--hm-primary) !important;
     border-color: var(--hm-primary) !important;
     border-radius: var(--jp-btn-radius) !important;
-    font-weight: 700 !important;
+    font-family: var(--jp-font-emphasis) !important;
+    font-weight: 400 !important;
 }
 
 .o_database_manager .btn-primary:hover {

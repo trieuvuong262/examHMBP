@@ -1,6 +1,6 @@
 {
     'name': 'JustPlay Brand',
-    'version': '18.0.1.0.9',
+    'version': '18.0.1.0.10',
     'category': 'Hidden',
     'summary': 'Giao diện Odoo ERP đồng bộ JustPlay Portal (đỏ/đen, Gotham)',
     'depends': ['web'],

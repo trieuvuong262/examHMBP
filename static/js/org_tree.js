@@ -576,10 +576,10 @@
 .jp-org-tree-link--from-unassigned { stroke: #f59e0b; }
 .jp-org-tree-link-arrow-fill { fill: #64748b; }
 .jp-org-tree-pill-rect { fill: #fff; stroke: #fecaca; stroke-width: 1.5; }
-.jp-org-tree-pill-label { font-family: Gotham, system-ui, sans-serif; font-size: 13px; font-weight: 700; fill: #1e293b; }
-.jp-org-tree-pill-sub { font-family: Gotham, system-ui, sans-serif; font-size: 10px; font-weight: 600; fill: #64748b; }
+.jp-org-tree-pill-label { font-family: 'Gotham Ultra', Gotham, system-ui, sans-serif; font-size: 13px; font-weight: 400; fill: #1e293b; }
+.jp-org-tree-pill-sub { font-family: Gotham, system-ui, sans-serif; font-size: 10px; font-weight: 400; fill: #64748b; }
 .jp-org-tree-pill-badge-bg { fill: #fff; stroke: #fca5a5; stroke-width: 1; }
-.jp-org-tree-pill-badge-txt { font-family: Gotham, system-ui, sans-serif; font-size: 10px; font-weight: 800; fill: #dc2626; }
+.jp-org-tree-pill-badge-txt { font-family: 'Gotham Ultra', Gotham, system-ui, sans-serif; font-size: 10px; font-weight: 400; fill: #dc2626; }
 .jp-org-tree-node--root .jp-org-tree-pill-rect { fill: #dc2626; stroke: #b91c1c; stroke-width: 2; }
 .jp-org-tree-node--root .jp-org-tree-pill-label, .jp-org-tree-node--root .jp-org-tree-pill-sub { fill: #fff; }
 .jp-org-tree-node--department .jp-org-tree-pill-rect { fill: #fff1f2; stroke: #dc2626; }
@@ -589,13 +589,13 @@
 .jp-org-tree-node--position .jp-org-tree-pill-rect { fill: #f8fafc; stroke: #94a3b8; }
 .jp-org-tree-node--position .jp-org-tree-pill-label { font-size: 12px; }
 .jp-org-tree-node--employee .jp-org-tree-pill-rect { fill: #f8fafc; stroke: #e2e8f0; }
-.jp-org-tree-node--employee .jp-org-tree-pill-label { font-size: 11px; font-weight: 600; fill: #334155; }
+.jp-org-tree-node--employee .jp-org-tree-pill-label { font-size: 11px; font-weight: 400; fill: #334155; }
 .jp-org-tree-node--employee .jp-org-tree-pill-sub { font-size: 9px; fill: #64748b; }
 .jp-org-tree-pill-concurrent-bg { fill: #eff6ff; stroke: #93c5fd; stroke-width: 1; }
-.jp-org-tree-pill-concurrent-txt { font-family: Gotham, system-ui, sans-serif; font-size: 8px; font-weight: 800; fill: #1d4ed8; }
-.jp-org-tree-expand-icon { font-family: Gotham, system-ui, sans-serif; font-size: 11px; font-weight: 700; fill: #64748b; }
+.jp-org-tree-pill-concurrent-txt { font-family: 'Gotham Ultra', Gotham, system-ui, sans-serif; font-size: 8px; font-weight: 400; fill: #1d4ed8; }
+.jp-org-tree-expand-icon { font-family: 'Gotham Ultra', Gotham, system-ui, sans-serif; font-size: 11px; font-weight: 400; fill: #64748b; }
 .jp-org-tree-action-bg { fill: #fff; stroke: #cbd5e1; stroke-width: 1.2; }
-.jp-org-tree-action-icon { font-family: Gotham, system-ui, sans-serif; font-size: 11px; font-weight: 700; fill: #b91c1c; }
+.jp-org-tree-action-icon { font-family: 'Gotham Ultra', Gotham, system-ui, sans-serif; font-size: 11px; font-weight: 400; fill: #b91c1c; }
 .jp-org-tree-action-link.is-danger .jp-org-tree-action-icon { fill: #dc2626; }
 `;
 
