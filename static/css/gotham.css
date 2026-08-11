@@ -1,4 +1,4 @@
-/* Gotham (iCiel) — Thin 100–300 / Medium 400–600 / Ultra 700–900 */
+/* Gotham (iCiel) — Thin 100–300 / Medium 400–900 (không dùng Ultra) */
 @font-face {
     font-family: 'Gotham';
     src: url('../fonts/gotham/Gotham-Thin.otf') format('opentype');
@@ -43,21 +43,21 @@
 }
 @font-face {
     font-family: 'Gotham';
-    src: url('../fonts/gotham/Gotham-Ultra.otf') format('opentype');
+    src: url('../fonts/gotham/Gotham-Medium.otf') format('opentype');
     font-weight: 700;
     font-style: normal;
     font-display: swap;
 }
 @font-face {
     font-family: 'Gotham';
-    src: url('../fonts/gotham/Gotham-Ultra.otf') format('opentype');
+    src: url('../fonts/gotham/Gotham-Medium.otf') format('opentype');
     font-weight: 800;
     font-style: normal;
     font-display: swap;
 }
 @font-face {
     font-family: 'Gotham';
-    src: url('../fonts/gotham/Gotham-Ultra.otf') format('opentype');
+    src: url('../fonts/gotham/Gotham-Medium.otf') format('opentype');
     font-weight: 900;
     font-style: normal;
     font-display: swap;
