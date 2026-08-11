@@ -496,23 +496,31 @@
           <div class="jp-mo-section-head">
             <div>
               <p class="title">Tồn bán thành phẩm</p>
-              <div class="count">{{ wip_balances|length }} công đoạn</div>
+              <div class="count">theo tiến độ tổ{% if handover_row.waiting_total %} · chờ {{ handover_row.waiting_total|sx_num }}{% endif %}</div>
             </div>
-            <a href="{% url 'san_xuat:dispatch_handover_status' %}" class="btn btn-sm btn-outline-secondary">Sổ tồn</a>
+            <a href="{% url 'san_xuat:dispatch_handover_status' %}?q={{ mo.code|urlencode }}" class="btn btn-sm btn-outline-secondary">Tình hình</a>
           </div>
-          {% if wip_balances %}
+          {% if handover_row.cells %}
           <div class="table-responsive mb-3">
             <table class="table table-sm mb-0">
-              <thead class="table-light"><tr><th>Công đoạn</th><th class="text-end">Tồn</th></tr></thead>
+              <thead class="table-light"><tr><th>Tổ</th><th class="text-end">Đã xong</th><th class="text-end">Chờ nhận</th></tr></thead>
               <tbody>
-              {% for b in wip_balances %}
-                <tr><td class="small">{{ b.process_name }}</td><td class="text-end fw-semibold small">{{ b.qty|sx_num }}</td></tr>
+              {% for c in handover_row.cells %}
+                <tr>
+                  <td class="small">
+                    {% if c.slug %}
+                    <a href="{% url 'san_xuat:team_work_progress' c.slug mo.pk %}">{{ c.label }}</a>
+                    {% else %}{{ c.label }}{% endif %}
+                  </td>
+                  <td class="text-end fw-semibold small">{{ c.done|sx_num }}</td>
+                  <td class="text-end small">{% if forloop.first %}—{% else %}{{ c.waiting|sx_num }}{% endif %}</td>
+                </tr>
               {% endfor %}
               </tbody>
             </table>
           </div>
           {% else %}
-          <div class="text-muted small mb-3">Chưa có tồn bán thành phẩm.</div>
+          <div class="text-muted small mb-3">Chưa có tiến độ tổ.</div>
           {% endif %}
 
           <div class="jp-mo-section-head border-top pt-3">

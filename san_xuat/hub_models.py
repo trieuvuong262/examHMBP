@@ -2302,6 +2302,42 @@ class SxTeamDivisionMap(DemoMarkedModel):
         return f'{self.team_slug} ← {div_name}'
 
 
+class SxTeamWorkClose(DemoMarkedModel):
+    """Tổ trưởng chốt công việc trên một LSX — hình thức, không chặn tổ sau.
+
+    Công nhân tổ này không chọn đơn đó làm tiếp; tồn BTP / tổ sau vẫn chạy theo tiến độ.
+    """
+
+    production_order = models.ForeignKey(
+        SxProductionOrder,
+        on_delete=models.CASCADE,
+        related_name='team_work_closes',
+        verbose_name='Lệnh sản xuất',
+    )
+    team_slug = models.CharField(
+        max_length=20,
+        choices=SxTeamDivisionMap.TEAM_SLUG_CHOICES,
+        db_index=True,
+        verbose_name='Tổ chuyền',
+    )
+    closed_at = models.DateTimeField(auto_now_add=True, verbose_name='Lúc hoàn thành')
+    notes = models.CharField(max_length=255, blank=True, default='')
+
+    class Meta:
+        ordering = ['-closed_at']
+        verbose_name = 'Chốt công việc tổ'
+        verbose_name_plural = 'Chốt công việc tổ'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['production_order', 'team_slug'],
+                name='san_xuat_team_work_close_mo_slug_uniq',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.team_slug} · {self.production_order_id}'
+
+
 class SxGeneralSettings(models.Model):
     """Singleton (pk=1) — thiết lập chung module Sản xuất (cổng quy trình, QC, năng lực…)."""
 

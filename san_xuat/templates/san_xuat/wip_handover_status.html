@@ -1,101 +1,184 @@
 {% extends 'base.html' %}
 {% load sx_format %}
+
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
-
-{% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}
+<style>
+  .jp-ho { --ho-ink:#0f172a; --ho-muted:#64748b; --ho-line:#e8edf3; --ho-soft:#f4f7fb; --ho-accent:#0f766e; }
+  .jp-ho-hint { color: var(--ho-muted); font-size: .84rem; margin: 0 0 1rem; }
+  .jp-ho-kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; margin: 0 0 1rem; }
+  @media (max-width: 767px) { .jp-ho-kpis { grid-template-columns: 1fr; } }
+  .jp-ho-kpi {
+    border: 1px solid var(--ho-line); border-radius: 1rem; background: #fff;
+    padding: .85rem 1rem;
+  }
+  .jp-ho-kpi .lbl { color: var(--ho-muted); font-size: .75rem; font-weight: 700; }
+  .jp-ho-kpi .val { font-size: 1.45rem; font-weight: 800; color: var(--ho-ink); letter-spacing: -.02em; line-height: 1.2; }
+  .jp-ho-queues { display: flex; flex-wrap: wrap; gap: .4rem; margin: 0 0 1rem; }
+  .jp-ho-q {
+    display: inline-flex; align-items: center; gap: .35rem;
+    padding: .28rem .7rem; border-radius: 999px; text-decoration: none;
+    border: 1px solid var(--ho-line); background: #fff; color: var(--ho-ink);
+    font-size: .78rem; font-weight: 700;
+  }
+  .jp-ho-q:hover { border-color: #99f6e4; color: var(--ho-accent); }
+  .jp-ho-q.is-on { background: #ccfbf1; border-color: #5eead4; color: #115e59; }
+  .jp-ho-q .n { color: var(--ho-muted); font-weight: 800; }
+  .jp-ho-q.is-on .n, .jp-ho-q.has-wait .n { color: #b45309; }
+  .jp-ho-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: .65rem; margin: 0 0 1rem; }
+  .jp-ho-toolbar .jp-ho-search { flex: 1 1 14rem; max-width: 22rem; min-width: 12rem; }
+  .jp-ho-jobs { display: flex; flex-direction: column; gap: .85rem; }
+  .jp-ho-job {
+    border: 1px solid var(--ho-line); border-radius: 1rem; background: #fff; overflow: hidden;
+  }
+  .jp-ho-job-head {
+    display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between;
+    gap: .75rem 1rem; padding: .9rem 1.1rem; background: var(--ho-soft); border-bottom: 1px solid var(--ho-line);
+  }
+  .jp-ho-mo-code {
+    font-size: 1.05rem; font-weight: 800; color: var(--ho-ink); text-decoration: none; letter-spacing: -.01em;
+  }
+  .jp-ho-mo-code:hover { color: var(--ho-accent); }
+  .jp-ho-mo-sub { color: var(--ho-muted); font-size: .8rem; margin-top: .3rem; max-width: 44rem; }
+  .jp-ho-pill {
+    display: inline-flex; align-items: center; gap: .25rem;
+    padding: .2rem .55rem; border-radius: 999px; background: #fff; border: 1px solid var(--ho-line);
+    color: var(--ho-muted); font-size: .72rem; font-weight: 700;
+  }
+  .jp-ho-pill strong { color: var(--ho-ink); font-weight: 800; }
+  .jp-ho-flow {
+    display: flex; align-items: stretch; gap: 0; overflow-x: auto; padding: .85rem 1rem 1rem;
+  }
+  .jp-ho-cell {
+    flex: 1 1 7.5rem; min-width: 7.2rem;
+    border: 1px solid var(--ho-line); border-radius: .85rem; padding: .65rem .7rem; background: #fff;
+    text-decoration: none; color: inherit; display: block;
+  }
+  .jp-ho-cell:hover { border-color: #99f6e4; }
+  .jp-ho-cell.is-done { background: #f0fdf4; border-color: #bbf7d0; }
+  .jp-ho-cell.is-run { background: #f0f9ff; border-color: #bae6fd; }
+  .jp-ho-cell.is-wait { background: #fff7ed; border-color: #fed7aa; }
+  .jp-ho-arrow {
+    flex: 0 0 1.1rem; display: flex; align-items: center; justify-content: center;
+    color: #94a3b8; font-size: .8rem;
+  }
+  .jp-ho-cell .nm { font-weight: 800; font-size: .78rem; color: var(--ho-ink); margin: 0 0 .2rem; }
+  .jp-ho-cell .qty { font-size: .92rem; font-weight: 800; color: var(--ho-ink); }
+  .jp-ho-cell .qty span { color: var(--ho-muted); font-weight: 600; font-size: .78rem; }
+  .jp-ho-cell .wait { color: #b45309; font-size: .72rem; font-weight: 700; margin-top: .15rem; }
+  .jp-ho-empty {
+    border: 1px dashed var(--ho-line); border-radius: 1rem; padding: 2.5rem 1rem;
+    text-align: center; color: var(--ho-muted); background: #fff;
+  }
+</style>
 {% endblock %}
 
 {% block content %}
-<div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 py-md-4 mb-5">
+<div class="container jp-page jp-sx-page jp-ho py-3 py-md-4 mb-5">
   <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
     <div class="jp-sx-detail-title">
       <h2 class="jp-npl-mat-topbar-title w-100">Tình hình bàn giao SX</h2>
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
+      <a href="{% url 'san_xuat:team_work_hub' %}"><i class="bi bi-people" aria-hidden="true"></i>Công việc tổ</a>
       <span class="sep" aria-hidden="true"></span>
-      <a href="{% url 'san_xuat:dispatch_wip_handover' %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại</a>
+      <a href="{% url 'san_xuat:dispatch_stub' %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Điều phối</a>
     </nav>
   </div>
 
-  <div class="row g-3 mb-4">
-    <div class="col-md-4">
-      <div class="border rounded-3 p-3 h-100">
-        <div class="text-muted small">Chờ bàn giao</div>
-        <div class="fs-4 fw-semibold text-warning">{{ pending }}</div>
-      </div>
+  <p class="jp-ho-hint">
+    Tồn bán thành phẩm giữa các tổ — lấy từ <strong>SL tiến độ Công việc tổ</strong> đã cập nhật
+    (Cắt → In-Ép → Thêu → May → Ủi-Gấp → Giao hàng). Không lập phiếu bàn giao trên màn này.
+  </p>
+
+  <div class="jp-ho-kpis">
+    <div class="jp-ho-kpi">
+      <div class="lbl">Lệnh đang theo dõi</div>
+      <div class="val">{{ board.mo_count }}</div>
     </div>
-    <div class="col-md-4">
-      <div class="border rounded-3 p-3 h-100">
-        <div class="text-muted small">Đã bàn giao</div>
-        <div class="fs-4 fw-semibold text-success">{{ done }}</div>
-      </div>
+    <div class="jp-ho-kpi">
+      <div class="lbl">BTP chờ tổ sau</div>
+      <div class="val">{{ board.waiting_qty|sx_num }}</div>
     </div>
-    <div class="col-md-4">
-      <div class="border rounded-3 p-3 h-100">
-        <div class="text-muted small">Từ chối</div>
-        <div class="fs-4 fw-semibold text-danger">{{ rejected }}</div>
-      </div>
+    <div class="jp-ho-kpi">
+      <div class="lbl">Tổ đang có hàng chờ</div>
+      <div class="val">{{ board.queue_team_count }}</div>
     </div>
   </div>
 
-  <div class="card border-0 shadow-sm mb-4">
-    <div class="card-header bg-white fw-semibold">Tồn bán thành phẩm theo công đoạn</div>
-    <div class="table-responsive">
-      <table class="table table-hover table-sm mb-0 align-middle">
-        <thead class="table-light">
-          <tr>
-            <th>Lệnh sản xuất</th>
-            <th>Công đoạn</th>
-            <th class="text-end">Tồn bán thành phẩm</th>
-          </tr>
-        </thead>
-        <tbody>
-        {% for b in balances %}
-          <tr>
-            <td class="small">
-              <a href="{% url 'san_xuat:dispatch_mo_detail' b.production_order.pk %}">{{ b.production_order.code }}</a>
-            </td>
-            <td>{{ b.process_name }}</td>
-            <td class="text-end fw-semibold">{{ b.qty|sx_num }}</td>
-          </tr>
-        {% empty %}
-          <tr><td colspan="3" class="text-muted small p-3">Chưa có tồn — xác nhận thống kê SX / bàn giao sẽ cập nhật sổ.</td></tr>
-        {% endfor %}
-        </tbody>
-      </table>
-    </div>
+  <div class="jp-ho-queues" role="navigation" aria-label="Hàng chờ theo tổ">
+    <a class="jp-ho-q{% if not board.filter_team %} is-on{% endif %}"
+       href="{% url 'san_xuat:dispatch_handover_status' %}{% if board.search %}?q={{ board.search|urlencode }}{% endif %}">Tất cả</a>
+    {% for q in board.queues %}
+      {% if not forloop.first %}
+    <a class="jp-ho-q{% if board.filter_team == q.slug %} is-on{% endif %}{% if q.waiting %} has-wait{% endif %}"
+       href="{% url 'san_xuat:dispatch_handover_status' %}?team={{ q.slug }}{% if board.search %}&amp;q={{ board.search|urlencode }}{% endif %}">
+      {{ q.label }} <span class="n">{{ q.waiting|sx_num }}</span>
+    </a>
+      {% endif %}
+    {% endfor %}
   </div>
 
-  <div class="card border-0 shadow-sm overflow-hidden">
-    <div class="jp-npl-mat-grid-wrap">
-      <table class="table table-hover align-middle mb-0 jp-npl-mat-grid">
-        <thead class="table-light">
-          <tr>
-            <th>Mã</th>
-            <th>Lệnh sản xuất</th>
-            <th>Công đoạn</th>
-            <th class="text-end">Số lượng</th>
-            <th>Ngày</th>
-            <th>Trạng thái</th>
-          </tr>
-        </thead>
-        <tbody>
-        {% for item in recent %}
-          <tr>
-            <td><a href="{% url 'san_xuat:dispatch_wip_handover_detail' item.pk %}">{{ item.code }}</a></td>
-            <td class="small">{{ item.production_order.code }}</td>
-            <td class="small">{{ item.from_process }} → {{ item.to_process }}</td>
-            <td class="text-end">{{ item.qty|sx_num }}</td>
-            <td class="small">{{ item.handover_date|date:"d/m/Y" }}</td>
-            <td class="small">{{ item.get_status_display }}</td>
-          </tr>
-        {% empty %}
-          <tr><td colspan="6" class="text-muted small p-3">Chưa có bàn giao.</td></tr>
+  <form method="get" class="jp-ho-toolbar">
+    {% if board.filter_team %}<input type="hidden" name="team" value="{{ board.filter_team }}">{% endif %}
+    <input type="search" name="q" value="{{ board.search }}" class="form-control form-control-sm jp-ho-search"
+           placeholder="Tìm lệnh sản xuất / mã SP / đơn hàng…" autocomplete="off">
+    <button type="submit" class="btn btn-outline-secondary btn-sm">Lọc</button>
+    {% if board.search or board.filter_team %}
+    <a href="{% url 'san_xuat:dispatch_handover_status' %}" class="btn btn-link btn-sm text-decoration-none">Xóa lọc</a>
+    {% endif %}
+  </form>
+
+  {% if board.rows %}
+  <div class="jp-ho-jobs">
+    {% for row in board.rows %}
+    <article class="jp-ho-job">
+      <header class="jp-ho-job-head">
+        <div>
+          <a class="jp-ho-mo-code" href="{% url 'san_xuat:dispatch_mo_detail' row.mo.pk %}">{{ row.mo.code }}</a>
+          <div class="jp-ho-mo-sub">
+            <strong>{{ row.mo.product_code }}</strong>
+            {% if row.mo.product_name %} · {{ row.mo.product_name }}{% endif %}
+            {% if row.mo.sales_order_id %} · {{ row.mo.sales_order.code }}{% endif %}
+            · SL {{ row.plan|sx_num }}
+          </div>
+        </div>
+        <div class="d-flex flex-wrap align-items-center gap-2">
+          {% if row.waiting_total %}
+          <span class="jp-ho-pill">Chờ tổ sau <strong>{{ row.waiting_total|sx_num }}</strong></span>
+          {% endif %}
+          {% if row.bottleneck %}
+          <span class="jp-ho-pill">Kẹt tại <strong>{{ row.bottleneck }}</strong></span>
+          {% endif %}
+        </div>
+      </header>
+      <div class="jp-ho-flow">
+        {% for c in row.cells %}
+          {% if not forloop.first %}<div class="jp-ho-arrow" aria-hidden="true"><i class="bi bi-chevron-right"></i></div>{% endif %}
+          <a class="jp-ho-cell is-{{ c.status }}"
+             href="{% url 'san_xuat:team_work_progress' c.slug row.mo.pk %}"
+             title="Tiến độ tổ {{ c.label }}">
+            <div class="nm">{{ c.label }}</div>
+            <div class="qty">{{ c.done|sx_num }} <span>/ {{ c.plan|sx_num }}</span></div>
+            {% if not forloop.first and c.waiting %}
+            <div class="wait">Chờ nhận {{ c.waiting|sx_num }}</div>
+            {% elif forloop.first and c.waiting %}
+            <div class="wait">Còn {{ c.waiting|sx_num }}</div>
+            {% endif %}
+          </a>
         {% endfor %}
-        </tbody>
-      </table>
-    </div>
+      </div>
+    </article>
+    {% endfor %}
   </div>
+  {% else %}
+  <div class="jp-ho-empty">
+    {% if board.search or board.filter_team %}
+    Không có lệnh khớp bộ lọc. Tổ cần cập nhật tiến độ trên Công việc tổ trước.
+    {% else %}
+    Chưa có lệnh đang chạy — phát hành lệnh rồi cập nhật SL trên Công việc tổ.
+    {% endif %}
+  </div>
+  {% endif %}
 </div>
 {% endblock %}

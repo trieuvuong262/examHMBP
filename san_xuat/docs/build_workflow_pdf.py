@@ -784,10 +784,11 @@ def build():
         styles,
         "Tình hình bàn giao sản xuất",
         "/san-xuat/dieu-phoi/tinh-hinh-ban-giao/",
-        "Không (báo cáo / sổ tồn)",
+        "Không (báo cáo / sổ tồn BTP theo tổ)",
         [
-            "Xem tồn / thống kê bàn giao (chờ xử lý, đã xong, từ chối)",
-            "<b>Không</b> có thao tác đổi trạng thái trên màn này",
+            "Tồn bán thành phẩm giữa các tổ lấy từ SL tiến độ Công việc tổ đã cập nhật",
+            "Luồng Cắt → In-Ép → Thêu → May → Ủi-Gấp → Giao hàng; bấm tổ để mở phiếu tiến độ",
+            "<b>Không</b> lập / xác nhận phiếu bàn giao trên màn này",
         ],
     )
 

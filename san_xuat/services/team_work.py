@@ -12,6 +12,7 @@ from san_xuat.hub_models import (
     SxMoProcessAssignee,
     SxMoProcessStep,
     SxProductionOrder,
+    SxTeamWorkClose,
 )
 from san_xuat.services.order_progress_sheet import ensure_progress_work_centers, work_center_map
 from san_xuat.services.planning import PlanningError
@@ -40,6 +41,9 @@ class TeamWorkJob:
     done_count: int = 0
     run_count: int = 0
     wait_count: int = 0
+    closed: bool = False
+    closed_at: object | None = None
+    closed_by_label: str = ''
 
 
 def group_team_work_jobs(rows: list[TeamWorkRow]) -> list[TeamWorkJob]:
@@ -200,6 +204,10 @@ def assign_team_work(
     mo = SxProductionOrder.objects.select_for_update().get(pk=mo_id, is_demo=False)
     if mo.status in (SxProductionOrder.STATUS_DRAFT, SxProductionOrder.STATUS_CANCELLED):
         raise PlanningError('Lệnh sản xuất chưa phát hành hoặc đã hủy.')
+    if is_team_job_closed(mo_id=mo.pk, team_slug=slug):
+        raise PlanningError(
+            'Tổ đã hoàn thành lệnh này — mở lại nếu cần phân công. Tổ sau không bị chặn.'
+        )
     step = ensure_mo_step_for_template(mo=mo, step_def=sd)
     User = get_user_model()
     allowed = assignee_candidate_ids_for_team(slug, assigned_by) if assigned_by is not None else set()
@@ -225,6 +233,86 @@ def assign_team_work(
         )
     SxMoProcessAssignee.objects.filter(mo_process_step=step).exclude(user_id__in=keep).delete()
     return step
+
+
+def _person_label(user) -> str:
+    if not user:
+        return ''
+    p = getattr(user, 'profile', None)
+    label = ((getattr(p, 'full_name', None) or '') if p else '').strip()
+    return label or user.get_full_name() or user.username
+
+
+def is_team_job_closed(*, mo_id: int, team_slug: str = '', process_name: str = '') -> bool:
+    slug = (team_slug or '').strip().lower()
+    if not slug and process_name:
+        from san_xuat.services.progress_template import team_slug_for_process_label
+
+        slug = team_slug_for_process_label(process_name) or ''
+    if not slug or not mo_id:
+        return False
+    return SxTeamWorkClose.objects.filter(
+        production_order_id=mo_id, team_slug=slug, is_demo=False,
+    ).exists()
+
+
+def team_job_closes(*, slug: str, mo_ids: list[int]) -> dict[int, SxTeamWorkClose]:
+    if not mo_ids:
+        return {}
+    qs = (
+        SxTeamWorkClose.objects.filter(
+            team_slug=(slug or '').strip().lower(),
+            production_order_id__in=mo_ids,
+            is_demo=False,
+        )
+        .select_related('created_by', 'created_by__profile')
+    )
+    return {c.production_order_id: c for c in qs}
+
+
+def attach_team_job_closes(jobs: list[TeamWorkJob], *, slug: str) -> list[TeamWorkJob]:
+    closes = team_job_closes(slug=slug, mo_ids=[j.mo.pk for j in jobs])
+    for job in jobs:
+        rec = closes.get(job.mo.pk)
+        job.closed = rec is not None
+        job.closed_at = rec.closed_at if rec else None
+        job.closed_by_label = _person_label(rec.created_by) if rec else ''
+    return jobs
+
+
+@transaction.atomic
+def close_team_job(*, mo_id: int, team_slug: str, user=None, notes: str = '') -> SxTeamWorkClose:
+    slug = (team_slug or '').strip().lower()
+    if not team_by_slug(slug):
+        raise PlanningError('Tổ không hợp lệ.')
+    mo = SxProductionOrder.objects.select_for_update().get(pk=mo_id, is_demo=False)
+    if mo.status in (SxProductionOrder.STATUS_DRAFT, SxProductionOrder.STATUS_CANCELLED):
+        raise PlanningError('Lệnh sản xuất chưa phát hành hoặc đã hủy.')
+    rec, created = SxTeamWorkClose.objects.get_or_create(
+        production_order=mo,
+        team_slug=slug,
+        defaults={
+            'notes': (notes or '').strip(),
+            'created_by': user if getattr(user, 'is_authenticated', False) else None,
+            'is_demo': False,
+        },
+    )
+    if not created:
+        raise PlanningError('Lệnh này tổ đã hoàn thành.')
+    return rec
+
+
+@transaction.atomic
+def reopen_team_job(*, mo_id: int, team_slug: str) -> int:
+    slug = (team_slug or '').strip().lower()
+    if not team_by_slug(slug):
+        raise PlanningError('Tổ không hợp lệ.')
+    deleted, _ = SxTeamWorkClose.objects.filter(
+        production_order_id=mo_id, team_slug=slug, is_demo=False,
+    ).delete()
+    if not deleted:
+        raise PlanningError('Lệnh này tổ chưa hoàn thành.')
+    return int(deleted)
 
 
 def assignee_candidate_options(*, slug: str = '', assigner=None, limit: int = 300) -> list[dict]:

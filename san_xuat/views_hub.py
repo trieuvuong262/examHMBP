@@ -2278,6 +2278,9 @@ def dispatch_mo_detail(request, pk: int):
         mo.wip_handovers.filter(is_demo=False)
         .order_by('-handover_date', '-pk')[:20]
     )
+    from san_xuat.services.handover_status import build_mo_handover_row
+
+    handover_row = build_mo_handover_row(mo)
 
     bom_lines = []
     if mo.bom_version_id:
@@ -2371,6 +2374,7 @@ def dispatch_mo_detail(request, pk: int):
         'qc_alerts': qc_alerts,
         'fg_receipt_list': fg_receipt_list,
         'wip_handover_list': wip_handover_list,
+        'handover_row': handover_row,
         'bom_lines': bom_lines,
         'progress': progress,
         'team_options_json': json.dumps(team_options, ensure_ascii=False),
@@ -2767,13 +2771,26 @@ def dispatch_prod_stats(request):
         .order_by('-production_order_id', 'sequence', 'id')
         .distinct()
     )
-    # Gộp không trùng
+    # Gộp không trùng — ẩn việc tổ đã chốt (công nhân không chọn đơn đó làm tiếp)
+    from san_xuat.hub_models import SxTeamWorkClose
+    from san_xuat.services.progress_template import team_slug_for_process_label
+
+    merged_steps = list(managed) + list(assigned)
+    closed_pairs = set(
+        SxTeamWorkClose.objects.filter(
+            is_demo=False,
+            production_order_id__in=[s.production_order_id for s in merged_steps],
+        ).values_list('production_order_id', 'team_slug')
+    )
     seen: set[int] = set()
     my_steps = []
-    for step in list(managed) + list(assigned):
+    for step in merged_steps:
         if step.pk in seen:
             continue
         seen.add(step.pk)
+        slug = team_slug_for_process_label(step.process_name or '')
+        if slug and (step.production_order_id, slug) in closed_pairs:
+            continue
         mo = step.production_order
         confirmed = SxProductionStat.objects.filter(
             production_order=mo,
@@ -3385,17 +3402,14 @@ def dispatch_wip_return_detail(request, pk: int):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def dispatch_handover_status(request):
-    qs = SxWipHandover.objects.filter(is_demo=False).select_related('production_order')
-    pending = qs.filter(status=SxWipHandover.STATUS_PENDING).count()
-    done = qs.filter(status=SxWipHandover.STATUS_DONE).count()
-    rejected = qs.filter(status=SxWipHandover.STATUS_REJECTED).count()
-    recent = qs.order_by('-handover_date', '-pk')[:50]
+    from san_xuat.services.handover_status import build_handover_board
+
+    q = (request.GET.get('q') or '').strip()
+    team = (request.GET.get('team') or '').strip().lower()
+    board = build_handover_board(search=q, team_slug=team)
     return render(request, 'san_xuat/wip_handover_status.html', {
         **_perm_ctx(request),
-        'pending': pending,
-        'done': done,
-        'rejected': rejected,
-        'recent': recent,
+        'board': board,
     })
 
 
@@ -3881,8 +3895,11 @@ def team_work_board(request, slug: str):
     from san_xuat.services.team_work import (
         assignee_candidate_options,
         assign_team_work,
+        attach_team_job_closes,
         build_team_work_rows,
+        close_team_job,
         group_team_work_jobs,
+        reopen_team_job,
     )
 
     team_meta = team_by_slug(slug)
@@ -3903,13 +3920,28 @@ def team_work_board(request, slug: str):
         or user_can_create_menu(request.user, MODULE_SAN_XUAT, menu_key)
     )
 
+    def _board_qs(**extra) -> str:
+        from urllib.parse import urlencode
+
+        params = {}
+        qv = (request.GET.get('q') or request.POST.get('q') or '').strip()
+        show = (request.GET.get('show') or request.POST.get('show') or '').strip()
+        if qv:
+            params['q'] = qv
+        if show == 'closed':
+            params['show'] = 'closed'
+        params.update({k: v for k, v in extra.items() if v})
+        qs = urlencode(params)
+        url = reverse('san_xuat:team_work_board', kwargs={'slug': slug})
+        return f'{url}?{qs}' if qs else url
+
     if request.method == 'POST' and can_assign:
         action = (request.POST.get('action') or '').strip()
+        try:
+            mo_id = int(request.POST.get('mo_id') or 0)
+        except (TypeError, ValueError):
+            mo_id = 0
         if action == 'assign':
-            try:
-                mo_id = int(request.POST.get('mo_id') or 0)
-            except (TypeError, ValueError):
-                mo_id = 0
             process_key = (request.POST.get('process_key') or '').strip()
             raw_ids = request.POST.getlist('assignee_ids')
             user_ids = [int(x) for x in raw_ids if str(x).isdigit()]
@@ -3926,9 +3958,31 @@ def team_work_board(request, slug: str):
                 messages.error(request, str(exc))
             except Exception as exc:
                 messages.error(request, str(exc))
-            return redirect(f"{reverse('san_xuat:team_work_board', kwargs={'slug': slug})}?q={(request.GET.get('q') or request.POST.get('q') or '').strip()}")
+            return redirect(_board_qs())
+        if action == 'complete' and mo_id:
+            try:
+                close_team_job(mo_id=mo_id, team_slug=slug, user=request.user)
+                messages.success(
+                    request,
+                    'Đã hoàn thành — công nhân tổ này không chọn đơn đó làm tiếp. Tổ sau không bị chặn.',
+                )
+            except PlanningError as exc:
+                messages.error(request, str(exc))
+            except Exception as exc:
+                messages.error(request, str(exc))
+            return redirect(_board_qs())
+        if action == 'reopen' and mo_id:
+            try:
+                reopen_team_job(mo_id=mo_id, team_slug=slug)
+                messages.success(request, 'Đã mở lại công việc tổ trên lệnh này.')
+            except PlanningError as exc:
+                messages.error(request, str(exc))
+            except Exception as exc:
+                messages.error(request, str(exc))
+            return redirect(_board_qs())
 
     q = (request.GET.get('q') or '').strip()
+    show_closed = (request.GET.get('show') or '').strip() == 'closed'
     try:
         team, rows = build_team_work_rows(slug=slug, search=q)
     except PlanningError as exc:
@@ -3951,11 +4005,19 @@ def team_work_board(request, slug: str):
                     assignee_candidates.append({'id': a['id'], 'label': a['label']})
                     seen.add(a['id'])
 
+    jobs = attach_team_job_closes(group_team_work_jobs(rows), slug=slug)
+    closed_count = sum(1 for j in jobs if j.closed)
+    open_count = len(jobs) - closed_count
+    visible = [j for j in jobs if j.closed] if show_closed else [j for j in jobs if not j.closed]
+
     return render(request, 'san_xuat/team_work_board.html', {
         **_perm_ctx(request),
         'team': team,
-        'jobs': group_team_work_jobs(rows),
+        'jobs': visible,
         'search_query': q,
+        'show_closed': show_closed,
+        'open_count': open_count,
+        'closed_count': closed_count,
         'can_assign': can_assign,
         'can_map_divisions': can_map,
         'team_has_division_map': mapped,
@@ -3976,6 +4038,7 @@ def team_work_progress(request, slug: str, mo_id: int):
     )
     from san_xuat.services.planning import PlanningError
     from san_xuat.services.progress_template import steps_for_group, team_by_slug
+    from san_xuat.services.team_work import close_team_job, is_team_job_closed, reopen_team_job
 
     team_meta = team_by_slug(slug)
     if not team_meta:
@@ -4010,6 +4073,7 @@ def team_work_progress(request, slug: str, mo_id: int):
     team_steps = steps_for_group(group_key)
     allowed_keys = {s.key for s in team_steps}
     ensure_progress_work_centers()
+    job_closed = is_team_job_closed(mo_id=mo.pk, team_slug=slug)
 
     if request.method == 'POST' and can_update:
         from django.http import JsonResponse
@@ -4019,7 +4083,30 @@ def team_work_progress(request, slug: str, mo_id: int):
             request.headers.get('X-Requested-With') == 'XMLHttpRequest'
             or 'application/json' in (request.headers.get('Accept') or '')
         )
+        if action == 'complete':
+            try:
+                close_team_job(mo_id=mo.pk, team_slug=slug, user=request.user)
+                messages.success(
+                    request,
+                    'Đã hoàn thành — công nhân tổ này không chọn đơn đó làm tiếp. Tổ sau không bị chặn.',
+                )
+            except PlanningError as exc:
+                messages.error(request, str(exc))
+            return redirect('san_xuat:team_work_progress', slug=slug, mo_id=mo.pk)
+        if action == 'reopen':
+            try:
+                reopen_team_job(mo_id=mo.pk, team_slug=slug)
+                messages.success(request, 'Đã mở lại công việc tổ trên lệnh này.')
+            except PlanningError as exc:
+                messages.error(request, str(exc))
+            return redirect('san_xuat:team_work_progress', slug=slug, mo_id=mo.pk)
         if action in ('record', 'set_done'):
+            if job_closed:
+                msg = 'Tổ đã hoàn thành lệnh này — mở lại nếu cần sửa SL.'
+                if wants_json:
+                    return JsonResponse({'ok': False, 'error': msg}, status=400)
+                messages.error(request, msg)
+                return redirect('san_xuat:team_work_progress', slug=slug, mo_id=mo.pk)
             process_key = (request.POST.get('process_key') or '').strip()
             size_label = (request.POST.get('size_label') or '').strip()
             try:
@@ -4080,7 +4167,9 @@ def team_work_progress(request, slug: str, mo_id: int):
         'mo': mo,
         'sheet': sheet,
         'flat_steps': team_steps,
-        'can_update': can_update,
+        'can_update': can_update and not job_closed,
+        'can_close': can_update,
+        'job_closed': job_closed,
         'today': timezone.localdate(),
     })
 

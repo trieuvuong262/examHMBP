@@ -119,7 +119,7 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
         {'key': 'dispatch', 'label': 'Điều phối', 'icon': 'bi-diagram-2'},
         {'key': 'mo', 'label': 'Lệnh sản xuất', 'icon': 'bi-card-checklist'},
         {'key': 'material_issue_req', 'label': 'Yêu cầu xuất vật tư', 'icon': 'bi-box-arrow-right'},
-        {'key': 'handover_status', 'label': 'Tồn bán thành phẩm / bàn giao', 'icon': 'bi-clipboard-data'},
+        {'key': 'handover_status', 'label': 'Tình hình bàn giao', 'icon': 'bi-clipboard-data'},
         {'key': 'fg_receipt_req', 'label': 'Yêu cầu nhập thành phẩm', 'icon': 'bi-box-arrow-in-down'},
         {'key': 'subcontract', 'label': 'Thuê gia công', 'icon': 'bi-building'},
         {'key': 'team_work', 'label': 'Công việc tổ', 'icon': 'bi-people'},

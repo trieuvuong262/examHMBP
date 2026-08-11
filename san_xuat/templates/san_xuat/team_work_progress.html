@@ -47,6 +47,22 @@
       <h2 class="jp-npl-mat-topbar-title w-100">Tiến độ tổ · {{ team.label }}</h2>
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
+      {% if can_close %}
+        {% if job_closed %}
+        <form method="post" class="d-inline">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="reopen">
+          <button type="submit" class="btn btn-sm btn-outline-secondary">Mở lại</button>
+        </form>
+        {% else %}
+        <form method="post" class="d-inline" onsubmit="return confirm('Hoàn thành lệnh này ở tổ {{ team.label }}? Công nhân sẽ không chọn đơn này làm tiếp. Tổ sau không bị chặn.');">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="complete">
+          <button type="submit" class="btn btn-sm btn-outline-hm fw-bold">Hoàn thành</button>
+        </form>
+        {% endif %}
+        <span class="sep" aria-hidden="true"></span>
+      {% endif %}
       <a href="{% url 'san_xuat:dispatch_mo_detail' mo.pk %}"><i class="bi bi-file-earmark-text" aria-hidden="true"></i>Lệnh sản xuất</a>
       <span class="sep" aria-hidden="true"></span>
       <a href="{% url 'san_xuat:team_work_board' team.slug %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Công việc tổ</a>
@@ -61,6 +77,13 @@
     <span>Tổng SL <strong>{{ sheet.total_qty|sx_num }}</strong></span>
     <span>Chỉ công đoạn tổ <strong>{{ team.label }}</strong></span>
   </div>
+
+  {% if job_closed %}
+  <div class="alert alert-success py-2 px-3">
+    Tổ đã <strong>hoàn thành</strong> lệnh này — công nhân không chọn đơn để làm tiếp.
+    Tổ sau vẫn nhận hàng theo tiến độ, không cần chờ nút này.
+  </div>
+  {% endif %}
 
   {% if not flat_steps %}
   <div class="alert alert-warning">Tổ này chưa có công đoạn mẫu.</div>

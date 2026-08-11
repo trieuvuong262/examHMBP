@@ -605,6 +605,13 @@ def assert_user_can_create_stat(*, user, mo: SxProductionOrder, process_name: st
         raise DispatchError(
             "Chỉ nhân viên được phân công tại Công việc tổ mới được ghi thống kê cho công đoạn này."
         )
+    from san_xuat.services.team_work import is_team_job_closed
+
+    if is_team_job_closed(mo_id=mo.pk, process_name=name):
+        raise DispatchError(
+            "Tổ đã hoàn thành lệnh này — công nhân không ghi tiếp. "
+            "Tổ trưởng mở lại trên Công việc tổ nếu cần."
+        )
     return step
 
 

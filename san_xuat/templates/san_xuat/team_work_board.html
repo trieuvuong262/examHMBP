@@ -89,6 +89,18 @@
   .jp-tw-chip i { font-size: .72rem; color: var(--tw-muted); }
   .jp-tw-empty { color: var(--tw-muted); font-size: .8rem; }
   .jp-tw-step .btn { white-space: nowrap; }
+  .jp-tw-job.is-closed { opacity: .92; }
+  .jp-tw-job.is-closed .jp-tw-job-head { background: #f8fafc; }
+  .jp-tw-hint { color: var(--tw-muted); font-size: .82rem; margin: 0 0 .85rem; }
+  .jp-tw-tabs { display: flex; flex-wrap: wrap; gap: .4rem; margin: 0 0 1rem; }
+  .jp-tw-tab {
+    display: inline-flex; align-items: center; gap: .3rem;
+    padding: .28rem .7rem; border-radius: 999px; text-decoration: none;
+    border: 1px solid var(--tw-line); background: #fff; color: var(--tw-ink);
+    font-size: .78rem; font-weight: 700;
+  }
+  .jp-tw-tab:hover { border-color: #99f6e4; color: var(--tw-accent); }
+  .jp-tw-tab.is-on { background: #ccfbf1; border-color: #5eead4; color: #115e59; }
   .jp-tw-empty-board {
     border: 1px dashed var(--tw-line); border-radius: 1rem;
     padding: 2.5rem 1rem; text-align: center; color: var(--tw-muted); background: #fff;
@@ -178,36 +190,72 @@
   </div>
   {% endif %}
 
+  <p class="jp-tw-hint">Hoàn thành chỉ chốt việc tổ này — công nhân không chọn đơn đó làm tiếp. Tổ sau vẫn nhận hàng theo tiến độ, không cần chờ nút này.</p>
+
+  <div class="jp-tw-tabs" role="navigation" aria-label="Lọc công việc">
+    <a class="jp-tw-tab{% if not show_closed %} is-on{% endif %}"
+       href="{% url 'san_xuat:team_work_board' team.slug %}{% if search_query %}?q={{ search_query|urlencode }}{% endif %}">
+      Đang làm <strong>{{ open_count }}</strong>
+    </a>
+    <a class="jp-tw-tab{% if show_closed %} is-on{% endif %}"
+       href="{% url 'san_xuat:team_work_board' team.slug %}?show=closed{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}">
+      Đã hoàn thành <strong>{{ closed_count }}</strong>
+    </a>
+  </div>
+
   <form method="get" class="jp-tw-toolbar">
+    {% if show_closed %}<input type="hidden" name="show" value="closed">{% endif %}
     <input type="search" name="q" value="{{ search_query }}" class="form-control form-control-sm jp-tw-search"
            placeholder="Tìm lệnh sản xuất / mã SP / đơn hàng…" autocomplete="off">
     <button type="submit" class="btn btn-outline-secondary btn-sm">Lọc</button>
     {% if search_query %}
-    <a href="{% url 'san_xuat:team_work_board' team.slug %}" class="btn btn-link btn-sm text-decoration-none">Xóa lọc</a>
+    <a href="{% url 'san_xuat:team_work_board' team.slug %}{% if show_closed %}?show=closed{% endif %}" class="btn btn-link btn-sm text-decoration-none">Xóa lọc</a>
     {% endif %}
   </form>
 
   {% if jobs %}
-  <div class="jp-tw-jobs{% if can_assign %} is-assignable{% endif %}">
+  <div class="jp-tw-jobs{% if can_assign and not show_closed %} is-assignable{% endif %}">
     {% for job in jobs %}
-    <article class="jp-tw-job">
+    <article class="jp-tw-job{% if job.closed %} is-closed{% endif %}">
       <header class="jp-tw-job-head">
         <div>
           <div class="jp-tw-job-title">
             <a class="jp-tw-mo-code" href="{% url 'san_xuat:dispatch_mo_detail' job.mo.pk %}">{{ job.mo.code }}</a>
             <span class="jp-tw-stat-pill"><strong>{{ job.step_count }}</strong> công đoạn</span>
+            {% if job.closed %}<span class="jp-tw-status is-done"><i class="bi bi-check-circle"></i>Hoàn thành</span>{% endif %}
           </div>
           <div class="jp-tw-mo-sub">
             <strong>{{ job.mo.product_code }}</strong>
             {% if job.mo.product_name %} · {{ job.mo.product_name }}{% endif %}
             {% if job.mo.sales_order_id %} · {{ job.mo.sales_order.code }}{% endif %}
             {% if job.mo.qty %} · SL {{ job.mo.qty|sx_num }}{% endif %}
+            {% if job.closed and job.closed_by_label %} · Chốt bởi {{ job.closed_by_label }}{% if job.closed_at %} · {{ job.closed_at|date:"d/m/Y H:i" }}{% endif %}{% endif %}
           </div>
         </div>
         <div class="jp-tw-job-actions">
           <a href="{% url 'san_xuat:team_work_progress' team.slug job.mo.pk %}"
              class="btn btn-hm btn-sm fw-bold"
              title="Xem tiến độ tổ {{ team.label }}">Tiến độ</a>
+          {% if can_assign %}
+            {% if job.closed %}
+            <form method="post" class="d-inline">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="reopen">
+              <input type="hidden" name="mo_id" value="{{ job.mo.pk }}">
+              <input type="hidden" name="q" value="{{ search_query }}">
+              <input type="hidden" name="show" value="closed">
+              <button type="submit" class="btn btn-outline-secondary btn-sm">Mở lại</button>
+            </form>
+            {% else %}
+            <form method="post" class="d-inline" onsubmit="return confirm('Hoàn thành lệnh này ở tổ {{ team.label }}? Công nhân sẽ không chọn đơn này làm tiếp. Tổ sau không bị chặn.');">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="complete">
+              <input type="hidden" name="mo_id" value="{{ job.mo.pk }}">
+              <input type="hidden" name="q" value="{{ search_query }}">
+              <button type="submit" class="btn btn-outline-hm btn-sm fw-bold">Hoàn thành</button>
+            </form>
+            {% endif %}
+          {% endif %}
           <span class="jp-tw-stat-pill">Đã gán <strong>{{ job.assigned_count }}</strong>/{{ job.step_count }}</span>
           {% if job.run_count %}<span class="jp-tw-stat-pill">Đang làm <strong>{{ job.run_count }}</strong></span>{% endif %}
           {% if job.done_count %}<span class="jp-tw-stat-pill">Xong <strong>{{ job.done_count }}</strong></span>{% endif %}
@@ -243,7 +291,7 @@
               <span class="jp-tw-empty">Chưa phân công</span>
             {% endfor %}
           </div>
-          {% if can_assign %}
+          {% if can_assign and not job.closed %}
           <button type="button"
                   class="btn btn-sm {% if row.assignees %}btn-hm{% else %}btn-outline-hm{% endif %} fw-bold"
                   data-jp-tw-assign>
@@ -257,7 +305,9 @@
     {% endfor %}
   </div>
   {% else %}
-  <div class="jp-tw-empty-board">Chưa có lệnh sản xuất đang chạy cho tổ này.</div>
+  <div class="jp-tw-empty-board">
+    {% if show_closed %}Chưa có lệnh nào tổ này đã hoàn thành.{% else %}Chưa có lệnh sản xuất đang chạy cho tổ này.{% endif %}
+  </div>
   {% endif %}
 </div>
 
