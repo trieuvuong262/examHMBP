@@ -539,6 +539,122 @@ def load_snapshot_for_board(*, days: int = 14) -> dict:
     return {'centers': centers}
 
 
+TIMELINE_DAYS = 28
+
+
+@dataclass
+class MoTimelineRow:
+    mo: SxProductionOrder
+    start: date
+    end: date
+    left_pct: float
+    width_pct: float
+    span_days: int
+    is_today: bool
+    is_late: bool
+    status_key: str
+
+
+@dataclass
+class MoTimelineBoard:
+    range_start: date
+    range_end: date
+    days: list[date]
+    rows: list[MoTimelineRow]
+    today: date
+    today_left_pct: float | None
+    prev_from: date
+    next_from: date
+    unscheduled: list
+    search: str = ''
+
+
+def _monday_on_or_before(d: date) -> date:
+    return d - timedelta(days=d.weekday())
+
+
+def build_mo_timeline(
+    *,
+    range_from: date | None = None,
+    days: int = TIMELINE_DAYS,
+    search: str = '',
+) -> MoTimelineBoard:
+    """Timeline LSX theo ngày bắt đầu / kết thúc dự kiến."""
+    today = timezone.localdate()
+    span = max(7, int(days or TIMELINE_DAYS))
+    start = range_from or _monday_on_or_before(today)
+    end = start + timedelta(days=span - 1)
+    day_list = [start + timedelta(days=i) for i in range(span)]
+
+    qs = (
+        SxProductionOrder.objects.filter(is_demo=False)
+        .exclude(status=SxProductionOrder.STATUS_CANCELLED)
+        .select_related('sales_order')
+        .order_by('planned_start', 'planned_end', 'code')
+    )
+    term = (search or '').strip()
+    if term:
+        from django.db.models import Q
+
+        qs = qs.filter(
+            Q(code__icontains=term)
+            | Q(product_code__icontains=term)
+            | Q(product_name__icontains=term)
+            | Q(team_label__icontains=term)
+            | Q(sales_order__code__icontains=term)
+        )
+
+    rows: list[MoTimelineRow] = []
+    unscheduled: list = []
+    total = float(span) or 1.0
+    for mo in qs[:400]:
+        raw_start = mo.planned_start
+        raw_end = mo.planned_end
+        if raw_start and raw_end and raw_end < raw_start:
+            raw_start, raw_end = raw_end, raw_start
+        if not raw_start and not raw_end:
+            unscheduled.append(mo)
+            continue
+        bar_start = raw_start or raw_end
+        bar_end = raw_end or raw_start
+        if bar_end < start or bar_start > end:
+            continue
+        vis_start = max(bar_start, start)
+        vis_end = min(bar_end, end)
+        offset = (vis_start - start).days
+        length = (vis_end - vis_start).days + 1
+        left_pct = round(100.0 * offset / total, 3)
+        width_pct = max(round(100.0 * length / total, 3), 100.0 / total)
+        rows.append(MoTimelineRow(
+            mo=mo,
+            start=bar_start,
+            end=bar_end,
+            left_pct=left_pct,
+            width_pct=width_pct,
+            span_days=(bar_end - bar_start).days + 1,
+            is_today=start <= today <= end and bar_start <= today <= bar_end,
+            is_late=bool(bar_end < today and mo.status != SxProductionOrder.STATUS_DONE),
+            status_key=mo.status,
+        ))
+
+    today_left = None
+    if start <= today <= end:
+        today_left = round(100.0 * ((today - start).days + 0.5) / total, 3)
+
+    return MoTimelineBoard(
+        range_start=start,
+        range_end=end,
+        days=day_list,
+        rows=rows,
+        today=today,
+        today_left_pct=today_left,
+        prev_from=start - timedelta(days=14),
+        next_from=start + timedelta(days=14),
+        unscheduled=unscheduled[:80],
+        search=term,
+    )
+
+
 def confirmed_order_qty_summary() -> dict:
     qs = SxSalesOrder.objects.filter(
         is_demo=False,

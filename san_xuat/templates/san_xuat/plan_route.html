@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+{% load sx_format %}
+
+{% block extra_head %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+<style>
+  .jp-tl { --tl-ink:#0f172a; --tl-muted:#64748b; --tl-line:#e8edf3; --tl-soft:#f8fafc; --tl-today:#dc2626; }
+  .jp-tl-nav { display:flex; flex-wrap:wrap; align-items:center; gap:.5rem 1rem; margin:0 0 1rem; }
+  .jp-tl-range { font-weight:800; color:var(--tl-ink); letter-spacing:-.02em; }
+  .jp-tl-hint { color:var(--tl-muted); font-size:.82rem; margin:0; }
+  .jp-tl-wrap { overflow:auto; border:1px solid var(--tl-line); border-radius:1rem; background:#fff; }
+  .jp-tl-table { min-width:52rem; width:100%; border-collapse:separate; border-spacing:0; }
+  .jp-tl-table th, .jp-tl-table td { border-bottom:1px solid var(--tl-line); vertical-align:middle; }
+  .jp-tl-table thead th {
+    position:sticky; top:0; z-index:2; background:#fff;
+    font-size:.68rem; font-weight:700; color:var(--tl-muted); text-align:center;
+    padding:.35rem 0; border-bottom:1px solid var(--tl-line);
+  }
+  .jp-tl-table thead th.is-weekend { background:#f8fafc; }
+  .jp-tl-table thead th.is-today { color:var(--tl-today); background:#fef2f2; }
+  .jp-tl-label {
+    position:sticky; left:0; z-index:3; background:#fff;
+    width:16rem; min-width:16rem; max-width:16rem;
+    padding:.65rem .85rem; text-align:left; border-right:1px solid var(--tl-line);
+  }
+  .jp-tl-table thead .jp-tl-label { z-index:4; }
+  .jp-tl-code { font-weight:800; color:var(--tl-ink); text-decoration:none; font-size:.88rem; }
+  .jp-tl-code:hover { color:#0f766e; }
+  .jp-tl-sub { color:var(--tl-muted); font-size:.75rem; margin-top:.15rem; }
+  .jp-tl-track { position:relative; height:2.1rem; padding:.35rem 0; }
+  .jp-tl-bar {
+    position:absolute; top:.35rem; height:1.4rem; border-radius:999px;
+    display:flex; align-items:center; padding:0 .55rem;
+    font-size:.68rem; font-weight:700; color:#fff; white-space:nowrap; overflow:hidden;
+    min-width:.55rem;
+  }
+  .jp-tl-bar.is-draft { background:#64748b; }
+  .jp-tl-bar.is-released { background:#0284c7; }
+  .jp-tl-bar.is-in_progress { background:#c2410c; }
+  .jp-tl-bar.is-done { background:#15803d; }
+  .jp-tl-bar.is-late { box-shadow:inset 0 0 0 2px #7f1d1d; }
+  .jp-tl-today {
+    position:absolute; top:0; bottom:0; width:1px; background:var(--tl-today);
+    pointer-events:none; z-index:1;
+  }
+  .jp-tl-empty {
+    border:1px dashed var(--tl-line); border-radius:1rem; padding:2.4rem 1rem;
+    text-align:center; color:var(--tl-muted); background:#fff;
+  }
+  .jp-tl-unsched { margin-top:1.1rem; }
+  .jp-tl-unsched h3 { font-size:.82rem; font-weight:800; margin:0 0 .5rem; }
+  .jp-tl-unsched a { font-weight:700; text-decoration:none; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid jp-page jp-sx-page jp-tl py-3 py-md-4 mb-5 px-3 px-lg-4">
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title w-100">Lộ trình sản xuất</h2>
+    </div>
+    <nav class="jp-sx-tools" aria-label="Công cụ">
+      <a href="{% url 'san_xuat:plan_board' %}"><i class="bi bi-kanban" aria-hidden="true"></i>Kế hoạch sản xuất</a>
+      <span class="sep" aria-hidden="true"></span>
+      <a href="{% url 'san_xuat:dispatch_mo' %}"><i class="bi bi-card-checklist" aria-hidden="true"></i>Lệnh sản xuất</a>
+    </nav>
+  </div>
+
+  <div class="jp-tl-nav">
+    <a class="btn btn-outline-secondary btn-sm" href="?from={{ board.prev_from|date:'Y-m-d' }}{% if board.search %}&q={{ board.search|urlencode }}{% endif %}">← 2 tuần</a>
+    <a class="btn btn-outline-secondary btn-sm" href="?from={{ today_monday|date:'Y-m-d' }}{% if board.search %}&q={{ board.search|urlencode }}{% endif %}">Hôm nay</a>
+    <a class="btn btn-outline-secondary btn-sm" href="?from={{ board.next_from|date:'Y-m-d' }}{% if board.search %}&q={{ board.search|urlencode }}{% endif %}">2 tuần →</a>
+    <span class="jp-tl-range">{{ board.range_start|date:"d/m/Y" }} – {{ board.range_end|date:"d/m/Y" }}</span>
+    <form method="get" class="d-flex gap-2 ms-auto" style="min-width:16rem;max-width:24rem;flex:1">
+      <input type="hidden" name="from" value="{{ board.range_start|date:'Y-m-d' }}">
+      <input type="search" name="q" value="{{ board.search }}" class="form-control form-control-sm" placeholder="Tìm mã lệnh / mã SX / tổ…" autocomplete="off">
+      <button type="submit" class="btn btn-outline-secondary btn-sm">Lọc</button>
+    </form>
+  </div>
+  <p class="jp-tl-hint">Thanh thời gian theo <strong>ngày bắt đầu dự kiến</strong> → <strong>ngày kết thúc dự kiến</strong> của lệnh sản xuất.</p>
+
+  {% if board.rows %}
+  <div class="jp-tl-wrap">
+    <table class="jp-tl-table">
+      <thead>
+        <tr>
+          <th class="jp-tl-label">Lệnh</th>
+          {% for d in board.days %}
+          <th class="{% if d == board.today %}is-today{% elif d|date:'w' == '0' or d|date:'w' == '6' %}is-weekend{% endif %}">{{ d|date:"d/m" }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in board.rows %}
+        <tr>
+          <td class="jp-tl-label">
+            <a class="jp-tl-code" href="{% url 'san_xuat:dispatch_mo_detail' row.mo.pk %}">{{ row.mo.code }}</a>
+            <div class="jp-tl-sub">
+              {{ row.mo.product_code }}
+              {% if row.mo.team_label %} · {{ row.mo.team_label }}{% endif %}
+              · {{ row.mo.get_status_display }}
+            </div>
+            <div class="jp-tl-sub">{{ row.start|date:"d/m" }} → {{ row.end|date:"d/m" }} · {{ row.span_days }} ngày</div>
+          </td>
+          <td colspan="{{ board.days|length }}">
+            <div class="jp-tl-track">
+              {% if board.today_left_pct is not None %}
+              <span class="jp-tl-today" style="left:{{ board.today_left_pct }}%"></span>
+              {% endif %}
+              <a class="jp-tl-bar is-{{ row.status_key }}{% if row.is_late %} is-late{% endif %}"
+                 href="{% url 'san_xuat:dispatch_mo_detail' row.mo.pk %}"
+                 style="left:{{ row.left_pct }}%;width:{{ row.width_pct }}%"
+                 title="{{ row.mo.code }} · {{ row.start|date:'d/m/Y' }} – {{ row.end|date:'d/m/Y' }}">
+                SL {{ row.mo.qty|sx_num }}
+              </a>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="jp-tl-empty">
+    Chưa có lệnh có ngày bắt đầu / kết thúc dự kiến trong khoảng này.
+    <div class="mt-2"><a href="{% url 'san_xuat:dispatch_mo' %}">Mở danh sách lệnh sản xuất</a></div>
+  </div>
+  {% endif %}
+
+  {% if board.unscheduled %}
+  <div class="jp-tl-unsched">
+    <h3>Lệnh chưa có ngày dự kiến ({{ board.unscheduled|length }})</h3>
+    <div class="small">
+      {% for mo in board.unscheduled %}
+        <a href="{% url 'san_xuat:dispatch_mo_detail' mo.pk %}">{{ mo.code }}</a>{% if not forloop.last %} · {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

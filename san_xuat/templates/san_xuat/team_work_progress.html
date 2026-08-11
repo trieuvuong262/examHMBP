@@ -65,6 +65,8 @@
       {% endif %}
       <a href="{% url 'san_xuat:dispatch_mo_detail' mo.pk %}"><i class="bi bi-file-earmark-text" aria-hidden="true"></i>Lệnh sản xuất</a>
       <span class="sep" aria-hidden="true"></span>
+      <a href="{% url 'san_xuat:team_work_goods' %}"><i class="bi bi-bar-chart-line" aria-hidden="true"></i>Tiến độ hàng hoá</a>
+      <span class="sep" aria-hidden="true"></span>
       <a href="{% url 'san_xuat:team_work_board' team.slug %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Công việc tổ</a>
     </nav>
   </div>

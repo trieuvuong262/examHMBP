@@ -100,14 +100,12 @@ def main() -> int:
     board = reverse('san_xuat:plan_board')
     for qs, label in (
         ('?mode=list&tab=queue', 'board_queue'),
-        ('?mode=list&tab=load', 'board_capacity'),
         ('?mode=list&tab=released', 'board_released'),
-        ('?mode=route&tab=day', 'board_route_day'),
-        ('?mode=route&tab=process', 'board_route_process'),
-        ('?mode=route&tab=team', 'board_route_team'),
         ('', 'board_default'),
     ):
         check(client, label, board + qs)
+    check(client, 'plan_route', reverse('san_xuat:plan_route'))
+    check(client, 'team_work_goods', reverse('san_xuat:team_work_goods'))
 
     # API BOM versions (dùng modal Chuyển SX)
     product = None

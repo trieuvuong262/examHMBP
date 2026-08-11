@@ -999,11 +999,7 @@ def plan_stub(request):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def plan_board(request):
-    """Kế hoạch SX theo đơn — danh sách (queue/load/released) hoặc lộ trình Kanban."""
-    import json
-
-    from django.http import JsonResponse
-
+    """Kế hoạch SX theo đơn — hàng đợi / đã chuyển SX."""
     from san_xuat.hub_models import SxSalesOrder
     from san_xuat.services.plan_board import (
         PLAN_STATUS_LABELS,
@@ -1012,25 +1008,11 @@ def plan_board(request):
         build_plan_board_rows,
         confirmed_order_qty_summary,
         hold_plan_order,
-        load_snapshot_for_board,
         pipeline_counts,
-        recompute_plan_ranks,
         release_order_to_production,
         set_plan_priority,
         sync_plan_status,
         unhold_plan_order,
-    )
-    from san_xuat.services.plan_route import (
-        AXIS_DAY,
-        AXIS_PROCESS,
-        AXIS_TEAM,
-        AXES,
-        build_kanban,
-        ensure_order_plan_steps,
-        move_kanban_card,
-        process_names_for_route_form,
-        replace_order_plan_steps,
-        work_centers_for_route_form,
     )
     from san_xuat.services.planning import PlanningError
 
@@ -1052,17 +1034,19 @@ def plan_board(request):
     )
 
     mode = (request.GET.get('mode') or request.POST.get('mode') or 'list').strip()
-    if mode not in {'list', 'route'}:
-        mode = 'list'
-
     if mode == 'route':
-        tab = (request.GET.get('tab') or request.POST.get('tab') or AXIS_DAY).strip()
-        if tab not in AXES:
-            tab = AXIS_DAY
-    else:
-        tab = (request.GET.get('tab') or 'queue').strip()
-        if tab not in {'queue', 'load', 'released'}:
-            tab = 'queue'
+        return redirect('san_xuat:plan_route')
+    mode = 'list'
+
+    tab = (request.GET.get('tab') or 'queue').strip()
+    if tab == 'load':
+        from urllib.parse import urlencode
+        params = {'mode': 'list', 'tab': 'queue'}
+        if q_early := (request.GET.get('q') or '').strip():
+            params['q'] = q_early
+        return redirect(f"{reverse('san_xuat:plan_board')}?{urlencode(params)}")
+    if tab not in {'queue', 'released'}:
+        tab = 'queue'
     q = (request.GET.get('q') or request.POST.get('q') or '').strip()
 
     def _board_redirect(**extra):
@@ -1075,77 +1059,13 @@ def plan_board(request):
 
     if request.method == 'POST':
         action = (request.POST.get('action') or '').strip()
-        wants_json = (
-            request.headers.get('X-Requested-With') == 'XMLHttpRequest'
-            or 'application/json' in (request.headers.get('Accept') or '')
-        )
         try:
             order_id = int(request.POST.get('order_id') or 0)
         except (TypeError, ValueError):
             order_id = 0
 
         try:
-            if action == 'move_card' and can_schedule:
-                card = move_kanban_card(
-                    card_type=(request.POST.get('card_type') or '').strip(),
-                    card_id=int(request.POST.get('card_id') or 0),
-                    axis=(request.POST.get('axis') or tab or AXIS_DAY).strip(),
-                    target_key=(request.POST.get('target_key') or '').strip(),
-                )
-                if wants_json:
-                    return JsonResponse({
-                        'ok': True,
-                        'card': {
-                            'card_type': card.card_type,
-                            'card_id': card.card_id,
-                            'process_name': card.process_name,
-                            'planned_date': card.planned_date.isoformat() if card.planned_date else '',
-                            'work_center_id': card.work_center_id or '',
-                            'work_center_label': card.work_center_label,
-                            'status': card.status,
-                        },
-                    })
-                messages.success(request, 'Đã cập nhật vị trí thẻ.')
-                return _board_redirect(mode='route', tab=(request.POST.get('axis') or tab))
-
-            elif action == 'save_route' and can_schedule and order_id:
-                raw = (request.POST.get('steps_json') or '').strip()
-                try:
-                    steps = json.loads(raw) if raw else []
-                except json.JSONDecodeError as exc:
-                    raise PlanningError(f'JSON lộ trình không hợp lệ: {exc}') from exc
-                replace_order_plan_steps(order_id=order_id, steps=steps)
-                if wants_json:
-                    return JsonResponse({'ok': True})
-                messages.success(request, 'Đã lưu lộ trình đơn.')
-                return _board_redirect(mode='route')
-
-            elif action == 'get_route' and order_id:
-                order = SxSalesOrder.objects.filter(pk=order_id, is_demo=False).first()
-                if not order:
-                    raise PlanningError('Không tìm thấy đơn.')
-                steps = ensure_order_plan_steps(order)
-                return JsonResponse({
-                    'ok': True,
-                    'order_id': order.pk,
-                    'order_code': order.code,
-                    'steps': [
-                        {
-                            'id': s.pk,
-                            'sequence': s.sequence,
-                            'process_name': s.process_name,
-                            'work_center_id': s.work_center_id or '',
-                            'planned_date': s.planned_date.isoformat() if s.planned_date else '',
-                            'minutes_per_unit': str(s.minutes_per_unit or 0),
-                        }
-                        for s in steps
-                    ],
-                })
-
-            elif action == 'recompute' and can_schedule:
-                n = recompute_plan_ranks()
-                messages.success(request, f'Đã xếp lại {n} đơn theo điểm ưu tiên / hạn / chu kỳ.')
-            elif action == 'set_priority' and can_schedule and order_id:
+            if action == 'set_priority' and can_schedule and order_id:
                 set_plan_priority(
                     order_id=order_id,
                     priority=(request.POST.get('priority') or '').strip(),
@@ -1187,31 +1107,18 @@ def plan_board(request):
             else:
                 if action:
                     messages.error(request, 'Bạn không có quyền thực hiện thao tác này.')
-                    if wants_json:
-                        return JsonResponse({'ok': False, 'error': 'Không có quyền.'}, status=403)
         except PlanningError as exc:
-            if wants_json:
-                return JsonResponse({'ok': False, 'error': str(exc)}, status=400)
             messages.error(request, str(exc))
         except Exception as exc:
-            if wants_json:
-                return JsonResponse({'ok': False, 'error': str(exc)}, status=400)
             messages.error(request, str(exc))
         return _board_redirect()
 
     counts = pipeline_counts()
     qty_summary = confirmed_order_qty_summary()
-    load_data = None
     queue_rows = []
     released_rows = []
-    kanban = None
 
-    if mode == 'route':
-        kanban = build_kanban(axis=tab, days=14, search=q)
-    elif tab == 'queue':
-        queue_rows = build_plan_board_rows(statuses=QUEUE_STATUSES, search=q)
-    elif tab == 'load':
-        load_data = load_snapshot_for_board(days=14)
+    if tab == 'queue':
         queue_rows = build_plan_board_rows(statuses=QUEUE_STATUSES, search=q)
     else:
         released_rows = build_plan_board_rows(
@@ -1226,29 +1133,6 @@ def plan_board(request):
         for row in released_rows:
             sync_plan_status(row.order)
 
-    route_process_names = []
-    route_work_centers = []
-    route_process_names_json = '[]'
-    route_work_centers_json = '[]'
-    if mode == 'route':
-        import json as _json
-        from django.utils.safestring import mark_safe
-
-        route_process_names = process_names_for_route_form()
-        wcs = work_centers_for_route_form()
-        route_work_centers = wcs
-        route_process_names_json = mark_safe(_json.dumps(route_process_names, ensure_ascii=False))
-        route_work_centers_json = mark_safe(_json.dumps(
-            [
-                {
-                    'id': wc.pk,
-                    'label': (wc.team_label or wc.name or wc.code or str(wc.pk)).strip(),
-                }
-                for wc in wcs
-            ],
-            ensure_ascii=False,
-        ))
-
     return render(request, 'san_xuat/plan_board.html', {
         **_perm_ctx(request),
         'mode': mode,
@@ -1258,20 +1142,44 @@ def plan_board(request):
         'qty_summary': qty_summary,
         'queue_rows': queue_rows,
         'released_rows': released_rows,
-        'load_data': load_data,
-        'kanban': kanban,
         'can_schedule': can_schedule,
         'can_release': can_release,
         'plan_status_labels': PLAN_STATUS_LABELS,
         'priority_labels': PRIORITY_LABELS,
         'priority_choices': SxSalesOrder.PRIORITY_CHOICES,
-        'route_process_names': route_process_names,
-        'route_work_centers': route_work_centers,
-        'route_process_names_json': route_process_names_json,
-        'route_work_centers_json': route_work_centers_json,
-        'axis_day': AXIS_DAY,
-        'axis_process': AXIS_PROCESS,
-        'axis_team': AXIS_TEAM,
+    })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+def plan_route(request):
+    """Lộ trình sản xuất — timeline theo ngày bắt đầu / kết thúc dự kiến của LSX."""
+    from datetime import datetime
+
+    from san_xuat.services.plan_board import _monday_on_or_before, build_mo_timeline
+
+    menu_key = 'plan_route'
+    if not (
+        user_can_access_menu(request.user, MODULE_SAN_XUAT, menu_key)
+        or user_can_access_menu(request.user, MODULE_SAN_XUAT, 'plan_board')
+        or user_can_access_menu(request.user, MODULE_SAN_XUAT, 'plan')
+    ):
+        return handle_menu_access_denied(request, MODULE_SAN_XUAT, menu_key)
+
+    raw_from = (request.GET.get('from') or '').strip()
+    range_from = None
+    if raw_from:
+        try:
+            range_from = datetime.strptime(raw_from, '%Y-%m-%d').date()
+        except ValueError:
+            range_from = None
+    board = build_mo_timeline(
+        range_from=range_from,
+        search=(request.GET.get('q') or '').strip(),
+    )
+    return render(request, 'san_xuat/plan_route.html', {
+        **_perm_ctx(request),
+        'board': board,
+        'today_monday': _monday_on_or_before(board.today),
     })
 
 
@@ -3713,20 +3621,49 @@ def work_assignment_list(request):
     return redirect('san_xuat:team_work_hub')
 
 
-@module_perm_required(MODULE_SAN_XUAT, 'view')
-def team_work_hub(request):
-    """Hub Công việc tổ → tổ đầu tiên user có quyền."""
+def _can_team_work_overview(user) -> bool:
     from san_xuat.services.progress_template import TEAM_SLUGS
 
+    if user_can_access_menu(user, MODULE_SAN_XUAT, 'team_work_goods'):
+        return True
+    if user_can_access_menu(user, MODULE_SAN_XUAT, 'team_work'):
+        return True
+    return any(
+        user_can_access_menu(user, MODULE_SAN_XUAT, menu_key)
+        for _slug, _gk, menu_key, _label in TEAM_SLUGS
+    )
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+def team_work_hub(request):
+    """Hub Công việc tổ → tiến độ hàng hoá, không thì tổ đầu tiên user có quyền."""
+    from san_xuat.services.progress_template import TEAM_SLUGS
+
+    if _can_team_work_overview(request.user):
+        return redirect('san_xuat:team_work_goods')
     for slug, _gk, menu_key, _label in TEAM_SLUGS:
-        if (
-            user_can_access_menu(request.user, MODULE_SAN_XUAT, menu_key)
-            or user_can_access_menu(request.user, MODULE_SAN_XUAT, 'team_work')
-        ):
+        if user_can_access_menu(request.user, MODULE_SAN_XUAT, menu_key):
             return redirect('san_xuat:team_work_board', slug=slug)
-    if user_can_access_menu(request.user, MODULE_SAN_XUAT, 'team_work'):
-        return redirect('san_xuat:team_work_board', slug='cat')
     return handle_menu_access_denied(request, MODULE_SAN_XUAT, 'team_work')
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+def team_work_goods(request):
+    """Tiến độ hàng hoá — mọi lệnh, công đoạn các tổ, đơn gấp để tổ trưởng xếp việc."""
+    from san_xuat.services.goods_progress import build_goods_progress_board
+
+    if not _can_team_work_overview(request.user):
+        return handle_menu_access_denied(request, MODULE_SAN_XUAT, 'team_work_goods')
+
+    board = build_goods_progress_board(
+        search=(request.GET.get('q') or '').strip(),
+        kind=(request.GET.get('kind') or '').strip().lower(),
+        team_slug=(request.GET.get('team') or '').strip().lower(),
+    )
+    return render(request, 'san_xuat/team_work_goods.html', {
+        **_perm_ctx(request),
+        'board': board,
+    })
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')

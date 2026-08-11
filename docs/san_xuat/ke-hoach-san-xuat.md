@@ -9,7 +9,6 @@
 ```text
 ĐĐH xác nhận ──► Hàng đợi kế hoạch SX
                       │ xếp hạng (ưu tiên, hạn, chu kỳ, FIFO)
-                      │ + xem tải tổ
                       ▼
                  Chuyển xuống SX ──► LSX (gắn sales_order)
                       │
@@ -20,11 +19,12 @@
 | Tab | Path | Việc |
 |-----|------|------|
 | Hàng đợi | `?tab=queue` | Đơn chờ / đã xếp / tạm giữ; ưu tiên; chuyển SX |
-| Tải & xếp | `?tab=load` | Tải tổ 14 ngày + cùng hàng đợi |
 | Đã chuyển SX | `?tab=released` | Tiến độ LSX / ETA |
 
-Menu quyền: `plan_board` (view = xem; update = xếp/giữ; create|update = chuyển SX).  
-Code: [`services/plan_board.py`](../../san_xuat/services/plan_board.py), view `plan_board`.
+Lộ trình sản xuất (menu riêng, không Kanban): `/san-xuat/ke-hoach/lo-trinh/` — timeline theo ngày bắt đầu / kết thúc dự kiến của LSX. Bookmark `?mode=route` redirect về trang này.
+
+Menu quyền: `plan_board` (view = xem; update = xếp/giữ; create|update = chuyển SX); `plan_route` (xem timeline).  
+Code: [`services/plan_board.py`](../../san_xuat/services/plan_board.py), view `plan_board` / `plan_route`.
 
 **Phase sau:** swimlane MTS/MPS trên cùng board.
 

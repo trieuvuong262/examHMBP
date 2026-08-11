@@ -158,11 +158,11 @@ def _san_xuat_menus(*, manager: bool) -> dict:
     keys = (
         'overview', 'orders', 'order_create', 'order_confirm', 'products_nvl',
         'docs', 'bom', 'capacity',
-        'plan', 'plan_board', 'plan_progress', 'plan_overall', 'plan_detail', 'plan_npl', 'npl_pr',
+        'plan', 'plan_board', 'plan_route', 'plan_progress', 'plan_overall', 'plan_detail', 'plan_npl', 'npl_pr',
         'npl_stock',
         'dispatch', 'mo', 'material_issue_req',
         'handover_status', 'fg_receipt_req', 'subcontract',
-        'team_work', 'team_work_cat', 'team_work_inep', 'team_work_theu',
+        'team_work', 'team_work_goods', 'team_work_cat', 'team_work_inep', 'team_work_theu',
         'team_work_may', 'team_work_ht', 'team_work_gh',
         'work_assign',
         'qc', 'qc_request', 'qc_sheet', 'ncr',

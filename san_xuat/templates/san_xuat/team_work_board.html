@@ -170,13 +170,17 @@
     <div class="jp-sx-detail-title">
       <h2 class="jp-npl-mat-topbar-title w-100">Công việc tổ · {{ team.label }}</h2>
     </div>
-    {% if can_map_divisions %}
     <nav class="jp-sx-tools" aria-label="Công cụ">
+      <a href="{% url 'san_xuat:team_work_goods' %}">
+        <i class="bi bi-bar-chart-line" aria-hidden="true"></i>Tiến độ hàng hoá
+      </a>
+      {% if can_map_divisions %}
+      <span class="sep" aria-hidden="true"></span>
       <a href="{% url 'san_xuat:general_settings' %}#sec-team-map">
         <i class="bi bi-diagram-3" aria-hidden="true"></i>Map bộ phận
       </a>
+      {% endif %}
     </nav>
-    {% endif %}
   </div>
 
   {% if can_assign and not team_has_division_map %}

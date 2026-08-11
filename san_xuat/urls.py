@@ -17,6 +17,7 @@ urlpatterns = [
     path('san-pham-nvl/', views_hub.products_nvl, name='products_nvl'),
     path('ke-hoach/', views_hub.plan_stub, name='plan_stub'),
     path('ke-hoach/bang/', views_hub.plan_board, name='plan_board'),
+    path('ke-hoach/lo-trinh/', views_hub.plan_route, name='plan_route'),
     path('ke-hoach/giam-sat-tien-do/', views_hub.plan_progress_monitor, name='plan_progress_monitor'),
     path('ke-hoach/tien-do/<int:mo_id>/', views_hub.order_progress_sheet, name='order_progress_sheet'),
     path('ke-hoach/tong-the/', views_hub.plan_overall, name='plan_overall'),
@@ -125,6 +126,11 @@ urlpatterns = [
     path('giao-viec/them/', views_hub.work_assignment_create, name='work_assignment_create'),
     path('cong-viec-to/map-bo-phan/', views_hub.team_division_map, name='team_division_map'),
     path('cong-viec-to/', views_hub.team_work_hub, name='team_work_hub'),
+    path(
+        'cong-viec-to/tien-do-hang-hoa/',
+        views_hub.team_work_goods,
+        name='team_work_goods',
+    ),
     path(
         'cong-viec-to/<slug:slug>/tien-do/<int:mo_id>/',
         views_hub.team_work_progress,
