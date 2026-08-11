@@ -1,7 +1,41 @@
 {% extends 'base.html' %}
 
 {% load sx_format %}
-{% block extra_head %}{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}{% endblock %}
+{% block extra_head %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+<style>
+  .jp-so-line-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    white-space: nowrap;
+  }
+  .jp-so-qty-total-wrap {
+    width: 5.5rem;
+    margin: 0;
+  }
+  .jp-so-qty-total-wrap .jp-so-qty-total {
+    width: 100%;
+    text-align: center;
+  }
+  .jp-so-line-actions .jp-so-remove-row {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: calc(1.5em + .5rem + 2px);
+    flex: 0 0 auto;
+  }
+  #jp-ycntp-lines-table th.jp-so-actions-col,
+  #jp-ycntp-lines-table td.jp-so-actions-col {
+    width: 8rem;
+    min-width: 8rem;
+    text-align: right;
+  }
+  #jp-ycntp-lines-table td { vertical-align: middle; }
+  .ts-dropdown { z-index: 2000; }
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
@@ -15,22 +49,304 @@
     </nav>
   </div>
 
-  <div class="card border-0 shadow-sm">
-    <div class="card-body">
-      <form method="post">
-        {% csrf_token %}
-        {% if mo %}<input type="hidden" name="mo_id" value="{{ mo.pk }}">{% endif %}
-        {% if stat %}<input type="hidden" name="stat_id" value="{{ stat.pk }}">{% endif %}
-        {% for field in form %}
-        <div class="mb-3">
-          <label class="form-label small text-muted" for="{{ field.id_for_label }}">{{ field.label }}{{ field|sx_req_star }}</label>
-          {{ field }}
-{% if field.errors %}<div class="text-danger small">{{ field.errors }}</div>{% endif %}
+  <form method="post" id="jp-ycntp-form"{% if mo %} data-sx-style-code="{{ mo.product_code }}"{% endif %}>
+    {% csrf_token %}
+    {% if stat %}<input type="hidden" name="stat_id" value="{{ stat.pk }}">{% endif %}
+    {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-body p-3">
+        <h6 class="fw-bold mb-2">Thông tin chung</h6>
+        <div class="row g-2">
+          <div class="col-md-4">
+            <label class="form-label small text-muted mb-1" for="{{ form.production_order.id_for_label }}">{{ form.production_order.label }}{{ form.production_order|sx_req_star }}</label>
+            {{ form.production_order }}
+            {% if form.production_order.errors %}<div class="text-danger small">{{ form.production_order.errors }}</div>{% endif %}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small text-muted mb-1" for="{{ form.received_by.id_for_label }}">{{ form.received_by.label }}{{ form.received_by|sx_req_star }}</label>
+            {{ form.received_by }}
+            {% if form.received_by.errors %}<div class="text-danger small">{{ form.received_by.errors }}</div>{% endif %}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small text-muted mb-1" for="{{ form.warehouse_code.id_for_label }}">{{ form.warehouse_code.label }}{{ form.warehouse_code|sx_req_star }}</label>
+            {{ form.warehouse_code }}
+            {% if form.warehouse_code.errors %}<div class="text-danger small">{{ form.warehouse_code.errors }}</div>{% endif %}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small text-muted mb-1" for="{{ form.product_code.id_for_label }}">{{ form.product_code.label }}{{ form.product_code|sx_req_star }}</label>
+            {{ form.product_code }}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small text-muted mb-1" for="{{ form.product_name.id_for_label }}">{{ form.product_name.label }}{{ form.product_name|sx_req_star }}</label>
+            {{ form.product_name }}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small text-muted mb-1" for="{{ form.qty.id_for_label }}">{{ form.qty.label }}{{ form.qty|sx_req_star }}</label>
+            {{ form.qty }}
+            {% if form.qty.errors %}<div class="text-danger small">{{ form.qty.errors }}</div>{% endif %}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label small text-muted mb-1" for="{{ form.request_date.id_for_label }}">{{ form.request_date.label }}{{ form.request_date|sx_req_star }}</label>
+            {{ form.request_date }}
+            {% if form.request_date.errors %}<div class="text-danger small">{{ form.request_date.errors }}</div>{% endif %}
+          </div>
+          <div class="col-md-8">
+            <label class="form-label small text-muted mb-1" for="{{ form.notes.id_for_label }}">{{ form.notes.label }}{{ form.notes|sx_req_star }}</label>
+            {{ form.notes }}
+          </div>
         </div>
-        {% endfor %}
-        <button type="submit" class="btn btn-hm" {% if not mo %}disabled{% endif %}>Tạo yêu cầu nhập thành phẩm</button>
-      </form>
+      </div>
     </div>
-  </div>
+
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-body p-3">
+        <h6 class="fw-bold mb-2">Dòng thành phẩm</h6>
+        <p class="small text-muted mb-2" id="jp-ycntp-lines-hint">Tự điền các SKU đã hoàn thành tiến độ giao hàng thành phẩm. Có thể chỉnh hoặc thêm dòng.</p>
+        {{ line_formset.management_form }}
+        {% if line_formset.non_form_errors %}<div class="text-danger small mb-2">{{ line_formset.non_form_errors }}</div>{% endif %}
+        <div class="table-responsive">
+          <table class="table table-sm align-middle" id="jp-ycntp-lines-table">
+            <thead class="table-light">
+              <tr>
+                <th style="min-width:9rem">Màu</th>
+                <th style="min-width:7rem">Size</th>
+                <th style="min-width:10rem">SKU</th>
+                <th class="jp-so-actions-col">Số lượng</th>
+              </tr>
+            </thead>
+            <tbody>
+            {% for f in line_formset %}
+              <tr class="jp-so-line-row jp-sx-sku-row">
+                <td>
+                  {{ f.color_code }}{{ f.color_label }}
+                  {% if f.color_code.errors %}<div class="text-danger small">{{ f.color_code.errors }}</div>{% endif %}
+                </td>
+                <td>{{ f.size_label }}</td>
+                <td>{{ f.sku_code }}</td>
+                <td class="jp-so-actions-col">
+                  <div class="jp-so-line-actions">
+                    <label class="jp-so-qty-total-wrap" for="{{ f.qty.id_for_label }}">{{ f.qty }}</label>
+                    {% if f.DELETE %}
+                    <div class="d-none">{{ f.DELETE }}</div>
+                    <button type="button" class="btn btn-link btn-sm text-danger p-0 jp-so-remove-row" title="Xóa dòng" aria-label="Xóa dòng">
+                      <i class="bi bi-x-lg" aria-hidden="true"></i>
+                    </button>
+                    {% endif %}
+                  </div>
+                  {% if f.qty.errors %}<div class="text-danger small">{{ f.qty.errors }}</div>{% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <div class="mt-3">
+          <button type="button" class="btn btn-outline-hm btn-sm fw-bold" id="jp-ycntp-add-row">
+            <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Thêm dòng
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="d-flex justify-content-end">
+      <button type="submit" class="btn btn-hm fw-bold">Lưu</button>
+    </div>
+  </form>
 </div>
+
+<template id="jp-ycntp-empty-row">
+  {% with f=line_formset.empty_form %}
+  <tr class="jp-so-line-row jp-sx-sku-row">
+    <td>{{ f.color_code }}{{ f.color_label }}</td>
+    <td>{{ f.size_label }}</td>
+    <td>{{ f.sku_code }}</td>
+    <td class="jp-so-actions-col">
+      <div class="jp-so-line-actions">
+        <label class="jp-so-qty-total-wrap" for="{{ f.qty.id_for_label }}">{{ f.qty }}</label>
+        {% if f.DELETE %}
+        <div class="d-none">{{ f.DELETE }}</div>
+        <button type="button" class="btn btn-link btn-sm text-danger p-0 jp-so-remove-row" title="Xóa dòng" aria-label="Xóa dòng">
+          <i class="bi bi-x-lg" aria-hidden="true"></i>
+        </button>
+        {% endif %}
+      </div>
+    </td>
+  </tr>
+  {% endwith %}
+</template>
+
+{% include 'san_xuat/includes/sx_sku_compose_script.html' %}
+{% include 'san_xuat/includes/sx_employee_select_script.html' %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var form = document.getElementById('jp-ycntp-form');
+  var body = document.querySelector('#jp-ycntp-lines-table tbody');
+  var addBtn = document.getElementById('jp-ycntp-add-row');
+  var tpl = document.getElementById('jp-ycntp-empty-row');
+  var totalInput = document.getElementById('id_lines-TOTAL_FORMS');
+  var moSel = document.getElementById('id_production_order');
+  var qtyInput = document.getElementById('id_qty');
+  var sourceUrl = '{% url "san_xuat:mo_fg_receipt_source" %}';
+  var statId = '{% if stat %}{{ stat.pk }}{% endif %}';
+  if (!body || !addBtn || !tpl || !totalInput) return;
+
+  function reindexAttrs(root, idx) {
+    root.querySelectorAll('[name], [id], [for]').forEach(function (el) {
+      ['name', 'id', 'for'].forEach(function (attr) {
+        var v = el.getAttribute(attr);
+        if (!v) return;
+        el.setAttribute(attr, v.replace(/__prefix__/g, String(idx)));
+      });
+    });
+  }
+
+  function visibleRows() {
+    return Array.prototype.filter.call(body.querySelectorAll('tr.jp-so-line-row'), function (row) {
+      return row.style.display !== 'none';
+    });
+  }
+
+  function bindSku(row) {
+    if (typeof window.jpBindSkuCompose === 'function') window.jpBindSkuCompose(row || document);
+    if (row && typeof window.jpRefreshSkuRow === 'function') window.jpRefreshSkuRow(row);
+  }
+
+  function addRow() {
+    var idx = parseInt(totalInput.value, 10) || 0;
+    var node = tpl.content.cloneNode(true);
+    var row = node.querySelector('tr');
+    if (!row) return null;
+    reindexAttrs(row, idx);
+    body.appendChild(row);
+    totalInput.value = String(idx + 1);
+    bindSku(row);
+    return row;
+  }
+
+  function hideRow(row) {
+    var sel = row.querySelector('select');
+    var del = row.querySelector('input[type=checkbox][name$="-DELETE"]');
+    if (del) {
+      del.checked = true;
+      row.style.display = 'none';
+    } else {
+      row.remove();
+    }
+  }
+
+  function setSelectValue(sel, value) {
+    if (!sel) return;
+    value = (value || '').trim();
+    if (!value) {
+      sel.value = '';
+      return;
+    }
+    var found = Array.prototype.some.call(sel.options, function (o) { return o.value === value; });
+    if (!found) {
+      var opt = document.createElement('option');
+      opt.value = value;
+      opt.textContent = value;
+      sel.appendChild(opt);
+    }
+    sel.value = value;
+  }
+
+  function fillRow(row, line) {
+    line = line || {};
+    setSelectValue(row.querySelector('.jp-sx-color-select'), line.color_code);
+    setSelectValue(row.querySelector('.jp-sx-size-select'), line.size_label);
+    var label = row.querySelector('input[name$="-color_label"]');
+    if (label) label.value = line.color_label || '';
+    var sku = row.querySelector('.jp-sx-sku-code');
+    if (sku) sku.value = line.sku_code || '';
+    var qty = row.querySelector('input[name$="-qty"]');
+    if (qty) qty.value = line.qty || '';
+    bindSku(row);
+  }
+
+  function syncHeaderQty() {
+    if (!qtyInput) return;
+    var total = 0;
+    var has = false;
+    visibleRows().forEach(function (row) {
+      var inp = row.querySelector('input[name$="-qty"]');
+      var n = parseFloat(inp && inp.value);
+      if (Number.isFinite(n) && n > 0) {
+        total += n;
+        has = true;
+      }
+    });
+    if (has) qtyInput.value = String(Math.round(total * 100) / 100);
+  }
+
+  function applySource(data) {
+    if (!data) return;
+    if (form) form.setAttribute('data-sx-style-code', data.product_code || '');
+    var code = document.getElementById('id_product_code');
+    var name = document.getElementById('id_product_name');
+    if (code) code.value = data.product_code || '';
+    if (name) name.value = data.product_name || '';
+    if (qtyInput) qtyInput.value = data.qty || '';
+    var hint = document.getElementById('jp-ycntp-lines-hint');
+    if (hint && data.lines_hint) hint.textContent = data.lines_hint;
+
+    visibleRows().forEach(hideRow);
+    var lines = data.lines || [];
+    if (!lines.length) {
+      if (!visibleRows().length) addRow();
+      return;
+    }
+    lines.forEach(function (line) {
+      var row = addRow();
+      if (row) fillRow(row, line);
+    });
+    syncHeaderQty();
+  }
+
+  addBtn.addEventListener('click', function () {
+    addRow();
+  });
+
+  body.addEventListener('click', function (e) {
+    var btn = e.target.closest('.jp-so-remove-row');
+    if (!btn) return;
+    var row = btn.closest('tr');
+    if (!row) return;
+    hideRow(row);
+    syncHeaderQty();
+  });
+
+  body.addEventListener('input', function (e) {
+    if (e.target && e.target.matches('input[name$="-qty"]')) syncHeaderQty();
+  });
+  body.addEventListener('change', function (e) {
+    if (e.target && e.target.matches('.jp-sx-color-select, .jp-sx-size-select')) {
+      bindSku(e.target.closest('tr'));
+    }
+  });
+
+  if (moSel) {
+    moSel.addEventListener('change', function () {
+      var id = (moSel.value || '').trim();
+      if (!id) {
+        applySource({ product_code: '', product_name: '', qty: '', lines: [] });
+        return;
+      }
+      var url = sourceUrl + '?mo=' + encodeURIComponent(id);
+      if (statId) url += '&stat=' + encodeURIComponent(statId);
+      fetch(url, { headers: { 'Accept': 'application/json' } })
+        .then(function (r) { return r.json(); })
+        .then(applySource)
+        .catch(function () {});
+    });
+  }
+
+  bindSku(document);
+  syncHeaderQty();
+})();
+</script>
 {% endblock %}

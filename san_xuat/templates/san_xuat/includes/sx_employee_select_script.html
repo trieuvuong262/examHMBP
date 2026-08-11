@@ -1,0 +1,65 @@
+{# TomSelect nhân viên HR — san_xuat:employee_search #}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/css/tom-select.bootstrap5.min.css">
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/js/tom-select.complete.min.js"></script>
+<script>
+(function () {
+  if (typeof TomSelect === 'undefined') return;
+  var searchUrl = '{% url "san_xuat:employee_search" %}';
+
+  document.querySelectorAll('.jp-sx-employee-select').forEach(function (select) {
+    if (!select || select.tomselect) return;
+    var initialValue = (select.value || '').trim();
+    var initialLabel = select.options[select.selectedIndex]
+      ? select.options[select.selectedIndex].textContent.trim()
+      : '';
+    new TomSelect(select, {
+      maxOptions: null,
+      maxItems: 1,
+      valueField: 'id',
+      labelField: 'text',
+      searchField: ['text', 'name', 'code', 'division', 'department'],
+      placeholder: select.dataset.placeholder || 'Gõ tên hoặc mã nhân viên…',
+      dropdownParent: 'body',
+      openOnFocus: true,
+      preload: 'focus',
+      loadThrottle: 220,
+      load: function (query, callback) {
+        fetch(searchUrl + '?q=' + encodeURIComponent(query || ''), {
+          headers: { 'Accept': 'application/json' },
+        })
+          .then(function (r) { return r.json(); })
+          .then(function (data) { callback(data.results || []); })
+          .catch(function () { callback(); });
+      },
+      render: {
+        option: function (data, escape) {
+          var name = escape(data.name || data.text || '');
+          var code = (data.code || '').trim();
+          var org = escape(data.division || data.department || '');
+          var html = '<div><strong>' + name + '</strong>';
+          if (code) html += '<span class="text-muted small"> · ' + escape(code) + '</span>';
+          if (org) html += '<div class="text-muted small">' + org + '</div>';
+          return html + '</div>';
+        },
+        item: function (data, escape) {
+          return '<div>' + escape(data.text || data.name || '') + '</div>';
+        },
+        no_results: function () {
+          return '<div class="px-2 py-2 text-muted small">Không tìm thấy nhân viên</div>';
+        },
+      },
+      onInitialize: function () {
+        if (!initialValue) return;
+        if (!this.options[initialValue]) {
+          this.addOption({
+            id: initialValue,
+            text: initialLabel || initialValue,
+            name: initialLabel || initialValue,
+          });
+        }
+        this.setValue(initialValue, true);
+      },
+    });
+  });
+})();
+</script>

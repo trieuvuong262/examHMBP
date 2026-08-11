@@ -32,7 +32,9 @@ from san_xuat.services.bom import (
     get_working_bom,
 )
 from san_xuat.services.costing import compute_costing, save_costing_snapshot
+from san_xuat.services.dispatch import fg_receipt_prefill
 from san_xuat.services.products import search_gc_out_items, search_products
+from hrm.user_search import search_issue_recipients
 
 
 def _perm_ctx(request):
@@ -503,6 +505,15 @@ def gc_out_item_search(request):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 @require_GET
+def employee_search(request):
+    """TomSelect người nhập / nhân viên HR."""
+    q = (request.GET.get('q') or '').strip()
+    limit = 1000 if not q else 50
+    return JsonResponse({'results': search_issue_recipients(q, limit=limit)})
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+@require_GET
 def customer_search(request):
     """TomSelect: khách hàng từ mirror KiotViet (kv_customer)."""
     q = (request.GET.get('q') or '').strip()
@@ -588,6 +599,25 @@ def mo_code_preview(request):
     from san_xuat.services.dispatch import _next_mo_code_for_product
 
     return JsonResponse({'code': _next_mo_code_for_product(product_code)})
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+@require_GET
+def mo_fg_receipt_source_api(request):
+    """Nguồn form yêu cầu nhập thành phẩm theo lệnh sản xuất."""
+    from san_xuat.hub_models import SxProductionOrder, SxProductionStat
+
+    mo_id = (request.GET.get('mo') or request.GET.get('mo_id') or '').strip()
+    stat_id = (request.GET.get('stat') or '').strip()
+    if not mo_id.isdigit():
+        return JsonResponse({'error': 'Thiếu lệnh sản xuất.'}, status=400)
+    mo = SxProductionOrder.objects.filter(pk=int(mo_id), is_demo=False).first()
+    if not mo:
+        return JsonResponse({'error': 'Không tìm thấy lệnh sản xuất.'}, status=404)
+    stat = None
+    if stat_id.isdigit():
+        stat = SxProductionStat.objects.filter(pk=int(stat_id), production_order=mo).first()
+    return JsonResponse(fg_receipt_prefill(mo=mo, stat=stat))
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')

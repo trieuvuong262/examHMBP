@@ -1030,6 +1030,16 @@ class SxFgReceiptRequest(DemoMarkedModel):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT, db_index=True)
     kv_purchase_kiotviet_id = models.BigIntegerField(null=True, blank=True, verbose_name='KV purchase id')
     kv_purchase_code = models.CharField(max_length=64, blank=True, default='', verbose_name='Mã phiếu nhập KV')
+    received_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='fg_receipt_requests',
+        verbose_name='Người nhập',
+    )
+    warehouse_code = models.CharField(max_length=40, blank=True, default='', verbose_name='Mã kho nhập')
+    warehouse_name = models.CharField(max_length=120, blank=True, default='', verbose_name='Kho nhập')
     notes = models.TextField(blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
 

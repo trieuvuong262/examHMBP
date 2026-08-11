@@ -130,7 +130,9 @@ from san_xuat.forms_dispatch import (
     ScheduleMoUpdateForm,
     DisassemblyCreateForm,
     FgReceiptCreateForm,
+    FgReceiptLineFormSet,
     FgReceiptLinkKvForm,
+    make_fg_receipt_line_formset,
     MaterialIssueApproveForm,
     NplSurplusCreateForm,
     ProductionOrderCreateForm,
@@ -164,6 +166,7 @@ from san_xuat.services.dispatch import (
     confirm_stat,
     create_disassembly_order,
     create_fg_receipt_from_mo,
+    fg_receipt_prefill,
     create_mo_from_bom,
     create_mos_from_detail_plan,
     create_npl_surplus,
@@ -3023,48 +3026,64 @@ def dispatch_fg_receipt_req(request):
 def dispatch_fg_receipt_req_create(request):
     mo = None
     stat = None
+    stat_id = (request.POST.get('stat_id') or request.GET.get('stat') or '').strip()
+    if stat_id.isdigit():
+        stat = get_object_or_404(SxProductionStat, pk=int(stat_id))
+        mo = stat.production_order
+
     if request.method == 'POST':
-        form = FgReceiptCreateForm(request.POST)
-        mo_id = request.POST.get('mo_id')
-        stat_id = request.POST.get('stat_id')
-        if mo_id and str(mo_id).isdigit():
-            mo = get_object_or_404(SxProductionOrder, pk=int(mo_id))
-        if stat_id and str(stat_id).isdigit():
-            stat = get_object_or_404(SxProductionStat, pk=int(stat_id))
-            mo = stat.production_order
-        if form.is_valid() and mo:
+        form = FgReceiptCreateForm(request.POST, extra_mo=mo, operator=request.user)
+        line_formset = FgReceiptLineFormSet(request.POST, prefix='lines')
+        if form.is_valid() and line_formset.is_valid():
+            mo = form.cleaned_data['production_order']
+            lines = []
+            for lf in line_formset:
+                cd = lf.cleaned_data
+                if not cd or cd.get('DELETE'):
+                    continue
+                if cd.get('qty') and cd['qty'] > 0:
+                    lines.append(cd)
             try:
                 fg_req = create_fg_receipt_from_mo(
                     production_order_id=mo.pk,
                     stat_id=stat.pk if stat else None,
-                    qty=form.cleaned_data['qty'],
-                    code=form.cleaned_data.get('code') or None,
+                    qty=form.cleaned_data.get('qty'),
                     notes=form.cleaned_data.get('notes') or '',
+                    request_date=form.cleaned_data.get('request_date'),
+                    lines=lines,
+                    received_by=form.cleaned_data.get('received_by'),
+                    warehouse_code=form.cleaned_data.get('warehouse_code') or '',
+                    warehouse_name=form.cleaned_data.get('warehouse_name') or '',
                 )
             except DispatchError as exc:
                 messages.error(request, str(exc))
             else:
-                messages.success(request, f'Đã tạo yêu cầu nhập thành phẩm {fg_req.code}.')
+                messages.success(request, f'Đã lưu yêu cầu nhập thành phẩm {fg_req.code}.')
                 return redirect('san_xuat:dispatch_fg_receipt_req_detail', pk=fg_req.pk)
-        elif not mo:
-            messages.error(request, 'Thiếu lệnh sản xuất nguồn.')
         else:
             messages.error(request, 'Không tạo được yêu cầu nhập thành phẩm — kiểm tra lại form.')
+            raw = request.POST.get('production_order')
+            if raw and str(raw).isdigit():
+                mo = SxProductionOrder.objects.filter(pk=int(raw)).first() or mo
     else:
-        initial = {}
+        initial = {'request_date': timezone.localdate(), 'received_by': request.user}
+        initial_lines = None
         mo_id = request.GET.get('mo')
-        stat_id = request.GET.get('stat')
-        if stat_id and str(stat_id).isdigit():
-            stat = get_object_or_404(SxProductionStat, pk=int(stat_id))
-            mo = stat.production_order
-            initial['qty'] = stat.qty_good or mo.qty_done or 0
-        elif mo_id and str(mo_id).isdigit():
+        if not mo and mo_id and str(mo_id).isdigit():
             mo = get_object_or_404(SxProductionOrder, pk=int(mo_id))
-            initial['qty'] = mo.qty_done or mo.qty
-        form = FgReceiptCreateForm(initial=initial)
+        if mo:
+            source = fg_receipt_prefill(mo=mo, stat=stat)
+            initial['production_order'] = mo
+            initial['product_code'] = source['product_code']
+            initial['product_name'] = source['product_name']
+            initial['qty'] = source['qty']
+            initial_lines = source['lines'] or None
+        form = FgReceiptCreateForm(initial=initial, extra_mo=mo, operator=request.user)
+        line_formset = make_fg_receipt_line_formset(initial=initial_lines)
     return render(request, 'san_xuat/dispatch_fg_receipt_req_form.html', {
         **_perm_ctx(request),
         'form': form,
+        'line_formset': line_formset,
         'mo': mo,
         'stat': stat,
     })
@@ -3073,7 +3092,9 @@ def dispatch_fg_receipt_req_create(request):
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def dispatch_fg_receipt_req_detail(request, pk: int):
     fg_req = get_object_or_404(
-        SxFgReceiptRequest.objects.select_related('production_order', 'production_stat').prefetch_related('lines'),
+        SxFgReceiptRequest.objects.select_related(
+            'production_order', 'production_stat', 'received_by', 'received_by__profile',
+        ).prefetch_related('lines'),
         pk=pk,
     )
     can_update = _perm_ctx(request).get('can_update')

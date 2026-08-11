@@ -47,6 +47,9 @@
     });
   }
 
+  window.jpBindSkuCompose = bind;
+  window.jpRefreshSkuRow = refreshRow;
+
   document.addEventListener('DOMContentLoaded', function () {
     bind(document);
     document.querySelectorAll('.jp-sx-sku-row, form.jp-sx-stat-form, form').forEach(refreshRow);

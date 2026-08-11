@@ -3,6 +3,7 @@ from __future__ import annotations
 from decimal import Decimal
 
 from django import forms
+from django.forms import formset_factory
 
 _SELECT_SM = {"class": "form-select form-select-sm"}
 _INPUT_SM = {"class": "form-control form-control-sm"}
@@ -631,25 +632,285 @@ def production_stat_initial_from_mo(mo) -> dict:
     return initial
 
 
+def fg_warehouse_choices(*, extra_value: str = "") -> list[tuple[str, str]]:
+    """Kho nhập thành phẩm: chi nhánh KiotViet, không có thì vị trí kho portal."""
+    choices: list[tuple[str, str]] = [("", "— Chọn kho nhập —")]
+    seen: set[str] = set()
+
+    def _add(value: str, label: str) -> None:
+        if not value or value in seen:
+            return
+        seen.add(value)
+        choices.append((value, label))
+
+    try:
+        from kiotviet.models import KvBranch
+        from kiotviet.sync_service import current_retailer
+
+        qs = KvBranch.objects.filter(is_deleted=False)
+        retailer = current_retailer()
+        if retailer is not None:
+            qs = qs.filter(retailer=retailer)
+        for branch in qs.order_by("branch_name", "branch_code"):
+            label = (branch.branch_name or branch.branch_code or "").strip() or f"Kho #{branch.pk}"
+            _add(f"kv:{branch.pk}", label)
+    except Exception:
+        pass
+    if len(choices) == 1:
+        try:
+            from kho_npl.models import WarehouseLocation
+
+            for loc in WarehouseLocation.objects.filter(is_active=True).order_by("code"):
+                _add(f"loc:{loc.pk}", loc.display_label())
+        except Exception:
+            pass
+    extra = (extra_value or "").strip()
+    if extra and extra not in seen:
+        _add(extra, extra)
+    return choices
+
+
 class FgReceiptCreateForm(forms.Form):
-    code = forms.CharField(
-        max_length=40,
+    production_order = forms.ModelChoiceField(
+        queryset=None,
+        label="Lệnh sản xuất nguồn",
+        widget=forms.Select(attrs=_SELECT_SM),
+    )
+    received_by = forms.ModelChoiceField(
+        queryset=None,
+        label="Người nhập",
+        widget=forms.Select(attrs={
+            "class": "form-select form-select-sm jp-sx-employee-select",
+            "data-placeholder": "Gõ tên hoặc mã nhân viên…",
+            "data-browse-on-open": "1",
+        }),
+    )
+    warehouse_code = forms.ChoiceField(
+        label="Kho nhập",
+        choices=[],
+        widget=forms.Select(attrs=_SELECT_SM),
+    )
+    product_code = forms.CharField(
         required=False,
-        label="Mã yêu cầu nhập thành phẩm",
-        widget=forms.TextInput(attrs={"class": "form-control form-control-sm"}),
+        label="Mã sản phẩm",
+        widget=forms.TextInput(attrs={
+            **_INPUT_SM,
+            "class": "form-control-plaintext form-control-sm px-0",
+            "readonly": True,
+            "tabindex": "-1",
+            "placeholder": "Tự điền khi chọn lệnh",
+        }),
+    )
+    product_name = forms.CharField(
+        required=False,
+        label="Tên sản phẩm",
+        widget=forms.TextInput(attrs={
+            "class": "form-control-plaintext form-control-sm px-0",
+            "readonly": True,
+            "tabindex": "-1",
+        }),
     )
     qty = forms.DecimalField(
         max_digits=14,
         decimal_places=2,
-        min_value=Decimal("0.01"),
-        label="Số lượng nhập thành phẩm",
-        widget=forms.NumberInput(attrs={"class": "form-control form-control-sm", "step": "0.01", "min": "0.01"}),
+        min_value=Decimal("0"),
+        required=False,
+        label="Số lượng nhập",
+        widget=forms.NumberInput(attrs={
+            **_INPUT_SM,
+            "step": "0.01",
+            "min": "0",
+            "class": f"{_INPUT_SM['class']} jp-ycntp-qty-total",
+            "readonly": True,
+        }),
+    )
+    request_date = forms.DateField(
+        label="Ngày yêu cầu",
+        widget=forms.DateInput(attrs=_DATE_SM),
     )
     notes = forms.CharField(
         required=False,
         label="Ghi chú",
-        widget=forms.Textarea(attrs={"class": "form-control form-control-sm", "rows": 3}),
+        widget=forms.TextInput(attrs=_INPUT_SM),
     )
+
+    def __init__(self, *args, extra_mo=None, operator=None, **kwargs):
+        from django.contrib.auth import get_user_model
+        from hrm.user_search import issue_recipient_label
+        from san_xuat.hub_models import SxProductionOrder
+
+        super().__init__(*args, **kwargs)
+        User = get_user_model()
+        selected_user_id = None
+        if self.is_bound:
+            raw = self.data.get(self.add_prefix("received_by"))
+            if raw and str(raw).isdigit():
+                selected_user_id = int(raw)
+        elif self.initial.get("received_by"):
+            raw = self.initial.get("received_by")
+            selected_user_id = getattr(raw, "pk", raw)
+        elif operator is not None and getattr(operator, "pk", None):
+            selected_user_id = operator.pk
+            self.initial.setdefault("received_by", operator)
+        self.fields["received_by"].queryset = (
+            User.objects.filter(pk=selected_user_id) if selected_user_id else User.objects.none()
+        )
+        self.fields["received_by"].label_from_instance = issue_recipient_label
+        self.fields["received_by"].empty_label = None
+
+        extra_wh = ""
+        if self.is_bound:
+            extra_wh = (self.data.get(self.add_prefix("warehouse_code")) or "").strip()
+        elif self.initial:
+            extra_wh = (self.initial.get("warehouse_code") or "").strip()
+        self.fields["warehouse_code"].choices = fg_warehouse_choices(extra_value=extra_wh)
+        real_wh = [c for c in self.fields["warehouse_code"].choices if c[0]]
+        if len(real_wh) == 1 and not extra_wh:
+            self.initial.setdefault("warehouse_code", real_wh[0][0])
+
+        eligible = SxProductionOrder.objects.filter(
+            is_demo=False,
+            status__in=(
+                SxProductionOrder.STATUS_IN_PROGRESS,
+                SxProductionOrder.STATUS_DONE,
+            ),
+        )
+        extra_pk = None
+        if extra_mo is not None:
+            extra_pk = getattr(extra_mo, "pk", extra_mo)
+        elif self.is_bound:
+            raw = self.data.get(self.add_prefix("production_order"))
+            if raw and str(raw).isdigit():
+                extra_pk = int(raw)
+        elif self.initial:
+            raw = self.initial.get("production_order")
+            extra_pk = getattr(raw, "pk", raw) if raw else None
+        qs = eligible
+        if extra_pk:
+            qs = (SxProductionOrder.objects.filter(pk=extra_pk) | eligible).distinct()
+        self.fields["production_order"].queryset = qs.order_by("-order_date", "-pk")
+        self.fields["production_order"].empty_label = "— Chọn lệnh sản xuất —"
+        self.fields["production_order"].label_from_instance = (
+            lambda mo: f"{mo.code} · {mo.product_code}"
+            + (f" — {mo.product_name}" if mo.product_name else "")
+        )
+
+    def clean_production_order(self):
+        from san_xuat.hub_models import SxProductionOrder
+
+        mo = self.cleaned_data.get("production_order")
+        if not mo:
+            raise forms.ValidationError("Chọn lệnh sản xuất nguồn.")
+        if mo.status not in (
+            SxProductionOrder.STATUS_IN_PROGRESS,
+            SxProductionOrder.STATUS_DONE,
+        ):
+            raise forms.ValidationError(
+                "Chỉ lập yêu cầu khi lệnh đang sản xuất hoặc đã hoàn thành."
+            )
+        return mo
+
+    def clean_warehouse_code(self):
+        code = (self.cleaned_data.get("warehouse_code") or "").strip()
+        if not code:
+            raise forms.ValidationError("Chọn kho nhập.")
+        labels = dict(self.fields["warehouse_code"].choices)
+        self._warehouse_name = labels.get(code) or code
+        return code
+
+    def clean(self):
+        cleaned = super().clean()
+        cleaned["warehouse_name"] = getattr(self, "_warehouse_name", "") or ""
+        return cleaned
+
+
+class FgReceiptLineForm(forms.Form):
+    color_code = forms.ChoiceField(
+        required=False,
+        label="Màu",
+        choices=[],
+        widget=forms.Select(attrs={
+            "class": "form-select form-select-sm jp-sx-color-select",
+        }),
+    )
+    size_label = forms.ChoiceField(
+        required=False,
+        label="Size",
+        choices=[],
+        widget=forms.Select(attrs={
+            "class": "form-select form-select-sm jp-sx-size-select",
+        }),
+    )
+    sku_code = forms.CharField(
+        max_length=100,
+        required=False,
+        label="SKU",
+        widget=forms.TextInput(attrs={
+            "class": "form-control form-control-sm jp-sx-sku-code",
+            "placeholder": "Mã SX–Màu–Size",
+            "readonly": True,
+            "tabindex": "-1",
+        }),
+    )
+    color_label = forms.CharField(
+        max_length=40,
+        required=False,
+        widget=forms.HiddenInput(),
+    )
+    qty = forms.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        min_value=Decimal("0"),
+        required=False,
+        label="Số lượng",
+        widget=forms.NumberInput(attrs={
+            "class": "form-control form-control-sm jp-so-qty-total",
+            "step": "0.01",
+            "min": "0",
+        }),
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from san_xuat.services.sku_catalog import color_choices, size_choices
+
+        extra_color = ""
+        extra_size = ""
+        if self.is_bound:
+            extra_color = (self.data.get(self.add_prefix("color_code")) or "").strip()
+            extra_size = (self.data.get(self.add_prefix("size_label")) or "").strip()
+        elif self.initial:
+            extra_color = (self.initial.get("color_code") or "").strip()
+            extra_size = (self.initial.get("size_label") or "").strip()
+        self.fields["color_code"].choices = color_choices(extra_code=extra_color, blank_label="—")
+        self.fields["size_label"].choices = size_choices(extra_code=extra_size, blank_label="—")
+
+    def clean(self):
+        cleaned = super().clean()
+        from san_xuat.services.sku_catalog import color_label_for
+
+        color_code = (cleaned.get("color_code") or "").strip()
+        if color_code and not cleaned.get("color_label"):
+            cleaned["color_label"] = color_label_for(color_code)
+        qty = cleaned.get("qty")
+        if qty and qty > 0 and not (
+            (cleaned.get("sku_code") or "").strip()
+            or color_code
+            or (cleaned.get("size_label") or "").strip()
+        ):
+            self.add_error("color_code", "Chọn màu / size cho dòng nhập.")
+        return cleaned
+
+
+def make_fg_receipt_line_formset(*, data=None, initial=None):
+    extra = 0 if initial else 1
+    factory = formset_factory(FgReceiptLineForm, extra=extra, can_delete=True)
+    if data is not None:
+        return factory(data, prefix="lines")
+    return factory(prefix="lines", initial=initial or None)
+
+
+FgReceiptLineFormSet = formset_factory(FgReceiptLineForm, extra=1, can_delete=True)
 
 
 class FgReceiptLinkKvForm(forms.Form):

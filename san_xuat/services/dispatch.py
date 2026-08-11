@@ -1340,6 +1340,176 @@ def confirm_stat(*, stat_id: int) -> SxProductionStat:
     return stat
 
 
+def _dec_label(value) -> str:
+    q = Decimal(str(value or 0))
+    text = format(q.quantize(Decimal("0.01")), "f").rstrip("0").rstrip(".")
+    return text or "0"
+
+
+def _compose_sku(style: str, color: str, size: str) -> str:
+    style = (style or "").strip().upper()
+    color = (color or "").strip().upper()
+    size = (size or "").strip().upper()
+    if not style or not color or not size:
+        return ""
+    return f"{style}-{color}-{size}"
+
+
+def _completed_progress_lines(mo: SxProductionOrder) -> list[dict]:
+    """SKU đã hoàn thành tiến độ (công đoạn Giao hàng thành phẩm), trừ SL đã lập YCNTP."""
+    from django.db.models import Sum
+
+    from san_xuat.hub_models import SxFgReceiptLine
+    from san_xuat.services.progress_template import step_by_label
+
+    grouped: dict[tuple[str, str, str], dict] = {}
+    for st in SxProductionStat.objects.filter(
+        production_order=mo,
+        status=SxProductionStat.STATUS_CONFIRMED,
+        is_demo=False,
+    ).order_by("pk"):
+        step = step_by_label(st.process_name or "")
+        if not step or step.key != "gh_tp":
+            continue
+        good = st.qty_good or Decimal("0")
+        if good <= 0:
+            continue
+        color = (st.color_code or "").strip()
+        size = (st.size_label or "").strip()
+        sku = (st.sku_code or "").strip()
+        key = (color.upper(), size.upper(), sku.upper())
+        row = grouped.get(key)
+        if not row:
+            grouped[key] = {
+                "color_code": color,
+                "color_label": (st.color_label or "").strip(),
+                "size_label": size,
+                "sku_code": sku,
+                "qty": good,
+            }
+        else:
+            row["qty"] += good
+
+    expanded: list[dict] = []
+    mo_lines = list(mo.lines.all())
+    style = (mo.product_code or "").strip()
+    for row in grouped.values():
+        color = row["color_code"]
+        size = row["size_label"]
+        sku = row["sku_code"]
+        qty = row["qty"]
+        if color or sku:
+            if not sku:
+                sku = _compose_sku(style, color, size)
+            expanded.append({**row, "sku_code": sku, "qty": qty})
+            continue
+        matches = [
+            ln for ln in mo_lines
+            if (ln.size_label or "").strip().upper() == size.upper()
+        ]
+        if not matches:
+            expanded.append({**row, "qty": qty})
+            continue
+        plan = sum((ln.qty or Decimal("0") for ln in matches), Decimal("0")) or Decimal("1")
+        for ln in matches:
+            share = (qty * (ln.qty or Decimal("0")) / plan).quantize(Decimal("0.01"))
+            if share <= 0:
+                continue
+            ln_color = (ln.color_code or "").strip()
+            ln_size = (ln.size_label or "").strip()
+            ln_sku = (ln.sku_code or "").strip() or _compose_sku(style, ln_color, ln_size)
+            expanded.append({
+                "color_code": ln_color,
+                "color_label": (ln.color_label or "").strip(),
+                "size_label": ln_size,
+                "sku_code": ln_sku,
+                "qty": share,
+            })
+
+    taken: dict[tuple[str, str, str], Decimal] = {}
+    for rec in (
+        SxFgReceiptLine.objects.filter(
+            receipt__production_order=mo,
+            receipt__is_demo=False,
+            receipt__status__in=(
+                SxFgReceiptRequest.STATUS_DRAFT,
+                SxFgReceiptRequest.STATUS_SUBMITTED,
+                SxFgReceiptRequest.STATUS_DONE,
+            ),
+        )
+        .values("color_code", "size_label", "sku_code")
+        .annotate(total=Sum("qty"))
+    ):
+        key = (
+            (rec["color_code"] or "").strip().upper(),
+            (rec["size_label"] or "").strip().upper(),
+            (rec["sku_code"] or "").strip().upper(),
+        )
+        taken[key] = rec["total"] or Decimal("0")
+
+    lines: list[dict] = []
+    for row in expanded:
+        key = (
+            (row["color_code"] or "").upper(),
+            (row["size_label"] or "").upper(),
+            (row["sku_code"] or "").upper(),
+        )
+        remain = (row["qty"] or Decimal("0")) - taken.get(key, Decimal("0"))
+        if remain <= 0:
+            continue
+        lines.append({
+            "color_code": row["color_code"],
+            "color_label": row.get("color_label") or "",
+            "size_label": row["size_label"],
+            "sku_code": row["sku_code"],
+            "qty": _dec_label(remain),
+        })
+    return lines
+
+
+def fg_receipt_prefill(*, mo: SxProductionOrder, stat: SxProductionStat | None = None) -> dict:
+    """Nguồn form YCNTP: lệnh + dòng SKU đã hoàn thành tiến độ giao hàng thành phẩm."""
+    lines: list[dict] = []
+    if stat is not None and (stat.qty_good or Decimal("0")) > 0:
+        color = (stat.color_code or "").strip()
+        size = (stat.size_label or "").strip()
+        sku = (stat.sku_code or "").strip() or _compose_sku(mo.product_code or "", color, size)
+        if color or size or sku:
+            lines = [{
+                "color_code": color,
+                "color_label": (stat.color_label or "").strip(),
+                "size_label": size,
+                "sku_code": sku,
+                "qty": _dec_label(stat.qty_good),
+            }]
+    if not lines:
+        lines = _completed_progress_lines(mo)
+
+    qty = sum((Decimal(str(x["qty"])) for x in lines), Decimal("0")) if lines else Decimal("0")
+
+    return {
+        "mo_id": mo.pk,
+        "mo_code": mo.code,
+        "product_code": mo.product_code or "",
+        "product_name": mo.product_name or "",
+        "qty": _dec_label(qty),
+        "qty_done": _dec_label(mo.qty_done),
+        "qty_plan": _dec_label(mo.qty),
+        "status": mo.status,
+        "status_label": mo.get_status_display(),
+        "eligible": mo.status in (
+            SxProductionOrder.STATUS_IN_PROGRESS,
+            SxProductionOrder.STATUS_DONE,
+        ),
+        "lines": lines,
+        "lines_hint": (
+            "Tự điền SKU đã hoàn thành công đoạn Giao hàng thành phẩm."
+            if lines
+            else "Chưa có sản lượng hoàn thành tiến độ giao hàng thành phẩm."
+        ),
+    }
+
+
 @transaction.atomic
 def create_fg_receipt_from_mo(
     *,
@@ -1348,6 +1518,11 @@ def create_fg_receipt_from_mo(
     qty: Decimal | None = None,
     code: str | None = None,
     notes: str = "",
+    request_date=None,
+    lines: list[dict] | None = None,
+    received_by=None,
+    warehouse_code: str = "",
+    warehouse_name: str = "",
 ) -> SxFgReceiptRequest:
     mo = SxProductionOrder.objects.select_for_update().get(pk=production_order_id)
     if mo.status not in (
@@ -1364,14 +1539,26 @@ def create_fg_receipt_from_mo(
         if stat.status != SxProductionStat.STATUS_CONFIRMED:
             raise DispatchError("Thống kê sản xuất phải đã xác nhận trước khi lập yêu cầu nhập thành phẩm.")
 
+    line_sum = Decimal("0")
+    for row in lines or []:
+        q = row.get("qty")
+        if q is None:
+            continue
+        q = Decimal(str(q))
+        if q > 0:
+            line_sum += q
     receipt_qty = qty
-    if receipt_qty is None:
+    if line_sum > 0:
+        receipt_qty = line_sum
+    elif receipt_qty is None:
         if stat and (stat.qty_good or Decimal("0")) > 0:
             receipt_qty = stat.qty_good
         else:
-            receipt_qty = mo.qty_done or Decimal("0")
+            receipt_qty = Decimal("0")
     if (receipt_qty or Decimal("0")) <= 0:
-        raise DispatchError("SL nhập TP phải > 0 — cần Thống kê sản xuất đã xác nhận hoặc Lệnh sản xuất có qty_done.")
+        raise DispatchError(
+            "Chưa có số lượng nhập — cần sản phẩm đã hoàn thành tiến độ giao hàng thành phẩm."
+        )
 
     from san_xuat.services.gates import (
         check_open_qc_alert_before_fg,
@@ -1390,14 +1577,37 @@ def create_fg_receipt_from_mo(
         code=_code("fg", SxFgReceiptRequest, code=code),
         production_order=mo,
         production_stat=stat,
-        request_date=timezone.localdate(),
+        request_date=request_date or timezone.localdate(),
         qty=receipt_qty,
         status=SxFgReceiptRequest.STATUS_DRAFT,
         notes=notes or "",
+        received_by=received_by if getattr(received_by, "pk", None) else None,
+        warehouse_code=(warehouse_code or "").strip(),
+        warehouse_name=(warehouse_name or "").strip(),
         is_demo=False,
     )
-    # Khi YCNTP lấy từ TKSX có SKU → tạo 1 dòng biến thể (Mã SX–Màu–Size).
-    if stat and (stat.sku_id or (stat.sku_code or "").strip()):
+    created_qty = Decimal("0")
+    n_lines = 0
+    for row in lines or []:
+        q = row.get("qty")
+        if q is None or Decimal(str(q)) <= 0:
+            continue
+        q = Decimal(str(q)).quantize(Decimal("0.01"))
+        SxFgReceiptLine.objects.create(
+            receipt=req,
+            sku_id=row.get("sku_id") or None,
+            sku_code=(row.get("sku_code") or "").strip(),
+            size_label=(row.get("size_label") or "").strip(),
+            color_label=(row.get("color_label") or "").strip(),
+            color_code=(row.get("color_code") or "").strip(),
+            qty=q,
+        )
+        created_qty += q
+        n_lines += 1
+    if n_lines:
+        req.qty = created_qty
+        req.save(update_fields=["qty"])
+    elif stat and (stat.sku_id or (stat.sku_code or "").strip()):
         SxFgReceiptLine.objects.create(
             receipt=req,
             sku_id=stat.sku_id,
