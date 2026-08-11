@@ -4716,7 +4716,7 @@ def subcontract_create(request):
             out_lines = []
             for lf in out_formset:
                 cd = lf.cleaned_data
-                if not cd:
+                if not cd or cd.get('DELETE'):
                     continue
                 if cd.get('material_code') and cd.get('qty') and cd['qty'] > 0:
                     out_lines.append(cd)
@@ -4738,7 +4738,7 @@ def subcontract_create(request):
             else:
                 messages.success(request, f'Đã tạo {item.code}.')
                 return redirect('san_xuat:subcontract_detail', pk=item.pk)
-        messages.error(request, 'Không tạo được lệnh GC.')
+        messages.error(request, 'Không tạo được lệnh gia công.')
     else:
         form = SubcontractCreateForm(initial={'order_date': timezone.localdate()})
         out_formset = SubcontractOutLineFormSet(prefix='out')

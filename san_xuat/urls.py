@@ -168,6 +168,7 @@ urlpatterns = [
     path('cong-doan/nhat-ky/', views_ie.ie_audit_list, name='ie_audit_list'),
     path('thiet-lap/', views_hub.general_settings, name='general_settings'),
     path('api/tim-ma-sp/', views.product_code_search, name='product_code_search'),
+    path('api/tim-npl-btp/', views.gc_out_item_search, name='gc_out_item_search'),
     path('api/tim-khach-hang/', views.customer_search, name='customer_search'),
     path('api/don-hang/phien-ban/', views.sales_order_line_versions_api, name='sales_order_line_versions'),
     path('api/de-xuat-sl/ton-size/', views.suggest_qty_stock_api, name='suggest_qty_stock'),

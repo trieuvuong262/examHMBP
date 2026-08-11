@@ -1,0 +1,107 @@
+{# TomSelect NPL + BTP/SP — san_xuat:gc_out_item_search #}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/css/tom-select.bootstrap5.min.css">
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/js/tom-select.complete.min.js"></script>
+<script>
+(function () {
+  if (typeof TomSelect === 'undefined') return;
+  var searchUrl = '{% url "san_xuat:gc_out_item_search" %}';
+
+  function fillLineFromOption(select, opt) {
+    var row = select.closest('tr') || select.closest('form');
+    if (!row) return;
+    var nameInput = row.querySelector('input[name$="material_name"]');
+    var uomInput = row.querySelector('input[name$="uom_label"]');
+    var stockEl = row.querySelector('.jp-so-stock-qty');
+    if (!opt) {
+      if (nameInput) nameInput.value = '';
+      if (uomInput) uomInput.value = '';
+      if (stockEl) {
+        stockEl.textContent = '—';
+        stockEl.classList.add('text-muted');
+        stockEl.classList.remove('text-danger', 'fw-semibold');
+      }
+      return;
+    }
+    if (nameInput) nameInput.value = (opt.name || '').trim();
+    if (uomInput) uomInput.value = (opt.unit_name || opt.unit || '').trim();
+    if (stockEl) {
+      var qty = parseFloat(opt.stock_qty);
+      var label = (opt.stock_label != null && String(opt.stock_label).trim() !== '')
+        ? String(opt.stock_label).trim()
+        : (Number.isFinite(qty) ? String(qty) : '—');
+      stockEl.textContent = label || '—';
+      var n = Number.isFinite(qty) ? qty : parseFloat(label);
+      stockEl.classList.toggle('text-muted', !Number.isFinite(n));
+      stockEl.classList.toggle('text-danger', Number.isFinite(n) && n <= 0);
+      stockEl.classList.toggle('fw-semibold', Number.isFinite(n) && n > 0);
+    }
+  }
+
+  function initGcOutItemSelect(select) {
+    if (!select || select.tomselect) return null;
+    var initialValue = (select.value || '').trim();
+    var initialLabel = select.options[select.selectedIndex]
+      ? select.options[select.selectedIndex].textContent.trim()
+      : initialValue;
+
+    return new TomSelect(select, {
+      maxOptions: 50,
+      maxItems: 1,
+      valueField: 'id',
+      labelField: 'text',
+      searchField: ['text', 'code', 'name'],
+      placeholder: select.dataset.placeholder || 'Gõ mã / tên NPL hoặc BTP…',
+      dropdownParent: 'body',
+      openOnFocus: true,
+      preload: 'focus',
+      loadThrottle: 220,
+      load: function (query, callback) {
+        fetch(searchUrl + '?q=' + encodeURIComponent(query || ''), {
+          headers: { 'Accept': 'application/json' },
+        })
+          .then(function (r) { return r.json(); })
+          .then(function (data) { callback(data.results || []); })
+          .catch(function () { callback(); });
+      },
+      render: {
+        option: function (data, escape) {
+          var kind = escape(data.kind_label || '');
+          var text = escape(data.text || data.code || '');
+          var stock = escape(data.stock_label || '');
+          return '<div class="jp-npl-material-option is-name-stock">'
+            + (kind ? '<span class="badge text-bg-light me-1">' + kind + '</span>' : '')
+            + '<span class="jp-npl-material-option-name">' + text + '</span>'
+            + (stock ? '<span class="jp-npl-material-option-meta text-muted small">' + stock + '</span>' : '')
+            + '</div>';
+        },
+        item: function (data, escape) {
+          var text = data.text || data.code || '';
+          if (data.code && data.name) text = data.code + ' — ' + data.name;
+          return '<div>' + escape(text) + '</div>';
+        },
+        no_results: function () {
+          return '<div class="px-2 py-2 text-muted small">Không tìm thấy NPL / BTP</div>';
+        },
+      },
+      onInitialize: function () {
+        if (!initialValue) return;
+        if (!this.options[initialValue]) {
+          this.addOption({
+            id: initialValue,
+            code: initialValue,
+            text: initialLabel || initialValue,
+            name: '',
+          });
+        }
+        this.setValue(initialValue, true);
+      },
+      onChange: function (value) {
+        fillLineFromOption(select, value ? this.options[value] : null);
+      },
+    });
+  }
+
+  window.jpInitGcOutItemSelect = initGcOutItemSelect;
+  document.querySelectorAll('.jp-gc-out-item-select').forEach(initGcOutItemSelect);
+})();
+</script>

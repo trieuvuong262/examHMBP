@@ -660,7 +660,7 @@ def apply_routing_to_bom(
     bom: BomVersion,
     routing: SxRouting,
     replace: bool = True,
-    by_group: bool = False,
+    by_group: bool = True,
 ) -> ApplyRoutingResult:
     """Gắn routing vào BOM và đồng bộ ProcessStep từ dòng routing.
 

@@ -423,6 +423,114 @@ def suggest_style_size_stock(style_code: str, *, days: int = 30) -> dict:
     }
 
 
+def search_gc_out_items(q: str = '', *, limit: int = 40) -> list[dict]:
+    """TomSelect dòng xuất GC: NPL (kho NPL) + BTP/SP (kho SP)."""
+    q = _norm(q)
+    limit = max(1, min(int(limit or 40), 80))
+    rows: list[dict] = []
+    npl_cap = min(40, limit)
+
+    try:
+        from django.db.models import Sum
+
+        from kho_npl.catalog_labels import unit_label
+        from kho_npl.material_search import apply_material_search_strict, material_relevance_sort_key
+        from kho_npl.models import Material, StockBalance
+        from kho_npl.services.scrap_warehouse import exclude_scrap_locations
+        from kho_npl.templatetags.npl_extras import format_npl_qty
+
+        qs = Material.objects.filter(is_active=True).select_related('unit')
+        if q:
+            qs = apply_material_search_strict(qs, q)
+        materials = list(qs.order_by('name', 'code')[:npl_cap])
+        if q:
+            materials.sort(key=lambda m: material_relevance_sort_key(m, q))
+        balance_map: dict[int, Decimal] = {}
+        if materials:
+            for row in (
+                exclude_scrap_locations(
+                    StockBalance.objects.filter(material_id__in=[m.pk for m in materials]),
+                )
+                .values('material_id')
+                .annotate(total=Sum('quantity'))
+            ):
+                balance_map[row['material_id']] = row['total'] or Decimal('0')
+        for material in materials:
+            qty = balance_map.get(material.pk, Decimal('0'))
+            unit = unit_label(material.unit) if material.unit_id else ''
+            qty_text = format_npl_qty(qty)
+            stock_label = f'{qty_text} {unit}'.strip() if unit else (qty_text or '0')
+            rows.append({
+                'id': f'npl:{material.pk}',
+                'code': material.code,
+                'name': material.name,
+                'text': f'{material.code} — {material.name}',
+                'kind': 'npl',
+                'kind_label': 'NPL',
+                'unit': unit or 'cái',
+                'unit_name': (material.unit.name if material.unit_id else '') or 'cái',
+                'stock_qty': str(qty),
+                'stock_label': stock_label or '0',
+            })
+    except Exception:
+        pass
+
+    for product in search_products(q, limit=min(20, limit)):
+        rows.append({
+            'id': f'sp:{product["id"]}',
+            'code': product.get('code') or product['id'],
+            'name': product.get('name') or '',
+            'text': product.get('text') or product.get('code') or product['id'],
+            'kind': 'sp',
+            'kind_label': 'BTP/SP',
+            'unit': 'cái',
+            'unit_name': 'cái',
+            'stock_qty': product.get('stock_qty') or '0',
+            'stock_label': product.get('stock_label') or '0',
+        })
+    return rows
+
+
+def resolve_gc_out_item(raw: str) -> tuple[str, str, str]:
+    """(code, name, uom) từ giá trị TomSelect NPL/BTP."""
+    value = _norm(raw)
+    if not value:
+        return '', '', ''
+
+    if value.lower().startswith('npl:'):
+        try:
+            pk = int(value.split(':', 1)[1])
+        except (TypeError, ValueError):
+            raise ValueError('Mã NPL không hợp lệ.') from None
+        from kho_npl.catalog_labels import unit_label
+        from kho_npl.models import Material
+
+        material = Material.objects.filter(pk=pk, is_active=True).select_related('unit').first()
+        if not material:
+            raise ValueError('NPL không có trong danh mục.')
+        unit = unit_label(material.unit) if material.unit_id else 'cái'
+        return material.code, material.name, unit or 'cái'
+
+    if value.lower().startswith('sp:'):
+        code = value.split(':', 1)[1].strip()
+        ref = resolve_product_ref(code)
+        if not ref:
+            raise ValueError(f'Mã {code} không có trong kho sản phẩm.')
+        return ref.code, ref.name, 'cái'
+
+    from kho_npl.catalog_labels import unit_label
+    from kho_npl.models import Material
+
+    material = Material.objects.filter(code__iexact=value, is_active=True).select_related('unit').first()
+    if material:
+        unit = unit_label(material.unit) if material.unit_id else 'cái'
+        return material.code, material.name, unit or 'cái'
+    ref = resolve_product_ref(value)
+    if ref:
+        return ref.code, ref.name, 'cái'
+    raise ValueError(f'Không tìm thấy NPL / BTP {value}.')
+
+
 # --- Aliases tương thích API cũ (trước đây lấy từ KiotViet) ---
 
 find_kv_product = find_product

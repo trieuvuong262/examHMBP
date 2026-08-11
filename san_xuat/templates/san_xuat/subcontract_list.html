@@ -14,7 +14,7 @@
     <nav class="jp-sx-tools" aria-label="Công cụ">
       {% include 'san_xuat/includes/sx_export_btn.html' with export_key='subcontract_list' %}
             {% if can_create %}
-    <a href="{% url 'san_xuat:subcontract_create' %}" class="btn btn-hm btn-sm fw-bold">Tạo lệnh GC</a>
+    <a href="{% url 'san_xuat:subcontract_create' %}" class="btn btn-hm btn-sm fw-bold">Tạo lệnh gia công</a>
     {% endif %}
       {% include 'san_xuat/includes/sx_list_col_picker.html' %}
     </nav>

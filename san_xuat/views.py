@@ -32,7 +32,7 @@ from san_xuat.services.bom import (
     get_working_bom,
 )
 from san_xuat.services.costing import compute_costing, save_costing_snapshot
-from san_xuat.services.products import search_products
+from san_xuat.services.products import search_gc_out_items, search_products
 
 
 def _perm_ctx(request):
@@ -261,18 +261,12 @@ def doc_detail(request, pk):
             if not routing:
                 messages.error(request, 'Chưa chọn routing hợp lệ.')
             else:
-                by_group = (request.POST.get('by_group') or '').strip().lower() in (
-                    '1',
-                    'on',
-                    'true',
-                    'yes',
-                )
                 try:
                     result = apply_routing_to_bom(
                         bom=bom,
                         routing=routing,
                         replace=True,
-                        by_group=by_group,
+                        by_group=True,
                     )
                 except IeOpsError as exc:
                     messages.error(request, str(exc))
@@ -283,10 +277,9 @@ def doc_detail(request, pk):
                             f'Đã gắn {result.routing_id} vào BOM (routing trống — giữ công đoạn hiện có).',
                         )
                     else:
-                        kind = 'nhóm công đoạn' if by_group else 'công đoạn'
                         messages.success(
                             request,
-                            f'Đã áp {result.routing_id}: tạo {result.steps_created} {kind} BOM.',
+                            f'Đã áp {result.routing_id}: tạo {result.steps_created} nhóm công đoạn BOM.',
                         )
                     for w in result.warnings[:10]:
                         messages.warning(request, w)
@@ -498,6 +491,14 @@ def design_file_serve(request, pk):
 def product_code_search(request):
     q = (request.GET.get('q') or '').strip()
     return JsonResponse({'results': search_products(q, limit=30)})
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+@require_GET
+def gc_out_item_search(request):
+    """TomSelect dòng xuất GC: NPL + BTP/SP."""
+    q = (request.GET.get('q') or '').strip()
+    return JsonResponse({'results': search_gc_out_items(q, limit=40)})
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')

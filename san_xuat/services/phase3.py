@@ -479,16 +479,16 @@ def create_subcontract_order(
     if not vendor_name:
         raise Phase3Error("Thiếu đơn vị gia công.")
     if not product_code:
-        raise Phase3Error("Thiếu mã SP.")
+        raise Phase3Error("Thiếu mã sản phẩm.")
     if qty is None or qty <= 0:
-        raise Phase3Error("SL gia công phải > 0.")
-    mo = None
-    if production_order_id:
-        mo = SxProductionOrder.objects.get(pk=production_order_id)
-        if not product_name:
-            product_name = mo.product_name
-        if not product_code:
-            product_code = mo.product_code
+        raise Phase3Error("Số lượng gia công phải > 0.")
+    if not production_order_id:
+        raise Phase3Error("Chọn lệnh sản xuất nguồn.")
+    mo = SxProductionOrder.objects.get(pk=production_order_id)
+    if not product_name:
+        product_name = mo.product_name
+    if not product_code:
+        product_code = mo.product_code
     order = SxSubcontractOrder.objects.create(
         code=_code("subcontract", SxSubcontractOrder, code=code),
         production_order=mo,
