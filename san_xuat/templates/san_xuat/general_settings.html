@@ -3,6 +3,7 @@
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
 
 {% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/css/tom-select.bootstrap5.min.css">
 <style>
   .jp-sx-settings {
     --sx-set-accent: var(--hm-primary, #dc2626);
@@ -80,6 +81,29 @@
     color: #0f172a;
   }
   .jp-sx-settings .jp-sx-set-panel-body { padding: .35rem 0; }
+  .jp-sx-settings #sec-team-map {
+    overflow: visible;
+  }
+  .jp-sx-settings #sec-team-map .jp-tdm-grid {
+    display: flex; flex-direction: column; gap: .75rem;
+  }
+  .jp-sx-settings #sec-team-map .jp-tdm-row {
+    border: 1px solid #e8edf3; border-radius: .65rem; padding: .75rem .9rem; background: #fff;
+  }
+  .jp-sx-settings #sec-team-map .jp-tdm-row-title {
+    font-weight: 700; font-size: .88rem; margin: 0 0 .45rem; color: #0f172a;
+  }
+  .jp-sx-settings #sec-team-map .ts-wrapper.form-select { padding: 0; border: 0; min-height: 0; }
+  .jp-sx-settings #sec-team-map .ts-control {
+    border: 1px solid #e8edf3 !important; border-radius: .65rem !important;
+    min-height: 2.4rem; padding: .35rem .55rem !important; box-shadow: none !important;
+  }
+  body > .ts-dropdown.jp-tdm-dropdown {
+    z-index: 2000 !important;
+    border: 1px solid #e8edf3 !important;
+    border-radius: .75rem !important;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, .14) !important;
+  }
 
   /* Gate rows — 2 cột trên màn rộng */
   .jp-sx-settings .jp-sx-gate-grid {
@@ -343,6 +367,7 @@
         <a href="#sec-shopfloor">Shop floor</a>
         <a href="#sec-sku">SKU (màu &amp; size)</a>
         <a href="#sec-ie-approver">Approver IE</a>
+        <a href="#sec-team-map">Map bộ phận → tổ</a>
         <a href="#sec-prefix">Mã chứng từ</a>
       </nav>
 
@@ -961,10 +986,86 @@
             </div>
           </div>
         </section>
+
+        <section class="jp-sx-set-panel" id="sec-team-map">
+          <div class="jp-sx-set-panel-head">
+            <h3>Map bộ phận HR → tổ chuyền (Công việc tổ)</h3>
+          </div>
+          <div class="jp-sx-set-panel-body px-3 py-3">
+            <p class="small text-muted mb-3">
+              Gắn bộ phận Nhân sự (phòng Sản xuất) với từng tổ trên menu Công việc tổ.
+              Tổ trưởng chỉ phân công được cấp dưới (kể cả kiêm nhiệm) thuộc các bộ phận đã map.
+              Mỗi bộ phận chỉ thuộc một tổ.
+            </p>
+            {% if not team_map_divisions %}
+            <div class="alert alert-warning py-2 mb-0">
+              Chưa có bộ phận active trong phòng Sản xuất trên Nhân sự.
+            </div>
+            {% else %}
+            <form method="post" id="jpTdmForm">
+              {% csrf_token %}
+              <div class="jp-tdm-grid">
+                {% for team in team_map_teams %}
+                <div class="jp-tdm-row">
+                  <p class="jp-tdm-row-title">
+                    {{ team.label }}
+                    <span class="badge text-bg-light border ms-1">{{ team.slug }}</span>
+                  </p>
+                  <select name="divisions_{{ team.slug }}"
+                          class="jp-tdm-select"
+                          multiple
+                          {% if not can_update %}disabled{% endif %}
+                          placeholder="Chọn bộ phận…">
+                    {% for div in team_map_divisions %}
+                    <option value="{{ div.pk }}"
+                            {% if div.pk in team.selected_ids %}selected{% endif %}>
+                      {{ div.name }}{% if div.department %} · {{ div.department.name }}{% endif %}
+                    </option>
+                    {% endfor %}
+                  </select>
+                </div>
+                {% endfor %}
+              </div>
+              {% if can_update %}
+              <div class="d-flex flex-wrap gap-2 align-items-center mt-3">
+                <button type="submit" name="action" value="save_team_map" class="btn btn-hm btn-sm fw-bold">
+                  <i class="bi bi-check2 me-1"></i>Lưu map
+                </button>
+                <button type="submit" name="action" value="suggest_team_map" class="btn btn-outline-secondary btn-sm">
+                  <i class="bi bi-magic me-1"></i>Gợi ý theo tên
+                </button>
+                <span class="small text-muted">Gợi ý chỉ điền form — cần Lưu mới ghi nhận.</span>
+              </div>
+              {% endif %}
+            </form>
+            {% endif %}
+          </div>
+        </section>
     </div>
   </div>
 
 </div>
+
+{% if can_update and team_map_divisions %}
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/js/tom-select.complete.min.js"></script>
+<script>
+(function () {
+  if (typeof TomSelect === 'undefined') return;
+  document.querySelectorAll('.jp-tdm-select').forEach(function (el) {
+    new TomSelect(el, {
+      plugins: ['remove_button'],
+      maxOptions: 200,
+      create: false,
+      persist: false,
+      closeAfterSelect: false,
+      placeholder: 'Chọn bộ phận…',
+      dropdownParent: 'body',
+      dropdownClass: 'ts-dropdown jp-tdm-dropdown',
+    });
+  });
+})();
+</script>
+{% endif %}
 
 <script>
 (function () {

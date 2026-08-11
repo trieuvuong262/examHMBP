@@ -3916,10 +3916,7 @@ def team_work_board(request, slug: str):
 
     from san_xuat.services.team_division_map import has_mapped_divisions
 
-    can_map = (
-        user_can_update_menu(request.user, MODULE_SAN_XUAT, 'team_work')
-        or user_can_update_menu(request.user, MODULE_SAN_XUAT, 'general_settings')
-    )
+    can_map = user_can_update_menu(request.user, MODULE_SAN_XUAT, 'general_settings')
     mapped = has_mapped_divisions(slug)
 
     assignee_candidates = []
@@ -3947,62 +3944,8 @@ def team_work_board(request, slug: str):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def team_division_map(request):
-    """Map thủ công Bộ phận HR → Tổ chuyền (Công việc tổ)."""
-    from san_xuat.services.team_division_map import (
-        current_maps_by_slug,
-        save_team_maps,
-        suggest_maps_from_names,
-        sx_production_divisions,
-        team_slug_choices,
-    )
-
-    can_edit = (
-        user_can_update_menu(request.user, MODULE_SAN_XUAT, 'team_work')
-        or user_can_update_menu(request.user, MODULE_SAN_XUAT, 'general_settings')
-    )
-    if not (
-        can_edit
-        or user_can_access_menu(request.user, MODULE_SAN_XUAT, 'team_work')
-        or user_can_access_menu(request.user, MODULE_SAN_XUAT, 'general_settings')
-    ):
-        return handle_menu_access_denied(request, MODULE_SAN_XUAT, 'team_work')
-
-    selected = current_maps_by_slug()
-
-    if request.method == 'POST' and can_edit:
-        action = (request.POST.get('action') or '').strip()
-        if action == 'suggest':
-            selected = suggest_maps_from_names()
-            messages.info(request, 'Đã điền gợi ý theo tên bộ phận — kiểm tra rồi bấm Lưu để áp dụng.')
-        elif action == 'save':
-            payload: dict[str, list[int]] = {}
-            for slug, _label in team_slug_choices():
-                raw = request.POST.getlist(f'divisions_{slug}')
-                payload[slug] = [int(x) for x in raw if str(x).isdigit()]
-            stats = save_team_maps(payload, saved_by=request.user)
-            messages.success(
-                request,
-                f"Đã lưu map: thêm {stats['created']}, cập nhật {stats['updated']}, "
-                f"tắt {stats['deactivated']}.",
-            )
-            return redirect('san_xuat:team_division_map')
-
-    divisions = list(sx_production_divisions().select_related('department'))
-    teams = [
-        {
-            'slug': slug,
-            'label': label,
-            'selected_ids': set(selected.get(slug) or []),
-        }
-        for slug, label in team_slug_choices()
-    ]
-
-    return render(request, 'san_xuat/team_division_map.html', {
-        **_perm_ctx(request),
-        'teams': teams,
-        'divisions': divisions,
-        'can_edit': can_edit,
-    })
+    """Bookmark cũ → Thiết lập chung · Map bộ phận."""
+    return redirect(f"{reverse('san_xuat:general_settings')}#sec-team-map")
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
@@ -4138,6 +4081,34 @@ def general_settings(request):
                 messages.success(request, f'Đã gỡ {user.username} khỏi nhóm {IE_APPROVER_GROUP}.')
             return redirect_ie
 
+        if action in ('save_team_map', 'suggest_team_map'):
+            from san_xuat.services.team_division_map import (
+                save_team_maps,
+                suggest_maps_from_names,
+                team_slug_choices,
+            )
+
+            redirect_map = redirect(f"{reverse('san_xuat:general_settings')}#sec-team-map")
+            if action == 'suggest_team_map':
+                request.session['sx_team_map_preview'] = suggest_maps_from_names()
+                messages.info(
+                    request,
+                    'Đã điền gợi ý theo tên bộ phận — kiểm tra rồi bấm Lưu map để áp dụng.',
+                )
+                return redirect_map
+            payload: dict[str, list[int]] = {}
+            for slug, _label in team_slug_choices():
+                raw = request.POST.getlist(f'divisions_{slug}')
+                payload[slug] = [int(x) for x in raw if str(x).isdigit()]
+            stats = save_team_maps(payload, saved_by=request.user)
+            request.session.pop('sx_team_map_preview', None)
+            messages.success(
+                request,
+                f"Đã lưu map bộ phận → tổ: thêm {stats['created']}, "
+                f"cập nhật {stats['updated']}, tắt {stats['deactivated']}.",
+            )
+            return redirect_map
+
         form = SxGeneralSettingsForm(request.POST, instance=cfg)
         if form.is_valid():
             obj = form.save(commit=False)
@@ -4164,6 +4135,23 @@ def general_settings(request):
     User = get_user_model()
     ie_candidate_users = list(User.objects.filter(is_active=True).order_by('username')[:300])
 
+    from san_xuat.services.team_division_map import (
+        current_maps_by_slug,
+        sx_production_divisions,
+        team_slug_choices,
+    )
+
+    team_map_selected = request.session.pop('sx_team_map_preview', None) or current_maps_by_slug()
+    team_map_teams = [
+        {
+            'slug': slug,
+            'label': label,
+            'selected_ids': set(team_map_selected.get(slug) or []),
+        }
+        for slug, label in team_slug_choices()
+    ]
+    team_map_divisions = list(sx_production_divisions().select_related('department'))
+
     return render(request, 'san_xuat/general_settings.html', {
         **_perm_ctx(request),
         'form': form,
@@ -4175,6 +4163,8 @@ def general_settings(request):
         'ie_approver_ready': ie_approver_group_has_members(),
         'ie_approvers': ie_approvers,
         'ie_candidate_users': ie_candidate_users,
+        'team_map_teams': team_map_teams,
+        'team_map_divisions': team_map_divisions,
     })
 
 

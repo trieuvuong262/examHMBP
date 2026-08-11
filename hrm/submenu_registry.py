@@ -322,7 +322,7 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     ('/san-xuat/dieu-phoi/lich-sx', MODULE_SAN_XUAT, 'schedule'),
     ('/san-xuat/dieu-phoi/yeu-cau-xuat-vt', MODULE_SAN_XUAT, 'material_issue_req'),
     ('/san-xuat/dieu-phoi/thong-ke-sx', MODULE_SAN_XUAT, 'prod_stats'),
-    ('/san-xuat/cong-viec-to/map-bo-phan', MODULE_SAN_XUAT, 'team_work'),
+    ('/san-xuat/cong-viec-to/map-bo-phan', MODULE_SAN_XUAT, 'general_settings'),
     ('/san-xuat/cong-viec-to/cat', MODULE_SAN_XUAT, 'team_work_cat'),
     ('/san-xuat/cong-viec-to/inep', MODULE_SAN_XUAT, 'team_work_inep'),
     ('/san-xuat/cong-viec-to/theu', MODULE_SAN_XUAT, 'team_work_theu'),
