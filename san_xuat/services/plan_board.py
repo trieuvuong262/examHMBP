@@ -645,6 +645,11 @@ def build_mo_timeline(
                 'label': f'Tháng {d.month:02d}/{d.year}',
                 'span': 1,
             })
+    col = 2
+    for m in month_spans:
+        m['grid_start'] = col
+        m['grid_end'] = col + m['span']
+        col += m['span']
 
     qs = (
         SxProductionOrder.objects.filter(is_demo=False)

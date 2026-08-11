@@ -40,53 +40,54 @@
     display: inline-block; width: .7rem; height: .7rem; border-radius: .2rem;
     vertical-align: -1px; margin-right: .28rem;
   }
-  .jp-tl-grid { min-width: calc(var(--tl-label) + var(--tl-days) * var(--tl-day)); }
-  .jp-tl-row {
+  .jp-tl-chart {
+    --tl-month-h: 1.5rem;
     display: grid;
-    grid-template-columns: var(--tl-label) 1fr;
-    min-width: 100%;
-    border-bottom: 1px solid var(--tl-line);
+    grid-template-columns: var(--tl-label) repeat(var(--tl-days), minmax(var(--tl-day), 1fr));
+    min-width: calc(var(--tl-label) + (var(--tl-days) * var(--tl-day)));
   }
-  .jp-tl-row:last-child { border-bottom: 0; }
-  .jp-tl-body .jp-tl-row:hover .jp-tl-label,
-  .jp-tl-body .jp-tl-row:hover .jp-tl-track { background: #fff8f8; }
-  .jp-tl-head {
-    position: sticky; top: 0; z-index: 5; background: #fff;
-    border-bottom: 1px solid #e2e8f0;
-    box-shadow: 0 1px 0 rgba(15,23,42,.04);
-  }
-  .jp-tl-label {
-    position: sticky; left: 0; z-index: 3; background: #fff;
-    padding: .55rem .9rem; border-right: 1px solid #e8edf3;
-  }
-  .jp-tl-head .jp-tl-label {
-    z-index: 7; font-size: .68rem; font-weight: 800; color: var(--tl-muted);
+  .jp-tl-chart > * { box-sizing: border-box; min-width: 0; }
+  .jp-tl-line { box-shadow: inset 1px 0 0 var(--tl-line); }
+  .jp-tl-line.is-week-start { box-shadow: inset 1px 0 0 #cbd5e1; }
+  .jp-tl-line.is-today { box-shadow: inset 1px 0 0 var(--tl-today), inset -1px 0 0 var(--tl-today); }
+  .jp-tl-corner {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+    position: sticky; left: 0; top: 0; z-index: 8;
+    background: #fff;
+    border-right: 1px solid #e8edf3;
+    box-shadow: 1px 0 0 #e8edf3;
+    display: flex; align-items: flex-end;
+    padding: 0 .9rem .45rem;
+    font-size: .68rem; font-weight: 800; color: var(--tl-muted);
     letter-spacing: .04em; text-transform: uppercase;
-    display: flex; align-items: flex-end; padding-bottom: .55rem;
-  }
-  .jp-tl-axis { min-width: 0; display: flex; flex-direction: column; }
-  .jp-tl-days {
-    display: grid;
-    grid-template-columns: repeat(var(--tl-days), minmax(var(--tl-day), 1fr));
-    min-width: 0;
   }
   .jp-tl-month {
+    position: sticky; top: 0; z-index: 6;
+    height: var(--tl-month-h);
+    display: flex; align-items: center; justify-content: center;
     font-size: .68rem; font-weight: 800; color: #9f1239;
-    background: #fff1f2; text-align: center; padding: .28rem 0;
-    border-left: 1px solid #fecdd3; white-space: nowrap;
+    background: #fff1f2; white-space: nowrap;
+    box-shadow: inset 1px 0 0 #fecdd3;
   }
-  .jp-tl-month:first-child { border-left: 0; }
   .jp-tl-day {
+    position: sticky; top: var(--tl-month-h); z-index: 6;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 0; padding: .22rem 0 .28rem; border-left: 1px solid var(--tl-line);
-    line-height: 1.15;
+    padding: .2rem 0 .28rem; background: #fff; line-height: 1.15;
   }
   .jp-tl-day .n { font-size: .72rem; font-weight: 800; color: var(--tl-ink); }
   .jp-tl-day .w { font-size: .58rem; font-weight: 700; color: var(--tl-muted); }
+  .jp-tl-day.is-weekend { background: #f8fafc; }
   .jp-tl-day.is-weekend .n, .jp-tl-day.is-weekend .w { color: #94a3b8; }
   .jp-tl-day.is-today { background: #fef2f2; }
   .jp-tl-day.is-today .n, .jp-tl-day.is-today .w { color: var(--tl-today); }
-  .jp-tl-day.is-week-start { border-left-color: #cbd5e1; }
+  .jp-tl-label {
+    position: sticky; left: 0; z-index: 4;
+    background: #fff;
+    padding: .5rem .9rem;
+    border-right: 1px solid #e8edf3;
+    border-top: 1px solid var(--tl-line);
+  }
   .jp-tl-code { font-weight: 800; color: var(--tl-ink); text-decoration: none; font-size: .86rem; letter-spacing: -.01em; }
   .jp-tl-code:hover { color: var(--tl-today); }
   .jp-tl-sub { color: var(--tl-muted); font-size: .74rem; margin-top: .12rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -101,18 +102,17 @@
   .jp-tl-st.is-done { background: #dcfce7; color: #166534; }
   .jp-tl-st.is-late { background: #7f1d1d; color: #fff; }
   .jp-tl-dates { color: var(--tl-muted); font-size: .68rem; font-weight: 600; }
-  .jp-tl-track { position: relative; min-height: 3rem; }
   .jp-tl-slot {
-    min-height: 3rem; border-left: 1px solid var(--tl-line); grid-row: 1;
+    min-height: 3.1rem;
+    border-top: 1px solid var(--tl-line);
   }
   .jp-tl-slot.is-weekend { background: #fafbfc; }
   .jp-tl-slot.is-today { background: #fef2f2; }
-  .jp-tl-slot.is-week-start { border-left-color: #cbd5e1; }
   .jp-tl-bar {
-    grid-row: 1; align-self: center; height: 1.55rem;
-    margin: 0 2px; border-radius: .45rem;
+    align-self: center; height: 1.55rem;
+    margin: 0 3px; border-radius: .45rem; z-index: 2;
     display: flex; align-items: center; justify-content: center;
-    padding: 0 .4rem; z-index: 2;
+    padding: 0 .4rem;
     font-size: .68rem; font-weight: 800; color: #fff; white-space: nowrap;
     overflow: hidden; min-width: 0; text-decoration: none;
     box-shadow: 0 1px 2px rgba(15,23,42,.12);
@@ -125,10 +125,6 @@
   .jp-tl-bar.is-late { background: #9f1239; }
   .jp-tl-bar.is-clip-l { border-top-left-radius: 0; border-bottom-left-radius: 0; margin-left: 0; }
   .jp-tl-bar.is-clip-r { border-top-right-radius: 0; border-bottom-right-radius: 0; margin-right: 0; }
-  .jp-tl-today {
-    grid-row: 1; justify-self: center; width: 2px; background: var(--tl-today);
-    pointer-events: none; z-index: 1; opacity: .85;
-  }
   .jp-tl-empty {
     border: 1px dashed #e2e8f0; border-radius: 1rem; padding: 2.4rem 1rem;
     text-align: center; color: var(--tl-muted); background: #fff;
@@ -202,55 +198,40 @@
         <span><i style="background:#9f1239"></i>Trễ</span>
       </div>
     </div>
-    <div class="jp-tl-grid" style="--tl-days: {{ board.days|length }}">
-      <div class="jp-tl-row jp-tl-head">
-        <div class="jp-tl-label">Lệnh</div>
-        <div class="jp-tl-axis">
-          <div class="jp-tl-days">
-            {% for m in board.month_spans %}
-            <div class="jp-tl-month" style="grid-column: span {{ m.span }}">{{ m.label }}</div>
-            {% endfor %}
-          </div>
-          <div class="jp-tl-days">
-            {% for d in board.days %}
-            <div class="jp-tl-day{% if d.is_today %} is-today{% endif %}{% if d.is_weekend %} is-weekend{% endif %}{% if d.is_week_start %} is-week-start{% endif %}">
-              <span class="n">{{ d.day }}</span>
-              <span class="w">{{ d.weekday }}</span>
-            </div>
-            {% endfor %}
-          </div>
-        </div>
-      </div>
-      <div class="jp-tl-body">
-      {% for row in board.rows %}
-      <div class="jp-tl-row">
-        <div class="jp-tl-label">
-          <a class="jp-tl-code" href="{% url 'san_xuat:dispatch_mo_detail' row.mo.pk %}">{{ row.mo.code }}</a>
-          <div class="jp-tl-sub" title="{{ row.mo.product_code }}{% if row.mo.product_name %} — {{ row.mo.product_name }}{% endif %}">
-            {{ row.mo.product_code }}{% if row.mo.product_name %} · {{ row.mo.product_name }}{% endif %}
-          </div>
-          <div class="jp-tl-meta">
-            <span class="jp-tl-st is-{{ row.status_key }}{% if row.is_late %} is-late{% endif %}">{{ row.status_label }}</span>
-            <span class="jp-tl-dates">{{ row.start|date:"d/m" }} → {{ row.end|date:"d/m" }}</span>
-          </div>
-        </div>
-        <div class="jp-tl-days jp-tl-track">
-          {% for d in board.days %}
-          <div class="jp-tl-slot{% if d.is_today %} is-today{% endif %}{% if d.is_weekend %} is-weekend{% endif %}{% if d.is_week_start %} is-week-start{% endif %}"></div>
-          {% endfor %}
-          {% if board.today_col %}
-          <span class="jp-tl-today" style="grid-column: {{ board.today_col }} / span 1"></span>
-          {% endif %}
-          <a class="jp-tl-bar is-{{ row.status_key }}{% if row.is_late %} is-late{% endif %}{% if row.clips_left %} is-clip-l{% endif %}{% if row.clips_right %} is-clip-r{% endif %}"
-             href="{% url 'san_xuat:dispatch_mo_detail' row.mo.pk %}"
-             style="grid-column: {{ row.col_start }} / {{ row.col_end }}"
-             title="{{ row.mo.code }} · {{ row.start|date:'d/m/Y' }} – {{ row.end|date:'d/m/Y' }} · {{ row.status_label }}">
-            {{ row.bar_text }}
-          </a>
-        </div>
+    <div class="jp-tl-chart" style="--tl-days: {{ board.days|length }}">
+      <div class="jp-tl-corner">Lệnh</div>
+      {% for m in board.month_spans %}
+      <div class="jp-tl-month" style="grid-column: {{ m.grid_start }} / {{ m.grid_end }}; grid-row: 1">{{ m.label }}</div>
+      {% endfor %}
+      {% for d in board.days %}
+      <div class="jp-tl-day jp-tl-line{% if d.is_today %} is-today{% endif %}{% if d.is_weekend %} is-weekend{% endif %}{% if d.is_week_start %} is-week-start{% endif %}" style="grid-column: {{ forloop.counter|add:1 }}; grid-row: 2">
+        <span class="n">{{ d.day }}</span>
+        <span class="w">{{ d.weekday }}</span>
       </div>
       {% endfor %}
+      {% for row in board.rows %}
+        {% with r=forloop.counter|add:2 %}
+      <div class="jp-tl-label" style="grid-column: 1; grid-row: {{ r }}">
+        <a class="jp-tl-code" href="{% url 'san_xuat:dispatch_mo_detail' row.mo.pk %}">{{ row.mo.code }}</a>
+        <div class="jp-tl-sub" title="{{ row.mo.product_code }}{% if row.mo.product_name %} — {{ row.mo.product_name }}{% endif %}">
+          {{ row.mo.product_code }}{% if row.mo.product_name %} · {{ row.mo.product_name }}{% endif %}
+        </div>
+        <div class="jp-tl-meta">
+          <span class="jp-tl-st is-{{ row.status_key }}{% if row.is_late %} is-late{% endif %}">{{ row.status_label }}</span>
+          <span class="jp-tl-dates">{{ row.start|date:"d/m" }} → {{ row.end|date:"d/m" }}</span>
+        </div>
       </div>
+      {% for d in board.days %}
+      <div class="jp-tl-slot jp-tl-line{% if d.is_today %} is-today{% endif %}{% if d.is_weekend %} is-weekend{% endif %}{% if d.is_week_start %} is-week-start{% endif %}" style="grid-column: {{ forloop.counter|add:1 }}; grid-row: {{ r }}"></div>
+      {% endfor %}
+      <a class="jp-tl-bar is-{{ row.status_key }}{% if row.is_late %} is-late{% endif %}{% if row.clips_left %} is-clip-l{% endif %}{% if row.clips_right %} is-clip-r{% endif %}"
+         href="{% url 'san_xuat:dispatch_mo_detail' row.mo.pk %}"
+         style="grid-row: {{ r }}; grid-column: {{ row.col_start|add:1 }} / {{ row.col_end|add:1 }}"
+         title="{{ row.mo.code }} · {{ row.start|date:'d/m/Y' }} – {{ row.end|date:'d/m/Y' }} · {{ row.status_label }}">
+        {{ row.bar_text }}
+      </a>
+        {% endwith %}
+      {% endfor %}
     </div>
   </div>
   {% else %}
