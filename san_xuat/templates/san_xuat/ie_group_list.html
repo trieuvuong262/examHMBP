@@ -1,35 +1,34 @@
 {% extends 'base.html' %}
+{% block extra_head %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+{% endblock %}
 
 {% block content %}
-<div class="container-fluid jp-page jp-sx-page py-3 py-md-4 mb-5 px-3 px-lg-4">
-  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
-    <div>
-      <h2 class="mb-0">Nhóm công đoạn</h2>
-      <div class="text-muted small">{{ total }} nhóm — chi tiết như file Excel master.</div>
-      {% if can_create or can_update %}
-      <div class="small mt-1">
-        <span class="text-muted">Import Excel:</span>
-        sheet <code>01_DM_NHOM_CONG_DOAN</code>
-        (MÃ NHÓM · TÊN NHÓM · KHÂU SẢN XUẤT · SẢN PHẨM CẦN · MÔ TẢ CHI TIẾT · HIỆU LỰC · NGƯỜI LẬP · NGÀY HIỆU LỰC · NOTES).
-      </div>
-      {% endif %}
+<div class="container-fluid jp-page jp-sx-page jp-npl-material-catalog-page py-3 py-md-4 mb-5 px-3 px-lg-4">
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title w-100">Nhóm công đoạn</h2>
     </div>
-    <div class="d-flex flex-wrap gap-2">
+    <nav class="jp-sx-tools" aria-label="Công cụ">
       {% if can_create or can_update %}
       <button type="button" class="btn btn-sm btn-outline-hm" data-bs-toggle="modal" data-bs-target="#ieImportModal">
         <i class="bi bi-upload me-1"></i>Import
       </button>
       {% endif %}
       {% if can_export %}
-      <a href="{% url 'san_xuat:ie_export_kind' kind='groups' %}" class="btn btn-sm btn-outline-hm"><i class="bi bi-download me-1"></i>Xuất Excel</a>
+      <a href="{% url 'san_xuat:ie_export_kind' kind='groups' %}" class="btn btn-sm btn-outline-hm">
+        <i class="bi bi-download me-1"></i>Xuất Excel
+      </a>
       {% endif %}
       {% if can_create or can_update %}
-      <button type="button" class="btn btn-sm btn-hm" data-bs-toggle="modal" data-bs-target="#ieAddGroupModal">
+      <button type="button" class="btn btn-hm btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#ieAddGroupModal">
         <i class="bi bi-plus-lg me-1"></i>Thêm nhóm
       </button>
       {% endif %}
-      <a href="{% url 'san_xuat:ie_hub' %}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Công đoạn / IE</a>
-    </div>
+      <a href="{% url 'san_xuat:ie_hub' %}" class="is-back">
+        <i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại
+      </a>
+    </nav>
   </div>
 
   <form method="get" class="row g-2 mb-3">
