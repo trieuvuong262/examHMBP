@@ -1,30 +1,40 @@
 {% extends 'base.html' %}
 {% load sx_format %}
+{% block extra_head %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+{% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}
+{% endblock %}
 
 {% block content %}
-<div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
-  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
-    <div>
-      <h2 class="mb-0">Routing mã hàng</h2>
+<div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 py-md-4 mb-5">
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title w-100">Routing mã hàng</h2>
     </div>
-    <div class="d-flex flex-wrap gap-2">
+    <nav class="jp-sx-tools" aria-label="Công cụ">
       {% if can_create or can_update %}
-      <button type="button" class="btn btn-sm btn-outline-hm" data-bs-toggle="modal" data-bs-target="#ieImportModal">
-        <i class="bi bi-upload me-1"></i>Import
-      </button>
+      <a href="#ieImportModal" data-bs-toggle="modal" data-bs-target="#ieImportModal">
+        <i class="bi bi-upload" aria-hidden="true"></i>Import
+      </a>
       {% endif %}
       {% if can_export %}
-      <a href="{% url 'san_xuat:ie_export_kind' kind='routing' %}" class="btn btn-sm btn-outline-hm"><i class="bi bi-download me-1"></i>Xuất Excel</a>
+      <a href="{% url 'san_xuat:ie_export_kind' kind='routing' %}" class="btn btn-sx-export btn-sm fw-bold" title="Xuất Excel">
+        <i class="bi bi-download me-1"></i>Xuất Excel
+      </a>
       {% endif %}
       {% if can_create or can_update %}
-      <button type="button" class="btn btn-sm btn-hm" data-bs-toggle="modal" data-bs-target="#ieAddRoutingModal">
-        <i class="bi bi-plus-lg me-1"></i>Thêm routing
-      </button>
+      <a href="#ieAddRoutingModal" class="btn btn-hm btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#ieAddRoutingModal">
+        <i class="bi bi-plus-lg me-1"></i>Tạo routing
+      </a>
       {% endif %}
-      <a href="{% url 'san_xuat:ie_hub' %}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Công đoạn / IE</a>
-    </div>
+      <span class="sep" aria-hidden="true"></span>
+      <a href="{% url 'san_xuat:ie_hub' %}" class="is-back">
+        <i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại
+      </a>
+    </nav>
   </div>
 
+  <div class="jp-sx-page-body">
   {% if not approver_group_ready and can_update %}
   <div class="alert alert-warning py-2 small mb-3">
     Chưa cấu hình người duyệt — nút Duyệt bị khóa.
@@ -40,13 +50,23 @@
   </form>
 
   <div class="card border-0 shadow-sm overflow-hidden">
-    <div class="table-responsive">
-      <table class="table table-hover table-sm align-middle mb-0">
+    <div class="jp-ie-table-scroll">
+      <table class="table table-hover table-sm align-middle mb-0 jp-ie-wide-table">
         <thead class="table-light">
           <tr>
-            <th>Mã đơn hàng</th><th>Mã hàng SP</th><th>Tên mã hàng</th><th>Nhóm SP</th>
-            <th>Phiên bản</th><th class="text-end">Công đoạn</th><th class="text-end">Tổng ĐM (phút)</th>
-            <th>Trạng thái áp dụng</th><th>Người lập</th><th>Ngày HL</th><th>Trạng thái duyệt</th><th>Người duyệt</th><th></th>
+            <th>Mã đơn hàng</th>
+            <th>Mã hàng SP</th>
+            <th>Tên mã hàng</th>
+            <th>Nhóm SP</th>
+            <th>Phiên bản</th>
+            <th class="text-end">Công đoạn</th>
+            <th class="text-end">Tổng ĐM (phút)</th>
+            <th>Trạng thái áp dụng</th>
+            <th>Người lập</th>
+            <th>Ngày HL</th>
+            <th>Trạng thái duyệt</th>
+            <th>Người duyệt</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
@@ -94,7 +114,7 @@
             </td>
           </tr>
         {% empty %}
-          <tr><td colspan="13" class="text-muted small p-3 text-center">Không có routing phù hợp. Bấm Thêm routing để tạo mới.</td></tr>
+          <tr><td colspan="13" class="text-muted small p-3 text-center">Không có routing phù hợp. Bấm Tạo routing để tạo mới.</td></tr>
         {% endfor %}
         </tbody>
       </table>
@@ -102,7 +122,10 @@
   </div>
 
   {% include 'san_xuat/includes/ie_pagination.html' %}
+  </div>
 </div>
+
+{% include 'san_xuat/includes/ie_wide_table_styles.html' %}
 
 {% if can_create or can_update %}
 <div class="modal fade" id="ieAddRoutingModal" tabindex="-1" aria-labelledby="ieAddRoutingModalLabel" aria-hidden="true">

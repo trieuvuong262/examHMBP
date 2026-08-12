@@ -23,9 +23,9 @@
       </a>
       {% endif %}
       {% if can_create or can_update %}
-      <button type="button" class="btn btn-hm btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#ieAddOpModal">
-        <i class="bi bi-plus-lg me-1"></i>Thêm công đoạn
-      </button>
+      <a href="#ieAddOpModal" class="btn btn-hm btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#ieAddOpModal">
+        <i class="bi bi-plus-lg me-1"></i>Tạo công đoạn
+      </a>
       {% endif %}
       <span class="sep" aria-hidden="true"></span>
       <a href="{% url 'san_xuat:ie_hub' %}" class="is-back">

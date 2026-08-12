@@ -22,9 +22,9 @@
       </a>
       {% endif %}
       {% if can_create or can_update %}
-      <button type="button" class="btn btn-hm btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#ieAddGroupModal">
-        <i class="bi bi-plus-lg me-1"></i>Thêm nhóm
-      </button>
+      <a href="#ieAddGroupModal" class="btn btn-hm btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#ieAddGroupModal">
+        <i class="bi bi-plus-lg me-1"></i>Tạo nhóm công đoạn
+      </a>
       {% endif %}
       <span class="sep" aria-hidden="true"></span>
       <a href="{% url 'san_xuat:ie_hub' %}" class="is-back">
