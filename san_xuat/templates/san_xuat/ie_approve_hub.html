@@ -11,13 +11,6 @@
   <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100 mb-3">
     <div class="jp-sx-detail-title">
       <h2 class="jp-npl-mat-topbar-title w-100 mb-0">Duyệt phát hành</h2>
-      <div class="text-muted small">
-        {% if kind == kind_operation %}
-          {{ total }} công đoạn chờ duyệt (SMV &gt; 0)
-        {% else %}
-          {{ total }} routing chờ phát hành
-        {% endif %}
-      </div>
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
       <a href="{% url 'san_xuat:ie_hub' %}" class="is-back">
@@ -33,13 +26,6 @@
     <a href="{% url 'permission_config' %}" class="alert-link">Phân quyền</a>.
   </div>
   {% endif %}
-
-  <p class="text-muted small mb-3">
-    Phê duyệt master data công đoạn và phát hành routing mã hàng.
-    Chờ duyệt: <strong>{{ pending_ops }}</strong> công đoạn · <strong>{{ pending_routings }}</strong> routing.
-    Cấu hình quyền duyệt tại
-    <a href="{% url 'permission_config' %}">Phân quyền → Sản xuất → Duyệt phát hành</a>.
-  </p>
 
   <form method="get" class="row g-2 align-items-end mb-3">
     <div class="col-md-3">
