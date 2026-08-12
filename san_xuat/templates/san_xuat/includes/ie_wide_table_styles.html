@@ -1,27 +1,40 @@
-{# Cuộn ngang khi bảng nhiều cột — header theo rule SX (table-light) #}
+{# Bảng IE nhiều cột: không ép sát (override jp-npl-mat-grid fixed), cuộn ngang #}
 <style>
-.jp-ie-table-scroll {
-  overflow-x: auto;
+.jp-sx-page .jp-ie-table-scroll,
+.jp-npl-material-catalog-page .jp-ie-table-scroll.jp-npl-mat-grid-wrap {
+  overflow-x: auto !important;
   overflow-y: visible;
   -webkit-overflow-scrolling: touch;
   max-width: 100%;
+  width: 100%;
 }
-.jp-ie-wide-table {
-  width: max-content;
+
+.jp-sx-page table.jp-ie-wide-table,
+.jp-npl-material-catalog-page table.jp-ie-wide-table.jp-npl-mat-grid {
+  table-layout: auto !important;
+  width: max-content !important;
   min-width: 100%;
   margin-bottom: 0;
 }
-.jp-ie-wide-table thead th {
-  white-space: nowrap;
+
+.jp-sx-page table.jp-ie-wide-table thead th,
+.jp-sx-page table.jp-ie-wide-table tbody td {
+  white-space: nowrap !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
   vertical-align: middle;
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
 }
-.jp-ie-wide-table tbody td {
-  white-space: nowrap;
-  vertical-align: middle;
+
+.jp-sx-page table.jp-ie-wide-table thead th {
+  min-width: 5.5rem;
 }
-.jp-ie-wide-table tbody td.jp-ie-cell-wrap {
-  white-space: normal;
-  max-width: 16rem;
+
+.jp-sx-page table.jp-ie-wide-table tbody td.jp-ie-cell-wrap {
+  white-space: normal !important;
+  max-width: 18rem;
+  min-width: 10rem;
   overflow-wrap: anywhere;
   word-break: break-word;
 }
