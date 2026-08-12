@@ -1,8 +1,5 @@
-{# Header Excel-like (xanh lá / xanh navy) + cuộn ngang khi nhiều cột #}
+{# Cuộn ngang khi bảng nhiều cột — header theo rule SX (table-light) #}
 <style>
-.jp-ie-table-card {
-  overflow: hidden;
-}
 .jp-ie-table-scroll {
   overflow-x: auto;
   overflow-y: visible;
@@ -13,56 +10,19 @@
   width: max-content;
   min-width: 100%;
   margin-bottom: 0;
-  table-layout: auto;
 }
 .jp-ie-wide-table thead th {
-  font-size: 0.68rem;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-  white-space: nowrap !important;
-  overflow-wrap: normal !important;
-  word-break: normal !important;
+  white-space: nowrap;
   vertical-align: middle;
-  border-bottom-width: 0;
-  max-width: none !important;
-}
-.jp-ie-wide-table thead th.jp-ie-col-core {
-  background: #2f7d32 !important;
-  color: #fff !important;
-  border-color: #276a2a !important;
-}
-.jp-ie-wide-table thead th.jp-ie-col-meta {
-  background: #1e3a5f !important;
-  color: #fff !important;
-  border-color: #162c48 !important;
-}
-.jp-ie-wide-table thead th:not(.jp-ie-col-core):not(.jp-ie-col-meta) {
-  background: var(--bs-light, #f8f9fa) !important;
-  color: var(--bs-body-color, #212529) !important;
 }
 .jp-ie-wide-table tbody td {
   white-space: nowrap;
-  overflow-wrap: normal !important;
-  word-break: normal !important;
-  max-width: none !important;
   vertical-align: middle;
 }
 .jp-ie-wide-table tbody td.jp-ie-cell-wrap {
   white-space: normal;
-  max-width: 16rem !important;
+  max-width: 16rem;
   overflow-wrap: anywhere;
   word-break: break-word;
-}
-[data-theme="dark"] .jp-ie-wide-table thead th.jp-ie-col-core {
-  background: #2f7d32 !important;
-  color: #fff !important;
-}
-[data-theme="dark"] .jp-ie-wide-table thead th.jp-ie-col-meta {
-  background: #1e3a5f !important;
-  color: #fff !important;
-}
-[data-theme="dark"] .jp-ie-wide-table thead th:not(.jp-ie-col-core):not(.jp-ie-col-meta) {
-  background: var(--jp-table-head-bg, #1c1c1c) !important;
-  color: var(--jp-text-secondary, #cbd5e1) !important;
 }
 </style>

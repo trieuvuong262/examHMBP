@@ -12,9 +12,9 @@
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
       {% if can_create or can_update %}
-      <button type="button" class="btn btn-outline-hm btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#ieImportModal">
-        <i class="bi bi-upload me-1"></i>Import
-      </button>
+      <a href="#ieImportModal" data-bs-toggle="modal" data-bs-target="#ieImportModal">
+        <i class="bi bi-upload" aria-hidden="true"></i>Import
+      </a>
       {% endif %}
       {% if can_export %}
       <a href="{% url 'san_xuat:ie_export_kind' kind='groups' %}" class="btn btn-sx-export btn-sm fw-bold" title="Xuất Excel">
@@ -33,6 +33,7 @@
     </nav>
   </div>
 
+  <div class="jp-sx-page-body">
   <form method="get" class="row g-2 mb-3">
     <div class="col-md-5">
       <input type="search" name="q" value="{{ term }}" class="form-control form-control-sm" placeholder="Tìm mã, tên, khâu SX, sản phẩm cần, người lập…">
@@ -47,25 +48,24 @@
     <div class="col-md-2"><button class="btn btn-sm btn-hm w-100">Lọc</button></div>
   </form>
 
-  <div class="card border-0 shadow-sm jp-ie-table-card">
-    <div class="table-responsive jp-ie-table-scroll">
-      <table class="table table-hover table-sm align-middle mb-0 jp-ie-wide-table">
-        <thead>
+  <div class="card border-0 shadow-sm overflow-hidden">
+    <div class="jp-npl-mat-grid-wrap jp-ie-table-scroll">
+      <table class="table table-hover table-sm align-middle mb-0 jp-npl-mat-grid jp-ie-wide-table">
+        <thead class="table-light">
           <tr>
-            <th class="jp-ie-col-core">Mã nhóm</th>
-            <th class="jp-ie-col-core">Tên nhóm</th>
-            <th class="jp-ie-col-core">Khâu sản xuất</th>
-            <th class="jp-ie-col-core">Sản phẩm cần</th>
-            <th class="jp-ie-col-core">Mô tả chi tiết</th>
-            <th class="jp-ie-col-meta">Hiệu lực</th>
-            <th class="jp-ie-col-meta">Người lập</th>
-            <th class="jp-ie-col-meta">Ngày hiệu lực</th>
-            <th class="jp-ie-col-meta">Notes</th>
+            <th>Mã nhóm</th>
+            <th>Tên nhóm</th>
+            <th>Khâu sản xuất</th>
+            <th>Sản phẩm cần</th>
+            <th>Mô tả chi tiết</th>
+            <th>Hiệu lực</th>
+            <th>Người lập</th>
+            <th>Ngày hiệu lực</th>
+            <th>Notes</th>
             <th class="text-end">Số CĐ</th>
             {% if can_update %}<th></th>{% endif %}
           </tr>
-        </thead>
-        <tbody>
+        </thead>        <tbody>
         {% for g in items %}
           <tr>
             <td class="fw-semibold">{{ g.code }}</td>
@@ -118,6 +118,7 @@
   </div>
 
   {% include 'san_xuat/includes/ie_pagination.html' %}
+  </div>
 </div>
 
 {% include 'san_xuat/includes/ie_wide_table_styles.html' %}

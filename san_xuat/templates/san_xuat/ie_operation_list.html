@@ -13,9 +13,9 @@
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
       {% if can_create or can_update %}
-      <button type="button" class="btn btn-outline-hm btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#ieImportModal">
-        <i class="bi bi-upload me-1"></i>Import
-      </button>
+      <a href="#ieImportModal" data-bs-toggle="modal" data-bs-target="#ieImportModal">
+        <i class="bi bi-upload" aria-hidden="true"></i>Import
+      </a>
       {% endif %}
       {% if can_export %}
       <a href="{% url 'san_xuat:ie_export_kind' kind='library' %}" class="btn btn-sx-export btn-sm fw-bold" title="Xuất Excel">
@@ -34,6 +34,7 @@
     </nav>
   </div>
 
+  <div class="jp-sx-page-body">
   {% if not approver_group_ready and can_update %}
   <div class="alert alert-warning py-2 small mb-3">
     Chưa cấu hình người duyệt — nút Duyệt bị khóa.
@@ -66,36 +67,36 @@
     </div>
   </form>
 
-  <div class="card border-0 shadow-sm jp-ie-table-card">
-    <div class="table-responsive jp-ie-table-scroll">
-      <table class="table table-hover table-sm align-middle mb-0 jp-ie-wide-table jp-ie-lib-table">
-        <thead>
+  <div class="card border-0 shadow-sm overflow-hidden">
+    <div class="jp-npl-mat-grid-wrap jp-ie-table-scroll">
+      <table class="table table-hover table-sm align-middle mb-0 jp-npl-mat-grid jp-ie-wide-table jp-ie-lib-table">
+        <thead class="table-light">
           <tr>
-            <th class="jp-ie-col-core">Mã nhóm</th>
-            <th class="jp-ie-col-core">Mã CĐ</th>
-            <th class="jp-ie-col-core">Phiên bản</th>
-            <th class="jp-ie-col-core">Tên công đoạn</th>
-            <th class="jp-ie-col-core">Tên EN</th>
-            <th class="jp-ie-col-core">Bậc CĐ</th>
-            <th class="jp-ie-col-core text-end">ĐM thời gian (giây)</th>
-            <th class="jp-ie-col-core text-end">ĐM SP/H</th>
-            <th class="jp-ie-col-core">Khâu SX</th>
-            <th class="jp-ie-col-core">Cụm chi tiết</th>
-            <th class="jp-ie-col-core">Mô tả PP</th>
-            <th class="jp-ie-col-core">Mã máy</th>
-            <th class="jp-ie-col-core">Nhóm mũi</th>
-            <th class="jp-ie-col-core">Kim/chỉ</th>
-            <th class="jp-ie-col-core">Cữ/gá</th>
-            <th class="jp-ie-col-core">Đơn vị</th>
-            <th class="jp-ie-col-core">Nguồn SMV</th>
-            <th class="jp-ie-col-meta">Trạng thái</th>
-            <th class="jp-ie-col-meta">Ngày HL</th>
-            <th class="jp-ie-col-meta">Ngày hết HL</th>
-            <th class="jp-ie-col-meta">Người lập</th>
-            <th class="jp-ie-col-meta">Người duyệt</th>
-            <th class="jp-ie-col-meta">Lý do phiên bản</th>
-            <th class="jp-ie-col-meta">Video</th>
-            <th class="jp-ie-col-meta">Notes</th>
+            <th>Mã nhóm</th>
+            <th>Mã CĐ</th>
+            <th>Phiên bản</th>
+            <th>Tên công đoạn</th>
+            <th>Tên EN</th>
+            <th>Bậc CĐ</th>
+            <th class="text-end">ĐM thời gian (giây)</th>
+            <th class="text-end">ĐM SP/H</th>
+            <th>Khâu SX</th>
+            <th>Cụm chi tiết</th>
+            <th>Mô tả PP</th>
+            <th>Mã máy</th>
+            <th>Nhóm mũi</th>
+            <th>Kim/chỉ</th>
+            <th>Cữ/gá</th>
+            <th>Đơn vị</th>
+            <th>Nguồn SMV</th>
+            <th>Trạng thái</th>
+            <th>Ngày HL</th>
+            <th>Ngày hết HL</th>
+            <th>Người lập</th>
+            <th>Người duyệt</th>
+            <th>Lý do phiên bản</th>
+            <th>Video</th>
+            <th>Notes</th>
             {% if can_approve or can_update %}<th></th>{% endif %}
           </tr>
         </thead>
@@ -158,6 +159,7 @@
   </div>
 
   {% include 'san_xuat/includes/ie_pagination.html' %}
+  </div>
 </div>
 
 {% include 'san_xuat/includes/ie_wide_table_styles.html' %}
