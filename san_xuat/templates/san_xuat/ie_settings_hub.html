@@ -1,0 +1,109 @@
+{% extends 'base.html' %}
+{% block extra_head %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+{% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}
+{% endblock %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 py-md-4 mb-5">
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title w-100">Thiết lập công đoạn</h2>
+    </div>
+    <nav class="jp-sx-tools" aria-label="Công cụ">
+      <a href="{% url 'san_xuat:ie_hub' %}" class="is-back">
+        <i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại
+      </a>
+    </nav>
+  </div>
+
+  <p class="text-muted small mb-3">Danh mục thư viện công đoạn và người được quyền duyệt phát hành.</p>
+
+  <div class="row g-3">
+    <div class="col-md-4">
+      <a href="{% url 'san_xuat:ie_ref_catalog' kind='cum-chi-tiet' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body">
+        <div class="card-body">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <i class="bi bi-puzzle text-hm fs-4"></i>
+            <h3 class="h6 mb-0 fw-bold">Cụm chi tiết</h3>
+          </div>
+          <div class="fs-4 fw-bold">{{ counts.product_parts }}</div>
+          <div class="text-muted small">Đang dùng</div>
+        </div>
+      </a>
+    </div>
+    <div class="col-md-4">
+      <a href="{% url 'san_xuat:ie_ref_catalog' kind='bac-ky-nang' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body">
+        <div class="card-body">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <i class="bi bi-bar-chart-steps text-hm fs-4"></i>
+            <h3 class="h6 mb-0 fw-bold">Bậc kỹ năng</h3>
+          </div>
+          <div class="fs-4 fw-bold">{{ counts.skill_levels }}</div>
+          <div class="text-muted small">Đang dùng</div>
+        </div>
+      </a>
+    </div>
+    <div class="col-md-4">
+      <a href="{% url 'san_xuat:ie_ref_catalog' kind='khau-san-xuat' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body">
+        <div class="card-body">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <i class="bi bi-layers text-hm fs-4"></i>
+            <h3 class="h6 mb-0 fw-bold">Khâu sản xuất</h3>
+          </div>
+          <div class="fs-4 fw-bold">{{ counts.process_stages }}</div>
+          <div class="text-muted small">Đang dùng</div>
+        </div>
+      </a>
+    </div>
+    <div class="col-md-4">
+      <a href="{% url 'san_xuat:ie_ref_catalog' kind='lop-mui-may' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body">
+        <div class="card-body">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <i class="bi bi-bezier2 text-hm fs-4"></i>
+            <h3 class="h6 mb-0 fw-bold">Lớp mũi may</h3>
+          </div>
+          <div class="fs-4 fw-bold">{{ counts.stitch_classes }}</div>
+          <div class="text-muted small">Đang dùng</div>
+        </div>
+      </a>
+    </div>
+    <div class="col-md-4">
+      <a href="{% url 'san_xuat:ie_ref_catalog' kind='nguon-smv' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body">
+        <div class="card-body">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <i class="bi bi-stopwatch text-hm fs-4"></i>
+            <h3 class="h6 mb-0 fw-bold">Nguồn SMV</h3>
+          </div>
+          <div class="fs-4 fw-bold">{{ counts.smv_sources }}</div>
+          <div class="text-muted small">Đang dùng</div>
+        </div>
+      </a>
+    </div>
+    <div class="col-md-4">
+      <a href="{% url 'san_xuat:ie_ref_catalog' kind='don-vi-smv' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body">
+        <div class="card-body">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <i class="bi bi-rulers text-hm fs-4"></i>
+            <h3 class="h6 mb-0 fw-bold">Đơn vị cơ sở SMV</h3>
+          </div>
+          <div class="fs-4 fw-bold">{{ counts.smv_bases }}</div>
+          <div class="text-muted small">Đang dùng</div>
+        </div>
+      </a>
+    </div>
+    <div class="col-md-4">
+      <a href="{% url 'san_xuat:ie_approver_manage' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body">
+        <div class="card-body">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <i class="bi bi-person-check text-hm fs-4"></i>
+            <h3 class="h6 mb-0 fw-bold">Người duyệt</h3>
+          </div>
+          <div class="fs-4 fw-bold">{{ counts.approvers }}</div>
+          <div class="text-muted small">Trong nhóm Approver IE</div>
+        </div>
+      </a>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -60,7 +60,6 @@
         <div class="col-md-4">
           <label class="form-label small mb-1">SMV thư viện (phút)</label>
           <input type="number" name="base_smv_min" class="form-control form-control-sm" step="0.0001" min="0" value="{{ op.base_smv_min|sx_num_input }}" {% if not can_update %}readonly{% endif %}>
-          <div class="form-text">Excel «ĐỊNH MỨC THỜI GIAN» = giây (= phút × 60). SP/H ≈ {{ op.std_capacity_pcs_hour|sx_num }}.</div>
         </div>
         <div class="col-md-4">
           <label class="form-label small mb-1">Trạng thái</label>
@@ -107,7 +106,7 @@
           <select name="skill_level_label" class="form-select form-select-sm" {% if not can_update %}disabled{% endif %}>
             <option value="">— Không chọn —</option>
             {% for s in skill_levels %}
-            <option value="{{ s.name }}" {% if s.name == op.skill_level_label or s.code == op.skill_level_label %}selected{% endif %}>{{ s.name }}</option>
+            <option value="{{ s.code }}" {% if s.code == op.skill_level_label or s.name == op.skill_level_label %}selected{% endif %}>{% if s.name and s.name != s.code %}{{ s.code }} — {{ s.name }}{% else %}{{ s.code }}{% endif %}</option>
             {% endfor %}
           </select>
         </div>
@@ -142,13 +141,13 @@
         </div>
         <div class="col-md-4">
           <label class="form-label small mb-1">Người duyệt</label>
-          <input type="text" class="form-control form-control-sm" value="{{ op.approved_by|default:'—' }}" readonly>
+          <input type="text" class="form-control form-control-sm" value="{% if op.approved_by %}{{ op.approved_by }}{% if op.approved_at %} · {{ op.approved_at|date:'d/m/Y H:i' }}{% endif %}{% else %}—{% endif %}" readonly>
         </div>
 
         <div class="col-md-4">
           <label class="form-label small mb-1">Ngày hiệu lực</label>
           <input type="date" name="effective_from" class="form-control form-control-sm"
-                 value="{% if op.effective_from %}{{ op.effective_from|date:'Y-m-d' }}{% endif %}" {% if not can_update %}readonly{% endif %}>
+                 value="{% if op.effective_from %}{{ op.effective_from|date:'Y-m-d' }}{% else %}{% now 'Y-m-d' %}{% endif %}" {% if not can_update %}readonly{% endif %}>
         </div>
         <div class="col-md-4">
           <label class="form-label small mb-1">Ngày hết hiệu lực</label>
@@ -160,7 +159,7 @@
           <select name="ie_owner" class="form-select form-select-sm" {% if not can_update %}disabled{% endif %}>
             <option value="">— Không chọn —</option>
             {% for o in ie_owners %}
-            <option value="{{ o }}" {% if o == op.ie_owner %}selected{% endif %}>{{ o }}</option>
+            <option value="{{ o }}" {% if o == op.ie_owner or not op.ie_owner and o == default_ie_owner %}selected{% endif %}>{{ o }}</option>
             {% endfor %}
           </select>
         </div>

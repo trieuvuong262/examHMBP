@@ -11,6 +11,8 @@
         <span class="badge {% if routing.approval_status == 'approved' %}bg-success{% elif routing.approval_status == 'rejected' %}bg-danger{% else %}bg-secondary{% endif %}">
           {{ routing.get_approval_status_display }}
         </span>
+        {% if routing.ie_owner %}<span class="ms-1 text-muted">· Lập bởi {{ routing.ie_owner }}</span>{% endif %}
+        {% if routing.approved_by %}<span class="ms-1">· Duyệt bởi {{ routing.approved_by }}{% if routing.approved_at %} · {{ routing.approved_at|date:"d/m/Y H:i" }}{% endif %}</span>{% endif %}
         {% if locked %}<span class="badge bg-warning text-dark ms-1">Đã khóa (gắn lệnh SX)</span>{% endif %}
         {% if high_var_count %}<span class="badge bg-danger-subtle text-danger ms-1">{{ high_var_count }} dòng lệch &gt; 15%</span>{% endif %}
       </div>
@@ -133,8 +135,12 @@
         </div>
         <div class="col-4 col-md-1">
           <label class="form-label small mb-0">Bậc CĐ</label>
-          <input type="text" name="skill_level_label" class="form-control form-control-sm" maxlength="60"
-                 value="{% if edit_line %}{{ edit_line.skill_level_label }}{% endif %}">
+          <select name="skill_level_label" class="form-select form-select-sm">
+            <option value="">—</option>
+            {% for s in skill_levels %}
+            <option value="{{ s.code }}"{% if edit_line %}{% if edit_line.skill_level_label == s.code or edit_line.skill_level_label == s.name %} selected{% endif %}{% endif %}>{% if s.name and s.name != s.code %}{{ s.code }} — {{ s.name }}{% else %}{{ s.code }}{% endif %}</option>
+            {% endfor %}
+          </select>
         </div>
         <div class="col-4 col-md-1">
           <label class="form-label small mb-0">Hệ số ĐG</label>

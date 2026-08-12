@@ -26,10 +26,11 @@
     </div>
   </div>
 
-  {% if can_update and not approver_group_ready %}
-  <div class="alert alert-info py-2 small mb-3">
-    Chưa gán nhóm <code>{{ approver_group_name }}</code> — tạm thời ai có quyền sửa SX đều duyệt được.
-    Gán Approver tại <a href="{% url 'san_xuat:general_settings' %}#sec-ie-approver">Thiết lập SX</a>.
+  {% if not approver_group_ready %}
+  <div class="alert alert-warning py-2 small mb-3">
+    Chưa cấu hình người duyệt — nút Duyệt bị khóa với user thường.
+    Thêm tại
+    <a href="{% url 'san_xuat:ie_approver_manage' %}" class="alert-link">Thiết lập công đoạn → Người duyệt</a>.
   </div>
   {% endif %}
 

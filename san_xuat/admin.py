@@ -7,9 +7,11 @@ from san_xuat.ie_models import (
     SxOperation,
     SxOperationGroup,
     SxProcessStage,
+    SxProductPart,
     SxRouting,
     SxRoutingLine,
     SxSkillLevel,
+    SxSmvBasis,
     SxSmvSource,
     SxStitchClass,
     SxTimeStudy,
@@ -77,7 +79,9 @@ admin.site.register(SxMachine, _RefAdmin)
 admin.site.register(SxStitchClass, _RefAdmin)
 admin.site.register(SxSkillLevel, _RefAdmin)
 admin.site.register(SxSmvSource, _RefAdmin)
+admin.site.register(SxSmvBasis, _RefAdmin)
 admin.site.register(SxProcessStage, _RefAdmin)
+admin.site.register(SxProductPart, _RefAdmin)
 
 
 @admin.register(SxOperationGroup)

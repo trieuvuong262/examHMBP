@@ -28,9 +28,14 @@ from san_xuat.ie_models import (
     SxRouting,
     SxRoutingLine,
     SxSkillLevel,
+    SxSmvBasis,
     SxSmvSource,
     SxStitchClass,
     SxTimeStudy,
+    ensure_process_stage_defaults,
+    ensure_skill_levels_abc,
+    ensure_smv_basis_defaults,
+    normalize_skill_level_label,
 )
 from san_xuat.hub_models import SxWorkCenter
 from san_xuat.services.ie_ops import link_time_studies_to_operations, resolve_operation
@@ -239,15 +244,24 @@ def _import_reference(wb, result: ImportResult) -> None:
     simple = [
         ('SKILL_LEVEL', SxSkillLevel, 'skill_level'),
         ('SMV_SOURCE', SxSmvSource, 'smv_source'),
+        ('SMV_BASIS', SxSmvBasis, 'smv_basis'),
         ('PROCESS_STAGE', SxProcessStage, 'process_stage'),
         ('STITCH_CLASS', SxStitchClass, 'stitch_class'),
     ]
     for header, model, key in simple:
         for order, value in enumerate(_col_values(ws, header), start=1):
+            if model is SxSkillLevel:
+                value = normalize_skill_level_label(value)
+                if value not in ('A', 'B', 'C'):
+                    continue
             _, created = model.objects.update_or_create(
                 code=value, defaults={'name': value, 'sort_order': order * 10},
             )
             result.bump(key, created)
+
+    ensure_skill_levels_abc()
+    ensure_process_stage_defaults()
+    ensure_smv_basis_defaults()
 
     for order, code in enumerate(_col_values(ws, 'WORK_CENTER'), start=1):
         # Không tạo thêm WC IE — bộ phận chuẩn lấy từ HR (HRD-*). Chỉ bỏ qua mã lạ.
@@ -334,9 +348,23 @@ def _import_operations(wb, result: ImportResult) -> None:
 
         machine_code = _s(rec.get('MÃ MÁY MÓC'))
         stitch_val = _s(rec.get('NHÓM MŨI MAY'))
-        skill_label = _s(rec.get('BẬC CÔNG ĐOẠN'))
+        skill_label = normalize_skill_level_label(_s(rec.get('BẬC CÔNG ĐOẠN')))
         smv_source_label = _s(rec.get('NGUỒN SMV'))
         status_label = _s(rec.get('TRẠNG THÁI')).casefold()
+        smv_basis_raw = _s(rec.get('ĐƠN VỊ'))
+        smv_basis = smv_basis_raw
+        if smv_basis_raw:
+            basis = (
+                SxSmvBasis.objects.filter(name__iexact=smv_basis_raw).first()
+                or SxSmvBasis.objects.filter(code__iexact=smv_basis_raw).first()
+            )
+            if basis is None:
+                code = smv_basis_raw[:40].upper() or 'UNIT'
+                basis, _ = SxSmvBasis.objects.get_or_create(
+                    code=code,
+                    defaults={'name': smv_basis_raw[:150], 'sort_order': 200, 'is_active': True},
+                )
+            smv_basis = basis.name
 
         _, created = SxOperation.objects.update_or_create(
             op_code=op_code,
@@ -353,8 +381,11 @@ def _import_operations(wb, result: ImportResult) -> None:
                 'stitch_class': SxStitchClass.objects.filter(code=stitch_val).first() if stitch_val else None,
                 'thread_needle': _s(rec.get('QUY ĐỊNH KIM/CHỈ')),
                 'attachment_code': _s(rec.get('MÃ CỮ/GIÁ/CHÂN VỊT')),
-                'smv_basis': _s(rec.get('ĐƠN VỊ')),
-                'skill_level': SxSkillLevel.objects.filter(name=skill_label).first() if skill_label else None,
+                'smv_basis': smv_basis,
+                'skill_level': (
+                    SxSkillLevel.objects.filter(code=skill_label).first()
+                    or SxSkillLevel.objects.filter(name=skill_label).first()
+                ) if skill_label else None,
                 'skill_level_label': skill_label,
                 'base_smv_min': base_smv,
                 'smv_source': SxSmvSource.objects.filter(name=smv_source_label).first() if smv_source_label else None,
@@ -463,7 +494,7 @@ def _import_routings(wb, result: ImportResult) -> None:
                 machine_code=machine_code,
                 work_center=wc,
                 work_center_code=wc.code if wc else '',
-                skill_level_label=_s(rec.get('BẬC CÔNG ĐOẠN')),
+                skill_level_label=normalize_skill_level_label(_s(rec.get('BẬC CÔNG ĐOẠN'))),
                 notes=_s(rec.get('NOTES')),
                 variance_explanation=variance_text[:500],
             )
@@ -1001,7 +1032,7 @@ def export_operation_master_workbook():
     ws = wb.active
     ws.title = SHEET_REF
     machines = list(SxMachine.objects.order_by('sort_order', 'code'))
-    skills = list(SxSkillLevel.objects.order_by('sort_order', 'code'))
+    skills = ensure_skill_levels_abc()
     sources = list(SxSmvSource.objects.order_by('sort_order', 'code'))
     stages = list(SxProcessStage.objects.order_by('sort_order', 'code'))
     stitches = list(SxStitchClass.objects.order_by('sort_order', 'code'))
@@ -1009,7 +1040,7 @@ def export_operation_master_workbook():
     max_n = max(len(machines), len(skills), len(sources), len(stages), len(stitches), len(wcs), 1)
     headers = [
         'MACHINE_CODE', 'MACHINE_NAME', '', 'OP_STATUS', '', 'SMV_SOURCE', '',
-        'SKILL_LEVEL', '', 'YES_NO', '', 'PROCESS_STAGE', '', 'APPROVAL_STATUS', '',
+        'SKILL_LEVEL', '', 'YES_NO', '', 'PROCESS_STAGE', '', 'SMV_BASIS', '', 'APPROVAL_STATUS', '',
         'WORK_CENTER', '', 'STITCH_CLASS',
     ]
     ws.append(headers)

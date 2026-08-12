@@ -27,15 +27,21 @@ from san_xuat.ie_models import (
     SxOperation,
     SxOperationGroup,
     SxProcessStage,
+    SxProductPart,
     SxRouting,
     SxRoutingLine,
     SxSkillLevel,
+    SxSmvBasis,
     SxSmvSource,
     SxStitchClass,
+    ensure_process_stage_defaults,
+    ensure_skill_levels_abc,
+    ensure_smv_basis_defaults,
 )
 from san_xuat.services.production_machines import ie_machine_options, production_machine_count
 from san_xuat.ie_permissions import (
     IE_APPROVER_GROUP,
+    ensure_ie_approver_group,
     ie_approver_group_has_members,
     user_can_approve_ie,
 )
@@ -287,6 +293,7 @@ def group_list(request):
                     effective_from=effective_from,
                     is_active=request.POST.get('is_active') == '1',
                     notes=(request.POST.get('notes') or '').strip(),
+                    user=request.user,
                 )
                 messages.success(request, f'Đã tạo nhóm {group.code}.')
             elif action == 'update_group':
@@ -362,6 +369,7 @@ def group_list(request):
         'term': term,
         'active_filter': active_filter,
         'total': qs.count(),
+        'process_stages': ensure_process_stage_defaults(),
     })
 
 
@@ -466,6 +474,7 @@ def operation_list(request):
                     op_rev=(request.POST.get('op_rev') or 'R01').strip() or 'R01',
                     base_smv_min=smv,
                     machine_code=(request.POST.get('machine_code') or '').strip(),
+                    user=request.user,
                 )
                 messages.success(request, f'Đã tạo công đoạn {created.op_code}/{created.op_rev}.')
                 return redirect('san_xuat:ie_operation_detail', pk=created.pk)
@@ -602,20 +611,26 @@ def operation_detail(request, pk: int):
         return redirect('san_xuat:ie_operation_detail', pk=op.pk)
 
     product_parts = list(
+        SxProductPart.objects.filter(is_active=True)
+        .order_by('sort_order', 'code')
+        .values_list('name', flat=True)
+    )
+    # Giữ giá trị đang dùng nếu chưa có trong catalog
+    extras = list(
         SxOperation.objects.exclude(product_part='')
         .order_by('product_part')
         .values_list('product_part', flat=True)
         .distinct()
     )
+    for p in extras:
+        if p and p not in product_parts:
+            product_parts.append(p)
     if op.product_part and op.product_part not in product_parts:
         product_parts = [op.product_part] + product_parts
-    smv_basis_choices = list(
-        SxOperation.objects.exclude(smv_basis='')
-        .order_by('smv_basis')
-        .values_list('smv_basis', flat=True)
-        .distinct()
-    )
+    smv_bases = ensure_smv_basis_defaults()
+    smv_basis_choices = [b.name for b in smv_bases]
     if op.smv_basis and op.smv_basis not in smv_basis_choices:
+        # Giữ giá trị cũ nếu chưa có trong danh mục
         smv_basis_choices = [op.smv_basis] + smv_basis_choices
     ie_owners = list(
         SxOperation.objects.exclude(ie_owner='')
@@ -623,21 +638,27 @@ def operation_detail(request, pk: int):
         .values_list('ie_owner', flat=True)
         .distinct()
     )
+    from san_xuat.ie_permissions import ie_user_display_name
+
+    current_owner = ie_user_display_name(request.user)
     if op.ie_owner and op.ie_owner not in ie_owners:
         ie_owners = [op.ie_owner] + ie_owners
+    elif not op.ie_owner and current_owner and current_owner not in ie_owners:
+        ie_owners = [current_owner] + ie_owners
 
     return render(request, 'san_xuat/ie_operation_detail.html', {
         **perms,
         'op': op,
         'groups': SxOperationGroup.objects.filter(is_active=True).order_by('sort_order', 'code'),
         'machines': ie_machine_options(extra_code=op.machine_code),
-        'skill_levels': SxSkillLevel.objects.filter(is_active=True).order_by('sort_order', 'code'),
-        'process_stages': SxProcessStage.objects.filter(is_active=True).order_by('sort_order', 'code'),
+        'skill_levels': ensure_skill_levels_abc(),
+        'process_stages': ensure_process_stage_defaults(),
         'stitch_classes': SxStitchClass.objects.filter(is_active=True).order_by('sort_order', 'code'),
         'smv_sources': SxSmvSource.objects.filter(is_active=True).order_by('sort_order', 'code'),
         'product_parts': product_parts,
         'smv_basis_choices': smv_basis_choices,
         'ie_owners': ie_owners,
+        'default_ie_owner': current_owner,
         'status_choices': [
             c for c in SxOperation.STATUS_CHOICES if c[0] != SxOperation.STATUS_APPROVED
         ],
@@ -660,7 +681,12 @@ def routing_list(request):
         pk = (request.POST.get('pk') or '').strip()
         routing = SxRouting.objects.filter(pk=int(pk)).first() if pk.isdigit() else None
         try:
-            if action == 'update_routing' and routing:
+            if action == 'approve_routing' and routing:
+                if not perms['can_approve']:
+                    raise IeOpsError('Bạn không có quyền duyệt routing (cần nhóm Approver IE).')
+                approve_routing(routing=routing, user=request.user)
+                messages.success(request, f'Đã duyệt routing {routing.routing_id}.')
+            elif action == 'update_routing' and routing:
                 if not perms['can_update']:
                     raise IeOpsError('Bạn không có quyền sửa routing.')
                 update_routing_header(
@@ -820,6 +846,7 @@ def routing_detail(request, pk: int):
         'edit_line': edit_line,
         'machines': ie_machine_options(extra_code=(edit_line.machine_code if edit_line else '')),
         'work_centers': work_centers,
+        'skill_levels': ensure_skill_levels_abc(),
         'default_work_center_code': '',
     })
 
@@ -871,4 +898,244 @@ def ie_audit_list(request):
         'action': action,
         'action_choices': SxIeAuditLog.ACTION_CHOICES,
         'total': qs.count(),
+    })
+
+
+# --- Thiết lập công đoạn (catalog refs) ------------------------------------
+
+IE_REF_CATALOGS = {
+    'cum-chi-tiet': {
+        'model': SxProductPart,
+        'title': 'Cụm chi tiết',
+        'code_label': 'Mã cụm',
+        'name_label': 'Tên cụm chi tiết',
+        'hint': 'Dùng cho cột Cụm chi tiết chính trên thư viện công đoạn.',
+    },
+    'bac-ky-nang': {
+        'model': SxSkillLevel,
+        'title': 'Bậc kỹ năng',
+        'code_label': 'Mã bậc',
+        'name_label': 'Tên bậc kỹ năng',
+        'hint': 'Mặc định A / B / C — dùng trên công đoạn chuẩn và dòng routing.',
+    },
+    'khau-san-xuat': {
+        'model': SxProcessStage,
+        'title': 'Khâu sản xuất',
+        'code_label': 'Mã khâu',
+        'name_label': 'Tên khâu sản xuất',
+        'hint': 'VD: Cắt, May lắp ráp, Hoàn thiện — dùng trên nhóm và công đoạn chuẩn.',
+    },
+    'lop-mui-may': {
+        'model': SxStitchClass,
+        'title': 'Lớp mũi may',
+        'code_label': 'Mã lớp mũi',
+        'name_label': 'Tên lớp mũi',
+        'hint': 'VD: 301, 401, 504 — chọn trên công đoạn chuẩn.',
+    },
+    'nguon-smv': {
+        'model': SxSmvSource,
+        'title': 'Nguồn SMV',
+        'code_label': 'Mã nguồn',
+        'name_label': 'Tên nguồn SMV',
+        'hint': 'VD: Time study, PMTS/GSD, Ước tính IE.',
+    },
+    'don-vi-smv': {
+        'model': SxSmvBasis,
+        'title': 'Đơn vị cơ sở SMV',
+        'code_label': 'Mã đơn vị',
+        'name_label': 'Tên đơn vị',
+        'hint': 'VD: Phút/SP, Giây, SP/H — cột Đơn vị trên thư viện công đoạn.',
+    },
+}
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+def ie_settings_hub(request):
+    from hrm.menu_permissions import user_can_access_menu
+    if not (
+        user_can_access_menu(request.user, MODULE_SAN_XUAT, 'ie_settings')
+        or user_can_access_menu(request.user, MODULE_SAN_XUAT, IE_MENU_KEY)
+    ):
+        return handle_menu_access_denied(request, MODULE_SAN_XUAT, 'ie_settings')
+    ensure_skill_levels_abc()
+    ensure_process_stage_defaults()
+    ensure_smv_basis_defaults()
+    counts = {
+        'product_parts': SxProductPart.objects.filter(is_active=True).count(),
+        'skill_levels': SxSkillLevel.objects.filter(is_active=True).count(),
+        'process_stages': SxProcessStage.objects.filter(is_active=True).count(),
+        'stitch_classes': SxStitchClass.objects.filter(is_active=True).count(),
+        'smv_sources': SxSmvSource.objects.filter(is_active=True).count(),
+        'smv_bases': SxSmvBasis.objects.filter(is_active=True).count(),
+        'approvers': ensure_ie_approver_group().user_set.count(),
+    }
+    return render(request, 'san_xuat/ie_settings_hub.html', {
+        **_perm_ctx(request),
+        'counts': counts,
+        'catalogs': IE_REF_CATALOGS,
+    })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+def ie_ref_catalog(request, kind: str):
+    from hrm.menu_permissions import user_can_access_menu
+    if not (
+        user_can_access_menu(request.user, MODULE_SAN_XUAT, 'ie_settings')
+        or user_can_access_menu(request.user, MODULE_SAN_XUAT, IE_MENU_KEY)
+    ):
+        return handle_menu_access_denied(request, MODULE_SAN_XUAT, 'ie_settings')
+    meta = IE_REF_CATALOGS.get(kind)
+    if not meta:
+        messages.error(request, 'Danh mục không hợp lệ.')
+        return redirect('san_xuat:ie_settings_hub')
+    if kind == 'bac-ky-nang':
+        ensure_skill_levels_abc()
+    elif kind == 'khau-san-xuat':
+        ensure_process_stage_defaults()
+    elif kind == 'don-vi-smv':
+        ensure_smv_basis_defaults()
+    Model = meta['model']
+    perms = _perm_ctx(request)
+    list_url = reverse('san_xuat:ie_ref_catalog', kwargs={'kind': kind})
+
+    if request.method == 'POST':
+        action = (request.POST.get('action') or '').strip()
+        try:
+            if action == 'create_ref':
+                if not (perms['can_create'] or perms['can_update']):
+                    raise IeOpsError('Bạn không có quyền thêm danh mục.')
+                code = (request.POST.get('code') or '').strip()[:40]
+                if kind in ('bac-ky-nang', 'don-vi-smv', 'khau-san-xuat'):
+                    code = code.upper()
+                name = (request.POST.get('name') or '').strip()[:150] or code
+                if not code:
+                    raise IeOpsError('Nhập mã.')
+                sort_raw = (request.POST.get('sort_order') or '').strip()
+                sort_order = int(sort_raw) if sort_raw.isdigit() else 100
+                notes = (request.POST.get('notes') or '').strip()[:255]
+                obj, created = Model.objects.update_or_create(
+                    code=code,
+                    defaults={
+                        'name': name,
+                        'sort_order': sort_order,
+                        'is_active': request.POST.get('is_active') == '1',
+                        'notes': notes,
+                    },
+                )
+                messages.success(request, f'{"Đã thêm" if created else "Đã cập nhật"} {obj.code}.')
+            elif action == 'update_ref':
+                if not perms['can_update']:
+                    raise IeOpsError('Bạn không có quyền sửa danh mục.')
+                pk = (request.POST.get('pk') or '').strip()
+                obj = Model.objects.filter(pk=int(pk)).first() if pk.isdigit() else None
+                if not obj:
+                    raise IeOpsError('Không tìm thấy bản ghi.')
+                name = (request.POST.get('name') or '').strip()[:150]
+                if name:
+                    obj.name = name
+                sort_raw = (request.POST.get('sort_order') or '').strip()
+                if sort_raw.isdigit():
+                    obj.sort_order = int(sort_raw)
+                obj.is_active = request.POST.get('is_active') == '1'
+                obj.notes = (request.POST.get('notes') or '').strip()[:255]
+                obj.save()
+                messages.success(request, f'Đã lưu {obj.code}.')
+            elif action == 'delete_ref':
+                if not perms['can_update']:
+                    raise IeOpsError('Bạn không có quyền xóa danh mục.')
+                pk = (request.POST.get('pk') or '').strip()
+                obj = Model.objects.filter(pk=int(pk)).first() if pk.isdigit() else None
+                if not obj:
+                    raise IeOpsError('Không tìm thấy bản ghi.')
+                code = obj.code
+                obj.delete()
+                messages.success(request, f'Đã xóa {code}.')
+            else:
+                messages.error(request, 'Hành động không hợp lệ.')
+        except IeOpsError as exc:
+            messages.error(request, str(exc))
+        except Exception as exc:  # unique constraint, etc.
+            messages.error(request, str(exc))
+        return redirect(list_url)
+
+    qs = Model.objects.all().order_by('sort_order', 'code')
+    term = (request.GET.get('q') or '').strip()
+    if term:
+        qs = qs.filter(Q(code__icontains=term) | Q(name__icontains=term) | Q(notes__icontains=term))
+    active_filter = (request.GET.get('active') or '').strip()
+    if active_filter == '1':
+        qs = qs.filter(is_active=True)
+    elif active_filter == '0':
+        qs = qs.filter(is_active=False)
+    page_obj, query_string = paginate_queryset(request, qs)
+    return render(request, 'san_xuat/ie_ref_catalog.html', {
+        **perms,
+        'kind': kind,
+        'meta': meta,
+        'page_obj': page_obj,
+        'items': page_obj.object_list,
+        'query_string': query_string,
+        'term': term,
+        'active_filter': active_filter,
+        'total': qs.count(),
+    })
+
+
+def _require_ie_settings_access(request):
+    from hrm.menu_permissions import user_can_access_menu
+    if not (
+        user_can_access_menu(request.user, MODULE_SAN_XUAT, 'ie_settings')
+        or user_can_access_menu(request.user, MODULE_SAN_XUAT, IE_MENU_KEY)
+    ):
+        return handle_menu_access_denied(request, MODULE_SAN_XUAT, 'ie_settings')
+    return None
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+def ie_approver_manage(request):
+    """Quản lý danh sách người duyệt IE (nhóm SX_IE_Approver)."""
+    denied = _require_ie_settings_access(request)
+    if denied:
+        return denied
+
+    from san_xuat.ie_permissions import (
+        IE_APPROVER_GROUP,
+        add_ie_approver_by_username,
+        ie_approver_group_has_members,
+        list_ie_approver_candidates,
+        list_ie_approvers,
+        remove_ie_approver_by_username,
+    )
+
+    perms = _perm_ctx(request)
+    list_url = reverse('san_xuat:ie_approver_manage')
+
+    if request.method == 'POST':
+        action = (request.POST.get('action') or '').strip()
+        username = (request.POST.get('username') or '').strip()
+        if not perms['can_update']:
+            messages.error(request, 'Bạn không có quyền cập nhật người duyệt.')
+            return redirect(list_url)
+        try:
+            if action == 'add_ie_approver':
+                user, created = add_ie_approver_by_username(username)
+                if created:
+                    messages.success(request, f'Đã thêm {user.username} vào nhóm {IE_APPROVER_GROUP}.')
+                else:
+                    messages.info(request, f'{user.username} đã là người duyệt.')
+            elif action == 'remove_ie_approver':
+                user = remove_ie_approver_by_username(username)
+                messages.success(request, f'Đã gỡ {user.username} khỏi nhóm {IE_APPROVER_GROUP}.')
+            else:
+                messages.error(request, 'Hành động không hợp lệ.')
+        except ValueError as exc:
+            messages.error(request, str(exc))
+        return redirect(list_url)
+
+    return render(request, 'san_xuat/ie_approver_manage.html', {
+        **perms,
+        'ie_approver_group_name': IE_APPROVER_GROUP,
+        'ie_approver_ready': ie_approver_group_has_members(),
+        'ie_approvers': list_ie_approvers(),
+        'ie_candidate_users': list_ie_approver_candidates(),
     })

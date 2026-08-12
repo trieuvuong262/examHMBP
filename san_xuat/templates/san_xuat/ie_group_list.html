@@ -1,22 +1,23 @@
 {% extends 'base.html' %}
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+{% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid jp-page jp-sx-page jp-npl-material-catalog-page py-3 py-md-4 mb-5 px-3 px-lg-4">
+<div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 py-md-4 mb-5">
   <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
     <div class="jp-sx-detail-title">
       <h2 class="jp-npl-mat-topbar-title w-100">Nhóm công đoạn</h2>
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
       {% if can_create or can_update %}
-      <button type="button" class="btn btn-sm btn-outline-hm" data-bs-toggle="modal" data-bs-target="#ieImportModal">
+      <button type="button" class="btn btn-outline-hm btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#ieImportModal">
         <i class="bi bi-upload me-1"></i>Import
       </button>
       {% endif %}
       {% if can_export %}
-      <a href="{% url 'san_xuat:ie_export_kind' kind='groups' %}" class="btn btn-sm btn-outline-hm">
+      <a href="{% url 'san_xuat:ie_export_kind' kind='groups' %}" class="btn btn-sx-export btn-sm fw-bold" title="Xuất Excel">
         <i class="bi bi-download me-1"></i>Xuất Excel
       </a>
       {% endif %}
@@ -25,6 +26,7 @@
         <i class="bi bi-plus-lg me-1"></i>Thêm nhóm
       </button>
       {% endif %}
+      <span class="sep" aria-hidden="true"></span>
       <a href="{% url 'san_xuat:ie_hub' %}" class="is-back">
         <i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại
       </a>
@@ -143,7 +145,12 @@
             </div>
             <div class="col-md-6">
               <label class="form-label small text-muted mb-1">Khâu sản xuất</label>
-              <input type="text" name="process_stage_label" class="form-control form-control-sm" maxlength="100" placeholder="VD: May lắp ráp">
+              <select name="process_stage_label" class="form-select form-select-sm">
+                <option value="">— Không chọn —</option>
+                {% for s in process_stages %}
+                <option value="{{ s.name }}">{{ s.name }}</option>
+                {% endfor %}
+              </select>
             </div>
             <div class="col-md-6">
               <label class="form-label small text-muted mb-1">Sản phẩm cần</label>
@@ -159,7 +166,7 @@
             </div>
             <div class="col-md-4">
               <label class="form-label small text-muted mb-1">Ngày hiệu lực</label>
-              <input type="date" name="effective_from" class="form-control form-control-sm">
+              <input type="date" name="effective_from" class="form-control form-control-sm" value="{% now 'Y-m-d' %}">
             </div>
             <div class="col-md-4 d-flex align-items-end">
               <div class="form-check mb-1">
@@ -207,7 +214,12 @@
             </div>
             <div class="col-md-6">
               <label class="form-label small text-muted mb-1">Khâu sản xuất</label>
-              <input type="text" name="process_stage_label" id="ieEditGroupStage" class="form-control form-control-sm" maxlength="100">
+              <select name="process_stage_label" id="ieEditGroupStage" class="form-select form-select-sm">
+                <option value="">— Không chọn —</option>
+                {% for s in process_stages %}
+                <option value="{{ s.name }}">{{ s.name }}</option>
+                {% endfor %}
+              </select>
             </div>
             <div class="col-md-6">
               <label class="form-label small text-muted mb-1">Sản phẩm cần</label>

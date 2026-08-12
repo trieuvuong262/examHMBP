@@ -226,6 +226,8 @@ def create_blank_routing(
         if ref:
             style_name = ref.name
 
+    from san_xuat.ie_permissions import ie_user_display_name
+
     return SxRouting.objects.create(
         routing_id=rid,
         style_code=style,
@@ -235,6 +237,8 @@ def create_blank_routing(
         tech_doc=tech_doc,
         is_active=True,
         approval_status=SxRouting.APPROVAL_DRAFT,
+        ie_owner=ie_user_display_name(user),
+        effective_from=timezone.localdate(),
         notes='Tạo tay (không import Excel)',
         created_by=user if getattr(user, 'is_authenticated', False) else None,
     )
@@ -267,6 +271,7 @@ def create_blank_operation(
     base_smv_min: Decimal | None = None,
     machine_code: str = '',
     process_stage_label: str = '',
+    user=None,
 ) -> SxOperation:
     """Tạo công đoạn chuẩn tay (không cần Excel)."""
     op_code = (op_code or '').strip().upper()
@@ -293,6 +298,8 @@ def create_blank_operation(
 
     ensure_process_name(name_vi)
 
+    from san_xuat.ie_permissions import ie_user_display_name
+
     return SxOperation.objects.create(
         group=group,
         op_code=op_code,
@@ -302,6 +309,8 @@ def create_blank_operation(
         machine_code=(machine_code or '')[:40],
         base_smv_min=smv,
         status=SxOperation.STATUS_DRAFT,
+        ie_owner=ie_user_display_name(user),
+        effective_from=timezone.localdate(),
         notes='Tạo tay (không import Excel)',
         revision_reason='Tạo tay',
     )
@@ -319,6 +328,7 @@ def create_operation_group(
     effective_from=None,
     is_active: bool = True,
     notes: str = '',
+    user=None,
 ) -> SxOperationGroup:
     """Tạo nhóm công đoạn tay."""
     code = (code or '').strip().upper()
@@ -329,14 +339,17 @@ def create_operation_group(
         raise IeOpsError('Nhập tên nhóm.')
     if SxOperationGroup.objects.filter(code=code).exists():
         raise IeOpsError(f'Nhóm {code} đã tồn tại.')
+    from san_xuat.ie_permissions import ie_user_display_name
+
+    owner = (data_owner or '').strip() or ie_user_display_name(user)
     return SxOperationGroup.objects.create(
         code=code,
         name=name[:150],
         process_stage_label=(process_stage_label or '')[:100],
         product_part=(product_part or '')[:120],
         description=(description or '').strip(),
-        data_owner=(data_owner or '')[:120],
-        effective_from=effective_from,
+        data_owner=owner[:120],
+        effective_from=effective_from or timezone.localdate(),
         is_active=bool(is_active),
         notes=(notes or '')[:255],
     )
@@ -574,12 +587,13 @@ def update_operation(
             operation.machine = machine
 
     if skill_level_label is not None:
-        label = skill_level_label.strip()[:60]
+        from san_xuat.ie_models import normalize_skill_level_label
+        label = normalize_skill_level_label(skill_level_label)[:60]
         skill = None
         if label:
             skill = (
-                SxSkillLevel.objects.filter(name=label).first()
-                or SxSkillLevel.objects.filter(code=label).first()
+                SxSkillLevel.objects.filter(code=label).first()
+                or SxSkillLevel.objects.filter(name=label).first()
             )
         _set('skill_level_label', label)
         if operation.skill_level_id != (skill.pk if skill else None):
@@ -856,14 +870,17 @@ def approve_operation(*, operation: SxOperation, user=None) -> SxOperation:
         raise IeOpsError('Thiếu công đoạn.')
     assert_smv_positive(operation.base_smv_min, label=f'{operation.op_code} BASE_SMV_MIN')
     operation.status = SxOperation.STATUS_APPROVED
+    from san_xuat.ie_permissions import ie_user_display_name
+
     operation.approved_by = (
-        getattr(user, 'get_full_name', lambda: '')()
-        or getattr(user, 'username', '')
+        ie_user_display_name(user)
         or operation.approved_by
         or 'Approver'
     )[:120]
     operation.approved_at = timezone.now()
-    operation.save(update_fields=['status', 'approved_by', 'approved_at', 'updated_at'])
+    if not operation.effective_from:
+        operation.effective_from = timezone.localdate()
+    operation.save(update_fields=['status', 'approved_by', 'approved_at', 'effective_from', 'updated_at'])
     from san_xuat.ie_models import SxIeAuditLog
     from san_xuat.services.ie_audit import log_ie_event
 
@@ -894,10 +911,11 @@ def approve_routing(*, routing: SxRouting, user=None) -> SxRouting:
             line.variance_explanation,
             label=f'{line.op_code}#{line.seq_no}',
         )
+    from san_xuat.ie_permissions import ie_user_display_name
+
     routing.approval_status = SxRouting.APPROVAL_APPROVED
     routing.approved_by = (
-        getattr(user, 'get_full_name', lambda: '')()
-        or getattr(user, 'username', '')
+        ie_user_display_name(user)
         or routing.approved_by
         or 'Approver'
     )[:120]
@@ -1113,7 +1131,8 @@ def upsert_routing_line(
         total_unit_price if total_unit_price is not None else (line.total_unit_price or Decimal('0'))
     )
     if skill_level_label is not None:
-        line.skill_level_label = (skill_level_label or '')[:60]
+        from san_xuat.ie_models import normalize_skill_level_label
+        line.skill_level_label = normalize_skill_level_label(skill_level_label or '')[:60]
     line.machine = machine
     line.machine_code = (machine_code or (machine.code if machine else ''))[:40]
     line.work_center = wc

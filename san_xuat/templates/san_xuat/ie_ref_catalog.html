@@ -1,0 +1,204 @@
+{% extends 'base.html' %}
+{% block extra_head %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+{% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}
+{% endblock %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 py-md-4 mb-5">
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title w-100">{{ meta.title }}</h2>
+    </div>
+    <nav class="jp-sx-tools" aria-label="Công cụ">
+      {% if can_create or can_update %}
+      <button type="button" class="btn btn-hm btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#ieAddRefModal">
+        <i class="bi bi-plus-lg me-1"></i>Thêm
+      </button>
+      {% endif %}
+      <a href="{% url 'san_xuat:ie_settings_hub' %}" class="is-back">
+        <i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại
+      </a>
+    </nav>
+  </div>
+
+  {% if meta.hint %}<p class="text-muted small mb-3">{{ meta.hint }}</p>{% endif %}
+
+  <form method="get" class="row g-2 mb-3">
+    <div class="col-md-5">
+      <input type="search" name="q" value="{{ term }}" class="form-control form-control-sm" placeholder="Tìm mã, tên…">
+    </div>
+    <div class="col-md-3">
+      <select name="active" class="form-select form-select-sm">
+        <option value="">— Tất cả —</option>
+        <option value="1" {% if active_filter == '1' %}selected{% endif %}>Đang dùng</option>
+        <option value="0" {% if active_filter == '0' %}selected{% endif %}>Ngưng</option>
+      </select>
+    </div>
+    <div class="col-md-2"><button class="btn btn-sm btn-hm w-100">Lọc</button></div>
+  </form>
+
+  <div class="card border-0 shadow-sm overflow-hidden">
+    <div class="table-responsive">
+      <table class="table table-hover table-sm align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>{{ meta.code_label }}</th>
+            <th>{{ meta.name_label }}</th>
+            <th class="text-end">Thứ tự</th>
+            <th>Đang dùng</th>
+            <th>Ghi chú</th>
+            {% if can_update %}<th></th>{% endif %}
+          </tr>
+        </thead>
+        <tbody>
+        {% for item in items %}
+          <tr>
+            <td class="fw-semibold">{{ item.code }}</td>
+            <td>{{ item.name }}</td>
+            <td class="text-end text-muted">{{ item.sort_order }}</td>
+            <td>
+              {% if item.is_active %}
+              <span class="badge bg-success-subtle text-success">Có</span>
+              {% else %}
+              <span class="badge bg-light text-muted">Không</span>
+              {% endif %}
+            </td>
+            <td class="small text-muted">{{ item.notes|default:"—"|truncatechars:48 }}</td>
+            {% if can_update %}
+            <td class="text-nowrap text-end">
+              <button type="button" class="btn btn-sm btn-outline-secondary py-0 ie-edit-ref"
+                      data-bs-toggle="modal" data-bs-target="#ieEditRefModal"
+                      data-pk="{{ item.pk }}"
+                      data-code="{{ item.code }}"
+                      data-name="{{ item.name }}"
+                      data-sort="{{ item.sort_order }}"
+                      data-active="{% if item.is_active %}1{% else %}0{% endif %}"
+                      data-notes="{{ item.notes }}">Sửa</button>
+              <form method="post" class="d-inline" onsubmit="return confirm('Xóa {{ item.code }}?');">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="delete_ref">
+                <input type="hidden" name="pk" value="{{ item.pk }}">
+                <button type="submit" class="btn btn-sm btn-outline-danger py-0">Xóa</button>
+              </form>
+            </td>
+            {% endif %}
+          </tr>
+        {% empty %}
+          <tr><td colspan="{% if can_update %}6{% else %}5{% endif %}" class="text-muted small p-3 text-center">Chưa có mục nào.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {% include 'san_xuat/includes/ie_pagination.html' %}
+</div>
+
+{% if can_create or can_update %}
+<div class="modal fade" id="ieAddRefModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="create_ref">
+        <div class="modal-header">
+          <h5 class="modal-title">Thêm {{ meta.title|lower }}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-2">
+            <label class="form-label small text-muted mb-1">{{ meta.code_label }} <span class="text-danger">*</span></label>
+            <input type="text" name="code" class="form-control form-control-sm" required maxlength="40">
+          </div>
+          <div class="mb-2">
+            <label class="form-label small text-muted mb-1">{{ meta.name_label }}</label>
+            <input type="text" name="name" class="form-control form-control-sm" maxlength="150">
+          </div>
+          <div class="row g-2">
+            <div class="col-6">
+              <label class="form-label small text-muted mb-1">Thứ tự</label>
+              <input type="number" name="sort_order" class="form-control form-control-sm" value="100" min="0">
+            </div>
+            <div class="col-6 d-flex align-items-end">
+              <div class="form-check mb-1">
+                <input class="form-check-input" type="checkbox" name="is_active" value="1" id="ieAddRefActive" checked>
+                <label class="form-check-label small" for="ieAddRefActive">Đang dùng</label>
+              </div>
+            </div>
+          </div>
+          <div class="mt-2">
+            <label class="form-label small text-muted mb-1">Ghi chú</label>
+            <input type="text" name="notes" class="form-control form-control-sm" maxlength="255">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Huỷ</button>
+          <button type="submit" class="btn btn-sm btn-hm">Lưu</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% if can_update %}
+<div class="modal fade" id="ieEditRefModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="update_ref">
+        <input type="hidden" name="pk" id="ieEditRefPk">
+        <div class="modal-header">
+          <h5 class="modal-title">Sửa {{ meta.title|lower }}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-2">
+            <label class="form-label small text-muted mb-1">{{ meta.code_label }}</label>
+            <input type="text" id="ieEditRefCode" class="form-control form-control-sm" readonly>
+          </div>
+          <div class="mb-2">
+            <label class="form-label small text-muted mb-1">{{ meta.name_label }}</label>
+            <input type="text" name="name" id="ieEditRefName" class="form-control form-control-sm" maxlength="150">
+          </div>
+          <div class="row g-2">
+            <div class="col-6">
+              <label class="form-label small text-muted mb-1">Thứ tự</label>
+              <input type="number" name="sort_order" id="ieEditRefSort" class="form-control form-control-sm" min="0">
+            </div>
+            <div class="col-6 d-flex align-items-end">
+              <div class="form-check mb-1">
+                <input class="form-check-input" type="checkbox" name="is_active" value="1" id="ieEditRefActive">
+                <label class="form-check-label small" for="ieEditRefActive">Đang dùng</label>
+              </div>
+            </div>
+          </div>
+          <div class="mt-2">
+            <label class="form-label small text-muted mb-1">Ghi chú</label>
+            <input type="text" name="notes" id="ieEditRefNotes" class="form-control form-control-sm" maxlength="255">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Huỷ</button>
+          <button type="submit" class="btn btn-sm btn-hm">Lưu</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<script>
+document.getElementById('ieEditRefModal').addEventListener('show.bs.modal', function (ev) {
+  var btn = ev.relatedTarget;
+  if (!btn) return;
+  document.getElementById('ieEditRefPk').value = btn.getAttribute('data-pk') || '';
+  document.getElementById('ieEditRefCode').value = btn.getAttribute('data-code') || '';
+  document.getElementById('ieEditRefName').value = btn.getAttribute('data-name') || '';
+  document.getElementById('ieEditRefSort').value = btn.getAttribute('data-sort') || '100';
+  document.getElementById('ieEditRefActive').checked = btn.getAttribute('data-active') === '1';
+  document.getElementById('ieEditRefNotes').value = btn.getAttribute('data-notes') || '';
+});
+</script>
+{% endif %}
+{% endblock %}

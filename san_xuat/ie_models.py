@@ -66,11 +66,60 @@ class SxStitchClass(SxRefBase):
 
 
 class SxSkillLevel(SxRefBase):
-    """Bậc kỹ năng (SKILL_LEVEL) — Bậc 1..5."""
+    """Bậc kỹ năng (SKILL_LEVEL) — A / B / C."""
 
     class Meta(SxRefBase.Meta):
         verbose_name = 'Bậc kỹ năng'
         verbose_name_plural = 'Bậc kỹ năng'
+
+
+# Chuẩn cố định: chỉ 3 bậc A · B · C
+SKILL_LEVELS_ABC: tuple[tuple[str, str, int], ...] = (
+    ('A', 'A', 10),
+    ('B', 'B', 20),
+    ('C', 'C', 30),
+)
+
+
+def ensure_skill_levels_abc() -> list['SxSkillLevel']:
+    """Seed A / B / C nếu thiếu; trả danh sách bậc đang dùng (theo thứ tự)."""
+    for code, name, order in SKILL_LEVELS_ABC:
+        SxSkillLevel.objects.get_or_create(
+            code=code,
+            defaults={'name': name, 'sort_order': order, 'is_active': True},
+        )
+    active = list(SxSkillLevel.objects.filter(is_active=True).order_by('sort_order', 'code'))
+    if active:
+        return active
+    return list(SxSkillLevel.objects.filter(code__in=['A', 'B', 'C']).order_by('sort_order', 'code'))
+
+
+def normalize_skill_level_label(raw: str) -> str:
+    """Chuẩn hoá nhãn bậc về A / B / C khi nhận diện được; không thì giữ nguyên."""
+    s = (raw or '').strip()
+    if not s:
+        return ''
+    u = s.upper()
+    if u in ('A', 'B', 'C'):
+        return u
+    # Map bậc cũ 1..5 và biến thể
+    compact = (
+        u.replace('BẬC', ' ')
+        .replace('BAC', ' ')
+        .replace('-', ' ')
+        .replace('_', ' ')
+    )
+    tokens = compact.split()
+    for t in tokens:
+        if t in ('A', '1'):
+            return 'A'
+        if t in ('B', '2'):
+            return 'B'
+        if t in ('C', '3', '4', '5'):
+            return 'C'
+    if u[0] in ('A', 'B', 'C'):
+        return u[0]
+    return s[:60]
 
 
 class SxSmvSource(SxRefBase):
@@ -81,12 +130,62 @@ class SxSmvSource(SxRefBase):
         verbose_name_plural = 'Nguồn SMV'
 
 
+class SxSmvBasis(SxRefBase):
+    """Đơn vị cơ sở SMV (SMV_BASIS) — Phút/SP, Giây, SP/H…"""
+
+    class Meta(SxRefBase.Meta):
+        verbose_name = 'Đơn vị cơ sở SMV'
+        verbose_name_plural = 'Đơn vị cơ sở SMV'
+
+
+SMV_BASIS_DEFAULTS: tuple[tuple[str, str, int], ...] = (
+    ('MIN', 'Phút/SP', 10),
+    ('SEC', 'Giây', 20),
+    ('PCS_H', 'SP/H', 30),
+)
+
+
+def ensure_smv_basis_defaults() -> list['SxSmvBasis']:
+    """Seed đơn vị SMV chuẩn nếu thiếu; trả danh sách đang dùng."""
+    for code, name, order in SMV_BASIS_DEFAULTS:
+        SxSmvBasis.objects.get_or_create(
+            code=code,
+            defaults={'name': name, 'sort_order': order, 'is_active': True},
+        )
+    return list(SxSmvBasis.objects.filter(is_active=True).order_by('sort_order', 'code'))
+
+
+PROCESS_STAGE_DEFAULTS: tuple[tuple[str, str, int], ...] = (
+    ('CUT', 'Cắt', 10),
+    ('SEW', 'May lắp ráp', 20),
+    ('FINISH', 'Hoàn thiện', 30),
+)
+
+
+class SxProductPart(SxRefBase):
+    """Cụm chi tiết chính (PRODUCT_PART) — Cổ, Thân, Tay…"""
+
+    class Meta(SxRefBase.Meta):
+        verbose_name = 'Cụm chi tiết'
+        verbose_name_plural = 'Cụm chi tiết'
+
+
 class SxProcessStage(SxRefBase):
     """Khâu sản xuất (PROCESS_STAGE) — Cắt, May lắp ráp, Hoàn thiện…"""
 
     class Meta(SxRefBase.Meta):
         verbose_name = 'Khâu sản xuất'
         verbose_name_plural = 'Khâu sản xuất'
+
+
+def ensure_process_stage_defaults() -> list['SxProcessStage']:
+    """Seed khâu SX chuẩn nếu thiếu; trả danh sách đang dùng."""
+    for code, name, order in PROCESS_STAGE_DEFAULTS:
+        SxProcessStage.objects.get_or_create(
+            code=code,
+            defaults={'name': name, 'sort_order': order, 'is_active': True},
+        )
+    return list(SxProcessStage.objects.filter(is_active=True).order_by('sort_order', 'code'))
 
 
 # ---------------------------------------------------------------------------

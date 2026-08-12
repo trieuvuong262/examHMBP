@@ -4089,23 +4089,27 @@ def general_settings(request):
             return redirect_sku
 
         if action in ('add_ie_approver', 'remove_ie_approver'):
-            from django.contrib.auth import get_user_model
-            from san_xuat.ie_permissions import IE_APPROVER_GROUP, ensure_ie_approver_group
+            from san_xuat.ie_permissions import (
+                IE_APPROVER_GROUP,
+                add_ie_approver_by_username,
+                remove_ie_approver_by_username,
+            )
 
-            redirect_ie = redirect(f"{reverse('san_xuat:general_settings')}#sec-ie-approver")
+            redirect_ie = redirect('san_xuat:ie_approver_manage')
             username = (request.POST.get('username') or '').strip()
-            User = get_user_model()
-            user = User.objects.filter(username__iexact=username).first() if username else None
-            if not user:
-                messages.error(request, 'Không tìm thấy user.')
-                return redirect_ie
-            group = ensure_ie_approver_group()
-            if action == 'add_ie_approver':
-                group.user_set.add(user)
-                messages.success(request, f'Đã thêm {user.username} vào nhóm {IE_APPROVER_GROUP}.')
-            else:
-                group.user_set.remove(user)
-                messages.success(request, f'Đã gỡ {user.username} khỏi nhóm {IE_APPROVER_GROUP}.')
+            try:
+                if action == 'add_ie_approver':
+                    user, created = add_ie_approver_by_username(username)
+                    if created:
+                        messages.success(request, f'Đã thêm {user.username} vào nhóm {IE_APPROVER_GROUP}.')
+                    else:
+                        messages.info(request, f'{user.username} đã là người duyệt.')
+                else:
+                    user = remove_ie_approver_by_username(username)
+                    messages.success(request, f'Đã gỡ {user.username} khỏi nhóm {IE_APPROVER_GROUP}.')
+            except ValueError as exc:
+                messages.error(request, str(exc))
+                return redirect(f"{reverse('san_xuat:general_settings')}#sec-ie-approver")
             return redirect_ie
 
         if action in ('save_team_map', 'suggest_team_map'):
