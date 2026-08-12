@@ -2,16 +2,16 @@
 {% load sx_format %}
 
 {% block content %}
-<div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
+<div class="container-fluid jp-page jp-sx-page py-3 py-md-4 mb-5 px-3 px-lg-4">
   <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
     <div>
       <h2 class="mb-0">Thư viện công đoạn</h2>
-      <div class="text-muted small">{{ total }} công đoạn chuẩn (OP_CODE + phiên bản).</div>
+      <div class="text-muted small">{{ total }} công đoạn chuẩn — 25 cột như Excel master.</div>
       {% if can_create or can_update %}
       <div class="small mt-1">
-        <span class="text-muted">Mới dùng?</span>
-        Bấm <strong>Import</strong> → tải file mẫu → điền sheet <code>02_THU_VIEN_CONG_DOAN</code>
-        (định mức = <strong>giây</strong>) → chạy thử trước khi lưu.
+        <span class="text-muted">Import:</span>
+        sheet <code>02_THU_VIEN_CONG_DOAN</code>
+        (MÃ NHÓM … NGUỒN SMV · TRẠNG THÁI … NOTES), định mức = <strong>giây</strong>.
       </div>
       {% endif %}
     </div>
@@ -22,7 +22,7 @@
       </button>
       {% endif %}
       {% if can_export %}
-      <a href="{% url 'san_xuat:ie_export' %}" class="btn btn-sm btn-outline-hm"><i class="bi bi-download me-1"></i>Xuất Excel</a>
+      <a href="{% url 'san_xuat:ie_export_kind' kind='library' %}" class="btn btn-sm btn-outline-hm"><i class="bi bi-download me-1"></i>Xuất Excel</a>
       {% endif %}
       {% if can_create or can_update %}
       <button type="button" class="btn btn-sm btn-hm" data-bs-toggle="modal" data-bs-target="#ieAddOpModal">
@@ -60,35 +60,74 @@
 
   <div class="card border-0 shadow-sm overflow-hidden">
     <div class="table-responsive">
-      <table class="table table-hover table-sm align-middle mb-0">
-        <thead class="table-light">
+      <table class="table table-hover table-sm align-middle mb-0 jp-ie-lib-table">
+        <thead>
           <tr>
-            <th>Mã CĐ</th><th>Phiên bản</th><th>Tên công đoạn</th><th>Nhóm</th>
-            <th>Khâu SX</th><th>Máy</th><th class="text-end">SMV (phút)</th>
-            <th class="text-end">SP/giờ</th><th>Trạng thái</th>{% if can_approve or can_update %}<th></th>{% endif %}
+            <th class="jp-ie-col-core">Mã nhóm</th>
+            <th class="jp-ie-col-core">Mã CĐ</th>
+            <th class="jp-ie-col-core">Phiên bản</th>
+            <th class="jp-ie-col-core">Tên công đoạn</th>
+            <th class="jp-ie-col-core">Tên EN</th>
+            <th class="jp-ie-col-core">Bậc CĐ</th>
+            <th class="jp-ie-col-core text-end">ĐM thời gian (giây)</th>
+            <th class="jp-ie-col-core text-end">ĐM SP/H</th>
+            <th class="jp-ie-col-core">Khâu SX</th>
+            <th class="jp-ie-col-core">Cụm chi tiết</th>
+            <th class="jp-ie-col-core">Mô tả PP</th>
+            <th class="jp-ie-col-core">Mã máy</th>
+            <th class="jp-ie-col-core">Nhóm mũi</th>
+            <th class="jp-ie-col-core">Kim/chỉ</th>
+            <th class="jp-ie-col-core">Cữ/gá</th>
+            <th class="jp-ie-col-core">Đơn vị</th>
+            <th class="jp-ie-col-core">Nguồn SMV</th>
+            <th class="jp-ie-col-meta">Trạng thái</th>
+            <th class="jp-ie-col-meta">Ngày HL</th>
+            <th class="jp-ie-col-meta">Ngày hết HL</th>
+            <th class="jp-ie-col-meta">Người lập</th>
+            <th class="jp-ie-col-meta">Người duyệt</th>
+            <th class="jp-ie-col-meta">Lý do phiên bản</th>
+            <th class="jp-ie-col-meta">Video</th>
+            <th class="jp-ie-col-meta">Notes</th>
+            {% if can_approve or can_update %}<th></th>{% endif %}
           </tr>
         </thead>
         <tbody>
         {% for op in items %}
           <tr>
+            <td class="small">{{ op.group.code }}</td>
             <td class="fw-semibold"><a href="{% url 'san_xuat:ie_operation_detail' op.pk %}" class="text-decoration-none">{{ op.op_code }}</a></td>
             <td><span class="badge bg-light text-dark">{{ op.op_rev }}</span></td>
-            <td><a href="{% url 'san_xuat:ie_operation_detail' op.pk %}" class="text-decoration-none text-body">{{ op.name_vi }}</a>{% if op.name_en %}<div class="text-muted small">{{ op.name_en }}</div>{% endif %}</td>
-            <td class="small">{{ op.group.code }}</td>
-            <td class="small">{{ op.process_stage_label|default:"—" }}</td>
-            <td class="small">{{ op.machine_code|default:"—" }}</td>
-            <td class="text-end">{{ op.base_smv_min|sx_num }}</td>
+            <td><a href="{% url 'san_xuat:ie_operation_detail' op.pk %}" class="text-decoration-none text-body">{{ op.name_vi }}</a></td>
+            <td class="small">{{ op.name_en|default:"—" }}</td>
+            <td class="small">{{ op.skill_level_label|default:"—" }}</td>
+            <td class="text-end time-sec" data-smv="{{ op.base_smv_min|sx_num_input }}">—</td>
             <td class="text-end">{{ op.std_capacity_pcs_hour|sx_num }}</td>
-            <td>{{ op.get_status_display }}</td>
-            {% if can_approve %}
+            <td class="small">{{ op.process_stage_label|default:"—" }}</td>
+            <td class="small">{{ op.product_part|default:"—" }}</td>
+            <td class="small" style="max-width:10rem" title="{{ op.method_variant }}">{{ op.method_variant|default:"—"|truncatechars:40 }}</td>
+            <td class="small">{{ op.machine_code|default:"—" }}</td>
+            <td class="small">{% if op.stitch_class %}{{ op.stitch_class.code }}{% else %}—{% endif %}</td>
+            <td class="small">{{ op.thread_needle|default:"—" }}</td>
+            <td class="small">{{ op.attachment_code|default:"—" }}</td>
+            <td class="small">{{ op.smv_basis|default:"—" }}</td>
+            <td class="small">{% if op.smv_source %}{{ op.smv_source.name }}{% else %}—{% endif %}</td>
+            <td class="small">{{ op.get_status_display }}</td>
+            <td class="small text-nowrap">{% if op.effective_from %}{{ op.effective_from|date:"Y-m-d" }}{% else %}—{% endif %}</td>
+            <td class="small text-nowrap">{% if op.effective_to %}{{ op.effective_to|date:"Y-m-d" }}{% else %}—{% endif %}</td>
+            <td class="small">{{ op.ie_owner|default:"—" }}</td>
+            <td class="small">{{ op.approved_by|default:"—" }}</td>
+            <td class="small" style="max-width:8rem" title="{{ op.revision_reason }}">{{ op.revision_reason|default:"—"|truncatechars:28 }}</td>
+            <td class="small">{% if op.video_url %}<a href="{{ op.video_url }}" target="_blank" rel="noopener">Link</a>{% else %}—{% endif %}</td>
+            <td class="small" style="max-width:8rem" title="{{ op.notes }}">{{ op.notes|default:"—"|truncatechars:28 }}</td>
+            {% if can_approve or can_update %}
             <td class="text-nowrap">
               <a href="{% url 'san_xuat:ie_operation_detail' op.pk %}" class="btn btn-sm btn-outline-secondary py-0">Sửa</a>
-              {% if op.status != 'approved' %}
+              {% if can_approve and op.status != 'approved' %}
               <form method="post" class="d-inline">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="approve_operation">
                 <input type="hidden" name="pk" value="{{ op.pk }}">
-                <button type="submit" class="btn btn-sm btn-outline-success" title="Duyệt (SMV phải > 0)">Duyệt</button>
+                <button type="submit" class="btn btn-sm btn-outline-success py-0" title="Duyệt (SMV phải > 0)">Duyệt</button>
               </form>
               {% endif %}
               {% if can_update %}
@@ -100,20 +139,10 @@
               </form>
               {% endif %}
             </td>
-            {% elif can_update %}
-            <td class="text-nowrap">
-              <a href="{% url 'san_xuat:ie_operation_detail' op.pk %}" class="btn btn-sm btn-outline-secondary py-0">Sửa</a>
-              <form method="post" class="d-inline" onsubmit="return confirm('Xóa {{ op.op_code }}/{{ op.op_rev }}?');">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="delete_operation">
-                <input type="hidden" name="pk" value="{{ op.pk }}">
-                <button type="submit" class="btn btn-sm btn-outline-danger py-0">Xóa</button>
-              </form>
-            </td>
             {% endif %}
           </tr>
         {% empty %}
-          <tr><td colspan="{% if can_approve or can_update %}10{% else %}9{% endif %}" class="text-muted small p-3 text-center">Không có công đoạn phù hợp.</td></tr>
+          <tr><td colspan="{% if can_approve or can_update %}26{% else %}25{% endif %}" class="text-muted small p-3 text-center">Không có công đoạn phù hợp.</td></tr>
         {% endfor %}
         </tbody>
       </table>
@@ -122,6 +151,24 @@
 
   {% include 'san_xuat/includes/ie_pagination.html' %}
 </div>
+
+<style>
+.jp-ie-lib-table thead th {
+  font-size: 0.65rem; text-transform: uppercase; letter-spacing: .02em;
+  white-space: nowrap; vertical-align: middle; border-bottom-width: 0;
+}
+.jp-ie-lib-table thead th.jp-ie-col-core { background: #2f7d32; color: #fff; }
+.jp-ie-lib-table thead th.jp-ie-col-meta { background: #1e3a5f; color: #fff; }
+</style>
+<script>
+(function () {
+  document.querySelectorAll('.jp-ie-lib-table td.time-sec').forEach(function (td) {
+    var smv = parseFloat(String(td.getAttribute('data-smv') || '').replace(',', '.'));
+    if (!isFinite(smv)) { td.textContent = '—'; return; }
+    td.textContent = (smv * 60).toFixed(2);
+  });
+})();
+</script>
 
 {% if can_create or can_update %}
 {% include 'san_xuat/includes/ie_import_modal.html' %}

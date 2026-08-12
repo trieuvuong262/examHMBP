@@ -1,4 +1,5 @@
 {% if can_create or can_update %}
+{% with io=ie_io %}
 <style>
 .jp-ie-import-steps { display: flex; gap: 0.35rem; flex-wrap: wrap; margin-bottom: 0.85rem; }
 .jp-ie-import-step {
@@ -46,58 +47,59 @@
           {% if import_form_action %}action="{{ import_form_action }}"{% endif %}>
       {% csrf_token %}
       <input type="hidden" name="action" value="import">
+      <input type="hidden" name="ie_kind" value="{{ io.kind }}">
       <div class="modal-header border-0 pb-0">
-        <h5 class="modal-title fw-bold" id="ieImportModalLabel">Nhập thư viện công đoạn từ Excel</h5>
+        <h5 class="modal-title fw-bold" id="ieImportModalLabel">Nhập {{ io.label|lower }} từ Excel</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
       </div>
       <div class="modal-body">
         <div class="jp-ie-import-steps">
           <span class="jp-ie-import-step">1. Tải mẫu</span>
-          <span class="jp-ie-import-step">2. Điền sheet 02</span>
+          <span class="jp-ie-import-step">2. {{ io.step_fill }}</span>
           <span class="jp-ie-import-step is-active">3. Chọn file &amp; Import</span>
         </div>
 
         <div class="jp-ie-import-tips">
-          <div class="fw-semibold mb-1"><i class="bi bi-lightbulb me-1"></i>Làm theo 5 bước</div>
+          <div class="fw-semibold mb-1"><i class="bi bi-lightbulb me-1"></i>Làm theo các bước</div>
           <ol>
-            <li><strong>Tải file mẫu</strong> (có sheet hướng dẫn + 2 dòng ví dụ).</li>
+            <li><strong>Tải file mẫu</strong> (1 sheet hướng dẫn + 1 sheet dữ liệu + dòng ví dụ).</li>
             <li>Mở Excel → đọc sheet <code>00_HUONG_DAN</code>.</li>
-            <li>Điền sheet <code>02_THU_VIEN_CONG_DOAN</code> — <strong>xóa dòng ví dụ</strong> trước khi lưu.</li>
+            <li>Điền sheet <code>{{ io.sheet }}</code> — <strong>xóa dòng ví dụ</strong> trước khi lưu.</li>
+            {% if io.kind == 'library' %}
             <li><strong>Định mức thời gian = giây</strong> (vd 36 giây → SMV 0,6 phút trên Portal).</li>
+            {% elif io.kind == 'routing' %}
+            <li><strong>Định mức thời gian trên routing = phút (SMV)</strong> — khác thư viện (giây).</li>
+            {% else %}
+            <li>Mỗi dòng = 1 nhóm; trùng <code>MÃ NHÓM</code> sẽ cập nhật.</li>
+            {% endif %}
             <li>Upload tại đây — lần đầu nên bật <em>Chạy thử</em>.</li>
           </ol>
         </div>
 
         <div class="d-flex flex-wrap gap-2 mb-3">
-          <a href="{% url 'san_xuat:ie_import_template' %}" class="btn btn-outline-hm btn-sm fw-bold">
+          <a href="{% url 'san_xuat:ie_import_template_kind' kind=io.kind %}" class="btn btn-outline-hm btn-sm fw-bold">
             <i class="bi bi-download me-1"></i>Tải file mẫu
           </a>
           {% if can_export %}
-          <a href="{% url 'san_xuat:ie_export' %}" class="btn btn-outline-secondary btn-sm fw-bold">
-            <i class="bi bi-box-arrow-up-right me-1"></i>Xuất thư viện hiện tại
+          <a href="{% url 'san_xuat:ie_export_kind' kind=io.kind %}" class="btn btn-outline-secondary btn-sm fw-bold">
+            <i class="bi bi-box-arrow-up-right me-1"></i>Xuất dữ liệu hiện tại
           </a>
           {% endif %}
         </div>
 
         <div class="mb-2">
-          <div class="small fw-semibold text-muted mb-1">Cột bắt buộc / nên có (sheet 02)</div>
+          <div class="small fw-semibold text-muted mb-1">Cột bắt buộc / nên có (sheet {{ io.sheet }})</div>
           <div class="jp-ie-import-cols">
-            <span class="jp-ie-import-col-badge is-required">MÃ CÔNG ĐOẠN</span>
-            <span class="jp-ie-import-col-badge is-required">TÊN CÔNG ĐOẠN</span>
-            <span class="jp-ie-import-col-badge is-required">PHIÊN BẢN</span>
-            <span class="jp-ie-import-col-badge">MÃ NHÓM</span>
-            <span class="jp-ie-import-col-badge">ĐỊNH MỨC THỜI GIAN (giây)</span>
-            <span class="jp-ie-import-col-badge">TRẠNG THÁI</span>
-            <span class="jp-ie-import-col-badge">KHÂU SẢN XUẤT</span>
-            <span class="jp-ie-import-col-badge">MÃ MÁY MÓC</span>
+            {% for label, required in io.required_badges %}
+            <span class="jp-ie-import-col-badge{% if required %} is-required{% endif %}">{{ label }}</span>
+            {% endfor %}
           </div>
-          <div class="form-text mt-1">Trùng <code>MÃ CÔNG ĐOẠN</code> + <code>PHIÊN BẢN</code> → cập nhật bản ghi cũ.</div>
         </div>
 
         <label class="jp-ie-import-drop d-block mb-3" id="ie-import-drop" for="ie-excel-file">
           <input type="file" class="d-none" id="ie-excel-file" name="excel_file" accept=".xlsx,.xlsm" required>
           <div class="fw-semibold" id="ie-import-drop-title">Kéo thả file hoặc bấm để chọn</div>
-          <div class="small text-muted" id="ie-import-drop-hint">.xlsx / .xlsm — giữ đúng tên sheet 02_THU_VIEN_CONG_DOAN</div>
+          <div class="small text-muted" id="ie-import-drop-hint">{{ io.drop_hint }}</div>
           <div class="jp-ie-import-file-meta fw-semibold text-success mt-2 d-none" id="ie-import-file-meta"></div>
         </label>
 
@@ -213,4 +215,5 @@
   }
 })();
 </script>
+{% endwith %}
 {% endif %}

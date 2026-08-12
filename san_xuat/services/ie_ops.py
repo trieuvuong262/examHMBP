@@ -314,6 +314,11 @@ def create_operation_group(
     name: str,
     process_stage_label: str = '',
     product_part: str = '',
+    description: str = '',
+    data_owner: str = '',
+    effective_from=None,
+    is_active: bool = True,
+    notes: str = '',
 ) -> SxOperationGroup:
     """Tạo nhóm công đoạn tay."""
     code = (code or '').strip().upper()
@@ -329,7 +334,11 @@ def create_operation_group(
         name=name[:150],
         process_stage_label=(process_stage_label or '')[:100],
         product_part=(product_part or '')[:120],
-        notes='Tạo tay (không import Excel)',
+        description=(description or '').strip(),
+        data_owner=(data_owner or '')[:120],
+        effective_from=effective_from,
+        is_active=bool(is_active),
+        notes=(notes or '')[:255],
     )
 
 
@@ -339,6 +348,11 @@ def update_operation_group(
     name: str,
     process_stage_label: str = '',
     product_part: str = '',
+    description: str = '',
+    data_owner: str = '',
+    effective_from=None,
+    is_active: bool = True,
+    notes: str = '',
 ) -> SxOperationGroup:
     name = (name or '').strip()
     if group is None:
@@ -348,7 +362,15 @@ def update_operation_group(
     group.name = name[:150]
     group.process_stage_label = (process_stage_label or '')[:100]
     group.product_part = (product_part or '')[:120]
-    group.save(update_fields=['name', 'process_stage_label', 'product_part', 'updated_at'])
+    group.description = (description or '').strip()
+    group.data_owner = (data_owner or '')[:120]
+    group.effective_from = effective_from
+    group.is_active = bool(is_active)
+    group.notes = (notes or '')[:255]
+    group.save(update_fields=[
+        'name', 'process_stage_label', 'product_part', 'description',
+        'data_owner', 'effective_from', 'is_active', 'notes', 'updated_at',
+    ])
     return group
 
 
@@ -498,6 +520,12 @@ def update_operation(
     notes: str | None = None,
     work_instruction_url: str | None = None,
     video_url: str | None = None,
+    thread_needle: str | None = None,
+    attachment_code: str | None = None,
+    effective_from=None,
+    effective_to=None,
+    clear_effective_from: bool = False,
+    clear_effective_to: bool = False,
 ) -> SxOperation:
     """Cập nhật công đoạn chuẩn trên UI. Đổi SMV khi đã duyệt → về nháp."""
     if operation is None:
@@ -597,6 +625,24 @@ def update_operation(
     _set('notes', None if notes is None else notes.strip()[:255])
     _set('work_instruction_url', None if work_instruction_url is None else work_instruction_url.strip()[:500])
     _set('video_url', None if video_url is None else video_url.strip()[:500])
+    _set('thread_needle', None if thread_needle is None else thread_needle.strip()[:120])
+    _set('attachment_code', None if attachment_code is None else attachment_code.strip()[:120])
+    if clear_effective_from or effective_from is not None:
+        new_from = None if clear_effective_from else effective_from
+        if operation.effective_from != new_from:
+            changes['effective_from'] = {
+                'from': str(operation.effective_from or ''),
+                'to': str(new_from or ''),
+            }
+            operation.effective_from = new_from
+    if clear_effective_to or effective_to is not None:
+        new_to = None if clear_effective_to else effective_to
+        if operation.effective_to != new_to:
+            changes['effective_to'] = {
+                'from': str(operation.effective_to or ''),
+                'to': str(new_to or ''),
+            }
+            operation.effective_to = new_to
 
     if status is not None:
         allowed = {c[0] for c in SxOperation.STATUS_CHOICES}
@@ -983,6 +1029,9 @@ def upsert_routing_line(
     library_unit_smv: Decimal | None = None,
     machine_code: str = '',
     work_center_code: str = '',
+    skill_level_label: str = '',
+    price_factor: Decimal | None = None,
+    total_unit_price: Decimal | None = None,
     variance_explanation: str = '',
     notes: str = '',
 ) -> SxRoutingLine:
@@ -1059,6 +1108,12 @@ def upsert_routing_line(
     line.qty_per_garment = qty
     line.library_unit_smv = library or Decimal('0')
     line.applied_unit_smv = applied
+    line.price_factor = price_factor if price_factor is not None else (line.price_factor or Decimal('0'))
+    line.total_unit_price = (
+        total_unit_price if total_unit_price is not None else (line.total_unit_price or Decimal('0'))
+    )
+    if skill_level_label is not None:
+        line.skill_level_label = (skill_level_label or '')[:60]
     line.machine = machine
     line.machine_code = (machine_code or (machine.code if machine else ''))[:40]
     line.work_center = wc

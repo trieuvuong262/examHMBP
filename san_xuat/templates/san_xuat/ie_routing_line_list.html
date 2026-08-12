@@ -2,11 +2,11 @@
 {% load sx_format %}
 
 {% block content %}
-<div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
+<div class="container-fluid jp-page jp-sx-page py-3 py-md-4 mb-5 px-3 px-lg-4">
   <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
     <div>
       <h2 class="mb-0">Dòng routing</h2>
-      <div class="text-muted small">{{ total }} dòng công đoạn theo mã hàng.</div>
+      <div class="text-muted small">{{ total }} dòng — chi tiết theo sheet 03_ROUTING_MA_HANG.</div>
     </div>
     <div class="d-flex flex-wrap gap-2">
       {% if can_update %}
@@ -27,30 +27,63 @@
 
   <div class="card border-0 shadow-sm overflow-hidden">
     <div class="table-responsive">
-      <table class="table table-hover table-sm align-middle mb-0">
-        <thead class="table-light">
+      <table class="table table-hover table-sm align-middle mb-0 jp-ie-routing-table">
+        <thead>
           <tr>
-            <th>Mã hàng</th><th class="text-end">#</th><th>Mã CĐ</th><th>Công đoạn</th>
-            <th>Bộ phận</th>
-            <th class="text-end">SMV áp dụng</th><th class="text-end">Tổng SMV</th>
-            <th>Máy</th><th></th>
+            <th class="jp-ie-col-core">Mã đơn hàng</th>
+            <th class="jp-ie-col-core">Mã hàng SP</th>
+            <th class="jp-ie-col-core">Tên mã hàng</th>
+            <th class="jp-ie-col-core">Nhóm SP</th>
+            <th class="jp-ie-col-core">Mã nhóm</th>
+            <th class="jp-ie-col-core">Mã CĐ</th>
+            <th class="jp-ie-col-core">Phiên bản</th>
+            <th class="jp-ie-col-core">Tên công đoạn</th>
+            <th class="jp-ie-col-core text-end">SL</th>
+            <th class="jp-ie-col-core">Bậc</th>
+            <th class="jp-ie-col-core text-end">ĐM TG</th>
+            <th class="jp-ie-col-core text-end">ĐM PB</th>
+            <th class="jp-ie-col-core text-end">Tổng ĐM</th>
+            <th class="jp-ie-col-core text-end">ĐM SP/H</th>
+            <th class="jp-ie-col-core text-end">% lệch</th>
+            <th class="jp-ie-col-core text-end">Hệ số ĐG</th>
+            <th class="jp-ie-col-core text-end">Tổng ĐG</th>
+            <th class="jp-ie-col-meta">Áp dụng</th>
+            <th class="jp-ie-col-meta">Máy</th>
+            <th class="jp-ie-col-meta">WC</th>
+            <th class="jp-ie-col-meta">Người lập</th>
+            <th class="jp-ie-col-meta">Notes</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
         {% for l in items %}
           <tr>
-            <td class="fw-semibold">{{ l.routing.style_code }}<div class="text-muted small">{{ l.routing.routing_rev }}</div></td>
-            <td class="text-end text-muted">{{ l.seq_no }}</td>
+            <td class="small fw-semibold">{{ l.routing.routing_id }}</td>
+            <td class="fw-semibold">{{ l.routing.style_code }}</td>
+            <td class="small">{{ l.routing.style_name|default:"—"|truncatechars:28 }}</td>
+            <td class="small">{{ l.routing.product_family|default:"—"|truncatechars:20 }}</td>
+            <td class="small">{{ l.group_code|default:"—" }}</td>
             <td>{{ l.op_code }}</td>
-            <td>{{ l.op_name_vi|default:"—" }}</td>
+            <td><span class="badge bg-light text-dark">{{ l.op_rev }}</span></td>
+            <td>{{ l.op_name_vi|default:"—"|truncatechars:36 }}</td>
+            <td class="text-end">{{ l.qty_per_garment|sx_num }}</td>
+            <td class="small">{{ l.skill_level_label|default:"—" }}</td>
+            <td class="text-end">{{ l.applied_unit_smv|sx_num }}</td>
+            <td class="text-end">{{ l.library_unit_smv|sx_num }}</td>
+            <td class="text-end fw-semibold">{{ l.total_operation_smv|sx_num }}</td>
+            <td class="text-end">{{ l.std_capacity_pcs_hour|sx_num }}</td>
+            <td class="text-end {% if l.smv_variance_pct > 15 or l.smv_variance_pct < -15 %}text-danger{% endif %}">{{ l.smv_variance_pct|sx_num:1 }}</td>
+            <td class="text-end">{{ l.price_factor|sx_num }}</td>
+            <td class="text-end">{{ l.total_unit_price|sx_num }}</td>
+            <td>{% if l.routing.is_active %}<span class="badge bg-success-subtle text-success">Có</span>{% else %}<span class="badge bg-light text-muted">Không</span>{% endif %}</td>
+            <td class="small">{{ l.machine_code|default:"—" }}</td>
             <td class="small">
               {% if l.work_center %}{{ l.work_center.name }}
               {% elif l.work_center_code %}{{ l.work_center_code }}
               {% else %}—{% endif %}
             </td>
-            <td class="text-end">{{ l.applied_unit_smv|sx_num }}</td>
-            <td class="text-end fw-semibold">{{ l.total_operation_smv|sx_num }}</td>
-            <td class="small">{{ l.machine_code|default:"—" }}</td>
+            <td class="small">{{ l.routing.ie_owner|default:"—" }}</td>
+            <td class="small" title="{{ l.notes }}">{{ l.notes|default:"—"|truncatechars:24 }}</td>
             <td class="text-nowrap text-end">
               <a href="{% url 'san_xuat:ie_routing_detail' l.routing_id %}" class="btn btn-sm btn-outline-hm">Routing</a>
               {% if can_update and l.routing_id not in locked_routing_ids %}
@@ -66,12 +99,21 @@
             </td>
           </tr>
         {% empty %}
-          <tr><td colspan="9" class="text-muted small p-3 text-center">Không có dòng phù hợp.</td></tr>
+          <tr><td colspan="23" class="text-muted small p-3 text-center">Không có dòng phù hợp.</td></tr>
         {% endfor %}
         </tbody>
       </table>
     </div>
   </div>
+
+  <style>
+  .jp-ie-routing-table thead th {
+    font-size: 0.65rem; text-transform: uppercase; letter-spacing: .02em;
+    white-space: nowrap; vertical-align: middle; border-bottom-width: 0;
+  }
+  .jp-ie-routing-table thead th.jp-ie-col-core { background: #2f7d32; color: #fff; }
+  .jp-ie-routing-table thead th.jp-ie-col-meta { background: #1e3a5f; color: #fff; }
+  </style>
 
   {% include 'san_xuat/includes/ie_pagination.html' %}
 </div>

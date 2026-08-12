@@ -60,13 +60,26 @@ from san_xuat.services.ie_ops import (
     upsert_routing_line,
 )
 from san_xuat.services.operation_master import (
+    KIND_GROUPS,
+    KIND_LIBRARY,
+    KIND_ROUTING,
     OperationMasterImportError,
-    export_operation_library_template_response,
+    export_ie_dataset_response,
     export_operation_master_response,
-    import_operation_master,
+    ie_dataset_meta,
+    import_ie_dataset,
+    normalize_ie_kind,
 )
 
 IE_MENU_KEY = 'ie'
+
+
+def _ie_io_context(kind: str) -> dict:
+    meta = ie_dataset_meta(kind)
+    return {
+        'ie_kind': meta['kind'],
+        'ie_io': meta,
+    }
 
 
 def _perm_ctx(request):
@@ -141,8 +154,8 @@ def _dec(raw, default='0'):
         return Decimal(default)
 
 
-def _handle_ie_import(request, *, redirect_to):
-    """Xử lý POST action=import — dùng chung hub / thư viện công đoạn."""
+def _handle_ie_import(request, *, redirect_to, kind: str = KIND_LIBRARY):
+    """Xử lý POST action=import — theo từng loại (nhóm / thư viện / routing)."""
     perms = _perm_ctx(request)
     if not (perms['can_create'] or perms['can_update']):
         messages.error(request, 'Bạn không có quyền import dữ liệu.')
@@ -155,8 +168,11 @@ def _handle_ie_import(request, *, redirect_to):
         messages.error(request, 'File phải là định dạng .xlsx.')
         return redirect(redirect_to)
     dry_run = request.POST.get('dry_run') == '1'
+    post_kind = (request.POST.get('ie_kind') or kind or '').strip()
     try:
-        result = import_operation_master(upload, dry_run=dry_run, user=request.user)
+        kind = normalize_ie_kind(post_kind)
+        result = import_ie_dataset(upload, kind, dry_run=dry_run, user=request.user)
+        label = ie_dataset_meta(kind)['label']
     except OperationMasterImportError as exc:
         messages.error(request, f'Lỗi import: {exc}')
         return redirect(redirect_to)
@@ -165,7 +181,8 @@ def _handle_ie_import(request, *, redirect_to):
     summary = ', '.join(f'{k}: {v}' for k, v in sorted(result.created.items())) or 'không có bản ghi mới'
     messages.success(
         request,
-        f'{prefix}Import xong. Tạo mới {result.total_created}, cập nhật {result.total_updated}. Chi tiết: {summary}.',
+        f'{prefix}Import {label} xong. Tạo mới {result.total_created}, '
+        f'cập nhật {result.total_updated}. Chi tiết: {summary}.',
     )
     for w in result.warnings[:15]:
         messages.warning(request, w)
@@ -177,11 +194,6 @@ def _handle_ie_import(request, *, redirect_to):
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def ie_hub(request):
     perms = _perm_ctx(request)
-
-    if request.method == 'POST':
-        action = request.POST.get('action')
-        if action == 'import':
-            return _handle_ie_import(request, redirect_to='san_xuat:ie_hub')
 
     stats = {
         'machines': production_machine_count(),
@@ -210,23 +222,35 @@ def ie_hub(request):
 
 @module_perm_required(MODULE_SAN_XUAT, 'export')
 @require_GET
-def ie_export(request):
+def ie_export(request, kind=None):
     denied = _require_ie_menu(request)
     if denied:
         return denied
     if not user_can_export_menu(request.user, MODULE_SAN_XUAT, IE_MENU_KEY):
         return handle_menu_access_denied(request, MODULE_SAN_XUAT, IE_MENU_KEY)
-    return export_operation_master_response(user=request.user)
+    raw = (kind or request.GET.get('kind') or '').strip().lower()
+    if raw in ('', 'master', 'all', 'full'):
+        return export_operation_master_response(user=request.user)
+    try:
+        return export_ie_dataset_response(raw, template=False, user=request.user)
+    except OperationMasterImportError as exc:
+        messages.error(request, str(exc))
+        return redirect('san_xuat:ie_hub')
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 @require_GET
-def ie_import_template(request):
-    """File mẫu Excel + hướng dẫn cho người mới import thư viện công đoạn."""
+def ie_import_template(request, kind=None):
+    """File mẫu Excel (1 sheet hướng dẫn + 1 sheet dữ liệu) theo loại."""
     denied = _require_ie_menu(request)
     if denied:
         return denied
-    return export_operation_library_template_response()
+    raw = (kind or request.GET.get('kind') or KIND_LIBRARY).strip()
+    try:
+        return export_ie_dataset_response(raw, template=True)
+    except OperationMasterImportError as exc:
+        messages.error(request, str(exc))
+        return redirect('san_xuat:ie_hub')
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
@@ -235,6 +259,8 @@ def group_list(request):
     if request.method == 'POST':
         action = (request.POST.get('action') or '').strip()
         back = request.get_full_path() if request.GET else reverse('san_xuat:ie_group_list')
+        if action == 'import':
+            return _handle_ie_import(request, redirect_to=back, kind=KIND_GROUPS)
         if not (perms['can_create'] or perms['can_update']):
             messages.error(request, 'Bạn không có quyền sửa nhóm công đoạn.')
             return redirect(back)
@@ -242,11 +268,25 @@ def group_list(request):
         group = SxOperationGroup.objects.filter(pk=int(pk)).first() if pk.isdigit() else None
         try:
             if action == 'create_group':
+                from datetime import date as _date_cls
+
+                eff_raw = (request.POST.get('effective_from') or '').strip()
+                effective_from = None
+                if eff_raw:
+                    try:
+                        effective_from = _date_cls.fromisoformat(eff_raw)
+                    except ValueError as exc:
+                        raise IeOpsError('Ngày hiệu lực không hợp lệ (YYYY-MM-DD).') from exc
                 group = create_operation_group(
                     code=(request.POST.get('group_code') or '').strip(),
                     name=(request.POST.get('group_name') or '').strip(),
                     process_stage_label=(request.POST.get('process_stage_label') or '').strip(),
                     product_part=(request.POST.get('product_part') or '').strip(),
+                    description=(request.POST.get('description') or '').strip(),
+                    data_owner=(request.POST.get('data_owner') or '').strip(),
+                    effective_from=effective_from,
+                    is_active=request.POST.get('is_active') == '1',
+                    notes=(request.POST.get('notes') or '').strip(),
                 )
                 messages.success(request, f'Đã tạo nhóm {group.code}.')
             elif action == 'update_group':
@@ -254,11 +294,25 @@ def group_list(request):
                     raise IeOpsError('Bạn không có quyền sửa nhóm.')
                 if not group:
                     raise IeOpsError('Thiếu nhóm công đoạn.')
+                from datetime import date as _date_cls
+
+                eff_raw = (request.POST.get('effective_from') or '').strip()
+                effective_from = None
+                if eff_raw:
+                    try:
+                        effective_from = _date_cls.fromisoformat(eff_raw)
+                    except ValueError as exc:
+                        raise IeOpsError('Ngày hiệu lực không hợp lệ (YYYY-MM-DD).') from exc
                 update_operation_group(
                     group=group,
                     name=(request.POST.get('group_name') or '').strip(),
                     process_stage_label=(request.POST.get('process_stage_label') or '').strip(),
                     product_part=(request.POST.get('product_part') or '').strip(),
+                    description=(request.POST.get('description') or '').strip(),
+                    data_owner=(request.POST.get('data_owner') or '').strip(),
+                    effective_from=effective_from,
+                    is_active=request.POST.get('is_active') == '1',
+                    notes=(request.POST.get('notes') or '').strip(),
                 )
                 messages.success(request, f'Đã lưu nhóm {group.code}.')
             elif action == 'delete_group':
@@ -278,8 +332,12 @@ def group_list(request):
     qs = (
         SxOperationGroup.objects.select_related('default_work_center')
         .annotate(n_ops=Count('operations'))
-        .filter(is_active=True)
     )
+    active_filter = (request.GET.get('active') or '').strip()
+    if active_filter == '1':
+        qs = qs.filter(is_active=True)
+    elif active_filter == '0':
+        qs = qs.filter(is_active=False)
     term = (request.GET.get('q') or '').strip()
     if term:
         qs = qs.filter(
@@ -287,6 +345,9 @@ def group_list(request):
             | Q(name__icontains=term)
             | Q(process_stage_label__icontains=term)
             | Q(product_part__icontains=term)
+            | Q(description__icontains=term)
+            | Q(data_owner__icontains=term)
+            | Q(notes__icontains=term)
             | Q(default_work_center__name__icontains=term)
             | Q(default_work_center_code__icontains=term)
         )
@@ -294,10 +355,12 @@ def group_list(request):
     page_obj, query_string = paginate_queryset(request, qs)
     return render(request, 'san_xuat/ie_group_list.html', {
         **perms,
+        **_ie_io_context(KIND_GROUPS),
         'page_obj': page_obj,
         'items': page_obj.object_list,
         'query_string': query_string,
         'term': term,
+        'active_filter': active_filter,
         'total': qs.count(),
     })
 
@@ -373,7 +436,7 @@ def operation_list(request):
         action = (request.POST.get('action') or '').strip()
         back = request.get_full_path() if request.GET else reverse('san_xuat:ie_operation_list')
         if action == 'import':
-            return _handle_ie_import(request, redirect_to=back)
+            return _handle_ie_import(request, redirect_to=back, kind=KIND_LIBRARY)
         pk = request.POST.get('pk')
         op = SxOperation.objects.filter(pk=int(pk)).first() if pk and str(pk).isdigit() else None
         try:
@@ -417,7 +480,9 @@ def operation_list(request):
             messages.error(request, str(exc))
         return redirect(back)
 
-    qs = SxOperation.objects.select_related('group', 'machine', 'skill_level').all()
+    qs = SxOperation.objects.select_related(
+        'group', 'machine', 'skill_level', 'stitch_class', 'smv_source',
+    ).all()
 
     term = (request.GET.get('q') or '').strip()
     if term:
@@ -441,6 +506,7 @@ def operation_list(request):
     page_obj, query_string = paginate_queryset(request, qs)
     return render(request, 'san_xuat/ie_operation_list.html', {
         **perms,
+        **_ie_io_context(KIND_LIBRARY),
         'page_obj': page_obj,
         'items': page_obj.object_list,
         'query_string': query_string,
@@ -480,6 +546,19 @@ def operation_detail(request, pk: int):
                 smv_raw = (request.POST.get('base_smv_min') or '').strip()
                 smv = _dec(smv_raw) if smv_raw != '' else None
                 status = (request.POST.get('status') or '').strip() or None
+                from datetime import date as _date_cls
+
+                def _parse_date(raw: str):
+                    raw = (raw or '').strip()
+                    if not raw:
+                        return None, True  # clear
+                    try:
+                        return _date_cls.fromisoformat(raw), False
+                    except ValueError as exc:
+                        raise IeOpsError('Ngày không hợp lệ (YYYY-MM-DD).') from exc
+
+                eff_from, clear_from = _parse_date(request.POST.get('effective_from'))
+                eff_to, clear_to = _parse_date(request.POST.get('effective_to'))
                 update_operation(
                     operation=op,
                     user=request.user,
@@ -502,6 +581,12 @@ def operation_detail(request, pk: int):
                     notes=request.POST.get('notes'),
                     work_instruction_url=request.POST.get('work_instruction_url'),
                     video_url=request.POST.get('video_url'),
+                    thread_needle=request.POST.get('thread_needle'),
+                    attachment_code=request.POST.get('attachment_code'),
+                    effective_from=eff_from,
+                    effective_to=eff_to,
+                    clear_effective_from=clear_from,
+                    clear_effective_to=clear_to,
                 )
                 messages.success(request, f'Đã lưu {op.op_code}/{op.op_rev}.')
             elif action == 'delete_operation':
@@ -567,9 +652,11 @@ def routing_list(request):
     perms = _perm_ctx(request)
     if request.method == 'POST':
         action = (request.POST.get('action') or '').strip()
+        back = request.get_full_path() if request.GET else reverse('san_xuat:ie_routing_list')
+        if action == 'import':
+            return _handle_ie_import(request, redirect_to=back, kind=KIND_ROUTING)
         if action == 'create_routing':
             return _create_routing_from_post(request, fail_redirect='san_xuat:ie_routing_list')
-        back = request.get_full_path() if request.GET else reverse('san_xuat:ie_routing_list')
         pk = (request.POST.get('pk') or '').strip()
         routing = SxRouting.objects.filter(pk=int(pk)).first() if pk.isdigit() else None
         try:
@@ -613,6 +700,7 @@ def routing_list(request):
     )
     return render(request, 'san_xuat/ie_routing_list.html', {
         **perms,
+        **_ie_io_context(KIND_ROUTING),
         'page_obj': page_obj,
         'items': page_obj.object_list,
         'query_string': query_string,
@@ -677,6 +765,9 @@ def routing_detail(request, pk: int):
                     else None,
                     machine_code=(request.POST.get('machine_code') or '').strip(),
                     work_center_code=(request.POST.get('work_center_code') or '').strip(),
+                    skill_level_label=(request.POST.get('skill_level_label') or '').strip(),
+                    price_factor=_dec(request.POST.get('price_factor'), '0'),
+                    total_unit_price=_dec(request.POST.get('total_unit_price'), '0'),
                     variance_explanation=(request.POST.get('variance_explanation') or '').strip(),
                     notes=(request.POST.get('notes') or '').strip(),
                 )

@@ -108,8 +108,8 @@ class SxOperationGroup(models.Model):
         verbose_name='Khâu sản xuất',
     )
     process_stage_label = models.CharField(max_length=100, blank=True, default='', verbose_name='Khâu SX (nhãn)')
-    product_part = models.CharField(max_length=120, blank=True, default='', verbose_name='Cụm chi tiết')
-    description = models.TextField(blank=True, default='', verbose_name='Mô tả')
+    product_part = models.CharField(max_length=120, blank=True, default='', verbose_name='Sản phẩm cần')
+    description = models.TextField(blank=True, default='', verbose_name='Mô tả chi tiết')
     default_work_center = models.ForeignKey(
         'san_xuat.SxWorkCenter',
         on_delete=models.SET_NULL,
@@ -119,7 +119,7 @@ class SxOperationGroup(models.Model):
         verbose_name='Bộ phận mặc định',
     )
     default_work_center_code = models.CharField(max_length=40, blank=True, default='', verbose_name='Bộ phận mặc định (mã)')
-    data_owner = models.CharField(max_length=120, blank=True, default='', verbose_name='Bộ phận quản lý')
+    data_owner = models.CharField(max_length=120, blank=True, default='', verbose_name='Người lập')
     effective_from = models.DateField(null=True, blank=True, verbose_name='Ngày hiệu lực')
     sort_order = models.PositiveSmallIntegerField(default=100, db_index=True, verbose_name='Thứ tự')
     is_active = models.BooleanField(default=True, db_index=True, verbose_name='Đang dùng')
@@ -219,7 +219,7 @@ class SxOperation(models.Model):
 
     effective_from = models.DateField(null=True, blank=True, verbose_name='Ngày hiệu lực')
     effective_to = models.DateField(null=True, blank=True, verbose_name='Ngày hết hiệu lực')
-    ie_owner = models.CharField(max_length=120, blank=True, default='', verbose_name='Người quản lý')
+    ie_owner = models.CharField(max_length=120, blank=True, default='', verbose_name='Người lập')
     approved_by = models.CharField(max_length=120, blank=True, default='', verbose_name='Người duyệt')
     approved_at = models.DateTimeField(null=True, blank=True, verbose_name='Ngày duyệt')
     revision_reason = models.CharField(max_length=255, blank=True, default='', verbose_name='Lý do phiên bản')
@@ -387,6 +387,18 @@ class SxRoutingLine(models.Model):
         default=Decimal('0'),
         verbose_name='Chênh lệch SMV (%)',
     )
+    price_factor = models.DecimalField(
+        max_digits=12,
+        decimal_places=4,
+        default=Decimal('0'),
+        verbose_name='Hệ số đơn giá',
+    )
+    total_unit_price = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal('0'),
+        verbose_name='Tổng đơn giá',
+    )
 
     machine = models.ForeignKey(
         SxMachine,
@@ -445,6 +457,14 @@ class SxRoutingLine(models.Model):
             self.smv_variance_pct = _q(diff, '0.01')
         else:
             self.smv_variance_pct = Decimal('0')
+
+    @property
+    def std_capacity_pcs_hour(self) -> Decimal:
+        """Định mức SP/H từ SMV áp dụng (phút)."""
+        smv = self.applied_unit_smv or Decimal('0')
+        if not smv:
+            return Decimal('0')
+        return _q(Decimal('60') / smv, '0.01')
 
     def save(self, *args, **kwargs):
         self.recompute()

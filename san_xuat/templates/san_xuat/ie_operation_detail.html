@@ -60,6 +60,7 @@
         <div class="col-md-4">
           <label class="form-label small mb-1">SMV thư viện (phút)</label>
           <input type="number" name="base_smv_min" class="form-control form-control-sm" step="0.0001" min="0" value="{{ op.base_smv_min|sx_num_input }}" {% if not can_update %}readonly{% endif %}>
+          <div class="form-text">Excel «ĐỊNH MỨC THỜI GIAN» = giây (= phút × 60). SP/H ≈ {{ op.std_capacity_pcs_hour|sx_num }}.</div>
         </div>
         <div class="col-md-4">
           <label class="form-label small mb-1">Trạng thái</label>
@@ -130,6 +131,41 @@
         </div>
 
         <div class="col-md-4">
+          <label class="form-label small mb-1">Quy định kim/chỉ</label>
+          <input type="text" name="thread_needle" class="form-control form-control-sm" maxlength="120"
+                 value="{{ op.thread_needle }}" {% if not can_update %}readonly{% endif %}>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label small mb-1">Mã cữ/gá/chân vịt</label>
+          <input type="text" name="attachment_code" class="form-control form-control-sm" maxlength="120"
+                 value="{{ op.attachment_code }}" {% if not can_update %}readonly{% endif %}>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label small mb-1">Người duyệt</label>
+          <input type="text" class="form-control form-control-sm" value="{{ op.approved_by|default:'—' }}" readonly>
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label small mb-1">Ngày hiệu lực</label>
+          <input type="date" name="effective_from" class="form-control form-control-sm"
+                 value="{% if op.effective_from %}{{ op.effective_from|date:'Y-m-d' }}{% endif %}" {% if not can_update %}readonly{% endif %}>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label small mb-1">Ngày hết hiệu lực</label>
+          <input type="date" name="effective_to" class="form-control form-control-sm"
+                 value="{% if op.effective_to %}{{ op.effective_to|date:'Y-m-d' }}{% endif %}" {% if not can_update %}readonly{% endif %}>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label small mb-1">Người lập</label>
+          <select name="ie_owner" class="form-select form-select-sm" {% if not can_update %}disabled{% endif %}>
+            <option value="">— Không chọn —</option>
+            {% for o in ie_owners %}
+            <option value="{{ o }}" {% if o == op.ie_owner %}selected{% endif %}>{{ o }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-md-4">
           <label class="form-label small mb-1">Đơn vị SMV</label>
           <select name="smv_basis" class="form-select form-select-sm ie-ts" {% if not can_update %}disabled{% endif %}>
             <option value="">— Chọn đơn vị —</option>
@@ -138,17 +174,8 @@
             {% endfor %}
           </select>
         </div>
-        <div class="col-md-4">
-          <label class="form-label small mb-1">IE owner</label>
-          <select name="ie_owner" class="form-select form-select-sm" {% if not can_update %}disabled{% endif %}>
-            <option value="">— Không chọn —</option>
-            {% for o in ie_owners %}
-            <option value="{{ o }}" {% if o == op.ie_owner %}selected{% endif %}>{{ o }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="col-md-4">
-          <label class="form-label small mb-1">Lý do phiên bản</label>
+        <div class="col-md-8">
+          <label class="form-label small mb-1">Lý do chỉnh sửa phiên bản</label>
           <input type="text" name="revision_reason" class="form-control form-control-sm" value="{{ op.revision_reason }}" {% if not can_update %}readonly{% endif %}>
         </div>
 

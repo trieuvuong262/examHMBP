@@ -10,13 +10,19 @@
       <div class="text-muted small">Bộ phận chịu trách nhiệm lấy từ HR phòng Sản xuất (Năng lực SX · Đồng bộ HR).</div>
     </div>
     <div class="d-flex flex-wrap gap-2">
-      {% if can_create or can_update %}
-      <button type="button" class="btn btn-sm btn-hm" data-bs-toggle="modal" data-bs-target="#ieImportModal">
-        <i class="bi bi-upload me-1"></i>Import
-      </button>
-      {% endif %}
       {% if can_export %}
-      <a href="{% url 'san_xuat:ie_export' %}" class="btn btn-sm btn-outline-hm"><i class="bi bi-download me-1"></i>Xuất Excel</a>
+      <div class="btn-group">
+        <button type="button" class="btn btn-sm btn-outline-hm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+          <i class="bi bi-download me-1"></i>Xuất Excel
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end">
+          <li><a class="dropdown-item" href="{% url 'san_xuat:ie_export_kind' kind='groups' %}">Nhóm công đoạn</a></li>
+          <li><a class="dropdown-item" href="{% url 'san_xuat:ie_export_kind' kind='library' %}">Thư viện công đoạn</a></li>
+          <li><a class="dropdown-item" href="{% url 'san_xuat:ie_export_kind' kind='routing' %}">Routing mã hàng</a></li>
+          <li><hr class="dropdown-divider"></li>
+          <li><a class="dropdown-item" href="{% url 'san_xuat:ie_export' %}">Master đầy đủ (tất cả sheet)</a></li>
+        </ul>
+      </div>
       {% endif %}
       <a href="{% url 'san_xuat:ie_routing_list' %}" class="btn btn-sm btn-outline-hm"><i class="bi bi-diagram-3 me-1"></i>Routing</a>
     </div>
@@ -96,8 +102,4 @@
   </div>
 
 </div>
-
-{% if can_create or can_update %}
-{% include 'san_xuat/includes/ie_import_modal.html' %}
-{% endif %}
 {% endblock %}

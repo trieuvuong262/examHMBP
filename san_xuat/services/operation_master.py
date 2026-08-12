@@ -1,14 +1,15 @@
 """Import Master Data Mã Công Đoạn Sản Xuất từ file Excel.
 
-Thứ tự import theo sheet 00_HUONG_DAN:
-  05_DM_THAM_CHIEU  → danh mục nền (máy, WC, khâu SX, bậc, nguồn SMV, mũi may)
-  01_DM_NHOM_CONG_DOAN → nhóm công đoạn
-  02_THU_VIEN_CONG_DOAN → thư viện công đoạn chuẩn
-  03_ROUTING_MA_HANG → routing mã hàng
-  04_DU_LIEU_TIME_STUDY → dữ liệu bấm giờ
+UI tách 3 file độc lập (mỗi file = 00_HUONG_DAN + 1 sheet dữ liệu):
+  groups  → 01_DM_NHOM_CONG_DOAN
+  library → 02_THU_VIEN_CONG_DOAN
+  routing → 03_ROUTING_MA_HANG
 
-Idempotent: dùng update_or_create theo khóa tự nhiên nên chạy lại sẽ cập nhật.
-Áp dụng quy tắc kiểm soát (SMV > 0, chênh lệch > 15%…) dạng cảnh báo, không chặn.
+CLI / master đầy đủ vẫn hỗ trợ import_operation_master (nhiều sheet):
+  05_DM_THAM_CHIEU → danh mục nền
+  01…04 → nhóm, thư viện, routing, time study
+
+Idempotent: update_or_create theo khóa tự nhiên.
 """
 
 from __future__ import annotations
@@ -35,12 +36,40 @@ from san_xuat.hub_models import SxWorkCenter
 from san_xuat.services.ie_ops import link_time_studies_to_operations, resolve_operation
 
 # Tên sheet
+SHEET_GUIDE = '00_HUONG_DAN'
 SHEET_REF = '05_DM_THAM_CHIEU'
 SHEET_GROUP = '01_DM_NHOM_CONG_DOAN'
 SHEET_LIB = '02_THU_VIEN_CONG_DOAN'
 SHEET_ROUTING = '03_ROUTING_MA_HANG'
 SHEET_TIMESTUDY = '04_DU_LIEU_TIME_STUDY'
 SHEET_DASHBOARD = '07_DASHBOARD'
+
+# Dataset tách riêng (mỗi file = 1 sheet hướng dẫn + 1 sheet dữ liệu)
+KIND_GROUPS = 'groups'
+KIND_LIBRARY = 'library'
+KIND_ROUTING = 'routing'
+IE_DATASET_KINDS = (KIND_GROUPS, KIND_LIBRARY, KIND_ROUTING)
+
+GROUP_HEADERS = [
+    'MÃ NHÓM', 'TÊN NHÓM', 'KHÂU SẢN XUẤT', 'SẢN PHẨM CẦN', 'MÔ TẢ CHI TIẾT',
+    'HIỆU LỰC', 'NGƯỜI LẬP', 'NGÀY HIỆU LỰC', 'NOTES',
+]
+LIB_HEADERS = [
+    'MÃ NHÓM', 'MÃ CÔNG ĐOẠN', 'PHIÊN BẢN', 'TÊN CÔNG ĐOẠN', 'TÊN CÔNG ĐOẠN_EN',
+    'BẬC CÔNG ĐOẠN', 'ĐỊNH MỨC THỜI GIAN', 'ĐỊNH MỨC SP/H', 'KHÂU SẢN XUẤT',
+    'CỤM CHI TIẾT CHÍNH', 'MÔ TẢ PHƯƠNG PHÁP', 'MÃ MÁY MÓC', 'NHÓM MŨI MAY',
+    'QUY ĐỊNH KIM/CHỈ', 'MÃ CỮ/GIÁ/CHÂN VỊT', 'ĐƠN VỊ', 'NGUỒN SMV', 'TRẠNG THÁI',
+    'NGÀY HIỆU LỰC', 'NGÀY HẾT HIỆU LỰC', 'NGƯỜI LẬP', 'NGƯỜI DUYỆT',
+    'LÝ DO CHỈNH SỬA PHIÊN BẢN', 'VIDEO_URL', 'NOTES',
+]
+ROUTING_HEADERS = [
+    'MÃ ĐƠN HÀNG', 'MÃ HÀNG SẢN PHẨM', 'TÊN MÃ HÀNG', 'NHÓM SẢN PHẨM',
+    'MÃ NHÓM', 'MÃ CÔNG ĐOẠN', 'PHIÊN BẢN', 'TÊN CÔNG ĐOẠN', 'SỐ LƯỢNG',
+    'BẬC CÔNG ĐOẠN', 'ĐỊNH MỨC THỜI GIAN', 'ĐỊNH MỨC THEO PHIÊN BẢN',
+    'TỔNG ĐỊNH MỨC', 'ĐỊNH MỨC SP/H', '% CHÊNH LỆCH ĐỊNH MỨC THỜI GIAN',
+    'HỆ SỐ ĐƠN GIÁ', 'TỔNG ĐƠN GIÁ', 'TRẠNG THÁI ÁP DỤNG', 'NGÀY HIỆU LỰC',
+    'MÃ MÁY MÓC', 'WORK_CENTER', 'NGƯỜI LẬP', 'NOTES',
+]
 
 VARIANCE_WARN_PCT = Decimal('15')
 
@@ -247,16 +276,17 @@ def _import_groups(wb, result: ImportResult) -> None:
             continue
         seen.add(code)
         stage_label = _s(rec.get('KHÂU SẢN XUẤT'))
-        wc_code = _s(rec.get('DEFAULT_WORK_CENTER'))
+        wc_code = _s(rec.get('DEFAULT_WORK_CENTER'))  # tùy chọn (file cũ)
         stage = SxProcessStage.objects.filter(name=stage_label).first() if stage_label else None
         wc = resolve_work_center_code(wc_code, name_hint=f'{stage_label} {_s(rec.get("TÊN NHÓM"))}')
+        product_part = _s(rec.get('SẢN PHẨM CẦN')) or _s(rec.get('SẢN PHẨM CÂN'))
         _, created = SxOperationGroup.objects.update_or_create(
             code=code,
             defaults={
                 'name': _s(rec.get('TÊN NHÓM')),
                 'process_stage': stage,
                 'process_stage_label': stage_label,
-                'product_part': _s(rec.get('SẢN PHẨM CẦN')),
+                'product_part': product_part,
                 'description': _s(rec.get('MÔ TẢ CHI TIẾT')),
                 'default_work_center': wc,
                 'default_work_center_code': wc.code if wc else '',
@@ -427,6 +457,8 @@ def _import_routings(wb, result: ImportResult) -> None:
                 qty_per_garment=qty,
                 library_unit_smv=library,
                 applied_unit_smv=applied,
+                price_factor=_dec(rec.get('HỆ SỐ ĐƠN GIÁ')) or Decimal('0'),
+                total_unit_price=_dec(rec.get('TỔNG ĐƠN GIÁ')) or Decimal('0'),
                 machine=SxMachine.objects.filter(code=machine_code).first() if machine_code else None,
                 machine_code=machine_code,
                 work_center=wc,
@@ -553,6 +585,91 @@ def import_operation_master(source, *, dry_run: bool = False, user=None) -> Impo
     return result
 
 
+def normalize_ie_kind(kind: str | None) -> str:
+    raw = (kind or '').strip().lower()
+    aliases = {
+        'group': KIND_GROUPS,
+        'nhom': KIND_GROUPS,
+        'groups': KIND_GROUPS,
+        'lib': KIND_LIBRARY,
+        'ops': KIND_LIBRARY,
+        'operation': KIND_LIBRARY,
+        'operations': KIND_LIBRARY,
+        'thu-vien': KIND_LIBRARY,
+        'library': KIND_LIBRARY,
+        'route': KIND_ROUTING,
+        'routes': KIND_ROUTING,
+        'routing': KIND_ROUTING,
+        'ma-hang': KIND_ROUTING,
+    }
+    resolved = aliases.get(raw, raw)
+    if resolved not in IE_DATASET_KINDS:
+        raise OperationMasterImportError(
+            f'Loại dữ liệu không hợp lệ: {kind!r}. Hợp lệ: {", ".join(IE_DATASET_KINDS)}.'
+        )
+    return resolved
+
+
+def import_ie_dataset(source, kind, *, dry_run: bool = False, user=None) -> ImportResult:
+    """Import một nhóm dữ liệu IE (nhóm / thư viện / routing) từ file Excel tách riêng."""
+    kind = normalize_ie_kind(kind)
+    meta = IE_DATASETS[kind]
+    try:
+        import openpyxl
+    except ImportError as exc:  # pragma: no cover
+        raise OperationMasterImportError('Thiếu thư viện openpyxl.') from exc
+
+    import warnings as _w
+
+    result = ImportResult()
+    try:
+        with _w.catch_warnings():
+            _w.simplefilter('ignore')
+            wb = openpyxl.load_workbook(source, data_only=True, read_only=True)
+    except Exception as exc:
+        raise OperationMasterImportError(f'Không đọc được file Excel: {exc}') from exc
+
+    try:
+        if meta['sheet'] not in wb.sheetnames:
+            raise OperationMasterImportError(
+                f'Thiếu sheet {meta["sheet"]}. File này dành cho «{meta["label"]}» '
+                f'(1 sheet hướng dẫn + 1 sheet dữ liệu).'
+            )
+        with transaction.atomic():
+            if kind == KIND_GROUPS:
+                _import_groups(wb, result)
+            elif kind == KIND_LIBRARY:
+                _import_operations(wb, result)
+            else:
+                _import_routings(wb, result)
+            if dry_run:
+                transaction.set_rollback(True)
+    finally:
+        wb.close()
+
+    if not dry_run:
+        from san_xuat.ie_models import SxIeAuditLog
+        from san_xuat.services.ie_audit import log_ie_event
+
+        log_ie_event(
+            action=SxIeAuditLog.ACTION_IMPORT,
+            summary=(
+                f'Import {meta["label"]} — tạo {result.total_created}, '
+                f'cập nhật {result.total_updated}'
+            ),
+            object_type='OperationMaster',
+            object_repr=f'import_excel:{kind}',
+            changes={
+                'kind': kind,
+                'created': result.created,
+                'updated': result.updated,
+                'warnings': len(result.warnings),
+            },
+            user=user,
+        )
+    return result
+
+
 # --- Export ------------------------------------------------------------------
 
 _STATUS_LABEL = {v: k.title() if k != 'đã duyệt' else 'Đã duyệt' for k, v in _STATUS_MAP.items()}
@@ -574,6 +691,301 @@ def _write_sheet(ws, headers: list[str], rows: list[list]):
     ws.append(headers)
     for row in rows:
         ws.append(row)
+
+
+def _group_export_rows() -> list[list]:
+    return [
+        [
+            g.code, g.name, g.process_stage_label, g.product_part, g.description,
+            'Có' if g.is_active else 'Không', g.data_owner,
+            g.effective_from.isoformat() if g.effective_from else '',
+            g.notes,
+        ]
+        for g in SxOperationGroup.objects.order_by('sort_order', 'code')
+    ]
+
+
+def _library_export_rows() -> list[list]:
+    lib_rows = []
+    for op in SxOperation.objects.select_related('group').order_by('op_code', 'op_rev'):
+        smv = op.base_smv_min or Decimal('0')
+        time_sec = (smv * Decimal('60')).quantize(Decimal('0.01'))
+        pcs_h = (Decimal('60') / smv).quantize(Decimal('0.01')) if smv else Decimal('0')
+        lib_rows.append([
+            op.group.code if op.group_id else '',
+            op.op_code, op.op_rev, op.name_vi, op.name_en,
+            op.skill_level_label, float(time_sec), float(pcs_h),
+            op.process_stage_label, op.product_part, op.method_variant,
+            op.machine_code,
+            op.stitch_class.code if op.stitch_class_id else '',
+            op.thread_needle, op.attachment_code, op.smv_basis,
+            op.smv_source.name if op.smv_source_id else '',
+            _STATUS_LABEL.get(op.status, op.status),
+            op.effective_from.isoformat() if op.effective_from else '',
+            op.effective_to.isoformat() if op.effective_to else '',
+            op.ie_owner, op.approved_by, op.revision_reason,
+            op.video_url, op.notes,
+        ])
+    return lib_rows
+
+
+def _routing_export_rows() -> list[list]:
+    route_rows = []
+    for line in (
+        SxRoutingLine.objects.select_related('routing')
+        .order_by('routing__style_code', 'routing__routing_rev', 'seq_no')
+    ):
+        r = line.routing
+        applied = line.applied_unit_smv or Decimal('0')
+        pcs_h = (Decimal('60') / applied).quantize(Decimal('0.01')) if applied else Decimal('0')
+        route_rows.append([
+            r.routing_id, r.style_code, r.style_name, r.product_family,
+            line.group_code, line.op_code, line.op_rev, line.op_name_vi,
+            float(line.qty_per_garment or 0), line.skill_level_label,
+            float(applied), float(line.library_unit_smv or 0),
+            float(line.total_operation_smv or 0), float(pcs_h),
+            float(line.smv_variance_pct or 0),
+            float(line.price_factor or 0), float(line.total_unit_price or 0),
+            'Có' if r.is_active else 'Không',
+            r.effective_from.isoformat() if r.effective_from else '',
+            line.machine_code, line.work_center_code, r.ie_owner, line.notes,
+        ])
+    return route_rows
+
+
+IE_DATASETS = {
+    KIND_GROUPS: {
+        'kind': KIND_GROUPS,
+        'label': 'Nhóm công đoạn',
+        'sheet': SHEET_GROUP,
+        'headers': GROUP_HEADERS,
+        'filename_export': 'Nhom_Cong_Doan',
+        'filename_template': 'Mau_Import_Nhom_Cong_Doan',
+        'step_fill': f'Điền sheet {SHEET_GROUP}',
+        'drop_hint': f'.xlsx / .xlsm — giữ đúng tên sheet {SHEET_GROUP}',
+        'required_badges': [
+            ('MÃ NHÓM', True),
+            ('TÊN NHÓM', True),
+            ('KHÂU SẢN XUẤT', False),
+            ('SẢN PHẨM CẦN', False),
+            ('MÔ TẢ CHI TIẾT', False),
+            ('HIỆU LỰC', False),
+            ('NGƯỜI LẬP', False),
+            ('NGÀY HIỆU LỰC', False),
+            ('NOTES', False),
+        ],
+        'guide_rows': [
+            ['HƯỚNG DẪN NHẬP NHÓM CÔNG ĐOẠN'],
+            [],
+            ['Bước 1', 'Đọc sheet này — không đổi tên sheet dữ liệu.'],
+            ['Bước 2', f'Điền sheet {SHEET_GROUP}: mỗi dòng = 1 nhóm (Cắt, May, In-Ép…).'],
+            ['Bước 3', 'Xóa dòng ví dụ mẫu, điền dữ liệu thật, lưu .xlsx.'],
+            ['Bước 4', 'Portal → Nhóm công đoạn → Import → nên bật “Chạy thử” lần đầu.'],
+            [],
+            ['Cột bắt buộc', 'MÃ NHÓM · TÊN NHÓM'],
+            ['Cột chi tiết', 'KHÂU SẢN XUẤT · SẢN PHẨM CẦN · MÔ TẢ CHI TIẾT'],
+            ['Cột hiệu lực', 'HIỆU LỰC (Có/Không) · NGƯỜI LẬP · NGÀY HIỆU LỰC · NOTES'],
+            ['Trùng mã', 'Cùng MÃ NHÓM → hệ thống CẬP NHẬT nhóm cũ.'],
+            ['Mẹo', 'Xuất Excel nhóm hiện tại rồi chỉnh — dễ hơn điền từ file trống.'],
+        ],
+        'sample_rows': [
+            [
+                'MAY', 'May', 'May', 'Cổ / thân',
+                'Nhóm ví dụ — đổi hoặc xóa trước khi import thật',
+                'Có', 'IE', '', 'Dòng mẫu',
+            ],
+        ],
+        'row_builder': _group_export_rows,
+    },
+    KIND_LIBRARY: {
+        'kind': KIND_LIBRARY,
+        'label': 'Thư viện công đoạn',
+        'sheet': SHEET_LIB,
+        'headers': LIB_HEADERS,
+        'filename_export': 'Thu_Vien_Cong_Doan',
+        'filename_template': 'Mau_Import_Thu_Vien_Cong_Doan',
+        'step_fill': f'Điền sheet {SHEET_LIB}',
+        'drop_hint': f'.xlsx / .xlsm — giữ đúng tên sheet {SHEET_LIB}',
+        'required_badges': [
+            ('MÃ NHÓM', False),
+            ('MÃ CÔNG ĐOẠN', True),
+            ('PHIÊN BẢN', True),
+            ('TÊN CÔNG ĐOẠN', True),
+            ('TÊN CÔNG ĐOẠN_EN', False),
+            ('BẬC CÔNG ĐOẠN', False),
+            ('ĐỊNH MỨC THỜI GIAN (giây)', False),
+            ('ĐỊNH MỨC SP/H', False),
+            ('KHÂU SẢN XUẤT', False),
+            ('CỤM CHI TIẾT CHÍNH', False),
+            ('MÔ TẢ PHƯƠNG PHÁP', False),
+            ('MÃ MÁY MÓC', False),
+            ('NHÓM MŨI MAY', False),
+            ('QUY ĐỊNH KIM/CHỈ', False),
+            ('MÃ CỮ/GIÁ/CHÂN VỊT', False),
+            ('ĐƠN VỊ', False),
+            ('NGUỒN SMV', False),
+            ('TRẠNG THÁI', False),
+            ('NGÀY HIỆU LỰC', False),
+            ('NGÀY HẾT HIỆU LỰC', False),
+            ('NGƯỜI LẬP', False),
+            ('NGƯỜI DUYỆT', False),
+            ('LÝ DO CHỈNH SỬA PHIÊN BẢN', False),
+            ('VIDEO_URL', False),
+            ('NOTES', False),
+        ],
+        'guide_rows': [
+            ['HƯỚNG DẪN NHẬP THƯ VIỆN CÔNG ĐOẠN'],
+            [],
+            ['Bước 1', 'Đọc sheet này — không đổi tên sheet dữ liệu.'],
+            ['Bước 2', f'Điền sheet {SHEET_LIB}: mỗi dòng = 1 công đoạn chuẩn (mã + phiên bản).'],
+            ['Bước 3', 'Xóa dòng ví dụ mẫu, điền dữ liệu thật, lưu .xlsx.'],
+            ['Bước 4', 'Portal → Thư viện công đoạn → Import → nên bật “Chạy thử” lần đầu.'],
+            [],
+            ['Cột bắt buộc', 'MÃ CÔNG ĐOẠN · TÊN CÔNG ĐOẠN · PHIÊN BẢN (mặc định R01)'],
+            ['Cột chi tiết (xanh)', 'MÃ NHÓM · BẬC · ĐỊNH MỨC THỜI GIAN · SP/H · KHÂU SX · CỤM · MÔ TẢ · MÁY · MŨI · KIM/CHỈ · CỮ/GÁ · ĐƠN VỊ · NGUỒN SMV'],
+            ['Cột hiệu lực (xanh đậm)', 'TRẠNG THÁI · NGÀY HL · NGÀY HẾT HL · NGƯỜI LẬP · NGƯỜI DUYỆT · LÝ DO · VIDEO_URL · NOTES'],
+            [],
+            ['ĐỊNH MỨC THỜI GIAN', 'Đơn vị GIÂY (không phải phút). Ví dụ 36 giây = SMV 0,6 phút.'],
+            ['Trùng mã', 'Cùng MÃ CÔNG ĐOẠN + PHIÊN BẢN → hệ thống CẬP NHẬT bản ghi cũ.'],
+            ['TRẠNG THÁI', 'Nháp | Thử nghiệm | Đã duyệt | Ngưng sử dụng'],
+            ['Nhóm chưa có', 'Nếu MÃ NHÓM chưa tồn tại, hệ thống tự tạo nhóm tạm (có cảnh báo).'],
+            ['Mẹo', 'Xuất Excel thư viện hiện tại rồi chỉnh — dễ hơn điền từ file trống.'],
+        ],
+        'sample_rows': [
+            [
+                'MAY', 'SEW-1001', 'R01', 'May sống cổ áo (ví dụ)', 'Collar join (sample)',
+                '', 36, '', 'May', 'Cổ', '', '', '', '', '', '', '', 'Nháp',
+                '', '', '', '', '', '', 'Dòng mẫu — xóa trước khi import thật',
+            ],
+            [
+                'MAY', 'SEW-1002', 'R01', 'Đóng gấu tay (ví dụ)', 'Sleeve hem (sample)',
+                '', 48, '', 'May', 'Tay', '', '', '', '', '', '', '', 'Nháp',
+                '', '', '', '', '', '', 'Dòng mẫu — xóa trước khi import thật',
+            ],
+        ],
+        'row_builder': _library_export_rows,
+    },
+    KIND_ROUTING: {
+        'kind': KIND_ROUTING,
+        'label': 'Routing mã hàng',
+        'sheet': SHEET_ROUTING,
+        'headers': ROUTING_HEADERS,
+        'filename_export': 'Routing_Ma_Hang',
+        'filename_template': 'Mau_Import_Routing_Ma_Hang',
+        'step_fill': f'Điền sheet {SHEET_ROUTING}',
+        'drop_hint': f'.xlsx / .xlsm — giữ đúng tên sheet {SHEET_ROUTING}',
+        'required_badges': [
+            ('MÃ ĐƠN HÀNG', True),
+            ('MÃ HÀNG SẢN PHẨM', True),
+            ('TÊN MÃ HÀNG', False),
+            ('NHÓM SẢN PHẨM', False),
+            ('MÃ NHÓM', False),
+            ('MÃ CÔNG ĐOẠN', True),
+            ('PHIÊN BẢN', False),
+            ('TÊN CÔNG ĐOẠN', False),
+            ('SỐ LƯỢNG', False),
+            ('BẬC CÔNG ĐOẠN', False),
+            ('ĐỊNH MỨC THỜI GIAN (phút)', False),
+            ('ĐỊNH MỨC THEO PHIÊN BẢN', False),
+            ('TỔNG ĐỊNH MỨC', False),
+            ('ĐỊNH MỨC SP/H', False),
+            ('% CHÊNH LỆCH ĐỊNH MỨC THỜI GIAN', False),
+            ('HỆ SỐ ĐƠN GIÁ', False),
+            ('TỔNG ĐƠN GIÁ', False),
+            ('TRẠNG THÁI ÁP DỤNG', False),
+            ('NGÀY HIỆU LỰC', False),
+            ('MÃ MÁY MÓC', False),
+            ('WORK_CENTER', False),
+            ('NGƯỜI LẬP', False),
+            ('NOTES', False),
+        ],
+        'guide_rows': [
+            ['HƯỚNG DẪN NHẬP ROUTING MÃ HÀNG'],
+            [],
+            ['Bước 1', 'Đọc sheet này — không đổi tên sheet dữ liệu.'],
+            ['Bước 2', f'Điền sheet {SHEET_ROUTING}: mỗi dòng = 1 công đoạn trong quy trình mã hàng.'],
+            ['Bước 3', 'Xóa dòng ví dụ mẫu, điền dữ liệu thật, lưu .xlsx.'],
+            ['Bước 4', 'Portal → Routing mã hàng → Import → nên bật “Chạy thử” lần đầu.'],
+            [],
+            ['Cột bắt buộc', 'MÃ ĐƠN HÀNG · MÃ HÀNG SẢN PHẨM · MÃ CÔNG ĐOẠN'],
+            ['Gom routing', 'Cùng MÃ ĐƠN HÀNG → cùng một routing (các dòng công đoạn).'],
+            ['ĐỊNH MỨC THỜI GIAN', 'SMV áp dụng (phút). ĐỊNH MỨC THEO PHIÊN BẢN = SMV thư viện.'],
+            ['TỔNG ĐỊNH MỨC', 'Hệ thống tự tính = SỐ LƯỢNG × ĐỊNH MỨC THỜI GIAN khi lưu.'],
+            ['ĐỊNH MỨC SP/H', 'Xuất tự tính = 60 / ĐỊNH MỨC THỜI GIAN (phút). Có thể để trống khi import.'],
+            ['% CHÊNH LỆCH', 'Tự tính so với định mức theo phiên bản; >15% cần giải trình trên Portal.'],
+            ['Mẹo', 'Xuất Excel routing hiện tại rồi chỉnh — dễ hơn điền từ file trống.'],
+        ],
+        'sample_rows': [
+            [
+                'STYLE-DEMO-R01', 'STYLE-DEMO', 'Mã hàng ví dụ', 'Áo',
+                'MAY', 'SEW-1001', 'R01', 'May sống cổ áo (ví dụ)', 1,
+                'A', 0.6, 0.6, 0.6, 100, 0,
+                1, 0,
+                'Có', '', '', 'HRD-MAY', 'IE',
+                'Dòng mẫu — xóa trước khi import thật',
+            ],
+        ],
+        'row_builder': _routing_export_rows,
+    },
+}
+
+
+def ie_dataset_meta(kind: str | None) -> dict:
+    return IE_DATASETS[normalize_ie_kind(kind)]
+
+
+def export_ie_dataset_workbook(kind, *, template: bool = False):
+    """Workbook 2 sheet: hướng dẫn + 1 sheet dữ liệu (mẫu hoặc dữ liệu thật)."""
+    meta = ie_dataset_meta(kind)
+    try:
+        from openpyxl import Workbook
+    except ImportError as exc:  # pragma: no cover
+        raise OperationMasterImportError('Thiếu thư viện openpyxl.') from exc
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = SHEET_GUIDE
+    for row in meta['guide_rows']:
+        ws.append(row)
+    ws.column_dimensions['A'].width = 28
+    ws.column_dimensions['B'].width = 88
+
+    ws_data = wb.create_sheet(meta['sheet'])
+    rows = meta['sample_rows'] if template else meta['row_builder']()
+    _write_sheet(ws_data, meta['headers'], rows)
+    return wb
+
+
+def export_ie_dataset_response(kind, *, template: bool = False, user=None):
+    """HttpResponse Excel theo kind (mẫu hoặc xuất dữ liệu)."""
+    import io
+    from datetime import datetime
+
+    from django.http import HttpResponse
+
+    meta = ie_dataset_meta(kind)
+    wb = export_ie_dataset_workbook(kind, template=template)
+    buf = io.BytesIO()
+    wb.save(buf)
+    stamp = datetime.now().strftime('%Y%m%d' if template else '%Y%m%d_%H%M')
+    prefix = meta['filename_template'] if template else meta['filename_export']
+    response = HttpResponse(
+        buf.getvalue(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
+    response['Content-Disposition'] = f'attachment; filename={prefix}_{stamp}.xlsx'
+    if not template:
+        from san_xuat.ie_models import SxIeAuditLog
+        from san_xuat.services.ie_audit import log_ie_event
+
+        log_ie_event(
+            action=SxIeAuditLog.ACTION_EXPORT,
+            summary=f'Xuất Excel {meta["label"]}',
+            object_type='OperationMaster',
+            object_repr=f'export_excel:{meta["kind"]}',
+            user=user,
+        )
+    return response
 
 
 def export_operation_master_workbook():
@@ -626,79 +1038,14 @@ def export_operation_master_workbook():
             stitches[i].code if i < len(stitches) else '',
         ])
 
-    # 01_DM_NHOM_CONG_DOAN
     ws = wb.create_sheet(SHEET_GROUP)
-    _write_sheet(ws, [
-        'MÃ NHÓM', 'TÊN NHÓM', 'KHÂU SẢN XUẤT', 'SẢN PHẨM CẦN', 'MÔ TẢ CHI TIẾT',
-        'HIỆU LỰC', 'NGƯỜI LẬP', 'NGÀY HIỆU LỰC', 'DEFAULT_WORK_CENTER', 'NOTES',
-    ], [
-        [
-            g.code, g.name, g.process_stage_label, g.product_part, g.description,
-            'Có' if g.is_active else 'Không', g.data_owner,
-            g.effective_from.isoformat() if g.effective_from else '',
-            g.default_work_center_code, g.notes,
-        ]
-        for g in SxOperationGroup.objects.order_by('sort_order', 'code')
-    ])
+    _write_sheet(ws, GROUP_HEADERS, _group_export_rows())
 
-    # 02_THU_VIEN_CONG_DOAN — ĐỊNH MỨC THỜI GIAN xuất lại dạng giây (×60) khớp import
     ws = wb.create_sheet(SHEET_LIB)
-    lib_rows = []
-    for op in SxOperation.objects.select_related('group').order_by('op_code', 'op_rev'):
-        smv = op.base_smv_min or Decimal('0')
-        time_sec = (smv * Decimal('60')).quantize(Decimal('0.01'))
-        pcs_h = (Decimal('60') / smv).quantize(Decimal('0.01')) if smv else Decimal('0')
-        lib_rows.append([
-            op.group.code if op.group_id else '',
-            op.op_code, op.op_rev, op.name_vi, op.name_en,
-            op.skill_level_label, float(time_sec), float(pcs_h),
-            op.process_stage_label, op.product_part, op.method_variant,
-            op.machine_code,
-            op.stitch_class.code if op.stitch_class_id else '',
-            op.thread_needle, op.attachment_code, op.smv_basis,
-            op.smv_source.name if op.smv_source_id else '',
-            _STATUS_LABEL.get(op.status, op.status),
-            op.effective_from.isoformat() if op.effective_from else '',
-            op.effective_to.isoformat() if op.effective_to else '',
-            op.ie_owner, op.approved_by, op.revision_reason,
-            op.video_url, op.notes,
-        ])
-    _write_sheet(ws, [
-        'MÃ NHÓM', 'MÃ CÔNG ĐOẠN', 'PHIÊN BẢN', 'TÊN CÔNG ĐOẠN', 'TÊN CÔNG ĐOẠN_EN',
-        'BẬC CÔNG ĐOẠN', 'ĐỊNH MỨC THỜI GIAN', 'ĐỊNH MỨC SP/H', 'KHÂU SẢN XUẤT',
-        'CỤM CHI TIẾT CHÍNH', 'MÔ TẢ PHƯƠNG PHÁP', 'MÃ MÁY MÓC', 'NHÓM MŨI MAY',
-        'QUY ĐỊNH KIM/CHỈ', 'MÃ CỮ/GIÁ/CHÂN VỊT', 'ĐƠN VỊ', 'NGUỒN SMV', 'TRẠNG THÁI',
-        'NGÀY HIỆU LỰC', 'NGÀY HẾT HIỆU LỰC', 'NGƯỜI LẬP', 'NGƯỜI DUYỆT',
-        'LÝ DO CHỈNH SỬA PHIÊN BẢN', 'VIDEO_URL', 'NOTES',
-    ], lib_rows)
+    _write_sheet(ws, LIB_HEADERS, _library_export_rows())
 
-    # 03_ROUTING_MA_HANG
     ws = wb.create_sheet(SHEET_ROUTING)
-    route_rows = []
-    for line in (
-        SxRoutingLine.objects.select_related('routing')
-        .order_by('routing__style_code', 'routing__routing_rev', 'seq_no')
-    ):
-        r = line.routing
-        route_rows.append([
-            r.routing_id, r.style_code, r.style_name, r.product_family,
-            line.group_code, line.op_code, line.op_rev, line.op_name_vi,
-            float(line.qty_per_garment or 0), line.skill_level_label,
-            float(line.applied_unit_smv or 0), float(line.library_unit_smv or 0),
-            float(line.total_operation_smv or 0), '',
-            float(line.smv_variance_pct or 0), '', 0,
-            'Có' if r.is_active else 'Không',
-            r.effective_from.isoformat() if r.effective_from else '',
-            line.machine_code, line.work_center_code, r.ie_owner, line.notes,
-        ])
-    _write_sheet(ws, [
-        'MÃ ĐƠN HÀNG', 'MÃ HÀNG SẢN PHẨM', 'TÊN MÃ HÀNG', 'NHÓM SẢN PHẨM',
-        'MÃ NHÓM', 'MÃ CÔNG ĐOẠN', 'PHIÊN BẢN', 'TÊN CÔNG ĐOẠN', 'SỐ LƯỢNG',
-        'BẬC CÔNG ĐOẠN', 'ĐỊNH MỨC THỜI GIAN', 'ĐỊNH MỨC THEO PHIÊN BẢN',
-        'TỔNG ĐỊNH MỨC', 'ĐỊNH MỨC SP/H', '% CHÊNH LỆCH ĐỊNH MỨC THỜI GIAN',
-        'HỆ SỐ ĐƠN GIÁ', 'TỔNG ĐƠN GIÁ', 'TRẠNG THÁI ÁP DỤNG', 'NGÀY HIỆU LỰC',
-        'MÃ MÁY MÓC', 'WORK_CENTER', 'NGƯỜI LẬP', 'NOTES',
-    ], route_rows)
+    _write_sheet(ws, ROUTING_HEADERS, _routing_export_rows())
 
     # 04_DU_LIEU_TIME_STUDY
     ws = wb.create_sheet(SHEET_TIMESTUDY)
@@ -775,99 +1122,14 @@ def export_operation_master_workbook():
     return wb
 
 
-LIB_HEADERS = [
-    'MÃ NHÓM', 'MÃ CÔNG ĐOẠN', 'PHIÊN BẢN', 'TÊN CÔNG ĐOẠN', 'TÊN CÔNG ĐOẠN_EN',
-    'BẬC CÔNG ĐOẠN', 'ĐỊNH MỨC THỜI GIAN', 'ĐỊNH MỨC SP/H', 'KHÂU SẢN XUẤT',
-    'CỤM CHI TIẾT CHÍNH', 'MÔ TẢ PHƯƠNG PHÁP', 'MÃ MÁY MÓC', 'NHÓM MŨI MAY',
-    'QUY ĐỊNH KIM/CHỈ', 'MÃ CỮ/GIÁ/CHÂN VỊT', 'ĐƠN VỊ', 'NGUỒN SMV', 'TRẠNG THÁI',
-    'NGÀY HIỆU LỰC', 'NGÀY HẾT HIỆU LỰC', 'NGƯỜI LẬP', 'NGƯỜI DUYỆT',
-    'LÝ DO CHỈNH SỬA PHIÊN BẢN', 'VIDEO_URL', 'NOTES',
-]
-
-GROUP_HEADERS = [
-    'MÃ NHÓM', 'TÊN NHÓM', 'KHÂU SẢN XUẤT', 'SẢN PHẨM CẦN', 'MÔ TẢ CHI TIẾT',
-    'HIỆU LỰC', 'NGƯỜI LẬP', 'NGÀY HIỆU LỰC', 'DEFAULT_WORK_CENTER', 'NOTES',
-]
-
-
 def export_operation_library_template_workbook():
-    """File mẫu rỗng + ví dụ — dành cho người mới import thư viện công đoạn."""
-    try:
-        from openpyxl import Workbook
-    except ImportError as exc:  # pragma: no cover
-        raise OperationMasterImportError('Thiếu thư viện openpyxl.') from exc
-
-    wb = Workbook()
-
-    ws = wb.active
-    ws.title = '00_HUONG_DAN'
-    guide_rows = [
-        ['HƯỚNG DẪN NHẬP THƯ VIỆN CÔNG ĐOẠN (cho người mới)'],
-        [],
-        ['Bước 1', 'Đọc sheet này trước — không xóa / đổi tên sheet 01 và 02.'],
-        ['Bước 2', 'Sheet 01_DM_NHOM_CONG_DOAN: khai báo nhóm (Cắt, May, In-Ép…).'],
-        ['Bước 3', 'Sheet 02_THU_VIEN_CONG_DOAN: mỗi dòng = 1 công đoạn chuẩn (mã + phiên bản).'],
-        ['Bước 4', 'Xóa dòng ví dụ mẫu, điền dữ liệu thật, lưu file .xlsx.'],
-        ['Bước 5', 'Trên Portal → Import → chọn file → nên bật “Chạy thử” lần đầu.'],
-        [],
-        ['Cột bắt buộc (sheet 02)', 'MÃ CÔNG ĐOẠN · TÊN CÔNG ĐOẠN · PHIÊN BẢN (mặc định R01)'],
-        ['Cột nên có', 'MÃ NHÓM · ĐỊNH MỨC THỜI GIAN · TRẠNG THÁI'],
-        [],
-        ['ĐỊNH MỨC THỜI GIAN', 'Đơn vị GIÂY (không phải phút). Ví dụ 36 giây = SMV 0,6 phút.'],
-        ['Trùng mã', 'Cùng MÃ CÔNG ĐOẠN + PHIÊN BẢN → hệ thống CẬP NHẬT bản ghi cũ.'],
-        ['TRẠNG THÁI', 'Nháp | Thử nghiệm | Đã duyệt | Ngưng sử dụng'],
-        ['Nhóm chưa có', 'Nếu MÃ NHÓM chưa tồn tại, hệ thống tự tạo nhóm tạm (có cảnh báo).'],
-        [],
-        ['Mẹo', 'Xuất Excel thư viện hiện tại rồi chỉnh sửa — dễ hơn điền từ file trống.'],
-    ]
-    for row in guide_rows:
-        ws.append(row)
-    ws.column_dimensions['A'].width = 28
-    ws.column_dimensions['B'].width = 88
-
-    ws_g = wb.create_sheet(SHEET_GROUP)
-    _write_sheet(ws_g, GROUP_HEADERS, [
-        [
-            'MAY', 'May', 'May', '', 'Nhóm ví dụ — đổi hoặc xóa trước khi import thật',
-            'Có', '', '', '', 'Dòng mẫu',
-        ],
-    ])
-
-    ws_lib = wb.create_sheet(SHEET_LIB)
-    _write_sheet(ws_lib, LIB_HEADERS, [
-        [
-            'MAY', 'SEW-1001', 'R01', 'May sống cổ áo (ví dụ)', 'Collar join (sample)',
-            '', 36, '', 'May', 'Cổ', '', '', '', '', '', '', '', 'Nháp',
-            '', '', '', '', '', '', 'Dòng mẫu — xóa trước khi import thật',
-        ],
-        [
-            'MAY', 'SEW-1002', 'R01', 'Đóng gấu tay (ví dụ)', 'Sleeve hem (sample)',
-            '', 48, '', 'May', 'Tay', '', '', '', '', '', '', '', 'Nháp',
-            '', '', '', '', '', '', 'Dòng mẫu — xóa trước khi import thật',
-        ],
-    ])
-    return wb
+    """Tương thích cũ → file mẫu thư viện (2 sheet)."""
+    return export_ie_dataset_workbook(KIND_LIBRARY, template=True)
 
 
 def export_operation_library_template_response():
-    """HttpResponse file mẫu import thư viện công đoạn."""
-    import io
-    from datetime import datetime
-
-    from django.http import HttpResponse
-
-    wb = export_operation_library_template_workbook()
-    buf = io.BytesIO()
-    wb.save(buf)
-    stamp = datetime.now().strftime('%Y%m%d')
-    response = HttpResponse(
-        buf.getvalue(),
-        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    )
-    response['Content-Disposition'] = (
-        f'attachment; filename=Mau_Import_Thu_Vien_Cong_Doan_{stamp}.xlsx'
-    )
-    return response
+    """Tương thích cũ → HTTP file mẫu thư viện."""
+    return export_ie_dataset_response(KIND_LIBRARY, template=True)
 
 
 def export_operation_master_response(*, user=None):

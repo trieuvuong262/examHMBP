@@ -7,8 +7,23 @@
     <div>
       <h2 class="mb-0">Routing mã hàng</h2>
       <div class="text-muted small">{{ total }} quy trình mã hàng.</div>
+      {% if can_create or can_update %}
+      <div class="small mt-1">
+        <span class="text-muted">Import Excel:</span>
+        sheet <code>03_ROUTING_MA_HANG</code> — 23 cột
+        (MÃ ĐƠN HÀNG … ĐỊNH MỨC SP/H … NOTES), định mức = <strong>phút</strong>.
+      </div>
+      {% endif %}
     </div>
     <div class="d-flex flex-wrap gap-2">
+      {% if can_create or can_update %}
+      <button type="button" class="btn btn-sm btn-outline-hm" data-bs-toggle="modal" data-bs-target="#ieImportModal">
+        <i class="bi bi-upload me-1"></i>Import
+      </button>
+      {% endif %}
+      {% if can_export %}
+      <a href="{% url 'san_xuat:ie_export_kind' kind='routing' %}" class="btn btn-sm btn-outline-hm"><i class="bi bi-download me-1"></i>Xuất Excel</a>
+      {% endif %}
       {% if can_create or can_update %}
       <button type="button" class="btn btn-sm btn-hm" data-bs-toggle="modal" data-bs-target="#ieAddRoutingModal">
         <i class="bi bi-plus-lg me-1"></i>Thêm routing
@@ -30,14 +45,15 @@
       <table class="table table-hover table-sm align-middle mb-0">
         <thead class="table-light">
           <tr>
-            <th>Mã hàng</th><th>Tên</th><th>Nhóm SP</th><th>Phiên bản</th>
-            <th class="text-end">Công đoạn</th><th class="text-end">Tổng SMV (phút)</th>
-            <th>Áp dụng</th><th>Duyệt</th><th></th>
+            <th>Mã đơn hàng</th><th>Mã hàng SP</th><th>Tên mã hàng</th><th>Nhóm SP</th>
+            <th>Phiên bản</th><th class="text-end">Công đoạn</th><th class="text-end">Tổng ĐM (phút)</th>
+            <th>Trạng thái áp dụng</th><th>Người lập</th><th>Ngày HL</th><th>Duyệt</th><th></th>
           </tr>
         </thead>
         <tbody>
         {% for r in items %}
           <tr>
+            <td class="fw-semibold small">{{ r.routing_id }}</td>
             <td class="fw-semibold">{{ r.style_code }}</td>
             <td class="small">{{ r.style_name|default:"—"|truncatechars:48 }}</td>
             <td class="small">{{ r.product_family|default:"—"|truncatechars:36 }}</td>
@@ -45,6 +61,8 @@
             <td class="text-end">{{ r.n_lines }}</td>
             <td class="text-end fw-semibold">{{ r.sum_smv|default:0|sx_num }}</td>
             <td>{% if r.is_active %}<span class="badge bg-success-subtle text-success">Có</span>{% else %}<span class="badge bg-light text-muted">Không</span>{% endif %}</td>
+            <td class="small">{{ r.ie_owner|default:"—" }}</td>
+            <td class="small text-nowrap">{% if r.effective_from %}{{ r.effective_from|date:"Y-m-d" }}{% else %}—{% endif %}</td>
             <td class="small">{{ r.get_approval_status_display }}</td>
             <td class="text-nowrap text-end">
               <a href="{% url 'san_xuat:ie_routing_detail' r.pk %}" class="btn btn-sm btn-outline-hm">Xem</a>
@@ -68,7 +86,7 @@
             </td>
           </tr>
         {% empty %}
-          <tr><td colspan="9" class="text-muted small p-3 text-center">Không có routing phù hợp. Bấm Thêm routing để tạo mới.</td></tr>
+          <tr><td colspan="12" class="text-muted small p-3 text-center">Không có routing phù hợp. Bấm Thêm routing để tạo mới.</td></tr>
         {% endfor %}
         </tbody>
       </table>
@@ -184,4 +202,5 @@ document.getElementById('ieEditRoutingModal').addEventListener('show.bs.modal', 
 });
 </script>
 {% endif %}
+{% include 'san_xuat/includes/ie_import_modal.html' %}
 {% endblock %}
