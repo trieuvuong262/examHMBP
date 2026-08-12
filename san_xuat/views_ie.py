@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+from django.http import JsonResponse
 from django.contrib import messages
 from django.db.models import Count, Q, Sum
 from django.shortcuts import get_object_or_404, redirect, render
@@ -59,8 +60,11 @@ from san_xuat.services.ie_ops import (
     delete_operation_group,
     delete_routing,
     delete_routing_line,
+    enrich_routing_lines_from_library,
     is_routing_locked,
+    operation_library_snapshot,
     reject_routing,
+    resolve_operation,
     save_routing_line_explanations,
     update_operation,
     update_operation_group,
@@ -80,6 +84,7 @@ from san_xuat.services.operation_master import (
 )
 
 IE_MENU_KEY = 'ie'
+IE_APPROVE_MENU_KEY = 'ie_approve'
 
 
 def _ie_io_context(kind: str) -> dict:
@@ -93,6 +98,26 @@ def _ie_io_context(kind: str) -> dict:
 def _perm_ctx(request):
     return {
         **menu_perm_context(request.user, MODULE_SAN_XUAT, IE_MENU_KEY),
+        'can_approve': user_can_approve_ie(request.user),
+        'approver_group_ready': ie_approver_group_has_members(),
+        'approver_group_name': IE_APPROVER_GROUP,
+    }
+
+
+def _require_ie_approve_access(request):
+    from hrm.menu_permissions import user_can_access_menu
+
+    if not (
+        user_can_access_menu(request.user, MODULE_SAN_XUAT, IE_APPROVE_MENU_KEY)
+        or user_can_approve_ie(request.user)
+        or user_can_access_menu(request.user, MODULE_SAN_XUAT, IE_MENU_KEY)
+    ):
+        return handle_menu_access_denied(request, MODULE_SAN_XUAT, IE_APPROVE_MENU_KEY)
+    return None
+
+
+def _approve_perm_ctx(request):
+    return {
         'can_approve': user_can_approve_ie(request.user),
         'approver_group_ready': ie_approver_group_has_members(),
         'approver_group_name': IE_APPROVER_GROUP,
@@ -848,7 +873,6 @@ def routing_detail(request, pk: int):
                     routing=routing,
                     style_name=(request.POST.get('style_name') or '').strip(),
                     notes=(request.POST.get('notes') or '').strip(),
-                    is_active=request.POST.get('is_active') == '1',
                 )
                 messages.success(request, f'Đã lưu routing {routing.routing_id}.')
             elif action == 'delete_routing':
@@ -863,7 +887,10 @@ def routing_detail(request, pk: int):
             messages.error(request, str(exc))
         return redirect('san_xuat:ie_routing_detail', pk=routing.pk)
 
-    lines = routing.lines.select_related('operation', 'machine', 'work_center').order_by('seq_no')
+    enrich_routing_lines_from_library(routing)
+    lines = routing.lines.select_related(
+        'operation', 'operation__group', 'operation__machine', 'machine', 'work_center',
+    ).order_by('seq_no')
     high_var = [l for l in lines if abs(l.smv_variance_pct or 0) > 15]
     edit_line = None
     edit_pk = (request.GET.get('edit') or '').strip()
@@ -883,6 +910,30 @@ def routing_detail(request, pk: int):
         'work_centers': work_centers,
         'skill_levels': ensure_skill_levels_abc(),
         'default_work_center_code': '',
+    })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+@require_GET
+def ie_operation_lookup(request):
+    """API tra cứu công đoạn thư viện — điền form routing."""
+    op_code = (request.GET.get('op_code') or '').strip()
+    op_rev = (request.GET.get('op_rev') or 'R01').strip()
+    if not op_code:
+        return JsonResponse({'ok': False, 'error': 'Thiếu mã công đoạn.'}, status=400)
+    op = resolve_operation(op_code, op_rev)
+    if not op:
+        return JsonResponse({'ok': False, 'error': f'Không tìm thấy {op_code}/{op_rev} trong thư viện.'}, status=404)
+    snap = operation_library_snapshot(op)
+    return JsonResponse({
+        'ok': True,
+        'op_code': op.op_code,
+        'op_rev': op.op_rev,
+        'name_vi': snap.get('name_vi', ''),
+        'group_code': snap.get('group_code', ''),
+        'machine_code': snap.get('machine_code', ''),
+        'library_unit_smv': str(snap.get('library_smv') or '0'),
+        'skill_level_label': snap.get('skill_level_label', ''),
     })
 
 
@@ -1008,6 +1059,132 @@ def ie_settings_hub(request):
         **_perm_ctx(request),
         'counts': counts,
         'catalogs': IE_REF_CATALOGS,
+    })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+def ie_approve_hub(request):
+    denied = _require_ie_approve_access(request)
+    if denied:
+        return denied
+    from san_xuat.ie_permissions import list_ie_approvers
+
+    pending_ops = SxOperation.objects.exclude(
+        status=SxOperation.STATUS_APPROVED,
+    ).exclude(status=SxOperation.STATUS_RETIRED).count()
+    pending_routings = SxRouting.objects.exclude(
+        approval_status=SxRouting.APPROVAL_APPROVED,
+    ).count()
+    return render(request, 'san_xuat/ie_approve_hub.html', {
+        **_approve_perm_ctx(request),
+        'pending_ops': pending_ops,
+        'pending_routings': pending_routings,
+        'ie_approvers': list_ie_approvers(),
+    })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+def ie_approve_operations(request):
+    denied = _require_ie_approve_access(request)
+    if denied:
+        return denied
+    perms = _approve_perm_ctx(request)
+    back = reverse('san_xuat:ie_approve_operations')
+
+    if request.method == 'POST':
+        action = (request.POST.get('action') or '').strip()
+        pk = (request.POST.get('pk') or '').strip()
+        op = SxOperation.objects.filter(pk=int(pk)).first() if pk.isdigit() else None
+        try:
+            if action == 'approve_operation' and op:
+                if not perms['can_approve']:
+                    raise IeOpsError('Bạn không có quyền duyệt (cần nhóm Approver IE).')
+                approve_operation(operation=op, user=request.user)
+                messages.success(request, f'Đã duyệt {op.op_code}/{op.op_rev}.')
+            else:
+                messages.error(request, 'Hành động không hợp lệ.')
+        except IeOpsError as exc:
+            messages.error(request, str(exc))
+        return redirect(back)
+
+    qs = SxOperation.objects.select_related('group').exclude(
+        status=SxOperation.STATUS_APPROVED,
+    ).exclude(status=SxOperation.STATUS_RETIRED)
+    term = (request.GET.get('q') or '').strip()
+    if term:
+        qs = qs.filter(
+            Q(op_code__icontains=term)
+            | Q(name_vi__icontains=term)
+            | Q(ie_owner__icontains=term)
+        )
+    qs = qs.order_by('op_code', 'op_rev')
+    page_obj, query_string = paginate_queryset(request, qs)
+    return render(request, 'san_xuat/ie_approve_operations.html', {
+        **perms,
+        'page_obj': page_obj,
+        'items': page_obj.object_list,
+        'query_string': query_string,
+        'term': term,
+        'total': qs.count(),
+    })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+def ie_approve_routing(request):
+    denied = _require_ie_approve_access(request)
+    if denied:
+        return denied
+    perms = _approve_perm_ctx(request)
+    back = reverse('san_xuat:ie_approve_routing')
+
+    if request.method == 'POST':
+        action = (request.POST.get('action') or '').strip()
+        pk = (request.POST.get('pk') or '').strip()
+        routing = SxRouting.objects.filter(pk=int(pk)).first() if pk.isdigit() else None
+        try:
+            if action == 'approve_routing' and routing:
+                if not perms['can_approve']:
+                    raise IeOpsError('Bạn không có quyền duyệt routing (cần nhóm Approver IE).')
+                if is_routing_locked(routing):
+                    raise IeOpsError(f'Routing {routing.routing_id} đã khóa — tạo REV mới.')
+                approve_routing(routing=routing, user=request.user)
+                messages.success(request, f'Đã duyệt phát hành {routing.routing_id}.')
+            elif action == 'reject_routing' and routing:
+                if not perms['can_approve']:
+                    raise IeOpsError('Bạn không có quyền từ chối routing.')
+                reject_routing(routing=routing, user=request.user)
+                messages.success(request, f'Đã từ chối {routing.routing_id}.')
+            else:
+                messages.error(request, 'Hành động không hợp lệ.')
+        except IeOpsError as exc:
+            messages.error(request, str(exc))
+        return redirect(back)
+
+    qs = SxRouting.objects.annotate(
+        n_lines=Count('lines'),
+        sum_smv=Sum('lines__total_operation_smv'),
+    ).exclude(approval_status=SxRouting.APPROVAL_APPROVED)
+    term = (request.GET.get('q') or '').strip()
+    if term:
+        qs = qs.filter(
+            Q(routing_id__icontains=term)
+            | Q(style_code__icontains=term)
+            | Q(style_name__icontains=term)
+        )
+    qs = qs.order_by('style_code', 'routing_rev')
+    page_obj, query_string = paginate_queryset(request, qs)
+    from san_xuat.hub_models import SxProductionOrder
+    locked_routing_ids = set(
+        SxProductionOrder.objects.filter(routing_id__isnull=False).values_list('routing_id', flat=True)
+    )
+    return render(request, 'san_xuat/ie_approve_routing.html', {
+        **perms,
+        'page_obj': page_obj,
+        'items': page_obj.object_list,
+        'query_string': query_string,
+        'term': term,
+        'total': qs.count(),
+        'locked_routing_ids': locked_routing_ids,
     })
 
 

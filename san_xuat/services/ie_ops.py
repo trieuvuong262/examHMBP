@@ -74,6 +74,58 @@ def resolve_operation(op_code: str, op_rev: str | None = None) -> SxOperation | 
     return qs.order_by('-op_rev', 'op_code').first()
 
 
+def operation_library_snapshot(op: SxOperation | None) -> dict:
+    """Snapshot thư viện để điền dòng routing (tên, nhóm, máy, SMV TV…)."""
+    if op is None:
+        return {}
+    group_code = op.group.code if op.group_id else ''
+    machine_code = (op.machine_code or '').strip()
+    if not machine_code and op.machine_id:
+        machine_code = (op.machine.code or '').strip()
+    return {
+        'name_vi': (op.name_vi or '').strip(),
+        'group_code': group_code,
+        'machine_code': machine_code,
+        'skill_level_label': (op.skill_level_label or '').strip(),
+        'library_smv': op.base_smv_min or Decimal('0'),
+    }
+
+
+def enrich_routing_lines_from_library(routing: SxRouting) -> int:
+    """Điền snapshot dòng routing từ thư viện khi các trường đang trống."""
+    updated = 0
+    for line in routing.lines.select_related(
+        'operation', 'operation__group', 'operation__machine', 'machine',
+    ):
+        op = line.operation or resolve_operation(line.op_code, line.op_rev)
+        if op is None:
+            continue
+        snap = operation_library_snapshot(op)
+        dirty = False
+        if line.operation_id != op.pk:
+            line.operation = op
+            dirty = True
+        if not (line.op_name_vi or '').strip() and snap.get('name_vi'):
+            line.op_name_vi = snap['name_vi'][:200]
+            dirty = True
+        if not (line.group_code or '').strip() and snap.get('group_code'):
+            line.group_code = snap['group_code'][:30]
+            dirty = True
+        if not (line.machine_code or '').strip() and snap.get('machine_code'):
+            line.machine_code = snap['machine_code'][:40]
+            dirty = True
+        if not (line.skill_level_label or '').strip() and snap.get('skill_level_label'):
+            line.skill_level_label = snap['skill_level_label'][:60]
+            dirty = True
+        if not line.library_unit_smv and snap.get('library_smv'):
+            line.library_unit_smv = snap['library_smv']
+            dirty = True
+        if dirty:
+            line.save()
+            updated += 1
+    return updated
+
+
 def link_time_studies_to_operations(*, only_unlinked: bool = True) -> dict:
     """Gắn FK operation cho time study (mã rút gọn → mã đầy đủ)."""
     qs = SxTimeStudy.objects.all()
@@ -239,7 +291,7 @@ def create_blank_routing(
         approval_status=SxRouting.APPROVAL_DRAFT,
         ie_owner=ie_user_display_name(user),
         effective_from=timezone.localdate(),
-        notes='Tạo tay (không import Excel)',
+        notes='',
         created_by=user if getattr(user, 'is_authenticated', False) else None,
     )
 
@@ -1063,16 +1115,27 @@ def upsert_routing_line(
     op_rev = (op_rev or 'R01').strip() or 'R01'
     name = (op_name_vi or '').strip()
     op = resolve_operation(op_code, op_rev)
-    if not name and op:
-        name = op.name_vi
+    snap = operation_library_snapshot(op)
+    if not name:
+        name = snap.get('name_vi', '')
     if not name:
         raise IeOpsError('Nhập tên công đoạn.')
+    if not (group_code or '').strip():
+        group_code = snap.get('group_code', '')
+    if not (machine_code or '').strip():
+        machine_code = snap.get('machine_code', '')
 
     qty = qty_per_garment if qty_per_garment is not None else Decimal('1')
     applied = applied_unit_smv if applied_unit_smv is not None else Decimal('0')
     library = library_unit_smv
     if library is None:
-        library = op.base_smv_min if op else Decimal('0')
+        library = snap.get('library_smv') if snap else None
+    if library is None and op:
+        library = op.base_smv_min
+    if library is None:
+        library = Decimal('0')
+    if skill_level_label is not None and not (skill_level_label or '').strip():
+        skill_level_label = snap.get('skill_level_label', '')
     if applied < 0 or qty < 0 or (library or 0) < 0:
         raise IeOpsError('SL/SMV không được âm.')
 
@@ -1136,7 +1199,10 @@ def upsert_routing_line(
         from san_xuat.ie_models import normalize_skill_level_label
         line.skill_level_label = normalize_skill_level_label(skill_level_label or '')[:60]
     line.machine = machine
-    line.machine_code = (machine_code or (machine.code if machine else ''))[:40]
+    mc = (machine_code or (machine.code if machine else '') or '').strip()
+    if not mc and op:
+        mc = snap.get('machine_code', '')
+    line.machine_code = mc[:40]
     line.work_center = wc
     line.work_center_code = (wc.code if wc else wc_code_raw)[:40]
     line.notes = (notes or '')[:255]

@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+{% block extra_head %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+{% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}
+{% endblock %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 py-md-4 mb-5">
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title w-100">Duyệt phát hành</h2>
+    </div>
+    <nav class="jp-sx-tools" aria-label="Công cụ">
+      <a href="{% url 'san_xuat:ie_approve_operations' %}" class="{% if pending_ops %}text-warning{% endif %}">
+        <i class="bi bi-list-check" aria-hidden="true"></i>Công đoạn
+      </a>
+      <span class="sep" aria-hidden="true">·</span>
+      <a href="{% url 'san_xuat:ie_approve_routing' %}" class="{% if pending_routings %}text-warning{% endif %}">
+        <i class="bi bi-diagram-3" aria-hidden="true"></i>Routing
+      </a>
+      <span class="sep" aria-hidden="true">·</span>
+      <a href="{% url 'san_xuat:ie_approver_manage' %}">
+        <i class="bi bi-person-check" aria-hidden="true"></i>Người duyệt
+      </a>
+    </nav>
+  </div>
+
+  {% if not approver_group_ready %}
+  <div class="alert alert-warning py-2 small mb-3">
+    Chưa cấu hình người duyệt — nút Duyệt bị khóa với user thường.
+    Thêm tại <a href="{% url 'san_xuat:ie_approver_manage' %}" class="alert-link">Người duyệt</a>
+    (nhóm <code>{{ approver_group_name }}</code>).
+  </div>
+  {% elif not can_approve %}
+  <div class="alert alert-info py-2 small mb-3">
+    Bạn có thể xem hàng chờ duyệt; thao tác Duyệt chỉ dành cho thành viên nhóm
+    <code>{{ approver_group_name }}</code>.
+  </div>
+  {% endif %}
+
+  <p class="text-muted small mb-3">
+    Phê duyệt master data công đoạn và phát hành routing mã hàng.
+    Người duyệt được cấu hình tại
+    <a href="{% url 'san_xuat:ie_approver_manage' %}">Thiết lập công đoạn → Người duyệt</a>.
+  </p>
+
+  <div class="row g-3 mb-3">
+    <div class="col-md-6">
+      <a href="{% url 'san_xuat:ie_approve_operations' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body">
+        <div class="card-body">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <i class="bi bi-list-check text-hm fs-4"></i>
+            <h3 class="h6 mb-0 fw-bold">Duyệt công đoạn</h3>
+          </div>
+          <div class="fs-4 fw-bold">{{ pending_ops }}</div>
+          <div class="text-muted small">Chờ duyệt trong thư viện (SMV &gt; 0)</div>
+        </div>
+      </a>
+    </div>
+    <div class="col-md-6">
+      <a href="{% url 'san_xuat:ie_approve_routing' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body">
+        <div class="card-body">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <i class="bi bi-diagram-3 text-hm fs-4"></i>
+            <h3 class="h6 mb-0 fw-bold">Duyệt phát hành routing</h3>
+          </div>
+          <div class="fs-4 fw-bold">{{ pending_routings }}</div>
+          <div class="text-muted small">Routing chưa phát hành</div>
+        </div>
+      </a>
+    </div>
+  </div>
+
+  {% if ie_approvers %}
+  <div class="card border-0 shadow-sm">
+    <div class="card-header bg-white py-2 fw-semibold small">Người duyệt hiện tại</div>
+    <div class="card-body py-2">
+      <div class="d-flex flex-wrap gap-2">
+        {% for u in ie_approvers %}
+        <span class="badge bg-light text-dark border"><code>{{ u.username }}</code>{% if u.get_full_name %} · {{ u.get_full_name }}{% endif %}</span>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

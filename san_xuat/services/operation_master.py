@@ -38,7 +38,11 @@ from san_xuat.ie_models import (
     normalize_skill_level_label,
 )
 from san_xuat.hub_models import SxWorkCenter
-from san_xuat.services.ie_ops import link_time_studies_to_operations, resolve_operation
+from san_xuat.services.ie_ops import (
+    link_time_studies_to_operations,
+    operation_library_snapshot,
+    resolve_operation,
+)
 
 # Tên sheet
 SHEET_GUIDE = '00_HUONG_DAN'
@@ -462,10 +466,23 @@ def _import_routings(wb, result: ImportResult) -> None:
             seq += 10
             op_code = _s(rec.get('MÃ CÔNG ĐOẠN'))
             op_rev = _s(rec.get('PHIÊN BẢN')) or 'R01'
+            op = resolve_operation(op_code, op_rev)
             machine_code = _s(rec.get('MÃ MÁY MÓC'))
+            op_name = _s(rec.get('TÊN CÔNG ĐOẠN'))
+            group_code = _s(rec.get('MÃ NHÓM'))
+            if op:
+                snap = operation_library_snapshot(op)
+                if not op_name:
+                    op_name = snap.get('name_vi', '')
+                if not group_code:
+                    group_code = snap.get('group_code', '')
+                if not machine_code:
+                    machine_code = snap.get('machine_code', '')
             wc_code = _s(rec.get('WORK_CENTER'))
             applied = _dec(rec.get('ĐỊNH MỨC THỜI GIAN')) or Decimal('0')
             library = _dec(rec.get('ĐỊNH MỨC THEO PHIÊN BẢN')) or Decimal('0')
+            if not library and op:
+                library = op.base_smv_min or Decimal('0')
             qty = _dec(rec.get('SỐ LƯỢNG')) or _dec(rec.get('SỐ LƯỢNG ')) or Decimal('1')
             variance_text = ''
             if library and applied and library > 0:
@@ -480,11 +497,11 @@ def _import_routings(wb, result: ImportResult) -> None:
             line = SxRoutingLine(
                 routing=routing,
                 seq_no=seq,
-                operation=resolve_operation(op_code, op_rev),
+                operation=op,
                 op_code=op_code,
                 op_rev=op_rev,
-                op_name_vi=_s(rec.get('TÊN CÔNG ĐOẠN')),
-                group_code=_s(rec.get('MÃ NHÓM')),
+                op_name_vi=op_name,
+                group_code=group_code,
                 qty_per_garment=qty,
                 library_unit_smv=library,
                 applied_unit_smv=applied,

@@ -74,15 +74,11 @@
           <label class="form-label small mb-0">Tên mã hàng</label>
           <input type="text" name="style_name" class="form-control form-control-sm" maxlength="255" value="{{ routing.style_name }}">
         </div>
-        <div class="col-md-5">
+        <div class="col-md-7">
           <label class="form-label small mb-0">Ghi chú</label>
           <input type="text" name="notes" class="form-control form-control-sm" maxlength="255" value="{{ routing.notes }}">
         </div>
         <div class="col-md-2">
-          <div class="form-check mb-2">
-            <input class="form-check-input" type="checkbox" name="is_active" value="1" id="ieRoutingActive" {% if routing.is_active %}checked{% endif %}>
-            <label class="form-check-label small" for="ieRoutingActive">Áp dụng</label>
-          </div>
           <button type="submit" class="btn btn-sm btn-outline-hm w-100">Lưu</button>
         </div>
       </div>
@@ -94,7 +90,7 @@
   <div class="card border-0 shadow-sm mb-3">
     <div class="card-body py-3">
       <h3 class="h6 mb-3">{% if edit_line %}Sửa dòng #{{ edit_line.seq_no }}{% else %}Thêm dòng routing{% endif %}</h3>
-      <form method="post" class="row g-2 align-items-end">
+      <form method="post" class="row g-2 align-items-end" id="ie-routing-line-form">
         {% csrf_token %}
         <input type="hidden" name="action" value="{% if edit_line %}edit_line{% else %}add_line{% endif %}">
         {% if edit_line %}<input type="hidden" name="line_pk" value="{{ edit_line.pk }}">{% endif %}
@@ -232,10 +228,16 @@
           {% for l in lines %}
             <tr>
               <td class="text-end text-muted">{{ l.seq_no }}</td>
-              <td class="small">{{ l.group_code|default:"—" }}</td>
-              <td class="fw-semibold">{{ l.op_code }}</td>
+              <td class="small">{% if l.group_code %}{{ l.group_code }}{% elif l.operation and l.operation.group_id %}{{ l.operation.group.code }}{% else %}—{% endif %}</td>
+              <td class="fw-semibold">
+                {% if l.operation_id %}
+                <a href="{% url 'san_xuat:ie_operation_detail' l.operation_id %}" class="text-decoration-none">{{ l.op_code }}</a>
+                {% else %}
+                {{ l.op_code }}
+                {% endif %}
+              </td>
               <td><span class="badge bg-light text-dark">{{ l.op_rev }}</span></td>
-              <td>{{ l.op_name_vi }}</td>
+              <td>{% if l.op_name_vi %}{{ l.op_name_vi }}{% elif l.operation %}{{ l.operation.name_vi }}{% else %}—{% endif %}</td>
               <td class="text-end">{{ l.qty_per_garment|sx_num }}</td>
               <td class="small">{{ l.skill_level_label|default:"—" }}</td>
               <td class="text-end">{{ l.applied_unit_smv|sx_num }}</td>
@@ -245,13 +247,13 @@
               <td class="text-end {% if l.smv_variance_pct > 15 or l.smv_variance_pct < -15 %}text-danger{% endif %}">{{ l.smv_variance_pct|sx_num:1 }}</td>
               <td class="text-end">{{ l.price_factor|sx_num }}</td>
               <td class="text-end">{{ l.total_unit_price|sx_num }}</td>
-              <td class="small">{{ l.machine_code|default:"—" }}</td>
+              <td class="small">{% if l.machine_code %}{{ l.machine_code }}{% elif l.operation and l.operation.machine_code %}{{ l.operation.machine_code }}{% else %}—{% endif %}</td>
               <td class="small">
                 {% if l.work_center %}{{ l.work_center.name }}
                 {% elif l.work_center_code %}{{ l.work_center_code }}
                 {% else %}—{% endif %}
               </td>
-              <td class="small jp-ie-cell-wrap" title="{{ l.notes }}">{{ l.notes|default:"—"|truncatechars:36 }}</td>
+              <td class="small jp-ie-cell-wrap" title="{{ l.notes }}">{% if l.notes %}{{ l.notes|truncatechars:36 }}{% endif %}</td>
               <td>
                 {% if l.smv_variance_pct > 15 or l.smv_variance_pct < -15 %}
                   {% if can_update and not locked %}
@@ -299,4 +301,52 @@
   {% endif %}
 
 </div>
+
+{% if can_update and not locked %}
+<script>
+(function () {
+  var form = document.getElementById('ie-routing-line-form');
+  if (!form) return;
+  var opCode = form.querySelector('[name="op_code"]');
+  var opRev = form.querySelector('[name="op_rev"]');
+  if (!opCode) return;
+  var lookupUrl = '{% url "san_xuat:ie_operation_lookup" %}';
+  var timer = null;
+
+  function fillFromLibrary() {
+    var code = (opCode.value || '').trim();
+    var rev = (opRev && opRev.value || 'R01').trim() || 'R01';
+    if (!code) return;
+    var url = lookupUrl + '?op_code=' + encodeURIComponent(code) + '&op_rev=' + encodeURIComponent(rev);
+    fetch(url, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (data) {
+        if (!data || !data.ok) return;
+        var nameEl = form.querySelector('[name="op_name_vi"]');
+        var groupEl = form.querySelector('[name="group_code"]');
+        var machineEl = form.querySelector('[name="machine_code"]');
+        var libEl = form.querySelector('[name="library_unit_smv"]');
+        var skillEl = form.querySelector('[name="skill_level_label"]');
+        if (nameEl && !(nameEl.value || '').trim()) nameEl.value = data.name_vi || '';
+        if (groupEl && !(groupEl.value || '').trim()) groupEl.value = data.group_code || '';
+        if (machineEl && !(machineEl.value || '').trim()) machineEl.value = data.machine_code || '';
+        if (libEl && !(libEl.value || '').trim() && data.library_unit_smv) libEl.value = data.library_unit_smv;
+        if (skillEl && !skillEl.value && data.skill_level_label) skillEl.value = data.skill_level_label;
+      })
+      .catch(function () {});
+  }
+
+  function scheduleLookup() {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(fillFromLibrary, 350);
+  }
+  opCode.addEventListener('input', scheduleLookup);
+  opCode.addEventListener('change', fillFromLibrary);
+  if (opRev) {
+    opRev.addEventListener('input', scheduleLookup);
+    opRev.addEventListener('change', fillFromLibrary);
+  }
+})();
+</script>
+{% endif %}
 {% endblock %}
