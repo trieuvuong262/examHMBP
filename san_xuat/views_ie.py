@@ -66,6 +66,7 @@ from san_xuat.services.ie_ops import (
     delete_routing_line,
     enrich_routing_lines_from_library,
     is_routing_locked,
+    ie_operation_datalist_options,
     operation_library_snapshot,
     reject_routing,
     resolve_operation,
@@ -943,6 +944,16 @@ def routing_detail(request, pk: int):
         edit_line = routing.lines.filter(pk=int(edit_pk)).first()
     from san_xuat.services.capacity_from_hrm import hr_work_centers_qs
     work_centers = list(hr_work_centers_qs())
+    operation_groups = list(
+        SxOperationGroup.objects.filter(is_active=True).order_by('sort_order', 'code')
+    )
+    if edit_line and (edit_line.group_code or '').strip():
+        known = {g.code for g in operation_groups}
+        gc = edit_line.group_code.strip()
+        if gc not in known:
+            operation_groups.insert(0, SxOperationGroup(code=gc, name=gc))
+    last_seq = routing.lines.order_by('-seq_no').values_list('seq_no', flat=True).first() or 0
+    default_seq_no = int(last_seq) + 10 if not edit_line else None
     return render(request, 'san_xuat/ie_routing_detail.html', {
         **perms,
         'routing': routing,
@@ -954,6 +965,9 @@ def routing_detail(request, pk: int):
         'machines': ie_machine_options(extra_code=(edit_line.machine_code if edit_line else '')),
         'work_centers': work_centers,
         'skill_levels': ensure_skill_levels_abc(),
+        'operation_groups': operation_groups,
+        'operation_options': ie_operation_datalist_options(),
+        'default_seq_no': default_seq_no,
         'default_work_center_code': '',
     })
 
@@ -969,15 +983,22 @@ def ie_operation_lookup(request):
     op = resolve_operation(op_code, op_rev)
     if not op:
         return JsonResponse({'ok': False, 'error': f'Không tìm thấy {op_code}/{op_rev} trong thư viện.'}, status=404)
+    op = (
+        SxOperation.objects.select_related('group__default_work_center', 'machine')
+        .filter(pk=op.pk)
+        .first()
+    )
     snap = operation_library_snapshot(op)
     return JsonResponse({
         'ok': True,
         'op_code': op.op_code,
-        'op_rev': op.op_rev,
+        'op_rev': snap.get('op_rev', op.op_rev),
         'name_vi': snap.get('name_vi', ''),
         'group_code': snap.get('group_code', ''),
         'machine_code': snap.get('machine_code', ''),
         'library_unit_smv': str(snap.get('library_smv') or '0'),
+        'applied_unit_smv': str(snap.get('applied_unit_smv') or snap.get('library_smv') or '0'),
+        'work_center_code': snap.get('work_center_code', ''),
         'skill_level_label': snap.get('skill_level_label', ''),
     })
 

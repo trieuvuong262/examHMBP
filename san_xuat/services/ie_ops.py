@@ -82,13 +82,41 @@ def operation_library_snapshot(op: SxOperation | None) -> dict:
     machine_code = (op.machine_code or '').strip()
     if not machine_code and op.machine_id:
         machine_code = (op.machine.code or '').strip()
+    library_smv = op.base_smv_min or Decimal('0')
+    work_center_code = ''
+    if op.group_id:
+        from san_xuat.services.capacity_from_hrm import resolve_work_center_code
+
+        grp = op.group
+        wc_code_raw = (grp.default_work_center_code or '').strip()
+        if not wc_code_raw and grp.default_work_center_id:
+            wc_code_raw = (grp.default_work_center.code or '').strip()
+        wc = resolve_work_center_code(
+            wc_code_raw,
+            name_hint=f'{group_code} {(op.name_vi or "").strip()}',
+        )
+        work_center_code = (wc.code if wc else wc_code_raw)[:40]
     return {
+        'op_rev': (op.op_rev or 'R01').strip() or 'R01',
         'name_vi': (op.name_vi or '').strip(),
         'group_code': group_code,
         'machine_code': machine_code,
         'skill_level_label': (op.skill_level_label or '').strip(),
-        'library_smv': op.base_smv_min or Decimal('0'),
+        'library_smv': library_smv,
+        'applied_unit_smv': library_smv,
+        'work_center_code': work_center_code,
     }
+
+
+def ie_operation_datalist_options(*, limit: int = 500) -> list[SxOperation]:
+    """Công đoạn thư viện cho datalist form routing (ưu tiên đã duyệt/thử)."""
+    from san_xuat.services.process_catalog import _STANDARD_STATUSES
+
+    return list(
+        SxOperation.objects.filter(status__in=_STANDARD_STATUSES)
+        .select_related('group')
+        .order_by('op_code', '-op_rev')[:limit]
+    )
 
 
 def enrich_routing_lines_from_library(routing: SxRouting) -> int:
@@ -1159,6 +1187,8 @@ def upsert_routing_line(
         library = op.base_smv_min
     if library is None:
         library = Decimal('0')
+    if applied <= 0 and library > 0:
+        applied = library
     if skill_level_label is not None and not (skill_level_label or '').strip():
         skill_level_label = snap.get('skill_level_label', '')
     if applied < 0 or qty < 0 or (library or 0) < 0:

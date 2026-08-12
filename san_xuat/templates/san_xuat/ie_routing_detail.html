@@ -97,12 +97,19 @@
         <div class="col-6 col-md-1">
           <label class="form-label small mb-0">SEQ <span class="text-danger">*</span></label>
           <input type="number" name="seq_no" class="form-control form-control-sm" min="1"
-                 value="{% if edit_line %}{{ edit_line.seq_no }}{% endif %}" placeholder="auto">
+                 value="{% if edit_line %}{{ edit_line.seq_no }}{% elif default_seq_no %}{{ default_seq_no }}{% endif %}"
+                 placeholder="{% if default_seq_no %}{{ default_seq_no }}{% else %}auto{% endif %}">
         </div>
         <div class="col-6 col-md-2">
           <label class="form-label small mb-0">Mã CĐ <span class="text-danger">*</span></label>
           <input type="text" name="op_code" class="form-control form-control-sm" required maxlength="30"
-                 value="{% if edit_line %}{{ edit_line.op_code }}{% endif %}" placeholder="SEW-…">
+                 list="ie-op-codes" autocomplete="off"
+                 value="{% if edit_line %}{{ edit_line.op_code }}{% endif %}" placeholder="Gõ mã hoặc chọn…">
+          <datalist id="ie-op-codes">
+            {% for op in operation_options %}
+            <option value="{{ op.op_code }}">{{ op.op_code }}/{{ op.op_rev }} — {{ op.name_vi }}</option>
+            {% endfor %}
+          </datalist>
         </div>
         <div class="col-4 col-md-1">
           <label class="form-label small mb-0">Phiên bản <span class="text-danger">*</span></label>
@@ -171,8 +178,15 @@
         </div>
         <div class="col-6 col-md-2">
           <label class="form-label small mb-0">Nhóm</label>
-          <input type="text" name="group_code" class="form-control form-control-sm" maxlength="30"
-                 value="{% if edit_line %}{{ edit_line.group_code }}{% endif %}">
+          <select name="group_code" class="form-select form-select-sm">
+            <option value="">— Tự lấy từ thư viện —</option>
+            {% for g in operation_groups %}
+            <option value="{{ g.code }}"
+              {% if edit_line and edit_line.group_code == g.code %}selected{% endif %}>
+              {{ g.code }} — {{ g.name }}
+            </option>
+            {% endfor %}
+          </select>
         </div>
         <div class="col-12 col-md-3">
           <label class="form-label small mb-0">Giải trình lệch (&gt;15%)</label>
@@ -307,11 +321,38 @@
 (function () {
   var form = document.getElementById('ie-routing-line-form');
   if (!form) return;
+  var isNewLine = !form.querySelector('[name="line_pk"]');
   var opCode = form.querySelector('[name="op_code"]');
   var opRev = form.querySelector('[name="op_rev"]');
   if (!opCode) return;
   var lookupUrl = '{% url "san_xuat:ie_operation_lookup" %}';
   var timer = null;
+
+  function setField(name, value, force) {
+    var el = form.querySelector('[name="' + name + '"]');
+    if (!el || value === undefined || value === null) return;
+    var str = String(value);
+    if (!force && !isNewLine && (el.value || '').trim()) return;
+    if (!str && !force) return;
+    el.value = str;
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
+  function setSelect(name, value, force) {
+    var el = form.querySelector('[name="' + name + '"]');
+    if (!el || value === undefined || value === null) return;
+    var str = String(value);
+    if (!force && !isNewLine && (el.value || '').trim()) return;
+    if (!str && !force) return;
+    var found = false;
+    for (var i = 0; i < el.options.length; i++) {
+      if (el.options[i].value === str) { found = true; break; }
+    }
+    if (found || str === '') {
+      el.value = str;
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  }
 
   function fillFromLibrary() {
     var code = (opCode.value || '').trim();
@@ -322,16 +363,14 @@
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (data) {
         if (!data || !data.ok) return;
-        var nameEl = form.querySelector('[name="op_name_vi"]');
-        var groupEl = form.querySelector('[name="group_code"]');
-        var machineEl = form.querySelector('[name="machine_code"]');
-        var libEl = form.querySelector('[name="library_unit_smv"]');
-        var skillEl = form.querySelector('[name="skill_level_label"]');
-        if (nameEl && !(nameEl.value || '').trim()) nameEl.value = data.name_vi || '';
-        if (groupEl && !(groupEl.value || '').trim()) groupEl.value = data.group_code || '';
-        if (machineEl && !(machineEl.value || '').trim()) machineEl.value = data.machine_code || '';
-        if (libEl && !(libEl.value || '').trim() && data.library_unit_smv) libEl.value = data.library_unit_smv;
-        if (skillEl && !skillEl.value && data.skill_level_label) skillEl.value = data.skill_level_label;
+        setField('op_rev', data.op_rev, isNewLine);
+        setField('op_name_vi', data.name_vi, isNewLine);
+        setSelect('group_code', data.group_code, isNewLine);
+        setField('machine_code', data.machine_code, isNewLine);
+        setField('library_unit_smv', data.library_unit_smv, isNewLine);
+        setField('applied_unit_smv', data.applied_unit_smv, isNewLine);
+        setSelect('skill_level_label', data.skill_level_label, isNewLine);
+        setSelect('work_center_code', data.work_center_code, isNewLine);
       })
       .catch(function () {});
   }
