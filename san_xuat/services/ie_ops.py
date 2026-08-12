@@ -951,6 +951,31 @@ def approve_operation(*, operation: SxOperation, user=None) -> SxOperation:
 
 
 @transaction.atomic
+def reject_operation(*, operation: SxOperation, user=None) -> SxOperation:
+    """Từ chối công đoạn — trả về nháp để IE chỉnh sửa."""
+    if operation is None:
+        raise IeOpsError('Thiếu công đoạn.')
+    if operation.status == SxOperation.STATUS_APPROVED:
+        raise IeOpsError(f'Công đoạn {operation.op_code}/{operation.op_rev} đã duyệt — không thể từ chối.')
+    if operation.status == SxOperation.STATUS_RETIRED:
+        raise IeOpsError(f'Công đoạn {operation.op_code}/{operation.op_rev} đã ngưng sử dụng.')
+    operation.status = SxOperation.STATUS_DRAFT
+    operation.save(update_fields=['status', 'updated_at'])
+    from san_xuat.ie_models import SxIeAuditLog
+    from san_xuat.services.ie_audit import log_ie_event
+
+    log_ie_event(
+        action=SxIeAuditLog.ACTION_REJECT,
+        summary=f'Từ chối OP {operation.op_code}/{operation.op_rev}',
+        object_type='SxOperation',
+        object_id=operation.pk,
+        object_repr=f'{operation.op_code}/{operation.op_rev}',
+        user=user,
+    )
+    return operation
+
+
+@transaction.atomic
 def approve_routing(*, routing: SxRouting, user=None) -> SxRouting:
     """Duyệt routing phát hành — SMV > 0 + giải trình lệch > 15%."""
     if routing is None:

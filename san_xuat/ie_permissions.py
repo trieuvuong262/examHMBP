@@ -4,8 +4,8 @@ Theo 00_HUONG_DAN mục 4:
 - IE: tạo đề nghị mã CĐ, lập routing, đo thời gian, phân tích SMV.
 - Người phê duyệt master data: duyệt OP_CODE/REV, routing revision.
 
-Nhóm Django: ``SX_IE_Approver``. Superuser/admin (bypass) luôn được duyệt.
-Chỉ thành viên nhóm mới duyệt được — không bootstrap «update = duyệt».
+Quyền duyệt: menu «Duyệt phát hành» (ie_approve) — action Sửa trong Phân quyền.
+Superuser/admin (bypass) luôn được duyệt.
 """
 
 from __future__ import annotations
@@ -16,7 +16,6 @@ from django.contrib.auth.models import Group
 from hrm.module_permissions import (
     MODULE_SAN_XUAT,
     bypass_department_modules,
-    user_can_access_module,
     user_can_update_module,
 )
 
@@ -33,15 +32,14 @@ def ie_approver_group_has_members() -> bool:
 
 
 def user_can_approve_ie(user) -> bool:
-    """Được duyệt OP / routing / time-study cập nhật SMV phát hành."""
+    """Được duyệt OP / routing — quyền Sửa menu «Duyệt phát hành» trong Phân quyền."""
     if not getattr(user, 'is_authenticated', False):
         return False
     if bypass_department_modules(user):
         return True
-    if not user_can_access_module(user, MODULE_SAN_XUAT):
-        return False
-    group = ensure_ie_approver_group()
-    return group.user_set.filter(pk=user.pk).exists()
+    from hrm.menu_permissions import user_can_update_menu
+
+    return user_can_update_menu(user, MODULE_SAN_XUAT, 'ie_approve')
 
 
 def user_is_ie_editor(user) -> bool:
