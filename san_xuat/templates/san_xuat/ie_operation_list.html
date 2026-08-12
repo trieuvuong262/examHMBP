@@ -58,9 +58,9 @@
     </div>
   </form>
 
-  <div class="card border-0 shadow-sm overflow-hidden">
-    <div class="table-responsive">
-      <table class="table table-hover table-sm align-middle mb-0 jp-ie-lib-table">
+  <div class="card border-0 shadow-sm jp-ie-table-card">
+    <div class="table-responsive jp-ie-table-scroll">
+      <table class="table table-hover table-sm align-middle mb-0 jp-ie-wide-table jp-ie-lib-table">
         <thead>
           <tr>
             <th class="jp-ie-col-core">Mã nhóm</th>
@@ -104,7 +104,7 @@
             <td class="text-end">{{ op.std_capacity_pcs_hour|sx_num }}</td>
             <td class="small">{{ op.process_stage_label|default:"—" }}</td>
             <td class="small">{{ op.product_part|default:"—" }}</td>
-            <td class="small" style="max-width:10rem" title="{{ op.method_variant }}">{{ op.method_variant|default:"—"|truncatechars:40 }}</td>
+            <td class="small jp-ie-cell-wrap" title="{{ op.method_variant }}">{{ op.method_variant|default:"—"|truncatechars:40 }}</td>
             <td class="small">{{ op.machine_code|default:"—" }}</td>
             <td class="small">{% if op.stitch_class %}{{ op.stitch_class.code }}{% else %}—{% endif %}</td>
             <td class="small">{{ op.thread_needle|default:"—" }}</td>
@@ -112,15 +112,15 @@
             <td class="small">{{ op.smv_basis|default:"—" }}</td>
             <td class="small">{% if op.smv_source %}{{ op.smv_source.name }}{% else %}—{% endif %}</td>
             <td class="small">{{ op.get_status_display }}</td>
-            <td class="small text-nowrap">{% if op.effective_from %}{{ op.effective_from|date:"Y-m-d" }}{% else %}—{% endif %}</td>
-            <td class="small text-nowrap">{% if op.effective_to %}{{ op.effective_to|date:"Y-m-d" }}{% else %}—{% endif %}</td>
+            <td class="small">{% if op.effective_from %}{{ op.effective_from|date:"Y-m-d" }}{% else %}—{% endif %}</td>
+            <td class="small">{% if op.effective_to %}{{ op.effective_to|date:"Y-m-d" }}{% else %}—{% endif %}</td>
             <td class="small">{{ op.ie_owner|default:"—" }}</td>
             <td class="small">{{ op.approved_by|default:"—" }}</td>
-            <td class="small" style="max-width:8rem" title="{{ op.revision_reason }}">{{ op.revision_reason|default:"—"|truncatechars:28 }}</td>
+            <td class="small jp-ie-cell-wrap" title="{{ op.revision_reason }}">{{ op.revision_reason|default:"—"|truncatechars:28 }}</td>
             <td class="small">{% if op.video_url %}<a href="{{ op.video_url }}" target="_blank" rel="noopener">Link</a>{% else %}—{% endif %}</td>
-            <td class="small" style="max-width:8rem" title="{{ op.notes }}">{{ op.notes|default:"—"|truncatechars:28 }}</td>
+            <td class="small jp-ie-cell-wrap" title="{{ op.notes }}">{{ op.notes|default:"—"|truncatechars:28 }}</td>
             {% if can_approve or can_update %}
-            <td class="text-nowrap">
+            <td class="jp-td-actions">
               <a href="{% url 'san_xuat:ie_operation_detail' op.pk %}" class="btn btn-sm btn-outline-secondary py-0">Sửa</a>
               {% if can_approve and op.status != 'approved' %}
               <form method="post" class="d-inline">
@@ -142,7 +142,7 @@
             {% endif %}
           </tr>
         {% empty %}
-          <tr><td colspan="{% if can_approve or can_update %}26{% else %}25{% endif %}" class="text-muted small p-3 text-center">Không có công đoạn phù hợp.</td></tr>
+          <tr><td colspan="{% if can_approve or can_update %}26{% else %}25{% endif %}" class="text-muted small p-3 text-center jp-ie-cell-wrap">Không có công đoạn phù hợp.</td></tr>
         {% endfor %}
         </tbody>
       </table>
@@ -152,14 +152,7 @@
   {% include 'san_xuat/includes/ie_pagination.html' %}
 </div>
 
-<style>
-.jp-ie-lib-table thead th {
-  font-size: 0.65rem; text-transform: uppercase; letter-spacing: .02em;
-  white-space: nowrap; vertical-align: middle; border-bottom-width: 0;
-}
-.jp-ie-lib-table thead th.jp-ie-col-core { background: #2f7d32; color: #fff; }
-.jp-ie-lib-table thead th.jp-ie-col-meta { background: #1e3a5f; color: #fff; }
-</style>
+{% include 'san_xuat/includes/ie_wide_table_styles.html' %}
 <script>
 (function () {
   document.querySelectorAll('.jp-ie-lib-table td.time-sec').forEach(function (td) {

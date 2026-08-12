@@ -46,9 +46,9 @@
     <div class="col-md-2"><button class="btn btn-sm btn-hm w-100">Lọc</button></div>
   </form>
 
-  <div class="card border-0 shadow-sm overflow-hidden">
-    <div class="table-responsive">
-      <table class="table table-hover table-sm align-middle mb-0 jp-ie-group-table">
+  <div class="card border-0 shadow-sm jp-ie-table-card">
+    <div class="table-responsive jp-ie-table-scroll">
+      <table class="table table-hover table-sm align-middle mb-0 jp-ie-wide-table">
         <thead>
           <tr>
             <th class="jp-ie-col-core">Mã nhóm</th>
@@ -67,11 +67,11 @@
         <tbody>
         {% for g in items %}
           <tr>
-            <td class="fw-semibold text-nowrap">{{ g.code }}</td>
+            <td class="fw-semibold">{{ g.code }}</td>
             <td>{{ g.name }}</td>
             <td class="small">{{ g.process_stage_label|default:"—" }}</td>
             <td class="small">{{ g.product_part|default:"—" }}</td>
-            <td class="small" style="max-width:18rem" title="{{ g.description }}">{{ g.description|default:"—"|truncatechars:80 }}</td>
+            <td class="small jp-ie-cell-wrap" title="{{ g.description }}">{{ g.description|default:"—"|truncatechars:80 }}</td>
             <td>
               {% if g.is_active %}
               <span class="badge bg-success-subtle text-success">Có</span>
@@ -79,14 +79,14 @@
               <span class="badge bg-light text-muted">Không</span>
               {% endif %}
             </td>
-            <td class="small text-nowrap">{{ g.data_owner|default:"—" }}</td>
-            <td class="small text-nowrap">{% if g.effective_from %}{{ g.effective_from|date:"Y-m-d" }}{% else %}—{% endif %}</td>
-            <td class="small" style="max-width:12rem" title="{{ g.notes }}">{{ g.notes|default:"—"|truncatechars:40 }}</td>
+            <td class="small">{{ g.data_owner|default:"—" }}</td>
+            <td class="small">{% if g.effective_from %}{{ g.effective_from|date:"Y-m-d" }}{% else %}—{% endif %}</td>
+            <td class="small jp-ie-cell-wrap" title="{{ g.notes }}">{{ g.notes|default:"—"|truncatechars:40 }}</td>
             <td class="text-end">
               <a href="{% url 'san_xuat:ie_operation_list' %}?group={{ g.code }}">{{ g.n_ops }}</a>
             </td>
             {% if can_update %}
-            <td class="text-nowrap text-end">
+            <td class="text-end jp-td-actions">
               <button type="button" class="btn btn-sm btn-outline-secondary py-0 ie-edit-group"
                       data-bs-toggle="modal" data-bs-target="#ieEditGroupModal"
                       data-pk="{{ g.pk }}"
@@ -109,7 +109,7 @@
             {% endif %}
           </tr>
         {% empty %}
-          <tr><td colspan="{% if can_update %}11{% else %}10{% endif %}" class="text-muted small p-3 text-center">Không có nhóm phù hợp.</td></tr>
+          <tr><td colspan="{% if can_update %}11{% else %}10{% endif %}" class="text-muted small p-3 text-center jp-ie-cell-wrap">Không có nhóm phù hợp.</td></tr>
         {% endfor %}
         </tbody>
       </table>
@@ -119,21 +119,7 @@
   {% include 'san_xuat/includes/ie_pagination.html' %}
 </div>
 
-<style>
-.jp-ie-group-table thead th {
-  font-size: 0.72rem; text-transform: uppercase; letter-spacing: .02em;
-  white-space: nowrap; vertical-align: middle; border-bottom-width: 0;
-}
-.jp-ie-group-table thead th.jp-ie-col-core {
-  background: #2f7d32; color: #fff;
-}
-.jp-ie-group-table thead th.jp-ie-col-meta {
-  background: #1e3a5f; color: #fff;
-}
-.jp-ie-group-table thead th:not(.jp-ie-col-core):not(.jp-ie-col-meta) {
-  background: var(--bs-light);
-}
-</style>
+{% include 'san_xuat/includes/ie_wide_table_styles.html' %}
 
 {% if can_create or can_update %}
 <div class="modal fade" id="ieAddGroupModal" tabindex="-1" aria-labelledby="ieAddGroupModalLabel" aria-hidden="true">

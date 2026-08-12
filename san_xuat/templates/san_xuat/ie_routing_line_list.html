@@ -25,9 +25,9 @@
     <div class="col-md-2"><button class="btn btn-sm btn-hm w-100">Lọc</button></div>
   </form>
 
-  <div class="card border-0 shadow-sm overflow-hidden">
-    <div class="table-responsive">
-      <table class="table table-hover table-sm align-middle mb-0 jp-ie-routing-table">
+  <div class="card border-0 shadow-sm jp-ie-table-card">
+    <div class="table-responsive jp-ie-table-scroll">
+      <table class="table table-hover table-sm align-middle mb-0 jp-ie-wide-table jp-ie-routing-table">
         <thead>
           <tr>
             <th class="jp-ie-col-core">Mã đơn hàng</th>
@@ -83,8 +83,8 @@
               {% else %}—{% endif %}
             </td>
             <td class="small">{{ l.routing.ie_owner|default:"—" }}</td>
-            <td class="small" title="{{ l.notes }}">{{ l.notes|default:"—"|truncatechars:24 }}</td>
-            <td class="text-nowrap text-end">
+            <td class="small jp-ie-cell-wrap" title="{{ l.notes }}">{{ l.notes|default:"—"|truncatechars:24 }}</td>
+            <td class="text-end jp-td-actions">
               <a href="{% url 'san_xuat:ie_routing_detail' l.routing_id %}" class="btn btn-sm btn-outline-hm">Routing</a>
               {% if can_update and l.routing_id not in locked_routing_ids %}
               <a href="{% url 'san_xuat:ie_routing_detail' l.routing_id %}?edit={{ l.pk }}" class="btn btn-sm btn-outline-secondary py-0">Sửa</a>
@@ -99,21 +99,14 @@
             </td>
           </tr>
         {% empty %}
-          <tr><td colspan="23" class="text-muted small p-3 text-center">Không có dòng phù hợp.</td></tr>
+          <tr><td colspan="23" class="text-muted small p-3 text-center jp-ie-cell-wrap">Không có dòng phù hợp.</td></tr>
         {% endfor %}
         </tbody>
       </table>
     </div>
   </div>
 
-  <style>
-  .jp-ie-routing-table thead th {
-    font-size: 0.65rem; text-transform: uppercase; letter-spacing: .02em;
-    white-space: nowrap; vertical-align: middle; border-bottom-width: 0;
-  }
-  .jp-ie-routing-table thead th.jp-ie-col-core { background: #2f7d32; color: #fff; }
-  .jp-ie-routing-table thead th.jp-ie-col-meta { background: #1e3a5f; color: #fff; }
-  </style>
+  {% include 'san_xuat/includes/ie_wide_table_styles.html' %}
 
   {% include 'san_xuat/includes/ie_pagination.html' %}
 </div>

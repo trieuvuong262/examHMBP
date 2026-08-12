@@ -196,9 +196,9 @@
   <form method="post">
     {% csrf_token %}
     <input type="hidden" name="action" value="save_explanations">
-    <div class="card border-0 shadow-sm overflow-hidden">
-      <div class="table-responsive">
-        <table class="table table-hover table-sm align-middle mb-0 jp-ie-routing-table">
+    <div class="card border-0 shadow-sm jp-ie-table-card">
+      <div class="table-responsive jp-ie-table-scroll">
+        <table class="table table-hover table-sm align-middle mb-0 jp-ie-wide-table jp-ie-routing-table">
           <thead>
             <tr>
               <th class="jp-ie-col-core text-end">#</th>
@@ -245,12 +245,12 @@
                 {% elif l.work_center_code %}{{ l.work_center_code }}
                 {% else %}—{% endif %}
               </td>
-              <td class="small" style="max-width:10rem" title="{{ l.notes }}">{{ l.notes|default:"—"|truncatechars:36 }}</td>
-              <td style="min-width:10rem">
+              <td class="small jp-ie-cell-wrap" title="{{ l.notes }}">{{ l.notes|default:"—"|truncatechars:36 }}</td>
+              <td>
                 {% if l.smv_variance_pct > 15 or l.smv_variance_pct < -15 %}
                   {% if can_update and not locked %}
                   <input type="text" name="expl_{{ l.pk }}" value="{{ l.variance_explanation }}"
-                         class="form-control form-control-sm" maxlength="500" placeholder="Bắt buộc khi duyệt">
+                         class="form-control form-control-sm" maxlength="500" placeholder="Bắt buộc khi duyệt" style="min-width:10rem">
                   {% else %}
                   <span class="small">{{ l.variance_explanation|default:"—" }}</span>
                   {% endif %}
@@ -259,7 +259,7 @@
                 {% endif %}
               </td>
               {% if can_update and not locked %}
-              <td class="text-nowrap">
+              <td class="jp-td-actions">
                 <a href="?edit={{ l.pk }}" class="btn btn-sm btn-outline-secondary py-0">Sửa</a>
                 <button type="submit" form="del-line-{{ l.pk }}" class="btn btn-sm btn-outline-danger py-0"
                         onclick="return confirm('Xóa dòng {{ l.op_code }}?');">Xóa</button>
@@ -267,7 +267,7 @@
               {% endif %}
             </tr>
           {% empty %}
-            <tr><td colspan="{% if can_update and not locked %}19{% else %}18{% endif %}" class="text-muted small p-3 text-center">Routing chưa có công đoạn.</td></tr>
+            <tr><td colspan="{% if can_update and not locked %}19{% else %}18{% endif %}" class="text-muted small p-3 text-center jp-ie-cell-wrap">Routing chưa có công đoạn.</td></tr>
           {% endfor %}
           </tbody>
         </table>
@@ -280,14 +280,7 @@
     {% endif %}
   </form>
 
-  <style>
-  .jp-ie-routing-table thead th {
-    font-size: 0.68rem; text-transform: uppercase; letter-spacing: .02em;
-    white-space: nowrap; vertical-align: middle; border-bottom-width: 0;
-  }
-  .jp-ie-routing-table thead th.jp-ie-col-core { background: #2f7d32; color: #fff; }
-  .jp-ie-routing-table thead th.jp-ie-col-meta { background: #1e3a5f; color: #fff; }
-  </style>
+  {% include 'san_xuat/includes/ie_wide_table_styles.html' %}
 
   {% if can_update and not locked %}
   {% for l in lines %}
