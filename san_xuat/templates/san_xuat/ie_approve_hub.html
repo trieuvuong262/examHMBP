@@ -27,124 +27,145 @@
   </div>
   {% endif %}
 
-  <form method="get" class="row g-2 align-items-end mb-3">
-    <div class="col-md-3">
-      <label for="ieApproveKind" class="form-label small mb-1">Loại duyệt</label>
-      <select name="kind" id="ieApproveKind" class="form-select form-select-sm">
-        <option value="{{ kind_operation }}" {% if kind == kind_operation %}selected{% endif %}>
-          Công đoạn ({{ pending_ops }})
-        </option>
-        <option value="{{ kind_routing }}" {% if kind == kind_routing %}selected{% endif %}>
-          Routing ({{ pending_routings }})
-        </option>
+  <form method="get" id="ieApproveFilterForm" class="row g-2 align-items-end mb-3">
+    <div class="col-md-2">
+      <label for="ieApproveKind" class="form-label small mb-1">Loại</label>
+      <select name="kind" id="ieApproveKind" class="form-select form-select-sm ie-approve-filter-auto">
+        <option value="{{ kind_all }}" {% if kind == kind_all %}selected{% endif %}>Tất cả</option>
+        <option value="{{ kind_operation }}" {% if kind == kind_operation %}selected{% endif %}>Công đoạn</option>
+        <option value="{{ kind_routing }}" {% if kind == kind_routing %}selected{% endif %}>Routing</option>
+      </select>
+    </div>
+    <div class="col-md-2">
+      <label for="ieApproveStatus" class="form-label small mb-1">Trạng thái duyệt</label>
+      <select name="status" id="ieApproveStatus" class="form-select form-select-sm ie-approve-filter-auto">
+        {% for val, label in status_choices %}
+        <option value="{{ val }}" {% if val == status %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
       </select>
     </div>
     <div class="col-md-5">
       <label for="ieApproveSearch" class="form-label small mb-1">Tìm kiếm</label>
       <input type="search" name="q" id="ieApproveSearch" value="{{ term }}"
              class="form-control form-control-sm"
-             placeholder="{% if kind == kind_operation %}Mã CĐ, tên, người lập…{% else %}Mã routing, mã hàng…{% endif %}">
+             placeholder="Mã, tên, mã hàng, người lập…"
+             autocomplete="off">
     </div>
+    {% if has_active_filters %}
     <div class="col-auto">
-      <button type="submit" class="btn btn-sm btn-outline-hm">Lọc</button>
+      <a href="{% url 'san_xuat:ie_approve_hub' %}" class="btn btn-sm btn-outline-secondary">Xóa lọc</a>
     </div>
+    {% endif %}
   </form>
+
+  {% if status == status_pending %}
+  <div class="small text-muted mb-2">
+    Đang chờ duyệt: <strong>{{ pending_ops }}</strong> công đoạn · <strong>{{ pending_routings }}</strong> routing
+  </div>
+  {% endif %}
 
   <form method="post">
     {% csrf_token %}
     <input type="hidden" name="kind" value="{{ kind }}">
+    <input type="hidden" name="status" value="{{ status }}">
     <input type="hidden" name="q" value="{{ term }}">
 
     <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white fw-semibold py-2 d-flex align-items-center gap-2">
+        {% if status == status_pending %}
+        Hàng chờ duyệt
+        {% else %}
+        {% for val, label in status_choices %}{% if val == status %}{{ label }}{% endif %}{% endfor %}
+        {% endif %}
+        <span class="badge bg-secondary-subtle text-secondary">{{ total }}</span>
+      </div>
       <div class="table-responsive">
         <table class="table table-hover table-sm align-middle mb-0">
           <thead class="table-light">
             <tr>
-              {% if can_approve %}
+              {% if can_approve and show_bulk_actions %}
               <th style="width: 42px;" class="text-center">
-                <input type="checkbox" class="form-check-input" id="ieApproveCheckAll" title="Chọn tất cả">
+                <input type="checkbox" class="form-check-input ie-approve-check-all" title="Chọn tất cả">
               </th>
               {% endif %}
-              {% if kind == kind_operation %}
-              <th>Mã CĐ</th>
+              <th style="width: 96px;">Loại</th>
+              <th>Mã</th>
               <th>Phiên bản</th>
-              <th>Tên công đoạn</th>
-              <th>Nhóm</th>
-              <th class="text-end">SMV (phút)</th>
-              <th>Trạng thái</th>
-              <th>Người lập</th>
-              {% else %}
-              <th>Mã routing</th>
-              <th>Mã hàng</th>
-              <th>Tên mã hàng</th>
-              <th>Phiên bản</th>
+              <th>Tên</th>
+              <th>{% if kind == kind_routing %}Mã hàng{% elif kind == kind_operation %}Nhóm{% else %}Chi tiết{% endif %}</th>
+              {% if kind == kind_routing or kind == kind_all %}
               <th class="text-end">Dòng</th>
-              <th class="text-end">Tổng SMV</th>
-              <th>Trạng thái</th>
-              <th>Người lập</th>
               {% endif %}
+              <th class="text-end">SMV</th>
+              <th style="width: 110px;">Trạng thái duyệt</th>
+              <th>Người lập</th>
               <th></th>
             </tr>
           </thead>
           <tbody>
-          {% if kind == kind_operation %}
-            {% for op in items %}
+          {% for row in approve_rows %}
             <tr>
-              {% if can_approve %}
+              {% if can_approve and show_bulk_actions %}
               <td class="text-center">
-                <input type="checkbox" class="form-check-input ie-approve-pick" name="pk" value="{{ op.pk }}">
-              </td>
-              {% endif %}
-              <td class="fw-semibold"><a href="{% url 'san_xuat:ie_operation_detail' op.pk %}" class="text-decoration-none">{{ op.op_code }}</a></td>
-              <td><span class="badge bg-light text-dark">{{ op.op_rev }}</span></td>
-              <td>{{ op.name_vi }}</td>
-              <td class="small">{{ op.group.code|default:"—" }}</td>
-              <td class="text-end">{{ op.base_smv_min|sx_num }}</td>
-              <td class="small">{{ op.get_status_display }}</td>
-              <td class="small">{{ op.ie_owner|default:"—" }}</td>
-              <td class="text-nowrap text-end">
-                <a href="{% url 'san_xuat:ie_operation_detail' op.pk %}" class="btn btn-sm btn-outline-secondary py-0">Xem</a>
-              </td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="{% if can_approve %}9{% else %}8{% endif %}" class="text-muted small p-3 text-center">Không có công đoạn chờ duyệt (SMV &gt; 0).</td></tr>
-            {% endfor %}
-          {% else %}
-            {% for r in items %}
-            <tr>
-              {% if can_approve %}
-              <td class="text-center">
-                {% if r.pk not in locked_routing_ids %}
-                <input type="checkbox" class="form-check-input ie-approve-pick" name="pk" value="{{ r.pk }}">
+                {% if row.can_select %}
+                <input type="checkbox" class="form-check-input ie-approve-pick" name="pk" value="{{ row.pk_value }}">
                 {% endif %}
               </td>
               {% endif %}
-              <td class="fw-semibold small">{{ r.routing_id }}</td>
-              <td class="fw-semibold">{{ r.style_code }}</td>
-              <td class="small">{{ r.style_name|default:"—"|truncatechars:40 }}</td>
-              <td><span class="badge bg-light text-dark">{{ r.routing_rev }}</span></td>
-              <td class="text-end">{{ r.n_lines }}</td>
-              <td class="text-end fw-semibold">{{ r.sum_smv|default:0|sx_num }}</td>
-              <td class="small">{{ r.get_approval_status_display }}</td>
-              <td class="small">{{ r.ie_owner|default:"—" }}</td>
+              <td>
+                {% if row.item_kind == 'op' %}
+                <span class="badge bg-primary-subtle text-primary">Công đoạn</span>
+                {% else %}
+                <span class="badge bg-info-subtle text-info-emphasis">Routing</span>
+                {% endif %}
+              </td>
+              <td class="fw-semibold">
+                <a href="{{ row.code_url }}" class="text-decoration-none">{{ row.code }}</a>
+              </td>
+              <td><span class="badge bg-light text-dark">{{ row.rev }}</span></td>
+              <td>{{ row.name|truncatechars:48 }}</td>
+              <td class="small fw-semibold">{{ row.detail }}</td>
+              {% if kind == kind_routing or kind == kind_all %}
+              <td class="text-end">
+                {% if row.item_kind == 'rt' %}{{ row.n_lines|default:"—" }}{% else %}—{% endif %}
+              </td>
+              {% endif %}
+              <td class="text-end fw-semibold">{{ row.smv|default:0|sx_num }}</td>
+              <td>
+                <span class="badge bg-{{ row.approval_badge }}-subtle text-{{ row.approval_badge }}">
+                  {{ row.approval_label }}
+                </span>
+              </td>
+              <td class="small">{{ row.owner }}</td>
               <td class="text-nowrap text-end">
-                <a href="{% url 'san_xuat:ie_routing_detail' r.pk %}" class="btn btn-sm btn-outline-hm py-0">Xem</a>
-                {% if r.pk in locked_routing_ids %}
-                <span class="badge bg-warning text-dark">Đã khóa</span>
-                {% elif r.approval_status == 'rejected' %}
-                <span class="badge bg-secondary">Đã từ chối</span>
+                <a href="{{ row.view_url }}" class="btn btn-sm btn-outline-{% if row.item_kind == 'rt' %}hm{% else %}secondary{% endif %} py-0">{{ row.view_label }}</a>
+                {% for label, badge in row.extra_badges %}
+                <span class="badge bg-{{ badge }} text-dark">{{ label }}</span>
+                {% endfor %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="{% if can_approve and show_bulk_actions %}{% if kind == kind_operation %}11{% else %}12{% endif %}{% else %}{% if kind == kind_operation %}10{% else %}11{% endif %}{% endif %}" class="text-muted small p-3 text-center">
+                {% if status == status_pending %}
+                  {% if kind == kind_operation %}
+                  Không có công đoạn chờ duyệt (SMV &gt; 0).
+                  {% elif kind == kind_routing %}
+                  Không có routing chờ duyệt.
+                  {% else %}
+                  Không có công đoạn hoặc routing chờ duyệt.
+                  {% endif %}
+                {% else %}
+                Không có dữ liệu phù hợp bộ lọc.
                 {% endif %}
               </td>
             </tr>
-            {% empty %}
-            <tr><td colspan="{% if can_approve %}10{% else %}9{% endif %}" class="text-muted small p-3 text-center">Không có routing chờ duyệt.</td></tr>
-            {% endfor %}
-          {% endif %}
+          {% endfor %}
           </tbody>
         </table>
       </div>
 
-      {% if can_approve and items %}
+      {% if can_approve and show_bulk_actions and approve_rows %}
       <div class="card-footer bg-white border-top d-flex flex-wrap gap-2 align-items-center">
         <button type="submit" name="action" value="bulk_approve" class="btn btn-sm btn-hm">
           <i class="bi bi-check2-circle me-1"></i>Duyệt đã chọn
@@ -159,20 +180,57 @@
     </div>
   </form>
 
+  {% if kind != kind_all %}
   {% include 'san_xuat/includes/ie_pagination.html' %}
+  {% endif %}
 </div>
 
 {% if can_approve %}
 <script>
   document.addEventListener('DOMContentLoaded', function () {
-    var all = document.getElementById('ieApproveCheckAll');
-    if (!all) return;
-    all.addEventListener('change', function () {
-      document.querySelectorAll('.ie-approve-pick').forEach(function (cb) {
-        cb.checked = all.checked;
+    var checkAll = document.querySelector('.ie-approve-check-all');
+    if (checkAll) {
+      checkAll.addEventListener('change', function () {
+        document.querySelectorAll('.ie-approve-pick').forEach(function (cb) {
+          cb.checked = checkAll.checked;
+        });
       });
-    });
+    }
   });
 </script>
 {% endif %}
+<script>
+(function () {
+  var form = document.getElementById('ieApproveFilterForm');
+  if (!form) return;
+
+  form.querySelectorAll('.ie-approve-filter-auto').forEach(function (el) {
+    el.addEventListener('change', function () {
+      form.requestSubmit();
+    });
+  });
+
+  var search = document.getElementById('ieApproveSearch');
+  if (search) {
+    var timer = null;
+    var lastSubmitted = search.value;
+    search.addEventListener('input', function () {
+      clearTimeout(timer);
+      timer = setTimeout(function () {
+        if (search.value === lastSubmitted) return;
+        lastSubmitted = search.value;
+        form.requestSubmit();
+      }, 400);
+    });
+    search.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        clearTimeout(timer);
+        lastSubmitted = search.value;
+        form.requestSubmit();
+      }
+    });
+  }
+})();
+</script>
 {% endblock %}

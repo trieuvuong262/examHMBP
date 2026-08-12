@@ -446,7 +446,7 @@ class SxRoutingLine(models.Model):
         related_name='lines',
         verbose_name='Routing',
     )
-    seq_no = models.PositiveIntegerField(default=10, verbose_name='Thứ tự')
+    seq_no = models.PositiveIntegerField(default=1, verbose_name='Thứ tự')
     operation = models.ForeignKey(
         SxOperation,
         on_delete=models.SET_NULL,

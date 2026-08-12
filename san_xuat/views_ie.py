@@ -43,7 +43,11 @@ from san_xuat.ie_models import (
     ensure_smv_basis_defaults,
     default_smv_basis_name,
 )
-from san_xuat.services.production_machines import ie_machine_options, production_machine_count
+from san_xuat.services.production_machines import (
+    ie_machine_options,
+    ie_machine_search,
+    production_machine_count,
+)
 from san_xuat.ie_permissions import (
     IE_APPROVER_GROUP,
     ensure_ie_approver_group,
@@ -66,7 +70,6 @@ from san_xuat.services.ie_ops import (
     delete_routing_line,
     enrich_routing_lines_from_library,
     is_routing_locked,
-    ie_operation_datalist_options,
     operation_library_snapshot,
     reject_routing,
     resolve_operation,
@@ -75,6 +78,12 @@ from san_xuat.services.ie_ops import (
     update_operation_group,
     update_routing_header,
     upsert_routing_line,
+)
+from san_xuat.services.ie_ref_catalog_io import (
+    RefCatalogImportError,
+    export_ref_catalog_response,
+    import_ref_catalog,
+    ref_catalog_io_meta,
 )
 from san_xuat.services.operation_master import (
     KIND_GROUPS,
@@ -98,6 +107,14 @@ def _ie_io_context(kind: str) -> dict:
     return {
         'ie_kind': meta['kind'],
         'ie_io': meta,
+    }
+
+
+def _ref_io_context(kind: str) -> dict:
+    meta = ref_catalog_io_meta(kind)
+    return {
+        'ref_kind': meta['kind'],
+        'ref_io': meta,
     }
 
 
@@ -130,30 +147,163 @@ def _approve_perm_ctx(request):
     }
 
 
+IE_APPROVE_KIND_ALL = 'all'
 IE_APPROVE_KIND_OPERATION = 'cong-doan'
 IE_APPROVE_KIND_ROUTING = 'routing'
-IE_APPROVE_KINDS = (IE_APPROVE_KIND_OPERATION, IE_APPROVE_KIND_ROUTING)
+IE_APPROVE_KINDS = (IE_APPROVE_KIND_ALL, IE_APPROVE_KIND_OPERATION, IE_APPROVE_KIND_ROUTING)
+
+IE_APPROVE_STATUS_PENDING = 'pending'
+IE_APPROVE_STATUS_APPROVED = 'approved'
+IE_APPROVE_STATUS_REJECTED = 'rejected'
+IE_APPROVE_STATUS_ALL = 'all'
+IE_APPROVE_STATUS_CHOICES = (
+    (IE_APPROVE_STATUS_PENDING, 'Chưa duyệt'),
+    (IE_APPROVE_STATUS_APPROVED, 'Đã duyệt'),
+    (IE_APPROVE_STATUS_REJECTED, 'Từ chối'),
+    (IE_APPROVE_STATUS_ALL, 'Tất cả'),
+)
+IE_APPROVE_STATUSES = tuple(v for v, _ in IE_APPROVE_STATUS_CHOICES)
+
+
+def _operations_qs_for_approval(status: str = IE_APPROVE_STATUS_PENDING):
+    qs = SxOperation.objects.select_related('group').filter(base_smv_min__gt=Decimal('0'))
+    if status == IE_APPROVE_STATUS_APPROVED:
+        qs = qs.filter(status=SxOperation.STATUS_APPROVED)
+    elif status == IE_APPROVE_STATUS_REJECTED:
+        qs = qs.none()
+    elif status == IE_APPROVE_STATUS_ALL:
+        qs = qs.exclude(status=SxOperation.STATUS_RETIRED)
+    else:
+        qs = qs.exclude(status=SxOperation.STATUS_APPROVED).exclude(status=SxOperation.STATUS_RETIRED)
+    return qs
+
+
+def _routings_qs_for_approval(status: str = IE_APPROVE_STATUS_PENDING):
+    qs = SxRouting.objects.annotate(
+        n_lines=Count('lines'),
+        sum_smv=Sum('lines__total_operation_smv'),
+    )
+    if status == IE_APPROVE_STATUS_APPROVED:
+        qs = qs.filter(approval_status=SxRouting.APPROVAL_APPROVED)
+    elif status == IE_APPROVE_STATUS_REJECTED:
+        qs = qs.filter(approval_status=SxRouting.APPROVAL_REJECTED)
+    elif status == IE_APPROVE_STATUS_ALL:
+        return qs
+    else:
+        qs = qs.filter(
+            approval_status__in=(SxRouting.APPROVAL_DRAFT, SxRouting.APPROVAL_PENDING),
+        )
+    return qs
+
+
+def _filter_operations_for_approval(term: str = '', status: str = IE_APPROVE_STATUS_PENDING):
+    qs = _operations_qs_for_approval(status)
+    if term:
+        qs = qs.filter(
+            Q(op_code__icontains=term)
+            | Q(name_vi__icontains=term)
+            | Q(ie_owner__icontains=term)
+            | Q(group__code__icontains=term)
+        )
+    return qs.order_by('op_code', 'op_rev')
+
+
+def _filter_routings_for_approval(term: str = '', status: str = IE_APPROVE_STATUS_PENDING):
+    qs = _routings_qs_for_approval(status)
+    if term:
+        qs = qs.filter(
+            Q(routing_id__icontains=term)
+            | Q(style_code__icontains=term)
+            | Q(style_name__icontains=term)
+            | Q(ie_owner__icontains=term)
+        )
+    return qs.order_by('style_code', 'routing_rev')
 
 
 def _pending_operations_qs():
-    return SxOperation.objects.select_related('group').filter(
-        base_smv_min__gt=Decimal('0'),
-    ).exclude(
-        status=SxOperation.STATUS_APPROVED,
-    ).exclude(status=SxOperation.STATUS_RETIRED)
+    return _operations_qs_for_approval(IE_APPROVE_STATUS_PENDING)
 
 
 def _pending_routings_qs():
-    return SxRouting.objects.annotate(
-        n_lines=Count('lines'),
-        sum_smv=Sum('lines__total_operation_smv'),
-    ).exclude(approval_status=SxRouting.APPROVAL_APPROVED)
+    return _routings_qs_for_approval(IE_APPROVE_STATUS_PENDING)
 
 
-def _ie_approve_hub_url(*, kind: str = '', term: str = '', page: str = '') -> str:
+def _bulk_approve_reject(*, request, action: str, op_pks: list[int], routing_pks: list[int], perms: dict):
+    if not perms['can_approve']:
+        raise IeOpsError('Bạn không có quyền duyệt (cần quyền Sửa menu Duyệt phát hành).')
+    ok_ops = ok_rt = 0
+    errors = []
+    ops = {op.pk: op for op in SxOperation.objects.filter(pk__in=op_pks)}
+    for pk in op_pks:
+        op = ops.get(pk)
+        if not op:
+            continue
+        try:
+            if action == 'bulk_approve':
+                approve_operation(operation=op, user=request.user)
+            else:
+                reject_operation(operation=op, user=request.user)
+            ok_ops += 1
+        except IeOpsError as exc:
+            errors.append(str(exc))
+    locked = _locked_routing_ids()
+    routings = {r.pk: r for r in SxRouting.objects.filter(pk__in=routing_pks)}
+    for pk in routing_pks:
+        routing = routings.get(pk)
+        if not routing:
+            continue
+        try:
+            if action == 'bulk_approve':
+                if routing.pk in locked:
+                    raise IeOpsError(f'Routing {routing.routing_id} đã khóa — tạo REV mới.')
+                approve_routing(routing=routing, user=request.user)
+            else:
+                if routing.approval_status == SxRouting.APPROVAL_REJECTED:
+                    raise IeOpsError(f'Routing {routing.routing_id} đã bị từ chối.')
+                reject_routing(routing=routing, user=request.user)
+            ok_rt += 1
+        except IeOpsError as exc:
+            errors.append(str(exc))
+    verb = 'duyệt' if action == 'bulk_approve' else 'từ chối'
+    parts = []
+    if ok_ops:
+        parts.append(f'{ok_ops} công đoạn')
+    if ok_rt:
+        parts.append(f'{ok_rt} routing')
+    if parts:
+        messages.success(request, f'Đã {verb} {", ".join(parts)}.')
+    for msg in errors[:5]:
+        messages.error(request, msg)
+    if len(errors) > 5:
+        messages.error(request, f'… và {len(errors) - 5} lỗi khác.')
+
+
+def _parse_approve_pks(raw_pks: list[str], *, kind: str) -> tuple[list[int], list[int]]:
+    op_pks: list[int] = []
+    rt_pks: list[int] = []
+    for raw in raw_pks:
+        val = (raw or '').strip()
+        if not val:
+            continue
+        if val.startswith('op:') and val[3:].isdigit():
+            op_pks.append(int(val[3:]))
+        elif val.startswith('rt:') and val[3:].isdigit():
+            rt_pks.append(int(val[3:]))
+        elif val.isdigit():
+            pk = int(val)
+            if kind == IE_APPROVE_KIND_ROUTING:
+                rt_pks.append(pk)
+            else:
+                op_pks.append(pk)
+    return op_pks, rt_pks
+
+
+def _ie_approve_hub_url(*, kind: str = '', term: str = '', status: str = '', page: str = '') -> str:
     params = {}
-    if kind in IE_APPROVE_KINDS:
+    if kind in IE_APPROVE_KINDS and kind != IE_APPROVE_KIND_ALL:
         params['kind'] = kind
+    if status and status != IE_APPROVE_STATUS_PENDING:
+        params['status'] = status
     if term:
         params['q'] = term
     if page:
@@ -168,6 +318,80 @@ def _locked_routing_ids():
     return set(
         SxProductionOrder.objects.filter(routing_id__isnull=False).values_list('routing_id', flat=True)
     )
+
+
+def _approve_row_operation(op) -> dict:
+    if op.status == SxOperation.STATUS_APPROVED:
+        approval_label = 'Đã duyệt'
+        approval_badge = 'success'
+        can_select = False
+    else:
+        approval_label = 'Chưa duyệt'
+        approval_badge = 'warning'
+        can_select = True
+    return {
+        'item_kind': 'op',
+        'pk_value': f'op:{op.pk}',
+        'type_label': 'Công đoạn',
+        'code': op.op_code,
+        'code_url': reverse('san_xuat:ie_operation_detail', args=[op.pk]),
+        'rev': op.op_rev,
+        'name': op.name_vi,
+        'detail': op.group.code if op.group_id else '—',
+        'smv': op.base_smv_min,
+        'approval_label': approval_label,
+        'approval_badge': approval_badge,
+        'owner': op.ie_owner or '—',
+        'can_select': can_select,
+        'extra_badges': [],
+        'view_url': reverse('san_xuat:ie_operation_detail', args=[op.pk]),
+        'view_label': 'Xem',
+    }
+
+
+def _approve_row_routing(r, locked_ids: set) -> dict:
+    is_locked = r.pk in locked_ids
+    if r.approval_status == SxRouting.APPROVAL_REJECTED:
+        approval_label = 'Từ chối'
+        approval_badge = 'secondary'
+        can_select = False
+    elif r.approval_status == SxRouting.APPROVAL_APPROVED:
+        approval_label = 'Đã duyệt'
+        approval_badge = 'success'
+        can_select = False
+    else:
+        approval_label = 'Chưa duyệt'
+        approval_badge = 'warning'
+        can_select = not is_locked
+    extra_badges = []
+    if is_locked:
+        extra_badges.append(('Đã khóa', 'warning'))
+    return {
+        'item_kind': 'rt',
+        'pk_value': f'rt:{r.pk}',
+        'type_label': 'Routing',
+        'code': r.routing_id,
+        'code_url': reverse('san_xuat:ie_routing_detail', args=[r.pk]),
+        'rev': r.routing_rev,
+        'name': r.style_name or '—',
+        'detail': r.style_code,
+        'smv': r.sum_smv,
+        'n_lines': r.n_lines,
+        'approval_label': approval_label,
+        'approval_badge': approval_badge,
+        'owner': r.ie_owner or '—',
+        'can_select': can_select,
+        'extra_badges': extra_badges,
+        'view_url': reverse('san_xuat:ie_routing_detail', args=[r.pk]),
+        'view_label': 'Xem',
+    }
+
+
+def _build_approve_rows(*, operations=(), routings=(), locked_ids: set | None = None) -> list[dict]:
+    locked_ids = locked_ids or set()
+    rows = [_approve_row_operation(op) for op in operations]
+    rows.extend(_approve_row_routing(r, locked_ids) for r in routings)
+    return rows
 
 
 def _require_ie_menu(request):
@@ -274,6 +498,42 @@ def _handle_ie_import(request, *, redirect_to, kind: str = KIND_LIBRARY):
         result = import_ie_dataset(upload, kind, dry_run=dry_run, user=request.user)
         label = ie_dataset_meta(kind)['label']
     except OperationMasterImportError as exc:
+        messages.error(request, f'Lỗi import: {exc}')
+        return redirect(redirect_to)
+
+    prefix = 'THỬ (không lưu) — ' if dry_run else ''
+    summary = ', '.join(f'{k}: {v}' for k, v in sorted(result.created.items())) or 'không có bản ghi mới'
+    messages.success(
+        request,
+        f'{prefix}Import {label} xong. Tạo mới {result.total_created}, '
+        f'cập nhật {result.total_updated}. Chi tiết: {summary}.',
+    )
+    for w in result.warnings[:15]:
+        messages.warning(request, w)
+    if len(result.warnings) > 15:
+        messages.warning(request, f'… và {len(result.warnings) - 15} cảnh báo khác.')
+    return redirect(redirect_to)
+
+
+def _handle_ref_catalog_import(request, *, kind: str, redirect_to: str):
+    """Xử lý POST action=import trên trang danh mục thiết lập IE."""
+    perms = _settings_perm_ctx(request)
+    if not (perms['can_create'] or perms['can_update']):
+        messages.error(request, 'Bạn không có quyền import dữ liệu.')
+        return redirect(redirect_to)
+    upload = request.FILES.get('excel_file')
+    if not upload:
+        messages.error(request, 'Chưa chọn file Excel.')
+        return redirect(redirect_to)
+    if not upload.name.lower().endswith(('.xlsx', '.xlsm')):
+        messages.error(request, 'File phải là định dạng .xlsx.')
+        return redirect(redirect_to)
+    dry_run = request.POST.get('dry_run') == '1'
+    post_kind = (request.POST.get('ref_kind') or kind or '').strip()
+    try:
+        result = import_ref_catalog(upload, post_kind, dry_run=dry_run, user=request.user)
+        label = ref_catalog_io_meta(post_kind)['label']
+    except RefCatalogImportError as exc:
         messages.error(request, f'Lỗi import: {exc}')
         return redirect(redirect_to)
 
@@ -953,7 +1213,7 @@ def routing_detail(request, pk: int):
         if gc not in known:
             operation_groups.insert(0, SxOperationGroup(code=gc, name=gc))
     last_seq = routing.lines.order_by('-seq_no').values_list('seq_no', flat=True).first() or 0
-    default_seq_no = int(last_seq) + 10 if not edit_line else None
+    default_seq_no = int(last_seq) + 1 if not edit_line else None
     return render(request, 'san_xuat/ie_routing_detail.html', {
         **perms,
         'routing': routing,
@@ -966,10 +1226,52 @@ def routing_detail(request, pk: int):
         'work_centers': work_centers,
         'skill_levels': ensure_skill_levels_abc(),
         'operation_groups': operation_groups,
-        'operation_options': ie_operation_datalist_options(),
         'default_seq_no': default_seq_no,
         'default_work_center_code': '',
     })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+@require_GET
+def ie_machine_search_api(request):
+    """API tìm máy sản xuất — TomSelect form routing/thư viện."""
+    q = (request.GET.get('q') or '').strip()
+    return JsonResponse({'results': ie_machine_search(q=q, limit=60)})
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+@require_GET
+def ie_operation_search(request):
+    """API tìm công đoạn thư viện — mỗi kết quả là cặp OP_CODE + OP_REV (rule IE)."""
+    q = (request.GET.get('q') or '').strip()
+    qs = (
+        SxOperation.objects.exclude(status=SxOperation.STATUS_RETIRED)
+        .select_related('group__default_work_center', 'machine')
+        .order_by('op_code', 'op_rev')
+    )
+    if q:
+        qs = qs.filter(
+            Q(op_code__icontains=q)
+            | Q(name_vi__icontains=q)
+            | Q(name_en__icontains=q)
+        )
+    results = []
+    for op in qs[:60]:
+        snap = operation_library_snapshot(op)
+        results.append({
+            'id': f'{op.op_code}|{op.op_rev}',
+            'text': f'{op.op_code}/{op.op_rev} — {op.name_vi}',
+            'op_code': op.op_code,
+            'op_rev': op.op_rev,
+            'name_vi': snap.get('name_vi', ''),
+            'group_code': snap.get('group_code', ''),
+            'machine_code': snap.get('machine_code', ''),
+            'library_unit_smv': str(snap.get('library_smv') or '0'),
+            'applied_unit_smv': str(snap.get('applied_unit_smv') or snap.get('library_smv') or '0'),
+            'work_center_code': snap.get('work_center_code', ''),
+            'skill_level_label': snap.get('skill_level_label', ''),
+        })
+    return JsonResponse({'results': results})
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
@@ -1132,67 +1434,33 @@ def ie_approve_hub(request):
         return denied
 
     perms = _approve_perm_ctx(request)
-    kind = (request.GET.get('kind') or request.POST.get('kind') or IE_APPROVE_KIND_OPERATION).strip()
+    kind = (request.GET.get('kind') or request.POST.get('kind') or IE_APPROVE_KIND_ALL).strip()
     if kind not in IE_APPROVE_KINDS:
-        kind = IE_APPROVE_KIND_OPERATION
+        kind = IE_APPROVE_KIND_ALL
+    status = (request.GET.get('status') or request.POST.get('status') or IE_APPROVE_STATUS_PENDING).strip()
+    if status not in IE_APPROVE_STATUSES:
+        status = IE_APPROVE_STATUS_PENDING
     term = (request.GET.get('q') or request.POST.get('q') or '').strip()
-    back = _ie_approve_hub_url(kind=kind, term=term)
+    back = _ie_approve_hub_url(kind=kind, term=term, status=status)
 
     if request.method == 'POST':
         action = (request.POST.get('action') or '').strip()
         raw_pks = request.POST.getlist('pk')
-        pks = [int(pk) for pk in raw_pks if str(pk).isdigit()]
 
         def _redirect_with_messages():
             return redirect(back)
 
         try:
-            if action in ('bulk_approve', 'bulk_reject') and pks:
-                if not perms['can_approve']:
-                    raise IeOpsError('Bạn không có quyền duyệt (cần quyền Sửa menu Duyệt phát hành).')
-                ok = 0
-                errors = []
-                if kind == IE_APPROVE_KIND_OPERATION:
-                    ops = {op.pk: op for op in SxOperation.objects.filter(pk__in=pks)}
-                    for pk in pks:
-                        op = ops.get(pk)
-                        if not op:
-                            continue
-                        try:
-                            if action == 'bulk_approve':
-                                approve_operation(operation=op, user=request.user)
-                            else:
-                                reject_operation(operation=op, user=request.user)
-                            ok += 1
-                        except IeOpsError as exc:
-                            errors.append(str(exc))
-                else:
-                    locked = _locked_routing_ids()
-                    routings = {r.pk: r for r in SxRouting.objects.filter(pk__in=pks)}
-                    for pk in pks:
-                        routing = routings.get(pk)
-                        if not routing:
-                            continue
-                        try:
-                            if action == 'bulk_approve':
-                                if routing.pk in locked:
-                                    raise IeOpsError(f'Routing {routing.routing_id} đã khóa — tạo REV mới.')
-                                approve_routing(routing=routing, user=request.user)
-                            else:
-                                if routing.approval_status == SxRouting.APPROVAL_REJECTED:
-                                    raise IeOpsError(f'Routing {routing.routing_id} đã bị từ chối.')
-                                reject_routing(routing=routing, user=request.user)
-                            ok += 1
-                        except IeOpsError as exc:
-                            errors.append(str(exc))
-                verb = 'duyệt' if action == 'bulk_approve' else 'từ chối'
-                label = 'công đoạn' if kind == IE_APPROVE_KIND_OPERATION else 'routing'
-                if ok:
-                    messages.success(request, f'Đã {verb} {ok} {label}.')
-                for msg in errors[:5]:
-                    messages.error(request, msg)
-                if len(errors) > 5:
-                    messages.error(request, f'… và {len(errors) - 5} lỗi khác.')
+            if action in ('bulk_approve', 'bulk_reject') and raw_pks:
+                op_pks, rt_pks = _parse_approve_pks(raw_pks, kind=kind)
+                if op_pks or rt_pks:
+                    _bulk_approve_reject(
+                        request=request,
+                        action=action,
+                        op_pks=op_pks,
+                        routing_pks=rt_pks,
+                        perms=perms,
+                    )
             elif action == 'approve_operation':
                 pk = (request.POST.get('pk') or '').strip()
                 op = SxOperation.objects.filter(pk=int(pk)).first() if pk.isdigit() else None
@@ -1227,42 +1495,69 @@ def ie_approve_hub(request):
 
     pending_ops = _pending_operations_qs().count()
     pending_routings = _pending_routings_qs().count()
+    locked_routing_ids = _locked_routing_ids()
+    show_bulk_actions = status == IE_APPROVE_STATUS_PENDING
+
+    if kind == IE_APPROVE_KIND_ALL:
+        op_items = list(_filter_operations_for_approval(term, status))
+        routing_items = list(_filter_routings_for_approval(term, status))
+        approve_rows = _build_approve_rows(
+            operations=op_items,
+            routings=routing_items,
+            locked_ids=locked_routing_ids,
+        )
+        ctx = {
+            **perms,
+            'kind': kind,
+            'kind_all': IE_APPROVE_KIND_ALL,
+            'kind_operation': IE_APPROVE_KIND_OPERATION,
+            'kind_routing': IE_APPROVE_KIND_ROUTING,
+            'status': status,
+            'status_pending': IE_APPROVE_STATUS_PENDING,
+            'status_choices': IE_APPROVE_STATUS_CHOICES,
+            'approve_rows': approve_rows,
+            'query_string': '',
+            'term': term,
+            'total': len(approve_rows),
+            'pending_ops': pending_ops,
+            'pending_routings': pending_routings,
+            'locked_routing_ids': locked_routing_ids,
+            'show_bulk_actions': show_bulk_actions,
+            'has_active_filters': bool(term) or kind != IE_APPROVE_KIND_ALL or status != IE_APPROVE_STATUS_PENDING,
+        }
+        return render(request, 'san_xuat/ie_approve_hub.html', ctx)
 
     if kind == IE_APPROVE_KIND_OPERATION:
-        qs = _pending_operations_qs()
-        if term:
-            qs = qs.filter(
-                Q(op_code__icontains=term)
-                | Q(name_vi__icontains=term)
-                | Q(ie_owner__icontains=term)
-            )
-        qs = qs.order_by('op_code', 'op_rev')
+        qs = _filter_operations_for_approval(term, status)
     else:
-        qs = _pending_routings_qs()
-        if term:
-            qs = qs.filter(
-                Q(routing_id__icontains=term)
-                | Q(style_code__icontains=term)
-                | Q(style_name__icontains=term)
-            )
-        qs = qs.order_by('style_code', 'routing_rev')
+        qs = _filter_routings_for_approval(term, status)
 
     page_obj, query_string = paginate_queryset(request, qs)
+    items = page_obj.object_list
+    if kind == IE_APPROVE_KIND_OPERATION:
+        approve_rows = _build_approve_rows(operations=items, locked_ids=locked_routing_ids)
+    else:
+        approve_rows = _build_approve_rows(routings=items, locked_ids=locked_routing_ids)
     ctx = {
         **perms,
         'kind': kind,
+        'kind_all': IE_APPROVE_KIND_ALL,
         'kind_operation': IE_APPROVE_KIND_OPERATION,
         'kind_routing': IE_APPROVE_KIND_ROUTING,
+        'status': status,
+        'status_pending': IE_APPROVE_STATUS_PENDING,
+        'status_choices': IE_APPROVE_STATUS_CHOICES,
         'page_obj': page_obj,
-        'items': page_obj.object_list,
+        'approve_rows': approve_rows,
         'query_string': query_string,
         'term': term,
         'total': qs.count(),
         'pending_ops': pending_ops,
         'pending_routings': pending_routings,
+        'locked_routing_ids': locked_routing_ids,
+        'show_bulk_actions': show_bulk_actions,
+        'has_active_filters': bool(term) or kind != IE_APPROVE_KIND_ALL or status != IE_APPROVE_STATUS_PENDING,
     }
-    if kind == IE_APPROVE_KIND_ROUTING:
-        ctx['locked_routing_ids'] = _locked_routing_ids()
     return render(request, 'san_xuat/ie_approve_hub.html', ctx)
 
 
@@ -1346,7 +1641,7 @@ def ie_ref_catalog(request, kind: str):
                 obj.save()
                 messages.success(request, f'Đã lưu {obj.code}.')
             elif action == 'delete_ref':
-                if not perms['can_update']:
+                if not (perms['can_delete'] or perms['can_update']):
                     raise IeOpsError('Bạn không có quyền xóa danh mục.')
                 pk = (request.POST.get('pk') or '').strip()
                 obj = Model.objects.filter(pk=int(pk)).first() if pk.isdigit() else None
@@ -1355,6 +1650,8 @@ def ie_ref_catalog(request, kind: str):
                 code = obj.code
                 obj.delete()
                 messages.success(request, f'Đã xóa {code}.')
+            elif action == 'import':
+                return _handle_ref_catalog_import(request, kind=kind, redirect_to=list_url)
             else:
                 messages.error(request, 'Hành động không hợp lệ.')
         except IeOpsError as exc:
@@ -1375,6 +1672,7 @@ def ie_ref_catalog(request, kind: str):
     page_obj, query_string = paginate_queryset(request, qs)
     return render(request, 'san_xuat/ie_ref_catalog.html', {
         **perms,
+        **_ref_io_context(kind),
         'kind': kind,
         'meta': meta,
         'page_obj': page_obj,
@@ -1384,6 +1682,34 @@ def ie_ref_catalog(request, kind: str):
         'active_filter': active_filter,
         'total': qs.count(),
     })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'export')
+@require_GET
+def ie_ref_catalog_export(request, kind: str):
+    denied = _require_ie_settings_access(request)
+    if denied:
+        return denied
+    if not user_can_export_menu(request.user, MODULE_SAN_XUAT, IE_SETTINGS_MENU_KEY):
+        return handle_menu_access_denied(request, MODULE_SAN_XUAT, IE_SETTINGS_MENU_KEY)
+    try:
+        return export_ref_catalog_response(kind, template=False, user=request.user)
+    except RefCatalogImportError as exc:
+        messages.error(request, str(exc))
+        return redirect('san_xuat:ie_settings_hub')
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+@require_GET
+def ie_ref_catalog_import_template(request, kind: str):
+    denied = _require_ie_settings_access(request)
+    if denied:
+        return denied
+    try:
+        return export_ref_catalog_response(kind, template=True)
+    except RefCatalogImportError as exc:
+        messages.error(request, str(exc))
+        return redirect('san_xuat:ie_settings_hub')
 
 
 def _require_ie_settings_access(request):

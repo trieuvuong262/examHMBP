@@ -1,0 +1,169 @@
+{# TomSelect thư viện CĐ + máy SX — mở focus hiện list, gõ tìm #}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/css/tom-select.bootstrap5.min.css">
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/js/tom-select.complete.min.js"></script>
+<script>
+(function () {
+  var opSearchUrl = '{% url "san_xuat:ie_operation_search" %}';
+  var machineSearchUrl = '{% url "san_xuat:ie_machine_search" %}';
+
+  window.jpIeApplyOperationPick = function (form, data, force) {
+    if (!form || !data) return;
+    var isNewLine = !form.querySelector('[name="line_pk"]');
+    var shouldForce = force || isNewLine;
+    window._ieApplyingPick = true;
+
+    function setField(name, value) {
+      var el = form.querySelector('[name="' + name + '"]');
+      if (!el || value === undefined || value === null) return;
+      var str = String(value);
+      if (!shouldForce && (el.value || '').trim()) return;
+      if (!str && !shouldForce) return;
+      el.value = str;
+    }
+
+    function setSelect(name, value) {
+      var el = form.querySelector('[name="' + name + '"]');
+      if (!el || value === undefined || value === null) return;
+      var str = String(value);
+      if (!shouldForce && (el.value || '').trim()) return;
+      if (!str && !shouldForce) return;
+      var label = str;
+      var found = false;
+      for (var i = 0; i < el.options.length; i++) {
+        if (el.options[i].value === str) {
+          found = true;
+          label = el.options[i].textContent || str;
+          break;
+        }
+      }
+      if (!found && str) {
+        var opt = document.createElement('option');
+        opt.value = str;
+        opt.textContent = str;
+        el.appendChild(opt);
+        found = true;
+      }
+      if (!(found || str === '')) return;
+      if (el.tomselect) {
+        el.tomselect.addOption({ value: str, text: label });
+        el.tomselect.setValue(str, true);
+      } else {
+        el.value = str;
+      }
+    }
+
+    try {
+      setField('op_code', data.op_code || '');
+      setField('op_rev', data.op_rev || 'R01');
+      setField('op_name_vi', data.name_vi || '');
+      setSelect('group_code', data.group_code || '');
+      setSelect('machine_code', data.machine_code || '');
+      setField('library_unit_smv', data.library_unit_smv || '');
+      setField('applied_unit_smv', data.applied_unit_smv || data.library_unit_smv || '');
+      setSelect('skill_level_label', data.skill_level_label || '');
+      setSelect('work_center_code', data.work_center_code || '');
+    } finally {
+      window._ieApplyingPick = false;
+    }
+  };
+
+  function applyPick(ts, value) {
+    var form = ts.input.closest('form');
+    if (!form || !value) return;
+    var opt = ts.options[value];
+    if (opt) window.jpIeApplyOperationPick(form, opt, true);
+  }
+
+  function mapOpRows(data) {
+    return (data.results || []).map(function (row) {
+      return {
+        value: row.id,
+        text: row.text,
+        op_code: row.op_code,
+        op_rev: row.op_rev,
+        name_vi: row.name_vi,
+        group_code: row.group_code,
+        machine_code: row.machine_code,
+        library_unit_smv: row.library_unit_smv,
+        applied_unit_smv: row.applied_unit_smv,
+        work_center_code: row.work_center_code,
+        skill_level_label: row.skill_level_label,
+      };
+    });
+  }
+
+  function mapMachineRows(data) {
+    return (data.results || []).map(function (row) {
+      return {
+        value: row.id || row.code,
+        text: row.text || ((row.code || '') + ' — ' + (row.name || '')),
+      };
+    });
+  }
+
+  function remoteLoad(url, mapFn) {
+    return function (query, callback) {
+      var q = (query || '').trim();
+      var full = url + (q ? ('?q=' + encodeURIComponent(q)) : '');
+      fetch(full, {
+        headers: { 'Accept': 'application/json' },
+        credentials: 'same-origin',
+      })
+        .then(function (r) { return r.ok ? r.json() : { results: [] }; })
+        .then(function (data) { callback(mapFn(data)); })
+        .catch(function () { callback(); });
+    };
+  }
+
+  function initOpPicker(sel) {
+    if (!sel || sel.tomselect || typeof TomSelect === 'undefined') return;
+    var form = sel.closest('form');
+    new TomSelect(sel, {
+      maxOptions: 80,
+      maxItems: 1,
+      allowEmptyOption: true,
+      placeholder: sel.dataset.placeholder || 'Gõ mã hoặc tên công đoạn…',
+      dropdownParent: 'body',
+      openOnFocus: true,
+      create: false,
+      preload: 'focus',
+      sortField: { field: 'text', direction: 'asc' },
+      loadThrottle: 250,
+      valueField: 'value',
+      labelField: 'text',
+      searchField: ['text', 'op_code', 'name_vi'],
+      load: remoteLoad(opSearchUrl, mapOpRows),
+      onItemAdd: function (value) {
+        applyPick(this, value);
+      },
+      onChange: function (value) {
+        if (!form || value) return;
+        window.jpIeApplyOperationPick(form, { op_code: '', op_rev: 'R01', name_vi: '' }, true);
+      },
+    });
+  }
+
+  function initMachinePicker(sel) {
+    if (!sel || sel.tomselect || typeof TomSelect === 'undefined') return;
+    new TomSelect(sel, {
+      maxOptions: 80,
+      maxItems: 1,
+      allowEmptyOption: true,
+      placeholder: sel.dataset.placeholder || '— Chọn máy —',
+      dropdownParent: 'body',
+      openOnFocus: true,
+      create: false,
+      preload: 'focus',
+      sortField: { field: 'text', direction: 'asc' },
+      loadThrottle: 250,
+      valueField: 'value',
+      labelField: 'text',
+      searchField: ['text'],
+      load: remoteLoad(machineSearchUrl, mapMachineRows),
+    });
+  }
+
+  document.querySelectorAll('select.jp-ie-op-select').forEach(initOpPicker);
+  document.querySelectorAll('select.jp-ie-machine-select').forEach(initMachinePicker);
+})();
+</script>

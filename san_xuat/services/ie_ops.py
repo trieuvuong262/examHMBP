@@ -109,13 +109,11 @@ def operation_library_snapshot(op: SxOperation | None) -> dict:
 
 
 def ie_operation_datalist_options(*, limit: int = 500) -> list[SxOperation]:
-    """Công đoạn thư viện cho datalist form routing (ưu tiên đã duyệt/thử)."""
-    from san_xuat.services.process_catalog import _STANDARD_STATUSES
-
+    """Công đoạn thư viện cho form routing — mỗi dòng là cặp (op_code, op_rev) duy nhất."""
     return list(
-        SxOperation.objects.filter(status__in=_STANDARD_STATUSES)
-        .select_related('group')
-        .order_by('op_code', '-op_rev')[:limit]
+        SxOperation.objects.exclude(status=SxOperation.STATUS_RETIRED)
+        .select_related('group__default_work_center', 'machine')
+        .order_by('op_code', 'op_rev')[:limit]
     )
 
 
@@ -338,6 +336,14 @@ def _next_op_rev(op_code: str, preferred: str = 'R01') -> str:
         if cand not in existing:
             return cand
     raise IeOpsError(f'Không còn phiên bản trống cho công đoạn {op_code}.')
+
+
+def _bump_routing_line_rev(current: str) -> str:
+    """Tăng phiên bản snapshot dòng routing (R01 → R02) — không nhập tay."""
+    raw = (current or 'R01').strip().upper() or 'R01'
+    if raw.startswith('R') and raw[1:].isdigit():
+        return f'R{int(raw[1:]) + 1:02d}'
+    return 'R02'
 
 
 @transaction.atomic
@@ -1013,11 +1019,6 @@ def approve_routing(*, routing: SxRouting, user=None) -> SxRouting:
         raise IeOpsError(f'Routing {routing.routing_id} chưa có công đoạn.')
     for line in lines:
         assert_smv_positive(line.applied_unit_smv, label=f'{line.op_code} APPLIED_UNIT_SMV')
-        require_variance_explanation(
-            line.smv_variance_pct,
-            line.variance_explanation,
-            label=f'{line.op_code}#{line.seq_no}',
-        )
     from san_xuat.ie_permissions import ie_user_display_name
 
     routing.approval_status = SxRouting.APPROVAL_APPROVED
@@ -1160,15 +1161,22 @@ def upsert_routing_line(
     variance_explanation: str = '',
     notes: str = '',
 ) -> SxRoutingLine:
-    """Thêm hoặc sửa một dòng routing (tay)."""
+    """Thêm hoặc sửa một dòng routing (tay).
+
+    Rule UI routing:
+    - SEQ tự tăng từ 1 (1, 2, 3…)
+    - Phiên bản CĐ không nhập tay: lấy từ thư viện; khi sửa dòng thì tự tăng (R01→R02…)
+    """
     assert_routing_editable(routing)
     op_code = (op_code or '').strip().upper()
     if not op_code:
         raise IeOpsError('Nhập mã công đoạn.')
-    op_rev = (op_rev or 'R01').strip() or 'R01'
+    op_rev = (op_rev or '').strip() or None
     name = (op_name_vi or '').strip()
     op = resolve_operation(op_code, op_rev)
     snap = operation_library_snapshot(op)
+    if not op_rev:
+        op_rev = snap.get('op_rev') or (op.op_rev if op else 'R01') or 'R01'
     if not name:
         name = snap.get('name_vi', '')
     if not name:
@@ -1224,7 +1232,7 @@ def upsert_routing_line(
         old_smv = line.applied_unit_smv
     if seq_no is None:
         last = routing.lines.order_by('-seq_no').values_list('seq_no', flat=True).first() or 0
-        seq_no = int(last) + 10
+        seq_no = int(last) + 1
     else:
         seq_no = int(seq_no)
         conflict_qs = routing.lines.filter(seq_no=seq_no)
@@ -1237,35 +1245,63 @@ def upsert_routing_line(
     if line is None:
         line = SxRoutingLine(routing=routing)
 
-    line.seq_no = seq_no
-    line.operation = op
-    line.op_code = op_code[:30]
-    line.op_rev = op_rev[:10]
-    line.op_name_vi = name[:200]
-    line.group_code = (group_code or (op.group.code if op else ''))[:30]
-    line.qty_per_garment = qty
-    line.library_unit_smv = library or Decimal('0')
-    line.applied_unit_smv = applied
-    line.price_factor = price_factor if price_factor is not None else (line.price_factor or Decimal('0'))
-    line.total_unit_price = (
+    price_val = price_factor if price_factor is not None else (line.price_factor or Decimal('0'))
+    total_price_val = (
         total_unit_price if total_unit_price is not None else (line.total_unit_price or Decimal('0'))
     )
-    if skill_level_label is not None:
-        from san_xuat.ie_models import normalize_skill_level_label
-        line.skill_level_label = normalize_skill_level_label(skill_level_label or '')[:60]
-    line.machine = machine
+    from san_xuat.ie_models import normalize_skill_level_label
+    skill_val = normalize_skill_level_label(skill_level_label or '')[:60] if skill_level_label is not None else (line.skill_level_label or '')
     mc = (machine_code or (machine.code if machine else '') or '').strip()
     if not mc and op:
         mc = snap.get('machine_code', '')
-    line.machine_code = mc[:40]
+    mc = mc[:40]
+    wc_code_final = (wc.code if wc else wc_code_raw)[:40]
+    group_final = (group_code or (op.group.code if op else ''))[:30]
+    notes_final = (notes or '')[:255]
+    library_final = library or Decimal('0')
+
+    # Sửa dòng: nếu nội dung đổi → tự tăng phiên bản snapshot (không nhập tay).
+    if line.pk and line.op_code:
+        changed = (
+            (line.op_code or '').upper() != op_code
+            or (line.op_name_vi or '') != name[:200]
+            or (line.group_code or '') != group_final
+            or line.qty_per_garment != qty
+            or line.applied_unit_smv != applied
+            or line.library_unit_smv != library_final
+            or (line.machine_code or '') != mc
+            or (line.work_center_code or '') != wc_code_final
+            or (line.skill_level_label or '') != skill_val
+            or line.price_factor != price_val
+            or line.total_unit_price != total_price_val
+            or (line.notes or '') != notes_final
+        )
+        if changed:
+            if (line.op_code or '').upper() == op_code:
+                op_rev = _bump_routing_line_rev(line.op_rev)
+            else:
+                op_rev = snap.get('op_rev') or (op.op_rev if op else 'R01') or 'R01'
+
+    line.seq_no = seq_no
+    line.operation = op
+    line.op_code = op_code[:30]
+    line.op_rev = (op_rev or 'R01')[:10]
+    line.op_name_vi = name[:200]
+    line.group_code = group_final
+    line.qty_per_garment = qty
+    line.library_unit_smv = library_final
+    line.applied_unit_smv = applied
+    line.price_factor = price_val
+    line.total_unit_price = total_price_val
+    if skill_level_label is not None:
+        line.skill_level_label = skill_val
+    line.machine = machine
+    line.machine_code = mc
     line.work_center = wc
-    line.work_center_code = (wc.code if wc else wc_code_raw)[:40]
-    line.notes = (notes or '')[:255]
+    line.work_center_code = wc_code_final
+    line.notes = notes_final
     line.recompute()
-    if abs(line.smv_variance_pct or 0) > VARIANCE_LIMIT_PCT:
-        require_variance_explanation(line.smv_variance_pct, variance_explanation, label=op_code)
-        line.variance_explanation = (variance_explanation or '')[:500]
-    elif variance_explanation:
+    if variance_explanation:
         line.variance_explanation = variance_explanation[:500]
     line.save()
     _mark_routing_pending(routing)

@@ -11,11 +11,20 @@
       <h2 class="jp-npl-mat-topbar-title w-100">{{ meta.title }}</h2>
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
+      {% if can_export %}
+      <a href="{% url 'san_xuat:ie_ref_catalog_export' kind=kind %}" class="btn btn-sx-export btn-sm fw-bold" title="Xuất Excel">
+        <i class="bi bi-download me-1"></i>Xuất Excel
+      </a>
+      {% endif %}
       {% if can_create or can_update %}
+      <button type="button" class="btn btn-outline-hm btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#ieRefImportModal">
+        <i class="bi bi-upload me-1"></i>Nhập Excel
+      </button>
       <button type="button" class="btn btn-hm btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#ieAddRefModal">
         <i class="bi bi-plus-lg me-1"></i>Thêm
       </button>
       {% endif %}
+      <span class="sep" aria-hidden="true"></span>
       <a href="{% url 'san_xuat:ie_settings_hub' %}" class="is-back">
         <i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại
       </a>
@@ -75,12 +84,14 @@
                       data-sort="{{ item.sort_order }}"
                       data-active="{% if item.is_active %}1{% else %}0{% endif %}"
                       data-notes="{{ item.notes }}">Sửa</button>
+              {% if can_delete or can_update %}
               <form method="post" class="d-inline" onsubmit="return confirm('Xóa {{ item.code }}?');">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="delete_ref">
                 <input type="hidden" name="pk" value="{{ item.pk }}">
                 <button type="submit" class="btn btn-sm btn-outline-danger py-0">Xóa</button>
               </form>
+              {% endif %}
             </td>
             {% endif %}
           </tr>
@@ -201,4 +212,6 @@ document.getElementById('ieEditRefModal').addEventListener('show.bs.modal', func
 });
 </script>
 {% endif %}
+
+{% include 'san_xuat/includes/ie_ref_import_modal.html' %}
 {% endblock %}

@@ -97,24 +97,28 @@
         <div class="col-6 col-md-1">
           <label class="form-label small mb-0">SEQ <span class="text-danger">*</span></label>
           <input type="number" name="seq_no" class="form-control form-control-sm" min="1"
-                 value="{% if edit_line %}{{ edit_line.seq_no }}{% elif default_seq_no %}{{ default_seq_no }}{% endif %}"
-                 placeholder="{% if default_seq_no %}{{ default_seq_no }}{% else %}auto{% endif %}">
+                 value="{% if edit_line %}{{ edit_line.seq_no }}{% elif default_seq_no %}{{ default_seq_no }}{% else %}1{% endif %}"
+                 placeholder="1">
         </div>
-        <div class="col-6 col-md-2">
+        <div class="col-6 col-md-3">
           <label class="form-label small mb-0">Mã CĐ <span class="text-danger">*</span></label>
-          <input type="text" name="op_code" class="form-control form-control-sm" required maxlength="30"
-                 list="ie-op-codes" autocomplete="off"
-                 value="{% if edit_line %}{{ edit_line.op_code }}{% endif %}" placeholder="Gõ mã hoặc chọn…">
-          <datalist id="ie-op-codes">
-            {% for op in operation_options %}
-            <option value="{{ op.op_code }}">{{ op.op_code }}/{{ op.op_rev }} — {{ op.name_vi }}</option>
-            {% endfor %}
-          </datalist>
+          <select id="ie-op-picker" class="form-select form-select-sm jp-ie-op-select"
+                  data-placeholder="Gõ tìm mã/tên công đoạn…">
+            {% if edit_line %}
+            <option value="{{ edit_line.op_code }}|{{ edit_line.op_rev }}" selected>
+              {{ edit_line.op_code }}/{{ edit_line.op_rev }} — {% if edit_line.op_name_vi %}{{ edit_line.op_name_vi }}{% elif edit_line.operation %}{{ edit_line.operation.name_vi }}{% else %}{{ edit_line.op_code }}{% endif %}
+            </option>
+            {% endif %}
+          </select>
+          <input type="hidden" name="op_code" required
+                 value="{% if edit_line %}{{ edit_line.op_code }}{% endif %}">
         </div>
         <div class="col-4 col-md-1">
-          <label class="form-label small mb-0">Phiên bản <span class="text-danger">*</span></label>
-          <input type="text" name="op_rev" class="form-control form-control-sm" required maxlength="10"
-                 value="{% if edit_line %}{{ edit_line.op_rev }}{% else %}R01{% endif %}">
+          <label class="form-label small mb-0">Phiên bản</label>
+          <input type="text" name="op_rev" id="ie-op-rev" class="form-control form-control-sm" readonly
+                 maxlength="10" tabindex="-1"
+                 value="{% if edit_line %}{{ edit_line.op_rev }}{% else %}R01{% endif %}"
+                 title="Tự lấy từ thư viện; tự tăng khi sửa dòng">
         </div>
         <div class="col-8 col-md-3">
           <label class="form-label small mb-0">Tên công đoạn</label>
@@ -157,11 +161,14 @@
         </div>
         <div class="col-6 col-md-2">
           <label class="form-label small mb-0">Máy <span class="text-danger">*</span></label>
-          <input type="text" name="machine_code" class="form-control form-control-sm" list="ie-machine-codes"
-                 value="{% if edit_line %}{{ edit_line.machine_code }}{% endif %}" maxlength="40">
-          <datalist id="ie-machine-codes">
-            {% for m in machines %}<option value="{{ m.code }}">{{ m.code }} — {{ m.name }}</option>{% endfor %}
-          </datalist>
+          <select name="machine_code" class="form-select form-select-sm jp-ie-machine-select"
+                  data-placeholder="— Chọn máy —">
+            {% if edit_line and edit_line.machine_code %}
+            <option value="{{ edit_line.machine_code }}" selected>
+              {{ edit_line.machine_code }}{% if edit_line.machine %} — {{ edit_line.machine.name }}{% endif %}
+            </option>
+            {% endif %}
+          </select>
         </div>
         <div class="col-6 col-md-2">
           <label class="form-label small mb-0">Bộ phận <span class="text-danger">*</span></label>
@@ -188,12 +195,7 @@
             {% endfor %}
           </select>
         </div>
-        <div class="col-12 col-md-3">
-          <label class="form-label small mb-0">Giải trình lệch (&gt;15%)</label>
-          <input type="text" name="variance_explanation" class="form-control form-control-sm" maxlength="500"
-                 value="{% if edit_line %}{{ edit_line.variance_explanation }}{% endif %}">
-        </div>
-        <div class="col-12 col-md-3">
+        <div class="col-12 col-md-4">
           <label class="form-label small mb-0">Ghi chú</label>
           <input type="text" name="notes" class="form-control form-control-sm" maxlength="255"
                  value="{% if edit_line %}{{ edit_line.notes }}{% endif %}">
@@ -209,98 +211,76 @@
   </div>
   {% endif %}
 
-  <form method="post">
-    {% csrf_token %}
-    <input type="hidden" name="action" value="save_explanations">
-    <div class="card border-0 shadow-sm jp-ie-table-card">
-      <div class="table-responsive jp-ie-table-scroll">
-        <table class="table table-hover table-sm align-middle mb-0 jp-ie-wide-table jp-ie-routing-table">
-          <thead>
-            <tr>
-              <th class="jp-ie-col-core text-end">#</th>
-              <th class="jp-ie-col-core">Mã nhóm</th>
-              <th class="jp-ie-col-core">Mã CĐ</th>
-              <th class="jp-ie-col-core">Phiên bản</th>
-              <th class="jp-ie-col-core">Tên công đoạn</th>
-              <th class="jp-ie-col-core text-end">Số lượng</th>
-              <th class="jp-ie-col-core">Bậc CĐ</th>
-              <th class="jp-ie-col-core text-end">ĐM thời gian</th>
-              <th class="jp-ie-col-core text-end">ĐM phiên bản</th>
-              <th class="jp-ie-col-core text-end">Tổng ĐM</th>
-              <th class="jp-ie-col-core text-end">ĐM SP/H</th>
-              <th class="jp-ie-col-core text-end">% lệch</th>
-              <th class="jp-ie-col-core text-end">Hệ số ĐG</th>
-              <th class="jp-ie-col-core text-end">Tổng ĐG</th>
-              <th class="jp-ie-col-meta">Máy</th>
-              <th class="jp-ie-col-meta">Work center</th>
-              <th class="jp-ie-col-meta">Notes</th>
-              <th class="jp-ie-col-meta">Giải trình (&gt;15%)</th>
-              {% if can_update and not locked %}<th></th>{% endif %}
-            </tr>
-          </thead>
-          <tbody>
-          {% for l in lines %}
-            <tr>
-              <td class="text-end text-muted">{{ l.seq_no }}</td>
-              <td class="small">{% if l.group_code %}{{ l.group_code }}{% elif l.operation and l.operation.group_id %}{{ l.operation.group.code }}{% else %}—{% endif %}</td>
-              <td class="fw-semibold">
-                {% if l.operation_id %}
-                <a href="{% url 'san_xuat:ie_operation_detail' l.operation_id %}" class="text-decoration-none">{{ l.op_code }}</a>
-                {% else %}
-                {{ l.op_code }}
-                {% endif %}
-              </td>
-              <td><span class="badge bg-light text-dark">{{ l.op_rev }}</span></td>
-              <td>{% if l.op_name_vi %}{{ l.op_name_vi }}{% elif l.operation %}{{ l.operation.name_vi }}{% else %}—{% endif %}</td>
-              <td class="text-end">{{ l.qty_per_garment|sx_num }}</td>
-              <td class="small">{{ l.skill_level_label|default:"—" }}</td>
-              <td class="text-end">{{ l.applied_unit_smv|sx_num }}</td>
-              <td class="text-end">{{ l.library_unit_smv|sx_num }}</td>
-              <td class="text-end fw-semibold">{{ l.total_operation_smv|sx_num }}</td>
-              <td class="text-end">{{ l.std_capacity_pcs_hour|sx_num }}</td>
-              <td class="text-end {% if l.smv_variance_pct > 15 or l.smv_variance_pct < -15 %}text-danger{% endif %}">{{ l.smv_variance_pct|sx_num:1 }}</td>
-              <td class="text-end">{{ l.price_factor|sx_num }}</td>
-              <td class="text-end">{{ l.total_unit_price|sx_num }}</td>
-              <td class="small">{% if l.machine_code %}{{ l.machine_code }}{% elif l.operation and l.operation.machine_code %}{{ l.operation.machine_code }}{% else %}—{% endif %}</td>
-              <td class="small">
-                {% if l.work_center %}{{ l.work_center.name }}
-                {% elif l.work_center_code %}{{ l.work_center_code }}
-                {% else %}—{% endif %}
-              </td>
-              <td class="small jp-ie-cell-wrap" title="{{ l.notes }}">{% if l.notes %}{{ l.notes|truncatechars:36 }}{% endif %}</td>
-              <td>
-                {% if l.smv_variance_pct > 15 or l.smv_variance_pct < -15 %}
-                  {% if can_update and not locked %}
-                  <input type="text" name="expl_{{ l.pk }}" value="{{ l.variance_explanation }}"
-                         class="form-control form-control-sm" maxlength="500" placeholder="Bắt buộc khi duyệt" style="min-width:10rem">
-                  {% else %}
-                  <span class="small">{{ l.variance_explanation|default:"—" }}</span>
-                  {% endif %}
-                {% else %}
-                  <span class="text-muted small">—</span>
-                {% endif %}
-              </td>
-              {% if can_update and not locked %}
-              <td class="jp-td-actions">
-                <a href="?edit={{ l.pk }}" class="btn btn-sm btn-outline-secondary py-0">Sửa</a>
-                <button type="submit" form="del-line-{{ l.pk }}" class="btn btn-sm btn-outline-danger py-0"
-                        onclick="return confirm('Xóa dòng {{ l.op_code }}?');">Xóa</button>
-              </td>
+  <div class="card border-0 shadow-sm jp-ie-table-card">
+    <div class="table-responsive jp-ie-table-scroll">
+      <table class="table table-hover table-sm align-middle mb-0 jp-ie-wide-table jp-ie-routing-table">
+        <thead>
+          <tr>
+            <th class="jp-ie-col-core text-end">#</th>
+            <th class="jp-ie-col-core">Mã nhóm</th>
+            <th class="jp-ie-col-core">Mã CĐ</th>
+            <th class="jp-ie-col-core">Phiên bản</th>
+            <th class="jp-ie-col-core">Tên công đoạn</th>
+            <th class="jp-ie-col-core text-end">Số lượng</th>
+            <th class="jp-ie-col-core">Bậc CĐ</th>
+            <th class="jp-ie-col-core text-end">ĐM thời gian</th>
+            <th class="jp-ie-col-core text-end">ĐM phiên bản</th>
+            <th class="jp-ie-col-core text-end">Tổng ĐM</th>
+            <th class="jp-ie-col-core text-end">ĐM SP/H</th>
+            <th class="jp-ie-col-core text-end">% lệch</th>
+            <th class="jp-ie-col-core text-end">Hệ số ĐG</th>
+            <th class="jp-ie-col-core text-end">Tổng ĐG</th>
+            <th class="jp-ie-col-meta">Máy</th>
+            <th class="jp-ie-col-meta">Work center</th>
+            <th class="jp-ie-col-meta">Notes</th>
+            {% if can_update and not locked %}<th></th>{% endif %}
+          </tr>
+        </thead>
+        <tbody>
+        {% for l in lines %}
+          <tr>
+            <td class="text-end text-muted">{{ l.seq_no }}</td>
+            <td class="small">{% if l.group_code %}{{ l.group_code }}{% elif l.operation and l.operation.group_id %}{{ l.operation.group.code }}{% else %}—{% endif %}</td>
+            <td class="fw-semibold">
+              {% if l.operation_id %}
+              <a href="{% url 'san_xuat:ie_operation_detail' l.operation_id %}" class="text-decoration-none">{{ l.op_code }}</a>
+              {% else %}
+              {{ l.op_code }}
               {% endif %}
-            </tr>
-          {% empty %}
-            <tr><td colspan="{% if can_update and not locked %}19{% else %}18{% endif %}" class="text-muted small p-3 text-center jp-ie-cell-wrap">Routing chưa có công đoạn.</td></tr>
-          {% endfor %}
-          </tbody>
-        </table>
-      </div>
+            </td>
+            <td><span class="badge bg-light text-dark">{{ l.op_rev }}</span></td>
+            <td>{% if l.op_name_vi %}{{ l.op_name_vi }}{% elif l.operation %}{{ l.operation.name_vi }}{% else %}—{% endif %}</td>
+            <td class="text-end">{{ l.qty_per_garment|sx_num }}</td>
+            <td class="small">{{ l.skill_level_label|default:"—" }}</td>
+            <td class="text-end">{{ l.applied_unit_smv|sx_num }}</td>
+            <td class="text-end">{{ l.library_unit_smv|sx_num }}</td>
+            <td class="text-end fw-semibold">{{ l.total_operation_smv|sx_num }}</td>
+            <td class="text-end">{{ l.std_capacity_pcs_hour|sx_num }}</td>
+            <td class="text-end {% if l.smv_variance_pct > 15 or l.smv_variance_pct < -15 %}text-danger{% endif %}">{{ l.smv_variance_pct|sx_num:1 }}</td>
+            <td class="text-end">{{ l.price_factor|sx_num }}</td>
+            <td class="text-end">{{ l.total_unit_price|sx_num }}</td>
+            <td class="small">{% if l.machine_code %}{{ l.machine_code }}{% elif l.operation and l.operation.machine_code %}{{ l.operation.machine_code }}{% else %}—{% endif %}</td>
+            <td class="small">
+              {% if l.work_center %}{{ l.work_center.name }}
+              {% elif l.work_center_code %}{{ l.work_center_code }}
+              {% else %}—{% endif %}
+            </td>
+            <td class="small jp-ie-cell-wrap" title="{{ l.notes }}">{% if l.notes %}{{ l.notes|truncatechars:36 }}{% endif %}</td>
+            {% if can_update and not locked %}
+            <td class="jp-td-actions">
+              <a href="?edit={{ l.pk }}" class="btn btn-sm btn-outline-secondary py-0">Sửa</a>
+              <button type="submit" form="del-line-{{ l.pk }}" class="btn btn-sm btn-outline-danger py-0"
+                      onclick="return confirm('Xóa dòng {{ l.op_code }}?');">Xóa</button>
+            </td>
+            {% endif %}
+          </tr>
+        {% empty %}
+          <tr><td colspan="{% if can_update and not locked %}18{% else %}17{% endif %}" class="text-muted small p-3 text-center jp-ie-cell-wrap">Routing chưa có công đoạn.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
     </div>
-    {% if can_update and not locked and high_var_count %}
-    <div class="mt-2">
-      <button type="submit" class="btn btn-sm btn-outline-hm">Lưu giải trình lệch SMV</button>
-    </div>
-    {% endif %}
-  </form>
+  </div>
 
   {% include 'san_xuat/includes/ie_wide_table_styles.html' %}
 
@@ -317,74 +297,18 @@
 </div>
 
 {% if can_update and not locked %}
+{% include 'san_xuat/includes/ie_operation_select_script.html' %}
 <script>
 (function () {
   var form = document.getElementById('ie-routing-line-form');
   if (!form) return;
-  var isNewLine = !form.querySelector('[name="line_pk"]');
   var opCode = form.querySelector('[name="op_code"]');
-  var opRev = form.querySelector('[name="op_rev"]');
-  if (!opCode) return;
-  var lookupUrl = '{% url "san_xuat:ie_operation_lookup" %}';
-  var timer = null;
-
-  function setField(name, value, force) {
-    var el = form.querySelector('[name="' + name + '"]');
-    if (!el || value === undefined || value === null) return;
-    var str = String(value);
-    if (!force && !isNewLine && (el.value || '').trim()) return;
-    if (!str && !force) return;
-    el.value = str;
-    el.dispatchEvent(new Event('change', { bubbles: true }));
-  }
-
-  function setSelect(name, value, force) {
-    var el = form.querySelector('[name="' + name + '"]');
-    if (!el || value === undefined || value === null) return;
-    var str = String(value);
-    if (!force && !isNewLine && (el.value || '').trim()) return;
-    if (!str && !force) return;
-    var found = false;
-    for (var i = 0; i < el.options.length; i++) {
-      if (el.options[i].value === str) { found = true; break; }
+  form.addEventListener('submit', function (e) {
+    if (!(opCode && (opCode.value || '').trim())) {
+      e.preventDefault();
+      alert('Chọn mã công đoạn từ thư viện.');
     }
-    if (found || str === '') {
-      el.value = str;
-      el.dispatchEvent(new Event('change', { bubbles: true }));
-    }
-  }
-
-  function fillFromLibrary() {
-    var code = (opCode.value || '').trim();
-    var rev = (opRev && opRev.value || 'R01').trim() || 'R01';
-    if (!code) return;
-    var url = lookupUrl + '?op_code=' + encodeURIComponent(code) + '&op_rev=' + encodeURIComponent(rev);
-    fetch(url, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })
-      .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (data) {
-        if (!data || !data.ok) return;
-        setField('op_rev', data.op_rev, isNewLine);
-        setField('op_name_vi', data.name_vi, isNewLine);
-        setSelect('group_code', data.group_code, isNewLine);
-        setField('machine_code', data.machine_code, isNewLine);
-        setField('library_unit_smv', data.library_unit_smv, isNewLine);
-        setField('applied_unit_smv', data.applied_unit_smv, isNewLine);
-        setSelect('skill_level_label', data.skill_level_label, isNewLine);
-        setSelect('work_center_code', data.work_center_code, isNewLine);
-      })
-      .catch(function () {});
-  }
-
-  function scheduleLookup() {
-    if (timer) clearTimeout(timer);
-    timer = setTimeout(fillFromLibrary, 350);
-  }
-  opCode.addEventListener('input', scheduleLookup);
-  opCode.addEventListener('change', fillFromLibrary);
-  if (opRev) {
-    opRev.addEventListener('input', scheduleLookup);
-    opRev.addEventListener('change', fillFromLibrary);
-  }
+  });
 })();
 </script>
 {% endif %}

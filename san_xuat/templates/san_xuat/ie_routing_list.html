@@ -12,20 +12,18 @@
       <h2 class="jp-npl-mat-topbar-title w-100">Routing mã hàng</h2>
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
-      {% if can_create or can_update %}
-      <a href="#ieImportModal" data-bs-toggle="modal" data-bs-target="#ieImportModal">
-        <i class="bi bi-upload" aria-hidden="true"></i>Import
-      </a>
-      {% endif %}
       {% if can_export %}
       <a href="{% url 'san_xuat:ie_export_kind' kind='routing' %}" class="btn btn-sx-export btn-sm fw-bold" title="Xuất Excel">
         <i class="bi bi-download me-1"></i>Xuất Excel
       </a>
       {% endif %}
       {% if can_create or can_update %}
-      <a href="#ieAddRoutingModal" class="btn btn-hm btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#ieAddRoutingModal">
+      <button type="button" class="btn btn-outline-hm btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#ieImportModal">
+        <i class="bi bi-upload me-1"></i>Nhập Excel
+      </button>
+      <button type="button" class="btn btn-hm btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#ieAddRoutingModal">
         <i class="bi bi-plus-lg me-1"></i>Tạo routing
-      </a>
+      </button>
       {% endif %}
       <span class="sep" aria-hidden="true"></span>
       <a href="{% url 'san_xuat:ie_hub' %}" class="is-back">

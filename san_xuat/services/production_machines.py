@@ -33,3 +33,33 @@ def ie_machine_options(*, extra_code: str = '', limit: int | None = 400) -> list
     if extra and extra.casefold() not in seen:
         opts.insert(0, SimpleNamespace(code=extra, name=f'{extra} (đang dùng)'))
     return opts
+
+
+def ie_machine_search(*, q: str = '', limit: int = 60) -> list[dict]:
+    """Tìm máy sản xuất cho TomSelect (mở dropdown / gõ tìm)."""
+    from django.db.models import Q
+
+    qs = production_machine_qs().order_by('name', 'device_code')
+    term = (q or '').strip()
+    if term:
+        qs = qs.filter(
+            Q(device_code__icontains=term)
+            | Q(name__icontains=term)
+        )
+    results: list[dict] = []
+    seen: set[str] = set()
+    for device in qs[: max(limit * 2, 120)]:
+        code = (device.device_code or '').strip()
+        if not code or code.casefold() in seen:
+            continue
+        seen.add(code.casefold())
+        name = (device.name or code).strip()
+        results.append({
+            'id': code,
+            'text': f'{code} — {name}',
+            'code': code,
+            'name': name,
+        })
+        if len(results) >= limit:
+            break
+    return results
