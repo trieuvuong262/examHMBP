@@ -45,6 +45,10 @@ class SanXuatMenuPermissionTests(SimpleTestCase):
             ("/san-xuat/dieu-phoi/lenh-sx/1/in/", "mo"),
             ("/san-xuat/dieu-phoi/chay-lenh-moi/", "mo"),
             ("/san-xuat/ho-so/", "docs"),
+            ("/san-xuat/cong-doan/", "ie"),
+            ("/san-xuat/cong-doan/thu-vien/", "ie"),
+            ("/san-xuat/cong-doan/xuat-excel/", "ie"),
+            ("/san-xuat/cong-doan/mau-excel/", "ie"),
         ]
         for path, expected in cases:
             module, menu = resolve_menu_from_request(path)

@@ -14,12 +14,12 @@ from django.urls import reverse
 from django.views.decorators.http import require_GET
 
 from assessment.decorators import module_perm_required
-from hrm.module_permissions import (
-    MODULE_SAN_XUAT,
-    user_can_create_module,
-    user_can_export_module,
-    user_can_update_module,
+from hrm.menu_permissions import (
+    handle_menu_access_denied,
+    menu_perm_context,
+    user_can_export_menu,
 )
+from hrm.module_permissions import MODULE_SAN_XUAT
 from PortalJustPlay.pagination import paginate_queryset
 
 from san_xuat.ie_models import (
@@ -61,20 +61,29 @@ from san_xuat.services.ie_ops import (
 )
 from san_xuat.services.operation_master import (
     OperationMasterImportError,
+    export_operation_library_template_response,
     export_operation_master_response,
     import_operation_master,
 )
 
+IE_MENU_KEY = 'ie'
+
 
 def _perm_ctx(request):
     return {
-        'can_create': user_can_create_module(request.user, MODULE_SAN_XUAT),
-        'can_update': user_can_update_module(request.user, MODULE_SAN_XUAT),
-        'can_export': user_can_export_module(request.user, MODULE_SAN_XUAT),
+        **menu_perm_context(request.user, MODULE_SAN_XUAT, IE_MENU_KEY),
         'can_approve': user_can_approve_ie(request.user),
         'approver_group_ready': ie_approver_group_has_members(),
         'approver_group_name': IE_APPROVER_GROUP,
     }
+
+
+def _require_ie_menu(request):
+    from hrm.menu_permissions import user_can_access_menu
+
+    if not user_can_access_menu(request.user, MODULE_SAN_XUAT, IE_MENU_KEY):
+        return handle_menu_access_denied(request, MODULE_SAN_XUAT, IE_MENU_KEY)
+    return None
 
 
 def _create_routing_from_post(request, *, fail_redirect: str):
@@ -132,6 +141,39 @@ def _dec(raw, default='0'):
         return Decimal(default)
 
 
+def _handle_ie_import(request, *, redirect_to):
+    """Xử lý POST action=import — dùng chung hub / thư viện công đoạn."""
+    perms = _perm_ctx(request)
+    if not (perms['can_create'] or perms['can_update']):
+        messages.error(request, 'Bạn không có quyền import dữ liệu.')
+        return redirect(redirect_to)
+    upload = request.FILES.get('excel_file')
+    if not upload:
+        messages.error(request, 'Chưa chọn file Excel.')
+        return redirect(redirect_to)
+    if not upload.name.lower().endswith(('.xlsx', '.xlsm')):
+        messages.error(request, 'File phải là định dạng .xlsx.')
+        return redirect(redirect_to)
+    dry_run = request.POST.get('dry_run') == '1'
+    try:
+        result = import_operation_master(upload, dry_run=dry_run, user=request.user)
+    except OperationMasterImportError as exc:
+        messages.error(request, f'Lỗi import: {exc}')
+        return redirect(redirect_to)
+
+    prefix = 'THỬ (không lưu) — ' if dry_run else ''
+    summary = ', '.join(f'{k}: {v}' for k, v in sorted(result.created.items())) or 'không có bản ghi mới'
+    messages.success(
+        request,
+        f'{prefix}Import xong. Tạo mới {result.total_created}, cập nhật {result.total_updated}. Chi tiết: {summary}.',
+    )
+    for w in result.warnings[:15]:
+        messages.warning(request, w)
+    if len(result.warnings) > 15:
+        messages.warning(request, f'… và {len(result.warnings) - 15} cảnh báo khác.')
+    return redirect(redirect_to)
+
+
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def ie_hub(request):
     perms = _perm_ctx(request)
@@ -139,34 +181,7 @@ def ie_hub(request):
     if request.method == 'POST':
         action = request.POST.get('action')
         if action == 'import':
-            if not (perms['can_create'] or perms['can_update']):
-                messages.error(request, 'Bạn không có quyền import dữ liệu.')
-                return redirect('san_xuat:ie_hub')
-            upload = request.FILES.get('excel_file')
-            if not upload:
-                messages.error(request, 'Chưa chọn file Excel.')
-                return redirect('san_xuat:ie_hub')
-            if not upload.name.lower().endswith(('.xlsx', '.xlsm')):
-                messages.error(request, 'File phải là định dạng .xlsx.')
-                return redirect('san_xuat:ie_hub')
-            dry_run = request.POST.get('dry_run') == '1'
-            try:
-                result = import_operation_master(upload, dry_run=dry_run, user=request.user)
-            except OperationMasterImportError as exc:
-                messages.error(request, f'Lỗi import: {exc}')
-                return redirect('san_xuat:ie_hub')
-
-            prefix = 'THỬ (không lưu) — ' if dry_run else ''
-            summary = ', '.join(f'{k}: {v}' for k, v in sorted(result.created.items())) or 'không có bản ghi mới'
-            messages.success(
-                request,
-                f'{prefix}Import xong. Tạo mới {result.total_created}, cập nhật {result.total_updated}. Chi tiết: {summary}.',
-            )
-            for w in result.warnings[:15]:
-                messages.warning(request, w)
-            if len(result.warnings) > 15:
-                messages.warning(request, f'… và {len(result.warnings) - 15} cảnh báo khác.')
-            return redirect('san_xuat:ie_hub')
+            return _handle_ie_import(request, redirect_to='san_xuat:ie_hub')
 
     stats = {
         'machines': production_machine_count(),
@@ -196,7 +211,22 @@ def ie_hub(request):
 @module_perm_required(MODULE_SAN_XUAT, 'export')
 @require_GET
 def ie_export(request):
+    denied = _require_ie_menu(request)
+    if denied:
+        return denied
+    if not user_can_export_menu(request.user, MODULE_SAN_XUAT, IE_MENU_KEY):
+        return handle_menu_access_denied(request, MODULE_SAN_XUAT, IE_MENU_KEY)
     return export_operation_master_response(user=request.user)
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+@require_GET
+def ie_import_template(request):
+    """File mẫu Excel + hướng dẫn cho người mới import thư viện công đoạn."""
+    denied = _require_ie_menu(request)
+    if denied:
+        return denied
+    return export_operation_library_template_response()
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
@@ -342,6 +372,8 @@ def operation_list(request):
     if request.method == 'POST':
         action = (request.POST.get('action') or '').strip()
         back = request.get_full_path() if request.GET else reverse('san_xuat:ie_operation_list')
+        if action == 'import':
+            return _handle_ie_import(request, redirect_to=back)
         pk = request.POST.get('pk')
         op = SxOperation.objects.filter(pk=int(pk)).first() if pk and str(pk).isdigit() else None
         try:

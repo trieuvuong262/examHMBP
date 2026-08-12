@@ -1,0 +1,216 @@
+{% if can_create or can_update %}
+<style>
+.jp-ie-import-steps { display: flex; gap: 0.35rem; flex-wrap: wrap; margin-bottom: 0.85rem; }
+.jp-ie-import-step {
+  flex: 1 1 auto; font-size: 0.75rem; color: var(--bs-secondary-color);
+  padding: 0.35rem 0.5rem; border: 1px dashed var(--bs-border-color);
+  border-radius: 0.35rem; text-align: center; white-space: nowrap;
+}
+.jp-ie-import-step.is-active {
+  color: var(--hm-red, #dc2626); border-color: rgba(220, 38, 38, 0.45);
+  background: rgba(220, 38, 38, 0.05); font-weight: 600;
+}
+.jp-ie-import-drop {
+  border: 2px dashed var(--bs-border-color); border-radius: 0.5rem;
+  padding: 1.1rem 1rem; text-align: center; cursor: pointer;
+  transition: border-color .15s ease, background .15s ease;
+}
+.jp-ie-import-drop.is-dragover, .jp-ie-import-drop:hover {
+  border-color: rgba(220, 38, 38, 0.5); background: rgba(220, 38, 38, 0.04);
+}
+.jp-ie-import-drop.has-file {
+  border-style: solid; border-color: rgba(25, 135, 84, 0.45);
+  background: rgba(25, 135, 84, 0.05);
+}
+.jp-ie-import-file-meta { font-size: 0.8125rem; word-break: break-all; }
+.jp-ie-import-cols { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.jp-ie-import-col-badge {
+  font-size: 0.7rem; padding: 0.2rem 0.45rem; border-radius: 0.25rem;
+  background: var(--bs-light); border: 1px solid var(--bs-border-color);
+}
+.jp-ie-import-col-badge.is-required {
+  border-color: rgba(220, 38, 38, 0.35); color: var(--hm-red, #dc2626);
+}
+.jp-ie-import-tips {
+  font-size: 0.8125rem; background: rgba(13, 110, 253, 0.06);
+  border: 1px solid rgba(13, 110, 253, 0.18); border-radius: 0.5rem;
+  padding: 0.65rem 0.75rem; margin-bottom: 0.85rem;
+}
+.jp-ie-import-tips ol { margin: 0.35rem 0 0; padding-left: 1.15rem; }
+.jp-ie-import-tips li { margin-bottom: 0.2rem; }
+</style>
+<div class="modal fade" id="ieImportModal" tabindex="-1" aria-labelledby="ieImportModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <form method="post" enctype="multipart/form-data"
+          class="modal-content border-0 shadow" id="ie-import-form"
+          {% if import_form_action %}action="{{ import_form_action }}"{% endif %}>
+      {% csrf_token %}
+      <input type="hidden" name="action" value="import">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title fw-bold" id="ieImportModalLabel">Nhập thư viện công đoạn từ Excel</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+      </div>
+      <div class="modal-body">
+        <div class="jp-ie-import-steps">
+          <span class="jp-ie-import-step">1. Tải mẫu</span>
+          <span class="jp-ie-import-step">2. Điền sheet 02</span>
+          <span class="jp-ie-import-step is-active">3. Chọn file &amp; Import</span>
+        </div>
+
+        <div class="jp-ie-import-tips">
+          <div class="fw-semibold mb-1"><i class="bi bi-lightbulb me-1"></i>Làm theo 5 bước</div>
+          <ol>
+            <li><strong>Tải file mẫu</strong> (có sheet hướng dẫn + 2 dòng ví dụ).</li>
+            <li>Mở Excel → đọc sheet <code>00_HUONG_DAN</code>.</li>
+            <li>Điền sheet <code>02_THU_VIEN_CONG_DOAN</code> — <strong>xóa dòng ví dụ</strong> trước khi lưu.</li>
+            <li><strong>Định mức thời gian = giây</strong> (vd 36 giây → SMV 0,6 phút trên Portal).</li>
+            <li>Upload tại đây — lần đầu nên bật <em>Chạy thử</em>.</li>
+          </ol>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2 mb-3">
+          <a href="{% url 'san_xuat:ie_import_template' %}" class="btn btn-outline-hm btn-sm fw-bold">
+            <i class="bi bi-download me-1"></i>Tải file mẫu
+          </a>
+          {% if can_export %}
+          <a href="{% url 'san_xuat:ie_export' %}" class="btn btn-outline-secondary btn-sm fw-bold">
+            <i class="bi bi-box-arrow-up-right me-1"></i>Xuất thư viện hiện tại
+          </a>
+          {% endif %}
+        </div>
+
+        <div class="mb-2">
+          <div class="small fw-semibold text-muted mb-1">Cột bắt buộc / nên có (sheet 02)</div>
+          <div class="jp-ie-import-cols">
+            <span class="jp-ie-import-col-badge is-required">MÃ CÔNG ĐOẠN</span>
+            <span class="jp-ie-import-col-badge is-required">TÊN CÔNG ĐOẠN</span>
+            <span class="jp-ie-import-col-badge is-required">PHIÊN BẢN</span>
+            <span class="jp-ie-import-col-badge">MÃ NHÓM</span>
+            <span class="jp-ie-import-col-badge">ĐỊNH MỨC THỜI GIAN (giây)</span>
+            <span class="jp-ie-import-col-badge">TRẠNG THÁI</span>
+            <span class="jp-ie-import-col-badge">KHÂU SẢN XUẤT</span>
+            <span class="jp-ie-import-col-badge">MÃ MÁY MÓC</span>
+          </div>
+          <div class="form-text mt-1">Trùng <code>MÃ CÔNG ĐOẠN</code> + <code>PHIÊN BẢN</code> → cập nhật bản ghi cũ.</div>
+        </div>
+
+        <label class="jp-ie-import-drop d-block mb-3" id="ie-import-drop" for="ie-excel-file">
+          <input type="file" class="d-none" id="ie-excel-file" name="excel_file" accept=".xlsx,.xlsm" required>
+          <div class="fw-semibold" id="ie-import-drop-title">Kéo thả file hoặc bấm để chọn</div>
+          <div class="small text-muted" id="ie-import-drop-hint">.xlsx / .xlsm — giữ đúng tên sheet 02_THU_VIEN_CONG_DOAN</div>
+          <div class="jp-ie-import-file-meta fw-semibold text-success mt-2 d-none" id="ie-import-file-meta"></div>
+        </label>
+
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" name="dry_run" value="1" id="ieDryRunModal" checked>
+          <label class="form-check-label small" for="ieDryRunModal">
+            Chạy thử (không lưu) — nên bật lần đầu để xem cảnh báo
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer border-0 pt-0">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Huỷ</button>
+        <button type="submit" class="btn btn-hm btn-sm fw-bold" id="ie-import-submit" disabled>
+          <span class="jp-ie-import-submit-label"><i class="bi bi-upload me-1"></i>Import</span>
+          <span class="jp-ie-import-submit-loading d-none">
+            <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Đang xử lý…
+          </span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+<script>
+(function () {
+  var form = document.getElementById('ie-import-form');
+  var drop = document.getElementById('ie-import-drop');
+  var input = document.getElementById('ie-excel-file');
+  var submit = document.getElementById('ie-import-submit');
+  var meta = document.getElementById('ie-import-file-meta');
+  var modal = document.getElementById('ieImportModal');
+  if (!form || !drop || !input || !submit) return;
+
+  var MAX_MB = 15;
+
+  function formatSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  }
+
+  function isExcel(name) {
+    var lower = (name || '').toLowerCase();
+    return lower.endsWith('.xlsx') || lower.endsWith('.xlsm');
+  }
+
+  function setFile(file) {
+    if (!file) {
+      input.value = '';
+      drop.classList.remove('has-file');
+      meta.classList.add('d-none');
+      meta.textContent = '';
+      submit.disabled = true;
+      return;
+    }
+    if (!isExcel(file.name)) {
+      alert('Chỉ chấp nhận file Excel (.xlsx hoặc .xlsm).');
+      setFile(null);
+      return;
+    }
+    if (file.size > MAX_MB * 1024 * 1024) {
+      alert('File quá lớn. Tối đa ' + MAX_MB + ' MB.');
+      setFile(null);
+      return;
+    }
+    var dt = new DataTransfer();
+    dt.items.add(file);
+    input.files = dt.files;
+    drop.classList.add('has-file');
+    meta.classList.remove('d-none');
+    meta.textContent = file.name + ' (' + formatSize(file.size) + ')';
+    submit.disabled = false;
+  }
+
+  input.addEventListener('change', function () {
+    setFile(input.files && input.files[0] ? input.files[0] : null);
+  });
+
+  ['dragenter', 'dragover'].forEach(function (ev) {
+    drop.addEventListener(ev, function (e) {
+      e.preventDefault();
+      drop.classList.add('is-dragover');
+    });
+  });
+  ['dragleave', 'drop'].forEach(function (ev) {
+    drop.addEventListener(ev, function (e) {
+      e.preventDefault();
+      drop.classList.remove('is-dragover');
+    });
+  });
+  drop.addEventListener('drop', function (e) {
+    var file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (file) setFile(file);
+  });
+
+  form.addEventListener('submit', function () {
+    submit.disabled = true;
+    var label = submit.querySelector('.jp-ie-import-submit-label');
+    var loading = submit.querySelector('.jp-ie-import-submit-loading');
+    if (label) label.classList.add('d-none');
+    if (loading) loading.classList.remove('d-none');
+  });
+
+  if (modal) {
+    modal.addEventListener('hidden.bs.modal', function () {
+      setFile(null);
+      var label = submit.querySelector('.jp-ie-import-submit-label');
+      var loading = submit.querySelector('.jp-ie-import-submit-loading');
+      if (label) label.classList.remove('d-none');
+      if (loading) loading.classList.add('d-none');
+      var dry = document.getElementById('ieDryRunModal');
+      if (dry) dry.checked = true;
+    });
+  }
+})();
+</script>
+{% endif %}

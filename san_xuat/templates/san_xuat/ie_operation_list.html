@@ -7,8 +7,23 @@
     <div>
       <h2 class="mb-0">Thư viện công đoạn</h2>
       <div class="text-muted small">{{ total }} công đoạn chuẩn (OP_CODE + phiên bản).</div>
+      {% if can_create or can_update %}
+      <div class="small mt-1">
+        <span class="text-muted">Mới dùng?</span>
+        Bấm <strong>Import</strong> → tải file mẫu → điền sheet <code>02_THU_VIEN_CONG_DOAN</code>
+        (định mức = <strong>giây</strong>) → chạy thử trước khi lưu.
+      </div>
+      {% endif %}
     </div>
     <div class="d-flex flex-wrap gap-2">
+      {% if can_create or can_update %}
+      <button type="button" class="btn btn-sm btn-outline-hm" data-bs-toggle="modal" data-bs-target="#ieImportModal">
+        <i class="bi bi-upload me-1"></i>Import
+      </button>
+      {% endif %}
+      {% if can_export %}
+      <a href="{% url 'san_xuat:ie_export' %}" class="btn btn-sm btn-outline-hm"><i class="bi bi-download me-1"></i>Xuất Excel</a>
+      {% endif %}
       {% if can_create or can_update %}
       <button type="button" class="btn btn-sm btn-hm" data-bs-toggle="modal" data-bs-target="#ieAddOpModal">
         <i class="bi bi-plus-lg me-1"></i>Thêm công đoạn
@@ -109,6 +124,7 @@
 </div>
 
 {% if can_create or can_update %}
+{% include 'san_xuat/includes/ie_import_modal.html' %}
 <div class="modal fade" id="ieAddOpModal" tabindex="-1" aria-labelledby="ieAddOpModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">

@@ -154,27 +154,10 @@ def _it_documents_menus(*, manager: bool) -> dict:
 
 def _san_xuat_menus(*, manager: bool) -> dict:
     """Menu hub SX — khớp submenu_registry MODULE_SAN_XUAT."""
+    from hrm.submenu_registry import MODULE_SUBMENUS, MODULE_SAN_XUAT
+
     level = MGR if manager else VIEW
-    keys = (
-        'overview', 'orders', 'order_create', 'order_confirm', 'products_nvl',
-        'docs', 'bom', 'capacity',
-        'plan', 'plan_board', 'plan_route', 'plan_progress', 'plan_overall', 'plan_detail', 'plan_npl', 'npl_pr',
-        'npl_stock',
-        'dispatch', 'mo', 'material_issue_req',
-        'handover_status', 'fg_receipt_req', 'subcontract',
-        'team_work', 'team_work_goods', 'team_work_cat', 'team_work_inep', 'team_work_theu',
-        'team_work_may', 'team_work_ht', 'team_work_gh',
-        'work_assign',
-        'qc', 'qc_request', 'qc_sheet', 'ncr',
-        'qc_criteria', 'qc_criteria_group', 'qc_sampling',
-        'qc_standard_set', 'qc_defect', 'qc_defect_group',
-        'costing_hub', 'costing_norm', 'costing_so',
-        'fg_stock', 'fg_products', 'fg_stock_list', 'fg_purchases',
-        'traceability', 'ops_report',
-        'process', 'unified_catalog', 'staging',
-        'general_settings',
-    )
-    return {key: dict(level) for key in keys}
+    return {m['key']: dict(level) for m in MODULE_SUBMENUS[MODULE_SAN_XUAT]}
 
 
 def _kho_npl_menus(*, manager: bool) -> dict:

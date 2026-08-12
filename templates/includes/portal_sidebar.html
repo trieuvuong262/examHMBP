@@ -682,11 +682,12 @@
                 {# —— 2. Hồ sơ (master) — ẩn SP/NVL landing & quy trình read-only (vào từ hồ sơ) —— #}
                 {% jp_can_menu 'san_xuat' 'docs' as jp_can_san_xuat_docs %}
                 {% jp_can_menu 'san_xuat' 'bom' as jp_can_san_xuat_bom %}
+                {% jp_can_menu 'san_xuat' 'ie' as jp_can_san_xuat_ie %}
                 {% jp_can_menu 'san_xuat' 'capacity' as jp_can_san_xuat_capacity %}
-                {% if jp_can_san_xuat_docs or jp_can_san_xuat_bom or jp_can_san_xuat_capacity %}
+                {% if jp_can_san_xuat_docs or jp_can_san_xuat_bom or jp_can_san_xuat_ie or jp_can_san_xuat_capacity %}
                 <li class="jp-sidebar-nested-group{% if '/san-xuat/ho-so' in request.path or '/san-xuat/bom' in request.path or '/san-xuat/nang-luc' in request.path or '/san-xuat/cong-doan' in request.path %} is-open{% endif %}"
                     data-sx-area="docs" data-sx-icon="bi-journal-text" data-sx-label="Hồ sơ"
-                    data-sx-href="{% if jp_can_san_xuat_docs %}{% url 'san_xuat:doc_list' %}{% elif jp_can_san_xuat_bom %}{% url 'san_xuat:ie_hub' %}{% else %}{% url 'san_xuat:capacity_list' %}{% endif %}">
+                    data-sx-href="{% if jp_can_san_xuat_docs %}{% url 'san_xuat:doc_list' %}{% elif jp_can_san_xuat_ie %}{% url 'san_xuat:ie_hub' %}{% elif jp_can_san_xuat_bom %}{% url 'san_xuat:bom_list' %}{% else %}{% url 'san_xuat:capacity_list' %}{% endif %}">
                     <button type="button"
                             class="jp-sidebar-nested-toggle"
                             data-jp-sidebar-group-toggle
@@ -708,7 +709,7 @@
                             </a>
                         </li>
                         {% endif %}
-                        {% if jp_can_san_xuat_bom %}
+                        {% if jp_can_san_xuat_ie %}
                         <li>
                             <a href="{% url 'san_xuat:ie_hub' %}"
                                class="jp-sidebar-link jp-sidebar-sublink {% if '/san-xuat/cong-doan' in request.path %}active{% endif %}">

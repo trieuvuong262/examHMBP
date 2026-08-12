@@ -775,6 +775,101 @@ def export_operation_master_workbook():
     return wb
 
 
+LIB_HEADERS = [
+    'MÃ NHÓM', 'MÃ CÔNG ĐOẠN', 'PHIÊN BẢN', 'TÊN CÔNG ĐOẠN', 'TÊN CÔNG ĐOẠN_EN',
+    'BẬC CÔNG ĐOẠN', 'ĐỊNH MỨC THỜI GIAN', 'ĐỊNH MỨC SP/H', 'KHÂU SẢN XUẤT',
+    'CỤM CHI TIẾT CHÍNH', 'MÔ TẢ PHƯƠNG PHÁP', 'MÃ MÁY MÓC', 'NHÓM MŨI MAY',
+    'QUY ĐỊNH KIM/CHỈ', 'MÃ CỮ/GIÁ/CHÂN VỊT', 'ĐƠN VỊ', 'NGUỒN SMV', 'TRẠNG THÁI',
+    'NGÀY HIỆU LỰC', 'NGÀY HẾT HIỆU LỰC', 'NGƯỜI LẬP', 'NGƯỜI DUYỆT',
+    'LÝ DO CHỈNH SỬA PHIÊN BẢN', 'VIDEO_URL', 'NOTES',
+]
+
+GROUP_HEADERS = [
+    'MÃ NHÓM', 'TÊN NHÓM', 'KHÂU SẢN XUẤT', 'SẢN PHẨM CẦN', 'MÔ TẢ CHI TIẾT',
+    'HIỆU LỰC', 'NGƯỜI LẬP', 'NGÀY HIỆU LỰC', 'DEFAULT_WORK_CENTER', 'NOTES',
+]
+
+
+def export_operation_library_template_workbook():
+    """File mẫu rỗng + ví dụ — dành cho người mới import thư viện công đoạn."""
+    try:
+        from openpyxl import Workbook
+    except ImportError as exc:  # pragma: no cover
+        raise OperationMasterImportError('Thiếu thư viện openpyxl.') from exc
+
+    wb = Workbook()
+
+    ws = wb.active
+    ws.title = '00_HUONG_DAN'
+    guide_rows = [
+        ['HƯỚNG DẪN NHẬP THƯ VIỆN CÔNG ĐOẠN (cho người mới)'],
+        [],
+        ['Bước 1', 'Đọc sheet này trước — không xóa / đổi tên sheet 01 và 02.'],
+        ['Bước 2', 'Sheet 01_DM_NHOM_CONG_DOAN: khai báo nhóm (Cắt, May, In-Ép…).'],
+        ['Bước 3', 'Sheet 02_THU_VIEN_CONG_DOAN: mỗi dòng = 1 công đoạn chuẩn (mã + phiên bản).'],
+        ['Bước 4', 'Xóa dòng ví dụ mẫu, điền dữ liệu thật, lưu file .xlsx.'],
+        ['Bước 5', 'Trên Portal → Import → chọn file → nên bật “Chạy thử” lần đầu.'],
+        [],
+        ['Cột bắt buộc (sheet 02)', 'MÃ CÔNG ĐOẠN · TÊN CÔNG ĐOẠN · PHIÊN BẢN (mặc định R01)'],
+        ['Cột nên có', 'MÃ NHÓM · ĐỊNH MỨC THỜI GIAN · TRẠNG THÁI'],
+        [],
+        ['ĐỊNH MỨC THỜI GIAN', 'Đơn vị GIÂY (không phải phút). Ví dụ 36 giây = SMV 0,6 phút.'],
+        ['Trùng mã', 'Cùng MÃ CÔNG ĐOẠN + PHIÊN BẢN → hệ thống CẬP NHẬT bản ghi cũ.'],
+        ['TRẠNG THÁI', 'Nháp | Thử nghiệm | Đã duyệt | Ngưng sử dụng'],
+        ['Nhóm chưa có', 'Nếu MÃ NHÓM chưa tồn tại, hệ thống tự tạo nhóm tạm (có cảnh báo).'],
+        [],
+        ['Mẹo', 'Xuất Excel thư viện hiện tại rồi chỉnh sửa — dễ hơn điền từ file trống.'],
+    ]
+    for row in guide_rows:
+        ws.append(row)
+    ws.column_dimensions['A'].width = 28
+    ws.column_dimensions['B'].width = 88
+
+    ws_g = wb.create_sheet(SHEET_GROUP)
+    _write_sheet(ws_g, GROUP_HEADERS, [
+        [
+            'MAY', 'May', 'May', '', 'Nhóm ví dụ — đổi hoặc xóa trước khi import thật',
+            'Có', '', '', '', 'Dòng mẫu',
+        ],
+    ])
+
+    ws_lib = wb.create_sheet(SHEET_LIB)
+    _write_sheet(ws_lib, LIB_HEADERS, [
+        [
+            'MAY', 'SEW-1001', 'R01', 'May sống cổ áo (ví dụ)', 'Collar join (sample)',
+            '', 36, '', 'May', 'Cổ', '', '', '', '', '', '', '', 'Nháp',
+            '', '', '', '', '', '', 'Dòng mẫu — xóa trước khi import thật',
+        ],
+        [
+            'MAY', 'SEW-1002', 'R01', 'Đóng gấu tay (ví dụ)', 'Sleeve hem (sample)',
+            '', 48, '', 'May', 'Tay', '', '', '', '', '', '', '', 'Nháp',
+            '', '', '', '', '', '', 'Dòng mẫu — xóa trước khi import thật',
+        ],
+    ])
+    return wb
+
+
+def export_operation_library_template_response():
+    """HttpResponse file mẫu import thư viện công đoạn."""
+    import io
+    from datetime import datetime
+
+    from django.http import HttpResponse
+
+    wb = export_operation_library_template_workbook()
+    buf = io.BytesIO()
+    wb.save(buf)
+    stamp = datetime.now().strftime('%Y%m%d')
+    response = HttpResponse(
+        buf.getvalue(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
+    response['Content-Disposition'] = (
+        f'attachment; filename=Mau_Import_Thu_Vien_Cong_Doan_{stamp}.xlsx'
+    )
+    return response
+
+
 def export_operation_master_response(*, user=None):
     """HttpResponse file Excel master data mã công đoạn."""
     import io
