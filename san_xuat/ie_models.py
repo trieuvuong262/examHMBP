@@ -155,6 +155,13 @@ def ensure_smv_basis_defaults() -> list['SxSmvBasis']:
     return list(SxSmvBasis.objects.filter(is_active=True).order_by('sort_order', 'code'))
 
 
+def default_smv_basis_name() -> str:
+    """Nhãn đơn vị SMV mặc định khi tạo / chưa chọn (theo catalog SEC = Giây)."""
+    ensure_smv_basis_defaults()
+    basis = SxSmvBasis.objects.filter(code='SEC', is_active=True).first()
+    return basis.name if basis else 'Giây'
+
+
 PROCESS_STAGE_DEFAULTS: tuple[tuple[str, str, int], ...] = (
     ('CUT', 'Cắt', 10),
     ('SEW', 'May lắp ráp', 20),

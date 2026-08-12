@@ -145,9 +145,9 @@
               <input type="text" name="group_name" class="form-control form-control-sm" required maxlength="150" placeholder="VD: May">
             </div>
             <div class="col-md-6">
-              <label class="form-label small text-muted mb-1">Khâu sản xuất</label>
-              <select name="process_stage_label" class="form-select form-select-sm">
-                <option value="">— Không chọn —</option>
+              <label class="form-label small text-muted mb-1">Khâu sản xuất <span class="text-danger">*</span></label>
+              <select name="process_stage_label" class="form-select form-select-sm" required>
+                <option value="">— Chọn khâu —</option>
                 {% for s in process_stages %}
                 <option value="{{ s.name }}">{{ s.name }}</option>
                 {% endfor %}
@@ -163,11 +163,11 @@
             </div>
             <div class="col-md-4">
               <label class="form-label small text-muted mb-1">Người lập</label>
-              <input type="text" name="data_owner" class="form-control form-control-sm" maxlength="120">
+              <input type="text" class="form-control form-control-sm" value="{{ current_user_display_name }}" readonly>
             </div>
             <div class="col-md-4">
               <label class="form-label small text-muted mb-1">Ngày hiệu lực</label>
-              <input type="date" name="effective_from" class="form-control form-control-sm" value="{% now 'Y-m-d' %}">
+              <input type="date" name="effective_from" class="form-control form-control-sm jp-date-vn" value="{% now 'Y-m-d' %}">
             </div>
             <div class="col-md-4 d-flex align-items-end">
               <div class="form-check mb-1">
@@ -214,9 +214,9 @@
               <input type="text" name="group_name" id="ieEditGroupName" class="form-control form-control-sm" required maxlength="150">
             </div>
             <div class="col-md-6">
-              <label class="form-label small text-muted mb-1">Khâu sản xuất</label>
-              <select name="process_stage_label" id="ieEditGroupStage" class="form-select form-select-sm">
-                <option value="">— Không chọn —</option>
+              <label class="form-label small text-muted mb-1">Khâu sản xuất <span class="text-danger">*</span></label>
+              <select name="process_stage_label" id="ieEditGroupStage" class="form-select form-select-sm" required>
+                <option value="">— Chọn khâu —</option>
                 {% for s in process_stages %}
                 <option value="{{ s.name }}">{{ s.name }}</option>
                 {% endfor %}
@@ -232,11 +232,11 @@
             </div>
             <div class="col-md-4">
               <label class="form-label small text-muted mb-1">Người lập</label>
-              <input type="text" name="data_owner" id="ieEditGroupOwner" class="form-control form-control-sm" maxlength="120">
+              <input type="text" id="ieEditGroupOwner" class="form-control form-control-sm" readonly>
             </div>
             <div class="col-md-4">
               <label class="form-label small text-muted mb-1">Ngày hiệu lực</label>
-              <input type="date" name="effective_from" id="ieEditGroupEffective" class="form-control form-control-sm">
+              <input type="date" name="effective_from" id="ieEditGroupEffective" class="form-control form-control-sm jp-date-vn">
             </div>
             <div class="col-md-4 d-flex align-items-end">
               <div class="form-check mb-1">

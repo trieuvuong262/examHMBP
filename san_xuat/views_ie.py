@@ -37,12 +37,14 @@ from san_xuat.ie_models import (
     ensure_process_stage_defaults,
     ensure_skill_levels_abc,
     ensure_smv_basis_defaults,
+    default_smv_basis_name,
 )
 from san_xuat.services.production_machines import ie_machine_options, production_machine_count
 from san_xuat.ie_permissions import (
     IE_APPROVER_GROUP,
     ensure_ie_approver_group,
     ie_approver_group_has_members,
+    ie_user_display_name,
     user_can_approve_ie,
 )
 from san_xuat.services.ie_ops import (
@@ -158,6 +160,27 @@ def _dec(raw, default='0'):
         return Decimal(str(raw if raw not in (None, '') else default))
     except (InvalidOperation, TypeError, ValueError):
         return Decimal(default)
+
+
+def _ie_operation_form_catalogs(*, extra_product_part: str = ''):
+    """Danh mục dropdown form công đoạn (tạo / sửa)."""
+    product_parts = list(
+        SxProductPart.objects.filter(is_active=True)
+        .order_by('sort_order', 'code')
+        .values_list('name', flat=True)
+    )
+    if extra_product_part and extra_product_part not in product_parts:
+        product_parts = [extra_product_part] + product_parts
+    smv_bases = ensure_smv_basis_defaults()
+    return {
+        'process_stages': ensure_process_stage_defaults(),
+        'skill_levels': ensure_skill_levels_abc(),
+        'stitch_classes': SxStitchClass.objects.filter(is_active=True).order_by('sort_order', 'code'),
+        'smv_sources': SxSmvSource.objects.filter(is_active=True).order_by('sort_order', 'code'),
+        'product_parts': product_parts,
+        'smv_basis_choices': [b.name for b in smv_bases],
+        'default_smv_basis': default_smv_basis_name(),
+    }
 
 
 def _handle_ie_import(request, *, redirect_to, kind: str = KIND_LIBRARY):
@@ -289,7 +312,6 @@ def group_list(request):
                     process_stage_label=(request.POST.get('process_stage_label') or '').strip(),
                     product_part=(request.POST.get('product_part') or '').strip(),
                     description=(request.POST.get('description') or '').strip(),
-                    data_owner=(request.POST.get('data_owner') or '').strip(),
                     effective_from=effective_from,
                     is_active=request.POST.get('is_active') == '1',
                     notes=(request.POST.get('notes') or '').strip(),
@@ -316,7 +338,7 @@ def group_list(request):
                     process_stage_label=(request.POST.get('process_stage_label') or '').strip(),
                     product_part=(request.POST.get('product_part') or '').strip(),
                     description=(request.POST.get('description') or '').strip(),
-                    data_owner=(request.POST.get('data_owner') or '').strip(),
+                    data_owner=group.data_owner,
                     effective_from=effective_from,
                     is_active=request.POST.get('is_active') == '1',
                     notes=(request.POST.get('notes') or '').strip(),
@@ -370,6 +392,7 @@ def group_list(request):
         'active_filter': active_filter,
         'total': qs.count(),
         'process_stages': ensure_process_stage_defaults(),
+        'current_user_display_name': ie_user_display_name(request.user),
     })
 
 
@@ -456,17 +479,24 @@ def operation_list(request):
             elif action == 'create_operation':
                 if not (perms['can_create'] or perms['can_update']):
                     raise IeOpsError('Bạn không có quyền tạo công đoạn.')
-                from decimal import Decimal, InvalidOperation
+                from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
-                smv_raw = (request.POST.get('base_smv_min') or '').strip()
+                time_sec_raw = (request.POST.get('time_sec') or '').strip()
                 try:
-                    smv = Decimal(smv_raw) if smv_raw else Decimal('0')
+                    if time_sec_raw:
+                        smv = (Decimal(time_sec_raw) / Decimal('60')).quantize(
+                            Decimal('0.0001'), rounding=ROUND_HALF_UP,
+                        )
+                    else:
+                        smv = Decimal('0')
                 except (InvalidOperation, ValueError) as exc:
-                    raise IeOpsError('SMV không hợp lệ.') from exc
+                    raise IeOpsError('Định mức thời gian (giây) không hợp lệ.') from exc
                 group = None
                 group_id = (request.POST.get('group_id') or '').strip()
                 if group_id.isdigit():
                     group = SxOperationGroup.objects.filter(pk=int(group_id)).first()
+                if group is None:
+                    raise IeOpsError('Chọn nhóm công đoạn.')
                 created = create_blank_operation(
                     op_code=(request.POST.get('op_code') or '').strip(),
                     name_vi=(request.POST.get('name_vi') or '').strip(),
@@ -474,7 +504,23 @@ def operation_list(request):
                     op_rev=(request.POST.get('op_rev') or 'R01').strip() or 'R01',
                     base_smv_min=smv,
                     machine_code=(request.POST.get('machine_code') or '').strip(),
+                    process_stage_label=(request.POST.get('process_stage_label') or '').strip(),
                     user=request.user,
+                )
+                update_operation(
+                    operation=created,
+                    user=request.user,
+                    name_en=request.POST.get('name_en'),
+                    product_part=request.POST.get('product_part'),
+                    method_variant=request.POST.get('method_variant'),
+                    skill_level_label=request.POST.get('skill_level_label'),
+                    stitch_class_code=request.POST.get('stitch_class_code'),
+                    smv_source_code=request.POST.get('smv_source_code'),
+                    smv_basis=(request.POST.get('smv_basis') or '').strip() or default_smv_basis_name(),
+                    thread_needle=request.POST.get('thread_needle'),
+                    attachment_code=request.POST.get('attachment_code'),
+                    notes=request.POST.get('notes'),
+                    base_smv_min=smv,
                 )
                 messages.success(request, f'Đã tạo công đoạn {created.op_code}/{created.op_rev}.')
                 return redirect('san_xuat:ie_operation_detail', pk=created.pk)
@@ -526,6 +572,8 @@ def operation_list(request):
         'status_choices': SxOperation.STATUS_CHOICES,
         'machines': ie_machine_options(),
         'total': qs.count(),
+        'current_user_display_name': ie_user_display_name(request.user),
+        **_ie_operation_form_catalogs(),
     })
 
 
@@ -582,14 +630,13 @@ def operation_detail(request, pk: int):
                     stitch_class_code=request.POST.get('stitch_class_code'),
                     smv_source_code=request.POST.get('smv_source_code'),
                     base_smv_min=smv,
-                    smv_basis=request.POST.get('smv_basis'),
+                    smv_basis=(request.POST.get('smv_basis') or '').strip() or default_smv_basis_name(),
                     qc_criteria=request.POST.get('qc_criteria'),
                     status=status if status != SxOperation.STATUS_APPROVED else None,
-                    ie_owner=request.POST.get('ie_owner'),
+                    ie_owner=op.ie_owner or ie_user_display_name(request.user),
                     revision_reason=request.POST.get('revision_reason'),
                     notes=request.POST.get('notes'),
                     work_instruction_url=request.POST.get('work_instruction_url'),
-                    video_url=request.POST.get('video_url'),
                     thread_needle=request.POST.get('thread_needle'),
                     attachment_code=request.POST.get('attachment_code'),
                     effective_from=eff_from,
@@ -632,19 +679,7 @@ def operation_detail(request, pk: int):
     if op.smv_basis and op.smv_basis not in smv_basis_choices:
         # Giữ giá trị cũ nếu chưa có trong danh mục
         smv_basis_choices = [op.smv_basis] + smv_basis_choices
-    ie_owners = list(
-        SxOperation.objects.exclude(ie_owner='')
-        .order_by('ie_owner')
-        .values_list('ie_owner', flat=True)
-        .distinct()
-    )
-    from san_xuat.ie_permissions import ie_user_display_name
-
     current_owner = ie_user_display_name(request.user)
-    if op.ie_owner and op.ie_owner not in ie_owners:
-        ie_owners = [op.ie_owner] + ie_owners
-    elif not op.ie_owner and current_owner and current_owner not in ie_owners:
-        ie_owners = [current_owner] + ie_owners
 
     return render(request, 'san_xuat/ie_operation_detail.html', {
         **perms,
@@ -657,8 +692,8 @@ def operation_detail(request, pk: int):
         'smv_sources': SxSmvSource.objects.filter(is_active=True).order_by('sort_order', 'code'),
         'product_parts': product_parts,
         'smv_basis_choices': smv_basis_choices,
-        'ie_owners': ie_owners,
-        'default_ie_owner': current_owner,
+        'default_smv_basis': default_smv_basis_name(),
+        'current_user_display_name': current_owner,
         'status_choices': [
             c for c in SxOperation.STATUS_CHOICES if c[0] != SxOperation.STATUS_APPROVED
         ],

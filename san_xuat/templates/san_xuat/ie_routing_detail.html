@@ -99,7 +99,7 @@
         <input type="hidden" name="action" value="{% if edit_line %}edit_line{% else %}add_line{% endif %}">
         {% if edit_line %}<input type="hidden" name="line_pk" value="{{ edit_line.pk }}">{% endif %}
         <div class="col-6 col-md-1">
-          <label class="form-label small mb-0">SEQ</label>
+          <label class="form-label small mb-0">SEQ <span class="text-danger">*</span></label>
           <input type="number" name="seq_no" class="form-control form-control-sm" min="1"
                  value="{% if edit_line %}{{ edit_line.seq_no }}{% endif %}" placeholder="auto">
         </div>
@@ -109,8 +109,8 @@
                  value="{% if edit_line %}{{ edit_line.op_code }}{% endif %}" placeholder="SEW-…">
         </div>
         <div class="col-4 col-md-1">
-          <label class="form-label small mb-0">Phiên bản</label>
-          <input type="text" name="op_rev" class="form-control form-control-sm" maxlength="10"
+          <label class="form-label small mb-0">Phiên bản <span class="text-danger">*</span></label>
+          <input type="text" name="op_rev" class="form-control form-control-sm" required maxlength="10"
                  value="{% if edit_line %}{{ edit_line.op_rev }}{% else %}R01{% endif %}">
         </div>
         <div class="col-8 col-md-3">
@@ -119,8 +119,8 @@
                  value="{% if edit_line %}{{ edit_line.op_name_vi }}{% endif %}" placeholder="Tự lấy từ thư viện nếu trống">
         </div>
         <div class="col-4 col-md-1">
-          <label class="form-label small mb-0">SL/SP</label>
-          <input type="text" name="qty_per_garment" class="form-control form-control-sm"
+          <label class="form-label small mb-0">SL/SP <span class="text-danger">*</span></label>
+          <input type="text" name="qty_per_garment" class="form-control form-control-sm" required
                  value="{% if edit_line %}{{ edit_line.qty_per_garment|sx_num_input }}{% else %}1{% endif %}">
         </div>
         <div class="col-4 col-md-1">
@@ -153,7 +153,7 @@
                  value="{% if edit_line %}{{ edit_line.total_unit_price|sx_num_input }}{% else %}0{% endif %}">
         </div>
         <div class="col-6 col-md-2">
-          <label class="form-label small mb-0">Máy</label>
+          <label class="form-label small mb-0">Máy <span class="text-danger">*</span></label>
           <input type="text" name="machine_code" class="form-control form-control-sm" list="ie-machine-codes"
                  value="{% if edit_line %}{{ edit_line.machine_code }}{% endif %}" maxlength="40">
           <datalist id="ie-machine-codes">
@@ -161,7 +161,7 @@
           </datalist>
         </div>
         <div class="col-6 col-md-2">
-          <label class="form-label small mb-0">Bộ phận</label>
+          <label class="form-label small mb-0">Bộ phận <span class="text-danger">*</span></label>
           <select name="work_center_code" class="form-select form-select-sm">
             <option value="">— Chọn bộ phận —</option>
             {% for wc in work_centers %}

@@ -95,7 +95,6 @@
             <th>Người lập</th>
             <th>Người duyệt</th>
             <th>Lý do phiên bản</th>
-            <th>Video</th>
             <th>Notes</th>
             {% if can_approve or can_update %}<th></th>{% endif %}
           </tr>
@@ -126,7 +125,6 @@
             <td class="small">{{ op.ie_owner|default:"—" }}</td>
             <td class="small">{{ op.approved_by|default:"—" }}</td>
             <td class="small jp-ie-cell-wrap" title="{{ op.revision_reason }}">{{ op.revision_reason|default:"—"|truncatechars:28 }}</td>
-            <td class="small">{% if op.video_url %}<a href="{{ op.video_url }}" target="_blank" rel="noopener">Link</a>{% else %}—{% endif %}</td>
             <td class="small jp-ie-cell-wrap" title="{{ op.notes }}">{{ op.notes|default:"—"|truncatechars:28 }}</td>
             {% if can_approve or can_update %}
             <td class="jp-td-actions">
@@ -176,7 +174,7 @@
 {% if can_create or can_update %}
 {% include 'san_xuat/includes/ie_import_modal.html' %}
 <div class="modal fade" id="ieAddOpModal" tabindex="-1" aria-labelledby="ieAddOpModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
+  <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
     <div class="modal-content">
       <form method="post">
         {% csrf_token %}
@@ -187,37 +185,116 @@
         </div>
         <div class="modal-body">
           <div class="row g-2">
-            <div class="col-7">
+            <div class="col-md-5">
               <label class="form-label small text-muted mb-1">Mã CĐ <span class="text-danger">*</span></label>
               <input type="text" name="op_code" class="form-control form-control-sm" required maxlength="30" placeholder="VD: SEW-1005">
             </div>
-            <div class="col-5">
-              <label class="form-label small text-muted mb-1">Phiên bản</label>
-              <input type="text" name="op_rev" class="form-control form-control-sm" value="R01" maxlength="10">
+            <div class="col-md-3">
+              <label class="form-label small text-muted mb-1">Phiên bản <span class="text-danger">*</span></label>
+              <input type="text" name="op_rev" class="form-control form-control-sm" value="R01" required maxlength="10">
             </div>
-            <div class="col-12">
-              <label class="form-label small text-muted mb-1">Tên công đoạn <span class="text-danger">*</span></label>
+            <div class="col-md-4">
+              <label class="form-label small text-muted mb-1">Người lập</label>
+              <input type="text" class="form-control form-control-sm" value="{{ current_user_display_name }}" readonly>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small text-muted mb-1">Tên công đoạn (VI) <span class="text-danger">*</span></label>
               <input type="text" name="name_vi" class="form-control form-control-sm" required maxlength="200" placeholder="VD: May cổ áo">
             </div>
-            <div class="col-12">
-              <label class="form-label small text-muted mb-1">Nhóm</label>
-              <select name="group_id" class="form-select form-select-sm">
-                <option value="">— MANUAL (tự tạo) —</option>
+            <div class="col-md-6">
+              <label class="form-label small text-muted mb-1">Tên (EN)</label>
+              <input type="text" name="name_en" class="form-control form-control-sm" maxlength="200" placeholder="Collar join">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small text-muted mb-1">Nhóm <span class="text-danger">*</span></label>
+              <select name="group_id" id="ieAddOpGroup" class="form-select form-select-sm" required>
+                <option value="">— Chọn nhóm —</option>
                 {% for g in groups %}
-                <option value="{{ g.pk }}">{{ g.code }} — {{ g.name }}</option>
+                <option value="{{ g.pk }}" data-stage="{{ g.process_stage_label }}">{{ g.code }} — {{ g.name }}</option>
                 {% endfor %}
               </select>
             </div>
-            <div class="col-6">
-              <label class="form-label small text-muted mb-1">SMV (phút)</label>
-              <input type="number" name="base_smv_min" class="form-control form-control-sm" step="0.0001" min="0" placeholder="0">
+            <div class="col-md-6">
+              <label class="form-label small text-muted mb-1">Khâu SX <span class="text-danger">*</span></label>
+              <select name="process_stage_label" id="ieAddOpStage" class="form-select form-select-sm" required>
+                <option value="">— Chọn khâu —</option>
+                {% for s in process_stages %}
+                <option value="{{ s.name }}">{{ s.name }}</option>
+                {% endfor %}
+              </select>
             </div>
-            <div class="col-6">
-              <label class="form-label small text-muted mb-1">Máy</label>
-              <input type="text" name="machine_code" class="form-control form-control-sm" list="ie-op-machine-codes" maxlength="40" placeholder="Chọn máy thiết bị SX">
-              <datalist id="ie-op-machine-codes">
-                {% for m in machines %}<option value="{{ m.code }}">{{ m.code }} — {{ m.name }}</option>{% endfor %}
-              </datalist>
+            <div class="col-md-6">
+              <label class="form-label small text-muted mb-1">Cụm chi tiết</label>
+              <select name="product_part" class="form-select form-select-sm">
+                <option value="">— Không chọn —</option>
+                {% for p in product_parts %}
+                <option value="{{ p }}">{{ p }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small text-muted mb-1">Bậc kỹ năng <span class="text-danger">*</span></label>
+              <select name="skill_level_label" class="form-select form-select-sm">
+                <option value="">— Chọn bậc —</option>
+                {% for s in skill_levels %}
+                <option value="{{ s.code }}">{% if s.name and s.name != s.code %}{{ s.code }} — {{ s.name }}{% else %}{{ s.code }}{% endif %}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label small text-muted mb-1">ĐM thời gian (giây)</label>
+              <input type="number" name="time_sec" class="form-control form-control-sm" step="0.01" min="0" placeholder="VD: 36">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label small text-muted mb-1">Đơn vị SMV <span class="text-danger">*</span></label>
+              <select name="smv_basis" class="form-select form-select-sm">
+                {% for b in smv_basis_choices %}
+                <option value="{{ b }}" {% if b == default_smv_basis %}selected{% endif %}>{{ b }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label small text-muted mb-1">Nguồn SMV <span class="text-danger">*</span></label>
+              <select name="smv_source_code" class="form-select form-select-sm">
+                <option value="">— Chọn nguồn —</option>
+                {% for s in smv_sources %}
+                <option value="{{ s.code }}">{{ s.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small text-muted mb-1">Máy <span class="text-danger">*</span></label>
+              <select name="machine_code" class="form-select form-select-sm">
+                <option value="">— Chọn máy —</option>
+                {% for m in machines %}
+                <option value="{{ m.code }}">{{ m.code }} — {{ m.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small text-muted mb-1">Lớp mũi may</label>
+              <select name="stitch_class_code" class="form-select form-select-sm">
+                <option value="">— Không chọn —</option>
+                {% for s in stitch_classes %}
+                <option value="{{ s.code }}">{{ s.name|default:s.code }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small text-muted mb-1">Quy định kim/chỉ</label>
+              <input type="text" name="thread_needle" class="form-control form-control-sm" maxlength="120">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label small text-muted mb-1">Mã cữ/gá/chân vịt</label>
+              <input type="text" name="attachment_code" class="form-control form-control-sm" maxlength="120">
+            </div>
+            <div class="col-12">
+              <label class="form-label small text-muted mb-1">Mô tả phương pháp <span class="text-danger">*</span></label>
+              <textarea name="method_variant" class="form-control form-control-sm" rows="2" placeholder="Mô tả cách làm / biến thể phương pháp"></textarea>
+            </div>
+            <div class="col-12">
+              <label class="form-label small text-muted mb-1">Ghi chú</label>
+              <input type="text" name="notes" class="form-control form-control-sm" maxlength="255">
             </div>
           </div>
         </div>
@@ -229,5 +306,23 @@
     </div>
   </div>
 </div>
+<script>
+(function () {
+  var groupSel = document.getElementById('ieAddOpGroup');
+  var stageSel = document.getElementById('ieAddOpStage');
+  if (!groupSel || !stageSel) return;
+  groupSel.addEventListener('change', function () {
+    var opt = groupSel.options[groupSel.selectedIndex];
+    var stage = opt && opt.getAttribute('data-stage');
+    if (!stage) return;
+    for (var i = 0; i < stageSel.options.length; i++) {
+      if (stageSel.options[i].value === stage) {
+        stageSel.value = stage;
+        break;
+      }
+    }
+  });
+})();
+</script>
 {% endif %}
 {% endblock %}

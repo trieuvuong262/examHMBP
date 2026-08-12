@@ -299,6 +299,7 @@ def create_blank_operation(
     ensure_process_name(name_vi)
 
     from san_xuat.ie_permissions import ie_user_display_name
+    from san_xuat.ie_models import default_smv_basis_name
 
     return SxOperation.objects.create(
         group=group,
@@ -308,6 +309,7 @@ def create_blank_operation(
         process_stage_label=(process_stage_label or group.process_stage_label or '')[:100],
         machine_code=(machine_code or '')[:40],
         base_smv_min=smv,
+        smv_basis=default_smv_basis_name(),
         status=SxOperation.STATUS_DRAFT,
         ie_owner=ie_user_display_name(user),
         effective_from=timezone.localdate(),
