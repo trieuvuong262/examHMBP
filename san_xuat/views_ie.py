@@ -89,6 +89,7 @@ from san_xuat.services.operation_master import (
 
 IE_MENU_KEY = 'ie'
 IE_APPROVE_MENU_KEY = 'ie_approve'
+IE_SETTINGS_MENU_KEY = 'ie_settings'
 
 
 def _ie_io_context(kind: str) -> dict:
@@ -108,14 +109,14 @@ def _perm_ctx(request):
     }
 
 
+def _settings_perm_ctx(request):
+    return menu_perm_context(request.user, MODULE_SAN_XUAT, IE_SETTINGS_MENU_KEY)
+
+
 def _require_ie_approve_access(request):
     from hrm.menu_permissions import user_can_access_menu
 
-    if not (
-        user_can_access_menu(request.user, MODULE_SAN_XUAT, IE_APPROVE_MENU_KEY)
-        or user_can_approve_ie(request.user)
-        or user_can_access_menu(request.user, MODULE_SAN_XUAT, IE_MENU_KEY)
-    ):
+    if not user_can_access_menu(request.user, MODULE_SAN_XUAT, IE_APPROVE_MENU_KEY):
         return handle_menu_access_denied(request, MODULE_SAN_XUAT, IE_APPROVE_MENU_KEY)
     return None
 
@@ -1081,12 +1082,9 @@ IE_REF_CATALOGS = {
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def ie_settings_hub(request):
-    from hrm.menu_permissions import user_can_access_menu
-    if not (
-        user_can_access_menu(request.user, MODULE_SAN_XUAT, 'ie_settings')
-        or user_can_access_menu(request.user, MODULE_SAN_XUAT, IE_MENU_KEY)
-    ):
-        return handle_menu_access_denied(request, MODULE_SAN_XUAT, 'ie_settings')
+    denied = _require_ie_settings_access(request)
+    if denied:
+        return denied
     ensure_skill_levels_abc()
     ensure_process_stage_defaults()
     ensure_smv_basis_defaults()
@@ -1100,7 +1098,7 @@ def ie_settings_hub(request):
         'approvers': ensure_ie_approver_group().user_set.count(),
     }
     return render(request, 'san_xuat/ie_settings_hub.html', {
-        **_perm_ctx(request),
+        **_settings_perm_ctx(request),
         'counts': counts,
         'catalogs': IE_REF_CATALOGS,
     })
@@ -1267,12 +1265,9 @@ def ie_approve_routing(request):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def ie_ref_catalog(request, kind: str):
-    from hrm.menu_permissions import user_can_access_menu
-    if not (
-        user_can_access_menu(request.user, MODULE_SAN_XUAT, 'ie_settings')
-        or user_can_access_menu(request.user, MODULE_SAN_XUAT, IE_MENU_KEY)
-    ):
-        return handle_menu_access_denied(request, MODULE_SAN_XUAT, 'ie_settings')
+    denied = _require_ie_settings_access(request)
+    if denied:
+        return denied
     meta = IE_REF_CATALOGS.get(kind)
     if not meta:
         messages.error(request, 'Danh mục không hợp lệ.')
@@ -1284,7 +1279,7 @@ def ie_ref_catalog(request, kind: str):
     elif kind == 'don-vi-smv':
         ensure_smv_basis_defaults()
     Model = meta['model']
-    perms = _perm_ctx(request)
+    perms = _settings_perm_ctx(request)
     list_url = reverse('san_xuat:ie_ref_catalog', kwargs={'kind': kind})
 
     if request.method == 'POST':
@@ -1372,11 +1367,9 @@ def ie_ref_catalog(request, kind: str):
 
 def _require_ie_settings_access(request):
     from hrm.menu_permissions import user_can_access_menu
-    if not (
-        user_can_access_menu(request.user, MODULE_SAN_XUAT, 'ie_settings')
-        or user_can_access_menu(request.user, MODULE_SAN_XUAT, IE_MENU_KEY)
-    ):
-        return handle_menu_access_denied(request, MODULE_SAN_XUAT, 'ie_settings')
+
+    if not user_can_access_menu(request.user, MODULE_SAN_XUAT, IE_SETTINGS_MENU_KEY):
+        return handle_menu_access_denied(request, MODULE_SAN_XUAT, IE_SETTINGS_MENU_KEY)
     return None
 
 
@@ -1396,7 +1389,7 @@ def ie_approver_manage(request):
         remove_ie_approver_by_username,
     )
 
-    perms = _perm_ctx(request)
+    perms = _settings_perm_ctx(request)
     list_url = reverse('san_xuat:ie_approver_manage')
 
     if request.method == 'POST':
