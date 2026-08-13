@@ -371,19 +371,8 @@ def sales_order_list(request):
 
     orders = list(qs.order_by('-request_date', '-id')[:300])
     rows = []
-    chip_counts = {
-        'all': len(orders),
-        'chua_xac_nhan': 0,
-        'chua_sx': 0,
-        'chua_du_lenh': 0,
-        'dang_sx': 0,
-        'hoan_thanh': 0,
-        'tu_choi': 0,
-    }
     for o in orders:
         st = production_status_summary(o)
-        if st in chip_counts:
-            chip_counts[st] += 1
         rows.append({
             'order': o,
             'line_count': o.lines.count(),
@@ -401,7 +390,6 @@ def sales_order_list(request):
         'rows': rows,
         'search_query': q,
         'confirm_filter': confirm,
-        'chip_counts': chip_counts,
         'can_create_order': can_create_order,
     })
 
