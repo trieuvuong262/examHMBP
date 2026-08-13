@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from audit import views_login_security
 from hrm import views as hrm_views
 urlpatterns = [
      
@@ -21,6 +22,16 @@ urlpatterns = [
     path('dashboard/results/<int:exam_id>/', views.admin_results, name='admin_results'),
     
     path('dashboard/users/', hrm_views.user_list, name='user_list'),
+    path(
+        'dashboard/users/tai-khoan-bi-khoa/',
+        views_login_security.locked_accounts_page,
+        name='locked_accounts',
+    ),
+    path(
+        'dashboard/users/tai-khoan-bi-khoa/mo-khoa/<int:pk>/',
+        views_login_security.unlock_user_login,
+        name='unlock_locked_account',
+    ),
     path('dashboard/users/add/', hrm_views.user_add, name='user_add'),
     path('dashboard/users/suggest-username/', hrm_views.user_suggest_username, name='user_suggest_username'),
     path(

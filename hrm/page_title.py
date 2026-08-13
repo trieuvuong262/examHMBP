@@ -18,6 +18,7 @@ _STATIC_PATH_TITLES = (
     ('/accounts/forgot-password/otp/', 'Nhập OTP'),
     ('/accounts/forgot-password/new/', 'Mật khẩu mới'),
     ('/accounts/forgot-password/', 'Quên mật khẩu'),
+    ('/dashboard/users/tai-khoan-bi-khoa', 'Tài khoản bị khóa'),
     ('/nhat-ky/email', 'Email'),
     ('/nhat-ky/zalo-oa', 'Zalo OA'),
     ('/change-password', 'Thiết lập mật khẩu'),

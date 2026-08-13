@@ -135,6 +135,8 @@ URL_DESCRIPTIONS: dict[str, dict[str, str] | str] = {
 
     # HRM — Nhân sự
     'user_list': 'xem danh sách nhân viên',
+    'locked_accounts': 'xem danh sách tài khoản bị khóa',
+    'unlock_locked_account': 'mở khóa đăng nhập tài khoản #{pk}',
     'user_add': {
         'GET': 'mở form thêm nhân viên mới',
         'POST': 'tạo nhân viên mới',
@@ -650,6 +652,12 @@ def _summary_from_breadcrumb(
 
 NAMESPACE_URL_DESCRIPTIONS: dict[str, dict[str, str] | str] = {
     # Audit / quản trị hệ thống
+    'audit:login_security': 'xem trang bảo mật đăng nhập',
+    'audit:login_security_save_config': {
+        'POST': 'lưu cấu hình whitelist / blacklist IP đăng nhập',
+    },
+    'audit:unlock_user_login': 'mở khóa đăng nhập tài khoản #{pk}',
+    'audit:unlock_ip_login': 'bỏ chặn IP đăng nhập #{pk}',
     'audit:backup_page': 'xem trang backup Portal lên NAS',
     'audit:backup_run': 'bấm chạy backup Portal lên NAS',
     'audit:vps_monitor': 'xem trang giám sát VPS',

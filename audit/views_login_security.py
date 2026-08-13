@@ -14,38 +14,46 @@ from audit.login_security import (
 )
 from audit.models import IpLoginBlock, UserLoginLock
 from hrm.menu_permissions import user_can_export_menu
-from hrm.module_permissions import MODULE_AUDIT
+from hrm.module_permissions import MODULE_AUDIT, MODULE_HRM, user_can_update_module
 
 
-@module_perm_required(MODULE_AUDIT, 'view')
-def login_security_page(request):
-    tab = request.GET.get('tab', 'accounts')
-    if tab not in ('accounts', 'bots', 'config'):
-        tab = 'accounts'
-
-    locked_users = (
+def _locked_users_qs():
+    return (
         UserLoginLock.objects.filter(locked_at__isnull=False, unlocked_at__isnull=True)
         .select_related('user', 'user__profile', 'unlocked_by')
         .order_by('-locked_at')
     )
+
+
+@module_perm_required(MODULE_HRM, 'view')
+def locked_accounts_page(request):
+    locked_users = _locked_users_qs()
+    return render(request, 'assessment/admin/locked_accounts.html', {
+        'locked_users': locked_users,
+        'can_unlock': user_can_update_module(request.user, MODULE_HRM),
+        'locked_count': locked_users.count(),
+    })
+
+
+@module_perm_required(MODULE_AUDIT, 'view')
+def login_security_page(request):
+    tab = request.GET.get('tab', 'bots')
+    if tab == 'accounts':
+        return redirect('locked_accounts')
+    if tab not in ('bots', 'config'):
+        tab = 'bots'
+
     blocked_ips = (
         IpLoginBlock.objects.filter(blocked_at__isnull=False, unlocked_at__isnull=True)
         .select_related('unlocked_by')
         .order_by('-blocked_at')
-    )
-    recent_user_locks = (
-        UserLoginLock.objects.filter(locked_at__isnull=False)
-        .select_related('user', 'user__profile', 'unlocked_by')
-        .order_by('-locked_at')[:20]
     )
     recent_ip_blocks = IpLoginBlock.objects.order_by('-last_failed_at')[:30]
     security_config = get_security_config()
 
     return render(request, 'audit/login_security.html', {
         'tab': tab,
-        'locked_users': locked_users,
         'blocked_ips': blocked_ips,
-        'recent_user_locks': recent_user_locks,
         'recent_ip_blocks': recent_ip_blocks,
         'can_unlock': user_can_export_menu(request.user, MODULE_AUDIT, 'login_security'),
         'security_config': security_config,
@@ -53,7 +61,6 @@ def login_security_page(request):
         'ip_blacklist_text': format_ip_list(security_config.ip_blacklist),
         'blacklist_suggestions': blacklist_suggestions(),
         'stats': {
-            'locked_count': locked_users.count(),
             'blocked_ip_count': blocked_ips.count(),
         },
     })
@@ -83,20 +90,20 @@ def save_login_security_config_view(request):
     return redirect(reverse('audit:login_security') + '?tab=config')
 
 
-@module_perm_required(MODULE_AUDIT, 'export')
+@module_perm_required(MODULE_HRM, 'update')
 @require_POST
 def unlock_user_login(request, pk):
     lock = get_object_or_404(UserLoginLock.objects.select_related('user'), pk=pk)
     if not lock.is_locked:
         messages.info(request, 'Tài khoản này không còn bị khóa.')
-        return redirect('audit:login_security')
+        return redirect('locked_accounts')
 
     unlock_user_account(lock=lock, admin_user=request.user)
     messages.success(
         request,
         f'Đã mở khóa đăng nhập cho {lock.user.username}.',
     )
-    return redirect('audit:login_security')
+    return redirect('locked_accounts')
 
 
 @module_perm_required(MODULE_AUDIT, 'export')
