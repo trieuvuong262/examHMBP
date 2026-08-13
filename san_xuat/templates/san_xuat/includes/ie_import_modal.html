@@ -1,16 +1,6 @@
 {% if can_create or can_update %}
 {% with io=ie_io %}
 <style>
-.jp-ie-import-steps { display: flex; gap: 0.35rem; flex-wrap: wrap; margin-bottom: 0.85rem; }
-.jp-ie-import-step {
-  flex: 1 1 auto; font-size: 0.75rem; color: var(--bs-secondary-color);
-  padding: 0.35rem 0.5rem; border: 1px dashed var(--bs-border-color);
-  border-radius: 0.35rem; text-align: center; white-space: nowrap;
-}
-.jp-ie-import-step.is-active {
-  color: var(--hm-red, #dc2626); border-color: rgba(220, 38, 38, 0.45);
-  background: rgba(220, 38, 38, 0.05); font-weight: 600;
-}
 .jp-ie-import-drop {
   border: 2px dashed var(--bs-border-color); border-radius: 0.5rem;
   padding: 1.1rem 1rem; text-align: center; cursor: pointer;
@@ -53,12 +43,6 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
       </div>
       <div class="modal-body">
-        <div class="jp-ie-import-steps">
-          <span class="jp-ie-import-step">1. Tải mẫu</span>
-          <span class="jp-ie-import-step">2. {{ io.step_fill }}</span>
-          <span class="jp-ie-import-step is-active">3. Chọn file &amp; Import</span>
-        </div>
-
         <div class="jp-ie-import-tips">
           <div class="fw-semibold mb-1"><i class="bi bi-lightbulb me-1"></i>Làm theo các bước</div>
           <ol>
@@ -72,7 +56,7 @@
             {% else %}
             <li>Mỗi dòng = 1 nhóm; trùng <code>MÃ NHÓM</code> sẽ cập nhật.</li>
             {% endif %}
-            <li>Upload tại đây — lần đầu nên bật <em>Chạy thử</em>.</li>
+            <li>Upload file tại đây rồi bấm <strong>Import</strong>.</li>
           </ol>
         </div>
 
@@ -80,11 +64,6 @@
           <a href="{% url 'san_xuat:ie_import_template_kind' kind=io.kind %}" class="btn btn-outline-hm btn-sm fw-bold">
             <i class="bi bi-download me-1"></i>Tải file mẫu
           </a>
-          {% if can_export %}
-          <a href="{% url 'san_xuat:ie_export_kind' kind=io.kind %}" class="btn btn-outline-secondary btn-sm fw-bold">
-            <i class="bi bi-box-arrow-up-right me-1"></i>Xuất dữ liệu hiện tại
-          </a>
-          {% endif %}
         </div>
 
         <div class="mb-2">
@@ -103,12 +82,6 @@
           <div class="jp-ie-import-file-meta fw-semibold text-success mt-2 d-none" id="ie-import-file-meta"></div>
         </label>
 
-        <div class="form-check">
-          <input class="form-check-input" type="checkbox" name="dry_run" value="1" id="ieDryRunModal" checked>
-          <label class="form-check-label small" for="ieDryRunModal">
-            Chạy thử (không lưu) — nên bật lần đầu để xem cảnh báo
-          </label>
-        </div>
       </div>
       <div class="modal-footer border-0 pt-0">
         <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Huỷ</button>
@@ -209,8 +182,6 @@
       var loading = submit.querySelector('.jp-ie-import-submit-loading');
       if (label) label.classList.remove('d-none');
       if (loading) loading.classList.add('d-none');
-      var dry = document.getElementById('ieDryRunModal');
-      if (dry) dry.checked = true;
     });
   }
 })();
