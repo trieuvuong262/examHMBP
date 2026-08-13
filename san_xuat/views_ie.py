@@ -411,16 +411,23 @@ def _require_ie_menu(request):
     return None
 
 
-def _create_routing_from_post(request, *, fail_redirect: str):
+def _create_routing_then_detail(
+    request,
+    *,
+    style_code: str,
+    style_name: str = '',
+    routing_rev: str = 'R01',
+    fail_redirect: str = 'san_xuat:ie_routing_list',
+):
     perms = _perm_ctx(request)
     if not (perms['can_create'] or perms['can_update']):
         messages.error(request, 'Bạn không có quyền tạo routing.')
         return redirect(fail_redirect)
     from san_xuat.services.ie_ops import create_blank_routing
 
-    style_code = (request.POST.get('style_code') or '').strip()
-    style_name = (request.POST.get('style_name') or '').strip()
-    routing_rev = (request.POST.get('routing_rev') or 'R01').strip() or 'R01'
+    style_code = (style_code or '').strip()
+    style_name = (style_name or '').strip()
+    routing_rev = (routing_rev or 'R01').strip() or 'R01'
     if not style_code:
         messages.error(request, 'Chọn mã hàng từ kho sản phẩm.')
         return redirect(fail_redirect)
@@ -455,7 +462,32 @@ def _create_routing_from_post(request, *, fail_redirect: str):
         messages.error(request, str(exc))
         return redirect(fail_redirect)
     messages.success(request, f'Đã tạo routing {routing.routing_id}.')
-    return redirect('san_xuat:ie_routing_detail', pk=routing.pk)
+    url = reverse('san_xuat:ie_routing_detail', args=[routing.pk])
+    return redirect(f'{url}#ie-routing-line-form')
+
+
+def _create_routing_from_post(request, *, fail_redirect: str):
+    return _create_routing_then_detail(
+        request,
+        style_code=(request.POST.get('style_code') or '').strip(),
+        style_name=(request.POST.get('style_name') or '').strip(),
+        routing_rev=(request.POST.get('routing_rev') or 'R01').strip() or 'R01',
+        fail_redirect=fail_redirect,
+    )
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+def routing_create(request):
+    """Tạo routing trống rồi vào màn thêm công đoạn (không qua danh sách)."""
+    denied = _require_ie_menu(request)
+    if denied:
+        return denied
+    return _create_routing_then_detail(
+        request,
+        style_code=(request.GET.get('style_code') or '').strip(),
+        style_name=(request.GET.get('style_name') or '').strip(),
+        routing_rev=(request.GET.get('routing_rev') or 'R01').strip() or 'R01',
+    )
 
 
 def _dec(raw, default='0'):
@@ -898,13 +930,10 @@ def operation_list(request):
         qs = qs.exclude(status=SxOperation.STATUS_RETIRED)
 
     qs = qs.order_by('op_code', 'op_rev')
-    page_obj, query_string = paginate_queryset(request, qs, per_page=12)
     return render(request, 'san_xuat/ie_operation_list.html', {
         **perms,
         **_ie_io_context(KIND_LIBRARY),
-        'page_obj': page_obj,
-        'items': page_obj.object_list,
-        'query_string': query_string,
+        'items': qs,
         'term': term,
         'group_code': group_code,
         'status': status,
@@ -1103,6 +1132,9 @@ def routing_list(request):
         'term': term,
         'total': qs.count(),
         'locked_routing_ids': locked_routing_ids,
+        'open_create': (request.GET.get('new') or '').strip() in ('1', 'true', 'yes'),
+        'prefill_style_code': (request.GET.get('style_code') or '').strip(),
+        'prefill_style_name': (request.GET.get('style_name') or '').strip(),
     })
 
 

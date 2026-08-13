@@ -3,17 +3,18 @@
   <div class="card-body">
     <h6 class="fw-bold mb-1">Công đoạn theo đơn (SMV áp dụng)</h6>
     <p class="small text-muted mb-3">
-      Phiên bản công đoạn gắn lúc lên đơn (copy SMV áp dụng). IE / Kế hoạch có thể đổi SMV hoặc thêm/bớt
-      công đoạn trên đơn nháp — không sửa routing mã hàng. Nhân công GTKH lấy SMV áp dụng này.
+      Lên đơn chọn BOM; quy trình IE tự gắn nếu mã hàng đã có routing duyệt.
+      Chưa có IE thì snapshot tạm lấy công đoạn BOM. IE / Kế hoạch sửa SMV áp dụng trên đơn nháp —
+      không sửa routing mã hàng. Xác nhận cần snapshot và SMV &gt; 0.
     </p>
 
     {% if missing_routing and order.confirm_status == 'draft' %}
     <div class="alert alert-warning py-2 small mb-3">
-      Routing phải chọn lúc lên đơn. Đơn nháp còn thiếu công đoạn — không gắn ở màn xác nhận.
+      Chưa có snapshot công đoạn (BOM hoặc IE) — gắn routing hoặc chọn BOM có công đoạn trước khi xác nhận.
       {% for ln in missing_routing %}
         <strong>{{ ln.product_code }}</strong>{% if not forloop.last %}, {% endif %}
       {% endfor %}
-      chưa đủ.
+      còn thiếu.
     </div>
     {% endif %}
 
@@ -36,11 +37,18 @@
             <a href="{% url 'san_xuat:doc_detail' ln.bom_version.tech_doc_id %}?tab=bom&bom={{ ln.bom_version_id }}">{{ ln.bom_version.version_label }}</a>
             {% else %}{{ ln.bom_version.version_label }}{% endif %}
           {% else %}—{% endif %}
-          · Routing:
+          · Quy trình IE:
           {% if ln.routing %}
           <a href="{% url 'san_xuat:ie_routing_detail' ln.routing_id %}">{{ ln.routing.routing_rev|default:ln.routing.routing_id }}</a>
-          {% else %}<span class="text-danger">chưa chọn</span>{% endif %}
-          · Tổng SMV: <strong>{{ ln.routing_total_smv|sx_num }}</strong> phút/cái
+          {% elif ln.routing_lines.all %}
+          <span class="text-warning">tạm công đoạn BOM</span>
+          {% else %}<span class="text-danger">chưa có</span>{% endif %}
+          · SMV chuẩn {{ ln.routing_std_smv|sx_num }}
+          → đơn <strong>{{ ln.routing_total_smv|sx_num }}</strong>
+          {% if ln.routing_smv_variance_pct %}
+            ({{ ln.routing_smv_variance_pct|sx_num:1 }}%)
+          {% endif %}
+          phút/cái
         </div>
       </div>
 
@@ -50,9 +58,9 @@
         <input type="hidden" name="action" value="attach_routing">
         <input type="hidden" name="so_line_id" value="{{ ln.pk }}">
         <div class="col-md-6 col-lg-4">
-          <label class="form-label small mb-0">Chọn phiên bản công đoạn</label>
+          <label class="form-label small mb-0">Gắn quy trình IE (routing)</label>
           <select name="routing_id" class="form-select form-select-sm" required>
-            <option value="">— Routing —</option>
+            <option value="">— Chọn bản IE —</option>
             {% for rt in ln.available_routings %}
             <option value="{{ rt.pk }}">{{ rt.routing_rev }} · {{ rt.get_approval_status_display }}</option>
             {% endfor %}
@@ -63,7 +71,7 @@
         </div>
       </form>
       {% if not ln.available_routings %}
-      <p class="small text-danger mb-2">Mã này chưa có routing — tạo ở Hồ sơ / Công đoạn rồi gắn lại.</p>
+      <p class="small text-muted mb-2">Mã này chưa có routing IE — xác nhận sẽ dùng công đoạn BOM nếu đã có. Tạo routing ở Hồ sơ khi IE xong.</p>
       {% endif %}
       {% endif %}
 
@@ -77,6 +85,29 @@
           Lấy lại từ routing mã hàng
         </button>
       </form>
+      {% endif %}
+
+      {% if can_edit_order_routing and ln.routing_lines.all %}
+      <form method="post" class="row g-2 align-items-end mb-2">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="scale_smv">
+        <input type="hidden" name="so_line_id" value="{{ ln.pk }}">
+        <div class="col-auto">
+          <label class="form-label small mb-0" for="smv-pct-{{ ln.pk }}">% lệch cả dòng</label>
+          <input type="number" name="smv_pct" id="smv-pct-{{ ln.pk }}"
+                 class="form-control form-control-sm" style="width:6.5rem"
+                 value="{{ ln.routing_smv_variance_pct|default:0 }}" step="0.1" inputmode="decimal">
+        </div>
+        <div class="col-md-5 col-lg-4">
+          <label class="form-label small mb-0" for="smv-why-{{ ln.pk }}">Lý do (nếu |lệch| &gt; 15%)</label>
+          <input type="text" name="variance_explanation" id="smv-why-{{ ln.pk }}"
+                 class="form-control form-control-sm" maxlength="500" placeholder="Vải khó, chi tiết thêm…">
+        </div>
+        <div class="col-auto">
+          <button type="submit" class="btn btn-sm btn-outline-hm">Áp SMV đơn</button>
+        </div>
+      </form>
+      <p class="small text-muted mb-2">SMV chuẩn mã hàng không đổi. % lệch nhân đều mọi công đoạn của đơn này — sửa từng CĐ bên dưới nếu cần.</p>
       {% endif %}
 
       <div class="table-responsive mt-2">

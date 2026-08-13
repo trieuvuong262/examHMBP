@@ -718,7 +718,12 @@ def sales_order_line_versions_api(request):
         smv_from_process_step,
     )
 
+    from urllib.parse import urlencode
+
     product_code = (request.GET.get('product_code') or '').strip()
+    routing_qs = {}
+    if product_code:
+        routing_qs['style_code'] = product_code
     payload = {
         'product_code': product_code,
         'tech_doc_id': None,
@@ -726,6 +731,7 @@ def sales_order_line_versions_api(request):
         'create_url': reverse('san_xuat:doc_create') + (
             f'?code={product_code}' if product_code else ''
         ),
+        'routing_create_url': reverse('san_xuat:ie_routing_create') + '?' + urlencode(routing_qs),
         'bom_versions': [],
         'routings': [],
         'default_routing_id': None,
@@ -740,18 +746,22 @@ def sales_order_line_versions_api(request):
     if doc:
         payload['tech_doc_id'] = doc.pk
         payload['doc_url'] = reverse('san_xuat:doc_detail', kwargs={'pk': doc.pk})
+        if (doc.product_name or '').strip():
+            routing_qs['style_name'] = doc.product_name.strip()
+            payload['routing_create_url'] = (
+                reverse('san_xuat:ie_routing_create') + '?' + urlencode(routing_qs)
+            )
         boms = list(doc.bom_versions.prefetch_related('process_steps').order_by('created_at', 'id'))
         if boms:
-            payload['default_bom_id'] = boms[-1].pk
+            with_steps = [b for b in boms if b.process_steps.all()]
+            payload['default_bom_id'] = (with_steps or boms)[-1].pk
         for bom in boms:
             label = bom.version_label or f'#{bom.pk}'
             note = (bom.notes or '').strip()
             steps = list(bom.process_steps.all())
             total_smv = sum((smv_from_process_step(s) for s in steps), Decimal('0'))
             text = label
-            if steps:
-                text = f'{label} · {len(steps)} CĐ · SMV {total_smv.quantize(Decimal("0.01"))} phút'
-            elif note:
+            if note:
                 text = f'{label} — {note[:40]}'
             payload['bom_versions'].append({
                 'id': bom.pk,

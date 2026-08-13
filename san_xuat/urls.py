@@ -174,6 +174,7 @@ urlpatterns = [
     path('cong-doan/api/thu-vien/tim/', views_ie.ie_operation_search, name='ie_operation_search'),
     path('cong-doan/api/may-moc/tim/', views_ie.ie_machine_search_api, name='ie_machine_search'),
     path('cong-doan/routing/', views_ie.routing_list, name='ie_routing_list'),
+    path('cong-doan/routing/them/', views_ie.routing_create, name='ie_routing_create'),
     path('cong-doan/routing/<int:pk>/', views_ie.routing_detail, name='ie_routing_detail'),
     path('cong-doan/dong-routing/', views_ie.routing_line_list, name='ie_routing_line_list'),
     path('cong-doan/bam-gio/', views_ie.time_study_list, name='ie_time_study_list'),

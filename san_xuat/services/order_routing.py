@@ -92,16 +92,37 @@ def smv_from_process_step(step) -> Decimal:
     return Decimal('0')
 
 
+def _step_code_and_name(*, code='', name='', operation=None) -> tuple[str, str]:
+    """Mã + tên công đoạn; thiếu tên thì lấy từ thư viện IE."""
+    code = (code or '').strip()
+    name = (name or '').strip()
+    if operation is not None:
+        if not code:
+            code = (getattr(operation, 'op_code', None) or '').strip()
+        op_name = (getattr(operation, 'name_vi', None) or '').strip()
+        if op_name and (not name or name.upper() == code.upper()):
+            name = op_name
+    return code, name
+
+
 def process_preview_from_routing(routing, *, limit: int = 80) -> list[dict]:
     out = []
     if routing is None:
         return out
-    for src in routing.lines.order_by('seq_no', 'id')[:limit]:
-        smv = _q(src.applied_unit_smv or src.library_unit_smv or 0)
+    for src in routing.lines.select_related('operation').order_by('seq_no', 'id')[:limit]:
+        std = _q(src.library_unit_smv or 0)
+        applied = _q(src.applied_unit_smv or std)
+        code, name = _step_code_and_name(
+            code=src.op_code,
+            name=src.op_name_vi,
+            operation=getattr(src, 'operation', None),
+        )
         out.append({
             'seq': src.seq_no or 0,
-            'name': src.op_name_vi or src.op_code or '',
-            'smv': str(smv),
+            'code': code,
+            'name': name,
+            'smv_std': str(std),
+            'smv': str(applied),
             'source': 'ie',
         })
     return out
@@ -111,11 +132,21 @@ def process_preview_from_bom(bom, *, limit: int = 80) -> list[dict]:
     out = []
     if bom is None:
         return out
-    for src in bom.process_steps.order_by('sequence', 'id')[:limit]:
+    steps = bom.process_steps
+    if hasattr(steps, 'select_related'):
+        steps = steps.select_related('operation')
+    for src in steps.order_by('sequence', 'id')[:limit]:
         smv = smv_from_process_step(src)
+        code, name = _step_code_and_name(
+            code=src.op_code,
+            name=src.process_name,
+            operation=getattr(src, 'operation', None),
+        )
         out.append({
             'seq': src.sequence or 0,
-            'name': src.process_name or src.op_code or '',
+            'code': code,
+            'name': name,
+            'smv_std': str(smv),
             'smv': str(smv),
             'source': 'bom',
         })
@@ -141,10 +172,10 @@ def _copy_from_process_step(order_line: SxSalesOrderLine, src) -> SxSalesOrderRo
 
 
 def apply_smv_overrides(order_line: SxSalesOrderLine, overrides) -> int:
-    """Ghi đè SMV áp dụng theo seq từ form lên đơn."""
+    """Ghi đè SMV áp dụng theo seq từ form lên đơn (không đụng SMV chuẩn)."""
     if not overrides:
         return 0
-    by_seq: dict[int, Decimal] = {}
+    by_seq: dict[int, tuple[Decimal, str]] = {}
     for row in overrides:
         if not isinstance(row, dict):
             continue
@@ -154,14 +185,48 @@ def apply_smv_overrides(order_line: SxSalesOrderLine, overrides) -> int:
         except (TypeError, ValueError):
             continue
         if seq > 0:
-            by_seq[seq] = smv
+            expl = str(row.get('explanation') or row.get('reason') or '').strip()[:500]
+            by_seq[seq] = (smv, expl)
     n = 0
     for line in order_line.routing_lines.all():
-        if line.seq_no in by_seq:
-            line.applied_unit_smv = by_seq[line.seq_no]
-            line.recompute()
-            line.save(update_fields=['applied_unit_smv', 'total_operation_smv', 'smv_variance_pct'])
-            n += 1
+        if line.seq_no not in by_seq:
+            continue
+        smv, expl = by_seq[line.seq_no]
+        line.applied_unit_smv = smv
+        line.recompute()
+        fields = ['applied_unit_smv', 'total_operation_smv', 'smv_variance_pct']
+        if expl:
+            line.variance_explanation = expl
+            fields.append('variance_explanation')
+        line.save(update_fields=fields)
+        n += 1
+    return n
+
+
+def scale_order_line_applied_smv(
+    order_line: SxSalesOrderLine,
+    pct,
+    explanation: str = '',
+) -> int:
+    """Nhân SMV áp dụng cả dòng theo % lệch so với SMV chuẩn mã hàng."""
+    assert_order_routing_editable(order_line.order)
+    factor = Decimal('1') + _q(pct, '0.01') / Decimal('100')
+    if factor <= 0:
+        raise OrderRoutingError('% lệch không hợp lệ — SMV áp dụng phải > 0.')
+    expl = (explanation or '').strip()[:500]
+    n = 0
+    for line in order_line.routing_lines.all():
+        std = line.library_unit_smv or Decimal('0')
+        line.applied_unit_smv = _q(std * factor)
+        line.recompute()
+        fields = ['applied_unit_smv', 'total_operation_smv', 'smv_variance_pct']
+        if expl and line.is_high_variance:
+            line.variance_explanation = expl
+            fields.append('variance_explanation')
+        line.save(update_fields=fields)
+        n += 1
+    if not n:
+        raise OrderRoutingError('Dòng đơn chưa có công đoạn để áp SMV.')
     return n
 
 

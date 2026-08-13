@@ -85,16 +85,17 @@ class SalesOrderLineForm(forms.Form):
     )
     bom_version_id = forms.CharField(
         required=False,
-        label='Phiên bản BOM',
+        label='BOM (NVL + công đoạn)',
         widget=forms.Select(attrs={
             'class': 'form-select form-select-sm jp-so-bom-select',
         }),
     )
     routing_id = forms.CharField(
         required=False,
-        label='Phiên bản công đoạn',
+        label='Quy trình IE',
         widget=forms.Select(attrs={
-            'class': 'form-select form-select-sm jp-so-routing-select',
+            'class': 'form-select form-select-sm jp-so-routing-select d-none',
+            'aria-label': 'Quy trình IE (routing)',
         }),
     )
     qty = forms.DecimalField(
@@ -130,7 +131,7 @@ class SalesOrderLineForm(forms.Form):
             routing_extra = str(self.initial.get('routing_id') or '').strip()
         self.fields['product_code'].choices = _product_code_choices(extra)
         self.fields['bom_version_id'].widget.choices = _optional_id_choices(bom_extra, '— BOM —')
-        self.fields['routing_id'].widget.choices = _optional_id_choices(routing_extra, '— Công đoạn —')
+        self.fields['routing_id'].widget.choices = _optional_id_choices(routing_extra, '— Tự gắn —')
         if self.initial and isinstance(self.initial.get('size_qtys'), dict):
             import json
             self.initial['size_qtys'] = json.dumps(
@@ -153,17 +154,6 @@ class SalesOrderLineForm(forms.Form):
 
     def clean_routing_id(self):
         return _clean_optional_pk(self.cleaned_data.get('routing_id'), 'SxRouting')
-
-    def clean(self):
-        cleaned = super().clean()
-        if cleaned.get('DELETE'):
-            return cleaned
-        if cleaned.get('product_code') and not cleaned.get('routing_id') and not cleaned.get('bom_version_id'):
-            self.add_error(
-                'routing_id',
-                'Chọn phiên bản công đoạn (routing IE) hoặc BOM có công đoạn khi lên đơn.',
-            )
-        return cleaned
 
     def clean_size_qtys(self):
         from san_xuat.services.sales_orders import normalize_size_qtys

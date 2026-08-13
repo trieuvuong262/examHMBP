@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import mimetypes
 import os
 import re
@@ -18,10 +19,32 @@ from django.conf import settings
 from hrm.department_permission_templates import department_name_to_code
 from hrm.permissions import get_profile
 
+logger = logging.getLogger(__name__)
+
 DEPT_SHARED_FOLDER = '_CHUNG'
 
 # Mặc định: KD-MKT là remote gốc synology:KD-MKT (không DATACHUNG/KD-MKT)
 _DEFAULT_DEPT_ROOT_REMOTES = {'KD-MKT': 'synology:KD-MKT'}
+
+# Thư mục hệ thống Synology — stat() dễ PermissionError trên FUSE → 500 cả trang.
+_SYNOLOGY_SKIP_NAMES = frozenset({
+    '#recycle',
+    '#snapshot',
+    '@eadir',
+    '@tmp',
+    '@synoeastream',
+    '@sharesnap',
+})
+
+
+def _is_hidden_nas_name(name: str) -> bool:
+    n = (name or '').strip()
+    if not n or n.startswith('.'):
+        return True
+    lower = n.lower()
+    if lower in _SYNOLOGY_SKIP_NAMES or lower.startswith('@'):
+        return True
+    return False
 
 
 @dataclass(frozen=True)
@@ -394,6 +417,8 @@ def list_directory_with_source(
                 return listing, 'mount', False
         except NasPathError:
             pass
+        except OSError:
+            logger.warning('NAS mount list failed for %s', path, exc_info=True)
 
     if rel and rclone_listing_available():
         if not fresh:
@@ -421,27 +446,43 @@ def listing_fingerprint(listing: dict) -> str:
     for file in listing.get('files', []):
         parts.append(f"f:{file['name']}:{file.get('size', 0)}:{file.get('modified', 0)}")
     parts.sort()
-    digest = hashlib.sha256('|'.join(parts).encode('utf-8')).hexdigest()
+    digest = hashlib.sha256('|'.join(parts).encode('utf-8', 'replace')).hexdigest()
     return digest[:16]
 
 
 def _list_directory_local(path: Path) -> dict:
-    if not path.is_dir():
-        raise NasPathError('Thư mục không tồn tại.')
+    try:
+        if not path.is_dir():
+            raise NasPathError('Thư mục không tồn tại.')
+        entries = list(path.iterdir())
+    except NasPathError:
+        raise
+    except OSError as exc:
+        raise NasPathError('Không đọc được thư mục trên NAS.') from exc
+
+    try:
+        entries.sort(key=lambda p: p.name.lower())
+    except Exception:
+        entries.sort(key=lambda p: p.name.encode('utf-8', 'replace'))
 
     folders = []
     files = []
-    for entry in sorted(path.iterdir(), key=lambda p: p.name.lower()):
-        if entry.name.startswith('.'):
+    for entry in entries:
+        if _is_hidden_nas_name(entry.name):
             continue
-        stat = entry.stat()
+        try:
+            stat = entry.stat()
+            is_dir = entry.is_dir()
+        except OSError as exc:
+            logger.warning('NAS skip entry %s: %s', entry, exc)
+            continue
         item = {
             'name': entry.name,
             'size': stat.st_size,
             'modified': stat.st_mtime,
-            'is_dir': entry.is_dir(),
+            'is_dir': is_dir,
         }
-        if entry.is_dir():
+        if is_dir:
             folders.append(item)
         else:
             item['mime'] = mimetypes.guess_type(entry.name)[0] or 'application/octet-stream'
@@ -553,7 +594,7 @@ def list_directory_via_rclone(rel_path: str, *, user=None, fresh: bool = False) 
     files = []
     for row in rows:
         name = row.get('Name') or row.get('name') or ''
-        if not name or name.startswith('.'):
+        if _is_hidden_nas_name(name):
             continue
         is_dir = bool(row.get('IsDir') or row.get('IsDirectory'))
         mod = row.get('ModTime') or row.get('Modified')

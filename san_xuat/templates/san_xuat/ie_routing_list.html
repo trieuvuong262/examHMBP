@@ -129,11 +129,16 @@
                     data-fill-name="#ieAddRoutingStyleName"
                     data-item-label="text">
               <option value="">— Chọn mã hàng (kho SP) —</option>
+              {% if prefill_style_code %}
+              <option value="{{ prefill_style_code }}" selected>
+                {{ prefill_style_code }}{% if prefill_style_name %} — {{ prefill_style_name }}{% endif %}
+              </option>
+              {% endif %}
             </select>
           </div>
           <div class="mb-2">
             <label class="form-label small text-muted mb-1" for="ieAddRoutingStyleName">Tên mã hàng</label>
-            <input type="text" name="style_name" id="ieAddRoutingStyleName" class="form-control form-control-sm" maxlength="255" placeholder="Tự điền khi chọn mã">
+            <input type="text" name="style_name" id="ieAddRoutingStyleName" class="form-control form-control-sm" maxlength="255" placeholder="Tự điền khi chọn mã" value="{{ prefill_style_name }}">
           </div>
           <div>
             <label class="form-label small text-muted mb-1">Phiên bản <span class="text-danger">*</span></label>
@@ -162,6 +167,11 @@
     if (!sel.tomselect && window.jpInitProductCodeSelect) window.jpInitProductCodeSelect(sel);
     if (sel.tomselect) sel.tomselect.focus();
   });
+  {% if open_create %}
+  if (window.bootstrap && bootstrap.Modal) {
+    bootstrap.Modal.getOrCreateInstance(modal).show();
+  }
+  {% endif %}
 })();
 </script>
 {% endif %}

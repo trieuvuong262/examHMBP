@@ -187,6 +187,11 @@ def browse(request):
         if share:
             return redirect('nas_storage:share_open', token=share.token)
         return redirect('nas_storage:browse')
+    except OSError:
+        messages.error(request, 'Không đọc được thư mục trên NAS. Thử tải lại sau.')
+        if share:
+            return redirect('nas_storage:share_open', token=share.token)
+        return redirect('nas_storage:browse')
 
     if fresh:
         if ctx.get('listing_source') == 'rclone':

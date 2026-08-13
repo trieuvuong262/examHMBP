@@ -592,6 +592,7 @@ def _handle_order_routing_post(request, order) -> bool:
         OrderRoutingError,
         delete_order_routing_line,
         reset_order_line_routing,
+        scale_order_line_applied_smv,
         upsert_order_routing_line,
         user_can_edit_order_routing,
     )
@@ -599,7 +600,7 @@ def _handle_order_routing_post(request, order) -> bool:
     action = (request.POST.get('action') or '').strip()
     if action not in {
         'add_routing_line', 'edit_routing_line', 'delete_routing_line',
-        'reset_routing', 'attach_routing',
+        'reset_routing', 'attach_routing', 'scale_smv',
     }:
         return False
     can_pick = (
@@ -633,6 +634,15 @@ def _handle_order_routing_post(request, order) -> bool:
     if action == 'reset_routing':
         n = reset_order_line_routing(_line())
         messages.success(request, f'Đã lấy lại {n} công đoạn từ routing mã hàng.')
+        return True
+
+    if action == 'scale_smv':
+        n = scale_order_line_applied_smv(
+            _line(),
+            request.POST.get('smv_pct') or 0,
+            explanation=request.POST.get('variance_explanation') or '',
+        )
+        messages.success(request, f'Đã áp SMV đơn cho {n} công đoạn (không đổi SMV chuẩn mã hàng).')
         return True
 
     if action == 'delete_routing_line':
@@ -755,7 +765,7 @@ def sales_order_detail(request, pk: int):
 
     missing_routing = [
         ln for ln in order.lines.all()
-        if not ln.routing_id or not ln.routing_lines.exists()
+        if not ln.routing_lines.exists()
     ]
     from san_xuat.services.order_routing import routings_for_product
 

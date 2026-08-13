@@ -1,7 +1,6 @@
 /**
  * Auto-save form lên đơn đặt hàng (san-xuat/don-hang/them) vào localStorage.
- * Khi load lại trang, nếu form còn trống thì restore bản nháp (< 7 ngày).
- * Xóa draft khi submit (giống báo cáo VP).
+ * Reload trang khôi phục bản nháp (< 7 ngày). Xóa draft sau khi tạo đơn thành công.
  */
 (function () {
     'use strict';
@@ -10,7 +9,8 @@
     if (!form) return;
 
     var STORAGE_KEY = 'sx_sales_order_draft';
-    var SAVE_INTERVAL = 3000;
+    var PENDING_KEY = 'sx_sales_order_draft_pending';
+    var SAVE_INTERVAL = 400;
     var HEADER_FIELDS = ['code', 'customer_name', 'request_date', 'due_date', 'notes'];
     // File đính kèm không lưu localStorage (không serialize được).
 
@@ -37,6 +37,16 @@
         });
     }
 
+    function parseJson(raw, fallback) {
+        if (!raw) return fallback;
+        try {
+            var parsed = JSON.parse(raw);
+            return parsed == null ? fallback : parsed;
+        } catch (e) {
+            return fallback;
+        }
+    }
+
     function collectLines() {
         syncAllSizeJson();
         var lines = [];
@@ -47,6 +57,7 @@
             var sizeEl = row.querySelector('.jp-so-size-qtys-json, input[name$="-size_qtys"]');
             var bomEl = row.querySelector('.jp-so-bom-select, select[name$="-bom_version_id"]');
             var rtEl = row.querySelector('.jp-so-routing-select, select[name$="-routing_id"]');
+            var smvEl = row.querySelector('.jp-so-smv-json, input[name$="-applied_smv_json"]');
             var code = codeEl ? (codeEl.value || '').trim() : '';
             var name = nameEl ? (nameEl.value || '').trim() : '';
             var qty = qtyEl ? (qtyEl.value || '').trim() : '';
@@ -54,15 +65,14 @@
             var routingId = rtEl ? (rtEl.value || '').trim() : '';
             if (bomId === '__create__') bomId = '';
             if (routingId === '__create__') routingId = '';
-            var sizeRaw = sizeEl ? (sizeEl.value || '').trim() : '';
-            var sizeQtys = {};
-            if (sizeRaw) {
-                try {
-                    var parsed = JSON.parse(sizeRaw);
-                    if (parsed && typeof parsed === 'object') sizeQtys = parsed;
-                } catch (e) { /* ignore */ }
-            }
-            if (!code && !name && (!qty || qty === '0') && !Object.keys(sizeQtys).length && !bomId && !routingId) return;
+            var sizeQtys = parseJson(sizeEl ? sizeEl.value : '', {});
+            if (!sizeQtys || typeof sizeQtys !== 'object' || Array.isArray(sizeQtys)) sizeQtys = {};
+            var appliedSmv = parseJson(smvEl ? smvEl.value : '', []);
+            if (!Array.isArray(appliedSmv)) appliedSmv = [];
+            if (
+                !code && !name && (!qty || qty === '0')
+                && !Object.keys(sizeQtys).length && !bomId && !routingId && !appliedSmv.length
+            ) return;
             lines.push({
                 product_code: code,
                 product_name: name,
@@ -70,6 +80,7 @@
                 size_qtys: sizeQtys,
                 bom_version_id: bomId,
                 routing_id: routingId,
+                applied_smv: appliedSmv,
             });
         });
         return lines;
@@ -88,25 +99,32 @@
         };
     }
 
+    function lineHasContent(line) {
+        if (!line) return false;
+        if ((line.product_code || '').trim()) return true;
+        if ((line.product_name || '').trim()) return true;
+        if ((line.qty || '').trim() && line.qty !== '0') return true;
+        if ((line.bom_version_id || '').trim()) return true;
+        if ((line.routing_id || '').trim()) return true;
+        if (line.applied_smv && line.applied_smv.length) return true;
+        if (line.size_qtys && typeof line.size_qtys === 'object') {
+            var keys = Object.keys(line.size_qtys);
+            for (var j = 0; j < keys.length; j++) {
+                if (Number(line.size_qtys[keys[j]]) > 0) return true;
+            }
+        }
+        return false;
+    }
+
     function hasMeaningfulContent(draft) {
         if (!draft) return false;
         var h = draft.header || {};
         if ((h.code || '').trim()) return true;
         if ((h.customer_name || '').trim()) return true;
-        if ((h.due_date || '').trim()) return true;
         if ((h.notes || '').trim()) return true;
         var lines = draft.lines || [];
         for (var i = 0; i < lines.length; i++) {
-            var line = lines[i] || {};
-            if ((line.product_code || '').trim()) return true;
-            if ((line.product_name || '').trim()) return true;
-            if ((line.qty || '').trim() && line.qty !== '0') return true;
-            if (line.size_qtys && typeof line.size_qtys === 'object') {
-                var keys = Object.keys(line.size_qtys);
-                for (var j = 0; j < keys.length; j++) {
-                    if (Number(line.size_qtys[keys[j]]) > 0) return true;
-                }
-            }
+            if (lineHasContent(lines[i])) return true;
         }
         return false;
     }
@@ -221,8 +239,19 @@
                 var hidden = row.querySelector('.jp-so-size-qtys-json, input[name$="-size_qtys"]');
                 if (hidden) hidden.value = JSON.stringify(sizeMap);
             }
+            var smvEl = row.querySelector('.jp-so-smv-json, input[name$="-applied_smv_json"]');
+            if (smvEl && line.applied_smv != null) {
+                smvEl.value = typeof line.applied_smv === 'string'
+                    ? line.applied_smv
+                    : JSON.stringify(line.applied_smv || []);
+            }
             if (typeof window.jpSoLoadLineVersions === 'function') {
-                window.jpSoLoadLineVersions(row, line.bom_version_id || '', line.routing_id || '');
+                window.jpSoLoadLineVersions(
+                    row,
+                    line.bom_version_id || '',
+                    line.routing_id || '',
+                    true
+                );
             }
         });
     }
@@ -233,21 +262,37 @@
         saveTimer = setTimeout(saveDraft, SAVE_INTERVAL);
     }
 
+    window.jpSoAfterLineVersions = scheduleSave;
+
     form.addEventListener('input', scheduleSave);
     form.addEventListener('change', scheduleSave);
+    document.addEventListener('jp-so-product-changed', scheduleSave);
 
     form.addEventListener('submit', function () {
-        try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
+        saveDraft();
+        try { sessionStorage.setItem(PENDING_KEY, '1'); } catch (e) {}
     });
 
+    window.addEventListener('pagehide', saveDraft);
+    window.addEventListener('beforeunload', saveDraft);
+
     function initRestore() {
+        var pending = false;
+        try { pending = sessionStorage.getItem(PENDING_KEY) === '1'; } catch (e) {}
+        if (pending) {
+            try { sessionStorage.removeItem(PENDING_KEY); } catch (e) {}
+            if (!formIsEmpty()) {
+                saveDraft();
+                return;
+            }
+            try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
+            return;
+        }
+
         var draft = loadDraft();
         if (!draft || !hasMeaningfulContent(draft)) return;
-        // Chờ TomSelect + hydrate size xong
-        setTimeout(function () {
-            if (!formIsEmpty()) return;
-            restoreDraft(draft);
-        }, 400);
+        if (!formIsEmpty()) return;
+        restoreDraft(draft);
     }
 
     initRestore();

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from django.contrib.auth.models import User
 
-from nas_storage.nas_paths import normalize_rel_path
+from nas_storage.nas_paths import NasPathError, normalize_rel_path
 from nas_storage.user_folders import portal_rel_path_for_acl
 
 
@@ -60,7 +60,10 @@ def filter_listing_folders_for_user(user: User | None, parent_rel: str, folders:
         name = (item.get('name') or '').strip()
         if not name:
             continue
-        child_rel = _child_rel_path(parent_rel, name)
+        try:
+            child_rel = _child_rel_path(parent_rel, name)
+        except NasPathError:
+            continue
         if user_can_access_private_nas_rel(user, child_rel):
             visible.append(item)
     return visible

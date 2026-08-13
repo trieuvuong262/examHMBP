@@ -8,13 +8,15 @@
 
 ```text
 Tạo tay ──► SxSalesOrder (nháp)
-                  │ xác nhận
-                  ▼
+   BOM bắt buộc-nên có     │ xác nhận (cần snapshot CĐ + SMV > 0)
+   routing IE tự gắn       ▼
             Đã xác nhận ──► Hàng đợi Kế hoạch SX (board)
                   │              │ xếp hạng → Chuyển xuống SX → LSX
                   │              └── (tuỳ chọn) Nạp KHTT MTO
                   └── Giá thành theo mã đơn
 ```
+
+**BOM vs routing:** lên đơn chọn BOM (NVL + lộ trình tổ). Routing IE là bản thao tác SMV — tự gắn bản duyệt; chưa có thì snapshot tạm từ công đoạn BOM. Không bắt người lên đơn chọn routing.
 
 ## 2. Model
 
@@ -45,7 +47,7 @@ Sidebar: nhóm **Đơn đặt hàng** → Danh sách / Lên đơn đặt hàng /
 | Detail ĐĐH | Nút «Tạo KHTT MTO & nạp nhu cầu» |
 | KHCT / LSX | Luồng Portal giữ nguyên; detail ĐĐH liệt kê KHTT/LSX liên quan |
 | Giá thành theo đơn | Link `?q=` mã ĐĐH — **nhân công GTKH = SMV áp dụng snapshot đơn**; NVL/phụ phí vẫn BOM. GT định mức sản phẩm không đổi (ProcessStep). |
-| Routing theo đơn | **Lên đơn** chọn BOM + routing (tự chọn bản mặc định, bắt buộc lưu). Copy snapshot SMV áp dụng. IE (`ie`) / KH (`plan`) sửa SMV trên đơn nháp. Xác nhận kiểm tra routing + CĐ + SMV > 0 — không gắn routing ở màn xác nhận. |
+| Routing theo đơn | Lên đơn: chọn **BOM**. **Quy trình IE tự gắn**. **SMV chuẩn** = mã hàng (không sửa). **SMV đơn / % lệch** nhân đều CĐ lúc lên đơn; IE/KH chỉnh từng CĐ trên đơn nháp. Xác nhận: snapshot + SMV &gt; 0; lệch &gt;15% cần giải trình. Khóa sau xác nhận. |
 | KiotViet | Không import vào ĐĐH (phase hiện tại) |
 
 ## 5. Phase 1 không làm

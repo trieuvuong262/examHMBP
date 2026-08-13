@@ -211,6 +211,22 @@ class SxSalesOrderLine(models.Model):
         total = self.routing_lines.aggregate(s=models.Sum('total_operation_smv'))['s'] or Decimal('0')
         return total.quantize(Decimal('0.0001'))
 
+    @property
+    def routing_std_smv(self) -> Decimal:
+        total = Decimal('0')
+        for ln in self.routing_lines.all():
+            std = ln.library_unit_smv or Decimal('0')
+            qty = ln.qty_per_garment or Decimal('1')
+            total += std * qty
+        return total.quantize(Decimal('0.0001'))
+
+    @property
+    def routing_smv_variance_pct(self) -> Decimal:
+        std = self.routing_std_smv
+        if not std:
+            return Decimal('0')
+        return ((self.routing_total_smv - std) / std * Decimal('100')).quantize(Decimal('0.01'))
+
 
 class SxSalesOrderRoutingLine(models.Model):
     """Snapshot công đoạn theo dòng đơn — SMV áp dụng riêng PO, không sửa routing mã hàng."""
