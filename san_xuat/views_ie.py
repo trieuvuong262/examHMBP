@@ -166,15 +166,19 @@ IE_APPROVE_STATUSES = tuple(v for v, _ in IE_APPROVE_STATUS_CHOICES)
 
 
 def _operations_qs_for_approval(status: str = IE_APPROVE_STATUS_PENDING):
-    qs = SxOperation.objects.select_related('group')
+    qs = SxOperation.objects.select_related('group').exclude(status=SxOperation.STATUS_RETIRED)
     if status == IE_APPROVE_STATUS_APPROVED:
-        qs = qs.filter(status=SxOperation.STATUS_APPROVED)
+        qs = qs.filter(status=SxOperation.STATUS_APPROVED, approved_at__isnull=False)
     elif status == IE_APPROVE_STATUS_REJECTED:
         qs = qs.none()
     elif status == IE_APPROVE_STATUS_ALL:
-        qs = qs.exclude(status=SxOperation.STATUS_RETIRED)
+        return qs
     else:
-        qs = qs.exclude(status=SxOperation.STATUS_APPROVED).exclude(status=SxOperation.STATUS_RETIRED)
+        # Chưa duyệt trên Portal: nháp/thử nghiệm, hoặc Excel gắn "Đã duyệt" nhưng chưa có mốc duyệt.
+        qs = qs.filter(
+            Q(status__in=(SxOperation.STATUS_DRAFT, SxOperation.STATUS_TRIAL))
+            | Q(approved_at__isnull=True)
+        )
     return qs
 
 
@@ -323,7 +327,10 @@ def _locked_routing_ids():
 def _approve_row_operation(op) -> dict:
     smv = op.base_smv_min or Decimal('0')
     extra_badges = []
-    if op.status == SxOperation.STATUS_APPROVED:
+    portal_approved = (
+        op.status == SxOperation.STATUS_APPROVED and op.approved_at is not None
+    )
+    if portal_approved:
         approval_label = 'Đã duyệt'
         approval_badge = 'success'
         can_select = False
