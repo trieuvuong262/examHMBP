@@ -86,10 +86,8 @@
               <th>Mã</th>
               <th>Phiên bản</th>
               <th>Tên</th>
-              <th>{% if kind == kind_routing %}Mã hàng{% elif kind == kind_operation %}Nhóm{% else %}Chi tiết{% endif %}</th>
-              {% if kind == kind_routing or kind == kind_all %}
+              <th>Chi tiết</th>
               <th class="text-end">Dòng</th>
-              {% endif %}
               <th class="text-end">SMV</th>
               <th style="width: 110px;">Trạng thái duyệt</th>
               <th>Người lập</th>
@@ -119,11 +117,9 @@
               <td><span class="badge bg-light text-dark">{{ row.rev }}</span></td>
               <td>{{ row.name|truncatechars:48 }}</td>
               <td class="small fw-semibold">{{ row.detail }}</td>
-              {% if kind == kind_routing or kind == kind_all %}
               <td class="text-end">
                 {% if row.item_kind == 'rt' %}{{ row.n_lines|default:"—" }}{% else %}—{% endif %}
               </td>
-              {% endif %}
               <td class="text-end fw-semibold">{{ row.smv|default:0|sx_num }}</td>
               <td>
                 <span class="badge bg-{{ row.approval_badge }}-subtle text-{{ row.approval_badge }}">
@@ -132,7 +128,7 @@
               </td>
               <td class="small">{{ row.owner }}</td>
               <td class="text-nowrap text-end">
-                <a href="{{ row.view_url }}" class="btn btn-sm btn-outline-{% if row.item_kind == 'rt' %}hm{% else %}secondary{% endif %} py-0">{{ row.view_label }}</a>
+                <a href="{{ row.view_url }}" class="btn btn-sm btn-outline-hm py-0">{{ row.view_label }}</a>
                 {% for label, badge in row.extra_badges %}
                 <span class="badge bg-{{ badge }} text-dark">{{ label }}</span>
                 {% endfor %}
@@ -140,7 +136,7 @@
             </tr>
           {% empty %}
             <tr>
-              <td colspan="{% if can_approve and show_bulk_actions %}{% if kind == kind_operation %}11{% else %}12{% endif %}{% else %}{% if kind == kind_operation %}10{% else %}11{% endif %}{% endif %}" class="text-muted small p-3 text-center">
+              <td colspan="{% if can_approve and show_bulk_actions %}12{% else %}11{% endif %}" class="text-muted small p-3 text-center">
                 {% if status == status_pending %}
                   {% if kind == kind_operation %}
                   Không có công đoạn chờ duyệt.
