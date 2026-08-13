@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-5">
+            <div class="card jp-auth-card">
+                <div class="jp-auth-header">
+                    <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
+                    <h3 class="fw-bold mb-1">JUSTPLAY PORTAL</h3>
+                    <p class="small opacity-75 mb-0">Không mở được trong Zalo</p>
+                </div>
+                <div class="card-body p-4 p-md-5">
+                    <p class="text-muted mb-4">
+                        Portal chỉ dùng trên <strong>trình duyệt</strong> (Chrome, Safari).
+                        Bấm link trong Zalo rồi nhập mật khẩu dễ sai và bị khóa tài khoản.
+                    </p>
+
+                    {% if is_android and chrome_intent_url %}
+                    <a href="{{ chrome_intent_url }}" class="btn btn-hm w-100 shadow-sm fw-bold mb-3">
+                        <i class="bi bi-browser-chrome me-1"></i>Mở bằng Chrome
+                    </a>
+                    {% endif %}
+
+                    <button type="button" class="btn btn-outline-dark w-100 fw-bold mb-4" id="jp-copy-portal-link"
+                            data-url="{{ page_url }}">
+                        <i class="bi bi-clipboard me-1"></i><span id="jp-copy-portal-label">Sao chép link</span>
+                    </button>
+
+                    <ol class="small text-muted mb-0 ps-3">
+                        {% if is_ios %}
+                        <li class="mb-2">Trên Zalo: bấm <strong>⋮</strong> hoặc chia sẻ → <strong>Mở bằng Safari</strong>.</li>
+                        <li class="mb-2">Hoặc sao chép link → mở Safari / Chrome → dán và truy cập.</li>
+                        {% elif is_android %}
+                        <li class="mb-2">Bấm <strong>Mở bằng Chrome</strong> ở trên.</li>
+                        <li class="mb-2">Hoặc trên Zalo: bấm <strong>⋮</strong> góc trên → <strong>Mở bằng trình duyệt</strong>.</li>
+                        {% else %}
+                        <li class="mb-2">Sao chép link → mở Chrome hoặc Safari → dán và truy cập.</li>
+                        <li class="mb-2">Trong Zalo: bấm <strong>⋮</strong> → <strong>Mở bằng trình duyệt</strong>.</li>
+                        {% endif %}
+                        <li>Đăng nhập trên trình duyệt. Nếu quên mật khẩu, dùng <strong>Quên mật khẩu</strong> (OTP Zalo) — không nhập thử nhiều lần.</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+(function () {
+    var btn = document.getElementById('jp-copy-portal-link');
+    if (!btn) return;
+    btn.addEventListener('click', function () {
+        var url = btn.getAttribute('data-url') || '';
+        var label = document.getElementById('jp-copy-portal-label');
+        function ok() {
+            if (label) label.textContent = 'Đã sao chép';
+            setTimeout(function () {
+                if (label) label.textContent = 'Sao chép link';
+            }, 2000);
+        }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(url).then(ok).catch(function () {
+                window.prompt('Sao chép link portal:', url);
+            });
+        } else {
+            window.prompt('Sao chép link portal:', url);
+        }
+    });
+})();
+</script>
+{% endblock %}

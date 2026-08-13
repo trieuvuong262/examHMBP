@@ -1,6 +1,9 @@
 from django.http import JsonResponse
-from django.shortcuts import redirect
+from django.shortcuts import redirect, render
 from django.urls import reverse
+
+from audit.zalo_webview import is_zalo_in_app_browser, open_in_browser_context
+from PortalJustPlay.pwa import ZALO_DOMAIN_VERIFIER_FILENAME
 
 
 def _ajax_password_change_required(request):
@@ -9,6 +12,53 @@ def _ajax_password_change_required(request):
         or request.headers.get('X-CSRFToken')
         or 'application/json' in (request.headers.get('Accept') or '')
     )
+
+
+class ZaloInAppBrowserMiddleware:
+    """Chặn portal trong WebView Zalo — bắt mở Chrome/Safari, tránh nhập sai MK bị khóa."""
+
+    _EXEMPT_PREFIXES = (
+        '/static/',
+        '/media/',
+        '/nhat-ky/rustdesk/api/',
+        '/thiet-bi/api/',
+    )
+    _EXEMPT_EXACT = frozenset({
+        '/sw.js',
+        '/manifest.webmanifest',
+        f'/{ZALO_DOMAIN_VERIFIER_FILENAME}',
+    })
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        if not is_zalo_in_app_browser(request):
+            return self.get_response(request)
+
+        path = request.path or '/'
+        if path in self._EXEMPT_EXACT or any(path.startswith(p) for p in self._EXEMPT_PREFIXES):
+            return self.get_response(request)
+
+        accept = request.headers.get('Accept', '')
+        if (
+            'application/json' in accept
+            or request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        ):
+            return JsonResponse(
+                {
+                    'status': 'error',
+                    'open_in_browser': True,
+                    'message': 'Portal không dùng trong Zalo. Mở link bằng Chrome hoặc Safari.',
+                },
+                status=403,
+            )
+
+        return render(
+            request,
+            'registration/zalo_open_browser.html',
+            open_in_browser_context(request),
+        )
 
 
 class ForcePasswordChangeMiddleware:
