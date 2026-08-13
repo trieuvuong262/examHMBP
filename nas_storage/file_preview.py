@@ -9,7 +9,7 @@ import tempfile
 from datetime import date, datetime, time
 from html import escape
 from pathlib import Path
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 
 from django.core.exceptions import ValidationError
 from django.http import HttpResponse
@@ -38,6 +38,24 @@ def can_preview_file(file_name: str) -> bool:
     return preview_kind(file_name) is not None
 
 
+def can_embed_office_preview(file_name: str) -> bool:
+    """Excel/CSV xem HTML ngay; Word/ODS cần LibreOffice."""
+    ext = os.path.splitext((file_name or '').lower())[1]
+    if ext in SPREADSHEET_HTML_EXTENSIONS:
+        return True
+    if ext in OFFICE_TO_PDF_EXTENSIONS:
+        return office_preview_available()
+    return False
+
+
+def _inline_content_disposition(filename: str) -> str:
+    name = (filename or 'file').replace('\r', '').replace('\n', '').replace('"', '').replace('\\', '')
+    ascii_fallback = ''.join(
+        c if 32 <= ord(c) < 127 and c not in ';\\' else '_' for c in name
+    ) or 'file'
+    return f"inline; filename=\"{ascii_fallback}\"; filename*=UTF-8''{quote(name)}"
+
+
 def preview_url_for(rel_path: str, *, share_token: str = '') -> str:
     params = {'path': rel_path}
     if share_token:
@@ -55,7 +73,7 @@ def share_preview_context(file_name: str, rel_path: str, *, share_token: str = '
         'file_name': file_name,
     }
     if kind == 'office':
-        ctx['office_preview_ready'] = office_preview_available()
+        ctx['office_preview_ready'] = can_embed_office_preview(file_name)
     return ctx
 
 
@@ -89,7 +107,7 @@ def inline_pdf_response(path: Path, *, filename: str | None = None):
 
     name = filename or path.name
     response = FileResponse(path.open('rb'), content_type='application/pdf', as_attachment=False)
-    response['Content-Disposition'] = f'inline; filename="{name}"'
+    response['Content-Disposition'] = _inline_content_disposition(name)
     response['Content-Length'] = path.stat().st_size
     return response
 
@@ -101,9 +119,31 @@ def inline_office_pdf_response(source: Path, *, display_name: str):
         raise
     response = HttpResponse(data, content_type='application/pdf')
     pdf_name = os.path.splitext(display_name)[0] + '.pdf'
-    response['Content-Disposition'] = f'inline; filename="{pdf_name}"'
+    response['Content-Disposition'] = _inline_content_disposition(pdf_name)
     response['Content-Length'] = len(data)
     return response
+
+
+def serve_preview_response(source: Path, display_name: str, *, ext: str | None = None):
+    """PDF / Excel HTML / Word→PDF — không 404 khi không xem được."""
+    ext = (ext or source.suffix or os.path.splitext(display_name)[1]).lower()
+    if ext == '.pdf':
+        return inline_pdf_response(source, filename=display_name)
+    if ext in SPREADSHEET_HTML_EXTENSIONS:
+        try:
+            return inline_spreadsheet_html_response(source, display_name=display_name)
+        except ValidationError:
+            return preview_unavailable_html('Không đọc được file Excel. Hãy tải xuống để mở.')
+    if ext in OFFICE_TO_PDF_EXTENSIONS:
+        if office_preview_available():
+            try:
+                return inline_office_pdf_response(source, display_name=display_name)
+            except ValidationError:
+                pass
+        return preview_unavailable_html(
+            'Chưa xem trước được định dạng này trên trình duyệt. Hãy tải file về.'
+        )
+    return preview_unavailable_html('Không xem trước được file này.')
 
 
 def preview_unavailable_html(message: str) -> HttpResponse:

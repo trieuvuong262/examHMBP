@@ -2,6 +2,7 @@ from django.contrib import messages
 from django.db.models import Q
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.views.decorators.http import require_GET, require_POST
 import json
 
@@ -567,6 +568,7 @@ def doc_detail(request, pk):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 @require_GET
+@xframe_options_sameorigin
 def design_file_serve(request, pk):
     import mimetypes
 
@@ -615,19 +617,11 @@ def design_file_serve(request, pk):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 @require_GET
+@xframe_options_sameorigin
 def design_file_preview(request, pk):
     """Xem trước PDF / Word / Excel / AI (PDF-compatible) trong iframe."""
-    from django.core.exceptions import ValidationError
-
-    from nas_storage.file_preview import (
-        SPREADSHEET_HTML_EXTENSIONS,
-        inline_office_pdf_response,
-        inline_pdf_response,
-        inline_spreadsheet_html_response,
-        preview_unavailable_html,
-    )
+    from nas_storage.file_preview import preview_unavailable_html, serve_preview_response
     from san_xuat.design_nas_storage import design_file_abs_path
-    from tools.services import OFFICE_TO_PDF_EXTENSIONS, office_preview_available
 
     design_file = get_object_or_404(
         TechDocDesignFile.objects.select_related('tech_doc'),
@@ -643,28 +637,12 @@ def design_file_preview(request, pk):
     except OSError:
         raise Http404
     if ext == '.pdf' or (ext == '.ai' and head.startswith(b'%PDF')):
-        return inline_pdf_response(path, filename=design_file.display_name)
+        return serve_preview_response(path, design_file.display_name, ext='.pdf')
     if ext == '.ai':
         return preview_unavailable_html(
             'File AI này không xem trước được trên trình duyệt. Hãy tải về Adobe Illustrator.'
         )
-    if ext in SPREADSHEET_HTML_EXTENSIONS:
-        try:
-            return inline_spreadsheet_html_response(path, display_name=design_file.display_name)
-        except ValidationError:
-            return preview_unavailable_html('Không đọc được file Excel. Hãy tải xuống để mở.')
-    if ext in OFFICE_TO_PDF_EXTENSIONS and office_preview_available():
-        try:
-            return inline_office_pdf_response(path, display_name=design_file.display_name)
-        except ValidationError:
-            return preview_unavailable_html(
-                'Không chuyển được sang PDF để xem trước. Hãy tải file về.'
-            )
-    if ext in OFFICE_TO_PDF_EXTENSIONS:
-        return preview_unavailable_html(
-            'Chưa xem trước được định dạng này trên trình duyệt. Hãy tải file về.'
-        )
-    raise Http404
+    return serve_preview_response(path, design_file.display_name, ext=ext)
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')

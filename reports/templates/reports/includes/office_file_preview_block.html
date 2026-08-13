@@ -11,7 +11,7 @@
     <div class="jp-weekly-embed-wrap is-pdf">
         <iframe src="{{ item.preview_url }}" title="{{ item.name }}" loading="lazy"></iframe>
     </div>
-    {% elif item.type == 'office' and item.office_preview_ready %}
+    {% elif item.type == 'office' and item.preview_url %}
     <div class="jp-weekly-embed-wrap is-pdf">
         <iframe src="{{ item.preview_url }}" title="{{ item.name }}" loading="lazy"></iframe>
     </div>

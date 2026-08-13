@@ -3,10 +3,10 @@ from urllib.parse import urlencode
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.core.exceptions import ValidationError
 from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
+from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.views.decorators.http import require_GET, require_POST
 
 from hrm.menu_permissions import menu_perm_context, user_can_access_menu
@@ -41,8 +41,7 @@ from nas_storage.share_access import (
 )
 from nas_storage.file_preview import (
     PREVIEWABLE_EXTENSIONS,
-    inline_office_pdf_response,
-    inline_pdf_response,
+    serve_preview_response,
     share_preview_context,
 )
 
@@ -277,6 +276,7 @@ def create_share(request):
 
 
 @login_required
+@xframe_options_sameorigin
 def preview_file(request):
     if not user_can_access_module(request.user, MODULE_NAS_STORAGE):
         messages.error(request, 'Bạn cần quyền Thư mục NAS trên Portal để xem trước file.')
@@ -304,16 +304,7 @@ def preview_file(request):
     ext = path.suffix.lower()
     if ext not in PREVIEWABLE_EXTENSIONS:
         raise Http404
-
-    try:
-        if ext == '.pdf':
-            return inline_pdf_response(path)
-        return inline_office_pdf_response(path, display_name=path.name)
-    except ValidationError as exc:
-        messages.error(request, str(exc))
-        if share:
-            return redirect('nas_storage:share_open', token=share.token)
-        return redirect(_browse_url(rel_path, share_token=share_token))
+    return serve_preview_response(path, path.name, ext=ext)
 
 
 @_access_required

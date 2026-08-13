@@ -3,6 +3,8 @@ import os
 import shutil
 import subprocess
 import tempfile
+import time
+from pathlib import Path
 
 import qrcode
 from django.core.exceptions import ValidationError
@@ -213,37 +215,47 @@ def _run_libreoffice_convert(input_path: str, output_dir: str) -> str:
     env = os.environ.copy()
     if os.name != 'nt':
         env.setdefault('HOME', '/tmp')
-    result = subprocess.run(
-        [
-            binary,
-            '--headless',
-            '--norestore',
-            '--nolockcheck',
-            '--nodefault',
-            '--nofirststartwizard',
-            '--convert-to',
-            'pdf',
-            '--outdir',
-            output_dir,
-            input_path,
-        ],
-        capture_output=True,
-        text=True,
-        timeout=120,
-        env=env,
-    )
-    if result.returncode != 0:
-        detail = (result.stderr or result.stdout or '').strip()
-        raise ValidationError(
-            'Không chuyển được sang PDF.'
-            + (f' ({detail[:200]})' if detail else '')
+    profile_dir = tempfile.mkdtemp(prefix='lo-preview-')
+    try:
+        result = subprocess.run(
+            [
+                binary,
+                '--headless',
+                '--norestore',
+                '--nolockcheck',
+                '--nodefault',
+                '--nofirststartwizard',
+                f'-env:UserInstallation={Path(profile_dir).resolve().as_uri()}',
+                '--convert-to',
+                'pdf',
+                '--outdir',
+                output_dir,
+                input_path,
+            ],
+            capture_output=True,
+            text=True,
+            encoding='utf-8',
+            errors='replace',
+            timeout=120,
+            env=env,
         )
+        if result.returncode != 0:
+            detail = (result.stderr or result.stdout or '').strip()
+            raise ValidationError(
+                'Không chuyển được sang PDF.'
+                + (f' ({detail[:200]})' if detail else '')
+            )
 
-    base_name = os.path.splitext(os.path.basename(input_path))[0]
-    pdf_path = os.path.join(output_dir, f'{base_name}.pdf')
-    if not os.path.isfile(pdf_path):
-        raise ValidationError('LibreOffice không tạo được file PDF.')
-    return pdf_path
+        base_name = os.path.splitext(os.path.basename(input_path))[0]
+        pdf_path = os.path.join(output_dir, f'{base_name}.pdf')
+        deadline = time.monotonic() + 8
+        while not os.path.isfile(pdf_path) and time.monotonic() < deadline:
+            time.sleep(0.2)
+        if not os.path.isfile(pdf_path):
+            raise ValidationError('LibreOffice không tạo được file PDF.')
+        return pdf_path
+    finally:
+        shutil.rmtree(profile_dir, ignore_errors=True)
 
 
 def convert_office_to_pdf(uploaded_file) -> tuple[bytes, str]:

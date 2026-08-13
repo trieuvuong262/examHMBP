@@ -11,6 +11,7 @@ from django.core.files.storage import default_storage
 from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.views.decorators.http import require_POST
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -3202,9 +3203,9 @@ def inline_image_serve(request, relpath):
 
 
 @_reports_access_required
+@xframe_options_sameorigin
 def daily_attachment_preview(request, pk):
-    from nas_storage.file_preview import inline_office_pdf_response, inline_pdf_response, preview_kind
-    from tools.services import office_preview_available
+    from nas_storage.file_preview import serve_preview_response
 
     att = get_object_or_404(
         DailyWorkReportAttachment.objects.select_related('report__employee'),
@@ -3219,13 +3220,7 @@ def daily_attachment_preview(request, pk):
     path = daily_attachment_abs_path(att)
     if not path:
         raise Http404
-
-    kind = preview_kind(att.display_name)
-    if kind == 'pdf':
-        return inline_pdf_response(path, filename=att.display_name)
-    if kind == 'office' and office_preview_available():
-        return inline_office_pdf_response(path, display_name=att.display_name)
-    raise Http404
+    return serve_preview_response(path, att.display_name)
 
 
 @_reports_access_required
@@ -3269,9 +3264,9 @@ def daily_attachment_serve(request, pk):
 
 
 @_reports_access_required
+@xframe_options_sameorigin
 def weekly_attachment_preview(request, pk):
-    from nas_storage.file_preview import inline_office_pdf_response, inline_pdf_response, preview_kind
-    from tools.services import office_preview_available
+    from nas_storage.file_preview import serve_preview_response
 
     att = get_object_or_404(
         WeeklyWorkReportAttachment.objects.select_related('report__employee'),
@@ -3286,13 +3281,7 @@ def weekly_attachment_preview(request, pk):
     path = weekly_attachment_abs_path(att)
     if not path:
         raise Http404
-
-    kind = preview_kind(att.display_name)
-    if kind == 'pdf':
-        return inline_pdf_response(path, filename=att.display_name)
-    if kind == 'office' and office_preview_available():
-        return inline_office_pdf_response(path, display_name=att.display_name)
-    raise Http404
+    return serve_preview_response(path, att.display_name)
 
 
 @_reports_access_required
@@ -3336,10 +3325,10 @@ def weekly_attachment_serve(request, pk):
 
 
 @_reports_access_required
+@xframe_options_sameorigin
 def comment_attachment_preview(request, pk):
-    from nas_storage.file_preview import inline_office_pdf_response, inline_pdf_response, preview_kind
+    from nas_storage.file_preview import serve_preview_response
     from reports.comment_nas_storage import comment_attachment_abs_path
-    from tools.services import office_preview_available
 
     att = get_object_or_404(
         ReportCommentAttachment.objects.select_related(
@@ -3354,13 +3343,7 @@ def comment_attachment_preview(request, pk):
     path = comment_attachment_abs_path(att)
     if not path:
         raise Http404
-
-    kind = preview_kind(att.display_name)
-    if kind == 'pdf':
-        return inline_pdf_response(path, filename=att.display_name)
-    if kind == 'office' and office_preview_available():
-        return inline_office_pdf_response(path, display_name=att.display_name)
-    raise Http404
+    return serve_preview_response(path, att.display_name)
 
 
 @_reports_access_required

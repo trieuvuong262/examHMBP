@@ -281,37 +281,53 @@
 <script>
 (function () {
   var modalEl = document.getElementById('sxDesignPreviewModal');
-  if (!modalEl || typeof bootstrap === 'undefined') return;
+  if (!modalEl) return;
   var titleEl = document.getElementById('sxDesignPreviewTitle');
   var stageEl = document.getElementById('sxDesignPreviewStage');
   var dlEl = document.getElementById('sxDesignPreviewDownload');
-  var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+
+  function getModal() {
+    if (typeof bootstrap === 'undefined' || !bootstrap.Modal) return null;
+    return bootstrap.Modal.getOrCreateInstance(modalEl);
+  }
 
   function showPreview(btn) {
     var kind = btn.getAttribute('data-kind') || 'file';
     var name = btn.getAttribute('data-name') || 'Tài liệu';
     var previewUrl = btn.getAttribute('data-preview-url') || '';
     var downloadUrl = btn.getAttribute('data-download-url') || previewUrl;
-    titleEl.textContent = name;
-    dlEl.href = downloadUrl;
-    dlEl.setAttribute('download', name);
+    if (titleEl) titleEl.textContent = name;
+    if (dlEl) {
+      dlEl.href = downloadUrl;
+      dlEl.setAttribute('download', name);
+    }
     stageEl.classList.toggle('is-pdf', kind === 'pdf' || kind === 'office' || kind === 'ai');
     var canEmbed = kind === 'image' || kind === 'pdf' || kind === 'ai' || kind === 'office';
+    var safeTitle = name.replace(/"/g, '');
     if (kind === 'image' && previewUrl) {
       stageEl.innerHTML = '<img src="' + previewUrl + '" alt="">';
     } else if (canEmbed && previewUrl) {
-      stageEl.innerHTML = '<iframe src="' + previewUrl + '" title="' + name.replace(/"/g, '') + '"></iframe>';
+      stageEl.innerHTML = '<iframe src="' + previewUrl + '" title="' + safeTitle + '"></iframe>';
     } else {
       stageEl.innerHTML = '<div class="text-center text-white-50 p-4">'
         + '<div class="mb-2">Chưa xem trước được định dạng này trên trình duyệt.</div>'
         + '<a class="btn btn-hm btn-sm" href="' + downloadUrl + '">Tải file về</a></div>';
       stageEl.classList.remove('is-pdf');
     }
-    modal.show();
+    var modal = getModal();
+    if (modal) {
+      modal.show();
+      return;
+    }
+    if (previewUrl) window.open(previewUrl, '_blank', 'noopener');
   }
 
-  document.querySelectorAll('[data-sx-design-preview]').forEach(function (btn) {
-    btn.addEventListener('click', function () { showPreview(btn); });
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-sx-design-preview]');
+    if (!btn || (modalEl.contains(btn))) return;
+    e.preventDefault();
+    e.stopPropagation();
+    showPreview(btn);
   });
   modalEl.addEventListener('hidden.bs.modal', function () {
     stageEl.innerHTML = '';

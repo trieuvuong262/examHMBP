@@ -8,8 +8,9 @@ from urllib.parse import urlparse
 
 from django.urls import reverse
 
+from nas_storage.file_preview import can_embed_office_preview
 from reports.link_utils import extract_urls_from_text, link_line_note, parse_link_lines
-from tools.services import OFFICE_TO_PDF_EXTENSIONS, office_preview_available
+from tools.services import OFFICE_TO_PDF_EXTENSIONS
 
 PDF_EXTENSIONS = frozenset({'.pdf'})
 IMAGE_EXTENSIONS = frozenset({'.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg'})
@@ -110,7 +111,7 @@ def file_attachment_preview(att) -> dict:
             'pk': att.pk,
         }
     if ext in OFFICE_TO_PDF_EXTENSIONS:
-        ready = office_preview_available()
+        ready = can_embed_office_preview(name)
         preview_url = reverse(_preview_route_for(att), kwargs={'pk': att.pk}) if ready else ''
         return {
             'type': 'office',
