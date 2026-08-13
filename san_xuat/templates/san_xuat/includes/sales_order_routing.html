@@ -3,13 +3,13 @@
   <div class="card-body">
     <h6 class="fw-bold mb-1">Công đoạn theo đơn (SMV áp dụng)</h6>
     <p class="small text-muted mb-3">
-      SMV chuẩn lấy từ thư viện lúc gắn routing. IE / Kế hoạch đổi SMV áp dụng hoặc thêm/bớt công đoạn
-      trên đơn — không sửa routing mã hàng. Nhân công giá thành kế hoạch theo đơn lấy SMV áp dụng này.
+      Phiên bản công đoạn gắn lúc lên đơn (copy SMV áp dụng). IE / Kế hoạch có thể đổi SMV hoặc thêm/bớt
+      công đoạn trên đơn nháp — không sửa routing mã hàng. Nhân công GTKH lấy SMV áp dụng này.
     </p>
 
     {% if missing_routing and order.confirm_status == 'draft' %}
     <div class="alert alert-warning py-2 small mb-3">
-      Xác nhận đơn bắt buộc mọi dòng có routing và ít nhất một công đoạn.
+      Routing phải chọn lúc lên đơn. Đơn nháp còn thiếu công đoạn — không gắn ở màn xác nhận.
       {% for ln in missing_routing %}
         <strong>{{ ln.product_code }}</strong>{% if not forloop.last %}, {% endif %}
       {% endfor %}

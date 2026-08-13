@@ -709,6 +709,7 @@ def sales_order_line_versions_api(request):
 
     from san_xuat.ie_models import SxRouting
     from san_xuat.models import ProductTechDoc
+    from san_xuat.services.order_routing import default_routing_for_product
 
     product_code = (request.GET.get('product_code') or '').strip()
     payload = {
@@ -720,6 +721,7 @@ def sales_order_line_versions_api(request):
         ),
         'bom_versions': [],
         'routings': [],
+        'default_routing_id': None,
     }
     if not product_code:
         return JsonResponse(payload)
@@ -750,6 +752,10 @@ def sales_order_line_versions_api(request):
         if status:
             text = f'{rev} · {status}'
         payload['routings'].append({'id': rt.pk, 'text': text, 'label': rev})
+
+    default_rt = default_routing_for_product(product_code)
+    if default_rt:
+        payload['default_routing_id'] = default_rt.pk
 
     return JsonResponse(payload)
 

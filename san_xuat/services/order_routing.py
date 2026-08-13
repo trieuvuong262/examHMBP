@@ -382,6 +382,23 @@ def routings_for_product(product_code: str):
     return list(SxRouting.objects.filter(q).order_by('routing_rev', 'id'))
 
 
+def default_routing_for_product(product_code: str):
+    """Routing mặc định lúc lên đơn: đang áp dụng + đã duyệt, không thì bản active cuối."""
+    from san_xuat.ie_models import SxRouting
+
+    rows = routings_for_product(product_code)
+    if not rows:
+        return None
+    approved = [
+        r for r in rows
+        if r.is_active and r.approval_status == SxRouting.APPROVAL_APPROVED
+    ]
+    if approved:
+        return approved[-1]
+    active = [r for r in rows if r.is_active]
+    return (active or rows)[-1]
+
+
 @transaction.atomic
 def reset_order_line_routing(order_line: SxSalesOrderLine) -> int:
     assert_order_routing_editable(order_line.order)

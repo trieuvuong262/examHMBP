@@ -169,7 +169,8 @@
 
     <div class="card border-0 shadow-sm mb-3">
       <div class="card-body">
-        <h6 class="fw-bold mb-3">Dòng sản phẩm</h6>
+        <h6 class="fw-bold mb-1">Dòng sản phẩm</h6>
+        <p class="small text-muted mb-3">Phiên bản công đoạn gắn lúc lên đơn — copy SMV áp dụng vào snapshot đơn. Không để sang màn xác nhận mới chọn.</p>
         {{ formset.management_form }}
         <div class="table-responsive">
           <table class="table table-sm align-middle" id="jp-so-lines-table">
@@ -178,7 +179,7 @@
                 <th style="min-width:180px">Mã SP</th>
                 <th>Tên</th>
                 <th style="min-width:9rem">Phiên bản BOM</th>
-                <th style="min-width:9rem">Phiên bản công đoạn</th>
+                <th style="min-width:9rem">Phiên bản công đoạn <span class="text-danger">*</span></th>
                 <th class="text-end" style="width:7rem">Tồn kho</th>
                 <th class="jp-so-size-col">Size</th>
                 <th class="jp-so-actions-col">Tổng</th>
@@ -547,7 +548,13 @@
           ? (data.doc_url + (data.doc_url.indexOf('?') >= 0 ? '&' : '?') + 'tab=bom')
           : (data.create_url || '');
         fillSelect(bomSel, data.bom_versions || [], '— BOM —', createUrl, keepBom);
-        fillSelect(rtSel, data.routings || [], '— Công đoạn —', createUrl, keepRouting);
+        fillSelect(
+          rtSel,
+          data.routings || [],
+          '— Công đoạn —',
+          createUrl,
+          keepRouting || data.default_routing_id || '',
+        );
       })
       .catch(function () {
         fillSelect(bomSel, [], '— BOM —', '', keepBom);

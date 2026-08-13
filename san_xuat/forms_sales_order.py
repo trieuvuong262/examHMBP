@@ -150,6 +150,14 @@ class SalesOrderLineForm(forms.Form):
     def clean_routing_id(self):
         return _clean_optional_pk(self.cleaned_data.get('routing_id'), 'SxRouting')
 
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get('DELETE'):
+            return cleaned
+        if cleaned.get('product_code') and not cleaned.get('routing_id'):
+            self.add_error('routing_id', 'Chọn phiên bản công đoạn khi lên đơn.')
+        return cleaned
+
     def clean_size_qtys(self):
         from san_xuat.services.sales_orders import normalize_size_qtys
         import json

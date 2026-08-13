@@ -410,7 +410,10 @@ def sales_order_create(request):
     header = SalesOrderHeaderForm(
         request.POST or None,
         request.FILES or None,
-        initial={'request_date': timezone.localdate()},
+        initial={
+            'request_date': timezone.localdate(),
+            'due_date': timezone.localdate() + timedelta(days=14),
+        },
     )
     formset = SalesOrderLineFormSet(request.POST or None, prefix='lines')
 
