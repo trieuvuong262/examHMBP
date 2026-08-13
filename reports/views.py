@@ -3224,6 +3224,7 @@ def daily_attachment_preview(request, pk):
 
 
 @_reports_access_required
+@xframe_options_sameorigin
 def daily_attachment_serve(request, pk):
     import mimetypes
 
@@ -3256,10 +3257,13 @@ def daily_attachment_serve(request, pk):
     as_attachment = force_download or content_type not in inline_types
     file_handle = open_daily_attachment(att)
     response = FileResponse(file_handle, content_type=content_type, as_attachment=as_attachment)
-    if as_attachment:
-        from reports.weekly_preview import attachment_content_disposition
+    from nas_storage.file_preview import _inline_content_disposition
+    from reports.weekly_preview import attachment_content_disposition
 
+    if as_attachment:
         response['Content-Disposition'] = attachment_content_disposition(att.display_name)
+    elif content_type == 'application/pdf':
+        response['Content-Disposition'] = _inline_content_disposition(att.display_name)
     return response
 
 
@@ -3285,6 +3289,7 @@ def weekly_attachment_preview(request, pk):
 
 
 @_reports_access_required
+@xframe_options_sameorigin
 def weekly_attachment_serve(request, pk):
     import mimetypes
 
@@ -3317,10 +3322,13 @@ def weekly_attachment_serve(request, pk):
     as_attachment = force_download or content_type not in inline_types
     file_handle = open_weekly_attachment(att)
     response = FileResponse(file_handle, content_type=content_type, as_attachment=as_attachment)
-    if as_attachment:
-        from reports.weekly_preview import attachment_content_disposition
+    from nas_storage.file_preview import _inline_content_disposition
+    from reports.weekly_preview import attachment_content_disposition
 
+    if as_attachment:
         response['Content-Disposition'] = attachment_content_disposition(att.display_name)
+    elif content_type == 'application/pdf':
+        response['Content-Disposition'] = _inline_content_disposition(att.display_name)
     return response
 
 

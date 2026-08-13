@@ -86,15 +86,30 @@ def attachment_download_url(att) -> str:
     return f'{url}?download=1'
 
 
+def _file_icon(ext: str) -> str:
+    if ext in PDF_EXTENSIONS:
+        return 'pdf'
+    if ext in {'.doc', '.docx', '.rtf', '.odt'}:
+        return 'word'
+    if ext in {'.xls', '.xlsx', '.csv', '.ods'}:
+        return 'excel'
+    if ext in IMAGE_EXTENSIONS:
+        return 'image'
+    return 'file'
+
+
 def file_attachment_preview(att) -> dict:
     name = att.original_name or os.path.basename(att.file.name)
     lower = name.lower()
     ext = os.path.splitext(lower)[1]
     url = att.file_url
     download_url = attachment_download_url(att)
+    icon = _file_icon(ext)
     if att.is_image or ext in IMAGE_EXTENSIONS:
         return {
             'type': 'image',
+            'kind': 'image',
+            'icon': icon,
             'url': url,
             'download_url': download_url,
             'preview_url': url,
@@ -104,9 +119,11 @@ def file_attachment_preview(att) -> dict:
     if ext in PDF_EXTENSIONS:
         return {
             'type': 'pdf',
+            'kind': 'pdf',
+            'icon': icon,
             'url': url,
             'download_url': download_url,
-            'preview_url': url,
+            'preview_url': reverse(_preview_route_for(att), kwargs={'pk': att.pk}),
             'name': name,
             'pk': att.pk,
         }
@@ -115,6 +132,8 @@ def file_attachment_preview(att) -> dict:
         preview_url = reverse(_preview_route_for(att), kwargs={'pk': att.pk}) if ready else ''
         return {
             'type': 'office',
+            'kind': 'office',
+            'icon': icon,
             'url': url,
             'download_url': download_url,
             'preview_url': preview_url,
@@ -125,6 +144,8 @@ def file_attachment_preview(att) -> dict:
         }
     return {
         'type': 'download',
+        'kind': 'file',
+        'icon': icon,
         'url': url,
         'download_url': download_url,
         'preview_url': '',

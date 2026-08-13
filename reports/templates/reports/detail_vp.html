@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block detail_extra_head %}
-<link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260706b">
+<link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260813a">
 {% endblock %}
 
 {% block detail_body %}
@@ -93,4 +93,5 @@
         </div>
     </div>
     {% endif %}
+    {% include 'reports/includes/office_file_preview_modal.html' %}
 {% endblock %}

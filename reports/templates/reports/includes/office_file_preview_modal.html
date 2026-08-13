@@ -1,0 +1,67 @@
+<div class="modal fade" id="jpFilePreviewModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-fullscreen-sm-down">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header py-2">
+        <h5 class="modal-title small text-truncate pe-2" id="jpFilePreviewTitle">Xem trước</h5>
+        <a href="#" class="btn btn-outline-hm btn-sm me-2" id="jpFilePreviewDownload">
+          <i class="bi bi-download me-1"></i>Tải xuống
+        </a>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+      </div>
+      <div class="modal-body p-0">
+        <div class="jp-file-preview-stage" id="jpFilePreviewStage"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  var modalEl = document.getElementById('jpFilePreviewModal');
+  if (!modalEl) return;
+  var titleEl = document.getElementById('jpFilePreviewTitle');
+  var stageEl = document.getElementById('jpFilePreviewStage');
+  var dlEl = document.getElementById('jpFilePreviewDownload');
+
+  function getModal() {
+    if (typeof bootstrap === 'undefined' || !bootstrap.Modal) return null;
+    return bootstrap.Modal.getOrCreateInstance(modalEl);
+  }
+
+  function showPreview(btn) {
+    var kind = btn.getAttribute('data-kind') || 'file';
+    var name = btn.getAttribute('data-name') || 'Tài liệu';
+    var previewUrl = btn.getAttribute('data-preview-url') || '';
+    var downloadUrl = btn.getAttribute('data-download-url') || previewUrl;
+    if (titleEl) titleEl.textContent = name;
+    if (dlEl) {
+      dlEl.href = downloadUrl;
+      dlEl.setAttribute('download', name);
+    }
+    var safeTitle = String(name).replace(/"/g, '');
+    if (kind === 'image' && previewUrl) {
+      stageEl.innerHTML = '<img src="' + previewUrl + '" alt="">';
+    } else if (previewUrl) {
+      stageEl.innerHTML = '<iframe src="' + previewUrl + '" title="' + safeTitle + '"></iframe>';
+    } else {
+      stageEl.innerHTML = '<div class="text-center text-secondary p-4">Chưa xem trước được. Hãy tải file về.</div>';
+    }
+    var modal = getModal();
+    if (modal) {
+      modal.show();
+      return;
+    }
+    if (previewUrl) window.open(previewUrl, '_blank', 'noopener');
+  }
+
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-jp-file-preview]');
+    if (!btn || modalEl.contains(btn)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    showPreview(btn);
+  });
+  modalEl.addEventListener('hidden.bs.modal', function () {
+    stageEl.innerHTML = '';
+  });
+})();
+</script>

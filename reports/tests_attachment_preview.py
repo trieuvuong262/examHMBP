@@ -58,7 +58,10 @@ class AttachmentPreviewTests(TestCase):
         att = self._attach('bao-cao.pdf', b'%PDF-1.4')
         item = file_attachment_preview(att)
         self.assertEqual(item['type'], 'pdf')
-        self.assertEqual(item['preview_url'], att.file_url)
+        self.assertEqual(
+            item['preview_url'],
+            reverse('reports:daily_attachment_preview', args=[att.pk]),
+        )
 
     @patch('reports.weekly_preview.office_preview_available', return_value=True)
     def test_file_attachment_preview_xlsx(self, _mock_lo):

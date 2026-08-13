@@ -20,6 +20,7 @@ from tools.services import OFFICE_TO_PDF_EXTENSIONS, convert_office_path_to_pdf,
 PDF_EXTENSIONS = frozenset({'.pdf'})
 PREVIEWABLE_EXTENSIONS = PDF_EXTENSIONS | OFFICE_TO_PDF_EXTENSIONS
 SPREADSHEET_HTML_EXTENSIONS = frozenset({'.xlsx', '.csv'})
+WORD_HTML_EXTENSIONS = frozenset({'.docx'})
 _SPREADSHEET_MAX_SHEETS = 8
 _SPREADSHEET_MAX_ROWS = 200
 _SPREADSHEET_MAX_COLS = 40
@@ -39,13 +40,13 @@ def can_preview_file(file_name: str) -> bool:
 
 
 def can_embed_office_preview(file_name: str) -> bool:
-    """Excel/CSV xem HTML ngay; Word/ODS cần LibreOffice."""
+    """Excel/CSV/Word (.docx) xem HTML ngay; .doc/.ods cần LibreOffice."""
     ext = os.path.splitext((file_name or '').lower())[1]
-    if ext in SPREADSHEET_HTML_EXTENSIONS:
+    if ext in SPREADSHEET_HTML_EXTENSIONS or ext in WORD_HTML_EXTENSIONS:
         return True
     if ext in OFFICE_TO_PDF_EXTENSIONS:
         return office_preview_available()
-    return False
+    return ext in PDF_EXTENSIONS
 
 
 def _inline_content_disposition(filename: str) -> str:
@@ -124,8 +125,37 @@ def inline_office_pdf_response(source: Path, *, display_name: str):
     return response
 
 
+def docx_to_html(source: Path, display_name: str) -> str:
+    import mammoth
+
+    with source.open('rb') as fh:
+        result = mammoth.convert_to_html(fh)
+    body = (result.value or '').strip() or '<p>Tài liệu trống.</p>'
+    return (
+        '<!doctype html><meta charset="utf-8">'
+        '<style>'
+        'body{font-family:system-ui,Segoe UI,sans-serif;margin:0;padding:16px 20px;'
+        'background:#fff;color:#0f172a;line-height:1.55}'
+        'img{max-width:100%;height:auto}'
+        'table{border-collapse:collapse;width:100%;margin:12px 0}'
+        'td,th{border:1px solid #cbd5e1;padding:6px 8px}'
+        '.note{color:#64748b;font-size:12px;margin:0 0 12px}'
+        '</style>'
+        f'<p class="note">{escape(display_name)}</p>'
+        + body
+    )
+
+
+def inline_docx_html_response(source: Path, *, display_name: str) -> HttpResponse:
+    try:
+        html = docx_to_html(source, display_name)
+    except Exception as exc:
+        raise ValidationError('Không đọc được file Word.') from exc
+    return HttpResponse(html, content_type='text/html; charset=utf-8')
+
+
 def serve_preview_response(source: Path, display_name: str, *, ext: str | None = None):
-    """PDF / Excel HTML / Word→PDF — không 404 khi không xem được."""
+    """PDF / Excel HTML / Word HTML — không 404 khi không xem được."""
     ext = (ext or source.suffix or os.path.splitext(display_name)[1]).lower()
     if ext == '.pdf':
         return inline_pdf_response(source, filename=display_name)
@@ -134,6 +164,17 @@ def serve_preview_response(source: Path, display_name: str, *, ext: str | None =
             return inline_spreadsheet_html_response(source, display_name=display_name)
         except ValidationError:
             return preview_unavailable_html('Không đọc được file Excel. Hãy tải xuống để mở.')
+    if ext in WORD_HTML_EXTENSIONS:
+        try:
+            return inline_docx_html_response(source, display_name=display_name)
+        except ValidationError:
+            pass
+        if office_preview_available():
+            try:
+                return inline_office_pdf_response(source, display_name=display_name)
+            except ValidationError:
+                pass
+        return preview_unavailable_html('Không đọc được file Word. Hãy tải xuống để mở.')
     if ext in OFFICE_TO_PDF_EXTENSIONS:
         if office_preview_available():
             try:
