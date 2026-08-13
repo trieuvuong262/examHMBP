@@ -166,7 +166,7 @@ IE_APPROVE_STATUSES = tuple(v for v, _ in IE_APPROVE_STATUS_CHOICES)
 
 
 def _operations_qs_for_approval(status: str = IE_APPROVE_STATUS_PENDING):
-    qs = SxOperation.objects.select_related('group').filter(base_smv_min__gt=Decimal('0'))
+    qs = SxOperation.objects.select_related('group')
     if status == IE_APPROVE_STATUS_APPROVED:
         qs = qs.filter(status=SxOperation.STATUS_APPROVED)
     elif status == IE_APPROVE_STATUS_REJECTED:
@@ -321,6 +321,8 @@ def _locked_routing_ids():
 
 
 def _approve_row_operation(op) -> dict:
+    smv = op.base_smv_min or Decimal('0')
+    extra_badges = []
     if op.status == SxOperation.STATUS_APPROVED:
         approval_label = 'Đã duyệt'
         approval_badge = 'success'
@@ -328,7 +330,9 @@ def _approve_row_operation(op) -> dict:
     else:
         approval_label = 'Chưa duyệt'
         approval_badge = 'warning'
-        can_select = True
+        can_select = smv > 0
+        if smv <= 0:
+            extra_badges.append(('SMV = 0', 'warning'))
     return {
         'item_kind': 'op',
         'pk_value': f'op:{op.pk}',
@@ -338,12 +342,12 @@ def _approve_row_operation(op) -> dict:
         'rev': op.op_rev,
         'name': op.name_vi,
         'detail': op.group.code if op.group_id else '—',
-        'smv': op.base_smv_min,
+        'smv': smv,
         'approval_label': approval_label,
         'approval_badge': approval_badge,
         'owner': op.ie_owner or '—',
         'can_select': can_select,
-        'extra_badges': [],
+        'extra_badges': extra_badges,
         'view_url': reverse('san_xuat:ie_operation_detail', args=[op.pk]),
         'view_label': 'Xem',
     }
@@ -1496,11 +1500,12 @@ def ie_approve_hub(request):
     if kind == IE_APPROVE_KIND_ALL:
         op_items = list(_filter_operations_for_approval(term, status))
         routing_items = list(_filter_routings_for_approval(term, status))
-        approve_rows = _build_approve_rows(
+        all_rows = _build_approve_rows(
             operations=op_items,
             routings=routing_items,
             locked_ids=locked_routing_ids,
         )
+        page_obj, query_string = paginate_queryset(request, all_rows)
         ctx = {
             **perms,
             'kind': kind,
@@ -1510,10 +1515,11 @@ def ie_approve_hub(request):
             'status': status,
             'status_pending': IE_APPROVE_STATUS_PENDING,
             'status_choices': IE_APPROVE_STATUS_CHOICES,
-            'approve_rows': approve_rows,
-            'query_string': '',
+            'page_obj': page_obj,
+            'approve_rows': page_obj.object_list,
+            'query_string': query_string,
             'term': term,
-            'total': len(approve_rows),
+            'total': len(all_rows),
             'pending_ops': pending_ops,
             'pending_routings': pending_routings,
             'locked_routing_ids': locked_routing_ids,
