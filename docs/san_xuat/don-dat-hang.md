@@ -47,7 +47,7 @@ Sidebar: nhóm **Đơn đặt hàng** → Danh sách / Lên đơn đặt hàng /
 | Detail ĐĐH | Nút «Tạo KHTT MTO & nạp nhu cầu» |
 | KHCT / LSX | Luồng Portal giữ nguyên; detail ĐĐH liệt kê KHTT/LSX liên quan |
 | Giá thành theo đơn | Link `?q=` mã ĐĐH — **nhân công GTKH = SMV áp dụng snapshot đơn**; NVL/phụ phí vẫn BOM. GT định mức sản phẩm không đổi (ProcessStep). |
-| Routing theo đơn | Lên đơn: chọn **BOM**. **Quy trình IE tự gắn**. **SMV chuẩn** = mã hàng (không sửa). **SMV đơn / % lệch** nhân đều CĐ lúc lên đơn; IE/KH chỉnh từng CĐ trên đơn nháp. Xác nhận: snapshot + SMV &gt; 0; lệch &gt;15% cần giải trình. Khóa sau xác nhận. |
+| Routing theo đơn | **Lên đơn**: chọn BOM, IE tự gắn, chỉnh SMV áp dụng / % lệch / từng CĐ. **Duyệt**: chỉ xem snapshot, xác nhận nếu SMV &gt; 0 (lệch &gt;15% cần giải trình). Khóa sau xác nhận. |
 | KiotViet | Không import vào ĐĐH (phase hiện tại) |
 
 ## 5. Phase 1 không làm

@@ -3,14 +3,13 @@
   <div class="card-body">
     <h6 class="fw-bold mb-1">Công đoạn theo đơn (SMV áp dụng)</h6>
     <p class="small text-muted mb-3">
-      Lên đơn chọn BOM; quy trình IE tự gắn nếu mã hàng đã có routing duyệt.
-      Chưa có IE thì snapshot tạm lấy công đoạn BOM. IE / Kế hoạch sửa SMV áp dụng trên đơn nháp —
-      không sửa routing mã hàng. Xác nhận cần snapshot và SMV &gt; 0.
+      Snapshot công đoạn / SMV áp dụng được chốt lúc <strong>lên đơn</strong>.
+      Màn này chỉ xem để duyệt — không chỉnh SMV. Xác nhận cần snapshot và SMV &gt; 0.
     </p>
 
     {% if missing_routing and order.confirm_status == 'draft' %}
     <div class="alert alert-warning py-2 small mb-3">
-      Chưa có snapshot công đoạn (BOM hoặc IE) — gắn routing hoặc chọn BOM có công đoạn trước khi xác nhận.
+      Chưa có snapshot công đoạn — đơn này thiếu dữ liệu lúc lên đơn, không xác nhận được.
       {% for ln in missing_routing %}
         <strong>{{ ln.product_code }}</strong>{% if not forloop.last %}, {% endif %}
       {% endfor %}

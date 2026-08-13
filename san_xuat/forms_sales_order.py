@@ -94,7 +94,7 @@ class SalesOrderLineForm(forms.Form):
         required=False,
         label='Quy trình IE',
         widget=forms.Select(attrs={
-            'class': 'form-select form-select-sm jp-so-routing-select d-none',
+            'class': 'form-select form-select-sm jp-so-routing-select',
             'aria-label': 'Quy trình IE (routing)',
         }),
     )
@@ -131,7 +131,7 @@ class SalesOrderLineForm(forms.Form):
             routing_extra = str(self.initial.get('routing_id') or '').strip()
         self.fields['product_code'].choices = _product_code_choices(extra)
         self.fields['bom_version_id'].widget.choices = _optional_id_choices(bom_extra, '— BOM —')
-        self.fields['routing_id'].widget.choices = _optional_id_choices(routing_extra, '— Tự gắn —')
+        self.fields['routing_id'].widget.choices = _optional_id_choices(routing_extra, '— Chọn routing —')
         if self.initial and isinstance(self.initial.get('size_qtys'), dict):
             import json
             self.initial['size_qtys'] = json.dumps(
