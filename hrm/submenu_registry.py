@@ -13,6 +13,7 @@ from hrm.module_permissions import (
     MODULE_FEEDBACK,
     MODULE_SURVEYS,
     MODULE_HO_TRO,
+    MODULE_HRM,
     MODULE_KHO_NPL,
     MODULE_KHO_SAN_PHAM,
     MODULE_KIOTVIET,
@@ -33,6 +34,10 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
     MODULE_ASSESSMENT: [
         {'key': 'exams', 'label': 'Kiểm tra', 'icon': 'bi-journal-check', 'perm_view_only': True},
         {'key': 'manage', 'label': 'Quản lý kiểm tra', 'icon': 'bi-ui-checks-grid'},
+    ],
+    MODULE_HRM: [
+        {'key': 'users', 'label': 'Danh sách nhân viên', 'icon': 'bi-person-lines-fill'},
+        {'key': 'locked_accounts', 'label': 'Tài khoản bị khóa', 'icon': 'bi-lock-fill'},
     ],
     MODULE_REPORTS: [
         {'key': 'daily_cn', 'label': 'Báo cáo ngày (SX)', 'icon': 'bi-calendar-day'},
@@ -230,6 +235,11 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     ('/dashboard/results/', MODULE_ASSESSMENT, 'manage'),
     ('/dashboard/competency/', MODULE_ASSESSMENT, 'manage'),
     ('/dashboard/submission/', MODULE_ASSESSMENT, 'manage'),
+    ('/dashboard/users/tai-khoan-bi-khoa', MODULE_HRM, 'locked_accounts'),
+    ('/dashboard/users/', MODULE_HRM, 'users'),
+    ('/dashboard/org/', MODULE_HRM, 'users'),
+    ('/dashboard/divisions/', MODULE_HRM, 'users'),
+    ('/dashboard/departments/', MODULE_HRM, 'users'),
     ('/exams/', MODULE_ASSESSMENT, 'exams'),
     # Báo cáo — SX (sản xuất)
     ('/reports/sx/thong-ke', MODULE_REPORTS, 'report_stats'),

@@ -179,6 +179,11 @@ def _kho_san_pham_menus(*, manager: bool) -> dict:
     return {key: dict(level) for key in ('products', 'code_settings')}
 
 
+def _hrm_menus(*, level: dict) -> dict:
+    """Menu Nhân sự — danh sách NV + tài khoản bị khóa."""
+    return {key: dict(level) for key in ('users', 'locked_accounts')}
+
+
 def _kiotviet_menus(*, manager: bool) -> dict:
     level = VIEW  # tra cứu — chỉ xem
     keys = ('customers', 'orders', 'invoices', 'products', 'stock', 'purchases')
@@ -212,8 +217,8 @@ DEPARTMENT_PERMISSION_TEMPLATES = [
             _portal_employee(),
             {
                 M['recruitment']: VIEW,
-                M['hrm']: VIEW,
             },
+            _module_with_menus(M['hrm'], _hrm_menus(level=VIEW), module_perm=VIEW),
         ),
         'manager': _full_access(),
     },
@@ -233,17 +238,21 @@ DEPARTMENT_PERMISSION_TEMPLATES = [
         'employee': _build(
             _portal_employee(),
             {
-                M['hrm']: _f(view=True, create=True, update=True, export=True),
                 M['recruitment']: _f(view=True, create=True, update=True, export=True),
             },
+            _module_with_menus(
+                M['hrm'],
+                _hrm_menus(level=_f(view=True, create=True, update=True, export=True)),
+                module_perm=_f(view=True, create=True, update=True, export=True),
+            ),
         ),
         'manager': _build(
             _portal_manager(),
             {
-                M['hrm']: FULL,
                 M['recruitment']: MGR,
                 M['permissions']: VIEW,
             },
+            _module_with_menus(M['hrm'], _hrm_menus(level=FULL), module_perm=FULL),
         ),
     },
     {

@@ -13,8 +13,8 @@ from audit.login_security import (
     unlock_user_account,
 )
 from audit.models import IpLoginBlock, UserLoginLock
-from hrm.menu_permissions import user_can_export_menu
-from hrm.module_permissions import MODULE_AUDIT, MODULE_HRM, user_can_update_module
+from hrm.menu_permissions import user_can_export_menu, user_can_update_menu
+from hrm.module_permissions import MODULE_AUDIT, MODULE_HRM
 
 
 def _locked_users_qs():
@@ -30,7 +30,7 @@ def locked_accounts_page(request):
     locked_users = _locked_users_qs()
     return render(request, 'assessment/admin/locked_accounts.html', {
         'locked_users': locked_users,
-        'can_unlock': user_can_update_module(request.user, MODULE_HRM),
+        'can_unlock': user_can_update_menu(request.user, MODULE_HRM, 'locked_accounts'),
         'locked_count': locked_users.count(),
     })
 
