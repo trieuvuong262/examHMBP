@@ -1,6 +1,9 @@
 {# TomSelect product code — san_xuat:product_code_search #}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/css/tom-select.bootstrap5.min.css">
 <script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/js/tom-select.complete.min.js"></script>
+<style>
+body > .ts-dropdown { z-index: 2200; }
+</style>
 <script>
 (function () {
   if (typeof TomSelect === 'undefined') return;
@@ -89,6 +92,8 @@
       placeholder: select.dataset.placeholder || 'Gõ mã SX hoặc tên sản phẩm…',
       dropdownParent: 'body',
       openOnFocus: true,
+      preload: 'focus',
+      shouldLoad: function () { return true; },
       loadThrottle: 220,
       load: function (query, callback) {
         fetch(searchUrl + '?q=' + encodeURIComponent(query || ''), {
@@ -104,6 +109,12 @@
         },
         item: function (data, escape) {
           return '<div>' + escape(itemLabel(data)) + '</div>';
+        },
+        no_results: function () {
+          return '<div class="px-2 py-2 text-muted small">Không tìm thấy mã SX — thử gõ mã hoặc tên</div>';
+        },
+        loading: function () {
+          return '<div class="px-2 py-2 text-muted small">Đang tải…</div>';
         },
       },
       onInitialize: function () {

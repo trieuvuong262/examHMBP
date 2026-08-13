@@ -87,11 +87,19 @@ class ProductTechDocCreateForm(forms.Form):
 class ProductTechDocDescriptionForm(forms.ModelForm):
     class Meta:
         model = ProductTechDoc
-        fields = ('description', 'notes')
+        fields = ('season', 'main_material', 'description', 'notes')
         widgets = {
+            'season': forms.TextInput(attrs={
+                'class': 'form-control form-control-sm',
+                'placeholder': 'vd. SS26, Holiday 2026…',
+            }),
+            'main_material': forms.TextInput(attrs={
+                'class': 'form-control form-control-sm',
+                'placeholder': 'vd. Cotton 100%, Polyester…',
+            }),
             'description': forms.Textarea(attrs={
                 'class': 'form-control form-control-sm',
-                'rows': 3,
+                'rows': 4,
                 'placeholder': 'Mô tả kỹ thuật, yêu cầu sản xuất, lưu ý…',
             }),
             'notes': forms.TextInput(attrs={
@@ -100,6 +108,8 @@ class ProductTechDocDescriptionForm(forms.ModelForm):
             }),
         }
         labels = {
+            'season': 'Mùa / BST',
+            'main_material': 'Chất liệu chính',
             'description': 'Mô tả chi tiết',
             'notes': 'Ghi chú ngắn',
         }
@@ -185,7 +195,7 @@ class TechDocGalleryUploadForm(forms.Form):
         label='Ảnh sản phẩm',
         required=True,
         widget=MultipleFileInput(attrs={
-            'class': 'form-control',
+            'class': 'form-control form-control-sm',
             'accept': 'image/jpeg,image/png,image/webp,image/gif,image/bmp,.jpg,.jpeg,.png,.webp,.gif,.bmp',
         }),
     )

@@ -482,7 +482,11 @@ def doc_detail(request, pk):
     skus_active_count = 0
     sku_color_count = 0
     sku_size_count = 0
-    if tab == 'sku':
+    catalog_category = ''
+    catalog_unit = ''
+    catalog_colors = []
+    catalog_sizes = []
+    if tab in ('sku', 'info'):
         from kho_san_pham.models import Product
 
         code = (doc.product_code or '').strip()
@@ -506,6 +510,20 @@ def doc_detail(request, pk):
             for p in skus
             if (p.size_label or '').strip()
         })
+        seen_colors, seen_sizes = [], []
+        for p in skus:
+            color = (p.color_label or p.color_code or '').strip()
+            size = (p.size_label or '').strip()
+            if color and color not in seen_colors:
+                seen_colors.append(color)
+            if size and size not in seen_sizes:
+                seen_sizes.append(size)
+            if not catalog_category and (p.category_name or '').strip():
+                catalog_category = p.category_name.strip()
+            if not catalog_unit and (p.unit or '').strip():
+                catalog_unit = p.unit.strip()
+        catalog_colors = seen_colors
+        catalog_sizes = seen_sizes
 
     routing_choices = []
     if tab == 'process' and bom:
@@ -557,6 +575,10 @@ def doc_detail(request, pk):
         'bom_stock_map_json': bom_stock_map_json,
         'skus': skus,
         'skus_active_count': skus_active_count,
+        'catalog_category': catalog_category,
+        'catalog_unit': catalog_unit,
+        'catalog_colors': catalog_colors,
+        'catalog_sizes': catalog_sizes,
         'sku_color_count': sku_color_count,
         'sku_size_count': sku_size_count,
         'routing_choices': routing_choices,

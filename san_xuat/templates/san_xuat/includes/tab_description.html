@@ -1,44 +1,175 @@
 {% load sx_format %}
-<div class="card border-0 shadow-sm mb-3">
-    <div class="card-body">
-        <div class="mb-4">
-            {% include 'san_xuat/includes/tab_description_gallery.html' %}
+<style>
+.sx-info-sheet { --line: #e2e8f0; --muted: #64748b; }
+.sx-info-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 320px) minmax(0, 1fr);
+  gap: 1.25rem 1.5rem;
+  margin-bottom: 1.15rem;
+  align-items: start;
+}
+@media (max-width: 767.98px) {
+  .sx-info-hero { grid-template-columns: 1fr; }
+}
+.sx-info-facts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .65rem .85rem;
+}
+@media (max-width: 575.98px) {
+  .sx-info-facts { grid-template-columns: 1fr; }
+}
+.sx-info-fact {
+  border: 1px solid var(--line);
+  border-radius: .55rem;
+  padding: .45rem .65rem;
+  background: #f8fafc;
+  min-width: 0;
+}
+.sx-info-fact .lbl {
+  display: block;
+  font-size: .68rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: .15rem;
+}
+.sx-info-fact .val {
+  font-size: .875rem;
+  font-weight: 600;
+  color: #0f172a;
+  word-break: break-word;
+}
+.sx-info-chips { display: flex; flex-wrap: wrap; gap: .25rem; }
+.sx-info-chip {
+  display: inline-flex;
+  padding: .12rem .45rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: #fff;
+  font-size: .75rem;
+  font-weight: 600;
+  color: #334155;
+}
+.sx-info-meta {
+  font-size: .75rem;
+  color: var(--muted);
+  margin-top: .85rem;
+}
+</style>
+
+<div class="card border-0 shadow-sm mb-3 sx-info-sheet">
+  <div class="card-body">
+    <div class="sx-info-hero">
+      <div>
+        {% include 'san_xuat/includes/tab_description_gallery.html' %}
+      </div>
+      <div>
+        <div class="sx-info-facts mb-3">
+          <div class="sx-info-fact">
+            <span class="lbl">Mã style</span>
+            <span class="val">{{ doc.product_code|default:"—" }}</span>
+          </div>
+          <div class="sx-info-fact">
+            <span class="lbl">Nhóm hàng</span>
+            <span class="val">{{ catalog_category|default:"—" }}</span>
+          </div>
+          <div class="sx-info-fact">
+            <span class="lbl">Đơn vị</span>
+            <span class="val">{{ catalog_unit|default:"—" }}</span>
+          </div>
+          <div class="sx-info-fact">
+            <span class="lbl">SKU</span>
+            <span class="val">{{ skus_active_count }} mã{% if sku_color_count %} · {{ sku_color_count }} màu{% endif %}{% if sku_size_count %} · {{ sku_size_count }} size{% endif %}</span>
+          </div>
+          <div class="sx-info-fact">
+            <span class="lbl">Màu</span>
+            <span class="val">
+              {% if catalog_colors %}
+              <span class="sx-info-chips">
+                {% for c in catalog_colors %}<span class="sx-info-chip">{{ c }}</span>{% endfor %}
+              </span>
+              {% else %}—{% endif %}
+            </span>
+          </div>
+          <div class="sx-info-fact">
+            <span class="lbl">Size</span>
+            <span class="val">
+              {% if catalog_sizes %}
+              <span class="sx-info-chips">
+                {% for s in catalog_sizes %}<span class="sx-info-chip">{{ s }}</span>{% endfor %}
+              </span>
+              {% else %}—{% endif %}
+            </span>
+          </div>
         </div>
 
         {% if can_update and desc_form %}
         <form method="post" data-loading-message="Đang lưu mô tả…">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="save_description">
-            <div class="row g-2 align-items-end mb-2">
-                <div class="col-12">
-                    <label class="form-label small mb-1" for="{{ desc_form.description.id_for_label }}">
-                        {{ desc_form.description.label }}{{ desc_form.description|sx_req_star }}
-                    </label>
-                    {{ desc_form.description }}
-                    {% if desc_form.description.errors %}<div class="text-danger small">{{ desc_form.description.errors }}</div>{% endif %}
-                </div>
-                <div class="col-md-9">
-                    <label class="form-label small mb-1" for="{{ desc_form.notes.id_for_label }}">
-                        {{ desc_form.notes.label }}{{ desc_form.notes|sx_req_star }}
-                    </label>
-                    {{ desc_form.notes }}
-                </div>
-                <div class="col-md-3">
-                    <button type="submit" class="btn btn-hm btn-sm w-100">Lưu mô tả</button>
-                </div>
+          {% csrf_token %}
+          <input type="hidden" name="action" value="save_description">
+          <div class="row g-2">
+            <div class="col-md-6">
+              <label class="form-label small mb-1" for="{{ desc_form.season.id_for_label }}">{{ desc_form.season.label }}</label>
+              {{ desc_form.season }}
             </div>
+            <div class="col-md-6">
+              <label class="form-label small mb-1" for="{{ desc_form.main_material.id_for_label }}">{{ desc_form.main_material.label }}</label>
+              {{ desc_form.main_material }}
+            </div>
+            <div class="col-12">
+              <label class="form-label small mb-1" for="{{ desc_form.description.id_for_label }}">
+                {{ desc_form.description.label }}{{ desc_form.description|sx_req_star }}
+              </label>
+              {{ desc_form.description }}
+              {% if desc_form.description.errors %}<div class="text-danger small">{{ desc_form.description.errors }}</div>{% endif %}
+            </div>
+            <div class="col-md-9">
+              <label class="form-label small mb-1" for="{{ desc_form.notes.id_for_label }}">
+                {{ desc_form.notes.label }}{{ desc_form.notes|sx_req_star }}
+              </label>
+              {{ desc_form.notes }}
+            </div>
+            <div class="col-md-3 d-flex align-items-end">
+              <button type="submit" class="btn btn-hm btn-sm w-100">Lưu mô tả</button>
+            </div>
+          </div>
         </form>
         {% else %}
-            <div class="small text-muted mb-1">Mô tả chi tiết</div>
-            {% if doc.description %}
-            <div class="border rounded p-3 bg-light" style="white-space:pre-wrap">{{ doc.description }}</div>
-            {% else %}
-            <div class="text-muted">Chưa có mô tả.</div>
+          {% if doc.season or doc.main_material %}
+          <div class="sx-info-facts mb-3">
+            {% if doc.season %}
+            <div class="sx-info-fact">
+              <span class="lbl">Mùa / BST</span>
+              <span class="val">{{ doc.season }}</span>
+            </div>
             {% endif %}
-            {% if doc.notes %}
-            <div class="small text-muted mb-1 mt-3">Ghi chú ngắn</div>
-            <div style="white-space:pre-wrap">{{ doc.notes }}</div>
+            {% if doc.main_material %}
+            <div class="sx-info-fact">
+              <span class="lbl">Chất liệu chính</span>
+              <span class="val">{{ doc.main_material }}</span>
+            </div>
             {% endif %}
+          </div>
+          {% endif %}
+          <div class="small text-muted mb-1">Mô tả chi tiết</div>
+          {% if doc.description %}
+          <div class="border rounded p-3 bg-light" style="white-space:pre-wrap">{{ doc.description }}</div>
+          {% else %}
+          <div class="text-muted">Chưa có mô tả.</div>
+          {% endif %}
+          {% if doc.notes %}
+          <div class="small text-muted mb-1 mt-3">Ghi chú ngắn</div>
+          <div style="white-space:pre-wrap">{{ doc.notes }}</div>
+          {% endif %}
         {% endif %}
+
+        <div class="sx-info-meta">
+          {% if doc.created_by %}Tạo bởi {{ doc.created_by.get_full_name|default:doc.created_by.username }} · {% endif %}
+          Cập nhật {{ doc.updated_at|date:"d/m/Y H:i" }}
+        </div>
+      </div>
     </div>
+  </div>
 </div>

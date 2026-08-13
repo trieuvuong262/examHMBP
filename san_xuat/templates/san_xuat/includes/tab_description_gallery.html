@@ -1,57 +1,162 @@
 <style>
-.sx-desc-gallery { display: flex; flex-wrap: wrap; gap: .5rem; }
-.sx-desc-gallery-item { position: relative; }
+.sx-desc-gallery-block { width: 100%; }
+.sx-desc-upload {
+  display: flex;
+  align-items: stretch;
+  gap: .4rem;
+  margin-bottom: .75rem;
+}
+.sx-desc-upload .form-control {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 2.25rem;
+  font-size: .8125rem;
+}
+.sx-desc-upload .btn {
+  flex: 0 0 auto;
+  height: 2.25rem;
+  min-height: 2.25rem;
+  padding: 0 .75rem;
+  line-height: 1;
+  font-size: .8125rem;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+}
+.sx-desc-hero {
+  position: relative;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  border-radius: .55rem;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  margin-bottom: .4rem;
+}
+@media (hover: hover) and (pointer: fine) {
+  .sx-desc-hero { cursor: zoom-in; }
+}
+.sx-desc-hero img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transform-origin: center center;
+  transition: transform .18s ease-out;
+  will-change: transform;
+}
+.sx-desc-hero.is-zooming img {
+  transform: scale(2.4);
+  transition: none;
+}
+.sx-desc-hero img + img { display: none; }
+.sx-desc-gallery {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: .4rem;
+}
+.sx-desc-gallery-item {
+  position: relative;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: .45rem;
+  border: 2px solid #e2e8f0;
+  background: #f8fafc;
+}
+.sx-desc-gallery-item.is-active {
+  border-color: #dc2626;
+}
 .sx-desc-gallery.is-sortable .sx-desc-gallery-item { cursor: grab; }
 .sx-desc-gallery.is-sortable .sx-desc-gallery-item.sortable-ghost { opacity: .45; }
+.sx-desc-thumb {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  line-height: 0;
+  cursor: pointer;
+}
 .sx-desc-gallery-item img {
-  width: 88px; height: 88px; object-fit: cover; display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
   pointer-events: none;
 }
+.sx-desc-gallery-empty {
+  aspect-ratio: 3 / 4;
+  border: 1px dashed #cbd5e1;
+  border-radius: .55rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+  background: #f8fafc;
+  font-size: .85rem;
+}
 .sx-desc-gallery-del-form {
-  position: absolute; top: 4px; right: 4px; margin: 0; z-index: 2;
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  margin: 0;
+  z-index: 2;
 }
 .sx-desc-gallery-del {
-  width: 1.4rem; height: 1.4rem; padding: 0;
-  line-height: 1; border-radius: 999px;
+  width: 1.25rem;
+  height: 1.25rem;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  border-radius: 999px;
 }
 </style>
 <div class="sx-desc-gallery-block">
     <div class="small fw-semibold mb-2">Ảnh sản phẩm</div>
     {% if can_update and gallery_form %}
-    <form method="post" enctype="multipart/form-data" class="mb-3"
+    <form method="post" enctype="multipart/form-data"
           data-loading-message="Đang tải ảnh…">
         {% csrf_token %}
         <input type="hidden" name="action" value="upload_gallery">
-        <div class="row g-2 align-items-end">
-            <div class="col-md-8">
-                <label class="form-label small mb-1" for="{{ gallery_form.files.id_for_label }}">Tải ảnh lên</label>
-                {{ gallery_form.files }}
-                {% if gallery_form.files.errors %}
-                <div class="text-danger small">{{ gallery_form.files.errors }}</div>
-                {% endif %}
-            </div>
-            <div class="col-md-4">
-                <button type="submit" class="btn btn-hm w-100">
-                    <i class="bi bi-upload me-1"></i>Tải lên
-                </button>
-            </div>
+        <label class="form-label small mb-1" for="{{ gallery_form.files.id_for_label }}">Tải ảnh lên</label>
+        <div class="sx-desc-upload">
+            {{ gallery_form.files }}
+            <button type="submit" class="btn btn-hm btn-sm">
+                <i class="bi bi-upload me-1"></i>Tải lên
+            </button>
         </div>
+        {% if gallery_form.files.errors %}
+        <div class="text-danger small mb-2">{{ gallery_form.files.errors }}</div>
+        {% endif %}
     </form>
     {% endif %}
 
     {% if gallery_images %}
+    <div class="sx-desc-hero" id="sx-desc-hero"
+         data-sx-gallery
+         data-sx-gallery-title="{{ doc.product_name|default:doc.product_code }}"
+         data-sx-gallery-images="{{ gallery_urls_json }}"
+         data-sx-gallery-index="0"
+         role="button"
+         tabindex="0"
+         aria-label="Xem ảnh lớn">
+        {% for img in gallery_images %}
+        {% if forloop.first %}
+        <img id="sx-desc-hero-img" src="{{ img.file_url }}" alt="{{ img.display_name }}">
+        {% endif %}
+        {% endfor %}
+    </div>
     <div class="sx-desc-gallery{% if can_update %} is-sortable{% endif %}" id="sx-desc-gallery"
          data-reorder-url="{{ request.path }}?tab=info">
         {% for img in gallery_images %}
         {% if img.is_image %}
-        <div class="sx-desc-gallery-item" data-file-id="{{ img.pk }}">
-            <button type="button" class="sx-doc-thumb"
-                    data-sx-gallery
-                    data-sx-gallery-title="{{ doc.product_name|default:doc.product_code }}"
-                    data-sx-gallery-images="{{ gallery_urls_json }}"
-                    data-sx-gallery-index="{{ forloop.counter0 }}"
-                    aria-label="Xem ảnh {{ img.display_name }}">
-                <img src="{{ img.file_url }}" alt="{{ img.display_name }}" class="rounded border">
+        <div class="sx-desc-gallery-item{% if forloop.first %} is-active{% endif %}" data-file-id="{{ img.pk }}">
+            <button type="button" class="sx-desc-thumb" data-sx-desc-thumb
+                    aria-label="Xem {{ img.display_name }}">
+                <img src="{{ img.file_url }}" alt="{{ img.display_name }}">
             </button>
             {% if can_update %}
             <form method="post" class="sx-desc-gallery-del-form"
@@ -70,35 +175,66 @@
         {% endfor %}
     </div>
     {% else %}
-    <div class="text-muted small">Chưa có ảnh tải lên.</div>
+    <div class="sx-desc-gallery-empty">Chưa có ảnh sản phẩm</div>
     {% endif %}
 </div>
 {% if can_update and gallery_images %}
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
+{% endif %}
 <script>
 (function () {
+  var hero = document.getElementById('sx-desc-hero-img');
+  var heroBox = document.getElementById('sx-desc-hero');
   var el = document.getElementById('sx-desc-gallery');
-  if (!el || typeof Sortable === 'undefined') return;
-  var csrf = document.querySelector('[name=csrfmiddlewaretoken]');
-  var token = csrf ? csrf.value : '';
-  var url = el.getAttribute('data-reorder-url') || (location.pathname + '?tab=info');
+  if (!hero || !el) return;
 
-  function syncGalleryIndexes() {
-    var items = el.querySelectorAll('.sx-desc-gallery-item');
-    var urls = [];
-    items.forEach(function (item) {
-      var img = item.querySelector('img');
-      if (img && img.src) urls.push(img.src);
+  if (heroBox && window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
+    heroBox.addEventListener('mousemove', function (e) {
+      var r = heroBox.getBoundingClientRect();
+      if (!r.width || !r.height) return;
+      var x = ((e.clientX - r.left) / r.width) * 100;
+      var y = ((e.clientY - r.top) / r.height) * 100;
+      hero.style.transformOrigin = x + '% ' + y + '%';
+      heroBox.classList.add('is-zooming');
     });
-    var payload = JSON.stringify(urls);
-    items.forEach(function (item, i) {
-      var btn = item.querySelector('[data-sx-gallery]');
-      if (!btn) return;
-      btn.setAttribute('data-sx-gallery-index', String(i));
-      btn.setAttribute('data-sx-gallery-images', payload);
+    heroBox.addEventListener('mouseleave', function () {
+      heroBox.classList.remove('is-zooming');
+      hero.style.transformOrigin = 'center center';
     });
   }
 
+  function showFrom(item) {
+    if (!item) return;
+    var img = item.querySelector('img');
+    if (!img) return;
+    hero.src = img.src;
+    hero.alt = img.alt || '';
+    if (heroBox) {
+      heroBox.classList.remove('is-zooming');
+      hero.style.transformOrigin = 'center center';
+    }
+    el.querySelectorAll('.sx-desc-gallery-item').forEach(function (node, i) {
+      node.classList.toggle('is-active', node === item);
+      if (node === item && heroBox) {
+        heroBox.setAttribute('data-sx-gallery-index', String(i));
+      }
+    });
+  }
+
+  el.addEventListener('click', function (e) {
+    if (e.target.closest('.sx-desc-gallery-del, .sx-desc-gallery-del-form')) return;
+    var item = e.target.closest('.sx-desc-gallery-item');
+    if (!item) return;
+    e.preventDefault();
+    e.stopPropagation();
+    showFrom(item);
+  });
+
+  {% if can_update %}
+  if (typeof Sortable === 'undefined') return;
+  var csrf = document.querySelector('[name=csrfmiddlewaretoken]');
+  var token = csrf ? csrf.value : '';
+  var url = el.getAttribute('data-reorder-url') || (location.pathname + '?tab=info');
   new Sortable(el, {
     animation: 160,
     draggable: '.sx-desc-gallery-item',
@@ -106,10 +242,19 @@
     preventOnFilter: true,
     ghostClass: 'sortable-ghost',
     onEnd: function () {
-      var ids = Array.prototype.map.call(el.querySelectorAll('.sx-desc-gallery-item'), function (item) {
-        return item.getAttribute('data-file-id');
-      }).filter(Boolean);
-      syncGalleryIndexes();
+      var items = el.querySelectorAll('.sx-desc-gallery-item');
+      var ids = [];
+      var urls = [];
+      Array.prototype.forEach.call(items, function (item, i) {
+        var id = item.getAttribute('data-file-id');
+        if (id) ids.push(id);
+        var thumb = item.querySelector('img');
+        if (thumb && thumb.src) urls.push(thumb.src);
+        if (item.classList.contains('is-active') && heroBox) {
+          heroBox.setAttribute('data-sx-gallery-index', String(i));
+        }
+      });
+      if (heroBox) heroBox.setAttribute('data-sx-gallery-images', JSON.stringify(urls));
       var body = new URLSearchParams();
       body.set('action', 'reorder_gallery');
       body.set('ids', ids.join(','));
@@ -123,6 +268,6 @@
       }).then(function (r) { return r.json(); }).catch(function () {});
     },
   });
+  {% endif %}
 })();
 </script>
-{% endif %}

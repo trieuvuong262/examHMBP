@@ -46,6 +46,18 @@ class ProductTechDoc(models.Model):
         verbose_name='Mô tả chi tiết',
         help_text='Mô tả kỹ thuật, yêu cầu sản xuất, lưu ý…',
     )
+    season = models.CharField(
+        max_length=80,
+        blank=True,
+        default='',
+        verbose_name='Mùa / BST',
+    )
+    main_material = models.CharField(
+        max_length=120,
+        blank=True,
+        default='',
+        verbose_name='Chất liệu chính',
+    )
     is_active = models.BooleanField(default=True, verbose_name='Đang dùng')
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
