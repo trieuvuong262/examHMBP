@@ -1,3 +1,16 @@
+{% if forloop.first or not forloop %}
+<style>
+.jp-file-type-icon{width:2.5rem;height:2.5rem;border-radius:.55rem;display:inline-flex;align-items:center;justify-content:center;font-size:1.2rem;line-height:1;flex-shrink:0}
+.jp-file-type-icon.is-pdf{background:#fef2f2;color:#dc2626}
+.jp-file-type-icon.is-word{background:#eff6ff;color:#2563eb}
+.jp-file-type-icon.is-excel{background:#ecfdf5;color:#059669}
+.jp-file-type-icon.is-file{background:#f1f5f9;color:#64748b}
+.jp-file-actions{display:inline-flex;align-items:center;gap:.35rem;flex-shrink:0}
+.jp-file-action{width:2rem;height:2rem;padding:0;display:inline-flex;align-items:center;justify-content:center;border-radius:.45rem;border:1px solid #e2e8f0;background:#fff;color:#475569;line-height:1;font-size:.95rem;text-decoration:none}
+.jp-file-action:hover,.jp-file-action:focus-visible{border-color:#fecaca;color:#dc2626;background:rgba(220,38,38,.08);outline:none}
+.jp-file-action.is-view:hover,.jp-file-action.is-view:focus-visible{border-color:#bfdbfe;color:#2563eb;background:#eff6ff}
+</style>
+{% endif %}
 <div class="jp-weekly-preview-block mb-3{% if not forloop.last %} pb-3 border-bottom{% endif %}">
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
         <div class="jp-weekly-file-chip">

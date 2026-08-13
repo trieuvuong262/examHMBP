@@ -156,7 +156,8 @@ def inline_docx_html_response(source: Path, *, display_name: str) -> HttpRespons
 
 def serve_preview_response(source: Path, display_name: str, *, ext: str | None = None):
     """PDF / Excel HTML / Word HTML — không 404 khi không xem được."""
-    ext = (ext or source.suffix or os.path.splitext(display_name)[1]).lower()
+    # Ưu tiên đuôi tên hiển thị: file NAS thường lưu uuid không có .pdf/.docx.
+    ext = (ext or os.path.splitext(display_name or '')[1] or source.suffix or '').lower()
     if ext == '.pdf':
         return inline_pdf_response(source, filename=display_name)
     if ext in SPREADSHEET_HTML_EXTENSIONS:

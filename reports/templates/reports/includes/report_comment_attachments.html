@@ -1,5 +1,17 @@
 {% load report_extras %}
 {% if attachments %}
+<style>
+.jp-file-type-icon{width:2.5rem;height:2.5rem;border-radius:.55rem;display:inline-flex;align-items:center;justify-content:center;font-size:1.2rem;line-height:1;flex-shrink:0}
+.jp-file-type-icon.is-pdf{background:#fef2f2;color:#dc2626}
+.jp-file-type-icon.is-word{background:#eff6ff;color:#2563eb}
+.jp-file-type-icon.is-excel{background:#ecfdf5;color:#059669}
+.jp-file-type-icon.is-file{background:#f1f5f9;color:#64748b}
+.jp-file-actions{display:inline-flex;align-items:center;gap:.35rem;flex-shrink:0}
+.jp-file-action{width:2rem;height:2rem;padding:0;display:inline-flex;align-items:center;justify-content:center;border-radius:.45rem;border:1px solid #e2e8f0;background:#fff;color:#475569;line-height:1;font-size:.95rem;text-decoration:none}
+.jp-file-action:hover,.jp-file-action:focus-visible{border-color:#fecaca;color:#dc2626;background:rgba(220,38,38,.08);outline:none}
+.jp-file-action.is-view:hover,.jp-file-action.is-view:focus-visible{border-color:#bfdbfe;color:#2563eb;background:#eff6ff}
+.jp-report-comment-file-row{display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-top:.4rem}
+</style>
 <div class="jp-report-comment-attachments mt-2">
     {% for att in attachments %}
     {% with item=att|attachment_file_preview %}
@@ -8,10 +20,43 @@
         <img src="{{ item.preview_url }}" alt="{{ item.name }}" loading="lazy">
     </a>
     {% else %}
-    <a href="{{ item.download_url|default:item.url }}" class="jp-report-comment-attach-file" download="{{ item.name }}" title="Tải {{ item.name }}">
-        <i class="bi bi-paperclip" aria-hidden="true"></i>
-        <span>{{ item.name }}</span>
-    </a>
+    <div class="jp-report-comment-file-row">
+        <div class="jp-weekly-file-chip">
+            <span class="jp-file-type-icon is-{{ item.icon|default:'file' }}" aria-hidden="true">
+                {% if item.icon == 'pdf' %}<i class="bi bi-file-earmark-pdf-fill"></i>
+                {% elif item.icon == 'word' %}<i class="bi bi-file-earmark-word-fill"></i>
+                {% elif item.icon == 'excel' %}<i class="bi bi-file-earmark-excel-fill"></i>
+                {% else %}<i class="bi bi-file-earmark-fill"></i>{% endif %}
+            </span>
+            {% if item.preview_url %}
+            <button type="button" class="btn btn-link fw-semibold text-decoration-none p-0 text-start"
+                    data-jp-file-preview
+                    data-kind="{{ item.kind|default:item.type }}"
+                    data-name="{{ item.name }}"
+                    data-preview-url="{{ item.preview_url }}"
+                    data-download-url="{{ item.download_url|default:item.url }}">{{ item.name }}</button>
+            {% else %}
+            <span class="fw-semibold">{{ item.name }}</span>
+            {% endif %}
+        </div>
+        <div class="jp-file-actions">
+            {% if item.preview_url %}
+            <button type="button" class="jp-file-action is-view"
+                    data-jp-file-preview
+                    data-kind="{{ item.kind|default:item.type }}"
+                    data-name="{{ item.name }}"
+                    data-preview-url="{{ item.preview_url }}"
+                    data-download-url="{{ item.download_url|default:item.url }}"
+                    title="Xem trước" aria-label="Xem trước">
+                <i class="bi bi-eye" aria-hidden="true"></i>
+            </button>
+            {% endif %}
+            <a href="{{ item.download_url|default:item.url }}" class="jp-file-action"
+               title="Tải xuống" aria-label="Tải xuống">
+                <i class="bi bi-download" aria-hidden="true"></i>
+            </a>
+        </div>
+    </div>
     {% endif %}
     {% endwith %}
     {% endfor %}
