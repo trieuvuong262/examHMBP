@@ -33,14 +33,6 @@
   </div>
 
   <div class="jp-sx-page-body">
-  {% if not approver_group_ready and can_update %}
-  <div class="alert alert-warning py-2 small mb-3">
-    Chưa cấu hình người duyệt — nút Duyệt bị khóa.
-    <a href="{% url 'san_xuat:ie_approver_manage' %}" class="alert-link">Thiết lập công đoạn → Người duyệt</a>
-    hoặc mở <a href="{% url 'san_xuat:ie_approve_hub' %}" class="alert-link">Duyệt phát hành</a>.
-  </div>
-  {% endif %}
-
   <form method="get" class="row g-2 mb-3">
     <div class="col-md-5">
       <input type="search" name="q" value="{{ term }}" class="form-control form-control-sm" placeholder="Tìm mã hàng, routing…">
@@ -85,14 +77,6 @@
             <td class="small">{{ r.approved_by|default:"—" }}</td>
             <td class="text-nowrap text-end">
               <a href="{% url 'san_xuat:ie_routing_detail' r.pk %}" class="btn btn-sm btn-outline-hm">Xem</a>
-              {% if can_approve and r.approval_status != 'approved' and r.pk not in locked_routing_ids %}
-              <form method="post" class="d-inline">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="approve_routing">
-                <input type="hidden" name="pk" value="{{ r.pk }}">
-                <button type="submit" class="btn btn-sm btn-outline-success py-0" title="Duyệt phát hành">Duyệt</button>
-              </form>
-              {% endif %}
               {% if can_update %}
               <button type="button" class="btn btn-sm btn-outline-secondary py-0 ie-edit-routing"
                       data-bs-toggle="modal" data-bs-target="#ieEditRoutingModal"

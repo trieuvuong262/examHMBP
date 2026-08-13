@@ -889,7 +889,7 @@ def operation_list(request):
         qs = qs.exclude(status=SxOperation.STATUS_RETIRED)
 
     qs = qs.order_by('op_code', 'op_rev')
-    page_obj, query_string = paginate_queryset(request, qs)
+    page_obj, query_string = paginate_queryset(request, qs, per_page=12)
     return render(request, 'san_xuat/ie_operation_list.html', {
         **perms,
         **_ie_io_context(KIND_LIBRARY),
@@ -1047,12 +1047,7 @@ def routing_list(request):
         pk = (request.POST.get('pk') or '').strip()
         routing = SxRouting.objects.filter(pk=int(pk)).first() if pk.isdigit() else None
         try:
-            if action == 'approve_routing' and routing:
-                if not perms['can_approve']:
-                    raise IeOpsError('Bạn không có quyền duyệt routing (cần quyền Sửa menu Duyệt phát hành).')
-                approve_routing(routing=routing, user=request.user)
-                messages.success(request, f'Đã duyệt routing {routing.routing_id}.')
-            elif action == 'update_routing' and routing:
+            if action == 'update_routing' and routing:
                 if not perms['can_update']:
                     raise IeOpsError('Bạn không có quyền sửa routing.')
                 update_routing_header(

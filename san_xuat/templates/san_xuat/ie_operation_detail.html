@@ -25,6 +25,7 @@
       </form>
       {% endif %}
       {% if can_update %}
+      <button type="submit" form="ie-op-form" class="btn btn-sm btn-hm">Lưu</button>
       <form method="post" class="d-inline" onsubmit="return confirm('Xóa {{ op.op_code }}/{{ op.op_rev }}?');">
         {% csrf_token %}
         <input type="hidden" name="action" value="delete_operation">
@@ -58,7 +59,7 @@
           </select>
         </div>
         <div class="col-md-4">
-          <label class="form-label small mb-1">SMV thư viện (phút) <span class="text-danger">*</span></label>
+          <label class="form-label small mb-1">SMV chuẩn (phút) <span class="text-danger">*</span></label>
           <input type="number" name="base_smv_min" class="form-control form-control-sm" step="0.0001" min="0" value="{{ op.base_smv_min|sx_num_input }}" {% if not can_update %}readonly{% endif %}>
         </div>
         <div class="col-md-4">
@@ -189,11 +190,6 @@
           <input type="url" name="work_instruction_url" class="form-control form-control-sm" value="{{ op.work_instruction_url }}" {% if not can_update %}readonly{% endif %}>
         </div>
       </div>
-      {% if can_update %}
-      <div class="mt-3">
-        <button type="submit" class="btn btn-sm btn-hm">Lưu công đoạn</button>
-      </div>
-      {% endif %}
     </div>
   </form>
 

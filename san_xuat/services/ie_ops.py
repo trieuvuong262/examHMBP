@@ -75,7 +75,7 @@ def resolve_operation(op_code: str, op_rev: str | None = None) -> SxOperation | 
 
 
 def operation_library_snapshot(op: SxOperation | None) -> dict:
-    """Snapshot thư viện để điền dòng routing (tên, nhóm, máy, SMV TV…)."""
+    """Snapshot thư viện để điền dòng routing (tên, nhóm, máy, SMV chuẩn…)."""
     if op is None:
         return {}
     group_code = op.group.code if op.group_id else ''
@@ -1548,7 +1548,7 @@ def approve_time_study(
         else:
             if op.status == SxOperation.STATUS_APPROVED:
                 result.warnings.append(
-                    f'{op.op_code}/{op.op_rev} đã duyệt — không sửa đè SMV thư viện; tạo OP_REV mới nếu cần.'
+                    f'{op.op_code}/{op.op_rev} đã duyệt — không sửa đè SMV chuẩn; tạo OP_REV mới nếu cần.'
                 )
             else:
                 op.base_smv_min = new_smv

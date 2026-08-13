@@ -348,7 +348,7 @@ def _import_operations(wb, result: ImportResult) -> None:
         time_sec = _dec(rec.get('ĐỊNH MỨC THỜI GIAN')) or Decimal('0')
         base_smv = (time_sec / Decimal('60')).quantize(Decimal('0.0001'))
         if base_smv <= 0:
-            result.warnings.append(f'[Công đoạn] {op_code}/{op_rev}: SMV thư viện = 0.')
+            result.warnings.append(f'[Công đoạn] {op_code}/{op_rev}: SMV chuẩn = 0.')
 
         machine_code = _s(rec.get('MÃ MÁY MÓC'))
         stitch_val = _s(rec.get('NHÓM MŨI MAY'))
@@ -957,7 +957,7 @@ IE_DATASETS = {
             [],
             ['Cột bắt buộc', 'MÃ ĐƠN HÀNG · MÃ HÀNG SẢN PHẨM · MÃ CÔNG ĐOẠN'],
             ['Gom routing', 'Cùng MÃ ĐƠN HÀNG → cùng một routing (các dòng công đoạn).'],
-            ['ĐỊNH MỨC THỜI GIAN', 'SMV áp dụng (phút). ĐỊNH MỨC THEO PHIÊN BẢN = SMV thư viện.'],
+            ['ĐỊNH MỨC THỜI GIAN', 'SMV áp dụng (phút). ĐỊNH MỨC THEO PHIÊN BẢN = SMV chuẩn.'],
             ['TỔNG ĐỊNH MỨC', 'Hệ thống tự tính = SỐ LƯỢNG × ĐỊNH MỨC THỜI GIAN khi lưu.'],
             ['ĐỊNH MỨC SP/H', 'Xuất tự tính = 60 / ĐỊNH MỨC THỜI GIAN (phút). Có thể để trống khi import.'],
             ['% CHÊNH LỆCH', 'Tự tính so với định mức theo phiên bản; >15% cần giải trình trên Portal.'],

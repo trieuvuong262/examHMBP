@@ -136,7 +136,7 @@
                  value="{% if edit_line %}{{ edit_line.applied_unit_smv|sx_num_input }}{% endif %}">
         </div>
         <div class="col-4 col-md-1">
-          <label class="form-label small mb-0">SMV TV</label>
+          <label class="form-label small mb-0">SMV chuẩn</label>
           <input type="text" name="library_unit_smv" class="form-control form-control-sm"
                  value="{% if edit_line %}{{ edit_line.library_unit_smv|sx_num_input }}{% endif %}" placeholder="auto">
         </div>
@@ -150,12 +150,12 @@
           </select>
         </div>
         <div class="col-4 col-md-1">
-          <label class="form-label small mb-0">Hệ số ĐG</label>
+          <label class="form-label small mb-0">Hệ số đơn giá</label>
           <input type="text" name="price_factor" class="form-control form-control-sm"
                  value="{% if edit_line %}{{ edit_line.price_factor|sx_num_input }}{% else %}0{% endif %}">
         </div>
         <div class="col-4 col-md-1">
-          <label class="form-label small mb-0">Tổng ĐG</label>
+          <label class="form-label small mb-0">Tổng đơn giá</label>
           <input type="text" name="total_unit_price" class="form-control form-control-sm"
                  value="{% if edit_line %}{{ edit_line.total_unit_price|sx_num_input }}{% else %}0{% endif %}">
         </div>
@@ -224,12 +224,12 @@
             <th class="jp-ie-col-core text-end">Số lượng</th>
             <th class="jp-ie-col-core">Bậc CĐ</th>
             <th class="jp-ie-col-core text-end">ĐM thời gian</th>
-            <th class="jp-ie-col-core text-end">ĐM phiên bản</th>
+            <th class="jp-ie-col-core text-end">SMV chuẩn</th>
             <th class="jp-ie-col-core text-end">Tổng ĐM</th>
             <th class="jp-ie-col-core text-end">ĐM SP/H</th>
             <th class="jp-ie-col-core text-end">% lệch</th>
-            <th class="jp-ie-col-core text-end">Hệ số ĐG</th>
-            <th class="jp-ie-col-core text-end">Tổng ĐG</th>
+            <th class="jp-ie-col-core text-end">Hệ số đơn giá</th>
+            <th class="jp-ie-col-core text-end">Tổng đơn giá</th>
             <th class="jp-ie-col-meta">Máy</th>
             <th class="jp-ie-col-meta">Work center</th>
             <th class="jp-ie-col-meta">Notes</th>
@@ -283,6 +283,7 @@
   </div>
 
   {% include 'san_xuat/includes/ie_wide_table_styles.html' %}
+  {% include 'san_xuat/includes/ie_smv_glossary.html' %}
 
   {% if can_update and not locked %}
   {% for l in lines %}
