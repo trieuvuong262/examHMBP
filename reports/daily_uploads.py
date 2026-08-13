@@ -6,10 +6,12 @@ from .models import DailyWorkReportAttachment
 
 
 def _is_image_upload(uploaded) -> bool:
+    name = (getattr(uploaded, 'name', '') or '').lower()
+    if name.endswith(('.pdf', '.doc', '.docx', '.xls', '.xlsx', '.csv', '.ppt', '.pptx', '.zip', '.rar', '.7z')):
+        return False
     content_type = (getattr(uploaded, 'content_type', '') or '').lower()
     if content_type.startswith('image/'):
         return True
-    name = (getattr(uploaded, 'name', '') or '').lower()
     return name.endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.svg', '.heic', '.heif'))
 
 

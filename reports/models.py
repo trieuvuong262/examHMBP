@@ -16,6 +16,20 @@ from reports.comment_nas_storage import ReportCommentNasStorage, comment_attachm
 from reports.daily_nas_storage import DailyReportNasStorage, daily_attachment_upload_to
 from reports.weekly_nas_storage import WeeklyReportNasStorage, weekly_attachment_upload_to
 
+_IMAGE_EXTS = (
+    '.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.svg', '.heic', '.heif',
+)
+
+
+def attachment_is_image(*, kind: str, display_name: str) -> bool:
+    """PDF/Word không bao giờ hiện như ảnh — kể cả khi kind lưu nhầm IMAGE."""
+    ext = os.path.splitext((display_name or '').lower())[1]
+    if ext in _IMAGE_EXTS:
+        return True
+    if ext:
+        return False
+    return kind == 'IMAGE'
+
 
 class DailyWorkReport(models.Model):
     SHIFT_MORNING = 'MORNING'
@@ -209,7 +223,7 @@ class DailyWorkReportAttachment(models.Model):
 
     @property
     def is_image(self):
-        return self.kind == self.KIND_IMAGE
+        return attachment_is_image(kind=self.kind, display_name=self.display_name)
 
 
 class DailyWorkReportLine(models.Model):
@@ -492,7 +506,7 @@ class WeeklyWorkReportAttachment(models.Model):
 
     @property
     def is_image(self):
-        return self.kind == self.KIND_IMAGE
+        return attachment_is_image(kind=self.kind, display_name=self.display_name)
 
 
 class ReportComment(models.Model):
@@ -576,7 +590,7 @@ class ReportCommentAttachment(models.Model):
 
     @property
     def is_image(self):
-        return self.kind == self.KIND_IMAGE
+        return attachment_is_image(kind=self.kind, display_name=self.display_name)
 
 
 class DailyWorkReportEditLog(models.Model):

@@ -13,11 +13,17 @@
     <div class="small fw-bold text-muted mb-1{% if files %} mt-3{% endif %}">Ảnh đính kèm</div>
     <div class="row g-2 mb-0">
         {% for att in images %}
+        {% if att.is_image %}
         <div class="col-6 col-md-4 col-lg-3">
             <a href="{{ att.file_url }}" target="_blank" rel="noopener" class="jp-weekly-thumb-btn d-block">
                 <img src="{{ att.file_url }}" alt="{{ att.display_name }}" class="jp-weekly-thumb img-fluid rounded" loading="lazy">
             </a>
         </div>
+        {% else %}
+        {% with item=att|attachment_file_preview %}
+        {% include 'reports/includes/office_file_preview_block.html' %}
+        {% endwith %}
+        {% endif %}
         {% endfor %}
     </div>
     {% endif %}
