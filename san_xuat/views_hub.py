@@ -579,6 +579,104 @@ def sales_order_confirm_list(request):
     })
 
 
+def _so_dec(raw, default='0'):
+    from decimal import Decimal, InvalidOperation
+    try:
+        return Decimal(str(raw if raw not in (None, '') else default))
+    except (InvalidOperation, TypeError, ValueError):
+        return Decimal(default)
+
+
+def _handle_order_routing_post(request, order) -> bool:
+    """Xử lý POST công đoạn đơn. True = đã handle (redirect caller)."""
+    from san_xuat.services.order_routing import (
+        OrderRoutingError,
+        delete_order_routing_line,
+        reset_order_line_routing,
+        upsert_order_routing_line,
+        user_can_edit_order_routing,
+    )
+
+    action = (request.POST.get('action') or '').strip()
+    if action not in {
+        'add_routing_line', 'edit_routing_line', 'delete_routing_line',
+        'reset_routing', 'attach_routing',
+    }:
+        return False
+    can_pick = (
+        user_can_edit_order_routing(request.user)
+        or user_can_update_menu(request.user, MODULE_SAN_XUAT, 'order_create')
+        or user_can_create_menu(request.user, MODULE_SAN_XUAT, 'order_create')
+    )
+    if action == 'attach_routing':
+        if not can_pick:
+            raise OrderRoutingError('Không có quyền gắn routing trên đơn.')
+    elif not user_can_edit_order_routing(request.user):
+        raise OrderRoutingError('Chỉ IE / Kế hoạch được sửa SMV áp dụng và thêm/bớt công đoạn trên đơn.')
+
+    def _line():
+        try:
+            lid = int(request.POST.get('so_line_id') or 0)
+        except (TypeError, ValueError):
+            lid = 0
+        ln = order.lines.filter(pk=lid).first() if lid else None
+        if ln is None:
+            raise OrderRoutingError('Không tìm thấy dòng sản phẩm.')
+        return ln
+
+    if action == 'attach_routing':
+        from san_xuat.services.order_routing import attach_order_line_routing
+
+        n = attach_order_line_routing(_line(), routing_id=request.POST.get('routing_id') or 0)
+        messages.success(request, f'Đã gắn routing và copy {n} công đoạn lên đơn.')
+        return True
+
+    if action == 'reset_routing':
+        n = reset_order_line_routing(_line())
+        messages.success(request, f'Đã lấy lại {n} công đoạn từ routing mã hàng.')
+        return True
+
+    if action == 'delete_routing_line':
+        ln = _line()
+        try:
+            line_pk = int(request.POST.get('line_pk') or 0)
+        except (TypeError, ValueError):
+            line_pk = 0
+        if not line_pk:
+            raise OrderRoutingError('Thiếu dòng cần xóa.')
+        delete_order_routing_line(order_line=ln, line_pk=line_pk)
+        messages.success(request, 'Đã xóa công đoạn trên đơn.')
+        return True
+
+    ln = _line()
+    line_pk = request.POST.get('line_pk')
+    line_pk = int(line_pk) if line_pk and str(line_pk).isdigit() else None
+    seq_raw = (request.POST.get('seq_no') or '').strip()
+    lib_raw = (request.POST.get('library_unit_smv') or '').strip()
+    applied_raw = (request.POST.get('applied_unit_smv') or '').strip()
+    upsert_order_routing_line(
+        order_line=ln,
+        line_pk=line_pk if action == 'edit_routing_line' else None,
+        seq_no=int(seq_raw) if seq_raw.isdigit() else None,
+        op_code=(request.POST.get('op_code') or '').strip(),
+        op_rev=(request.POST.get('op_rev') or 'R01').strip(),
+        op_name_vi=(request.POST.get('op_name_vi') or '').strip(),
+        group_code=(request.POST.get('group_code') or '').strip(),
+        qty_per_garment=_so_dec(request.POST.get('qty_per_garment'), '1'),
+        applied_unit_smv=_so_dec(applied_raw) if applied_raw else None,
+        library_unit_smv=_so_dec(lib_raw) if lib_raw else None,
+        machine_code=(request.POST.get('machine_code') or '').strip(),
+        work_center_code=(request.POST.get('work_center_code') or '').strip(),
+        skill_level_label=(request.POST.get('skill_level_label') or '').strip(),
+        price_factor=_so_dec(request.POST.get('price_factor'), '0'),
+        total_unit_price=_so_dec(request.POST.get('total_unit_price'), '0'),
+        variance_explanation=(request.POST.get('variance_explanation') or '').strip(),
+        notes=(request.POST.get('notes') or '').strip(),
+    )
+    messages.success(request, 'Đã lưu công đoạn trên đơn.')
+    return True
+
+
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def sales_order_detail(request, pk: int):
     if not _user_can_sales_order_page(request.user):
@@ -586,6 +684,9 @@ def sales_order_detail(request, pk: int):
 
     from san_xuat.forms_sales_order import SalesOrderRejectForm
     from san_xuat.hub_models import SxSalesOrder
+    from san_xuat.ie_models import SxOperationGroup, ensure_skill_levels_abc
+    from san_xuat.services.capacity_from_hrm import hr_work_centers_qs
+    from san_xuat.services.order_routing import OrderRoutingError, user_can_edit_order_routing
     from san_xuat.services.sales_orders import (
         PROD_STATUS_LABELS,
         confirm_sales_order,
@@ -597,15 +698,28 @@ def sales_order_detail(request, pk: int):
         SxSalesOrder.objects.select_related('created_by', 'confirmed_by').prefetch_related(
             'lines__bom_version__tech_doc',
             'lines__routing',
+            'lines__routing_lines__work_center',
+            'lines__routing_lines__operation',
         ),
         pk=pk,
         is_demo=False,
     )
     can_confirm = user_can_update_menu(request.user, MODULE_SAN_XUAT, 'order_confirm')
+    can_edit_routing = user_can_edit_order_routing(request.user)
+    can_attach_routing = can_edit_routing or user_can_update_menu(
+        request.user, MODULE_SAN_XUAT, 'order_create',
+    ) or user_can_create_menu(request.user, MODULE_SAN_XUAT, 'order_create')
+    routing_locked = order.confirm_status != SxSalesOrder.CONFIRM_DRAFT
     reject_form = SalesOrderRejectForm()
 
     if request.method == 'POST':
         action = (request.POST.get('action') or '').strip()
+        try:
+            if _handle_order_routing_post(request, order):
+                return redirect('san_xuat:sales_order_detail', pk=order.pk)
+        except OrderRoutingError as exc:
+            messages.error(request, str(exc))
+            return redirect('san_xuat:sales_order_detail', pk=order.pk)
         if action in {'confirm', 'reject'} and not can_confirm:
             return handle_menu_access_denied(request, MODULE_SAN_XUAT, 'order_confirm')
         if action == 'confirm' and order.confirm_status == SxSalesOrder.CONFIRM_DRAFT:
@@ -631,11 +745,38 @@ def sales_order_detail(request, pk: int):
                     return redirect('san_xuat:sales_order_detail', pk=order.pk)
 
     prod_status = production_status_summary(order)
+    edit_rt = None
+    edit_pk = (request.GET.get('edit_rt') or '').strip()
+    if edit_pk.isdigit() and can_edit_routing and not routing_locked:
+        from san_xuat.hub_models import SxSalesOrderRoutingLine
+        edit_rt = SxSalesOrderRoutingLine.objects.filter(
+            pk=int(edit_pk),
+            sales_order_line__order_id=order.pk,
+        ).first()
+
+    missing_routing = [
+        ln for ln in order.lines.all()
+        if not ln.routing_id or not ln.routing_lines.exists()
+    ]
+    from san_xuat.services.order_routing import routings_for_product
+
+    for ln in order.lines.all():
+        ln.available_routings = routings_for_product(ln.product_code) if not ln.routing_id else []
 
     return render(request, 'san_xuat/sales_order_detail.html', {
         **_perm_ctx(request),
         'order': order,
         'can_confirm': can_confirm,
+        'can_edit_order_routing': can_edit_routing and not routing_locked,
+        'can_attach_routing': can_attach_routing and not routing_locked,
+        'routing_locked': routing_locked,
+        'edit_rt': edit_rt,
+        'missing_routing': missing_routing,
+        'work_centers': list(hr_work_centers_qs()),
+        'skill_levels': ensure_skill_levels_abc(),
+        'operation_groups': list(
+            SxOperationGroup.objects.filter(is_active=True).order_by('sort_order', 'code')
+        ),
         'reject_form': reject_form,
         'prod_status': prod_status,
         'prod_label': PROD_STATUS_LABELS.get(prod_status, prod_status),

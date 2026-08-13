@@ -1,6 +1,14 @@
 import time
 
+from audit.retention import maybe_purge_old_activity_logs
+from audit.summaries import CLICKED_BUTTON_COOKIE, is_background_audit_url
 from audit.utils import log_from_request, should_skip_audit
+
+
+def _clear_clicked_button_cookie(request, response):
+    if request.COOKIES.get(CLICKED_BUTTON_COOKIE):
+        response.delete_cookie(CLICKED_BUTTON_COOKIE, path='/')
+    return response
 
 
 class ActivityAuditMiddleware:
@@ -21,5 +29,9 @@ class ActivityAuditMiddleware:
             log_from_request(request, response, duration_ms)
         except Exception:
             pass
+
+        if not is_background_audit_url(request):
+            response = _clear_clicked_button_cookie(request, response)
+            maybe_purge_old_activity_logs()
 
         return response

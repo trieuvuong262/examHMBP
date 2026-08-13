@@ -54,7 +54,7 @@
     {% if '/san-xuat/' in request.path %}
     {% include 'san_xuat/includes/sx_ui_polish.html' %}
     {% endif %}
-    <script src="{% static 'js/client-device.js' %}"></script>
+    <script src="{% static 'js/client-device.js' %}?v=20260813a"></script>
 </head>
 
 <body class="{% if user.is_authenticated and not jp_force_password_change %}jp-auth jp-has-sidebar jp-has-amis-header{% else %}jp-guest{% endif %}{% if '/san-xuat/' in request.path %} jp-sx-module{% endif %}">

@@ -1155,7 +1155,7 @@ def routing_detail(request, pk: int):
                     op_name_vi=(request.POST.get('op_name_vi') or '').strip(),
                     group_code=(request.POST.get('group_code') or '').strip(),
                     qty_per_garment=_dec(request.POST.get('qty_per_garment'), '1'),
-                    applied_unit_smv=_dec(request.POST.get('applied_unit_smv')),
+                    applied_unit_smv=None,
                     library_unit_smv=_dec(request.POST.get('library_unit_smv'))
                     if (request.POST.get('library_unit_smv') or '').strip() != ''
                     else None,

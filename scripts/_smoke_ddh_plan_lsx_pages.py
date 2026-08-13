@@ -76,6 +76,8 @@ def main() -> int:
     check(client, 'sales_order_list', reverse('san_xuat:sales_order_list'))
     check(client, 'sales_order_create', reverse('san_xuat:sales_order_create'))
     check(client, 'sales_order_confirm_list', reverse('san_xuat:sales_order_confirm_list'))
+    check(client, 'costing_by_order', reverse('san_xuat:costing_by_order'))
+    check(client, 'costing_order_create', reverse('san_xuat:costing_order_create'))
 
     order = (
         SxSalesOrder.objects.filter(is_demo=False)

@@ -155,4 +155,85 @@
     } else {
         attachFormHandlers();
     }
+
+    // --- Ghi nút vừa bấm vào cookie/hidden field cho nhật ký thao tác ---
+    var CLICK_COOKIE = 'jp_clicked_btn';
+    var CLICK_FIELD = 'jp_clicked_button';
+    var CLICK_COOKIE_SECONDS = 30;
+
+    function setClickCookie(value) {
+        if (!value) return;
+        document.cookie = CLICK_COOKIE + '=' + encodeURIComponent(value)
+            + '; path=/; max-age=' + CLICK_COOKIE_SECONDS + '; SameSite=Lax';
+    }
+
+    function buttonLabel(el) {
+        if (!el) return '';
+        var aria = (el.getAttribute('aria-label') || '').trim();
+        if (aria) return aria.slice(0, 80);
+        var title = (el.getAttribute('title') || '').trim();
+        if (title) return title.slice(0, 80);
+        if (el.matches && el.matches('input')) {
+            return ((el.value || el.getAttribute('name') || '') + '').trim().slice(0, 80);
+        }
+        var text = ((el.innerText || el.textContent || '') + '').replace(/\s+/g, ' ').trim();
+        if (text) return text.slice(0, 80);
+        return ((el.getAttribute('name') || el.getAttribute('value') || '') + '').trim().slice(0, 80);
+    }
+
+    function closestClickable(target) {
+        if (!target || !target.closest) return null;
+        return target.closest('button, input[type="submit"], input[type="button"], input[type="image"], a.btn, [role="button"], .btn');
+    }
+
+    function isNavigatingClick(el) {
+        if (!el) return false;
+        if (el.matches('a[href]')) {
+            var href = (el.getAttribute('href') || '').trim();
+            if (!href || href === '#' || href.indexOf('javascript:') === 0) return false;
+            if (el.getAttribute('data-bs-toggle') || el.getAttribute('data-toggle')) return false;
+            return true;
+        }
+        if (el.matches('input[type="submit"], input[type="image"]')) return true;
+        if (el.matches('button')) {
+            var type = (el.getAttribute('type') || 'submit').toLowerCase();
+            if (type === 'reset') return false;
+            if (el.getAttribute('data-bs-toggle') || el.getAttribute('data-toggle')) return false;
+            return type === 'submit' || !!el.getAttribute('formaction') || !!el.closest('form');
+        }
+        if (el.matches('input[type="button"]') && el.getAttribute('formaction')) return true;
+        return false;
+    }
+
+    function rememberClickedButton(el) {
+        var label = buttonLabel(el);
+        if (!label) return;
+        window.__jpLastClickedButton = label;
+        setClickCookie(label);
+        var form = el.closest && el.closest('form');
+        if (form) {
+            ensureHiddenInput(form, CLICK_FIELD, label);
+        }
+    }
+
+    document.addEventListener('click', function (event) {
+        var el = closestClickable(event.target);
+        if (!el || !isNavigatingClick(el)) return;
+        rememberClickedButton(el);
+    }, true);
+
+    document.addEventListener('submit', function (event) {
+        var form = event.target;
+        if (!form || form.tagName !== 'FORM') return;
+        var label = window.__jpLastClickedButton || '';
+        if (!label) {
+            var submitter = event.submitter || form.querySelector('button[type="submit"], input[type="submit"]');
+            label = buttonLabel(submitter);
+        }
+        if (label) {
+            ensureHiddenInput(form, CLICK_FIELD, label);
+            setClickCookie(label);
+        }
+        applyDeviceToForm(form);
+    }, true);
 })();

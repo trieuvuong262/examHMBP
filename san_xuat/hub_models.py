@@ -56,8 +56,8 @@ class SxSalesOrder(DemoMarkedModel):
 
     code = models.CharField(max_length=40, unique=True, verbose_name='Số đơn hàng')
     customer_name = models.CharField(max_length=255, blank=True, default='', verbose_name='Khách hàng')
-    request_date = models.DateField(verbose_name='Ngày yêu cầu')
-    due_date = models.DateField(null=True, blank=True, verbose_name='Hạn sản xuất')
+    request_date = models.DateField(verbose_name='Ngày dự kiến thực hiện')
+    due_date = models.DateField(null=True, blank=True, verbose_name='Ngày dự kiến hoàn thành')
     order_type = models.CharField(
         max_length=20, choices=TYPE_CHOICES, default=TYPE_PRODUCTION, verbose_name='Loại đơn',
     )
@@ -205,6 +205,157 @@ class SxSalesOrderLine(models.Model):
         if rate <= 0:
             return base
         return (base * (Decimal('1') + rate / Decimal('100'))).quantize(Decimal('0.01'))
+
+    @property
+    def routing_total_smv(self) -> Decimal:
+        total = self.routing_lines.aggregate(s=models.Sum('total_operation_smv'))['s'] or Decimal('0')
+        return total.quantize(Decimal('0.0001'))
+
+
+class SxSalesOrderRoutingLine(models.Model):
+    """Snapshot công đoạn theo dòng đơn — SMV áp dụng riêng PO, không sửa routing mã hàng."""
+
+    sales_order_line = models.ForeignKey(
+        SxSalesOrderLine,
+        on_delete=models.CASCADE,
+        related_name='routing_lines',
+        verbose_name='Dòng đơn',
+    )
+    source_routing_line = models.ForeignKey(
+        'san_xuat.SxRoutingLine',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='order_snapshots',
+        verbose_name='Dòng routing nguồn',
+    )
+    seq_no = models.PositiveIntegerField(default=1, verbose_name='Thứ tự')
+    operation = models.ForeignKey(
+        'san_xuat.SxOperation',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='sales_order_routing_lines',
+        verbose_name='Công đoạn (thư viện)',
+    )
+    op_code = models.CharField(max_length=30, db_index=True, verbose_name='Mã công đoạn')
+    op_rev = models.CharField(max_length=10, default='R01', verbose_name='Phiên bản CĐ')
+    op_name_vi = models.CharField(max_length=200, blank=True, default='', verbose_name='Tên công đoạn')
+    group_code = models.CharField(max_length=30, blank=True, default='', verbose_name='Mã nhóm')
+    qty_per_garment = models.DecimalField(
+        max_digits=10,
+        decimal_places=3,
+        default=Decimal('1'),
+        validators=[MinValueValidator(Decimal('0'))],
+        verbose_name='SL/sản phẩm',
+    )
+    library_unit_smv = models.DecimalField(
+        max_digits=10,
+        decimal_places=4,
+        default=Decimal('0'),
+        verbose_name='SMV chuẩn (phút)',
+    )
+    applied_unit_smv = models.DecimalField(
+        max_digits=10,
+        decimal_places=4,
+        default=Decimal('0'),
+        validators=[MinValueValidator(Decimal('0'))],
+        verbose_name='SMV áp dụng (phút)',
+    )
+    total_operation_smv = models.DecimalField(
+        max_digits=12,
+        decimal_places=4,
+        default=Decimal('0'),
+        verbose_name='Tổng SMV',
+        help_text='SL/SP × SMV áp dụng.',
+    )
+    smv_variance_pct = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        default=Decimal('0'),
+        verbose_name='Chênh lệch SMV (%)',
+    )
+    price_factor = models.DecimalField(
+        max_digits=12,
+        decimal_places=4,
+        default=Decimal('0'),
+        verbose_name='Hệ số đơn giá',
+    )
+    total_unit_price = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal('0'),
+        verbose_name='Tổng đơn giá',
+    )
+    machine = models.ForeignKey(
+        'san_xuat.SxMachine',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='sales_order_routing_lines',
+        verbose_name='Máy móc',
+    )
+    machine_code = models.CharField(max_length=40, blank=True, default='', verbose_name='Máy (mã)')
+    work_center = models.ForeignKey(
+        'san_xuat.SxWorkCenter',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='sales_order_routing_lines',
+        verbose_name='Bộ phận chịu trách nhiệm',
+    )
+    work_center_code = models.CharField(max_length=40, blank=True, default='', verbose_name='Bộ phận (mã)')
+    skill_level_label = models.CharField(max_length=60, blank=True, default='', verbose_name='Bậc kỹ năng')
+    critical_qc = models.BooleanField(default=False, verbose_name='QC trọng yếu')
+    notes = models.CharField(max_length=255, blank=True, default='', verbose_name='Ghi chú')
+    variance_explanation = models.CharField(
+        max_length=500,
+        blank=True,
+        default='',
+        verbose_name='Giải trình lệch SMV',
+        help_text='Bắt buộc khi |chênh lệch| > 15% trước khi xác nhận đơn.',
+    )
+
+    class Meta:
+        ordering = ['sales_order_line', 'seq_no']
+        verbose_name = 'Công đoạn đơn hàng'
+        verbose_name_plural = 'Công đoạn đơn hàng'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['sales_order_line', 'seq_no'],
+                name='sx_so_routing_line_seq_uniq',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.sales_order_line_id}#{self.seq_no} {self.op_code}'
+
+    def recompute(self) -> None:
+        from decimal import Decimal as D
+
+        qty = self.qty_per_garment or D('0')
+        applied = self.applied_unit_smv or D('0')
+        self.total_operation_smv = (qty * applied).quantize(D('0.0001'))
+        lib = self.library_unit_smv or D('0')
+        if lib:
+            self.smv_variance_pct = ((applied - lib) / lib * D('100')).quantize(D('0.01'))
+        else:
+            self.smv_variance_pct = D('0')
+
+    @property
+    def std_capacity_pcs_hour(self) -> Decimal:
+        smv = self.applied_unit_smv or Decimal('0')
+        if not smv:
+            return Decimal('0')
+        return (Decimal('60') / smv).quantize(Decimal('0.01'))
+
+    @property
+    def is_high_variance(self) -> bool:
+        return abs(self.smv_variance_pct or Decimal('0')) > Decimal('15')
+
+    def save(self, *args, **kwargs):
+        self.recompute()
+        super().save(*args, **kwargs)
 
 
 class SxSalesOrderPlanStep(models.Model):

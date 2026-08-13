@@ -1,4 +1,4 @@
-"""E2E: ĐĐH nháp → xác nhận → xếp hạng → Chuyển SX (chọn BOM) → LSX.
+"""E2E: ĐĐH + routing SMV áp dụng → xác nhận → GTKH theo đơn → xếp hạng → LSX.
 
 Chạy trên VPS:
   docker compose exec -T web python manage.py shell < scripts/_e2e_ddh_to_lsx.py
@@ -16,8 +16,12 @@ from django.test import Client
 from django.urls import reverse
 from django.utils import timezone
 
-from san_xuat.hub_models import SxMoProcessStep, SxProductionOrder, SxSalesOrder
+from san_xuat.hub_models import SxMoProcessStep, SxOrderPlanCost, SxProductionOrder, SxSalesOrder
+from san_xuat.ie_models import SxOperation, SxOperationGroup, SxRouting, SxRoutingLine
 from san_xuat.models import BomVersion, ProductTechDoc
+from san_xuat.services.costing import compute_costing, compute_costing_for_sales_line
+from san_xuat.services.order_routing import routings_for_product
+from san_xuat.services.plan_costing import build_order_sheet_from_kv
 from san_xuat.services.plan_board import (
     QUEUE_STATUSES,
     recompute_plan_ranks,
@@ -44,6 +48,59 @@ def fail(msg: str, detail: str = '') -> None:
     print('FAIL:', msg, detail)
 
 
+def _ensure_routing(doc, bom) -> SxRouting:
+    code = (doc.product_code or '').strip()
+    for routing in routings_for_product(code):
+        if routing.lines.filter(applied_unit_smv__gt=0).exists():
+            return routing
+    op = (
+        SxOperation.objects.filter(status=SxOperation.STATUS_APPROVED).order_by('id').first()
+        or SxOperation.objects.order_by('id').first()
+    )
+    if op is None:
+        grp = SxOperationGroup.objects.order_by('id').first()
+        if grp is None:
+            grp = SxOperationGroup.objects.create(code='E2E', name='E2E workflow')
+        op = SxOperation.objects.create(
+            group=grp,
+            op_code='E2E-9001',
+            op_rev='R01',
+            name_vi='E2E May',
+            base_smv_min=Decimal('1.5000'),
+            status=SxOperation.STATUS_APPROVED,
+        )
+    rid = f'E2E-{code}-R01'[:80]
+    routing, _created = SxRouting.objects.get_or_create(
+        routing_id=rid,
+        defaults={
+            'style_code': code,
+            'style_name': doc.product_name or '',
+            'routing_rev': 'R01',
+            'tech_doc': doc,
+            'is_active': True,
+            'approval_status': SxRouting.APPROVAL_APPROVED,
+            'notes': 'E2E auto routing',
+        },
+    )
+    if not routing.lines.filter(applied_unit_smv__gt=0).exists():
+        smv = op.base_smv_min or Decimal('1.5000')
+        factor = Decimal('1000')
+        SxRoutingLine.objects.create(
+            routing=routing,
+            seq_no=10,
+            operation=op,
+            op_code=op.op_code,
+            op_rev=op.op_rev,
+            op_name_vi=op.name_vi,
+            library_unit_smv=smv,
+            applied_unit_smv=smv,
+            qty_per_garment=Decimal('1'),
+            price_factor=factor,
+            total_unit_price=(smv * factor).quantize(Decimal('0.01')),
+        )
+    return routing
+
+
 def main() -> int:
     User = get_user_model()
     user = (
@@ -54,7 +111,7 @@ def main() -> int:
         fail('no staff user')
         return 1
 
-    # --- 0) Tìm mã SP có ≥1 BOM + công đoạn ---
+    # --- 0) Tìm mã SP có BOM; gắn routing (có sẵn hoặc E2E) ---
     doc = None
     bom = None
     for d in ProductTechDoc.objects.order_by('-id')[:80]:
@@ -64,36 +121,68 @@ def main() -> int:
             .order_by('-created_at', '-id')
             .first()
         )
-        if b and b.process_steps.exists():
+        if b:
             doc, bom = d, b
-            break
+            if b.process_steps.exists():
+                break
     if not doc or not bom:
-        fail('no ProductTechDoc with BOM+process_steps')
+        fail('no ProductTechDoc with BOM')
         return 1
     product_code = (doc.product_code or '').strip()
-    ok(f'fixture product={product_code} bom=#{bom.pk} label={bom.version_label!r} steps={bom.process_steps.count()}')
+    routing = _ensure_routing(doc, bom)
+    ok(
+        f'fixture product={product_code} bom=#{bom.pk} routing={routing.routing_id} '
+        f'ops={routing.lines.count()} smv={routing.total_smv}'
+    )
 
-    # --- 1) Tạo ĐĐH nháp ---
+    # --- 1) Tạo ĐĐH nháp (BOM + routing) ---
     today = timezone.localdate()
     order = create_sales_order(
         customer_name='E2E QA Customer',
         request_date=today,
         due_date=today + timedelta(days=14),
-        notes='E2E DDH→LSX test — auto cleanup',
+        notes='E2E DDH→routing→GTKH→LSX — auto cleanup',
         user=user,
         lines=[
             LineInput(
                 product_code=product_code,
                 product_name=doc.product_name or '',
                 qty=Decimal('12'),
+                routing_id=routing.pk,
             ),
         ],
     )
     ok(f'1.create draft order={order.code} status={order.confirm_status} plan={order.plan_status}')
     if order.confirm_status != SxSalesOrder.CONFIRM_DRAFT:
         fail('draft confirm_status', order.confirm_status)
-    if order.lines.count() != 1:
-        fail('line count', str(order.lines.count()))
+    so_line = order.lines.get()
+    if so_line.routing_id != routing.pk:
+        fail('1.line routing', str(so_line.routing_id))
+    else:
+        ok('1.line has routing')
+    snaps = list(so_line.routing_lines.order_by('seq_no', 'id'))
+    if not snaps:
+        fail('1.snapshot empty')
+    else:
+        ok(f'1.snapshot {len(snaps)} CĐ SMV áp dụng={snaps[0].applied_unit_smv}')
+
+    # --- 1b) Xác nhận không routing phải chặn ---
+    bare = create_sales_order(
+        customer_name='E2E no routing',
+        request_date=today,
+        lines=[LineInput(product_code=product_code, qty=Decimal('1'))],
+        user=user,
+    )
+    try:
+        confirm_sales_order(order_id=bare.pk)
+        fail('1b.confirm without routing should raise')
+    except PlanningError as exc:
+        if 'routing' in str(exc).lower() or 'công đoạn' in str(exc).lower():
+            ok(f'1b.confirm without routing blocked: {exc}')
+        else:
+            fail('1b.wrong error', str(exc))
+    bare.lines.all().delete()
+    bare.delete()
 
     # --- 2) Xác nhận → hàng đợi ---
     order = confirm_sales_order(order_id=order.pk)
@@ -110,6 +199,34 @@ def main() -> int:
         fail('plan_queued_at missing')
     else:
         ok('2.plan_queued_at set')
+
+    # --- 2b) GTKH theo đơn = NVL BOM + nhân công SMV áp dụng ---
+    so_line = order.lines.select_related('bom_version').prefetch_related('routing_lines').get()
+    order_costing = compute_costing_for_sales_line(so_line)
+    bom_costing = compute_costing(bom)
+    if order_costing.labor_cost <= 0 and not snaps:
+        fail('2b.GTKH labor=0 and no snapshot')
+    else:
+        ok(f'2b.GTKH labor={order_costing.labor_cost} (BOM ProcessStep labor={bom_costing.labor_cost})')
+    sheet = None
+    try:
+        sheet = build_order_sheet_from_kv(
+            name=f'E2E GTKH {order.code}',
+            date_from=today,
+            date_to=today,
+            kv_order_code=order.code,
+            code=f'E2E-{order.code}'[:40],
+        )
+        cl = sheet.lines.get()
+        unit = order_costing.total_cost.quantize(Decimal('0.01'))
+        if cl.unit_cost != unit:
+            fail('2b.GTKH unit_cost', f'got {cl.unit_cost} want {unit}')
+        else:
+            ok(f'2b.GTKH sheet {sheet.code} unit={cl.unit_cost} qty={cl.qty} total={sheet.total_cost}')
+        if cl.qty != Decimal('12.00'):
+            fail('2b.GTKH qty', str(cl.qty))
+    except Exception as exc:
+        fail('2b.GTKH build', f'{type(exc).__name__}: {exc}')
 
     # --- 3) Xếp hạng ---
     n = recompute_plan_ranks()
@@ -162,16 +279,18 @@ def main() -> int:
         else:
             ok('4c.MO linked to sales order')
         steps = list(mo.mo_process_steps.order_by('sequence', 'id'))
-        bom_step_names = list(
-            bom.process_steps.order_by('sequence', 'id').values_list('process_name', flat=True)
-        )
+        snap_names = [
+            (s.op_name_vi or s.op_code or '').strip()
+            for s in so_line.routing_lines.order_by('seq_no', 'id')
+        ]
+        snap_names = [n for n in snap_names if n]
         mo_names = [s.process_name for s in steps]
         if not steps:
             fail('4c.MO has no process steps')
-        elif [n.strip().casefold() for n in mo_names] != [n.strip().casefold() for n in bom_step_names]:
-            fail('4c.steps mismatch', f'mo={mo_names} bom={bom_step_names}')
+        elif snap_names and [n.strip().casefold() for n in mo_names] != [n.strip().casefold() for n in snap_names]:
+            fail('4c.steps mismatch snapshot', f'mo={mo_names} snap={snap_names}')
         else:
-            ok(f'4c.MO process steps from BOM ({len(steps)})')
+            ok(f'4c.MO process steps from SMV snapshot đơn ({len(steps)})')
 
     order.refresh_from_db()
     if order.plan_status != SxSalesOrder.PLAN_RELEASED:
@@ -204,7 +323,7 @@ def main() -> int:
         due_date=today + timedelta(days=10),
         notes='E2E HTTP release',
         user=user,
-        lines=[LineInput(product_code=product_code, qty=Decimal('5'))],
+        lines=[LineInput(product_code=product_code, qty=Decimal('5'), routing_id=routing.pk)],
     )
     confirm_sales_order(order_id=order2.pk)
     recompute_plan_ranks()
@@ -274,7 +393,11 @@ def main() -> int:
     else:
         ok(f'5.HTTP MO {mo2.code} bom ok, plan={order2.plan_status}')
 
-    # --- cleanup test orders/MOs ---
+    # --- cleanup test orders/MOs / GTKH ---
+    if sheet is not None:
+        sheet.lines.all().delete()
+        sheet.delete()
+        ok('cleanup deleted E2E GTKH sheet')
     for o in (order, order2):
         o.production_orders.all().delete()
         o.plan_steps.all().delete()

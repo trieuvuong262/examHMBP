@@ -131,11 +131,6 @@
                  value="{% if edit_line %}{{ edit_line.qty_per_garment|sx_num_input }}{% else %}1{% endif %}">
         </div>
         <div class="col-4 col-md-1">
-          <label class="form-label small mb-0">SMV áp dụng <span class="text-danger">*</span></label>
-          <input type="text" name="applied_unit_smv" class="form-control form-control-sm" required
-                 value="{% if edit_line %}{{ edit_line.applied_unit_smv|sx_num_input }}{% endif %}">
-        </div>
-        <div class="col-4 col-md-1">
           <label class="form-label small mb-0">SMV chuẩn</label>
           <input type="text" name="library_unit_smv" class="form-control form-control-sm"
                  value="{% if edit_line %}{{ edit_line.library_unit_smv|sx_num_input }}{% endif %}" placeholder="auto">

@@ -133,5 +133,6 @@ PortalJustPlay/
 | `python manage.py backup_to_nas`             | Sao lưu lên NAS (cron 00:00)              |
 | `python manage.py send_meal_push_reminders`  | Nhắc đặt cơm qua Web Push                 |
 | `python manage.py cleanup_orphan_media`      | Dọn file media không còn tham chiếu       |
+| `python manage.py cleanup_activity_logs`     | Xóa nhật ký thao tác cũ hơn 7 ngày        |
 
 Xem đầy đủ trong các thư mục `*/management/commands/`.

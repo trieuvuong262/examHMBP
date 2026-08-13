@@ -29,11 +29,11 @@ class SalesOrderHeaderForm(forms.Form):
         }),
     )
     request_date = forms.DateField(
-        label='Ngày yêu cầu',
+        label='Ngày dự kiến thực hiện',
         widget=forms.DateInput(attrs={'class': 'form-control form-control-sm jp-date-vn', 'type': 'date'}),
     )
     due_date = forms.DateField(
-        label='Hạn sản xuất',
+        label='Ngày dự kiến hoàn thành',
         widget=forms.DateInput(attrs={'class': 'form-control form-control-sm jp-date-vn', 'type': 'date'}),
     )
     notes = forms.CharField(

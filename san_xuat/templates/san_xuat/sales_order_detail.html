@@ -88,11 +88,11 @@
           <div class="fw-semibold">{{ order.customer_name|default:"—" }}</div>
         </div>
         <div class="col-md-4">
-          <div class="text-muted">Ngày yêu cầu</div>
+          <div class="text-muted">Ngày dự kiến thực hiện</div>
           <div class="fw-semibold">{{ order.request_date|date:"d/m/Y" }}</div>
         </div>
         <div class="col-md-4">
-          <div class="text-muted">Hạn sản xuất</div>
+          <div class="text-muted">Ngày dự kiến hoàn thành</div>
           <div class="fw-semibold">{% if order.due_date %}{{ order.due_date|date:"d/m/Y" }}{% else %}—{% endif %}</div>
         </div>
         <div class="col-md-4">
@@ -217,5 +217,10 @@
       </div>
     </div>
   </div>
+
+  {% include 'san_xuat/includes/sales_order_routing.html' %}
 </div>
+{% if can_edit_order_routing %}
+{% include 'san_xuat/includes/ie_operation_select_script.html' %}
+{% endif %}
 {% endblock %}

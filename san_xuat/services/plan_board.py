@@ -16,7 +16,7 @@ from django.utils import timezone
 from san_xuat.hub_models import SxProductionOrder, SxSalesOrder, SxSalesOrderLine, SxWorkCenter
 from san_xuat.services.dispatch import DispatchError, create_mo_from_bom
 from san_xuat.services.planning import PlanningError
-from san_xuat.services.scheduling import product_routing
+from san_xuat.services.order_routing import sales_order_line_routing, steps_dicts_from_order_line
 from san_xuat.templatetags.sx_format import format_sx_num_input
 
 _Q2 = Decimal('0.01')
@@ -139,7 +139,7 @@ def _enrich_routing(order: SxSalesOrder, lines: list[SxSalesOrderLine]) -> tuple
     total_min = Decimal('0')
     has_any = False
     for ln in lines:
-        routing = product_routing(ln.product_code)
+        routing = sales_order_line_routing(ln)
         qty = ln.qty_to_produce
         if routing.has_time_data:
             has_any = True
@@ -210,7 +210,12 @@ def build_plan_board_rows(
             confirm_status=SxSalesOrder.CONFIRM_CONFIRMED,
         )
         .prefetch_related(
-            Prefetch('lines', queryset=SxSalesOrderLine.objects.order_by('sort_order', 'id')),
+            Prefetch(
+                'lines',
+                queryset=SxSalesOrderLine.objects.order_by('sort_order', 'id').prefetch_related(
+                    'routing_lines__work_center',
+                ),
+            ),
             Prefetch(
                 'production_orders',
                 queryset=SxProductionOrder.objects.filter(is_demo=False).order_by('-order_date', 'code'),
@@ -409,7 +414,7 @@ def release_order_to_production(
 
     order = (
         SxSalesOrder.objects.select_for_update()
-        .prefetch_related('lines', 'plan_steps')
+        .prefetch_related('lines__routing_lines__work_center', 'plan_steps')
         .get(pk=order_id, is_demo=False)
     )
     if order.confirm_status != SxSalesOrder.CONFIRM_CONFIRMED:
@@ -477,8 +482,8 @@ def release_order_to_production(
                 bom_version_id=bom_id,
                 routing_id=routing_id,
             )
-            # Ưu tiên snapshot CD từ routing đã chọn; không thì BOM (+ ngày KH Kanban)
-            routing_steps = steps_dicts_from_routing(routing_id)
+            # Ưu tiên snapshot CĐ trên dòng đơn; fallback routing mã hàng; không thì BOM
+            routing_steps = steps_dicts_from_order_line(ln) or steps_dicts_from_routing(routing_id)
             if routing_steps:
                 if planned_by_name:
                     for row in routing_steps:

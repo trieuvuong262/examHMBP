@@ -184,6 +184,9 @@ def _replace_lines(order: SxSalesOrder, lines: list[LineInput]) -> None:
     if not rows:
         raise PlanningError('Đơn phải có ít nhất một dòng sản phẩm hợp lệ.')
     SxSalesOrderLine.objects.bulk_create(rows)
+    from san_xuat.services.order_routing import seed_order_routing
+
+    seed_order_routing(order)
 
 
 @transaction.atomic
@@ -195,6 +198,9 @@ def confirm_sales_order(*, order_id: int, user=None) -> SxSalesOrder:
         raise PlanningError('Đơn đã từ chối — không xác nhận lại được.')
     if not order.lines.exists():
         raise PlanningError('Đơn chưa có dòng sản phẩm.')
+    from san_xuat.services.order_routing import assert_order_ready_to_confirm
+
+    assert_order_ready_to_confirm(order)
     order.confirm_status = SxSalesOrder.CONFIRM_CONFIRMED
     order.reject_reason = ''
     order.confirmed_at = timezone.now()

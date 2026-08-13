@@ -18,7 +18,7 @@ from san_xuat.hub_models import (
     SxWorkCenter,
 )
 from san_xuat.services.planning import PlanningError
-from san_xuat.services.scheduling import product_routing
+from san_xuat.services.order_routing import sales_order_line_routing
 from san_xuat.services.work_calendar import working_days
 
 _Q4 = Decimal('0.0001')
@@ -80,8 +80,8 @@ def ensure_order_plan_steps(order: SxSalesOrder) -> list[SxSalesOrderPlanStep]:
         return []
 
     merged: dict[str, dict] = {}
-    for ln in order.lines.all().order_by('sort_order', 'id'):
-        routing = product_routing(ln.product_code)
+    for ln in order.lines.prefetch_related('routing_lines__work_center').order_by('sort_order', 'id'):
+        routing = sales_order_line_routing(ln)
         for step in routing.steps:
             name = (step.process_name or '').strip()
             if not name:

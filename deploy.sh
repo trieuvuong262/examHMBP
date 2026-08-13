@@ -355,6 +355,9 @@ else
   compose exec -T web python manage.py cleanup_orphan_media
 fi
 
+echo "==> 11b) Cleanup nhật ký thao tác cũ hơn 7 ngày"
+compose exec -T web python manage.py cleanup_activity_logs || echo "    WARNING: cleanup_activity_logs failed"
+
 echo "==> 12) Show status"
 compose ps
 
@@ -363,6 +366,13 @@ if [[ -f scripts/setup-schedule-reminder-cron.sh ]]; then
   bash scripts/setup-schedule-reminder-cron.sh || echo "    WARNING: setup-schedule-reminder-cron.sh failed"
 else
   echo "    WARNING: scripts/setup-schedule-reminder-cron.sh not found"
+fi
+
+echo "==> 12b) Cron xóa nhật ký thao tác > 7 ngày (03:15 hàng ngày)"
+if [[ -f scripts/setup-activity-log-cleanup-cron.sh ]]; then
+  bash scripts/setup-activity-log-cleanup-cron.sh || echo "    WARNING: setup-activity-log-cleanup-cron.sh failed"
+else
+  echo "    WARNING: scripts/setup-activity-log-cleanup-cron.sh not found"
 fi
 
 if [[ -f scripts/setup-production-report-reminder-cron.sh ]]; then
@@ -391,6 +401,8 @@ echo "  sudo bash scripts/setup-schedule-reminder-cron.sh"
 echo "  sudo bash scripts/setup-production-report-reminder-cron.sh"
 echo "Backup NAS 00:00 hàng ngày (DB + source + media):"
 echo "  sudo bash scripts/setup-backup-cron.sh"
+echo "Xóa nhật ký thao tác cũ hơn 7 ngày (03:15 hàng ngày):"
+echo "  sudo bash scripts/setup-activity-log-cleanup-cron.sh"
 echo ""
 echo "Auto deploy: xem docs/HUONG_DAN_AUTO_DEPLOY.md"
 echo "Optional — tạo dữ liệu demo:"

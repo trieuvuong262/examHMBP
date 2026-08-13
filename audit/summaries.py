@@ -66,6 +66,11 @@ FIELD_LABELS: dict[str, str] = {
 # Nút submit / intent trong form
 SUBMIT_BUTTON_LABELS: dict[str, str] = {
     'save': 'Lưu',
+    'save_draft': 'Lưu nháp',
+    'save_header': 'Lưu thông tin',
+    'save_bom': 'Lưu BOM',
+    'save_description': 'Lưu mô tả',
+    'save_overhead': 'Lưu chi phí',
     'submit': 'Gửi',
     'create': 'Tạo mới',
     'update': 'Cập nhật',
@@ -88,7 +93,43 @@ SUBMIT_BUTTON_LABELS: dict[str, str] = {
     'apply': 'Áp dụng',
     'filter': 'Lọc',
     'search': 'Tìm kiếm',
+    'bulk_approve': 'Duyệt hàng loạt',
+    'bulk_reject': 'Từ chối hàng loạt',
+    'snapshot': 'Chụp snapshot',
 }
+
+ACTION_VERB_LABELS: dict[str, str] = {
+    'save': 'Lưu',
+    'add': 'Thêm',
+    'edit': 'Sửa',
+    'delete': 'Xóa',
+    'create': 'Tạo',
+    'update': 'Cập nhật',
+    'approve': 'Duyệt',
+    'reject': 'Từ chối',
+    'confirm': 'Xác nhận',
+    'upload': 'Tải lên',
+    'download': 'Tải xuống',
+    'export': 'Xuất',
+    'import': 'Nhập',
+    'attach': 'Gắn',
+    'reset': 'Đặt lại',
+    'clone': 'Sao chép',
+    'submit': 'Gửi',
+    'send': 'Gửi',
+    'publish': 'Xuất bản',
+    'toggle': 'Bật/tắt',
+    'search': 'Tìm kiếm',
+    'filter': 'Lọc',
+    'apply': 'Áp dụng',
+    'copy': 'Sao chép',
+    'open': 'Mở',
+    'view': 'Xem',
+}
+
+CLICKED_BUTTON_POST_KEY = 'jp_clicked_button'
+CLICKED_BUTTON_COOKIE = 'jp_clicked_btn'
+CLICKED_BUTTON_HEADER = 'X-Clicked-Button'
 
 # url_name → mô tả theo method (GET=xem/mở, POST=thao tác)
 # Placeholder {key} lấy từ resolver kwargs
@@ -535,7 +576,7 @@ def _post_form_section_labels(request: HttpRequest, url_name: str) -> list[str]:
         if report_date:
             sections.append(f'Ngày BC {report_date}')
     else:
-        button = _detect_submit_button(request)
+        button = get_clicked_button_label(request)
         if button:
             sections.append(f'Nút [{button}]')
     return sections
@@ -913,6 +954,7 @@ SKIP_POST_KEYS = frozenset({
     'action',
     'client_hostname',
     'client_local_ip',
+    CLICKED_BUTTON_POST_KEY,
 })
 
 
@@ -923,24 +965,116 @@ def _format_template(template: str, kwargs: dict) -> str:
         return template
 
 
+def _humanize_action_token(raw: str) -> str:
+    text = ' '.join(str(raw or '').split())
+    if not text:
+        return ''
+    key = text.lower().replace('-', '_').replace(' ', '_')
+    if key in SUBMIT_BUTTON_LABELS:
+        return SUBMIT_BUTTON_LABELS[key]
+    parts = [p for p in key.split('_') if p]
+    if not parts:
+        return text[:80]
+    if parts[0] == 'bulk' and len(parts) >= 2:
+        bulk_key = '_'.join(parts)
+        if bulk_key in SUBMIT_BUTTON_LABELS:
+            return SUBMIT_BUTTON_LABELS[bulk_key]
+        verb = ACTION_VERB_LABELS.get(parts[1], parts[1])
+        return f'{verb} hàng loạt'
+    if parts[0] in ACTION_VERB_LABELS:
+        verb = ACTION_VERB_LABELS[parts[0]]
+        rest_parts = parts[1:]
+        if not rest_parts:
+            return verb
+        rest = ' '.join(rest_parts)
+        rest_disp = rest.upper() if len(rest) <= 4 else rest
+        return f'{verb} {rest_disp}'
+    return text[:80]
+
+
+def _normalize_button_label(raw: str) -> str:
+    text = ' '.join(str(raw or '').split())[:80]
+    if not text:
+        return ''
+    mapped = SUBMIT_BUTTON_LABELS.get(text.lower().replace(' ', '_'))
+    return mapped or text
+
+
 def _detect_submit_button(request: HttpRequest) -> str:
     post = getattr(request, 'POST', None)
     if not post:
         return ''
+
+    for key in ('action', 'submit', 'intent', 'op'):
+        value = post.get(key)
+        if isinstance(value, str) and value.strip() and value.strip() not in {'***'}:
+            label = _humanize_action_token(value.strip())
+            if label:
+                return label
+
     for key in post:
         if key in SKIP_POST_KEYS:
             continue
-        if key.lower() in SUBMIT_BUTTON_LABELS:
-            return SUBMIT_BUTTON_LABELS[key.lower()]
+        lowered = key.lower()
+        if lowered in SUBMIT_BUTTON_LABELS:
+            return SUBMIT_BUTTON_LABELS[lowered]
         if key.startswith('btn_') or key.endswith('_submit'):
-            label = key.replace('_', ' ').replace('btn ', '').strip()
-            return label.title()
+            return _humanize_action_token(key.replace('btn_', '', 1).removesuffix('_submit'))
+
     for key, value in post.items():
         if key in SKIP_POST_KEYS:
             continue
         if isinstance(value, str) and value.lower() in SUBMIT_BUTTON_LABELS:
             return SUBMIT_BUTTON_LABELS[value.lower()]
     return ''
+
+
+def get_clicked_button_label(request: HttpRequest) -> str:
+    """Nút người dùng vừa bấm — hidden field / header / cookie / field form."""
+    post = getattr(request, 'POST', None)
+    if post:
+        raw = (post.get(CLICKED_BUTTON_POST_KEY) or '').strip()
+        if raw:
+            return _normalize_button_label(raw)
+
+    headers = getattr(request, 'headers', None)
+    if headers:
+        header = (headers.get(CLICKED_BUTTON_HEADER) or '').strip()
+        if header:
+            return _normalize_button_label(header)
+
+    cookies = getattr(request, 'COOKIES', None) or {}
+    cookie = (cookies.get(CLICKED_BUTTON_COOKIE) or '').strip()
+    if cookie:
+        return _normalize_button_label(cookie)
+
+    return _detect_submit_button(request)
+
+
+def _button_already_in_text(summary: str, button: str) -> bool:
+    if not summary or not button:
+        return True
+    lowered = summary.lower()
+    b = button.lower()
+    if f'nút [{b}]' in lowered:
+        return True
+    if f'bấm {b}' in lowered:
+        return True
+    if len(b) >= 4 and b in lowered:
+        return True
+    return False
+
+
+def append_button_to_summary(summary: str, button: str, *, max_len: int = 500) -> str:
+    if not button or not summary or _button_already_in_text(summary, button):
+        return summary
+    extra = f' — nút [{button}]'
+    if len(summary) + len(extra) > max_len:
+        keep = max_len - len(extra)
+        if keep < 20:
+            return summary[:max_len]
+        return summary[:keep] + extra
+    return summary + extra
 
 
 def _label_for_field(key: str) -> str:
@@ -993,7 +1127,7 @@ def describe_post_highlights(request: HttpRequest, url_name: str) -> str:
         if value:
             parts.append(f'{_label_for_field(key)}: {value}')
 
-    button = _detect_submit_button(request)
+    button = get_clicked_button_label(request)
     if button and not parts:
         return f'nút [{button}]'
 
@@ -1205,14 +1339,18 @@ def build_detailed_summary(
 
     resolver = getattr(request, 'resolver_match', None)
     url_name = getattr(resolver, 'url_name', '') or ''
+    button = get_clicked_button_label(request)
 
     if action == UserActivityLog.ACTION_LOGIN:
-        return f'{display} đăng nhập thành công vào portal'
+        return append_button_to_summary(f'{display} đăng nhập thành công vào portal', button)
     if action == UserActivityLog.ACTION_LOGOUT:
-        return f'{display} bấm Đăng xuất khỏi hệ thống'
+        return append_button_to_summary(f'{display} bấm Đăng xuất khỏi hệ thống', button)
     if action == UserActivityLog.ACTION_LOGIN_FAILED:
         username = request.POST.get('username', 'Không rõ') if hasattr(request, 'POST') else 'Không rõ'
-        return f'Đăng nhập thất bại — thử tài khoản [{username}]'
+        return append_button_to_summary(
+            f'Đăng nhập thất bại — thử tài khoản [{username}]',
+            button,
+        )
 
     detail = resolve_url_description(request, url_name)
 
@@ -1238,8 +1376,10 @@ def build_detailed_summary(
     prefix = prefix_map.get(action, 'đã')
 
     if detail.startswith(('xem ', 'mở ', 'tải ', 'chuyển ', 'thao tác ', 'gửi form ')):
-        return f'{display} {detail}'
-    if detail.startswith(('tạo ', 'cập nhật ', 'xóa ', 'lưu ', 'nộp ', 'đăng ', 'nhập ', 'xuất ', 'đặt ', 'bật/', 'chuyển ', 'đánh dấu ', 'bấm ', 'gửi ', 'thêm ', 'sửa ', 'đổi ')):
-        return f'{display} {detail}'
+        summary = f'{display} {detail}'
+    elif detail.startswith(('tạo ', 'cập nhật ', 'xóa ', 'lưu ', 'nộp ', 'đăng ', 'nhập ', 'xuất ', 'đặt ', 'bật/', 'chuyển ', 'đánh dấu ', 'bấm ', 'gửi ', 'thêm ', 'sửa ', 'đổi ')):
+        summary = f'{display} {detail}'
+    else:
+        summary = f'{display} {prefix} {detail}'
 
-    return f'{display} {prefix} {detail}'
+    return append_button_to_summary(summary, button)

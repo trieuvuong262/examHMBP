@@ -27,7 +27,7 @@ Portal landing (`hub_costing.html`) **đã khớp 2 mục đầu** — giữ URL
 
 ```text
 BOM active + ProcessStep + giá NPL (kho_npl)
-        │  compute_costing()  [đã có]
+        │  compute_costing()  [GTDM / hồ sơ]
         ▼
 ┌──────────────────────────┐
 │ Hồ sơ SX / tab Costing   │  SoT chi tiết 1 SP (live + snapshot)
@@ -35,12 +35,14 @@ BOM active + ProcessStep + giá NPL (kho_npl)
              │ xuất / chốt vào bảng kỳ
              ▼
 ┌──────────────────────────┐
-│ Bảng GT định mức (GTDM)  │  nhiều SP × kỳ; nguồn Theo BOM | Tự nhập
-└────────────┬─────────────┘
-             │ × SL đơn KV + chi phí thêm (optional)
-             ▼
+│ Bảng GT định mức (GTDM)  │  nhiều SP × kỳ; NVL + NC ProcessStep + phụ phí
+└──────────────────────────┘
+
+ĐĐH Portal + snapshot SMV áp dụng + BOM NVL
+        │  compute_costing_for_sales_line()
+        ▼
 ┌──────────────────────────┐
-│ Bảng GTKH theo đơn (GTĐH)│  đơn × dòng SP → tổng giá thành kế hoạch
+│ Bảng GTKH theo đơn (GTĐH)│  NVL BOM + NC SMV áp dụng + phụ phí BOM × SL đơn
 └──────────────────────────┘
 ```
 
@@ -85,14 +87,17 @@ Khi `source=manual`: user nhập `unit_cost` (và optionally 3 thành phần).
 | Cột động (vận chuyển, lưu kho, …) | MVP: `extra_cost` trên dòng/đơn; phase sau bảng `CostExtraItem` |
 
 ```text
-line.plan_cost = line.qty × standard_unit_cost + line.extra_cost
+line.plan_cost = line.qty × unit_cost + line.extra_cost
 sheet.total_plan_cost = Σ line.plan_cost
 ```
 
-`standard_unit_cost` lấy từ:
+`unit_cost` khi khớp ĐĐH Portal:
 
-1. `StandardCostLine` của bảng GTDM đã **confirmed** (cùng SP, kỳ giao nhau), hoặc  
-2. Fallback: `compute_costing(bom_active).total_cost` / snapshot mới nhất.
+1. NVL + phụ phí từ BOM của dòng đơn  
+2. Nhân công = SMV áp dụng snapshot (`Tổng đơn giá`, hoặc SMV × hệ số × SL/SP)  
+3. **Không** lấy nhân công ProcessStep / GTDM — GTDM vẫn dùng cho bảng định mức sản phẩm  
+
+Không có ĐĐH Portal (chỉ đơn KV): giữ GTDM confirmed hoặc `compute_costing(BOM ProcessStep)`.
 
 ### 3.3 Thuê gia công
 
@@ -160,7 +165,7 @@ Không clone engine cột động `ColumnCostItemCustom` AMIS ở MVP.
 |-----|---------|
 | `/gia-thanh/` | Landing 2 mục + link Hồ sơ Costing (đã có) |
 | `/gia-thanh/dinh-muc/` | List bảng GTDM; tạo wizard ngắn: kỳ → chọn SP có BOM active → tính → confirm |
-| `/gia-thanh/theo-don/` | List bảng GTĐH; tạo: kỳ → chọn đơn KV trong kỳ → lấy GTDM → tính tổng |
+| `/gia-thanh/theo-don/` | List bảng GTĐH; tạo: kỳ → mã đơn Portal/KV → NVL BOM + NC SMV áp dụng |
 | `/san-xuat/ho-so/…?tab=costing` | SoT chi tiết (giữ) — deep-link từ dòng GTDM |
 
 **Không stub trống:** màn định mức MVP có thể **redirect/list** các `CostingSnapshot` + nút “Tạo bảng kỳ” nếu chưa làm full sheet — nhưng mục tiêu là sheet thật (C0–C1).
@@ -187,11 +192,12 @@ C0 tận dụng code sẵn — ship nhanh. C1–C2 mới là “bảng” kiểu
 san_xuat/services/plan_costing.py
   build_standard_sheet_from_bom(sheet, product_codes) -> lines  # dùng compute_costing
   confirm_standard_sheet(sheet_id)
-  build_order_sheet_from_kv(sheet, order_ids, standard_sheet_id=None) -> lines
-  resolve_unit_standard_cost(product_code, *, standard_sheet=None) -> Decimal
+  build_order_sheet_from_kv(...)  # ưu tiên ĐĐH Portal + SMV áp dụng
+  compute_costing_for_sales_line(so_line)
+  resolve_unit_standard_cost(product_code, *, standard_sheet=None) -> Decimal  # GTDM / fallback KV
 ```
 
-Reuse: `compute_costing`, `save_costing_snapshot`, KV order lookup (module `kiotviet`).
+Reuse: `compute_costing` (GTDM), `compute_costing_for_sales_line` (GTKH theo đơn), KV lookup khi không có ĐĐH Portal.
 
 ---
 
@@ -206,7 +212,7 @@ Confirm sheet: dùng `edit` hoặc thêm `costing_confirm` sau.
 
 1. **Hồ sơ SX = SoT định mức chi tiết**; AMIS “bảng định mức” = lớp tổng hợp theo kỳ trên Portal.  
 2. **Không engine cột chi phí động** — NVL/NC/phụ phí (+ extra đơn giản).  
-3. **Đơn từ KiotViet**, không SO AMIS.  
+3. **Đơn ưu tiên ĐĐH Portal** (SMV áp dụng); fallback KiotViet khi chưa lên Portal.  
 4. **Thuê gia công** không nằm trong hub giá thành.  
 5. Giá NPL lấy `kho_npl`, không kho AMIS.
 

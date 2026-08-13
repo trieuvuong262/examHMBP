@@ -10,7 +10,7 @@ from django.utils import timezone
 from san_xuat.hub_models import SxStandardCostLine, SxStandardCostSheet
 from san_xuat.models import ProductTechDoc
 from san_xuat.services.bom import get_active_bom, get_working_bom
-from san_xuat.services.costing import compute_costing
+from san_xuat.services.costing import compute_costing, compute_costing_for_sales_line
 from san_xuat.services.sx_settings import sx_prefix
 
 
@@ -174,6 +174,187 @@ def resolve_unit_standard_cost(
     return compute_costing(bom).total_cost
 
 
+def resolve_sales_order_for_plan_cost(
+    *,
+    kv_order_code: str = '',
+    kv_order_kiotviet_id: int | None = None,
+):
+    """Tìm ĐĐH Portal (SoT) theo mã Portal hoặc mã/id KV."""
+    from django.db.models import Q
+
+    from san_xuat.hub_models import SxSalesOrder
+
+    qs = SxSalesOrder.objects.filter(is_demo=False)
+    if kv_order_kiotviet_id:
+        hit = qs.filter(kv_order_kiotviet_id=kv_order_kiotviet_id).first()
+        if hit:
+            return hit
+    code = (kv_order_code or '').strip()
+    if not code:
+        return None
+    return (
+        qs.filter(Q(code__iexact=code) | Q(kv_order_code__iexact=code))
+        .order_by('-request_date', '-id')
+        .first()
+    )
+
+
+def _unit_cost_for_sales_line(so_line) -> Decimal:
+    """Đơn giá GTKH / cái: NVL BOM + nhân công SMV áp dụng đơn + phụ phí BOM."""
+    return compute_costing_for_sales_line(so_line).total_cost.quantize(Decimal('0.01'))
+
+
+def _prepare_order_sheet(
+    *,
+    name: str,
+    date_from,
+    date_to,
+    code: str | None,
+    notes: str,
+    sheet_id: int | None,
+    order_label: str,
+    kv_order_code: str = '',
+    kv_order_kiotviet_id: int | None = None,
+):
+    from san_xuat.hub_models import SxOrderPlanCost
+
+    if sheet_id:
+        sheet = SxOrderPlanCost.objects.select_for_update().prefetch_related(
+            "lines__typed_extras__cost_type",
+        ).get(pk=sheet_id)
+        if sheet.status != SxOrderPlanCost.STATUS_DRAFT:
+            raise PlanCostingError("Chỉ cập nhật bảng GTĐH ở trạng thái nháp.")
+        preserved_extras = {
+            (line.product_code or "").strip().upper(): line.extra_cost or Decimal("0")
+            for line in sheet.lines.all()
+        }
+        preserved_typed: dict[str, dict[str, Decimal]] = {}
+        for line in sheet.lines.all():
+            key = (line.product_code or "").strip().upper()
+            preserved_typed[key] = {
+                (ex.cost_type.code or "").strip().upper(): ex.amount or Decimal("0")
+                for ex in line.typed_extras.all()
+            }
+        sheet.lines.all().delete()
+        sheet.name = (name or "").strip() or sheet.name
+        sheet.date_from = date_from
+        sheet.date_to = date_to
+        sheet.kv_order_code = kv_order_code or sheet.kv_order_code
+        sheet.kv_order_kiotviet_id = kv_order_kiotviet_id if kv_order_kiotviet_id is not None else sheet.kv_order_kiotviet_id
+        sheet.notes = notes or sheet.notes
+        sheet.save(
+            update_fields=["name", "date_from", "date_to", "kv_order_code", "kv_order_kiotviet_id", "notes"],
+        )
+        return sheet, preserved_extras, preserved_typed
+
+    sheet = SxOrderPlanCost.objects.create(
+        code=_code("cost_order", SxOrderPlanCost, code=code),
+        name=(name or "").strip() or f"GTKH đơn {order_label}",
+        kv_order_code=kv_order_code or "",
+        kv_order_kiotviet_id=kv_order_kiotviet_id,
+        date_from=date_from,
+        date_to=date_to,
+        status=SxOrderPlanCost.STATUS_DRAFT,
+        total_cost=Decimal("0"),
+        notes=notes or "",
+        is_demo=False,
+    )
+    return sheet, {}, {}
+
+
+def _restore_typed_extras(sheet, preserved_typed: dict) -> None:
+    if not preserved_typed:
+        return
+    from san_xuat.hub_models import SxCostType, SxOrderPlanCostLineExtra
+
+    type_by_code = {
+        (ct.code or "").strip().upper(): ct
+        for ct in SxCostType.objects.filter(is_demo=False)
+    }
+    extras_to_create: list[SxOrderPlanCostLineExtra] = []
+    for line in sheet.lines.all():
+        typed = preserved_typed.get((line.product_code or "").strip().upper(), {})
+        for type_code, amount in typed.items():
+            ct = type_by_code.get(type_code)
+            if not ct or amount is None:
+                continue
+            extras_to_create.append(
+                SxOrderPlanCostLineExtra(
+                    line=line,
+                    cost_type=ct,
+                    amount=Decimal(str(amount)).quantize(Decimal("0.01")),
+                )
+            )
+    if extras_to_create:
+        SxOrderPlanCostLineExtra.objects.bulk_create(extras_to_create)
+
+
+def _build_order_sheet_from_sales_order(
+    so,
+    *,
+    name: str,
+    date_from,
+    date_to,
+    code: str | None,
+    notes: str,
+    sheet_id: int | None,
+):
+    from san_xuat.hub_models import SxOrderPlanCostLine
+
+    lines = list(
+        so.lines.select_related('bom_version').prefetch_related('routing_lines').order_by('sort_order', 'id')
+    )
+    if not lines:
+        raise PlanCostingError(f"Đơn {so.code} chưa có dòng sản phẩm.")
+
+    sheet, preserved_extras, preserved_typed = _prepare_order_sheet(
+        name=name,
+        date_from=date_from,
+        date_to=date_to,
+        code=code,
+        notes=notes,
+        sheet_id=sheet_id,
+        order_label=so.code,
+        kv_order_code=so.kv_order_code or so.code,
+        kv_order_kiotviet_id=so.kv_order_kiotviet_id,
+    )
+
+    create_lines: list[SxOrderPlanCostLine] = []
+    total = Decimal("0")
+    for so_line in lines:
+        product_code = (so_line.product_code or "").strip()
+        qty = (so_line.qty_to_produce or Decimal("0")).quantize(Decimal("0.01"))
+        if not product_code or qty <= 0:
+            continue
+        unit_cost = _unit_cost_for_sales_line(so_line)
+        typed = preserved_typed.get(product_code.upper(), {})
+        extra_cost = (
+            sum(typed.values(), Decimal("0")).quantize(Decimal("0.01"))
+            if typed else preserved_extras.get(product_code.upper(), Decimal("0"))
+        )
+        line_cost = (unit_cost * qty + extra_cost).quantize(Decimal("0.01"))
+        total += line_cost
+        create_lines.append(
+            SxOrderPlanCostLine(
+                sheet=sheet,
+                product_code=product_code,
+                product_name=(so_line.product_name or "").strip(),
+                qty=qty,
+                unit_cost=unit_cost,
+                extra_cost=extra_cost,
+                line_cost=line_cost,
+            )
+        )
+
+    if not create_lines:
+        raise PlanCostingError("Không có dòng hàng hợp lệ để tính GTKH.")
+    SxOrderPlanCostLine.objects.bulk_create(create_lines)
+    _restore_typed_extras(sheet, preserved_typed)
+    sheet.total_cost = total.quantize(Decimal("0.01"))
+    sheet.save(update_fields=["total_cost"])
+    return sheet
+
+
 @transaction.atomic
 def build_order_sheet_from_kv(
     *,
@@ -193,6 +374,21 @@ def build_order_sheet_from_kv(
 
     if date_from > date_to:
         raise PlanCostingError("Kỳ giá thành không hợp lệ (từ ngày > đến ngày).")
+
+    so = resolve_sales_order_for_plan_cost(
+        kv_order_code=kv_order_code,
+        kv_order_kiotviet_id=kv_order_kiotviet_id,
+    )
+    if so is not None:
+        return _build_order_sheet_from_sales_order(
+            so,
+            name=name,
+            date_from=date_from,
+            date_to=date_to,
+            code=code,
+            notes=notes,
+            sheet_id=sheet_id,
+        )
 
     retailer = current_retailer()
     order = None

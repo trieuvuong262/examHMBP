@@ -20,8 +20,9 @@ Tạo tay ──► SxSalesOrder (nháp)
 
 | Model | Ý nghĩa |
 |-------|---------|
-| `SxSalesOrder` | Header: mã DH-YYYY-####, khách, ngày YC, hạn SX, confirm_status, source, kv_* |
-| `SxSalesOrderLine` | Mã SP (kho SP), qty, scrap %, SL cần SX = qty×(1+scrap%) |
+| `SxSalesOrder` | Header: mã DH-YYYY-####, khách, ngày DK thực hiện, ngày DK hoàn thành, confirm_status, source, kv_* |
+| `SxSalesOrderLine` | Mã SP, qty, scrap %, BOM + routing FK, SL cần SX = qty×(1+scrap%) |
+| `SxSalesOrderRoutingLine` | Snapshot CĐ theo dòng đơn: SMV chuẩn / SMV áp dụng (IE/KH sửa; xác nhận khóa) |
 | `SxOverallPlanLine.sales_order` | FK khi nạp MTO |
 | `SxProductionOrder.sales_order` | FK (gán khi có liên kết) |
 
@@ -43,7 +44,8 @@ Sidebar: nhóm **Đơn đặt hàng** → Danh sách / Lên đơn đặt hàng /
 | KHTT MTO | Panel nạp chọn ĐĐH `confirmed`; `load_mto_demand(sales_order_ids=…)` |
 | Detail ĐĐH | Nút «Tạo KHTT MTO & nạp nhu cầu» |
 | KHCT / LSX | Luồng Portal giữ nguyên; detail ĐĐH liệt kê KHTT/LSX liên quan |
-| Giá thành theo đơn | Link `?q=` mã ĐĐH |
+| Giá thành theo đơn | Link `?q=` mã ĐĐH — **nhân công GTKH = SMV áp dụng snapshot đơn**; NVL/phụ phí vẫn BOM. GT định mức sản phẩm không đổi (ProcessStep). |
+| Routing theo đơn | Lên đơn chọn BOM + routing → copy snapshot. IE (`ie`) / KH (`plan`) sửa SMV áp dụng, thêm/bớt CĐ. Xác nhận **bắt buộc** routing + CĐ + SMV > 0 (lệch >15% cần giải trình). KH/LSX đọc snapshot. |
 | KiotViet | Không import vào ĐĐH (phase hiện tại) |
 
 ## 5. Phase 1 không làm
@@ -54,5 +56,6 @@ Tạm giữ NVL, đơn cha–con, Excel, thuê GC từ ĐĐH, kiểm NVL BOM pop
 
 - [`hub_models.py`](../../san_xuat/hub_models.py) — `SxSalesOrder*`
 - [`services/sales_orders.py`](../../san_xuat/services/sales_orders.py)
+- [`services/order_routing.py`](../../san_xuat/services/order_routing.py) — snapshot SMV theo đơn
 - [`views_hub.py`](../../san_xuat/views_hub.py) — `sales_order_*`
-- Templates: `sales_order_list/form/detail.html`
+- Templates: `sales_order_list/form/detail.html` + `includes/sales_order_routing.html`

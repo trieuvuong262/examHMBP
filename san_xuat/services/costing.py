@@ -77,6 +77,105 @@ def labor_cost_for_step(norm_per_hour, cost_per_hour) -> tuple[Decimal, Decimal]
     return hours, amount
 
 
+def labor_from_order_routing_lines(snaps, *, fallback_cost_per_hour: Decimal = ZERO) -> Decimal:
+    """Nhân công / cái từ snapshot routing đơn.
+
+    Ưu tiên: Tổng đơn giá đã lưu → SMV áp dụng × hệ số × SL/SP
+    → (SMV phút / 60) × chi phí giờ BOM (khi chưa nhập hệ số).
+    """
+    total = ZERO
+    rate = _d(fallback_cost_per_hour)
+    for ln in snaps or []:
+        qty = _d(getattr(ln, 'qty_per_garment', None) or 1)
+        applied = _d(getattr(ln, 'applied_unit_smv', None))
+        smv = _d(getattr(ln, 'total_operation_smv', None))
+        if smv <= 0:
+            smv = (qty * applied).quantize(Decimal('0.0001'))
+        stored = _d(getattr(ln, 'total_unit_price', None))
+        if stored > 0:
+            total += stored
+            continue
+        factor = _d(getattr(ln, 'price_factor', None))
+        if factor > 0 and smv > 0:
+            total += (smv * factor).quantize(MONEY)
+            continue
+        if rate > 0 and smv > 0:
+            total += ((smv / Decimal('60')) * rate).quantize(MONEY)
+    return total.quantize(MONEY)
+
+
+def _avg_bom_cost_per_hour(bom: BomVersion) -> Decimal:
+    rates = [
+        _d(s.cost_per_hour)
+        for s in bom.process_steps.all()
+        if _d(s.cost_per_hour) > 0
+    ]
+    if not rates:
+        return ZERO
+    return (sum(rates, ZERO) / Decimal(len(rates))).quantize(MONEY)
+
+
+def compute_costing_for_sales_line(so_line) -> CostingResult:
+    """GTKH 1 dòng ĐĐH: NVL + phụ phí từ BOM; nhân công từ SMV áp dụng trên đơn."""
+    from san_xuat.models import ProductTechDoc
+    from san_xuat.services.bom import get_active_bom, get_working_bom
+
+    bom = getattr(so_line, 'bom_version', None)
+    code = (getattr(so_line, 'product_code', None) or '').strip()
+    if bom is None and code:
+        doc = (
+            ProductTechDoc.objects.filter(product_code__iexact=code, is_active=True).first()
+            or ProductTechDoc.objects.filter(product_code__iexact=code).first()
+        )
+        if doc:
+            bom = get_active_bom(doc) or get_working_bom(doc)
+    if bom is None:
+        empty = CostingResult(product_code=code, product_name=getattr(so_line, 'product_name', '') or '')
+        snaps = list(so_line.routing_lines.all()) if getattr(so_line, 'routing_lines', None) else []
+        empty.labor_cost = labor_from_order_routing_lines(snaps)
+        empty.total_cost = empty.labor_cost
+        return empty
+
+    result = compute_costing(bom)
+    snaps = list(
+        so_line.routing_lines.select_related('work_center').order_by('seq_no', 'id')
+    ) if getattr(so_line, 'routing_lines', None) else []
+    if not snaps:
+        return result
+
+    fallback_rate = _avg_bom_cost_per_hour(bom)
+    labor = labor_from_order_routing_lines(snaps, fallback_cost_per_hour=fallback_rate)
+    result.process_lines = [
+        ProcessStepCost(
+            step_id=ln.pk,
+            sequence=ln.seq_no or 0,
+            process_name=ln.op_name_vi or ln.op_code or '',
+            norm_per_hour=(
+                (Decimal('60') / ln.applied_unit_smv).quantize(Decimal('0.01'))
+                if _d(ln.applied_unit_smv) > 0 else ZERO
+            ),
+            cost_per_hour=_d(ln.price_factor),
+            hours_per_piece=(_d(ln.total_operation_smv) / Decimal('60')).quantize(Decimal('0.000001')),
+            labor_amount=(
+                _d(ln.total_unit_price) if _d(ln.total_unit_price) > 0
+                else labor_from_order_routing_lines([ln], fallback_cost_per_hour=fallback_rate)
+            ),
+        )
+        for ln in snaps
+    ]
+    result.labor_cost = labor
+    base = result.material_cost + labor
+    pct_overhead = (base * result.overhead_pct / Decimal('100')).quantize(MONEY)
+    overhead = (result.overhead_amount + pct_overhead).quantize(MONEY)
+    result.overhead_cost = overhead
+    result.total_cost = (base + overhead).quantize(MONEY)
+    sell = result.sell_price
+    result.margin = (sell - result.total_cost).quantize(MONEY)
+    if getattr(so_line, 'product_name', None):
+        result.product_name = so_line.product_name or result.product_name
+    return result
+
+
 def compute_costing(bom: BomVersion) -> CostingResult:
     result = CostingResult(
         overhead_pct=_d(bom.overhead_pct),

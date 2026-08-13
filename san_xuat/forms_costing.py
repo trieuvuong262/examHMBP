@@ -69,7 +69,7 @@ class OrderPlanCostCreateForm(forms.Form):
     kv_order_code = forms.CharField(
         max_length=64,
         required=False,
-        label="Mã đơn KV",
+        label="Mã đơn (Portal hoặc KV)",
         widget=forms.TextInput(attrs={"class": "form-control form-control-sm", "placeholder": "VD: DH000123"}),
     )
     kv_order_kiotviet_id = forms.IntegerField(
@@ -116,7 +116,7 @@ class OrderPlanCostCreateForm(forms.Form):
         code = (cleaned.get("kv_order_code") or "").strip()
         kid = cleaned.get("kv_order_kiotviet_id")
         if not code and not kid:
-            raise forms.ValidationError("Nhập mã đơn KV hoặc KV order id.")
+            raise forms.ValidationError("Nhập mã đơn Portal / KV hoặc KV order id.")
         return cleaned
 
 
