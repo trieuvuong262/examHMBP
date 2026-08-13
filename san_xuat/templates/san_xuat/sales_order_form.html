@@ -107,23 +107,7 @@
     border: 1px solid #e2e8f0;
     border-radius: .5rem;
     background: #fff;
-    padding: .75rem .9rem;
-  }
-  .jp-so-smv-adj-grid {
-    display: grid;
-    grid-template-columns: 6.5rem 5.5rem 6.5rem minmax(10rem, 1fr);
-    gap: .35rem .5rem;
-    align-items: end;
-  }
-  .jp-so-smv-adj-grid label {
-    margin: 0;
-    font-size: .72rem;
-    font-weight: 700;
-    color: #64748b;
-    line-height: 1.2;
-  }
-  .jp-so-smv-adj-grid input {
-    margin-top: .15rem;
+    padding: .65rem .75rem;
   }
   #jp-so-lines-table th.jp-so-ie-col,
   #jp-so-lines-table td.jp-so-ie-col {
@@ -203,11 +187,7 @@
 
     <div class="card border-0 shadow-sm mb-3">
       <div class="card-body">
-        <h6 class="fw-bold mb-1">Dòng sản phẩm</h6>
-        <p class="small text-muted mb-2">
-          Chọn mã hàng → BOM → <strong>quy trình IE (routing)</strong>. Sau khi có routing mới mở bảng
-          chỉnh <strong>SMV áp dụng từng công đoạn</strong> của đơn này (SMV chuẩn mã hàng không đổi).
-        </p>
+        <h6 class="fw-bold mb-2">Dòng sản phẩm</h6>
         {{ formset.management_form }}
         <div class="table-responsive">
           <table class="table table-sm align-middle" id="jp-so-lines-table">
@@ -237,7 +217,7 @@
                 <td class="jp-so-ie-col">
                   {{ f.routing_id }}
                   {{ f.applied_smv_json }}
-                  <div class="jp-so-ie-status" data-role="ie-status">—</div>
+                  <div class="jp-so-ie-status" data-role="ie-status"></div>
                   {% if f.routing_id.errors %}<div class="text-danger small">{{ f.routing_id.errors }}</div>{% endif %}
                 </td>
                 <td class="text-end">
@@ -298,7 +278,7 @@
     <td>{{ f.bom_version_id }}</td>
     <td class="jp-so-ie-col">
       {{ f.routing_id }}{{ f.applied_smv_json }}
-      <div class="jp-so-ie-status" data-role="ie-status">—</div>
+      <div class="jp-so-ie-status" data-role="ie-status"></div>
     </td>
     <td class="text-end"><span class="jp-so-stock-qty text-muted">—</span></td>
     <td class="jp-so-size-col">
@@ -611,139 +591,43 @@
     var hidden = smvHidden(row);
     if (!hidden) return;
     var box = previewBox(row, false);
-    var reasonEl = row.querySelector('[data-role="smv-reason"]')
-      || (box && box.querySelector('[data-role="smv-reason"]'));
-    var reason = reasonEl ? (reasonEl.value || '').trim() : '';
     var rows = [];
     if (box) {
       box.querySelectorAll('.jp-so-smv-input').forEach(function (inp) {
         var seq = parseInt(inp.getAttribute('data-smv-seq'), 10);
         var smv = parseFloat(inp.value);
         if (!seq) return;
-        rows.push({
-          seq: seq,
-          smv: Number.isFinite(smv) ? smv : 0,
-          explanation: reason,
-        });
+        rows.push({ seq: seq, smv: Number.isFinite(smv) ? smv : 0 });
       });
     }
     hidden.value = JSON.stringify(rows);
   }
 
-  function sumAppliedInputs(row) {
-    var box = previewBox(row, false);
-    var total = 0;
-    if (!box) return total;
-    box.querySelectorAll('.jp-so-smv-input').forEach(function (inp) {
-      total += parseFloat(inp.value) || 0;
-    });
-    return total;
-  }
-
-  function scaleOpInputs(row, factor) {
-    var box = previewBox(row, false);
-    if (!box) return;
-    box.querySelectorAll('.jp-so-smv-input').forEach(function (inp) {
-      var std = parseFloat(inp.getAttribute('data-smv-std')) || 0;
-      inp.value = (std * factor).toFixed(4);
-    });
-  }
-
-  function refreshOpVariance(row) {
-    var box = previewBox(row, false);
-    if (!box) return;
-    box.querySelectorAll('.jp-so-smv-input').forEach(function (inp) {
-      var std = parseFloat(inp.getAttribute('data-smv-std')) || 0;
-      var smv = parseFloat(inp.value) || 0;
-      var cell = inp.closest('tr') && inp.closest('tr').querySelector('[data-role="op-var"]');
-      var pct = std ? ((smv - std) / std * 100) : 0;
-      if (cell) {
-        cell.textContent = pct.toFixed(1);
-        cell.classList.toggle('text-danger', Math.abs(pct) > 15);
-      }
-    });
-  }
-
-  function syncSmvAdj(row, fromApplied) {
-    var box = previewBox(row, false);
-    var stdEl = row.querySelector('[data-role="smv-std"]')
-      || (box && box.querySelector('[data-role="smv-std"]'));
-    var pctEl = row.querySelector('[data-role="smv-pct"]')
-      || (box && box.querySelector('[data-role="smv-pct"]'));
-    var appEl = row.querySelector('[data-role="smv-applied"]')
-      || (box && box.querySelector('[data-role="smv-applied"]'));
-    var reasonEl = row.querySelector('[data-role="smv-reason"]')
-      || (box && box.querySelector('[data-role="smv-reason"]'));
-    var std = row._soStdTotal || 0;
-    if (stdEl) stdEl.value = std ? std.toFixed(2) : '';
-    if (!(row._soSteps || []).length) {
-      writeAppliedSmv(row);
-      return;
-    }
-    var pct = parseFloat(pctEl && pctEl.value) || 0;
-    if (fromApplied === 'op') {
-      var opSum = sumAppliedInputs(row);
-      if (appEl) appEl.value = opSum.toFixed(2);
-      if (std > 0 && pctEl) pctEl.value = String(Math.round((opSum / std - 1) * 1000) / 10);
-      pct = parseFloat(pctEl && pctEl.value) || 0;
-    } else if (fromApplied && appEl && std > 0) {
-      var applied = parseFloat(appEl.value);
-      if (Number.isFinite(applied) && applied >= 0) {
-        pct = (applied / std - 1) * 100;
-        if (pctEl) pctEl.value = String(Math.round(pct * 10) / 10);
-        scaleOpInputs(row, applied / std);
-      }
-    } else {
-      var factor = 1 + pct / 100;
-      if (!(factor > 0)) factor = 1;
-      if (appEl) appEl.value = (std * factor).toFixed(2);
-      scaleOpInputs(row, factor);
-    }
-    if (reasonEl) reasonEl.classList.toggle('d-none', Math.abs(pct) <= 15);
-    refreshOpVariance(row);
-    writeAppliedSmv(row);
-  }
-
-  function hydratePctFromHidden(row) {
+  function hydrateAppliedFromHidden(row) {
     var hidden = smvHidden(row);
     var box = previewBox(row, false);
-    var pctEl = row.querySelector('[data-role="smv-pct"]')
-      || (box && box.querySelector('[data-role="smv-pct"]'));
-    var reasonEl = row.querySelector('[data-role="smv-reason"]')
-      || (box && box.querySelector('[data-role="smv-reason"]'));
-    var std = row._soStdTotal || 0;
-    if (!hidden || !hidden.value || hidden.value === '[]') {
-      if (pctEl) pctEl.value = '0';
-      syncSmvAdj(row, false);
+    if (!hidden || !hidden.value || hidden.value === '[]' || !box) {
+      writeAppliedSmv(row);
       return;
     }
     try {
       var rows = JSON.parse(hidden.value);
       if (!Array.isArray(rows) || !rows.length) {
-        syncSmvAdj(row, false);
+        writeAppliedSmv(row);
         return;
       }
       var bySeq = {};
-      var reason = '';
       rows.forEach(function (r) {
         if (!r) return;
         var seq = parseInt(r.seq, 10);
         if (seq) bySeq[seq] = parseFloat(r.smv);
-        if (!reason && (r.explanation || r.reason)) reason = r.explanation || r.reason;
       });
-      if (box) {
-        box.querySelectorAll('.jp-so-smv-input').forEach(function (inp) {
-          var seq = parseInt(inp.getAttribute('data-smv-seq'), 10);
-          if (bySeq[seq] != null && Number.isFinite(bySeq[seq])) inp.value = String(bySeq[seq]);
-        });
-      }
-      if (reasonEl && reason) reasonEl.value = reason;
-      if (pctEl && std > 0) {
-        var applied = sumAppliedInputs(row);
-        pctEl.value = String(Math.round((applied / std - 1) * 1000) / 10);
-      }
+      box.querySelectorAll('.jp-so-smv-input').forEach(function (inp) {
+        var seq = parseInt(inp.getAttribute('data-smv-seq'), 10);
+        if (bySeq[seq] != null && Number.isFinite(bySeq[seq])) inp.value = String(bySeq[seq]);
+      });
     } catch (e) { /* ignore */ }
-    syncSmvAdj(row, 'op');
+    writeAppliedSmv(row);
   }
 
   function selectedRoutingId(row) {
@@ -768,35 +652,23 @@
     }
     if (wrap) wrap.style.display = '';
     if (!hasRouting || source !== 'ie' || !steps.length) {
-      var msg;
+      var msg = '';
       if (!hasRouting && (data.routings || []).length) {
-        msg = 'Chọn <strong>quy trình IE (routing)</strong> ở cột trên — sau đó mới chỉnh SMV áp dụng từng công đoạn.';
+        msg = 'Chọn quy trình IE (routing) để chỉnh SMV từng công đoạn.';
       } else if (!(data.routings || []).length) {
-        msg = 'Mã hàng chưa có routing IE. <a href="' + createRt + '" target="_blank" rel="noopener">Tạo routing</a> rồi chọn lại — không chỉnh SMV theo công đoạn BOM.';
+        msg = 'Mã hàng chưa có routing IE. <a href="' + createRt + '" target="_blank" rel="noopener">Tạo routing</a>.';
       } else {
-        msg = 'Routing đã chọn nhưng chưa có công đoạn. Kiểm tra bản IE trên hồ sơ.';
+        msg = 'Routing đã chọn nhưng chưa có công đoạn.';
       }
-      box.innerHTML = '<div class="jp-so-smv-card text-muted">' + msg + '</div>';
+      box.innerHTML = msg ? '<div class="jp-so-smv-card text-muted small">' + msg + '</div>' : '';
       writeAppliedSmv(row);
       return;
     }
-    var srcLabel = 'SMV chuẩn lấy từ routing vừa chọn — không sửa. Chỉnh cột <strong>SMV áp dụng</strong> từng công đoạn cho đơn này.';
     var html = '<div class="jp-so-smv-card">'
-      + '<div class="d-flex flex-wrap justify-content-between align-items-baseline gap-2 mb-2">'
-      + '<div><strong>Công đoạn theo đơn (SMV áp dụng)</strong>'
-      + '<div class="small text-muted mt-1">' + srcLabel + '</div></div>'
-      + '<span class="badge bg-secondary-subtle text-dark border">' + steps.length + ' công đoạn</span></div>'
-      + '<div class="jp-so-smv-adj-grid mb-2">'
-      + '<label>SMV chuẩn<input type="text" class="form-control form-control-sm text-end" data-role="smv-std" readonly tabindex="-1"></label>'
-      + '<label>% lệch đơn<input type="number" class="form-control form-control-sm text-end" data-role="smv-pct" value="0" step="0.1" inputmode="decimal"></label>'
-      + '<label>SMV đơn<input type="number" class="form-control form-control-sm text-end" data-role="smv-applied" min="0" step="0.01" inputmode="decimal"></label>'
-      + '<label>Lý do lệch &gt;15%<input type="text" class="form-control form-control-sm d-none" data-role="smv-reason" maxlength="500" placeholder="Vải khó, chi tiết thêm…"></label>'
-      + '</div>'
       + '<div class="table-responsive"><table class="table table-sm table-bordered mb-0">'
       + '<thead class="table-light"><tr><th style="width:3.5rem">Bước</th><th>Công đoạn</th>'
       + '<th class="text-end" style="width:7.5rem">SMV chuẩn</th>'
-      + '<th class="text-end" style="width:8.5rem">SMV áp dụng</th>'
-      + '<th class="text-end" style="width:5.5rem">% lệch</th></tr></thead><tbody>';
+      + '<th class="text-end" style="width:8.5rem">SMV áp dụng</th></tr></thead><tbody>';
     steps.forEach(function (st) {
       var std = stepStd(st);
       var smv = parseFloat(st.smv != null ? st.smv : std) || 0;
@@ -805,14 +677,11 @@
       var label = (code && name && code.toUpperCase() !== name.toUpperCase())
         ? '<span class="text-muted">' + escAttr(code) + '</span> — ' + escAttr(name)
         : escAttr(name || code);
-      var varPct = std ? ((smv - std) / std * 100) : 0;
       html += '<tr><td>' + (st.seq || '') + '</td><td>' + label + '</td>'
         + '<td class="text-end text-muted">' + std.toFixed(4) + '</td>'
         + '<td><input type="number" class="form-control form-control-sm text-end jp-so-smv-input" min="0" step="0.0001"'
         + ' data-smv-seq="' + (st.seq || '') + '" data-smv-std="' + std + '"'
-        + ' value="' + smv + '" aria-label="SMV áp dụng ' + escAttr(name || code) + '"></td>'
-        + '<td class="text-end' + (Math.abs(varPct) > 15 ? ' text-danger' : '') + '" data-role="op-var">'
-        + varPct.toFixed(1) + '</td></tr>';
+        + ' value="' + smv + '" aria-label="SMV áp dụng ' + escAttr(name || code) + '"></td></tr>';
     });
     html += '</tbody></table></div></div>';
     box.innerHTML = html;
@@ -823,13 +692,11 @@
     var status = row.querySelector('[data-role="ie-status"]');
     var routings = (data && data.routings) || [];
     var steps = (data && data.steps) || [];
-    var source = (data && data.steps_source) || '';
     var n = routings.length;
     var smv = 0;
     steps.forEach(function (st) { smv += stepStd(st); });
     row._soSteps = steps;
     row._soStdTotal = smv;
-    var smvTxt = steps.length ? (steps.length + ' CĐ · SMV chuẩn ' + smv.toFixed(2)) : '';
 
     if (rtSel) {
       if (n >= 1) rtSel.classList.remove('d-none');
@@ -837,33 +704,13 @@
     }
     if (!status) return;
     status.classList.remove('is-ok', 'is-warn');
-    if (!productCodeOf(row)) {
-      status.textContent = '—';
-      return;
-    }
+    status.textContent = '';
+    if (!productCodeOf(row)) return;
     if (n === 0) {
       status.classList.add('is-warn');
-      if (steps.length) {
-        status.textContent = 'Chưa có IE — tạm công đoạn BOM (' + smvTxt + ')';
-      } else {
-        status.innerHTML = 'Chưa có IE và chưa có công đoạn BOM'
-          + ' · <a href="' + (data.routing_create_url || routingCreateUrl) + '" target="_blank" rel="noopener">Tạo routing</a>';
-      }
-      return;
+      status.innerHTML = 'Chưa có IE'
+        + ' · <a href="' + (data.routing_create_url || routingCreateUrl) + '" target="_blank" rel="noopener">Tạo routing</a>';
     }
-    status.classList.add('is-ok');
-    if (n === 1 && selectedRoutingId(row)) {
-      var lab = routings[0].label || routings[0].text || 'IE';
-      status.textContent = 'Routing ' + lab + ' — chỉnh SMV từng CĐ bên dưới';
-      return;
-    }
-    var picked = '';
-    if (rtSel && rtSel.value) {
-      var opt = rtSel.options[rtSel.selectedIndex];
-      picked = (opt && opt.textContent) ? opt.textContent.trim() : '';
-    }
-    status.textContent = (picked ? picked + ' · ' : n + ' bản — chọn · ')
-      + (source === 'ie' ? smvTxt : (smvTxt || 'chưa có CĐ'));
   }
 
   function loadVersions(row, keepBom, keepRouting, keepSmv) {
@@ -876,12 +723,8 @@
       if (rtSel) rtSel.classList.add('d-none');
       applyIeStatus(row, { routings: [], steps: [] });
       renderSteps(row, { steps: [] });
-      if (keepSmv) hydratePctFromHidden(row);
-      else {
-        var pct0 = row.querySelector('[data-role="smv-pct"]');
-        if (pct0) pct0.value = '0';
-        syncSmvAdj(row, false);
-      }
+      if (keepSmv) hydrateAppliedFromHidden(row);
+      else writeAppliedSmv(row);
       return;
     }
     var url = versionsUrl + '?product_code=' + encodeURIComponent(code);
@@ -914,12 +757,8 @@
         );
         applyIeStatus(row, data);
         renderSteps(row, data);
-        if (keepSmv) hydratePctFromHidden(row);
-        else {
-          var pctReset = row.querySelector('[data-role="smv-pct"]');
-          if (pctReset) pctReset.value = '0';
-          syncSmvAdj(row, false);
-        }
+        if (keepSmv) hydrateAppliedFromHidden(row);
+        else writeAppliedSmv(row);
         if (typeof window.jpSoAfterLineVersions === 'function') window.jpSoAfterLineVersions(row);
       })
       .catch(function () {
@@ -927,7 +766,7 @@
         fillSelect(rtSel, [], '— Chọn routing —', '', keepRouting);
         applyIeStatus(row, { routings: [], steps: [] });
         renderSteps(row, { steps: [] });
-        syncSmvAdj(row, false);
+        writeAppliedSmv(row);
       });
   }
 
@@ -961,14 +800,11 @@
 
   document.addEventListener('input', function (e) {
     var t = e.target;
-    if (!t || !t.getAttribute) return;
-    var role = t.getAttribute('data-role');
-    var isOp = t.classList && t.classList.contains('jp-so-smv-input');
-    if (!isOp && role !== 'smv-pct' && role !== 'smv-applied' && role !== 'smv-reason') return;
+    if (!t || !t.classList || !t.classList.contains('jp-so-smv-input')) return;
     var smvRow = t.closest('tr.jp-so-smv-row');
     var row = t.closest('tr.jp-so-line-row') || (smvRow && smvRow.previousElementSibling);
     if (!row || !row.classList.contains('jp-so-line-row')) return;
-    syncSmvAdj(row, isOp ? 'op' : (role === 'smv-applied'));
+    writeAppliedSmv(row);
   });
 
   var form = document.getElementById('jp-so-form');

@@ -335,7 +335,7 @@ def sales_order_line_routing(order_line: SxSalesOrderLine):
 
 
 def assert_order_ready_to_confirm(order: SxSalesOrder) -> None:
-    """Routing bắt buộc trên mọi dòng; SMV > 0; lệch >15% phải giải trình."""
+    """Routing bắt buộc trên mọi dòng; SMV áp dụng từng công đoạn phải > 0."""
     errors: list[str] = []
     lines = list(order.lines.prefetch_related('routing_lines').all())
     if not lines:
@@ -352,10 +352,6 @@ def assert_order_ready_to_confirm(order: SxSalesOrder) -> None:
             label = f'{code} {s.op_code or s.seq_no}'
             if (s.applied_unit_smv or Decimal('0')) <= 0:
                 errors.append(f'{label}: SMV áp dụng phải > 0.')
-            if s.is_high_variance and not (s.variance_explanation or '').strip():
-                errors.append(
-                    f'{label}: lệch SMV {s.smv_variance_pct}% > {VARIANCE_LIMIT_PCT}% — cần giải trình.'
-                )
     if errors:
         raise PlanningError('Không xác nhận được đơn. ' + ' '.join(errors))
 

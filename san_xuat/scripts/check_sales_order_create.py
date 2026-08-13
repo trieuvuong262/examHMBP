@@ -1,6 +1,7 @@
-"""Smoke-check lên đơn: BOM-first, routing tự gắn, SMV lúc xác nhận."""
+"""Smoke-check lên đơn: BOM → routing IE → SMV áp dụng từng CĐ → xác nhận."""
 from __future__ import annotations
 
+import json
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
@@ -13,6 +14,7 @@ from san_xuat.hub_models import SxSalesOrder
 from san_xuat.ie_models import SxRouting
 from san_xuat.models import BomVersion, ProcessStep, ProductTechDoc
 from san_xuat.services.order_routing import (
+    apply_smv_overrides,
     assert_order_ready_to_confirm,
     default_routing_for_product,
 )
@@ -43,15 +45,22 @@ def _pick_codes():
     """Chọn mã hàng thật: có IE, chỉ BOM, không gì."""
     ie_code = None
     ie_rt = None
+    ie_fb, ie_fb_rt = None, None
     for rt in SxRouting.objects.filter(is_active=True).select_related('tech_doc').order_by('-id'):
         if not rt.lines.exists():
             continue
         code = (rt.style_code or '').strip()
         if not _is_style_code(code) and rt.tech_doc_id:
             code = (rt.tech_doc.product_code or '').strip()
-        if _is_style_code(code):
+        if not _is_style_code(code):
+            continue
+        if resolve_product_ref(code):
             ie_code, ie_rt = code, rt
             break
+        if ie_fb is None:
+            ie_fb, ie_fb_rt = code, rt
+    if not ie_code:
+        ie_code, ie_rt = ie_fb, ie_fb_rt
     bom_only = None
     bom_ver = None
     for bom in BomVersion.objects.select_related('tech_doc').order_by('-id'):
@@ -127,10 +136,11 @@ def check_page():
     _ok('Có cột BOM', '>BOM<' in html or 'BOM (NVL' in html)
     _ok('Có cột Quy trình IE', 'Quy trình IE' in html)
     _ok('Không còn tiêu đề Phiên bản routing', 'Phiên bản routing' not in html)
-    _ok('Không render bảng SMV áp dụng lúc tạo', 'jp-so-smv-input' not in html)
-    _ok('Không còn copy "Sửa cột SMV áp dụng"', 'Sửa cột SMV áp dụng' not in html)
-    _ok('Hint BOM-first', 'Quy trình IE tự gắn' in html)
-    _ok('Select routing mặc định ẩn', 'jp-so-routing-select d-none' in html or 'jp-so-routing-select' in html)
+    _ok('JS render bảng SMV sau khi chọn routing', 'jp-so-smv-input' in html)
+    _ok('Không còn hint Chọn mã hàng → BOM', 'Chọn mã hàng → BOM' not in html)
+    _ok('Không còn khối % lệch đơn / SMV đơn', 'data-role="smv-pct"' not in html)
+    _ok('Không còn lý do lệch >15%', 'Lý do lệch' not in html)
+    _ok('Select routing luôn hiện khi có bản', 'jp-so-routing-select' in html)
     return client
 
 
@@ -249,6 +259,89 @@ def check_http_post(client, bom_only, bom_ver):
     _ok('Da xoa don smoke', not SxSalesOrder.objects.filter(pk=pk).exists())
 
 
+def check_ie_smv_workflow(client, ie_code, ie_rt):
+    print('\n== Workflow IE: routing + SMV ap dung tung CD ==')
+    if not client or not ie_code or not ie_rt:
+        print('  [SKIP]')
+        return
+    src = ie_rt.lines.order_by('seq_no').first()
+    if not src or (src.library_unit_smv or 0) <= 0:
+        print('  [SKIP] Routing khong co CĐ SMV > 0')
+        return
+    if not resolve_product_ref(ie_code):
+        print(f'  [SKIP] {ie_code} khong resolve kho SP')
+        return
+    std = Decimal(str(src.library_unit_smv))
+    applied = (std * Decimal('1.20')).quantize(Decimal('0.0001'))
+    payload = json.dumps([{'seq': int(src.seq_no), 'smv': float(applied)}])
+    today = timezone.localdate().isoformat()
+    resp = client.post('/san-xuat/don-hang/them/', {
+        'customer_name': 'SMOKE-IE-SMV',
+        'request_date': today,
+        'due_date': today,
+        'notes': 'smoke ie smv',
+        'lines-TOTAL_FORMS': '1',
+        'lines-INITIAL_FORMS': '0',
+        'lines-MIN_NUM_FORMS': '0',
+        'lines-MAX_NUM_FORMS': '1000',
+        'lines-0-product_code': ie_code,
+        'lines-0-product_name': '',
+        'lines-0-qty': '4',
+        'lines-0-size_qtys': '{}',
+        'lines-0-bom_version_id': '',
+        'lines-0-routing_id': str(ie_rt.pk),
+        'lines-0-applied_smv_json': payload,
+    }, HTTP_HOST='127.0.0.1')
+    ok_redirect = resp.status_code == 302
+    _ok('POST 302 chi tiet (IE + SMV override)', ok_redirect, f'HTTP {resp.status_code}')
+    if not ok_redirect:
+        return
+    loc = resp.get('Location') or ''
+    pk = next((int(p) for p in loc.rstrip('/').split('/') if p.isdigit()), None)
+    if not pk:
+        _ok('Parse pk tu redirect', False, loc)
+        return
+    order = SxSalesOrder.objects.filter(pk=pk).first()
+    if not order:
+        _ok('Tim don IE smoke', False)
+        return
+    try:
+        ln = order.lines.first()
+        snap = ln.routing_lines.filter(seq_no=src.seq_no).first() if ln else None
+        _ok(
+            'Snapshot IE + routing_id',
+            bool(ln and ln.routing_id == ie_rt.pk and ln.routing_lines.count() > 0),
+            f'{order.code} routing={getattr(ln, "routing_id", None)} n={ln.routing_lines.count() if ln else 0}',
+        )
+        _ok(
+            'SMV chuan khong doi',
+            bool(snap) and Decimal(str(snap.library_unit_smv)) == std,
+            f'lib={getattr(snap, "library_unit_smv", None)} std={std}',
+        )
+        _ok(
+            'SMV ap dung dung override +20%',
+            bool(snap) and Decimal(str(snap.applied_unit_smv)) == applied,
+            f'applied={getattr(snap, "applied_unit_smv", None)} expect={applied}',
+        )
+        smv_ok = all((s.applied_unit_smv or 0) > 0 for s in ln.routing_lines.all())
+        if not smv_ok:
+            _ok('Xac nhan: mot so CD SMV=0 — dung se chan', True)
+        else:
+            try:
+                assert_order_ready_to_confirm(order)
+                confirm_sales_order(order_id=order.pk)
+                order.refresh_from_db()
+                _ok(
+                    'Xac nhan OK (lech >15% khong bat ly do)',
+                    order.confirm_status == SxSalesOrder.CONFIRM_CONFIRMED,
+                )
+            except PlanningError as exc:
+                _ok('Xac nhan OK (lech >15% khong bat ly do)', False, str(exc)[:180])
+    finally:
+        SxSalesOrder.objects.filter(pk=pk).delete()
+        _ok('Da xoa don IE smoke', not SxSalesOrder.objects.filter(pk=pk).exists())
+
+
 def check_seed_and_confirm(ie_code, ie_rt, bom_only, bom_ver, neither):
     print('\n== Seed snapshot + xác nhận (rollback) ==')
     fails = 0
@@ -279,6 +372,18 @@ def check_seed_and_confirm(ie_code, ie_rt, bom_only, bom_ver, neither):
             n = ln.routing_lines.count()
             src_ok = ln.routing_id == ie_rt.pk and n > 0
             _ok(f'Tạo + IE: snapshot {n} CĐ từ routing', src_ok, f'routing_id={ln.routing_id}')
+            first = ln.routing_lines.order_by('seq_no').first()
+            if first and (first.library_unit_smv or 0) > 0:
+                std = Decimal(str(first.library_unit_smv))
+                new_smv = (std * Decimal('1.20')).quantize(Decimal('0.0001'))
+                apply_smv_overrides(ln, [{'seq': int(first.seq_no), 'smv': new_smv}])
+                first.refresh_from_db()
+                _ok(
+                    'Override SMV áp dụng, chuẩn không đổi',
+                    Decimal(str(first.applied_unit_smv)) == new_smv
+                    and Decimal(str(first.library_unit_smv)) == std,
+                    f'lib={first.library_unit_smv} app={first.applied_unit_smv}',
+                )
             smv_ok = all((s.applied_unit_smv or 0) > 0 for s in ln.routing_lines.all())
             if not smv_ok:
                 # vẫn seed được; confirm có thể fail nếu SMV=0 — ghi nhận
@@ -344,11 +449,12 @@ def check_seed_and_confirm(ie_code, ie_rt, bom_only, bom_ver, neither):
 
 
 def main():
-    print('Kiểm tra lên đơn hàng (BOM-first / routing tự gắn)')
+    print('Kiem tra workflow len don (BOM -> routing IE -> SMV ap dung -> xac nhan)')
     check_forms()
     client = check_page()
     picked = check_api(client)
     check_http_post(client, picked[2], picked[3])
+    check_ie_smv_workflow(client, picked[0], picked[1])
     check_seed_and_confirm(*picked)
     print('\nXong.')
 
