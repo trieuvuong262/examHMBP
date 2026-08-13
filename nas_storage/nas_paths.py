@@ -170,9 +170,22 @@ def nas_mount_base_and_rel(user, rel_path: str) -> tuple[Path, str]:
 
 
 def known_nas_share_names() -> frozenset[str]:
-    from nas_storage.dept_nas_config import known_nas_share_names as _names
+    """Share tĩnh (phòng ban) + share đã đăng ký trên Portal (00_, 80_, 90_, …)."""
+    from nas_storage.dept_nas_config import known_nas_share_names as _static
 
-    return _names()
+    names = set(_static())
+    try:
+        from nas_storage.models import NasShareFolder
+
+        names.update(
+            NasShareFolder.objects.filter(is_active=True)
+            .exclude(share_name='')
+            .values_list('share_name', flat=True)
+            .distinct()
+        )
+    except Exception:
+        pass
+    return frozenset(names)
 
 
 def dept_nas_root_remotes() -> dict[str, str]:

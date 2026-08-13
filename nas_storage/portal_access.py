@@ -104,36 +104,50 @@ def user_has_portal_browse_all(user: User) -> bool:
     return user_nas_access_groups(user).filter(portal_browse_all=True).exists()
 
 
-def portal_roots_from_folder_permissions(user: User) -> list[NasRootEntry]:
-    """Gốc duyệt NAS theo NasFolderPermission (nhóm / user) — không bao gồm thư mục riêng user khác."""
-    from nas_storage.dept_nas_config import is_portal_browse_hidden_share
+def _user_can_read_share_folder(user: User, folder, group_ids: set[int]) -> bool:
     from nas_storage.folder_permissions_resolved import effective_folder_permissions
-    from nas_storage.models import NasShareFolder
     from nas_storage.permission_defs import has_read_access
 
-    group_ids = set(user_nas_access_groups(user).values_list('pk', flat=True))
-    entries: list[NasRootEntry] = []
-    seen: set[str] = set()
+    for item in effective_folder_permissions(folder):
+        perm = item.permission
+        if perm.permission_type != 'allow':
+            continue
+        if not has_read_access(perm.permission_flags()):
+            continue
+        if perm.user_id == user.pk or (perm.group_id and perm.group_id in group_ids):
+            return True
+    return False
 
-    for folder in NasShareFolder.objects.filter(is_active=True).order_by('sort_order', 'share_name', 'id'):
+
+def portal_roots_from_folder_permissions(user: User) -> list[NasRootEntry]:
+    """Gốc duyệt NAS theo NasFolderPermission — thư mục cao nhất user được đọc."""
+    from nas_storage.dept_nas_config import is_portal_browse_hidden_share
+    from nas_storage.models import NasShareFolder
+
+    group_ids = set(user_nas_access_groups(user).values_list('pk', flat=True))
+    accessible: list[tuple[str, object]] = []
+
+    folders = (
+        NasShareFolder.objects.filter(is_active=True)
+        .select_related('parent', 'parent__parent', 'parent__parent__parent')
+        .order_by('sort_order', 'share_name', 'id')
+    )
+    for folder in folders:
         if is_portal_browse_hidden_share(folder.share_name):
             continue
-        matched = False
-        for item in effective_folder_permissions(folder):
-            perm = item.permission
-            if perm.permission_type != 'allow':
-                continue
-            if not has_read_access(perm.permission_flags()):
-                continue
-            if perm.user_id == user.pk or (perm.group_id and perm.group_id in group_ids):
-                matched = True
-                break
-        if not matched:
+        if not _user_can_read_share_folder(user, folder, group_ids):
             continue
-        rel = (folder.share_name or '').strip()
-        if not rel or rel in seen:
+        rel = folder.portal_path_label().strip('/')
+        if rel:
+            accessible.append((rel, folder))
+
+    accessible.sort(key=lambda item: (item[0].count('/'), item[0].lower()))
+    kept_rels: list[str] = []
+    entries: list[NasRootEntry] = []
+    for rel, folder in accessible:
+        if any(rel == prefix or rel.startswith(prefix + '/') for prefix in kept_rels):
             continue
-        seen.add(rel)
+        kept_rels.append(rel)
         entries.append(
             NasRootEntry(
                 key=f'perm_{folder.pk}',
@@ -152,7 +166,9 @@ def all_share_portal_roots() -> list[NasRootEntry]:
     entries: list[NasRootEntry] = []
     seen: set[str] = set()
 
-    for folder in NasShareFolder.objects.filter(is_active=True).order_by('sort_order', 'share_name'):
+    for folder in NasShareFolder.objects.filter(is_active=True, parent__isnull=True).order_by(
+        'sort_order', 'share_name',
+    ):
         if is_portal_browse_hidden_share(folder.share_name):
             continue
         seen.add(folder.share_name)

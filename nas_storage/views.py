@@ -26,7 +26,6 @@ from nas_storage.nas_paths import (
     listing_fingerprint,
     listing_synced_at,
     nas_is_available,
-    nas_path_exists,
     normalize_rel_path,
     resolve_nas_path,
     strip_legacy_dept_prefix,
@@ -158,12 +157,7 @@ def browse(request):
         })
 
     if not rel_path:
-        root_entries = []
-        for entry in roots:
-            root_entries.append({
-                'entry': entry,
-                'exists': nas_path_exists(entry.rel_path, user=request.user),
-            })
+        root_entries = [{'entry': entry} for entry in roots]
         return render(request, 'nas_storage/browse.html', {
             **_browse_nav_context(request),
             'root_entries': root_entries,

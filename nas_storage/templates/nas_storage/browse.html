@@ -51,8 +51,8 @@
     <div class="row g-3">
         {% for row in root_entries %}
         <div class="col-md-6 col-xl-4">
-            <a href="{% if row.exists %}{% url 'nas_storage:browse' %}?path={{ row.entry.rel_path|urlencode }}{% else %}#{% endif %}"
-               class="card border-0 shadow-sm h-100 text-decoration-none jp-nas-root-card {% if not row.exists %}opacity-75{% endif %}">
+            <a href="{% url 'nas_storage:browse' %}?path={{ row.entry.rel_path|urlencode }}"
+               class="card border-0 shadow-sm h-100 text-decoration-none jp-nas-root-card">
                 <div class="card-body p-4">
                     <div class="d-flex align-items-start gap-3">
                         <div>
