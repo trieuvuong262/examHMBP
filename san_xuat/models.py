@@ -1,3 +1,4 @@
+import json
 from decimal import Decimal
 
 from django.conf import settings
@@ -66,9 +67,38 @@ class ProductTechDoc(models.Model):
         name = self.product_name or ''
         return f'{self.product_code} — {name}'.strip(' —')
 
+    @property
+    def display_image_url(self) -> str:
+        cached = getattr(self, '_display_image_url', None)
+        if cached is not None:
+            return cached
+        urls = getattr(self, '_display_image_urls', None)
+        if urls:
+            return urls[0]
+        return (self.product_image_url or '').strip()
+
+    @property
+    def display_image_urls(self) -> list[str]:
+        cached = getattr(self, '_display_image_urls', None)
+        if cached is not None:
+            return list(cached)
+        url = self.display_image_url
+        return [url] if url else []
+
+    @property
+    def display_image_urls_json(self) -> str:
+        return json.dumps(self.display_image_urls, ensure_ascii=False)
+
 
 class TechDocDesignFile(models.Model):
     """Tài liệu thiết kế đính kèm hồ sơ SX (PDF, ảnh, CAD...)."""
+
+    PURPOSE_DESIGN = 'design'
+    PURPOSE_GALLERY = 'gallery'
+    PURPOSE_CHOICES = [
+        (PURPOSE_DESIGN, 'Rập / tài liệu'),
+        (PURPOSE_GALLERY, 'Ảnh mô tả'),
+    ]
 
     tech_doc = models.ForeignKey(
         ProductTechDoc,
@@ -90,6 +120,14 @@ class TechDocDesignFile(models.Model):
         help_text='Để trống = dùng tên file.',
     )
     notes = models.CharField(max_length=255, blank=True, default='', verbose_name='Ghi chú')
+    purpose = models.CharField(
+        max_length=20,
+        choices=PURPOSE_CHOICES,
+        default=PURPOSE_DESIGN,
+        db_index=True,
+        verbose_name='Loại',
+    )
+    sort_order = models.PositiveIntegerField(default=0, verbose_name='Thứ tự')
     uploaded_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -134,6 +172,36 @@ class TechDocDesignFile(models.Model):
     def is_pdf(self) -> bool:
         return (self.file.name or '').lower().endswith('.pdf')
 
+    @property
+    def file_ext(self) -> str:
+        name = (self.file.name or '').rsplit('/', 1)[-1].lower()
+        if '.' not in name:
+            return ''
+        return '.' + name.rsplit('.', 1)[-1]
+
+    @property
+    def is_office(self) -> bool:
+        return self.file_ext in {
+            '.doc', '.docx', '.odt', '.rtf',
+            '.xls', '.xlsx', '.ods', '.csv',
+        }
+
+    @property
+    def is_ai(self) -> bool:
+        return self.file_ext == '.ai'
+
+    @property
+    def preview_kind(self) -> str:
+        if self.is_image:
+            return 'image'
+        if self.is_pdf:
+            return 'pdf'
+        if self.is_office:
+            return 'office'
+        if self.is_ai:
+            return 'ai'
+        return 'file'
+
 
 class BomVersion(models.Model):
     STATUS_DRAFT = 'draft'
@@ -171,6 +239,14 @@ class BomVersion(models.Model):
         validators=[MinValueValidator(Decimal('0'))],
         verbose_name='Phụ phí (%)',
         help_text='Phần trăm cộng thêm trên (NVL + nhân công).',
+    )
+    overhead_amount = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal('0'),
+        validators=[MinValueValidator(Decimal('0'))],
+        verbose_name='Chi phí sản xuất chung',
+        help_text='Số tiền cố định / 1 SP — KHSH nhập tay.',
     )
     notes = models.TextField(blank=True, default='', verbose_name='Ghi chú')
     routing = models.ForeignKey(

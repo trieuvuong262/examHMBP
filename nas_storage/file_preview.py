@@ -2,19 +2,27 @@
 
 from __future__ import annotations
 
+import csv
 import hashlib
 import os
 import tempfile
+from datetime import date, datetime, time
+from html import escape
 from pathlib import Path
 from urllib.parse import urlencode
 
 from django.core.exceptions import ValidationError
+from django.http import HttpResponse
 from django.urls import reverse
 
 from tools.services import OFFICE_TO_PDF_EXTENSIONS, convert_office_path_to_pdf, office_preview_available
 
 PDF_EXTENSIONS = frozenset({'.pdf'})
 PREVIEWABLE_EXTENSIONS = PDF_EXTENSIONS | OFFICE_TO_PDF_EXTENSIONS
+SPREADSHEET_HTML_EXTENSIONS = frozenset({'.xlsx', '.csv'})
+_SPREADSHEET_MAX_SHEETS = 8
+_SPREADSHEET_MAX_ROWS = 200
+_SPREADSHEET_MAX_COLS = 40
 
 
 def preview_kind(file_name: str) -> str | None:
@@ -87,8 +95,6 @@ def inline_pdf_response(path: Path, *, filename: str | None = None):
 
 
 def inline_office_pdf_response(source: Path, *, display_name: str):
-    from django.http import HttpResponse
-
     try:
         data = office_pdf_bytes(source)
     except ValidationError:
@@ -98,3 +104,144 @@ def inline_office_pdf_response(source: Path, *, display_name: str):
     response['Content-Disposition'] = f'inline; filename="{pdf_name}"'
     response['Content-Length'] = len(data)
     return response
+
+
+def preview_unavailable_html(message: str) -> HttpResponse:
+    return HttpResponse(
+        '<!doctype html><meta charset="utf-8">'
+        '<body style="font-family:system-ui,sans-serif;padding:2rem;text-align:center;color:#64748b">'
+        f'{escape(message)}'
+        '</body>',
+        content_type='text/html; charset=utf-8',
+    )
+
+
+def _cell_text(value) -> str:
+    if value is None:
+        return ''
+    if isinstance(value, datetime):
+        if value.hour or value.minute or value.second:
+            return value.strftime('%d/%m/%Y %H:%M')
+        return value.strftime('%d/%m/%Y')
+    if isinstance(value, date) and not isinstance(value, datetime):
+        return value.strftime('%d/%m/%Y')
+    if isinstance(value, time):
+        return value.strftime('%H:%M')
+    if isinstance(value, float):
+        if value == int(value) and abs(value) < 1e15:
+            return f'{int(value):,}'.replace(',', '.')
+        return f'{value:g}'
+    if isinstance(value, int) and not isinstance(value, bool):
+        return f'{value:,}'.replace(',', '.')
+    return str(value)
+
+
+def _sheet_table_html(rows: list[list], *, title: str) -> str:
+    if not rows:
+        return f'<h2>{escape(title)}</h2><p class="note">Sheet trống.</p>'
+    width = max(len(row) for row in rows)
+    parts = [f'<h2>{escape(title)}</h2>', '<table>']
+    for r_idx, row in enumerate(rows):
+        parts.append('<tr>')
+        tag = 'th' if r_idx == 0 else 'td'
+        padded = list(row) + [''] * (width - len(row))
+        for cell in padded:
+            parts.append(f'<{tag}>{escape(_cell_text(cell))}</{tag}>')
+        parts.append('</tr>')
+    parts.append('</table>')
+    return ''.join(parts)
+
+
+def _xlsx_sheets(source: Path) -> list[tuple[str, list[list]]]:
+    import openpyxl
+
+    wb = openpyxl.load_workbook(source, read_only=True, data_only=False)
+    try:
+        sheets = []
+        for ws in wb.worksheets[:_SPREADSHEET_MAX_SHEETS]:
+            rows = []
+            for row in ws.iter_rows(
+                max_row=_SPREADSHEET_MAX_ROWS,
+                max_col=_SPREADSHEET_MAX_COLS,
+                values_only=True,
+            ):
+                rows.append(list(row))
+            while rows and all(c is None or str(c).strip() == '' for c in rows[-1]):
+                rows.pop()
+            sheets.append((ws.title or 'Sheet', rows))
+        return sheets
+    finally:
+        wb.close()
+
+
+def _csv_sheets(source: Path) -> list[tuple[str, list[list]]]:
+    raw = source.read_bytes()
+    text = None
+    for encoding in ('utf-8-sig', 'utf-8', 'cp1258', 'cp1252', 'latin-1'):
+        try:
+            text = raw.decode(encoding)
+            break
+        except UnicodeDecodeError:
+            continue
+    if text is None:
+        raise ValidationError('Không đọc được file CSV.')
+    sample = text[:4096]
+    try:
+        dialect = csv.Sniffer().sniff(sample, delimiters=',;\t')
+    except csv.Error:
+        dialect = csv.excel
+    reader = csv.reader(text.splitlines(), dialect)
+    rows = []
+    for i, row in enumerate(reader):
+        if i >= _SPREADSHEET_MAX_ROWS:
+            break
+        rows.append(row[:_SPREADSHEET_MAX_COLS])
+    while rows and all(not str(c).strip() for c in rows[-1]):
+        rows.pop()
+    return [(source.stem or 'CSV', rows)]
+
+
+def spreadsheet_to_html(source: Path, display_name: str) -> str:
+    ext = source.suffix.lower()
+    if ext == '.xlsx':
+        sheets = _xlsx_sheets(source)
+    elif ext == '.csv':
+        sheets = _csv_sheets(source)
+    else:
+        raise ValidationError('Định dạng bảng tính không xem nhanh được.')
+
+    truncated = any(
+        len(rows) >= _SPREADSHEET_MAX_ROWS for _, rows in sheets
+    )
+    bodies = [_sheet_table_html(rows, title=title) for title, rows in sheets]
+    note = ''
+    if truncated:
+        note = (
+            f'<p class="note">Chỉ hiện {_SPREADSHEET_MAX_ROWS} dòng × '
+            f'{_SPREADSHEET_MAX_COLS} cột đầu — tải file để xem đủ.</p>'
+        )
+    return (
+        '<!doctype html><meta charset="utf-8">'
+        '<style>'
+        'body{font-family:system-ui,Segoe UI,sans-serif;margin:0;background:#f1f5f9;color:#0f172a}'
+        'h2{font-size:13px;margin:12px 12px 6px;color:#334155}'
+        'table{border-collapse:collapse;margin:0 12px 16px;background:#fff;font-size:12px}'
+        'th,td{border:1px solid #cbd5e1;padding:3px 8px;white-space:nowrap;'
+        'max-width:280px;overflow:hidden;text-overflow:ellipsis}'
+        'th{background:#e2e8f0;font-weight:600}'
+        '.note{color:#64748b;font-size:11px;margin:8px 12px 16px}'
+        '</style>'
+        f'<p class="note">{escape(display_name)}</p>'
+        + ''.join(bodies)
+        + note
+    )
+
+
+def inline_spreadsheet_html_response(source: Path, *, display_name: str) -> HttpResponse:
+    try:
+        html = spreadsheet_to_html(source, display_name)
+    except ValidationError:
+        raise
+    except Exception as exc:
+        raise ValidationError('Không đọc được file Excel.') from exc
+    return HttpResponse(html, content_type='text/html; charset=utf-8')

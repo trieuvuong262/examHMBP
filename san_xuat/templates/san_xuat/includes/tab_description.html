@@ -1,76 +1,44 @@
 {% load sx_format %}
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-body">
+        <div class="mb-4">
+            {% include 'san_xuat/includes/tab_description_gallery.html' %}
+        </div>
+
         {% if can_update and desc_form %}
         <form method="post" data-loading-message="Đang lưu mô tả…">
             {% csrf_token %}
             <input type="hidden" name="action" value="save_description">
-            <div class="row g-3 mb-3">
-                <div class="col-md-8">
-                    <div class="small text-muted mb-1">Mã SP</div>
-                    <div class="fw-semibold">{{ doc.product_code }}</div>
-                </div>
-                <div class="col-md-4">
-                    <div class="form-check mt-4">
-                        {{ desc_form.is_active }}
-                        <label class="form-check-label" for="{{ desc_form.is_active.id_for_label }}">
-                            {{ desc_form.is_active.label }}{{ desc_form.is_active|sx_req_star }}
-                        </label>
-                    </div>
-                </div>
+            <div class="row g-2 align-items-end mb-2">
                 <div class="col-12">
-                    <div class="small text-muted mb-1">Tên sản phẩm</div>
-                    <div>{{ doc.product_name|default:"—" }}</div>
-                </div>
-                <div class="col-12">
-                    <label class="form-label small fw-semibold" for="{{ desc_form.description.id_for_label }}">
+                    <label class="form-label small mb-1" for="{{ desc_form.description.id_for_label }}">
                         {{ desc_form.description.label }}{{ desc_form.description|sx_req_star }}
                     </label>
                     {{ desc_form.description }}
                     {% if desc_form.description.errors %}<div class="text-danger small">{{ desc_form.description.errors }}</div>{% endif %}
                 </div>
-                <div class="col-12">
-                    <label class="form-label small" for="{{ desc_form.notes.id_for_label }}">
+                <div class="col-md-9">
+                    <label class="form-label small mb-1" for="{{ desc_form.notes.id_for_label }}">
                         {{ desc_form.notes.label }}{{ desc_form.notes|sx_req_star }}
                     </label>
                     {{ desc_form.notes }}
                 </div>
+                <div class="col-md-3">
+                    <button type="submit" class="btn btn-hm btn-sm w-100">Lưu mô tả</button>
+                </div>
             </div>
-            <button type="submit" class="btn btn-hm">Lưu mô tả</button>
         </form>
         {% else %}
-        <div class="row g-3">
-            <div class="col-md-8">
-                <div class="small text-muted mb-1">Mã SP</div>
-                <div class="fw-semibold">{{ doc.product_code }}</div>
-            </div>
-            <div class="col-md-4">
-                <div class="small text-muted mb-1">Trạng thái</div>
-                {% if doc.is_active %}
-                <span class="badge bg-success-subtle text-success border">Đang dùng</span>
-                {% else %}
-                <span class="badge bg-secondary-subtle text-secondary border">Ngưng</span>
-                {% endif %}
-            </div>
-            <div class="col-12">
-                <div class="small text-muted mb-1">Tên sản phẩm</div>
-                <div>{{ doc.product_name|default:"—" }}</div>
-            </div>
-            <div class="col-12">
-                <div class="small text-muted mb-1">Mô tả chi tiết</div>
-                {% if doc.description %}
-                <div class="border rounded p-3 bg-light" style="white-space:pre-wrap">{{ doc.description }}</div>
-                {% else %}
-                <div class="text-muted">Chưa có mô tả.</div>
-                {% endif %}
-            </div>
-            {% if doc.notes %}
-            <div class="col-12">
-                <div class="small text-muted mb-1">Ghi chú ngắn</div>
-                <div style="white-space:pre-wrap">{{ doc.notes }}</div>
-            </div>
+            <div class="small text-muted mb-1">Mô tả chi tiết</div>
+            {% if doc.description %}
+            <div class="border rounded p-3 bg-light" style="white-space:pre-wrap">{{ doc.description }}</div>
+            {% else %}
+            <div class="text-muted">Chưa có mô tả.</div>
             {% endif %}
-        </div>
+            {% if doc.notes %}
+            <div class="small text-muted mb-1 mt-3">Ghi chú ngắn</div>
+            <div style="white-space:pre-wrap">{{ doc.notes }}</div>
+            {% endif %}
         {% endif %}
     </div>
 </div>

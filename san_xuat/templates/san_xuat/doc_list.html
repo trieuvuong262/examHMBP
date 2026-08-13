@@ -32,8 +32,7 @@
         <table class="table align-middle mb-0" id="sx-doc-list-table">
             <thead class="table-light">
                 <tr>
-                    <th style="min-width:120px">Mã SP</th>
-                    <th style="min-width:180px">Tên sản phẩm</th>
+                    <th style="min-width:220px">Sản phẩm</th>
                     <th>Trạng thái</th>
                     <th>Phiên bản</th>
                     <th class="text-end">NPL</th>
@@ -44,14 +43,25 @@
             <tbody>
                 {% for doc in page_obj %}
                 <tr class="sx-doc-row jp-npl-catalog-row"
-                    data-href="{% url 'san_xuat:doc_detail' doc.pk %}">
+                    data-href="{% url 'san_xuat:doc_detail' doc.pk %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}">
                     <td>
-                        <a href="{% url 'san_xuat:doc_detail' doc.pk %}"
-                           class="fw-semibold text-decoration-none text-hm"
-                           data-loading-message="Đang tải hồ sơ…"
-                           onclick="event.stopPropagation()">{{ doc.product_code }}</a>
+                        <div class="d-flex align-items-center gap-2 jp-sx-doc-title">
+                            {% if doc.display_image_url %}
+                            <button type="button" class="sx-doc-thumb flex-shrink-0"
+                                    data-sx-gallery
+                                    data-sx-gallery-title="{{ doc.product_name|default:doc.product_code }}"
+                                    data-sx-gallery-images="{{ doc.display_image_urls_json }}"
+                                    aria-label="Xem ảnh {{ doc.product_name|default:doc.product_code }}">
+                                <img src="{{ doc.display_image_url }}" alt="" class="rounded border"
+                                     style="width:40px;height:40px;object-fit:cover;">
+                            </button>
+                            {% endif %}
+                            <a href="{% url 'san_xuat:doc_detail' doc.pk %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}"
+                               class="fw-semibold text-decoration-none text-hm"
+                               data-loading-message="Đang tải hồ sơ…"
+                               onclick="event.stopPropagation()">{{ doc.product_name|default:doc.product_code }}</a>
+                        </div>
                     </td>
-                    <td class="text-muted">{{ doc.product_name|default:"—" }}</td>
                     <td>
                         {% if doc.is_active %}
                         <span class="badge bg-success-subtle text-success border">Đang dùng</span>
@@ -63,7 +73,7 @@
                         {% with boms=doc.bom_versions.all %}
                         {% if boms %}
                             {% for bom in boms %}
-                            <a href="{% url 'san_xuat:doc_detail' doc.pk %}?tab=bom&bom={{ bom.pk }}"
+                            <a href="{% url 'san_xuat:doc_detail' doc.pk %}?tab=bom&bom={{ bom.pk }}{% if request.GET %}&{{ request.GET.urlencode }}{% endif %}"
                                class="badge bg-light text-dark border me-1 text-decoration-none sx-bom-badge"
                                onclick="event.stopPropagation()"
                                data-loading-message="Đang tải hồ sơ…">{{ bom.version_label }}</a>
@@ -87,7 +97,7 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="7" class="text-center text-muted py-4">Chưa có hồ sơ SX nào.</td>
+                    <td colspan="6" class="text-center text-muted py-4">Chưa có hồ sơ SX nào.</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -100,4 +110,5 @@
         {% endif %}
     </div>
 </div>
+{% include 'san_xuat/includes/product_image_gallery_modal.html' %}
 {% endblock %}

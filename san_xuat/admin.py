@@ -33,6 +33,7 @@ class TechDocDesignFileInline(admin.TabularInline):
     model = TechDocDesignFile
     extra = 0
     readonly_fields = ('uploaded_at', 'uploaded_by')
+    fields = ('file', 'title', 'purpose', 'sort_order', 'notes', 'uploaded_by', 'uploaded_at')
 
 
 @admin.register(ProductTechDoc)
@@ -45,7 +46,7 @@ class ProductTechDocAdmin(admin.ModelAdmin):
 
 @admin.register(BomVersion)
 class BomVersionAdmin(admin.ModelAdmin):
-    list_display = ('tech_doc', 'version_label', 'status', 'overhead_pct', 'updated_at')
+    list_display = ('tech_doc', 'version_label', 'status', 'overhead_pct', 'overhead_amount', 'updated_at')
     list_filter = ('status',)
     search_fields = ('tech_doc__product_code', 'version_label')
     inlines = [BomLineInline, ProcessStepInline]

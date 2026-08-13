@@ -1,0 +1,128 @@
+<style>
+.sx-desc-gallery { display: flex; flex-wrap: wrap; gap: .5rem; }
+.sx-desc-gallery-item { position: relative; }
+.sx-desc-gallery.is-sortable .sx-desc-gallery-item { cursor: grab; }
+.sx-desc-gallery.is-sortable .sx-desc-gallery-item.sortable-ghost { opacity: .45; }
+.sx-desc-gallery-item img {
+  width: 88px; height: 88px; object-fit: cover; display: block;
+  pointer-events: none;
+}
+.sx-desc-gallery-del-form {
+  position: absolute; top: 4px; right: 4px; margin: 0; z-index: 2;
+}
+.sx-desc-gallery-del {
+  width: 1.4rem; height: 1.4rem; padding: 0;
+  line-height: 1; border-radius: 999px;
+}
+</style>
+<div class="sx-desc-gallery-block">
+    <div class="small fw-semibold mb-2">Ảnh sản phẩm</div>
+    {% if can_update and gallery_form %}
+    <form method="post" enctype="multipart/form-data" class="mb-3"
+          data-loading-message="Đang tải ảnh…">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="upload_gallery">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-8">
+                <label class="form-label small mb-1" for="{{ gallery_form.files.id_for_label }}">Tải ảnh lên</label>
+                {{ gallery_form.files }}
+                {% if gallery_form.files.errors %}
+                <div class="text-danger small">{{ gallery_form.files.errors }}</div>
+                {% endif %}
+            </div>
+            <div class="col-md-4">
+                <button type="submit" class="btn btn-hm w-100">
+                    <i class="bi bi-upload me-1"></i>Tải lên
+                </button>
+            </div>
+        </div>
+    </form>
+    {% endif %}
+
+    {% if gallery_images %}
+    <div class="sx-desc-gallery{% if can_update %} is-sortable{% endif %}" id="sx-desc-gallery"
+         data-reorder-url="{{ request.path }}?tab=info">
+        {% for img in gallery_images %}
+        {% if img.is_image %}
+        <div class="sx-desc-gallery-item" data-file-id="{{ img.pk }}">
+            <button type="button" class="sx-doc-thumb"
+                    data-sx-gallery
+                    data-sx-gallery-title="{{ doc.product_name|default:doc.product_code }}"
+                    data-sx-gallery-images="{{ gallery_urls_json }}"
+                    data-sx-gallery-index="{{ forloop.counter0 }}"
+                    aria-label="Xem ảnh {{ img.display_name }}">
+                <img src="{{ img.file_url }}" alt="{{ img.display_name }}" class="rounded border">
+            </button>
+            {% if can_update %}
+            <form method="post" class="sx-desc-gallery-del-form"
+                  onsubmit="return confirm('Xóa ảnh này?');">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="delete_gallery">
+                <input type="hidden" name="file_id" value="{{ img.pk }}">
+                <button type="submit" class="btn btn-dark btn-sm sx-desc-gallery-del"
+                        title="Xóa ảnh" aria-label="Xóa ảnh">
+                    <i class="bi bi-x"></i>
+                </button>
+            </form>
+            {% endif %}
+        </div>
+        {% endif %}
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-muted small">Chưa có ảnh tải lên.</div>
+    {% endif %}
+</div>
+{% if can_update and gallery_images %}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
+<script>
+(function () {
+  var el = document.getElementById('sx-desc-gallery');
+  if (!el || typeof Sortable === 'undefined') return;
+  var csrf = document.querySelector('[name=csrfmiddlewaretoken]');
+  var token = csrf ? csrf.value : '';
+  var url = el.getAttribute('data-reorder-url') || (location.pathname + '?tab=info');
+
+  function syncGalleryIndexes() {
+    var items = el.querySelectorAll('.sx-desc-gallery-item');
+    var urls = [];
+    items.forEach(function (item) {
+      var img = item.querySelector('img');
+      if (img && img.src) urls.push(img.src);
+    });
+    var payload = JSON.stringify(urls);
+    items.forEach(function (item, i) {
+      var btn = item.querySelector('[data-sx-gallery]');
+      if (!btn) return;
+      btn.setAttribute('data-sx-gallery-index', String(i));
+      btn.setAttribute('data-sx-gallery-images', payload);
+    });
+  }
+
+  new Sortable(el, {
+    animation: 160,
+    draggable: '.sx-desc-gallery-item',
+    filter: '.sx-desc-gallery-del, .sx-desc-gallery-del-form',
+    preventOnFilter: true,
+    ghostClass: 'sortable-ghost',
+    onEnd: function () {
+      var ids = Array.prototype.map.call(el.querySelectorAll('.sx-desc-gallery-item'), function (item) {
+        return item.getAttribute('data-file-id');
+      }).filter(Boolean);
+      syncGalleryIndexes();
+      var body = new URLSearchParams();
+      body.set('action', 'reorder_gallery');
+      body.set('ids', ids.join(','));
+      fetch(url, {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': token,
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+        body: body,
+      }).then(function (r) { return r.json(); }).catch(function () {});
+    },
+  });
+})();
+</script>
+{% endif %}

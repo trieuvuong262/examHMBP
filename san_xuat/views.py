@@ -1,6 +1,6 @@
 from django.contrib import messages
 from django.db.models import Q
-from django.http import FileResponse, Http404, JsonResponse
+from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_GET, require_POST
 import json
@@ -18,11 +18,13 @@ from PortalJustPlay.pagination import paginate_queryset
 
 from san_xuat.forms import (
     BomLineFormSet,
+    BomOverheadAmountForm,
     BomVersionMetaForm,
     ProcessStepFormSet,
     ProductTechDocCreateForm,
     ProductTechDocDescriptionForm,
     TechDocDesignUploadForm,
+    TechDocGalleryUploadForm,
 )
 from san_xuat.models import BomVersion, ProductTechDoc, TechDocDesignFile
 from san_xuat.services.bom import (
@@ -46,6 +48,24 @@ def _perm_ctx(request):
     }
 
 
+def _doc_list_back_query(request) -> str:
+    """Giữ bộ lọc danh sách hồ sơ khi vào chi tiết rồi bấm Quay lại."""
+    params = request.GET.copy()
+    for key in ('tab', 'bom', 'action'):
+        params.pop(key, None)
+    return params.urlencode()[:2000]
+
+
+def _doc_tab_redirect(request, tab: str, *, bom=None):
+    bits = [f'tab={tab}']
+    if bom is not None:
+        bits.append(f'bom={bom}')
+    extra = _doc_list_back_query(request)
+    if extra:
+        bits.append(extra)
+    return redirect(f'{request.path}?{"&".join(bits)}')
+
+
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def hub(request):
     return redirect('san_xuat:overview')
@@ -62,6 +82,7 @@ def doc_list(request):
         sx_filter_context,
     )
     from san_xuat.list_grid import apply_sx_list_sort, sx_list_grid_context
+    from san_xuat.services.products import fill_tech_doc_display_images
 
     search_query = get_search_query(request)
     filters = parse_sx_list_filters(request)
@@ -81,9 +102,17 @@ def doc_list(request):
         line_count=Count('lines', distinct=True),
         step_count=Count('process_steps', distinct=True),
     ).order_by('-created_at')
-    qs = qs.prefetch_related(Prefetch('bom_versions', queryset=bom_qs))
+    gallery_qs = TechDocDesignFile.objects.filter(
+        purpose=TechDocDesignFile.PURPOSE_GALLERY,
+    ).order_by('sort_order', 'uploaded_at', 'pk')
+    qs = qs.prefetch_related(
+        Prefetch('bom_versions', queryset=bom_qs),
+        Prefetch('design_files', queryset=gallery_qs, to_attr='gallery_images'),
+    )
 
     page_obj, query_string = paginate_queryset(request, qs, per_page=500)
+    page_obj.object_list = list(page_obj.object_list)
+    fill_tech_doc_display_images(page_obj.object_list)
     return render(request, 'san_xuat/doc_list.html', {
         'page_obj': page_obj,
         'query_string': query_string,
@@ -156,7 +185,10 @@ def doc_create(request):
             except BomError as exc:
                 messages.error(request, str(exc))
             else:
-                messages.success(request, f'Đã tạo hồ sơ SX {doc.product_code}.')
+                messages.success(
+                    request,
+                    f'Đã tạo hồ sơ SX {doc.product_name or doc.product_code}.',
+                )
                 return redirect('san_xuat:doc_detail', pk=doc.pk)
     else:
         initial = {}
@@ -173,7 +205,12 @@ def doc_create(request):
 def _get_bom_for_doc(doc: ProductTechDoc, bom_id: str | None) -> BomVersion | None:
     if bom_id:
         try:
-            return doc.bom_versions.prefetch_related('lines__material', 'process_steps').get(pk=int(bom_id))
+            return doc.bom_versions.prefetch_related(
+                'lines__material__unit',
+                'lines__material__color',
+                'lines__material__specification',
+                'process_steps',
+            ).get(pk=int(bom_id))
         except (ValueError, BomVersion.DoesNotExist):
             return None
     return get_working_bom(doc)
@@ -191,19 +228,32 @@ def doc_detail(request, pk):
         # Prefetch bộ phận trên từng công đoạn
         bom = (
             BomVersion.objects.filter(pk=bom.pk)
-            .prefetch_related('lines__material', 'process_steps__work_center')
+            .prefetch_related(
+                'lines__material__unit',
+                'lines__material__color',
+                'lines__material__specification',
+                'process_steps__work_center',
+            )
             .select_related('routing')
             .first()
         )
     versions = list(doc.bom_versions.order_by('-created_at'))
     costing = compute_costing(bom) if bom else None
     snapshots = list(bom.costing_snapshots.all()[:10]) if bom else []
-    design_files = list(doc.design_files.select_related('uploaded_by').all())
+    all_files = list(doc.design_files.select_related('uploaded_by').all())
+    design_files = [f for f in all_files if f.purpose != TechDocDesignFile.PURPOSE_GALLERY]
+    gallery_images = sorted(
+        [f for f in all_files if f.purpose == TechDocDesignFile.PURPOSE_GALLERY],
+        key=lambda f: (f.sort_order, f.uploaded_at, f.pk),
+    )
+    gallery_urls = [f.file_url for f in gallery_images if f.is_image and f.file_url]
 
     line_formset = None
     step_formset = None
     meta_form = None
+    overhead_form = None
     design_form = None
+    gallery_form = None
     desc_form = None
     can_update = user_can_update_module(request.user, MODULE_SAN_XUAT)
 
@@ -214,15 +264,66 @@ def doc_detail(request, pk):
             if desc_form.is_valid():
                 desc_form.save()
                 messages.success(request, 'Đã lưu mô tả hồ sơ.')
-                return redirect(f'{request.path}?tab=info')
+                return _doc_tab_redirect(request, 'info')
             tab = 'info'
             messages.error(request, 'Không lưu được mô tả — kiểm tra lại.')
+        elif action == 'upload_gallery':
+            gallery_form = TechDocGalleryUploadForm(request.POST, request.FILES)
+            if gallery_form.is_valid():
+                created = gallery_form.save(doc, user=request.user)
+                messages.success(request, f'Đã tải lên {len(created)} ảnh.')
+                return _doc_tab_redirect(request, 'info')
+            tab = 'info'
+            messages.error(request, 'Không tải lên được ảnh.')
+        elif action == 'reorder_gallery':
+            raw_ids = [part.strip() for part in (request.POST.get('ids') or '').split(',') if part.strip()]
+            ids = []
+            for part in raw_ids:
+                if not part.isdigit():
+                    ids = []
+                    break
+                ids.append(int(part))
+            files = {
+                f.pk: f
+                for f in doc.design_files.filter(
+                    purpose=TechDocDesignFile.PURPOSE_GALLERY,
+                    pk__in=ids,
+                )
+            }
+            ok = ids and len(files) == len(ids) and all(pk in files for pk in ids)
+            if ok:
+                for order, pk in enumerate(ids, start=1):
+                    item = files[pk]
+                    if item.sort_order != order:
+                        item.sort_order = order
+                        item.save(update_fields=['sort_order'])
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'ok': bool(ok)})
+            if ok:
+                messages.success(request, 'Đã sắp xếp gallery.')
+            else:
+                messages.error(request, 'Không sắp xếp được gallery.')
+            return _doc_tab_redirect(request, 'info')
+        elif action == 'delete_gallery':
+            file_id = request.POST.get('file_id')
+            try:
+                gallery_file = doc.design_files.get(
+                    pk=int(file_id),
+                    purpose=TechDocDesignFile.PURPOSE_GALLERY,
+                )
+            except (TypeError, ValueError, TechDocDesignFile.DoesNotExist):
+                messages.error(request, 'Không tìm thấy ảnh.')
+            else:
+                gallery_file.file.delete(save=False)
+                gallery_file.delete()
+                messages.success(request, 'Đã xóa ảnh.')
+            return _doc_tab_redirect(request, 'info')
         elif action == 'upload_design':
             design_form = TechDocDesignUploadForm(request.POST, request.FILES)
             if design_form.is_valid():
                 created = design_form.save(doc, user=request.user)
                 messages.success(request, f'Đã tải lên {len(created)} tài liệu thiết kế.')
-                return redirect(f'{request.path}?tab=design')
+                return _doc_tab_redirect(request, 'design')
             tab = 'design'
             messages.error(request, 'Không tải lên được — kiểm tra lại tệp.')
         elif action == 'delete_design':
@@ -235,7 +336,7 @@ def doc_detail(request, pk):
                 design_file.file.delete(save=False)
                 design_file.delete()
                 messages.success(request, 'Đã xóa tài liệu thiết kế.')
-            return redirect(f'{request.path}?tab=design')
+            return _doc_tab_redirect(request, 'design')
         elif bom and action == 'save_bom' and tab == 'bom':
             meta_form = BomVersionMetaForm(request.POST, instance=bom)
             line_formset = BomLineFormSet(request.POST, instance=bom, prefix='lines')
@@ -243,14 +344,14 @@ def doc_detail(request, pk):
                 meta_form.save()
                 line_formset.save()
                 messages.success(request, 'Đã lưu BOM.')
-                return redirect(f"{request.path}?tab=bom&bom={bom.pk}")
+                return _doc_tab_redirect(request, 'bom', bom=bom.pk)
             messages.error(request, 'Không lưu được BOM — kiểm tra lại các dòng.')
         elif bom and action == 'save_process' and tab == 'process':
             step_formset = ProcessStepFormSet(request.POST, instance=bom, prefix='steps')
             if step_formset.is_valid():
                 step_formset.save()
                 messages.success(request, 'Đã lưu công đoạn.')
-                return redirect(f"{request.path}?tab=process&bom={bom.pk}")
+                return _doc_tab_redirect(request, 'process', bom=bom.pk)
             messages.error(request, 'Không lưu được công đoạn — kiểm tra lại.')
         elif bom and action == 'apply_routing' and tab == 'process':
             from san_xuat.ie_models import SxRouting
@@ -285,7 +386,7 @@ def doc_detail(request, pk):
                         )
                     for w in result.warnings[:10]:
                         messages.warning(request, w)
-            return redirect(f'{request.path}?tab=process&bom={bom.pk}')
+            return _doc_tab_redirect(request, 'process', bom=bom.pk)
         elif action == 'new_bom' and can_update:
             copy_flag = (request.POST.get('copy') or '').strip() in ('1', 'true', 'yes', 'on')
             copy_from = None
@@ -301,48 +402,24 @@ def doc_detail(request, pk):
                 )
             except BomError as exc:
                 messages.error(request, str(exc))
-                return redirect(f'{request.path}?tab=bom' + (f'&bom={bom.pk}' if bom else ''))
+                return _doc_tab_redirect(request, 'bom', bom=bom.pk if bom else None)
             messages.success(
                 request,
                 f'Đã tạo phiên bản BOM {new_bom.version_label}'
                 + (' (sao chép từ bản trước).' if copy_from else '.'),
             )
-            return redirect(f'{request.path}?tab=bom&bom={new_bom.pk}')
+            return _doc_tab_redirect(request, 'bom', bom=new_bom.pk)
+        elif bom and action == 'save_overhead' and tab == 'costing':
+            overhead_form = BomOverheadAmountForm(request.POST, instance=bom)
+            if overhead_form.is_valid():
+                overhead_form.save()
+                messages.success(request, 'Đã lưu chi phí sản xuất chung.')
+                return _doc_tab_redirect(request, 'costing', bom=bom.pk)
+            messages.error(request, 'Không lưu được chi phí sản xuất chung — kiểm tra lại số tiền.')
         elif bom and action == 'snapshot' and tab == 'costing':
             snap = save_costing_snapshot(bom, user=request.user)
             messages.success(request, f'Đã chốt costing: {snap.total_cost:,.0f} đ.')
-            return redirect(f"{request.path}?tab=costing&bom={bom.pk}")
-        elif action == 'expand_sku_matrix':
-            from san_xuat.services.sku_catalog import SkuError, expand_style_matrix
-
-            colors = request.POST.getlist('color_codes')
-            sizes = request.POST.getlist('size_labels')
-            try:
-                rows = expand_style_matrix(
-                    style_code=doc.product_code,
-                    style_name=doc.product_name or '',
-                    color_codes=colors,
-                    size_labels=sizes,
-                    user=request.user,
-                )
-            except SkuError as exc:
-                messages.error(request, str(exc))
-            else:
-                messages.success(request, f'Đã tạo / cập nhật {len(rows)} SKU cho mã SX {doc.product_code}.')
-            return redirect(f'{request.path}?tab=sku')
-        elif action == 'delete_sku':
-            from san_xuat.services.sku_catalog import SkuError, delete_sku
-
-            try:
-                deleted = delete_sku(
-                    sku_id=request.POST.get('sku_id'),
-                    style_code=doc.product_code,
-                )
-            except SkuError as exc:
-                messages.error(request, str(exc))
-            else:
-                messages.success(request, f'Đã xóa SKU {deleted.sku_code}.')
-            return redirect(f'{request.path}?tab=sku')
+            return _doc_tab_redirect(request, 'costing', bom=bom.pk)
 
     if can_update:
         if tab == 'info' and desc_form is None:
@@ -352,8 +429,12 @@ def doc_detail(request, pk):
             line_formset = BomLineFormSet(instance=bom, prefix='lines')
         if bom and step_formset is None and tab == 'process':
             step_formset = ProcessStepFormSet(instance=bom, prefix='steps')
+        if bom and overhead_form is None and tab == 'costing':
+            overhead_form = BomOverheadAmountForm(instance=bom)
         if tab == 'design' and design_form is None:
             design_form = TechDocDesignUploadForm()
+        if tab == 'info' and gallery_form is None:
+            gallery_form = TechDocGalleryUploadForm()
 
     from django.urls import reverse
     from django.db.models import Sum
@@ -394,14 +475,36 @@ def doc_detail(request, pk):
 
     from django.db.models import Count, Q
 
-    from san_xuat.hub_models import SxColor, SxSize
     from san_xuat.ie_models import SxRouting
-    from san_xuat.services.sku_catalog import skus_for_style
 
-    skus = list(skus_for_style(doc.product_code, active_only=False))
-    colors = list(SxColor.objects.filter(is_active=True).order_by('sort_order', 'code'))
-    sizes = list(SxSize.objects.filter(is_active=True).order_by('sort_order', 'code'))
-    skus_active_count = sum(1 for s in skus if s.is_active)
+    skus = []
+    skus_active_count = 0
+    sku_color_count = 0
+    sku_size_count = 0
+    if tab == 'sku':
+        from kho_san_pham.models import Product
+
+        code = (doc.product_code or '').strip()
+        catalog = list(
+            Product.objects.filter(Q(style_code__iexact=code) | Q(code__iexact=code))
+            .order_by('color_code', 'size_label', 'code')
+        )
+        by_style = [
+            p for p in catalog
+            if (p.style_code or '').strip().upper() == code.upper()
+        ]
+        skus = by_style or catalog
+        skus_active_count = sum(1 for p in skus if p.is_active)
+        sku_color_count = len({
+            (p.color_code or '').strip().upper()
+            for p in skus
+            if (p.color_code or '').strip()
+        })
+        sku_size_count = len({
+            (p.size_label or '').strip().upper()
+            for p in skus
+            if (p.size_label or '').strip()
+        })
 
     routing_choices = []
     if tab == 'process' and bom:
@@ -423,6 +526,13 @@ def doc_detail(request, pk):
                 .order_by('style_code', 'routing_rev')[:80]
             )
 
+    from san_xuat.services.products import fill_tech_doc_display_images
+    from tools.services import office_preview_available
+
+    doc.gallery_images = gallery_images
+    fill_tech_doc_display_images([doc])
+    office_preview_ready = office_preview_available()
+
     return render(request, 'san_xuat/doc_detail.html', {
         'doc': doc,
         'tab': tab,
@@ -431,10 +541,14 @@ def doc_detail(request, pk):
         'costing': costing,
         'snapshots': snapshots,
         'meta_form': meta_form,
+        'overhead_form': overhead_form,
         'line_formset': line_formset,
         'step_formset': step_formset,
         'design_form': design_form,
         'design_files': design_files,
+        'gallery_form': gallery_form,
+        'gallery_images': gallery_images,
+        'gallery_urls_json': json.dumps(gallery_urls),
         'desc_form': desc_form,
         'issue_base_url': issue_base_url,
         'issue_bom_url': issue_bom_url,
@@ -442,9 +556,11 @@ def doc_detail(request, pk):
         'bom_stock_map_json': bom_stock_map_json,
         'skus': skus,
         'skus_active_count': skus_active_count,
-        'colors': colors,
-        'sizes': sizes,
+        'sku_color_count': sku_color_count,
+        'sku_size_count': sku_size_count,
         'routing_choices': routing_choices,
+        'office_preview_ready': office_preview_ready,
+        'list_back_query': _doc_list_back_query(request),
         **_perm_ctx(request),
     })
 
@@ -478,6 +594,15 @@ def design_file_serve(request, pk):
         'image/svg+xml',
     }
     force_download = (request.GET.get('download') or '').strip() in ('1', 'true', 'yes')
+    if not force_download and (design_file.is_ai or design_file.is_pdf):
+        try:
+            with path.open('rb') as fh:
+                head = fh.read(8)
+        except OSError:
+            head = b''
+        if head.startswith(b'%PDF'):
+            content_type = 'application/pdf'
+            inline_types.add('application/pdf')
     as_attachment = force_download or content_type not in inline_types
     response = FileResponse(
         open_design_file(design_file),
@@ -486,6 +611,60 @@ def design_file_serve(request, pk):
         filename=disk_name,
     )
     return response
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+@require_GET
+def design_file_preview(request, pk):
+    """Xem trước PDF / Word / Excel / AI (PDF-compatible) trong iframe."""
+    from django.core.exceptions import ValidationError
+
+    from nas_storage.file_preview import (
+        SPREADSHEET_HTML_EXTENSIONS,
+        inline_office_pdf_response,
+        inline_pdf_response,
+        inline_spreadsheet_html_response,
+        preview_unavailable_html,
+    )
+    from san_xuat.design_nas_storage import design_file_abs_path
+    from tools.services import OFFICE_TO_PDF_EXTENSIONS, office_preview_available
+
+    design_file = get_object_or_404(
+        TechDocDesignFile.objects.select_related('tech_doc'),
+        pk=pk,
+    )
+    path = design_file_abs_path(design_file)
+    if not path:
+        raise Http404
+    ext = path.suffix.lower()
+    try:
+        with path.open('rb') as fh:
+            head = fh.read(8)
+    except OSError:
+        raise Http404
+    if ext == '.pdf' or (ext == '.ai' and head.startswith(b'%PDF')):
+        return inline_pdf_response(path, filename=design_file.display_name)
+    if ext == '.ai':
+        return preview_unavailable_html(
+            'File AI này không xem trước được trên trình duyệt. Hãy tải về Adobe Illustrator.'
+        )
+    if ext in SPREADSHEET_HTML_EXTENSIONS:
+        try:
+            return inline_spreadsheet_html_response(path, display_name=design_file.display_name)
+        except ValidationError:
+            return preview_unavailable_html('Không đọc được file Excel. Hãy tải xuống để mở.')
+    if ext in OFFICE_TO_PDF_EXTENSIONS and office_preview_available():
+        try:
+            return inline_office_pdf_response(path, display_name=design_file.display_name)
+        except ValidationError:
+            return preview_unavailable_html(
+                'Không chuyển được sang PDF để xem trước. Hãy tải file về.'
+            )
+    if ext in OFFICE_TO_PDF_EXTENSIONS:
+        return preview_unavailable_html(
+            'Chưa xem trước được định dạng này trên trình duyệt. Hãy tải file về.'
+        )
+    raise Http404
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')

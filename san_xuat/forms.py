@@ -87,20 +87,21 @@ class ProductTechDocCreateForm(forms.Form):
 class ProductTechDocDescriptionForm(forms.ModelForm):
     class Meta:
         model = ProductTechDoc
-        fields = ('description', 'notes', 'is_active')
+        fields = ('description', 'notes')
         widgets = {
             'description': forms.Textarea(attrs={
-                'class': 'form-control',
-                'rows': 10,
+                'class': 'form-control form-control-sm',
+                'rows': 3,
                 'placeholder': 'Mô tả kỹ thuật, yêu cầu sản xuất, lưu ý…',
             }),
-            'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
-            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'notes': forms.TextInput(attrs={
+                'class': 'form-control form-control-sm',
+                'placeholder': 'Ghi chú ngắn…',
+            }),
         }
         labels = {
             'description': 'Mô tả chi tiết',
             'notes': 'Ghi chú ngắn',
-            'is_active': 'Đang dùng',
         }
 
 
@@ -169,6 +170,61 @@ class TechDocDesignUploadForm(forms.Form):
                     file=f,
                     title=title if len(files) == 1 else '',
                     notes=notes,
+                    purpose=TechDocDesignFile.PURPOSE_DESIGN,
+                    uploaded_by=user if getattr(user, 'is_authenticated', False) else None,
+                ),
+            )
+        return created
+
+
+_GALLERY_IMAGE_EXTS = ('.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp')
+
+
+class TechDocGalleryUploadForm(forms.Form):
+    files = MultipleFileField(
+        label='Ảnh sản phẩm',
+        required=True,
+        widget=MultipleFileInput(attrs={
+            'class': 'form-control',
+            'accept': 'image/jpeg,image/png,image/webp,image/gif,image/bmp,.jpg,.jpeg,.png,.webp,.gif,.bmp',
+        }),
+    )
+
+    def clean_files(self):
+        files = self.cleaned_data.get('files') or []
+        if not isinstance(files, (list, tuple)):
+            files = [files] if files else []
+        if not files:
+            raise forms.ValidationError('Chọn ít nhất một ảnh.')
+        bad = [
+            getattr(f, 'name', '') or 'file'
+            for f in files
+            if not (getattr(f, 'name', '') or '').lower().endswith(_GALLERY_IMAGE_EXTS)
+        ]
+        if bad:
+            raise forms.ValidationError('Chỉ nhận file ảnh.')
+        return files
+
+    def save(self, tech_doc, *, user=None):
+        from django.db.models import Max
+
+        files = self.cleaned_data.get('files') or []
+        if not isinstance(files, (list, tuple)):
+            files = [files] if files else []
+        start = (
+            tech_doc.design_files.filter(purpose=TechDocDesignFile.PURPOSE_GALLERY)
+            .aggregate(m=Max('sort_order'))
+            .get('m')
+            or 0
+        )
+        created = []
+        for i, f in enumerate(files, start=1):
+            created.append(
+                TechDocDesignFile.objects.create(
+                    tech_doc=tech_doc,
+                    file=f,
+                    purpose=TechDocDesignFile.PURPOSE_GALLERY,
+                    sort_order=start + i,
                     uploaded_by=user if getattr(user, 'is_authenticated', False) else None,
                 ),
             )
@@ -183,6 +239,22 @@ class BomVersionMetaForm(forms.ModelForm):
             'version_label': forms.TextInput(attrs={'class': 'form-control'}),
             'overhead_pct': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0'}),
             'notes': forms.TextInput(attrs={'class': 'form-control'}),
+        }
+
+
+class BomOverheadAmountForm(forms.ModelForm):
+    """KHSH nhập chi phí sản xuất chung / 1 SP trên tab Costing."""
+
+    class Meta:
+        model = BomVersion
+        fields = ('overhead_amount',)
+        widgets = {
+            'overhead_amount': CompactNumberInput(attrs={
+                'class': 'form-control',
+                'step': '1',
+                'min': '0',
+                'inputmode': 'decimal',
+            }),
         }
 
 

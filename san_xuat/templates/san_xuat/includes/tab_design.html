@@ -29,6 +29,106 @@
     font-size: 0.875rem;
     line-height: 2rem;
   }
+  .sx-design-preview-stage {
+    min-height: 60vh;
+    background: #0f172a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .sx-design-preview-stage.is-pdf { background: #e2e8f0; }
+  .sx-design-preview-stage iframe {
+    width: 100%;
+    height: 70vh;
+    border: 0;
+    background: #fff;
+  }
+  .sx-design-preview-stage img {
+    max-width: 100%;
+    max-height: 70vh;
+    object-fit: contain;
+  }
+  .sx-design-file-icon {
+    width: 2.5rem;
+    height: 2.5rem;
+    padding: 0;
+    border: 0;
+    border-radius: .55rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: transform .12s ease, box-shadow .12s ease;
+  }
+  .sx-design-file-icon:hover,
+  .sx-design-file-icon:focus-visible {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(15, 23, 42, .12);
+    outline: none;
+  }
+  .sx-design-file-icon.is-pdf { background: #fef2f2; color: #dc2626; }
+  .sx-design-file-icon.is-word { background: #eff6ff; color: #2563eb; }
+  .sx-design-file-icon.is-excel { background: #ecfdf5; color: #059669; }
+  .sx-design-file-icon.is-ai { background: #fff7ed; color: #d97706; }
+  .sx-design-file-icon.is-file { background: #f1f5f9; color: #64748b; }
+  .sx-design-file-icon.is-image {
+    overflow: hidden;
+    background: #f8fafc;
+    padding: 0;
+  }
+  .sx-design-file-icon.is-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .sx-design-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+  }
+  .sx-design-actions form {
+    display: contents;
+  }
+  .sx-design-action {
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: .45rem;
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    color: #475569;
+    line-height: 1;
+    font-size: .95rem;
+    text-decoration: none;
+    transition: background .12s ease, border-color .12s ease, color .12s ease;
+  }
+  .sx-design-action:hover,
+  .sx-design-action:focus-visible {
+    border-color: #fecaca;
+    color: var(--hm-primary);
+    background: var(--hm-primary-soft);
+    outline: none;
+  }
+  .sx-design-action.is-view:hover,
+  .sx-design-action.is-view:focus-visible {
+    border-color: #bfdbfe;
+    color: #2563eb;
+    background: #eff6ff;
+  }
+  .sx-design-action.is-danger {
+    color: #94a3b8;
+  }
+  .sx-design-action.is-danger:hover,
+  .sx-design-action.is-danger:focus-visible {
+    border-color: #fecaca;
+    color: #dc2626;
+    background: #fef2f2;
+  }
 </style>
 
 <div class="card border-0 shadow-sm mb-3">
@@ -68,60 +168,85 @@
             <table class="table table-sm align-middle mb-0">
                 <thead class="table-light">
                     <tr>
-                        <th style="width:5rem">Xem</th>
+                        <th style="width:3.5rem"></th>
                         <th>Tên tài liệu</th>
                         <th>Ghi chú</th>
                         <th>Người tải</th>
                         <th>Ngày</th>
-                        <th style="width:7rem"></th>
+                        <th class="text-end" style="width:7.5rem">Thao tác</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for f in design_files %}
                     <tr>
                         <td>
-                            {% if f.is_image %}
-                            <a href="{{ f.file_url }}" target="_blank" rel="noopener">
-                                <img src="{{ f.file_url }}" alt="{{ f.display_name }}"
-                                     class="img-thumbnail" style="max-height:3rem;max-width:4rem;object-fit:cover;">
-                            </a>
-                            {% elif f.is_pdf %}
-                            <a href="{{ f.file_url }}" target="_blank" rel="noopener"
-                               class="btn btn-outline-danger btn-sm py-0 px-2" title="Mở PDF">
-                                <i class="bi bi-file-earmark-pdf"></i>
-                            </a>
-                            {% else %}
-                            <a href="{{ f.file_url }}?download=1" target="_blank" rel="noopener"
-                               class="btn btn-outline-secondary btn-sm py-0 px-2" title="Tải xuống">
-                                <i class="bi bi-file-earmark"></i>
-                            </a>
-                            {% endif %}
+                            <button type="button"
+                                    class="sx-design-file-icon sx-design-preview-trigger {% if f.is_image %}is-image{% elif f.is_pdf %}is-pdf{% elif f.file_ext == '.doc' or f.file_ext == '.docx' or f.file_ext == '.rtf' or f.file_ext == '.odt' %}is-word{% elif f.file_ext == '.xls' or f.file_ext == '.xlsx' or f.file_ext == '.csv' or f.file_ext == '.ods' %}is-excel{% elif f.is_ai %}is-ai{% else %}is-file{% endif %}"
+                                    data-sx-design-preview
+                                    data-kind="{{ f.preview_kind }}"
+                                    data-name="{{ f.display_name }}"
+                                    data-preview-url="{% if f.is_image %}{{ f.file_url }}{% elif f.is_pdf or f.is_ai or f.is_office %}{% url 'san_xuat:design_file_preview' f.pk %}{% else %}{{ f.file_url }}{% endif %}"
+                                    data-download-url="{{ f.file_url }}?download=1"
+                                    title="Xem trước">
+                                {% if f.is_image %}
+                                <img src="{{ f.file_url }}" alt="">
+                                {% elif f.is_pdf %}
+                                <i class="bi bi-file-earmark-pdf-fill" aria-hidden="true"></i>
+                                {% elif f.file_ext == '.doc' or f.file_ext == '.docx' or f.file_ext == '.rtf' or f.file_ext == '.odt' %}
+                                <i class="bi bi-file-earmark-word-fill" aria-hidden="true"></i>
+                                {% elif f.file_ext == '.xls' or f.file_ext == '.xlsx' or f.file_ext == '.csv' or f.file_ext == '.ods' %}
+                                <i class="bi bi-file-earmark-excel-fill" aria-hidden="true"></i>
+                                {% elif f.is_ai %}
+                                <i class="bi bi-bezier2" aria-hidden="true"></i>
+                                {% else %}
+                                <i class="bi bi-file-earmark-fill" aria-hidden="true"></i>
+                                {% endif %}
+                            </button>
                         </td>
                         <td>
-                            <a href="{{ f.file_url }}" target="_blank" rel="noopener"
-                               class="fw-semibold text-decoration-none">{{ f.display_name }}</a>
+                            <button type="button"
+                                    class="btn btn-link fw-semibold text-decoration-none p-0 text-start sx-design-preview-trigger"
+                                    data-sx-design-preview
+                                    data-kind="{{ f.preview_kind }}"
+                                    data-name="{{ f.display_name }}"
+                                    data-preview-url="{% if f.is_image %}{{ f.file_url }}{% elif f.is_pdf or f.is_ai or f.is_office %}{% url 'san_xuat:design_file_preview' f.pk %}{% else %}{{ f.file_url }}{% endif %}"
+                                    data-download-url="{{ f.file_url }}?download=1">
+                                {{ f.display_name }}
+                            </button>
                         </td>
                         <td class="text-muted small">{{ f.notes|default:"—" }}</td>
                         <td class="small text-muted">
                             {% if f.uploaded_by %}{{ f.uploaded_by.get_full_name|default:f.uploaded_by.username }}{% else %}—{% endif %}
                         </td>
                         <td class="small text-muted">{{ f.uploaded_at|date:"d/m/Y H:i" }}</td>
-                        <td class="text-end text-nowrap">
-                            <a href="{{ f.file_url }}?download=1" class="btn btn-outline-hm btn-xs py-0 px-2"
-                               title="Tải xuống">
-                                <i class="bi bi-download"></i>
-                            </a>
-                            {% if can_update %}
-                            <form method="post" class="d-inline"
-                                  onsubmit="return confirm('Xóa tài liệu này?');">
-                                {% csrf_token %}
-                                <input type="hidden" name="action" value="delete_design">
-                                <input type="hidden" name="file_id" value="{{ f.pk }}">
-                                <button type="submit" class="btn btn-link btn-sm text-danger p-0 ms-1" title="Xóa">
-                                    <i class="bi bi-x-lg"></i>
+                        <td class="text-end">
+                            <div class="sx-design-actions">
+                                <button type="button" class="sx-design-action is-view sx-design-preview-trigger"
+                                        data-sx-design-preview
+                                        data-kind="{{ f.preview_kind }}"
+                                        data-name="{{ f.display_name }}"
+                                        data-preview-url="{% if f.is_image %}{{ f.file_url }}{% elif f.is_pdf or f.is_ai or f.is_office %}{% url 'san_xuat:design_file_preview' f.pk %}{% else %}{{ f.file_url }}{% endif %}"
+                                        data-download-url="{{ f.file_url }}?download=1"
+                                        title="Xem trước" aria-label="Xem trước">
+                                    <i class="bi bi-eye" aria-hidden="true"></i>
                                 </button>
-                            </form>
-                            {% endif %}
+                                <a href="{{ f.file_url }}?download=1" class="sx-design-action"
+                                   title="Tải xuống" aria-label="Tải xuống">
+                                    <i class="bi bi-download" aria-hidden="true"></i>
+                                </a>
+                                {% if can_update %}
+                                <form method="post" class="d-inline m-0"
+                                      onsubmit="return confirm('Xóa tài liệu này?');">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="delete_design">
+                                    <input type="hidden" name="file_id" value="{{ f.pk }}">
+                                    <button type="submit" class="sx-design-action is-danger"
+                                            title="Xóa" aria-label="Xóa">
+                                        <i class="bi bi-trash" aria-hidden="true"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </div>
                         </td>
                     </tr>
                     {% endfor %}
@@ -136,3 +261,60 @@
         {% endif %}
     </div>
 </div>
+
+<div class="modal fade" id="sxDesignPreviewModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-fullscreen-sm-down">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header py-2">
+        <h5 class="modal-title small text-truncate pe-2" id="sxDesignPreviewTitle">Xem trước</h5>
+        <a href="#" class="btn btn-outline-hm btn-sm me-2" id="sxDesignPreviewDownload" download>
+          <i class="bi bi-download me-1"></i>Tải xuống
+        </a>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+      </div>
+      <div class="modal-body p-0">
+        <div class="sx-design-preview-stage" id="sxDesignPreviewStage"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  var modalEl = document.getElementById('sxDesignPreviewModal');
+  if (!modalEl || typeof bootstrap === 'undefined') return;
+  var titleEl = document.getElementById('sxDesignPreviewTitle');
+  var stageEl = document.getElementById('sxDesignPreviewStage');
+  var dlEl = document.getElementById('sxDesignPreviewDownload');
+  var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+
+  function showPreview(btn) {
+    var kind = btn.getAttribute('data-kind') || 'file';
+    var name = btn.getAttribute('data-name') || 'Tài liệu';
+    var previewUrl = btn.getAttribute('data-preview-url') || '';
+    var downloadUrl = btn.getAttribute('data-download-url') || previewUrl;
+    titleEl.textContent = name;
+    dlEl.href = downloadUrl;
+    dlEl.setAttribute('download', name);
+    stageEl.classList.toggle('is-pdf', kind === 'pdf' || kind === 'office' || kind === 'ai');
+    var canEmbed = kind === 'image' || kind === 'pdf' || kind === 'ai' || kind === 'office';
+    if (kind === 'image' && previewUrl) {
+      stageEl.innerHTML = '<img src="' + previewUrl + '" alt="">';
+    } else if (canEmbed && previewUrl) {
+      stageEl.innerHTML = '<iframe src="' + previewUrl + '" title="' + name.replace(/"/g, '') + '"></iframe>';
+    } else {
+      stageEl.innerHTML = '<div class="text-center text-white-50 p-4">'
+        + '<div class="mb-2">Chưa xem trước được định dạng này trên trình duyệt.</div>'
+        + '<a class="btn btn-hm btn-sm" href="' + downloadUrl + '">Tải file về</a></div>';
+      stageEl.classList.remove('is-pdf');
+    }
+    modal.show();
+  }
+
+  document.querySelectorAll('[data-sx-design-preview]').forEach(function (btn) {
+    btn.addEventListener('click', function () { showPreview(btn); });
+  });
+  modalEl.addEventListener('hidden.bs.modal', function () {
+    stageEl.innerHTML = '';
+  });
+})();
+</script>

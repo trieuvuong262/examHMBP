@@ -681,8 +681,9 @@ SX_LIST_GRIDS: dict[str, dict[str, Any]] = {
     ),
     'doc_list': _spec(
         _cols(
-            _col('product_code', 'Mã sản phẩm', required=True),
-            _col('product_name', 'Tên', weight=150),
+            _col('image', 'Ảnh', weight=40, required=True, sortable=False),
+            _col('product_name', 'Tên sản phẩm', weight=150, required=True),
+            _col('product_code', 'Mã sản phẩm', default=False),
             _col('status', 'Trạng thái', weight=100),
             _col('updated_at', 'Cập nhật', weight=110),
             actions=False,

@@ -55,6 +55,138 @@ def find_product(product_code: str):
     return None
 
 
+def _append_unique_url(urls: list[str], seen: dict[str, bool], url: str | None) -> None:
+    value = (url or '').strip()
+    if not value or value in seen:
+        return
+    seen[value] = True
+    urls.append(value)
+
+
+def _lookup_code_set(codes: set[str]) -> set[str]:
+    return {c for code in codes for c in (code, code.upper(), code.lower()) if c}
+
+
+def fill_tech_doc_display_images(docs) -> None:
+    """Gắn gallery ảnh: snapshot hồ sơ + kho SP + ảnh KV (ít query)."""
+    from collections import defaultdict
+
+    docs = [d for d in docs if d is not None]
+    if not docs:
+        return
+
+    galleries: dict[int, list[str]] = {}
+    seen_maps: dict[int, dict[str, bool]] = {}
+    for doc in docs:
+        urls: list[str] = []
+        seen: dict[str, bool] = {}
+        for item in getattr(doc, 'gallery_images', None) or []:
+            if getattr(item, 'is_image', False):
+                _append_unique_url(urls, seen, getattr(item, 'file_url', None))
+        _append_unique_url(urls, seen, getattr(doc, 'product_image_url', None))
+        galleries[id(doc)] = urls
+        seen_maps[id(doc)] = seen
+
+    def _apply_galleries() -> None:
+        for doc in docs:
+            urls = galleries[id(doc)]
+            doc._display_image_urls = urls
+            doc._display_image_url = urls[0] if urls else ''
+
+    try:
+        from kho_san_pham.models import Product
+    except ImportError:
+        _apply_galleries()
+        return
+
+    codes = {(d.product_code or '').strip() for d in docs if (d.product_code or '').strip()}
+    lookup = _lookup_code_set(codes)
+    product_fields = ('code', 'style_code', 'kiotviet_code', 'kiotviet_id', 'image', 'image_url')
+    products = []
+    if lookup:
+        products = list(
+            Product.objects.filter(
+                Q(style_code__in=lookup) | Q(code__in=lookup) | Q(kiotviet_code__in=lookup)
+            ).only(*product_fields)
+        )
+
+    extra_styles = {
+        (p.style_code or '').strip()
+        for p in products
+        if (p.style_code or '').strip()
+        and (p.style_code or '').strip() not in lookup
+        and (p.style_code or '').upper() not in lookup
+    }
+    if extra_styles:
+        extra_lookup = _lookup_code_set(extra_styles)
+        seen_pks = {p.pk for p in products}
+        products.extend(
+            p for p in Product.objects.filter(style_code__in=extra_lookup).only(*product_fields)
+            if p.pk not in seen_pks
+        )
+
+    by_style: dict[str, list] = defaultdict(list)
+    by_code: dict[str, list] = defaultdict(list)
+    by_kv_code: dict[str, list] = defaultdict(list)
+    kv_ids: set[int] = {
+        d.kv_product_id for d in docs if getattr(d, 'kv_product_id', None)
+    }
+    for product in products:
+        style = (product.style_code or '').strip()
+        sku = (product.code or '').strip()
+        kv_code = (product.kiotviet_code or '').strip()
+        if style:
+            by_style[style.casefold()].append(product)
+        if sku:
+            by_code[sku.casefold()].append(product)
+        if kv_code:
+            by_kv_code[kv_code.casefold()].append(product)
+        if product.kiotviet_id:
+            kv_ids.add(product.kiotviet_id)
+
+    kv_images_by_id: dict[int, list[str]] = {}
+    if kv_ids:
+        try:
+            from kiotviet.models import KvProduct
+        except ImportError:
+            KvProduct = None
+        if KvProduct is not None:
+            for row in KvProduct.objects.filter(
+                kiotviet_id__in=kv_ids, is_deleted=False,
+            ).only('kiotviet_id', 'image_urls'):
+                bucket = kv_images_by_id.setdefault(row.kiotviet_id, [])
+                seen_kv: dict[str, bool] = {u: True for u in bucket}
+                for url in row.image_urls or []:
+                    _append_unique_url(bucket, seen_kv, url)
+
+    for doc in docs:
+        key = (doc.product_code or '').strip().casefold()
+        urls = galleries[id(doc)]
+        seen = seen_maps[id(doc)]
+        matched = list(by_style.get(key) or [])
+        if not matched:
+            matched = list(by_code.get(key) or by_kv_code.get(key) or [])
+            styles = {
+                (p.style_code or '').strip().casefold()
+                for p in matched
+                if (p.style_code or '').strip()
+            }
+            for style_key in styles:
+                for product in by_style.get(style_key, []):
+                    if product not in matched:
+                        matched.append(product)
+        for product in matched:
+            _append_unique_url(urls, seen, product.display_image_url)
+            if product.kiotviet_id:
+                for url in kv_images_by_id.get(product.kiotviet_id, []):
+                    _append_unique_url(urls, seen, url)
+        if getattr(doc, 'kv_product_id', None):
+            for url in kv_images_by_id.get(doc.kv_product_id, []):
+                _append_unique_url(urls, seen, url)
+
+    _apply_galleries()
+
+
 def _ref_from_product(product) -> ProductRef:
     style = (product.style_code or '').strip() or (product.code or '').strip()
     name = (product.name or product.full_name or '').strip()

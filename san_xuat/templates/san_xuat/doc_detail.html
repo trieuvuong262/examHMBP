@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load humanize %}
+{% block title %}{{ doc.product_name|default:doc.product_code }} - Hồ sơ thiết kế - Just Play Portal{% endblock %}
 
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
@@ -60,14 +61,24 @@
 <div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 py-md-4 mb-5"
      data-loading-message="Đang tải hồ sơ…">
       <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
-    <div class="jp-sx-detail-title">
-      <h2 class="jp-npl-mat-topbar-title w-100">{{ doc.product_code }}</h2>
+    <div class="jp-sx-detail-title jp-sx-doc-title">
+      {% if doc.display_image_url %}
+      <button type="button" class="sx-doc-thumb flex-shrink-0"
+              data-sx-gallery
+              data-sx-gallery-title="{{ doc.product_name|default:doc.product_code }}"
+              data-sx-gallery-images="{{ doc.display_image_urls_json }}"
+              aria-label="Xem ảnh {{ doc.product_name|default:doc.product_code }}">
+        <img src="{{ doc.display_image_url }}" alt="" class="jp-sx-doc-title-img rounded border">
+      </button>
+      {% endif %}
+      <div class="jp-sx-doc-title-text">
+        <h2 class="jp-npl-mat-topbar-title" title="{{ doc.product_name|default:doc.product_code }}">
+          {{ doc.product_name|default:doc.product_code }}
+        </h2>
+      </div>
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
-      <a href="?tab=sku{% if bom %}&bom={{ bom.pk }}{% endif %}"
-         data-loading-message="Đang tải SKU…"><i class="bi bi-upc-scan" aria-hidden="true"></i>SKU</a>
-      <span class="sep" aria-hidden="true"></span>
-      <a href="{% url 'san_xuat:doc_list' %}" class="is-back"
+      <a href="{% url 'san_xuat:doc_list' %}{% if list_back_query %}?{{ list_back_query }}{% endif %}" class="is-back"
          data-loading-message="Đang tải hồ sơ thiết kế…"><i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại</a>
     </nav>
   </div>
@@ -76,7 +87,7 @@
     <span class="label">Phiên bản BOM</span>
     {% for v in versions %}
     <a class="jp-sx-bom-ver {% if bom and v.pk == bom.pk %}is-current{% endif %}"
-       href="?tab={{ tab }}&bom={{ v.pk }}"
+       href="?tab={{ tab }}&bom={{ v.pk }}{% if list_back_query %}&{{ list_back_query }}{% endif %}"
        data-loading-message="Đang tải {{ v.version_label }}…"
        title="{% if v.notes %}{{ v.notes }}{% else %}{{ v.version_label }}{% endif %}">
       {{ v.version_label }}
@@ -113,32 +124,32 @@
     <ul class="nav nav-tabs mb-3 flex-nowrap" style="overflow-x:auto;-webkit-overflow-scrolling:touch">
         <li class="nav-item">
             <a class="nav-link {% if tab == 'info' %}active{% endif %}"
-               href="?tab=info{% if bom %}&bom={{ bom.pk }}{% endif %}"
+               href="?tab=info{% if bom %}&bom={{ bom.pk }}{% endif %}{% if list_back_query %}&{{ list_back_query }}{% endif %}"
                data-loading-message="Đang tải mô tả…">Mô tả</a>
         </li>
         <li class="nav-item">
             <a class="nav-link {% if tab == 'sku' %}active{% endif %}"
-               href="?tab=sku{% if bom %}&bom={{ bom.pk }}{% endif %}"
+               href="?tab=sku{% if bom %}&bom={{ bom.pk }}{% endif %}{% if list_back_query %}&{{ list_back_query }}{% endif %}"
                data-loading-message="Đang tải SKU…">SKU</a>
         </li>
         <li class="nav-item">
             <a class="nav-link {% if tab == 'bom' %}active{% endif %}"
-               href="?tab=bom{% if bom %}&bom={{ bom.pk }}{% endif %}"
+               href="?tab=bom{% if bom %}&bom={{ bom.pk }}{% endif %}{% if list_back_query %}&{{ list_back_query }}{% endif %}"
                data-loading-message="Đang tải BOM…">BOM</a>
         </li>
         <li class="nav-item">
             <a class="nav-link {% if tab == 'process' %}active{% endif %}"
-               href="?tab=process{% if bom %}&bom={{ bom.pk }}{% endif %}"
+               href="?tab=process{% if bom %}&bom={{ bom.pk }}{% endif %}{% if list_back_query %}&{{ list_back_query }}{% endif %}"
                data-loading-message="Đang tải công đoạn…">Công đoạn</a>
         </li>
         <li class="nav-item">
             <a class="nav-link {% if tab == 'costing' %}active{% endif %}"
-               href="?tab=costing{% if bom %}&bom={{ bom.pk }}{% endif %}"
+               href="?tab=costing{% if bom %}&bom={{ bom.pk }}{% endif %}{% if list_back_query %}&{{ list_back_query }}{% endif %}"
                data-loading-message="Đang tải costing…">Costing</a>
         </li>
         <li class="nav-item">
             <a class="nav-link {% if tab == 'design' %}active{% endif %}"
-               href="?tab=design{% if bom %}&bom={{ bom.pk }}{% endif %}"
+               href="?tab=design{% if bom %}&bom={{ bom.pk }}{% endif %}{% if list_back_query %}&{{ list_back_query }}{% endif %}"
                data-loading-message="Đang tải rập và tài liệu…">Rập và tài liệu</a>
         </li>
     </ul>
@@ -162,4 +173,5 @@
         {% include 'san_xuat/includes/tab_costing.html' %}
     {% endif %}
 </div>
+{% include 'san_xuat/includes/product_image_gallery_modal.html' %}
 {% endblock %}

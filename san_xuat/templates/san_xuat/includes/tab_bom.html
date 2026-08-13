@@ -143,7 +143,6 @@
     }
 
     function renderOption(data, escape) {
-        // Giống phiếu xuất: tên trái · tồn phải (tổng mọi kho)
         var name = escape(data.name || data.text || '');
         var stock = escape(stockLabel(data) || '0');
         return '<div class="jp-npl-material-option is-name-stock" title="' + name + ' — ' + stock + '">'
@@ -159,21 +158,23 @@
     }
 
     function scoreFactory(query) {
+        // Khớp tên / mã / nhóm hàng như danh mục kho — không ẩn kết quả API vì thiếu màu/quy cách.
         var terms = normalizeText(query).split(/\s+/).filter(Boolean);
         return function (data) {
             if (!terms.length) return 1;
             var name = normalizeText(data.name || '');
             var code = normalizeText(data.code || '');
-            var nameCompact = name.replace(/\s+/g, '');
-            var codeCompact = code.replace(/\s+/g, '');
-            var allMatch = terms.every(function (t) {
-                return name.indexOf(t) !== -1 || code.indexOf(t) !== -1
-                    || nameCompact.indexOf(t) !== -1 || codeCompact.indexOf(t) !== -1;
+            var group = normalizeText(data.variant_group || '');
+            var compact = (name + ' ' + code + ' ' + group).replace(/\s+/g, '');
+            var anyMatch = terms.some(function (t) {
+                return name.indexOf(t) !== -1 || code.indexOf(t) !== -1 || group.indexOf(t) !== -1
+                    || compact.indexOf(t) !== -1;
             });
-            if (!allMatch) return 0;
+            if (!anyMatch) return 0;
             var q = normalizeText(query).trim();
             if (name === q || code === q) return 4;
             if (name.indexOf(q) === 0 || code.indexOf(q) === 0) return 3;
+            if (code.indexOf(q) !== -1) return 2;
             return 1;
         };
     }
@@ -199,7 +200,7 @@
             loadThrottle: 220,
             load: function (query, callback) {
                 // Không truyền location_id → tồn gộp mọi kho (API material_search)
-                var url = SEARCH_URL + '?q=' + encodeURIComponent(query || '') + '&limit=120';
+                var url = SEARCH_URL + '?q=' + encodeURIComponent(query || '') + '&limit=1000';
                 fetch(url, { headers: { 'Accept': 'application/json' } })
                     .then(function (r) { return r.json(); })
                     .then(function (data) { callback(data.results || []); })
@@ -268,8 +269,7 @@
                             stockEl.classList.remove('text-muted');
                         }
                     } else {
-                        // Dòng đã chọn nhưng chưa có trong STOCK_MAP → lấy tồn tổng mọi kho
-                        fetch(SEARCH_URL + '?q=' + encodeURIComponent(nameOnly) + '&limit=20', {
+                        fetch(SEARCH_URL + '?q=' + encodeURIComponent(nameOnly) + '&limit=40', {
                             headers: { 'Accept': 'application/json' },
                         })
                             .then(function (r) { return r.json(); })

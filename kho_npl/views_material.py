@@ -123,19 +123,26 @@ def material_search(request):
             )
         }
     else:
-        qs = Material.objects.filter(is_active=True).select_related('unit', 'color', 'specification')
+        qs = Material.objects.filter(is_active=True).select_related(
+            'unit', 'color', 'specification', 'category',
+        )
         if q:
-            qs = apply_material_search_strict(qs, q)
+            # Không theo kho (BOM): cùng cách tìm danh mục kho — tên, mã, nhóm hàng.
+            qs = apply_material_search(qs, q) if not location_id else apply_material_search_strict(qs, q)
         if location_id and not q:
             browse_limit = 1000
         elif location_id and q:
             browse_limit = 50
         else:
-            # Không theo kho (BOM / tìm tổng): mặc định 40/50, cho phép tăng tới 200
-            browse_limit = min(limit_param or (50 if q else 40), 200)
-        materials = list(qs.order_by('name', 'code')[:browse_limit])
+            # BOM / tìm tổng mọi kho: cùng trần duyệt phiếu xuất, không cắt 40–200 mã.
+            browse_limit = min(limit_param or 1000, 1000)
         if q:
+            # Lọc xong mới xếp theo độ khớp — tránh cắt mất mã đúng vì thứ tự a-z.
+            materials = list(qs[:3000])
             materials.sort(key=lambda m: material_relevance_sort_key(m, q))
+            materials = materials[:browse_limit]
+        else:
+            materials = list(qs.order_by('name', 'code')[:browse_limit])
         balance_map = {}
         if location_id and materials:
             material_ids = [m.pk for m in materials]
@@ -183,6 +190,12 @@ def material_search(request):
             qty = balance_map.get(material.pk)
             qty_out = float(qty) if qty is not None else 0.0
             qty_label = _material_qty_label(material, qty or Decimal('0')) if qty is not None else '0'
+        image_url = ''
+        if material.image:
+            try:
+                image_url = material.image.url or ''
+            except ValueError:
+                image_url = ''
         rows.append({
             'id': material.pk,
             'text': text,
@@ -194,6 +207,8 @@ def material_search(request):
             'specification_name': material.specification.name if material.specification_id else '',
             'color': color_label(material.color) if material.color_id else '',
             'variant_group': material.variant_group or '',
+            'category': material.category.name if material.category_id else '',
+            'image_url': image_url,
             'base_price': float(material.base_price or 0),
             'qty': qty_out,
             'qty_label': qty_label,

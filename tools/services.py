@@ -160,9 +160,41 @@ def _validate_office_for_pdf(uploaded_file):
 
 
 def _libreoffice_binary() -> str | None:
-    for candidate in ('soffice', 'libreoffice'):
+    for candidate in ('soffice.com', 'soffice', 'libreoffice'):
         path = shutil.which(candidate)
         if path:
+            return path
+
+    extra: list[str] = []
+    if os.name == 'nt':
+        pf = os.environ.get('PROGRAMFILES', r'C:\Program Files')
+        pf86 = os.environ.get('PROGRAMFILES(X86)', r'C:\Program Files (x86)')
+        for root in (pf, pf86):
+            extra.extend([
+                os.path.join(root, 'LibreOffice', 'program', 'soffice.com'),
+                os.path.join(root, 'LibreOffice', 'program', 'soffice.exe'),
+            ])
+            try:
+                for name in os.listdir(root):
+                    if name.lower().startswith('libreoffice'):
+                        extra.append(os.path.join(root, name, 'program', 'soffice.com'))
+                        extra.append(os.path.join(root, name, 'program', 'soffice.exe'))
+            except OSError:
+                pass
+    else:
+        extra.extend([
+            '/usr/bin/soffice',
+            '/usr/bin/libreoffice',
+            '/usr/lib/libreoffice/program/soffice',
+            '/Applications/LibreOffice.app/Contents/MacOS/soffice',
+        ])
+
+    seen: set[str] = set()
+    for path in extra:
+        if path in seen:
+            continue
+        seen.add(path)
+        if os.path.isfile(path):
             return path
     return None
 
@@ -173,9 +205,14 @@ def _run_libreoffice_convert(input_path: str, output_dir: str) -> str:
         raise ValidationError(
             'Server chưa cài LibreOffice. Liên hệ IT để bật công cụ Word/Excel → PDF.'
         )
+    if binary.lower().endswith('.exe'):
+        com = binary[:-4] + '.com'
+        if os.path.isfile(com):
+            binary = com
 
     env = os.environ.copy()
-    env.setdefault('HOME', '/tmp')
+    if os.name != 'nt':
+        env.setdefault('HOME', '/tmp')
     result = subprocess.run(
         [
             binary,

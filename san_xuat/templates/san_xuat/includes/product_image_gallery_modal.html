@@ -1,0 +1,224 @@
+<style>
+.sx-doc-thumb {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  line-height: 0;
+  cursor: zoom-in;
+}
+.sx-doc-thumb:focus-visible {
+  outline: 2px solid #dc2626;
+  outline-offset: 2px;
+  border-radius: 0.4rem;
+}
+.sx-gallery-stage {
+  min-height: 50vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.sx-gallery-main {
+  max-height: 70vh;
+  max-width: 100%;
+  object-fit: contain;
+  user-select: none;
+}
+.sx-gallery-nav {
+  width: 2.5rem;
+  height: 2.5rem;
+  z-index: 2;
+  opacity: .85;
+}
+.sx-gallery-thumbs {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: .4rem;
+  overflow-x: auto;
+  max-width: 100%;
+  padding-bottom: .15rem;
+}
+.sx-gallery-thumb {
+  padding: 0;
+  border: 2px solid transparent;
+  background: transparent;
+  border-radius: .4rem;
+  line-height: 0;
+  flex: 0 0 auto;
+  opacity: .65;
+}
+.sx-gallery-thumb.is-active,
+.sx-gallery-thumb:hover {
+  opacity: 1;
+  border-color: #fff;
+}
+.sx-gallery-thumb img {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  display: block;
+  border-radius: .25rem;
+}
+</style>
+<div class="modal fade" id="sxProductGalleryModal" tabindex="-1" aria-hidden="true"
+     data-bs-backdrop="true" data-bs-keyboard="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg modal-fullscreen-sm-down">
+    <div class="modal-content border-0 shadow-lg bg-dark text-white">
+      <div class="modal-header border-secondary border-opacity-25 py-2">
+        <h5 class="modal-title small text-truncate pe-2" id="sxProductGalleryTitle">Ảnh sản phẩm</h5>
+        <span class="small text-white-50 flex-shrink-0" id="sxProductGalleryCounter"></span>
+        <button type="button" class="btn btn-sm btn-outline-light rounded-pill px-3 ms-2"
+                data-bs-dismiss="modal" aria-label="Đóng">
+          <i class="bi bi-x-lg me-1"></i>Đóng
+        </button>
+      </div>
+      <div class="modal-body p-2 p-md-3 position-relative sx-gallery-stage" id="sxProductGalleryStage">
+        <button type="button" class="btn btn-dark btn-sm rounded-circle sx-gallery-nav position-absolute start-0 top-50 translate-middle-y ms-1"
+                id="sxProductGalleryPrev" aria-label="Ảnh trước">
+          <i class="bi bi-chevron-left"></i>
+        </button>
+        <img src="" alt="" id="sxProductGalleryImg" class="img-fluid rounded sx-gallery-main">
+        <button type="button" class="btn btn-dark btn-sm rounded-circle sx-gallery-nav position-absolute end-0 top-50 translate-middle-y me-1"
+                id="sxProductGalleryNext" aria-label="Ảnh sau">
+          <i class="bi bi-chevron-right"></i>
+        </button>
+      </div>
+      <div class="modal-footer border-secondary border-opacity-25 justify-content-center py-2">
+        <div class="sx-gallery-thumbs" id="sxProductGalleryThumbs"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  var modalEl = document.getElementById('sxProductGalleryModal');
+  if (!modalEl || modalEl.dataset.sxGalleryReady === '1') return;
+  modalEl.dataset.sxGalleryReady = '1';
+
+  var imgEl = document.getElementById('sxProductGalleryImg');
+  var titleEl = document.getElementById('sxProductGalleryTitle');
+  var counterEl = document.getElementById('sxProductGalleryCounter');
+  var thumbsEl = document.getElementById('sxProductGalleryThumbs');
+  var prevBtn = document.getElementById('sxProductGalleryPrev');
+  var nextBtn = document.getElementById('sxProductGalleryNext');
+  var stageEl = document.getElementById('sxProductGalleryStage');
+  var images = [];
+  var index = 0;
+  var touchStartX = 0;
+
+  function parseImages(raw) {
+    if (!raw) return [];
+    try {
+      var parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return parsed.map(function (u) { return String(u || '').trim(); }).filter(Boolean);
+      }
+    } catch (err) {}
+    return String(raw).split('||').map(function (u) { return u.trim(); }).filter(Boolean);
+  }
+
+  function render() {
+    if (!images.length || !imgEl) return;
+    imgEl.src = images[index];
+    imgEl.alt = (titleEl && titleEl.textContent ? titleEl.textContent : 'Ảnh sản phẩm') + ' (' + (index + 1) + ')';
+    if (counterEl) {
+      counterEl.textContent = images.length > 1 ? (index + 1) + ' / ' + images.length : '';
+    }
+    var showNav = images.length > 1;
+    if (prevBtn) prevBtn.classList.toggle('d-none', !showNav);
+    if (nextBtn) nextBtn.classList.toggle('d-none', !showNav);
+    if (thumbsEl) {
+      thumbsEl.parentElement.classList.toggle('d-none', !showNav);
+      Array.prototype.forEach.call(thumbsEl.querySelectorAll('.sx-gallery-thumb'), function (btn, i) {
+        btn.classList.toggle('is-active', i === index);
+      });
+    }
+  }
+
+  function go(delta) {
+    if (images.length < 2) return;
+    index = (index + delta + images.length) % images.length;
+    render();
+  }
+
+  function buildThumbs() {
+    if (!thumbsEl) return;
+    thumbsEl.innerHTML = '';
+    if (images.length < 2) return;
+    images.forEach(function (url, i) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'sx-gallery-thumb' + (i === index ? ' is-active' : '');
+      btn.setAttribute('aria-label', 'Ảnh ' + (i + 1));
+      var thumb = document.createElement('img');
+      thumb.src = url;
+      thumb.alt = '';
+      btn.appendChild(thumb);
+      btn.addEventListener('click', function () {
+        index = i;
+        render();
+      });
+      thumbsEl.appendChild(btn);
+    });
+  }
+
+  function openFrom(trigger) {
+    images = parseImages(trigger.getAttribute('data-sx-gallery-images'));
+    if (!images.length) {
+      var fallback = trigger.getAttribute('data-sx-gallery-image') || '';
+      if (fallback) images = [fallback];
+    }
+    if (!images.length) return;
+    index = parseInt(trigger.getAttribute('data-sx-gallery-index') || '0', 10) || 0;
+    if (index < 0 || index >= images.length) index = 0;
+    if (titleEl) {
+      titleEl.textContent = trigger.getAttribute('data-sx-gallery-title') || 'Ảnh sản phẩm';
+    }
+    buildThumbs();
+    render();
+    if (typeof bootstrap !== 'undefined') {
+      bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    }
+  }
+
+  document.addEventListener('click', function (e) {
+    var trigger = e.target.closest('[data-sx-gallery]');
+    if (!trigger) return;
+    e.preventDefault();
+    e.stopPropagation();
+    openFrom(trigger);
+  });
+
+  if (prevBtn) prevBtn.addEventListener('click', function () { go(-1); });
+  if (nextBtn) nextBtn.addEventListener('click', function () { go(1); });
+
+  modalEl.addEventListener('shown.bs.modal', function () {
+    document.addEventListener('keydown', onKey);
+  });
+  modalEl.addEventListener('hidden.bs.modal', function () {
+    document.removeEventListener('keydown', onKey);
+    if (imgEl) {
+      imgEl.removeAttribute('src');
+      imgEl.alt = '';
+    }
+    images = [];
+  });
+
+  function onKey(e) {
+    if (e.key === 'ArrowLeft') go(-1);
+    if (e.key === 'ArrowRight') go(1);
+  }
+
+  if (stageEl) {
+    stageEl.addEventListener('touchstart', function (e) {
+      if (!e.changedTouches || !e.changedTouches.length) return;
+      touchStartX = e.changedTouches[0].clientX;
+    }, { passive: true });
+    stageEl.addEventListener('touchend', function (e) {
+      if (!e.changedTouches || !e.changedTouches.length) return;
+      var dx = e.changedTouches[0].clientX - touchStartX;
+      if (dx > 50) go(-1);
+      if (dx < -50) go(1);
+    }, { passive: true });
+  }
+})();
+</script>

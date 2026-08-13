@@ -46,6 +46,7 @@ class CostingResult:
     material_cost: Decimal = ZERO
     labor_cost: Decimal = ZERO
     overhead_pct: Decimal = ZERO
+    overhead_amount: Decimal = ZERO
     overhead_cost: Decimal = ZERO
     total_cost: Decimal = ZERO
     sell_price: Decimal = ZERO
@@ -79,6 +80,7 @@ def labor_cost_for_step(norm_per_hour, cost_per_hour) -> tuple[Decimal, Decimal]
 def compute_costing(bom: BomVersion) -> CostingResult:
     result = CostingResult(
         overhead_pct=_d(bom.overhead_pct),
+        overhead_amount=_d(getattr(bom, 'overhead_amount', None)),
         product_code=bom.tech_doc.product_code,
         product_name=bom.tech_doc.product_name,
     )
@@ -124,7 +126,8 @@ def compute_costing(bom: BomVersion) -> CostingResult:
         )
 
     base = material_total + labor_total
-    overhead = (base * result.overhead_pct / Decimal('100')).quantize(MONEY)
+    pct_overhead = (base * result.overhead_pct / Decimal('100')).quantize(MONEY)
+    overhead = (result.overhead_amount + pct_overhead).quantize(MONEY)
     total = (base + overhead).quantize(MONEY)
 
     ref = resolve_product_ref(bom.tech_doc.product_code)

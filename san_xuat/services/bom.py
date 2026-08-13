@@ -112,6 +112,7 @@ def create_bom_version(
         version_label=label,
         status=BomVersion.STATUS_DRAFT,
         overhead_pct=copy_from.overhead_pct if copy_from else 0,
+        overhead_amount=copy_from.overhead_amount if copy_from else 0,
         notes=copy_from.notes if copy_from else '',
         created_by=user if getattr(user, 'is_authenticated', False) else None,
     )

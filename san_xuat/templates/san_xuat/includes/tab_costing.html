@@ -20,8 +20,11 @@
     <div class="col-md-3">
         <div class="card border-0 shadow-sm h-100">
             <div class="card-body">
-                <div class="small text-muted">Phụ phí ({{ costing.overhead_pct }}%)</div>
+                <div class="small text-muted">Chi phí SX chung / 1 SP</div>
                 <div class="fs-4 fw-semibold">{{ costing.overhead_cost|sx_num }} đ</div>
+                {% if costing.overhead_pct %}
+                <div class="small text-muted mt-1">gồm phụ phí {{ costing.overhead_pct }}%</div>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -54,6 +57,29 @@
         {% endif %}
     </div>
 </div>
+
+{% if can_update and overhead_form %}
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-body">
+        <form method="post" class="row g-2 align-items-end" data-loading-message="Đang lưu chi phí SX chung…">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="save_overhead">
+            <div class="col-sm-6 col-md-4 col-lg-3">
+                <label class="form-label small mb-1" for="{{ overhead_form.overhead_amount.id_for_label }}">
+                    Chi phí sản xuất chung / 1 SP (đ)
+                </label>
+                {{ overhead_form.overhead_amount }}
+                {% if overhead_form.overhead_amount.errors %}
+                <div class="text-danger small">{{ overhead_form.overhead_amount.errors }}</div>
+                {% endif %}
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-hm">Lưu</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
 
 <div class="row g-3">
     <div class="col-lg-7">

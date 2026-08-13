@@ -159,6 +159,7 @@ urlpatterns = [
     path('ho-so/them/', views.doc_create, name='doc_create'),
     path('ho-so/<int:pk>/', views.doc_detail, name='doc_detail'),
     path('ho-so/tai-lieu/<int:pk>/', views.design_file_serve, name='design_file'),
+    path('ho-so/tai-lieu/<int:pk>/xem/', views.design_file_preview, name='design_file_preview'),
     path('bom/', views.bom_list, name='bom_list'),
     path('cong-doan/', views_ie.ie_hub, name='ie_hub'),
     path('cong-doan/dashboard/', views_ie.ie_dashboard, name='ie_dashboard'),
