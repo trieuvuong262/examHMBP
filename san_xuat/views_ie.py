@@ -337,9 +337,7 @@ def _approve_row_operation(op) -> dict:
     else:
         approval_label = 'Chưa duyệt'
         approval_badge = 'warning'
-        can_select = smv > 0
-        if smv <= 0:
-            extra_badges.append(('SMV = 0', 'warning'))
+        can_select = True
     return {
         'item_kind': 'op',
         'pk_value': f'op:{op.pk}',
