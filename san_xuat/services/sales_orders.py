@@ -46,6 +46,7 @@ class LineInput:
     size_qtys: dict | None = None
     bom_version_id: int | None = None
     routing_id: int | None = None
+    applied_smv: list | None = None
 
 
 def normalize_size_qtys(raw) -> dict[str, Decimal]:
@@ -184,9 +185,19 @@ def _replace_lines(order: SxSalesOrder, lines: list[LineInput]) -> None:
     if not rows:
         raise PlanningError('Đơn phải có ít nhất một dòng sản phẩm hợp lệ.')
     SxSalesOrderLine.objects.bulk_create(rows)
-    from san_xuat.services.order_routing import seed_order_routing
+    from san_xuat.services.order_routing import apply_smv_overrides, seed_order_routing
 
     seed_order_routing(order)
+    smv_by_code: dict[str, list] = {}
+    for ln in lines:
+        code = (ln.product_code or '').strip().casefold()
+        if code and getattr(ln, 'applied_smv', None):
+            smv_by_code[code] = ln.applied_smv
+    if smv_by_code:
+        for so_ln in order.lines.all():
+            ov = smv_by_code.get((so_ln.product_code or '').strip().casefold())
+            if ov:
+                apply_smv_overrides(so_ln, ov)
 
 
 @transaction.atomic

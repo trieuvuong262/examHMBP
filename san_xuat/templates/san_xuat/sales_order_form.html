@@ -170,7 +170,7 @@
     <div class="card border-0 shadow-sm mb-3">
       <div class="card-body">
         <h6 class="fw-bold mb-1">Dòng sản phẩm</h6>
-        <p class="small text-muted mb-3">Phiên bản công đoạn gắn lúc lên đơn — copy SMV áp dụng vào snapshot đơn. Không để sang màn xác nhận mới chọn.</p>
+        <p class="small text-muted mb-3">Chọn BOM + công đoạn lúc lên đơn. Nếu mã chưa có routing IE, hệ thống lấy công đoạn / SMV từ BOM hồ sơ — sửa SMV áp dụng ngay dưới dòng.</p>
         {{ formset.management_form }}
         <div class="table-responsive">
           <table class="table table-sm align-middle" id="jp-so-lines-table">
@@ -179,7 +179,7 @@
                 <th style="min-width:180px">Mã SP</th>
                 <th>Tên</th>
                 <th style="min-width:9rem">Phiên bản BOM</th>
-                <th style="min-width:9rem">Phiên bản công đoạn <span class="text-danger">*</span></th>
+                <th style="min-width:11rem">Công đoạn / SMV áp dụng <span class="text-danger">*</span></th>
                 <th class="text-end" style="width:7rem">Tồn kho</th>
                 <th class="jp-so-size-col">Size</th>
                 <th class="jp-so-actions-col">Tổng</th>
@@ -199,6 +199,7 @@
                 </td>
                 <td>
                   {{ f.routing_id }}
+                  {{ f.applied_smv_json }}
                   {% if f.routing_id.errors %}<div class="text-danger small">{{ f.routing_id.errors }}</div>{% endif %}
                 </td>
                 <td class="text-end">
@@ -257,7 +258,7 @@
     <td>{{ f.product_code }}</td>
     <td>{{ f.product_name }}</td>
     <td>{{ f.bom_version_id }}</td>
-    <td>{{ f.routing_id }}</td>
+    <td>{{ f.routing_id }}{{ f.applied_smv_json }}</td>
     <td class="text-end"><span class="jp-so-stock-qty text-muted">—</span></td>
     <td class="jp-so-size-col">
       {{ f.size_qtys }}
@@ -484,6 +485,11 @@
     var row = btn.closest('tr');
     if (!row) return;
     var del = row.querySelector('input[type=checkbox][name$="-DELETE"]');
+    var smvRow = row.nextElementSibling;
+    if (smvRow && smvRow.classList.contains('jp-so-smv-row')) {
+      if (del) smvRow.style.display = 'none';
+      else smvRow.remove();
+    }
     if (del) {
       del.checked = true;
       row.style.display = 'none';
@@ -503,9 +509,9 @@
     return sel ? (sel.value || '').trim() : '';
   }
 
-  function fillSelect(sel, items, emptyLabel, createUrl, keepValue) {
+  function fillSelect(sel, items, emptyLabel, createUrl, keepValue, bomFallbackLabel) {
     if (!sel) return;
-    var prev = keepValue != null ? String(keepValue) : (sel.value || '');
+    var prev = keepValue != null && keepValue !== '' ? String(keepValue) : '';
     sel.innerHTML = '';
     var opt0 = document.createElement('option');
     opt0.value = '';
@@ -517,17 +523,98 @@
       opt.textContent = it.text || it.label || String(it.id);
       sel.appendChild(opt);
     });
-    if (!(items || []).length && createUrl) {
-      var createOpt = document.createElement('option');
-      createOpt.value = CREATE_VAL;
-      createOpt.textContent = '＋ Tạo BOM / công đoạn → hồ sơ';
-      createOpt.dataset.createUrl = createUrl;
-      sel.appendChild(createOpt);
+    if (!(items || []).length) {
+      if (bomFallbackLabel) {
+        var bomOpt = document.createElement('option');
+        bomOpt.value = '';
+        bomOpt.textContent = bomFallbackLabel;
+        bomOpt.selected = true;
+        sel.appendChild(bomOpt);
+      }
+      if (createUrl) {
+        var createOpt = document.createElement('option');
+        createOpt.value = CREATE_VAL;
+        createOpt.textContent = '＋ Tạo routing IE → hồ sơ';
+        createOpt.dataset.createUrl = createUrl;
+        sel.appendChild(createOpt);
+      }
     }
     if (prev && prev !== CREATE_VAL) {
       var found = Array.prototype.some.call(sel.options, function (o) { return o.value === prev; });
       if (found) sel.value = prev;
     }
+  }
+
+  function smvHidden(row) {
+    return row.querySelector('.jp-so-smv-json, input[name$="-applied_smv_json"]');
+  }
+
+  function syncSmvJson(row) {
+    var hidden = smvHidden(row);
+    if (!hidden) return;
+    var box = previewBox(row);
+    if (!box) return;
+    var rows = [];
+    box.querySelectorAll('[data-smv-seq]').forEach(function (inp) {
+      var seq = parseInt(inp.getAttribute('data-smv-seq'), 10);
+      var smv = parseFloat(inp.value);
+      if (!seq) return;
+      rows.push({
+        seq: seq,
+        name: inp.getAttribute('data-smv-name') || '',
+        smv: Number.isFinite(smv) ? smv : 0,
+      });
+    });
+    hidden.value = JSON.stringify(rows);
+  }
+
+  function previewBox(row) {
+    var next = row.nextElementSibling;
+    if (next && next.classList.contains('jp-so-smv-row')) {
+      return next.querySelector('[data-role="smv-preview"]');
+    }
+    var tr = document.createElement('tr');
+    tr.className = 'jp-so-smv-row';
+    var td = document.createElement('td');
+    td.colSpan = 7;
+    td.className = 'bg-light';
+    td.innerHTML = '<div class="jp-so-smv-preview small" data-role="smv-preview"></div>';
+    tr.appendChild(td);
+    row.parentNode.insertBefore(tr, row.nextSibling);
+    return td.querySelector('[data-role="smv-preview"]');
+  }
+
+  function renderSteps(row, data) {
+    var box = previewBox(row);
+    if (!box) return;
+    var steps = (data && data.steps) || [];
+    var source = (data && data.steps_source) || '';
+    if (!productCodeOf(row)) {
+      box.innerHTML = '<span class="text-muted">Chọn mã SP để lấy công đoạn / SMV áp dụng.</span>';
+      syncSmvJson(row);
+      return;
+    }
+    if (!steps.length) {
+      box.innerHTML = '<span class="text-danger">Mã này chưa có routing IE và BOM cũng chưa có công đoạn. Mở hồ sơ để nhập công đoạn.</span>';
+      syncSmvJson(row);
+      return;
+    }
+    var srcLabel = source === 'ie' ? 'Routing IE' : 'Công đoạn BOM hồ sơ';
+    var html = '<div class="d-flex justify-content-between align-items-baseline mb-1">'
+      + '<strong>Công đoạn theo đơn (SMV áp dụng)</strong>'
+      + '<span class="text-muted">Nguồn: ' + srcLabel + ' — sửa SMV rồi lưu đơn</span></div>'
+      + '<div class="table-responsive"><table class="table table-sm table-bordered mb-0 bg-white">'
+      + '<thead class="table-light"><tr><th style="width:4rem">STT</th><th>Công đoạn</th>'
+      + '<th class="text-end" style="width:8rem">SMV áp dụng (phút)</th></tr></thead><tbody>';
+    steps.forEach(function (st) {
+      html += '<tr><td>' + (st.seq || '') + '</td><td>' + (st.name || '') + '</td>'
+        + '<td><input type="number" class="form-control form-control-sm text-end jp-so-smv-input" min="0" step="0.0001"'
+        + ' data-smv-seq="' + (st.seq || '') + '" data-smv-name="' + String(st.name || '').replace(/"/g, '&quot;') + '"'
+        + ' value="' + (st.smv || '0') + '"></td></tr>';
+    });
+    html += '</tbody></table></div>';
+    box.innerHTML = html;
+    syncSmvJson(row);
   }
 
   function loadVersions(row, keepBom, keepRouting) {
@@ -537,28 +624,42 @@
     if (!code) {
       fillSelect(bomSel, [], '— BOM —', '', '');
       fillSelect(rtSel, [], '— Công đoạn —', '', '');
+      renderSteps(row, { steps: [] });
       return;
     }
-    fetch(versionsUrl + '?product_code=' + encodeURIComponent(code), {
-      headers: { 'Accept': 'application/json' },
-    })
+    var url = versionsUrl + '?product_code=' + encodeURIComponent(code);
+    var bomVal = keepBom || (bomSel && bomSel.value) || '';
+    var rtVal = keepRouting || (rtSel && rtSel.value) || '';
+    if (bomVal) url += '&bom_version_id=' + encodeURIComponent(bomVal);
+    if (rtVal && rtVal !== CREATE_VAL) url += '&routing_id=' + encodeURIComponent(rtVal);
+    fetch(url, { headers: { 'Accept': 'application/json' } })
       .then(function (r) { return r.json(); })
       .then(function (data) {
         var createUrl = data.doc_url
           ? (data.doc_url + (data.doc_url.indexOf('?') >= 0 ? '&' : '?') + 'tab=bom')
           : (data.create_url || '');
-        fillSelect(bomSel, data.bom_versions || [], '— BOM —', createUrl, keepBom);
+        var hasIe = (data.routings || []).length > 0;
+        fillSelect(
+          bomSel,
+          data.bom_versions || [],
+          '— BOM —',
+          createUrl,
+          keepBom || data.default_bom_id || '',
+        );
         fillSelect(
           rtSel,
           data.routings || [],
-          '— Công đoạn —',
+          hasIe ? '— Công đoạn —' : 'Theo công đoạn BOM (SMV hồ sơ)',
           createUrl,
           keepRouting || data.default_routing_id || '',
+          '',
         );
+        renderSteps(row, data);
       })
       .catch(function () {
         fillSelect(bomSel, [], '— BOM —', '', keepBom);
         fillSelect(rtSel, [], '— Công đoạn —', '', keepRouting);
+        renderSteps(row, { steps: [] });
       });
   }
 
@@ -576,11 +677,25 @@
     if (!sel.matches('.jp-so-bom-select, .jp-so-routing-select, select[name$="-bom_version_id"], select[name$="-routing_id"]')) {
       return;
     }
-    if (sel.value !== CREATE_VAL) return;
-    var opt = sel.options[sel.selectedIndex];
-    var url = (opt && opt.dataset.createUrl) || '';
-    sel.value = '';
-    if (url) window.open(url, '_blank', 'noopener');
+    if (sel.value === CREATE_VAL) {
+      var opt = sel.options[sel.selectedIndex];
+      var url = (opt && opt.dataset.createUrl) || '';
+      sel.value = '';
+      if (url) window.open(url, '_blank', 'noopener');
+      return;
+    }
+    var row = sel.closest('tr.jp-so-line-row');
+    if (!row) return;
+    var bomSel = row.querySelector('.jp-so-bom-select, select[name$="-bom_version_id"]');
+    var rtSel = row.querySelector('.jp-so-routing-select, select[name$="-routing_id"]');
+    loadVersions(row, bomSel ? bomSel.value : '', rtSel ? rtSel.value : '');
+  });
+
+  document.addEventListener('input', function (e) {
+    if (!e.target || !e.target.classList || !e.target.classList.contains('jp-so-smv-input')) return;
+    var row = e.target.closest('tr.jp-so-smv-row');
+    row = row && row.previousElementSibling;
+    if (row && row.classList.contains('jp-so-line-row')) syncSmvJson(row);
   });
 
   document.querySelectorAll('#jp-so-lines-table tbody tr.jp-so-line-row').forEach(function (row) {

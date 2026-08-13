@@ -81,6 +81,90 @@ def _copy_from_routing_line(
     )
 
 
+def smv_from_process_step(step) -> Decimal:
+    """SMV phút/cái từ BOM ProcessStep (chuẩn giờ, không thì 60/định mức giờ)."""
+    smv = _q(getattr(step, 'std_time_minutes', 0))
+    if smv > 0:
+        return smv
+    norm = _q(getattr(step, 'norm_per_hour', 0))
+    if norm > 0:
+        return _q(Decimal('60') / norm)
+    return Decimal('0')
+
+
+def process_preview_from_routing(routing, *, limit: int = 80) -> list[dict]:
+    out = []
+    if routing is None:
+        return out
+    for src in routing.lines.order_by('seq_no', 'id')[:limit]:
+        smv = _q(src.applied_unit_smv or src.library_unit_smv or 0)
+        out.append({
+            'seq': src.seq_no or 0,
+            'name': src.op_name_vi or src.op_code or '',
+            'smv': str(smv),
+            'source': 'ie',
+        })
+    return out
+
+
+def process_preview_from_bom(bom, *, limit: int = 80) -> list[dict]:
+    out = []
+    if bom is None:
+        return out
+    for src in bom.process_steps.order_by('sequence', 'id')[:limit]:
+        smv = smv_from_process_step(src)
+        out.append({
+            'seq': src.sequence or 0,
+            'name': src.process_name or src.op_code or '',
+            'smv': str(smv),
+            'source': 'bom',
+        })
+    return out
+
+
+def _copy_from_process_step(order_line: SxSalesOrderLine, src) -> SxSalesOrderRoutingLine:
+    smv = smv_from_process_step(src)
+    wc = getattr(src, 'work_center', None)
+    return SxSalesOrderRoutingLine(
+        sales_order_line=order_line,
+        seq_no=int(src.sequence or 0) or 10,
+        operation=getattr(src, 'operation', None),
+        op_code=(getattr(src, 'op_code', None) or '')[:30],
+        op_rev='R01',
+        op_name_vi=(src.process_name or '')[:200],
+        library_unit_smv=smv,
+        applied_unit_smv=smv,
+        qty_per_garment=Decimal('1'),
+        work_center=wc,
+        work_center_code=(wc.code if wc else '')[:40],
+    )
+
+
+def apply_smv_overrides(order_line: SxSalesOrderLine, overrides) -> int:
+    """Ghi đè SMV áp dụng theo seq từ form lên đơn."""
+    if not overrides:
+        return 0
+    by_seq: dict[int, Decimal] = {}
+    for row in overrides:
+        if not isinstance(row, dict):
+            continue
+        try:
+            seq = int(row.get('seq') or 0)
+            smv = _q(row.get('smv') or 0)
+        except (TypeError, ValueError):
+            continue
+        if seq > 0:
+            by_seq[seq] = smv
+    n = 0
+    for line in order_line.routing_lines.all():
+        if line.seq_no in by_seq:
+            line.applied_unit_smv = by_seq[line.seq_no]
+            line.recompute()
+            line.save(update_fields=['applied_unit_smv', 'total_operation_smv', 'smv_variance_pct'])
+            n += 1
+    return n
+
+
 @transaction.atomic
 def seed_order_line_routing(
     order_line: SxSalesOrderLine,
@@ -88,17 +172,35 @@ def seed_order_line_routing(
     routing=None,
     replace: bool = True,
 ) -> int:
-    """Copy dòng routing mã hàng → snapshot đơn. replace=True xóa snapshot cũ."""
+    """Copy routing IE, không có thì lấy công đoạn BOM → snapshot đơn."""
     routing = routing or order_line.routing
     if replace:
         order_line.routing_lines.all().delete()
-    if routing is None:
-        return 0
     rows = []
-    for src in routing.lines.select_related('operation', 'machine', 'work_center').order_by('seq_no', 'id'):
-        row = _copy_from_routing_line(order_line, src)
-        row.recompute()
-        rows.append(row)
+    if routing is not None:
+        for src in routing.lines.select_related('operation', 'machine', 'work_center').order_by('seq_no', 'id'):
+            row = _copy_from_routing_line(order_line, src)
+            row.recompute()
+            rows.append(row)
+    elif order_line.bom_version_id:
+        bom = order_line.bom_version
+        if bom is None:
+            from san_xuat.models import BomVersion
+
+            bom = BomVersion.objects.filter(pk=order_line.bom_version_id).first()
+        if bom is not None:
+            used_seq: set[int] = set()
+            for i, src in enumerate(
+                bom.process_steps.select_related('operation', 'work_center').order_by('sequence', 'id')
+            ):
+                row = _copy_from_process_step(order_line, src)
+                if not row.seq_no or row.seq_no in used_seq:
+                    row.seq_no = (i + 1) * 10
+                    while row.seq_no in used_seq:
+                        row.seq_no += 10
+                used_seq.add(row.seq_no)
+                row.recompute()
+                rows.append(row)
     if rows:
         SxSalesOrderRoutingLine.objects.bulk_create(rows)
     return len(rows)
@@ -106,7 +208,7 @@ def seed_order_line_routing(
 
 def seed_order_routing(order: SxSalesOrder) -> int:
     total = 0
-    for ln in order.lines.select_related('routing').all():
+    for ln in order.lines.select_related('routing', 'bom_version').all():
         total += seed_order_line_routing(ln)
     return total
 
@@ -175,12 +277,11 @@ def assert_order_ready_to_confirm(order: SxSalesOrder) -> None:
         raise PlanningError('Đơn chưa có dòng sản phẩm.')
     for ln in lines:
         code = ln.product_code or f'#{ln.pk}'
-        if not ln.routing_id:
-            errors.append(f'{code}: chưa chọn phiên bản công đoạn (routing).')
-            continue
         snaps = list(ln.routing_lines.all())
         if not snaps:
-            errors.append(f'{code}: routing chưa có công đoạn — IE/KH cần thêm hoặc lấy lại từ mã hàng.')
+            errors.append(
+                f'{code}: chưa có công đoạn trên đơn — chọn routing IE hoặc BOM có công đoạn lúc lên đơn.'
+            )
             continue
         for s in snaps:
             label = f'{code} {s.op_code or s.seq_no}'

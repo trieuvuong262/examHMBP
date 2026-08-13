@@ -139,3 +139,34 @@ class OrderRoutingTests(TestCase):
         self.assertEqual(cost_line.unit_cost, unit)
         self.assertEqual(cost_line.qty, Decimal('10.00'))
         self.assertEqual(cost_line.line_cost, (unit * Decimal('10')).quantize(Decimal('0.01')))
+
+    def test_seed_from_bom_when_no_ie_routing(self):
+        from san_xuat.models import BomVersion, ProcessStep, ProductTechDoc
+        from san_xuat.services.order_routing import seed_order_line_routing
+        from san_xuat.services.sales_orders import create_sales_order, LineInput
+
+        doc = ProductTechDoc.objects.create(
+            product_code='JP-JKT-TEST',
+            product_name='Ao khoac test BOM',
+        )
+        bom = BomVersion.objects.create(tech_doc=doc, version_label='v3', status=BomVersion.STATUS_DRAFT)
+        ProcessStep.objects.create(
+            bom=bom, sequence=10, process_name='Cat than chinh',
+            norm_per_hour=Decimal('142.86'), std_time_minutes=Decimal('0.42'),
+        )
+        ProcessStep.objects.create(
+            bom=bom, sequence=20, process_name='May suon',
+            norm_per_hour=Decimal('100'), std_time_minutes=Decimal('0.60'),
+        )
+        order = create_sales_order(
+            customer_name='KH BOM',
+            request_date=timezone.localdate(),
+            lines=[LineInput(product_code='JP-JKT-TEST', qty=Decimal('5'), bom_version_id=bom.pk)],
+        )
+        line = order.lines.get()
+        self.assertIsNone(line.routing_id)
+        self.assertEqual(line.routing_lines.count(), 2)
+        smvs = list(line.routing_lines.order_by('seq_no').values_list('applied_unit_smv', 'op_name_vi'))
+        self.assertEqual(smvs[0][0], Decimal('0.4200'))
+        self.assertEqual(smvs[0][1], 'Cat than chinh')
+        self.assertEqual(smvs[1][0], Decimal('0.6000'))

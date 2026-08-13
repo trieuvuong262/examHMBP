@@ -707,9 +707,16 @@ def sales_order_line_versions_api(request):
     """BOM + routing theo mã SP — dùng dropdown dòng đơn đặt hàng."""
     from django.urls import reverse
 
+    from decimal import Decimal
+
     from san_xuat.ie_models import SxRouting
     from san_xuat.models import ProductTechDoc
-    from san_xuat.services.order_routing import default_routing_for_product
+    from san_xuat.services.order_routing import (
+        default_routing_for_product,
+        process_preview_from_bom,
+        process_preview_from_routing,
+        smv_from_process_step,
+    )
 
     product_code = (request.GET.get('product_code') or '').strip()
     payload = {
@@ -722,6 +729,9 @@ def sales_order_line_versions_api(request):
         'bom_versions': [],
         'routings': [],
         'default_routing_id': None,
+        'default_bom_id': None,
+        'steps': [],
+        'steps_source': '',
     }
     if not product_code:
         return JsonResponse(payload)
@@ -730,13 +740,26 @@ def sales_order_line_versions_api(request):
     if doc:
         payload['tech_doc_id'] = doc.pk
         payload['doc_url'] = reverse('san_xuat:doc_detail', kwargs={'pk': doc.pk})
-        for bom in doc.bom_versions.order_by('created_at', 'id'):
+        boms = list(doc.bom_versions.prefetch_related('process_steps').order_by('created_at', 'id'))
+        if boms:
+            payload['default_bom_id'] = boms[-1].pk
+        for bom in boms:
             label = bom.version_label or f'#{bom.pk}'
             note = (bom.notes or '').strip()
+            steps = list(bom.process_steps.all())
+            total_smv = sum((smv_from_process_step(s) for s in steps), Decimal('0'))
             text = label
-            if note:
+            if steps:
+                text = f'{label} · {len(steps)} CĐ · SMV {total_smv.quantize(Decimal("0.01"))} phút'
+            elif note:
                 text = f'{label} — {note[:40]}'
-            payload['bom_versions'].append({'id': bom.pk, 'text': text, 'label': label})
+            payload['bom_versions'].append({
+                'id': bom.pk,
+                'text': text,
+                'label': label,
+                'step_count': len(steps),
+                'total_smv': str(total_smv.quantize(Decimal('0.01'))),
+            })
         routings = SxRouting.objects.filter(
             Q(style_code__iexact=product_code) | Q(tech_doc_id=doc.pk)
         ).order_by('routing_rev', 'id')
@@ -756,6 +779,35 @@ def sales_order_line_versions_api(request):
     default_rt = default_routing_for_product(product_code)
     if default_rt:
         payload['default_routing_id'] = default_rt.pk
+
+    preview_rt_id = (request.GET.get('routing_id') or '').strip()
+    preview_bom_id = (request.GET.get('bom_version_id') or '').strip()
+    steps = []
+    source = ''
+    if preview_rt_id.isdigit():
+        rt = SxRouting.objects.filter(pk=int(preview_rt_id)).first()
+        if rt:
+            steps = process_preview_from_routing(rt)
+            source = 'ie'
+    if not steps and preview_bom_id.isdigit():
+        from san_xuat.models import BomVersion
+
+        bom = BomVersion.objects.filter(pk=int(preview_bom_id)).first()
+        if bom:
+            steps = process_preview_from_bom(bom)
+            source = 'bom'
+    if not steps and default_rt:
+        steps = process_preview_from_routing(default_rt)
+        source = 'ie'
+    if not steps and payload.get('default_bom_id'):
+        from san_xuat.models import BomVersion
+
+        bom = BomVersion.objects.filter(pk=payload['default_bom_id']).first()
+        if bom:
+            steps = process_preview_from_bom(bom)
+            source = 'bom'
+    payload['steps'] = steps
+    payload['steps_source'] = source
 
     return JsonResponse(payload)
 

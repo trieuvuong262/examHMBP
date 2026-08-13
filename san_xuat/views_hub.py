@@ -434,6 +434,13 @@ def sales_order_create(request):
                     size_qtys = json.loads(size_raw) if isinstance(size_raw, str) else (size_raw or {})
                 except (TypeError, ValueError):
                     size_qtys = {}
+                smv_raw = f.cleaned_data.get('applied_smv_json') or '[]'
+                try:
+                    applied_smv = json.loads(smv_raw) if isinstance(smv_raw, str) else (smv_raw or [])
+                except (TypeError, ValueError):
+                    applied_smv = []
+                if not isinstance(applied_smv, list):
+                    applied_smv = []
                 lines.append(
                     LineInput(
                         product_code=code,
@@ -443,6 +450,7 @@ def sales_order_create(request):
                         size_qtys=size_qtys if isinstance(size_qtys, dict) else {},
                         bom_version_id=f.cleaned_data.get('bom_version_id'),
                         routing_id=f.cleaned_data.get('routing_id'),
+                        applied_smv=applied_smv,
                     )
                 )
             try:

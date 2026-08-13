@@ -109,6 +109,10 @@ class SalesOrderLineForm(forms.Form):
         label='SL theo size',
         widget=forms.HiddenInput(attrs={'class': 'jp-so-size-qtys-json'}),
     )
+    applied_smv_json = forms.CharField(
+        required=False,
+        widget=forms.HiddenInput(attrs={'class': 'jp-so-smv-json'}),
+    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -154,8 +158,11 @@ class SalesOrderLineForm(forms.Form):
         cleaned = super().clean()
         if cleaned.get('DELETE'):
             return cleaned
-        if cleaned.get('product_code') and not cleaned.get('routing_id'):
-            self.add_error('routing_id', 'Chọn phiên bản công đoạn khi lên đơn.')
+        if cleaned.get('product_code') and not cleaned.get('routing_id') and not cleaned.get('bom_version_id'):
+            self.add_error(
+                'routing_id',
+                'Chọn phiên bản công đoạn (routing IE) hoặc BOM có công đoạn khi lên đơn.',
+            )
         return cleaned
 
     def clean_size_qtys(self):
