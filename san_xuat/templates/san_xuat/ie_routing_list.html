@@ -53,7 +53,7 @@
         </thead>
         <tbody>
         {% for r in items %}
-          <tr>
+          <tr class="jp-npl-catalog-row" data-href="{% url 'san_xuat:ie_routing_detail' r.pk %}">
             <td class="npl-col fw-semibold small" data-col="routing_id">{{ r.routing_id }}</td>
             <td class="npl-col fw-semibold" data-col="style_code">{{ r.style_code }}</td>
             <td class="npl-col small" data-col="style_name">{{ r.style_name|default:"—"|truncatechars:48 }}</td>
@@ -67,23 +67,13 @@
             <td class="npl-col small" data-col="approval_status">{{ r.get_approval_status_display }}</td>
             <td class="npl-col small" data-col="approved_by">{{ r.approved_by|default:"—" }}</td>
             <td class="npl-col text-nowrap text-end" data-col="actions">
-              <a href="{% url 'san_xuat:ie_routing_detail' r.pk %}" class="btn btn-sm btn-outline-hm">Xem</a>
-              {% if can_update %}
-              <button type="button" class="btn btn-sm btn-outline-secondary py-0 ie-edit-routing"
-                      data-bs-toggle="modal" data-bs-target="#ieEditRoutingModal"
-                      data-pk="{{ r.pk }}"
-                      data-id="{{ r.routing_id }}"
-                      data-name="{{ r.style_name }}"
-                      data-notes="{{ r.notes }}"
-                      data-active="{% if r.is_active %}1{% else %}0{% endif %}">Sửa</button>
-              {% if r.pk not in locked_routing_ids %}
+              {% if can_update and r.pk not in locked_routing_ids %}
               <form method="post" class="d-inline" onsubmit="return confirm('Xóa routing {{ r.routing_id }}?');">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="delete_routing">
                 <input type="hidden" name="pk" value="{{ r.pk }}">
                 <button type="submit" class="btn btn-sm btn-outline-danger py-0">Xóa</button>
               </form>
-              {% endif %}
               {% endif %}
             </td>
           </tr>
@@ -168,55 +158,5 @@
 </script>
 {% endif %}
 
-{% if can_update %}
-<div class="modal fade" id="ieEditRoutingModal" tabindex="-1" aria-labelledby="ieEditRoutingModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <form method="post">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="update_routing">
-        <input type="hidden" name="pk" id="ieEditRoutingPk">
-        <div class="modal-header">
-          <h5 class="modal-title" id="ieEditRoutingModalLabel">Sửa routing</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
-        </div>
-        <div class="modal-body">
-          <div class="mb-2">
-            <label class="form-label small text-muted mb-1">Mã routing</label>
-            <input type="text" id="ieEditRoutingId" class="form-control form-control-sm" readonly>
-          </div>
-          <div class="mb-2">
-            <label class="form-label small text-muted mb-1">Tên mã hàng</label>
-            <input type="text" name="style_name" id="ieEditRoutingName" class="form-control form-control-sm" maxlength="255">
-          </div>
-          <div class="mb-2">
-            <label class="form-label small text-muted mb-1">Ghi chú</label>
-            <input type="text" name="notes" id="ieEditRoutingNotes" class="form-control form-control-sm" maxlength="255">
-          </div>
-          <div class="form-check">
-            <input class="form-check-input" type="checkbox" name="is_active" value="1" id="ieEditRoutingActive">
-            <label class="form-check-label small" for="ieEditRoutingActive">Đang áp dụng</label>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Huỷ</button>
-          <button type="submit" class="btn btn-sm btn-hm">Lưu</button>
-        </div>
-      </form>
-    </div>
-  </div>
-</div>
-<script>
-document.getElementById('ieEditRoutingModal').addEventListener('show.bs.modal', function (ev) {
-  var btn = ev.relatedTarget;
-  if (!btn) return;
-  document.getElementById('ieEditRoutingPk').value = btn.getAttribute('data-pk') || '';
-  document.getElementById('ieEditRoutingId').value = btn.getAttribute('data-id') || '';
-  document.getElementById('ieEditRoutingName').value = btn.getAttribute('data-name') || '';
-  document.getElementById('ieEditRoutingNotes').value = btn.getAttribute('data-notes') || '';
-  document.getElementById('ieEditRoutingActive').checked = btn.getAttribute('data-active') === '1';
-});
-</script>
-{% endif %}
 {% include 'san_xuat/includes/ie_import_modal.html' %}
 {% endblock %}

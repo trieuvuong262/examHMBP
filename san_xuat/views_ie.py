@@ -933,7 +933,7 @@ def operation_list(request):
     qs = qs.order_by('op_code', 'op_rev')
     grid = sx_list_grid_context(request, 'ie_operation')
     grid['sx_list_storage_key'] = 'san_xuat_ie_operation_cols_v4'
-    if not (perms.get('can_approve') or perms.get('can_update')):
+    if not perms.get('can_update'):
         cols = [c for c in grid['list_columns'] if c['key'] != 'actions']
         grid = {
             **grid,

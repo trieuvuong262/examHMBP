@@ -79,11 +79,11 @@
         </thead>
         <tbody>
         {% for op in items %}
-          <tr>
+          <tr class="jp-npl-catalog-row" data-href="{% url 'san_xuat:ie_operation_detail' op.pk %}">
             <td class="npl-col small" data-col="group_code">{{ op.group.code }}</td>
-            <td class="npl-col fw-semibold" data-col="op_code"><a href="{% url 'san_xuat:ie_operation_detail' op.pk %}" class="text-decoration-none">{{ op.op_code }}</a></td>
+            <td class="npl-col fw-semibold" data-col="op_code">{{ op.op_code }}</td>
             <td class="npl-col" data-col="op_rev"><span class="badge bg-light text-dark">{{ op.op_rev }}</span></td>
-            <td class="npl-col" data-col="name_vi"><a href="{% url 'san_xuat:ie_operation_detail' op.pk %}" class="text-decoration-none text-body">{{ op.name_vi }}</a></td>
+            <td class="npl-col" data-col="name_vi">{{ op.name_vi }}</td>
             <td class="npl-col small" data-col="name_en">{{ op.name_en|default:"—" }}</td>
             <td class="npl-col small" data-col="skill_level">{{ op.skill_level_label|default:"—" }}</td>
             <td class="npl-col text-end time-sec" data-col="time_sec" data-smv="{{ op.base_smv_min|sx_num_input }}">—</td>
@@ -104,25 +104,14 @@
             <td class="npl-col small" data-col="approved_by">{{ op.approved_by|default:"—" }}</td>
             <td class="npl-col small jp-ie-cell-wrap" data-col="revision_reason" title="{{ op.revision_reason }}">{{ op.revision_reason|default:"—"|truncatechars:28 }}</td>
             <td class="npl-col small jp-ie-cell-wrap" data-col="notes" title="{{ op.notes }}">{{ op.notes|default:"—"|truncatechars:28 }}</td>
-            {% if can_approve or can_update %}
-            <td class="npl-col jp-td-actions" data-col="actions">
-              <a href="{% url 'san_xuat:ie_operation_detail' op.pk %}" class="btn btn-sm btn-outline-secondary py-0">Sửa</a>
-              {% if can_approve and op.status != 'approved' %}
-              <form method="post" class="d-inline">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="approve_operation">
-                <input type="hidden" name="pk" value="{{ op.pk }}">
-                <button type="submit" class="btn btn-sm btn-outline-success py-0" title="Duyệt (SMV phải > 0)">Duyệt</button>
-              </form>
-              {% endif %}
-              {% if can_update %}
+            {% if can_update %}
+            <td class="npl-col jp-td-actions text-end" data-col="actions">
               <form method="post" class="d-inline" onsubmit="return confirm('Xóa {{ op.op_code }}/{{ op.op_rev }}?');">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="delete_operation">
                 <input type="hidden" name="pk" value="{{ op.pk }}">
                 <button type="submit" class="btn btn-sm btn-outline-danger py-0">Xóa</button>
               </form>
-              {% endif %}
             </td>
             {% endif %}
           </tr>
