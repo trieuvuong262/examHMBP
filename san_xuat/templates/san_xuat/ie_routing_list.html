@@ -34,11 +34,10 @@
   </div>
 
   <div class="jp-sx-page-body">
-  <form method="get" class="row g-2 mb-3">
-    <div class="col-md-5">
-      <input type="search" name="q" value="{{ term }}" class="form-control form-control-sm" placeholder="Tìm mã hàng, routing…">
+  <form method="get" class="row g-2 mb-3" id="ieRoutingFilterForm">
+    <div class="col-12 col-md-8 col-lg-6">
+      <input type="search" name="q" value="{{ term }}" class="form-control form-control-sm" placeholder="Tìm mã hàng, routing…" autocomplete="off">
     </div>
-    <div class="col-md-2"><button class="btn btn-sm btn-hm w-100">Lọc</button></div>
   </form>
 
   <div class="card border-0 shadow-sm overflow-hidden">
@@ -91,6 +90,7 @@
 
 {% include 'san_xuat/includes/ie_wide_table_styles.html' %}
 {% include 'kho_npl/includes/catalog_grid_scripts.html' with table_id=sx_list_table_id storage_key=sx_list_storage_key col_btn_id=sx_col_btn_id col_toggle_class=sx_col_toggle_class default_sort_key=sx_default_sort_key %}
+{% include 'san_xuat/includes/ie_list_filter_scripts.html' with form_id='ieRoutingFilterForm' %}
 
 {% if can_create or can_update %}
 <div class="modal fade" id="ieAddRoutingModal" tabindex="-1" aria-labelledby="ieAddRoutingModalLabel" aria-hidden="true">

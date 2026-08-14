@@ -1,0 +1,37 @@
+{# Auto-submit bộ lọc list IE: select → ngay; ô tìm → debounce 400ms #}
+<script>
+(function () {
+  var form = document.getElementById('{{ form_id }}');
+  if (!form) return;
+
+  function submitNow() {
+    if (typeof form.requestSubmit === 'function') form.requestSubmit();
+    else form.submit();
+  }
+
+  form.querySelectorAll('select').forEach(function (el) {
+    el.addEventListener('change', submitNow);
+  });
+
+  var search = form.querySelector('input[type="search"], input[name="q"]');
+  if (!search) return;
+
+  var timer = null;
+  var lastSubmitted = search.value;
+  search.addEventListener('input', function () {
+    clearTimeout(timer);
+    timer = setTimeout(function () {
+      if (search.value === lastSubmitted) return;
+      lastSubmitted = search.value;
+      submitNow();
+    }, 400);
+  });
+  search.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    clearTimeout(timer);
+    lastSubmitted = search.value;
+    submitNow();
+  });
+})();
+</script>

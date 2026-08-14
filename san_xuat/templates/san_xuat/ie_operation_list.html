@@ -42,28 +42,25 @@
   </div>
   {% endif %}
 
-  <form method="get" class="row g-2 mb-3">
-    <div class="col-md-4">
-      <input type="search" name="q" value="{{ term }}" class="form-control form-control-sm" placeholder="Tìm mã, tên, máy…">
+  <form method="get" class="row g-2 mb-3" id="ieOpFilterForm">
+    <div class="col-md-5">
+      <input type="search" name="q" value="{{ term }}" class="form-control form-control-sm" placeholder="Tìm mã, tên, máy…" autocomplete="off">
     </div>
     <div class="col-md-3">
-      <select name="group" class="form-select form-select-sm">
+      <select name="group" class="form-select form-select-sm" aria-label="Nhóm">
         <option value="">— Tất cả nhóm —</option>
         {% for g in groups %}
         <option value="{{ g.code }}" {% if g.code == group_code %}selected{% endif %}>{{ g.code }} — {{ g.name }}</option>
         {% endfor %}
       </select>
     </div>
-    <div class="col-md-3">
-      <select name="status" class="form-select form-select-sm">
+    <div class="col-md-4">
+      <select name="status" class="form-select form-select-sm" aria-label="Trạng thái">
         <option value="">— Tất cả trạng thái —</option>
         {% for val, label in status_choices %}
         <option value="{{ val }}" {% if val == status %}selected{% endif %}>{{ label }}</option>
         {% endfor %}
       </select>
-    </div>
-    <div class="col-md-2">
-      <button class="btn btn-sm btn-hm w-100">Lọc</button>
     </div>
   </form>
 
@@ -127,6 +124,7 @@
 
 {% include 'san_xuat/includes/ie_wide_table_styles.html' %}
 {% include 'kho_npl/includes/catalog_grid_scripts.html' with table_id=sx_list_table_id storage_key=sx_list_storage_key col_btn_id=sx_col_btn_id col_toggle_class=sx_col_toggle_class default_sort_key=sx_default_sort_key %}
+{% include 'san_xuat/includes/ie_list_filter_scripts.html' with form_id='ieOpFilterForm' %}
 <script>
 (function () {
   document.querySelectorAll('.jp-ie-lib-table td.time-sec').forEach(function (td) {
