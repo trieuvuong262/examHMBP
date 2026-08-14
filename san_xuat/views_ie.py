@@ -932,6 +932,7 @@ def operation_list(request):
 
     qs = qs.order_by('op_code', 'op_rev')
     grid = sx_list_grid_context(request, 'ie_operation')
+    grid['sx_list_storage_key'] = 'san_xuat_ie_operation_cols_v4'
     if not (perms.get('can_approve') or perms.get('can_update')):
         cols = [c for c in grid['list_columns'] if c['key'] != 'actions']
         grid = {
@@ -1133,10 +1134,12 @@ def routing_list(request):
     locked_routing_ids = set(
         SxProductionOrder.objects.filter(routing_id__isnull=False).values_list('routing_id', flat=True)
     )
+    grid = sx_list_grid_context(request, 'ie_routing')
+    grid['sx_list_storage_key'] = 'san_xuat_ie_routing_cols_v4'
     return render(request, 'san_xuat/ie_routing_list.html', {
         **perms,
         **_ie_io_context(KIND_ROUTING),
-        **sx_list_grid_context(request, 'ie_routing'),
+        **grid,
         'page_obj': page_obj,
         'items': page_obj.object_list,
         'query_string': query_string,
