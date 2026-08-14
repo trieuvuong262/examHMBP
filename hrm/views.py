@@ -777,7 +777,8 @@ def user_import_excel(request):
         try:
             df = pd.read_excel(file)
             df.columns = [str(c).strip().lower() for c in df.columns]
-            df = df.fillna('')
+            # fillna('') không thay NaT trên cột datetime64 — cần replace riêng
+            df = df.fillna('').replace({pd.NaT: ''})
             
             success_count = 0
             updated_count = 0

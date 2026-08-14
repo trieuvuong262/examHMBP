@@ -90,18 +90,53 @@ def normalize_gender(value):
 
 
 def parse_excel_date(value):
-    """Chuyển giá trị Excel thành date hoặc None."""
+    """Chuyển giá trị Excel thành date hoặc None.
+
+    Cột ngày từ pandas thường là datetime64 — ô trống thành NaT và
+    ``DataFrame.fillna('')`` không thay được NaT. Gọi ``.date()`` trên NaT
+    vẫn trả NaT; lưu vào DateField sẽ lỗi ``NaTType does not support utcoffset``.
+    """
+    from datetime import date, datetime
+
     if value is None or value == '':
         return None
-    if hasattr(value, 'date') and callable(getattr(value, 'date', None)):
+    try:
+        import pandas as pd
+        if pd.isna(value):
+            return None
+    except (TypeError, ValueError):
+        pass
+
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+
+    if hasattr(value, 'to_pydatetime') and callable(getattr(value, 'to_pydatetime', None)):
         try:
-            return value.date()
+            return value.to_pydatetime().date()
         except Exception:
             pass
-    if hasattr(value, 'year'):
-        return value
-    from datetime import datetime
+
+    if hasattr(value, 'date') and callable(getattr(value, 'date', None)):
+        try:
+            result = value.date()
+            try:
+                import pandas as pd
+                if pd.isna(result):
+                    return None
+            except (TypeError, ValueError):
+                pass
+            if isinstance(result, datetime):
+                return result.date()
+            if isinstance(result, date):
+                return result
+        except Exception:
+            pass
+
     text = str(value).strip()
+    if not text or text.lower() in {'nat', 'nan', 'none', 'null'}:
+        return None
     for fmt in ('%d/%m/%Y', '%Y-%m-%d', '%d-%m-%Y'):
         try:
             return datetime.strptime(text, fmt).date()
