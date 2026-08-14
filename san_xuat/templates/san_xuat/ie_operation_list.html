@@ -25,6 +25,7 @@
         <i class="bi bi-plus-lg me-1"></i>Tạo công đoạn
       </button>
       {% endif %}
+      {% include 'san_xuat/includes/sx_list_col_picker.html' %}
       <span class="sep" aria-hidden="true"></span>
       <a href="{% url 'san_xuat:ie_hub' %}" class="is-back">
         <i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại
@@ -68,65 +69,43 @@
 
   <div class="card border-0 shadow-sm overflow-hidden">
     <div class="jp-ie-table-scroll">
-      <table class="table table-hover table-sm align-middle mb-0 jp-ie-wide-table jp-ie-lib-table">
+      <table class="table table-hover table-sm align-middle mb-0 jp-ie-wide-table jp-ie-lib-table" id="{{ sx_list_table_id }}">
         <thead class="table-light">
           <tr>
-            <th>Mã nhóm</th>
-            <th>Mã CĐ</th>
-            <th>Phiên bản</th>
-            <th>Tên công đoạn</th>
-            <th>Tên EN</th>
-            <th>Bậc CĐ</th>
-            <th class="text-end">ĐM thời gian (giây)</th>
-            <th class="text-end">ĐM SP/H</th>
-            <th>Khâu SX</th>
-            <th>Cụm chi tiết</th>
-            <th>Mô tả PP</th>
-            <th>Mã máy</th>
-            <th>Nhóm mũi</th>
-            <th>Kim/chỉ</th>
-            <th>Cữ/gá</th>
-            <th>Đơn vị</th>
-            <th>Nguồn SMV</th>
-            <th>Trạng thái</th>
-            <th>Ngày HL</th>
-            <th>Ngày hết HL</th>
-            <th>Người lập</th>
-            <th>Người duyệt</th>
-            <th>Lý do phiên bản</th>
-            <th>Notes</th>
-            {% if can_approve or can_update %}<th></th>{% endif %}
+            {% for col in list_columns %}
+            <th class="npl-col{% if col.align == 'end' %} text-end{% endif %}" data-col="{{ col.key }}">{{ col.label }}</th>
+            {% endfor %}
           </tr>
         </thead>
         <tbody>
         {% for op in items %}
           <tr>
-            <td class="small">{{ op.group.code }}</td>
-            <td class="fw-semibold"><a href="{% url 'san_xuat:ie_operation_detail' op.pk %}" class="text-decoration-none">{{ op.op_code }}</a></td>
-            <td><span class="badge bg-light text-dark">{{ op.op_rev }}</span></td>
-            <td><a href="{% url 'san_xuat:ie_operation_detail' op.pk %}" class="text-decoration-none text-body">{{ op.name_vi }}</a></td>
-            <td class="small">{{ op.name_en|default:"—" }}</td>
-            <td class="small">{{ op.skill_level_label|default:"—" }}</td>
-            <td class="text-end time-sec" data-smv="{{ op.base_smv_min|sx_num_input }}">—</td>
-            <td class="text-end">{{ op.std_capacity_pcs_hour|sx_num }}</td>
-            <td class="small">{{ op.process_stage_label|default:"—" }}</td>
-            <td class="small">{{ op.product_part|default:"—" }}</td>
-            <td class="small jp-ie-cell-wrap" title="{{ op.method_variant }}">{{ op.method_variant|default:"—"|truncatechars:40 }}</td>
-            <td class="small">{{ op.machine_code|default:"—" }}</td>
-            <td class="small">{% if op.stitch_class %}{{ op.stitch_class.code }}{% else %}—{% endif %}</td>
-            <td class="small">{{ op.thread_needle|default:"—" }}</td>
-            <td class="small">{{ op.attachment_code|default:"—" }}</td>
-            <td class="small">{{ op.smv_basis|default:"—" }}</td>
-            <td class="small">{% if op.smv_source %}{{ op.smv_source.name }}{% else %}—{% endif %}</td>
-            <td class="small">{{ op.get_status_display }}</td>
-            <td class="small">{% if op.effective_from %}{{ op.effective_from|date:"Y-m-d" }}{% else %}—{% endif %}</td>
-            <td class="small">{% if op.effective_to %}{{ op.effective_to|date:"Y-m-d" }}{% else %}—{% endif %}</td>
-            <td class="small">{{ op.ie_owner|default:"—" }}</td>
-            <td class="small">{{ op.approved_by|default:"—" }}</td>
-            <td class="small jp-ie-cell-wrap" title="{{ op.revision_reason }}">{{ op.revision_reason|default:"—"|truncatechars:28 }}</td>
-            <td class="small jp-ie-cell-wrap" title="{{ op.notes }}">{{ op.notes|default:"—"|truncatechars:28 }}</td>
+            <td class="npl-col small" data-col="group_code">{{ op.group.code }}</td>
+            <td class="npl-col fw-semibold" data-col="op_code"><a href="{% url 'san_xuat:ie_operation_detail' op.pk %}" class="text-decoration-none">{{ op.op_code }}</a></td>
+            <td class="npl-col" data-col="op_rev"><span class="badge bg-light text-dark">{{ op.op_rev }}</span></td>
+            <td class="npl-col" data-col="name_vi"><a href="{% url 'san_xuat:ie_operation_detail' op.pk %}" class="text-decoration-none text-body">{{ op.name_vi }}</a></td>
+            <td class="npl-col small" data-col="name_en">{{ op.name_en|default:"—" }}</td>
+            <td class="npl-col small" data-col="skill_level">{{ op.skill_level_label|default:"—" }}</td>
+            <td class="npl-col text-end time-sec" data-col="time_sec" data-smv="{{ op.base_smv_min|sx_num_input }}">—</td>
+            <td class="npl-col text-end" data-col="std_capacity">{{ op.std_capacity_pcs_hour|sx_num }}</td>
+            <td class="npl-col small" data-col="process_stage">{{ op.process_stage_label|default:"—" }}</td>
+            <td class="npl-col small" data-col="product_part">{{ op.product_part|default:"—" }}</td>
+            <td class="npl-col small jp-ie-cell-wrap" data-col="method_variant" title="{{ op.method_variant }}">{{ op.method_variant|default:"—"|truncatechars:40 }}</td>
+            <td class="npl-col small" data-col="machine_code">{{ op.machine_code|default:"—" }}</td>
+            <td class="npl-col small" data-col="stitch_class">{% if op.stitch_class %}{{ op.stitch_class.code }}{% else %}—{% endif %}</td>
+            <td class="npl-col small" data-col="thread_needle">{{ op.thread_needle|default:"—" }}</td>
+            <td class="npl-col small" data-col="attachment">{{ op.attachment_code|default:"—" }}</td>
+            <td class="npl-col small" data-col="smv_basis">{{ op.smv_basis|default:"—" }}</td>
+            <td class="npl-col small" data-col="smv_source">{% if op.smv_source %}{{ op.smv_source.name }}{% else %}—{% endif %}</td>
+            <td class="npl-col small" data-col="status">{{ op.get_status_display }}</td>
+            <td class="npl-col small" data-col="effective_from">{% if op.effective_from %}{{ op.effective_from|date:"Y-m-d" }}{% else %}—{% endif %}</td>
+            <td class="npl-col small" data-col="effective_to">{% if op.effective_to %}{{ op.effective_to|date:"Y-m-d" }}{% else %}—{% endif %}</td>
+            <td class="npl-col small" data-col="ie_owner">{{ op.ie_owner|default:"—" }}</td>
+            <td class="npl-col small" data-col="approved_by">{{ op.approved_by|default:"—" }}</td>
+            <td class="npl-col small jp-ie-cell-wrap" data-col="revision_reason" title="{{ op.revision_reason }}">{{ op.revision_reason|default:"—"|truncatechars:28 }}</td>
+            <td class="npl-col small jp-ie-cell-wrap" data-col="notes" title="{{ op.notes }}">{{ op.notes|default:"—"|truncatechars:28 }}</td>
             {% if can_approve or can_update %}
-            <td class="jp-td-actions">
+            <td class="npl-col jp-td-actions" data-col="actions">
               <a href="{% url 'san_xuat:ie_operation_detail' op.pk %}" class="btn btn-sm btn-outline-secondary py-0">Sửa</a>
               {% if can_approve and op.status != 'approved' %}
               <form method="post" class="d-inline">
@@ -148,7 +127,7 @@
             {% endif %}
           </tr>
         {% empty %}
-          <tr><td colspan="{% if can_approve or can_update %}26{% else %}25{% endif %}" class="text-muted small p-3 text-center jp-ie-cell-wrap">Không có công đoạn phù hợp.</td></tr>
+          <tr><td colspan="{{ list_columns|length }}" class="text-muted small p-3 text-center jp-ie-cell-wrap">Không có công đoạn phù hợp.</td></tr>
         {% endfor %}
         </tbody>
       </table>
@@ -158,6 +137,7 @@
 </div>
 
 {% include 'san_xuat/includes/ie_wide_table_styles.html' %}
+{% include 'kho_npl/includes/catalog_grid_scripts.html' with table_id=sx_list_table_id storage_key=sx_list_storage_key col_btn_id=sx_col_btn_id col_toggle_class=sx_col_toggle_class default_sort_key=sx_default_sort_key %}
 <script>
 (function () {
   document.querySelectorAll('.jp-ie-lib-table td.time-sec').forEach(function (td) {

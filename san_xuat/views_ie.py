@@ -25,6 +25,7 @@ from hrm.menu_permissions import (
 )
 from hrm.module_permissions import MODULE_SAN_XUAT
 from PortalJustPlay.pagination import paginate_queryset
+from san_xuat.list_grid import sx_list_grid_context
 
 from san_xuat.ie_models import (
     SxIeAuditLog,
@@ -930,9 +931,18 @@ def operation_list(request):
         qs = qs.exclude(status=SxOperation.STATUS_RETIRED)
 
     qs = qs.order_by('op_code', 'op_rev')
+    grid = sx_list_grid_context(request, 'ie_operation')
+    if not (perms.get('can_approve') or perms.get('can_update')):
+        cols = [c for c in grid['list_columns'] if c['key'] != 'actions']
+        grid = {
+            **grid,
+            'list_columns': cols,
+            'total_col_weight': sum(c['weight'] for c in cols) or 1,
+        }
     return render(request, 'san_xuat/ie_operation_list.html', {
         **perms,
         **_ie_io_context(KIND_LIBRARY),
+        **grid,
         'items': qs,
         'term': term,
         'group_code': group_code,
@@ -1126,6 +1136,7 @@ def routing_list(request):
     return render(request, 'san_xuat/ie_routing_list.html', {
         **perms,
         **_ie_io_context(KIND_ROUTING),
+        **sx_list_grid_context(request, 'ie_routing'),
         'page_obj': page_obj,
         'items': page_obj.object_list,
         'query_string': query_string,

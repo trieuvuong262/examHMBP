@@ -25,6 +25,7 @@
         <i class="bi bi-plus-lg me-1"></i>Tạo routing
       </button>
       {% endif %}
+      {% include 'san_xuat/includes/sx_list_col_picker.html' %}
       <span class="sep" aria-hidden="true"></span>
       <a href="{% url 'san_xuat:ie_hub' %}" class="is-back">
         <i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại
@@ -42,40 +43,30 @@
 
   <div class="card border-0 shadow-sm overflow-hidden">
     <div class="jp-ie-table-scroll">
-      <table class="table table-hover table-sm align-middle mb-0 jp-ie-wide-table">
+      <table class="table table-hover table-sm align-middle mb-0 jp-ie-wide-table" id="{{ sx_list_table_id }}">
         <thead class="table-light">
           <tr>
-            <th>Mã đơn hàng</th>
-            <th>Mã hàng SP</th>
-            <th>Tên mã hàng</th>
-            <th>Nhóm SP</th>
-            <th>Phiên bản</th>
-            <th class="text-end">Công đoạn</th>
-            <th class="text-end">Tổng ĐM (phút)</th>
-            <th>Trạng thái áp dụng</th>
-            <th>Người lập</th>
-            <th>Ngày HL</th>
-            <th>Trạng thái duyệt</th>
-            <th>Người duyệt</th>
-            <th></th>
+            {% for col in list_columns %}
+            <th class="npl-col{% if col.align == 'end' %} text-end{% endif %}" data-col="{{ col.key }}">{{ col.label }}</th>
+            {% endfor %}
           </tr>
         </thead>
         <tbody>
         {% for r in items %}
           <tr>
-            <td class="fw-semibold small">{{ r.routing_id }}</td>
-            <td class="fw-semibold">{{ r.style_code }}</td>
-            <td class="small">{{ r.style_name|default:"—"|truncatechars:48 }}</td>
-            <td class="small">{{ r.product_family|default:"—"|truncatechars:36 }}</td>
-            <td><span class="badge bg-light text-dark">{{ r.routing_rev }}</span></td>
-            <td class="text-end">{{ r.n_lines }}</td>
-            <td class="text-end fw-semibold">{{ r.sum_smv|default:0|sx_num }}</td>
-            <td>{% if r.is_active %}<span class="badge bg-success-subtle text-success">Có</span>{% else %}<span class="badge bg-light text-muted">Không</span>{% endif %}</td>
-            <td class="small">{{ r.ie_owner|default:"—" }}</td>
-            <td class="small text-nowrap">{% if r.effective_from %}{{ r.effective_from|date:"Y-m-d" }}{% else %}—{% endif %}</td>
-            <td class="small">{{ r.get_approval_status_display }}</td>
-            <td class="small">{{ r.approved_by|default:"—" }}</td>
-            <td class="text-nowrap text-end">
+            <td class="npl-col fw-semibold small" data-col="routing_id">{{ r.routing_id }}</td>
+            <td class="npl-col fw-semibold" data-col="style_code">{{ r.style_code }}</td>
+            <td class="npl-col small" data-col="style_name">{{ r.style_name|default:"—"|truncatechars:48 }}</td>
+            <td class="npl-col small" data-col="product_family">{{ r.product_family|default:"—"|truncatechars:36 }}</td>
+            <td class="npl-col" data-col="routing_rev"><span class="badge bg-light text-dark">{{ r.routing_rev }}</span></td>
+            <td class="npl-col text-end" data-col="n_lines">{{ r.n_lines }}</td>
+            <td class="npl-col text-end fw-semibold" data-col="sum_smv">{{ r.sum_smv|default:0|sx_num }}</td>
+            <td class="npl-col" data-col="is_active">{% if r.is_active %}<span class="badge bg-success-subtle text-success">Có</span>{% else %}<span class="badge bg-light text-muted">Không</span>{% endif %}</td>
+            <td class="npl-col small" data-col="ie_owner">{{ r.ie_owner|default:"—" }}</td>
+            <td class="npl-col small text-nowrap" data-col="effective_from">{% if r.effective_from %}{{ r.effective_from|date:"Y-m-d" }}{% else %}—{% endif %}</td>
+            <td class="npl-col small" data-col="approval_status">{{ r.get_approval_status_display }}</td>
+            <td class="npl-col small" data-col="approved_by">{{ r.approved_by|default:"—" }}</td>
+            <td class="npl-col text-nowrap text-end" data-col="actions">
               <a href="{% url 'san_xuat:ie_routing_detail' r.pk %}" class="btn btn-sm btn-outline-hm">Xem</a>
               {% if can_update %}
               <button type="button" class="btn btn-sm btn-outline-secondary py-0 ie-edit-routing"
@@ -97,7 +88,7 @@
             </td>
           </tr>
         {% empty %}
-          <tr><td colspan="13" class="text-muted small p-3 text-center">Không có routing phù hợp. Bấm Tạo routing để tạo mới.</td></tr>
+          <tr><td colspan="{{ list_columns|length }}" class="text-muted small p-3 text-center">Không có routing phù hợp. Bấm Tạo routing để tạo mới.</td></tr>
         {% endfor %}
         </tbody>
       </table>
@@ -109,6 +100,7 @@
 </div>
 
 {% include 'san_xuat/includes/ie_wide_table_styles.html' %}
+{% include 'kho_npl/includes/catalog_grid_scripts.html' with table_id=sx_list_table_id storage_key=sx_list_storage_key col_btn_id=sx_col_btn_id col_toggle_class=sx_col_toggle_class default_sort_key=sx_default_sort_key %}
 
 {% if can_create or can_update %}
 <div class="modal fade" id="ieAddRoutingModal" tabindex="-1" aria-labelledby="ieAddRoutingModalLabel" aria-hidden="true">
