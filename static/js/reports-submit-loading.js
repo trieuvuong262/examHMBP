@@ -169,7 +169,18 @@
         var titleEl = document.getElementById('jpReportSubmitErrorTitle');
         var detailEl = document.getElementById('jpReportSubmitErrorDetail');
         var listEl = document.getElementById('jpReportSubmitErrorSteps');
-        if (httpStatus && httpStatus >= 400) {
+        if (httpStatus === 413) {
+            if (titleEl) titleEl.textContent = 'File đính kèm quá lớn';
+            if (detailEl) {
+                detailEl.textContent = 'Máy chủ từ chối vì dung lượng gửi lên quá lớn (mã 413). Vui lòng:';
+            }
+            if (listEl) {
+                listEl.innerHTML =
+                    '<li class="mb-1">Giảm dung lượng file PDF/ảnh (nén hoặc tách file nhỏ hơn)</li>' +
+                    '<li class="mb-1">Mỗi file nên dưới khoảng 100 MB; tổng lần gửi cũng không quá lớn</li>' +
+                    '<li>Gửi lại báo cáo sau khi đã giảm kích thước file</li>';
+            }
+        } else if (httpStatus && httpStatus >= 400) {
             if (titleEl) titleEl.textContent = 'Gửi báo cáo thất bại';
             if (detailEl) {
                 detailEl.textContent = 'Máy chủ không lưu được báo cáo (mã ' + httpStatus + '). Vui lòng:';
