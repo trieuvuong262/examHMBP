@@ -95,9 +95,9 @@
         <span class="jp-report-hod-note-text">{{ report.hod_note }}</span>
     </div>
     {% endif %}
-    {% include 'reports/includes/report_comments.html' %}
 
     {% block detail_body %}{% endblock %}
+    {% include 'reports/includes/report_comments.html' %}
     {% include 'reports/includes/office_file_preview_modal.html' %}
 
 </div>
