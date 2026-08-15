@@ -1,0 +1,149 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5">
+  <div class="jp-page-header mb-3 mb-md-4">
+    <div>
+      <h2 class="fw-bold text-hm mb-1 jp-page-title">
+        <i class="bi bi-clipboard-check me-2"></i>Kiểm tra dữ liệu AI đọc
+      </h2>
+      <p class="text-muted small mb-0">
+        {{ subject_name }} · {{ record.report_date|date:"d/m/Y" }} · {{ shift_label }}
+      </p>
+    </div>
+    <a href="{{ retry_url }}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-repeat me-1"></i>Import ảnh khác
+    </a>
+  </div>
+
+  {% if record.status == 'FAILED' %}
+  <div class="alert alert-danger">{{ record.error_message|default:"Không thể phân tích ảnh." }}</div>
+  {% else %}
+  <div class="alert alert-warning">
+    <strong>Chưa ghi vào báo cáo.</strong> Đối chiếu với ảnh, sau đó bấm “Đổ vào Nhập hộ” để sửa/xác nhận trước khi lưu.
+  </div>
+
+  {% if needs_worker %}
+  <div class="card border-warning shadow-sm mb-4">
+    <div class="card-body">
+      <h3 class="h6 fw-bold text-warning mb-2">
+        <i class="bi bi-person-exclamation me-1"></i>Chưa khớp được công nhân từ ảnh
+      </h3>
+      <p class="small text-muted mb-3 mb-md-2">
+        AI đọc được mã <strong>{{ data.employee_code|default:"—" }}</strong>,
+        tên <strong>{{ data.employee_name|default:"—" }}</strong> —
+        chọn đúng người trong đội để tiếp tục.
+      </p>
+      <form method="post" class="row g-2 align-items-end">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="assign_worker">
+        <div class="col-md-8">
+          <label class="form-label fw-bold" for="reviewAssignWorker">Công nhân</label>
+          <select class="form-select" id="reviewAssignWorker" name="for_user" required>
+            <option value="">— Chọn công nhân —</option>
+            {% for member in members %}
+            <option value="{{ member.pk }}">
+              {{ member.profile.full_name|default:member.username }}
+              {% if member.profile.employee_code %} · {{ member.profile.employee_code }}{% endif %}
+              {% if member.profile.division %} · {{ member.profile.division.name }}{% endif %}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-4">
+          <button class="btn btn-warning w-100" type="submit">Gắn công nhân</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="row g-4">
+    <div class="col-lg-5">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white fw-bold">Ảnh phiếu gốc</div>
+        <div class="card-body p-2 text-center">
+          <a href="{{ record.image.url }}" target="_blank" rel="noopener noreferrer">
+            <img src="{{ record.image.url }}" alt="Ảnh phiếu báo cáo SX"
+                 class="img-fluid rounded" style="max-height: 70vh;">
+          </a>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-7">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center gap-2">
+          <strong>Dữ liệu trích xuất</strong>
+          <span class="badge bg-light text-dark border">{{ sessions|length }} công đoạn</span>
+        </div>
+        <div class="card-body p-0">
+          <div class="px-3 pt-3 small">
+            <div><strong>Mã NV đọc được:</strong> {{ data.employee_code|default:"—" }}</div>
+            <div><strong>Họ tên đọc được:</strong> {{ data.employee_name|default:"—" }}</div>
+            <div><strong>Khớp hệ thống:</strong>
+              {% if record.employee %}
+                {{ subject_name }}{% if record.employee.profile.employee_code %} · {{ record.employee.profile.employee_code }}{% endif %}
+                {% if data.matched_by %}<span class="text-muted">({{ data.matched_by }})</span>{% endif %}
+              {% else %}
+                <span class="text-danger">Chưa gắn</span>
+              {% endif %}
+            </div>
+            <div><strong>Giờ làm đọc được:</strong> {{ data.declared_work_hours|default:"—" }}</div>
+          </div>
+          {% if warnings %}
+          <div class="alert alert-warning small mx-3 mt-3 mb-0">
+            <strong>Cần kiểm tra:</strong>
+            <ul class="mb-0 ps-3">
+              {% for warning in warnings %}<li>{{ warning }}</li>{% endfor %}
+            </ul>
+          </div>
+          {% endif %}
+          <div class="table-responsive mt-3">
+            <table class="table table-sm align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Mã hàng</th>
+                  <th>Công đoạn - Size</th>
+                  <th>BD</th>
+                  <th>KT</th>
+                  <th class="text-end">SL</th>
+                  <th class="text-end">Lỗi</th>
+                  <th class="text-end">ĐM</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for session in sessions %}
+                <tr>
+                  <td>{{ session.code|default:"—" }}</td>
+                  <td>{{ session.process|default:"—" }}</td>
+                  <td>{{ session.start_time|default:"—" }}</td>
+                  <td>{{ session.end_time|default:"—" }}</td>
+                  <td class="text-end">{{ session.total|default:"0" }}</td>
+                  <td class="text-end">{{ session.damaged|default:"0" }}</td>
+                  <td class="text-end">{{ session.norm|default:"—" }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7" class="text-center text-muted py-4">AI chưa đọc được công đoạn nào.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      {% if sessions and proxy_url %}
+      <div class="d-flex justify-content-end mt-3">
+        <a href="{{ proxy_url }}" class="btn btn-hm">
+          <i class="bi bi-pencil-square me-1"></i>Đổ vào Nhập hộ để kiểm tra
+        </a>
+      </div>
+      {% elif sessions and needs_worker %}
+      <div class="alert alert-secondary small mt-3 mb-0">
+        Gắn công nhân ở trên trước khi đổ vào Nhập hộ.
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

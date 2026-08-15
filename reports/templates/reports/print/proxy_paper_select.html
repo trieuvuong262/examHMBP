@@ -1,0 +1,140 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5">
+  <div class="jp-page-header mb-3 mb-md-4">
+    <div>
+      <h2 class="fw-bold text-hm mb-1 jp-page-title">In phiếu giấy SX</h2>
+      <p class="text-muted small mb-0">
+        Chọn công nhân đi làm trong ca — không chọn người nghỉ để tránh phí giấy.
+      </p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+      <a href="{{ back_url }}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left me-1"></i>Quay lại
+      </a>
+      <button type="submit" form="jpPaperSelectForm" class="btn btn-hm btn-sm" id="jpPaperSubmit" disabled>
+        <i class="bi bi-printer me-1"></i>In phiếu đã chọn
+      </button>
+    </div>
+  </div>
+
+  <form method="get" action="{{ print_url }}" id="jpPaperSelectForm" class="card border-0 shadow-sm">
+    <div class="card-body p-3 p-md-4">
+      <div class="row g-3 mb-3">
+        <div class="col-12 col-sm-4 col-md-3">
+          <label class="form-label fw-bold small mb-1" for="paperDate">Ngày</label>
+          <input type="date" class="form-control" id="paperDate" name="date"
+                 value="{{ report_date|date:'Y-m-d' }}" required>
+        </div>
+        <div class="col-12 col-sm-4 col-md-3">
+          <label class="form-label fw-bold small mb-1" for="paperShift">Ca</label>
+          <select class="form-select" id="paperShift" name="shift">
+            {% for value, label in shift_choices %}
+            <option value="{{ value }}"{% if value == shift %} selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-12 col-sm-4 col-md-3">
+          <label class="form-label fw-bold small mb-1" for="paperBlankRows">Số dòng trống</label>
+          <input type="number" class="form-control" id="paperBlankRows" name="blank_rows"
+                 min="4" max="20" value="{{ blank_rows }}">
+        </div>
+      </div>
+
+      <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+        <div class="fw-semibold">
+          Công nhân
+          <span class="text-muted fw-normal small" id="jpPaperSelectedCount">(0 đã chọn)</span>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+          <button type="button" class="btn btn-outline-secondary btn-sm" id="jpPaperSelectAll">Chọn tất cả</button>
+          <button type="button" class="btn btn-outline-secondary btn-sm" id="jpPaperClearAll">Bỏ chọn</button>
+        </div>
+      </div>
+
+      {% if members %}
+      <div class="table-responsive border rounded">
+        <table class="table table-sm align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th style="width:2.5rem" class="text-center">
+                <input type="checkbox" class="form-check-input" id="jpPaperToggleAll" title="Chọn / bỏ chọn tất cả">
+              </th>
+              <th>Họ và tên</th>
+              <th>Mã NV</th>
+              <th>Bộ phận</th>
+              <th>Tổ</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for m in members %}
+            <tr>
+              <td class="text-center">
+                <input type="checkbox" class="form-check-input jp-paper-user"
+                       name="for_user" value="{{ m.id }}" id="paperUser{{ m.id }}">
+              </td>
+              <td>
+                <label class="mb-0" for="paperUser{{ m.id }}">
+                  <strong>{{ m.full_name }}</strong>
+                </label>
+              </td>
+              <td class="text-muted small">{{ m.employee_code|default:"—" }}</td>
+              <td class="small">{{ m.department_name|default:"—" }}</td>
+              <td class="small">{{ m.division_name|default:"—" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="alert alert-warning mb-0">Không có công nhân sản xuất để in phiếu.</div>
+      {% endif %}
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  const form = document.getElementById('jpPaperSelectForm');
+  if (!form) return;
+  const boxes = Array.from(form.querySelectorAll('.jp-paper-user'));
+  const toggleAll = document.getElementById('jpPaperToggleAll');
+  const selectAllBtn = document.getElementById('jpPaperSelectAll');
+  const clearAllBtn = document.getElementById('jpPaperClearAll');
+  const submitBtn = document.getElementById('jpPaperSubmit');
+  const countEl = document.getElementById('jpPaperSelectedCount');
+
+  function sync() {
+    const selected = boxes.filter(function (el) { return el.checked; }).length;
+    if (countEl) countEl.textContent = '(' + selected + ' đã chọn)';
+    if (submitBtn) submitBtn.disabled = selected === 0;
+    if (toggleAll) {
+      toggleAll.checked = boxes.length > 0 && selected === boxes.length;
+      toggleAll.indeterminate = selected > 0 && selected < boxes.length;
+    }
+  }
+
+  function setAll(checked) {
+    boxes.forEach(function (el) { el.checked = checked; });
+    sync();
+  }
+
+  boxes.forEach(function (el) { el.addEventListener('change', sync); });
+  if (toggleAll) toggleAll.addEventListener('change', function () { setAll(toggleAll.checked); });
+  if (selectAllBtn) selectAllBtn.addEventListener('click', function () { setAll(true); });
+  if (clearAllBtn) clearAllBtn.addEventListener('click', function () { setAll(false); });
+
+  form.addEventListener('submit', function (ev) {
+    if (boxes.filter(function (el) { return el.checked; }).length === 0) {
+      ev.preventDefault();
+      alert('Chọn ít nhất một công nhân đi làm để in phiếu.');
+    }
+  });
+
+  sync();
+})();
+</script>
+{% endblock %}

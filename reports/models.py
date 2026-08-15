@@ -696,6 +696,83 @@ class ProductionReportReminderLog(models.Model):
         return f'{self.employee} · {self.report_date} · {self.shift} · đợt {self.wave}'
 
 
+def production_report_import_upload_to(instance, filename):
+    date_part = instance.report_date.strftime('%Y/%m/%d') if instance.report_date else 'unknown'
+    return f'reports/ai-imports/{date_part}/{filename}'
+
+
+class ProductionReportImageImport(models.Model):
+    """Ảnh phiếu SX đã được AI đọc; chỉ là dữ liệu nháp chờ tổ trưởng xác nhận."""
+
+    STATUS_PROCESSING = 'PROCESSING'
+    STATUS_READY = 'READY'
+    STATUS_APPLIED = 'APPLIED'
+    STATUS_FAILED = 'FAILED'
+    STATUS_CHOICES = [
+        (STATUS_PROCESSING, 'Đang phân tích'),
+        (STATUS_READY, 'Chờ xác nhận'),
+        (STATUS_APPLIED, 'Đã đổ vào báo cáo'),
+        (STATUS_FAILED, 'Phân tích lỗi'),
+    ]
+
+    employee = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='production_report_image_imports',
+        verbose_name='Nhân viên',
+        help_text='Có thể để trống tạm khi AI chưa khớp được công nhân từ ảnh.',
+    )
+    report_date = models.DateField(verbose_name='Ngày báo cáo')
+    shift = models.CharField(
+        max_length=20,
+        choices=DailyWorkReport.SHIFT_CHOICES,
+        verbose_name='Ca',
+    )
+    image = models.ImageField(
+        upload_to=production_report_import_upload_to,
+        verbose_name='Ảnh phiếu báo cáo',
+    )
+    original_name = models.CharField(max_length=255, blank=True, verbose_name='Tên file gốc')
+    extracted_data = models.JSONField(default=dict, blank=True, verbose_name='Dữ liệu AI trích xuất')
+    error_message = models.CharField(max_length=500, blank=True, verbose_name='Lỗi phân tích')
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default=STATUS_PROCESSING,
+        db_index=True,
+        verbose_name='Trạng thái',
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='created_production_report_image_imports',
+        verbose_name='Người tải ảnh',
+    )
+    applied_report = models.ForeignKey(
+        DailyWorkReport,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='image_imports',
+        verbose_name='Báo cáo đã đổ dữ liệu',
+    )
+    applied_at = models.DateTimeField(null=True, blank=True, verbose_name='Đổ dữ liệu lúc')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Import ảnh báo cáo SX'
+        verbose_name_plural = 'Import ảnh báo cáo SX'
+
+    def __str__(self):
+        who = self.employee or 'Chưa khớp CN'
+        return f'{who} · {self.report_date} · {self.get_shift_display()}'
+
+
 class ReportsGeneralSettings(models.Model):
     """Singleton (pk=1) — thiết lập chung module Báo cáo SX."""
 

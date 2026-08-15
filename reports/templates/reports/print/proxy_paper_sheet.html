@@ -1,0 +1,86 @@
+{% extends 'reports/print/proxy_paper_base.html' %}
+
+{% block print_sheets %}
+{% for item in sheets %}
+<div class="sheet">
+  <div class="sheet-title-row">
+    <div class="sheet-title">Báo cáo sản xuất hàng ngày</div>
+    <div class="sheet-title-meta">Thời gian: {{ shift_label }}</div>
+    <div class="sheet-title-meta">Ngày: {{ report_date|date:"d/m/Y" }}</div>
+  </div>
+
+  <div class="sheet-meta">
+    <div class="sheet-meta-item">
+      <span class="sheet-meta-label">Mã NV:</span>
+      <span class="sheet-meta-value">{{ item.employee_code|default:"&nbsp;" }}</span>
+    </div>
+    <div class="sheet-meta-item">
+      <span class="sheet-meta-label">Họ và Tên:</span>
+      <span class="sheet-meta-value">{{ item.full_name }}</span>
+    </div>
+    <div class="sheet-meta-item">
+      <span class="sheet-meta-label">Bộ phận:</span>
+      <span class="sheet-meta-value">{{ item.department_name|default:"&nbsp;" }}</span>
+    </div>
+    <div class="sheet-meta-item">
+      <span class="sheet-meta-label">Tổ:</span>
+      <span class="sheet-meta-value">{{ item.division_name|default:"&nbsp;" }}</span>
+    </div>
+  </div>
+
+  <table class="lines">
+    <thead>
+      <tr>
+        <th class="col-stt">STT</th>
+        <th class="col-code">Mã hàng</th>
+        <th class="col-process">Công đoạn - Size</th>
+        <th class="col-time">Thời gian<br>bắt đầu</th>
+        <th class="col-time">Thời gian<br>kết thúc</th>
+        <th class="col-qty">Số lượng</th>
+        <th class="col-dmg">SL lỗi</th>
+        <th class="col-norm">Định mức<br>(sp/h)</th>
+        <th class="col-note">Ghi chú</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for n in blank_row_numbers %}
+      <tr>
+        <td class="col-stt">{{ n }}</td>
+        <td class="col-code">
+          <input class="cell-input" type="text" data-kind="product" data-row="{{ n }}"
+                 maxlength="100" value="{% if forloop.first %}{{ product_code }}{% endif %}"
+                 aria-label="Mã hàng dòng {{ n }}">
+        </td>
+        <td class="col-process">
+          <input class="cell-input" type="text" data-kind="process" data-row="{{ n }}"
+                 maxlength="200" value="{% if forloop.first %}{{ process_name }}{% endif %}"
+                 aria-label="Công đoạn dòng {{ n }}">
+        </td>
+        <td class="col-time"></td>
+        <td class="col-time"></td>
+        <td class="col-qty"></td>
+        <td class="col-dmg"></td>
+        <td class="col-norm"></td>
+        <td class="col-note"></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="sig-row">
+    <div class="sig-box">
+      <div class="role">Công nhân</div>
+      <div class="hint-sign">(Ký, ghi rõ họ tên)</div>
+    </div>
+    <div class="sig-box">
+      <div class="role">Tổ trưởng / người nhập hộ</div>
+      <div class="hint-sign">(Ký, ghi rõ họ tên)</div>
+    </div>
+  </div>
+</div>
+{% empty %}
+<div class="sheet">
+  <p class="notes">Không có công nhân sản xuất để in phiếu.</p>
+</div>
+{% endfor %}
+{% endblock %}

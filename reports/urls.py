@@ -1,5 +1,7 @@
 from django.urls import path
 from . import views
+from . import views_image_import
+from . import views_print_sx
 
 app_name = 'reports'
 
@@ -9,6 +11,18 @@ urlpatterns = [
     # Báo cáo ngày — SX (sản xuất)
     path('sx/today/', views.today_report_cn, name='today_cn'),
     path('sx/nhap-ho/', views.proxy_report_entry, name='proxy_cn'),
+    path('sx/phieu-giay/', views_print_sx.proxy_paper_sheet, name='proxy_paper_sheet'),
+    path(
+        'sx/phieu-giay/excel/',
+        views_print_sx.proxy_paper_sheet_excel,
+        name='proxy_paper_sheet_excel',
+    ),
+    path('sx/import-anh/', views_image_import.production_report_image_import, name='production_image_import'),
+    path(
+        'sx/import-anh/<int:pk>/',
+        views_image_import.production_report_image_import_review,
+        name='production_image_import_review',
+    ),
     path('sx/team/', views.team_reports_cn, name='team_cn'),
     path('sx/team/tong-hop/', views.team_summary_cn, name='team_summary_cn'),
     path('sx/team/tong-hop/xuat-excel/', views.team_summary_cn_export, name='team_summary_cn_export'),

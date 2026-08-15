@@ -4,6 +4,7 @@ from .models import (
     DailyWorkReport,
     DailyWorkReportAttachment,
     DailyWorkReportLine,
+    ProductionReportImageImport,
     ProductionReportReminderLog,
     ReportComment,
     ReportCommentAttachment,
@@ -142,6 +143,22 @@ class ProductionReportReminderLogAdmin(admin.ModelAdmin):
     list_filter = ('shift', 'wave', 'report_date')
     search_fields = ('employee__username', 'employee__profile__full_name')
     readonly_fields = ('sent_at',)
+
+
+@admin.register(ProductionReportImageImport)
+class ProductionReportImageImportAdmin(admin.ModelAdmin):
+    list_display = (
+        'employee', 'report_date', 'shift', 'status', 'created_by', 'applied_report', 'created_at',
+    )
+    list_filter = ('status', 'shift', 'report_date', 'created_at')
+    search_fields = (
+        'employee__username', 'employee__profile__full_name',
+        'created_by__username', 'original_name',
+    )
+    readonly_fields = (
+        'image', 'original_name', 'extracted_data', 'error_message',
+        'created_at', 'updated_at', 'applied_at',
+    )
 
 
 @admin.register(ReportsGeneralSettings)

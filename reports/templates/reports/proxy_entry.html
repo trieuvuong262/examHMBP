@@ -24,6 +24,11 @@
             </div>
             <div class="jp-report-detail-hero-actions d-flex flex-column gap-2 align-items-stretch">
                 <div class="d-flex gap-2 flex-wrap jp-report-detail-hero-nav-actions">
+                    <a href="{% url 'reports:proxy_paper_sheet' %}?date={{ report_date|date:'Y-m-d' }}&for_user={{ subject.id }}&shift={{ active_shift }}"
+                       class="btn btn-outline-dark btn-sm"
+                       title="In phiếu giấy trống — CN ghi tay rồi nhập hộ">
+                        <i class="bi bi-printer me-1"></i>In phiếu
+                    </a>
                     <a href="{{ back_url }}" class="btn btn-outline-secondary btn-sm">
                         <i class="bi bi-arrow-left me-1"></i>{% if edit_submitted_only %}Quay lại báo cáo{% else %}Quay lại{% endif %}
                     </a>
@@ -88,6 +93,13 @@
                     <input type="hidden" name="shift" value="{{ tab.shift }}">
                     <input type="hidden" name="for_user" value="{{ subject.pk }}">
                     <input type="hidden" name="sessions_json" class="s-sessions-json">
+                    {% if ai_import and ai_import.shift == tab.shift %}
+                    <input type="hidden" name="ai_import" value="{{ ai_import.pk }}">
+                    <div class="alert alert-warning small mb-3">
+                        <i class="bi bi-stars me-1"></i>
+                        Dữ liệu này được AI đọc từ ảnh phiếu. Kiểm tra từng công đoạn trước khi lưu.
+                    </div>
+                    {% endif %}
 
                     <div class="jp-proxy-form-toolbar">
                         {% if tab.show_declared_work_hours %}
@@ -101,7 +113,7 @@
                                        inputmode="decimal"
                                        autocomplete="off"
                                        placeholder="9.5 hoặc 9,5"
-                                       value="{% if tab.declared_work_hours %}{{ tab.declared_work_hours }}{% else %}9.5{% endif %}"
+                                       value="{% if tab.ai_import_declared_work_hours %}{{ tab.ai_import_declared_work_hours }}{% elif tab.declared_work_hours %}{{ tab.declared_work_hours }}{% else %}9.5{% endif %}"
                                        {% if not tab.can_edit_declared_work_hours %}readonly disabled{% endif %}>
                                 <span class="input-group-text">giờ</span>
                             </div>

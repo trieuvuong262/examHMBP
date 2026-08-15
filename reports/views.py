@@ -133,6 +133,7 @@ from .models import (
     DailyWorkReport,
     DailyWorkReportAttachment,
     DailyWorkReportEditLog,
+    ProductionReportImageImport,
     ReportComment,
     ReportCommentAttachment,
     WeeklyWorkReport,
@@ -694,6 +695,8 @@ def proxy_report_entry(request):
         url = f"{reverse('reports:proxy_cn')}?date={report_date.isoformat()}&for_user={subject_id}"
         if shift:
             url += f'&shift={shift}'
+        if ai_import_id and str(ai_import_id).isdigit():
+            url += f'&ai_import={ai_import_id}'
         return url
 
     for_user_id = request.GET.get('for_user') or request.POST.get('for_user')
@@ -714,6 +717,32 @@ def proxy_report_entry(request):
 
     subject_profile = getattr(subject, 'profile', None)
     subject_name = (subject_profile.full_name if subject_profile and subject_profile.full_name else subject.username)
+    ai_import_id = request.GET.get('ai_import') or request.POST.get('ai_import')
+    ai_import = None
+    if ai_import_id and str(ai_import_id).isdigit():
+        ai_import = ProductionReportImageImport.objects.filter(
+            pk=int(ai_import_id),
+            employee=subject,
+            report_date=report_date,
+            status=ProductionReportImageImport.STATUS_READY,
+        ).first()
+        if ai_import and (
+            ai_import.shift not in (
+                DailyWorkReport.SHIFT_MORNING,
+                DailyWorkReport.SHIFT_NIGHT,
+            )
+            or (
+                ai_import.created_by_id
+                and ai_import.created_by_id != request.user.id
+                and not request.user.is_superuser
+            )
+        ):
+            ai_import = None
+        if ai_import is None:
+            messages.warning(
+                request,
+                'Bản import ảnh không còn hợp lệ hoặc không thuộc quyền sử dụng của bạn.',
+            )
 
     SHIFTS = [
         (DailyWorkReport.SHIFT_MORNING, 'Ca sáng'),
@@ -813,6 +842,17 @@ def proxy_report_entry(request):
                 'Không có công đoạn nào được lưu — kiểm tra mã hàng, sản lượng và khung giờ.',
             )
             return redirect(_proxy_url(subject.id, post_shift))
+        if (
+            ai_import
+            and ai_import.shift == post_shift
+            and ai_import.status == ProductionReportImageImport.STATUS_READY
+        ):
+            ai_import.status = ProductionReportImageImport.STATUS_APPLIED
+            ai_import.applied_report = report
+            ai_import.applied_at = timezone.now()
+            ai_import.save(update_fields=[
+                'status', 'applied_report', 'applied_at', 'updated_at',
+            ])
         messages.success(
             request,
             f'Đã lưu chỉnh sửa {shift_display_label(post_shift)} cho {subject_name}.'
@@ -847,6 +887,29 @@ def proxy_report_entry(request):
             and report_has_manager_fixable_anomaly(report)
         )
         proxy_data = build_proxy_shift_sessions(report)
+        if ai_import and ai_import.shift == shift:
+            extracted = ai_import.extracted_data or {}
+            imported_sessions = []
+            for item in extracted.get('sessions') or []:
+                if not isinstance(item, dict):
+                    continue
+                imported_sessions.append({
+                    'product_id': None,
+                    'code': str(item.get('code') or ''),
+                    'process': str(item.get('process') or ''),
+                    'norm': str(item.get('norm') or ''),
+                    'start_time': str(item.get('start_time') or ''),
+                    'end_time': str(item.get('end_time') or ''),
+                    'total': str(item.get('total') or ''),
+                    'damaged': str(item.get('damaged') or ''),
+                    'note': str(item.get('note') or ''),
+                    'session_locked': False,
+                    'is_anomaly': False,
+                    'lock_stage_times': False,
+                })
+            if imported_sessions:
+                proxy_data['sessions'] = imported_sessions
+                proxy_data['has_data'] = True
         if has_anomaly:
             proxy_data = enrich_proxy_shift_sessions_for_anomaly_fix(proxy_data, report)
         manager_may_edit_submitted = manager_may_edit_submitted_production_report(report)
@@ -872,6 +935,10 @@ def proxy_report_entry(request):
             'declared_work_hours': report.declared_work_hours if report.pk else None,
             'show_declared_work_hours': show_declared_work_hours and not has_anomaly,
             'can_edit_declared_work_hours': can_edit_declared_work_hours and not has_anomaly,
+            'ai_import_declared_work_hours': (
+                (ai_import.extracted_data or {}).get('declared_work_hours', '')
+                if ai_import and ai_import.shift == shift else ''
+            ),
             'report_id': report.pk if report.pk else None,
             'detail_url': (
                 reverse('reports:detail_cn', kwargs={'pk': report.pk})
@@ -946,6 +1013,7 @@ def proxy_report_entry(request):
         'back_url': back_url,
         'edit_submitted_only': edit_submitted_only,
         'anomaly_fix_mode': any(tab.get('anomaly_fix_mode') for tab in tabs),
+        'ai_import': ai_import,
     })
 
 

@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ print_title|default:"Phiếu ghi sản lượng ca SX" }}</title>
+  <style>
+    :root {
+      --ink: #111;
+      --muted: #444;
+      --line: #222;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      color: var(--ink);
+      font-family: "Times New Roman", "Liberation Serif", serif;
+      font-size: 11pt;
+      line-height: 1.35;
+      background: #e8e8e8;
+    }
+    .no-print {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      flex-wrap: wrap;
+      gap: .5rem;
+      align-items: center;
+      justify-content: center;
+      padding: .65rem;
+      background: #1f2937;
+      color: #fff;
+      font-family: system-ui, sans-serif;
+      font-size: 13px;
+    }
+    .no-print button,
+    .no-print a {
+      appearance: none;
+      border: 0;
+      border-radius: 4px;
+      padding: .4rem .9rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      color: #111;
+      background: #f8fafc;
+    }
+    .no-print a.is-primary { background: #fde8e8; }
+    .no-print .hint { opacity: .85; margin-left: .25rem; }
+    .sheet {
+      width: 297mm;
+      min-height: 210mm;
+      margin: 12px auto;
+      padding: 9mm 10mm;
+      background: #fff;
+      box-shadow: 0 2px 12px rgba(0,0,0,.18);
+    }
+    .sheet + .sheet { page-break-before: always; }
+    .sheet-title-row {
+      display: flex;
+      align-items: stretch;
+      border: 1px solid var(--line);
+    }
+    .sheet-title {
+      flex: 1 1 auto;
+      padding: 5px 8px;
+      background: #fff200;
+      border-right: 1px solid var(--line);
+      font-size: 14pt;
+      font-weight: 700;
+      text-align: center;
+      text-transform: uppercase;
+      letter-spacing: .02em;
+    }
+    .sheet-title-meta {
+      min-width: 125px;
+      padding: 5px 7px;
+      font-size: 10pt;
+      font-weight: 700;
+      text-align: center;
+    }
+    .sheet-title-meta + .sheet-title-meta {
+      min-width: 150px;
+      border-left: 1px solid var(--line);
+    }
+    .sheet-meta {
+      display: grid;
+      grid-template-columns: 1fr 2.1fr 1.1fr 1.2fr;
+      border: 1px solid var(--line);
+      border-top: 0;
+      font-size: 10pt;
+    }
+    .sheet-meta-item {
+      min-height: 30px;
+      padding: 5px 7px;
+      border-right: 1px solid var(--line);
+    }
+    .sheet-meta-item:last-child { border-right: 0; }
+    .sheet-meta-label { font-weight: 700; }
+    .sheet-meta-value {
+      display: inline-block;
+      min-width: 4em;
+      border-bottom: 1px solid var(--line);
+      font-weight: 700;
+    }
+    table.lines {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 0;
+      font-size: 9pt;
+    }
+    table.lines th,
+    table.lines td {
+      border: 1px solid var(--line);
+      padding: 0;
+      vertical-align: middle;
+    }
+    table.lines th {
+      background: #f3f3f3;
+      font-weight: 700;
+      text-align: center;
+      padding: 3px 2px;
+      line-height: 1.15;
+    }
+    table.lines td {
+      height: 23px;
+    }
+    table.lines .col-stt { width: 4%; text-align: center; }
+    table.lines .col-code { width: 14%; }
+    table.lines .col-process { width: 28%; }
+    table.lines .col-time { width: 9%; }
+    table.lines .col-qty { width: 9%; }
+    table.lines .col-dmg { width: 8%; }
+    table.lines .col-norm { width: 10%; }
+    table.lines .col-note { width: 18%; }
+    table.lines .cell-input {
+      display: block;
+      width: 100%;
+      height: 100%;
+      min-height: 22px;
+      margin: 0;
+      padding: 1px 3px;
+      border: 0;
+      outline: none;
+      background: transparent;
+      font: inherit;
+      color: inherit;
+      box-shadow: none;
+    }
+    table.lines .cell-input:focus {
+      background: #fffde7;
+    }
+    .notes {
+      font-size: 9.5pt;
+      margin: 5px 0 8px;
+      color: var(--muted);
+    }
+    .sig-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-top: 16px;
+      page-break-inside: avoid;
+    }
+    .sig-box { text-align: center; font-size: 10pt; }
+    .sig-box .role { font-weight: 700; }
+    .sig-box .hint-sign {
+      color: var(--muted);
+      font-size: 8.5pt;
+      font-style: italic;
+      margin: 2px 0 40px;
+    }
+    @page {
+      size: A4 landscape;
+      margin: 8mm;
+    }
+    @media print {
+      html, body { background: #fff; }
+      .no-print { display: none !important; }
+      .sheet {
+        width: auto;
+        min-height: auto;
+        margin: 0;
+        padding: 0;
+        box-shadow: none;
+      }
+      .sheet + .sheet { page-break-before: always; }
+      table.lines .cell-input {
+        background: transparent !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="no-print">
+    <button type="button" onclick="window.print()">In giấy / PDF</button>
+    {% if excel_url %}
+    <a id="jpPaperExcelDownload" href="{{ excel_url }}">Tải Excel</a>
+    {% endif %}
+    {% if proxy_entry_url %}
+    <a class="is-primary" href="{{ proxy_entry_url }}">Mở nhập hộ</a>
+    {% endif %}
+    {% if select_url %}
+    <a href="{{ select_url }}">Chọn lại CN</a>
+    {% endif %}
+    <a href="{{ back_url }}">Đóng</a>
+    <span class="hint">Gõ thẳng vào ô Mã hàng / Công đoạn · A4 ngang · {{ sheets|length }} phiếu · Ca: {{ shift_label }} · {{ report_date|date:"d/m/Y" }}</span>
+  </div>
+  {% block print_sheets %}{% endblock %}
+  <script>
+  (function () {
+    const excelLink = document.getElementById('jpPaperExcelDownload');
+    const sheets = Array.from(document.querySelectorAll('.sheet'));
+
+    function syncAcrossSheets(source) {
+      const kind = source.dataset.kind;
+      const row = source.dataset.row;
+      if (!kind || !row) return;
+      sheets.forEach(function (sheet) {
+        sheet.querySelectorAll('.cell-input[data-kind="' + kind + '"][data-row="' + row + '"]').forEach(function (input) {
+          if (input !== source) input.value = source.value;
+        });
+      });
+    }
+
+    document.querySelectorAll('.cell-input').forEach(function (input) {
+      input.addEventListener('input', function () {
+        syncAcrossSheets(input);
+      });
+    });
+
+    if (!excelLink) return;
+    excelLink.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      const firstSheet = sheets[0];
+      if (!firstSheet) return;
+      const form = document.createElement('form');
+      form.method = 'GET';
+      form.action = excelLink.getAttribute('href');
+      form.style.display = 'none';
+
+      const current = new URL(window.location.href);
+      current.searchParams.forEach(function (value, key) {
+        if (
+          key === 'product_code' ||
+          key === 'process_name' ||
+          key === 'row_code' ||
+          key === 'row_process' ||
+          key === 'jp_clicked_button'
+        ) {
+          return;
+        }
+        const hidden = document.createElement('input');
+        hidden.type = 'hidden';
+        hidden.name = key;
+        hidden.value = value;
+        form.appendChild(hidden);
+      });
+
+      firstSheet.querySelectorAll('.cell-input[data-kind="product"]').forEach(function (input) {
+        const hidden = document.createElement('input');
+        hidden.type = 'hidden';
+        hidden.name = 'row_code';
+        hidden.value = input.value || '';
+        form.appendChild(hidden);
+      });
+      firstSheet.querySelectorAll('.cell-input[data-kind="process"]').forEach(function (input) {
+        const hidden = document.createElement('input');
+        hidden.type = 'hidden';
+        hidden.name = 'row_process';
+        hidden.value = input.value || '';
+        form.appendChild(hidden);
+      });
+
+      document.body.appendChild(form);
+      form.submit();
+      form.remove();
+    });
+  })();
+  </script>
+</body>
+</html>

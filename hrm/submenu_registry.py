@@ -245,6 +245,8 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     ('/reports/sx/thong-ke', MODULE_REPORTS, 'report_stats'),
     ('/reports/sx/thiet-lap', MODULE_REPORTS, 'general_settings'),
     ('/reports/sx/team', MODULE_REPORTS, 'daily_cn_detail'),
+    ('/reports/sx/phieu-giay', MODULE_REPORTS, 'daily_cn_detail'),
+    ('/reports/sx/nhap-ho', MODULE_REPORTS, 'daily_cn_detail'),
     ('/reports/sx/my', MODULE_REPORTS, 'daily_cn'),
     ('/reports/sx/copy-yesterday', MODULE_REPORTS, 'daily_cn'),
     ('/reports/sx/today', MODULE_REPORTS, 'daily_cn'),

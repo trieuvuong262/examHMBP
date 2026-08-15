@@ -7,6 +7,16 @@
 {% endblock %}
 
 {% block team_header_actions %}
+<a href="{% url 'reports:production_image_import' %}?date={{ range_to|date:'Y-m-d' }}&shift=MORNING"
+   class="btn btn-outline-hm btn-sm flex-fill flex-md-grow-0"
+   title="Tải ảnh phiếu giấy để AI đọc và tạo nháp Nhập hộ">
+    <i class="bi bi-file-earmark-image me-1"></i>Import BC
+</a>
+<a href="{% url 'reports:proxy_paper_sheet' %}?date={{ range_to|date:'Y-m-d' }}&shift=MORNING"
+   class="btn btn-outline-dark btn-sm flex-fill flex-md-grow-0"
+   title="Chọn công nhân đi làm rồi in phiếu giấy — tránh in người nghỉ">
+    <i class="bi bi-printer me-1"></i>In phiếu
+</a>
 <a href="{% url 'reports:team_summary_cn' %}?{{ summary_list_query }}" class="btn btn-hm btn-sm flex-fill flex-md-grow-0">
     <i class="bi bi-table me-1"></i>Báo cáo tổng hợp
 </a>
@@ -95,7 +105,12 @@
     {% if row.report %}
     <a href="{% url detail_url_name row.report.pk %}{% if team_list_query %}?{{ team_list_query }}{% endif %}" class="btn btn-sm btn-outline-hm">Chi tiết</a>
     {% else %}
-    <a href="{% url today_url_name %}?date={{ row.report_date|default:range_to|date:'Y-m-d' }}&for_user={{ row.member.id }}" class="btn btn-sm btn-outline-dark">Nhập hộ</a>
+    <a href="{% url 'reports:proxy_cn' %}?date={{ row.report_date|default:range_to|date:'Y-m-d' }}&for_user={{ row.member.id }}" class="btn btn-sm btn-outline-dark">Nhập hộ</a>
     {% endif %}
+    <a href="{% url 'reports:proxy_paper_sheet' %}?date={{ row.report_date|default:range_to|date:'Y-m-d' }}&for_user={{ row.member.id }}&shift=MORNING"
+       class="btn btn-sm btn-outline-secondary"
+       title="In phiếu giấy cho nhân viên này">
+        <i class="bi bi-printer"></i>
+    </a>
 </td>
 {% endblock %}
