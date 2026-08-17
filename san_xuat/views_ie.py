@@ -735,14 +735,18 @@ def group_list(request):
         try:
             if action == 'create_group':
                 from datetime import date as _date_cls
+                from datetime import datetime as _dt_cls
 
                 eff_raw = (request.POST.get('effective_from') or '').strip()
                 effective_from = None
                 if eff_raw:
                     try:
-                        effective_from = _date_cls.fromisoformat(eff_raw)
+                        if '/' in eff_raw:
+                            effective_from = _dt_cls.strptime(eff_raw, '%d/%m/%Y').date()
+                        else:
+                            effective_from = _date_cls.fromisoformat(eff_raw)
                     except ValueError as exc:
-                        raise IeOpsError('Ngày hiệu lực không hợp lệ (YYYY-MM-DD).') from exc
+                        raise IeOpsError('Ngày hiệu lực không hợp lệ (dd/mm/yyyy).') from exc
                 group = create_operation_group(
                     code=(request.POST.get('group_code') or '').strip(),
                     name=(request.POST.get('group_name') or '').strip(),
@@ -761,14 +765,18 @@ def group_list(request):
                 if not group:
                     raise IeOpsError('Thiếu nhóm công đoạn.')
                 from datetime import date as _date_cls
+                from datetime import datetime as _dt_cls
 
                 eff_raw = (request.POST.get('effective_from') or '').strip()
                 effective_from = None
                 if eff_raw:
                     try:
-                        effective_from = _date_cls.fromisoformat(eff_raw)
+                        if '/' in eff_raw:
+                            effective_from = _dt_cls.strptime(eff_raw, '%d/%m/%Y').date()
+                        else:
+                            effective_from = _date_cls.fromisoformat(eff_raw)
                     except ValueError as exc:
-                        raise IeOpsError('Ngày hiệu lực không hợp lệ (YYYY-MM-DD).') from exc
+                        raise IeOpsError('Ngày hiệu lực không hợp lệ (dd/mm/yyyy).') from exc
                 update_operation_group(
                     group=group,
                     name=(request.POST.get('group_name') or '').strip(),
