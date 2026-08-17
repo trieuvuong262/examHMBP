@@ -5,8 +5,8 @@
 <div class="container-fluid jp-page jp-sx-page py-3 py-md-4 mb-5 px-3 px-lg-4">
   <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
     <div>
-      <h2 class="mb-0">{{ routing.style_code }} <span class="badge bg-light text-dark align-middle">{{ routing.routing_rev }}</span></h2>
-      <div class="text-muted small">{{ routing.routing_id }} · {{ routing.style_name|default:"—" }}{% if routing.product_family %} · {{ routing.product_family }}{% endif %}</div>
+      <h2 class="mb-0">{{ routing.style_name|default:routing.style_code }} <span class="badge bg-light text-dark align-middle">{{ routing.routing_rev }}</span></h2>
+      <div class="text-muted small">{{ routing.style_code }} · {{ routing.routing_id }}{% if routing.product_family %} · {{ routing.product_family }}{% endif %}</div>
       <div class="small mt-1">
         <span class="badge {% if routing.approval_status == 'approved' %}bg-success{% elif routing.approval_status == 'rejected' %}bg-danger{% else %}bg-secondary{% endif %}">
           {{ routing.get_approval_status_display }}
@@ -278,7 +278,6 @@
   </div>
 
   {% include 'san_xuat/includes/ie_wide_table_styles.html' %}
-  {% include 'san_xuat/includes/ie_smv_glossary.html' %}
 
   {% if can_update and not locked %}
   {% for l in lines %}
