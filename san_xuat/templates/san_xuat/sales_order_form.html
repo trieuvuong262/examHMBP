@@ -133,14 +133,6 @@
     opacity: 1;
     color: #6c757d;
   }
-  .jp-so-ie-status {
-    font-size: .72rem;
-    line-height: 1.35;
-    color: #64748b;
-    margin-top: .25rem;
-  }
-  .jp-so-ie-status.is-ok { color: #166534; }
-  .jp-so-ie-status.is-warn { color: #92400e; }
   .jp-so-smv-card {
     border: 1px solid #e2e8f0;
     border-radius: .5rem;
@@ -258,7 +250,6 @@
                 <td class="jp-so-ie-col">
                   {{ f.routing_id }}
                   {{ f.applied_smv_json }}
-                  <div class="jp-so-ie-status" data-role="ie-status"></div>
                   {% if f.routing_id.errors %}<div class="text-danger small">{{ f.routing_id.errors }}</div>{% endif %}
                 </td>
                 <td class="jp-so-stock-col">
@@ -320,7 +311,6 @@
     <td class="jp-so-bom-col">{{ f.bom_version_id }}{{ f.applied_bom_json }}</td>
     <td class="jp-so-ie-col">
       {{ f.routing_id }}{{ f.applied_smv_json }}
-      <div class="jp-so-ie-status" data-role="ie-status"></div>
     </td>
     <td class="jp-so-stock-col"><span class="jp-so-stock-qty text-muted">—</span></td>
     <td class="jp-so-actions-col">
@@ -603,7 +593,6 @@ window.jpSoAllSizes = {{ suggest_sizes_all_json|safe }};
 (function () {
   var versionsUrl = '{% url "san_xuat:sales_order_line_versions" %}';
   var CREATE_VAL = '__create__';
-  var routingCreateUrl = '{% url "san_xuat:ie_routing_create" %}';
 
   function productCodeOf(row) {
     var sel = row.querySelector('.jp-sx-product-code-select, select[name$="-product_code"]');
@@ -833,14 +822,11 @@ window.jpSoAllSizes = {{ suggest_sizes_all_json|safe }};
     var steps = (data && data.steps) || [];
     var source = (data && data.steps_source) || '';
     var hasRouting = !!selectedRoutingId(row);
-    var createRt = (data && data.routing_create_url) || routingCreateUrl;
     if (!hasRouting || source !== 'ie' || !steps.length) {
       var msg = '';
       if (!hasRouting && (data.routings || []).length) {
         msg = 'Chọn Routing để chỉnh SMV từng công đoạn.';
-      } else if (!(data.routings || []).length) {
-        msg = 'Chưa có Routing. <a href="' + createRt + '" target="_blank" rel="noopener">Tạo routing</a>.';
-      } else {
+      } else if ((data.routings || []).length) {
         msg = 'Routing đã chọn nhưng chưa có công đoạn.';
       }
       return msg ? '<div class="jp-so-smv-card text-muted small">' + msg + '</div>' : '';
@@ -890,29 +876,11 @@ window.jpSoAllSizes = {{ suggest_sizes_all_json|safe }};
   }
 
   function applyIeStatus(row, data) {
-    var rtSel = row.querySelector('.jp-so-routing-select, select[name$="-routing_id"]');
-    var status = row.querySelector('[data-role="ie-status"]');
-    var routings = (data && data.routings) || [];
     var steps = (data && data.steps) || [];
-    var n = routings.length;
     var smv = 0;
     steps.forEach(function (st) { smv += stepStd(st); });
     row._soSteps = steps;
     row._soStdTotal = smv;
-
-    if (rtSel) {
-      if (n >= 1) rtSel.classList.remove('d-none');
-      else rtSel.classList.add('d-none');
-    }
-    if (!status) return;
-    status.classList.remove('is-ok', 'is-warn');
-    status.textContent = '';
-    if (!productCodeOf(row)) return;
-    if (n === 0) {
-      status.classList.add('is-warn');
-      status.innerHTML = 'Chưa có Routing'
-        + ' · <a href="' + (data.routing_create_url || routingCreateUrl) + '" target="_blank" rel="noopener">Tạo routing</a>';
-    }
   }
 
   function loadVersions(row, keepBom, keepRouting, keepSmv, keepBomQty) {
@@ -921,8 +889,7 @@ window.jpSoAllSizes = {{ suggest_sizes_all_json|safe }};
     var rtSel = row.querySelector('.jp-so-routing-select, select[name$="-routing_id"]');
     if (!code) {
       fillSelect(bomSel, [], '— BOM —', '', '');
-      fillSelect(rtSel, [], '— Chọn routing —', '', '');
-      if (rtSel) rtSel.classList.add('d-none');
+      fillSelect(rtSel, [], '— Routing —', '', '');
       applyIeStatus(row, { routings: [], steps: [] });
       renderSteps(row, { steps: [], bom_lines: [] });
       if (keepBomQty) hydrateBomFromHidden(row);
@@ -942,6 +909,9 @@ window.jpSoAllSizes = {{ suggest_sizes_all_json|safe }};
         var bomUrl = data.doc_url
           ? (data.doc_url + (data.doc_url.indexOf('?') >= 0 ? '&' : '?') + 'tab=bom')
           : (data.create_url || '');
+        var rtUrl = data.doc_url
+          ? (data.doc_url + (data.doc_url.indexOf('?') >= 0 ? '&' : '?') + 'tab=process')
+          : (data.create_url || '');
         var routings = data.routings || [];
         var autoRt = keepRouting || data.default_routing_id || '';
         if (!autoRt && routings.length === 1) autoRt = routings[0].id;
@@ -956,9 +926,10 @@ window.jpSoAllSizes = {{ suggest_sizes_all_json|safe }};
         fillSelect(
           rtSel,
           routings,
-          '— Chọn routing —',
-          '',
+          '— Routing —',
+          rtUrl,
           autoRt,
+          '＋ Tạo Routing trên hồ sơ',
         );
         applyIeStatus(row, data);
         renderSteps(row, data);
@@ -970,7 +941,7 @@ window.jpSoAllSizes = {{ suggest_sizes_all_json|safe }};
       })
       .catch(function () {
         fillSelect(bomSel, [], '— BOM —', '', keepBom);
-        fillSelect(rtSel, [], '— Chọn routing —', '', keepRouting);
+        fillSelect(rtSel, [], '— Routing —', '', keepRouting);
         applyIeStatus(row, { routings: [], steps: [] });
         renderSteps(row, { steps: [], bom_lines: [] });
         writeAppliedBom(row);
