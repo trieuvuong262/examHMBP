@@ -757,7 +757,7 @@ SX_LIST_GRIDS: dict[str, dict[str, Any]] = {
             _col('product_family', 'Nhóm SP', weight=100, default=False, sortable=False),
             _col('routing_rev', 'Phiên bản', weight=70, sortable=False),
             _col('n_lines', 'Công đoạn', weight=80, align='end', sortable=False),
-            _col('sum_smv', 'Tổng ĐM (phút)', weight=100, align='end', sortable=False),
+            _col('sum_smv', 'Tổng ĐM (giây)', weight=100, align='end', sortable=False),
             _col('is_active', 'Trạng thái áp dụng', weight=100, sortable=False),
             _col('ie_owner', 'Người lập', weight=90, default=False, sortable=False),
             _col('effective_from', 'Ngày HL', weight=90, default=False, sortable=False),

@@ -179,7 +179,7 @@
   document.querySelectorAll('.jp-ie-lib-table td.time-sec').forEach(function (td) {
     var smv = parseFloat(String(td.getAttribute('data-smv') || '').replace(',', '.'));
     if (!isFinite(smv)) { td.textContent = '—'; return; }
-    td.textContent = (smv * 60).toFixed(2);
+    td.textContent = smv.toFixed(2);
   });
 })();
 </script>

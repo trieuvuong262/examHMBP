@@ -50,9 +50,9 @@
             <li>Mở Excel → đọc sheet <code>00_HUONG_DAN</code>.</li>
             <li>Điền sheet <code>{{ io.sheet }}</code> rồi lưu .xlsx.</li>
             {% if io.kind == 'library' %}
-            <li><strong>Định mức thời gian = giây</strong> (vd 36 giây → SMV 0,6 phút trên Portal).</li>
+            <li><strong>Định mức thời gian = giây</strong> (vd 36 giây lưu thẳng làm SMV chuẩn).</li>
             {% elif io.kind == 'routing' %}
-            <li><strong>Định mức thời gian trên routing = phút (SMV)</strong> — khác thư viện (giây).</li>
+            <li><strong>Định mức thời gian trên routing = giây (SMV)</strong> — cùng đơn vị thư viện.</li>
             {% else %}
             <li>Mỗi dòng = 1 nhóm; trùng <code>MÃ NHÓM</code> sẽ cập nhật.</li>
             {% endif %}

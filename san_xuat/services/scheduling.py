@@ -138,7 +138,8 @@ def product_routing(product_code: str) -> ProductRouting:
 
         rows = []
         for line in routing.lines.select_related('work_center').order_by('seq_no'):
-            minutes = _q(line.total_operation_smv, '0.0001')
+            # SMV IE lưu bằng giây → phút cho lịch/công suất.
+            minutes = _q((line.total_operation_smv or Decimal('0')) / Decimal('60'), '0.0001')
             if minutes <= 0:
                 continue
             rows.append(

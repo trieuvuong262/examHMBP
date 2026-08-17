@@ -154,7 +154,8 @@ def process_preview_from_bom(bom, *, limit: int = 80) -> list[dict]:
 
 
 def _copy_from_process_step(order_line: SxSalesOrderLine, src) -> SxSalesOrderRoutingLine:
-    smv = smv_from_process_step(src)
+    # BOM std_time_minutes (phút) → snapshot đơn lưu giây.
+    smv = _q(smv_from_process_step(src) * Decimal('60'))
     wc = getattr(src, 'work_center', None)
     return SxSalesOrderRoutingLine(
         sales_order_line=order_line,
@@ -315,7 +316,8 @@ def sales_order_line_routing(order_line: SxSalesOrderLine):
     result = ProductRouting(product_code=code)
     rows: list[RoutingStep] = []
     for line in order_line.routing_lines.select_related('work_center').order_by('seq_no', 'id'):
-        minutes = _q(line.total_operation_smv, '0.0001')
+        # Snapshot đơn lưu SMV giây → phút cho lịch/công suất.
+        minutes = _q((line.total_operation_smv or Decimal('0')) / Decimal('60'), '0.0001')
         if minutes <= 0:
             continue
         wc = map_ie_center_to_hr(line.work_center) or line.work_center
@@ -462,8 +464,9 @@ def upsert_order_routing_line(
     if total_unit_price is not None:
         line.total_unit_price = total_unit_price
     elif _q(line.price_factor or 0) > 0:
+        # Hệ số đơn giá = VNĐ/phút; SMV lưu giây.
         line.total_unit_price = _q(
-            (line.applied_unit_smv or Decimal('0'))
+            ((line.applied_unit_smv or Decimal('0')) / Decimal('60'))
             * (line.qty_per_garment or Decimal('0'))
             * (line.price_factor or Decimal('0')),
             '0.01',

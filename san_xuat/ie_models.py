@@ -310,8 +310,8 @@ class SxOperation(models.Model):
         decimal_places=4,
         default=Decimal('0'),
         validators=[MinValueValidator(Decimal('0'))],
-        verbose_name='SMV chuẩn (phút)',
-        help_text='SMV chuẩn trên một đơn vị cơ sở, đơn vị phút.',
+        verbose_name='SMV chuẩn (giây)',
+        help_text='SMV chuẩn trên một đơn vị cơ sở, đơn vị giây.',
     )
     smv_source = models.ForeignKey(
         SxSmvSource,
@@ -350,13 +350,13 @@ class SxOperation(models.Model):
     def std_capacity_pcs_hour(self) -> Decimal:
         if not self.base_smv_min:
             return Decimal('0')
-        return _q(Decimal('60') / self.base_smv_min, '0.01')
+        return _q(Decimal('3600') / self.base_smv_min, '0.01')
 
     @property
     def std_capacity_pcs_10h(self) -> Decimal:
         if not self.base_smv_min:
             return Decimal('0')
-        return _q(Decimal('600') / self.base_smv_min, '0.01')
+        return _q(Decimal('36000') / self.base_smv_min, '0.01')
 
 
 # ---------------------------------------------------------------------------
@@ -471,14 +471,14 @@ class SxRoutingLine(models.Model):
         max_digits=10,
         decimal_places=4,
         default=Decimal('0'),
-        verbose_name='SMV chuẩn (phút)',
+        verbose_name='SMV chuẩn (giây)',
     )
     applied_unit_smv = models.DecimalField(
         max_digits=10,
         decimal_places=4,
         default=Decimal('0'),
         validators=[MinValueValidator(Decimal('0'))],
-        verbose_name='SMV áp dụng (phút)',
+        verbose_name='SMV áp dụng (giây)',
     )
     total_operation_smv = models.DecimalField(
         max_digits=12,
@@ -566,11 +566,11 @@ class SxRoutingLine(models.Model):
 
     @property
     def std_capacity_pcs_hour(self) -> Decimal:
-        """Định mức SP/H từ SMV áp dụng (phút)."""
+        """Định mức SP/H từ SMV áp dụng (giây)."""
         smv = self.applied_unit_smv or Decimal('0')
         if not smv:
             return Decimal('0')
-        return _q(Decimal('60') / smv, '0.01')
+        return _q(Decimal('3600') / smv, '0.01')
 
     def save(self, *args, **kwargs):
         self.recompute()
@@ -663,14 +663,14 @@ class SxTimeStudy(models.Model):
         max_digits=10,
         decimal_places=4,
         default=Decimal('0'),
-        verbose_name='SMV routing hiện tại (phút)',
+        verbose_name='SMV routing hiện tại (giây)',
     )
 
     # Giá trị tính toán (lưu để lọc/báo cáo, cập nhật trong save()).
     net_observed_sec = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0'), verbose_name='Net (giây)')
     normal_time_sec = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0'), verbose_name='Normal (giây)')
     standard_time_sec = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0'), verbose_name='Standard (giây)')
-    calculated_smv = models.DecimalField(max_digits=10, decimal_places=4, default=Decimal('0'), verbose_name='SMV tính toán (phút)')
+    calculated_smv = models.DecimalField(max_digits=10, decimal_places=4, default=Decimal('0'), verbose_name='SMV tính toán (giây)')
     variance_pct = models.DecimalField(max_digits=8, decimal_places=2, default=Decimal('0'), verbose_name='Chênh lệch (%)')
 
     ie_observer = models.CharField(max_length=60, blank=True, default='', verbose_name='IE đo')
@@ -714,7 +714,8 @@ class SxTimeStudy(models.Model):
             net = Decimal('0')
         normal = net * rating
         standard = normal * (Decimal('1') + allowance / Decimal('100'))
-        smv = standard / Decimal('60')
+        # SMV chuẩn/tính toán lưu bằng giây (cùng đơn vị standard_time_sec).
+        smv = standard
 
         self.net_observed_sec = _q(net, '0.01')
         self.normal_time_sec = _q(normal, '0.01')

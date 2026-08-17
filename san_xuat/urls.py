@@ -132,6 +132,11 @@ urlpatterns = [
         name='team_work_goods',
     ),
     path(
+        'cong-viec-to/<slug:slug>/nhan-su/',
+        views_hub.team_work_personnel,
+        name='team_work_personnel',
+    ),
+    path(
         'cong-viec-to/<slug:slug>/tien-do/<int:mo_id>/',
         views_hub.team_work_progress,
         name='team_work_progress',

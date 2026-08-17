@@ -275,14 +275,14 @@ class SxSalesOrderRoutingLine(models.Model):
         max_digits=10,
         decimal_places=4,
         default=Decimal('0'),
-        verbose_name='SMV chuẩn (phút)',
+        verbose_name='SMV chuẩn (giây)',
     )
     applied_unit_smv = models.DecimalField(
         max_digits=10,
         decimal_places=4,
         default=Decimal('0'),
         validators=[MinValueValidator(Decimal('0'))],
-        verbose_name='SMV áp dụng (phút)',
+        verbose_name='SMV áp dụng (giây)',
     )
     total_operation_smv = models.DecimalField(
         max_digits=12,
@@ -369,7 +369,7 @@ class SxSalesOrderRoutingLine(models.Model):
         smv = self.applied_unit_smv or Decimal('0')
         if not smv:
             return Decimal('0')
-        return (Decimal('60') / smv).quantize(Decimal('0.01'))
+        return (Decimal('3600') / smv).quantize(Decimal('0.01'))
 
     @property
     def is_high_variance(self) -> bool:
@@ -2509,6 +2509,88 @@ class SxTeamWorkClose(DemoMarkedModel):
 
     def __str__(self):
         return f'{self.team_slug} · {self.production_order_id}'
+
+
+class SxTeamPersonnelSkill(DemoMarkedModel):
+    """Hồ sơ năng lực nhân sự theo tổ — một NV có thể khác nhau ở từng tổ."""
+
+    SKILL_A = 'A'
+    SKILL_B = 'B'
+    SKILL_C = 'C'
+    SKILL_CHOICES = [
+        ('', 'Chưa xếp'),
+        (SKILL_A, 'A'),
+        (SKILL_B, 'B'),
+        (SKILL_C, 'C'),
+    ]
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='sx_team_personnel_skills',
+        verbose_name='Nhân viên',
+    )
+    team_slug = models.CharField(
+        max_length=20,
+        choices=SxTeamDivisionMap.TEAM_SLUG_CHOICES,
+        db_index=True,
+        verbose_name='Tổ chuyền',
+    )
+    process_keys = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name='Công đoạn làm được',
+        help_text='Danh sách key công đoạn theo mẫu tổ (progress_template).',
+    )
+    skill_level = models.CharField(
+        max_length=1,
+        choices=SKILL_CHOICES,
+        blank=True,
+        default='',
+        db_index=True,
+        verbose_name='Cấp kỹ năng',
+    )
+    machines = models.CharField(
+        max_length=255,
+        blank=True,
+        default='',
+        verbose_name='Máy / thiết bị vận hành',
+    )
+    is_multiskill = models.BooleanField(
+        default=False,
+        db_index=True,
+        verbose_name='Đa năng',
+    )
+    notes = models.TextField(blank=True, default='', verbose_name='Ghi chú tổ trưởng')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Cập nhật lúc')
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='sx_team_personnel_skills_updated',
+        verbose_name='Người cập nhật',
+    )
+
+    class Meta:
+        ordering = ['team_slug', 'user_id']
+        verbose_name = 'Năng lực nhân sự tổ'
+        verbose_name_plural = 'Năng lực nhân sự tổ'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'team_slug'],
+                name='san_xuat_team_personnel_skill_user_slug_uniq',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.team_slug} · {self.user_id}'
+
+    def process_key_list(self) -> list[str]:
+        raw = self.process_keys
+        if not isinstance(raw, list):
+            return []
+        return [str(k).strip() for k in raw if str(k).strip()]
 
 
 class SxGeneralSettings(models.Model):

@@ -1,0 +1,353 @@
+{% extends 'base.html' %}
+{% load sx_format %}
+
+{% block extra_head %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+<style>
+  .jp-tw {
+    --tw-ink: #0f172a;
+    --tw-muted: #64748b;
+    --tw-line: #e8edf3;
+    --tw-soft: #f4f7fb;
+    --tw-accent: #0f766e;
+  }
+  .jp-tw-kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .75rem; margin: 0 0 1rem; }
+  @media (max-width: 991px) { .jp-tw-kpis { grid-template-columns: 1fr 1fr; } }
+  .jp-tw-kpi {
+    border: 1px solid var(--tw-line); border-radius: 1rem; background: #fff;
+    padding: .85rem 1rem;
+  }
+  .jp-tw-kpi .lbl { color: var(--tw-muted); font-size: .75rem; font-weight: 700; }
+  .jp-tw-kpi .val { font-size: 1.45rem; font-weight: 800; color: var(--tw-ink); letter-spacing: -.02em; line-height: 1.2; }
+  .jp-tw-kpi.is-warn .val { color: #c2410c; }
+  .jp-tw-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: .65rem; margin: 0 0 1rem; }
+  .jp-tw-toolbar .jp-tw-search { flex: 1 1 14rem; max-width: 22rem; min-width: 12rem; }
+  .jp-tw-meta { color: var(--tw-muted); font-size: .82rem; margin: 0 0 1rem; }
+  .jp-tw-table-wrap {
+    border: 1px solid var(--tw-line); border-radius: 1rem; background: #fff; overflow: auto;
+  }
+  .jp-tw-table { width: 100%; margin: 0; border-collapse: collapse; min-width: 72rem; }
+  .jp-tw-table th {
+    text-align: left; font-size: .72rem; font-weight: 800; color: var(--tw-muted);
+    letter-spacing: .02em; text-transform: uppercase;
+    padding: .7rem .9rem; background: var(--tw-soft); border-bottom: 1px solid var(--tw-line);
+    white-space: nowrap;
+  }
+  .jp-tw-table td {
+    padding: .8rem .9rem; border-top: 1px solid #eef2f7; vertical-align: top;
+    color: var(--tw-ink); font-size: .86rem;
+  }
+  .jp-tw-person { display: flex; align-items: flex-start; gap: .7rem; }
+  .jp-tw-avatar {
+    width: 2.4rem; height: 2.4rem; border-radius: 999px; object-fit: cover;
+    background: var(--tw-soft); border: 1px solid var(--tw-line); flex: 0 0 auto;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-weight: 800; color: #115e59;
+  }
+  .jp-tw-name { font-weight: 800; color: var(--tw-ink); }
+  .jp-tw-sub { color: var(--tw-muted); font-size: .76rem; margin-top: .15rem; }
+  .jp-tw-chip {
+    display: inline-flex; align-items: center; gap: .25rem;
+    padding: .15rem .5rem; border-radius: 999px;
+    background: var(--tw-soft); border: 1px solid var(--tw-line);
+    color: var(--tw-ink); font-size: .72rem; font-weight: 700;
+  }
+  .jp-tw-chip.is-a { background: #dcfce7; border-color: #86efac; color: #166534; }
+  .jp-tw-chip.is-b { background: #e0f2fe; border-color: #7dd3fc; color: #075985; }
+  .jp-tw-chip.is-c { background: #ffedd5; border-color: #fdba74; color: #9a3412; }
+  .jp-tw-chip.is-warn { background: #fff7ed; border-color: #fed7aa; color: #9a3412; }
+  .jp-tw-chip.is-ok { background: #ccfbf1; border-color: #5eead4; color: #115e59; }
+  .jp-tw-chips { display: flex; flex-wrap: wrap; gap: .3rem; }
+  .jp-tw-tabs { display: flex; flex-wrap: wrap; gap: .4rem; margin: 0 0 1rem; }
+  .jp-tw-tab {
+    display: inline-flex; align-items: center; gap: .3rem;
+    padding: .28rem .7rem; border-radius: 999px; text-decoration: none;
+    border: 1px solid var(--tw-line); background: #fff; color: var(--tw-ink);
+    font-size: .78rem; font-weight: 700;
+  }
+  .jp-tw-tab:hover { border-color: #99f6e4; color: var(--tw-accent); }
+  .jp-tw-tab.is-on { background: #ccfbf1; border-color: #5eead4; color: #115e59; }
+  .jp-tw-empty-board {
+    border: 1px dashed var(--tw-line); border-radius: 1rem;
+    padding: 2.5rem 1rem; text-align: center; color: var(--tw-muted); background: #fff;
+  }
+  .jp-tw-modal .modal-dialog { max-width: min(42rem, calc(100vw - 1.5rem)); }
+  .jp-tw-modal .modal-content { border: 0; border-radius: 1rem; overflow: hidden; }
+  .jp-tw-modal .modal-header {
+    background: var(--tw-soft); border-bottom: 1px solid var(--tw-line);
+    padding: 1rem 1.15rem;
+  }
+  .jp-tw-steps-grid {
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .35rem .75rem;
+    max-height: 14rem; overflow: auto; padding: .15rem 0 .25rem;
+  }
+  @media (max-width: 575px) { .jp-tw-steps-grid { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid jp-page jp-sx-page jp-tw py-3 py-md-4 mb-5 px-3 px-lg-4">
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title w-100">Quản lý nhân sự · {{ team.label }}</h2>
+    </div>
+    <nav class="jp-sx-tools" aria-label="Công cụ">
+      <a href="{% url 'san_xuat:team_work_goods' %}">
+        <i class="bi bi-bar-chart-line" aria-hidden="true"></i>Tiến độ hàng hoá
+      </a>
+    </nav>
+  </div>
+
+  <div class="jp-tw-tabs" role="navigation" aria-label="Chức năng tổ">
+    <a class="jp-tw-tab" href="{% url 'san_xuat:team_work_board' team.slug %}">Công việc</a>
+    <a class="jp-tw-tab is-on" href="{% url 'san_xuat:team_work_personnel' team.slug %}">Quản lý nhân sự</a>
+  </div>
+
+  {% if not team_has_division_map %}
+  <div class="alert alert-warning py-2 px-3 mb-3">
+    Tổ <strong>{{ team.label }}</strong> chưa map bộ phận Nhân sự — danh sách đang trống.
+    {% if can_map_divisions %}
+    <a href="{% url 'san_xuat:general_settings' %}#sec-team-map" class="alert-link">Map bộ phận trong Thiết lập chung</a>.
+    {% else %}
+    Liên hệ quản trị để map bộ phận với tổ chuyền (Thiết lập chung).
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <div class="jp-tw-kpis">
+    <div class="jp-tw-kpi">
+      <div class="lbl">Nhân sự tổ</div>
+      <div class="val">{{ board.total }}</div>
+    </div>
+    <div class="jp-tw-kpi">
+      <div class="lbl">Đang có việc</div>
+      <div class="val">{{ board.busy }}</div>
+    </div>
+    <div class="jp-tw-kpi">
+      <div class="lbl">Đang trống</div>
+      <div class="val">{{ board.idle }}</div>
+    </div>
+    <div class="jp-tw-kpi">
+      <div class="lbl">Thử việc</div>
+      <div class="val">{{ board.probation }}</div>
+    </div>
+    <div class="jp-tw-kpi{% if board.missing_skill %} is-warn{% endif %}">
+      <div class="lbl">Chưa có năng lực</div>
+      <div class="val">{{ board.missing_skill }}</div>
+    </div>
+  </div>
+
+  <form method="get" class="jp-tw-toolbar">
+    <input type="search" name="q" value="{{ search_query }}" class="form-control form-control-sm jp-tw-search"
+           placeholder="Tìm tên / mã NS / vị trí…" autocomplete="off">
+    <button type="submit" class="btn btn-outline-secondary btn-sm">Lọc</button>
+    {% if search_query %}
+    <a href="{% url 'san_xuat:team_work_personnel' team.slug %}" class="btn btn-link btn-sm text-decoration-none">Xóa lọc</a>
+    {% endif %}
+  </form>
+  <p class="jp-tw-meta">Sản lượng 14 ngày lấy từ báo cáo ca đã nộp. Việc đang gán chỉ tính lệnh tổ này chưa hoàn thành.</p>
+
+  {% if board.rows %}
+  <div class="jp-tw-table-wrap">
+    <table class="jp-tw-table">
+      <thead>
+        <tr>
+          <th>Nhân sự</th>
+          <th>Trạng thái</th>
+          <th>Năng lực</th>
+          <th>Việc đang gán</th>
+          <th>14 ngày</th>
+          {% if can_edit %}<th></th>{% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in board.rows %}
+        <tr>
+          <td>
+            <div class="jp-tw-person">
+              {% if row.avatar_url %}
+              <img class="jp-tw-avatar" src="{{ row.avatar_url }}" alt="">
+              {% else %}
+              <span class="jp-tw-avatar">{{ row.full_name|make_list|first|upper }}</span>
+              {% endif %}
+              <div>
+                <div class="jp-tw-name">{{ row.full_name }}</div>
+                <div class="jp-tw-sub">
+                  {{ row.employee_code|default:"—" }} · {{ row.username }}
+                  {% if row.phone %} · {{ row.phone }}{% endif %}
+                </div>
+                <div class="jp-tw-sub">
+                  {{ row.division|default:row.department|default:"—" }}
+                  {% if row.job_title %} · {{ row.job_title }}{% elif row.job_position %} · {{ row.job_position }}{% endif %}
+                  {% if row.role_label %} · {{ row.role_label }}{% endif %}
+                </div>
+                {% if row.concurrent_labels %}
+                <div class="jp-tw-sub">Kiêm: {{ row.concurrent_labels|join:", " }}</div>
+                {% endif %}
+              </div>
+            </div>
+          </td>
+          <td>
+            <div class="jp-tw-chips">
+              {% if row.is_probation %}
+              <span class="jp-tw-chip is-warn">Thử việc</span>
+              {% else %}
+              <span class="jp-tw-chip is-ok">Chính thức</span>
+              {% endif %}
+            </div>
+            <div class="jp-tw-sub mt-1">Vào: {{ row.join_date|date:"d/m/Y"|default:"—" }}</div>
+          </td>
+          <td>
+            <div class="jp-tw-chips mb-1">
+              {% if row.skill.skill_level %}
+              <span class="jp-tw-chip is-{{ row.skill.skill_level|lower }}">Bậc {{ row.skill.skill_level }}</span>
+              {% endif %}
+              {% if row.skill.is_multiskill %}
+              <span class="jp-tw-chip is-ok">Đa năng</span>
+              {% endif %}
+              {% if row.missing_skill %}
+              <span class="jp-tw-chip is-warn">Chưa ghi</span>
+              {% endif %}
+            </div>
+            {% if row.skill.process_labels %}
+            <div class="jp-tw-chips">
+              {% for label in row.skill.process_labels %}
+              <span class="jp-tw-chip">{{ label }}</span>
+              {% endfor %}
+            </div>
+            {% endif %}
+            {% if row.skill.machines %}
+            <div class="jp-tw-sub mt-1">Máy: {{ row.skill.machines }}</div>
+            {% endif %}
+            {% if row.skill.notes %}
+            <div class="jp-tw-sub mt-1">{{ row.skill.notes }}</div>
+            {% endif %}
+          </td>
+          <td>
+            {% if row.open_jobs %}
+            <strong>{{ row.open_jobs }}</strong> lệnh · {{ row.open_steps }} CD
+            {% else %}
+            <span class="jp-tw-sub">Trống</span>
+            {% endif %}
+            {% if row.closed_jobs %}
+            <div class="jp-tw-sub">Đã chốt: {{ row.closed_jobs }}</div>
+            {% endif %}
+          </td>
+          <td>
+            <div><strong>{{ row.qty_14d|floatformat:"-0" }}</strong> SP</div>
+            <div class="jp-tw-sub">{{ row.reports_14d }} báo cáo</div>
+          </td>
+          {% if can_edit %}
+          <td>
+            <button type="button" class="btn btn-outline-secondary btn-sm jp-tw-edit"
+                    data-user-id="{{ row.user_id }}">
+              Sửa năng lực
+            </button>
+          </td>
+          {% endif %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="jp-tw-empty-board">
+    {% if search_query %}Không tìm thấy nhân sự khớp bộ lọc.{% else %}Chưa có nhân sự thuộc bộ phận đã map vào tổ này.{% endif %}
+  </div>
+  {% endif %}
+</div>
+
+{% if can_edit %}
+{{ edit_payload|json_script:"jp-tw-personnel-data" }}
+<div class="modal fade jp-tw-modal" id="jpTwSkillModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <form method="post">
+        {% csrf_token %}
+        {% if search_query %}<input type="hidden" name="q" value="{{ search_query }}">{% endif %}
+        <input type="hidden" name="user_id" id="jpTwSkillUserId" value="">
+        <div class="modal-header">
+          <h5 class="modal-title">Hồ sơ năng lực · <span id="jpTwSkillName"></span></h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Cấp kỹ năng A/B/C</label>
+            <select name="skill_level" id="jpTwSkillLevel" class="form-select">
+              {% for value, label in skill_choices %}
+              <option value="{{ value }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <div class="form-label fw-semibold">Công đoạn làm được</div>
+            <div class="jp-tw-steps-grid">
+              {% for step in board.step_defs %}
+              <label class="form-check">
+                <input class="form-check-input jp-tw-process" type="checkbox" name="process_keys" value="{{ step.key }}">
+                <span class="form-check-label">{{ step.label }}</span>
+              </label>
+              {% endfor %}
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold" for="jpTwMachines">Máy / thiết bị vận hành</label>
+            <input type="text" class="form-control" name="machines" id="jpTwMachines" maxlength="255"
+                   placeholder="VD. 1 kim, Kansai, ép logo…">
+          </div>
+          <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" name="is_multiskill" value="1" id="jpTwMulti">
+            <label class="form-check-label" for="jpTwMulti">Đa năng (làm chéo công đoạn trong tổ)</label>
+          </div>
+          <div class="mb-0">
+            <label class="form-label fw-semibold" for="jpTwNotes">Ghi chú tổ trưởng</label>
+            <textarea class="form-control" name="notes" id="jpTwNotes" rows="3" maxlength="2000"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
+          <button type="submit" class="btn btn-danger">Lưu</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if can_edit %}
+<script>
+(function () {
+  var dataEl = document.getElementById('jp-tw-personnel-data');
+  var data = {};
+  try {
+    data = JSON.parse((dataEl && dataEl.textContent) || '{}');
+  } catch (e) {
+    data = {};
+  }
+  var modalEl = document.getElementById('jpTwSkillModal');
+  if (!modalEl || typeof bootstrap === 'undefined') return;
+  var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+  document.querySelectorAll('.jp-tw-edit').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var uid = String(btn.getAttribute('data-user-id') || '');
+      var row = data[uid] || {};
+      document.getElementById('jpTwSkillUserId').value = uid;
+      document.getElementById('jpTwSkillName').textContent = row.full_name || '';
+      document.getElementById('jpTwSkillLevel').value = row.skill_level || '';
+      document.getElementById('jpTwMachines').value = row.machines || '';
+      document.getElementById('jpTwNotes').value = row.notes || '';
+      document.getElementById('jpTwMulti').checked = !!row.is_multiskill;
+      var selected = {};
+      (row.process_keys || []).forEach(function (k) { selected[k] = true; });
+      document.querySelectorAll('.jp-tw-process').forEach(function (cb) {
+        cb.checked = !!selected[cb.value];
+      });
+      modal.show();
+    });
+  });
+})();
+</script>
+{% endif %}
+{% endblock %}

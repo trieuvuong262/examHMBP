@@ -971,7 +971,7 @@ def operation_list(request):
                 time_sec_raw = (request.POST.get('time_sec') or '').strip()
                 try:
                     if time_sec_raw:
-                        smv = (Decimal(time_sec_raw) / Decimal('60')).quantize(
+                        smv = Decimal(time_sec_raw).quantize(
                             Decimal('0.0001'), rounding=ROUND_HALF_UP,
                         )
                     else:

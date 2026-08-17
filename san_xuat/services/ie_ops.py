@@ -872,7 +872,7 @@ def apply_routing_to_bom(
             )
             total_smv = sum((ln.total_operation_smv or Decimal('0')) for ln in glines)
             if applied_sum > 0:
-                norm = _q(Decimal('60') / applied_sum, '0.01')
+                norm = _q(Decimal('3600') / applied_sum, '0.01')
                 if norm < Decimal('0.01'):
                     norm = Decimal('0.01')
             else:
@@ -906,7 +906,7 @@ def apply_routing_to_bom(
                 op_code=(_code or '')[:30],
                 routing_line=glines[0],
                 norm_per_hour=norm,
-                std_time_minutes=_q(total_smv, '0.01'),
+                std_time_minutes=_q(total_smv / Decimal('60'), '0.01'),
                 work_center=wc,
                 cost_per_hour=Decimal('0'),
                 piece_rate=Decimal('0'),
@@ -925,7 +925,7 @@ def apply_routing_to_bom(
         applied = line.applied_unit_smv or Decimal('0')
         total_smv = line.total_operation_smv or Decimal('0')
         if applied > 0:
-            norm = _q(Decimal('60') / applied, '0.01')
+            norm = _q(Decimal('3600') / applied, '0.01')
             if norm < Decimal('0.01'):
                 norm = Decimal('0.01')
         else:
@@ -940,7 +940,7 @@ def apply_routing_to_bom(
             op_code=line.op_code or '',
             routing_line=line,
             norm_per_hour=norm,
-            std_time_minutes=_q(total_smv, '0.01'),
+            std_time_minutes=_q(total_smv / Decimal('60'), '0.01'),
             work_center=map_ie_center_to_hr(line.work_center),
             cost_per_hour=Decimal('0'),
             piece_rate=Decimal('0'),

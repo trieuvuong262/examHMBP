@@ -388,7 +388,7 @@ def _import_operations(wb, result: ImportResult) -> None:
             result.warnings.append(f'[Công đoạn] {op_code}: tạo nhóm tạm {group.code} (thiếu trong sheet nhóm).')
 
         time_sec = _dec(rec.get('ĐỊNH MỨC THỜI GIAN')) or Decimal('0')
-        base_smv = (time_sec / Decimal('60')).quantize(Decimal('0.0001'))
+        base_smv = time_sec.quantize(Decimal('0.0001'))
         if base_smv <= 0:
             result.warnings.append(f'[Công đoạn] {op_code}/{op_rev}: SMV chuẩn = 0.')
 
@@ -811,8 +811,8 @@ def _library_export_rows() -> list[list]:
     lib_rows = []
     for op in SxOperation.objects.select_related('group').order_by('op_code', 'op_rev'):
         smv = op.base_smv_min or Decimal('0')
-        time_sec = (smv * Decimal('60')).quantize(Decimal('0.01'))
-        pcs_h = (Decimal('60') / smv).quantize(Decimal('0.01')) if smv else Decimal('0')
+        time_sec = smv.quantize(Decimal('0.01'))
+        pcs_h = (Decimal('3600') / smv).quantize(Decimal('0.01')) if smv else Decimal('0')
         lib_rows.append([
             op.group.code if op.group_id else '',
             op.op_code, op.op_rev, op.name_vi, op.name_en,
@@ -839,7 +839,7 @@ def _routing_export_rows() -> list[list]:
     ):
         r = line.routing
         applied = line.applied_unit_smv or Decimal('0')
-        pcs_h = (Decimal('60') / applied).quantize(Decimal('0.01')) if applied else Decimal('0')
+        pcs_h = (Decimal('3600') / applied).quantize(Decimal('0.01')) if applied else Decimal('0')
         route_rows.append([
             r.routing_id, r.style_code, r.style_name, r.product_family,
             line.group_code, line.op_code, line.op_rev, line.op_name_vi,
@@ -942,7 +942,7 @@ IE_DATASETS = {
             ['Cột chi tiết (xanh)', 'MÃ NHÓM · BẬC · ĐỊNH MỨC THỜI GIAN · SP/H · KHÂU SX · CỤM · MÔ TẢ · MÁY · MŨI · KIM/CHỈ · CỮ/GÁ · ĐƠN VỊ · NGUỒN SMV'],
             ['Cột hiệu lực (xanh đậm)', 'TRẠNG THÁI · NGÀY HL · NGÀY HẾT HL · NGƯỜI LẬP · NGƯỜI DUYỆT · LÝ DO · VIDEO_URL · NOTES'],
             [],
-            ['ĐỊNH MỨC THỜI GIAN', 'Đơn vị GIÂY (không phải phút). Ví dụ 36 giây = SMV 0,6 phút.'],
+            ['ĐỊNH MỨC THỜI GIAN', 'Đơn vị GIÂY — lưu trực tiếp làm SMV chuẩn trên Portal. Ví dụ 36 giây.'],
             ['Trùng mã', 'Cùng MÃ CÔNG ĐOẠN + PHIÊN BẢN → hệ thống CẬP NHẬT bản ghi cũ.'],
             ['TRẠNG THÁI', 'Nháp | Thử nghiệm | Đã duyệt | Ngưng sử dụng'],
             ['Nhóm chưa có', 'Nếu MÃ NHÓM chưa tồn tại, hệ thống tự tạo nhóm tạm (có cảnh báo).'],
@@ -972,7 +972,7 @@ IE_DATASETS = {
             ('TÊN CÔNG ĐOẠN', False),
             ('SỐ LƯỢNG', False),
             ('BẬC CÔNG ĐOẠN', False),
-            ('ĐỊNH MỨC THỜI GIAN (phút)', False),
+            ('ĐỊNH MỨC THỜI GIAN (giây)', False),
             ('ĐỊNH MỨC THEO PHIÊN BẢN', False),
             ('TỔNG ĐỊNH MỨC', False),
             ('ĐỊNH MỨC SP/H', False),
@@ -996,9 +996,9 @@ IE_DATASETS = {
             [],
             ['Cột bắt buộc', 'MÃ ĐƠN HÀNG · MÃ HÀNG SẢN PHẨM · MÃ CÔNG ĐOẠN'],
             ['Gom routing', 'Cùng MÃ ĐƠN HÀNG → cùng một routing (các dòng công đoạn).'],
-            ['ĐỊNH MỨC THỜI GIAN', 'SMV áp dụng (phút). ĐỊNH MỨC THEO PHIÊN BẢN = SMV chuẩn.'],
+            ['ĐỊNH MỨC THỜI GIAN', 'SMV áp dụng (giây). ĐỊNH MỨC THEO PHIÊN BẢN = SMV chuẩn (giây).'],
             ['TỔNG ĐỊNH MỨC', 'Hệ thống tự tính = SỐ LƯỢNG × ĐỊNH MỨC THỜI GIAN khi lưu.'],
-            ['ĐỊNH MỨC SP/H', 'Xuất tự tính = 60 / ĐỊNH MỨC THỜI GIAN (phút). Có thể để trống khi import.'],
+            ['ĐỊNH MỨC SP/H', 'Xuất tự tính = 3600 / ĐỊNH MỨC THỜI GIAN (giây). Có thể để trống khi import.'],
             ['% CHÊNH LỆCH', 'Tự tính so với định mức theo phiên bản; >15% cần giải trình trên Portal.'],
             ['Mẹo', 'Xuất Excel routing hiện tại rồi chỉnh — dễ hơn điền từ file trống.'],
             ['Dòng mẫu cũ', 'Nếu file còn STYLE-DEMO / NOTES «Dòng mẫu», hệ thống sẽ bỏ qua khi import.'],

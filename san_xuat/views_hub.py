@@ -3979,6 +3979,112 @@ def team_work_board(request, slug: str):
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
+def team_work_personnel(request, slug: str):
+    """Danh sách nhân sự tổ — hồ sơ năng lực, việc đang gán, hiệu suất gần đây."""
+    from san_xuat.services.planning import PlanningError
+    from san_xuat.services.progress_template import team_by_slug
+    from san_xuat.services.team_personnel import (
+        build_team_personnel_board,
+        can_edit_team_personnel,
+        upsert_team_personnel_skill,
+    )
+
+    team_meta = team_by_slug(slug)
+    if not team_meta:
+        messages.error(request, 'Tổ không hợp lệ.')
+        return redirect('san_xuat:team_work_hub')
+
+    menu_key = team_meta['menu_key']
+    if not (
+        user_can_access_menu(request.user, MODULE_SAN_XUAT, menu_key)
+        or user_can_access_menu(request.user, MODULE_SAN_XUAT, 'team_work')
+    ):
+        return handle_menu_access_denied(request, MODULE_SAN_XUAT, menu_key)
+
+    can_edit = can_edit_team_personnel(request.user, slug)
+
+    def _list_url(**extra) -> str:
+        from urllib.parse import urlencode
+
+        params = {}
+        qv = (request.GET.get('q') or request.POST.get('q') or '').strip()
+        if qv:
+            params['q'] = qv
+        params.update({k: v for k, v in extra.items() if v})
+        qs = urlencode(params)
+        url = reverse('san_xuat:team_work_personnel', kwargs={'slug': slug})
+        return f'{url}?{qs}' if qs else url
+
+    if request.method == 'POST':
+        if not can_edit:
+            messages.error(request, 'Bạn không có quyền cập nhật hồ sơ năng lực tổ này.')
+            return redirect(_list_url())
+        try:
+            user_id = int(request.POST.get('user_id') or 0)
+        except (TypeError, ValueError):
+            user_id = 0
+        try:
+            upsert_team_personnel_skill(
+                slug=slug,
+                user_id=user_id,
+                process_keys=request.POST.getlist('process_keys'),
+                skill_level=(request.POST.get('skill_level') or '').strip(),
+                machines=(request.POST.get('machines') or '').strip(),
+                is_multiskill=(request.POST.get('is_multiskill') or '').strip() in (
+                    '1', 'on', 'true', 'yes',
+                ),
+                notes=(request.POST.get('notes') or '').strip(),
+                updated_by=request.user,
+            )
+            messages.success(request, 'Đã cập nhật hồ sơ năng lực.')
+        except PlanningError as exc:
+            messages.error(request, str(exc))
+        except Exception as exc:
+            messages.error(request, str(exc))
+        return redirect(_list_url())
+
+    q = (request.GET.get('q') or '').strip()
+    try:
+        board = build_team_personnel_board(slug=slug, search=q)
+    except PlanningError as exc:
+        messages.error(request, str(exc))
+        return redirect('san_xuat:team_work_hub')
+
+    from san_xuat.services.team_division_map import has_mapped_divisions
+
+    can_map = user_can_update_menu(request.user, MODULE_SAN_XUAT, 'general_settings')
+    edit_payload = {
+        str(row.user_id): {
+            'user_id': row.user_id,
+            'full_name': row.full_name,
+            'process_keys': row.skill.process_keys,
+            'skill_level': row.skill.skill_level,
+            'machines': row.skill.machines,
+            'is_multiskill': row.skill.is_multiskill,
+            'notes': row.skill.notes,
+        }
+        for row in board.rows
+    }
+
+    return render(request, 'san_xuat/team_work_personnel.html', {
+        **_perm_ctx(request),
+        'team': board.team,
+        'board': board,
+        'search_query': q,
+        'can_edit': can_edit,
+        'can_map_divisions': can_map,
+        'team_has_division_map': has_mapped_divisions(slug),
+        'edit_payload': edit_payload,
+        'skill_choices': (
+            ('', 'Chưa xếp'),
+            ('A', 'A'),
+            ('B', 'B'),
+            ('C', 'C'),
+        ),
+    })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
 def team_work_progress(request, slug: str, mo_id: int):
     """Phiếu tiến độ theo tổ — xem/ghi SL công đoạn của tổ, không cần vào KHSX."""
     from decimal import Decimal, InvalidOperation

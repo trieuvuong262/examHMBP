@@ -81,7 +81,8 @@ def labor_from_order_routing_lines(snaps, *, fallback_cost_per_hour: Decimal = Z
     """Nhân công / cái từ snapshot routing đơn.
 
     Ưu tiên: Tổng đơn giá đã lưu → SMV áp dụng × hệ số × SL/SP
-    → (SMV phút / 60) × chi phí giờ BOM (khi chưa nhập hệ số).
+    → (SMV giây / 3600) × chi phí giờ BOM (khi chưa nhập hệ số).
+    Hệ số đơn giá vẫn theo VNĐ/phút: (SMV giây / 60) × hệ số.
     """
     total = ZERO
     rate = _d(fallback_cost_per_hour)
@@ -97,10 +98,10 @@ def labor_from_order_routing_lines(snaps, *, fallback_cost_per_hour: Decimal = Z
             continue
         factor = _d(getattr(ln, 'price_factor', None))
         if factor > 0 and smv > 0:
-            total += (smv * factor).quantize(MONEY)
+            total += ((smv / Decimal('60')) * factor).quantize(MONEY)
             continue
         if rate > 0 and smv > 0:
-            total += ((smv / Decimal('60')) * rate).quantize(MONEY)
+            total += ((smv / Decimal('3600')) * rate).quantize(MONEY)
     return total.quantize(MONEY)
 
 
@@ -151,11 +152,11 @@ def compute_costing_for_sales_line(so_line) -> CostingResult:
             sequence=ln.seq_no or 0,
             process_name=ln.op_name_vi or ln.op_code or '',
             norm_per_hour=(
-                (Decimal('60') / ln.applied_unit_smv).quantize(Decimal('0.01'))
+                (Decimal('3600') / ln.applied_unit_smv).quantize(Decimal('0.01'))
                 if _d(ln.applied_unit_smv) > 0 else ZERO
             ),
             cost_per_hour=_d(ln.price_factor),
-            hours_per_piece=(_d(ln.total_operation_smv) / Decimal('60')).quantize(Decimal('0.000001')),
+            hours_per_piece=(_d(ln.total_operation_smv) / Decimal('3600')).quantize(Decimal('0.000001')),
             labor_amount=(
                 _d(ln.total_unit_price) if _d(ln.total_unit_price) > 0
                 else labor_from_order_routing_lines([ln], fallback_cost_per_hour=fallback_rate)
@@ -216,7 +217,7 @@ def compute_costing(bom: BomVersion, *, routing=None) -> CostingResult:
             start=1,
         ):
             smv = _d(line.applied_unit_smv)
-            norm = (Decimal('60') / smv).quantize(Decimal('0.01')) if smv > 0 else ZERO
+            norm = (Decimal('3600') / smv).quantize(Decimal('0.01')) if smv > 0 else ZERO
             rate = _d(line.price_factor)
             hours, amount = labor_cost_for_step(norm, rate)
             labor_total += amount

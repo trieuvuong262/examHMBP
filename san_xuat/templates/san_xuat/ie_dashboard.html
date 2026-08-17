@@ -37,7 +37,7 @@
           <div class="text-muted small">Routing mã hàng</div>
           <div class="fs-4 fw-semibold text-success">{{ styles }}</div>
           <div class="small text-muted">{{ routings }} phiên bản · {{ routing_lines }} dòng</div>
-          <div class="small mt-1">Tổng SMV mẫu <strong>{{ total_smv_all|sx_num:1 }}</strong> phút</div>
+          <div class="small mt-1">Tổng SMV mẫu <strong>{{ total_smv_all|sx_num:1 }}</strong> giây</div>
         </div>
       </a>
     </div>
@@ -62,7 +62,7 @@
       <div class="border rounded-3 p-3 h-100 jp-sx-chart-card">
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
           <div class="fw-semibold">SMV theo mã hàng</div>
-          <div class="small text-muted">May {{ total_sew_smv_all|sx_num:1 }} / Tổng {{ total_smv_all|sx_num:1 }} phút</div>
+          <div class="small text-muted">May {{ total_sew_smv_all|sx_num:1 }} / Tổng {{ total_smv_all|sx_num:1 }} giây</div>
         </div>
         <div class="sx-chart-wrap" style="height:280px"><canvas id="ieSmvByStyleChart"></canvas></div>
       </div>
@@ -117,7 +117,7 @@
                 {% if r.product_family %}<div class="text-muted small">{{ r.product_family|truncatechars:48 }}</div>{% endif %}
               </div>
               <div class="text-end small text-nowrap">
-                <strong>{{ r.total_smv|sx_num }}</strong> phút
+                <strong>{{ r.total_smv|sx_num }}</strong> giây
                 <div class="text-muted">may {{ r.sewing_smv|sx_num }} · {{ r.operation_count }} CĐ</div>
               </div>
             </div>
@@ -225,7 +225,7 @@
         maintainAspectRatio: false,
         scales: {
           x: { stacked: true, ticks: { maxRotation: 45, minRotation: 0, font: { size: 11 } } },
-          y: { stacked: true, beginAtZero: true, title: { display: true, text: 'Phút / SP' } },
+          y: { stacked: true, beginAtZero: true, title: { display: true, text: 'Giây / SP' } },
         },
         plugins: {
           legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } },
@@ -235,7 +235,7 @@
                 if (!items.length) return '';
                 var i = items[0].dataIndex;
                 var t = (sewSmv[i] || 0) + (otherSmv[i] || 0);
-                return 'Tổng: ' + t.toFixed(2) + ' phút';
+                return 'Tổng: ' + t.toFixed(2) + ' giây';
               },
             },
           },
