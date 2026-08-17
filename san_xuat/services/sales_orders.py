@@ -47,6 +47,7 @@ class LineInput:
     bom_version_id: int | None = None
     routing_id: int | None = None
     applied_smv: list | None = None
+    applied_bom: list | None = None
 
 
 def normalize_size_qtys(raw) -> dict[str, Decimal]:
@@ -69,6 +70,81 @@ def normalize_size_qtys(raw) -> dict[str, Decimal]:
         qty = _q(val)
         if qty > 0:
             out[size] = qty
+    return out
+
+
+def _normalize_bom_overrides(raw) -> list[dict]:
+    """Chuẩn hóa snapshot NPL trên đơn từ form lên đơn."""
+    if not raw:
+        return []
+    if isinstance(raw, str):
+        import json
+        try:
+            raw = json.loads(raw)
+        except (TypeError, ValueError):
+            return []
+    if not isinstance(raw, list):
+        return []
+    out: list[dict] = []
+    for row in raw:
+        if not isinstance(row, dict):
+            continue
+        try:
+            bom_line_id = int(row.get('bom_line_id') or row.get('id') or 0)
+        except (TypeError, ValueError):
+            bom_line_id = 0
+        qty = _q(row.get('qty'))
+        scrap = _q(row.get('scrap_pct'))
+        code = str(row.get('material_code') or '').strip()[:60]
+        name = str(row.get('material_name') or '').strip()[:255]
+        unit = str(row.get('unit') or '').strip()[:30]
+        size_code = str(row.get('size_code') or '').strip()[:20]
+        qty_std = _q(row.get('qty_std') if row.get('qty_std') is not None else row.get('qty'))
+        if bom_line_id <= 0 and not code:
+            continue
+        out.append({
+            'bom_line_id': bom_line_id or None,
+            'material_code': code,
+            'material_name': name,
+            'qty': float(qty),
+            'qty_std': float(qty_std),
+            'scrap_pct': float(scrap),
+            'unit': unit,
+            'size_code': size_code,
+        })
+    return out
+
+
+def bom_lines_snapshot(bom_id: int | None) -> list[dict]:
+    """Snapshot NPL từ phiên bản BOM (định mức gốc)."""
+    if not bom_id:
+        return []
+    from san_xuat.models import BomVersion
+
+    bom = (
+        BomVersion.objects.filter(pk=bom_id)
+        .prefetch_related('lines__material__unit')
+        .first()
+    )
+    if bom is None:
+        return []
+    out: list[dict] = []
+    for line in bom.lines.select_related('material', 'material__unit').order_by('sort_order', 'pk'):
+        mat = line.material
+        unit = ''
+        if mat and mat.unit_id:
+            unit = (mat.unit.code or mat.unit.name or '')[:30]
+        qty = _q(line.qty)
+        out.append({
+            'bom_line_id': line.pk,
+            'material_code': (mat.code if mat else '')[:60],
+            'material_name': (mat.name if mat else '')[:255],
+            'qty': float(qty),
+            'qty_std': float(qty),
+            'scrap_pct': float(_q(line.scrap_pct)),
+            'unit': unit,
+            'size_code': (line.size_code or '')[:20],
+        })
     return out
 
 
@@ -167,6 +243,9 @@ def _replace_lines(order: SxSalesOrder, lines: list[LineInput]) -> None:
             routing_id = int(routing_id) if routing_id else None
         except (TypeError, ValueError):
             routing_id = None
+        bom_overrides = _normalize_bom_overrides(getattr(ln, 'applied_bom', None))
+        if not bom_overrides and bom_id:
+            bom_overrides = bom_lines_snapshot(bom_id)
         rows.append(
             SxSalesOrderLine(
                 order=order,
@@ -176,6 +255,7 @@ def _replace_lines(order: SxSalesOrder, lines: list[LineInput]) -> None:
                 size_qtys={k: float(v) for k, v in size_map.items()},
                 bom_version_id=bom_id,
                 routing_id=routing_id,
+                bom_line_overrides=bom_overrides,
                 qty_scrap_rate=_q(ln.qty_scrap_rate),
                 uom=(ln.uom or '').strip()[:30],
                 due_date=ln.due_date or order.due_date,

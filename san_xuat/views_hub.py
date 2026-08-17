@@ -441,6 +441,13 @@ def sales_order_create(request):
                     applied_smv = []
                 if not isinstance(applied_smv, list):
                     applied_smv = []
+                bom_raw = f.cleaned_data.get('applied_bom_json') or '[]'
+                try:
+                    applied_bom = json.loads(bom_raw) if isinstance(bom_raw, str) else (bom_raw or [])
+                except (TypeError, ValueError):
+                    applied_bom = []
+                if not isinstance(applied_bom, list):
+                    applied_bom = []
                 lines.append(
                     LineInput(
                         product_code=code,
@@ -451,6 +458,7 @@ def sales_order_create(request):
                         bom_version_id=f.cleaned_data.get('bom_version_id'),
                         routing_id=f.cleaned_data.get('routing_id'),
                         applied_smv=applied_smv,
+                        applied_bom=applied_bom,
                     )
                 )
             try:

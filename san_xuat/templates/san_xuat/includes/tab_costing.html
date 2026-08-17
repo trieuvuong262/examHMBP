@@ -1,157 +1,229 @@
 {% load humanize %}
 {% load sx_format %}
-<div class="row g-3 mb-3">
-    <div class="col-md-3">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body">
-                <div class="small text-muted">Chi phí NVL</div>
-                <div class="fs-4 fw-semibold">{{ costing.material_cost|sx_num }} đ</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body">
-                <div class="small text-muted">Nhân công</div>
-                <div class="fs-4 fw-semibold">{{ costing.labor_cost|sx_num }} đ</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body">
-                <div class="small text-muted">Chi phí SX chung / 1 SP</div>
-                <div class="fs-4 fw-semibold">{{ costing.overhead_cost|sx_num }} đ</div>
-                {% if costing.overhead_pct %}
-                <div class="small text-muted mt-1">gồm phụ phí {{ costing.overhead_pct }}%</div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body">
-                <div class="small text-muted">Tổng giá thành</div>
-                <div class="fs-4 fw-semibold text-hm">{{ costing.total_cost|sx_num }} đ</div>
-            </div>
-        </div>
-    </div>
-</div>
+<style>
+.jp-cost-view {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  padding: 1rem 1.1rem;
+  margin-bottom: 1rem;
+}
+.jp-cost-filters {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem 1.25rem;
+  align-items: start;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+.jp-cost-filters .field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
+  margin: 0;
+  width: 100%;
+}
+.jp-cost-filters label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.25;
+}
+.jp-cost-filters .ctrl {
+  width: 100%;
+  min-height: 42px;
+  height: 42px;
+  box-sizing: border-box;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  padding: 0.5rem 0.85rem;
+  border: 1px solid #ced4da;
+  border-radius: 0.5rem;
+  background: #fff;
+  color: #212529;
+}
+.jp-cost-filters select.ctrl {
+  appearance: auto;
+  cursor: pointer;
+}
+.jp-cost-filters input.ctrl:focus,
+.jp-cost-filters select.ctrl:focus {
+  border-color: #f87171;
+  outline: 0;
+  box-shadow: 0 0 0 0.2rem rgba(220, 38, 38, 0.15);
+}
+.jp-cost-sums {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+.jp-cost-sums .cell {
+  padding: 0.65rem 0.75rem;
+  background: #f8fafc;
+  border-radius: 0.5rem;
+  border: 1px solid #f1f5f9;
+}
+.jp-cost-sums .cell .k {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #94a3b8;
+  margin-bottom: 0.15rem;
+}
+.jp-cost-sums .cell .v {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
+}
+.jp-cost-sums .cell.is-total {
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+.jp-cost-sums .cell.is-total .k { color: #991b1b; }
+.jp-cost-sums .cell.is-total .v { color: #b91c1c; }
+@media (max-width: 767.98px) {
+  .jp-cost-sums { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .jp-cost-filters { grid-template-columns: 1fr; }
+}
+</style>
 
-<div class="card border-0 shadow-sm mb-3">
-    <div class="card-body d-flex flex-wrap justify-content-between align-items-center gap-2">
-        <div>
-            <div class="small text-muted">Giá bán (kho SP)</div>
-            <strong>{{ costing.sell_price|sx_num }} đ</strong>
-            <span class="ms-3 small text-muted">Biên</span>
-            <strong class="{% if costing.margin >= 0 %}text-success{% else %}text-danger{% endif %}">
-                {{ costing.margin|sx_num }} đ
-            </strong>
-        </div>
-        {% if can_update %}
-        <form method="post" data-loading-message="Đang chốt costing…">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="snapshot">
-            <button type="submit" class="btn btn-outline-hm btn-sm">Chốt costing</button>
-        </form>
-        {% endif %}
-    </div>
-</div>
+<div class="jp-cost-view">
+  <div class="jp-cost-filters">
+    <form method="get" class="field">
+      <input type="hidden" name="tab" value="costing">
+      {% if process_routing %}<input type="hidden" name="routing" value="{{ process_routing.pk }}">{% endif %}
+      <label for="jp-cost-bom">BOM</label>
+      <select id="jp-cost-bom" name="bom" class="ctrl" onchange="this.form.submit()">
+        {% for v in versions %}
+        <option value="{{ v.pk }}" {% if bom and v.pk == bom.pk %}selected{% endif %}>{{ v.version_label }}</option>
+        {% empty %}
+        <option value="">— Chưa có BOM —</option>
+        {% endfor %}
+      </select>
+    </form>
 
-{% if can_update and overhead_form %}
-<div class="card border-0 shadow-sm mb-3">
-    <div class="card-body">
-        <form method="post" class="row g-2 align-items-end" data-loading-message="Đang lưu chi phí SX chung…">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="save_overhead">
-            <div class="col-sm-6 col-md-4 col-lg-3">
-                <label class="form-label small mb-1" for="{{ overhead_form.overhead_amount.id_for_label }}">
-                    Chi phí sản xuất chung / 1 SP (đ)
-                </label>
-                {{ overhead_form.overhead_amount }}
-                {% if overhead_form.overhead_amount.errors %}
-                <div class="text-danger small">{{ overhead_form.overhead_amount.errors }}</div>
-                {% endif %}
-            </div>
-            <div class="col-auto">
-                <button type="submit" class="btn btn-hm">Lưu</button>
-            </div>
-        </form>
+    <form method="get" class="field">
+      <input type="hidden" name="tab" value="costing">
+      {% if bom %}<input type="hidden" name="bom" value="{{ bom.pk }}">{% endif %}
+      <label for="jp-cost-routing">Routing</label>
+      <select id="jp-cost-routing" name="routing" class="ctrl" onchange="this.form.submit()">
+        {% for item in process_routings %}
+        <option value="{{ item.pk }}" {% if process_routing and item.pk == process_routing.pk %}selected{% endif %}>
+          {{ item.routing_rev }} ({{ item.n_lines }} công đoạn)
+        </option>
+        {% empty %}
+        <option value="">— Chưa có routing —</option>
+        {% endfor %}
+      </select>
+    </form>
+
+    {% if can_update and overhead_form %}
+    <form method="post" class="field" id="jp-cost-oh-form" data-loading-message="Đang lưu…">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="save_overhead">
+      {% if process_routing %}<input type="hidden" name="routing_id" value="{{ process_routing.pk }}">{% endif %}
+      <label for="{{ overhead_form.overhead_amount.id_for_label }}">SX chung / 1 SP</label>
+      <input type="text" name="overhead_amount" id="{{ overhead_form.overhead_amount.id_for_label }}"
+             class="ctrl" inputmode="decimal" value="{{ overhead_form.overhead_amount.value|sx_num_input }}"
+             onchange="this.form.submit()" onkeydown="if(event.key==='Enter'){event.preventDefault();this.form.submit();}">
+      {% if overhead_form.overhead_amount.errors %}
+      <div class="text-danger small">{{ overhead_form.overhead_amount.errors }}</div>
+      {% endif %}
+    </form>
+    {% else %}
+    <div class="field">
+      <label>SX chung / 1 SP</label>
+      <input type="text" class="ctrl" value="{{ costing.overhead_cost|sx_num }}" readonly>
     </div>
+    {% endif %}
+  </div>
+
+  <div class="jp-cost-sums">
+    <div class="cell">
+      <span class="k">NVL (từ BOM)</span>
+      <span class="v">{{ costing.material_cost|sx_num }} đ</span>
+    </div>
+    <div class="cell">
+      <span class="k">Nhân công (từ Routing)</span>
+      <span class="v">{{ costing.labor_cost|sx_num }} đ</span>
+    </div>
+    <div class="cell">
+      <span class="k">SX chung</span>
+      <span class="v">{{ costing.overhead_cost|sx_num }} đ</span>
+    </div>
+    <div class="cell is-total">
+      <span class="k">Tổng giá thành</span>
+      <span class="v">{{ costing.total_cost|sx_num }} đ</span>
+    </div>
+  </div>
 </div>
-{% endif %}
 
 <div class="row g-3">
-    <div class="col-lg-7">
-        <div class="card border-0 shadow-sm">
-            <div class="card-header bg-white fw-semibold">Chi tiết NVL</div>
-            <div class="table-responsive">
-                <table class="table table-sm mb-0 align-middle">
-                    <thead class="table-light">
-                        <tr>
-                            <th>NPL</th>
-                            <th class="text-end">Qty+hao</th>
-                            <th class="text-end">Đơn giá BQ</th>
-                            <th class="text-end">Thành tiền</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for row in costing.material_lines %}
-                        <tr>
-                            <td>
-                                <strong>{{ row.material_code }}</strong>
-                                <div class="small text-muted">{{ row.material_name }}</div>
-                            </td>
-                            <td class="text-end">{{ row.qty_with_scrap|sx_num }} {% if row.unit_name %}{{ row.unit_name }}{% endif %}</td>
-                            <td class="text-end">{{ row.unit_price|sx_num }}</td>
-                            <td class="text-end">{{ row.amount|sx_num }}</td>
-                        </tr>
-                        {% empty %}
-                        <tr><td colspan="4" class="text-muted text-center py-3">Chưa có dòng BOM.</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
+  <div class="col-lg-7">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white">
+        <span class="fw-semibold">Bom - {% if bom %}{{ bom.version_label }}{% else %}—{% endif %}</span>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>NPL</th>
+              <th class="text-end">Qty+hao</th>
+              <th class="text-end">Đơn giá BQ</th>
+              <th class="text-end">Thành tiền</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in costing.material_lines %}
+            <tr>
+              <td>
+                <strong>{{ row.material_code }}</strong>
+                <div class="small text-muted">{{ row.material_name }}</div>
+              </td>
+              <td class="text-end">{{ row.qty_with_scrap|sx_num }} {% if row.unit_name %}{{ row.unit_name }}{% endif %}</td>
+              <td class="text-end">{{ row.unit_price|sx_num }}</td>
+              <td class="text-end">{{ row.amount|sx_num }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" class="text-muted text-center py-3">Chưa có dòng BOM.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     </div>
-    <div class="col-lg-5">
-        <div class="card border-0 shadow-sm mb-3">
-            <div class="card-header bg-white fw-semibold">Chi tiết công đoạn</div>
-            <div class="table-responsive">
-                <table class="table table-sm mb-0 align-middle">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Công đoạn</th>
-                            <th class="text-end">Giờ/cái</th>
-                            <th class="text-end">Tiền NC</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for row in costing.process_lines %}
-                        <tr>
-                            <td>{{ row.sequence }}. {{ row.process_name }}</td>
-                            <td class="text-end">{{ row.hours_per_piece }}</td>
-                            <td class="text-end">{{ row.labor_amount|sx_num }}</td>
-                        </tr>
-                        {% empty %}
-                        <tr><td colspan="3" class="text-muted text-center py-3">Chưa có công đoạn.</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-        {% if snapshots %}
-        <div class="card border-0 shadow-sm">
-            <div class="card-header bg-white fw-semibold">Lịch sử chốt</div>
-            <ul class="list-group list-group-flush">
-                {% for s in snapshots %}
-                <li class="list-group-item d-flex justify-content-between small">
-                    <span>{{ s.created_at|date:"d/m/Y H:i" }}</span>
-                    <span>{{ s.total_cost|sx_num }} đ</span>
-                </li>
-                {% endfor %}
-            </ul>
-        </div>
-        {% endif %}
+  </div>
+  <div class="col-lg-5">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white">
+        <span class="fw-semibold">Routing - {% if process_routing %}{{ process_routing.routing_rev }}{% else %}—{% endif %}</span>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Công đoạn</th>
+              <th class="text-end">Giờ/cái</th>
+              <th class="text-end">Tiền NC</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in costing.process_lines %}
+            <tr>
+              <td>{{ row.sequence }}. {{ row.process_name }}</td>
+              <td class="text-end">{{ row.hours_per_piece }}</td>
+              <td class="text-end">{{ row.labor_amount|sx_num }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="3" class="text-muted text-center py-3">Chưa có công đoạn.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     </div>
+  </div>
 </div>

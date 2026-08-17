@@ -65,10 +65,28 @@
   </form>
 
   <div class="card border-0 shadow-sm overflow-hidden">
+    {% if can_update and items %}
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 px-3 py-2 border-bottom bg-white">
+      <span class="small text-muted">Chọn nhiều để xóa hàng loạt</span>
+      <button type="submit" form="ieOpBulkForm" class="btn btn-sm btn-outline-danger" id="ieOpBulkDeleteBtn" disabled
+              onclick="return confirm('Xóa các công đoạn đã chọn?');">
+        <i class="bi bi-trash me-1"></i>Xóa đã chọn
+      </button>
+    </div>
+    <form method="post" id="ieOpBulkForm" class="d-none">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="bulk_delete_operation">
+    </form>
+    {% endif %}
     <div class="jp-ie-table-scroll">
       <table class="table table-hover table-sm align-middle mb-0 jp-ie-wide-table jp-ie-lib-table" id="{{ sx_list_table_id }}">
         <thead class="table-light">
           <tr>
+            {% if can_update %}
+            <th class="npl-col text-center" data-col="_pick" style="width:42px">
+              <input type="checkbox" class="form-check-input" id="ieOpCheckAll" title="Chọn tất cả">
+            </th>
+            {% endif %}
             {% for col in list_columns %}
             <th class="npl-col{% if col.align == 'end' %} text-end{% endif %}" data-col="{{ col.key }}">{{ col.label }}</th>
             {% endfor %}
@@ -77,6 +95,11 @@
         <tbody>
         {% for op in items %}
           <tr class="jp-npl-catalog-row" data-href="{% url 'san_xuat:ie_operation_detail' op.pk %}">
+            {% if can_update %}
+            <td class="npl-col text-center" data-col="_pick" onclick="event.stopPropagation()">
+              <input type="checkbox" class="form-check-input ie-op-pick" name="pk" value="{{ op.pk }}" form="ieOpBulkForm">
+            </td>
+            {% endif %}
             <td class="npl-col small" data-col="group_code">{{ op.group.code }}</td>
             <td class="npl-col fw-semibold" data-col="op_code">{{ op.op_code }}</td>
             <td class="npl-col" data-col="op_rev"><span class="badge bg-light text-dark">{{ op.op_rev }}</span></td>
@@ -102,7 +125,7 @@
             <td class="npl-col small jp-ie-cell-wrap" data-col="revision_reason" title="{{ op.revision_reason }}">{{ op.revision_reason|default:"—"|truncatechars:28 }}</td>
             <td class="npl-col small jp-ie-cell-wrap" data-col="notes" title="{{ op.notes }}">{{ op.notes|default:"—"|truncatechars:28 }}</td>
             {% if can_update %}
-            <td class="npl-col jp-td-actions text-end" data-col="actions">
+            <td class="npl-col jp-td-actions text-end" data-col="actions" onclick="event.stopPropagation()">
               <form method="post" class="d-inline" onsubmit="return confirm('Xóa {{ op.op_code }}/{{ op.op_rev }}?');">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="delete_operation">
@@ -113,7 +136,7 @@
             {% endif %}
           </tr>
         {% empty %}
-          <tr><td colspan="{{ list_columns|length }}" class="text-muted small p-3 text-center jp-ie-cell-wrap">Không có công đoạn phù hợp.</td></tr>
+          <tr><td colspan="{% if can_update %}{{ list_columns|length|add:1 }}{% else %}{{ list_columns|length }}{% endif %}" class="text-muted small p-3 text-center jp-ie-cell-wrap">Không có công đoạn phù hợp.</td></tr>
         {% endfor %}
         </tbody>
       </table>
@@ -125,6 +148,32 @@
 {% include 'san_xuat/includes/ie_wide_table_styles.html' %}
 {% include 'kho_npl/includes/catalog_grid_scripts.html' with table_id=sx_list_table_id storage_key=sx_list_storage_key col_btn_id=sx_col_btn_id col_toggle_class=sx_col_toggle_class default_sort_key=sx_default_sort_key %}
 {% include 'san_xuat/includes/ie_list_filter_scripts.html' with form_id='ieOpFilterForm' %}
+{% if can_update and items %}
+<script>
+(function () {
+  var all = document.getElementById('ieOpCheckAll');
+  var picks = document.querySelectorAll('.ie-op-pick');
+  var btn = document.getElementById('ieOpBulkDeleteBtn');
+  function sync() {
+    var n = 0;
+    picks.forEach(function (cb) { if (cb.checked) n += 1; });
+    if (btn) btn.disabled = n === 0;
+    if (all && picks.length) {
+      all.checked = n === picks.length;
+      all.indeterminate = n > 0 && n < picks.length;
+    }
+  }
+  if (all) {
+    all.addEventListener('change', function () {
+      picks.forEach(function (cb) { cb.checked = all.checked; });
+      sync();
+    });
+  }
+  picks.forEach(function (cb) { cb.addEventListener('change', sync); });
+  sync();
+})();
+</script>
+{% endif %}
 <script>
 (function () {
   document.querySelectorAll('.jp-ie-lib-table td.time-sec').forEach(function (td) {

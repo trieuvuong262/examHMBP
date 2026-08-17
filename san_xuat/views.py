@@ -1,5 +1,5 @@
 from django.contrib import messages
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.clickjacking import xframe_options_sameorigin
@@ -21,7 +21,6 @@ from san_xuat.forms import (
     BomLineFormSet,
     BomOverheadAmountForm,
     BomVersionMetaForm,
-    ProcessStepFormSet,
     ProductTechDocCreateForm,
     ProductTechDocDescriptionForm,
     TechDocDesignUploadForm,
@@ -52,15 +51,17 @@ def _perm_ctx(request):
 def _doc_list_back_query(request) -> str:
     """Giữ bộ lọc danh sách hồ sơ khi vào chi tiết rồi bấm Quay lại."""
     params = request.GET.copy()
-    for key in ('tab', 'bom', 'action'):
+    for key in ('tab', 'bom', 'routing', 'action'):
         params.pop(key, None)
     return params.urlencode()[:2000]
 
 
-def _doc_tab_redirect(request, tab: str, *, bom=None):
+def _doc_tab_redirect(request, tab: str, *, bom=None, routing=None):
     bits = [f'tab={tab}']
     if bom is not None:
         bits.append(f'bom={bom}')
+    if routing is not None:
+        bits.append(f'routing={routing}')
     extra = _doc_list_back_query(request)
     if extra:
         bits.append(extra)
@@ -103,11 +104,17 @@ def doc_list(request):
         line_count=Count('lines', distinct=True),
         step_count=Count('process_steps', distinct=True),
     ).order_by('-created_at')
+    from san_xuat.ie_models import SxRouting
+
+    routing_qs = SxRouting.objects.annotate(
+        n_lines=Count('lines', distinct=True),
+    ).order_by('routing_rev', 'pk')
     gallery_qs = TechDocDesignFile.objects.filter(
         purpose=TechDocDesignFile.PURPOSE_GALLERY,
     ).order_by('sort_order', 'uploaded_at', 'pk')
     qs = qs.prefetch_related(
         Prefetch('bom_versions', queryset=bom_qs),
+        Prefetch('routings', queryset=routing_qs),
         Prefetch('design_files', queryset=gallery_qs, to_attr='gallery_images'),
     )
 
@@ -239,7 +246,8 @@ def doc_detail(request, pk):
             .first()
         )
     versions = list(doc.bom_versions.order_by('-created_at'))
-    costing = compute_costing(bom) if bom else None
+    costing = None
+    costing_routing_preview = False
     snapshots = list(bom.costing_snapshots.all()[:10]) if bom else []
     all_files = list(doc.design_files.select_related('uploaded_by').all())
     design_files = [f for f in all_files if f.purpose != TechDocDesignFile.PURPOSE_GALLERY]
@@ -250,7 +258,6 @@ def doc_detail(request, pk):
     gallery_urls = [f.file_url for f in gallery_images if f.is_image and f.file_url]
 
     line_formset = None
-    step_formset = None
     meta_form = None
     overhead_form = None
     design_form = None
@@ -347,47 +354,177 @@ def doc_detail(request, pk):
                 messages.success(request, 'Đã lưu BOM.')
                 return _doc_tab_redirect(request, 'bom', bom=bom.pk)
             messages.error(request, 'Không lưu được BOM — kiểm tra lại các dòng.')
-        elif bom and action == 'save_process' and tab == 'process':
-            step_formset = ProcessStepFormSet(request.POST, instance=bom, prefix='steps')
-            if step_formset.is_valid():
-                step_formset.save()
-                messages.success(request, 'Đã lưu công đoạn.')
-                return _doc_tab_redirect(request, 'process', bom=bom.pk)
-            messages.error(request, 'Không lưu được công đoạn — kiểm tra lại.')
-        elif bom and action == 'apply_routing' and tab == 'process':
-            from san_xuat.ie_models import SxRouting
-            from san_xuat.services.ie_ops import IeOpsError, apply_routing_to_bom
+        elif action == 'add_doc_routing_line' and tab == 'process':
+            from decimal import Decimal, InvalidOperation
 
-            rid = request.POST.get('routing_id')
-            routing = None
-            if rid and str(rid).isdigit():
-                routing = SxRouting.objects.filter(pk=int(rid), is_active=True).first()
-            if not routing:
-                messages.error(request, 'Chưa chọn routing hợp lệ.')
+            from san_xuat.ie_models import SxRouting
+            from san_xuat.models import ProcessStep
+            from san_xuat.services.ie_ops import (
+                IeOpsError,
+                create_blank_routing,
+                upsert_routing_line,
+            )
+
+            def _dec(raw, default='0'):
+                try:
+                    return Decimal(str(raw if raw not in (None, '') else default))
+                except (InvalidOperation, TypeError, ValueError):
+                    return Decimal(default)
+
+            routing_id = (request.POST.get('routing_id') or '').strip()
+            routing = (
+                SxRouting.objects.filter(
+                    Q(tech_doc=doc) | Q(bom_versions__tech_doc=doc),
+                    pk=int(routing_id),
+                ).distinct().first()
+                if routing_id.isdigit() else None
+            )
+            group_code = (request.POST.get('group_code') or '').strip()
+            op_code = (request.POST.get('op_code') or '').strip()
+            op_rev = (request.POST.get('op_rev') or 'R01').strip() or 'R01'
+            op_name = (request.POST.get('op_name_vi') or '').strip()
+            work_center_code = (request.POST.get('work_center_code') or '').strip()
+            norm = _dec(request.POST.get('norm_per_hour'), '0')
+            cost = _dec(request.POST.get('cost_per_hour'), '0')
+            smv = _dec(request.POST.get('library_unit_smv'), '0')
+            if smv <= 0 and norm > 0:
+                smv = (Decimal('60') / norm).quantize(Decimal('0.0001'))
+            if norm <= 0 and smv > 0:
+                norm = (Decimal('60') / smv).quantize(Decimal('0.01'))
+            if not group_code or not op_name:
+                messages.error(request, 'Chọn nhóm và công đoạn từ thư viện.')
+            elif norm <= 0:
+                messages.error(request, 'Nhập định mức (cái/giờ) > 0.')
             else:
                 try:
-                    result = apply_routing_to_bom(
-                        bom=bom,
+                    if routing is None:
+                        routing = create_blank_routing(tech_doc=doc, user=request.user)
+                    line = upsert_routing_line(
                         routing=routing,
-                        replace=True,
-                        by_group=True,
+                        seq_no=None,
+                        op_code=op_code,
+                        op_rev=op_rev,
+                        op_name_vi=op_name,
+                        group_code=group_code,
+                        work_center_code=work_center_code,
+                        library_unit_smv=smv,
+                        applied_unit_smv=smv,
+                        price_factor=cost,
                     )
+                    if bom:
+                        step, _ = ProcessStep.objects.update_or_create(
+                            bom=bom,
+                            routing_line=line,
+                            defaults={
+                                'sequence': line.seq_no or 10,
+                                'process_name': (line.op_name_vi or line.op_code or '')[:120],
+                                'operation': line.operation,
+                                'op_code': (line.op_code or '')[:30],
+                                'norm_per_hour': max(norm, Decimal('0.01')),
+                                'cost_per_hour': cost,
+                                'std_time_minutes': smv,
+                                'work_center': line.work_center,
+                                'notes': f'Routing {routing.routing_id}'[:255],
+                            },
+                        )
+                        if bom.routing_id != routing.pk:
+                            bom.routing = routing
+                            bom.save(update_fields=['routing', 'updated_at'])
                 except IeOpsError as exc:
                     messages.error(request, str(exc))
                 else:
-                    if result.linked_only:
-                        messages.success(
-                            request,
-                            f'Đã gắn {result.routing_id} vào BOM (routing trống — giữ công đoạn hiện có).',
-                        )
-                    else:
-                        messages.success(
-                            request,
-                            f'Đã áp {result.routing_id}: tạo {result.steps_created} nhóm công đoạn BOM.',
-                        )
-                    for w in result.warnings[:10]:
-                        messages.warning(request, w)
-            return _doc_tab_redirect(request, 'process', bom=bom.pk)
+                    messages.success(request, 'Đã thêm công đoạn vào routing.')
+            return _doc_tab_redirect(
+                request,
+                'process',
+                bom=bom.pk if bom else None,
+                routing=routing.pk if routing else None,
+            )
+        elif action == 'delete_doc_routing_line' and tab == 'process':
+            from san_xuat.ie_models import SxRouting
+            from san_xuat.models import ProcessStep
+            from san_xuat.services.ie_ops import IeOpsError, delete_routing_line
+
+            routing_id = (request.POST.get('routing_id') or '').strip()
+            line_id = (request.POST.get('line_id') or '').strip()
+            routing = (
+                SxRouting.objects.filter(
+                    Q(tech_doc=doc) | Q(bom_versions__tech_doc=doc),
+                    pk=int(routing_id),
+                ).distinct().first()
+                if routing_id.isdigit() else None
+            )
+            try:
+                if not routing or not line_id.isdigit():
+                    raise IeOpsError('Không tìm thấy dòng routing.')
+                ProcessStep.objects.filter(bom__tech_doc=doc, routing_line_id=int(line_id)).delete()
+                delete_routing_line(routing=routing, line_pk=int(line_id))
+            except IeOpsError as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(request, 'Đã xóa công đoạn khỏi routing.')
+            return _doc_tab_redirect(
+                request, 'process', bom=bom.pk if bom else None, routing=routing_id or None,
+            )
+        elif action == 'create_doc_routing' and can_update:
+            from san_xuat.services.ie_ops import IeOpsError, create_blank_routing
+
+            preferred = (request.POST.get('routing_rev') or '').strip().upper().replace(' ', '')
+            seed = (doc.product_code or '').strip()
+            if preferred:
+                if preferred.startswith('R') and preferred[1:].isdigit():
+                    seed = f'{doc.product_code}-{preferred}'
+                elif preferred.isdigit():
+                    seed = f'{doc.product_code}-R{int(preferred):02d}'
+            try:
+                routing = create_blank_routing(
+                    tech_doc=doc,
+                    style_code=seed,
+                    user=request.user,
+                )
+            except IeOpsError as exc:
+                messages.error(request, str(exc))
+                return _doc_tab_redirect(
+                    request, 'process', bom=bom.pk if bom else None,
+                )
+            messages.success(request, f'Đã tạo phiên bản routing {routing.routing_rev}.')
+            return _doc_tab_redirect(
+                request, 'process', bom=bom.pk if bom else None, routing=routing.pk,
+            )
+        elif action == 'clone_doc_routing' and can_update:
+            from san_xuat.ie_models import SxRouting
+            from san_xuat.services.ie_ops import IeOpsError, clone_routing_revision
+
+            routing_id = (request.POST.get('routing_id') or '').strip()
+            source = (
+                SxRouting.objects.filter(
+                    Q(tech_doc=doc) | Q(bom_versions__tech_doc=doc),
+                    pk=int(routing_id),
+                ).distinct().first()
+                if routing_id.isdigit() else None
+            )
+            if source is None:
+                messages.error(request, 'Chọn phiên bản routing để sao chép.')
+                return _doc_tab_redirect(
+                    request, 'process', bom=bom.pk if bom else None,
+                )
+            try:
+                clone = clone_routing_revision(routing=source, user=request.user)
+                if clone.tech_doc_id != doc.pk:
+                    clone.tech_doc = doc
+                    clone.save(update_fields=['tech_doc', 'updated_at'])
+            except IeOpsError as exc:
+                messages.error(request, str(exc))
+                return _doc_tab_redirect(
+                    request, 'process', bom=bom.pk if bom else None, routing=source.pk,
+                )
+            messages.success(
+                request,
+                f'Đã tạo phiên bản routing {clone.routing_rev} (sao chép từ {source.routing_rev}).',
+            )
+            return _doc_tab_redirect(
+                request, 'process', bom=bom.pk if bom else None, routing=clone.pk,
+            )
         elif action == 'new_bom' and can_update:
             copy_flag = (request.POST.get('copy') or '').strip() in ('1', 'true', 'yes', 'on')
             copy_from = None
@@ -410,17 +547,76 @@ def doc_detail(request, pk):
                 + (' (sao chép từ bản trước).' if copy_from else '.'),
             )
             return _doc_tab_redirect(request, 'bom', bom=new_bom.pk)
+        elif bom and action == 'apply_doc_routing' and can_update:
+            from decimal import Decimal
+
+            from san_xuat.ie_models import SxRouting
+            from san_xuat.models import ProcessStep
+            from san_xuat.services.ie_ops import IeOpsError
+
+            routing_id = (request.POST.get('routing_id') or '').strip()
+            routing = (
+                SxRouting.objects.filter(
+                    Q(tech_doc=doc) | Q(bom_versions__tech_doc=doc),
+                    pk=int(routing_id),
+                ).distinct().first()
+                if routing_id.isdigit() else None
+            )
+            if routing is None:
+                messages.error(request, 'Chọn phiên bản routing để gắn vào BOM.')
+                return _doc_tab_redirect(request, 'costing', bom=bom.pk)
+            try:
+                bom.routing = routing
+                bom.save(update_fields=['routing', 'updated_at'])
+                bom.process_steps.all().delete()
+                for line in routing.lines.select_related('operation', 'work_center').order_by('seq_no', 'pk'):
+                    smv = line.applied_unit_smv or Decimal('0')
+                    norm = (
+                        (Decimal('60') / smv).quantize(Decimal('0.01'))
+                        if smv > 0 else Decimal('0.01')
+                    )
+                    ProcessStep.objects.create(
+                        bom=bom,
+                        sequence=line.seq_no or 10,
+                        process_name=(line.op_name_vi or line.op_code or '')[:120],
+                        operation=line.operation,
+                        op_code=(line.op_code or '')[:30],
+                        routing_line=line,
+                        norm_per_hour=max(norm, Decimal('0.01')),
+                        cost_per_hour=line.price_factor or Decimal('0'),
+                        std_time_minutes=smv,
+                        work_center=line.work_center,
+                        notes=f'Routing {routing.routing_id}'[:255],
+                    )
+            except IeOpsError as exc:
+                messages.error(request, str(exc))
+                return _doc_tab_redirect(
+                    request, 'costing', bom=bom.pk, routing=routing.pk,
+                )
+            messages.success(
+                request,
+                f'Đã gắn routing {routing.routing_rev} vào BOM {bom.version_label} — costing cập nhật theo cặp này.',
+            )
+            return _doc_tab_redirect(
+                request, 'costing', bom=bom.pk, routing=routing.pk,
+            )
         elif bom and action == 'save_overhead' and tab == 'costing':
             overhead_form = BomOverheadAmountForm(request.POST, instance=bom)
             if overhead_form.is_valid():
                 overhead_form.save()
                 messages.success(request, 'Đã lưu chi phí sản xuất chung.')
-                return _doc_tab_redirect(request, 'costing', bom=bom.pk)
+                return _doc_tab_redirect(
+                    request, 'costing', bom=bom.pk,
+                    routing=request.POST.get('routing_id') or None,
+                )
             messages.error(request, 'Không lưu được chi phí sản xuất chung — kiểm tra lại số tiền.')
         elif bom and action == 'snapshot' and tab == 'costing':
             snap = save_costing_snapshot(bom, user=request.user)
             messages.success(request, f'Đã chốt costing: {snap.total_cost:,.0f} đ.')
-            return _doc_tab_redirect(request, 'costing', bom=bom.pk)
+            return _doc_tab_redirect(
+                request, 'costing', bom=bom.pk,
+                routing=request.POST.get('routing_id') or (bom.routing_id or None),
+            )
 
     if can_update:
         if tab == 'info' and desc_form is None:
@@ -428,8 +624,6 @@ def doc_detail(request, pk):
         if bom and line_formset is None and tab == 'bom':
             meta_form = meta_form or BomVersionMetaForm(instance=bom)
             line_formset = BomLineFormSet(instance=bom, prefix='lines')
-        if bom and step_formset is None and tab == 'process':
-            step_formset = ProcessStepFormSet(instance=bom, prefix='steps')
         if bom and overhead_form is None and tab == 'costing':
             overhead_form = BomOverheadAmountForm(instance=bom)
         if tab == 'design' and design_form is None:
@@ -473,8 +667,6 @@ def doc_detail(request, pk):
         bom_stock_map_json = json.dumps({
             str(k): float(v) for k, v in bom_stock_map.items()
         })
-
-    from django.db.models import Count, Q
 
     from san_xuat.ie_models import SxRouting
 
@@ -525,25 +717,65 @@ def doc_detail(request, pk):
         catalog_colors = seen_colors
         catalog_sizes = seen_sizes
 
-    routing_choices = []
-    if tab == 'process' and bom:
-        routing_choices = list(
-            SxRouting.objects.filter(is_active=True)
-            .annotate(n_lines=Count('lines'))
-            .filter(
-                Q(style_code__iexact=doc.product_code)
-                | Q(style_code__icontains=doc.product_code)
-                | Q(tech_doc=doc)
-            )
-            .order_by('style_code', 'routing_rev')
+    process_routings = []
+    process_routing = None
+    routing_lines = []
+    operation_groups = []
+    work_centers = []
+    from san_xuat.ie_models import SxOperationGroup, SxRouting
+    from san_xuat.services.capacity_from_hrm import hr_work_centers_qs
+
+    process_routings = list(
+        SxRouting.objects.filter(
+            Q(tech_doc=doc) | Q(bom_versions__tech_doc=doc)
+        ).distinct().annotate(n_lines=Count('lines', distinct=True)).order_by('routing_rev', 'pk')
+    )
+    requested_routing = (request.GET.get('routing') or '').strip()
+    if requested_routing.isdigit():
+        process_routing = next(
+            (item for item in process_routings if item.pk == int(requested_routing)),
+            None,
         )
-        # Nếu chưa khớp mã hàng, vẫn liệt kê routing active để IE chọn thủ công.
-        if not routing_choices:
-            routing_choices = list(
-                SxRouting.objects.filter(is_active=True)
-                .annotate(n_lines=Count('lines'))
-                .order_by('style_code', 'routing_rev')[:80]
+    if process_routing is None and bom and bom.routing_id:
+        process_routing = next(
+            (item for item in process_routings if item.pk == bom.routing_id),
+            None,
+        )
+    if process_routing is None and process_routings:
+        process_routing = process_routings[-1]
+
+    if bom:
+        if tab == 'costing' and process_routing is not None:
+            costing = compute_costing(bom, routing=process_routing)
+            costing_routing_preview = bom.routing_id != process_routing.pk
+        else:
+            costing = compute_costing(bom)
+            costing_routing_preview = False
+
+    if tab == 'process':
+        if process_routing:
+            from decimal import Decimal
+
+            routing_lines = list(
+                process_routing.lines.select_related('work_center').order_by('seq_no', 'pk')
             )
+            group_names = {
+                (g.code or '').casefold(): g.name
+                for g in SxOperationGroup.objects.filter(
+                    code__in=[ln.group_code for ln in routing_lines if ln.group_code]
+                )
+            }
+            for line in routing_lines:
+                smv = line.applied_unit_smv or Decimal('0')
+                line.display_norm = (
+                    (Decimal('60') / smv).quantize(Decimal('0.01'))
+                    if smv > 0 else None
+                )
+                line.display_group_name = group_names.get((line.group_code or '').casefold(), '')
+        operation_groups = list(
+            SxOperationGroup.objects.filter(is_active=True).order_by('sort_order', 'code')
+        )
+        work_centers = list(hr_work_centers_qs())
 
     from san_xuat.services.products import fill_tech_doc_display_images
     from tools.services import office_preview_available
@@ -562,7 +794,6 @@ def doc_detail(request, pk):
         'meta_form': meta_form,
         'overhead_form': overhead_form,
         'line_formset': line_formset,
-        'step_formset': step_formset,
         'design_form': design_form,
         'design_files': design_files,
         'gallery_form': gallery_form,
@@ -581,7 +812,12 @@ def doc_detail(request, pk):
         'catalog_sizes': catalog_sizes,
         'sku_color_count': sku_color_count,
         'sku_size_count': sku_size_count,
-        'routing_choices': routing_choices,
+        'process_routings': process_routings,
+        'process_routing': process_routing,
+        'routing_lines': routing_lines,
+        'operation_groups': operation_groups,
+        'work_centers': work_centers,
+        'costing_routing_preview': costing_routing_preview,
         'office_preview_ready': office_preview_ready,
         'list_back_query': _doc_list_back_query(request),
         **_perm_ctx(request),
@@ -738,6 +974,7 @@ def sales_order_line_versions_api(request):
         'default_bom_id': None,
         'steps': [],
         'steps_source': '',
+        'bom_lines': [],
     }
     if not product_code:
         return JsonResponse(payload)
@@ -751,7 +988,12 @@ def sales_order_line_versions_api(request):
             payload['routing_create_url'] = (
                 reverse('san_xuat:ie_routing_create') + '?' + urlencode(routing_qs)
             )
-        boms = list(doc.bom_versions.prefetch_related('process_steps').order_by('created_at', 'id'))
+        boms = list(
+            doc.bom_versions.prefetch_related(
+                'process_steps',
+                'lines__material__unit',
+            ).order_by('created_at', 'id')
+        )
         if boms:
             with_steps = [b for b in boms if b.process_steps.all()]
             payload['default_bom_id'] = (with_steps or boms)[-1].pk
@@ -768,11 +1010,14 @@ def sales_order_line_versions_api(request):
                 'text': text,
                 'label': label,
                 'step_count': len(steps),
+                'line_count': bom.lines.count() if hasattr(bom, 'lines') else 0,
                 'total_smv': str(total_smv.quantize(Decimal('0.01'))),
             })
         routings = SxRouting.objects.filter(
-            Q(style_code__iexact=product_code) | Q(tech_doc_id=doc.pk)
-        ).order_by('routing_rev', 'id')
+            Q(style_code__iexact=product_code)
+            | Q(tech_doc_id=doc.pk)
+            | Q(bom_versions__tech_doc_id=doc.pk)
+        ).distinct().order_by('routing_rev', 'id')
     else:
         routings = SxRouting.objects.filter(style_code__iexact=product_code).order_by(
             'routing_rev', 'id',
@@ -794,30 +1039,34 @@ def sales_order_line_versions_api(request):
     preview_bom_id = (request.GET.get('bom_version_id') or '').strip()
     steps = []
     source = ''
+    bom_for_lines = None
+    if preview_bom_id.isdigit():
+        from san_xuat.models import BomVersion
+
+        bom_for_lines = BomVersion.objects.filter(pk=int(preview_bom_id)).first()
+    elif payload.get('default_bom_id'):
+        from san_xuat.models import BomVersion
+
+        bom_for_lines = BomVersion.objects.filter(pk=payload['default_bom_id']).first()
+
     if preview_rt_id.isdigit():
         rt = SxRouting.objects.filter(pk=int(preview_rt_id)).first()
         if rt:
             steps = process_preview_from_routing(rt)
             source = 'ie'
-    if not steps and preview_bom_id.isdigit():
-        from san_xuat.models import BomVersion
-
-        bom = BomVersion.objects.filter(pk=int(preview_bom_id)).first()
-        if bom:
-            steps = process_preview_from_bom(bom)
-            source = 'bom'
+    if not steps and bom_for_lines is not None:
+        steps = process_preview_from_bom(bom_for_lines)
+        source = 'bom'
     if not steps and default_rt:
         steps = process_preview_from_routing(default_rt)
         source = 'ie'
-    if not steps and payload.get('default_bom_id'):
-        from san_xuat.models import BomVersion
-
-        bom = BomVersion.objects.filter(pk=payload['default_bom_id']).first()
-        if bom:
-            steps = process_preview_from_bom(bom)
-            source = 'bom'
     payload['steps'] = steps
     payload['steps_source'] = source
+
+    if bom_for_lines is not None:
+        from san_xuat.services.sales_orders import bom_lines_snapshot
+
+        payload['bom_lines'] = bom_lines_snapshot(bom_for_lines.pk)
 
     return JsonResponse(payload)
 

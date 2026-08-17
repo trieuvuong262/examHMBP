@@ -36,7 +36,7 @@
             <a href="{% url 'san_xuat:doc_detail' ln.bom_version.tech_doc_id %}?tab=bom&bom={{ ln.bom_version_id }}">{{ ln.bom_version.version_label }}</a>
             {% else %}{{ ln.bom_version.version_label }}{% endif %}
           {% else %}—{% endif %}
-          · Quy trình IE:
+          · Routing:
           {% if ln.routing %}
           <a href="{% url 'san_xuat:ie_routing_detail' ln.routing_id %}">{{ ln.routing.routing_rev|default:ln.routing.routing_id }}</a>
           {% elif ln.routing_lines.all %}

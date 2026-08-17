@@ -83,11 +83,45 @@
     </nav>
   </div>
 
+    <ul class="nav nav-tabs mb-3 flex-nowrap" style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+        <li class="nav-item">
+            <a class="nav-link {% if tab == 'info' %}active{% endif %}"
+               href="?tab=info{% if bom %}&bom={{ bom.pk }}{% endif %}{% if process_routing %}&routing={{ process_routing.pk }}{% endif %}{% if list_back_query %}&{{ list_back_query }}{% endif %}"
+               data-loading-message="Đang tải mô tả…">Mô tả</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if tab == 'sku' %}active{% endif %}"
+               href="?tab=sku{% if bom %}&bom={{ bom.pk }}{% endif %}{% if process_routing %}&routing={{ process_routing.pk }}{% endif %}{% if list_back_query %}&{{ list_back_query }}{% endif %}"
+               data-loading-message="Đang tải SKU…">SKU</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if tab == 'bom' %}active{% endif %}"
+               href="?tab=bom{% if bom %}&bom={{ bom.pk }}{% endif %}{% if process_routing %}&routing={{ process_routing.pk }}{% endif %}{% if list_back_query %}&{{ list_back_query }}{% endif %}"
+               data-loading-message="Đang tải BOM…">BOM</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if tab == 'process' %}active{% endif %}"
+               href="?tab=process{% if bom %}&bom={{ bom.pk }}{% endif %}{% if process_routing %}&routing={{ process_routing.pk }}{% endif %}{% if list_back_query %}&{{ list_back_query }}{% endif %}"
+               data-loading-message="Đang tải routing…">Routing</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if tab == 'costing' %}active{% endif %}"
+               href="?tab=costing{% if bom %}&bom={{ bom.pk }}{% endif %}{% if process_routing %}&routing={{ process_routing.pk }}{% endif %}{% if list_back_query %}&{{ list_back_query }}{% endif %}"
+               data-loading-message="Đang tải costing…">Costing</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if tab == 'design' %}active{% endif %}"
+               href="?tab=design{% if bom %}&bom={{ bom.pk }}{% endif %}{% if process_routing %}&routing={{ process_routing.pk }}{% endif %}{% if list_back_query %}&{{ list_back_query }}{% endif %}"
+               data-loading-message="Đang tải rập và tài liệu…">Rập và tài liệu</a>
+        </li>
+    </ul>
+
+  {% if tab == 'bom' or not versions %}
   <div class="jp-sx-bom-versions">
     <span class="label">Phiên bản BOM</span>
     {% for v in versions %}
     <a class="jp-sx-bom-ver {% if bom and v.pk == bom.pk %}is-current{% endif %}"
-       href="?tab={{ tab }}&bom={{ v.pk }}{% if list_back_query %}&{{ list_back_query }}{% endif %}"
+       href="?tab={{ tab }}&bom={{ v.pk }}{% if process_routing %}&routing={{ process_routing.pk }}{% endif %}{% if list_back_query %}&{{ list_back_query }}{% endif %}"
        data-loading-message="Đang tải {{ v.version_label }}…"
        title="{% if v.notes %}{{ v.notes }}{% else %}{{ v.version_label }}{% endif %}">
       {{ v.version_label }}
@@ -120,39 +154,48 @@
     </div>
     {% endif %}
   </div>
+  {% endif %}
 
-    <ul class="nav nav-tabs mb-3 flex-nowrap" style="overflow-x:auto;-webkit-overflow-scrolling:touch">
-        <li class="nav-item">
-            <a class="nav-link {% if tab == 'info' %}active{% endif %}"
-               href="?tab=info{% if bom %}&bom={{ bom.pk }}{% endif %}{% if list_back_query %}&{{ list_back_query }}{% endif %}"
-               data-loading-message="Đang tải mô tả…">Mô tả</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link {% if tab == 'sku' %}active{% endif %}"
-               href="?tab=sku{% if bom %}&bom={{ bom.pk }}{% endif %}{% if list_back_query %}&{{ list_back_query }}{% endif %}"
-               data-loading-message="Đang tải SKU…">SKU</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link {% if tab == 'bom' %}active{% endif %}"
-               href="?tab=bom{% if bom %}&bom={{ bom.pk }}{% endif %}{% if list_back_query %}&{{ list_back_query }}{% endif %}"
-               data-loading-message="Đang tải BOM…">BOM</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link {% if tab == 'process' %}active{% endif %}"
-               href="?tab=process{% if bom %}&bom={{ bom.pk }}{% endif %}{% if list_back_query %}&{{ list_back_query }}{% endif %}"
-               data-loading-message="Đang tải công đoạn…">Công đoạn</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link {% if tab == 'costing' %}active{% endif %}"
-               href="?tab=costing{% if bom %}&bom={{ bom.pk }}{% endif %}{% if list_back_query %}&{{ list_back_query }}{% endif %}"
-               data-loading-message="Đang tải costing…">Costing</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link {% if tab == 'design' %}active{% endif %}"
-               href="?tab=design{% if bom %}&bom={{ bom.pk }}{% endif %}{% if list_back_query %}&{{ list_back_query }}{% endif %}"
-               data-loading-message="Đang tải rập và tài liệu…">Rập và tài liệu</a>
-        </li>
-    </ul>
+  {% if tab == 'process' %}
+  <div class="jp-sx-bom-versions">
+    <span class="label">Phiên bản Routing</span>
+    {% for item in process_routings %}
+    <a class="jp-sx-bom-ver {% if process_routing and item.pk == process_routing.pk %}is-current{% endif %}"
+       href="?tab=process{% if bom %}&bom={{ bom.pk }}{% endif %}&routing={{ item.pk }}{% if list_back_query %}&{{ list_back_query }}{% endif %}"
+       data-loading-message="Đang tải routing {{ item.routing_rev }}…"
+       title="{{ item.routing_id }} — {{ item.n_lines }} công đoạn">
+      {{ item.routing_rev }}
+      <span class="st">({{ item.n_lines }})</span>
+    </a>
+    {% empty %}
+    <span class="text-muted small">Chưa có phiên bản</span>
+    {% endfor %}
+    {% if can_update %}
+    <div class="jp-sx-bom-ver-actions">
+      {% if process_routing %}
+      <form method="post" class="d-inline">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="clone_doc_routing">
+        <input type="hidden" name="routing_id" value="{{ process_routing.pk }}">
+        <button type="submit" class="btn btn-outline-hm btn-sm fw-bold"
+                title="Tạo phiên bản routing mới, copy toàn bộ công đoạn từ bản đang xem">
+          <i class="bi bi-files me-1"></i>Version mới (sao chép)
+        </button>
+      </form>
+      {% endif %}
+      <form method="post" class="d-inline-flex align-items-center gap-1">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="create_doc_routing">
+        <input type="text" name="routing_rev" class="form-control form-control-sm"
+               style="width:5.5rem" placeholder="vd. R02" maxlength="10">
+        <button type="submit" class="btn btn-hm btn-sm fw-bold">
+          <i class="bi bi-plus-lg me-1"></i>Thêm
+        </button>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
 
     {% if tab == 'info' %}
         {% include 'san_xuat/includes/tab_description.html' %}
@@ -160,6 +203,8 @@
         {% include 'san_xuat/includes/tab_design.html' %}
     {% elif tab == 'sku' %}
         {% include 'san_xuat/includes/tab_sku.html' %}
+    {% elif tab == 'process' %}
+        {% include 'san_xuat/includes/tab_process.html' %}
     {% elif not bom %}
     <div class="alert alert-warning mb-0">
       Hồ sơ chưa có phiên bản BOM.
@@ -167,8 +212,6 @@
     </div>
     {% elif tab == 'bom' %}
         {% include 'san_xuat/includes/tab_bom.html' %}
-    {% elif tab == 'process' %}
-        {% include 'san_xuat/includes/tab_process.html' %}
     {% else %}
         {% include 'san_xuat/includes/tab_costing.html' %}
     {% endif %}

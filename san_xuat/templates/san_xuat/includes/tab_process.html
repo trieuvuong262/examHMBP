@@ -1,203 +1,122 @@
 {% load sx_format %}
 <div class="card border-0 shadow-sm mb-3">
-    <div class="card-body">
-        {% if can_update and bom %}
-        <form method="post" class="mb-3" data-loading-message="Đang áp routing…">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="apply_routing">
-            <div class="d-flex flex-wrap align-items-end gap-2">
-                <div class="flex-grow-1" style="min-width:14rem">
-                    <label class="form-label small text-muted mb-1">Routing IE</label>
-                    <select name="routing_id" id="id_routing_ie_select" class="form-select form-select-sm" required>
-                        <option value="">— Chọn routing —</option>
-                        {% for r in routing_choices %}
-                        <option value="{{ r.pk }}" {% if bom.routing_id == r.pk %}selected{% endif %}>
-                            {{ r.style_code }} · {{ r.routing_rev }} — {{ r.routing_id }}{% if r.n_lines %} ({{ r.n_lines }} CĐ){% endif %}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="d-flex flex-wrap gap-2">
-                    <button type="submit" class="btn btn-sm btn-hm">
-                        <i class="bi bi-diagram-3 me-1"></i>Áp routing
-                    </button>
-                    {% if bom.routing_id %}
-                    <a href="{% url 'san_xuat:ie_routing_detail' bom.routing_id %}" class="btn btn-sm btn-outline-hm">
-                        <i class="bi bi-eye me-1"></i>Xem routing
-                    </a>
-                    {% else %}
-                    <a href="{% url 'san_xuat:ie_routing_list' %}" class="btn btn-sm btn-outline-secondary">
-                        <i class="bi bi-eye me-1"></i>Xem routing
-                    </a>
-                    {% endif %}
-                </div>
-            </div>
-        </form>
+  <div class="card-body">
+    {% if can_update %}
+    <form method="post" id="doc-routing-line-form" class="row g-2 align-items-end mb-3" data-loading-message="Đang thêm công đoạn…">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="add_doc_routing_line">
+      {% if process_routing %}
+      <input type="hidden" name="routing_id" value="{{ process_routing.pk }}">
+      {% endif %}
+      <input type="hidden" name="op_code" value="">
+      <input type="hidden" name="op_rev" value="R01">
+      <input type="hidden" name="op_name_vi" value="">
+      <input type="hidden" name="library_unit_smv" value="">
 
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/css/tom-select.bootstrap5.min.css">
-        <script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/js/tom-select.complete.min.js"></script>
-        <style>.ts-dropdown { z-index: 2000; }</style>
-        <script>
-        (function () {
-            var sel = document.getElementById('id_routing_ie_select');
-            if (!sel || sel.tomselect || typeof TomSelect === 'undefined') return;
-            new TomSelect(sel, {
-                maxOptions: 200,
-                maxItems: 1,
-                allowEmptyOption: true,
-                placeholder: 'Gõ tìm routing…',
-                dropdownParent: 'body',
-                openOnFocus: true,
-                create: false,
-                sortField: { field: 'text', direction: 'asc' },
-            });
-        })();
-        </script>
-        {% elif bom and bom.routing_id %}
-        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
-            <div class="small text-muted">
-                Routing: <a href="{% url 'san_xuat:ie_routing_detail' bom.routing_id %}">{{ bom.routing.routing_id }}</a>
-            </div>
-            <a href="{% url 'san_xuat:ie_routing_detail' bom.routing_id %}" class="btn btn-sm btn-outline-hm">
-                <i class="bi bi-eye me-1"></i>Xem routing
-            </a>
-        </div>
-        {% endif %}
+      <div class="col-md-3">
+        <label class="form-label small mb-1">Nhóm công đoạn <span class="text-danger">*</span></label>
+        <select name="group_code" class="form-select form-select-sm" required>
+          <option value="">— Chọn nhóm —</option>
+          {% for group in operation_groups %}
+          <option value="{{ group.code }}">{{ group.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small mb-1">Tên công đoạn <span class="text-danger">*</span></label>
+        <select class="form-select form-select-sm jp-ie-op-select"
+                data-filter-by-group="1"
+                data-placeholder="Chọn nhóm trước, rồi chọn công đoạn…"></select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small mb-1">Bộ phận</label>
+        <select name="work_center_code" class="form-select form-select-sm">
+          <option value="">— Chọn bộ phận —</option>
+          {% for work_center in work_centers %}
+          <option value="{{ work_center.code }}">{{ work_center.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-6 col-md-1">
+        <label class="form-label small mb-1">Định mức <span class="text-danger">*</span></label>
+        <input type="text" name="norm_per_hour" class="form-control form-control-sm" required
+               inputmode="decimal" placeholder="cái/giờ" title="Định mức (cái/giờ)">
+      </div>
+      <div class="col-6 col-md-2">
+        <label class="form-label small mb-1">Chi phí giờ</label>
+        <input type="text" name="cost_per_hour" class="form-control form-control-sm"
+               inputmode="decimal" placeholder="VNĐ/giờ" value="0">
+      </div>
+      <div class="col-md-1 d-grid">
+        <button type="submit" class="btn btn-sm btn-hm">Thêm</button>
+      </div>
+    </form>
+    {% include 'san_xuat/includes/ie_operation_select_script.html' %}
+    <script>
+    (function () {
+      var form = document.getElementById('doc-routing-line-form');
+      if (!form) return;
+      var orig = window.jpIeApplyOperationPick;
+      window.jpIeApplyOperationPick = function (formEl, data, force) {
+        if (typeof orig === 'function') orig(formEl, data, force);
+        if (!formEl || formEl !== form || !data) return;
+        var smv = parseFloat(data.library_unit_smv || data.applied_unit_smv || 0) || 0;
+        var normEl = form.querySelector('[name="norm_per_hour"]');
+        if (normEl && smv > 0) {
+          normEl.value = (60 / smv).toFixed(2);
+        }
+      };
+      form.addEventListener('submit', function (e) {
+        var code = (form.querySelector('[name="op_code"]') || {}).value || '';
+        var name = (form.querySelector('[name="op_name_vi"]') || {}).value || '';
+        if (!(code.trim() && name.trim())) {
+          e.preventDefault();
+          alert('Chọn công đoạn từ thư viện.');
+        }
+      });
+    })();
+    </script>
+    {% endif %}
 
-        {% if can_update and step_formset %}
-        <form method="post" data-loading-message="Đang lưu công đoạn…">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="save_process">
-            {{ step_formset.management_form }}
-            <div class="table-responsive">
-                <table class="table table-sm align-middle">
-                    <thead class="table-light">
-                        <tr>
-                            <th>TT <span class="text-danger">*</span></th>
-                            <th style="min-width:11rem">Nhóm công đoạn <span class="text-danger">*</span></th>
-                            <th style="min-width:10rem">Bộ phận chịu trách nhiệm</th>
-                            <th>Định mức (cái/giờ) <span class="text-danger">*</span></th>
-                            <th>Chi phí giờ</th>
-                            <th>Ghi chú</th>
-                            <th>Xóa</th>
-                        </tr>
-                    </thead>
-                    <tbody id="process-lines-body">
-                        {% for f in step_formset %}
-                        <tr class="process-line-row">
-                            {% for hidden in f.hidden_fields %}{{ hidden }}{% endfor %}
-                            <td style="width:4.5rem">{{ f.sequence }}</td>
-                            <td>{{ f.process_name }}{% if f.process_name.errors %}<div class="text-danger small">{{ f.process_name.errors }}</div>{% endif %}</td>
-                            <td>{{ f.work_center }}{% if f.work_center.errors %}<div class="text-danger small">{{ f.work_center.errors }}</div>{% endif %}</td>
-                            <td>{{ f.norm_per_hour }}</td>
-                            <td>{{ f.cost_per_hour }}</td>
-                            <td>{{ f.notes }}</td>
-                            <td class="text-center" style="width:40px">
-                                {% if f.DELETE %}
-                                <div class="d-none">{{ f.DELETE }}</div>
-                                <button type="button" class="btn btn-link btn-sm text-danger p-0 remove-process-row" title="Xóa dòng">
-                                    <i class="bi bi-x-lg"></i>
-                                </button>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
-                <button type="button" class="btn btn-outline-hm btn-sm" id="add-process-row">
-                    <i class="bi bi-plus-lg me-1"></i>Thêm dòng
-                </button>
-                <button type="submit" class="btn btn-hm">Lưu công đoạn</button>
-            </div>
-        </form>
-
-        <template id="empty-process-row-template">
-            {% with f=step_formset.empty_form %}
-            <tr class="process-line-row">
-                {% for hidden in f.hidden_fields %}{{ hidden }}{% endfor %}
-                <td style="width:4.5rem">{{ f.sequence }}</td>
-                <td>{{ f.process_name }}</td>
-                <td>{{ f.work_center }}</td>
-                <td>{{ f.norm_per_hour }}</td>
-                <td>{{ f.cost_per_hour }}</td>
-                <td>{{ f.notes }}</td>
-                <td class="text-center" style="width:40px">
-                    <div class="d-none">{{ f.DELETE }}</div>
-                    <button type="button" class="btn btn-link btn-sm text-danger p-0 remove-process-row" title="Xóa dòng">
-                        <i class="bi bi-x-lg"></i>
-                    </button>
-                </td>
-            </tr>
-            {% endwith %}
-        </template>
-
-        <script>
-        (function () {
-            var body = document.getElementById('process-lines-body');
-            var tmpl = document.getElementById('empty-process-row-template');
-            var totalForms = document.getElementById('id_steps-TOTAL_FORMS');
-            if (!body || !tmpl || !totalForms) return;
-
-            document.getElementById('add-process-row')?.addEventListener('click', function () {
-                var idx = parseInt(totalForms.value, 10);
-                var html = tmpl.innerHTML.replace(/__prefix__/g, idx);
-                body.insertAdjacentHTML('beforeend', html);
-                totalForms.value = idx + 1;
-            });
-
-            body.addEventListener('click', function (e) {
-                var btn = e.target.closest('.remove-process-row');
-                if (!btn) return;
-                var row = btn.closest('tr');
-                var del = row?.querySelector('input[type=checkbox][name$="-DELETE"]');
-                if (del) {
-                    del.checked = true;
-                    row.style.display = 'none';
-                } else {
-                    row.remove();
-                }
-            });
-        })();
-        </script>
-        {% include 'san_xuat/includes/sx_process_group_select_script.html' %}
-        {% else %}
-        <div class="table-responsive">
-            <table class="table table-sm align-middle mb-0">
-                <thead class="table-light">
-                    <tr>
-                        <th>TT</th>
-                        <th>Nhóm công đoạn</th>
-                        <th>Bộ phận chịu trách nhiệm</th>
-                        <th>Mã CĐ</th>
-                        <th class="text-end">Định mức/giờ</th>
-                        <th class="text-end">Chuẩn (phút)</th>
-                        <th class="text-end">Chi phí giờ</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for step in bom.process_steps.all %}
-                    <tr>
-                        <td>{{ step.sequence }}</td>
-                        <td>{{ step.process_name }}</td>
-                        <td class="small">
-                          {% if step.work_center_id %}
-                            {{ step.work_center.name }}
-                            {% if step.work_center.team_label %}<span class="text-muted">({{ step.work_center.team_label }})</span>{% endif %}
-                          {% else %}—{% endif %}
-                        </td>
-                        <td class="small text-muted">{{ step.op_code|default:"—" }}</td>
-                        <td class="text-end">{{ step.norm_per_hour|sx_num }}</td>
-                        <td class="text-end">{{ step.std_time_minutes|sx_num }}</td>
-                        <td class="text-end">{{ step.cost_per_hour|sx_num }}</td>
-                    </tr>
-                    {% empty %}
-                    <tr><td colspan="7" class="text-muted text-center py-3">Chưa có công đoạn.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        {% endif %}
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>TT</th>
+            <th>Nhóm</th>
+            <th>Tên công đoạn</th>
+            <th>Bộ phận</th>
+            <th class="text-end">Định mức</th>
+            <th class="text-end">Chi phí giờ</th>
+            {% if can_update %}<th></th>{% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for line in routing_lines %}
+          <tr>
+            <td>{{ line.seq_no }}</td>
+            <td>{{ line.display_group_name|default:line.group_code|default:"—" }}</td>
+            <td>{{ line.op_name_vi|default:"—" }}</td>
+            <td>{% if line.work_center %}{{ line.work_center.name }}{% elif line.work_center_code %}{{ line.work_center_code }}{% else %}—{% endif %}</td>
+            <td class="text-end">{% if line.display_norm %}{{ line.display_norm|sx_num }}{% else %}—{% endif %}</td>
+            <td class="text-end">{{ line.price_factor|sx_num }}</td>
+            {% if can_update and process_routing %}
+            <td class="text-end">
+              <form method="post" class="d-inline" onsubmit="return confirm('Xóa công đoạn này?');">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="delete_doc_routing_line">
+                <input type="hidden" name="routing_id" value="{{ process_routing.pk }}">
+                <input type="hidden" name="line_id" value="{{ line.pk }}">
+                <button type="submit" class="btn btn-sm btn-outline-danger py-0">Xóa</button>
+              </form>
+            </td>
+            {% endif %}
+          </tr>
+          {% empty %}
+          <tr><td colspan="{% if can_update %}7{% else %}6{% endif %}" class="text-muted text-center py-3">Chưa có công đoạn.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
+  </div>
 </div>

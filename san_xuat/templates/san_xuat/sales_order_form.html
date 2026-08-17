@@ -5,21 +5,60 @@
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
 <style>
+  #jp-so-lines-table {
+    table-layout: fixed;
+    width: 100%;
+  }
+  #jp-so-lines-table > thead > tr > th {
+    font-size: .78rem;
+    font-weight: 700;
+    color: #64748b;
+    white-space: nowrap;
+  }
+  #jp-so-lines-table th.jp-so-product-col,
+  #jp-so-lines-table td.jp-so-product-col { width: 34%; }
+  #jp-so-lines-table th.jp-so-bom-col,
+  #jp-so-lines-table td.jp-so-bom-col { width: 18%; }
+  #jp-so-lines-table th.jp-so-ie-col,
+  #jp-so-lines-table td.jp-so-ie-col { width: 18%; }
+  #jp-so-lines-table th.jp-so-stock-col,
+  #jp-so-lines-table td.jp-so-stock-col { width: 10%; }
+  #jp-so-lines-table th.jp-so-actions-col,
+  #jp-so-lines-table td.jp-so-actions-col { width: 20%; }
+
+  #jp-so-lines-table > tbody > tr.jp-so-line-row > td {
+    vertical-align: middle;
+    padding-top: .75rem;
+    padding-bottom: .35rem;
+    border-bottom: 0;
+  }
+  #jp-so-lines-table > tbody > tr.jp-so-size-row > td {
+    padding-top: .15rem;
+    padding-bottom: .75rem;
+    border-top: 0;
+  }
+  #jp-so-lines-table > tbody > tr.jp-so-smv-row > td {
+    padding-top: 0;
+  }
+
   .jp-so-size-grid {
     display: flex;
-    flex-wrap: wrap;
-    gap: .2rem;
-    max-width: 28rem;
+    flex-wrap: nowrap;
+    gap: .35rem;
+    max-width: none;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: .1rem 0 .15rem;
   }
   .jp-so-size-cell {
     display: flex;
     flex-direction: column;
     align-items: stretch;
-    gap: .05rem;
+    gap: .12rem;
     margin: 0;
-    width: 2.55rem;
-    flex: 0 0 2.55rem;
-    font-size: .62rem;
+    width: 2.75rem;
+    flex: 0 0 2.75rem;
+    font-size: .65rem;
     font-weight: 700;
     color: #64748b;
     text-align: center;
@@ -27,10 +66,10 @@
   }
   .jp-so-size-cell input {
     text-align: center;
-    padding: .2rem .1rem;
-    font-size: .75rem;
+    padding: .25rem .1rem;
+    font-size: .78rem;
     font-weight: 600;
-    height: calc(1.5em + .5rem + 2px);
+    height: 2rem;
   }
   .jp-so-size-cell input.is-filled {
     background: #ecfdf5;
@@ -38,55 +77,54 @@
   }
   .jp-so-line-actions {
     display: inline-flex;
-    align-items: flex-end;
-    gap: .35rem;
+    align-items: center;
+    justify-content: flex-end;
+    gap: .4rem;
     white-space: nowrap;
+    width: 100%;
   }
   .jp-so-qty-total-wrap {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    gap: .05rem;
-    width: 4.5rem;
-    margin: 0;
-    font-size: .62rem;
-    font-weight: 700;
-    color: #64748b;
-    text-align: center;
-    line-height: 1.1;
+    display: block;
+    width: 100%;
+    max-width: 7.5rem;
+    margin: 0 0 0 auto;
   }
   .jp-so-qty-total-wrap .jp-so-qty-total {
     width: 100%;
     text-align: center;
-    padding: .2rem .25rem;
-    font-size: .75rem;
+    padding: .3rem .35rem;
+    font-size: .85rem;
     font-weight: 700;
-    height: calc(1.5em + .5rem + 2px);
+    height: 2.15rem;
   }
   .jp-so-line-actions .jp-so-remove-row {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 2rem;
-    height: calc(1.5em + .5rem + 2px);
+    width: 2.15rem;
+    height: 2.15rem;
     flex: 0 0 auto;
+    margin: 0;
   }
-  #jp-so-lines-table th.jp-so-size-col,
-  #jp-so-lines-table td.jp-so-size-col {
-    min-width: 16rem;
+  #jp-so-lines-table .ts-wrapper {
+    min-width: 0;
+    width: 100%;
   }
-  #jp-so-lines-table th.jp-so-actions-col,
-  #jp-so-lines-table td.jp-so-actions-col {
-    width: 7.5rem;
-    min-width: 7.5rem;
+  #jp-so-lines-table .ts-wrapper .ts-control,
+  #jp-so-lines-table .form-select-sm {
+    min-height: 2.15rem;
+    height: 2.15rem;
+  }
+  #jp-so-lines-table .ts-wrapper .ts-control {
+    padding: .25rem .55rem;
+  }
+  #jp-so-lines-table .form-select-sm {
+    padding-top: .3rem;
+    padding-bottom: .3rem;
+  }
+  #jp-so-lines-table td.jp-so-stock-col {
     text-align: right;
-    vertical-align: bottom;
-  }
-  #jp-so-lines-table td {
-    vertical-align: middle;
-  }
-  #jp-so-lines-table td.jp-so-actions-col {
-    vertical-align: bottom;
+    font-variant-numeric: tabular-nums;
   }
   /* TomSelect KH: đảm bảo placeholder hiện khi chưa chọn */
   #jp-so-form .ts-wrapper:has(.jp-so-customer-select) .ts-control .placeholder,
@@ -109,9 +147,13 @@
     background: #fff;
     padding: .65rem .75rem;
   }
-  #jp-so-lines-table th.jp-so-ie-col,
-  #jp-so-lines-table td.jp-so-ie-col {
-    min-width: 12rem;
+  .jp-so-size-label {
+    font-size: .68rem;
+    font-weight: 700;
+    letter-spacing: .03em;
+    text-transform: uppercase;
+    color: #94a3b8;
+    margin-bottom: .25rem;
   }
 </style>
 {% endblock %}
@@ -193,25 +235,24 @@
           <table class="table table-sm align-middle" id="jp-so-lines-table">
             <thead class="table-light">
               <tr>
-                <th style="min-width:180px">Mã SP</th>
-                <th>Tên</th>
-                <th style="min-width:10rem">BOM</th>
-                <th class="jp-so-ie-col">Quy trình IE</th>
-                <th class="text-end" style="width:7rem">Tồn kho</th>
-                <th class="jp-so-size-col">Size</th>
-                <th class="jp-so-actions-col">Tổng</th>
+                <th class="jp-so-product-col">Sản phẩm</th>
+                <th class="jp-so-bom-col">BOM</th>
+                <th class="jp-so-ie-col">Routing</th>
+                <th class="jp-so-stock-col text-end">Tồn</th>
+                <th class="jp-so-actions-col text-end">Tổng</th>
               </tr>
             </thead>
             <tbody>
             {% for f in formset %}
               <tr class="jp-so-line-row">
-                <td>
+                <td class="jp-so-product-col">
                   {{ f.product_code }}
+                  {{ f.product_name }}
                   {% if f.product_code.errors %}<div class="text-danger small">{{ f.product_code.errors }}</div>{% endif %}
                 </td>
-                <td>{{ f.product_name }}</td>
-                <td>
+                <td class="jp-so-bom-col">
                   {{ f.bom_version_id }}
+                  {{ f.applied_bom_json }}
                   {% if f.bom_version_id.errors %}<div class="text-danger small">{{ f.bom_version_id.errors }}</div>{% endif %}
                 </td>
                 <td class="jp-so-ie-col">
@@ -220,26 +261,12 @@
                   <div class="jp-so-ie-status" data-role="ie-status"></div>
                   {% if f.routing_id.errors %}<div class="text-danger small">{{ f.routing_id.errors }}</div>{% endif %}
                 </td>
-                <td class="text-end">
+                <td class="jp-so-stock-col">
                   <span class="jp-so-stock-qty text-muted">—</span>
-                </td>
-                <td class="jp-so-size-col">
-                  {{ f.size_qtys }}
-                  <div class="jp-so-size-grid" data-role="size-qtys">
-                    {% for sz in suggest_sizes %}
-                    <label class="jp-so-size-cell">
-                      <span>{{ sz }}</span>
-                      <input type="number" class="form-control form-control-sm jp-so-size-qty"
-                             data-size="{{ sz }}" value="0" min="0" step="1" inputmode="numeric"
-                             aria-label="SL size {{ sz }}">
-                    </label>
-                    {% endfor %}
-                  </div>
                 </td>
                 <td class="jp-so-actions-col">
                   <div class="jp-so-line-actions">
-                    <label class="jp-so-qty-total-wrap" for="{{ f.qty.id_for_label }}">
-                      <span>Tổng</span>
+                    <label class="jp-so-qty-total-wrap" for="{{ f.qty.id_for_label }}" title="Tổng">
                       {{ f.qty }}
                     </label>
                     {% if f.DELETE %}
@@ -250,6 +277,22 @@
                     {% endif %}
                   </div>
                   {% if f.qty.errors %}<div class="text-danger small">{{ f.qty.errors }}</div>{% endif %}
+                </td>
+              </tr>
+              <tr class="jp-so-size-row">
+                <td colspan="5">
+                  {{ f.size_qtys }}
+                  <div class="jp-so-size-label">Size</div>
+                  <div class="jp-so-size-grid" data-role="size-qtys">
+                    {% for sz in suggest_sizes_all %}
+                    <label class="jp-so-size-cell">
+                      <span>{{ sz }}</span>
+                      <input type="number" class="form-control form-control-sm jp-so-size-qty"
+                             data-size="{{ sz }}" value="0" min="0" step="1" inputmode="numeric"
+                             aria-label="SL size {{ sz }}">
+                    </label>
+                    {% endfor %}
+                  </div>
                 </td>
               </tr>
             {% endfor %}
@@ -273,31 +316,16 @@
 <template id="jp-so-empty-row">
   {% with f=formset.empty_form %}
   <tr class="jp-so-line-row">
-    <td>{{ f.product_code }}</td>
-    <td>{{ f.product_name }}</td>
-    <td>{{ f.bom_version_id }}</td>
+    <td class="jp-so-product-col">{{ f.product_code }}{{ f.product_name }}</td>
+    <td class="jp-so-bom-col">{{ f.bom_version_id }}{{ f.applied_bom_json }}</td>
     <td class="jp-so-ie-col">
       {{ f.routing_id }}{{ f.applied_smv_json }}
       <div class="jp-so-ie-status" data-role="ie-status"></div>
     </td>
-    <td class="text-end"><span class="jp-so-stock-qty text-muted">—</span></td>
-    <td class="jp-so-size-col">
-      {{ f.size_qtys }}
-      <div class="jp-so-size-grid" data-role="size-qtys">
-        {% for sz in suggest_sizes %}
-        <label class="jp-so-size-cell">
-          <span>{{ sz }}</span>
-          <input type="number" class="form-control form-control-sm jp-so-size-qty"
-                 data-size="{{ sz }}" value="0" min="0" step="1" inputmode="numeric"
-                 aria-label="SL size {{ sz }}">
-        </label>
-        {% endfor %}
-      </div>
-    </td>
+    <td class="jp-so-stock-col"><span class="jp-so-stock-qty text-muted">—</span></td>
     <td class="jp-so-actions-col">
       <div class="jp-so-line-actions">
-        <label class="jp-so-qty-total-wrap" for="{{ f.qty.id_for_label }}">
-          <span>Tổng</span>
+        <label class="jp-so-qty-total-wrap" for="{{ f.qty.id_for_label }}" title="Tổng">
           {{ f.qty }}
         </label>
         {% if f.DELETE %}
@@ -306,6 +334,22 @@
           <i class="bi bi-x-lg" aria-hidden="true"></i>
         </button>
         {% endif %}
+      </div>
+    </td>
+  </tr>
+  <tr class="jp-so-size-row">
+    <td colspan="5">
+      {{ f.size_qtys }}
+      <div class="jp-so-size-label">Size</div>
+      <div class="jp-so-size-grid" data-role="size-qtys">
+        {% for sz in suggest_sizes_all %}
+        <label class="jp-so-size-cell">
+          <span>{{ sz }}</span>
+          <input type="number" class="form-control form-control-sm jp-so-size-qty"
+                 data-size="{{ sz }}" value="0" min="0" step="1" inputmode="numeric"
+                 aria-label="SL size {{ sz }}">
+        </label>
+        {% endfor %}
       </div>
     </td>
   </tr>
@@ -319,6 +363,7 @@
 
 {% block scripts %}
 <script>
+window.jpSoAllSizes = {{ suggest_sizes_all_json|safe }};
 (function () {
   var body = document.querySelector('#jp-so-lines-table tbody');
   var addBtn = document.getElementById('jp-so-add-row');
@@ -336,9 +381,30 @@
     });
   }
 
+  function lineRowOf(row) {
+    if (!row) return null;
+    if (row.classList.contains('jp-so-line-row')) return row;
+    if (row.classList.contains('jp-so-size-row')) {
+      var prev = row.previousElementSibling;
+      return prev && prev.classList.contains('jp-so-line-row') ? prev : null;
+    }
+    return null;
+  }
+
+  function sizeRowOf(lineRow) {
+    if (!lineRow) return null;
+    var next = lineRow.nextElementSibling;
+    return next && next.classList.contains('jp-so-size-row') ? next : null;
+  }
+
+  function sizeHost(row) {
+    var line = lineRowOf(row) || row;
+    return sizeRowOf(line) || line;
+  }
+
   function readSizeMap(row) {
     var map = {};
-    row.querySelectorAll('.jp-so-size-qty').forEach(function (inp) {
+    sizeHost(row).querySelectorAll('.jp-so-size-qty').forEach(function (inp) {
       var sz = (inp.getAttribute('data-size') || '').trim();
       var n = parseFloat(inp.value);
       if (!sz || !Number.isFinite(n) || n <= 0) return;
@@ -348,7 +414,7 @@
   }
 
   function ensureSizeInputs(row, sizes) {
-    var grid = row.querySelector('[data-role="size-qtys"]');
+    var grid = sizeHost(row).querySelector('[data-role="size-qtys"]');
     if (!grid) return;
     var want = {};
     (sizes || []).forEach(function (sz) {
@@ -398,25 +464,28 @@
 
   function writeSizeMap(row, map) {
     map = map || {};
+    var host = sizeHost(row);
+    var line = lineRowOf(row) || row;
     var merged = {};
     Object.keys(map).forEach(function (sz) {
       var n = Number(map[sz]) || 0;
       if (n > 0) merged[sz] = Math.round(n);
     });
-    ensureSizeInputs(row, Object.keys(merged));
-    row.querySelectorAll('.jp-so-size-qty').forEach(function (inp) {
+    ensureSizeInputs(line, Object.keys(merged));
+    host.querySelectorAll('.jp-so-size-qty').forEach(function (inp) {
       var sz = (inp.getAttribute('data-size') || '').trim();
       var n = Number(merged[sz]) || 0;
       inp.value = n > 0 ? String(Math.round(n)) : '0';
       inp.classList.toggle('is-filled', n > 0);
       if (n > 0) merged[sz] = Math.round(n);
     });
-    var hidden = row.querySelector('.jp-so-size-qtys-json, input[name$="-size_qtys"]');
+    var hidden = host.querySelector('.jp-so-size-qtys-json, input[name$="-size_qtys"]');
     if (hidden) hidden.value = JSON.stringify(merged);
   }
 
   function syncSizeJson(row) {
-    var hidden = row.querySelector('.jp-so-size-qtys-json, input[name$="-size_qtys"]');
+    var host = sizeHost(row);
+    var hidden = host.querySelector('.jp-so-size-qtys-json, input[name$="-size_qtys"]');
     if (!hidden) return;
     var map = readSizeMap(row);
     // Giữ size ngoài lưới mặc định (vd. 1–15) nếu đã có trong JSON
@@ -425,7 +494,7 @@
       if (prev && typeof prev === 'object') {
         Object.keys(prev).forEach(function (sz) {
           if (map[sz] != null) return;
-          var inp = row.querySelector('.jp-so-size-qty[data-size="' + sz + '"]');
+          var inp = host.querySelector('.jp-so-size-qty[data-size="' + sz + '"]');
           if (inp) return;
           var n = Number(prev[sz]) || 0;
           if (n > 0) map[sz] = Math.round(n);
@@ -443,27 +512,32 @@
   }
 
   function applySizesToTotal(row) {
-    var total = sumSizes(row);
-    var qty = row.querySelector('.jp-so-qty-total, input[name$="-qty"]');
+    var line = lineRowOf(row) || row;
+    var total = sumSizes(line);
+    var qty = line.querySelector('.jp-so-qty-total, input[name$="-qty"]');
     if (qty && total > 0) {
       qty.value = String(total);
       qty.dispatchEvent(new Event('input', { bubbles: true }));
       qty.dispatchEvent(new Event('change', { bubbles: true }));
     }
-    syncSizeJson(row);
+    syncSizeJson(line);
   }
 
   function hydrateRow(row) {
-    var hidden = row.querySelector('.jp-so-size-qtys-json, input[name$="-size_qtys"]');
+    var line = lineRowOf(row) || row;
+    var host = sizeHost(line);
+    var all = window.jpSoAllSizes || [];
+    if (all.length) ensureSizeInputs(line, all);
+    var hidden = host.querySelector('.jp-so-size-qtys-json, input[name$="-size_qtys"]');
     if (!hidden || !hidden.value) {
-      syncSizeJson(row);
+      syncSizeJson(line);
       return;
     }
     try {
       var map = JSON.parse(hidden.value);
-      if (map && typeof map === 'object') writeSizeMap(row, map);
+      if (map && typeof map === 'object') writeSizeMap(line, map);
     } catch (e) {
-      syncSizeJson(row);
+      syncSizeJson(line);
     }
   }
 
@@ -472,10 +546,10 @@
   body.addEventListener('input', function (e) {
     var inp = e.target.closest('.jp-so-size-qty');
     if (!inp) return;
-    var row = inp.closest('tr');
-    if (!row) return;
+    var sizeTr = inp.closest('tr.jp-so-size-row') || inp.closest('tr');
+    if (!sizeTr) return;
     inp.classList.toggle('is-filled', (parseFloat(inp.value) || 0) > 0);
-    applySizesToTotal(row);
+    applySizesToTotal(sizeTr);
   });
 
   window.jpSoWriteLineSizeQtys = writeSizeMap;
@@ -485,28 +559,31 @@
   addBtn.addEventListener('click', function () {
     var idx = parseInt(totalInput.value, 10) || 0;
     var node = tpl.content.cloneNode(true);
-    var row = node.querySelector('tr');
-    if (!row) return;
-    reindexAttrs(row, idx);
-    body.appendChild(row);
+    var lineRow = node.querySelector('tr.jp-so-line-row');
+    var sizeRow = node.querySelector('tr.jp-so-size-row');
+    if (!lineRow) return;
+    reindexAttrs(lineRow, idx);
+    if (sizeRow) reindexAttrs(sizeRow, idx);
+    body.appendChild(node);
     totalInput.value = String(idx + 1);
-    hydrateRow(row);
-    var select = row.querySelector('.jp-sx-product-code-select');
+    hydrateRow(lineRow);
+    var select = lineRow.querySelector('.jp-sx-product-code-select');
     if (select && typeof window.jpInitProductCodeSelect === 'function') {
       window.jpInitProductCodeSelect(select);
     }
     if (typeof window.jpSoLoadLineVersions === 'function') {
-      window.jpSoLoadLineVersions(row, '', '');
+      window.jpSoLoadLineVersions(lineRow, '', '');
     }
   });
 
   body.addEventListener('click', function (e) {
     var btn = e.target.closest('.jp-so-remove-row');
     if (!btn) return;
-    var row = btn.closest('tr');
+    var row = btn.closest('tr.jp-so-line-row');
     if (!row) return;
     var del = row.querySelector('input[type=checkbox][name$="-DELETE"]');
-    var smvRow = row.nextElementSibling;
+    var sizeRow = sizeRowOf(row);
+    var smvRow = sizeRow ? sizeRow.nextElementSibling : row.nextElementSibling;
     if (smvRow && smvRow.classList.contains('jp-so-smv-row')) {
       if (del) smvRow.style.display = 'none';
       else smvRow.remove();
@@ -514,7 +591,9 @@
     if (del) {
       del.checked = true;
       row.style.display = 'none';
+      if (sizeRow) sizeRow.style.display = 'none';
     } else {
+      if (sizeRow) sizeRow.remove();
       row.remove();
     }
   });
@@ -562,12 +641,21 @@
     return row.querySelector('.jp-so-smv-json, input[name$="-applied_smv_json"]');
   }
 
+  function bomHidden(row) {
+    return row.querySelector('.jp-so-bom-json, input[name$="-applied_bom_json"]');
+  }
+
   function stepStd(st) {
     return parseFloat(st && (st.smv_std != null ? st.smv_std : st.smv)) || 0;
   }
 
   function previewBox(row, create) {
+    var anchor = row;
     var next = row.nextElementSibling;
+    if (next && next.classList.contains('jp-so-size-row')) {
+      anchor = next;
+      next = next.nextElementSibling;
+    }
     if (next && next.classList.contains('jp-so-smv-row')) {
       return next.querySelector('[data-role="smv-preview"]');
     }
@@ -575,16 +663,42 @@
     var tr = document.createElement('tr');
     tr.className = 'jp-so-smv-row';
     var td = document.createElement('td');
-    td.colSpan = 7;
+    td.colSpan = 5;
     td.className = 'pt-0 pb-3 border-0';
     td.innerHTML = '<div class="jp-so-smv-preview" data-role="smv-preview"></div>';
     tr.appendChild(td);
-    row.parentNode.insertBefore(tr, row.nextSibling);
+    row.parentNode.insertBefore(tr, anchor.nextSibling);
     return td.querySelector('[data-role="smv-preview"]');
   }
 
   function escAttr(s) {
     return String(s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  }
+
+  function writeAppliedBom(row) {
+    var hidden = bomHidden(row);
+    if (!hidden) return;
+    var box = previewBox(row, false);
+    var rows = [];
+    if (box) {
+      box.querySelectorAll('.jp-so-bom-qty-input').forEach(function (inp) {
+        var id = parseInt(inp.getAttribute('data-bom-line-id'), 10) || 0;
+        var qty = parseFloat(inp.value);
+        var scrapEl = box.querySelector('.jp-so-bom-scrap-input[data-bom-line-id="' + id + '"]');
+        var scrap = scrapEl ? parseFloat(scrapEl.value) : 0;
+        rows.push({
+          bom_line_id: id,
+          material_code: inp.getAttribute('data-mat-code') || '',
+          material_name: inp.getAttribute('data-mat-name') || '',
+          unit: inp.getAttribute('data-unit') || '',
+          size_code: inp.getAttribute('data-size') || '',
+          qty_std: parseFloat(inp.getAttribute('data-qty-std')) || 0,
+          qty: Number.isFinite(qty) ? qty : 0,
+          scrap_pct: Number.isFinite(scrap) ? scrap : 0,
+        });
+      });
+    }
+    hidden.value = JSON.stringify(rows);
   }
 
   function writeAppliedSmv(row) {
@@ -630,61 +744,149 @@
     writeAppliedSmv(row);
   }
 
+  function hydrateBomFromHidden(row) {
+    var hidden = bomHidden(row);
+    var box = previewBox(row, false);
+    if (!hidden || !hidden.value || hidden.value === '[]' || !box) {
+      writeAppliedBom(row);
+      return;
+    }
+    try {
+      var rows = JSON.parse(hidden.value);
+      if (!Array.isArray(rows) || !rows.length) {
+        writeAppliedBom(row);
+        return;
+      }
+      var byId = {};
+      rows.forEach(function (r) {
+        if (!r) return;
+        var id = parseInt(r.bom_line_id || r.id, 10);
+        if (id) byId[id] = r;
+      });
+      box.querySelectorAll('.jp-so-bom-qty-input').forEach(function (inp) {
+        var id = parseInt(inp.getAttribute('data-bom-line-id'), 10);
+        var r = byId[id];
+        if (!r) return;
+        var qty = parseFloat(r.qty);
+        if (Number.isFinite(qty)) inp.value = String(qty);
+        var scrapEl = box.querySelector('.jp-so-bom-scrap-input[data-bom-line-id="' + id + '"]');
+        if (scrapEl) {
+          var scrap = parseFloat(r.scrap_pct);
+          if (Number.isFinite(scrap)) scrapEl.value = String(scrap);
+        }
+      });
+    } catch (e) { /* ignore */ }
+    writeAppliedBom(row);
+  }
+
   function selectedRoutingId(row) {
     var rtSel = row.querySelector('.jp-so-routing-select, select[name$="-routing_id"]');
     var val = rtSel ? (rtSel.value || '').trim() : '';
     return (val && val !== CREATE_VAL) ? val : '';
   }
 
-  function renderSteps(row, data) {
-    var box = previewBox(row);
-    if (!box) return;
-    var wrap = box.closest('tr.jp-so-smv-row');
+  function selectedBomId(row) {
+    var bomSel = row.querySelector('.jp-so-bom-select, select[name$="-bom_version_id"]');
+    var val = bomSel ? (bomSel.value || '').trim() : '';
+    return (val && val !== CREATE_VAL) ? val : '';
+  }
+
+  function renderBomLinesHtml(lines) {
+    if (!lines || !lines.length) {
+      return '<div class="jp-so-smv-card text-muted small mb-2">BOM đã chọn nhưng chưa có dòng NPL.</div>';
+    }
+    var html = '<div class="jp-so-smv-card mb-2">'
+      + '<div class="table-responsive"><table class="table table-sm table-bordered mb-0">'
+      + '<thead class="table-light"><tr>'
+      + '<th>NPL</th><th class="text-end" style="width:7rem">ĐM gốc</th>'
+      + '<th class="text-end" style="width:8rem">ĐM áp dụng</th>'
+      + '<th class="text-end" style="width:6rem">Hao %</th><th style="width:4rem">ĐVT</th>'
+      + '</tr></thead><tbody>';
+    lines.forEach(function (ln) {
+      var id = ln.bom_line_id || ln.id || '';
+      var code = String(ln.material_code || '').trim();
+      var name = String(ln.material_name || '').trim() || code || '—';
+      var qtyStd = parseFloat(ln.qty_std != null ? ln.qty_std : ln.qty) || 0;
+      var qty = parseFloat(ln.qty) || qtyStd;
+      var scrap = parseFloat(ln.scrap_pct) || 0;
+      var unit = String(ln.unit || '').trim();
+      var size = String(ln.size_code || '').trim();
+      html += '<tr><td>' + escAttr(name) + (size ? ' <span class="badge bg-light text-dark border">' + escAttr(size) + '</span>' : '') + '</td>'
+        + '<td class="text-end text-muted">' + qtyStd + '</td>'
+        + '<td><input type="number" class="form-control form-control-sm text-end jp-so-bom-qty-input" min="0" step="0.0001"'
+        + ' data-bom-line-id="' + id + '"'
+        + ' data-mat-code="' + escAttr(code) + '"'
+        + ' data-mat-name="' + escAttr(name) + '"'
+        + ' data-unit="' + escAttr(unit) + '"'
+        + ' data-size="' + escAttr(size) + '"'
+        + ' data-qty-std="' + qtyStd + '"'
+        + ' value="' + qty + '" aria-label="Định mức ' + escAttr(name) + '"></td>'
+        + '<td><input type="number" class="form-control form-control-sm text-end jp-so-bom-scrap-input" min="0" step="0.01"'
+        + ' data-bom-line-id="' + id + '" value="' + scrap + '" aria-label="Hao hụt %"></td>'
+        + '<td class="small text-muted">' + escAttr(unit || '—') + '</td></tr>';
+    });
+    html += '</tbody></table></div></div>';
+    return html;
+  }
+
+  function renderStepsHtml(row, data) {
     var steps = (data && data.steps) || [];
     var source = (data && data.steps_source) || '';
     var hasRouting = !!selectedRoutingId(row);
     var createRt = (data && data.routing_create_url) || routingCreateUrl;
-    if (!productCodeOf(row)) {
-      box.innerHTML = '';
-      if (wrap) wrap.style.display = 'none';
-      writeAppliedSmv(row);
-      return;
-    }
-    if (wrap) wrap.style.display = '';
     if (!hasRouting || source !== 'ie' || !steps.length) {
       var msg = '';
       if (!hasRouting && (data.routings || []).length) {
-        msg = 'Chọn quy trình IE (routing) để chỉnh SMV từng công đoạn.';
+        msg = 'Chọn Routing để chỉnh SMV từng công đoạn.';
       } else if (!(data.routings || []).length) {
-        msg = 'Mã hàng chưa có routing IE. <a href="' + createRt + '" target="_blank" rel="noopener">Tạo routing</a>.';
+        msg = 'Chưa có Routing. <a href="' + createRt + '" target="_blank" rel="noopener">Tạo routing</a>.';
       } else {
         msg = 'Routing đã chọn nhưng chưa có công đoạn.';
       }
-      box.innerHTML = msg ? '<div class="jp-so-smv-card text-muted small">' + msg + '</div>' : '';
-      writeAppliedSmv(row);
-      return;
+      return msg ? '<div class="jp-so-smv-card text-muted small">' + msg + '</div>' : '';
     }
     var html = '<div class="jp-so-smv-card">'
       + '<div class="table-responsive"><table class="table table-sm table-bordered mb-0">'
       + '<thead class="table-light"><tr><th style="width:3.5rem">Bước</th><th>Công đoạn</th>'
-      + '<th class="text-end" style="width:7.5rem">SMV chuẩn</th>'
+      + '<th class="text-end" style="width:7.5rem">SMV gốc</th>'
       + '<th class="text-end" style="width:8.5rem">SMV áp dụng</th></tr></thead><tbody>';
     steps.forEach(function (st) {
       var std = stepStd(st);
       var smv = parseFloat(st.smv != null ? st.smv : std) || 0;
       var code = String(st.code || '').trim();
-      var name = String(st.name || '').trim();
-      var label = (code && name && code.toUpperCase() !== name.toUpperCase())
-        ? '<span class="text-muted">' + escAttr(code) + '</span> — ' + escAttr(name)
-        : escAttr(name || code);
-      html += '<tr><td>' + (st.seq || '') + '</td><td>' + label + '</td>'
+      var name = String(st.name || '').trim() || code || '—';
+      html += '<tr><td>' + (st.seq || '') + '</td><td>' + escAttr(name) + '</td>'
         + '<td class="text-end text-muted">' + std.toFixed(4) + '</td>'
         + '<td><input type="number" class="form-control form-control-sm text-end jp-so-smv-input" min="0" step="0.0001"'
         + ' data-smv-seq="' + (st.seq || '') + '" data-smv-std="' + std + '"'
-        + ' value="' + smv + '" aria-label="SMV áp dụng ' + escAttr(name || code) + '"></td></tr>';
+        + ' value="' + smv + '" aria-label="SMV áp dụng ' + escAttr(name) + '"></td></tr>';
     });
     html += '</tbody></table></div></div>';
-    box.innerHTML = html;
+    return html;
+  }
+
+  function renderSteps(row, data) {
+    var box = previewBox(row);
+    if (!box) return;
+    var wrap = box.closest('tr.jp-so-smv-row');
+    if (!productCodeOf(row)) {
+      box.innerHTML = '';
+      if (wrap) wrap.style.display = 'none';
+      writeAppliedBom(row);
+      writeAppliedSmv(row);
+      return;
+    }
+    if (wrap) wrap.style.display = '';
+    var html = '';
+    var hasBom = !!selectedBomId(row);
+    var bomLines = (data && data.bom_lines) || [];
+    if (hasBom) {
+      html += renderBomLinesHtml(bomLines);
+    } else if ((data.bom_versions || []).length) {
+      html += '<div class="jp-so-smv-card text-muted small mb-2">Chọn BOM để xem và chỉnh định mức NPL.</div>';
+    }
+    html += renderStepsHtml(row, data || {});
+    box.innerHTML = html || '';
   }
 
   function applyIeStatus(row, data) {
@@ -708,12 +910,12 @@
     if (!productCodeOf(row)) return;
     if (n === 0) {
       status.classList.add('is-warn');
-      status.innerHTML = 'Chưa có IE'
+      status.innerHTML = 'Chưa có Routing'
         + ' · <a href="' + (data.routing_create_url || routingCreateUrl) + '" target="_blank" rel="noopener">Tạo routing</a>';
     }
   }
 
-  function loadVersions(row, keepBom, keepRouting, keepSmv) {
+  function loadVersions(row, keepBom, keepRouting, keepSmv, keepBomQty) {
     var code = productCodeOf(row);
     var bomSel = row.querySelector('.jp-so-bom-select, select[name$="-bom_version_id"]');
     var rtSel = row.querySelector('.jp-so-routing-select, select[name$="-routing_id"]');
@@ -722,7 +924,9 @@
       fillSelect(rtSel, [], '— Chọn routing —', '', '');
       if (rtSel) rtSel.classList.add('d-none');
       applyIeStatus(row, { routings: [], steps: [] });
-      renderSteps(row, { steps: [] });
+      renderSteps(row, { steps: [], bom_lines: [] });
+      if (keepBomQty) hydrateBomFromHidden(row);
+      else writeAppliedBom(row);
       if (keepSmv) hydrateAppliedFromHidden(row);
       else writeAppliedSmv(row);
       return;
@@ -739,7 +943,8 @@
           ? (data.doc_url + (data.doc_url.indexOf('?') >= 0 ? '&' : '?') + 'tab=bom')
           : (data.create_url || '');
         var routings = data.routings || [];
-        var autoRt = keepRouting || (routings.length === 1 ? (data.default_routing_id || routings[0].id) : '');
+        var autoRt = keepRouting || data.default_routing_id || '';
+        if (!autoRt && routings.length === 1) autoRt = routings[0].id;
         fillSelect(
           bomSel,
           data.bom_versions || [],
@@ -757,6 +962,8 @@
         );
         applyIeStatus(row, data);
         renderSteps(row, data);
+        if (keepBomQty) hydrateBomFromHidden(row);
+        else writeAppliedBom(row);
         if (keepSmv) hydrateAppliedFromHidden(row);
         else writeAppliedSmv(row);
         if (typeof window.jpSoAfterLineVersions === 'function') window.jpSoAfterLineVersions(row);
@@ -765,7 +972,8 @@
         fillSelect(bomSel, [], '— BOM —', '', keepBom);
         fillSelect(rtSel, [], '— Chọn routing —', '', keepRouting);
         applyIeStatus(row, { routings: [], steps: [] });
-        renderSteps(row, { steps: [] });
+        renderSteps(row, { steps: [], bom_lines: [] });
+        writeAppliedBom(row);
         writeAppliedSmv(row);
       });
   }
@@ -795,22 +1003,39 @@
     if (!row) return;
     var bomSel = row.querySelector('.jp-so-bom-select, select[name$="-bom_version_id"]');
     var rtSel = row.querySelector('.jp-so-routing-select, select[name$="-routing_id"]');
-    loadVersions(row, bomSel ? bomSel.value : '', rtSel ? rtSel.value : '');
+    var keepSmv = sel.matches('.jp-so-bom-select, select[name$="-bom_version_id"]');
+    var keepBomQty = sel.matches('.jp-so-routing-select, select[name$="-routing_id"]');
+    loadVersions(
+      row,
+      bomSel ? bomSel.value : '',
+      rtSel ? rtSel.value : '',
+      keepSmv,
+      keepBomQty,
+    );
   });
 
   document.addEventListener('input', function (e) {
     var t = e.target;
-    if (!t || !t.classList || !t.classList.contains('jp-so-smv-input')) return;
+    if (!t || !t.classList) return;
     var smvRow = t.closest('tr.jp-so-smv-row');
-    var row = t.closest('tr.jp-so-line-row') || (smvRow && smvRow.previousElementSibling);
+    var row = t.closest('tr.jp-so-line-row');
+    if (!row && smvRow) {
+      var prev = smvRow.previousElementSibling;
+      if (prev && prev.classList.contains('jp-so-size-row')) prev = prev.previousElementSibling;
+      row = prev;
+    }
     if (!row || !row.classList.contains('jp-so-line-row')) return;
-    writeAppliedSmv(row);
+    if (t.classList.contains('jp-so-smv-input')) writeAppliedSmv(row);
+    if (t.classList.contains('jp-so-bom-qty-input') || t.classList.contains('jp-so-bom-scrap-input')) {
+      writeAppliedBom(row);
+    }
   });
 
   var form = document.getElementById('jp-so-form');
   if (form) {
     form.addEventListener('submit', function () {
       document.querySelectorAll('#jp-so-lines-table tbody tr.jp-so-line-row').forEach(function (row) {
+        writeAppliedBom(row);
         writeAppliedSmv(row);
       });
     });
@@ -819,7 +1044,7 @@
   document.querySelectorAll('#jp-so-lines-table tbody tr.jp-so-line-row').forEach(function (row) {
     var bomSel = row.querySelector('.jp-so-bom-select, select[name$="-bom_version_id"]');
     var rtSel = row.querySelector('.jp-so-routing-select, select[name$="-routing_id"]');
-    loadVersions(row, bomSel ? bomSel.value : '', rtSel ? rtSel.value : '');
+    loadVersions(row, bomSel ? bomSel.value : '', rtSel ? rtSel.value : '', true, true);
   });
 })();
 </script>

@@ -540,8 +540,8 @@ def routings_for_product(product_code: str):
     q = Q(style_code__iexact=code)
     doc = ProductTechDoc.objects.filter(product_code__iexact=code).only('pk').first()
     if doc:
-        q |= Q(tech_doc_id=doc.pk)
-    return list(SxRouting.objects.filter(q).order_by('routing_rev', 'id'))
+        q |= Q(tech_doc_id=doc.pk) | Q(bom_versions__tech_doc_id=doc.pk)
+    return list(SxRouting.objects.filter(q).distinct().order_by('routing_rev', 'id'))
 
 
 def default_routing_for_product(product_code: str):

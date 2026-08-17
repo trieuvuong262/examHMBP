@@ -367,14 +367,16 @@
       if (typeof window.jpSoWriteLineSizeQtys === 'function') {
         window.jpSoWriteLineSizeQtys(row, sizeMap);
       } else {
+        var sizeHost = row.nextElementSibling && row.nextElementSibling.classList.contains('jp-so-size-row')
+          ? row.nextElementSibling : row;
         Object.keys(sizeMap).forEach(function (sz) {
-          var inp = row.querySelector('.jp-so-size-qty[data-size="' + sz + '"]');
+          var inp = sizeHost.querySelector('.jp-so-size-qty[data-size="' + sz + '"]');
           if (inp) {
             inp.value = String(sizeMap[sz]);
             inp.classList.add('is-filled');
           }
         });
-        var hidden = row.querySelector('.jp-so-size-qtys-json, input[name$="-size_qtys"]');
+        var hidden = sizeHost.querySelector('.jp-so-size-qtys-json, input[name$="-size_qtys"]');
         if (hidden) hidden.value = JSON.stringify(sizeMap);
       }
     }

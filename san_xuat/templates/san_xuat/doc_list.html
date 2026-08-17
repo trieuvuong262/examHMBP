@@ -13,7 +13,7 @@
      data-loading-message="Đang tải hồ sơ thiết kế…">
     <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
         <div class="jp-sx-detail-title">
-            <h2 class="jp-npl-mat-topbar-title w-100">Hồ sơ thiết kế</h2>
+            <h2 class="jp-npl-mat-topbar-title w-100">Hồ sơ thiết kế sản xuất</h2>
         </div>
         <nav class="jp-sx-tools" aria-label="Công cụ">
             {% include 'san_xuat/includes/sx_export_btn.html' with export_key='doc_list' %}
@@ -34,7 +34,8 @@
                 <tr>
                     <th style="min-width:220px">Sản phẩm</th>
                     <th>Trạng thái</th>
-                    <th>Phiên bản</th>
+                    <th>BOM</th>
+                    <th>Routing</th>
                     <th class="text-end">NPL</th>
                     <th class="text-end">Công đoạn</th>
                     <th>Cập nhật</th>
@@ -76,10 +77,24 @@
                             <a href="{% url 'san_xuat:doc_detail' doc.pk %}?tab=bom&bom={{ bom.pk }}{% if request.GET %}&{{ request.GET.urlencode }}{% endif %}"
                                class="badge bg-light text-dark border me-1 text-decoration-none sx-bom-badge"
                                onclick="event.stopPropagation()"
-                               data-loading-message="Đang tải hồ sơ…">{{ bom.version_label }}</a>
+                               data-loading-message="Đang tải BOM…">{{ bom.version_label }}</a>
                             {% endfor %}
                         {% else %}
-                            <span class="text-muted">Chưa có</span>
+                            <span class="text-muted">—</span>
+                        {% endif %}
+                        {% endwith %}
+                    </td>
+                    <td class="small">
+                        {% with routings=doc.routings.all %}
+                        {% if routings %}
+                            {% for rt in routings %}
+                            <a href="{% url 'san_xuat:doc_detail' doc.pk %}?tab=process&routing={{ rt.pk }}{% if request.GET %}&{{ request.GET.urlencode }}{% endif %}"
+                               class="badge bg-light text-dark border me-1 text-decoration-none sx-bom-badge"
+                               onclick="event.stopPropagation()"
+                               data-loading-message="Đang tải routing…">{{ rt.routing_rev }}</a>
+                            {% endfor %}
+                        {% else %}
+                            <span class="text-muted">—</span>
                         {% endif %}
                         {% endwith %}
                     </td>
@@ -89,15 +104,19 @@
                         {% endwith %}
                     </td>
                     <td class="text-end small text-muted">
-                        {% with boms=doc.bom_versions.all %}
-                        {% if boms %}{{ boms.0.step_count }}{% else %}—{% endif %}
+                        {% with routings=doc.routings.all %}
+                        {% if routings %}{{ routings.0.n_lines }}{% else %}
+                          {% with boms=doc.bom_versions.all %}
+                          {% if boms %}{{ boms.0.step_count }}{% else %}—{% endif %}
+                          {% endwith %}
+                        {% endif %}
                         {% endwith %}
                     </td>
                     <td class="text-muted small">{{ doc.updated_at|date:"d/m/Y" }}</td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="6" class="text-center text-muted py-4">Chưa có hồ sơ SX nào.</td>
+                    <td colspan="7" class="text-center text-muted py-4">Chưa có hồ sơ SX nào.</td>
                 </tr>
                 {% endfor %}
             </tbody>

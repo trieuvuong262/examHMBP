@@ -1170,7 +1170,17 @@ def upsert_routing_line(
     assert_routing_editable(routing)
     op_code = (op_code or '').strip().upper()
     if not op_code:
-        raise IeOpsError('Nhập mã công đoạn.')
+        # Hồ sơ thiết kế có thể khai báo routing nhanh chỉ với nhóm, tên và
+        # bộ phận. Tạo mã snapshot nội bộ để dòng vẫn là một routing line hợp lệ.
+        try:
+            generated_seq = int(seq_no) if seq_no is not None else None
+        except (TypeError, ValueError):
+            generated_seq = None
+        if generated_seq is None:
+            generated_seq = (
+                routing.lines.order_by('-seq_no').values_list('seq_no', flat=True).first() or 0
+            ) + 1
+        op_code = f'DOC-{routing.pk}-{generated_seq:03d}'
     op_rev = (op_rev or '').strip() or None
     name = (op_name_vi or '').strip()
     op = resolve_operation(op_code, op_rev)

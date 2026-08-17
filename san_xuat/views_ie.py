@@ -594,8 +594,109 @@ def _handle_ref_catalog_import(request, *, kind: str, redirect_to: str):
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
+def _parse_pk_list(raw_values) -> list[int]:
+    pks: list[int] = []
+    seen: set[int] = set()
+    for raw in raw_values or []:
+        s = str(raw or '').strip()
+        if not s.isdigit():
+            continue
+        pk = int(s)
+        if pk in seen:
+            continue
+        seen.add(pk)
+        pks.append(pk)
+    return pks
+
+
+def _bulk_delete_routings(*, request, perms: dict, pks: list[int]) -> None:
+    if not perms.get('can_update'):
+        raise IeOpsError('Bạn không có quyền xóa routing.')
+    if not pks:
+        raise IeOpsError('Chưa chọn routing nào.')
+    locked = _locked_routing_ids()
+    deleted = 0
+    skipped_locked = 0
+    errors: list[str] = []
+    for routing in SxRouting.objects.filter(pk__in=pks):
+        if routing.pk in locked:
+            skipped_locked += 1
+            continue
+        try:
+            delete_routing(routing=routing)
+            deleted += 1
+        except IeOpsError as exc:
+            errors.append(str(exc))
+    if deleted:
+        messages.success(request, f'Đã xóa {deleted} routing.')
+    if skipped_locked:
+        messages.warning(request, f'Bỏ qua {skipped_locked} routing đang khóa (đã gắn lệnh SX).')
+    if errors:
+        messages.error(request, '; '.join(errors[:5]))
+    if not deleted and not skipped_locked and not errors:
+        messages.error(request, 'Không xóa được routing đã chọn.')
+
+
+def _bulk_delete_operations(*, request, perms: dict, pks: list[int]) -> None:
+    if not perms.get('can_update'):
+        raise IeOpsError('Bạn không có quyền xóa công đoạn.')
+    if not pks:
+        raise IeOpsError('Chưa chọn công đoạn nào.')
+    deleted = 0
+    errors: list[str] = []
+    for op in SxOperation.objects.filter(pk__in=pks):
+        try:
+            delete_operation(operation=op)
+            deleted += 1
+        except IeOpsError as exc:
+            errors.append(str(exc))
+    if deleted:
+        messages.success(request, f'Đã xóa {deleted} công đoạn.')
+    if errors:
+        messages.error(request, '; '.join(errors[:5]))
+    if not deleted and not errors:
+        messages.error(request, 'Không xóa được công đoạn đã chọn.')
+
+
+def _bulk_delete_groups(*, request, perms: dict, pks: list[int]) -> None:
+    if not perms.get('can_update'):
+        raise IeOpsError('Bạn không có quyền xóa nhóm.')
+    if not pks:
+        raise IeOpsError('Chưa chọn nhóm nào.')
+    deleted = 0
+    errors: list[str] = []
+    for group in SxOperationGroup.objects.filter(pk__in=pks):
+        try:
+            delete_operation_group(group=group)
+            deleted += 1
+        except IeOpsError as exc:
+            errors.append(str(exc))
+    if deleted:
+        messages.success(request, f'Đã xóa {deleted} nhóm công đoạn.')
+    if errors:
+        messages.error(request, '; '.join(errors[:5]))
+    if not deleted and not errors:
+        messages.error(request, 'Không xóa được nhóm đã chọn.')
+
+
 def ie_hub(request):
     perms = _perm_ctx(request)
+
+    if request.method == 'POST':
+        action = (request.POST.get('action') or '').strip()
+        back = reverse('san_xuat:ie_hub')
+        try:
+            if action == 'bulk_delete_routing':
+                _bulk_delete_routings(
+                    request=request,
+                    perms=perms,
+                    pks=_parse_pk_list(request.POST.getlist('pk')),
+                )
+            else:
+                messages.error(request, 'Hành động không hợp lệ.')
+        except IeOpsError as exc:
+            messages.error(request, str(exc))
+        return redirect(back)
 
     stats = {
         'machines': production_machine_count(),
@@ -619,6 +720,7 @@ def ie_hub(request):
         **perms,
         'stats': stats,
         'routings': routings,
+        'locked_routing_ids': _locked_routing_ids(),
     })
 
 
@@ -725,6 +827,12 @@ def group_list(request):
                 code = group.code
                 delete_operation_group(group=group)
                 messages.success(request, f'Đã xóa nhóm {code}.')
+            elif action == 'bulk_delete_group':
+                _bulk_delete_groups(
+                    request=request,
+                    perms=perms,
+                    pks=_parse_pk_list(request.POST.getlist('pk')),
+                )
             else:
                 messages.error(request, 'Hành động không hợp lệ.')
         except IeOpsError as exc:
@@ -902,6 +1010,12 @@ def operation_list(request):
                     raise IeOpsError('Bạn không có quyền xóa công đoạn.')
                 label = delete_operation(operation=op)
                 messages.success(request, f'Đã xóa {label}.')
+            elif action == 'bulk_delete_operation':
+                _bulk_delete_operations(
+                    request=request,
+                    perms=perms,
+                    pks=_parse_pk_list(request.POST.getlist('pk')),
+                )
             else:
                 messages.error(request, 'Hành động không hợp lệ.')
         except IeOpsError as exc:
@@ -1111,6 +1225,12 @@ def routing_list(request):
                     raise IeOpsError('Bạn không có quyền xóa routing.')
                 rid = delete_routing(routing=routing)
                 messages.success(request, f'Đã xóa routing {rid}.')
+            elif action == 'bulk_delete_routing':
+                _bulk_delete_routings(
+                    request=request,
+                    perms=perms,
+                    pks=_parse_pk_list(request.POST.getlist('pk')),
+                )
             else:
                 messages.error(request, 'Hành động không hợp lệ.')
         except IeOpsError as exc:
@@ -1294,11 +1414,14 @@ def ie_machine_search_api(request):
 def ie_operation_search(request):
     """API tìm công đoạn thư viện — mỗi kết quả là cặp OP_CODE + OP_REV (rule IE)."""
     q = (request.GET.get('q') or '').strip()
+    group_code = (request.GET.get('group_code') or '').strip()
     qs = (
         SxOperation.objects.exclude(status=SxOperation.STATUS_RETIRED)
         .select_related('group__default_work_center', 'machine')
         .order_by('op_code', 'op_rev')
     )
+    if group_code:
+        qs = qs.filter(group__code__iexact=group_code)
     if q:
         qs = qs.filter(
             Q(op_code__icontains=q)
@@ -1306,11 +1429,17 @@ def ie_operation_search(request):
             | Q(name_en__icontains=q)
         )
     results = []
+    label_mode = (request.GET.get('label') or '').strip().lower()
     for op in qs[:60]:
         snap = operation_library_snapshot(op)
+        name = snap.get('name_vi', '') or op.name_vi or op.op_code
+        if label_mode == 'name':
+            text = name
+        else:
+            text = f'{op.op_code}/{op.op_rev} — {op.name_vi}'
         results.append({
             'id': f'{op.op_code}|{op.op_rev}',
-            'text': f'{op.op_code}/{op.op_rev} — {op.name_vi}',
+            'text': text,
             'op_code': op.op_code,
             'op_rev': op.op_rev,
             'name_vi': snap.get('name_vi', ''),

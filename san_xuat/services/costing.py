@@ -176,7 +176,8 @@ def compute_costing_for_sales_line(so_line) -> CostingResult:
     return result
 
 
-def compute_costing(bom: BomVersion) -> CostingResult:
+def compute_costing(bom: BomVersion, *, routing=None) -> CostingResult:
+    """Costing theo BOM: NVL từ dòng BOM; nhân công từ ProcessStep (hoặc từ routing xem thử)."""
     result = CostingResult(
         overhead_pct=_d(bom.overhead_pct),
         overhead_amount=_d(getattr(bom, 'overhead_amount', None)),
@@ -209,20 +210,42 @@ def compute_costing(bom: BomVersion) -> CostingResult:
         )
 
     labor_total = ZERO
-    for step in bom.process_steps.all():
-        hours, amount = labor_cost_for_step(step.norm_per_hour, step.cost_per_hour)
-        labor_total += amount
-        result.process_lines.append(
-            ProcessStepCost(
-                step_id=step.pk,
-                sequence=step.sequence,
-                process_name=step.process_name,
-                norm_per_hour=_d(step.norm_per_hour),
-                cost_per_hour=_d(step.cost_per_hour),
-                hours_per_piece=hours,
-                labor_amount=amount,
-            ),
-        )
+    if routing is not None:
+        for idx, line in enumerate(
+            routing.lines.select_related('work_center').order_by('seq_no', 'pk'),
+            start=1,
+        ):
+            smv = _d(line.applied_unit_smv)
+            norm = (Decimal('60') / smv).quantize(Decimal('0.01')) if smv > 0 else ZERO
+            rate = _d(line.price_factor)
+            hours, amount = labor_cost_for_step(norm, rate)
+            labor_total += amount
+            result.process_lines.append(
+                ProcessStepCost(
+                    step_id=line.pk,
+                    sequence=line.seq_no or idx * 10,
+                    process_name=line.op_name_vi or line.op_code or '',
+                    norm_per_hour=norm,
+                    cost_per_hour=rate,
+                    hours_per_piece=hours,
+                    labor_amount=amount,
+                ),
+            )
+    else:
+        for step in bom.process_steps.all():
+            hours, amount = labor_cost_for_step(step.norm_per_hour, step.cost_per_hour)
+            labor_total += amount
+            result.process_lines.append(
+                ProcessStepCost(
+                    step_id=step.pk,
+                    sequence=step.sequence,
+                    process_name=step.process_name,
+                    norm_per_hour=_d(step.norm_per_hour),
+                    cost_per_hour=_d(step.cost_per_hour),
+                    hours_per_piece=hours,
+                    labor_amount=amount,
+                ),
+            )
 
     base = material_total + labor_total
     pct_overhead = (base * result.overhead_pct / Decimal('100')).quantize(MONEY)

@@ -47,10 +47,28 @@
   </form>
 
   <div class="card border-0 shadow-sm overflow-hidden">
+    {% if can_update and items %}
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 px-3 py-2 border-bottom bg-white">
+      <span class="small text-muted">Chọn nhiều để xóa hàng loạt</span>
+      <button type="submit" form="ieGroupBulkForm" class="btn btn-sm btn-outline-danger" id="ieGroupBulkDeleteBtn" disabled
+              onclick="return confirm('Xóa các nhóm đã chọn? Nhóm còn công đoạn sẽ bị bỏ qua.');">
+        <i class="bi bi-trash me-1"></i>Xóa đã chọn
+      </button>
+    </div>
+    <form method="post" id="ieGroupBulkForm" class="d-none">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="bulk_delete_group">
+    </form>
+    {% endif %}
     <div class="jp-ie-table-scroll">
       <table class="table table-hover table-sm align-middle mb-0 jp-ie-wide-table">
         <thead class="table-light">
           <tr>
+            {% if can_update %}
+            <th class="text-center" style="width:42px">
+              <input type="checkbox" class="form-check-input" id="ieGroupCheckAll" title="Chọn tất cả">
+            </th>
+            {% endif %}
             <th>Mã nhóm</th>
             <th>Tên nhóm</th>
             <th>Khâu sản xuất</th>
@@ -63,9 +81,15 @@
             <th class="text-end">Số CĐ</th>
             {% if can_update %}<th></th>{% endif %}
           </tr>
-        </thead>        <tbody>
+        </thead>
+        <tbody>
         {% for g in items %}
           <tr>
+            {% if can_update %}
+            <td class="text-center">
+              <input type="checkbox" class="form-check-input ie-group-pick" name="pk" value="{{ g.pk }}" form="ieGroupBulkForm">
+            </td>
+            {% endif %}
             <td class="fw-semibold">{{ g.code }}</td>
             <td>{{ g.name }}</td>
             <td class="small">{{ g.process_stage_label|default:"—" }}</td>
@@ -108,7 +132,7 @@
             {% endif %}
           </tr>
         {% empty %}
-          <tr><td colspan="{% if can_update %}11{% else %}10{% endif %}" class="text-muted small p-3 text-center jp-ie-cell-wrap">Không có nhóm phù hợp.</td></tr>
+          <tr><td colspan="{% if can_update %}12{% else %}10{% endif %}" class="text-muted small p-3 text-center jp-ie-cell-wrap">Không có nhóm phù hợp.</td></tr>
         {% endfor %}
         </tbody>
       </table>
@@ -120,6 +144,33 @@
 </div>
 
 {% include 'san_xuat/includes/ie_wide_table_styles.html' %}
+
+{% if can_update and items %}
+<script>
+(function () {
+  var all = document.getElementById('ieGroupCheckAll');
+  var picks = document.querySelectorAll('.ie-group-pick');
+  var btn = document.getElementById('ieGroupBulkDeleteBtn');
+  function sync() {
+    var n = 0;
+    picks.forEach(function (cb) { if (cb.checked) n += 1; });
+    if (btn) btn.disabled = n === 0;
+    if (all && picks.length) {
+      all.checked = n === picks.length;
+      all.indeterminate = n > 0 && n < picks.length;
+    }
+  }
+  if (all) {
+    all.addEventListener('change', function () {
+      picks.forEach(function (cb) { cb.checked = all.checked; });
+      sync();
+    });
+  }
+  picks.forEach(function (cb) { cb.addEventListener('change', sync); });
+  sync();
+})();
+</script>
+{% endif %}
 
 {% if can_create or can_update %}
 <div class="modal fade" id="ieAddGroupModal" tabindex="-1" aria-labelledby="ieAddGroupModalLabel" aria-hidden="true">

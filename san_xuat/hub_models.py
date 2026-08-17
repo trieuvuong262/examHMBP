@@ -184,6 +184,12 @@ class SxSalesOrderLine(models.Model):
         related_name='sales_order_lines',
         verbose_name='Phiên bản công đoạn',
     )
+    bom_line_overrides = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name='NVL áp dụng trên đơn',
+        help_text='Snapshot NPL từ BOM khi lên đơn: [{bom_line_id, material_code, qty, scrap_pct, ...}].',
+    )
     qty_scrap_rate = models.DecimalField(
         max_digits=7, decimal_places=2, default=Decimal('0'),
         verbose_name='Tỷ lệ sai hỏng (%)',

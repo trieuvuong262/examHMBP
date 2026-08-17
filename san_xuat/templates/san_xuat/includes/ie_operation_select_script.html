@@ -56,12 +56,17 @@
       setField('op_code', data.op_code || '');
       setField('op_rev', data.op_rev || 'R01');
       setField('op_name_vi', data.name_vi || '');
-      setSelect('group_code', data.group_code || '');
+      // Không xóa nhóm đã chọn khi clear công đoạn (form lọc theo nhóm).
+      if ((data.group_code || '').trim()) {
+        setSelect('group_code', data.group_code);
+      }
       setSelect('machine_code', data.machine_code || '');
       setField('library_unit_smv', data.library_unit_smv || '');
       setField('applied_unit_smv', data.applied_unit_smv || data.library_unit_smv || '');
       setSelect('skill_level_label', data.skill_level_label || '');
-      setSelect('work_center_code', data.work_center_code || '');
+      if (Object.prototype.hasOwnProperty.call(data, 'work_center_code')) {
+        setSelect('work_center_code', data.work_center_code || '');
+      }
     } finally {
       window._ieApplyingPick = false;
     }
@@ -101,10 +106,24 @@
     });
   }
 
-  function remoteLoad(url, mapFn) {
+  function remoteLoad(url, mapFn, opts) {
+    opts = opts || {};
     return function (query, callback) {
       var q = (query || '').trim();
-      var full = url + (q ? ('?q=' + encodeURIComponent(q)) : '');
+      var params = [];
+      if (q) params.push('q=' + encodeURIComponent(q));
+      if (typeof opts.extraParams === 'function') {
+        var extra = opts.extraParams() || {};
+        Object.keys(extra).forEach(function (key) {
+          var val = (extra[key] || '').toString().trim();
+          if (val) params.push(encodeURIComponent(key) + '=' + encodeURIComponent(val));
+        });
+      }
+      if (opts.requireGroup && !(opts.extraParams && (opts.extraParams().group_code || '').trim())) {
+        callback([]);
+        return;
+      }
+      var full = url + (params.length ? ('?' + params.join('&')) : '');
       fetch(full, {
         headers: { 'Accept': 'application/json' },
         credentials: 'same-origin',
@@ -118,7 +137,13 @@
   function initOpPicker(sel) {
     if (!sel || sel.tomselect || typeof TomSelect === 'undefined') return;
     var form = sel.closest('form');
-    new TomSelect(sel, {
+    var filterByGroup = sel.dataset.filterByGroup === '1';
+    function currentGroup() {
+      if (!form) return '';
+      var g = form.querySelector('[name="group_code"]');
+      return g ? (g.value || '').trim() : '';
+    }
+    var ts = new TomSelect(sel, {
       maxOptions: 80,
       maxItems: 1,
       allowEmptyOption: true,
@@ -132,7 +157,13 @@
       valueField: 'value',
       labelField: 'text',
       searchField: ['text', 'op_code', 'name_vi'],
-      load: remoteLoad(opSearchUrl, mapOpRows),
+      load: remoteLoad(opSearchUrl, mapOpRows, {
+        requireGroup: filterByGroup,
+        extraParams: function () {
+          if (!filterByGroup) return {};
+          return { group_code: currentGroup(), label: 'name' };
+        },
+      }),
       onItemAdd: function (value) {
         applyPick(this, value);
       },
@@ -140,7 +171,40 @@
         if (!form || value) return;
         window.jpIeApplyOperationPick(form, { op_code: '', op_rev: 'R01', name_vi: '' }, true);
       },
+      onFocus: function () {
+        if (!filterByGroup) return;
+        if (!currentGroup()) {
+          this.close();
+          if (typeof this.settings.placeholder === 'string') {
+            /* keep placeholder */
+          }
+        }
+      },
     });
+    if (filterByGroup && form) {
+      var groupSel = form.querySelector('[name="group_code"]');
+      if (groupSel) {
+        groupSel.addEventListener('change', function () {
+          var keptGroup = currentGroup();
+          ts.clear(true);
+          ts.clearOptions();
+          window.jpIeApplyOperationPick(form, {
+            op_code: '',
+            op_rev: 'R01',
+            name_vi: '',
+            library_unit_smv: '',
+            applied_unit_smv: '',
+            work_center_code: '',
+            group_code: keptGroup,
+          }, true);
+          var normEl = form.querySelector('[name="norm_per_hour"]');
+          if (normEl) normEl.value = '';
+          if (keptGroup) {
+            ts.load('');
+          }
+        });
+      }
+    }
   }
 
   function initMachinePicker(sel) {

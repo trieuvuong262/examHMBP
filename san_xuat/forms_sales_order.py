@@ -66,21 +66,20 @@ class SalesOrderHeaderForm(forms.Form):
 
 class SalesOrderLineForm(forms.Form):
     product_code = forms.ChoiceField(
-        label='Mã sản phẩm',
+        label='Sản phẩm',
         choices=[],
         widget=forms.Select(attrs={
             'class': 'form-select form-select-sm jp-sx-product-code-select',
-            'data-placeholder': 'Gõ mã SX hoặc tên…',
+            'data-placeholder': 'Gõ tên sản phẩm…',
+            'data-label-mode': 'name',
         }),
     )
     product_name = forms.CharField(
         required=False,
         max_length=255,
         label='Tên',
-        widget=forms.TextInput(attrs={
-            'class': 'form-control-plaintext form-control-sm px-0',
-            'readonly': True,
-            'tabindex': '-1',
+        widget=forms.HiddenInput(attrs={
+            'class': 'jp-so-product-name',
         }),
     )
     bom_version_id = forms.CharField(
@@ -92,10 +91,10 @@ class SalesOrderLineForm(forms.Form):
     )
     routing_id = forms.CharField(
         required=False,
-        label='Quy trình IE',
+        label='Routing',
         widget=forms.Select(attrs={
             'class': 'form-select form-select-sm jp-so-routing-select',
-            'aria-label': 'Quy trình IE (routing)',
+            'aria-label': 'Routing',
         }),
     )
     qty = forms.DecimalField(
@@ -113,6 +112,10 @@ class SalesOrderLineForm(forms.Form):
     applied_smv_json = forms.CharField(
         required=False,
         widget=forms.HiddenInput(attrs={'class': 'jp-so-smv-json'}),
+    )
+    applied_bom_json = forms.CharField(
+        required=False,
+        widget=forms.HiddenInput(attrs={'class': 'jp-so-bom-json'}),
     )
 
     def __init__(self, *args, **kwargs):
@@ -141,12 +144,12 @@ class SalesOrderLineForm(forms.Form):
     def clean_product_code(self):
         code = (self.cleaned_data.get('product_code') or '').strip()
         if not code:
-            raise forms.ValidationError('Chọn mã sản phẩm.')
+            raise forms.ValidationError('Chọn sản phẩm.')
         from san_xuat.services.products import resolve_product_ref
 
         ref = resolve_product_ref(code)
         if not ref:
-            raise forms.ValidationError(f'Mã {code} không có trong kho sản phẩm.')
+            raise forms.ValidationError(f'Không tìm thấy sản phẩm {code}.')
         return ref.code
 
     def clean_bom_version_id(self):
@@ -188,7 +191,7 @@ def _clean_optional_pk(raw, model_name: str) -> int | None:
     elif model_name == 'SxRouting':
         from san_xuat.ie_models import SxRouting
         if not SxRouting.objects.filter(pk=pk).exists():
-            raise forms.ValidationError('Phiên bản công đoạn không tồn tại.')
+            raise forms.ValidationError('Routing không tồn tại.')
     return pk
 
 

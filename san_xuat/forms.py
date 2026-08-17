@@ -260,7 +260,7 @@ class BomOverheadAmountForm(forms.ModelForm):
         fields = ('overhead_amount',)
         widgets = {
             'overhead_amount': CompactNumberInput(attrs={
-                'class': 'form-control',
+                'class': 'form-control form-control-sm',
                 'step': '1',
                 'min': '0',
                 'inputmode': 'decimal',

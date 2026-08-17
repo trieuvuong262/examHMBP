@@ -41,10 +41,28 @@
   </form>
 
   <div class="card border-0 shadow-sm overflow-hidden">
+    {% if can_update and items %}
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 px-3 py-2 border-bottom bg-white">
+      <span class="small text-muted">Chọn nhiều để xóa hàng loạt</span>
+      <button type="submit" form="ieRoutingBulkForm" class="btn btn-sm btn-outline-danger" id="ieRoutingBulkDeleteBtn" disabled
+              onclick="return confirm('Xóa các routing đã chọn?');">
+        <i class="bi bi-trash me-1"></i>Xóa đã chọn
+      </button>
+    </div>
+    <form method="post" id="ieRoutingBulkForm" class="d-none">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="bulk_delete_routing">
+    </form>
+    {% endif %}
     <div class="jp-ie-table-scroll">
       <table class="table table-hover table-sm align-middle mb-0 jp-ie-wide-table" id="{{ sx_list_table_id }}">
         <thead class="table-light">
           <tr>
+            {% if can_update %}
+            <th class="npl-col text-center" data-col="_pick" style="width:42px">
+              <input type="checkbox" class="form-check-input" id="ieRoutingCheckAll" title="Chọn tất cả">
+            </th>
+            {% endif %}
             {% for col in list_columns %}
             <th class="npl-col{% if col.align == 'end' %} text-end{% endif %}" data-col="{{ col.key }}">{{ col.label }}</th>
             {% endfor %}
@@ -53,6 +71,13 @@
         <tbody>
         {% for r in items %}
           <tr class="jp-npl-catalog-row" data-href="{% url 'san_xuat:ie_routing_detail' r.pk %}">
+            {% if can_update %}
+            <td class="npl-col text-center" data-col="_pick" onclick="event.stopPropagation()">
+              {% if r.pk not in locked_routing_ids %}
+              <input type="checkbox" class="form-check-input ie-routing-pick" name="pk" value="{{ r.pk }}" form="ieRoutingBulkForm">
+              {% endif %}
+            </td>
+            {% endif %}
             <td class="npl-col fw-semibold small" data-col="routing_id">{{ r.routing_id }}</td>
             <td class="npl-col fw-semibold" data-col="style_code">{{ r.style_code }}</td>
             <td class="npl-col small" data-col="style_name">{{ r.style_name|default:"—"|truncatechars:48 }}</td>
@@ -65,7 +90,7 @@
             <td class="npl-col small text-nowrap" data-col="effective_from">{% if r.effective_from %}{{ r.effective_from|date:"Y-m-d" }}{% else %}—{% endif %}</td>
             <td class="npl-col small" data-col="approval_status">{{ r.get_approval_status_display }}</td>
             <td class="npl-col small" data-col="approved_by">{{ r.approved_by|default:"—" }}</td>
-            <td class="npl-col text-nowrap text-end" data-col="actions">
+            <td class="npl-col text-nowrap text-end" data-col="actions" onclick="event.stopPropagation()">
               {% if can_update and r.pk not in locked_routing_ids %}
               <form method="post" class="d-inline" onsubmit="return confirm('Xóa routing {{ r.routing_id }}?');">
                 {% csrf_token %}
@@ -77,7 +102,7 @@
             </td>
           </tr>
         {% empty %}
-          <tr><td colspan="{{ list_columns|length }}" class="text-muted small p-3 text-center">Không có routing phù hợp. Bấm Tạo routing để tạo mới.</td></tr>
+          <tr><td colspan="{% if can_update %}{{ list_columns|length|add:1 }}{% else %}{{ list_columns|length }}{% endif %}" class="text-muted small p-3 text-center">Không có routing phù hợp. Bấm Tạo routing để tạo mới.</td></tr>
         {% endfor %}
         </tbody>
       </table>
@@ -91,6 +116,33 @@
 {% include 'san_xuat/includes/ie_wide_table_styles.html' %}
 {% include 'kho_npl/includes/catalog_grid_scripts.html' with table_id=sx_list_table_id storage_key=sx_list_storage_key col_btn_id=sx_col_btn_id col_toggle_class=sx_col_toggle_class default_sort_key=sx_default_sort_key %}
 {% include 'san_xuat/includes/ie_list_filter_scripts.html' with form_id='ieRoutingFilterForm' %}
+
+{% if can_update and items %}
+<script>
+(function () {
+  var all = document.getElementById('ieRoutingCheckAll');
+  var picks = document.querySelectorAll('.ie-routing-pick');
+  var btn = document.getElementById('ieRoutingBulkDeleteBtn');
+  function sync() {
+    var n = 0;
+    picks.forEach(function (cb) { if (cb.checked) n += 1; });
+    if (btn) btn.disabled = n === 0;
+    if (all && picks.length) {
+      all.checked = n === picks.length;
+      all.indeterminate = n > 0 && n < picks.length;
+    }
+  }
+  if (all) {
+    all.addEventListener('change', function () {
+      picks.forEach(function (cb) { cb.checked = all.checked; });
+      sync();
+    });
+  }
+  picks.forEach(function (cb) { cb.addEventListener('change', sync); });
+  sync();
+})();
+</script>
+{% endif %}
 
 {% if can_create or can_update %}
 <div class="modal fade" id="ieAddRoutingModal" tabindex="-1" aria-labelledby="ieAddRoutingModalLabel" aria-hidden="true">

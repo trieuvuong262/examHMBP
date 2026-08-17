@@ -74,13 +74,29 @@ body > .ts-dropdown { z-index: 2200; }
       ? select.options[select.selectedIndex].textContent.trim()
       : initialValue;
     var itemUsesText = (select.dataset.itemLabel || '').trim() === 'text';
+    var labelMode = (select.dataset.labelMode || '').trim(); // name | text | code
+
+    function displayLabel(data, forItem) {
+      var name = (data.name || '').trim();
+      var code = (data.code || '').trim();
+      var text = (data.text || '').trim();
+      if (labelMode === 'name') {
+        if (forItem) return name || text || code || '';
+        if (name && code && name.toUpperCase() !== code.toUpperCase()) {
+          return name;
+        }
+        return name || text || code || '';
+      }
+      if (itemUsesText && forItem) {
+        if (data.text) return data.text;
+        if (code && name) return code + ' — ' + name;
+      }
+      if (forItem) return code || text || '';
+      return text || (code && name ? code + ' — ' + name : (code || name || ''));
+    }
 
     function itemLabel(data) {
-      if (itemUsesText) {
-        if (data.text) return data.text;
-        if (data.code && data.name) return data.code + ' — ' + data.name;
-      }
-      return data.code || data.text || '';
+      return displayLabel(data, true);
     }
 
     return new TomSelect(select, {
@@ -105,13 +121,23 @@ body > .ts-dropdown { z-index: 2200; }
       },
       render: {
         option: function (data, escape) {
+          if (labelMode === 'name') {
+            var name = escape(data.name || data.text || data.code || '');
+            var code = escape(data.code || '');
+            if (data.code && data.name && String(data.code) !== String(data.name)) {
+              return '<div><div>' + name + '</div><div class="small text-muted">' + code + '</div></div>';
+            }
+            return '<div>' + name + '</div>';
+          }
           return '<div>' + escape(data.text || data.code || '') + '</div>';
         },
         item: function (data, escape) {
           return '<div>' + escape(itemLabel(data)) + '</div>';
         },
         no_results: function () {
-          return '<div class="px-2 py-2 text-muted small">Không tìm thấy mã SX — thử gõ mã hoặc tên</div>';
+          return labelMode === 'name'
+            ? '<div class="px-2 py-2 text-muted small">Không tìm thấy — thử gõ tên sản phẩm</div>'
+            : '<div class="px-2 py-2 text-muted small">Không tìm thấy mã SX — thử gõ mã hoặc tên</div>';
         },
         loading: function () {
           return '<div class="px-2 py-2 text-muted small">Đang tải…</div>';
@@ -120,11 +146,15 @@ body > .ts-dropdown { z-index: 2200; }
       onInitialize: function () {
         if (!initialValue) return;
         if (!this.options[initialValue]) {
+          var initName = '';
+          if (labelMode === 'name' && initialLabel && initialLabel !== initialValue) {
+            initName = initialLabel;
+          }
           this.addOption({
             id: initialValue,
             code: initialValue,
             text: initialLabel || initialValue,
-            name: '',
+            name: initName || (labelMode === 'name' ? initialLabel : ''),
           });
         }
         this.setValue(initialValue, true);
