@@ -309,12 +309,14 @@ def _import_reference(wb, result: ImportResult) -> None:
             )
 
 
-def _import_groups(wb, result: ImportResult) -> None:
+def _import_groups(wb, result: ImportResult, *, user=None) -> None:
     if SHEET_GROUP not in wb.sheetnames:
         result.warnings.append(f'Không thấy sheet {SHEET_GROUP}, bỏ qua nhóm công đoạn.')
         return
+    from san_xuat.ie_permissions import ie_user_display_name
     from san_xuat.services.capacity_from_hrm import resolve_work_center_code
 
+    importer_name = ie_user_display_name(user)
     seen = set()
     skipped_samples = 0
     for order, rec in enumerate(_sheet_dicts(wb[SHEET_GROUP]), start=1):
@@ -343,7 +345,7 @@ def _import_groups(wb, result: ImportResult) -> None:
                 'description': _s(rec.get('MÔ TẢ CHI TIẾT')),
                 'default_work_center': wc,
                 'default_work_center_code': wc.code if wc else '',
-                'data_owner': _s(rec.get('NGƯỜI LẬP')),
+                'data_owner': importer_name or _s(rec.get('NGƯỜI LẬP')),
                 'effective_from': _date(rec.get('NGÀY HIỆU LỰC')),
                 'is_active': _yesno(rec.get('HIỆU LỰC')) if rec.get('HIỆU LỰC') is not None else True,
                 'sort_order': order * 10,
@@ -646,7 +648,7 @@ def import_operation_master(source, *, dry_run: bool = False, user=None) -> Impo
     try:
         with transaction.atomic():
             _import_reference(wb, result)
-            _import_groups(wb, result)
+            _import_groups(wb, result, user=user)
             _import_operations(wb, result, user=user)
             _import_routings(wb, result, user=user)
             _import_time_studies(wb, result)
@@ -734,7 +736,7 @@ def import_ie_dataset(source, kind, *, dry_run: bool = False, user=None) -> Impo
             )
         with transaction.atomic():
             if kind == KIND_GROUPS:
-                _import_groups(wb, result)
+                _import_groups(wb, result, user=user)
             elif kind == KIND_LIBRARY:
                 _import_operations(wb, result, user=user)
             else:
