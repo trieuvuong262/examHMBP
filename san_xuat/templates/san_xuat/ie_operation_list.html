@@ -118,7 +118,7 @@
             <td class="npl-col small" data-col="smv_basis">{{ op.smv_basis|default:"—" }}</td>
             <td class="npl-col small" data-col="smv_source">{% if op.smv_source %}{{ op.smv_source.name }}{% else %}—{% endif %}</td>
             <td class="npl-col small" data-col="status">{{ op.get_status_display }}</td>
-            <td class="npl-col small" data-col="effective_from">{% if op.effective_from %}{{ op.effective_from|date:"Y-m-d" }}{% else %}—{% endif %}</td>
+            <td class="npl-col small" data-col="effective_from">{% if op.effective_from %}{{ op.effective_from|date:"d/m/Y" }}{% else %}—{% endif %}</td>
             <td class="npl-col small" data-col="effective_to">{% if op.effective_to %}{{ op.effective_to|date:"Y-m-d" }}{% else %}—{% endif %}</td>
             <td class="npl-col small" data-col="ie_owner">{{ op.ie_owner|default:"—" }}</td>
             <td class="npl-col small" data-col="approved_by">{{ op.approved_by|default:"—" }}</td>

@@ -87,7 +87,7 @@
             <td class="npl-col text-end fw-semibold" data-col="sum_smv">{{ r.sum_smv|default:0|sx_num }}</td>
             <td class="npl-col" data-col="is_active">{% if r.is_active %}<span class="badge bg-success-subtle text-success">Có</span>{% else %}<span class="badge bg-light text-muted">Không</span>{% endif %}</td>
             <td class="npl-col small" data-col="ie_owner">{{ r.ie_owner|default:"—" }}</td>
-            <td class="npl-col small text-nowrap" data-col="effective_from">{% if r.effective_from %}{{ r.effective_from|date:"Y-m-d" }}{% else %}—{% endif %}</td>
+            <td class="npl-col small text-nowrap" data-col="effective_from">{% if r.effective_from %}{{ r.effective_from|date:"d/m/Y" }}{% else %}—{% endif %}</td>
             <td class="npl-col small" data-col="approval_status">{{ r.get_approval_status_display }}</td>
             <td class="npl-col small" data-col="approved_by">{{ r.approved_by|default:"—" }}</td>
             <td class="npl-col text-nowrap text-end" data-col="actions" onclick="event.stopPropagation()">

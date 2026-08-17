@@ -116,7 +116,7 @@
               {% endif %}
             </td>
             <td class="small">{{ g.data_owner|default:"—" }}</td>
-            <td class="small">{% if g.effective_from %}{{ g.effective_from|date:"Y-m-d" }}{% else %}—{% endif %}</td>
+            <td class="small">{% if g.effective_from %}{{ g.effective_from|date:"d/m/Y" }}{% else %}—{% endif %}</td>
             <td class="small jp-ie-cell-wrap" title="{{ g.notes }}">{{ g.notes|default:"—"|truncatechars:40 }}</td>
             <td class="text-end" onclick="event.stopPropagation()">
               <a href="{% url 'san_xuat:ie_operation_list' %}?group={{ g.code }}">{{ g.n_ops }}</a>
@@ -319,7 +319,14 @@ document.getElementById('ieEditGroupModal').addEventListener('show.bs.modal', fu
   document.getElementById('ieEditGroupPart').value = btn.getAttribute('data-part') || '';
   document.getElementById('ieEditGroupDesc').value = btn.getAttribute('data-description') || '';
   document.getElementById('ieEditGroupOwner').value = btn.getAttribute('data-owner') || '';
-  document.getElementById('ieEditGroupEffective').value = btn.getAttribute('data-effective') || '';
+  var eff = document.getElementById('ieEditGroupEffective');
+  var effVal = btn.getAttribute('data-effective') || '';
+  if (eff && eff._flatpickr) {
+    if (effVal) eff._flatpickr.setDate(effVal, true);
+    else eff._flatpickr.clear();
+  } else if (eff) {
+    eff.value = effVal;
+  }
   document.getElementById('ieEditGroupActive').checked = btn.getAttribute('data-active') === '1';
   document.getElementById('ieEditGroupNotes').value = btn.getAttribute('data-notes') || '';
 });
