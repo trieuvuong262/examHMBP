@@ -593,7 +593,6 @@ def _handle_ref_catalog_import(request, *, kind: str, redirect_to: str):
     return redirect(redirect_to)
 
 
-@module_perm_required(MODULE_SAN_XUAT, 'view')
 def _parse_pk_list(raw_values) -> list[int]:
     pks: list[int] = []
     seen: set[int] = set()
@@ -683,6 +682,7 @@ def _bulk_delete_groups(*, request, perms: dict, pks: list[int]) -> None:
         messages.error(request, 'Không xóa được nhóm đã chọn.')
 
 
+@module_perm_required(MODULE_SAN_XUAT, 'view')
 def ie_hub(request):
     perms = _perm_ctx(request)
 
