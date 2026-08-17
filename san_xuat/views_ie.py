@@ -833,9 +833,19 @@ def group_list(request):
         )
     qs = qs.order_by('sort_order', 'code')
     page_obj, query_string = paginate_queryset(request, qs)
+    grid = sx_list_grid_context(request, 'ie_group')
+    grid['sx_list_storage_key'] = 'san_xuat_ie_group_cols_v1'
+    if not perms.get('can_update'):
+        cols = [c for c in grid['list_columns'] if c['key'] != 'actions']
+        grid = {
+            **grid,
+            'list_columns': cols,
+            'total_col_weight': sum(c['weight'] for c in cols),
+        }
     return render(request, 'san_xuat/ie_group_list.html', {
         **perms,
         **_ie_io_context(KIND_GROUPS),
+        **grid,
         'page_obj': page_obj,
         'items': page_obj.object_list,
         'query_string': query_string,

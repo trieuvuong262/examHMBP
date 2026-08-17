@@ -24,6 +24,7 @@
         <i class="bi bi-plus-lg me-1"></i>Tạo nhóm công đoạn
       </button>
       {% endif %}
+      {% include 'san_xuat/includes/sx_list_col_picker.html' %}
       <span class="sep" aria-hidden="true"></span>
       <a href="{% url 'san_xuat:ie_hub' %}" class="is-back">
         <i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại
@@ -32,9 +33,9 @@
   </div>
 
   <div class="jp-sx-page-body">
-  <form method="get" class="row g-2 mb-3">
+  <form method="get" class="row g-2 mb-3" id="ieGroupFilterForm">
     <div class="col-md-5">
-      <input type="search" name="q" value="{{ term }}" class="form-control form-control-sm" placeholder="Tìm mã, tên, khâu SX, sản phẩm cần, người lập…">
+      <input type="search" name="q" value="{{ term }}" class="form-control form-control-sm" placeholder="Tìm mã, tên, khâu SX, sản phẩm cần, người lập…" autocomplete="off">
     </div>
     <div class="col-md-3">
       <select name="active" class="form-select form-select-sm">
@@ -43,7 +44,6 @@
         <option value="0" {% if active_filter == '0' %}selected{% endif %}>Ngưng (Không)</option>
       </select>
     </div>
-    <div class="col-md-2"><button class="btn btn-sm btn-hm w-100">Lọc</button></div>
   </form>
 
   <div class="card border-0 shadow-sm overflow-hidden">
@@ -61,25 +61,17 @@
     </form>
     {% endif %}
     <div class="jp-ie-table-scroll">
-      <table class="table table-hover table-sm align-middle mb-0 jp-ie-wide-table">
+      <table class="table table-hover table-sm align-middle mb-0 jp-ie-wide-table" id="{{ sx_list_table_id }}">
         <thead class="table-light">
           <tr>
             {% if can_pick_rows %}
-            <th class="text-center" style="width:42px">
+            <th class="text-center" data-col="_pick" style="width:42px">
               <input type="checkbox" class="form-check-input" id="ieGroupCheckAll" title="Chọn tất cả">
             </th>
             {% endif %}
-            <th>Mã nhóm</th>
-            <th>Tên nhóm</th>
-            <th>Khâu sản xuất</th>
-            <th>Sản phẩm cần</th>
-            <th>Mô tả chi tiết</th>
-            <th>Hiệu lực</th>
-            <th>Người lập</th>
-            <th>Ngày hiệu lực</th>
-            <th>Notes</th>
-            <th class="text-end">Số CĐ</th>
-            {% if can_update %}<th class="text-end" style="width:72px"></th>{% endif %}
+            {% for col in list_columns %}
+            <th class="npl-col{% if col.align == 'end' %} text-end{% endif %}" data-col="{{ col.key }}">{{ col.label }}</th>
+            {% endfor %}
           </tr>
         </thead>
         <tbody>
@@ -99,30 +91,30 @@
                       data-active="{% if g.is_active %}1{% else %}0{% endif %}"
                       data-notes="{{ g.notes }}"{% endif %}>
             {% if can_pick_rows %}
-            <td class="text-center" onclick="event.stopPropagation()">
+            <td class="text-center" data-col="_pick" onclick="event.stopPropagation()">
               <input type="checkbox" class="form-check-input ie-group-pick" name="pk" value="{{ g.pk }}" form="ieGroupBulkForm">
             </td>
             {% endif %}
-            <td class="fw-semibold">{{ g.code }}</td>
-            <td>{{ g.name }}</td>
-            <td class="small">{{ g.process_stage_label|default:"—" }}</td>
-            <td class="small">{{ g.product_part|default:"—" }}</td>
-            <td class="small jp-ie-cell-wrap" title="{{ g.description }}">{{ g.description|default:"—"|truncatechars:80 }}</td>
-            <td>
+            <td class="npl-col fw-semibold" data-col="code">{{ g.code }}</td>
+            <td class="npl-col" data-col="name">{{ g.name }}</td>
+            <td class="npl-col small" data-col="process_stage">{{ g.process_stage_label|default:"—" }}</td>
+            <td class="npl-col small" data-col="product_part">{{ g.product_part|default:"—" }}</td>
+            <td class="npl-col small jp-ie-cell-wrap" data-col="description" title="{{ g.description }}">{{ g.description|default:"—"|truncatechars:80 }}</td>
+            <td class="npl-col" data-col="is_active">
               {% if g.is_active %}
               <span class="badge bg-success-subtle text-success">Có</span>
               {% else %}
               <span class="badge bg-light text-muted">Không</span>
               {% endif %}
             </td>
-            <td class="small">{{ g.data_owner|default:"—" }}</td>
-            <td class="small">{% if g.effective_from %}{{ g.effective_from|date:"d/m/Y" }}{% else %}—{% endif %}</td>
-            <td class="small jp-ie-cell-wrap" title="{{ g.notes }}">{{ g.notes|default:"—"|truncatechars:40 }}</td>
-            <td class="text-end" onclick="event.stopPropagation()">
+            <td class="npl-col small" data-col="data_owner">{{ g.data_owner|default:"—" }}</td>
+            <td class="npl-col small" data-col="effective_from">{% if g.effective_from %}{{ g.effective_from|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+            <td class="npl-col small jp-ie-cell-wrap" data-col="notes" title="{{ g.notes }}">{{ g.notes|default:"—"|truncatechars:40 }}</td>
+            <td class="npl-col text-end" data-col="n_ops" onclick="event.stopPropagation()">
               <a href="{% url 'san_xuat:ie_operation_list' %}?group={{ g.code }}">{{ g.n_ops }}</a>
             </td>
             {% if can_update %}
-            <td class="text-end jp-td-actions" onclick="event.stopPropagation()">
+            <td class="npl-col text-end jp-td-actions" data-col="actions" onclick="event.stopPropagation()">
               <form method="post" class="d-inline" onsubmit="return confirm('Xóa nhóm {{ g.code }}?');">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="delete_group">
@@ -133,7 +125,7 @@
             {% endif %}
           </tr>
         {% empty %}
-          <tr><td colspan="{% if can_pick_rows %}12{% else %}11{% endif %}" class="text-muted small p-3 text-center jp-ie-cell-wrap">Không có nhóm phù hợp.</td></tr>
+          <tr><td colspan="{% if can_pick_rows %}{{ list_columns|length|add:1 }}{% else %}{{ list_columns|length }}{% endif %}" class="text-muted small p-3 text-center jp-ie-cell-wrap">Không có nhóm phù hợp.</td></tr>
         {% endfor %}
         </tbody>
       </table>
@@ -145,6 +137,8 @@
 </div>
 
 {% include 'san_xuat/includes/ie_wide_table_styles.html' %}
+{% include 'kho_npl/includes/catalog_grid_scripts.html' with table_id=sx_list_table_id storage_key=sx_list_storage_key col_btn_id=sx_col_btn_id col_toggle_class=sx_col_toggle_class default_sort_key=sx_default_sort_key %}
+{% include 'san_xuat/includes/ie_list_filter_scripts.html' with form_id='ieGroupFilterForm' %}
 
 {% if can_pick_rows and items %}
 <script>

@@ -716,6 +716,25 @@ SX_LIST_GRIDS: dict[str, dict[str, Any]] = {
         },
     ),
     # IE — thư viện công đoạn / routing (bảng rộng, ẩn-hiện cột như Kho NPL)
+    'ie_group': _spec(
+        _cols(
+            _col('code', 'Mã nhóm', required=True, weight=90, sortable=False),
+            _col('name', 'Tên nhóm', required=True, weight=140, sortable=False),
+            _col('process_stage', 'Khâu sản xuất', weight=110, sortable=False),
+            _col('product_part', 'Sản phẩm cần', weight=110, sortable=False),
+            _col('description', 'Mô tả chi tiết', weight=140, default=False, sortable=False),
+            _col('is_active', 'Hiệu lực', weight=80, sortable=False),
+            _col('data_owner', 'Người lập', weight=110, sortable=False),
+            _col('effective_from', 'Ngày hiệu lực', weight=100, sortable=False),
+            _col('notes', 'Notes', weight=100, default=False, sortable=False),
+            _col('n_ops', 'Số CĐ', weight=70, align='end', sortable=False),
+            _col('actions', 'Thao tác', weight=70, required=True, sortable=False, align='end'),
+            meta=False,
+            actions=False,
+        ),
+        {'code': 'code', 'name': 'name', 'sort_order': 'sort_order'},
+        default_sort='code',
+    ),
     'ie_operation': _spec(
         _cols(
             _col('group_code', 'Mã nhóm', weight=80, sortable=False),
