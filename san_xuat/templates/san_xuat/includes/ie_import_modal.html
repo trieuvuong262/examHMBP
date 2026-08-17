@@ -46,9 +46,9 @@
         <div class="jp-ie-import-tips">
           <div class="fw-semibold mb-1"><i class="bi bi-lightbulb me-1"></i>Làm theo các bước</div>
           <ol>
-            <li><strong>Tải file mẫu</strong> (1 sheet hướng dẫn + 1 sheet dữ liệu + dòng ví dụ).</li>
+            <li><strong>Tải file mẫu</strong> (1 sheet hướng dẫn + 1 sheet dữ liệu — chỉ tiêu đề cột).</li>
             <li>Mở Excel → đọc sheet <code>00_HUONG_DAN</code>.</li>
-            <li>Điền sheet <code>{{ io.sheet }}</code> — <strong>xóa dòng ví dụ</strong> trước khi lưu.</li>
+            <li>Điền sheet <code>{{ io.sheet }}</code> rồi lưu .xlsx.</li>
             {% if io.kind == 'library' %}
             <li><strong>Định mức thời gian = giây</strong> (vd 36 giây → SMV 0,6 phút trên Portal).</li>
             {% elif io.kind == 'routing' %}

@@ -233,6 +233,36 @@ def _col_pairs(ws, header_a, header_b):
 # --- Import từng sheet -----------------------------------------------------
 
 
+def _is_ie_template_sample_row(rec: dict) -> bool:
+    """True nếu dòng Excel là dòng ví dụ trong file mẫu — không import vào DB."""
+    notes = _s(rec.get('NOTES')).casefold()
+    if 'dòng mẫu' in notes or 'dong mau' in notes:
+        return True
+    name = _s(rec.get('TÊN CÔNG ĐOẠN')).casefold()
+    name_en = _s(rec.get('TÊN CÔNG ĐOẠN_EN')).casefold()
+    if '(ví dụ)' in name or '(vi du)' in name or '(sample)' in name or '(sample)' in name_en:
+        return True
+    group_desc = _s(rec.get('MÔ TẢ CHI TIẾT')).casefold()
+    if 'nhóm ví dụ' in group_desc or 'nhom vi du' in group_desc:
+        return True
+    style_name = _s(rec.get('TÊN MÃ HÀNG')).casefold()
+    if 'mã hàng ví dụ' in style_name or 'ma hang vi du' in style_name:
+        return True
+    routing_id = _s(rec.get('MÃ ĐƠN HÀNG')).casefold()
+    style_code = _s(rec.get('MÃ HÀNG SẢN PHẨM')).casefold()
+    if routing_id.startswith('style-demo') or style_code == 'style-demo':
+        return True
+    # Mã mẫu cố định trong file template thư viện
+    op_code = _s(rec.get('MÃ CÔNG ĐOẠN')).upper()
+    if op_code in {'SEW-1001', 'SEW-1002'} and (
+        '(ví dụ)' in _s(rec.get('TÊN CÔNG ĐOẠN')).casefold()
+        or 'sample' in name_en
+        or 'dòng mẫu' in notes
+    ):
+        return True
+    return False
+
+
 def _import_reference(wb, result: ImportResult) -> None:
     if SHEET_REF not in wb.sheetnames:
         result.warnings.append(f'Không thấy sheet {SHEET_REF}, bỏ qua danh mục nền.')
@@ -285,9 +315,13 @@ def _import_groups(wb, result: ImportResult) -> None:
     from san_xuat.services.capacity_from_hrm import resolve_work_center_code
 
     seen = set()
+    skipped_samples = 0
     for order, rec in enumerate(_sheet_dicts(wb[SHEET_GROUP]), start=1):
         code = _s(rec.get('MÃ NHÓM'))
         if not code:
+            continue
+        if _is_ie_template_sample_row(rec):
+            skipped_samples += 1
             continue
         if code in seen:
             result.warnings.append(f'[Nhóm] Trùng MÃ NHÓM: {code}')
@@ -318,6 +352,10 @@ def _import_groups(wb, result: ImportResult) -> None:
         result.bump('group', created)
         if wc_code and not wc:
             result.warnings.append(f'[Nhóm] {code}: DEFAULT_WORK_CENTER {wc_code} không map được sang bộ phận HR.')
+    if skipped_samples:
+        result.warnings.append(
+            f'[Nhóm] Đã bỏ qua {skipped_samples} dòng ví dụ mẫu (không import vào hệ thống).'
+        )
 
 
 def _import_operations(wb, result: ImportResult) -> None:
@@ -325,9 +363,13 @@ def _import_operations(wb, result: ImportResult) -> None:
         result.warnings.append(f'Không thấy sheet {SHEET_LIB}, bỏ qua thư viện công đoạn.')
         return
     seen = set()
+    skipped_samples = 0
     for rec in _sheet_dicts(wb[SHEET_LIB]):
         op_code = _s(rec.get('MÃ CÔNG ĐOẠN'))
         if not op_code:
+            continue
+        if _is_ie_template_sample_row(rec):
+            skipped_samples += 1
             continue
         op_rev = _s(rec.get('PHIÊN BẢN')) or 'R01'
         key = (op_code, op_rev)
@@ -404,6 +446,10 @@ def _import_operations(wb, result: ImportResult) -> None:
             },
         )
         result.bump('operation', created)
+    if skipped_samples:
+        result.warnings.append(
+            f'[Công đoạn] Đã bỏ qua {skipped_samples} dòng ví dụ mẫu (không import vào hệ thống).'
+        )
 
 
 def _routing_rev_from_id(routing_id: str, fallback: str) -> str:
@@ -420,10 +466,14 @@ def _import_routings(wb, result: ImportResult) -> None:
 
     grouped: dict[str, list[dict]] = {}
     order_ids: list[str] = []
+    skipped_samples = 0
     for rec in _sheet_dicts(wb[SHEET_ROUTING]):
         routing_id = _s(rec.get('MÃ ĐƠN HÀNG'))
         op_code = _s(rec.get('MÃ CÔNG ĐOẠN'))
         if not routing_id or not op_code:
+            continue
+        if _is_ie_template_sample_row(rec):
+            skipped_samples += 1
             continue
         if routing_id not in grouped:
             grouped[routing_id] = []
@@ -523,6 +573,10 @@ def _import_routings(wb, result: ImportResult) -> None:
                 result.warnings.append(
                     f'[Routing] {routing_id} #{seq} {op_code}: chênh lệch SMV {line.smv_variance_pct}% > {VARIANCE_WARN_PCT}%.'
                 )
+    if skipped_samples:
+        result.warnings.append(
+            f'[Routing] Đã bỏ qua {skipped_samples} dòng ví dụ mẫu (không import vào hệ thống).'
+        )
 
 
 def _import_time_studies(wb, result: ImportResult) -> None:
@@ -827,7 +881,7 @@ IE_DATASETS = {
             [],
             ['Bước 1', 'Đọc sheet này — không đổi tên sheet dữ liệu.'],
             ['Bước 2', f'Điền sheet {SHEET_GROUP}: mỗi dòng = 1 nhóm (Cắt, May, In-Ép…).'],
-            ['Bước 3', 'Xóa dòng ví dụ mẫu, điền dữ liệu thật, lưu .xlsx.'],
+            ['Bước 3', 'Điền dữ liệu thật vào sheet dữ liệu (file mẫu chỉ có tiêu đề cột, không có dòng ví dụ).'],
             ['Bước 4', 'Portal → Nhóm công đoạn → Import.'],
             [],
             ['Cột bắt buộc', 'MÃ NHÓM · TÊN NHÓM'],
@@ -835,14 +889,9 @@ IE_DATASETS = {
             ['Cột hiệu lực', 'HIỆU LỰC (Có/Không) · NGƯỜI LẬP · NGÀY HIỆU LỰC · NOTES'],
             ['Trùng mã', 'Cùng MÃ NHÓM → hệ thống CẬP NHẬT nhóm cũ.'],
             ['Mẹo', 'Xuất Excel nhóm hiện tại rồi chỉnh — dễ hơn điền từ file trống.'],
+            ['Dòng mẫu cũ', 'Nếu file còn dòng NOTES «Dòng mẫu» / mô tả «ví dụ», hệ thống sẽ bỏ qua khi import.'],
         ],
-        'sample_rows': [
-            [
-                'MAY', 'May', 'May', 'Cổ / thân',
-                'Nhóm ví dụ — đổi hoặc xóa trước khi import thật',
-                'Có', 'IE', '', 'Dòng mẫu',
-            ],
-        ],
+        'sample_rows': [],
         'row_builder': _group_export_rows,
     },
     KIND_LIBRARY: {
@@ -886,7 +935,7 @@ IE_DATASETS = {
             [],
             ['Bước 1', 'Đọc sheet này — không đổi tên sheet dữ liệu.'],
             ['Bước 2', f'Điền sheet {SHEET_LIB}: mỗi dòng = 1 công đoạn chuẩn (mã + phiên bản).'],
-            ['Bước 3', 'Xóa dòng ví dụ mẫu, điền dữ liệu thật, lưu .xlsx.'],
+            ['Bước 3', 'Điền dữ liệu thật vào sheet dữ liệu (file mẫu chỉ có tiêu đề cột, không có dòng ví dụ).'],
             ['Bước 4', 'Portal → Thư viện công đoạn → Import.'],
             [],
             ['Cột bắt buộc', 'MÃ CÔNG ĐOẠN · TÊN CÔNG ĐOẠN · PHIÊN BẢN (mặc định R01)'],
@@ -898,19 +947,9 @@ IE_DATASETS = {
             ['TRẠNG THÁI', 'Nháp | Thử nghiệm | Đã duyệt | Ngưng sử dụng'],
             ['Nhóm chưa có', 'Nếu MÃ NHÓM chưa tồn tại, hệ thống tự tạo nhóm tạm (có cảnh báo).'],
             ['Mẹo', 'Xuất Excel thư viện hiện tại rồi chỉnh — dễ hơn điền từ file trống.'],
+            ['Dòng mẫu cũ', 'Nếu file còn SEW-1001/1002 «ví dụ» hoặc NOTES «Dòng mẫu», hệ thống sẽ bỏ qua khi import.'],
         ],
-        'sample_rows': [
-            [
-                'MAY', 'SEW-1001', 'R01', 'May sống cổ áo (ví dụ)', 'Collar join (sample)',
-                '', 36, '', 'May', 'Cổ', '', '', '', '', '', '', '', 'Nháp',
-                '', '', '', '', '', '', 'Dòng mẫu — xóa trước khi import thật',
-            ],
-            [
-                'MAY', 'SEW-1002', 'R01', 'Đóng gấu tay (ví dụ)', 'Sleeve hem (sample)',
-                '', 48, '', 'May', 'Tay', '', '', '', '', '', '', '', 'Nháp',
-                '', '', '', '', '', '', 'Dòng mẫu — xóa trước khi import thật',
-            ],
-        ],
+        'sample_rows': [],
         'row_builder': _library_export_rows,
     },
     KIND_ROUTING: {
@@ -952,7 +991,7 @@ IE_DATASETS = {
             [],
             ['Bước 1', 'Đọc sheet này — không đổi tên sheet dữ liệu.'],
             ['Bước 2', f'Điền sheet {SHEET_ROUTING}: mỗi dòng = 1 công đoạn trong quy trình mã hàng.'],
-            ['Bước 3', 'Xóa dòng ví dụ mẫu, điền dữ liệu thật, lưu .xlsx.'],
+            ['Bước 3', 'Điền dữ liệu thật vào sheet dữ liệu (file mẫu chỉ có tiêu đề cột, không có dòng ví dụ).'],
             ['Bước 4', 'Portal → Routing mã hàng → Import.'],
             [],
             ['Cột bắt buộc', 'MÃ ĐƠN HÀNG · MÃ HÀNG SẢN PHẨM · MÃ CÔNG ĐOẠN'],
@@ -962,17 +1001,9 @@ IE_DATASETS = {
             ['ĐỊNH MỨC SP/H', 'Xuất tự tính = 60 / ĐỊNH MỨC THỜI GIAN (phút). Có thể để trống khi import.'],
             ['% CHÊNH LỆCH', 'Tự tính so với định mức theo phiên bản; >15% cần giải trình trên Portal.'],
             ['Mẹo', 'Xuất Excel routing hiện tại rồi chỉnh — dễ hơn điền từ file trống.'],
+            ['Dòng mẫu cũ', 'Nếu file còn STYLE-DEMO / NOTES «Dòng mẫu», hệ thống sẽ bỏ qua khi import.'],
         ],
-        'sample_rows': [
-            [
-                'STYLE-DEMO-R01', 'STYLE-DEMO', 'Mã hàng ví dụ', 'Áo',
-                'MAY', 'SEW-1001', 'R01', 'May sống cổ áo (ví dụ)', 1,
-                'A', 0.6, 0.6, 0.6, 100, 0,
-                1, 0,
-                'Có', '', '', 'HRD-MAY', 'IE',
-                'Dòng mẫu — xóa trước khi import thật',
-            ],
-        ],
+        'sample_rows': [],
         'row_builder': _routing_export_rows,
     },
 }
