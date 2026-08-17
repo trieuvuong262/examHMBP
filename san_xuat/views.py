@@ -1,7 +1,9 @@
 from django.contrib import messages
 from django.db.models import Count, Q
+from django.db.models.deletion import ProtectedError
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.views.decorators.http import require_GET, require_POST
 import json
@@ -10,6 +12,7 @@ from assessment.decorators import module_perm_required
 from hrm.module_permissions import (
     MODULE_SAN_XUAT,
     user_can_create_module,
+    user_can_delete_module,
     user_can_export_module,
     user_can_print_module,
     user_can_update_module,
@@ -40,12 +43,58 @@ from hrm.user_search import search_issue_recipients
 
 
 def _perm_ctx(request):
+    can_create = user_can_create_module(request.user, MODULE_SAN_XUAT)
+    can_update = user_can_update_module(request.user, MODULE_SAN_XUAT)
+    can_delete = user_can_delete_module(request.user, MODULE_SAN_XUAT)
     return {
-        'can_create': user_can_create_module(request.user, MODULE_SAN_XUAT),
-        'can_update': user_can_update_module(request.user, MODULE_SAN_XUAT),
+        'can_create': can_create,
+        'can_update': can_update,
+        'can_delete': can_delete,
+        'can_pick_rows': bool(can_update or can_delete),
         'can_print': user_can_print_module(request.user, MODULE_SAN_XUAT),
         'can_export': user_can_export_module(request.user, MODULE_SAN_XUAT),
     }
+
+
+def _parse_int_pks(raw_values) -> list[int]:
+    pks: list[int] = []
+    seen: set[int] = set()
+    for raw in raw_values or []:
+        s = str(raw or '').strip()
+        if not s.isdigit():
+            continue
+        pk = int(s)
+        if pk in seen:
+            continue
+        seen.add(pk)
+        pks.append(pk)
+    return pks
+
+
+def _bulk_delete_tech_docs(*, request, perms: dict, pks: list[int]) -> None:
+    if not perms.get('can_pick_rows'):
+        messages.error(request, 'Bạn không có quyền xóa hồ sơ.')
+        return
+    if not pks:
+        messages.error(request, 'Chưa chọn hồ sơ nào.')
+        return
+    deleted = 0
+    errors: list[str] = []
+    for doc in ProductTechDoc.objects.filter(pk__in=pks):
+        label = doc.product_code or str(doc.pk)
+        try:
+            doc.delete()
+            deleted += 1
+        except ProtectedError:
+            errors.append(f'{label}: đang được tham chiếu, không xóa được')
+        except Exception as exc:
+            errors.append(f'{label}: {exc}')
+    if deleted:
+        messages.success(request, f'Đã xóa {deleted} hồ sơ thiết kế.')
+    if errors:
+        messages.error(request, '; '.join(errors[:5]))
+    if not deleted and not errors:
+        messages.error(request, 'Không xóa được hồ sơ đã chọn.')
 
 
 def _doc_list_back_query(request) -> str:
@@ -85,6 +134,20 @@ def doc_list(request):
     )
     from san_xuat.list_grid import apply_sx_list_sort, sx_list_grid_context
     from san_xuat.services.products import fill_tech_doc_display_images
+
+    perms = _perm_ctx(request)
+    if request.method == 'POST':
+        action = (request.POST.get('action') or '').strip()
+        back = request.get_full_path() if request.GET else reverse('san_xuat:doc_list')
+        if action == 'bulk_delete_doc':
+            _bulk_delete_tech_docs(
+                request=request,
+                perms=perms,
+                pks=_parse_int_pks(request.POST.getlist('pk')),
+            )
+        else:
+            messages.error(request, 'Hành động không hợp lệ.')
+        return redirect(back)
 
     search_query = get_search_query(request)
     filters = parse_sx_list_filters(request)
@@ -129,9 +192,8 @@ def doc_list(request):
         'hide_sx_date_filter': True,
         **sx_filter_context(filters),
         **sx_list_grid_context(request, 'doc_list'),
-        **_perm_ctx(request),
+        **perms,
     })
-
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def bom_list(request):

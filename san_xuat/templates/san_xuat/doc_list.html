@@ -29,9 +29,27 @@
     {% include 'san_xuat/includes/sx_list_filter.html' %}
 
     <div class="card border-0 shadow-sm overflow-hidden">
+        {% if can_pick_rows and page_obj %}
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 px-3 py-2 border-bottom bg-white">
+          <span class="small text-muted">Chọn nhiều để xóa hàng loạt</span>
+          <button type="submit" form="sxDocBulkForm" class="btn btn-sm btn-outline-danger" id="sxDocBulkDeleteBtn" disabled
+                  onclick="return confirm('Xóa các hồ sơ đã chọn? BOM và tài liệu đính kèm sẽ bị xóa theo.');">
+            <i class="bi bi-trash me-1"></i>Xóa đã chọn
+          </button>
+        </div>
+        <form method="post" id="sxDocBulkForm" class="d-none">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="bulk_delete_doc">
+        </form>
+        {% endif %}
         <table class="table align-middle mb-0" id="sx-doc-list-table">
             <thead class="table-light">
                 <tr>
+                    {% if can_pick_rows %}
+                    <th class="text-center" style="width:42px">
+                      <input type="checkbox" class="form-check-input" id="sxDocCheckAll" title="Chọn tất cả">
+                    </th>
+                    {% endif %}
                     <th style="min-width:220px">Sản phẩm</th>
                     <th>Trạng thái</th>
                     <th>BOM</th>
@@ -45,6 +63,11 @@
                 {% for doc in page_obj %}
                 <tr class="sx-doc-row jp-npl-catalog-row"
                     data-href="{% url 'san_xuat:doc_detail' doc.pk %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}">
+                    {% if can_pick_rows %}
+                    <td class="text-center" onclick="event.stopPropagation()">
+                      <input type="checkbox" class="form-check-input sx-doc-pick" name="pk" value="{{ doc.pk }}" form="sxDocBulkForm">
+                    </td>
+                    {% endif %}
                     <td>
                         <div class="d-flex align-items-center gap-2 jp-sx-doc-title">
                             {% if doc.display_image_url %}
@@ -116,7 +139,7 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="7" class="text-center text-muted py-4">Chưa có hồ sơ SX nào.</td>
+                    <td colspan="{% if can_pick_rows %}8{% else %}7{% endif %}" class="text-center text-muted py-4">Chưa có hồ sơ SX nào.</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -130,4 +153,30 @@
     </div>
 </div>
 {% include 'san_xuat/includes/product_image_gallery_modal.html' %}
+{% if can_pick_rows and page_obj %}
+<script>
+(function () {
+  var all = document.getElementById('sxDocCheckAll');
+  var picks = document.querySelectorAll('.sx-doc-pick');
+  var btn = document.getElementById('sxDocBulkDeleteBtn');
+  function sync() {
+    var n = 0;
+    picks.forEach(function (cb) { if (cb.checked) n += 1; });
+    if (btn) btn.disabled = n === 0;
+    if (all && picks.length) {
+      all.checked = n === picks.length;
+      all.indeterminate = n > 0 && n < picks.length;
+    }
+  }
+  if (all) {
+    all.addEventListener('change', function () {
+      picks.forEach(function (cb) { cb.checked = all.checked; });
+      sync();
+    });
+  }
+  picks.forEach(function (cb) { cb.addEventListener('change', sync); });
+  sync();
+})();
+</script>
+{% endif %}
 {% endblock %}
