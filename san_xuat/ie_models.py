@@ -8,9 +8,9 @@ Mô hình hoá bộ dữ liệu chuẩn công đoạn của khối sản xuất 
 - Dữ liệu bấm giờ (time study) để hiệu chỉnh SMV.
 
 Quy ước đơn vị:
-- SMV lưu theo PHÚT/1 đơn vị cơ sở (khớp từ điển dữ liệu BASE_SMV_MIN).
+- SMV lưu theo GIÂY/1 đơn vị cơ sở (tên trường lịch sử BASE_SMV_MIN được giữ lại).
 - Thời gian bấm giờ lưu theo GIÂY.
-- Năng suất lý thuyết = 60 / SMV (cái/giờ), ca 10 giờ = 600 / SMV.
+- Năng suất lý thuyết = 3600 / SMV (cái/giờ), ca 10 giờ = 36000 / SMV.
 """
 
 from __future__ import annotations
@@ -160,6 +160,38 @@ def default_smv_basis_name() -> str:
     ensure_smv_basis_defaults()
     basis = SxSmvBasis.objects.filter(code='SEC', is_active=True).first()
     return basis.name if basis else 'Giây'
+
+
+def smv_basis_code(value: str | None) -> str:
+    """Chuẩn hóa nhãn/mã đơn vị SMV về MIN, SEC hoặc PCS_H."""
+    normalized = (value or '').strip().casefold()
+    if normalized in {'min', 'phút/sp', 'phut/sp', 'phút', 'phut'}:
+        return 'MIN'
+    if normalized in {'pcs_h', 'sp/h', 'sp/giờ', 'sp/gio'}:
+        return 'PCS_H'
+    return 'SEC'
+
+
+def smv_to_seconds(value: Decimal, basis: str | None) -> Decimal:
+    """Quy đổi giá trị người dùng nhập theo đơn vị đã chọn về giây để lưu."""
+    value = Decimal(value or '0')
+    code = smv_basis_code(basis)
+    if code == 'MIN':
+        return _q(value * Decimal('60'))
+    if code == 'PCS_H':
+        return _q(Decimal('3600') / value) if value else Decimal('0')
+    return _q(value)
+
+
+def smv_from_seconds(value: Decimal, basis: str | None) -> Decimal:
+    """Quy đổi SMV lưu (giây) thành giá trị hiển thị theo đơn vị đã chọn."""
+    value = Decimal(value or '0')
+    code = smv_basis_code(basis)
+    if code == 'MIN':
+        return _q(value / Decimal('60'))
+    if code == 'PCS_H':
+        return _q(Decimal('3600') / value) if value else Decimal('0')
+    return _q(value)
 
 
 PROCESS_STAGE_DEFAULTS: tuple[tuple[str, str, int], ...] = (
@@ -327,6 +359,14 @@ class SxOperation(models.Model):
     effective_to = models.DateField(null=True, blank=True, verbose_name='Ngày hết hiệu lực')
     ie_owner = models.CharField(max_length=120, blank=True, default='', verbose_name='Người lập')
     approved_by = models.CharField(max_length=120, blank=True, default='', verbose_name='Người duyệt')
+    approved_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='sx_operations_approved',
+        verbose_name='Tài khoản người duyệt',
+    )
     approved_at = models.DateTimeField(null=True, blank=True, verbose_name='Ngày duyệt')
     revision_reason = models.CharField(max_length=255, blank=True, default='', verbose_name='Lý do phiên bản')
     work_instruction_url = models.URLField(max_length=500, blank=True, default='', verbose_name='Link hướng dẫn')

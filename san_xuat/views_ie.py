@@ -43,6 +43,8 @@ from san_xuat.ie_models import (
     ensure_skill_levels_abc,
     ensure_smv_basis_defaults,
     default_smv_basis_name,
+    smv_from_seconds,
+    smv_to_seconds,
 )
 from san_xuat.services.production_machines import (
     ie_machine_options,
@@ -1101,8 +1103,11 @@ def operation_detail(request, pk: int):
                 gid = (request.POST.get('group_id') or '').strip()
                 if gid.isdigit():
                     group = SxOperationGroup.objects.filter(pk=int(gid)).first()
+                smv_basis = (
+                    request.POST.get('smv_basis') or ''
+                ).strip() or default_smv_basis_name()
                 smv_raw = (request.POST.get('base_smv_min') or '').strip()
-                smv = _dec(smv_raw) if smv_raw != '' else None
+                smv = smv_to_seconds(_dec(smv_raw), smv_basis) if smv_raw != '' else None
                 status = (request.POST.get('status') or '').strip() or None
                 from datetime import date as _date_cls
 
@@ -1131,7 +1136,7 @@ def operation_detail(request, pk: int):
                     stitch_class_code=request.POST.get('stitch_class_code'),
                     smv_source_code=request.POST.get('smv_source_code'),
                     base_smv_min=smv,
-                    smv_basis=(request.POST.get('smv_basis') or '').strip() or default_smv_basis_name(),
+                    smv_basis=smv_basis,
                     qc_criteria=request.POST.get('qc_criteria'),
                     status=status if status != SxOperation.STATUS_APPROVED else None,
                     ie_owner=op.ie_owner or ie_user_display_name(request.user),
@@ -1177,10 +1182,13 @@ def operation_detail(request, pk: int):
         product_parts = [op.product_part] + product_parts
     smv_bases = ensure_smv_basis_defaults()
     smv_basis_choices = [b.name for b in smv_bases]
+    smv_basis_options = [{'name': b.name, 'code': b.code} for b in smv_bases]
     if op.smv_basis and op.smv_basis not in smv_basis_choices:
         # Giữ giá trị cũ nếu chưa có trong danh mục
         smv_basis_choices = [op.smv_basis] + smv_basis_choices
+        smv_basis_options.insert(0, {'name': op.smv_basis, 'code': 'SEC'})
     current_owner = ie_user_display_name(request.user)
+    active_smv_basis = op.smv_basis or default_smv_basis_name()
 
     return render(request, 'san_xuat/ie_operation_detail.html', {
         **perms,
@@ -1194,6 +1202,8 @@ def operation_detail(request, pk: int):
         'product_parts': product_parts,
         'smv_basis_choices': smv_basis_choices,
         'default_smv_basis': default_smv_basis_name(),
+        'smv_basis_options': smv_basis_options,
+        'display_smv_value': smv_from_seconds(op.base_smv_min, active_smv_basis),
         'current_user_display_name': current_owner,
         'status_choices': [
             c for c in SxOperation.STATUS_CHOICES if c[0] != SxOperation.STATUS_APPROVED

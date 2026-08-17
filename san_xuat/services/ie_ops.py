@@ -758,6 +758,7 @@ def update_operation(
     if smv_changed and operation.status == SxOperation.STATUS_APPROVED:
         operation.status = SxOperation.STATUS_DRAFT
         operation.approved_by = ''
+        operation.approved_user = None
         operation.approved_at = None
         changes['status'] = {
             'from': SxOperation.STATUS_APPROVED,
@@ -965,10 +966,15 @@ def approve_operation(*, operation: SxOperation, user=None) -> SxOperation:
         or operation.approved_by
         or 'Approver'
     )[:120]
+    if getattr(user, 'is_authenticated', False):
+        operation.approved_user = user
     operation.approved_at = timezone.now()
     if not operation.effective_from:
         operation.effective_from = timezone.localdate()
-    operation.save(update_fields=['status', 'approved_by', 'approved_at', 'effective_from', 'updated_at'])
+    operation.save(update_fields=[
+        'status', 'approved_by', 'approved_user', 'approved_at',
+        'effective_from', 'updated_at',
+    ])
     from san_xuat.ie_models import SxIeAuditLog
     from san_xuat.services.ie_audit import log_ie_event
 
