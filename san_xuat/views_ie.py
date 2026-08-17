@@ -235,7 +235,7 @@ def _pending_routings_qs():
 
 def _bulk_approve_reject(*, request, action: str, op_pks: list[int], routing_pks: list[int], perms: dict):
     if not perms['can_approve']:
-        raise IeOpsError('Bạn không có quyền duyệt (cần quyền Sửa menu Duyệt phát hành).')
+        raise IeOpsError('Bạn không có quyền duyệt (cần quyền Sửa menu Duyệt công đoạn).')
     ok_ops = ok_rt = 0
     errors = []
     ops = {op.pk: op for op in SxOperation.objects.filter(pk__in=op_pks)}
@@ -937,7 +937,7 @@ def operation_list(request):
         try:
             if action == 'approve_operation' and op:
                 if not perms['can_approve']:
-                    raise IeOpsError('Bạn không có quyền duyệt công đoạn (cần quyền Sửa menu Duyệt phát hành).')
+                    raise IeOpsError('Bạn không có quyền duyệt công đoạn (cần quyền Sửa menu Duyệt công đoạn).')
                 approve_operation(operation=op, user=request.user)
                 messages.success(request, f'Đã duyệt {op.op_code}/{op.op_rev}.')
             elif action == 'create_operation':
@@ -1511,7 +1511,7 @@ def ie_approve_hub(request):
                 if not op:
                     messages.error(request, 'Hành động không hợp lệ.')
                 elif not perms['can_approve']:
-                    raise IeOpsError('Bạn không có quyền duyệt (cần quyền Sửa menu Duyệt phát hành).')
+                    raise IeOpsError('Bạn không có quyền duyệt (cần quyền Sửa menu Duyệt công đoạn).')
                 elif action == 'approve_operation':
                     approve_operation(operation=op, user=request.user)
                     messages.success(request, f'Đã duyệt {op.op_code}/{op.op_rev}.')

@@ -4,7 +4,7 @@ Theo 00_HUONG_DAN mục 4:
 - IE: tạo đề nghị mã CĐ, lập routing, đo thời gian, phân tích SMV.
 - Người phê duyệt master data: duyệt OP_CODE/REV, routing revision.
 
-Quyền duyệt: menu «Duyệt phát hành» (ie_approve) — action Sửa trong Phân quyền.
+Quyền duyệt: menu «Duyệt công đoạn» (ie_approve) — action Sửa trong Phân quyền.
 Superuser/admin (bypass) luôn được duyệt.
 """
 
@@ -32,7 +32,7 @@ def ie_approver_group_has_members() -> bool:
 
 
 def user_can_approve_ie(user) -> bool:
-    """Được duyệt OP / routing — quyền Sửa menu «Duyệt phát hành» trong Phân quyền."""
+    """Được duyệt công đoạn — quyền Sửa menu «Duyệt công đoạn» trong Phân quyền."""
     if not getattr(user, 'is_authenticated', False):
         return False
     if bypass_department_modules(user):
