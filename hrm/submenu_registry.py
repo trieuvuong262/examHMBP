@@ -111,7 +111,7 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
         {'key': 'products_nvl', 'label': 'Sản phẩm – NPL', 'icon': 'bi-box'},
         {'key': 'docs', 'label': 'Hồ sơ thiết kế sản xuất', 'icon': 'bi-journal-text'},
         {'key': 'bom', 'label': 'BOM', 'icon': 'bi-diagram-3'},
-        {'key': 'ie', 'label': 'Công đoạn / định mức', 'icon': 'bi-diagram-3'},
+        {'key': 'ie', 'label': 'Thư viện công đoạn', 'icon': 'bi-diagram-3'},
         {'key': 'ie_settings', 'label': 'Thiết lập công đoạn', 'icon': 'bi-gear'},
         {'key': 'ie_approve', 'label': 'Duyệt phát hành', 'icon': 'bi-check2-circle'},
         {'key': 'capacity', 'label': 'Năng lực SX', 'icon': 'bi-speedometer'},

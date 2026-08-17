@@ -682,16 +682,8 @@ def _bulk_delete_groups(*, request, perms: dict, pks: list[int]) -> None:
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def ie_hub(request):
-    perms = _perm_ctx(request)
-
-    stats = {
-        'groups': SxOperationGroup.objects.count(),
-        'operations': SxOperation.objects.count(),
-    }
-    return render(request, 'san_xuat/ie_hub.html', {
-        **perms,
-        'stats': stats,
-    })
+    """Landing cũ /cong-doan/ — chuyển thẳng vào thư viện công đoạn."""
+    return redirect('san_xuat:ie_operation_list')
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'export')

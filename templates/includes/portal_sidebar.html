@@ -716,7 +716,7 @@
                 {% if jp_can_san_xuat_docs or jp_can_san_xuat_bom or jp_can_san_xuat_ie or jp_can_san_xuat_ie_settings or jp_can_san_xuat_ie_approve or jp_can_san_xuat_capacity %}
                 <li class="jp-sidebar-nested-group{% if '/san-xuat/ho-so' in request.path or '/san-xuat/bom' in request.path or '/san-xuat/nang-luc' in request.path or '/san-xuat/cong-doan' in request.path %} is-open{% endif %}"
                     data-sx-area="docs" data-sx-icon="bi-journal-text" data-sx-label="Hồ sơ"
-                    data-sx-href="{% if jp_can_san_xuat_docs %}{% url 'san_xuat:doc_list' %}{% elif jp_can_san_xuat_ie %}{% url 'san_xuat:ie_hub' %}{% elif jp_can_san_xuat_ie_approve %}{% url 'san_xuat:ie_approve_hub' %}{% elif jp_can_san_xuat_ie_settings %}{% url 'san_xuat:ie_settings_hub' %}{% elif jp_can_san_xuat_bom %}{% url 'san_xuat:bom_list' %}{% else %}{% url 'san_xuat:capacity_list' %}{% endif %}">
+                    data-sx-href="{% if jp_can_san_xuat_docs %}{% url 'san_xuat:doc_list' %}{% elif jp_can_san_xuat_ie %}{% url 'san_xuat:ie_operation_list' %}{% elif jp_can_san_xuat_ie_approve %}{% url 'san_xuat:ie_approve_hub' %}{% elif jp_can_san_xuat_ie_settings %}{% url 'san_xuat:ie_settings_hub' %}{% elif jp_can_san_xuat_bom %}{% url 'san_xuat:bom_list' %}{% else %}{% url 'san_xuat:capacity_list' %}{% endif %}">
                     <button type="button"
                             class="jp-sidebar-nested-toggle"
                             data-jp-sidebar-group-toggle
@@ -739,11 +739,31 @@
                         </li>
                         {% endif %}
                         {% if jp_can_san_xuat_ie %}
-                        <li>
-                            <a href="{% url 'san_xuat:ie_hub' %}"
-                               class="jp-sidebar-link jp-sidebar-sublink {% if '/san-xuat/cong-doan' in request.path and '/san-xuat/cong-doan/thiet-lap' not in request.path and '/san-xuat/cong-doan/duyet' not in request.path %}active{% endif %}">
-                                <i class="bi bi-diagram-3"></i><span>Thư viện công đoạn</span>
-                            </a>
+                        <li class="jp-sidebar-nested-group jp-sidebar-nested-group--depth2{% if '/san-xuat/cong-doan/nhom' in request.path or '/san-xuat/cong-doan/thu-vien' in request.path or request.resolver_match.url_name == 'ie_hub' %} is-open{% endif %}">
+                            <button type="button"
+                                    class="jp-sidebar-nested-toggle jp-sidebar-nested-toggle--depth2"
+                                    data-jp-sidebar-group-toggle
+                                    aria-expanded="{% if '/san-xuat/cong-doan/nhom' in request.path or '/san-xuat/cong-doan/thu-vien' in request.path or request.resolver_match.url_name == 'ie_hub' %}true{% else %}false{% endif %}"
+                                    aria-controls="jp-sidebar-san-xuat-ie-submenu">
+                                <span class="jp-sidebar-nested-toggle-main">
+                                    <i class="bi bi-diagram-3"></i><span>Thư viện công đoạn</span>
+                                </span>
+                                <i class="bi bi-chevron-down jp-sidebar-nested-chevron" aria-hidden="true"></i>
+                            </button>
+                            <ul class="jp-sidebar-nested-submenu jp-sidebar-nested-submenu--depth2" id="jp-sidebar-san-xuat-ie-submenu">
+                                <li>
+                                    <a href="{% url 'san_xuat:ie_group_list' %}"
+                                       class="jp-sidebar-link jp-sidebar-sublink {% if '/san-xuat/cong-doan/nhom' in request.path %}active{% endif %}">
+                                        <i class="bi bi-collection"></i><span>Nhóm công đoạn</span>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="{% url 'san_xuat:ie_operation_list' %}"
+                                       class="jp-sidebar-link jp-sidebar-sublink {% if '/san-xuat/cong-doan/thu-vien' in request.path %}active{% endif %}">
+                                        <i class="bi bi-list-ul"></i><span>Thư viện công đoạn</span>
+                                    </a>
+                                </li>
+                            </ul>
                         </li>
                         {% endif %}
                         {% if jp_can_san_xuat_ie_approve %}
