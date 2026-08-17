@@ -38,8 +38,6 @@ def seed_default_process_names() -> int:
 
 _STANDARD_STATUSES = [
     SxOperation.STATUS_APPROVED,
-    SxOperation.STATUS_TRIAL,
-    SxOperation.STATUS_DRAFT,
 ]
 
 

@@ -53,6 +53,11 @@ def _match_op_codes(op_code: str) -> Q:
     return q
 
 
+def library_operations_qs():
+    """Công đoạn đã duyệt trong thư viện (list / tìm / gắn routing)."""
+    return SxOperation.objects.filter(status=SxOperation.STATUS_APPROVED)
+
+
 def resolve_operation(op_code: str, op_rev: str | None = None) -> SxOperation | None:
     """Tìm công đoạn thư viện — ưu tiên khớp đúng, rồi mã rút gọn."""
     op_code = (op_code or '').strip()
@@ -111,7 +116,7 @@ def operation_library_snapshot(op: SxOperation | None) -> dict:
 def ie_operation_datalist_options(*, limit: int = 500) -> list[SxOperation]:
     """Công đoạn thư viện cho form routing — mỗi dòng là cặp (op_code, op_rev) duy nhất."""
     return list(
-        SxOperation.objects.exclude(status=SxOperation.STATUS_RETIRED)
+        library_operations_qs()
         .select_related('group__default_work_center', 'machine')
         .order_by('op_code', 'op_rev')[:limit]
     )

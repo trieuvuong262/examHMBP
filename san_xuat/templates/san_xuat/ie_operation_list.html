@@ -56,7 +56,8 @@
     </div>
     <div class="col-md-4">
       <select name="status" class="form-select form-select-sm" aria-label="Trạng thái">
-        <option value="">— Tất cả trạng thái —</option>
+        <option value="" {% if not status %}selected{% endif %}>Đã duyệt (thư viện)</option>
+        <option value="all" {% if status == 'all' %}selected{% endif %}>Tất cả (kể cả chờ duyệt)</option>
         {% for val, label in status_choices %}
         <option value="{{ val }}" {% if val == status %}selected{% endif %}>{{ label }}</option>
         {% endfor %}

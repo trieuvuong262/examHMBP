@@ -70,6 +70,7 @@ from san_xuat.services.ie_ops import (
     delete_routing_line,
     enrich_routing_lines_from_library,
     is_routing_locked,
+    library_operations_qs,
     operation_library_snapshot,
     reject_routing,
     resolve_operation,
@@ -1019,11 +1020,14 @@ def operation_list(request):
     if group_code:
         qs = qs.filter(group__code=group_code)
     status = (request.GET.get('status') or '').strip()
-    if status:
+    if status == 'all':
+        # Xem toàn bộ (trừ ngưng) — gồm nháp/thử nghiệm chờ duyệt
+        qs = qs.exclude(status=SxOperation.STATUS_RETIRED)
+    elif status:
         qs = qs.filter(status=status)
     else:
-        # Mặc định ẩn OP đã ngưng — thư viện chỉ hiện bộ chuẩn đang dùng
-        qs = qs.exclude(status=SxOperation.STATUS_RETIRED)
+        # Mặc định: thư viện chỉ hiện công đoạn đã duyệt
+        qs = qs.filter(status=SxOperation.STATUS_APPROVED)
 
     qs = qs.order_by('op_code', 'op_rev')
     grid = sx_list_grid_context(request, 'ie_operation')
@@ -1288,7 +1292,7 @@ def ie_operation_search(request):
     q = (request.GET.get('q') or '').strip()
     group_code = (request.GET.get('group_code') or '').strip()
     qs = (
-        SxOperation.objects.exclude(status=SxOperation.STATUS_RETIRED)
+        library_operations_qs()
         .select_related('group__default_work_center', 'machine')
         .order_by('op_code', 'op_rev')
     )
