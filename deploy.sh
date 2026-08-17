@@ -286,9 +286,8 @@ compose exec -T web python manage.py seed_kho_npl_category_tree
 echo "==> 8c) Sync NPL colors + backfill material colors"
 compose exec -T web python manage.py seed_kho_npl_material_colors
 
-echo "==> 8d) Sync thư viện công đoạn chuẩn SX (KHÔNG purge — giữ OP IE đã import)"
-# Chỉ upsert 50 OP mẫu progress_template; KHÔNG --purge/--retire-missing
-# (trước đây --purge đã xóa >200 công đoạn thư viện IE trên VPS).
+echo "==> 8d) Sync khâu/nhóm/tên CĐ mẫu tổ (không tạo OP thư viện IE)"
+# Chỉ sync stage/group/process name cho tiến độ tổ — KHÔNG tạo SxOperation.
 compose exec -T web python manage.py sync_process_master
 
 verify_nas_rclone() {

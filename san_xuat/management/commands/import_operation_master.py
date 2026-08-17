@@ -3,12 +3,14 @@
 Ví dụ:
     python manage.py import_operation_master "C:/path/Just_Play_Master_Data.xlsx"
     python manage.py import_operation_master file.xlsx --dry-run
+    python manage.py import_operation_master file.xlsx --as-user ngan.ptk
 """
 
 from __future__ import annotations
 
 from pathlib import Path
 
+from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand, CommandError
 
 from san_xuat.services.operation_master import (
@@ -23,14 +25,27 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument('path', help='Đường dẫn file Excel master data.')
         parser.add_argument('--dry-run', action='store_true', help='Chạy thử, không lưu (rollback).')
+        parser.add_argument(
+            '--as-user',
+            default='',
+            help='Username gán Người lập (vd. ngan.ptk). Bỏ trống = không gán từ user.',
+        )
 
     def handle(self, *args, **options):
         path = Path(options['path'])
         if not path.exists():
             raise CommandError(f'Không tìm thấy file: {path}')
 
+        user = None
+        as_user = (options.get('as_user') or '').strip()
+        if as_user:
+            User = get_user_model()
+            user = User.objects.filter(username__iexact=as_user).first()
+            if user is None:
+                raise CommandError(f'Không tìm thấy user: {as_user}')
+
         try:
-            result = import_operation_master(str(path), dry_run=options['dry_run'])
+            result = import_operation_master(str(path), dry_run=options['dry_run'], user=user)
         except OperationMasterImportError as exc:
             raise CommandError(str(exc))
 

@@ -359,10 +359,13 @@ def _import_groups(wb, result: ImportResult) -> None:
         )
 
 
-def _import_operations(wb, result: ImportResult) -> None:
+def _import_operations(wb, result: ImportResult, *, user=None) -> None:
     if SHEET_LIB not in wb.sheetnames:
         result.warnings.append(f'Không thấy sheet {SHEET_LIB}, bỏ qua thư viện công đoạn.')
         return
+    from san_xuat.ie_permissions import ie_user_display_name
+
+    importer_name = ie_user_display_name(user)
     seen = set()
     skipped_samples = 0
     for rec in _sheet_dicts(wb[SHEET_LIB]):
@@ -399,6 +402,7 @@ def _import_operations(wb, result: ImportResult) -> None:
         smv_source_label = _s(rec.get('NGUỒN SMV'))
         status_label = _s(rec.get('TRẠNG THÁI')).casefold()
         smv_basis = default_smv_basis_name()
+        ie_owner = importer_name or _s(rec.get('NGƯỜI LẬP'))
 
         _, created = SxOperation.objects.update_or_create(
             op_code=op_code,
@@ -426,7 +430,7 @@ def _import_operations(wb, result: ImportResult) -> None:
                 'status': _STATUS_MAP.get(status_label, SxOperation.STATUS_DRAFT),
                 'effective_from': _date(rec.get('NGÀY HIỆU LỰC')),
                 'effective_to': _date(rec.get('NGÀY HẾT HIỆU LỰC')),
-                'ie_owner': _s(rec.get('NGƯỜI LẬP')),
+                'ie_owner': ie_owner,
                 'approved_by': _s(rec.get('NGƯỜI DUYỆT')),
                 'revision_reason': _s(rec.get('LÝ DO CHỈNH SỬA PHIÊN BẢN')),
                 'video_url': _s(rec.get('VIDEO_URL')),
@@ -447,11 +451,14 @@ def _routing_rev_from_id(routing_id: str, fallback: str) -> str:
     return fallback or 'R01'
 
 
-def _import_routings(wb, result: ImportResult) -> None:
+def _import_routings(wb, result: ImportResult, *, user=None) -> None:
     if SHEET_ROUTING not in wb.sheetnames:
         result.warnings.append(f'Không thấy sheet {SHEET_ROUTING}, bỏ qua routing.')
         return
 
+    from san_xuat.ie_permissions import ie_user_display_name
+
+    importer_name = ie_user_display_name(user)
     grouped: dict[str, list[dict]] = {}
     order_ids: list[str] = []
     skipped_samples = 0
@@ -490,7 +497,7 @@ def _import_routings(wb, result: ImportResult) -> None:
                 'routing_rev': _routing_rev_from_id(routing_id, _s(head.get('PHIÊN BẢN'))),
                 'effective_from': _date(head.get('NGÀY HIỆU LỰC')),
                 'is_active': _yesno(head.get('TRẠNG THÁI ÁP DỤNG')) if head.get('TRẠNG THÁI ÁP DỤNG') is not None else True,
-                'ie_owner': _s(head.get('NGƯỜI LẬP')),
+                'ie_owner': importer_name or _s(head.get('NGƯỜI LẬP')),
                 'notes': _s(head.get('NOTES')),
                 'approval_status': SxRouting.APPROVAL_APPROVED,
             },
@@ -640,8 +647,8 @@ def import_operation_master(source, *, dry_run: bool = False, user=None) -> Impo
         with transaction.atomic():
             _import_reference(wb, result)
             _import_groups(wb, result)
-            _import_operations(wb, result)
-            _import_routings(wb, result)
+            _import_operations(wb, result, user=user)
+            _import_routings(wb, result, user=user)
             _import_time_studies(wb, result)
             link_stats = link_time_studies_to_operations(only_unlinked=True)
             if link_stats['linked']:
@@ -729,9 +736,9 @@ def import_ie_dataset(source, kind, *, dry_run: bool = False, user=None) -> Impo
             if kind == KIND_GROUPS:
                 _import_groups(wb, result)
             elif kind == KIND_LIBRARY:
-                _import_operations(wb, result)
+                _import_operations(wb, result, user=user)
             else:
-                _import_routings(wb, result)
+                _import_routings(wb, result, user=user)
             if dry_run:
                 transaction.set_rollback(True)
     finally:

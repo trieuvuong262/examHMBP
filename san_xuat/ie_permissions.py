@@ -48,10 +48,12 @@ def user_is_ie_editor(user) -> bool:
 
 
 def ie_user_display_name(user) -> str:
-    """Họ tên ưu tiên, không thì username — dùng cho Người lập / Người duyệt."""
+    """Họ tên ưu tiên (profile → get_full_name), không thì username — Người lập / Người duyệt."""
     if user is None or not getattr(user, 'is_authenticated', False):
         return ''
-    name = (getattr(user, 'get_full_name', lambda: '')() or '').strip()
+    profile = getattr(user, 'profile', None)
+    profile_name = (getattr(profile, 'full_name', None) or '').strip() if profile else ''
+    name = profile_name or (getattr(user, 'get_full_name', lambda: '')() or '').strip()
     return (name or getattr(user, 'username', '') or '')[:120]
 
 

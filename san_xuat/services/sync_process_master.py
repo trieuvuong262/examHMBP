@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from decimal import Decimal
-
 from django.db import transaction
 from django.db.models import ProtectedError
 
@@ -98,13 +96,10 @@ def sync_standard_process_library(
     retire_missing: bool = False,
     purge_missing: bool = False,
 ) -> dict[str, int]:
-    """Upsert SxProcessStage / SxOperationGroup / SxOperation / SxProcessName từ mẫu.
+    """Upsert khâu / nhóm / SxProcessName từ mẫu tiến độ tổ.
 
-    - op_code = KEY viết hoa (vd. MAY_RAP_VAI)
-    - name_vi = nhãn chuẩn
-    - status = approved
-    - purge_missing: xoá mọi OP không còn trong mẫu (fallback retire nếu bị PROTECT)
-    - retire_missing: chỉ đánh dấu retired (không xoá)
+    Không tạo/sửa ``SxOperation`` trong thư viện IE (để IE import Excel tự quản).
+    ``purge_missing`` / ``retire_missing`` chỉ áp dụng khi gọi chủ động với cờ đó.
     """
     from san_xuat.models import SxProcessName
     from san_xuat.services.order_progress_sheet import ensure_progress_work_centers
@@ -125,7 +120,6 @@ def sync_standard_process_library(
         'work_centers_deactivated': 0,
     }
 
-    group_by_key: dict[str, SxOperationGroup] = {}
     keep_group_codes: set[str] = set()
     keep_stage_codes: set[str] = set()
     for i, grp in enumerate(GROUPS):
@@ -134,61 +128,21 @@ def sync_standard_process_library(
         keep_stage_codes.add(stage_code)
         stage = _ensure_stage(stage_code, grp.label, sort_order=(i + 1) * 10)
         stats['stages'] += 1
-        og = _ensure_group(
+        _ensure_group(
             code=code,
             name=grp.label,
             stage=stage,
             wc_code=grp.work_center_code,
             sort_order=(i + 1) * 10,
         )
-        group_by_key[grp.key] = og
         stats['groups'] += 1
 
     keep_codes: set[str] = set()
     keep_labels: set[str] = set()
     for step in progress_steps():
-        og = group_by_key[step.group]
-        op_code = step.key.upper()
-        keep_codes.add(op_code)
+        keep_codes.add(step.key.upper())
         keep_labels.add(step.label.casefold())
-        stage_label = next((g.label for g in GROUPS if g.key == step.group), '')
-        defaults = {
-            'group': og,
-            'name_vi': step.label[:200],
-            'process_stage_label': stage_label[:100],
-            'base_smv_min': Decimal('0'),
-            'status': SxOperation.STATUS_APPROVED,
-            'notes': 'Đồng bộ từ mẫu công đoạn chuẩn',
-            'revision_reason': 'Sync progress template',
-        }
-        op = (
-            SxOperation.objects.filter(op_code=op_code)
-            .order_by('-updated_at', '-pk')
-            .first()
-        )
-        if op is None:
-            SxOperation.objects.create(op_code=op_code, op_rev='R01', **defaults)
-            stats['ops_created'] += 1
-        else:
-            changed = False
-            for field, value in defaults.items():
-                if getattr(op, field) != value:
-                    setattr(op, field, value)
-                    changed = True
-            if changed:
-                op.save()
-                stats['ops_updated'] += 1
-            # Xoá bản trùng cùng op_code (rev khác)
-            extras = SxOperation.objects.filter(op_code=op_code).exclude(pk=op.pk)
-            if extras.exists():
-                if purge_missing:
-                    deleted, _ = extras.delete()
-                    stats['ops_deleted'] += deleted
-                else:
-                    stats['ops_retired'] += extras.exclude(
-                        status=SxOperation.STATUS_RETIRED,
-                    ).update(status=SxOperation.STATUS_RETIRED)
-
+        # Không tạo/sửa SxOperation thư viện IE — thư viện do IE import Excel quản lý.
         ensure_process_name(step.label)
         stats['process_names'] += 1
 
