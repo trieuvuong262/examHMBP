@@ -59,7 +59,7 @@
         <thead class="table-light">
           <tr>
             {% if can_update %}
-            <th class="npl-col text-center" data-col="_pick" style="width:42px">
+            <th class="text-center" data-col="_pick" style="width:42px">
               <input type="checkbox" class="form-check-input" id="ieRoutingCheckAll" title="Chọn tất cả">
             </th>
             {% endif %}
@@ -72,7 +72,7 @@
         {% for r in items %}
           <tr class="jp-npl-catalog-row" data-href="{% url 'san_xuat:ie_routing_detail' r.pk %}">
             {% if can_update %}
-            <td class="npl-col text-center" data-col="_pick" onclick="event.stopPropagation()">
+            <td class="text-center" data-col="_pick" onclick="event.stopPropagation()">
               {% if r.pk not in locked_routing_ids %}
               <input type="checkbox" class="form-check-input ie-routing-pick" name="pk" value="{{ r.pk }}" form="ieRoutingBulkForm">
               {% endif %}

@@ -44,7 +44,7 @@
         document.querySelectorAll('#{{ table_id }} .npl-col').forEach(function (el) {
             const key = el.getAttribute('data-col');
             if (!key) return;
-            if (key === 'actions') {
+            if (key === 'actions' || key === '_pick') {
                 el.classList.remove('d-none');
                 return;
             }

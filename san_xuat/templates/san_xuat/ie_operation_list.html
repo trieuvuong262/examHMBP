@@ -83,7 +83,7 @@
         <thead class="table-light">
           <tr>
             {% if can_update %}
-            <th class="npl-col text-center" data-col="_pick" style="width:42px">
+            <th class="text-center" data-col="_pick" style="width:42px">
               <input type="checkbox" class="form-check-input" id="ieOpCheckAll" title="Chọn tất cả">
             </th>
             {% endif %}
@@ -96,7 +96,7 @@
         {% for op in items %}
           <tr class="jp-npl-catalog-row" data-href="{% url 'san_xuat:ie_operation_detail' op.pk %}">
             {% if can_update %}
-            <td class="npl-col text-center" data-col="_pick" onclick="event.stopPropagation()">
+            <td class="text-center" data-col="_pick" onclick="event.stopPropagation()">
               <input type="checkbox" class="form-check-input ie-op-pick" name="pk" value="{{ op.pk }}" form="ieOpBulkForm">
             </td>
             {% endif %}
