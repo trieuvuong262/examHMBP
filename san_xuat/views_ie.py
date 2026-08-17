@@ -1201,43 +1201,13 @@ def operation_detail(request, pk: int):
 def routing_list(request):
     perms = _perm_ctx(request)
     if request.method == 'POST':
-        action = (request.POST.get('action') or '').strip()
-        back = request.get_full_path() if request.GET else reverse('san_xuat:ie_routing_list')
-        if action == 'import':
-            return _handle_ie_import(request, redirect_to=back, kind=KIND_ROUTING)
-        if action == 'create_routing':
-            return _create_routing_from_post(request, fail_redirect='san_xuat:ie_routing_list')
-        pk = (request.POST.get('pk') or '').strip()
-        routing = SxRouting.objects.filter(pk=int(pk)).first() if pk.isdigit() else None
-        try:
-            if action == 'update_routing' and routing:
-                if not perms['can_update']:
-                    raise IeOpsError('Bạn không có quyền sửa routing.')
-                update_routing_header(
-                    routing=routing,
-                    style_name=(request.POST.get('style_name') or '').strip(),
-                    notes=(request.POST.get('notes') or '').strip(),
-                    is_active=request.POST.get('is_active') == '1',
-                )
-                messages.success(request, f'Đã lưu routing {routing.routing_id}.')
-            elif action == 'delete_routing' and routing:
-                if not perms['can_update']:
-                    raise IeOpsError('Bạn không có quyền xóa routing.')
-                rid = delete_routing(routing=routing)
-                messages.success(request, f'Đã xóa routing {rid}.')
-            elif action == 'bulk_delete_routing':
-                _bulk_delete_routings(
-                    request=request,
-                    perms=perms,
-                    pks=_parse_pk_list(request.POST.getlist('pk')),
-                )
-            else:
-                messages.error(request, 'Hành động không hợp lệ.')
-        except IeOpsError as exc:
-            messages.error(request, str(exc))
-        return redirect(back)
+        messages.error(
+            request,
+            'Routing chỉ được quản lý trong Hồ sơ thiết kế SX, không thể chỉnh sửa tại đây.',
+        )
+        return redirect('san_xuat:ie_routing_list')
 
-    qs = SxRouting.objects.annotate(
+    qs = SxRouting.objects.filter(tech_doc__isnull=False).annotate(
         n_lines=Count('lines'),
         sum_smv=Sum('lines__total_operation_smv'),
     )
@@ -1266,102 +1236,24 @@ def routing_list(request):
         'term': term,
         'total': qs.count(),
         'locked_routing_ids': locked_routing_ids,
-        'can_pick_rows': _can_bulk_delete(perms),
-        'open_create': (request.GET.get('new') or '').strip() in ('1', 'true', 'yes'),
-        'prefill_style_code': (request.GET.get('style_code') or '').strip(),
-        'prefill_style_name': (request.GET.get('style_name') or '').strip(),
+        'can_create': False,
+        'can_update': False,
+        'can_approve': False,
+        'can_pick_rows': False,
     })
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def routing_detail(request, pk: int):
-    routing = get_object_or_404(SxRouting, pk=pk)
+    routing = get_object_or_404(SxRouting.objects.filter(tech_doc__isnull=False), pk=pk)
     perms = _perm_ctx(request)
     locked = is_routing_locked(routing)
 
     if request.method == 'POST':
-        action = (request.POST.get('action') or '').strip()
-        try:
-            if action == 'approve_routing':
-                if not perms['can_approve']:
-                    raise IeOpsError('Bạn không có quyền duyệt routing (cần quyền Sửa menu Duyệt phát hành).')
-                approve_routing(routing=routing, user=request.user)
-                messages.success(request, f'Đã duyệt routing {routing.routing_id}.')
-            elif action == 'reject_routing':
-                if not perms['can_approve']:
-                    raise IeOpsError('Bạn không có quyền từ chối routing (cần quyền Sửa menu Duyệt phát hành).')
-                reject_routing(routing=routing, user=request.user)
-                messages.success(request, f'Đã từ chối routing {routing.routing_id}.')
-            elif action == 'clone_revision':
-                if not perms['can_update']:
-                    raise IeOpsError('Bạn không có quyền tạo phiên bản routing.')
-                clone = clone_routing_revision(routing=routing, user=request.user)
-                messages.success(request, f'Đã tạo phiên bản mới {clone.routing_id}.')
-                return redirect('san_xuat:ie_routing_detail', pk=clone.pk)
-            elif action == 'save_explanations':
-                if not perms['can_update']:
-                    raise IeOpsError('Bạn không có quyền sửa giải trình.')
-                explanations = {}
-                for key, val in request.POST.items():
-                    if key.startswith('expl_') and key[5:].isdigit():
-                        explanations[int(key[5:])] = val
-                n = save_routing_line_explanations(routing=routing, explanations=explanations)
-                messages.success(request, f'Đã lưu {n} giải trình lệch SMV.')
-            elif action in ('add_line', 'edit_line'):
-                if not perms['can_update']:
-                    raise IeOpsError('Bạn không có quyền sửa dòng routing.')
-                line_pk = request.POST.get('line_pk')
-                line_pk = int(line_pk) if line_pk and str(line_pk).isdigit() else None
-                seq_raw = (request.POST.get('seq_no') or '').strip()
-                upsert_routing_line(
-                    routing=routing,
-                    line_pk=line_pk if action == 'edit_line' else None,
-                    seq_no=int(seq_raw) if seq_raw.isdigit() else None,
-                    op_code=(request.POST.get('op_code') or '').strip(),
-                    op_rev=(request.POST.get('op_rev') or 'R01').strip(),
-                    op_name_vi=(request.POST.get('op_name_vi') or '').strip(),
-                    group_code=(request.POST.get('group_code') or '').strip(),
-                    qty_per_garment=_dec(request.POST.get('qty_per_garment'), '1'),
-                    applied_unit_smv=None,
-                    library_unit_smv=_dec(request.POST.get('library_unit_smv'))
-                    if (request.POST.get('library_unit_smv') or '').strip() != ''
-                    else None,
-                    machine_code=(request.POST.get('machine_code') or '').strip(),
-                    work_center_code=(request.POST.get('work_center_code') or '').strip(),
-                    skill_level_label=(request.POST.get('skill_level_label') or '').strip(),
-                    price_factor=_dec(request.POST.get('price_factor'), '0'),
-                    total_unit_price=_dec(request.POST.get('total_unit_price'), '0'),
-                    variance_explanation=(request.POST.get('variance_explanation') or '').strip(),
-                    notes=(request.POST.get('notes') or '').strip(),
-                )
-                messages.success(request, 'Đã lưu dòng routing.')
-            elif action == 'delete_line':
-                if not perms['can_update']:
-                    raise IeOpsError('Bạn không có quyền xóa dòng routing.')
-                line_pk = request.POST.get('line_pk')
-                if not line_pk or not str(line_pk).isdigit():
-                    raise IeOpsError('Thiếu dòng cần xóa.')
-                delete_routing_line(routing=routing, line_pk=int(line_pk))
-                messages.success(request, 'Đã xóa dòng routing.')
-            elif action == 'save_header':
-                if not perms['can_update']:
-                    raise IeOpsError('Bạn không có quyền sửa routing.')
-                update_routing_header(
-                    routing=routing,
-                    style_name=(request.POST.get('style_name') or '').strip(),
-                    notes=(request.POST.get('notes') or '').strip(),
-                )
-                messages.success(request, f'Đã lưu routing {routing.routing_id}.')
-            elif action == 'delete_routing':
-                if not perms['can_update']:
-                    raise IeOpsError('Bạn không có quyền xóa routing.')
-                rid = delete_routing(routing=routing)
-                messages.success(request, f'Đã xóa routing {rid}.')
-                return redirect('san_xuat:ie_routing_list')
-            else:
-                messages.error(request, 'Hành động không hợp lệ.')
-        except IeOpsError as exc:
-            messages.error(request, str(exc))
+        messages.error(
+            request,
+            'Routing chỉ được quản lý trong Hồ sơ thiết kế SX, không thể chỉnh sửa tại đây.',
+        )
         return redirect('san_xuat:ie_routing_detail', pk=routing.pk)
 
     enrich_routing_lines_from_library(routing)
@@ -1387,6 +1279,8 @@ def routing_detail(request, pk: int):
     default_seq_no = int(last_seq) + 1 if not edit_line else None
     return render(request, 'san_xuat/ie_routing_detail.html', {
         **perms,
+        'can_update': False,
+        'can_approve': False,
         'routing': routing,
         'lines': lines,
         'total_smv': routing.total_smv,

@@ -9,7 +9,7 @@
 <div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 py-md-4 mb-5">
   <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
     <div class="jp-sx-detail-title">
-      <h2 class="jp-npl-mat-topbar-title w-100">Routing mã hàng</h2>
+      <h2 class="jp-npl-mat-topbar-title w-100">Routing trong hồ sơ thiết kế SX</h2>
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
       {% if can_export %}
@@ -102,7 +102,7 @@
             </td>
           </tr>
         {% empty %}
-          <tr><td colspan="{% if can_pick_rows %}{{ list_columns|length|add:1 }}{% else %}{{ list_columns|length }}{% endif %}" class="text-muted small p-3 text-center">Không có routing phù hợp. Bấm Tạo routing để tạo mới.</td></tr>
+          <tr><td colspan="{% if can_pick_rows %}{{ list_columns|length|add:1 }}{% else %}{{ list_columns|length }}{% endif %}" class="text-muted small p-3 text-center">Không có routing trong hồ sơ thiết kế SX phù hợp.</td></tr>
         {% endfor %}
         </tbody>
       </table>
