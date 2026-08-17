@@ -14,6 +14,7 @@ from hrm.group_permissions import (
     PERM_VIEW,
     empty_module_perm,
     get_user_module_perm,
+    menu_permission_action_enabled,
     module_perm_allows_edit,
     module_perm_allows_view,
 )
@@ -98,8 +99,16 @@ def get_effective_menu_perm(user, module_key: str, menu_key: str) -> dict:
                 menu_perm = menus.get(legacy_key)
         if menu_perm is None:
             return empty_module_perm()
-        return {action: bool(menu_perm.get(action)) for action in PERM_ACTIONS}
-    return {action: bool(mod_perm.get(action)) for action in PERM_ACTIONS}
+        return {
+            action: bool(menu_perm.get(action))
+            and menu_permission_action_enabled(module_key, menu_key, action)
+            for action in PERM_ACTIONS
+        }
+    return {
+        action: bool(mod_perm.get(action))
+        and menu_permission_action_enabled(module_key, menu_key, action)
+        for action in PERM_ACTIONS
+    }
 
 
 def menu_perm_context(user, module_key: str, menu_key: str) -> dict:
