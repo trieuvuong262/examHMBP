@@ -150,6 +150,13 @@
                                 {% endif %}
                             </tr>
                             {% for submenu in row.submenus %}
+                            {% if submenu.permission_section %}
+                            <tr class="jp-perm-section-row">
+                                <td colspan="8" class="ps-3 small fw-semibold text-uppercase text-secondary bg-light">
+                                    {{ submenu.permission_section }}
+                                </td>
+                            </tr>
+                            {% endif %}
                             <tr data-module="{{ submenu.module_key|default:row.key }}" data-menu="{{ submenu.key }}" class="jp-perm-matrix-row jp-perm-submenu-row" data-supports-export="{% if submenu.supports_export|default:row.supports_export %}1{% else %}0{% endif %}" data-supports-print="{% if submenu.supports_print|default:row.supports_print %}1{% else %}0{% endif %}"{% if submenu.hub %} data-hub="{{ submenu.hub }}"{% endif %}{% if submenu.view_only %} data-view-only="1"{% endif %}>
                                 <td class="jp-perm-sticky-col ps-3">
                                     <div class="jp-perm-module-cell jp-perm-submenu-cell">
@@ -168,9 +175,11 @@
                                     </div>
                                 </td>
                                 {% for action, field in submenu.fields.items %}
-                                <td class="text-center jp-perm-action-cell jp-perm-col-{{ action }}{% if submenu.view_only and action != 'view' %} jp-perm-export-na{% elif action == 'export' and not submenu.supports_export|default:row.supports_export %} jp-perm-export-na{% elif action == 'print' and not submenu.supports_print|default:row.supports_print %} jp-perm-export-na{% elif submenu.view_export_only|default:row.view_export_only and action != 'view' and action != 'export' %} jp-perm-export-na{% endif %}">
-                                    {% if submenu.view_only and action != 'view' %}
-                                    <span class="jp-perm-na" title="Menu học / làm bài chỉ có quyền Xem">—</span>
+                                <td class="text-center jp-perm-action-cell jp-perm-col-{{ action }}{% if action not in submenu.supported_actions %} jp-perm-export-na{% elif submenu.view_only and action != 'view' %} jp-perm-export-na{% elif action == 'export' and not submenu.supports_export|default:row.supports_export %} jp-perm-export-na{% elif action == 'print' and not submenu.supports_print|default:row.supports_print %} jp-perm-export-na{% elif submenu.view_export_only|default:row.view_export_only and action != 'view' and action != 'export' %} jp-perm-export-na{% endif %}">
+                                    {% if action not in submenu.supported_actions %}
+                                    <span class="jp-perm-na" title="Màn hình này không có chức năng này">—</span>
+                                    {% elif submenu.view_only and action != 'view' %}
+                                    <span class="jp-perm-na" title="Menu này chỉ có quyền Xem">—</span>
                                     {% elif action == 'export' and not submenu.supports_export|default:row.supports_export %}
                                     <span class="jp-perm-na" title="Menu này không có xuất Excel">—</span>
                                     {% elif action == 'print' and not submenu.supports_print|default:row.supports_print %}

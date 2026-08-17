@@ -27,7 +27,12 @@ def _coerce_pk(value):
 from hrm.org_structure import divisions_for_department
 from hrm.choices import GENDER_FORM_CHOICES
 from hrm.permissions import ROLE_EMPLOYEE
-from hrm.module_permissions import ALL_MODULE_KEYS, MODULE_CHOICES, MODULE_LABELS
+from hrm.module_permissions import (
+    ALL_MODULE_KEYS,
+    MODULE_CHOICES,
+    MODULE_LABELS,
+    MODULE_SAN_XUAT,
+)
 from hrm.role_permissions import normalize_module_permissions
 from hrm.group_permissions import (
     MODULE_VIEW_EXPORT_ONLY,
@@ -1077,6 +1082,58 @@ PERM_GROUP_MODULE_ICONS = {
 }
 
 
+SAN_XUAT_PERMISSION_SECTIONS = (
+    ('Tổng quan', ('overview',)),
+    ('Đơn đặt hàng', ('orders', 'order_create', 'order_confirm')),
+    ('Hồ sơ', ('docs', 'ie', 'ie_approve', 'ie_settings', 'capacity')),
+    ('Kế hoạch SX', ('plan', 'plan_board', 'plan_route', 'plan_npl', 'npl_pr')),
+    (
+        'Điều phối',
+        ('dispatch', 'mo', 'material_issue_req', 'handover_status', 'fg_receipt_req', 'subcontract'),
+    ),
+    (
+        'Công việc tổ',
+        (
+            'team_work', 'team_work_goods', 'team_work_cat', 'team_work_inep',
+            'team_work_theu', 'team_work_may', 'team_work_ht', 'team_work_gh',
+        ),
+    ),
+    ('Kiểm tra chất lượng', ('qc_request', 'qc_sheet', 'qc', 'ncr', 'qc_criteria')),
+    ('Báo cáo', ('traceability', 'ops_report')),
+    ('Thiết lập chung', ('general_settings',)),
+)
+
+
+def _sectioned_san_xuat_submenus(submenus: list[dict]) -> list[dict]:
+    """Đưa ma trận quyền SX về đúng thứ tự/nhóm đang dùng ở sidebar."""
+    by_key = {item['key']: item for item in submenus}
+    result = []
+    used = set()
+    for section, keys in SAN_XUAT_PERMISSION_SECTIONS:
+        first = True
+        for key in keys:
+            item = by_key.get(key)
+            if not item:
+                continue
+            result.append({
+                **item,
+                'permission_section': section if first else '',
+            })
+            used.add(key)
+            first = False
+    # Các màn chuyên môn/URL cũ vẫn cần phân quyền, nhưng không làm nhiễu menu sidebar.
+    first = True
+    for item in submenus:
+        if item['key'] in used:
+            continue
+        result.append({
+            **item,
+            'permission_section': 'Chức năng chuyên môn / không hiện ở sidebar' if first else '',
+        })
+        first = False
+    return result
+
+
 class PermissionGroupPermissionForm(forms.Form):
     """Ma trận quyền / module và menu con cho một nhóm."""
 
@@ -1141,12 +1198,22 @@ class PermissionGroupPermissionForm(forms.Form):
         for module_key, label in MODULE_CHOICES:
             submenus = get_module_submenus(module_key)
             submenu_rows = []
-            for sm in submenus:
+            display_submenus = (
+                _sectioned_san_xuat_submenus(submenus)
+                if module_key == MODULE_SAN_XUAT else submenus
+            )
+            for sm in display_submenus:
+                supported_actions = tuple(
+                    action for action in PERM_ACTIONS
+                    if menu_permission_action_enabled(module_key, sm['key'], action)
+                )
                 submenu_rows.append({
                     'key': sm['key'],
                     'label': sm.get('perm_label') or sm['label'],
                     'icon': sm.get('icon', 'bi-dot'),
                     'view_only': submenu_perm_view_only(module_key, sm['key']),
+                    'permission_section': sm.get('permission_section', ''),
+                    'supported_actions': supported_actions,
                     'action_enabled': {
                         action: menu_permission_action_enabled(module_key, sm['key'], action)
                         for action in PERM_ACTIONS

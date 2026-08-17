@@ -69,10 +69,16 @@ def menu_permission_action_enabled(module_key: str, menu_key: str | None, action
     """Quyền hiển thị / lưu theo menu con — ưu tiên hơn quyền module."""
     if not menu_key:
         return module_permission_action_enabled(module_key, action)
-    from hrm.submenu_registry import submenu_perm_manage, submenu_perm_view_only
+    from hrm.submenu_registry import (
+        submenu_perm_manage,
+        submenu_perm_view_only,
+        submenu_supported_actions,
+    )
 
     if submenu_perm_view_only(module_key, menu_key):
         return action == PERM_VIEW
+    if action not in submenu_supported_actions(module_key, menu_key):
+        return False
     if module_key in MODULE_VIEW_EXPORT_ONLY and submenu_perm_manage(module_key, menu_key):
         if action == PERM_EXPORT:
             return module_supports_export(module_key)
