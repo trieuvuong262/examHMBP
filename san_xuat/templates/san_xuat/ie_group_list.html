@@ -79,7 +79,6 @@
           <tr{% if can_update %} class="jp-npl-catalog-row ie-edit-group"
                       role="button"
                       tabindex="0"
-                      data-bs-toggle="modal" data-bs-target="#ieEditGroupModal"
                       data-pk="{{ g.pk }}"
                       data-code="{{ g.code }}"
                       data-name="{{ g.name }}"
@@ -91,7 +90,7 @@
                       data-active="{% if g.is_active %}1{% else %}0{% endif %}"
                       data-notes="{{ g.notes }}"{% endif %}>
             {% if can_pick_rows %}
-            <td class="text-center" data-col="_pick" onclick="event.stopPropagation()">
+            <td class="text-center" data-col="_pick">
               <input type="checkbox" class="form-check-input ie-group-pick" name="pk" value="{{ g.pk }}" form="ieGroupBulkForm">
             </td>
             {% endif %}
@@ -110,11 +109,11 @@
             <td class="npl-col small" data-col="data_owner">{{ g.data_owner|default:"—" }}</td>
             <td class="npl-col small" data-col="effective_from">{% if g.effective_from %}{{ g.effective_from|date:"d/m/Y" }}{% else %}—{% endif %}</td>
             <td class="npl-col small jp-ie-cell-wrap" data-col="notes" title="{{ g.notes }}">{{ g.notes|default:"—"|truncatechars:40 }}</td>
-            <td class="npl-col text-end" data-col="n_ops" onclick="event.stopPropagation()">
+            <td class="npl-col text-end" data-col="n_ops">
               <a href="{% url 'san_xuat:ie_operation_list' %}?group={{ g.code }}">{{ g.n_ops }}</a>
             </td>
             {% if can_update %}
-            <td class="npl-col text-end jp-td-actions" data-col="actions" onclick="event.stopPropagation()">
+            <td class="npl-col text-end jp-td-actions" data-col="actions">
               <form method="post" class="d-inline" onsubmit="return confirm('Xóa nhóm {{ g.code }}?');">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="delete_group">
@@ -303,35 +302,55 @@
   </div>
 </div>
 <script>
-document.getElementById('ieEditGroupModal').addEventListener('show.bs.modal', function (ev) {
-  var btn = ev.relatedTarget;
-  if (!btn) return;
-  document.getElementById('ieEditGroupPk').value = btn.getAttribute('data-pk') || '';
-  document.getElementById('ieEditGroupCode').value = btn.getAttribute('data-code') || '';
-  document.getElementById('ieEditGroupName').value = btn.getAttribute('data-name') || '';
-  document.getElementById('ieEditGroupStage').value = btn.getAttribute('data-stage') || '';
-  document.getElementById('ieEditGroupPart').value = btn.getAttribute('data-part') || '';
-  document.getElementById('ieEditGroupDesc').value = btn.getAttribute('data-description') || '';
-  document.getElementById('ieEditGroupOwner').value = btn.getAttribute('data-owner') || '';
-  var eff = document.getElementById('ieEditGroupEffective');
-  var effVal = btn.getAttribute('data-effective') || '';
-  if (eff && eff._flatpickr) {
-    if (effVal) eff._flatpickr.setDate(effVal, true);
-    else eff._flatpickr.clear();
-  } else if (eff) {
-    eff.value = effVal;
-  }
-  document.getElementById('ieEditGroupActive').checked = btn.getAttribute('data-active') === '1';
-  document.getElementById('ieEditGroupNotes').value = btn.getAttribute('data-notes') || '';
-});
-document.querySelectorAll('tr.ie-edit-group').forEach(function (row) {
-  row.addEventListener('keydown', function (ev) {
-    if (ev.key === 'Enter' || ev.key === ' ') {
-      ev.preventDefault();
-      row.click();
+(function () {
+  var modalEl = document.getElementById('ieEditGroupModal');
+  if (!modalEl || !window.bootstrap) return;
+
+  function fillEditForm(row) {
+    if (!row) return;
+    document.getElementById('ieEditGroupPk').value = row.getAttribute('data-pk') || '';
+    document.getElementById('ieEditGroupCode').value = row.getAttribute('data-code') || '';
+    document.getElementById('ieEditGroupName').value = row.getAttribute('data-name') || '';
+    document.getElementById('ieEditGroupStage').value = row.getAttribute('data-stage') || '';
+    document.getElementById('ieEditGroupPart').value = row.getAttribute('data-part') || '';
+    document.getElementById('ieEditGroupDesc').value = row.getAttribute('data-description') || '';
+    document.getElementById('ieEditGroupOwner').value = row.getAttribute('data-owner') || '';
+    var eff = document.getElementById('ieEditGroupEffective');
+    var effVal = row.getAttribute('data-effective') || '';
+    if (eff && eff._flatpickr) {
+      if (effVal) eff._flatpickr.setDate(effVal, true);
+      else eff._flatpickr.clear();
+    } else if (eff) {
+      eff.value = effVal;
     }
+    document.getElementById('ieEditGroupActive').checked = row.getAttribute('data-active') === '1';
+    document.getElementById('ieEditGroupNotes').value = row.getAttribute('data-notes') || '';
+  }
+
+  function isInteractive(target) {
+    return !!(target && target.closest(
+      'a, button, input, select, textarea, label, form, .form-check-input, [data-col="_pick"], [data-col="actions"], [data-col="n_ops"]'
+    ));
+  }
+
+  function openEdit(row) {
+    fillEditForm(row);
+    bootstrap.Modal.getOrCreateInstance(modalEl).show();
+  }
+
+  document.querySelectorAll('tr.ie-edit-group').forEach(function (row) {
+    row.addEventListener('click', function (ev) {
+      if (isInteractive(ev.target)) return;
+      openEdit(row);
+    });
+    row.addEventListener('keydown', function (ev) {
+      if (ev.key !== 'Enter' && ev.key !== ' ') return;
+      if (isInteractive(ev.target)) return;
+      ev.preventDefault();
+      openEdit(row);
+    });
   });
-});
+})();
 </script>
 {% endif %}
 {% include 'san_xuat/includes/ie_import_modal.html' %}
