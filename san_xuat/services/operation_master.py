@@ -35,6 +35,7 @@ from san_xuat.ie_models import (
     ensure_process_stage_defaults,
     ensure_skill_levels_abc,
     ensure_smv_basis_defaults,
+    default_smv_basis_name,
     normalize_skill_level_label,
 )
 from san_xuat.hub_models import SxWorkCenter
@@ -397,20 +398,7 @@ def _import_operations(wb, result: ImportResult) -> None:
         skill_label = normalize_skill_level_label(_s(rec.get('BẬC CÔNG ĐOẠN')))
         smv_source_label = _s(rec.get('NGUỒN SMV'))
         status_label = _s(rec.get('TRẠNG THÁI')).casefold()
-        smv_basis_raw = _s(rec.get('ĐƠN VỊ'))
-        smv_basis = smv_basis_raw
-        if smv_basis_raw:
-            basis = (
-                SxSmvBasis.objects.filter(name__iexact=smv_basis_raw).first()
-                or SxSmvBasis.objects.filter(code__iexact=smv_basis_raw).first()
-            )
-            if basis is None:
-                code = smv_basis_raw[:40].upper() or 'UNIT'
-                basis, _ = SxSmvBasis.objects.get_or_create(
-                    code=code,
-                    defaults={'name': smv_basis_raw[:150], 'sort_order': 200, 'is_active': True},
-                )
-            smv_basis = basis.name
+        smv_basis = default_smv_basis_name()
 
         _, created = SxOperation.objects.update_or_create(
             op_code=op_code,

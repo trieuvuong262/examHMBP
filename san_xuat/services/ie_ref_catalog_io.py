@@ -12,7 +12,6 @@ from san_xuat.ie_models import (
     SxProcessStage,
     SxProductPart,
     SxSkillLevel,
-    SxSmvBasis,
     SxSmvSource,
     SxStitchClass,
 )
@@ -29,7 +28,7 @@ SHEET_GUIDE = '00_HUONG_DAN'
 SHEET_DATA = 'DANH_MUC'
 HEADERS = ['MÃ', 'TÊN', 'THỨ TỰ', 'ĐANG DÙNG', 'GHI CHÚ']
 
-UPPERCASE_CODE_KINDS = frozenset({'bac-ky-nang', 'don-vi-smv', 'khau-san-xuat'})
+UPPERCASE_CODE_KINDS = frozenset({'bac-ky-nang', 'khau-san-xuat'})
 
 REF_CATALOG_IO = {
     'cum-chi-tiet': {
@@ -66,13 +65,6 @@ REF_CATALOG_IO = {
         'filename_export': 'Nguon_SMV',
         'filename_template': 'Mau_Import_Nguon_SMV',
         'sample_row': ['TS', 'Time study', 10, 'Có', 'Ví dụ — xóa trước khi import'],
-    },
-    'don-vi-smv': {
-        'model': SxSmvBasis,
-        'label': 'Đơn vị cơ sở SMV',
-        'filename_export': 'Don_Vi_SMV',
-        'filename_template': 'Mau_Import_Don_Vi_SMV',
-        'sample_row': ['MIN', 'Phút/SP', 10, 'Có', 'Ví dụ — xóa trước khi import'],
     },
 }
 

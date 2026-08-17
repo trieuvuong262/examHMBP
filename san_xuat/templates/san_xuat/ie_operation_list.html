@@ -259,14 +259,6 @@
               <input type="number" name="time_sec" class="form-control form-control-sm" step="0.01" min="0" placeholder="VD: 36">
             </div>
             <div class="col-md-4">
-              <label class="form-label small text-muted mb-1">Đơn vị SMV <span class="text-danger">*</span></label>
-              <select name="smv_basis" class="form-select form-select-sm">
-                {% for b in smv_basis_choices %}
-                <option value="{{ b }}" {% if b == default_smv_basis %}selected{% endif %}>{{ b }}</option>
-                {% endfor %}
-              </select>
-            </div>
-            <div class="col-md-4">
               <label class="form-label small text-muted mb-1">Nguồn SMV <span class="text-danger">*</span></label>
               <select name="smv_source_code" class="form-select form-select-sm">
                 <option value="">— Chọn nguồn —</option>

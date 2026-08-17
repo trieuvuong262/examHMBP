@@ -36,15 +36,12 @@ from san_xuat.ie_models import (
     SxRouting,
     SxRoutingLine,
     SxSkillLevel,
-    SxSmvBasis,
     SxSmvSource,
     SxStitchClass,
     ensure_process_stage_defaults,
     ensure_skill_levels_abc,
     ensure_smv_basis_defaults,
     default_smv_basis_name,
-    smv_from_seconds,
-    smv_to_seconds,
 )
 from san_xuat.services.production_machines import (
     ie_machine_options,
@@ -510,14 +507,13 @@ def _ie_operation_form_catalogs(*, extra_product_part: str = ''):
     )
     if extra_product_part and extra_product_part not in product_parts:
         product_parts = [extra_product_part] + product_parts
-    smv_bases = ensure_smv_basis_defaults()
+    ensure_smv_basis_defaults()
     return {
         'process_stages': ensure_process_stage_defaults(),
         'skill_levels': ensure_skill_levels_abc(),
         'stitch_classes': SxStitchClass.objects.filter(is_active=True).order_by('sort_order', 'code'),
         'smv_sources': SxSmvSource.objects.filter(is_active=True).order_by('sort_order', 'code'),
         'product_parts': product_parts,
-        'smv_basis_choices': [b.name for b in smv_bases],
         'default_smv_basis': default_smv_basis_name(),
     }
 
@@ -1005,7 +1001,7 @@ def operation_list(request):
                     skill_level_label=request.POST.get('skill_level_label'),
                     stitch_class_code=request.POST.get('stitch_class_code'),
                     smv_source_code=request.POST.get('smv_source_code'),
-                    smv_basis=(request.POST.get('smv_basis') or '').strip() or default_smv_basis_name(),
+                    smv_basis=default_smv_basis_name(),
                     thread_needle=request.POST.get('thread_needle'),
                     attachment_code=request.POST.get('attachment_code'),
                     notes=request.POST.get('notes'),
@@ -1103,11 +1099,8 @@ def operation_detail(request, pk: int):
                 gid = (request.POST.get('group_id') or '').strip()
                 if gid.isdigit():
                     group = SxOperationGroup.objects.filter(pk=int(gid)).first()
-                smv_basis = (
-                    request.POST.get('smv_basis') or ''
-                ).strip() or default_smv_basis_name()
                 smv_raw = (request.POST.get('base_smv_min') or '').strip()
-                smv = smv_to_seconds(_dec(smv_raw), smv_basis) if smv_raw != '' else None
+                smv = _dec(smv_raw) if smv_raw != '' else None
                 status = (request.POST.get('status') or '').strip() or None
                 from datetime import date as _date_cls
 
@@ -1136,7 +1129,7 @@ def operation_detail(request, pk: int):
                     stitch_class_code=request.POST.get('stitch_class_code'),
                     smv_source_code=request.POST.get('smv_source_code'),
                     base_smv_min=smv,
-                    smv_basis=smv_basis,
+                    smv_basis=default_smv_basis_name(),
                     qc_criteria=request.POST.get('qc_criteria'),
                     status=status if status != SxOperation.STATUS_APPROVED else None,
                     ie_owner=op.ie_owner or ie_user_display_name(request.user),
@@ -1180,15 +1173,8 @@ def operation_detail(request, pk: int):
             product_parts.append(p)
     if op.product_part and op.product_part not in product_parts:
         product_parts = [op.product_part] + product_parts
-    smv_bases = ensure_smv_basis_defaults()
-    smv_basis_choices = [b.name for b in smv_bases]
-    smv_basis_options = [{'name': b.name, 'code': b.code} for b in smv_bases]
-    if op.smv_basis and op.smv_basis not in smv_basis_choices:
-        # Giữ giá trị cũ nếu chưa có trong danh mục
-        smv_basis_choices = [op.smv_basis] + smv_basis_choices
-        smv_basis_options.insert(0, {'name': op.smv_basis, 'code': 'SEC'})
+    ensure_smv_basis_defaults()
     current_owner = ie_user_display_name(request.user)
-    active_smv_basis = op.smv_basis or default_smv_basis_name()
 
     return render(request, 'san_xuat/ie_operation_detail.html', {
         **perms,
@@ -1200,10 +1186,7 @@ def operation_detail(request, pk: int):
         'stitch_classes': SxStitchClass.objects.filter(is_active=True).order_by('sort_order', 'code'),
         'smv_sources': SxSmvSource.objects.filter(is_active=True).order_by('sort_order', 'code'),
         'product_parts': product_parts,
-        'smv_basis_choices': smv_basis_choices,
         'default_smv_basis': default_smv_basis_name(),
-        'smv_basis_options': smv_basis_options,
-        'display_smv_value': smv_from_seconds(op.base_smv_min, active_smv_basis),
         'current_user_display_name': current_owner,
         'status_choices': [
             c for c in SxOperation.STATUS_CHOICES if c[0] != SxOperation.STATUS_APPROVED
@@ -1590,13 +1573,6 @@ IE_REF_CATALOGS = {
         'name_label': 'Tên nguồn SMV',
         'hint': 'VD: Time study, PMTS/GSD, Ước tính IE.',
     },
-    'don-vi-smv': {
-        'model': SxSmvBasis,
-        'title': 'Đơn vị cơ sở SMV',
-        'code_label': 'Mã đơn vị',
-        'name_label': 'Tên đơn vị',
-        'hint': 'VD: Phút/SP, Giây, SP/H — cột Đơn vị trên thư viện công đoạn.',
-    },
 }
 
 
@@ -1614,7 +1590,6 @@ def ie_settings_hub(request):
         'process_stages': SxProcessStage.objects.filter(is_active=True).count(),
         'stitch_classes': SxStitchClass.objects.filter(is_active=True).count(),
         'smv_sources': SxSmvSource.objects.filter(is_active=True).count(),
-        'smv_bases': SxSmvBasis.objects.filter(is_active=True).count(),
         'approvers': ensure_ie_approver_group().user_set.count(),
     }
     return render(request, 'san_xuat/ie_settings_hub.html', {
@@ -1791,8 +1766,6 @@ def ie_ref_catalog(request, kind: str):
         ensure_skill_levels_abc()
     elif kind == 'khau-san-xuat':
         ensure_process_stage_defaults()
-    elif kind == 'don-vi-smv':
-        ensure_smv_basis_defaults()
     Model = meta['model']
     perms = _settings_perm_ctx(request)
     list_url = reverse('san_xuat:ie_ref_catalog', kwargs={'kind': kind})
@@ -1804,7 +1777,7 @@ def ie_ref_catalog(request, kind: str):
                 if not (perms['can_create'] or perms['can_update']):
                     raise IeOpsError('Bạn không có quyền thêm danh mục.')
                 code = (request.POST.get('code') or '').strip()[:40]
-                if kind in ('bac-ky-nang', 'don-vi-smv', 'khau-san-xuat'):
+                if kind in ('bac-ky-nang', 'khau-san-xuat'):
                     code = code.upper()
                 name = (request.POST.get('name') or '').strip()[:150] or code
                 if not code:

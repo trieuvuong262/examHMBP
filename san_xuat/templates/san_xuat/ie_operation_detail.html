@@ -59,8 +59,8 @@
           </select>
         </div>
         <div class="col-md-4">
-          <label id="smv-standard-label" class="form-label small mb-1">SMV chuẩn ({{ op.smv_basis|default:default_smv_basis }}) <span class="text-danger">*</span></label>
-          <input id="smv-standard-value" type="number" name="base_smv_min" class="form-control form-control-sm" step="0.0001" min="0" value="{{ display_smv_value|sx_num_input }}" {% if not can_update %}readonly{% endif %}>
+          <label class="form-label small mb-1">SMV chuẩn (giây) <span class="text-danger">*</span></label>
+          <input type="number" name="base_smv_min" class="form-control form-control-sm" step="0.01" min="0" value="{{ op.base_smv_min|sx_num_input }}" {% if not can_update %}readonly{% endif %}>
         </div>
         <div class="col-md-4">
           <label class="form-label small mb-1">Trạng thái <span class="text-danger">*</span></label>
@@ -164,15 +164,6 @@
         <div class="col-md-4">
           <label class="form-label small mb-1">Người lập <span class="text-danger">*</span></label>
           <input type="text" class="form-control form-control-sm" value="{{ op.ie_owner|default:current_user_display_name }}" readonly>
-        </div>
-
-        <div class="col-md-4">
-          <label class="form-label small mb-1">Đơn vị SMV <span class="text-danger">*</span></label>
-          <select id="smv-basis" name="smv_basis" class="form-select form-select-sm ie-ts" {% if not can_update %}disabled{% endif %}>
-            {% for b in smv_basis_options %}
-            <option value="{{ b.name }}" data-basis-code="{{ b.code }}" {% if b.name == op.smv_basis or not op.smv_basis and b.name == default_smv_basis %}selected{% endif %}>{{ b.name }}</option>
-            {% endfor %}
-          </select>
         </div>
         <div class="col-md-8">
           <label class="form-label small mb-1">Lý do chỉnh sửa phiên bản</label>
@@ -279,39 +270,6 @@
       sortField: { field: 'text', direction: 'asc' },
       plugins: ['clear_button'],
     });
-  });
-
-  var basis = document.getElementById('smv-basis');
-  var smv = document.getElementById('smv-standard-value');
-  var label = document.getElementById('smv-standard-label');
-  if (!basis || !smv || !label) return;
-
-  function basisCode() {
-    var option = basis.options[basis.selectedIndex];
-    return option ? option.dataset.basisCode || 'SEC' : 'SEC';
-  }
-  function toSeconds(value, code) {
-    if (code === 'MIN') return value * 60;
-    if (code === 'PCS_H') return value ? 3600 / value : 0;
-    return value;
-  }
-  function fromSeconds(value, code) {
-    if (code === 'MIN') return value / 60;
-    if (code === 'PCS_H') return value ? 3600 / value : 0;
-    return value;
-  }
-  function format(value) {
-    return Number(value.toFixed(4)).toString();
-  }
-  var previousCode = basisCode();
-  basis.addEventListener('change', function () {
-    var nextCode = basisCode();
-    var value = Number(smv.value);
-    if (Number.isFinite(value) && value >= 0) {
-      smv.value = format(fromSeconds(toSeconds(value, previousCode), nextCode));
-    }
-    previousCode = nextCode;
-    label.innerHTML = 'SMV chuẩn (' + basis.value + ') <span class="text-danger">*</span>';
   });
 })();
 </script>

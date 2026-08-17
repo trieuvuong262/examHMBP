@@ -131,7 +131,7 @@ class SxSmvSource(SxRefBase):
 
 
 class SxSmvBasis(SxRefBase):
-    """Đơn vị cơ sở SMV (SMV_BASIS) — Phút/SP, Giây, SP/H…"""
+    """Đơn vị cơ sở SMV — hệ thống chỉ dùng giây."""
 
     class Meta(SxRefBase.Meta):
         verbose_name = 'Đơn vị cơ sở SMV'
@@ -139,59 +139,38 @@ class SxSmvBasis(SxRefBase):
 
 
 SMV_BASIS_DEFAULTS: tuple[tuple[str, str, int], ...] = (
-    ('MIN', 'Phút/SP', 10),
-    ('SEC', 'Giây', 20),
-    ('PCS_H', 'SP/H', 30),
+    ('SEC', 'Giây', 10),
 )
 
 
 def ensure_smv_basis_defaults() -> list['SxSmvBasis']:
-    """Seed đơn vị SMV chuẩn nếu thiếu; trả danh sách đang dùng."""
+    """Chỉ giữ đơn vị Giây (SEC); tắt Phút/SP và SP/H nếu còn trong DB."""
     for code, name, order in SMV_BASIS_DEFAULTS:
-        SxSmvBasis.objects.get_or_create(
+        obj, _ = SxSmvBasis.objects.get_or_create(
             code=code,
             defaults={'name': name, 'sort_order': order, 'is_active': True},
         )
+        fields: list[str] = []
+        if obj.name != name:
+            obj.name = name
+            fields.append('name')
+        if obj.sort_order != order:
+            obj.sort_order = order
+            fields.append('sort_order')
+        if not obj.is_active:
+            obj.is_active = True
+            fields.append('is_active')
+        if fields:
+            obj.save(update_fields=fields)
+    SxSmvBasis.objects.exclude(code='SEC').filter(is_active=True).update(is_active=False)
     return list(SxSmvBasis.objects.filter(is_active=True).order_by('sort_order', 'code'))
 
 
 def default_smv_basis_name() -> str:
-    """Nhãn đơn vị SMV mặc định khi tạo / chưa chọn (theo catalog SEC = Giây)."""
+    """Đơn vị SMV cố định: giây."""
     ensure_smv_basis_defaults()
     basis = SxSmvBasis.objects.filter(code='SEC', is_active=True).first()
     return basis.name if basis else 'Giây'
-
-
-def smv_basis_code(value: str | None) -> str:
-    """Chuẩn hóa nhãn/mã đơn vị SMV về MIN, SEC hoặc PCS_H."""
-    normalized = (value or '').strip().casefold()
-    if normalized in {'min', 'phút/sp', 'phut/sp', 'phút', 'phut'}:
-        return 'MIN'
-    if normalized in {'pcs_h', 'sp/h', 'sp/giờ', 'sp/gio'}:
-        return 'PCS_H'
-    return 'SEC'
-
-
-def smv_to_seconds(value: Decimal, basis: str | None) -> Decimal:
-    """Quy đổi giá trị người dùng nhập theo đơn vị đã chọn về giây để lưu."""
-    value = Decimal(value or '0')
-    code = smv_basis_code(basis)
-    if code == 'MIN':
-        return _q(value * Decimal('60'))
-    if code == 'PCS_H':
-        return _q(Decimal('3600') / value) if value else Decimal('0')
-    return _q(value)
-
-
-def smv_from_seconds(value: Decimal, basis: str | None) -> Decimal:
-    """Quy đổi SMV lưu (giây) thành giá trị hiển thị theo đơn vị đã chọn."""
-    value = Decimal(value or '0')
-    code = smv_basis_code(basis)
-    if code == 'MIN':
-        return _q(value / Decimal('60'))
-    if code == 'PCS_H':
-        return _q(Decimal('3600') / value) if value else Decimal('0')
-    return _q(value)
 
 
 PROCESS_STAGE_DEFAULTS: tuple[tuple[str, str, int], ...] = (
