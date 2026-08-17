@@ -10,7 +10,7 @@
 <div class="container-fluid jp-page jp-sx-page py-3 py-md-4 mb-5 px-3 px-lg-4">
   <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100 mb-3">
     <div class="jp-sx-detail-title">
-      <h2 class="jp-npl-mat-topbar-title w-100 mb-0">Duyệt phát hành</h2>
+      <h2 class="jp-npl-mat-topbar-title w-100 mb-0">Duyệt công đoạn</h2>
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
       <a href="{% url 'san_xuat:ie_hub' %}" class="is-back">
@@ -28,15 +28,7 @@
   {% endif %}
 
   <form method="get" id="ieApproveFilterForm" class="row g-2 align-items-end mb-3">
-    <div class="col-md-2">
-      <label for="ieApproveKind" class="form-label small mb-1">Loại</label>
-      <select name="kind" id="ieApproveKind" class="form-select form-select-sm ie-approve-filter-auto">
-        <option value="{{ kind_all }}" {% if kind == kind_all %}selected{% endif %}>Tất cả</option>
-        <option value="{{ kind_operation }}" {% if kind == kind_operation %}selected{% endif %}>Công đoạn</option>
-        <option value="{{ kind_routing }}" {% if kind == kind_routing %}selected{% endif %}>Routing</option>
-      </select>
-    </div>
-    <div class="col-md-2">
+    <div class="col-md-3">
       <label for="ieApproveStatus" class="form-label small mb-1">Trạng thái duyệt</label>
       <select name="status" id="ieApproveStatus" class="form-select form-select-sm ie-approve-filter-auto">
         {% for val, label in status_choices %}
@@ -44,11 +36,11 @@
         {% endfor %}
       </select>
     </div>
-    <div class="col-md-5">
+    <div class="col-md-6">
       <label for="ieApproveSearch" class="form-label small mb-1">Tìm kiếm</label>
       <input type="search" name="q" id="ieApproveSearch" value="{{ term }}"
              class="form-control form-control-sm"
-             placeholder="Mã, tên, mã hàng, người lập…"
+             placeholder="Mã, tên, nhóm, người lập…"
              autocomplete="off">
     </div>
     {% if has_active_filters %}
@@ -58,20 +50,34 @@
     {% endif %}
   </form>
 
-  <form method="post">
+  <form method="post" id="ieApproveForm">
     {% csrf_token %}
-    <input type="hidden" name="kind" value="{{ kind }}">
+    <input type="hidden" name="kind" value="{{ kind_operation }}">
     <input type="hidden" name="status" value="{{ status }}">
     <input type="hidden" name="q" value="{{ term }}">
+    <input type="hidden" name="op_pk" id="ieApproveOpPk" value="">
 
     <div class="card border-0 shadow-sm">
-      <div class="card-header bg-white fw-semibold py-2 d-flex align-items-center gap-2">
-        {% if status == status_pending %}
-        Hàng chờ duyệt
-        {% else %}
-        {% for val, label in status_choices %}{% if val == status %}{{ label }}{% endif %}{% endfor %}
+      <div class="card-header bg-white py-2 d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <div class="fw-semibold d-flex align-items-center gap-2">
+          {% if status == status_pending %}
+          Hàng chờ duyệt
+          {% else %}
+          {% for val, label in status_choices %}{% if val == status %}{{ label }}{% endif %}{% endfor %}
+          {% endif %}
+          <span class="badge bg-secondary-subtle text-secondary">{{ total }}</span>
+        </div>
+        {% if can_approve and show_bulk_actions and approve_rows %}
+        <div class="d-flex flex-wrap gap-2">
+          <button type="submit" name="action" value="bulk_approve" class="btn btn-sm btn-hm">
+            <i class="bi bi-check2-circle me-1"></i>Duyệt đã chọn
+          </button>
+          <button type="submit" name="action" value="bulk_reject" class="btn btn-sm btn-outline-secondary"
+                  onclick="return confirm('Từ chối các công đoạn đã chọn?');">
+            <i class="bi bi-x-circle me-1"></i>Từ chối đã chọn
+          </button>
+        </div>
         {% endif %}
-        <span class="badge bg-secondary-subtle text-secondary">{{ total }}</span>
       </div>
       <div class="table-responsive">
         <table class="table table-hover table-sm align-middle mb-0">
@@ -82,16 +88,14 @@
                 <input type="checkbox" class="form-check-input ie-approve-check-all" title="Chọn tất cả">
               </th>
               {% endif %}
-              <th style="width: 96px;">Loại</th>
               <th>Mã</th>
               <th>Phiên bản</th>
               <th>Tên</th>
-              <th>Chi tiết</th>
-              <th class="text-end">Dòng</th>
+              <th>Nhóm</th>
               <th class="text-end">SMV</th>
               <th style="width: 110px;">Trạng thái duyệt</th>
               <th>Người lập</th>
-              <th></th>
+              <th class="text-end" style="min-width: 180px;">Thao tác</th>
             </tr>
           </thead>
           <tbody>
@@ -104,22 +108,12 @@
                 {% endif %}
               </td>
               {% endif %}
-              <td>
-                {% if row.item_kind == 'op' %}
-                <span class="badge bg-primary-subtle text-primary">Công đoạn</span>
-                {% else %}
-                <span class="badge bg-info-subtle text-info-emphasis">Routing</span>
-                {% endif %}
-              </td>
               <td class="fw-semibold">
                 <a href="{{ row.code_url }}" class="text-decoration-none">{{ row.code }}</a>
               </td>
               <td><span class="badge bg-light text-dark">{{ row.rev }}</span></td>
               <td>{{ row.name|truncatechars:48 }}</td>
               <td class="small fw-semibold">{{ row.detail }}</td>
-              <td class="text-end">
-                {% if row.item_kind == 'rt' %}{{ row.n_lines|default:"—" }}{% else %}—{% endif %}
-              </td>
               <td class="text-end fw-semibold">{{ row.smv|default:0|sx_num }}</td>
               <td>
                 <span class="badge bg-{{ row.approval_badge }}-subtle text-{{ row.approval_badge }}">
@@ -129,22 +123,22 @@
               <td class="small">{{ row.owner }}</td>
               <td class="text-nowrap text-end">
                 <a href="{{ row.view_url }}" class="btn btn-sm btn-outline-hm py-0">{{ row.view_label }}</a>
-                {% for label, badge in row.extra_badges %}
-                <span class="badge bg-{{ badge }} text-dark">{{ label }}</span>
-                {% endfor %}
+                {% if can_approve and show_bulk_actions and row.can_select %}
+                <button type="submit" name="action" value="approve_operation"
+                        class="btn btn-sm btn-hm py-0 ie-approve-row-btn"
+                        data-op-pk="{{ row.op_pk }}">Duyệt</button>
+                <button type="submit" name="action" value="reject_operation"
+                        class="btn btn-sm btn-outline-secondary py-0 ie-approve-row-btn"
+                        data-op-pk="{{ row.op_pk }}"
+                        onclick="return confirm('Từ chối {{ row.code }}/{{ row.rev }}?');">Từ chối</button>
+                {% endif %}
               </td>
             </tr>
           {% empty %}
             <tr>
-              <td colspan="{% if can_approve and show_bulk_actions %}12{% else %}11{% endif %}" class="text-muted small p-3 text-center">
+              <td colspan="{% if can_approve and show_bulk_actions %}9{% else %}8{% endif %}" class="text-muted small p-3 text-center">
                 {% if status == status_pending %}
-                  {% if kind == kind_operation %}
-                  Không có công đoạn chờ duyệt.
-                  {% elif kind == kind_routing %}
-                  Không có routing chờ duyệt.
-                  {% else %}
-                  Không có công đoạn hoặc routing chờ duyệt.
-                  {% endif %}
+                Không có công đoạn chờ duyệt.
                 {% else %}
                 Không có dữ liệu phù hợp bộ lọc.
                 {% endif %}
@@ -154,18 +148,6 @@
           </tbody>
         </table>
       </div>
-
-      {% if can_approve and show_bulk_actions and approve_rows %}
-      <div class="card-footer bg-white border-top d-flex flex-wrap gap-2 align-items-center">
-        <button type="submit" name="action" value="bulk_approve" class="btn btn-sm btn-hm">
-          <i class="bi bi-check2-circle me-1"></i>Duyệt đã chọn
-        </button>
-        <button type="submit" name="action" value="bulk_reject" class="btn btn-sm btn-outline-secondary"
-                onclick="return confirm('Từ chối các mục đã chọn?');">
-          <i class="bi bi-x-circle me-1"></i>Từ chối đã chọn
-        </button>
-      </div>
-      {% endif %}
     </div>
   </form>
 
@@ -183,6 +165,12 @@
         });
       });
     }
+    var opPkInput = document.getElementById('ieApproveOpPk');
+    document.querySelectorAll('.ie-approve-row-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        if (opPkInput) opPkInput.value = btn.getAttribute('data-op-pk') || '';
+      });
+    });
   });
 </script>
 {% endif %}
