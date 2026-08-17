@@ -20,7 +20,7 @@ from hrm.menu_permissions import (
     user_can_update_menu,
 )
 from hrm.module_permissions import MODULE_UTILITIES
-from PortalJustPlay.list_search import apply_user_search, get_search_query
+from PortalJustPlay.list_search import apply_term_search, apply_user_search, get_search_query
 from PortalJustPlay.pagination import paginate_queryset
 
 from utilities.excel_export import (
@@ -358,7 +358,19 @@ def meal_home(request):
 
 @module_perm_required(MODULE_UTILITIES, 'update')
 def meal_dish_list(request):
-    dishes = list(MealDish.objects.all())
+    search_query = get_search_query(request)
+    status_filter = (request.GET.get('status') or '').strip().lower()
+    if status_filter not in ('active', 'hidden'):
+        status_filter = ''
+
+    qs = MealDish.objects.all()
+    if status_filter == 'active':
+        qs = qs.filter(is_active=True)
+    elif status_filter == 'hidden':
+        qs = qs.filter(is_active=False)
+    qs = apply_term_search(qs, search_query, 'name__icontains')
+    dishes = list(qs)
+
     ordered_ids = set(
         MealOrder.objects.filter(dish_id__in=[d.pk for d in dishes])
         .values_list('dish_id', flat=True)
@@ -368,6 +380,8 @@ def meal_dish_list(request):
         dish.has_orders = dish.pk in ordered_ids
     return render(request, 'utilities/meal_dish_list.html', {
         'dishes': dishes,
+        'search_query': search_query,
+        'status_filter': status_filter,
         'can_manage': True,
     })
 

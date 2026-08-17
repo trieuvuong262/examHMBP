@@ -7,7 +7,35 @@
         <p class="text-muted small mb-0">Mỗi ngày khác món thì <strong>thêm món mới</strong> — không đổi tên món đã có đơn.</p>
     </div>
     {% include 'utilities/includes/meal_manage_nav.html' with active='dishes' %}
-    <div class="d-flex justify-content-end mb-3">
+    <div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-3">
+        <form method="get" class="card border-0 shadow-sm flex-grow-1 mb-0">
+            <div class="card-body p-3 d-flex flex-wrap gap-2 align-items-end">
+                <div class="flex-grow-1" style="min-width: 12rem;">
+                    <label class="form-label fw-bold small mb-1" for="meal-dish-q">Tìm món</label>
+                    <input type="search"
+                           name="q"
+                           id="meal-dish-q"
+                           class="form-control"
+                           placeholder="Tên món…"
+                           value="{{ search_query|default:'' }}"
+                           autocomplete="off">
+                </div>
+                <div style="min-width: 9rem;">
+                    <label class="form-label fw-bold small mb-1" for="meal-dish-status">Trạng thái</label>
+                    <select name="status" id="meal-dish-status" class="form-select">
+                        <option value="" {% if not status_filter %}selected{% endif %}>Tất cả</option>
+                        <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Đang dùng</option>
+                        <option value="hidden" {% if status_filter == 'hidden' %}selected{% endif %}>Ẩn</option>
+                    </select>
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-hm">Lọc</button>
+                    {% if search_query or status_filter %}
+                    <a href="{% url 'utilities:meal_dish_list' %}" class="btn btn-light border" title="Xóa lọc" aria-label="Xóa lọc"><i class="bi bi-x-lg"></i></a>
+                    {% endif %}
+                </div>
+            </div>
+        </form>
         <a href="{% url 'utilities:meal_dish_create' %}" class="btn btn-hm btn-sm fw-bold">Thêm món</a>
     </div>
     <div class="card border-0 shadow-sm overflow-hidden">
@@ -35,7 +63,7 @@
                         </td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="4" class="text-center text-muted py-4">Chưa có món — thêm món hoặc chạy seed dữ liệu.</td></tr>
+                    <tr><td colspan="4" class="text-center text-muted py-4">{% if search_query or status_filter %}Không có món khớp bộ lọc.{% else %}Chưa có món — thêm món hoặc chạy seed dữ liệu.{% endif %}</td></tr>
                     {% endfor %}
                 </tbody>
             </table>

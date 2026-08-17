@@ -105,8 +105,8 @@ class UtilitiesRulesTests(TestCase):
 
         with patch('utilities.forms.is_salary_advance_open', return_value=True):
             form = SalaryAdvanceForm({'amount': '3000000', 'note': ''})
-        self.assertTrue(form.is_valid(), form.errors)
-        self.assertEqual(form.cleaned_data['amount'], Decimal('3000000'))
+            self.assertTrue(form.is_valid(), form.errors)
+            self.assertEqual(form.cleaned_data['amount'], Decimal('3000000'))
 
     def test_meal_window_boundaries(self):
         from datetime import date, datetime, time, timedelta
@@ -125,3 +125,27 @@ class UtilitiesRulesTests(TestCase):
         closed_day = timezone.make_aware(datetime(2026, 5, 17, 10, 0))
         self.assertTrue(is_salary_advance_open(now=open_day))
         self.assertFalse(is_salary_advance_open(now=closed_day))
+
+    def test_salary_open_times(self):
+        from datetime import datetime, time
+
+        from utilities.models import SalaryAdvanceSettings
+
+        settings = SalaryAdvanceSettings.load()
+        settings.is_enabled = True
+        settings.open_day_start = 18
+        settings.open_day_end = 19
+        settings.open_time_start = time(8, 0)
+        settings.open_time_end = time(17, 30)
+        settings.save()
+
+        before_start = timezone.make_aware(datetime(2026, 5, 18, 7, 59))
+        at_start = timezone.make_aware(datetime(2026, 5, 18, 8, 0))
+        mid = timezone.make_aware(datetime(2026, 5, 18, 12, 0))
+        at_end = timezone.make_aware(datetime(2026, 5, 19, 17, 30))
+        after_end = timezone.make_aware(datetime(2026, 5, 19, 17, 31))
+        self.assertFalse(is_salary_advance_open(now=before_start))
+        self.assertTrue(is_salary_advance_open(now=at_start))
+        self.assertTrue(is_salary_advance_open(now=mid))
+        self.assertTrue(is_salary_advance_open(now=at_end))
+        self.assertFalse(is_salary_advance_open(now=after_end))

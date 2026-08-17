@@ -65,7 +65,7 @@
   </form>
 
   <div class="card border-0 shadow-sm overflow-hidden">
-    {% if can_update and items %}
+    {% if can_pick_rows and items %}
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 px-3 py-2 border-bottom bg-white">
       <span class="small text-muted">Chọn nhiều để xóa hàng loạt</span>
       <button type="submit" form="ieOpBulkForm" class="btn btn-sm btn-outline-danger" id="ieOpBulkDeleteBtn" disabled
@@ -82,7 +82,7 @@
       <table class="table table-hover table-sm align-middle mb-0 jp-ie-wide-table jp-ie-lib-table" id="{{ sx_list_table_id }}">
         <thead class="table-light">
           <tr>
-            {% if can_update %}
+            {% if can_pick_rows %}
             <th class="text-center" data-col="_pick" style="width:42px">
               <input type="checkbox" class="form-check-input" id="ieOpCheckAll" title="Chọn tất cả">
             </th>
@@ -95,7 +95,7 @@
         <tbody>
         {% for op in items %}
           <tr class="jp-npl-catalog-row" data-href="{% url 'san_xuat:ie_operation_detail' op.pk %}">
-            {% if can_update %}
+            {% if can_pick_rows %}
             <td class="text-center" data-col="_pick" onclick="event.stopPropagation()">
               <input type="checkbox" class="form-check-input ie-op-pick" name="pk" value="{{ op.pk }}" form="ieOpBulkForm">
             </td>
@@ -136,7 +136,7 @@
             {% endif %}
           </tr>
         {% empty %}
-          <tr><td colspan="{% if can_update %}{{ list_columns|length|add:1 }}{% else %}{{ list_columns|length }}{% endif %}" class="text-muted small p-3 text-center jp-ie-cell-wrap">Không có công đoạn phù hợp.</td></tr>
+          <tr><td colspan="{% if can_pick_rows %}{{ list_columns|length|add:1 }}{% else %}{{ list_columns|length }}{% endif %}" class="text-muted small p-3 text-center jp-ie-cell-wrap">Không có công đoạn phù hợp.</td></tr>
         {% endfor %}
         </tbody>
       </table>
@@ -148,7 +148,7 @@
 {% include 'san_xuat/includes/ie_wide_table_styles.html' %}
 {% include 'kho_npl/includes/catalog_grid_scripts.html' with table_id=sx_list_table_id storage_key=sx_list_storage_key col_btn_id=sx_col_btn_id col_toggle_class=sx_col_toggle_class default_sort_key=sx_default_sort_key %}
 {% include 'san_xuat/includes/ie_list_filter_scripts.html' with form_id='ieOpFilterForm' %}
-{% if can_update and items %}
+{% if can_pick_rows and items %}
 <script>
 (function () {
   var all = document.getElementById('ieOpCheckAll');

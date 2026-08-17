@@ -609,8 +609,12 @@ def _parse_pk_list(raw_values) -> list[int]:
     return pks
 
 
+def _can_bulk_delete(perms: dict) -> bool:
+    return bool(perms.get('can_update') or perms.get('can_delete'))
+
+
 def _bulk_delete_routings(*, request, perms: dict, pks: list[int]) -> None:
-    if not perms.get('can_update'):
+    if not _can_bulk_delete(perms):
         raise IeOpsError('Bạn không có quyền xóa routing.')
     if not pks:
         raise IeOpsError('Chưa chọn routing nào.')
@@ -638,7 +642,7 @@ def _bulk_delete_routings(*, request, perms: dict, pks: list[int]) -> None:
 
 
 def _bulk_delete_operations(*, request, perms: dict, pks: list[int]) -> None:
-    if not perms.get('can_update'):
+    if not _can_bulk_delete(perms):
         raise IeOpsError('Bạn không có quyền xóa công đoạn.')
     if not pks:
         raise IeOpsError('Chưa chọn công đoạn nào.')
@@ -659,7 +663,7 @@ def _bulk_delete_operations(*, request, perms: dict, pks: list[int]) -> None:
 
 
 def _bulk_delete_groups(*, request, perms: dict, pks: list[int]) -> None:
-    if not perms.get('can_update'):
+    if not _can_bulk_delete(perms):
         raise IeOpsError('Bạn không có quyền xóa nhóm.')
     if not pks:
         raise IeOpsError('Chưa chọn nhóm nào.')
@@ -721,6 +725,7 @@ def ie_hub(request):
         'stats': stats,
         'routings': routings,
         'locked_routing_ids': _locked_routing_ids(),
+        'can_pick_rows': _can_bulk_delete(perms),
     })
 
 
@@ -874,6 +879,7 @@ def group_list(request):
         'total': qs.count(),
         'process_stages': ensure_process_stage_defaults(),
         'current_user_display_name': ie_user_display_name(request.user),
+        'can_pick_rows': _can_bulk_delete(perms),
     })
 
 
@@ -1067,6 +1073,7 @@ def operation_list(request):
         'machines': ie_machine_options(),
         'total': qs.count(),
         'current_user_display_name': ie_user_display_name(request.user),
+        'can_pick_rows': _can_bulk_delete(perms),
         **_ie_operation_form_catalogs(),
     })
 
@@ -1266,6 +1273,7 @@ def routing_list(request):
         'term': term,
         'total': qs.count(),
         'locked_routing_ids': locked_routing_ids,
+        'can_pick_rows': _can_bulk_delete(perms),
         'open_create': (request.GET.get('new') or '').strip() in ('1', 'true', 'yes'),
         'prefill_style_code': (request.GET.get('style_code') or '').strip(),
         'prefill_style_name': (request.GET.get('style_name') or '').strip(),

@@ -5,7 +5,7 @@
 <div class="container jp-page py-3 py-md-4 mb-5">
     <div class="jp-page-header mb-3">
         <h2 class="fw-bold text-hm jp-page-title">Thiết lập ứng lương</h2>
-        <p class="text-muted small mb-0">HR bật/tắt, chỉnh khung ngày mở đăng ký và mức ứng tối đa.</p>
+        <p class="text-muted small mb-0">HR bật/tắt, chỉnh khung ngày–giờ mở đăng ký và mức ứng tối đa.</p>
     </div>
     {% include 'utilities/includes/salary_manage_nav.html' with active='settings' %}
 
@@ -31,10 +31,22 @@
                             {% if form.open_day_start.errors %}<div class="text-danger small">{{ form.open_day_start.errors }}</div>{% endif %}
                         </div>
                         <div class="col-md-6">
+                            <label class="form-label fw-bold" for="{{ form.open_time_start.id_for_label }}">{{ form.open_time_start.label }}</label>
+                            {{ form.open_time_start }}
+                            <div class="form-text">{{ form.open_time_start.help_text }}</div>
+                            {% if form.open_time_start.errors %}<div class="text-danger small">{{ form.open_time_start.errors }}</div>{% endif %}
+                        </div>
+                        <div class="col-md-6">
                             <label class="form-label fw-bold" for="{{ form.open_day_end.id_for_label }}">{{ form.open_day_end.label }}</label>
                             {{ form.open_day_end }}
                             <div class="form-text">{{ form.open_day_end.help_text }}</div>
                             {% if form.open_day_end.errors %}<div class="text-danger small">{{ form.open_day_end.errors }}</div>{% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold" for="{{ form.open_time_end.id_for_label }}">{{ form.open_time_end.label }}</label>
+                            {{ form.open_time_end }}
+                            <div class="form-text">{{ form.open_time_end.help_text }}</div>
+                            {% if form.open_time_end.errors %}<div class="text-danger small">{{ form.open_time_end.errors }}</div>{% endif %}
                         </div>
                     </div>
                     <div class="mb-4">

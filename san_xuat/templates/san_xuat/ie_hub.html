@@ -80,7 +80,7 @@
     <div class="card border-0 shadow-sm">
       <div class="card-header bg-white fw-semibold d-flex flex-wrap align-items-center justify-content-between gap-2">
         <span>Routing mã hàng</span>
-        {% if can_update and routings %}
+        {% if can_pick_rows and routings %}
         <button type="submit" class="btn btn-sm btn-outline-danger" id="ieHubBulkDeleteBtn" disabled
                 onclick="return confirm('Xóa các routing đã chọn?');">
           <i class="bi bi-trash me-1"></i>Xóa đã chọn
@@ -91,7 +91,7 @@
         <table class="table table-hover table-sm align-middle mb-0">
           <thead class="table-light">
             <tr>
-              {% if can_update %}
+              {% if can_pick_rows %}
               <th style="width:42px" class="text-center">
                 <input type="checkbox" class="form-check-input" id="ieHubCheckAll" title="Chọn tất cả">
               </th>
@@ -103,7 +103,7 @@
           <tbody>
           {% for r in routings %}
             <tr>
-              {% if can_update %}
+              {% if can_pick_rows %}
               <td class="text-center">
                 {% if r.pk not in locked_routing_ids %}
                 <input type="checkbox" class="form-check-input ie-hub-pick" name="pk" value="{{ r.pk }}">
@@ -117,7 +117,7 @@
               <td class="text-end"><a href="{% url 'san_xuat:ie_routing_detail' r.pk %}" class="btn btn-sm btn-outline-hm">Xem</a></td>
             </tr>
           {% empty %}
-            <tr><td colspan="{% if can_update %}6{% else %}5{% endif %}" class="text-muted small p-3 text-center">Chưa có routing — thêm từ thẻ Routing mã hàng.</td></tr>
+            <tr><td colspan="{% if can_pick_rows %}6{% else %}5{% endif %}" class="text-muted small p-3 text-center">Chưa có routing — thêm từ thẻ Routing mã hàng.</td></tr>
           {% endfor %}
           </tbody>
         </table>
@@ -126,7 +126,7 @@
   </form>
 
 </div>
-{% if can_update and routings %}
+{% if can_pick_rows and routings %}
 <script>
 (function () {
   var all = document.getElementById('ieHubCheckAll');

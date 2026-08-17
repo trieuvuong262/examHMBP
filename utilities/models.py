@@ -43,7 +43,7 @@ class MealOrderSettings(models.Model):
 
 
 class SalaryAdvanceSettings(models.Model):
-    """Singleton — khung ngày mở ứng lương + mức ứng tối đa (pk=1)."""
+    """Singleton — khung ngày/giờ mở ứng lương + mức ứng tối đa (pk=1)."""
 
     is_enabled = models.BooleanField(
         default=True,
@@ -56,11 +56,21 @@ class SalaryAdvanceSettings(models.Model):
         verbose_name='Ngày bắt đầu',
         help_text='Ngày trong tháng bắt đầu mở ứng (1–31).',
     )
+    open_time_start = models.TimeField(
+        default=time(0, 0),
+        verbose_name='Giờ bắt đầu',
+        help_text='Giờ phút bắt đầu mở ứng vào ngày bắt đầu.',
+    )
     open_day_end = models.PositiveSmallIntegerField(
         default=19,
         validators=[MinValueValidator(1), MaxValueValidator(31)],
         verbose_name='Ngày kết thúc',
         help_text='Ngày trong tháng kết thúc mở ứng (1–31).',
+    )
+    open_time_end = models.TimeField(
+        default=time(23, 59),
+        verbose_name='Giờ kết thúc',
+        help_text='Giờ phút đóng ứng vào ngày kết thúc.',
     )
     max_amount = models.DecimalField(
         max_digits=12,
@@ -85,6 +95,15 @@ class SalaryAdvanceSettings(models.Model):
         super().clean()
         if self.open_day_start and self.open_day_end and self.open_day_end < self.open_day_start:
             raise ValidationError({'open_day_end': 'Ngày kết thúc phải ≥ ngày bắt đầu.'})
+        if (
+            self.open_day_start
+            and self.open_day_end
+            and self.open_day_start == self.open_day_end
+            and self.open_time_start
+            and self.open_time_end
+            and self.open_time_end <= self.open_time_start
+        ):
+            raise ValidationError({'open_time_end': 'Giờ kết thúc phải sau giờ bắt đầu khi cùng ngày.'})
 
     @classmethod
     def load(cls):

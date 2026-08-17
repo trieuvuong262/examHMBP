@@ -172,7 +172,14 @@ class MealOrderSettingsForm(forms.ModelForm):
 class SalaryAdvanceSettingsForm(forms.ModelForm):
     class Meta:
         model = SalaryAdvanceSettings
-        fields = ('is_enabled', 'open_day_start', 'open_day_end', 'max_amount')
+        fields = (
+            'is_enabled',
+            'open_day_start',
+            'open_time_start',
+            'open_day_end',
+            'open_time_end',
+            'max_amount',
+        )
         widgets = {
             'is_enabled': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'open_day_start': forms.NumberInput(attrs={
@@ -181,12 +188,14 @@ class SalaryAdvanceSettingsForm(forms.ModelForm):
                 'max': 31,
                 'step': 1,
             }),
+            'open_time_start': forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
             'open_day_end': forms.NumberInput(attrs={
                 'class': 'form-control',
                 'min': 1,
                 'max': 31,
                 'step': 1,
             }),
+            'open_time_end': forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
             'max_amount': forms.NumberInput(attrs={
                 'class': 'form-control',
                 'min': 1000,
@@ -197,13 +206,17 @@ class SalaryAdvanceSettingsForm(forms.ModelForm):
         labels = {
             'is_enabled': 'Bật ứng lương',
             'open_day_start': 'Ngày bắt đầu trong tháng',
+            'open_time_start': 'Giờ phút bắt đầu',
             'open_day_end': 'Ngày kết thúc trong tháng',
+            'open_time_end': 'Giờ phút kết thúc',
             'max_amount': 'Mức ứng tối đa (VNĐ)',
         }
         help_texts = {
             'is_enabled': 'Tắt = đóng đăng ký dù đang trong khung ngày.',
             'open_day_start': 'Ví dụ 18 = mở từ ngày 18.',
-            'open_day_end': 'Ví dụ 19 = đóng hết ngày 19.',
+            'open_time_start': 'Giờ phút bắt đầu mở ứng vào ngày bắt đầu.',
+            'open_day_end': 'Ví dụ 19 = đóng vào ngày 19.',
+            'open_time_end': 'Giờ phút đóng ứng vào ngày kết thúc.',
             'max_amount': f'Tối đa hệ thống: {ABSOLUTE_MAX_SALARY_ADVANCE:,.0f}đ.',
         }
 
@@ -211,8 +224,12 @@ class SalaryAdvanceSettingsForm(forms.ModelForm):
         cleaned = super().clean()
         start = cleaned.get('open_day_start')
         end = cleaned.get('open_day_end')
+        time_start = cleaned.get('open_time_start')
+        time_end = cleaned.get('open_time_end')
         if start and end and end < start:
             raise ValidationError('Ngày kết thúc phải lớn hơn hoặc bằng ngày bắt đầu.')
+        if start and end and start == end and time_start and time_end and time_end <= time_start:
+            raise ValidationError('Giờ kết thúc phải sau giờ bắt đầu khi cùng ngày.')
         return cleaned
 
 
