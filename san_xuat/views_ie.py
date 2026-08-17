@@ -684,46 +684,13 @@ def _bulk_delete_groups(*, request, perms: dict, pks: list[int]) -> None:
 def ie_hub(request):
     perms = _perm_ctx(request)
 
-    if request.method == 'POST':
-        action = (request.POST.get('action') or '').strip()
-        back = reverse('san_xuat:ie_hub')
-        try:
-            if action == 'bulk_delete_routing':
-                _bulk_delete_routings(
-                    request=request,
-                    perms=perms,
-                    pks=_parse_pk_list(request.POST.getlist('pk')),
-                )
-            else:
-                messages.error(request, 'Hành động không hợp lệ.')
-        except IeOpsError as exc:
-            messages.error(request, str(exc))
-        return redirect(back)
-
     stats = {
-        'machines': production_machine_count(),
-        'stitch_classes': SxStitchClass.objects.count(),
-        'skill_levels': SxSkillLevel.objects.count(),
-        'smv_sources': SxSmvSource.objects.count(),
-        'process_stages': SxProcessStage.objects.count(),
         'groups': SxOperationGroup.objects.count(),
         'operations': SxOperation.objects.count(),
-        'operations_approved': SxOperation.objects.filter(status=SxOperation.STATUS_APPROVED).count(),
-        'routings': SxRouting.objects.count(),
-        'routing_lines': SxRoutingLine.objects.count(),
     }
-    routings = (
-        SxRouting.objects.annotate(
-            n_lines=Count('lines'),
-            sum_smv=Sum('lines__total_operation_smv'),
-        ).order_by('style_code', 'routing_rev')
-    )
     return render(request, 'san_xuat/ie_hub.html', {
         **perms,
         'stats': stats,
-        'routings': routings,
-        'locked_routing_ids': _locked_routing_ids(),
-        'can_pick_rows': _can_bulk_delete(perms),
     })
 
 

@@ -6,7 +6,7 @@
 <div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
   <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
     <div>
-      <h2 class="mb-0">Công đoạn / IE</h2>
+      <h2 class="mb-0">Thư viện công đoạn</h2>
     </div>
     <div class="d-flex flex-wrap gap-2">
       {% if can_export %}
@@ -17,7 +17,6 @@
         <ul class="dropdown-menu dropdown-menu-end">
           <li><a class="dropdown-item" href="{% url 'san_xuat:ie_export_kind' kind='groups' %}">Nhóm công đoạn</a></li>
           <li><a class="dropdown-item" href="{% url 'san_xuat:ie_export_kind' kind='library' %}">Thư viện công đoạn</a></li>
-          <li><a class="dropdown-item" href="{% url 'san_xuat:ie_export_kind' kind='routing' %}">Routing mã hàng</a></li>
           <li><hr class="dropdown-divider"></li>
           <li><a class="dropdown-item" href="{% url 'san_xuat:ie_export' %}">Master đầy đủ (tất cả sheet)</a></li>
         </ul>
@@ -35,7 +34,7 @@
   </div>
   {% endif %}
 
-  <div class="row row-cols-2 row-cols-md-4 g-2 g-md-3 mb-3">
+  <div class="row row-cols-2 g-2 g-md-3 mb-3">
     <div class="col">
       <a href="{% url 'san_xuat:ie_group_list' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body ie-stat-card">
         <div class="card-body py-2 px-3">
@@ -48,23 +47,7 @@
       <a href="{% url 'san_xuat:ie_operation_list' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body ie-stat-card">
         <div class="card-body py-2 px-3">
           <div class="fs-4 fw-bold">{{ stats.operations }}</div>
-          <div class="text-muted small">Công đoạn chuẩn</div>
-        </div>
-      </a>
-    </div>
-    <div class="col">
-      <a href="{% url 'san_xuat:ie_routing_list' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body ie-stat-card">
-        <div class="card-body py-2 px-3">
-          <div class="fs-4 fw-bold">{{ stats.routings }}</div>
-          <div class="text-muted small">Routing mã hàng</div>
-        </div>
-      </a>
-    </div>
-    <div class="col">
-      <a href="{% url 'equipment:device_list_production' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-body ie-stat-card">
-        <div class="card-body py-2 px-3">
-          <div class="fs-4 fw-bold">{{ stats.machines }}</div>
-          <div class="text-muted small">Máy</div>
+          <div class="text-muted small">Thư viện công đoạn</div>
         </div>
       </a>
     </div>
@@ -74,82 +57,5 @@
     .ie-stat-card:hover { box-shadow: 0 .35rem 1rem rgba(0,0,0,.12) !important; transform: translateY(-1px); }
   </style>
 
-  <form method="post" id="ieHubRoutingForm">
-    {% csrf_token %}
-    <input type="hidden" name="action" value="bulk_delete_routing">
-    <div class="card border-0 shadow-sm">
-      <div class="card-header bg-white fw-semibold d-flex flex-wrap align-items-center justify-content-between gap-2">
-        <span>Routing mã hàng</span>
-        {% if can_pick_rows and routings %}
-        <button type="submit" class="btn btn-sm btn-outline-danger" id="ieHubBulkDeleteBtn" disabled
-                onclick="return confirm('Xóa các routing đã chọn?');">
-          <i class="bi bi-trash me-1"></i>Xóa đã chọn
-        </button>
-        {% endif %}
-      </div>
-      <div class="table-responsive">
-        <table class="table table-hover table-sm align-middle mb-0">
-          <thead class="table-light">
-            <tr>
-              {% if can_pick_rows %}
-              <th style="width:42px" class="text-center">
-                <input type="checkbox" class="form-check-input" id="ieHubCheckAll" title="Chọn tất cả">
-              </th>
-              {% endif %}
-              <th>Mã hàng</th><th>Routing</th><th class="text-end">Công đoạn</th>
-              <th class="text-end">Tổng SMV (giây)</th><th></th>
-            </tr>
-          </thead>
-          <tbody>
-          {% for r in routings %}
-            <tr>
-              {% if can_pick_rows %}
-              <td class="text-center">
-                {% if r.pk not in locked_routing_ids %}
-                <input type="checkbox" class="form-check-input ie-hub-pick" name="pk" value="{{ r.pk }}">
-                {% endif %}
-              </td>
-              {% endif %}
-              <td><div class="fw-semibold">{{ r.style_code }}</div><div class="text-muted small">{{ r.style_name|default:"—"|truncatechars:40 }}</div></td>
-              <td><span class="badge bg-light text-dark">{{ r.routing_rev }}</span> <span class="text-muted small">{{ r.routing_id }}</span></td>
-              <td class="text-end">{{ r.n_lines }}</td>
-              <td class="text-end fw-semibold">{{ r.sum_smv|default:0|sx_num }}</td>
-              <td class="text-end"><a href="{% url 'san_xuat:ie_routing_detail' r.pk %}" class="btn btn-sm btn-outline-hm">Xem</a></td>
-            </tr>
-          {% empty %}
-            <tr><td colspan="{% if can_pick_rows %}6{% else %}5{% endif %}" class="text-muted small p-3 text-center">Chưa có routing — thêm từ thẻ Routing mã hàng.</td></tr>
-          {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </form>
-
 </div>
-{% if can_pick_rows and routings %}
-<script>
-(function () {
-  var all = document.getElementById('ieHubCheckAll');
-  var picks = document.querySelectorAll('.ie-hub-pick');
-  var btn = document.getElementById('ieHubBulkDeleteBtn');
-  function sync() {
-    var n = 0;
-    picks.forEach(function (cb) { if (cb.checked) n += 1; });
-    if (btn) btn.disabled = n === 0;
-    if (all && picks.length) {
-      all.checked = n === picks.length;
-      all.indeterminate = n > 0 && n < picks.length;
-    }
-  }
-  if (all) {
-    all.addEventListener('change', function () {
-      picks.forEach(function (cb) { cb.checked = all.checked; });
-      sync();
-    });
-  }
-  picks.forEach(function (cb) { cb.addEventListener('change', sync); });
-  sync();
-})();
-</script>
-{% endif %}
 {% endblock %}
