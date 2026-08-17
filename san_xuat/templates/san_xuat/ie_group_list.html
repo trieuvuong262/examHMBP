@@ -79,14 +79,27 @@
             <th>Ngày hiệu lực</th>
             <th>Notes</th>
             <th class="text-end">Số CĐ</th>
-            {% if can_update %}<th></th>{% endif %}
+            {% if can_update %}<th class="text-end" style="width:72px"></th>{% endif %}
           </tr>
         </thead>
         <tbody>
         {% for g in items %}
-          <tr>
+          <tr{% if can_update %} class="jp-npl-catalog-row ie-edit-group"
+                      role="button"
+                      tabindex="0"
+                      data-bs-toggle="modal" data-bs-target="#ieEditGroupModal"
+                      data-pk="{{ g.pk }}"
+                      data-code="{{ g.code }}"
+                      data-name="{{ g.name }}"
+                      data-stage="{{ g.process_stage_label }}"
+                      data-part="{{ g.product_part }}"
+                      data-description="{{ g.description }}"
+                      data-owner="{{ g.data_owner }}"
+                      data-effective="{% if g.effective_from %}{{ g.effective_from|date:'Y-m-d' }}{% endif %}"
+                      data-active="{% if g.is_active %}1{% else %}0{% endif %}"
+                      data-notes="{{ g.notes }}"{% endif %}>
             {% if can_pick_rows %}
-            <td class="text-center">
+            <td class="text-center" onclick="event.stopPropagation()">
               <input type="checkbox" class="form-check-input ie-group-pick" name="pk" value="{{ g.pk }}" form="ieGroupBulkForm">
             </td>
             {% endif %}
@@ -105,23 +118,11 @@
             <td class="small">{{ g.data_owner|default:"—" }}</td>
             <td class="small">{% if g.effective_from %}{{ g.effective_from|date:"Y-m-d" }}{% else %}—{% endif %}</td>
             <td class="small jp-ie-cell-wrap" title="{{ g.notes }}">{{ g.notes|default:"—"|truncatechars:40 }}</td>
-            <td class="text-end">
+            <td class="text-end" onclick="event.stopPropagation()">
               <a href="{% url 'san_xuat:ie_operation_list' %}?group={{ g.code }}">{{ g.n_ops }}</a>
             </td>
             {% if can_update %}
-            <td class="text-end jp-td-actions">
-              <button type="button" class="btn btn-sm btn-outline-secondary py-0 ie-edit-group"
-                      data-bs-toggle="modal" data-bs-target="#ieEditGroupModal"
-                      data-pk="{{ g.pk }}"
-                      data-code="{{ g.code }}"
-                      data-name="{{ g.name }}"
-                      data-stage="{{ g.process_stage_label }}"
-                      data-part="{{ g.product_part }}"
-                      data-description="{{ g.description }}"
-                      data-owner="{{ g.data_owner }}"
-                      data-effective="{% if g.effective_from %}{{ g.effective_from|date:'Y-m-d' }}{% endif %}"
-                      data-active="{% if g.is_active %}1{% else %}0{% endif %}"
-                      data-notes="{{ g.notes }}">Sửa</button>
+            <td class="text-end jp-td-actions" onclick="event.stopPropagation()">
               <form method="post" class="d-inline" onsubmit="return confirm('Xóa nhóm {{ g.code }}?');">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="delete_group">
@@ -321,6 +322,14 @@ document.getElementById('ieEditGroupModal').addEventListener('show.bs.modal', fu
   document.getElementById('ieEditGroupEffective').value = btn.getAttribute('data-effective') || '';
   document.getElementById('ieEditGroupActive').checked = btn.getAttribute('data-active') === '1';
   document.getElementById('ieEditGroupNotes').value = btn.getAttribute('data-notes') || '';
+});
+document.querySelectorAll('tr.ie-edit-group').forEach(function (row) {
+  row.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Enter' || ev.key === ' ') {
+      ev.preventDefault();
+      row.click();
+    }
+  });
 });
 </script>
 {% endif %}
