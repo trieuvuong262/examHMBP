@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.db import transaction
@@ -12,9 +13,16 @@ from san_xuat.hub_models import (
     SxMoProcessAssignee,
     SxMoProcessStep,
     SxProductionOrder,
+    SxProductionOrderLine,
+    SxProductionStat,
     SxTeamWorkClose,
 )
-from san_xuat.services.order_progress_sheet import ensure_progress_work_centers, work_center_map
+from san_xuat.services.order_progress_sheet import (
+    _q,
+    _size_plans,
+    ensure_progress_work_centers,
+    work_center_map,
+)
 from san_xuat.services.planning import PlanningError
 from san_xuat.services.progress_template import (
     ProgressStepDef,
@@ -30,6 +38,9 @@ class TeamWorkRow:
     mo_step: SxMoProcessStep | None
     assignees: list = field(default_factory=list)
     status: str = ''
+    plan_qty: Decimal = field(default_factory=lambda: Decimal('0'))
+    done_qty: Decimal = field(default_factory=lambda: Decimal('0'))
+    remain_qty: Decimal = field(default_factory=lambda: Decimal('0'))
 
 
 @dataclass
@@ -41,6 +52,7 @@ class TeamWorkJob:
     done_count: int = 0
     run_count: int = 0
     wait_count: int = 0
+    plan_qty: Decimal = field(default_factory=lambda: Decimal('0'))
     closed: bool = False
     closed_at: object | None = None
     closed_by_label: str = ''
@@ -53,7 +65,7 @@ def group_team_work_jobs(rows: list[TeamWorkRow]) -> list[TeamWorkJob]:
     for row in rows:
         job = by_mo.get(row.mo.pk)
         if job is None:
-            job = TeamWorkJob(mo=row.mo, rows=[])
+            job = TeamWorkJob(mo=row.mo, rows=[], plan_qty=row.plan_qty)
             by_mo[row.mo.pk] = job
             jobs.append(job)
         job.rows.append(row)
@@ -67,6 +79,63 @@ def group_team_work_jobs(rows: list[TeamWorkRow]) -> list[TeamWorkJob]:
         else:
             job.wait_count += 1
     return jobs
+
+
+def _step_qty_for_mo(
+    mo: SxProductionOrder,
+    *,
+    sizes,
+    stats: list[SxProductionStat],
+    label_map: dict[str, ProgressStepDef],
+    step_key: str,
+) -> tuple[Decimal, Decimal, Decimal]:
+    if not sizes:
+        plan = _q(mo.qty)
+        return plan, Decimal('0'), plan
+    size_set = {r.size_label for r in sizes}
+    single_total = len(sizes) == 1 and sizes[0].size_label == 'Tổng'
+    done_map: dict[str, Decimal] = {}
+    for st in stats:
+        step = label_map.get((st.process_name or '').strip().casefold())
+        if not step or step.key != step_key:
+            continue
+        size = (st.size_label or '').strip()
+        if single_total:
+            size = 'Tổng'
+        elif not size:
+            continue
+        elif size not in size_set and size_set:
+            continue
+        qty = _q(st.qty_good)
+        if qty > 0:
+            done_map[size] = done_map.get(size, Decimal('0')) + qty
+    plan = Decimal('0')
+    done = Decimal('0')
+    remain = Decimal('0')
+    for row in sizes:
+        plan += row.qty
+        row_done = done_map.get(row.size_label, Decimal('0'))
+        row_remain = row.qty - row_done
+        if row_remain < 0:
+            row_remain = Decimal('0')
+        done += row_done
+        remain += row_remain
+    if plan <= 0:
+        plan = _q(mo.qty)
+    return plan, done, remain
+
+
+def _batch_stats_by_mo(mo_ids: list[int]) -> dict[int, list[SxProductionStat]]:
+    out: dict[int, list[SxProductionStat]] = {pk: [] for pk in mo_ids}
+    if not mo_ids:
+        return out
+    for st in SxProductionStat.objects.filter(
+        production_order_id__in=mo_ids,
+        is_demo=False,
+        status=SxProductionStat.STATUS_CONFIRMED,
+    ).only('production_order_id', 'process_name', 'size_label', 'qty_good'):
+        out.setdefault(st.production_order_id, []).append(st)
+    return out
 
 
 def build_team_work_rows(*, slug: str, search: str = '') -> tuple[dict, list[TeamWorkRow]]:
@@ -84,6 +153,10 @@ def build_team_work_rows(*, slug: str, search: str = '') -> tuple[dict, list[Tea
         .exclude(status=SxProductionOrder.STATUS_DRAFT)
         .select_related('sales_order')
         .prefetch_related(
+            Prefetch(
+                'lines',
+                queryset=SxProductionOrderLine.objects.order_by('size_label', 'id'),
+            ),
             Prefetch(
                 'mo_process_steps',
                 queryset=SxMoProcessStep.objects.select_related('work_center').prefetch_related(
@@ -104,8 +177,17 @@ def build_team_work_rows(*, slug: str, search: str = '') -> tuple[dict, list[Tea
             | Q(sales_order__code__icontains=term)
         )
 
+    mos = list(qs[:80])
+    mo_ids = [m.pk for m in mos]
+    stats_by_mo = _batch_stats_by_mo(mo_ids)
+    from san_xuat.services.progress_template import progress_steps
+
+    all_step_label_map = {s.label.casefold(): s for s in progress_steps()}
+
     rows: list[TeamWorkRow] = []
-    for mo in qs[:80]:
+    for mo in mos:
+        sizes = _size_plans(mo)
+        mo_stats = stats_by_mo.get(mo.pk, [])
         by_name: dict[str, SxMoProcessStep] = {}
         for st in mo.mo_process_steps.all():
             key = (st.process_name or '').strip().casefold()
@@ -125,6 +207,13 @@ def build_team_work_rows(*, slug: str, search: str = '') -> tuple[dict, list[Tea
                     label = ((getattr(p, 'full_name', None) or '') if p else '').strip()
                     label = label or u.get_full_name() or u.username
                     assignees.append({'id': u.pk, 'label': label})
+            plan_qty, done_qty, remain_qty = _step_qty_for_mo(
+                mo,
+                sizes=sizes,
+                stats=mo_stats,
+                label_map=all_step_label_map,
+                step_key=sd.key,
+            )
             rows.append(
                 TeamWorkRow(
                     mo=mo,
@@ -132,6 +221,9 @@ def build_team_work_rows(*, slug: str, search: str = '') -> tuple[dict, list[Tea
                     mo_step=mo_step,
                     assignees=assignees,
                     status=status,
+                    plan_qty=plan_qty,
+                    done_qty=done_qty,
+                    remain_qty=remain_qty,
                 )
             )
     return team, rows

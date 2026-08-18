@@ -96,9 +96,10 @@ def sync_standard_process_library(
     retire_missing: bool = False,
     purge_missing: bool = False,
 ) -> dict[str, int]:
-    """Upsert khâu / nhóm / SxProcessName từ mẫu tiến độ tổ.
+    """Đồng bộ tên CĐ + tổ chuẩn cho tiến độ tổ.
 
-    Không tạo/sửa ``SxOperation`` trong thư viện IE (để IE import Excel tự quản).
+    Không tạo/sửa ``SxOperation`` hay ``SxOperationGroup`` — thư viện IE tự quản
+    (màn nhóm công đoạn / import Excel). Deploy không được tái tạo nhóm đã xóa.
     ``purge_missing`` / ``retire_missing`` chỉ áp dụng khi gọi chủ động với cờ đó.
     """
     from san_xuat.models import SxProcessName
@@ -120,22 +121,14 @@ def sync_standard_process_library(
         'work_centers_deactivated': 0,
     }
 
+    # Nhóm công đoạn (SxOperationGroup) do IE tự quản trên /cong-doan/nhom/
+    # hoặc import Excel — không seed/tái tạo khi deploy, kẻo nhóm đã xóa hiện lại.
     keep_group_codes: set[str] = set()
     keep_stage_codes: set[str] = set()
-    for i, grp in enumerate(GROUPS):
+    for grp in GROUPS:
         code, stage_code = _GROUP_META[grp.key]
         keep_group_codes.add(code)
         keep_stage_codes.add(stage_code)
-        stage = _ensure_stage(stage_code, grp.label, sort_order=(i + 1) * 10)
-        stats['stages'] += 1
-        _ensure_group(
-            code=code,
-            name=grp.label,
-            stage=stage,
-            wc_code=grp.work_center_code,
-            sort_order=(i + 1) * 10,
-        )
-        stats['groups'] += 1
 
     keep_codes: set[str] = set()
     keep_labels: set[str] = set()

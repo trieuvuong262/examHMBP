@@ -12,7 +12,7 @@ from san_xuat.services.sync_process_master import sync_standard_process_library
 
 
 class Command(BaseCommand):
-    help = 'Đồng bộ SxOperation / nhóm / khâu / SxProcessName từ mẫu công đoạn chuẩn'
+    help = 'Đồng bộ tên CĐ + tổ chuẩn cho tiến độ tổ (không tạo nhóm công đoạn IE)'
 
     def add_arguments(self, parser):
         parser.add_argument(

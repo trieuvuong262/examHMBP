@@ -59,18 +59,25 @@
   .jp-tw-steps { list-style: none; margin: 0; padding: 0; }
   .jp-tw-step {
     display: grid;
-    grid-template-columns: minmax(8.5rem, 1.15fr) auto minmax(10rem, 1.5fr);
+    grid-template-columns: minmax(8.5rem, 1.15fr) auto auto minmax(10rem, 1.5fr);
     gap: .65rem 1rem;
     align-items: center;
     padding: .72rem 1.1rem;
     border-top: 1px solid #eef2f7;
   }
   .jp-tw-jobs.is-assignable .jp-tw-step {
-    grid-template-columns: minmax(8.5rem, 1.15fr) auto minmax(10rem, 1.5fr) auto;
+    grid-template-columns: minmax(8.5rem, 1.15fr) auto auto minmax(10rem, 1.5fr) auto;
   }
   .jp-tw-step:first-child { border-top: 0; }
   .jp-tw-step:hover { background: #fafbfc; }
   .jp-tw-step-name { font-weight: 700; color: var(--tw-ink); font-size: .9rem; }
+  .jp-tw-step-qty {
+    display: flex; flex-direction: column; align-items: flex-end; gap: .1rem;
+    font-size: .78rem; color: var(--tw-muted); line-height: 1.2; white-space: nowrap;
+  }
+  .jp-tw-step-qty-need { color: var(--tw-ink); font-weight: 700; }
+  .jp-tw-step-qty-need strong { color: #dc2626; font-weight: 800; }
+  .jp-tw-step-qty-track .dim { color: #94a3b8; font-weight: 500; }
   .jp-tw-status {
     display: inline-flex; align-items: center; gap: .3rem;
     padding: .2rem .55rem; border-radius: 999px; font-size: .72rem; font-weight: 700;
@@ -225,6 +232,7 @@
       grid-template-columns: 1fr auto;
       grid-template-areas:
         "name status"
+        "qty qty"
         "people people"
         "action action";
       padding: .85rem .9rem;
@@ -237,6 +245,13 @@
       padding-right: .35rem;
     }
     .jp-tw-step > .jp-tw-status-wrap { grid-area: status; justify-self: end; align-self: start; }
+    .jp-tw-step > .jp-tw-step-qty {
+      grid-area: qty;
+      flex-direction: row;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+    }
     .jp-tw-step > .jp-tw-people { grid-area: people; }
     .jp-tw-step > .jp-tw-step-action {
       grid-area: action;
@@ -425,8 +440,15 @@
             data-mo-title="{% if pname %}{{ pname }} - {{ row.mo.code }}{% else %}{{ row.mo.code }}{% endif %}"
             data-process-key="{{ row.step_def.key }}"
             data-process-label="{{ row.step_def.label }}"
+            data-plan-qty="{{ row.plan_qty|sx_num }}"
+            data-done-qty="{{ row.done_qty|sx_num }}"
+            data-remain-qty="{{ row.remain_qty|sx_num }}"
             data-assignee-ids="{% for a in row.assignees %}{{ a.id }}{% if not forloop.last %},{% endif %}{% endfor %}">
           <div class="jp-tw-step-name">{{ row.step_def.label }}</div>
+          <div class="jp-tw-step-qty" title="Đã {{ row.done_qty|sx_num }} / Kế hoạch {{ row.plan_qty|sx_num }}">
+            <span class="jp-tw-step-qty-need">Cần <strong>{{ row.remain_qty|sx_num }}</strong></span>
+            <span class="jp-tw-step-qty-track">{{ row.done_qty|sx_num }}<span class="dim">/{{ row.plan_qty|sx_num }}</span></span>
+          </div>
           <div class="jp-tw-status-wrap">
             {% if row.mo_step %}
               {% if row.status == 'done' %}
@@ -542,7 +564,12 @@
       moId.value = row.getAttribute('data-mo-id') || '';
       processKey.value = row.getAttribute('data-process-key') || '';
       title.textContent = 'Phân công · ' + (row.getAttribute('data-process-label') || '');
-      meta.textContent = (row.getAttribute('data-mo-title') || row.getAttribute('data-mo-code') || '') + ' · ' + (row.getAttribute('data-process-label') || '');
+      var moTitle = row.getAttribute('data-mo-title') || row.getAttribute('data-mo-code') || '';
+      var processLabel = row.getAttribute('data-process-label') || '';
+      var remainQty = row.getAttribute('data-remain-qty') || '0';
+      var doneQty = row.getAttribute('data-done-qty') || '0';
+      var planQty = row.getAttribute('data-plan-qty') || '0';
+      meta.textContent = moTitle + ' · ' + processLabel + ' · SL cần làm: ' + remainQty + ' (đã ' + doneQty + '/' + planQty + ')';
       ts.clear(true);
       if (ids.length) ts.setValue(ids, true);
       modal.show();
