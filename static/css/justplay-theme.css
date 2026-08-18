@@ -5609,6 +5609,80 @@ body.jp-tool-loading-active {
     display: block;
 }
 
+.jp-pwd-field {
+    position: relative;
+}
+
+.jp-pwd-field .jp-pwd-input {
+    padding-right: 2.75rem;
+}
+
+.jp-pwd-toggle {
+    position: absolute;
+    top: 50%;
+    right: 0.28rem;
+    width: 2.15rem;
+    height: 2.15rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--jp-text-muted);
+    line-height: 1;
+    cursor: pointer;
+    transform: translateY(-50%);
+    transition: color 0.2s ease, background-color 0.2s ease;
+}
+
+.jp-pwd-toggle:hover,
+.jp-pwd-toggle:focus-visible {
+    color: var(--jp-text-primary);
+    background: var(--jp-black-100);
+}
+
+.jp-pwd-toggle:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px var(--hm-primary-soft);
+}
+
+.jp-pwd-toggle:active {
+    background: var(--jp-black-200);
+}
+
+.jp-pwd-toggle .jp-pwd-icon {
+    position: absolute;
+    font-size: 1.05rem;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.jp-pwd-toggle .jp-pwd-icon-on {
+    opacity: 0;
+    transform: scale(0.72);
+}
+
+.jp-pwd-toggle.is-visible {
+    color: var(--hm-primary);
+}
+
+.jp-pwd-toggle.is-visible:hover,
+.jp-pwd-toggle.is-visible:focus-visible {
+    color: var(--hm-primary-dark);
+    background: var(--hm-primary-soft);
+}
+
+.jp-pwd-toggle.is-visible .jp-pwd-icon-off {
+    opacity: 0;
+    transform: scale(0.72);
+}
+
+.jp-pwd-toggle.is-visible .jp-pwd-icon-on {
+    opacity: 1;
+    transform: scale(1);
+}
+
 .jp-bottom-nav a.active {
     color: var(--hm-primary) !important;
 }
@@ -10046,6 +10120,20 @@ body.jp-monitor-modal-open {
 }
 
 /* --- Cards & panels --- */
+[data-theme="dark"] .jp-pwd-toggle:hover,
+[data-theme="dark"] .jp-pwd-toggle:focus-visible {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .jp-pwd-toggle:active {
+    background: rgba(255, 255, 255, 0.14);
+}
+
+[data-theme="dark"] .jp-pwd-toggle.is-visible:hover,
+[data-theme="dark"] .jp-pwd-toggle.is-visible:focus-visible {
+    background: var(--hm-primary-light);
+}
+
 [data-theme="dark"] .card,
 [data-theme="dark"] .jp-auth-card,
 [data-theme="dark"] .card-login,

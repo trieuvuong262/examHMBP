@@ -38,10 +38,11 @@
 
                         <div class="mb-4">
                             <label class="form-label small fw-bold text-jp-dark text-uppercase">Mật khẩu</label>
-                            <div class="input-group">
-                                <input type="password" name="password" id="jpLoginPassword" class="form-control" placeholder="••••••••" required autocomplete="current-password">
-                                <button type="button" class="btn btn-outline-secondary" id="jpTogglePwd" title="Hiện/ẩn mật khẩu" aria-label="Hiện mật khẩu">
-                                    <i class="bi bi-eye" aria-hidden="true"></i>
+                            <div class="jp-pwd-field">
+                                <input type="password" name="password" id="jpLoginPassword" class="form-control jp-pwd-input" placeholder="••••••••" required autocomplete="current-password">
+                                <button type="button" class="jp-pwd-toggle" id="jpTogglePwd" title="Hiện mật khẩu" aria-label="Hiện mật khẩu" aria-pressed="false">
+                                    <i class="bi bi-eye jp-pwd-icon jp-pwd-icon-off" aria-hidden="true"></i>
+                                    <i class="bi bi-eye-slash jp-pwd-icon jp-pwd-icon-on" aria-hidden="true"></i>
                                 </button>
                             </div>
                         </div>
@@ -72,8 +73,8 @@
     togglePwd.addEventListener('click', function () {
         var show = pwdInput.type === 'password';
         pwdInput.type = show ? 'text' : 'password';
-        var icon = togglePwd.querySelector('i');
-        if (icon) icon.className = show ? 'bi bi-eye-slash' : 'bi bi-eye';
+        togglePwd.classList.toggle('is-visible', show);
+        togglePwd.setAttribute('aria-pressed', show ? 'true' : 'false');
         togglePwd.setAttribute('aria-label', show ? 'Ẩn mật khẩu' : 'Hiện mật khẩu');
         togglePwd.setAttribute('title', show ? 'Ẩn mật khẩu' : 'Hiện mật khẩu');
     });
