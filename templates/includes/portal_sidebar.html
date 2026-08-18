@@ -938,7 +938,7 @@
                 </li>
                 {% endif %}
 
-                {# —— Công việc tổ —— #}
+                {# —— Phân công SX —— #}
                 {% jp_can_menu 'san_xuat' 'team_work' as jp_can_tw %}
                 {% jp_can_menu 'san_xuat' 'team_work_goods' as jp_can_tw_goods %}
                 {% jp_can_menu 'san_xuat' 'team_work_cat' as jp_can_tw_cat %}
@@ -949,7 +949,7 @@
                 {% jp_can_menu 'san_xuat' 'team_work_gh' as jp_can_tw_gh %}
                 {% if jp_can_tw or jp_can_tw_goods or jp_can_tw_cat or jp_can_tw_inep or jp_can_tw_theu or jp_can_tw_may or jp_can_tw_ht or jp_can_tw_gh %}
                 <li class="jp-sidebar-nested-group{% if '/san-xuat/cong-viec-to' in request.path %} is-open{% endif %}"
-                    data-sx-area="team_work" data-sx-icon="bi-people" data-sx-label="Công việc tổ"
+                    data-sx-area="team_work" data-sx-icon="bi-people" data-sx-label="Phân công SX"
                     data-sx-href="{% url 'san_xuat:team_work_goods' %}">
                     <button type="button"
                             class="jp-sidebar-nested-toggle"
@@ -957,7 +957,7 @@
                             aria-expanded="{% if '/san-xuat/cong-viec-to' in request.path %}true{% else %}false{% endif %}"
                             aria-controls="jp-sidebar-san-xuat-team-work-submenu">
                         <span class="jp-sidebar-nested-toggle-main">
-                            <i class="bi bi-people"></i><span>Công việc tổ</span>
+                            <i class="bi bi-people"></i><span>Phân công SX</span>
                         </span>
                         <i class="bi bi-chevron-down jp-sidebar-nested-chevron" aria-hidden="true"></i>
                     </button>
@@ -974,7 +974,7 @@
                         <li>
                             <a href="{% url 'san_xuat:team_work_board' 'cat' %}"
                                class="jp-sidebar-link jp-sidebar-sublink {% if '/cong-viec-to/cat' in request.path %}active{% endif %}">
-                                <i class="bi bi-scissors"></i><span>Cắt</span>
+                                <i class="bi bi-scissors"></i><span>Tổ cắt</span>
                             </a>
                         </li>
                         {% endif %}
@@ -982,7 +982,7 @@
                         <li>
                             <a href="{% url 'san_xuat:team_work_board' 'inep' %}"
                                class="jp-sidebar-link jp-sidebar-sublink {% if '/cong-viec-to/inep' in request.path %}active{% endif %}">
-                                <i class="bi bi-printer"></i><span>In - Ép</span>
+                                <i class="bi bi-printer"></i><span>Tổ in ép</span>
                             </a>
                         </li>
                         {% endif %}
@@ -990,7 +990,7 @@
                         <li>
                             <a href="{% url 'san_xuat:team_work_board' 'theu' %}"
                                class="jp-sidebar-link jp-sidebar-sublink {% if '/cong-viec-to/theu' in request.path %}active{% endif %}">
-                                <i class="bi bi-flower1"></i><span>Thêu</span>
+                                <i class="bi bi-flower1"></i><span>Tổ thêu</span>
                             </a>
                         </li>
                         {% endif %}
@@ -998,7 +998,7 @@
                         <li>
                             <a href="{% url 'san_xuat:team_work_board' 'may' %}"
                                class="jp-sidebar-link jp-sidebar-sublink {% if '/cong-viec-to/may' in request.path %}active{% endif %}">
-                                <i class="bi bi-grid-3x3-gap"></i><span>May</span>
+                                <i class="bi bi-grid-3x3-gap"></i><span>Tổ may</span>
                             </a>
                         </li>
                         {% endif %}
@@ -1006,7 +1006,7 @@
                         <li>
                             <a href="{% url 'san_xuat:team_work_board' 'ht' %}"
                                class="jp-sidebar-link jp-sidebar-sublink {% if '/cong-viec-to/ht' in request.path %}active{% endif %}">
-                                <i class="bi bi-layers"></i><span>Ủi - Gấp xếp</span>
+                                <i class="bi bi-layers"></i><span>Tổ ủi gấp xếp</span>
                             </a>
                         </li>
                         {% endif %}
@@ -1014,7 +1014,7 @@
                         <li>
                             <a href="{% url 'san_xuat:team_work_board' 'gh' %}"
                                class="jp-sidebar-link jp-sidebar-sublink {% if '/cong-viec-to/gh' in request.path %}active{% endif %}">
-                                <i class="bi bi-truck"></i><span>Giao hàng thành phẩm</span>
+                                <i class="bi bi-truck"></i><span>Tổ giao hàng</span>
                             </a>
                         </li>
                         {% endif %}

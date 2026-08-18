@@ -3,6 +3,7 @@
 
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/css/tom-select.bootstrap5.min.css">
 <style>
   .jp-tw {
     --tw-ink: #0f172a;
@@ -58,15 +59,6 @@
   .jp-tw-chip.is-warn { background: #fff7ed; border-color: #fed7aa; color: #9a3412; }
   .jp-tw-chip.is-ok { background: #ccfbf1; border-color: #5eead4; color: #115e59; }
   .jp-tw-chips { display: flex; flex-wrap: wrap; gap: .3rem; }
-  .jp-tw-tabs { display: flex; flex-wrap: wrap; gap: .4rem; margin: 0 0 1rem; }
-  .jp-tw-tab {
-    display: inline-flex; align-items: center; gap: .3rem;
-    padding: .28rem .7rem; border-radius: 999px; text-decoration: none;
-    border: 1px solid var(--tw-line); background: #fff; color: var(--tw-ink);
-    font-size: .78rem; font-weight: 700;
-  }
-  .jp-tw-tab:hover { border-color: #99f6e4; color: var(--tw-accent); }
-  .jp-tw-tab.is-on { background: #ccfbf1; border-color: #5eead4; color: #115e59; }
   .jp-tw-empty-board {
     border: 1px dashed var(--tw-line); border-radius: 1rem;
     padding: 2.5rem 1rem; text-align: center; color: var(--tw-muted); background: #fff;
@@ -77,11 +69,35 @@
     background: var(--tw-soft); border-bottom: 1px solid var(--tw-line);
     padding: 1rem 1.15rem;
   }
-  .jp-tw-steps-grid {
-    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .35rem .75rem;
-    max-height: 14rem; overflow: auto; padding: .15rem 0 .25rem;
+  .jp-tw-modal .ts-wrapper.form-select { padding: 0; border: 0; min-height: 0; }
+  .jp-tw-modal .ts-control {
+    border: 1px solid var(--tw-line) !important; border-radius: .75rem !important;
+    min-height: 2.75rem; padding: .45rem .65rem !important; box-shadow: none !important;
   }
-  @media (max-width: 575px) { .jp-tw-steps-grid { grid-template-columns: 1fr; } }
+  body > .ts-dropdown.jp-tw-machine-dropdown {
+    z-index: 2000 !important;
+    max-height: min(18rem, 45vh) !important;
+  }
+  .jp-tw-steps-grid {
+    display: grid; grid-template-columns: repeat(1, minmax(0, 1fr)); gap: .45rem;
+    max-height: 16rem; overflow: auto; padding: .15rem 0 .25rem;
+  }
+  .jp-tw-process-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(6.5rem, 7.5rem);
+    gap: .35rem .65rem;
+    align-items: center;
+    padding: .35rem .45rem;
+    border: 1px solid #eef2f7;
+    border-radius: .65rem;
+    background: #fff;
+  }
+  .jp-tw-process-row .form-check { margin: 0; min-width: 0; }
+  .jp-tw-process-row .form-check-label { font-size: .84rem; line-height: 1.3; }
+  .jp-tw-avg-qty[disabled] { background: #f8fafc; }
+  @media (min-width: 576px) {
+    .jp-tw-steps-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
 </style>
 {% endblock %}
 
@@ -98,10 +114,7 @@
     </nav>
   </div>
 
-  <div class="jp-tw-tabs" role="navigation" aria-label="Chức năng tổ">
-    <a class="jp-tw-tab" href="{% url 'san_xuat:team_work_board' team.slug %}">Công việc</a>
-    <a class="jp-tw-tab is-on" href="{% url 'san_xuat:team_work_personnel' team.slug %}">Quản lý nhân sự</a>
-  </div>
+  {% include 'san_xuat/includes/team_work_nav.html' with tw_section='personnel' %}
 
   {% if not team_has_division_map %}
   <div class="alert alert-warning py-2 px-3 mb-3">
@@ -209,7 +222,13 @@
               <span class="jp-tw-chip is-warn">Chưa ghi</span>
               {% endif %}
             </div>
-            {% if row.skill.process_labels %}
+            {% if row.skill.process_items %}
+            <div class="jp-tw-chips">
+              {% for item in row.skill.process_items %}
+              <span class="jp-tw-chip">{{ item.label }}{% if item.avg_qty %} · {{ item.avg_qty|sx_num }} SP{% endif %}</span>
+              {% endfor %}
+            </div>
+            {% elif row.skill.process_labels %}
             <div class="jp-tw-chips">
               {% for label in row.skill.process_labels %}
               <span class="jp-tw-chip">{{ label }}</span>
@@ -272,7 +291,7 @@
         </div>
         <div class="modal-body">
           <div class="mb-3">
-            <label class="form-label fw-semibold">Cấp kỹ năng A/B/C</label>
+            <label class="form-label fw-semibold">Bậc</label>
             <select name="skill_level" id="jpTwSkillLevel" class="form-select">
               {% for value, label in skill_choices %}
               <option value="{{ value }}">{{ label }}</option>
@@ -283,17 +302,29 @@
             <div class="form-label fw-semibold">Công đoạn làm được</div>
             <div class="jp-tw-steps-grid">
               {% for step in board.step_defs %}
-              <label class="form-check">
-                <input class="form-check-input jp-tw-process" type="checkbox" name="process_keys" value="{{ step.key }}">
-                <span class="form-check-label">{{ step.label }}</span>
-              </label>
+              <div class="jp-tw-process-row">
+                <label class="form-check mb-0">
+                  <input class="form-check-input jp-tw-process" type="checkbox" name="process_keys" value="{{ step.key }}"
+                         data-process-label="{{ step.label }}">
+                  <span class="form-check-label">{{ step.label }}</span>
+                </label>
+                <input type="text"
+                       name="process_avg_qty_{{ step.key }}"
+                       class="form-control form-control-sm jp-tw-avg-qty"
+                       inputmode="decimal"
+                       placeholder="SL TB"
+                       data-process-key="{{ step.key }}"
+                       disabled
+                       aria-label="Sản lượng TB {{ step.label }}">
+              </div>
               {% endfor %}
             </div>
           </div>
           <div class="mb-3">
             <label class="form-label fw-semibold" for="jpTwMachines">Máy / thiết bị vận hành</label>
-            <input type="text" class="form-control" name="machines" id="jpTwMachines" maxlength="255"
-                   placeholder="VD. 1 kim, Kansai, ép logo…">
+            <select name="machine_codes" id="jpTwMachines" multiple
+                    class="form-select jp-tw-machine-select"
+                    placeholder="Tìm và chọn máy từ Quản lý thiết bị…"></select>
           </div>
           <div class="form-check mb-3">
             <input class="form-check-input" type="checkbox" name="is_multiskill" value="1" id="jpTwMulti">
@@ -317,8 +348,10 @@
 
 {% block scripts %}
 {% if can_edit %}
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/js/tom-select.complete.min.js"></script>
 <script>
 (function () {
+  var machineSearchUrl = '{% url "san_xuat:ie_machine_search" %}';
   var dataEl = document.getElementById('jp-tw-personnel-data');
   var data = {};
   try {
@@ -327,7 +360,88 @@
     data = {};
   }
   var modalEl = document.getElementById('jpTwSkillModal');
+  var selectEl = document.getElementById('jpTwMachines');
   if (!modalEl || typeof bootstrap === 'undefined') return;
+
+  var machineTs = null;
+  if (selectEl && typeof TomSelect !== 'undefined') {
+    machineTs = new TomSelect(selectEl, {
+      plugins: ['remove_button'],
+      maxOptions: 80,
+      maxItems: null,
+      create: false,
+      persist: false,
+      closeAfterSelect: false,
+      placeholder: 'Tìm và chọn máy từ Quản lý thiết bị…',
+      dropdownParent: 'body',
+      dropdownClass: 'ts-dropdown jp-tw-machine-dropdown',
+      valueField: 'value',
+      labelField: 'text',
+      searchField: ['text'],
+      preload: 'focus',
+      loadThrottle: 250,
+      load: function (query, callback) {
+        var q = (query || '').trim();
+        var url = machineSearchUrl + (q ? ('?q=' + encodeURIComponent(q)) : '');
+        fetch(url, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })
+          .then(function (r) { return r.ok ? r.json() : { results: [] }; })
+          .then(function (payload) {
+            callback((payload.results || []).map(function (row) {
+              return {
+                value: row.id || row.code,
+                text: row.text || ((row.code || '') + ' — ' + (row.name || '')),
+              };
+            }));
+          })
+          .catch(function () { callback(); });
+      },
+      render: {
+        no_results: function () {
+          return '<div class="no-results">Không tìm thấy máy</div>';
+        }
+      }
+    });
+  }
+
+  function syncProcessAvgInputs() {
+    document.querySelectorAll('.jp-tw-process-row').forEach(function (rowEl) {
+      var cb = rowEl.querySelector('.jp-tw-process');
+      var qty = rowEl.querySelector('.jp-tw-avg-qty');
+      if (!cb || !qty) return;
+      var on = !!cb.checked;
+      qty.disabled = !on;
+      if (!on) qty.value = '';
+    });
+  }
+
+  document.querySelectorAll('.jp-tw-process').forEach(function (cb) {
+    cb.addEventListener('change', syncProcessAvgInputs);
+  });
+
+  function setProcessValues(row) {
+    var avgMap = row.process_avg_qty || {};
+    var selected = {};
+    (row.process_keys || []).forEach(function (k) { selected[k] = true; });
+    document.querySelectorAll('.jp-tw-process').forEach(function (cb) {
+      cb.checked = !!selected[cb.value];
+    });
+    document.querySelectorAll('.jp-tw-avg-qty').forEach(function (input) {
+      var key = input.getAttribute('data-process-key') || '';
+      input.value = avgMap[key] || '';
+    });
+    syncProcessAvgInputs();
+  }
+
+  function setMachineValues(row) {
+    if (!machineTs) return;
+    machineTs.clear(true);
+    machineTs.clearOptions();
+    (row.machine_options || []).forEach(function (opt) {
+      machineTs.addOption({ value: opt.code, text: opt.text });
+    });
+    machineTs.setValue(row.machine_codes || [], true);
+  }
+
   var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
   document.querySelectorAll('.jp-tw-edit').forEach(function (btn) {
     btn.addEventListener('click', function () {
@@ -336,15 +450,21 @@
       document.getElementById('jpTwSkillUserId').value = uid;
       document.getElementById('jpTwSkillName').textContent = row.full_name || '';
       document.getElementById('jpTwSkillLevel').value = row.skill_level || '';
-      document.getElementById('jpTwMachines').value = row.machines || '';
       document.getElementById('jpTwNotes').value = row.notes || '';
       document.getElementById('jpTwMulti').checked = !!row.is_multiskill;
-      var selected = {};
-      (row.process_keys || []).forEach(function (k) { selected[k] = true; });
-      document.querySelectorAll('.jp-tw-process').forEach(function (cb) {
-        cb.checked = !!selected[cb.value];
-      });
+      setProcessValues(row);
+      setMachineValues(row);
       modal.show();
+      setTimeout(function () { if (machineTs) machineTs.focus(); }, 200);
+    });
+  });
+
+  modalEl.addEventListener('hidden.bs.modal', function () {
+    if (machineTs) machineTs.clear(true);
+    document.querySelectorAll('.jp-tw-process').forEach(function (cb) { cb.checked = false; });
+    document.querySelectorAll('.jp-tw-avg-qty').forEach(function (input) {
+      input.value = '';
+      input.disabled = true;
     });
   });
 })();

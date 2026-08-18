@@ -1092,7 +1092,7 @@ SAN_XUAT_PERMISSION_SECTIONS = (
         ('dispatch', 'mo', 'material_issue_req', 'handover_status', 'fg_receipt_req', 'subcontract'),
     ),
     (
-        'Công việc tổ',
+        'Phân công SX',
         (
             'team_work', 'team_work_goods', 'team_work_cat', 'team_work_inep',
             'team_work_theu', 'team_work_may', 'team_work_ht', 'team_work_gh',

@@ -28,7 +28,7 @@ PAGES = [
     ("Dong_goi", "san_xuat:packing_detail", {"pk": refs["pack_pk"]}, [refs["pack_code"], refs["lot_code"]], None),
     ("Truy_xuat_LSX", "san_xuat:traceability", {}, [refs["mo_code"]], {"query": refs["mo_code"]}),
     ("Truy_xuat_lo", "san_xuat:traceability", {}, [refs["lot_code"], refs["mo_code"]], {"query": refs["lot_code"]}),
-    ("Team_work", "san_xuat:team_work_hub", {}, ["Công việc tổ"], None),
+    ("Team_work", "san_xuat:team_work_hub", {}, ["Phân công SX"], None),
     ("Subcontract", "san_xuat:subcontract_list", {}, ["gia công", "Gia công", "Thuê"], None),
     ("Costing", "san_xuat:redirect_costing", {}, ["Giá thành"], None),
     ("FG_hang", "san_xuat:fg_product_lookup", {}, ["Hàng"], None),

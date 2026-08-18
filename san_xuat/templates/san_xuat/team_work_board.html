@@ -41,9 +41,9 @@
   .jp-tw-mo-code {
     font-size: 1.05rem; font-weight: 800; color: var(--tw-ink);
     text-decoration: none; letter-spacing: -.01em;
+    line-height: 1.35;
   }
   .jp-tw-mo-code:hover { color: var(--tw-accent); }
-  .jp-tw-mo-sub { color: var(--tw-muted); font-size: .8rem; margin-top: .3rem; max-width: 44rem; }
   .jp-tw-job-stats { display: flex; flex-wrap: wrap; gap: .35rem; }
   .jp-tw-stat-pill {
     display: inline-flex; align-items: center; gap: .25rem;
@@ -91,16 +91,15 @@
   .jp-tw-step .btn { white-space: nowrap; }
   .jp-tw-job.is-closed { opacity: .92; }
   .jp-tw-job.is-closed .jp-tw-job-head { background: #f8fafc; }
-  .jp-tw-hint { color: var(--tw-muted); font-size: .82rem; margin: 0 0 .85rem; }
-  .jp-tw-tabs { display: flex; flex-wrap: wrap; gap: .4rem; margin: 0 0 1rem; }
-  .jp-tw-tab {
-    display: inline-flex; align-items: center; gap: .3rem;
-    padding: .28rem .7rem; border-radius: 999px; text-decoration: none;
-    border: 1px solid var(--tw-line); background: #fff; color: var(--tw-ink);
-    font-size: .78rem; font-weight: 700;
+  .jp-portal-pills.jp-tw-filter-pills .nav-link .jp-tw-count {
+    margin-left: .25rem;
+    font-weight: 700;
+    opacity: .85;
   }
-  .jp-tw-tab:hover { border-color: #99f6e4; color: var(--tw-accent); }
-  .jp-tw-tab.is-on { background: #ccfbf1; border-color: #5eead4; color: #115e59; }
+  .jp-portal-pills.jp-tw-filter-pills .nav-link:not(.active) .jp-tw-count {
+    color: #64748b;
+    opacity: 1;
+  }
   .jp-tw-empty-board {
     border: 1px dashed var(--tw-line); border-radius: 1rem;
     padding: 2.5rem 1rem; text-align: center; color: var(--tw-muted); background: #fff;
@@ -147,28 +146,210 @@
   body > .ts-dropdown.jp-tw-dropdown .ts-dropdown-content {
     max-height: min(22rem, 50vh) !important;
   }
+  .jp-tw-modal-dialog.modal-dialog-scrollable .modal-body {
+    overflow-y: auto;
+  }
+  .jp-tw-modal-footer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+    justify-content: flex-end;
+  }
   @media (max-width: 767.98px) {
+    .jp-tw-page {
+      padding-left: max(.75rem, env(safe-area-inset-left)) !important;
+      padding-right: max(.75rem, env(safe-area-inset-right)) !important;
+      padding-bottom: calc(4rem + env(safe-area-inset-bottom)) !important;
+    }
+    .jp-tw .jp-sx-detail-topbar {
+      flex-wrap: wrap;
+      align-items: flex-start;
+      gap: .5rem;
+    }
+    .jp-tw .jp-sx-tools {
+      width: 100%;
+      margin-left: 0;
+      justify-content: flex-start;
+    }
+    .jp-tw .jp-npl-mat-topbar-title {
+      font-size: 1.05rem;
+      white-space: normal;
+      line-height: 1.25;
+    }
+    .jp-portal-pills.jp-tw-filter-pills {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      width: 100%;
+    }
+    .jp-portal-pills.jp-tw-filter-pills .nav-link {
+      justify-content: center;
+      text-align: center;
+    }
+    .jp-tw-toolbar {
+      flex-direction: column;
+      align-items: stretch;
+      gap: .5rem;
+    }
+    .jp-tw-toolbar .jp-tw-search {
+      flex: 1 1 auto;
+      max-width: none;
+      min-width: 0;
+      width: 100%;
+      min-height: 2.75rem;
+      font-size: 1rem;
+    }
+    .jp-tw-toolbar .btn,
+    .jp-tw-toolbar .btn-link {
+      min-height: 2.5rem;
+    }
+    .jp-tw-job-head {
+      flex-direction: column;
+      align-items: stretch;
+      padding: .85rem .9rem;
+      gap: .65rem;
+    }
+    .jp-tw-job-actions {
+      width: 100%;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: .45rem;
+    }
+    .jp-tw-job-actions > form,
+    .jp-tw-job-actions > a,
+    .jp-tw-job-actions > .btn {
+      width: 100%;
+    }
+    .jp-tw-job-actions > form .btn,
+    .jp-tw-job-actions > a.btn {
+      width: 100%;
+      min-height: 2.5rem;
+    }
+    .jp-tw-job-actions .jp-tw-stat-pill {
+      grid-column: 1 / -1;
+      justify-content: center;
+      min-height: 2rem;
+      font-size: .74rem;
+    }
     .jp-tw-step {
       grid-template-columns: 1fr auto;
       grid-template-areas:
         "name status"
         "people people"
         "action action";
+      padding: .85rem .9rem;
+      gap: .55rem .65rem;
     }
-    .jp-tw-step-name { grid-area: name; }
-    .jp-tw-step > .jp-tw-status-wrap { grid-area: status; justify-self: end; }
-    .jp-tw-step > .jp-tw-people,
-    .jp-tw-step > .jp-tw-empty { grid-area: people; }
-    .jp-tw-step > .btn { grid-area: action; justify-self: start; }
+    .jp-tw-step-name {
+      grid-area: name;
+      font-size: .92rem;
+      line-height: 1.3;
+      padding-right: .35rem;
+    }
+    .jp-tw-step > .jp-tw-status-wrap { grid-area: status; justify-self: end; align-self: start; }
+    .jp-tw-step > .jp-tw-people { grid-area: people; }
+    .jp-tw-step > .jp-tw-step-action {
+      grid-area: action;
+      width: 100%;
+      min-height: 2.75rem;
+      font-size: .9rem;
+    }
+    .jp-tw-chip {
+      min-height: 1.85rem;
+      padding: .35rem .65rem;
+      font-size: .8rem;
+    }
+    .jp-tw-modal .modal-dialog.jp-tw-modal-dialog {
+      margin: 0;
+      max-width: none;
+      width: 100%;
+      min-height: 100%;
+      display: flex;
+      align-items: flex-end;
+    }
+    .jp-tw-modal .modal-content {
+      min-height: 0;
+      width: 100%;
+      max-height: min(92vh, calc(100dvh - env(safe-area-inset-top)));
+      border-radius: 1rem 1rem 0 0;
+      display: flex;
+      flex-direction: column;
+    }
+    .jp-tw-modal .modal-header {
+      padding: .85rem 1rem;
+      border-radius: 1rem 1rem 0 0;
+      flex-shrink: 0;
+    }
+    .jp-tw-modal .modal-title {
+      font-size: .95rem;
+      line-height: 1.35;
+      padding-right: .5rem;
+    }
+    .jp-tw-modal .modal-body {
+      padding: .85rem 1rem 1rem;
+      min-height: 0;
+      flex: 1 1 auto;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .jp-tw-modal .jp-tw-modal-meta {
+      font-size: .82rem;
+      margin-bottom: .85rem;
+      line-height: 1.4;
+    }
+    .jp-tw-modal .form-label {
+      font-size: .88rem;
+      margin-bottom: .45rem;
+    }
+    .jp-tw-modal .ts-control {
+      min-height: 3rem !important;
+      font-size: 1rem !important;
+      padding: .55rem .7rem !important;
+    }
+    .jp-tw-modal .ts-control .item {
+      font-size: .88rem !important;
+      padding: .35rem .55rem !important;
+    }
+    .jp-tw-modal-footer {
+      flex-direction: column-reverse;
+      align-items: stretch;
+      gap: .55rem;
+      padding: .75rem 1rem calc(.85rem + env(safe-area-inset-bottom)) !important;
+      flex-shrink: 0;
+      background: #fff;
+      border-top: 1px solid var(--tw-line);
+    }
+    .jp-tw-modal-footer .btn {
+      width: 100%;
+      min-height: 2.85rem;
+      margin: 0;
+      font-size: .95rem;
+    }
+    body > .ts-dropdown.jp-tw-dropdown {
+      max-height: min(16rem, 42vh) !important;
+      margin-left: max(.75rem, env(safe-area-inset-left));
+      margin-right: max(.75rem, env(safe-area-inset-right));
+      width: calc(100vw - max(.75rem, env(safe-area-inset-left)) - max(.75rem, env(safe-area-inset-right))) !important;
+    }
+    body > .ts-dropdown.jp-tw-dropdown .option {
+      padding: .7rem .85rem;
+      font-size: 1rem;
+    }
+    body > .ts-dropdown.jp-tw-dropdown .ts-dropdown-content {
+      max-height: min(16rem, 42vh) !important;
+    }
+    body.jp-tw-modal-open {
+      overflow: hidden;
+      touch-action: none;
+    }
   }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid jp-page jp-sx-page jp-tw py-3 py-md-4 mb-5 px-3 px-lg-4">
+<div class="container-fluid jp-page jp-sx-page jp-tw jp-tw-page py-3 py-md-4 mb-5 px-3 px-lg-4">
   <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
     <div class="jp-sx-detail-title">
-      <h2 class="jp-npl-mat-topbar-title w-100">Công việc tổ · {{ team.label }}</h2>
+      <h2 class="jp-npl-mat-topbar-title w-100">Quản lý tổ {{ team.label|lower }}</h2>
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
       <a href="{% url 'san_xuat:team_work_goods' %}">
@@ -177,10 +358,7 @@
     </nav>
   </div>
 
-  <div class="jp-tw-tabs" role="navigation" aria-label="Chức năng tổ">
-    <a class="jp-tw-tab is-on" href="{% url 'san_xuat:team_work_board' team.slug %}">Công việc</a>
-    <a class="jp-tw-tab" href="{% url 'san_xuat:team_work_personnel' team.slug %}">Quản lý nhân sự</a>
-  </div>
+  {% include 'san_xuat/includes/team_work_nav.html' with tw_section='work' %}
 
   {% if can_assign and not team_has_division_map %}
   <div class="alert alert-warning py-2 px-3 mb-3">
@@ -193,18 +371,7 @@
   </div>
   {% endif %}
 
-  <p class="jp-tw-hint">Hoàn thành chỉ chốt việc tổ này — công nhân không chọn đơn đó làm tiếp. Tổ sau vẫn nhận hàng theo tiến độ, không cần chờ nút này.</p>
-
-  <div class="jp-tw-tabs" role="navigation" aria-label="Lọc công việc">
-    <a class="jp-tw-tab{% if not show_closed %} is-on{% endif %}"
-       href="{% url 'san_xuat:team_work_board' team.slug %}{% if search_query %}?q={{ search_query|urlencode }}{% endif %}">
-      Đang làm <strong>{{ open_count }}</strong>
-    </a>
-    <a class="jp-tw-tab{% if show_closed %} is-on{% endif %}"
-       href="{% url 'san_xuat:team_work_board' team.slug %}?show=closed{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}">
-      Đã hoàn thành <strong>{{ closed_count }}</strong>
-    </a>
-  </div>
+  {% include 'san_xuat/includes/team_work_status_nav.html' %}
 
   <form method="get" class="jp-tw-toolbar">
     {% if show_closed %}<input type="hidden" name="show" value="closed">{% endif %}
@@ -223,16 +390,13 @@
       <header class="jp-tw-job-head">
         <div>
           <div class="jp-tw-job-title">
-            <a class="jp-tw-mo-code" href="{% url 'san_xuat:dispatch_mo_detail' job.mo.pk %}">{{ job.mo.code }}</a>
+            {% with pname=job.mo.product_name|default:job.mo.product_code %}
+            <a class="jp-tw-mo-code" href="{% url 'san_xuat:dispatch_mo_detail' job.mo.pk %}" title="{{ job.mo.code }}">
+              {% if pname %}{{ pname }} - {{ job.mo.code }}{% else %}{{ job.mo.code }}{% endif %}
+            </a>
+            {% endwith %}
             <span class="jp-tw-stat-pill"><strong>{{ job.step_count }}</strong> công đoạn</span>
             {% if job.closed %}<span class="jp-tw-status is-done"><i class="bi bi-check-circle"></i>Hoàn thành</span>{% endif %}
-          </div>
-          <div class="jp-tw-mo-sub">
-            <strong>{{ job.mo.product_code }}</strong>
-            {% if job.mo.product_name %} · {{ job.mo.product_name }}{% endif %}
-            {% if job.mo.sales_order_id %} · {{ job.mo.sales_order.code }}{% endif %}
-            {% if job.mo.qty %} · SL {{ job.mo.qty|sx_num }}{% endif %}
-            {% if job.closed and job.closed_by_label %} · Chốt bởi {{ job.closed_by_label }}{% if job.closed_at %} · {{ job.closed_at|date:"d/m/Y H:i" }}{% endif %}{% endif %}
           </div>
         </div>
         <div class="jp-tw-job-actions">
@@ -265,11 +429,13 @@
           {% if job.wait_count %}<span class="jp-tw-stat-pill">Chờ <strong>{{ job.wait_count }}</strong></span>{% endif %}
         </div>
       </header>
-      <ul class="jp-tw-steps" aria-label="Công đoạn {{ job.mo.code }}">
+      <ul class="jp-tw-steps" aria-label="Công đoạn {% with pname=job.mo.product_name|default:job.mo.product_code %}{% if pname %}{{ pname }} - {{ job.mo.code }}{% else %}{{ job.mo.code }}{% endif %}{% endwith %}">
         {% for row in job.rows %}
+        {% with pname=row.mo.product_name|default:row.mo.product_code %}
         <li class="jp-tw-step"
             data-mo-id="{{ row.mo.pk }}"
             data-mo-code="{{ row.mo.code }}"
+            data-mo-title="{% if pname %}{{ pname }} - {{ row.mo.code }}{% else %}{{ row.mo.code }}{% endif %}"
             data-process-key="{{ row.step_def.key }}"
             data-process-label="{{ row.step_def.label }}"
             data-assignee-ids="{% for a in row.assignees %}{{ a.id }}{% if not forloop.last %},{% endif %}{% endfor %}">
@@ -296,12 +462,13 @@
           </div>
           {% if can_assign and not job.closed %}
           <button type="button"
-                  class="btn btn-sm {% if row.assignees %}btn-hm{% else %}btn-outline-hm{% endif %} fw-bold"
+                  class="btn btn-sm jp-tw-step-action {% if row.assignees %}btn-hm{% else %}btn-outline-hm{% endif %} fw-bold"
                   data-jp-tw-assign>
             {% if row.assignees %}Đổi{% else %}Phân công{% endif %}
           </button>
           {% endif %}
         </li>
+        {% endwith %}
         {% endfor %}
       </ul>
     </article>
@@ -316,7 +483,7 @@
 
 {% if can_assign %}
 <div class="modal fade jp-tw-modal" id="jpTwAssignModal" tabindex="-1" aria-labelledby="jpTwAssignModalTitle" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-lg">
+  <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable jp-tw-modal-dialog">
     <form method="post" class="modal-content" id="jpTwAssignForm">
       {% csrf_token %}
       <input type="hidden" name="action" value="assign">
@@ -335,13 +502,8 @@
           <option value="{{ c.id }}">{{ c.label }}</option>
           {% endfor %}
         </select>
-        <p class="small text-muted mt-2 mb-0">
-          Chỉ hiện NV thuộc bộ phận đã map
-          {% if not team_has_division_map %}(chưa map){% endif %}
-          — tổ trưởng chỉ thấy cấp dưới (kể cả kiêm nhiệm). Có thể chọn nhiều người; bỏ hết chọn rồi lưu để gỡ phân công.
-        </p>
       </div>
-      <div class="modal-footer border-0 pt-0 px-3 pb-3">
+      <div class="modal-footer border-0 pt-0 px-3 pb-3 jp-tw-modal-footer">
         <button type="button" class="btn btn-outline-hm" data-bs-dismiss="modal">Hủy</button>
         <button type="submit" class="btn btn-hm fw-bold">Lưu phân công</button>
       </div>
@@ -393,7 +555,7 @@
       moId.value = row.getAttribute('data-mo-id') || '';
       processKey.value = row.getAttribute('data-process-key') || '';
       title.textContent = 'Phân công · ' + (row.getAttribute('data-process-label') || '');
-      meta.textContent = (row.getAttribute('data-mo-code') || '') + ' · ' + (row.getAttribute('data-process-label') || '');
+      meta.textContent = (row.getAttribute('data-mo-title') || row.getAttribute('data-mo-code') || '') + ' · ' + (row.getAttribute('data-process-label') || '');
       ts.clear(true);
       if (ids.length) ts.setValue(ids, true);
       modal.show();
@@ -401,7 +563,14 @@
     });
   });
 
+  modalEl.addEventListener('shown.bs.modal', function () {
+    if (window.matchMedia('(max-width: 767.98px)').matches) {
+      document.body.classList.add('jp-tw-modal-open');
+    }
+  });
+
   modalEl.addEventListener('hidden.bs.modal', function () {
+    document.body.classList.remove('jp-tw-modal-open');
     ts.clear(true);
     moId.value = '';
     processKey.value = '';

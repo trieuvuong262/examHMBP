@@ -4024,12 +4024,22 @@ def team_work_personnel(request, slug: str):
         except (TypeError, ValueError):
             user_id = 0
         try:
+            from san_xuat.services.progress_template import steps_for_group
+            from san_xuat.services.team_personnel import parse_process_avg_qty_post
+
+            allowed_process_keys = {
+                s.key for s in steps_for_group(team_meta['group_key'])
+            }
             upsert_team_personnel_skill(
                 slug=slug,
                 user_id=user_id,
                 process_keys=request.POST.getlist('process_keys'),
+                process_avg_qty=parse_process_avg_qty_post(
+                    request.POST,
+                    allowed=allowed_process_keys,
+                ),
                 skill_level=(request.POST.get('skill_level') or '').strip(),
-                machines=(request.POST.get('machines') or '').strip(),
+                machines=(request.POST.getlist('machine_codes') or None) or (request.POST.get('machines') or '').strip(),
                 is_multiskill=(request.POST.get('is_multiskill') or '').strip() in (
                     '1', 'on', 'true', 'yes',
                 ),
@@ -4050,6 +4060,7 @@ def team_work_personnel(request, slug: str):
         messages.error(request, str(exc))
         return redirect('san_xuat:team_work_hub')
 
+    from san_xuat.services.production_machines import machine_options_for_codes
     from san_xuat.services.team_division_map import has_mapped_divisions
 
     can_map = user_can_update_menu(request.user, MODULE_SAN_XUAT, 'general_settings')
@@ -4058,8 +4069,10 @@ def team_work_personnel(request, slug: str):
             'user_id': row.user_id,
             'full_name': row.full_name,
             'process_keys': row.skill.process_keys,
+            'process_avg_qty': row.skill.process_avg_qty,
             'skill_level': row.skill.skill_level,
-            'machines': row.skill.machines,
+            'machine_codes': row.skill.machine_codes,
+            'machine_options': machine_options_for_codes(row.skill.machine_codes),
             'is_multiskill': row.skill.is_multiskill,
             'notes': row.skill.notes,
         }

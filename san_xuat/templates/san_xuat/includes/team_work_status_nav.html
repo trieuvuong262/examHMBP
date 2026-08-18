@@ -1,0 +1,10 @@
+<nav class="nav nav-pills jp-portal-pills jp-tw-filter-pills flex-wrap gap-2 mb-3" aria-label="Lọc công việc">
+  <a class="nav-link rounded-pill fw-bold{% if not show_closed %} active{% endif %}"
+     href="{% url 'san_xuat:team_work_board' team.slug %}{% if search_query %}?q={{ search_query|urlencode }}{% endif %}">
+    Đang làm <span class="jp-tw-count">{{ open_count }}</span>
+  </a>
+  <a class="nav-link rounded-pill fw-bold{% if show_closed %} active{% endif %}"
+     href="{% url 'san_xuat:team_work_board' team.slug %}?show=closed{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}">
+    Đã hoàn thành <span class="jp-tw-count">{{ closed_count }}</span>
+  </a>
+</nav>

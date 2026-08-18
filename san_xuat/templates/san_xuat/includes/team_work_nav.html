@@ -1,0 +1,6 @@
+<nav class="nav nav-pills jp-portal-pills flex-wrap gap-2 mb-3" aria-label="Chức năng tổ">
+  <a class="nav-link rounded-pill fw-bold{% if tw_section == 'work' %} active{% endif %}"
+     href="{% url 'san_xuat:team_work_board' team.slug %}">Công việc</a>
+  <a class="nav-link rounded-pill fw-bold{% if tw_section == 'personnel' %} active{% endif %}"
+     href="{% url 'san_xuat:team_work_personnel' team.slug %}">Quản lý nhân sự</a>
+</nav>

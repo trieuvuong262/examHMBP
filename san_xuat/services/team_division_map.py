@@ -106,16 +106,10 @@ def _assigner_sees_full_pool(assigner) -> bool:
 
 
 def _user_option_label(user) -> str:
-    from hrm.permissions import format_team_user_label
-
-    try:
-        return format_team_user_label(user)
-    except Exception:
-        p = getattr(user, 'profile', None)
-        name = ((getattr(p, 'full_name', None) or '') if p else '').strip()
-        name = name or user.get_full_name() or user.username
-        code = (getattr(p, 'employee_code', None) or '—') if p else '—'
-        return f'{name} · {code} · {user.username}'
+    """Nhãn dropdown phân công — chỉ hiện họ tên."""
+    p = getattr(user, 'profile', None)
+    name = ((getattr(p, 'full_name', None) or '') if p else '').strip()
+    return name or user.get_full_name() or user.username
 
 
 def assignee_candidate_ids_for_team(slug: str, assigner) -> set[int]:

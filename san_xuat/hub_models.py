@@ -2542,6 +2542,12 @@ class SxTeamPersonnelSkill(DemoMarkedModel):
         verbose_name='Công đoạn làm được',
         help_text='Danh sách key công đoạn theo mẫu tổ (progress_template).',
     )
+    process_avg_qty = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name='Sản lượng TB theo công đoạn',
+        help_text='Map key công đoạn → sản lượng trung bình (SP) phục vụ lương sản lượng.',
+    )
     skill_level = models.CharField(
         max_length=1,
         choices=SKILL_CHOICES,
@@ -2591,6 +2597,20 @@ class SxTeamPersonnelSkill(DemoMarkedModel):
         if not isinstance(raw, list):
             return []
         return [str(k).strip() for k in raw if str(k).strip()]
+
+    def process_avg_qty_map(self) -> dict[str, str]:
+        raw = self.process_avg_qty
+        if not isinstance(raw, dict):
+            return {}
+        out: dict[str, str] = {}
+        for key, value in raw.items():
+            k = str(key or '').strip()
+            if not k:
+                continue
+            v = str(value or '').strip()
+            if v:
+                out[k] = v
+        return out
 
 
 class SxGeneralSettings(models.Model):

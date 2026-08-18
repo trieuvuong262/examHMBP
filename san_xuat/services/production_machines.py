@@ -63,3 +63,44 @@ def ie_machine_search(*, q: str = '', limit: int = 60) -> list[dict]:
         if len(results) >= limit:
             break
     return results
+
+
+def machine_options_for_codes(codes: list[str] | str) -> list[dict]:
+    """Option TomSelect cho mã máy đã lưu (kể cả legacy không còn trong danh mục)."""
+    if isinstance(codes, str):
+        raw = (codes or '').replace(';', ',')
+        tokens = [part.strip() for part in raw.split(',') if part.strip()]
+    else:
+        tokens = [str(part or '').strip() for part in (codes or []) if str(part or '').strip()]
+    if not tokens:
+        return []
+    by_code: dict[str, object] = {}
+    for device in production_machine_qs().only('device_code', 'name'):
+        code = (device.device_code or '').strip()
+        if code:
+            by_code[code.casefold()] = device
+    out: list[dict] = []
+    seen: set[str] = set()
+    for token in tokens:
+        key = token.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        device = by_code.get(key)
+        if device:
+            name = (device.name or device.device_code).strip()
+            out.append({
+                'code': device.device_code,
+                'text': f'{device.device_code} — {name}',
+            })
+        else:
+            out.append({'code': token, 'text': f'{token} (đang dùng)'})
+    return out
+
+
+def format_machine_codes_display(raw: str) -> str:
+    """Hiển thị danh sách máy đã lưu — ưu tiên tên từ Quản lý thiết bị."""
+    opts = machine_options_for_codes(raw)
+    if not opts:
+        return (raw or '').strip()
+    return ', '.join(item['text'].replace(' (đang dùng)', '') for item in opts)

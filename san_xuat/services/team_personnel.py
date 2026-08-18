@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import timedelta
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 from django.contrib.auth import get_user_model
 from django.db import transaction
@@ -27,6 +27,7 @@ from san_xuat.hub_models import (
 )
 from san_xuat.services.planning import PlanningError
 from san_xuat.services.progress_template import steps_for_group, team_by_slug
+from san_xuat.services.production_machines import format_machine_codes_display, machine_options_for_codes
 from san_xuat.services.team_division_map import (
     has_mapped_divisions,
     mapped_division_ids,
@@ -41,11 +42,21 @@ _MANAGER_ROLES = {ROLE_DIRECTOR, ROLE_DEPARTMENT_HEAD, ROLE_DIVISION_HEAD}
 
 
 @dataclass
+class TeamPersonnelProcessItem:
+    key: str
+    label: str
+    avg_qty: str = ''
+
+
+@dataclass
 class TeamPersonnelSkillView:
     process_keys: list[str] = field(default_factory=list)
     process_labels: list[str] = field(default_factory=list)
+    process_items: list[TeamPersonnelProcessItem] = field(default_factory=list)
+    process_avg_qty: dict[str, str] = field(default_factory=dict)
     skill_level: str = ''
     machines: str = ''
+    machine_codes: list[str] = field(default_factory=list)
     is_multiskill: bool = False
     notes: str = ''
     updated_at: object | None = None
@@ -148,11 +159,84 @@ def _normalize_process_keys(raw, *, allowed: set[str]) -> list[str]:
     return out
 
 
+def _normalize_process_avg_qty(raw, *, allowed: set[str], selected_keys: list[str]) -> dict[str, str]:
+    """Chuẩn hóa SL trung bình — chỉ lưu cho công đoạn đang chọn."""
+    selected = set(selected_keys)
+    if isinstance(raw, dict):
+        items = raw.items()
+    else:
+        items = []
+    out: dict[str, str] = {}
+    for key, value in items:
+        k = str(key or '').strip()
+        if not k or k not in allowed or k not in selected:
+            continue
+        text = str(value or '').strip().replace(',', '.')
+        if not text:
+            continue
+        try:
+            qty = Decimal(text)
+        except InvalidOperation:
+            continue
+        if qty < 0:
+            continue
+        normalized = format(qty.normalize(), 'f')
+        if '.' in normalized:
+            normalized = normalized.rstrip('0').rstrip('.')
+        out[k] = normalized or '0'
+    return out
+
+
+def parse_process_avg_qty_post(post, *, allowed: set[str]) -> dict[str, str]:
+    """Đọc input `process_avg_qty_<key>` từ form modal năng lực."""
+    raw: dict[str, str] = {}
+    prefix = 'process_avg_qty_'
+    for key in allowed:
+        value = (post.get(f'{prefix}{key}') or '').strip()
+        if value:
+            raw[key] = value
+    return raw
+
+
+def _process_items(keys: list[str], label_by_key: dict[str, str], avg_map: dict[str, str]) -> list[TeamPersonnelProcessItem]:
+    return [
+        TeamPersonnelProcessItem(
+            key=key,
+            label=label_by_key.get(key, key),
+            avg_qty=avg_map.get(key, ''),
+        )
+        for key in keys
+        if key in label_by_key or key
+    ]
+
+
 def _normalize_skill_level(raw: str) -> str:
     value = (raw or '').strip().upper()
     if value in SKILL_LEVELS:
         return value
     return ''
+
+
+def _normalize_machine_codes(raw) -> str:
+    """Chuẩn hóa danh sách mã máy từ form — lưu CSV trong CharField."""
+    if raw is None:
+        tokens: list[str] = []
+    elif isinstance(raw, str):
+        tokens = [part.strip() for part in raw.replace(';', ',').split(',') if part.strip()]
+    else:
+        tokens = [str(part or '').strip() for part in raw if str(part or '').strip()]
+    if not tokens:
+        return ''
+    valid = {item['code'].casefold(): item['code'] for item in machine_options_for_codes(tokens)}
+    out: list[str] = []
+    seen: set[str] = set()
+    for token in tokens:
+        key = token.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(valid.get(key, token))
+    return ', '.join(out)[:255]
 
 
 @transaction.atomic
@@ -161,6 +245,7 @@ def upsert_team_personnel_skill(
     slug: str,
     user_id: int,
     process_keys=None,
+    process_avg_qty=None,
     skill_level: str = '',
     machines: str = '',
     is_multiskill: bool = False,
@@ -170,11 +255,13 @@ def upsert_team_personnel_skill(
     team = team_by_slug(slug)
     if not team:
         raise PlanningError('Tổ không hợp lệ.')
+    machines = _normalize_machine_codes(machines)
     pool_ids = set(users_in_mapped_divisions(slug).values_list('pk', flat=True))
     if int(user_id) not in pool_ids:
         raise PlanningError('Nhân viên không thuộc bộ phận đã map vào tổ này.')
     allowed = {s.key for s in steps_for_group(team['group_key'])}
     keys = _normalize_process_keys(process_keys, allowed=allowed)
+    avg_qty = _normalize_process_avg_qty(process_avg_qty or {}, allowed=allowed, selected_keys=keys)
     level = _normalize_skill_level(skill_level)
     actor = updated_by if getattr(updated_by, 'is_authenticated', False) else None
     rec, created = SxTeamPersonnelSkill.objects.select_for_update().get_or_create(
@@ -182,8 +269,9 @@ def upsert_team_personnel_skill(
         team_slug=team['slug'],
         defaults={
             'process_keys': keys,
+            'process_avg_qty': avg_qty,
             'skill_level': level,
-            'machines': (machines or '').strip()[:255],
+            'machines': machines,
             'is_multiskill': bool(is_multiskill),
             'notes': (notes or '').strip(),
             'is_demo': False,
@@ -194,14 +282,16 @@ def upsert_team_personnel_skill(
     if created:
         return rec
     rec.process_keys = keys
+    rec.process_avg_qty = avg_qty
     rec.skill_level = level
-    rec.machines = (machines or '').strip()[:255]
+    rec.machines = machines
     rec.is_multiskill = bool(is_multiskill)
     rec.notes = (notes or '').strip()
     rec.is_demo = False
     rec.updated_by = actor
     rec.save(update_fields=[
         'process_keys',
+        'process_avg_qty',
         'skill_level',
         'machines',
         'is_multiskill',
@@ -359,11 +449,17 @@ def build_team_personnel_board(*, slug: str, search: str = '') -> TeamPersonnelB
         profile = getattr(user, 'profile', None)
         skill_rec = skills.get(user.pk)
         keys = skill_rec.process_key_list() if skill_rec else []
+        raw_machines = (skill_rec.machines if skill_rec else '') or ''
+        machine_opts = machine_options_for_codes(raw_machines)
+        avg_map = skill_rec.process_avg_qty_map() if skill_rec else {}
         skill_view = TeamPersonnelSkillView(
             process_keys=keys,
             process_labels=[label_by_key[k] for k in keys if k in label_by_key],
+            process_items=_process_items(keys, label_by_key, avg_map),
+            process_avg_qty=avg_map,
             skill_level=(skill_rec.skill_level if skill_rec else '') or '',
-            machines=(skill_rec.machines if skill_rec else '') or '',
+            machines=format_machine_codes_display(raw_machines),
+            machine_codes=[item['code'] for item in machine_opts],
             is_multiskill=bool(skill_rec and skill_rec.is_multiskill),
             notes=(skill_rec.notes if skill_rec else '') or '',
             updated_at=skill_rec.updated_at if skill_rec else None,
@@ -378,7 +474,7 @@ def build_team_personnel_board(*, slug: str, search: str = '') -> TeamPersonnelB
         load = assign.get(user.pk) or {}
         out = output.get(user.pk) or {}
         missing = not (
-            skill_view.process_keys or skill_view.skill_level or skill_view.machines or skill_view.notes
+            skill_view.process_keys or skill_view.skill_level or skill_view.machine_codes or skill_view.notes
         )
         avatar_url = ''
         if profile and getattr(profile, 'avatar', None):
