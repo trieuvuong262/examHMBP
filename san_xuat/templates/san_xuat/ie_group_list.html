@@ -305,68 +305,76 @@
 {% endif %}
 
 {% include 'san_xuat/includes/ie_import_modal.html' %}
-{% endblock %}
 
 {% if can_update %}
-{% block scripts %}
 <script>
 (function () {
   var modalEl = document.getElementById('ieEditGroupModal');
   if (!modalEl) return;
 
-  function fillEditForm(row) {
-    if (!row) return;
-    document.getElementById('ieEditGroupPk').value = row.getAttribute('data-pk') || '';
-    document.getElementById('ieEditGroupCode').value = row.getAttribute('data-code') || '';
-    document.getElementById('ieEditGroupName').value = row.getAttribute('data-name') || '';
-    document.getElementById('ieEditGroupStage').value = row.getAttribute('data-stage') || '';
-    document.getElementById('ieEditGroupPart').value = row.getAttribute('data-part') || '';
-    document.getElementById('ieEditGroupDesc').value = row.getAttribute('data-description') || '';
-    document.getElementById('ieEditGroupOwner').value = row.getAttribute('data-owner') || '';
-    var eff = document.getElementById('ieEditGroupEffective');
-    var effVal = row.getAttribute('data-effective') || '';
-    if (eff && eff._flatpickr) {
-      if (effVal) eff._flatpickr.setDate(effVal, true);
-      else eff._flatpickr.clear();
-    } else if (eff) {
-      eff.value = effVal;
+  function setup() {
+    function fillEditForm(row) {
+      if (!row) return;
+      document.getElementById('ieEditGroupPk').value = row.getAttribute('data-pk') || '';
+      document.getElementById('ieEditGroupCode').value = row.getAttribute('data-code') || '';
+      document.getElementById('ieEditGroupName').value = row.getAttribute('data-name') || '';
+      document.getElementById('ieEditGroupStage').value = row.getAttribute('data-stage') || '';
+      document.getElementById('ieEditGroupPart').value = row.getAttribute('data-part') || '';
+      document.getElementById('ieEditGroupDesc').value = row.getAttribute('data-description') || '';
+      document.getElementById('ieEditGroupOwner').value = row.getAttribute('data-owner') || '';
+      var eff = document.getElementById('ieEditGroupEffective');
+      var effVal = row.getAttribute('data-effective') || '';
+      if (eff && eff._flatpickr) {
+        if (effVal) eff._flatpickr.setDate(effVal, true);
+        else eff._flatpickr.clear();
+      } else if (eff) {
+        eff.value = effVal;
+      }
+      document.getElementById('ieEditGroupActive').checked = row.getAttribute('data-active') === '1';
+      document.getElementById('ieEditGroupNotes').value = row.getAttribute('data-notes') || '';
     }
-    document.getElementById('ieEditGroupActive').checked = row.getAttribute('data-active') === '1';
-    document.getElementById('ieEditGroupNotes').value = row.getAttribute('data-notes') || '';
+
+    function isInteractive(target) {
+      return !!(target && target.closest(
+        'a, button, input, select, textarea, label, form, .form-check-input, [data-col="_pick"], [data-col="actions"], [data-col="n_ops"]'
+      ));
+    }
+
+    function openEdit(row) {
+      fillEditForm(row);
+      var bsModal = new bootstrap.Modal(modalEl);
+      bsModal.show();
+    }
+
+    document.querySelectorAll('.ie-edit-group-btn').forEach(function (btn) {
+      btn.addEventListener('click', function (ev) {
+        ev.stopPropagation();
+        var row = btn.closest('tr.ie-edit-group');
+        openEdit(row);
+      });
+    });
+
+    document.querySelectorAll('tr.ie-edit-group').forEach(function (row) {
+      row.addEventListener('click', function (ev) {
+        if (isInteractive(ev.target)) return;
+        openEdit(row);
+      });
+      row.addEventListener('keydown', function (ev) {
+        if (ev.key !== 'Enter' && ev.key !== ' ') return;
+        if (isInteractive(ev.target)) return;
+        ev.preventDefault();
+        openEdit(row);
+      });
+    });
   }
 
-  function isInteractive(target) {
-    return !!(target && target.closest(
-      'a, button, input, select, textarea, label, form, .form-check-input, [data-col="_pick"], [data-col="actions"], [data-col="n_ops"]'
-    ));
+  // Bootstrap load ở cuối body — đợi window load để chắc chắn Bootstrap đã sẵn sàng
+  if (window.bootstrap) {
+    setup();
+  } else {
+    window.addEventListener('load', setup);
   }
-
-  function openEdit(row) {
-    fillEditForm(row);
-    bootstrap.Modal.getOrCreateInstance(modalEl).show();
-  }
-
-  document.querySelectorAll('.ie-edit-group-btn').forEach(function (btn) {
-    btn.addEventListener('click', function (ev) {
-      ev.stopPropagation();
-      var row = btn.closest('tr.ie-edit-group');
-      openEdit(row);
-    });
-  });
-
-  document.querySelectorAll('tr.ie-edit-group').forEach(function (row) {
-    row.addEventListener('click', function (ev) {
-      if (isInteractive(ev.target)) return;
-      openEdit(row);
-    });
-    row.addEventListener('keydown', function (ev) {
-      if (ev.key !== 'Enter' && ev.key !== ' ') return;
-      if (isInteractive(ev.target)) return;
-      ev.preventDefault();
-      openEdit(row);
-    });
-  });
 })();
 </script>
-{% endblock %}
 {% endif %}
+{% endblock %}
