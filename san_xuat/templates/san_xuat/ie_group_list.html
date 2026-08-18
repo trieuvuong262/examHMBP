@@ -76,7 +76,7 @@
         </thead>
         <tbody>
         {% for g in items %}
-          <tr{% if can_update %} class="jp-npl-catalog-row ie-edit-group"
+          <tr{% if can_update %} class="jp-npl-catalog-row ie-edit-group jp-sx-row-wired"
                       role="button"
                       tabindex="0"
                       data-pk="{{ g.pk }}"
@@ -368,12 +368,13 @@
     });
   }
 
-  // Bootstrap load ở cuối body — đợi window load để chắc chắn Bootstrap đã sẵn sàng
-  if (window.bootstrap) {
-    setup();
-  } else {
-    window.addEventListener('load', setup);
+  // Script nằm trước Bootstrap bundle trong body — đợi document parse xong
+  // rồi thử lại nhiều lần cho đến khi bootstrap có mặt
+  function trySetup(attempts) {
+    if (window.bootstrap) { setup(); return; }
+    if (attempts > 0) setTimeout(function () { trySetup(attempts - 1); }, 50);
   }
+  trySetup(40);
 })();
 </script>
 {% endif %}
