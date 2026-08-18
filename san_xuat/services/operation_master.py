@@ -372,6 +372,7 @@ def _import_operations(wb, result: ImportResult, *, user=None) -> None:
     group_resolver = OperationGroupResolver.build()
     seen = set()
     skipped_samples = 0
+    clamped_approved = 0
     for rec in _sheet_dicts(wb[SHEET_LIB]):
         op_code = _s(rec.get('MÃ CÔNG ĐOẠN'))
         if not op_code:
@@ -421,43 +422,65 @@ def _import_operations(wb, result: ImportResult, *, user=None) -> None:
         smv_basis = default_smv_basis_name()
         ie_owner = importer_name or _s(rec.get('NGƯỜI LẬP'))
 
+        # Import không được cấp trạng thái duyệt: chỉ nút Duyệt trên Portal mới ghi
+        # được approved_at/approved_user. Excel ghi "Đã duyệt" → nhận về Thử nghiệm.
+        excel_status = _STATUS_MAP.get(status_label, SxOperation.STATUS_DRAFT)
+        if excel_status == SxOperation.STATUS_APPROVED:
+            excel_status = SxOperation.STATUS_TRIAL
+            clamped_approved += 1
+
+        # Công đoạn đã duyệt thật trên Portal thì re-import không được hạ trạng thái.
+        keep_portal_approval = SxOperation.objects.filter(
+            op_code=op_code, op_rev=op_rev, approved_at__isnull=False,
+        ).exists()
+
+        defaults = {
+            'group': group,
+            'name_vi': _s(rec.get('TÊN CÔNG ĐOẠN')),
+            'name_en': _s(rec.get('TÊN CÔNG ĐOẠN_EN')),
+            'process_stage_label': stage_label,
+            'product_part': _s(rec.get('CỤM CHI TIẾT CHÍNH')),
+            'method_variant': _s(rec.get('MÔ TẢ PHƯƠNG PHÁP')),
+            'machine': SxMachine.objects.filter(code=machine_code).first() if machine_code else None,
+            'machine_code': machine_code,
+            'stitch_class': SxStitchClass.objects.filter(code=stitch_val).first() if stitch_val else None,
+            'thread_needle': _s(rec.get('QUY ĐỊNH KIM/CHỈ')),
+            'attachment_code': _s(rec.get('MÃ CỮ/GIÁ/CHÂN VỊT')),
+            'smv_basis': smv_basis,
+            'skill_level': (
+                SxSkillLevel.objects.filter(code=skill_label).first()
+                or SxSkillLevel.objects.filter(name=skill_label).first()
+            ) if skill_label else None,
+            'skill_level_label': skill_label,
+            'base_smv_min': base_smv,
+            'smv_source': SxSmvSource.objects.filter(name=smv_source_label).first() if smv_source_label else None,
+            'effective_from': _date(rec.get('NGÀY HIỆU LỰC')),
+            'effective_to': _date(rec.get('NGÀY HẾT HIỆU LỰC')),
+            'ie_owner': ie_owner,
+            'revision_reason': _s(rec.get('LÝ DO CHỈNH SỬA PHIÊN BẢN')),
+            'video_url': _s(rec.get('VIDEO_URL')),
+            'notes': _s(rec.get('NOTES')),
+        }
+        if not keep_portal_approval:
+            defaults['status'] = excel_status
+            defaults['approved_by'] = ''
+            defaults['approved_user'] = None
+            defaults['approved_at'] = None
+
         _, created = SxOperation.objects.update_or_create(
             op_code=op_code,
             op_rev=op_rev,
-            defaults={
-                'group': group,
-                'name_vi': _s(rec.get('TÊN CÔNG ĐOẠN')),
-                'name_en': _s(rec.get('TÊN CÔNG ĐOẠN_EN')),
-                'process_stage_label': stage_label,
-                'product_part': _s(rec.get('CỤM CHI TIẾT CHÍNH')),
-                'method_variant': _s(rec.get('MÔ TẢ PHƯƠNG PHÁP')),
-                'machine': SxMachine.objects.filter(code=machine_code).first() if machine_code else None,
-                'machine_code': machine_code,
-                'stitch_class': SxStitchClass.objects.filter(code=stitch_val).first() if stitch_val else None,
-                'thread_needle': _s(rec.get('QUY ĐỊNH KIM/CHỈ')),
-                'attachment_code': _s(rec.get('MÃ CỮ/GIÁ/CHÂN VỊT')),
-                'smv_basis': smv_basis,
-                'skill_level': (
-                    SxSkillLevel.objects.filter(code=skill_label).first()
-                    or SxSkillLevel.objects.filter(name=skill_label).first()
-                ) if skill_label else None,
-                'skill_level_label': skill_label,
-                'base_smv_min': base_smv,
-                'smv_source': SxSmvSource.objects.filter(name=smv_source_label).first() if smv_source_label else None,
-                'status': _STATUS_MAP.get(status_label, SxOperation.STATUS_DRAFT),
-                'effective_from': _date(rec.get('NGÀY HIỆU LỰC')),
-                'effective_to': _date(rec.get('NGÀY HẾT HIỆU LỰC')),
-                'ie_owner': ie_owner,
-                'approved_by': _s(rec.get('NGƯỜI DUYỆT')),
-                'revision_reason': _s(rec.get('LÝ DO CHỈNH SỬA PHIÊN BẢN')),
-                'video_url': _s(rec.get('VIDEO_URL')),
-                'notes': _s(rec.get('NOTES')),
-            },
+            defaults=defaults,
         )
         result.bump('operation', created)
     if skipped_samples:
         result.warnings.append(
             f'[Công đoạn] Đã bỏ qua {skipped_samples} dòng ví dụ mẫu (không import vào hệ thống).'
+        )
+    if clamped_approved:
+        result.warnings.append(
+            f'[Công đoạn] {clamped_approved} dòng ghi TRẠNG THÁI «Đã duyệt» trong Excel — '
+            f'đã nhận về «Thử nghiệm». Duyệt trên màn Duyệt công đoạn để có hiệu lực.'
         )
 
 

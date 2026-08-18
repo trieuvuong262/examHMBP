@@ -382,6 +382,20 @@ class SxOperation(models.Model):
             return Decimal('0')
         return _q(Decimal('36000') / self.base_smv_min, '0.01')
 
+    @property
+    def is_portal_approved(self) -> bool:
+        """Đã duyệt thật trên Portal — chỉ nút Duyệt ghi được ``approved_at``."""
+        return self.status == self.STATUS_APPROVED and self.approved_at is not None
+
+    @property
+    def approval_display(self) -> str:
+        """Nhãn trạng thái trung thực: status ``approved`` mà thiếu mốc duyệt là chưa duyệt."""
+        if self.is_portal_approved:
+            return 'Đã duyệt'
+        if self.status == self.STATUS_APPROVED:
+            return 'Chưa duyệt'
+        return self.get_status_display()
+
 
 # ---------------------------------------------------------------------------
 # Bước 3 — Routing theo mã hàng

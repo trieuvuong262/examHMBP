@@ -1020,9 +1020,15 @@ def operation_list(request):
     group_code = (request.GET.get('group') or '').strip()
     if group_code:
         qs = qs.filter(group__code=group_code)
-    # Thư viện chỉ hiện công đoạn đã duyệt — không lọc theo status từ URL
-    status = ''
-    qs = qs.filter(status=SxOperation.STATUS_APPROVED)
+    # Thư viện hiện cả công đoạn chưa duyệt — cột Trạng thái nói rõ cái nào đã duyệt.
+    status = (request.GET.get('status') or '').strip()
+    if status in {c[0] for c in SxOperation.STATUS_CHOICES}:
+        qs = qs.filter(status=status)
+    approval = (request.GET.get('approval') or '').strip()
+    if approval == 'approved':
+        qs = qs.filter(status=SxOperation.STATUS_APPROVED, approved_at__isnull=False)
+    elif approval == 'pending':
+        qs = qs.exclude(status=SxOperation.STATUS_APPROVED, approved_at__isnull=False)
 
     qs = qs.order_by('op_code', 'op_rev')
     grid = sx_list_grid_context(request, 'ie_operation')
@@ -1042,10 +1048,14 @@ def operation_list(request):
         'term': term,
         'group_code': group_code,
         'status': status,
+        'approval': approval,
         'groups': SxOperationGroup.objects.filter(is_active=True).order_by('sort_order', 'code'),
         'status_choices': SxOperation.STATUS_CHOICES,
         'machines': ie_machine_options(),
         'total': qs.count(),
+        'pending_approval_total': qs.exclude(
+            status=SxOperation.STATUS_APPROVED, approved_at__isnull=False,
+        ).count(),
         'current_user_display_name': ie_user_display_name(request.user),
         'can_pick_rows': _can_bulk_delete(perms),
         **_ie_operation_form_catalogs(),

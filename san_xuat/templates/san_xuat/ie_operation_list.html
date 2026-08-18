@@ -42,16 +42,34 @@
   </div>
   {% endif %}
 
+  {% if pending_approval_total %}
+  <div class="alert alert-warning py-2 small mb-3">
+    <i class="bi bi-exclamation-triangle-fill me-1"></i>
+    {{ pending_approval_total }} công đoạn <strong>chưa được duyệt trên Portal</strong> — chỉ dùng để tham khảo,
+    chưa gắn được vào routing. Trạng thái ghi trong Excel không thay cho việc duyệt.
+    {% if can_approve %}
+    <a href="{% url 'san_xuat:ie_approve_operations' %}" class="alert-link">Mở Duyệt công đoạn</a>
+    {% endif %}
+  </div>
+  {% endif %}
+
   <form method="get" class="row g-2 mb-3" id="ieOpFilterForm">
-    <div class="col-md-6">
+    <div class="col-md-4">
       <input type="search" name="q" value="{{ term }}" class="form-control form-control-sm" placeholder="Tìm mã, tên, máy…" autocomplete="off">
     </div>
-    <div class="col-md-6">
+    <div class="col-md-4">
       <select name="group" class="form-select form-select-sm" aria-label="Nhóm">
         <option value="">— Tất cả nhóm —</option>
         {% for g in groups %}
         <option value="{{ g.code }}" {% if g.code == group_code %}selected{% endif %}>{{ g.code }} — {{ g.name }}</option>
         {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-4">
+      <select name="approval" class="form-select form-select-sm" aria-label="Trạng thái duyệt">
+        <option value="">— Tất cả trạng thái duyệt —</option>
+        <option value="approved" {% if approval == 'approved' %}selected{% endif %}>Đã duyệt trên Portal</option>
+        <option value="pending" {% if approval == 'pending' %}selected{% endif %}>Chưa duyệt</option>
       </select>
     </div>
   </form>
@@ -109,7 +127,13 @@
             <td class="npl-col small" data-col="attachment">{{ op.attachment_code|default:"—" }}</td>
             <td class="npl-col small" data-col="smv_basis">{{ op.smv_basis|default:"—" }}</td>
             <td class="npl-col small" data-col="smv_source">{% if op.smv_source %}{{ op.smv_source.name }}{% else %}—{% endif %}</td>
-            <td class="npl-col small" data-col="status">{{ op.get_status_display }}</td>
+            <td class="npl-col small" data-col="status">
+              {% if op.is_portal_approved %}
+              <span class="badge bg-success-subtle text-success">Đã duyệt</span>
+              {% else %}
+              <span class="badge bg-warning-subtle text-warning-emphasis" title="Chưa duyệt trên Portal">{{ op.approval_display }}</span>
+              {% endif %}
+            </td>
             <td class="npl-col small" data-col="effective_from">{% if op.effective_from %}{{ op.effective_from|date:"d/m/Y" }}{% else %}—{% endif %}</td>
             <td class="npl-col small" data-col="effective_to">{% if op.effective_to %}{{ op.effective_to|date:"Y-m-d" }}{% else %}—{% endif %}</td>
             <td class="npl-col small" data-col="ie_owner">{{ op.ie_owner|default:"—" }}</td>
