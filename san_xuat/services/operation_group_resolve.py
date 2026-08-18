@@ -237,7 +237,7 @@ def rematch_operations_to_groups(
                 stage_label=stage_label,
                 op_code=op.op_code,
             )
-            if not resolved.group or resolved.group_id == op.group_id:
+            if not resolved.group or resolved.group.pk == op.group_id:
                 continue
             updated += 1
             warnings.append(
