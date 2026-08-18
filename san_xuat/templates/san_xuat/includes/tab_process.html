@@ -67,6 +67,7 @@
             <th>Nhóm</th>
             <th>Tên công đoạn</th>
             <th>Bộ phận</th>
+            <th class="text-end">SMV (giây)</th>
             {% if can_update %}<th></th>{% endif %}
           </tr>
         </thead>
@@ -77,6 +78,7 @@
             <td>{{ line.display_group_name|default:line.group_code|default:"—" }}</td>
             <td>{{ line.op_name_vi|default:"—" }}</td>
             <td>{% if line.work_center %}{{ line.work_center.name }}{% elif line.work_center_code %}{{ line.work_center_code }}{% else %}—{% endif %}</td>
+            <td class="text-end">{% if line.library_unit_smv %}{{ line.library_unit_smv|sx_num }}{% else %}—{% endif %}</td>
             {% if can_update and process_routing %}
             <td class="text-end">
               <form method="post" class="d-inline" onsubmit="return confirm('Xóa công đoạn này?');">
@@ -90,7 +92,7 @@
             {% endif %}
           </tr>
           {% empty %}
-          <tr><td colspan="{% if can_update %}5{% else %}4{% endif %}" class="text-muted text-center py-3">Chưa có công đoạn.</td></tr>
+          <tr><td colspan="{% if can_update %}6{% else %}5{% endif %}" class="text-muted text-center py-3">Chưa có công đoạn.</td></tr>
           {% endfor %}
         </tbody>
       </table>
