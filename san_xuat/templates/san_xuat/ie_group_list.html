@@ -302,10 +302,17 @@
     </div>
   </div>
 </div>
+{% endif %}
+
+{% include 'san_xuat/includes/ie_import_modal.html' %}
+{% endblock %}
+
+{% if can_update %}
+{% block scripts %}
 <script>
 (function () {
   var modalEl = document.getElementById('ieEditGroupModal');
-  if (!modalEl || !window.bootstrap) return;
+  if (!modalEl) return;
 
   function fillEditForm(row) {
     if (!row) return;
@@ -361,6 +368,5 @@
   });
 })();
 </script>
-{% endif %}
-{% include 'san_xuat/includes/ie_import_modal.html' %}
 {% endblock %}
+{% endif %}
