@@ -3838,6 +3838,7 @@ def team_work_hub(request):
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def team_work_goods(request):
     """Tiến độ hàng hoá — mọi lệnh, công đoạn các tổ, đơn gấp để tổ trưởng xếp việc."""
+    from PortalJustPlay.pagination import LIST_PAGE_SIZE, paginate_queryset
     from san_xuat.services.goods_progress import build_goods_progress_board
 
     if not _can_team_work_overview(request.user):
@@ -3845,16 +3846,17 @@ def team_work_goods(request):
 
     board = build_goods_progress_board(
         search=(request.GET.get('q') or '').strip(),
-        filter_key=(request.GET.get('filter') or '').strip(),
-        team_slug=(request.GET.get('team') or '').strip(),
         priority=(request.GET.get('priority') or '').strip(),
         mo_status=(request.GET.get('status') or '').strip(),
         due=(request.GET.get('due') or '').strip(),
-        progress=(request.GET.get('progress') or '').strip(),
+        sort=(request.GET.get('sort') or '').strip(),
     )
+    page_obj, query_string = paginate_queryset(request, board.rows, per_page=LIST_PAGE_SIZE)
     return render(request, 'san_xuat/team_work_goods.html', {
         **_perm_ctx(request),
         'board': board,
+        'page_obj': page_obj,
+        'query_string': query_string,
         'team': _nav_team_for_user(request.user),
         'tw_section': 'goods',
     })

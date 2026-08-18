@@ -4,15 +4,14 @@
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
 {% include 'san_xuat/includes/sx_plan_urgency_styles.html' %}
-{% include 'san_xuat/includes/team_work_topbar_styles.html' %}
 <style>
   .jp-tw {
     --tw-ink: #0f172a;
     --tw-muted: #64748b;
     --tw-line: #e8edf3;
     --tw-soft: #f4f7fb;
-    --tw-accent: #0f766e;
-    --tw-accent-soft: #ccfbf1;
+    --tw-accent: #dc2626;
+    --tw-accent-soft: #fff1f2;
   }
 
   .jp-tw-goods-filter-form .jp-team-filter-body {
@@ -21,7 +20,7 @@
   .jp-tw-goods-filter-form .jp-team-filter-org-search {
     flex: 1 1 100%;
     display: grid;
-    grid-template-columns: minmax(12rem, 1.4fr) repeat(6, minmax(8rem, 1fr));
+    grid-template-columns: minmax(12rem, 1.4fr) repeat(4, minmax(8rem, 1fr));
     gap: .65rem 1rem;
     align-items: end;
   }
@@ -102,7 +101,7 @@
     display: block;
     height: 100%;
     border-radius: 999px;
-    background: linear-gradient(90deg, #5eead4, var(--tw-accent));
+    background: linear-gradient(90deg, #fda4af, var(--tw-accent));
   }
   .jp-tw-goods-bar.is-late > span { background: linear-gradient(90deg, #fca5a5, #dc2626); }
   .jp-tw-goods-bar.is-warn > span { background: linear-gradient(90deg, #fcd34d, #d97706); }
@@ -122,10 +121,9 @@
     display: inline-block;
     white-space: nowrap;
     min-width: 4.75rem;
-    padding: .38rem .55rem;
-    border-radius: .45rem;
-    border: 1px solid var(--tw-line);
-    background: #fff;
+    padding: .2rem 0;
+    border: 0;
+    background: transparent;
     text-decoration: none;
     color: var(--tw-ink);
     font-size: .78rem;
@@ -133,33 +131,13 @@
     line-height: 1.25;
     font-variant-numeric: tabular-nums;
   }
-  .jp-tw-goods-team-link:hover { border-color: #5eead4; color: var(--tw-accent); }
-  .jp-tw-goods-team-link.is-done { background: #f0fdf4; border-color: #bbf7d0; }
-  .jp-tw-goods-team-link.is-run { background: #f0f9ff; border-color: #bae6fd; }
-  .jp-tw-goods-team-link.is-current {
-    outline: 2px solid var(--tw-accent);
-    outline-offset: -1px;
-  }
+  .jp-tw-goods-team-link:hover { color: var(--tw-accent); }
+  .jp-tw-goods-team-link.is-done { color: #be123c; }
+  .jp-tw-goods-team-link.is-run { color: #e11d48; }
+  .jp-tw-goods-team-link.is-current { color: #be123c; }
   .jp-tw-goods-team-link .dim {
     color: var(--tw-muted);
     font-weight: 600;
-  }
-
-  .jp-tw-goods-table th.is-action,
-  .jp-tw-goods-table td.is-action {
-    min-width: 6.75rem;
-    width: 6.75rem;
-    white-space: nowrap;
-    text-align: center;
-    vertical-align: middle;
-    padding-left: .5rem;
-    padding-right: .5rem;
-  }
-  .jp-tw-goods-table td.is-action .btn {
-    min-width: 5.75rem;
-    white-space: nowrap;
-    padding-left: .85rem;
-    padding-right: .85rem;
   }
 
   .jp-tw-empty-board {
@@ -197,9 +175,6 @@
     <div class="jp-sx-detail-title">
       <h2 class="jp-npl-mat-topbar-title w-100">Tiến độ hàng hoá</h2>
     </div>
-    <nav class="jp-sx-tools jp-tw-topbar-tools" aria-label="Công cụ">
-      {% include 'san_xuat/includes/team_work_nav.html' with tw_section='goods' %}
-    </nav>
   </div>
 
   <form method="get" id="jpTwGoodsFilter" class="card border-0 shadow-sm mb-3 jp-team-filter-form jp-tw-goods-filter-form" role="search" aria-label="Bộ lọc tiến độ hàng hoá">
@@ -211,17 +186,6 @@
                  placeholder="Lệnh SX / mã SP / đơn hàng…" autocomplete="off">
         </div>
         <div class="jp-team-filter-org">
-          <label class="form-label fw-bold small mb-1" for="jp-tw-goods-filter">Lọc nhanh</label>
-          <select id="jp-tw-goods-filter" name="filter" class="form-select form-select-sm">
-            <option value=""{% if not board.filter_key %} selected{% endif %}>Tất cả ({{ board.mo_count }})</option>
-            <option value="hot"{% if board.filter_key == 'hot' %} selected{% endif %}>Gấp / rất gấp ({{ board.hot_count }})</option>
-            <option value="overdue"{% if board.filter_key == 'overdue' %} selected{% endif %}>Trễ hạn ({{ board.overdue_count }})</option>
-            <option value="running"{% if board.filter_key == 'running' %} selected{% endif %}>Đang SX ({{ board.running_count }})</option>
-            <option value="not_started"{% if board.filter_key == 'not_started' %} selected{% endif %}>Chưa làm ({{ board.not_started_count }})</option>
-            <option value="almost_done"{% if board.filter_key == 'almost_done' %} selected{% endif %}>Sắp xong ({{ board.almost_done_count }})</option>
-          </select>
-        </div>
-        <div class="jp-team-filter-org">
           <label class="form-label fw-bold small mb-1" for="jp-tw-goods-priority">Ưu tiên</label>
           <select id="jp-tw-goods-priority" name="priority" class="form-select form-select-sm">
             <option value=""{% if not board.filter_priority %} selected{% endif %}>Tất cả</option>
@@ -230,15 +194,6 @@
             <option value="high"{% if board.filter_priority == 'high' %} selected{% endif %}>Cao</option>
             <option value="normal"{% if board.filter_priority == 'normal' %} selected{% endif %}>Thường</option>
             <option value="low"{% if board.filter_priority == 'low' %} selected{% endif %}>Thấp</option>
-          </select>
-        </div>
-        <div class="jp-team-filter-org">
-          <label class="form-label fw-bold small mb-1" for="jp-tw-goods-team">Tổ</label>
-          <select id="jp-tw-goods-team" name="team" class="form-select form-select-sm">
-            <option value=""{% if not board.filter_team %} selected{% endif %}>Tất cả tổ</option>
-            {% for q in board.queues %}
-            <option value="{{ q.slug }}"{% if board.filter_team == q.slug %} selected{% endif %}>{{ q.label }}{% if q.mo_count %} ({{ q.mo_count }}){% endif %}</option>
-            {% endfor %}
           </select>
         </div>
         <div class="jp-team-filter-org">
@@ -261,12 +216,16 @@
           </select>
         </div>
         <div class="jp-team-filter-org">
-          <label class="form-label fw-bold small mb-1" for="jp-tw-goods-progress">Tiến độ tổ cuối</label>
-          <select id="jp-tw-goods-progress" name="progress" class="form-select form-select-sm">
-            <option value=""{% if not board.filter_progress %} selected{% endif %}>Tất cả</option>
-            <option value="zero"{% if board.filter_progress == 'zero' %} selected{% endif %}>0%</option>
-            <option value="partial"{% if board.filter_progress == 'partial' %} selected{% endif %}>Đang làm (1–99%)</option>
-            <option value="complete"{% if board.filter_progress == 'complete' %} selected{% endif %}>100%</option>
+          <label class="form-label fw-bold small mb-1" for="jp-tw-goods-sort">Sắp xếp theo</label>
+          <select id="jp-tw-goods-sort" name="sort" class="form-select form-select-sm">
+            <option value=""{% if not board.sort %} selected{% endif %}>Gấp / hạn giao</option>
+            <option value="due"{% if board.sort == 'due' %} selected{% endif %}>Hạn gần nhất</option>
+            <option value="priority"{% if board.sort == 'priority' %} selected{% endif %}>Ưu tiên</option>
+            <option value="progress_asc"{% if board.sort == 'progress_asc' %} selected{% endif %}>Tiến độ thấp → cao</option>
+            <option value="progress_desc"{% if board.sort == 'progress_desc' %} selected{% endif %}>Tiến độ cao → thấp</option>
+            <option value="qty"{% if board.sort == 'qty' %} selected{% endif %}>SL lớn → nhỏ</option>
+            <option value="name"{% if board.sort == 'name' %} selected{% endif %}>Tên sản phẩm</option>
+            <option value="code"{% if board.sort == 'code' %} selected{% endif %}>Mã lệnh</option>
           </select>
         </div>
       </div>
@@ -278,7 +237,7 @@
     </div>
   </form>
 
-  {% if board.rows %}
+  {% if page_obj.paginator.count %}
   <div class="jp-tw-goods-table-wrap">
     <table class="jp-tw-goods-table">
       <thead>
@@ -287,18 +246,16 @@
           <th class="text-end">SL</th>
           <th>Ưu tiên</th>
           <th>Hạn</th>
-          <th>Tổ hiện tại</th>
           <th style="min-width:5.5rem">Tiến độ</th>
           {% if board.queues %}
           {% for q in board.queues %}
           <th class="is-team">{{ q.label }}</th>
           {% endfor %}
           {% endif %}
-          <th class="is-action" aria-label="Thao tác"></th>
         </tr>
       </thead>
       <tbody>
-        {% for row in board.rows %}
+        {% for row in page_obj %}
         <tr{% if row.is_overdue %} class="is-late"{% elif row.is_hot %} class="is-hot"{% endif %}>
           <td>
             {% with pname=row.mo.product_name|default:row.mo.product_code %}
@@ -309,7 +266,6 @@
             <div class="jp-tw-goods-mo-sub">
               {{ row.status_label }}
               {% if row.mo.sales_order_id %} · {{ row.mo.sales_order.code }}{% endif %}
-              {% if row.bottleneck %} · Còn nhiều nhất {{ row.bottleneck }}{% endif %}
             </div>
           </td>
           <td class="text-end fw-bold">{{ row.plan|sx_num }}</td>
@@ -319,7 +275,6 @@
             {{ row.due_label }}<span class="text-muted"> · {{ row.due|date:"d/m" }}</span>
             {% else %}—{% endif %}
           </td>
-          <td>{% if row.current_team %}<strong>{{ row.current_team }}</strong>{% else %}—{% endif %}</td>
           <td>
             <div class="jp-tw-goods-pct">{{ row.progress_pct }}%</div>
             <div class="jp-tw-goods-bar{% if row.is_overdue %} is-late{% elif row.is_hot %} is-warn{% endif %}">
@@ -335,17 +290,12 @@
             </a>
           </td>
           {% endfor %}
-          <td class="is-action">
-            {% if row.current_slug %}
-            <a href="{% url 'san_xuat:team_work_progress' row.current_slug row.mo.pk %}"
-               class="btn btn-hm btn-sm fw-bold">Tiến độ</a>
-            {% endif %}
-          </td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
+  {% include 'san_xuat/includes/ie_pagination.html' %}
   {% else %}
   <div class="jp-tw-empty-board">
     {% if board.has_filters %}
