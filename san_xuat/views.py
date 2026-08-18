@@ -417,23 +417,17 @@ def doc_detail(request, pk):
                 return _doc_tab_redirect(request, 'bom', bom=bom.pk)
             messages.error(request, 'Không lưu được BOM — kiểm tra lại các dòng.')
         elif action == 'add_doc_routing_line' and tab == 'process':
-            from decimal import Decimal, InvalidOperation
+            from decimal import Decimal
 
             from san_xuat.ie_models import SxRouting
             from san_xuat.models import ProcessStep
             from san_xuat.services.ie_ops import (
                 IeOpsError,
                 create_blank_routing,
+                delete_routing_line,
                 norm_per_hour_from_smv_seconds,
-                smv_seconds_from_norm_per_hour,
                 upsert_routing_line,
             )
-
-            def _dec(raw, default='0'):
-                try:
-                    return Decimal(str(raw if raw not in (None, '') else default))
-                except (InvalidOperation, TypeError, ValueError):
-                    return Decimal(default)
 
             routing_id = (request.POST.get('routing_id') or '').strip()
             routing = (
@@ -448,17 +442,9 @@ def doc_detail(request, pk):
             op_rev = (request.POST.get('op_rev') or 'R01').strip() or 'R01'
             op_name = (request.POST.get('op_name_vi') or '').strip()
             work_center_code = (request.POST.get('work_center_code') or '').strip()
-            norm = _dec(request.POST.get('norm_per_hour'), '0')
-            cost = _dec(request.POST.get('cost_per_hour'), '0')
-            smv = _dec(request.POST.get('library_unit_smv'), '0')
-            if smv <= 0 and norm > 0:
-                smv = smv_seconds_from_norm_per_hour(norm)
-            if smv <= 0:
-                messages.error(request, 'Chọn công đoạn có SMV chuẩn (giây) hoặc nhập SMV > 0.')
-            elif not group_code or not op_name:
+            if not group_code or not op_name:
                 messages.error(request, 'Chọn nhóm và công đoạn từ thư viện.')
             else:
-                norm = norm_per_hour_from_smv_seconds(smv)
                 try:
                     if routing is None:
                         routing = create_blank_routing(tech_doc=doc, user=request.user)
@@ -470,11 +456,18 @@ def doc_detail(request, pk):
                         op_name_vi=op_name,
                         group_code=group_code,
                         work_center_code=work_center_code,
-                        library_unit_smv=smv,
+                        library_unit_smv=None,
                         applied_unit_smv=Decimal('0'),
-                        price_factor=cost,
+                        price_factor=Decimal('0'),
                         copy_library_to_applied=False,
                     )
+                    smv = line.library_unit_smv or Decimal('0')
+                    if smv <= 0:
+                        delete_routing_line(routing=routing, line_pk=line.pk)
+                        raise IeOpsError(
+                            f'Công đoạn {op_code} chưa có SMV chuẩn trong thư viện — cập nhật IE trước.'
+                        )
+                    norm = norm_per_hour_from_smv_seconds(smv)
                     if bom:
                         step, _ = ProcessStep.objects.update_or_create(
                             bom=bom,
@@ -485,7 +478,7 @@ def doc_detail(request, pk):
                                 'operation': line.operation,
                                 'op_code': (line.op_code or '')[:30],
                                 'norm_per_hour': max(norm, Decimal('0.01')),
-                                'cost_per_hour': cost,
+                                'cost_per_hour': Decimal('0'),
                                 'std_time_minutes': (smv / Decimal('60')).quantize(Decimal('0.01')),
                                 'work_center': line.work_center,
                                 'notes': f'Routing {routing.routing_id}'[:255],
@@ -821,10 +814,6 @@ def doc_detail(request, pk):
 
     if tab == 'process':
         if process_routing:
-            from decimal import Decimal
-
-            from san_xuat.services.ie_ops import norm_per_hour_from_smv_seconds, routing_line_smv_seconds
-
             routing_lines = list(
                 process_routing.lines.select_related('work_center').order_by('seq_no', 'pk')
             )
@@ -835,9 +824,6 @@ def doc_detail(request, pk):
                 )
             }
             for line in routing_lines:
-                smv = routing_line_smv_seconds(line)
-                line.display_smv = smv if smv > 0 else None
-                line.display_norm = norm_per_hour_from_smv_seconds(smv) if smv > 0 else None
                 line.display_group_name = group_names.get((line.group_code or '').casefold(), '')
         operation_groups = list(
             SxOperationGroup.objects.filter(is_active=True).order_by('sort_order', 'code')
