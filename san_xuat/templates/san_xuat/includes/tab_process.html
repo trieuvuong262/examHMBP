@@ -11,7 +11,7 @@
       <input type="hidden" name="op_code" value="">
       <input type="hidden" name="op_rev" value="R01">
       <input type="hidden" name="op_name_vi" value="">
-      <input type="hidden" name="library_unit_smv" value="">
+      <input type="hidden" name="norm_per_hour" value="">
 
       <div class="col-md-3">
         <label class="form-label small mb-1">Nhóm công đoạn <span class="text-danger">*</span></label>
@@ -38,11 +38,16 @@
         </select>
       </div>
       <div class="col-6 col-md-1">
-        <label class="form-label small mb-1">Định mức <span class="text-danger">*</span></label>
-        <input type="text" name="norm_per_hour" class="form-control form-control-sm" required
-               inputmode="decimal" placeholder="cái/giờ" title="Định mức (cái/giờ)">
+        <label class="form-label small mb-1">SMV (giây) <span class="text-danger">*</span></label>
+        <input type="text" name="library_unit_smv" class="form-control form-control-sm" required
+               inputmode="decimal" placeholder="VD: 36" title="SMV chuẩn từ thư viện (giây/cái)">
       </div>
-      <div class="col-6 col-md-2">
+      <div class="col-6 col-md-1">
+        <label class="form-label small mb-1">Định mức</label>
+        <input type="text" id="docRoutingNormPreview" class="form-control form-control-sm" readonly
+               placeholder="cái/giờ" title="Tự tính = 3600 ÷ SMV (giây)">
+      </div>
+      <div class="col-6 col-md-1">
         <label class="form-label small mb-1">Chi phí giờ</label>
         <input type="text" name="cost_per_hour" class="form-control form-control-sm"
                inputmode="decimal" placeholder="VNĐ/giờ" value="0">
@@ -56,22 +61,42 @@
     (function () {
       var form = document.getElementById('doc-routing-line-form');
       if (!form) return;
+
+      function syncNormFromSmv() {
+        var smvEl = form.querySelector('[name="library_unit_smv"]');
+        var normHidden = form.querySelector('[name="norm_per_hour"]');
+        var normPreview = document.getElementById('docRoutingNormPreview');
+        var smv = parseFloat((smvEl && smvEl.value) || 0) || 0;
+        var norm = smv > 0 ? (3600 / smv).toFixed(2) : '';
+        if (normHidden) normHidden.value = norm;
+        if (normPreview) normPreview.value = norm;
+      }
+
       var orig = window.jpIeApplyOperationPick;
       window.jpIeApplyOperationPick = function (formEl, data, force) {
         if (typeof orig === 'function') orig(formEl, data, force);
         if (!formEl || formEl !== form || !data) return;
-        var smv = parseFloat(data.library_unit_smv || data.applied_unit_smv || 0) || 0;
-        var normEl = form.querySelector('[name="norm_per_hour"]');
-        if (normEl && smv > 0) {
-          normEl.value = (60 / smv).toFixed(2);
-        }
+        syncNormFromSmv();
       };
+
+      var smvEl = form.querySelector('[name="library_unit_smv"]');
+      if (smvEl) {
+        smvEl.addEventListener('input', syncNormFromSmv);
+      }
+
       form.addEventListener('submit', function (e) {
+        syncNormFromSmv();
         var code = (form.querySelector('[name="op_code"]') || {}).value || '';
         var name = (form.querySelector('[name="op_name_vi"]') || {}).value || '';
+        var smv = parseFloat((smvEl && smvEl.value) || 0) || 0;
         if (!(code.trim() && name.trim())) {
           e.preventDefault();
           alert('Chọn công đoạn từ thư viện.');
+          return;
+        }
+        if (smv <= 0) {
+          e.preventDefault();
+          alert('SMV chuẩn (giây) phải > 0.');
         }
       });
     })();
@@ -86,6 +111,7 @@
             <th>Nhóm</th>
             <th>Tên công đoạn</th>
             <th>Bộ phận</th>
+            <th class="text-end">SMV (giây)</th>
             <th class="text-end">Định mức</th>
             <th class="text-end">Chi phí giờ</th>
             {% if can_update %}<th></th>{% endif %}
@@ -98,6 +124,7 @@
             <td>{{ line.display_group_name|default:line.group_code|default:"—" }}</td>
             <td>{{ line.op_name_vi|default:"—" }}</td>
             <td>{% if line.work_center %}{{ line.work_center.name }}{% elif line.work_center_code %}{{ line.work_center_code }}{% else %}—{% endif %}</td>
+            <td class="text-end">{% if line.display_smv %}{{ line.display_smv|sx_num }}{% else %}—{% endif %}</td>
             <td class="text-end">{% if line.display_norm %}{{ line.display_norm|sx_num }}{% else %}—{% endif %}</td>
             <td class="text-end">{{ line.price_factor|sx_num }}</td>
             {% if can_update and process_routing %}
@@ -113,7 +140,7 @@
             {% endif %}
           </tr>
           {% empty %}
-          <tr><td colspan="{% if can_update %}7{% else %}6{% endif %}" class="text-muted text-center py-3">Chưa có công đoạn.</td></tr>
+          <tr><td colspan="{% if can_update %}8{% else %}7{% endif %}" class="text-muted text-center py-3">Chưa có công đoạn.</td></tr>
           {% endfor %}
         </tbody>
       </table>

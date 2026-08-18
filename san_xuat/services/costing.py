@@ -217,6 +217,8 @@ def compute_costing(bom: BomVersion, *, routing=None) -> CostingResult:
             start=1,
         ):
             smv = _d(line.applied_unit_smv)
+            if smv <= 0:
+                smv = _d(line.library_unit_smv)
             norm = (Decimal('3600') / smv).quantize(Decimal('0.01')) if smv > 0 else ZERO
             rate = _d(line.price_factor)
             hours, amount = labor_cost_for_step(norm, rate)

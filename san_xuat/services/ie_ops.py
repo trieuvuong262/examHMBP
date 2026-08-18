@@ -36,9 +36,38 @@ class IeOpsError(Exception):
 
 VARIANCE_LIMIT_PCT = Decimal('15')
 
+SECONDS_PER_HOUR = Decimal('3600')
+
 
 def _q(value: Decimal, places: str = '0.0001') -> Decimal:
     return value.quantize(Decimal(places), rounding=ROUND_HALF_UP)
+
+
+def norm_per_hour_from_smv_seconds(smv) -> Decimal:
+    """Định mức cái/giờ từ SMV chuẩn (giây/cái)."""
+    value = Decimal(str(smv or 0))
+    if value <= 0:
+        return Decimal('0')
+    return _q(SECONDS_PER_HOUR / value, '0.01')
+
+
+def smv_seconds_from_norm_per_hour(norm) -> Decimal:
+    """SMV (giây/cái) từ định mức cái/giờ."""
+    value = Decimal(str(norm or 0))
+    if value <= 0:
+        return Decimal('0')
+    return _q(SECONDS_PER_HOUR / value, '0.0001')
+
+
+def routing_line_smv_seconds(line, *, prefer_applied: bool = False) -> Decimal:
+    """SMV (giây) trên dòng routing — mặc định SMV chuẩn; áp dụng khi lên đơn."""
+    library = Decimal(str(getattr(line, 'library_unit_smv', None) or 0))
+    applied = Decimal(str(getattr(line, 'applied_unit_smv', None) or 0))
+    if prefer_applied and applied > 0:
+        return applied
+    if library > 0:
+        return library
+    return applied
 
 
 def _match_op_codes(op_code: str) -> Q:
@@ -1171,6 +1200,7 @@ def upsert_routing_line(
     total_unit_price: Decimal | None = None,
     variance_explanation: str = '',
     notes: str = '',
+    copy_library_to_applied: bool = True,
 ) -> SxRoutingLine:
     """Thêm hoặc sửa một dòng routing (tay).
 
@@ -1216,7 +1246,7 @@ def upsert_routing_line(
         library = op.base_smv_min
     if library is None:
         library = Decimal('0')
-    if applied <= 0 and library > 0:
+    if copy_library_to_applied and applied <= 0 and library > 0:
         applied = library
     if skill_level_label is not None and not (skill_level_label or '').strip():
         skill_level_label = snap.get('skill_level_label', '')

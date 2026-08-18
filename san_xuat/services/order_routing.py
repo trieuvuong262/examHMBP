@@ -56,6 +56,10 @@ def _copy_from_routing_line(
     *,
     seq_no: int | None = None,
 ) -> SxSalesOrderRoutingLine:
+    library = src.library_unit_smv or Decimal('0')
+    applied = src.applied_unit_smv or Decimal('0')
+    if applied <= 0 and library > 0:
+        applied = library
     return SxSalesOrderRoutingLine(
         sales_order_line=order_line,
         source_routing_line_id=getattr(src, 'pk', None),
@@ -66,8 +70,8 @@ def _copy_from_routing_line(
         op_name_vi=(src.op_name_vi or '')[:200],
         group_code=(src.group_code or '')[:30],
         qty_per_garment=src.qty_per_garment or Decimal('1'),
-        library_unit_smv=src.library_unit_smv or Decimal('0'),
-        applied_unit_smv=src.applied_unit_smv or Decimal('0'),
+        library_unit_smv=library,
+        applied_unit_smv=applied,
         price_factor=src.price_factor or Decimal('0'),
         total_unit_price=src.total_unit_price or Decimal('0'),
         machine_id=src.machine_id,

@@ -728,7 +728,7 @@ SX_LIST_GRIDS: dict[str, dict[str, Any]] = {
             _col('effective_from', 'Ngày hiệu lực', weight=100, sortable=False),
             _col('notes', 'Notes', weight=100, default=False, sortable=False),
             _col('n_ops', 'Số CĐ', weight=70, align='end', sortable=False),
-            _col('actions', 'Thao tác', weight=70, required=True, sortable=False, align='end'),
+            _col('actions', 'Thao tác', weight=110, required=True, sortable=False, align='end'),
             meta=False,
             actions=False,
         ),

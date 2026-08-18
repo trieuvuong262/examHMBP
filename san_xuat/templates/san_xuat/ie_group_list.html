@@ -113,7 +113,8 @@
               <a href="{% url 'san_xuat:ie_operation_list' %}?group={{ g.code }}">{{ g.n_ops }}</a>
             </td>
             {% if can_update %}
-            <td class="npl-col text-end jp-td-actions" data-col="actions">
+            <td class="npl-col text-end text-nowrap jp-td-actions" data-col="actions">
+              <button type="button" class="btn btn-sm btn-outline-secondary py-0 ie-edit-group-btn">Sửa</button>
               <form method="post" class="d-inline" onsubmit="return confirm('Xóa nhóm {{ g.code }}?');">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="delete_group">
@@ -337,6 +338,14 @@
     fillEditForm(row);
     bootstrap.Modal.getOrCreateInstance(modalEl).show();
   }
+
+  document.querySelectorAll('.ie-edit-group-btn').forEach(function (btn) {
+    btn.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      var row = btn.closest('tr.ie-edit-group');
+      openEdit(row);
+    });
+  });
 
   document.querySelectorAll('tr.ie-edit-group').forEach(function (row) {
     row.addEventListener('click', function (ev) {
