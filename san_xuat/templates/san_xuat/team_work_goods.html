@@ -4,163 +4,351 @@
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
 {% include 'san_xuat/includes/sx_plan_urgency_styles.html' %}
+{% include 'san_xuat/includes/team_work_topbar_styles.html' %}
 <style>
-  .jp-gp { --gp-ink:#0f172a; --gp-muted:#64748b; --gp-line:#e8edf3; --gp-soft:#f4f7fb; --gp-accent:#e11d48; --gp-accent-soft:#fff1f2; }
-  .jp-gp-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .75rem; margin: 0 0 1rem; }
-  @media (max-width: 767px) { .jp-gp-kpis { grid-template-columns: 1fr 1fr; } }
-  .jp-gp-kpi {
-    border: 1px solid var(--gp-line); border-radius: 1rem; background: #fff;
-    padding: .85rem 1rem;
+  .jp-tw {
+    --tw-ink: #0f172a;
+    --tw-muted: #64748b;
+    --tw-line: #e8edf3;
+    --tw-soft: #f4f7fb;
+    --tw-accent: #0f766e;
+    --tw-accent-soft: #ccfbf1;
   }
-  .jp-gp-kpi .lbl { color: var(--gp-muted); font-size: .75rem; font-weight: 700; }
-  .jp-gp-kpi .val { font-size: 1.45rem; font-weight: 800; color: var(--gp-ink); letter-spacing: -.02em; line-height: 1.2; }
-  .jp-gp-kpi.is-hot .val { color: #c2410c; }
-  .jp-gp-kpi.is-late .val { color: #991b1b; }
-  .jp-gp-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: .65rem; margin: 0 0 1rem; }
-  .jp-gp-toolbar .jp-gp-search { flex: 1 1 14rem; max-width: 22rem; min-width: 12rem; }
-  .jp-gp-jobs { display: flex; flex-direction: column; gap: .85rem; }
-  .jp-gp-job {
-    border: 1px solid var(--gp-line); border-radius: 1rem; background: #fff; overflow: hidden;
+
+  .jp-tw-goods-filter-form .jp-team-filter-body {
+    gap: .75rem 1rem;
   }
-  .jp-gp-job.is-hot { border-color: #fed7aa; box-shadow: inset 4px 0 0 #ea580c; }
-  .jp-gp-job.is-late { border-color: #fecaca; box-shadow: inset 4px 0 0 #dc2626; }
-  .jp-gp-job-head {
-    display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between;
-    gap: .75rem 1rem; padding: .9rem 1.1rem; background: var(--gp-soft); border-bottom: 1px solid var(--gp-line);
+  .jp-tw-goods-filter-form .jp-team-filter-org-search {
+    flex: 1 1 100%;
+    display: grid;
+    grid-template-columns: minmax(12rem, 1.4fr) repeat(6, minmax(8rem, 1fr));
+    gap: .65rem 1rem;
+    align-items: end;
   }
-  .jp-gp-mo-code {
-    font-size: 1.05rem; font-weight: 800; color: var(--gp-ink); text-decoration: none; letter-spacing: -.01em;
+  @media (max-width: 1199px) {
+    .jp-tw-goods-filter-form .jp-team-filter-org-search {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
   }
-  .jp-gp-mo-code:hover { color: var(--gp-accent); }
-  .jp-gp-mo-sub { color: var(--gp-muted); font-size: .8rem; margin-top: .3rem; max-width: 48rem; }
-  .jp-gp-pills { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; }
-  .jp-gp-pill {
-    display: inline-flex; align-items: center; gap: .25rem;
-    padding: .2rem .55rem; border-radius: 999px; background: #fff; border: 1px solid var(--gp-line);
-    color: var(--gp-muted); font-size: .72rem; font-weight: 700;
+  @media (max-width: 767px) {
+    .jp-tw-goods-filter-form .jp-team-filter-org-search {
+      grid-template-columns: 1fr 1fr;
+    }
   }
-  .jp-gp-pill strong { color: var(--gp-ink); font-weight: 800; }
-  .jp-gp-pill.is-late { color: #991b1b; background: #fef2f2; border-color: #fecaca; }
-  .jp-gp-pill.is-late strong { color: #991b1b; }
-  .jp-gp-flow {
-    display: flex; align-items: stretch; gap: 0; overflow-x: auto; padding: .85rem 1rem 1rem;
+
+  .jp-tw-goods-table-wrap {
+    border: 1px solid var(--tw-line);
+    border-radius: 1rem;
+    background: #fff;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
   }
-  .jp-gp-cell {
-    flex: 1 1 7.5rem; min-width: 7.2rem;
-    border: 1px solid var(--gp-line); border-radius: .85rem; padding: .65rem .7rem; background: #fff;
-    text-decoration: none; color: inherit; display: block;
+  .jp-tw-goods-table {
+    width: 100%;
+    margin: 0;
+    border-collapse: collapse;
+    min-width: 68rem;
+    font-size: .84rem;
   }
-  .jp-gp-cell:hover { border-color: #fda4af; }
-  .jp-gp-cell.is-done { background: var(--gp-accent-soft); border-color: #fecdd3; }
-  .jp-gp-cell.is-run { background: #f0f9ff; border-color: #bae6fd; }
-  .jp-gp-cell.is-wait { background: #fff7ed; border-color: #fed7aa; }
-  .jp-gp-cell.is-current { outline: 2px solid #fb7185; outline-offset: -1px; }
-  .jp-gp-arrow {
-    flex: 0 0 1.1rem; display: flex; align-items: center; justify-content: center;
-    color: #94a3b8; font-size: .8rem;
+  .jp-tw-goods-table thead th {
+    text-align: left;
+    font-size: .7rem;
+    font-weight: 800;
+    color: var(--tw-muted);
+    letter-spacing: .02em;
+    text-transform: uppercase;
+    padding: .7rem .75rem;
+    background: var(--tw-soft);
+    border-bottom: 1px solid var(--tw-line);
+    white-space: nowrap;
+    vertical-align: middle;
   }
-  .jp-gp-cell .nm { font-weight: 800; font-size: .78rem; color: var(--gp-ink); margin: 0 0 .2rem; }
-  .jp-gp-cell .qty { font-size: .92rem; font-weight: 800; color: var(--gp-ink); }
-  .jp-gp-cell .qty span { color: var(--gp-muted); font-weight: 600; font-size: .78rem; }
-  .jp-gp-cell .wait { color: #b45309; font-size: .72rem; font-weight: 700; margin-top: .15rem; }
-  .jp-gp-empty {
-    border: 1px dashed var(--gp-line); border-radius: 1rem; padding: 2.5rem 1rem;
-    text-align: center; color: var(--gp-muted); background: #fff;
+  .jp-tw-goods-table thead th.is-team {
+    text-align: center;
+    min-width: 5.5rem;
+    padding-left: .45rem;
+    padding-right: .45rem;
+  }
+  .jp-tw-goods-table tbody td {
+    padding: .65rem .75rem;
+    border-top: 1px solid #eef2f7;
+    vertical-align: middle;
+    color: var(--tw-ink);
+  }
+  .jp-tw-goods-table tbody tr:hover { background: #fafbfc; }
+  .jp-tw-goods-table tbody tr.is-late { box-shadow: inset 3px 0 0 #dc2626; }
+  .jp-tw-goods-table tbody tr.is-hot { box-shadow: inset 3px 0 0 #ea580c; }
+
+  .jp-tw-goods-mo-link {
+    font-weight: 800;
+    color: var(--tw-ink);
+    text-decoration: none;
+    line-height: 1.35;
+  }
+  .jp-tw-goods-mo-link:hover { color: var(--tw-accent); }
+  .jp-tw-goods-mo-sub {
+    color: var(--tw-muted);
+    font-size: .74rem;
+    margin-top: .15rem;
+  }
+  .jp-tw-goods-bar {
+    height: 5px;
+    border-radius: 999px;
+    background: #eef2f6;
+    overflow: hidden;
+    min-width: 4.5rem;
+  }
+  .jp-tw-goods-bar > span {
+    display: block;
+    height: 100%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #5eead4, var(--tw-accent));
+  }
+  .jp-tw-goods-bar.is-late > span { background: linear-gradient(90deg, #fca5a5, #dc2626); }
+  .jp-tw-goods-bar.is-warn > span { background: linear-gradient(90deg, #fcd34d, #d97706); }
+  .jp-tw-goods-pct {
+    font-size: .72rem;
+    font-weight: 800;
+    color: var(--tw-muted);
+    margin-bottom: .2rem;
+  }
+
+  .jp-tw-goods-team-cell {
+    text-align: center;
+    padding: .5rem .45rem !important;
+    white-space: nowrap;
+  }
+  .jp-tw-goods-team-link {
+    display: inline-block;
+    white-space: nowrap;
+    min-width: 4.75rem;
+    padding: .38rem .55rem;
+    border-radius: .45rem;
+    border: 1px solid var(--tw-line);
+    background: #fff;
+    text-decoration: none;
+    color: var(--tw-ink);
+    font-size: .78rem;
+    font-weight: 800;
+    line-height: 1.25;
+    font-variant-numeric: tabular-nums;
+  }
+  .jp-tw-goods-team-link:hover { border-color: #5eead4; color: var(--tw-accent); }
+  .jp-tw-goods-team-link.is-done { background: #f0fdf4; border-color: #bbf7d0; }
+  .jp-tw-goods-team-link.is-run { background: #f0f9ff; border-color: #bae6fd; }
+  .jp-tw-goods-team-link.is-current {
+    outline: 2px solid var(--tw-accent);
+    outline-offset: -1px;
+  }
+  .jp-tw-goods-team-link .dim {
+    color: var(--tw-muted);
+    font-weight: 600;
+  }
+
+  .jp-tw-goods-table th.is-action,
+  .jp-tw-goods-table td.is-action {
+    min-width: 6.75rem;
+    width: 6.75rem;
+    white-space: nowrap;
+    text-align: center;
+    vertical-align: middle;
+    padding-left: .5rem;
+    padding-right: .5rem;
+  }
+  .jp-tw-goods-table td.is-action .btn {
+    min-width: 5.75rem;
+    white-space: nowrap;
+    padding-left: .85rem;
+    padding-right: .85rem;
+  }
+
+  .jp-tw-empty-board {
+    border: 1px dashed var(--tw-line);
+    border-radius: 1rem;
+    padding: 2.5rem 1rem;
+    text-align: center;
+    color: var(--tw-muted);
+    background: #fff;
+  }
+
+  @media (max-width: 767.98px) {
+    .jp-tw-page {
+      padding-left: max(.75rem, env(safe-area-inset-left)) !important;
+      padding-right: max(.75rem, env(safe-area-inset-right)) !important;
+      padding-bottom: calc(4rem + env(safe-area-inset-bottom)) !important;
+    }
+    .jp-tw .jp-npl-mat-topbar-title {
+      font-size: 1.05rem;
+      white-space: normal;
+      line-height: 1.25;
+    }
+    .jp-tw-goods-filter-form .jp-team-filter-org-search {
+      grid-template-columns: 1fr;
+    }
+    .jp-tw-goods-table { font-size: .8rem; }
+    .jp-tw-goods-team-link { min-width: 4.25rem; padding: .35rem .45rem; }
   }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container jp-page jp-sx-page jp-gp py-3 py-md-4 mb-5">
+<div class="container-fluid jp-page jp-sx-page jp-tw jp-tw-page py-3 py-md-4 mb-5 px-3 px-lg-4">
   <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
     <div class="jp-sx-detail-title">
       <h2 class="jp-npl-mat-topbar-title w-100">Tiến độ hàng hoá</h2>
     </div>
-    <nav class="jp-sx-tools" aria-label="Công cụ">
-      <a href="{% url 'san_xuat:team_work_board' 'cat' %}"><i class="bi bi-people" aria-hidden="true"></i>Công việc tổ</a>
+    <nav class="jp-sx-tools jp-tw-topbar-tools" aria-label="Công cụ">
+      {% include 'san_xuat/includes/team_work_nav.html' with tw_section='goods' %}
     </nav>
   </div>
 
-  <div class="jp-gp-kpis">
-    <div class="jp-gp-kpi">
-      <div class="lbl">Tất cả lệnh</div>
-      <div class="val">{{ board.mo_count }}</div>
+  <form method="get" id="jpTwGoodsFilter" class="card border-0 shadow-sm mb-3 jp-team-filter-form jp-tw-goods-filter-form" role="search" aria-label="Bộ lọc tiến độ hàng hoá">
+    <div class="card-body p-3 jp-team-filter-body">
+      <div class="jp-team-filter-org-search">
+        <div class="jp-team-filter-org">
+          <label class="form-label fw-bold small mb-1" for="jp-tw-goods-q">Tìm kiếm</label>
+          <input type="search" id="jp-tw-goods-q" name="q" value="{{ board.search }}" class="form-control form-control-sm"
+                 placeholder="Lệnh SX / mã SP / đơn hàng…" autocomplete="off">
+        </div>
+        <div class="jp-team-filter-org">
+          <label class="form-label fw-bold small mb-1" for="jp-tw-goods-filter">Lọc nhanh</label>
+          <select id="jp-tw-goods-filter" name="filter" class="form-select form-select-sm">
+            <option value=""{% if not board.filter_key %} selected{% endif %}>Tất cả ({{ board.mo_count }})</option>
+            <option value="hot"{% if board.filter_key == 'hot' %} selected{% endif %}>Gấp / rất gấp ({{ board.hot_count }})</option>
+            <option value="overdue"{% if board.filter_key == 'overdue' %} selected{% endif %}>Trễ hạn ({{ board.overdue_count }})</option>
+            <option value="running"{% if board.filter_key == 'running' %} selected{% endif %}>Đang SX ({{ board.running_count }})</option>
+            <option value="not_started"{% if board.filter_key == 'not_started' %} selected{% endif %}>Chưa làm ({{ board.not_started_count }})</option>
+            <option value="almost_done"{% if board.filter_key == 'almost_done' %} selected{% endif %}>Sắp xong ({{ board.almost_done_count }})</option>
+          </select>
+        </div>
+        <div class="jp-team-filter-org">
+          <label class="form-label fw-bold small mb-1" for="jp-tw-goods-priority">Ưu tiên</label>
+          <select id="jp-tw-goods-priority" name="priority" class="form-select form-select-sm">
+            <option value=""{% if not board.filter_priority %} selected{% endif %}>Tất cả</option>
+            <option value="critical"{% if board.filter_priority == 'critical' %} selected{% endif %}>Rất gấp</option>
+            <option value="urgent"{% if board.filter_priority == 'urgent' %} selected{% endif %}>Gấp</option>
+            <option value="high"{% if board.filter_priority == 'high' %} selected{% endif %}>Cao</option>
+            <option value="normal"{% if board.filter_priority == 'normal' %} selected{% endif %}>Thường</option>
+            <option value="low"{% if board.filter_priority == 'low' %} selected{% endif %}>Thấp</option>
+          </select>
+        </div>
+        <div class="jp-team-filter-org">
+          <label class="form-label fw-bold small mb-1" for="jp-tw-goods-team">Tổ</label>
+          <select id="jp-tw-goods-team" name="team" class="form-select form-select-sm">
+            <option value=""{% if not board.filter_team %} selected{% endif %}>Tất cả tổ</option>
+            {% for q in board.queues %}
+            <option value="{{ q.slug }}"{% if board.filter_team == q.slug %} selected{% endif %}>{{ q.label }}{% if q.mo_count %} ({{ q.mo_count }}){% endif %}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="jp-team-filter-org">
+          <label class="form-label fw-bold small mb-1" for="jp-tw-goods-status">Trạng thái LSX</label>
+          <select id="jp-tw-goods-status" name="status" class="form-select form-select-sm">
+            <option value=""{% if not board.filter_status %} selected{% endif %}>Tất cả</option>
+            <option value="released"{% if board.filter_status == 'released' %} selected{% endif %}>Đã phát hành</option>
+            <option value="in_progress"{% if board.filter_status == 'in_progress' %} selected{% endif %}>Đang SX</option>
+            <option value="done"{% if board.filter_status == 'done' %} selected{% endif %}>Hoàn thành ({{ board.done_count }})</option>
+          </select>
+        </div>
+        <div class="jp-team-filter-org">
+          <label class="form-label fw-bold small mb-1" for="jp-tw-goods-due">Hạn giao</label>
+          <select id="jp-tw-goods-due" name="due" class="form-select form-select-sm">
+            <option value=""{% if not board.filter_due %} selected{% endif %}>Tất cả</option>
+            <option value="overdue"{% if board.filter_due == 'overdue' %} selected{% endif %}>Đã trễ</option>
+            <option value="today"{% if board.filter_due == 'today' %} selected{% endif %}>Hạn hôm nay</option>
+            <option value="week"{% if board.filter_due == 'week' %} selected{% endif %}>Trong 7 ngày</option>
+            <option value="none"{% if board.filter_due == 'none' %} selected{% endif %}>Chưa có hạn</option>
+          </select>
+        </div>
+        <div class="jp-team-filter-org">
+          <label class="form-label fw-bold small mb-1" for="jp-tw-goods-progress">Tiến độ tổ cuối</label>
+          <select id="jp-tw-goods-progress" name="progress" class="form-select form-select-sm">
+            <option value=""{% if not board.filter_progress %} selected{% endif %}>Tất cả</option>
+            <option value="zero"{% if board.filter_progress == 'zero' %} selected{% endif %}>0%</option>
+            <option value="partial"{% if board.filter_progress == 'partial' %} selected{% endif %}>Đang làm (1–99%)</option>
+            <option value="complete"{% if board.filter_progress == 'complete' %} selected{% endif %}>100%</option>
+          </select>
+        </div>
+      </div>
+      {% if board.has_filters %}
+      <div class="jp-team-filter-actions">
+        <a href="{% url 'san_xuat:team_work_goods' %}" class="btn btn-light border btn-sm" title="Xóa bộ lọc"><i class="bi bi-x-lg"></i> Xóa lọc</a>
+      </div>
+      {% endif %}
     </div>
-    <div class="jp-gp-kpi is-hot">
-      <div class="lbl">Gấp / rất gấp</div>
-      <div class="val">{{ board.hot_count }}</div>
-    </div>
-    <div class="jp-gp-kpi is-late">
-      <div class="lbl">Trễ hạn</div>
-      <div class="val">{{ board.overdue_count }}</div>
-    </div>
-    <div class="jp-gp-kpi">
-      <div class="lbl">Đang sản xuất</div>
-      <div class="val">{{ board.running_count }}</div>
-    </div>
-  </div>
-
-  <form method="get" class="jp-gp-toolbar">
-    <input type="search" name="q" value="{{ board.search }}" class="form-control form-control-sm jp-gp-search"
-           placeholder="Tìm lệnh sản xuất / mã SP / đơn hàng…" autocomplete="off">
-    <button type="submit" class="btn btn-outline-secondary btn-sm">Lọc</button>
-    {% if board.search %}
-    <a href="{% url 'san_xuat:team_work_goods' %}" class="btn btn-link btn-sm text-decoration-none">Xóa lọc</a>
-    {% endif %}
   </form>
 
   {% if board.rows %}
-  <div class="jp-gp-jobs">
-    {% for row in board.rows %}
-    <article class="jp-gp-job{% if row.is_overdue %} is-late{% elif row.is_hot %} is-hot{% endif %}">
-      <header class="jp-gp-job-head">
-        <div>
-          <a class="jp-gp-mo-code" href="{% url 'san_xuat:dispatch_mo_detail' row.mo.pk %}">{{ row.mo.code }}</a>
-          <div class="jp-gp-mo-sub">
-            <strong>{{ row.mo.product_code }}</strong>
-            {% if row.mo.product_name %} · {{ row.mo.product_name }}{% endif %}
-            {% if row.mo.sales_order_id %} · {{ row.mo.sales_order.code }}{% endif %}
-            · SL {{ row.plan|sx_num }}
-            · {{ row.status_label }}
-          </div>
-        </div>
-        <div class="jp-gp-pills">
-          <span class="jp-pb-urgency is-{{ row.priority }}">{{ row.priority_label }}</span>
-          {% if row.due %}
-          <span class="jp-gp-pill{% if row.is_overdue %} is-late{% endif %}">
-            {{ row.due_label }}{% if row.due %} · {{ row.due|date:"d/m" }}{% endif %}
-          </span>
+  <div class="jp-tw-goods-table-wrap">
+    <table class="jp-tw-goods-table">
+      <thead>
+        <tr>
+          <th style="min-width:11rem">Lệnh sản xuất</th>
+          <th class="text-end">SL</th>
+          <th>Ưu tiên</th>
+          <th>Hạn</th>
+          <th>Tổ hiện tại</th>
+          <th style="min-width:5.5rem">Tiến độ</th>
+          {% if board.queues %}
+          {% for q in board.queues %}
+          <th class="is-team">{{ q.label }}</th>
+          {% endfor %}
           {% endif %}
-          {% if row.current_team %}
-          <span class="jp-gp-pill">Đang tại <strong>{{ row.current_team }}</strong></span>
-          {% endif %}
-          {% if row.bottleneck %}
-          <span class="jp-gp-pill">Kẹt tại <strong>{{ row.bottleneck }}</strong></span>
-          {% endif %}
-        </div>
-      </header>
-      <div class="jp-gp-flow">
-        {% for c in row.cells %}
-          {% if not forloop.first %}<div class="jp-gp-arrow" aria-hidden="true"><i class="bi bi-chevron-right"></i></div>{% endif %}
-          <a class="jp-gp-cell is-{{ c.status }}{% if c.slug == row.current_slug %} is-current{% endif %}"
-             href="{% url 'san_xuat:team_work_progress' c.slug row.mo.pk %}"
-             title="Công đoạn tổ {{ c.label }}">
-            <div class="nm">{{ c.label }}</div>
-            <div class="qty">{{ c.done|sx_num }} <span>/ {{ c.plan|sx_num }}</span></div>
-            {% if not forloop.first and c.waiting %}
-            <div class="wait">Chờ nhận {{ c.waiting|sx_num }}</div>
-            {% elif forloop.first and c.waiting %}
-            <div class="wait">Còn {{ c.waiting|sx_num }}</div>
+          <th class="is-action" aria-label="Thao tác"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in board.rows %}
+        <tr{% if row.is_overdue %} class="is-late"{% elif row.is_hot %} class="is-hot"{% endif %}>
+          <td>
+            {% with pname=row.mo.product_name|default:row.mo.product_code %}
+            <a class="jp-tw-goods-mo-link" href="{% url 'san_xuat:dispatch_mo_detail' row.mo.pk %}">
+              {% if pname %}{{ pname }} - {{ row.mo.code }}{% else %}{{ row.mo.code }}{% endif %}
+            </a>
+            {% endwith %}
+            <div class="jp-tw-goods-mo-sub">
+              {{ row.status_label }}
+              {% if row.mo.sales_order_id %} · {{ row.mo.sales_order.code }}{% endif %}
+              {% if row.bottleneck %} · Còn nhiều nhất {{ row.bottleneck }}{% endif %}
+            </div>
+          </td>
+          <td class="text-end fw-bold">{{ row.plan|sx_num }}</td>
+          <td><span class="jp-pb-urgency is-{{ row.priority }}">{{ row.priority_label }}</span></td>
+          <td{% if row.is_overdue %} class="text-danger fw-bold"{% endif %}>
+            {% if row.due %}
+            {{ row.due_label }}<span class="text-muted"> · {{ row.due|date:"d/m" }}</span>
+            {% else %}—{% endif %}
+          </td>
+          <td>{% if row.current_team %}<strong>{{ row.current_team }}</strong>{% else %}—{% endif %}</td>
+          <td>
+            <div class="jp-tw-goods-pct">{{ row.progress_pct }}%</div>
+            <div class="jp-tw-goods-bar{% if row.is_overdue %} is-late{% elif row.is_hot %} is-warn{% endif %}">
+              <span style="width: {{ row.progress_pct }}%;"></span>
+            </div>
+          </td>
+          {% for c in row.cells %}
+          <td class="jp-tw-goods-team-cell">
+            <a class="jp-tw-goods-team-link is-{{ c.status }}{% if c.slug == row.current_slug %} is-current{% endif %}"
+               href="{% url 'san_xuat:team_work_progress' c.slug row.mo.pk %}"
+               title="{{ c.label }}: {{ c.done|sx_num }}/{{ c.plan|sx_num }}{% if c.waiting %} · còn {{ c.waiting|sx_num }}{% endif %}">
+              {{ c.done|sx_num }}<span class="dim">/{{ c.plan|sx_num }}</span>
+            </a>
+          </td>
+          {% endfor %}
+          <td class="is-action">
+            {% if row.current_slug %}
+            <a href="{% url 'san_xuat:team_work_progress' row.current_slug row.mo.pk %}"
+               class="btn btn-hm btn-sm fw-bold">Tiến độ</a>
             {% endif %}
-          </a>
+          </td>
+        </tr>
         {% endfor %}
-      </div>
-    </article>
-    {% endfor %}
+      </tbody>
+    </table>
   </div>
   {% else %}
-  <div class="jp-gp-empty">
-    {% if board.search %}
+  <div class="jp-tw-empty-board">
+    {% if board.has_filters %}
     Không có lệnh khớp bộ lọc.
     {% else %}
     Chưa có lệnh đang chạy — phát hành lệnh rồi cập nhật SL trên từng tổ.
@@ -168,4 +356,5 @@
   </div>
   {% endif %}
 </div>
+{% include 'san_xuat/includes/ie_list_filter_scripts.html' with form_id='jpTwGoodsFilter' %}
 {% endblock %}

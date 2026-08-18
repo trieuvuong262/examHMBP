@@ -92,7 +92,7 @@
       <div class="val">{{ board.mo_count }}</div>
     </div>
     <div class="jp-ho-kpi">
-      <div class="lbl">BTP chờ tổ sau</div>
+      <div class="lbl">SL còn thiếu (các tổ)</div>
       <div class="val">{{ board.waiting_qty|sx_num }}</div>
     </div>
     <div class="jp-ho-kpi">
@@ -140,10 +140,10 @@
         </div>
         <div class="d-flex flex-wrap align-items-center gap-2">
           {% if row.waiting_total %}
-          <span class="jp-ho-pill">Chờ tổ sau <strong>{{ row.waiting_total|sx_num }}</strong></span>
+          <span class="jp-ho-pill">Còn thiếu <strong>{{ row.waiting_total|sx_num }}</strong></span>
           {% endif %}
           {% if row.bottleneck %}
-          <span class="jp-ho-pill">Kẹt tại <strong>{{ row.bottleneck }}</strong></span>
+          <span class="jp-ho-pill">Chậm nhất <strong>{{ row.bottleneck }}</strong></span>
           {% endif %}
         </div>
       </header>
@@ -156,7 +156,7 @@
             <div class="nm">{{ c.label }}</div>
             <div class="qty">{{ c.done|sx_num }} <span>/ {{ c.plan|sx_num }}</span></div>
             {% if not forloop.first and c.waiting %}
-            <div class="wait">Chờ nhận {{ c.waiting|sx_num }}</div>
+            <div class="wait">Còn {{ c.waiting|sx_num }}</div>
             {% elif forloop.first and c.waiting %}
             <div class="wait">Còn {{ c.waiting|sx_num }}</div>
             {% endif %}

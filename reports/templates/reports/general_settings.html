@@ -183,6 +183,30 @@
 
             <section class="jp-rs-panel">
                 <div class="jp-rs-panel-head">
+                    <h3>Ngưỡng báo cáo sai</h3>
+                </div>
+                <div class="jp-rs-panel-body jp-rs-grid-2">
+                    <div class="jp-rs-row">
+                        <p class="jp-rs-row-label">{{ form.max_time_efficiency_pct.label }}</p>
+                        <div class="jp-rs-field">
+                            {{ form.max_time_efficiency_pct }}
+                            <span class="jp-rs-unit">%</span>
+                        </div>
+                        {% if form.max_time_efficiency_pct.errors %}<div class="text-danger small">{{ form.max_time_efficiency_pct.errors }}</div>{% endif %}
+                    </div>
+                    <div class="jp-rs-row">
+                        <p class="jp-rs-row-label">{{ form.max_quantity_efficiency_pct.label }}</p>
+                        <div class="jp-rs-field">
+                            {{ form.max_quantity_efficiency_pct }}
+                            <span class="jp-rs-unit">%</span>
+                        </div>
+                        {% if form.max_quantity_efficiency_pct.errors %}<div class="text-danger small">{{ form.max_quantity_efficiency_pct.errors }}</div>{% endif %}
+                    </div>
+                </div>
+            </section>
+
+            <section class="jp-rs-panel">
+                <div class="jp-rs-panel-head">
                     <h3>Tự động nộp</h3>
                 </div>
                 <div class="jp-rs-panel-body">

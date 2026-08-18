@@ -1,7 +1,7 @@
-"""Tình hình bàn giao — tồn BTP giữa các tổ, lấy từ tiến độ Công việc tổ.
+"""Tình hình tiến độ theo tổ — SL đạt so với kế hoạch lệnh.
 
-Không dùng phiếu bàn giao thủ công. SL tổ = thống kê SX đã xác nhận
-(ghi từ phiếu tiến độ tổ). Tổ trước xong bao nhiêu thì tổ sau còn chờ bấy nhiêu.
+Lấy từ thống kê SX đã xác nhận (ghi từ phiếu tiến độ tổ). Mỗi tổ theo dõi
+độc lập so với SL lệnh; không bắt buộc hoàn thành tổ trước mới làm tổ sau.
 """
 
 from __future__ import annotations
@@ -128,16 +128,12 @@ def _group_output(
     return min(recorded)
 
 
-def _cell_status(*, done: Decimal, incoming: Decimal, waiting: Decimal) -> str:
-    if incoming <= 0 and done <= 0:
+def _cell_status(*, done: Decimal, plan: Decimal) -> str:
+    if done <= 0:
         return "idle"
-    if incoming > 0 and done >= incoming:
+    if done >= plan:
         return "done"
-    if done > 0:
-        return "run"
-    if waiting > 0:
-        return "wait"
-    return "idle"
+    return "run"
 
 
 def _build_row(
@@ -158,12 +154,11 @@ def _build_row(
         steps_by_group.setdefault(s.group, []).append(s)
 
     cells: list[TeamHandoverCell] = []
-    prev_output = plan
     waiting_total = Decimal("0")
     bottleneck = ""
     bottleneck_qty = Decimal("0")
 
-    for i, grp in enumerate(GROUPS):
+    for grp in GROUPS:
         g_steps = steps_by_group.get(grp.key, [])
         required = _required_step_keys(mo, grp.key)
         done = Decimal("0")
@@ -178,14 +173,15 @@ def _build_row(
                 group_steps=g_steps,
                 required_keys=required,
             )
-        incoming = plan if i == 0 else prev_output
-        waiting = incoming - done
-        if waiting < 0:
-            waiting = Decimal("0")
-        if i > 0:
-            waiting_total += waiting
-            if waiting > bottleneck_qty:
-                bottleneck_qty = waiting
+        incoming = plan
+        remaining = plan - done
+        if remaining < 0:
+            remaining = Decimal("0")
+        waiting = remaining
+        if remaining > 0:
+            waiting_total += remaining
+            if remaining > bottleneck_qty:
+                bottleneck_qty = remaining
                 bottleneck = grp.label
         cells.append(
             TeamHandoverCell(
@@ -196,10 +192,9 @@ def _build_row(
                 done=done,
                 waiting=waiting,
                 incoming=incoming,
-                status=_cell_status(done=done, incoming=incoming, waiting=waiting),
+                status=_cell_status(done=done, plan=plan),
             )
         )
-        prev_output = done
 
     return MoHandoverRow(
         mo=mo,

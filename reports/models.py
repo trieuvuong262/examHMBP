@@ -789,6 +789,18 @@ class ReportsGeneralSettings(models.Model):
         verbose_name='Báo cáo sai: cho sửa thời gian công đoạn sai',
         help_text='Khi bật — vẫn sửa được giờ công đoạn sai dù đã tắt quyền sửa giờ thường.',
     )
+    max_time_efficiency_pct = models.PositiveSmallIntegerField(
+        default=200,
+        validators=[MinValueValidator(1), MaxValueValidator(999)],
+        verbose_name='Hiệu suất thời gian tối đa',
+        help_text='Vượt mức này thì báo cáo sản xuất (báo cáo 1) bị coi là sai.',
+    )
+    max_quantity_efficiency_pct = models.PositiveSmallIntegerField(
+        default=200,
+        validators=[MinValueValidator(1), MaxValueValidator(999)],
+        verbose_name='Hiệu suất sản lượng tối đa',
+        help_text='Vượt mức này thì báo cáo sản xuất (báo cáo 1) bị coi là sai.',
+    )
     auto_submit_time = models.TimeField(
         default=time(23, 30),
         verbose_name='Giờ tự động nộp ca sáng',

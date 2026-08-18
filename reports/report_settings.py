@@ -118,6 +118,16 @@ def allow_edit_wrong_stage_time() -> bool:
     return report_bool('allow_edit_wrong_stage_time', True)
 
 
+def report_max_time_efficiency_pct() -> int:
+    """Ngưỡng hiệu suất thời gian — vượt thì báo cáo 1 bị coi là sai."""
+    return report_int('max_time_efficiency_pct', 200, min_v=1, max_v=999)
+
+
+def report_max_quantity_efficiency_pct() -> int:
+    """Ngưỡng hiệu suất sản lượng — vượt thì báo cáo 1 bị coi là sai."""
+    return report_int('max_quantity_efficiency_pct', 200, min_v=1, max_v=999)
+
+
 def auto_approve_proxy_reports() -> bool:
     return report_bool('auto_approve_proxy_reports', True)
 

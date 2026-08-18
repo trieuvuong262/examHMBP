@@ -172,6 +172,8 @@ class ReportsGeneralSettingsAdmin(admin.ModelAdmin):
         'workers_may_edit_stage_time',
         'managers_may_edit_stage_time',
         'allow_edit_wrong_stage_time',
+        'max_time_efficiency_pct',
+        'max_quantity_efficiency_pct',
         'work_hours_min',
         'work_hours_max',
         'auto_approve_proxy_reports',

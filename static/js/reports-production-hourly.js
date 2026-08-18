@@ -443,6 +443,39 @@
         return (max != null && isFinite(max)) ? parseFloat(max) : 200;
     }
 
+    function getMaxTimeEfficiency(grid) {
+        var max = grid && grid.max_time_efficiency_pct;
+        return (max != null && isFinite(max)) ? parseFloat(max) : 200;
+    }
+
+    function computeReviewTimeEfficiency(grid) {
+        if (!grid || !grid.rows || !grid.rows.length) return null;
+        var hoursInput = document.getElementById('prodWorkHoursInput');
+        var declared = hoursInput
+            ? parseFloat(normalizeDecimalInput(hoursInput.value))
+            : NaN;
+        if (!declared || !isFinite(declared) || declared <= 0) return null;
+
+        var actualHours = 0;
+        grid.rows.forEach(function (row) {
+            if (row.is_session_reported && row.session_effective_hours != null) {
+                actualHours += parseFloat(row.session_effective_hours) || 0;
+                return;
+            }
+            (row.slots || []).forEach(function (cell) {
+                if (cell.is_na) return;
+                if (cell.slot_index < row.first_slot_index) return;
+                var qty = parseProdQty(cell.quantity);
+                var hasZeroReason = !!(cell.zero_reason || '').trim();
+                if (qty > 0 || (qty === 0 && hasZeroReason)) {
+                    actualHours += slotEntryHours(grid, cell, qty > 0 ? qty : 1);
+                }
+            });
+        });
+        if (actualHours <= 0) return null;
+        return Math.round((actualHours / declared) * 10000) / 100;
+    }
+
     function findZeroHourSteps(grid) {
         if (!grid || !grid.rows) return [];
         var root = getActiveReviewRoot();
@@ -491,7 +524,9 @@
     function validateSubmitPreview(grid) {
         var zeroHourSteps = findZeroHourSteps(grid);
         var efficiency = computeReviewEfficiency(grid);
+        var timeEfficiency = computeReviewTimeEfficiency(grid);
         var maxEff = getMaxSubmitEfficiency(grid);
+        var maxTimeEff = getMaxTimeEfficiency(grid);
 
         if (zeroHourSteps.length) {
             var first = zeroHourSteps[0];
@@ -513,7 +548,14 @@
             return {
                 blocked: true,
                 efficiency: efficiency,
-                message: 'Số liệu bạn gửi sai — hiệu suất sơ bộ ' + formatEfficiencyPct(efficiency) + ' vượt ' + maxEff + '%. Vui lòng kiểm tra lại sản lượng và định mức.',
+                message: 'Số liệu bạn gửi sai — hiệu suất sản lượng ' + formatEfficiencyPct(efficiency) + ' vượt ' + maxEff + '%. Vui lòng kiểm tra lại sản lượng và định mức.',
+            };
+        }
+        if (timeEfficiency != null && isFinite(timeEfficiency) && timeEfficiency > maxTimeEff) {
+            return {
+                blocked: true,
+                efficiency: efficiency,
+                message: 'Số liệu bạn gửi sai — hiệu suất thời gian ' + formatEfficiencyPct(timeEfficiency) + ' vượt ' + maxTimeEff + '%. Vui lòng kiểm tra lại thời gian công đoạn và thời gian làm việc.',
             };
         }
         return { blocked: false, efficiency: efficiency, message: '' };
@@ -665,7 +707,10 @@
         }
 
         if (workHoursInput) {
-            workHoursInput.addEventListener('input', clearWorkHoursError);
+            workHoursInput.addEventListener('input', function () {
+                clearWorkHoursError();
+                updateSubmitEfficiencyPreview();
+            });
         }
 
         modalEl.addEventListener('hidden.bs.modal', function () {

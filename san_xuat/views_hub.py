@@ -3810,6 +3810,18 @@ def _can_team_work_overview(user) -> bool:
     )
 
 
+def _nav_team_for_user(user):
+    """Tổ dùng cho nav Công việc / Quản lý nhân sự trên trang tổng (tiến độ hàng hoá)."""
+    from san_xuat.services.progress_template import TEAM_SLUGS, team_by_slug
+
+    for slug, _gk, menu_key, _label in TEAM_SLUGS:
+        if user_can_access_menu(user, MODULE_SAN_XUAT, menu_key):
+            return team_by_slug(slug)
+    if user_can_access_menu(user, MODULE_SAN_XUAT, 'team_work'):
+        return team_by_slug(TEAM_SLUGS[0][0])
+    return team_by_slug('cat')
+
+
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def team_work_hub(request):
     """Hub Công việc tổ → tiến độ hàng hoá, không thì tổ đầu tiên user có quyền."""
@@ -3833,10 +3845,18 @@ def team_work_goods(request):
 
     board = build_goods_progress_board(
         search=(request.GET.get('q') or '').strip(),
+        filter_key=(request.GET.get('filter') or '').strip(),
+        team_slug=(request.GET.get('team') or '').strip(),
+        priority=(request.GET.get('priority') or '').strip(),
+        mo_status=(request.GET.get('status') or '').strip(),
+        due=(request.GET.get('due') or '').strip(),
+        progress=(request.GET.get('progress') or '').strip(),
     )
     return render(request, 'san_xuat/team_work_goods.html', {
         **_perm_ctx(request),
         'board': board,
+        'team': _nav_team_for_user(request.user),
+        'tw_section': 'goods',
     })
 
 

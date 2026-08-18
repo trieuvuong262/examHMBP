@@ -3,6 +3,7 @@
 
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+{% include 'san_xuat/includes/team_work_topbar_styles.html' %}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/css/tom-select.bootstrap5.min.css">
 <style>
   .jp-tw {
@@ -107,14 +108,10 @@
     <div class="jp-sx-detail-title">
       <h2 class="jp-npl-mat-topbar-title w-100">Quản lý nhân sự · {{ team.label }}</h2>
     </div>
-    <nav class="jp-sx-tools" aria-label="Công cụ">
-      <a href="{% url 'san_xuat:team_work_goods' %}">
-        <i class="bi bi-bar-chart-line" aria-hidden="true"></i>Tiến độ hàng hoá
-      </a>
+    <nav class="jp-sx-tools jp-tw-topbar-tools" aria-label="Công cụ">
+      {% include 'san_xuat/includes/team_work_nav.html' with tw_section='personnel' %}
     </nav>
   </div>
-
-  {% include 'san_xuat/includes/team_work_nav.html' with tw_section='personnel' %}
 
   {% if not team_has_division_map %}
   <div class="alert alert-warning py-2 px-3 mb-3">

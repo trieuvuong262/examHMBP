@@ -3,6 +3,7 @@
 
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+{% include 'san_xuat/includes/team_work_topbar_styles.html' %}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/css/tom-select.bootstrap5.min.css">
 <style>
   .jp-tw {
@@ -160,16 +161,6 @@
       padding-left: max(.75rem, env(safe-area-inset-left)) !important;
       padding-right: max(.75rem, env(safe-area-inset-right)) !important;
       padding-bottom: calc(4rem + env(safe-area-inset-bottom)) !important;
-    }
-    .jp-tw .jp-sx-detail-topbar {
-      flex-wrap: wrap;
-      align-items: flex-start;
-      gap: .5rem;
-    }
-    .jp-tw .jp-sx-tools {
-      width: 100%;
-      margin-left: 0;
-      justify-content: flex-start;
     }
     .jp-tw .jp-npl-mat-topbar-title {
       font-size: 1.05rem;
@@ -351,14 +342,10 @@
     <div class="jp-sx-detail-title">
       <h2 class="jp-npl-mat-topbar-title w-100">Quản lý tổ {{ team.label|lower }}</h2>
     </div>
-    <nav class="jp-sx-tools" aria-label="Công cụ">
-      <a href="{% url 'san_xuat:team_work_goods' %}">
-        <i class="bi bi-bar-chart-line" aria-hidden="true"></i>Tiến độ hàng hoá
-      </a>
+    <nav class="jp-sx-tools jp-tw-topbar-tools" aria-label="Công cụ">
+      {% include 'san_xuat/includes/team_work_nav.html' with tw_section='work' %}
     </nav>
   </div>
-
-  {% include 'san_xuat/includes/team_work_nav.html' with tw_section='work' %}
 
   {% if can_assign and not team_has_division_map %}
   <div class="alert alert-warning py-2 px-3 mb-3">

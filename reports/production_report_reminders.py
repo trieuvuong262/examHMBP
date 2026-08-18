@@ -173,7 +173,12 @@ def can_auto_submit_report(
         return False, 'unfinalized_session'
     if not _report_has_submittable_quantity(report):
         return False, 'no_quantity'
-    _, efficiency_err = validate_production_submit_efficiency(report)
+    declared = report.declared_work_hours
+    if declared is None or declared <= 0:
+        declared = _default_declared_work_hours(kind)
+    _, efficiency_err = validate_production_submit_efficiency(
+        report, declared_work_hours=declared,
+    )
     if efficiency_err:
         return False, 'efficiency_block'
     return True, ''

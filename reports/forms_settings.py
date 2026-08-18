@@ -9,12 +9,15 @@ from reports.models import ReportsGeneralSettings
 _CHECK = forms.CheckboxInput(attrs={'class': 'form-check-input', 'role': 'switch'})
 _TIME = forms.TimeInput(attrs={'class': 'form-control', 'type': 'time', 'step': 60})
 _NUM = forms.NumberInput(attrs={'class': 'form-control', 'min': 1})
+_PCT = forms.NumberInput(attrs={'class': 'form-control', 'min': 1, 'max': 999, 'step': 1})
 _DEC = forms.NumberInput(attrs={'class': 'form-control', 'min': 0.01, 'step': 0.01})
 
 _LABELS = {
     'workers_may_edit_stage_time': 'Công nhân được sửa',
     'managers_may_edit_stage_time': 'Quản lý được sửa',
     'allow_edit_wrong_stage_time': 'Báo cáo sai: vẫn cho sửa giờ công đoạn sai',
+    'max_time_efficiency_pct': 'Hiệu suất thời gian tối đa',
+    'max_quantity_efficiency_pct': 'Hiệu suất sản lượng tối đa',
     'auto_submit_time': 'Giờ tự nộp ca sáng',
     'default_declared_work_hours': 'Giờ mặc định ca sáng',
     'night_auto_submit_enabled': 'Bật tự nộp ca tối',
@@ -38,6 +41,8 @@ class ReportsGeneralSettingsForm(forms.ModelForm):
             'workers_may_edit_stage_time',
             'managers_may_edit_stage_time',
             'allow_edit_wrong_stage_time',
+            'max_time_efficiency_pct',
+            'max_quantity_efficiency_pct',
             'auto_submit_time',
             'default_declared_work_hours',
             'night_auto_submit_enabled',
@@ -56,6 +61,8 @@ class ReportsGeneralSettingsForm(forms.ModelForm):
             'workers_may_edit_stage_time': _CHECK,
             'managers_may_edit_stage_time': _CHECK,
             'allow_edit_wrong_stage_time': _CHECK,
+            'max_time_efficiency_pct': _PCT,
+            'max_quantity_efficiency_pct': _PCT,
             'auto_submit_time': _TIME,
             'default_declared_work_hours': _DEC,
             'night_auto_submit_enabled': _CHECK,

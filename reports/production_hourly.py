@@ -1937,7 +1937,7 @@ def build_hourly_grid(report: DailyWorkReport, *, steps_editable: bool | None = 
         'shift': shift,
         'uses_session_reporting': bool(rows) and all(r['is_session_reported'] for r in rows),
         'overall_efficiency_pct': _report_overall_efficiency_pct(productive),
-        'max_submit_efficiency_pct': PRODUCTION_MAX_SUBMIT_EFFICIENCY_PCT,
+        **_efficiency_cap_payload(),
     }
 
 
@@ -2017,7 +2017,7 @@ def build_proxy_entry_grid(report: DailyWorkReport) -> dict:
         'proxy_mode': True,
         'shift': shift,
         'overall_efficiency_pct': _report_overall_efficiency_pct(productive),
-        'max_submit_efficiency_pct': PRODUCTION_MAX_SUBMIT_EFFICIENCY_PCT,
+        **_efficiency_cap_payload(),
     }
 
 
@@ -2108,6 +2108,60 @@ def _production_work_hours_bounds():
     return low, high
 
 
+def _production_efficiency_caps() -> tuple[float, float]:
+    """(hiệu suất sản lượng tối đa, hiệu suất thời gian tối đa) từ thiết lập chung."""
+    from reports.report_settings import (
+        report_max_quantity_efficiency_pct,
+        report_max_time_efficiency_pct,
+    )
+
+    fallback = float(PRODUCTION_MAX_SUBMIT_EFFICIENCY_PCT)
+    try:
+        qty = float(report_max_quantity_efficiency_pct())
+        time_max = float(report_max_time_efficiency_pct())
+    except Exception:
+        return fallback, fallback
+    if qty <= 0:
+        qty = fallback
+    if time_max <= 0:
+        time_max = fallback
+    return qty, time_max
+
+
+def _efficiency_cap_payload() -> dict:
+    max_qty, max_time = _production_efficiency_caps()
+    return {
+        'max_submit_efficiency_pct': max_qty,
+        'max_time_efficiency_pct': max_time,
+    }
+
+
+def production_anomaly_edit_message() -> str:
+    max_qty, max_time = _production_efficiency_caps()
+    qty_s = format(max_qty, '.0f') if max_qty == int(max_qty) else format(max_qty, '.2f')
+    time_s = format(max_time, '.0f') if max_time == int(max_time) else format(max_time, '.2f')
+    return (
+        f'Báo cáo chưa nộp chỉ được chỉnh sửa khi hiệu suất sản lượng >{qty_s}%, ≤0%, '
+        f'hiệu suất thời gian >{time_s}% hoặc thời gian công đoạn 0 phút.'
+    )
+
+
+def _report_time_efficiency_pct(
+    report: DailyWorkReport,
+    products: list[ProductionShiftProduct],
+    *,
+    declared_work_hours=None,
+) -> float | None:
+    declared = declared_work_hours
+    if declared is None:
+        declared = getattr(report, 'declared_work_hours', None)
+    work_hours = Decimal('0')
+    for product in products:
+        work_hours += _product_accounted_work_hours(product)
+    work_minutes = (work_hours * Decimal('60')).quantize(Decimal('1'))
+    return _time_efficiency_pct(declared, work_minutes)
+
+
 def validate_production_work_hours(value):
     """Thời gian làm việc khi gửi báo cáo SX: bắt buộc, trong khoảng thiết lập chung."""
     hours = parse_decimal(value)
@@ -2160,11 +2214,12 @@ def product_has_zero_duration_anomaly(product: ProductionShiftProduct) -> bool:
 
 
 def product_has_efficiency_anomaly(product: ProductionShiftProduct) -> bool:
-    """Hiệu suất công đoạn > 200% hoặc <= 0%."""
+    """Hiệu suất sản lượng công đoạn vượt ngưỡng thiết lập hoặc <= 0%."""
     efficiency = _product_efficiency_pct(product)
     if efficiency is None:
         return False
-    return efficiency <= 0 or efficiency > PRODUCTION_MAX_SUBMIT_EFFICIENCY_PCT
+    max_qty, _ = _production_efficiency_caps()
+    return efficiency <= 0 or efficiency > max_qty
 
 
 def product_has_manager_fixable_anomaly(product: ProductionShiftProduct) -> bool:
@@ -2177,19 +2232,42 @@ def product_has_manager_fixable_anomaly(product: ProductionShiftProduct) -> bool
     )
 
 
+def report_has_time_efficiency_anomaly(
+    report: DailyWorkReport,
+    *,
+    declared_work_hours=None,
+) -> bool:
+    """Hiệu suất thời gian vượt ngưỡng thiết lập — báo cáo 1 sai."""
+    if not report or not report.pk:
+        return False
+    products = list_production_products(report)
+    pct = _report_time_efficiency_pct(
+        report, products, declared_work_hours=declared_work_hours,
+    )
+    if pct is None:
+        return False
+    _, max_time = _production_efficiency_caps()
+    return pct > max_time
+
+
 def anomaly_product_ids_for_report(report: DailyWorkReport) -> set[int]:
     if not report or not report.pk:
         return set()
     products = list_production_products(report)
-    return {
+    ids = {
         product.id
         for product in _products_for_productivity(products)
         if product_has_manager_fixable_anomaly(product)
     }
+    if report_has_time_efficiency_anomaly(report):
+        for product in products:
+            if _product_accounted_work_hours(product) > 0:
+                ids.add(product.id)
+    return ids
 
 
 def report_has_manager_fixable_anomaly(report: DailyWorkReport) -> bool:
-    """Báo cáo chưa nộp có công đoạn sai — quản lý được phép chỉnh sửa."""
+    """Báo cáo chưa nộp có công đoạn / hiệu suất sai — quản lý được phép chỉnh sửa."""
     if not report or not report.pk:
         return False
     if report.status == DailyWorkReport.STATUS_SUBMITTED:
@@ -2205,8 +2283,15 @@ def can_manager_edit_unsubmitted_production_report(viewer, report: DailyWorkRepo
     return report_has_manager_fixable_anomaly(report)
 
 
-def validate_production_submit_efficiency(report: DailyWorkReport) -> tuple[float | None, str]:
-    """Chặn gửi nếu hiệu suất > 200% hoặc công đoạn có SL nhưng thời gian 0 phút."""
+def validate_production_submit_efficiency(
+    report: DailyWorkReport,
+    *,
+    declared_work_hours=None,
+) -> tuple[float | None, str]:
+    """Chặn gửi nếu vượt ngưỡng hiệu suất thiết lập hoặc công đoạn SL>0 nhưng 0 phút."""
+    max_qty, max_time = _production_efficiency_caps()
+    qty_s = format(max_qty, '.0f') if max_qty == int(max_qty) else format(max_qty, '.2f')
+    time_s = format(max_time, '.0f') if max_time == int(max_time) else format(max_time, '.2f')
     products = list(
         report.production_products.prefetch_related('hourly_entries').order_by('sort_order', 'id')
     )
@@ -2228,7 +2313,7 @@ def validate_production_submit_efficiency(report: DailyWorkReport) -> tuple[floa
                 pct_text = format(efficiency, '.2f').rstrip('0').rstrip('.')
                 return efficiency, (
                     f'Số liệu bạn gửi sai — công đoạn {_zero_hour_step_label(product)} '
-                    f'hiệu suất {pct_text}% vượt {PRODUCTION_MAX_SUBMIT_EFFICIENCY_PCT}%. '
+                    f'hiệu suất sản lượng {pct_text}% vượt {qty_s}%. '
                     'Vui lòng kiểm tra lại sản lượng và định mức.'
                 )
 
@@ -2238,11 +2323,21 @@ def validate_production_submit_efficiency(report: DailyWorkReport) -> tuple[floa
             'Số liệu bạn gửi sai — hiệu suất sơ bộ không hợp lệ. '
             'Vui lòng kiểm tra lại sản lượng, định mức và thời gian công đoạn.'
         )
-    if efficiency is not None and efficiency > PRODUCTION_MAX_SUBMIT_EFFICIENCY_PCT:
+    if efficiency is not None and efficiency > max_qty:
         pct_text = format(efficiency, '.2f').rstrip('0').rstrip('.')
         return efficiency, (
-            f'Số liệu bạn gửi sai — hiệu suất sơ bộ {pct_text}% vượt '
-            f'{PRODUCTION_MAX_SUBMIT_EFFICIENCY_PCT}%. Vui lòng kiểm tra lại sản lượng và định mức.'
+            f'Số liệu bạn gửi sai — hiệu suất sản lượng {pct_text}% vượt '
+            f'{qty_s}%. Vui lòng kiểm tra lại sản lượng và định mức.'
+        )
+
+    time_pct = _report_time_efficiency_pct(
+        report, products, declared_work_hours=declared_work_hours,
+    )
+    if time_pct is not None and time_pct > max_time:
+        pct_text = format(time_pct, '.2f').rstrip('0').rstrip('.')
+        return time_pct, (
+            f'Số liệu bạn gửi sai — hiệu suất thời gian {pct_text}% vượt '
+            f'{time_s}%. Vui lòng kiểm tra lại thời gian công đoạn và thời gian làm việc.'
         )
     return efficiency, ''
 

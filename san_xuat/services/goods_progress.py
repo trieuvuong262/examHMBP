@@ -21,10 +21,12 @@ from san_xuat.hub_models import (
 )
 from san_xuat.services.handover_status import (
     TeamHandoverCell,
+    TeamQueue,
     _accumulate_stats,
     _build_row,
+    _team_meta,
 )
-from san_xuat.services.order_progress_sheet import _size_plans
+from san_xuat.services.order_progress_sheet import _q, _size_plans
 from san_xuat.services.progress_template import progress_steps
 
 PRIORITY_RANK = {
@@ -72,6 +74,14 @@ class GoodsProgressRow:
         return f"Còn {n} ngày"
 
     @property
+    def progress_pct(self) -> int:
+        if not self.cells or self.plan <= 0:
+            return 0
+        last = self.cells[-1]
+        pct = int((_q(last.done) / _q(self.plan)) * 100)
+        return min(100, max(0, pct))
+
+    @property
     def sort_key(self) -> tuple:
         return (
             0 if self.is_overdue else 1,
@@ -90,7 +100,18 @@ class GoodsProgressBoard:
     hot_count: int = 0
     overdue_count: int = 0
     running_count: int = 0
+    not_started_count: int = 0
+    almost_done_count: int = 0
+    done_count: int = 0
     search: str = ""
+    filter_key: str = ""
+    filter_team: str = ""
+    filter_priority: str = ""
+    filter_status: str = ""
+    filter_due: str = ""
+    filter_progress: str = ""
+    has_filters: bool = False
+    queues: list[TeamQueue] | None = None
 
 
 def _due_for(mo: SxProductionOrder) -> date | None:
@@ -106,13 +127,14 @@ def _priority_for(mo: SxProductionOrder) -> str:
 
 def _current_team(cells: list[TeamHandoverCell]) -> tuple[str, str]:
     for c in cells:
-        if c.status in ("wait", "run"):
+        if c.status == "run":
             return c.label, c.slug
-    if cells and all(c.status == "done" for c in cells):
+    for c in cells:
+        if c.done < c.plan:
+            return c.label, c.slug
+    if cells:
         last = cells[-1]
         return last.label, last.slug
-    if cells:
-        return cells[0].label, cells[0].slug
     return "", ""
 
 
@@ -146,9 +168,117 @@ def _enrich_row(handover, *, today: date) -> GoodsProgressRow:
     )
 
 
+def _matches_team_filter(row: GoodsProgressRow, slug: str) -> bool:
+    return any(
+        c.slug == slug and (c.done > 0 or c.done < c.plan)
+        for c in row.cells
+    )
+
+
+def _matches_due_filter(row: GoodsProgressRow, due_key: str) -> bool:
+    if due_key == "overdue":
+        return row.is_overdue
+    if due_key == "today":
+        return row.days_to_due == 0 and row.status != SxProductionOrder.STATUS_DONE
+    if due_key == "week":
+        return (
+            row.days_to_due is not None
+            and 0 <= row.days_to_due <= 7
+            and row.status != SxProductionOrder.STATUS_DONE
+        )
+    if due_key == "none":
+        return row.due is None
+    return True
+
+
+def _matches_progress_filter(row: GoodsProgressRow, progress_key: str) -> bool:
+    pct = row.progress_pct
+    if progress_key == "zero":
+        return pct == 0
+    if progress_key == "partial":
+        return 0 < pct < 100
+    if progress_key == "complete":
+        return pct >= 100
+    return True
+
+
+def _apply_row_filters(
+    rows: list[GoodsProgressRow],
+    *,
+    filter_key: str,
+    team_slug: str,
+    priority: str,
+    mo_status: str,
+    due_key: str,
+    progress_key: str,
+) -> list[GoodsProgressRow]:
+    filtered = rows
+    fkey = (filter_key or "").strip().lower()
+    if fkey == "hot":
+        filtered = [r for r in filtered if r.is_hot]
+    elif fkey == "overdue":
+        filtered = [r for r in filtered if r.is_overdue]
+    elif fkey == "running":
+        filtered = [
+            r
+            for r in filtered
+            if r.status
+            in (SxProductionOrder.STATUS_RELEASED, SxProductionOrder.STATUS_IN_PROGRESS)
+        ]
+    elif fkey == "not_started":
+        filtered = [
+            r
+            for r in filtered
+            if r.progress_pct == 0 and r.status != SxProductionOrder.STATUS_DONE
+        ]
+    elif fkey == "almost_done":
+        filtered = [r for r in filtered if 80 <= r.progress_pct < 100]
+
+    team_filter = (team_slug or "").strip().lower()
+    if team_filter:
+        filtered = [r for r in filtered if _matches_team_filter(r, team_filter)]
+
+    priority_key = (priority or "").strip().lower()
+    if priority_key and priority_key in PRIORITY_RANK:
+        filtered = [r for r in filtered if r.priority == priority_key]
+
+    status_key = (mo_status or "").strip().lower()
+    if status_key in (
+        SxProductionOrder.STATUS_RELEASED,
+        SxProductionOrder.STATUS_IN_PROGRESS,
+        SxProductionOrder.STATUS_DONE,
+    ):
+        filtered = [r for r in filtered if r.status == status_key]
+
+    due_filter = (due_key or "").strip().lower()
+    if due_filter in ("overdue", "today", "week", "none"):
+        filtered = [r for r in filtered if _matches_due_filter(r, due_filter)]
+
+    progress_filter = (progress_key or "").strip().lower()
+    if progress_filter in ("zero", "partial", "complete"):
+        filtered = [r for r in filtered if _matches_progress_filter(r, progress_filter)]
+
+    if team_filter:
+        filtered.sort(
+            key=lambda r: (
+                0 if r.current_slug == team_filter else 1,
+                r.sort_key,
+            )
+        )
+    else:
+        filtered.sort(key=lambda r: r.sort_key)
+    return filtered
+
+
 def build_goods_progress_board(
     *,
     search: str = "",
+    filter_key: str = "",
+    team_slug: str = "",
+    priority: str = "",
+    mo_status: str = "",
+    due: str = "",
+    progress: str = "",
     today: date | None = None,
     limit: int = 150,
 ) -> GoodsProgressBoard:
@@ -202,14 +332,104 @@ def build_goods_progress_board(
         for r in rows
         if r.status in (SxProductionOrder.STATUS_RELEASED, SxProductionOrder.STATUS_IN_PROGRESS)
     )
+    not_started_count = sum(
+        1
+        for r in rows
+        if r.progress_pct == 0 and r.status != SxProductionOrder.STATUS_DONE
+    )
+    almost_done_count = sum(1 for r in rows if 80 <= r.progress_pct < 100)
+    done_count = sum(1 for r in rows if r.status == SxProductionOrder.STATUS_DONE)
 
-    rows.sort(key=lambda r: r.sort_key)
+    teams = _team_meta()
+    team_filter = (team_slug or "").strip().lower()
+    if team_filter and team_filter not in {t["slug"] for t in teams}:
+        team_filter = ""
+
+    queues: list[TeamQueue] = []
+    for t in teams:
+        active = sum(
+            1
+            for r in rows
+            if r.current_slug == t["slug"]
+            and r.status != SxProductionOrder.STATUS_DONE
+        )
+        waiting = Decimal("0")
+        for r in rows:
+            for c in r.cells:
+                if c.slug == t["slug"] and c.waiting > 0:
+                    waiting += c.waiting
+                    break
+        queues.append(
+            TeamQueue(
+                group_key=t["group_key"],
+                slug=t["slug"],
+                label=t["label"],
+                waiting=waiting,
+                mo_count=active,
+            )
+        )
+
+    fkey = (filter_key or "").strip().lower()
+    if fkey not in ("", "hot", "overdue", "running", "not_started", "almost_done"):
+        fkey = ""
+
+    priority_key = (priority or "").strip().lower()
+    if priority_key and priority_key not in PRIORITY_RANK:
+        priority_key = ""
+
+    status_key = (mo_status or "").strip().lower()
+    if status_key not in (
+        "",
+        SxProductionOrder.STATUS_RELEASED,
+        SxProductionOrder.STATUS_IN_PROGRESS,
+        SxProductionOrder.STATUS_DONE,
+    ):
+        status_key = ""
+
+    due_filter = (due or "").strip().lower()
+    if due_filter not in ("", "overdue", "today", "week", "none"):
+        due_filter = ""
+
+    progress_filter = (progress or "").strip().lower()
+    if progress_filter not in ("", "zero", "partial", "complete"):
+        progress_filter = ""
+
+    filtered = _apply_row_filters(
+        rows,
+        filter_key=fkey,
+        team_slug=team_filter,
+        priority=priority_key,
+        mo_status=status_key,
+        due_key=due_filter,
+        progress_key=progress_filter,
+    )
+
+    has_filters = bool(
+        term
+        or fkey
+        or team_filter
+        or priority_key
+        or status_key
+        or due_filter
+        or progress_filter
+    )
 
     return GoodsProgressBoard(
-        rows=rows,
+        rows=filtered,
         mo_count=len(rows),
         hot_count=hot_count,
         overdue_count=overdue_count,
         running_count=running_count,
+        not_started_count=not_started_count,
+        almost_done_count=almost_done_count,
+        done_count=done_count,
         search=term,
+        filter_key=fkey,
+        filter_team=team_filter,
+        filter_priority=priority_key,
+        filter_status=status_key,
+        filter_due=due_filter,
+        filter_progress=progress_filter,
+        has_filters=has_filters,
+        queues=queues,
     )

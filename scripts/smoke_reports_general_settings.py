@@ -39,6 +39,8 @@ from reports.report_settings import (
     report_auto_reject_deadline_hours,
     report_auto_submit_time,
     report_employee_edit_deadline_hours,
+    report_max_quantity_efficiency_pct,
+    report_max_time_efficiency_pct,
     report_night_auto_submit_enabled,
     report_night_auto_submit_time,
     report_night_default_declared_work_hours,
@@ -64,6 +66,8 @@ def _form_data(**overrides):
         'workers_may_edit_stage_time': True,
         'managers_may_edit_stage_time': True,
         'allow_edit_wrong_stage_time': True,
+        'max_time_efficiency_pct': 200,
+        'max_quantity_efficiency_pct': 200,
         'auto_submit_time': '23:30',
         'default_declared_work_hours': '9.50',
         'night_auto_submit_enabled': True,
@@ -95,6 +99,8 @@ snap_fields = (
     'workers_may_edit_stage_time',
     'managers_may_edit_stage_time',
     'allow_edit_wrong_stage_time',
+    'max_time_efficiency_pct',
+    'max_quantity_efficiency_pct',
     'auto_submit_time',
     'default_declared_work_hours',
     'night_auto_submit_enabled',
@@ -115,6 +121,8 @@ try:
     cfg.workers_may_edit_stage_time = False
     cfg.managers_may_edit_stage_time = False
     cfg.allow_edit_wrong_stage_time = True
+    cfg.max_time_efficiency_pct = 150
+    cfg.max_quantity_efficiency_pct = 180
     cfg.auto_submit_time = time(22, 15)
     cfg.default_declared_work_hours = Decimal('9.50')
     cfg.night_auto_submit_enabled = True
@@ -130,6 +138,8 @@ try:
         (workers_may_edit_stage_time() is False, 'workers_may_edit_stage_time=False'),
         (managers_may_edit_stage_time() is False, 'managers_may_edit_stage_time=False'),
         (allow_edit_wrong_stage_time() is True, 'allow_edit_wrong_stage_time=True'),
+        (report_max_time_efficiency_pct() == 150, 'max_time_efficiency_pct=150'),
+        (report_max_quantity_efficiency_pct() == 180, 'max_quantity_efficiency_pct=180'),
         (report_auto_submit_time() == time(22, 15), 'auto_submit_time=22:15'),
         (report_night_auto_submit_enabled() is True, 'night_auto_submit_enabled=True'),
         (report_night_auto_submit_time() == time(5, 0), 'night_auto_submit_time=05:00'),
@@ -300,6 +310,8 @@ try:
             for needle in (
                 'id_managers_may_edit_stage_time',
                 'id_allow_edit_wrong_stage_time',
+                'id_max_time_efficiency_pct',
+                'id_max_quantity_efficiency_pct',
                 'id_auto_submit_time',
                 'id_night_auto_submit_enabled',
                 'id_night_auto_submit_time',

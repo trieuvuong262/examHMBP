@@ -1,6 +1,8 @@
-<nav class="nav nav-pills jp-portal-pills flex-wrap gap-2 mb-3" aria-label="Chức năng tổ">
-  <a class="nav-link rounded-pill fw-bold{% if tw_section == 'work' %} active{% endif %}"
-     href="{% url 'san_xuat:team_work_board' team.slug %}">Công việc</a>
-  <a class="nav-link rounded-pill fw-bold{% if tw_section == 'personnel' %} active{% endif %}"
-     href="{% url 'san_xuat:team_work_personnel' team.slug %}">Quản lý nhân sự</a>
-</nav>
+<div class="jp-tw-topbar-actions" role="navigation" aria-label="Chức năng tổ">
+  <a href="{% url 'san_xuat:team_work_board' team.slug %}"
+     class="btn btn-sm fw-bold{% if tw_section == 'work' %} btn-hm{% else %} btn-outline-hm{% endif %}">Công việc</a>
+  <a href="{% url 'san_xuat:team_work_personnel' team.slug %}"
+     class="btn btn-sm fw-bold{% if tw_section == 'personnel' %} btn-hm{% else %} btn-outline-hm{% endif %}">Quản lý nhân sự</a>
+  <a href="{% url 'san_xuat:team_work_goods' %}"
+     class="btn btn-sm fw-bold{% if tw_section == 'goods' %} btn-hm{% else %} btn-outline-hm{% endif %}">Tiến độ hàng hoá</a>
+</div>

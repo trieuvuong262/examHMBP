@@ -670,7 +670,9 @@ def proxy_report_entry(request):
         enrich_proxy_shift_sessions_for_anomaly_fix,
         employee_self_submitted_production_report,
         manager_may_edit_submitted_production_report,
+        production_anomaly_edit_message,
         report_has_manager_fixable_anomaly,
+        report_has_time_efficiency_anomaly,
         resolve_declared_work_hours_for_save,
         save_proxy_shift_sessions,
         viewer_may_edit_declared_work_hours,
@@ -774,11 +776,7 @@ def proxy_report_entry(request):
                 return redirect(_proxy_url(subject.id, post_shift))
         elif report.status != DailyWorkReport.STATUS_SUBMITTED:
             if not can_manager_edit_unsubmitted_production_report(request.user, report):
-                messages.error(
-                    request,
-                    'Báo cáo chưa nộp chỉ được chỉnh sửa khi có công đoạn hiệu suất >200%, ≤0% '
-                    'hoặc thời gian công đoạn 0 phút.',
-                )
+                messages.error(request, production_anomaly_edit_message())
                 return redirect(_proxy_url(subject.id, post_shift))
         elif is_report_locked(report) or (
             not lock_session_times and is_report_edit_expired(report)
@@ -795,7 +793,9 @@ def proxy_report_entry(request):
         can_edit_declared_work_hours = viewer_may_edit_declared_work_hours(
             request.user, report,
         )
-        if can_edit_declared_work_hours and not preserve_draft:
+        if can_edit_declared_work_hours and (
+            not preserve_draft or report_has_time_efficiency_anomaly(report)
+        ):
             before_hours = report.declared_work_hours
             work_hours, work_hours_err = resolve_declared_work_hours_for_save(
                 report,
@@ -886,6 +886,7 @@ def proxy_report_entry(request):
             and report.status != DailyWorkReport.STATUS_SUBMITTED
             and report_has_manager_fixable_anomaly(report)
         )
+        has_time_anomaly = bool(report.pk) and report_has_time_efficiency_anomaly(report)
         proxy_data = build_proxy_shift_sessions(report)
         if ai_import and ai_import.shift == shift:
             extracted = ai_import.extracted_data or {}
@@ -933,8 +934,8 @@ def proxy_report_entry(request):
             'proxy_entered_by': report.proxy_entered_by if report.pk else None,
             'lock_session_times': lock_session_times,
             'declared_work_hours': report.declared_work_hours if report.pk else None,
-            'show_declared_work_hours': show_declared_work_hours and not has_anomaly,
-            'can_edit_declared_work_hours': can_edit_declared_work_hours and not has_anomaly,
+            'show_declared_work_hours': show_declared_work_hours and (not has_anomaly or has_time_anomaly),
+            'can_edit_declared_work_hours': can_edit_declared_work_hours and (not has_anomaly or has_time_anomaly),
             'ai_import_declared_work_hours': (
                 (ai_import.extracted_data or {}).get('declared_work_hours', '')
                 if ai_import and ai_import.shift == shift else ''

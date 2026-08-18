@@ -919,12 +919,16 @@ def _handle_production_post(request, report, report_date, subject, editing_for_o
                 messages.error(request, work_hours_err)
                 extra = 'phase=proxy' if editing_for_other else 'phase=review'
                 return redirect(_production_redirect(report_date, shift, for_user or None, extra))
-            _, efficiency_err = validate_production_submit_efficiency(report)
+            report.declared_work_hours = work_hours
+            _, efficiency_err = validate_production_submit_efficiency(
+                report, declared_work_hours=work_hours,
+            )
             if efficiency_err:
+                if report.pk:
+                    report.save(update_fields=['declared_work_hours', 'updated_at'])
                 messages.error(request, efficiency_err)
                 extra = 'phase=proxy' if editing_for_other else 'phase=review'
                 return redirect(_production_redirect(report_date, shift, for_user or None, extra))
-            report.declared_work_hours = work_hours
         report.report_profile = REPORT_PROFILE_PRODUCTION
         msg = _finalize_report_submission(report, action)
         if action == 'submit':
