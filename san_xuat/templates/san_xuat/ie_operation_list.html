@@ -43,23 +43,14 @@
   {% endif %}
 
   <form method="get" class="row g-2 mb-3" id="ieOpFilterForm">
-    <div class="col-md-5">
+    <div class="col-md-6">
       <input type="search" name="q" value="{{ term }}" class="form-control form-control-sm" placeholder="Tìm mã, tên, máy…" autocomplete="off">
     </div>
-    <div class="col-md-3">
+    <div class="col-md-6">
       <select name="group" class="form-select form-select-sm" aria-label="Nhóm">
         <option value="">— Tất cả nhóm —</option>
         {% for g in groups %}
         <option value="{{ g.code }}" {% if g.code == group_code %}selected{% endif %}>{{ g.code }} — {{ g.name }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="col-md-4">
-      <select name="status" class="form-select form-select-sm" aria-label="Trạng thái">
-        <option value="" {% if not status %}selected{% endif %}>Đã duyệt (thư viện)</option>
-        <option value="all" {% if status == 'all' %}selected{% endif %}>Tất cả (kể cả chờ duyệt)</option>
-        {% for val, label in status_choices %}
-        <option value="{{ val }}" {% if val == status %}selected{% endif %}>{{ label }}</option>
         {% endfor %}
       </select>
     </div>

@@ -1020,15 +1020,9 @@ def operation_list(request):
     group_code = (request.GET.get('group') or '').strip()
     if group_code:
         qs = qs.filter(group__code=group_code)
-    status = (request.GET.get('status') or '').strip()
-    if status == 'all':
-        # Xem toàn bộ (trừ ngưng) — gồm nháp/thử nghiệm chờ duyệt
-        qs = qs.exclude(status=SxOperation.STATUS_RETIRED)
-    elif status:
-        qs = qs.filter(status=status)
-    else:
-        # Mặc định: thư viện chỉ hiện công đoạn đã duyệt
-        qs = qs.filter(status=SxOperation.STATUS_APPROVED)
+    # Thư viện chỉ hiện công đoạn đã duyệt — không lọc theo status từ URL
+    status = ''
+    qs = qs.filter(status=SxOperation.STATUS_APPROVED)
 
     qs = qs.order_by('op_code', 'op_rev')
     grid = sx_list_grid_context(request, 'ie_operation')

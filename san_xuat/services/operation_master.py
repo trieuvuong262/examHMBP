@@ -44,6 +44,7 @@ from san_xuat.services.ie_ops import (
     operation_library_snapshot,
     resolve_operation,
 )
+from san_xuat.services.operation_group_resolve import OperationGroupResolver
 
 # Tên sheet
 SHEET_GUIDE = '00_HUONG_DAN'
@@ -368,6 +369,7 @@ def _import_operations(wb, result: ImportResult, *, user=None) -> None:
     from san_xuat.ie_permissions import ie_user_display_name
 
     importer_name = ie_user_display_name(user)
+    group_resolver = OperationGroupResolver.build()
     seen = set()
     skipped_samples = 0
     for rec in _sheet_dicts(wb[SHEET_LIB]):
@@ -385,13 +387,26 @@ def _import_operations(wb, result: ImportResult, *, user=None) -> None:
         seen.add(key)
 
         group_code = _s(rec.get('MÃ NHÓM'))
-        group = SxOperationGroup.objects.filter(code=group_code).first()
+        stage_label = _s(rec.get('KHÂU SẢN XUẤT'))
+        resolved = group_resolver.resolve(
+            group_code,
+            stage_label=stage_label,
+            op_code=op_code,
+        )
+        group = resolved.group
         if group is None:
             group, _ = SxOperationGroup.objects.get_or_create(
                 code=group_code or f'AUTO-{op_code}',
                 defaults={'name': group_code or op_code},
             )
-            result.warnings.append(f'[Công đoạn] {op_code}: tạo nhóm tạm {group.code} (thiếu trong sheet nhóm).')
+            result.warnings.append(
+                f'[Công đoạn] {op_code}: tạo nhóm tạm {group.code} '
+                f'(không khớp nhóm hiện có: {resolved.tried or group_code or "—"}).',
+            )
+        elif group_code and resolved.matched_by != 'code':
+            result.warnings.append(
+                f'[Công đoạn] {op_code}: MÃ NHÓM «{group_code}» → {group.code} ({resolved.matched_by}).',
+            )
 
         time_sec = _dec(rec.get('ĐỊNH MỨC THỜI GIAN')) or Decimal('0')
         base_smv = time_sec.quantize(Decimal('0.0001'))
@@ -413,7 +428,7 @@ def _import_operations(wb, result: ImportResult, *, user=None) -> None:
                 'group': group,
                 'name_vi': _s(rec.get('TÊN CÔNG ĐOẠN')),
                 'name_en': _s(rec.get('TÊN CÔNG ĐOẠN_EN')),
-                'process_stage_label': _s(rec.get('KHÂU SẢN XUẤT')),
+                'process_stage_label': stage_label,
                 'product_part': _s(rec.get('CỤM CHI TIẾT CHÍNH')),
                 'method_variant': _s(rec.get('MÔ TẢ PHƯƠNG PHÁP')),
                 'machine': SxMachine.objects.filter(code=machine_code).first() if machine_code else None,
@@ -461,6 +476,7 @@ def _import_routings(wb, result: ImportResult, *, user=None) -> None:
     from san_xuat.ie_permissions import ie_user_display_name
 
     importer_name = ie_user_display_name(user)
+    group_resolver = OperationGroupResolver.build()
     grouped: dict[str, list[dict]] = {}
     order_ids: list[str] = []
     skipped_samples = 0
@@ -525,6 +541,14 @@ def _import_routings(wb, result: ImportResult, *, user=None) -> None:
                     group_code = snap.get('group_code', '')
                 if not machine_code:
                     machine_code = snap.get('machine_code', '')
+            if group_code:
+                resolved = group_resolver.resolve(
+                    group_code,
+                    stage_label=_s(rec.get('KHÂU SẢN XUẤT')),
+                    op_code=op_code,
+                )
+                if resolved.group:
+                    group_code = resolved.group.code
             wc_code = _s(rec.get('WORK_CENTER'))
             applied = _dec(rec.get('ĐỊNH MỨC THỜI GIAN')) or Decimal('0')
             library = _dec(rec.get('ĐỊNH MỨC THEO PHIÊN BẢN')) or Decimal('0')
@@ -942,7 +966,7 @@ IE_DATASETS = {
             ['ĐỊNH MỨC THỜI GIAN', 'Đơn vị GIÂY — lưu trực tiếp làm SMV chuẩn trên Portal. Ví dụ 36 giây.'],
             ['Trùng mã', 'Cùng MÃ CÔNG ĐOẠN + PHIÊN BẢN → hệ thống CẬP NHẬT bản ghi cũ.'],
             ['TRẠNG THÁI', 'Nháp | Thử nghiệm | Đã duyệt | Ngưng sử dụng'],
-            ['Nhóm chưa có', 'Nếu MÃ NHÓM chưa tồn tại, hệ thống tự tạo nhóm tạm (có cảnh báo).'],
+            ['Nhóm chưa có', 'Nếu MÃ NHÓM không khớp nhóm hiện có, hệ thống thử ghép theo tên/khâu SX/alias (May, SEW→MAY…). Không khớp mới tạo nhóm tạm.'],
             ['Mẹo', 'Xuất Excel thư viện hiện tại rồi chỉnh — dễ hơn điền từ file trống.'],
             ['Dòng mẫu cũ', 'Nếu file còn SEW-1001/1002 «ví dụ» hoặc NOTES «Dòng mẫu», hệ thống sẽ bỏ qua khi import.'],
         ],
