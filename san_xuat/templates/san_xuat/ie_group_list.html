@@ -114,7 +114,8 @@
             </td>
             {% if can_update %}
             <td class="npl-col text-end text-nowrap jp-td-actions" data-col="actions">
-              <button type="button" class="btn btn-sm btn-outline-secondary py-0 ie-edit-group-btn">Sửa</button>
+              <button type="button" class="btn btn-sm btn-outline-secondary py-0 ie-edit-group-btn"
+                      data-bs-toggle="modal" data-bs-target="#ieEditGroupModal">Sửa</button>
               <form method="post" class="d-inline" onsubmit="return confirm('Xóa nhóm {{ g.code }}?');">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="delete_group">
@@ -312,69 +313,62 @@
   var modalEl = document.getElementById('ieEditGroupModal');
   if (!modalEl) return;
 
-  function setup() {
-    function fillEditForm(row) {
-      if (!row) return;
-      document.getElementById('ieEditGroupPk').value = row.getAttribute('data-pk') || '';
-      document.getElementById('ieEditGroupCode').value = row.getAttribute('data-code') || '';
-      document.getElementById('ieEditGroupName').value = row.getAttribute('data-name') || '';
-      document.getElementById('ieEditGroupStage').value = row.getAttribute('data-stage') || '';
-      document.getElementById('ieEditGroupPart').value = row.getAttribute('data-part') || '';
-      document.getElementById('ieEditGroupDesc').value = row.getAttribute('data-description') || '';
-      document.getElementById('ieEditGroupOwner').value = row.getAttribute('data-owner') || '';
-      var eff = document.getElementById('ieEditGroupEffective');
-      var effVal = row.getAttribute('data-effective') || '';
-      if (eff && eff._flatpickr) {
-        if (effVal) eff._flatpickr.setDate(effVal, true);
-        else eff._flatpickr.clear();
-      } else if (eff) {
-        eff.value = effVal;
-      }
-      document.getElementById('ieEditGroupActive').checked = row.getAttribute('data-active') === '1';
-      document.getElementById('ieEditGroupNotes').value = row.getAttribute('data-notes') || '';
+  function fillEditForm(row) {
+    if (!row) return;
+    document.getElementById('ieEditGroupPk').value = row.getAttribute('data-pk') || '';
+    document.getElementById('ieEditGroupCode').value = row.getAttribute('data-code') || '';
+    document.getElementById('ieEditGroupName').value = row.getAttribute('data-name') || '';
+    document.getElementById('ieEditGroupStage').value = row.getAttribute('data-stage') || '';
+    document.getElementById('ieEditGroupPart').value = row.getAttribute('data-part') || '';
+    document.getElementById('ieEditGroupDesc').value = row.getAttribute('data-description') || '';
+    document.getElementById('ieEditGroupOwner').value = row.getAttribute('data-owner') || '';
+    var eff = document.getElementById('ieEditGroupEffective');
+    var effVal = row.getAttribute('data-effective') || '';
+    if (eff && eff._flatpickr) {
+      if (effVal) eff._flatpickr.setDate(effVal, true);
+      else eff._flatpickr.clear();
+    } else if (eff) {
+      eff.value = effVal;
     }
+    document.getElementById('ieEditGroupActive').checked = row.getAttribute('data-active') === '1';
+    document.getElementById('ieEditGroupNotes').value = row.getAttribute('data-notes') || '';
+  }
 
-    function isInteractive(target) {
-      return !!(target && target.closest(
-        'a, button, input, select, textarea, label, form, .form-check-input, [data-col="_pick"], [data-col="actions"], [data-col="n_ops"]'
-      ));
-    }
-
-    function openEdit(row) {
+  // Khi Bootstrap show modal, fill data từ row đang chờ
+  modalEl.addEventListener('show.bs.modal', function (ev) {
+    var btn = ev.relatedTarget;
+    if (btn) {
+      var row = btn.closest('tr.ie-edit-group');
       fillEditForm(row);
-      var bsModal = new bootstrap.Modal(modalEl);
-      bsModal.show();
     }
+  });
 
-    document.querySelectorAll('.ie-edit-group-btn').forEach(function (btn) {
-      btn.addEventListener('click', function (ev) {
-        ev.stopPropagation();
-        var row = btn.closest('tr.ie-edit-group');
-        openEdit(row);
-      });
-    });
-
-    document.querySelectorAll('tr.ie-edit-group').forEach(function (row) {
-      row.addEventListener('click', function (ev) {
-        if (isInteractive(ev.target)) return;
-        openEdit(row);
-      });
-      row.addEventListener('keydown', function (ev) {
-        if (ev.key !== 'Enter' && ev.key !== ' ') return;
-        if (isInteractive(ev.target)) return;
-        ev.preventDefault();
-        openEdit(row);
-      });
-    });
+  // Click trên row (không phải button) — fill rồi show bằng Bootstrap API
+  function isInteractive(target) {
+    return !!(target && target.closest(
+      'a, button, input, select, textarea, label, form, .form-check-input, [data-col="_pick"], [data-col="actions"], [data-col="n_ops"]'
+    ));
   }
 
-  // Script nằm trước Bootstrap bundle trong body — đợi document parse xong
-  // rồi thử lại nhiều lần cho đến khi bootstrap có mặt
-  function trySetup(attempts) {
-    if (window.bootstrap) { setup(); return; }
-    if (attempts > 0) setTimeout(function () { trySetup(attempts - 1); }, 50);
-  }
-  trySetup(40);
+  document.querySelectorAll('tr.ie-edit-group').forEach(function (row) {
+    row.addEventListener('click', function (ev) {
+      if (isInteractive(ev.target)) return;
+      fillEditForm(row);
+      // Dùng data-bs-toggle không có relatedTarget khi trigger từ row click — fill trực tiếp
+      if (window.bootstrap) {
+        bootstrap.Modal.getOrCreateInstance(modalEl).show();
+      }
+    });
+    row.addEventListener('keydown', function (ev) {
+      if (ev.key !== 'Enter' && ev.key !== ' ') return;
+      if (isInteractive(ev.target)) return;
+      ev.preventDefault();
+      fillEditForm(row);
+      if (window.bootstrap) {
+        bootstrap.Modal.getOrCreateInstance(modalEl).show();
+      }
+    });
+  });
 })();
 </script>
 {% endif %}
