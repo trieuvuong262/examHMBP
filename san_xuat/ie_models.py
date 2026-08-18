@@ -173,10 +173,15 @@ def default_smv_basis_name() -> str:
     return basis.name if basis else 'Giây'
 
 
+# Khớp với progress_template.GROUPS + sync_process_master._GROUP_META — đây là bộ
+# khâu SX đang gắn với nhóm công đoạn thật. Lệch bộ này sẽ sinh khâu trùng tên.
 PROCESS_STAGE_DEFAULTS: tuple[tuple[str, str, int], ...] = (
-    ('CUT', 'Cắt', 10),
-    ('SEW', 'May lắp ráp', 20),
-    ('FINISH', 'Hoàn thiện', 30),
+    ('CAT', 'Cắt', 10),
+    ('IN_EP', 'In - Ép', 20),
+    ('THEU', 'Thêu', 30),
+    ('MAY', 'May', 40),
+    ('HT', 'Ủi - Gấp xếp', 50),
+    ('GH', 'Giao hàng thành phẩm', 60),
 )
 
 
