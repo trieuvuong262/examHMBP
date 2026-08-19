@@ -105,42 +105,7 @@
           </div>
         </div>
 
-        {% if can_update and desc_form %}
-        <form method="post" data-loading-message="Đang lưu mô tả…">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="save_description">
-          <div class="row g-2">
-            <div class="col-12">
-              <label class="form-label small mb-1" for="{{ desc_form.product_name.id_for_label }}">{{ desc_form.product_name.label }}</label>
-              {{ desc_form.product_name }}
-            </div>
-            <div class="col-md-6">
-              <label class="form-label small mb-1" for="{{ desc_form.season.id_for_label }}">{{ desc_form.season.label }}</label>
-              {{ desc_form.season }}
-            </div>
-            <div class="col-md-6">
-              <label class="form-label small mb-1" for="{{ desc_form.main_material.id_for_label }}">{{ desc_form.main_material.label }}</label>
-              {{ desc_form.main_material }}
-            </div>
-            <div class="col-12">
-              <label class="form-label small mb-1" for="{{ desc_form.description.id_for_label }}">
-                {{ desc_form.description.label }}{{ desc_form.description|sx_req_star }}
-              </label>
-              {{ desc_form.description }}
-              {% if desc_form.description.errors %}<div class="text-danger small">{{ desc_form.description.errors }}</div>{% endif %}
-            </div>
-            <div class="col-md-9">
-              <label class="form-label small mb-1" for="{{ desc_form.notes.id_for_label }}">
-                {{ desc_form.notes.label }}{{ desc_form.notes|sx_req_star }}
-              </label>
-              {{ desc_form.notes }}
-            </div>
-            <div class="col-md-3 d-flex align-items-end">
-              <button type="submit" class="btn btn-hm btn-sm w-100">Lưu mô tả</button>
-            </div>
-          </div>
-        </form>
-        {% else %}
+        {% if not edit_info %}
           {% if doc.season or doc.main_material %}
           <div class="sx-info-facts mb-3">
             {% if doc.season %}

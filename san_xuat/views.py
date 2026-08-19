@@ -336,6 +336,7 @@ def doc_detail(request, pk):
                 messages.success(request, 'Đã lưu mô tả hồ sơ.')
                 return _doc_tab_redirect(request, 'info')
             tab = 'info'
+            desc_form._show_edit = True
             messages.error(request, 'Không lưu được mô tả — kiểm tra lại.')
         elif action == 'upload_gallery':
             gallery_form = TechDocGalleryUploadForm(request.POST, request.FILES)
@@ -678,8 +679,12 @@ def doc_detail(request, pk):
                 routing=request.POST.get('routing_id') or (bom.routing_id or None),
             )
 
+    edit_info = can_update and (
+        bool(request.GET.get('edit_info')) or getattr(desc_form, '_show_edit', False)
+    )
+
     if can_update:
-        if tab == 'info' and desc_form is None:
+        if edit_info and desc_form is None:
             desc_form = ProductTechDocDescriptionForm(instance=doc)
         if bom and line_formset is None and tab == 'bom':
             meta_form = meta_form or BomVersionMetaForm(instance=bom)
@@ -872,6 +877,7 @@ def doc_detail(request, pk):
         'work_centers': work_centers,
         'costing_routing_preview': costing_routing_preview,
         'office_preview_ready': office_preview_ready,
+        'edit_info': edit_info,
         'list_back_query': _doc_list_back_query(request),
         **_perm_ctx(request),
     })

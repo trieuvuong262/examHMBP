@@ -79,7 +79,7 @@
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
       {% if can_update %}
-      <a href="?tab=info{% if bom %}&bom={{ bom.pk }}{% endif %}{% if process_routing %}&routing={{ process_routing.pk }}{% endif %}{% if list_back_query %}&{{ list_back_query }}{% endif %}"
+      <a href="?tab={{ tab }}&edit_info=1{% if bom %}&bom={{ bom.pk }}{% endif %}{% if process_routing %}&routing={{ process_routing.pk }}{% endif %}{% if list_back_query %}&{{ list_back_query }}{% endif %}"
          class="btn btn-sm btn-outline-hm fw-bold" data-loading-message="Đang mở chỉnh sửa…">
         <i class="bi bi-pencil me-1"></i>Sửa hồ sơ
       </a>
@@ -88,6 +88,50 @@
          data-loading-message="Đang tải hồ sơ thiết kế…"><i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại</a>
     </nav>
   </div>
+
+  {% if edit_info and desc_form %}
+  <div class="card border-warning border-2 shadow-sm mb-3">
+    <div class="card-header bg-warning-subtle d-flex align-items-center justify-content-between py-2">
+      <span class="fw-semibold small"><i class="bi bi-pencil me-1"></i>Sửa thông tin hồ sơ</span>
+      <a href="?tab={{ tab }}{% if bom %}&bom={{ bom.pk }}{% endif %}{% if process_routing %}&routing={{ process_routing.pk }}{% endif %}{% if list_back_query %}&{{ list_back_query }}{% endif %}"
+         class="btn-close btn-close-sm" aria-label="Đóng" title="Hủy chỉnh sửa"></a>
+    </div>
+    <div class="card-body py-3">
+      <form method="post" data-loading-message="Đang lưu…">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="save_description">
+        <div class="row g-2">
+          <div class="col-md-6">
+            <label class="form-label small mb-1" for="{{ desc_form.product_name.id_for_label }}">{{ desc_form.product_name.label }}</label>
+            {{ desc_form.product_name }}
+          </div>
+          <div class="col-md-3">
+            <label class="form-label small mb-1" for="{{ desc_form.season.id_for_label }}">{{ desc_form.season.label }}</label>
+            {{ desc_form.season }}
+          </div>
+          <div class="col-md-3">
+            <label class="form-label small mb-1" for="{{ desc_form.main_material.id_for_label }}">{{ desc_form.main_material.label }}</label>
+            {{ desc_form.main_material }}
+          </div>
+          <div class="col-md-9">
+            <label class="form-label small mb-1" for="{{ desc_form.description.id_for_label }}">{{ desc_form.description.label }}</label>
+            {{ desc_form.description }}
+            {% if desc_form.description.errors %}<div class="text-danger small">{{ desc_form.description.errors }}</div>{% endif %}
+          </div>
+          <div class="col-md-3">
+            <label class="form-label small mb-1" for="{{ desc_form.notes.id_for_label }}">{{ desc_form.notes.label }}</label>
+            {{ desc_form.notes }}
+          </div>
+          <div class="col-12 d-flex justify-content-end gap-2">
+            <a href="?tab={{ tab }}{% if bom %}&bom={{ bom.pk }}{% endif %}{% if process_routing %}&routing={{ process_routing.pk }}{% endif %}{% if list_back_query %}&{{ list_back_query }}{% endif %}"
+               class="btn btn-outline-secondary btn-sm">Hủy</a>
+            <button type="submit" class="btn btn-hm btn-sm">Lưu hồ sơ</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+  {% endif %}
 
     <ul class="nav nav-tabs mb-3 flex-nowrap" style="overflow-x:auto;-webkit-overflow-scrolling:touch">
         <li class="nav-item">
