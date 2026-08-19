@@ -771,10 +771,6 @@ def sales_order_detail(request, pk: int):
             sales_order_line__order_id=order.pk,
         ).first()
 
-    missing_routing = [
-        ln for ln in order.lines.all()
-        if not ln.routing_lines.exists()
-    ]
     from san_xuat.services.order_routing import routings_for_product
 
     for ln in order.lines.all():
@@ -788,7 +784,6 @@ def sales_order_detail(request, pk: int):
         'can_attach_routing': False,
         'routing_locked': routing_locked,
         'edit_rt': edit_rt,
-        'missing_routing': missing_routing,
         'work_centers': list(hr_work_centers_qs()),
         'skill_levels': ensure_skill_levels_abc(),
         'operation_groups': list(

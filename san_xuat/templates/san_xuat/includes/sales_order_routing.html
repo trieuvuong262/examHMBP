@@ -1,21 +1,7 @@
 {% load sx_format %}
 <div class="card border-0 shadow-sm mb-3">
   <div class="card-body">
-    <h6 class="fw-bold mb-1">Công đoạn theo đơn (SMV áp dụng)</h6>
-    <p class="small text-muted mb-3">
-      Snapshot công đoạn / SMV áp dụng được chốt lúc <strong>lên đơn</strong>.
-      Màn này chỉ xem để duyệt — không chỉnh SMV. Xác nhận cần snapshot và SMV &gt; 0.
-    </p>
-
-    {% if missing_routing and order.confirm_status == 'draft' %}
-    <div class="alert alert-warning py-2 small mb-3">
-      Chưa có snapshot công đoạn — đơn này thiếu dữ liệu lúc lên đơn, không xác nhận được.
-      {% for ln in missing_routing %}
-        <strong>{{ ln.product_code }}</strong>{% if not forloop.last %}, {% endif %}
-      {% endfor %}
-      còn thiếu.
-    </div>
-    {% endif %}
+    <h6 class="fw-bold mb-3">Công đoạn theo đơn (SMV áp dụng)</h6>
 
     {% if routing_locked %}
     <div class="alert alert-secondary py-2 small mb-3">Đơn đã xác nhận — snapshot công đoạn đã khóa.</div>
@@ -28,26 +14,6 @@
           <strong>{{ ln.product_code }}</strong>
           <span class="text-muted small ms-1">{{ ln.product_name|default:"" }}</span>
           <span class="badge bg-light text-dark border ms-1">SL {{ ln.qty|sx_num }}</span>
-        </div>
-        <div class="small text-muted">
-          BOM:
-          {% if ln.bom_version %}
-            {% if ln.bom_version.tech_doc_id %}
-            <a href="{% url 'san_xuat:doc_detail' ln.bom_version.tech_doc_id %}?tab=bom&bom={{ ln.bom_version_id }}">{{ ln.bom_version.version_label }}</a>
-            {% else %}{{ ln.bom_version.version_label }}{% endif %}
-          {% else %}—{% endif %}
-          · Routing:
-          {% if ln.routing %}
-          <a href="{% url 'san_xuat:ie_routing_detail' ln.routing_id %}">{{ ln.routing.routing_rev|default:ln.routing.routing_id }}</a>
-          {% elif ln.routing_lines.all %}
-          <span class="text-warning">tạm công đoạn BOM</span>
-          {% else %}<span class="text-danger">chưa có</span>{% endif %}
-          · SMV chuẩn {{ ln.routing_std_smv|sx_num }}
-          → đơn <strong>{{ ln.routing_total_smv|sx_num }}</strong>
-          {% if ln.routing_smv_variance_pct %}
-            ({{ ln.routing_smv_variance_pct|sx_num:1 }}%)
-          {% endif %}
-          giây/cái
         </div>
       </div>
 
@@ -287,7 +253,5 @@
     {% empty %}
     <p class="text-muted small mb-0">Chưa có dòng sản phẩm.</p>
     {% endfor %}
-
-    {% include 'san_xuat/includes/ie_smv_glossary.html' %}
   </div>
 </div>
