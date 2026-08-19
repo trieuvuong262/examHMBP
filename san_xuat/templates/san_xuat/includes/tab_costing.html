@@ -109,14 +109,14 @@
     <form method="get" class="field">
       <input type="hidden" name="tab" value="costing">
       {% if bom %}<input type="hidden" name="bom" value="{{ bom.pk }}">{% endif %}
-      <label for="jp-cost-routing">Routing</label>
+      <label for="jp-cost-routing">OB</label>
       <select id="jp-cost-routing" name="routing" class="ctrl" onchange="this.form.submit()">
         {% for item in process_routings %}
         <option value="{{ item.pk }}" {% if process_routing and item.pk == process_routing.pk %}selected{% endif %}>
           {{ item.routing_rev }} ({{ item.n_lines }} công đoạn)
         </option>
         {% empty %}
-        <option value="">— Chưa có routing —</option>
+        <option value="">— Chưa có OB —</option>
         {% endfor %}
       </select>
     </form>
@@ -148,7 +148,7 @@
       <span class="v">{{ costing.material_cost|sx_num }} đ</span>
     </div>
     <div class="cell">
-      <span class="k">Nhân công (từ Routing)</span>
+      <span class="k">Nhân công (từ OB)</span>
       <span class="v">{{ costing.labor_cost|sx_num }} đ</span>
     </div>
     <div class="cell">
@@ -200,7 +200,7 @@
   <div class="col-lg-5">
     <div class="card border-0 shadow-sm">
       <div class="card-header bg-white">
-        <span class="fw-semibold">Routing - {% if process_routing %}{{ process_routing.routing_rev }}{% else %}—{% endif %}</span>
+        <span class="fw-semibold">OB - {% if process_routing %}{{ process_routing.routing_rev }}{% else %}—{% endif %}</span>
       </div>
       <div class="table-responsive">
         <table class="table table-sm mb-0 align-middle">

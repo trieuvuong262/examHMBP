@@ -5,7 +5,7 @@
 <div class="container-fluid jp-page jp-sx-page py-3 py-md-4 mb-5 px-3 px-lg-4">
   <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
     <div>
-      <h2 class="mb-0">Dòng routing</h2>
+      <h2 class="mb-0">Dòng OB</h2>
     </div>
     <div class="d-flex flex-wrap gap-2">
       {% if can_update %}
@@ -84,7 +84,7 @@
             <td class="small">{{ l.routing.ie_owner|default:"—" }}</td>
             <td class="small jp-ie-cell-wrap" title="{{ l.notes }}">{{ l.notes|default:"—"|truncatechars:24 }}</td>
             <td class="text-end jp-td-actions">
-              <a href="{% url 'san_xuat:ie_routing_detail' l.routing_id %}" class="btn btn-sm btn-outline-hm">Routing</a>
+              <a href="{% url 'san_xuat:ie_routing_detail' l.routing_id %}" class="btn btn-sm btn-outline-hm">OB</a>
               {% if can_update and l.routing_id not in locked_routing_ids %}
               <a href="{% url 'san_xuat:ie_routing_detail' l.routing_id %}?edit={{ l.pk }}" class="btn btn-sm btn-outline-secondary py-0">Sửa</a>
               <form method="post" class="d-inline" onsubmit="return confirm('Xóa dòng {{ l.op_code }}?');">
@@ -119,11 +119,11 @@
         {% csrf_token %}
         <input type="hidden" name="action" value="goto_add_line">
         <div class="modal-header">
-          <h5 class="modal-title" id="ieAddLineModalLabel">Thêm dòng routing</h5>
+          <h5 class="modal-title" id="ieAddLineModalLabel">Thêm dòng OB</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
         </div>
         <div class="modal-body">
-          <label class="form-label small text-muted mb-1">Chọn routing <span class="text-danger">*</span></label>
+          <label class="form-label small text-muted mb-1">Chọn OB <span class="text-danger">*</span></label>
           <select name="routing_id" class="form-select form-select-sm" required>
             <option value="">— Chọn mã hàng —</option>
             {% for r in routings %}
@@ -132,11 +132,11 @@
             </option>
             {% endfor %}
           </select>
-          <div class="form-text">Mở màn hình routing để thêm / sửa / xóa từng dòng công đoạn.</div>
+          <div class="form-text">Mở màn hình OB để thêm / sửa / xóa từng dòng công đoạn.</div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Huỷ</button>
-          <button type="submit" class="btn btn-sm btn-hm">Mở routing</button>
+          <button type="submit" class="btn btn-sm btn-hm">Mở OB</button>
         </div>
       </form>
     </div>

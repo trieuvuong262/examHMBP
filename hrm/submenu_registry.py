@@ -109,8 +109,8 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
         {'key': 'order_create', 'label': 'Lên đơn đặt hàng', 'icon': 'bi-cart-plus'},
         {'key': 'order_confirm', 'label': 'Xác nhận đơn đặt hàng', 'icon': 'bi-check2-square'},
         # —— Hồ sơ (khớp sidebar): hồ sơ TK → thư viện CĐ → duyệt → thiết lập → năng lực ——
-        {'key': 'docs', 'label': 'Hồ sơ thiết kế sản xuất', 'icon': 'bi-journal-text'},
-        {'key': 'ie', 'label': 'Thư viện công đoạn', 'icon': 'bi-diagram-3'},
+        {'key': 'docs', 'label': 'Hồ sơ thiết kế sản phẩm', 'icon': 'bi-journal-text'},
+        {'key': 'ie', 'label': 'Thư viện công đoạn chuẩn', 'icon': 'bi-diagram-3'},
         {'key': 'ie_approve', 'label': 'Duyệt công đoạn', 'icon': 'bi-check2-circle'},
         {'key': 'ie_settings', 'label': 'Thiết lập công đoạn', 'icon': 'bi-gear'},
         {'key': 'capacity', 'label': 'Năng lực SX', 'icon': 'bi-speedometer'},

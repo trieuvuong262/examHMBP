@@ -9,7 +9,7 @@
 <div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 py-md-4 mb-5">
   <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
     <div class="jp-sx-detail-title">
-      <h2 class="jp-npl-mat-topbar-title w-100">Routing trong hồ sơ thiết kế SX</h2>
+      <h2 class="jp-npl-mat-topbar-title w-100">OB (Operation Bulletin) trong hồ sơ thiết kế SX</h2>
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
       {% if can_export %}
@@ -22,7 +22,7 @@
         <i class="bi bi-upload me-1"></i>Nhập Excel
       </button>
       <button type="button" class="btn btn-hm btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#ieAddRoutingModal">
-        <i class="bi bi-plus-lg me-1"></i>Tạo routing
+        <i class="bi bi-plus-lg me-1"></i>Tạo OB
       </button>
       {% endif %}
       {% include 'san_xuat/includes/sx_list_col_picker.html' %}
@@ -36,7 +36,7 @@
   <div class="jp-sx-page-body">
   <form method="get" class="row g-2 mb-3" id="ieRoutingFilterForm">
     <div class="col-12 col-md-8 col-lg-6">
-      <input type="search" name="q" value="{{ term }}" class="form-control form-control-sm" placeholder="Tìm mã hàng, routing…" autocomplete="off">
+      <input type="search" name="q" value="{{ term }}" class="form-control form-control-sm" placeholder="Tìm mã hàng, OB…" autocomplete="off">
     </div>
   </form>
 
@@ -45,7 +45,7 @@
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 px-3 py-2 border-bottom bg-white">
       <span class="small text-muted">Chọn nhiều để xóa hàng loạt</span>
       <button type="submit" form="ieRoutingBulkForm" class="btn btn-sm btn-outline-danger" id="ieRoutingBulkDeleteBtn" disabled
-              onclick="return confirm('Xóa các routing đã chọn?');">
+              onclick="return confirm('Xóa các OB đã chọn?');">
         <i class="bi bi-trash me-1"></i>Xóa đã chọn
       </button>
     </div>
@@ -92,7 +92,7 @@
             <td class="npl-col small" data-col="approved_by">{{ r.approved_by|default:"—" }}</td>
             <td class="npl-col text-nowrap text-end" data-col="actions" onclick="event.stopPropagation()">
               {% if can_update and r.pk not in locked_routing_ids %}
-              <form method="post" class="d-inline" onsubmit="return confirm('Xóa routing {{ r.routing_id }}?');">
+              <form method="post" class="d-inline" onsubmit="return confirm('Xóa OB {{ r.routing_id }}?');">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="delete_routing">
                 <input type="hidden" name="pk" value="{{ r.pk }}">
@@ -102,7 +102,7 @@
             </td>
           </tr>
         {% empty %}
-          <tr><td colspan="{% if can_pick_rows %}{{ list_columns|length|add:1 }}{% else %}{{ list_columns|length }}{% endif %}" class="text-muted small p-3 text-center">Không có routing trong hồ sơ thiết kế SX phù hợp.</td></tr>
+          <tr><td colspan="{% if can_pick_rows %}{{ list_columns|length|add:1 }}{% else %}{{ list_columns|length }}{% endif %}" class="text-muted small p-3 text-center">Không có OB trong hồ sơ thiết kế SX phù hợp.</td></tr>
         {% endfor %}
         </tbody>
       </table>
@@ -152,7 +152,7 @@
         {% csrf_token %}
         <input type="hidden" name="action" value="create_routing">
         <div class="modal-header">
-          <h5 class="modal-title" id="ieAddRoutingModalLabel">Thêm routing</h5>
+          <h5 class="modal-title" id="ieAddRoutingModalLabel">Thêm OB</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
         </div>
         <div class="modal-body">
@@ -181,7 +181,7 @@
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Huỷ</button>
-          <button type="submit" class="btn btn-sm btn-hm"><i class="bi bi-plus-lg me-1"></i>Tạo routing</button>
+          <button type="submit" class="btn btn-sm btn-hm"><i class="bi bi-plus-lg me-1"></i>Tạo OB</button>
         </div>
       </form>
     </div>

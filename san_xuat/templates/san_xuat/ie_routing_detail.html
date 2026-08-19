@@ -22,7 +22,7 @@
       <form method="post" class="d-inline">
         {% csrf_token %}
         <input type="hidden" name="action" value="clone_revision">
-        <button type="submit" class="btn btn-sm btn-outline-hm" title="Tạo REV mới (bắt buộc nếu routing đã khóa)">
+        <button type="submit" class="btn btn-sm btn-outline-hm" title="Tạo REV mới (bắt buộc nếu OB đã khóa)">
           <i class="bi bi-files me-1"></i>Tạo REV mới
         </button>
       </form>
@@ -42,7 +42,7 @@
       </form>
       {% endif %}
       {% if can_update and not locked %}
-      <form method="post" class="d-inline" onsubmit="return confirm('Xóa routing {{ routing.routing_id }}?');">
+      <form method="post" class="d-inline" onsubmit="return confirm('Xóa OB {{ routing.routing_id }}?');">
         {% csrf_token %}
         <input type="hidden" name="action" value="delete_routing">
         <button type="submit" class="btn btn-sm btn-outline-danger">Xóa</button>
@@ -53,7 +53,7 @@
   </div>
 
   {% if locked %}
-  <div class="alert alert-warning py-2 small">Routing này đã gắn lệnh sản xuất — không sửa đè. Muốn chỉnh SMV/công đoạn: bấm <strong>Tạo REV mới</strong>.</div>
+  <div class="alert alert-warning py-2 small">OB này đã gắn lệnh sản xuất — không sửa đè. Muốn chỉnh SMV/công đoạn: bấm <strong>Tạo REV mới</strong>.</div>
   {% endif %}
 
   <div class="row g-2 g-md-3 mb-3">
@@ -68,7 +68,7 @@
     {% csrf_token %}
     <input type="hidden" name="action" value="save_header">
     <div class="card-body py-3">
-      <h3 class="h6 mb-3">Thông tin routing</h3>
+      <h3 class="h6 mb-3">Thông tin OB</h3>
       <div class="row g-2 align-items-end">
         <div class="col-md-5">
           <label class="form-label small mb-0">Tên mã hàng</label>
@@ -89,7 +89,7 @@
   {% if can_update and not locked %}
   <div class="card border-0 shadow-sm mb-3">
     <div class="card-body py-3">
-      <h3 class="h6 mb-3">{% if edit_line %}Sửa dòng #{{ edit_line.seq_no }}{% else %}Thêm dòng routing{% endif %}</h3>
+      <h3 class="h6 mb-3">{% if edit_line %}Sửa dòng #{{ edit_line.seq_no }}{% else %}Thêm dòng OB{% endif %}</h3>
       <form method="post" class="row g-2 align-items-end" id="ie-routing-line-form">
         {% csrf_token %}
         <input type="hidden" name="action" value="{% if edit_line %}edit_line{% else %}add_line{% endif %}">
@@ -270,7 +270,7 @@
             {% endif %}
           </tr>
         {% empty %}
-          <tr><td colspan="{% if can_update and not locked %}18{% else %}17{% endif %}" class="text-muted small p-3 text-center jp-ie-cell-wrap">Routing chưa có công đoạn.</td></tr>
+          <tr><td colspan="{% if can_update and not locked %}18{% else %}17{% endif %}" class="text-muted small p-3 text-center jp-ie-cell-wrap">OB chưa có công đoạn.</td></tr>
         {% endfor %}
         </tbody>
       </table>

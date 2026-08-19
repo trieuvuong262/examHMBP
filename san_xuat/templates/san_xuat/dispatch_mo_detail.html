@@ -124,7 +124,7 @@
       {% endif %}
       {% if mo.routing_id %}
       <div>
-        <div class="label">Routing IE</div>
+        <div class="label">OB IE</div>
         <div class="value">
           <a href="{% url 'san_xuat:ie_routing_detail' mo.routing_id %}">{{ mo.routing.routing_id }}</a>
           <div class="small text-muted">{{ mo.routing.style_name|default:""|truncatechars:36 }}</div>
@@ -132,7 +132,7 @@
       </div>
       {% elif mo.bom_version and mo.bom_version.routing_id %}
       <div>
-        <div class="label">Routing IE (BOM)</div>
+        <div class="label">OB IE (BOM)</div>
         <div class="value">
           <a href="{% url 'san_xuat:ie_routing_detail' mo.bom_version.routing_id %}">{{ mo.bom_version.routing.routing_id }}</a>
         </div>

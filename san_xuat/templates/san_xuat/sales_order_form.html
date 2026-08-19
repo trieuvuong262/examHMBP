@@ -229,7 +229,7 @@
               <tr>
                 <th class="jp-so-product-col">Sản phẩm</th>
                 <th class="jp-so-bom-col">BOM</th>
-                <th class="jp-so-ie-col">Routing</th>
+                <th class="jp-so-ie-col">OB</th>
                 <th class="jp-so-stock-col text-end">Tồn</th>
                 <th class="jp-so-actions-col text-end">Tổng</th>
               </tr>
@@ -825,9 +825,9 @@ window.jpSoAllSizes = {{ suggest_sizes_all_json|safe }};
     if (!hasRouting || source !== 'ie' || !steps.length) {
       var msg = '';
       if (!hasRouting && (data.routings || []).length) {
-        msg = 'Chọn Routing để chỉnh SMV từng công đoạn.';
+        msg = 'Chọn OB để chỉnh SMV từng công đoạn.';
       } else if ((data.routings || []).length) {
-        msg = 'Routing đã chọn nhưng chưa có công đoạn.';
+        msg = 'OB đã chọn nhưng chưa có công đoạn.';
       }
       return msg ? '<div class="jp-so-smv-card text-muted small">' + msg + '</div>' : '';
     }
@@ -889,7 +889,7 @@ window.jpSoAllSizes = {{ suggest_sizes_all_json|safe }};
     var rtSel = row.querySelector('.jp-so-routing-select, select[name$="-routing_id"]');
     if (!code) {
       fillSelect(bomSel, [], '— BOM —', '', '');
-      fillSelect(rtSel, [], '— Routing —', '', '');
+      fillSelect(rtSel, [], '— OB —', '', '');
       applyIeStatus(row, { routings: [], steps: [] });
       renderSteps(row, { steps: [], bom_lines: [] });
       if (keepBomQty) hydrateBomFromHidden(row);
@@ -926,10 +926,10 @@ window.jpSoAllSizes = {{ suggest_sizes_all_json|safe }};
         fillSelect(
           rtSel,
           routings,
-          '— Routing —',
+          '— OB —',
           rtUrl,
           autoRt,
-          '＋ Tạo Routing trên hồ sơ',
+          '＋ Tạo OB trên hồ sơ',
         );
         applyIeStatus(row, data);
         renderSteps(row, data);
@@ -941,7 +941,7 @@ window.jpSoAllSizes = {{ suggest_sizes_all_json|safe }};
       })
       .catch(function () {
         fillSelect(bomSel, [], '— BOM —', '', keepBom);
-        fillSelect(rtSel, [], '— Routing —', '', keepRouting);
+        fillSelect(rtSel, [], '— OB —', '', keepRouting);
         applyIeStatus(row, { routings: [], steps: [] });
         renderSteps(row, { steps: [], bom_lines: [] });
         writeAppliedBom(row);

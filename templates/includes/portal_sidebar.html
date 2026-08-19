@@ -734,7 +734,7 @@
                                class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'doc_list' or request.resolver_match.url_name == 'doc_create' or request.resolver_match.url_name == 'doc_detail' or request.resolver_match.url_name == 'bom_list' %}active{% endif %}"
                                data-jp-npl-catalog-nav
                                data-loading-message="Đang tải hồ sơ thiết kế…">
-                                <i class="bi bi-journal-text"></i><span>Hồ sơ thiết kế sản xuất</span>
+                                <i class="bi bi-journal-text"></i><span>Hồ sơ thiết kế sản phẩm</span>
                             </a>
                         </li>
                         {% endif %}
@@ -754,13 +754,13 @@
                                 <li>
                                     <a href="{% url 'san_xuat:ie_group_list' %}"
                                        class="jp-sidebar-link jp-sidebar-sublink {% if '/san-xuat/cong-doan/nhom' in request.path %}active{% endif %}">
-                                        <i class="bi bi-collection"></i><span>Nhóm công đoạn</span>
+                                        <i class="bi bi-collection"></i><span>Nhóm công đoạn chuẩn</span>
                                     </a>
                                 </li>
                                 <li>
                                     <a href="{% url 'san_xuat:ie_operation_list' %}"
                                        class="jp-sidebar-link jp-sidebar-sublink {% if '/san-xuat/cong-doan/thu-vien' in request.path %}active{% endif %}">
-                                        <i class="bi bi-list-ul"></i><span>Thư viện công đoạn</span>
+                                        <i class="bi bi-list-ul"></i><span>Thư viện công đoạn chuẩn</span>
                                     </a>
                                 </li>
                             </ul>

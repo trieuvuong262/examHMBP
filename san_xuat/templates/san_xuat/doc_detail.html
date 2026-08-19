@@ -102,7 +102,7 @@
         <li class="nav-item">
             <a class="nav-link {% if tab == 'process' %}active{% endif %}"
                href="?tab=process{% if bom %}&bom={{ bom.pk }}{% endif %}{% if process_routing %}&routing={{ process_routing.pk }}{% endif %}{% if list_back_query %}&{{ list_back_query }}{% endif %}"
-               data-loading-message="Đang tải routing…">Routing</a>
+               data-loading-message="Đang tải OB…">OB</a>
         </li>
         <li class="nav-item">
             <a class="nav-link {% if tab == 'costing' %}active{% endif %}"
@@ -158,11 +158,11 @@
 
   {% if tab == 'process' %}
   <div class="jp-sx-bom-versions">
-    <span class="label">Phiên bản Routing</span>
+    <span class="label">Phiên bản OB</span>
     {% for item in process_routings %}
     <a class="jp-sx-bom-ver {% if process_routing and item.pk == process_routing.pk %}is-current{% endif %}"
        href="?tab=process{% if bom %}&bom={{ bom.pk }}{% endif %}&routing={{ item.pk }}{% if list_back_query %}&{{ list_back_query }}{% endif %}"
-       data-loading-message="Đang tải routing {{ item.routing_rev }}…"
+       data-loading-message="Đang tải OB {{ item.routing_rev }}…"
        title="{{ item.routing_id }} — {{ item.n_lines }} công đoạn">
       {{ item.routing_rev }}
       <span class="st">({{ item.n_lines }})</span>
