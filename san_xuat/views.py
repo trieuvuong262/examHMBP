@@ -424,12 +424,21 @@ def doc_detail(request, pk):
                 meta_form.save()
                 line_formset.save()
                 bom.refresh_from_db()
-                _changed = {
-                    k: {'before': v, 'after': str(getattr(bom, k, v))}
-                    for k, v in _bom_before.items()
-                    if str(getattr(bom, k, '')) != str(v)
+                _field_labels = {
+                    'version_label': 'Phiên bản',
+                    'overhead_pct': 'Phụ phí (%)',
+                    'overhead_amount': 'SX chung / SP',
+                    'notes': 'Ghi chú',
                 }
-                _changed['n_lines'] = {'before': _bom_before['n_lines'], 'after': bom.lines.count()}
+                _n_before = _bom_before['n_lines']
+                _n_after = bom.lines.count()
+                _changed = {
+                    _field_labels.get(k, k): {'before': v, 'after': str(getattr(bom, k, v))}
+                    for k, v in _bom_before.items()
+                    if k != 'n_lines' and str(getattr(bom, k, '')) != str(v)
+                }
+                if _n_before != _n_after:
+                    _changed['Số dòng NPL'] = {'before': _n_before, 'after': _n_after}
                 log_bom_event(
                     bom=bom,
                     action='update',
@@ -522,7 +531,7 @@ def doc_detail(request, pk):
                         object_id=str(routing.pk),
                         object_repr=routing.routing_id,
                         summary=f'Thêm CĐ {op_code} vào OB {routing.routing_rev}',
-                        changes={'op_code': op_code, 'op_name': op_name},
+                        changes={'Mã công đoạn': op_code, 'Tên công đoạn': op_name},
                         user=request.user,
                     )
                     messages.success(request, 'Đã thêm công đoạn vào routing.')
