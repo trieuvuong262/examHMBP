@@ -410,39 +410,22 @@ def doc_detail(request, pk):
                 messages.success(request, 'Đã xóa tài liệu thiết kế.')
             return _doc_tab_redirect(request, 'design')
         elif bom and action == 'save_bom' and tab == 'bom':
-            from san_xuat.services.bom_audit import log_bom_event
+            from san_xuat.services.bom_audit import bom_diff, bom_snapshot, log_bom_event
             meta_form = BomVersionMetaForm(request.POST, instance=bom)
             line_formset = BomLineFormSet(request.POST, instance=bom, prefix='lines')
             if meta_form.is_valid() and line_formset.is_valid():
-                _bom_before = {
-                    'version_label': bom.version_label,
-                    'overhead_pct': str(bom.overhead_pct),
-                    'overhead_amount': str(bom.overhead_amount),
-                    'notes': bom.notes,
-                    'n_lines': bom.lines.count(),
-                }
+                _before = bom_snapshot(bom)
                 meta_form.save()
                 line_formset.save()
                 bom.refresh_from_db()
-                _field_labels = {
-                    'version_label': 'Phiên bản',
-                    'overhead_pct': 'Phụ phí (%)',
-                    'overhead_amount': 'SX chung / SP',
-                    'notes': 'Ghi chú',
-                }
-                _n_before = _bom_before['n_lines']
-                _n_after = bom.lines.count()
-                _changed = {
-                    _field_labels.get(k, k): {'before': v, 'after': str(getattr(bom, k, v))}
-                    for k, v in _bom_before.items()
-                    if k != 'n_lines' and str(getattr(bom, k, '')) != str(v)
-                }
-                if _n_before != _n_after:
-                    _changed['Số dòng NPL'] = {'before': _n_before, 'after': _n_after}
+                _after = bom_snapshot(bom)
+                _changed = bom_diff(_before, _after)
+                _changed['snapshot'] = _after
+                _n_lines = len(_after['lines'])
                 log_bom_event(
                     bom=bom,
                     action='update',
-                    summary=f'Lưu BOM {bom.version_label}',
+                    summary=f'Lưu BOM {bom.version_label} — {_n_lines} dòng NPL',
                     changes=_changed,
                     user=request.user,
                 )
@@ -471,11 +454,13 @@ def doc_detail(request, pk):
                 ).distinct().first()
                 if routing_id.isdigit() else None
             )
+            from san_xuat.services.ie_audit import routing_snapshot
             group_code = (request.POST.get('group_code') or '').strip()
             op_code = (request.POST.get('op_code') or '').strip()
             op_rev = (request.POST.get('op_rev') or 'R01').strip() or 'R01'
             op_name = (request.POST.get('op_name_vi') or '').strip()
             work_center_code = (request.POST.get('work_center_code') or '').strip()
+            _ob_before = routing_snapshot(routing) if routing else {'lines': []}
             if not group_code or not op_name:
                 messages.error(request, 'Chọn nhóm và công đoạn từ thư viện.')
             else:
@@ -524,14 +509,20 @@ def doc_detail(request, pk):
                 except IeOpsError as exc:
                     messages.error(request, str(exc))
                 else:
-                    from san_xuat.services.ie_audit import log_ie_event
+                    from san_xuat.services.ie_audit import log_ie_event, routing_diff
+                    _ob_after = routing_snapshot(routing)
+                    _ob_changes = routing_diff(_ob_before, _ob_after)
+                    _ob_changes['snapshot'] = _ob_after
                     log_ie_event(
                         action='update',
                         object_type='routing',
                         object_id=str(routing.pk),
                         object_repr=routing.routing_id,
-                        summary=f'Thêm CĐ {op_code} vào OB {routing.routing_rev}',
-                        changes={'Mã công đoạn': op_code, 'Tên công đoạn': op_name},
+                        summary=(
+                            f'Thêm công đoạn {op_name} vào OB {routing.routing_rev} '
+                            f'— còn {len(_ob_after["lines"])} công đoạn'
+                        ),
+                        changes=_ob_changes,
                         user=request.user,
                     )
                     messages.success(request, 'Đã thêm công đoạn vào routing.')
@@ -555,6 +546,8 @@ def doc_detail(request, pk):
                 ).distinct().first()
                 if routing_id.isdigit() else None
             )
+            from san_xuat.services.ie_audit import routing_snapshot
+            _ob_before = routing_snapshot(routing) if routing else {'lines': []}
             try:
                 if not routing or not line_id.isdigit():
                     raise IeOpsError('Không tìm thấy dòng routing.')
@@ -563,14 +556,23 @@ def doc_detail(request, pk):
             except IeOpsError as exc:
                 messages.error(request, str(exc))
             else:
-                from san_xuat.services.ie_audit import log_ie_event
+                from san_xuat.services.ie_audit import log_ie_event, routing_diff
                 if routing:
+                    _ob_after = routing_snapshot(routing)
+                    _ob_changes = routing_diff(_ob_before, _ob_after)
+                    _ob_changes['snapshot'] = _ob_after
+                    _removed = (_ob_changes.get('lines') or {}).get('removed') or []
+                    _removed_name = _removed[0]['title'] if _removed else f'line {line_id}'
                     log_ie_event(
                         action='update',
                         object_type='routing',
                         object_id=str(routing.pk),
                         object_repr=routing.routing_id,
-                        summary=f'Xóa dòng CĐ (line_id={line_id}) khỏi OB {routing.routing_rev}',
+                        summary=(
+                            f'Xóa công đoạn {_removed_name} khỏi OB {routing.routing_rev} '
+                            f'— còn {len(_ob_after["lines"])} công đoạn'
+                        ),
+                        changes=_ob_changes,
                         user=request.user,
                     )
                 messages.success(request, 'Đã xóa công đoạn khỏi routing.')
@@ -598,6 +600,16 @@ def doc_detail(request, pk):
                 return _doc_tab_redirect(
                     request, 'process', bom=bom.pk if bom else None,
                 )
+            from san_xuat.services.ie_audit import log_ie_event, routing_snapshot
+            log_ie_event(
+                action='create',
+                object_type='routing',
+                object_id=str(routing.pk),
+                object_repr=routing.routing_id,
+                summary=f'Tạo OB {routing.routing_rev} (trống)',
+                changes={'snapshot': routing_snapshot(routing)},
+                user=request.user,
+            )
             messages.success(request, f'Đã tạo phiên bản routing {routing.routing_rev}.')
             return _doc_tab_redirect(
                 request, 'process', bom=bom.pk if bom else None, routing=routing.pk,
@@ -629,13 +641,18 @@ def doc_detail(request, pk):
                 return _doc_tab_redirect(
                     request, 'process', bom=bom.pk if bom else None, routing=source.pk,
                 )
-            from san_xuat.services.ie_audit import log_ie_event
+            from san_xuat.services.ie_audit import log_ie_event, routing_snapshot
+            _clone_snap = routing_snapshot(clone)
             log_ie_event(
                 action='create',
                 object_type='routing',
                 object_id=str(clone.pk),
                 object_repr=clone.routing_id,
-                summary=f'Tạo OB {clone.routing_rev} (sao chép từ {source.routing_rev})',
+                summary=(
+                    f'Tạo OB {clone.routing_rev} (sao chép từ {source.routing_rev}) '
+                    f'— {len(_clone_snap["lines"])} công đoạn'
+                ),
+                changes={'snapshot': _clone_snap},
                 user=request.user,
             )
             messages.success(
@@ -644,6 +661,79 @@ def doc_detail(request, pk):
             )
             return _doc_tab_redirect(
                 request, 'process', bom=bom.pk if bom else None, routing=clone.pk,
+            )
+        elif action == 'restore_ob_snapshot' and can_update:
+            from decimal import Decimal
+
+            from san_xuat.ie_models import SxIeAuditLog
+            from san_xuat.services.ie_audit import (
+                log_ie_event,
+                routing_snapshot,
+            )
+            from san_xuat.services.ie_ops import (
+                IeOpsError,
+                create_blank_routing,
+                upsert_routing_line,
+            )
+
+            log_id = (request.POST.get('log_id') or '').strip()
+            source_log = (
+                SxIeAuditLog.objects.filter(pk=int(log_id), object_type='routing').first()
+                if log_id.isdigit() else None
+            )
+            snapshot = (source_log.changes or {}).get('snapshot') if source_log else None
+            if not snapshot:
+                messages.error(request, 'Không tìm thấy dữ liệu OB tại thời điểm này để sao chép.')
+                return _doc_tab_redirect(request, 'process', bom=bom.pk if bom else None)
+            try:
+                restored = create_blank_routing(tech_doc=doc, user=request.user)
+            except IeOpsError as exc:
+                messages.error(request, str(exc))
+                return _doc_tab_redirect(request, 'process', bom=bom.pk if bom else None)
+
+            skipped = 0
+            for item in snapshot.get('lines') or []:
+                try:
+                    upsert_routing_line(
+                        routing=restored,
+                        seq_no=item.get('seq_no'),
+                        op_code=item.get('op_code') or '',
+                        op_rev=item.get('op_rev') or 'R01',
+                        op_name_vi=item.get('op_name_vi') or '',
+                        group_code=item.get('group_code') or '',
+                        work_center_code=item.get('work_center_code') or '',
+                        library_unit_smv=Decimal(str(item.get('library_unit_smv') or '0')),
+                        applied_unit_smv=Decimal('0'),
+                        price_factor=Decimal('0'),
+                        copy_library_to_applied=False,
+                    )
+                except (IeOpsError, ValueError):
+                    skipped += 1
+
+            log_ie_event(
+                action='create',
+                object_type='routing',
+                object_id=str(restored.pk),
+                object_repr=restored.routing_id,
+                summary=(
+                    f'Tạo OB {restored.routing_rev} — sao chép từ lịch sử '
+                    f'{source_log.created_at:%d/%m/%Y %H:%M} ({snapshot.get("routing_rev") or ""})'
+                ),
+                changes={'snapshot': routing_snapshot(restored)},
+                user=request.user,
+            )
+            if skipped:
+                messages.warning(
+                    request,
+                    f'Đã tạo OB {restored.routing_rev} nhưng bỏ qua {skipped} công đoạn không còn hợp lệ.',
+                )
+            else:
+                messages.success(
+                    request,
+                    f'Đã tạo phiên bản OB {restored.routing_rev} từ lịch sử.',
+                )
+            return _doc_tab_redirect(
+                request, 'process', bom=bom.pk if bom else None, routing=restored.pk,
             )
         elif action == 'new_bom' and can_update:
             copy_flag = (request.POST.get('copy') or '').strip() in ('1', 'true', 'yes', 'on')
@@ -661,12 +751,15 @@ def doc_detail(request, pk):
             except BomError as exc:
                 messages.error(request, str(exc))
                 return _doc_tab_redirect(request, 'bom', bom=bom.pk if bom else None)
-            from san_xuat.services.bom_audit import log_bom_event
+            from san_xuat.services.bom_audit import bom_snapshot, log_bom_event
+            _snap = bom_snapshot(new_bom)
             log_bom_event(
                 bom=new_bom,
                 action='new_version',
                 summary=f'Tạo phiên bản BOM {new_bom.version_label}'
-                    + (f' (sao chép từ {copy_from.version_label})' if copy_from else ''),
+                    + (f' (sao chép từ {copy_from.version_label})' if copy_from else '')
+                    + f' — {len(_snap["lines"])} dòng NPL',
+                changes={'snapshot': _snap},
                 user=request.user,
             )
             messages.success(
@@ -675,6 +768,75 @@ def doc_detail(request, pk):
                 + (' (sao chép từ bản trước).' if copy_from else '.'),
             )
             return _doc_tab_redirect(request, 'bom', bom=new_bom.pk)
+        elif action == 'restore_bom_snapshot' and can_update:
+            from decimal import Decimal, InvalidOperation
+
+            from django.db.utils import IntegrityError
+
+            from san_xuat.models import BomLine, SxBomAuditLog
+            from san_xuat.services.bom_audit import bom_snapshot, log_bom_event
+
+            log_id = (request.POST.get('log_id') or '').strip()
+            source_log = (
+                SxBomAuditLog.objects.filter(pk=int(log_id), bom__tech_doc=doc).first()
+                if log_id.isdigit() else None
+            )
+            snapshot = (source_log.changes or {}).get('snapshot') if source_log else None
+            if not snapshot:
+                messages.error(request, 'Không tìm thấy dữ liệu BOM tại thời điểm này để sao chép.')
+                return _doc_tab_redirect(request, 'bom', bom=bom.pk if bom else None)
+            try:
+                restored = create_bom_version(doc, version_label=None, user=request.user)
+            except BomError as exc:
+                messages.error(request, str(exc))
+                return _doc_tab_redirect(request, 'bom', bom=bom.pk if bom else None)
+
+            restored.overhead_pct = Decimal(str(snapshot.get('overhead_pct') or '0'))
+            restored.overhead_amount = Decimal(str(snapshot.get('overhead_amount') or '0'))
+            restored.notes = (snapshot.get('notes') or '')
+            restored.save(update_fields=['overhead_pct', 'overhead_amount', 'notes', 'updated_at'])
+
+            skipped = 0
+            for item in snapshot.get('lines') or []:
+                material_id = item.get('material_id')
+                if not material_id:
+                    skipped += 1
+                    continue
+                try:
+                    BomLine.objects.create(
+                        bom=restored,
+                        material_id=material_id,
+                        qty=Decimal(str(item.get('qty') or '0')),
+                        scrap_pct=Decimal(str(item.get('scrap_pct') or '0')),
+                        size_code=(item.get('size_code') or '')[:20],
+                        notes=(item.get('notes') or '')[:255],
+                        sort_order=item.get('sort_order') or 0,
+                    )
+                except (IntegrityError, InvalidOperation, ValueError):
+                    skipped += 1
+
+            restored.refresh_from_db()
+            log_bom_event(
+                bom=restored,
+                action='new_version',
+                summary=(
+                    f'Tạo phiên bản BOM {restored.version_label} — sao chép từ lịch sử '
+                    f'{source_log.created_at:%d/%m/%Y %H:%M} ({snapshot.get("version_label") or ""})'
+                ),
+                changes={'snapshot': bom_snapshot(restored)},
+                user=request.user,
+            )
+            if skipped:
+                messages.warning(
+                    request,
+                    f'Đã tạo BOM {restored.version_label} nhưng bỏ qua {skipped} dòng NPL không còn hợp lệ.',
+                )
+            else:
+                messages.success(
+                    request,
+                    f'Đã tạo phiên bản BOM {restored.version_label} từ lịch sử.',
+                )
+            return _doc_tab_redirect(request, 'bom', bom=restored.pk)
         elif bom and action == 'apply_doc_routing' and can_update:
             from decimal import Decimal
 

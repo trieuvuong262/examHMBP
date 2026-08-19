@@ -83,3 +83,45 @@ def sx_req_star(bound_field):
     if field is not None and getattr(field, "required", False):
         return mark_safe(' <span class="text-danger">*</span>')
     return ""
+
+
+_AUDIT_RESERVED_KEYS = {"fields", "lines", "snapshot"}
+
+
+@register.filter(name="sx_audit_detail")
+def sx_audit_detail(changes):
+    """Chuẩn hóa `changes` của nhật ký BOM/OB về một cấu trúc để render.
+
+    Hỗ trợ cả bản ghi cũ (dict phẳng tên_trường → {before, after}) lẫn bản ghi
+    mới (có khóa `fields` / `lines` / `snapshot`).
+    """
+    if not isinstance(changes, dict):
+        return {"fields": [], "added": [], "removed": [], "changed": [], "has_snapshot": False}
+
+    def as_pairs(mapping):
+        pairs = []
+        for label, val in (mapping or {}).items():
+            if isinstance(val, dict):
+                pairs.append({
+                    "label": label,
+                    "before": val.get("before", "—"),
+                    "after": val.get("after", "—"),
+                })
+            else:
+                pairs.append({"label": label, "before": "—", "after": val})
+        return pairs
+
+    fields = as_pairs(changes.get("fields"))
+    if not fields:
+        legacy = {k: v for k, v in changes.items() if k not in _AUDIT_RESERVED_KEYS}
+        fields = as_pairs(legacy)
+
+    lines = changes.get("lines") or {}
+    return {
+        "fields": fields,
+        "added": lines.get("added") or [],
+        "removed": lines.get("removed") or [],
+        "changed": lines.get("changed") or [],
+        "has_snapshot": bool(changes.get("snapshot")),
+        "snapshot_count": len((changes.get("snapshot") or {}).get("lines") or []),
+    }

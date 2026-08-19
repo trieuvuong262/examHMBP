@@ -1,96 +1,122 @@
 {% comment %}
-  Params: logs, audit_tab (bom or process)
-  Context: bom, process_routing, can_update
+  Params: logs, audit_tab ('bom' | 'process')
+  Context: can_update (từ doc_detail)
 {% endcomment %}
+{% load sx_format %}
 {% if logs %}
-<div class="jp-audit-log-list">
+<div class="jp-audit-timeline">
   {% for log in logs %}
-  <div class="jp-audit-entry border-bottom px-4 py-3{% if forloop.last %} border-bottom-0{% endif %}">
-    <div class="d-flex align-items-start gap-3">
+  {% with detail=log.changes|sx_audit_detail %}
+  <div class="jp-audit-item">
+    <div class="jp-audit-marker
+      {% if log.action == 'create' or log.action == 'new_version' %}is-create
+      {% elif log.action == 'delete' %}is-delete{% else %}is-update{% endif %}">
+      {% if log.action == 'create' or log.action == 'new_version' %}
+      <i class="bi bi-plus-lg"></i>
+      {% elif log.action == 'delete' %}
+      <i class="bi bi-trash"></i>
+      {% else %}
+      <i class="bi bi-pencil"></i>
+      {% endif %}
+    </div>
 
-      <div class="flex-shrink-0 mt-1">
-        {% if log.action == 'create' or log.action == 'new_version' %}
-        <span class="badge rounded-pill bg-success-subtle text-success px-2 py-1">
-          <i class="bi bi-plus-circle-fill"></i>
-        </span>
-        {% elif log.action == 'delete' %}
-        <span class="badge rounded-pill bg-danger-subtle text-danger px-2 py-1">
-          <i class="bi bi-trash-fill"></i>
-        </span>
-        {% else %}
-        <span class="badge rounded-pill bg-primary-subtle text-primary px-2 py-1">
-          <i class="bi bi-pencil-fill"></i>
-        </span>
-        {% endif %}
+    <div class="jp-audit-body">
+      <div class="jp-audit-head">
+        <div class="jp-audit-title">{{ log.summary|default:"Thay đổi" }}</div>
+        <div class="jp-audit-meta">
+          <span><i class="bi bi-clock"></i>{{ log.created_at|date:"d/m/Y H:i" }}</span>
+          <span><i class="bi bi-person"></i>{{ log.username|default:"—" }}</span>
+        </div>
       </div>
 
-      <div class="flex-grow-1 min-w-0">
-        <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
-          <span class="fw-semibold">{{ log.summary|default:"—" }}</span>
-          <span class="badge ms-1
-            {% if log.action == 'create' or log.action == 'new_version' %}bg-success-subtle text-success
-            {% elif log.action == 'delete' %}bg-danger-subtle text-danger
-            {% else %}bg-primary-subtle text-primary{% endif %}">
-            {{ log.get_action_display }}
-          </span>
-          <span class="text-muted small ms-auto text-nowrap">
-            <i class="bi bi-clock me-1"></i>{{ log.created_at|date:"d/m/Y H:i" }}
-            {% if log.username %} · <i class="bi bi-person me-1"></i>{{ log.username }}{% endif %}
-          </span>
-        </div>
+      {% if detail.fields or detail.added or detail.removed or detail.changed %}
+      <div class="jp-audit-detail">
 
-        {% if log.changes %}
-        <div class="mt-2">
-          <table class="table table-sm table-bordered mb-0 small" style="max-width:480px">
-            <thead class="table-light">
-              <tr>
-                <th style="width:40%">Trường</th>
-                <th style="width:30%">Trước</th>
-                <th style="width:30%">Sau</th>
-              </tr>
-            </thead>
+        {% if detail.fields %}
+        <div class="jp-audit-block">
+          <div class="jp-audit-block-title">Thông tin chung</div>
+          <table class="jp-audit-table">
+            <thead><tr><th>Trường</th><th>Trước</th><th>Sau</th></tr></thead>
             <tbody>
-            {% for field, val in log.changes.items %}
+              {% for f in detail.fields %}
               <tr>
-                <td class="text-muted">{{ field }}</td>
-                <td class="text-danger-emphasis">{% if val.before is not None %}{{ val.before }}{% else %}—{% endif %}</td>
-                <td class="text-success-emphasis fw-semibold">{% if val.after is not None %}{{ val.after }}{% else %}—{% endif %}</td>
+                <td class="k">{{ f.label }}</td>
+                <td class="old">{{ f.before }}</td>
+                <td class="new">{{ f.after }}</td>
               </tr>
-            {% endfor %}
+              {% endfor %}
             </tbody>
           </table>
         </div>
         {% endif %}
-      </div>
 
-      {% if can_update %}
-      <div class="flex-shrink-0 mt-1">
-        {% if audit_tab == 'bom' and bom %}
-        <form method="post" class="d-inline">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="new_bom">
-          <input type="hidden" name="copy" value="1">
-          <button type="submit" class="btn btn-sm btn-outline-hm fw-bold"
-                  title="Tạo phiên bản BOM mới sao chép từ phiên bản hiện tại">
-            <i class="bi bi-files me-1"></i>Sao chép
-          </button>
-        </form>
-        {% elif audit_tab == 'process' and process_routing %}
-        <form method="post" class="d-inline">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="clone_doc_routing">
-          <input type="hidden" name="routing_id" value="{{ process_routing.pk }}">
-          <button type="submit" class="btn btn-sm btn-outline-hm fw-bold"
-                  title="Tạo phiên bản OB mới sao chép từ phiên bản hiện tại">
-            <i class="bi bi-files me-1"></i>Sao chép
-          </button>
-        </form>
+        {% if detail.added %}
+        <div class="jp-audit-block">
+          <div class="jp-audit-block-title text-success"><i class="bi bi-plus-circle me-1"></i>Thêm mới ({{ detail.added|length }})</div>
+          <ul class="jp-audit-list is-add">
+            {% for item in detail.added %}
+            <li><span class="t">{{ item.title }}</span>{% if item.detail %}<span class="d">{{ item.detail }}</span>{% endif %}</li>
+            {% endfor %}
+          </ul>
+        </div>
         {% endif %}
+
+        {% if detail.removed %}
+        <div class="jp-audit-block">
+          <div class="jp-audit-block-title text-danger"><i class="bi bi-dash-circle me-1"></i>Đã xóa ({{ detail.removed|length }})</div>
+          <ul class="jp-audit-list is-remove">
+            {% for item in detail.removed %}
+            <li><span class="t">{{ item.title }}</span>{% if item.detail %}<span class="d">{{ item.detail }}</span>{% endif %}</li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% endif %}
+
+        {% if detail.changed %}
+        <div class="jp-audit-block">
+          <div class="jp-audit-block-title text-primary"><i class="bi bi-arrow-left-right me-1"></i>Điều chỉnh ({{ detail.changed|length }})</div>
+          {% for item in detail.changed %}
+          <div class="jp-audit-changed">
+            <div class="jp-audit-changed-title">{{ item.title }}</div>
+            <table class="jp-audit-table">
+              <thead><tr><th>Trường</th><th>Trước</th><th>Sau</th></tr></thead>
+              <tbody>
+                {% for d in item.diffs %}
+                <tr>
+                  <td class="k">{{ d.label }}</td>
+                  <td class="old">{{ d.before }}</td>
+                  <td class="new">{{ d.after }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+
       </div>
+      {% else %}
+      <div class="jp-audit-empty-detail">Không có thay đổi chi tiết được ghi nhận.</div>
       {% endif %}
 
+      {% if can_update and allow_restore and detail.has_snapshot %}
+      <div class="jp-audit-actions">
+        <form method="post"
+              onsubmit="return confirm('Tạo phiên bản mới sao chép trạng thái tại {{ log.created_at|date:"d/m/Y H:i" }}?');">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="{% if audit_tab == 'bom' %}restore_bom_snapshot{% else %}restore_ob_snapshot{% endif %}">
+          <input type="hidden" name="log_id" value="{{ log.pk }}">
+          <button type="submit" class="btn btn-sm btn-outline-hm fw-semibold">
+            <i class="bi bi-files me-1"></i>Sao chép thành phiên bản mới
+            <span class="text-muted fw-normal">({{ detail.snapshot_count }} dòng)</span>
+          </button>
+        </form>
+      </div>
+      {% endif %}
     </div>
   </div>
+  {% endwith %}
   {% endfor %}
 </div>
 {% else %}
@@ -99,3 +125,57 @@
   Chưa có lịch sử thay đổi.
 </div>
 {% endif %}
+
+<style>
+  .jp-audit-timeline { padding: 1rem 1.25rem 1.25rem; }
+  .jp-audit-item { display: flex; gap: .875rem; position: relative; padding-bottom: 1.125rem; }
+  .jp-audit-item:not(:last-child)::before {
+    content: ""; position: absolute; left: 15px; top: 34px; bottom: 0;
+    width: 2px; background: #e9ecef;
+  }
+  .jp-audit-marker {
+    flex: 0 0 32px; width: 32px; height: 32px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .8rem; z-index: 1;
+  }
+  .jp-audit-marker.is-create { background: #d1e7dd; color: #0f5132; }
+  .jp-audit-marker.is-delete { background: #f8d7da; color: #842029; }
+  .jp-audit-marker.is-update { background: #cfe2ff; color: #084298; }
+  .jp-audit-body {
+    flex: 1 1 auto; min-width: 0;
+    border: 1px solid #e9ecef; border-radius: .5rem; background: #fff;
+  }
+  .jp-audit-head {
+    display: flex; align-items: baseline; gap: .75rem; flex-wrap: wrap;
+    padding: .625rem .875rem; border-bottom: 1px solid #f1f3f5;
+  }
+  .jp-audit-title { font-weight: 600; font-size: .9rem; flex: 1 1 auto; min-width: 0; }
+  .jp-audit-meta {
+    display: flex; gap: .875rem; font-size: .75rem; color: #6c757d; white-space: nowrap;
+  }
+  .jp-audit-meta i { margin-right: .25rem; }
+  .jp-audit-detail { padding: .75rem .875rem; display: grid; gap: .875rem; }
+  .jp-audit-block-title { font-size: .75rem; font-weight: 600; margin-bottom: .375rem; }
+  .jp-audit-table { width: 100%; font-size: .8rem; border-collapse: collapse; max-width: 560px; }
+  .jp-audit-table th {
+    background: #f8f9fa; font-weight: 600; font-size: .72rem; color: #6c757d;
+    padding: .25rem .5rem; border: 1px solid #e9ecef; text-align: left;
+  }
+  .jp-audit-table td { padding: .25rem .5rem; border: 1px solid #e9ecef; }
+  .jp-audit-table td.k { color: #6c757d; width: 38%; }
+  .jp-audit-table td.old { color: #b02a37; text-decoration: line-through; width: 31%; }
+  .jp-audit-table td.new { color: #0f5132; font-weight: 600; width: 31%; }
+  .jp-audit-list { list-style: none; margin: 0; padding: 0; display: grid; gap: .25rem; }
+  .jp-audit-list li {
+    font-size: .8rem; padding: .25rem .5rem; border-radius: .3rem;
+    display: flex; gap: .5rem; flex-wrap: wrap; align-items: baseline;
+  }
+  .jp-audit-list.is-add li { background: #f0f9f4; }
+  .jp-audit-list.is-remove li { background: #fdf1f2; }
+  .jp-audit-list .t { font-weight: 500; }
+  .jp-audit-list .d { color: #6c757d; font-size: .75rem; }
+  .jp-audit-changed + .jp-audit-changed { margin-top: .5rem; }
+  .jp-audit-changed-title { font-size: .78rem; font-weight: 500; margin-bottom: .25rem; }
+  .jp-audit-empty-detail { padding: .625rem .875rem; font-size: .78rem; color: #adb5bd; }
+  .jp-audit-actions { padding: .625rem .875rem; border-top: 1px solid #f1f3f5; }
+</style>

@@ -241,17 +241,22 @@
   <div class="modal-dialog modal-xl modal-dialog-scrollable">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title d-flex align-items-center gap-2">
-          <i class="bi bi-clock-history"></i>
-          Lịch sử thay đổi — {% if tab == 'bom' %}BOM {{ bom.version_label }}{% else %}OB {% if process_routing %}{{ process_routing.routing_rev }}{% endif %}{% endif %}
-        </h5>
+        <div>
+          <h5 class="modal-title d-flex align-items-center gap-2 mb-0">
+            <i class="bi bi-clock-history"></i>Lịch sử thay đổi
+          </h5>
+          <div class="small text-muted mt-1">
+            {{ doc.product_code }} ·
+            {% if tab == 'bom' %}BOM {{ bom.version_label }}{% else %}OB {% if process_routing %}{{ process_routing.routing_rev }}{% else %}—{% endif %}{% endif %}
+          </div>
+        </div>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
-      <div class="modal-body p-0">
+      <div class="modal-body p-0 bg-light">
         {% if tab == 'bom' %}
-          {% include 'san_xuat/includes/audit_log_table.html' with logs=bom_audit_logs audit_tab='bom' %}
+          {% include 'san_xuat/includes/audit_log_table.html' with logs=bom_audit_logs audit_tab='bom' allow_restore=True %}
         {% else %}
-          {% include 'san_xuat/includes/audit_log_table.html' with logs=ob_audit_logs audit_tab='process' %}
+          {% include 'san_xuat/includes/audit_log_table.html' with logs=ob_audit_logs audit_tab='process' allow_restore=True %}
         {% endif %}
       </div>
     </div>

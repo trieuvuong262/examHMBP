@@ -291,7 +291,14 @@
 
 </div>
 
-{% include 'san_xuat/includes/audit_log_panel.html' with logs=ob_audit_logs panel_id="jpObDetailAuditLog" %}
+<div class="card border-0 shadow-sm mt-3">
+  <div class="card-header bg-white fw-semibold small d-flex align-items-center gap-2">
+    <i class="bi bi-clock-history"></i>Lịch sử thay đổi
+  </div>
+  <div class="card-body p-0">
+    {% include 'san_xuat/includes/audit_log_table.html' with logs=ob_audit_logs audit_tab='process' %}
+  </div>
+</div>
 
 {% if can_update and not locked %}
 {% include 'san_xuat/includes/ie_operation_select_script.html' %}
