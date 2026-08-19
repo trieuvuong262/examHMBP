@@ -87,6 +87,20 @@ def sx_req_star(bound_field):
 
 _AUDIT_RESERVED_KEYS = {"fields", "lines", "snapshot"}
 
+# Bản ghi nhật ký cũ lưu tên trường thô — đổi sang nhãn tiếng Việt khi hiển thị.
+_AUDIT_LEGACY_LABELS = {
+    "n_lines": "Số dòng NPL",
+    "version_label": "Phiên bản",
+    "overhead_pct": "Phụ phí (%)",
+    "overhead_amount": "SX chung / SP",
+    "notes": "Ghi chú",
+    "op_code": "Mã công đoạn",
+    "op_name": "Tên công đoạn",
+    "op_name_vi": "Tên công đoạn",
+    "group_code": "Nhóm công đoạn",
+    "work_center_code": "Bộ phận",
+}
+
 
 @register.filter(name="sx_audit_detail")
 def sx_audit_detail(changes):
@@ -100,7 +114,8 @@ def sx_audit_detail(changes):
 
     def as_pairs(mapping):
         pairs = []
-        for label, val in (mapping or {}).items():
+        for key, val in (mapping or {}).items():
+            label = _AUDIT_LEGACY_LABELS.get(key, key)
             if isinstance(val, dict):
                 pairs.append({
                     "label": label,
