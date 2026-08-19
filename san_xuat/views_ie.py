@@ -1252,7 +1252,14 @@ def routing_detail(request, pk: int):
     if edit_pk.isdigit() and perms['can_update'] and not locked:
         edit_line = routing.lines.filter(pk=int(edit_pk)).first()
     from san_xuat.services.capacity_from_hrm import hr_work_centers_qs
+    from san_xuat.ie_models import SxIeAuditLog
     work_centers = list(hr_work_centers_qs())
+    ob_audit_logs = list(
+        SxIeAuditLog.objects.filter(
+            object_type='routing',
+            object_id=str(routing.pk),
+        ).order_by('-created_at')[:30]
+    )
     operation_groups = list(
         SxOperationGroup.objects.filter(is_active=True).order_by('sort_order', 'code')
     )
@@ -1279,6 +1286,7 @@ def routing_detail(request, pk: int):
         'operation_groups': operation_groups,
         'default_seq_no': default_seq_no,
         'default_work_center_code': '',
+        'ob_audit_logs': ob_audit_logs,
     })
 
 

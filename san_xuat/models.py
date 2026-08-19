@@ -297,6 +297,48 @@ class BomVersion(models.Model):
         return f'{self.tech_doc.product_code} / {self.version_label} ({self.status})'
 
 
+class SxBomAuditLog(models.Model):
+    """Nhật ký thay đổi BOM — ghi mỗi khi lưu/thêm/xóa dòng BOM."""
+
+    ACTION_CREATE = 'create'
+    ACTION_UPDATE = 'update'
+    ACTION_DELETE = 'delete'
+    ACTION_NEW_VERSION = 'new_version'
+    ACTION_CHOICES = [
+        (ACTION_CREATE, 'Tạo mới'),
+        (ACTION_UPDATE, 'Cập nhật'),
+        (ACTION_DELETE, 'Xóa'),
+        (ACTION_NEW_VERSION, 'Tạo phiên bản'),
+    ]
+
+    bom = models.ForeignKey(
+        BomVersion,
+        on_delete=models.CASCADE,
+        related_name='audit_logs',
+        verbose_name='BOM',
+    )
+    action = models.CharField(max_length=20, choices=ACTION_CHOICES, db_index=True)
+    summary = models.CharField(max_length=500, blank=True, default='')
+    changes = models.JSONField(default=dict, blank=True)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='sx_bom_audit_logs',
+    )
+    username = models.CharField(max_length=150, blank=True, default='', db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Nhật ký BOM'
+        verbose_name_plural = 'Nhật ký BOM'
+
+    def __str__(self) -> str:
+        return f'{self.action} {self.bom}'
+
+
 class BomLine(models.Model):
     bom = models.ForeignKey(
         BomVersion,

@@ -1,0 +1,53 @@
+{% comment %}Params: logs{% endcomment %}
+{% if logs %}
+<table class="table table-sm mb-0 align-middle">
+  <thead class="table-light sticky-top">
+    <tr>
+      <th style="width:9rem">Thời gian</th>
+      <th style="width:7rem">Thao tác</th>
+      <th>Nội dung</th>
+      <th style="width:8rem">Người dùng</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for log in logs %}
+    <tr>
+      <td class="small text-muted text-nowrap">{{ log.created_at|date:"d/m/Y H:i" }}</td>
+      <td>
+        <span class="badge
+          {% if log.action == 'create' or log.action == 'new_version' %}bg-success-subtle text-success
+          {% elif log.action == 'delete' %}bg-danger-subtle text-danger
+          {% else %}bg-secondary-subtle text-secondary{% endif %}">
+          {{ log.get_action_display }}
+        </span>
+      </td>
+      <td class="small">
+        {{ log.summary|default:"—" }}
+        {% if log.changes %}
+        <button type="button"
+                class="btn btn-link btn-sm p-0 ms-1 text-muted jp-audit-popover"
+                data-bs-toggle="popover"
+                data-bs-placement="left"
+                data-bs-trigger="click"
+                data-bs-content="{{ log.changes }}"
+                title="Chi tiết thay đổi">
+          <i class="bi bi-info-circle"></i>
+        </button>
+        {% endif %}
+      </td>
+      <td class="small text-muted">{{ log.username|default:"—" }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="text-muted small p-3 mb-0">Chưa có lịch sử thay đổi.</p>
+{% endif %}
+<script>
+(function () {
+  document.querySelectorAll('.jp-audit-popover').forEach(function (btn) {
+    if (btn._bsPopover) return;
+    btn._bsPopover = new bootstrap.Popover(btn, { sanitize: false });
+  });
+})();
+</script>

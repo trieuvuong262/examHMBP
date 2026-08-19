@@ -291,6 +291,8 @@
 
 </div>
 
+{% include 'san_xuat/includes/audit_log_panel.html' with logs=ob_audit_logs panel_id="jpObDetailAuditLog" %}
+
 {% if can_update and not locked %}
 {% include 'san_xuat/includes/ie_operation_select_script.html' %}
 <script>

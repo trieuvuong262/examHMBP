@@ -105,7 +105,8 @@
           </div>
         </div>
 
-        {% if not edit_info %}
+        {# — Chế độ xem (mặc định) — #}
+        <div id="jpDocView">
           {% if doc.season or doc.main_material %}
           <div class="sx-info-facts mb-3">
             {% if doc.season %}
@@ -122,16 +123,67 @@
             {% endif %}
           </div>
           {% endif %}
+          <div class="small text-muted mb-1">Tên sản phẩm</div>
+          <div class="mb-2">{{ doc.product_name|default:"—" }}</div>
           <div class="small text-muted mb-1">Mô tả chi tiết</div>
           {% if doc.description %}
-          <div class="border rounded p-3 bg-light" style="white-space:pre-wrap">{{ doc.description }}</div>
+          <div class="border rounded p-3 bg-light mb-2" style="white-space:pre-wrap">{{ doc.description }}</div>
           {% else %}
-          <div class="text-muted">Chưa có mô tả.</div>
+          <div class="text-muted mb-2">Chưa có mô tả.</div>
           {% endif %}
           {% if doc.notes %}
-          <div class="small text-muted mb-1 mt-3">Ghi chú ngắn</div>
+          <div class="small text-muted mb-1">Ghi chú ngắn</div>
           <div style="white-space:pre-wrap">{{ doc.notes }}</div>
           {% endif %}
+        </div>
+
+        {# — Form sửa (ẩn mặc định, hiện khi bấm Sửa hồ sơ) — #}
+        {% if can_update and desc_form %}
+        <div id="jpDocEditForm" style="display:none">
+          <form method="post" data-loading-message="Đang lưu…">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="save_description">
+            <div class="row g-2">
+              <div class="col-md-6">
+                <label class="form-label small mb-1" for="{{ desc_form.product_name.id_for_label }}">{{ desc_form.product_name.label }}</label>
+                {{ desc_form.product_name }}
+              </div>
+              <div class="col-md-3">
+                <label class="form-label small mb-1" for="{{ desc_form.season.id_for_label }}">{{ desc_form.season.label }}</label>
+                {{ desc_form.season }}
+              </div>
+              <div class="col-md-3">
+                <label class="form-label small mb-1" for="{{ desc_form.main_material.id_for_label }}">{{ desc_form.main_material.label }}</label>
+                {{ desc_form.main_material }}
+              </div>
+              <div class="col-12">
+                <label class="form-label small mb-1" for="{{ desc_form.description.id_for_label }}">{{ desc_form.description.label }}</label>
+                {{ desc_form.description }}
+                {% if desc_form.description.errors %}<div class="text-danger small">{{ desc_form.description.errors }}</div>{% endif %}
+              </div>
+              <div class="col-12">
+                <label class="form-label small mb-1" for="{{ desc_form.notes.id_for_label }}">{{ desc_form.notes.label }}</label>
+                {{ desc_form.notes }}
+              </div>
+              <div class="col-12 d-flex justify-content-end gap-2">
+                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="jpDocEditToggle(false)">Hủy</button>
+                <button type="submit" class="btn btn-hm btn-sm">Lưu hồ sơ</button>
+              </div>
+            </div>
+          </form>
+        </div>
+        <script>
+        function jpDocEditToggle(on) {
+          var view = document.getElementById('jpDocView');
+          var form = document.getElementById('jpDocEditForm');
+          var btn  = document.getElementById('jpDocEditBtn');
+          if (!view || !form) return;
+          view.style.display = on ? 'none' : '';
+          form.style.display = on ? '' : 'none';
+          if (btn) btn.style.display = on ? 'none' : '';
+        }
+        {% if desc_form.errors %}jpDocEditToggle(true);{% endif %}
+        </script>
         {% endif %}
 
         <div class="sx-info-meta">

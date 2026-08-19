@@ -1,7 +1,7 @@
 {% load sx_format %}
 <div class="card border-0 shadow-sm mb-3">
   <div class="card-body">
-    {% if can_update %}
+    {% if can_update and edit_mode %}
     <form method="post" id="doc-routing-line-form" class="row g-2 align-items-end mb-3" data-loading-message="Đang thêm công đoạn…">
       {% csrf_token %}
       <input type="hidden" name="action" value="add_doc_routing_line">
@@ -68,7 +68,7 @@
             <th>Tên công đoạn</th>
             <th>Bộ phận</th>
             <th class="text-end">SMV (giây)</th>
-            {% if can_update %}<th></th>{% endif %}
+            {% if can_update and edit_mode %}<th></th>{% endif %}
           </tr>
         </thead>
         <tbody>
@@ -79,7 +79,7 @@
             <td>{{ line.op_name_vi|default:"—" }}</td>
             <td>{% if line.work_center %}{{ line.work_center.name }}{% elif line.work_center_code %}{{ line.work_center_code }}{% else %}—{% endif %}</td>
             <td class="text-end">{% if line.library_unit_smv %}{{ line.library_unit_smv|sx_num }}{% else %}—{% endif %}</td>
-            {% if can_update and process_routing %}
+            {% if can_update and edit_mode and process_routing %}
             <td class="text-end">
               <form method="post" class="d-inline" onsubmit="return confirm('Xóa công đoạn này?');">
                 {% csrf_token %}
@@ -92,7 +92,7 @@
             {% endif %}
           </tr>
           {% empty %}
-          <tr><td colspan="{% if can_update %}6{% else %}5{% endif %}" class="text-muted text-center py-3">Chưa có công đoạn.</td></tr>
+          <tr><td colspan="{% if can_update and edit_mode %}6{% else %}5{% endif %}" class="text-muted text-center py-3">Chưa có công đoạn.</td></tr>
           {% endfor %}
         </tbody>
       </table>

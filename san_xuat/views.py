@@ -326,6 +326,7 @@ def doc_detail(request, pk):
     gallery_form = None
     desc_form = None
     can_update = user_can_update_module(request.user, MODULE_SAN_XUAT)
+    _edit_flag = bool(request.GET.get('edit'))
 
     if can_update and request.method == 'POST':
         action = (request.POST.get('action') or '').strip()
@@ -333,11 +334,10 @@ def doc_detail(request, pk):
             desc_form = ProductTechDocDescriptionForm(request.POST, instance=doc)
             if desc_form.is_valid():
                 desc_form.save()
-                messages.success(request, 'Đã lưu mô tả hồ sơ.')
+                messages.success(request, 'Đã lưu thông tin hồ sơ.')
                 return _doc_tab_redirect(request, 'info')
             tab = 'info'
-            desc_form._show_edit = True
-            messages.error(request, 'Không lưu được mô tả — kiểm tra lại.')
+            messages.error(request, 'Không lưu được — kiểm tra lại.')
         elif action == 'upload_gallery':
             gallery_form = TechDocGalleryUploadForm(request.POST, request.FILES)
             if gallery_form.is_valid():
@@ -396,6 +396,7 @@ def doc_detail(request, pk):
                 messages.success(request, f'Đã tải lên {len(created)} tài liệu thiết kế.')
                 return _doc_tab_redirect(request, 'design')
             tab = 'design'
+            _edit_flag = True
             messages.error(request, 'Không tải lên được — kiểm tra lại tệp.')
         elif action == 'delete_design':
             file_id = request.POST.get('file_id')
@@ -409,13 +410,36 @@ def doc_detail(request, pk):
                 messages.success(request, 'Đã xóa tài liệu thiết kế.')
             return _doc_tab_redirect(request, 'design')
         elif bom and action == 'save_bom' and tab == 'bom':
+            from san_xuat.services.bom_audit import log_bom_event
             meta_form = BomVersionMetaForm(request.POST, instance=bom)
             line_formset = BomLineFormSet(request.POST, instance=bom, prefix='lines')
             if meta_form.is_valid() and line_formset.is_valid():
+                _bom_before = {
+                    'version_label': bom.version_label,
+                    'overhead_pct': str(bom.overhead_pct),
+                    'overhead_amount': str(bom.overhead_amount),
+                    'notes': bom.notes,
+                    'n_lines': bom.lines.count(),
+                }
                 meta_form.save()
                 line_formset.save()
+                bom.refresh_from_db()
+                _changed = {
+                    k: {'before': v, 'after': str(getattr(bom, k, v))}
+                    for k, v in _bom_before.items()
+                    if str(getattr(bom, k, '')) != str(v)
+                }
+                _changed['n_lines'] = {'before': _bom_before['n_lines'], 'after': bom.lines.count()}
+                log_bom_event(
+                    bom=bom,
+                    action='update',
+                    summary=f'Lưu BOM {bom.version_label}',
+                    changes=_changed,
+                    user=request.user,
+                )
                 messages.success(request, 'Đã lưu BOM.')
                 return _doc_tab_redirect(request, 'bom', bom=bom.pk)
+            _edit_flag = True
             messages.error(request, 'Không lưu được BOM — kiểm tra lại các dòng.')
         elif action == 'add_doc_routing_line' and tab == 'process':
             from decimal import Decimal
@@ -491,6 +515,16 @@ def doc_detail(request, pk):
                 except IeOpsError as exc:
                     messages.error(request, str(exc))
                 else:
+                    from san_xuat.services.ie_audit import log_ie_event
+                    log_ie_event(
+                        action='update',
+                        object_type='routing',
+                        object_id=str(routing.pk),
+                        object_repr=routing.routing_id,
+                        summary=f'Thêm CĐ {op_code} vào OB {routing.routing_rev}',
+                        changes={'op_code': op_code, 'op_name': op_name},
+                        user=request.user,
+                    )
                     messages.success(request, 'Đã thêm công đoạn vào routing.')
             return _doc_tab_redirect(
                 request,
@@ -520,6 +554,16 @@ def doc_detail(request, pk):
             except IeOpsError as exc:
                 messages.error(request, str(exc))
             else:
+                from san_xuat.services.ie_audit import log_ie_event
+                if routing:
+                    log_ie_event(
+                        action='update',
+                        object_type='routing',
+                        object_id=str(routing.pk),
+                        object_repr=routing.routing_id,
+                        summary=f'Xóa dòng CĐ (line_id={line_id}) khỏi OB {routing.routing_rev}',
+                        user=request.user,
+                    )
                 messages.success(request, 'Đã xóa công đoạn khỏi routing.')
             return _doc_tab_redirect(
                 request, 'process', bom=bom.pk if bom else None, routing=routing_id or None,
@@ -576,6 +620,15 @@ def doc_detail(request, pk):
                 return _doc_tab_redirect(
                     request, 'process', bom=bom.pk if bom else None, routing=source.pk,
                 )
+            from san_xuat.services.ie_audit import log_ie_event
+            log_ie_event(
+                action='create',
+                object_type='routing',
+                object_id=str(clone.pk),
+                object_repr=clone.routing_id,
+                summary=f'Tạo OB {clone.routing_rev} (sao chép từ {source.routing_rev})',
+                user=request.user,
+            )
             messages.success(
                 request,
                 f'Đã tạo phiên bản routing {clone.routing_rev} (sao chép từ {source.routing_rev}).',
@@ -599,6 +652,14 @@ def doc_detail(request, pk):
             except BomError as exc:
                 messages.error(request, str(exc))
                 return _doc_tab_redirect(request, 'bom', bom=bom.pk if bom else None)
+            from san_xuat.services.bom_audit import log_bom_event
+            log_bom_event(
+                bom=new_bom,
+                action='new_version',
+                summary=f'Tạo phiên bản BOM {new_bom.version_label}'
+                    + (f' (sao chép từ {copy_from.version_label})' if copy_from else ''),
+                user=request.user,
+            )
             messages.success(
                 request,
                 f'Đã tạo phiên bản BOM {new_bom.version_label}'
@@ -670,6 +731,7 @@ def doc_detail(request, pk):
                     request, 'costing', bom=bom.pk,
                     routing=request.POST.get('routing_id') or None,
                 )
+            _edit_flag = True
             messages.error(request, 'Không lưu được chi phí sản xuất chung — kiểm tra lại số tiền.')
         elif bom and action == 'snapshot' and tab == 'costing':
             snap = save_costing_snapshot(bom, user=request.user)
@@ -679,19 +741,15 @@ def doc_detail(request, pk):
                 routing=request.POST.get('routing_id') or (bom.routing_id or None),
             )
 
-    edit_info = can_update and (
-        bool(request.GET.get('edit_info')) or getattr(desc_form, '_show_edit', False)
-    )
-
     if can_update:
-        if edit_info and desc_form is None:
+        if tab == 'info' and desc_form is None:
             desc_form = ProductTechDocDescriptionForm(instance=doc)
-        if bom and line_formset is None and tab == 'bom':
+        if bom and line_formset is None and tab == 'bom' and _edit_flag:
             meta_form = meta_form or BomVersionMetaForm(instance=bom)
             line_formset = BomLineFormSet(instance=bom, prefix='lines')
         if bom and overhead_form is None and tab == 'costing':
             overhead_form = BomOverheadAmountForm(instance=bom)
-        if tab == 'design' and design_form is None:
+        if tab == 'design' and design_form is None and _edit_flag:
             design_form = TechDocDesignUploadForm()
         if tab == 'info' and gallery_form is None:
             gallery_form = TechDocGalleryUploadForm()
@@ -842,6 +900,20 @@ def doc_detail(request, pk):
     fill_tech_doc_display_images([doc])
     office_preview_ready = office_preview_available()
 
+    from san_xuat.models import SxBomAuditLog
+    bom_audit_logs = list(SxBomAuditLog.objects.filter(bom=bom).order_by('-created_at')[:30]) if bom else []
+
+    # OB audit log
+    from san_xuat.ie_models import SxIeAuditLog
+    ob_audit_logs = []
+    if process_routing:
+        ob_audit_logs = list(
+            SxIeAuditLog.objects.filter(
+                object_type='routing',
+                object_id=str(process_routing.pk),
+            ).order_by('-created_at')[:30]
+        )
+
     return render(request, 'san_xuat/doc_detail.html', {
         'doc': doc,
         'tab': tab,
@@ -877,7 +949,9 @@ def doc_detail(request, pk):
         'work_centers': work_centers,
         'costing_routing_preview': costing_routing_preview,
         'office_preview_ready': office_preview_ready,
-        'edit_info': edit_info,
+        'bom_audit_logs': bom_audit_logs,
+        'ob_audit_logs': ob_audit_logs,
+        'edit_mode': _edit_flag,
         'list_back_query': _doc_list_back_query(request),
         **_perm_ctx(request),
     })
