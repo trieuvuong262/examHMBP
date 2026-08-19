@@ -2213,8 +2213,12 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
             return redirect(today_url_for_user(request.user))
         return redirect('home_portal')
 
-    # SX/VP cùng mặc định 3 ngày (preset khoảng thời gian).
-    default_span = TEAM_PRODUCTION_DEFAULT_SPAN_DAYS
+    # SX mặc định 7 ngày, VP giữ mặc định chung (preset khoảng thời gian).
+    default_span = (
+        TEAM_PRODUCTION_DEFAULT_SPAN_DAYS
+        if report_profile == REPORT_PROFILE_PRODUCTION
+        else TEAM_MANAGEMENT_DEFAULT_SPAN_DAYS
+    )
     range_span_default = parse_team_range_span(request, default=default_span)
     date_from, date_to = parse_team_date_range(
         request,

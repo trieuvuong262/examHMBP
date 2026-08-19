@@ -10,12 +10,14 @@ from django.utils import timezone
 from reports.week_utils import monday_of
 from utilities.date_range_filter import (
     DATE_RANGE_DEFAULT_SPAN_DAYS as TEAM_MANAGEMENT_DEFAULT_SPAN_DAYS,
-    DATE_RANGE_DEFAULT_SPAN_DAYS as TEAM_PRODUCTION_DEFAULT_SPAN_DAYS,
     DATE_RANGE_SPAN_CHOICES as TEAM_RANGE_SPAN_CHOICES,
     DATE_RANGE_SPAN_VALUES as TEAM_RANGE_SPAN_VALUES,
     match_date_range_span as match_team_range_span,
     parse_date_range_span_from_request as parse_team_range_span,
 )
+
+# Quản lý báo cáo (SX) mặc định 7 ngày — vẫn nằm trong preset chung 1/3/7/10/30.
+TEAM_PRODUCTION_DEFAULT_SPAN_DAYS = 7
 
 PERIOD_DAY = 'day'
 PERIOD_WEEK = 'week'
