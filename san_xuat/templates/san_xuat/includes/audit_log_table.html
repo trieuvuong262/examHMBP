@@ -1,12 +1,16 @@
-{% comment %}Params: logs{% endcomment %}
+{% comment %}
+  Params: logs, audit_tab ('bom' or 'process')
+  Context vars used: bom, process_routing (from parent doc_detail)
+{% endcomment %}
 {% if logs %}
 <table class="table table-sm mb-0 align-middle">
   <thead class="table-light sticky-top">
     <tr>
       <th style="width:9rem">Thời gian</th>
-      <th style="width:7rem">Thao tác</th>
+      <th style="width:6rem">Thao tác</th>
       <th>Nội dung</th>
       <th style="width:8rem">Người dùng</th>
+      <th style="width:5rem"></th>
     </tr>
   </thead>
   <tbody>
@@ -21,22 +25,62 @@
           {{ log.get_action_display }}
         </span>
       </td>
-      <td class="small">
-        {{ log.summary|default:"—" }}
+      <td class="small">{{ log.summary|default:"—" }}</td>
+      <td class="small text-muted">{{ log.username|default:"—" }}</td>
+      <td class="text-end text-nowrap">
         {% if log.changes %}
         <button type="button"
-                class="btn btn-link btn-sm p-0 ms-1 text-muted jp-audit-popover"
-                data-bs-toggle="popover"
-                data-bs-placement="left"
-                data-bs-trigger="click"
-                data-bs-content="{{ log.changes }}"
+                class="btn btn-sm btn-outline-secondary py-0 px-1 jp-audit-detail-btn"
+                data-log-id="{{ log.pk }}"
                 title="Chi tiết thay đổi">
-          <i class="bi bi-info-circle"></i>
+          <i class="bi bi-list-ul"></i>
         </button>
         {% endif %}
+        {% if can_update %}
+          {% if audit_tab == 'bom' and bom %}
+          <form method="post" class="d-inline">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="new_bom">
+            <input type="hidden" name="copy" value="1">
+            <button type="submit" class="btn btn-sm btn-outline-hm py-0 px-1" title="Tạo phiên bản mới sao chép từ BOM này">
+              <i class="bi bi-files"></i>
+            </button>
+          </form>
+          {% elif audit_tab == 'process' and process_routing %}
+          <form method="post" class="d-inline">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="clone_doc_routing">
+            <input type="hidden" name="routing_id" value="{{ process_routing.pk }}">
+            <button type="submit" class="btn btn-sm btn-outline-hm py-0 px-1" title="Tạo phiên bản OB mới sao chép">
+              <i class="bi bi-files"></i>
+            </button>
+          </form>
+          {% endif %}
+        {% endif %}
       </td>
-      <td class="small text-muted">{{ log.username|default:"—" }}</td>
     </tr>
+    {% if log.changes %}
+    <tr class="jp-audit-detail-row d-none" id="jp-audit-detail-{{ log.pk }}">
+      <td colspan="5" class="p-0">
+        <div class="bg-light border-top border-bottom px-3 py-2">
+          <table class="table table-xs table-bordered mb-0 small">
+            <thead class="table-secondary">
+              <tr><th>Trường</th><th>Trước</th><th>Sau</th></tr>
+            </thead>
+            <tbody>
+            {% for field, val in log.changes.items %}
+              <tr>
+                <td class="text-muted">{{ field }}</td>
+                <td>{% if val.before is not None %}{{ val.before }}{% else %}—{% endif %}</td>
+                <td class="fw-semibold">{% if val.after is not None %}{{ val.after }}{% else %}—{% endif %}</td>
+              </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </td>
+    </tr>
+    {% endif %}
   {% endfor %}
   </tbody>
 </table>
@@ -45,9 +89,14 @@
 {% endif %}
 <script>
 (function () {
-  document.querySelectorAll('.jp-audit-popover').forEach(function (btn) {
-    if (btn._bsPopover) return;
-    btn._bsPopover = new bootstrap.Popover(btn, { sanitize: false });
+  document.querySelectorAll('.jp-audit-detail-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var row = document.getElementById('jp-audit-detail-' + btn.dataset.logId);
+      if (!row) return;
+      var hidden = row.classList.contains('d-none');
+      row.classList.toggle('d-none', !hidden);
+      btn.classList.toggle('active', hidden);
+    });
   });
 })();
 </script>
