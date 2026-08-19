@@ -87,8 +87,12 @@ class ProductTechDocCreateForm(forms.Form):
 class ProductTechDocDescriptionForm(forms.ModelForm):
     class Meta:
         model = ProductTechDoc
-        fields = ('season', 'main_material', 'description', 'notes')
+        fields = ('product_name', 'season', 'main_material', 'description', 'notes')
         widgets = {
+            'product_name': forms.TextInput(attrs={
+                'class': 'form-control form-control-sm',
+                'placeholder': 'Tên hiển thị sản phẩm…',
+            }),
             'season': forms.TextInput(attrs={
                 'class': 'form-control form-control-sm',
                 'placeholder': 'vd. SS26, Holiday 2026…',
@@ -108,6 +112,7 @@ class ProductTechDocDescriptionForm(forms.ModelForm):
             }),
         }
         labels = {
+            'product_name': 'Tên sản phẩm',
             'season': 'Mùa / BST',
             'main_material': 'Chất liệu chính',
             'description': 'Mô tả chi tiết',

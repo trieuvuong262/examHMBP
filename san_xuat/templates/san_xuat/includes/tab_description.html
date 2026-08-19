@@ -110,6 +110,10 @@
           {% csrf_token %}
           <input type="hidden" name="action" value="save_description">
           <div class="row g-2">
+            <div class="col-12">
+              <label class="form-label small mb-1" for="{{ desc_form.product_name.id_for_label }}">{{ desc_form.product_name.label }}</label>
+              {{ desc_form.product_name }}
+            </div>
             <div class="col-md-6">
               <label class="form-label small mb-1" for="{{ desc_form.season.id_for_label }}">{{ desc_form.season.label }}</label>
               {{ desc_form.season }}

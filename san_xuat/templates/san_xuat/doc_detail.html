@@ -78,6 +78,12 @@
       </div>
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
+      {% if can_update %}
+      <a href="?tab=info{% if bom %}&bom={{ bom.pk }}{% endif %}{% if process_routing %}&routing={{ process_routing.pk }}{% endif %}{% if list_back_query %}&{{ list_back_query }}{% endif %}"
+         class="btn btn-sm btn-outline-hm fw-bold" data-loading-message="Đang mở chỉnh sửa…">
+        <i class="bi bi-pencil me-1"></i>Sửa hồ sơ
+      </a>
+      {% endif %}
       <a href="{% url 'san_xuat:doc_list' %}{% if list_back_query %}?{{ list_back_query }}{% endif %}" class="is-back"
          data-loading-message="Đang tải hồ sơ thiết kế…"><i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại</a>
     </nav>
