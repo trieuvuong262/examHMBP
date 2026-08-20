@@ -597,8 +597,8 @@ Mẫu tệp: [stocktake-template.csv](./stocktake-template.csv) — hai cột `s
 `qty_counted`, cột khác bỏ qua. Lấy danh sách SKU để đếm:
 
 ```sql
-SELECT code, name FROM kho_sp_product
-WHERE is_active AND catalog_type = 'thanh_pham' ORDER BY code;
+SELECT code, name, color_label, size_label FROM kho_sp_product
+WHERE is_active AND product_type = 'thanh_pham' ORDER BY code;
 ```
 
 Chạy xem trước rồi mới ghi:
