@@ -1,0 +1,12 @@
+{
+  "theme": "default",
+  "maxTextSize": 2000000,
+  "maxEdges": 5000,
+  "class": {
+    "useMaxWidth": false
+  },
+  "flowchart": {
+    "useMaxWidth": false,
+    "curve": "basis"
+  }
+}

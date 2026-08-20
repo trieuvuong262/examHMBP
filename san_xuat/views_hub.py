@@ -3041,7 +3041,7 @@ def dispatch_fg_receipt_req_detail(request, pk: int):
         action = (request.POST.get('action') or '').strip()
         if action == 'submit' and can_update and fg_req.status == SxFgReceiptRequest.STATUS_DRAFT:
             try:
-                fg_req = submit_fg_receipt(request_id=fg_req.pk)
+                fg_req = submit_fg_receipt(request_id=fg_req.pk, user=request.user)
             except DispatchError as exc:
                 messages.error(request, str(exc))
             else:
@@ -3055,6 +3055,7 @@ def dispatch_fg_receipt_req_detail(request, pk: int):
                         request_id=fg_req.pk,
                         kv_purchase_kiotviet_id=link_form.cleaned_data.get('kv_purchase_kiotviet_id'),
                         kv_purchase_code=link_form.cleaned_data.get('kv_purchase_code') or '',
+                        user=request.user,
                     )
                 except DispatchError as exc:
                     messages.error(request, str(exc))

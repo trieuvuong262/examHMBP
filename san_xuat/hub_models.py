@@ -11,6 +11,13 @@ from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
+from kho_san_pham.sku_vocabulary import (
+    GENDER_CHOICES,
+    GENDER_NONE,
+    SIZE_SCALE_ALPHA,
+    SIZE_SCALE_CHOICES,
+)
+
 
 class DemoMarkedModel(models.Model):
     is_demo = models.BooleanField(default=False, db_index=True, verbose_name='Dữ liệu demo')
@@ -1211,8 +1218,19 @@ class SxFgReceiptRequest(DemoMarkedModel):
         related_name='fg_receipt_requests',
         verbose_name='Người nhập',
     )
-    warehouse_code = models.CharField(max_length=40, blank=True, default='', verbose_name='Mã kho nhập')
-    warehouse_name = models.CharField(max_length=120, blank=True, default='', verbose_name='Kho nhập')
+    warehouse = models.ForeignKey(
+        'kho_san_pham.Warehouse',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='fg_receipts',
+        verbose_name='Kho nhập',
+        help_text='Kho ghi tăng tồn thành phẩm khi phiếu hoàn thành.',
+    )
+    # Hai cột dưới là dấu vết cũ (chữ tự do, giá trị kiểu "kv:4"). Nguồn sự thật
+    # là FK ``warehouse``; giữ lại để không mất dữ liệu phiếu cũ.
+    warehouse_code = models.CharField(max_length=40, blank=True, default='', verbose_name='Mã kho nhập (cũ)')
+    warehouse_name = models.CharField(max_length=120, blank=True, default='', verbose_name='Kho nhập (cũ)')
     notes = models.TextField(blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -2237,6 +2255,14 @@ class SxSize(DemoMarkedModel):
 
     code = models.CharField(max_length=20, unique=True, verbose_name='Size')
     name = models.CharField(max_length=80, blank=True, default='', verbose_name='Tên hiển thị')
+    scale = models.CharField(
+        max_length=10,
+        choices=SIZE_SCALE_CHOICES,
+        default=SIZE_SCALE_ALPHA,
+        db_index=True,
+        verbose_name='Thang đo',
+        help_text='Size chữ và size số là hai thang đo khác nhau, không so sánh lẫn nhau.',
+    )
     sort_order = models.PositiveSmallIntegerField(default=100, db_index=True)
     is_active = models.BooleanField(default=True, db_index=True)
 
@@ -2264,6 +2290,14 @@ class SxSku(DemoMarkedModel):
     color_code = models.CharField(max_length=20, db_index=True, verbose_name='Mã màu')
     color_label = models.CharField(max_length=80, blank=True, default='', verbose_name='Tên màu')
     size_label = models.CharField(max_length=20, db_index=True, verbose_name='Size')
+    gender = models.CharField(
+        max_length=10,
+        choices=GENDER_CHOICES,
+        blank=True,
+        default=GENDER_NONE,
+        verbose_name='Giới tính',
+        help_text='Bản nam và bản nữ cùng style–màu–size là hai SKU khác nhau.',
+    )
     sku_code = models.CharField(max_length=100, unique=True, verbose_name='SKU')
     is_active = models.BooleanField(default=True, db_index=True)
     notes = models.CharField(max_length=255, blank=True, default='')
@@ -2275,8 +2309,8 @@ class SxSku(DemoMarkedModel):
         verbose_name_plural = 'SKU'
         constraints = [
             models.UniqueConstraint(
-                fields=['style_code', 'color_code', 'size_label'],
-                name='sx_sku_style_color_size_uniq',
+                fields=['style_code', 'color_code', 'size_label', 'gender'],
+                name='sx_sku_style_color_size_gender_uniq',
             ),
         ]
         indexes = [

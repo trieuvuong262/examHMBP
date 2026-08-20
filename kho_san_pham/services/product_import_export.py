@@ -307,6 +307,7 @@ def import_products_from_excel(file_obj, *, user=None) -> dict:
                     color_label=color_label,
                     style_name=name,
                     sku_code=code,
+                    gender=defaults.get('gender', ''),
                     user=user,
                 )
                 code = sx_sku.sku_code

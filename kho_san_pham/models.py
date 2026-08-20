@@ -11,6 +11,7 @@ from kho_san_pham.choices import (
     SYNC_SOURCE_CHOICES,
     SYNC_SOURCE_MANUAL,
 )
+from kho_san_pham.sku_vocabulary import GENDER_CHOICES, GENDER_NONE
 
 
 class Product(models.Model):
@@ -47,6 +48,14 @@ class Product(models.Model):
     color_code = models.CharField(max_length=20, blank=True, default='', db_index=True, verbose_name='Mã màu')
     color_label = models.CharField(max_length=80, blank=True, default='', verbose_name='Tên màu')
     size_label = models.CharField(max_length=20, blank=True, default='', db_index=True, verbose_name='Size')
+    gender = models.CharField(
+        max_length=10,
+        blank=True,
+        default=GENDER_NONE,
+        choices=GENDER_CHOICES,
+        verbose_name='Giới tính',
+        help_text='Thuộc tính riêng của SKU, tách khỏi size (trước đây viết lồng "XL-NỮ").',
+    )
     code = models.CharField(
         max_length=100,
         unique=True,
@@ -181,4 +190,10 @@ class Product(models.Model):
 
 # Re-export catalog models so Django registers them with the app.
 from kho_san_pham.catalog_models import ProductStyle, ProductType, ProductTypeKvMap  # noqa: E402,F401
+from kho_san_pham.stock_models import (  # noqa: E402,F401
+    NegativeStockAlert,
+    StockBalance,
+    StockLedger,
+    Warehouse,
+)
 

@@ -205,6 +205,7 @@ class ProductForm(forms.ModelForm):
                     color_label=product.color_label,
                     style_name=product.name,
                     sku_code=product.code,
+                    gender=product.gender,
                     user=getattr(product, 'created_by', None),
                 )
                 product.sx_sku = sx

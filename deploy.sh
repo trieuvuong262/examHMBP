@@ -290,6 +290,11 @@ echo "==> 8d) Sync tên CĐ + tổ chuẩn cho tiến độ tổ (không tạo n
 # Không seed SxOperationGroup / SxOperation — nhóm công đoạn do IE tự quản.
 compose exec -T web python manage.py sync_process_master
 
+echo "==> 8e) Nạp danh sách kho thành phẩm (kho trung tâm)"
+# Bắt buộc: form chọn kho nhập thành phẩm đọc từ bảng này, chưa có kho là
+# không lập được yêu cầu nhập thành phẩm. Lệnh chạy lại nhiều lần vô hại.
+compose exec -T web python manage.py kho_sp_seed_warehouses --apply
+
 verify_nas_rclone() {
   echo "==> Verify NAS rclone in web container"
   if compose exec -T web rclone lsd synology: >/dev/null 2>&1; then

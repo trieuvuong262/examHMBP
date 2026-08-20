@@ -59,3 +59,77 @@ KV_MAP_MATCH_CHOICES = [
     (KV_MAP_MATCH_EXACT, 'Khớp đúng'),
     (KV_MAP_MATCH_CONTAINS, 'Chứa chuỗi'),
 ]
+
+# ---------------------------------------------------------------------------
+# Kho thành phẩm — xem docs/integrations/central-product/inventory-schema.md
+# ---------------------------------------------------------------------------
+
+WAREHOUSE_OWNER_PORTAL = 'portal'
+WAREHOUSE_OWNER_SALES = 'sales'
+
+WAREHOUSE_OWNER_CHOICES = [
+    (WAREHOUSE_OWNER_PORTAL, 'Portal (xưởng)'),
+    (WAREHOUSE_OWNER_SALES, 'Bán hàng'),
+]
+
+SOURCE_SYSTEM_PORTAL = 'portal'
+SOURCE_SYSTEM_SALES = 'sales'
+
+SOURCE_SYSTEM_CHOICES = [
+    (SOURCE_SYSTEM_PORTAL, 'Portal'),
+    (SOURCE_SYSTEM_SALES, 'Bán hàng'),
+]
+
+MOVEMENT_PRODUCTION_IN = 'production_in'
+MOVEMENT_SALE_OUT = 'sale_out'
+MOVEMENT_SALE_RETURN_IN = 'sale_return_in'
+MOVEMENT_TRANSFER_OUT = 'transfer_out'
+MOVEMENT_TRANSFER_IN = 'transfer_in'
+MOVEMENT_ADJUST = 'adjust'
+MOVEMENT_DISPOSAL_OUT = 'disposal_out'
+
+MOVEMENT_KIND_CHOICES = [
+    (MOVEMENT_PRODUCTION_IN, 'Nhập thành phẩm'),
+    (MOVEMENT_SALE_OUT, 'Xuất bán'),
+    (MOVEMENT_SALE_RETURN_IN, 'Khách trả'),
+    (MOVEMENT_TRANSFER_OUT, 'Chuyển đi'),
+    (MOVEMENT_TRANSFER_IN, 'Chuyển đến'),
+    (MOVEMENT_ADJUST, 'Điều chỉnh / kiểm kê'),
+    (MOVEMENT_DISPOSAL_OUT, 'Xuất hủy'),
+]
+
+# Dấu bắt buộc của qty_delta theo từng loại: 1 = phải dương, -1 = phải âm,
+# 0 = tùy (chỉ điều chỉnh/kiểm kê mới được cả hai chiều).
+# Không có bảng này thì một phát sinh 'sale_out' mang số dương sẽ âm thầm
+# làm phồng tồn thay vì báo lỗi.
+MOVEMENT_DIRECTION = {
+    MOVEMENT_PRODUCTION_IN: 1,
+    MOVEMENT_SALE_OUT: -1,
+    MOVEMENT_SALE_RETURN_IN: 1,
+    MOVEMENT_TRANSFER_OUT: -1,
+    MOVEMENT_TRANSFER_IN: 1,
+    MOVEMENT_ADJUST: 0,
+    MOVEMENT_DISPOSAL_OUT: -1,
+}
+
+DOC_TYPE_FG_RECEIPT = 'fg_receipt'
+DOC_TYPE_INVOICE = 'invoice'
+DOC_TYPE_SALE_RETURN = 'sale_return'
+DOC_TYPE_TRANSFER = 'transfer'
+DOC_TYPE_STOCKTAKE = 'stocktake'
+DOC_TYPE_DISPOSAL = 'disposal'
+
+DOC_TYPE_CHOICES = [
+    (DOC_TYPE_FG_RECEIPT, 'Yêu cầu nhập thành phẩm'),
+    (DOC_TYPE_INVOICE, 'Hóa đơn bán'),
+    (DOC_TYPE_SALE_RETURN, 'Phiếu trả hàng'),
+    (DOC_TYPE_TRANSFER, 'Phiếu chuyển kho'),
+    (DOC_TYPE_STOCKTAKE, 'Phiếu kiểm kê'),
+    (DOC_TYPE_DISPOSAL, 'Phiếu hủy'),
+]
+
+# Mã kho seed — chốt ngày 20/08/2026, toàn hệ chỉ có 2 địa điểm.
+DEFAULT_WAREHOUSES: list[tuple[str, str, str]] = [
+    ('XUONG-TP', 'Kho thành phẩm — Xưởng sản xuất', WAREHOUSE_OWNER_PORTAL),
+    ('CH-TRUNG-TAM', 'Chi nhánh trung tâm', WAREHOUSE_OWNER_SALES),
+]

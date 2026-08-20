@@ -691,7 +691,15 @@ def production_stat_initial_from_mo(mo) -> dict:
 
 
 def fg_warehouse_choices(*, extra_value: str = "") -> list[tuple[str, str]]:
-    """Kho nhập thành phẩm: chi nhánh KiotViet, không có thì vị trí kho portal."""
+    """Kho nhập thành phẩm — lấy từ ``kho_san_pham.Warehouse`` do Portal sở hữu.
+
+    Trước đây danh sách này lấy từ chi nhánh KiotViet và trả về giá trị dạng
+    ``kv:<pk>``. Kho thành phẩm giờ là bảng của Portal, nên giá trị là mã kho
+    thật (``XUONG-TP``) — mã đọc được và không mất nghĩa khi bỏ KiotViet.
+    """
+    from kho_san_pham.choices import WAREHOUSE_OWNER_PORTAL
+    from kho_san_pham.models import Warehouse
+
     choices: list[tuple[str, str]] = [("", "— Chọn kho nhập —")]
     seen: set[str] = set()
 
@@ -701,27 +709,13 @@ def fg_warehouse_choices(*, extra_value: str = "") -> list[tuple[str, str]]:
         seen.add(value)
         choices.append((value, label))
 
-    try:
-        from kiotviet.models import KvBranch
-        from kiotviet.sync_service import current_retailer
+    for wh in Warehouse.objects.filter(
+        is_active=True, owner_system=WAREHOUSE_OWNER_PORTAL,
+    ).order_by("code"):
+        _add(wh.code, wh.name or wh.code)
 
-        qs = KvBranch.objects.filter(is_deleted=False)
-        retailer = current_retailer()
-        if retailer is not None:
-            qs = qs.filter(retailer=retailer)
-        for branch in qs.order_by("branch_name", "branch_code"):
-            label = (branch.branch_name or branch.branch_code or "").strip() or f"Kho #{branch.pk}"
-            _add(f"kv:{branch.pk}", label)
-    except Exception:
-        pass
-    if len(choices) == 1:
-        try:
-            from kho_npl.models import WarehouseLocation
-
-            for loc in WarehouseLocation.objects.filter(is_active=True).order_by("code"):
-                _add(f"loc:{loc.pk}", loc.display_label())
-        except Exception:
-            pass
+    # Giữ giá trị đang có trên form (kể cả mã cũ kiểu "kv:4") để phiếu nháp đang
+    # mở không bị mất lựa chọn khi validate.
     extra = (extra_value or "").strip()
     if extra and extra not in seen:
         _add(extra, extra)

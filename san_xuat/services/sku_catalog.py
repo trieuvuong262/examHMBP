@@ -12,29 +12,8 @@ from dataclasses import dataclass
 from django.db import transaction
 from django.db.models import Q
 
+from kho_san_pham.sku_vocabulary import COLOR_NONE
 from san_xuat.hub_models import SxColor, SxSize, SxSku
-
-DEFAULT_COLORS: list[tuple[str, str, int]] = [
-    ("NVY", "Navy", 10),
-    ("BLK", "Đen", 20),
-    ("WHT", "Trắng", 30),
-    ("GRY", "Xám", 40),
-    ("RED", "Đỏ", 50),
-    ("BLU", "Xanh dương", 60),
-    ("GRN", "Xanh lá", 70),
-    ("BEG", "Be", 80),
-]
-
-DEFAULT_SIZES: list[tuple[str, str, int]] = [
-    ("XS", "XS", 10),
-    ("S", "S", 20),
-    ("M", "M", 30),
-    ("L", "L", 40),
-    ("XL", "XL", 50),
-    ("XXL", "XXL", 60),
-    ("3XL", "3XL", 70),
-]
-
 
 class SkuError(Exception):
     pass
@@ -72,26 +51,6 @@ def compose_sku_code(*, style_code: str, color_code: str = "", size_label: str) 
     if len(code) > 100:
         raise SkuError("Mã SKU vượt quá 100 ký tự — rút ngắn mã SX/màu/size.")
     return code
-
-
-def seed_default_colors_sizes() -> tuple[int, int]:
-    c_created = 0
-    for code, name, order in DEFAULT_COLORS:
-        _, was = SxColor.objects.get_or_create(
-            code=code,
-            defaults={"name": name, "sort_order": order, "is_active": True, "is_demo": False},
-        )
-        if was:
-            c_created += 1
-    s_created = 0
-    for code, name, order in DEFAULT_SIZES:
-        _, was = SxSize.objects.get_or_create(
-            code=code,
-            defaults={"name": name, "sort_order": order, "is_active": True, "is_demo": False},
-        )
-        if was:
-            s_created += 1
-    return c_created, s_created
 
 
 def color_choices(*, extra_code: str = "", blank_label: str = "— Chọn màu —") -> list[tuple[str, str]]:
@@ -252,11 +211,14 @@ def get_or_create_sku(
     color_label: str = "",
     style_name: str = "",
     sku_code: str = "",
+    gender: str = "",
     user=None,
     ensure_catalog: bool = True,
 ) -> SxSku:
     style = normalize_style(style_code)
-    color = normalize_token(color_code) if color_code else ""
+    # Màu rỗng phải về đúng mã NOCOLOR của từ vựng chuẩn, nếu không SKU do form sinh sẽ
+    # lệch bộ ba với SKU dựng từ danh mục và tạo ra bản ghi trùng.
+    color = normalize_token(color_code) if color_code else COLOR_NONE
     size = normalize_token(size_label)
     if not style:
         raise SkuError("Thiếu mã SX (mã SP).")
@@ -275,8 +237,14 @@ def get_or_create_sku(
         style_code=style, color_code=color, size_label=size,
     )
 
+    sex = normalize_token(gender, max_len=10)
     existing = (
-        SxSku.objects.filter(style_code__iexact=style, color_code__iexact=color, size_label__iexact=size).first()
+        SxSku.objects.filter(
+            style_code__iexact=style,
+            color_code__iexact=color,
+            size_label__iexact=size,
+            gender=sex,
+        ).first()
         or SxSku.objects.filter(sku_code__iexact=composed).first()
     )
     if existing:
@@ -300,6 +268,7 @@ def get_or_create_sku(
         color_code=color,
         color_label=label[:80],
         size_label=size,
+        gender=sex,
         sku_code=composed,
         is_active=True,
         is_demo=False,

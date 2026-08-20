@@ -1517,6 +1517,29 @@ def fg_receipt_prefill(*, mo: SxProductionOrder, stat: SxProductionStat | None =
     }
 
 
+def _resolve_fg_warehouse_by_code(warehouse_code: str):
+    """Đổi mã kho trên form thành FK ``kho_san_pham.Warehouse``.
+
+    Mã cũ dạng ``kv:<id>`` (chi nhánh KiotViet) không còn tra được, nên khi không
+    khớp thì lùi về kho thành phẩm duy nhất của Portal. Trả ``None`` khi chưa nạp
+    danh sách kho — lúc đó việc hoàn thành phiếu sẽ báo lỗi rõ ràng thay vì ghi
+    tồn vào kho sai.
+    """
+    from kho_san_pham.choices import WAREHOUSE_OWNER_PORTAL
+    from kho_san_pham.models import Warehouse
+
+    code = (warehouse_code or "").strip().upper()
+    if code:
+        hit = Warehouse.objects.filter(code=code, is_active=True).first()
+        if hit is not None:
+            return hit
+
+    portal = list(
+        Warehouse.objects.filter(is_active=True, owner_system=WAREHOUSE_OWNER_PORTAL)[:2]
+    )
+    return portal[0] if len(portal) == 1 else None
+
+
 @transaction.atomic
 def create_fg_receipt_from_mo(
     *,
@@ -1589,6 +1612,7 @@ def create_fg_receipt_from_mo(
         status=SxFgReceiptRequest.STATUS_DRAFT,
         notes=notes or "",
         received_by=received_by if getattr(received_by, "pk", None) else None,
+        warehouse=_resolve_fg_warehouse_by_code(warehouse_code),
         warehouse_code=(warehouse_code or "").strip(),
         warehouse_name=(warehouse_name or "").strip(),
         is_demo=False,
@@ -1627,8 +1651,22 @@ def create_fg_receipt_from_mo(
     return req
 
 
+def _post_fg_receipt_stock(req: SxFgReceiptRequest, *, user=None) -> None:
+    """Ghi tăng tồn thành phẩm trong cùng transaction với việc hoàn thành phiếu.
+
+    Lỗi ghi tồn được đổi thành ``DispatchError`` để chặn luôn việc chuyển phiếu
+    sang hoàn thành: phiếu ``done`` mà tồn không tăng là sai lệch âm thầm.
+    """
+    from san_xuat.services.fg_stock import FgStockError, post_fg_receipt_to_stock
+
+    try:
+        post_fg_receipt_to_stock(req, user=user)
+    except FgStockError as exc:
+        raise DispatchError(str(exc)) from exc
+
+
 @transaction.atomic
-def submit_fg_receipt(*, request_id: int) -> SxFgReceiptRequest:
+def submit_fg_receipt(*, request_id: int, user=None) -> SxFgReceiptRequest:
     from san_xuat.services.sx_settings import sx_bool
 
     req = SxFgReceiptRequest.objects.select_for_update().get(pk=request_id)
@@ -1641,6 +1679,8 @@ def submit_fg_receipt(*, request_id: int) -> SxFgReceiptRequest:
         # Không bắt buộc KV → gửi xong coi như hoàn tất
         req.status = SxFgReceiptRequest.STATUS_DONE
     req.save(update_fields=["status"])
+    if req.status == SxFgReceiptRequest.STATUS_DONE:
+        _post_fg_receipt_stock(req, user=user)
     return req
 
 
@@ -1650,6 +1690,7 @@ def link_kv_purchase(
     request_id: int,
     kv_purchase_kiotviet_id: int | None = None,
     kv_purchase_code: str = "",
+    user=None,
 ) -> SxFgReceiptRequest:
     from kiotviet.models import KvPurchaseOrder
     from kiotviet.sync_service import current_retailer
@@ -1676,9 +1717,12 @@ def link_kv_purchase(
 
     req.kv_purchase_kiotviet_id = purchase.kiotviet_id
     req.kv_purchase_code = purchase.code or ""
-    if req.status in (SxFgReceiptRequest.STATUS_DRAFT, SxFgReceiptRequest.STATUS_SUBMITTED):
+    became_done = req.status in (SxFgReceiptRequest.STATUS_DRAFT, SxFgReceiptRequest.STATUS_SUBMITTED)
+    if became_done:
         req.status = SxFgReceiptRequest.STATUS_DONE
     req.save(update_fields=["kv_purchase_kiotviet_id", "kv_purchase_code", "status"])
+    if became_done:
+        _post_fg_receipt_stock(req, user=user)
     return req
 
 
