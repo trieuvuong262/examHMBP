@@ -52,14 +52,38 @@ def _list_type(request) -> str:
     return ''
 
 
+# Lựa chọn trên thanh lọc — value = "sort:dir" để một select đủ cả chiều.
+PRODUCT_LIST_ORDER_CHOICES = (
+    ('code:asc', 'SKU A → Z'),
+    ('code:desc', 'SKU Z → A'),
+    ('qty_on_hand:desc', 'Tồn nhiều → ít'),
+    ('qty_on_hand:asc', 'Tồn ít → nhiều'),
+    ('name:asc', 'Tên A → Z'),
+    ('base_price:desc', 'Giá cao → thấp'),
+    ('base_price:asc', 'Giá thấp → cao'),
+)
+
+
 def _list_sort(request):
-    sort_key = (request.GET.get('sort') or 'code').strip()
-    sort_dir = (request.GET.get('dir') or 'asc').strip().lower()
+    """Đọc ``order=qty_on_hand:desc`` (ưu tiên) hoặc cặp ``sort`` + ``dir`` cũ."""
+    order = (request.GET.get('order') or '').strip()
+    if order and ':' in order:
+        sort_key, _, sort_dir = order.partition(':')
+        sort_key = sort_key.strip()
+        sort_dir = sort_dir.strip().lower()
+    else:
+        sort_key = (request.GET.get('sort') or 'code').strip()
+        sort_dir = (request.GET.get('dir') or '').strip().lower()
     if sort_key not in PRODUCT_LIST_SORT_FIELDS:
         sort_key = 'code'
     if sort_dir not in ('asc', 'desc'):
-        sort_dir = 'asc'
+        # Tồn / giá: mặc định cao → thấp; còn lại A → Z.
+        sort_dir = 'desc' if sort_key in ('qty_on_hand', 'base_price') else 'asc'
     return sort_key, sort_dir
+
+
+def _order_value(sort_key: str, sort_dir: str) -> str:
+    return f'{sort_key}:{sort_dir}'
 
 
 def _product_list_qs(request):
@@ -112,6 +136,16 @@ def product_list(request):
     # Gom theo Style trước khi phân trang (giống Bán hàng – Hàng hoá)
     products = list(qs[:2000])
     groups = [format_style_group(g) for g in group_products_by_style(products)]
+    # Sau khi gom, sắp lại theo tổng tồn / giá của nhóm — không theo SKU đầu tiên.
+    if sort_key in ('qty_on_hand', 'base_price'):
+        reverse = sort_dir == 'desc'
+        if sort_key == 'qty_on_hand':
+            groups.sort(key=lambda g: g.get('qty_on_hand') or 0, reverse=reverse)
+        else:
+            groups.sort(
+                key=lambda g: g.get('min_price') if g.get('min_price') is not None else -1,
+                reverse=reverse,
+            )
     page_obj, query_string = paginate_queryset(request, groups, per_page=40)
 
     # Đánh dấu nhóm đã có hồ sơ thiết kế (theo mã SX / style)
@@ -147,6 +181,15 @@ def product_list(request):
                     break
         item['has_tech_doc'] = hit
 
+    selected_order = _order_value(sort_key, sort_dir)
+    stock_sort_params = request.GET.copy()
+    stock_sort_params.pop('page', None)
+    stock_sort_params.pop('sort', None)
+    stock_sort_params.pop('dir', None)
+    if sort_key == 'qty_on_hand' and sort_dir == 'desc':
+        stock_sort_params['order'] = 'qty_on_hand:asc'
+    else:
+        stock_sort_params['order'] = 'qty_on_hand:desc'
     return render(request, 'kho_san_pham/product_list.html', {
         **nav_context('products', user=request.user),
         **perm_context(request.user, 'products'),
@@ -158,7 +201,14 @@ def product_list(request):
         'selected_type': product_type,
         'type_choices': PRODUCT_TYPE_CHOICES,
         'type_labels': PRODUCT_TYPE_LABELS,
-        'has_filters': bool(search_query or status != 'all' or product_type),
+        'selected_order': selected_order,
+        'order_choices': PRODUCT_LIST_ORDER_CHOICES,
+        'sort_key': sort_key,
+        'sort_dir': sort_dir,
+        'stock_sort_href': f'?{stock_sort_params.urlencode()}',
+        'has_filters': bool(
+            search_query or status != 'all' or product_type or selected_order != 'code:asc'
+        ),
         'expand_search_hits': bool(search_query),
     })
 

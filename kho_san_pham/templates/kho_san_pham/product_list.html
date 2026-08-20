@@ -42,6 +42,11 @@ html[data-theme="dark"] .ksp-catalog-table .kv-product-group-expandable.kv-expan
                     <option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ label }}</option>
                     {% endfor %}
                 </select>
+                <select name="order" id="ksp-order" class="form-select form-select-sm jp-npl-mat-status-select" aria-label="Sắp xếp">
+                    {% for value, label in order_choices %}
+                    <option value="{{ value }}" {% if selected_order == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
                 <button type="submit" class="btn btn-hm btn-sm fw-bold">Tìm</button>
                 {% if has_filters %}
                 <a href="{% url 'kho_san_pham:product_list' %}" class="btn btn-outline-secondary btn-sm fw-bold px-2" title="Xóa lọc">×</a>
@@ -85,7 +90,16 @@ html[data-theme="dark"] .ksp-catalog-table .kv-product-group-expandable.kv-expan
                         <th class="d-none d-lg-table-cell">ĐVT</th>
                         <th class="d-none d-lg-table-cell">Loại</th>
                         <th class="text-end">Giá bán</th>
-                        <th class="text-end">Tồn kho</th>
+                        <th class="text-end">
+                            <a href="{{ stock_sort_href }}"
+                               class="text-decoration-none text-body{% if sort_key == 'qty_on_hand' %} fw-bold text-hm{% endif %}"
+                               title="Sắp xếp theo tồn kho">
+                                Tồn kho
+                                {% if sort_key == 'qty_on_hand' %}
+                                <i class="bi bi-caret-{% if sort_dir == 'asc' %}up{% else %}down{% endif %}-fill"></i>
+                                {% endif %}
+                            </a>
+                        </th>
                         <th>Trạng thái</th>
                         <th></th>
                     </tr>
@@ -249,7 +263,7 @@ html[data-theme="dark"] .ksp-catalog-table .kv-product-group-expandable.kv-expan
         if (form.requestSubmit) form.requestSubmit();
         else form.submit();
     }
-    ['ksp-type', 'ksp-status'].forEach(function (id) {
+    ['ksp-type', 'ksp-status', 'ksp-order'].forEach(function (id) {
         var el = document.getElementById(id);
         if (el) el.addEventListener('change', submitFilters);
     });
