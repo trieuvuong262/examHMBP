@@ -10,13 +10,11 @@
         </p>
     </div>
     {% include 'utilities/includes/meal_manage_nav.html' with active='menu' %}
-    <form method="get" class="card border-0 shadow-sm mb-3">
-        <div class="card-body p-3 d-flex flex-wrap gap-2 align-items-end">
-            <div>
-                <label class="form-label fw-bold small mb-1">Ngày ăn</label>
-                <input type="date" name="meal_date" value="{{ meal_date|date:'Y-m-d' }}" class="form-control">
-            </div>
-            <button type="submit" class="btn btn-hm">Xem</button>
+
+    <form method="get" id="mealMenuFilterForm" class="card border-0 shadow-sm mb-3">
+        <div class="card-body p-3">
+            {% url 'utilities:meal_day_menu' as meal_menu_clear %}
+            {% include 'utilities/includes/meal_filter_bar.html' with single_date=1 date_id='meal-menu-date' clear_url=meal_menu_clear %}
         </div>
     </form>
 
@@ -47,6 +45,8 @@
                         <span>{{ row.dish.name }}</span>
                     </label>
                 </div>
+                {% empty %}
+                <div class="col-12 text-muted text-center py-3">Chưa có món trong danh mục.</div>
                 {% endfor %}
             </div>
             <button type="submit" class="btn btn-hm fw-bold mt-3">Lưu menu ngày {{ meal_date|date:"d/m/Y" }}</button>
@@ -54,4 +54,8 @@
     </form>
     {% endif %}
 </div>
+{% endblock %}
+
+{% block scripts %}
+{% include 'utilities/includes/meal_date_range_scripts.html' %}
 {% endblock %}

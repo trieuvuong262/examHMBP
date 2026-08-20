@@ -1,6 +1,7 @@
 {# Bộ lọc đặt cơm: 1 hàng (span | từ | đến | [món] | nút), mobile cuộn ngang. #}
 {# Context: date_from, date_to, span_id, from_id, to_id #}
 {# Optional: show_dish=1, dish_choices, dish_filter_value, clear_url #}
+{# Optional: single_date=1 → chỉ ô «Ngày ăn» (name=meal_date), dùng meal_date #}
 <style>
 .jp-meal-filter-bar {
   display: flex;
@@ -77,6 +78,18 @@
 }
 </style>
 <div class="jp-meal-filter-bar">
+  {% if single_date %}
+  <div class="jp-meal-filter-date">
+    <label class="form-label fw-bold small" for="{{ date_id|default:'meal-date' }}">Ngày ăn</label>
+    <input type="date"
+           name="meal_date"
+           id="{{ date_id|default:'meal-date' }}"
+           value="{{ meal_date|date:'Y-m-d' }}"
+           class="form-control jp-date-vn"
+           title="Ngày ăn"
+           aria-label="Ngày ăn">
+  </div>
+  {% else %}
   {% include 'includes/date_range_span_select.html' with span_id=span_id|default:'meal-range-span' compact=1 %}
   <div class="jp-meal-filter-date">
     <label class="form-label fw-bold small" for="{{ from_id|default:'meal-date-from' }}">Từ ngày</label>
@@ -108,6 +121,7 @@
       {% endfor %}
     </select>
   </div>
+  {% endif %}
   {% endif %}
   <div class="jp-meal-filter-actions">
     <button type="submit" class="btn btn-hm btn-sm fw-bold px-3">Lọc</button>
