@@ -535,7 +535,7 @@ Thêm hai lớp: token riêng cho từng hệ (thu hồi độc lập, log biế
 | 1 | Chốt danh sách kho (mục 13) | **Xong** — 2 kho, 20/08/2026 |
 | 2 | `Warehouse` + command nạp danh sách kho | **Xong** — `kho_sp_seed_warehouses` |
 | 3 | `StockBalance` + `StockLedger` + `post_movement` | **Xong** — migration `0009`, 20/20 kiểm chứng đạt |
-| 4 | Tồn đầu kỳ: kiểm kê thực tế, ghi `kind=adjust` | Việc nghiệp vụ — **không** lấy tồn từ KiotViet |
+| 4 | Tồn đầu kỳ: kiểm kê thực tế, ghi `kind=adjust` | **Công cụ xong** — chờ đếm thực tế (mục 14) |
 | 5 | `SxFgReceiptRequest.warehouse_code` → FK `Warehouse` | **Xong** — migration `0085` + `0086` |
 | 6 | Nối chiều nhập: `san_xuat` gọi `post_movement` | **Xong** — `fg_stock.py`, 33/33 kiểm chứng đạt |
 | 7 | `Product.catalog_updated_at` + API kéo danh mục | Cho bán hàng |
@@ -552,6 +552,7 @@ Thêm hai lớp: token riêng cho từng hệ (thu hồi độc lập, log biế
 | `kho_san_pham/services/stock.py` | `post_movement`, `reverse_movement`, `get_qty_on_hand` |
 | `kho_san_pham/migrations/0009_…` | Tạo 4 bảng + ràng buộc chống trùng |
 | `kho_san_pham/management/commands/kho_sp_seed_warehouses.py` | Nạp kho, chạy lại được nhiều lần |
+| `kho_san_pham/management/commands/kho_sp_import_stocktake.py` | Nhập kiểm kê / tồn đầu kỳ (mục 14) |
 | `kho_san_pham/admin.py` | Tồn và sổ kho để chỉ-đọc |
 | `scripts/verify_kho_sp_stock.py` | 33 kiểm chứng, chạy trong transaction rồi rollback |
 
@@ -565,14 +566,65 @@ Thêm hai lớp: token riêng cho từng hệ (thu hồi độc lập, log biế
 | `san_xuat/services/dispatch.py` | Móc vào `submit_fg_receipt` và `link_kv_purchase` |
 | `san_xuat/forms_dispatch.py` | `fg_warehouse_choices` đọc `Warehouse` thay vì chi nhánh KiotViet |
 
-Chưa triển khai lên production: migration `0009` (kho_san_pham) và `0085`/`0086` (san_xuat)
-mới chỉ áp trên DB dev.
+### Đã lên production 20/08/2026
 
-Bước 4 đáng lưu ý: tồn đầu kỳ nên **kiểm kê thực tế**, không bốc từ KiotViet sang. Tồn
-KiotViet đang mang sẵn sai số tích lũy nhiều năm; nhập nó vào là kế thừa nguyên vẹn sai số
-đó rồi mất luôn khả năng phân biệt "lệch do lịch sử" với "lệch do hệ thống mới ghi sai".
-Với chỉ 1 phiếu nhập thành phẩm trong lịch sử (mục 5), ở đây gần như không có gì để kế
-thừa — thời điểm tốt nhất để bắt đầu sổ sạch.
+Commit `91cf7237`. Migration đã áp: `kho_san_pham 0009`, `san_xuat 0085`, `0086`. Trạng thái
+sau deploy:
+
+| Kiểm | Kết quả |
+|---|---|
+| Kho | 2 kho: `XUONG-TP` (id 1), `CH-TRUNG-TAM` (id 2) |
+| YCNTP cũ | `YCNTP-2026-FULL-001` đã nối `warehouse_id=1`, giữ `warehouse_code='kv:4'` làm dấu vết |
+| Sổ kho | Rỗng — đúng, vì phiếu còn `draft` và chưa kiểm kê |
+| Form chọn kho | Trả `XUONG-TP` (chỉ kho `portal` mới nhận nhập thành phẩm) |
+
+`deploy.sh` có thêm bước 8e nạp danh sách kho. Lưu ý: bước 1 của deploy làm
+`git reset --hard`, thay chính tệp đang chạy, nên **sửa `deploy.sh` chỉ có hiệu lực từ lần
+deploy sau**. Git thay tệp bằng rename nên tiến trình đang chạy đọc trọn bản cũ — không có
+nguy cơ script bị đọc lẫn nửa cũ nửa mới. Lần này bước 8e được chạy tay bù.
+
+## 14. Tồn đầu kỳ — cách làm
+
+Tồn đầu kỳ **phải đếm thực tế**, không bốc từ KiotViet sang. Tồn KiotViet đang mang sẵn sai
+số tích lũy nhiều năm; nhập nó vào là kế thừa nguyên vẹn sai số đó rồi mất luôn khả năng
+phân biệt "lệch do lịch sử" với "lệch do hệ mới ghi sai". Với chỉ 1 phiếu nhập thành phẩm
+trong lịch sử, ở đây gần như không có gì để kế thừa — thời điểm tốt nhất để bắt đầu sổ sạch.
+
+Phần đếm là việc nghiệp vụ. Phần nhập số đã có công cụ:
+`kho_san_pham/management/commands/kho_sp_import_stocktake.py`.
+
+Mẫu tệp: [stocktake-template.csv](./stocktake-template.csv) — hai cột `sku_code` và
+`qty_counted`, cột khác bỏ qua. Lấy danh sách SKU để đếm:
+
+```sql
+SELECT code, name FROM kho_sp_product
+WHERE is_active AND catalog_type = 'thanh_pham' ORDER BY code;
+```
+
+Chạy xem trước rồi mới ghi:
+
+```bash
+docker compose exec web python manage.py kho_sp_import_stocktake \
+  --warehouse XUONG-TP --file /app/kk.csv
+docker compose exec web python manage.py kho_sp_import_stocktake \
+  --warehouse XUONG-TP --file /app/kk.csv --apply
+```
+
+Ba điểm đáng biết về cách lệnh này hoạt động:
+
+- Nó ghi **chênh lệch** giữa số đếm và số sổ, không ghi đè. Nên dùng được cả cho tồn đầu kỳ
+  (sổ đang trống) và kiểm kê định kỳ về sau.
+- Chạy lại cùng tệp là vô hiệu, vì sau lần đầu sổ đã khớp số đếm nên chênh lệch bằng 0.
+  An toàn hơn là dựa vào khóa chống trùng.
+- Khóa chống trùng dùng **id sản phẩm** làm `source_line_no`, không phải số dòng trong tệp —
+  sắp xếp lại tệp rồi chạy lại thì vẫn nhận ra là cùng một dòng.
+
+SKU có trong tệp mà không có trong danh mục thì lệnh **dừng**, không ghi gì. Tồn đầu kỳ nhập
+thiếu thì sai ngay từ gốc; muốn cố ý bỏ thì thêm `--skip-unknown`.
+
+Mỗi phiếu kiểm kê chỉ cho **một kho** — số phiếu mặc định `KK-<ngày>-<mã kho>`. Vì khóa
+chống trùng không có cột kho, gộp hai kho vào một số phiếu sẽ đụng khóa ở SKU nào có mặt ở
+cả hai.
 
 ## 13. Danh sách kho — đã chốt 20/08/2026
 
