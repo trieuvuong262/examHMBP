@@ -115,7 +115,7 @@ class Product(models.Model):
         max_digits=14,
         decimal_places=2,
         default=Decimal('0'),
-        verbose_name='Tồn kho',
+        verbose_name='Tồn xưởng',
         help_text='Bản sao tồn kho xưởng (XUONG-TP). Nguồn sự thật là sổ kho; cột này chỉ để xem trên danh mục.',
     )
     image = models.ImageField(upload_to='kho_sp/products/', blank=True, verbose_name='Hình ảnh')

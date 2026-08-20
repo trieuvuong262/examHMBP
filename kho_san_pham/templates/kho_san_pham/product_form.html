@@ -87,9 +87,9 @@
                         {% if form.base_price.errors %}<div class="text-danger small">{{ form.base_price.errors }}</div>{% endif %}
                     </div>
                     <div class="col-md-3">
-                        <label class="form-label fw-bold small" for="{{ form.qty_on_hand.id_for_label }}">Tồn kho</label>
+                        <label class="form-label fw-bold small" for="{{ form.qty_on_hand.id_for_label }}">Tồn xưởng</label>
                         {{ form.qty_on_hand }}
-                        <div class="form-text">Kho thành phẩm xưởng</div>
+                        <div class="form-text">Kho XUONG-TP — không gồm cửa hàng</div>
                         {% if form.qty_on_hand.errors %}<div class="text-danger small">{{ form.qty_on_hand.errors }}</div>{% endif %}
                     </div>
                     <div class="col-md-4">

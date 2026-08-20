@@ -1,0 +1,131 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block extra_head %}
+{% include 'kho_npl/includes/material_catalog_page_head.html' %}
+{% endblock %}
+
+{% block content %}
+<div class="container jp-page jp-npl-material-catalog-page py-3 py-md-4 mb-5" data-loading-message="Đang tải tồn kho…">
+    <div class="jp-npl-mat-topbar">
+        <h2 class="jp-npl-mat-topbar-title">Tồn kho</h2>
+        <form method="get" class="jp-npl-mat-topbar-search" id="ksp-stock-form">
+            <div class="jp-npl-mat-search-row">
+                <select name="wh" id="ksp-stk-wh" class="form-select form-select-sm jp-npl-mat-status-select" aria-label="Kho">
+                    {% for value, label in wh_choices %}
+                    <option value="{{ value }}" {% if wh_scope == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+                <select name="status" id="ksp-stk-status" class="form-select form-select-sm jp-npl-mat-status-select" aria-label="Trạng thái">
+                    {% for value, label in status_choices %}
+                    <option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+                <select name="order" id="ksp-stk-order" class="form-select form-select-sm jp-npl-mat-status-select" aria-label="Sắp xếp">
+                    {% for value, label in order_choices %}
+                    <option value="{{ value }}" {% if selected_order == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+                <div class="input-group input-group-sm jp-npl-mat-filter-field jp-npl-mat-search-input">
+                    <input type="search" class="form-control" id="ksp-stk-q" name="q"
+                           value="{{ search_query }}" placeholder="SKU, Style, màu, size, tên…" autocomplete="off" aria-label="Tìm">
+                </div>
+                <div class="form-check mb-0 d-flex align-items-center">
+                    <input class="form-check-input" type="checkbox" name="stock" value="1" id="ksp-stk-stock"
+                           {% if only_stock %}checked{% endif %}>
+                    <label class="form-check-label small ms-1 text-nowrap" for="ksp-stk-stock">Còn tồn</label>
+                </div>
+                <button type="submit" class="btn btn-hm btn-sm fw-bold">Tìm</button>
+                {% if has_filters %}
+                <a href="{% url 'kho_san_pham:stock_list' %}" class="btn btn-outline-secondary btn-sm fw-bold px-2" title="Xóa lọc">×</a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+
+    <div class="small text-muted mb-2">
+        Cột Tồn xưởng = {{ factory.code|default:"XUONG-TP" }} (hiện trên danh mục).
+        Tồn cửa hàng = {{ store.code|default:"CH-TRUNG-TAM" }} (không cộng vào danh mục).
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 jp-table-mobile-stack">
+                <thead class="table-light">
+                    <tr>
+                        <th>SKU</th>
+                        <th>Tên</th>
+                        <th class="d-none d-md-table-cell">Màu</th>
+                        <th class="d-none d-md-table-cell">Size</th>
+                        {% if show_factory %}
+                        <th class="text-end">Tồn xưởng</th>
+                        {% endif %}
+                        {% if show_store %}
+                        <th class="text-end">Tồn cửa hàng</th>
+                        {% endif %}
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for product in page_obj %}
+                    <tr {% if not product.is_active %}class="table-secondary"{% endif %}>
+                        <td data-label="SKU">
+                            <a href="{% url 'kho_san_pham:product_detail' product.pk %}" class="text-decoration-none">
+                                <code>{{ product.code }}</code>
+                            </a>
+                        </td>
+                        <td data-label="Tên">
+                            <a href="{% url 'kho_san_pham:product_detail' product.pk %}" class="text-decoration-none fw-semibold text-hm">{{ product.name }}</a>
+                        </td>
+                        <td data-label="Màu" class="d-none d-md-table-cell small">{{ product.color_label|default:product.color_code|default:"—" }}</td>
+                        <td data-label="Size" class="d-none d-md-table-cell">{{ product.size_label|default:"—" }}</td>
+                        {% if show_factory %}
+                        <td data-label="Tồn xưởng" class="text-end {% if product.qty_factory %}fw-semibold{% else %}text-muted{% endif %}">
+                            {{ product.qty_factory|floatformat:0|intcomma }}
+                        </td>
+                        {% endif %}
+                        {% if show_store %}
+                        <td data-label="Tồn CH" class="text-end {% if product.qty_store %}fw-semibold{% else %}text-muted{% endif %}">
+                            {{ product.qty_store|floatformat:0|intcomma }}
+                        </td>
+                        {% endif %}
+                        <td class="text-end">
+                            <a href="{% url 'kho_san_pham:product_detail' product.pk %}" class="btn btn-sm btn-outline-hm">Chi tiết</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted py-4">
+                            {% if has_filters %}Không có SKU khớp bộ lọc.{% else %}Chưa có sản phẩm.{% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {% if page_obj.paginator.num_pages > 1 %}
+    <div class="d-flex justify-content-center mt-3">
+        {% include 'includes/pagination.html' with page_obj=page_obj query_string=query_string %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+    var form = document.getElementById('ksp-stock-form');
+    if (!form) return;
+    function submitFilters() {
+        if (form.requestSubmit) form.requestSubmit();
+        else form.submit();
+    }
+    ['ksp-stk-wh', 'ksp-stk-status', 'ksp-stk-order', 'ksp-stk-stock'].forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) el.addEventListener('change', submitFilters);
+    });
+})();
+</script>
+{% endblock %}

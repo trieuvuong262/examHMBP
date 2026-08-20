@@ -650,3 +650,23 @@ tích lũy nhiều.
 Danh sách kho giờ do Portal quản, không còn đọc từ chi nhánh KiotViet:
 `fg_warehouse_choices` trả mã kho thật (`XUONG-TP`) thay cho `kv:<pk>`. Đây là một mảng
 nữa cắt được khỏi KiotViet — con số id chi nhánh sẽ hết nghĩa khi bỏ hẳn KiotViet.
+
+### Hai kho — chỗ hiện và ai được ghi
+
+| | `XUONG-TP` | `CH-TRUNG-TAM` |
+|---|---|---|
+| `owner_system` | `portal` | `sales` |
+| Vai trò | Thành phẩm tại xưởng | Tồn điểm bán |
+| Cột Tồn kho trên danh mục | **Có** — `Product.qty_on_hand` | **Không** — lọc `owner=portal` |
+| Form / Excel "Tồn kho" | Ghi `adjust` vào kho này | Không sửa tay trên form danh mục |
+| Nhập từ sản xuất | `production_in` — bắt buộc kho portal | Cấm |
+| Bán / trả | Cấm | `sale_out` / `sale_return_in` |
+| Chuyển kho | `transfer_out` | `transfer_in` |
+| Tồn đầu kỳ | Đếm tại xưởng | 0 đến khi cắt KV; rồi đếm tại cửa hàng |
+| Map KV | Chi nhánh xưởng (`kv:4`) | Chi nhánh trung tâm |
+
+KiotViet còn tồn ở vài chi nhánh phụ — **không** tạo kho Portal cho chúng. Tra ở
+module KiotViet. Chỉ hai địa điểm vật lý được chốt: xưởng và cửa hàng trung tâm.
+
+Luồng: sản xuất → `XUONG-TP` (cột danh mục tăng) → phiếu chuyển → `CH-TRUNG-TAM`
+→ bán trừ cửa hàng. Không trừ tồn xưởng khi bán.

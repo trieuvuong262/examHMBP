@@ -23,10 +23,10 @@ class ProductForm(forms.ModelForm):
         min_value=Decimal('0'),
         max_digits=14,
         decimal_places=2,
-        label='Tồn kho',
+        label='Tồn xưởng',
         initial=Decimal('0'),
         widget=forms.NumberInput(attrs={**FORM_CONTROL, 'step': '1', 'min': '0'}),
-        help_text='Tồn tại kho thành phẩm xưởng. Để trống = 0 khi tạo mới, giữ nguyên khi sửa.',
+        help_text='Tồn tại kho thành phẩm xưởng (XUONG-TP). Cửa hàng không sửa ở đây.',
     )
 
     class Meta:
@@ -160,9 +160,9 @@ class ProductForm(forms.ModelForm):
         try:
             qty = Decimal(qty).quantize(Decimal('0.01'))
         except (InvalidOperation, TypeError) as exc:
-            raise forms.ValidationError('Tồn kho không phải số.') from exc
+            raise forms.ValidationError('Tồn xưởng không phải số.') from exc
         if qty < 0:
-            raise forms.ValidationError('Tồn kho không được âm.')
+            raise forms.ValidationError('Tồn xưởng không được âm.')
         return qty
 
     def clean_accounting_code(self):

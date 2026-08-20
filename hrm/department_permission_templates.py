@@ -176,7 +176,7 @@ def _kho_npl_menus(*, manager: bool) -> dict:
 def _kho_san_pham_menus(*, manager: bool) -> dict:
     """Menu Kho sản phẩm — nằm dưới Sản xuất trên sidebar."""
     level = FULL if manager else VIEW
-    return {key: dict(level) for key in ('products', 'code_settings')}
+    return {key: dict(level) for key in ('products', 'stock', 'code_settings')}
 
 
 def _hrm_menus(*, level: dict) -> dict:

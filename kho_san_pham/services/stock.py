@@ -11,7 +11,8 @@ from dataclasses import dataclass
 from decimal import Decimal
 
 from django.db import IntegrityError, transaction
-from django.db.models import Sum
+from django.db.models import DecimalField, OuterRef, Subquery, Sum, Value
+from django.db.models.functions import Coalesce
 from django.utils import timezone
 
 from kho_san_pham.choices import (
@@ -245,17 +246,76 @@ def _refresh_catalog_qty(product) -> None:
 
 def catalog_stock_warehouse() -> Warehouse:
     """Kho mà form danh mục ghi tồn vào — ``XUONG-TP``, hoặc kho Portal duy nhất."""
-    hit = Warehouse.objects.filter(code=CATALOG_STOCK_WAREHOUSE_CODE, is_active=True).first()
-    if hit is not None:
-        return hit
-    portal = list(
-        Warehouse.objects.filter(is_active=True, owner_system=WAREHOUSE_OWNER_PORTAL)[:2]
-    )
-    if len(portal) == 1:
-        return portal[0]
+    factory, _store = catalog_and_sales_warehouses()
+    if factory is not None:
+        return factory
     raise StockMovementError(
         'Chưa có kho thành phẩm xưởng. Chạy "manage.py kho_sp_seed_warehouses --apply" trước.'
     )
+
+
+def catalog_and_sales_warehouses() -> tuple[Warehouse | None, Warehouse | None]:
+    """Kho xưởng (cột danh mục) và kho bán hàng (không cộng vào danh mục)."""
+    factory = Warehouse.objects.filter(code=CATALOG_STOCK_WAREHOUSE_CODE, is_active=True).first()
+    if factory is None:
+        portal = list(
+            Warehouse.objects.filter(is_active=True, owner_system=WAREHOUSE_OWNER_PORTAL)[:2]
+        )
+        factory = portal[0] if len(portal) == 1 else None
+    store = (
+        Warehouse.objects
+        .filter(is_active=True, owner_system=WAREHOUSE_OWNER_SALES)
+        .order_by('id')
+        .first()
+    )
+    return factory, store
+
+
+def _qty_subquery(warehouse_id: int):
+    return Coalesce(
+        Subquery(
+            StockBalance.objects.filter(
+                product_id=OuterRef('pk'),
+                warehouse_id=warehouse_id,
+            ).values('qty_on_hand')[:1],
+            output_field=DecimalField(max_digits=14, decimal_places=2),
+        ),
+        Value(Decimal('0')),
+        output_field=DecimalField(max_digits=14, decimal_places=2),
+    )
+
+
+def annotate_warehouse_qtys(qs, *, factory: Warehouse | None, store: Warehouse | None):
+    """Gắn ``qty_factory`` / ``qty_store`` từ sổ — 0 khi chưa có dòng số dư."""
+    if factory is not None:
+        qs = qs.annotate(qty_factory=_qty_subquery(factory.pk))
+    else:
+        qs = qs.annotate(
+            qty_factory=Value(Decimal('0'), output_field=DecimalField(max_digits=14, decimal_places=2)),
+        )
+    if store is not None:
+        qs = qs.annotate(qty_store=_qty_subquery(store.pk))
+    else:
+        qs = qs.annotate(
+            qty_store=Value(Decimal('0'), output_field=DecimalField(max_digits=14, decimal_places=2)),
+        )
+    return qs
+
+
+def product_stock_rows(product) -> list[dict]:
+    """Tồn từng kho đang dùng, để hiện trên chi tiết SKU."""
+    balances = {
+        row.warehouse_id: row.qty_on_hand
+        for row in StockBalance.objects.filter(product=product)
+    }
+    rows = []
+    for warehouse in Warehouse.objects.filter(is_active=True).order_by('owner_system', 'code'):
+        rows.append({
+            'warehouse': warehouse,
+            'qty': balances.get(warehouse.pk, Decimal('0')),
+            'is_catalog': warehouse.owner_system == WAREHOUSE_OWNER_PORTAL,
+        })
+    return rows
 
 
 def set_catalog_qty(product, qty, *, user=None, warehouse=None, notes: str = '') -> MovementResult | None:

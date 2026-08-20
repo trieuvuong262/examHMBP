@@ -101,6 +101,7 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
     ],
     MODULE_KHO_SAN_PHAM: [
         {'key': 'products', 'label': 'Danh mục', 'icon': 'bi-tags'},
+        {'key': 'stock', 'label': 'Tồn kho', 'icon': 'bi-boxes'},
         {'key': 'code_settings', 'label': 'Thiết lập mã', 'icon': 'bi-upc'},
     ],
     MODULE_SAN_XUAT: [
@@ -330,6 +331,7 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     ('/kho-npl/tong-quan', MODULE_KHO_NPL, 'material_stock'),
     ('/kho-san-pham/thiet-lap-ma', MODULE_KHO_SAN_PHAM, 'code_settings'),
     ('/kho-san-pham/danh-muc', MODULE_KHO_SAN_PHAM, 'products'),
+    ('/kho-san-pham/ton-kho', MODULE_KHO_SAN_PHAM, 'stock'),
     ('/kho-san-pham/', MODULE_KHO_SAN_PHAM, 'products'),
     # Sản xuất hub — prefix cụ thể trước; /san-xuat/ cuối cùng → overview
     ('/san-xuat/tong-quan', MODULE_SAN_XUAT, 'overview'),

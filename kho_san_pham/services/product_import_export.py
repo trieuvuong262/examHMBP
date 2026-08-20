@@ -65,6 +65,7 @@ _HEADER_ALIASES = {
     'gia ban': 'Giá bán',
     'gia': 'Giá bán',
     'ton kho': 'Tồn kho',
+    'ton xuong': 'Tồn kho',
     'ton': 'Tồn kho',
     'so luong': 'Tồn kho',
     'mo ta': 'Mô tả',

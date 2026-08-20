@@ -56,8 +56,8 @@ def _list_type(request) -> str:
 PRODUCT_LIST_ORDER_CHOICES = (
     ('code:asc', 'SKU A → Z'),
     ('code:desc', 'SKU Z → A'),
-    ('qty_on_hand:desc', 'Tồn nhiều → ít'),
-    ('qty_on_hand:asc', 'Tồn ít → nhiều'),
+    ('qty_on_hand:desc', 'Tồn xưởng nhiều → ít'),
+    ('qty_on_hand:asc', 'Tồn xưởng ít → nhiều'),
     ('name:asc', 'Tên A → Z'),
     ('base_price:desc', 'Giá cao → thấp'),
     ('base_price:asc', 'Giá thấp → cao'),
@@ -324,6 +324,8 @@ def product_detail(request, pk: int):
     from san_xuat.services.bom import get_working_bom
     from san_xuat.services.products import find_tech_doc_for_product, product_sx_code
 
+    from kho_san_pham.services.stock import product_stock_rows
+
     product = get_object_or_404(Product, pk=pk)
     tech_doc = find_tech_doc_for_product(product)
     working_bom = get_working_bom(tech_doc) if tech_doc else None
@@ -333,6 +335,7 @@ def product_detail(request, pk: int):
         **nav_context('products', user=request.user),
         **perm_context(request.user, 'products'),
         'product': product,
+        'stock_rows': product_stock_rows(product),
         'type_labels': PRODUCT_TYPE_LABELS,
         'description_html': format_description_html(product.description),
         'tech_doc': tech_doc,

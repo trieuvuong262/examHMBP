@@ -93,8 +93,8 @@ html[data-theme="dark"] .ksp-catalog-table .kv-product-group-expandable.kv-expan
                         <th class="text-end">
                             <a href="{{ stock_sort_href }}"
                                class="text-decoration-none text-body{% if sort_key == 'qty_on_hand' %} fw-bold text-hm{% endif %}"
-                               title="Sắp xếp theo tồn kho">
-                                Tồn kho
+                               title="Sắp xếp theo tồn xưởng">
+                                Tồn xưởng
                                 {% if sort_key == 'qty_on_hand' %}
                                 <i class="bi bi-caret-{% if sort_dir == 'asc' %}up{% else %}down{% endif %}-fill"></i>
                                 {% endif %}
@@ -157,7 +157,7 @@ html[data-theme="dark"] .ksp-catalog-table .kv-product-group-expandable.kv-expan
                             {{ item.min_price|floatformat:0|intcomma }} – {{ item.max_price|floatformat:0|intcomma }}
                             {% elif item.base_price is not None %}{{ item.base_price|floatformat:0|intcomma }}{% else %}—{% endif %}
                         </td>
-                        <td data-label="Tồn" class="text-end">
+                        <td data-label="Tồn xưởng" class="text-end">
                             {% if item.qty_on_hand is not None %}{{ item.qty_on_hand|floatformat:0|intcomma }}{% else %}0{% endif %}
                         </td>
                         <td data-label="Trạng thái">
@@ -214,7 +214,7 @@ html[data-theme="dark"] .ksp-catalog-table .kv-product-group-expandable.kv-expan
                         <td data-label="Giá" class="text-end">
                             {% if variant.base_price is not None %}{{ variant.base_price|floatformat:0|intcomma }}{% else %}—{% endif %}
                         </td>
-                        <td data-label="Tồn" class="text-end">
+                        <td data-label="Tồn xưởng" class="text-end">
                             {% if variant.qty_on_hand is not None %}{{ variant.qty_on_hand|floatformat:0|intcomma }}{% else %}0{% endif %}
                         </td>
                         <td data-label="Trạng thái">
