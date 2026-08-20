@@ -2,6 +2,7 @@
 {# Context: date_from, date_to, span_id, from_id, to_id #}
 {# Optional: show_dish=1, dish_choices, dish_filter_value, clear_url #}
 {# Optional: single_date=1 → chỉ ô «Ngày ăn» (name=meal_date), dùng meal_date #}
+{# Optional: show_search=1, search_query, search_placeholder — ô tìm text (name=q) #}
 <style>
 .jp-meal-filter-bar {
   display: flex;
@@ -24,7 +25,8 @@
 .jp-meal-filter-bar .jp-meal-filter-date {
   width: 8.5rem;
 }
-.jp-meal-filter-bar .jp-meal-filter-dish {
+.jp-meal-filter-bar .jp-meal-filter-dish,
+.jp-meal-filter-bar .jp-meal-filter-search {
   flex: 1 1 11rem;
   min-width: 9.5rem;
   max-width: 18rem;
@@ -59,7 +61,8 @@
   .jp-meal-filter-bar .jp-meal-filter-date {
     width: 7.25rem;
   }
-  .jp-meal-filter-bar .jp-meal-filter-dish {
+  .jp-meal-filter-bar .jp-meal-filter-dish,
+  .jp-meal-filter-bar .jp-meal-filter-search {
     flex: 0 0 10rem;
     min-width: 9rem;
     max-width: none;
@@ -122,6 +125,20 @@
     </select>
   </div>
   {% endif %}
+  {% endif %}
+  {% if show_search %}
+  <div class="jp-meal-filter-search">
+    <label class="form-label fw-bold small" for="{{ search_id|default:'meal-filter-q' }}">Tìm món</label>
+    <input type="search"
+           name="q"
+           id="{{ search_id|default:'meal-filter-q' }}"
+           class="form-control"
+           placeholder="{{ search_placeholder|default:'Tên món…' }}"
+           value="{{ search_query|default:'' }}"
+           title="Tìm món"
+           aria-label="Tìm món"
+           autocomplete="off">
+  </div>
   {% endif %}
   <div class="jp-meal-filter-actions">
     <button type="submit" class="btn btn-hm btn-sm fw-bold px-3">Lọc</button>
