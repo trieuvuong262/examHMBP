@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from django.db import transaction
 from django.db.models import Q
 
-from kho_san_pham.sku_vocabulary import COLOR_NONE
+from kho_san_pham.sku_vocabulary import COLOR_NONE, GENDER_FEMALE, GENDER_MALE
 from san_xuat.hub_models import SxColor, SxSize, SxSku
 
 class SkuError(Exception):
@@ -40,14 +40,26 @@ def normalize_style(value: str) -> str:
     return (value or "").strip().upper()[:60]
 
 
-def compose_sku_code(*, style_code: str, color_code: str = "", size_label: str) -> str:
-    """Ghép SKU: ``{Mã SX}-{Màu}-{Size}`` hoặc ``{Mã SX}-{Size}`` khi không có màu."""
+def compose_sku_code(
+    *, style_code: str, color_code: str = "", size_label: str, gender: str = "",
+) -> str:
+    """Ghép SKU: ``{Mã SX}[-{Màu}]-{Size}[-{Giới tính}]``.
+
+    Bỏ phần màu khi không có màu hoặc màu là ``NOCOLOR`` — ghép chữ ``NOCOLOR``
+    vào mã chỉ làm mã dài ra mà không thêm thông tin nào.
+
+    Giới tính phải nằm trong mã: bản nam và bản nữ cùng style–màu–size là hai SKU
+    khác nhau, thiếu nó thì hai dòng đội chung một mã.
+    """
     style = normalize_style(style_code)
     color = normalize_token(color_code) if color_code else ""
+    if color == COLOR_NONE:
+        color = ""
     size = normalize_token(size_label)
+    sex = normalize_token(gender, max_len=10)
     if not style or not size:
         raise SkuError("Thiếu mã SX / size để ghép SKU.")
-    code = f"{style}-{color}-{size}" if color else f"{style}-{size}"
+    code = "-".join(part for part in (style, color, size, sex) if part)
     if len(code) > 100:
         raise SkuError("Mã SKU vượt quá 100 ký tự — rút ngắn mã SX/màu/size.")
     return code
@@ -281,6 +293,12 @@ def parse_sku_code(sku_code: str, *, style_hint: str = "") -> tuple[str, str, st
     code = (sku_code or "").strip().upper()
     if not code:
         return None
+    # Cắt đuôi giới tính trước khi đọc size. Không cắt thì "…-M-NAM" cho ra
+    # size='NAM', và ensure_size sẽ tạo một size rác tên NAM trong danh mục.
+    for token in (GENDER_MALE, GENDER_FEMALE):
+        if code.endswith(f"-{token}"):
+            code = code[: -(len(token) + 1)]
+            break
     style_hint = normalize_style(style_hint)
     if style_hint and code.startswith(style_hint + "-"):
         rest = code[len(style_hint) + 1 :]

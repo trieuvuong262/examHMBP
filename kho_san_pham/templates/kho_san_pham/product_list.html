@@ -85,6 +85,7 @@ html[data-theme="dark"] .ksp-catalog-table .kv-product-group-expandable.kv-expan
                         <th class="d-none d-lg-table-cell">ĐVT</th>
                         <th class="d-none d-lg-table-cell">Loại</th>
                         <th class="text-end">Giá bán</th>
+                        <th class="text-end">Tồn kho</th>
                         <th>Trạng thái</th>
                         <th></th>
                     </tr>
@@ -142,6 +143,9 @@ html[data-theme="dark"] .ksp-catalog-table .kv-product-group-expandable.kv-expan
                             {{ item.min_price|floatformat:0|intcomma }} – {{ item.max_price|floatformat:0|intcomma }}
                             {% elif item.base_price is not None %}{{ item.base_price|floatformat:0|intcomma }}{% else %}—{% endif %}
                         </td>
+                        <td data-label="Tồn" class="text-end">
+                            {% if item.qty_on_hand is not None %}{{ item.qty_on_hand|floatformat:0|intcomma }}{% else %}0{% endif %}
+                        </td>
                         <td data-label="Trạng thái">
                             <div class="d-flex flex-wrap gap-1">
                             {% if item.is_active %}
@@ -196,6 +200,9 @@ html[data-theme="dark"] .ksp-catalog-table .kv-product-group-expandable.kv-expan
                         <td data-label="Giá" class="text-end">
                             {% if variant.base_price is not None %}{{ variant.base_price|floatformat:0|intcomma }}{% else %}—{% endif %}
                         </td>
+                        <td data-label="Tồn" class="text-end">
+                            {% if variant.qty_on_hand is not None %}{{ variant.qty_on_hand|floatformat:0|intcomma }}{% else %}0{% endif %}
+                        </td>
                         <td data-label="Trạng thái">
                             {% if variant.is_active %}
                             <span class="badge text-bg-success">Đang dùng</span>
@@ -211,7 +218,7 @@ html[data-theme="dark"] .ksp-catalog-table .kv-product-group-expandable.kv-expan
                     {% endif %}
                     {% empty %}
                     <tr>
-                        <td colspan="10" class="text-center text-muted py-4">
+                        <td colspan="11" class="text-center text-muted py-4">
                             Chưa có sản phẩm. Thêm hàng hoá hoặc đồng bộ thành phẩm từ KiotViet.
                         </td>
                     </tr>

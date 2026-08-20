@@ -133,3 +133,6 @@ DEFAULT_WAREHOUSES: list[tuple[str, str, str]] = [
     ('XUONG-TP', 'Kho thành phẩm — Xưởng sản xuất', WAREHOUSE_OWNER_PORTAL),
     ('CH-TRUNG-TAM', 'Chi nhánh trung tâm', WAREHOUSE_OWNER_SALES),
 ]
+
+# Tồn hiện trên danh mục SKU = tồn các kho do Portal sở hữu (hiện chỉ XUONG-TP).
+CATALOG_STOCK_WAREHOUSE_CODE = 'XUONG-TP'

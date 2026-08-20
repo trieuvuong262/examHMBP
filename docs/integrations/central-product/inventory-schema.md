@@ -535,7 +535,7 @@ Thêm hai lớp: token riêng cho từng hệ (thu hồi độc lập, log biế
 | 1 | Chốt danh sách kho (mục 13) | **Xong** — 2 kho, 20/08/2026 |
 | 2 | `Warehouse` + command nạp danh sách kho | **Xong** — `kho_sp_seed_warehouses` |
 | 3 | `StockBalance` + `StockLedger` + `post_movement` | **Xong** — migration `0009`, 20/20 kiểm chứng đạt |
-| 4 | Tồn đầu kỳ: kiểm kê thực tế, ghi `kind=adjust` | **Công cụ xong** — chờ đếm thực tế (mục 14) |
+| 4 | Tồn đầu kỳ: kiểm kê thực tế, ghi `kind=adjust` | **Form danh mục + lệnh CSV** — `Product.qty_on_hand` là bản sao tồn xưởng |
 | 5 | `SxFgReceiptRequest.warehouse_code` → FK `Warehouse` | **Xong** — migration `0085` + `0086` |
 | 6 | Nối chiều nhập: `san_xuat` gọi `post_movement` | **Xong** — `fg_stock.py`, 33/33 kiểm chứng đạt |
 | 7 | `Product.catalog_updated_at` + API kéo danh mục | Cho bán hàng |
@@ -549,12 +549,12 @@ Thêm hai lớp: token riêng cho từng hệ (thu hồi độc lập, log biế
 |---|---|
 | `kho_san_pham/stock_models.py` | `Warehouse`, `StockBalance`, `StockLedger`, `NegativeStockAlert` |
 | `kho_san_pham/choices.py` | Loại phát sinh, loại chứng từ, `MOVEMENT_DIRECTION`, `DEFAULT_WAREHOUSES` |
-| `kho_san_pham/services/stock.py` | `post_movement`, `reverse_movement`, `get_qty_on_hand` |
+| `kho_san_pham/services/stock.py` | `post_movement`, `reverse_movement`, `get_qty_on_hand`, `set_catalog_qty` |
 | `kho_san_pham/migrations/0009_…` | Tạo 4 bảng + ràng buộc chống trùng |
 | `kho_san_pham/management/commands/kho_sp_seed_warehouses.py` | Nạp kho, chạy lại được nhiều lần |
 | `kho_san_pham/management/commands/kho_sp_import_stocktake.py` | Nhập kiểm kê / tồn đầu kỳ (mục 14) |
 | `kho_san_pham/admin.py` | Tồn và sổ kho để chỉ-đọc |
-| `scripts/verify_kho_sp_stock.py` | 33 kiểm chứng, chạy trong transaction rồi rollback |
+| `scripts/verify_kho_sp_stock.py` | 38 kiểm chứng, chạy trong transaction rồi rollback |
 
 ### Đã hiện thực ở bước 5-6
 
@@ -584,6 +584,13 @@ deploy sau**. Git thay tệp bằng rename nên tiến trình đang chạy đọ
 nguy cơ script bị đọc lẫn nửa cũ nửa mới. Lần này bước 8e được chạy tay bù.
 
 ## 14. Tồn đầu kỳ — cách làm
+
+`Product.qty_on_hand` là cột trên danh mục để **xem và nhập** tồn xưởng. Nó không thay sổ
+kho: sửa trên form/Excel gọi `set_catalog_qty` → `post_movement(kind=adjust)` vào
+`XUONG-TP`, rồi cột danh mục được ghi lại từ tổng tồn các kho Portal. Bán hàng ở chi nhánh
+không đổi số này.
+
+Nhập từng SKU trên form Sửa sản phẩm, hoặc hàng loạt bằng Excel (cột `Tồn kho`).
 
 Tồn đầu kỳ **phải đếm thực tế**, không bốc từ KiotViet sang. Tồn KiotViet đang mang sẵn sai
 số tích lũy nhiều năm; nhập nó vào là kế thừa nguyên vẹn sai số đó rồi mất luôn khả năng

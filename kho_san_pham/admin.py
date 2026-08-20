@@ -37,11 +37,11 @@ class ProductTypeKvMapAdmin(admin.ModelAdmin):
 class ProductAdmin(admin.ModelAdmin):
     list_display = (
         'code', 'style_code', 'catalog_type', 'color_code', 'size_label', 'accounting_code', 'kiotviet_code',
-        'name', 'product_type', 'unit', 'base_price', 'is_active', 'sync_source',
+        'name', 'product_type', 'unit', 'base_price', 'qty_on_hand', 'is_active', 'sync_source',
     )
     list_filter = ('product_type', 'catalog_type', 'is_active', 'sync_source')
     search_fields = ('code', 'style_code', 'color_code', 'size_label', 'accounting_code', 'kiotviet_code', 'name', 'bar_code')
-    readonly_fields = ('sx_sku', 'kiotviet_id', 'synced_at', 'kv_modified_at', 'created_at', 'updated_at')
+    readonly_fields = ('sx_sku', 'kiotviet_id', 'synced_at', 'kv_modified_at', 'created_at', 'updated_at', 'qty_on_hand')
 
 
 @admin.register(Warehouse)

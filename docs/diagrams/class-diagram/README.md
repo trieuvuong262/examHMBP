@@ -15,7 +15,7 @@ flowchart LR
     feedback["feedback<br/>1 model"]
     hrm["hrm<br/>10 model"]
     kho_npl["kho_npl<br/>24 model"]
-    kho_san_pham["kho_san_pham<br/>4 model"]
+    kho_san_pham["kho_san_pham<br/>8 model"]
     kiotviet["kiotviet<br/>29 model"]
     kpi["kpi<br/>3 model"]
     nas_storage["nas_storage<br/>6 model"]
@@ -41,7 +41,7 @@ flowchart LR
     feedback -->|2| auth
     hrm -->|4| auth
     kho_npl -->|16| auth
-    kho_san_pham -->|2| auth
+    kho_san_pham -->|4| auth
     kho_san_pham -->|1| san_xuat
     kiotviet -->|2| auth
     kpi -->|3| auth
@@ -51,6 +51,7 @@ flowchart LR
     san_xuat -->|61| auth
     san_xuat -->|1| hrm
     san_xuat -->|9| kho_npl
+    san_xuat -->|1| kho_san_pham
     san_xuat -->|1| tasks
     service_requests -->|6| auth
     service_requests -->|1| equipment
@@ -79,13 +80,13 @@ flowchart LR
 | `hrm` | 10 | [hrm.md](./hrm.md) |
 | `service_requests` | 9 | [service_requests.md](./service_requests.md) |
 | `tasks` | 8 | [tasks.md](./tasks.md) |
+| `kho_san_pham` | 8 | [kho_san_pham.md](./kho_san_pham.md) |
 | `assessment` | 7 | [assessment.md](./assessment.md) |
 | `audit` | 7 | [audit.md](./audit.md) |
 | `training` | 6 | [training.md](./training.md) |
 | `nas_storage` | 6 | [nas_storage.md](./nas_storage.md) |
 | `equipment` | 5 | [equipment.md](./equipment.md) |
 | `documents` | 4 | [documents.md](./documents.md) |
-| `kho_san_pham` | 4 | [kho_san_pham.md](./kho_san_pham.md) |
 | `auth` | 3 | [auth.md](./auth.md) |
 | `recruitment` | 3 | [recruitment.md](./recruitment.md) |
 | `kpi` | 3 | [kpi.md](./kpi.md) |
@@ -95,4 +96,4 @@ flowchart LR
 | `feedback` | 1 | [feedback.md](./feedback.md) |
 | `tools` | 1 | [tools.md](./tools.md) |
 
-Tổng: **23 module**, **252 model**.
+Tổng: **23 module**, **256 model**.

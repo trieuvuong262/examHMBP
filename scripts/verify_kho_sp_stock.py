@@ -46,6 +46,7 @@ from kho_san_pham.services.stock import (  # noqa: E402
     get_qty_on_hand,
     post_movement,
     reverse_movement,
+    set_catalog_qty,
 )
 from san_xuat.hub_models import (  # noqa: E402
     SxFgReceiptLine,
@@ -447,6 +448,33 @@ def run_checks():
         assert result.posted == 1, result.posted
         assert get_qty_on_hand(f.shirt, f.factory) == Decimal('7.00')
 
+    def danh_muc_bam_ton_xuong_sau_nhap(f):
+        f.receive(qty='40.00')
+        f.shirt.refresh_from_db()
+        assert f.shirt.qty_on_hand == Decimal('40.00'), f.shirt.qty_on_hand
+
+    def ban_hang_khong_doi_ton_danh_muc(f):
+        f.receive(qty='40.00')
+        f.seed_store(qty='10.00')
+        f.sell(qty='-4.00')
+        f.shirt.refresh_from_db()
+        assert f.shirt.qty_on_hand == Decimal('40.00'), f.shirt.qty_on_hand
+
+    def nhap_ton_danh_muc_ghi_so(f):
+        set_catalog_qty(f.shirt, Decimal('25.00'), warehouse=f.factory)
+        f.shirt.refresh_from_db()
+        assert f.shirt.qty_on_hand == Decimal('25.00')
+        assert get_qty_on_hand(f.shirt, f.factory) == Decimal('25.00')
+
+    def nhap_ton_danh_muc_giong_so_thi_bo_qua(f):
+        set_catalog_qty(f.shirt, Decimal('25.00'), warehouse=f.factory)
+        second = set_catalog_qty(f.shirt, Decimal('25.00'), warehouse=f.factory)
+        assert second is None
+        assert StockLedger.objects.filter(source_doc_type='stocktake').count() == 1
+
+    def nhap_ton_danh_muc_am_bao_loi(f):
+        expect_error(lambda: set_catalog_qty(f.shirt, Decimal('-1'), warehouse=f.factory), 'không được âm')
+
     cases = [
         ('nhập thành phẩm cộng tồn và ghi sổ', nhap_cong_ton),
         ('nhiều phát sinh cộng dồn, balance_after bám theo', cong_don_nhieu_phat_sinh),
@@ -481,6 +509,11 @@ def run_checks():
         ('gửi YCNTP (không bắt buộc KV) ghi tồn luôn', submit_khong_bat_buoc_kv_thi_ghi_ton_luon),
         ('gửi YCNTP (bắt buộc KV) chưa ghi tồn', submit_bat_buoc_kv_thi_chua_ghi_ton),
         ('gửi YCNTP có SKU lạ thì giữ phiếu ở nháp', submit_sku_la_thi_khong_chuyen_done),
+        ('danh mục bám tồn xưởng sau nhập thành phẩm', danh_muc_bam_ton_xuong_sau_nhap),
+        ('bán hàng không đổi tồn trên danh mục', ban_hang_khong_doi_ton_danh_muc),
+        ('nhập tồn danh mục ghi sổ và cột Product', nhap_ton_danh_muc_ghi_so),
+        ('nhập tồn danh mục giống số thì bỏ qua', nhap_ton_danh_muc_giong_so_thi_bo_qua),
+        ('nhập tồn danh mục âm thì báo lỗi', nhap_ton_danh_muc_am_bao_loi),
     ]
 
     for label, fn in cases:

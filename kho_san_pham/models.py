@@ -62,6 +62,14 @@ class Product(models.Model):
         verbose_name='SKU',
         help_text='SKU = Style-Màu-Size (vd. JP-TEE-260001-NVY-M).',
     )
+    legacy_code = models.CharField(
+        max_length=100,
+        blank=True,
+        default='',
+        db_index=True,
+        verbose_name='Mã SKU cũ',
+        help_text='Mã trước khi sinh lại theo từ vựng chuẩn. Để tra cứu ngược, không dùng làm khóa.',
+    )
     sx_sku = models.ForeignKey(
         'san_xuat.SxSku',
         on_delete=models.SET_NULL,
@@ -102,6 +110,13 @@ class Product(models.Model):
         default=Decimal('0'),
         validators=[MinValueValidator(Decimal('0'))],
         verbose_name='Giá bán',
+    )
+    qty_on_hand = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal('0'),
+        verbose_name='Tồn kho',
+        help_text='Bản sao tồn kho xưởng (XUONG-TP). Nguồn sự thật là sổ kho; cột này chỉ để xem trên danh mục.',
     )
     image = models.ImageField(upload_to='kho_sp/products/', blank=True, verbose_name='Hình ảnh')
     image_url = models.URLField(max_length=500, blank=True, default='', verbose_name='URL ảnh KV')
@@ -175,6 +190,7 @@ class Product(models.Model):
 
     def save(self, *args, **kwargs):
         self.code = (self.code or '').strip().upper()
+        self.legacy_code = (self.legacy_code or '').strip().upper()
         self.style_code = (self.style_code or '').strip().upper()
         self.color_code = (self.color_code or '').strip().upper()
         self.color_label = (self.color_label or '').strip()

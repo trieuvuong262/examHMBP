@@ -1,5 +1,6 @@
 from django import forms
 from django.db.models import Q
+from decimal import Decimal, InvalidOperation
 
 from kho_san_pham.choices import (
     PRODUCT_TYPE_CHOICES,
@@ -15,6 +16,18 @@ FORM_TEXTAREA = {'class': 'form-control form-control-sm', 'rows': 3}
 
 class ProductForm(forms.ModelForm):
     """Form SP — SKU ghép Style-[Màu-]Size."""
+
+    # Không nằm trong Meta.fields: lưu qua set_catalog_qty → sổ kho, không ghi cột thẳng.
+    qty_on_hand = forms.DecimalField(
+        required=False,
+        min_value=Decimal('0'),
+        max_digits=14,
+        decimal_places=2,
+        label='Tồn kho',
+        initial=Decimal('0'),
+        widget=forms.NumberInput(attrs={**FORM_CONTROL, 'step': '1', 'min': '0'}),
+        help_text='Tồn tại kho thành phẩm xưởng. Để trống = 0 khi tạo mới, giữ nguyên khi sửa.',
+    )
 
     class Meta:
         model = Product
@@ -92,6 +105,7 @@ class ProductForm(forms.ModelForm):
         self.fields['unit'].required = False
         self.fields['category_name'].required = False
         self.fields['base_price'].required = False
+        self.fields['qty_on_hand'].required = False
         self.fields['image'].required = False
         self.fields['description'].required = False
         self.fields['notes'].required = False
@@ -113,6 +127,7 @@ class ProductForm(forms.ModelForm):
         # Giữ giá trị đang dùng nếu không còn active
         inst = self.instance
         if inst and inst.pk:
+            self.fields['qty_on_hand'].initial = inst.qty_on_hand
             if inst.color_code and inst.color_code not in {c.code for c in colors}:
                 color_choices.append((inst.color_code, f'{inst.color_code} (đang dùng)'))
             if inst.size_label and inst.size_label not in {s.code for s in sizes}:
@@ -136,6 +151,19 @@ class ProductForm(forms.ModelForm):
 
     def clean_code(self):
         return (self.cleaned_data.get('code') or '').strip().upper()
+
+    def clean_qty_on_hand(self):
+        qty = self.cleaned_data.get('qty_on_hand')
+        if qty is None:
+            # Sửa mà bỏ trống = không đổi tồn. Tạo mới mà bỏ trống = 0.
+            return None if self.instance.pk else Decimal('0')
+        try:
+            qty = Decimal(qty).quantize(Decimal('0.01'))
+        except (InvalidOperation, TypeError) as exc:
+            raise forms.ValidationError('Tồn kho không phải số.') from exc
+        if qty < 0:
+            raise forms.ValidationError('Tồn kho không được âm.')
+        return qty
 
     def clean_accounting_code(self):
         # Cùng mã KT dùng chung nhiều SKU / size (theo file HĐ–tem nhãn).

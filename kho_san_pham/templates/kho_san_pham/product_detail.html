@@ -84,6 +84,7 @@
                         <div class="col-sm-4"><span class="text-muted">Mã KiotViet</span><div class="fw-semibold">{{ product.kiotviet_code|default:"—" }}</div></div>
                         <div class="col-sm-4"><span class="text-muted">ĐVT</span><div class="fw-semibold">{{ product.unit|default:"—" }}</div></div>
                         <div class="col-sm-4"><span class="text-muted">Giá bán</span><div class="fw-semibold">{% if product.base_price %}{{ product.base_price|floatformat:0|intcomma }} ₫{% else %}—{% endif %}</div></div>
+                        <div class="col-sm-4"><span class="text-muted">Tồn kho</span><div class="fw-semibold">{{ product.qty_on_hand|floatformat:0|intcomma }}</div></div>
                         <div class="col-sm-4"><span class="text-muted">Đồng bộ lúc</span><div class="fw-semibold">{% if product.synced_at %}{{ product.synced_at|date:"d/m/Y H:i" }}{% else %}—{% endif %}</div></div>
                         <div class="col-12 mt-2">
                             <span class="text-muted d-block mb-1">Mã vạch</span>

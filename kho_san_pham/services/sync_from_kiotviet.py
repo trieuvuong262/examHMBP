@@ -254,13 +254,16 @@ def _is_temp_code(product: Product) -> bool:
     return False
 
 
-def _compose_variant_sku(*, style_code: str, color_code: str, size_label: str) -> str:
+def _compose_variant_sku(
+    *, style_code: str, color_code: str, size_label: str, gender: str = '',
+) -> str:
     from san_xuat.services.sku_catalog import compose_sku_code
 
     return compose_sku_code(
         style_code=style_code,
         color_code=color_code or '',
         size_label=size_label,
+        gender=gender or '',
     )
 
 
@@ -319,7 +322,10 @@ def _apply_style_to_product(
     if (product.style_code or '').strip().upper() != style.code:
         product.style_code = style.code
         changed = True
-    if size_label and (product.size_label or '').strip().upper() != size_label:
+    # Chỉ điền khi trống, giống màu. Portal làm chủ từ vựng SKU: KiotViet còn ghi
+    # "XXL/XXXL" trong khi bản chuẩn là "2XL/3XL", ghi đè là xóa sạch công chuẩn
+    # hóa mỗi lần sync.
+    if size_label and not (product.size_label or '').strip():
         product.size_label = size_label
         changed = True
     if color_code and not (product.color_code or '').strip():
@@ -335,6 +341,7 @@ def _apply_style_to_product(
                 style_code=style.code,
                 color_code=product.color_code or color_code,
                 size_label=size_label,
+                gender=product.gender,
             )
         except Exception:  # noqa: BLE001
             new_sku = ''

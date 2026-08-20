@@ -24,6 +24,7 @@ class StyleVariant:
     accounting_code: str
     bar_code: str
     kiotviet_code: str
+    qty_on_hand: Decimal = Decimal('0')
 
 
 @dataclass
@@ -43,6 +44,7 @@ class StyleGroup:
     max_price: Decimal | None = None
     is_active: bool = True
     is_group: bool = False
+    qty_on_hand: Decimal = Decimal('0')
 
 
 def _group_key(product: Product) -> str:
@@ -67,6 +69,7 @@ def _variant_from_product(product: Product) -> StyleVariant:
         accounting_code=product.accounting_code or '',
         bar_code=product.bar_code or '',
         kiotviet_code=product.kiotviet_code or '',
+        qty_on_hand=product.qty_on_hand or Decimal('0'),
     )
 
 
@@ -112,6 +115,7 @@ def group_products_by_style(products: list[Product]) -> list[StyleGroup]:
             max_price=max(prices) if prices else None,
             is_active=any(p.is_active for p in items),
             is_group=len(variants) > 1,
+            qty_on_hand=sum((p.qty_on_hand or Decimal('0') for p in items), Decimal('0')),
         ))
     return groups
 
@@ -163,6 +167,7 @@ def format_style_group(group: StyleGroup) -> dict:
         'min_price': group.min_price,
         'max_price': group.max_price,
         'base_price': group.min_price,
+        'qty_on_hand': group.qty_on_hand,
         'is_active': group.is_active,
         'is_group': group.is_group,
         'variants': [
@@ -178,6 +183,7 @@ def format_style_group(group: StyleGroup) -> dict:
                 'accounting_code': v.accounting_code or '—',
                 'bar_code': v.bar_code or '—',
                 'kiotviet_code': v.kiotviet_code or '—',
+                'qty_on_hand': v.qty_on_hand,
             }
             for v in group.variants
         ],

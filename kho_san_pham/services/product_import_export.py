@@ -31,6 +31,7 @@ EXCEL_HEADERS = [
     'ĐVT',
     'Nhóm hàng',
     'Giá bán',
+    'Tồn kho',
     'Mô tả',
     'Ghi chú',
     'Đang dùng',
@@ -63,6 +64,9 @@ _HEADER_ALIASES = {
     'nhom': 'Nhóm hàng',
     'gia ban': 'Giá bán',
     'gia': 'Giá bán',
+    'ton kho': 'Tồn kho',
+    'ton': 'Tồn kho',
+    'so luong': 'Tồn kho',
     'mo ta': 'Mô tả',
     'ghi chu': 'Ghi chú',
     'dang dung': 'Đang dùng',
@@ -138,6 +142,25 @@ def _parse_decimal(value, default=Decimal('0')) -> Decimal:
         return default
 
 
+def _apply_imported_qty(product, row, *, user=None) -> None:
+    """Cột Tồn kho trên Excel đi qua sổ, không ghi thẳng vào Product."""
+    if 'Tồn kho' not in row.index:
+        return
+    raw = row.get('Tồn kho')
+    if raw is None or (isinstance(raw, float) and pd.isna(raw)):
+        return
+    text = str(raw).strip()
+    if not text or text.lower() in ('nan', 'none'):
+        return
+    from kho_san_pham.services.stock import StockMovementError, set_catalog_qty
+
+    try:
+        set_catalog_qty(product, _parse_decimal(raw), user=user)
+    except StockMovementError:
+        # Thiếu kho seed thì danh mục vẫn nhập được; tồn để 0.
+        return
+
+
 def _parse_product_type(value) -> str:
     text = _parse_text(value).lower()
     if not text:
@@ -161,6 +184,7 @@ def product_to_row(product: Product) -> dict:
         'ĐVT': product.unit or '',
         'Nhóm hàng': product.category_name or '',
         'Giá bán': float(product.base_price or 0),
+        'Tồn kho': float(product.qty_on_hand or 0),
         'Mô tả': product.description or '',
         'Ghi chú': product.notes or '',
         'Đang dùng': 'Có' if product.is_active else 'Không',
@@ -195,6 +219,7 @@ def sample_template_xlsx() -> HttpResponse:
         'ĐVT': 'Cái',
         'Nhóm hàng': '',
         'Giá bán': 100000,
+        'Tồn kho': 0,
         'Mô tả': '',
         'Ghi chú': '',
         'Đang dùng': 'Có',
@@ -323,6 +348,7 @@ def import_products_from_excel(file_obj, *, user=None) -> dict:
                 existing.sx_sku = sx_sku
             existing.save()
             updated += 1
+            _apply_imported_qty(existing, row, user=user)
         else:
             product = Product(code=code, **defaults)
             if sx_sku:
@@ -331,6 +357,7 @@ def import_products_from_excel(file_obj, *, user=None) -> dict:
                 product.created_by = user
             product.save()
             created += 1
+            _apply_imported_qty(product, row, user=user)
 
     return {
         'created': created,

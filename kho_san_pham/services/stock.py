@@ -11,17 +11,22 @@ from dataclasses import dataclass
 from decimal import Decimal
 
 from django.db import IntegrityError, transaction
+from django.db.models import Sum
+from django.utils import timezone
 
 from kho_san_pham.choices import (
+    CATALOG_STOCK_WAREHOUSE_CODE,
+    DOC_TYPE_STOCKTAKE,
     MOVEMENT_ADJUST,
     MOVEMENT_DIRECTION,
     MOVEMENT_PRODUCTION_IN,
     MOVEMENT_SALE_OUT,
     MOVEMENT_SALE_RETURN_IN,
+    SOURCE_SYSTEM_PORTAL,
     WAREHOUSE_OWNER_PORTAL,
     WAREHOUSE_OWNER_SALES,
 )
-from kho_san_pham.models import NegativeStockAlert, StockBalance, StockLedger, Warehouse
+from kho_san_pham.models import NegativeStockAlert, Product, StockBalance, StockLedger, Warehouse
 
 RESULT_APPLIED = 'applied'
 RESULT_ALREADY_APPLIED = 'already_applied'
@@ -207,6 +212,9 @@ def post_movement(
             balance_after=balance.qty_on_hand,
         )
 
+    if warehouse.owner_system == WAREHOUSE_OWNER_PORTAL:
+        _refresh_catalog_qty(product)
+
     return MovementResult(
         status=RESULT_APPLIED,
         balance_after=balance.qty_on_hand,
@@ -219,6 +227,66 @@ def get_qty_on_hand(product, warehouse) -> Decimal:
     """Tồn hiện tại. Trả 0 khi chưa có phát sinh nào."""
     balance = StockBalance.objects.filter(product=product, warehouse=warehouse).only('qty_on_hand').first()
     return balance.qty_on_hand if balance else Decimal('0')
+
+
+def _refresh_catalog_qty(product) -> None:
+    """Ghi ``Product.qty_on_hand`` = tổng tồn các kho Portal (xưởng).
+
+    Cột danh mục chỉ để xem/sửa trên form; sổ ``StockBalance`` mới là nguồn sự thật.
+    Điểm bán (owner=sales) không cộng vào đây — tồn cửa hàng nằm ở VPS bán hàng.
+    """
+    total = (
+        StockBalance.objects
+        .filter(product=product, warehouse__owner_system=WAREHOUSE_OWNER_PORTAL)
+        .aggregate(t=Sum('qty_on_hand'))['t']
+    ) or Decimal('0')
+    Product.objects.filter(pk=product.pk).update(qty_on_hand=total)
+
+
+def catalog_stock_warehouse() -> Warehouse:
+    """Kho mà form danh mục ghi tồn vào — ``XUONG-TP``, hoặc kho Portal duy nhất."""
+    hit = Warehouse.objects.filter(code=CATALOG_STOCK_WAREHOUSE_CODE, is_active=True).first()
+    if hit is not None:
+        return hit
+    portal = list(
+        Warehouse.objects.filter(is_active=True, owner_system=WAREHOUSE_OWNER_PORTAL)[:2]
+    )
+    if len(portal) == 1:
+        return portal[0]
+    raise StockMovementError(
+        'Chưa có kho thành phẩm xưởng. Chạy "manage.py kho_sp_seed_warehouses --apply" trước.'
+    )
+
+
+def set_catalog_qty(product, qty, *, user=None, warehouse=None, notes: str = '') -> MovementResult | None:
+    """Đặt tồn trên danh mục = ``qty`` bằng một phát sinh điều chỉnh.
+
+    Ghi số thẳng vào ``Product.qty_on_hand`` sẽ lệch sổ. Hàm này tính chênh lệch
+    rồi đi ``post_movement``, nên danh mục và sổ cùng một con số.
+    """
+    target = Decimal(qty).quantize(Decimal('0.01'))
+    if target < 0:
+        raise StockMovementError('Tồn kho trên danh mục không được âm.')
+    warehouse = warehouse or catalog_stock_warehouse()
+    current = get_qty_on_hand(product, warehouse)
+    delta = target - current
+    if delta == 0:
+        return None
+    now = timezone.now()
+    return post_movement(
+        product=product,
+        warehouse=warehouse,
+        kind=MOVEMENT_ADJUST,
+        qty_delta=delta,
+        source_system=SOURCE_SYSTEM_PORTAL,
+        source_doc_type=DOC_TYPE_STOCKTAKE,
+        source_doc_code=f'CAT-{product.code}-{now.strftime("%Y%m%d%H%M%S")}',
+        source_line_no=product.pk,
+        occurred_at=now,
+        created_by=user if getattr(user, 'pk', None) else None,
+        actor=getattr(user, 'username', '') or '',
+        notes=(notes or f'Nhập tồn danh mục: {current} → {target}')[:255],
+    )
 
 
 def entries_missing_cost():

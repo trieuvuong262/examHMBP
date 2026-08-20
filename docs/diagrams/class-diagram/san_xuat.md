@@ -204,6 +204,7 @@ classDiagram
     +BigIntegerField? kv_purchase_kiotviet_id
     +CharField kv_purchase_code
     +ForeignKey FK? received_by
+    +ForeignKey FK? warehouse
     +CharField warehouse_code
     +CharField warehouse_name
     +TextField notes
@@ -966,6 +967,7 @@ classDiagram
     +ForeignKey FK? created_by
     +CharField UQ code
     +CharField name
+    +CharField scale
     +PositiveSmallIntegerField sort_order
     +BooleanField is_active
     }
@@ -987,6 +989,7 @@ classDiagram
     +CharField color_code
     +CharField color_label
     +CharField size_label
+    +CharField gender
     +CharField UQ sku_code
     +BooleanField is_active
     +CharField notes
@@ -1267,6 +1270,9 @@ classDiagram
     class kho_npl_WarehouseLocation {
     +external
     }
+    class kho_san_pham_Warehouse {
+    +external
+    }
     class tasks_WorkTask {
     +external
     }
@@ -1306,6 +1312,7 @@ classDiagram
     SxFgReceiptRequest "*" --> "1" SxProductionOrder : production_order
     SxFgReceiptRequest "*" --> "1" SxProductionStat : production_stat
     SxFgReceiptRequest "*" --> "1" auth_User : received_by
+    SxFgReceiptRequest "*" --> "1" kho_san_pham_Warehouse : warehouse
     SxGeneralSettings "*" --> "1" auth_User : updated_by
     SxIeAuditLog "*" --> "1" auth_User : user
     SxMaterialIssueRequest "*" --> "1" auth_User : created_by

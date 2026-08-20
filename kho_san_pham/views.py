@@ -1,4 +1,5 @@
 from django.contrib import messages
+from django.db import transaction
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -18,6 +19,7 @@ from kho_san_pham.choices import (
 from kho_san_pham.forms import ProductForm
 from kho_san_pham.models import Product
 from kho_san_pham.product_list_columns import PRODUCT_LIST_SORT_FIELDS
+from kho_san_pham.services.stock import StockMovementError, set_catalog_qty
 from kho_san_pham.services.product_import_export import (
     ProductImportError,
     export_products_xlsx,
@@ -90,6 +92,13 @@ def _product_list_qs(request):
         order = f'-{order}'
     qs = qs.order_by(order, 'code')
     return qs, search_query, status, product_type, sort_key, sort_dir
+
+
+def _apply_catalog_qty(product, form, *, user) -> None:
+    qty = form.cleaned_data.get('qty_on_hand')
+    if qty is None:
+        return
+    set_catalog_qty(product, qty, user=user)
 
 
 @module_perm_required(MODULE_KHO_SAN_PHAM, 'view')
@@ -294,12 +303,18 @@ def product_create(request):
         initial['product_type'] = PRODUCT_TYPE_HANG_HOA
     form = ProductForm(request.POST or None, request.FILES or None, initial=initial)
     if request.method == 'POST' and form.is_valid():
-        product = form.save(commit=False)
-        product.sync_source = SYNC_SOURCE_MANUAL
-        product.created_by = request.user
-        product.save()
-        messages.success(request, f'Đã thêm sản phẩm {product.code}.')
-        return redirect('kho_san_pham:product_detail', pk=product.pk)
+        try:
+            with transaction.atomic():
+                product = form.save(commit=False)
+                product.sync_source = SYNC_SOURCE_MANUAL
+                product.created_by = request.user
+                product.save()
+                _apply_catalog_qty(product, form, user=request.user)
+        except StockMovementError as exc:
+            messages.error(request, str(exc))
+        else:
+            messages.success(request, f'Đã thêm sản phẩm {product.code}.')
+            return redirect('kho_san_pham:product_detail', pk=product.pk)
     return render(request, 'kho_san_pham/product_form.html', {
         **nav_context('products', user=request.user),
         **perm_context(request.user, 'products'),
@@ -314,9 +329,15 @@ def product_edit(request, pk: int):
     product = get_object_or_404(Product, pk=pk)
     form = ProductForm(request.POST or None, request.FILES or None, instance=product)
     if request.method == 'POST' and form.is_valid():
-        product = form.save()
-        messages.success(request, f'Đã cập nhật {product.code}.')
-        return redirect('kho_san_pham:product_detail', pk=product.pk)
+        try:
+            with transaction.atomic():
+                product = form.save()
+                _apply_catalog_qty(product, form, user=request.user)
+        except StockMovementError as exc:
+            messages.error(request, str(exc))
+        else:
+            messages.success(request, f'Đã cập nhật {product.code}.')
+            return redirect('kho_san_pham:product_detail', pk=product.pk)
     return render(request, 'kho_san_pham/product_form.html', {
         **nav_context('products', user=request.user),
         **perm_context(request.user, 'products'),

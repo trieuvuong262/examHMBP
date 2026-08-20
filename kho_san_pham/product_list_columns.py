@@ -10,6 +10,7 @@ PRODUCT_LIST_COLUMNS = [
     {'key': 'product_type', 'label': 'Loại', 'default': True, 'required': False, 'weight': 80},
     {'key': 'unit', 'label': 'ĐVT', 'default': False, 'required': False, 'weight': 50},
     {'key': 'base_price', 'label': 'Giá', 'default': True, 'required': False, 'weight': 80},
+    {'key': 'qty_on_hand', 'label': 'Tồn kho', 'default': True, 'required': False, 'weight': 70},
     {'key': 'status', 'label': 'Trạng thái', 'default': True, 'required': False, 'weight': 80},
 ]
 
@@ -26,5 +27,6 @@ PRODUCT_LIST_SORT_FIELDS = {
     'product_type': 'product_type',
     'unit': 'unit',
     'base_price': 'base_price',
+    'qty_on_hand': 'qty_on_hand',
     'status': 'is_active',
 }
