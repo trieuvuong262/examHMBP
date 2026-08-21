@@ -78,52 +78,23 @@
         </form>
     </div>
 
-    <div class="jp-npl-stock-value-overview mb-3">
-        <div class="jp-npl-stock-value-total">
-            <div class="jp-npl-stock-value-kicker">
-                <i class="bi bi-cash-stack" aria-hidden="true"></i>
-                Giá trị toàn kho
-                {% if has_filters %}<span class="jp-npl-stock-value-kicker-note">theo bộ lọc</span>{% endif %}
+    <div class="jp-stat-grid mb-3 jp-team-stat-grid jp-npl-stock-stat-grid {{ stock_stat_grid_mod }}">
+        {% for tab in category_tabs %}
+        <a href="{{ tab.url }}"
+           class="jp-team-stat-card jp-npl-stock-stat-card card border-0 shadow-sm text-center p-3 text-decoration-none{% if tab.is_active %} is-active{% endif %}"
+           data-loading-message="Đang lọc tồn kho…">
+            <div class="jp-npl-stock-stat-value jp-mat-code{% if tab.key == 'all' %} text-hm{% endif %}"
+                 title="{{ tab.value|npl_money_exact }}">{{ tab.value|npl_money }}</div>
+            <small class="text-muted jp-npl-stock-stat-label">{{ tab.label }}</small>
+            <div class="jp-npl-stock-stat-meta">
+                {{ tab.sku_count }} mã{% if tab.pct is not None %} · {{ tab.pct }}%{% endif %}
             </div>
-            <div class="jp-npl-stock-value-amount jp-mat-code" title="{{ value_summary.total_value|npl_money_exact }}">
-                {{ value_summary.total_value|npl_money }}
-            </div>
-            <div class="jp-npl-stock-value-stats">
-                <span><i class="bi bi-box-seam" aria-hidden="true"></i>{{ value_summary.sku_count }} mã NPL</span>
-                <span><i class="bi bi-diagram-3" aria-hidden="true"></i>{{ value_summary.category_count }} nhóm</span>
-            </div>
+        </a>
+        {% empty %}
+        <div class="jp-team-stat-card card border-0 shadow-sm text-center p-3 text-muted">
+            Chưa có dữ liệu tồn.
         </div>
-        <div class="jp-npl-stock-value-by-cat">
-            <div class="jp-npl-stock-value-by-cat-head">
-                <h3>Giá trị theo nhóm hàng</h3>
-            </div>
-            <div class="jp-npl-stock-value-cat-scroll">
-                {% for cat in value_summary.categories %}
-                <div class="jp-npl-stock-cat-row">
-                    <div class="jp-npl-stock-cat-top">
-                        <div class="jp-npl-stock-cat-name">
-                            {% if cat.id %}
-                            <a href="?category={{ cat.id }}&usage={{ selected_usage }}{% if selected_status %}&status={{ selected_status }}{% endif %}{% for loc_id in selected_locations %}&location={{ loc_id }}{% endfor %}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}"
-                               class="jp-npl-stock-cat-link">{{ cat.name }}</a>
-                            {% else %}
-                            <span>{{ cat.name }}</span>
-                            {% endif %}
-                            <span class="jp-npl-stock-cat-sku">{{ cat.sku_count }} mã</span>
-                        </div>
-                        <div class="jp-npl-stock-cat-nums">
-                            <span class="jp-npl-stock-cat-value jp-mat-code" title="{{ cat.value|npl_money_exact }}">{{ cat.value|npl_money }}</span>
-                            <span class="jp-npl-stock-cat-pct">{{ cat.pct }}%</span>
-                        </div>
-                    </div>
-                    <div class="jp-npl-stock-cat-bar" role="presentation" aria-hidden="true">
-                        <span style="width: {{ cat.pct }}%;"></span>
-                    </div>
-                </div>
-                {% empty %}
-                <div class="jp-npl-stock-cat-empty text-muted">Chưa có dữ liệu tồn.</div>
-                {% endfor %}
-            </div>
-        </div>
+        {% endfor %}
     </div>
 
     <div class="card border-0 shadow-sm">

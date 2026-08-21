@@ -354,15 +354,26 @@ def _stock_list_sort(request):
     return sort_key, sort_dir
 
 
+def _stock_tab_query(request, *, category_id: int | None = None) -> str:
+    """Query string cho tab tổng quan: giữ lọc khác, đổi/xóa category."""
+    params = request.GET.copy()
+    if 'category' in params:
+        del params['category']
+    if 'category_parent' in params:
+        del params['category_parent']
+    if 'page' in params:
+        del params['page']
+    if category_id is not None:
+        params['category'] = str(category_id)
+    return params.urlencode()
+
+
 def _stock_filtered_rows(request):
     search_query = get_search_query(request)
     category_parent_id, category_ids = parse_category_cascade_filter(request)
     usage_status = _material_list_status(request, param='usage')
     qs = Material.objects.select_related('category', 'unit', 'supplier', 'color', 'specification')
     qs = _apply_material_usage_status(qs, usage_status)
-    category_q = resolve_category_filter_q(category_parent_id, category_ids)
-    if category_q:
-        qs = qs.filter(category_q)
     if search_query:
         qs = apply_material_search(qs, search_query)
 
@@ -373,11 +384,19 @@ def _stock_filtered_rows(request):
     if location_ids:
         qs = qs.filter(balances__location_id__in=location_ids).distinct()
 
-    rows = material_stock_rows(qs, location_ids=location_ids or None)
+    # Tổng quan tab: luôn theo bộ lọc (trừ nhóm), để tab vẫn hiện đủ nhóm.
+    overview_rows = material_stock_rows(qs, location_ids=location_ids or None)
     if status:
-        rows = [r for r in rows if r['status'] == status]
+        overview_rows = [r for r in overview_rows if r['status'] == status]
+    value_summary = summarize_stock_value(overview_rows)
 
-    value_summary = summarize_stock_value(rows)
+    category_q = resolve_category_filter_q(category_parent_id, category_ids)
+    if category_q:
+        matched_ids = set(qs.filter(category_q).values_list('pk', flat=True))
+        rows = [r for r in overview_rows if r['material'].pk in matched_ids]
+    else:
+        rows = overview_rows
+
     sort_key, sort_dir = _stock_list_sort(request)
     groups = group_stock_rows(rows)
     groups = sort_stock_groups(groups, sort_key, sort_dir)
@@ -395,6 +414,37 @@ def _stock_filtered_rows(request):
     )
 
 
+def _stock_category_tabs(request, value_summary: dict, category_ids: list[int]) -> list[dict]:
+    """Tab Toàn kho + từng nhóm hàng — bấm để lọc như báo cáo đội SX."""
+    active_single = category_ids[0] if len(category_ids) == 1 else None
+    all_q = _stock_tab_query(request)
+    tabs = [{
+        'key': 'all',
+        'label': 'Toàn kho',
+        'value': value_summary['total_value'],
+        'sku_count': value_summary['sku_count'],
+        'pct': None,
+        'url': f'?{all_q}' if all_q else '?',
+        'is_active': not category_ids,
+    }]
+
+    for cat in value_summary.get('categories') or []:
+        cat_id = cat.get('id')
+        if not cat_id:
+            continue
+        cat_q = _stock_tab_query(request, category_id=cat_id)
+        tabs.append({
+            'key': f'cat-{cat_id}',
+            'label': cat['name'],
+            'value': cat['value'],
+            'sku_count': cat['sku_count'],
+            'pct': cat.get('pct'),
+            'url': f'?{cat_q}' if cat_q else f'?category={cat_id}',
+            'is_active': active_single == cat_id,
+        })
+    return tabs
+
+
 @module_perm_required(MODULE_KHO_NPL, 'view')
 def material_stock_list(request):
     (
@@ -410,6 +460,11 @@ def material_stock_list(request):
         sort_dir,
     ) = _stock_filtered_rows(request)
     page_obj, query_string = paginate_queryset(request, groups, per_page=25)
+    category_tabs = _stock_category_tabs(request, value_summary, category_ids)
+    tab_count = len(category_tabs)
+    stock_stat_grid_mod = (
+        f'jp-team-stat-grid--{tab_count}' if 3 <= tab_count <= 7 else 'jp-npl-stock-stat-grid--auto'
+    )
     return render(request, 'kho_npl/material_stock.html', {
         **nav_context('material_stock', user=request.user),
         **perm_context(request.user, 'material_stock'),
@@ -433,6 +488,8 @@ def material_stock_list(request):
             search_query or category_ids or location_ids or status or usage_status != 'active'
         ),
         'value_summary': value_summary,
+        'category_tabs': category_tabs,
+        'stock_stat_grid_mod': stock_stat_grid_mod,
     })
 
 
