@@ -184,3 +184,50 @@ def balance_stock_rows(
     if status_filter:
         rows = [r for r in rows if r['status'] == status_filter]
     return rows
+
+
+def summarize_stock_value(rows: list[dict]) -> dict:
+    """Tổng giá trị tồn toàn bộ + theo nhóm hàng (từ material_stock_rows)."""
+    from collections import defaultdict
+
+    total_value = Decimal('0')
+    total_qty = Decimal('0')
+    by_cat: dict = defaultdict(
+        lambda: {
+            'id': None,
+            'name': 'Không nhóm',
+            'value': Decimal('0'),
+            'qty': Decimal('0'),
+            'sku_count': 0,
+        },
+    )
+    for row in rows:
+        material = row['material']
+        value = row.get('stock_value') or Decimal('0')
+        qty = row.get('total_qty') or Decimal('0')
+        total_value += value
+        total_qty += qty
+        cat = getattr(material, 'category', None)
+        key = cat.pk if cat else 0
+        bucket = by_cat[key]
+        bucket['id'] = cat.pk if cat else None
+        bucket['name'] = cat.name if cat else 'Không nhóm'
+        bucket['value'] += value
+        bucket['qty'] += qty
+        bucket['sku_count'] += 1
+
+    categories = sorted(by_cat.values(), key=lambda item: (-item['value'], item['name'].lower()))
+    for item in categories:
+        item['value'] = item['value'].quantize(Decimal('0.01'))
+        if total_value > 0:
+            item['pct'] = (item['value'] * Decimal('100') / total_value).quantize(Decimal('0.1'))
+        else:
+            item['pct'] = Decimal('0')
+
+    return {
+        'total_value': total_value.quantize(Decimal('0.01')),
+        'total_qty': total_qty,
+        'sku_count': len(rows),
+        'category_count': len(categories),
+        'categories': categories,
+    }

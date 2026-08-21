@@ -193,4 +193,41 @@
     letter-spacing: 0.02em;
     color: inherit;
 }
+.jp-npl-stock-value-overview {
+    display: grid;
+    grid-template-columns: minmax(12rem, 18rem) minmax(0, 1fr);
+    gap: 0.75rem;
+    align-items: stretch;
+}
+.jp-npl-stock-value-total .jp-npl-stock-value-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    color: var(--bs-secondary-color);
+    margin-bottom: 0.35rem;
+}
+.jp-npl-stock-value-total .jp-npl-stock-value-amount {
+    font-size: 1.55rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+.jp-npl-stock-value-total .jp-npl-stock-value-meta {
+    margin-top: 0.35rem;
+}
+.jp-npl-stock-value-by-cat .card-header h3 {
+    font-size: 0.85rem;
+}
+.jp-npl-stock-value-cat-scroll {
+    max-height: 11.5rem;
+    overflow: auto;
+}
+.jp-npl-stock-value-by-cat table {
+    font-size: 0.875rem;
+}
+@media (max-width: 767.98px) {
+    .jp-npl-stock-value-overview {
+        grid-template-columns: 1fr;
+    }
+}
 </style>

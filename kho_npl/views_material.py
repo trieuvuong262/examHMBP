@@ -42,7 +42,7 @@ from kho_npl.services.material_import_export import (
     sample_template_xlsx,
 )
 from kho_npl.services.scrap_warehouse import filter_storage_location_ids, source_locations_qs
-from kho_npl.services.stock import material_stock_rows
+from kho_npl.services.stock import material_stock_rows, summarize_stock_value
 from kho_npl.services.variant_groups import (
     group_materials,
     group_stock_rows,
@@ -269,17 +269,26 @@ def _material_catalog_qs(request):
 
 
 MATERIAL_LIST_STATUS_CHOICES = (
+    ('active', 'Đang sử dụng'),
     ('all', 'Tất cả'),
-    ('active', 'Đang dùng'),
-    ('inactive', 'Ngừng dùng'),
+    ('inactive', 'Ngừng sử dụng'),
 )
 
 
-def _material_list_status(request) -> str:
-    status = (request.GET.get('status') or 'all').strip().lower()
+def _material_list_status(request, *, param: str = 'status') -> str:
+    """Trạng thái dùng NPL: mặc định đang sử dụng."""
+    status = (request.GET.get(param) or 'active').strip().lower()
     if status not in {key for key, _ in MATERIAL_LIST_STATUS_CHOICES}:
-        return 'all'
+        return 'active'
     return status
+
+
+def _apply_material_usage_status(qs, status: str):
+    if status == 'active':
+        return qs.filter(is_active=True)
+    if status == 'inactive':
+        return qs.filter(is_active=False)
+    return qs
 
 
 def _material_list_sort(request):
@@ -298,10 +307,7 @@ def material_list(request):
     category_ids = parse_int_ids(request, 'category')
     status = _material_list_status(request)
     qs = Material.objects.select_related('category', 'unit', 'supplier', 'color', 'specification')
-    if status == 'active':
-        qs = qs.filter(is_active=True)
-    elif status == 'inactive':
-        qs = qs.filter(is_active=False)
+    qs = _apply_material_usage_status(qs, status)
     if category_ids:
         qs = qs.filter(category_filter_q(category_ids))
     if search_query:
@@ -326,7 +332,7 @@ def material_list(request):
         'sort_key': sort_key,
         'sort_dir': sort_dir,
         'expand_search_hits': bool(search_query),
-        'has_filters': bool(search_query or category_ids or status != 'all'),
+        'has_filters': bool(search_query or category_ids or status != 'active'),
     })
 
 
@@ -349,7 +355,17 @@ def _stock_list_sort(request):
 
 
 def _stock_filtered_rows(request):
-    qs, search_query, category_ids, category_parent_id, show_inactive = _material_catalog_qs(request)
+    search_query = get_search_query(request)
+    category_parent_id, category_ids = parse_category_cascade_filter(request)
+    usage_status = _material_list_status(request, param='usage')
+    qs = Material.objects.select_related('category', 'unit', 'supplier', 'color', 'specification')
+    qs = _apply_material_usage_status(qs, usage_status)
+    category_q = resolve_category_filter_q(category_parent_id, category_ids)
+    if category_q:
+        qs = qs.filter(category_q)
+    if search_query:
+        qs = apply_material_search(qs, search_query)
+
     location_ids = filter_storage_location_ids(parse_int_ids(request, 'location'))
     status = (request.GET.get('status') or '').strip().lower()
     if status not in (STOCK_STATUS_OK, STOCK_STATUS_LOW, STOCK_STATUS_OUT):
@@ -361,17 +377,38 @@ def _stock_filtered_rows(request):
     if status:
         rows = [r for r in rows if r['status'] == status]
 
+    value_summary = summarize_stock_value(rows)
     sort_key, sort_dir = _stock_list_sort(request)
     groups = group_stock_rows(rows)
     groups = sort_stock_groups(groups, sort_key, sort_dir)
-    return groups, search_query, category_ids, category_parent_id, location_ids, status, show_inactive, sort_key, sort_dir
+    return (
+        groups,
+        value_summary,
+        search_query,
+        category_ids,
+        category_parent_id,
+        location_ids,
+        status,
+        usage_status,
+        sort_key,
+        sort_dir,
+    )
 
 
 @module_perm_required(MODULE_KHO_NPL, 'view')
 def material_stock_list(request):
-    groups, search_query, category_ids, category_parent_id, location_ids, status, show_inactive, sort_key, sort_dir = (
-        _stock_filtered_rows(request)
-    )
+    (
+        groups,
+        value_summary,
+        search_query,
+        category_ids,
+        category_parent_id,
+        location_ids,
+        status,
+        usage_status,
+        sort_key,
+        sort_dir,
+    ) = _stock_filtered_rows(request)
     page_obj, query_string = paginate_queryset(request, groups, per_page=25)
     return render(request, 'kho_npl/material_stock.html', {
         **nav_context('material_stock', user=request.user),
@@ -385,13 +422,17 @@ def material_stock_list(request):
         'selected_locations': location_ids,
         'selected_status': status,
         'status_choices': MATERIAL_STOCK_STATUS_CHOICES,
-        'show_inactive': show_inactive,
+        'selected_usage': usage_status,
+        'usage_choices': MATERIAL_LIST_STATUS_CHOICES,
         'list_columns': STOCK_LIST_COLUMNS,
         'total_col_weight': STOCK_LIST_TOTAL_COL_WEIGHT,
         'sort_key': sort_key,
         'sort_dir': sort_dir,
         'expand_search_hits': bool(search_query),
-        'has_filters': bool(search_query or category_ids or location_ids or status),
+        'has_filters': bool(
+            search_query or category_ids or location_ids or status or usage_status != 'active'
+        ),
+        'value_summary': value_summary,
     })
 
 
@@ -442,7 +483,7 @@ def material_stock_detail(request, pk):
 
 @module_perm_required(MODULE_KHO_NPL, 'export')
 def material_stock_export(request):
-    groups, _, _, _, _, _, _, _, _ = _stock_filtered_rows(request)
+    groups, _, _, _, _, _, _, _, _, _ = _stock_filtered_rows(request)
     data = []
     for group in groups:
         for row in group.get('rows') or []:
@@ -515,7 +556,15 @@ def material_edit(request, pk):
 
 @module_perm_required(MODULE_KHO_NPL, 'export')
 def material_export(request):
-    qs, _, _, _, _ = _material_catalog_qs(request)
+    search_query = get_search_query(request)
+    category_ids = parse_int_ids(request, 'category')
+    status = _material_list_status(request)
+    qs = Material.objects.select_related('category', 'unit', 'supplier', 'color', 'specification')
+    qs = _apply_material_usage_status(qs, status)
+    if category_ids:
+        qs = qs.filter(category_filter_q(category_ids))
+    if search_query:
+        qs = apply_material_search(qs, search_query)
     return export_materials_xlsx(qs)
 
 

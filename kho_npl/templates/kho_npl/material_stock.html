@@ -25,7 +25,12 @@
                         {% endfor %}
                     </select>
                 </div>
-                <select name="status" id="stk-status" class="form-select form-select-sm jp-npl-mat-status-select" aria-label="Trạng thái">
+                <select name="usage" id="stk-usage" class="form-select form-select-sm jp-npl-mat-status-select" aria-label="Trạng thái sử dụng">
+                    {% for value, label in usage_choices %}
+                    <option value="{{ value }}" {% if selected_usage == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+                <select name="status" id="stk-status" class="form-select form-select-sm jp-npl-mat-status-select" aria-label="Trạng thái tồn">
                     {% for value, label in status_choices %}
                     <option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ label }}</option>
                     {% endfor %}
@@ -67,6 +72,62 @@
                         {% endfor %}
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="jp-npl-stock-value-overview mb-3">
+        <div class="jp-npl-stock-value-total card border-0 shadow-sm">
+            <div class="card-body">
+                <div class="jp-npl-stock-value-label">
+                    Giá trị toàn kho
+                    {% if has_filters %}<span class="text-muted fw-normal">(theo bộ lọc)</span>{% endif %}
+                </div>
+                <div class="jp-npl-stock-value-amount text-hm jp-mat-code" title="{{ value_summary.total_value|npl_money_exact }}">
+                    {{ value_summary.total_value|npl_money }}
+                </div>
+                <div class="jp-npl-stock-value-meta text-muted small">
+                    {{ value_summary.sku_count }} mã NPL
+                    · {{ value_summary.category_count }} nhóm
+                </div>
+            </div>
+        </div>
+        <div class="jp-npl-stock-value-by-cat card border-0 shadow-sm">
+            <div class="card-header bg-white border-bottom py-2 px-3">
+                <h3 class="h6 mb-0 fw-bold">Giá trị theo nhóm hàng</h3>
+            </div>
+            <div class="table-responsive jp-npl-stock-value-cat-scroll">
+                <table class="table table-sm align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Nhóm</th>
+                            <th class="text-end">Số mã</th>
+                            <th class="text-end">Giá trị</th>
+                            <th class="text-end" style="width:4.5rem">%</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cat in value_summary.categories %}
+                        <tr>
+                            <td>
+                                {% if cat.id %}
+                                <a href="?category={{ cat.id }}"
+                                   class="text-decoration-none">{{ cat.name }}</a>
+                                {% else %}
+                                {{ cat.name }}
+                                {% endif %}
+                            </td>
+                            <td class="text-end jp-mat-code">{{ cat.sku_count }}</td>
+                            <td class="text-end jp-mat-code" title="{{ cat.value|npl_money_exact }}">{{ cat.value|npl_money }}</td>
+                            <td class="text-end text-muted small">{{ cat.pct }}%</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted py-3">Chưa có dữ liệu tồn.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
