@@ -13,7 +13,7 @@
       <input type="hidden" name="op_name_vi" value="">
       <input type="hidden" name="library_unit_smv" value="">
 
-      <div class="col-md-4">
+      <div class="col-md-3">
         <label class="form-label small mb-1">Nhóm công đoạn <span class="text-danger">*</span></label>
         <select name="group_code" class="form-select form-select-sm" required>
           <option value="">— Chọn nhóm —</option>
@@ -22,13 +22,13 @@
           {% endfor %}
         </select>
       </div>
-      <div class="col-md-4">
+      <div class="col-md-3">
         <label class="form-label small mb-1">Tên công đoạn <span class="text-danger">*</span></label>
         <select class="form-select form-select-sm jp-ie-op-select"
                 data-filter-by-group="1"
                 data-placeholder="Chọn nhóm trước, rồi chọn công đoạn…"></select>
       </div>
-      <div class="col-md-3">
+      <div class="col-md-2">
         <label class="form-label small mb-1">Bộ phận</label>
         <select name="work_center_code" class="form-select form-select-sm">
           <option value="">— Chọn bộ phận —</option>
@@ -37,11 +37,17 @@
           {% endfor %}
         </select>
       </div>
-      <div class="col-md-1 d-grid">
+      <div class="col-md-2">
+        <label class="form-label small mb-1">SMV sản phẩm (giây)</label>
+        <input type="number" name="applied_unit_smv" class="form-control form-control-sm text-end"
+               min="0" step="0.0001" placeholder="gợi ý từ thư viện"
+               title="Mặc định = SMV thư viện, có thể sửa theo mã hàng">
+      </div>
+      <div class="col-md-2 d-grid">
         <button type="submit" class="btn btn-sm btn-hm">Thêm</button>
       </div>
     </form>
-    <p class="small text-muted mb-3">SMV lấy từ thư viện công đoạn. Tuỳ biến theo đơn hàng thực hiện khi lên đơn.</p>
+    <p class="small text-muted mb-3">SMV thư viện lấy từ công đoạn IE. SMV sản phẩm gợi ý bằng thư viện và cho sửa trên OB. Khi lên đơn có thể chỉnh tiếp thành SMV đơn hàng.</p>
     {% include 'san_xuat/includes/ie_operation_select_script.html' %}
     <script>
     (function () {
@@ -67,7 +73,8 @@
             <th>Nhóm</th>
             <th>Tên công đoạn</th>
             <th>Bộ phận</th>
-            <th class="text-end">SMV (giây)</th>
+            <th class="text-end">SMV thư viện</th>
+            <th class="text-end">SMV sản phẩm</th>
             {% if can_update and edit_mode %}<th></th>{% endif %}
           </tr>
         </thead>
@@ -79,6 +86,25 @@
             <td>{{ line.op_name_vi|default:"—" }}</td>
             <td>{% if line.work_center %}{{ line.work_center.name }}{% elif line.work_center_code %}{{ line.work_center_code }}{% else %}—{% endif %}</td>
             <td class="text-end">{% if line.library_unit_smv %}{{ line.library_unit_smv|sx_num }}{% else %}—{% endif %}</td>
+            <td class="text-end">
+              {% if can_update and edit_mode and process_routing %}
+              <form method="post" class="d-inline-flex align-items-center gap-1 justify-content-end">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="update_doc_routing_line_smv">
+                <input type="hidden" name="routing_id" value="{{ process_routing.pk }}">
+                <input type="hidden" name="line_id" value="{{ line.pk }}">
+                <input type="number" name="applied_unit_smv" class="form-control form-control-sm text-end"
+                       style="width:6.5rem" min="0" step="0.0001"
+                       value="{{ line.applied_unit_smv|sx_num_input }}"
+                       aria-label="SMV sản phẩm {{ line.op_name_vi|default:line.op_code }}">
+                <button type="submit" class="btn btn-sm btn-outline-secondary py-0">Lưu</button>
+              </form>
+              {% elif line.applied_unit_smv %}
+              {{ line.applied_unit_smv|sx_num }}
+              {% else %}
+              —
+              {% endif %}
+            </td>
             {% if can_update and edit_mode and process_routing %}
             <td class="text-end">
               <form method="post" class="d-inline" onsubmit="return confirm('Xóa công đoạn này?');">
@@ -92,7 +118,7 @@
             {% endif %}
           </tr>
           {% empty %}
-          <tr><td colspan="{% if can_update and edit_mode %}6{% else %}5{% endif %}" class="text-muted text-center py-3">Chưa có công đoạn.</td></tr>
+          <tr><td colspan="{% if can_update and edit_mode %}7{% else %}6{% endif %}" class="text-muted text-center py-3">Chưa có công đoạn.</td></tr>
           {% endfor %}
         </tbody>
       </table>

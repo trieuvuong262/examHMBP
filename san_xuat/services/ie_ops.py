@@ -60,7 +60,7 @@ def smv_seconds_from_norm_per_hour(norm) -> Decimal:
 
 
 def routing_line_smv_seconds(line, *, prefer_applied: bool = False) -> Decimal:
-    """SMV (giây) trên dòng routing — mặc định SMV chuẩn; áp dụng khi lên đơn."""
+    """SMV (giây) trên dòng routing — mặc định SMV thư viện; SMV sản phẩm khi lên đơn / prefer_applied."""
     library = Decimal(str(getattr(line, 'library_unit_smv', None) or 0))
     applied = Decimal(str(getattr(line, 'applied_unit_smv', None) or 0))
     if prefer_applied and applied > 0:

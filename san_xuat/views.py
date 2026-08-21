@@ -434,7 +434,7 @@ def doc_detail(request, pk):
             _edit_flag = True
             messages.error(request, 'Không lưu được BOM — kiểm tra lại các dòng.')
         elif action == 'add_doc_routing_line' and tab == 'process':
-            from decimal import Decimal
+            from decimal import Decimal, InvalidOperation
 
             from san_xuat.ie_models import SxRouting
             from san_xuat.models import ProcessStep
@@ -460,6 +460,13 @@ def doc_detail(request, pk):
             op_rev = (request.POST.get('op_rev') or 'R01').strip() or 'R01'
             op_name = (request.POST.get('op_name_vi') or '').strip()
             work_center_code = (request.POST.get('work_center_code') or '').strip()
+            product_smv_raw = (request.POST.get('applied_unit_smv') or '').strip()
+            product_smv = None
+            if product_smv_raw:
+                try:
+                    product_smv = Decimal(product_smv_raw.replace(',', '.'))
+                except (InvalidOperation, ValueError):
+                    product_smv = None
             _ob_before = routing_snapshot(routing) if routing else {'lines': []}
             if not group_code or not op_name:
                 messages.error(request, 'Chọn nhóm và công đoạn từ thư viện.')
@@ -476,19 +483,20 @@ def doc_detail(request, pk):
                         group_code=group_code,
                         work_center_code=work_center_code,
                         library_unit_smv=None,
-                        applied_unit_smv=Decimal('0'),
+                        applied_unit_smv=product_smv if product_smv is not None else Decimal('0'),
                         price_factor=Decimal('0'),
-                        copy_library_to_applied=False,
+                        copy_library_to_applied=True,
                     )
-                    smv = line.library_unit_smv or Decimal('0')
-                    if smv <= 0:
+                    library_smv = line.library_unit_smv or Decimal('0')
+                    if library_smv <= 0:
                         delete_routing_line(routing=routing, line_pk=line.pk)
                         raise IeOpsError(
-                            f'Công đoạn {op_code} chưa có SMV chuẩn trong thư viện — cập nhật IE trước.'
+                            f'Công đoạn {op_code} chưa có SMV thư viện — cập nhật IE trước.'
                         )
+                    smv = line.applied_unit_smv or library_smv
                     norm = norm_per_hour_from_smv_seconds(smv)
                     if bom:
-                        step, _ = ProcessStep.objects.update_or_create(
+                        ProcessStep.objects.update_or_create(
                             bom=bom,
                             routing_line=line,
                             defaults={
@@ -526,6 +534,60 @@ def doc_detail(request, pk):
                         user=request.user,
                     )
                     messages.success(request, 'Đã thêm công đoạn vào routing.')
+            return _doc_tab_redirect(
+                request,
+                'process',
+                bom=bom.pk if bom else None,
+                routing=routing.pk if routing else None,
+            )
+        elif action == 'update_doc_routing_line_smv' and tab == 'process':
+            from decimal import Decimal, InvalidOperation
+
+            from san_xuat.ie_models import SxRouting
+            from san_xuat.models import ProcessStep
+            from san_xuat.services.ie_ops import (
+                IeOpsError,
+                assert_routing_editable,
+                norm_per_hour_from_smv_seconds,
+            )
+
+            routing_id = (request.POST.get('routing_id') or '').strip()
+            line_id = (request.POST.get('line_id') or '').strip()
+            product_smv_raw = (request.POST.get('applied_unit_smv') or '').strip()
+            routing = (
+                SxRouting.objects.filter(
+                    Q(tech_doc=doc) | Q(bom_versions__tech_doc=doc),
+                    pk=int(routing_id),
+                ).distinct().first()
+                if routing_id.isdigit() else None
+            )
+            line = (
+                routing.lines.filter(pk=int(line_id)).first()
+                if routing is not None and line_id.isdigit() else None
+            )
+            try:
+                if routing is None or line is None:
+                    raise IeOpsError('Không tìm thấy công đoạn trên OB.')
+                assert_routing_editable(routing)
+                try:
+                    product_smv = Decimal(product_smv_raw.replace(',', '.')) if product_smv_raw else Decimal('0')
+                except (InvalidOperation, ValueError) as exc:
+                    raise IeOpsError('SMV sản phẩm không hợp lệ.') from exc
+                if product_smv < 0:
+                    raise IeOpsError('SMV sản phẩm không được âm.')
+                line.applied_unit_smv = product_smv
+                line.save()
+                smv = line.applied_unit_smv or line.library_unit_smv or Decimal('0')
+                if bom and smv > 0:
+                    norm = norm_per_hour_from_smv_seconds(smv)
+                    ProcessStep.objects.filter(bom=bom, routing_line=line).update(
+                        norm_per_hour=max(norm, Decimal('0.01')),
+                        std_time_minutes=(smv / Decimal('60')).quantize(Decimal('0.01')),
+                    )
+            except IeOpsError as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(request, 'Đã cập nhật SMV sản phẩm.')
             return _doc_tab_redirect(
                 request,
                 'process',

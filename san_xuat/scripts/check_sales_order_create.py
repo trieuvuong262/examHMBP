@@ -1,4 +1,4 @@
-"""Smoke-check lên đơn: BOM → routing IE → SMV áp dụng từng CĐ → xác nhận."""
+"""Smoke-check lên đơn: BOM → routing IE → SMV đơn hàng từng CĐ → xác nhận."""
 from __future__ import annotations
 
 import json
@@ -261,7 +261,7 @@ def check_http_post(client, bom_only, bom_ver):
 
 
 def check_ie_smv_workflow(client, ie_code, ie_rt):
-    print('\n== Workflow IE: routing + SMV ap dung tung CD ==')
+    print('\n== Workflow IE: routing + SMV don hang tung CD ==')
     if not client or not ie_code or not ie_rt:
         print('  [SKIP]')
         return
@@ -272,9 +272,12 @@ def check_ie_smv_workflow(client, ie_code, ie_rt):
     if not resolve_product_ref(ie_code):
         print(f'  [SKIP] {ie_code} khong resolve kho SP')
         return
-    std = Decimal(str(src.library_unit_smv))
-    applied = (std * Decimal('1.20')).quantize(Decimal('0.0001'))
-    payload = json.dumps([{'seq': int(src.seq_no), 'smv': float(applied)}])
+    # Baseline trên đơn = SMV sản phẩm (OB applied, fallback thư viện)
+    product = Decimal(str(src.applied_unit_smv or 0))
+    if product <= 0:
+        product = Decimal(str(src.library_unit_smv))
+    order_smv = (product * Decimal('1.20')).quantize(Decimal('0.0001'))
+    payload = json.dumps([{'seq': int(src.seq_no), 'smv': float(order_smv)}])
     today = timezone.localdate().isoformat()
     resp = client.post('/san-xuat/don-hang/them/', {
         'customer_name': 'SMOKE-IE-SMV',
@@ -315,14 +318,14 @@ def check_ie_smv_workflow(client, ie_code, ie_rt):
             f'{order.code} routing={getattr(ln, "routing_id", None)} n={ln.routing_lines.count() if ln else 0}',
         )
         _ok(
-            'SMV chuan khong doi',
-            bool(snap) and Decimal(str(snap.library_unit_smv)) == std,
-            f'lib={getattr(snap, "library_unit_smv", None)} std={std}',
+            'SMV san pham khong doi',
+            bool(snap) and Decimal(str(snap.library_unit_smv)) == product,
+            f'lib={getattr(snap, "library_unit_smv", None)} product={product}',
         )
         _ok(
-            'SMV ap dung dung override +20%',
-            bool(snap) and Decimal(str(snap.applied_unit_smv)) == applied,
-            f'applied={getattr(snap, "applied_unit_smv", None)} expect={applied}',
+            'SMV don hang dung override +20%',
+            bool(snap) and Decimal(str(snap.applied_unit_smv)) == order_smv,
+            f'applied={getattr(snap, "applied_unit_smv", None)} expect={order_smv}',
         )
         smv_ok = all((s.applied_unit_smv or 0) > 0 for s in ln.routing_lines.all())
         if not smv_ok:
@@ -380,7 +383,7 @@ def check_seed_and_confirm(ie_code, ie_rt, bom_only, bom_ver, neither):
                 apply_smv_overrides(ln, [{'seq': int(first.seq_no), 'smv': new_smv}])
                 first.refresh_from_db()
                 _ok(
-                    'Override SMV áp dụng, chuẩn không đổi',
+                    'Override SMV đơn hàng, SMV sản phẩm không đổi',
                     Decimal(str(first.applied_unit_smv)) == new_smv
                     and Decimal(str(first.library_unit_smv)) == std,
                     f'lib={first.library_unit_smv} app={first.applied_unit_smv}',
@@ -421,7 +424,7 @@ def check_seed_and_confirm(ie_code, ie_rt, bom_only, bom_ver, neither):
                 assert_order_ready_to_confirm(order)
                 _ok('Xác nhận được khi snapshot từ BOM (SMV>0)', True)
             except PlanningError as exc:
-                _ok('Xác nhận chặn nếu SMV BOM = 0', 'SMV áp dụng phải > 0' in str(exc), str(exc)[:180])
+                _ok('Xác nhận chặn nếu SMV BOM = 0', 'SMV đơn hàng phải > 0' in str(exc), str(exc)[:180])
         try:
             run('BOM case', bom_case)
         except Exception:

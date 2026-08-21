@@ -1,7 +1,7 @@
 {% load sx_format %}
 <div class="card border-0 shadow-sm mb-3">
   <div class="card-body">
-    <h6 class="fw-bold mb-3">Công đoạn theo đơn (SMV áp dụng)</h6>
+    <h6 class="fw-bold mb-3">Công đoạn theo đơn (SMV đơn hàng)</h6>
 
     {% if routing_locked %}
     <div class="alert alert-secondary py-2 small mb-3">Đơn đã xác nhận — snapshot công đoạn đã khóa.</div>
@@ -72,7 +72,7 @@
           <button type="submit" class="btn btn-sm btn-outline-hm">Áp SMV đơn</button>
         </div>
       </form>
-      <p class="small text-muted mb-2">SMV chuẩn mã hàng không đổi. % lệch nhân đều mọi công đoạn của đơn này — sửa từng CĐ bên dưới nếu cần.</p>
+      <p class="small text-muted mb-2">SMV sản phẩm không đổi. % lệch nhân đều mọi công đoạn của đơn này — sửa từng CĐ bên dưới nếu cần.</p>
       {% endif %}
 
       <div class="table-responsive mt-2">
@@ -83,8 +83,8 @@
               <th>Mã CĐ</th>
               <th>Tên</th>
               <th class="text-end">SL/SP</th>
-              <th class="text-end">SMV chuẩn</th>
-              <th class="text-end">SMV áp dụng</th>
+              <th class="text-end">SMV sản phẩm</th>
+              <th class="text-end">SMV đơn hàng</th>
               <th class="text-end">Tổng SMV</th>
               <th class="text-end">% lệch</th>
               <th>Bộ phận</th>
@@ -174,12 +174,12 @@
                  value="{% if edit_rt and edit_rt.sales_order_line_id == ln.pk %}{{ edit_rt.qty_per_garment|sx_num_input }}{% else %}1{% endif %}">
         </div>
         <div class="col-4 col-md-1">
-          <label class="form-label small mb-0">SMV chuẩn</label>
+          <label class="form-label small mb-0">SMV sản phẩm</label>
           <input type="text" name="library_unit_smv" class="form-control form-control-sm"
                  value="{% if edit_rt and edit_rt.sales_order_line_id == ln.pk %}{{ edit_rt.library_unit_smv|sx_num_input }}{% endif %}" placeholder="auto">
         </div>
         <div class="col-4 col-md-1">
-          <label class="form-label small mb-0">SMV áp dụng <span class="text-danger">*</span></label>
+          <label class="form-label small mb-0">SMV đơn hàng <span class="text-danger">*</span></label>
           <input type="text" name="applied_unit_smv" class="form-control form-control-sm"
                  value="{% if edit_rt and edit_rt.sales_order_line_id == ln.pk %}{{ edit_rt.applied_unit_smv|sx_num_input }}{% endif %}">
         </div>

@@ -3,8 +3,8 @@
 Mô hình hoá bộ dữ liệu chuẩn công đoạn của khối sản xuất Just Play:
 
 - Danh mục nền: máy móc, lớp mũi may, bậc kỹ năng, nguồn SMV, khâu sản xuất.
-- Thư viện công đoạn chuẩn (OP_CODE + OP_REV) với SMV chuẩn.
-- Routing theo mã hàng (SMV áp dụng, snapshot revision, chênh lệch).
+- Thư viện công đoạn chuẩn (OP_CODE + OP_REV) với SMV thư viện.
+- Routing theo mã hàng (SMV sản phẩm, snapshot revision, chênh lệch vs thư viện).
 - Dữ liệu bấm giờ (time study) để hiệu chỉnh SMV.
 
 Quy ước đơn vị:
@@ -326,8 +326,8 @@ class SxOperation(models.Model):
         decimal_places=4,
         default=Decimal('0'),
         validators=[MinValueValidator(Decimal('0'))],
-        verbose_name='SMV chuẩn (giây)',
-        help_text='SMV chuẩn trên một đơn vị cơ sở, đơn vị giây.',
+        verbose_name='SMV thư viện (giây)',
+        help_text='SMV thư viện trên một đơn vị cơ sở, đơn vị giây.',
     )
     smv_source = models.ForeignKey(
         SxSmvSource,
@@ -509,21 +509,21 @@ class SxRoutingLine(models.Model):
         max_digits=10,
         decimal_places=4,
         default=Decimal('0'),
-        verbose_name='SMV chuẩn (giây)',
+        verbose_name='SMV thư viện (giây)',
     )
     applied_unit_smv = models.DecimalField(
         max_digits=10,
         decimal_places=4,
         default=Decimal('0'),
         validators=[MinValueValidator(Decimal('0'))],
-        verbose_name='SMV áp dụng (giây)',
+        verbose_name='SMV sản phẩm (giây)',
     )
     total_operation_smv = models.DecimalField(
         max_digits=12,
         decimal_places=4,
         default=Decimal('0'),
         verbose_name='Tổng SMV',
-        help_text='SL/SP × SMV áp dụng.',
+        help_text='SL/SP × SMV sản phẩm.',
     )
     smv_variance_pct = models.DecimalField(
         max_digits=8,
@@ -594,7 +594,7 @@ class SxRoutingLine(models.Model):
         return f'{self.routing_id}#{self.seq_no} {self.op_code}'
 
     def recompute(self) -> None:
-        """Tính tổng SMV và chênh lệch so với thư viện."""
+        """Tính tổng SMV sản phẩm và chênh lệch so với SMV thư viện."""
         self.total_operation_smv = _q((self.qty_per_garment or Decimal('0')) * (self.applied_unit_smv or Decimal('0')))
         if self.library_unit_smv:
             diff = (self.applied_unit_smv - self.library_unit_smv) / self.library_unit_smv * Decimal('100')
@@ -604,7 +604,7 @@ class SxRoutingLine(models.Model):
 
     @property
     def std_capacity_pcs_hour(self) -> Decimal:
-        """Định mức SP/H từ SMV áp dụng (giây)."""
+        """Định mức SP/H từ SMV sản phẩm (giây)."""
         smv = self.applied_unit_smv or Decimal('0')
         if not smv:
             return Decimal('0')

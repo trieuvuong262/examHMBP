@@ -412,7 +412,7 @@ def _import_operations(wb, result: ImportResult, *, user=None) -> None:
         time_sec = _dec(rec.get('ĐỊNH MỨC THỜI GIAN')) or Decimal('0')
         base_smv = time_sec.quantize(Decimal('0.0001'))
         if base_smv <= 0:
-            result.warnings.append(f'[Công đoạn] {op_code}/{op_rev}: SMV chuẩn = 0.')
+            result.warnings.append(f'[Công đoạn] {op_code}/{op_rev}: SMV thư viện = 0.')
 
         machine_code = _s(rec.get('MÃ MÁY MÓC'))
         stitch_val = _s(rec.get('NHÓM MŨI MAY'))
@@ -612,7 +612,7 @@ def _import_routings(wb, result: ImportResult, *, user=None) -> None:
             line.save()
             result.bump('routing_line', True)
             if applied <= 0:
-                result.warnings.append(f'[Routing] {routing_id} #{seq} {op_code}: SMV áp dụng = 0.')
+                result.warnings.append(f'[Routing] {routing_id} #{seq} {op_code}: SMV sản phẩm = 0.')
             elif abs(line.smv_variance_pct) > VARIANCE_WARN_PCT:
                 result.warnings.append(
                     f'[Routing] {routing_id} #{seq} {op_code}: chênh lệch SMV {line.smv_variance_pct}% > {VARIANCE_WARN_PCT}%.'
@@ -986,7 +986,7 @@ IE_DATASETS = {
             ['Cột chi tiết (xanh)', 'MÃ NHÓM · BẬC · ĐỊNH MỨC THỜI GIAN · SP/H · KHÂU SX · CỤM · MÔ TẢ · MÁY · MŨI · KIM/CHỈ · CỮ/GÁ · ĐƠN VỊ · NGUỒN SMV'],
             ['Cột hiệu lực (xanh đậm)', 'TRẠNG THÁI · NGÀY HL · NGÀY HẾT HL · NGƯỜI LẬP · NGƯỜI DUYỆT · LÝ DO · VIDEO_URL · NOTES'],
             [],
-            ['ĐỊNH MỨC THỜI GIAN', 'Đơn vị GIÂY — lưu trực tiếp làm SMV chuẩn trên Portal. Ví dụ 36 giây.'],
+            ['ĐỊNH MỨC THỜI GIAN', 'Đơn vị GIÂY — lưu trực tiếp làm SMV thư viện trên Portal. Ví dụ 36 giây.'],
             ['Trùng mã', 'Cùng MÃ CÔNG ĐOẠN + PHIÊN BẢN → hệ thống CẬP NHẬT bản ghi cũ.'],
             ['TRẠNG THÁI', 'Nháp | Thử nghiệm | Đã duyệt | Ngưng sử dụng'],
             ['Nhóm chưa có', 'Nếu MÃ NHÓM không khớp nhóm hiện có, hệ thống thử ghép theo tên/khâu SX/alias (May, SEW→MAY…). Không khớp mới tạo nhóm tạm.'],
@@ -1040,7 +1040,7 @@ IE_DATASETS = {
             [],
             ['Cột bắt buộc', 'MÃ ĐƠN HÀNG · MÃ HÀNG SẢN PHẨM · MÃ CÔNG ĐOẠN'],
             ['Gom routing', 'Cùng MÃ ĐƠN HÀNG → cùng một routing (các dòng công đoạn).'],
-            ['ĐỊNH MỨC THỜI GIAN', 'SMV áp dụng (giây). ĐỊNH MỨC THEO PHIÊN BẢN = SMV chuẩn (giây).'],
+            ['ĐỊNH MỨC THỜI GIAN', 'SMV sản phẩm (giây). ĐỊNH MỨC THEO PHIÊN BẢN = SMV thư viện (giây).'],
             ['TỔNG ĐỊNH MỨC', 'Hệ thống tự tính = SỐ LƯỢNG × ĐỊNH MỨC THỜI GIAN khi lưu.'],
             ['ĐỊNH MỨC SP/H', 'Xuất tự tính = 3600 / ĐỊNH MỨC THỜI GIAN (giây). Có thể để trống khi import.'],
             ['% CHÊNH LỆCH', 'Tự tính so với định mức theo phiên bản; >15% cần giải trình trên Portal.'],

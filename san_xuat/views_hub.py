@@ -620,7 +620,7 @@ def _handle_order_routing_post(request, order) -> bool:
         if not can_pick:
             raise OrderRoutingError('Không có quyền gắn routing trên đơn.')
     elif not user_can_edit_order_routing(request.user):
-        raise OrderRoutingError('Chỉ IE / Kế hoạch được sửa SMV áp dụng và thêm/bớt công đoạn trên đơn.')
+        raise OrderRoutingError('Chỉ IE / Kế hoạch được sửa SMV đơn hàng và thêm/bớt công đoạn trên đơn.')
 
     def _line():
         try:
@@ -650,7 +650,7 @@ def _handle_order_routing_post(request, order) -> bool:
             request.POST.get('smv_pct') or 0,
             explanation=request.POST.get('variance_explanation') or '',
         )
-        messages.success(request, f'Đã áp SMV đơn cho {n} công đoạn (không đổi SMV chuẩn mã hàng).')
+        messages.success(request, f'Đã áp SMV đơn cho {n} công đoạn (không đổi SMV sản phẩm).')
         return True
 
     if action == 'delete_routing_line':

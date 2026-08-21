@@ -131,9 +131,14 @@
                  value="{% if edit_line %}{{ edit_line.qty_per_garment|sx_num_input }}{% else %}1{% endif %}">
         </div>
         <div class="col-4 col-md-1">
-          <label class="form-label small mb-0">SMV chuẩn</label>
+          <label class="form-label small mb-0">SMV thư viện</label>
           <input type="text" name="library_unit_smv" class="form-control form-control-sm"
                  value="{% if edit_line %}{{ edit_line.library_unit_smv|sx_num_input }}{% endif %}" placeholder="auto">
+        </div>
+        <div class="col-4 col-md-1">
+          <label class="form-label small mb-0">SMV sản phẩm</label>
+          <input type="text" name="applied_unit_smv" class="form-control form-control-sm"
+                 value="{% if edit_line %}{{ edit_line.applied_unit_smv|sx_num_input }}{% endif %}" placeholder="= thư viện">
         </div>
         <div class="col-4 col-md-1">
           <label class="form-label small mb-0">Bậc CĐ</label>
@@ -218,8 +223,8 @@
             <th class="jp-ie-col-core">Tên công đoạn</th>
             <th class="jp-ie-col-core text-end">Số lượng</th>
             <th class="jp-ie-col-core">Bậc CĐ</th>
-            <th class="jp-ie-col-core text-end">ĐM thời gian</th>
-            <th class="jp-ie-col-core text-end">SMV chuẩn</th>
+            <th class="jp-ie-col-core text-end">SMV sản phẩm</th>
+            <th class="jp-ie-col-core text-end">SMV thư viện</th>
             <th class="jp-ie-col-core text-end">Tổng ĐM</th>
             <th class="jp-ie-col-core text-end">ĐM SP/H</th>
             <th class="jp-ie-col-core text-end">% lệch</th>

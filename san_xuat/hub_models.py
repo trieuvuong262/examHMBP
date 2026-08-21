@@ -242,7 +242,11 @@ class SxSalesOrderLine(models.Model):
 
 
 class SxSalesOrderRoutingLine(models.Model):
-    """Snapshot công đoạn theo dòng đơn — SMV áp dụng riêng PO, không sửa routing mã hàng."""
+    """Snapshot công đoạn theo dòng đơn — SMV đơn hàng riêng PO, không sửa routing mã hàng.
+
+    ``library_unit_smv`` trên snapshot = SMV sản phẩm (từ OB), không phải SMV thư viện.
+    ``applied_unit_smv`` = SMV đơn hàng (có thể chỉnh khi lên đơn).
+    """
 
     sales_order_line = models.ForeignKey(
         SxSalesOrderLine,
@@ -282,21 +286,22 @@ class SxSalesOrderRoutingLine(models.Model):
         max_digits=10,
         decimal_places=4,
         default=Decimal('0'),
-        verbose_name='SMV chuẩn (giây)',
+        verbose_name='SMV sản phẩm (giây)',
+        help_text='Baseline từ OB (SMV sản phẩm), dùng so lệch với SMV đơn hàng.',
     )
     applied_unit_smv = models.DecimalField(
         max_digits=10,
         decimal_places=4,
         default=Decimal('0'),
         validators=[MinValueValidator(Decimal('0'))],
-        verbose_name='SMV áp dụng (giây)',
+        verbose_name='SMV đơn hàng (giây)',
     )
     total_operation_smv = models.DecimalField(
         max_digits=12,
         decimal_places=4,
         default=Decimal('0'),
         verbose_name='Tổng SMV',
-        help_text='SL/SP × SMV áp dụng.',
+        help_text='SL/SP × SMV đơn hàng.',
     )
     smv_variance_pct = models.DecimalField(
         max_digits=8,

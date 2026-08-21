@@ -1,6 +1,7 @@
 """Snapshot routing công đoạn theo dòng đơn đặt hàng.
 
-SoT thực thi (KH / năng lực / LSX) và nhân công GTKH theo đơn: SMV áp dụng trên snapshot đơn.
+SoT thực thi (KH / năng lực / LSX) và nhân công GTKH theo đơn: SMV đơn hàng trên snapshot.
+Baseline snapshot ``library_unit_smv`` = SMV sản phẩm từ OB.
 GT định mức sản phẩm (bảng kỳ) vẫn compute_costing(BOM ProcessStep).
 """
 
@@ -56,10 +57,11 @@ def _copy_from_routing_line(
     *,
     seq_no: int | None = None,
 ) -> SxSalesOrderRoutingLine:
+    # Baseline trên đơn = SMV sản phẩm (OB applied); fallback thư viện nếu chưa có.
     library = src.library_unit_smv or Decimal('0')
-    applied = src.applied_unit_smv or Decimal('0')
-    if applied <= 0 and library > 0:
-        applied = library
+    product = src.applied_unit_smv or Decimal('0')
+    if product <= 0 and library > 0:
+        product = library
     return SxSalesOrderRoutingLine(
         sales_order_line=order_line,
         source_routing_line_id=getattr(src, 'pk', None),
@@ -70,8 +72,8 @@ def _copy_from_routing_line(
         op_name_vi=(src.op_name_vi or '')[:200],
         group_code=(src.group_code or '')[:30],
         qty_per_garment=src.qty_per_garment or Decimal('1'),
-        library_unit_smv=library,
-        applied_unit_smv=applied,
+        library_unit_smv=product,
+        applied_unit_smv=product,
         price_factor=src.price_factor or Decimal('0'),
         total_unit_price=src.total_unit_price or Decimal('0'),
         machine_id=src.machine_id,
@@ -114,8 +116,10 @@ def process_preview_from_routing(routing, *, limit: int = 80) -> list[dict]:
     if routing is None:
         return out
     for src in routing.lines.select_related('operation').order_by('seq_no', 'id')[:limit]:
-        std = _q(src.library_unit_smv or 0)
-        applied = _q(src.applied_unit_smv or std)
+        library = _q(src.library_unit_smv or 0)
+        product = _q(src.applied_unit_smv or 0)
+        if product <= 0:
+            product = library
         code, name = _step_code_and_name(
             code=src.op_code,
             name=src.op_name_vi,
@@ -125,8 +129,8 @@ def process_preview_from_routing(routing, *, limit: int = 80) -> list[dict]:
             'seq': src.seq_no or 0,
             'code': code,
             'name': name,
-            'smv_std': str(std),
-            'smv': str(applied),
+            'smv_std': str(product),
+            'smv': str(product),
             'source': 'ie',
         })
     return out
@@ -177,7 +181,7 @@ def _copy_from_process_step(order_line: SxSalesOrderLine, src) -> SxSalesOrderRo
 
 
 def apply_smv_overrides(order_line: SxSalesOrderLine, overrides) -> int:
-    """Ghi đè SMV áp dụng theo seq từ form lên đơn (không đụng SMV chuẩn)."""
+    """Ghi đè SMV đơn hàng theo seq từ form lên đơn (không đụng SMV sản phẩm baseline)."""
     if not overrides:
         return 0
     by_seq: dict[int, tuple[Decimal, str]] = {}
@@ -213,11 +217,11 @@ def scale_order_line_applied_smv(
     pct,
     explanation: str = '',
 ) -> int:
-    """Nhân SMV áp dụng cả dòng theo % lệch so với SMV chuẩn mã hàng."""
+    """Nhân SMV đơn hàng cả dòng theo % lệch so với SMV sản phẩm (baseline trên đơn)."""
     assert_order_routing_editable(order_line.order)
     factor = Decimal('1') + _q(pct, '0.01') / Decimal('100')
     if factor <= 0:
-        raise OrderRoutingError('% lệch không hợp lệ — SMV áp dụng phải > 0.')
+        raise OrderRoutingError('% lệch không hợp lệ — SMV đơn hàng phải > 0.')
     expl = (explanation or '').strip()[:500]
     n = 0
     for line in order_line.routing_lines.all():
@@ -341,7 +345,7 @@ def sales_order_line_routing(order_line: SxSalesOrderLine):
 
 
 def assert_order_ready_to_confirm(order: SxSalesOrder) -> None:
-    """Routing bắt buộc trên mọi dòng; SMV áp dụng từng công đoạn phải > 0."""
+    """Routing bắt buộc trên mọi dòng; SMV đơn hàng từng công đoạn phải > 0."""
     errors: list[str] = []
     lines = list(order.lines.prefetch_related('routing_lines').all())
     if not lines:
@@ -357,7 +361,7 @@ def assert_order_ready_to_confirm(order: SxSalesOrder) -> None:
         for s in snaps:
             label = f'{code} {s.op_code or s.seq_no}'
             if (s.applied_unit_smv or Decimal('0')) <= 0:
-                errors.append(f'{label}: SMV áp dụng phải > 0.')
+                errors.append(f'{label}: SMV đơn hàng phải > 0.')
     if errors:
         raise PlanningError('Không xác nhận được đơn. ' + ' '.join(errors))
 
