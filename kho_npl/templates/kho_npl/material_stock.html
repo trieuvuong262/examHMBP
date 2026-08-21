@@ -7,10 +7,41 @@
 {% endblock %}
 
 {% block content %}
-<div class="container jp-page jp-npl-material-catalog-page py-3 py-md-4 mb-5" data-loading-message="Đang tải tồn kho…">
-    <div class="jp-npl-mat-topbar">
-        <h2 class="jp-npl-mat-topbar-title">Tồn kho</h2>
-        <form method="get" class="jp-npl-mat-topbar-search" id="npl-stk-search-form">
+<div class="container jp-page jp-npl-material-catalog-page jp-npl-stock-page py-3 py-md-4 mb-5" data-loading-message="Đang tải tồn kho…">
+    <div class="jp-npl-stock-head">
+        <div class="jp-npl-stock-head-row">
+            <h2 class="jp-npl-mat-topbar-title">Tồn kho</h2>
+            <div class="jp-npl-mat-topbar-actions">
+                {% if can_export %}
+                <a href="{% url 'kho_npl:material_stock_export' %}{% if query_string %}?{{ query_string }}{% endif %}"
+                   class="btn btn-outline-secondary btn-sm fw-bold" title="Xuất Excel">
+                    <i class="bi bi-download me-1"></i>Xuất Excel
+                </a>
+                {% endif %}
+                <div class="dropdown jp-npl-mat-col-picker">
+                    <button type="button" class="btn btn-outline-secondary btn-sm fw-bold" id="npl-stk-col-btn"
+                            data-bs-toggle="dropdown" data-bs-auto-close="outside"
+                            aria-expanded="false" title="Chọn cột hiển thị">
+                        <i class="bi bi-layout-three-columns me-1"></i>Cột
+                    </button>
+                    <div class="dropdown-menu shadow-sm jp-npl-mat-col-menu" data-bs-popper="static">
+                        <div class="jp-npl-mat-col-head">Hiển thị cột</div>
+                        <div class="jp-npl-mat-col-list">
+                            {% for col in list_columns %}
+                            <label class="jp-npl-mat-col-item{% if col.required %} is-required{% endif %}" for="npl-stk-col-{{ col.key }}">
+                                <input class="npl-stk-col-toggle" type="checkbox"
+                                       id="npl-stk-col-{{ col.key }}" data-col="{{ col.key }}"
+                                       {% if col.default %}checked{% endif %}
+                                       {% if col.required %}disabled checked{% endif %}>
+                                <span>{{ col.label }}</span>
+                            </label>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <form method="get" class="jp-npl-stock-filters" id="npl-stk-search-form">
             <div class="jp-npl-mat-search-row">
                 <div class="jp-npl-mat-filter-field jp-npl-filter-multi">
                     {% include 'kho_npl/includes/material_category_filter.html' with select_id='stk-cat' %}
@@ -35,7 +66,7 @@
                     <option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ label }}</option>
                     {% endfor %}
                 </select>
-                <div class="input-group input-group-sm jp-npl-mat-filter-field jp-npl-mat-search-input">
+                <div class="input-group input-group-sm jp-npl-mat-filter-field jp-npl-mat-search-input jp-npl-stock-q">
                     <input type="search" class="form-control" id="stk-q" name="q"
                            value="{{ search_query }}" placeholder="Tên, mã, nhóm hàng..." autocomplete="off" aria-label="Tìm NPL">
                 </div>
@@ -45,89 +76,52 @@
                 {% endif %}
             </div>
         </form>
-        <div class="jp-npl-mat-topbar-actions">
-            {% if can_export %}
-            <a href="{% url 'kho_npl:material_stock_export' %}{% if query_string %}?{{ query_string }}{% endif %}"
-               class="btn btn-outline-secondary btn-sm fw-bold" title="Xuất Excel">
-                <i class="bi bi-download me-1"></i>Xuất Excel
-            </a>
-            {% endif %}
-            <div class="dropdown jp-npl-mat-col-picker">
-                <button type="button" class="btn btn-outline-secondary btn-sm fw-bold" id="npl-stk-col-btn"
-                        data-bs-toggle="dropdown" data-bs-auto-close="outside"
-                        aria-expanded="false" title="Chọn cột hiển thị">
-                    <i class="bi bi-layout-three-columns me-1"></i>Cột
-                </button>
-                <div class="dropdown-menu shadow-sm jp-npl-mat-col-menu" data-bs-popper="static">
-                    <div class="jp-npl-mat-col-head">Hiển thị cột</div>
-                    <div class="jp-npl-mat-col-list">
-                        {% for col in list_columns %}
-                        <label class="jp-npl-mat-col-item{% if col.required %} is-required{% endif %}" for="npl-stk-col-{{ col.key }}">
-                            <input class="npl-stk-col-toggle" type="checkbox"
-                                   id="npl-stk-col-{{ col.key }}" data-col="{{ col.key }}"
-                                   {% if col.default %}checked{% endif %}
-                                   {% if col.required %}disabled checked{% endif %}>
-                            <span>{{ col.label }}</span>
-                        </label>
-                        {% endfor %}
-                    </div>
-                </div>
-            </div>
-        </div>
     </div>
 
     <div class="jp-npl-stock-value-overview mb-3">
-        <div class="jp-npl-stock-value-total card border-0 shadow-sm">
-            <div class="card-body">
-                <div class="jp-npl-stock-value-label">
-                    Giá trị toàn kho
-                    {% if has_filters %}<span class="text-muted fw-normal">(theo bộ lọc)</span>{% endif %}
-                </div>
-                <div class="jp-npl-stock-value-amount text-hm jp-mat-code" title="{{ value_summary.total_value|npl_money_exact }}">
-                    {{ value_summary.total_value|npl_money }}
-                </div>
-                <div class="jp-npl-stock-value-meta text-muted small">
-                    {{ value_summary.sku_count }} mã NPL
-                    · {{ value_summary.category_count }} nhóm
-                </div>
+        <div class="jp-npl-stock-value-total">
+            <div class="jp-npl-stock-value-kicker">
+                <i class="bi bi-cash-stack" aria-hidden="true"></i>
+                Giá trị toàn kho
+                {% if has_filters %}<span class="jp-npl-stock-value-kicker-note">theo bộ lọc</span>{% endif %}
+            </div>
+            <div class="jp-npl-stock-value-amount jp-mat-code" title="{{ value_summary.total_value|npl_money_exact }}">
+                {{ value_summary.total_value|npl_money }}
+            </div>
+            <div class="jp-npl-stock-value-stats">
+                <span><i class="bi bi-box-seam" aria-hidden="true"></i>{{ value_summary.sku_count }} mã NPL</span>
+                <span><i class="bi bi-diagram-3" aria-hidden="true"></i>{{ value_summary.category_count }} nhóm</span>
             </div>
         </div>
-        <div class="jp-npl-stock-value-by-cat card border-0 shadow-sm">
-            <div class="card-header bg-white border-bottom py-2 px-3">
-                <h3 class="h6 mb-0 fw-bold">Giá trị theo nhóm hàng</h3>
+        <div class="jp-npl-stock-value-by-cat">
+            <div class="jp-npl-stock-value-by-cat-head">
+                <h3>Giá trị theo nhóm hàng</h3>
             </div>
-            <div class="table-responsive jp-npl-stock-value-cat-scroll">
-                <table class="table table-sm align-middle mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Nhóm</th>
-                            <th class="text-end">Số mã</th>
-                            <th class="text-end">Giá trị</th>
-                            <th class="text-end" style="width:4.5rem">%</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for cat in value_summary.categories %}
-                        <tr>
-                            <td>
-                                {% if cat.id %}
-                                <a href="?category={{ cat.id }}"
-                                   class="text-decoration-none">{{ cat.name }}</a>
-                                {% else %}
-                                {{ cat.name }}
-                                {% endif %}
-                            </td>
-                            <td class="text-end jp-mat-code">{{ cat.sku_count }}</td>
-                            <td class="text-end jp-mat-code" title="{{ cat.value|npl_money_exact }}">{{ cat.value|npl_money }}</td>
-                            <td class="text-end text-muted small">{{ cat.pct }}%</td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="4" class="text-center text-muted py-3">Chưa có dữ liệu tồn.</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+            <div class="jp-npl-stock-value-cat-scroll">
+                {% for cat in value_summary.categories %}
+                <div class="jp-npl-stock-cat-row">
+                    <div class="jp-npl-stock-cat-top">
+                        <div class="jp-npl-stock-cat-name">
+                            {% if cat.id %}
+                            <a href="?category={{ cat.id }}&usage={{ selected_usage }}{% if selected_status %}&status={{ selected_status }}{% endif %}{% for loc_id in selected_locations %}&location={{ loc_id }}{% endfor %}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}"
+                               class="jp-npl-stock-cat-link">{{ cat.name }}</a>
+                            {% else %}
+                            <span>{{ cat.name }}</span>
+                            {% endif %}
+                            <span class="jp-npl-stock-cat-sku">{{ cat.sku_count }} mã</span>
+                        </div>
+                        <div class="jp-npl-stock-cat-nums">
+                            <span class="jp-npl-stock-cat-value jp-mat-code" title="{{ cat.value|npl_money_exact }}">{{ cat.value|npl_money }}</span>
+                            <span class="jp-npl-stock-cat-pct">{{ cat.pct }}%</span>
+                        </div>
+                    </div>
+                    <div class="jp-npl-stock-cat-bar" role="presentation" aria-hidden="true">
+                        <span style="width: {{ cat.pct }}%;"></span>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="jp-npl-stock-cat-empty text-muted">Chưa có dữ liệu tồn.</div>
+                {% endfor %}
             </div>
         </div>
     </div>

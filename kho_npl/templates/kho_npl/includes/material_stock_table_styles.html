@@ -193,41 +193,279 @@
     letter-spacing: 0.02em;
     color: inherit;
 }
+.jp-npl-stock-page .jp-npl-stock-head {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+.jp-npl-stock-page .jp-npl-stock-head-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem 1rem;
+}
+.jp-npl-stock-page .jp-npl-stock-filters {
+    width: 100%;
+    padding: 0.65rem 0.75rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.65rem;
+    background: linear-gradient(180deg, #fff 0%, #fafafa 100%);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+.jp-npl-stock-page .jp-npl-stock-filters .jp-npl-mat-search-row {
+    width: 100%;
+}
+.jp-npl-stock-page .jp-npl-stock-filters .jp-npl-mat-filter-field {
+    flex: 1 1 8.5rem;
+    min-width: 8rem;
+    max-width: 14rem;
+}
+.jp-npl-stock-page .jp-npl-stock-filters .jp-npl-stock-q {
+    flex: 1 1 12rem;
+    min-width: 10rem;
+    max-width: none;
+}
+.jp-npl-stock-page .jp-npl-stock-filters .jp-npl-mat-status-select {
+    flex: 0 0 8.75rem;
+}
+.jp-npl-stock-page .jp-npl-stock-filters .jp-npl-filter-multi .ts-wrapper,
+.jp-npl-stock-page .jp-npl-stock-filters .jp-npl-filter-multi .ts-wrapper.form-select,
+.jp-npl-stock-page .jp-npl-stock-filters .jp-npl-filter-multi .ts-wrapper.form-select-sm {
+    min-height: var(--jp-npl-mat-ctl-h) !important;
+    height: var(--jp-npl-mat-ctl-h) !important;
+    width: 100%;
+}
+.jp-npl-stock-page .jp-npl-stock-filters .jp-npl-filter-multi .ts-control,
+.jp-npl-stock-page .jp-npl-stock-filters .jp-npl-filter-multi .ts-wrapper.form-select-sm .ts-control {
+    min-height: calc(var(--jp-npl-mat-ctl-h) - 2px) !important;
+    height: calc(var(--jp-npl-mat-ctl-h) - 2px) !important;
+    padding-top: 0.25rem !important;
+    padding-bottom: 0.25rem !important;
+    font-size: 0.875rem;
+    line-height: 1.25;
+    box-sizing: border-box;
+}
+.jp-npl-stock-page > .card {
+    border-radius: 0.75rem;
+    overflow: hidden;
+    border: 1px solid var(--bs-border-color) !important;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+}
+
 .jp-npl-stock-value-overview {
     display: grid;
-    grid-template-columns: minmax(12rem, 18rem) minmax(0, 1fr);
-    gap: 0.75rem;
+    grid-template-columns: minmax(15rem, 20rem) minmax(0, 1fr);
+    gap: 0.85rem;
     align-items: stretch;
 }
-.jp-npl-stock-value-total .jp-npl-stock-value-label {
-    font-size: 0.8rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.02em;
-    color: var(--bs-secondary-color);
-    margin-bottom: 0.35rem;
+.jp-npl-stock-value-total {
+    position: relative;
+    overflow: hidden;
+    padding: 1.15rem 1.2rem 1.1rem;
+    border-radius: 0.75rem;
+    border: 1px solid rgba(220, 38, 38, 0.18);
+    background:
+        radial-gradient(120% 90% at 100% 0%, rgba(220, 38, 38, 0.12) 0%, transparent 55%),
+        linear-gradient(165deg, #fff 0%, #fff8f8 100%);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 100%;
 }
-.jp-npl-stock-value-total .jp-npl-stock-value-amount {
-    font-size: 1.55rem;
+.jp-npl-stock-value-total::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 4px;
+    background: var(--hm-red, #dc2626);
+}
+.jp-npl-stock-value-kicker {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    font-size: 0.78rem;
     font-weight: 700;
-    line-height: 1.2;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--bs-secondary-color);
+    margin-bottom: 0.45rem;
 }
-.jp-npl-stock-value-total .jp-npl-stock-value-meta {
-    margin-top: 0.35rem;
+.jp-npl-stock-value-kicker .bi {
+    color: var(--hm-red, #dc2626);
+    font-size: 0.95rem;
 }
-.jp-npl-stock-value-by-cat .card-header h3 {
+.jp-npl-stock-value-kicker-note {
+    font-weight: 500;
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--bs-secondary-color);
+    opacity: 0.85;
+}
+.jp-npl-stock-value-kicker-note::before {
+    content: '·';
+    margin-right: 0.35rem;
+}
+.jp-npl-stock-value-amount {
+    font-size: clamp(1.35rem, 2.2vw, 1.75rem);
+    font-weight: 800;
+    line-height: 1.15;
+    color: var(--hm-red, #dc2626);
+    letter-spacing: -0.02em;
+    word-break: break-word;
+}
+.jp-npl-stock-value-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem 1rem;
+    margin-top: 0.85rem;
+    padding-top: 0.75rem;
+    border-top: 1px dashed rgba(15, 23, 42, 0.12);
+    font-size: 0.8125rem;
+    color: var(--bs-secondary-color);
+}
+.jp-npl-stock-value-stats span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-weight: 600;
+}
+.jp-npl-stock-value-stats .bi {
+    color: var(--hm-red, #dc2626);
+    opacity: 0.85;
+}
+.jp-npl-stock-value-by-cat {
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.75rem;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+.jp-npl-stock-value-by-cat-head {
+    padding: 0.7rem 1rem;
+    border-bottom: 1px solid var(--bs-border-color);
+    background: #fafafa;
+}
+.jp-npl-stock-value-by-cat-head h3 {
+    margin: 0;
     font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--bs-body-color);
 }
 .jp-npl-stock-value-cat-scroll {
-    max-height: 11.5rem;
+    max-height: 13.5rem;
     overflow: auto;
+    padding: 0.45rem 0.65rem 0.65rem;
 }
-.jp-npl-stock-value-by-cat table {
+.jp-npl-stock-cat-row {
+    padding: 0.55rem 0.4rem;
+    border-radius: 0.45rem;
+    transition: background 0.15s ease;
+}
+.jp-npl-stock-cat-row:hover {
+    background: rgba(15, 23, 42, 0.03);
+}
+.jp-npl-stock-cat-row + .jp-npl-stock-cat-row {
+    border-top: 1px solid rgba(15, 23, 42, 0.06);
+}
+.jp-npl-stock-cat-top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.35rem;
+}
+.jp-npl-stock-cat-name {
+    display: flex;
+    align-items: baseline;
+    gap: 0.45rem;
+    min-width: 0;
+    flex: 1 1 auto;
+}
+.jp-npl-stock-cat-link {
+    font-weight: 600;
+    color: var(--bs-body-color);
+    text-decoration: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.jp-npl-stock-cat-link:hover {
+    color: var(--hm-red, #dc2626);
+}
+.jp-npl-stock-cat-sku {
+    flex: 0 0 auto;
+    font-size: 0.75rem;
+    color: var(--bs-secondary-color);
+    white-space: nowrap;
+}
+.jp-npl-stock-cat-nums {
+    display: flex;
+    align-items: baseline;
+    gap: 0.55rem;
+    flex: 0 0 auto;
+}
+.jp-npl-stock-cat-value {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--bs-body-color);
+    white-space: nowrap;
+}
+.jp-npl-stock-cat-pct {
+    min-width: 2.75rem;
+    text-align: right;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--hm-red, #dc2626);
+    font-variant-numeric: tabular-nums;
+}
+.jp-npl-stock-cat-bar {
+    height: 0.35rem;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.06);
+    overflow: hidden;
+}
+.jp-npl-stock-cat-bar > span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%);
+    min-width: 0;
+    max-width: 100%;
+    transition: width 0.35s ease;
+}
+.jp-npl-stock-cat-empty {
+    padding: 1.5rem 0.75rem;
+    text-align: center;
     font-size: 0.875rem;
 }
-@media (max-width: 767.98px) {
+
+@media (max-width: 991.98px) {
     .jp-npl-stock-value-overview {
         grid-template-columns: 1fr;
+    }
+}
+@media (max-width: 767.98px) {
+    .jp-npl-stock-page .jp-npl-stock-filters .jp-npl-mat-filter-field,
+    .jp-npl-stock-page .jp-npl-stock-filters .jp-npl-mat-status-select,
+    .jp-npl-stock-page .jp-npl-stock-filters .jp-npl-stock-q {
+        flex: 1 1 100%;
+        max-width: none;
+        width: auto;
+    }
+    .jp-npl-stock-cat-top {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.25rem;
+    }
+    .jp-npl-stock-cat-nums {
+        justify-content: space-between;
     }
 }
 </style>
