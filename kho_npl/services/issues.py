@@ -10,7 +10,7 @@ from kho_npl.services.batches import (
     batch_effective_price,
     decrease_batch_qty,
     ledger_amount,
-    validate_batch_for_material,
+    resolve_outflow_batches,
 )
 
 
@@ -35,15 +35,6 @@ def post_stock_issue(issue: StockIssue, user) -> StockIssue:
     for line in lines:
         if line.quantity <= Decimal('0'):
             raise IssueWorkflowError(f'Số lượng xuất của {line.material.code} phải lớn hơn 0.')
-        try:
-            batch = validate_batch_for_material(line.batch, line.material)
-            decrease_batch_qty(batch, line.quantity, material_code=line.material.code)
-        except BatchWorkflowError as exc:
-            raise IssueWorkflowError(str(exc)) from exc
-
-        # Snapshot giá xuất = giá lô (lô chưa có giá thì dùng giá cơ bản danh mục)
-        line.unit_price = batch_effective_price(batch)
-        line.save(update_fields=['unit_price'])
 
         balance = (
             StockBalance.objects.select_for_update()
@@ -56,22 +47,42 @@ def post_stock_issue(issue: StockIssue, user) -> StockIssue:
                 f'Tồn không đủ: {line.material.code} tại {line.location.display_label()} '
                 f'(có {available}, cần xuất {line.quantity}).'
             )
-        balance.quantity -= line.quantity
+
+        try:
+            allocations = resolve_outflow_batches(line.material, line.quantity, line.batch)
+        except BatchWorkflowError as exc:
+            raise IssueWorkflowError(str(exc)) from exc
+
+        # Snapshot giá xuất = giá lô đầu (FIFO); gắn lô chính lên dòng phiếu
+        primary_batch = allocations[0][0]
+        line.batch = primary_batch
+        line.unit_price = batch_effective_price(primary_batch)
+        line.save(update_fields=['batch', 'unit_price'])
+
+        running = balance.quantity
+        for batch, take in allocations:
+            try:
+                decrease_batch_qty(batch, take, material_code=line.material.code)
+            except BatchWorkflowError as exc:
+                raise IssueWorkflowError(str(exc)) from exc
+            running -= take
+            unit_price = batch_effective_price(batch)
+            StockLedger.objects.create(
+                material=line.material,
+                location=line.location,
+                qty_delta=-take,
+                balance_after=running,
+                batch=batch,
+                unit_price=unit_price,
+                amount=ledger_amount(take, unit_price),
+                ref_type=StockLedger.REF_ISSUE,
+                ref_id=issue.pk,
+                ref_number=issue.number,
+                created_by=user,
+                notes=f'Xuất kho {issue.number}',
+            )
+        balance.quantity = running
         balance.save(update_fields=['quantity', 'updated_at'])
-        StockLedger.objects.create(
-            material=line.material,
-            location=line.location,
-            qty_delta=-line.quantity,
-            balance_after=balance.quantity,
-            batch=batch,
-            unit_price=line.unit_price,
-            amount=ledger_amount(line.quantity, line.unit_price),
-            ref_type=StockLedger.REF_ISSUE,
-            ref_id=issue.pk,
-            ref_number=issue.number,
-            created_by=user,
-            notes=f'Xuất kho {issue.number}',
-        )
     issue.status = DOC_STATUS_POSTED
     issue.posted_at = timezone.now()
     issue.save(update_fields=['status', 'posted_at'])

@@ -49,7 +49,6 @@
             <thead>
                 <tr>
                     <th class="jp-npl-col-material">Nguyên phụ liệu <span class="text-danger">*</span></th>
-                    <th style="min-width:160px">Lô (tuỳ chọn)</th>
                     <th class="jp-npl-col-qty text-end">Số lượng <span class="text-danger">*</span></th>
                     <th class="jp-npl-col-unit">ĐVT</th>
                     <th class="jp-npl-col-line-notes">Ghi chú dòng</th>
@@ -63,10 +62,6 @@
                     <td class="jp-npl-material-cell">
                         <div class="jp-npl-material-field">{{ line_form.material }}</div>
                         {% if line_form.material.errors %}<div class="text-danger small">{{ line_form.material.errors }}</div>{% endif %}
-                    </td>
-                    <td>
-                        {{ line_form.batch }}
-                        {% if line_form.batch.errors %}<div class="text-danger small">{{ line_form.batch.errors }}</div>{% endif %}
                     </td>
                     <td class="jp-npl-qty-cell text-end">
                         <span class="jp-npl-stock-qty d-none">—</span>

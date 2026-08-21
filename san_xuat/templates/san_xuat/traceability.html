@@ -173,9 +173,6 @@
               <span class="badge {% if result.mo.status == 'draft' %}text-bg-secondary{% elif result.mo.status == 'released' %}text-bg-info{% elif result.mo.status == 'in_progress' %}text-bg-primary{% elif result.mo.status == 'done' %}text-bg-success{% elif result.mo.status == 'cancelled' %}text-bg-danger{% else %}text-bg-light text-dark border{% endif %}">
                 {{ result.mo.get_status_display }}
               </span>
-              {% if result.reverse_batch %}
-              <span class="badge text-bg-light text-dark border">Từ lô NPL</span>
-              {% endif %}
             </div>
             <div class="text-muted small">{{ result.mo.product_code }} — {{ result.mo.product_name|default:"—" }}</div>
           </div>
@@ -283,7 +280,6 @@
                 <th>Yêu cầu xuất</th>
                 <th>Phiếu xuất</th>
                 <th>NPL</th>
-                <th>Lô</th>
                 <th class="text-end">SL</th>
                 <th>Vị trí</th>
               </tr>
@@ -294,11 +290,6 @@
                 <td>{{ b.ycx }}</td>
                 <td>{{ b.issue_number }}</td>
                 <td>{{ b.material_code }} <span class="text-muted small">{{ b.material_name }}</span></td>
-                <td>
-                  {% if b.batch_code and b.batch_code != "—" %}
-                  <a href="?query={{ b.batch_code|urlencode }}">{{ b.batch_code }}</a>
-                  {% else %}—{% endif %}
-                </td>
                 <td class="text-end">{{ b.qty|sx_num }}</td>
                 <td>{{ b.location }}</td>
               </tr>

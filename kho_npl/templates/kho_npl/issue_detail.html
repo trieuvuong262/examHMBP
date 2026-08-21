@@ -85,7 +85,6 @@
                         <tr>
                             <th>Mã NPL</th>
                             <th>Tên</th>
-                            <th>Lô</th>
                             <th class="text-end">Số lượng</th>
                             <th class="text-end">Đơn giá</th>
                             <th class="text-end">Thành tiền</th>
@@ -99,7 +98,6 @@
                         <tr>
                             <td class="fw-semibold">{{ line.material.code }}</td>
                             <td>{{ line.material.name }}</td>
-                            <td>{% if line.batch %}{{ line.batch.code }}{% else %}—{% endif %}</td>
                             <td class="text-end">{{ line.quantity|npl_qty_with_unit:line.material.unit }}</td>
                             <td class="text-end" title="{{ line.unit_price|npl_money_exact }}">{{ line.unit_price|npl_money }}</td>
                             <td class="text-end" title="{{ line.amount|npl_money_exact }}">{{ line.amount|npl_money }}</td>
@@ -134,7 +132,6 @@
                     <tr>
                         <th>Mã NPL</th>
                         <th>Tên</th>
-                        <th>Lô</th>
                         <th class="text-end">Số lượng</th>
                         <th class="text-end">Đơn giá</th>
                         <th class="text-end">Thành tiền</th>
@@ -147,7 +144,6 @@
                     <tr>
                         <td class="fw-semibold">{{ line.material.code }}</td>
                         <td>{{ line.material.name }}</td>
-                        <td>{% if line.batch %}{{ line.batch.code }}{% else %}—{% endif %}</td>
                         <td class="text-end">{{ line.quantity|npl_qty_with_unit:line.material.unit }}</td>
                         <td class="text-end" title="{{ line.unit_price|npl_money_exact }}">{{ line.unit_price|npl_money }}</td>
                         <td class="text-end" title="{{ line.amount|npl_money_exact }}">{{ line.amount|npl_money }}</td>

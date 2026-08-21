@@ -409,10 +409,9 @@ def material_stock_detail(request, pk):
         location_ids=location_ids or None,
     )
     row = rows[0]
-    from kho_npl.services.batches import batches_with_stock, material_batch_totals
-    batches = list(batches_with_stock(material))
+    from kho_npl.services.batches import material_batch_totals
     _bq, stock_value, avg_unit_price = material_batch_totals(material)
-    # Có tồn nhưng chưa có lô kèm giá — tạm tính giá trị tồn theo giá cơ bản
+    # Có tồn nhưng chưa có giá lô — tạm tính giá trị tồn theo giá cơ bản
     if stock_value <= 0 and row['total_qty'] > 0 and material.base_price:
         stock_value = (row['total_qty'] * material.base_price).quantize(Decimal('0.01'))
     back_query = request.GET.urlencode()
@@ -429,7 +428,6 @@ def material_stock_detail(request, pk):
         **perm_context(request.user, 'material_stock'),
         'material': material,
         'row': row,
-        'batches': batches,
         'avg_unit_price': avg_unit_price,
         'stock_value': stock_value,
         'back_query': back_query,
@@ -596,9 +594,6 @@ def _material_delete_blockers(material: Material) -> list[str]:
     nonzero_balances = material.balances.exclude(quantity=0).count()
     if nonzero_balances:
         blockers.append(f'Tồn theo vị trí: {nonzero_balances}')
-    nonzero_batches = material.batches.exclude(quantity=0).count()
-    if nonzero_batches:
-        blockers.append(f'Lô còn tồn: {nonzero_batches}')
     return blockers
 
 

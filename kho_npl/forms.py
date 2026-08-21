@@ -12,7 +12,6 @@ from django.utils.text import slugify
 
 from kho_npl.models import (
     Material,
-    MaterialBatch,
     MaterialCategory,
     MaterialColor,
     MaterialSpecification,
@@ -483,7 +482,7 @@ class StockReceiptForm(DocAttachmentsFormMixin, forms.ModelForm):
 class StockReceiptLineForm(forms.ModelForm):
     class Meta:
         model = StockReceiptLine
-        fields = ['material', 'received_qty', 'location', 'batch_code', 'unit_price', 'notes']
+        fields = ['material', 'received_qty', 'location', 'unit_price', 'notes']
         widgets = {
             'material': forms.Select(attrs={
                 **FORM_SELECT,
@@ -498,12 +497,6 @@ class StockReceiptLineForm(forms.ModelForm):
                 'class': 'form-control jp-npl-line-qty',
             }),
             'location': forms.Select(attrs=LOCATION_ROW_SELECT),
-            'batch_code': forms.TextInput(attrs={
-                **FORM_CONTROL,
-                'class': 'form-control jp-npl-batch-code',
-                'placeholder': 'Mã lô',
-                'maxlength': '60',
-            }),
             'unit_price': forms.NumberInput(attrs={
                 **FORM_CONTROL,
                 'step': '1',
@@ -532,7 +525,6 @@ class StockReceiptLineForm(forms.ModelForm):
         self.fields['location'].queryset = WarehouseLocation.objects.filter(is_active=True).order_by('code')
         self.fields['location'].label_from_instance = lambda obj: obj.display_label()
         self.fields['notes'].required = False
-        self.fields['batch_code'].required = True
         self.fields['unit_price'].required = True
         default_location = WarehouseLocation.objects.filter(code='MAIN', is_active=True).first()
         if default_location and not self.instance.pk:
@@ -544,11 +536,6 @@ class StockReceiptLineForm(forms.ModelForm):
             raise ValidationError('Số lượng nhập phải lớn hơn 0.')
         return qty
 
-    def clean_batch_code(self):
-        code = (self.cleaned_data.get('batch_code') or '').strip().upper()
-        if not code:
-            raise ValidationError('Vui lòng nhập mã lô.')
-        return code
 
     def clean_unit_price(self):
         price = self.cleaned_data.get('unit_price')
@@ -583,8 +570,6 @@ class BaseStockReceiptLineFormSet(BaseInlineFormSet):
             qty = line.get('received_qty')
             if qty is None or qty <= 0:
                 raise ValidationError('Số lượng nhập phải lớn hơn 0 cho mỗi dòng NPL.')
-            if not (line.get('batch_code') or '').strip():
-                raise ValidationError('Mỗi dòng nhập cần có mã lô.')
             price = line.get('unit_price')
             if price is None or price <= 0:
                 raise ValidationError('Mỗi dòng nhập cần đơn giá lớn hơn 0.')
@@ -779,7 +764,7 @@ StockIssueLineNotesFormSet = inlineformset_factory(
 class StockIssueLineForm(forms.ModelForm):
     class Meta:
         model = StockIssueLine
-        fields = ['material', 'quantity', 'location', 'batch', 'notes']
+        fields = ['material', 'quantity', 'location', 'notes']
         widgets = {
             'material': forms.Select(attrs={
                 **FORM_SELECT,
@@ -788,11 +773,6 @@ class StockIssueLineForm(forms.ModelForm):
             }),
             'quantity': forms.NumberInput(attrs={**FORM_CONTROL, 'step': '0.001', 'min': '0.001'}),
             'location': forms.Select(attrs=LOCATION_ROW_SELECT),
-            'batch': forms.Select(attrs={
-                **FORM_SELECT,
-                'class': 'form-select jp-npl-batch-select',
-                'data-placeholder': 'Chọn lô...',
-            }),
             'notes': forms.TextInput(attrs={**FORM_CONTROL, 'class': 'form-control jp-npl-line-notes'}),
         }
 
@@ -808,17 +788,12 @@ class StockIssueLineForm(forms.ModelForm):
                 Material.objects.filter(pk=material_id).select_related('unit')
             )
             self.fields['material'].label_from_instance = lambda material: material.name
-            self.fields['batch'].queryset = _batches_for_material(material_id, self.instance)
         else:
             self.fields['material'].queryset = Material.objects.none()
-            self.fields['batch'].queryset = MaterialBatch.objects.none()
         self.fields['material'].empty_label = None
-        self.fields['batch'].empty_label = '— Chọn lô —'
-        self.fields['batch'].label_from_instance = _batch_label
         self.fields['location'].queryset = WarehouseLocation.objects.filter(is_active=True).order_by('code')
         self.fields['location'].label_from_instance = lambda obj: obj.display_label()
         self.fields['notes'].required = False
-        self.fields['batch'].required = True
         default_location = WarehouseLocation.objects.filter(code='MAIN', is_active=True).first()
         if default_location and not self.instance.pk:
             self.initial.setdefault('location', default_location.pk)
@@ -830,7 +805,6 @@ class StockIssueLineForm(forms.ModelForm):
         material = cleaned_data.get('material')
         location = cleaned_data.get('location')
         qty = cleaned_data.get('quantity')
-        batch = cleaned_data.get('batch')
         if material and location and qty is not None:
             available = balance_qty(material, location)
             if qty > available:
@@ -838,15 +812,6 @@ class StockIssueLineForm(forms.ModelForm):
                     'quantity',
                     f'Số lượng xuất vượt tồn tại vị trí (tồn {available}).',
                 )
-        if material and batch and batch.material_id != material.pk:
-            self.add_error('batch', 'Lô không thuộc NPL đã chọn.')
-        if material and batch and qty is not None and qty > batch.quantity:
-            self.add_error(
-                'quantity',
-                f'Số lượng xuất vượt tồn lô (tồn lô {batch.quantity}).',
-            )
-        if not batch and material:
-            self.add_error('batch', 'Vui lòng chọn lô hàng.')
         return cleaned_data
 
     def full_clean(self):
@@ -854,37 +819,9 @@ class StockIssueLineForm(forms.ModelForm):
             self.fields['material'].queryset = (
                 Material.objects.filter(is_active=True).select_related('unit')
             )
-            material_id = self.data.get(self.add_prefix('material'))
-            if material_id and str(material_id).isdigit():
-                self.fields['batch'].queryset = _batches_for_material(
-                    int(material_id),
-                    self.instance,
-                    posted_batch_id=self.data.get(self.add_prefix('batch')),
-                )
-            else:
-                self.fields['batch'].queryset = MaterialBatch.objects.none()
         super().full_clean()
 
 
-def _batch_label(batch: MaterialBatch) -> str:
-    from kho_npl.services.batches import batch_label
-
-    return batch_label(batch)
-
-
-def _batches_for_material(material_id, instance=None, posted_batch_id=None):
-    """Lô còn tồn của NPL; giữ lô đã gắn (sửa nháp) hoặc giá trị POST."""
-    from django.db.models import Q
-
-    qs = MaterialBatch.objects.filter(material_id=material_id, is_active=True).select_related('material__unit')
-    keep_ids = []
-    if instance and getattr(instance, 'batch_id', None):
-        keep_ids.append(instance.batch_id)
-    if posted_batch_id and str(posted_batch_id).isdigit():
-        keep_ids.append(int(posted_batch_id))
-    if keep_ids:
-        return qs.filter(Q(quantity__gt=0) | Q(pk__in=keep_ids)).distinct()
-    return qs.filter(quantity__gt=0)
 
 
 class BaseStockIssueLineFormSet(BaseInlineFormSet):
@@ -906,8 +843,6 @@ class BaseStockIssueLineFormSet(BaseInlineFormSet):
             qty = line.get('quantity')
             if qty is None or qty <= 0:
                 raise ValidationError('Số lượng xuất phải lớn hơn 0 cho mỗi dòng NPL.')
-            if not line.get('batch'):
-                raise ValidationError('Mỗi dòng xuất cần chọn lô hàng.')
 
 
 StockIssueLineFormSet = inlineformset_factory(
@@ -939,7 +874,7 @@ class StockAdjustmentForm(DocAttachmentsFormMixin, forms.ModelForm):
 class StockAdjustmentLineForm(forms.ModelForm):
     class Meta:
         model = StockAdjustmentLine
-        fields = ['material', 'location', 'system_qty', 'actual_qty', 'batch', 'notes']
+        fields = ['material', 'location', 'system_qty', 'actual_qty', 'notes']
         widgets = {
             'material': forms.Select(attrs={
                 **FORM_SELECT,
@@ -955,11 +890,6 @@ class StockAdjustmentLineForm(forms.ModelForm):
                 'class': 'form-control jp-npl-system-qty',
             }),
             'actual_qty': forms.NumberInput(attrs={**FORM_CONTROL, 'step': '0.001', 'min': '0'}),
-            'batch': forms.Select(attrs={
-                **FORM_SELECT,
-                'class': 'form-select jp-npl-batch-select',
-                'data-placeholder': 'Chọn lô...',
-            }),
             'notes': forms.TextInput(attrs=FORM_CONTROL),
         }
 
@@ -974,14 +904,9 @@ class StockAdjustmentLineForm(forms.ModelForm):
             self.fields['material'].queryset = (
                 Material.objects.filter(pk=material_id).select_related('unit')
             )
-            self.fields['batch'].queryset = _batches_for_material(material_id, self.instance)
         else:
             self.fields['material'].queryset = Material.objects.none()
-            self.fields['batch'].queryset = MaterialBatch.objects.none()
         self.fields['material'].empty_label = None
-        self.fields['batch'].empty_label = '— Chọn lô —'
-        self.fields['batch'].label_from_instance = _batch_label
-        self.fields['batch'].required = False
         self.fields['location'].queryset = WarehouseLocation.objects.filter(is_active=True)
         self.fields['notes'].required = False
         self.fields['system_qty'].required = False
@@ -1006,15 +931,6 @@ class StockAdjustmentLineForm(forms.ModelForm):
             self.fields['material'].queryset = (
                 Material.objects.filter(is_active=True).select_related('unit')
             )
-            material_id = self.data.get(self.add_prefix('material'))
-            if material_id and str(material_id).isdigit():
-                self.fields['batch'].queryset = _batches_for_material(
-                    int(material_id),
-                    self.instance,
-                    posted_batch_id=self.data.get(self.add_prefix('batch')),
-                )
-            else:
-                self.fields['batch'].queryset = MaterialBatch.objects.none()
         super().full_clean()
 
     def clean(self):
@@ -1025,11 +941,6 @@ class StockAdjustmentLineForm(forms.ModelForm):
             cleaned['system_qty'] = balance_qty(material, location)
         system_qty = cleaned.get('system_qty') or Decimal('0')
         actual_qty = cleaned.get('actual_qty')
-        batch = cleaned.get('batch')
-        if actual_qty is not None and actual_qty != system_qty and not batch:
-            self.add_error('batch', 'Dòng có chênh lệch phải chọn lô hàng.')
-        if material and batch and batch.material_id != material.pk:
-            self.add_error('batch', 'Lô không thuộc NPL đã chọn.')
         return cleaned
 
     def save(self, commit=True):
@@ -1106,44 +1017,23 @@ class StocktakeForm(DocAttachmentsFormMixin, forms.ModelForm):
 class StocktakeLineForm(forms.ModelForm):
     class Meta:
         model = StocktakeLine
-        fields = ['actual_qty', 'batch', 'notes']
+        fields = ['actual_qty', 'notes']
         widgets = {
             'actual_qty': forms.NumberInput(attrs={**FORM_CONTROL, 'step': '0.001', 'min': '0'}),
-            'batch': forms.Select(attrs={
-                **FORM_SELECT,
-                'class': 'form-select jp-npl-batch-select',
-                'data-placeholder': 'Chọn lô...',
-            }),
             'notes': forms.TextInput(attrs=FORM_CONTROL),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['notes'].required = False
-        self.fields['batch'].required = False
-        self.fields['batch'].empty_label = '— Chọn lô —'
-        self.fields['batch'].label_from_instance = _batch_label
         material_id = self.instance.material_id if self.instance.pk else None
-        if material_id:
-            self.fields['batch'].queryset = _batches_for_material(material_id, self.instance)
-        else:
-            self.fields['batch'].queryset = MaterialBatch.objects.none()
 
     def full_clean(self):
-        material_id = self.instance.material_id if self.instance.pk else None
-        if material_id:
-            posted = self.data.get(self.add_prefix('batch')) if self.data else None
-            self.fields['batch'].queryset = _batches_for_material(
-                material_id, self.instance, posted_batch_id=posted,
-            )
         super().full_clean()
 
     def clean(self):
         cleaned = super().clean()
         actual = cleaned.get('actual_qty')
-        batch = cleaned.get('batch')
-        if actual is not None and self.instance.pk and actual != self.instance.system_qty and not batch:
-            self.add_error('batch', 'Dòng có chênh lệch phải chọn lô hàng.')
         return cleaned
 
 
@@ -1221,7 +1111,7 @@ class StockTransferForm(DocAttachmentsFormMixin, forms.ModelForm):
 class StockTransferLineForm(forms.ModelForm):
     class Meta:
         model = StockTransferLine
-        fields = ['material', 'quantity', 'batch', 'notes']
+        fields = ['material', 'quantity', 'notes']
         widgets = {
             'material': forms.Select(attrs={
                 **FORM_SELECT,
@@ -1233,11 +1123,6 @@ class StockTransferLineForm(forms.ModelForm):
                 'step': '0.001',
                 'min': '0.001',
                 'inputmode': 'decimal',
-            }),
-            'batch': forms.Select(attrs={
-                **FORM_SELECT,
-                'class': 'form-select jp-npl-batch-select',
-                'data-placeholder': 'Chọn lô (tuỳ chọn)...',
             }),
             'notes': forms.TextInput(attrs={**FORM_CONTROL, 'class': 'form-control jp-npl-line-notes'}),
         }
@@ -1254,14 +1139,9 @@ class StockTransferLineForm(forms.ModelForm):
                 Material.objects.filter(pk=material_id).select_related('unit')
             )
             self.fields['material'].label_from_instance = lambda material: material.name
-            self.fields['batch'].queryset = _batches_for_material(material_id, self.instance)
         else:
             self.fields['material'].queryset = Material.objects.none()
-            self.fields['batch'].queryset = MaterialBatch.objects.none()
         self.fields['material'].empty_label = None
-        self.fields['batch'].empty_label = '— Tuỳ chọn —'
-        self.fields['batch'].label_from_instance = _batch_label
-        self.fields['batch'].required = False
         self.fields['notes'].required = False
 
     def _from_location_id_for_stock(self) -> str:
@@ -1278,7 +1158,6 @@ class StockTransferLineForm(forms.ModelForm):
             return cleaned
         material = cleaned.get('material')
         qty = cleaned.get('quantity')
-        batch = cleaned.get('batch')
         from_location_id = self._from_location_id_for_stock()
         if material and qty is not None and from_location_id.isdigit():
             location = WarehouseLocation.objects.filter(
@@ -1292,8 +1171,6 @@ class StockTransferLineForm(forms.ModelForm):
                         'quantity',
                         f'Số lượng chuyển vượt tồn tại kho gửi (tồn {available}).',
                     )
-        if material and batch and batch.material_id != material.pk:
-            self.add_error('batch', 'Lô không thuộc NPL đã chọn.')
         return cleaned
 
     def full_clean(self):
@@ -1301,15 +1178,6 @@ class StockTransferLineForm(forms.ModelForm):
             self.fields['material'].queryset = (
                 Material.objects.filter(is_active=True).select_related('unit')
             )
-            material_id = self.data.get(self.add_prefix('material'))
-            if material_id and str(material_id).isdigit():
-                self.fields['batch'].queryset = _batches_for_material(
-                    int(material_id),
-                    self.instance,
-                    posted_batch_id=self.data.get(self.add_prefix('batch')),
-                )
-            else:
-                self.fields['batch'].queryset = MaterialBatch.objects.none()
         super().full_clean()
 
 
@@ -1387,7 +1255,7 @@ class StockDisposalForm(DocAttachmentsFormMixin, forms.ModelForm):
 class StockDisposalLineForm(forms.ModelForm):
     class Meta:
         model = StockDisposalLine
-        fields = ['material', 'quantity', 'location', 'batch', 'notes']
+        fields = ['material', 'quantity', 'location', 'notes']
         widgets = {
             'material': forms.Select(attrs={
                 **FORM_SELECT,
@@ -1396,11 +1264,6 @@ class StockDisposalLineForm(forms.ModelForm):
             }),
             'quantity': forms.NumberInput(attrs={**FORM_CONTROL, 'step': '0.001', 'min': '0.001'}),
             'location': forms.Select(attrs=LOCATION_ROW_SELECT),
-            'batch': forms.Select(attrs={
-                **FORM_SELECT,
-                'class': 'form-select jp-npl-batch-select',
-                'data-placeholder': 'Chọn lô...',
-            }),
             'notes': forms.TextInput(attrs={**FORM_CONTROL, 'class': 'form-control jp-npl-line-notes'}),
         }
 
@@ -1416,14 +1279,9 @@ class StockDisposalLineForm(forms.ModelForm):
                 Material.objects.filter(pk=material_id).select_related('unit')
             )
             self.fields['material'].label_from_instance = lambda material: material.name
-            self.fields['batch'].queryset = _batches_for_material(material_id, self.instance)
         else:
             self.fields['material'].queryset = Material.objects.none()
-            self.fields['batch'].queryset = MaterialBatch.objects.none()
         self.fields['material'].empty_label = None
-        self.fields['batch'].empty_label = '— Chọn lô —'
-        self.fields['batch'].label_from_instance = _batch_label
-        self.fields['batch'].required = True
         self.fields['location'].queryset = source_locations_qs().order_by('code')
         self.fields['location'].label_from_instance = lambda obj: obj.display_label()
         self.fields['notes'].required = False
@@ -1438,7 +1296,6 @@ class StockDisposalLineForm(forms.ModelForm):
         material = cleaned_data.get('material')
         location = cleaned_data.get('location')
         qty = cleaned_data.get('quantity')
-        batch = cleaned_data.get('batch')
         if material and location and qty is not None:
             available = balance_qty(material, location)
             if qty > available:
@@ -1446,15 +1303,6 @@ class StockDisposalLineForm(forms.ModelForm):
                     'quantity',
                     f'Số lượng hủy vượt tồn tại vị trí (tồn {available}).',
                 )
-        if material and batch and batch.material_id != material.pk:
-            self.add_error('batch', 'Lô không thuộc NPL đã chọn.')
-        if material and batch and qty is not None and qty > batch.quantity:
-            self.add_error(
-                'quantity',
-                f'Số lượng hủy vượt tồn lô (tồn lô {batch.quantity}).',
-            )
-        if not batch and material:
-            self.add_error('batch', 'Vui lòng chọn lô hàng.')
         return cleaned_data
 
     def full_clean(self):
@@ -1462,15 +1310,6 @@ class StockDisposalLineForm(forms.ModelForm):
             self.fields['material'].queryset = (
                 Material.objects.filter(is_active=True).select_related('unit')
             )
-            material_id = self.data.get(self.add_prefix('material'))
-            if material_id and str(material_id).isdigit():
-                self.fields['batch'].queryset = _batches_for_material(
-                    int(material_id),
-                    self.instance,
-                    posted_batch_id=self.data.get(self.add_prefix('batch')),
-                )
-            else:
-                self.fields['batch'].queryset = MaterialBatch.objects.none()
         super().full_clean()
 
 
@@ -1493,8 +1332,6 @@ class BaseStockDisposalLineFormSet(BaseInlineFormSet):
             qty = line.get('quantity')
             if qty is None or qty <= 0:
                 raise ValidationError('Số lượng hủy phải lớn hơn 0 cho mỗi dòng NPL.')
-            if not line.get('batch'):
-                raise ValidationError('Mỗi dòng hủy cần chọn lô hàng.')
 
 
 StockDisposalLineFormSet = inlineformset_factory(

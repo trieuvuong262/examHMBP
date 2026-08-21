@@ -33,7 +33,6 @@
           data-default-qty-on-material="1"
           data-validate-qty-zero="1"
           data-show-line-unit="1"
-          data-batch-mode="code"
           data-price-mode="input">
         {% csrf_token %}
         {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
@@ -98,7 +97,6 @@
                         <tr>
                             <th style="min-width:130px">Vị trí</th>
                             <th style="min-width:220px">Nguyên phụ liệu</th>
-                            <th style="min-width:110px">Mã lô</th>
                             <th style="width:100px" class="text-end">SL nhập</th>
                             <th style="width:72px">ĐVT</th>
                             <th style="width:110px" class="text-end">Đơn giá</th>
@@ -113,7 +111,6 @@
                             {% for hidden in line_form.hidden_fields %}{{ hidden }}{% endfor %}
                             <td>{{ line_form.location }}{% if line_form.location.errors %}<div class="text-danger small">{{ line_form.location.errors }}</div>{% endif %}</td>
                             <td class="jp-npl-material-cell"><div class="jp-npl-material-field">{{ line_form.material }}{% if line_form.material.errors %}<div class="text-danger small">{{ line_form.material.errors }}</div>{% endif %}</div></td>
-                            <td>{{ line_form.batch_code }}{% if line_form.batch_code.errors %}<div class="text-danger small">{{ line_form.batch_code.errors }}</div>{% endif %}</td>
                             <td class="text-end">{{ line_form.received_qty }}{% if line_form.received_qty.errors %}<div class="text-danger small">{{ line_form.received_qty.errors }}</div>{% endif %}</td>
                             <td class="jp-npl-line-unit-cell">
                                 <span class="jp-npl-line-unit text-muted small">{% if line_form.instance.material_id %}{{ line_form.instance.material.unit.name }}{% else %}—{% endif %}</span>
@@ -164,7 +161,6 @@
         {% for hidden in line_form.hidden_fields %}{{ hidden }}{% endfor %}
         <td>{{ line_form.location }}</td>
         <td class="jp-npl-material-cell"><div class="jp-npl-material-field">{{ line_form.material }}</div></td>
-        <td>{{ line_form.batch_code }}</td>
         <td class="text-end">{{ line_form.received_qty }}</td>
         <td class="jp-npl-line-unit-cell"><span class="jp-npl-line-unit text-muted small">—</span></td>
         <td class="text-end">{{ line_form.unit_price }}</td>

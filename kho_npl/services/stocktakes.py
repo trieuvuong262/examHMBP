@@ -12,10 +12,9 @@ from kho_npl.choices import (
 from kho_npl.models import Material, StockBalance, StockLedger, Stocktake, StocktakeLine
 from kho_npl.services.batches import (
     BatchWorkflowError,
-    adjust_batch_qty,
+    apply_variance_to_batches,
     batch_effective_price,
     ledger_amount,
-    validate_batch_for_material,
 )
 
 
@@ -92,10 +91,18 @@ def close_stocktake(stocktake: Stocktake, user) -> Stocktake:
         if variance == 0:
             continue
         try:
-            batch = validate_batch_for_material(line.batch, line.material)
-            adjust_batch_qty(batch, variance, material_code=line.material.code)
+            applied = apply_variance_to_batches(
+                line.material,
+                variance,
+                line.batch,
+                received_date=stocktake.stocktake_date,
+            )
         except BatchWorkflowError as exc:
             raise StocktakeWorkflowError(str(exc)) from exc
+
+        if applied:
+            line.batch = applied[0][0]
+            line.save(update_fields=['batch'])
 
         balance, _ = StockBalance.objects.select_for_update().get_or_create(
             material=line.material,
@@ -104,20 +111,24 @@ def close_stocktake(stocktake: Stocktake, user) -> Stocktake:
         )
         balance.quantity = line.actual_qty
         balance.save(update_fields=['quantity', 'updated_at'])
-        StockLedger.objects.create(
-            material=line.material,
-            location=line.location,
-            qty_delta=variance,
-            balance_after=balance.quantity,
-            batch=batch,
-            unit_price=batch_effective_price(batch),
-            amount=ledger_amount(variance, batch_effective_price(batch)),
-            ref_type=StockLedger.REF_STOCKTAKE,
-            ref_id=stocktake.pk,
-            ref_number=stocktake.number,
-            created_by=user,
-            notes=f'Kiểm kê {stocktake.number}',
-        )
+        running = balance.quantity - variance
+        for batch, delta in applied:
+            running += delta
+            unit_price = batch_effective_price(batch)
+            StockLedger.objects.create(
+                material=line.material,
+                location=line.location,
+                qty_delta=delta,
+                balance_after=running,
+                batch=batch,
+                unit_price=unit_price,
+                amount=ledger_amount(delta, unit_price),
+                ref_type=StockLedger.REF_STOCKTAKE,
+                ref_id=stocktake.pk,
+                ref_number=stocktake.number,
+                created_by=user,
+                notes=f'Kiểm kê {stocktake.number}',
+            )
     stocktake.status = STOCKTAKE_STATUS_CLOSED
     stocktake.closed_at = timezone.now()
     stocktake.save(update_fields=['status', 'closed_at'])

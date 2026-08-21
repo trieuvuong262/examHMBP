@@ -200,3 +200,109 @@ def validate_batch_for_material(batch: MaterialBatch | None, material: Material)
     if batch.material_id != material.pk:
         raise BatchWorkflowError(f'Lô {batch.code} không thuộc {material.code}.')
     return batch
+
+
+AUTO_BATCH_CODE = 'AUTO'
+
+
+def auto_receipt_batch_code(*, receipt_number: str, material: Material) -> str:
+    """Mã lô tự sinh khi phiếu nhập không còn nhập tay."""
+    code = f'{receipt_number}-{material.code}'.strip().upper()
+    return code[:60]
+
+
+def allocate_batches_fifo(
+    material: Material,
+    qty_needed: Decimal,
+) -> list[tuple[MaterialBatch, Decimal]]:
+    """Phân bổ SL theo FIFO các lô còn tồn (có thể nhiều lô)."""
+    if qty_needed <= 0:
+        raise BatchWorkflowError(f'{material.code}: số lượng phân bổ lô phải lớn hơn 0.')
+    remaining = qty_needed
+    allocations: list[tuple[MaterialBatch, Decimal]] = []
+    for batch in batches_with_stock(material, include_zero=False):
+        if remaining <= 0:
+            break
+        take = batch.quantity if batch.quantity < remaining else remaining
+        if take > 0:
+            allocations.append((batch, take))
+            remaining -= take
+    if remaining > 0:
+        raise BatchWorkflowError(
+            f'Không đủ tồn theo lô cho {material.code}: thiếu {remaining} (cần {qty_needed}).'
+        )
+    return allocations
+
+
+def resolve_outflow_batches(
+    material: Material,
+    qty: Decimal,
+    preferred_batch: MaterialBatch | None = None,
+) -> list[tuple[MaterialBatch, Decimal]]:
+    """Xuất/hủy: dùng lô đã chọn (nếu có) hoặc FIFO tự động."""
+    if preferred_batch is not None:
+        batch = validate_batch_for_material(preferred_batch, material)
+        return [(batch, qty)]
+    return allocate_batches_fifo(material, qty)
+
+
+def resolve_inflow_batch(
+    material: Material,
+    *,
+    preferred_batch: MaterialBatch | None = None,
+    unit_price: Decimal | None = None,
+    received_date=None,
+) -> MaterialBatch:
+    """Nhập tăng tồn (kiểm kê +): dùng lô đã chọn hoặc lô AUTO."""
+    if preferred_batch is not None:
+        return validate_batch_for_material(preferred_batch, material)
+    price = unit_price if unit_price is not None else (material.base_price or Decimal('0'))
+    if price is None or price < 0:
+        price = Decimal('0')
+    batch = (
+        MaterialBatch.objects.select_for_update()
+        .filter(material=material, code=AUTO_BATCH_CODE)
+        .first()
+    )
+    if batch:
+        if not batch.is_active:
+            batch.is_active = True
+            batch.save(update_fields=['is_active', 'updated_at'])
+        return batch
+    return MaterialBatch.objects.create(
+        material=material,
+        code=AUTO_BATCH_CODE,
+        unit_price=price,
+        received_date=received_date,
+        quantity=Decimal('0'),
+        is_active=True,
+    )
+
+
+def apply_variance_to_batches(
+    material: Material,
+    variance: Decimal,
+    preferred_batch: MaterialBatch | None = None,
+    *,
+    received_date=None,
+) -> list[tuple[MaterialBatch, Decimal]]:
+    """
+    Áp chênh lệch kiểm kê lên lô.
+    Trả list (batch, qty_delta) đã áp — qty_delta cùng dấu với variance.
+    """
+    if variance == 0:
+        return []
+    if variance > 0:
+        batch = resolve_inflow_batch(
+            material,
+            preferred_batch=preferred_batch,
+            received_date=received_date,
+        )
+        increase_batch_qty(batch, variance)
+        return [(batch, variance)]
+    allocations = resolve_outflow_batches(material, abs(variance), preferred_batch)
+    applied: list[tuple[MaterialBatch, Decimal]] = []
+    for batch, take in allocations:
+        decrease_batch_qty(batch, take, material_code=material.code)
+        applied.append((batch, -take))
+    return applied

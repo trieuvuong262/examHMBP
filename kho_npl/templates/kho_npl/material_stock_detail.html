@@ -126,51 +126,6 @@
         </div>
     </div>
 
-    <div class="card jp-npl-mat-detail-section shadow-sm mb-4">
-        <div class="card-header">
-            <h2 class="jp-npl-mat-detail-section-title mb-0">
-                <i class="bi bi-box-seam" aria-hidden="true"></i>Tồn theo lô hàng
-            </h2>
-        </div>
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0 jp-npl-stock-loc-table">
-                <thead class="table-light">
-                    <tr>
-                        <th>Mã lô</th>
-                        <th>Ngày nhập</th>
-                        <th class="text-end">Đơn giá</th>
-                        <th class="text-end">Tồn lô</th>
-                        <th class="text-end">Thành tiền</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for batch in batches %}
-                    <tr>
-                        <td class="fw-semibold jp-mat-code">{{ batch.code }}</td>
-                        <td>{% if batch.received_date %}{{ batch.received_date|date:'d/m/Y' }}{% else %}—{% endif %}</td>
-                        <td class="text-end jp-mat-code" title="{{ batch.unit_price|npl_money_exact }}">{{ batch.unit_price|npl_money }}</td>
-                        <td class="text-end jp-mat-code">{{ batch.quantity|npl_qty_with_unit:material.unit }}</td>
-                        <td class="text-end jp-mat-code fw-semibold" title="{{ batch.amount|npl_money_exact }}">{{ batch.amount|npl_money }}</td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="5" class="text-center text-muted py-4">Chưa có lô còn tồn.</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-                {% if batches %}
-                <tfoot class="table-light">
-                    <tr>
-                        <th colspan="3" class="text-end">Đơn giá BQ / Tổng giá trị</th>
-                        <th class="text-end jp-mat-code" title="{{ avg_unit_price|npl_money_exact }}">{% if avg_unit_price %}{{ avg_unit_price|npl_money }}{% else %}—{% endif %}</th>
-                        <th class="text-end jp-mat-code" title="{{ stock_value|npl_money_exact }}">{% if stock_value %}{{ stock_value|npl_money }}{% else %}—{% endif %}</th>
-                    </tr>
-                </tfoot>
-                {% endif %}
-            </table>
-        </div>
-    </div>
-
     <div class="card jp-npl-mat-detail-section shadow-sm">
         <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
             <h2 class="jp-npl-mat-detail-section-title mb-0">

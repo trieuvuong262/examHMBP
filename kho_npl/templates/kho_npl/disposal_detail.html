@@ -60,7 +60,6 @@
                     <tr>
                         <th>Mã NPL</th>
                         <th>Tên</th>
-                        <th>Lô</th>
                         <th class="text-end">Số lượng</th>
                         <th>Vị trí</th>
                         <th>ĐVT</th>
@@ -72,7 +71,6 @@
                     <tr>
                         <td class="fw-semibold">{{ line.material.code }}</td>
                         <td>{{ line.material.name }}</td>
-                        <td>{% if line.batch %}{{ line.batch.code }}{% else %}—{% endif %}</td>
                         <td class="text-end">{{ line.quantity|npl_qty_with_unit:line.material.unit }}</td>
                         <td>{{ line.location.display_label }}</td>
                         <td>{{ line.material.unit.name }}</td>

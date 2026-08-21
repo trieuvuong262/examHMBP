@@ -10,7 +10,7 @@ from kho_npl.services.batches import (
     batch_effective_price,
     decrease_batch_qty,
     ledger_amount,
-    validate_batch_for_material,
+    resolve_outflow_batches,
 )
 from kho_npl.services.scrap_warehouse import get_scrap_location
 
@@ -42,12 +42,6 @@ def post_stock_disposal(disposal: StockDisposal, user) -> StockDisposal:
         if line.location_id == scrap_location.pk:
             raise DisposalWorkflowError('Vị trí nguồn không được là kho hủy.')
 
-        try:
-            batch = validate_batch_for_material(line.batch, line.material)
-            decrease_batch_qty(batch, line.quantity, material_code=line.material.code)
-        except BatchWorkflowError as exc:
-            raise DisposalWorkflowError(str(exc)) from exc
-
         source_balance = (
             StockBalance.objects.select_for_update()
             .filter(material=line.material, location=line.location)
@@ -59,44 +53,65 @@ def post_stock_disposal(disposal: StockDisposal, user) -> StockDisposal:
                 f'Tồn không đủ tại {line.location.display_label()}: {line.material.code} '
                 f'(có {available}, cần hủy {line.quantity}).'
             )
-        source_balance.quantity -= line.quantity
-        source_balance.save(update_fields=['quantity', 'updated_at'])
-        StockLedger.objects.create(
-            material=line.material,
-            location=line.location,
-            qty_delta=-line.quantity,
-            balance_after=source_balance.quantity,
-            batch=batch,
-            unit_price=batch_effective_price(batch),
-            amount=ledger_amount(line.quantity, batch_effective_price(batch)),
-            ref_type=StockLedger.REF_DISPOSAL,
-            ref_id=disposal.pk,
-            ref_number=disposal.number,
-            created_by=user,
-            notes=f'Hủy {disposal.number} → {scrap_location.display_label()}',
-        )
 
+        try:
+            allocations = resolve_outflow_batches(line.material, line.quantity, line.batch)
+        except BatchWorkflowError as exc:
+            raise DisposalWorkflowError(str(exc)) from exc
+
+        primary_batch = allocations[0][0]
+        line.batch = primary_batch
+        line.save(update_fields=['batch'])
+
+        running_source = source_balance.quantity
         scrap_balance, _ = StockBalance.objects.select_for_update().get_or_create(
             material=line.material,
             location=scrap_location,
             defaults={'quantity': Decimal('0')},
         )
-        scrap_balance.quantity += line.quantity
+        running_scrap = scrap_balance.quantity
+
+        for batch, take in allocations:
+            try:
+                decrease_batch_qty(batch, take, material_code=line.material.code)
+            except BatchWorkflowError as exc:
+                raise DisposalWorkflowError(str(exc)) from exc
+            unit_price = batch_effective_price(batch)
+            running_source -= take
+            StockLedger.objects.create(
+                material=line.material,
+                location=line.location,
+                qty_delta=-take,
+                balance_after=running_source,
+                batch=batch,
+                unit_price=unit_price,
+                amount=ledger_amount(take, unit_price),
+                ref_type=StockLedger.REF_DISPOSAL,
+                ref_id=disposal.pk,
+                ref_number=disposal.number,
+                created_by=user,
+                notes=f'Hủy {disposal.number} → {scrap_location.display_label()}',
+            )
+            running_scrap += take
+            StockLedger.objects.create(
+                material=line.material,
+                location=scrap_location,
+                qty_delta=take,
+                balance_after=running_scrap,
+                batch=batch,
+                unit_price=unit_price,
+                amount=ledger_amount(take, unit_price),
+                ref_type=StockLedger.REF_DISPOSAL,
+                ref_id=disposal.pk,
+                ref_number=disposal.number,
+                created_by=user,
+                notes=f'Nhận hủy {disposal.number} từ {line.location.display_label()}',
+            )
+
+        source_balance.quantity = running_source
+        source_balance.save(update_fields=['quantity', 'updated_at'])
+        scrap_balance.quantity = running_scrap
         scrap_balance.save(update_fields=['quantity', 'updated_at'])
-        StockLedger.objects.create(
-            material=line.material,
-            location=scrap_location,
-            qty_delta=line.quantity,
-            balance_after=scrap_balance.quantity,
-            batch=batch,
-            unit_price=batch_effective_price(batch),
-            amount=ledger_amount(line.quantity, batch_effective_price(batch)),
-            ref_type=StockLedger.REF_DISPOSAL,
-            ref_id=disposal.pk,
-            ref_number=disposal.number,
-            created_by=user,
-            notes=f'Nhận hủy {disposal.number} từ {line.location.display_label()}',
-        )
 
     disposal.status = DOC_STATUS_POSTED
     disposal.posted_by = user

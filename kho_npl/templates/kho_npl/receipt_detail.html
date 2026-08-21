@@ -87,7 +87,6 @@
                         <tr>
                             <th>Mã NPL</th>
                             <th>Tên</th>
-                            <th>Lô</th>
                             <th class="text-end">SL nhập</th>
                             <th>ĐVT</th>
                             <th class="text-end">Đơn giá</th>
@@ -102,7 +101,6 @@
                         <tr>
                             <td class="fw-semibold">{{ line.material.code }}</td>
                             <td>{{ line.material.name }}</td>
-                            <td>{{ line.batch_code|default:'—' }}</td>
                             <td class="text-end">{{ line.received_qty|npl_qty }}</td>
                             <td>{{ line.material.unit.name }}</td>
                             <td class="text-end" title="{{ line.unit_price|npl_money_exact }}">{{ line.unit_price|npl_money }}</td>
@@ -140,7 +138,6 @@
                     <tr>
                         <th>Mã NPL</th>
                         <th>Tên</th>
-                        <th>Lô</th>
                         <th class="text-end">SL nhập</th>
                         <th>ĐVT</th>
                         <th class="text-end">Đơn giá</th>
@@ -154,7 +151,6 @@
                     <tr>
                         <td class="fw-semibold">{{ line.material.code }}</td>
                         <td>{{ line.material.name }}</td>
-                        <td>{{ line.batch_code|default:'—' }}</td>
                         <td class="text-end">{{ line.received_qty|npl_qty }}</td>
                         <td>{{ line.material.unit.name }}</td>
                         <td class="text-end" title="{{ line.unit_price|npl_money_exact }}">{{ line.unit_price|npl_money }}</td>

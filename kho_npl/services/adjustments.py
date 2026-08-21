@@ -7,10 +7,9 @@ from kho_npl.choices import ADJUST_STATUS_APPROVED, ADJUST_STATUS_PENDING, ADJUS
 from kho_npl.models import StockAdjustment, StockBalance, StockLedger
 from kho_npl.services.batches import (
     BatchWorkflowError,
-    adjust_batch_qty,
+    apply_variance_to_batches,
     batch_effective_price,
     ledger_amount,
-    validate_batch_for_material,
 )
 
 
@@ -43,14 +42,20 @@ def approve_stock_adjustment(adjustment: StockAdjustment, user) -> StockAdjustme
         raise AdjustmentWorkflowError('Phiếu chưa có dòng kiểm kê.')
     for line in lines:
         variance = line.actual_qty - line.system_qty
+        applied = []
         if variance != 0:
             try:
-                batch = validate_batch_for_material(line.batch, line.material)
-                adjust_batch_qty(batch, variance, material_code=line.material.code)
+                applied = apply_variance_to_batches(
+                    line.material,
+                    variance,
+                    line.batch,
+                    received_date=adjustment.adjust_date,
+                )
             except BatchWorkflowError as exc:
                 raise AdjustmentWorkflowError(str(exc)) from exc
-        else:
-            batch = line.batch
+            if applied:
+                line.batch = applied[0][0]
+                line.save(update_fields=['batch'])
 
         balance, _ = StockBalance.objects.select_for_update().get_or_create(
             material=line.material,
@@ -59,23 +64,26 @@ def approve_stock_adjustment(adjustment: StockAdjustment, user) -> StockAdjustme
         )
         balance.quantity = line.actual_qty
         balance.save(update_fields=['quantity', 'updated_at'])
-        if variance != 0:
+        if variance != 0 and applied:
             note = line.notes or adjustment.reason
-            unit_price = batch_effective_price(batch) if batch else Decimal('0')
-            StockLedger.objects.create(
-                material=line.material,
-                location=line.location,
-                qty_delta=variance,
-                balance_after=balance.quantity,
-                batch=batch,
-                unit_price=unit_price,
-                amount=ledger_amount(variance, unit_price),
-                ref_type=StockLedger.REF_ADJUSTMENT,
-                ref_id=adjustment.pk,
-                ref_number=adjustment.number,
-                created_by=user,
-                notes=note[:255],
-            )
+            running = balance.quantity - variance  # trước khi áp các delta
+            for batch, delta in applied:
+                running += delta
+                unit_price = batch_effective_price(batch)
+                StockLedger.objects.create(
+                    material=line.material,
+                    location=line.location,
+                    qty_delta=delta,
+                    balance_after=running,
+                    batch=batch,
+                    unit_price=unit_price,
+                    amount=ledger_amount(delta, unit_price),
+                    ref_type=StockLedger.REF_ADJUSTMENT,
+                    ref_id=adjustment.pk,
+                    ref_number=adjustment.number,
+                    created_by=user,
+                    notes=note[:255],
+                )
     adjustment.status = ADJUST_STATUS_APPROVED
     adjustment.approved_by = user
     adjustment.approved_at = timezone.now()

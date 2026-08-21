@@ -7,6 +7,7 @@ from kho_npl.choices import DOC_STATUS_CANCELLED, DOC_STATUS_DRAFT, DOC_STATUS_P
 from kho_npl.models import StockBalance, StockLedger, StockReceipt
 from kho_npl.services.batches import (
     BatchWorkflowError,
+    auto_receipt_batch_code,
     increase_batch_qty,
     ledger_amount,
     resolve_or_create_receipt_batch,
@@ -34,9 +35,10 @@ def post_stock_receipt(receipt: StockReceipt, user) -> StockReceipt:
     for line in lines:
         if line.received_qty <= Decimal('0'):
             raise ReceiptWorkflowError(f'Số lượng nhập của {line.material.code} phải lớn hơn 0.')
-        batch_code = (line.batch_code or '').strip()
-        if not batch_code:
-            raise ReceiptWorkflowError(f'{line.material.code}: chưa nhập mã lô.')
+        batch_code = (line.batch_code or '').strip() or auto_receipt_batch_code(
+            receipt_number=receipt.number,
+            material=line.material,
+        )
         if line.unit_price is None or line.unit_price < 0:
             raise ReceiptWorkflowError(f'{line.material.code}: đơn giá nhập không hợp lệ.')
         if line.unit_price <= 0:
