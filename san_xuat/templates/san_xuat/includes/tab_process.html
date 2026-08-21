@@ -13,7 +13,7 @@
       <input type="hidden" name="op_name_vi" value="">
       <input type="hidden" name="library_unit_smv" value="">
 
-      <div class="col-md-3">
+      <div class="col-md-4">
         <label class="form-label small mb-1">Nhóm công đoạn <span class="text-danger">*</span></label>
         <select name="group_code" class="form-select form-select-sm" required>
           <option value="">— Chọn nhóm —</option>
@@ -22,13 +22,13 @@
           {% endfor %}
         </select>
       </div>
-      <div class="col-md-3">
+      <div class="col-md-4">
         <label class="form-label small mb-1">Tên công đoạn <span class="text-danger">*</span></label>
         <select class="form-select form-select-sm jp-ie-op-select"
                 data-filter-by-group="1"
                 data-placeholder="Chọn nhóm trước, rồi chọn công đoạn…"></select>
       </div>
-      <div class="col-md-2">
+      <div class="col-md-3">
         <label class="form-label small mb-1">Bộ phận</label>
         <select name="work_center_code" class="form-select form-select-sm">
           <option value="">— Chọn bộ phận —</option>
@@ -37,17 +37,10 @@
           {% endfor %}
         </select>
       </div>
-      <div class="col-md-2">
-        <label class="form-label small mb-1">SMV sản phẩm (giây)</label>
-        <input type="number" name="applied_unit_smv" class="form-control form-control-sm text-end"
-               min="0" step="0.0001" placeholder="gợi ý từ thư viện"
-               title="Mặc định = SMV thư viện, có thể sửa theo mã hàng">
-      </div>
-      <div class="col-md-2 d-grid">
+      <div class="col-md-1 d-grid">
         <button type="submit" class="btn btn-sm btn-hm">Thêm</button>
       </div>
     </form>
-    <p class="small text-muted mb-3">SMV thư viện lấy từ công đoạn IE. SMV sản phẩm gợi ý bằng thư viện và cho sửa trên OB. Khi lên đơn có thể chỉnh tiếp thành SMV đơn hàng.</p>
     {% include 'san_xuat/includes/ie_operation_select_script.html' %}
     <script>
     (function () {
@@ -65,6 +58,13 @@
     </script>
     {% endif %}
 
+    {% if can_update and edit_mode and process_routing and routing_lines %}
+    <form method="post" id="doc-routing-lines-save-form" data-loading-message="Đang lưu công đoạn…">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="save_doc_routing_lines">
+      <input type="hidden" name="routing_id" value="{{ process_routing.pk }}">
+    {% endif %}
+
     <div class="table-responsive">
       <table class="table table-sm align-middle mb-0">
         <thead class="table-light">
@@ -75,6 +75,7 @@
             <th>Bộ phận</th>
             <th class="text-end">SMV thư viện</th>
             <th class="text-end">SMV sản phẩm</th>
+            <th>Ghi chú</th>
             {% if can_update and edit_mode %}<th></th>{% endif %}
           </tr>
         </thead>
@@ -88,40 +89,54 @@
             <td class="text-end">{% if line.library_unit_smv %}{{ line.library_unit_smv|sx_num }}{% else %}—{% endif %}</td>
             <td class="text-end">
               {% if can_update and edit_mode and process_routing %}
-              <form method="post" class="d-inline-flex align-items-center gap-1 justify-content-end">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="update_doc_routing_line_smv">
-                <input type="hidden" name="routing_id" value="{{ process_routing.pk }}">
-                <input type="hidden" name="line_id" value="{{ line.pk }}">
-                <input type="number" name="applied_unit_smv" class="form-control form-control-sm text-end"
-                       style="width:6.5rem" min="0" step="0.0001"
-                       value="{{ line.applied_unit_smv|sx_num_input }}"
-                       aria-label="SMV sản phẩm {{ line.op_name_vi|default:line.op_code }}">
-                <button type="submit" class="btn btn-sm btn-outline-secondary py-0">Lưu</button>
-              </form>
+              <input type="hidden" name="line_id" value="{{ line.pk }}">
+              <input type="number" name="applied_unit_smv_{{ line.pk }}" class="form-control form-control-sm text-end"
+                     style="width:6.5rem;margin-left:auto" min="0" step="0.0001"
+                     value="{{ line.applied_unit_smv|sx_num_input }}"
+                     aria-label="SMV sản phẩm {{ line.op_name_vi|default:line.op_code }}">
               {% elif line.applied_unit_smv %}
               {{ line.applied_unit_smv|sx_num }}
               {% else %}
               —
               {% endif %}
             </td>
+            <td>
+              {% if can_update and edit_mode and process_routing %}
+              <input type="text" name="notes_{{ line.pk }}" class="form-control form-control-sm"
+                     maxlength="255" value="{{ line.notes }}"
+                     placeholder="Ghi chú" aria-label="Ghi chú {{ line.op_name_vi|default:line.op_code }}">
+              {% else %}
+              <span class="small text-muted">{{ line.notes|default:"—" }}</span>
+              {% endif %}
+            </td>
             {% if can_update and edit_mode and process_routing %}
             <td class="text-end">
-              <form method="post" class="d-inline" onsubmit="return confirm('Xóa công đoạn này?');">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="delete_doc_routing_line">
-                <input type="hidden" name="routing_id" value="{{ process_routing.pk }}">
-                <input type="hidden" name="line_id" value="{{ line.pk }}">
-                <button type="submit" class="btn btn-sm btn-outline-danger py-0">Xóa</button>
-              </form>
+              <button type="submit" form="doc-routing-line-delete-{{ line.pk }}"
+                      class="btn btn-sm btn-outline-danger py-0"
+                      onclick="return confirm('Xóa công đoạn này?');">Xóa</button>
             </td>
             {% endif %}
           </tr>
           {% empty %}
-          <tr><td colspan="{% if can_update and edit_mode %}7{% else %}6{% endif %}" class="text-muted text-center py-3">Chưa có công đoạn.</td></tr>
+          <tr><td colspan="{% if can_update and edit_mode %}8{% else %}7{% endif %}" class="text-muted text-center py-3">Chưa có công đoạn.</td></tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
+
+    {% if can_update and edit_mode and process_routing and routing_lines %}
+      <div class="d-flex justify-content-end mt-3">
+        <button type="submit" class="btn btn-sm btn-hm">Lưu SMV sản phẩm &amp; ghi chú</button>
+      </div>
+    </form>
+    {% for line in routing_lines %}
+    <form method="post" id="doc-routing-line-delete-{{ line.pk }}" class="d-none">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="delete_doc_routing_line">
+      <input type="hidden" name="routing_id" value="{{ process_routing.pk }}">
+      <input type="hidden" name="line_id" value="{{ line.pk }}">
+    </form>
+    {% endfor %}
+    {% endif %}
   </div>
 </div>
