@@ -860,15 +860,25 @@ class StockAdjustmentForm(DocAttachmentsFormMixin, forms.ModelForm):
         model = StockAdjustment
         fields = ['adjust_date', 'reason']
         widgets = {
-            'adjust_date': forms.DateInput(attrs={**FORM_CONTROL, 'type': 'date'}),
+            'adjust_date': forms.DateInput(attrs=DOC_DATE_INPUT, format=DOC_DATE_DISPLAY_FORMAT),
             'reason': forms.Textarea(attrs=FORM_TEXTAREA),
         }
 
     def __init__(self, *args, **kwargs):
+        instance = kwargs.get('instance')
+        if (
+            instance is not None
+            and not instance.pk
+            and not args
+            and not kwargs.get('data')
+        ):
+            if not instance.adjust_date:
+                instance.adjust_date = timezone.localdate()
         super().__init__(*args, **kwargs)
         self._init_doc_attachments_field()
         if not self.instance.pk:
             self.initial.setdefault('adjust_date', timezone.localdate())
+        self.fields['adjust_date'].input_formats = DOC_DATE_INPUT_FORMATS
 
 
 class StockAdjustmentLineForm(forms.ModelForm):
