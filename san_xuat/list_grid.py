@@ -189,7 +189,7 @@ SX_LIST_GRIDS: dict[str, dict[str, Any]] = {
             _col('source', 'Lệnh sản xuất / tháo dỡ', weight=160),
             _col('recorded_at', 'Ngày', weight=90),
             _col('status', 'Trạng thái', weight=100),
-            _col('stock_adj', 'Điều chỉnh kho', weight=90, default=False),
+            _col('stock_adj', 'Kiểm kê kho', weight=90, default=False),
             actions=False,
         ),
         {

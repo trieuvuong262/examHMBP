@@ -241,7 +241,7 @@ def balance_lookup(request):
 
 @module_perm_required(MODULE_KHO_NPL, 'view')
 def batch_lookup(request):
-    """Danh sách lô còn tồn của 1 NPL — cho dropdown phiếu xuất/hủy/điều chỉnh/kiểm kê."""
+    """Danh sách lô còn tồn của 1 NPL — cho dropdown phiếu xuất/hủy/kiểm kê."""
     material_id = _parse_positive_int(request.GET.get('material_id'))
     if not material_id:
         return JsonResponse({'error': 'Thiếu material_id.'}, status=400)
@@ -584,8 +584,8 @@ def _material_delete_blockers(material: Material) -> list[str]:
         ('Phiếu xuất', material.issue_lines),
         ('Phiếu chuyển', material.transfer_lines),
         ('Phiếu hủy', material.disposal_lines),
-        ('Phiếu điều chỉnh', material.adjustment_lines),
-        ('Phiếu kiểm kê', material.stocktake_lines),
+        ('Phiếu kiểm kê', material.adjustment_lines),
+        ('Kiểm kê kỳ cũ', material.stocktake_lines),
         ('Sổ kho', material.ledger_entries),
     )
     blockers = [

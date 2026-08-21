@@ -6,17 +6,17 @@
 {% endblock %}
 
 {% block content %}
-<div class="container jp-page jp-npl-material-catalog-page py-3 py-md-4 mb-5" data-loading-message="Đang tải phiếu điều chỉnh…">
+<div class="container jp-page jp-npl-material-catalog-page py-3 py-md-4 mb-5" data-loading-message="Đang tải phiếu kiểm kê…">
     <div class="jp-page-header mb-3 mb-md-4">
-        <h2 class="fw-bold text-hm mb-0 jp-page-title">Phiếu điều chỉnh</h2>
-        <p class="text-muted small mb-0 mt-1">Điều chỉnh có chọn lọc từng NPL — khác kiểm kê (toàn bộ kho).</p>
+        <h2 class="fw-bold text-hm mb-0 jp-page-title">Phiếu kiểm kê</h2>
+        <p class="text-muted small mb-0 mt-1">Chọn từng mã NPL cần kiểm — nhập tồn thực tế, duyệt để cập nhật tồn.</p>
     </div>
 
     <div class="jp-npl-list-toolbar mb-3 mb-md-4">
         <div class="jp-npl-list-toolbar-start">
             {% if can_create %}
             <a href="{% url 'kho_npl:adjustment_create' %}" class="btn btn-hm btn-sm fw-bold">
-                <i class="bi bi-plus-lg me-1"></i>Đề xuất điều chỉnh
+                <i class="bi bi-plus-lg me-1"></i>Tạo phiếu kiểm kê
             </a>
             {% endif %}
         </div>
@@ -31,7 +31,7 @@
                         <th>Số phiếu</th>
                         <th>Ngày</th>
                         <th class="text-center">Số dòng</th>
-                        <th>NPL điều chỉnh</th>
+                        <th>NPL kiểm kê</th>
                         <th>Trạng thái</th>
                         <th class="text-end" style="width:3rem;"></th>
                     </tr>
@@ -41,7 +41,7 @@
                     <tr class="jp-npl-catalog-row" data-href="{% url 'kho_npl:adjustment_detail' adj.pk %}">
                         <td class="fw-semibold">
                             <a href="{% url 'kho_npl:adjustment_detail' adj.pk %}" class="text-decoration-none"
-                               data-loading-message="Đang tải chi tiết điều chỉnh…">{{ adj.number }}</a>
+                               data-loading-message="Đang tải chi tiết kiểm kê…">{{ adj.number }}</a>
                         </td>
                         <td>{{ adj.adjust_date|date:'d/m/Y' }}</td>
                         <td class="text-center">{{ adj.line_count }}</td>
@@ -60,7 +60,7 @@
                         </td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="6" class="text-center text-muted py-4">Chưa có phiếu điều chỉnh.</td></tr>
+                    <tr><td colspan="6" class="text-center text-muted py-4">Chưa có phiếu kiểm kê.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>

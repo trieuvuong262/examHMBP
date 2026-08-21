@@ -15,7 +15,7 @@ from kho_npl.services.stock import material_total_qty
 REF_LABELS = {
     StockLedger.REF_RECEIPT: 'Nhập kho',
     StockLedger.REF_ISSUE: 'Xuất kho',
-    StockLedger.REF_ADJUSTMENT: 'Điều chỉnh',
+    StockLedger.REF_ADJUSTMENT: 'Kiểm kê',
     StockLedger.REF_STOCKTAKE: 'Kiểm kê',
     StockLedger.REF_TRANSFER: 'Chuyển kho',
     StockLedger.REF_DISPOSAL: 'Phiếu hủy',
@@ -306,7 +306,8 @@ def _ref_url(entry: StockLedger) -> str:
         if entry.ref_type == StockLedger.REF_ADJUSTMENT:
             return reverse('kho_npl:adjustment_detail', args=[entry.ref_id])
         if entry.ref_type == StockLedger.REF_STOCKTAKE:
-            return reverse('kho_npl:stocktake_detail', args=[entry.ref_id])
+            # Kỳ kiểm kê cũ đã gỡ UI — không deep-link.
+            return ''
         if entry.ref_type == StockLedger.REF_TRANSFER:
             return reverse('kho_npl:transfer_detail', args=[entry.ref_id])
         if entry.ref_type == StockLedger.REF_DISPOSAL:

@@ -186,7 +186,7 @@ def decrease_batch_qty(batch: MaterialBatch, qty: Decimal, *, material_code: str
 
 
 def adjust_batch_qty(batch: MaterialBatch, qty_delta: Decimal, *, material_code: str = '') -> MaterialBatch:
-    """Cộng hoặc trừ tồn lô theo chênh lệch điều chỉnh/kiểm kê."""
+    """Cộng hoặc trừ tồn lô theo chênh lệch kiểm kê."""
     if qty_delta == 0:
         return batch
     if qty_delta > 0:

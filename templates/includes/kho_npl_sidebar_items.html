@@ -74,16 +74,7 @@
 {% if jp_can_kho_npl_adjustments %}
 <li>
     <a href="{% url 'kho_npl:adjustment_list' %}"
-       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'adjustment_list' %}active{% endif %}">
-        <i class="bi bi-sliders"></i><span>Phiếu điều chỉnh</span>
-    </a>
-</li>
-{% endif %}
-{% jp_can_menu 'kho_npl' 'stocktakes' as jp_can_kho_npl_stocktakes %}
-{% if jp_can_kho_npl_stocktakes %}
-<li>
-    <a href="{% url 'kho_npl:stocktake_list' %}"
-       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'stocktake_list' %}active{% endif %}"
+       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'adjustment_list' or request.resolver_match.url_name == 'adjustment_create' or request.resolver_match.url_name == 'adjustment_detail' %}active{% endif %}"
        data-jp-npl-catalog-nav data-loading-message="Đang tải phiếu kiểm kê…">
         <i class="bi bi-clipboard-check"></i><span>Phiếu kiểm kê</span>
     </a>

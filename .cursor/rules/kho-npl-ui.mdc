@@ -8,7 +8,7 @@ alwaysApply: false
 
 ## Điều hướng module
 
-Chuyển giữa các menu con (Tổng quan, Danh mục, Tồn kho, Thẻ kho, Phiếu nhập/xuất, **Chuyển kho**, Điều chỉnh, Kiểm kê, Báo cáo, Thiết lập) **chỉ qua sidebar** — không dùng `jp-tab-pills` / thanh pill đầu trang (`subnav.html` để trống).
+Chuyển giữa các menu con (Tổng quan, Danh mục, Tồn kho, Thẻ kho, Phiếu nhập/xuất, **Chuyển kho**, Kiểm kê, Báo cáo, Thiết lập) **chỉ qua sidebar** — không dùng `jp-tab-pills` / thanh pill đầu trang (`subnav.html` để trống).
 
 ## Menu con: không chia tab bên trong (ngoại lệ Chuyển kho)
 

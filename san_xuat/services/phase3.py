@@ -719,7 +719,7 @@ def _post_subcontract_stock_out(*, order: SxSubcontractOrder, user) -> None:
 
 
 def _post_subcontract_stock_in(*, order: SxSubcontractOrder, user) -> None:
-    """Nhận về: phiếu điều chỉnh +qty — bắt buộc có mã NVL trong kho."""
+    """Nhận về: phiếu kiểm kê +qty — bắt buộc có mã NVL trong kho."""
     if order.stock_adjustment_id:
         return
     from kho_npl.choices import ADJUST_STATUS_PENDING
@@ -780,7 +780,7 @@ def _post_subcontract_stock_in(*, order: SxSubcontractOrder, user) -> None:
     except Exception as exc:
         order.stock_adjustment = adj
         order.save(update_fields=["stock_adjustment"])
-        raise Phase3Error(f"Không duyệt được phiếu điều chỉnh kho: {exc}") from exc
+        raise Phase3Error(f"Không duyệt được phiếu kiểm kê kho: {exc}") from exc
     order.stock_adjustment = adj
     order.save(update_fields=["stock_adjustment"])
 

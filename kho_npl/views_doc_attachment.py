@@ -14,14 +14,12 @@ from kho_npl.models import (
     StockDisposal,
     StockIssue,
     StockReceipt,
-    Stocktake,
     StockTransfer,
 )
 from kho_npl.services.adjustments import adjustment_attachment_editable_after_approve, adjustment_is_editable
 from kho_npl.services.disposals import disposal_is_editable
 from kho_npl.services.issues import issue_is_editable
 from kho_npl.services.receipts import receipt_is_editable
-from kho_npl.services.stocktakes import stocktake_attachment_editable_after_close, stocktake_is_editable
 from kho_npl.services.transfers import transfer_attachment_editable_after_send, transfer_is_editable
 from kho_npl.view_utils import perm_context
 
@@ -30,7 +28,6 @@ PARENT_MODEL_CONFIG = {
     StockReceipt: ('receipts', receipt_is_editable, lambda o: o.status == DOC_STATUS_POSTED, 'kho_npl:receipt_detail'),
     StockTransfer: ('transfers', transfer_is_editable, transfer_attachment_editable_after_send, 'kho_npl:transfer_detail'),
     StockAdjustment: ('adjustments', adjustment_is_editable, adjustment_attachment_editable_after_approve, 'kho_npl:adjustment_detail'),
-    Stocktake: ('stocktakes', stocktake_is_editable, stocktake_attachment_editable_after_close, 'kho_npl:stocktake_detail'),
     StockDisposal: ('disposals', disposal_is_editable, lambda o: o.status == DOC_STATUS_POSTED, 'kho_npl:disposal_detail'),
 }
 

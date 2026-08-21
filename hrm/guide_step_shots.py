@@ -139,7 +139,7 @@ STEP_SCREENSHOTS: dict[str, tuple[str, str]] = {
     'kho-npl-07': ('/kho-npl/kiem-ke/', '.jp-page'),
     'kho-npl-08': ('/kho-npl/thiet-lap/', '.jp-page'),
     'kho-npl-09': ('/kho-npl/phieu-huy/', '.jp-page'),
-    'kho-npl-10': ('/kho-npl/dieu-chinh/', '.jp-page'),
+    'kho-npl-10': ('/kho-npl/kiem-ke/', '.jp-page'),
     'kho-npl-11': ('/kho-npl/bao-cao/', '.jp-page'),
     'kiotviet-01': ('/kiotviet/khach-hang/', '.jp-page'),
     'kiotviet-02': ('/kiotviet/khach-hang/', '.jp-page'),

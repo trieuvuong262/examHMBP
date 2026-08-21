@@ -11,8 +11,7 @@ NAV_ITEMS = [
     {'key': 'issues', 'url_name': 'kho_npl:issue_list', 'label': 'Phiếu xuất', 'icon': 'bi-box-arrow-up'},
     {'key': 'transfers', 'url_name': 'kho_npl:transfer_hub', 'label': 'Phiếu chuyển', 'icon': 'bi-arrow-left-right'},
     {'key': 'disposals', 'url_name': 'kho_npl:disposal_list', 'label': 'Phiếu hủy', 'icon': 'bi-trash3'},
-    {'key': 'adjustments', 'url_name': 'kho_npl:adjustment_list', 'label': 'Phiếu điều chỉnh', 'icon': 'bi-sliders'},
-    {'key': 'stocktakes', 'url_name': 'kho_npl:stocktake_list', 'label': 'Phiếu kiểm kê', 'icon': 'bi-clipboard-check'},
+    {'key': 'adjustments', 'url_name': 'kho_npl:adjustment_list', 'label': 'Phiếu kiểm kê', 'icon': 'bi-clipboard-check'},
     {'key': 'reports', 'url_name': 'kho_npl:report_hub', 'label': 'Báo cáo', 'icon': 'bi-file-earmark-bar-graph'},
     {'key': 'settings', 'url_name': 'kho_npl:settings_hub', 'label': 'Thiết lập', 'icon': 'bi-gear'},
 ]

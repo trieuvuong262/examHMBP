@@ -117,7 +117,7 @@ def adjustment_create(request):
         if doc:
             messages.success(
                 request,
-                f'Đã tạo phiếu điều chỉnh {doc.number} ({doc.lines.count()} dòng) — chờ duyệt.',
+                f'Đã tạo phiếu kiểm kê {doc.number} ({doc.lines.count()} dòng) — chờ duyệt.',
             )
             return redirect('kho_npl:adjustment_detail', pk=doc.pk)
     else:

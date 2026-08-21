@@ -168,7 +168,7 @@ def _kho_npl_menus(*, manager: bool) -> dict:
     keys = (
         'materials', 'material_stock', 'stock_cards',
         'receipts', 'issues', 'transfers', 'disposals',
-        'adjustments', 'stocktakes', 'reports', 'settings',
+        'adjustments', 'reports', 'settings',
     )
     return {key: dict(level) for key in keys}
 

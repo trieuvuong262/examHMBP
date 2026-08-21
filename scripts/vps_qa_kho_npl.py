@@ -25,19 +25,17 @@ from kho_npl.choices import (
     ADJUST_STATUS_PENDING,
     DOC_STATUS_DRAFT,
     DOC_STATUS_POSTED,
-    STOCKTAKE_STATUS_COUNTING,
-    STOCKTAKE_STATUS_DRAFT,
 )
 from kho_npl.models import (
     Material,
+    MaterialBatch,
     MaterialCategory,
     StockAdjustment,
+    StockAdjustmentLine,
     StockBalance,
     StockIssue,
     StockLedger,
     StockReceipt,
-    Stocktake,
-    StocktakeLine,
     Unit,
     WarehouseLocation,
 )
@@ -137,7 +135,6 @@ if qa_user:
         'kho_npl:receipt_list', 'kho_npl:receipt_create',
         'kho_npl:issue_list', 'kho_npl:issue_create',
         'kho_npl:adjustment_list', 'kho_npl:adjustment_create',
-        'kho_npl:stocktake_list', 'kho_npl:stocktake_create',
         'kho_npl:report_hub',
         'kho_npl:report_stock', 'kho_npl:report_alerts', 'kho_npl:report_movement',
         'kho_npl:report_issue_lsx', 'kho_npl:report_stocktake_history', 'kho_npl:report_ledger',
@@ -188,7 +185,7 @@ if qa_user:
 
 # --- 4. E2E Workflow trên DB thật ---
 section('4. E2E Workflow (dữ liệu test, sẽ dọn sau)')
-cleanup_ids = {'materials': [], 'receipts': [], 'issues': [], 'adjustments': [], 'stocktakes': []}
+cleanup_ids = {'materials': [], 'receipts': [], 'issues': [], 'adjustments': []}
 
 try:
     if not qa_user or not user_can_create_module(qa_user, MODULE_KHO_NPL):
@@ -288,52 +285,35 @@ try:
         except Exception:
             ok('Xuất vượt tồn bị chặn đúng')
 
-        # 4e. Điều chỉnh → duyệt
+        # 4e. Kiểm kê (StockAdjustment) → duyệt
         from kho_npl.services.adjustments import approve_stock_adjustment
 
+        batch = MaterialBatch.objects.filter(material=mat).order_by('-id').first()
         adj = StockAdjustment.objects.create(
-            number=f'DC-QA-{ts}',
+            number=f'KK-QA-{ts}',
             adjust_date=timezone.localdate(),
-            material=mat,
-            location=location,
-            system_qty=Decimal('70'),
-            actual_qty=Decimal('65'),
-            reason=f'{PREFIX} điều chỉnh test',
+            reason=f'{PREFIX} kiểm kê test',
             proposed_by=qa_user,
             status=ADJUST_STATUS_PENDING,
         )
         cleanup_ids['adjustments'].append(adj.pk)
+        StockAdjustmentLine.objects.create(
+            adjustment=adj,
+            material=mat,
+            location=location,
+            system_qty=Decimal('70'),
+            actual_qty=Decimal('65'),
+            batch=batch,
+        )
         approve_stock_adjustment(adj, qa_user)
         adj.refresh_from_db()
         bal.refresh_from_db()
         if adj.status == ADJUST_STATUS_APPROVED and bal.quantity == Decimal('65'):
-            ok('Điều chỉnh: Duyệt → tồn = 65')
+            ok('Kiểm kê: Duyệt → tồn = 65')
         else:
-            fail('Điều chỉnh', f'status={adj.status} tồn={bal.quantity}')
+            fail('Kiểm kê', f'status={adj.status} tồn={bal.quantity}')
 
-        # 4f. Kiểm kê → chốt
-        from kho_npl.services.stocktakes import close_stocktake
-
-        st = Stocktake.objects.create(
-            number=f'KK-QA-{ts}',
-            name=f'{PREFIX} Kỳ kiểm kê {ts}',
-            stocktake_date=timezone.localdate(),
-            created_by=qa_user,
-            status=STOCKTAKE_STATUS_COUNTING,
-        )
-        cleanup_ids['stocktakes'].append(st.pk)
-        StocktakeLine.objects.create(
-            stocktake=st, material=mat, location=location,
-            system_qty=Decimal('65'), actual_qty=Decimal('60'),
-        )
-        close_stocktake(st, qa_user)
-        bal.refresh_from_db()
-        if bal.quantity == Decimal('60'):
-            ok('Kiểm kê: Chốt kỳ → tồn = 60')
-        else:
-            fail('Kiểm kê chốt', f'tồn={bal.quantity}')
-
-        # 4g. Sửa phiếu đã ghi sổ → phải chặn (HTTP)
+        # 4f. Sửa phiếu đã ghi sổ → phải chặn (HTTP)
         client = Client(HTTP_HOST='portal.justplay.vn')
         client.force_login(qa_user)
         r = client.get(reverse('kho_npl:receipt_edit', args=[receipt.pk]))
@@ -342,13 +322,12 @@ try:
         else:
             warn(f'Phiếu nhập posted edit → {r.status_code}')
 
-        # 4h. Chi tiết trang render
+        # 4g. Chi tiết trang render
         for url_name, pk in [
             ('kho_npl:material_detail', mat.pk),
             ('kho_npl:receipt_detail', receipt.pk),
             ('kho_npl:issue_detail', issue.pk),
             ('kho_npl:adjustment_detail', adj.pk),
-            ('kho_npl:stocktake_detail', st.pk),
         ]:
             r = client.get(reverse(url_name, args=[pk]))
             if r.status_code == 200:
@@ -366,7 +345,6 @@ section('5. Dọn dữ liệu test [VPS-QA]')
 try:
     StockLedger.objects.filter(material_id__in=cleanup_ids['materials']).delete()
     for model, key in [
-        (Stocktake, 'stocktakes'),
         (StockAdjustment, 'adjustments'),
         (StockIssue, 'issues'),
         (StockReceipt, 'receipts'),
@@ -374,13 +352,14 @@ try:
         if cleanup_ids[key]:
             model.objects.filter(pk__in=cleanup_ids[key]).delete()
     StockBalance.objects.filter(material_id__in=cleanup_ids['materials']).delete()
+    MaterialBatch.objects.filter(material_id__in=cleanup_ids['materials']).delete()
     Material.objects.filter(pk__in=cleanup_ids['materials']).delete()
     # Dọn số phiếu QA còn sót theo prefix
     Material.objects.filter(code__startswith='QA-').delete()
     StockReceipt.objects.filter(number__startswith='PN-QA-').delete()
     StockIssue.objects.filter(number__startswith='PX-QA-').delete()
     StockAdjustment.objects.filter(number__startswith='DC-QA-').delete()
-    Stocktake.objects.filter(number__startswith='KK-QA-').delete()
+    StockAdjustment.objects.filter(number__startswith='KK-QA-').delete()
     ok('Đã xóa dữ liệu test QA')
 except Exception as e:
     warn(f'Dọn dữ liệu: {e}')

@@ -4,8 +4,14 @@ from decimal import Decimal
 from django.db.models import Q
 from django.utils import timezone
 
-from kho_npl.choices import DOC_STATUS_POSTED, STOCK_STATUS_LOW, STOCK_STATUS_OUT, issue_type_display
-from kho_npl.models import StockIssue, StockIssueLine, StockLedger, Stocktake, StocktakeLine
+from kho_npl.choices import (
+    ADJUST_STATUS_APPROVED,
+    DOC_STATUS_POSTED,
+    STOCK_STATUS_LOW,
+    STOCK_STATUS_OUT,
+    issue_type_display,
+)
+from kho_npl.models import StockAdjustment, StockIssue, StockIssueLine, StockLedger, StocktakeLine
 from kho_npl.services.stock import material_stock_rows
 
 
@@ -66,8 +72,8 @@ def report_movement_rows(date_from: date | None, date_to: date | None, material_
     ref_labels = {
         StockLedger.REF_RECEIPT: 'Nhập',
         StockLedger.REF_ISSUE: 'Xuất',
-        StockLedger.REF_ADJUSTMENT: 'Điều chỉnh',
-        StockLedger.REF_STOCKTAKE: 'Kiểm kê',
+        StockLedger.REF_ADJUSTMENT: 'Kiểm kê',
+        StockLedger.REF_STOCKTAKE: 'Kiểm kê (kỳ cũ)',
     }
     for entry in qs[:5000]:
         rows.append({
@@ -115,24 +121,28 @@ def report_issue_by_lsx_rows(date_from: date | None, date_to: date | None, lsx: 
 
 
 def report_stocktake_history_rows():
+    """Lịch sử phiếu kiểm kê (= StockAdjustment đã duyệt)."""
     rows = []
-    for st in Stocktake.objects.filter(status='closed').order_by('-stocktake_date')[:200]:
-        lines = st.lines.all()
-        variance_total = sum(
-            (line.actual_qty or Decimal('0')) - line.system_qty for line in lines
-        )
-        diff_count = sum(
-            1 for line in lines
-            if line.actual_qty is not None and line.actual_qty != line.system_qty
-        )
+    qs = (
+        StockAdjustment.objects.filter(status=ADJUST_STATUS_APPROVED)
+        .prefetch_related('lines')
+        .order_by('-adjust_date', '-id')[:200]
+    )
+    for adj in qs:
+        lines = list(adj.lines.all())
+        variance_total = sum((line.actual_qty - line.system_qty) for line in lines)
+        diff_count = sum(1 for line in lines if line.actual_qty != line.system_qty)
         rows.append({
-            'Mã kỳ': st.number,
-            'Tên kỳ': st.name,
-            'Ngày kiểm': st.stocktake_date.strftime('%d/%m/%Y'),
-            'Số dòng': lines.count(),
+            'Số phiếu': adj.number,
+            'Ngày kiểm': adj.adjust_date.strftime('%d/%m/%Y'),
+            'Lý do': (adj.reason or '')[:120],
+            'Số dòng': len(lines),
             'Dòng chênh': diff_count,
             'Tổng chênh': float(variance_total),
-            'Ngày chốt': timezone.localtime(st.closed_at).strftime('%d/%m/%Y %H:%M') if st.closed_at else '',
+            'Ngày duyệt': (
+                timezone.localtime(adj.approved_at).strftime('%d/%m/%Y %H:%M')
+                if adj.approved_at else ''
+            ),
         })
     return rows
 

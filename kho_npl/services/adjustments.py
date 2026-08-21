@@ -40,7 +40,7 @@ def approve_stock_adjustment(adjustment: StockAdjustment, user) -> StockAdjustme
         adjustment.lines.select_related('material', 'location', 'batch').order_by('id')
     )
     if not lines:
-        raise AdjustmentWorkflowError('Phiếu chưa có dòng điều chỉnh.')
+        raise AdjustmentWorkflowError('Phiếu chưa có dòng kiểm kê.')
     for line in lines:
         variance = line.actual_qty - line.system_qty
         if variance != 0:

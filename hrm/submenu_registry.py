@@ -94,8 +94,7 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
         {'key': 'issues', 'label': 'Phiếu xuất', 'icon': 'bi-box-arrow-up'},
         {'key': 'transfers', 'label': 'Phiếu chuyển', 'icon': 'bi-arrow-left-right'},
         {'key': 'disposals', 'label': 'Phiếu hủy', 'icon': 'bi-trash3'},
-        {'key': 'adjustments', 'label': 'Phiếu điều chỉnh', 'icon': 'bi-sliders'},
-        {'key': 'stocktakes', 'label': 'Phiếu kiểm kê', 'icon': 'bi-clipboard-check'},
+        {'key': 'adjustments', 'label': 'Phiếu kiểm kê', 'icon': 'bi-clipboard-check'},
         {'key': 'reports', 'label': 'Báo cáo', 'icon': 'bi-file-earmark-bar-graph'},
         {'key': 'settings', 'label': 'Thiết lập', 'icon': 'bi-gear'},
     ],
@@ -318,7 +317,7 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     # Kho NPL
     ('/kho-npl/thiet-lap', MODULE_KHO_NPL, 'settings'),
     ('/kho-npl/bao-cao', MODULE_KHO_NPL, 'reports'),
-    ('/kho-npl/kiem-ke', MODULE_KHO_NPL, 'stocktakes'),
+    ('/kho-npl/kiem-ke', MODULE_KHO_NPL, 'adjustments'),
     ('/kho-npl/dieu-chinh', MODULE_KHO_NPL, 'adjustments'),
     ('/kho-npl/phieu-huy', MODULE_KHO_NPL, 'disposals'),
     ('/kho-npl/chuyen-kho', MODULE_KHO_NPL, 'transfers'),

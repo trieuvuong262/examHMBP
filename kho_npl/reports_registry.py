@@ -33,7 +33,7 @@ REPORT_DEFINITIONS = {
     },
     'kiem-ke': {
         'title': 'Lịch sử kiểm kê',
-        'desc': 'Các kỳ kiểm kê và chênh lệch đã ghi nhận.',
+        'desc': 'Các phiếu kiểm kê đã duyệt và chênh lệch đã ghi nhận.',
         'icon': 'bi-journal-text',
         'view_name': 'kho_npl:report_stocktake_history',
         'export_name': 'kho_npl:report_stocktake_history_export',
@@ -41,7 +41,7 @@ REPORT_DEFINITIONS = {
     },
     'so-kho': {
         'title': 'Sổ kho chi tiết',
-        'desc': 'Ledger từng biến động nhập, xuất, điều chỉnh.',
+        'desc': 'Ledger từng biến động nhập, xuất, kiểm kê.',
         'icon': 'bi-list-columns',
         'view_name': 'kho_npl:report_ledger',
         'export_name': 'kho_npl:report_ledger_export',

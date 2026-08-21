@@ -2287,7 +2287,7 @@ def create_npl_surplus(
 
 @transaction.atomic
 def confirm_npl_surplus(*, surplus_id: int, user) -> SxNplSurplus:
-    """Duyệt NPL thừa → tạo + duyệt phiếu điều chỉnh kho (+qty)."""
+    """Duyệt NPL thừa → tạo + duyệt phiếu kiểm kê kho (+qty)."""
     from kho_npl.choices import ADJUST_STATUS_PENDING
     from kho_npl.models import StockAdjustment, StockAdjustmentLine, StockBalance
     from kho_npl.services.adjustments import AdjustmentWorkflowError, approve_stock_adjustment
@@ -2297,7 +2297,7 @@ def confirm_npl_surplus(*, surplus_id: int, user) -> SxNplSurplus:
     if surplus.status != SxNplSurplus.STATUS_DRAFT:
         raise DispatchError("Chỉ xác nhận NPL thừa ở trạng thái nháp.")
     if surplus.stock_adjustment_id:
-        raise DispatchError("NPL thừa đã có phiếu điều chỉnh kho.")
+        raise DispatchError("NPL thừa đã có phiếu kiểm kê kho.")
 
     material = _resolve_material_by_code(surplus.material_code)
     location = _default_stock_location()

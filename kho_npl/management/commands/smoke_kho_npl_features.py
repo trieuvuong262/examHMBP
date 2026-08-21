@@ -65,8 +65,7 @@ class Command(BaseCommand):
             ('Phieu nhap', reverse('kho_npl:receipt_list'), ['npl-receipt-table', 'jp-npl-catalog-row']),
             ('Phieu xuat', reverse('kho_npl:issue_list'), ['npl-issue-table', 'jp-npl-catalog-row']),
             ('Phieu huy', reverse('kho_npl:disposal_list'), ['npl-disposal-table', 'jp-npl-catalog-row', 'jp-mat-edit-btn']),
-            ('Dieu chinh', reverse('kho_npl:adjustment_list'), ['npl-adjustment-table', 'jp-npl-catalog-row', 'jp-mat-edit-btn']),
-            ('Kiem ke', reverse('kho_npl:stocktake_list'), ['npl-stocktake-table', 'jp-npl-catalog-row', 'jp-mat-edit-btn']),
+            ('Kiem ke', reverse('kho_npl:adjustment_list'), ['npl-adjustment-table', 'jp-npl-catalog-row', 'jp-mat-edit-btn']),
             ('Thiet lap mau', reverse('kho_npl:settings_list', kwargs={'section': 'mau'}), ['jp-npl-color-swatch', 'Mã hex']),
             ('Thiết lập quy cách', reverse('kho_npl:settings_list', kwargs={'section': 'quy-cach'}), ['Quy cách']),
             ('Thiết lập nhóm', reverse('kho_npl:settings_list', kwargs={'section': 'nhom'}), ['Tên nhóm']),
@@ -88,9 +87,9 @@ class Command(BaseCommand):
                     if label == 'Phieu huy' and not StockDisposal.objects.filter(status=DOC_STATUS_DRAFT).exists():
                         continue
                     if label == 'Kiem ke':
-                        from kho_npl.choices import STOCKTAKE_STATUS_COUNTING
-                        from kho_npl.models import Stocktake
-                        if not Stocktake.objects.filter(status=STOCKTAKE_STATUS_COUNTING).exists():
+                        from kho_npl.choices import ADJUST_STATUS_PENDING
+                        from kho_npl.models import StockAdjustment
+                        if not StockAdjustment.objects.filter(status=ADJUST_STATUS_PENDING).exists():
                             continue
                 if needle not in html:
                     errors.append(f'{label}: thieu "{needle}" trong HTML')

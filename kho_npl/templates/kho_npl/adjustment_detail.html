@@ -35,7 +35,7 @@
 
     <div class="card border-0 shadow-sm overflow-hidden">
         <div class="card-header bg-white border-bottom py-3">
-            <h5 class="mb-0 fw-bold">Chi tiết điều chỉnh</h5>
+            <h5 class="mb-0 fw-bold">Chi tiết kiểm kê</h5>
         </div>
         <div class="table-responsive">
             <table class="table table-sm align-middle mb-0">
@@ -62,7 +62,7 @@
                         <td class="text-muted small">{{ line.notes|default:'—' }}</td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="6" class="text-center text-muted py-4">Chưa có dòng điều chỉnh.</td></tr>
+                    <tr><td colspan="6" class="text-center text-muted py-4">Chưa có dòng kiểm kê.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>

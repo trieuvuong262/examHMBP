@@ -1054,7 +1054,7 @@ class BaseStockAdjustmentLineFormSet(BaseInlineFormSet):
                 continue
             active_lines.append(form.cleaned_data)
         if not active_lines:
-            raise ValidationError('Phiếu điều chỉnh cần ít nhất một dòng NPL.')
+            raise ValidationError('Phiếu kiểm kê cần ít nhất một dòng NPL.')
         seen = set()
         for line in active_lines:
             material = line['material']

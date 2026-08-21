@@ -1,4 +1,5 @@
 from django.urls import path
+from django.views.generic import RedirectView
 
 from . import views
 from . import views_adjustment
@@ -7,7 +8,6 @@ from . import views_material
 from . import views_receipt
 from . import views_reports
 from . import views_settings
-from . import views_stocktake
 from . import views_disposal
 from . import views_doc_attachment
 from . import views_transfer
@@ -74,21 +74,22 @@ urlpatterns = [
     path('phieu-huy/<int:pk>/sua/', views_disposal.disposal_edit, name='disposal_edit'),
     path('phieu-huy/<int:pk>/ghi-so/', views_disposal.disposal_post, name='disposal_post'),
     path('phieu-huy/<int:pk>/huy/', views_disposal.disposal_cancel, name='disposal_cancel'),
-    path('dieu-chinh/', views_adjustment.adjustment_list, name='adjustment_list'),
-    path('dieu-chinh/them/', views_adjustment.adjustment_create, name='adjustment_create'),
-    path('dieu-chinh/<int:pk>/', views_adjustment.adjustment_detail, name='adjustment_detail'),
-    path('dieu-chinh/<int:pk>/chung-tu/', views_adjustment.adjustment_replace_attachment, name='adjustment_replace_attachment'),
-    path('dieu-chinh/<int:pk>/duyet/', views_adjustment.adjustment_approve, name='adjustment_approve'),
-    path('dieu-chinh/<int:pk>/tu-choi/', views_adjustment.adjustment_reject, name='adjustment_reject'),
-    path('kiem-ke/', views_stocktake.stocktake_list, name='stocktake_list'),
-    path('kiem-ke/xuat-excel/', views_stocktake.stocktake_list_export, name='stocktake_list_export'),
-    path('kiem-ke/them/', views_stocktake.stocktake_create, name='stocktake_create'),
-    path('kiem-ke/<int:pk>/', views_stocktake.stocktake_detail, name='stocktake_detail'),
-    path('kiem-ke/<int:pk>/chung-tu/', views_stocktake.stocktake_replace_attachment, name='stocktake_replace_attachment'),
-    path('kiem-ke/<int:pk>/xuat-excel/', views_stocktake.stocktake_detail_export, name='stocktake_detail_export'),
-    path('kiem-ke/<int:pk>/bat-dau/', views_stocktake.stocktake_start, name='stocktake_start'),
-    path('kiem-ke/<int:pk>/nhap-so/', views_stocktake.stocktake_count, name='stocktake_count'),
-    path('kiem-ke/<int:pk>/tai-ton/', views_stocktake.stocktake_reload, name='stocktake_reload'),
+    # Phiếu kiểm kê (= StockAdjustment chọn lọc). Bookmark cũ /dieu-chinh/ → redirect.
+    path('kiem-ke/', views_adjustment.adjustment_list, name='adjustment_list'),
+    path('kiem-ke/them/', views_adjustment.adjustment_create, name='adjustment_create'),
+    path('kiem-ke/<int:pk>/', views_adjustment.adjustment_detail, name='adjustment_detail'),
+    path('kiem-ke/<int:pk>/chung-tu/', views_adjustment.adjustment_replace_attachment, name='adjustment_replace_attachment'),
+    path('kiem-ke/<int:pk>/duyet/', views_adjustment.adjustment_approve, name='adjustment_approve'),
+    path('kiem-ke/<int:pk>/tu-choi/', views_adjustment.adjustment_reject, name='adjustment_reject'),
+    path('dieu-chinh/', RedirectView.as_view(pattern_name='kho_npl:adjustment_list', permanent=False)),
+    path('dieu-chinh/them/', RedirectView.as_view(pattern_name='kho_npl:adjustment_create', permanent=False)),
+    path('dieu-chinh/<int:pk>/', RedirectView.as_view(pattern_name='kho_npl:adjustment_detail', permanent=False)),
+    path(
+        'dieu-chinh/<int:pk>/chung-tu/',
+        RedirectView.as_view(pattern_name='kho_npl:adjustment_replace_attachment', permanent=False),
+    ),
+    path('dieu-chinh/<int:pk>/duyet/', RedirectView.as_view(pattern_name='kho_npl:adjustment_approve', permanent=False)),
+    path('dieu-chinh/<int:pk>/tu-choi/', RedirectView.as_view(pattern_name='kho_npl:adjustment_reject', permanent=False)),
     path('bao-cao/', views_reports.report_hub, name='report_hub'),
     path('bao-cao/ton-kho/', views_reports.report_stock, name='report_stock'),
     path('bao-cao/ton-kho/xuat-excel/', views_reports.report_stock_export, name='report_stock_export'),

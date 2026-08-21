@@ -211,8 +211,8 @@ class Command(BaseCommand):
         parser.add_argument('--materials', type=int, default=2000, help='Số NPL (mặc định 2000).')
         parser.add_argument('--receipts', type=int, default=500, help='Số phiếu nhập đã ghi sổ.')
         parser.add_argument('--issues', type=int, default=1500, help='Số phiếu xuất đã ghi sổ.')
-        parser.add_argument('--adjustments', type=int, default=100, help='Số phiếu điều chỉnh.')
-        parser.add_argument('--stocktakes', type=int, default=6, help='Số kỳ kiểm kê (5 chốt + 1 đang kiểm).')
+        parser.add_argument('--adjustments', type=int, default=100, help='Số phiếu kiểm kê (StockAdjustment).')
+        parser.add_argument('--stocktakes', type=int, default=6, help='Số kỳ kiểm kê cũ (Stocktake, seed lịch sử).')
         parser.add_argument('--user', default='Ductn', help='Username người tạo chứng từ.')
         parser.add_argument('--seed', type=int, default=42, help='Random seed tái lập.')
 

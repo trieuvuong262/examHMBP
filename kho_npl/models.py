@@ -728,8 +728,8 @@ class StockTransferLine(models.Model):
 
 
 class StockAdjustment(models.Model):
-    number = models.CharField(max_length=30, unique=True, verbose_name='Mã phiếu điều chỉnh')
-    adjust_date = models.DateField(verbose_name='Ngày điều chỉnh')
+    number = models.CharField(max_length=30, unique=True, verbose_name='Mã phiếu kiểm kê')
+    adjust_date = models.DateField(verbose_name='Ngày kiểm kê')
     reason = models.TextField(verbose_name='Lý do')
     attachment = models.FileField(
         upload_to='npl/adjustments/attachments/',
@@ -762,8 +762,8 @@ class StockAdjustment(models.Model):
 
     class Meta:
         ordering = ['-adjust_date', '-id']
-        verbose_name = 'Phiếu điều chỉnh'
-        verbose_name_plural = 'Phiếu điều chỉnh'
+        verbose_name = 'Phiếu kiểm kê'
+        verbose_name_plural = 'Phiếu kiểm kê'
 
     def __str__(self):
         return self.number
@@ -774,7 +774,7 @@ class StockAdjustmentLine(models.Model):
         StockAdjustment,
         on_delete=models.CASCADE,
         related_name='lines',
-        verbose_name='Phiếu điều chỉnh',
+        verbose_name='Phiếu kiểm kê',
     )
     material = models.ForeignKey(
         Material,
@@ -801,8 +801,8 @@ class StockAdjustmentLine(models.Model):
     notes = models.CharField(max_length=255, blank=True, verbose_name='Ghi chú')
 
     class Meta:
-        verbose_name = 'Dòng điều chỉnh'
-        verbose_name_plural = 'Dòng điều chỉnh'
+        verbose_name = 'Dòng kiểm kê'
+        verbose_name_plural = 'Dòng kiểm kê'
         constraints = [
             models.UniqueConstraint(
                 fields=['adjustment', 'material', 'location'],
