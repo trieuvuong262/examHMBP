@@ -328,7 +328,7 @@ if m.get('cpu', {}).get('percent') is None and not m.get('processes'):
     echo "    WARNING: DSM API chưa kết nối được (CPU/RAM/tiến trình)."
     echo "             rclone SMB có thể OK trong khi cổng HTTPS DSM bị chặn."
     echo "             Synology: Login Portal → Web Services (cổng HTTPS), Firewall → mở cổng cho Tailscale."
-    echo "             Test: docker compose exec web curl -k \"\${NAS_DSM_URL:-https://100.93.5.42:5556}/webapi/entry.cgi?api=SYNO.API.Info&version=1&method=query\""
+    echo "             Test: docker compose exec web curl -k \"\${NAS_DSM_URL:-https://100.90.91.74:5556}/webapi/entry.cgi?api=SYNO.API.Info&version=1&method=query\""
   fi
 }
 
