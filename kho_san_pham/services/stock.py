@@ -17,6 +17,7 @@ from django.utils import timezone
 
 from kho_san_pham.choices import (
     CATALOG_STOCK_WAREHOUSE_CODE,
+    DOC_TYPE_KV_ONHAND,
     DOC_TYPE_STOCKTAKE,
     MOVEMENT_ADJUST,
     MOVEMENT_DIRECTION,
@@ -24,6 +25,7 @@ from kho_san_pham.choices import (
     MOVEMENT_SALE_OUT,
     MOVEMENT_SALE_RETURN_IN,
     SOURCE_SYSTEM_PORTAL,
+    SOURCE_SYSTEM_SALES,
     WAREHOUSE_OWNER_PORTAL,
     WAREHOUSE_OWNER_SALES,
 )
@@ -346,6 +348,45 @@ def set_catalog_qty(product, qty, *, user=None, warehouse=None, notes: str = '')
         created_by=user if getattr(user, 'pk', None) else None,
         actor=getattr(user, 'username', '') or '',
         notes=(notes or f'Nhập tồn danh mục: {current} → {target}')[:255],
+    )
+
+
+def set_warehouse_qty(
+    product,
+    qty,
+    *,
+    warehouse: Warehouse,
+    user=None,
+    notes: str = '',
+    source_system: str = SOURCE_SYSTEM_SALES,
+    source_doc_type: str = DOC_TYPE_KV_ONHAND,
+    source_doc_code: str | None = None,
+    allow_negative: bool = True,
+    actor: str = '',
+) -> MovementResult | None:
+    """Đặt tồn một kho = ``qty`` bằng ``adjust``. Cho phép âm ở kho bán hàng."""
+    target = Decimal(qty).quantize(Decimal('0.01'))
+    if target < 0 and not allow_negative:
+        raise StockMovementError('Tồn kho không được âm.')
+    current = get_qty_on_hand(product, warehouse)
+    delta = target - current
+    if delta == 0:
+        return None
+    now = timezone.now()
+    code = (source_doc_code or f'WH-{warehouse.code}-{product.code}-{now.strftime("%Y%m%d%H%M%S")}')[:60]
+    return post_movement(
+        product=product,
+        warehouse=warehouse,
+        kind=MOVEMENT_ADJUST,
+        qty_delta=delta,
+        source_system=source_system,
+        source_doc_type=source_doc_type,
+        source_doc_code=code,
+        source_line_no=product.pk,
+        occurred_at=now,
+        created_by=user if getattr(user, 'pk', None) else None,
+        actor=actor or getattr(user, 'username', '') or '',
+        notes=(notes or f'{warehouse.code}: {current} → {target}')[:255],
     )
 
 

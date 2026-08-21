@@ -1101,13 +1101,23 @@ def sync_entity(
             **paginated_kwargs,
         )
     if entity == 'products':
-        return _sync_paginated(
+        result = _sync_paginated(
             entity_type='products',
             list_fn=api.list_products,
             upsert_fn=bound(upsert_product),
             base_params={'includeInventory': 'true'},
             **paginated_kwargs,
         )
+        if not result.get('error'):
+            try:
+                from kho_san_pham.services.sync_store_stock import sync_store_stock_from_kiotviet
+                stock = sync_store_stock_from_kiotviet(apply=True)
+                result['store_stock'] = stock.summary()
+                if stock.errors:
+                    logger.warning('store stock sync: %s', '; '.join(stock.errors[:5]))
+            except Exception:
+                logger.exception('Không đồng bộ được tồn cửa hàng từ KiotViet')
+        return result
     if entity == 'customers':
         return _sync_paginated(
             entity_type='customers',

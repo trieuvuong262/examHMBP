@@ -31,6 +31,7 @@ from kho_san_pham.choices import (  # noqa: E402
     SOURCE_SYSTEM_SALES,
     WAREHOUSE_OWNER_PORTAL,
     WAREHOUSE_OWNER_SALES,
+    is_kv_sales_branch_name,
 )
 from kho_san_pham.models import (  # noqa: E402
     NegativeStockAlert,
@@ -47,6 +48,7 @@ from kho_san_pham.services.stock import (  # noqa: E402
     post_movement,
     reverse_movement,
     set_catalog_qty,
+    set_warehouse_qty,
 )
 from san_xuat.hub_models import (  # noqa: E402
     SxFgReceiptLine,
@@ -475,6 +477,24 @@ def run_checks():
     def nhap_ton_danh_muc_am_bao_loi(f):
         expect_error(lambda: set_catalog_qty(f.shirt, Decimal('-1'), warehouse=f.factory), 'không được âm')
 
+    def nhap_ton_cua_hang_khong_doi_danh_muc(f):
+        f.receive(qty='40.00')
+        set_warehouse_qty(f.shirt, Decimal('12.00'), warehouse=f.store)
+        f.shirt.refresh_from_db()
+        assert f.shirt.qty_on_hand == Decimal('40.00'), f.shirt.qty_on_hand
+        assert get_qty_on_hand(f.shirt, f.store) == Decimal('12.00')
+
+    def nhap_ton_cua_hang_cho_phep_am(f):
+        set_warehouse_qty(f.shirt, Decimal('-3.00'), warehouse=f.store)
+        assert get_qty_on_hand(f.shirt, f.store) == Decimal('-3.00')
+
+    def nhan_chi_nhanh_kv_cua_hang(f):
+        assert is_kv_sales_branch_name('Chi nhánh trung tâm')
+        assert is_kv_sales_branch_name('Kho bán hàng')
+        assert not is_kv_sales_branch_name('Xưởng sản xuất')
+        assert not is_kv_sales_branch_name('Đơn sản xuất')
+        assert not is_kv_sales_branch_name('Kho sản xuất 19 CL')
+
     cases = [
         ('nhập thành phẩm cộng tồn và ghi sổ', nhap_cong_ton),
         ('nhiều phát sinh cộng dồn, balance_after bám theo', cong_don_nhieu_phat_sinh),
@@ -514,6 +534,9 @@ def run_checks():
         ('nhập tồn danh mục ghi sổ và cột Product', nhap_ton_danh_muc_ghi_so),
         ('nhập tồn danh mục giống số thì bỏ qua', nhap_ton_danh_muc_giong_so_thi_bo_qua),
         ('nhập tồn danh mục âm thì báo lỗi', nhap_ton_danh_muc_am_bao_loi),
+        ('nhập tồn cửa hàng không đổi cột danh mục', nhap_ton_cua_hang_khong_doi_danh_muc),
+        ('nhập tồn cửa hàng cho phép âm', nhap_ton_cua_hang_cho_phep_am),
+        ('nhận chi nhánh KV cửa hàng vs xưởng', nhan_chi_nhanh_kv_cua_hang),
     ]
 
     for label, fn in cases:

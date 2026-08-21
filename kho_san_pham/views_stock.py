@@ -1,9 +1,9 @@
 """Tồn kho thành phẩm theo hai kho: xưởng vs cửa hàng."""
 
-from decimal import Decimal
-
+from django.contrib import messages
 from django.db.models import Q
-from django.shortcuts import render
+from django.shortcuts import redirect, render
+from django.views.decorators.http import require_POST
 
 from assessment.decorators import module_perm_required
 from hrm.module_permissions import MODULE_KHO_SAN_PHAM
@@ -136,3 +136,20 @@ def stock_list(request):
             or selected_order != 'qty_factory:desc'
         ),
     })
+
+
+@module_perm_required(MODULE_KHO_SAN_PHAM, 'update')
+@require_POST
+def stock_sync_kv(request):
+    from kho_san_pham.services.sync_store_stock import sync_store_stock_from_kiotviet
+
+    result = sync_store_stock_from_kiotviet(apply=True, user=request.user)
+    if result.errors and not result.applied:
+        messages.error(request, result.errors[0])
+    else:
+        msg = result.summary() + '.'
+        if result.errors:
+            messages.warning(request, msg + f' ({len(result.errors)} lỗi)')
+        else:
+            messages.success(request, msg)
+    return redirect('kho_san_pham:stock_list')

@@ -117,6 +117,7 @@ DOC_TYPE_INVOICE = 'invoice'
 DOC_TYPE_SALE_RETURN = 'sale_return'
 DOC_TYPE_TRANSFER = 'transfer'
 DOC_TYPE_STOCKTAKE = 'stocktake'
+DOC_TYPE_KV_ONHAND = 'kv_onhand'
 DOC_TYPE_DISPOSAL = 'disposal'
 
 DOC_TYPE_CHOICES = [
@@ -125,6 +126,7 @@ DOC_TYPE_CHOICES = [
     (DOC_TYPE_SALE_RETURN, 'Phiếu trả hàng'),
     (DOC_TYPE_TRANSFER, 'Phiếu chuyển kho'),
     (DOC_TYPE_STOCKTAKE, 'Phiếu kiểm kê'),
+    (DOC_TYPE_KV_ONHAND, 'Tồn KiotViet (cửa hàng)'),
     (DOC_TYPE_DISPOSAL, 'Phiếu hủy'),
 ]
 
@@ -136,3 +138,15 @@ DEFAULT_WAREHOUSES: list[tuple[str, str, str]] = [
 
 # Tồn hiện trên danh mục SKU = tồn các kho do Portal sở hữu (hiện chỉ XUONG-TP).
 CATALOG_STOCK_WAREHOUSE_CODE = 'XUONG-TP'
+
+# Chi nhánh KiotViet thuộc xưởng — không đổ vào CH-TRUNG-TAM.
+# Tên chứa một trong các token này (không phân biệt hoa thường) = kho sản xuất.
+KV_FACTORY_BRANCH_TOKENS = ('xưởng', 'xuong', 'sản xuất', 'san xuat')
+
+
+def is_kv_sales_branch_name(name: str) -> bool:
+    """True nếu chi nhánh KV là cửa hàng / kho bán, không phải xưởng."""
+    folded = (name or '').casefold()
+    if not folded.strip():
+        return False
+    return not any(token in folded for token in KV_FACTORY_BRANCH_TOKENS)

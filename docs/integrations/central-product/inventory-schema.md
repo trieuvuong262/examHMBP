@@ -592,10 +592,10 @@ không đổi số này.
 
 Nhập từng SKU trên form Sửa sản phẩm, hoặc hàng loạt bằng Excel (cột `Tồn kho`).
 
-Tồn đầu kỳ **phải đếm thực tế**, không bốc từ KiotViet sang. Tồn KiotViet đang mang sẵn sai
-số tích lũy nhiều năm; nhập nó vào là kế thừa nguyên vẹn sai số đó rồi mất luôn khả năng
-phân biệt "lệch do lịch sử" với "lệch do hệ mới ghi sai". Với chỉ 1 phiếu nhập thành phẩm
-trong lịch sử, ở đây gần như không có gì để kế thừa — thời điểm tốt nhất để bắt đầu sổ sạch.
+Tồn đầu kỳ **xưởng** phải đếm thực tế, không bốc từ KiotViet sang. Tồn KV xưởng đang mang
+sẵn sai số tích lũy nhiều năm; nhập nó vào `XUONG-TP` là kế thừa nguyên vẹn sai số đó.
+Cửa hàng thì ngược lại: đang bán trên KV nên `CH-TRUNG-TAM` bám `kv_product_inventory`
+(xem mục Hai kho bên dưới).
 
 Phần đếm là việc nghiệp vụ. Phần nhập số đã có công cụ:
 `kho_san_pham/management/commands/kho_sp_import_stocktake.py`.
@@ -662,11 +662,17 @@ nữa cắt được khỏi KiotViet — con số id chi nhánh sẽ hết nghĩ
 | Nhập từ sản xuất | `production_in` — bắt buộc kho portal | Cấm |
 | Bán / trả | Cấm | `sale_out` / `sale_return_in` |
 | Chuyển kho | `transfer_out` | `transfer_in` |
-| Tồn đầu kỳ | Đếm tại xưởng | 0 đến khi cắt KV; rồi đếm tại cửa hàng |
-| Map KV | Chi nhánh xưởng (`kv:4`) | Chi nhánh trung tâm |
+| Tồn đầu kỳ / nguồn số | Đếm tại xưởng; **không** sync KV | Sync `on_hand` KV chi nhánh bán (`kv_onhand`) |
+| Map KV | Xưởng sản xuất, Đơn sản xuất, Kho sản xuất 19 CL | Chi nhánh trung tâm + Kho bán hàng |
 
-KiotViet còn tồn ở vài chi nhánh phụ — **không** tạo kho Portal cho chúng. Tra ở
-module KiotViet. Chỉ hai địa điểm vật lý được chốt: xưởng và cửa hàng trung tâm.
+KiotViet còn tồn ở vài chi nhánh phụ thuộc xưởng — **không** tạo kho Portal cho chúng.
+Tra ở module KiotViet. Chỉ hai địa điểm Portal: xưởng và cửa hàng trung tâm.
 
-Luồng: sản xuất → `XUONG-TP` (cột danh mục tăng) → phiếu chuyển → `CH-TRUNG-TAM`
-→ bán trừ cửa hàng. Không trừ tồn xưởng khi bán.
+Trong giai đoạn cửa hàng vẫn bán trên KiotViet, `sync_store_stock_from_kiotviet`
+ghi `adjust` vào `CH-TRUNG-TAM` cho khớp tổng `kv_product_inventory` các chi nhánh
+không phải xưởng. Cho phép âm vì KV cửa hàng có dòng âm. Tồn xưởng giữ 0 đến khi
+có nhập thành phẩm / kiểm kê. Lệnh: `manage.py kho_sp_sync_kv_store_stock --apply`.
+Cũng chạy sau mỗi lần sync sản phẩm KiotViet (kèm `inventories`).
+
+Luồng mục tiêu (khi cắt KV): sản xuất → `XUONG-TP` (cột danh mục tăng) → phiếu chuyển
+→ `CH-TRUNG-TAM` → bán trừ cửa hàng. Không trừ tồn xưởng khi bán.

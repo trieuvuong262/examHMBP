@@ -45,7 +45,16 @@
 
     <div class="small text-muted mb-2">
         Cột Tồn xưởng = {{ factory.code|default:"XUONG-TP" }} (hiện trên danh mục).
-        Tồn cửa hàng = {{ store.code|default:"CH-TRUNG-TAM" }} (không cộng vào danh mục).
+        Tồn cửa hàng = {{ store.code|default:"CH-TRUNG-TAM" }} — đồng bộ từ KiotViet, không cộng vào danh mục.
+        {% if can_update %}
+        <form method="post" action="{% url 'kho_san_pham:stock_sync_kv' %}" class="d-inline ms-1">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-outline-secondary btn-sm fw-bold"
+                    title="Ghi tồn Chi nhánh trung tâm / Kho bán hàng KiotViet vào CH-TRUNG-TAM. Không đụng tồn xưởng.">
+                <i class="bi bi-arrow-repeat me-1"></i>Đồng bộ tồn KV (cửa hàng)
+            </button>
+        </form>
+        {% endif %}
     </div>
 
     <div class="card border-0 shadow-sm">
