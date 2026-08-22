@@ -210,15 +210,55 @@ def update_draft_sales_order(
     notes: str = '',
     lines: list[LineInput] | None = None,
 ) -> SxSalesOrder:
-    order = SxSalesOrder.objects.select_for_update().get(pk=order_id)
-    if order.confirm_status != SxSalesOrder.CONFIRM_DRAFT:
-        raise PlanningError('Chỉ sửa đơn khi đang nháp / chưa xác nhận.')
+    """Tương thích cũ — ủy quyền sang ``update_sales_order``."""
+    return update_sales_order(
+        order_id=order_id,
+        customer_name=customer_name,
+        request_date=request_date,
+        due_date=due_date,
+        notes=notes,
+        lines=lines,
+    )
+
+
+def sales_order_is_editable(order: SxSalesOrder) -> bool:
+    """Sửa được khi chưa có lệnh SX còn hiệu lực (chưa sản xuất)."""
+    for mo in related_mos(order):
+        if mo.status != SxProductionOrder.STATUS_CANCELLED:
+            return False
+    return True
+
+
+@transaction.atomic
+def update_sales_order(
+    *,
+    order_id: int,
+    customer_name: str = '',
+    request_date: date | None = None,
+    due_date: date | None = None,
+    notes: str = '',
+    lines: list[LineInput] | None = None,
+    code: str = '',
+    attachment=None,
+) -> SxSalesOrder:
+    order = SxSalesOrder.objects.select_for_update().get(pk=order_id, is_demo=False)
+    if not sales_order_is_editable(order):
+        raise PlanningError('Đơn đã vào sản xuất — không sửa được.')
+    new_code = (code or '').strip()
+    if new_code and new_code != order.code:
+        if SxSalesOrder.objects.filter(code=new_code).exclude(pk=order.pk).exists():
+            raise PlanningError(f'Số đơn «{new_code}» đã tồn tại.')
+        order.code = new_code[:40]
     order.customer_name = (customer_name or '').strip()[:255]
     if request_date:
         order.request_date = request_date
     order.due_date = due_date
     order.notes = (notes or '').strip()
-    order.save(update_fields=['customer_name', 'request_date', 'due_date', 'notes', 'updated_at'])
+    update_fields = ['code', 'customer_name', 'request_date', 'due_date', 'notes', 'updated_at']
+    if attachment is not None:
+        order.attachment = attachment
+        update_fields.append('attachment')
+    order.save(update_fields=update_fields)
     if lines is not None:
         _replace_lines(order, lines)
     return order

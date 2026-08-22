@@ -75,7 +75,7 @@
             <th>Bộ phận</th>
             <th class="text-end">SMV thư viện</th>
             <th class="text-end">SMV sản phẩm</th>
-            <th>Ghi chú</th>
+            <th>Mô tả</th>
             {% if can_update and edit_mode %}<th></th>{% endif %}
           </tr>
         </thead>
@@ -104,7 +104,7 @@
               {% if can_update and edit_mode and process_routing %}
               <input type="text" name="notes_{{ line.pk }}" class="form-control form-control-sm"
                      maxlength="255" value="{{ line.notes }}"
-                     placeholder="Ghi chú" aria-label="Ghi chú {{ line.op_name_vi|default:line.op_code }}">
+                     placeholder="Mô tả" aria-label="Mô tả {{ line.op_name_vi|default:line.op_code }}">
               {% else %}
               <span class="small text-muted">{{ line.notes|default:"—" }}</span>
               {% endif %}
@@ -126,7 +126,7 @@
 
     {% if can_update and edit_mode and process_routing and routing_lines %}
       <div class="d-flex justify-content-end mt-3">
-        <button type="submit" class="btn btn-sm btn-hm">Lưu SMV sản phẩm &amp; ghi chú</button>
+        <button type="submit" class="btn btn-sm btn-hm">Lưu SMV sản phẩm &amp; mô tả</button>
       </div>
     </form>
     {% for line in routing_lines %}

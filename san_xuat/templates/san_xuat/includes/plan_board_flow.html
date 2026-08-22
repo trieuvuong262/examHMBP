@@ -1,0 +1,95 @@
+{% load sx_format %}
+<div class="jp-pb-flow">
+  {% if row.flow_groups %}
+    {% for g in row.flow_groups %}
+    {% with team_name=g.team_label|default:g.process_names.0 %}
+    {% if g.process_names %}
+    <details class="jp-pb-team{% if not g.work_center_id %} is-loose{% endif %}">
+      <summary class="jp-pb-team-sum">
+        <span class="jp-pb-team-name">{% if team_name %}{{ team_name }}{% else %}—{% endif %}</span>
+        <span class="jp-pb-team-exp" title="Xem công đoạn" aria-label="Xem công đoạn">
+          <span class="jp-pb-team-exp-n">{{ g.process_names|length }}</span>
+          <i class="bi bi-chevron-down" aria-hidden="true"></i>
+        </span>
+      </summary>
+      <span class="jp-pb-team-ops">
+        {% for name in g.process_names %}
+        <span class="jp-pb-step">{{ name }}</span>
+        {% endfor %}
+      </span>
+    </details>
+    {% else %}
+    <span class="jp-pb-team{% if not g.work_center_id %} is-loose{% endif %}">
+      <span class="jp-pb-team-sum">
+        <span class="jp-pb-team-name">{% if team_name %}{{ team_name }}{% else %}—{% endif %}</span>
+      </span>
+    </span>
+    {% endif %}
+    {% endwith %}
+    {% if not forloop.last %}
+    <span class="jp-pb-link">
+      <span class="jp-pb-link-line"></span>
+      {% if g.hop_is_set %}
+      <span class="jp-pb-hop">
+        {% if g.count_minutes %}<span class="k">{{ g.count_minutes|sx_num }}′ kiểm</span>{% endif %}
+        {% if g.count_minutes and g.transfer_minutes %}<span>·</span>{% endif %}
+        {% if g.transfer_minutes %}<span class="v">{{ g.transfer_minutes|sx_num }}′ VC</span>{% endif %}
+      </span>
+      {% endif %}
+      {% if can_schedule and row.order.plan_status != 'done' and g.hop_step_id %}
+      <details class="jp-pb-hop-edit">
+        <summary class="jp-pb-hop-add" title="Thêm thời gian kiểm đếm / vận chuyển">+</summary>
+        <form method="post"
+              action="{% url 'san_xuat:plan_board' %}?mode={{ mode }}&tab={{ tab }}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}"
+              class="jp-pb-hop-pop">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="save_hops">
+          <input type="hidden" name="order_id" value="{{ row.order.pk }}">
+          <input type="hidden" name="hop_step_id" value="{{ g.hop_step_id }}">
+          <input type="hidden" name="mode" value="{{ mode }}">
+          <input type="hidden" name="tab" value="{{ tab }}">
+          {% if search_query %}<input type="hidden" name="q" value="{{ search_query }}">{% endif %}
+          <p class="jp-pb-hop-pop-title">Kiểm đếm / vận chuyển</p>
+          <label>
+            Kiểm đếm (phút)
+            <input type="number" name="count_minutes" min="0" step="0.01"
+                   value="{{ g.form_count_minutes|sx_num_input }}" inputmode="decimal">
+          </label>
+          <label>
+            Vận chuyển (phút)
+            <input type="number" name="transfer_minutes" min="0" step="0.01"
+                   value="{{ g.form_transfer_minutes|sx_num_input }}" inputmode="decimal">
+          </label>
+          <button type="submit" class="btn btn-hm btn-sm fw-bold">Lưu</button>
+        </form>
+      </details>
+      {% endif %}
+      <span class="jp-pb-link-line"></span>
+    </span>
+    {% endif %}
+    {% endfor %}
+  {% elif row.hops %}
+    {% for hop in row.hops %}
+    <span class="jp-pb-step">{{ hop.from_name }}</span>
+    <span class="jp-pb-link">
+      <span class="jp-pb-link-line"></span>
+      {% if hop.is_set %}
+      <span class="jp-pb-hop">
+        {% if hop.count_minutes %}<span class="k">{{ hop.count_minutes|sx_num }}′ kiểm</span>{% endif %}
+        {% if hop.count_minutes and hop.transfer_minutes %}<span>·</span>{% endif %}
+        {% if hop.transfer_minutes %}<span class="v">{{ hop.transfer_minutes|sx_num }}′ VC</span>{% endif %}
+      </span>
+      {% endif %}
+      <span class="jp-pb-link-line"></span>
+    </span>
+    {% if forloop.last %}<span class="jp-pb-step">{{ hop.to_name }}</span>{% endif %}
+    {% endfor %}
+  {% else %}
+    {% for name in row.process_names %}
+    <span class="jp-pb-step">{{ name }}</span>
+    {% if not forloop.last %}<span class="jp-pb-link"><span class="jp-pb-link-line"></span></span>{% endif %}
+    {% empty %}
+    <span class="jp-pb-step is-empty">{{ empty_label|default:"Chưa gắn công đoạn" }}</span>
+    {% endfor %}
+  {% endif %}
+</div>

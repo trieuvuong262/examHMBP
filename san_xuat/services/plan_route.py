@@ -93,10 +93,14 @@ def ensure_order_plan_steps(order: SxSalesOrder) -> list[SxSalesOrderPlanStep]:
                     'process_name': name,
                     'work_center_id': step.work_center_id,
                     'minutes_per_unit': _q(step.minutes_per_unit),
+                    'count_minutes': _q(getattr(step, 'count_minutes', 0)),
+                    'transfer_minutes': _q(getattr(step, 'transfer_minutes', 0)),
                 }
             else:
                 prev = merged[key]
                 prev['minutes_per_unit'] = max(prev['minutes_per_unit'], _q(step.minutes_per_unit))
+                prev['count_minutes'] = max(prev['count_minutes'], _q(getattr(step, 'count_minutes', 0)))
+                prev['transfer_minutes'] = max(prev['transfer_minutes'], _q(getattr(step, 'transfer_minutes', 0)))
                 if not prev['work_center_id'] and step.work_center_id:
                     prev['work_center_id'] = step.work_center_id
 
@@ -113,6 +117,11 @@ def ensure_order_plan_steps(order: SxSalesOrder) -> list[SxSalesOrderPlanStep]:
         while seq in used:
             seq += 1
         used.add(seq)
+        from san_xuat.services.inter_step_times import resolve_hop_minutes
+
+        count, transfer = resolve_hop_minutes(
+            row.get('count_minutes'), row.get('transfer_minutes'), fill_default=False,
+        )
         created.append(
             SxSalesOrderPlanStep(
                 sales_order=order,
@@ -120,6 +129,8 @@ def ensure_order_plan_steps(order: SxSalesOrder) -> list[SxSalesOrderPlanStep]:
                 process_name=row['process_name'],
                 work_center_id=row['work_center_id'],
                 minutes_per_unit=row['minutes_per_unit'] or Decimal('0'),
+                count_minutes=count,
+                transfer_minutes=transfer,
             )
         )
     SxSalesOrderPlanStep.objects.bulk_create(created)
@@ -165,6 +176,8 @@ def replace_order_plan_steps(*, order_id: int, steps: list[dict]) -> list[SxSale
             'work_center_id': wc_id,
             'planned_date': planned,
             'minutes_per_unit': mins,
+            'count_minutes': _q(raw.get('count_minutes') or 0),
+            'transfer_minutes': _q(raw.get('transfer_minutes') or 0),
         })
 
     order.plan_steps.all().delete()
@@ -183,6 +196,8 @@ def replace_order_plan_steps(*, order_id: int, steps: list[dict]) -> list[SxSale
                 work_center_id=row['work_center_id'],
                 planned_date=row['planned_date'],
                 minutes_per_unit=row['minutes_per_unit'],
+                count_minutes=row.get('count_minutes') or Decimal('0'),
+                transfer_minutes=row.get('transfer_minutes') or Decimal('0'),
             )
         )
     SxSalesOrderPlanStep.objects.bulk_create(created)
@@ -201,6 +216,8 @@ def plan_steps_as_mo_dicts(order: SxSalesOrder) -> list[dict] | None:
             'planned_date': s.planned_date,
             'status': SxMoProcessStep.STATUS_PENDING,
             'manager_id': None,
+            'count_minutes': s.count_minutes or Decimal('0'),
+            'transfer_minutes': s.transfer_minutes or Decimal('0'),
         }
         for s in steps
     ]

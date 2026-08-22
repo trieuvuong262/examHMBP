@@ -9,96 +9,60 @@
     --pb-ink: #0f172a;
     --pb-muted: #64748b;
     --pb-line: #e8edf3;
-    --pb-surface: #fff;
+    --pb-soft: #f4f7fb;
     --pb-wait: #b45309;
-    --pb-wait-bg: #fffbeb;
     --pb-rank: #0369a1;
-    --pb-rank-bg: #e0f2fe;
     --pb-hold: #64748b;
-    --pb-hold-bg: #f1f5f9;
     --pb-go: #1d4ed8;
-    --pb-go-bg: #eff6ff;
     --pb-run: #b91c1c;
-    --pb-run-bg: #fef2f2;
     --pb-done: #15803d;
-    --pb-done-bg: #ecfdf5;
-    --pb-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
-    --pb-radius: 0.85rem;
-    position: relative;
   }
-  .jp-pb::before {
-    content: "";
-    position: absolute;
-    inset: 0 0 auto 0;
-    height: 12rem;
-    background:
-      radial-gradient(ellipse 65% 90% at 6% -25%, rgba(220, 38, 38, 0.09), transparent 55%),
-      radial-gradient(ellipse 45% 70% at 96% 0%, rgba(3, 105, 161, 0.07), transparent 50%),
-      linear-gradient(180deg, #f8fafc 0%, transparent 100%);
-    pointer-events: none;
-    z-index: 0;
-  }
-  .jp-pb > *:not(.modal) { position: relative; z-index: 1; }
-
-  .jp-pb-hero {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: flex-end;
-    justify-content: space-between;
-    gap: 1rem;
-    margin-bottom: 1.15rem;
-  }
-  .jp-pb-hero h2 {
-    margin: 0;
-    font-size: clamp(1.35rem, 2vw, 1.7rem);
-    font-weight: 800;
-    letter-spacing: -0.02em;
-    color: var(--pb-ink);
-    line-height: 1.2;
-  }
-  .jp-pb-hero p {
-    margin: 0.4rem 0 0;
-    color: var(--pb-muted);
-    font-size: 0.9rem;
-    max-width: 36rem;
+  .jp-pb .btn-sm {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 1.85rem;
+    padding: 0 0.7rem;
+    line-height: 1;
   }
 
   .jp-pb-pipe {
     display: grid;
     grid-template-columns: repeat(6, minmax(0, 1fr));
-    gap: 0.5rem;
-    margin-bottom: 1.1rem;
+    gap: 0;
+    margin: 0 0 1rem;
+    border: 1px solid var(--pb-line);
+    border-radius: 0.85rem;
+    overflow: hidden;
+    background: #fff;
   }
-  @media (max-width: 992px) {
-    .jp-pb-pipe { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  }
-  @media (max-width: 576px) {
-    .jp-pb-pipe { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  }
+  @media (max-width: 992px) { .jp-pb-pipe { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  @media (max-width: 576px) { .jp-pb-pipe { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   .jp-pb-stage {
-    display: block;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
     text-decoration: none;
     color: inherit;
-    background: var(--pb-surface);
-    border: 1px solid var(--pb-line);
-    border-radius: var(--pb-radius);
-    padding: 0.75rem 0.85rem;
-    box-shadow: var(--pb-shadow);
-    transition: transform .15s ease, border-color .15s ease;
+    padding: 0.7rem 0.85rem 0.75rem;
+    border-right: 1px solid var(--pb-line);
+    background: #fff;
   }
-  .jp-pb-stage:hover { transform: translateY(-1px); border-color: #cbd5e1; color: inherit; }
-  .jp-pb-stage.is-active { border-color: rgba(220, 38, 38, 0.35); box-shadow: 0 8px 24px rgba(220, 38, 38, 0.08); }
+  .jp-pb-pipe .jp-pb-stage:nth-child(3n) { border-right: 1px solid var(--pb-line); }
+  @media (min-width: 993px) {
+    .jp-pb-pipe .jp-pb-stage:nth-child(6n) { border-right: 0; }
+  }
+  .jp-pb-stage:hover { background: var(--pb-soft); color: inherit; }
+  .jp-pb-stage.is-active { background: #fff7f7; }
   .jp-pb-stage-label {
-    display: block;
-    font-size: 0.72rem;
-    font-weight: 600;
+    font-size: 0.68rem;
+    font-weight: 700;
     color: var(--pb-muted);
+    letter-spacing: 0.03em;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
-    margin-bottom: 0.25rem;
   }
   .jp-pb-stage-num {
-    font-size: 1.55rem;
+    font-size: 1.45rem;
     font-weight: 800;
     letter-spacing: -0.03em;
     line-height: 1;
@@ -111,231 +75,378 @@
   .jp-pb-stage.is-run .jp-pb-stage-num { color: var(--pb-run); }
   .jp-pb-stage.is-done .jp-pb-stage-num { color: var(--pb-done); }
 
-  .jp-pb-summary {
+  .jp-pb-bar {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.5rem 1rem;
     align-items: center;
-    margin-bottom: 1rem;
-    font-size: 0.85rem;
-    color: var(--pb-muted);
-  }
-  .jp-pb-summary strong { color: var(--pb-ink); font-weight: 700; }
-
-  .jp-pb-tabs {
-    display: inline-flex;
-    padding: 0.22rem;
+    gap: 0.55rem 0.85rem;
+    margin: 0 0 1rem;
+    padding: 0.55rem 0.75rem;
     background: #fff;
     border: 1px solid var(--pb-line);
-    border-radius: 0.7rem;
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-    margin-bottom: 1rem;
-    flex-wrap: wrap;
+    border-radius: 0.85rem;
+  }
+  .jp-pb-tabs {
+    display: inline-flex;
+    padding: 0.18rem;
+    background: var(--pb-soft);
+    border-radius: 0.55rem;
   }
   .jp-pb-tabs a {
-    padding: 0.45rem 0.95rem;
-    border-radius: 0.55rem;
-    font-size: 0.875rem;
-    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.35rem 0.85rem;
+    border-radius: 0.42rem;
+    font-size: 0.82rem;
+    font-weight: 700;
     color: var(--pb-muted);
     text-decoration: none;
+    line-height: 1.2;
   }
   .jp-pb-tabs a:hover { color: var(--pb-ink); }
-  .jp-pb-tabs a.active {
-    background: var(--hm-primary, #dc2626);
-    color: #fff;
+  .jp-pb-tabs a.active { background: #fff; color: var(--pb-ink); border: 1px solid var(--pb-line); }
+  .jp-pb-bar-search {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex: 1 1 14rem;
+    min-width: 12rem;
   }
-
-  .jp-pb-toolbar {
+  .jp-pb-bar-search .form-control { max-width: 18rem; }
+  .jp-pb-bar-meta {
+    margin-left: auto;
+    font-size: 0.78rem;
+    color: var(--pb-muted);
+    font-weight: 600;
+  }
+  .jp-pb-bar-meta strong { color: var(--pb-ink); }
+  .jp-pb-urgency-legend {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.5rem;
     align-items: center;
-    margin-bottom: 1rem;
-  }
-  .jp-pb-toolbar .form-control { max-width: 280px; }
-
-  .jp-pb-load-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-    gap: 0.65rem;
-    margin-bottom: 1.25rem;
-  }
-  .jp-pb-load-card {
-    background: var(--pb-surface);
-    border: 1px solid var(--pb-line);
-    border-radius: var(--pb-radius);
-    padding: 0.85rem 1rem;
-    box-shadow: var(--pb-shadow);
-  }
-  .jp-pb-load-card.is-over { border-color: rgba(185, 28, 28, 0.35); background: var(--pb-run-bg); }
-  .jp-pb-load-head {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    gap: 0.5rem;
-    margin-bottom: 0.45rem;
-  }
-  .jp-pb-load-name { font-weight: 700; font-size: 0.9rem; color: var(--pb-ink); }
-  .jp-pb-load-pct { font-weight: 800; font-size: 0.95rem; }
-  .jp-pb-load-pct.is-ok { color: var(--pb-done); }
-  .jp-pb-load-pct.is-warn { color: var(--pb-wait); }
-  .jp-pb-load-pct.is-bad { color: var(--pb-run); }
-  .jp-pb-meter {
-    height: 0.55rem;
-    background: #e2e8f0;
-    border-radius: 999px;
-    overflow: hidden;
-  }
-  .jp-pb-meter > span {
-    display: block;
-    height: 100%;
-    border-radius: 999px;
-    background: #38bdf8;
-    max-width: 100%;
-  }
-  .jp-pb-meter.is-warn > span { background: #f59e0b; }
-  .jp-pb-meter.is-bad > span { background: #ef4444; max-width: 100%; }
-  .jp-pb-load-meta {
-    margin-top: 0.4rem;
+    gap: 0.3rem 0.4rem;
+    width: 100%;
     font-size: 0.75rem;
     color: var(--pb-muted);
   }
 
-  .jp-pb-list { display: flex; flex-direction: column; gap: 0.65rem; }
-
+  .jp-pb-list { display: flex; flex-direction: column; gap: 0.85rem; }
   .jp-pb-ticket {
-    display: grid;
-    grid-template-columns: auto 1fr auto;
-    gap: 0.85rem 1rem;
-    align-items: center;
-    background: var(--pb-surface);
     border: 1px solid var(--pb-line);
-    border-radius: var(--pb-radius);
-    padding: 0.9rem 1rem;
-    box-shadow: var(--pb-shadow);
+    border-radius: 0.95rem;
+    background: #fff;
+    overflow: visible;
     border-left: 4px solid #94a3b8;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
   }
-  /* 5 cấp mức độ gấp — màu biên trái ticket */
   .jp-pb-ticket.is-critical { border-left-color: #991b1b; }
   .jp-pb-ticket.is-urgent { border-left-color: #c2410c; }
   .jp-pb-ticket.is-high { border-left-color: #a16207; }
   .jp-pb-ticket.is-normal { border-left-color: #0369a1; }
   .jp-pb-ticket.is-low { border-left-color: #64748b; }
-  .jp-pb-ticket.is-hold {
-    opacity: 0.78;
-    background: var(--pb-hold-bg);
-    border-left-color: #64748b;
-  }
-  .jp-pb-ticket.is-overdue { background: linear-gradient(90deg, #fef2f2 0%, #fff 42%); }
+  .jp-pb-ticket.is-hold { background: #f8fafc; border-left-color: #64748b; }
+  .jp-pb-ticket.is-overdue .jp-pb-ticket-head { background: #fef2f2; }
 
-  .jp-pb-urgency-legend {
+  .jp-pb-ticket-head {
     display: flex;
     flex-wrap: wrap;
-    align-items: center;
-    gap: 0.4rem 0.55rem;
-    margin: 0 0 1rem;
-    font-size: 0.8rem;
-    color: var(--pb-muted);
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem 1rem;
+    padding: 0.85rem 1.05rem;
+    background: var(--pb-soft);
+    border-bottom: 1px solid var(--pb-line);
   }
-  .jp-pb-urgency-legend > span:first-child { font-weight: 600; margin-right: 0.15rem; }
-
-  .jp-pb-rank {
-    width: 2.6rem;
-    height: 2.6rem;
-    border-radius: 0.7rem;
-    display: grid;
-    place-items: center;
-    font-weight: 800;
-    font-size: 1.05rem;
-    background: var(--pb-rank-bg);
-    color: var(--pb-rank);
-    flex-shrink: 0;
-  }
-  .jp-pb-ticket.is-hold .jp-pb-rank { background: #e2e8f0; color: #64748b; }
-
-  .jp-pb-main { min-width: 0; }
   .jp-pb-title-row {
     display: flex;
     flex-wrap: wrap;
-    align-items: baseline;
-    gap: 0.35rem 0.65rem;
-    margin-bottom: 0.2rem;
+    align-items: center;
+    gap: 0.4rem 0.65rem;
   }
+  .jp-pb-rank {
+    width: 1.85rem;
+    height: 1.85rem;
+    border-radius: 0.45rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 0.82rem;
+    background: #e0f2fe;
+    color: #0369a1;
+  }
+  .jp-pb-ticket.is-hold .jp-pb-rank { background: #e2e8f0; color: #64748b; }
   .jp-pb-code {
     font-weight: 800;
     font-size: 1.05rem;
     color: var(--pb-ink);
     text-decoration: none;
     letter-spacing: -0.02em;
+    line-height: 1.2;
   }
   .jp-pb-code:hover { color: var(--hm-primary, #dc2626); }
-  .jp-pb-customer { color: var(--pb-muted); font-size: 0.88rem; }
-  .jp-pb-meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.35rem 0.75rem;
-    font-size: 0.8rem;
-    color: var(--pb-muted);
-    margin-bottom: 0.45rem;
-  }
-  .jp-pb-meta .is-late { color: var(--pb-run); font-weight: 700; }
-  .jp-pb-meta strong { color: var(--pb-ink); font-weight: 700; }
-
-  .jp-pb-steps {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.3rem;
-  }
-  .jp-pb-step {
-    font-size: 0.7rem;
-    font-weight: 600;
-    padding: 0.15rem 0.45rem;
-    border-radius: 0.35rem;
-    background: #f1f5f9;
-    color: #334155;
-    border: 1px solid #e2e8f0;
-  }
-  .jp-pb-step.is-empty { color: var(--pb-muted); font-weight: 500; background: transparent; border-style: dashed; }
-
+  .jp-pb-customer { color: var(--pb-muted); font-size: 0.86rem; font-weight: 600; }
+  .jp-pb-status { font-size: 0.75rem; font-weight: 700; color: var(--pb-muted); }
   .jp-pb-side {
     display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 0.45rem;
-    min-width: 9.5rem;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
   }
-  .jp-pb-prio form { margin: 0; }
+  .jp-pb-prio form { margin: 0; display: inline-flex; }
   .jp-pb-prio select {
-    min-width: 7.5rem;
-    font-weight: 600;
-    border-width: 1.5px;
+    min-width: 7.2rem;
+    height: 1.85rem;
+    font-weight: 700;
+    font-size: 0.78rem;
+    padding: 0 0.45rem;
   }
   .jp-pb-prio.is-critical select { color: #991b1b; border-color: #fca5a5; background: #fef2f2; }
   .jp-pb-prio.is-urgent select { color: #c2410c; border-color: #fdba74; background: #fff7ed; }
   .jp-pb-prio.is-high select { color: #a16207; border-color: #fcd34d; background: #fffbeb; }
   .jp-pb-prio.is-normal select { color: #0369a1; border-color: #7dd3fc; background: #e0f2fe; }
   .jp-pb-prio.is-low select { color: #475569; border-color: #cbd5e1; background: #f1f5f9; }
-  .jp-pb-actions {
+  .jp-pb-hold-form {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+  .jp-pb-hold-form .form-control { width: 7.5rem; height: 1.85rem; }
+
+  .jp-pb-ticket-body { padding: 0.85rem 1.05rem 1rem; }
+  .jp-pb-stats {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.35rem;
-    justify-content: flex-end;
+    gap: 0.4rem;
+    margin: 0 0 0.75rem;
   }
-  .jp-pb-hold-form {
+  .jp-pb-stat {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.28rem;
+    padding: 0.22rem 0.55rem;
+    border-radius: 999px;
+    background: var(--pb-soft);
+    border: 1px solid var(--pb-line);
+    font-size: 0.74rem;
+    color: var(--pb-muted);
+    font-weight: 600;
+  }
+  .jp-pb-stat strong { color: var(--pb-ink); font-weight: 800; }
+  .jp-pb-stat.is-late { background: #fef2f2; border-color: #fecaca; color: #b91c1c; }
+  .jp-pb-stat.is-late strong { color: #991b1b; }
+
+  .jp-pb-flow {
     display: flex;
-    gap: 0.3rem;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem 0.15rem;
+    margin: 0 0 0.55rem;
+    padding: 0.7rem 0.8rem;
+    background: var(--pb-soft);
+    border: 1px solid var(--pb-line);
+    border-radius: 0.75rem;
+  }
+  .jp-pb-team {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.35rem;
+    padding: 0.22rem 0.28rem 0.22rem 0.55rem;
+    background: #fff;
+    border: 1px solid #d7e0ea;
+    border-radius: 999px;
+    min-width: 0;
+  }
+  .jp-pb-team[open] {
+    border-radius: 0.7rem;
+    padding: 0.35rem 0.45rem 0.45rem 0.55rem;
+  }
+  .jp-pb-team.is-loose {
+    background: transparent;
+    border-style: dashed;
+  }
+  .jp-pb-team-sum {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    cursor: pointer;
+    list-style: none;
+    min-height: 1.45rem;
+  }
+  .jp-pb-team-sum::-webkit-details-marker { display: none; }
+  .jp-pb-team-name {
+    font-size: 0.78rem;
+    font-weight: 800;
+    color: var(--pb-ink);
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+  }
+  .jp-pb-team-exp {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.12rem;
+    height: 1.35rem;
+    padding: 0 0.35rem 0 0.4rem;
+    border-radius: 999px;
+    border: 1px dashed #94a3b8;
+    background: #fff;
+    color: #0369a1;
+    font-size: 0.68rem;
+    font-weight: 800;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+  .jp-pb-team-exp .bi {
+    font-size: 0.62rem;
+    transition: transform 0.15s ease;
+  }
+  .jp-pb-team[open] .jp-pb-team-exp {
+    border-style: solid;
+    border-color: #0369a1;
+    background: #e0f2fe;
+  }
+  .jp-pb-team[open] .jp-pb-team-exp .bi { transform: rotate(180deg); }
+  .jp-pb-team-exp-n { font-variant-numeric: tabular-nums; }
+  .jp-pb-team-ops {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.28rem;
+    padding: 0.15rem 0.15rem 0.05rem;
+  }
+  .jp-pb-team:not([open]) .jp-pb-team-ops { display: none; }
+  .jp-pb-team .jp-pb-step {
+    background: #f4f7fb;
+  }
+  .jp-pb-step {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.32rem 0.7rem;
+    border-radius: 999px;
+    background: #fff;
+    border: 1px solid #d7e0ea;
+    color: #0f172a;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+  }
+  .jp-pb-step.is-empty {
+    color: var(--pb-muted);
+    font-weight: 600;
+    border-style: dashed;
+    background: transparent;
+  }
+  .jp-pb-link {
+    display: inline-flex;
+    align-items: center;
+    align-self: center;
+    padding: 0 0.2rem;
+  }
+  .jp-pb-link-line {
+    width: 0.7rem;
+    height: 2px;
+    background: #cbd5e1;
+    flex-shrink: 0;
+  }
+  .jp-pb-hop {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.22rem;
+    padding: 0 0.28rem;
+    color: var(--pb-muted);
+    font-size: 0.62rem;
+    font-weight: 700;
+    line-height: 1.15;
+    white-space: nowrap;
+  }
+  .jp-pb-hop .k { color: #0369a1; }
+  .jp-pb-hop .v { color: #b45309; }
+  .jp-pb-hop-edit {
+    position: relative;
+    display: inline-flex;
     align-items: center;
   }
-  .jp-pb-hold-form .form-control { width: 6.5rem; }
+  .jp-pb-hop-edit > summary {
+    list-style: none;
+    cursor: pointer;
+  }
+  .jp-pb-hop-edit > summary::-webkit-details-marker { display: none; }
+  .jp-pb-hop-add {
+    width: 1.45rem;
+    height: 1.45rem;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px dashed #94a3b8;
+    background: #fff;
+    color: #0369a1;
+    font-size: 0.95rem;
+    font-weight: 800;
+    line-height: 1;
+    padding: 0;
+  }
+  .jp-pb-hop-edit[open] > .jp-pb-hop-add,
+  .jp-pb-hop-add:hover {
+    border-style: solid;
+    border-color: #0369a1;
+    background: #e0f2fe;
+  }
+  .jp-pb-hop-btn:hover,
+  .jp-pb-hop-edit[open] > .jp-pb-hop-btn {
+    border-color: #0369a1;
+    background: #e0f2fe;
+  }
+  .jp-pb-hop-pop {
+    position: absolute;
+    z-index: 8;
+    top: calc(100% + 0.35rem);
+    left: 50%;
+    transform: translateX(-50%);
+    width: 11.5rem;
+    padding: 0.7rem 0.75rem 0.75rem;
+    background: #fff;
+    border: 1px solid var(--pb-line);
+    border-radius: 0.7rem;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+  }
+  .jp-pb-hop-pop-title {
+    margin: 0;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--pb-muted);
+  }
+  .jp-pb-hop-pop label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.18rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--pb-ink);
+  }
+  .jp-pb-hop-pop input {
+    height: 1.85rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    padding: 0 0.45rem;
+    border: 1px solid #d7e0ea;
+    border-radius: 0.4rem;
+  }
 
   .jp-pb-progress {
-    height: 0.45rem;
+    height: 0.4rem;
     background: #e2e8f0;
     border-radius: 999px;
     overflow: hidden;
-    margin-top: 0.45rem;
-    max-width: 14rem;
+    margin: 0.15rem 0 0.65rem;
+    max-width: 16rem;
   }
   .jp-pb-progress > span {
     display: block;
@@ -343,167 +454,123 @@
     background: var(--hm-primary, #dc2626);
     border-radius: 999px;
   }
-
   .jp-pb-empty {
     text-align: center;
-    padding: 2.5rem 1rem;
+    padding: 2.4rem 1rem;
     color: var(--pb-muted);
-    background: var(--pb-surface);
+    background: #fff;
     border: 1px dashed var(--pb-line);
-    border-radius: var(--pb-radius);
+    border-radius: 0.85rem;
   }
-  .jp-pb-empty a { font-weight: 600; }
-
-  @media (max-width: 768px) {
-    .jp-pb-ticket {
-      grid-template-columns: auto 1fr;
-    }
-    .jp-pb-side {
-      grid-column: 1 / -1;
-      align-items: stretch;
-      flex-direction: row;
-      flex-wrap: wrap;
-      justify-content: flex-start;
-    }
-  }
+  .jp-pb-empty a { font-weight: 700; }
+  .jp-pb-hold-note { margin: 0.55rem 0 0; font-size: 0.78rem; color: var(--pb-muted); }
+  .jp-pb-steps { display: flex; flex-wrap: wrap; gap: 0.3rem; }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid jp-page jp-sx-page jp-pb py-3 py-md-4 mb-5 px-3 px-lg-4">
-  <div class="jp-pb-hero">
-    <div>
-      <h2>Kế hoạch sản xuất</h2>
-      <p>Đơn đã xác nhận → xếp theo hạn / ưu tiên / năng lực → chuyển xuống xưởng.</p>
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title w-100">Kế hoạch sản xuất</h2>
     </div>
-    <div class="d-flex flex-wrap gap-2">
-      <a href="{% url 'san_xuat:sales_order_confirm_list' %}" class="btn btn-outline-secondary btn-sm">Đơn chờ xác nhận</a>
-    </div>
+    <nav class="jp-sx-tools" aria-label="Công cụ">
+      <a href="{% url 'san_xuat:plan_route' %}"><i class="bi bi-calendar3" aria-hidden="true"></i>Lộ trình</a>
+      <span class="sep" aria-hidden="true"></span>
+      <a href="{% url 'san_xuat:plan_inter_step' %}"><i class="bi bi-hourglass-split" aria-hidden="true"></i>Thời gian trung gian</a>
+      <span class="sep" aria-hidden="true"></span>
+      <a href="{% url 'san_xuat:sales_order_confirm_list' %}"><i class="bi bi-check2-square" aria-hidden="true"></i>Đơn chờ xác nhận</a>
+    </nav>
   </div>
 
+  <div class="jp-sx-page-body">
   <div class="jp-pb-pipe" role="list">
-    <a class="jp-pb-stage is-wait {% if mode == 'list' and tab == 'queue' %}is-active{% endif %}" href="{% url 'san_xuat:plan_board' %}?mode=list&tab=queue" role="listitem">
+    <a class="jp-pb-stage is-wait {% if tab == 'queue' %}is-active{% endif %}" href="{% url 'san_xuat:plan_board' %}?mode=list&tab=queue" role="listitem">
       <span class="jp-pb-stage-label">Chờ xếp</span>
       <span class="jp-pb-stage-num">{{ counts.queued }}</span>
     </a>
-    <a class="jp-pb-stage is-rank {% if mode == 'list' and tab == 'queue' %}is-active{% endif %}" href="{% url 'san_xuat:plan_board' %}?mode=list&tab=queue" role="listitem">
+    <a class="jp-pb-stage is-rank {% if tab == 'queue' %}is-active{% endif %}" href="{% url 'san_xuat:plan_board' %}?mode=list&tab=queue" role="listitem">
       <span class="jp-pb-stage-label">Đã xếp</span>
       <span class="jp-pb-stage-num">{{ counts.ranked }}</span>
     </a>
-    <a class="jp-pb-stage is-hold {% if mode == 'list' and tab == 'queue' %}is-active{% endif %}" href="{% url 'san_xuat:plan_board' %}?mode=list&tab=queue" role="listitem">
+    <a class="jp-pb-stage is-hold {% if tab == 'queue' %}is-active{% endif %}" href="{% url 'san_xuat:plan_board' %}?mode=list&tab=queue" role="listitem">
       <span class="jp-pb-stage-label">Tạm giữ</span>
       <span class="jp-pb-stage-num">{{ counts.on_hold }}</span>
     </a>
-    <a class="jp-pb-stage is-go {% if mode == 'list' and tab == 'released' %}is-active{% endif %}" href="{% url 'san_xuat:plan_board' %}?mode=list&tab=released" role="listitem">
+    <a class="jp-pb-stage is-go {% if tab == 'released' %}is-active{% endif %}" href="{% url 'san_xuat:plan_board' %}?mode=list&tab=released" role="listitem">
       <span class="jp-pb-stage-label">Đã chuyển</span>
       <span class="jp-pb-stage-num">{{ counts.released }}</span>
     </a>
-    <a class="jp-pb-stage is-run {% if mode == 'list' and tab == 'released' %}is-active{% endif %}" href="{% url 'san_xuat:plan_board' %}?mode=list&tab=released" role="listitem">
+    <a class="jp-pb-stage is-run {% if tab == 'released' %}is-active{% endif %}" href="{% url 'san_xuat:plan_board' %}?mode=list&tab=released" role="listitem">
       <span class="jp-pb-stage-label">Đang SX</span>
       <span class="jp-pb-stage-num">{{ counts.in_progress }}</span>
     </a>
-    <a class="jp-pb-stage is-done {% if mode == 'list' and tab == 'released' %}is-active{% endif %}" href="{% url 'san_xuat:plan_board' %}?mode=list&tab=released" role="listitem">
+    <a class="jp-pb-stage is-done {% if tab == 'released' %}is-active{% endif %}" href="{% url 'san_xuat:plan_board' %}?mode=list&tab=released" role="listitem">
       <span class="jp-pb-stage-label">Hoàn thành</span>
       <span class="jp-pb-stage-num">{{ counts.done }}</span>
     </a>
   </div>
 
-  <div class="jp-pb-summary">
-    <span>Đang chờ xử lý: <strong>{{ qty_summary.order_count }}</strong> đơn</span>
-    <span>·</span>
-    <span>Tổng SL dòng: <strong>{{ qty_summary.total_qty|sx_num }}</strong></span>
+  <div class="jp-pb-bar">
+    <div class="jp-pb-tabs" role="tablist">
+      <a role="tab" class="{% if tab == 'queue' %}active{% endif %}"
+         href="{% url 'san_xuat:plan_board' %}?mode=list&tab=queue{% if search_query %}&q={{ search_query|urlencode }}{% endif %}">Hàng đợi</a>
+      <a role="tab" class="{% if tab == 'released' %}active{% endif %}"
+         href="{% url 'san_xuat:plan_board' %}?mode=list&tab=released{% if search_query %}&q={{ search_query|urlencode }}{% endif %}">Đã chuyển SX</a>
+    </div>
+    <form method="get" class="jp-pb-bar-search">
+      <input type="hidden" name="mode" value="{{ mode }}">
+      <input type="hidden" name="tab" value="{{ tab }}">
+      <input type="search" name="q" value="{{ search_query }}" class="form-control form-control-sm"
+             placeholder="Mã đơn / khách…" autocomplete="off">
+      <button type="submit" class="btn btn-outline-secondary btn-sm">Lọc</button>
+    </form>
+    <div class="jp-pb-bar-meta">
+      {{ qty_summary.order_count }} đơn · SL {{ qty_summary.total_qty|sx_num }}
+    </div>
+    <div class="jp-pb-urgency-legend" aria-label="Mức độ gấp">
+      {% for val, lab in priority_choices %}
+      <span class="jp-pb-urgency is-{{ val }}">{{ lab }}</span>
+      {% endfor %}
+    </div>
   </div>
-
-  <div class="jp-pb-tabs" role="tablist">
-    <a role="tab" class="{% if tab == 'queue' %}active{% endif %}"
-       href="{% url 'san_xuat:plan_board' %}?mode=list&tab=queue{% if search_query %}&q={{ search_query|urlencode }}{% endif %}">Hàng đợi</a>
-    <a role="tab" class="{% if tab == 'released' %}active{% endif %}"
-       href="{% url 'san_xuat:plan_board' %}?mode=list&tab=released{% if search_query %}&q={{ search_query|urlencode }}{% endif %}">Đã chuyển SX</a>
-  </div>
-
-  <div class="jp-pb-urgency-legend" aria-label="Mức độ gấp">
-    <span>Mức độ gấp:</span>
-    {% for val, lab in priority_choices %}
-    <span class="jp-pb-urgency is-{{ val }}">{{ lab }}</span>
-    {% endfor %}
-  </div>
-
-  <form method="get" class="jp-pb-toolbar">
-    <input type="hidden" name="mode" value="{{ mode }}">
-    <input type="hidden" name="tab" value="{{ tab }}">
-    <input type="search" name="q" value="{{ search_query }}" class="form-control form-control-sm"
-           placeholder="Tìm mã đơn / khách…" autocomplete="off">
-    <button type="submit" class="btn btn-outline-secondary btn-sm">Lọc</button>
-  </form>
 
   {% if tab == 'queue' %}
   <div class="jp-pb-list">
     {% for row in queue_rows %}
     <article class="jp-pb-ticket is-{{ row.order.plan_priority }}{% if row.order.plan_status == 'on_hold' %} is-hold{% endif %}{% if row.is_overdue %} is-overdue{% endif %}">
-      <div class="jp-pb-rank" title="Thứ tự xếp">{{ row.order.plan_rank|default:"·" }}</div>
-      <div class="jp-pb-main">
-        <div class="jp-pb-title-row">
-          <a class="jp-pb-code" href="{% url 'san_xuat:sales_order_detail' row.order.pk %}">{{ row.order.code }}</a>
-          <span class="jp-pb-urgency is-{{ row.order.plan_priority }}">{{ row.order.get_plan_priority_display }}</span>
-          <span class="jp-pb-customer">{{ row.order.customer_name|default:"—" }}</span>
+      <div class="jp-pb-ticket-head">
+        <div>
+          <div class="jp-pb-title-row">
+            <span class="jp-pb-rank" title="Thứ tự xếp">{{ row.order.plan_rank|default:"·" }}</span>
+            <a class="jp-pb-code" href="{% url 'san_xuat:sales_order_detail' row.order.pk %}">{{ row.order.code }}</a>
+            <span class="jp-pb-urgency is-{{ row.order.plan_priority }}">{{ row.order.get_plan_priority_display }}</span>
+            <span class="jp-pb-status">{{ row.order.get_plan_status_display }}</span>
+          </div>
+          <div class="jp-pb-customer mt-1">{{ row.order.customer_name|default:"—" }}</div>
         </div>
-        <div class="jp-pb-meta">
-          <span>
-            Hạn
-            {% if row.order.due_date %}
-              <strong class="{% if row.is_overdue %}is-late{% endif %}">{{ row.order.due_date|date:"d/m/Y" }}</strong>
-              {% if row.days_to_due is not None %}
-                {% if row.is_overdue %}<span class="is-late">· trễ {{ row.days_to_due|stringformat:"d"|cut:"-" }} ngày</span>
-                {% else %}· còn {{ row.days_to_due }} ngày{% endif %}
-              {% endif %}
-            {% else %}<strong>—</strong>{% endif %}
-          </span>
-          <span>SL <strong>{{ row.total_qty|sx_num }}</strong> · {{ row.line_count }} dòng</span>
-          <span>
-            Chu kỳ
-            {% if row.has_routing %}<strong>{{ row.cycle_minutes|sx_num }}</strong> phút{% else %}<strong class="text-muted">chưa có SMV</strong>{% endif %}
-          </span>
-          <span>Điểm <strong>{{ row.score|sx_num }}</strong></span>
-          <span>{{ row.order.get_plan_status_display }}</span>
-        </div>
-        <div class="jp-pb-steps">
-          {% for name in row.process_names %}
-          <span class="jp-pb-step">{{ name }}</span>
-          {% empty %}
-          <span class="jp-pb-step is-empty">Chưa gắn công đoạn / routing</span>
-          {% endfor %}
-        </div>
-        {% if row.order.plan_hold_reason %}
-        <div class="small text-muted mt-1">Giữ: {{ row.order.plan_hold_reason }}</div>
-        {% endif %}
-      </div>
-      <div class="jp-pb-side">
-        {% if can_schedule %}
-        <div class="jp-pb-prio is-{{ row.order.plan_priority }}">
-          <form method="post">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="set_priority">
-            <input type="hidden" name="order_id" value="{{ row.order.pk }}">
-            <select name="priority" class="form-select form-select-sm" onchange="this.form.submit()" aria-label="Mức độ gấp">
-              {% for val, lab in priority_choices %}
-              <option value="{{ val }}" {% if row.order.plan_priority == val %}selected{% endif %}>{{ lab }}</option>
-              {% endfor %}
-            </select>
-          </form>
-        </div>
-        {% else %}
-        <span class="jp-pb-urgency is-{{ row.order.plan_priority }}">{{ row.order.get_plan_priority_display }}</span>
-        {% endif %}
-        <div class="jp-pb-actions">
+        <div class="jp-pb-side">
+          {% if can_schedule %}
+          <div class="jp-pb-prio is-{{ row.order.plan_priority }}">
+            <form method="post">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="set_priority">
+              <input type="hidden" name="order_id" value="{{ row.order.pk }}">
+              <select name="priority" class="form-select form-select-sm" onchange="this.form.submit()" aria-label="Mức độ gấp">
+                {% for val, lab in priority_choices %}
+                <option value="{{ val }}" {% if row.order.plan_priority == val %}selected{% endif %}>{{ lab }}</option>
+                {% endfor %}
+              </select>
+            </form>
+          </div>
+          {% endif %}
           {% if can_release and row.order.plan_status != 'on_hold' %}
           {{ row.release_products|json_script:row.release_script_id }}
           <button type="button" class="btn btn-hm btn-sm fw-bold"
                   data-jp-release-open
                   data-order-id="{{ row.order.pk }}"
                   data-order-code="{{ row.order.code }}"
-                  data-products-id="{{ row.release_script_id }}">
-            Chuyển SX
-          </button>
+                  data-products-id="{{ row.release_script_id }}">Chuyển SX</button>
           {% endif %}
           {% if can_schedule %}
             {% if row.order.plan_status == 'on_hold' %}
@@ -525,12 +592,39 @@
           {% endif %}
         </div>
       </div>
+      <div class="jp-pb-ticket-body">
+        <div class="jp-pb-stats">
+          <span class="jp-pb-stat{% if row.is_overdue %} is-late{% endif %}">
+            Hạn
+            {% if row.order.due_date %}
+              <strong>{{ row.order.due_date|date:"d/m/Y" }}</strong>
+              {% if row.days_to_due is not None %}
+                {% if row.is_overdue %}trễ {{ row.days_to_due|stringformat:"d"|cut:"-" }} ngày
+                {% else %}còn {{ row.days_to_due }} ngày{% endif %}
+              {% endif %}
+            {% else %}<strong>—</strong>{% endif %}
+          </span>
+          <span class="jp-pb-stat">SL <strong>{{ row.total_qty|sx_num }}</strong> · {{ row.line_count }} dòng</span>
+          <span class="jp-pb-stat">
+            Chu kỳ
+            {% if row.has_routing or row.buffer_minutes %}
+              <strong>{{ row.cycle_minutes|sx_num }}</strong> phút
+              {% if row.buffer_minutes %}· SMV {{ row.work_minutes|sx_num }} + kiểm/VC {{ row.buffer_minutes|sx_num }}{% endif %}
+            {% else %}<strong>—</strong>{% endif %}
+          </span>
+          <span class="jp-pb-stat">Điểm <strong>{{ row.score|sx_num }}</strong></span>
+        </div>
+
+        {% include 'san_xuat/includes/plan_board_flow.html' %}
+        {% if row.order.plan_hold_reason %}
+        <p class="jp-pb-hold-note">Giữ: {{ row.order.plan_hold_reason }}</p>
+        {% endif %}
+      </div>
     </article>
     {% empty %}
     <div class="jp-pb-empty">
       Chưa có đơn trong hàng đợi.
       <a href="{% url 'san_xuat:sales_order_confirm_list' %}">Xác nhận đơn đặt hàng</a>
-      để đưa vào kế hoạch.
     </div>
     {% endfor %}
   </div>
@@ -540,45 +634,37 @@
   <div class="jp-pb-list">
     {% for row in released_rows %}
     <article class="jp-pb-ticket is-{{ row.order.plan_priority }}{% if row.is_overdue %} is-overdue{% endif %}">
-      <div class="jp-pb-rank" title="Tiến độ">{{ row.progress_pct|sx_num }}%</div>
-      <div class="jp-pb-main">
-        <div class="jp-pb-title-row">
-          <a class="jp-pb-code" href="{% url 'san_xuat:sales_order_detail' row.order.pk %}">{{ row.order.code }}</a>
-          <span class="jp-pb-urgency is-{{ row.order.plan_priority }}">{{ row.order.get_plan_priority_display }}</span>
-          <span class="jp-pb-customer">{{ row.order.customer_name|default:"—" }}</span>
+      <div class="jp-pb-ticket-head">
+        <div>
+          <div class="jp-pb-title-row">
+            <span class="jp-pb-rank" title="Tiến độ">{{ row.progress_pct|sx_num }}%</span>
+            <a class="jp-pb-code" href="{% url 'san_xuat:sales_order_detail' row.order.pk %}">{{ row.order.code }}</a>
+            <span class="jp-pb-urgency is-{{ row.order.plan_priority }}">{{ row.order.get_plan_priority_display }}</span>
+            <span class="jp-pb-status">{{ row.order.get_plan_status_display }}</span>
+          </div>
+          <div class="jp-pb-customer mt-1">{{ row.order.customer_name|default:"—" }}</div>
         </div>
-        <div class="jp-pb-meta">
-          <span>
-            ETA
-            {% if row.eta_date %}
-              <strong class="{% if row.is_overdue %}is-late{% endif %}">{{ row.eta_date|date:"d/m/Y" }}</strong>
-            {% else %}<strong>—</strong>{% endif %}
+        <div class="jp-pb-side">
+          {% for mo in row.order.production_orders.all %}
+            {% if not mo.is_demo and mo.status != 'cancelled' %}
+            <a href="{% url 'san_xuat:order_progress_sheet' mo.pk %}" class="btn btn-hm btn-sm fw-bold">Tiến độ</a>
+            {% endif %}
+          {% endfor %}
+          <a href="{% url 'san_xuat:dispatch_mo' %}?q={{ row.order.code|urlencode }}" class="btn btn-outline-secondary btn-sm">Lệnh SX</a>
+        </div>
+      </div>
+      <div class="jp-pb-ticket-body">
+        <div class="jp-pb-stats">
+          <span class="jp-pb-stat{% if row.is_overdue %} is-late{% endif %}">
+            ETA <strong>{% if row.eta_date %}{{ row.eta_date|date:"d/m/Y" }}{% else %}—{% endif %}</strong>
           </span>
-          <span>Lệnh sản xuất <strong>{{ row.mo_count }}</strong>{% if row.mo_open %} · mở {{ row.mo_open }}{% endif %}</span>
-          <span>
-            Đã làm <strong>{{ row.qty_done|sx_num }}</strong>
-            / {{ row.qty_planned|sx_num }}
-          </span>
-          <span>{{ row.order.get_plan_status_display }}</span>
+          <span class="jp-pb-stat">LSX <strong>{{ row.mo_count }}</strong>{% if row.mo_open %} · mở {{ row.mo_open }}{% endif %}</span>
+          <span class="jp-pb-stat">Đã làm <strong>{{ row.qty_done|sx_num }}</strong> / {{ row.qty_planned|sx_num }}</span>
         </div>
         <div class="jp-pb-progress" title="{{ row.progress_pct|sx_num }}%">
           <span style="width: {% if row.progress_pct > 100 %}100{% else %}{{ row.progress_pct|floatformat:0 }}{% endif %}%"></span>
         </div>
-        <div class="jp-pb-steps mt-2">
-          {% for name in row.process_names %}
-          <span class="jp-pb-step">{{ name }}</span>
-          {% empty %}
-          <span class="jp-pb-step is-empty">OB theo lệnh sản xuất</span>
-          {% endfor %}
-        </div>
-      </div>
-      <div class="jp-pb-side">
-        {% for mo in row.order.production_orders.all %}
-          {% if not mo.is_demo and mo.status != 'cancelled' %}
-          <a href="{% url 'san_xuat:order_progress_sheet' mo.pk %}" class="btn btn-hm btn-sm fw-bold">Tiến độ</a>
-          {% endif %}
-        {% endfor %}
-        <a href="{% url 'san_xuat:dispatch_mo' %}?q={{ row.order.code|urlencode }}" class="btn btn-outline-secondary btn-sm">Xem lệnh sản xuất</a>
+        {% include 'san_xuat/includes/plan_board_flow.html' with empty_label='OB theo lệnh sản xuất' %}
       </div>
     </article>
     {% empty %}
@@ -588,6 +674,7 @@
     {% endfor %}
   </div>
   {% endif %}
+  </div>
 </div>
 
 {# Modal chọn hồ sơ thiết kế khi Chuyển SX #}
@@ -613,40 +700,6 @@
   </div>
 </div>
 
-{# Modal chỉnh lộ trình đơn — ngoài .jp-pb để tránh z-index/backdrop kẹt #}
-<div class="modal fade" id="jpKbRouteModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-scrollable">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Chỉnh lộ trình · <span id="jpKbRouteOrderCode"></span></h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
-      </div>
-      <div class="modal-body">
-        <input type="hidden" id="jpKbRouteOrderId" value="">
-        <div class="table-responsive">
-          <table class="table table-sm align-middle mb-2" id="jpKbRouteTable">
-            <thead>
-              <tr>
-                <th style="width:4rem">TT</th>
-                <th>Công đoạn</th>
-                <th style="width:11rem">Tổ</th>
-                <th style="width:8rem">Ngày KH</th>
-                <th style="width:3rem"></th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </div>
-        <button type="button" class="btn btn-outline-secondary btn-sm" id="jpKbRouteAdd">+ Thêm công đoạn</button>
-        <div class="small text-danger mt-2 d-none" id="jpKbRouteErr"></div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Hủy</button>
-        <button type="button" class="btn btn-hm btn-sm fw-bold" id="jpKbRouteSave">Lưu lộ trình</button>
-      </div>
-    </div>
-  </div>
-</div>
 {% endblock %}
 
 {% block scripts %}
@@ -893,6 +946,17 @@
         return;
       }
     }
+  });
+})();
+
+(function () {
+  document.querySelectorAll('.jp-pb-hop-edit').forEach(function (el) {
+    el.addEventListener('toggle', function () {
+      if (!el.open) return;
+      document.querySelectorAll('.jp-pb-hop-edit[open]').forEach(function (other) {
+        if (other !== el) other.open = false;
+      });
+    });
   });
 })();
 </script>

@@ -65,7 +65,10 @@
       <span class="badge bg-light text-dark border">{{ prod_label }}</span>
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
+      {% if can_edit_order %}
+      <a href="{% url 'san_xuat:sales_order_edit' order.pk %}" class="btn btn-outline-hm btn-sm fw-bold">Sửa</a>
       <span class="sep" aria-hidden="true"></span>
+      {% endif %}
       <a href="{% url 'san_xuat:sales_order_list' %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại</a>
     </nav>
   </div>

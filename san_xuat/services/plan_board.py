@@ -13,7 +13,7 @@ from django.db import transaction
 from django.db.models import Prefetch, Sum
 from django.utils import timezone
 
-from san_xuat.hub_models import SxProductionOrder, SxSalesOrder, SxSalesOrderLine, SxWorkCenter
+from san_xuat.hub_models import SxProductionOrder, SxSalesOrder, SxSalesOrderLine, SxSalesOrderPlanStep, SxWorkCenter
 from san_xuat.services.dispatch import DispatchError, create_mo_from_bom
 from san_xuat.services.planning import PlanningError
 from san_xuat.services.order_routing import sales_order_line_routing, steps_dicts_from_order_line
@@ -80,6 +80,12 @@ class PlanBoardRow:
     derived_status: str = SxSalesOrder.PLAN_QUEUED
     release_products: list[dict] = field(default_factory=list)
     release_script_id: str = ''
+    work_minutes: Decimal = field(default_factory=lambda: Decimal('0'))
+    buffer_minutes: Decimal = field(default_factory=lambda: Decimal('0'))
+    hops: list = field(default_factory=list)
+    active_hops: list = field(default_factory=list)
+    open_hops: list = field(default_factory=list)
+    flow_groups: list = field(default_factory=list)
 
 
 def enqueue_on_confirm(order: SxSalesOrder) -> None:
@@ -133,23 +139,27 @@ def sync_plan_status(order: SxSalesOrder) -> str:
     return derived
 
 
-def _enrich_routing(order: SxSalesOrder, lines: list[SxSalesOrderLine]) -> tuple[list[str], Decimal, bool]:
+def _enrich_routing(order: SxSalesOrder, lines: list[SxSalesOrderLine]) -> tuple[list[str], Decimal, bool, Decimal]:
     names: list[str] = []
     seen: set[str] = set()
-    total_min = Decimal('0')
+    work_min = Decimal('0')
+    buffer_min = Decimal('0')
     has_any = False
     for ln in lines:
         routing = sales_order_line_routing(ln)
         qty = ln.qty_to_produce
         if routing.has_time_data:
             has_any = True
-            total_min += (routing.total_smv * qty).quantize(_Q2)
+            work_min += (routing.total_smv * qty).quantize(_Q2)
+            hop = routing.hop_buffer_minutes
+            if hop > buffer_min:
+                buffer_min = hop
         for step in routing.steps:
             n = (step.process_name or '').strip()
             if n and n not in seen:
                 seen.add(n)
                 names.append(n)
-    return names, _q(total_min), has_any
+    return names, _q(work_min), has_any, _q(buffer_min)
 
 
 def compute_score(
@@ -220,6 +230,12 @@ def build_plan_board_rows(
                 'production_orders',
                 queryset=SxProductionOrder.objects.filter(is_demo=False).order_by('-order_date', 'code'),
             ),
+            Prefetch(
+                'plan_steps',
+                queryset=SxSalesOrderPlanStep.objects.select_related('work_center').order_by(
+                    'sequence', 'id',
+                ),
+            ),
         )
     )
     if statuses:
@@ -242,7 +258,26 @@ def build_plan_board_rows(
         lines = list(order.lines.all())
         mos = list(order.production_orders.all())
         total_qty = sum((ln.qty_to_produce for ln in lines), Decimal('0'))
-        names, cycle_min, has_routing = _enrich_routing(order, lines)
+        names, work_min, has_routing, routing_buffer = _enrich_routing(order, lines)
+        hops = []
+        flow_groups = []
+        buffer_min = routing_buffer
+        plan_steps = list(order.plan_steps.all())
+        if not plan_steps and order.confirm_status == SxSalesOrder.CONFIRM_CONFIRMED:
+            from san_xuat.services.plan_route import ensure_order_plan_steps
+
+            plan_steps = ensure_order_plan_steps(order)
+        if plan_steps:
+            from san_xuat.services.inter_step_times import (
+                flow_groups_from_steps,
+                hop_buffer_minutes,
+                hops_from_steps,
+            )
+
+            hops = hops_from_steps(plan_steps)
+            flow_groups = flow_groups_from_steps(plan_steps)
+            buffer_min = hop_buffer_minutes(plan_steps)
+        cycle_min = _q(work_min + buffer_min)
         score, days_to_due, is_overdue = compute_score(
             order=order, cycle_minutes=cycle_min, today=today,
         )
@@ -295,6 +330,12 @@ def build_plan_board_rows(
             derived_status=derived,
             release_products=release_products,
             release_script_id=f'jp-release-products-{order.pk}',
+            work_minutes=work_min,
+            buffer_minutes=buffer_min,
+            hops=hops,
+            active_hops=[h for h in hops if getattr(h, 'is_set', False)],
+            open_hops=[h for h in hops if not getattr(h, 'is_set', False)],
+            flow_groups=flow_groups,
         ))
 
     rows.sort(
@@ -347,6 +388,45 @@ def recompute_plan_ranks(*, only_queue: bool = True) -> int:
         order.save(update_fields=['plan_score', 'plan_rank', 'plan_status', 'updated_at'])
         updated += 1
     return updated
+
+
+@transaction.atomic
+def save_plan_hops(*, order_id: int, hops: list[dict]) -> list[SxSalesOrderPlanStep]:
+    """Cập nhật phút kiểm đếm / vận chuyển trên từng khoảng CĐ (đơn đã xác nhận)."""
+    from san_xuat.services.plan_route import ensure_order_plan_steps
+
+    order = SxSalesOrder.objects.select_for_update().get(pk=order_id, is_demo=False)
+    if order.confirm_status != SxSalesOrder.CONFIRM_CONFIRMED:
+        raise PlanningError('Chỉ chỉnh thời gian chuyển CĐ trên đơn đã xác nhận.')
+    if order.plan_status == SxSalesOrder.PLAN_DONE:
+        raise PlanningError('Đơn đã hoàn thành.')
+    steps = ensure_order_plan_steps(order)
+    if len(steps) < 2:
+        raise PlanningError('Đơn chưa có đủ công đoạn để khai báo khoảng chuyển.')
+    by_id = {s.pk: s for s in steps}
+    updated = 0
+    for raw in hops or []:
+        try:
+            sid = int(raw.get('step_id') or 0)
+        except (TypeError, ValueError):
+            continue
+        step = by_id.get(sid)
+        if step is None:
+            continue
+        try:
+            count = _q(raw.get('count_minutes') or 0)
+            transfer = _q(raw.get('transfer_minutes') or 0)
+        except Exception:
+            raise PlanningError('Phút kiểm đếm / vận chuyển không hợp lệ.')
+        if count < 0 or transfer < 0:
+            raise PlanningError('Phút kiểm đếm / vận chuyển không được âm.')
+        step.count_minutes = count
+        step.transfer_minutes = transfer
+        step.save(update_fields=['count_minutes', 'transfer_minutes'])
+        updated += 1
+    if not updated:
+        raise PlanningError('Không cập nhật được khoảng công đoạn.')
+    return list(order.plan_steps.order_by('sequence', 'id'))
 
 
 @transaction.atomic
@@ -443,11 +523,19 @@ def release_order_to_production(
     bom_map = _id_map(bom_by_product)
     routing_map = _id_map(routing_by_product)
 
-    # planned_date từ lộ trình Kanban (nếu có) — khớp theo tên công đoạn
+    # planned_date + hop times từ snapshot kế hoạch — khớp theo tên công đoạn
     planned_by_name = {
         (s.process_name or '').strip().casefold(): s.planned_date
         for s in order.plan_steps.all()
         if s.planned_date
+    }
+    from san_xuat.services.inter_step_times import resolve_hop_minutes
+
+    hop_by_name = {
+        (s.process_name or '').strip().casefold(): resolve_hop_minutes(
+            s.count_minutes, s.transfer_minutes, fill_default=True,
+        )
+        for s in order.plan_steps.all()
     }
 
     created: list[SxProductionOrder] = []
@@ -469,6 +557,16 @@ def release_order_to_production(
             raise PlanningError(f'{code}: hồ sơ thiết kế không thuộc mã này.')
         routing_id = routing_map.get(code.casefold()) or ln.routing_id
 
+        from san_xuat.services.inter_step_times import hop_buffer_minutes, schedule_span
+        from san_xuat.services.order_routing import sales_order_line_routing as _line_routing
+
+        line_routing = _line_routing(ln)
+        lead = (line_routing.total_smv * ln.qty_to_produce) + (
+            hop_buffer_minutes(order.plan_steps.all())
+            if hop_by_name else line_routing.hop_buffer_minutes
+        )
+        plan_start, plan_end = schedule_span(start=timezone.localdate(), lead_minutes=lead)
+
         mo = None
         try:
             mo = create_mo_from_bom(
@@ -476,6 +574,8 @@ def release_order_to_production(
                 qty=ln.qty_to_produce,
                 order_date=timezone.localdate(),
                 due_date=ln.due_date or order.due_date,
+                planned_start=plan_start,
+                planned_end=plan_end,
                 notes=f'Từ ĐĐH {order.code}',
                 user=user,
                 sales_order_id=order.pk,
@@ -485,11 +585,12 @@ def release_order_to_production(
             # Ưu tiên snapshot CĐ trên dòng đơn; fallback routing mã hàng; không thì BOM
             routing_steps = steps_dicts_from_order_line(ln) or steps_dicts_from_routing(routing_id)
             if routing_steps:
-                if planned_by_name:
-                    for row in routing_steps:
-                        key = (row.get('process_name') or '').strip().casefold()
-                        if key in planned_by_name:
-                            row['planned_date'] = planned_by_name[key]
+                for row in routing_steps:
+                    key = (row.get('process_name') or '').strip().casefold()
+                    if key in planned_by_name:
+                        row['planned_date'] = planned_by_name[key]
+                    if key in hop_by_name:
+                        row['count_minutes'], row['transfer_minutes'] = hop_by_name[key]
                 sync_mo_process_steps(mo, routing_steps)
             elif planned_by_name and mo.bom_version_id:
                 bom_rows = list(

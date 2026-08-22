@@ -491,6 +491,22 @@ class ProcessStep(models.Model):
         verbose_name='Bộ phận chịu trách nhiệm',
         help_text='Bộ phận / tổ thuộc phòng Sản xuất phụ trách công đoạn này.',
     )
+    count_minutes = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0'),
+        validators=[MinValueValidator(Decimal('0'))],
+        verbose_name='Kiểm đếm (phút)',
+        help_text='Thời gian kiểm đếm sau công đoạn này, trước khi chuyển sang công đoạn sau. 0 = không phát sinh. Có thể chỉnh theo đơn.',
+    )
+    transfer_minutes = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0'),
+        validators=[MinValueValidator(Decimal('0'))],
+        verbose_name='Vận chuyển (phút)',
+        help_text='Thời gian vận chuyển hàng sang công đoạn sau. 0 = không phát sinh. Có thể chỉnh theo đơn.',
+    )
     notes = models.CharField(max_length=255, blank=True, default='', verbose_name='Ghi chú')
 
     class Meta:

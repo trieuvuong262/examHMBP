@@ -468,6 +468,8 @@ def sync_mo_process_steps(mo: SxProductionOrder, steps: list[dict] | None = None
             status=status,
             manager_id=row.get("manager_id"),
             bom_process_step_id=bom_id,
+            count_minutes=row.get("count_minutes") or 0,
+            transfer_minutes=row.get("transfer_minutes") or 0,
         )
         for user_id, by_id in old_assignees.get(key, []):
             if not user_id:
@@ -513,6 +515,8 @@ def steps_dicts_from_routing(routing_id: int | None) -> list[dict]:
             "process_name": name,
             "work_center_id": wc_id,
             "manager_id": None,
+            "count_minutes": getattr(ln, "count_minutes", 0) or 0,
+            "transfer_minutes": getattr(ln, "transfer_minutes", 0) or 0,
         })
     return out
 

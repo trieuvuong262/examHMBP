@@ -85,7 +85,10 @@
               <th class="text-end">SL/SP</th>
               <th class="text-end">SMV sản phẩm</th>
               <th class="text-end">SMV đơn hàng</th>
+              <th>Mô tả</th>
               <th class="text-end">Tổng SMV</th>
+              <th class="text-end" title="Sau CĐ này, trước CĐ sau">Kiểm đếm (phút)</th>
+              <th class="text-end" title="Chuyển hàng sang CĐ sau">Vận chuyển (phút)</th>
               <th class="text-end">% lệch</th>
               <th>Bộ phận</th>
               <th>Giải trình</th>
@@ -101,7 +104,10 @@
               <td class="text-end">{{ l.qty_per_garment|sx_num }}</td>
               <td class="text-end">{{ l.library_unit_smv|sx_num }}</td>
               <td class="text-end fw-semibold">{{ l.applied_unit_smv|sx_num }}</td>
+              <td class="small">{{ l.notes|default:"—" }}</td>
               <td class="text-end">{{ l.total_operation_smv|sx_num }}</td>
+              <td class="text-end">{{ l.count_minutes|sx_num }}</td>
+              <td class="text-end">{{ l.transfer_minutes|sx_num }}</td>
               <td class="text-end {% if l.is_high_variance %}text-danger{% endif %}">{{ l.smv_variance_pct|sx_num:1 }}</td>
               <td class="small">{% if l.work_center %}{{ l.work_center.name }}{% elif l.work_center_code %}{{ l.work_center_code }}{% else %}—{% endif %}</td>
               <td class="small">{{ l.variance_explanation|default:"—"|truncatechars:40 }}</td>
@@ -114,7 +120,7 @@
               {% endif %}
             </tr>
           {% empty %}
-            <tr><td colspan="{% if can_edit_order_routing %}11{% else %}10{% endif %}" class="text-muted small text-center py-2">Chưa có công đoạn trên đơn.</td></tr>
+            <tr><td colspan="{% if can_edit_order_routing %}14{% else %}13{% endif %}" class="text-muted small text-center py-2">Chưa có công đoạn trên đơn.</td></tr>
           {% endfor %}
           </tbody>
         </table>
@@ -183,6 +189,22 @@
           <input type="text" name="applied_unit_smv" class="form-control form-control-sm"
                  value="{% if edit_rt and edit_rt.sales_order_line_id == ln.pk %}{{ edit_rt.applied_unit_smv|sx_num_input }}{% endif %}">
         </div>
+        <div class="col-12 col-md-3">
+          <label class="form-label small mb-0">Mô tả</label>
+          <input type="text" name="notes" class="form-control form-control-sm" maxlength="255"
+                 value="{% if edit_rt and edit_rt.sales_order_line_id == ln.pk %}{{ edit_rt.notes }}{% endif %}"
+                 placeholder="Mô tả">
+        </div>
+        <div class="col-4 col-md-1">
+          <label class="form-label small mb-0">Kiểm đếm (phút)</label>
+          <input type="text" name="count_minutes" class="form-control form-control-sm" inputmode="decimal"
+                 value="{% if edit_rt and edit_rt.sales_order_line_id == ln.pk %}{{ edit_rt.count_minutes|sx_num_input }}{% endif %}" placeholder="0">
+        </div>
+        <div class="col-4 col-md-1">
+          <label class="form-label small mb-0">Vận chuyển (phút)</label>
+          <input type="text" name="transfer_minutes" class="form-control form-control-sm" inputmode="decimal"
+                 value="{% if edit_rt and edit_rt.sales_order_line_id == ln.pk %}{{ edit_rt.transfer_minutes|sx_num_input }}{% endif %}" placeholder="0">
+        </div>
         <div class="col-6 col-md-2">
           <label class="form-label small mb-0">Bộ phận</label>
           <select name="work_center_code" class="form-select form-select-sm">
@@ -232,11 +254,6 @@
           <input type="text" name="variance_explanation" class="form-control form-control-sm" maxlength="500"
                  value="{% if edit_rt and edit_rt.sales_order_line_id == ln.pk %}{{ edit_rt.variance_explanation }}{% endif %}"
                  placeholder="Bắt buộc nếu lệch SMV > 15%">
-        </div>
-        <div class="col-12 col-md-3">
-          <label class="form-label small mb-0">Ghi chú</label>
-          <input type="text" name="notes" class="form-control form-control-sm" maxlength="255"
-                 value="{% if edit_rt and edit_rt.sales_order_line_id == ln.pk %}{{ edit_rt.notes }}{% endif %}">
         </div>
         <div class="col-auto">
           <button type="submit" class="btn btn-sm btn-hm">

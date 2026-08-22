@@ -798,9 +798,10 @@
                 {% jp_can_menu 'san_xuat' 'plan' as jp_can_san_xuat_plan %}
                 {% jp_can_menu 'san_xuat' 'plan_board' as jp_can_san_xuat_plan_board %}
                 {% jp_can_menu 'san_xuat' 'plan_route' as jp_can_san_xuat_plan_route %}
+                {% jp_can_menu 'san_xuat' 'plan_inter_step' as jp_can_san_xuat_plan_inter %}
                 {% jp_can_menu 'san_xuat' 'plan_npl' as jp_can_san_xuat_plan_npl %}
                 {% jp_can_menu 'san_xuat' 'npl_pr' as jp_can_san_xuat_npl_pr %}
-                {% if jp_can_san_xuat_plan or jp_can_san_xuat_plan_board or jp_can_san_xuat_plan_route or jp_can_san_xuat_plan_npl or jp_can_san_xuat_npl_pr %}
+                {% if jp_can_san_xuat_plan or jp_can_san_xuat_plan_board or jp_can_san_xuat_plan_route or jp_can_san_xuat_plan_inter or jp_can_san_xuat_plan_npl or jp_can_san_xuat_npl_pr %}
                 <li class="jp-sidebar-nested-group{% if '/san-xuat/ke-hoach' in request.path %} is-open{% endif %}"
                     data-sx-area="plan" data-sx-icon="bi-calendar3" data-sx-label="Kế hoạch SX"
                     data-sx-href="{% if jp_can_san_xuat_plan_board or jp_can_san_xuat_plan %}{% url 'san_xuat:plan_board' %}{% elif jp_can_san_xuat_plan_npl %}{% url 'san_xuat:plan_npl' %}{% else %}{% url 'san_xuat:npl_purchase_request' %}{% endif %}">
@@ -828,6 +829,14 @@
                             <a href="{% url 'san_xuat:plan_route' %}"
                                class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'plan_route' %}active{% endif %}">
                                 <i class="bi bi-calendar2-week"></i><span>Lộ trình sản xuất</span>
+                            </a>
+                        </li>
+                        {% endif %}
+                        {% if jp_can_san_xuat_plan_inter or jp_can_san_xuat_plan_board or jp_can_san_xuat_plan %}
+                        <li>
+                            <a href="{% url 'san_xuat:plan_inter_step' %}"
+                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'plan_inter_step' %}active{% endif %}">
+                                <i class="bi bi-hourglass-split"></i><span>Thời gian trung gian</span>
                             </a>
                         </li>
                         {% endif %}

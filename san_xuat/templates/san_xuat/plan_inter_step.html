@@ -1,0 +1,136 @@
+{% extends 'base.html' %}
+
+{% block extra_head %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+<style>
+  .jp-is {
+    --is-ink: #0f172a;
+    --is-muted: #64748b;
+    --is-line: #e8edf3;
+    --is-soft: #f4f7fb;
+  }
+  .jp-is-card {
+    background: #fff;
+    border: 1px solid var(--is-line);
+    border-radius: 0.95rem;
+    overflow: hidden;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  }
+  .jp-is-card-head {
+    padding: 0.9rem 1.15rem;
+    border-bottom: 1px solid var(--is-line);
+    background: var(--is-soft);
+  }
+  .jp-is-card-head h3 {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: var(--is-ink);
+  }
+  .jp-is-card-head p {
+    margin: 0.25rem 0 0;
+    font-size: 0.78rem;
+    color: var(--is-muted);
+    font-weight: 600;
+  }
+  .jp-is-row {
+    display: grid;
+    gap: 0.65rem;
+    padding: 0.95rem 1.15rem;
+    border-bottom: 1px solid #f1f5f9;
+    align-items: center;
+  }
+  .jp-is-row:last-of-type { border-bottom: 0; }
+  @media (min-width: 768px) {
+    .jp-is-row { grid-template-columns: minmax(0, 1fr) auto; }
+  }
+  .jp-is-row strong {
+    display: block;
+    font-size: 0.88rem;
+    color: var(--is-ink);
+  }
+  .jp-is-row span {
+    display: block;
+    font-size: 0.76rem;
+    color: var(--is-muted);
+    font-weight: 600;
+    margin-top: 0.15rem;
+  }
+  .jp-is-input {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .jp-is-input .form-control { width: 7.5rem; text-align: right; }
+  .jp-is-input em {
+    font-style: normal;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--is-muted);
+  }
+  .jp-is-foot {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.45rem;
+    padding: 0.85rem 1.15rem;
+    background: var(--is-soft);
+    border-top: 1px solid var(--is-line);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid jp-page jp-sx-page jp-is py-3 py-md-4 mb-5 px-3 px-lg-4">
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title w-100">Thời gian trung gian</h2>
+    </div>
+    <nav class="jp-sx-tools" aria-label="Công cụ">
+      <a href="{% url 'san_xuat:plan_board' %}"><i class="bi bi-kanban" aria-hidden="true"></i>Kế hoạch sản xuất</a>
+      <span class="sep" aria-hidden="true"></span>
+      <a href="{% url 'san_xuat:plan_route' %}"><i class="bi bi-calendar3" aria-hidden="true"></i>Lộ trình</a>
+    </nav>
+  </div>
+
+  <div class="jp-sx-page-body">
+    <form method="post" class="jp-is-card">
+      {% csrf_token %}
+      <div class="jp-is-card-head">
+        <h3>Mặc định khi chuyển sang tổ khác</h3>
+        <p>Phút / khoảng giữa hai tổ liền kề (theo lô, không nhân SMV). Cùng tổ không tính. 0 = không gợi ý trên nút + của bảng kế hoạch. Từng đơn ghi đè bằng nút +.</p>
+      </div>
+      <div class="jp-is-row">
+        <div>
+          <strong>{{ form.plan_count_minutes.label }}</strong>
+          <span>{{ form.plan_count_minutes.help_text }}</span>
+        </div>
+        <label class="jp-is-input">
+          {{ form.plan_count_minutes }}
+          <em>phút</em>
+        </label>
+        {% if form.plan_count_minutes.errors %}
+        <div class="text-danger small">{{ form.plan_count_minutes.errors }}</div>
+        {% endif %}
+      </div>
+      <div class="jp-is-row">
+        <div>
+          <strong>{{ form.plan_transfer_minutes.label }}</strong>
+          <span>{{ form.plan_transfer_minutes.help_text }}</span>
+        </div>
+        <label class="jp-is-input">
+          {{ form.plan_transfer_minutes }}
+          <em>phút</em>
+        </label>
+        {% if form.plan_transfer_minutes.errors %}
+        <div class="text-danger small">{{ form.plan_transfer_minutes.errors }}</div>
+        {% endif %}
+      </div>
+      {% if can_update %}
+      <div class="jp-is-foot">
+        <button type="submit" class="btn btn-hm btn-sm fw-bold">Lưu</button>
+      </div>
+      {% endif %}
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -102,7 +102,13 @@ class SalesOrderLineForm(forms.Form):
         decimal_places=2,
         min_value=Decimal('0.01'),
         label='Số lượng',
-        widget=forms.NumberInput(attrs={'class': 'form-control form-control-sm jp-so-qty-total', 'step': '0.01', 'min': '0.01'}),
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control form-control-sm jp-so-qty-total',
+            'step': '0.01',
+            'min': '0.01',
+            'readonly': True,
+            'tabindex': '-1',
+        }),
     )
     size_qtys = forms.CharField(
         required=False,

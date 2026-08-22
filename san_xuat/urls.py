@@ -10,6 +10,7 @@ urlpatterns = [
     path('tong-quan/', views_hub.overview, name='overview'),
     path('don-hang/', views_hub.sales_order_list, name='sales_order_list'),
     path('don-hang/them/', views_hub.sales_order_create, name='sales_order_create'),
+    path('don-hang/<int:pk>/sua/', views_hub.sales_order_edit, name='sales_order_edit'),
     path('don-hang/xac-nhan/', views_hub.sales_order_confirm_list, name='sales_order_confirm_list'),
     path('don-hang/<int:pk>/', views_hub.sales_order_detail, name='sales_order_detail'),
     # alias cũ
@@ -18,6 +19,7 @@ urlpatterns = [
     path('ke-hoach/', views_hub.plan_stub, name='plan_stub'),
     path('ke-hoach/bang/', views_hub.plan_board, name='plan_board'),
     path('ke-hoach/lo-trinh/', views_hub.plan_route, name='plan_route'),
+    path('ke-hoach/thoi-gian-trung-gian/', views_hub.plan_inter_step, name='plan_inter_step'),
     path('ke-hoach/giam-sat-tien-do/', views_hub.plan_progress_monitor, name='plan_progress_monitor'),
     path('ke-hoach/tien-do/<int:mo_id>/', views_hub.order_progress_sheet, name='order_progress_sheet'),
     path('ke-hoach/tong-the/', views_hub.plan_overall, name='plan_overall'),

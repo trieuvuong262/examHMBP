@@ -57,11 +57,8 @@ def _copy_from_routing_line(
     *,
     seq_no: int | None = None,
 ) -> SxSalesOrderRoutingLine:
-    # Baseline trên đơn = SMV sản phẩm (OB applied); fallback thư viện nếu chưa có.
-    library = src.library_unit_smv or Decimal('0')
+    # Baseline trên đơn = SMV sản phẩm (OB applied). Không lấy SMV thư viện.
     product = src.applied_unit_smv or Decimal('0')
-    if product <= 0 and library > 0:
-        product = library
     return SxSalesOrderRoutingLine(
         sales_order_line=order_line,
         source_routing_line_id=getattr(src, 'pk', None),
@@ -84,6 +81,8 @@ def _copy_from_routing_line(
         critical_qc=bool(src.critical_qc),
         notes=(src.notes or '')[:255],
         variance_explanation=(src.variance_explanation or '')[:500],
+        count_minutes=getattr(src, 'count_minutes', Decimal('0')) or Decimal('0'),
+        transfer_minutes=getattr(src, 'transfer_minutes', Decimal('0')) or Decimal('0'),
     )
 
 
@@ -118,8 +117,6 @@ def process_preview_from_routing(routing, *, limit: int = 80) -> list[dict]:
     for src in routing.lines.select_related('operation').order_by('seq_no', 'id')[:limit]:
         library = _q(src.library_unit_smv or 0)
         product = _q(src.applied_unit_smv or 0)
-        if product <= 0:
-            product = library
         code, name = _step_code_and_name(
             code=src.op_code,
             name=src.op_name_vi,
@@ -129,8 +126,11 @@ def process_preview_from_routing(routing, *, limit: int = 80) -> list[dict]:
             'seq': src.seq_no or 0,
             'code': code,
             'name': name,
+            'smv_library': str(library),
+            'smv_product': str(product),
             'smv_std': str(product),
             'smv': str(product),
+            'notes': (src.notes or '')[:255],
             'source': 'ie',
         })
     return out
@@ -156,6 +156,7 @@ def process_preview_from_bom(bom, *, limit: int = 80) -> list[dict]:
             'name': name,
             'smv_std': str(smv),
             'smv': str(smv),
+            'notes': (getattr(src, 'notes', None) or '')[:255],
             'source': 'bom',
         })
     return out
@@ -177,6 +178,9 @@ def _copy_from_process_step(order_line: SxSalesOrderLine, src) -> SxSalesOrderRo
         qty_per_garment=Decimal('1'),
         work_center=wc,
         work_center_code=(wc.code if wc else '')[:40],
+        count_minutes=getattr(src, 'count_minutes', Decimal('0')) or Decimal('0'),
+        transfer_minutes=getattr(src, 'transfer_minutes', Decimal('0')) or Decimal('0'),
+        notes=(getattr(src, 'notes', None) or '')[:255],
     )
 
 
@@ -184,7 +188,7 @@ def apply_smv_overrides(order_line: SxSalesOrderLine, overrides) -> int:
     """Ghi đè SMV đơn hàng theo seq từ form lên đơn (không đụng SMV sản phẩm baseline)."""
     if not overrides:
         return 0
-    by_seq: dict[int, tuple[Decimal, str]] = {}
+    by_seq: dict[int, tuple[Decimal, str, str | None]] = {}
     for row in overrides:
         if not isinstance(row, dict):
             continue
@@ -195,18 +199,24 @@ def apply_smv_overrides(order_line: SxSalesOrderLine, overrides) -> int:
             continue
         if seq > 0:
             expl = str(row.get('explanation') or row.get('reason') or '').strip()[:500]
-            by_seq[seq] = (smv, expl)
+            notes = None
+            if 'notes' in row or 'description' in row:
+                notes = str(row.get('notes') or row.get('description') or '').strip()[:255]
+            by_seq[seq] = (smv, expl, notes)
     n = 0
     for line in order_line.routing_lines.all():
         if line.seq_no not in by_seq:
             continue
-        smv, expl = by_seq[line.seq_no]
+        smv, expl, notes = by_seq[line.seq_no]
         line.applied_unit_smv = smv
         line.recompute()
         fields = ['applied_unit_smv', 'total_operation_smv', 'smv_variance_pct']
         if expl:
             line.variance_explanation = expl
             fields.append('variance_explanation')
+        if notes is not None:
+            line.notes = notes
+            fields.append('notes')
         line.save(update_fields=fields)
         n += 1
     return n
@@ -311,6 +321,8 @@ def steps_dicts_from_order_line(order_line: SxSalesOrderLine) -> list[dict]:
             'process_name': name,
             'work_center_id': wc_id,
             'manager_id': None,
+            'count_minutes': ln.count_minutes or Decimal('0'),
+            'transfer_minutes': ln.transfer_minutes or Decimal('0'),
         })
     return out
 
@@ -335,6 +347,8 @@ def sales_order_line_routing(order_line: SxSalesOrderLine):
                 process_name=line.op_name_vi or line.op_code or '',
                 work_center=wc,
                 minutes_per_unit=minutes,
+                count_minutes=_q(getattr(line, 'count_minutes', 0)),
+                transfer_minutes=_q(getattr(line, 'transfer_minutes', 0)),
             )
         )
     if rows:
@@ -392,6 +406,8 @@ def upsert_order_routing_line(
     variance_explanation: str = '',
     notes: str = '',
     critical_qc: bool | None = None,
+    count_minutes: Decimal | None = None,
+    transfer_minutes: Decimal | None = None,
 ) -> SxSalesOrderRoutingLine:
     order = order_line.order
     assert_order_routing_editable(order)
@@ -490,6 +506,10 @@ def upsert_order_routing_line(
         line.variance_explanation = (variance_explanation or '')[:500]
     if critical_qc is not None:
         line.critical_qc = bool(critical_qc)
+    if count_minutes is not None:
+        line.count_minutes = max(_q(count_minutes, '0.01'), Decimal('0'))
+    if transfer_minutes is not None:
+        line.transfer_minutes = max(_q(transfer_minutes, '0.01'), Decimal('0'))
     line.recompute()
     if line.is_high_variance and not (line.variance_explanation or '').strip():
         # Cho phép lưu nháp; confirm sẽ chặn. Không raise ở đây.

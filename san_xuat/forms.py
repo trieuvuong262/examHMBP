@@ -349,7 +349,10 @@ class ProcessStepForm(forms.ModelForm):
 
     class Meta:
         model = ProcessStep
-        fields = ('sequence', 'process_name', 'work_center', 'norm_per_hour', 'cost_per_hour', 'notes')
+        fields = (
+            'sequence', 'process_name', 'work_center', 'norm_per_hour', 'cost_per_hour',
+            'count_minutes', 'transfer_minutes', 'notes',
+        )
         widgets = {
             'sequence': forms.NumberInput(attrs={'class': 'form-control form-control-sm', 'min': '1'}),
             'work_center': forms.Select(attrs={
@@ -358,6 +361,8 @@ class ProcessStepForm(forms.ModelForm):
             }),
             'norm_per_hour': CompactNumberInput(attrs={'class': 'form-control form-control-sm', 'step': 'any', 'min': '0.01'}),
             'cost_per_hour': CompactNumberInput(attrs={'class': 'form-control form-control-sm', 'step': 'any', 'min': '0'}),
+            'count_minutes': CompactNumberInput(attrs={'class': 'form-control form-control-sm', 'step': 'any', 'min': '0'}),
+            'transfer_minutes': CompactNumberInput(attrs={'class': 'form-control form-control-sm', 'step': 'any', 'min': '0'}),
             'notes': forms.TextInput(attrs={'class': 'form-control form-control-sm'}),
         }
 

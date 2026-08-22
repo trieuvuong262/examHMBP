@@ -589,6 +589,7 @@ def doc_detail(request, pk):
                         ProcessStep.objects.filter(bom=bom, routing_line=line).update(
                             norm_per_hour=max(norm, Decimal('0.01')),
                             std_time_minutes=(smv / Decimal('60')).quantize(Decimal('0.01')),
+                            notes=notes_raw[:255],
                         )
                     updated += 1
                 if not updated:
@@ -596,7 +597,7 @@ def doc_detail(request, pk):
             except IeOpsError as exc:
                 messages.error(request, str(exc))
             else:
-                messages.success(request, f'Đã lưu {updated} công đoạn (SMV sản phẩm + ghi chú).')
+                messages.success(request, f'Đã lưu {updated} công đoạn (SMV sản phẩm + mô tả).')
             return _doc_tab_redirect(
                 request,
                 'process',

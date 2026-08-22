@@ -562,6 +562,22 @@ class SxRoutingLine(models.Model):
         verbose_name='Bộ phận chịu trách nhiệm',
     )
     work_center_code = models.CharField(max_length=40, blank=True, default='', verbose_name='Bộ phận (mã)')
+    count_minutes = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0'),
+        validators=[MinValueValidator(Decimal('0'))],
+        verbose_name='Kiểm đếm (phút)',
+        help_text='Sau công đoạn này, trước công đoạn sau. Chỉnh được, không cố định.',
+    )
+    transfer_minutes = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0'),
+        validators=[MinValueValidator(Decimal('0'))],
+        verbose_name='Vận chuyển (phút)',
+        help_text='Chuyển hàng sang công đoạn sau. Chỉnh được, không cố định.',
+    )
     predecessor_seq = models.PositiveIntegerField(null=True, blank=True, verbose_name='Công đoạn trước')
     parallel_group = models.CharField(max_length=40, blank=True, default='', verbose_name='Nhóm song song')
     bundle_size = models.PositiveIntegerField(null=True, blank=True, verbose_name='Cỡ bó')

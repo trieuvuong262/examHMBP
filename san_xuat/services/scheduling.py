@@ -49,6 +49,8 @@ class RoutingStep:
     process_name: str
     work_center: SxWorkCenter | None
     minutes_per_unit: Decimal
+    count_minutes: Decimal = field(default_factory=lambda: Decimal('0'))
+    transfer_minutes: Decimal = field(default_factory=lambda: Decimal('0'))
 
     @property
     def work_center_id(self) -> int | None:
@@ -73,8 +75,14 @@ class ProductRouting:
         return _q(sum((s.minutes_per_unit for s in self.steps), Decimal('0')), '0.0001')
 
     @property
+    def hop_buffer_minutes(self) -> Decimal:
+        from san_xuat.services.inter_step_times import hop_buffer_minutes
+
+        return hop_buffer_minutes(self.steps)
+
+    @property
     def has_time_data(self) -> bool:
-        return bool(self.steps) and self.total_smv > 0
+        return bool(self.steps) and (self.total_smv > 0 or self.hop_buffer_minutes > 0)
 
     def minutes_by_center(self) -> dict[int, Decimal]:
         """Phút/cái cộng dồn theo từng tổ (một tổ có thể làm nhiều công đoạn)."""
@@ -116,6 +124,8 @@ def product_routing(product_code: str) -> ProductRouting:
                 process_name=s.process_name or '',
                 work_center=s.work_center,
                 minutes_per_unit=_q(s.std_time_minutes, '0.0001'),
+                count_minutes=_q(getattr(s, 'count_minutes', 0)),
+                transfer_minutes=_q(getattr(s, 'transfer_minutes', 0)),
             )
             for i, s in enumerate(steps)
         ]
@@ -148,6 +158,8 @@ def product_routing(product_code: str) -> ProductRouting:
                     process_name=line.op_name_vi or line.op_code or '',
                     work_center=map_ie_center_to_hr(line.work_center) or line.work_center,
                     minutes_per_unit=minutes,
+                    count_minutes=_q(getattr(line, 'count_minutes', 0)),
+                    transfer_minutes=_q(getattr(line, 'transfer_minutes', 0)),
                 )
             )
         if rows:

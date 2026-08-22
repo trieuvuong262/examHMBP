@@ -341,13 +341,29 @@ class SxSalesOrderRoutingLine(models.Model):
     work_center_code = models.CharField(max_length=40, blank=True, default='', verbose_name='Bộ phận (mã)')
     skill_level_label = models.CharField(max_length=60, blank=True, default='', verbose_name='Bậc kỹ năng')
     critical_qc = models.BooleanField(default=False, verbose_name='QC trọng yếu')
-    notes = models.CharField(max_length=255, blank=True, default='', verbose_name='Ghi chú')
+    notes = models.CharField(max_length=255, blank=True, default='', verbose_name='Mô tả')
     variance_explanation = models.CharField(
         max_length=500,
         blank=True,
         default='',
         verbose_name='Giải trình lệch SMV',
         help_text='Bắt buộc khi |chênh lệch| > 15% trước khi xác nhận đơn.',
+    )
+    count_minutes = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0'),
+        validators=[MinValueValidator(Decimal('0'))],
+        verbose_name='Kiểm đếm (phút)',
+        help_text='Sau công đoạn này → công đoạn sau. Chỉnh theo đơn, không cố định.',
+    )
+    transfer_minutes = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0'),
+        validators=[MinValueValidator(Decimal('0'))],
+        verbose_name='Vận chuyển (phút)',
+        help_text='Chuyển hàng sang công đoạn sau. Chỉnh theo đơn, không cố định.',
     )
 
     class Meta:
@@ -414,6 +430,14 @@ class SxSalesOrderPlanStep(models.Model):
     planned_date = models.DateField(null=True, blank=True, db_index=True, verbose_name='Ngày kế hoạch')
     minutes_per_unit = models.DecimalField(
         max_digits=12, decimal_places=4, default=Decimal('0'), verbose_name='Phút / cái',
+    )
+    count_minutes = models.DecimalField(
+        max_digits=10, decimal_places=2, default=Decimal('0'),
+        verbose_name='Kiểm đếm (phút)',
+    )
+    transfer_minutes = models.DecimalField(
+        max_digits=10, decimal_places=2, default=Decimal('0'),
+        verbose_name='Vận chuyển (phút)',
     )
 
     class Meta:
@@ -982,6 +1006,14 @@ class SxMoProcessStep(models.Model):
         blank=True,
         db_index=True,
         verbose_name='ID công đoạn BOM nguồn',
+    )
+    count_minutes = models.DecimalField(
+        max_digits=10, decimal_places=2, default=Decimal('0'),
+        verbose_name='Kiểm đếm (phút)',
+    )
+    transfer_minutes = models.DecimalField(
+        max_digits=10, decimal_places=2, default=Decimal('0'),
+        verbose_name='Vận chuyển (phút)',
     )
 
     class Meta:
@@ -2770,6 +2802,20 @@ class SxGeneralSettings(models.Model):
         default=2,
         verbose_name='Số ngày chuẩn bị NPL trước khi sản xuất',
         help_text='Ngày cần NPL = ngày sản xuất sớm nhất của mã hàng − số ngày này.',
+    )
+    plan_count_minutes = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0'),
+        verbose_name='Kiểm đếm mặc định giữa công đoạn (phút)',
+        help_text='Gợi ý khi lên đơn / kế hoạch nếu công đoạn chưa khai báo. Có thể sửa từng khoảng CĐ — không cố định.',
+    )
+    plan_transfer_minutes = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0'),
+        verbose_name='Vận chuyển mặc định giữa công đoạn (phút)',
+        help_text='Gợi ý khi lên đơn / kế hoạch nếu công đoạn chưa khai báo. Có thể sửa từng khoảng CĐ — không cố định.',
     )
     mo_late_alert_days = models.PositiveSmallIntegerField(
         default=3,

@@ -140,3 +140,29 @@ class SxGeneralSettingsForm(forms.ModelForm):
             else:
                 cleaned[name] = raw[:16]
         return cleaned
+
+
+class SxInterStepSettingsForm(forms.ModelForm):
+    class Meta:
+        model = SxGeneralSettings
+        fields = ('plan_count_minutes', 'plan_transfer_minutes')
+        labels = {
+            'plan_count_minutes': 'Kiểm đếm mặc định',
+            'plan_transfer_minutes': 'Vận chuyển mặc định',
+        }
+        help_texts = {
+            'plan_count_minutes': 'Gợi ý khi chuyển hàng sang tổ khác nếu đơn chưa nhập. 0 = không gợi ý.',
+            'plan_transfer_minutes': 'Gợi ý khi chuyển hàng sang tổ khác nếu đơn chưa nhập. 0 = không gợi ý.',
+        }
+        widgets = {
+            'plan_count_minutes': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'step': '0.01',
+                'min': '0',
+            }),
+            'plan_transfer_minutes': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'step': '0.01',
+                'min': '0',
+            }),
+        }

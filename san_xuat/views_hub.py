@@ -340,6 +340,134 @@ def _user_can_sales_order_page(user) -> bool:
     )
 
 
+def _user_can_mutate_sales_order(user) -> bool:
+    return (
+        user_can_create_menu(user, MODULE_SAN_XUAT, 'order_create')
+        or user_can_update_menu(user, MODULE_SAN_XUAT, 'order_create')
+    )
+
+
+def _sales_order_size_form_context() -> dict:
+    suggest_sizes = ['S', 'M', 'L', 'XL', '2XL', '3XL']
+    size_num = ['1', '3', '5', '7', '9', '11', '13', '15']
+    size_alpha = ['S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL', '6XL']
+    size_none = [
+        {'code': 'OS', 'label': 'OS'},
+        {'code': 'NOSIZE', 'label': 'Không'},
+    ]
+    suggest_sizes_all = size_num + size_alpha
+    order_size_groups = [
+        {
+            'id': 'num',
+            'label': '',
+            'items': [{'code': s, 'label': s} for s in size_num],
+        },
+        {
+            'id': 'alpha',
+            'label': '',
+            'items': [{'code': s, 'label': s} for s in size_alpha],
+        },
+        {
+            'id': 'none',
+            'label': '',
+            'items': size_none,
+        },
+    ]
+    order_sizes_all = [it['code'] for g in order_size_groups for it in g['items']]
+    order_size_labels = {it['code']: it['label'] for g in order_size_groups for it in g['items']}
+    return {
+        'suggest_sizes': suggest_sizes,
+        'suggest_sizes_json': json.dumps(suggest_sizes, ensure_ascii=False),
+        'suggest_sizes_all': suggest_sizes_all,
+        'suggest_sizes_all_json': json.dumps(suggest_sizes_all, ensure_ascii=False),
+        'order_size_groups': order_size_groups,
+        'order_size_groups_json': json.dumps(order_size_groups, ensure_ascii=False),
+        'order_sizes_all_json': json.dumps(order_sizes_all, ensure_ascii=False),
+        'order_size_labels_json': json.dumps(order_size_labels, ensure_ascii=False),
+    }
+
+
+def _lines_from_sales_order_formset(formset) -> list:
+    from san_xuat.services.sales_orders import LineInput
+
+    lines: list[LineInput] = []
+    for f in formset:
+        if not hasattr(f, 'cleaned_data') or not f.cleaned_data:
+            continue
+        if f.cleaned_data.get('DELETE'):
+            continue
+        code = (f.cleaned_data.get('product_code') or '').strip()
+        qty = f.cleaned_data.get('qty')
+        if not code or not qty:
+            continue
+        size_raw = f.cleaned_data.get('size_qtys') or '{}'
+        try:
+            size_qtys = json.loads(size_raw) if isinstance(size_raw, str) else (size_raw or {})
+        except (TypeError, ValueError):
+            size_qtys = {}
+        smv_raw = f.cleaned_data.get('applied_smv_json') or '[]'
+        try:
+            applied_smv = json.loads(smv_raw) if isinstance(smv_raw, str) else (smv_raw or [])
+        except (TypeError, ValueError):
+            applied_smv = []
+        if not isinstance(applied_smv, list):
+            applied_smv = []
+        bom_raw = f.cleaned_data.get('applied_bom_json') or '[]'
+        try:
+            applied_bom = json.loads(bom_raw) if isinstance(bom_raw, str) else (bom_raw or [])
+        except (TypeError, ValueError):
+            applied_bom = []
+        if not isinstance(applied_bom, list):
+            applied_bom = []
+        lines.append(
+            LineInput(
+                product_code=code,
+                product_name=f.cleaned_data.get('product_name') or '',
+                qty=qty,
+                qty_scrap_rate=Decimal('0'),
+                size_qtys=size_qtys if isinstance(size_qtys, dict) else {},
+                bom_version_id=f.cleaned_data.get('bom_version_id'),
+                routing_id=f.cleaned_data.get('routing_id'),
+                applied_smv=applied_smv,
+                applied_bom=applied_bom,
+            )
+        )
+    return lines
+
+
+def _sales_order_line_form_initial(order) -> list[dict]:
+    rows: list[dict] = []
+    for ln in order.lines.all():
+        applied_smv = [
+            {
+                'seq': rl.seq_no,
+                'smv': float(rl.applied_unit_smv or 0),
+                'notes': rl.notes or '',
+            }
+            for rl in ln.routing_lines.all()
+        ]
+        rows.append({
+            'product_code': ln.product_code or '',
+            'product_name': ln.product_name or '',
+            'bom_version_id': str(ln.bom_version_id or ''),
+            'routing_id': str(ln.routing_id or ''),
+            'qty': ln.qty,
+            'size_qtys': ln.size_qtys or {},
+            'applied_smv_json': json.dumps(applied_smv, ensure_ascii=False),
+            'applied_bom_json': json.dumps(ln.bom_line_overrides or [], ensure_ascii=False),
+        })
+    return rows
+
+
+def _order_creator_label(user) -> str:
+    profile = getattr(user, 'profile', None)
+    return (
+        (getattr(profile, 'full_name', None) or '').strip()
+        or (user.get_full_name() or '').strip()
+        or user.get_username()
+    )
+
+
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def sales_order_list(request):
     """Danh sách đơn đặt hàng sản xuất (SoT Portal)."""
@@ -398,14 +526,11 @@ def sales_order_list(request):
 def sales_order_create(request):
     if not user_can_access_menu(request.user, MODULE_SAN_XUAT, 'order_create'):
         return handle_menu_access_denied(request, MODULE_SAN_XUAT, 'order_create')
-    if request.method == 'POST' and not (
-        user_can_create_menu(request.user, MODULE_SAN_XUAT, 'order_create')
-        or user_can_update_menu(request.user, MODULE_SAN_XUAT, 'order_create')
-    ):
+    if request.method == 'POST' and not _user_can_mutate_sales_order(request.user):
         return handle_menu_access_denied(request, MODULE_SAN_XUAT, 'order_create')
 
     from san_xuat.forms_sales_order import SalesOrderHeaderForm, SalesOrderLineFormSet
-    from san_xuat.services.sales_orders import LineInput, create_sales_order
+    from san_xuat.services.sales_orders import create_sales_order
 
     header = SalesOrderHeaderForm(
         request.POST or None,
@@ -419,48 +544,7 @@ def sales_order_create(request):
 
     if request.method == 'POST':
         if header.is_valid() and formset.is_valid():
-            lines: list[LineInput] = []
-            for f in formset:
-                if not hasattr(f, 'cleaned_data') or not f.cleaned_data:
-                    continue
-                if f.cleaned_data.get('DELETE'):
-                    continue
-                code = (f.cleaned_data.get('product_code') or '').strip()
-                qty = f.cleaned_data.get('qty')
-                if not code or not qty:
-                    continue
-                size_raw = f.cleaned_data.get('size_qtys') or '{}'
-                try:
-                    size_qtys = json.loads(size_raw) if isinstance(size_raw, str) else (size_raw or {})
-                except (TypeError, ValueError):
-                    size_qtys = {}
-                smv_raw = f.cleaned_data.get('applied_smv_json') or '[]'
-                try:
-                    applied_smv = json.loads(smv_raw) if isinstance(smv_raw, str) else (smv_raw or [])
-                except (TypeError, ValueError):
-                    applied_smv = []
-                if not isinstance(applied_smv, list):
-                    applied_smv = []
-                bom_raw = f.cleaned_data.get('applied_bom_json') or '[]'
-                try:
-                    applied_bom = json.loads(bom_raw) if isinstance(bom_raw, str) else (bom_raw or [])
-                except (TypeError, ValueError):
-                    applied_bom = []
-                if not isinstance(applied_bom, list):
-                    applied_bom = []
-                lines.append(
-                    LineInput(
-                        product_code=code,
-                        product_name=f.cleaned_data.get('product_name') or '',
-                        qty=qty,
-                        qty_scrap_rate=Decimal('0'),
-                        size_qtys=size_qtys if isinstance(size_qtys, dict) else {},
-                        bom_version_id=f.cleaned_data.get('bom_version_id'),
-                        routing_id=f.cleaned_data.get('routing_id'),
-                        applied_smv=applied_smv,
-                        applied_bom=applied_bom,
-                    )
-                )
+            lines = _lines_from_sales_order_formset(formset)
             try:
                 order = create_sales_order(
                     code=header.cleaned_data.get('code') or '',
@@ -479,30 +563,90 @@ def sales_order_create(request):
                 return redirect('san_xuat:sales_order_detail', pk=order.pk)
         messages.error(request, 'Không tạo được đơn — kiểm tra lại form.')
 
-    # Size chuẩn công cụ đề xuất SL
-    suggest_sizes = ['S', 'M', 'L', 'XL', '2XL', '3XL']
-    suggest_sizes_all = [
-        '1', '3', '5', '7', '9', '11', '13', '15',
-        'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL', '6XL',
-    ]
-    u = request.user
-    profile = getattr(u, 'profile', None)
-    order_creator_label = (
-        (getattr(profile, 'full_name', None) or '').strip()
-        or (u.get_full_name() or '').strip()
-        or u.get_username()
-    )
     return render(request, 'san_xuat/sales_order_form.html', {
         **_perm_ctx(request),
+        **_sales_order_size_form_context(),
         'header': header,
         'formset': formset,
         'is_create': True,
-        'order_creator_label': order_creator_label,
+        'order': None,
+        'order_creator_label': _order_creator_label(request.user),
         'order_created_at': timezone.localtime(),
-        'suggest_sizes': suggest_sizes,
-        'suggest_sizes_json': json.dumps(suggest_sizes, ensure_ascii=False),
-        'suggest_sizes_all': suggest_sizes_all,
-        'suggest_sizes_all_json': json.dumps(suggest_sizes_all, ensure_ascii=False),
+    })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+def sales_order_edit(request, pk: int):
+    """Sửa đơn đặt hàng khi chưa sản xuất (chưa có LSX còn hiệu lực)."""
+    if not user_can_access_menu(request.user, MODULE_SAN_XUAT, 'order_create'):
+        return handle_menu_access_denied(request, MODULE_SAN_XUAT, 'order_create')
+    if not _user_can_mutate_sales_order(request.user):
+        return handle_menu_access_denied(request, MODULE_SAN_XUAT, 'order_create')
+
+    from san_xuat.forms_sales_order import SalesOrderHeaderForm, SalesOrderLineFormSet
+    from san_xuat.hub_models import SxSalesOrder
+    from san_xuat.services.sales_orders import sales_order_is_editable, update_sales_order
+
+    order = get_object_or_404(
+        SxSalesOrder.objects.prefetch_related('lines__routing_lines'),
+        pk=pk,
+        is_demo=False,
+    )
+    if not sales_order_is_editable(order):
+        messages.error(request, 'Đơn đã vào sản xuất — không sửa được.')
+        return redirect('san_xuat:sales_order_detail', pk=order.pk)
+
+    header = SalesOrderHeaderForm(
+        request.POST or None,
+        request.FILES or None,
+        initial={
+            'code': order.code,
+            'customer_name': order.customer_name,
+            'request_date': order.request_date,
+            'due_date': order.due_date,
+            'notes': order.notes,
+        },
+    )
+    formset = SalesOrderLineFormSet(
+        request.POST or None,
+        prefix='lines',
+        initial=_sales_order_line_form_initial(order),
+    )
+
+    if request.method == 'POST':
+        if header.is_valid() and formset.is_valid():
+            lines = _lines_from_sales_order_formset(formset)
+            try:
+                order = update_sales_order(
+                    order_id=order.pk,
+                    code=header.cleaned_data.get('code') or order.code,
+                    customer_name=header.cleaned_data.get('customer_name') or '',
+                    request_date=header.cleaned_data['request_date'],
+                    due_date=header.cleaned_data.get('due_date'),
+                    notes=header.cleaned_data.get('notes') or '',
+                    attachment=header.cleaned_data.get('attachment') or None,
+                    lines=lines,
+                )
+            except PlanningError as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(request, f'Đã cập nhật đơn {order.code}.')
+                return redirect('san_xuat:sales_order_detail', pk=order.pk)
+        messages.error(request, 'Không lưu được đơn — kiểm tra lại form.')
+
+    creator = order.created_by
+    creator_label = (
+        (creator.get_full_name() or creator.get_username()) if creator else '—'
+    )
+    return render(request, 'san_xuat/sales_order_form.html', {
+        **_perm_ctx(request),
+        **_sales_order_size_form_context(),
+        'header': header,
+        'formset': formset,
+        'is_create': False,
+        'order': order,
+        'order_creator_label': creator_label,
+        'order_created_at': order.created_at or timezone.localtime(),
     })
 
 
@@ -689,6 +833,8 @@ def _handle_order_routing_post(request, order) -> bool:
         total_unit_price=_so_dec(request.POST.get('total_unit_price'), '0'),
         variance_explanation=(request.POST.get('variance_explanation') or '').strip(),
         notes=(request.POST.get('notes') or '').strip(),
+        count_minutes=_so_dec(request.POST.get('count_minutes'), '0'),
+        transfer_minutes=_so_dec(request.POST.get('transfer_minutes'), '0'),
     )
     messages.success(request, 'Đã lưu công đoạn trên đơn.')
     return True
@@ -709,6 +855,7 @@ def sales_order_detail(request, pk: int):
         confirm_sales_order,
         production_status_summary,
         reject_sales_order,
+        sales_order_is_editable,
     )
 
     order = get_object_or_404(
@@ -762,6 +909,11 @@ def sales_order_detail(request, pk: int):
                     return redirect('san_xuat:sales_order_detail', pk=order.pk)
 
     prod_status = production_status_summary(order)
+    can_edit_order = (
+        sales_order_is_editable(order)
+        and user_can_access_menu(request.user, MODULE_SAN_XUAT, 'order_create')
+        and _user_can_mutate_sales_order(request.user)
+    )
     edit_rt = None
     edit_pk = (request.GET.get('edit_rt') or '').strip()
     if edit_pk.isdigit() and can_edit_routing and not routing_locked:
@@ -792,6 +944,7 @@ def sales_order_detail(request, pk: int):
         'reject_form': reject_form,
         'prod_status': prod_status,
         'prod_label': PROD_STATUS_LABELS.get(prod_status, prod_status),
+        'can_edit_order': can_edit_order,
     })
 
 
@@ -1163,6 +1316,7 @@ def plan_board(request):
         hold_plan_order,
         pipeline_counts,
         release_order_to_production,
+        save_plan_hops,
         set_plan_priority,
         sync_plan_status,
         unhold_plan_order,
@@ -1191,7 +1345,7 @@ def plan_board(request):
         return redirect('san_xuat:plan_route')
     mode = 'list'
 
-    tab = (request.GET.get('tab') or 'queue').strip()
+    tab = (request.GET.get('tab') or request.POST.get('tab') or 'queue').strip()
     if tab == 'load':
         from urllib.parse import urlencode
         params = {'mode': 'list', 'tab': 'queue'}
@@ -1233,6 +1387,37 @@ def plan_board(request):
             elif action == 'unhold' and can_schedule and order_id:
                 unhold_plan_order(order_id=order_id)
                 messages.success(request, 'Đã bỏ giữ — đơn về chờ xếp.')
+            elif action == 'save_hops' and can_schedule and order_id:
+                hops = []
+                one_id = (request.POST.get('hop_step_id') or '').strip()
+                if one_id.isdigit():
+                    hops.append({
+                        'step_id': int(one_id),
+                        'count_minutes': request.POST.get('count_minutes') or 0,
+                        'transfer_minutes': request.POST.get('transfer_minutes') or 0,
+                    })
+                    if not request.POST.get('hop_clear'):
+                        from decimal import Decimal, InvalidOperation
+                        try:
+                            c = Decimal(str(hops[0]['count_minutes'] or 0))
+                            t = Decimal(str(hops[0]['transfer_minutes'] or 0))
+                        except (InvalidOperation, TypeError, ValueError):
+                            c = t = Decimal('0')
+                        if c <= 0 and t <= 0:
+                            raise PlanningError('Nhập phút kiểm đếm hoặc vận chuyển.')
+                for key, val in request.POST.items():
+                    if not key.startswith('count_for__'):
+                        continue
+                    sid = key[len('count_for__'):].strip()
+                    if not sid.isdigit():
+                        continue
+                    hops.append({
+                        'step_id': int(sid),
+                        'count_minutes': val,
+                        'transfer_minutes': request.POST.get(f'transfer_for__{sid}') or 0,
+                    })
+                save_plan_hops(order_id=order_id, hops=hops)
+                messages.success(request, 'Đã lưu thời gian kiểm đếm / vận chuyển.')
             elif action == 'release' and can_release and order_id:
                 bom_by_product: dict[str, int] = {}
                 routing_by_product: dict[str, int] = {}
@@ -1300,6 +1485,53 @@ def plan_board(request):
         'plan_status_labels': PLAN_STATUS_LABELS,
         'priority_labels': PRIORITY_LABELS,
         'priority_choices': SxSalesOrder.PRIORITY_CHOICES,
+    })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+def plan_inter_step(request):
+    """Thiết lập phút kiểm đếm / vận chuyển mặc định khi chuyển sang tổ khác."""
+    from san_xuat.forms_settings import SxInterStepSettingsForm
+    from san_xuat.hub_models import SxGeneralSettings
+
+    menu_key = 'plan_inter_step'
+    if not (
+        user_can_access_menu(request.user, MODULE_SAN_XUAT, menu_key)
+        or user_can_access_menu(request.user, MODULE_SAN_XUAT, 'plan_board')
+        or user_can_access_menu(request.user, MODULE_SAN_XUAT, 'plan')
+    ):
+        return handle_menu_access_denied(request, MODULE_SAN_XUAT, menu_key)
+
+    can_update = (
+        user_can_update_menu(request.user, MODULE_SAN_XUAT, menu_key)
+        or user_can_update_menu(request.user, MODULE_SAN_XUAT, 'plan_board')
+        or user_can_update_menu(request.user, MODULE_SAN_XUAT, 'plan')
+    )
+    cfg = SxGeneralSettings.load()
+
+    if request.method == 'POST':
+        if not can_update:
+            messages.error(request, 'Bạn không có quyền cập nhật thời gian trung gian.')
+            return redirect('san_xuat:plan_inter_step')
+        form = SxInterStepSettingsForm(request.POST, instance=cfg)
+        if form.is_valid():
+            obj = form.save(commit=False)
+            obj.updated_by = request.user
+            obj.save(update_fields=['plan_count_minutes', 'plan_transfer_minutes', 'updated_by', 'updated_at'])
+            messages.success(request, 'Đã lưu thời gian trung gian mặc định.')
+            return redirect('san_xuat:plan_inter_step')
+        messages.error(request, 'Không lưu được — kiểm tra lại số phút.')
+    else:
+        form = SxInterStepSettingsForm(instance=cfg)
+
+    if not can_update:
+        for field in form.fields.values():
+            field.widget.attrs['readonly'] = True
+
+    return render(request, 'san_xuat/plan_inter_step.html', {
+        'form': form,
+        'can_update': can_update,
+        **_perm_ctx(request),
     })
 
 
