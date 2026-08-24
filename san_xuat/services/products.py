@@ -273,6 +273,56 @@ def find_tech_doc_for_product(product):
     return None
 
 
+def product_lookup_codes(product_code: str) -> list[str]:
+    """Mã cùng một hàng (mã SX / SKU / KV) để khớp hồ sơ, BOM, OB."""
+    code = _norm(product_code)
+    out: list[str] = []
+    seen: set[str] = set()
+
+    def add(raw) -> None:
+        value = _norm(raw)
+        key = value.casefold()
+        if not value or key in seen:
+            return
+        seen.add(key)
+        out.append(value)
+
+    add(code)
+    ref = resolve_product_ref(code)
+    if ref:
+        add(ref.code)
+    product = find_product(code)
+    if product:
+        add(getattr(product, 'style_code', None))
+        add(getattr(product, 'code', None))
+        add(getattr(product, 'kiotviet_code', None))
+        add(product_sx_code(product))
+        style = _norm(getattr(product, 'style_code', None))
+        if style:
+            try:
+                from kho_san_pham.models import Product
+
+                for sku in Product.objects.filter(style_code__iexact=style).values_list(
+                    'code', 'kiotviet_code',
+                )[:80]:
+                    add(sku[0])
+                    add(sku[1])
+            except Exception:
+                pass
+    return out
+
+
+def find_tech_doc_for_code(product_code: str):
+    """Tìm hồ sơ SX theo mã nhập (style / SKU / mã KV)."""
+    from san_xuat.models import ProductTechDoc
+
+    for code in product_lookup_codes(product_code):
+        doc = ProductTechDoc.objects.filter(product_code__iexact=code).first()
+        if doc:
+            return doc
+    return find_tech_doc_for_product(find_product(product_code))
+
+
 def search_products(q: str = '', *, limit: int = 30) -> list[dict]:
     """TomSelect: danh sách mã SX từ kho SP (gom nhiều SKU theo style_code)."""
     q = _norm(q)

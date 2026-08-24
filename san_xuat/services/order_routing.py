@@ -530,10 +530,7 @@ def delete_order_routing_line(*, order_line: SxSalesOrderLine, line_pk: int) -> 
 @transaction.atomic
 def attach_order_line_routing(order_line: SxSalesOrderLine, *, routing_id: int) -> int:
     """Gắn routing mã hàng vào dòng đơn (nháp) rồi seed snapshot."""
-    from django.db.models import Q
-
     from san_xuat.ie_models import SxRouting
-    from san_xuat.models import ProductTechDoc
 
     assert_order_routing_editable(order_line.order)
     try:
@@ -543,11 +540,7 @@ def attach_order_line_routing(order_line: SxSalesOrderLine, *, routing_id: int) 
     code = (order_line.product_code or '').strip()
     qs = SxRouting.objects.filter(pk=rid)
     if code:
-        doc = ProductTechDoc.objects.filter(product_code__iexact=code).only('pk').first()
-        q = Q(style_code__iexact=code)
-        if doc:
-            q |= Q(tech_doc_id=doc.pk)
-        qs = qs.filter(q)
+        qs = qs.filter(_routing_q_for_product(code))
     routing = qs.first()
     if routing is None:
         raise OrderRoutingError('Phiên bản công đoạn không tồn tại hoặc không thuộc mã này.')
@@ -556,19 +549,35 @@ def attach_order_line_routing(order_line: SxSalesOrderLine, *, routing_id: int) 
     return seed_order_line_routing(order_line, routing=routing, replace=True)
 
 
-def routings_for_product(product_code: str):
+def _routing_q_for_product(product_code: str):
     from django.db.models import Q
 
+    from san_xuat.services.products import find_tech_doc_for_code, product_lookup_codes
+
+    code = (product_code or '').strip()
+    q = Q()
+    if not code:
+        return q
+    for item in product_lookup_codes(code):
+        q |= Q(style_code__iexact=item)
+    doc = find_tech_doc_for_code(code)
+    if doc:
+        q |= Q(tech_doc_id=doc.pk) | Q(bom_versions__tech_doc_id=doc.pk)
+        doc_code = (doc.product_code or '').strip()
+        if doc_code:
+            q |= Q(style_code__iexact=doc_code)
+    return q
+
+
+def routings_for_product(product_code: str):
     from san_xuat.ie_models import SxRouting
-    from san_xuat.models import ProductTechDoc
 
     code = (product_code or '').strip()
     if not code:
         return []
-    q = Q(style_code__iexact=code)
-    doc = ProductTechDoc.objects.filter(product_code__iexact=code).only('pk').first()
-    if doc:
-        q |= Q(tech_doc_id=doc.pk) | Q(bom_versions__tech_doc_id=doc.pk)
+    q = _routing_q_for_product(code)
+    if not q:
+        return []
     return list(SxRouting.objects.filter(q).distinct().order_by('routing_rev', 'id'))
 
 

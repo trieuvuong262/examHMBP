@@ -1322,13 +1322,14 @@ def sales_order_line_versions_api(request):
     from decimal import Decimal
 
     from san_xuat.ie_models import SxRouting
-    from san_xuat.models import ProductTechDoc
     from san_xuat.services.order_routing import (
         default_routing_for_product,
         process_preview_from_bom,
         process_preview_from_routing,
+        routings_for_product,
         smv_from_process_step,
     )
+    from san_xuat.services.products import find_tech_doc_for_code
 
     from urllib.parse import urlencode
 
@@ -1355,15 +1356,16 @@ def sales_order_line_versions_api(request):
     if not product_code:
         return JsonResponse(payload)
 
-    doc = ProductTechDoc.objects.filter(product_code__iexact=product_code).first()
+    doc = find_tech_doc_for_code(product_code)
     if doc:
         payload['tech_doc_id'] = doc.pk
         payload['doc_url'] = reverse('san_xuat:doc_detail', kwargs={'pk': doc.pk})
+        routing_qs['style_code'] = (doc.product_code or product_code).strip()
         if (doc.product_name or '').strip():
             routing_qs['style_name'] = doc.product_name.strip()
-            payload['routing_create_url'] = (
-                reverse('san_xuat:ie_routing_create') + '?' + urlencode(routing_qs)
-            )
+        payload['routing_create_url'] = (
+            reverse('san_xuat:ie_routing_create') + '?' + urlencode(routing_qs)
+        )
         boms = list(
             doc.bom_versions.prefetch_related(
                 'process_steps',
@@ -1389,15 +1391,8 @@ def sales_order_line_versions_api(request):
                 'line_count': bom.lines.count() if hasattr(bom, 'lines') else 0,
                 'total_smv': str(total_smv.quantize(Decimal('0.01'))),
             })
-        routings = SxRouting.objects.filter(
-            Q(style_code__iexact=product_code)
-            | Q(tech_doc_id=doc.pk)
-            | Q(bom_versions__tech_doc_id=doc.pk)
-        ).distinct().order_by('routing_rev', 'id')
-    else:
-        routings = SxRouting.objects.filter(style_code__iexact=product_code).order_by(
-            'routing_rev', 'id',
-        )
+
+    routings = routings_for_product(product_code)
 
     for rt in routings:
         rev = (rt.routing_rev or '').strip() or f'#{rt.pk}'

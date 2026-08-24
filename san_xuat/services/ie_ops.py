@@ -268,7 +268,9 @@ def _next_routing_rev(style_code: str, preferred: str = 'R01') -> str:
     if not preferred.startswith('R'):
         preferred = f'R{preferred}'
     existing = set(
-        SxRouting.objects.filter(style_code=style_code).values_list('routing_rev', flat=True)
+        SxRouting.objects.filter(style_code__iexact=style_code).values_list(
+            'routing_rev', flat=True,
+        )
     )
     if preferred not in existing:
         return preferred
@@ -318,17 +320,23 @@ def create_blank_routing(
     if tech_doc is not None:
         default_style = (getattr(tech_doc, 'product_code', None) or '').strip()
     seed = (routing_id or style_code or default_style).strip()
-    style, rev, rid = _parse_routing_input(seed, default_style=default_style)
+    parsed_style, rev, _rid = _parse_routing_input(seed, default_style=default_style)
+    # Neo theo mã hồ sơ SX — tránh parser cắt nhầm hậu tố kiểu -R01.
+    style = default_style or parsed_style
     rev = _next_routing_rev(style, preferred=rev)
     rid = f'{style}-{rev}'
 
-    if SxRouting.objects.filter(routing_id=rid).exists():
+    if SxRouting.objects.filter(routing_id__iexact=rid).exists():
         raise IeOpsError(f'Routing {rid} đã tồn tại.')
 
     if tech_doc is None:
         from san_xuat.models import ProductTechDoc
+        from san_xuat.services.products import find_tech_doc_for_code
 
-        tech_doc = ProductTechDoc.objects.filter(product_code__iexact=style).first()
+        tech_doc = (
+            find_tech_doc_for_code(style)
+            or ProductTechDoc.objects.filter(product_code__iexact=style).first()
+        )
     if not style_name and tech_doc is not None:
         style_name = (getattr(tech_doc, 'product_name', None) or '')[:255]
     if not style_name:
@@ -340,7 +348,7 @@ def create_blank_routing(
 
     from san_xuat.ie_permissions import ie_user_display_name
 
-    return SxRouting.objects.create(
+    routing = SxRouting.objects.create(
         routing_id=rid,
         style_code=style,
         style_name=(style_name or '')[:255],
@@ -354,6 +362,14 @@ def create_blank_routing(
         notes='',
         created_by=user if getattr(user, 'is_authenticated', False) else None,
     )
+    if tech_doc is not None:
+        from san_xuat.services.bom import get_working_bom
+
+        bom = get_working_bom(tech_doc)
+        if bom is not None and not bom.routing_id:
+            bom.routing = routing
+            bom.save(update_fields=['routing', 'updated_at'])
+    return routing
 
 
 def _next_op_rev(op_code: str, preferred: str = 'R01') -> str:

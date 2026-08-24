@@ -760,10 +760,12 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
       opt.textContent = it.text || it.label || String(it.id);
       sel.appendChild(opt);
     });
-    if (!(items || []).length && createUrl) {
+    if (createUrl) {
       var createOpt = document.createElement('option');
       createOpt.value = CREATE_VAL;
-      createOpt.textContent = createLabel || '＋ Mở hồ sơ';
+      createOpt.textContent = (items || []).length
+        ? (createLabel ? createLabel.replace(/^＋ Tạo /, '＋ Tạo thêm ') : '＋ Tạo thêm trên hồ sơ')
+        : (createLabel || '＋ Mở hồ sơ');
       createOpt.dataset.createUrl = createUrl;
       sel.appendChild(createOpt);
     }
@@ -1063,7 +1065,7 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
       }
       var steps = data.steps || [];
       var source = data.steps_source || '';
-      if (selectedRoutingId(row) && source === 'ie' && steps.length) {
+      if (steps.length && (selectedRoutingId(row) || source === 'ie')) {
         opsGroups.push({ key: key, label: label, steps: steps });
         opsCount += steps.length;
       }
@@ -1071,9 +1073,14 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
     npl.innerHTML = nplGroups.length
       ? renderNplTable(nplGroups)
       : '<p class="text-muted small mb-0">Chọn sản phẩm và BOM để hiện định mức.</p>';
-    ops.innerHTML = opsGroups.length
-      ? renderOpsTable(opsGroups)
-      : '<p class="text-muted small mb-0">Chọn sản phẩm và OB để hiện công đoạn.</p>';
+    if (opsGroups.length) {
+      ops.innerHTML = renderOpsTable(opsGroups);
+    } else {
+      var hasRt = visibleLineRows().some(function (row) { return selectedRoutingId(row); });
+      ops.innerHTML = hasRt
+        ? '<p class="text-muted small mb-0">OB đã chọn nhưng chưa có công đoạn. Mở hồ sơ để thêm công đoạn.</p>'
+        : '<p class="text-muted small mb-0">Chọn sản phẩm và OB để hiện công đoạn.</p>';
+    }
     setBoardCount('jp-so-npl-count', nplCount);
     setBoardCount('jp-so-ops-count', opsCount);
   }
@@ -1143,11 +1150,11 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
       .then(function (r) { return r.json(); })
       .then(function (data) {
         var bomUrl = data.doc_url
-          ? (data.doc_url + (data.doc_url.indexOf('?') >= 0 ? '&' : '?') + 'tab=bom')
+          ? (data.doc_url + (data.doc_url.indexOf('?') >= 0 ? '&' : '?') + 'tab=bom&edit=1')
           : (data.create_url || '');
         var rtUrl = data.doc_url
-          ? (data.doc_url + (data.doc_url.indexOf('?') >= 0 ? '&' : '?') + 'tab=process')
-          : (data.create_url || '');
+          ? (data.doc_url + (data.doc_url.indexOf('?') >= 0 ? '&' : '?') + 'tab=process&edit=1')
+          : (data.routing_create_url || data.create_url || '');
         var routings = data.routings || [];
         var autoRt = keepRouting || data.default_routing_id || '';
         if (!autoRt && routings.length === 1) autoRt = routings[0].id;
@@ -1182,6 +1189,30 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
   window.jpSoLoadLineVersions = loadVersions;
   window.jpSoRefreshBoards = refreshBoards;
 
+  var pendingCreateReload = false;
+  var reloadTimer = null;
+  function reloadVisibleRows() {
+    visibleLineRows().forEach(function (row) {
+      if (!productCodeOf(row)) return;
+      loadVersions(row, selectedBomId(row), selectedRoutingId(row), true, true);
+    });
+  }
+  function scheduleReloadVisible(force) {
+    if (!force && !pendingCreateReload) return;
+    pendingCreateReload = false;
+    if (reloadTimer) clearTimeout(reloadTimer);
+    reloadTimer = setTimeout(function () {
+      reloadTimer = null;
+      reloadVisibleRows();
+    }, 350);
+  }
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible') scheduleReloadVisible(false);
+  });
+  window.addEventListener('focus', function () {
+    scheduleReloadVisible(false);
+  });
+
   document.addEventListener('jp-so-product-changed', function (e) {
     var row = e.target && e.target.closest ? e.target.closest('tr.jp-so-line-row') : null;
     if (!row) return;
@@ -1198,6 +1229,7 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
       var opt = sel.options[sel.selectedIndex];
       var url = (opt && opt.dataset.createUrl) || '';
       sel.value = '';
+      pendingCreateReload = true;
       if (url) window.open(url, '_blank', 'noopener');
       return;
     }
