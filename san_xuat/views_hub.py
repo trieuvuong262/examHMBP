@@ -1490,9 +1490,15 @@ def plan_board(request):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def plan_inter_step(request):
-    """Thiết lập phút kiểm đếm / vận chuyển mặc định khi chuyển sang tổ khác."""
+    """Thiết lập phút kiểm đếm / vận chuyển mặc định theo cặp bộ phận."""
+    from decimal import Decimal, InvalidOperation
+
+    from django.db import transaction
+
     from san_xuat.forms_settings import SxInterStepSettingsForm
     from san_xuat.hub_models import SxGeneralSettings
+    from san_xuat.services.inter_step_times import hop_pair_form_context, save_hop_pair_minutes
+    from san_xuat.services.team_division_map import team_slug_choices
 
     menu_key = 'plan_inter_step'
     if not (
@@ -1509,16 +1515,42 @@ def plan_inter_step(request):
     )
     cfg = SxGeneralSettings.load()
 
+    def _parse_minutes(raw):
+        text = str(raw or '').strip().replace(',', '.')
+        if text == '':
+            return None
+        try:
+            return max(Decimal(text), Decimal('0'))
+        except (InvalidOperation, ValueError, TypeError):
+            raise ValueError('invalid')
+
     if request.method == 'POST':
         if not can_update:
             messages.error(request, 'Bạn không có quyền cập nhật thời gian trung gian.')
             return redirect('san_xuat:plan_inter_step')
         form = SxInterStepSettingsForm(request.POST, instance=cfg)
-        if form.is_valid():
-            obj = form.save(commit=False)
-            obj.updated_by = request.user
-            obj.save(update_fields=['plan_count_minutes', 'plan_transfer_minutes', 'updated_by', 'updated_at'])
-            messages.success(request, 'Đã lưu thời gian trung gian mặc định.')
+        hop_entries = []
+        hop_ok = True
+        for from_slug, _fl in team_slug_choices():
+            for to_slug, _tl in team_slug_choices():
+                if from_slug == to_slug:
+                    continue
+                try:
+                    count = _parse_minutes(request.POST.get(f'hop_{from_slug}_{to_slug}_count'))
+                    transfer = _parse_minutes(request.POST.get(f'hop_{from_slug}_{to_slug}_transfer'))
+                except ValueError:
+                    hop_ok = False
+                    break
+                hop_entries.append((from_slug, to_slug, count, transfer))
+            if not hop_ok:
+                break
+        if form.is_valid() and hop_ok:
+            with transaction.atomic():
+                obj = form.save(commit=False)
+                obj.updated_by = request.user
+                obj.save(update_fields=['plan_count_minutes', 'plan_transfer_minutes', 'updated_by', 'updated_at'])
+                save_hop_pair_minutes(hop_entries, user=request.user)
+            messages.success(request, 'Đã lưu thời gian trung gian theo cặp bộ phận.')
             return redirect('san_xuat:plan_inter_step')
         messages.error(request, 'Không lưu được — kiểm tra lại số phút.')
     else:
@@ -1531,6 +1563,7 @@ def plan_inter_step(request):
     return render(request, 'san_xuat/plan_inter_step.html', {
         'form': form,
         'can_update': can_update,
+        **hop_pair_form_context(),
         **_perm_ctx(request),
     })
 

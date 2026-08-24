@@ -5,7 +5,9 @@ Mỗi khoảng giữa hai tổ liền kề:
 
 Cùng tổ (nhiều công đoạn) không phát sinh trung gian.
 Đơn vị: phút / khoảng (theo lô, không nhân SMV). 0 = không phát sinh.
-Mặc định nhà máy lấy từ Thời gian trung gian; từng đơn ghi đè bằng nút + trên bảng kế hoạch.
+
+Mặc định theo cặp bộ phận (Cắt→May khác May→Ủi) trên trang Thời gian trung gian;
+nếu chưa khai báo cặp thì dùng mặc định chung. Từng đơn ghi đè bằng nút + trên bảng kế hoạch.
 """
 
 from __future__ import annotations
@@ -24,19 +26,81 @@ def _q(value, places: str = '0.01') -> Decimal:
     return Decimal(str(value or 0)).quantize(Decimal(places))
 
 
-def default_hop_minutes() -> tuple[Decimal, Decimal]:
+def _norm_slug(value) -> str | None:
+    s = (value or '').strip().lower()
+    return s or None
+
+
+def hop_pair_map() -> dict[tuple[str, str], tuple[Decimal, Decimal]]:
+    """Cặp bộ phận đã khai báo → (kiểm đếm, vận chuyển)."""
+    from san_xuat.hub_models import SxInterStepHop
+
+    rows = SxInterStepHop.objects.values_list(
+        'from_slug', 'to_slug', 'count_minutes', 'transfer_minutes',
+    )
+    return {
+        (_norm_slug(a) or '', _norm_slug(b) or ''): (max(_q(c), Decimal('0')), max(_q(t), Decimal('0')))
+        for a, b, c, t in rows
+        if _norm_slug(a) and _norm_slug(b)
+    }
+
+
+def _global_hop_minutes() -> tuple[Decimal, Decimal]:
     count = max(_q(sx_decimal('plan_count_minutes', '0')), Decimal('0'))
     transfer = max(_q(sx_decimal('plan_transfer_minutes', '0')), Decimal('0'))
     return count, transfer
 
 
-def resolve_hop_minutes(count, transfer, *, fill_default: bool = False) -> tuple[Decimal, Decimal]:
+def default_hop_minutes(
+    from_slug: str | None = None,
+    to_slug: str | None = None,
+    *,
+    pairs: dict[tuple[str, str], tuple[Decimal, Decimal]] | None = None,
+) -> tuple[Decimal, Decimal]:
+    """Mặc định theo cặp bộ phận; thiếu cặp thì dùng mặc định chung."""
+    src = _norm_slug(from_slug)
+    dst = _norm_slug(to_slug)
+    mapping = pairs if pairs is not None else hop_pair_map()
+    if src and dst and src != dst:
+        pair = mapping.get((src, dst))
+        if pair is not None:
+            return pair
+    return _global_hop_minutes()
+
+
+def resolve_hop_minutes(
+    count,
+    transfer,
+    *,
+    fill_default: bool = False,
+    from_slug: str | None = None,
+    to_slug: str | None = None,
+    pairs: dict[tuple[str, str], tuple[Decimal, Decimal]] | None = None,
+) -> tuple[Decimal, Decimal]:
     """Lấy phút hop. fill_default=True chỉ khi seed hàng mới (cả hai còn 0)."""
     c = max(_q(count), Decimal('0'))
     t = max(_q(transfer), Decimal('0'))
     if fill_default and c == 0 and t == 0:
-        return default_hop_minutes()
+        return default_hop_minutes(from_slug, to_slug, pairs=pairs)
     return c, t
+
+
+def resolve_adjacent_hop(
+    step,
+    nxt,
+    *,
+    fill_default: bool = False,
+    pairs: dict[tuple[str, str], tuple[Decimal, Decimal]] | None = None,
+) -> tuple[Decimal, Decimal]:
+    """Hop từ bước hiện tại sang bước kế — mặc định theo cặp bộ phận."""
+    return resolve_hop_minutes(
+        _step_attr(step, 'count_minutes'),
+        _step_attr(step, 'transfer_minutes'),
+        fill_default=fill_default,
+        from_slug=_step_team_slug(step),
+        to_slug=_step_team_slug(nxt) if nxt is not None else None,
+        pairs=pairs,
+    )
 
 
 def hop_buffer_minutes(steps) -> Decimal:
@@ -44,16 +108,13 @@ def hop_buffer_minutes(steps) -> Decimal:
     rows = list(steps or [])
     if len(rows) < 2:
         return Decimal('0')
+    pairs = hop_pair_map()
     total = Decimal('0')
     for i, step in enumerate(rows[:-1]):
         nxt = rows[i + 1]
         if not is_inter_team_hop(step, nxt):
             continue
-        c, t = resolve_hop_minutes(
-            _step_attr(step, 'count_minutes'),
-            _step_attr(step, 'transfer_minutes'),
-            fill_default=True,
-        )
+        c, t = resolve_adjacent_hop(step, nxt, fill_default=True, pairs=pairs)
         total += c + t
     return _q(total)
 
@@ -119,11 +180,7 @@ def hops_from_steps(steps) -> list[PlanHop]:
         nxt = rows[i + 1]
         if not is_inter_team_hop(step, nxt):
             continue
-        c, t = resolve_hop_minutes(
-            _step_attr(step, 'count_minutes'),
-            _step_attr(step, 'transfer_minutes'),
-            fill_default=False,
-        )
+        c, t = resolve_adjacent_hop(step, nxt, fill_default=False)
         hops.append(PlanHop(
             step_id=int(_step_attr(step, 'pk', 0) or 0),
             from_name=(_step_attr(step, 'process_name') or '').strip(),
@@ -138,6 +195,34 @@ def _step_attr(step, name: str, default=None):
     if isinstance(step, dict):
         return step.get(name, default)
     return getattr(step, name, default)
+
+
+def _step_team_slug(step) -> str | None:
+    """Slug bộ phận chuẩn (cat/may/ht/…) từ tổ hoặc tên công đoạn."""
+    if step is None:
+        return None
+    wc = _step_attr(step, 'work_center')
+    if wc is not None:
+        from san_xuat.services.capacity_from_hrm import team_slug_for_work_center
+
+        slug = team_slug_for_work_center(wc)
+        if slug:
+            return _norm_slug(slug)
+    name = (_step_attr(step, 'process_name') or '').strip()
+    if name:
+        from san_xuat.services.progress_template import team_slug_for_process_label
+
+        slug = team_slug_for_process_label(name)
+        if slug:
+            return _norm_slug(slug)
+    label = (_step_attr(step, 'team_label') or '').strip()
+    if not label and wc is not None:
+        label = (getattr(wc, 'team_label', None) or getattr(wc, 'name', None) or '').strip()
+    if label:
+        from san_xuat.services.capacity_from_hrm import _fold, _team_slug_from_folded
+
+        return _norm_slug(_team_slug_from_folded(_fold(label)))
+    return None
 
 
 def _step_team_key(step) -> tuple[int | None, str]:
@@ -175,6 +260,10 @@ class PlanFlowGroup:
     hop_step_id: int = 0
     count_minutes: Decimal = field(default_factory=lambda: Decimal('0'))
     transfer_minutes: Decimal = field(default_factory=lambda: Decimal('0'))
+    from_slug: str = ''
+    to_slug: str = ''
+    default_count_minutes: Decimal = field(default_factory=lambda: Decimal('0'))
+    default_transfer_minutes: Decimal = field(default_factory=lambda: Decimal('0'))
 
     @property
     def buffer_minutes(self) -> Decimal:
@@ -188,13 +277,13 @@ class PlanFlowGroup:
     def form_count_minutes(self) -> Decimal:
         if self.hop_is_set:
             return self.count_minutes
-        return default_hop_minutes()[0]
+        return self.default_count_minutes
 
     @property
     def form_transfer_minutes(self) -> Decimal:
         if self.hop_is_set:
             return self.transfer_minutes
-        return default_hop_minutes()[1]
+        return self.default_transfer_minutes
 
 
 def flow_groups_from_steps(steps) -> list[PlanFlowGroup]:
@@ -215,6 +304,7 @@ def flow_groups_from_steps(steps) -> list[PlanFlowGroup]:
             clusters.append((wc_id, label, [step]))
 
     groups: list[PlanFlowGroup] = []
+    pairs = hop_pair_map()
     for i, (wc_id, label, cluster) in enumerate(clusters):
         names: list[str] = []
         seen: set[str] = set()
@@ -226,14 +316,16 @@ def flow_groups_from_steps(steps) -> list[PlanFlowGroup]:
                 names.append(name)
         hop_c = hop_t = Decimal('0')
         hop_step_id = 0
+        from_slug = to_slug = ''
+        def_c, def_t = _global_hop_minutes()
         if i < len(clusters) - 1:
             last = cluster[-1]
+            nxt_first = clusters[i + 1][2][0]
             hop_step_id = int(getattr(last, 'pk', 0) or 0)
-            hop_c, hop_t = resolve_hop_minutes(
-                getattr(last, 'count_minutes', 0),
-                getattr(last, 'transfer_minutes', 0),
-                fill_default=False,
-            )
+            from_slug = _step_team_slug(last) or ''
+            to_slug = _step_team_slug(nxt_first) or ''
+            hop_c, hop_t = resolve_adjacent_hop(last, nxt_first, fill_default=False, pairs=pairs)
+            def_c, def_t = default_hop_minutes(from_slug, to_slug, pairs=pairs)
         groups.append(PlanFlowGroup(
             team_label=label,
             work_center_id=wc_id,
@@ -241,5 +333,85 @@ def flow_groups_from_steps(steps) -> list[PlanFlowGroup]:
             hop_step_id=hop_step_id,
             count_minutes=hop_c,
             transfer_minutes=hop_t,
+            from_slug=from_slug,
+            to_slug=to_slug,
+            default_count_minutes=def_c,
+            default_transfer_minutes=def_t,
         ))
     return groups
+
+
+def hop_pair_form_context() -> dict:
+    """Dữ liệu form: luồng xưởng + các khoảng khác theo cặp bộ phận."""
+    from san_xuat.services.team_division_map import team_slug_choices
+
+    teams = team_slug_choices()
+    slugs = [s for s, _ in teams]
+    sequential = set(zip(slugs, slugs[1:]))
+    saved = hop_pair_map()
+    sequential_hops: list[dict] = []
+    other_groups: list[dict] = []
+    current = None
+    for from_slug, from_label in teams:
+        for to_slug, to_label in teams:
+            if from_slug == to_slug:
+                continue
+            pair = saved.get((from_slug, to_slug))
+            row = {
+                'from_slug': from_slug,
+                'from_label': from_label,
+                'to_slug': to_slug,
+                'to_label': to_label,
+                'count_minutes': pair[0] if pair is not None else None,
+                'transfer_minutes': pair[1] if pair is not None else None,
+                'is_sequential': (from_slug, to_slug) in sequential,
+            }
+            if row['is_sequential']:
+                sequential_hops.append(row)
+                continue
+            if current is None or current['from_slug'] != from_slug:
+                current = {
+                    'from_slug': from_slug,
+                    'from_label': from_label,
+                    'hops': [],
+                }
+                other_groups.append(current)
+            current['hops'].append(row)
+    sequential_hops.sort(key=lambda r: slugs.index(r['from_slug']))
+    return {
+        'team_flow_labels': [label for _, label in teams],
+        'sequential_hops': sequential_hops,
+        'other_hop_groups': other_groups,
+    }
+
+
+def save_hop_pair_minutes(entries: list[tuple[str, str, Decimal | None, Decimal | None]], *, user=None) -> int:
+    """Lưu cặp bộ phận. Cả hai None = xóa (dùng mặc định chung). Trả số dòng upsert/xóa."""
+    from san_xuat.hub_models import SxInterStepHop
+    from san_xuat.services.team_division_map import VALID_TEAM_SLUGS
+
+    changed = 0
+    for from_slug, to_slug, count, transfer in entries:
+        src = _norm_slug(from_slug)
+        dst = _norm_slug(to_slug)
+        if not src or not dst or src == dst:
+            continue
+        if src not in VALID_TEAM_SLUGS or dst not in VALID_TEAM_SLUGS:
+            continue
+        if count is None and transfer is None:
+            deleted, _ = SxInterStepHop.objects.filter(from_slug=src, to_slug=dst).delete()
+            changed += deleted
+            continue
+        c = max(_q(count), Decimal('0'))
+        t = max(_q(transfer), Decimal('0'))
+        SxInterStepHop.objects.update_or_create(
+            from_slug=src,
+            to_slug=dst,
+            defaults={
+                'count_minutes': c,
+                'transfer_minutes': t,
+                'updated_by': user if getattr(user, 'is_authenticated', False) else None,
+            },
+        )
+        changed += 1
+    return changed

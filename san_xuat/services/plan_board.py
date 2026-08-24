@@ -529,14 +529,16 @@ def release_order_to_production(
         for s in order.plan_steps.all()
         if s.planned_date
     }
-    from san_xuat.services.inter_step_times import resolve_hop_minutes
+    from san_xuat.services.inter_step_times import hop_pair_map, resolve_adjacent_hop
 
-    hop_by_name = {
-        (s.process_name or '').strip().casefold(): resolve_hop_minutes(
-            s.count_minutes, s.transfer_minutes, fill_default=True,
-        )
-        for s in order.plan_steps.all()
-    }
+    plan_step_rows = list(order.plan_steps.all())
+    hop_by_name = {}
+    if plan_step_rows:
+        pairs = hop_pair_map()
+        for i, s in enumerate(plan_step_rows):
+            nxt = plan_step_rows[i + 1] if i + 1 < len(plan_step_rows) else None
+            key = (s.process_name or '').strip().casefold()
+            hop_by_name[key] = resolve_adjacent_hop(s, nxt, fill_default=True, pairs=pairs)
 
     created: list[SxProductionOrder] = []
     errors: list[str] = []

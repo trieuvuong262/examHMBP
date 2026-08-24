@@ -14,7 +14,7 @@
     <form method="get" id="mealMenuFilterForm" class="card border-0 shadow-sm mb-3">
         <div class="card-body p-3">
             {% url 'utilities:meal_day_menu' as meal_menu_clear %}
-            {% include 'utilities/includes/meal_filter_bar.html' with single_date=1 show_search=1 date_id='meal-menu-date' search_id='meal-menu-q' clear_url=meal_menu_clear %}
+            {% include 'utilities/includes/meal_filter_bar.html' with single_date=1 show_search=1 live_search=1 date_id='meal-menu-date' search_id='meal-menu-q' clear_url=meal_menu_clear %}
         </div>
     </form>
 
@@ -23,37 +23,38 @@
     <div class="card border-0 shadow-sm">
         <div class="card-body p-4">
             <div class="fw-bold small text-muted mb-2">Menu ngày {{ meal_date|date:"d/m/Y" }}</div>
-            <div class="d-flex flex-wrap gap-2">
+            <div class="d-flex flex-wrap gap-2" id="meal-menu-dishes">
                 {% for row in offerings %}
                     {% if row.is_offered %}
-                    <span class="badge text-bg-light border fw-normal">{% firstof row.dish_name row.dish.name %}</span>
+                    <span class="badge text-bg-light border fw-normal meal-dish-item" data-name="{% firstof row.dish_name row.dish.name %}">{% firstof row.dish_name row.dish.name %}</span>
                     {% endif %}
-                {% empty %}
-                <span class="text-muted small">{% if search_query %}Không có món khớp «{{ search_query }}».{% else %}Chưa mở món.{% endif %}</span>
                 {% endfor %}
             </div>
+            <div id="meal-menu-empty" class="text-muted small d-none">Không có món khớp.</div>
+            {% if not has_offered %}
+            <span class="text-muted small">Chưa mở món.</span>
+            {% endif %}
         </div>
     </div>
     {% else %}
-    <form method="post" class="card border-0 shadow-sm">
+    <form method="post" id="mealMenuSaveForm" class="card border-0 shadow-sm">
         <div class="card-body p-4">
             {% csrf_token %}
             <input type="hidden" name="meal_date" value="{{ meal_date|date:'Y-m-d' }}">
-            {% if search_query %}<input type="hidden" name="q" value="{{ search_query }}">{% endif %}
-            <div class="row g-2">
+            <div id="meal-menu-picked" class="small text-muted mb-2" hidden></div>
+            <div class="row g-2" id="meal-menu-dishes">
                 {% for row in offerings %}
-                <div class="col-md-6">
+                <div class="col-md-6 meal-dish-item" data-name="{{ row.dish.name }}">
                     <label class="border rounded p-3 d-flex gap-2 align-items-center h-100">
                         <input type="checkbox" name="offered" value="{{ row.dish_id }}" class="form-check-input" {% if row.is_offered %}checked{% endif %}>
                         <span>{{ row.dish.name }}</span>
                     </label>
                 </div>
                 {% empty %}
-                <div class="col-12 text-muted text-center py-3">
-                    {% if search_query %}Không có món khớp «{{ search_query }}».{% else %}Chưa có món trong danh mục.{% endif %}
-                </div>
+                <div class="col-12 text-muted text-center py-3">Chưa có món trong danh mục.</div>
                 {% endfor %}
             </div>
+            <div id="meal-menu-empty" class="text-muted text-center py-3 d-none">Không có món khớp.</div>
             {% if offerings %}
             <button type="submit" class="btn btn-hm fw-bold mt-3">Lưu menu ngày {{ meal_date|date:"d/m/Y" }}</button>
             {% endif %}
@@ -65,4 +66,78 @@
 
 {% block scripts %}
 {% include 'utilities/includes/meal_date_range_scripts.html' %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var search = document.getElementById('meal-menu-q');
+  var filterForm = document.getElementById('mealMenuFilterForm');
+  var dateInput = document.getElementById('meal-menu-date');
+  var items = document.querySelectorAll('.meal-dish-item');
+  var emptyEl = document.getElementById('meal-menu-empty');
+  var pickedEl = document.getElementById('meal-menu-picked');
+  var originalDate = dateInput ? dateInput.value : '';
+
+  function norm(s) {
+    return (s || '').toLocaleLowerCase('vi-VN').trim();
+  }
+
+  function termsOf(q) {
+    return norm(q).split(/\s+/).filter(Boolean);
+  }
+
+  function filterDishes() {
+    var terms = termsOf(search ? search.value : '');
+    var visible = 0;
+    items.forEach(function (el) {
+      var name = norm(el.getAttribute('data-name'));
+      var match = terms.every(function (t) { return name.indexOf(t) !== -1; });
+      el.classList.toggle('d-none', !match);
+      if (match) visible += 1;
+    });
+    if (emptyEl) emptyEl.classList.toggle('d-none', visible !== 0 || !items.length);
+  }
+
+  function updatePicked() {
+    if (!pickedEl) return;
+    var names = [];
+    document.querySelectorAll('#mealMenuSaveForm input[name="offered"]:checked').forEach(function (cb) {
+      var item = cb.closest('.meal-dish-item');
+      var name = item ? (item.getAttribute('data-name') || '') : '';
+      if (name) names.push(name);
+    });
+    if (!names.length) {
+      pickedEl.hidden = true;
+      pickedEl.textContent = '';
+      return;
+    }
+    pickedEl.hidden = false;
+    pickedEl.textContent = 'Đã chọn ' + names.length + ' món: ' + names.join(', ');
+  }
+
+  if (search) {
+    search.addEventListener('input', filterDishes);
+    search.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        filterDishes();
+      }
+    });
+  }
+
+  if (filterForm && search && search.getAttribute('data-live-search')) {
+    filterForm.addEventListener('submit', function (e) {
+      var currentDate = dateInput ? dateInput.value : '';
+      if (currentDate === originalDate) {
+        e.preventDefault();
+        filterDishes();
+      }
+    });
+  }
+
+  var saveForm = document.getElementById('mealMenuSaveForm');
+  if (saveForm) {
+    saveForm.addEventListener('change', updatePicked);
+    updatePicked();
+  }
+});
+</script>
 {% endblock %}

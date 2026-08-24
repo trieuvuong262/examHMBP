@@ -3,6 +3,7 @@
 {# Optional: show_dish=1, dish_choices, dish_filter_value, clear_url #}
 {# Optional: single_date=1 → chỉ ô «Ngày ăn» (name=meal_date), dùng meal_date #}
 {# Optional: show_search=1, search_query, search_placeholder — ô tìm text (name=q) #}
+{# Optional: live_search=1 — ô tìm không submit GET; JS lọc danh sách trên trang #}
 <style>
 .jp-meal-filter-bar {
   display: flex;
@@ -130,11 +131,12 @@
   <div class="jp-meal-filter-search">
     <label class="form-label fw-bold small" for="{{ search_id|default:'meal-filter-q' }}">Tìm món</label>
     <input type="search"
-           name="q"
+           {% if not live_search %}name="q"{% endif %}
            id="{{ search_id|default:'meal-filter-q' }}"
            class="form-control"
            placeholder="{{ search_placeholder|default:'Tên món…' }}"
-           value="{{ search_query|default:'' }}"
+           {% if not live_search %}value="{{ search_query|default:'' }}"{% endif %}
+           {% if live_search %}data-live-search="1"{% endif %}
            title="Tìm món"
            aria-label="Tìm món"
            autocomplete="off">

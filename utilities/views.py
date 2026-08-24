@@ -449,8 +449,6 @@ def meal_day_menu(request):
         request.GET.get('meal_date') or request.POST.get('meal_date'),
         default=default_date,
     )
-    search_query = get_search_query(request) or (request.POST.get('q') or '').strip()
-
     _ensure_day_offerings(meal_date)
     offerings_qs = MealDayOffering.objects.filter(meal_date=meal_date).select_related('dish')
     lock_reason = _meal_menu_lock_reason(meal_date)
@@ -460,8 +458,6 @@ def meal_day_menu(request):
         from urllib.parse import urlencode
 
         params = {'meal_date': meal_date.isoformat()}
-        if search_query:
-            params['q'] = search_query
         return redirect(f'{reverse("utilities:meal_day_menu")}?{urlencode(params)}')
 
     if request.method == 'POST':
@@ -469,12 +465,7 @@ def meal_day_menu(request):
             messages.error(request, lock_reason)
             return _menu_redirect()
         selected = {int(pk) for pk in request.POST.getlist('offered') if pk.isdigit()}
-        # Chỉ cập nhật món đang hiện (khớp tìm kiếm) — món bị ẩn bởi q giữ nguyên.
-        visible_qs = apply_term_search(offerings_qs, search_query, 'dish__name__icontains')
-        visible_ids = set(visible_qs.values_list('dish_id', flat=True))
         for row in offerings_qs:
-            if row.dish_id not in visible_ids:
-                continue
             row.is_offered = row.dish_id in selected
             if row.is_offered:
                 row.dish_name = normalize_dish_display(row.dish.name)
@@ -482,11 +473,11 @@ def meal_day_menu(request):
         messages.success(request, f'Đã cập nhật menu ngày {meal_date.strftime("%d/%m/%Y")}.')
         return _menu_redirect()
 
-    offerings = apply_term_search(offerings_qs, search_query, 'dish__name__icontains')
+    offerings = list(offerings_qs)
     return render(request, 'utilities/meal_day_menu.html', {
         'meal_date': meal_date,
         'offerings': offerings,
-        'search_query': search_query,
+        'has_offered': any(row.is_offered for row in offerings),
         'menu_locked': menu_locked,
         'lock_reason': lock_reason,
         'can_manage': True,

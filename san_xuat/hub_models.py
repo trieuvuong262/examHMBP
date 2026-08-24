@@ -2546,6 +2546,64 @@ class SxTeamDivisionMap(DemoMarkedModel):
         return f'{self.team_slug} ← {div_name}'
 
 
+class SxInterStepHop(models.Model):
+    """Phút kiểm đếm / vận chuyển mặc định giữa hai bộ phận (tổ chuyền)."""
+
+    from_slug = models.CharField(
+        max_length=20,
+        choices=SxTeamDivisionMap.TEAM_SLUG_CHOICES,
+        db_index=True,
+        verbose_name='Từ bộ phận',
+    )
+    to_slug = models.CharField(
+        max_length=20,
+        choices=SxTeamDivisionMap.TEAM_SLUG_CHOICES,
+        db_index=True,
+        verbose_name='Đến bộ phận',
+    )
+    count_minutes = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0'),
+        verbose_name='Kiểm đếm (phút)',
+        validators=[MinValueValidator(Decimal('0'))],
+    )
+    transfer_minutes = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0'),
+        verbose_name='Vận chuyển (phút)',
+        validators=[MinValueValidator(Decimal('0'))],
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='+',
+        verbose_name='Cập nhật bởi',
+    )
+
+    class Meta:
+        ordering = ['from_slug', 'to_slug']
+        verbose_name = 'Thời gian trung gian theo cặp bộ phận'
+        verbose_name_plural = 'Thời gian trung gian theo cặp bộ phận'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['from_slug', 'to_slug'],
+                name='san_xuat_inter_step_hop_pair_uniq',
+            ),
+            models.CheckConstraint(
+                condition=~models.Q(from_slug=models.F('to_slug')),
+                name='san_xuat_inter_step_hop_diff_slug',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.from_slug} → {self.to_slug}'
+
+
 class SxTeamWorkClose(DemoMarkedModel):
     """Tổ trưởng chốt công việc trên một LSX — hình thức, không chặn tổ sau.
 

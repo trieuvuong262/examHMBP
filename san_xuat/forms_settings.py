@@ -151,8 +151,8 @@ class SxInterStepSettingsForm(forms.ModelForm):
             'plan_transfer_minutes': 'Vận chuyển mặc định',
         }
         help_texts = {
-            'plan_count_minutes': 'Gợi ý khi chuyển hàng sang tổ khác nếu đơn chưa nhập. 0 = không gợi ý.',
-            'plan_transfer_minutes': 'Gợi ý khi chuyển hàng sang tổ khác nếu đơn chưa nhập. 0 = không gợi ý.',
+            'plan_count_minutes': 'Dùng khi chưa khai báo cặp bộ phận bên dưới. Gợi ý trên nút + bảng kế hoạch. 0 = không gợi ý.',
+            'plan_transfer_minutes': 'Dùng khi chưa khai báo cặp bộ phận bên dưới. Gợi ý trên nút + bảng kế hoạch. 0 = không gợi ý.',
         }
         widgets = {
             'plan_count_minutes': forms.NumberInput(attrs={
