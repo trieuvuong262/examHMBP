@@ -8,6 +8,7 @@ from kho_npl.services.excel_export import dataframe_to_xlsx_response
 from kho_npl.services.material_colors import resolve_material_color
 from kho_npl.catalog_labels import spec_label
 from kho_npl.services.material_specifications import resolve_material_specification
+from kho_npl.services.scrap_warehouse import is_usable_storage_location, source_locations_qs
 
 EXCEL_HEADERS = [
     'Mã NPL',
@@ -18,6 +19,7 @@ EXCEL_HEADERS = [
     'Quy cách',
     'Mã ĐVT',
     'Mã NCC',
+    'Mã vị trí',
     'Tồn tối thiểu',
     'Giá cơ bản',
     'Ghi chú',
@@ -40,6 +42,14 @@ _HEADER_ALIASES = {
     'dvt': 'Mã ĐVT',
     'ma ncc': 'Mã NCC',
     'ncc': 'Mã NCC',
+    'ma vi tri': 'Mã vị trí',
+    'mã vị trí': 'Mã vị trí',
+    'vi tri': 'Mã vị trí',
+    'vị trí': 'Mã vị trí',
+    'vi tri mac dinh': 'Mã vị trí',
+    'vị trí mặc định': 'Mã vị trí',
+    'vi tri chinh': 'Mã vị trí',
+    'vị trí chính': 'Mã vị trí',
     'ton toi thieu': 'Tồn tối thiểu',
     'gia co ban': 'Giá cơ bản',
     'don gia': 'Giá cơ bản',
@@ -100,6 +110,7 @@ def material_to_row(material: Material) -> dict:
         'Quy cách': spec_label(material.specification) if material.specification_id else '',
         'Mã ĐVT': material.unit.code,
         'Mã NCC': material.supplier.code if material.supplier_id else '',
+        'Mã vị trí': material.primary_location.code if material.primary_location_id else '',
         'Tồn tối thiểu': float(material.min_stock),
         'Giá cơ bản': float(material.base_price),
         'Ghi chú': material.notes or '',
@@ -115,7 +126,7 @@ def materials_to_dataframe(qs) -> pd.DataFrame:
 
 
 def export_materials_xlsx(qs) -> HttpResponse:
-    df = materials_to_dataframe(qs.order_by('code'))
+    df = materials_to_dataframe(qs.select_related('primary_location').order_by('code'))
     return dataframe_to_xlsx_response(df, 'danh_muc_npl', sheet_name='Danh_muc_NPL')
 
 
@@ -129,6 +140,7 @@ def sample_template_xlsx() -> HttpResponse:
         'Quy cách': 'Khổ 1m6',
         'Mã ĐVT': 'met',
         'Mã NCC': '',
+        'Mã vị trí': 'MAIN',
         'Tồn tối thiểu': 10,
         'Giá cơ bản': 15000,
         'Ghi chú': '',
@@ -159,6 +171,8 @@ def import_materials_from_excel(file_obj) -> dict:
     categories = {c.code.lower(): c for c in MaterialCategory.objects.all()}
     units = {u.code.lower(): u for u in Unit.objects.all()}
     suppliers = {s.code.lower(): s for s in Supplier.objects.all()}
+    locations_by_code = {loc.code.lower(): loc for loc in source_locations_qs()}
+    locations_by_name = {loc.name.strip().lower(): loc for loc in source_locations_qs() if (loc.name or '').strip()}
     colors_by_name = {c.name.lower(): c for c in MaterialColor.objects.filter(is_active=True)}
     specs_by_name = {s.name.lower(): s for s in MaterialSpecification.objects.filter(is_active=True)}
 
@@ -207,6 +221,17 @@ def import_materials_from_excel(file_obj) -> dict:
                 skipped += 1
                 continue
 
+        location = None
+        has_location_col = 'Mã vị trí' in df.columns
+        if has_location_col:
+            loc_raw = str(row.get('Mã vị trí', '') or '').strip()
+            if loc_raw and loc_raw.lower() not in ('nan', 'none'):
+                location = locations_by_code.get(loc_raw.lower()) or locations_by_name.get(loc_raw.lower())
+                if not location or not is_usable_storage_location(location):
+                    errors.append(f'Dòng {line_no} ({code}): không tìm thấy vị trí "{loc_raw}".')
+                    skipped += 1
+                    continue
+
         color = None
         color_name = str(row.get('Màu sắc', '') or '').strip()
         if color_name and color_name.lower() not in ('nan', 'none'):
@@ -238,6 +263,8 @@ def import_materials_from_excel(file_obj) -> dict:
             'notes': _parse_text(row.get('Ghi chú')),
             'is_active': _parse_bool(row.get('Đang dùng')),
         }
+        if has_location_col:
+            defaults['primary_location'] = location
 
         if not defaults['variant_group'] or defaults['variant_group'].lower() in ('nan', 'none'):
             from kho_npl.variant_group import infer_variant_group_from_code

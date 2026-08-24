@@ -113,7 +113,7 @@ def _resolve_material_by_code(code: str) -> Material:
     raw = (code or "").strip()
     if not raw:
         raise DispatchError("Thiếu mã NPL.")
-    mat = Material.objects.filter(code__iexact=raw, is_active=True).first()
+    mat = Material.objects.filter(code__iexact=raw, is_active=True).select_related("primary_location").first()
     if not mat:
         raise DispatchError(f"NPL không tồn tại hoặc không hoạt động: {raw}")
     return mat
@@ -1152,7 +1152,7 @@ def approve_material_issue(
             continue
 
         material = _resolve_material_by_code(line.material_code)
-        preferred = getattr(line, "preferred_location", None)
+        preferred = getattr(line, "preferred_location", None) or getattr(material, "primary_location", None)
         loc_splits = _split_stock_locations(
             material, qty_needed, preferred=preferred, allow_partial=allow_partial
         )

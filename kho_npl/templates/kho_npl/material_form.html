@@ -65,6 +65,12 @@
                         {% if form.min_stock.errors %}<div class="text-danger small">{{ form.min_stock.errors }}</div>{% endif %}
                     </div>
                     <div class="col-md-4">
+                        <label class="form-label fw-bold small" for="{{ form.primary_location.id_for_label }}">Vị trí mặc định</label>
+                        {{ form.primary_location }}
+                        {% if form.primary_location.help_text %}<div class="form-text">{{ form.primary_location.help_text }}</div>{% endif %}
+                        {% if form.primary_location.errors %}<div class="text-danger small">{{ form.primary_location.errors }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-4">
                         <label class="form-label fw-bold small" for="{{ form.base_price.id_for_label }}">Giá cơ bản (₫)</label>
                         {{ form.base_price }}
                         {% if form.base_price.errors %}<div class="text-danger small">{{ form.base_price.errors }}</div>{% endif %}

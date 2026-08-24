@@ -99,6 +99,10 @@ def stock_doc_prefill_location(request, row) -> int | None:
     if balances:
         top = max(balances, key=lambda item: item['quantity'])
         return top['location'].pk
+    material = row.get('material')
+    loc = getattr(material, 'primary_location', None) if material is not None else None
+    if loc and loc.is_active:
+        return loc.pk
     return None
 
 

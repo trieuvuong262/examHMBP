@@ -82,7 +82,7 @@ def material_stock_rows(queryset=None, location_ids: list[int] | None = None):
 
     storage_ids = set(source_locations_qs().values_list('pk', flat=True))
     qs = queryset or Material.objects.filter(is_active=True).select_related(
-        'category', 'unit', 'supplier', 'color', 'specification',
+        'category', 'unit', 'supplier', 'color', 'specification', 'primary_location',
     ).prefetch_related('balances__location')
     loc_set = set(location_ids or []) & storage_ids if location_ids else storage_ids
     rows = []

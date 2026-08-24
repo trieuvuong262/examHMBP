@@ -624,7 +624,7 @@ def advance_subcontract_order(
 def _resolve_gc_material(code: str):
     from kho_npl.models import Material
 
-    mat = Material.objects.filter(code__iexact=(code or "").strip(), is_active=True).first()
+    mat = Material.objects.filter(code__iexact=(code or "").strip(), is_active=True).select_related("primary_location").first()
     return mat
 
 
@@ -659,7 +659,7 @@ def _post_subcontract_stock_out(*, order: SxSubcontractOrder, user) -> None:
         if qty <= 0:
             continue
         try:
-            loc_splits = _split_stock_locations(mat, qty)
+            loc_splits = _split_stock_locations(mat, qty, preferred=getattr(mat, "primary_location", None))
             allocations = _allocate_batches(mat, qty)
         except DispatchError as exc:
             raise Phase3Error(str(exc)) from exc

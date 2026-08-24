@@ -48,7 +48,11 @@ from kho_npl.doc_attachment import (
     validate_doc_attachment_list,
 )
 from kho_npl.catalog_labels import color_label, spec_label, unit_label
-from kho_npl.services.scrap_warehouse import source_locations_qs
+from kho_npl.services.scrap_warehouse import (
+    fallback_stock_location,
+    material_default_location,
+    source_locations_qs,
+)
 from kho_npl.services.adjustments import balance_qty
 
 User = get_user_model()
@@ -227,6 +231,7 @@ class MaterialForm(forms.ModelForm):
             'specification',
             'unit',
             'supplier',
+            'primary_location',
             'min_stock',
             'base_price',
             'image',
@@ -246,6 +251,10 @@ class MaterialForm(forms.ModelForm):
             'specification': forms.Select(attrs={**FORM_SEARCH_SELECT, 'data-placeholder': 'Tìm quy cách / khổ...'}),
             'unit': forms.Select(attrs=FORM_SELECT),
             'supplier': forms.Select(attrs={**FORM_SEARCH_SELECT, 'data-placeholder': 'Tìm NCC...'}),
+            'primary_location': forms.Select(attrs={
+                **FORM_SEARCH_SELECT,
+                'data-placeholder': 'Tìm vị trí kho...',
+            }),
             'min_stock': forms.NumberInput(attrs={**FORM_CONTROL, 'step': '0.001', 'min': '0'}),
             'base_price': forms.NumberInput(attrs={**FORM_CONTROL, 'step': '1', 'min': '0', 'placeholder': 'VD: 15000'}),
             'image': DocClearableFileInput(attrs={
@@ -305,6 +314,23 @@ class MaterialForm(forms.ModelForm):
         )
         self.fields['supplier'].required = False
         self.fields['supplier'].empty_label = '—'
+        loc_qs = source_locations_qs().order_by('code')
+        current_loc_id = getattr(self.instance, 'primary_location_id', None)
+        if current_loc_id and not loc_qs.filter(pk=current_loc_id).exists():
+            loc_qs = (
+                WarehouseLocation.objects.filter(pk=current_loc_id) | loc_qs
+            ).order_by('code').distinct()
+        self.fields['primary_location'].queryset = loc_qs
+        self.fields['primary_location'].label_from_instance = lambda obj: obj.display_label()
+        self.fields['primary_location'].required = False
+        self.fields['primary_location'].empty_label = '—'
+        self.fields['primary_location'].help_text = (
+            'Kệ/kho gợi ý khi tạo phiếu nhập. Để trống thì dùng kho MAIN.'
+        )
+        if not self.instance.pk and not self.initial.get('primary_location'):
+            default_loc = fallback_stock_location()
+            if default_loc:
+                self.initial.setdefault('primary_location', default_loc.pk)
         self.fields['image'].required = False
         self.fields['is_active'].required = False
         self.fields['base_price'].required = False
@@ -526,9 +552,13 @@ class StockReceiptLineForm(forms.ModelForm):
         self.fields['location'].label_from_instance = lambda obj: obj.display_label()
         self.fields['notes'].required = False
         self.fields['unit_price'].required = True
-        default_location = WarehouseLocation.objects.filter(code='MAIN', is_active=True).first()
-        if default_location and not self.instance.pk:
-            self.initial.setdefault('location', default_location.pk)
+        if not self.instance.pk:
+            loc = material_default_location(
+                Material.objects.filter(pk=material_id).select_related('primary_location').first()
+                if material_id else None
+            )
+            if loc:
+                self.initial.setdefault('location', loc.pk)
 
     def clean_received_qty(self):
         qty = self.cleaned_data.get('received_qty')
@@ -794,9 +824,13 @@ class StockIssueLineForm(forms.ModelForm):
         self.fields['location'].queryset = WarehouseLocation.objects.filter(is_active=True).order_by('code')
         self.fields['location'].label_from_instance = lambda obj: obj.display_label()
         self.fields['notes'].required = False
-        default_location = WarehouseLocation.objects.filter(code='MAIN', is_active=True).first()
-        if default_location and not self.instance.pk:
-            self.initial.setdefault('location', default_location.pk)
+        if not self.instance.pk:
+            loc = material_default_location(
+                Material.objects.filter(pk=material_id).select_related('primary_location').first()
+                if material_id else None
+            )
+            if loc:
+                self.initial.setdefault('location', loc.pk)
 
     def clean(self):
         cleaned_data = super().clean()

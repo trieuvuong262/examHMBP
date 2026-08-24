@@ -120,6 +120,10 @@
                         <span class="jp-npl-mat-detail-value">{{ material.supplier.name|default:'—' }}</span>
                     </div>
                     <div class="jp-npl-mat-detail-item">
+                        <span class="jp-npl-mat-detail-label">Vị trí mặc định</span>
+                        <span class="jp-npl-mat-detail-value">{% if material.primary_location %}{{ material.primary_location }}{% else %}—{% endif %}</span>
+                    </div>
+                    <div class="jp-npl-mat-detail-item">
                         <span class="jp-npl-mat-detail-label">Tồn tối thiểu</span>
                         <span class="jp-npl-mat-detail-value fw-semibold text-hm">{{ material.min_stock|npl_qty_with_unit:material.unit }}</span>
                     </div>

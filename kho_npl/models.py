@@ -178,6 +178,15 @@ class Material(models.Model):
         related_name='materials',
         verbose_name='NCC chính',
     )
+    primary_location = models.ForeignKey(
+        WarehouseLocation,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='default_materials',
+        verbose_name='Vị trí mặc định',
+        help_text='Kệ/kho gợi ý khi nhập. Để trống thì phiếu nhập dùng kho MAIN.',
+    )
     min_stock = models.DecimalField(
         max_digits=14,
         decimal_places=3,

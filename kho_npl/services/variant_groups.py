@@ -97,6 +97,13 @@ def group_materials(materials) -> list[dict]:
             base_price = prices[0]
         else:
             base_price = base_price_avg if base_price_avg > 0 else None
+        loc_labels = []
+        for m in items:
+            loc = getattr(m, 'primary_location', None)
+            loc_labels.append(loc.display_label() if loc else '')
+        unique_locs = {label for label in loc_labels if label}
+        primary_location = next(iter(unique_locs)) if len(unique_locs) == 1 else ''
+
         groups.append({
             'key': _safe_group_dom_key(key, rep),
             'group_name': _group_display_name(items),
@@ -109,6 +116,7 @@ def group_materials(materials) -> list[dict]:
             'is_active': any(m.is_active for m in items),
             'min_stock': min((m.min_stock for m in items), default=Decimal('0')),
             'supplier': next((m.supplier for m in items if m.supplier_id), None),
+            'primary_location': primary_location,
             'base_price': base_price,
             'base_price_avg': base_price_avg,
             'base_price_total': base_price_total,
@@ -188,6 +196,7 @@ def sort_catalog_groups(groups: list[dict], sort_key: str, sort_dir: str) -> lis
             'specification': '',
             'unit': (g['unit'].name if g.get('unit') else '').lower(),
             'supplier': (g['supplier'].name if g.get('supplier') else '').lower(),
+            'primary_location': (g.get('primary_location') or '').lower(),
             'min_stock': g.get('min_stock') or Decimal('0'),
             'base_price': g.get('base_price') if g.get('base_price') is not None else (rep.base_price or Decimal('0')),
             'base_price_total': g.get('base_price_total') or Decimal('0'),

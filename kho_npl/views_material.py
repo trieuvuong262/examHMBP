@@ -106,7 +106,7 @@ def material_search(request):
                 balances__location_id=location_id,
                 balances__quantity__gt=0,
             )
-            .select_related('unit', 'color', 'specification')
+            .select_related('unit', 'color', 'specification', 'primary_location')
             .distinct()
         )
         if q:
@@ -124,7 +124,7 @@ def material_search(request):
         }
     else:
         qs = Material.objects.filter(is_active=True).select_related(
-            'unit', 'color', 'specification', 'category',
+            'unit', 'color', 'specification', 'category', 'primary_location',
         )
         if q:
             # Không theo kho (BOM): cùng cách tìm danh mục kho — tên, mã, nhóm hàng.
@@ -208,6 +208,7 @@ def material_search(request):
             'color': color_label(material.color) if material.color_id else '',
             'variant_group': material.variant_group or '',
             'category': material.category.name if material.category_id else '',
+            'primary_location_id': material.primary_location_id or '',
             'image_url': image_url,
             'base_price': float(material.base_price or 0),
             'qty': qty_out,
@@ -257,7 +258,7 @@ def _material_catalog_qs(request):
     search_query = get_search_query(request)
     category_parent_id, category_ids = parse_category_cascade_filter(request)
     show_inactive = request.GET.get('inactive') == '1'
-    qs = Material.objects.select_related('category', 'unit', 'supplier', 'color', 'specification')
+    qs = Material.objects.select_related('category', 'unit', 'supplier', 'color', 'specification', 'primary_location')
     if not show_inactive:
         qs = qs.filter(is_active=True)
     category_q = resolve_category_filter_q(category_parent_id, category_ids)
@@ -306,7 +307,7 @@ def material_list(request):
     search_query = get_search_query(request)
     category_ids = parse_int_ids(request, 'category')
     status = _material_list_status(request)
-    qs = Material.objects.select_related('category', 'unit', 'supplier', 'color', 'specification')
+    qs = Material.objects.select_related('category', 'unit', 'supplier', 'color', 'specification', 'primary_location')
     qs = _apply_material_usage_status(qs, status)
     if category_ids:
         qs = qs.filter(category_filter_q(category_ids))
@@ -372,7 +373,7 @@ def _stock_filtered_rows(request):
     search_query = get_search_query(request)
     category_parent_id, category_ids = parse_category_cascade_filter(request)
     usage_status = _material_list_status(request, param='usage')
-    qs = Material.objects.select_related('category', 'unit', 'supplier', 'color', 'specification')
+    qs = Material.objects.select_related('category', 'unit', 'supplier', 'color', 'specification', 'primary_location')
     qs = _apply_material_usage_status(qs, usage_status)
     if search_query:
         qs = apply_material_search(qs, search_query)
@@ -503,7 +504,7 @@ def material_stock_detail(request, pk):
     )
     location_ids = filter_storage_location_ids(parse_int_ids(request, 'location'))
     rows = material_stock_rows(
-        Material.objects.filter(pk=pk),
+        Material.objects.filter(pk=pk).select_related('primary_location'),
         location_ids=location_ids or None,
     )
     row = rows[0]
@@ -567,7 +568,7 @@ def material_stock_export(request):
 @module_perm_required(MODULE_KHO_NPL, 'view')
 def material_detail(request, pk):
     material = get_object_or_404(
-        Material.objects.select_related('category', 'unit', 'supplier', 'color', 'specification'),
+        Material.objects.select_related('category', 'unit', 'supplier', 'color', 'specification', 'primary_location'),
         pk=pk,
     )
     return render(request, 'kho_npl/material_detail.html', {
@@ -616,7 +617,7 @@ def material_export(request):
     search_query = get_search_query(request)
     category_ids = parse_int_ids(request, 'category')
     status = _material_list_status(request)
-    qs = Material.objects.select_related('category', 'unit', 'supplier', 'color', 'specification')
+    qs = Material.objects.select_related('category', 'unit', 'supplier', 'color', 'specification', 'primary_location')
     qs = _apply_material_usage_status(qs, status)
     if category_ids:
         qs = qs.filter(category_filter_q(category_ids))

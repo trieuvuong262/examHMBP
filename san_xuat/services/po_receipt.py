@@ -18,6 +18,7 @@ from django.utils import timezone
 from kho_npl.choices import DOC_STATUS_CANCELLED, DOC_STATUS_POSTED
 from kho_npl.models import Material, StockReceipt, StockReceiptLine, WarehouseLocation
 from kho_npl.services.doc_numbers import next_receipt_number
+from kho_npl.services.scrap_warehouse import material_default_location
 
 from san_xuat.hub_models import SxPurchaseOrder
 from san_xuat.services.planning import PlanningError
@@ -79,7 +80,7 @@ def create_receipt_from_po(
     codes = [(ln.material_code or '').strip() for ln in lines]
     materials = {
         (m.code or '').strip().upper(): m
-        for m in Material.objects.filter(code__in=codes)
+        for m in Material.objects.filter(code__in=codes).select_related('primary_location')
     }
     missing = sorted({
         (ln.material_code or '').strip()
@@ -110,13 +111,14 @@ def create_receipt_from_po(
         material = materials[(ln.material_code or '').strip().upper()]
         qty = ln.qty_remaining.quantize(_Q3)
         price = ln.unit_price or material.base_price or Decimal('0')
+        line_location = material_default_location(material) or target
         receipt_lines.append(
             StockReceiptLine(
                 receipt=receipt,
                 material=material,
                 ordered_qty=(ln.qty_ordered or Decimal('0')).quantize(_Q3),
                 received_qty=qty,
-                location=target,
+                location=line_location,
                 batch_code=(po.code or '')[:60],
                 unit_price=price,
                 notes=f'DMH {po.code}'[:255],

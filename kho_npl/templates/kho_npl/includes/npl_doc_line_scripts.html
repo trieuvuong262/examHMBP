@@ -27,6 +27,7 @@
     const materialInstances = new WeakMap();
     const locationInstances = new WeakMap();
     const batchInstances = new WeakMap();
+    let applyingDefaultLocation = false;
     const fromSelect = transferWarehouseLock ? document.getElementById('id_from_location') : null;
     const lockFromInput = transferWarehouseLock ? document.getElementById('wh-lock-from') : null;
     const lockHint = transferWarehouseLock ? document.getElementById('wh-lock-hint') : null;
@@ -336,6 +337,26 @@
             }
         });
         return messages;
+    }
+
+    function applyDefaultLocationOnMaterial(row, data) {
+        if (locationMode !== 'row' || inStockOnly || !row || !data) return;
+        const locId = data.primary_location_id ? String(data.primary_location_id) : '';
+        if (!locId) return;
+        const locSelect = row.querySelector('select[name$="-location"]');
+        if (!locSelect) return;
+        if (String(locSelect.value || '') === locId) return;
+        const ts = locationInstances.get(locSelect);
+        applyingDefaultLocation = true;
+        try {
+            if (ts) {
+                if (ts.options[locId]) ts.setValue(locId, true);
+            } else if (Array.from(locSelect.options).some(function (o) { return o.value === locId; })) {
+                locSelect.value = locId;
+            }
+        } finally {
+            applyingDefaultLocation = false;
+        }
     }
 
     function applyDefaultQtyOnMaterial(row) {
@@ -744,6 +765,7 @@
                         : '';
                     setLineUnit(row, unit);
                 }
+                applyDefaultLocationOnMaterial(row, materialId ? this.options[materialId] : null);
                 applyDefaultQtyOnMaterial(row);
                 fetchStock(row);
                 suggestReceiptBatchCode(row);
@@ -854,7 +876,7 @@
 
     body.addEventListener('change', function (e) {
         if (locationMode === 'row' && e.target.matches('select[name$="-location"]')) {
-            onLocationChange(e.target.closest('tr'));
+            if (!applyingDefaultLocation) onLocationChange(e.target.closest('tr'));
             return;
         }
         if (e.target.matches('select.jp-npl-batch-select, select[name$="-batch"]')) {
