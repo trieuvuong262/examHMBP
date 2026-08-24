@@ -2529,20 +2529,21 @@ body.jp-tool-loading-active {
 }
 
 .jp-stat-grid.jp-team-stat-grid--8 {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+    gap: 0.35rem;
 }
 
 .jp-stat-grid.jp-team-stat-grid--8 .jp-team-stat-card {
-    padding: 0.65rem 0.35rem !important;
+    padding: 0.5rem 0.2rem !important;
 }
 
 .jp-stat-grid.jp-team-stat-grid--8 .fs-4 {
-    font-size: 1.15rem !important;
+    font-size: 1rem !important;
 }
 
 .jp-stat-grid.jp-team-stat-grid--8 small {
-    font-size: 0.68rem;
-    line-height: 1.2;
+    font-size: 0.62rem;
+    line-height: 1.15;
 }
 
 @media (min-width: 768px) {
