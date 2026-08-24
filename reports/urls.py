@@ -24,6 +24,7 @@ urlpatterns = [
         name='production_image_import_review',
     ),
     path('sx/team/', views.team_reports_cn, name='team_cn'),
+    path('sx/team/nghi-phep/', views.mark_production_leave, name='mark_production_leave'),
     path('sx/team/tong-hop/', views.team_summary_cn, name='team_summary_cn'),
     path('sx/team/tong-hop/xuat-excel/', views.team_summary_cn_export, name='team_summary_cn_export'),
     path('sx/thong-ke/', views.report_stats_cn, name='report_stats_cn'),

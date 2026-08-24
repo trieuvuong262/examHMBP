@@ -773,6 +773,36 @@ class ProductionReportImageImport(models.Model):
         return f'{who} · {self.report_date} · {self.get_shift_display()}'
 
 
+class ProductionDayLeaveMark(models.Model):
+    """Quản lý đánh dấu NV nghỉ phép — không cần tạo báo cáo SX."""
+
+    employee = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='production_day_leave_marks',
+        verbose_name='Nhân viên',
+    )
+    report_date = models.DateField(verbose_name='Ngày nghỉ', db_index=True)
+    marked_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='production_day_leave_marks_created',
+        verbose_name='Người đánh dấu',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-report_date', '-created_at']
+        unique_together = ('employee', 'report_date')
+        verbose_name = 'Đánh dấu nghỉ phép SX'
+        verbose_name_plural = 'Đánh dấu nghỉ phép SX'
+
+    def __str__(self):
+        return f'{self.employee} · {self.report_date}'
+
+
 class ReportsGeneralSettings(models.Model):
     """Singleton (pk=1) — thiết lập chung module Báo cáo SX."""
 

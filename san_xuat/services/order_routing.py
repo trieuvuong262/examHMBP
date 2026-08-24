@@ -359,22 +359,19 @@ def sales_order_line_routing(order_line: SxSalesOrderLine):
 
 
 def assert_order_ready_to_confirm(order: SxSalesOrder) -> None:
-    """Routing bắt buộc trên mọi dòng; SMV đơn hàng từng công đoạn phải > 0."""
+    """BOM/OB không bắt buộc lúc xác nhận (chọn sau khi chuyển SX / sửa đơn).
+
+    Nếu dòng đã có snapshot công đoạn thì SMV đơn hàng từng CĐ phải > 0.
+    """
     errors: list[str] = []
     lines = list(order.lines.prefetch_related('routing_lines').all())
     if not lines:
         raise PlanningError('Đơn chưa có dòng sản phẩm.')
     for ln in lines:
         code = ln.product_code or f'#{ln.pk}'
-        snaps = list(ln.routing_lines.all())
-        if not snaps:
-            errors.append(
-                f'{code}: chưa có công đoạn trên đơn — chọn routing IE hoặc BOM có công đoạn lúc lên đơn.'
-            )
-            continue
-        for s in snaps:
-            label = f'{code} {s.op_code or s.seq_no}'
+        for s in ln.routing_lines.all():
             if (s.applied_unit_smv or Decimal('0')) <= 0:
+                label = f'{code} {s.op_code or s.seq_no}'
                 errors.append(f'{label}: SMV đơn hàng phải > 0.')
     if errors:
         raise PlanningError('Không xác nhận được đơn. ' + ' '.join(errors))

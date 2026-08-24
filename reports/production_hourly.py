@@ -351,6 +351,9 @@ def ensure_work_day_started(report: DailyWorkReport) -> DailyWorkReport:
         report.status = DailyWorkReport.STATUS_DRAFT
         report.draft_saved_at = timezone.now()
         report.save()
+        from reports.production_leave import clear_production_day_leave
+
+        clear_production_day_leave(report.employee_id, report.report_date)
     return report
 
 
@@ -2504,6 +2507,10 @@ def save_proxy_shift_table(report: DailyWorkReport, rows: list[dict], user) -> d
         report.auto_submitted = False
     report.save()
 
+    from reports.production_leave import clear_production_day_leave
+
+    clear_production_day_leave(report.employee_id, report.report_date)
+
     if groups:
         from reports.report_lock import auto_approve_fully_proxy_entered_report
 
@@ -3118,6 +3125,11 @@ def save_proxy_shift_sessions(
         report.status = DailyWorkReport.STATUS_DRAFT
         report.auto_submitted = False
     report.save()
+
+    if created:
+        from reports.production_leave import clear_production_day_leave
+
+        clear_production_day_leave(report.employee_id, report.report_date)
 
     if not content_edit_only and not preserve_draft and created:
         from reports.report_lock import auto_approve_fully_proxy_entered_report

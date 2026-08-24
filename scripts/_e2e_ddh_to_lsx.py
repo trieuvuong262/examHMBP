@@ -166,7 +166,7 @@ def main() -> int:
     else:
         ok(f'1.snapshot {len(snaps)} CĐ SMV áp dụng={snaps[0].applied_unit_smv}')
 
-    # --- 1b) Xác nhận không routing phải chặn ---
+    # --- 1b) Xác nhận không BOM/OB vẫn được (chọn sau khi chuyển SX) ---
     bare = create_sales_order(
         customer_name='E2E no routing',
         request_date=today,
@@ -175,12 +175,13 @@ def main() -> int:
     )
     try:
         confirm_sales_order(order_id=bare.pk)
-        fail('1b.confirm without routing should raise')
-    except PlanningError as exc:
-        if 'routing' in str(exc).lower() or 'công đoạn' in str(exc).lower():
-            ok(f'1b.confirm without routing blocked: {exc}')
+        bare.refresh_from_db()
+        if bare.confirm_status == SxSalesOrder.CONFIRM_CONFIRMED:
+            ok('1b.confirm without BOM/OB allowed')
         else:
-            fail('1b.wrong error', str(exc))
+            fail('1b.confirm without BOM/OB status', bare.confirm_status)
+    except PlanningError as exc:
+        fail('1b.confirm without BOM/OB should succeed', str(exc))
     bare.lines.all().delete()
     bare.delete()
 

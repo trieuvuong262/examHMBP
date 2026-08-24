@@ -1,4 +1,4 @@
-<div class="jp-stat-grid mb-4 jp-team-stat-grid jp-team-stat-grid--7">
+<div class="jp-stat-grid mb-4 jp-team-stat-grid jp-team-stat-grid--8">
     <a href="{{ stat_urls.all }}" class="jp-team-stat-card card border-0 shadow-sm text-center p-3 text-decoration-none{% if not status_filter %} is-active{% endif %}">
         <div class="fs-4 fw-bold text-hm">{{ team_count }}</div>
         <small class="text-muted">Nhân viên</small>
@@ -14,6 +14,10 @@
     <a href="{{ stat_urls.no_report }}" class="jp-team-stat-card card border-0 shadow-sm text-center p-3 text-decoration-none{% if status_filter == 'no_report' %} is-active{% endif %}">
         <div class="fs-4 fw-bold text-secondary">{{ no_report_count }}</div>
         <small class="text-muted">Chưa báo cáo</small>
+    </a>
+    <a href="{{ stat_urls.on_leave }}" class="jp-team-stat-card card border-0 shadow-sm text-center p-3 text-decoration-none{% if status_filter == 'on_leave' %} is-active{% endif %}">
+        <div class="fs-4 fw-bold text-info">{{ on_leave_count }}</div>
+        <small class="text-muted">Nghỉ phép</small>
     </a>
     <a href="{{ stat_urls.not_reviewed }}" class="jp-team-stat-card card border-0 shadow-sm text-center p-3 text-decoration-none{% if status_filter == 'not_reviewed' %} is-active{% endif %}">
         <div class="fs-4 fw-bold text-warning">{{ not_reviewed_count }}</div>

@@ -217,6 +217,8 @@
                             Không có nhân viên chưa nộp báo cáo trong khoảng đã chọn.
                             {% elif status_filter == 'no_report' %}
                             Tất cả nhân viên đã có báo cáo trong khoảng đã chọn.
+                            {% elif status_filter == 'on_leave' %}
+                            Không có nhân viên được đánh dấu nghỉ phép trong khoảng đã chọn.
                             {% elif status_filter == 'reviewed' %}
                             Không có báo cáo {% if reports_scope_label == 'VP' %}đã xem{% else %}đã duyệt{% endif %} trong khoảng đã chọn.
                             {% elif status_filter == 'rejected' %}

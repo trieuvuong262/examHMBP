@@ -206,7 +206,12 @@ def _append_production_member_rows(
     date_from: date,
     date_to: date,
     status_filter: str = '',
+    leave_dates: set[date] | None = None,
 ) -> None:
+    leave_dates = leave_dates or set()
+    leave_dates_in_range = {
+        day for day in leave_dates if date_from <= day <= date_to
+    }
     by_date = _reports_by_employee_date(reports)
     skip_empty = is_production_no_report_exempt(member)
     # Khi đang lọc trạng thái có BC (đã nộp/duyệt…), bỏ ngày trống — tránh dựng rồi lọc lại.
@@ -217,30 +222,40 @@ def _append_production_member_rows(
         'rejected',
         'not_reviewed',
     }
-    if by_date:
-        day_iter = (
-            sorted(by_date.keys(), reverse=True)
-            if only_days_with_reports
-            else sorted(_iter_dates(date_from, date_to), reverse=True)
+    if only_days_with_reports:
+        days = sorted(by_date.keys(), reverse=True)
+    elif status_filter == 'on_leave':
+        days = sorted(leave_dates_in_range, reverse=True)
+    else:
+        days = sorted(
+            set(_iter_dates(date_from, date_to))
+            | set(by_date.keys())
+            | leave_dates_in_range,
+            reverse=True,
         )
-        for report_date in day_iter:
+    if days:
+        for report_date in days:
             day_reports = by_date.get(report_date, [])
             if only_days_with_reports and not day_reports:
                 continue
             agg = _aggregate_production_row(day_reports, visible_fn)
-            if skip_empty and not agg['production_report_count']:
+            on_leave = report_date in leave_dates_in_range
+            if skip_empty and not agg['production_report_count'] and not on_leave:
                 continue
             rows.append({
                 'member': member,
                 'report_date': report_date,
+                'production_on_leave': on_leave,
                 **agg,
             })
         return
-    if skip_empty or only_days_with_reports:
+    if skip_empty or only_days_with_reports or status_filter == 'on_leave':
         return
+    fallback_date = date_to
     rows.append({
         'member': member,
         'report_date': None,
+        'production_on_leave': fallback_date in leave_dates_in_range,
         **_aggregate_production_row([], visible_fn),
     })
 
@@ -288,6 +303,7 @@ def build_production_team_department_groups(
     date_to: date,
     dept_filter: str = '',
     status_filter: str = '',
+    leave_dates_by_employee: dict[int, set[date]] | None = None,
 ):
     all_groups = build_report_team_department_groups(viewer, team)
     dept_choices = department_filter_choices(all_groups)
@@ -296,6 +312,7 @@ def build_production_team_department_groups(
         if dept_filter else all_groups
     )
     groups = _ensure_team_members_in_groups(groups, team)
+    leave_dates_by_employee = leave_dates_by_employee or {}
     department_groups = []
     for group in groups:
         rows = []
@@ -309,6 +326,7 @@ def build_production_team_department_groups(
                 date_from=date_from,
                 date_to=date_to,
                 status_filter=status_filter,
+                leave_dates=leave_dates_by_employee.get(member.id, set()),
             )
         department_groups.append({**group, 'rows': rows})
     return department_groups, dept_choices
@@ -379,7 +397,15 @@ def production_team_row_matches_filter(
             and not production_team_row_is_submitted(row, submitted_status=submitted_status)
         )
     if status_filter == 'no_report':
-        return row.get('production_report_count', 0) == 0
+        return (
+            row.get('production_report_count', 0) == 0
+            and not row.get('production_on_leave', False)
+        )
+    if status_filter == 'on_leave':
+        return (
+            row.get('production_report_count', 0) == 0
+            and row.get('production_on_leave', False)
+        )
     if status_filter == 'reviewed':
         return (
             row.get('production_report_count', 0) > 0

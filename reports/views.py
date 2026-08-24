@@ -982,6 +982,24 @@ def proxy_report_entry(request):
     else:
         edit_submitted_only = False
 
+    from reports.production_leave import (
+        build_production_leave_dates_by_employee,
+        is_production_day_on_leave,
+    )
+
+    leave_dates = build_production_leave_dates_by_employee(
+        [subject.id],
+        report_date,
+        report_date,
+    )
+    production_on_leave = is_production_day_on_leave(
+        subject.id,
+        report_date,
+        leave_dates,
+    )
+    has_any_report = any(tab.get('report_id') for tab in tabs)
+    show_leave_actions = not has_any_report and not edit_submitted_only
+
     visible_shifts = {tab['shift'] for tab in tabs}
     if active_shift not in visible_shifts and tabs:
         active_shift = tabs[0]['shift']
@@ -1015,6 +1033,8 @@ def proxy_report_entry(request):
         'edit_submitted_only': edit_submitted_only,
         'anomaly_fix_mode': any(tab.get('anomaly_fix_mode') for tab in tabs),
         'ai_import': ai_import,
+        'production_on_leave': production_on_leave,
+        'show_leave_actions': show_leave_actions,
     })
 
 
@@ -1815,6 +1835,7 @@ def _build_department_group_rows(viewer, team, report_map, visible_fn, dept_filt
 TEAM_STATUS_SUBMITTED = 'submitted'
 TEAM_STATUS_MISSING = 'missing'
 TEAM_STATUS_NO_REPORT = 'no_report'
+TEAM_STATUS_ON_LEAVE = 'on_leave'
 TEAM_STATUS_REVIEWED = 'reviewed'
 TEAM_STATUS_NOT_REVIEWED = 'not_reviewed'
 TEAM_STATUS_REJECTED = 'rejected'
@@ -2090,6 +2111,7 @@ def _parse_team_status_filter(request) -> str:
         TEAM_STATUS_SUBMITTED,
         TEAM_STATUS_MISSING,
         TEAM_STATUS_NO_REPORT,
+        TEAM_STATUS_ON_LEAVE,
         TEAM_STATUS_REVIEWED,
         TEAM_STATUS_NOT_REVIEWED,
         TEAM_STATUS_REJECTED,
@@ -2182,6 +2204,7 @@ def _team_stat_urls(base_params: dict) -> dict:
         'submitted': _url({'status': TEAM_STATUS_SUBMITTED}),
         'missing': _url({'status': TEAM_STATUS_MISSING}),
         'no_report': _url({'status': TEAM_STATUS_NO_REPORT}),
+        'on_leave': _url({'status': TEAM_STATUS_ON_LEAVE}),
         'reviewed': _url({'status': TEAM_STATUS_REVIEWED}),
         'not_reviewed': _url({'status': TEAM_STATUS_NOT_REVIEWED}),
         'rejected': _url({'status': TEAM_STATUS_REJECTED}),
@@ -2196,6 +2219,61 @@ def team_reports(request):
 @_reports_access_required
 def team_reports_cn(request):
     return _team_reports_for_profile(request, REPORT_PROFILE_PRODUCTION)
+
+
+@_reports_access_required
+@require_POST
+def mark_production_leave(request):
+    """Quản lý đánh dấu / hủy nghỉ phép cho NV chưa có báo cáo SX."""
+    from reports.production_hourly import can_proxy_enter_daily_report
+    from reports.production_leave import mark_production_day_leave, unmark_production_day_leave
+
+    if not can_view_team_reports(request.user):
+        messages.error(request, 'Bạn không có quyền đánh dấu nghỉ phép.')
+        return redirect('home_portal')
+
+    report_date = _parse_report_date(request)
+    for_user_id = request.POST.get('for_user')
+    action = (request.POST.get('action') or 'mark').strip().lower()
+    next_url = (request.POST.get('next') or '').strip()
+
+    try:
+        subject = get_team_report_members(request.user).get(pk=int(for_user_id))
+    except (TypeError, ValueError, User.DoesNotExist):
+        messages.error(request, 'Không tìm thấy nhân viên.')
+        return redirect('reports:team_cn')
+
+    if not can_proxy_enter_daily_report(request.user, subject):
+        messages.error(request, 'Bạn không có quyền đánh dấu nghỉ phép cho nhân viên này.')
+        return redirect('reports:team_cn')
+
+    try:
+        if action == 'unmark':
+            if unmark_production_day_leave(request.user, subject, report_date):
+                messages.success(
+                    request,
+                    f'Đã hủy đánh dấu nghỉ phép cho {subject.profile.full_name or subject.username} '
+                    f'ngày {report_date.strftime("%d/%m/%Y")}.',
+                )
+            else:
+                messages.info(request, 'Nhân viên chưa được đánh dấu nghỉ phép trong ngày này.')
+        else:
+            mark_production_day_leave(request.user, subject, report_date)
+            messages.success(
+                request,
+                f'Đã đánh dấu nghỉ phép cho {subject.profile.full_name or subject.username} '
+                f'ngày {report_date.strftime("%d/%m/%Y")}.',
+            )
+    except PermissionError as exc:
+        messages.error(request, str(exc))
+
+    if next_url and url_has_allowed_host_and_scheme(
+        next_url,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return redirect(next_url)
+    return redirect(f'{reverse("reports:team_cn")}?date={report_date.isoformat()}')
 
 
 @_reports_access_required
@@ -2276,11 +2354,16 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
         submitted = len(submitted_employee_ids)
         missing = team_count - submitted
         no_report_count = 0
+        on_leave_count = 0
         view_counts = _office_team_view_row_counts(department_groups)
         reviewed_count = view_counts['reviewed']
         not_reviewed_count = view_counts['not_reviewed']
         rejected_count = 0
     else:
+        from reports.production_leave import (
+            build_production_leave_dates_by_employee,
+            production_team_leave_no_report_counts,
+        )
         from reports.report_lock import auto_reject_expired_production_reports
 
         auto_reject_expired_production_reports(
@@ -2290,6 +2373,11 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
         )
         reports = query_production_team_reports(all_team_ids, date_from, date_to)
         reports_by_employee = build_production_reports_by_employee(reports)
+        leave_dates_by_employee = build_production_leave_dates_by_employee(
+            all_team_ids,
+            date_from,
+            date_to,
+        )
         team = team.prefetch_related('profile__concurrent_positions')
         exempt_no_report_ids = production_no_report_exempt_ids(team)
         status_counts = production_team_status_counts(
@@ -2300,7 +2388,6 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
         )
         submitted = status_counts['submitted']
         missing = status_counts['unsubmitted_report']
-        no_report_count = status_counts['no_report']
         department_groups, dept_choices = build_production_team_department_groups(
             request.user,
             team,
@@ -2310,7 +2397,14 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
             date_to=date_to,
             dept_filter=dept_filter,
             status_filter=status_filter,
+            leave_dates_by_employee=leave_dates_by_employee,
         )
+        leave_no_report = production_team_leave_no_report_counts(
+            department_groups,
+            exempt_no_report_ids=exempt_no_report_ids,
+        )
+        on_leave_count = leave_no_report['on_leave']
+        no_report_count = leave_no_report['no_report']
         review_counts = production_team_review_row_counts(department_groups)
         reviewed_count = review_counts['reviewed']
         not_reviewed_count = review_counts['not_reviewed']
@@ -2387,6 +2481,7 @@ def _team_reports_for_profile(request, report_profile: str, *, report_period: st
         'submitted_count': submitted,
         'missing_count': missing,
         'no_report_count': no_report_count,
+        'on_leave_count': on_leave_count,
         'reviewed_count': reviewed_count,
         'not_reviewed_count': not_reviewed_count,
         'rejected_count': rejected_count,

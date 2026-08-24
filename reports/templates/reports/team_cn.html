@@ -49,7 +49,11 @@
 </td>
 <td>
     {% if not row.production_report_count %}
-    <span class="badge bg-danger-subtle text-danger">Chưa báo cáo</span>
+        {% if row.production_on_leave %}
+        <span class="badge bg-info-subtle text-info">Nghỉ phép</span>
+        {% else %}
+        <span class="badge bg-danger-subtle text-danger">Chưa báo cáo</span>
+        {% endif %}
     {% elif row.production_all_submitted %}
         {% if row.production_all_auto_submitted %}
         <span class="badge jp-report-badge jp-report-badge--auto-submitted" title="Hệ thống tự động gửi lúc 23:30">Tự động gửi</span>
@@ -106,6 +110,25 @@
     <a href="{% url detail_url_name row.report.pk %}{% if team_list_query %}?{{ team_list_query }}{% endif %}" class="btn btn-sm btn-outline-hm">Chi tiết</a>
     {% else %}
     <a href="{% url 'reports:proxy_cn' %}?date={{ row.report_date|default:range_to|date:'Y-m-d' }}&for_user={{ row.member.id }}" class="btn btn-sm btn-outline-dark">Nhập hộ</a>
+        {% if row.production_on_leave %}
+        <form method="post" action="{% url 'reports:mark_production_leave' %}" class="d-inline">
+            {% csrf_token %}
+            <input type="hidden" name="for_user" value="{{ row.member.id }}">
+            <input type="hidden" name="date" value="{{ row.report_date|default:range_to|date:'Y-m-d' }}">
+            <input type="hidden" name="action" value="unmark">
+            {% if team_list_query %}<input type="hidden" name="next" value="{% url 'reports:team_cn' %}?{{ team_list_query }}">{% endif %}
+            <button type="submit" class="btn btn-sm btn-outline-secondary" title="Hủy đánh dấu nghỉ phép">Hủy NP</button>
+        </form>
+        {% else %}
+        <form method="post" action="{% url 'reports:mark_production_leave' %}" class="d-inline">
+            {% csrf_token %}
+            <input type="hidden" name="for_user" value="{{ row.member.id }}">
+            <input type="hidden" name="date" value="{{ row.report_date|default:range_to|date:'Y-m-d' }}">
+            <input type="hidden" name="action" value="mark">
+            {% if team_list_query %}<input type="hidden" name="next" value="{% url 'reports:team_cn' %}?{{ team_list_query }}">{% endif %}
+            <button type="submit" class="btn btn-sm btn-outline-info" title="Đánh dấu nhân viên nghỉ phép trong ngày">Nghỉ phép</button>
+        </form>
+        {% endif %}
     {% endif %}
     <a href="{% url 'reports:proxy_paper_sheet' %}?date={{ row.report_date|default:range_to|date:'Y-m-d' }}&for_user={{ row.member.id }}&shift=MORNING"
        class="btn btn-sm btn-outline-secondary"

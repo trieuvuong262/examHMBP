@@ -1,4 +1,4 @@
-"""Smoke-check lên đơn: BOM → routing IE → SMV đơn hàng từng CĐ → xác nhận."""
+"""Smoke-check lên đơn: BOM/OB tùy chọn → SMV đơn hàng từng CĐ → xác nhận."""
 from __future__ import annotations
 
 import json
@@ -443,9 +443,14 @@ def check_seed_and_confirm(ie_code, ie_rt, bom_only, bom_ver, neither):
             )
             try:
                 assert_order_ready_to_confirm(order)
-                _ok('Không được xác nhận khi chưa có snapshot', False)
+                confirm_sales_order(order_id=order.pk)
+                order.refresh_from_db()
+                _ok(
+                    'Xác nhận được khi chưa chọn BOM/OB',
+                    order.confirm_status == SxSalesOrder.CONFIRM_CONFIRMED,
+                )
             except PlanningError as exc:
-                _ok('Xác nhận chặn khi chưa có CĐ', 'chưa có công đoạn' in str(exc), str(exc)[:180])
+                _ok('Xác nhận được khi chưa chọn BOM/OB', False, str(exc)[:180])
         try:
             run('Neither case', neither_case)
         except Exception:
