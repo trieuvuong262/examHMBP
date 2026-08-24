@@ -1396,11 +1396,7 @@ def sales_order_line_versions_api(request):
 
     for rt in routings:
         rev = (rt.routing_rev or '').strip() or f'#{rt.pk}'
-        status = rt.get_approval_status_display() if hasattr(rt, 'get_approval_status_display') else ''
-        text = f'{rev}'
-        if status:
-            text = f'{rev} · {status}'
-        payload['routings'].append({'id': rt.pk, 'text': text, 'label': rev})
+        payload['routings'].append({'id': rt.pk, 'text': rev, 'label': rev})
 
     default_rt = default_routing_for_product(product_code)
     if default_rt:

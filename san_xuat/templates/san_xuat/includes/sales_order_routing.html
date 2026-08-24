@@ -27,7 +27,7 @@
           <select name="routing_id" class="form-select form-select-sm" required>
             <option value="">— Chọn bản IE —</option>
             {% for rt in ln.available_routings %}
-            <option value="{{ rt.pk }}">{{ rt.routing_rev }} · {{ rt.get_approval_status_display }}</option>
+            <option value="{{ rt.pk }}">{{ rt.routing_rev }}</option>
             {% endfor %}
           </select>
         </div>
