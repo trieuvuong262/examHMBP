@@ -78,21 +78,39 @@
         </form>
     </div>
 
-    <div class="jp-stat-grid mb-3 jp-team-stat-grid jp-npl-stock-stat-grid {{ stock_stat_grid_mod }}">
-        {% for tab in category_tabs %}
-        <a href="{{ tab.url }}"
-           class="jp-team-stat-card jp-npl-stock-stat-card card border-0 shadow-sm text-center p-3 text-decoration-none{% if tab.is_active %} is-active{% endif %}"
-           data-loading-message="Đang lọc tồn kho…">
-            <div class="jp-npl-stock-stat-value jp-mat-code{% if tab.key == 'all' %} text-hm{% endif %}"
-                 title="{{ tab.value|npl_money_exact }}">{{ tab.value|npl_money }}</div>
-            <small class="text-muted jp-npl-stock-stat-label">{{ tab.label }}</small>
-            <div class="jp-npl-stock-stat-meta">
-                {{ tab.sku_count }} mã{% if tab.pct is not None %} · {{ tab.pct }}%{% endif %}
+    <div class="jp-npl-stock-stat-rows mb-3" id="npl-stock-stat-rows">
+        {% for tab_row in category_tab_rows %}
+        <div class="jp-npl-stock-stat-col">
+            {% for tab in tab_row %}
+            <div class="jp-npl-stock-stat-item{% if tab.is_active %} is-active{% endif %}{% if tab.key == 'all' %} is-all{% endif %}">
+                <div class="jp-npl-stock-stat-bar">
+                    <a href="{{ tab.url }}" class="jp-npl-stock-stat-bar-name" title="Lọc {{ tab.label }}"
+                       data-loading-message="Đang lọc tồn kho…">{{ tab.label }}</a>
+                    <button type="button" class="jp-npl-stock-stat-bar-meta jp-npl-stock-stat-expand"
+                            aria-expanded="false" {% if not tab.skus %}disabled{% endif %}
+                            title="Xem danh sách mã">
+                        <i class="bi bi-caret-right-fill" aria-hidden="true"></i>
+                        {{ tab.sku_count }} mã
+                    </button>
+                    <span class="jp-npl-stock-stat-bar-value jp-mat-code" title="{{ tab.value|npl_money_exact }}">{{ tab.value|npl_money }}</span>
+                </div>
+                {% if tab.skus %}
+                <div class="jp-npl-stock-stat-codes is-collapsed">
+                    {% for sku in tab.skus %}
+                    <a href="{% url 'kho_npl:material_detail' sku.pk %}" class="jp-npl-stock-stat-code"
+                       title="{{ sku.code }}"
+                       data-loading-message="Đang tải chi tiết NPL…">{{ sku.name|default:sku.code }}</a>
+                    {% endfor %}
+                </div>
+                {% endif %}
             </div>
-        </a>
+            {% empty %}
+            <div class="jp-npl-stock-stat-bar is-empty">Chưa có dữ liệu tồn.</div>
+            {% endfor %}
+        </div>
         {% empty %}
-        <div class="jp-team-stat-card card border-0 shadow-sm text-center p-3 text-muted">
-            Chưa có dữ liệu tồn.
+        <div class="jp-npl-stock-stat-col">
+            <div class="jp-npl-stock-stat-bar is-empty">Chưa có dữ liệu tồn.</div>
         </div>
         {% endfor %}
     </div>
@@ -288,6 +306,26 @@
 {% block scripts %}
 {% include 'kho_npl/includes/filter_multi_select_script.html' %}
 <script>
+(function () {
+    var root = document.getElementById('npl-stock-stat-rows');
+    if (!root) return;
+    root.addEventListener('click', function (e) {
+        var btn = e.target.closest('.jp-npl-stock-stat-expand');
+        if (!btn || btn.disabled) return;
+        e.preventDefault();
+        var item = btn.closest('.jp-npl-stock-stat-item');
+        if (!item) return;
+        var open = item.classList.toggle('is-expanded');
+        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        var icon = btn.querySelector('.bi');
+        if (icon) {
+            icon.classList.toggle('bi-caret-right-fill', !open);
+            icon.classList.toggle('bi-caret-down-fill', open);
+        }
+        var codes = item.querySelector('.jp-npl-stock-stat-codes');
+        if (codes) codes.classList.toggle('is-collapsed', !open);
+    });
+})();
 (function () {
     function centerColMenu() {
         var colPicker = document.querySelector('.jp-npl-mat-col-picker');

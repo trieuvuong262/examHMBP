@@ -424,7 +424,7 @@ def _stock_category_tabs(request, value_summary: dict, category_ids: list[int]) 
         'label': 'Toàn kho',
         'value': value_summary['total_value'],
         'sku_count': value_summary['sku_count'],
-        'pct': None,
+        'skus': value_summary.get('skus') or [],
         'url': f'?{all_q}' if all_q else '?',
         'is_active': not category_ids,
     }]
@@ -439,11 +439,27 @@ def _stock_category_tabs(request, value_summary: dict, category_ids: list[int]) 
             'label': cat['name'],
             'value': cat['value'],
             'sku_count': cat['sku_count'],
-            'pct': cat.get('pct'),
+            'skus': cat.get('skus') or [],
             'url': f'?{cat_q}' if cat_q else f'?category={cat_id}',
             'is_active': active_single == cat_id,
         })
     return tabs
+
+
+def _split_stock_tab_rows(tabs: list[dict], n_cols: int = 5) -> tuple[list[list[dict]], int]:
+    """Chia thẻ nhóm thành các cột đều (mặc định 5)."""
+    n = len(tabs)
+    if n == 0:
+        return [], n_cols
+    cols = min(n_cols, n)
+    base, rem = divmod(n, cols)
+    rows: list[list[dict]] = []
+    i = 0
+    for c in range(cols):
+        take = base + (1 if c < rem else 0)
+        rows.append(tabs[i:i + take])
+        i += take
+    return rows, cols
 
 
 @module_perm_required(MODULE_KHO_NPL, 'view')
@@ -462,10 +478,8 @@ def material_stock_list(request):
     ) = _stock_filtered_rows(request)
     page_obj, query_string = paginate_queryset(request, groups, per_page=25)
     category_tabs = _stock_category_tabs(request, value_summary, category_ids)
-    tab_count = len(category_tabs)
-    stock_stat_grid_mod = (
-        f'jp-team-stat-grid--{tab_count}' if 3 <= tab_count <= 7 else 'jp-npl-stock-stat-grid--auto'
-    )
+    category_tab_rows, stock_stat_row_cols = _split_stock_tab_rows(category_tabs)
+    stock_stat_grid_mod = f'jp-team-stat-grid--{stock_stat_row_cols}'
     return render(request, 'kho_npl/material_stock.html', {
         **nav_context('material_stock', user=request.user),
         **perm_context(request.user, 'material_stock'),
@@ -489,7 +503,7 @@ def material_stock_list(request):
             search_query or category_ids or location_ids or status or usage_status != 'active'
         ),
         'value_summary': value_summary,
-        'category_tabs': category_tabs,
+        'category_tab_rows': category_tab_rows,
         'stock_stat_grid_mod': stock_stat_grid_mod,
     })
 
@@ -558,7 +572,9 @@ def material_stock_export(request):
                 'Đơn giá BQ': float(row.get('avg_unit_price') or 0),
                 'Giá trị tồn': float(row.get('stock_value') or 0),
                 'Tối thiểu': float(mat.min_stock),
-                'Vị trí chính': row.get('primary_location') or '',
+                'Vị trí mặc định': (
+                    mat.primary_location.display_label() if mat.primary_location_id else ''
+                ),
                 'Trạng thái': STOCK_STATUS_LABELS[row['status']],
             })
     df = pd.DataFrame(data)

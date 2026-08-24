@@ -199,14 +199,18 @@ def summarize_stock_value(rows: list[dict]) -> dict:
             'value': Decimal('0'),
             'qty': Decimal('0'),
             'sku_count': 0,
+            'skus': [],
         },
     )
+    all_skus = []
     for row in rows:
         material = row['material']
         value = row.get('stock_value') or Decimal('0')
         qty = row.get('total_qty') or Decimal('0')
         total_value += value
         total_qty += qty
+        sku = {'pk': material.pk, 'code': material.code or '', 'name': material.name or ''}
+        all_skus.append(sku)
         cat = getattr(material, 'category', None)
         key = cat.pk if cat else 0
         bucket = by_cat[key]
@@ -215,10 +219,12 @@ def summarize_stock_value(rows: list[dict]) -> dict:
         bucket['value'] += value
         bucket['qty'] += qty
         bucket['sku_count'] += 1
+        bucket['skus'].append(sku)
 
     categories = sorted(by_cat.values(), key=lambda item: (-item['value'], item['name'].lower()))
     for item in categories:
         item['value'] = item['value'].quantize(Decimal('0.01'))
+        item['skus'] = sorted(item['skus'], key=lambda s: ((s['name'] or '').lower(), (s['code'] or '').lower()))
         if total_value > 0:
             item['pct'] = (item['value'] * Decimal('100') / total_value).quantize(Decimal('0.1'))
         else:
@@ -228,6 +234,7 @@ def summarize_stock_value(rows: list[dict]) -> dict:
         'total_value': total_value.quantize(Decimal('0.01')),
         'total_qty': total_qty,
         'sku_count': len(rows),
+        'skus': sorted(all_skus, key=lambda s: ((s['name'] or '').lower(), (s['code'] or '').lower())),
         'category_count': len(categories),
         'categories': categories,
     }

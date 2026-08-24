@@ -38,7 +38,9 @@ def report_stock_current_rows():
             'Giá trị tồn': float(row.get('stock_value') or 0),
             'Tối thiểu': float(m.min_stock),
             'Trạng thái': row['status_label'],
-            'Vị trí chính': row['primary_location'],
+            'Vị trí mặc định': (
+                m.primary_location.display_label() if m.primary_location_id else ''
+            ),
         })
     return rows
 
