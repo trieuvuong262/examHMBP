@@ -20,11 +20,12 @@
 |-----|------|------|
 | Hàng đợi | `?tab=queue` | Đơn chờ / đã xếp / tạm giữ; ưu tiên; chuyển SX |
 | Đã chuyển SX | `?tab=released` | Tiến độ LSX / ETA |
+| Lộ trình | `?tab=route` | Timeline KHSX theo đơn (không Chuyển SX) |
 
-Lộ trình sản xuất (menu riêng, không Kanban): `/san-xuat/ke-hoach/lo-trinh/` — timeline theo ngày bắt đầu / kết thúc dự kiến của LSX. Bookmark `?mode=route` redirect về trang này.
+Menu: **Kế hoạch sản xuất** + **Tiến độ** (`?tab=released`, phiếu `/ke-hoach/tien-do-don/<id>/`). URL cũ `/ke-hoach/lo-trinh/` redirect về tab Lộ trình.
 
-Menu quyền: `plan_board` (view = xem; update = xếp/giữ; create|update = chuyển SX); `plan_route` (xem timeline).  
-Code: [`services/plan_board.py`](../../san_xuat/services/plan_board.py), view `plan_board` / `plan_route`.
+Menu quyền: `plan_board` (view = xem; update = xếp/giữ; create|update = chuyển SX); `plan_progress` (tiến độ).  
+Code: [`services/plan_board.py`](../../san_xuat/services/plan_board.py), view `plan_board`.
 
 **Phase sau:** swimlane MTS/MPS trên cùng board.
 

@@ -21,8 +21,8 @@
             <span><i class="bi bi-kanban me-2"></i>Kế hoạch sản xuất (theo đơn)</span>
             <span class="badge text-bg-primary">Chính</span>
         </a>
-        <a href="{% url 'san_xuat:plan_route' %}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
-            <span><i class="bi bi-calendar2-week me-2"></i>Lộ trình sản xuất</span>
+        <a href="{% url 'san_xuat:plan_board' %}?mode=list&tab=released" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-clipboard-data me-2"></i>Tiến độ</span>
         </a>
         <a href="{% url 'san_xuat:plan_npl' %}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
             <span><i class="bi bi-boxes me-2"></i>Kế hoạch nguyên phụ liệu</span>

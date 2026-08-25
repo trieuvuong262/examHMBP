@@ -11,12 +11,6 @@
     --pb-muted: #64748b;
     --pb-line: #e8edf3;
     --pb-soft: #f4f7fb;
-    --pb-wait: #b45309;
-    --pb-rank: #0369a1;
-    --pb-hold: #64748b;
-    --pb-go: #1d4ed8;
-    --pb-run: #b91c1c;
-    --pb-done: #15803d;
   }
   .jp-pb .btn-sm {
     display: inline-flex;
@@ -26,55 +20,6 @@
     padding: 0 0.7rem;
     line-height: 1;
   }
-
-  .jp-pb-pipe {
-    display: grid;
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-    gap: 0;
-    margin: 0 0 1rem;
-    border: 1px solid var(--pb-line);
-    border-radius: 0.85rem;
-    overflow: hidden;
-    background: #fff;
-  }
-  @media (max-width: 992px) { .jp-pb-pipe { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-  @media (max-width: 576px) { .jp-pb-pipe { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-  .jp-pb-stage {
-    display: flex;
-    flex-direction: column;
-    gap: 0.2rem;
-    text-decoration: none;
-    color: inherit;
-    padding: 0.7rem 0.85rem 0.75rem;
-    border-right: 1px solid var(--pb-line);
-    background: #fff;
-  }
-  .jp-pb-pipe .jp-pb-stage:nth-child(3n) { border-right: 1px solid var(--pb-line); }
-  @media (min-width: 993px) {
-    .jp-pb-pipe .jp-pb-stage:nth-child(6n) { border-right: 0; }
-  }
-  .jp-pb-stage:hover { background: var(--pb-soft); color: inherit; }
-  .jp-pb-stage.is-active { background: #fff7f7; }
-  .jp-pb-stage-label {
-    font-size: 0.68rem;
-    font-weight: 700;
-    color: var(--pb-muted);
-    letter-spacing: 0.03em;
-    text-transform: uppercase;
-  }
-  .jp-pb-stage-num {
-    font-size: 1.45rem;
-    font-weight: 800;
-    letter-spacing: -0.03em;
-    line-height: 1;
-    color: var(--pb-ink);
-  }
-  .jp-pb-stage.is-wait .jp-pb-stage-num { color: var(--pb-wait); }
-  .jp-pb-stage.is-rank .jp-pb-stage-num { color: var(--pb-rank); }
-  .jp-pb-stage.is-hold .jp-pb-stage-num { color: var(--pb-hold); }
-  .jp-pb-stage.is-go .jp-pb-stage-num { color: var(--pb-go); }
-  .jp-pb-stage.is-run .jp-pb-stage-num { color: var(--pb-run); }
-  .jp-pb-stage.is-done .jp-pb-stage-num { color: var(--pb-done); }
 
   .jp-pb-bar {
     display: flex;
@@ -573,7 +518,7 @@
       <h2 class="jp-npl-mat-topbar-title w-100">Kế hoạch sản xuất</h2>
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
-      <a href="{% url 'san_xuat:plan_board' %}?mode=list&tab=route"><i class="bi bi-calendar3" aria-hidden="true"></i>Lộ trình</a>
+      <a href="{% url 'san_xuat:plan_board' %}?mode=list&tab=released"><i class="bi bi-clipboard-data" aria-hidden="true"></i>Tiến độ</a>
       <span class="sep" aria-hidden="true"></span>
       <a href="{% url 'san_xuat:plan_inter_step' %}"><i class="bi bi-hourglass-split" aria-hidden="true"></i>Thời gian trung gian</a>
       <span class="sep" aria-hidden="true"></span>
@@ -582,33 +527,6 @@
   </div>
 
   <div class="jp-sx-page-body">
-  <div class="jp-pb-pipe" role="list">
-    <a class="jp-pb-stage is-wait {% if tab == 'queue' %}is-active{% endif %}" href="{% url 'san_xuat:plan_board' %}?mode=list&tab=queue" role="listitem">
-      <span class="jp-pb-stage-label">Chờ xếp</span>
-      <span class="jp-pb-stage-num">{{ counts.queued }}</span>
-    </a>
-    <a class="jp-pb-stage is-rank {% if tab == 'queue' %}is-active{% endif %}" href="{% url 'san_xuat:plan_board' %}?mode=list&tab=queue" role="listitem">
-      <span class="jp-pb-stage-label">Đã xếp</span>
-      <span class="jp-pb-stage-num">{{ counts.ranked }}</span>
-    </a>
-    <a class="jp-pb-stage is-hold {% if tab == 'queue' %}is-active{% endif %}" href="{% url 'san_xuat:plan_board' %}?mode=list&tab=queue" role="listitem">
-      <span class="jp-pb-stage-label">Tạm giữ</span>
-      <span class="jp-pb-stage-num">{{ counts.on_hold }}</span>
-    </a>
-    <a class="jp-pb-stage is-go {% if tab == 'released' %}is-active{% endif %}" href="{% url 'san_xuat:plan_board' %}?mode=list&tab=released" role="listitem">
-      <span class="jp-pb-stage-label">Đã chuyển</span>
-      <span class="jp-pb-stage-num">{{ counts.released }}</span>
-    </a>
-    <a class="jp-pb-stage is-run {% if tab == 'released' %}is-active{% endif %}" href="{% url 'san_xuat:plan_board' %}?mode=list&tab=released" role="listitem">
-      <span class="jp-pb-stage-label">Đang SX</span>
-      <span class="jp-pb-stage-num">{{ counts.in_progress }}</span>
-    </a>
-    <a class="jp-pb-stage is-done {% if tab == 'released' %}is-active{% endif %}" href="{% url 'san_xuat:plan_board' %}?mode=list&tab=released" role="listitem">
-      <span class="jp-pb-stage-label">Hoàn thành</span>
-      <span class="jp-pb-stage-num">{{ counts.done }}</span>
-    </a>
-  </div>
-
   <div class="jp-pb-bar">
     <div class="jp-pb-tabs" role="tablist">
       <a role="tab" class="{% if tab == 'queue' %}active{% endif %}"
@@ -773,11 +691,9 @@
           <div class="jp-pb-customer mt-1">{{ row.order.customer_name|default:"—" }}</div>
         </div>
         <div class="jp-pb-side">
-          {% for mo in row.order.production_orders.all %}
-            {% if not mo.is_demo and mo.status != 'cancelled' %}
-            <a href="{% url 'san_xuat:order_progress_sheet' mo.pk %}" class="btn btn-hm btn-sm fw-bold">Tiến độ</a>
-            {% endif %}
-          {% endfor %}
+          {% if row.mo_count %}
+            <a href="{% url 'san_xuat:order_progress_order' row.order.pk %}" class="btn btn-hm btn-sm fw-bold">Tiến độ</a>
+          {% endif %}
           <a href="{% url 'san_xuat:dispatch_mo' %}?q={{ row.order.code|urlencode }}" class="btn btn-outline-secondary btn-sm">Lệnh SX</a>
         </div>
       </div>

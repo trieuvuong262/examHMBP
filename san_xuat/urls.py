@@ -22,6 +22,7 @@ urlpatterns = [
     path('ke-hoach/thoi-gian-trung-gian/', views_hub.plan_inter_step, name='plan_inter_step'),
     path('ke-hoach/giam-sat-tien-do/', views_hub.plan_progress_monitor, name='plan_progress_monitor'),
     path('ke-hoach/tien-do/<int:mo_id>/', views_hub.order_progress_sheet, name='order_progress_sheet'),
+    path('ke-hoach/tien-do-don/<int:order_id>/', views_hub.order_progress_order, name='order_progress_order'),
     path('ke-hoach/tong-the/', views_hub.plan_overall, name='plan_overall'),
     path('ke-hoach/tong-the/them/', views_hub.plan_overall_create, name='plan_overall_create'),
     path('ke-hoach/tong-the/<int:pk>/', views_hub.plan_overall_detail, name='plan_overall_detail'),

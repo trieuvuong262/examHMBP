@@ -1316,7 +1316,6 @@ def plan_board(request):
         build_plan_board_rows,
         confirmed_order_qty_summary,
         hold_plan_order,
-        pipeline_counts,
         release_order_to_production,
         save_plan_hops,
         set_plan_priority,
@@ -1453,7 +1452,6 @@ def plan_board(request):
             messages.error(request, str(exc))
         return _board_redirect()
 
-    counts = pipeline_counts()
     qty_summary = confirmed_order_qty_summary()
     queue_rows = []
     released_rows = []
@@ -1494,7 +1492,6 @@ def plan_board(request):
         'mode': mode,
         'tab': tab,
         'search_query': q,
-        'counts': counts,
         'qty_summary': qty_summary,
         'queue_rows': queue_rows,
         'released_rows': released_rows,
@@ -1591,13 +1588,7 @@ def plan_inter_step(request):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def plan_route(request):
-    """Lộ trình sản xuất — timeline theo ngày bắt đầu / kết thúc dự kiến của LSX."""
-    from calendar import monthrange
-    from datetime import date as date_cls
-
-    from san_xuat.list_filters import date_range_span_context, parse_sx_date
-    from san_xuat.services.plan_board import _monday_on_or_before, build_mo_timeline
-
+    """Lộ trình đã gộp vào bảng kế hoạch SX (tab Lộ trình)."""
     menu_key = 'plan_route'
     if not (
         user_can_access_menu(request.user, MODULE_SAN_XUAT, menu_key)
@@ -1605,39 +1596,7 @@ def plan_route(request):
         or user_can_access_menu(request.user, MODULE_SAN_XUAT, 'plan')
     ):
         return handle_menu_access_denied(request, MODULE_SAN_XUAT, menu_key)
-
-    raw_from = (request.GET.get('date_from') or request.GET.get('from') or '').strip()
-    raw_to = (request.GET.get('date_to') or '').strip()
-    month = (request.GET.get('month') or '').strip()
-    range_from = parse_sx_date(raw_from)
-    range_to = parse_sx_date(raw_to)
-    if not range_from and not range_to and month:
-        try:
-            y, m = month.split('-', 1)
-            year, mon = int(y), int(m)
-            last = monthrange(year, mon)[1]
-            range_from = date_cls(year, mon, 1)
-            range_to = date_cls(year, mon, last)
-        except (ValueError, IndexError):
-            pass
-
-    q = (request.GET.get('q') or '').strip()
-    board = build_mo_timeline(
-        range_from=range_from,
-        range_to=range_to,
-        search=q,
-    )
-    today_start = _monday_on_or_before(board.today)
-    has_filters = bool(raw_from or raw_to or month or q or request.GET.get('span'))
-    return render(request, 'san_xuat/plan_route.html', {
-        **_perm_ctx(request),
-        'board': board,
-        'today_monday': today_start,
-        'today_end': today_start + timedelta(days=27),
-        'has_filters': has_filters,
-        'month_value': f'{board.range_start.year:04d}-{board.range_start.month:02d}',
-        **date_range_span_context(board.range_start, board.range_end),
-    })
+    return redirect(f"{reverse('san_xuat:plan_board')}?tab=route")
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
@@ -1648,11 +1607,54 @@ def plan_progress_monitor(request):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def order_progress_sheet(request, mo_id: int):
-    """Phiếu theo dõi tiến độ ra hàng — size × công đoạn mẫu cố định."""
+    """Phiếu tiến độ theo lệnh — đơn nhiều mã thì gộp sang phiếu theo đơn."""
+    from san_xuat.hub_models import SxProductionOrder
+
+    mo = (
+        SxProductionOrder.objects.filter(pk=mo_id, is_demo=False)
+        .select_related('sales_order')
+        .first()
+    )
+    if not mo:
+        messages.error(request, 'Không tìm thấy lệnh sản xuất.')
+        return redirect('san_xuat:plan_board')
+    if mo.sales_order_id:
+        siblings = _active_progress_mos(mo.sales_order)
+        if len(siblings) > 1:
+            return redirect('san_xuat:order_progress_order', order_id=mo.sales_order_id)
+    return _render_order_progress(request, mos=[mo], order=mo.sales_order)
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+def order_progress_order(request, order_id: int):
+    """Phiếu tiến độ gộp mọi mã / lệnh của một đơn đặt hàng."""
+    from san_xuat.hub_models import SxSalesOrder
+
+    order = SxSalesOrder.objects.filter(pk=order_id, is_demo=False).first()
+    if not order:
+        messages.error(request, 'Không tìm thấy đơn đặt hàng.')
+        return redirect('san_xuat:plan_board')
+    mos = _active_progress_mos(order)
+    if not mos:
+        messages.error(request, 'Đơn chưa có lệnh sản xuất.')
+        return redirect(f"{reverse('san_xuat:plan_board')}?tab=released")
+    return _render_order_progress(request, mos=mos, order=order)
+
+
+def _active_progress_mos(order) -> list:
+    from san_xuat.hub_models import SxProductionOrder
+
+    return list(
+        order.production_orders.filter(is_demo=False)
+        .exclude(status=SxProductionOrder.STATUS_CANCELLED)
+        .order_by('id')
+    )
+
+
+def _render_order_progress(request, *, mos, order):
     from datetime import date as date_cls
     from decimal import Decimal, InvalidOperation
 
-    from san_xuat.hub_models import SxProductionOrder
     from san_xuat.services.order_progress_sheet import (
         build_progress_sheet,
         ensure_progress_work_centers,
@@ -1675,16 +1677,9 @@ def order_progress_sheet(request, mo_id: int):
         or user_can_create_menu(request.user, MODULE_SAN_XUAT, menu_key)
     )
 
-    mo = (
-        SxProductionOrder.objects.filter(pk=mo_id, is_demo=False)
-        .select_related('sales_order')
-        .first()
-    )
-    if not mo:
-        messages.error(request, 'Không tìm thấy lệnh sản xuất.')
-        return redirect('san_xuat:plan_board')
-
     ensure_progress_work_centers()
+    mo_ids = {m.pk for m in mos}
+    primary = mos[0]
 
     if request.method == 'POST' and can_update:
         action = (request.POST.get('action') or '').strip()
@@ -1699,8 +1694,14 @@ def order_progress_sheet(request, mo_id: int):
             except ValueError:
                 stat_date = None
             try:
+                rec_mo = int(request.POST.get('mo_id') or primary.pk)
+            except (TypeError, ValueError):
+                rec_mo = primary.pk
+            if rec_mo not in mo_ids:
+                rec_mo = primary.pk
+            try:
                 record_progress_qty(
-                    mo_id=mo.pk,
+                    mo_id=rec_mo,
                     process_key=(request.POST.get('process_key') or '').strip(),
                     size_label=(request.POST.get('size_label') or '').strip(),
                     qty=qty,
@@ -1712,15 +1713,20 @@ def order_progress_sheet(request, mo_id: int):
                 messages.error(request, str(exc))
             except Exception as exc:
                 messages.error(request, str(exc))
-            return redirect('san_xuat:order_progress_sheet', mo_id=mo.pk)
+            if order:
+                return redirect('san_xuat:order_progress_order', order_id=order.pk)
+            return redirect('san_xuat:order_progress_sheet', mo_id=primary.pk)
 
-    sheet = build_progress_sheet(mo)
+    sheets = [{'mo': m, 'sheet': build_progress_sheet(m)} for m in mos]
+    total_qty = sum((item['sheet'].total_qty for item in sheets), Decimal('0'))
     flat_steps = progress_steps()
-
     return render(request, 'san_xuat/order_progress_sheet.html', {
         **_perm_ctx(request),
-        'mo': mo,
-        'sheet': sheet,
+        'mo': primary,
+        'order': order,
+        'sheets': sheets,
+        'sheet': sheets[0]['sheet'],
+        'total_qty': total_qty,
         'flat_steps': flat_steps,
         'can_update': can_update,
         'today': timezone.localdate(),

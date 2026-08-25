@@ -26,6 +26,7 @@
   .jp-ops-table .done { color:#0369a1; font-weight:700; }
   .jp-ops-table .remain { color:#b91c1c; font-weight:600; }
   .jp-ops-table .sec-label td { background:#f8fafc; font-weight:700; text-align:left; color:var(--ops-muted); }
+  .jp-ops-table .sku-label td { background:#fff7ed; font-weight:800; text-align:left; color:#9a3412; }
   .jp-ops-table .daily { background:#fffbeb; }
   .jp-ops-entry {
     border:1px solid var(--ops-line); border-radius:.65rem; padding:1rem; background:#fff; margin-top:1rem;
@@ -41,22 +42,33 @@
       <h2 class="jp-npl-mat-topbar-title w-100">Phiếu theo dõi tiến độ</h2>
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
+      {% if sheets|length == 1 %}
       <a href="{% url 'san_xuat:dispatch_mo_detail' mo.pk %}"><i class="bi bi-file-earmark-text" aria-hidden="true"></i>Lệnh sản xuất</a>
+      {% else %}
+      <a href="{% url 'san_xuat:dispatch_mo' %}?q={{ order.code|urlencode }}"><i class="bi bi-file-earmark-text" aria-hidden="true"></i>Lệnh sản xuất</a>
+      {% endif %}
       <span class="sep" aria-hidden="true"></span>
       <a href="{% url 'san_xuat:plan_board' %}?mode=list&tab=released" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Kế hoạch</a>
     </nav>
   </div>
 
   <div class="jp-ops-meta">
-    <span>Lệnh sản xuất <strong>{{ mo.code }}</strong></span>
-    {% if sheet.order_code %}<span>Đơn <strong>{{ sheet.order_code }}</strong></span>{% endif %}
+    {% if order %}
+    <span>Đơn <strong>{{ order.code }}</strong></span>
+    {% if order.customer_name %}<span>Khách <strong>{{ order.customer_name }}</strong></span>{% endif %}
+    {% endif %}
+    {% if sheets|length == 1 %}
+    <span>Lệnh <strong>{{ mo.code }}</strong></span>
     <span>SP <strong>{{ sheet.product_code }}</strong>{% if sheet.product_name %} — {{ sheet.product_name }}{% endif %}</span>
     {% if sheet.color_summary %}<span>Màu <strong>{{ sheet.color_summary }}</strong></span>{% endif %}
-    <span>Tổng SL <strong>{{ sheet.total_qty|sx_num }}</strong></span>
+    {% else %}
+    <span>{{ sheets|length }} mã hàng</span>
+    {% endif %}
+    <span>Tổng SL <strong>{{ total_qty|sx_num }}</strong></span>
   </div>
 
-  {% if not sheet.sizes %}
-  <div class="alert alert-warning">Lệnh sản xuất chưa có dòng size. Nhập ma trận màu×size trên lệnh sản xuất trước.</div>
+  {% if not sheets %}
+  <div class="alert alert-warning">Chưa có lệnh để theo dõi tiến độ.</div>
   {% else %}
   <div class="jp-ops-wrap mb-3">
     <table class="jp-ops-table">
@@ -78,7 +90,19 @@
       </thead>
       <tbody>
         <tr class="sec-label"><td class="sticky-col" colspan="{{ flat_steps|length|add:2 }}">SL thực hiện</td></tr>
-        {% for row in sheet.done_rows %}
+        {% for item in sheets %}
+        {% if sheets|length > 1 %}
+        <tr class="sku-label">
+          <td class="sticky-col" colspan="{{ flat_steps|length|add:2 }}">
+            {{ item.sheet.product_name|default:item.sheet.product_code }}
+            <span class="fw-semibold text-muted">· {{ item.sheet.product_code }} · {{ item.mo.code }} · SL {{ item.sheet.total_qty|sx_num }}</span>
+          </td>
+        </tr>
+        {% endif %}
+        {% if not item.sheet.sizes %}
+        <tr><td class="sticky-col" colspan="{{ flat_steps|length|add:2 }}">Chưa có dòng size trên lệnh này.</td></tr>
+        {% else %}
+        {% for row in item.sheet.done_rows %}
         <tr>
           <td class="sticky-col">{{ row.size_label }}</td>
           <td class="qty-plan">{{ row.qty|sx_num }}</td>
@@ -87,9 +111,20 @@
           {% endfor %}
         </tr>
         {% endfor %}
+        {% endif %}
+        {% endfor %}
 
         <tr class="sec-label"><td class="sticky-col" colspan="{{ flat_steps|length|add:2 }}">SL còn thiếu</td></tr>
-        {% for row in sheet.remain_rows %}
+        {% for item in sheets %}
+        {% if sheets|length > 1 %}
+        <tr class="sku-label">
+          <td class="sticky-col" colspan="{{ flat_steps|length|add:2 }}">
+            {{ item.sheet.product_name|default:item.sheet.product_code }}
+            <span class="fw-semibold text-muted">· {{ item.sheet.product_code }}</span>
+          </td>
+        </tr>
+        {% endif %}
+        {% for row in item.sheet.remain_rows %}
         <tr>
           <td class="sticky-col">{{ row.size_label }}</td>
           <td class="qty-plan">{{ row.qty|sx_num }}</td>
@@ -98,10 +133,12 @@
           {% endfor %}
         </tr>
         {% endfor %}
+        {% endfor %}
 
-        {% if sheet.daily_display %}
-        <tr class="sec-label"><td class="sticky-col" colspan="{{ flat_steps|length|add:2 }}">Theo ngày</td></tr>
-        {% for row in sheet.daily_display %}
+        {% for item in sheets %}
+        {% if item.sheet.daily_display %}
+        <tr class="sec-label"><td class="sticky-col" colspan="{{ flat_steps|length|add:2 }}">Theo ngày{% if sheets|length > 1 %} · {{ item.sheet.product_code }}{% endif %}</td></tr>
+        {% for row in item.sheet.daily_display %}
         <tr class="daily">
           <td class="sticky-col">{{ row.stat_date|date:"d/m/Y" }} · {{ row.size_label }}</td>
           <td class="qty-plan">—</td>
@@ -111,6 +148,7 @@
         </tr>
         {% endfor %}
         {% endif %}
+        {% endfor %}
       </tbody>
     </table>
   </div>

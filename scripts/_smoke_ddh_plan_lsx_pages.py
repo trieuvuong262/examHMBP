@@ -106,7 +106,6 @@ def main() -> int:
         ('', 'board_default'),
     ):
         check(client, label, board + qs)
-    check(client, 'plan_route', reverse('san_xuat:plan_route'))
     check(client, 'team_work_goods', reverse('san_xuat:team_work_goods'))
 
     # API BOM versions (dùng modal Chuyển SX)
@@ -151,6 +150,7 @@ def main() -> int:
 
     # related plan pages (một số URL cũ redirect về board)
     for name, expect, follow in (
+        ('san_xuat:plan_route', (200, 302), True),
         ('san_xuat:plan_progress_monitor', (200, 302), True),
         ('san_xuat:plan_audit_log', (200,), False),
         ('san_xuat:plan_overall', (200, 302), True),
