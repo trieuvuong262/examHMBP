@@ -80,6 +80,8 @@ class PlanBoardRow:
     khsx_start: date | None = None
     khsx_end: date | None = None
     khsx_overrun: bool = False
+    duration_label: str = ''
+    duration_work_days: int = 0
     derived_status: str = SxSalesOrder.PLAN_QUEUED
     release_products: list[dict] = field(default_factory=list)
     release_script_id: str = ''
@@ -216,6 +218,35 @@ def _buffer_from_flow_groups(groups) -> Decimal:
     for g in rows[:-1]:
         total += _q(getattr(g, 'form_count_minutes', 0)) + _q(getattr(g, 'form_transfer_minutes', 0))
     return _q(total)
+
+
+def format_order_duration(minutes: Decimal) -> tuple[str, int]:
+    """Nhãn thời gian làm đơn: '16 giờ 29 phút · 3 ngày làm việc'."""
+    from decimal import ROUND_CEILING
+
+    from san_xuat.services.inter_step_times import minutes_per_shift
+
+    mins = max(_q(minutes), Decimal('0'))
+    if mins <= 0:
+        return '', 0
+    hours = int(mins // 60)
+    rem = int((mins % 60).to_integral_value())
+    if rem == 0 and (mins % 60) > 0:
+        rem = 1
+    clock_parts: list[str] = []
+    if hours:
+        clock_parts.append(f'{hours} giờ')
+    if rem:
+        clock_parts.append(f'{rem} phút')
+    if not clock_parts:
+        clock_parts.append('dưới 1 phút')
+    clock = ' '.join(clock_parts)
+    per_day = minutes_per_shift() or Decimal('480')
+    days = int((mins / per_day).to_integral_value(rounding=ROUND_CEILING))
+    days = max(1, days)
+    if days == 1:
+        return f'{clock} · 1 ngày làm việc', 1
+    return f'{clock} · {days} ngày làm việc', days
 
 
 def _mo_progress(mos: list[SxProductionOrder]) -> tuple[int, int, Decimal, Decimal, Decimal]:
@@ -363,6 +394,7 @@ def build_plan_board_rows(
             khsx_start, khsx_end = schedule_span(start=khsx_start, lead_minutes=cycle_min)
         khsx_overrun = bool(order.due_date and khsx_end and khsx_end > order.due_date)
         eta = khsx_end
+        duration_label, duration_work_days = format_order_duration(cycle_min)
 
         # Gom mã SP unique cho modal Chuyển SX (chọn BOM) — kèm mặc định từ ĐĐH
         release_products: list[dict] = []
@@ -402,6 +434,8 @@ def build_plan_board_rows(
             khsx_start=khsx_start,
             khsx_end=khsx_end,
             khsx_overrun=khsx_overrun,
+            duration_label=duration_label,
+            duration_work_days=duration_work_days,
             derived_status=derived,
             release_products=release_products,
             release_script_id=f'jp-release-products-{order.pk}',

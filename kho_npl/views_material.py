@@ -151,21 +151,8 @@ def material_search(request):
                 material_id__in=material_ids,
             ):
                 balance_map[balance.material_id] = balance.quantity
-            # Ẩn NPL tồn 0 tại vị trí này nhưng có tồn ở vị trí khác (gây nhiễu);
-            # vẫn giữ NPL chưa có tồn ở bất kỳ đâu để phiếu nhập thêm được mã mới.
-            stocked_elsewhere = set(
-                StockBalance.objects.filter(
-                    material_id__in=material_ids,
-                    quantity__gt=0,
-                )
-                .exclude(location_id=location_id)
-                .values_list('material_id', flat=True)
-            )
-            materials = [
-                material for material in materials
-                if balance_map.get(material.pk, Decimal('0')) > 0
-                or material.pk not in stocked_elsewhere
-            ]
+            # Phiếu nhập/kiểm kê: hiện mọi NPL khớp, kể cả đang tồn ở kho khác.
+            # Không ẩn — cần nhập hàng vào kho chưa có tồn của mã đó.
         elif materials:
             from django.db.models import Sum
             from kho_npl.services.scrap_warehouse import exclude_scrap_locations

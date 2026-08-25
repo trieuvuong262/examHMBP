@@ -625,7 +625,7 @@
       <div class="jp-pb-ticket-body">
         <div class="jp-pb-stats">
           <span class="jp-pb-stat{% if row.khsx_overrun %} is-late{% endif %}"
-                title="Ngày dự kiến thực hiện + SMV(s)×SL mọi mã + kiểm/VC (ngày làm việc)">
+                title="Từ ngày dự kiến thực hiện, theo SMV × SL mọi mã + kiểm/VC">
             KHSX
             {% if row.khsx_start %}
               <strong>{{ row.khsx_start|date:"d/m/Y" }}</strong>
@@ -634,6 +634,11 @@
               {% endif %}
             {% else %}<strong>—</strong>{% endif %}
           </span>
+          {% if row.duration_label %}
+          <span class="jp-pb-stat" title="Tổng thời gian làm đơn (SMV × SL mọi mã + kiểm/VC)">
+            Làm trong <strong>{{ row.duration_label }}</strong>
+          </span>
+          {% endif %}
           <span class="jp-pb-stat{% if row.is_overdue %} is-late{% endif %}">
             Hạn
             {% if row.order.due_date %}
@@ -644,15 +649,6 @@
               {% endif %}
             {% else %}<strong>—</strong>{% endif %}
           </span>
-          <span class="jp-pb-stat">SL <strong>{{ row.total_qty|sx_num }}</strong> · {{ row.line_count }} dòng</span>
-          <span class="jp-pb-stat">
-            Chu kỳ
-            {% if row.has_routing or row.buffer_minutes %}
-              <strong>{{ row.cycle_minutes|sx_num }}</strong> phút
-              {% if row.work_minutes or row.buffer_minutes %}· SMV {{ row.work_minutes|sx_num }} + kiểm/VC {{ row.buffer_minutes|sx_num }}{% endif %}
-            {% else %}<strong>—</strong>{% endif %}
-          </span>
-          <span class="jp-pb-stat">Điểm <strong>{{ row.score|sx_num }}</strong></span>
         </div>
 
         {% if row.product_flows %}
