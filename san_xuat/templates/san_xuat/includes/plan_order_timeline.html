@@ -48,7 +48,6 @@
         {% if row.subtitle %}<div class="jp-tl-sub" title="{{ row.subtitle }}">{{ row.subtitle }}</div>{% endif %}
         <div class="jp-tl-meta">
           <span class="jp-tl-st is-{{ row.status_key }}{% if row.is_late %} is-late{% endif %}">{{ row.status_label }}</span>
-          <span class="jp-tl-dates">{{ row.start|date:"d/m" }} → {{ row.end|date:"d/m" }}{% if row.duration_label %} · {{ row.duration_label }}{% endif %}</span>
         </div>
       </div>
       {% for d in route_board.days %}
