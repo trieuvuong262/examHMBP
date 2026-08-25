@@ -258,63 +258,6 @@
         </div>
         {% endif %}
       </div>
-
-      {% if other_hop_groups %}
-      <div class="jp-is-card">
-        <div class="jp-is-card-head">
-          <h3>Khoảng khác (bỏ qua bộ phận)</h3>
-          <p>Khi đơn không đi đủ luồng, ví dụ Cắt → May (không qua In-Ép / Thêu).</p>
-        </div>
-        {% for group in other_hop_groups %}
-        <div class="jp-is-group-label">Từ {{ group.from_label }}</div>
-        <div class="jp-is-table-wrap">
-          <table class="jp-is-table">
-            <tbody>
-              {% for hop in group.hops %}
-              <tr>
-                <td>
-                  <div class="jp-is-pair">
-                    <span>{{ hop.from_label }}</span>
-                    <i class="bi bi-arrow-right" aria-hidden="true"></i>
-                    <span class="to">{{ hop.to_label }}</span>
-                  </div>
-                </td>
-                <td>
-                  <label class="jp-is-mins">
-                    <input type="number" name="hop_{{ hop.from_slug }}_{{ hop.to_slug }}_count"
-                           class="form-control form-control-sm" min="0" step="0.01" inputmode="decimal"
-                           placeholder="chung"
-                           value="{% if hop.count_minutes is not None %}{{ hop.count_minutes|sx_num_input }}{% endif %}"
-                           {% if not can_update %}readonly{% endif %}>
-                    <em>phút</em>
-                  </label>
-                </td>
-                <td>
-                  <label class="jp-is-mins">
-                    <input type="number" name="hop_{{ hop.from_slug }}_{{ hop.to_slug }}_transfer"
-                           class="form-control form-control-sm" min="0" step="0.01" inputmode="decimal"
-                           placeholder="chung"
-                           value="{% if hop.transfer_minutes is not None %}{{ hop.transfer_minutes|sx_num_input }}{% endif %}"
-                           {% if not can_update %}readonly{% endif %}>
-                    <em>phút</em>
-                  </label>
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-        {% endfor %}
-      </div>
-      {% endif %}
-
-      {% if can_update %}
-      <div class="jp-is-card">
-        <div class="jp-is-foot">
-          <button type="submit" class="btn btn-hm btn-sm fw-bold">Lưu</button>
-        </div>
-      </div>
-      {% endif %}
     </form>
   </div>
 </div>

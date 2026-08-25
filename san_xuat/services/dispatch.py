@@ -1053,12 +1053,16 @@ def _recompute_mo_progress(mo: SxProductionOrder) -> SxProductionOrder:
             mo.status = SxProductionOrder.STATUS_DONE
     elif qty_done < (mo.qty or Decimal("0")) and mo.status == SxProductionOrder.STATUS_DONE:
         mo.status = SxProductionOrder.STATUS_IN_PROGRESS if qty_done > 0 else SxProductionOrder.STATUS_RELEASED
-    mo.save(update_fields=["qty_done", "status"])
+    mo.save(update_fields=['qty_done', 'status'])
     # Đóng KHCT khi toàn bộ LSX của kế hoạch đã hoàn thành
     if mo.status == SxProductionOrder.STATUS_DONE and mo.detail_plan_id:
         from san_xuat.services.planning import maybe_close_detail_plan
 
         maybe_close_detail_plan(mo.detail_plan_id)
+    if mo.sales_order_id:
+        from san_xuat.services.plan_board import sync_plan_status
+
+        sync_plan_status(mo.sales_order)
     return mo
 
 

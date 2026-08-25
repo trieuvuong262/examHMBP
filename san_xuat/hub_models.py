@@ -2611,6 +2611,39 @@ class SxInterStepHop(models.Model):
         return f'{self.from_slug} → {self.to_slug}'
 
 
+class SxTeamWorkAccept(DemoMarkedModel):
+    """Tổ trưởng nhận sản xuất trên LSX — ghi nhận tổ đã nhận (Lộ trình KHSX)."""
+
+    production_order = models.ForeignKey(
+        SxProductionOrder,
+        on_delete=models.CASCADE,
+        related_name='team_work_accepts',
+        verbose_name='Lệnh sản xuất',
+    )
+    team_slug = models.CharField(
+        max_length=20,
+        choices=SxTeamDivisionMap.TEAM_SLUG_CHOICES,
+        db_index=True,
+        verbose_name='Tổ chuyền',
+    )
+    accepted_at = models.DateTimeField(auto_now_add=True, verbose_name='Lúc nhận SX')
+    notes = models.CharField(max_length=255, blank=True, default='')
+
+    class Meta:
+        ordering = ['accepted_at', 'id']
+        verbose_name = 'Nhận sản xuất tổ'
+        verbose_name_plural = 'Nhận sản xuất tổ'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['production_order', 'team_slug'],
+                name='san_xuat_team_work_accept_mo_slug_uniq',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.team_slug} · {self.production_order_id}'
+
+
 class SxTeamWorkClose(DemoMarkedModel):
     """Tổ trưởng chốt công việc trên một LSX — hình thức, không chặn tổ sau.
 

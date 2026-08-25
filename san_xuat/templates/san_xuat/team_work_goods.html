@@ -258,14 +258,13 @@
         {% for row in page_obj %}
         <tr{% if row.is_overdue %} class="is-late"{% elif row.is_hot %} class="is-hot"{% endif %}>
           <td>
-            {% with pname=row.mo.product_name|default:row.mo.product_code %}
-            <a class="jp-tw-goods-mo-link" href="{% url 'san_xuat:dispatch_mo_detail' row.mo.pk %}">
-              {% if pname %}{{ pname }} - {{ row.mo.code }}{% else %}{{ row.mo.code }}{% endif %}
+            {% with pname=row.mo.product_name|default:row.mo.product_code ocode=row.mo.sales_order.code|default:row.mo.code %}
+            <a class="jp-tw-goods-mo-link" href="{% url 'san_xuat:dispatch_mo_detail' row.mo.pk %}" title="{% if row.mo.sales_order_id %}{{ row.mo.code }}{% endif %}">
+              {% if pname %}{{ pname }} - {{ ocode }}{% else %}{{ ocode }}{% endif %}
             </a>
             {% endwith %}
             <div class="jp-tw-goods-mo-sub">
               {{ row.status_label }}
-              {% if row.mo.sales_order_id %} · {{ row.mo.sales_order.code }}{% endif %}
             </div>
           </td>
           <td class="text-end fw-bold">{{ row.plan|sx_num }}</td>

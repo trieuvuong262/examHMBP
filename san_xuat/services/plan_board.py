@@ -1041,6 +1041,7 @@ class PlanTimelineRow:
     duration_detail: dict = field(default_factory=dict)
     can_drag: bool = False
     span_days: int = 1
+    accepted_teams: list = field(default_factory=list)
 
 
 @dataclass
@@ -1058,10 +1059,78 @@ class MoTimelineBoard:
     next_to: date
     unscheduled: list
     search: str = ''
+    month_label: str = ''
+    is_current_month: bool = False
 
 
 def _monday_on_or_before(d: date) -> date:
     return d - timedelta(days=d.weekday())
+
+
+def _month_bounds(d: date) -> tuple[date, date]:
+    """Ngày đầu / cuối tháng chứa ``d``."""
+    start = d.replace(day=1)
+    if start.month == 12:
+        nxt = date(start.year + 1, 1, 1)
+    else:
+        nxt = date(start.year, start.month + 1, 1)
+    return start, nxt - timedelta(days=1)
+
+
+def _shift_month(d: date, delta: int) -> date:
+    """Ngày 1 của tháng ``d`` dịch ``delta`` tháng."""
+    y = d.year
+    m = d.month + int(delta)
+    while m < 1:
+        m += 12
+        y -= 1
+    while m > 12:
+        m -= 12
+        y += 1
+    return date(y, m, 1)
+
+
+def _month_label(d: date) -> str:
+    return f'Tháng {d.month}/{d.year}'
+
+
+def _accepted_teams_by_order_ids(order_ids: list[int]) -> dict[int, list[dict]]:
+    """Tổ đã nhận SX theo ĐĐH — gom từ mọi LSX của đơn."""
+    from san_xuat.hub_models import SxTeamWorkAccept
+    from san_xuat.services.progress_template import team_by_slug
+    from san_xuat.services.team_work import _person_label
+
+    ids = [int(x) for x in order_ids if x]
+    if not ids:
+        return {}
+    qs = (
+        SxTeamWorkAccept.objects.filter(
+            is_demo=False,
+            production_order__is_demo=False,
+            production_order__sales_order_id__in=ids,
+        )
+        .exclude(production_order__status=SxProductionOrder.STATUS_CANCELLED)
+        .select_related('created_by', 'created_by__profile', 'production_order')
+        .order_by('accepted_at', 'id')
+    )
+    out: dict[int, list[dict]] = {oid: [] for oid in ids}
+    seen: dict[int, set[str]] = {oid: set() for oid in ids}
+    for rec in qs:
+        oid = rec.production_order.sales_order_id
+        if not oid or oid not in seen:
+            continue
+        slug = (rec.team_slug or '').strip().lower()
+        if not slug or slug in seen[oid]:
+            continue
+        seen[oid].add(slug)
+        meta = team_by_slug(slug) or {}
+        out[oid].append({
+            'slug': slug,
+            'label': meta.get('label') or slug,
+            'at': timezone.localtime(rec.accepted_at).strftime('%d/%m %H:%M') if rec.accepted_at else '',
+            'by': _person_label(rec.created_by),
+        })
+    return out
 
 
 def _timeline_range(
@@ -1231,17 +1300,18 @@ def build_order_timeline(
     range_from: date | None = None,
     range_to: date | None = None,
 ) -> MoTimelineBoard:
-    """Timeline đơn trên KHSX theo ngày dự kiến + SMV×SL + kiểm/VC — không cần LSX."""
+    """Timeline đơn trên KHSX — mặc định tháng hiện tại."""
     today = timezone.localdate()
-    dated = [r for r in plan_rows if r.khsx_start]
-    auto = not range_from and not range_to
-    if auto and dated:
-        range_from = _monday_on_or_before(min(r.khsx_start for r in dated))
-        range_to = max((r.khsx_end or r.khsx_start) for r in dated)
-        if (range_to - range_from).days < 13:
-            range_to = range_from + timedelta(days=13)
+    if not range_from and not range_to:
+        range_from, range_to = _month_bounds(today)
+    elif range_from and not range_to:
+        range_from, range_to = _month_bounds(range_from)
+    elif range_to and not range_from:
+        range_from, range_to = _month_bounds(range_to)
     start, end = _timeline_range(range_from, range_to, today=today)
     axis_days, month_spans, span = _timeline_axis(start, end, today)
+
+    accepts_by_order = _accepted_teams_by_order_ids([r.order.pk for r in plan_rows])
 
     rows: list[PlanTimelineRow] = []
     unscheduled: list = []
@@ -1297,9 +1367,16 @@ def build_order_timeline(
             duration_detail=r.duration_detail or {},
             can_drag=can_drag,
             span_days=span_days,
+            accepted_teams=accepts_by_order.get(r.order.pk, []),
         ))
 
     today_col = (today - start).days + 1 if start <= today <= end else None
+    cur_month_start, cur_month_end = _month_bounds(today)
+    anchor = _month_bounds(start)[0]
+    prev_month = _shift_month(anchor, -1)
+    next_month = _shift_month(anchor, 1)
+    prev_from, prev_to = _month_bounds(prev_month)
+    next_from, next_to = _month_bounds(next_month)
     return MoTimelineBoard(
         range_start=start,
         range_end=end,
@@ -1308,12 +1385,14 @@ def build_order_timeline(
         rows=rows,
         today=today,
         today_col=today_col,
-        prev_from=start - timedelta(days=span),
-        prev_to=start - timedelta(days=1),
-        next_from=end + timedelta(days=1),
-        next_to=end + timedelta(days=span),
+        prev_from=prev_from,
+        prev_to=prev_to,
+        next_from=next_from,
+        next_to=next_to,
         unscheduled=unscheduled[:80],
         search='',
+        month_label=_month_label(start),
+        is_current_month=(start == cur_month_start and end == cur_month_end),
     )
 
 

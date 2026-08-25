@@ -47,7 +47,14 @@
       <h2 class="jp-npl-mat-topbar-title w-100">Tiến độ tổ · {{ team.label }}</h2>
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
-      {% if can_close %}
+      {% if can_accept %}
+        <form method="post" class="d-inline" onsubmit="return confirm('Nhận sản xuất {{ mo.sales_order.code|default:mo.code }}?\nTrạng thái KHSX sẽ chuyển sang Đang sản xuất.');">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="accept">
+          <button type="submit" class="btn btn-sm btn-hm fw-bold">Nhận sản xuất</button>
+        </form>
+        <span class="sep" aria-hidden="true"></span>
+      {% elif can_close %}
         {% if job_closed %}
         <form method="post" class="d-inline">
           {% csrf_token %}
@@ -55,7 +62,7 @@
           <button type="submit" class="btn btn-sm btn-outline-secondary">Mở lại</button>
         </form>
         {% else %}
-        <form method="post" class="d-inline" onsubmit="return confirm('Hoàn thành lệnh này ở tổ {{ team.label }}? Công nhân sẽ không chọn đơn này làm tiếp. Tổ sau không bị chặn.');">
+        <form method="post" class="d-inline">
           {% csrf_token %}
           <input type="hidden" name="action" value="complete">
           <button type="submit" class="btn btn-sm btn-outline-hm fw-bold">Hoàn thành</button>
@@ -71,9 +78,15 @@
     </nav>
   </div>
 
+  {% if not accepted %}
+  <div class="alert alert-warning py-2 px-3 mb-3">
+    Lệnh chưa nhận sản xuất — bấm <strong>Nhận sản xuất</strong> để chuyển KHSX sang Đang sản xuất, rồi mới ghi tiến độ / hoàn thành.
+  </div>
+  {% endif %}
+
   <div class="jp-ops-meta">
-    <span>Lệnh sản xuất <strong>{{ mo.code }}</strong></span>
-    {% if sheet.order_code %}<span>Đơn <strong>{{ sheet.order_code }}</strong></span>{% endif %}
+    <span>Đơn hàng <strong>{{ mo.sales_order.code|default:mo.code }}</strong></span>
+    {% if mo.sales_order_id %}<span>LSX <strong>{{ mo.code }}</strong></span>{% endif %}
     <span>SP <strong>{{ sheet.product_code }}</strong>{% if sheet.product_name %} — {{ sheet.product_name }}{% endif %}</span>
     {% if sheet.color_summary %}<span>Màu <strong>{{ sheet.color_summary }}</strong></span>{% endif %}
     <span>Tổng SL <strong>{{ sheet.total_qty|sx_num }}</strong></span>

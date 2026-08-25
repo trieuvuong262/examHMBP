@@ -458,46 +458,28 @@ def flow_groups_from_steps(steps, *, sort_factory: bool = False) -> list[PlanFlo
 
 
 def hop_pair_form_context() -> dict:
-    """Dữ liệu form: luồng xưởng + các khoảng khác theo cặp bộ phận."""
+    """Dữ liệu form: chỉ các khoảng liền kề trong luồng xưởng."""
     from san_xuat.services.team_division_map import team_slug_choices
 
     teams = team_slug_choices()
     slugs = [s for s, _ in teams]
-    sequential = set(zip(slugs, slugs[1:]))
+    labels = {s: lab for s, lab in teams}
     saved = hop_pair_map()
     sequential_hops: list[dict] = []
-    other_groups: list[dict] = []
-    current = None
-    for from_slug, from_label in teams:
-        for to_slug, to_label in teams:
-            if from_slug == to_slug:
-                continue
-            pair = saved.get((from_slug, to_slug))
-            row = {
-                'from_slug': from_slug,
-                'from_label': from_label,
-                'to_slug': to_slug,
-                'to_label': to_label,
-                'count_minutes': pair[0] if pair is not None else None,
-                'transfer_minutes': pair[1] if pair is not None else None,
-                'is_sequential': (from_slug, to_slug) in sequential,
-            }
-            if row['is_sequential']:
-                sequential_hops.append(row)
-                continue
-            if current is None or current['from_slug'] != from_slug:
-                current = {
-                    'from_slug': from_slug,
-                    'from_label': from_label,
-                    'hops': [],
-                }
-                other_groups.append(current)
-            current['hops'].append(row)
-    sequential_hops.sort(key=lambda r: slugs.index(r['from_slug']))
+    for from_slug, to_slug in zip(slugs, slugs[1:]):
+        pair = saved.get((from_slug, to_slug))
+        sequential_hops.append({
+            'from_slug': from_slug,
+            'from_label': labels[from_slug],
+            'to_slug': to_slug,
+            'to_label': labels[to_slug],
+            'count_minutes': pair[0] if pair is not None else None,
+            'transfer_minutes': pair[1] if pair is not None else None,
+            'is_sequential': True,
+        })
     return {
         'team_flow_labels': [label for _, label in teams],
         'sequential_hops': sequential_hops,
-        'other_hop_groups': other_groups,
     }
 
 

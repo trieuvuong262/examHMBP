@@ -392,9 +392,9 @@
       <header class="jp-tw-job-head">
         <div>
           <div class="jp-tw-job-title">
-            {% with pname=job.mo.product_name|default:job.mo.product_code %}
-            <a class="jp-tw-mo-code" href="{% url 'san_xuat:dispatch_mo_detail' job.mo.pk %}" title="{{ job.mo.code }}">
-              {% if pname %}{{ pname }} - {{ job.mo.code }}{% else %}{{ job.mo.code }}{% endif %}
+            {% with pname=job.mo.product_name|default:job.mo.product_code ocode=job.mo.sales_order.code|default:job.mo.code %}
+            <a class="jp-tw-mo-code" href="{% url 'san_xuat:dispatch_mo_detail' job.mo.pk %}" title="{{ ocode }}{% if job.mo.sales_order_id %} · {{ job.mo.code }}{% endif %}">
+              {% if pname %}{{ pname }} - {{ ocode }}{% else %}{{ ocode }}{% endif %}
             </a>
             {% endwith %}
             <span class="jp-tw-stat-pill"><strong>{{ job.step_count }}</strong> công đoạn</span>
@@ -402,6 +402,19 @@
           </div>
         </div>
         <div class="jp-tw-job-actions">
+          {% if not job.accepted %}
+            {% if can_assign and not job.closed %}
+            <form method="post" class="d-inline" onsubmit="return confirm('Nhận sản xuất {{ job.mo.sales_order.code|default:job.mo.code }}?\nTrạng thái KHSX sẽ chuyển sang Đang sản xuất.');">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="accept">
+              <input type="hidden" name="mo_id" value="{{ job.mo.pk }}">
+              <input type="hidden" name="q" value="{{ search_query }}">
+              <button type="submit" class="btn btn-hm btn-sm fw-bold" title="Nhận phiếu — KHSX sang Đang sản xuất">Nhận sản xuất</button>
+            </form>
+            {% else %}
+            <span class="jp-tw-status is-wait"><i class="bi bi-hourglass-split"></i>Chờ nhận SX</span>
+            {% endif %}
+          {% else %}
           <a href="{% url 'san_xuat:team_work_progress' team.slug job.mo.pk %}"
              class="btn btn-hm btn-sm fw-bold"
              title="Xem tiến độ tổ {{ team.label }}">Tiến độ</a>
@@ -416,7 +429,7 @@
               <button type="submit" class="btn btn-outline-secondary btn-sm">Mở lại</button>
             </form>
             {% else %}
-            <form method="post" class="d-inline" onsubmit="return confirm('Hoàn thành lệnh này ở tổ {{ team.label }}? Công nhân sẽ không chọn đơn này làm tiếp. Tổ sau không bị chặn.');">
+            <form method="post" class="d-inline">
               {% csrf_token %}
               <input type="hidden" name="action" value="complete">
               <input type="hidden" name="mo_id" value="{{ job.mo.pk }}">
@@ -425,19 +438,20 @@
             </form>
             {% endif %}
           {% endif %}
+          {% endif %}
           <span class="jp-tw-stat-pill">Đã gán <strong>{{ job.assigned_count }}</strong>/{{ job.step_count }}</span>
           {% if job.run_count %}<span class="jp-tw-stat-pill">Đang làm <strong>{{ job.run_count }}</strong></span>{% endif %}
           {% if job.done_count %}<span class="jp-tw-stat-pill">Xong <strong>{{ job.done_count }}</strong></span>{% endif %}
           {% if job.wait_count %}<span class="jp-tw-stat-pill">Chờ <strong>{{ job.wait_count }}</strong></span>{% endif %}
         </div>
       </header>
-      <ul class="jp-tw-steps" aria-label="Công đoạn {% with pname=job.mo.product_name|default:job.mo.product_code %}{% if pname %}{{ pname }} - {{ job.mo.code }}{% else %}{{ job.mo.code }}{% endif %}{% endwith %}">
+      <ul class="jp-tw-steps" aria-label="Công đoạn {% with pname=job.mo.product_name|default:job.mo.product_code ocode=job.mo.sales_order.code|default:job.mo.code %}{% if pname %}{{ pname }} - {{ ocode }}{% else %}{{ ocode }}{% endif %}{% endwith %}">
         {% for row in job.rows %}
-        {% with pname=row.mo.product_name|default:row.mo.product_code %}
+        {% with pname=row.mo.product_name|default:row.mo.product_code ocode=row.mo.sales_order.code|default:row.mo.code %}
         <li class="jp-tw-step"
             data-mo-id="{{ row.mo.pk }}"
-            data-mo-code="{{ row.mo.code }}"
-            data-mo-title="{% if pname %}{{ pname }} - {{ row.mo.code }}{% else %}{{ row.mo.code }}{% endif %}"
+            data-mo-code="{{ ocode }}"
+            data-mo-title="{% if pname %}{{ pname }} - {{ ocode }}{% else %}{{ ocode }}{% endif %}"
             data-process-key="{{ row.step_def.key }}"
             data-process-label="{{ row.step_def.label }}"
             data-plan-qty="{{ row.plan_qty|sx_num }}"

@@ -15,6 +15,9 @@
     padding: .7rem 1rem; border-bottom: 1px solid var(--tl-line); background: #fff;
     position: sticky; left: 0; z-index: 6;
   }
+  .jp-tl-filter {
+    display: flex; flex-wrap: wrap; align-items: center; gap: .45rem .65rem;
+  }
   .jp-tl-shift {
     display: inline-flex; align-items: center; gap: .3rem;
   }
@@ -25,7 +28,30 @@
     background: #fff;
   }
   .jp-tl-shift a:hover { border-color: #fecaca; color: #dc2626; background: #fff1f2; }
-  .jp-tl-range { font-weight: 800; color: var(--tl-ink); letter-spacing: -.02em; font-size: .92rem; }
+  .jp-tl-month-label {
+    min-width: 7.2rem; text-align: center;
+    font-weight: 800; color: var(--tl-ink); letter-spacing: -.02em; font-size: .92rem;
+  }
+  .jp-tl-month-now {
+    display: inline-flex; align-items: center; height: 1.85rem;
+    padding: 0 .7rem; border-radius: .45rem;
+    border: 1px solid #fecaca; background: #fff1f2; color: #b91c1c;
+    font-size: .72rem; font-weight: 800; text-decoration: none;
+  }
+  .jp-tl-month-now:hover { background: #fee2e2; color: #991b1b; }
+  .jp-tl-range-form {
+    display: inline-flex; flex-wrap: wrap; align-items: center; gap: .35rem .45rem;
+  }
+  .jp-tl-range-field {
+    display: inline-flex; align-items: center; gap: .28rem;
+    font-size: .72rem; font-weight: 700; color: var(--tl-muted);
+  }
+  .jp-tl-range-field input[type="date"] {
+    height: 1.85rem; padding: 0 .4rem;
+    border: 1px solid #e2e8f0; border-radius: .45rem;
+    font-size: .78rem; font-weight: 600; color: var(--tl-ink);
+    background: #fff;
+  }
   .jp-tl-count { color: var(--tl-muted); font-size: .78rem; font-weight: 600; }
   .jp-tl-legend {
     display: flex; flex-wrap: wrap; gap: .45rem .7rem; margin-left: auto;
@@ -116,6 +142,58 @@
   .jp-tl-prio.is-low { color: #475569; background: #f1f5f9; border-color: #e2e8f0; }
   .jp-tl-sub { color: var(--tl-muted); font-size: .74rem; margin-top: .12rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .jp-tl-meta { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem; margin-top: .28rem; }
+  .jp-tl-accepts {
+    position: relative;
+    z-index: 5;
+  }
+  .jp-tl-accepts > summary {
+    list-style: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: .2rem;
+    padding: .08rem .42rem;
+    border-radius: 999px;
+    font-size: .65rem;
+    font-weight: 800;
+    letter-spacing: .01em;
+    background: #fee2e2;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+    user-select: none;
+  }
+  .jp-tl-accepts > summary::-webkit-details-marker { display: none; }
+  .jp-tl-accepts > summary::before {
+    content: '▸';
+    font-size: .7rem;
+    line-height: 1;
+  }
+  .jp-tl-accepts[open] > summary::before { content: '▾'; }
+  .jp-tl-accepts > ul {
+    position: absolute;
+    left: 0;
+    top: calc(100% + .25rem);
+    min-width: 11rem;
+    margin: 0;
+    padding: .4rem .55rem;
+    list-style: none;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: .5rem;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, .12);
+  }
+  .jp-tl-accepts > ul li {
+    display: flex;
+    flex-direction: column;
+    gap: .05rem;
+    padding: .28rem 0;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: .72rem;
+    color: #334155;
+  }
+  .jp-tl-accepts > ul li:last-child { border-bottom: 0; }
+  .jp-tl-accepts > ul li strong { color: #0f172a; font-weight: 800; }
+  .jp-tl-accepts > ul li span { color: #64748b; font-weight: 600; font-size: .68rem; }
   .jp-tl-st {
     display: inline-flex; align-items: center; padding: .08rem .42rem; border-radius: 999px;
     font-size: .65rem; font-weight: 800; letter-spacing: .01em;

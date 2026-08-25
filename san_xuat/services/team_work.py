@@ -15,6 +15,7 @@ from san_xuat.hub_models import (
     SxProductionOrder,
     SxProductionOrderLine,
     SxProductionStat,
+    SxTeamWorkAccept,
     SxTeamWorkClose,
 )
 from san_xuat.services.order_progress_sheet import (
@@ -56,6 +57,7 @@ class TeamWorkJob:
     closed: bool = False
     closed_at: object | None = None
     closed_by_label: str = ''
+    accepted: bool = False
 
 
 def group_team_work_jobs(rows: list[TeamWorkRow]) -> list[TeamWorkJob]:
@@ -362,9 +364,70 @@ def team_job_closes(*, slug: str, mo_ids: list[int]) -> dict[int, SxTeamWorkClos
     return {c.production_order_id: c for c in qs}
 
 
+def is_production_accepted(mo: SxProductionOrder) -> bool:
+    """Đã nhận SX (LSX đang làm / xong) — mới mở Tiến độ / Hoàn thành tổ."""
+    return mo.status in (
+        SxProductionOrder.STATUS_IN_PROGRESS,
+        SxProductionOrder.STATUS_DONE,
+    )
+
+
+def _record_team_accept(*, mo: SxProductionOrder, team_slug: str, user=None) -> SxTeamWorkAccept | None:
+    slug = (team_slug or '').strip().lower()
+    if not slug or not team_by_slug(slug):
+        return None
+    rec, _created = SxTeamWorkAccept.objects.get_or_create(
+        production_order=mo,
+        team_slug=slug,
+        defaults={
+            'created_by': user if getattr(user, 'is_authenticated', False) else None,
+            'is_demo': False,
+        },
+    )
+    return rec
+
+
+@transaction.atomic
+def accept_production(*, mo_id: int, team_slug: str = '', user=None) -> SxProductionOrder:
+    """Tổ bất kỳ nhận phiếu → LSX + ĐĐH (KHSX) sang Đang SX; ghi tổ đã nhận."""
+    slug = (team_slug or '').strip().lower()
+    if slug and not team_by_slug(slug):
+        raise PlanningError('Tổ không hợp lệ.')
+    mo = (
+        SxProductionOrder.objects.select_for_update()
+        .select_related('sales_order')
+        .get(pk=mo_id, is_demo=False)
+    )
+    if mo.status in (SxProductionOrder.STATUS_DRAFT, SxProductionOrder.STATUS_CANCELLED):
+        raise PlanningError('Lệnh sản xuất chưa phát hành hoặc đã hủy.')
+    if mo.status == SxProductionOrder.STATUS_DONE:
+        _record_team_accept(mo=mo, team_slug=slug, user=user)
+        return mo
+    if mo.status == SxProductionOrder.STATUS_RELEASED:
+        mo.status = SxProductionOrder.STATUS_IN_PROGRESS
+        mo.save(update_fields=['status'])
+        if mo.sales_order_id:
+            from san_xuat.services.plan_board import sync_plan_status
+
+            sync_plan_status(mo.sales_order)
+    elif mo.status != SxProductionOrder.STATUS_IN_PROGRESS:
+        raise PlanningError('Lệnh không ở trạng thái chờ nhận sản xuất.')
+    _record_team_accept(mo=mo, team_slug=slug, user=user)
+    return mo
+
+
+def ensure_team_accept(*, mo_id: int, team_slug: str, user=None) -> None:
+    """Ghi tổ đã nhận khi vào tiến độ (LSX đã đang SX)."""
+    mo = SxProductionOrder.objects.filter(pk=mo_id, is_demo=False).first()
+    if not mo or not is_production_accepted(mo):
+        return
+    _record_team_accept(mo=mo, team_slug=team_slug, user=user)
+
+
 def attach_team_job_closes(jobs: list[TeamWorkJob], *, slug: str) -> list[TeamWorkJob]:
     closes = team_job_closes(slug=slug, mo_ids=[j.mo.pk for j in jobs])
     for job in jobs:
+        job.accepted = is_production_accepted(job.mo)
         rec = closes.get(job.mo.pk)
         job.closed = rec is not None
         job.closed_at = rec.closed_at if rec else None
@@ -380,6 +443,8 @@ def close_team_job(*, mo_id: int, team_slug: str, user=None, notes: str = '') ->
     mo = SxProductionOrder.objects.select_for_update().get(pk=mo_id, is_demo=False)
     if mo.status in (SxProductionOrder.STATUS_DRAFT, SxProductionOrder.STATUS_CANCELLED):
         raise PlanningError('Lệnh sản xuất chưa phát hành hoặc đã hủy.')
+    if not is_production_accepted(mo):
+        raise PlanningError('Cần nhận sản xuất trước khi hoàn thành.')
     rec, created = SxTeamWorkClose.objects.get_or_create(
         production_order=mo,
         team_slug=slug,

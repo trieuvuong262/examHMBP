@@ -1311,7 +1311,6 @@ def plan_board(request):
         PLAN_STATUS_LABELS,
         PRIORITY_LABELS,
         QUEUE_STATUSES,
-        _monday_on_or_before,
         build_order_timeline,
         build_plan_board_rows,
         confirmed_order_qty_summary,
@@ -1522,13 +1521,14 @@ def plan_board(request):
     qty_summary = confirmed_order_qty_summary()
     queue_rows = []
     released_rows = []
+    today_start = None
+    today_end_month = None
 
     if tab == 'queue':
         queue_rows = build_plan_board_rows(statuses=QUEUE_STATUSES, search=q)
         for row in queue_rows:
             sync_plan_status(row.order)
         route_board = None
-        today_start = None
     elif tab == 'released':
         released_rows = build_plan_board_rows(
             statuses=(
@@ -1542,9 +1542,9 @@ def plan_board(request):
         for row in released_rows:
             sync_plan_status(row.order)
         route_board = None
-        today_start = None
     else:
         from san_xuat.list_filters import parse_sx_date
+        from san_xuat.services.plan_board import _month_bounds
 
         route_rows = build_plan_board_rows(include_released=True, search=q)
         for row in route_rows:
@@ -1556,7 +1556,7 @@ def plan_board(request):
             range_from=route_from,
             range_to=route_to,
         )
-        today_start = _monday_on_or_before(timezone.localdate())
+        today_start, today_end_month = _month_bounds(timezone.localdate())
 
     return render(request, 'san_xuat/plan_board.html', {
         **_perm_ctx(request),
@@ -1572,8 +1572,8 @@ def plan_board(request):
         'priority_labels': PRIORITY_LABELS,
         'priority_choices': SxSalesOrder.PRIORITY_CHOICES,
         'route_board': route_board,
-        'today_monday': today_start,
-        'today_end': (today_start + timedelta(days=27)) if today_start else None,
+        'this_month_from': today_start,
+        'this_month_to': today_end_month,
     })
 
 
@@ -1620,19 +1620,16 @@ def plan_inter_step(request):
         form = SxInterStepSettingsForm(request.POST, instance=cfg)
         hop_entries = []
         hop_ok = True
-        for from_slug, _fl in team_slug_choices():
-            for to_slug, _tl in team_slug_choices():
-                if from_slug == to_slug:
-                    continue
-                try:
-                    count = _parse_minutes(request.POST.get(f'hop_{from_slug}_{to_slug}_count'))
-                    transfer = _parse_minutes(request.POST.get(f'hop_{from_slug}_{to_slug}_transfer'))
-                except ValueError:
-                    hop_ok = False
-                    break
-                hop_entries.append((from_slug, to_slug, count, transfer))
-            if not hop_ok:
+        teams = team_slug_choices()
+        slugs = [s for s, _ in teams]
+        for from_slug, to_slug in zip(slugs, slugs[1:]):
+            try:
+                count = _parse_minutes(request.POST.get(f'hop_{from_slug}_{to_slug}_count'))
+                transfer = _parse_minutes(request.POST.get(f'hop_{from_slug}_{to_slug}_transfer'))
+            except ValueError:
+                hop_ok = False
                 break
+            hop_entries.append((from_slug, to_slug, count, transfer))
         if form.is_valid() and hop_ok:
             with transaction.atomic():
                 obj = form.save(commit=False)
@@ -4227,6 +4224,7 @@ def team_work_board(request, slug: str):
     from san_xuat.services.planning import PlanningError
     from san_xuat.services.progress_template import team_by_slug
     from san_xuat.services.team_work import (
+        accept_production,
         assignee_candidate_options,
         assign_team_work,
         attach_team_job_closes,
@@ -4288,6 +4286,18 @@ def team_work_board(request, slug: str):
                     team_slug=slug,
                 )
                 messages.success(request, 'Đã cập nhật phân công.')
+            except PlanningError as exc:
+                messages.error(request, str(exc))
+            except Exception as exc:
+                messages.error(request, str(exc))
+            return redirect(_board_qs())
+        if action == 'accept' and mo_id:
+            try:
+                accept_production(mo_id=mo_id, team_slug=slug, user=request.user)
+                messages.success(
+                    request,
+                    'Đã nhận sản xuất — KHSX chuyển Đang sản xuất. Có thể ghi tiến độ / hoàn thành.',
+                )
             except PlanningError as exc:
                 messages.error(request, str(exc))
             except Exception as exc:
@@ -4491,7 +4501,14 @@ def team_work_progress(request, slug: str, mo_id: int):
     )
     from san_xuat.services.planning import PlanningError
     from san_xuat.services.progress_template import steps_for_group, team_by_slug
-    from san_xuat.services.team_work import close_team_job, is_team_job_closed, reopen_team_job
+    from san_xuat.services.team_work import (
+        accept_production,
+        close_team_job,
+        ensure_team_accept,
+        is_production_accepted,
+        is_team_job_closed,
+        reopen_team_job,
+    )
 
     team_meta = team_by_slug(slug)
     if not team_meta:
@@ -4527,6 +4544,9 @@ def team_work_progress(request, slug: str, mo_id: int):
     allowed_keys = {s.key for s in team_steps}
     ensure_progress_work_centers()
     job_closed = is_team_job_closed(mo_id=mo.pk, team_slug=slug)
+    accepted = is_production_accepted(mo)
+    if accepted:
+        ensure_team_accept(mo_id=mo.pk, team_slug=slug, user=request.user)
 
     if request.method == 'POST' and can_update:
         from django.http import JsonResponse
@@ -4536,6 +4556,16 @@ def team_work_progress(request, slug: str, mo_id: int):
             request.headers.get('X-Requested-With') == 'XMLHttpRequest'
             or 'application/json' in (request.headers.get('Accept') or '')
         )
+        if action == 'accept':
+            try:
+                accept_production(mo_id=mo.pk, team_slug=slug, user=request.user)
+                messages.success(
+                    request,
+                    'Đã nhận sản xuất — KHSX chuyển Đang sản xuất.',
+                )
+            except PlanningError as exc:
+                messages.error(request, str(exc))
+            return redirect('san_xuat:team_work_progress', slug=slug, mo_id=mo.pk)
         if action == 'complete':
             try:
                 close_team_job(mo_id=mo.pk, team_slug=slug, user=request.user)
@@ -4554,6 +4584,12 @@ def team_work_progress(request, slug: str, mo_id: int):
                 messages.error(request, str(exc))
             return redirect('san_xuat:team_work_progress', slug=slug, mo_id=mo.pk)
         if action in ('record', 'set_done'):
+            if not accepted:
+                msg = 'Cần nhận sản xuất trước khi ghi tiến độ.'
+                if wants_json:
+                    return JsonResponse({'ok': False, 'error': msg}, status=400)
+                messages.error(request, msg)
+                return redirect('san_xuat:team_work_progress', slug=slug, mo_id=mo.pk)
             if job_closed:
                 msg = 'Tổ đã hoàn thành lệnh này — mở lại nếu cần sửa SL.'
                 if wants_json:
@@ -4620,8 +4656,10 @@ def team_work_progress(request, slug: str, mo_id: int):
         'mo': mo,
         'sheet': sheet,
         'flat_steps': team_steps,
-        'can_update': can_update and not job_closed,
-        'can_close': can_update,
+        'accepted': accepted,
+        'can_update': can_update and accepted and not job_closed,
+        'can_close': can_update and accepted,
+        'can_accept': can_update and not accepted,
         'job_closed': job_closed,
         'today': timezone.localdate(),
     })

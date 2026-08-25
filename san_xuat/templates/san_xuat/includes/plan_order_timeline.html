@@ -6,16 +6,37 @@
   {% for row in route_board.rows %}
     {% if row.duration_script_id %}{{ row.duration_detail|json_script:row.duration_script_id }}{% endif %}
   {% endfor %}
-  {% if route_board.rows %}
   <div class="jp-tl-wrap">
     <div class="jp-tl-toolbar">
-      <div class="jp-tl-shift">
-        <a href="?mode={{ mode }}&amp;tab=route{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}&amp;route_from={{ route_board.prev_from|date:'Y-m-d' }}&amp;route_to={{ route_board.prev_to|date:'Y-m-d' }}" title="Khoảng trước"><i class="bi bi-chevron-left"></i></a>
-        <a href="?mode={{ mode }}&amp;tab=route{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}&amp;route_from={{ today_monday|date:'Y-m-d' }}&amp;route_to={{ today_end|date:'Y-m-d' }}" title="Về tuần này" style="width:auto;padding:0 .55rem;font-size:.72rem;font-weight:800">Hôm nay</a>
-        <a href="?mode={{ mode }}&amp;tab=route{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}&amp;route_from={{ route_board.next_from|date:'Y-m-d' }}&amp;route_to={{ route_board.next_to|date:'Y-m-d' }}" title="Khoảng sau"><i class="bi bi-chevron-right"></i></a>
+      <div class="jp-tl-filter" role="group" aria-label="Khoảng thời gian lộ trình">
+        <div class="jp-tl-shift">
+          <a href="?mode={{ mode }}&amp;tab=route{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}&amp;route_from={{ route_board.prev_from|date:'Y-m-d' }}&amp;route_to={{ route_board.prev_to|date:'Y-m-d' }}"
+             title="Tháng trước"><i class="bi bi-chevron-left"></i></a>
+          <span class="jp-tl-month-label" title="{{ route_board.range_start|date:'d/m/Y' }} – {{ route_board.range_end|date:'d/m/Y' }}">{{ route_board.month_label }}</span>
+          <a href="?mode={{ mode }}&amp;tab=route{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}&amp;route_from={{ route_board.next_from|date:'Y-m-d' }}&amp;route_to={{ route_board.next_to|date:'Y-m-d' }}"
+             title="Tháng sau"><i class="bi bi-chevron-right"></i></a>
+        </div>
+        {% if not route_board.is_current_month and this_month_from and this_month_to %}
+        <a class="jp-tl-month-now"
+           href="?mode={{ mode }}&amp;tab=route{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}&amp;route_from={{ this_month_from|date:'Y-m-d' }}&amp;route_to={{ this_month_to|date:'Y-m-d' }}"
+           title="Về tháng hiện tại">Tháng này</a>
+        {% endif %}
+        <form method="get" class="jp-tl-range-form">
+          <input type="hidden" name="mode" value="{{ mode }}">
+          <input type="hidden" name="tab" value="route">
+          {% if search_query %}<input type="hidden" name="q" value="{{ search_query }}">{% endif %}
+          <label class="jp-tl-range-field">
+            <span>Từ</span>
+            <input type="date" name="route_from" value="{{ route_board.range_start|date:'Y-m-d' }}" required>
+          </label>
+          <label class="jp-tl-range-field">
+            <span>Đến</span>
+            <input type="date" name="route_to" value="{{ route_board.range_end|date:'Y-m-d' }}" required>
+          </label>
+          <button type="submit" class="btn btn-outline-secondary btn-sm">Xem</button>
+        </form>
       </div>
-      <span class="jp-tl-range">{{ route_board.range_start|date:"d/m/Y" }} – {{ route_board.range_end|date:"d/m/Y" }}</span>
-      <span class="jp-tl-count">{{ route_board.rows|length }} đơn</span>
+      <span class="jp-tl-count">{{ route_board.rows|length }} đơn trong khoảng</span>
       <div class="jp-tl-legend" aria-label="Chú thích trạng thái">
         <span><i style="background:#d97706"></i>Chờ xếp</span>
         <span><i style="background:#64748b"></i>Tạm giữ</span>
@@ -25,6 +46,7 @@
         <span><i style="background:#9f1239"></i>Trễ hạn</span>
       </div>
     </div>
+    {% if route_board.rows %}
     <div class="jp-tl-chart" style="--tl-days: {{ route_board.days|length }}">
       <div class="jp-tl-corner">Đơn</div>
       {% for m in route_board.month_spans %}
@@ -48,6 +70,20 @@
         {% if row.subtitle %}<div class="jp-tl-sub" title="{{ row.subtitle }}">{{ row.subtitle }}</div>{% endif %}
         <div class="jp-tl-meta">
           <span class="jp-tl-st is-{{ row.status_key }}{% if row.is_late %} is-late{% endif %}">{{ row.status_label }}</span>
+          {% if row.accepted_teams %}
+          <details class="jp-tl-accepts">
+            <summary title="Tổ đã nhận sản xuất">Tổ nhận · {{ row.accepted_teams|length }}</summary>
+            <ul>
+              {% for t in row.accepted_teams %}
+              <li>
+                <strong>{{ t.label }}</strong>
+                {% if t.at %}<span>{{ t.at }}</span>{% endif %}
+                {% if t.by %}<span>{{ t.by }}</span>{% endif %}
+              </li>
+              {% endfor %}
+            </ul>
+          </details>
+          {% endif %}
         </div>
       </div>
       {% for d in route_board.days %}
@@ -73,8 +109,8 @@
         {% endwith %}
       {% endfor %}
     </div>
+    {% else %}
+    <div class="jp-tl-empty">Không có đơn trong khoảng {{ route_board.range_start|date:"d/m/Y" }} – {{ route_board.range_end|date:"d/m/Y" }}. Đổi tháng hoặc khoảng ngày để xem.</div>
+    {% endif %}
   </div>
-  {% else %}
-  <div class="jp-tl-empty">Chưa có đơn để vẽ lộ trình thời gian.</div>
-  {% endif %}
 </section>

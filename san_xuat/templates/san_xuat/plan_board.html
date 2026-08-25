@@ -643,8 +643,7 @@
           {% for pf in row.product_flows %}
           <div class="jp-pb-product">
             <div class="jp-pb-product-head">
-              <span class="jp-pb-product-code">{{ pf.product_code }}</span>
-              {% if pf.product_name %}<span class="jp-pb-product-name">{{ pf.product_name }}</span>{% endif %}
+              <span class="jp-pb-product-code"{% if pf.product_name %} title="{{ pf.product_code }}"{% endif %}>{{ pf.product_name|default:pf.product_code }}</span>
               <span class="jp-pb-product-qty">SL {{ pf.qty|sx_num }}</span>
             </div>
             {% include 'san_xuat/includes/plan_board_flow.html' with flow_groups=pf.flow_groups %}
@@ -718,8 +717,7 @@
           {% for pf in row.product_flows %}
           <div class="jp-pb-product">
             <div class="jp-pb-product-head">
-              <span class="jp-pb-product-code">{{ pf.product_code }}</span>
-              {% if pf.product_name %}<span class="jp-pb-product-name">{{ pf.product_name }}</span>{% endif %}
+              <span class="jp-pb-product-code"{% if pf.product_name %} title="{{ pf.product_code }}"{% endif %}>{{ pf.product_name|default:pf.product_code }}</span>
               <span class="jp-pb-product-qty">SL {{ pf.qty|sx_num }}</span>
             </div>
             {% include 'san_xuat/includes/plan_board_flow.html' with flow_groups=pf.flow_groups empty_label='OB theo lệnh sản xuất' %}
@@ -1056,8 +1054,7 @@
           esc(h.total) + '′</strong></li>';
       }).join('');
       return '<tr>' +
-        '<td><div class="jp-pb-dur-prod">' + esc(p.name || p.code || '—') + '</div>' +
-        (p.code && p.name ? '<div class="jp-pb-dur-muted">' + esc(p.code) + '</div>' : '') +
+        '<td><div class="jp-pb-dur-prod" title="' + esc(p.code || '') + '">' + esc(p.name || p.code || '—') + '</div>' +
         (hops ? '<ul class="jp-pb-dur-hops">' + hops + '</ul>' : '') +
         '</td>' +
         '<td class="num">' + esc(p.qty) + '</td>' +
@@ -1077,14 +1074,14 @@
         '<div class="jp-pb-dur-card"><span class="k">Ca</span><span class="v">' + esc(data.shift_label || '9 giờ 30 phút') + ' / ngày</span></div>' +
       '</div>' +
       '<table class="jp-pb-dur-table">' +
-        '<thead><tr><th>Tên hàng</th><th class="num">SL</th><th class="num" title="Tổng SMV đơn hàng mọi công đoạn đã có">SMV</th><th class="num">SMV × SL (phút)</th><th class="num">Kiểm/VC (phút)</th></tr></thead>' +
+        '<thead><tr><th>Tên hàng</th><th class="num">SL</th><th class="num" title="Σ SMV đơn × SL/SP mọi công đoạn đã có (giây/cái)">Tổng SMV đơn hàng</th><th class="num" title="SMV × SL theo từng mã (phút)">Tổng thời gian thực hiện</th><th class="num">Kiểm/VC (phút)</th></tr></thead>' +
         '<tbody>' + (rows || '<tr><td colspan="5" class="jp-pb-dur-muted">Chưa có định mức thời gian.</td></tr>') + '</tbody>' +
         '<tfoot><tr>' +
           '<td><strong>Tổng đơn</strong></td><td></td><td></td>' +
           '<td class="num"><strong>' + esc(data.work_minutes) + '</strong></td>' +
           '<td class="num"><strong>' + esc(data.buffer_minutes) + '</strong></td>' +
         '</tr><tr>' +
-          '<td colspan="4">Chu kỳ = SMV × SL + kiểm/VC</td>' +
+          '<td colspan="4">Chu kỳ = tổng thời gian thực hiện + kiểm/VC</td>' +
           '<td class="num"><strong>' + esc(data.cycle_minutes) + ' phút</strong></td>' +
         '</tr></tfoot>' +
       '</table>';
