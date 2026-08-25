@@ -1105,8 +1105,8 @@
           esc(h.total) + '′</strong></li>';
       }).join('');
       return '<tr>' +
-        '<td><div class="jp-pb-dur-prod">' + esc(p.code) + '</div>' +
-        (p.name ? '<div class="jp-pb-dur-muted">' + esc(p.name) + '</div>' : '') +
+        '<td><div class="jp-pb-dur-prod">' + esc(p.name || p.code || '—') + '</div>' +
+        (p.code && p.name ? '<div class="jp-pb-dur-muted">' + esc(p.code) + '</div>' : '') +
         (hops ? '<ul class="jp-pb-dur-hops">' + hops + '</ul>' : '') +
         '</td>' +
         '<td class="num">' + esc(p.qty) + '</td>' +
@@ -1123,11 +1123,10 @@
         '</span></div>' +
         '<div class="jp-pb-dur-card"><span class="k">Hạn giao</span><span class="v">' + esc(data.due || '—') + '</span></div>' +
         '<div class="jp-pb-dur-card"><span class="k">Làm trong</span><span class="v">' + esc(data.duration_label || '—') + '</span></div>' +
-        '<div class="jp-pb-dur-card"><span class="k">Ca</span><span class="v">' + esc(data.shift_hours) + ' giờ / ngày</span></div>' +
+        '<div class="jp-pb-dur-card"><span class="k">Ca</span><span class="v">' + esc(data.shift_label || '9 giờ 30 phút') + ' / ngày</span></div>' +
       '</div>' +
-      '<p class="jp-pb-dur-formula">Công thức: Σ (SMV giây ÷ 60 × SL) mọi mã + kiểm đếm/vận chuyển giữa tổ. Ngày KHSX tính theo ngày làm việc từ ngày dự kiến thực hiện.</p>' +
       '<table class="jp-pb-dur-table">' +
-        '<thead><tr><th>Mã hàng</th><th class="num">SL</th><th class="num">SMV</th><th class="num">SMV × SL (phút)</th><th class="num">Kiểm/VC (phút)</th></tr></thead>' +
+        '<thead><tr><th>Tên hàng</th><th class="num">SL</th><th class="num">SMV</th><th class="num">SMV × SL (phút)</th><th class="num">Kiểm/VC (phút)</th></tr></thead>' +
         '<tbody>' + (rows || '<tr><td colspan="5" class="jp-pb-dur-muted">Chưa có định mức thời gian.</td></tr>') + '</tbody>' +
         '<tfoot><tr>' +
           '<td><strong>Tổng đơn</strong></td><td></td><td></td>' +

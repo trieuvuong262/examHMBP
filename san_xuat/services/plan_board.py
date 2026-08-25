@@ -20,6 +20,9 @@ from san_xuat.services.order_routing import sales_order_line_routing, steps_dict
 from san_xuat.templatetags.sx_format import format_sx_num_input
 
 _Q2 = Decimal('0.01')
+# Ca KHSX mặc định: 9 giờ 30 phút
+PLAN_SHIFT_MINUTES = Decimal('570')
+PLAN_SHIFT_LABEL = '9 giờ 30 phút'
 
 PRIORITY_WEIGHT = {
     SxSalesOrder.PRIORITY_CRITICAL: Decimal('5000'),
@@ -253,8 +256,6 @@ def format_order_duration(minutes: Decimal) -> tuple[str, int]:
     """Nhãn thời gian làm đơn: '16 giờ 29 phút · 3 ngày làm việc'."""
     from decimal import ROUND_CEILING
 
-    from san_xuat.services.inter_step_times import minutes_per_shift
-
     mins = max(_q(minutes), Decimal('0'))
     if mins <= 0:
         return '', 0
@@ -270,7 +271,7 @@ def format_order_duration(minutes: Decimal) -> tuple[str, int]:
     if not clock_parts:
         clock_parts.append('dưới 1 phút')
     clock = ' '.join(clock_parts)
-    per_day = minutes_per_shift() or Decimal('480')
+    per_day = PLAN_SHIFT_MINUTES
     days = int((mins / per_day).to_integral_value(rounding=ROUND_CEILING))
     days = max(1, days)
     if days == 1:
@@ -420,12 +421,16 @@ def build_plan_board_rows(
         )
         mo_count, mo_open, qty_planned, qty_done, pct = _mo_progress(mos)
         derived = derive_plan_status(order, mos)
-        from san_xuat.services.inter_step_times import minutes_per_shift, schedule_span
+        from san_xuat.services.inter_step_times import schedule_span
 
         khsx_start = order.request_date or today
         khsx_end = khsx_start
         if cycle_min > 0:
-            khsx_start, khsx_end = schedule_span(start=khsx_start, lead_minutes=cycle_min)
+            khsx_start, khsx_end = schedule_span(
+                start=khsx_start,
+                lead_minutes=cycle_min,
+                minutes_per_day=PLAN_SHIFT_MINUTES,
+            )
         khsx_overrun = bool(order.due_date and khsx_end and khsx_end > order.due_date)
         eta = khsx_end
         duration_label, duration_work_days = format_order_duration(cycle_min)
@@ -433,14 +438,13 @@ def build_plan_board_rows(
         def _fmt_date(d):
             return d.strftime('%d/%m/%Y') if d else ''
 
-        shift_min = minutes_per_shift() or Decimal('480')
         duration_detail = {
             'code': order.code,
             'request': _fmt_date(order.request_date),
             'due': _fmt_date(order.due_date),
             'khsx_start': _fmt_date(khsx_start),
             'khsx_end': _fmt_date(khsx_end),
-            'shift_hours': int(shift_min / Decimal('60')),
+            'shift_label': PLAN_SHIFT_LABEL,
             'work_minutes': format_sx_num_input(work_min),
             'buffer_minutes': format_sx_num_input(buffer_min),
             'cycle_minutes': format_sx_num_input(cycle_min),
@@ -743,7 +747,11 @@ def release_order_to_production(
         line_routing = _line_routing(ln)
         lead = (line_routing.total_smv * ln.qty_to_produce) + line_routing.hop_buffer_minutes
         plan_anchor = order.request_date or timezone.localdate()
-        plan_start, plan_end = schedule_span(start=plan_anchor, lead_minutes=lead)
+        plan_start, plan_end = schedule_span(
+            start=plan_anchor,
+            lead_minutes=lead,
+            minutes_per_day=PLAN_SHIFT_MINUTES,
+        )
 
         mo = None
         try:

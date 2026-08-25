@@ -148,11 +148,11 @@ def add_working_minutes(start: date, minutes: Decimal, *, minutes_per_day: Decim
     return day
 
 
-def schedule_span(*, start: date, lead_minutes: Decimal) -> tuple[date, date]:
+def schedule_span(*, start: date, lead_minutes: Decimal, minutes_per_day: Decimal | None = None) -> tuple[date, date]:
     """(ngày bắt đầu, ngày kết thúc) theo lịch làm việc + quỹ phút/ca."""
     if lead_minutes <= 0:
         return start, start
-    end = add_working_minutes(start, lead_minutes)
+    end = add_working_minutes(start, lead_minutes, minutes_per_day=minutes_per_day)
     return start, end
 
 
