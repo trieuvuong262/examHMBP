@@ -82,6 +82,8 @@ class PlanBoardRow:
     khsx_overrun: bool = False
     duration_label: str = ''
     duration_work_days: int = 0
+    duration_detail: dict = field(default_factory=dict)
+    duration_script_id: str = ''
     derived_status: str = SxSalesOrder.PLAN_QUEUED
     release_products: list[dict] = field(default_factory=list)
     release_script_id: str = ''
@@ -104,6 +106,9 @@ class PlanProductFlow:
     flow_groups: list = field(default_factory=list)
     line_id: int = 0
     process_names: list[str] = field(default_factory=list)
+    smv_minutes: Decimal = field(default_factory=lambda: Decimal('0'))
+    work_minutes: Decimal = field(default_factory=lambda: Decimal('0'))
+    buffer_minutes: Decimal = field(default_factory=lambda: Decimal('0'))
 
 
 def enqueue_on_confirm(order: SxSalesOrder) -> None:
@@ -218,6 +223,30 @@ def _buffer_from_flow_groups(groups) -> Decimal:
     for g in rows[:-1]:
         total += _q(getattr(g, 'form_count_minutes', 0)) + _q(getattr(g, 'form_transfer_minutes', 0))
     return _q(total)
+
+
+def _hops_from_flow_groups(groups) -> list[dict]:
+    """Khoảng kiểm/VC giữa các tổ — dữ liệu modal chi tiết thời gian."""
+    rows = list(groups or [])
+    hops: list[dict] = []
+    for i, g in enumerate(rows[:-1]):
+        nxt = rows[i + 1]
+        from_lab = (getattr(g, 'team_label', None) or '').strip()
+        if not from_lab and getattr(g, 'process_names', None):
+            from_lab = g.process_names[0]
+        to_lab = (getattr(nxt, 'team_label', None) or '').strip()
+        if not to_lab and getattr(nxt, 'process_names', None):
+            to_lab = nxt.process_names[0]
+        count = _q(getattr(g, 'form_count_minutes', 0))
+        transfer = _q(getattr(g, 'form_transfer_minutes', 0))
+        hops.append({
+            'from': from_lab or '—',
+            'to': to_lab or '—',
+            'count': format_sx_num_input(count),
+            'transfer': format_sx_num_input(transfer),
+            'total': format_sx_num_input(count + transfer),
+        })
+    return hops
 
 
 def format_order_duration(minutes: Decimal) -> tuple[str, int]:
@@ -364,6 +393,8 @@ def build_plan_board_rows(
                     if k not in seen_p:
                         seen_p.add(k)
                         pnames.append(n)
+            pbuf = _buffer_from_flow_groups(groups)
+            psmv = _q(routing.total_smv, '0.0001')
             product_flows.append(PlanProductFlow(
                 product_code=code,
                 product_name=(ln.product_name or '').strip(),
@@ -371,6 +402,9 @@ def build_plan_board_rows(
                 flow_groups=groups,
                 line_id=int(ln.pk or 0),
                 process_names=pnames[:12],
+                smv_minutes=psmv,
+                work_minutes=_q(psmv * ln.qty_to_produce),
+                buffer_minutes=pbuf,
             ))
         if product_flows:
             # Ticket-level groups = mã đầu (fallback include cũ); UI ưu tiên product_flows
@@ -386,7 +420,7 @@ def build_plan_board_rows(
         )
         mo_count, mo_open, qty_planned, qty_done, pct = _mo_progress(mos)
         derived = derive_plan_status(order, mos)
-        from san_xuat.services.inter_step_times import schedule_span
+        from san_xuat.services.inter_step_times import minutes_per_shift, schedule_span
 
         khsx_start = order.request_date or today
         khsx_end = khsx_start
@@ -395,6 +429,38 @@ def build_plan_board_rows(
         khsx_overrun = bool(order.due_date and khsx_end and khsx_end > order.due_date)
         eta = khsx_end
         duration_label, duration_work_days = format_order_duration(cycle_min)
+
+        def _fmt_date(d):
+            return d.strftime('%d/%m/%Y') if d else ''
+
+        shift_min = minutes_per_shift() or Decimal('480')
+        duration_detail = {
+            'code': order.code,
+            'request': _fmt_date(order.request_date),
+            'due': _fmt_date(order.due_date),
+            'khsx_start': _fmt_date(khsx_start),
+            'khsx_end': _fmt_date(khsx_end),
+            'shift_hours': int(shift_min / Decimal('60')),
+            'work_minutes': format_sx_num_input(work_min),
+            'buffer_minutes': format_sx_num_input(buffer_min),
+            'cycle_minutes': format_sx_num_input(cycle_min),
+            'duration_label': duration_label,
+            'work_days': duration_work_days,
+            'products': [
+                {
+                    'code': pf.product_code,
+                    'name': pf.product_name,
+                    'qty': format_sx_num_input(pf.qty),
+                    'smv_min': format_sx_num_input(pf.smv_minutes),
+                    'smv_sec': format_sx_num_input(_q(pf.smv_minutes * Decimal('60'))),
+                    'work_minutes': format_sx_num_input(pf.work_minutes),
+                    'buffer_minutes': format_sx_num_input(pf.buffer_minutes),
+                    'hops': _hops_from_flow_groups(pf.flow_groups),
+                }
+                for pf in product_flows
+            ],
+        }
+        duration_script_id = f'jp-duration-{order.pk}'
 
         # Gom mã SP unique cho modal Chuyển SX (chọn BOM) — kèm mặc định từ ĐĐH
         release_products: list[dict] = []
@@ -436,6 +502,8 @@ def build_plan_board_rows(
             khsx_overrun=khsx_overrun,
             duration_label=duration_label,
             duration_work_days=duration_work_days,
+            duration_detail=duration_detail,
+            duration_script_id=duration_script_id,
             derived_status=derived,
             release_products=release_products,
             release_script_id=f'jp-release-products-{order.pk}',

@@ -236,6 +236,53 @@
   .jp-pb-stat strong { color: var(--pb-ink); font-weight: 800; }
   .jp-pb-stat.is-late { background: #fef2f2; border-color: #fecaca; color: #b91c1c; }
   .jp-pb-stat.is-late strong { color: #991b1b; }
+  .jp-pb-dur-btn {
+    display: inline-flex;
+    align-items: center;
+    height: 1.45rem;
+    margin-left: 0.15rem;
+    padding: 0 0.5rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 999px;
+    background: #fff;
+    color: #0369a1;
+    font-size: 0.68rem;
+    font-weight: 800;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .jp-pb-dur-btn:hover { border-color: #0369a1; background: #e0f2fe; }
+  .jp-pb-dur-table { width: 100%; font-size: 0.82rem; }
+  .jp-pb-dur-table th {
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #64748b;
+    border-bottom: 1px solid #e8edf3;
+    padding: 0.35rem 0.45rem;
+  }
+  .jp-pb-dur-table td { padding: 0.4rem 0.45rem; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+  .jp-pb-dur-table .num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; }
+  .jp-pb-dur-sum {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+    margin: 0 0 1rem;
+  }
+  @media (min-width: 576px) { .jp-pb-dur-sum { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+  .jp-pb-dur-card {
+    padding: 0.55rem 0.7rem;
+    border: 1px solid #e8edf3;
+    border-radius: 0.65rem;
+    background: #f4f7fb;
+  }
+  .jp-pb-dur-card .k { display: block; font-size: 0.68rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.03em; }
+  .jp-pb-dur-card .v { font-size: 0.92rem; font-weight: 800; color: #0f172a; }
+  .jp-pb-dur-formula { font-size: 0.78rem; color: #64748b; margin: 0 0 0.85rem; }
+  .jp-pb-dur-hops { margin: 0.25rem 0 0; padding: 0; list-style: none; font-size: 0.74rem; color: #475569; }
+  .jp-pb-dur-prod { font-weight: 800; color: #0f172a; }
+  .jp-pb-dur-muted { color: #64748b; font-weight: 600; }
 
   .jp-pb-flow {
     display: flex;
@@ -635,8 +682,11 @@
             {% else %}<strong>—</strong>{% endif %}
           </span>
           {% if row.duration_label %}
+          {{ row.duration_detail|json_script:row.duration_script_id }}
           <span class="jp-pb-stat" title="Tổng thời gian làm đơn (SMV × SL mọi mã + kiểm/VC)">
             Làm trong <strong>{{ row.duration_label }}</strong>
+            <button type="button" class="jp-pb-dur-btn" data-jp-duration-open
+                    data-detail-id="{{ row.duration_script_id }}">Chi tiết</button>
           </span>
           {% endif %}
           <span class="jp-pb-stat{% if row.is_overdue %} is-late{% endif %}">
@@ -764,6 +814,22 @@
         <button type="submit" class="btn btn-hm fw-bold" id="jpReleaseBomSubmit">Chuyển SX</button>
       </div>
     </form>
+  </div>
+</div>
+
+{# Modal chi tiết thời gian làm đơn #}
+<div class="modal fade" id="jpDurationModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="jpDurationTitle">Chi tiết thời gian</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+      </div>
+      <div class="modal-body" id="jpDurationBody"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Đóng</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1013,6 +1079,78 @@
         return;
       }
     }
+  });
+})();
+
+(function () {
+  var modalEl = document.getElementById('jpDurationModal');
+  var titleEl = document.getElementById('jpDurationTitle');
+  var bodyEl = document.getElementById('jpDurationBody');
+  if (!modalEl || !bodyEl || typeof bootstrap === 'undefined') return;
+  var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function render(data) {
+    titleEl.textContent = 'Thời gian SX — ' + (data.code || '');
+    var products = data.products || [];
+    var rows = products.map(function (p) {
+      var hops = (p.hops || []).map(function (h) {
+        return '<li>' + esc(h.from) + ' → ' + esc(h.to) +
+          ': ' + esc(h.count) + '′ kiểm + ' + esc(h.transfer) + '′ VC = <strong>' +
+          esc(h.total) + '′</strong></li>';
+      }).join('');
+      return '<tr>' +
+        '<td><div class="jp-pb-dur-prod">' + esc(p.code) + '</div>' +
+        (p.name ? '<div class="jp-pb-dur-muted">' + esc(p.name) + '</div>' : '') +
+        (hops ? '<ul class="jp-pb-dur-hops">' + hops + '</ul>' : '') +
+        '</td>' +
+        '<td class="num">' + esc(p.qty) + '</td>' +
+        '<td class="num">' + esc(p.smv_sec) + ' s<br><span class="jp-pb-dur-muted">' + esc(p.smv_min) + ' phút/cái</span></td>' +
+        '<td class="num">' + esc(p.work_minutes) + '</td>' +
+        '<td class="num">' + esc(p.buffer_minutes) + '</td>' +
+        '</tr>';
+    }).join('');
+    bodyEl.innerHTML =
+      '<div class="jp-pb-dur-sum">' +
+        '<div class="jp-pb-dur-card"><span class="k">KHSX</span><span class="v">' +
+          esc(data.khsx_start || '—') +
+          (data.khsx_end && data.khsx_end !== data.khsx_start ? ' → ' + esc(data.khsx_end) : '') +
+        '</span></div>' +
+        '<div class="jp-pb-dur-card"><span class="k">Hạn giao</span><span class="v">' + esc(data.due || '—') + '</span></div>' +
+        '<div class="jp-pb-dur-card"><span class="k">Làm trong</span><span class="v">' + esc(data.duration_label || '—') + '</span></div>' +
+        '<div class="jp-pb-dur-card"><span class="k">Ca</span><span class="v">' + esc(data.shift_hours) + ' giờ / ngày</span></div>' +
+      '</div>' +
+      '<p class="jp-pb-dur-formula">Công thức: Σ (SMV giây ÷ 60 × SL) mọi mã + kiểm đếm/vận chuyển giữa tổ. Ngày KHSX tính theo ngày làm việc từ ngày dự kiến thực hiện.</p>' +
+      '<table class="jp-pb-dur-table">' +
+        '<thead><tr><th>Mã hàng</th><th class="num">SL</th><th class="num">SMV</th><th class="num">SMV × SL (phút)</th><th class="num">Kiểm/VC (phút)</th></tr></thead>' +
+        '<tbody>' + (rows || '<tr><td colspan="5" class="jp-pb-dur-muted">Chưa có định mức thời gian.</td></tr>') + '</tbody>' +
+        '<tfoot><tr>' +
+          '<td><strong>Tổng đơn</strong></td><td></td><td></td>' +
+          '<td class="num"><strong>' + esc(data.work_minutes) + '</strong></td>' +
+          '<td class="num"><strong>' + esc(data.buffer_minutes) + '</strong></td>' +
+        '</tr><tr>' +
+          '<td colspan="4">Chu kỳ = SMV × SL + kiểm/VC</td>' +
+          '<td class="num"><strong>' + esc(data.cycle_minutes) + ' phút</strong></td>' +
+        '</tr></tfoot>' +
+      '</table>';
+  }
+
+  document.querySelectorAll('[data-jp-duration-open]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var id = btn.getAttribute('data-detail-id');
+      var script = id ? document.getElementById(id) : null;
+      var data = {};
+      if (script) {
+        try { data = JSON.parse(script.textContent || '{}'); } catch (e) { data = {}; }
+      }
+      render(data);
+      modal.show();
+    });
   });
 })();
 
