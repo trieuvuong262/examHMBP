@@ -29,11 +29,11 @@
     {% if not forloop.last %}
     <span class="jp-pb-link">
       <span class="jp-pb-link-line"></span>
-      {% if g.hop_is_set %}
+      {% if g.hop_is_set or g.form_count_minutes or g.form_transfer_minutes %}
       <span class="jp-pb-hop">
-        {% if g.count_minutes %}<span class="k">{{ g.count_minutes|sx_num }}′ kiểm</span>{% endif %}
-        {% if g.count_minutes and g.transfer_minutes %}<span>·</span>{% endif %}
-        {% if g.transfer_minutes %}<span class="v">{{ g.transfer_minutes|sx_num }}′ VC</span>{% endif %}
+        {% if g.form_count_minutes %}<span class="k">{{ g.form_count_minutes|sx_num }}′ kiểm</span>{% endif %}
+        {% if g.form_count_minutes and g.form_transfer_minutes %}<span>·</span>{% endif %}
+        {% if g.form_transfer_minutes %}<span class="v">{{ g.form_transfer_minutes|sx_num }}′ VC</span>{% endif %}
       </span>
       {% endif %}
       {% if can_schedule and row.order.plan_status != 'done' and g.hop_step_id %}

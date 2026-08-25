@@ -293,7 +293,10 @@ def build_plan_board_rows(
             buffer_min = hop_buffer_minutes(plan_steps)
 
         # Flow theo từng mã SP — không gộp chung nhiều mã thành một dải tổ
-        from san_xuat.services.inter_step_times import flow_groups_from_steps as _flow_groups
+        from san_xuat.services.inter_step_times import (
+            attach_flow_group_hops,
+            flow_groups_from_steps as _flow_groups,
+        )
 
         active_lines = [ln for ln in lines if (ln.qty or 0) > 0 and (ln.product_code or '').strip()]
         single_product = len({(ln.product_code or '').strip().casefold() for ln in active_lines}) == 1
@@ -306,9 +309,8 @@ def build_plan_board_rows(
                 groups = _flow_groups(plan_steps, sort_factory=True)
             elif line_steps:
                 groups = _flow_groups(line_steps, sort_factory=True)
-                # Hop edit gắn SxSalesOrderPlanStep — tắt khi flow lấy từ routing dòng
-                for g in groups:
-                    g.hop_step_id = 0
+                # Gắn lại + / phút kiểm-VC từ snapshot đơn (không gộp flow nhiều mã)
+                attach_flow_group_hops(groups, plan_steps)
             else:
                 groups = []
             pnames: list[str] = []

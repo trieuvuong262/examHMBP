@@ -286,6 +286,78 @@ class PlanFlowGroup:
         return self.default_transfer_minutes
 
 
+def attach_flow_group_hops(groups: list[PlanFlowGroup], plan_steps) -> list[PlanFlowGroup]:
+    """Gắn hop_step_id + phút đã lưu từ snapshot đơn vào flow (theo tên công đoạn).
+
+    Dùng khi flow build từ routing từng mã SP — vẫn sửa kiểm/VC qua SxSalesOrderPlanStep.
+    """
+    rows = list(plan_steps or [])
+    if not groups:
+        return groups
+    by_name: dict[str, object] = {}
+    for step in rows:
+        name = (_step_attr(step, 'process_name') or '').strip()
+        if name:
+            by_name[name.casefold()] = step
+
+    pairs = hop_pair_map()
+    for i, g in enumerate(groups):
+        if i >= len(groups) - 1:
+            continue
+        candidates = []
+        for name in g.process_names:
+            step = by_name.get((name or '').casefold())
+            if step is not None:
+                candidates.append(step)
+        if not candidates:
+            # Fallback: bước cùng slug tổ trong snapshot
+            slug = (g.from_slug or '').strip().lower()
+            if not slug and g.work_center_id:
+                for step in rows:
+                    if int(_step_attr(step, 'work_center_id', 0) or 0) == int(g.work_center_id):
+                        candidates.append(step)
+            elif slug:
+                for step in rows:
+                    if (_step_team_slug(step) or '') == slug:
+                        candidates.append(step)
+        if not candidates:
+            g.hop_step_id = 0
+            continue
+
+        with_mins = [
+            s for s in candidates
+            if _q(_step_attr(s, 'count_minutes', 0)) > 0
+            or _q(_step_attr(s, 'transfer_minutes', 0)) > 0
+        ]
+        pick = max(
+            with_mins or candidates,
+            key=lambda s: (int(_step_attr(s, 'sequence', 0) or 0), int(_step_attr(s, 'pk', 0) or 0)),
+        )
+        g.hop_step_id = int(_step_attr(pick, 'pk', 0) or 0)
+        nxt = groups[i + 1]
+        # from/to slug theo nhóm (đã chuẩn hóa), không phụ thuộc bước lẻ
+        g.from_slug = g.from_slug or (_step_team_slug(pick) or '')
+        # lấy slug nhóm sau từ bước đầu nhóm sau nếu có
+        nxt_step = None
+        for name in nxt.process_names:
+            nxt_step = by_name.get((name or '').casefold())
+            if nxt_step is not None:
+                break
+        g.to_slug = g.to_slug or (_step_team_slug(nxt_step) if nxt_step else '') or nxt.from_slug
+        hop_c, hop_t = resolve_hop_minutes(
+            _step_attr(pick, 'count_minutes'),
+            _step_attr(pick, 'transfer_minutes'),
+            fill_default=False,
+        )
+        if hop_c > 0 or hop_t > 0:
+            g.count_minutes = hop_c
+            g.transfer_minutes = hop_t
+        def_c, def_t = default_hop_minutes(g.from_slug, g.to_slug, pairs=pairs)
+        g.default_count_minutes = def_c
+        g.default_transfer_minutes = def_t
+    return groups
+
+
 def sort_steps_by_factory_flow(steps) -> list:
     """Sắp công đoạn theo luồng xưởng (Cắt → In-Ép → Thêu → May → HT → GH).
 
