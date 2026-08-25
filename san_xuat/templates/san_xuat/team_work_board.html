@@ -4,6 +4,7 @@
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
 {% include 'san_xuat/includes/team_work_topbar_styles.html' %}
+{% include 'san_xuat/includes/sx_plan_urgency_styles.html' %}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/css/tom-select.bootstrap5.min.css">
 <style>
   .jp-tw {
@@ -14,6 +15,18 @@
     --tw-accent: #0f766e;
     --tw-accent-soft: #ccfbf1;
   }
+  .jp-tw-job.is-late { box-shadow: inset 3px 0 0 #dc2626; }
+  .jp-tw-job.is-hot:not(.is-late) { box-shadow: inset 3px 0 0 #ea580c; }
+  .jp-tw-job-khsx {
+    display: flex; flex-wrap: wrap; align-items: center; gap: .35rem .55rem;
+    margin-top: .4rem;
+  }
+  .jp-tw-due {
+    font-size: .78rem; font-weight: 700; color: var(--tw-muted);
+  }
+  .jp-tw-due strong { color: var(--tw-ink); font-weight: 800; }
+  .jp-tw-due.is-late { color: #b91c1c; }
+  .jp-tw-due.is-late strong { color: #b91c1c; }
   .jp-tw-toolbar {
     display: flex; flex-wrap: wrap; align-items: center; gap: .65rem;
     margin: 0 0 1rem;
@@ -388,7 +401,7 @@
   {% if jobs %}
   <div class="jp-tw-jobs{% if can_assign and not show_closed %} is-assignable{% endif %}">
     {% for job in jobs %}
-    <article class="jp-tw-job{% if job.closed %} is-closed{% endif %}">
+    <article class="jp-tw-job{% if job.closed %} is-closed{% endif %}{% if job.is_overdue %} is-late{% elif job.priority == 'critical' or job.priority == 'urgent' %} is-hot{% endif %}">
       <header class="jp-tw-job-head">
         <div>
           <div class="jp-tw-job-title">
@@ -399,6 +412,21 @@
             {% endwith %}
             <span class="jp-tw-stat-pill"><strong>{{ job.step_count }}</strong> công đoạn</span>
             {% if job.closed %}<span class="jp-tw-status is-done"><i class="bi bi-check-circle"></i>Hoàn thành</span>{% endif %}
+          </div>
+          <div class="jp-tw-job-khsx" title="Ưu tiên và hạn giao trên KHSX">
+            <span class="jp-pb-urgency is-{{ job.priority }}">{{ job.priority_label }}</span>
+            {% if job.due %}
+            <span class="jp-tw-due{% if job.is_overdue %} is-late{% endif %}">
+              Hạn <strong>{{ job.due|date:"d/m/Y" }}</strong>
+              {% if job.days_to_due is not None %}
+                {% if job.is_overdue %}· trễ {{ job.days_to_due|stringformat:"d"|cut:"-" }} ngày
+                {% elif job.days_to_due == 0 %}· hôm nay
+                {% else %}· còn {{ job.days_to_due }} ngày{% endif %}
+              {% endif %}
+            </span>
+            {% else %}
+            <span class="jp-tw-due">Hạn —</span>
+            {% endif %}
           </div>
         </div>
         <div class="jp-tw-job-actions">

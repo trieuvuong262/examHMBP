@@ -49,15 +49,57 @@
     gap: 0.4rem;
     flex: 1 1 14rem;
     min-width: 12rem;
+    flex-wrap: wrap;
   }
   .jp-pb-bar-search .form-control { max-width: 18rem; }
-  .jp-pb-bar-meta {
-    margin-left: auto;
-    font-size: 0.78rem;
+  .jp-pb-date-field {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.72rem;
+    font-weight: 700;
     color: var(--pb-muted);
-    font-weight: 600;
+    margin: 0;
   }
-  .jp-pb-bar-meta strong { color: var(--pb-ink); }
+  .jp-pb-date-field input[type="date"] {
+    height: 1.85rem;
+    padding: 0 0.4rem;
+    border: 1px solid var(--pb-line);
+    border-radius: 0.45rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--pb-ink);
+    background: #fff;
+  }
+  .jp-pb-date-shift {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--pb-ink);
+  }
+  .jp-pb-date-shift a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.7rem;
+    height: 1.7rem;
+    border: 1px solid var(--pb-line);
+    border-radius: 0.4rem;
+    color: var(--pb-muted);
+    text-decoration: none;
+  }
+  .jp-pb-date-shift a:hover {
+    border-color: #fecaca;
+    color: #dc2626;
+    background: #fff1f2;
+  }
+  .jp-pb-date-shift .jp-pb-month-now {
+    width: auto;
+    padding: 0 0.55rem;
+    font-size: 0.72rem;
+  }
   .jp-pb-urgency-legend {
     display: flex;
     flex-wrap: wrap;
@@ -84,6 +126,7 @@
   .jp-pb-ticket.is-low { border-left-color: #64748b; }
   .jp-pb-ticket.is-hold { background: #f8fafc; border-left-color: #64748b; }
   .jp-pb-ticket.is-overdue .jp-pb-ticket-head { background: #fef2f2; }
+  .jp-pb-ticket.jp-pb-ticket-plain { border-left-color: var(--pb-line); }
 
   .jp-pb-ticket-head {
     display: flex;
@@ -424,20 +467,6 @@
     border-radius: 0.4rem;
   }
 
-  .jp-pb-progress {
-    height: 0.4rem;
-    background: #e2e8f0;
-    border-radius: 999px;
-    overflow: hidden;
-    margin: 0.15rem 0 0.65rem;
-    max-width: 16rem;
-  }
-  .jp-pb-progress > span {
-    display: block;
-    height: 100%;
-    background: var(--hm-primary, #dc2626);
-    border-radius: 999px;
-  }
   .jp-pb-empty {
     text-align: center;
     padding: 2.4rem 1rem;
@@ -515,7 +544,7 @@
          aria-selected="{% if tab == 'queue' %}true{% else %}false{% endif %}">Hàng đợi</a>
       <a role="tab"
          class="btn btn-sm fw-bold {% if tab == 'released' %}btn-hm{% else %}btn-outline-secondary{% endif %}"
-         href="{% url 'san_xuat:plan_board' %}?mode=list&tab=released{% if search_query %}&q={{ search_query|urlencode }}{% endif %}"
+         href="{% url 'san_xuat:plan_board' %}?mode=list&tab=released{% if search_query %}&q={{ search_query|urlencode }}{% endif %}{% if tab == 'released' and filter_date_from %}&date_from={{ filter_date_from|date:'Y-m-d' }}{% endif %}{% if tab == 'released' and filter_date_to %}&date_to={{ filter_date_to|date:'Y-m-d' }}{% endif %}"
          aria-selected="{% if tab == 'released' %}true{% else %}false{% endif %}">Đã chuyển SX</a>
       <a role="tab"
          class="btn btn-sm fw-bold {% if tab == 'route' %}btn-hm{% else %}btn-outline-secondary{% endif %}"
@@ -531,16 +560,33 @@
       <input type="hidden" name="tab" value="{{ tab }}">
       <input type="search" name="q" value="{{ search_query }}" class="form-control form-control-sm"
              placeholder="Mã đơn / khách…" autocomplete="off">
+      {% if tab == 'released' and filter_date_from and filter_date_to %}
+      <label class="jp-pb-date-field">
+        <span>Từ</span>
+        <input type="date" name="date_from" value="{{ filter_date_from|date:'Y-m-d' }}" required>
+      </label>
+      <label class="jp-pb-date-field">
+        <span>Đến</span>
+        <input type="date" name="date_to" value="{{ filter_date_to|date:'Y-m-d' }}" required>
+      </label>
+      {% endif %}
       <button type="submit" class="btn btn-outline-secondary btn-sm">Lọc</button>
     </form>
-    <div class="jp-pb-bar-meta">
-      {% if tab == 'route' %}
-        {{ route_board.rows|length }} đơn
-      {% else %}
-        {{ qty_summary.order_count }} đơn · SL {{ qty_summary.total_qty|sx_num }}
+    {% if tab == 'released' and filter_date_from and filter_date_to %}
+    <div class="jp-pb-date-shift" aria-label="Chuyển tháng">
+      <a href="?mode={{ mode }}&amp;tab=released{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}&amp;date_from={{ filter_prev_from|date:'Y-m-d' }}&amp;date_to={{ filter_prev_to|date:'Y-m-d' }}"
+         title="Tháng trước"><i class="bi bi-chevron-left"></i></a>
+      <span title="{{ filter_date_from|date:'d/m/Y' }} – {{ filter_date_to|date:'d/m/Y' }}">{{ filter_month_label }}</span>
+      <a href="?mode={{ mode }}&amp;tab=released{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}&amp;date_from={{ filter_next_from|date:'Y-m-d' }}&amp;date_to={{ filter_next_to|date:'Y-m-d' }}"
+         title="Tháng sau"><i class="bi bi-chevron-right"></i></a>
+      {% if not filter_is_current_month and this_month_from and this_month_to %}
+      <a class="jp-pb-month-now"
+         href="?mode={{ mode }}&amp;tab=released{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}&amp;date_from={{ this_month_from|date:'Y-m-d' }}&amp;date_to={{ this_month_to|date:'Y-m-d' }}"
+         title="Về tháng hiện tại">Tháng này</a>
       {% endif %}
     </div>
-    {% if tab != 'route' %}
+    {% endif %}
+    {% if tab == 'queue' %}
     <div class="jp-pb-urgency-legend" aria-label="Mức độ gấp">
       {% for val, lab in priority_choices %}
       <span class="jp-pb-urgency is-{{ val }}">{{ lab }}</span>
@@ -670,13 +716,11 @@
   {% if tab == 'released' %}
   <div class="jp-pb-list">
     {% for row in released_rows %}
-    <article class="jp-pb-ticket is-{{ row.order.plan_priority }}{% if row.is_overdue %} is-overdue{% endif %}">
+    <article class="jp-pb-ticket jp-pb-ticket-plain{% if row.is_overdue %} is-overdue{% endif %}">
       <div class="jp-pb-ticket-head">
         <div>
           <div class="jp-pb-title-row">
-            <span class="jp-pb-rank" title="Tiến độ">{{ row.progress_pct|sx_num }}%</span>
             <a class="jp-pb-code" href="{% url 'san_xuat:sales_order_detail' row.order.pk %}">{{ row.order.code }}</a>
-            <span class="jp-pb-urgency is-{{ row.order.plan_priority }}">{{ row.order.get_plan_priority_display }}</span>
             <span class="jp-pb-status">{{ row.order.get_plan_status_display }}</span>
           </div>
           <div class="jp-pb-customer mt-1">{{ row.order.customer_name|default:"—" }}</div>
@@ -691,6 +735,8 @@
             {% csrf_token %}
             <input type="hidden" name="mode" value="list">
             <input type="hidden" name="tab" value="released">
+            {% if filter_date_from %}<input type="hidden" name="date_from" value="{{ filter_date_from|date:'Y-m-d' }}">{% endif %}
+            {% if filter_date_to %}<input type="hidden" name="date_to" value="{{ filter_date_to|date:'Y-m-d' }}">{% endif %}
             <input type="hidden" name="action" value="unrelease">
             <input type="hidden" name="order_id" value="{{ row.order.pk }}">
             <button type="submit" class="btn btn-outline-danger btn-sm" title="Hủy LSX chưa phát sinh SX, đơn về hàng đợi">Hủy chuyển SX</button>
@@ -701,17 +747,6 @@
       </div>
       <div class="jp-pb-ticket-body">
         {{ row.duration_detail|json_script:row.duration_script_id }}
-        <div class="jp-pb-stats">
-          <span class="jp-pb-stat{% if row.khsx_overrun or row.is_overdue %} is-late{% endif %}"
-                title="Ngày KHSX = ngày dự kiến thực hiện + SMV(s)×SL mọi mã + kiểm/VC">
-            KHSX <strong>{% if row.khsx_end %}{{ row.khsx_end|date:"d/m/Y" }}{% elif row.eta_date %}{{ row.eta_date|date:"d/m/Y" }}{% else %}—{% endif %}</strong>
-          </span>
-          <span class="jp-pb-stat">LSX <strong>{{ row.mo_count }}</strong>{% if row.mo_open %} · mở {{ row.mo_open }}{% endif %}</span>
-          <span class="jp-pb-stat">Đã làm <strong>{{ row.qty_done|sx_num }}</strong> / {{ row.qty_planned|sx_num }}</span>
-        </div>
-        <div class="jp-pb-progress" title="{{ row.progress_pct|sx_num }}%">
-          <span style="width: {% if row.progress_pct > 100 %}100{% else %}{{ row.progress_pct|floatformat:0 }}{% endif %}%"></span>
-        </div>
         {% if row.product_flows %}
         <div class="jp-pb-products">
           {% for pf in row.product_flows %}
@@ -731,7 +766,11 @@
     </article>
     {% empty %}
     <div class="jp-pb-empty">
-      Chưa có đơn chuyển xuống sản xuất. Vào tab <strong>Hàng đợi</strong> và bấm <strong>Chuyển SX</strong>.
+      {% if search_query or filter_date_from %}
+        Không có đơn trong khoảng lọc.
+      {% else %}
+        Chưa có đơn chuyển xuống sản xuất. Vào tab <strong>Hàng đợi</strong> và bấm <strong>Chuyển SX</strong>.
+      {% endif %}
     </div>
     {% endfor %}
   </div>

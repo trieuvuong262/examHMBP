@@ -113,8 +113,9 @@ class GoodsProgressBoard:
 
 
 def _due_for(mo: SxProductionOrder) -> date | None:
+    """Hạn giao trên KHSX (ưu tiên hạn đơn hàng)."""
     so = mo.sales_order if mo.sales_order_id else None
-    return mo.due_date or mo.planned_end or (so.due_date if so else None)
+    return (so.due_date if so else None) or mo.due_date or mo.planned_end
 
 
 def _priority_for(mo: SxProductionOrder) -> str:

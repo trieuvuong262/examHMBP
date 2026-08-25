@@ -11,6 +11,7 @@ from decimal import Decimal
 
 from django.db import transaction
 from django.db.models import Prefetch, Sum
+from django.db.models.functions import Coalesce
 from django.utils import timezone
 
 from san_xuat.hub_models import SxProductionOrder, SxSalesOrder, SxSalesOrderLine, SxSalesOrderPlanStep, SxWorkCenter
@@ -306,9 +307,13 @@ def _mo_progress(mos: list[SxProductionOrder]) -> tuple[int, int, Decimal, Decim
     ]
     qty_planned = sum((m.qty or Decimal('0') for m in active), Decimal('0'))
     qty_done = sum((m.qty_done or Decimal('0') for m in active), Decimal('0'))
+    if qty_planned > 0 and qty_done > qty_planned:
+        qty_done = qty_planned
     pct = Decimal('0')
     if qty_planned > 0:
         pct = (qty_done / qty_planned * Decimal('100')).quantize(_Q2)
+        if pct > Decimal('100'):
+            pct = Decimal('100')
     return len(active), len(open_mos), _q(qty_planned), _q(qty_done), pct
 
 
@@ -384,8 +389,14 @@ def build_plan_board_rows(
     statuses: tuple[str, ...] | None = None,
     search: str = '',
     include_released: bool = False,
+    date_from: date | None = None,
+    date_to: date | None = None,
 ) -> list[PlanBoardRow]:
-    """Danh sách đơn trên board (MTO confirmed)."""
+    """Danh sách đơn trên board (MTO confirmed).
+
+    ``date_from`` / ``date_to`` lọc theo neo KHSX (``plan_start_date`` hoặc
+    ``request_date``) — dùng tab Đã chuyển SX.
+    """
     qs = (
         SxSalesOrder.objects.filter(
             is_demo=False,
@@ -423,6 +434,15 @@ def build_plan_board_rows(
             Q(code__icontains=term)
             | Q(customer_name__icontains=term)
         )
+
+    if date_from or date_to:
+        qs = qs.annotate(
+            _plan_anchor=Coalesce('plan_start_date', 'request_date'),
+        )
+        if date_from:
+            qs = qs.filter(_plan_anchor__gte=date_from)
+        if date_to:
+            qs = qs.filter(_plan_anchor__lte=date_to)
 
     today = timezone.localdate()
     rows: list[PlanBoardRow] = []

@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import date
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.db.models import Prefetch
+from django.utils import timezone
 
 from san_xuat.hub_models import (
     SxMoProcessAssignee,
@@ -15,6 +17,7 @@ from san_xuat.hub_models import (
     SxProductionOrder,
     SxProductionOrderLine,
     SxProductionStat,
+    SxSalesOrder,
     SxTeamWorkAccept,
     SxTeamWorkClose,
 )
@@ -58,6 +61,11 @@ class TeamWorkJob:
     closed_at: object | None = None
     closed_by_label: str = ''
     accepted: bool = False
+    priority: str = ''
+    priority_label: str = ''
+    due: object | None = None
+    days_to_due: int | None = None
+    is_overdue: bool = False
 
 
 def group_team_work_jobs(rows: list[TeamWorkRow]) -> list[TeamWorkJob]:
@@ -393,11 +401,10 @@ def accept_production(*, mo_id: int, team_slug: str = '', user=None) -> SxProduc
     slug = (team_slug or '').strip().lower()
     if slug and not team_by_slug(slug):
         raise PlanningError('Tổ không hợp lệ.')
-    mo = (
-        SxProductionOrder.objects.select_for_update()
-        .select_related('sales_order')
-        .get(pk=mo_id, is_demo=False)
-    )
+    mo = SxProductionOrder.objects.select_for_update().get(pk=mo_id, is_demo=False)
+    # Không select_related('sales_order') cùng FOR UPDATE — Postgres cấm outer join nullable.
+    if mo.sales_order_id:
+        mo.sales_order  # lazy load trong transaction
     if mo.status in (SxProductionOrder.STATUS_DRAFT, SxProductionOrder.STATUS_CANCELLED):
         raise PlanningError('Lệnh sản xuất chưa phát hành hoặc đã hủy.')
     if mo.status == SxProductionOrder.STATUS_DONE:
@@ -425,13 +432,38 @@ def ensure_team_accept(*, mo_id: int, team_slug: str, user=None) -> None:
 
 
 def attach_team_job_closes(jobs: list[TeamWorkJob], *, slug: str) -> list[TeamWorkJob]:
+    from san_xuat.services.goods_progress import PRIORITY_LABEL, PRIORITY_RANK
+
     closes = team_job_closes(slug=slug, mo_ids=[j.mo.pk for j in jobs])
+    today = timezone.localdate()
     for job in jobs:
         job.accepted = is_production_accepted(job.mo)
         rec = closes.get(job.mo.pk)
         job.closed = rec is not None
         job.closed_at = rec.closed_at if rec else None
         job.closed_by_label = _person_label(rec.created_by) if rec else ''
+        so = job.mo.sales_order if job.mo.sales_order_id else None
+        priority = (so.plan_priority if so else '') or SxSalesOrder.PRIORITY_NORMAL
+        if priority not in PRIORITY_RANK:
+            priority = SxSalesOrder.PRIORITY_NORMAL
+        due = (so.due_date if so else None) or job.mo.due_date or job.mo.planned_end
+        days = (due - today).days if due else None
+        job.priority = priority
+        job.priority_label = PRIORITY_LABEL.get(priority, 'Thường')
+        job.due = due
+        job.days_to_due = days
+        job.is_overdue = bool(
+            due and days is not None and days < 0
+            and job.mo.status != SxProductionOrder.STATUS_DONE
+        )
+    jobs.sort(
+        key=lambda j: (
+            0 if j.is_overdue else 1,
+            PRIORITY_RANK.get(j.priority, 3),
+            j.due or date(9999, 12, 31),
+            j.mo.code or '',
+        )
+    )
     return jobs
 
 

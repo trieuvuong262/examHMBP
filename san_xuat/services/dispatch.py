@@ -1036,22 +1036,45 @@ class ApprovedIssueResult:
 def _recompute_mo_progress(mo: SxProductionOrder) -> SxProductionOrder:
     from san_xuat.services.gates import check_packing_before_done
 
-    confirmed_stats = mo.production_stats.filter(
-        status=SxProductionStat.STATUS_CONFIRMED,
-        is_demo=False,
+    from san_xuat.services.progress_template import progress_steps
+
+    confirmed_stats = list(
+        mo.production_stats.filter(
+            status=SxProductionStat.STATUS_CONFIRMED,
+            is_demo=False,
+        )
     )
-    qty_done = sum(((stat.qty_good or Decimal("0")) for stat in confirmed_stats), Decimal("0"))
+    # SL hoàn thành lệnh = SL công đoạn cuối (không cộng dồn mọi CĐ → tránh 5000%).
+    by_process: dict[str, Decimal] = {}
+    for stat in confirmed_stats:
+        key = (stat.process_name or '').strip().casefold()
+        if not key:
+            continue
+        by_process[key] = by_process.get(key, Decimal('0')) + (stat.qty_good or Decimal('0'))
+    qty_done = Decimal('0')
+    steps = progress_steps()
+    if steps and by_process:
+        last_key = (steps[-1].label or '').strip().casefold()
+        if last_key in by_process:
+            qty_done = by_process[last_key]
+        else:
+            qty_done = max(by_process.values())
+    elif by_process:
+        qty_done = max(by_process.values())
+    plan_qty = mo.qty or Decimal('0')
+    if plan_qty > 0 and qty_done > plan_qty:
+        qty_done = plan_qty
     mo.qty_done = qty_done
     if mo.status == SxProductionOrder.STATUS_RELEASED and qty_done > 0:
         mo.status = SxProductionOrder.STATUS_IN_PROGRESS
-    if qty_done >= (mo.qty or Decimal("0")) and (mo.qty or Decimal("0")) > 0:
+    if qty_done >= plan_qty and plan_qty > 0:
         packing_gate = check_packing_before_done(mo=mo)
         if packing_gate.should_block:
             if mo.status != SxProductionOrder.STATUS_IN_PROGRESS:
                 mo.status = SxProductionOrder.STATUS_IN_PROGRESS
         else:
             mo.status = SxProductionOrder.STATUS_DONE
-    elif qty_done < (mo.qty or Decimal("0")) and mo.status == SxProductionOrder.STATUS_DONE:
+    elif qty_done < plan_qty and mo.status == SxProductionOrder.STATUS_DONE:
         mo.status = SxProductionOrder.STATUS_IN_PROGRESS if qty_done > 0 else SxProductionOrder.STATUS_RELEASED
     mo.save(update_fields=['qty_done', 'status'])
     # Đóng KHCT khi toàn bộ LSX của kế hoạch đã hoàn thành

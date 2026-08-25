@@ -1357,11 +1357,18 @@ def plan_board(request):
     if tab not in {'queue', 'released', 'route'}:
         tab = 'queue'
     q = (request.GET.get('q') or request.POST.get('q') or '').strip()
+    date_from_raw = (request.GET.get('date_from') or request.POST.get('date_from') or '').strip()
+    date_to_raw = (request.GET.get('date_to') or request.POST.get('date_to') or '').strip()
 
     def _board_redirect(**extra):
         params = {'mode': mode, 'tab': tab}
         if q:
             params['q'] = q
+        if tab == 'released':
+            if date_from_raw:
+                params['date_from'] = date_from_raw
+            if date_to_raw:
+                params['date_to'] = date_to_raw
         params.update(extra)
         from urllib.parse import urlencode
         return redirect(f"{reverse('san_xuat:plan_board')}?{urlencode(params)}")
@@ -1523,6 +1530,14 @@ def plan_board(request):
     released_rows = []
     today_start = None
     today_end_month = None
+    filter_date_from = None
+    filter_date_to = None
+    filter_prev_from = None
+    filter_prev_to = None
+    filter_next_from = None
+    filter_next_to = None
+    filter_month_label = ''
+    filter_is_current_month = False
 
     if tab == 'queue':
         queue_rows = build_plan_board_rows(statuses=QUEUE_STATUSES, search=q)
@@ -1530,6 +1545,33 @@ def plan_board(request):
             sync_plan_status(row.order)
         route_board = None
     elif tab == 'released':
+        from san_xuat.list_filters import parse_sx_date
+        from san_xuat.services.plan_board import (
+            _month_bounds,
+            _month_label,
+            _shift_month,
+        )
+
+        today = timezone.localdate()
+        filter_date_from = parse_sx_date(date_from_raw)
+        filter_date_to = parse_sx_date(date_to_raw)
+        if not filter_date_from and not filter_date_to:
+            filter_date_from, filter_date_to = _month_bounds(today)
+        elif filter_date_from and not filter_date_to:
+            filter_date_from, filter_date_to = _month_bounds(filter_date_from)
+        elif filter_date_to and not filter_date_from:
+            filter_date_from, filter_date_to = _month_bounds(filter_date_to)
+        elif filter_date_from > filter_date_to:
+            filter_date_from, filter_date_to = filter_date_to, filter_date_from
+
+        today_start, today_end_month = _month_bounds(today)
+        filter_month_label = _month_label(filter_date_from)
+        filter_is_current_month = (
+            filter_date_from == today_start and filter_date_to == today_end_month
+        )
+        filter_prev_from, filter_prev_to = _month_bounds(_shift_month(filter_date_from, -1))
+        filter_next_from, filter_next_to = _month_bounds(_shift_month(filter_date_from, 1))
+
         released_rows = build_plan_board_rows(
             statuses=(
                 SxSalesOrder.PLAN_RELEASED,
@@ -1538,6 +1580,8 @@ def plan_board(request):
             ),
             search=q,
             include_released=True,
+            date_from=filter_date_from,
+            date_to=filter_date_to,
         )
         for row in released_rows:
             sync_plan_status(row.order)
@@ -1574,6 +1618,14 @@ def plan_board(request):
         'route_board': route_board,
         'this_month_from': today_start,
         'this_month_to': today_end_month,
+        'filter_date_from': filter_date_from,
+        'filter_date_to': filter_date_to,
+        'filter_prev_from': filter_prev_from,
+        'filter_prev_to': filter_prev_to,
+        'filter_next_from': filter_next_from,
+        'filter_next_to': filter_next_to,
+        'filter_month_label': filter_month_label,
+        'filter_is_current_month': filter_is_current_month,
     })
 
 

@@ -87,6 +87,12 @@
   <div class="jp-ops-meta">
     <span>Đơn hàng <strong>{{ mo.sales_order.code|default:mo.code }}</strong></span>
     {% if mo.sales_order_id %}<span>LSX <strong>{{ mo.code }}</strong></span>{% endif %}
+    {% if mo.sales_order_id %}
+    <span>Ưu tiên <strong>{{ mo.sales_order.get_plan_priority_display }}</strong></span>
+    <span{% if mo.sales_order.due_date and mo.sales_order.due_date < today %} class="text-danger"{% endif %}>
+      Hạn giao <strong>{% if mo.sales_order.due_date %}{{ mo.sales_order.due_date|date:"d/m/Y" }}{% else %}—{% endif %}</strong>
+    </span>
+    {% endif %}
     <span>SP <strong>{{ sheet.product_code }}</strong>{% if sheet.product_name %} — {{ sheet.product_name }}{% endif %}</span>
     {% if sheet.color_summary %}<span>Màu <strong>{{ sheet.color_summary }}</strong></span>{% endif %}
     <span>Tổng SL <strong>{{ sheet.total_qty|sx_num }}</strong></span>
