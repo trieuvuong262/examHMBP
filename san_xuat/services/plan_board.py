@@ -77,6 +77,9 @@ class PlanBoardRow:
     qty_planned: Decimal = field(default_factory=lambda: Decimal('0'))
     progress_pct: Decimal = field(default_factory=lambda: Decimal('0'))
     eta_date: date | None = None
+    khsx_start: date | None = None
+    khsx_end: date | None = None
+    khsx_overrun: bool = False
     derived_status: str = SxSalesOrder.PLAN_QUEUED
     release_products: list[dict] = field(default_factory=list)
     release_script_id: str = ''
@@ -164,9 +167,7 @@ def _enrich_routing(order: SxSalesOrder, lines: list[SxSalesOrderLine]) -> tuple
         if routing.has_time_data:
             has_any = True
             work_min += (routing.total_smv * qty).quantize(_Q2)
-            hop = routing.hop_buffer_minutes
-            if hop > buffer_min:
-                buffer_min = hop
+            buffer_min += _q(routing.hop_buffer_minutes)
         for step in routing.steps:
             n = (step.process_name or '').strip()
             if n and n not in seen:
@@ -204,6 +205,17 @@ def compute_score(
 
     score = prio + urgency - cycle_penalty + fifo
     return _q(score), days_to_due, is_overdue
+
+
+def _buffer_from_flow_groups(groups) -> Decimal:
+    """Tổng phút kiểm/VC giữa các tổ trên một dải flow (bỏ cụm cuối)."""
+    rows = list(groups or [])
+    if len(rows) < 2:
+        return Decimal('0')
+    total = Decimal('0')
+    for g in rows[:-1]:
+        total += _q(getattr(g, 'form_count_minutes', 0)) + _q(getattr(g, 'form_transfer_minutes', 0))
+    return _q(total)
 
 
 def _mo_progress(mos: list[SxProductionOrder]) -> tuple[int, int, Decimal, Decimal, Decimal]:
@@ -284,13 +296,13 @@ def build_plan_board_rows(
         if plan_steps:
             from san_xuat.services.inter_step_times import (
                 flow_groups_from_steps,
-                hop_buffer_minutes,
                 hops_from_steps,
             )
 
             hops = hops_from_steps(plan_steps)
             flow_groups = flow_groups_from_steps(plan_steps, sort_factory=True)
-            buffer_min = hop_buffer_minutes(plan_steps)
+            # buffer_min không lấy từ plan_steps gộp (đơn nhiều mã bị cộng hop giả
+            # ở chỗ ghép hai mã). Cộng theo từng mã ở dưới.
 
         # Flow theo từng mã SP — không gộp chung nhiều mã thành một dải tổ
         from san_xuat.services.inter_step_times import (
@@ -334,20 +346,23 @@ def build_plan_board_rows(
             flow_groups = product_flows[0].flow_groups if len(product_flows) == 1 else []
             if not names:
                 names = [n for pf in product_flows for n in pf.process_names][:12]
+            # Kiểm/VC: cộng tất cả mã (mỗi dải flow riêng), đã gồm mặc định cặp tổ
+            flow_buf = sum((_buffer_from_flow_groups(pf.flow_groups) for pf in product_flows), Decimal('0'))
+            buffer_min = _q(flow_buf)
         cycle_min = _q(work_min + buffer_min)
         score, days_to_due, is_overdue = compute_score(
             order=order, cycle_minutes=cycle_min, today=today,
         )
         mo_count, mo_open, qty_planned, qty_done, pct = _mo_progress(mos)
         derived = derive_plan_status(order, mos)
-        eta = None
-        if order.due_date:
-            eta = order.due_date
-        elif cycle_min > 0:
-            # ETA thô: hôm nay + ceil(cycle_hours/8)
-            hours = float(cycle_min) / 60.0
-            days_need = max(1, int((hours / 8.0) + 0.999))
-            eta = today + timedelta(days=days_need)
+        from san_xuat.services.inter_step_times import schedule_span
+
+        khsx_start = order.request_date or today
+        khsx_end = khsx_start
+        if cycle_min > 0:
+            khsx_start, khsx_end = schedule_span(start=khsx_start, lead_minutes=cycle_min)
+        khsx_overrun = bool(order.due_date and khsx_end and khsx_end > order.due_date)
+        eta = khsx_end
 
         # Gom mã SP unique cho modal Chuyển SX (chọn BOM) — kèm mặc định từ ĐĐH
         release_products: list[dict] = []
@@ -384,6 +399,9 @@ def build_plan_board_rows(
             qty_planned=qty_planned,
             progress_pct=pct,
             eta_date=eta,
+            khsx_start=khsx_start,
+            khsx_end=khsx_end,
+            khsx_overrun=khsx_overrun,
             derived_status=derived,
             release_products=release_products,
             release_script_id=f'jp-release-products-{order.pk}',
@@ -617,15 +635,13 @@ def release_order_to_production(
             raise PlanningError(f'{code}: hồ sơ thiết kế không thuộc mã này.')
         routing_id = routing_map.get(code.casefold()) or ln.routing_id
 
-        from san_xuat.services.inter_step_times import hop_buffer_minutes, schedule_span
+        from san_xuat.services.inter_step_times import schedule_span
         from san_xuat.services.order_routing import sales_order_line_routing as _line_routing
 
         line_routing = _line_routing(ln)
-        lead = (line_routing.total_smv * ln.qty_to_produce) + (
-            hop_buffer_minutes(order.plan_steps.all())
-            if hop_by_name else line_routing.hop_buffer_minutes
-        )
-        plan_start, plan_end = schedule_span(start=timezone.localdate(), lead_minutes=lead)
+        lead = (line_routing.total_smv * ln.qty_to_produce) + line_routing.hop_buffer_minutes
+        plan_anchor = order.request_date or timezone.localdate()
+        plan_start, plan_end = schedule_span(start=plan_anchor, lead_minutes=lead)
 
         mo = None
         try:

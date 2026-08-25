@@ -624,6 +624,16 @@
       </div>
       <div class="jp-pb-ticket-body">
         <div class="jp-pb-stats">
+          <span class="jp-pb-stat{% if row.khsx_overrun %} is-late{% endif %}"
+                title="Ngày dự kiến thực hiện + SMV(s)×SL mọi mã + kiểm/VC (ngày làm việc)">
+            KHSX
+            {% if row.khsx_start %}
+              <strong>{{ row.khsx_start|date:"d/m/Y" }}</strong>
+              {% if row.khsx_end and row.khsx_end != row.khsx_start %}
+                → <strong>{{ row.khsx_end|date:"d/m/Y" }}</strong>
+              {% endif %}
+            {% else %}<strong>—</strong>{% endif %}
+          </span>
           <span class="jp-pb-stat{% if row.is_overdue %} is-late{% endif %}">
             Hạn
             {% if row.order.due_date %}
@@ -639,7 +649,7 @@
             Chu kỳ
             {% if row.has_routing or row.buffer_minutes %}
               <strong>{{ row.cycle_minutes|sx_num }}</strong> phút
-              {% if row.buffer_minutes %}· SMV {{ row.work_minutes|sx_num }} + kiểm/VC {{ row.buffer_minutes|sx_num }}{% endif %}
+              {% if row.work_minutes or row.buffer_minutes %}· SMV {{ row.work_minutes|sx_num }} + kiểm/VC {{ row.buffer_minutes|sx_num }}{% endif %}
             {% else %}<strong>—</strong>{% endif %}
           </span>
           <span class="jp-pb-stat">Điểm <strong>{{ row.score|sx_num }}</strong></span>
@@ -700,8 +710,9 @@
       </div>
       <div class="jp-pb-ticket-body">
         <div class="jp-pb-stats">
-          <span class="jp-pb-stat{% if row.is_overdue %} is-late{% endif %}">
-            ETA <strong>{% if row.eta_date %}{{ row.eta_date|date:"d/m/Y" }}{% else %}—{% endif %}</strong>
+          <span class="jp-pb-stat{% if row.khsx_overrun or row.is_overdue %} is-late{% endif %}"
+                title="Ngày KHSX = ngày dự kiến thực hiện + SMV(s)×SL mọi mã + kiểm/VC">
+            KHSX <strong>{% if row.khsx_end %}{{ row.khsx_end|date:"d/m/Y" }}{% elif row.eta_date %}{{ row.eta_date|date:"d/m/Y" }}{% else %}—{% endif %}</strong>
           </span>
           <span class="jp-pb-stat">LSX <strong>{{ row.mo_count }}</strong>{% if row.mo_open %} · mở {{ row.mo_open }}{% endif %}</span>
           <span class="jp-pb-stat">Đã làm <strong>{{ row.qty_done|sx_num }}</strong> / {{ row.qty_planned|sx_num }}</span>
