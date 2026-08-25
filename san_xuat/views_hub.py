@@ -1369,6 +1369,13 @@ def plan_board(request):
                 params['date_from'] = date_from_raw
             if date_to_raw:
                 params['date_to'] = date_to_raw
+        elif tab == 'route':
+            route_from_raw = (request.GET.get('route_from') or request.POST.get('route_from') or '').strip()
+            route_to_raw = (request.GET.get('route_to') or request.POST.get('route_to') or '').strip()
+            if route_from_raw:
+                params['route_from'] = route_from_raw
+            if route_to_raw:
+                params['route_to'] = route_to_raw
         params.update(extra)
         from urllib.parse import urlencode
         return redirect(f"{reverse('san_xuat:plan_board')}?{urlencode(params)}")

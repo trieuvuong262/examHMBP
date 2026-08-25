@@ -32,6 +32,11 @@
     border: 1px solid var(--pb-line);
     border-radius: 0.85rem;
   }
+  .jp-pb-bar.is-released-filter {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 0.45rem 0.55rem;
+  }
   .jp-pb-top-tabs {
     gap: 0.4rem !important;
   }
@@ -47,11 +52,32 @@
     display: flex;
     align-items: center;
     gap: 0.4rem;
-    flex: 1 1 14rem;
-    min-width: 12rem;
-    flex-wrap: wrap;
+    flex: 1 1 auto;
+    min-width: 0;
+    flex-wrap: nowrap;
   }
-  .jp-pb-bar-search .form-control { max-width: 18rem; }
+  .jp-pb-bar.is-released-filter .jp-pb-bar-search {
+    width: 100%;
+  }
+  .jp-pb-search-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex: 0 0 auto;
+    min-width: 0;
+  }
+  .jp-pb-search-inline .form-control {
+    flex: 0 1 14rem;
+    min-width: 8rem;
+    width: 14rem;
+    max-width: 18rem;
+  }
+  .jp-pb-bar.is-released-filter .jp-pb-search-inline .form-control {
+    flex: 0 1 11rem;
+    width: 11rem;
+    min-width: 8rem;
+    max-width: 14rem;
+  }
   .jp-pb-date-field {
     display: inline-flex;
     align-items: center;
@@ -60,16 +86,19 @@
     font-weight: 700;
     color: var(--pb-muted);
     margin: 0;
+    flex: 0 0 auto;
+    white-space: nowrap;
   }
   .jp-pb-date-field input[type="date"] {
     height: 1.85rem;
-    padding: 0 0.4rem;
+    padding: 0 0.35rem;
     border: 1px solid var(--pb-line);
     border-radius: 0.45rem;
     font-size: 0.78rem;
     font-weight: 600;
     color: var(--pb-ink);
     background: #fff;
+    width: 8.6rem;
   }
   .jp-pb-date-shift {
     display: inline-flex;
@@ -78,6 +107,9 @@
     font-size: 0.78rem;
     font-weight: 700;
     color: var(--pb-ink);
+    flex: 0 0 auto;
+    margin-left: 0.15rem;
+    white-space: nowrap;
   }
   .jp-pb-date-shift a {
     display: inline-flex;
@@ -99,6 +131,9 @@
     width: auto;
     padding: 0 0.55rem;
     font-size: 0.72rem;
+  }
+  .jp-pb-bar.is-released-filter .btn {
+    flex: 0 0 auto;
   }
   .jp-pb-urgency-legend {
     display: flex;
@@ -548,44 +583,68 @@
          aria-selected="{% if tab == 'released' %}true{% else %}false{% endif %}">Đã chuyển SX</a>
       <a role="tab"
          class="btn btn-sm fw-bold {% if tab == 'route' %}btn-hm{% else %}btn-outline-secondary{% endif %}"
-         href="{% url 'san_xuat:plan_board' %}?mode=list&tab=route{% if search_query %}&q={{ search_query|urlencode }}{% endif %}"
+         href="{% url 'san_xuat:plan_board' %}?mode=list&tab=route{% if search_query %}&q={{ search_query|urlencode }}{% endif %}{% if tab == 'route' and route_board %}&route_from={{ route_board.range_start|date:'Y-m-d' }}&route_to={{ route_board.range_end|date:'Y-m-d' }}{% endif %}"
          aria-selected="{% if tab == 'route' %}true{% else %}false{% endif %}">Lộ trình</a>
     </nav>
   </div>
 
   <div class="jp-sx-page-body">
-  <div class="jp-pb-bar">
+  <div class="jp-pb-bar{% if tab == 'released' or tab == 'route' %} is-released-filter{% endif %}">
     <form method="get" class="jp-pb-bar-search">
       <input type="hidden" name="mode" value="{{ mode }}">
       <input type="hidden" name="tab" value="{{ tab }}">
-      <input type="search" name="q" value="{{ search_query }}" class="form-control form-control-sm"
-             placeholder="Mã đơn / khách…" autocomplete="off">
+      <div class="jp-pb-search-inline">
+        <input type="search" name="q" value="{{ search_query }}" class="form-control form-control-sm"
+               placeholder="Mã đơn / khách…" autocomplete="off">
+        {% if tab == 'released' and filter_date_from and filter_date_to %}
+        <label class="jp-pb-date-field">
+          <span>Từ</span>
+          <input type="date" name="date_from" value="{{ filter_date_from|date:'Y-m-d' }}" required>
+        </label>
+        <label class="jp-pb-date-field">
+          <span>Đến</span>
+          <input type="date" name="date_to" value="{{ filter_date_to|date:'Y-m-d' }}" required>
+        </label>
+        {% elif tab == 'route' and route_board %}
+        <label class="jp-pb-date-field">
+          <span>Từ</span>
+          <input type="date" name="route_from" value="{{ route_board.range_start|date:'Y-m-d' }}" required>
+        </label>
+        <label class="jp-pb-date-field">
+          <span>Đến</span>
+          <input type="date" name="route_to" value="{{ route_board.range_end|date:'Y-m-d' }}" required>
+        </label>
+        {% endif %}
+        <button type="submit" class="btn btn-outline-secondary btn-sm">Lọc</button>
+      </div>
       {% if tab == 'released' and filter_date_from and filter_date_to %}
-      <label class="jp-pb-date-field">
-        <span>Từ</span>
-        <input type="date" name="date_from" value="{{ filter_date_from|date:'Y-m-d' }}" required>
-      </label>
-      <label class="jp-pb-date-field">
-        <span>Đến</span>
-        <input type="date" name="date_to" value="{{ filter_date_to|date:'Y-m-d' }}" required>
-      </label>
+      <div class="jp-pb-date-shift" aria-label="Chuyển tháng">
+        <a href="?mode={{ mode }}&amp;tab=released{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}&amp;date_from={{ filter_prev_from|date:'Y-m-d' }}&amp;date_to={{ filter_prev_to|date:'Y-m-d' }}"
+           title="Tháng trước"><i class="bi bi-chevron-left"></i></a>
+        <span title="{{ filter_date_from|date:'d/m/Y' }} – {{ filter_date_to|date:'d/m/Y' }}">{{ filter_month_label }}</span>
+        <a href="?mode={{ mode }}&amp;tab=released{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}&amp;date_from={{ filter_next_from|date:'Y-m-d' }}&amp;date_to={{ filter_next_to|date:'Y-m-d' }}"
+           title="Tháng sau"><i class="bi bi-chevron-right"></i></a>
+        {% if not filter_is_current_month and this_month_from and this_month_to %}
+        <a class="jp-pb-month-now"
+           href="?mode={{ mode }}&amp;tab=released{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}&amp;date_from={{ this_month_from|date:'Y-m-d' }}&amp;date_to={{ this_month_to|date:'Y-m-d' }}"
+           title="Về tháng hiện tại">Tháng này</a>
+        {% endif %}
+      </div>
+      {% elif tab == 'route' and route_board %}
+      <div class="jp-pb-date-shift" aria-label="Chuyển tháng">
+        <a href="?mode={{ mode }}&amp;tab=route{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}&amp;route_from={{ route_board.prev_from|date:'Y-m-d' }}&amp;route_to={{ route_board.prev_to|date:'Y-m-d' }}"
+           title="Tháng trước"><i class="bi bi-chevron-left"></i></a>
+        <span title="{{ route_board.range_start|date:'d/m/Y' }} – {{ route_board.range_end|date:'d/m/Y' }}">{{ route_board.month_label }}</span>
+        <a href="?mode={{ mode }}&amp;tab=route{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}&amp;route_from={{ route_board.next_from|date:'Y-m-d' }}&amp;route_to={{ route_board.next_to|date:'Y-m-d' }}"
+           title="Tháng sau"><i class="bi bi-chevron-right"></i></a>
+        {% if not route_board.is_current_month and this_month_from and this_month_to %}
+        <a class="jp-pb-month-now"
+           href="?mode={{ mode }}&amp;tab=route{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}&amp;route_from={{ this_month_from|date:'Y-m-d' }}&amp;route_to={{ this_month_to|date:'Y-m-d' }}"
+           title="Về tháng hiện tại">Tháng này</a>
+        {% endif %}
+      </div>
       {% endif %}
-      <button type="submit" class="btn btn-outline-secondary btn-sm">Lọc</button>
     </form>
-    {% if tab == 'released' and filter_date_from and filter_date_to %}
-    <div class="jp-pb-date-shift" aria-label="Chuyển tháng">
-      <a href="?mode={{ mode }}&amp;tab=released{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}&amp;date_from={{ filter_prev_from|date:'Y-m-d' }}&amp;date_to={{ filter_prev_to|date:'Y-m-d' }}"
-         title="Tháng trước"><i class="bi bi-chevron-left"></i></a>
-      <span title="{{ filter_date_from|date:'d/m/Y' }} – {{ filter_date_to|date:'d/m/Y' }}">{{ filter_month_label }}</span>
-      <a href="?mode={{ mode }}&amp;tab=released{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}&amp;date_from={{ filter_next_from|date:'Y-m-d' }}&amp;date_to={{ filter_next_to|date:'Y-m-d' }}"
-         title="Tháng sau"><i class="bi bi-chevron-right"></i></a>
-      {% if not filter_is_current_month and this_month_from and this_month_to %}
-      <a class="jp-pb-month-now"
-         href="?mode={{ mode }}&amp;tab=released{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}&amp;date_from={{ this_month_from|date:'Y-m-d' }}&amp;date_to={{ this_month_to|date:'Y-m-d' }}"
-         title="Về tháng hiện tại">Tháng này</a>
-      {% endif %}
-    </div>
-    {% endif %}
     {% if tab == 'queue' %}
     <div class="jp-pb-urgency-legend" aria-label="Mức độ gấp">
       {% for val, lab in priority_choices %}
