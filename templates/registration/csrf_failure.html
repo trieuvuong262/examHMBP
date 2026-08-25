@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}Phiên làm việc hết hạn{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-5">
+            <div class="card jp-auth-card">
+                <div class="jp-auth-header">
+                    <i class="bi bi-shield-exclamation" aria-hidden="true"></i>
+                    <h3 class="fw-bold mb-1">JUSTPLAY PORTAL</h3>
+                    <p class="small opacity-75 mb-0">Phiên làm việc không hợp lệ</p>
+                </div>
+                <div class="card-body p-4 p-md-5">
+                    <p class="text-muted mb-4">
+                        Trình duyệt không gửi được mã bảo mật (CSRF). Thường do mở từ Zalo/Facebook,
+                        tab để quá lâu, hoặc cookie bị chặn — không phải sai mật khẩu.
+                    </p>
+
+                    {% if in_app_browser and is_android and chrome_intent_url %}
+                    <a href="{{ chrome_intent_url }}" class="btn btn-hm w-100 shadow-sm fw-bold mb-3">
+                        <i class="bi bi-browser-chrome me-1"></i>Mở bằng Chrome
+                    </a>
+                    {% endif %}
+
+                    {% if is_authenticated %}
+                    <a href="{{ retry_url }}" class="btn btn-hm w-100 shadow-sm fw-bold mb-3">
+                        <i class="bi bi-arrow-clockwise me-1"></i>Tải lại trang vừa mở
+                    </a>
+                    <a href="{{ login_href }}" class="btn btn-outline-dark w-100 fw-bold mb-4">
+                        <i class="bi bi-box-arrow-in-right me-1"></i>Đăng nhập lại
+                    </a>
+                    {% else %}
+                    <a href="{{ login_href }}" class="btn btn-hm w-100 shadow-sm fw-bold mb-3">
+                        <i class="bi bi-box-arrow-in-right me-1"></i>Đăng nhập lại
+                    </a>
+                    <a href="{{ retry_url }}" class="btn btn-outline-dark w-100 fw-bold mb-4">
+                        <i class="bi bi-arrow-clockwise me-1"></i>Tải lại trang vừa mở
+                    </a>
+                    {% endif %}
+
+                    <ol class="small text-muted mb-0 ps-3">
+                        {% if in_app_browser %}
+                            {% if is_ios %}
+                            <li class="mb-2">Trên Zalo/Facebook: bấm <strong>⋮</strong> → <strong>Mở bằng Safari</strong>.</li>
+                            <li class="mb-2">Hoặc sao chép link <strong>{{ portal_url }}</strong> rồi dán vào Safari / Chrome.</li>
+                            {% elif is_android %}
+                            <li class="mb-2">Bấm <strong>Mở bằng Chrome</strong> ở trên (không dùng trình duyệt trong Zalo/Facebook).</li>
+                            <li class="mb-2">Hoặc bấm <strong>⋮</strong> góc trên → <strong>Mở bằng trình duyệt</strong>.</li>
+                            {% else %}
+                            <li class="mb-2">Sao chép <strong>{{ portal_url }}</strong> → mở Chrome hoặc Safari → dán và truy cập.</li>
+                            {% endif %}
+                        {% else %}
+                            <li class="mb-2">Bấm <strong>Đăng nhập lại</strong> ở trên.</li>
+                            <li class="mb-2">Nếu vẫn lỗi: <strong>đóng hẳn</strong> Chrome/Safari (vuốt app ra khỏi đa nhiệm), mở lại, vào <strong>{{ portal_url }}</strong>.</li>
+                            <li class="mb-2">Không mở portal từ Zalo, Messenger hay Facebook — dùng Chrome hoặc Safari.</li>
+                        {% endif %}
+                        <li>Chỉ dùng địa chỉ portal (không dùng IP). Liên hệ IT nếu vẫn không vào được: {{ it_contact }}</li>
+                    </ol>
+                    {% if debug_reason %}
+                    <p class="small text-muted mt-3 mb-0">Chi tiết (DEBUG): {{ debug_reason }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

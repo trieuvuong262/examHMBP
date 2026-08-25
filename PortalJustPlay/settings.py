@@ -339,6 +339,7 @@ STATICFILES_FINDERS = [
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_REDIRECT_URL = 'login_redirect'
 LOGOUT_REDIRECT_URL = 'login'
+CSRF_FAILURE_VIEW = 'PortalJustPlay.csrf.csrf_failure'
 
 # Đăng nhập — khóa tài khoản sau N lần sai; IP chỉ chặn qua blacklist / bot exploit (Quản Trị → Bảo mật đăng nhập)
 LOGIN_LOCK_MAX_ATTEMPTS = int(os.getenv('LOGIN_LOCK_MAX_ATTEMPTS', '10'))

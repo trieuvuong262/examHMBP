@@ -24,6 +24,11 @@
                             <div class="mt-1">Còn <strong>{{ login_remaining_attempts }}</strong>/{{ login_max_attempts }} lần thử trước khi khóa.</div>
                             {% endif %}
                         </div>
+                    {% elif request.GET.csrf %}
+                        <div class="alert alert-warning border-0 small py-2 px-3 mb-4 text-center">
+                            Phiên trước đã hết hạn. Đăng nhập lại bên dưới.
+                            Nếu vẫn lỗi: đóng hẳn Chrome/Safari (vuốt khỏi đa nhiệm) rồi mở lại portal.
+                        </div>
                     {% endif %}
 
                     <form method="post">
