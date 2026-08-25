@@ -79,24 +79,41 @@
   .jp-tl-label {
     position: sticky; left: 0; z-index: 4;
     background: #fff;
-    padding: .5rem .9rem;
+    padding: .5rem .9rem .5rem .75rem;
     border-right: 1px solid #e8edf3;
     border-top: 1px solid var(--tl-line);
+    border-left: 4px solid #94a3b8;
   }
+  .jp-tl-label.is-prio-critical { border-left-color: #991b1b; }
+  .jp-tl-label.is-prio-urgent { border-left-color: #c2410c; }
+  .jp-tl-label.is-prio-high { border-left-color: #a16207; }
+  .jp-tl-label.is-prio-normal { border-left-color: #0369a1; }
+  .jp-tl-label.is-prio-low { border-left-color: #64748b; }
   .jp-tl-code { font-weight: 800; color: var(--tl-ink); text-decoration: none; font-size: .86rem; letter-spacing: -.01em; }
   .jp-tl-code:hover { color: var(--tl-today); }
   .jp-tl-code-row {
-    display: flex; flex-wrap: wrap; align-items: center; gap: .35rem .45rem;
+    display: flex; flex-wrap: nowrap; align-items: center; gap: .4rem;
+    min-width: 0;
   }
-  .jp-tl-code-row .jp-pb-urgency {
-    font-size: .65rem;
-    padding: 0.08rem 0.4rem;
+  .jp-tl-prio {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    height: 1.45rem;
+    padding: 0 .5rem;
+    border-radius: .35rem;
+    font-size: .68rem;
+    font-weight: 800;
+    line-height: 1;
+    white-space: nowrap;
+    border: 1px solid transparent;
   }
-  .jp-tl-legend-sep { color: #cbd5e1; font-weight: 400; margin: 0 .1rem; }
-  .jp-tl-legend .jp-pb-urgency {
-    font-size: .65rem;
-    padding: 0.06rem 0.38rem;
-  }
+  .jp-tl-prio.is-critical { color: #991b1b; background: #fef2f2; border-color: #fecaca; }
+  .jp-tl-prio.is-urgent { color: #c2410c; background: #fff7ed; border-color: #fed7aa; }
+  .jp-tl-prio.is-high { color: #a16207; background: #fffbeb; border-color: #fde68a; }
+  .jp-tl-prio.is-normal { color: #0369a1; background: #e0f2fe; border-color: #bae6fd; }
+  .jp-tl-prio.is-low { color: #475569; background: #f1f5f9; border-color: #e2e8f0; }
   .jp-tl-sub { color: var(--tl-muted); font-size: .74rem; margin-top: .12rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .jp-tl-meta { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem; margin-top: .28rem; }
   .jp-tl-st {

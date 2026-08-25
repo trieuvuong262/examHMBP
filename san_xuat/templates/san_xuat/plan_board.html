@@ -540,11 +540,13 @@
         {{ qty_summary.order_count }} đơn · SL {{ qty_summary.total_qty|sx_num }}
       {% endif %}
     </div>
+    {% if tab != 'route' %}
     <div class="jp-pb-urgency-legend" aria-label="Mức độ gấp">
       {% for val, lab in priority_choices %}
       <span class="jp-pb-urgency is-{{ val }}">{{ lab }}</span>
       {% endfor %}
     </div>
+    {% endif %}
   </div>
 
   {% if tab == 'queue' %}
