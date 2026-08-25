@@ -32,26 +32,17 @@
     border: 1px solid var(--pb-line);
     border-radius: 0.85rem;
   }
-  .jp-pb-tabs {
-    display: inline-flex;
-    padding: 0.18rem;
-    background: var(--pb-soft);
-    border-radius: 0.55rem;
+  .jp-pb-top-tabs {
+    gap: 0.4rem !important;
   }
-  .jp-pb-tabs a {
+  .jp-pb-top-tabs .btn {
+    height: 1.85rem;
+    padding: 0 0.75rem;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 0.35rem 0.85rem;
-    border-radius: 0.42rem;
-    font-size: 0.82rem;
-    font-weight: 700;
-    color: var(--pb-muted);
-    text-decoration: none;
-    line-height: 1.2;
+    line-height: 1;
   }
-  .jp-pb-tabs a:hover { color: var(--pb-ink); }
-  .jp-pb-tabs a.active { background: #fff; color: var(--pb-ink); border: 1px solid var(--pb-line); }
   .jp-pb-bar-search {
     display: flex;
     align-items: center;
@@ -517,25 +508,24 @@
     <div class="jp-sx-detail-title">
       <h2 class="jp-npl-mat-topbar-title w-100">Kế hoạch sản xuất</h2>
     </div>
-    <nav class="jp-sx-tools" aria-label="Công cụ">
-      <a href="{% url 'san_xuat:plan_board' %}?mode=list&tab=released"><i class="bi bi-clipboard-data" aria-hidden="true"></i>Tiến độ</a>
-      <span class="sep" aria-hidden="true"></span>
-      <a href="{% url 'san_xuat:plan_inter_step' %}"><i class="bi bi-hourglass-split" aria-hidden="true"></i>Thời gian trung gian</a>
-      <span class="sep" aria-hidden="true"></span>
-      <a href="{% url 'san_xuat:sales_order_confirm_list' %}"><i class="bi bi-check2-square" aria-hidden="true"></i>Đơn chờ xác nhận</a>
+    <nav class="jp-sx-tools jp-pb-top-tabs" aria-label="Tab kế hoạch" role="tablist">
+      <a role="tab"
+         class="btn btn-sm fw-bold {% if tab == 'queue' %}btn-hm{% else %}btn-outline-secondary{% endif %}"
+         href="{% url 'san_xuat:plan_board' %}?mode=list&tab=queue{% if search_query %}&q={{ search_query|urlencode }}{% endif %}"
+         aria-selected="{% if tab == 'queue' %}true{% else %}false{% endif %}">Hàng đợi</a>
+      <a role="tab"
+         class="btn btn-sm fw-bold {% if tab == 'released' %}btn-hm{% else %}btn-outline-secondary{% endif %}"
+         href="{% url 'san_xuat:plan_board' %}?mode=list&tab=released{% if search_query %}&q={{ search_query|urlencode }}{% endif %}"
+         aria-selected="{% if tab == 'released' %}true{% else %}false{% endif %}">Đã chuyển SX</a>
+      <a role="tab"
+         class="btn btn-sm fw-bold {% if tab == 'route' %}btn-hm{% else %}btn-outline-secondary{% endif %}"
+         href="{% url 'san_xuat:plan_board' %}?mode=list&tab=route{% if search_query %}&q={{ search_query|urlencode }}{% endif %}"
+         aria-selected="{% if tab == 'route' %}true{% else %}false{% endif %}">Lộ trình</a>
     </nav>
   </div>
 
   <div class="jp-sx-page-body">
   <div class="jp-pb-bar">
-    <div class="jp-pb-tabs" role="tablist">
-      <a role="tab" class="{% if tab == 'queue' %}active{% endif %}"
-         href="{% url 'san_xuat:plan_board' %}?mode=list&tab=queue{% if search_query %}&q={{ search_query|urlencode }}{% endif %}">Hàng đợi</a>
-      <a role="tab" class="{% if tab == 'released' %}active{% endif %}"
-         href="{% url 'san_xuat:plan_board' %}?mode=list&tab=released{% if search_query %}&q={{ search_query|urlencode }}{% endif %}">Đã chuyển SX</a>
-      <a role="tab" class="{% if tab == 'route' %}active{% endif %}"
-         href="{% url 'san_xuat:plan_board' %}?mode=list&tab=route{% if search_query %}&q={{ search_query|urlencode }}{% endif %}">Lộ trình</a>
-    </div>
     <form method="get" class="jp-pb-bar-search">
       <input type="hidden" name="mode" value="{{ mode }}">
       <input type="hidden" name="tab" value="{{ tab }}">

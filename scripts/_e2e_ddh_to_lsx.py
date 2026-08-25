@@ -233,8 +233,7 @@ def main() -> int:
     n = recompute_plan_ranks()
     order.refresh_from_db()
     ok(f'3.recompute_plan_ranks updated={n}')
-    if order.plan_status not in (SxSalesOrder.PLAN_RANKED, SxSalesOrder.PLAN_QUEUED):
-        # may stay queued if skipped due to existing MO — should be ranked
+    if order.plan_status != SxSalesOrder.PLAN_QUEUED:
         fail('unexpected plan_status after rank', order.plan_status)
     else:
         ok(f'3.plan_status={order.plan_status} rank={order.plan_rank} score={order.plan_score}')

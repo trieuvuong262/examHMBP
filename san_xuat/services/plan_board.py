@@ -169,13 +169,11 @@ def derive_plan_status(order: SxSalesOrder, mos: list[SxProductionOrder] | None 
         if SxProductionOrder.STATUS_IN_PROGRESS in statuses:
             return SxSalesOrder.PLAN_IN_PROGRESS
         return SxSalesOrder.PLAN_RELEASED
-    if order.plan_rank is not None and order.plan_status != SxSalesOrder.PLAN_ON_HOLD:
-        return SxSalesOrder.PLAN_RANKED
     return SxSalesOrder.PLAN_QUEUED
 
 
 def sync_plan_status(order: SxSalesOrder) -> str:
-    """Đồng bộ plan_status từ LSX (không đè on_hold)."""
+    """Đồng bộ plan_status từ LSX (không đè on_hold). Gộp ranked cũ → chờ xếp."""
     if order.plan_status == SxSalesOrder.PLAN_ON_HOLD:
         return order.plan_status
     derived = derive_plan_status(order)
@@ -656,8 +654,12 @@ def recompute_plan_ranks(*, only_queue: bool = True) -> int:
             continue
         order.plan_score = row.score
         order.plan_rank = i
-        order.plan_status = SxSalesOrder.PLAN_RANKED
-        order.save(update_fields=['plan_score', 'plan_rank', 'plan_status', 'updated_at'])
+        # Không dùng trạng thái «Đã xếp» — hàng đợi vẫn là chờ xếp đến khi Chuyển SX
+        if order.plan_status == SxSalesOrder.PLAN_RANKED:
+            order.plan_status = SxSalesOrder.PLAN_QUEUED
+            order.save(update_fields=['plan_score', 'plan_rank', 'plan_status', 'updated_at'])
+        else:
+            order.save(update_fields=['plan_score', 'plan_rank', 'updated_at'])
         updated += 1
     return updated
 
@@ -1256,10 +1258,10 @@ def build_order_timeline(
             continue
         col_start, col_end, length = placed
         clock = (r.duration_label or '').split('·')[0].strip()
-        if length >= 6:
-            bar_text = clock or f"{max(bar_start, start).strftime('%d/%m')} – {min(bar_end, end).strftime('%d/%m')}"
-        elif length >= 3:
-            bar_text = clock or ''
+        if clock:
+            bar_text = clock
+        elif length >= 4:
+            bar_text = f"{max(bar_start, start).strftime('%d/%m')} – {min(bar_end, end).strftime('%d/%m')}"
         else:
             bar_text = ''
         names = [pf.product_name or pf.product_code for pf in (r.product_flows or [])]
@@ -1269,6 +1271,13 @@ def build_order_timeline(
             subtitle = f'{subtitle} · {extra}' if subtitle else extra
         can_drag = r.order.plan_status in QUEUE_STATUSES and r.mo_count == 0
         span_days = max(1, (bar_end - bar_start).days + 1)
+        status_key = r.order.plan_status
+        if status_key == SxSalesOrder.PLAN_RANKED:
+            status_key = SxSalesOrder.PLAN_QUEUED
+        status_label = (
+            'Chờ xếp' if status_key == SxSalesOrder.PLAN_QUEUED
+            else r.order.get_plan_status_display()
+        )
         rows.append(PlanTimelineRow(
             order=r.order,
             start=bar_start,
@@ -1280,8 +1289,8 @@ def build_order_timeline(
             is_late=bool(r.is_overdue or r.khsx_overrun),
             clips_left=bar_start < start,
             clips_right=bar_end > end,
-            status_key=r.order.plan_status,
-            status_label=r.order.get_plan_status_display(),
+            status_key=status_key,
+            status_label=status_label,
             duration_label=r.duration_label or '',
             duration_script_id=r.duration_script_id or '',
             subtitle=subtitle,

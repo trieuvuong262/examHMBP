@@ -16,14 +16,19 @@
       </div>
       <span class="jp-tl-range">{{ route_board.range_start|date:"d/m/Y" }} – {{ route_board.range_end|date:"d/m/Y" }}</span>
       <span class="jp-tl-count">{{ route_board.rows|length }} đơn</span>
-      <div class="jp-tl-legend" aria-label="Chú thích trạng thái">
+      <div class="jp-tl-legend" aria-label="Chú thích">
         <span><i style="background:#d97706"></i>Chờ xếp</span>
-        <span><i style="background:#0369a1"></i>Đã xếp</span>
         <span><i style="background:#64748b"></i>Tạm giữ</span>
         <span><i style="background:#fb7185"></i>Đã chuyển</span>
         <span><i style="background:#dc2626"></i>Đang SX</span>
         <span><i style="background:#16a34a"></i>Xong</span>
         <span><i style="background:#9f1239"></i>Trễ hạn</span>
+        <span class="jp-tl-legend-sep" aria-hidden="true">|</span>
+        <span class="jp-pb-urgency is-critical">Rất gấp</span>
+        <span class="jp-pb-urgency is-urgent">Gấp</span>
+        <span class="jp-pb-urgency is-high">Cao</span>
+        <span class="jp-pb-urgency is-normal">Thường</span>
+        <span class="jp-pb-urgency is-low">Thấp</span>
       </div>
     </div>
     <div class="jp-tl-chart" style="--tl-days: {{ route_board.days|length }}">
@@ -42,7 +47,10 @@
       {% for row in route_board.rows %}
         {% with r=forloop.counter|add:2 %}
       <div class="jp-tl-label" style="grid-column: 1; grid-row: {{ r }}">
-        <a class="jp-tl-code" href="{% url 'san_xuat:sales_order_detail' row.order.pk %}">{{ row.order.code }}</a>
+        <div class="jp-tl-code-row">
+          <a class="jp-tl-code" href="{% url 'san_xuat:sales_order_detail' row.order.pk %}">{{ row.order.code }}</a>
+          <span class="jp-pb-urgency is-{{ row.order.plan_priority }}" title="Mức độ gấp">{{ row.order.get_plan_priority_display }}</span>
+        </div>
         {% if row.subtitle %}<div class="jp-tl-sub" title="{{ row.subtitle }}">{{ row.subtitle }}</div>{% endif %}
         <div class="jp-tl-meta">
           <span class="jp-tl-st is-{{ row.status_key }}{% if row.is_late %} is-late{% endif %}">{{ row.status_label }}</span>
@@ -66,7 +74,7 @@
               data-span-days="{{ row.span_days }}"
               data-can-drag="{% if can_schedule and row.can_drag %}1{% else %}0{% endif %}"
               style="grid-row: {{ r }}; grid-column: {{ row.col_start|add:1 }} / {{ row.col_end|add:1 }}"
-              title="{{ row.order.code }} · {{ row.start|date:'d/m/Y' }} – {{ row.end|date:'d/m/Y' }}{% if row.duration_label %} · {{ row.duration_label }}{% endif %}{% if can_schedule and row.can_drag %} · Kéo để xếp lịch{% endif %}">
+              title="{{ row.order.code }} · {{ row.order.get_plan_priority_display }} · {{ row.start|date:'d/m/Y' }} – {{ row.end|date:'d/m/Y' }}{% if row.duration_label %} · {{ row.duration_label }}{% endif %}{% if can_schedule and row.can_drag %} · Kéo để xếp lịch{% endif %}">
         {{ row.bar_text }}
       </button>
         {% endwith %}

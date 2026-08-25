@@ -106,7 +106,7 @@ class SxSalesOrder(DemoMarkedModel):
     PLAN_ON_HOLD = 'on_hold'
     PLAN_STATUS_CHOICES = [
         (PLAN_QUEUED, 'Chờ xếp'),
-        (PLAN_RANKED, 'Đã xếp hạng'),
+        (PLAN_RANKED, 'Chờ xếp'),  # legacy — không còn dùng; hiển thị như chờ xếp
         (PLAN_RELEASED, 'Đã chuyển SX'),
         (PLAN_IN_PROGRESS, 'Đang sản xuất'),
         (PLAN_DONE, 'Hoàn thành'),

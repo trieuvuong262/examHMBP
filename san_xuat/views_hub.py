@@ -1525,6 +1525,8 @@ def plan_board(request):
 
     if tab == 'queue':
         queue_rows = build_plan_board_rows(statuses=QUEUE_STATUSES, search=q)
+        for row in queue_rows:
+            sync_plan_status(row.order)
         route_board = None
         today_start = None
     elif tab == 'released':
@@ -1545,6 +1547,8 @@ def plan_board(request):
         from san_xuat.list_filters import parse_sx_date
 
         route_rows = build_plan_board_rows(include_released=True, search=q)
+        for row in route_rows:
+            sync_plan_status(row.order)
         route_from = parse_sx_date((request.GET.get('route_from') or '').strip())
         route_to = parse_sx_date((request.GET.get('route_to') or '').strip())
         route_board = build_order_timeline(

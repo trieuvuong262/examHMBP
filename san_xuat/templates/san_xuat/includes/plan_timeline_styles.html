@@ -85,6 +85,18 @@
   }
   .jp-tl-code { font-weight: 800; color: var(--tl-ink); text-decoration: none; font-size: .86rem; letter-spacing: -.01em; }
   .jp-tl-code:hover { color: var(--tl-today); }
+  .jp-tl-code-row {
+    display: flex; flex-wrap: wrap; align-items: center; gap: .35rem .45rem;
+  }
+  .jp-tl-code-row .jp-pb-urgency {
+    font-size: .65rem;
+    padding: 0.08rem 0.4rem;
+  }
+  .jp-tl-legend-sep { color: #cbd5e1; font-weight: 400; margin: 0 .1rem; }
+  .jp-tl-legend .jp-pb-urgency {
+    font-size: .65rem;
+    padding: 0.06rem 0.38rem;
+  }
   .jp-tl-sub { color: var(--tl-muted); font-size: .74rem; margin-top: .12rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .jp-tl-meta { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem; margin-top: .28rem; }
   .jp-tl-st {
@@ -92,8 +104,8 @@
     font-size: .65rem; font-weight: 800; letter-spacing: .01em;
   }
   .jp-tl-st.is-draft { background: #f1f5f9; color: #475569; }
-  .jp-tl-st.is-queued { background: #fffbeb; color: #b45309; }
-  .jp-tl-st.is-ranked { background: #e0f2fe; color: #0369a1; }
+  .jp-tl-st.is-queued,
+  .jp-tl-st.is-ranked { background: #fffbeb; color: #b45309; }
   .jp-tl-st.is-on_hold { background: #f1f5f9; color: #475569; }
   .jp-tl-st.is-released { background: #fff1f2; color: #9f1239; }
   .jp-tl-st.is-in_progress { background: #fee2e2; color: #b91c1c; }
@@ -110,9 +122,9 @@
     align-self: center; height: 1.55rem;
     margin: 0 3px; border-radius: .45rem; z-index: 2;
     display: flex; align-items: center; justify-content: center;
-    padding: 0 .4rem;
-    font-size: .68rem; font-weight: 800; color: #fff; white-space: nowrap;
-    overflow: hidden; min-width: 0; text-decoration: none;
+    padding: 0 .35rem;
+    font-size: .62rem; font-weight: 800; color: #fff; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; min-width: 0; text-decoration: none;
     box-shadow: 0 1px 2px rgba(15,23,42,.12);
   }
   button.jp-tl-bar {
@@ -123,8 +135,8 @@
   }
   .jp-tl-bar:hover { filter: brightness(1.05); }
   .jp-tl-bar.is-draft { background: #94a3b8; }
-  .jp-tl-bar.is-queued { background: #d97706; }
-  .jp-tl-bar.is-ranked { background: #0369a1; }
+  .jp-tl-bar.is-queued,
+  .jp-tl-bar.is-ranked { background: #d97706; }
   .jp-tl-bar.is-on_hold { background: #64748b; }
   .jp-tl-bar.is-released { background: #fb7185; }
   .jp-tl-bar.is-in_progress { background: #dc2626; }
