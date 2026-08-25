@@ -286,30 +286,74 @@ class PlanFlowGroup:
         return self.default_transfer_minutes
 
 
-def flow_groups_from_steps(steps) -> list[PlanFlowGroup]:
-    """Gộp công đoạn liền kề cùng tổ. Bước chưa gán tổ đứng riêng."""
+def sort_steps_by_factory_flow(steps) -> list:
+    """Sắp công đoạn theo luồng xưởng (Cắt → In-Ép → Thêu → May → HT → GH).
+
+    OB nhảy tổ (MAY→IN→MAY…) được xếp lại để bảng kế hoạch không lặp pill tổ.
+    Trong cùng tổ giữ thứ tự sequence gốc.
+    """
+    from san_xuat.services.progress_template import TEAM_SLUGS
+
+    slug_rank = {slug: i for i, (slug, *_rest) in enumerate(TEAM_SLUGS)}
+    indexed: list[tuple[int, int, int, object]] = []
+    for i, step in enumerate(steps or []):
+        slug = _step_team_slug(step) or ''
+        seq = int(_step_attr(step, 'sequence', 0) or 0)
+        if slug in slug_rank:
+            rank = slug_rank[slug]
+        elif slug:
+            rank = 800
+        else:
+            rank = 900
+        indexed.append((rank, seq, i, step))
+    indexed.sort(key=lambda row: (row[0], row[1], row[2]))
+    return [row[3] for row in indexed]
+
+
+def flow_groups_from_steps(steps, *, sort_factory: bool = False) -> list[PlanFlowGroup]:
+    """Gộp công đoạn liền kề cùng tổ. Bước chưa gán tổ đứng riêng.
+
+    ``sort_factory=True``: xếp lại theo luồng xưởng trước khi gộp (hết nhảy tổ).
+    """
     rows = list(steps or [])
     if not rows:
         return []
+    if sort_factory:
+        rows = sort_steps_by_factory_flow(rows)
 
-    clusters: list[tuple[int | None, str, list]] = []
+    clusters: list[tuple[int | None, str, str, list]] = []
     for step in rows:
         wc_id, label = _step_team_key(step)
-        if wc_id is None:
-            clusters.append((None, label, [step]))
+        slug = _step_team_slug(step) or ''
+        # Gộp theo slug chuẩn khi có — tránh trùng pill vì WC khác tên cùng tổ
+        cluster_key = slug or (f'wc:{wc_id}' if wc_id is not None else None)
+        if cluster_key is None:
+            clusters.append((None, label, '', [step]))
             continue
-        if clusters and clusters[-1][0] == wc_id:
-            clusters[-1][2].append(step)
+        if clusters and clusters[-1][2] == cluster_key and cluster_key:
+            clusters[-1][3].append(step)
+            # Giữ nhãn/wc đầu tiên; bổ sung label nếu cụm trước trống
+            if not clusters[-1][1] and label:
+                clusters[-1] = (wc_id or clusters[-1][0], label, cluster_key, clusters[-1][3])
+            elif clusters[-1][0] is None and wc_id is not None:
+                clusters[-1] = (wc_id, label or clusters[-1][1], cluster_key, clusters[-1][3])
         else:
-            clusters.append((wc_id, label, [step]))
+            clusters.append((wc_id, label, cluster_key, [step]))
 
     groups: list[PlanFlowGroup] = []
     pairs = hop_pair_map()
-    for i, (wc_id, label, cluster) in enumerate(clusters):
+    from san_xuat.services.progress_template import team_by_slug
+
+    for i, (wc_id, label, ckey, cluster) in enumerate(clusters):
+        # Nhãn chuẩn theo slug xưởng khi gộp (ỦI + GẤP XẾP → «Ủi - Gấp xếp»)
+        if ckey and not ckey.startswith('wc:'):
+            meta = team_by_slug(ckey)
+            if meta:
+                label = meta.get('group_label') or meta.get('label') or label
         names: list[str] = []
         seen: set[str] = set()
         for step in cluster:
-            name = (getattr(step, 'process_name', None) or '').strip()
+            name = (_step_attr(step, 'process_name') or '').strip()
             key = name.casefold()
             if name and key not in seen:
                 seen.add(key)
@@ -320,8 +364,8 @@ def flow_groups_from_steps(steps) -> list[PlanFlowGroup]:
         def_c, def_t = _global_hop_minutes()
         if i < len(clusters) - 1:
             last = cluster[-1]
-            nxt_first = clusters[i + 1][2][0]
-            hop_step_id = int(getattr(last, 'pk', 0) or 0)
+            nxt_first = clusters[i + 1][3][0]
+            hop_step_id = int(_step_attr(last, 'pk', 0) or 0)
             from_slug = _step_team_slug(last) or ''
             to_slug = _step_team_slug(nxt_first) or ''
             hop_c, hop_t = resolve_adjacent_hop(last, nxt_first, fill_default=False, pairs=pairs)

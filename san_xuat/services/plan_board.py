@@ -86,6 +86,19 @@ class PlanBoardRow:
     active_hops: list = field(default_factory=list)
     open_hops: list = field(default_factory=list)
     flow_groups: list = field(default_factory=list)
+    product_flows: list = field(default_factory=list)
+
+
+@dataclass
+class PlanProductFlow:
+    """Flow công đoạn theo từng mã SP — không gộp chung nhiều mã trên một ticket."""
+
+    product_code: str
+    product_name: str
+    qty: Decimal
+    flow_groups: list = field(default_factory=list)
+    line_id: int = 0
+    process_names: list[str] = field(default_factory=list)
 
 
 def enqueue_on_confirm(order: SxSalesOrder) -> None:
@@ -261,6 +274,7 @@ def build_plan_board_rows(
         names, work_min, has_routing, routing_buffer = _enrich_routing(order, lines)
         hops = []
         flow_groups = []
+        product_flows: list[PlanProductFlow] = []
         buffer_min = routing_buffer
         plan_steps = list(order.plan_steps.all())
         if not plan_steps and order.confirm_status == SxSalesOrder.CONFIRM_CONFIRMED:
@@ -275,8 +289,49 @@ def build_plan_board_rows(
             )
 
             hops = hops_from_steps(plan_steps)
-            flow_groups = flow_groups_from_steps(plan_steps)
+            flow_groups = flow_groups_from_steps(plan_steps, sort_factory=True)
             buffer_min = hop_buffer_minutes(plan_steps)
+
+        # Flow theo từng mã SP — không gộp chung nhiều mã thành một dải tổ
+        from san_xuat.services.inter_step_times import flow_groups_from_steps as _flow_groups
+
+        active_lines = [ln for ln in lines if (ln.qty or 0) > 0 and (ln.product_code or '').strip()]
+        single_product = len({(ln.product_code or '').strip().casefold() for ln in active_lines}) == 1
+        for ln in active_lines:
+            code = (ln.product_code or '').strip()
+            routing = sales_order_line_routing(ln)
+            line_steps = list(routing.steps)
+            if single_product and plan_steps:
+                # 1 mã: dùng snapshot đơn (có hop_step_id để sửa kiểm/VC), xếp lại theo xưởng
+                groups = _flow_groups(plan_steps, sort_factory=True)
+            elif line_steps:
+                groups = _flow_groups(line_steps, sort_factory=True)
+                # Hop edit gắn SxSalesOrderPlanStep — tắt khi flow lấy từ routing dòng
+                for g in groups:
+                    g.hop_step_id = 0
+            else:
+                groups = []
+            pnames: list[str] = []
+            seen_p: set[str] = set()
+            for g in groups:
+                for n in g.process_names:
+                    k = n.casefold()
+                    if k not in seen_p:
+                        seen_p.add(k)
+                        pnames.append(n)
+            product_flows.append(PlanProductFlow(
+                product_code=code,
+                product_name=(ln.product_name or '').strip(),
+                qty=_q(ln.qty_to_produce),
+                flow_groups=groups,
+                line_id=int(ln.pk or 0),
+                process_names=pnames[:12],
+            ))
+        if product_flows:
+            # Ticket-level groups = mã đầu (fallback include cũ); UI ưu tiên product_flows
+            flow_groups = product_flows[0].flow_groups if len(product_flows) == 1 else []
+            if not names:
+                names = [n for pf in product_flows for n in pf.process_names][:12]
         cycle_min = _q(work_min + buffer_min)
         score, days_to_due, is_overdue = compute_score(
             order=order, cycle_minutes=cycle_min, today=today,
@@ -336,6 +391,7 @@ def build_plan_board_rows(
             active_hops=[h for h in hops if getattr(h, 'is_set', False)],
             open_hops=[h for h in hops if not getattr(h, 'is_set', False)],
             flow_groups=flow_groups,
+            product_flows=product_flows,
         ))
 
     rows.sort(

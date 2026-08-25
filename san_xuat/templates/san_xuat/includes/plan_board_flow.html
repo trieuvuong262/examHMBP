@@ -1,7 +1,7 @@
 {% load sx_format %}
 <div class="jp-pb-flow">
-  {% if row.flow_groups %}
-    {% for g in row.flow_groups %}
+  {% if flow_groups %}
+    {% for g in flow_groups %}
     {% with team_name=g.team_label|default:g.process_names.0 %}
     {% if g.process_names %}
     <details class="jp-pb-team{% if not g.work_center_id %} is-loose{% endif %}">

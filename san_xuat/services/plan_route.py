@@ -79,37 +79,38 @@ def ensure_order_plan_steps(order: SxSalesOrder) -> list[SxSalesOrderPlanStep]:
     if order.confirm_status != SxSalesOrder.CONFIRM_CONFIRMED:
         return []
 
-    merged: dict[str, dict] = {}
+    merged: list[dict] = []
+    seq_cursor = 0
     for ln in order.lines.prefetch_related('routing_lines__work_center').order_by('sort_order', 'id'):
         routing = sales_order_line_routing(ln)
+        line_rows: list[dict] = []
         for step in routing.steps:
             name = (step.process_name or '').strip()
             if not name:
                 continue
-            key = name.casefold()
-            if key not in merged:
-                merged[key] = {
-                    'sequence': step.sequence or (len(merged) + 1) * 10,
-                    'process_name': name,
-                    'work_center_id': step.work_center_id,
-                    'minutes_per_unit': _q(step.minutes_per_unit),
-                    'count_minutes': _q(getattr(step, 'count_minutes', 0)),
-                    'transfer_minutes': _q(getattr(step, 'transfer_minutes', 0)),
-                }
-            else:
-                prev = merged[key]
-                prev['minutes_per_unit'] = max(prev['minutes_per_unit'], _q(step.minutes_per_unit))
-                prev['count_minutes'] = max(prev['count_minutes'], _q(getattr(step, 'count_minutes', 0)))
-                prev['transfer_minutes'] = max(prev['transfer_minutes'], _q(getattr(step, 'transfer_minutes', 0)))
-                if not prev['work_center_id'] and step.work_center_id:
-                    prev['work_center_id'] = step.work_center_id
+            line_rows.append({
+                'sequence': int(step.sequence or (len(line_rows) + 1) * 10),
+                'process_name': name,
+                'work_center_id': step.work_center_id,
+                'minutes_per_unit': _q(step.minutes_per_unit),
+                'count_minutes': _q(getattr(step, 'count_minutes', 0)),
+                'transfer_minutes': _q(getattr(step, 'transfer_minutes', 0)),
+            })
+        if not line_rows:
+            continue
+        # Mỗi mã SP một block sequence riêng — không gộp/trộn process_name giữa các mã
+        line_rows.sort(key=lambda r: (r['sequence'], r['process_name']))
+        for row in line_rows:
+            seq_cursor += 10
+            row = {**row, 'sequence': seq_cursor}
+            merged.append(row)
 
     if not merged:
         from san_xuat.services.order_progress_sheet import seed_order_plan_steps_from_template
 
         return seed_order_plan_steps_from_template(order)
 
-    rows = sorted(merged.values(), key=lambda r: (r['sequence'], r['process_name']))
+    rows = merged
     created: list[SxSalesOrderPlanStep] = []
     used: set[int] = set()
     for i, row in enumerate(rows):

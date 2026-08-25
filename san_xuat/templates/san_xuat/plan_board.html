@@ -465,6 +465,36 @@
   .jp-pb-empty a { font-weight: 700; }
   .jp-pb-hold-note { margin: 0.55rem 0 0; font-size: 0.78rem; color: var(--pb-muted); }
   .jp-pb-steps { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+  .jp-pb-products { display: flex; flex-direction: column; gap: 0.65rem; }
+  .jp-pb-product {
+    border: 1px solid var(--pb-line);
+    border-radius: 0.75rem;
+    background: #fff;
+    overflow: visible;
+  }
+  .jp-pb-product-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.35rem 0.65rem;
+    padding: 0.45rem 0.75rem;
+    background: var(--pb-soft);
+    border-bottom: 1px solid var(--pb-line);
+    font-size: 0.78rem;
+  }
+  .jp-pb-product-code {
+    font-weight: 800;
+    color: var(--pb-ink);
+    letter-spacing: -0.01em;
+  }
+  .jp-pb-product-name { color: var(--pb-muted); font-weight: 600; }
+  .jp-pb-product-qty { margin-left: auto; font-weight: 700; color: var(--pb-ink); }
+  .jp-pb-product .jp-pb-flow {
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
 </style>
 {% endblock %}
 
@@ -615,7 +645,22 @@
           <span class="jp-pb-stat">Điểm <strong>{{ row.score|sx_num }}</strong></span>
         </div>
 
-        {% include 'san_xuat/includes/plan_board_flow.html' %}
+        {% if row.product_flows %}
+        <div class="jp-pb-products">
+          {% for pf in row.product_flows %}
+          <div class="jp-pb-product">
+            <div class="jp-pb-product-head">
+              <span class="jp-pb-product-code">{{ pf.product_code }}</span>
+              {% if pf.product_name %}<span class="jp-pb-product-name">{{ pf.product_name }}</span>{% endif %}
+              <span class="jp-pb-product-qty">SL {{ pf.qty|sx_num }}</span>
+            </div>
+            {% include 'san_xuat/includes/plan_board_flow.html' with flow_groups=pf.flow_groups %}
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        {% include 'san_xuat/includes/plan_board_flow.html' with flow_groups=row.flow_groups %}
+        {% endif %}
         {% if row.order.plan_hold_reason %}
         <p class="jp-pb-hold-note">Giữ: {{ row.order.plan_hold_reason }}</p>
         {% endif %}
@@ -664,7 +709,22 @@
         <div class="jp-pb-progress" title="{{ row.progress_pct|sx_num }}%">
           <span style="width: {% if row.progress_pct > 100 %}100{% else %}{{ row.progress_pct|floatformat:0 }}{% endif %}%"></span>
         </div>
-        {% include 'san_xuat/includes/plan_board_flow.html' with empty_label='OB theo lệnh sản xuất' %}
+        {% if row.product_flows %}
+        <div class="jp-pb-products">
+          {% for pf in row.product_flows %}
+          <div class="jp-pb-product">
+            <div class="jp-pb-product-head">
+              <span class="jp-pb-product-code">{{ pf.product_code }}</span>
+              {% if pf.product_name %}<span class="jp-pb-product-name">{{ pf.product_name }}</span>{% endif %}
+              <span class="jp-pb-product-qty">SL {{ pf.qty|sx_num }}</span>
+            </div>
+            {% include 'san_xuat/includes/plan_board_flow.html' with flow_groups=pf.flow_groups empty_label='OB theo lệnh sản xuất' %}
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        {% include 'san_xuat/includes/plan_board_flow.html' with flow_groups=row.flow_groups empty_label='OB theo lệnh sản xuất' %}
+        {% endif %}
       </div>
     </article>
     {% empty %}
