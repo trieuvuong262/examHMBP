@@ -4,6 +4,7 @@
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
 {% include 'san_xuat/includes/sx_plan_urgency_styles.html' %}
+{% include 'san_xuat/includes/plan_timeline_styles.html' %}
 <style>
   .jp-pb {
     --pb-ink: #0f172a;
@@ -542,6 +543,26 @@
     border-radius: 0;
     background: transparent;
   }
+  .jp-pb-route {
+    margin-top: 1.5rem;
+  }
+  .jp-pb-route-head {
+    margin: 0 0 0.7rem;
+  }
+  .jp-pb-route-head h3 {
+    margin: 0;
+    font-size: 0.98rem;
+    font-weight: 800;
+    color: var(--pb-ink);
+    letter-spacing: -0.02em;
+  }
+  .jp-pb-route-head p,
+  .jp-pb-route-note {
+    margin: 0 0 0.7rem;
+    font-size: 0.78rem;
+    color: var(--pb-muted);
+    font-weight: 600;
+  }
 </style>
 {% endblock %}
 
@@ -552,7 +573,7 @@
       <h2 class="jp-npl-mat-topbar-title w-100">Kế hoạch sản xuất</h2>
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
-      <a href="{% url 'san_xuat:plan_route' %}"><i class="bi bi-calendar3" aria-hidden="true"></i>Lộ trình</a>
+      <a href="{% url 'san_xuat:plan_board' %}?mode=list&tab=route"><i class="bi bi-calendar3" aria-hidden="true"></i>Lộ trình</a>
       <span class="sep" aria-hidden="true"></span>
       <a href="{% url 'san_xuat:plan_inter_step' %}"><i class="bi bi-hourglass-split" aria-hidden="true"></i>Thời gian trung gian</a>
       <span class="sep" aria-hidden="true"></span>
@@ -594,6 +615,8 @@
          href="{% url 'san_xuat:plan_board' %}?mode=list&tab=queue{% if search_query %}&q={{ search_query|urlencode }}{% endif %}">Hàng đợi</a>
       <a role="tab" class="{% if tab == 'released' %}active{% endif %}"
          href="{% url 'san_xuat:plan_board' %}?mode=list&tab=released{% if search_query %}&q={{ search_query|urlencode }}{% endif %}">Đã chuyển SX</a>
+      <a role="tab" class="{% if tab == 'route' %}active{% endif %}"
+         href="{% url 'san_xuat:plan_board' %}?mode=list&tab=route{% if search_query %}&q={{ search_query|urlencode }}{% endif %}">Lộ trình</a>
     </div>
     <form method="get" class="jp-pb-bar-search">
       <input type="hidden" name="mode" value="{{ mode }}">
@@ -603,7 +626,11 @@
       <button type="submit" class="btn btn-outline-secondary btn-sm">Lọc</button>
     </form>
     <div class="jp-pb-bar-meta">
-      {{ qty_summary.order_count }} đơn · SL {{ qty_summary.total_qty|sx_num }}
+      {% if tab == 'route' %}
+        {{ route_board.rows|length }} đơn
+      {% else %}
+        {{ qty_summary.order_count }} đơn · SL {{ qty_summary.total_qty|sx_num }}
+      {% endif %}
     </div>
     <div class="jp-pb-urgency-legend" aria-label="Mức độ gấp">
       {% for val, lab in priority_choices %}
@@ -681,8 +708,8 @@
               {% endif %}
             {% else %}<strong>—</strong>{% endif %}
           </span>
-          {% if row.duration_label %}
           {{ row.duration_detail|json_script:row.duration_script_id }}
+          {% if row.duration_label %}
           <span class="jp-pb-stat" title="Tổng thời gian làm đơn (SMV × SL mọi mã + kiểm/VC)">
             Làm trong <strong>{{ row.duration_label }}</strong>
             <button type="button" class="jp-pb-dur-btn" data-jp-duration-open
@@ -755,6 +782,7 @@
         </div>
       </div>
       <div class="jp-pb-ticket-body">
+        {{ row.duration_detail|json_script:row.duration_script_id }}
         <div class="jp-pb-stats">
           <span class="jp-pb-stat{% if row.khsx_overrun or row.is_overdue %} is-late{% endif %}"
                 title="Ngày KHSX = ngày dự kiến thực hiện + SMV(s)×SL mọi mã + kiểm/VC">
@@ -790,6 +818,10 @@
     </div>
     {% endfor %}
   </div>
+  {% endif %}
+
+  {% if tab == 'route' %}
+  {% include 'san_xuat/includes/plan_order_timeline.html' %}
   {% endif %}
   </div>
 </div>
@@ -1126,7 +1158,7 @@
         '<div class="jp-pb-dur-card"><span class="k">Ca</span><span class="v">' + esc(data.shift_label || '9 giờ 30 phút') + ' / ngày</span></div>' +
       '</div>' +
       '<table class="jp-pb-dur-table">' +
-        '<thead><tr><th>Tên hàng</th><th class="num">SL</th><th class="num">SMV</th><th class="num">SMV × SL (phút)</th><th class="num">Kiểm/VC (phút)</th></tr></thead>' +
+        '<thead><tr><th>Tên hàng</th><th class="num">SL</th><th class="num" title="Tổng SMV đơn hàng mọi công đoạn đã có">SMV</th><th class="num">SMV × SL (phút)</th><th class="num">Kiểm/VC (phút)</th></tr></thead>' +
         '<tbody>' + (rows || '<tr><td colspan="5" class="jp-pb-dur-muted">Chưa có định mức thời gian.</td></tr>') + '</tbody>' +
         '<tfoot><tr>' +
           '<td><strong>Tổng đơn</strong></td><td></td><td></td>' +

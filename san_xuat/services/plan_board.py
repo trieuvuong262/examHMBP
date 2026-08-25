@@ -63,6 +63,25 @@ def _q(value, places: str = '0.01') -> Decimal:
     return Decimal(str(value or 0)).quantize(Decimal(places))
 
 
+def line_order_smv_seconds(order_line: SxSalesOrderLine) -> Decimal:
+    """Tổng SMV đơn hàng (giây/cái) = Σ (SMV đơn × SL/SP) mọi CĐ đã có khi lên đơn."""
+    rows = list(order_line.routing_lines.all())
+    if rows:
+        total = Decimal('0')
+        for rt in rows:
+            op_total = rt.total_operation_smv
+            if op_total is None:
+                qty = rt.qty_per_garment
+                if qty is None:
+                    qty = Decimal('1')
+                op_total = Decimal(str(rt.applied_unit_smv or 0)) * qty
+            total += Decimal(str(op_total or 0))
+        return _q(total, '0.0001')
+
+    routing = sales_order_line_routing(order_line)
+    return _q(routing.total_smv * Decimal('60'), '0.0001')
+
+
 @dataclass
 class PlanBoardRow:
     order: SxSalesOrder
@@ -174,9 +193,10 @@ def _enrich_routing(order: SxSalesOrder, lines: list[SxSalesOrderLine]) -> tuple
     for ln in lines:
         routing = sales_order_line_routing(ln)
         qty = ln.qty_to_produce
-        if routing.has_time_data:
+        smv_min = _q(line_order_smv_seconds(ln) / Decimal('60'), '0.0001')
+        if routing.has_time_data or smv_min > 0:
             has_any = True
-            work_min += (routing.total_smv * qty).quantize(_Q2)
+            work_min += (smv_min * qty).quantize(_Q2)
             buffer_min += _q(routing.hop_buffer_minutes)
         for step in routing.steps:
             n = (step.process_name or '').strip()
@@ -395,7 +415,7 @@ def build_plan_board_rows(
                         seen_p.add(k)
                         pnames.append(n)
             pbuf = _buffer_from_flow_groups(groups)
-            psmv = _q(routing.total_smv, '0.0001')
+            psmv = _q(line_order_smv_seconds(ln) / Decimal('60'), '0.0001')
             product_flows.append(PlanProductFlow(
                 product_code=code,
                 product_name=(ln.product_name or '').strip(),
@@ -415,6 +435,7 @@ def build_plan_board_rows(
             # Kiểm/VC: cộng tất cả mã (mỗi dải flow riêng), đã gồm mặc định cặp tổ
             flow_buf = sum((_buffer_from_flow_groups(pf.flow_groups) for pf in product_flows), Decimal('0'))
             buffer_min = _q(flow_buf)
+            work_min = _q(sum((pf.work_minutes for pf in product_flows), Decimal('0')))
         cycle_min = _q(work_min + buffer_min)
         score, days_to_due, is_overdue = compute_score(
             order=order, cycle_minutes=cycle_min, today=today,
@@ -867,6 +888,28 @@ class MoTimelineRow:
 
 
 @dataclass
+class PlanTimelineRow:
+    """Thanh thời gian đơn trên KHSX — không cần LSX / chuyển SX."""
+
+    order: SxSalesOrder
+    start: date
+    end: date
+    col_start: int
+    col_end: int
+    vis_days: int
+    bar_text: str
+    is_late: bool
+    clips_left: bool
+    clips_right: bool
+    status_key: str
+    status_label: str
+    duration_label: str
+    duration_script_id: str
+    subtitle: str
+    duration_detail: dict = field(default_factory=dict)
+
+
+@dataclass
 class MoTimelineBoard:
     range_start: date
     range_end: date
@@ -887,33 +930,38 @@ def _monday_on_or_before(d: date) -> date:
     return d - timedelta(days=d.weekday())
 
 
-def build_mo_timeline(
+def _timeline_range(
+    range_from: date | None,
+    range_to: date | None,
     *,
-    range_from: date | None = None,
-    range_to: date | None = None,
+    today: date,
     days: int = TIMELINE_DAYS,
-    search: str = '',
-) -> MoTimelineBoard:
-    """Timeline LSX theo ngày bắt đầu / kết thúc dự kiến."""
-    today = timezone.localdate()
+) -> tuple[date, date]:
     start = range_from
     end = range_to
     if start and end and end < start:
         start, end = end, start
+    span_min = max(7, int(days or TIMELINE_DAYS))
     if start and not end:
-        end = start + timedelta(days=max(7, int(days or TIMELINE_DAYS)) - 1)
+        end = start + timedelta(days=span_min - 1)
     elif end and not start:
-        start = end - timedelta(days=max(7, int(days or TIMELINE_DAYS)) - 1)
+        start = end - timedelta(days=span_min - 1)
     elif not start and not end:
         start = _monday_on_or_before(today)
-        end = start + timedelta(days=max(7, int(days or TIMELINE_DAYS)) - 1)
+        end = start + timedelta(days=span_min - 1)
+    span = (end - start).days + 1
+    if span < 1:
+        return start, start
+    if span > TIMELINE_MAX_DAYS:
+        end = start + timedelta(days=TIMELINE_MAX_DAYS - 1)
+    return start, end
+
+
+def _timeline_axis(start: date, end: date, today: date) -> tuple[list[TimelineDay], list[dict], int]:
     span = (end - start).days + 1
     if span < 1:
         span = 1
         end = start
-    elif span > TIMELINE_MAX_DAYS:
-        end = start + timedelta(days=TIMELINE_MAX_DAYS - 1)
-        span = TIMELINE_MAX_DAYS
     day_list = [start + timedelta(days=i) for i in range(span)]
     axis_days: list[TimelineDay] = []
     month_spans: list[dict] = []
@@ -942,6 +990,30 @@ def build_mo_timeline(
         m['grid_start'] = col
         m['grid_end'] = col + m['span']
         col += m['span']
+    return axis_days, month_spans, span
+
+
+def _bar_columns(bar_start: date, bar_end: date, start: date, end: date) -> tuple[int, int, int] | None:
+    if bar_end < start or bar_start > end:
+        return None
+    vis_start = max(bar_start, start)
+    vis_end = min(bar_end, end)
+    offset = (vis_start - start).days
+    length = (vis_end - vis_start).days + 1
+    return offset + 1, offset + length + 1, length
+
+
+def build_mo_timeline(
+    *,
+    range_from: date | None = None,
+    range_to: date | None = None,
+    days: int = TIMELINE_DAYS,
+    search: str = '',
+) -> MoTimelineBoard:
+    """Timeline LSX theo ngày bắt đầu / kết thúc dự kiến."""
+    today = timezone.localdate()
+    start, end = _timeline_range(range_from, range_to, today=today, days=days)
+    axis_days, month_spans, span = _timeline_axis(start, end, today)
 
     qs = (
         SxProductionOrder.objects.filter(is_demo=False)
@@ -973,16 +1045,12 @@ def build_mo_timeline(
             continue
         bar_start = raw_start or raw_end
         bar_end = raw_end or raw_start
-        if bar_end < start or bar_start > end:
+        placed = _bar_columns(bar_start, bar_end, start, end)
+        if placed is None:
             continue
-        vis_start = max(bar_start, start)
-        vis_end = min(bar_end, end)
-        offset = (vis_start - start).days
-        length = (vis_end - vis_start).days + 1
-        col_start = offset + 1
-        col_end = offset + length + 1
+        col_start, col_end, length = placed
         if length >= 6:
-            bar_text = f"{vis_start.strftime('%d/%m')} – {vis_end.strftime('%d/%m')}"
+            bar_text = f"{max(bar_start, start).strftime('%d/%m')} – {min(bar_end, end).strftime('%d/%m')}"
         elif length >= 3:
             bar_text = f"SL {format_sx_num_input(mo.qty)}"
         else:
@@ -1020,6 +1088,87 @@ def build_mo_timeline(
         next_to=end + timedelta(days=span),
         unscheduled=unscheduled[:80],
         search=term,
+    )
+
+
+def build_order_timeline(
+    plan_rows: list[PlanBoardRow],
+    *,
+    range_from: date | None = None,
+    range_to: date | None = None,
+) -> MoTimelineBoard:
+    """Timeline đơn trên KHSX theo ngày dự kiến + SMV×SL + kiểm/VC — không cần LSX."""
+    today = timezone.localdate()
+    dated = [r for r in plan_rows if r.khsx_start]
+    auto = not range_from and not range_to
+    if auto and dated:
+        range_from = _monday_on_or_before(min(r.khsx_start for r in dated))
+        range_to = max((r.khsx_end or r.khsx_start) for r in dated)
+        if (range_to - range_from).days < 13:
+            range_to = range_from + timedelta(days=13)
+    start, end = _timeline_range(range_from, range_to, today=today)
+    axis_days, month_spans, span = _timeline_axis(start, end, today)
+
+    rows: list[PlanTimelineRow] = []
+    unscheduled: list = []
+    for r in plan_rows:
+        bar_start = r.khsx_start
+        bar_end = r.khsx_end or r.khsx_start
+        if not bar_start:
+            unscheduled.append(r.order)
+            continue
+        if bar_end < bar_start:
+            bar_start, bar_end = bar_end, bar_start
+        placed = _bar_columns(bar_start, bar_end, start, end)
+        if placed is None:
+            continue
+        col_start, col_end, length = placed
+        clock = (r.duration_label or '').split('·')[0].strip()
+        if length >= 6:
+            bar_text = clock or f"{max(bar_start, start).strftime('%d/%m')} – {min(bar_end, end).strftime('%d/%m')}"
+        elif length >= 3:
+            bar_text = clock or ''
+        else:
+            bar_text = ''
+        names = [pf.product_name or pf.product_code for pf in (r.product_flows or [])]
+        subtitle = (r.order.customer_name or '').strip()
+        if names:
+            extra = names[0] if len(names) == 1 else f'{len(names)} mã'
+            subtitle = f'{subtitle} · {extra}' if subtitle else extra
+        rows.append(PlanTimelineRow(
+            order=r.order,
+            start=bar_start,
+            end=bar_end,
+            col_start=col_start,
+            col_end=col_end,
+            vis_days=length,
+            bar_text=bar_text,
+            is_late=bool(r.is_overdue or r.khsx_overrun),
+            clips_left=bar_start < start,
+            clips_right=bar_end > end,
+            status_key=r.order.plan_status,
+            status_label=r.order.get_plan_status_display(),
+            duration_label=r.duration_label or '',
+            duration_script_id=r.duration_script_id or '',
+            subtitle=subtitle,
+            duration_detail=r.duration_detail or {},
+        ))
+
+    today_col = (today - start).days + 1 if start <= today <= end else None
+    return MoTimelineBoard(
+        range_start=start,
+        range_end=end,
+        days=axis_days,
+        month_spans=month_spans,
+        rows=rows,
+        today=today,
+        today_col=today_col,
+        prev_from=start - timedelta(days=span),
+        prev_to=start - timedelta(days=1),
+        next_from=end + timedelta(days=1),
+        next_to=end + timedelta(days=span),
+        unscheduled=unscheduled[:80],
+        search='',
     )
 
 

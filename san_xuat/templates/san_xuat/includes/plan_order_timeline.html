@@ -1,0 +1,73 @@
+{% load sx_format %}
+<section class="jp-pb-route jp-tl" id="lo-trinh">
+  <p class="jp-pb-route-note">Thời gian toàn đơn theo KHSX (ngày dự kiến + SMV × SL + kiểm/VC). Không cần chuyển SX.</p>
+  {% for row in route_board.rows %}
+    {% if row.duration_script_id %}{{ row.duration_detail|json_script:row.duration_script_id }}{% endif %}
+  {% endfor %}
+  {% if route_board.rows %}
+  <div class="jp-tl-wrap">
+    <div class="jp-tl-toolbar">
+      <div class="jp-tl-shift">
+        <a href="?mode={{ mode }}&amp;tab=route{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}&amp;route_from={{ route_board.prev_from|date:'Y-m-d' }}&amp;route_to={{ route_board.prev_to|date:'Y-m-d' }}" title="Khoảng trước"><i class="bi bi-chevron-left"></i></a>
+        <a href="?mode={{ mode }}&amp;tab=route{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}&amp;route_from={{ today_monday|date:'Y-m-d' }}&amp;route_to={{ today_end|date:'Y-m-d' }}" title="Về tuần này" style="width:auto;padding:0 .55rem;font-size:.72rem;font-weight:800">Hôm nay</a>
+        <a href="?mode={{ mode }}&amp;tab=route{% if search_query %}&amp;q={{ search_query|urlencode }}{% endif %}&amp;route_from={{ route_board.next_from|date:'Y-m-d' }}&amp;route_to={{ route_board.next_to|date:'Y-m-d' }}" title="Khoảng sau"><i class="bi bi-chevron-right"></i></a>
+      </div>
+      <span class="jp-tl-range">{{ route_board.range_start|date:"d/m/Y" }} – {{ route_board.range_end|date:"d/m/Y" }}</span>
+      <span class="jp-tl-count">{{ route_board.rows|length }} đơn</span>
+      <div class="jp-tl-legend" aria-label="Chú thích trạng thái">
+        <span><i style="background:#d97706"></i>Chờ xếp</span>
+        <span><i style="background:#0369a1"></i>Đã xếp</span>
+        <span><i style="background:#64748b"></i>Tạm giữ</span>
+        <span><i style="background:#fb7185"></i>Đã chuyển</span>
+        <span><i style="background:#dc2626"></i>Đang SX</span>
+        <span><i style="background:#16a34a"></i>Xong</span>
+        <span><i style="background:#9f1239"></i>Trễ hạn</span>
+      </div>
+    </div>
+    <div class="jp-tl-chart" style="--tl-days: {{ route_board.days|length }}">
+      <div class="jp-tl-corner">Đơn</div>
+      {% for m in route_board.month_spans %}
+      <div class="jp-tl-month" style="grid-column: {{ m.grid_start }} / {{ m.grid_end }}; grid-row: 1">{{ m.label }}</div>
+      {% endfor %}
+      {% for d in route_board.days %}
+      <div class="jp-tl-day jp-tl-line{% if d.is_today %} is-today{% endif %}{% if d.is_weekend %} is-weekend{% endif %}{% if d.is_week_start %} is-week-start{% endif %}" style="grid-column: {{ forloop.counter|add:1 }}; grid-row: 2">
+        <span class="n">{{ d.day }}</span>
+        <span class="w">{{ d.weekday }}</span>
+      </div>
+      {% endfor %}
+      {% for row in route_board.rows %}
+        {% with r=forloop.counter|add:2 %}
+      <div class="jp-tl-label" style="grid-column: 1; grid-row: {{ r }}">
+        <a class="jp-tl-code" href="{% url 'san_xuat:sales_order_detail' row.order.pk %}">{{ row.order.code }}</a>
+        {% if row.subtitle %}<div class="jp-tl-sub" title="{{ row.subtitle }}">{{ row.subtitle }}</div>{% endif %}
+        <div class="jp-tl-meta">
+          <span class="jp-tl-st is-{{ row.status_key }}{% if row.is_late %} is-late{% endif %}">{{ row.status_label }}</span>
+          <span class="jp-tl-dates">{{ row.start|date:"d/m" }} → {{ row.end|date:"d/m" }}{% if row.duration_label %} · {{ row.duration_label }}{% endif %}</span>
+        </div>
+      </div>
+      {% for d in route_board.days %}
+      <div class="jp-tl-slot jp-tl-line{% if d.is_today %} is-today{% endif %}{% if d.is_weekend %} is-weekend{% endif %}{% if d.is_week_start %} is-week-start{% endif %}" style="grid-column: {{ forloop.counter|add:1 }}; grid-row: {{ r }}"></div>
+      {% endfor %}
+      {% if row.duration_script_id %}
+      <button type="button" class="jp-tl-bar is-{{ row.status_key }}{% if row.is_late %} is-late{% endif %}{% if row.clips_left %} is-clip-l{% endif %}{% if row.clips_right %} is-clip-r{% endif %}"
+              data-jp-duration-open data-detail-id="{{ row.duration_script_id }}"
+              style="grid-row: {{ r }}; grid-column: {{ row.col_start|add:1 }} / {{ row.col_end|add:1 }}"
+              title="{{ row.order.code }} · {{ row.start|date:'d/m/Y' }} – {{ row.end|date:'d/m/Y' }}{% if row.duration_label %} · {{ row.duration_label }}{% endif %}">
+        {{ row.bar_text }}
+      </button>
+      {% else %}
+      <a class="jp-tl-bar is-{{ row.status_key }}{% if row.is_late %} is-late{% endif %}{% if row.clips_left %} is-clip-l{% endif %}{% if row.clips_right %} is-clip-r{% endif %}"
+         href="{% url 'san_xuat:sales_order_detail' row.order.pk %}"
+         style="grid-row: {{ r }}; grid-column: {{ row.col_start|add:1 }} / {{ row.col_end|add:1 }}"
+         title="{{ row.order.code }} · {{ row.start|date:'d/m/Y' }} – {{ row.end|date:'d/m/Y' }}">
+        {{ row.bar_text }}
+      </a>
+      {% endif %}
+        {% endwith %}
+      {% endfor %}
+    </div>
+  </div>
+  {% else %}
+  <div class="jp-tl-empty">Chưa có đơn để vẽ lộ trình thời gian.</div>
+  {% endif %}
+</section>

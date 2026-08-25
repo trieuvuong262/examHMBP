@@ -1311,6 +1311,8 @@ def plan_board(request):
         PLAN_STATUS_LABELS,
         PRIORITY_LABELS,
         QUEUE_STATUSES,
+        _monday_on_or_before,
+        build_order_timeline,
         build_plan_board_rows,
         confirmed_order_qty_summary,
         hold_plan_order,
@@ -1341,18 +1343,18 @@ def plan_board(request):
     )
 
     mode = (request.GET.get('mode') or request.POST.get('mode') or 'list').strip()
-    if mode == 'route':
-        return redirect('san_xuat:plan_route')
+    tab = (request.GET.get('tab') or request.POST.get('tab') or 'queue').strip()
+    if mode == 'route' or tab in {'lo-trinh', 'timeline'}:
+        tab = 'route'
     mode = 'list'
 
-    tab = (request.GET.get('tab') or request.POST.get('tab') or 'queue').strip()
     if tab == 'load':
         from urllib.parse import urlencode
         params = {'mode': 'list', 'tab': 'queue'}
         if q_early := (request.GET.get('q') or '').strip():
             params['q'] = q_early
         return redirect(f"{reverse('san_xuat:plan_board')}?{urlencode(params)}")
-    if tab not in {'queue', 'released'}:
+    if tab not in {'queue', 'released', 'route'}:
         tab = 'queue'
     q = (request.GET.get('q') or request.POST.get('q') or '').strip()
 
@@ -1458,7 +1460,9 @@ def plan_board(request):
 
     if tab == 'queue':
         queue_rows = build_plan_board_rows(statuses=QUEUE_STATUSES, search=q)
-    else:
+        route_board = None
+        today_start = None
+    elif tab == 'released':
         released_rows = build_plan_board_rows(
             statuses=(
                 SxSalesOrder.PLAN_RELEASED,
@@ -1470,6 +1474,20 @@ def plan_board(request):
         )
         for row in released_rows:
             sync_plan_status(row.order)
+        route_board = None
+        today_start = None
+    else:
+        from san_xuat.list_filters import parse_sx_date
+
+        route_rows = build_plan_board_rows(include_released=True, search=q)
+        route_from = parse_sx_date((request.GET.get('route_from') or '').strip())
+        route_to = parse_sx_date((request.GET.get('route_to') or '').strip())
+        route_board = build_order_timeline(
+            route_rows,
+            range_from=route_from,
+            range_to=route_to,
+        )
+        today_start = _monday_on_or_before(timezone.localdate())
 
     return render(request, 'san_xuat/plan_board.html', {
         **_perm_ctx(request),
@@ -1485,6 +1503,9 @@ def plan_board(request):
         'plan_status_labels': PLAN_STATUS_LABELS,
         'priority_labels': PRIORITY_LABELS,
         'priority_choices': SxSalesOrder.PRIORITY_CHOICES,
+        'route_board': route_board,
+        'today_monday': today_start,
+        'today_end': (today_start + timedelta(days=27)) if today_start else None,
     })
 
 
