@@ -1317,10 +1317,12 @@ def plan_board(request):
         confirmed_order_qty_summary,
         hold_plan_order,
         release_order_to_production,
+        reschedule_order_plan_start,
         save_plan_hops,
         set_plan_priority,
         sync_plan_status,
         unhold_plan_order,
+        unrelease_order_from_production,
     )
     from san_xuat.services.planning import PlanningError
 
@@ -1443,12 +1445,77 @@ def plan_board(request):
                     f'Đã chuyển xuống SX — tạo {len(created)} lệnh sản xuất (đã phát hành vào Công việc tổ).',
                 )
                 return redirect(f"{reverse('san_xuat:plan_board')}?mode=list&tab=released")
+            elif action == 'unrelease' and can_release and order_id:
+                order, n = unrelease_order_from_production(order_id=order_id)
+                messages.success(
+                    request,
+                    f'Đã hủy chuyển SX {order.code} — hủy {n} lệnh. Đơn về hàng đợi để sửa.',
+                )
+                return redirect(f"{reverse('san_xuat:plan_board')}?mode=list&tab=queue")
+            elif action == 'reschedule_route' and can_schedule and order_id:
+                from san_xuat.list_filters import parse_sx_date
+
+                start_date = parse_sx_date((request.POST.get('start_date') or '').strip())
+                if not start_date:
+                    raise PlanningError('Ngày bắt đầu không hợp lệ.')
+                order = reschedule_order_plan_start(order_id=order_id, start_date=start_date)
+                wants_json = (
+                    (request.headers.get('X-Requested-With') or '').lower() == 'xmlhttprequest'
+                    or 'application/json' in (request.headers.get('Accept') or '')
+                )
+                if wants_json:
+                    from django.http import JsonResponse
+
+                    return JsonResponse({
+                        'ok': True,
+                        'order_id': order.pk,
+                        'code': order.code,
+                        'start_date': order.plan_start_date.isoformat() if order.plan_start_date else '',
+                    })
+                messages.success(
+                    request,
+                    f'Đã xếp lại lịch {order.code} bắt đầu {order.plan_start_date.strftime("%d/%m/%Y")}.',
+                )
+                return redirect(f"{reverse('san_xuat:plan_board')}?mode=list&tab=route")
             else:
                 if action:
+                    if (
+                        action == 'reschedule_route'
+                        and (
+                            (request.headers.get('X-Requested-With') or '').lower() == 'xmlhttprequest'
+                            or 'application/json' in (request.headers.get('Accept') or '')
+                        )
+                    ):
+                        from django.http import JsonResponse
+
+                        return JsonResponse(
+                            {'ok': False, 'error': 'Bạn không có quyền xếp lịch lộ trình.'},
+                            status=403,
+                        )
                     messages.error(request, 'Bạn không có quyền thực hiện thao tác này.')
         except PlanningError as exc:
+            if (
+                (request.POST.get('action') or '').strip() == 'reschedule_route'
+                and (
+                    (request.headers.get('X-Requested-With') or '').lower() == 'xmlhttprequest'
+                    or 'application/json' in (request.headers.get('Accept') or '')
+                )
+            ):
+                from django.http import JsonResponse
+
+                return JsonResponse({'ok': False, 'error': str(exc)}, status=400)
             messages.error(request, str(exc))
         except Exception as exc:
+            if (
+                (request.POST.get('action') or '').strip() == 'reschedule_route'
+                and (
+                    (request.headers.get('X-Requested-With') or '').lower() == 'xmlhttprequest'
+                    or 'application/json' in (request.headers.get('Accept') or '')
+                )
+            ):
+                from django.http import JsonResponse
+
+                return JsonResponse({'ok': False, 'error': str(exc)}, status=400)
             messages.error(request, str(exc))
         return _board_redirect()
 

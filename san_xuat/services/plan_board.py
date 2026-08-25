@@ -116,6 +116,7 @@ class PlanBoardRow:
     open_hops: list = field(default_factory=list)
     flow_groups: list = field(default_factory=list)
     product_flows: list = field(default_factory=list)
+    can_unrelease: bool = False
 
 
 @dataclass
@@ -313,6 +314,73 @@ def _mo_progress(mos: list[SxProductionOrder]) -> tuple[int, int, Decimal, Decim
     return len(active), len(open_mos), _q(qty_planned), _q(qty_done), pct
 
 
+_UNRELEASE_MO_STATUSES = (
+    SxProductionOrder.STATUS_DRAFT,
+    SxProductionOrder.STATUS_RELEASED,
+)
+
+
+def mos_allow_unrelease(mos: list[SxProductionOrder]) -> bool:
+    """LSX còn hủy chuyển được: chỉ nháp/đã phát hành, chưa có SL làm."""
+    active = [m for m in mos if m.status != SxProductionOrder.STATUS_CANCELLED]
+    if not active:
+        return False
+    for mo in active:
+        if mo.status not in _UNRELEASE_MO_STATUSES:
+            return False
+        if (mo.qty_done or Decimal('0')) > 0:
+            return False
+    return True
+
+
+def _assert_order_unreleasable(order: SxSalesOrder, mos: list[SxProductionOrder]) -> None:
+    """Chặn hủy khi đã có thống kê / xuất NPL / nhập TP / bàn giao."""
+    if not mos_allow_unrelease(mos):
+        raise PlanningError(
+            'Không hủy chuyển SX: lệnh đã đang sản xuất, hoàn thành hoặc đã ghi SL.'
+        )
+    mo_ids = [m.pk for m in mos if m.pk]
+    if not mo_ids:
+        return
+
+    from san_xuat.hub_models import (
+        SxFgReceiptRequest,
+        SxMaterialIssueRequest,
+        SxProductionStat,
+        SxWipHandover,
+    )
+
+    if SxProductionStat.objects.filter(
+        production_order_id__in=mo_ids,
+        status=SxProductionStat.STATUS_CONFIRMED,
+    ).exists():
+        raise PlanningError('Không hủy chuyển SX: đã có thống kê sản xuất xác nhận.')
+
+    blocked_issue = (
+        SxMaterialIssueRequest.objects.filter(production_order_id__in=mo_ids)
+        .exclude(status__in=('draft', 'cancelled'))
+        .exists()
+        or SxMaterialIssueRequest.objects.filter(
+            production_order_id__in=mo_ids,
+            stock_issue_id__isnull=False,
+        ).exists()
+    )
+    if blocked_issue:
+        raise PlanningError('Không hủy chuyển SX: đã có yêu cầu / phiếu xuất vật tư.')
+
+    if (
+        SxFgReceiptRequest.objects.filter(production_order_id__in=mo_ids)
+        .exclude(status=SxFgReceiptRequest.STATUS_CANCELLED)
+        .exists()
+    ):
+        raise PlanningError('Không hủy chuyển SX: đã có yêu cầu nhập thành phẩm.')
+
+    if SxWipHandover.objects.filter(production_order_id__in=mo_ids).exclude(
+        status=SxWipHandover.STATUS_REJECTED,
+    ).exists():
+        raise PlanningError('Không hủy chuyển SX: đã có bàn giao bán thành phẩm.')
+
+
 def build_plan_board_rows(
     *,
     statuses: tuple[str, ...] | None = None,
@@ -444,7 +512,7 @@ def build_plan_board_rows(
         derived = derive_plan_status(order, mos)
         from san_xuat.services.inter_step_times import schedule_span
 
-        khsx_start = order.request_date or today
+        khsx_start = order.plan_start_date or order.request_date or today
         khsx_end = khsx_start
         if cycle_min > 0:
             khsx_start, khsx_end = schedule_span(
@@ -539,6 +607,7 @@ def build_plan_board_rows(
             open_hops=[h for h in hops if not getattr(h, 'is_set', False)],
             flow_groups=flow_groups,
             product_flows=product_flows,
+            can_unrelease=mos_allow_unrelease(mos),
         ))
 
     rows.sort(
@@ -767,7 +836,7 @@ def release_order_to_production(
 
         line_routing = _line_routing(ln)
         lead = (line_routing.total_smv * ln.qty_to_produce) + line_routing.hop_buffer_minutes
-        plan_anchor = order.request_date or timezone.localdate()
+        plan_anchor = order.plan_start_date or order.request_date or timezone.localdate()
         plan_start, plan_end = schedule_span(
             start=plan_anchor,
             lead_minutes=lead,
@@ -844,6 +913,67 @@ def release_order_to_production(
     return created
 
 
+@transaction.atomic
+def unrelease_order_from_production(*, order_id: int) -> tuple[SxSalesOrder, int]:
+    """Hủy chuyển SX: hủy LSX chưa phát sinh SX, đơn về hàng đợi để sửa lại."""
+    order = SxSalesOrder.objects.select_for_update().get(pk=order_id, is_demo=False)
+    if order.confirm_status != SxSalesOrder.CONFIRM_CONFIRMED:
+        raise PlanningError('Chỉ hủy chuyển đơn đã xác nhận.')
+    if order.plan_status == SxSalesOrder.PLAN_ON_HOLD:
+        raise PlanningError('Đơn đang tạm giữ.')
+    if order.plan_status == SxSalesOrder.PLAN_DONE:
+        raise PlanningError('Đơn đã hoàn thành — không hủy chuyển SX.')
+
+    mos = list(
+        order.production_orders.filter(is_demo=False)
+        .exclude(status=SxProductionOrder.STATUS_CANCELLED)
+        .select_for_update()
+    )
+    if not mos:
+        order.plan_status = SxSalesOrder.PLAN_QUEUED
+        order.plan_rank = None
+        order.plan_hold_reason = ''
+        order.save(update_fields=['plan_status', 'plan_rank', 'plan_hold_reason', 'updated_at'])
+        return order, 0
+
+    _assert_order_unreleasable(order, mos)
+
+    cancelled = 0
+    for mo in mos:
+        mo.status = SxProductionOrder.STATUS_CANCELLED
+        mo.save(update_fields=['status'])
+        cancelled += 1
+
+    from san_xuat.hub_models import SxTeamWorkClose
+
+    SxTeamWorkClose.objects.filter(production_order_id__in=[m.pk for m in mos]).delete()
+
+    order.plan_status = SxSalesOrder.PLAN_QUEUED
+    order.plan_rank = None
+    order.plan_hold_reason = ''
+    order.save(update_fields=['plan_status', 'plan_rank', 'plan_hold_reason', 'updated_at'])
+    return order, cancelled
+
+
+@transaction.atomic
+def reschedule_order_plan_start(*, order_id: int, start_date: date) -> SxSalesOrder:
+    """Kéo thả lộ trình: neo ngày bắt đầu KHSX (chỉ đơn chưa chuyển SX)."""
+    if not isinstance(start_date, date):
+        raise PlanningError('Ngày bắt đầu không hợp lệ.')
+    order = SxSalesOrder.objects.select_for_update().get(pk=order_id, is_demo=False)
+    if order.confirm_status != SxSalesOrder.CONFIRM_CONFIRMED:
+        raise PlanningError('Chỉ xếp lịch đơn đã xác nhận.')
+    if order.plan_status not in QUEUE_STATUSES:
+        raise PlanningError('Chỉ kéo thả đơn chưa chuyển SX.')
+    if order.production_orders.filter(is_demo=False).exclude(
+        status=SxProductionOrder.STATUS_CANCELLED,
+    ).exists():
+        raise PlanningError('Đơn đã có LSX — hủy chuyển SX trước khi xếp lại lịch.')
+    order.plan_start_date = start_date
+    order.save(update_fields=['plan_start_date', 'updated_at'])
+    return order
+
+
 def load_snapshot_for_board(*, days: int = 14) -> dict:
     """Năng lực tổ (tham khảo) cho tab board — không xếp lịch."""
     centers = list(
@@ -907,6 +1037,8 @@ class PlanTimelineRow:
     duration_script_id: str
     subtitle: str
     duration_detail: dict = field(default_factory=dict)
+    can_drag: bool = False
+    span_days: int = 1
 
 
 @dataclass
@@ -1135,6 +1267,8 @@ def build_order_timeline(
         if names:
             extra = names[0] if len(names) == 1 else f'{len(names)} mã'
             subtitle = f'{subtitle} · {extra}' if subtitle else extra
+        can_drag = r.order.plan_status in QUEUE_STATUSES and r.mo_count == 0
+        span_days = max(1, (bar_end - bar_start).days + 1)
         rows.append(PlanTimelineRow(
             order=r.order,
             start=bar_start,
@@ -1152,6 +1286,8 @@ def build_order_timeline(
             duration_script_id=r.duration_script_id or '',
             subtitle=subtitle,
             duration_detail=r.duration_detail or {},
+            can_drag=can_drag,
+            span_days=span_days,
         ))
 
     today_col = (today - start).days + 1 if start <= today <= end else None

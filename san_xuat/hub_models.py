@@ -150,6 +150,13 @@ class SxSalesOrder(DemoMarkedModel):
     plan_hold_reason = models.CharField(
         max_length=500, blank=True, default='', verbose_name='Lý do tạm giữ',
     )
+    plan_start_date = models.DateField(
+        null=True,
+        blank=True,
+        db_index=True,
+        verbose_name='Ngày bắt đầu KHSX',
+        help_text='Neo lịch trên lộ trình (kéo thả). Trống = dùng ngày dự kiến thực hiện.',
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

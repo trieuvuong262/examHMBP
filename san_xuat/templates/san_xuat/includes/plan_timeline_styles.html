@@ -132,6 +132,17 @@
   .jp-tl-bar.is-late { background: #9f1239; }
   .jp-tl-bar.is-clip-l { border-top-left-radius: 0; border-bottom-left-radius: 0; margin-left: 0; }
   .jp-tl-bar.is-clip-r { border-top-right-radius: 0; border-bottom-right-radius: 0; margin-right: 0; }
+  .jp-tl-bar.is-draggable { cursor: grab; touch-action: none; }
+  .jp-tl-bar.is-draggable:active,
+  .jp-tl-bar.is-dragging { cursor: grabbing; }
+  .jp-tl-bar.is-dragging {
+    opacity: 0.92;
+    z-index: 5;
+    box-shadow: 0 6px 16px rgba(15,23,42,.22);
+    filter: none;
+  }
+  .jp-tl-chart.is-dragging-route { user-select: none; }
+  .jp-tl-slot.is-drop-hint { background: #fff7ed !important; box-shadow: inset 0 0 0 1px #fdba74; }
   .jp-tl-empty {
     border: 1px dashed #e2e8f0; border-radius: 1rem; padding: 2.4rem 1rem;
     text-align: center; color: var(--tl-muted); background: #fff;

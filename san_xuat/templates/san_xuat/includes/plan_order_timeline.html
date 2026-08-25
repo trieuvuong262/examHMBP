@@ -1,6 +1,8 @@
 {% load sx_format %}
-<section class="jp-pb-route jp-tl" id="lo-trinh">
-  <p class="jp-pb-route-note">Thời gian toàn đơn theo KHSX (ngày dự kiến + SMV × SL + kiểm/VC). Không cần chuyển SX.</p>
+<section class="jp-pb-route jp-tl" id="lo-trinh"
+         data-can-schedule="{{ can_schedule|yesno:'1,0' }}"
+         data-range-start="{{ route_board.range_start|date:'Y-m-d' }}">
+  {% csrf_token %}
   {% for row in route_board.rows %}
     {% if row.duration_script_id %}{{ row.duration_detail|json_script:row.duration_script_id }}{% endif %}
   {% endfor %}
@@ -30,7 +32,9 @@
       <div class="jp-tl-month" style="grid-column: {{ m.grid_start }} / {{ m.grid_end }}; grid-row: 1">{{ m.label }}</div>
       {% endfor %}
       {% for d in route_board.days %}
-      <div class="jp-tl-day jp-tl-line{% if d.is_today %} is-today{% endif %}{% if d.is_weekend %} is-weekend{% endif %}{% if d.is_week_start %} is-week-start{% endif %}" style="grid-column: {{ forloop.counter|add:1 }}; grid-row: 2">
+      <div class="jp-tl-day jp-tl-line{% if d.is_today %} is-today{% endif %}{% if d.is_weekend %} is-weekend{% endif %}{% if d.is_week_start %} is-week-start{% endif %}"
+           data-date="{{ d.date|date:'Y-m-d' }}"
+           style="grid-column: {{ forloop.counter|add:1 }}; grid-row: 2">
         <span class="n">{{ d.day }}</span>
         <span class="w">{{ d.weekday }}</span>
       </div>
@@ -46,23 +50,25 @@
         </div>
       </div>
       {% for d in route_board.days %}
-      <div class="jp-tl-slot jp-tl-line{% if d.is_today %} is-today{% endif %}{% if d.is_weekend %} is-weekend{% endif %}{% if d.is_week_start %} is-week-start{% endif %}" style="grid-column: {{ forloop.counter|add:1 }}; grid-row: {{ r }}"></div>
+      <div class="jp-tl-slot jp-tl-line{% if d.is_today %} is-today{% endif %}{% if d.is_weekend %} is-weekend{% endif %}{% if d.is_week_start %} is-week-start{% endif %}"
+           data-date="{{ d.date|date:'Y-m-d' }}"
+           data-col="{{ forloop.counter }}"
+           style="grid-column: {{ forloop.counter|add:1 }}; grid-row: {{ r }}"></div>
       {% endfor %}
-      {% if row.duration_script_id %}
-      <button type="button" class="jp-tl-bar is-{{ row.status_key }}{% if row.is_late %} is-late{% endif %}{% if row.clips_left %} is-clip-l{% endif %}{% if row.clips_right %} is-clip-r{% endif %}"
-              data-jp-duration-open data-detail-id="{{ row.duration_script_id }}"
+      <button type="button"
+              class="jp-tl-bar is-{{ row.status_key }}{% if row.is_late %} is-late{% endif %}{% if row.clips_left %} is-clip-l{% endif %}{% if row.clips_right %} is-clip-r{% endif %}{% if can_schedule and row.can_drag %} is-draggable{% endif %}"
+              {% if row.duration_script_id %}data-jp-duration-open data-detail-id="{{ row.duration_script_id }}"{% endif %}
+              data-order-id="{{ row.order.pk }}"
+              data-order-code="{{ row.order.code }}"
+              data-start="{{ row.start|date:'Y-m-d' }}"
+              data-end="{{ row.end|date:'Y-m-d' }}"
+              data-col-start="{{ row.col_start }}"
+              data-span-days="{{ row.span_days }}"
+              data-can-drag="{% if can_schedule and row.can_drag %}1{% else %}0{% endif %}"
               style="grid-row: {{ r }}; grid-column: {{ row.col_start|add:1 }} / {{ row.col_end|add:1 }}"
-              title="{{ row.order.code }} · {{ row.start|date:'d/m/Y' }} – {{ row.end|date:'d/m/Y' }}{% if row.duration_label %} · {{ row.duration_label }}{% endif %}">
+              title="{{ row.order.code }} · {{ row.start|date:'d/m/Y' }} – {{ row.end|date:'d/m/Y' }}{% if row.duration_label %} · {{ row.duration_label }}{% endif %}{% if can_schedule and row.can_drag %} · Kéo để xếp lịch{% endif %}">
         {{ row.bar_text }}
       </button>
-      {% else %}
-      <a class="jp-tl-bar is-{{ row.status_key }}{% if row.is_late %} is-late{% endif %}{% if row.clips_left %} is-clip-l{% endif %}{% if row.clips_right %} is-clip-r{% endif %}"
-         href="{% url 'san_xuat:sales_order_detail' row.order.pk %}"
-         style="grid-row: {{ r }}; grid-column: {{ row.col_start|add:1 }} / {{ row.col_end|add:1 }}"
-         title="{{ row.order.code }} · {{ row.start|date:'d/m/Y' }} – {{ row.end|date:'d/m/Y' }}">
-        {{ row.bar_text }}
-      </a>
-      {% endif %}
         {% endwith %}
       {% endfor %}
     </div>

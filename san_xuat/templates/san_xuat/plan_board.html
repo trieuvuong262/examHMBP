@@ -694,6 +694,17 @@
           {% if row.mo_count %}
             <a href="{% url 'san_xuat:order_progress_order' row.order.pk %}" class="btn btn-hm btn-sm fw-bold">Tiến độ</a>
           {% endif %}
+          {% if can_release and row.can_unrelease %}
+          <form method="post" class="d-inline"
+                onsubmit="return confirm('Hủy chuyển SX {{ row.order.code }}?\nCác lệnh sản xuất sẽ bị hủy và đơn về hàng đợi để sửa.');">
+            {% csrf_token %}
+            <input type="hidden" name="mode" value="list">
+            <input type="hidden" name="tab" value="released">
+            <input type="hidden" name="action" value="unrelease">
+            <input type="hidden" name="order_id" value="{{ row.order.pk }}">
+            <button type="submit" class="btn btn-outline-danger btn-sm" title="Hủy LSX chưa phát sinh SX, đơn về hàng đợi">Hủy chuyển SX</button>
+          </form>
+          {% endif %}
           <a href="{% url 'san_xuat:dispatch_mo' %}?q={{ row.order.code|urlencode }}" class="btn btn-outline-secondary btn-sm">Lệnh SX</a>
         </div>
       </div>
@@ -1088,7 +1099,12 @@
   }
 
   document.querySelectorAll('[data-jp-duration-open]').forEach(function (btn) {
-    btn.addEventListener('click', function () {
+    btn.addEventListener('click', function (ev) {
+      if (btn.getAttribute('data-dragged') === '1') {
+        btn.removeAttribute('data-dragged');
+        ev.preventDefault();
+        return;
+      }
       var id = btn.getAttribute('data-detail-id');
       var script = id ? document.getElementById(id) : null;
       var data = {};
@@ -1099,6 +1115,151 @@
       modal.show();
     });
   });
+})();
+
+(function () {
+  var root = document.getElementById('lo-trinh');
+  if (!root || root.getAttribute('data-can-schedule') !== '1') return;
+  var chart = root.querySelector('.jp-tl-chart');
+  if (!chart) return;
+  var rangeStart = root.getAttribute('data-range-start') || '';
+  var csrfInput = root.querySelector('input[name=csrfmiddlewaretoken]') || document.querySelector('input[name=csrfmiddlewaretoken]');
+  var csrf = csrfInput ? csrfInput.value : '';
+  if (!csrf) {
+    var m = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+    csrf = m ? decodeURIComponent(m[1]) : '';
+  }
+  if (!csrf) return;
+
+  function parseYmd(s) {
+    var p = String(s || '').split('-');
+    if (p.length !== 3) return null;
+    var y = +p[0], m = +p[1], d = +p[2];
+    if (!y || !m || !d) return null;
+    return new Date(y, m - 1, d);
+  }
+  function fmtYmd(dt) {
+    var y = dt.getFullYear();
+    var m = String(dt.getMonth() + 1).padStart(2, '0');
+    var d = String(dt.getDate()).padStart(2, '0');
+    return y + '-' + m + '-' + d;
+  }
+  function addDays(dt, n) {
+    var out = new Date(dt.getTime());
+    out.setDate(out.getDate() + n);
+    return out;
+  }
+  function dayWidth() {
+    var slot = chart.querySelector('.jp-tl-slot');
+    return slot ? slot.getBoundingClientRect().width : 40;
+  }
+  function clearHints() {
+    chart.querySelectorAll('.jp-tl-slot.is-drop-hint').forEach(function (el) {
+      el.classList.remove('is-drop-hint');
+    });
+  }
+  function hintCol(col) {
+    clearHints();
+    if (!col) return;
+    chart.querySelectorAll('.jp-tl-slot[data-col="' + col + '"]').forEach(function (el) {
+      el.classList.add('is-drop-hint');
+    });
+  }
+
+  var drag = null;
+
+  chart.addEventListener('pointerdown', function (ev) {
+    var bar = ev.target.closest('.jp-tl-bar.is-draggable');
+    if (!bar || !chart.contains(bar)) return;
+    if (ev.button != null && ev.button !== 0) return;
+    drag = {
+      bar: bar,
+      startX: ev.clientX,
+      originCol: parseInt(bar.getAttribute('data-col-start') || '1', 10) || 1,
+      span: parseInt(bar.getAttribute('data-span-days') || '1', 10) || 1,
+      moved: false,
+      deltaDays: 0,
+      pointerId: ev.pointerId,
+    };
+    try { bar.setPointerCapture(ev.pointerId); } catch (e) {}
+    ev.preventDefault();
+  });
+
+  chart.addEventListener('pointermove', function (ev) {
+    if (!drag || !drag.bar) return;
+    var w = dayWidth() || 1;
+    var delta = Math.round((ev.clientX - drag.startX) / w);
+    if (Math.abs(ev.clientX - drag.startX) > 4) drag.moved = true;
+    var days = parseInt(getComputedStyle(chart).getPropertyValue('--tl-days'), 10) || 28;
+    var maxStart = Math.max(1, days - drag.span + 1);
+    var nextCol = Math.min(maxStart, Math.max(1, drag.originCol + delta));
+    drag.deltaDays = nextCol - drag.originCol;
+    if (!drag.bar.classList.contains('is-dragging') && drag.moved) {
+      drag.bar.classList.add('is-dragging');
+      chart.classList.add('is-dragging-route');
+    }
+    drag.bar.style.transform = 'translateX(' + (drag.deltaDays * w) + 'px)';
+    hintCol(nextCol);
+  });
+
+  function endDrag(ev, cancel) {
+    if (!drag || !drag.bar) return;
+    var bar = drag.bar;
+    var moved = drag.moved;
+    var deltaDays = drag.deltaDays;
+    var originStart = bar.getAttribute('data-start') || '';
+    try { bar.releasePointerCapture(drag.pointerId); } catch (e) {}
+    bar.classList.remove('is-dragging');
+    chart.classList.remove('is-dragging-route');
+    bar.style.transform = '';
+    clearHints();
+    drag = null;
+    if (cancel || !moved || !deltaDays) return;
+    bar.setAttribute('data-dragged', '1');
+    var base = parseYmd(originStart);
+    if (!base) {
+      alert('Không đọc được ngày bắt đầu hiện tại.');
+      return;
+    }
+    var newStart = fmtYmd(addDays(base, deltaDays));
+    var body = new URLSearchParams();
+    body.set('action', 'reschedule_route');
+    body.set('order_id', bar.getAttribute('data-order-id') || '');
+    body.set('start_date', newStart);
+    body.set('mode', 'list');
+    body.set('tab', 'route');
+    body.set('csrfmiddlewaretoken', csrf);
+    bar.classList.add('is-saving');
+    fetch(window.location.pathname + window.location.search, {
+      method: 'POST',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'application/json',
+        'X-CSRFToken': csrf,
+      },
+      body: body,
+      credentials: 'same-origin',
+    }).then(function (res) {
+      return res.json().then(function (data) {
+        if (!res.ok || !data.ok) {
+          throw new Error((data && data.error) || 'Không lưu được lịch.');
+        }
+        var url = new URL(window.location.href);
+        url.searchParams.set('mode', 'list');
+        url.searchParams.set('tab', 'route');
+        if (rangeStart) {
+          // giữ khoảng đang xem nếu có route_from
+        }
+        window.location.reload();
+      });
+    }).catch(function (err) {
+      bar.classList.remove('is-saving');
+      alert(err.message || 'Không lưu được lịch.');
+    });
+  }
+
+  chart.addEventListener('pointerup', function (ev) { endDrag(ev, false); });
+  chart.addEventListener('pointercancel', function (ev) { endDrag(ev, true); });
 })();
 
 (function () {
