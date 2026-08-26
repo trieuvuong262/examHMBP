@@ -11,7 +11,7 @@
 <div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
   <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
     <div class="jp-sx-detail-title">
-      <h2 class="jp-npl-mat-topbar-title w-100">{{ mo.code }}</h2>
+      <h2 class="jp-npl-mat-topbar-title w-100">{% if mo.sales_order %}{{ mo.sales_order.code }}{% else %}{{ mo.code }}{% endif %}</h2>
       <span class="jp-mo-status is-{{ mo.status }}">{{ mo.get_status_display }}</span>
       {% if mo.is_sample %}<span class="badge text-bg-warning-subtle text-warning-emphasis border">Mẫu</span>{% endif %}
     </div>
@@ -28,8 +28,10 @@
   <div class="jp-mo-hero">
     <div class="jp-mo-hero-top">
       <div class="jp-mo-hero-product">
-        <div class="code">{{ mo.product_code }}</div>
-        <div class="name">{{ mo.product_name|default:"—" }}</div>
+        <div class="name"{% if mo.product_code %} title="{{ mo.product_code }}"{% endif %}>{{ mo.product_name|default:mo.product_code|default:"—" }}</div>
+        {% if mo.sales_order_id %}
+        <div class="code">LSX {{ mo.code }}</div>
+        {% endif %}
       </div>
       <div class="jp-mo-hero-side">
         {% if mo.status == 'draft' and can_update %}
@@ -83,6 +85,14 @@
     </div>
 
     <div class="jp-mo-meta">
+      {% if mo.sales_order_id %}
+      <div>
+        <div class="label">Đơn hàng</div>
+        <div class="value">
+          <a href="{% url 'san_xuat:sales_order_detail' mo.sales_order_id %}">{{ mo.sales_order.code }}</a>
+        </div>
+      </div>
+      {% endif %}
       <div>
         <div class="label">Số lượng</div>
         <div class="value">{{ mo.qty|sx_num }}</div>

@@ -173,17 +173,18 @@
 .jp-mo-hero-product {
   min-width: 0;
 }
-.jp-mo-hero-product .code {
+.jp-mo-hero-product .name {
   font-size: 1.2rem;
   font-weight: 750;
   color: var(--jp-mo-ink);
   letter-spacing: -0.01em;
   line-height: 1.25;
 }
-.jp-mo-hero-product .name {
+.jp-mo-hero-product .code {
   color: var(--jp-mo-muted);
   font-size: 0.875rem;
   margin-top: 0.15rem;
+  font-weight: 650;
 }
 .jp-mo-hero-side {
   display: flex;
@@ -395,5 +396,25 @@
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+/* Bộ lọc LSX: ngày + mã + tên + Lọc một hàng */
+.jp-sx-page .jp-sx-list-filter .jp-team-filter-body {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: flex-end;
+  gap: 0.55rem 0.75rem;
+  overflow-x: auto;
+}
+.jp-sx-page .jp-sx-list-filter .jp-team-filter-dates {
+  flex: 0 0 auto;
+}
+.jp-sx-page .jp-sx-list-filter .jp-team-filter-org-search {
+  flex: 1 1 auto;
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+.jp-sx-page .jp-sx-list-filter .jp-team-filter-actions {
+  flex: 0 0 auto;
 }
 </style>

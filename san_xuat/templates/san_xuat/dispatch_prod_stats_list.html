@@ -37,7 +37,7 @@
         {% for stat in stats %}
           <tr class="jp-npl-catalog-row" data-href="{% url 'san_xuat:dispatch_prod_stats_detail' stat.pk %}">
             <td class="npl-col" data-col="code"><strong>{{ stat.code }}</strong></td>
-<td class="npl-col" data-col="mo"><a href="{% url 'san_xuat:dispatch_mo_detail' stat.production_order.pk %}">{{ stat.production_order.code }}</a></td>
+            <td class="npl-col" data-col="mo"><a href="{% url 'san_xuat:dispatch_mo_detail' stat.production_order.pk %}" title="{{ stat.production_order.code }}">{{ stat.production_order.sales_order.code|default:stat.production_order.code }}</a></td>
             <td class="npl-col" data-col="stat_date">{{ stat.stat_date|date:"d/m/Y" }}</td>
             <td class="npl-col" data-col="process">{{ stat.process_name|default:"—" }}</td>
 <td class="npl-col" data-col="qty_good">{{ stat.qty_good|sx_num }}</td>

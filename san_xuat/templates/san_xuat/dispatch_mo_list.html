@@ -24,7 +24,7 @@
     </nav>
   </div>
 
-  {% include 'san_xuat/includes/sx_list_filter.html' %}
+  {% include 'san_xuat/includes/sx_list_filter.html' with filter_code_placeholder='Mã đơn / LSX…' filter_name_placeholder='Tên SP / khách…' %}
   <div class="card border-0 shadow-sm overflow-hidden jp-mo-panel">
     <div class="jp-npl-mat-grid-wrap">
       <table class="table table-hover align-middle mb-0 jp-npl-mat-grid" id="{{ sx_list_table_id }}">
@@ -37,23 +37,17 @@
         {% for order in orders %}
           <tr class="jp-npl-catalog-row" data-href="{% url 'san_xuat:dispatch_mo_detail' order.pk %}">
             <td class="npl-col" data-col="code">
-              <a href="{% url 'san_xuat:dispatch_mo_detail' order.pk %}" class="text-decoration-none fw-semibold jp-mo-list-code">{{ order.code }}</a>
+              {% with ocode=order.sales_order.code|default:order.code %}
+              <a href="{% url 'san_xuat:dispatch_mo_detail' order.pk %}" class="text-decoration-none fw-semibold jp-mo-list-code"
+                 title="{% if order.sales_order_id %}{{ order.code }}{% endif %}">{{ ocode }}</a>
+              {% endwith %}
               {% if order.is_sample %}<span class="badge text-bg-warning-subtle text-warning-emphasis border ms-1" style="font-size:.65rem;">Mẫu</span>{% endif %}
             </td>
             <td class="npl-col" data-col="product">
-              <div class="fw-semibold small">{{ order.product_code }}</div>
-              <div class="text-muted small text-truncate" style="max-width:14rem;">{{ order.product_name|default:"—" }}</div>
+              <div class="fw-semibold small text-truncate" style="max-width:16rem;" title="{{ order.product_code }}">{{ order.product_name|default:order.product_code|default:"—" }}</div>
             </td>
             <td class="npl-col text-end" data-col="qty">{{ order.qty|sx_num }}</td>
-            <td class="npl-col text-end" data-col="qty_done">
-              <div class="jp-mo-qty ms-auto">
-                <span>{{ order.qty_done|sx_num }}</span>
-                {% if order.qty %}
-                {% widthratio order.qty_done order.qty 100 as pct %}
-                <div class="jp-mo-qty-bar" title="{{ pct }}%"><span style="width: {% if pct > 100 %}100{% else %}{{ pct }}{% endif %}%;"></span></div>
-                {% endif %}
-              </div>
-            </td>
+            <td class="npl-col text-end" data-col="qty_done">{{ order.qty_done|sx_num }}</td>
             <td class="npl-col small" data-col="team_label">{{ order.team_label|default:"—" }}</td>
             <td class="npl-col" data-col="order_date">{{ order.order_date|date:"d/m/Y" }}</td>
             <td class="npl-col" data-col="due_date">{% if order.due_date %}{{ order.due_date|date:"d/m/Y" }}{% else %}—{% endif %}</td>

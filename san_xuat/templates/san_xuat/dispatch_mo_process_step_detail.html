@@ -9,10 +9,10 @@
   <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
     <div class="jp-sx-detail-title">
       <h2 class="jp-npl-mat-topbar-title w-100">{{ step.process_name }}</h2>
-      <span class="badge text-bg-light text-dark border">{{ mo.code }}</span>
+      <span class="badge text-bg-light text-dark border" title="{{ mo.code }}">{{ mo.sales_order.code|default:mo.code }}</span>
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
-      <a href="{% url 'san_xuat:dispatch_mo_detail' mo.pk %}"><i class="bi bi-file-earmark-gear" aria-hidden="true"></i>{{ mo.code }}</a>
+      <a href="{% url 'san_xuat:dispatch_mo_detail' mo.pk %}"><i class="bi bi-file-earmark-gear" aria-hidden="true"></i>{{ mo.sales_order.code|default:mo.code }}</a>
       <span class="sep" aria-hidden="true"></span>
       <a href="{% url 'san_xuat:dispatch_prod_stats' %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Công đoạn của tôi</a>
     </nav>
@@ -22,8 +22,8 @@
     <div class="card-body">
       <div class="row g-3 small">
         <div class="col-md-3">
-          <div class="text-muted">Mã SX</div>
-          <div class="fw-semibold">{{ mo.product_code }}</div>
+          <div class="text-muted">Sản phẩm</div>
+          <div class="fw-semibold" title="{{ mo.product_code }}">{{ mo.product_name|default:mo.product_code }}</div>
         </div>
         <div class="col-md-3">
           <div class="text-muted">Tổ / bộ phận</div>

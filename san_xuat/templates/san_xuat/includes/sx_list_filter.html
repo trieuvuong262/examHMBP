@@ -7,12 +7,12 @@
       <div class="jp-team-filter-org">
         <label class="form-label fw-bold small mb-1" for="sx-filter-code">Mã</label>
         <input type="text" id="sx-filter-code" name="code" class="form-control"
-               value="{{ filter_code|default:'' }}" placeholder="Mã chứng từ…" autocomplete="off">
+               value="{{ filter_code|default:'' }}" placeholder="{{ filter_code_placeholder|default:'Mã chứng từ…' }}" autocomplete="off">
       </div>
       <div class="jp-team-filter-org">
         <label class="form-label fw-bold small mb-1" for="sx-filter-name">Tên</label>
         <input type="text" id="sx-filter-name" name="name" class="form-control"
-               value="{{ filter_name|default:'' }}" placeholder="Tên / mô tả…" autocomplete="off">
+               value="{{ filter_name|default:'' }}" placeholder="{{ filter_name_placeholder|default:'Tên / mô tả…' }}" autocomplete="off">
       </div>
       {% if list_filter_status_options %}
       <div class="jp-team-filter-org">

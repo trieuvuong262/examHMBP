@@ -95,7 +95,7 @@ def _coalesce_list_date_range(
 
 
 def parse_sx_list_filters(request: HttpRequest) -> SxListFilters:
-    code = (request.GET.get('code') or '').strip()
+    code = (request.GET.get('code') or request.GET.get('q') or '').strip()
     name = (request.GET.get('name') or '').strip()
     span_days = parse_date_range_span_from_request(request, default=LIST_DATE_RANGE_DAYS)
 
@@ -162,7 +162,10 @@ def apply_sx_list_filters(qs: QuerySet, filters: SxListFilters, spec: SxFilterSp
         qs = qs.filter(q)
 
     if filters.date_from or filters.date_to:
-        if spec.date_range_fields:
+        # Tìm theo mã cụ thể (kể cả ?q= từ KHSX) — không cắt bởi khoảng ngày mặc định.
+        if filters.dates_defaulted and filters.code:
+            pass
+        elif spec.date_range_fields:
             from_field, to_field = spec.date_range_fields
             if filters.date_from:
                 qs = qs.filter(**{f'{to_field}__gte': filters.date_from})
@@ -316,8 +319,8 @@ SX_FILTER_COST_ORDER = SxFilterSpec(
 SX_FILTER_COST_TYPE = SxFilterSpec(date_field='created_at')
 
 SX_FILTER_MO = SxFilterSpec(
-    code_fields=('code', 'product_code'),
-    name_fields=('product_name', 'team_label'),
+    code_fields=('code', 'product_code', 'sales_order__code'),
+    name_fields=('product_name', 'team_label', 'sales_order__customer_name'),
     date_field='order_date',
 )
 SX_FILTER_DISASSEMBLY = SxFilterSpec(
@@ -331,7 +334,7 @@ SX_FILTER_MATERIAL_ISSUE = SxFilterSpec(
     date_field='request_date',
 )
 SX_FILTER_PROD_STAT = SxFilterSpec(
-    code_fields=('code', 'production_order__code', 'production_order__product_code'),
+    code_fields=('code', 'production_order__code', 'production_order__product_code', 'production_order__sales_order__code'),
     name_fields=('production_order__product_name', 'process_name', 'team_label'),
     date_field='stat_date',
 )

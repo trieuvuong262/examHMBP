@@ -308,13 +308,16 @@ def _export_dispatch_mo(request):
         filename='Lenh_san_xuat',
         order_by=('-order_date', '-pk'),
         row_fn=lambda o: {
-            'Mã': o.code,
-            'Sản phẩm': f'{o.product_code} — {o.product_name}'.strip(' —'),
+            'Đơn hàng': getattr(o.sales_order, 'code', '') if o.sales_order_id else '',
+            'LSX': o.code,
+            'Sản phẩm': (o.product_name or o.product_code or '').strip(),
             'Số lượng': float(o.qty or 0),
+            'Đã đạt': float(o.qty_done or 0),
             'Ngày': _d(o.order_date),
             'Hạn': _d(o.due_date),
             'Trạng thái': _status(o),
         },
+        select_related=('sales_order',),
     )
 
 

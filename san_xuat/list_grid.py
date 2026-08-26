@@ -69,7 +69,7 @@ def _spec(columns: list[dict[str, Any]], sort_fields: dict[str, str], *, default
 SX_LIST_GRIDS: dict[str, dict[str, Any]] = {
     'dispatch_mo': _spec(
         _cols(
-            _col('code', 'Mã', required=True),
+            _col('code', 'Đơn hàng', required=True),
             _col('product', 'Sản phẩm', weight=140),
             _col('qty', 'Số lượng', weight=80, align='end'),
             _col('qty_done', 'Đã đạt', weight=80, align='end'),
@@ -81,8 +81,8 @@ SX_LIST_GRIDS: dict[str, dict[str, Any]] = {
             actions=False,
         ),
         {
-            'code': 'code',
-            'product': 'product_code',
+            'code': 'sales_order__code',
+            'product': 'product_name',
             'qty': 'qty',
             'qty_done': 'qty_done',
             'team_label': 'team_label',

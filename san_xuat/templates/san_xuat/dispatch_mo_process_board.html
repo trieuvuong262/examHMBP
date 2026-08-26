@@ -26,8 +26,8 @@
       <table class="table table-hover align-middle mb-0">
         <thead class="table-light">
           <tr>
-            <th>Lệnh sản xuất</th>
-            <th>Mã SX</th>
+            <th>Đơn hàng</th>
+            <th>Sản phẩm</th>
             <th>Công đoạn</th>
             <th>Tổ</th>
             <th class="text-end">Đã đạt (thống kê SX)</th>
@@ -39,8 +39,8 @@
         <tbody>
         {% for row in my_steps %}
           <tr class="jp-npl-catalog-row" data-href="{% url 'san_xuat:dispatch_mo_process_step_detail' row.step.pk %}">
-            <td><a href="{% url 'san_xuat:dispatch_mo_detail' row.mo.pk %}">{{ row.mo.code }}</a></td>
-            <td class="small">{{ row.mo.product_code }}</td>
+            <td><a href="{% url 'san_xuat:dispatch_mo_detail' row.mo.pk %}" title="{{ row.mo.code }}">{{ row.mo.sales_order.code|default:row.mo.code }}</a></td>
+            <td class="small" title="{{ row.mo.product_code }}">{{ row.mo.product_name|default:row.mo.product_code }}</td>
             <td class="fw-semibold">{{ row.step.process_name }}</td>
             <td class="small text-muted">{{ row.step.team_label|default:"—" }}</td>
             <td class="text-end">{{ row.qty_good|sx_num }}</td>

@@ -2384,7 +2384,7 @@ def dispatch_mo(request):
     base_qs = (
         SxProductionOrder.objects.filter(is_demo=False)
         .order_by('-order_date', '-pk')
-        .select_related('bom_version')
+        .select_related('bom_version', 'sales_order')
     )
     orders, fctx = prepare_hub_list(request, base_qs, SX_FILTER_MO, list_key='dispatch_mo')
     return render(request, 'san_xuat/dispatch_mo_list.html', {
@@ -2479,7 +2479,12 @@ def run_order_wizard(request, mo_id: int | None = None):
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def dispatch_mo_detail(request, pk: int):
     mo = (
-        SxProductionOrder.objects.select_related('bom_version__tech_doc', 'bom_version__routing', 'routing')
+        SxProductionOrder.objects.select_related(
+            'bom_version__tech_doc',
+            'bom_version__routing',
+            'routing',
+            'sales_order',
+        )
         .prefetch_related('bom_version__lines__material', 'bom_version__process_steps__work_center', 'lines')
         .get(pk=pk)
     )
@@ -3085,7 +3090,7 @@ def dispatch_prod_stats(request):
         base_qs = (
             SxProductionStat.objects.filter(is_demo=False)
             .order_by('-stat_date', '-pk')
-            .select_related('production_order')
+            .select_related('production_order__sales_order')
         )
         stats, fctx = prepare_hub_list(request, base_qs, SX_FILTER_PROD_STAT, list_key='dispatch_prod_stat')
         return render(request, 'san_xuat/dispatch_prod_stats_list.html', {
@@ -3099,14 +3104,14 @@ def dispatch_prod_stats(request):
     managed = (
         SxMoProcessStep.objects.filter(manager=user)
         .exclude(production_order__status=SxProductionOrder.STATUS_CANCELLED)
-        .select_related('production_order', 'work_center', 'manager')
+        .select_related('production_order__sales_order', 'work_center', 'manager')
         .prefetch_related('assignees')
         .order_by('-production_order_id', 'sequence', 'id')
     )
     assigned = (
         SxMoProcessStep.objects.filter(assignees__user=user)
         .exclude(production_order__status=SxProductionOrder.STATUS_CANCELLED)
-        .select_related('production_order', 'work_center', 'manager')
+        .select_related('production_order__sales_order', 'work_center', 'manager')
         .prefetch_related('assignees')
         .order_by('-production_order_id', 'sequence', 'id')
         .distinct()
@@ -3159,7 +3164,7 @@ def dispatch_prod_stats(request):
 def dispatch_mo_process_step_detail(request, pk: int):
     step = get_object_or_404(
         SxMoProcessStep.objects.select_related(
-            'production_order', 'work_center', 'manager', 'manager__profile',
+            'production_order__sales_order', 'work_center', 'manager', 'manager__profile',
         ).prefetch_related('assignees__user__profile'),
         pk=pk,
     )
