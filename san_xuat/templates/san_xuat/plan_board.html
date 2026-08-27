@@ -279,6 +279,8 @@
   }
   .jp-pb-dur-table td { padding: 0.4rem 0.45rem; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
   .jp-pb-dur-table .num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; }
+  .jp-pb-dur-teams { margin: 0.75rem 0 1rem; }
+  .jp-pb-dur-table tr.is-hit td { background: #fff7ed; }
   .jp-pb-dur-sum {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1161,6 +1163,26 @@
         '<td class="num">' + esc(p.buffer_minutes) + '</td>' +
         '</tr>';
     }).join('');
+    var highlight = data.highlightSlug || '';
+    var teams = data.teams || [];
+    var teamRows = teams.map(function (t) {
+      var hit = highlight && t.slug === highlight;
+      return '<tr' + (hit ? ' class="is-hit"' : '') + '>' +
+        '<td>' + esc(t.label || t.slug || '—') + '</td>' +
+        '<td>' + esc(t.start || '—') +
+          (t.end && t.end !== t.start ? ' → ' + esc(t.end) : '') + '</td>' +
+        '<td class="num">' + esc(t.work_minutes) + '</td>' +
+        '<td class="num">' + esc(t.buffer_minutes) + '</td>' +
+        '<td class="num"><strong>' + esc(t.minutes) + '</strong>' +
+          (t.duration_label ? '<div class="jp-pb-dur-muted">' + esc(t.duration_label) + '</div>' : '') +
+        '</td>' +
+      '</tr>';
+    }).join('');
+    var teamTable = teams.length
+      ? '<table class="jp-pb-dur-table jp-pb-dur-teams"><thead><tr>' +
+        '<th>Tổ</th><th>KHSX tổ</th><th class="num">Thực hiện (phút)</th><th class="num">Kiểm/VC</th><th class="num">Chu kỳ tổ</th>' +
+        '</tr></thead><tbody>' + teamRows + '</tbody></table>'
+      : '';
     bodyEl.innerHTML =
       '<div class="jp-pb-dur-sum">' +
         '<div class="jp-pb-dur-card"><span class="k">KHSX</span><span class="v">' +
@@ -1171,6 +1193,7 @@
         '<div class="jp-pb-dur-card"><span class="k">Làm trong</span><span class="v">' + esc(data.duration_label || '—') + '</span></div>' +
         '<div class="jp-pb-dur-card"><span class="k">Ca</span><span class="v">' + esc(data.shift_label || '9 giờ 30 phút') + ' / ngày</span></div>' +
       '</div>' +
+      teamTable +
       '<table class="jp-pb-dur-table">' +
         '<thead><tr><th>Tên hàng</th><th class="num">SL</th><th class="num" title="Σ SMV đơn × SL/SP mọi công đoạn đã có (giây/cái)">Tổng SMV đơn hàng</th><th class="num" title="SMV × SL theo từng mã (phút)">Tổng thời gian thực hiện</th><th class="num">Kiểm/VC (phút)</th></tr></thead>' +
         '<tbody>' + (rows || '<tr><td colspan="5" class="jp-pb-dur-muted">Chưa có định mức thời gian.</td></tr>') + '</tbody>' +
@@ -1187,9 +1210,10 @@
 
   document.querySelectorAll('[data-jp-duration-open]').forEach(function (btn) {
     btn.addEventListener('click', function (ev) {
-      if (btn.getAttribute('data-dragged') === '1') {
+      if (btn.getAttribute('data-dragged') === '1' || ev.defaultPrevented) {
         btn.removeAttribute('data-dragged');
         ev.preventDefault();
+        ev.stopPropagation();
         return;
       }
       var id = btn.getAttribute('data-detail-id');
@@ -1198,6 +1222,7 @@
       if (script) {
         try { data = JSON.parse(script.textContent || '{}'); } catch (e) { data = {}; }
       }
+      data.highlightSlug = btn.getAttribute('data-team-slug') || '';
       render(data);
       modal.show();
     });
@@ -1206,113 +1231,85 @@
 
 (function () {
   var root = document.getElementById('lo-trinh');
-  if (!root || root.getAttribute('data-can-schedule') !== '1') return;
+  if (!root) return;
   var chart = root.querySelector('.jp-tl-chart');
   if (!chart) return;
-  var rangeStart = root.getAttribute('data-range-start') || '';
+  var canSchedule = root.getAttribute('data-can-schedule') === '1';
   var csrfInput = root.querySelector('input[name=csrfmiddlewaretoken]') || document.querySelector('input[name=csrfmiddlewaretoken]');
   var csrf = csrfInput ? csrfInput.value : '';
   if (!csrf) {
     var m = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
     csrf = m ? decodeURIComponent(m[1]) : '';
   }
-  if (!csrf) return;
 
   function parseYmd(s) {
     var p = String(s || '').split('-');
     if (p.length !== 3) return null;
-    var y = +p[0], m = +p[1], d = +p[2];
-    if (!y || !m || !d) return null;
-    return new Date(y, m - 1, d);
+    var y = +p[0], mo = +p[1], d = +p[2];
+    if (!y || !mo || !d) return null;
+    return new Date(y, mo - 1, d);
   }
-  function fmtYmd(dt) {
-    var y = dt.getFullYear();
-    var m = String(dt.getMonth() + 1).padStart(2, '0');
-    var d = String(dt.getDate()).padStart(2, '0');
-    return y + '-' + m + '-' + d;
+  function barCanDrag(bar) {
+    if (!bar) return false;
+    if (bar.getAttribute('data-can-drag') === '1') return true;
+    return bar.classList.contains('is-draggable');
   }
-  function addDays(dt, n) {
-    var out = new Date(dt.getTime());
-    out.setDate(out.getDate() + n);
-    return out;
+  function findBar(handle) {
+    if (!handle) return null;
+    if (handle.classList && handle.classList.contains('jp-tl-bar')) return handle;
+    var orderId = handle.getAttribute('data-order-id') || '';
+    var slug = handle.getAttribute('data-team-slug') || '';
+    if (!orderId) return null;
+    var sel = '.jp-tl-bar[data-order-id="' + orderId + '"]';
+    if (slug) sel += '[data-team-slug="' + slug + '"]';
+    return chart.querySelector(sel);
   }
-  function dayWidth() {
-    var slot = chart.querySelector('.jp-tl-slot');
-    return slot ? slot.getBoundingClientRect().width : 40;
+  function dateFromClientX(x) {
+    var days = chart.querySelectorAll('.jp-tl-day[data-date]');
+    if (!days.length) return null;
+    var first = days[0].getBoundingClientRect();
+    if (x < first.left) return null;
+    var last = days[days.length - 1].getBoundingClientRect();
+    if (x >= last.right) return days[days.length - 1].getAttribute('data-date');
+    for (var i = 0; i < days.length; i++) {
+      var r = days[i].getBoundingClientRect();
+      if (x >= r.left && x < r.right) return days[i].getAttribute('data-date');
+    }
+    return null;
   }
   function clearHints() {
-    chart.querySelectorAll('.jp-tl-slot.is-drop-hint').forEach(function (el) {
+    chart.querySelectorAll('.is-drop-hint').forEach(function (el) {
       el.classList.remove('is-drop-hint');
     });
   }
-  function hintCol(col) {
+  function hintDate(ymd) {
     clearHints();
-    if (!col) return;
-    chart.querySelectorAll('.jp-tl-slot[data-col="' + col + '"]').forEach(function (el) {
+    if (!ymd) return;
+    chart.querySelectorAll('.jp-tl-slot[data-date="' + ymd + '"], .jp-tl-day[data-date="' + ymd + '"]').forEach(function (el) {
       el.classList.add('is-drop-hint');
     });
   }
 
-  var drag = null;
+  var dragging = null;
 
-  chart.addEventListener('pointerdown', function (ev) {
-    var bar = ev.target.closest('.jp-tl-bar.is-draggable');
-    if (!bar || !chart.contains(bar)) return;
-    if (ev.button != null && ev.button !== 0) return;
-    drag = {
-      bar: bar,
-      startX: ev.clientX,
-      originCol: parseInt(bar.getAttribute('data-col-start') || '1', 10) || 1,
-      span: parseInt(bar.getAttribute('data-span-days') || '1', 10) || 1,
-      moved: false,
-      deltaDays: 0,
-      pointerId: ev.pointerId,
-    };
-    try { bar.setPointerCapture(ev.pointerId); } catch (e) {}
-    ev.preventDefault();
-  });
-
-  chart.addEventListener('pointermove', function (ev) {
-    if (!drag || !drag.bar) return;
-    var w = dayWidth() || 1;
-    var delta = Math.round((ev.clientX - drag.startX) / w);
-    if (Math.abs(ev.clientX - drag.startX) > 4) drag.moved = true;
-    var days = parseInt(getComputedStyle(chart).getPropertyValue('--tl-days'), 10) || 28;
-    var maxStart = Math.max(1, days - drag.span + 1);
-    var nextCol = Math.min(maxStart, Math.max(1, drag.originCol + delta));
-    drag.deltaDays = nextCol - drag.originCol;
-    if (!drag.bar.classList.contains('is-dragging') && drag.moved) {
-      drag.bar.classList.add('is-dragging');
-      chart.classList.add('is-dragging-route');
-    }
-    drag.bar.style.transform = 'translateX(' + (drag.deltaDays * w) + 'px)';
-    hintCol(nextCol);
-  });
-
-  function endDrag(ev, cancel) {
-    if (!drag || !drag.bar) return;
-    var bar = drag.bar;
-    var moved = drag.moved;
-    var deltaDays = drag.deltaDays;
-    var originStart = bar.getAttribute('data-start') || '';
-    try { bar.releasePointerCapture(drag.pointerId); } catch (e) {}
-    bar.classList.remove('is-dragging');
+  function clearDragClass() {
     chart.classList.remove('is-dragging-route');
-    bar.style.transform = '';
+    chart.querySelectorAll('.is-dragging').forEach(function (el) {
+      el.classList.remove('is-dragging');
+    });
     clearHints();
-    drag = null;
-    if (cancel || !moved || !deltaDays) return;
-    bar.setAttribute('data-dragged', '1');
-    var base = parseYmd(originStart);
-    if (!base) {
-      alert('Không đọc được ngày bắt đầu hiện tại.');
+  }
+
+  function save(bar, newStart) {
+    if (!csrf) {
+      alert('Thiếu mã bảo mật — tải lại trang rồi kéo lại.');
       return;
     }
-    var newStart = fmtYmd(addDays(base, deltaDays));
     var body = new URLSearchParams();
     body.set('action', 'reschedule_route');
     body.set('order_id', bar.getAttribute('data-order-id') || '');
     body.set('start_date', newStart);
+    body.set('team_slug', bar.getAttribute('data-team-slug') || '');
     body.set('mode', 'list');
     body.set('tab', 'route');
     body.set('csrfmiddlewaretoken', csrf);
@@ -1331,12 +1328,6 @@
         if (!res.ok || !data.ok) {
           throw new Error((data && data.error) || 'Không lưu được lịch.');
         }
-        var url = new URL(window.location.href);
-        url.searchParams.set('mode', 'list');
-        url.searchParams.set('tab', 'route');
-        if (rangeStart) {
-          // giữ khoảng đang xem nếu có route_from
-        }
         window.location.reload();
       });
     }).catch(function (err) {
@@ -1345,8 +1336,59 @@
     });
   }
 
-  chart.addEventListener('pointerup', function (ev) { endDrag(ev, false); });
-  chart.addEventListener('pointercancel', function (ev) { endDrag(ev, true); });
+  root.addEventListener('dragstart', function (ev) {
+    if (!canSchedule) {
+      ev.preventDefault();
+      return;
+    }
+    var handle = ev.target.closest('[data-jp-team-drag]');
+    if (!handle || !root.contains(handle)) return;
+    var bar = findBar(handle);
+    if (!barCanDrag(bar)) {
+      ev.preventDefault();
+      return;
+    }
+    dragging = {
+      bar: bar,
+      handle: handle,
+      start: bar.getAttribute('data-start') || '',
+    };
+    try {
+      ev.dataTransfer.effectAllowed = 'move';
+      ev.dataTransfer.setData('text/plain', bar.getAttribute('data-order-id') + ':' + (bar.getAttribute('data-team-slug') || ''));
+      ev.dataTransfer.setDragImage(bar, 16, 12);
+    } catch (e) {}
+    bar.classList.add('is-dragging');
+    if (handle !== bar) handle.classList.add('is-dragging');
+    chart.classList.add('is-dragging-route');
+  });
+
+  function onDragOver(ev) {
+    if (!dragging) return;
+    ev.preventDefault();
+    try { ev.dataTransfer.dropEffect = 'move'; } catch (e) {}
+    hintDate(dateFromClientX(ev.clientX));
+  }
+  function onDrop(ev) {
+    if (!dragging) return;
+    ev.preventDefault();
+    var payload = dragging;
+    var ymd = dateFromClientX(ev.clientX);
+    dragging = null;
+    clearDragClass();
+    if (!ymd || ymd === payload.start) return;
+    if (!parseYmd(ymd)) return;
+    save(payload.bar, ymd);
+  }
+
+  document.addEventListener('dragover', onDragOver);
+  document.addEventListener('drop', onDrop);
+  root.addEventListener('dragend', function () {
+    setTimeout(function () {
+      dragging = null;
+      clearDragClass();
+    }, 0);
+  });
 })();
 
 (function () {

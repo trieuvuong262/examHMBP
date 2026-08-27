@@ -10,8 +10,19 @@
 {% block content %}
 <div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
   <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
-    <div class="jp-sx-detail-title">
-      <h2 class="jp-npl-mat-topbar-title w-100">{% if mo.sales_order %}{{ mo.sales_order.code }}{% else %}{{ mo.code }}{% endif %}</h2>
+    <div class="jp-sx-detail-title jp-sx-doc-title">
+      {% if product_image_url %}
+      <button type="button" class="sx-doc-thumb flex-shrink-0"
+              data-sx-gallery
+              data-sx-gallery-title="{{ mo.product_name|default:mo.product_code }}"
+              data-sx-gallery-images="{{ product_image_urls_json }}"
+              aria-label="Xem ảnh {{ mo.product_name|default:mo.product_code }}">
+        <img src="{{ product_image_url }}" alt="" class="jp-sx-doc-title-img rounded border">
+      </button>
+      {% endif %}
+      <div class="jp-sx-doc-title-text min-w-0">
+        <h2 class="jp-npl-mat-topbar-title">{% if mo.sales_order %}{{ mo.sales_order.code }}{% else %}{{ mo.code }}{% endif %}</h2>
+      </div>
       <span class="jp-mo-status is-{{ mo.status }}">{{ mo.get_status_display }}</span>
       {% if mo.is_sample %}<span class="badge text-bg-warning-subtle text-warning-emphasis border">Mẫu</span>{% endif %}
     </div>
@@ -639,6 +650,7 @@
   </div>
 </div>
 {% include 'san_xuat/includes/sx_mo_fold_script.html' %}
+{% include 'san_xuat/includes/product_image_gallery_modal.html' %}
 {% if mo.status == 'draft' and can_update %}
 {% include 'san_xuat/includes/sx_mo_matrix_script.html' %}
 {% endif %}

@@ -9,12 +9,11 @@
   <div class="jp-tl-wrap">
     <div class="jp-tl-toolbar">
       <span class="jp-tl-count">{{ route_board.rows|length }} đơn trong khoảng</span>
-      <div class="jp-tl-legend" aria-label="Chú thích trạng thái">
-        <span><i style="background:#d97706"></i>Chờ xếp</span>
-        <span><i style="background:#64748b"></i>Tạm giữ</span>
-        <span><i style="background:#fb7185"></i>Đã chuyển</span>
-        <span><i style="background:#dc2626"></i>Đang SX</span>
-        <span><i style="background:#16a34a"></i>Xong</span>
+      {% if can_schedule %}
+      <span class="jp-tl-hint">Kéo thẻ Cắt / May / Ủi… thả vào ngày để xếp lịch (đơn chờ xếp).</span>
+      {% endif %}
+      <div class="jp-tl-legend" aria-label="Chú thích">
+        <span><i style="background:#dc2626"></i>Công đoạn · mã đơn</span>
         <span><i style="background:#9f1239"></i>Trễ hạn</span>
       </div>
     </div>
@@ -34,50 +33,37 @@
       {% endfor %}
       {% for row in route_board.rows %}
         {% with r=forloop.counter|add:2 %}
-      <div class="jp-tl-label is-prio-{{ row.order.plan_priority }}" style="grid-column: 1; grid-row: {{ r }}">
-        <div class="jp-tl-code-row">
-          <span class="jp-tl-prio is-{{ row.order.plan_priority }}" title="Mức độ gấp — ưu tiên xếp lịch">{{ row.order.get_plan_priority_display }}</span>
-          <a class="jp-tl-code" href="{% url 'san_xuat:sales_order_detail' row.order.pk %}">{{ row.order.code }}</a>
-        </div>
-        {% if row.subtitle %}<div class="jp-tl-sub" title="{{ row.subtitle }}">{{ row.subtitle }}</div>{% endif %}
-        <div class="jp-tl-meta">
-          <span class="jp-tl-st is-{{ row.status_key }}{% if row.is_late %} is-late{% endif %}">{{ row.status_label }}</span>
-          {% if row.accepted_teams %}
-          <details class="jp-tl-accepts">
-            <summary title="Tổ đã nhận sản xuất">Tổ nhận · {{ row.accepted_teams|length }}</summary>
-            <ul>
-              {% for t in row.accepted_teams %}
-              <li>
-                <strong>{{ t.label }}</strong>
-                {% if t.at %}<span>{{ t.at }}</span>{% endif %}
-                {% if t.by %}<span>{{ t.by }}</span>{% endif %}
-              </li>
-              {% endfor %}
-            </ul>
-          </details>
-          {% endif %}
-        </div>
+      <div class="jp-tl-label is-prio-{{ row.order.plan_priority }}" style="grid-column: 1; grid-row: {{ r }}"
+           title="{{ row.subtitle }}">
+        <a class="jp-tl-code" href="{% url 'san_xuat:sales_order_detail' row.order.pk %}">{{ row.order.code }}</a>
+        <span class="jp-tl-st is-{{ row.status_key }}{% if row.is_late %} is-late{% endif %}">{{ row.status_label }}</span>
       </div>
       {% for d in route_board.days %}
       <div class="jp-tl-slot jp-tl-line{% if d.is_today %} is-today{% endif %}{% if d.is_weekend %} is-weekend{% endif %}{% if d.is_week_start %} is-week-start{% endif %}"
            data-date="{{ d.date|date:'Y-m-d' }}"
            data-col="{{ forloop.counter }}"
-           style="grid-column: {{ forloop.counter|add:1 }}; grid-row: {{ r }}"></div>
+           style="grid-column: {{ forloop.counter|add:1 }}; grid-row: {{ r }}">
+        {% for team in row.teams %}
+        {% if team.placed and team.col_start == forloop.parentloop.counter %}
+        <div class="jp-tl-bar{% if row.is_late %} is-late{% endif %}{% if can_schedule and team.can_drag %} is-draggable{% endif %}"
+             data-jp-team-drag
+             data-order-id="{{ row.order.pk }}"
+             data-order-code="{{ row.order.code }}"
+             data-team-slug="{{ team.slug }}"
+             data-start="{{ team.start|date:'Y-m-d' }}"
+             data-end="{{ team.end|date:'Y-m-d' }}"
+             data-col-start="{{ team.col_start }}"
+             data-span-days="{{ team.span_days }}"
+             data-can-drag="{% if can_schedule and team.can_drag %}1{% else %}0{% endif %}"
+             draggable="{% if can_schedule and team.can_drag %}true{% else %}false{% endif %}"
+             title="{{ team.label }} · {{ row.order.code }} · {{ team.start|date:'d/m/Y' }} – {{ team.end|date:'d/m/Y' }}{% if team.duration_label %} · {{ team.duration_label }}{% endif %}{% if can_schedule and team.can_drag %} · Kéo thả vào ngày{% endif %}">
+          <span class="jp-tl-bar-name">{{ team.label }}</span>
+          <span class="jp-tl-bar-code">{{ row.order.code }}</span>
+        </div>
+        {% endif %}
+        {% endfor %}
+      </div>
       {% endfor %}
-      <button type="button"
-              class="jp-tl-bar is-{{ row.status_key }}{% if row.is_late %} is-late{% endif %}{% if row.clips_left %} is-clip-l{% endif %}{% if row.clips_right %} is-clip-r{% endif %}{% if can_schedule and row.can_drag %} is-draggable{% endif %}"
-              {% if row.duration_script_id %}data-jp-duration-open data-detail-id="{{ row.duration_script_id }}"{% endif %}
-              data-order-id="{{ row.order.pk }}"
-              data-order-code="{{ row.order.code }}"
-              data-start="{{ row.start|date:'Y-m-d' }}"
-              data-end="{{ row.end|date:'Y-m-d' }}"
-              data-col-start="{{ row.col_start }}"
-              data-span-days="{{ row.span_days }}"
-              data-can-drag="{% if can_schedule and row.can_drag %}1{% else %}0{% endif %}"
-              style="grid-row: {{ r }}; grid-column: {{ row.col_start|add:1 }} / {{ row.col_end|add:1 }}"
-              title="{{ row.order.code }} · {{ row.order.get_plan_priority_display }} · {{ row.start|date:'d/m/Y' }} – {{ row.end|date:'d/m/Y' }}{% if row.duration_label %} · {{ row.duration_label }}{% endif %}{% if can_schedule and row.can_drag %} · Kéo để xếp lịch{% endif %}">
-        {{ row.bar_text }}
-      </button>
         {% endwith %}
       {% endfor %}
     </div>

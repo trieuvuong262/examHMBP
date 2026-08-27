@@ -20,7 +20,7 @@
 |-----|------|------|
 | Hàng đợi | `?tab=queue` | Đơn chờ / đã xếp / tạm giữ; ưu tiên; chuyển SX |
 | Đã chuyển SX | `?tab=released` | Tiến độ LSX / ETA |
-| Lộ trình | `?tab=route` | Timeline KHSX theo đơn (không Chuyển SX) |
+| Lộ trình | `?tab=route` | Timeline KHSX theo đơn — một thẻ đơn, thanh từng tổ Ob (kéo độc lập) |
 
 Menu: **Kế hoạch sản xuất** + **Tiến độ** (`?tab=released`, phiếu `/ke-hoach/tien-do-don/<id>/`). URL cũ `/ke-hoach/lo-trinh/` redirect về tab Lộ trình.
 

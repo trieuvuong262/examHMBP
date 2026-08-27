@@ -1326,7 +1326,7 @@ def plan_board(request):
         confirmed_order_qty_summary,
         hold_plan_order,
         release_order_to_production,
-        reschedule_order_plan_start,
+        reschedule_order_team_start,
         save_plan_hops,
         set_plan_priority,
         sync_plan_status,
@@ -1481,7 +1481,12 @@ def plan_board(request):
                 start_date = parse_sx_date((request.POST.get('start_date') or '').strip())
                 if not start_date:
                     raise PlanningError('Ngày bắt đầu không hợp lệ.')
-                order = reschedule_order_plan_start(order_id=order_id, start_date=start_date)
+                team_slug = (request.POST.get('team_slug') or '').strip().lower()
+                order = reschedule_order_team_start(
+                    order_id=order_id,
+                    start_date=start_date,
+                    team_slug=team_slug,
+                )
                 wants_json = (
                     (request.headers.get('X-Requested-With') or '').lower() == 'xmlhttprequest'
                     or 'application/json' in (request.headers.get('Accept') or '')
@@ -1493,7 +1498,8 @@ def plan_board(request):
                         'ok': True,
                         'order_id': order.pk,
                         'code': order.code,
-                        'start_date': order.plan_start_date.isoformat() if order.plan_start_date else '',
+                        'team_slug': team_slug,
+                        'start_date': start_date.isoformat(),
                     })
                 messages.success(
                     request,
@@ -2758,6 +2764,17 @@ def dispatch_mo_detail(request, pk: int):
         or mo.routing
     )
 
+    from san_xuat.services.products import product_gallery_urls
+
+    tech_doc = getattr(display_bom, 'tech_doc', None) if display_bom is not None else None
+    if tech_doc is None and mo.bom_version_id:
+        tech_doc = getattr(mo.bom_version, 'tech_doc', None)
+    product_image_urls = product_gallery_urls(
+        product_code=mo.product_code or '',
+        tech_doc=tech_doc,
+    )
+    product_image_url = product_image_urls[0] if product_image_urls else ''
+
     from san_xuat.services.dispatch import _recompute_mo_progress
     from san_xuat.services.mo_progress import build_mo_progress
 
@@ -2844,6 +2861,8 @@ def dispatch_mo_detail(request, pk: int):
         'mo': mo,
         'mo_lines': mo_lines,
         'mo_line_qty_json': mo_line_qty_json,
+        'product_image_url': product_image_url,
+        'product_image_urls_json': json.dumps(product_image_urls, ensure_ascii=False),
         'update_form': update_form,
         'can_update': can_update,
         'ycx_list': ycx_list,

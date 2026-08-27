@@ -233,6 +233,19 @@ def resolve_product_ref(product_code: str) -> ProductRef | None:
     return None
 
 
+def product_gallery_urls(*, product_code: str = '', tech_doc=None) -> list[str]:
+    """URL ảnh sản phẩm cho header LSX: hồ sơ thiết kế rồi kho SP."""
+    if tech_doc is not None:
+        fill_tech_doc_display_images([tech_doc])
+        urls = list(getattr(tech_doc, 'display_image_urls', None) or [])
+        if urls:
+            return urls
+    ref = resolve_product_ref(product_code)
+    if ref and ref.image_url:
+        return [ref.image_url]
+    return []
+
+
 def product_sx_code(product) -> str:
     """Mã SX chuẩn dùng cho hồ sơ / LSX (ưu tiên style_code)."""
     if product is None:
