@@ -1031,13 +1031,13 @@
                 {% jp_can_menu 'san_xuat' 'qc_criteria' as jp_can_san_xuat_qc_crit %}
                 {% jp_can_menu 'san_xuat' 'qc_standard_set' as jp_can_san_xuat_qc_std %}
                 {% if jp_can_san_xuat_qc or jp_can_san_xuat_qc_req or jp_can_san_xuat_qc_sheet or jp_can_san_xuat_qc_crit or jp_can_san_xuat_qc_std %}
-                <li class="jp-sidebar-nested-group{% if '/san-xuat/chat-luong' in request.path %} is-open{% endif %}"
+                <li class="jp-sidebar-nested-group{% if '/san-xuat/chat-luong' in request.path or '/san-xuat/ncr' in request.path %} is-open{% endif %}"
                     data-sx-area="qc" data-sx-icon="bi-clipboard-check" data-sx-label="Kiểm tra chất lượng"
                     data-sx-href="{% if jp_can_san_xuat_qc_sheet or jp_can_san_xuat_qc or jp_can_san_xuat_qc_req %}{% url 'san_xuat:qc_sheet' %}{% else %}{% url 'san_xuat:qc_standards' %}{% endif %}">
                     <button type="button"
                             class="jp-sidebar-nested-toggle"
                             data-jp-sidebar-group-toggle
-                            aria-expanded="{% if '/san-xuat/chat-luong' in request.path %}true{% else %}false{% endif %}"
+                            aria-expanded="{% if '/san-xuat/chat-luong' in request.path or '/san-xuat/ncr' in request.path %}true{% else %}false{% endif %}"
                             aria-controls="jp-sidebar-san-xuat-qc-submenu">
                         <span class="jp-sidebar-nested-toggle-main">
                             <i class="bi bi-clipboard-check"></i><span>Kiểm tra chất lượng</span>
