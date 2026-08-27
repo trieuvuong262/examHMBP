@@ -191,7 +191,7 @@
             <table class="table table-sm table-hover mb-0 align-middle">
               <thead class="table-light">
                 <tr>
-                  <th>SKU</th>
+                  <th>Tên sản phẩm</th>
                   <th>Màu</th>
                   <th>Size</th>
                   <th class="text-end">SL kế hoạch</th>
@@ -200,7 +200,7 @@
               <tbody>
               {% for line in mo_lines %}
                 <tr>
-                  <td class="small fw-semibold font-monospace">{{ line.sku_code|default:"—" }}</td>
+                  <td class="small fw-semibold">{{ mo.product_name|default:mo.product_code|default:"—" }}</td>
                   <td class="small">{{ line.color_label|default:line.color_code }}</td>
                   <td class="small">{{ line.size_label }}</td>
                   <td class="text-end fw-semibold">{{ line.qty|sx_num:0 }}</td>
