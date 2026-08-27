@@ -244,3 +244,88 @@ class NegativeStockAlert(models.Model):
     @property
     def is_resolved(self) -> bool:
         return self.resolved_at is not None
+
+
+class StockReceipt(models.Model):
+    """Phiếu nhập kho thành phẩm (Portal) — quản lý giống phiếu nhập NPL."""
+
+    number = models.CharField(max_length=40, unique=True, verbose_name='Mã phiếu nhập')
+    receipt_date = models.DateField(verbose_name='Ngày nhập')
+    warehouse = models.ForeignKey(
+        Warehouse,
+        on_delete=models.PROTECT,
+        related_name='stock_receipts',
+        verbose_name='Kho nhập',
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=[
+            ('draft', 'Nháp'),
+            ('posted', 'Đã nhập kho'),
+            ('cancelled', 'Hủy'),
+        ],
+        default='posted',
+        db_index=True,
+        verbose_name='Trạng thái',
+    )
+    production_order_code = models.CharField(max_length=60, blank=True, default='', verbose_name='Lệnh SX')
+    product_code = models.CharField(max_length=80, blank=True, default='', verbose_name='Mã SP')
+    fg_receipt = models.ForeignKey(
+        'san_xuat.SxFgReceiptRequest',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='stock_receipts',
+        verbose_name='Yêu cầu nhập TP',
+    )
+    notes = models.TextField(blank=True, default='', verbose_name='Ghi chú')
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='kho_sp_receipts_created',
+        verbose_name='Người tạo',
+    )
+    posted_at = models.DateTimeField(null=True, blank=True, verbose_name='Nhập kho lúc')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'kho_sp_stock_receipt'
+        ordering = ['-receipt_date', '-pk']
+        verbose_name = 'Phiếu nhập kho thành phẩm'
+        verbose_name_plural = 'Phiếu nhập kho thành phẩm'
+
+    def __str__(self):
+        return self.number
+
+
+class StockReceiptLine(models.Model):
+    receipt = models.ForeignKey(
+        StockReceipt,
+        on_delete=models.CASCADE,
+        related_name='lines',
+        verbose_name='Phiếu nhập',
+    )
+    product = models.ForeignKey(
+        'kho_san_pham.Product',
+        on_delete=models.PROTECT,
+        related_name='stock_receipt_lines',
+        verbose_name='SKU',
+    )
+    quantity = models.DecimalField(max_digits=14, decimal_places=2, verbose_name='Số lượng')
+    unit_cost = models.DecimalField(
+        max_digits=14, decimal_places=2, null=True, blank=True, verbose_name='Đơn giá',
+    )
+    size_label = models.CharField(max_length=40, blank=True, default='', verbose_name='Size')
+    color_label = models.CharField(max_length=40, blank=True, default='', verbose_name='Màu')
+    notes = models.CharField(max_length=255, blank=True, default='', verbose_name='Ghi chú')
+
+    class Meta:
+        db_table = 'kho_sp_stock_receipt_line'
+        ordering = ['pk']
+        verbose_name = 'Dòng phiếu nhập TP'
+        verbose_name_plural = 'Dòng phiếu nhập TP'
+
+    def __str__(self):
+        return f'{self.receipt.number} · {self.product_id} · {self.quantity}'

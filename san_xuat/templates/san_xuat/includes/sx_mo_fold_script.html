@@ -19,5 +19,17 @@
       setFold(root, !root.classList.contains('is-collapsed'));
     });
   });
+  document.querySelectorAll('[data-jp-mo-more]').forEach(function (root) {
+    var btn = root.querySelector('.jp-mo-more-btn');
+    if (!btn) return;
+    btn.addEventListener('click', function (e) {
+      e.preventDefault();
+      var on = !root.classList.contains('is-expanded');
+      root.classList.toggle('is-expanded', on);
+      btn.setAttribute('aria-expanded', on ? 'true' : 'false');
+      var label = btn.querySelector('[data-more-label]');
+      if (label) label.textContent = on ? 'Thu gọn' : 'Xem thêm';
+    });
+  });
 })();
 </script>

@@ -1,6 +1,6 @@
 from django.urls import path
 
-from kho_san_pham import views, views_code_settings, views_stock
+from kho_san_pham import views, views_code_settings, views_receipt, views_stock
 
 app_name = 'kho_san_pham'
 
@@ -8,6 +8,8 @@ urlpatterns = [
     path('', views.hub_redirect, name='hub'),
     path('ton-kho/', views_stock.stock_list, name='stock_list'),
     path('ton-kho/dong-bo-kv/', views_stock.stock_sync_kv, name='stock_sync_kv'),
+    path('phieu-nhap/', views_receipt.receipt_list, name='receipt_list'),
+    path('phieu-nhap/<int:pk>/', views_receipt.receipt_detail, name='receipt_detail'),
     path('danh-muc/', views.product_list, name='product_list'),
     path('danh-muc/xuat-excel/', views.product_export, name='product_export'),
     path('danh-muc/mau-excel/', views.product_import_template, name='product_import_template'),

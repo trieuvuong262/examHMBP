@@ -193,6 +193,15 @@
   gap: 1rem;
   margin-left: auto;
 }
+.jp-mo-progress-lock {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.jp-mo-lock-form {
+  margin: 0;
+  flex-shrink: 0;
+}
 .jp-mo-progress-ring {
   text-align: right;
   min-width: 8.5rem;
@@ -265,6 +274,14 @@
 }
 .jp-mo-steps .chip.is-done {
   background: #fef2f2;
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+.jp-mo-steps .chip.is-optional {
+  border-style: dashed;
+  font-weight: 500;
+}
+.jp-mo-steps a.chip:hover {
   border-color: #fecaca;
   color: #b91c1c;
 }
@@ -370,7 +387,34 @@
   font-size: 0.78rem;
   transition: transform 0.15s ease;
 }
-.jp-mo-fold.is-collapsed .jp-mo-fold-btn .bi {
+.jp-mo-more:not(.is-expanded) .jp-mo-more-row {
+  display: none;
+}
+.jp-mo-more-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.5rem;
+  padding: 0.2rem 0.55rem;
+  border: 1px solid var(--jp-mo-line);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--jp-mo-muted);
+  font-size: 0.72rem;
+  font-weight: 650;
+  line-height: 1.3;
+  cursor: pointer;
+}
+.jp-mo-more-btn:hover {
+  color: var(--jp-mo-ink);
+  border-color: #cbd5e1;
+  background: var(--jp-mo-surface);
+}
+.jp-mo-more-btn .bi {
+  font-size: 0.78rem;
+  transition: transform 0.15s ease;
+}
+.jp-mo-more.is-expanded .jp-mo-more-btn .bi {
   transform: rotate(-180deg);
 }
 .jp-mo-fold-head {

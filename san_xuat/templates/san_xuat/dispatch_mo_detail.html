@@ -46,7 +46,7 @@
           </div>
         </div>
         {% elif mo.status != 'cancelled' and progress and progress.pct_complete < 100 %}
-        {% if not progress.issue_done or not progress.stat_done or not progress.fg_done %}
+        {% if not progress.issue_done or not progress.qc_done or not progress.fg_done %}
         <div>
           <div class="small text-muted mb-1">Tiếp theo</div>
           <div class="jp-mo-next">
@@ -57,17 +57,18 @@
               <button type="submit" class="btn btn-hm fw-bold">Xuất VT</button>
             </form>
             {% endif %}
-            {% if not progress.stat_done %}
-            <a href="{% url 'san_xuat:dispatch_prod_stats' %}"
-               class="btn btn-outline-hm fw-bold">Thống kê SX</a>
-            {% endif %}
-            {% if not progress.fg_done %}
+            {% if not progress.qc_done %}
               {% if mo.status == 'in_progress' or mo.status == 'done' %}
-            <form method="post">
-              {% csrf_token %}
-              <input type="hidden" name="action" value="create_ycntp"/>
-              <button type="submit" class="btn btn-outline-secondary fw-bold">Nhập TP</button>
-            </form>
+                {% if progress.qc_inspection_id %}
+            <a href="{% url 'san_xuat:qc_sheet_detail' progress.qc_inspection_id %}{% if progress.next_qc_slug %}?team={{ progress.next_qc_slug }}{% endif %}" class="btn btn-outline-hm fw-bold">Kiểm tra sản phẩm{% if progress.qc_total %} {{ progress.qc_passed }}/{{ progress.qc_total }}{% endif %}</a>
+                {% else %}
+            <a href="{% url 'san_xuat:qc_stub' %}" class="btn btn-outline-hm fw-bold">Kiểm tra sản phẩm</a>
+                {% endif %}
+              {% endif %}
+            {% endif %}
+            {% if not progress.fg_done and progress.qc_done %}
+              {% if mo.status == 'in_progress' or mo.status == 'done' %}
+            <a href="{% url 'san_xuat:dispatch_fg_receipt_req_create' %}?mo={{ mo.pk }}" class="btn btn-outline-secondary fw-bold">Nhập TP</a>
               {% endif %}
             {% endif %}
           </div>
@@ -75,10 +76,27 @@
         {% endif %}
         {% endif %}
         {% if progress %}
-        <div class="jp-mo-progress-ring">
-          <div class="pct">{{ progress.pct_complete }}%</div>
-          <div class="sub">{{ progress.done_count }}/{{ progress.total_steps }} bước</div>
-          <div class="bar"><span style="width: {{ progress.pct_complete }}%"></span></div>
+        <div class="jp-mo-progress-lock">
+          <div class="jp-mo-progress-ring">
+            <div class="pct">{{ progress.pct_complete }}%</div>
+            <div class="sub">{{ progress.done_count }}/{{ progress.total_steps }} bước</div>
+            <div class="bar"><span style="width: {{ progress.pct_complete }}%"></span></div>
+          </div>
+          {% if can_update and mo.status != 'cancelled' %}
+            {% if mo.status == 'done' %}
+            <form method="post" action="" class="jp-mo-lock-form">
+              {% csrf_token %}
+              <input type="hidden" name="mo_action" value="uncomplete"/>
+              <button type="submit" class="btn btn-sm btn-outline-secondary fw-bold">Hủy hoàn thành</button>
+            </form>
+            {% elif progress.pct_complete >= 100 %}
+            <form method="post" action="" class="jp-mo-lock-form">
+              {% csrf_token %}
+              <input type="hidden" name="mo_action" value="complete"/>
+              <button type="submit" class="btn btn-sm btn-success fw-bold">Hoàn thành</button>
+            </form>
+            {% endif %}
+          {% endif %}
         </div>
         {% endif %}
       </div>
@@ -119,42 +137,47 @@
         </div>
       </div>
       {% endif %}
-      {% if mo.bom_version %}
       <div>
-        <div class="label">Hồ sơ thiết kế</div>
+        <div class="label">Bom</div>
         <div class="value">
-          <a href="{% url 'san_xuat:doc_detail' mo.bom_version.tech_doc_id %}?tab=bom&bom={{ mo.bom_version_id }}">
-            {{ mo.bom_version.version_label }}
+          {% if display_bom %}
+          <a href="{% url 'san_xuat:doc_detail' display_bom.tech_doc_id %}?tab=bom&bom={{ display_bom.pk }}">
+            {{ display_bom.version_label }}
           </a>
-          {% if mo.bom_version.tech_doc %}
-          <div class="small text-muted">{{ mo.bom_version.tech_doc.product_code }}</div>
+          {% else %}
+          <span class="text-muted">Chưa gắn trên đơn</span>
           {% endif %}
         </div>
       </div>
-      {% endif %}
-      {% if mo.routing_id %}
       <div>
-        <div class="label">OB IE</div>
+        <div class="label">OB</div>
         <div class="value">
-          <a href="{% url 'san_xuat:ie_routing_detail' mo.routing_id %}">{{ mo.routing.routing_id }}</a>
-          <div class="small text-muted">{{ mo.routing.style_name|default:""|truncatechars:36 }}</div>
+          {% if display_routing %}
+          <a href="{% url 'san_xuat:ie_routing_detail' display_routing.pk %}">{{ display_routing.style_name|default:display_routing.routing_id }}</a>
+          {% elif ob_lines %}
+          {% if mo.sales_order_id %}
+          <a href="{% url 'san_xuat:sales_order_detail' mo.sales_order_id %}">Ob đơn</a>
+          {% else %}
+          Ob đơn
+          {% endif %}
+          {% else %}
+          <span class="text-muted">Chưa gắn trên đơn</span>
+          {% endif %}
         </div>
       </div>
-      {% elif mo.bom_version and mo.bom_version.routing_id %}
-      <div>
-        <div class="label">OB IE (BOM)</div>
-        <div class="value">
-          <a href="{% url 'san_xuat:ie_routing_detail' mo.bom_version.routing_id %}">{{ mo.bom_version.routing.routing_id }}</a>
-        </div>
-      </div>
-      {% endif %}
     </div>
+
+    {% if mo.notes %}
+    <div class="px-3 px-md-4 pb-3">
+      <div class="label text-muted small mb-1">Ghi chú</div>
+      <div class="small mb-0">{{ mo.notes }}</div>
+    </div>
+    {% endif %}
 
     {% if mo_lines %}
     <div class="px-3 px-md-4 pb-3">
       <div class="jp-mo-fold" data-jp-mo-fold>
-        <div class="jp-mo-section-head">
-          <p class="title">Kế hoạch theo màu × size</p>
+        <div class="jp-mo-section-head justify-content-end">
           <div class="jp-mo-fold-meta">
             <span class="count">{{ mo_lines|length }} dòng</span>
             <button type="button" class="jp-mo-fold-btn" aria-expanded="true">
@@ -197,20 +220,20 @@
     </div>
     {% endif %}
 
-    {% if mo.notes %}
-    <div class="px-3 px-md-4 pb-3">
-      <div class="label text-muted small mb-1">Ghi chú</div>
-      <div class="small mb-0">{{ mo.notes }}</div>
-    </div>
-    {% endif %}
-
     {% if progress and progress.steps %}
     <div class="jp-mo-steps">
       {% for s in progress.steps %}
-      <span class="chip {% if s.done %}is-done{% endif %}">
+      {% if s.url_name and s.url_pk %}
+      <a href="{% url s.url_name s.url_pk %}{% if s.key == 'qc' and progress.next_qc_slug %}?team={{ progress.next_qc_slug }}{% endif %}" class="chip {% if s.done %}is-done{% elif s.optional %}is-optional{% endif %} text-decoration-none"{% if s.key == 'qc' and not s.done %} title="Lưu đủ tổ rồi chốt phiếu — mới được nhập thành phẩm"{% endif %}>
+        {% if s.done %}<i class="bi bi-check-lg" aria-hidden="true"></i>{% else %}<i class="bi bi-circle" aria-hidden="true"></i>{% endif %}
+        {{ s.label }}
+      </a>
+      {% else %}
+      <span class="chip {% if s.done %}is-done{% elif s.optional %}is-optional{% endif %}"{% if s.key == 'qc' and not s.done %} title="Lưu đủ tổ rồi chốt phiếu — mới được nhập thành phẩm"{% endif %}>
         {% if s.done %}<i class="bi bi-check-lg" aria-hidden="true"></i>{% else %}<i class="bi bi-circle" aria-hidden="true"></i>{% endif %}
         {{ s.label }}
       </span>
+      {% endif %}
       {% endfor %}
     </div>
     {% endif %}
@@ -226,8 +249,7 @@
           <input type="hidden" name="action" value="save"/>
           <div class="mb-3">
             <div class="jp-mo-fold" data-jp-mo-fold>
-              <div class="jp-mo-fold-head">
-                <p class="jp-mo-fold-title">Kế hoạch theo màu × size</p>
+              <div class="jp-mo-fold-head justify-content-end">
                 <button type="button" class="jp-mo-fold-btn" aria-expanded="true">
                   <i class="bi bi-chevron-up" aria-hidden="true"></i>
                   <span data-fold-label>Thu gọn</span>
@@ -277,60 +299,17 @@
     {% endif %}
   </div>
 
-  {# —— Kế hoạch/thực tế + BOM —— #}
+  {# —— Bom + OB từ đơn hàng —— #}
   <div class="row g-3 mb-3">
-    <div class="col-12 col-lg-5">
+    <div class="col-12 col-lg-6">
       <div class="card jp-mo-panel h-100">
         <div class="card-body">
           <div class="jp-mo-section-head">
-            <p class="title">Kế hoạch / thực tế</p>
-          </div>
-          {% if progress and progress.qty_rows %}
-          <div class="table-responsive">
-            <table class="table table-sm mb-0 align-middle">
-              <thead class="table-light">
-                <tr>
-                  <th></th>
-                  <th class="text-end">KH</th>
-                  <th class="text-end">TT</th>
-                  <th class="text-end">%</th>
-                </tr>
-              </thead>
-              <tbody>
-              {% for row in progress.qty_rows %}
-                <tr>
-                  <td class="small">{{ row.label }}</td>
-                  <td class="text-end small">{{ row.planned|sx_num }}</td>
-                  <td class="text-end fw-semibold small">{{ row.actual|sx_num }}</td>
-                  <td class="text-end text-muted small">{% if row.pct != None %}{{ row.pct|sx_num }}%{% else %}—{% endif %}</td>
-                </tr>
-              {% endfor %}
-              </tbody>
-            </table>
-          </div>
-          {% else %}
-          <div class="text-muted small mb-0">Chưa có dữ liệu so sánh.</div>
-          {% endif %}
-        </div>
-      </div>
-    </div>
-
-    <div class="col-12 col-lg-7">
-      <div class="card jp-mo-panel h-100">
-        <div class="card-body">
-          <div class="jp-mo-section-head">
-            <p class="title">
-              {% if mo.bom_version %}
-              <a href="{% url 'san_xuat:doc_detail' mo.bom_version.tech_doc_id %}?tab=bom&bom={{ mo.bom_version_id }}" class="text-decoration-none text-reset">
-                Hồ sơ thiết kế · {{ mo.bom_version.version_label }}
-              </a>
-              {% else %}
-              Hồ sơ thiết kế
-              {% endif %}
-            </p>
+            <p class="title">Bom</p>
             <span class="count text-muted">{{ bom_lines|length }} dòng NPL</span>
           </div>
           {% if bom_lines %}
+          <div class="jp-mo-more" data-jp-mo-more>
           <div class="table-responsive">
             <table class="table table-sm table-hover mb-0 align-middle">
               <thead class="table-light">
@@ -343,11 +322,8 @@
               </thead>
               <tbody>
               {% for bl in bom_lines %}
-                <tr>
-                  <td>
-                    <div class="fw-semibold small">{{ bl.material_code }}</div>
-                    <div class="text-muted small">{{ bl.material_name }}</div>
-                  </td>
+                <tr{% if forloop.counter > 5 %} class="jp-mo-more-row"{% endif %}>
+                  <td class="small">{{ bl.material_name|default:bl.material_code }}</td>
                   <td class="text-end small">{{ bl.qty_per_unit|sx_num }}</td>
                   <td class="text-end small text-muted">{{ bl.scrap_pct }}%</td>
                   <td class="text-end fw-semibold small">{{ bl.qty_total|sx_num }}</td>
@@ -356,13 +332,67 @@
               </tbody>
             </table>
           </div>
-          {% elif mo.bom_version %}
-          <div class="text-muted small mb-2">Hồ sơ đã gắn nhưng chưa có định mức NPL.</div>
-          <a href="{% url 'san_xuat:doc_detail' mo.bom_version.tech_doc_id %}?tab=bom&bom={{ mo.bom_version_id }}" class="btn btn-sm btn-outline-hm">
-            <i class="bi bi-box-arrow-up-right me-1"></i>Mở hồ sơ · thêm NPL
+          {% if bom_lines|length > 5 %}
+          <button type="button" class="jp-mo-more-btn" aria-expanded="false">
+            <i class="bi bi-chevron-down" aria-hidden="true"></i>
+            <span data-more-label>Xem thêm</span>
+          </button>
+          {% endif %}
+          </div>
+          {% elif display_bom %}
+          <div class="text-muted small mb-2">Bom trên đơn chưa có định mức NPL.</div>
+          <a href="{% url 'san_xuat:doc_detail' display_bom.tech_doc_id %}?tab=bom&bom={{ display_bom.pk }}" class="btn btn-sm btn-outline-hm">
+            <i class="bi bi-box-arrow-up-right me-1"></i>Mở Bom · thêm NPL
           </a>
           {% else %}
-          <div class="text-muted small mb-0">Chưa gắn hồ sơ thiết kế.</div>
+          <div class="text-muted small mb-0">Chưa gắn Bom khi lên đơn.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-6">
+      <div class="card jp-mo-panel h-100">
+        <div class="card-body">
+          <div class="jp-mo-section-head">
+            <p class="title">OB</p>
+            <span class="count text-muted">
+              {% if ob_lines %}{{ ob_lines|length }} CĐ{% else %}chưa gắn{% endif %}
+            </span>
+          </div>
+          {% if ob_lines %}
+          <div class="jp-mo-more" data-jp-mo-more>
+          <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0 align-middle">
+              <thead class="table-light">
+                <tr>
+                  <th>Công đoạn</th>
+                  <th class="text-end">SMV đơn hàng</th>
+                  <th>Mô tả</th>
+                </tr>
+              </thead>
+              <tbody>
+              {% for ln in ob_lines %}
+                <tr{% if forloop.counter > 5 %} class="jp-mo-more-row"{% endif %}>
+                  <td class="small">{{ ln.op_name_vi|default:"—" }}</td>
+                  <td class="text-end fw-semibold small">{{ ln.applied_unit_smv|sx_num }}</td>
+                  <td class="small text-muted">{{ ln.notes|default:"—" }}</td>
+                </tr>
+              {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% if ob_lines|length > 5 %}
+          <button type="button" class="jp-mo-more-btn" aria-expanded="false">
+            <i class="bi bi-chevron-down" aria-hidden="true"></i>
+            <span data-more-label>Xem thêm</span>
+          </button>
+          {% endif %}
+          </div>
+          {% else %}
+          <div class="text-muted small mb-0">
+            Chưa có OB khi lên đơn{% if mo.sales_order_id %} — gắn công đoạn trên {{ mo.sales_order.code }}{% endif %}.
+          </div>
           {% endif %}
         </div>
       </div>
@@ -379,7 +409,16 @@
               <p class="title">Yêu cầu xuất</p>
               <div class="count">{{ ycx_list|length }} phiếu</div>
             </div>
-            <a href="{% url 'san_xuat:dispatch_material_issue_req' %}" class="btn btn-sm btn-outline-secondary">Danh sách</a>
+            <div class="d-flex flex-wrap gap-1">
+              <a href="{% url 'san_xuat:dispatch_material_issue_req' %}" class="btn btn-sm btn-outline-secondary">Danh sách</a>
+              {% if mo.status == 'released' or mo.status == 'in_progress' %}
+              <form method="post" class="d-inline">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="create_ycx"/>
+                <button type="submit" class="btn btn-sm btn-hm">Tạo</button>
+              </form>
+              {% endif %}
+            </div>
           </div>
           {% if ycx_list %}
           <div class="table-responsive">
@@ -394,12 +433,34 @@
               </thead>
               <tbody>
               {% for req in ycx_list %}
-                <tr class="jp-npl-catalog-row" data-href="{% url 'san_xuat:dispatch_material_issue_req_detail' req.pk %}">
-                  <td><strong class="small">{{ req.code }}</strong></td>
+                <tr>
+                  <td><a href="{% url 'san_xuat:dispatch_material_issue_req_detail' req.pk %}" class="fw-semibold small text-decoration-none">{{ req.code }}</a></td>
                   <td class="small text-muted">{{ req.request_date|date:"d/m/Y" }}</td>
-                  <td class="small">{{ req.status }}</td>
+                  <td class="small">
+                    {% if req.status == 'draft' %}Nháp
+                    {% elif req.status == 'submitted' %}Đã gửi
+                    {% elif req.status == 'approved' %}Đã duyệt
+                    {% elif req.status == 'partial' %}Xuất một phần
+                    {% elif req.status == 'done' %}Hoàn thành
+                    {% elif req.status == 'cancelled' %}Hủy
+                    {% else %}{{ req.status }}{% endif %}
+                  </td>
                   <td class="text-end">
-                    <a href="{% url 'san_xuat:dispatch_material_issue_req_detail' req.pk %}" class="btn btn-sm btn-outline-hm">Mở</a>
+                    <div class="d-flex flex-wrap gap-1 justify-content-end">
+                      {% if can_update and req.status != 'done' and req.status != 'cancelled' %}
+                      <form method="post" class="d-inline">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="approve_ycx"/>
+                        <input type="hidden" name="ycx_id" value="{{ req.pk }}"/>
+                        <button type="submit" class="btn btn-sm btn-outline-secondary" title="Duyệt và trừ kho NPL">
+                          {% if req.status == 'partial' %}Bổ sung{% else %}Duyệt xuất{% endif %}
+                        </button>
+                      </form>
+                      {% elif req.stock_issue_id %}
+                      <a href="{% url 'kho_npl:issue_detail' req.stock_issue_id %}" class="btn btn-sm btn-outline-secondary">Phiếu kho</a>
+                      {% endif %}
+                      <a href="{% url 'san_xuat:dispatch_material_issue_req_detail' req.pk %}" class="btn btn-sm btn-outline-hm">Mở</a>
+                    </div>
                   </td>
                 </tr>
               {% endfor %}
@@ -418,54 +479,15 @@
         <div class="card-body">
           <div class="jp-mo-section-head">
             <div>
-              <p class="title">Thống kê sản xuất</p>
-              <div class="count">{{ stats_list|length }} phiếu</div>
-            </div>
-            <a href="{% url 'san_xuat:dispatch_prod_stats_create' %}?mo={{ mo.pk }}" class="btn btn-sm btn-outline-secondary">Tạo</a>
-          </div>
-          {% if stats_list %}
-          <div class="table-responsive">
-            <table class="table table-sm table-hover mb-0 align-middle">
-              <thead class="table-light">
-                <tr>
-                  <th>Mã</th>
-                  <th>Công đoạn</th>
-                  <th class="text-end">Đạt</th>
-                  <th>TT</th>
-                  <th class="text-end"></th>
-                </tr>
-              </thead>
-              <tbody>
-              {% for stat in stats_list %}
-                <tr class="jp-npl-catalog-row" data-href="{% url 'san_xuat:dispatch_prod_stats_detail' stat.pk %}">
-                  <td><strong class="small">{{ stat.code }}</strong></td>
-                  <td class="small">{{ stat.process_name|default:"—" }}</td>
-                  <td class="text-end small">{{ stat.qty_good|sx_num }}</td>
-                  <td class="small">{{ stat.get_status_display }}</td>
-                  <td class="text-end">
-                    <a href="{% url 'san_xuat:dispatch_prod_stats_detail' stat.pk %}" class="btn btn-sm btn-outline-hm">Mở</a>
-                  </td>
-                </tr>
-              {% endfor %}
-              </tbody>
-            </table>
-          </div>
-          {% else %}
-          <div class="text-muted small mb-0">Chưa có thống kê sản xuất.</div>
-          {% endif %}
-        </div>
-      </div>
-    </div>
-
-    <div class="col-12 col-lg-6">
-      <div class="card jp-mo-panel h-100">
-        <div class="card-body">
-          <div class="jp-mo-section-head">
-            <div>
               <p class="title">Nhập thành phẩm</p>
               <div class="count">{{ fg_receipt_list|length }} phiếu</div>
             </div>
-            <a href="{% url 'san_xuat:dispatch_fg_receipt_req_create' %}?mo={{ mo.pk }}" class="btn btn-sm btn-outline-secondary">Tạo</a>
+            <div class="d-flex flex-wrap gap-1">
+              <a href="{% url 'san_xuat:dispatch_fg_receipt_req' %}" class="btn btn-sm btn-outline-secondary">Danh sách</a>
+              {% if mo.status != 'draft' and mo.status != 'cancelled' and mo.status != 'done' %}
+              <a href="{% url 'san_xuat:dispatch_fg_receipt_req_create' %}?mo={{ mo.pk }}" class="btn btn-sm btn-hm">Tạo</a>
+              {% endif %}
+            </div>
           </div>
           {% if fg_receipt_list %}
           <div class="table-responsive">
@@ -480,8 +502,8 @@
               </thead>
               <tbody>
               {% for req in fg_receipt_list %}
-                <tr class="jp-npl-catalog-row" data-href="{% url 'san_xuat:dispatch_fg_receipt_req_detail' req.pk %}">
-                  <td><strong class="small">{{ req.code }}</strong></td>
+                <tr>
+                  <td><a href="{% url 'san_xuat:dispatch_fg_receipt_req_detail' req.pk %}" class="fw-semibold small text-decoration-none">{{ req.code }}</a></td>
                   <td class="text-end small">{{ req.qty|sx_num }}</td>
                   <td class="small">{{ req.get_status_display }}</td>
                   <td class="text-end">
@@ -504,62 +526,48 @@
         <div class="card-body">
           <div class="jp-mo-section-head">
             <div>
-              <p class="title">Tồn bán thành phẩm</p>
-              <div class="count">theo tiến độ tổ{% if handover_row.waiting_total %} · chờ {{ handover_row.waiting_total|sx_num }}{% endif %}</div>
+              <p class="title">Yêu cầu kiểm tra</p>
+              <div class="count">{{ qc_request_list|length }} phiếu</div>
             </div>
-            <a href="{% url 'san_xuat:dispatch_handover_status' %}?q={{ mo.code|urlencode }}" class="btn btn-sm btn-outline-secondary">Tình hình</a>
-          </div>
-          {% if handover_row.cells %}
-          <div class="table-responsive mb-3">
-            <table class="table table-sm mb-0">
-              <thead class="table-light"><tr><th>Tổ</th><th class="text-end">Đã xong</th><th class="text-end">Chờ nhận</th></tr></thead>
-              <tbody>
-              {% for c in handover_row.cells %}
-                <tr>
-                  <td class="small">
-                    {% if c.slug %}
-                    <a href="{% url 'san_xuat:team_work_progress' c.slug mo.pk %}">{{ c.label }}</a>
-                    {% else %}{{ c.label }}{% endif %}
-                  </td>
-                  <td class="text-end fw-semibold small">{{ c.done|sx_num }}</td>
-                  <td class="text-end small">{% if forloop.first %}—{% else %}{{ c.waiting|sx_num }}{% endif %}</td>
-                </tr>
-              {% endfor %}
-              </tbody>
-            </table>
-          </div>
-          {% else %}
-          <div class="text-muted small mb-3">Chưa có tiến độ tổ.</div>
-          {% endif %}
-
-          <div class="jp-mo-section-head border-top pt-3">
-            <div>
-              <p class="title">Bàn giao bán thành phẩm</p>
-              <div class="count">{{ wip_handover_list|length }} phiếu</div>
+            <div class="d-flex flex-wrap gap-1">
+              <a href="{% url 'san_xuat:qc_request' %}" class="btn btn-sm btn-outline-secondary">Danh sách</a>
+              {% if mo.status != 'draft' and mo.status != 'cancelled' and mo.status != 'done' %}
+              <a href="{% url 'san_xuat:qc_request_create' %}?mo={{ mo.pk }}" class="btn btn-sm btn-hm">Tạo</a>
+              {% endif %}
             </div>
-            {% if mo.status != 'draft' and mo.status != 'cancelled' %}
-            <a href="{% url 'san_xuat:dispatch_wip_handover_create' %}?mo={{ mo.pk }}" class="btn btn-sm btn-outline-secondary">Tạo</a>
-            {% endif %}
           </div>
-          {% if wip_handover_list %}
+          {% if qc_request_list %}
           <div class="table-responsive">
             <table class="table table-sm table-hover mb-0 align-middle">
               <thead class="table-light">
                 <tr>
                   <th>Mã</th>
-                  <th>Từ → Đến</th>
-                  <th class="text-end">SL</th>
+                  <th>Ngày</th>
+                  <th>PKT</th>
                   <th class="text-end"></th>
                 </tr>
               </thead>
               <tbody>
-              {% for item in wip_handover_list %}
-                <tr class="jp-npl-catalog-row" data-href="{% url 'san_xuat:dispatch_wip_handover_detail' item.pk %}">
-                  <td><strong class="small">{{ item.code }}</strong></td>
-                  <td class="small">{{ item.from_process }} → {{ item.to_process }}</td>
-                  <td class="text-end small">{{ item.qty|sx_num }}</td>
+              {% for req in qc_request_list %}
+                <tr>
+                  <td><a href="{% url 'san_xuat:qc_request_detail' req.pk %}" class="fw-semibold small text-decoration-none">{{ req.code }}</a></td>
+                  <td class="small text-muted">{{ req.request_date|date:"d/m/Y" }}</td>
+                  <td class="small">
+                    {% with insp=req.inspections.all.0 %}
+                      {% if insp %}
+                        {% if insp.result == 'pass' %}<span class="text-success">Đạt</span>
+                        {% elif insp.result == 'fail' %}<span class="text-danger">Không đạt</span>
+                        {% else %}{{ insp.get_result_display }}{% endif %}
+                      {% else %}Chưa có{% endif %}
+                    {% endwith %}
+                  </td>
                   <td class="text-end">
-                    <a href="{% url 'san_xuat:dispatch_wip_handover_detail' item.pk %}" class="btn btn-sm btn-outline-hm">Mở</a>
+                    <div class="d-flex flex-wrap gap-1 justify-content-end">
+                      {% if not req.inspections.all %}
+                      <a href="{% url 'san_xuat:qc_sheet_create' %}?request={{ req.pk }}" class="btn btn-sm btn-outline-secondary">Lập PKT</a>
+                      {% endif %}
+                      <a href="{% url 'san_xuat:qc_request_detail' req.pk %}" class="btn btn-sm btn-outline-hm">Mở</a>
+                    </div>
                   </td>
                 </tr>
               {% endfor %}
@@ -567,45 +575,41 @@
             </table>
           </div>
           {% else %}
-          <div class="text-muted small mb-0">Chưa có bàn giao.</div>
+          <div class="text-muted small mb-0">Chưa có yêu cầu kiểm tra. Lập phiếu và QC đủ tổ trên Ob (ví dụ 6/6) trước khi nhập thành phẩm.</div>
           {% endif %}
         </div>
       </div>
     </div>
 
-    <div class="col-12">
-      <div class="card jp-mo-panel">
+    <div class="col-12 col-lg-6">
+      <div class="card jp-mo-panel h-100">
         <div class="card-body">
           <div class="jp-mo-section-head">
             <div>
-              <p class="title">Cảnh báo chất lượng</p>
-              <div class="count">{{ qc_alerts|length }} cảnh báo</div>
+              <p class="title">Tồn bán thành phẩm</p>
+              <div class="count">theo tiến độ tổ{% if handover_row.waiting_total %} · chờ {{ handover_row.waiting_total|sx_num }}{% endif %}</div>
             </div>
-            <a href="{% url 'san_xuat:qc_alerts' %}" class="btn btn-sm btn-outline-danger">Danh sách</a>
+            <div class="d-flex flex-wrap gap-1">
+              <a href="{% url 'san_xuat:dispatch_handover_status' %}?q={{ mo.code|urlencode }}" class="btn btn-sm btn-outline-secondary">Danh sách</a>
+              {% if mo.status != 'draft' and mo.status != 'cancelled' and mo.status != 'done' %}
+              <a href="{% url 'san_xuat:dispatch_wip_handover_create' %}?mo={{ mo.pk }}" class="btn btn-sm btn-hm">Tạo</a>
+              {% endif %}
+            </div>
           </div>
-          {% if qc_alerts %}
-          <div class="table-responsive">
-            <table class="table table-sm table-hover mb-0 align-middle">
-              <thead class="table-light">
-                <tr>
-                  <th>Mã</th>
-                  <th>Loại</th>
-                  <th>Công đoạn</th>
-                  <th class="text-end">Tỷ lệ lỗi</th>
-                  <th>TT</th>
-                  <th class="text-end"></th>
-                </tr>
-              </thead>
+          {% if handover_row.cells %}
+          <div class="table-responsive mb-3">
+            <table class="table table-sm mb-0">
+              <thead class="table-light"><tr><th>Tổ</th><th class="text-end">Đã xong</th><th class="text-end">Chờ nhận</th><th class="text-end"></th></tr></thead>
               <tbody>
-              {% for alert in qc_alerts %}
-                <tr class="{% if alert.status == 'open' %}table-danger{% endif %} jp-npl-catalog-row" data-href="{% url 'san_xuat:qc_alert_detail' alert.pk %}">
-                  <td><strong class="small">{{ alert.code }}</strong></td>
-                  <td class="small">{{ alert.get_alert_type_display }}</td>
-                  <td class="small">{{ alert.process_name|default:"—" }}</td>
-                  <td class="text-end small">{{ alert.defect_rate }}%</td>
-                  <td class="small">{{ alert.get_status_display }}</td>
+              {% for c in handover_row.cells %}
+                <tr>
+                  <td class="small">{{ c.label }}</td>
+                  <td class="text-end fw-semibold small">{{ c.done|sx_num }}</td>
+                  <td class="text-end small">{% if forloop.first %}—{% else %}{{ c.waiting|sx_num }}{% endif %}</td>
                   <td class="text-end">
-                    <a href="{% url 'san_xuat:qc_alert_detail' alert.pk %}" class="btn btn-sm btn-outline-hm">Mở</a>
+                    {% if c.slug %}
+                    <a href="{% url 'san_xuat:team_work_progress' c.slug mo.pk %}" class="btn btn-sm btn-outline-hm">Mở</a>
+                    {% endif %}
                   </td>
                 </tr>
               {% endfor %}
@@ -613,7 +617,7 @@
             </table>
           </div>
           {% else %}
-          <div class="text-muted small mb-0">Chưa có cảnh báo chất lượng.</div>
+          <div class="text-muted small mb-0">Chưa có tiến độ tổ.</div>
           {% endif %}
         </div>
       </div>

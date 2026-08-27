@@ -1495,6 +1495,45 @@ def mo_sku_matrix_api(request):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 @require_GET
+def mo_ob_teams_api(request, pk: int):
+    """Tổ trên Ob của lệnh — dùng khi chọn tổ thuê GC (không mặc định thêu)."""
+    from san_xuat.hub_models import SxProductionOrder
+    from san_xuat.services.qc import ob_team_options
+
+    mo = SxProductionOrder.objects.filter(pk=pk, is_demo=False).first()
+    if not mo:
+        return JsonResponse({'error': 'Không tìm thấy lệnh sản xuất.', 'teams': []}, status=404)
+    from san_xuat.services.phase3 import npl_lines_for_subcontract
+
+    raw_qty = (request.GET.get('qty') or '').strip().replace(',', '.')
+    scale = None
+    if raw_qty:
+        try:
+            from decimal import Decimal as _D
+            scale = _D(raw_qty)
+        except Exception:
+            scale = None
+    npl = []
+    for row in npl_lines_for_subcontract(mo=mo, qty=scale):
+        npl.append({
+            'material_code': row['material_code'],
+            'material_name': row['material_name'],
+            'qty': str(row['qty']),
+            'uom_label': row.get('uom_label') or 'SP',
+        })
+    return JsonResponse({
+        'mo_id': mo.pk,
+        'code': mo.code,
+        'product_code': mo.product_code,
+        'product_name': mo.product_name or '',
+        'qty': str(mo.qty or ''),
+        'teams': ob_team_options(mo=mo),
+        'npl': npl,
+    })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+@require_GET
 def mo_bom_versions_api(request):
     """Danh sách hồ sơ thiết kế (BOM) theo mã SX — kèm gợi ý tổ / công đoạn."""
     from django.urls import reverse

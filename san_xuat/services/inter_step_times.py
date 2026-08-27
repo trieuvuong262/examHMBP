@@ -262,6 +262,7 @@ class PlanFlowGroup:
     transfer_minutes: Decimal = field(default_factory=lambda: Decimal('0'))
     from_slug: str = ''
     to_slug: str = ''
+    team_slug: str = ''
     default_count_minutes: Decimal = field(default_factory=lambda: Decimal('0'))
     default_transfer_minutes: Decimal = field(default_factory=lambda: Decimal('0'))
 
@@ -451,6 +452,7 @@ def flow_groups_from_steps(steps, *, sort_factory: bool = False) -> list[PlanFlo
             transfer_minutes=hop_t,
             from_slug=from_slug,
             to_slug=to_slug,
+            team_slug=ckey if ckey and not str(ckey).startswith('wc:') else '',
             default_count_minutes=def_c,
             default_transfer_minutes=def_t,
         ))

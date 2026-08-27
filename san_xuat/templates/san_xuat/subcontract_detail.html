@@ -21,9 +21,10 @@
       <div class="border rounded-3 p-3 mb-3">
         <div class="row g-3 small">
           <div class="col-6"><div class="text-muted">SP</div><div class="fw-semibold">{{ item.product_code }}</div>{{ item.product_name }}</div>
+          <div class="col-6"><div class="text-muted">Người lên đơn</div><div class="fw-semibold">{% if item.created_by %}{{ item.created_by.get_full_name|default:item.created_by.username }}{% else %}—{% endif %}</div></div>
           <div class="col-3"><div class="text-muted">SL đặt</div><div class="fs-5 fw-semibold">{{ item.qty|sx_num }}</div></div>
           <div class="col-3"><div class="text-muted">Số lượng nhận</div><div class="fs-5 fw-semibold">{{ item.qty_received|sx_num }}</div></div>
-          <div class="col-6"><div class="text-muted">Công đoạn</div><div>{{ item.process_name|default:"—" }}</div></div>
+          <div class="col-6"><div class="text-muted">Tổ Ob thuê ngoài</div><div>{{ item.team_label|default:item.process_name|default:"—" }}</div></div>
           <div class="col-6"><div class="text-muted">Lệnh sản xuất</div>
             <div>{% if item.production_order %}<a href="{% url 'san_xuat:dispatch_mo_detail' item.production_order_id %}">{{ item.production_order.code }}</a>{% else %}—{% endif %}</div>
           </div>
@@ -32,103 +33,69 @@
       </div>
 
       <div class="border rounded-3 p-3 mb-3">
-        <div class="fw-semibold mb-2">Xuất đi GC</div>
+        <div class="fw-semibold mb-2">NPL xuất đi GC</div>
         <table class="table table-hover table-sm mb-0">
-          <thead><tr><th>Mã</th><th>Tên</th><th class="text-end">Số lượng</th><th>Lô</th></tr></thead>
+          <thead><tr><th>Mã</th><th>Tên</th><th class="text-end">Số lượng</th></tr></thead>
           <tbody>
           {% for ln in out_lines %}
             <tr>
               <td>{{ ln.material_code }}</td>
               <td>{{ ln.material_name|default:"—" }}</td>
               <td class="text-end">{{ ln.qty|sx_num }} {{ ln.uom_label }}</td>
-              <td>{{ ln.lot_code|default:"—" }}</td>
             </tr>
           {% empty %}
-            <tr><td colspan="4" class="text-muted small">Chưa có dòng xuất.</td></tr>
+            <tr><td colspan="3" class="text-muted small">Chưa có dòng NPL.</td></tr>
           {% endfor %}
           </tbody>
         </table>
-        {% if can_update and item.status == STATUS_DRAFT or can_update and item.status == STATUS_SENT %}
-        <hr>
-        <form method="post" class="row g-2 align-items-end">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="add_out">
-          <div class="col-md-3">{{ add_out_form.material_code }}</div>
-          <div class="col-md-3">{{ add_out_form.material_name }}</div>
-          <div class="col-md-2">{{ add_out_form.qty }}</div>
-          <div class="col-md-2">{{ add_out_form.lot_code }}</div>
-          <div class="col-md-2"><button class="btn btn-sm btn-outline-hm" type="submit">Thêm</button></div>
-        </form>
-        {% endif %}
       </div>
 
+      {% if in_lines %}
       <div class="border rounded-3 p-3">
         <div class="fw-semibold mb-2">Nhận về</div>
         <table class="table table-hover table-sm mb-0">
-          <thead><tr><th>Mã</th><th>Tên</th><th class="text-end">Số lượng</th><th>Lô</th></tr></thead>
+          <thead><tr><th>Mã</th><th>Tên</th><th class="text-end">Số lượng</th></tr></thead>
           <tbody>
           {% for ln in in_lines %}
             <tr>
               <td>{{ ln.material_code }}</td>
               <td>{{ ln.material_name|default:"—" }}</td>
               <td class="text-end">{{ ln.qty|sx_num }}</td>
-              <td>{{ ln.lot_code|default:"—" }}</td>
             </tr>
-          {% empty %}
-            <tr><td colspan="4" class="text-muted small">Chưa nhận về.</td></tr>
           {% endfor %}
           </tbody>
         </table>
       </div>
+      {% endif %}
     </div>
     <div class="col-lg-5">
       <div class="border rounded-3 p-3">
-        {% if can_update %}
-          {% if item.status == STATUS_DRAFT %}
-          <form method="post" class="mb-2">
-            {% csrf_token %}<input type="hidden" name="to_status" value="{{ STATUS_SENT }}">
-            <button class="btn btn-hm btn-sm" type="submit">Gửi GC</button>
-</form>
-          <form method="post">
-            {% csrf_token %}<input type="hidden" name="to_status" value="{{ STATUS_CANCELLED }}">
-            <button class="btn btn-outline-danger btn-sm" type="submit">Hủy</button>
-          </form>
-          {% elif item.status == STATUS_SENT %}
+        <div class="small text-muted mb-2">Trạng thái: <strong>{{ item.get_status_display }}</strong>
+          · Đơn vị GC: {{ item.vendor_name }}</div>
+        {% if can_receive %}
           <form method="post" class="mb-3">
             {% csrf_token %}
             <input type="hidden" name="action" value="receive">
             <div class="mb-2">
               <label class="form-label small text-muted">{{ receive_form.qty_received.label }}{{ receive_form.qty_received|sx_req_star }}</label>
               {{ receive_form.qty_received }}
+              {% if receive_form.qty_received.errors %}<div class="text-danger small">{{ receive_form.qty_received.errors }}</div>{% endif %}
             </div>
-            <div class="mb-2">
-              <label class="form-label small text-muted">{{ receive_form.material_code.label }}{{ receive_form.material_code|sx_req_star }}</label>
-              {{ receive_form.material_code }}
-            </div>
-            <div class="mb-2">{{ receive_form.material_name }}</div>
-            <div class="mb-2">{{ receive_form.lot_code }}</div>
-            <button class="btn btn-success btn-sm" type="submit">Ghi nhận nhận lại</button>
+            <button class="btn btn-hm fw-bold w-100" type="submit">Nhận hàng</button>
           </form>
-          <form method="post" class="mb-2">
-            {% csrf_token %}<input type="hidden" name="to_status" value="{{ STATUS_DONE }}">
-            <button class="btn btn-outline-success btn-sm" type="submit">Hoàn thành (bỏ qua nhận)</button>
-          </form>
+          {% if can_update %}
           <form method="post">
             {% csrf_token %}<input type="hidden" name="to_status" value="{{ STATUS_CANCELLED }}">
-            <button class="btn btn-outline-danger btn-sm" type="submit">Hủy</button>
+            <button class="btn btn-outline-danger btn-sm" type="submit">Hủy phiếu</button>
           </form>
-          {% elif item.status == STATUS_RECEIVED %}
-          <form method="post" class="mb-2">
-            {% csrf_token %}<input type="hidden" name="to_status" value="{{ STATUS_DONE }}">
-            <button class="btn btn-success btn-sm" type="submit">Hoàn thành</button>
-          </form>
-          <form method="post">
-            {% csrf_token %}<input type="hidden" name="to_status" value="{{ STATUS_CANCELLED }}">
-            <button class="btn btn-outline-danger btn-sm" type="submit">Hủy</button>
-          </form>
-          {% else %}
-          <div class="small text-muted">Lệnh đã kết thúc.</div>
           {% endif %}
+        {% elif item.status == STATUS_DONE %}
+          <div class="small">Đã nhận hàng — tổ {{ item.team_label|default:item.process_name }} hoàn thành.</div>
+        {% elif can_update %}
+          <form method="post">
+            {% csrf_token %}<input type="hidden" name="to_status" value="{{ STATUS_CANCELLED }}">
+            <button class="btn btn-outline-danger btn-sm" type="submit">Hủy phiếu</button>
+          </form>
         {% else %}
         <div class="small text-muted">Không có quyền cập nhật.</div>
         {% endif %}
@@ -136,5 +103,4 @@
     </div>
   </div>
 </div>
-{% include 'san_xuat/includes/sx_gc_out_item_select_script.html' %}
 {% endblock %}

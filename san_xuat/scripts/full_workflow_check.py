@@ -272,6 +272,7 @@ def run_phase3_extras(user, mo):
         create_subcontract_order as sc_create,
         create_work_assignment as wa_create,
     )
+    from san_xuat.services.qc import ob_qc_teams
 
     # Work center + assignment
     try:
@@ -297,12 +298,13 @@ def run_phase3_extras(user, mo):
 
     # Subcontract
     try:
+        ob = ob_qc_teams(mo=mo)
         sc = sc_create(
             production_order_id=mo.pk,
             vendor_name="NCC FullCheck",
             product_code=mo.product_code,
             product_name=mo.product_name,
-            process_name="Theu",
+            team_slug=ob[0].slug if ob else "",
             qty=Decimal("2"),
             due_date=timezone.localdate() + timedelta(days=5),
             out_lines=[{"material_code": "JP-CHI-PES40-WHT", "qty": Decimal("1")}],

@@ -25,6 +25,8 @@ from san_xuat.services.handover_status import (
     _accumulate_stats,
     _build_row,
     _team_meta,
+    attach_gc_to_handover_rows,
+    attach_qc_to_handover_rows,
 )
 from san_xuat.services.order_progress_sheet import _q, _size_plans
 from san_xuat.services.progress_template import progress_steps
@@ -280,6 +282,7 @@ def build_goods_progress_board(
                 queryset=SxProductionOrderLine.objects.order_by("size_label", "id"),
             ),
             "mo_process_steps",
+            "sales_order__lines__routing_lines__work_center",
         )
         .order_by("-order_date", "-pk")
     )
@@ -303,12 +306,14 @@ def build_goods_progress_board(
         ).only("production_order_id", "process_name", "size_label", "qty_good"):
             stats_by_mo.setdefault(st.production_order_id, []).append(st)
 
-    rows: list[GoodsProgressRow] = []
+    handovers = []
     for mo in mos:
         sizes = _size_plans(mo)
         acc = _accumulate_stats(stats_by_mo.get(mo.pk, []), sizes)
-        handover = _build_row(mo, sizes=sizes, step_size_qty=acc, all_steps=all_steps)
-        rows.append(_enrich_row(handover, today=today))
+        handovers.append(_build_row(mo, sizes=sizes, step_size_qty=acc, all_steps=all_steps))
+    attach_qc_to_handover_rows(handovers)
+    attach_gc_to_handover_rows(handovers)
+    rows: list[GoodsProgressRow] = [_enrich_row(h, today=today) for h in handovers]
 
     hot_count = sum(1 for r in rows if r.is_hot)
     overdue_count = sum(1 for r in rows if r.is_overdue)

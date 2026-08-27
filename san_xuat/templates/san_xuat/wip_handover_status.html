@@ -52,9 +52,11 @@
   .jp-ho-cell {
     flex: 1 1 7.5rem; min-width: 7.2rem;
     border: 1px solid var(--ho-line); border-radius: .85rem; padding: .65rem .7rem; background: #fff;
-    text-decoration: none; color: inherit; display: block;
+    color: inherit; display: block;
   }
   .jp-ho-cell:hover { border-color: #99f6e4; }
+  .jp-ho-cell-main { text-decoration: none; color: inherit; display: block; }
+  .jp-ho-cell-main:hover .nm { color: var(--ho-accent); }
   .jp-ho-cell.is-done { background: #f0fdf4; border-color: #bbf7d0; }
   .jp-ho-cell.is-run { background: #f0f9ff; border-color: #bae6fd; }
   .jp-ho-cell.is-wait { background: #fff7ed; border-color: #fed7aa; }
@@ -66,6 +68,10 @@
   .jp-ho-cell .qty { font-size: .92rem; font-weight: 800; color: var(--ho-ink); }
   .jp-ho-cell .qty span { color: var(--ho-muted); font-weight: 600; font-size: .78rem; }
   .jp-ho-cell .wait { color: #b45309; font-size: .72rem; font-weight: 700; margin-top: .15rem; }
+  .jp-ho-cell .wait.is-pass { color: #15803d; }
+  .jp-ho-cell .wait.is-fail { color: #b91c1c; }
+  .jp-ho-cell a.wait { text-decoration: none; display: block; }
+  .jp-ho-cell a.wait:hover { text-decoration: underline; }
   .jp-ho-empty {
     border: 1px dashed var(--ho-line); border-radius: 1rem; padding: 2.5rem 1rem;
     text-align: center; color: var(--ho-muted); background: #fff;
@@ -150,17 +156,22 @@
       <div class="jp-ho-flow">
         {% for c in row.cells %}
           {% if not forloop.first %}<div class="jp-ho-arrow" aria-hidden="true"><i class="bi bi-chevron-right"></i></div>{% endif %}
-          <a class="jp-ho-cell is-{{ c.status }}"
-             href="{% url 'san_xuat:team_work_progress' c.slug row.mo.pk %}"
-             title="Tiến độ tổ {{ c.label }}">
-            <div class="nm">{{ c.label }}</div>
-            <div class="qty">{{ c.done|sx_num }} <span>/ {{ c.plan|sx_num }}</span></div>
-            {% if not forloop.first and c.waiting %}
-            <div class="wait">Còn {{ c.waiting|sx_num }}</div>
-            {% elif forloop.first and c.waiting %}
+          <div class="jp-ho-cell is-{{ c.status }}">
+            <a class="jp-ho-cell-main"
+               href="{% url 'san_xuat:team_work_progress' c.slug row.mo.pk %}"
+               title="Tiến độ tổ {{ c.label }}">
+              <div class="nm">{{ c.label }}</div>
+              <div class="qty">{{ c.done|sx_num }} <span>/ {{ c.plan|sx_num }}</span></div>
+            </a>
+            {% if c.qc_required %}
+            <a class="wait is-{{ c.qc_status }}"
+               href="{% url 'san_xuat:qc_sheet' %}?team={{ c.slug }}"
+               title="QC tổ {{ c.label }}">QC {{ c.qc_status_label }}</a>
+            {% endif %}
+            {% if c.waiting %}
             <div class="wait">Còn {{ c.waiting|sx_num }}</div>
             {% endif %}
-          </a>
+          </div>
         {% endfor %}
       </div>
     </article>

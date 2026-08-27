@@ -1232,11 +1232,13 @@ class SxProductionStat(DemoMarkedModel):
 class SxFgReceiptRequest(DemoMarkedModel):
     STATUS_DRAFT = 'draft'
     STATUS_SUBMITTED = 'submitted'
+    STATUS_PARTIAL = 'partial'
     STATUS_DONE = 'done'
     STATUS_CANCELLED = 'cancelled'
     STATUS_CHOICES = [
         (STATUS_DRAFT, 'Nháp'),
         (STATUS_SUBMITTED, 'Đã gửi'),
+        (STATUS_PARTIAL, 'Còn hàng chưa nhập'),
         (STATUS_DONE, 'Hoàn thành'),
         (STATUS_CANCELLED, 'Hủy'),
     ]
@@ -1457,10 +1459,28 @@ class SxQcCriteria(DemoMarkedModel):
         (KIND_QUANTITATIVE, 'Định lượng'),
     ]
 
+    TEAM_SLUG_CHOICES = [
+        ('cat', 'Cắt'),
+        ('inep', 'In - Ép'),
+        ('theu', 'Thêu'),
+        ('may', 'May'),
+        ('ht', 'Ủi - Gấp xếp'),
+        ('gh', 'Giao hàng thành phẩm'),
+    ]
+
     code = models.CharField(max_length=40, unique=True)
     name = models.CharField(max_length=200)
     group = models.ForeignKey(SxQcCriteriaGroup, on_delete=models.PROTECT, related_name='criteria')
     kind = models.CharField(max_length=20, choices=KIND_CHOICES, default=KIND_QUALITATIVE)
+    team_slug = models.CharField(
+        max_length=20,
+        blank=True,
+        default='',
+        db_index=True,
+        choices=TEAM_SLUG_CHOICES,
+        verbose_name='Tổ',
+        help_text='Tiêu chuẩn này hiện trên tab phiếu kiểm tra của tổ tương ứng.',
+    )
     is_active = models.BooleanField(default=True)
 
     class Meta:
@@ -1470,6 +1490,10 @@ class SxQcCriteria(DemoMarkedModel):
 
     def __str__(self):
         return self.name
+
+    @property
+    def team_label(self):
+        return self.get_team_slug_display() or 'Chung'
 
 
 class SxQcSamplingMethod(DemoMarkedModel):
@@ -1610,7 +1634,23 @@ class SxQcRequest(DemoMarkedModel):
     )
     product_code = models.CharField(max_length=60, db_index=True)
     product_name = models.CharField(max_length=255, blank=True, default='')
-    stage_name = models.CharField(max_length=120, blank=True, default='')
+    stage_name = models.CharField(max_length=120, blank=True, default='', verbose_name='Công đoạn')
+    team_slug = models.CharField(
+        max_length=20,
+        blank=True,
+        default='',
+        db_index=True,
+        verbose_name='Tổ QC',
+        help_text='cat / inep / theu / may / ht / gh — khớp Ob khi lên đơn.',
+    )
+    work_center = models.ForeignKey(
+        'san_xuat.SxWorkCenter',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='qc_requests',
+        verbose_name='Tổ / bộ phận',
+    )
     sku = models.ForeignKey(
         'san_xuat.SxSku',
         on_delete=models.SET_NULL,
@@ -1679,6 +1719,14 @@ class SxQcInspectionCriteriaLine(models.Model):
         SxQcInspection, on_delete=models.CASCADE, related_name='criteria_lines',
     )
     criteria = models.ForeignKey(SxQcCriteria, on_delete=models.PROTECT, related_name='inspection_lines')
+    team_slug = models.CharField(
+        max_length=20,
+        blank=True,
+        default='',
+        db_index=True,
+        verbose_name='Tổ',
+        help_text='cat / inep / theu / may / ht / gh — tab tiêu chuẩn trên phiếu.',
+    )
     value_text = models.CharField(max_length=255, blank=True, default='')
     value_number = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
     is_pass = models.BooleanField(null=True, blank=True)
@@ -1686,9 +1734,40 @@ class SxQcInspectionCriteriaLine(models.Model):
 
     class Meta:
         ordering = ['id']
-        unique_together = [('inspection', 'criteria')]
+        unique_together = [('inspection', 'criteria', 'team_slug')]
         verbose_name = 'Dòng tiêu chí PKT'
         verbose_name_plural = 'Dòng tiêu chí PKT'
+
+
+class SxQcInspectionTeamResult(models.Model):
+    """SL đạt/lỗi theo tổ trên một phiếu — tab khi nhập tiêu chuẩn."""
+
+    RESULT_PASS = 'pass'
+    RESULT_FAIL = 'fail'
+    RESULT_PENDING = 'pending'
+    RESULT_CHOICES = [
+        (RESULT_PASS, 'Đạt'),
+        (RESULT_FAIL, 'Không đạt'),
+        (RESULT_PENDING, 'Chờ'),
+    ]
+
+    inspection = models.ForeignKey(
+        SxQcInspection, on_delete=models.CASCADE, related_name='team_results',
+    )
+    team_slug = models.CharField(max_length=20, db_index=True, verbose_name='Tổ')
+    qty_pass = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
+    qty_fail = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
+    result = models.CharField(max_length=20, choices=RESULT_CHOICES, default=RESULT_PENDING)
+    notes = models.CharField(max_length=255, blank=True, default='')
+
+    class Meta:
+        ordering = ['id']
+        unique_together = [('inspection', 'team_slug')]
+        verbose_name = 'Kết quả QC theo tổ'
+        verbose_name_plural = 'Kết quả QC theo tổ'
+
+    def __str__(self):
+        return f'{self.inspection_id} · {self.team_slug}'
 
 
 class SxQcInspectionDefectLine(models.Model):
@@ -2094,6 +2173,14 @@ class SxSubcontractOrder(DemoMarkedModel):
     product_code = models.CharField(max_length=60, db_index=True)
     product_name = models.CharField(max_length=255, blank=True, default='')
     process_name = models.CharField(max_length=120, blank=True, default='')
+    team_slug = models.CharField(
+        max_length=20,
+        blank=True,
+        default='',
+        db_index=True,
+        verbose_name='Tổ Ob thuê ngoài',
+        help_text='Tổ trên Ob của lệnh được thuê ngoài — không mặc định thêu.',
+    )
     qty = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
     qty_received = models.DecimalField(
         max_digits=14, decimal_places=2, default=Decimal('0'), verbose_name='SL nhận lại',
@@ -2138,6 +2225,22 @@ class SxSubcontractOrder(DemoMarkedModel):
 
     def __str__(self):
         return self.code
+
+    @property
+    def team_label(self) -> str:
+        from san_xuat.services.progress_template import team_by_slug
+
+        meta = team_by_slug(self.team_slug) if self.team_slug else None
+        return (meta or {}).get('label') or self.process_name or ''
+
+    @property
+    def work_status_label(self) -> str:
+        """Trạng thái nghiệp vụ trên danh sách: Đang sản xuất / Hoàn thành."""
+        if self.status in (self.STATUS_DONE, self.STATUS_RECEIVED):
+            return 'Hoàn thành'
+        if self.status == self.STATUS_CANCELLED:
+            return 'Hủy'
+        return 'Đang sản xuất'
 
 
 class SxSubcontractMaterialLine(models.Model):
@@ -2379,6 +2482,23 @@ class SxFgReceiptLine(models.Model):
     color_label = models.CharField(max_length=40, blank=True, default='', verbose_name='Màu')
     color_code = models.CharField(max_length=20, blank=True, default='', verbose_name='Mã màu')
     qty = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
+    warehouse = models.ForeignKey(
+        'kho_san_pham.Warehouse',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='fg_receipt_lines',
+        verbose_name='Kho nhập',
+        help_text='Kho ghi tăng tồn cho dòng này; trống thì dùng kho trên phiếu.',
+    )
+    stock_receipt = models.ForeignKey(
+        'kho_san_pham.StockReceipt',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='fg_lines',
+        verbose_name='Phiếu nhập kho SP',
+    )
 
     class Meta:
         ordering = ['pk']

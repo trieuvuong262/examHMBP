@@ -2,8 +2,8 @@
 {% load sx_format %}
 {% block extra_head %}
 {% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
-
 {% include 'san_xuat/includes/sx_npl_catalog_styles.html' %}
+{% include 'san_xuat/includes/sx_qc_compact_styles.html' %}
 {% endblock %}
 
 {% block content %}
@@ -13,7 +13,10 @@
       <h2 class="jp-npl-mat-topbar-title w-100">Phiếu kiểm tra</h2>
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
-      <a href="{% url 'san_xuat:qc_stub' %}"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>QC</a>
+      <a href="{% url 'san_xuat:qc_stub' %}"><i class="bi bi-bar-chart-line" aria-hidden="true"></i>Tiến độ</a>
+      {% if can_create %}
+      <a href="{% url 'san_xuat:qc_request_create' %}"><i class="bi bi-plus-lg" aria-hidden="true"></i>Tạo phiếu</a>
+      {% endif %}
       {% include 'san_xuat/includes/sx_list_col_picker.html' %}
     </nav>
   </div>
@@ -41,7 +44,7 @@
                                     {% include 'san_xuat/includes/sx_list_meta_row.html' with obj=inspection %}
 </tr>
                 {% empty %}
-                    <tr><td colspan="15" class="text-center text-muted py-4">Chưa có Phiếu kiểm tra thật.</td></tr>
+                    <tr><td colspan="15" class="text-center text-muted py-4">Chưa có phiếu kiểm tra.</td></tr>
                 {% endfor %}
                 </tbody>
             </table>

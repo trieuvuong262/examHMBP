@@ -1,148 +1,339 @@
 {% extends 'base.html' %}
-
 {% load sx_format %}
-{% block extra_head %}{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}{% endblock %}
+
+{% block extra_head %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+{% include 'san_xuat/includes/sx_qc_compact_styles.html' %}
+<style>
+.jp-qc-crit td { vertical-align: middle; }
+.jp-qc-crit .jp-qc-crit-name { font-size: 0.86rem; font-weight: 600; }
+.jp-qc-crit select { min-width: 6.5rem; }
+.jp-qc-tabs { display: flex; flex-wrap: wrap; gap: .3rem; margin: 0 0 .75rem; }
+.jp-qc-tab {
+  display: inline-flex; align-items: center; gap: .35rem;
+  padding: .32rem .75rem; border-radius: 999px;
+  border: 1px solid #e2e8f0; background: #fff; color: #0f172a;
+  font-size: .78rem; font-weight: 700; cursor: pointer;
+}
+.jp-qc-tab:hover { border-color: #fecaca; color: #b91c1c; }
+.jp-qc-tab.is-on { background: #fef2f2; border-color: #fecaca; color: #b91c1c; }
+.jp-qc-tab-dot {
+  width: .45rem; height: .45rem; border-radius: 50%; background: #cbd5e1;
+}
+.jp-qc-tab-dot.is-pass { background: #22c55e; }
+.jp-qc-tab-dot.is-fail { background: #ef4444; }
+.jp-qc-tab-dot.is-pending { background: #f59e0b; }
+.jp-qc-tab-qty { font-size: .68rem; font-weight: 600; color: #64748b; }
+.jp-qc-tab.is-on .jp-qc-tab-qty { color: #b91c1c; }
+.jp-qc-qty {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem;
+  margin: 0 0 0.85rem;
+}
+.jp-qc-qty-box {
+  border: 1px solid #e2e8f0;
+  border-radius: 0.55rem;
+  padding: 0.6rem 0.75rem 0.55rem;
+  background: #fff;
+  min-width: 0;
+}
+.jp-qc-qty-box.is-done { border-color: #bbf7d0; background: #f0fdf4; }
+.jp-qc-qty-box.is-fail { border-color: #fecaca; background: #fef2f2; }
+.jp-qc-qty-box label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 700;
+  margin-bottom: 0.35rem;
+  color: #0f172a;
+}
+.jp-qc-qty-box input {
+  font-size: 1.35rem;
+  font-weight: 800;
+  height: 2.55rem;
+  letter-spacing: -0.02em;
+}
+.jp-qc-sec { font-size: 0.72rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #64748b; margin: 0 0 .45rem; }
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
   <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
     <div class="jp-sx-detail-title">
-      <h2 class="jp-npl-mat-topbar-title w-100">Phiếu kiểm tra {{ inspection.code }}</h2>
+      <h2 class="jp-npl-mat-topbar-title w-100">Phiếu kiểm tra <span class="text-muted">({{ inspection.code }})</span></h2>
+      <span class="badge {% if inspection.result == 'pass' %}text-bg-success{% elif inspection.result == 'fail' %}text-bg-danger{% else %}text-bg-light text-dark border{% endif %}">
+        {{ inspection.get_result_display }}
+      </span>
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
       {% if can_print %}<a href="{% url 'san_xuat:print_qc' inspection.pk %}?autoprint=1" target="_blank" rel="noopener"><i class="bi bi-printer" aria-hidden="true"></i>In A5</a>{% endif %}
+      {% if inspection.qc_request_id %}
+      <a href="{% url 'san_xuat:qc_request_detail' inspection.qc_request_id %}"><i class="bi bi-clipboard-plus" aria-hidden="true"></i>{{ inspection.qc_request.code }}</a>
       <span class="sep" aria-hidden="true"></span>
+      {% endif %}
       <a href="{% url 'san_xuat:qc_sheet' %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại</a>
     </nav>
   </div>
 
-    <div class="row g-3">
-        <div class="col-12 col-lg-5">
-            <div class="card border-0 shadow-sm">
-                <div class="card-body">
-                    <div class="row g-3">
-                        <div class="col-6">
-                            <div class="small text-muted">Ngày kiểm</div>
-                            <div>{{ inspection.inspected_at|date:"d/m/Y" }}</div>
-                        </div>
-                        <div class="col-6">
-                            <div class="small text-muted">Bộ tiêu chuẩn</div>
-                            <div>{{ inspection.standard_set|default:"—" }}</div>
-                        </div>
-                        <div class="col-6">
-                            <div class="small text-muted">SL mẫu</div>
-                            <div class="fw-semibold">{{ inspection.qty_sample|sx_num }}</div>
-                        </div>
-                        <div class="col-6">
-                            <div class="small text-muted">Trạng thái phiếu</div>
-                            <div>{{ inspection.status }}</div>
-                        </div>
-                        {% if inspection.status == 'done' %}
-                        <div class="col-6">
-                            <div class="small text-muted">Số lượng đạt / lỗi</div>
-                            <div class="fw-semibold">{{ inspection.qty_pass|sx_num }} / {{ inspection.qty_fail|sx_num }}</div>
-                        </div>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
+  <div class="card border-0 shadow-sm jp-qc-panel mb-2">
+    <div class="card-body">
+      <div class="jp-qc-meta">
+        {% if inspection.qc_request %}
+        <div>
+          <div class="label">Sản phẩm</div>
+          <div class="value">{{ inspection.qc_request.product_name|default:inspection.qc_request.product_code|default:"—" }}</div>
         </div>
-
-        <div class="col-12 col-lg-7">
-            {% if can_update and inspection.status != 'done' %}
-            <form method="post">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="finalize">
-
-                <div class="card border-0 shadow-sm mb-3">
-                    <div class="card-body">
-                        <div class="small text-muted mb-3">Tiêu chí kiểm tra (Q3)</div>
-                        {% if criteria_forms %}
-                        <div class="table-responsive">
-                            <table class="table table-hover table-sm align-middle mb-0">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th>Tiêu chí</th>
-                                        <th>Kết quả</th>
-                                        <th>Ghi chú</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                {% for item in criteria_forms %}
-                                    <tr>
-                                        <td class="small">{{ item.line.criteria.name }}</td>
-                                        <td>{{ item.form.is_pass }}</td>
-                                        <td>{{ item.form.notes }}</td>
-                                    </tr>
-                                {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                        {% else %}
-                        <div class="text-muted small">Chưa có tiêu chí — thêm danh mục kiểm tra chất lượng hoặc gắn tiêu chí vào bộ TC.</div>
-                        {% endif %}
-                    </div>
-                </div>
-
-                <div class="card border-0 shadow-sm mb-3">
-                    <div class="card-body">
-                        <div class="small text-muted mb-3">Lỗi chi tiết theo nhóm (Q3)</div>
-                        {{ defect_formset.management_form }}
-                        {% for form in defect_formset %}
-                        <div class="row g-2 mb-2">
-                            <div class="col-md-5">{{ form.defect }}</div>
-                            <div class="col-md-3">{{ form.qty }}</div>
-                            <div class="col-md-4">{{ form.notes }}</div>
-                        </div>
-                        {% endfor %}
-</div>
-                </div>
-
-                <div class="card border-0 shadow-sm">
-                    <div class="card-body">
-                        <div class="small text-muted mb-3">Tổng kết</div>
-                        {% for field in form %}
-                        <div class="mb-3">
-                            <label class="form-label small text-muted" for="{{ field.id_for_label }}">{{ field.label }}{{ field|sx_req_star }}</label>
-                            {{ field }}
-                            {% if field.errors %}<div class="text-danger small">{{ field.errors }}</div>{% endif %}
-                        </div>
-                        {% endfor %}
-                        <button type="submit" class="btn btn-hm btn-sm">Chốt kết quả phiếu kiểm tra</button>
-                    </div>
-                </div>
-            </form>
-            {% else %}
-            <div class="card border-0 shadow-sm mb-3">
-                <div class="card-body">
-                    <div class="small text-muted mb-2">Tiêu chí đã kiểm</div>
-                    {% if inspection.criteria_lines.all %}
-                    <ul class="mb-0 small">
-                    {% for line in inspection.criteria_lines.all %}
-                        <li>{{ line.criteria.name }} — {% if line.is_pass == True %}Đạt{% elif line.is_pass == False %}Không đạt{% else %}—{% endif %}</li>
-                    {% endfor %}
-                    </ul>
-                    {% else %}
-                    <div class="text-muted small">Không có dòng tiêu chí.</div>
-                    {% endif %}
-                </div>
-            </div>
-            <div class="card border-0 shadow-sm">
-                <div class="card-body">
-                    <div class="small text-muted mb-2">Lỗi chi tiết</div>
-                    {% if inspection.defect_lines.all %}
-                    <ul class="mb-0 small">
-                    {% for line in inspection.defect_lines.all %}
-                        <li>{{ line.defect.name }} × {{ line.qty|sx_num }}</li>
-                    {% endfor %}
-                    </ul>
-                    {% else %}
-                    <div class="text-muted small">Không ghi nhận lỗi chi tiết.</div>
-                    {% endif %}
-                </div>
-            </div>
-            {% endif %}
+        {% if inspection.qc_request.production_order %}
+        <div>
+          <div class="label">Lệnh SX</div>
+          <div class="value">{{ inspection.qc_request.production_order.code }}</div>
         </div>
+        {% endif %}
+        {% endif %}
+        <div>
+          <div class="label">Ngày kiểm</div>
+          <div class="value">{{ inspection.inspected_at|date:"d/m/Y" }}</div>
+        </div>
+        <div>
+          <div class="label">Trạng thái</div>
+          <div class="value">{% if inspection.status == 'done' %}Đã chốt{% else %}Đang kiểm{% endif %}</div>
+        </div>
+      </div>
     </div>
+  </div>
+
+  {% if can_update and inspection.status != 'done' %}
+  <form method="post">
+    {% csrf_token %}
+
+    <div class="jp-qc-action">
+      <p class="title">Chốt kết quả</p>
+      <div class="btns">
+        <button type="submit" name="action" value="save" class="btn btn-outline-hm btn-sm" id="jp-qc-save-team"><i class="bi bi-floppy" aria-hidden="true"></i>Lưu tổ{% if active_team_label %} {{ active_team_label }}{% endif %}</button>
+        {% if qc_pending_teams %}
+        <button type="button" class="btn btn-hm btn-sm" disabled title="Còn chưa lưu: {{ qc_pending_teams|join:', ' }}"><i class="bi bi-check2-circle" aria-hidden="true"></i>Chốt phiếu</button>
+        {% else %}
+        <button type="submit" name="action" value="finalize" class="btn btn-hm btn-sm"><i class="bi bi-check2-circle" aria-hidden="true"></i>Chốt phiếu</button>
+        {% endif %}
+      </div>
+      {% if qc_pending_teams %}
+      <p class="small text-muted mb-0 mt-1 w-100">Chốt khi đã lưu đủ tổ. Còn: {{ qc_pending_teams|join:", " }}.</p>
+      {% endif %}
+    </div>
+
+    {% if qc_team_tabs %}
+    <div class="card border-0 shadow-sm jp-qc-panel mb-2">
+      <div class="card-body py-2">
+        <nav class="jp-qc-tabs mb-2" aria-label="Tổ kiểm tra" role="tablist">
+          {% for tab in qc_team_tabs %}
+          <button type="button" class="jp-qc-tab{% if tab.slug == active_team %} is-on{% endif %}" data-qc-tab="{{ tab.slug }}" data-qc-label="{{ tab.label }}" role="tab" aria-selected="{% if tab.slug == active_team %}true{% else %}false{% endif %}">
+            <span class="jp-qc-tab-dot is-{{ tab.result }}"></span>{{ tab.label }}
+            <span class="jp-qc-tab-qty">{{ tab.saved_pass|sx_num }}/{{ tab.saved_fail|sx_num }}</span>
+          </button>
+          {% endfor %}
+        </nav>
+        <input type="hidden" name="active_team" id="id_active_team" value="{{ active_team }}">
+        {% for tab in qc_team_tabs %}
+        <div class="jp-qc-tab-panel" data-qc-panel="{{ tab.slug }}" {% if tab.slug != active_team %}hidden{% endif %} role="tabpanel">
+          <div class="jp-qc-qty">
+            <div class="jp-qc-qty-box is-done">
+              <label for="id_team_qty_pass_{{ tab.slug }}">Số lượng hoàn thành</label>
+              <input type="number" class="form-control" id="id_team_qty_pass_{{ tab.slug }}" name="team_qty_pass_{{ tab.slug }}" value="{{ tab.qty_pass|sx_num_input }}" step="0.01" min="0" placeholder="0" inputmode="decimal">
+            </div>
+            <div class="jp-qc-qty-box is-fail">
+              <label for="id_team_qty_fail_{{ tab.slug }}">Số lượng lỗi</label>
+              <input type="number" class="form-control" id="id_team_qty_fail_{{ tab.slug }}" name="team_qty_fail_{{ tab.slug }}" value="{{ tab.qty_fail|sx_num_input }}" step="0.01" min="0" placeholder="0" inputmode="decimal">
+            </div>
+          </div>
+
+          {% if tab.criteria_forms %}
+          <p class="jp-qc-sec">Tiêu chuẩn {{ tab.label }}</p>
+          <div class="table-responsive mb-1">
+            <table class="table table-sm align-middle mb-0 jp-qc-crit">
+              <tbody>
+              {% for item in tab.criteria_forms %}
+                <tr>
+                  <td class="jp-qc-crit-name">{{ item.line.criteria.name }}</td>
+                  <td style="width:7.5rem">{{ item.form.is_pass }}</td>
+                  <td>{{ item.form.notes }}</td>
+                </tr>
+              {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <p class="text-muted small mb-2">Chưa có tiêu chuẩn tổ {{ tab.label }}. <a href="{% url 'san_xuat:qc_criteria' %}?team={{ tab.slug }}">Thiết kế tiêu chuẩn</a></p>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="card border-0 shadow-sm jp-qc-panel mb-2">
+      <div class="card-body">
+        <div class="jp-qc-fields">
+          <div class="field field-span-all">
+            <label for="{{ form.notes.id_for_label }}">Ghi chú</label>
+            {{ form.notes }}
+            {% if form.notes.errors %}<div class="text-danger small">{{ form.notes.errors }}</div>{% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+    {% else %}
+    {% if criteria_forms %}
+    <div class="card border-0 shadow-sm jp-qc-panel mb-2">
+      <div class="card-body py-2">
+        <div class="small text-muted mb-2">Tiêu chuẩn kiểm tra</div>
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0 jp-qc-crit">
+            <tbody>
+            {% for item in criteria_forms %}
+              <tr>
+                <td class="jp-qc-crit-name">{{ item.line.criteria.name }}</td>
+                <td style="width:7.5rem">{{ item.form.is_pass }}</td>
+                <td>{{ item.form.notes }}</td>
+              </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="card border-0 shadow-sm jp-qc-panel mb-2">
+      <div class="card-body">
+        <div class="jp-qc-qty">
+          <div class="jp-qc-qty-box is-done">
+            <label for="{{ form.qty_pass.id_for_label }}">Số lượng hoàn thành</label>
+            {{ form.qty_pass }}
+            {% if form.qty_pass.errors %}<div class="text-danger small">{{ form.qty_pass.errors }}</div>{% endif %}
+          </div>
+          <div class="jp-qc-qty-box is-fail">
+            <label for="{{ form.qty_fail.id_for_label }}">Số lượng lỗi</label>
+            {{ form.qty_fail }}
+            {% if form.qty_fail.errors %}<div class="text-danger small">{{ form.qty_fail.errors }}</div>{% endif %}
+          </div>
+        </div>
+        <div class="jp-qc-fields">
+          <div class="field field-span-all">
+            <label for="{{ form.notes.id_for_label }}">Ghi chú</label>
+            {{ form.notes }}
+            {% if form.notes.errors %}<div class="text-danger small">{{ form.notes.errors }}</div>{% endif %}
+          </div>
+        </div>
+        {% if form.non_field_errors %}<div class="text-danger small mt-2">{{ form.non_field_errors }}</div>{% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </form>
+  {% else %}
+  {% if can_update and inspection.status == 'done' %}
+  <form method="post" class="jp-qc-action">
+    {% csrf_token %}
+    <p class="title">Đã chốt</p>
+    <div class="btns">
+      <button type="submit" name="action" value="unfinalize" class="btn btn-outline-hm btn-sm"><i class="bi bi-unlock" aria-hidden="true"></i>Hủy chốt</button>
+    </div>
+  </form>
+  {% endif %}
+  {% if qc_team_tabs %}
+  <div class="card border-0 shadow-sm jp-qc-panel mb-2">
+    <div class="card-body py-2">
+      <nav class="jp-qc-tabs mb-2" aria-label="Tổ kiểm tra" role="tablist">
+        {% for tab in qc_team_tabs %}
+        <button type="button" class="jp-qc-tab{% if tab.slug == active_team %} is-on{% endif %}" data-qc-tab="{{ tab.slug }}" role="tab" aria-selected="{% if tab.slug == active_team %}true{% else %}false{% endif %}">
+          <span class="jp-qc-tab-dot is-{{ tab.result }}"></span>{{ tab.label }}
+          <span class="jp-qc-tab-qty">{{ tab.saved_pass|sx_num }}/{{ tab.saved_fail|sx_num }}</span>
+        </button>
+        {% endfor %}
+      </nav>
+      {% for tab in qc_team_tabs %}
+      <div class="jp-qc-tab-panel" data-qc-panel="{{ tab.slug }}" {% if tab.slug != active_team %}hidden{% endif %} role="tabpanel">
+        <div class="jp-qc-qty">
+          <div class="jp-qc-qty-box is-done">
+            <div class="label">Số lượng hoàn thành</div>
+            <div class="value" style="font-size:1.35rem;font-weight:800">{{ tab.saved_pass|sx_num }}</div>
+          </div>
+          <div class="jp-qc-qty-box is-fail">
+            <div class="label">Số lượng lỗi</div>
+            <div class="value" style="font-size:1.35rem;font-weight:800">{{ tab.saved_fail|sx_num }}</div>
+          </div>
+        </div>
+        {% if tab.criteria_lines %}
+        <p class="jp-qc-sec">Tiêu chuẩn {{ tab.label }}</p>
+        <ul class="mb-0 small ps-3">
+        {% for line in tab.criteria_lines %}
+          <li>{{ line.criteria.name }} — {% if line.is_pass == True %}Đạt{% elif line.is_pass == False %}Không đạt{% else %}—{% endif %}</li>
+        {% endfor %}
+        </ul>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% else %}
+  <div class="row g-2">
+    <div class="col-md-6">
+      <div class="card border-0 shadow-sm jp-qc-panel h-100">
+        <div class="card-body">
+          <div class="small text-muted mb-2">Tiêu chuẩn</div>
+          {% if inspection.criteria_lines.all %}
+          <ul class="mb-0 small ps-3">
+          {% for line in inspection.criteria_lines.all %}
+            <li>{{ line.criteria.name }} — {% if line.is_pass == True %}Đạt{% elif line.is_pass == False %}Không đạt{% else %}—{% endif %}</li>
+          {% endfor %}
+          </ul>
+          {% else %}
+          <div class="text-muted small">Không có tiêu chí.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+  {% endif %}
 </div>
+<script>
+(function () {
+  var tabs = document.querySelectorAll('[data-qc-tab]');
+  var active = document.getElementById('id_active_team');
+  var saveBtn = document.getElementById('jp-qc-save-team');
+
+  function setPanelEnabled(panel, on) {
+    if (!panel) return;
+    panel.querySelectorAll('input, select, textarea').forEach(function (el) {
+      el.disabled = !on;
+    });
+  }
+
+  function showTeam(slug, label) {
+    if (active) active.value = slug;
+    tabs.forEach(function (other) {
+      var on = other.getAttribute('data-qc-tab') === slug;
+      other.classList.toggle('is-on', on);
+      other.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    document.querySelectorAll('[data-qc-panel]').forEach(function (panel) {
+      var on = panel.getAttribute('data-qc-panel') === slug;
+      panel.hidden = !on;
+      setPanelEnabled(panel, on);
+    });
+    if (saveBtn && label) {
+      saveBtn.innerHTML = '<i class="bi bi-floppy" aria-hidden="true"></i>Lưu tổ ' + label;
+    }
+  }
+
+  document.querySelectorAll('[data-qc-panel]').forEach(function (panel) {
+    setPanelEnabled(panel, !panel.hidden);
+  });
+
+  tabs.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      showTeam(btn.getAttribute('data-qc-tab'), btn.getAttribute('data-qc-label') || '');
+    });
+  });
+})();
+</script>
 {% endblock %}

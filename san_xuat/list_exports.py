@@ -728,6 +728,24 @@ def _export_packing(request):
 
 def _export_subcontract(request):
     from san_xuat.hub_models import SxSubcontractOrder
+    from san_xuat.list_filters import (
+        SUBCONTRACT_WORK_STATUS_DONE,
+        SUBCONTRACT_WORK_STATUS_RUNNING,
+    )
+
+    qs = SxSubcontractOrder.objects.filter(is_demo=False)
+    work_status = (request.GET.get('status') or '').strip()
+    if work_status == SUBCONTRACT_WORK_STATUS_DONE:
+        qs = qs.filter(
+            status__in=[SxSubcontractOrder.STATUS_DONE, SxSubcontractOrder.STATUS_RECEIVED],
+        )
+    elif work_status == SUBCONTRACT_WORK_STATUS_RUNNING:
+        qs = qs.filter(
+            status__in=[SxSubcontractOrder.STATUS_DRAFT, SxSubcontractOrder.STATUS_SENT],
+        )
+    team = (request.GET.get('team') or '').strip().lower()
+    if team:
+        qs = qs.filter(team_slug=team)
 
     return _hub_model_export(
         request,
@@ -735,13 +753,15 @@ def _export_subcontract(request):
         spec=SX_FILTER_SUBCONTRACT,
         filename='Thue_gia_cong',
         order_by=('-order_date', '-pk'),
+        base_qs=qs,
         row_fn=lambda o: {
             'Mã': o.code,
             'NCC': o.vendor_name or '',
-            'Sản phẩm': f'{getattr(o, "product_code", "")} — {getattr(o, "product_name", "")}'.strip(' —'),
+            'Sản phẩm': (getattr(o, 'product_name', '') or getattr(o, 'product_code', '') or '').strip(),
+            'Tổ Ob': getattr(o, 'team_label', None) or getattr(o, 'process_name', '') or '',
             'SL': float(getattr(o, 'qty', 0) or 0),
             'Ngày': _d(o.order_date),
-            'Trạng thái': _status(o),
+            'Trạng thái': getattr(o, 'work_status_label', '') or '',
         },
     )
 
@@ -827,7 +847,7 @@ def _build_registry() -> dict[str, ListExportSpec]:
             'qc_criteria',
             _qc_catalog_export(
                 SxQcCriteria, 'Tieu_chi_QC',
-                [('Mã', 'code'), ('Tên', 'name'), ('Nhóm', 'group'), ('Loại', 'kind')],
+                [('Mã', 'code'), ('Tên', 'name'), ('Tổ', 'team_slug'), ('Nhóm', 'group'), ('Loại', 'kind')],
             ),
         ),
         ListExportSpec(

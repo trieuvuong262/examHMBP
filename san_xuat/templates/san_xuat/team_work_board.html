@@ -410,7 +410,9 @@
               {% if pname %}{{ pname }} - {{ ocode }}{% else %}{{ ocode }}{% endif %}
             </a>
             {% endwith %}
+            {% if not job.subcontract %}
             <span class="jp-tw-stat-pill"><strong>{{ job.step_count }}</strong> công đoạn</span>
+            {% endif %}
             {% if job.closed %}<span class="jp-tw-status is-done"><i class="bi bi-check-circle"></i>Hoàn thành</span>{% endif %}
           </div>
           <div class="jp-tw-job-khsx" title="Ưu tiên và hạn giao trên KHSX">
@@ -430,8 +432,30 @@
           </div>
         </div>
         <div class="jp-tw-job-actions">
-          {% if not job.accepted %}
-            {% if can_assign and not job.closed %}
+          {% if job.closed %}
+            {% if can_assign %}
+            <form method="post" class="d-inline">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="reopen">
+              <input type="hidden" name="mo_id" value="{{ job.mo.pk }}">
+              <input type="hidden" name="q" value="{{ search_query }}">
+              <input type="hidden" name="show" value="closed">
+              <button type="submit" class="btn btn-outline-secondary btn-sm"
+                      title="{% if job.subcontract %}Huỷ nhận hàng GC và mở lại tổ{% else %}Mở lại công việc tổ{% endif %}">Mở lại</button>
+            </form>
+            {% endif %}
+          {% elif job.subcontract %}
+            {% if can_view_subcontract %}
+            <a href="{% url 'san_xuat:subcontract_detail' job.subcontract.pk %}"
+               class="btn btn-hm btn-sm fw-bold"
+               title="Thuê GC — nhận hàng trên phiếu">
+              {% if job.subcontract.status == 'done' or job.subcontract.status == 'received' %}Phiếu GC{% else %}Nhận hàng GC{% endif %}
+            </a>
+            {% else %}
+            <span class="jp-tw-status is-wait"><i class="bi bi-building"></i>Thuê gia công</span>
+            {% endif %}
+          {% elif not job.accepted %}
+            {% if can_assign %}
             <form method="post" class="d-inline" onsubmit="return confirm('Nhận sản xuất {{ job.mo.sales_order.code|default:job.mo.code }}?\nTrạng thái KHSX sẽ chuyển sang Đang sản xuất.');">
               {% csrf_token %}
               <input type="hidden" name="action" value="accept">
@@ -442,21 +466,21 @@
             {% else %}
             <span class="jp-tw-status is-wait"><i class="bi bi-hourglass-split"></i>Chờ nhận SX</span>
             {% endif %}
+            {% if can_create_subcontract %}
+            <a href="{% url 'san_xuat:subcontract_create' %}?mo={{ job.mo.pk }}&amp;team={{ team.slug }}"
+               class="btn btn-outline-hm btn-sm fw-bold"
+               title="Thuê ngoài tổ {{ team.label }} — không bắt buộc">Thuê gia công</a>
+            {% endif %}
           {% else %}
           <a href="{% url 'san_xuat:team_work_progress' team.slug job.mo.pk %}"
              class="btn btn-hm btn-sm fw-bold"
              title="Xem tiến độ tổ {{ team.label }}">Tiến độ</a>
+          {% if can_create_subcontract %}
+          <a href="{% url 'san_xuat:subcontract_create' %}?mo={{ job.mo.pk }}&amp;team={{ team.slug }}"
+             class="btn btn-outline-hm btn-sm fw-bold"
+             title="Thuê ngoài tổ {{ team.label }} — không bắt buộc">Thuê gia công</a>
+          {% endif %}
           {% if can_assign %}
-            {% if job.closed %}
-            <form method="post" class="d-inline">
-              {% csrf_token %}
-              <input type="hidden" name="action" value="reopen">
-              <input type="hidden" name="mo_id" value="{{ job.mo.pk }}">
-              <input type="hidden" name="q" value="{{ search_query }}">
-              <input type="hidden" name="show" value="closed">
-              <button type="submit" class="btn btn-outline-secondary btn-sm">Mở lại</button>
-            </form>
-            {% else %}
             <form method="post" class="d-inline">
               {% csrf_token %}
               <input type="hidden" name="action" value="complete">
@@ -464,15 +488,14 @@
               <input type="hidden" name="q" value="{{ search_query }}">
               <button type="submit" class="btn btn-outline-hm btn-sm fw-bold">Hoàn thành</button>
             </form>
-            {% endif %}
           {% endif %}
           {% endif %}
-          <span class="jp-tw-stat-pill">Đã gán <strong>{{ job.assigned_count }}</strong>/{{ job.step_count }}</span>
+          {% if not job.subcontract and not job.closed %}
           {% if job.run_count %}<span class="jp-tw-stat-pill">Đang làm <strong>{{ job.run_count }}</strong></span>{% endif %}
-          {% if job.done_count %}<span class="jp-tw-stat-pill">Xong <strong>{{ job.done_count }}</strong></span>{% endif %}
-          {% if job.wait_count %}<span class="jp-tw-stat-pill">Chờ <strong>{{ job.wait_count }}</strong></span>{% endif %}
+          {% endif %}
         </div>
       </header>
+      {% if not job.subcontract %}
       <ul class="jp-tw-steps" aria-label="Công đoạn {% with pname=job.mo.product_name|default:job.mo.product_code ocode=job.mo.sales_order.code|default:job.mo.code %}{% if pname %}{{ pname }} - {{ ocode }}{% else %}{{ ocode }}{% endif %}{% endwith %}">
         {% for row in job.rows %}
         {% with pname=row.mo.product_name|default:row.mo.product_code ocode=row.mo.sales_order.code|default:row.mo.code %}
@@ -522,6 +545,7 @@
         {% endwith %}
         {% endfor %}
       </ul>
+      {% endif %}
     </article>
     {% endfor %}
   </div>

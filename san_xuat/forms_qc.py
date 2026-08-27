@@ -37,13 +37,22 @@ class QcCriteriaGroupForm(forms.ModelForm):
 class QcCriteriaForm(forms.ModelForm):
     class Meta:
         model = SxQcCriteria
-        fields = ("code", "name", "group", "kind", "is_active")
+        fields = ("code", "name", "team_slug", "group", "kind", "is_active")
         widgets = {
             "code": forms.TextInput(attrs=_FORM_CONTROL),
             "name": forms.TextInput(attrs=_FORM_CONTROL),
+            "team_slug": forms.Select(attrs=_FORM_SELECT),
             "group": forms.Select(attrs=_FORM_SELECT),
             "kind": forms.Select(attrs=_FORM_SELECT),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["team_slug"].required = True
+        self.fields["team_slug"].choices = [("", "— Chọn tổ —")] + list(
+            SxQcCriteria.TEAM_SLUG_CHOICES
+        )
+        self.fields["team_slug"].help_text = "Tab phiếu kiểm tra sẽ hiện tiêu chuẩn của tổ này."
 
 
 class QcSamplingMethodForm(forms.ModelForm):
@@ -103,6 +112,7 @@ class QcRequestForm(forms.ModelForm):
             "product_code",
             "product_name",
             "stage_name",
+            "team_slug",
             "qty",
             "request_date",
             "due_date",
@@ -114,7 +124,8 @@ class QcRequestForm(forms.ModelForm):
             "production_order": forms.Select(attrs=_FORM_SELECT),
             "product_code": forms.TextInput(attrs=_FORM_CONTROL),
             "product_name": forms.TextInput(attrs=_FORM_CONTROL),
-            "stage_name": forms.TextInput(attrs=_FORM_CONTROL),
+            "stage_name": forms.TextInput(attrs={**_FORM_CONTROL, "placeholder": "VD: May, hoàn thiện, QC thành phẩm"}),
+            "team_slug": forms.HiddenInput(),
             "qty": forms.NumberInput(attrs={**_FORM_CONTROL, "step": "0.01", "min": "0.01"}),
             "request_date": forms.DateInput(attrs=_DATE_SM),
             "due_date": forms.DateInput(attrs=_DATE_SM),
@@ -128,7 +139,19 @@ class QcRequestForm(forms.ModelForm):
                     ("cancelled", "Hủy"),
                 ],
             ),
-            "notes": forms.Textarea(attrs={**_FORM_CONTROL, "rows": 3}),
+            "notes": forms.Textarea(attrs={**_FORM_CONTROL, "rows": 2}),
+        }
+        labels = {
+            "stage_name": "Công đoạn",
+            "production_order": "Lệnh sản xuất",
+            "product_code": "Mã SP",
+            "product_name": "Tên SP",
+            "qty": "Số lượng",
+            "request_date": "Ngày yêu cầu",
+            "due_date": "Hạn kiểm",
+            "status": "Trạng thái",
+            "notes": "Ghi chú",
+            "code": "Mã YCKT",
         }
 
     def __init__(self, *args, **kwargs):
@@ -170,7 +193,7 @@ class QcInspectionCreateForm(forms.Form):
     notes = forms.CharField(
         required=False,
         label="Ghi chú",
-        widget=forms.Textarea(attrs={**_FORM_CONTROL, "rows": 3}),
+        widget=forms.Textarea(attrs={**_FORM_CONTROL, "rows": 2}),
     )
 
     def __init__(self, *args, **kwargs):
@@ -188,8 +211,20 @@ class QcInspectionFinalizeForm(forms.ModelForm):
         widgets = {
             "qty_pass": forms.NumberInput(attrs={**_FORM_CONTROL, "step": "0.01", "min": "0"}),
             "qty_fail": forms.NumberInput(attrs={**_FORM_CONTROL, "step": "0.01", "min": "0"}),
-            "notes": forms.Textarea(attrs={**_FORM_CONTROL, "rows": 3}),
+            "notes": forms.Textarea(attrs={**_FORM_CONTROL, "rows": 2}),
         }
+        labels = {
+            "qty_pass": "Số lượng hoàn thành",
+            "qty_fail": "Số lượng lỗi",
+            "notes": "Ghi chú",
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["qty_pass"].localize = False
+        self.fields["qty_fail"].localize = False
+        self.fields["qty_pass"].widget.is_localized = False
+        self.fields["qty_fail"].widget.is_localized = False
 
     def clean(self):
         cleaned = super().clean()
@@ -203,13 +238,27 @@ class QcInspectionFinalizeForm(forms.ModelForm):
 class QcInspectionCriteriaLineForm(forms.ModelForm):
     class Meta:
         model = SxQcInspectionCriteriaLine
-        fields = ("is_pass", "value_text", "value_number", "notes")
-        widgets = {
-            "is_pass": forms.NullBooleanSelect(attrs=_FORM_SELECT),
-            "value_text": forms.TextInput(attrs=_FORM_CONTROL),
-            "value_number": forms.NumberInput(attrs={**_FORM_CONTROL, "step": "0.0001"}),
-            "notes": forms.TextInput(attrs=_FORM_CONTROL),
+        fields = ("is_pass", "notes")
+        labels = {
+            "is_pass": "Kết quả",
+            "notes": "Ghi chú",
         }
+
+    def __init__(self, *args, **kwargs):
+        instance = kwargs.get("instance")
+        if instance is not None and getattr(instance, "is_pass", None) is None:
+            initial = dict(kwargs.get("initial") or {})
+            initial.setdefault("is_pass", True)
+            kwargs["initial"] = initial
+        super().__init__(*args, **kwargs)
+        self.fields["is_pass"].widget = forms.NullBooleanSelect(attrs=_FORM_SELECT)
+        self.fields["is_pass"].widget.choices = [
+            ("true", "Đạt"),
+            ("false", "Không đạt"),
+            ("unknown", "—"),
+        ]
+        self.fields["notes"].widget = forms.TextInput(attrs={**_FORM_CONTROL, "placeholder": "Ghi chú"})
+        self.fields["notes"].required = False
 
 
 class QcInspectionDefectLineForm(forms.Form):

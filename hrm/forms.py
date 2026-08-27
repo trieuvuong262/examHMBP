@@ -1089,13 +1089,14 @@ SAN_XUAT_PERMISSION_SECTIONS = (
     ('Kế hoạch SX', ('plan', 'plan_board', 'plan_inter_step', 'plan_npl', 'npl_pr')),
     (
         'Điều phối',
-        ('dispatch', 'mo', 'material_issue_req', 'handover_status', 'fg_receipt_req', 'subcontract'),
+        ('dispatch', 'mo', 'material_issue_req', 'handover_status', 'fg_receipt_req'),
     ),
     (
         'Phân công SX',
         (
             'team_work', 'team_work_goods', 'team_work_cat', 'team_work_inep',
             'team_work_theu', 'team_work_may', 'team_work_ht', 'team_work_gh',
+            'subcontract',
         ),
     ),
     ('Kiểm tra chất lượng', ('qc_request', 'qc_sheet', 'qc', 'ncr', 'qc_criteria')),

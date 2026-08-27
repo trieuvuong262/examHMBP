@@ -11,11 +11,9 @@ from kho_npl.choices import DOC_STATUS_POSTED
 from san_xuat.hub_models import (
     SxFgReceiptRequest,
     SxMaterialIssueRequest,
-    SxPackingRecord,
     SxProductionOrder,
     SxProductionStat,
     SxQcInspection,
-    SxQcRequest,
 )
 
 
@@ -27,6 +25,7 @@ class ProgressStep:
     detail: str = ""
     url_name: str = ""
     url_pk: int | None = None
+    optional: bool = False
 
 
 @dataclass
@@ -54,6 +53,10 @@ class MoProgress:
     qty_rows: list[QtyCompareRow] = field(default_factory=list)
     done_count: int = 0
     total_steps: int = 0
+    qc_passed: int = 0
+    qc_total: int = 0
+    qc_next_slug: str = ""
+    qc_inspection_id: int | None = None
 
     @property
     def pct_complete(self) -> int:
@@ -77,8 +80,12 @@ class MoProgress:
         return self._step_done("fg")
 
     @property
-    def packing_done(self) -> bool:
-        return self._step_done("packing")
+    def qc_done(self) -> bool:
+        return self._step_done("qc")
+
+    @property
+    def next_qc_slug(self) -> str:
+        return self.qc_next_slug
 
 
 @dataclass
@@ -129,15 +136,6 @@ def _qty_fg(mo: SxProductionOrder) -> Decimal:
     return _dec(agg["s"])
 
 
-def _qty_packing(mo: SxProductionOrder) -> Decimal:
-    agg = SxPackingRecord.objects.filter(
-        is_demo=False,
-        production_order=mo,
-        status=SxPackingRecord.STATUS_CONFIRMED,
-    ).aggregate(s=Sum("qty"))
-    return _dec(agg["s"])
-
-
 def _has_posted_issue(mo: SxProductionOrder) -> tuple[bool, SxMaterialIssueRequest | None]:
     qs = (
         SxMaterialIssueRequest.objects.filter(is_demo=False, production_order=mo)
@@ -154,17 +152,10 @@ def _has_posted_issue(mo: SxProductionOrder) -> tuple[bool, SxMaterialIssueReque
 
 
 def _has_qc_pass(mo: SxProductionOrder) -> tuple[bool, SxQcInspection | None]:
-    insp = (
-        SxQcInspection.objects.filter(
-            is_demo=False,
-            result=SxQcInspection.RESULT_PASS,
-            qc_request__production_order=mo,
-            qc_request__is_demo=False,
-        )
-        .order_by("-pk")
-        .first()
-    )
-    return bool(insp), insp
+    from san_xuat.services.qc import latest_qc_inspection, qc_ready_for_fg
+
+    ok, _msg = qc_ready_for_fg(mo=mo)
+    return ok, latest_qc_inspection(mo=mo)
 
 
 def build_mo_progress(mo: SxProductionOrder) -> MoProgress:
@@ -179,19 +170,10 @@ def build_mo_progress(mo: SxProductionOrder) -> MoProgress:
         .order_by("-pk")
         .first()
     )
-    qc_ok, qc_insp = _has_qc_pass(mo)
+    _, qc_insp = _has_qc_pass(mo)
     fg = (
         SxFgReceiptRequest.objects.filter(is_demo=False, production_order=mo)
         .exclude(status=SxFgReceiptRequest.STATUS_CANCELLED)
-        .order_by("-pk")
-        .first()
-    )
-    pack = (
-        SxPackingRecord.objects.filter(
-            is_demo=False,
-            production_order=mo,
-            status=SxPackingRecord.STATUS_CONFIRMED,
-        )
         .order_by("-pk")
         .first()
     )
@@ -235,53 +217,88 @@ def build_mo_progress(mo: SxProductionOrder) -> MoProgress:
             url_name="san_xuat:dispatch_prod_stats_detail" if stat else "san_xuat:dispatch_prod_stats_create",
             url_pk=stat.pk if stat else None,
         ),
+    ]
+    from san_xuat.services.qc import (
+        QC_STATUS_PASS,
+        latest_qc_inspection_ids_for_mos,
+        ob_qc_progress,
+        ob_qc_teams,
+        qc_ready_for_fg,
+        qc_status_map_for_mos,
+    )
+
+    qc_passed, qc_total, _missing = ob_qc_progress(mo=mo)
+    qc_ok, _qc_block = qc_ready_for_fg(mo=mo)
+    insp_id = latest_qc_inspection_ids_for_mos([mo]).get(mo.pk)
+    next_slug = ""
+    if qc_total and not qc_ok:
+        status_map = qc_status_map_for_mos([mo])
+        for team in ob_qc_teams(mo=mo):
+            if status_map.get((mo.pk, team.slug)) != QC_STATUS_PASS:
+                next_slug = team.slug
+                break
+    if qc_total:
+        qc_label = f"Kiểm tra sản phẩm ({qc_passed}/{qc_total})"
+        if qc_ok:
+            qc_detail = "Đã chốt phiếu"
+        elif qc_passed == qc_total:
+            qc_detail = "Chưa chốt phiếu"
+        else:
+            qc_detail = f"Còn {qc_total - qc_passed} tổ"
+    else:
+        qc_label = "Kiểm tra sản phẩm"
+        qc_detail = qc_insp.code if qc_insp else "Không có tổ Ob"
+    steps.append(
         ProgressStep(
             key="qc",
-            label="Kiểm tra chất lượng Đạt",
+            label=qc_label,
             done=qc_ok,
-            detail=qc_insp.code if qc_insp else "Chưa có phiếu Đạt",
-            url_name="san_xuat:qc_sheet_detail" if qc_insp else "san_xuat:qc_request",
-            url_pk=qc_insp.pk if qc_insp else None,
-        ),
+            detail=qc_detail,
+            url_name="san_xuat:qc_sheet_detail" if insp_id else "san_xuat:qc_stub",
+            url_pk=insp_id,
+        )
+    )
+    qty_good = _qty_good_confirmed(mo)
+    qty_fg = _qty_fg(mo)
+    qty_iss = _qty_issued(mo)
+    qty_req_npl = _qty_requested_npl(mo)
+
+    def _qty_label(value: Decimal) -> str:
+        if value == value.to_integral_value():
+            return str(int(value))
+        return format(value.normalize(), 'f')
+
+    fg_done = planned > 0 and qty_fg >= planned
+    steps.append(
         ProgressStep(
             key="fg",
-            label="Nhập thành phẩm",
-            done=bool(fg),
+            label=f"Nhập thành phẩm ({_qty_label(qty_fg)}/{_qty_label(planned)})",
+            done=fg_done,
             detail=f"{fg.code} · {fg.get_status_display()}" if fg else "Chưa có",
             url_name="san_xuat:dispatch_fg_receipt_req_detail" if fg else "san_xuat:dispatch_fg_receipt_req_create",
             url_pk=fg.pk if fg else None,
-        ),
-        ProgressStep(
-            key="packing",
-            label="Đóng gói đã xác nhận",
-            done=bool(pack),
-            detail=f"{pack.code} · lô {pack.lot_code or '—'}" if pack else "Chưa có",
-            url_name="san_xuat:packing_detail" if pack else "san_xuat:packing_create",
-            url_pk=pack.pk if pack else None,
-        ),
-    ]
-
-    qty_good = _qty_good_confirmed(mo)
-    qty_fg = _qty_fg(mo)
-    qty_pack = _qty_packing(mo)
-    qty_iss = _qty_issued(mo)
-    qty_req_npl = _qty_requested_npl(mo)
+        )
+    )
 
     qty_rows = [
         QtyCompareRow("Số lượng lệnh (kế hoạch)", planned, planned),
         QtyCompareRow("Nguyên phụ liệu yêu cầu / đã xuất", qty_req_npl, qty_iss),
         QtyCompareRow("Sản lượng đạt (thống kê xác nhận)", planned, qty_good),
         QtyCompareRow("Nhập thành phẩm", planned, qty_fg),
-        QtyCompareRow("Đóng gói đã xác nhận", planned, qty_pack),
     ]
 
-    done_count = sum(1 for s in steps if s.done)
+    tracked = [s for s in steps if not s.optional]
+    done_count = sum(1 for s in tracked if s.done)
     return MoProgress(
         mo=mo,
         steps=steps,
         qty_rows=qty_rows,
         done_count=done_count,
-        total_steps=len(steps),
+        total_steps=len(tracked),
+        qc_passed=qc_passed,
+        qc_total=qc_total,
+        qc_next_slug=next_slug,
+        qc_inspection_id=insp_id,
     )
 
 
@@ -293,18 +310,22 @@ def analyze_trace_gaps(*, mo: SxProductionOrder, timeline_len: int = 0, min_even
         "released": "Phát hành lệnh sản xuất trước khi xuất vật tư / ghi sản lượng.",
         "issue": "Tạo và duyệt yêu cầu xuất vật tư (phiếu xuất đã ghi sổ).",
         "stat": "Ghi và xác nhận thống kê sản xuất theo công đoạn.",
-        "qc": "Tạo yêu cầu kiểm tra và chốt phiếu kiểm tra Đạt.",
-        "fg": "Tạo / gửi yêu cầu nhập thành phẩm (liên kết KiotViet nếu dùng).",
-        "packing": "Xác nhận phiếu đóng gói để có mã lô.",
+        "qc": "Hoàn tất Kiểm tra sản phẩm đủ tổ trên Ob trước khi nhập thành phẩm.",
+        "fg": "Tạo / gửi yêu cầu nhập thành phẩm.",
     }
     for step in progress.steps:
-        if step.key == "created" or step.done:
+        if step.key == "created" or step.done or step.optional:
             continue
         gaps.append(
             TraceGap(
                 key=step.key,
                 label=step.label,
-                hint=hints.get(step.key, step.detail or "Bổ sung bước này trên lệnh."),
+                hint=(
+                    hints.get(step.key)
+                    or (hints["qc"] if step.key.startswith("qc_") else None)
+                    or step.detail
+                    or "Bổ sung bước này trên lệnh."
+                ),
                 url_name=step.url_name,
                 url_pk=step.url_pk,
             )

@@ -52,6 +52,12 @@
             {{ form.bom_version }}
             {% if form.bom_version.errors %}<div class="text-danger small mt-1">{{ form.bom_version.errors }}</div>{% endif %}
           </div>
+          <div class="col-12 col-lg-6">
+            <label class="form-label small text-muted" for="{{ form.routing.id_for_label }}">{{ form.routing.label }}</label>
+            {{ form.routing }}
+            {% if form.routing.errors %}<div class="text-danger small mt-1">{{ form.routing.errors }}</div>{% endif %}
+            <div class="form-text small">OB tách riêng với Bom — chọn routing IE theo mã hàng.</div>
+          </div>
         </div>
       </div>
 
@@ -151,6 +157,7 @@
   var productSel = document.getElementById('id_product_code');
   var codeInput = document.getElementById('id_code');
   var bomSel = document.getElementById('id_bom_version');
+  var routingSel = document.getElementById('id_routing');
   var teamHidden = document.getElementById('id_team_label');
   var processHidden = document.getElementById('id_process_name');
   var previewHost = document.getElementById('jp-mo-process-preview');
@@ -158,6 +165,7 @@
   codeInput.classList.add('jp-mo-code-preview');
   var previewUrl = '{% url "san_xuat:mo_code_preview" %}';
   var bomUrl = '{% url "san_xuat:mo_bom_versions" %}';
+  var versionsUrl = '{% url "san_xuat:sales_order_line_versions" %}';
   var TEAM_OPTIONS = {{ team_options_json|default:"[]"|safe }};
   var MANAGER_OPTIONS = {{ manager_options_json|default:"[]"|safe }};
   var POSTED_STEPS = {{ posted_steps_json|default:"[]"|safe }};
@@ -392,7 +400,7 @@
     renderProcessEditor(null);
     var blank = document.createElement('option');
     blank.value = '';
-    blank.textContent = code ? '— Chọn hồ sơ thiết kế —' : '— Chọn mã SX trước —';
+    blank.textContent = code ? '— Chọn Bom —' : '— Chọn mã SX trước —';
     bomSel.appendChild(blank);
     if (!code) return;
     fetch(bomUrl + '?product_code=' + encodeURIComponent(code), {
@@ -427,11 +435,41 @@
       .catch(function () {});
   }
 
+  function loadRoutings() {
+    if (!routingSel) return;
+    var code = (productSel.value || '').trim();
+    var keep = routingSel.value;
+    routingSel.innerHTML = '';
+    var blank = document.createElement('option');
+    blank.value = '';
+    blank.textContent = code ? '— Chọn OB —' : '— Chọn mã SX trước —';
+    routingSel.appendChild(blank);
+    if (!code) return;
+    fetch(versionsUrl + '?product_code=' + encodeURIComponent(code), {
+      headers: { 'Accept': 'application/json' },
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        var rows = (data && data.routings) || [];
+        rows.forEach(function (row) {
+          var opt = document.createElement('option');
+          opt.value = String(row.id);
+          opt.textContent = row.text || row.label || ('#' + row.id);
+          routingSel.appendChild(opt);
+        });
+        if (keep && Array.prototype.some.call(routingSel.options, function (o) { return o.value === keep; })) {
+          routingSel.value = keep;
+        }
+      })
+      .catch(function () {});
+  }
+
   function schedule() {
     if (timer) window.clearTimeout(timer);
     timer = window.setTimeout(function () {
       preview();
       loadBomVersions();
+      loadRoutings();
     }, 120);
   }
 

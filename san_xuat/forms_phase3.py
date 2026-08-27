@@ -10,6 +10,17 @@ from django.forms import formset_factory
 _DATE_SM = {"class": "form-control form-control-sm jp-date-vn", "type": "date"}
 
 
+class _CompactDecimalInput(forms.NumberInput):
+    """Hiện 10 thay vì 10.00 khi phần lẻ = 0."""
+
+    def format_value(self, value):
+        if value is None or value == "":
+            return None
+        from san_xuat.templatetags.sx_format import format_sx_num_input
+
+        return format_sx_num_input(value)
+
+
 class TraceLookupForm(forms.Form):
     query = forms.CharField(
         max_length=80,
@@ -345,21 +356,18 @@ class SubcontractCreateForm(forms.Form):
             "placeholder": "Tự điền khi chọn mã",
         }),
     )
-    process_name = forms.ChoiceField(
-        required=False,
-        label="Công đoạn gia công",
+    production_order = forms.ModelChoiceField(
+        queryset=None,
+        label="Lệnh sản xuất nguồn",
+        widget=forms.Select(attrs={"class": "form-select form-select-sm", "id": "id_production_order"}),
+    )
+    team_slug = forms.ChoiceField(
+        label="Tổ Ob thuê ngoài",
         choices=[],
         widget=forms.Select(attrs={
-            "class": "form-select form-select-sm jp-sx-process-group-select",
-            "data-placeholder": "Chọn nhóm công đoạn…",
+            "class": "form-select form-select-sm",
+            "id": "id_team_slug",
         }),
-    )
-    qty = forms.DecimalField(
-        max_digits=14,
-        decimal_places=2,
-        min_value=Decimal("0.01"),
-        label="Số lượng",
-        widget=forms.NumberInput(attrs={"class": "form-control form-control-sm", "step": "0.01", "min": "0.01"}),
     )
     order_date = forms.DateField(
         label="Ngày",
@@ -370,11 +378,6 @@ class SubcontractCreateForm(forms.Form):
         label="Hạn",
         widget=forms.DateInput(attrs=_DATE_SM),
     )
-    production_order = forms.ModelChoiceField(
-        queryset=None,
-        label="Lệnh sản xuất nguồn",
-        widget=forms.Select(attrs={"class": "form-select form-select-sm"}),
-    )
     notes = forms.CharField(
         required=False,
         label="Ghi chú",
@@ -384,27 +387,58 @@ class SubcontractCreateForm(forms.Form):
     def __init__(self, *args, **kwargs):
         from san_xuat.forms import _product_code_choices
         from san_xuat.hub_models import SxProductionOrder
-        from san_xuat.services.process_catalog import process_group_choices
+        from san_xuat.services.qc import ob_team_options
 
+        lock_source = kwargs.pop("lock_source", False)
         super().__init__(*args, **kwargs)
         data = args[0] if args else None
         extra_product = ""
-        extra_process = ""
+        extra_team = ""
+        mo = None
         if data is not None:
             extra_product = data.get("product_code") or ""
-            extra_process = data.get("process_name") or ""
+            extra_team = (data.get("team_slug") or "").strip().lower()
+            raw_mo = (data.get("production_order") or "").strip()
+            if raw_mo.isdigit():
+                mo = SxProductionOrder.objects.filter(pk=int(raw_mo), is_demo=False).first()
         elif self.initial:
             extra_product = self.initial.get("product_code") or ""
-            extra_process = self.initial.get("process_name") or ""
+            extra_team = (self.initial.get("team_slug") or "").strip().lower()
+            init_mo = self.initial.get("production_order")
+            if getattr(init_mo, "pk", None):
+                mo = init_mo
+            elif str(init_mo or "").isdigit():
+                mo = SxProductionOrder.objects.filter(pk=int(init_mo), is_demo=False).first()
         self.fields["product_code"].choices = _product_code_choices(extra_product)
-        self.fields["process_name"].choices = process_group_choices(extra_value=extra_process)
+        teams = ob_team_options(mo=mo) if mo is not None else []
+        choices = [("", "— Chọn lệnh để lấy tổ Ob —")]
+        if not mo:
+            pass
+        elif not teams:
+            choices = [("", "Lệnh chưa có Ob — không thuê GC được")]
+        else:
+            choices = [("", "— Chọn tổ trên Ob —")] + [(t["slug"], t["label"]) for t in teams]
+            if extra_team and extra_team not in {t["slug"] for t in teams}:
+                choices.append((extra_team, extra_team))
+        self.fields["team_slug"].choices = choices
         self.fields["production_order"].queryset = (
             SxProductionOrder.objects.filter(is_demo=False).order_by("-order_date", "-pk")
         )
         self.fields["production_order"].empty_label = "— Chọn lệnh sản xuất —"
         self.fields["production_order"].label_from_instance = (
-            lambda mo: f"{mo.code} · {mo.product_code}" + (f" — {mo.product_name}" if mo.product_name else "")
+            lambda row: f"{row.code} · {row.product_code}" + (f" — {row.product_name}" if row.product_name else "")
         )
+        if lock_source and mo:
+            self.fields["production_order"].queryset = SxProductionOrder.objects.filter(pk=mo.pk)
+            self.fields["production_order"].empty_label = None
+            self.fields["production_order"].widget = forms.HiddenInput()
+            code = (mo.product_code or extra_product or "").strip()
+            self.fields["product_code"].choices = [(code, code)] if code else self.fields["product_code"].choices
+            self.fields["product_code"].widget = forms.HiddenInput()
+            self.fields["product_name"].widget = forms.HiddenInput()
+            slug = extra_team or ""
+            self.fields["team_slug"].choices = [(slug, slug)] if slug else choices
+            self.fields["team_slug"].widget = forms.HiddenInput()
 
     def clean_product_code(self):
         code = (self.cleaned_data.get("product_code") or "").strip()
@@ -417,16 +451,8 @@ class SubcontractCreateForm(forms.Form):
             raise forms.ValidationError(f"Mã {code} không có trong kho sản phẩm.")
         return ref.code
 
-    def clean_process_name(self):
-        from san_xuat.services.process_catalog import resolve_process_group_name
-
-        name = (self.cleaned_data.get("process_name") or "").strip()
-        if not name:
-            return ""
-        standard = resolve_process_group_name(name)
-        if not standard:
-            raise forms.ValidationError("Chọn công đoạn từ danh mục nhóm công đoạn.")
-        return standard
+    def clean_team_slug(self):
+        return (self.cleaned_data.get("team_slug") or "").strip().lower()
 
     def clean(self):
         cleaned = super().clean()
@@ -436,18 +462,27 @@ class SubcontractCreateForm(forms.Form):
             ref = resolve_product_ref(cleaned["product_code"])
             if ref:
                 cleaned["product_name"] = ref.name
+        mo = cleaned.get("production_order")
+        slug = cleaned.get("team_slug") or ""
+        if mo and slug:
+            from san_xuat.services.qc import ob_team_options
+
+            allowed = {t["slug"] for t in ob_team_options(mo=mo)}
+            if slug not in allowed:
+                self.add_error(
+                    "team_slug",
+                    "Tổ không có trên Ob của lệnh này. Chỉ thuê GC đúng tổ Ob.",
+                )
+        elif mo and not slug:
+            self.add_error("team_slug", "Chọn tổ Ob thuê ngoài.")
         return cleaned
 
 
 class SubcontractMaterialLineForm(forms.Form):
-    material_code = forms.ChoiceField(
-        required=False,
+    material_code = forms.CharField(
+        max_length=60,
         label="Mã",
-        choices=[],
-        widget=forms.Select(attrs={
-            "class": "form-select form-select-sm jp-gc-out-item-select",
-            "data-placeholder": "Gõ mã / tên NPL hoặc BTP…",
-        }),
+        widget=forms.HiddenInput(),
     )
     material_name = forms.CharField(
         max_length=255,
@@ -465,7 +500,7 @@ class SubcontractMaterialLineForm(forms.Form):
         min_value=Decimal("0"),
         required=False,
         label="Số lượng",
-        widget=forms.NumberInput(attrs={
+        widget=_CompactDecimalInput(attrs={
             "class": "form-control form-control-sm jp-so-qty-total",
             "step": "0.01",
             "min": "0",
@@ -481,59 +516,23 @@ class SubcontractMaterialLineForm(forms.Form):
             "tabindex": "-1",
         }),
     )
-    lot_code = forms.CharField(
-        max_length=60,
-        required=False,
-        label="Lô",
-        widget=forms.TextInput(attrs={"class": "form-control form-control-sm"}),
-    )
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        extra = ""
-        if self.is_bound:
-            extra = (self.data.get(self.add_prefix("material_code")) or "").strip()
-        elif self.initial:
-            extra = (self.initial.get("material_code") or "").strip()
-        choices: list[tuple[str, str]] = [("", "— Chọn NPL / BTP —")]
-        if extra:
-            choices.append((extra, extra))
-        self.fields["material_code"].choices = choices
 
     def clean_material_code(self):
-        raw = (self.cleaned_data.get("material_code") or "").strip()
-        if not raw:
-            return ""
-        from san_xuat.services.products import resolve_gc_out_item
-
-        try:
-            code, name, uom = resolve_gc_out_item(raw)
-        except ValueError as exc:
-            raise forms.ValidationError(str(exc)) from exc
-        self._resolved_code = code
-        self._resolved_name = name
-        self._resolved_uom = uom
-        return raw
+        return (self.cleaned_data.get("material_code") or "").strip()
 
     def clean(self):
         cleaned = super().clean()
-        code = getattr(self, "_resolved_code", "") or ""
+        code = (cleaned.get("material_code") or "").strip()
         qty = cleaned.get("qty")
         if qty and qty > 0 and not code:
-            self.add_error("material_code", "Chọn NPL / BTP từ danh mục.")
-        if code:
-            cleaned["material_code"] = code
-        if not (cleaned.get("material_name") or "").strip():
-            cleaned["material_name"] = getattr(self, "_resolved_name", "") or ""
-        if not (cleaned.get("uom_label") or "").strip():
-            cleaned["uom_label"] = getattr(self, "_resolved_uom", "") or ""
+            self.add_error("material_code", "Thiếu mã NPL.")
         return cleaned
 
 
 SubcontractOutLineFormSet = formset_factory(
     SubcontractMaterialLineForm,
-    extra=1,
-    can_delete=True,
+    extra=0,
+    can_delete=False,
 )
 
 

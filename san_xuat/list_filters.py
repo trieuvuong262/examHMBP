@@ -47,6 +47,7 @@ class SxFilterSpec:
     name_fields: tuple[str, ...] = ('name',)
     date_field: str | None = None
     date_range_fields: tuple[str, str] | None = None
+    status_field: str | None = None
 
 
 @dataclass
@@ -56,10 +57,11 @@ class SxListFilters:
     date_from: date | None = None
     date_to: date | None = None
     dates_defaulted: bool = False
+    status: str = ''
 
     @property
     def has_filters(self) -> bool:
-        if self.code or self.name:
+        if self.code or self.name or self.status:
             return True
         if self.dates_defaulted:
             return False
@@ -97,6 +99,7 @@ def _coalesce_list_date_range(
 def parse_sx_list_filters(request: HttpRequest) -> SxListFilters:
     code = (request.GET.get('code') or request.GET.get('q') or '').strip()
     name = (request.GET.get('name') or '').strip()
+    status = (request.GET.get('status') or '').strip()
     span_days = parse_date_range_span_from_request(request, default=LIST_DATE_RANGE_DAYS)
 
     if 'date_from' in request.GET or 'date_to' in request.GET or 'span' in request.GET:
@@ -113,6 +116,7 @@ def parse_sx_list_filters(request: HttpRequest) -> SxListFilters:
             date_from=date_from,
             date_to=date_to,
             dates_defaulted=dates_defaulted and 'date_from' not in request.GET and 'date_to' not in request.GET,
+            status=status,
         )
 
     date_from, date_to = default_list_date_range(days=span_days)
@@ -122,6 +126,7 @@ def parse_sx_list_filters(request: HttpRequest) -> SxListFilters:
         date_from=date_from,
         date_to=date_to,
         dates_defaulted=True,
+        status=status,
     )
 
 
@@ -161,6 +166,9 @@ def apply_sx_list_filters(qs: QuerySet, filters: SxListFilters, spec: SxFilterSp
             q |= Q(**{f'{field}__icontains': filters.name})
         qs = qs.filter(q)
 
+    if filters.status and spec.status_field:
+        qs = qs.filter(**{spec.status_field: filters.status})
+
     if filters.date_from or filters.date_to:
         # Tìm theo mã cụ thể (kể cả ?q= từ KHSX) — không cắt bởi khoảng ngày mặc định.
         if filters.dates_defaulted and filters.code:
@@ -190,6 +198,7 @@ def sx_filter_context(filters: SxListFilters, *, preserve: dict[str, str] | None
         'filter_date_to': filters.date_to.isoformat() if filters.date_to else '',
         'has_list_filters': filters.has_filters,
         'list_filter_preserve': preserve,
+        'list_filter_status_value': filters.status,
         **span_ctx,
     }
 
@@ -222,6 +231,7 @@ def resolve_sx_period(
                 date_from=date_from,
                 date_to=date_to,
                 dates_defaulted=False,
+                status=filters.status,
             )
             return date_from, date_to, filters
 
@@ -252,8 +262,13 @@ def prepare_hub_list(
     list_key: str | None = None,
     limit: int = 200,
     preserve: dict[str, str] | None = None,
+    status_choices: Iterable[tuple[str, str]] | None = None,
 ) -> tuple[QuerySet, dict[str, Any]]:
     filters = parse_sx_list_filters(request)
+    if status_choices is not None and filters.status:
+        allowed = {str(v) for v, _label in status_choices}
+        if filters.status not in allowed:
+            filters.status = ''
     if hasattr(qs.model, 'created_by_id'):
         qs = qs.select_related('created_by')
     filtered = apply_sx_list_filters(qs, filters, spec)
@@ -263,6 +278,9 @@ def prepare_hub_list(
         filtered = apply_sx_list_sort(filtered, request, list_key)
     filtered = filtered[:limit]
     ctx = sx_filter_context(filters, preserve=preserve)
+    if status_choices is not None:
+        ctx['list_filter_status_options'] = [('', 'Tất cả'), *list(status_choices)]
+        ctx['list_filter_status_value'] = filters.status
     if list_key:
         ctx.update(sx_list_grid_context(request, list_key))
     return filtered, ctx
@@ -322,6 +340,7 @@ SX_FILTER_MO = SxFilterSpec(
     code_fields=('code', 'product_code', 'sales_order__code'),
     name_fields=('product_name', 'team_label', 'sales_order__customer_name'),
     date_field='order_date',
+    status_field='status',
 )
 SX_FILTER_DISASSEMBLY = SxFilterSpec(
     code_fields=('code', 'product_code'),
@@ -393,8 +412,16 @@ SX_FILTER_PACKING = SxFilterSpec(
 )
 SX_FILTER_SUBCONTRACT = SxFilterSpec(
     code_fields=('code', 'product_code'),
-    name_fields=('vendor_name', 'product_name', 'process_name'),
+    name_fields=('vendor_name', 'product_name', 'process_name', 'team_slug'),
     date_field='order_date',
+)
+
+# Trạng thái nghiệp vụ trên danh sách GC (không dùng draft/sent/received thô).
+SUBCONTRACT_WORK_STATUS_RUNNING = 'running'
+SUBCONTRACT_WORK_STATUS_DONE = 'done'
+SUBCONTRACT_WORK_STATUS_CHOICES = (
+    (SUBCONTRACT_WORK_STATUS_RUNNING, 'Đang sản xuất'),
+    (SUBCONTRACT_WORK_STATUS_DONE, 'Hoàn thành'),
 )
 SX_FILTER_WORK_CENTER = SxFilterSpec(name_fields=('name', 'team_label'), date_field='created_at')
 

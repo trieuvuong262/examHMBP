@@ -21,7 +21,7 @@
       <th>Nguyên phụ liệu</th>
       <th style="width:18%">SL yêu cầu</th>
       <th style="width:18%">SL đã xuất</th>
-      <th style="width:16%">Vị trí</th>
+      <th style="width:16%">Kho</th>
     </tr>
   </thead>
   <tbody>
@@ -34,7 +34,7 @@
       </td>
       <td class="text-end">{{ line.qty_requested|sx_num }}</td>
       <td class="text-end">{{ line.qty_issued|sx_num }}</td>
-      <td class="text-center">{{ line.preferred_location.code|default:"—" }}</td>
+      <td class="text-center">{% if line.preferred_location %}{{ line.preferred_location.name|default:line.preferred_location.code }}{% else %}—{% endif %}</td>
     </tr>
   {% empty %}
     <tr><td colspan="5" class="text-center">Chưa có dòng NPL.</td></tr>

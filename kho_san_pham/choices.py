@@ -113,6 +113,7 @@ MOVEMENT_DIRECTION = {
 }
 
 DOC_TYPE_FG_RECEIPT = 'fg_receipt'
+DOC_TYPE_STOCK_RECEIPT = 'stock_receipt'
 DOC_TYPE_INVOICE = 'invoice'
 DOC_TYPE_SALE_RETURN = 'sale_return'
 DOC_TYPE_TRANSFER = 'transfer'
@@ -122,12 +123,22 @@ DOC_TYPE_DISPOSAL = 'disposal'
 
 DOC_TYPE_CHOICES = [
     (DOC_TYPE_FG_RECEIPT, 'Yêu cầu nhập thành phẩm'),
+    (DOC_TYPE_STOCK_RECEIPT, 'Phiếu nhập kho thành phẩm'),
     (DOC_TYPE_INVOICE, 'Hóa đơn bán'),
     (DOC_TYPE_SALE_RETURN, 'Phiếu trả hàng'),
     (DOC_TYPE_TRANSFER, 'Phiếu chuyển kho'),
     (DOC_TYPE_STOCKTAKE, 'Phiếu kiểm kê'),
     (DOC_TYPE_KV_ONHAND, 'Tồn KiotViet (cửa hàng)'),
     (DOC_TYPE_DISPOSAL, 'Phiếu hủy'),
+]
+
+DOC_STATUS_DRAFT = 'draft'
+DOC_STATUS_POSTED = 'posted'
+DOC_STATUS_CANCELLED = 'cancelled'
+DOC_STATUS_CHOICES = [
+    (DOC_STATUS_DRAFT, 'Nháp'),
+    (DOC_STATUS_POSTED, 'Đã nhập kho'),
+    (DOC_STATUS_CANCELLED, 'Hủy'),
 ]
 
 # Mã kho seed — chốt ngày 20/08/2026, toàn hệ chỉ có 2 địa điểm.

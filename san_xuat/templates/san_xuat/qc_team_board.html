@@ -1,0 +1,120 @@
+{% extends 'base.html' %}
+{% load sx_format %}
+
+{% block extra_head %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+{% include 'san_xuat/includes/sx_qc_compact_styles.html' %}
+<style>
+.jp-qc-board-sec { font-size: .72rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #64748b; margin: 1rem 0 .45rem; }
+.jp-qc-pend { display: flex; flex-direction: column; gap: .55rem; margin-bottom: 1rem; }
+.jp-qc-pend-item {
+  display: flex; flex-wrap: wrap; align-items: center; gap: .45rem .85rem;
+  border: 1px solid #e8edf3; border-radius: .55rem; background: #fff; padding: .55rem .75rem;
+}
+.jp-qc-chip {
+  display: inline-flex; padding: .12rem .5rem; border-radius: 999px; font-size: .7rem; font-weight: 800;
+  border: 1px solid #e2e8f0; color: #64748b;
+}
+.jp-qc-chip.is-pass { color: #15803d; background: #f0fdf4; border-color: #bbf7d0; }
+.jp-qc-chip.is-fail { color: #b91c1c; background: #fef2f2; border-color: #fecaca; }
+.jp-qc-chip.is-open, .jp-qc-chip.is-idle { color: #b45309; background: #fffbeb; border-color: #fde68a; }
+.jp-qc-table-wrap { border: 1px solid #e8edf3; border-radius: .55rem; background: #fff; overflow: auto; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title w-100">QC {{ team.label }}</h2>
+    </div>
+    <nav class="jp-sx-tools" aria-label="Công cụ">
+      <a href="{% url 'san_xuat:qc_stub' %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Tiến độ QC</a>
+      {% if can_create %}
+      <a href="{% url 'san_xuat:qc_request_create' %}?team={{ team.slug }}"><i class="bi bi-plus-lg" aria-hidden="true"></i>Tạo YCKT</a>
+      {% endif %}
+    </nav>
+  </div>
+
+  <form method="get" class="d-flex gap-2 mb-3" role="search">
+    <input type="search" name="q" value="{{ search_query }}" class="form-control form-control-sm" placeholder="Lệnh / mã SP / YCKT…" style="max-width:22rem">
+    <button type="submit" class="btn btn-outline-secondary btn-sm">Lọc</button>
+  </form>
+
+  <p class="jp-qc-board-sec">Hàng đợi tổ {{ team.label }}</p>
+  {% if pending_mos %}
+  <div class="jp-qc-pend">
+    {% for item in pending_mos %}
+    <div class="jp-qc-pend-item">
+      <a class="fw-bold text-decoration-none" href="{% url 'san_xuat:dispatch_mo_detail' item.row.mo.pk %}">
+        {{ item.row.mo.product_name|default:item.row.mo.product_code }}
+      </a>
+      <span class="small text-muted">{{ item.row.mo.sales_order.code|default:item.row.mo.code }}</span>
+      <span class="jp-qc-chip is-{{ item.cell.qc_status }}">{{ item.status_label }}</span>
+      {% if can_create %}
+      <a class="btn btn-sm btn-outline-hm ms-auto" href="{% url 'san_xuat:qc_request_create' %}?mo={{ item.row.mo.pk }}&amp;team={{ team.slug }}">Tạo YCKT</a>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="text-muted small mb-3">Không có lệnh Ob của tổ này đang chờ QC.</p>
+  {% endif %}
+
+  <p class="jp-qc-board-sec">Yêu cầu kiểm tra</p>
+  <div class="jp-qc-table-wrap mb-4">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Mã</th>
+          <th>Lệnh</th>
+          <th>Sản phẩm</th>
+          <th class="text-end">SL</th>
+          <th>Ngày</th>
+          <th>Trạng thái</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for req in requests %}
+        <tr class="jp-npl-catalog-row" data-href="{% url 'san_xuat:qc_request_detail' req.pk %}">
+          <td><a href="{% url 'san_xuat:qc_request_detail' req.pk %}" class="fw-bold">{{ req.code }}</a></td>
+          <td>{% if req.production_order %}<a href="{% url 'san_xuat:dispatch_mo_detail' req.production_order.pk %}">{{ req.production_order.code }}</a>{% else %}—{% endif %}</td>
+          <td>{{ req.product_code }}</td>
+          <td class="text-end">{{ req.qty|sx_num }}</td>
+          <td>{{ req.request_date|date:"d/m/Y" }}</td>
+          <td>{{ req.status }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="text-center text-muted py-3">Chưa có YCKT tổ {{ team.label }}.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <p class="jp-qc-board-sec">Phiếu kiểm tra</p>
+  <div class="jp-qc-table-wrap">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>Mã</th>
+          <th>YCKT</th>
+          <th>Kết quả</th>
+          <th>Ngày kiểm</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for sheet in sheets %}
+        <tr>
+          <td><a href="{% url 'san_xuat:qc_sheet_detail' sheet.pk %}" class="fw-bold">{{ sheet.code }}</a></td>
+          <td>{% if sheet.qc_request %}<a href="{% url 'san_xuat:qc_request_detail' sheet.qc_request.pk %}">{{ sheet.qc_request.code }}</a>{% else %}—{% endif %}</td>
+          <td>{{ sheet.get_result_display }}</td>
+          <td>{{ sheet.inspected_at|date:"d/m/Y" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4" class="text-center text-muted py-3">Chưa có phiếu kiểm tra tổ {{ team.label }}.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

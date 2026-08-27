@@ -878,15 +878,14 @@
                 {% jp_can_menu 'san_xuat' 'material_issue_req' as jp_can_san_xuat_mat_issue %}
                 {% jp_can_menu 'san_xuat' 'fg_receipt_req' as jp_can_san_xuat_fg_req %}
                 {% jp_can_menu 'san_xuat' 'handover_status' as jp_can_san_xuat_ho_status %}
-                {% jp_can_menu 'san_xuat' 'subcontract' as jp_can_san_xuat_sub %}
-                {% if jp_can_san_xuat_dispatch or jp_can_san_xuat_mo or jp_can_san_xuat_mat_issue or jp_can_san_xuat_fg_req or jp_can_san_xuat_ho_status or jp_can_san_xuat_sub %}
-                <li class="jp-sidebar-nested-group{% if '/san-xuat/dieu-phoi' in request.path or 'thue-gia-cong' in request.path %} is-open{% endif %}"
+                {% if jp_can_san_xuat_dispatch or jp_can_san_xuat_mo or jp_can_san_xuat_mat_issue or jp_can_san_xuat_fg_req or jp_can_san_xuat_ho_status %}
+                <li class="jp-sidebar-nested-group{% if '/san-xuat/dieu-phoi' in request.path %} is-open{% endif %}"
                     data-sx-area="dispatch" data-sx-icon="bi-diagram-2" data-sx-label="Điều phối"
                     data-sx-href="{% if jp_can_san_xuat_mo or jp_can_san_xuat_dispatch %}{% url 'san_xuat:dispatch_mo' %}{% elif jp_can_san_xuat_mat_issue %}{% url 'san_xuat:dispatch_material_issue_req' %}{% else %}{% url 'san_xuat:dispatch_handover_status' %}{% endif %}">
                     <button type="button"
                             class="jp-sidebar-nested-toggle"
                             data-jp-sidebar-group-toggle
-                            aria-expanded="{% if '/san-xuat/dieu-phoi' in request.path or 'thue-gia-cong' in request.path %}true{% else %}false{% endif %}"
+                            aria-expanded="{% if '/san-xuat/dieu-phoi' in request.path %}true{% else %}false{% endif %}"
                             aria-controls="jp-sidebar-san-xuat-dispatch-submenu">
                         <span class="jp-sidebar-nested-toggle-main">
                             <i class="bi bi-diagram-2"></i><span>Điều phối</span>
@@ -926,14 +925,6 @@
                             </a>
                         </li>
                         {% endif %}
-                        {% if jp_can_san_xuat_sub %}
-                        <li>
-                            <a href="{% url 'san_xuat:subcontract_list' %}"
-                               class="jp-sidebar-link jp-sidebar-sublink {% if 'thue-gia-cong' in request.path %}active{% endif %}">
-                                <i class="bi bi-building"></i><span>Thuê gia công</span>
-                            </a>
-                        </li>
-                        {% endif %}
                     </ul>
                 </li>
                 {% endif %}
@@ -947,14 +938,15 @@
                 {% jp_can_menu 'san_xuat' 'team_work_may' as jp_can_tw_may %}
                 {% jp_can_menu 'san_xuat' 'team_work_ht' as jp_can_tw_ht %}
                 {% jp_can_menu 'san_xuat' 'team_work_gh' as jp_can_tw_gh %}
-                {% if jp_can_tw or jp_can_tw_goods or jp_can_tw_cat or jp_can_tw_inep or jp_can_tw_theu or jp_can_tw_may or jp_can_tw_ht or jp_can_tw_gh %}
-                <li class="jp-sidebar-nested-group{% if '/san-xuat/cong-viec-to' in request.path %} is-open{% endif %}"
+                {% jp_can_menu 'san_xuat' 'subcontract' as jp_can_san_xuat_sub %}
+                {% if jp_can_tw or jp_can_tw_goods or jp_can_tw_cat or jp_can_tw_inep or jp_can_tw_theu or jp_can_tw_may or jp_can_tw_ht or jp_can_tw_gh or jp_can_san_xuat_sub %}
+                <li class="jp-sidebar-nested-group{% if '/san-xuat/cong-viec-to' in request.path or 'thue-gia-cong' in request.path %} is-open{% endif %}"
                     data-sx-area="team_work" data-sx-icon="bi-people" data-sx-label="Phân công SX"
-                    data-sx-href="{% url 'san_xuat:team_work_goods' %}">
+                    data-sx-href="{% if jp_can_tw or jp_can_tw_goods %}{% url 'san_xuat:team_work_goods' %}{% elif jp_can_tw_cat %}{% url 'san_xuat:team_work_board' 'cat' %}{% elif jp_can_tw_inep %}{% url 'san_xuat:team_work_board' 'inep' %}{% elif jp_can_tw_theu %}{% url 'san_xuat:team_work_board' 'theu' %}{% elif jp_can_tw_may %}{% url 'san_xuat:team_work_board' 'may' %}{% elif jp_can_tw_ht %}{% url 'san_xuat:team_work_board' 'ht' %}{% elif jp_can_tw_gh %}{% url 'san_xuat:team_work_board' 'gh' %}{% else %}{% url 'san_xuat:subcontract_list' %}{% endif %}">
                     <button type="button"
                             class="jp-sidebar-nested-toggle"
                             data-jp-sidebar-group-toggle
-                            aria-expanded="{% if '/san-xuat/cong-viec-to' in request.path %}true{% else %}false{% endif %}"
+                            aria-expanded="{% if '/san-xuat/cong-viec-to' in request.path or 'thue-gia-cong' in request.path %}true{% else %}false{% endif %}"
                             aria-controls="jp-sidebar-san-xuat-team-work-submenu">
                         <span class="jp-sidebar-nested-toggle-main">
                             <i class="bi bi-people"></i><span>Phân công SX</span>
@@ -1018,6 +1010,14 @@
                             </a>
                         </li>
                         {% endif %}
+                        {% if jp_can_san_xuat_sub %}
+                        <li>
+                            <a href="{% url 'san_xuat:subcontract_list' %}"
+                               class="jp-sidebar-link jp-sidebar-sublink {% if 'thue-gia-cong' in request.path %}active{% endif %}">
+                                <i class="bi bi-building"></i><span>Thuê gia công</span>
+                            </a>
+                        </li>
+                        {% endif %}
                     </ul>
                 </li>
                 {% endif %}
@@ -1030,15 +1030,14 @@
                 {% jp_can_menu 'san_xuat' 'qc_sheet' as jp_can_san_xuat_qc_sheet %}
                 {% jp_can_menu 'san_xuat' 'qc_criteria' as jp_can_san_xuat_qc_crit %}
                 {% jp_can_menu 'san_xuat' 'qc_standard_set' as jp_can_san_xuat_qc_std %}
-                {% jp_can_menu 'san_xuat' 'ncr' as jp_can_san_xuat_ncr %}
-                {% if jp_can_san_xuat_qc or jp_can_san_xuat_qc_req or jp_can_san_xuat_qc_sheet or jp_can_san_xuat_qc_crit or jp_can_san_xuat_qc_std or jp_can_san_xuat_ncr %}
-                <li class="jp-sidebar-nested-group{% if '/san-xuat/chat-luong' in request.path or '/san-xuat/ncr' in request.path %} is-open{% endif %}"
+                {% if jp_can_san_xuat_qc or jp_can_san_xuat_qc_req or jp_can_san_xuat_qc_sheet or jp_can_san_xuat_qc_crit or jp_can_san_xuat_qc_std %}
+                <li class="jp-sidebar-nested-group{% if '/san-xuat/chat-luong' in request.path %} is-open{% endif %}"
                     data-sx-area="qc" data-sx-icon="bi-clipboard-check" data-sx-label="Kiểm tra chất lượng"
-                    data-sx-href="{% if jp_can_san_xuat_qc_req or jp_can_san_xuat_qc %}{% url 'san_xuat:qc_request' %}{% elif jp_can_san_xuat_qc_sheet %}{% url 'san_xuat:qc_sheet' %}{% else %}{% url 'san_xuat:ncr_list' %}{% endif %}">
+                    data-sx-href="{% if jp_can_san_xuat_qc_sheet or jp_can_san_xuat_qc or jp_can_san_xuat_qc_req %}{% url 'san_xuat:qc_sheet' %}{% else %}{% url 'san_xuat:qc_standards' %}{% endif %}">
                     <button type="button"
                             class="jp-sidebar-nested-toggle"
                             data-jp-sidebar-group-toggle
-                            aria-expanded="{% if '/san-xuat/chat-luong' in request.path or '/san-xuat/ncr' in request.path %}true{% else %}false{% endif %}"
+                            aria-expanded="{% if '/san-xuat/chat-luong' in request.path %}true{% else %}false{% endif %}"
                             aria-controls="jp-sidebar-san-xuat-qc-submenu">
                         <span class="jp-sidebar-nested-toggle-main">
                             <i class="bi bi-clipboard-check"></i><span>Kiểm tra chất lượng</span>
@@ -1046,42 +1045,27 @@
                         <i class="bi bi-chevron-down jp-sidebar-nested-chevron" aria-hidden="true"></i>
                     </button>
                     <ul class="jp-sidebar-nested-submenu" id="jp-sidebar-san-xuat-qc-submenu">
-                        {% if jp_can_san_xuat_qc_req or jp_can_san_xuat_qc %}
+                        {% if jp_can_san_xuat_qc or jp_can_san_xuat_qc_req or jp_can_san_xuat_qc_sheet %}
                         <li>
-                            <a href="{% url 'san_xuat:qc_request' %}"
-                               class="jp-sidebar-link jp-sidebar-sublink {% if 'qc_request' in request.resolver_match.url_name %}active{% endif %}">
-                                <i class="bi bi-clipboard-plus"></i><span>Yêu cầu kiểm tra</span>
+                            <a href="{% url 'san_xuat:qc_stub' %}"
+                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'qc_stub' %}active{% endif %}">
+                                <i class="bi bi-bar-chart-line"></i><span>Tiến độ QC</span>
                             </a>
                         </li>
                         {% endif %}
-                        {% if jp_can_san_xuat_qc_sheet or jp_can_san_xuat_qc %}
+                        {% if jp_can_san_xuat_qc_sheet or jp_can_san_xuat_qc or jp_can_san_xuat_qc_req %}
                         <li>
                             <a href="{% url 'san_xuat:qc_sheet' %}"
-                               class="jp-sidebar-link jp-sidebar-sublink {% if 'qc_sheet' in request.resolver_match.url_name %}active{% endif %}">
+                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'qc_sheet' or request.resolver_match.url_name == 'qc_sheet_create' or request.resolver_match.url_name == 'qc_sheet_detail' or request.resolver_match.url_name == 'qc_team_board' %}active{% endif %}">
                                 <i class="bi bi-clipboard-check"></i><span>Phiếu kiểm tra</span>
                             </a>
                         </li>
                         {% endif %}
-                        {% if jp_can_san_xuat_qc or jp_can_san_xuat_qc_req %}
-                        <li>
-                            <a href="{% url 'san_xuat:qc_alerts' %}"
-                               class="jp-sidebar-link jp-sidebar-sublink {% if 'qc_alert' in request.resolver_match.url_name %}active{% endif %}">
-                                <i class="bi bi-exclamation-octagon"></i><span>Cảnh báo chất lượng</span>
-                            </a>
-                        </li>
-                        {% endif %}
-                        {% if jp_can_san_xuat_ncr %}
-                        <li>
-                            <a href="{% url 'san_xuat:ncr_list' %}"
-                               class="jp-sidebar-link jp-sidebar-sublink {% if '/san-xuat/ncr' in request.path %}active{% endif %}">
-                                <i class="bi bi-exclamation-octagon"></i><span>Không phù hợp</span>
-                            </a>
-                        </li>
-                        {% endif %}
+                        {# Cảnh báo QC / NCR — tạm ẩn khỏi menu; URL /chat-luong/canh-bao/ và /ncr/ vẫn mở được #}
                         {% if jp_can_san_xuat_qc or jp_can_san_xuat_qc_crit or jp_can_san_xuat_qc_std %}
                         <li>
-                            <a href="{% url 'san_xuat:qc_stub' %}"
-                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'qc_stub' or 'qc_criteria' in request.resolver_match.url_name or 'qc_sampling' in request.resolver_match.url_name or 'qc_standard' in request.resolver_match.url_name or 'qc_defect' in request.resolver_match.url_name %}active{% endif %}">
+                            <a href="{% url 'san_xuat:qc_standards' %}"
+                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'qc_standards' or 'qc_criteria' in request.resolver_match.url_name or 'qc_sampling' in request.resolver_match.url_name or 'qc_standard' in request.resolver_match.url_name or 'qc_defect' in request.resolver_match.url_name %}active{% endif %}">
                                 <i class="bi bi-journal-bookmark"></i><span>Tiêu chuẩn chất lượng</span>
                             </a>
                         </li>

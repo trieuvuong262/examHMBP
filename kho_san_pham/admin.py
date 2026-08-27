@@ -8,6 +8,8 @@ from kho_san_pham.models import (
     ProductTypeKvMap,
     StockBalance,
     StockLedger,
+    StockReceipt,
+    StockReceiptLine,
     Warehouse,
 )
 
@@ -93,4 +95,35 @@ class NegativeStockAlertAdmin(admin.ModelAdmin):
     readonly_fields = ('ledger_entry', 'product_code', 'warehouse_code', 'balance_after', 'created_at')
 
     def has_add_permission(self, request):
+        return False
+
+
+class StockReceiptLineInline(admin.TabularInline):
+    model = StockReceiptLine
+    extra = 0
+    readonly_fields = ('product', 'quantity', 'unit_cost', 'size_label', 'color_label', 'notes')
+    can_delete = False
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(StockReceipt)
+class StockReceiptAdmin(admin.ModelAdmin):
+    list_display = (
+        'number', 'receipt_date', 'warehouse', 'production_order_code',
+        'product_code', 'status', 'posted_at',
+    )
+    list_filter = ('status', 'warehouse', 'receipt_date')
+    search_fields = ('number', 'production_order_code', 'product_code', 'notes')
+    readonly_fields = (
+        'number', 'receipt_date', 'warehouse', 'status', 'production_order_code',
+        'product_code', 'fg_receipt', 'notes', 'created_by', 'posted_at', 'created_at',
+    )
+    inlines = [StockReceiptLineInline]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
         return False

@@ -31,8 +31,8 @@ def _product_code_choices(extra_value: str = "") -> list[tuple[str, str]]:
 
 
 def _bom_version_choices(product_code: str = "") -> list[tuple[str, str]]:
-    """Các hồ sơ thiết kế (BOM version) của mã SX — dùng để gắn LSX + lấy tổ/công đoạn."""
-    choices: list[tuple[str, str]] = [("", "— Chọn hồ sơ thiết kế —")]
+    """Các phiên bản Bom của mã SX — gắn LSX (tách riêng với OB)."""
+    choices: list[tuple[str, str]] = [("", "— Chọn Bom —")]
     code = (product_code or "").strip()
     if not code:
         return choices
@@ -50,6 +50,23 @@ def _bom_version_choices(product_code: str = "") -> list[tuple[str, str]]:
         if note:
             label = f"{label} — {note[:40]}"
         choices.append((str(bom.pk), label))
+    return choices
+
+
+def _routing_choices(product_code: str = "") -> list[tuple[str, str]]:
+    """Các OB (routing IE) theo mã hàng — gắn LSX, tách riêng với Bom."""
+    choices: list[tuple[str, str]] = [("", "— Chọn OB —")]
+    code = (product_code or "").strip()
+    if not code:
+        return choices
+    from san_xuat.services.order_routing import routings_for_product
+
+    for rt in routings_for_product(code):
+        label = (rt.routing_id or f"#{rt.pk}").strip()
+        rev = (rt.routing_rev or "").strip()
+        if rev and rev not in label:
+            label = f"{label} · {rev}"
+        choices.append((str(rt.pk), label))
     return choices
 
 
@@ -197,14 +214,24 @@ class ProductionOrderCreateForm(forms.Form):
     )
     bom_version = forms.ChoiceField(
         required=True,
-        label="Hồ sơ thiết kế",
+        label="Bom",
         choices=[],
-        error_messages={"required": "Chọn hồ sơ thiết kế."},
+        error_messages={"required": "Chọn Bom."},
         widget=forms.Select(attrs={
             **_SELECT_SM,
             "id": "id_bom_version",
             "class": f"{_SELECT_SM['class']} jp-mo-bom-version",
             "required": "required",
+        }),
+    )
+    routing = forms.ChoiceField(
+        required=False,
+        label="OB",
+        choices=[],
+        widget=forms.Select(attrs={
+            **_SELECT_SM,
+            "id": "id_routing",
+            "class": f"{_SELECT_SM['class']} jp-mo-routing",
         }),
     )
     qty = forms.DecimalField(
@@ -301,6 +328,7 @@ class ProductionOrderCreateForm(forms.Form):
         self.fields["team_label"].choices = work_center_team_choices(extra_value=extra_team)
         self.fields["process_name"].choices = bom_process_choices(bom, extra_value=extra_process)
         self.fields["bom_version"].choices = _bom_version_choices(extra_product)
+        self.fields["routing"].choices = _routing_choices(extra_product)
 
     def clean_product_code(self):
         code = (self.cleaned_data.get("product_code") or "").strip()
@@ -326,11 +354,20 @@ class ProductionOrderCreateForm(forms.Form):
     def clean_bom_version(self):
         raw = (self.cleaned_data.get("bom_version") or "").strip()
         if not raw:
-            raise forms.ValidationError("Chọn hồ sơ thiết kế.")
+            raise forms.ValidationError("Chọn Bom.")
         try:
             return int(raw)
         except (TypeError, ValueError):
-            raise forms.ValidationError("Hồ sơ thiết kế không hợp lệ.")
+            raise forms.ValidationError("Bom không hợp lệ.")
+
+    def clean_routing(self):
+        raw = (self.cleaned_data.get("routing") or "").strip()
+        if not raw:
+            return None
+        try:
+            return int(raw)
+        except (TypeError, ValueError):
+            raise forms.ValidationError("OB không hợp lệ.")
 
     def clean_process_name(self):
         return _clean_standard_process_name(self.cleaned_data.get("process_name"))
@@ -442,7 +479,7 @@ class MaterialIssueApproveForm(forms.Form):
         required=False,
         label="Chứng từ (tuỳ chọn)",
         widget=forms.ClearableFileInput(attrs={
-            "class": "form-control form-control-sm",
+            "class": "jp-sx-ycx-file-input",
             "accept": "image/*,.pdf,.doc,.docx,.xls,.xlsx",
         }),
     )
@@ -740,6 +777,7 @@ class FgReceiptCreateForm(forms.Form):
     warehouse_code = forms.ChoiceField(
         label="Kho nhập",
         choices=[],
+        required=False,
         widget=forms.Select(attrs=_SELECT_SM),
     )
     product_code = forms.CharField(
@@ -864,10 +902,11 @@ class FgReceiptCreateForm(forms.Form):
 
     def clean_warehouse_code(self):
         code = (self.cleaned_data.get("warehouse_code") or "").strip()
-        if not code:
-            raise forms.ValidationError("Chọn kho nhập.")
-        labels = dict(self.fields["warehouse_code"].choices)
-        self._warehouse_name = labels.get(code) or code
+        if code:
+            labels = dict(self.fields["warehouse_code"].choices)
+            self._warehouse_name = labels.get(code) or code
+        else:
+            self._warehouse_name = ""
         return code
 
     def clean(self):
@@ -877,37 +916,40 @@ class FgReceiptCreateForm(forms.Form):
 
 
 class FgReceiptLineForm(forms.Form):
-    color_code = forms.ChoiceField(
+    color_code = forms.CharField(
+        max_length=20,
         required=False,
-        label="Màu",
-        choices=[],
-        widget=forms.Select(attrs={
-            "class": "form-select form-select-sm jp-sx-color-select",
-        }),
-    )
-    size_label = forms.ChoiceField(
-        required=False,
-        label="Size",
-        choices=[],
-        widget=forms.Select(attrs={
-            "class": "form-select form-select-sm jp-sx-size-select",
-        }),
-    )
-    sku_code = forms.CharField(
-        max_length=100,
-        required=False,
-        label="SKU",
-        widget=forms.TextInput(attrs={
-            "class": "form-control form-control-sm jp-sx-sku-code",
-            "placeholder": "Mã SX–Màu–Size",
-            "readonly": True,
-            "tabindex": "-1",
-        }),
+        widget=forms.HiddenInput(attrs={"class": "jp-sx-ycntp-color-code"}),
     )
     color_label = forms.CharField(
         max_length=40,
         required=False,
-        widget=forms.HiddenInput(),
+        widget=forms.HiddenInput(attrs={"class": "jp-sx-ycntp-color-label"}),
+    )
+    size_label = forms.CharField(
+        max_length=40,
+        required=False,
+        widget=forms.HiddenInput(attrs={"class": "jp-sx-ycntp-size"}),
+    )
+    sku_code = forms.CharField(
+        max_length=100,
+        required=False,
+        widget=forms.HiddenInput(attrs={"class": "jp-sx-ycntp-sku"}),
+    )
+    qty_available = forms.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        min_value=Decimal("0"),
+        required=False,
+        widget=forms.HiddenInput(attrs={"class": "jp-sx-ycntp-qty-available"}),
+    )
+    warehouse_code = forms.ChoiceField(
+        required=False,
+        label="Kho nhập",
+        choices=[],
+        widget=forms.Select(attrs={
+            "class": "form-select form-select-sm jp-sx-ycntp-warehouse",
+        }),
     )
     qty = forms.DecimalField(
         max_digits=14,
@@ -917,52 +959,77 @@ class FgReceiptLineForm(forms.Form):
         label="Số lượng",
         widget=forms.NumberInput(attrs={
             "class": "form-control form-control-sm jp-so-qty-total",
-            "step": "0.01",
+            "step": "1",
             "min": "0",
         }),
     )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        from san_xuat.services.sku_catalog import color_choices, size_choices
-
-        extra_color = ""
-        extra_size = ""
+        extra_wh = ""
+        avail = None
         if self.is_bound:
-            extra_color = (self.data.get(self.add_prefix("color_code")) or "").strip()
-            extra_size = (self.data.get(self.add_prefix("size_label")) or "").strip()
+            extra_wh = (self.data.get(self.add_prefix("warehouse_code")) or "").strip()
+            raw_avail = self.data.get(self.add_prefix("qty_available"))
+            try:
+                avail = Decimal(str(raw_avail)) if raw_avail not in (None, "") else None
+            except Exception:
+                avail = None
         elif self.initial:
-            extra_color = (self.initial.get("color_code") or "").strip()
-            extra_size = (self.initial.get("size_label") or "").strip()
-        self.fields["color_code"].choices = color_choices(extra_code=extra_color, blank_label="—")
-        self.fields["size_label"].choices = size_choices(extra_code=extra_size, blank_label="—")
+            extra_wh = (self.initial.get("warehouse_code") or "").strip()
+            if self.initial.get("qty") is not None and self.initial.get("qty_available") is None:
+                self.initial.setdefault("qty_available", self.initial.get("qty"))
+            raw_avail = self.initial.get("qty_available", self.initial.get("qty"))
+            try:
+                avail = Decimal(str(raw_avail)) if raw_avail not in (None, "") else None
+            except Exception:
+                avail = None
+        self.fields["warehouse_code"].choices = fg_warehouse_choices(extra_value=extra_wh)
+        real_wh = [c for c in self.fields["warehouse_code"].choices if c[0]]
+        if len(real_wh) == 1 and not extra_wh:
+            self.initial.setdefault("warehouse_code", real_wh[0][0])
+        if avail is not None and avail >= 0:
+            self.fields["qty"].widget.attrs["max"] = format(avail.quantize(Decimal("0.01")), "f")
 
     def clean(self):
         cleaned = super().clean()
-        from san_xuat.services.sku_catalog import color_label_for
-
-        color_code = (cleaned.get("color_code") or "").strip()
-        if color_code and not cleaned.get("color_label"):
-            cleaned["color_label"] = color_label_for(color_code)
-        qty = cleaned.get("qty")
-        if qty and qty > 0 and not (
+        qty = cleaned.get("qty") or Decimal("0")
+        available = cleaned.get("qty_available") or Decimal("0")
+        has_sku = bool(
             (cleaned.get("sku_code") or "").strip()
-            or color_code
+            or (cleaned.get("color_code") or "").strip()
             or (cleaned.get("size_label") or "").strip()
-        ):
-            self.add_error("color_code", "Chọn màu / size cho dòng nhập.")
+        )
+        cleaned["has_sku"] = has_sku
+        wh = (cleaned.get("warehouse_code") or "").strip()
+        if wh:
+            labels = dict(self.fields["warehouse_code"].choices)
+            cleaned["warehouse_name"] = labels.get(wh) or wh
+        else:
+            cleaned["warehouse_name"] = ""
+        if qty > 0:
+            if not has_sku:
+                self.add_error("qty", "Dòng nhập thiếu SKU / size.")
+            if not wh:
+                self.add_error("warehouse_code", "Chọn kho nhập.")
+            # Chặn vượt trên từng dòng; tổng nhiều dòng cùng SKU được chặn ở create_fg_receipt_from_mo.
+            if available > 0 and qty > available:
+                self.add_error(
+                    "qty",
+                    f"Không vượt SL còn lại ({available}) — đã sản xuất chỉ {available}.",
+                )
         return cleaned
 
 
 def make_fg_receipt_line_formset(*, data=None, initial=None):
-    extra = 0 if initial else 1
+    extra = 0 if initial else 0
     factory = formset_factory(FgReceiptLineForm, extra=extra, can_delete=True)
     if data is not None:
         return factory(data, prefix="lines")
     return factory(prefix="lines", initial=initial or None)
 
 
-FgReceiptLineFormSet = formset_factory(FgReceiptLineForm, extra=1, can_delete=True)
+FgReceiptLineFormSet = formset_factory(FgReceiptLineForm, extra=0, can_delete=True)
 
 
 class FgReceiptLinkKvForm(forms.Form):

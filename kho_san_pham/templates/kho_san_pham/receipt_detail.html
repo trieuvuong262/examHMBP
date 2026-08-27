@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block content %}
+<div class="container jp-page py-3 py-md-4 mb-5">
+    <div class="jp-page-header mb-3 mb-md-4 d-flex flex-wrap justify-content-between align-items-start gap-2">
+        <div>
+            <h2 class="fw-bold text-hm mb-1 jp-page-title">{{ receipt.number }}</h2>
+            <p class="text-muted mb-0">
+                {{ receipt.get_status_display }}
+                · {{ receipt.receipt_date|date:'d/m/Y' }}
+                {% if receipt.posted_at %}· Nhập kho {{ receipt.posted_at|date:'d/m/Y H:i' }}{% endif %}
+            </p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            {% if receipt.fg_receipt_id %}
+            <a href="{% url 'san_xuat:dispatch_fg_receipt_req_detail' receipt.fg_receipt_id %}" class="btn btn-outline-hm btn-sm">
+                <i class="bi bi-box-seam me-1"></i>{{ receipt.fg_receipt.code }}
+            </a>
+            {% endif %}
+            <a href="{% url 'kho_san_pham:receipt_list' %}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i>Danh sách
+            </a>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <dl class="row mb-0">
+                <dt class="col-sm-3 text-muted">Kho nhập</dt>
+                <dd class="col-sm-9">{{ receipt.warehouse.name|default:receipt.warehouse.code }}</dd>
+                <dt class="col-sm-3 text-muted">Lệnh SX</dt>
+                <dd class="col-sm-9">{{ receipt.production_order_code|default:'—' }}</dd>
+                <dt class="col-sm-3 text-muted">Mã SP</dt>
+                <dd class="col-sm-9">{{ receipt.product_code|default:'—' }}</dd>
+                <dt class="col-sm-3 text-muted">Yêu cầu nhập TP</dt>
+                <dd class="col-sm-9">
+                    {% if receipt.fg_receipt_id %}
+                    <a href="{% url 'san_xuat:dispatch_fg_receipt_req_detail' receipt.fg_receipt_id %}">{{ receipt.fg_receipt.code }}</a>
+                    {% else %}—{% endif %}
+                </dd>
+                <dt class="col-sm-3 text-muted">Người tạo</dt>
+                <dd class="col-sm-9">{% if receipt.created_by %}{{ receipt.created_by.get_full_name|default:receipt.created_by.username }}{% else %}—{% endif %}</dd>
+                <dt class="col-sm-3 text-muted">Ghi chú</dt>
+                <dd class="col-sm-9">{% if receipt.notes %}{{ receipt.notes|linebreaksbr }}{% else %}—{% endif %}</dd>
+            </dl>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white border-bottom py-3">
+            <h5 class="mb-0 fw-bold">Chi tiết nhập</h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>SKU</th>
+                        <th>Tên</th>
+                        <th>Màu</th>
+                        <th>Size</th>
+                        <th class="text-end">SL nhập</th>
+                        <th class="text-end">Đơn giá</th>
+                        <th>Ghi chú</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for line in receipt.lines.all %}
+                    <tr>
+                        <td class="fw-semibold">{{ line.product.code }}</td>
+                        <td>{{ line.product.name }}</td>
+                        <td>{{ line.color_label|default:line.product.color_label|default:'—' }}</td>
+                        <td>{{ line.size_label|default:line.product.size_label|default:'—' }}</td>
+                        <td class="text-end">{{ line.quantity|floatformat:0|intcomma }}</td>
+                        <td class="text-end">{% if line.unit_cost is not None %}{{ line.unit_cost|floatformat:0|intcomma }}{% else %}—{% endif %}</td>
+                        <td>{{ line.notes|default:'—' }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted py-4">Chưa có dòng chi tiết.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -30,7 +30,6 @@
 }
 .jp-sx-ycntp-actions form { margin: 0; }
 .jp-sx-ycntp-actions .btn,
-.jp-sx-ycntp-kv .btn,
 .jp-sx-ycntp-btn {
   display: inline-flex;
   align-items: center;
@@ -44,23 +43,6 @@
   white-space: nowrap;
   box-sizing: border-box;
   border-width: 1px;
-}
-.jp-sx-ycntp-kv {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 0.45rem 0.5rem;
-}
-.jp-sx-ycntp-kv .field {
-  flex: 1 1 8rem;
-  min-width: 7rem;
-  max-width: 12rem;
-}
-.jp-sx-ycntp-kv .field label {
-  display: block;
-  font-size: 0.72rem;
-  color: var(--bs-secondary-color);
-  margin-bottom: 0.15rem;
 }
 .jp-sx-ycntp-section {
   font-size: 0.72rem;
@@ -78,7 +60,7 @@
   <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
     <div class="jp-sx-detail-title">
       <h2 class="jp-npl-mat-topbar-title w-100">Yêu cầu nhập thành phẩm <span class="text-muted">({{ fg_req.code }})</span></h2>
-      <span class="badge {% if fg_req.status == 'draft' %}text-bg-secondary{% elif fg_req.status == 'submitted' %}text-bg-primary{% elif fg_req.status == 'done' %}text-bg-success{% elif fg_req.status == 'cancelled' %}text-bg-danger{% else %}text-bg-light text-dark border{% endif %}">
+      <span class="badge {% if fg_req.status == 'draft' %}text-bg-secondary{% elif fg_req.status == 'submitted' %}text-bg-primary{% elif fg_req.status == 'partial' %}text-bg-warning{% elif fg_req.status == 'done' %}text-bg-success{% elif fg_req.status == 'cancelled' %}text-bg-danger{% else %}text-bg-light text-dark border{% endif %}">
         {{ fg_req.get_status_display }}
       </span>
     </div>
@@ -88,6 +70,23 @@
       <a href="{% url 'san_xuat:dispatch_fg_receipt_req' %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại</a>
     </nav>
   </div>
+
+  {% if can_update and fg_req.status == 'partial' %}
+  <div class="jp-sx-ycntp-approve-bar alert alert-warning border-0 py-2 px-3 mb-3 d-flex flex-wrap align-items-center justify-content-between gap-2">
+    <div class="small mb-0">Còn hàng chưa nhập — bổ sung khi có đủ SL / chọn kho.</div>
+    <a href="{% url 'san_xuat:dispatch_fg_receipt_req_create' %}?mo={{ fg_req.production_order_id }}&ycntp={{ fg_req.pk }}" class="btn btn-hm btn-sm">
+      <i class="bi bi-arrow-repeat" aria-hidden="true"></i> Bổ sung nhập
+    </a>
+  </div>
+  {% elif can_update and fg_req.status == 'draft' %}
+  <div class="mb-3">
+    <form method="post" class="d-inline">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="submit">
+      <button type="submit" class="btn btn-hm btn-sm">Nhập kho</button>
+    </form>
+  </div>
+  {% endif %}
 
   <div class="card border-0 shadow-sm">
     <div class="card-body">
@@ -100,13 +99,6 @@
             {% if fg_req.production_order.product_name %} · {{ fg_req.production_order.product_name }}{% endif %}
           </div>
         </div>
-        {% if can_update and fg_req.status == 'draft' %}
-        <form method="post" class="jp-sx-ycntp-actions">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="submit">
-          <button type="submit" class="btn btn-hm">Gửi yêu cầu</button>
-        </form>
-        {% endif %}
       </div>
 
       <div class="jp-sx-ycntp-meta">
@@ -154,6 +146,8 @@
                 <th>SKU</th>
                 <th>Màu</th>
                 <th>Size</th>
+                <th>Kho nhập</th>
+                <th>Phiếu nhập SP</th>
                 <th class="text-end">Số lượng</th>
               </tr>
             </thead>
@@ -163,6 +157,12 @@
                 <td><strong>{{ ln.sku_code|default:"—" }}</strong></td>
                 <td>{% if ln.color_code %}{{ ln.color_code }}{% if ln.color_label %} ({{ ln.color_label }}){% endif %}{% else %}{{ ln.color_label|default:"—" }}{% endif %}</td>
                 <td>{{ ln.size_label|default:"—" }}</td>
+                <td>{% if ln.warehouse %}{{ ln.warehouse.name|default:ln.warehouse.code }}{% elif fg_req.warehouse %}{{ fg_req.warehouse.name|default:fg_req.warehouse.code }}{% else %}{{ fg_req.warehouse_name|default:"—" }}{% endif %}</td>
+                <td class="small">
+                  {% if ln.stock_receipt_id %}
+                  <a href="{% url 'kho_san_pham:receipt_detail' ln.stock_receipt_id %}">{{ ln.stock_receipt.number }}</a>
+                  {% else %}—{% endif %}
+                </td>
                 <td class="text-end">{{ ln.qty|sx_num }}</td>
               </tr>
               {% endfor %}
@@ -176,36 +176,6 @@
       <div class="mt-3 pt-3 border-top">
         <div class="label text-muted small mb-1">Ghi chú</div>
         <div class="small mb-0">{{ fg_req.notes }}</div>
-      </div>
-      {% endif %}
-
-      {% if can_update and not fg_req.kv_purchase_kiotviet_id %}
-      <div class="mt-3 pt-3 border-top">
-        <p class="jp-sx-ycntp-section">Liên kết phiếu nhập KiotViet</p>
-        <form method="post">
-          {% csrf_token %}
-          <input type="hidden" name="action" value="link_kv">
-          <div class="jp-sx-ycntp-kv">
-            <div class="field">
-              <label for="{{ link_form.kv_purchase_code.id_for_label }}">Mã phiếu (PN…)</label>
-              {{ link_form.kv_purchase_code }}
-              {% if link_form.kv_purchase_code.errors %}<div class="text-danger small">{{ link_form.kv_purchase_code.errors }}</div>{% endif %}
-            </div>
-            <div class="field">
-              <label for="{{ link_form.kv_purchase_kiotviet_id.id_for_label }}">ID KiotViet</label>
-              {{ link_form.kv_purchase_kiotviet_id }}
-              {% if link_form.kv_purchase_kiotviet_id.errors %}<div class="text-danger small">{{ link_form.kv_purchase_kiotviet_id.errors }}</div>{% endif %}
-            </div>
-            <button type="submit" class="btn btn-outline-hm jp-sx-ycntp-btn">Liên kết</button>
-          </div>
-          {% if link_form.non_field_errors %}
-          <div class="text-danger small mt-2">{{ link_form.non_field_errors }}</div>
-          {% endif %}
-        </form>
-      </div>
-      {% elif fg_req.kv_purchase_kiotviet_id %}
-      <div class="mt-3 pt-3 border-top">
-        <div class="text-muted small mb-0">Đã liên kết phiếu nhập KiotViet.</div>
       </div>
       {% endif %}
     </div>

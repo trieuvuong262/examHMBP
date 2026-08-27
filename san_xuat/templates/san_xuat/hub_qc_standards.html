@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+
+{% block extra_head %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+{% include 'san_xuat/includes/sx_qc_compact_styles.html' %}
+<style>
+.jp-qc-hub-sec {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--bs-secondary-color);
+  margin: 0 0 0.45rem;
+}
+.jp-qc-hub-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+}
+@media (min-width: 768px) {
+  .jp-qc-hub-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.jp-qc-hub-link {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 0.45rem;
+  background: #fff;
+  text-decoration: none;
+  color: inherit;
+  min-height: 2.6rem;
+}
+.jp-qc-hub-link:hover { border-color: rgba(220, 38, 38, 0.28); color: inherit; }
+.jp-qc-hub-link i { font-size: 1rem; opacity: 0.7; width: 1.1rem; text-align: center; }
+.jp-qc-hub-link .lbl { font-size: 0.88rem; font-weight: 600; flex: 1; }
+.jp-qc-hub-link .cnt { font-size: 0.72rem; color: var(--bs-secondary-color); white-space: nowrap; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+    <div class="jp-sx-detail-title">
+      <h2 class="jp-npl-mat-topbar-title w-100">Tiêu chuẩn chất lượng</h2>
+    </div>
+    <nav class="jp-sx-tools" aria-label="Công cụ">
+      <a href="{% url 'san_xuat:qc_stub' %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Tiến độ QC</a>
+    </nav>
+  </div>
+
+  <p class="jp-qc-hub-sec">Thiết kế tiêu chuẩn theo tổ</p>
+  <div class="jp-qc-hub-grid">
+    {% for t in qc_teams %}
+    <a class="jp-qc-hub-link" href="{% url 'san_xuat:qc_criteria' %}?team={{ t.slug }}">
+      <i class="bi bi-clipboard-check" aria-hidden="true"></i>
+      <span class="lbl">{{ t.label }}</span>
+      <span class="cnt">{{ t.criteria_count }} tiêu chuẩn</span>
+    </a>
+    {% endfor %}
+  </div>
+
+  <p class="jp-qc-hub-sec">Danh mục dùng chung</p>
+  <div class="jp-qc-hub-grid">
+    <a class="jp-qc-hub-link" href="{% url 'san_xuat:qc_standard_set' %}">
+      <i class="bi bi-journal-bookmark" aria-hidden="true"></i>
+      <span class="lbl">Bộ tiêu chuẩn (mẫu / AQL)</span>
+      <span class="cnt">{{ catalog_counts.standard_sets }}</span>
+    </a>
+    <a class="jp-qc-hub-link" href="{% url 'san_xuat:qc_criteria' %}">
+      <i class="bi bi-list-check" aria-hidden="true"></i>
+      <span class="lbl">Tất cả tiêu chí</span>
+      <span class="cnt">{{ catalog_counts.criteria }}</span>
+    </a>
+    <a class="jp-qc-hub-link" href="{% url 'san_xuat:qc_criteria_group' %}">
+      <i class="bi bi-collection" aria-hidden="true"></i>
+      <span class="lbl">Nhóm tiêu chí</span>
+    </a>
+    <a class="jp-qc-hub-link" href="{% url 'san_xuat:qc_sampling' %}">
+      <i class="bi bi-pie-chart" aria-hidden="true"></i>
+      <span class="lbl">Chọn mẫu</span>
+    </a>
+    <a class="jp-qc-hub-link" href="{% url 'san_xuat:qc_defect' %}">
+      <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+      <span class="lbl">Mã lỗi</span>
+      <span class="cnt">{{ catalog_counts.defects }}</span>
+    </a>
+    <a class="jp-qc-hub-link" href="{% url 'san_xuat:qc_defect_group' %}">
+      <i class="bi bi-folder-x" aria-hidden="true"></i>
+      <span class="lbl">Nhóm lỗi</span>
+    </a>
+  </div>
+</div>
+{% endblock %}

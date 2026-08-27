@@ -209,6 +209,52 @@ def team_slug_for_process_label(label: str) -> str | None:
     return None
 
 
+_WC_CODE_TO_SLUG: dict[str, str] = {}
+for _slug, _group_key, _menu, _label in TEAM_SLUGS:
+    _grp = next((g for g in GROUPS if g.key == _group_key), None)
+    if _grp and _grp.work_center_code:
+        _WC_CODE_TO_SLUG[_grp.work_center_code.strip().upper()] = _slug
+_WC_CODE_TO_SLUG.update({
+    'CAT': 'cat',
+    'CUT': 'cat',
+    'IN-EP': 'inep',
+    'IN_EP': 'inep',
+    'INEP': 'inep',
+    'THEU': 'theu',
+    'MAY': 'may',
+    'HT': 'ht',
+    'HOAN_THANH': 'ht',
+    'GH': 'gh',
+    'GIAO_HANG': 'gh',
+})
+
+
+def team_slug_for_work_center_code(code: str) -> str | None:
+    """Slug tổ từ mã work center / mã nhóm Ob (CAT → cat)."""
+    raw = (code or '').strip()
+    if not raw:
+        return None
+    hit = _WC_CODE_TO_SLUG.get(raw.upper())
+    if hit:
+        return hit
+    folded = raw.replace(' ', '').replace('_', '-').casefold()
+    aliases = {
+        'cat': 'cat',
+        'cắt': 'cat',
+        'inep': 'inep',
+        'in-ep': 'inep',
+        'inép': 'inep',
+        'theu': 'theu',
+        'thêu': 'theu',
+        'may': 'may',
+        'ht': 'ht',
+        'ủi-gấpxếp': 'ht',
+        'gh': 'gh',
+        'giaohàng': 'gh',
+    }
+    return aliases.get(folded)
+
+
 def label_to_key_map() -> dict[str, str]:
     return {s.label.casefold(): s.key for s in progress_steps()}
 

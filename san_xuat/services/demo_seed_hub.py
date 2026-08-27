@@ -354,6 +354,7 @@ def seed_demo_hub(*, product_codes: list[str], user=None) -> dict:
             'name': 'Đường may thẳng, không gãy chỉ',
             'group': crit_group,
             'kind': SxQcCriteria.KIND_QUALITATIVE,
+            'team_slug': 'may',
             'is_active': True,
         },
     )

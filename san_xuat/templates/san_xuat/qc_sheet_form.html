@@ -1,7 +1,10 @@
 {% extends 'base.html' %}
-
 {% load sx_format %}
-{% block extra_head %}{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}{% endblock %}
+
+{% block extra_head %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+{% include 'san_xuat/includes/sx_qc_compact_styles.html' %}
+{% endblock %}
 
 {% block content %}
 <div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
@@ -10,29 +13,85 @@
       <h2 class="jp-npl-mat-topbar-title w-100">Tạo phiếu kiểm tra</h2>
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
+      {% if qc_req %}
+      <a href="{% url 'san_xuat:qc_request_detail' qc_req.pk %}"><i class="bi bi-clipboard-plus" aria-hidden="true"></i>{{ qc_req.code }}</a>
       <span class="sep" aria-hidden="true"></span>
-      <a href="{% url 'san_xuat:qc_sheet' %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại</a>
+      {% endif %}
+      <a href="{% if qc_req %}{% url 'san_xuat:qc_request_detail' qc_req.pk %}{% else %}{% url 'san_xuat:qc_sheet' %}{% endif %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại</a>
     </nav>
   </div>
 
-    <div class="card border-0 shadow-sm">
-        <div class="card-body p-4">
-            <form method="post" novalidate>
-                {% csrf_token %}
-                {% for field in form %}
-                <div class="mb-3">
-                    <label class="form-label small text-muted" for="{{ field.id_for_label }}">{{ field.label }}{{ field|sx_req_star }}</label>
-                    {{ field }}
-{% if field.errors %}<div class="text-danger small">{{ field.errors }}</div>{% endif %}
-                </div>
-                {% endfor %}
-                <div class="d-flex gap-2">
-                    <button type="submit" class="btn btn-hm">Tạo phiếu kiểm tra</button>
-                    <a href="{% url 'san_xuat:qc_sheet' %}" class="btn btn-outline-secondary">Hủy</a>
-                </div>
-            </form>
-        </div>
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="alert alert-danger py-2 small">{{ form.non_field_errors }}</div>{% endif %}
+
+    <div class="jp-qc-action">
+      <p class="title">{% if qc_req %}PKT từ {{ qc_req.code }}{% else %}Phiếu kiểm tra mới{% endif %}</p>
+      <div class="btns">
+        <button type="submit" class="btn btn-hm btn-sm"><i class="bi bi-plus-lg" aria-hidden="true"></i>Tạo PKT</button>
+        <a href="{% if qc_req %}{% url 'san_xuat:qc_request_detail' qc_req.pk %}{% else %}{% url 'san_xuat:qc_sheet' %}{% endif %}" class="btn btn-outline-secondary btn-sm">Hủy</a>
+      </div>
     </div>
+
+    {% if qc_req %}
+    <div class="d-none">{{ form.qc_request }}</div>
+    <div class="card border-0 shadow-sm jp-qc-panel mb-2">
+      <div class="card-body">
+        <div class="jp-qc-meta">
+          <div>
+            <div class="label">YCKT</div>
+            <div class="value">{{ qc_req.code }}</div>
+          </div>
+          <div>
+            <div class="label">Mã SP</div>
+            <div class="value">{{ qc_req.product_code }}</div>
+          </div>
+          <div>
+            <div class="label">Công đoạn</div>
+            <div class="value">{{ qc_req.stage_name|default:"—" }}</div>
+          </div>
+          <div>
+            <div class="label">SL YC</div>
+            <div class="value">{{ qc_req.qty|sx_num }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="card border-0 shadow-sm jp-qc-panel">
+      <div class="card-body">
+        <div class="jp-qc-fields">
+          {% if not qc_req %}
+          <div class="field field-span-2">
+            <label for="{{ form.qc_request.id_for_label }}">{{ form.qc_request.label }}{{ form.qc_request|sx_req_star }}</label>
+            {{ form.qc_request }}
+            {% if form.qc_request.errors %}<div class="text-danger small">{{ form.qc_request.errors }}</div>{% endif %}
+          </div>
+          {% endif %}
+          <div class="field field-span-2">
+            <label for="{{ form.standard_set.id_for_label }}">{{ form.standard_set.label }}{{ form.standard_set|sx_req_star }}</label>
+            {{ form.standard_set }}
+            {% if form.standard_set.errors %}<div class="text-danger small">{{ form.standard_set.errors }}</div>{% endif %}
+          </div>
+          <div class="field">
+            <label for="{{ form.code.id_for_label }}">{{ form.code.label }}{{ form.code|sx_req_star }}</label>
+            {{ form.code }}
+            {% if form.code.errors %}<div class="text-danger small">{{ form.code.errors }}</div>{% endif %}
+          </div>
+          <div class="field">
+            <label for="{{ form.inspected_at.id_for_label }}">{{ form.inspected_at.label }}{{ form.inspected_at|sx_req_star }}</label>
+            {{ form.inspected_at }}
+            {% if form.inspected_at.errors %}<div class="text-danger small">{{ form.inspected_at.errors }}</div>{% endif %}
+          </div>
+          <div class="field field-span-all">
+            <label for="{{ form.notes.id_for_label }}">{{ form.notes.label }}{{ form.notes|sx_req_star }}</label>
+            {{ form.notes }}
+            {% if form.notes.errors %}<div class="text-danger small">{{ form.notes.errors }}</div>{% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </form>
 </div>
 {% endblock %}
-

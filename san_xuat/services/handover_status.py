@@ -43,6 +43,34 @@ class TeamHandoverCell:
     waiting: Decimal
     incoming: Decimal
     status: str
+    qc_status: str = "skip"
+    qc_required: bool = False
+    qc_inspection_id: int | None = None
+    subcontract: object | None = None
+
+    @property
+    def qc_status_label(self) -> str:
+        from san_xuat.services.qc import QC_STATUS_LABELS
+
+        return QC_STATUS_LABELS.get(self.qc_status, self.qc_status)
+
+    @property
+    def qc_progress_done(self) -> bool:
+        from san_xuat.services.qc import QC_PROGRESS_DONE
+
+        return self.qc_status in QC_PROGRESS_DONE
+
+    @property
+    def qc_progress_label(self) -> str:
+        if not self.qc_required or self.qc_status == "skip":
+            return "—"
+        return "Đã kiểm" if self.qc_progress_done else "Chưa kiểm"
+
+    @property
+    def qc_progress_kind(self) -> str:
+        if not self.qc_required or self.qc_status == "skip":
+            return "skip"
+        return "checked" if self.qc_progress_done else "pending"
 
 
 @dataclass
@@ -52,6 +80,7 @@ class MoHandoverRow:
     cells: list[TeamHandoverCell]
     waiting_total: Decimal
     bottleneck: str = ""
+    qc_inspection_id: int | None = None
 
 
 @dataclass
@@ -142,6 +171,7 @@ def _build_row(
     sizes: list,
     step_size_qty: dict[tuple[str, str], Decimal],
     all_steps: list[ProgressStepDef],
+    participating_slugs: set[str] | None = None,
 ) -> MoHandoverRow:
     plan = sum((r.qty for r in sizes), Decimal("0")) or _q(mo.qty)
     size_labels = [r.size_label for r in sizes] or ["Tổng"]
@@ -159,6 +189,9 @@ def _build_row(
     bottleneck_qty = Decimal("0")
 
     for grp in GROUPS:
+        slug = _slug_for_group(grp.key)
+        if participating_slugs is not None and slug not in participating_slugs:
+            continue
         g_steps = steps_by_group.get(grp.key, [])
         required = _required_step_keys(mo, grp.key)
         done = Decimal("0")
@@ -186,7 +219,7 @@ def _build_row(
         cells.append(
             TeamHandoverCell(
                 group_key=grp.key,
-                slug=_slug_for_group(grp.key),
+                slug=slug,
                 label=grp.label,
                 plan=plan,
                 done=done,
@@ -205,6 +238,68 @@ def _build_row(
     )
 
 
+def attach_qc_to_handover_rows(rows: list[MoHandoverRow]) -> list[MoHandoverRow]:
+    """Gắn trạng thái QC theo tổ Ob lên từng ô bàn giao."""
+    if not rows:
+        return rows
+    from san_xuat.services.qc import (
+        QC_STATUS_SKIP,
+        latest_qc_inspection_ids_for_mos,
+        ob_qc_teams,
+        qc_status_map_for_mos,
+    )
+
+    mos = [r.mo for r in rows]
+    status_map = qc_status_map_for_mos(mos)
+    insp_ids = latest_qc_inspection_ids_for_mos(mos)
+    required_by_mo: dict[int, set[str]] = {}
+    for mo in mos:
+        required_by_mo[mo.pk] = {t.slug for t in ob_qc_teams(mo=mo)}
+    for row in rows:
+        required = required_by_mo.get(row.mo.pk, set())
+        row.qc_inspection_id = insp_ids.get(row.mo.pk)
+        for c in row.cells:
+            c.qc_required = c.slug in required
+            c.qc_inspection_id = row.qc_inspection_id if c.qc_required else None
+            if not c.qc_required:
+                c.qc_status = QC_STATUS_SKIP
+            else:
+                c.qc_status = status_map.get((row.mo.pk, c.slug), "idle")
+    return rows
+
+
+def attach_gc_to_handover_rows(rows: list[MoHandoverRow]) -> list[MoHandoverRow]:
+    """Gắn phiếu thuê GC còn hiệu lực lên từng ô tổ."""
+    if not rows:
+        return rows
+    from san_xuat.hub_models import SxSubcontractOrder
+
+    mo_ids = [r.mo.pk for r in rows]
+    qs = (
+        SxSubcontractOrder.objects.filter(
+            is_demo=False,
+            production_order_id__in=mo_ids,
+        )
+        .exclude(status=SxSubcontractOrder.STATUS_CANCELLED)
+        .order_by('-order_date', '-pk')
+    )
+    latest: dict[tuple[int, str], SxSubcontractOrder] = {}
+    for order in qs:
+        key = (order.production_order_id, (order.team_slug or '').strip().lower())
+        if key[1] and key not in latest:
+            latest[key] = order
+    for row in rows:
+        for c in row.cells:
+            c.subcontract = latest.get((row.mo.pk, c.slug))
+    return rows
+
+
+def _participating_slugs(mo: SxProductionOrder) -> set[str]:
+    from san_xuat.services.qc import ob_qc_teams
+
+    return {t.slug for t in ob_qc_teams(mo=mo)}
+
+
 def build_mo_handover_row(mo: SxProductionOrder) -> MoHandoverRow:
     all_steps = progress_steps()
     sizes = _size_plans(mo)
@@ -214,7 +309,16 @@ def build_mo_handover_row(mo: SxProductionOrder) -> MoHandoverRow:
         status=SxProductionStat.STATUS_CONFIRMED,
     ).only("process_name", "size_label", "qty_good")
     step_size_qty = _accumulate_stats(stats, sizes)
-    return _build_row(mo, sizes=sizes, step_size_qty=step_size_qty, all_steps=all_steps)
+    row = _build_row(
+        mo,
+        sizes=sizes,
+        step_size_qty=step_size_qty,
+        all_steps=all_steps,
+        participating_slugs=_participating_slugs(mo),
+    )
+    attach_qc_to_handover_rows([row])
+    attach_gc_to_handover_rows([row])
+    return row
 
 
 def _accumulate_stats(stats, sizes) -> dict[tuple[str, str], Decimal]:
@@ -251,13 +355,16 @@ def build_handover_board(*, search: str = "", team_slug: str = "", limit: int = 
         SxProductionOrder.objects.filter(is_demo=False)
         .exclude(status=SxProductionOrder.STATUS_CANCELLED)
         .exclude(status=SxProductionOrder.STATUS_DRAFT)
-        .select_related("sales_order")
+        .select_related("sales_order", "bom_version", "routing")
         .prefetch_related(
             Prefetch(
                 "lines",
                 queryset=SxProductionOrderLine.objects.order_by("size_label", "id"),
             ),
             "mo_process_steps",
+            "sales_order__lines__routing_lines__work_center",
+            "routing__lines__work_center",
+            "bom_version__process_steps__work_center",
         )
         .order_by("-order_date", "-pk")
     )
@@ -285,7 +392,16 @@ def build_handover_board(*, search: str = "", team_slug: str = "", limit: int = 
     for mo in mos:
         sizes = _size_plans(mo)
         acc = _accumulate_stats(stats_by_mo.get(mo.pk, []), sizes)
-        rows.append(_build_row(mo, sizes=sizes, step_size_qty=acc, all_steps=all_steps))
+        rows.append(
+            _build_row(
+                mo,
+                sizes=sizes,
+                step_size_qty=acc,
+                all_steps=all_steps,
+                participating_slugs=_participating_slugs(mo),
+            )
+        )
+    attach_qc_to_handover_rows(rows)
 
     queues: list[TeamQueue] = []
     for t in teams:

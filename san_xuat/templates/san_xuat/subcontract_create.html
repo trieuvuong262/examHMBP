@@ -59,18 +59,26 @@
     </nav>
   </div>
 
-  <form method="post" id="jp-gc-form">
+  <form method="post" id="jp-gc-form" action="?mo={{ source_mo.pk }}&amp;team={{ source_team }}">
     {% csrf_token %}
     {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+    {{ form.production_order }}{{ form.team_slug }}{{ form.product_code }}{{ form.product_name }}
 
     <div class="card border-0 shadow-sm mb-3">
       <div class="card-body p-3">
         <h6 class="fw-bold mb-2">Thông tin chung</h6>
         <div class="row g-2">
           <div class="col-md-4">
-            <label class="form-label small text-muted mb-1" for="{{ form.production_order.id_for_label }}">{{ form.production_order.label }}{{ form.production_order|sx_req_star }}</label>
-            {{ form.production_order }}
+            <div class="form-label small text-muted mb-1">{{ form.production_order.label }}</div>
+            <div class="form-control-plaintext form-control-sm px-0">
+              {{ source_mo.code }} · {{ source_mo.product_code }}{% if source_mo.product_name %} — {{ source_mo.product_name }}{% endif %}
+            </div>
             {% if form.production_order.errors %}<div class="text-danger small">{{ form.production_order.errors }}</div>{% endif %}
+          </div>
+          <div class="col-md-4">
+            <div class="form-label small text-muted mb-1">{{ form.team_slug.label }}</div>
+            <div class="form-control-plaintext form-control-sm px-0">{{ source_team_label }}</div>
+            {% if form.team_slug.errors %}<div class="text-danger small">{{ form.team_slug.errors }}</div>{% endif %}
           </div>
           <div class="col-md-4">
             <label class="form-label small text-muted mb-1" for="{{ form.vendor_name.id_for_label }}">{{ form.vendor_name.label }}{{ form.vendor_name|sx_req_star }}</label>
@@ -78,23 +86,18 @@
             {% if form.vendor_name.errors %}<div class="text-danger small">{{ form.vendor_name.errors }}</div>{% endif %}
           </div>
           <div class="col-md-4">
-            <label class="form-label small text-muted mb-1" for="{{ form.process_name.id_for_label }}">{{ form.process_name.label }}{{ form.process_name|sx_req_star }}</label>
-            {{ form.process_name }}
-            {% if form.process_name.errors %}<div class="text-danger small">{{ form.process_name.errors }}</div>{% endif %}
-          </div>
-          <div class="col-md-4">
-            <label class="form-label small text-muted mb-1" for="{{ form.product_code.id_for_label }}">{{ form.product_code.label }}{{ form.product_code|sx_req_star }}</label>
-            {{ form.product_code }}
+            <div class="form-label small text-muted mb-1">{{ form.product_code.label }}</div>
+            <div class="form-control-plaintext form-control-sm px-0">{{ source_mo.product_code|default:"—" }}</div>
             {% if form.product_code.errors %}<div class="text-danger small">{{ form.product_code.errors }}</div>{% endif %}
           </div>
           <div class="col-md-4">
-            <label class="form-label small text-muted mb-1" for="{{ form.product_name.id_for_label }}">{{ form.product_name.label }}{{ form.product_name|sx_req_star }}</label>
-            {{ form.product_name }}
+            <div class="form-label small text-muted mb-1">{{ form.product_name.label }}</div>
+            <div class="form-control-plaintext form-control-sm px-0">{{ source_mo.product_name|default:"—" }}</div>
           </div>
           <div class="col-md-4">
-            <label class="form-label small text-muted mb-1" for="{{ form.qty.id_for_label }}">{{ form.qty.label }}{{ form.qty|sx_req_star }}</label>
-            {{ form.qty }}
-            {% if form.qty.errors %}<div class="text-danger small">{{ form.qty.errors }}</div>{% endif %}
+            <label class="form-label small text-muted mb-1" for="jp-gc-created-by">Người lên đơn</label>
+            <input type="text" class="form-control form-control-sm" id="jp-gc-created-by"
+                   value="{{ order_creator_label }}" readonly tabindex="-1">
           </div>
           <div class="col-md-4">
             <label class="form-label small text-muted mb-1" for="{{ form.order_date.id_for_label }}">{{ form.order_date.label }}{{ form.order_date|sx_req_star }}</label>
@@ -115,18 +118,16 @@
 
     <div class="card border-0 shadow-sm mb-3">
       <div class="card-body p-3">
-        <h6 class="fw-bold mb-2">Nguyên phụ liệu / bán thành phẩm xuất đi gia công</h6>
+        <h6 class="fw-bold mb-2">Nguyên phụ liệu xuất đi gia công</h6>
         {{ out_formset.management_form }}
         {% if out_formset.non_form_errors %}<div class="text-danger small mb-2">{{ out_formset.non_form_errors }}</div>{% endif %}
         <div class="table-responsive">
           <table class="table table-sm align-middle" id="jp-gc-lines-table">
             <thead class="table-light">
               <tr>
-                <th style="min-width:220px">Mã NPL / BTP</th>
+                <th style="min-width:8rem">Mã NPL</th>
                 <th>Tên</th>
-                <th class="text-end" style="width:7rem">Tồn kho</th>
                 <th style="width:5rem">ĐVT</th>
-                <th style="min-width:7rem">Lô</th>
                 <th class="jp-so-actions-col">Số lượng</th>
               </tr>
             </thead>
@@ -135,41 +136,27 @@
               <tr class="jp-gc-line-row">
                 <td>
                   {{ f.material_code }}
+                  <span class="jp-gc-code-label">{{ f.material_code.value }}</span>
                   {% if f.material_code.errors %}<div class="text-danger small">{{ f.material_code.errors }}</div>{% endif %}
                 </td>
                 <td>{{ f.material_name }}</td>
-                <td class="text-end"><span class="jp-so-stock-qty text-muted">—</span></td>
                 <td>{{ f.uom_label }}</td>
-                <td>{{ f.lot_code }}</td>
                 <td class="jp-so-actions-col">
-                  <div class="jp-so-line-actions">
-                    <label class="jp-so-qty-total-wrap" for="{{ f.qty.id_for_label }}">
-                      {{ f.qty }}
-                    </label>
-                    {% if f.DELETE %}
-                    <div class="d-none">{{ f.DELETE }}</div>
-                    <button type="button" class="btn btn-link btn-sm text-danger p-0 jp-so-remove-row" title="Xóa dòng" aria-label="Xóa dòng">
-                      <i class="bi bi-x-lg" aria-hidden="true"></i>
-                    </button>
-                    {% endif %}
-                  </div>
+                  <label class="jp-so-qty-total-wrap" for="{{ f.qty.id_for_label }}">{{ f.qty }}</label>
                   {% if f.qty.errors %}<div class="text-danger small">{{ f.qty.errors }}</div>{% endif %}
                 </td>
               </tr>
+            {% empty %}
+              <tr class="jp-gc-empty-hint"><td colspan="4" class="text-muted small">Chọn lệnh sản xuất để điền NPL từ BOM.</td></tr>
             {% endfor %}
             </tbody>
           </table>
-        </div>
-        <div class="mt-3">
-          <button type="button" class="btn btn-outline-hm btn-sm fw-bold" id="jp-gc-add-row">
-            <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Thêm dòng
-          </button>
         </div>
       </div>
     </div>
 
     <div class="d-flex justify-content-end">
-      <button type="submit" class="btn btn-hm fw-bold">Lưu nháp</button>
+      <button type="submit" class="btn btn-hm fw-bold">Lưu phiếu</button>
     </div>
   </form>
 </div>
@@ -177,41 +164,27 @@
 <template id="jp-gc-empty-row">
   {% with f=out_formset.empty_form %}
   <tr class="jp-gc-line-row">
-    <td>{{ f.material_code }}</td>
+    <td>
+      {{ f.material_code }}
+      <span class="jp-gc-code-label"></span>
+    </td>
     <td>{{ f.material_name }}</td>
-    <td class="text-end"><span class="jp-so-stock-qty text-muted">—</span></td>
     <td>{{ f.uom_label }}</td>
-    <td>{{ f.lot_code }}</td>
     <td class="jp-so-actions-col">
-      <div class="jp-so-line-actions">
-        <label class="jp-so-qty-total-wrap" for="{{ f.qty.id_for_label }}">
-          {{ f.qty }}
-        </label>
-        {% if f.DELETE %}
-        <div class="d-none">{{ f.DELETE }}</div>
-        <button type="button" class="btn btn-link btn-sm text-danger p-0 jp-so-remove-row" title="Xóa dòng" aria-label="Xóa dòng">
-          <i class="bi bi-x-lg" aria-hidden="true"></i>
-        </button>
-        {% endif %}
-      </div>
+      <label class="jp-so-qty-total-wrap">{{ f.qty }}</label>
     </td>
   </tr>
   {% endwith %}
 </template>
 
-{% include 'san_xuat/includes/sx_product_code_select_script.html' %}
-{% include 'san_xuat/includes/sx_process_group_select_script.html' %}
-{% include 'san_xuat/includes/sx_gc_out_item_select_script.html' %}
 {% endblock %}
 
 {% block scripts %}
 <script>
 (function () {
   var body = document.querySelector('#jp-gc-lines-table tbody');
-  var addBtn = document.getElementById('jp-gc-add-row');
   var tpl = document.getElementById('jp-gc-empty-row');
   var totalInput = document.getElementById('id_out-TOTAL_FORMS');
-  if (!body || !addBtn || !tpl || !totalInput) return;
 
   function reindexAttrs(root, idx) {
     root.querySelectorAll('[name], [id], [for]').forEach(function (el) {
@@ -223,71 +196,40 @@
     });
   }
 
-  addBtn.addEventListener('click', function () {
-    var idx = parseInt(totalInput.value, 10) || 0;
-    var node = tpl.content.cloneNode(true);
-    var row = node.querySelector('tr');
-    if (!row) return;
-    reindexAttrs(row, idx);
-    body.appendChild(row);
-    totalInput.value = String(idx + 1);
-    var select = row.querySelector('.jp-gc-out-item-select');
-    if (select && typeof window.jpInitGcOutItemSelect === 'function') {
-      window.jpInitGcOutItemSelect(select);
+  function renderNpl(lines) {
+    if (!body || !tpl || !totalInput) return;
+    body.innerHTML = '';
+    if (!lines || !lines.length) {
+      var empty = document.createElement('tr');
+      empty.className = 'jp-gc-empty-hint';
+      empty.innerHTML = '<td colspan="4" class="text-muted small">Lệnh chưa có BOM — không điền được NPL.</td>';
+      body.appendChild(empty);
+      totalInput.value = '0';
+      var initialEmpty = document.getElementById('id_out-INITIAL_FORMS');
+      if (initialEmpty) initialEmpty.value = '0';
+      return;
     }
-  });
-
-  var moSel = document.getElementById('id_production_order');
-  function fillProductFromMo() {
-    if (!moSel) return;
-    var opt = moSel.options[moSel.selectedIndex];
-    var text = opt ? (opt.textContent || '') : '';
-    var parts = text.split('·').map(function (p) { return p.trim(); });
-    if (parts.length < 2) return;
-    var rest = parts.slice(1).join(' · ');
-    var split = rest.split(/\s+[—–-]\s+/);
-    var code = (split[0] || '').trim();
-    var name = split.slice(1).join(' — ').trim();
-    if (!code) return;
-    var pc = document.getElementById('id_product_code');
-    if (pc && pc.tomselect) {
-      pc.tomselect.addOption({
-        id: code,
-        code: code,
-        name: name,
-        text: name ? (code + ' — ' + name) : code,
-      });
-      pc.tomselect.setValue(code);
-    } else if (pc) {
-      var exists = Array.prototype.some.call(pc.options, function (o) { return o.value === code; });
-      if (!exists) {
-        var o = document.createElement('option');
-        o.value = code;
-        o.textContent = name ? (code + ' — ' + name) : code;
-        pc.appendChild(o);
-      }
-      pc.value = code;
-    }
-    var pn = document.getElementById('id_product_name');
-    if (pn && name) pn.value = name;
+    lines.forEach(function (ln, idx) {
+      var node = tpl.content.cloneNode(true);
+      var row = node.querySelector('tr');
+      if (!row) return;
+      reindexAttrs(row, idx);
+      var codeInput = row.querySelector('[name$="-material_code"]');
+      var nameInput = row.querySelector('[name$="-material_name"]');
+      var uomInput = row.querySelector('[name$="-uom_label"]');
+      var qtyEl = row.querySelector('[name$="-qty"]');
+      var label = row.querySelector('.jp-gc-code-label');
+      if (codeInput) codeInput.value = ln.material_code || '';
+      if (label) label.textContent = ln.material_code || '';
+      if (nameInput) nameInput.value = ln.material_name || '';
+      if (uomInput) uomInput.value = ln.uom_label || '';
+      if (qtyEl) qtyEl.value = ln.qty || '';
+      body.appendChild(row);
+    });
+    totalInput.value = String(lines.length);
+    var initialInput = document.getElementById('id_out-INITIAL_FORMS');
+    if (initialInput) initialInput.value = '0';
   }
-  if (moSel) moSel.addEventListener('change', fillProductFromMo);
-
-  body.addEventListener('click', function (e) {
-    var btn = e.target.closest('.jp-so-remove-row');
-    if (!btn) return;
-    var row = btn.closest('tr');
-    if (!row) return;
-    var sel = row.querySelector('.jp-gc-out-item-select');
-    if (sel && sel.tomselect) sel.tomselect.destroy();
-    var del = row.querySelector('input[type=checkbox][name$="-DELETE"]');
-    if (del) {
-      del.checked = true;
-      row.style.display = 'none';
-    } else {
-      row.remove();
-    }
-  });
 })();
 </script>
 {% endblock %}

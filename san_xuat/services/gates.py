@@ -13,7 +13,6 @@ from san_xuat.hub_models import (
     SxProductionOrder,
     SxProductionStat,
     SxQcAlert,
-    SxQcInspection,
 )
 from san_xuat.services.dispatch import DispatchError
 from san_xuat.services.sx_settings import sx_gate
@@ -127,12 +126,10 @@ def check_issue_before_stat(*, mo: SxProductionOrder) -> GateResult:
 
 
 def _has_qc_pass(*, mo: SxProductionOrder) -> bool:
-    return SxQcInspection.objects.filter(
-        is_demo=False,
-        result=SxQcInspection.RESULT_PASS,
-        qc_request__production_order=mo,
-        qc_request__is_demo=False,
-    ).exists()
+    from san_xuat.services.qc import qc_ready_for_fg
+
+    ok, _message = qc_ready_for_fg(mo=mo)
+    return ok
 
 
 def check_open_qc_alert_before_fg(*, mo: SxProductionOrder) -> GateResult:
@@ -158,18 +155,24 @@ def check_qc_pass_before_fg(*, mo: SxProductionOrder) -> GateResult:
     mode = gate_mode("SX_GATE_REQUIRE_QC_PASS_BEFORE_FG", MODE_BLOCK)
     if mode == MODE_OFF:
         return GateResult(ok=True, mode=mode, code="qc_pass_before_fg")
-    ok = _has_qc_pass(mo=mo)
+    from san_xuat.services.qc import qc_ready_for_fg
+
+    ok, message = qc_ready_for_fg(mo=mo)
     return GateResult(
         ok=ok,
         mode=mode,
         code="qc_pass_before_fg",
         message=(
-            f"Lệnh {mo.code} chưa có phiếu kiểm tra Đạt — "
-            "hoàn tất kiểm tra chất lượng trước khi tạo yêu cầu nhập thành phẩm."
-            if not ok
+            f"Lệnh {mo.code}: {message} Hoàn tất trước khi nhập thành phẩm."
+            if message
             else ""
         ),
     )
+
+
+def check_qc_pass_before_wip_handover(*, mo: SxProductionOrder, from_process: str) -> GateResult:
+    """QC không chặn bàn giao / hoàn thành tổ — chỉ bắt buộc trước nhập thành phẩm."""
+    return GateResult(ok=True, mode=MODE_OFF, code="qc_pass_before_wip")
 
 
 def check_stat_before_fg(*, mo: SxProductionOrder) -> GateResult:

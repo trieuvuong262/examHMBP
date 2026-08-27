@@ -599,6 +599,7 @@ from san_xuat.hub_models import (  # noqa: E402,F401
     SxQcInspection,
     SxQcInspectionCriteriaLine,
     SxQcInspectionDefectLine,
+    SxQcInspectionTeamResult,
     SxQcRequest,
     SxQcSamplingMethod,
     SxQcStandardCriteria,

@@ -53,21 +53,20 @@ class DispatchError(Exception):
 
 
 def _next_code(prefix: str, model, *, field: str = "code") -> str:
+    """Sinh mã {prefix}-{year}-{seq:04d} — lấy max số thứ tự số, bỏ qua mã không chuẩn."""
     year = timezone.localdate().year
     base = f"{prefix}-{year}-"
-    latest = (
-        model.objects.filter(**{f"{field}__startswith": base})
-        .order_by("-id")
-        .values_list(field, flat=True)
-        .first()
-    )
-    if not latest:
-        return f"{base}0001"
-    try:
-        n = int(str(latest).rsplit("-", 1)[-1])
-    except ValueError:
-        n = 0
-    return f"{base}{n + 1:04d}"
+    seq = 0
+    for raw in model.objects.filter(**{f"{field}__startswith": base}).values_list(field, flat=True):
+        suffix = (raw or "").rsplit("-", 1)[-1]
+        if suffix.isdigit():
+            seq = max(seq, int(suffix))
+    for _ in range(10000):
+        seq += 1
+        candidate = f"{base}{seq:04d}"
+        if not model.objects.filter(**{field: candidate}).exists():
+            return candidate
+    raise DispatchError(f"Không sinh được mã mới với tiền tố {base}.")
 
 
 def _next_mo_code_for_product(product_code: str) -> str:
@@ -289,8 +288,9 @@ def create_mo_from_bom(
         from san_xuat.ie_models import SxRouting
 
         routing = SxRouting.objects.filter(pk=routing_id).first()
-    if routing is None:
-        routing = getattr(working_bom, "routing", None)
+        if routing is None:
+            raise DispatchError("OB (routing) không tồn tại.")
+    # Bom và OB tách riêng — không lấy routing từ Bom.
 
     mo_code = (code or "").strip() or _next_mo_code_for_product(tech_doc.product_code)
 
@@ -1034,8 +1034,12 @@ class ApprovedIssueResult:
 
 
 def _recompute_mo_progress(mo: SxProductionOrder) -> SxProductionOrder:
-    from san_xuat.services.gates import check_packing_before_done
+    """Cập nhật qty_done và trạng thái đang SX.
 
+    Không tự khoá Hoàn thành — user bấm nút khi checklist 100%.
+    Nếu lệnh đang khoá (done) mà checklist tụt dưới 100% thì mở lại.
+    """
+    from san_xuat.services.mo_progress import build_mo_progress
     from san_xuat.services.progress_template import progress_steps
 
     confirmed_stats = list(
@@ -1065,23 +1069,84 @@ def _recompute_mo_progress(mo: SxProductionOrder) -> SxProductionOrder:
     if plan_qty > 0 and qty_done > plan_qty:
         qty_done = plan_qty
     mo.qty_done = qty_done
+
+    if mo.status == SxProductionOrder.STATUS_CANCELLED:
+        mo.save(update_fields=['qty_done'])
+        return mo
+
+    if mo.status == SxProductionOrder.STATUS_DRAFT:
+        mo.save(update_fields=['qty_done'])
+        return mo
+
     if mo.status == SxProductionOrder.STATUS_RELEASED and qty_done > 0:
         mo.status = SxProductionOrder.STATUS_IN_PROGRESS
-    if qty_done >= plan_qty and plan_qty > 0:
-        packing_gate = check_packing_before_done(mo=mo)
-        if packing_gate.should_block:
-            if mo.status != SxProductionOrder.STATUS_IN_PROGRESS:
-                mo.status = SxProductionOrder.STATUS_IN_PROGRESS
-        else:
-            mo.status = SxProductionOrder.STATUS_DONE
-    elif qty_done < plan_qty and mo.status == SxProductionOrder.STATUS_DONE:
-        mo.status = SxProductionOrder.STATUS_IN_PROGRESS if qty_done > 0 else SxProductionOrder.STATUS_RELEASED
+
+    progress = build_mo_progress(mo)
+    steps_complete = bool(progress.total_steps) and progress.pct_complete >= 100
+
+    if mo.status == SxProductionOrder.STATUS_DONE and not steps_complete:
+        mo.status = (
+            SxProductionOrder.STATUS_IN_PROGRESS
+            if qty_done > 0 or progress.done_count > 1
+            else SxProductionOrder.STATUS_RELEASED
+        )
+    elif mo.status == SxProductionOrder.STATUS_RELEASED and progress.done_count > 1:
+        mo.status = SxProductionOrder.STATUS_IN_PROGRESS
+
     mo.save(update_fields=['qty_done', 'status'])
-    # Đóng KHCT khi toàn bộ LSX của kế hoạch đã hoàn thành
-    if mo.status == SxProductionOrder.STATUS_DONE and mo.detail_plan_id:
+    if mo.sales_order_id:
+        from san_xuat.services.plan_board import sync_plan_status
+
+        sync_plan_status(mo.sales_order)
+    return mo
+
+
+@transaction.atomic
+def complete_production_order(*, mo_id: int, user=None) -> SxProductionOrder:
+    """Khoá LSX = Hoàn thành. Chỉ khi checklist 100%."""
+    from san_xuat.services.gates import check_packing_before_done
+    from san_xuat.services.mo_progress import build_mo_progress
+
+    mo = SxProductionOrder.objects.select_for_update().get(pk=mo_id)
+    if mo.status == SxProductionOrder.STATUS_CANCELLED:
+        raise DispatchError('Lệnh đã hủy — không hoàn thành được.')
+    if mo.status == SxProductionOrder.STATUS_DRAFT:
+        raise DispatchError('Phát hành lệnh trước khi hoàn thành.')
+    if mo.status == SxProductionOrder.STATUS_DONE:
+        return mo
+
+    mo = _recompute_mo_progress(mo)
+    mo = SxProductionOrder.objects.select_for_update().get(pk=mo.pk)
+    progress = build_mo_progress(mo)
+    if not progress.total_steps or progress.pct_complete < 100:
+        raise DispatchError(
+            f'Chỉ hoàn thành khi đủ {progress.done_count}/{progress.total_steps} bước (100%).'
+        )
+    packing_gate = check_packing_before_done(mo=mo)
+    if packing_gate.should_block:
+        raise DispatchError(packing_gate.message)
+
+    mo.status = SxProductionOrder.STATUS_DONE
+    mo.save(update_fields=['status'])
+    if mo.detail_plan_id:
         from san_xuat.services.planning import maybe_close_detail_plan
 
         maybe_close_detail_plan(mo.detail_plan_id)
+    if mo.sales_order_id:
+        from san_xuat.services.plan_board import sync_plan_status
+
+        sync_plan_status(mo.sales_order)
+    return mo
+
+
+@transaction.atomic
+def reopen_production_order(*, mo_id: int, user=None) -> SxProductionOrder:
+    """Bỏ khoá LSX — hủy hoàn thành."""
+    mo = SxProductionOrder.objects.select_for_update().get(pk=mo_id)
+    if mo.status != SxProductionOrder.STATUS_DONE:
+        raise DispatchError('Lệnh chưa hoàn thành.')
+    mo.status = SxProductionOrder.STATUS_IN_PROGRESS
+    mo.save(update_fields=['status'])
     if mo.sales_order_id:
         from san_xuat.services.plan_board import sync_plan_status
 
@@ -1124,10 +1189,12 @@ def approve_material_issue(
     if existing_id := req.stock_issue_id:
         existing = StockIssue.objects.select_for_update().get(pk=existing_id)
         if existing.status == DOC_STATUS_POSTED:
-            if not allow_partial:
-                raise DispatchError("Yêu cầu xuất đã có phiếu xuất kho liên quan.")
+            # Đã ghi sổ: chỉ được bổ sung khi YCX còn thiếu (partial) hoặc
+            # gọi lại với allow_partial. Xuất đủ lần đầu với PX đã post → chặn.
             if not _ycx_has_remaining(req):
                 raise DispatchError("Yêu cầu xuất đã xuất đủ.")
+            if not allow_partial and req.status != "partial":
+                raise DispatchError("Yêu cầu xuất đã có phiếu xuất kho liên quan.")
             is_supplement = True
             issue = StockIssue(
                 number=next_issue_number(),
@@ -1237,13 +1304,20 @@ def approve_material_issue(
     StockIssueLine.objects.bulk_create(issue_lines)
 
     req.stock_issue = issue
-    # Nếu chưa upload chứng từ đính kèm thì chỉ tạo phiếu nháp (chưa trừ tồn).
-    if attachment is None:
-        req.status = "approved"
-        req.save(update_fields=["stock_issue", "status"])
-        return ApprovedIssueResult(request=req, stock_issue=issue)
+    # Luôn ghi sổ / trừ tồn khi duyệt YCX. Thiếu chứng từ → đính kèm stub tối thiểu
+    # để thỏa ràng buộc phiếu xuất kho (không bắt user sang Kho NPL thêm bước).
+    if attachment is not None:
+        issue.attachment = attachment
+        issue.save(update_fields=["attachment"])
+    elif not issue.attachment:
+        from django.core.files.base import ContentFile
 
-    # Nếu có attachment thì thực hiện xuất kho thật ngay.
+        issue.attachment.save(
+            f"{req.code}-auto.pdf",
+            ContentFile(b"%PDF-1.4\n% Auto from YCX approve\n"),
+            save=True,
+        )
+
     try:
         issue = post_stock_issue(issue, user)
     except (IssueWorkflowError, BatchWorkflowError) as exc:
@@ -1275,6 +1349,8 @@ def approve_material_issue(
 
     if req.status == "done":
         consume_reservations_for_ycx(ycx_code=req.code)
+    if req.production_order_id and issue.status == DOC_STATUS_POSTED:
+        _recompute_mo_progress(req.production_order)
     return ApprovedIssueResult(request=req, stock_issue=issue)
 
 
@@ -1472,6 +1548,7 @@ def _completed_progress_lines(mo: SxProductionOrder) -> list[dict]:
             receipt__status__in=(
                 SxFgReceiptRequest.STATUS_DRAFT,
                 SxFgReceiptRequest.STATUS_SUBMITTED,
+                SxFgReceiptRequest.STATUS_PARTIAL,
                 SxFgReceiptRequest.STATUS_DONE,
             ),
         )
@@ -1505,23 +1582,107 @@ def _completed_progress_lines(mo: SxProductionOrder) -> list[dict]:
     return lines
 
 
+def _fg_sku_key(row: dict) -> tuple[str, str, str]:
+    return (
+        (row.get("color_code") or "").strip().upper(),
+        (row.get("size_label") or "").strip().upper(),
+        (row.get("sku_code") or "").strip().upper(),
+    )
+
+
+def remaining_fg_qty_by_key(
+    mo: SxProductionOrder,
+    *,
+    stat: SxProductionStat | None = None,
+) -> dict[tuple[str, str, str], Decimal]:
+    """SL còn được nhập TP theo (màu, size, sku) — tiến độ GH-TP trừ YCNTP đã lập."""
+    lines = _completed_progress_lines(mo)
+    if stat is not None:
+        color = (stat.color_code or "").strip().upper()
+        size = (stat.size_label or "").strip().upper()
+        sku = (
+            (stat.sku_code or "").strip()
+            or _compose_sku(mo.product_code or "", stat.color_code or "", stat.size_label or "")
+        ).upper()
+        filtered = []
+        for row in lines:
+            key = _fg_sku_key(row)
+            if sku and key[2] == sku:
+                filtered.append(row)
+            elif size and key[1] == size and (not color or key[0] == color):
+                filtered.append(row)
+        lines = filtered
+    out: dict[tuple[str, str, str], Decimal] = {}
+    for row in lines:
+        key = _fg_sku_key(row)
+        out[key] = out.get(key, Decimal("0")) + Decimal(str(row.get("qty") or 0))
+    return out
+
+
+def _resolve_fg_remain_for_key(
+    remain: dict[tuple[str, str, str], Decimal],
+    key: tuple[str, str, str],
+) -> Decimal:
+    if key in remain:
+        return remain[key]
+    color, size, sku = key
+    candidates = [
+        k for k, v in remain.items()
+        if v > 0 and (not size or k[1] == size) and (not sku or k[2] == sku)
+    ]
+    if len(candidates) == 1:
+        return remain[candidates[0]]
+    if size and not color and not sku:
+        by_size = [k for k, v in remain.items() if v > 0 and k[1] == size]
+        if len(by_size) == 1:
+            return remain[by_size[0]]
+    return Decimal("0")
+
+
+def validate_fg_receipt_lines_qty(
+    mo: SxProductionOrder,
+    lines: list[dict],
+    *,
+    stat: SxProductionStat | None = None,
+) -> None:
+    """Chặn nhập vượt SL đã sản xuất / còn lại (kể cả gom nhiều dòng cùng size → nhiều kho)."""
+    remain = remaining_fg_qty_by_key(mo, stat=stat)
+    asked: dict[tuple[str, str, str], Decimal] = {}
+    for row in lines or []:
+        qty = Decimal(str(row.get("qty") or 0))
+        if qty <= 0:
+            continue
+        key = _fg_sku_key(row)
+        asked[key] = asked.get(key, Decimal("0")) + qty
+
+    for key, qty in asked.items():
+        avail = _resolve_fg_remain_for_key(remain, key)
+        if qty > avail:
+            label = key[1] or key[2] or key[0] or "SKU"
+            raise DispatchError(
+                f"Size/SKU «{label}»: nhập {_dec_label(qty)} vượt SL còn được nhập "
+                f"({_dec_label(avail)} — theo sản lượng đã hoàn thành)."
+            )
+
+
 def fg_receipt_prefill(*, mo: SxProductionOrder, stat: SxProductionStat | None = None) -> dict:
     """Nguồn form YCNTP: lệnh + dòng SKU đã hoàn thành tiến độ giao hàng thành phẩm."""
+    base_rows = _completed_progress_lines(mo)
+    remain = remaining_fg_qty_by_key(mo, stat=stat)
+    label_by_key = {_fg_sku_key(row): row for row in base_rows}
     lines: list[dict] = []
-    if stat is not None and (stat.qty_good or Decimal("0")) > 0:
-        color = (stat.color_code or "").strip()
-        size = (stat.size_label or "").strip()
-        sku = (stat.sku_code or "").strip() or _compose_sku(mo.product_code or "", color, size)
-        if color or size or sku:
-            lines = [{
-                "color_code": color,
-                "color_label": (stat.color_label or "").strip(),
-                "size_label": size,
-                "sku_code": sku,
-                "qty": _dec_label(stat.qty_good),
-            }]
-    if not lines:
-        lines = _completed_progress_lines(mo)
+    for key, qty in remain.items():
+        if qty <= 0:
+            continue
+        src = label_by_key.get(key) or {}
+        color, size, sku = key
+        lines.append({
+            "color_code": src.get("color_code") or color,
+            "color_label": src.get("color_label") or "",
+            "size_label": src.get("size_label") or size,
+            "sku_code": src.get("sku_code") or sku,
+            "qty": _dec_label(qty),
+        })
 
     qty = sum((Decimal(str(x["qty"])) for x in lines), Decimal("0")) if lines else Decimal("0")
 
@@ -1632,6 +1793,9 @@ def create_fg_receipt_from_mo(
     enforce_gate(check_open_qc_alert_before_fg(mo=mo))
     enforce_gate(check_qc_pass_before_fg(mo=mo))
 
+    if lines:
+        validate_fg_receipt_lines_qty(mo, lines, stat=stat)
+
     from san_xuat.hub_models import SxFgReceiptLine
 
     req = SxFgReceiptRequest.objects.create(
@@ -1650,11 +1814,15 @@ def create_fg_receipt_from_mo(
     )
     created_qty = Decimal("0")
     n_lines = 0
+    first_line_wh = None
     for row in lines or []:
         q = row.get("qty")
         if q is None or Decimal(str(q)) <= 0:
             continue
         q = Decimal(str(q)).quantize(Decimal("0.01"))
+        line_wh = _resolve_fg_warehouse_by_code(row.get("warehouse_code") or "")
+        if first_line_wh is None and line_wh is not None:
+            first_line_wh = line_wh
         SxFgReceiptLine.objects.create(
             receipt=req,
             sku_id=row.get("sku_id") or None,
@@ -1663,12 +1831,19 @@ def create_fg_receipt_from_mo(
             color_label=(row.get("color_label") or "").strip(),
             color_code=(row.get("color_code") or "").strip(),
             qty=q,
+            warehouse=line_wh,
         )
         created_qty += q
         n_lines += 1
     if n_lines:
+        update_fields = ["qty"]
         req.qty = created_qty
-        req.save(update_fields=["qty"])
+        if req.warehouse_id is None and first_line_wh is not None:
+            req.warehouse = first_line_wh
+            req.warehouse_code = first_line_wh.code
+            req.warehouse_name = first_line_wh.name or first_line_wh.code
+            update_fields.extend(["warehouse", "warehouse_code", "warehouse_name"])
+        req.save(update_fields=update_fields)
     elif stat and (stat.sku_id or (stat.sku_code or "").strip()):
         SxFgReceiptLine.objects.create(
             receipt=req,
@@ -1678,6 +1853,7 @@ def create_fg_receipt_from_mo(
             color_label=(stat.color_label or "").strip(),
             color_code=(stat.color_code or "").strip(),
             qty=receipt_qty,
+            warehouse=req.warehouse,
         )
     return req
 
@@ -1696,23 +1872,94 @@ def _post_fg_receipt_stock(req: SxFgReceiptRequest, *, user=None) -> None:
         raise DispatchError(str(exc)) from exc
 
 
+def _refresh_fg_receipt_status(req: SxFgReceiptRequest) -> SxFgReceiptRequest:
+    """done nếu không còn SL GH-TP chưa nhập; ngược lại partial."""
+    mo = req.production_order
+    remain = remaining_fg_qty_by_key(mo)
+    still = any(v > 0 for v in remain.values())
+    req.status = (
+        SxFgReceiptRequest.STATUS_PARTIAL if still else SxFgReceiptRequest.STATUS_DONE
+    )
+    req.save(update_fields=['status'])
+    return req
+
+
+@transaction.atomic
+def receive_fg_to_warehouse(*, request_id: int, user=None) -> SxFgReceiptRequest:
+    """Nhập kho ngay từ YCNTP: tạo phiếu nhập SP + cập nhật partial/done."""
+    req = SxFgReceiptRequest.objects.select_for_update().select_related(
+        'production_order',
+    ).get(pk=request_id)
+    if req.status not in (
+        SxFgReceiptRequest.STATUS_DRAFT,
+        SxFgReceiptRequest.STATUS_PARTIAL,
+        SxFgReceiptRequest.STATUS_SUBMITTED,
+    ):
+        raise DispatchError('Chỉ nhập kho khi phiếu còn mở (nháp / còn hàng / đã gửi).')
+    if not req.lines.filter(stock_receipt__isnull=True, qty__gt=0).exists():
+        raise DispatchError('Không có dòng mới để nhập kho.')
+    _post_fg_receipt_stock(req, user=user)
+    req = _refresh_fg_receipt_status(req)
+    if req.production_order_id:
+        _recompute_mo_progress(req.production_order)
+    return req
+
+
+@transaction.atomic
+def add_fg_receipt_lines(
+    *,
+    request_id: int,
+    lines: list[dict],
+    user=None,
+) -> SxFgReceiptRequest:
+    """Bổ sung dòng vào YCNTP còn hàng chưa nhập, rồi nhập kho ngay."""
+    from san_xuat.hub_models import SxFgReceiptLine
+
+    req = SxFgReceiptRequest.objects.select_for_update().select_related(
+        'production_order',
+    ).get(pk=request_id)
+    if req.status not in (
+        SxFgReceiptRequest.STATUS_PARTIAL,
+        SxFgReceiptRequest.STATUS_DRAFT,
+    ):
+        raise DispatchError('Chỉ bổ sung khi phiếu còn hàng chưa nhập hoặc nháp.')
+    mo = req.production_order
+    validate_fg_receipt_lines_qty(mo, lines)
+    added = Decimal('0')
+    for row in lines or []:
+        q = row.get('qty')
+        if q is None or Decimal(str(q)) <= 0:
+            continue
+        q = Decimal(str(q)).quantize(Decimal('0.01'))
+        line_wh = _resolve_fg_warehouse_by_code(row.get('warehouse_code') or '')
+        SxFgReceiptLine.objects.create(
+            receipt=req,
+            sku_id=row.get('sku_id') or None,
+            sku_code=(row.get('sku_code') or '').strip(),
+            size_label=(row.get('size_label') or '').strip(),
+            color_label=(row.get('color_label') or '').strip(),
+            color_code=(row.get('color_code') or '').strip(),
+            qty=q,
+            warehouse=line_wh or req.warehouse,
+        )
+        added += q
+    if added <= 0:
+        raise DispatchError('Không có dòng bổ sung hợp lệ.')
+    req.qty = (req.qty or Decimal('0')) + added
+    req.save(update_fields=['qty'])
+    return receive_fg_to_warehouse(request_id=req.pk, user=user)
+
+
 @transaction.atomic
 def submit_fg_receipt(*, request_id: int, user=None) -> SxFgReceiptRequest:
-    from san_xuat.services.sx_settings import sx_bool
-
+    """Gửi / nhập kho: luôn tạo phiếu nhập SP (không chờ KV)."""
     req = SxFgReceiptRequest.objects.select_for_update().get(pk=request_id)
-    if req.status != SxFgReceiptRequest.STATUS_DRAFT:
-        raise DispatchError("Chỉ gửi Yêu cầu nhập thành phẩm ở trạng thái nháp.")
-    require_kv = sx_bool("require_kv_link_for_fg_done", True)
-    if require_kv:
-        req.status = SxFgReceiptRequest.STATUS_SUBMITTED
-    else:
-        # Không bắt buộc KV → gửi xong coi như hoàn tất
-        req.status = SxFgReceiptRequest.STATUS_DONE
-    req.save(update_fields=["status"])
-    if req.status == SxFgReceiptRequest.STATUS_DONE:
-        _post_fg_receipt_stock(req, user=user)
-    return req
+    if req.status not in (
+        SxFgReceiptRequest.STATUS_DRAFT,
+        SxFgReceiptRequest.STATUS_PARTIAL,
+    ):
+        raise DispatchError('Chỉ nhập kho khi phiếu nháp hoặc còn hàng chưa nhập.')
+    return receive_fg_to_warehouse(request_id=req.pk, user=user)
 
 
 @transaction.atomic
@@ -1748,12 +1995,13 @@ def link_kv_purchase(
 
     req.kv_purchase_kiotviet_id = purchase.kiotviet_id
     req.kv_purchase_code = purchase.code or ""
-    became_done = req.status in (SxFgReceiptRequest.STATUS_DRAFT, SxFgReceiptRequest.STATUS_SUBMITTED)
-    if became_done:
-        req.status = SxFgReceiptRequest.STATUS_DONE
-    req.save(update_fields=["kv_purchase_kiotviet_id", "kv_purchase_code", "status"])
-    if became_done:
+    req.save(update_fields=["kv_purchase_kiotviet_id", "kv_purchase_code"])
+    # KV chỉ liên kết — tồn đã ghi khi Nhập kho; làm mới trạng thái còn hàng.
+    if req.lines.filter(stock_receipt__isnull=True, qty__gt=0).exists():
         _post_fg_receipt_stock(req, user=user)
+    req = _refresh_fg_receipt_status(req)
+    if req.production_order_id:
+        _recompute_mo_progress(req.production_order)
     return req
 
 
@@ -1890,6 +2138,7 @@ def confirm_wip_handover(*, handover_id: int) -> SxWipHandover:
     )
     if handover.status != SxWipHandover.STATUS_PENDING:
         raise DispatchError("Chỉ xác nhận bàn giao đang chờ.")
+
     qty = handover.qty or Decimal("0")
     try:
         _adjust_wip_balance(

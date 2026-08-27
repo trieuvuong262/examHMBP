@@ -1,7 +1,10 @@
 {% extends 'base.html' %}
-
 {% load sx_format %}
-{% block extra_head %}{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}{% endblock %}
+
+{% block extra_head %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+{% include 'san_xuat/includes/sx_qc_compact_styles.html' %}
+{% endblock %}
 
 {% block content %}
 <div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
@@ -10,29 +13,36 @@
       <h2 class="jp-npl-mat-topbar-title w-100">{{ page_title }}</h2>
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
-      <span class="sep" aria-hidden="true"></span>
-      <a href="{% url 'san_xuat:qc_stub' %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại</a>
+      <a href="{% url 'san_xuat:qc_standards' %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Tiêu chuẩn</a>
     </nav>
   </div>
 
-    <div class="card border-0 shadow-sm">
-        <div class="card-body p-4">
-            <form method="post" novalidate>
-                {% csrf_token %}
-                {% for field in form %}
-                <div class="mb-3">
-                    <label class="form-label small text-muted" for="{{ field.id_for_label }}">{{ field.label }}{{ field|sx_req_star }}</label>
-                    {{ field }}
-{% if field.errors %}<div class="text-danger small">{{ field.errors }}</div>{% endif %}
-                </div>
-                {% endfor %}
-                <div class="d-flex gap-2">
-                    <button type="submit" class="btn btn-hm">Lưu</button>
-                    <a href="{% url 'san_xuat:qc_stub' %}" class="btn btn-outline-secondary">Hủy</a>
-                </div>
-            </form>
-        </div>
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="alert alert-danger py-2 small">{{ form.non_field_errors }}</div>{% endif %}
+
+    <div class="jp-qc-action">
+      <p class="title">{{ page_title }}</p>
+      <div class="btns">
+        <button type="submit" class="btn btn-hm btn-sm"><i class="bi bi-check2" aria-hidden="true"></i>Lưu</button>
+        <a href="{% url 'san_xuat:qc_standards' %}" class="btn btn-outline-secondary btn-sm">Hủy</a>
+      </div>
     </div>
+
+    <div class="card border-0 shadow-sm jp-qc-panel">
+      <div class="card-body">
+        <div class="jp-qc-fields">
+          {% for field in form %}
+          <div class="field {% if field.name == 'name' or field.name == 'notes' or field.name == 'product_code' or field.name == 'stage_name' %}field-span-2{% endif %}{% if field.name == 'is_active' %}{% endif %}">
+            <label for="{{ field.id_for_label }}">{{ field.label }}{{ field|sx_req_star }}</label>
+            {{ field }}
+            {% if field.errors %}<div class="text-danger small">{{ field.errors }}</div>{% endif %}
+            {% if field.help_text %}<div class="form-text small">{{ field.help_text }}</div>{% endif %}
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </form>
 </div>
 {% endblock %}
-

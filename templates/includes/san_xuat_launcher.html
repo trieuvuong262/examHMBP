@@ -277,10 +277,10 @@
     }},
     { area: 'plan', test: function (p) { return p.indexOf('/san-xuat/ke-hoach') !== -1; } },
     { area: 'kho_npl', test: function (p) { return p.indexOf('/kho-npl') !== -1; } },
-    { area: 'dispatch', test: function (p) {
-      return p.indexOf('/san-xuat/dieu-phoi') !== -1 || p.indexOf('/san-xuat/thue-gia-cong') !== -1;
+    { area: 'dispatch', test: function (p) { return p.indexOf('/san-xuat/dieu-phoi') !== -1; } },
+    { area: 'team_work', test: function (p) {
+      return p.indexOf('/san-xuat/cong-viec-to') !== -1 || p.indexOf('/san-xuat/thue-gia-cong') !== -1;
     }},
-    { area: 'team_work', test: function (p) { return p.indexOf('/san-xuat/cong-viec-to') !== -1; } },
     { area: 'shop', test: function (p) {
       return p.indexOf('/shop-floor') !== -1
         || p.indexOf('/dung-chuyen') !== -1

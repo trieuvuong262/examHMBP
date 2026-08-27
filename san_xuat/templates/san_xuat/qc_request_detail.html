@@ -1,63 +1,110 @@
 {% extends 'base.html' %}
 {% load sx_format %}
 
-{% block extra_head %}{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}{% endblock %}
+{% block extra_head %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+{% include 'san_xuat/includes/sx_qc_compact_styles.html' %}
+{% endblock %}
 
 {% block content %}
 <div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
   <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
     <div class="jp-sx-detail-title">
-      <h2 class="jp-npl-mat-topbar-title w-100">Yêu cầu kiểm tra {{ qc_req.code }}</h2>
+      <h2 class="jp-npl-mat-topbar-title w-100">Yêu cầu kiểm tra <span class="text-muted">({{ qc_req.code }})</span></h2>
+      <span class="badge text-bg-light text-dark border">{{ qc_req.status }}</span>
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
+      {% if qc_req.production_order_id %}
+      <a href="{% url 'san_xuat:dispatch_mo_detail' qc_req.production_order_id %}"><i class="bi bi-file-earmark-gear" aria-hidden="true"></i>{{ qc_req.production_order.code }}</a>
       <span class="sep" aria-hidden="true"></span>
+      {% endif %}
       <a href="{% url 'san_xuat:qc_request' %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại</a>
     </nav>
   </div>
 
-    <div class="card border-0 shadow-sm">
-        <div class="card-body">
-            <div class="row g-3">
-                <div class="col-6">
-                    <div class="small text-muted">Mã sản phẩm</div>
-                    <div>{{ qc_req.product_code }}</div>
-                </div>
-                <div class="col-6">
-                    <div class="small text-muted">Tên sản phẩm</div>
-                    <div>{{ qc_req.product_name|default:"—" }}</div>
-                </div>
-                <div class="col-6">
-                    <div class="small text-muted">Công đoạn</div>
-                    <div>{{ qc_req.stage_name|default:"—" }}</div>
-                </div>
-                <div class="col-6">
-                    <div class="small text-muted">SL kiểm</div>
-                    <div>{{ qc_req.qty|sx_num }}</div>
-                </div>
-                <div class="col-6">
-                    <div class="small text-muted">Ngày yêu cầu</div>
-                    <div>{{ qc_req.request_date|date:"d/m/Y" }}</div>
-                </div>
-                <div class="col-6">
-                    <div class="small text-muted">Hạn</div>
-                    <div>{% if qc_req.due_date %}{{ qc_req.due_date|date:"d/m/Y" }}{% else %}—{% endif %}</div>
-                </div>
-                <div class="col-12">
-                    <div class="small text-muted">Ghi chú</div>
-                    <div>{{ qc_req.notes|default:"—" }}</div>
-                </div>
-            </div>
-            {% if qc_req.inspections.all %}
-            <hr>
-            <div class="small text-muted mb-2">Phiếu kiểm tra liên quan</div>
-            <ul class="mb-0">
-            {% for inspection in qc_req.inspections.all %}
-                <li>{{ inspection.code }} - {{ inspection.result }}</li>
-            {% endfor %}
-            </ul>
-            {% endif %}
-        </div>
+  <div class="jp-qc-action">
+    <p class="title">{{ qc_req.product_code }}{% if qc_req.stage_name %} · {{ qc_req.stage_name }}{% endif %}</p>
+    <div class="btns">
+      {% if latest_sheet %}
+      <a href="{% url 'san_xuat:qc_sheet_detail' latest_sheet.pk %}" class="btn btn-hm btn-sm">
+        <i class="bi bi-clipboard-check" aria-hidden="true"></i>
+        {% if latest_sheet.status == 'done' %}Xem PKT {{ latest_sheet.code }}{% else %}Chốt {{ latest_sheet.code }}{% endif %}
+      </a>
+      {% endif %}
     </div>
+  </div>
+
+  <div class="card border-0 shadow-sm jp-qc-panel mb-2">
+    <div class="card-body">
+      <div class="jp-qc-meta">
+        <div>
+          <div class="label">Mã SP</div>
+          <div class="value">{{ qc_req.product_code }}</div>
+        </div>
+        <div style="grid-column: span 2">
+          <div class="label">Tên SP</div>
+          <div class="value">{{ qc_req.product_name|default:"—" }}</div>
+        </div>
+        <div>
+          <div class="label">Công đoạn</div>
+          <div class="value">{{ qc_req.stage_name|default:"—" }}</div>
+        </div>
+        <div>
+          <div class="label">SL kiểm</div>
+          <div class="value">{{ qc_req.qty|sx_num }}</div>
+        </div>
+        <div>
+          <div class="label">Ngày YC</div>
+          <div class="value">{{ qc_req.request_date|date:"d/m/Y" }}</div>
+        </div>
+        <div>
+          <div class="label">Hạn</div>
+          <div class="value">{% if qc_req.due_date %}{{ qc_req.due_date|date:"d/m/Y" }}{% else %}—{% endif %}</div>
+        </div>
+        {% if qc_req.notes %}
+        <div style="grid-column: 1 / -1">
+          <div class="label">Ghi chú</div>
+          <div class="value fw-normal">{{ qc_req.notes }}</div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  {% if qc_req.inspections.all %}
+  <div class="card border-0 shadow-sm jp-qc-panel">
+    <div class="card-body">
+      <div class="label text-muted small mb-2">Phiếu kiểm tra</div>
+      <div class="table-responsive">
+        <table class="table table-sm table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Mã</th>
+              <th>Ngày</th>
+              <th>Kết quả</th>
+              <th class="text-end"></th>
+            </tr>
+          </thead>
+          <tbody>
+          {% for inspection in qc_req.inspections.all %}
+            <tr>
+              <td class="fw-semibold small">{{ inspection.code }}</td>
+              <td class="small text-muted">{{ inspection.inspected_at|date:"d/m/Y" }}</td>
+              <td class="small">
+                {% if inspection.result == 'pass' %}<span class="text-success">Đạt</span>
+                {% elif inspection.result == 'fail' %}<span class="text-danger">Không đạt</span>
+                {% else %}{{ inspection.get_result_display }}{% endif %}
+              </td>
+              <td class="text-end">
+                <a href="{% url 'san_xuat:qc_sheet_detail' inspection.pk %}" class="btn btn-sm btn-outline-hm">Mở</a>
+              </td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endif %}
 </div>
 {% endblock %}
-

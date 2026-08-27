@@ -38,21 +38,20 @@ class Phase3Error(Exception):
 
 
 def _next_code(prefix: str, model, *, field: str = "code") -> str:
+    """Sinh mã {prefix}-{year}-{seq:04d} — lấy max số thứ tự số, bỏ qua mã không chuẩn."""
     year = timezone.localdate().year
     base = f"{prefix}-{year}-"
-    latest = (
-        model.objects.filter(**{f"{field}__startswith": base})
-        .order_by("-id")
-        .values_list(field, flat=True)
-        .first()
-    )
-    if not latest:
-        return f"{base}0001"
-    try:
-        seq = int(latest.rsplit("-", 1)[-1]) + 1
-    except ValueError:
-        seq = model.objects.filter(**{f"{field}__startswith": base}).count() + 1
-    return f"{base}{seq:04d}"
+    seq = 0
+    for raw in model.objects.filter(**{f"{field}__startswith": base}).values_list(field, flat=True):
+        suffix = (raw or "").rsplit("-", 1)[-1]
+        if suffix.isdigit():
+            seq = max(seq, int(suffix))
+    for _ in range(10000):
+        seq += 1
+        candidate = f"{base}{seq:04d}"
+        if not model.objects.filter(**{field: candidate}).exists():
+            return candidate
+    raise Phase3Error(f"Không sinh được mã mới với tiền tố {base}.")
 
 
 def _code(kind: str, model, *, code: str | None = None, field: str = "code"):
@@ -459,6 +458,65 @@ def confirm_packing_record(*, packing_id: int) -> SxPackingRecord:
 # --- Thuê gia công ---
 
 
+def _bom_for_production_order(mo: SxProductionOrder):
+    """BOM của lệnh: snapshot LSX → dòng ĐĐH → hồ sơ SX."""
+    bom = getattr(mo, "bom_version", None)
+    if bom is not None:
+        return bom
+    so = mo.sales_order if getattr(mo, "sales_order_id", None) else None
+    if so is not None:
+        for line in so.lines.all():
+            if getattr(line, "bom_version_id", None):
+                return line.bom_version
+    code = (mo.product_code or "").strip()
+    if not code:
+        return None
+    from san_xuat.models import ProductTechDoc
+    from san_xuat.services.bom import get_working_bom
+
+    doc = (
+        ProductTechDoc.objects.filter(product_code__iexact=code, is_active=True).first()
+        or ProductTechDoc.objects.filter(product_code__iexact=code).first()
+    )
+    if not doc:
+        return None
+    return get_working_bom(doc)
+
+
+def npl_lines_for_subcontract(*, mo: SxProductionOrder, qty: Decimal | None = None) -> list[dict]:
+    """Định mức BOM × SL thuê — gộp theo mã NPL. Tên/mã cố định, chỉ SL được sửa."""
+    bom = _bom_for_production_order(mo)
+    if bom is None:
+        return []
+    scale = qty if qty is not None and qty > 0 else (mo.qty or Decimal("0"))
+    if scale <= 0:
+        return []
+    grouped: dict[str, dict] = {}
+    lines = bom.lines.select_related("material", "material__unit")
+    for bom_line in lines:
+        mat = bom_line.material
+        if mat is None:
+            continue
+        need = (bom_line.qty_with_scrap * scale).quantize(Decimal("0.01"))
+        if need <= 0:
+            continue
+        code = (mat.code or "").strip()
+        if not code:
+            continue
+        unit = getattr(mat, "unit", None)
+        uom = (getattr(unit, "name", None) or getattr(unit, "code", None) or "").strip() or "SP"
+        if code not in grouped:
+            grouped[code] = {
+                "material_code": code,
+                "material_name": (mat.name or "").strip(),
+                "qty": need,
+                "uom_label": uom,
+            }
+        else:
+            grouped[code]["qty"] = (grouped[code]["qty"] + need).quantize(Decimal("0.01"))
+    return list(grouped.values())
+
+
 @transaction.atomic
 def create_subcontract_order(
     *,
@@ -468,11 +526,13 @@ def create_subcontract_order(
     order_date=None,
     product_name: str = "",
     process_name: str = "",
+    team_slug: str = "",
     production_order_id: int | None = None,
     due_date=None,
     code: str | None = None,
     notes: str = "",
     out_lines: list[dict] | None = None,
+    created_by=None,
 ) -> SxSubcontractOrder:
     vendor_name = (vendor_name or "").strip()
     product_code = (product_code or "").strip()
@@ -489,21 +549,41 @@ def create_subcontract_order(
         product_name = mo.product_name
     if not product_code:
         product_code = mo.product_code
+    from san_xuat.services.progress_template import team_by_slug
+    from san_xuat.services.qc import ob_qc_teams
+
+    slug = (team_slug or "").strip().lower()
+    ob_teams = ob_qc_teams(mo=mo)
+    allowed = {t.slug: t for t in ob_teams}
+    if not allowed:
+        raise Phase3Error("Lệnh chưa có Ob — chỉ thuê GC cho tổ có trên Ob của lệnh.")
+    if not slug:
+        raise Phase3Error("Chọn tổ Ob thuê ngoài (không mặc định thêu).")
+    if slug not in allowed:
+        labels = ", ".join(t.label for t in ob_teams)
+        raise Phase3Error(f"Tổ không có trên Ob của lệnh. Tổ Ob: {labels}.")
+    meta = team_by_slug(slug)
+    process_name = (process_name or "").strip() or (meta or {}).get("label") or allowed[slug].label
     order = SxSubcontractOrder.objects.create(
         code=_code("subcontract", SxSubcontractOrder, code=code),
         production_order=mo,
         vendor_name=vendor_name,
         product_code=product_code,
         product_name=(product_name or "").strip(),
-        process_name=(process_name or "").strip(),
+        process_name=process_name,
+        team_slug=slug,
         qty=qty.quantize(Decimal("0.01")),
         order_date=order_date or timezone.localdate(),
         due_date=due_date,
         status=SxSubcontractOrder.STATUS_DRAFT,
         notes=notes or "",
         is_demo=False,
+        created_by=created_by if getattr(created_by, "pk", None) else None,
     )
-    for row in out_lines or []:
+    rows = list(out_lines or [])
+    if not rows:
+        rows = npl_lines_for_subcontract(mo=mo, qty=qty)
+    for row in rows:
         code_m = (row.get("material_code") or "").strip()
         q = row.get("qty")
         if not code_m or q is None or Decimal(str(q)) <= 0:
@@ -618,6 +698,116 @@ def advance_subcontract_order(
             _post_subcontract_stock_in(order=order, user=user)
 
     order.refresh_from_db()
+    return order
+
+
+def _close_ob_team_for_gc(*, order: SxSubcontractOrder, user=None) -> None:
+    """Nhận hàng GC = hoàn thành tổ Ob trên lệnh — không cần phân công nội bộ."""
+    slug = (order.team_slug or "").strip().lower()
+    mo = order.production_order
+    if not slug or mo is None:
+        return
+    from san_xuat.services.planning import PlanningError
+    from san_xuat.services.team_work import (
+        accept_production,
+        close_team_job,
+        is_team_job_closed,
+    )
+
+    if mo.status == SxProductionOrder.STATUS_RELEASED:
+        try:
+            accept_production(mo_id=mo.pk, team_slug=slug, user=user)
+        except PlanningError:
+            pass
+    if is_team_job_closed(mo_id=mo.pk, team_slug=slug):
+        return
+    try:
+        close_team_job(
+            mo_id=mo.pk,
+            team_slug=slug,
+            user=user,
+            notes=f"Nhận hàng GC {order.code}",
+            require_accept=False,
+        )
+    except PlanningError:
+        return
+
+
+@transaction.atomic
+def receive_subcontract_goods(
+    *,
+    order_id: int,
+    qty_received: Decimal | None = None,
+    user=None,
+) -> SxSubcontractOrder:
+    """Nhận hàng: gửi (nếu còn nháp) → nhận → hoàn thành phiếu + hoàn thành tổ Ob."""
+    order = SxSubcontractOrder.objects.select_for_update().get(pk=order_id)
+    if order.status == SxSubcontractOrder.STATUS_CANCELLED:
+        raise Phase3Error("Lệnh GC đã hủy.")
+    if order.status == SxSubcontractOrder.STATUS_DONE:
+        _close_ob_team_for_gc(order=order, user=user)
+        return order
+    recv = qty_received if qty_received is not None else order.qty
+    # Nhận hàng = hoàn thành tổ Ob — không trừ/nhập kho NPL (dòng BOM chỉ là định mức tham chiếu).
+    if order.status == SxSubcontractOrder.STATUS_DRAFT:
+        has_out = order.material_lines.filter(direction=SxSubcontractMaterialLine.DIRECTION_OUT).exists()
+        if has_out:
+            order = advance_subcontract_order(
+                order_id=order.pk,
+                to_status=SxSubcontractOrder.STATUS_SENT,
+                user=user,
+                post_stock=False,
+            )
+        else:
+            order.status = SxSubcontractOrder.STATUS_SENT
+            order.sent_at = timezone.now()
+            order.save(update_fields=["status", "sent_at"])
+    if order.status == SxSubcontractOrder.STATUS_SENT:
+        order = advance_subcontract_order(
+            order_id=order.pk,
+            to_status=SxSubcontractOrder.STATUS_RECEIVED,
+            qty_received=recv,
+            user=user,
+            post_stock=False,
+        )
+    if order.status == SxSubcontractOrder.STATUS_RECEIVED:
+        order = advance_subcontract_order(
+            order_id=order.pk,
+            to_status=SxSubcontractOrder.STATUS_DONE,
+            user=user,
+        )
+    _close_ob_team_for_gc(order=order, user=user)
+    return order
+
+
+@transaction.atomic
+def undo_receive_subcontract_goods(*, order_id: int, user=None) -> SxSubcontractOrder:
+    """Huỷ nhận hàng GC: phiếu về nháp + mở lại công việc tổ Ob."""
+    order = SxSubcontractOrder.objects.select_for_update().get(pk=order_id)
+    if order.status == SxSubcontractOrder.STATUS_CANCELLED:
+        raise Phase3Error("Lệnh GC đã hủy.")
+    if order.status not in {
+        SxSubcontractOrder.STATUS_DONE,
+        SxSubcontractOrder.STATUS_RECEIVED,
+    }:
+        raise Phase3Error("Phiếu chưa nhận hàng — không huỷ nhận được.")
+
+    order.status = SxSubcontractOrder.STATUS_DRAFT
+    order.qty_received = Decimal("0")
+    order.received_at = None
+    order.sent_at = None
+    order.save(update_fields=["status", "qty_received", "received_at", "sent_at"])
+
+    slug = (order.team_slug or "").strip().lower()
+    mo = order.production_order
+    if slug and mo is not None:
+        from san_xuat.services.planning import PlanningError
+        from san_xuat.services.team_work import reopen_team_job
+
+        try:
+            reopen_team_job(mo_id=mo.pk, team_slug=slug)
+        except PlanningError:
+            pass
     return order
 
 

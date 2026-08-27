@@ -101,6 +101,7 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
     MODULE_KHO_SAN_PHAM: [
         {'key': 'products', 'label': 'Danh mục', 'icon': 'bi-tags'},
         {'key': 'stock', 'label': 'Tồn kho', 'icon': 'bi-boxes'},
+        {'key': 'receipts', 'label': 'Phiếu nhập', 'icon': 'bi-box-arrow-in-down'},
         {'key': 'code_settings', 'label': 'Thiết lập mã', 'icon': 'bi-upc'},
     ],
     MODULE_SAN_XUAT: [
@@ -142,7 +143,6 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
         {'key': 'npl_surplus', 'label': 'NPL thừa', 'icon': 'bi-box-seam'},
         {'key': 'wip_handover', 'label': 'Bàn giao BTP', 'icon': 'bi-arrow-left-right'},
         {'key': 'wip_return', 'label': 'Trả lại BTP', 'icon': 'bi-arrow-return-left'},
-        {'key': 'subcontract', 'label': 'Thuê gia công', 'icon': 'bi-building'},
         {'key': 'packing', 'label': 'Đóng gói', 'icon': 'bi-box2'},
         {'key': 'team_work', 'label': 'Phân công SX', 'icon': 'bi-people'},
         {'key': 'team_work_goods', 'label': 'Tiến độ hàng hoá', 'icon': 'bi-bar-chart-line'},
@@ -152,6 +152,7 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
         {'key': 'team_work_may', 'label': 'Tổ may', 'icon': 'bi-grid-3x3-gap'},
         {'key': 'team_work_ht', 'label': 'Tổ ủi gấp xếp', 'icon': 'bi-layers'},
         {'key': 'team_work_gh', 'label': 'Tổ giao hàng', 'icon': 'bi-truck'},
+        {'key': 'subcontract', 'label': 'Thuê gia công', 'icon': 'bi-building'},
         {'key': 'work_assign', 'label': 'Giao việc sản xuất', 'icon': 'bi-person-workspace'},
         {'key': 'shop_floor', 'label': 'Shop floor', 'icon': 'bi-cpu'},
         {'key': 'downtime', 'label': 'Dừng chuyền', 'icon': 'bi-pause-circle'},
@@ -331,6 +332,7 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     ('/kho-npl/tong-quan', MODULE_KHO_NPL, 'material_stock'),
     ('/kho-san-pham/thiet-lap-ma', MODULE_KHO_SAN_PHAM, 'code_settings'),
     ('/kho-san-pham/danh-muc', MODULE_KHO_SAN_PHAM, 'products'),
+    ('/kho-san-pham/phieu-nhap', MODULE_KHO_SAN_PHAM, 'receipts'),
     ('/kho-san-pham/ton-kho', MODULE_KHO_SAN_PHAM, 'stock'),
     ('/kho-san-pham/', MODULE_KHO_SAN_PHAM, 'products'),
     # Sản xuất hub — prefix cụ thể trước; /san-xuat/ cuối cùng → overview
@@ -391,6 +393,8 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     ('/san-xuat/chat-luong/bo-tieu-chuan', MODULE_SAN_XUAT, 'qc_standard_set'),
     ('/san-xuat/chat-luong/loi', MODULE_SAN_XUAT, 'qc_defect'),
     ('/san-xuat/chat-luong/nhom-loi', MODULE_SAN_XUAT, 'qc_defect_group'),
+    ('/san-xuat/chat-luong/tieu-chuan', MODULE_SAN_XUAT, 'qc'),
+    ('/san-xuat/chat-luong/to', MODULE_SAN_XUAT, 'qc'),
     ('/san-xuat/chat-luong', MODULE_SAN_XUAT, 'qc'),
     ('/san-xuat/gia-thanh/thuc-te', MODULE_SAN_XUAT, 'actual_cost'),
     ('/san-xuat/gia-thanh/dinh-muc', MODULE_SAN_XUAT, 'costing_norm'),

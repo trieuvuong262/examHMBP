@@ -30,11 +30,46 @@
     <input type="hidden" name="{{ key }}" value="{{ val }}">
     {% endfor %}
     {% endif %}
+    {% if has_list_filters or list_filter_preserve or list_filter_status_value %}
     <div class="jp-team-filter-actions">
-      <button type="submit" class="btn btn-hm btn-sm fw-bold">Lọc</button>
-      {% if has_list_filters or list_filter_preserve or list_filter_status_value %}
       <a href="{{ list_filter_clear_url|default:request.path }}" class="btn btn-light border" title="Xóa bộ lọc"><i class="bi bi-x-lg"></i></a>
-      {% endif %}
     </div>
+    {% endif %}
   </div>
 </form>
+<script>
+(function () {
+  var form = document.getElementById('sxListFilterForm');
+  if (!form || form.dataset.sxAutoFilterBound === '1') return;
+  form.dataset.sxAutoFilterBound = '1';
+
+  function submitNow() {
+    if (typeof form.requestSubmit === 'function') form.requestSubmit();
+    else form.submit();
+  }
+
+  form.querySelectorAll('select').forEach(function (el) {
+    el.addEventListener('change', submitNow);
+  });
+
+  form.querySelectorAll('input[type="text"][name="code"], input[type="text"][name="name"]').forEach(function (el) {
+    var timer = null;
+    var lastSubmitted = el.value;
+    el.addEventListener('input', function () {
+      clearTimeout(timer);
+      timer = setTimeout(function () {
+        if (el.value === lastSubmitted) return;
+        lastSubmitted = el.value;
+        submitNow();
+      }, 400);
+    });
+    el.addEventListener('keydown', function (e) {
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      clearTimeout(timer);
+      lastSubmitted = el.value;
+      submitNow();
+    });
+  });
+})();
+</script>

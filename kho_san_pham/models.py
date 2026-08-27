@@ -210,6 +210,8 @@ from kho_san_pham.stock_models import (  # noqa: E402,F401
     NegativeStockAlert,
     StockBalance,
     StockLedger,
+    StockReceipt,
+    StockReceiptLine,
     Warehouse,
 )
 

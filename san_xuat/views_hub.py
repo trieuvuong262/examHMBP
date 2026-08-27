@@ -7,6 +7,7 @@ from datetime import timedelta
 from decimal import Decimal
 
 from django.contrib import messages
+from django import forms
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -41,6 +42,9 @@ from san_xuat.list_filters import (
     SX_FILTER_QC_REQUEST,
     SX_FILTER_QC_SHEET,
     SX_FILTER_SUBCONTRACT,
+    SUBCONTRACT_WORK_STATUS_CHOICES,
+    SUBCONTRACT_WORK_STATUS_DONE,
+    SUBCONTRACT_WORK_STATUS_RUNNING,
     SX_FILTER_WIP_HANDOVER,
     SX_FILTER_WIP_RETURN,
     SX_FILTER_WORK_CENTER,
@@ -120,7 +124,6 @@ from san_xuat.forms_phase3 import (
     PackingCreateForm,
     PackingLineFormSet,
     SubcontractCreateForm,
-    SubcontractMaterialLineForm,
     SubcontractOutLineFormSet,
     SubcontractReceiveForm,
     TraceLookupForm,
@@ -149,7 +152,6 @@ from san_xuat.forms_qc import (
     QcDefectGroupForm,
     QcInspectionCreateForm,
     QcInspectionCriteriaLineForm,
-    QcInspectionDefectLineFormSet,
     QcInspectionFinalizeForm,
     QcRequestForm,
     QcSamplingMethodForm,
@@ -167,6 +169,8 @@ from san_xuat.services.dispatch import (
     create_disassembly_order,
     create_fg_receipt_from_mo,
     fg_receipt_prefill,
+    add_fg_receipt_lines,
+    receive_fg_to_warehouse,
     create_mo_from_bom,
     create_mos_from_detail_plan,
     create_npl_surplus,
@@ -179,8 +183,9 @@ from san_xuat.services.dispatch import (
     reject_wip_handover,
     link_kv_purchase,
     mo_release,
+    complete_production_order,
+    reopen_production_order,
     set_disassembly_lines,
-    submit_fg_receipt,
     user_can_manage_mo_step,
     user_can_stat_mo_step,
 )
@@ -225,12 +230,17 @@ from san_xuat.services.planning import (
 from san_xuat.services.qc import (
     QcError,
     CriteriaLineInput,
-    DefectLineInput,
+    TeamQtyInput,
     acknowledge_alert,
     create_inspection_from_request,
     create_request_from_stat,
     finalize_inspection,
+    ob_qc_teams,
+    save_inspection_detail_lines,
+    save_inspection_team_results,
     seed_inspection_criteria_lines,
+    pending_inspection_team_labels,
+    reopen_inspection,
 )
 
 _DEMO_HINT = 'Chưa có dữ liệu demo. Chạy: python manage.py seed_san_xuat_demo'
@@ -2386,7 +2396,13 @@ def dispatch_mo(request):
         .order_by('-order_date', '-pk')
         .select_related('bom_version', 'sales_order')
     )
-    orders, fctx = prepare_hub_list(request, base_qs, SX_FILTER_MO, list_key='dispatch_mo')
+    orders, fctx = prepare_hub_list(
+        request,
+        base_qs,
+        SX_FILTER_MO,
+        list_key='dispatch_mo',
+        status_choices=SxProductionOrder.STATUS_CHOICES,
+    )
     return render(request, 'san_xuat/dispatch_mo_list.html', {
         **_perm_ctx(request),
         'page_title': 'Lệnh sản xuất',
@@ -2425,6 +2441,7 @@ def dispatch_mo_create(request):
                     is_sample=bool(form.cleaned_data.get('is_sample')),
                     lines=lines,
                     bom_version_id=form.cleaned_data.get('bom_version'),
+                    routing_id=form.cleaned_data.get('routing'),
                     process_steps=process_steps,
                 )
             except DispatchError as exc:
@@ -2479,13 +2496,22 @@ def run_order_wizard(request, mo_id: int | None = None):
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def dispatch_mo_detail(request, pk: int):
     mo = (
-        SxProductionOrder.objects.select_related(
+        SxProductionOrder.objects        .select_related(
             'bom_version__tech_doc',
             'bom_version__routing',
             'routing',
             'sales_order',
         )
-        .prefetch_related('bom_version__lines__material', 'bom_version__process_steps__work_center', 'lines')
+        .prefetch_related(
+            'bom_version__lines__material',
+            'bom_version__process_steps__work_center',
+            'routing__lines',
+            'sales_order__lines__bom_version__tech_doc',
+            'sales_order__lines__bom_version__lines__material',
+            'sales_order__lines__routing',
+            'sales_order__lines__routing_lines',
+            'lines',
+        )
         .get(pk=pk)
     )
     can_update = _perm_ctx(request).get('can_update')
@@ -2493,7 +2519,17 @@ def dispatch_mo_detail(request, pk: int):
 
     # Handle actions
     if request.method == 'POST':
-        action = (request.POST.get('action') or '').strip()
+        action = (
+            request.POST.get('mo_action')
+            or request.POST.get('action')
+            or ''
+        ).strip()
+        if not action:
+            clicked = (request.POST.get('jp_clicked_button') or '').strip()
+            if clicked == 'Hủy hoàn thành':
+                action = 'uncomplete'
+            elif clicked == 'Hoàn thành':
+                action = 'complete'
 
         if action == 'save' and mo.status == SxProductionOrder.STATUS_DRAFT and can_update:
             from san_xuat.services.dispatch import (
@@ -2538,10 +2574,24 @@ def dispatch_mo_detail(request, pk: int):
                 messages.success(request, f'Lệnh sản xuất {mo.code} đã phát hành.')
                 return redirect('san_xuat:dispatch_mo_detail', pk=mo.pk)
 
+        elif action in ('complete', 'uncomplete'):
+            if not can_update:
+                messages.error(request, 'Bạn không có quyền cập nhật lệnh sản xuất.')
+                return redirect('san_xuat:dispatch_mo_detail', pk=mo.pk)
+            try:
+                if action == 'complete':
+                    complete_production_order(mo_id=mo.pk, user=request.user)
+                    messages.success(request, f'Đã khoá lệnh {mo.code} — hoàn thành.')
+                else:
+                    reopen_production_order(mo_id=mo.pk, user=request.user)
+                    messages.success(request, f'Đã bỏ khoá lệnh {mo.code} — hủy hoàn thành.')
+            except DispatchError as exc:
+                messages.error(request, str(exc))
+            return redirect('san_xuat:dispatch_mo_detail', pk=mo.pk)
+
         elif action == 'create_ycx' and mo.status in (
             SxProductionOrder.STATUS_RELEASED,
             SxProductionOrder.STATUS_IN_PROGRESS,
-            SxProductionOrder.STATUS_DONE,
         ):
             try:
                 req = build_material_issue_request(
@@ -2554,6 +2604,41 @@ def dispatch_mo_detail(request, pk: int):
             else:
                 messages.success(request, f'Đã tạo yêu cầu xuất vật tư {req.code}.')
                 return redirect('san_xuat:dispatch_material_issue_req_detail', pk=req.pk)
+
+        elif action == 'approve_ycx' and can_update:
+            ycx_id = (request.POST.get('ycx_id') or '').strip()
+            if not ycx_id.isdigit():
+                messages.error(request, 'Thiếu mã yêu cầu xuất.')
+            else:
+                ycx = (
+                    SxMaterialIssueRequest.objects
+                    .filter(pk=int(ycx_id), production_order=mo)
+                    .first()
+                )
+                if not ycx:
+                    messages.error(request, 'Yêu cầu xuất không thuộc lệnh này.')
+                else:
+                    try:
+                        res = approve_material_issue(
+                            request_id=ycx.pk,
+                            user=request.user,
+                            attachment=None,
+                            allow_partial=ycx.status == 'partial',
+                        )
+                    except DispatchError as exc:
+                        messages.error(request, str(exc))
+                    else:
+                        if res.request.status == 'partial':
+                            messages.success(
+                                request,
+                                f'Đã xuất phần có tồn ({res.stock_issue.number}). Còn thiếu sẽ bổ sung sau.',
+                            )
+                        else:
+                            messages.success(
+                                request,
+                                f'Đã duyệt {res.request.code}: phiếu {res.stock_issue.number} — đã trừ kho NPL.',
+                            )
+            return redirect('san_xuat:dispatch_mo_detail', pk=mo.pk)
 
         elif action == 'create_ycntp' and mo.status in (
             SxProductionOrder.STATUS_IN_PROGRESS,
@@ -2599,40 +2684,84 @@ def dispatch_mo_detail(request, pk: int):
         .all()
         .order_by('-request_date', '-pk')[:50]
     )
-    stats_list = mo.production_stats.all().order_by('-stat_date', '-pk')[:50]
-    qc_alerts = (
-        mo.qc_alerts.filter(is_demo=False)
-        .select_related('production_stat', 'qc_inspection')
-        .order_by('-created_at')[:20]
+    qc_request_list = (
+        mo.qc_requests.filter(is_demo=False)
+        .prefetch_related('inspections')
+        .order_by('-request_date', '-pk')[:20]
     )
     fg_receipt_list = (
         mo.fg_receipt_requests.filter(is_demo=False)
         .select_related('production_stat')
         .order_by('-request_date', '-pk')[:20]
     )
-    wip_handover_list = (
-        mo.wip_handovers.filter(is_demo=False)
-        .order_by('-handover_date', '-pk')[:20]
-    )
     from san_xuat.services.handover_status import build_mo_handover_row
 
     handover_row = build_mo_handover_row(mo)
 
+    so_line = None
+    if mo.sales_order_id:
+        product = (mo.product_code or '').strip().casefold()
+        so_lines = list(mo.sales_order.lines.all())
+        for ln in so_lines:
+            if product and (ln.product_code or '').strip().casefold() == product:
+                so_line = ln
+                break
+        if so_line is None and so_lines:
+            so_line = so_lines[0]
+
+    display_bom = (
+        (so_line.bom_version if so_line is not None and so_line.bom_version_id else None)
+        or mo.bom_version
+    )
     bom_lines = []
-    if mo.bom_version_id:
-        for bl in mo.bom_version.lines.all():
+    overrides = list((so_line.bom_line_overrides or []) if so_line is not None else [])
+    if overrides:
+        for row in overrides[:80]:
+            qty = Decimal(str(row.get('qty') or 0))
+            scrap = Decimal(str(row.get('scrap_pct') or 0))
+            per = (qty * (Decimal('1') + scrap / Decimal('100'))).quantize(Decimal('0.0001'))
+            bom_lines.append({
+                'material_code': row.get('material_code') or '',
+                'material_name': row.get('material_name') or '',
+                'qty_per_unit': per,
+                'qty_total': per * (mo.qty or 0),
+                'scrap_pct': scrap,
+            })
+    elif display_bom is not None:
+        for bl in display_bom.lines.all():
             qty_per_unit = bl.qty_with_scrap
-            qty_total = qty_per_unit * (mo.qty or 0)
             bom_lines.append({
                 'material_code': bl.material.code,
                 'material_name': bl.material.name,
                 'qty_per_unit': qty_per_unit,
-                'qty_total': qty_total,
+                'qty_total': qty_per_unit * (mo.qty or 0),
                 'scrap_pct': bl.scrap_pct,
             })
 
+    ob_lines = []
+    ob_total_smv = Decimal('0')
+    if so_line is not None:
+        for rl in so_line.routing_lines.all()[:80]:
+            ob_lines.append(rl)
+            ob_total_smv += rl.total_operation_smv or Decimal('0')
+    elif mo.routing_id:
+        for rl in mo.routing.lines.all()[:80]:
+            ob_lines.append(rl)
+            ob_total_smv += rl.total_operation_smv or Decimal('0')
+    display_routing = (
+        (so_line.routing if so_line is not None and so_line.routing_id else None)
+        or mo.routing
+    )
+
+    from san_xuat.services.dispatch import _recompute_mo_progress
     from san_xuat.services.mo_progress import build_mo_progress
 
+    # Đồng bộ SL / đang SX. Không tự khoá Hoàn thành — chỉ nút trên trang.
+    if mo.status not in (
+        SxProductionOrder.STATUS_DRAFT,
+        SxProductionOrder.STATUS_CANCELLED,
+    ):
+        mo = _recompute_mo_progress(mo)
     progress = build_mo_progress(mo)
     mo_lines = list(mo.lines.all())
     import json
@@ -2713,12 +2842,15 @@ def dispatch_mo_detail(request, pk: int):
         'update_form': update_form,
         'can_update': can_update,
         'ycx_list': ycx_list,
-        'stats_list': stats_list,
-        'qc_alerts': qc_alerts,
+        'qc_request_list': qc_request_list,
         'fg_receipt_list': fg_receipt_list,
-        'wip_handover_list': wip_handover_list,
         'handover_row': handover_row,
         'bom_lines': bom_lines,
+        'display_bom': display_bom,
+        'ob_lines': ob_lines,
+        'display_routing': display_routing,
+        'ob_total_smv': ob_total_smv,
+        'so_line': so_line,
         'progress': progress,
         'team_options_json': json.dumps(team_options, ensure_ascii=False),
         'manager_options_json': json.dumps(
@@ -2923,12 +3055,37 @@ def dispatch_material_issue_req(request):
     })
 
 
+def _ycx_apply_locations(req, post_data) -> int:
+    """Áp dụng chọn kho (preferred_location) từ POST ``loc_<line_id>``."""
+    from kho_npl.models import WarehouseLocation
+
+    updated = 0
+    for line in req.lines.all():
+        raw = (post_data.get(f'loc_{line.pk}') or '').strip()
+        loc = None
+        if raw.isdigit():
+            loc = WarehouseLocation.objects.filter(pk=int(raw), is_active=True).first()
+        new_id = loc.pk if loc else None
+        if line.preferred_location_id != new_id:
+            line.preferred_location = loc
+            line.save(update_fields=['preferred_location'])
+            updated += 1
+    return updated
+
+
 def _ycx_detail_context(req):
     from decimal import Decimal
 
     from kho_npl.models import StockBalance, WarehouseLocation
 
-    locations = list(WarehouseLocation.objects.filter(is_active=True).order_by('code')[:200])
+    locations = list(
+        WarehouseLocation.objects.filter(
+            is_active=True,
+            location_kind=WarehouseLocation.KIND_STOCK,
+        ).order_by('code')[:200]
+    )
+    if not locations:
+        locations = list(WarehouseLocation.objects.filter(is_active=True).order_by('code')[:200])
     line_rows = []
     has_remaining = False
     for line in req.lines.select_related('preferred_location').all():
@@ -2993,27 +3150,17 @@ def dispatch_material_issue_req_detail(request, pk: int):
             or getattr(req.stock_issue, 'status', '') == 'draft'
         )
         if action == 'save_locations' and ycx_editable_loc:
-            from kho_npl.models import WarehouseLocation
-
-            updated = 0
-            for line in req.lines.all():
-                raw = (request.POST.get(f'loc_{line.pk}') or '').strip()
-                loc = None
-                if raw.isdigit():
-                    loc = WarehouseLocation.objects.filter(pk=int(raw), is_active=True).first()
-                if line.preferred_location_id != (loc.pk if loc else None):
-                    line.preferred_location = loc
-                    line.save(update_fields=['preferred_location'])
-                    updated += 1
-            messages.success(
-                request,
-                f'Đã lưu vị trí ưu tiên ({updated} dòng cập nhật).' if updated else 'Không có thay đổi vị trí.',
-            )
+            _ycx_apply_locations(req, request.POST)
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                from django.http import JsonResponse
+                return JsonResponse({'ok': True})
             return redirect('san_xuat:dispatch_material_issue_req_detail', pk=req.pk)
 
         if action in ('approve', 'approve_partial') and can_update and req.status in (
             'draft', 'submitted', 'approved', 'partial',
         ):
+            if ycx_editable_loc:
+                _ycx_apply_locations(req, request.POST)
             form = MaterialIssueApproveForm(request.POST, request.FILES)
             if form.is_valid():
                 allow_partial = action == 'approve_partial'
@@ -3033,14 +3180,17 @@ def dispatch_material_issue_req_detail(request, pk: int):
                             f'Đã xuất phần có tồn cho {res.request.code}. '
                             f'Còn thiếu sẽ bổ sung khi có hàng (phiếu {res.stock_issue.number}).',
                         )
-                    elif allow_partial:
+                    elif req.status == 'partial' or allow_partial:
                         messages.success(
                             request,
                             f'Đã bổ sung xuất đủ cho {res.request.code} '
                             f'(phiếu {res.stock_issue.number}).',
                         )
                     else:
-                        messages.success(request, f'Yêu cầu xuất {res.request.code} đã duyệt.')
+                        messages.success(
+                            request,
+                            f'Đã duyệt {res.request.code}: tạo phiếu {res.stock_issue.number} và trừ kho NPL.',
+                        )
                     return redirect('san_xuat:dispatch_material_issue_req_detail', pk=res.request.pk)
             else:
                 messages.error(request, 'Không duyệt được yêu cầu xuất — kiểm tra lại form.')
@@ -3384,46 +3534,94 @@ def dispatch_fg_receipt_req(request):
     })
 
 
+def _collect_fg_receipt_lines(line_formset, *, allow_partial: bool = True) -> tuple[list[dict], str | None]:
+    """Gom dòng nhập TP: chỉ lấy dòng có SL > 0 và đã chọn kho."""
+    lines: list[dict] = []
+    missing_wh: list[str] = []
+    for lf in line_formset:
+        cd = lf.cleaned_data
+        if not cd or cd.get('DELETE'):
+            continue
+        if not cd.get('has_sku'):
+            continue
+        qty = cd.get('qty') or Decimal('0')
+        wh = (cd.get('warehouse_code') or '').strip()
+        size = (cd.get('size_label') or cd.get('sku_code') or 'dòng').strip() or 'dòng'
+        if qty <= 0:
+            continue
+        if not wh:
+            missing_wh.append(size)
+            continue
+        lines.append(cd)
+
+    if missing_wh:
+        return [], f'Chọn kho nhập cho: {", ".join(missing_wh[:6])}.'
+    if not lines:
+        return [], 'Nhập kho: điền số lượng > 0 và chọn kho ít nhất một dòng.'
+    return lines, None
+
+
 @module_perm_required(MODULE_SAN_XUAT, 'create')
 def dispatch_fg_receipt_req_create(request):
     mo = None
     stat = None
+    ycntp = None
     stat_id = (request.POST.get('stat_id') or request.GET.get('stat') or '').strip()
     if stat_id.isdigit():
         stat = get_object_or_404(SxProductionStat, pk=int(stat_id))
         mo = stat.production_order
+    ycntp_id = (request.POST.get('ycntp_id') or request.GET.get('ycntp') or '').strip()
+    if ycntp_id.isdigit():
+        ycntp = get_object_or_404(
+            SxFgReceiptRequest.objects.select_related('production_order'),
+            pk=int(ycntp_id),
+        )
+        mo = ycntp.production_order
 
     if request.method == 'POST':
         form = FgReceiptCreateForm(request.POST, extra_mo=mo, operator=request.user)
         line_formset = FgReceiptLineFormSet(request.POST, prefix='lines')
         if form.is_valid() and line_formset.is_valid():
             mo = form.cleaned_data['production_order']
-            lines = []
-            for lf in line_formset:
-                cd = lf.cleaned_data
-                if not cd or cd.get('DELETE'):
-                    continue
-                if cd.get('qty') and cd['qty'] > 0:
-                    lines.append(cd)
-            try:
-                fg_req = create_fg_receipt_from_mo(
-                    production_order_id=mo.pk,
-                    stat_id=stat.pk if stat else None,
-                    qty=form.cleaned_data.get('qty'),
-                    notes=form.cleaned_data.get('notes') or '',
-                    request_date=form.cleaned_data.get('request_date'),
-                    lines=lines,
-                    received_by=form.cleaned_data.get('received_by'),
-                    warehouse_code=form.cleaned_data.get('warehouse_code') or '',
-                    warehouse_name=form.cleaned_data.get('warehouse_name') or '',
-                )
-            except DispatchError as exc:
-                messages.error(request, str(exc))
+            lines, line_err = _collect_fg_receipt_lines(line_formset)
+            if line_err:
+                messages.error(request, line_err)
             else:
-                messages.success(request, f'Đã lưu yêu cầu nhập thành phẩm {fg_req.code}.')
-                return redirect('san_xuat:dispatch_fg_receipt_req_detail', pk=fg_req.pk)
+                header_wh = (lines[0].get('warehouse_code') or '').strip()
+                header_wh_name = (lines[0].get('warehouse_name') or '').strip()
+                try:
+                    if ycntp and ycntp.status in (
+                        SxFgReceiptRequest.STATUS_PARTIAL,
+                        SxFgReceiptRequest.STATUS_DRAFT,
+                    ):
+                        fg_req = add_fg_receipt_lines(
+                            request_id=ycntp.pk,
+                            lines=lines,
+                            user=request.user,
+                        )
+                    else:
+                        fg_req = create_fg_receipt_from_mo(
+                            production_order_id=mo.pk,
+                            stat_id=stat.pk if stat else None,
+                            qty=sum((Decimal(str(x.get('qty') or 0)) for x in lines), Decimal('0')),
+                            notes=form.cleaned_data.get('notes') or '',
+                            request_date=form.cleaned_data.get('request_date'),
+                            lines=lines,
+                            received_by=form.cleaned_data.get('received_by') or request.user,
+                            warehouse_code=header_wh or (form.cleaned_data.get('warehouse_code') or ''),
+                            warehouse_name=header_wh_name or (form.cleaned_data.get('warehouse_name') or ''),
+                        )
+                        fg_req = receive_fg_to_warehouse(request_id=fg_req.pk, user=request.user)
+                except DispatchError as exc:
+                    messages.error(request, str(exc))
+                else:
+                    messages.success(
+                        request,
+                        f'Đã nhập kho {fg_req.code} ({fg_req.qty} sp) — {fg_req.get_status_display()}.',
+                    )
+                    return redirect('san_xuat:dispatch_fg_receipt_req_detail', pk=fg_req.pk)
         else:
-            messages.error(request, 'Không tạo được yêu cầu nhập thành phẩm — kiểm tra lại form.')
+            messages.error(request, 'Không nhập kho được — kiểm tra kho và số lượng.')
             raw = request.POST.get('production_order')
             if raw and str(raw).isdigit():
                 mo = SxProductionOrder.objects.filter(pk=int(raw)).first() or mo
@@ -3439,15 +3637,34 @@ def dispatch_fg_receipt_req_create(request):
             initial['product_code'] = source['product_code']
             initial['product_name'] = source['product_name']
             initial['qty'] = source['qty']
-            initial_lines = source['lines'] or None
+            initial_lines = []
+            for row in source['lines'] or []:
+                item = dict(row)
+                item['qty_available'] = row.get('qty')
+                initial_lines.append(item)
+            if not initial_lines:
+                initial_lines = None
         form = FgReceiptCreateForm(initial=initial, extra_mo=mo, operator=request.user)
         line_formset = make_fg_receipt_line_formset(initial=initial_lines)
+
+    if mo is not None:
+        form.fields['production_order'].widget = forms.HiddenInput()
+        form.fields['received_by'].widget = forms.HiddenInput()
+        form.fields['request_date'].widget = forms.HiddenInput()
+        form.fields['warehouse_code'].widget = forms.HiddenInput()
+        form.fields['notes'].widget = forms.HiddenInput()
+        form.fields['qty'].widget = forms.HiddenInput()
+        form.fields['product_code'].widget = forms.HiddenInput()
+        form.fields['product_name'].widget = forms.HiddenInput()
+
     return render(request, 'san_xuat/dispatch_fg_receipt_req_form.html', {
         **_perm_ctx(request),
         'form': form,
         'line_formset': line_formset,
         'mo': mo,
         'stat': stat,
+        'ycntp': ycntp,
+        'is_supplement': bool(ycntp and ycntp.status == SxFgReceiptRequest.STATUS_PARTIAL),
     })
 
 
@@ -3455,8 +3672,8 @@ def dispatch_fg_receipt_req_create(request):
 def dispatch_fg_receipt_req_detail(request, pk: int):
     fg_req = get_object_or_404(
         SxFgReceiptRequest.objects.select_related(
-            'production_order', 'production_stat', 'received_by', 'received_by__profile',
-        ).prefetch_related('lines'),
+            'production_order', 'production_stat', 'received_by', 'received_by__profile', 'warehouse',
+        ).prefetch_related('lines__warehouse', 'lines__stock_receipt'),
         pk=pk,
     )
     can_update = _perm_ctx(request).get('can_update')
@@ -3465,11 +3682,14 @@ def dispatch_fg_receipt_req_detail(request, pk: int):
         action = (request.POST.get('action') or '').strip()
         if action == 'submit' and can_update and fg_req.status == SxFgReceiptRequest.STATUS_DRAFT:
             try:
-                fg_req = submit_fg_receipt(request_id=fg_req.pk, user=request.user)
+                fg_req = receive_fg_to_warehouse(request_id=fg_req.pk, user=request.user)
             except DispatchError as exc:
                 messages.error(request, str(exc))
             else:
-                messages.success(request, f'Yêu cầu nhập thành phẩm {fg_req.code} đã gửi.')
+                messages.success(
+                    request,
+                    f'Đã nhập kho {fg_req.code} ({fg_req.qty} sp) — {fg_req.get_status_display()}.',
+                )
                 return redirect('san_xuat:dispatch_fg_receipt_req_detail', pk=fg_req.pk)
         elif action == 'link_kv' and can_update:
             link_form = FgReceiptLinkKvForm(request.POST)
@@ -3761,25 +3981,95 @@ def dispatch_handover_status(request):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def qc_stub(request):
+    from san_xuat.services.handover_status import build_handover_board
+    from san_xuat.services.progress_template import TEAM_SLUGS
+
+    if not (
+        user_can_access_menu(request.user, MODULE_SAN_XUAT, 'qc')
+        or user_can_access_menu(request.user, MODULE_SAN_XUAT, 'qc_request')
+        or user_can_access_menu(request.user, MODULE_SAN_XUAT, 'qc_sheet')
+    ):
+        return handle_menu_access_denied(request, MODULE_SAN_XUAT, 'qc')
+
+    board = build_handover_board(search=(request.GET.get('q') or '').strip(), limit=80)
+    teams = [{'slug': slug, 'label': label} for slug, _gk, _mk, label in TEAM_SLUGS]
+    return render(request, 'san_xuat/hub_qc.html', {
+        **_perm_ctx(request),
+        'board': board,
+        'qc_teams': teams,
+        'search_query': (request.GET.get('q') or '').strip(),
+    })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+def qc_standards(request):
+    if not (
+        user_can_access_menu(request.user, MODULE_SAN_XUAT, 'qc')
+        or user_can_access_menu(request.user, MODULE_SAN_XUAT, 'qc_criteria')
+        or user_can_access_menu(request.user, MODULE_SAN_XUAT, 'qc_standard_set')
+        or user_can_access_menu(request.user, MODULE_SAN_XUAT, 'qc_criteria_group')
+        or user_can_access_menu(request.user, MODULE_SAN_XUAT, 'qc_sampling')
+        or user_can_access_menu(request.user, MODULE_SAN_XUAT, 'qc_defect')
+        or user_can_access_menu(request.user, MODULE_SAN_XUAT, 'qc_defect_group')
+    ):
+        return handle_menu_access_denied(request, MODULE_SAN_XUAT, 'qc')
     qc_qs = lambda model: model.objects.filter(is_demo=False)
-    open_requests = qc_qs(SxQcRequest).filter(status='open').count()
-    pending_inspections = qc_qs(SxQcInspection).filter(result=SxQcInspection.RESULT_PENDING).count()
-    open_alerts = qc_qs(SxQcAlert).filter(status=SxQcAlert.STATUS_OPEN).count()
-    fail_recent = qc_qs(SxQcInspection).filter(result=SxQcInspection.RESULT_FAIL).count()
-    pass_recent = qc_qs(SxQcInspection).filter(result=SxQcInspection.RESULT_PASS).count()
+    from django.db.models import Count
+    from san_xuat.services.progress_template import TEAM_SLUGS
+
+    criteria_by_team = {
+        row['team_slug']: row['n']
+        for row in (
+            qc_qs(SxQcCriteria)
+            .filter(is_active=True)
+            .exclude(team_slug='')
+            .values('team_slug')
+            .annotate(n=Count('id'))
+        )
+    }
+    qc_teams = [
+        {'slug': slug, 'label': label, 'criteria_count': criteria_by_team.get(slug, 0)}
+        for slug, _gk, _mk, label in TEAM_SLUGS
+    ]
     catalog_counts = {
         'criteria': qc_qs(SxQcCriteria).filter(is_active=True).count(),
         'standard_sets': qc_qs(SxQcStandardSet).filter(is_active=True).count(),
         'defects': qc_qs(SxQcDefect).filter(is_active=True).count(),
     }
-    return render(request, 'san_xuat/hub_qc.html', {
+    return render(request, 'san_xuat/hub_qc_standards.html', {
         **_perm_ctx(request),
-        'open_requests': open_requests,
-        'pending_inspections': pending_inspections,
-        'open_alerts': open_alerts,
-        'fail_recent': fail_recent,
-        'pass_recent': pass_recent,
         'catalog_counts': catalog_counts,
+        'qc_teams': qc_teams,
+    })
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+def qc_team_board(request, slug: str):
+    from san_xuat.services.progress_template import team_by_slug
+
+    team = team_by_slug(slug)
+    if not team:
+        messages.error(request, 'Tổ QC không hợp lệ.')
+        return redirect('san_xuat:qc_sheet')
+    params = request.GET.copy()
+    params.pop('team', None)
+    qs = params.urlencode()
+    url = reverse('san_xuat:qc_sheet')
+    return redirect(f'{url}?{qs}' if qs else url)
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+def qc_sheet(request):
+    base_qs = (
+        SxQcInspection.objects.filter(is_demo=False)
+        .select_related('qc_request', 'qc_request__production_order', 'standard_set')
+        .order_by('-inspected_at', '-pk')
+    )
+    inspections, fctx = prepare_hub_list(request, base_qs, SX_FILTER_QC_SHEET, list_key='qc_sheet')
+    return render(request, 'san_xuat/qc_sheet_list.html', {
+        **_perm_ctx(request),
+        'inspections': inspections,
+        **fctx,
     })
 
 
@@ -3804,28 +4094,65 @@ def qc_request_create(request):
     stat = None
     if request.method == 'POST':
         form = QcRequestForm(request.POST)
+        raw_mo = (request.POST.get('production_order') or '').strip()
+        if raw_mo.isdigit():
+            mo = SxProductionOrder.objects.filter(pk=int(raw_mo)).first()
+        raw_stat = (request.POST.get('stat_id') or request.GET.get('stat') or '').strip()
+        if raw_stat.isdigit():
+            stat = SxProductionStat.objects.filter(pk=int(raw_stat)).select_related('production_order').first()
+            if stat and not mo:
+                mo = stat.production_order
         if form.is_valid():
             qc_req = form.save(commit=False)
             if not qc_req.code:
                 from san_xuat.services.sx_settings import sx_prefix
                 qc_req.code = _next_code(sx_prefix('qc_req'), SxQcRequest)
+            if stat and not qc_req.production_stat_id:
+                qc_req.production_stat = stat
+            team_slug = (request.POST.get('team_slug') or request.GET.get('team') or '').strip().lower()
+            if team_slug and not qc_req.team_slug:
+                qc_req.team_slug = team_slug
+            if qc_req.team_slug and not qc_req.work_center_id:
+                from san_xuat.services.qc import work_center_for_slug
+                qc_req.work_center = work_center_for_slug(qc_req.team_slug)
+            if not qc_req.team_slug and qc_req.stage_name:
+                from san_xuat.services.qc import resolve_team_slug_from_process
+                qc_req.team_slug = resolve_team_slug_from_process(qc_req.stage_name) or ''
             qc_req.is_demo = False
             qc_req.save()
-            messages.success(request, f'Đã tạo yêu cầu kiểm tra {qc_req.code}.')
-            return redirect('san_xuat:qc_request_detail', pk=qc_req.pk)
+            try:
+                inspection = create_inspection_from_request(
+                    request_id=qc_req.pk,
+                    notes=f'Tự tạo cùng YCKT {qc_req.code}',
+                )
+            except QcError as exc:
+                messages.warning(
+                    request,
+                    f'Đã tạo YCKT {qc_req.code} nhưng chưa lập được phiếu kiểm tra: {exc}',
+                )
+                return redirect('san_xuat:qc_request_detail', pk=qc_req.pk)
+            messages.success(
+                request,
+                f'Đã tạo YCKT {qc_req.code} và phiếu kiểm tra {inspection.code}.',
+            )
+            return redirect('san_xuat:qc_sheet_detail', pk=inspection.pk)
         messages.error(request, 'Không tạo được yêu cầu kiểm tra - kiểm tra lại form.')
     else:
         initial = {}
         mo_id = request.GET.get('mo')
         stat_id = request.GET.get('stat')
+        team_slug = (request.GET.get('team') or '').strip().lower()
         if mo_id and str(mo_id).isdigit():
             mo = get_object_or_404(SxProductionOrder, pk=int(mo_id))
+            from san_xuat.services.progress_template import team_by_slug
+            team_meta = team_by_slug(team_slug) if team_slug else None
             initial.update({
                 'production_order': mo.pk,
                 'product_code': mo.product_code,
                 'product_name': mo.product_name,
-                'stage_name': mo.team_label,
+                'stage_name': (team_meta['label'] if team_meta else None) or mo.team_label or 'QC',
                 'qty': mo.qty,
+                'team_slug': team_slug,
             })
         if stat_id and str(stat_id).isdigit():
             stat = get_object_or_404(SxProductionStat, pk=int(stat_id))
@@ -3834,10 +4161,23 @@ def qc_request_create(request):
                 'production_order': mo.pk,
                 'product_code': mo.product_code,
                 'product_name': mo.product_name,
-                'stage_name': stat.process_name,
+                'stage_name': stat.process_name or 'QC thành phẩm',
                 'qty': stat.qty_good or stat.qty_defect or 0,
             })
+            from san_xuat.services.qc import resolve_team_slug_from_process
+            slug = resolve_team_slug_from_process(
+                stat.process_name or '',
+                team_label=getattr(stat, 'team_label', '') or '',
+            )
+            if slug:
+                initial['team_slug'] = slug
         form = QcRequestForm(initial=initial)
+
+    if mo is not None:
+        for name in ('code', 'production_order', 'product_code', 'product_name', 'status', 'team_slug'):
+            if name in form.fields:
+                form.fields[name].widget = forms.HiddenInput()
+
     return render(request, 'san_xuat/qc_request_form.html', {
         **_perm_ctx(request),
         'form': form,
@@ -3852,24 +4192,29 @@ def qc_request_detail(request, pk: int):
         SxQcRequest.objects.select_related('production_order', 'production_stat').prefetch_related('inspections'),
         pk=pk,
     )
+    latest_sheet = (
+        qc_req.inspections.filter(is_demo=False)
+        .exclude(status='cancelled')
+        .order_by('-pk')
+        .first()
+    )
+    # Chưa có PKT → lập luôn và mở màn chốt (không cần bấm thêm).
+    if latest_sheet is None and request.method == 'GET':
+        try:
+            latest_sheet = create_inspection_from_request(
+                request_id=qc_req.pk,
+                notes=f'Tự tạo từ YCKT {qc_req.code}',
+            )
+        except QcError as exc:
+            messages.error(request, str(exc))
+        else:
+            messages.success(request, f'Đã lập phiếu kiểm tra {latest_sheet.code}.')
+            return redirect('san_xuat:qc_sheet_detail', pk=latest_sheet.pk)
+
     return render(request, 'san_xuat/qc_request_detail.html', {
         **_perm_ctx(request),
         'qc_req': qc_req,
-    })
-
-
-@module_perm_required(MODULE_SAN_XUAT, 'view')
-def qc_sheet(request):
-    base_qs = (
-        SxQcInspection.objects.filter(is_demo=False)
-        .select_related('qc_request', 'standard_set')
-        .order_by('-inspected_at', '-pk')
-    )
-    inspections, fctx = prepare_hub_list(request, base_qs, SX_FILTER_QC_SHEET, list_key='qc_sheet')
-    return render(request, 'san_xuat/qc_sheet_list.html', {
-        **_perm_ctx(request),
-        'inspections': inspections,
-        **fctx,
+        'latest_sheet': latest_sheet,
     })
 
 
@@ -3878,6 +4223,9 @@ def qc_sheet_create(request):
     qc_req = None
     if request.method == 'POST':
         form = QcInspectionCreateForm(request.POST)
+        raw_req = (request.POST.get('qc_request') or '').strip()
+        if raw_req.isdigit():
+            qc_req = SxQcRequest.objects.filter(pk=int(raw_req)).first()
         if form.is_valid():
             try:
                 inspection = create_inspection_from_request(
@@ -3900,6 +4248,11 @@ def qc_sheet_create(request):
             qc_req = get_object_or_404(SxQcRequest, pk=int(req_id))
             initial['qc_request'] = qc_req.pk
         form = QcInspectionCreateForm(initial=initial)
+
+    if qc_req is not None and 'qc_request' in form.fields:
+        form.fields['qc_request'].widget = forms.HiddenInput()
+        form.fields['qc_request'].queryset = SxQcRequest.objects.filter(pk=qc_req.pk)
+
     return render(request, 'san_xuat/qc_sheet_form.html', {
         **_perm_ctx(request),
         'form': form,
@@ -3907,23 +4260,118 @@ def qc_sheet_create(request):
     })
 
 
+def _qc_inspection_qs():
+    return SxQcInspection.objects.select_related(
+        'qc_request', 'qc_request__production_order', 'standard_set',
+    ).prefetch_related(
+        'criteria_lines__criteria',
+        'defect_lines__defect',
+        'team_results',
+    )
+
+
+def _qc_team_qty_from_post(request, slugs: list[str], only_slug: str | None = None) -> list[TeamQtyInput]:
+    out: list[TeamQtyInput] = []
+    for slug in slugs:
+        if only_slug and slug != only_slug:
+            continue
+        def _dec(name: str) -> Decimal:
+            raw = (request.POST.get(name) or '').strip()
+            try:
+                return Decimal(raw or '0')
+            except Exception:
+                return Decimal('0')
+        out.append(TeamQtyInput(
+            slug=slug,
+            qty_pass=_dec(f'team_qty_pass_{slug}'),
+            qty_fail=_dec(f'team_qty_fail_{slug}'),
+        ))
+    return out
+
+
+def _qc_active_team_slug(request, teams) -> str:
+    slugs = [t.slug for t in teams]
+    raw = (request.POST.get('active_team') or request.GET.get('team') or '').strip().lower()
+    if raw in slugs:
+        return raw
+    return slugs[0] if slugs else ''
+
+
+def _qc_team_tabs(inspection, criteria_forms, post=None):
+    mo = getattr(getattr(inspection, 'qc_request', None), 'production_order', None)
+    teams = ob_qc_teams(mo=mo) if mo else []
+    if not teams:
+        return []
+    results = {r.team_slug: r for r in inspection.team_results.all()}
+    forms_by: dict[str, list] = {}
+    for item in criteria_forms:
+        forms_by.setdefault(item['line'].team_slug or '', []).append(item)
+    lines_by: dict[str, list] = {}
+    for line in inspection.criteria_lines.all():
+        lines_by.setdefault(line.team_slug or '', []).append(line)
+
+    def _posted_qty(name: str, fallback):
+        if post is None or name not in post:
+            return fallback
+        raw = (post.get(name) or '').strip()
+        try:
+            return Decimal(raw or '0')
+        except Exception:
+            return fallback
+
+    mo_qty = getattr(mo, 'qty', None) or Decimal('0')
+    tabs = []
+    ungrouped_forms = forms_by.get('', [])
+    ungrouped_lines = lines_by.get('', [])
+    for i, team in enumerate(teams):
+        rec = results.get(team.slug)
+        fallback_pass = rec.qty_pass if rec else Decimal('0')
+        fallback_fail = rec.qty_fail if rec else Decimal('0')
+        untouched = rec is None or (
+            rec.result == 'pending' and not rec.qty_pass and not rec.qty_fail
+        )
+        if untouched and post is None and not fallback_pass and mo_qty:
+            fallback_pass = mo_qty
+        tabs.append({
+            'slug': team.slug,
+            'label': team.label,
+            'qty_pass': _posted_qty(f'team_qty_pass_{team.slug}', fallback_pass),
+            'qty_fail': _posted_qty(f'team_qty_fail_{team.slug}', fallback_fail),
+            'saved_pass': rec.qty_pass if rec else Decimal('0'),
+            'saved_fail': rec.qty_fail if rec else Decimal('0'),
+            'result': rec.result if rec else 'pending',
+            'criteria_forms': forms_by.get(team.slug) or (ungrouped_forms if i == 0 else []),
+            'criteria_lines': lines_by.get(team.slug) or (ungrouped_lines if i == 0 else []),
+        })
+    return tabs
+
+
+def _qc_criteria_inputs(criteria_forms) -> list[CriteriaLineInput]:
+    return [
+        CriteriaLineInput(
+            line_id=item['line'].pk,
+            is_pass=item['form'].cleaned_data.get('is_pass'),
+            value_text=item['form'].cleaned_data.get('value_text') or '',
+            value_number=item['form'].cleaned_data.get('value_number'),
+            notes=item['form'].cleaned_data.get('notes') or '',
+        )
+        for item in criteria_forms
+    ]
+
+
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def qc_sheet_detail(request, pk: int):
-    inspection = get_object_or_404(
-        SxQcInspection.objects.select_related('qc_request', 'standard_set').prefetch_related(
-            'criteria_lines__criteria',
-            'defect_lines__defect',
-        ),
-        pk=pk,
-    )
+    inspection = get_object_or_404(_qc_inspection_qs(), pk=pk)
     can_update = _perm_ctx(request).get('can_update')
     if inspection.status != 'done':
         seed_inspection_criteria_lines(inspection=inspection)
-        inspection = (
-            SxQcInspection.objects.select_related('qc_request', 'standard_set')
-            .prefetch_related('criteria_lines__criteria', 'defect_lines__defect')
-            .get(pk=pk)
-        )
+        inspection = _qc_inspection_qs().get(pk=pk)
+
+    mo = getattr(getattr(inspection, 'qc_request', None), 'production_order', None)
+    qc_teams = ob_qc_teams(mo=mo) if mo else []
+    has_team_tabs = bool(qc_teams)
+    active_team = _qc_active_team_slug(request, qc_teams)
+    active_team_label = next((t.label for t in qc_teams if t.slug == active_team), '')
 
     criteria_forms = []
     if inspection.status != 'done':
@@ -3937,59 +4385,93 @@ def qc_sheet_detail(request, pk: int):
                 ),
             })
 
-    defect_initial = [
-        {'defect': line.defect_id, 'qty': line.qty, 'notes': line.notes}
-        for line in inspection.defect_lines.all()
-    ]
-    defect_formset = QcInspectionDefectLineFormSet(
-        prefix='defects',
-        initial=defect_initial,
-        data=request.POST if request.method == 'POST' else None,
-    )
+    post_data = request.POST
+    if request.method == 'POST' and has_team_tabs:
+        post_data = request.POST.copy()
+        post_data.setdefault('qty_pass', str(inspection.qty_pass or 0))
+        post_data.setdefault('qty_fail', str(inspection.qty_fail or 0))
+
+    def _redirect_sheet():
+        url = reverse('san_xuat:qc_sheet_detail', kwargs={'pk': inspection.pk})
+        if active_team:
+            return redirect(f'{url}?team={active_team}')
+        return redirect('san_xuat:qc_sheet_detail', pk=inspection.pk)
 
     if request.method == 'POST':
         action = (request.POST.get('action') or '').strip()
-        finalize_form = QcInspectionFinalizeForm(request.POST, instance=inspection)
-        if action == 'finalize' and can_update and inspection.status != 'done':
-            criteria_valid = all(item['form'].is_valid() for item in criteria_forms)
-            if finalize_form.is_valid() and criteria_valid and defect_formset.is_valid():
+        if action == 'unfinalize' and can_update and inspection.status == 'done':
+            try:
+                reopen_inspection(inspection_id=inspection.pk)
+            except QcError as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(request, f'Đã hủy chốt phiếu {inspection.code} — có thể sửa lại.')
+            return _redirect_sheet()
+        finalize_form = QcInspectionFinalizeForm(post_data, instance=inspection)
+        team_qty = _qc_team_qty_from_post(
+            request,
+            [t.slug for t in qc_teams],
+            only_slug=active_team or None,
+        )
+        if action in ('save', 'finalize') and can_update and inspection.status != 'done':
+            active_forms = [
+                item for item in criteria_forms
+                if not active_team or (item['line'].team_slug or '') == active_team
+            ]
+            criteria_valid = all(item['form'].is_valid() for item in (active_forms or criteria_forms))
+            if finalize_form.is_valid() and criteria_valid:
+                crit_inputs = _qc_criteria_inputs(active_forms or criteria_forms)
                 try:
-                    crit_inputs = [
-                        CriteriaLineInput(
-                            line_id=item['line'].pk,
-                            is_pass=item['form'].cleaned_data.get('is_pass'),
-                            value_text=item['form'].cleaned_data.get('value_text') or '',
-                            value_number=item['form'].cleaned_data.get('value_number'),
-                            notes=item['form'].cleaned_data.get('notes') or '',
+                    if action == 'save':
+                        inspection = save_inspection_detail_lines(
+                            inspection_id=inspection.pk,
+                            criteria_lines=crit_inputs,
                         )
-                        for item in criteria_forms
-                    ]
-                    defect_inputs = []
-                    for form in defect_formset:
-                        defect = form.cleaned_data.get('defect')
-                        qty = form.cleaned_data.get('qty') or Decimal('0')
-                        if defect and qty > 0:
-                            defect_inputs.append(
-                                DefectLineInput(
-                                    defect_id=defect.pk,
-                                    qty=qty,
-                                    notes=form.cleaned_data.get('notes') or '',
-                                )
+                        if team_qty:
+                            inspection = save_inspection_team_results(
+                                inspection_id=inspection.pk,
+                                team_qty=team_qty,
                             )
+                        totals = inspection.team_results.all()
+                        if totals:
+                            inspection.qty_pass = sum(
+                                (row.qty_pass or Decimal('0') for row in totals),
+                                Decimal('0'),
+                            )
+                            inspection.qty_fail = sum(
+                                (row.qty_fail or Decimal('0') for row in totals),
+                                Decimal('0'),
+                            )
+                        else:
+                            inspection.qty_pass = finalize_form.cleaned_data.get('qty_pass') or Decimal('0')
+                            inspection.qty_fail = finalize_form.cleaned_data.get('qty_fail') or Decimal('0')
+                        inspection.notes = finalize_form.cleaned_data.get('notes') or ''
+                        inspection.save(update_fields=['qty_pass', 'qty_fail', 'notes'])
+                        if active_team_label:
+                            messages.success(request, f'Đã lưu QC tổ {active_team_label}.')
+                        else:
+                            messages.success(request, f'Đã lưu phiếu kiểm tra {inspection.code}.')
+                        return _redirect_sheet()
                     inspection = finalize_inspection(
                         inspection_id=inspection.pk,
                         qty_pass=finalize_form.cleaned_data.get('qty_pass'),
                         qty_fail=finalize_form.cleaned_data.get('qty_fail'),
                         notes=finalize_form.cleaned_data.get('notes') or '',
                         criteria_lines=crit_inputs,
-                        defect_lines=defect_inputs,
+                        team_qty=team_qty or None,
                     )
                 except QcError as exc:
                     messages.error(request, str(exc))
                 else:
                     messages.success(request, f'Phiếu kiểm tra {inspection.code} đã chốt kết quả.')
-                    return redirect('san_xuat:qc_sheet_detail', pk=inspection.pk)
-            messages.error(request, 'Không chốt được phiếu kiểm tra - kiểm tra lại dữ liệu.')
+                    return _redirect_sheet()
+            else:
+                messages.error(
+                    request,
+                    'Không lưu được phiếu kiểm tra — kiểm tra lại dữ liệu.'
+                    if action == 'save'
+                    else 'Không chốt được phiếu kiểm tra — kiểm tra lại dữ liệu.',
+                )
     else:
         finalize_form = QcInspectionFinalizeForm(instance=inspection)
 
@@ -3998,7 +4480,12 @@ def qc_sheet_detail(request, pk: int):
         'inspection': inspection,
         'form': finalize_form,
         'criteria_forms': criteria_forms,
-        'defect_formset': defect_formset,
+        'qc_team_tabs': _qc_team_tabs(
+            inspection, criteria_forms, post=request.POST if request.method == 'POST' else None,
+        ),
+        'active_team': active_team,
+        'active_team_label': active_team_label,
+        'qc_pending_teams': pending_inspection_team_labels(inspection, qc_teams) if qc_teams else [],
         'can_update': can_update,
     })
 
@@ -4052,27 +4539,49 @@ def qc_alert_detail(request, pk: int):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def qc_criteria(request):
-    return _qc_catalog_list(
-        request,
-        title='Tiêu chí chất lượng',
-        subtitle='Danh mục tiêu chí QC',
-        model=SxQcCriteria,
-        fields=['code', 'name', 'group', 'kind'],
-        labels=['Mã', 'Tên', 'Nhóm', 'Loại'],
-        create_url_name='san_xuat:qc_criteria_create',
-        export_key='qc_criteria',
+    from san_xuat.services.progress_template import TEAM_SLUGS, team_by_slug
+
+    team_slug = (request.GET.get('team') or '').strip().lower()
+    team = team_by_slug(team_slug) if team_slug else None
+    if team_slug and not team:
+        team_slug = ''
+        team = None
+    filters = parse_sx_list_filters(request)
+    qs = apply_sx_list_filters(
+        SxQcCriteria.objects.filter(is_demo=False).select_related('group').order_by('code'),
+        filters,
+        SX_FILTER_QC_CATALOG,
     )
+    if team_slug:
+        qs = qs.filter(team_slug=team_slug)
+    qs = qs[:200]
+    create_href = reverse('san_xuat:qc_criteria_create')
+    if team_slug:
+        create_href = f'{create_href}?team={team_slug}'
+    return render(request, 'san_xuat/qc_catalog_list.html', {
+        **_perm_ctx(request),
+        'hub_title': f'Tiêu chuẩn · {team["label"]}' if team else 'Tiêu chuẩn theo tổ',
+        'hub_subtitle': 'Thiết kế tiêu chí kiểm tra từng tổ',
+        'columns': ['Mã', 'Tên', 'Tổ', 'Nhóm', 'Loại'],
+        'rows': _rows_from_queryset(qs, ['code', 'name', 'team_label', 'group', 'kind']),
+        'create_url_name': 'san_xuat:qc_criteria_create',
+        'create_href': create_href,
+        'export_key': 'qc_criteria',
+        'qc_teams': [{'slug': slug, 'label': label} for slug, _gk, _mk, label in TEAM_SLUGS],
+        'team_slug': team_slug,
+        **sx_filter_context(filters),
+    })
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def qc_criteria_group(request):
     return _qc_catalog_list(
         request,
-        title='Nhóm tiêu chí chất lượng',
-        subtitle='Nhóm tiêu chí QC',
+        title='Nhóm tiêu chí',
+        subtitle='Nhóm tiêu chí',
         model=SxQcCriteriaGroup,
         fields=['code', 'name', 'is_active'],
-        labels=['Mã', 'Tên', 'Active'],
+        labels=['Mã', 'Tên', 'Đang dùng'],
         create_url_name='san_xuat:qc_criteria_group_create',
         export_key='qc_criteria_group',
     )
@@ -4082,8 +4591,8 @@ def qc_criteria_group(request):
 def qc_sampling(request):
     return _qc_catalog_list(
         request,
-        title='Phương pháp chọn mẫu',
-        subtitle='Quy tắc lấy mẫu QC',
+        title='Chọn mẫu',
+        subtitle='Quy tắc lấy mẫu',
         model=SxQcSamplingMethod,
         fields=['code', 'name', 'method_type', 'sample_value'],
         labels=['Mã', 'Tên', 'Loại', 'Giá trị'],
@@ -4096,8 +4605,8 @@ def qc_sampling(request):
 def qc_standard_set(request):
     return _qc_catalog_list(
         request,
-        title='Bộ tiêu chuẩn kiểm tra chất lượng',
-        subtitle='Bộ tiêu chuẩn áp dụng theo sản phẩm',
+        title='Bộ tiêu chuẩn',
+        subtitle='Áp dụng theo sản phẩm / công đoạn',
         model=SxQcStandardSet,
         fields=['code', 'name', 'product_code', 'stage_name', 'defect_tolerance_pct', 'sampling_method'],
         labels=['Mã', 'Tên', 'Mã SP', 'Công đoạn', 'Ngưỡng %', 'Chọn mẫu'],
@@ -4110,8 +4619,8 @@ def qc_standard_set(request):
 def qc_defect(request):
     return _qc_catalog_list(
         request,
-        title='Lỗi kiểm tra chất lượng',
-        subtitle='Danh mục mã lỗi QC',
+        title='Mã lỗi',
+        subtitle='Danh mục lỗi',
         model=SxQcDefect,
         fields=['code', 'name', 'group', 'severity'],
         labels=['Mã', 'Tên', 'Nhóm', 'Mức độ'],
@@ -4124,11 +4633,11 @@ def qc_defect(request):
 def qc_defect_group(request):
     return _qc_catalog_list(
         request,
-        title='Nhóm lỗi kiểm tra chất lượng',
-        subtitle='Nhóm lỗi QC',
+        title='Nhóm lỗi',
+        subtitle='Nhóm mã lỗi',
         model=SxQcDefectGroup,
         fields=['code', 'name', 'is_active'],
-        labels=['Mã', 'Tên', 'Active'],
+        labels=['Mã', 'Tên', 'Đang dùng'],
         create_url_name='san_xuat:qc_defect_group_create',
         export_key='qc_defect_group',
     )
@@ -4174,32 +4683,56 @@ def _qc_catalog_create(request, *, form_class, title, success_label):
 
 @module_perm_required(MODULE_SAN_XUAT, 'create')
 def qc_criteria_create(request):
-    return _qc_catalog_create(request, form_class=QcCriteriaForm, title='Thêm tiêu chí chất lượng', success_label='tiêu chí QC')
+    from san_xuat.services.progress_template import team_by_slug
+
+    team_slug = (request.GET.get('team') or '').strip().lower()
+    if team_slug and not team_by_slug(team_slug):
+        team_slug = ''
+    if request.method == 'POST':
+        form = QcCriteriaForm(request.POST)
+        if form.is_valid():
+            obj = form.save(commit=False)
+            obj.is_demo = False
+            obj.save()
+            messages.success(request, f'Đã tạo tiêu chuẩn «{obj.name}».')
+            url = reverse('san_xuat:qc_criteria')
+            saved_team = (obj.team_slug or '').strip()
+            return redirect(f'{url}?team={saved_team}' if saved_team else url)
+        messages.error(request, 'Không tạo được tiêu chuẩn.')
+    else:
+        initial = {'team_slug': team_slug} if team_slug else None
+        form = QcCriteriaForm(initial=initial)
+    team = team_by_slug(team_slug) if team_slug else None
+    return render(request, 'san_xuat/qc_catalog_form.html', {
+        **_perm_ctx(request),
+        'form': form,
+        'page_title': f'Thêm tiêu chuẩn · {team["label"]}' if team else 'Thêm tiêu chuẩn theo tổ',
+    })
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'create')
 def qc_criteria_group_create(request):
-    return _qc_catalog_create(request, form_class=QcCriteriaGroupForm, title='Thêm nhóm tiêu chí chất lượng', success_label='nhóm tiêu chí QC')
+    return _qc_catalog_create(request, form_class=QcCriteriaGroupForm, title='Thêm nhóm tiêu chí', success_label='nhóm tiêu chí')
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'create')
 def qc_sampling_create(request):
-    return _qc_catalog_create(request, form_class=QcSamplingMethodForm, title='Thêm phương pháp chọn mẫu', success_label='phương pháp chọn mẫu')
+    return _qc_catalog_create(request, form_class=QcSamplingMethodForm, title='Thêm chọn mẫu', success_label='phương pháp chọn mẫu')
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'create')
 def qc_standard_set_create(request):
-    return _qc_catalog_create(request, form_class=QcStandardSetForm, title='Thêm bộ tiêu chuẩn chất lượng', success_label='bộ tiêu chuẩn QC')
+    return _qc_catalog_create(request, form_class=QcStandardSetForm, title='Thêm bộ tiêu chuẩn', success_label='bộ tiêu chuẩn')
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'create')
 def qc_defect_create(request):
-    return _qc_catalog_create(request, form_class=QcDefectForm, title='Thêm lỗi chất lượng', success_label='lỗi QC')
+    return _qc_catalog_create(request, form_class=QcDefectForm, title='Thêm mã lỗi', success_label='mã lỗi')
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'create')
 def qc_defect_group_create(request):
-    return _qc_catalog_create(request, form_class=QcDefectGroupForm, title='Thêm nhóm lỗi chất lượng', success_label='nhóm lỗi QC')
+    return _qc_catalog_create(request, form_class=QcDefectGroupForm, title='Thêm nhóm lỗi', success_label='nhóm lỗi')
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
@@ -4279,6 +4812,8 @@ def team_work_goods(request):
         'query_string': query_string,
         'team': _nav_team_for_user(request.user),
         'tw_section': 'goods',
+        'can_view_subcontract': user_can_access_menu(request.user, MODULE_SAN_XUAT, 'subcontract'),
+        'can_create_subcontract': user_can_create_menu(request.user, MODULE_SAN_XUAT, 'subcontract'),
     })
 
 
@@ -4289,6 +4824,7 @@ def team_work_board(request, slug: str):
     from san_xuat.services.progress_template import team_by_slug
     from san_xuat.services.team_work import (
         accept_production,
+        active_subcontract_for_team,
         assignee_candidate_options,
         assign_team_work,
         attach_team_job_closes,
@@ -4338,6 +4874,9 @@ def team_work_board(request, slug: str):
         except (TypeError, ValueError):
             mo_id = 0
         if action == 'assign':
+            if active_subcontract_for_team(mo_id=mo_id, team_slug=slug):
+                messages.error(request, 'Tổ này đang thuê gia công — không phân công nội bộ. Nhận hàng trên phiếu GC.')
+                return redirect(_board_qs())
             process_key = (request.POST.get('process_key') or '').strip()
             raw_ids = request.POST.getlist('assignee_ids')
             user_ids = [int(x) for x in raw_ids if str(x).isdigit()]
@@ -4356,6 +4895,9 @@ def team_work_board(request, slug: str):
                 messages.error(request, str(exc))
             return redirect(_board_qs())
         if action == 'accept' and mo_id:
+            if active_subcontract_for_team(mo_id=mo_id, team_slug=slug):
+                messages.error(request, 'Tổ này đang thuê gia công — không nhận SX / tiến độ nội bộ.')
+                return redirect(_board_qs())
             try:
                 accept_production(mo_id=mo_id, team_slug=slug, user=request.user)
                 messages.success(
@@ -4368,6 +4910,9 @@ def team_work_board(request, slug: str):
                 messages.error(request, str(exc))
             return redirect(_board_qs())
         if action == 'complete' and mo_id:
+            if active_subcontract_for_team(mo_id=mo_id, team_slug=slug):
+                messages.error(request, 'Tổ này đang thuê gia công — hoàn thành bằng nút Nhận hàng trên phiếu GC.')
+                return redirect(_board_qs())
             try:
                 close_team_job(mo_id=mo_id, team_slug=slug, user=request.user)
                 messages.success(
@@ -4380,6 +4925,23 @@ def team_work_board(request, slug: str):
                 messages.error(request, str(exc))
             return redirect(_board_qs())
         if action == 'reopen' and mo_id:
+            gc = active_subcontract_for_team(mo_id=mo_id, team_slug=slug)
+            if gc and gc.status in (
+                gc.STATUS_DONE,
+                gc.STATUS_RECEIVED,
+            ):
+                from san_xuat.services.phase3 import Phase3Error, undo_receive_subcontract_goods
+
+                try:
+                    order = undo_receive_subcontract_goods(order_id=gc.pk, user=request.user)
+                except Phase3Error as exc:
+                    messages.error(request, str(exc))
+                    return redirect(_board_qs())
+                except Exception as exc:
+                    messages.error(request, str(exc))
+                    return redirect(_board_qs())
+                messages.success(request, f'Đã huỷ nhận hàng {order.code} — mở lại phiếu GC.')
+                return redirect('san_xuat:subcontract_detail', pk=order.pk)
             try:
                 reopen_team_job(mo_id=mo_id, team_slug=slug)
                 messages.success(request, 'Đã mở lại công việc tổ trên lệnh này.')
@@ -4430,6 +4992,8 @@ def team_work_board(request, slug: str):
         'can_map_divisions': can_map,
         'team_has_division_map': mapped,
         'assignee_candidates': assignee_candidates,
+        'can_view_subcontract': user_can_access_menu(request.user, MODULE_SAN_XUAT, 'subcontract'),
+        'can_create_subcontract': user_can_create_menu(request.user, MODULE_SAN_XUAT, 'subcontract'),
     })
 
 
@@ -5365,10 +5929,31 @@ def subcontract_list(request):
         .select_related('production_order')
         .order_by('-order_date', '-pk')
     )
-    items, fctx = prepare_hub_list(request, base_qs, SX_FILTER_SUBCONTRACT, list_key='subcontract')
+    team = (request.GET.get('team') or '').strip().lower()
+    if team:
+        base_qs = base_qs.filter(team_slug=team)
+    work_status = (request.GET.get('status') or '').strip()
+    if work_status == SUBCONTRACT_WORK_STATUS_DONE:
+        base_qs = base_qs.filter(
+            status__in=[SxSubcontractOrder.STATUS_DONE, SxSubcontractOrder.STATUS_RECEIVED],
+        )
+    elif work_status == SUBCONTRACT_WORK_STATUS_RUNNING:
+        base_qs = base_qs.filter(
+            status__in=[SxSubcontractOrder.STATUS_DRAFT, SxSubcontractOrder.STATUS_SENT],
+        )
+    preserve = {'team': team} if team else None
+    items, fctx = prepare_hub_list(
+        request,
+        base_qs,
+        SX_FILTER_SUBCONTRACT,
+        list_key='subcontract',
+        preserve=preserve,
+        status_choices=SUBCONTRACT_WORK_STATUS_CHOICES,
+    )
     return render(request, 'san_xuat/subcontract_list.html', {
         **_perm_ctx(request),
         'items': items,
+        'filter_team': team,
         **fctx,
     })
 
@@ -5376,31 +5961,58 @@ def subcontract_list(request):
 @module_perm_required(MODULE_SAN_XUAT, 'create')
 def subcontract_create(request):
     from san_xuat.services.phase3 import Phase3Error, create_subcontract_order
+    from san_xuat.services.progress_template import team_by_slug
+
+    raw_mo = (request.GET.get('mo') or '').strip()
+    raw_team = (request.GET.get('team') or '').strip().lower()
+    mo = (
+        SxProductionOrder.objects.filter(pk=int(raw_mo), is_demo=False).first()
+        if raw_mo.isdigit() else None
+    )
+    if not mo or not raw_team:
+        messages.info(request, 'Phiếu thuê gia công chỉ tạo từ từng đơn trên bảng công việc tổ.')
+        return redirect('san_xuat:subcontract_list')
+
+    team_meta = team_by_slug(raw_team) or {}
+    team_label = team_meta.get('label') or raw_team
+    source_post = {
+        'production_order': str(mo.pk),
+        'team_slug': raw_team,
+        'product_code': mo.product_code or '',
+        'product_name': mo.product_name or '',
+    }
 
     if request.method == 'POST':
-        form = SubcontractCreateForm(request.POST)
+        data = request.POST.copy()
+        for key, value in source_post.items():
+            data[key] = value
+        form = SubcontractCreateForm(data, lock_source=True)
         out_formset = SubcontractOutLineFormSet(request.POST, prefix='out')
         if form.is_valid() and out_formset.is_valid():
-            mo = form.cleaned_data.get('production_order')
             out_lines = []
             for lf in out_formset:
                 cd = lf.cleaned_data
-                if not cd or cd.get('DELETE'):
+                if not cd:
                     continue
                 if cd.get('material_code') and cd.get('qty') and cd['qty'] > 0:
                     out_lines.append(cd)
+            if not out_lines:
+                from san_xuat.services.phase3 import npl_lines_for_subcontract
+
+                out_lines = npl_lines_for_subcontract(mo=mo)
             try:
                 item = create_subcontract_order(
                     vendor_name=form.cleaned_data['vendor_name'],
-                    product_code=form.cleaned_data['product_code'],
-                    product_name=form.cleaned_data.get('product_name') or '',
-                    process_name=form.cleaned_data.get('process_name') or '',
-                    qty=form.cleaned_data['qty'],
+                    product_code=mo.product_code or '',
+                    product_name=mo.product_name or '',
+                    team_slug=raw_team,
+                    qty=mo.qty or Decimal('0'),
                     order_date=form.cleaned_data.get('order_date'),
                     due_date=form.cleaned_data.get('due_date'),
-                    production_order_id=mo.pk if mo else None,
+                    production_order_id=mo.pk,
                     notes=form.cleaned_data.get('notes') or '',
                     out_lines=out_lines,
+                    created_by=request.user,
                 )
             except Phase3Error as exc:
                 messages.error(request, str(exc))
@@ -5409,14 +6021,28 @@ def subcontract_create(request):
                 return redirect('san_xuat:subcontract_detail', pk=item.pk)
         messages.error(request, 'Không tạo được lệnh gia công.')
     else:
-        form = SubcontractCreateForm(initial={'order_date': timezone.localdate()})
-        out_formset = SubcontractOutLineFormSet(prefix='out')
+        initial = {
+            'order_date': timezone.localdate(),
+            'production_order': mo,
+            'product_code': mo.product_code,
+            'product_name': mo.product_name or '',
+            'team_slug': raw_team,
+        }
+        form = SubcontractCreateForm(initial=initial, lock_source=True)
+        from san_xuat.services.phase3 import npl_lines_for_subcontract
+
+        npl_initial = npl_lines_for_subcontract(mo=mo)
+        out_formset = SubcontractOutLineFormSet(prefix='out', initial=npl_initial)
     return render(request, 'san_xuat/subcontract_create.html', {
         **_perm_ctx(request),
         'form': form,
         'out_formset': out_formset,
         'title': 'Thuê gia công',
         'back_url': 'san_xuat:subcontract_list',
+        'source_mo': mo,
+        'source_team': raw_team,
+        'source_team_label': team_label,
+        'order_creator_label': _order_creator_label(request.user),
     })
 
 
@@ -5425,62 +6051,35 @@ def subcontract_detail(request, pk: int):
     from san_xuat.hub_models import SxSubcontractMaterialLine, SxSubcontractOrder as Sub
     from san_xuat.services.phase3 import (
         Phase3Error,
-        add_subcontract_material_line,
         advance_subcontract_order,
+        receive_subcontract_goods,
     )
 
     item = get_object_or_404(
-        SxSubcontractOrder.objects.select_related('production_order').prefetch_related('material_lines'),
+        SxSubcontractOrder.objects.select_related('production_order', 'created_by').prefetch_related('material_lines'),
         pk=pk,
     )
     can_update = _perm_ctx(request).get('can_update')
     receive_form = SubcontractReceiveForm(initial={'qty_received': item.qty or Decimal('0')})
-    add_out_form = SubcontractMaterialLineForm()
 
     if request.method == 'POST' and can_update:
         action = (request.POST.get('action') or '').strip()
-        if action == 'add_out':
-            add_out_form = SubcontractMaterialLineForm(request.POST)
-            if add_out_form.is_valid():
-                cd = add_out_form.cleaned_data
-                try:
-                    add_subcontract_material_line(
-                        order_id=item.pk,
-                        direction=SxSubcontractMaterialLine.DIRECTION_OUT,
-                        material_code=cd.get('material_code') or '',
-                        qty=cd.get('qty') or Decimal('0'),
-                        material_name=cd.get('material_name') or '',
-                        uom_label=cd.get('uom_label') or 'SP',
-                        lot_code=cd.get('lot_code') or '',
-                    )
-                except Phase3Error as exc:
-                    messages.error(request, str(exc))
-                else:
-                    messages.success(request, 'Đã thêm dòng xuất đi GC.')
-                    return redirect('san_xuat:subcontract_detail', pk=item.pk)
-        elif action == 'receive':
+        if action == 'receive':
             receive_form = SubcontractReceiveForm(request.POST)
             if receive_form.is_valid():
-                cd = receive_form.cleaned_data
                 try:
-                    if cd.get('material_code'):
-                        add_subcontract_material_line(
-                            order_id=item.pk,
-                            direction=SxSubcontractMaterialLine.DIRECTION_IN,
-                            material_code=cd['material_code'],
-                            qty=cd['qty_received'],
-                            material_name=cd.get('material_name') or '',
-                            lot_code=cd.get('lot_code') or '',
-                        )
-                    item = advance_subcontract_order(
+                    item = receive_subcontract_goods(
                         order_id=item.pk,
-                        to_status=Sub.STATUS_RECEIVED,
-                        qty_received=cd['qty_received'],
+                        qty_received=receive_form.cleaned_data['qty_received'],
+                        user=request.user,
                     )
                 except Phase3Error as exc:
                     messages.error(request, str(exc))
                 else:
-                    messages.success(request, f'{item.code} → {item.get_status_display()}.')
+                    messages.success(
+                        request,
+                        f'Đã nhận hàng {item.code} — tổ {item.team_label or item.process_name} hoàn thành như tự SX.',
+                    )
                     return redirect('san_xuat:subcontract_detail', pk=item.pk)
         else:
             to_status = (request.POST.get('to_status') or '').strip()
@@ -5495,14 +6094,17 @@ def subcontract_detail(request, pk: int):
 
     out_lines = [ln for ln in item.material_lines.all() if ln.direction == 'out']
     in_lines = [ln for ln in item.material_lines.all() if ln.direction == 'in']
+    can_receive = can_update and item.status in (
+        Sub.STATUS_DRAFT, Sub.STATUS_SENT, Sub.STATUS_RECEIVED,
+    )
     return render(request, 'san_xuat/subcontract_detail.html', {
         **_perm_ctx(request),
         'item': item,
         'can_update': can_update,
+        'can_receive': can_receive,
         'out_lines': out_lines,
         'in_lines': in_lines,
         'receive_form': receive_form,
-        'add_out_form': add_out_form,
         'STATUS_SENT': Sub.STATUS_SENT,
         'STATUS_RECEIVED': Sub.STATUS_RECEIVED,
         'STATUS_DONE': Sub.STATUS_DONE,
