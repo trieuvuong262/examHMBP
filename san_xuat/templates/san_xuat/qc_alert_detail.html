@@ -11,6 +11,7 @@
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
       {% if can_print %}<a href="{% url 'san_xuat:print_qc_alert' alert.pk %}?autoprint=1" target="_blank" rel="noopener"><i class="bi bi-printer" aria-hidden="true"></i>In A5</a>{% endif %}
+      <a href="{% url 'san_xuat:ncr_list' %}"><i class="bi bi-exclamation-octagon" aria-hidden="true"></i>Xử lý hàng không đạt</a>
       <span class="sep" aria-hidden="true"></span>
       <a href="{% url 'san_xuat:qc_alerts' %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại</a>
     </nav>
@@ -61,6 +62,19 @@
             </div>
             {% endif %}
           </div>
+
+          {% if ncr_cases %}
+          <hr class="my-3">
+          <div class="small text-muted mb-2">Phiếu xử lý đã tạo</div>
+          <ul class="list-unstyled mb-0 small">
+            {% for c in ncr_cases %}
+            <li class="mb-1">
+              <a href="{% url 'san_xuat:ncr_detail' c.pk %}" class="fw-semibold">{{ c.code }}</a>
+              — {{ c.get_disposition_display }} · {{ c.get_status_display }} · SL {{ c.qty|sx_num }}
+            </li>
+            {% endfor %}
+          </ul>
+          {% endif %}
         </div>
       </div>
     </div>
@@ -68,12 +82,39 @@
     <div class="col-12 col-lg-5">
       <div class="card border-0 shadow-sm">
         <div class="card-body">
-          <div class="small text-muted mb-3">Hành động</div>
+          <div class="small text-muted mb-2">Xử lý hàng không đạt</div>
           {% if can_update and alert.status == 'open' %}
+          <p class="small mb-3">Chọn hướng xử lý theo thực tế xưởng. Xác nhận phiếu sẽ ghi nhận sửa / phế / tái SX và đóng cảnh báo.</p>
+          <form method="post" class="mb-3">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="create_ncr">
+            <div class="mb-2">
+              <label class="form-label small mb-1" for="id_disposition">Hướng xử lý</label>
+              <select name="disposition" id="id_disposition" class="form-select form-select-sm" required>
+                {% for value, label in ncr_dispositions %}
+                <option value="{{ value }}"{% if value == 'rework' %} selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="mb-2">
+              <label class="form-label small mb-1" for="id_qty">Số lượng xử lý</label>
+              <input type="number" step="0.01" min="0" name="qty" id="id_qty" class="form-control form-control-sm"
+                     value="{{ alert.qty_defect|default_if_none:'' }}" placeholder="{{ alert.qty_defect|sx_num }}">
+            </div>
+            <div class="mb-3">
+              <label class="form-label small mb-1" for="id_notes">Ghi chú</label>
+              <textarea name="notes" id="id_notes" class="form-control form-control-sm" rows="2" placeholder="Lý do / hướng dẫn xưởng"></textarea>
+            </div>
+            <button type="submit" class="btn btn-hm btn-sm w-100">Tạo phiếu xử lý</button>
+          </form>
+          <hr class="my-3">
           <form method="post">
             {% csrf_token %}
             <input type="hidden" name="action" value="ack">
-            <button type="submit" class="btn btn-warning btn-sm">Ghi nhận đã xử lý</button>
+            <button type="submit" class="btn btn-outline-secondary btn-sm w-100"
+                    title="Chỉ đóng cảnh báo khi đã xử lý ngoài hệ thống">
+              Chỉ ghi nhận đã xử lý (không tạo phiếu)
+            </button>
           </form>
           {% else %}
           <div class="text-muted small">Cảnh báo đã đóng hoặc bạn không có quyền cập nhật.</div>

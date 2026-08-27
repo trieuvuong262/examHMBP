@@ -229,6 +229,26 @@
     {% endif %}
   </form>
   {% else %}
+  {% if inspection.status == 'done' and inspection.result == 'fail' %}
+  <div class="alert alert-danger border-0 shadow-sm mb-3" role="alert">
+    <div class="fw-semibold mb-1">Phiếu Không đạt — không nhập thành phẩm cho đến khi xử lý xong.</div>
+    <div class="small mb-2">Chọn hướng: sửa hàng · phế · tái sản xuất · chấp nhận dùng.</div>
+    <div class="d-flex flex-wrap gap-2">
+      {% if fail_alert %}
+      <a href="{% url 'san_xuat:qc_alert_detail' fail_alert.pk %}" class="btn btn-sm btn-danger">
+        Xử lý cảnh báo {{ fail_alert.code }}
+      </a>
+      {% endif %}
+      {% for c in ncr_cases %}
+      <a href="{% url 'san_xuat:ncr_detail' c.pk %}" class="btn btn-sm btn-outline-danger">{{ c.code }} · {{ c.get_disposition_display }}</a>
+      {% empty %}
+      {% if not fail_alert %}
+      <a href="{% url 'san_xuat:qc_alerts' %}?status=open" class="btn btn-sm btn-outline-danger">Cảnh báo đang mở</a>
+      {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
   {% if can_update and inspection.status == 'done' %}
   <form method="post" class="jp-qc-action">
     {% csrf_token %}

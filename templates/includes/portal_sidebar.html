@@ -1061,7 +1061,23 @@
                             </a>
                         </li>
                         {% endif %}
-                        {# Cảnh báo QC / NCR — tạm ẩn khỏi menu; URL /chat-luong/canh-bao/ và /ncr/ vẫn mở được #}
+                        {% if jp_can_san_xuat_qc or jp_can_san_xuat_qc_sheet or jp_can_san_xuat_qc_req %}
+                        <li>
+                            <a href="{% url 'san_xuat:qc_alerts' %}"
+                               class="jp-sidebar-link jp-sidebar-sublink {% if 'qc_alert' in request.resolver_match.url_name %}active{% endif %}">
+                                <i class="bi bi-exclamation-triangle"></i><span>Cảnh báo chất lượng</span>
+                            </a>
+                        </li>
+                        {% endif %}
+                        {% jp_can_menu 'san_xuat' 'ncr' as jp_can_san_xuat_ncr %}
+                        {% if jp_can_san_xuat_ncr or jp_can_san_xuat_qc %}
+                        <li>
+                            <a href="{% url 'san_xuat:ncr_list' %}"
+                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'ncr_list' or request.resolver_match.url_name == 'ncr_detail' %}active{% endif %}">
+                                <i class="bi bi-exclamation-octagon"></i><span>Xử lý hàng không đạt</span>
+                            </a>
+                        </li>
+                        {% endif %}
                         {% if jp_can_san_xuat_qc or jp_can_san_xuat_qc_crit or jp_can_san_xuat_qc_std %}
                         <li>
                             <a href="{% url 'san_xuat:qc_standards' %}"

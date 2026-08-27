@@ -2689,6 +2689,11 @@ def dispatch_mo_detail(request, pk: int):
         .prefetch_related('inspections')
         .order_by('-request_date', '-pk')[:20]
     )
+    open_qc_alerts = list(
+        mo.qc_alerts.filter(is_demo=False, status=SxQcAlert.STATUS_OPEN)
+        .select_related('qc_inspection')
+        .order_by('-pk')[:10]
+    )
     fg_receipt_list = (
         mo.fg_receipt_requests.filter(is_demo=False)
         .select_related('production_stat')
@@ -2843,6 +2848,7 @@ def dispatch_mo_detail(request, pk: int):
         'can_update': can_update,
         'ycx_list': ycx_list,
         'qc_request_list': qc_request_list,
+        'open_qc_alerts': open_qc_alerts,
         'fg_receipt_list': fg_receipt_list,
         'handover_row': handover_row,
         'bom_lines': bom_lines,
@@ -4463,7 +4469,32 @@ def qc_sheet_detail(request, pk: int):
                 except QcError as exc:
                     messages.error(request, str(exc))
                 else:
-                    messages.success(request, f'Phiếu kiểm tra {inspection.code} đã chốt kết quả.')
+                    if inspection.result == 'fail':
+                        fail_alert = (
+                            SxQcAlert.objects.filter(
+                                qc_inspection=inspection,
+                                alert_type=SxQcAlert.TYPE_QC_FAIL,
+                                is_demo=False,
+                            )
+                            .order_by('-pk')
+                            .first()
+                        )
+                        if fail_alert:
+                            messages.warning(
+                                request,
+                                f'PKT {inspection.code} Không đạt — mở cảnh báo {fail_alert.code} '
+                                'để tạo phiếu xử lý (sửa / phế / tái SX / chấp nhận dùng).',
+                            )
+                            return redirect('san_xuat:qc_alert_detail', pk=fail_alert.pk)
+                        messages.warning(
+                            request,
+                            f'PKT {inspection.code} Không đạt — xử lý hàng lỗi trước khi nhập thành phẩm.',
+                        )
+                    else:
+                        messages.success(
+                            request,
+                            f'Phiếu kiểm tra {inspection.code} đã chốt Đạt.',
+                        )
                     return _redirect_sheet()
             else:
                 messages.error(
@@ -4474,6 +4505,26 @@ def qc_sheet_detail(request, pk: int):
                 )
     else:
         finalize_form = QcInspectionFinalizeForm(instance=inspection)
+
+    fail_alert = None
+    ncr_cases = []
+    if inspection.status == 'done' and inspection.result == SxQcInspection.RESULT_FAIL:
+        fail_alert = (
+            SxQcAlert.objects.filter(
+                qc_inspection=inspection,
+                is_demo=False,
+            )
+            .order_by('-pk')
+            .first()
+        )
+        if fail_alert:
+            from san_xuat.hub_models import SxNcrCase
+
+            ncr_cases = list(
+                fail_alert.ncr_cases.filter(is_demo=False)
+                .exclude(status=SxNcrCase.STATUS_CANCELLED)
+                .order_by('-pk')[:5]
+            )
 
     return render(request, 'san_xuat/qc_sheet_detail.html', {
         **_perm_ctx(request),
@@ -4487,6 +4538,8 @@ def qc_sheet_detail(request, pk: int):
         'active_team_label': active_team_label,
         'qc_pending_teams': pending_inspection_team_labels(inspection, qc_teams) if qc_teams else [],
         'can_update': can_update,
+        'fail_alert': fail_alert,
+        'ncr_cases': ncr_cases,
     })
 
 
@@ -4513,6 +4566,11 @@ def qc_alerts(request):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def qc_alert_detail(request, pk: int):
+    from decimal import Decimal, InvalidOperation
+
+    from san_xuat.hub_models import SxNcrCase
+    from san_xuat.services.ncr import NcrError, create_ncr_from_alert
+
     alert = get_object_or_404(
         SxQcAlert.objects.select_related(
             'production_order', 'production_stat', 'qc_request', 'qc_inspection',
@@ -4520,9 +4578,48 @@ def qc_alert_detail(request, pk: int):
         pk=pk,
     )
     can_update = _perm_ctx(request).get('can_update')
+    ncr_cases = list(
+        alert.ncr_cases.filter(is_demo=False)
+        .exclude(status=SxNcrCase.STATUS_CANCELLED)
+        .order_by('-pk')
+    )
     if request.method == 'POST':
         action = (request.POST.get('action') or '').strip()
-        if action == 'ack' and can_update and alert.status == SxQcAlert.STATUS_OPEN:
+        if action == 'create_ncr' and can_update and alert.status == SxQcAlert.STATUS_OPEN:
+            active = [c for c in ncr_cases if c.status != SxNcrCase.STATUS_DONE]
+            if active:
+                messages.warning(
+                    request,
+                    f'Cảnh báo đã có phiếu xử lý {active[0].code} — mở phiếu đó để xác nhận.',
+                )
+                return redirect('san_xuat:ncr_detail', pk=active[0].pk)
+            disposition = (request.POST.get('disposition') or '').strip()
+            notes = (request.POST.get('notes') or '').strip()
+            qty_raw = (request.POST.get('qty') or '').strip()
+            qty = None
+            if qty_raw:
+                try:
+                    qty = Decimal(qty_raw.replace(',', '.'))
+                except (InvalidOperation, ValueError):
+                    messages.error(request, 'Số lượng xử lý không hợp lệ.')
+                    return redirect('san_xuat:qc_alert_detail', pk=alert.pk)
+            try:
+                case = create_ncr_from_alert(
+                    alert_id=alert.pk,
+                    disposition=disposition,
+                    qty=qty,
+                    notes=notes,
+                )
+            except NcrError as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(
+                    request,
+                    f'Đã tạo phiếu xử lý {case.code} ({case.get_disposition_display}). '
+                    'Xác nhận để ghi nhận trên lệnh sản xuất.',
+                )
+                return redirect('san_xuat:ncr_detail', pk=case.pk)
+        elif action == 'ack' and can_update and alert.status == SxQcAlert.STATUS_OPEN:
             try:
                 alert = acknowledge_alert(alert_id=alert.pk)
             except QcError as exc:
@@ -4534,6 +4631,8 @@ def qc_alert_detail(request, pk: int):
         **_perm_ctx(request),
         'alert': alert,
         'can_update': can_update,
+        'ncr_cases': ncr_cases,
+        'ncr_dispositions': SxNcrCase.DISP_CHOICES,
     })
 
 

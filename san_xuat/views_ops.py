@@ -44,7 +44,7 @@ from san_xuat.services.actual_costing import (
     compute_actual_cost_for_mo,
     create_or_refresh_actual_cost,
 )
-from san_xuat.services.ncr import NcrError, confirm_ncr, create_ncr_from_alert
+from san_xuat.services.ncr import NcrError, confirm_ncr
 from san_xuat.services.shopfloor import ShopFloorError, quick_confirm_scan
 from san_xuat.views_hub import _perm_ctx
 
@@ -141,7 +141,16 @@ def ncr_detail(request, pk: int):
             except NcrError as exc:
                 messages.error(request, str(exc))
             else:
-                messages.success(request, f"Đã xác nhận phiếu xử lý hàng không đạt {case.code}.")
+                extra = ''
+                if case.remake_order_id:
+                    extra = f' Đã tạo lệnh tái SX {case.remake_order.code}.'
+                elif case.rework_stat_id:
+                    extra = f' Đã tạo TKSX sửa hàng {case.rework_stat.code}.'
+                messages.success(
+                    request,
+                    f'Đã xác nhận {case.code} ({case.get_disposition_display}).{extra} '
+                    'QC lại đến Đạt trước khi nhập thành phẩm.',
+                )
                 return redirect("san_xuat:ncr_detail", pk=case.pk)
     return render(
         request,

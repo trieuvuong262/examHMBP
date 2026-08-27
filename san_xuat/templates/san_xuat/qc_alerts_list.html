@@ -12,6 +12,7 @@
       <h2 class="jp-npl-mat-topbar-title w-100">Cảnh báo chất lượng</h2>
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
+      <a href="{% url 'san_xuat:ncr_list' %}"><i class="bi bi-exclamation-octagon" aria-hidden="true"></i>Xử lý hàng không đạt</a>
       <span class="sep" aria-hidden="true"></span>
       <a href="{% url 'san_xuat:qc_stub' %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại</a>
       {% include 'san_xuat/includes/sx_list_col_picker.html' %}

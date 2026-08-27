@@ -23,7 +23,10 @@
           <div class="row g-2">
             <div class="col-6"><div class="small text-muted">Lệnh sản xuất</div>
               <a href="{% url 'san_xuat:dispatch_mo_detail' case.production_order.pk %}">{{ case.production_order.code }}</a></div>
+            <div class="col-6"><div class="small text-muted">Hướng xử lý</div>
+              <div class="fw-semibold">{{ case.get_disposition_display }}</div></div>
             <div class="col-6"><div class="small text-muted">Số lượng</div><div>{{ case.qty|sx_num }}</div></div>
+            <div class="col-6"><div class="small text-muted">Trạng thái</div><div>{{ case.get_status_display }}</div></div>
             <div class="col-6"><div class="small text-muted">Công đoạn</div><div>{{ case.process_name|default:"—" }}</div></div>
             {% if case.alert %}<div class="col-6"><div class="small text-muted">Cảnh báo</div>
               <a href="{% url 'san_xuat:qc_alert_detail' case.alert.pk %}">{{ case.alert.code }}</a></div>{% endif %}
@@ -40,6 +43,12 @@
       <div class="card border-0 shadow-sm">
         <div class="card-body">
           {% if can_update and case.status == 'draft' %}
+          <p class="small text-muted mb-2">
+            {% if case.disposition == 'rework' %}Xác nhận sẽ tạo thống kê sửa hàng trên lệnh gốc.
+            {% elif case.disposition == 'remake' %}Xác nhận sẽ tạo lệnh tái sản xuất (mẫu) cho SL lỗi.
+            {% elif case.disposition == 'scrap' %}Xác nhận ghi nhận phế và đóng cảnh báo.
+            {% else %}Xác nhận chấp nhận dùng và đóng cảnh báo.{% endif %}
+          </p>
           <form method="post">
             {% csrf_token %}
             <input type="hidden" name="action" value="confirm">
