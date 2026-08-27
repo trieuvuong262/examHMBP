@@ -48,9 +48,13 @@ _DEFAULT_SP_PER_HEAD = Decimal('12')
 
 
 def _fold(text: str) -> str:
+    """Chuẩn hoá chữ (bỏ dấu, đ→d, dấu nối → khoảng trắng) để khớp mã/tên WC."""
     raw = unicodedata.normalize('NFD', (text or '').lower())
     raw = ''.join(ch for ch in raw if unicodedata.category(ch) != 'Mn')
-    return raw.replace('đ', 'd').strip()
+    raw = raw.replace('đ', 'd')
+    for ch in ('-', '_', '/', '\\', '.', ',', '·', '—'):
+        raw = raw.replace(ch, ' ')
+    return ' '.join(raw.split())
 
 
 def sp_per_head_for_division(name: str) -> Decimal:
@@ -84,12 +88,21 @@ def _pick_hr_by_keys(hr_centers: list[SxWorkCenter], hr_keys: tuple[str, ...]) -
     hits: list[tuple[int, SxWorkCenter]] = []
     for hc in hr_centers:
         folded_name = _fold(f'{hc.name} {hc.team_label}')
+        folded_code = _fold(hc.code or '')
         for key in hr_keys:
-            if key == folded_name or folded_name.startswith(key + ' ') or folded_name.startswith(key + '('):
+            key_f = _fold(key)
+            if not key_f:
+                continue
+            if (
+                key_f == folded_name
+                or key_f == folded_code
+                or folded_name.startswith(key_f + ' ')
+                or folded_name.startswith(key_f + '(')
+            ):
                 hits.append((0, hc))
                 break
-            if key in folded_name:
-                hits.append((len(folded_name), hc))
+            if key_f in folded_name or key_f in folded_code:
+                hits.append((len(folded_name) or len(folded_code), hc))
                 break
     if not hits:
         return None
@@ -107,7 +120,11 @@ def map_ie_center_to_hr(center: SxWorkCenter | None) -> SxWorkCenter | None:
 
 
 def resolve_work_center_code(code: str | None, *, name_hint: str = '') -> SxWorkCenter | None:
-    """Resolve mã WC/HRD (hoặc tên) → bộ phận HRD-* đang active."""
+    """Resolve mã WC/HRD (hoặc tên) → bộ phận HRD-* đang active.
+
+    Nếu chưa map được HRD (tổ tắt / chưa đồng bộ), fallback về WC IE đúng mã
+    đã chọn trên form (vd. IN-EP → «In - Ép») để không mất FK và hiện mã thô.
+    """
     raw = (code or '').strip()
     hint = (name_hint or '').strip()
     if not raw and not hint:
@@ -125,21 +142,31 @@ def resolve_work_center_code(code: str | None, *, name_hint: str = '') -> SxWork
 
     needle = _fold(f'{raw} {hint}')
     hr_centers = list(hr_work_centers_qs())
-    if not hr_centers:
-        return None
 
-    # Map theo bảng IE → HR
-    for ie_keys, hr_keys in _IE_WC_TO_HR_KEYS:
-        if any(k in needle for k in ie_keys):
-            hit = _pick_hr_by_keys(hr_centers, hr_keys)
-            if hit:
-                return hit
+    if hr_centers:
+        # Map theo bảng IE → HR
+        for ie_keys, hr_keys in _IE_WC_TO_HR_KEYS:
+            if any(_fold(k) and _fold(k) in needle for k in ie_keys):
+                hit = _pick_hr_by_keys(hr_centers, hr_keys)
+                if hit:
+                    return hit
 
-    # Khớp trực tiếp tên bộ phận HR
-    for hc in hr_centers:
-        folded = _fold(f'{hc.name} {hc.team_label} {hc.code}')
-        if needle and (needle == folded or needle in folded or folded in needle):
-            return hc
+        # Khớp trực tiếp tên / mã bộ phận trong pool (HRD hoặc fallback IE)
+        raw_fold = _fold(raw)
+        for hc in hr_centers:
+            folded = _fold(f'{hc.name} {hc.team_label} {hc.code}')
+            if raw_fold and raw_fold == _fold(hc.code):
+                return hc
+            if needle and (needle == folded or needle in folded or folded in needle):
+                return hc
+
+    # Fallback: mã IE chuẩn trên form (IN-EP, CAT, MAY, …)
+    if raw:
+        ie = SxWorkCenter.objects.filter(
+            code__iexact=raw, is_active=True, is_demo=False,
+        ).first()
+        if ie:
+            return ie
     return None
 
 

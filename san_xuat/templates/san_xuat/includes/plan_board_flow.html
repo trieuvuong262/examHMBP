@@ -26,9 +26,6 @@
     </span>
     {% endif %}
     {% endwith %}
-    {% if g.team_slug %}
-    <a class="jp-pb-qc" href="{% url 'san_xuat:qc_sheet' %}?team={{ g.team_slug }}" title="QC tổ {{ g.team_label }} sau khi xong công đoạn Ob">QC</a>
-    {% endif %}
     {% if not forloop.last %}
     <span class="jp-pb-link">
       <span class="jp-pb-link-line"></span>
