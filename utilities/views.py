@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 
 from django.contrib import messages
+from django.contrib.auth import get_user_model
 from django.db import IntegrityError
 from django.db.models import Count, Q, Sum, Value
 from django.db.models.functions import Coalesce, NullIf
@@ -49,10 +50,13 @@ from utilities.meal_rules import (
     is_meal_order_window_open,
     meal_order_window_for,
     next_orderable_meal_date,
+    sync_meal_eligible_employees,
+    user_is_meal_order_eligible,
 )
 from utilities.models import (
     MealDayOffering,
     MealDish,
+    MealEligibleEmployee,
     MealOrder,
     MealOrderDecline,
     MealOrderSettings,
@@ -75,6 +79,40 @@ from utilities.date_range_filter import (
 
 def _can_manage_meals(user) -> bool:
     return user_can_update_menu(user, MODULE_UTILITIES, 'meal_ordering')
+
+
+def _meal_eligible_roster_rows():
+    User = get_user_model()
+    users = (
+        User.objects.filter(is_active=True, profile__is_employed=True)
+        .select_related('profile', 'profile__department')
+        .order_by(
+            'profile__department__name',
+            'profile__full_name',
+            'username',
+        )
+    )
+    allowed_ids = set(MealEligibleEmployee.objects.values_list('employee_id', flat=True))
+    rows = []
+    for user in users:
+        profile = getattr(user, 'profile', None)
+        department = 'Chưa có phòng ban'
+        name = user.get_username()
+        employee_code = ''
+        if profile:
+            name = (profile.full_name or '').strip() or name
+            if getattr(profile, 'department', None):
+                department = profile.department.name
+            employee_code = (profile.employee_code or '').strip()
+        rows.append({
+            'id': user.pk,
+            'name': name,
+            'username': user.username,
+            'employee_code': employee_code,
+            'department': department,
+            'is_allowed': user.pk in allowed_ids,
+        })
+    return rows
 
 
 def _parse_meal_date(raw: str | None, *, default):
@@ -318,9 +356,12 @@ def meal_home(request):
     if meal_date and request.user.is_authenticated:
         existing = MealOrder.objects.filter(employee=request.user, meal_date=meal_date).select_related('dish').first()
 
+    can_create = user_can_create_menu(request.user, MODULE_UTILITIES, 'meal_ordering')
+    meal_eligible = user_is_meal_order_eligible(request.user)
     can_order = (
         window_open
-        and user_can_create_menu(request.user, MODULE_UTILITIES, 'meal_ordering')
+        and can_create
+        and meal_eligible
         and offered_ids
     )
     form = None
@@ -352,6 +393,8 @@ def meal_home(request):
         'existing_order': existing,
         'form': form,
         'can_order': can_order,
+        'can_create': can_create,
+        'meal_eligible': meal_eligible,
         'can_manage': _can_manage_meals(request.user),
     })
 
@@ -700,6 +743,27 @@ def meal_settings(request):
         'form': form,
         'settings': settings,
         'window_example': format_order_window(next_orderable_meal_date()),
+        'can_manage': True,
+    })
+
+
+@module_perm_required(MODULE_UTILITIES, 'update')
+def meal_eligible_list(request):
+    if not _can_manage_meals(request.user):
+        raise Http404
+    if request.method == 'POST':
+        shown_ids = [pk for pk in request.POST.getlist('employee') if str(pk).isdigit()]
+        allowed_ids = [pk for pk in request.POST.getlist('allowed') if str(pk).isdigit()]
+        sync_meal_eligible_employees(shown_ids, allowed_ids)
+        messages.success(request, 'Đã cập nhật danh sách người được đặt cơm.')
+        return redirect('utilities:meal_eligible_list')
+
+    rows = _meal_eligible_roster_rows()
+    allowed_count = sum(1 for row in rows if row['is_allowed'])
+    return render(request, 'utilities/meal_eligible.html', {
+        'rows': rows,
+        'allowed_count': allowed_count,
+        'total_count': len(rows),
         'can_manage': True,
     })
 

@@ -3,6 +3,7 @@ from django.contrib import admin
 from utilities.models import (
     MealDayOffering,
     MealDish,
+    MealEligibleEmployee,
     MealOrder,
     MealOrderDecline,
     MealOrderSettings,
@@ -71,6 +72,19 @@ class MealDayOfferingAdmin(admin.ModelAdmin):
     date_hierarchy = 'meal_date'
     ordering = ('-meal_date', 'dish__sort_order')
     readonly_fields = ('dish_name',)
+
+
+@admin.register(MealEligibleEmployee)
+class MealEligibleEmployeeAdmin(admin.ModelAdmin):
+    list_display = ('employee', 'created_at', 'updated_at')
+    search_fields = (
+        'employee__username',
+        'employee__profile__full_name',
+    )
+    list_select_related = ('employee', 'employee__profile')
+    raw_id_fields = ('employee',)
+    readonly_fields = ('created_at', 'updated_at')
+    ordering = ('employee__username',)
 
 
 @admin.register(MealOrder)

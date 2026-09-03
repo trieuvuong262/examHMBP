@@ -26,6 +26,7 @@ urlpatterns = [
     path('dat-com/thong-ke/', views.meal_stats, name='meal_stats'),
     path('dat-com/thong-ke/xuat/', views.meal_stats_export, name='meal_stats_export'),
     path('dat-com/khung-gio/', views.meal_settings, name='meal_settings'),
+    path('dat-com/nguoi-dat/', views.meal_eligible_list, name='meal_eligible_list'),
     # Ứng lương
     path('ung-luong/tu-choi/', portal_actions.salary_decline, name='salary_decline'),
     path('ung-luong/', views.salary_home, name='salary_home'),

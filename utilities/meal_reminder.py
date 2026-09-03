@@ -4,7 +4,7 @@ from hrm.menu_permissions import user_can_access_menu, user_can_create_menu
 from hrm.module_permissions import MODULE_UTILITIES
 from reports.report_profile import is_production_report_user
 
-from utilities.meal_rules import current_orderable_meal_date
+from utilities.meal_rules import current_orderable_meal_date, user_is_meal_order_eligible
 from utilities.models import MealOrder, MealOrderDecline
 
 
@@ -17,6 +17,8 @@ def user_needs_meal_reminder(user, *, now=None):
     if not user_can_access_menu(user, MODULE_UTILITIES, 'meal_ordering'):
         return None
     if not user_can_create_menu(user, MODULE_UTILITIES, 'meal_ordering'):
+        return None
+    if not user_is_meal_order_eligible(user):
         return None
     if not is_production_report_user(user):
         return None

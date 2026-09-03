@@ -6,11 +6,14 @@ from hrm.menu_permissions import user_can_access_menu, user_can_create_menu
 from hrm.module_permissions import MODULE_ANNOUNCEMENTS, MODULE_UTILITIES, user_can_access_module
 from hrm.permissions import is_director
 from reports.report_profile import is_production_report_user
+from utilities.meal_rules import user_is_meal_order_eligible
 from utilities.push_service import webpush_configured
 
 
 def user_meal_push_eligible(user) -> bool:
     if not user_can_create_menu(user, MODULE_UTILITIES, 'meal_ordering'):
+        return False
+    if not user_is_meal_order_eligible(user):
         return False
     return is_production_report_user(user)
 

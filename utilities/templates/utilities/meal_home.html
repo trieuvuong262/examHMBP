@@ -62,6 +62,8 @@
     <div class="alert alert-warning border-0">HR chưa mở menu món cho ngày này.</div>
     {% elif not window_open %}
     <div class="alert alert-info border-0">Ngoài khung giờ đặt cơm. Vui lòng quay lại đúng giờ.</div>
+    {% elif not meal_eligible or not can_create %}
+    <div class="alert alert-secondary border-0">Bạn chưa được phép đặt cơm. Liên hệ nhân sự nếu cần.</div>
     {% endif %}
 </div>
 {% endblock %}

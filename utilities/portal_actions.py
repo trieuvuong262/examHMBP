@@ -9,7 +9,7 @@ from hrm.menu_permissions import user_can_create_menu
 from hrm.module_permissions import MODULE_UTILITIES
 from reports.report_profile import is_production_report_user
 
-from utilities.meal_rules import current_orderable_meal_date, is_meal_order_window_open
+from utilities.meal_rules import current_orderable_meal_date, is_meal_order_window_open, user_is_meal_order_eligible
 from utilities.models import MealOrder, MealOrderDecline, SalaryAdvanceDecline, SalaryAdvanceRequest
 from utilities.salary_rules import current_advance_month, is_salary_advance_open
 
@@ -19,6 +19,9 @@ from utilities.salary_rules import current_advance_month, is_salary_advance_open
 def meal_decline(request):
     if not user_can_create_menu(request.user, MODULE_UTILITIES, 'meal_ordering'):
         messages.error(request, 'Bạn không có quyền đặt cơm.')
+        return redirect('home_portal')
+    if not user_is_meal_order_eligible(request.user):
+        messages.error(request, 'Bạn chưa được phép đặt cơm. Liên hệ nhân sự nếu cần.')
         return redirect('home_portal')
     if not is_production_report_user(request.user):
         messages.error(request, 'Nhắc đặt cơm chỉ áp dụng phòng ban sản xuất.')

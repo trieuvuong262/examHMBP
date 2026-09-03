@@ -53,6 +53,41 @@ def next_orderable_meal_date(*, now=None):
     return today + timedelta(days=1)
 
 
+def user_is_meal_order_eligible(user) -> bool:
+    """True nếu HR đã tick nhân viên này được đặt cơm (và đang làm việc)."""
+    if not getattr(user, 'is_authenticated', False):
+        return False
+    if not getattr(user, 'is_active', False):
+        return False
+    profile = getattr(user, 'profile', None)
+    if profile is None or not getattr(profile, 'is_employed', False):
+        return False
+    from utilities.models import MealEligibleEmployee
+
+    return MealEligibleEmployee.objects.filter(employee_id=user.pk).exists()
+
+
+def sync_meal_eligible_employees(shown_ids, allowed_ids):
+    """Cập nhật danh sách được đặt cơm cho đúng tập nhân viên đang hiện trên form."""
+    from utilities.models import MealEligibleEmployee
+
+    shown_ids = {int(pk) for pk in shown_ids}
+    allowed_ids = {int(pk) for pk in allowed_ids} & shown_ids
+    MealEligibleEmployee.objects.filter(employee_id__in=shown_ids).exclude(
+        employee_id__in=allowed_ids,
+    ).delete()
+    existing = set(
+        MealEligibleEmployee.objects.filter(employee_id__in=allowed_ids).values_list(
+            'employee_id',
+            flat=True,
+        )
+    )
+    MealEligibleEmployee.objects.bulk_create(
+        [MealEligibleEmployee(employee_id=pk) for pk in allowed_ids - existing],
+        ignore_conflicts=True,
+    )
+
+
 def format_order_window(meal_date) -> str:
     settings = get_meal_order_settings()
     order_day = meal_date - timedelta(days=settings.order_days_before)

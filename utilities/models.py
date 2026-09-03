@@ -204,6 +204,27 @@ class MealOrder(models.Model):
         return f'{self.employee} · {self.meal_date} · {self.display_name()}'
 
 
+class MealEligibleEmployee(models.Model):
+    """HR tick = nhân viên được đặt cơm. Không có dòng = không được đặt."""
+
+    employee = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='meal_order_eligibility',
+        verbose_name='Nhân viên',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Người được đặt cơm'
+        verbose_name_plural = 'Người được đặt cơm'
+        ordering = ['employee__username']
+
+    def __str__(self):
+        return str(self.employee)
+
+
 class MealOrderDecline(models.Model):
     """NV xác nhận không đặt cơm trong ngày ăn tương ứng."""
 
