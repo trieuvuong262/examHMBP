@@ -27,6 +27,11 @@ compose() {
 
 # Image base — khớp Dockerfile (ARG PYTHON_BASE_IMAGE)
 DOCKER_PYTHON_IMAGE="${DOCKER_PYTHON_IMAGE:-python:3.13-slim}"
+# BuildKit bắt buộc để dùng cache mount apt/pip trong Dockerfile
+export DOCKER_BUILDKIT=1
+export COMPOSE_DOCKER_CLI_BUILD=1
+# PULL_BASE_IMAGES=1 → luôn pull lại từ Hub (có thể làm mất cache apt nếu digest đổi)
+PULL_BASE_IMAGES="${PULL_BASE_IMAGES:-0}"
 
 pull_image_with_retry() {
   local image="$1"
@@ -50,11 +55,25 @@ pull_image_with_retry() {
   return 1
 }
 
+# Chỉ pull khi chưa có local (hoặc PULL_BASE_IMAGES=1).
+# Pull python:3.13-slim mỗi lần dễ đổi digest → rebuild lại LibreOffice (~10–15 phút).
+ensure_image() {
+  local image="$1"
+  local max_attempts="${2:-3}"
+  if [[ "${PULL_BASE_IMAGES}" != "1" && "${PULL_BASE_IMAGES}" != "true" ]]; then
+    if docker image inspect "${image}" >/dev/null 2>&1; then
+      echo "    Local ${image} — skip pull (PULL_BASE_IMAGES=1 để cập nhật Hub)"
+      return 0
+    fi
+  fi
+  pull_image_with_retry "${image}" "${max_attempts}"
+}
+
 pull_deploy_images() {
-  echo "    Pull Docker images (Hub / mirror)..."
-  pull_image_with_retry "${DOCKER_PYTHON_IMAGE}" 5
-  pull_image_with_retry "postgres:15-alpine" 3
-  pull_image_with_retry "nginx:alpine" 3
+  echo "    Ensure Docker images (giữ cache build web)..."
+  ensure_image "${DOCKER_PYTHON_IMAGE}" 5
+  ensure_image "postgres:15-alpine" 3
+  ensure_image "nginx:alpine" 3
 }
 
 wait_for_db() {
@@ -89,11 +108,13 @@ run_manage() {
 }
 
 ensure_web_image() {
-  echo "==> Build web Docker image (can take several minutes on first run)..."
+  echo "==> Build web Docker image (apt/LibreOffice chỉ lần đầu hoặc khi đổi Dockerfile)..."
   export DOCKER_PYTHON_IMAGE
+  # Không --pull: tránh đổi base digest → cài lại apt mỗi deploy
   if ! compose build web; then
     echo "ERROR: docker compose build web failed."
-    echo "    Thu: docker pull ${DOCKER_PYTHON_IMAGE}  (xem scripts/docker-daemon-mirror.example.json)"
+    echo "    Thu: PULL_BASE_IMAGES=1 ./deploy.sh  hoặc  docker pull ${DOCKER_PYTHON_IMAGE}"
+    echo "    (xem scripts/docker-daemon-mirror.example.json)"
     exit 1
   fi
   echo "    Web image ready."
@@ -259,7 +280,7 @@ echo "==> 3) Start database"
 compose up -d db
 wait_for_db
 
-echo "==> 4) Pull base images + build web (tránh treo ở makemigrations)"
+echo "==> 4) Ensure base images + build web (apt cache giữ giữa các lần deploy)"
 pull_deploy_images
 ensure_web_image
 
@@ -390,9 +411,9 @@ fi
 verify_nas_rclone
 verify_nas_dsm
 
-echo "==> 13) Cleanup Docker build cache and unused images"
-docker builder prune -af --filter "until=72h" 2>/dev/null || docker builder prune -af 2>/dev/null || true
-docker image prune -f
+echo "==> 13) Cleanup dangling images only (giữ build cache apt/pip/LibreOffice)"
+# KHÔNG docker builder prune -af — sẽ buộc cài lại LibreOffice mỗi lần deploy
+docker image prune -f >/dev/null 2>&1 || true
 
 echo ""
 echo "Deploy completed successfully."
@@ -413,3 +434,4 @@ echo ""
 echo "Auto deploy: xem docs/HUONG_DAN_AUTO_DEPLOY.md"
 echo "Optional — tạo dữ liệu demo:"
 echo "  docker compose exec web python manage.py seed_demo_data"
+echo "Làm mới base image từ Hub (khi cần): PULL_BASE_IMAGES=1 ./deploy.sh"
