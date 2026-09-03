@@ -152,7 +152,7 @@
            placeholder="Tìm tên / mã NS / vị trí…" autocomplete="off">
     <button type="submit" class="btn btn-outline-secondary btn-sm">Lọc</button>
     {% if search_query %}
-    <a href="{% url 'san_xuat:team_work_personnel' team.slug %}" class="btn btn-link btn-sm text-decoration-none">Xóa lọc</a>
+    <a href="{% url 'san_xuat:team_work_personnel' team.slug %}?sx_reset=1" class="btn btn-link btn-sm text-decoration-none">Xóa lọc</a>
     {% endif %}
   </form>
   <p class="jp-tw-meta">Sản lượng 14 ngày lấy từ báo cáo ca đã nộp. Việc đang gán chỉ tính lệnh tổ này chưa hoàn thành.</p>

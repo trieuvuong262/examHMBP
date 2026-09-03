@@ -394,7 +394,7 @@
            placeholder="Tìm lệnh sản xuất / mã SP / đơn hàng…" autocomplete="off">
     <button type="submit" class="btn btn-outline-secondary btn-sm">Lọc</button>
     {% if search_query %}
-    <a href="{% url 'san_xuat:team_work_board' team.slug %}{% if show_closed %}?show=closed{% endif %}" class="btn btn-link btn-sm text-decoration-none">Xóa lọc</a>
+    <a href="{% url 'san_xuat:team_work_board' team.slug %}?sx_reset=1{% if show_closed %}&show=closed{% endif %}" class="btn btn-link btn-sm text-decoration-none">Xóa lọc</a>
     {% endif %}
   </form>
 

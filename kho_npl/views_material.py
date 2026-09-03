@@ -568,6 +568,16 @@ def material_stock_export(request):
     return dataframe_to_xlsx_response(df, 'Ton_kho_npl', 'Ton_kho')
 
 
+def _catalog_back_query(request) -> str:
+    """Query danh mục NPL để nút quay lại không mất bộ lọc."""
+    from san_xuat.list_filter_persist import persistable_query, saved_query_for_path
+
+    query = persistable_query(request)
+    if query:
+        return query
+    return saved_query_for_path(request.session, reverse('kho_npl:material_list'))
+
+
 @module_perm_required(MODULE_KHO_NPL, 'view')
 def material_detail(request, pk):
     material = get_object_or_404(
@@ -578,6 +588,7 @@ def material_detail(request, pk):
         **nav_context('materials', user=request.user),
         **perm_context(request.user, 'materials'),
         'material': material,
+        'back_query': _catalog_back_query(request),
     })
 
 

@@ -36,7 +36,7 @@
       <div class="jp-team-filter-actions">
         <button type="submit" class="btn btn-hm btn-sm fw-bold">Lọc</button>
         {% if mo_id or month_value %}
-        <a href="{% url 'san_xuat:piece_rate_report' %}" class="btn btn-light border" title="Xóa bộ lọc"><i class="bi bi-x-lg"></i></a>
+        <a href="{% url 'san_xuat:piece_rate_report' %}?sx_reset=1" class="btn btn-light border" title="Xóa bộ lọc"><i class="bi bi-x-lg"></i></a>
         {% endif %}
       </div>
     </div>

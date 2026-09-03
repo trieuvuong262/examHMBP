@@ -32,7 +32,7 @@
     {% endif %}
     {% if has_list_filters or list_filter_preserve or list_filter_status_value %}
     <div class="jp-team-filter-actions">
-      <a href="{{ list_filter_clear_url|default:request.path }}" class="btn btn-light border" title="Xóa bộ lọc"><i class="bi bi-x-lg"></i></a>
+      <a href="{{ list_filter_clear_url|default:request.path }}{% if '?' in list_filter_clear_url %}&{% else %}?{% endif %}sx_reset=1" class="btn btn-light border" title="Xóa bộ lọc"><i class="bi bi-x-lg"></i></a>
     </div>
     {% endif %}
   </div>

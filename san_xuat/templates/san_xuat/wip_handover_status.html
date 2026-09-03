@@ -126,7 +126,7 @@
            placeholder="Tìm lệnh sản xuất / mã SP / đơn hàng…" autocomplete="off">
     <button type="submit" class="btn btn-outline-secondary btn-sm">Lọc</button>
     {% if board.search or board.filter_team %}
-    <a href="{% url 'san_xuat:dispatch_handover_status' %}" class="btn btn-link btn-sm text-decoration-none">Xóa lọc</a>
+    <a href="{% url 'san_xuat:dispatch_handover_status' %}?sx_reset=1" class="btn btn-link btn-sm text-decoration-none">Xóa lọc</a>
     {% endif %}
   </form>
 

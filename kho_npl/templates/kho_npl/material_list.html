@@ -26,7 +26,7 @@
                 </select>
                 <button type="submit" class="btn btn-hm btn-sm fw-bold">Tìm</button>
                 {% if has_filters %}
-                <a href="{% url 'kho_npl:material_list' %}" class="btn btn-outline-secondary btn-sm fw-bold px-2" title="Xóa lọc">×</a>
+                <a href="{% url 'kho_npl:material_list' %}?list_reset=1" class="btn btn-outline-secondary btn-sm fw-bold px-2" title="Xóa lọc">×</a>
                 {% endif %}
             </div>
         </form>
@@ -98,7 +98,7 @@
                     {% with material=group.representative %}
                     <tr class="jp-npl-catalog-row jp-npl-group-row{% if group.can_expand %} jp-npl-group-expandable{% endif %}{% if not group.is_active %} table-secondary{% endif %}{% if expand_search_hits and group.can_expand %} is-expanded{% endif %}"
                         data-group-key="{{ group.key }}"
-                        {% if group.can_expand %}data-expand-target="{{ group.key }}"{% else %}data-href="{% url 'kho_npl:material_detail' material.pk %}"{% endif %}>
+                        {% if group.can_expand %}data-expand-target="{{ group.key }}"{% else %}data-href="{% url 'kho_npl:material_detail' material.pk %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}"{% endif %}>
                         <td class="npl-col text-center" data-col="image">
                             {% include 'kho_npl/includes/material_image_thumb.html' %}
                         </td>
@@ -110,7 +110,7 @@
                                 <span class="badge text-bg-light border ms-1">{{ group.variant_count }}</span>
                             </button>
                             {% else %}
-                            <a href="{% url 'kho_npl:material_detail' material.pk %}" class="text-decoration-none fw-semibold"
+                            <a href="{% url 'kho_npl:material_detail' material.pk %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}" class="text-decoration-none fw-semibold"
                                data-loading-message="Đang tải chi tiết NPL…">{{ material.code }}</a>
                             {% endif %}
                         </td>
@@ -152,12 +152,12 @@
                     {% for material in group.materials %}
                     <tr class="jp-npl-variant-row{% if not expand_search_hits %} is-collapsed{% endif %}{% if not material.is_active %} table-secondary{% endif %}"
                         data-group-expand="{{ group.key }}"
-                        data-href="{% url 'kho_npl:material_detail' material.pk %}">
+                        data-href="{% url 'kho_npl:material_detail' material.pk %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}">
                         <td class="npl-col text-center" data-col="image">
                             {% include 'kho_npl/includes/material_image_thumb.html' %}
                         </td>
                         <td class="npl-col jp-mat-code jp-npl-variant-indent" data-col="code">
-                            <a href="{% url 'kho_npl:material_detail' material.pk %}" class="text-decoration-none fw-semibold"
+                            <a href="{% url 'kho_npl:material_detail' material.pk %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}" class="text-decoration-none fw-semibold"
                                data-loading-message="Đang tải chi tiết NPL…">{{ material.code }}</a>
                         </td>
                         <td class="npl-col" data-col="name" title="{{ material.name }}">{{ material.name }}</td>

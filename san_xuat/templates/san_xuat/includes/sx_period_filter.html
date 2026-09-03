@@ -34,7 +34,7 @@
     <div class="jp-team-filter-actions">
       <button type="submit" class="btn btn-hm btn-sm fw-bold">Lọc</button>
       {% if has_filters %}
-      <a href="{{ clear_url }}" class="btn btn-light border" title="Xóa bộ lọc"><i class="bi bi-x-lg"></i></a>
+      <a href="{{ clear_url }}{% if '?' in clear_url %}&{% else %}?{% endif %}sx_reset=1" class="btn btn-light border" title="Xóa bộ lọc"><i class="bi bi-x-lg"></i></a>
       {% endif %}
     </div>
   </div>
