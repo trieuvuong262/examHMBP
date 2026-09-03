@@ -760,8 +760,10 @@ def meal_eligible_list(request):
 
     rows = _meal_eligible_roster_rows()
     allowed_count = sum(1 for row in rows if row['is_allowed'])
+    departments = sorted({row['department'] for row in rows})
     return render(request, 'utilities/meal_eligible.html', {
         'rows': rows,
+        'departments': departments,
         'allowed_count': allowed_count,
         'total_count': len(rows),
         'can_manage': True,
