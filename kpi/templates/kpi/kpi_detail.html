@@ -55,6 +55,7 @@
     </div>
 
     <form method="post" id="kpi-detail-form"
+          data-kpi-id="{{ kpi.id }}"
           {% if can_edit_self or can_edit_manager %}data-kpi-upload-url="{{ kpi_image_upload_url }}"{% endif %}>
         {% csrf_token %}
         <div class="jp-kpi-table-shell">
@@ -193,102 +194,36 @@
 </div>
 
 <script src="{% static 'js/kpi-actual-rich.js' %}?v=20260904d"></script>
+{% if can_edit_self or can_edit_manager %}
+<script src="{% static 'js/kpi-detail.js' %}?v=20260904a"></script>
+{% else %}
 <script>
 (function () {
-  const table = document.querySelector('[data-kpi-table]');
-  if (!table) return;
-
-  function num(v) {
-    if (v === null || v === undefined || String(v).trim() === '') return null;
-    const n = Number(v);
-    return Number.isFinite(n) ? n : null;
+  /* Chỉ đọc: vẫn sync thanh cuộn ngang */
+  var wrap = document.querySelector('[data-kpi-table-wrap]');
+  var topScroll = document.querySelector('[data-kpi-hscroll-top]');
+  var spacer = document.querySelector('[data-kpi-hscroll-spacer]');
+  if (!wrap || !topScroll || !spacer) return;
+  var syncing = false;
+  function syncSpacer() {
+    var tableEl = wrap.querySelector('[data-kpi-table]');
+    spacer.style.width = (tableEl ? tableEl.scrollWidth : wrap.scrollWidth) + 'px';
   }
-
-  function resultOf(total) {
-    if (total === null) return { code: 'pending', label: 'Chưa chấm' };
-    if (total < 90) return { code: 'fail', label: 'Không đạt' };
-    if (total <= 100) return { code: 'pass', label: 'Đạt' };
-    return { code: 'exceed', label: 'Vượt' };
-  }
-
-  function paintResult(el, code, label) {
-    if (!el) return;
-    el.textContent = label;
-    el.className = el.className
-      .split(/\s+/)
-      .filter(c => c && !c.startsWith('jp-kpi-badge--') && !c.startsWith('jp-kpi-result-'))
-      .join(' ');
-    if (el.classList.contains('jp-kpi-badge') || el.hasAttribute('data-kpi-result')) {
-      el.classList.add('jp-kpi-badge', 'jp-kpi-badge--' + code);
-    } else {
-      el.classList.add('jp-kpi-result-' + code);
-    }
-  }
-
-  function recalc() {
-    let total = 0;
-    let has = false;
-    table.querySelectorAll('tbody tr[data-weight]').forEach(row => {
-      const weight = num(row.getAttribute('data-weight')) || 0;
-      const selfEl = row.querySelector('[data-kpi-self-score]');
-      const mgrEl = row.querySelector('[data-kpi-mgr-score]');
-      const selfScore = selfEl ? num(selfEl.value) : null;
-      const mgrScore = mgrEl ? num(mgrEl.value) : null;
-      const score = mgrScore !== null ? mgrScore : selfScore;
-      const tpEl = row.querySelector('[data-kpi-tp]');
-      if (score === null) {
-        if (tpEl) tpEl.textContent = '—';
-        return;
-      }
-      const part = (score / 10) * weight;
-      has = true;
-      total += part;
-      if (tpEl) tpEl.textContent = part.toFixed(2);
-    });
-    const display = has ? Math.round(total * 100) / 100 : null;
-    const res = resultOf(display);
-    const totalText = display === null ? '—' : String(display);
-    document.querySelectorAll('[data-kpi-total], [data-kpi-total-foot]').forEach(el => {
-      el.textContent = totalText;
-    });
-    paintResult(document.querySelector('[data-kpi-result]'), res.code, res.label);
-    const foot = document.querySelector('[data-kpi-result-foot]');
-    if (foot) {
-      foot.textContent = res.label;
-      foot.className = 'fw-semibold jp-kpi-result-' + res.code;
-    }
-  }
-
-  table.addEventListener('input', function (e) {
-    if (e.target.matches('[data-kpi-self-score], [data-kpi-mgr-score]')) recalc();
+  topScroll.addEventListener('scroll', function () {
+    if (syncing) return;
+    syncing = true;
+    wrap.scrollLeft = topScroll.scrollLeft;
+    syncing = false;
   });
-
-  const wrap = document.querySelector('[data-kpi-table-wrap]');
-  const topScroll = document.querySelector('[data-kpi-hscroll-top]');
-  const spacer = document.querySelector('[data-kpi-hscroll-spacer]');
-  if (wrap && topScroll && spacer) {
-    let syncing = false;
-    function syncSpacer() {
-      const tableEl = wrap.querySelector('[data-kpi-table]');
-      spacer.style.width = (tableEl ? tableEl.scrollWidth : wrap.scrollWidth) + 'px';
-    }
-    function syncFromTop() {
-      if (syncing) return;
-      syncing = true;
-      wrap.scrollLeft = topScroll.scrollLeft;
-      syncing = false;
-    }
-    function syncFromWrap() {
-      if (syncing) return;
-      syncing = true;
-      topScroll.scrollLeft = wrap.scrollLeft;
-      syncing = false;
-    }
-    syncSpacer();
-    topScroll.addEventListener('scroll', syncFromTop);
-    wrap.addEventListener('scroll', syncFromWrap);
-    window.addEventListener('resize', syncSpacer);
-  }
+  wrap.addEventListener('scroll', function () {
+    if (syncing) return;
+    syncing = true;
+    topScroll.scrollLeft = wrap.scrollLeft;
+    syncing = false;
+  });
+  syncSpacer();
+  window.addEventListener('resize', syncSpacer);
 })();
 </script>
+{% endif %}
 {% endblock %}
