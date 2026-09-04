@@ -302,11 +302,38 @@ def _set_member_uid(conn, group_name: str, uid: str, *, add: bool) -> None:
         )
 
 
-def _sync_group_membership(conn, uid: str, department_group: str | None) -> None:
+def _portal_ldap_group_names(user: User) -> set[str]:
+    """
+    Nhóm LDAP theo quyền NAS Portal: map phòng ban + portal_members,
+    trừ portal_excluded_members (cùng logic user_nas_access_groups).
+    """
+    from nas_storage.portal_access import user_nas_access_groups
+
+    names = set(user_nas_access_groups(user).values_list('name', flat=True))
+    return {name for name in names if name in DEPARTMENT_LDAP_GROUPS}
+
+
+def _primary_ldap_group_for_user(user: User, department_group: str | None) -> str:
+    """Primary gidNumber: ưu tiên nhóm browse_all (vd. TGD), rồi phòng ban."""
+    from nas_storage.portal_access import user_nas_access_groups
+
+    browse_all = (
+        user_nas_access_groups(user)
+        .filter(portal_browse_all=True, name__in=DEPARTMENT_LDAP_GROUPS)
+        .order_by('name')
+        .values_list('name', flat=True)
+        .first()
+    )
+    if browse_all:
+        return browse_all
+    return primary_ldap_group_for_department(department_group)
+
+
+def _sync_group_membership(conn, uid: str, ldap_groups: set[str] | None) -> None:
     _set_member_uid(conn, DEFAULT_LDAP_GROUP, uid, add=True)
-    target = department_group if department_group in DEPARTMENT_LDAP_GROUPS else None
+    targets = {g for g in (ldap_groups or set()) if g in DEPARTMENT_LDAP_GROUPS}
     for group_name in DEPARTMENT_LDAP_GROUPS:
-        _set_member_uid(conn, group_name, uid, add=(group_name == target))
+        _set_member_uid(conn, group_name, uid, add=(group_name in targets))
 
 
 def _read_domain_sid(conn) -> str:
@@ -420,7 +447,10 @@ def _upsert_ldap_user(
     if profile and profile.department_id:
         dept_name = getattr(profile.department, 'name', None)
     department_group = nas_ldap_group_for_department(dept_name)
-    primary_group = primary_ldap_group_for_department(department_group)
+    ldap_groups = _portal_ldap_group_names(user)
+    if department_group in DEPARTMENT_LDAP_GROUPS:
+        ldap_groups.add(department_group)
+    primary_group = _primary_ldap_group_for_user(user, department_group)
     gid_number = _group_gid(conn, primary_group)
 
     user_dn = _user_dn(uid)
@@ -472,13 +502,14 @@ def _upsert_ldap_user(
         if effective_password:
             _apply_samba_account(conn, uid=uid, password=effective_password)
 
-    _sync_group_membership(conn, uid, department_group)
+    _sync_group_membership(conn, uid, ldap_groups)
     return {
         'status': 'ok',
         'uid': uid,
         'dn': user_dn,
         'created': created,
         'department_group': department_group,
+        'ldap_groups': sorted(ldap_groups),
         'primary_group': primary_group,
         'password_synced': bool(password),
     }
