@@ -34,10 +34,21 @@
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-12 col-md-6">
+                {% if division_choices %}
+                <div class="col-6 col-md-2">
+                    <label class="form-label small fw-bold text-muted mb-1">Bộ phận</label>
+                    <select name="division" class="form-select">
+                        <option value="">Tất cả</option>
+                        {% for div_id, div_name in division_choices %}
+                        <option value="{{ div_id }}" {% if filter_division == div_id %}selected{% endif %}>{{ div_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+                <div class="col-12 {% if division_choices %}col-md-4{% else %}col-md-6{% endif %}">
                     <label class="form-label small fw-bold text-muted mb-1">Tìm kiếm</label>
                     <input type="search" name="q" value="{{ search_query }}" class="form-control"
-                           placeholder="Tên, mã NS, username…">
+                           placeholder="Tên, mã NS, username, bộ phận…">
                 </div>
                 <div class="col-12 col-md-2 d-flex gap-2">
                     <button type="submit" class="btn btn-hm text-white fw-bold flex-grow-1">
@@ -101,6 +112,7 @@
                 <thead class="bg-light text-uppercase small">
                     <tr>
                         <th class="ps-4 py-3 text-muted">Nhân viên</th>
+                        <th class="text-muted">Bộ phận</th>
                         <th class="text-muted">Quản lý</th>
                         <th class="text-muted">Tổng điểm</th>
                         <th class="text-muted">Xếp loại</th>
@@ -119,6 +131,9 @@
                             </div>
                         </td>
                         <td class="small">
+                            {% if board.employee.profile.division %}{{ board.employee.profile.division.name }}{% else %}—{% endif %}
+                        </td>
+                        <td class="small">
                             {% if board.hr_manager_label %}{{ board.hr_manager_label }}{% else %}—{% endif %}
                         </td>
                         <td class="fw-bold">{% if board.display_total is not None %}{{ board.display_total }}{% else %}—{% endif %}</td>
@@ -135,7 +150,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="6" class="text-muted text-center py-5">
+                        <td colspan="7" class="text-muted text-center py-5">
                             Chưa có bảng KPI tháng {{ filter_month|stringformat:"02d" }}/{{ filter_year }} trong phạm vi của bạn.
                         </td>
                     </tr>

@@ -23,6 +23,8 @@
                 Nhân viên: <strong class="text-dark">{{ kpi.employee|display_name }}</strong>
                 {% if kpi.employee.profile.employee_code %} · {{ kpi.employee.profile.employee_code }}{% endif %}
                 <span class="mx-1">·</span>
+                Bộ phận: <strong class="text-dark">{% if kpi.employee.profile.division %}{{ kpi.employee.profile.division.name }}{% else %}—{% endif %}</strong>
+                <span class="mx-1">·</span>
                 QL: <strong class="text-dark">{% if hr_manager_label %}{{ hr_manager_label }}{% else %}—{% endif %}</strong>
             </div>
         </div>

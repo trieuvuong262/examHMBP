@@ -14,7 +14,7 @@
         </div>
         {% if can_view_summary %}
         <div class="d-flex flex-wrap gap-2">
-            <a href="{% url 'kpi_summary' %}?month={{ filter_month }}&year={{ filter_year }}"
+            <a href="{% url 'kpi_summary' %}?month={{ filter_month }}&year={{ filter_year }}{% if filter_division %}&division={{ filter_division }}{% endif %}"
                class="btn btn-outline-hm fw-bold"
                data-loading-message="Đang tải tổng kết KPI…">
                 <i class="bi bi-bar-chart-line me-1"></i>Tổng kết
@@ -43,10 +43,21 @@
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-12 col-md-6">
+                {% if division_choices %}
+                <div class="col-6 col-md-2">
+                    <label class="form-label small fw-bold text-muted mb-1">Bộ phận</label>
+                    <select name="division" class="form-select">
+                        <option value="">Tất cả</option>
+                        {% for div_id, div_name in division_choices %}
+                        <option value="{{ div_id }}" {% if filter_division == div_id %}selected{% endif %}>{{ div_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+                <div class="col-12 {% if division_choices %}col-md-4{% else %}col-md-6{% endif %}">
                     <label class="form-label small fw-bold text-muted mb-1">Tìm kiếm</label>
                     <input type="search" name="q" value="{{ search_query }}" class="form-control"
-                           placeholder="Tên, mã NS, username…">
+                           placeholder="Tên, mã NS, username, bộ phận…">
                 </div>
                 <div class="col-12 col-md-2 d-flex gap-2">
                     <button type="submit" class="btn btn-hm text-white fw-bold flex-grow-1">
@@ -63,20 +74,20 @@
     <ul class="nav nav-tabs jp-kpi-tabs mb-3" role="tablist">
         <li class="nav-item" role="presentation">
             <a class="nav-link {% if active_tab == 'mine' %}active{% endif %}"
-               href="{% url 'kpi_list' %}?tab=mine&month={{ filter_month }}&year={{ filter_year }}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}"
+               href="{% url 'kpi_list' %}?tab=mine&month={{ filter_month }}&year={{ filter_year }}{% if filter_division %}&division={{ filter_division }}{% endif %}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}"
                data-loading-message="Đang tải KPI của tôi…">Của tôi</a>
         </li>
         {% if show_subordinate_kpi %}
         <li class="nav-item" role="presentation">
             <a class="nav-link {% if active_tab == 'team' %}active{% endif %}"
-               href="{% url 'kpi_list' %}?tab=team&month={{ filter_month }}&year={{ filter_year }}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}"
+               href="{% url 'kpi_list' %}?tab=team&month={{ filter_month }}&year={{ filter_year }}{% if filter_division %}&division={{ filter_division }}{% endif %}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}"
                data-loading-message="Đang tải KPI cấp dưới…">Cấp dưới</a>
         </li>
         {% endif %}
         {% if show_division_kpi %}
         <li class="nav-item" role="presentation">
             <a class="nav-link {% if active_tab == 'division' %}active{% endif %}"
-               href="{% url 'kpi_list' %}?tab=division&month={{ filter_month }}&year={{ filter_year }}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}"
+               href="{% url 'kpi_list' %}?tab=division&month={{ filter_month }}&year={{ filter_year }}{% if filter_division %}&division={{ filter_division }}{% endif %}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}"
                data-loading-message="Đang tải KPI bộ phận…">Bộ phận</a>
         </li>
         {% endif %}
@@ -109,6 +120,8 @@
                         <div>
                             <h5 class="fw-bold text-dark mb-1">Tháng {{ kpi.period_label }}</h5>
                             <div class="small text-muted">
+                                Bộ phận: <strong class="text-dark">{% if kpi.employee.profile.division %}{{ kpi.employee.profile.division.name }}{% else %}—{% endif %}</strong>
+                                <span class="mx-1">·</span>
                                 QL: <strong class="text-dark">{% if kpi.hr_manager_label %}{{ kpi.hr_manager_label }}{% else %}—{% endif %}</strong>
                             </div>
                         </div>
@@ -173,6 +186,7 @@
                 <thead class="bg-light text-uppercase small">
                     <tr>
                         <th class="ps-4 py-3 text-muted">Nhân viên</th>
+                        <th class="text-muted">Bộ phận</th>
                         <th class="text-muted">Tháng</th>
                         <th class="text-muted">Tổng điểm</th>
                         <th class="text-muted">Xếp loại</th>
@@ -186,6 +200,7 @@
                             <div class="fw-semibold">{{ tk.employee|display_name }}</div>
                             <div class="small text-muted">{{ tk.employee.username }}{% if tk.employee.profile.employee_code %} · {{ tk.employee.profile.employee_code }}{% endif %}</div>
                         </td>
+                        <td class="small">{% if tk.employee.profile.division %}{{ tk.employee.profile.division.name }}{% else %}—{% endif %}</td>
                         <td>{{ tk.period_label }}</td>
                         <td class="fw-bold">{% if tk.display_total is not None %}{{ tk.display_total }}{% else %}—{% endif %}</td>
                         <td><span class="jp-kpi-badge jp-kpi-badge--{{ tk.display_result_code }}">{{ tk.display_result }}</span></td>
@@ -196,7 +211,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="5" class="text-muted text-center py-4">Chưa có KPI cấp dưới tháng này.</td>
+                        <td colspan="6" class="text-muted text-center py-4">Chưa có KPI cấp dưới tháng này.</td>
                     </tr>
                     {% endfor %}
                 </tbody>

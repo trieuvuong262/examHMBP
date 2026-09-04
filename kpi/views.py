@@ -447,6 +447,52 @@ def _parse_month_year(request, *, default_now=True):
     return year, month
 
 
+def _parse_division_filter(request) -> int | None:
+    raw = (request.GET.get('division') or '').strip()
+    if not raw:
+        return None
+    try:
+        value = int(raw)
+    except (TypeError, ValueError):
+        return None
+    return value if value > 0 else None
+
+
+def _apply_division_filter(qs, division_id: int | None):
+    if not division_id:
+        return qs
+    return qs.filter(employee__profile__division_id=division_id)
+
+
+def _kpi_division_choices(user) -> list[tuple[int, str]]:
+    """Danh sách bộ phận cho bộ lọc — theo phạm vi xem KPI của user."""
+    from hrm.models import Division
+
+    if user.is_superuser or user_is_director(user) or is_global_report_viewer(user):
+        return list(
+            Division.objects.filter(is_active=True)
+            .order_by('sort_order', 'name')
+            .values_list('id', 'name')
+        )
+
+    user_ids: set[int] = {user.pk}
+    if effective_roles(user) & SUBORDINATE_MANAGER_ROLES:
+        user_ids.update(get_report_team_users(user).values_list('pk', flat=True))
+    if _can_view_division_kpi(user):
+        user_ids.update(_division_member_user_ids(user))
+
+    div_ids = (
+        User.objects.filter(pk__in=user_ids, profile__division_id__isnull=False)
+        .values_list('profile__division_id', flat=True)
+        .distinct()
+    )
+    return list(
+        Division.objects.filter(pk__in=div_ids, is_active=True)
+        .order_by('sort_order', 'name')
+        .values_list('id', 'name')
+    )
+
+
 def _annotate_items_for_table(items: list[MonthlyKpiItem]) -> list[MonthlyKpiItem]:
     """Gắn rowspan nhóm + điểm thành phần để render bảng giống Excel."""
     i = 0
@@ -468,6 +514,7 @@ def _visible_boards_qs(user, year: int, month: int):
     """Bảng KPI tháng mà user được xem (cá nhân + team / toàn bộ nếu GD / admin+ductn)."""
     base = MonthlyKpi.objects.filter(year=year, month=month).select_related(
         'employee__profile',
+        'employee__profile__division',
         'direct_manager__profile',
     ).prefetch_related(_score_item_prefetch())
 
@@ -487,6 +534,11 @@ def _visible_boards_qs(user, year: int, month: int):
 def kpi_list_view(request):
     search_query = get_search_query(request)
     year, month = _parse_month_year(request)
+    filter_division = _parse_division_filter(request)
+    division_choices = _kpi_division_choices(request.user)
+    allowed_division_ids = {pk for pk, _ in division_choices}
+    if filter_division and filter_division not in allowed_division_ids:
+        filter_division = None
 
     show_subordinate_kpi = (
         request.user.is_superuser
@@ -512,6 +564,7 @@ def kpi_list_view(request):
         'employee__profile__division',
         'direct_manager__profile',
     ).prefetch_related(_score_item_prefetch())
+    base = _apply_division_filter(base, filter_division)
 
     def _kpi_search(qs):
         if not search_query:
@@ -523,6 +576,7 @@ def kpi_list_view(request):
             | Q(employee__email__icontains=term)
             | Q(employee__profile__full_name__icontains=term)
             | Q(employee__profile__employee_code__icontains=term)
+            | Q(employee__profile__division__name__icontains=term)
             | Q(direct_manager__username__icontains=term)
             | Q(direct_manager__profile__full_name__icontains=term)
         ))
@@ -617,12 +671,10 @@ def kpi_list_view(request):
     years = list(range(timezone.localdate().year + 1, timezone.localdate().year - 5, -1))
     can_import_team = show_subordinate_kpi or can_manage_kpi_for_others(request.user)
     perm_ctx = _kpi_perm_context(request.user)
-    if tab == 'mine' and my_page is not None:
-        has_my_kpi_this_month = my_page.paginator.count > 0
-    else:
-        has_my_kpi_this_month = MonthlyKpi.objects.filter(
-            year=year, month=month, employee=request.user,
-        ).exists()
+    # Không phụ thuộc bộ lọc bộ phận — tránh hiện nút tạo khi đã có KPI nhưng đang lọc BP khác
+    has_my_kpi_this_month = MonthlyKpi.objects.filter(
+        year=year, month=month, employee=request.user,
+    ).exists()
     can_create_self_kpi = perm_ctx['can_create'] and not has_my_kpi_this_month
 
     return render(request, 'kpi/kpi_list.html', {
@@ -639,6 +691,8 @@ def kpi_list_view(request):
         'search_query': search_query,
         'filter_year': year,
         'filter_month': month,
+        'filter_division': filter_division,
+        'division_choices': division_choices,
         'year_choices': years,
         'month_choices': list(range(1, 13)),
         'show_subordinate_kpi': show_subordinate_kpi,
@@ -659,7 +713,14 @@ def kpi_summary_view(request):
 
     search_query = get_search_query(request)
     year, month = _parse_month_year(request)
+    filter_division = _parse_division_filter(request)
+    division_choices = _kpi_division_choices(request.user)
+    allowed_division_ids = {pk for pk, _ in division_choices}
+    if filter_division and filter_division not in allowed_division_ids:
+        filter_division = None
+
     boards_qs = _visible_boards_qs(request.user, year, month)
+    boards_qs = _apply_division_filter(boards_qs, filter_division)
 
     if search_query:
         boards_qs = apply_combined_search(boards_qs, search_query, lambda term: (
@@ -669,6 +730,7 @@ def kpi_summary_view(request):
             | Q(employee__email__icontains=term)
             | Q(employee__profile__full_name__icontains=term)
             | Q(employee__profile__employee_code__icontains=term)
+            | Q(employee__profile__division__name__icontains=term)
             | Q(direct_manager__username__icontains=term)
             | Q(direct_manager__profile__full_name__icontains=term)
         ))
@@ -720,6 +782,8 @@ def kpi_summary_view(request):
         'search_query': search_query,
         'filter_year': year,
         'filter_month': month,
+        'filter_division': filter_division,
+        'division_choices': division_choices,
         'year_choices': years,
         'month_choices': list(range(1, 13)),
         'counts': counts,
@@ -731,7 +795,11 @@ def kpi_summary_view(request):
 @module_perm_required(MODULE_KPI, 'view')
 def kpi_detail_view(request, kpi_id):
     kpi_board = get_object_or_404(
-        MonthlyKpi.objects.select_related('employee__profile', 'direct_manager__profile'),
+        MonthlyKpi.objects.select_related(
+            'employee__profile',
+            'employee__profile__division',
+            'direct_manager__profile',
+        ),
         pk=kpi_id,
     )
     items = list(kpi_board.items.all().order_by('sort_order', 'id'))
