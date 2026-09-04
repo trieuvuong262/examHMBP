@@ -135,30 +135,75 @@ def is_global_report_viewer(user) -> bool:
 
 
 def get_direct_manager_users(employee):
-    """QL trực tiếp theo Nhân sự: Profile.subordinates + slot kiêm nhiệm."""
+    """QL trực tiếp theo Nhân sự (subordinates chính + kiêm nhiệm).
+
+    Ưu tiên cùng phòng → cùng bộ phận → Giám đốc. Bỏ QL phòng khác
+    (vd. TP SX bị gán nhầm NV IT).
+    """
     if not employee or not getattr(employee, 'pk', None):
-        return User.objects.none()
+        return []
 
     from hrm.models import Profile, ProfileConcurrentPosition
 
-    manager_ids = set(
-        Profile.objects.filter(
-            subordinates=employee,
-            is_employed=True,
-            user__is_active=True,
-        ).values_list('user_id', flat=True),
-    )
-    manager_ids.update(
-        ProfileConcurrentPosition.objects.filter(
-            is_active=True,
-            subordinates=employee,
-            profile__is_employed=True,
-            profile__user__is_active=True,
-        ).values_list('profile__user_id', flat=True),
-    )
-    manager_ids.discard(employee.pk)
-    if not manager_ids:
-        return User.objects.none()
+    emp_profile = get_profile(employee)
+    emp_dept_id = getattr(emp_profile, 'department_id', None) if emp_profile else None
+    emp_div_id = getattr(emp_profile, 'division_id', None) if emp_profile else None
+
+    # user_id -> best candidate meta
+    by_user: dict[int, dict] = {}
+
+    def _remember(user_id: int, *, role: str, dept_id, div_id):
+        if not user_id or user_id == employee.pk:
+            return
+        prev = by_user.get(user_id)
+        score = (
+            0 if (emp_dept_id and dept_id == emp_dept_id) else
+            1 if (emp_div_id and div_id == emp_div_id) else
+            2 if role == ROLE_DIRECTOR else
+            3
+        )
+        if prev is None or score < prev['score']:
+            by_user[user_id] = {
+                'role': role or '',
+                'dept_id': dept_id,
+                'div_id': div_id,
+                'score': score,
+            }
+
+    for mgr_profile in Profile.objects.filter(
+        subordinates=employee,
+        is_employed=True,
+        user__is_active=True,
+    ).only('user_id', 'role', 'department_id', 'division_id'):
+        _remember(
+            mgr_profile.user_id,
+            role=mgr_profile.role,
+            dept_id=mgr_profile.department_id,
+            div_id=mgr_profile.division_id,
+        )
+
+    for slot in ProfileConcurrentPosition.objects.filter(
+        is_active=True,
+        subordinates=employee,
+        profile__is_employed=True,
+        profile__user__is_active=True,
+    ).only('role', 'department_id', 'division_id', 'profile__user_id'):
+        _remember(
+            slot.profile.user_id,
+            role=slot.role,
+            dept_id=slot.department_id,
+            div_id=slot.division_id,
+        )
+
+    if not by_user:
+        return []
+
+    same_dept_ids = [uid for uid, m in by_user.items() if m['score'] == 0]
+    same_div_ids = [uid for uid, m in by_user.items() if m['score'] == 1]
+    director_ids = [uid for uid, m in by_user.items() if m['score'] == 2]
+    chosen_ids = same_dept_ids or same_div_ids or director_ids
+    if not chosen_ids:
+        return []
 
     role_rank = {
         ROLE_TEAM_LEADER: 1,
@@ -167,20 +212,17 @@ def get_direct_manager_users(employee):
         ROLE_DIRECTOR: 4,
     }
     managers = list(
-        User.objects.filter(pk__in=manager_ids).select_related('profile'),
+        User.objects.filter(pk__in=chosen_ids).select_related('profile'),
     )
 
     def _sort_key(mgr):
         profile = getattr(mgr, 'profile', None)
-        role = getattr(profile, 'role', '') or ''
+        role = by_user.get(mgr.pk, {}).get('role') or getattr(profile, 'role', '') or ''
         name = (getattr(profile, 'full_name', None) or mgr.username or '').lower()
         return (role_rank.get(role, 99), name)
 
     managers.sort(key=_sort_key)
-    # Giữ thứ tự đã sort (không reorder bằng queryset)
-    ordered_ids = [m.pk for m in managers]
-    preserved = {m.pk: m for m in managers}
-    return [preserved[i] for i in ordered_ids]
+    return managers
 
 
 def primary_direct_manager(employee):

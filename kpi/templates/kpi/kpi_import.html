@@ -21,23 +21,7 @@
                 Giao KPI cấp dưới
                 {% endif %}
             </h2>
-            <p class="text-muted small mb-0 mt-1">
-                {% if edit_board %}
-                Upload lại Excel để thay tiêu chí. Điểm đã chấm sẽ bị xóa.
-                {% elif scope == 'self' %}
-                Upload Excel tiêu chí cho bảng KPI cá nhân tháng đang chọn.
-                {% else %}
-                Chọn nhân viên cấp dưới, upload Excel theo mẫu JustPlay.
-                {% endif %}
-            </p>
         </div>
-    </div>
-
-    <div class="jp-kpi-import-hint mb-3">
-        File Excel có 2 sheet: <strong>KPI</strong> (bảng tiêu chí) và <strong>Hướng dẫn chấm điểm</strong>.
-        Cột bắt buộc, <strong>không được để trống</strong>:
-        STT, Nhóm công việc, Trọng số, Tiêu chí, Mức Chưa đạt, Mức Đạt, Mức Vượt.
-        Import lại tháng đã có sẽ thay tiêu chí và xóa điểm đã chấm.
     </div>
 
     <div class="card border-0 shadow-sm">
