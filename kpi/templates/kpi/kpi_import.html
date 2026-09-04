@@ -1,116 +1,119 @@
 {% extends "base.html" %}
-{% load kpi_extras %}
+{% load static kpi_extras %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/kpi-monthly.css' %}?v=20260904a">
+{% endblock %}
 
 {% block content %}
-<div class="container jp-page mt-4 mt-md-5 mb-5">
-    <div class="row justify-content-center">
-        <div class="col-lg-8">
-            <div class="card shadow-lg border-0">
-                <div class="card-header bg-dark text-white p-4">
-                    <h4 class="mb-0 fw-bold">Import Mục tiêu KPI từ Excel</h4>
-                    <p class="mb-0 text-white-50 mt-1">Thiết lập hàng loạt Bảng mục tiêu năm (Yearly KPI) cho nhân sự</p>
-                </div>
-                <div class="card-body p-5">
-                    
-                    <div class="alert border border-info bg-info bg-opacity-10 mb-4 shadow-sm position-relative">
-                        <div class="position-absolute top-0 end-0 p-3">
-                            <a href="{% url 'download_kpi_sample_excel' %}" class="btn btn-sm btn-info text-dark fw-bold shadow-sm">
-                                <i class="bi bi-download me-1"></i> Tải file mẫu (.xlsx)
-                            </a>
-                        </div>
+<div class="container jp-page jp-kpi-page py-3 py-md-4 px-3 mb-5" style="max-width: 720px;">
+    <div class="jp-page-header mb-3 mb-md-4">
+        <div class="jp-page-header-main">
+            <a href="{% url 'kpi_list' %}?month={{ default_month }}&year={{ default_year }}" class="text-decoration-none small text-muted fw-semibold d-inline-block mb-1">
+                <i class="bi bi-arrow-left"></i> Quay lại
+            </a>
+            <h2 class="jp-page-title fw-bold text-dark mb-1">
+                {% if edit_board %}
+                Sửa KPI tháng {{ edit_board.month|stringformat:"02d" }}/{{ edit_board.year }}
+                {% elif scope == 'self' %}
+                Tạo KPI cho bản thân
+                {% else %}
+                Giao KPI cấp dưới
+                {% endif %}
+            </h2>
+            <p class="text-muted small mb-0 mt-1">
+                {% if edit_board %}
+                Upload lại Excel để thay tiêu chí. Điểm đã chấm sẽ bị xóa.
+                {% elif scope == 'self' %}
+                Upload Excel tiêu chí cho bảng KPI cá nhân tháng đang chọn.
+                {% else %}
+                Chọn nhân viên cấp dưới, upload Excel theo mẫu JustPlay.
+                {% endif %}
+            </p>
+        </div>
+    </div>
 
-                        <h6 class="fw-bold text-info-emphasis">Cấu trúc file Excel bắt buộc:</h6>
-                        <p class="small mb-2 text-dark">Hệ thống đọc dữ liệu từ <strong>Sheet đầu tiên</strong>. Dòng 1 là tiêu đề (Header). Các cột theo thứ tự sau (A -> I):</p>
-                        
-                        <div class="table-responsive bg-white rounded border mt-3">
-                            <table class="table table-sm table-bordered mb-0 small text-nowrap">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th>A: Email NV</th><th>B: Năm</th><th>C: Lĩnh vực</th><th>D: Mục tiêu</th><th>E: Chỉ số đo</th><th>F: Trọng số</th><th>G: Chỉ tiêu</th><th>H: Đơn vị</th><th>I: Xu hướng</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr class="text-muted">
-                                        <td>luu.dao@justplay.vn</td><td>2026</td><td>FINANCE</td><td>Đạt doanh thu...</td><td>Doanh thu...</td><td>20</td><td>100</td><td>%</td><td>HIGHER</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                        <ul class="small mt-3 mb-0 text-danger fw-medium">
-                            <li>Lĩnh vực (Cột C) chỉ nhận: PEOPLE, FINANCE, CUSTOMER, OPERATION.</li>
-                            <li>Xu hướng (Cột I) chỉ nhận: HIGHER, LOWER, EXACT.</li>
-                        </ul>
-                    </div>
+    <div class="jp-kpi-import-hint mb-3">
+        File Excel có 2 sheet: <strong>KPI</strong> (bảng tiêu chí) và <strong>Hướng dẫn chấm điểm</strong>.
+        Cột bắt buộc, <strong>không được để trống</strong>:
+        STT, Nhóm công việc, Trọng số, Tiêu chí, Mức Chưa đạt, Mức Đạt, Mức Vượt.
+        Import lại tháng đã có sẽ thay tiêu chí và xóa điểm đã chấm.
+    </div>
 
-                    <form method="POST" enctype="multipart/form-data" class="p-4 border border-2 border-dashed bg-light">
-                        {% csrf_token %}
-                        
-                        <h6 class="fw-bold text-dark mb-3">Thiết lập chung cho đợt Import</h6>
-                        <div class="row g-3 mb-4 text-start">
-                            <div class="col-md-4">
-                                <label class="form-label fw-bold text-muted small text-uppercase">Loại đánh giá</label>
-                                <select name="eval_type" class="form-select shadow-sm" required>
-                                    <option value="QUARTER" selected>Theo QUÝ (4 cột)</option>
-                                    <option value="HALF">BÁN NIÊN (2 cột)</option>
-                                    <option value="YEAR">NĂM (1 cột)</option>
-                                </select>
-                            </div>
-                            
-                            {% if not jp_is_hod %}
-                            <div class="col-md-4">
-                                <label class="form-label fw-bold text-muted small text-uppercase">Quản lý trực tiếp</label>
-                                <select name="direct_manager_id" class="form-select shadow-sm">
-                                    <option value="">-- Bỏ trống --</option>
-                                    {% for hod in hod_list %}
-                                        <option value="{{ hod.id }}">{{ hod|display_name }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            {% endif %}
-                            
-                            <div class="col-md-4">
-                                <label class="form-label fw-bold text-muted small text-uppercase">Quản lý cấp cao</label>
-                                <select name="general_manager_id" class="form-select shadow-sm">
-                                    <option value="">-- Bỏ trống --</option>
-                                    {% for gm in gm_list %}
-                                        <option value="{{ gm.id }}">{{ gm|display_name }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                        </div>
-                        <hr class="mb-4">
-
-                        <div class="text-center">
-                            
-                            <h5 class="fw-bold text-dark">Tải file Excel lên đây</h5>
-                            <p class="text-muted small mb-4">Chỉ chấp nhận định dạng .xlsx</p>
-                            
-                            <div class="mb-4 w-75 mx-auto">
-                                <input class="form-control form-control-lg border-primary shadow-sm" type="file" name="excel_file" accept=".xlsx" required>
-                            </div>
-                            
-                            <div class="d-flex justify-content-center gap-3">
-                                <button type="submit" class="btn btn-hm btn-lg px-5 shadow-sm fw-bold">
-                                    <i class="bi bi-upload me-2"></i>Tiến hành Import
-                                </button>
-                                <a href="{% url 'kpi_list' %}" class="btn btn-outline-dark btn-lg px-4">Hủy bỏ</a>
-                            </div>
-                        </div>
-                    </form>
-
-                </div>
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-3 p-md-4">
+            <div class="mb-3">
+                <a href="{% url 'download_kpi_sample_excel' %}" class="btn btn-outline-hm btn-sm fw-bold">
+                    <i class="bi bi-download me-1"></i>Tải file mẫu Excel
+                </a>
             </div>
+
+            <form method="post" enctype="multipart/form-data" class="row g-3">
+                {% csrf_token %}
+                <input type="hidden" name="scope" value="{{ scope }}">
+                {% if edit_board %}<input type="hidden" name="edit_id" value="{{ edit_board.id }}">{% endif %}
+
+                <div class="col-12">
+                    <label class="form-label small fw-bold text-muted mb-1">Nhân viên</label>
+                    {% if fixed_employee %}
+                    <input type="hidden" name="employee_id" value="{{ fixed_employee.id }}">
+                    <div class="form-control bg-light">
+                        {{ fixed_employee|display_name }} ({{ fixed_employee.username }})
+                        {% if fixed_employee.profile.employee_code %} · {{ fixed_employee.profile.employee_code }}{% endif %}
+                    </div>
+                    {% else %}
+                    <select name="employee_id" class="form-select" required>
+                        <option value="">— Chọn nhân viên —</option>
+                        {% for u in target_employees %}
+                        <option value="{{ u.id }}">
+                            {{ u|display_name }} ({{ u.username }})
+                            {% if u.profile.employee_code %} · {{ u.profile.employee_code }}{% endif %}
+                        </option>
+                        {% empty %}
+                        <option value="" disabled>Không có nhân viên trong phạm vi quản lý</option>
+                        {% endfor %}
+                    </select>
+                    {% endif %}
+                </div>
+                <div class="col-6">
+                    <label class="form-label small fw-bold text-muted mb-1">Tháng</label>
+                    {% if period_locked %}
+                    <input type="hidden" name="month" value="{{ default_month }}">
+                    <div class="form-control bg-light">Tháng {{ default_month }}</div>
+                    {% else %}
+                    <select name="month" class="form-select" required>
+                        {% for m in month_choices %}
+                        <option value="{{ m }}" {% if m == default_month %}selected{% endif %}>Tháng {{ m }}</option>
+                        {% endfor %}
+                    </select>
+                    {% endif %}
+                </div>
+                <div class="col-6">
+                    <label class="form-label small fw-bold text-muted mb-1">Năm</label>
+                    {% if period_locked %}
+                    <input type="hidden" name="year" value="{{ default_year }}">
+                    <div class="form-control bg-light">{{ default_year }}</div>
+                    {% else %}
+                    <select name="year" class="form-select" required>
+                        {% for y in year_choices %}
+                        <option value="{{ y }}" {% if y == default_year %}selected{% endif %}>{{ y }}</option>
+                        {% endfor %}
+                    </select>
+                    {% endif %}
+                </div>
+                <div class="col-12">
+                    <label class="form-label small fw-bold text-muted mb-1">File Excel (.xlsx)</label>
+                    <input type="file" name="excel_file" class="form-control" accept=".xlsx,.xlsm" required>
+                </div>
+                <div class="col-12 d-flex flex-wrap gap-2 justify-content-end pt-1">
+                    <a href="{% url 'kpi_list' %}?month={{ default_month }}&year={{ default_year }}" class="btn btn-light fw-bold">Hủy</a>
+                    <button type="submit" class="btn btn-hm text-white fw-bold">
+                        <i class="bi bi-upload me-1"></i>
+                        {% if edit_board %}Cập nhật KPI{% else %}Import &amp; giao KPI{% endif %}
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
-<style>
-    :root {
-        --hm-primary: #dc2626;
-        --hm-primary-hover: #b91c1c;
-    }
-    .text-hm { color: var(--hm-primary) !important; }
-    .btn-hm { background-color: var(--hm-primary); color: white; border: none; }
-    .btn-hm:hover { background-color: var(--hm-primary-hover); color: white; }
-    .border-dashed { border-style: dashed !important; border-color: #cbd5e1 !important;}
-</style>
 {% endblock %}

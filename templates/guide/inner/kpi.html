@@ -1,9 +1,9 @@
 {% load static %}
-<p>Luồng chấm điểm: <strong>Bạn tự chấm → HOD chấm → GM chốt</strong> (theo quý Q1, Q2, Q3, Q4).</p>
+<p>KPI đánh giá <strong>theo tháng</strong>. Quản lý giao tiêu chí bằng file Excel; nhân viên và quản lý lần lượt điền đánh giá thực tế + điểm. Tổng điểm ưu tiên điểm quản lý.</p>
 
                             <figure class="guide-figure guide-split-wide-img mb-4">
                                 <img src="{% static 'images/guide/09-kpi.png' %}" alt="Minh họa màn hình đánh giá KPI" loading="lazy">
-                                <figcaption><strong>Hình 9.</strong> Bảng KPI — kéo ngang trên điện thoại để xem các cột quý.</figcaption>
+                                <figcaption><strong>Hình 9.</strong> Bảng KPI tháng — kéo ngang trên điện thoại để xem đủ cột.</figcaption>
                             </figure>
 
                             <span class="badge bg-secondary mb-3">Nhân viên</span>
@@ -11,7 +11,7 @@
                                 <div class="guide-step guide-step--illustrated">
     <div class="guide-step-head">
         <div class="guide-step-num">1</div>
-        <div class="guide-step-body"><div>Bấm <strong>KPI</strong> (menu) → thấy <strong>Bảng KPI Tổng Thể - Năm 20XX</strong>.</div></div>
+        <div class="guide-step-body"><div>Bấm <strong>KPI</strong> (menu) → chọn <strong>tháng / năm</strong> → mở bảng KPI của bạn.</div></div>
     </div>
     <figure class="guide-step-figure">
         <img src="{% static 'images/guide/kpi-01.png' %}" alt="Minh họa bước 1 — kpi" class="guide-zoomable" loading="lazy">
@@ -20,7 +20,7 @@
                                 <div class="guide-step guide-step--illustrated">
     <div class="guide-step-head">
         <div class="guide-step-num">2</div>
-        <div class="guide-step-body"><div>Bấm vào bảng KPI của bạn → mở trang chi tiết (bảng nhiều cột, có thể kéo ngang trên điện thoại).</div></div>
+        <div class="guide-step-body"><div>Ở mỗi tiêu chí, điền <strong>Đánh giá thực tế (NV)</strong> và <strong>Điểm NV</strong> (thang khoảng 0–10, có thể vượt 10 khi xuất sắc).</div></div>
     </div>
     <figure class="guide-step-figure">
         <img src="{% static 'images/guide/kpi-02.png' %}" alt="Minh họa bước 2 — kpi" class="guide-zoomable" loading="lazy">
@@ -29,36 +29,17 @@
                                 <div class="guide-step guide-step--illustrated">
     <div class="guide-step-head">
         <div class="guide-step-num">3</div>
-        <div class="guide-step-body"><div>Tìm cột kỳ đang mở (Q1, Q2…) — ô điểm <strong>trắng, gõ được</strong> = đang mở. Ô xám = chưa mở hoặc đã khóa.</div></div>
+        <div class="guide-step-body"><div>Bấm <strong>Lưu đánh giá</strong>. Điểm thành phần = (Điểm / 10) × Trọng số.</div></div>
     </div>
     <figure class="guide-step-figure">
         <img src="{% static 'images/guide/kpi-03.png' %}" alt="Minh họa bước 3 — kpi" class="guide-zoomable" loading="lazy">
-    </figure>
-</div>
-                                <div class="guide-step guide-step--illustrated">
-    <div class="guide-step-head">
-        <div class="guide-step-num">4</div>
-        <div class="guide-step-body"><div>Điền điểm tự đánh giá (thang thường 0–100 hoặc theo quy định công ty).</div></div>
-    </div>
-    <figure class="guide-step-figure">
-        <img src="{% static 'images/guide/kpi-04.png' %}" alt="Minh họa bước 4 — kpi" class="guide-zoomable" loading="lazy">
-    </figure>
-</div>
-                                <div class="guide-step guide-step--illustrated">
-    <div class="guide-step-head">
-        <div class="guide-step-num">5</div>
-        <div class="guide-step-body"><div>Bấm <strong>Lưu</strong> / <strong>Nộp</strong> (nút ở cuối trang) khi hoàn tất.</div></div>
-    </div>
-    <figure class="guide-step-figure">
-        <img src="{% static 'images/guide/kpi-05.png' %}" alt="Minh họa bước 5 — kpi" class="guide-zoomable" loading="lazy">
     </figure>
 </div>
                             </div>
 
                             {% if 'kpi' in guide_admin_section_ids %}
                             <hr class="my-4">
-                            <span class="badge bg-primary mb-3">HOD / GM</span>
-                            <p class="small">Vào KPI → phần <strong>Team / Cấp dưới</strong> → chọn nhân viên → chấm điểm ở cột quản lý tương ứng.</p>
-                            <span class="badge bg-dark mb-3">HR / Admin</span>
-                            <p class="small mb-0">Nút <strong>Giao KPI Mới</strong>, <strong>Import Excel</strong>, <strong>Quản lý Kỳ Đánh giá</strong> — dùng để tạo bảng KPI và mở/khóa từng quý.</p>
+                            <span class="badge bg-primary mb-3">Quản lý</span>
+                            <p class="small">Vào KPI → <strong>Import / Giao KPI</strong>: chọn nhân viên + tháng, upload Excel theo mẫu. Sau đó mở bảng team để điền cột đánh giá / điểm quản lý.</p>
+                            <p class="small mb-0">Xếp loại tổng: 0–89 Không đạt · 90–100 Đạt · ≥101 Vượt (ưu tiên điểm quản lý).</p>
                             {% endif %}

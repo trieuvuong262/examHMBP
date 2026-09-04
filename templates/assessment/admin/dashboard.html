@@ -488,18 +488,18 @@
 
         <div class="tab-pane fade" id="kpi" role="tabpanel">
             <div class="d-flex justify-content-between align-items-center mb-4">
-                <h5 class="fw-bold text-dark mb-0">Quản trị Hiệu suất (KPI)</h5>
-                <a href="#" class="btn btn-hm"><i class="bi bi-plus-lg me-1"></i>Tạo Kỳ Đánh giá mới</a>
+                <h5 class="fw-bold text-dark mb-0">Quản trị KPI</h5>
+                <a href="{% url 'kpi_import_excel' %}" class="btn btn-hm"><i class="bi bi-plus-lg me-1"></i>Giao KPI tháng</a>
             </div>
             
             <div class="row g-4 mb-4">
                 <div class="col-md-6">
-                    <a href="#" class="stat-card-link">
+                    <a href="{% url 'kpi_list' %}" class="stat-card-link">
                         <div class="stat-card" style="background: var(--hm-primary);">
                             <div class="d-flex align-items-center text-white">
                                 
                                 <div class="ms-3">
-                                    <div class="small opacity-75 fw-bold">TỔNG SỐ BẢNG ĐÁNH GIÁ</div>
+                                    <div class="small opacity-75 fw-bold">TỔNG SỐ BẢNG KPI THÁNG</div>
                                     <h2 class="fw-bold mb-0" style="color: white !important;">{{ total_yearly_kpis }}</h2>
                                 </div>
                             </div>
@@ -508,11 +508,11 @@
                 </div>
                 
                 <div class="col-md-6">
-                    <a href="#" class="stat-card-link">
+                    <a href="{% url 'kpi_list' %}" class="stat-card-link">
                         <div class="stat-card">
                             <div class="d-flex align-items-center">
                                 <div>
-                                    <div class="small text-muted fw-bold">KỲ ĐÁNH GIÁ ĐANG MỞ</div>
+                                    <div class="small text-muted fw-bold">KPI THÁNG HIỆN TẠI</div>
                                     <h2 class="fw-bold mb-0 text-dark">{{ active_kpi_periods|default:"0" }}</h2>
                                 </div>
                             </div>
@@ -523,7 +523,7 @@
 
             <div class="card card-table shadow-sm">
                 <div class="card-header bg-white py-4 border-0">
-                    <h6 class="mb-0 fw-bold text-dark">Các kỳ đánh giá gần đây</h6>
+                    <h6 class="mb-0 fw-bold text-dark">KPI theo tháng</h6>
                 </div>
                 <div class="card-body text-center py-5">
                     

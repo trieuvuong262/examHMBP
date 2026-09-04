@@ -43,6 +43,7 @@ _MENU_DEFER_PATH_PATTERNS = (
     re.compile(r'^/reports/cn/\d+'),
     re.compile(r'^/reports/doc-image/\d+/'),
     re.compile(r'^/reports/inline-image/'),
+    re.compile(r'^/kpi/inline-image/'),
     re.compile(r'^/reports/vp/file/\d+'),
     re.compile(r'^/reports/vp/\d+'),
     re.compile(r'^/reports/\d+/?$'),

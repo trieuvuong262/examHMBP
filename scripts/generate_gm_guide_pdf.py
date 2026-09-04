@@ -214,7 +214,7 @@ def build():
         'body', st))
     story.append(P('Thanh menu trên (desktop)', 'h2', st))
     story.extend(bullets([
-        'Thông Báo · Hiệu suất (KPI) · Báo Cáo · Hướng dẫn',
+        'Thông Báo · KPI · Báo Cáo · Hướng dẫn',
         'Quản trị viên (HR) còn thấy: Tuyển dụng · Đào tạo · Kiểm tra · Nhân sự',
     ], st))
     story.append(P('Trên điện thoại', 'h2', st))
@@ -289,7 +289,7 @@ def build():
         '<b>Bước 3 — Giám đốc:</b> xem toàn bộ, <b>chốt điểm cuối cùng</b> — quyết định phân loại hiệu suất.',
     ], st))
     story.extend(steps([
-        ('Mở module KPI', 'Menu Hiệu suất (KPI).'),
+        ('Mở module KPI', 'Menu KPI.'),
         ('Xem bảng cá nhân / team', 'Nhân viên thấy bảng của mình; HOD/GM thấy thêm phần duyệt KPI nhân viên.'),
         ('Chấm / chốt điểm', 'Nhập điểm tại cột kỳ đang mở (ô trắng = mở, ô xám = khóa). Bấm Lưu/Nộp.'),
         ('Quản lý kỳ (Admin)', 'Superuser/HR mở hoặc đóng từng kỳ Q1–Q4; import Excel khi giao KPI hàng loạt.'),

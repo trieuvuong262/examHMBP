@@ -1242,44 +1242,50 @@ class PermissionGroupPermissionForm(forms.Form):
         return rows
 
     def matrix_rows(self):
-        """Ma trận hiển thị — gộp Đào tạo + Kiểm tra thành nhóm «Đào tạo» như sidebar."""
+        """Ma trận hiển thị — gộp Đào tạo / Nhân sự+KPI như sidebar."""
         from hrm.module_permissions import (
+            HRM_PERM_MATRIX_MODULES,
+            HRM_PERM_MATRIX_SUBMENUS,
             LEARNING_PERM_MATRIX_MODULES,
             LEARNING_PERM_MATRIX_SUBMENUS,
         )
 
         all_rows = self.module_rows()
         sub_lookup = {}
-        for row in all_rows:
-            if row['key'] not in LEARNING_PERM_MATRIX_MODULES:
-                continue
-            for sm in row['submenus']:
-                sub_lookup[(row['key'], sm['key'])] = {
-                    **sm,
-                    'module_key': row['key'],
-                    'hub': 'learning',
-                    'supports_export': row['supports_export'],
-                    'supports_print': row['supports_print'],
-                    'view_export_only': row['view_export_only'],
-                    'view_only': sm.get('view_only', submenu_perm_view_only(row['key'], sm['key'])),
-                    'action_enabled': sm.get('action_enabled', {}),
-                }
+        hub_module_sets = (
+            (LEARNING_PERM_MATRIX_MODULES, LEARNING_PERM_MATRIX_SUBMENUS, 'learning', 'Đào tạo', 'bi-mortarboard'),
+            (HRM_PERM_MATRIX_MODULES, HRM_PERM_MATRIX_SUBMENUS, 'hrm_hub', 'Nhân sự', 'bi-people-fill'),
+        )
+        for modules, _subs, _hub, _label, _icon in hub_module_sets:
+            for row in all_rows:
+                if row['key'] not in modules:
+                    continue
+                for sm in row['submenus']:
+                    sub_lookup[(row['key'], sm['key'])] = {
+                        **sm,
+                        'module_key': row['key'],
+                        'hub': _hub,
+                        'supports_export': row['supports_export'],
+                        'supports_print': row['supports_print'],
+                        'view_export_only': row['view_export_only'],
+                        'view_only': sm.get('view_only', submenu_perm_view_only(row['key'], sm['key'])),
+                        'action_enabled': sm.get('action_enabled', {}),
+                    }
 
-        hub_submenus = []
-        for module_key, menu_key in LEARNING_PERM_MATRIX_SUBMENUS:
-            spec = sub_lookup.get((module_key, menu_key))
-            if spec:
-                hub_submenus.append(spec)
-
-        result = []
-        hub_inserted = False
-        for row in all_rows:
-            if row['key'] in LEARNING_PERM_MATRIX_MODULES:
-                if not hub_inserted and hub_submenus:
-                    result.append({
-                        'key': 'learning',
-                        'label': 'Đào tạo',
-                        'icon': 'bi-mortarboard',
+        hubs = []
+        for modules, subs, hub_key, hub_label, hub_icon in hub_module_sets:
+            hub_submenus = []
+            for module_key, menu_key in subs:
+                spec = sub_lookup.get((module_key, menu_key))
+                if spec:
+                    hub_submenus.append(spec)
+            if hub_submenus:
+                hubs.append({
+                    'modules': modules,
+                    'row': {
+                        'key': hub_key,
+                        'label': hub_label,
+                        'icon': hub_icon,
                         'virtual': True,
                         'supports_export': False,
                         'supports_print': False,
@@ -1288,8 +1294,22 @@ class PermissionGroupPermissionForm(forms.Form):
                         'submenus': hub_submenus,
                         'extras': [],
                         'fields': {},
-                    })
-                    hub_inserted = True
+                    },
+                })
+
+        result = []
+        inserted = set()
+        skip_modules = set()
+        for hub in hubs:
+            skip_modules |= set(hub['modules'])
+
+        for row in all_rows:
+            if row['key'] in skip_modules:
+                for hub in hubs:
+                    if row['key'] in hub['modules'] and hub['row']['key'] not in inserted:
+                        result.append(hub['row'])
+                        inserted.add(hub['row']['key'])
+                        break
                 continue
             result.append(row)
         return result

@@ -14,6 +14,7 @@ from hrm.module_permissions import (
     MODULE_SURVEYS,
     MODULE_HO_TRO,
     MODULE_HRM,
+    MODULE_KPI,
     MODULE_KHO_NPL,
     MODULE_KHO_SAN_PHAM,
     MODULE_KIOTVIET,
@@ -34,6 +35,16 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
     MODULE_ASSESSMENT: [
         {'key': 'exams', 'label': 'Kiểm tra', 'icon': 'bi-journal-check', 'perm_view_only': True},
         {'key': 'manage', 'label': 'Quản lý kiểm tra', 'icon': 'bi-ui-checks-grid'},
+    ],
+    MODULE_KPI: [
+        {'key': 'boards', 'label': 'KPI', 'icon': 'bi-graph-up-arrow'},
+        {
+            'key': 'summary',
+            'label': 'Tổng kết',
+            'perm_label': 'Tổng kết KPI',
+            'icon': 'bi-bar-chart-line',
+            'perm_view_only': True,
+        },
     ],
     MODULE_HRM: [
         {'key': 'users', 'label': 'Danh sách nhân viên', 'icon': 'bi-person-lines-fill'},
@@ -312,6 +323,9 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     # Góp ý
     ('/gop-y/danh-sach', MODULE_FEEDBACK, 'list'),
     ('/gop-y/tao', MODULE_FEEDBACK, 'create'),
+    # KPI
+    ('/kpi/tong-ket', MODULE_KPI, 'summary'),
+    ('/kpi/', MODULE_KPI, 'boards'),
     ('/khao-sat/quan-ly/tao', MODULE_SURVEYS, 'create'),
     ('/link-gui', MODULE_SURVEYS, 'share'),
     ('/khao-sat/quan-ly/', MODULE_SURVEYS, 'share'),

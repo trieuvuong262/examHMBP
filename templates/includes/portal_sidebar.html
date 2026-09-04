@@ -151,12 +151,12 @@
             </ul>
         </li>
         {% endif %}
-        {% if jp_can_hrm %}
-        <li class="jp-sidebar-group{% if request.resolver_match.url_name == 'locked_accounts' or request.resolver_match.url_name == 'unlock_locked_account' or '/dashboard/users' in request.path or '/dashboard/org' in request.path or '/dashboard/divisions' in request.path %} is-open{% elif '/dashboard/departments' in request.path and request.resolver_match.url_name != 'department_permissions' %} is-open{% endif %}">
+        {% if jp_can_hrm or jp_can_kpi %}
+        <li class="jp-sidebar-group{% if request.resolver_match.url_name == 'locked_accounts' or request.resolver_match.url_name == 'unlock_locked_account' or '/dashboard/users' in request.path or '/dashboard/org' in request.path or '/dashboard/divisions' in request.path or 'kpi' in request.path %} is-open{% elif '/dashboard/departments' in request.path and request.resolver_match.url_name != 'department_permissions' %} is-open{% endif %}">
             <button type="button"
                     class="jp-sidebar-group-toggle"
                     data-jp-sidebar-group-toggle
-                    aria-expanded="{% if request.resolver_match.url_name == 'locked_accounts' or request.resolver_match.url_name == 'unlock_locked_account' or '/dashboard/users' in request.path or '/dashboard/org' in request.path or '/dashboard/divisions' in request.path %}true{% elif '/dashboard/departments' in request.path and request.resolver_match.url_name != 'department_permissions' %}true{% else %}false{% endif %}"
+                    aria-expanded="{% if request.resolver_match.url_name == 'locked_accounts' or request.resolver_match.url_name == 'unlock_locked_account' or '/dashboard/users' in request.path or '/dashboard/org' in request.path or '/dashboard/divisions' in request.path or 'kpi' in request.path %}true{% elif '/dashboard/departments' in request.path and request.resolver_match.url_name != 'department_permissions' %}true{% else %}false{% endif %}"
                     aria-controls="jp-sidebar-hrm-submenu">
                 <span class="jp-sidebar-group-toggle-main">
                     <i class="bi bi-people-fill"></i><span>Nhân sự</span>
@@ -184,14 +184,16 @@
                     </a>
                 </li>
                 {% endif %}
+                {% jp_can_menu 'kpi' 'boards' as jp_can_kpi_boards %}
+                {% if jp_can_kpi_boards %}
+                <li>
+                    <a href="{% url 'kpi_list' %}"
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'kpi_list' or request.resolver_match.url_name == 'kpi_detail' or request.resolver_match.url_name == 'kpi_import_excel' or request.resolver_match.url_name == 'download_kpi_sample_excel' or request.resolver_match.url_name == 'kpi_summary' %}active{% endif %}">
+                        <i class="bi bi-graph-up-arrow"></i><span>KPI</span>
+                    </a>
+                </li>
+                {% endif %}
             </ul>
-        </li>
-        {% endif %}
-        {% if jp_can_kpi %}
-        <li>
-            <a href="{% url 'kpi_list' %}" class="jp-sidebar-link {% if 'kpi' in request.path %}active{% endif %}">
-                <i class="bi bi-graph-up-arrow"></i><span>Hiệu suất (KPI)</span>
-            </a>
         </li>
         {% endif %}
         {% if jp_can_reports %}

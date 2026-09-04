@@ -1,13 +1,17 @@
+﻿import io
 import unittest
 
 from django.contrib.auth.models import User
-from django.test import Client, TestCase
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import Client, TestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 
 from hrm.models import Department, DepartmentMenuPermission, Profile
 from hrm.module_permissions import HIDDEN_PORTAL_MODULES, MODULE_KPI
 from hrm.permissions import ROLE_EMPLOYEE, ROLE_TEAM_LEADER
-from kpi.models import KpiPeriod, YearlyKpi
+from kpi.models import MonthlyKpi, MonthlyKpiItem
+from kpi.services.monthly_import import build_monthly_kpi_sample_xlsx, parse_monthly_kpi_workbook
 
 skip_if_kpi_hidden = unittest.skipUnless(
     MODULE_KPI not in HIDDEN_PORTAL_MODULES,
@@ -15,214 +19,159 @@ skip_if_kpi_hidden = unittest.skipUnless(
 )
 
 
+def _profile(user, **kwargs):
+    profile, _ = Profile.objects.get_or_create(user=user)
+    for key, value in kwargs.items():
+        setattr(profile, key, value)
+    profile.save()
+    return profile
+
+
+@override_settings(ALLOWED_HOSTS=['testserver', 'localhost', '127.0.0.1'])
 @skip_if_kpi_hidden
-class KpiDetailAccessTests(TestCase):
+class MonthlyKpiAccessTests(TestCase):
     def setUp(self):
         self.dept = Department.objects.create(name='KPI Test Dept')
-        DepartmentMenuPermission.objects.create(
-            department=self.dept,
-            modules=['kpi'],
-        )
+        DepartmentMenuPermission.objects.create(department=self.dept, modules=['kpi'])
+        now = timezone.localdate()
+        self.year, self.month = now.year, now.month
+
         self.employee = User.objects.create_user(username='kpi_emp', password='pass12345')
-        emp_profile, _ = Profile.objects.get_or_create(user=self.employee)
-        emp_profile.full_name = 'Employee'
-        emp_profile.department = self.dept
-        emp_profile.role = ROLE_EMPLOYEE
-        emp_profile.save()
+        _profile(self.employee, full_name='Employee', department=self.dept, role=ROLE_EMPLOYEE, is_employed=True)
 
         self.other = User.objects.create_user(username='kpi_other', password='pass12345')
-        other_profile, _ = Profile.objects.get_or_create(user=self.other)
-        other_profile.full_name = 'Other'
-        other_profile.department = self.dept
-        other_profile.role = ROLE_EMPLOYEE
-        other_profile.save()
+        _profile(self.other, full_name='Other', department=self.dept, role=ROLE_EMPLOYEE, is_employed=True)
 
         self.manager = User.objects.create_user(username='kpi_mgr', password='pass12345')
-        mgr_profile, _ = Profile.objects.get_or_create(user=self.manager)
-        mgr_profile.full_name = 'Manager'
-        mgr_profile.department = self.dept
-        mgr_profile.role = ROLE_TEAM_LEADER
-        mgr_profile.save()
+        _profile(self.manager, full_name='Manager', department=self.dept, role=ROLE_TEAM_LEADER, is_employed=True)
+        self.manager.profile.subordinates.add(self.employee)
 
-        self.board = YearlyKpi.objects.create(
+        self.board = MonthlyKpi.objects.create(
             employee=self.employee,
             direct_manager=self.manager,
-            year=2026,
-            eval_type='QUARTER',
+            year=self.year,
+            month=self.month,
         )
-        KpiPeriod.objects.create(year=2026, period_type='Q1', title='Q1', is_active=True)
-
-        self.client = Client()
-        self.client.login(username='kpi_other', password='pass12345')
+        MonthlyKpiItem.objects.create(
+            monthly_kpi=self.board,
+            sort_order=1,
+            work_group='Nhom A',
+            weightage=100,
+            indicator='Tieu chi 1',
+        )
+        self.client = Client(HTTP_HOST='testserver')
 
     def test_other_employee_cannot_view_kpi_detail(self):
+        self.client.login(username='kpi_other', password='pass12345')
         url = reverse('kpi_detail', kwargs={'kpi_id': self.board.id})
         response = self.client.get(url)
         self.assertRedirects(response, reverse('kpi_list'))
 
     def test_manager_can_view_team_kpi_detail(self):
-        self.client.logout()
         self.client.login(username='kpi_mgr', password='pass12345')
         url = reverse('kpi_detail', kwargs={'kpi_id': self.board.id})
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
 
-
-@skip_if_kpi_hidden
-class KpiGranularPermissionTests(TestCase):
-    def setUp(self):
-        from hrm.models import PermissionGroup
-        from hrm.module_permissions import MODULE_KPI
-        from hrm.group_permissions import normalize_group_permissions, permissions_from_legacy_role
-
-        self.dept = Department.objects.create(name='KPI Granular Dept', sort_order=2)
-        DepartmentMenuPermission.objects.create(
-            department=self.dept,
-            modules=['kpi'],
-        )
-
-        base = normalize_group_permissions(permissions_from_legacy_role(ROLE_EMPLOYEE))
-        view_only = dict(base)
-        view_only[MODULE_KPI] = {
-            'view': True,
-            'create': False,
-            'update': False,
-            'delete': False,
-            'export': False,
-        }
-        self.group_view = PermissionGroup.objects.create(
-            slug='test-kpi-view',
-            name='KPI view only',
-            module_permissions=view_only,
-        )
-
-        create_group = dict(base)
-        create_group[MODULE_KPI] = {
-            'view': True,
-            'create': True,
-            'update': True,
-            'delete': False,
-            'export': False,
-        }
-        self.group_create = PermissionGroup.objects.create(
-            slug='test-kpi-create',
-            name='KPI create',
-            module_permissions=create_group,
-        )
-
-        update_only = dict(base)
-        update_only[MODULE_KPI] = {
-            'view': True,
-            'create': False,
-            'update': True,
-            'delete': False,
-            'export': False,
-        }
-        self.group_update = PermissionGroup.objects.create(
-            slug='test-kpi-update',
-            name='KPI update only',
-            module_permissions=update_only,
-        )
-
-        self.employee = User.objects.create_user(username='kpi_view_only', password='pass12345')
-        Profile.objects.filter(user=self.employee).update(
-            full_name='KPI View',
-            department=self.dept,
-            role=ROLE_EMPLOYEE,
-            permission_group=self.group_view,
-        )
-
-        self.manager = User.objects.create_user(username='kpi_create_mgr', password='pass12345')
-        Profile.objects.filter(user=self.manager).update(
-            full_name='KPI Manager',
-            department=self.dept,
-            role=ROLE_TEAM_LEADER,
-            permission_group=self.group_create,
-        )
-
-        self.updater = User.objects.create_user(username='kpi_updater', password='pass12345')
-        Profile.objects.filter(user=self.updater).update(
-            full_name='KPI Updater',
-            department=self.dept,
-            role=ROLE_TEAM_LEADER,
-            permission_group=self.group_update,
-        )
-
-        self.board = YearlyKpi.objects.create(
-            employee=self.employee,
-            direct_manager=self.manager,
-            year=2026,
-            eval_type='QUARTER',
-            y_status='self_evaluating',
-        )
-        from kpi.models import YearlyKpiItem
-        self.item = YearlyKpiItem.objects.create(
-            yearly_kpi=self.board,
-            pillar='FINANCE',
-            personal_objective='Test objective',
-            kpi_indicator='Indicator',
-            weightage=100,
-            yearly_target=100,
-            unit='%',
-            trend='HIGHER',
-        )
-        KpiPeriod.objects.create(year=2026, period_type='Y', title='Y', is_active=True)
-
-        self.client = Client(HTTP_HOST='testserver')
-
-    def test_view_only_employee_cannot_open_yearly_create(self):
-        self.client.force_login(self.employee)
-        response = self.client.get(reverse('yearly_kpi_create'))
+    def test_employee_can_save_self_score(self):
+        self.client.login(username='kpi_emp', password='pass12345')
+        item = self.board.items.get()
+        response = self.client.post(reverse('kpi_detail', kwargs={'kpi_id': self.board.id}), {
+            f'item_{item.id}_self_actual': 'Hoan thanh 100%',
+            f'item_{item.id}_self_score': '10',
+        })
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, reverse('home_portal'))
+        item.refresh_from_db()
+        self.assertEqual(item.self_score, 10.0)
+        self.assertIn('Hoan thanh', item.self_actual)
 
-    def test_manager_with_create_perm_can_open_yearly_create(self):
-        self.client.force_login(self.manager)
-        response = self.client.get(reverse('yearly_kpi_create'))
-        self.assertEqual(response.status_code, 200)
-
-    def test_view_only_can_open_kpi_list(self):
-        self.client.force_login(self.employee)
-        response = self.client.get(reverse('kpi_list'))
-        self.assertEqual(response.status_code, 200)
-
-    def test_view_only_can_open_own_kpi_detail(self):
-        self.client.force_login(self.employee)
-        response = self.client.get(reverse('kpi_detail', kwargs={'kpi_id': self.board.id}))
-        self.assertEqual(response.status_code, 200)
-
-    def test_view_only_cannot_post_kpi_scores(self):
-        self.client.force_login(self.employee)
+    def test_employee_cannot_save_manager_score(self):
+        self.client.login(username='kpi_emp', password='pass12345')
+        item = self.board.items.get()
         self.client.post(reverse('kpi_detail', kwargs={'kpi_id': self.board.id}), {
-            'target_period': 'Y',
-            'action': 'save',
-            f'item_{self.item.id}_Y_self': '88',
+            f'item_{item.id}_self_score': '9',
+            f'item_{item.id}_mgr_score': '12',
+            f'item_{item.id}_mgr_actual': 'hack',
         })
-        self.item.refresh_from_db()
-        self.assertIsNone(self.item.y_self)
+        item.refresh_from_db()
+        self.assertEqual(item.self_score, 9.0)
+        self.assertIsNone(item.mgr_score)
+        self.assertEqual(item.mgr_actual, '')
 
-    def test_update_only_can_toggle_period(self):
-        self.client.force_login(self.updater)
-        response = self.client.post(reverse('kpi_list'), {
-            'toggle_period': '1',
-            'period_type': 'Q2',
-            'is_active': 'on',
+
+@override_settings(ALLOWED_HOSTS=['testserver', 'localhost', '127.0.0.1'])
+@skip_if_kpi_hidden
+class MonthlyKpiScoreTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username='kpi_score', password='x')
+        self.board = MonthlyKpi.objects.create(
+            employee=self.user,
+            year=2026,
+            month=8,
+        )
+        MonthlyKpiItem.objects.create(
+            monthly_kpi=self.board, sort_order=1, weightage=50, indicator='A', self_score=8,
+        )
+        MonthlyKpiItem.objects.create(
+            monthly_kpi=self.board, sort_order=2, weightage=50, indicator='B', self_score=10, mgr_score=12,
+        )
+
+    def test_total_prefers_manager_score(self):
+        self.assertEqual(self.board.total_score(), 100.0)
+        self.assertEqual(self.board.result_code(), MonthlyKpi.RESULT_PASS)
+
+    def test_result_exceed(self):
+        item = self.board.items.get(sort_order=1)
+        item.mgr_score = 12
+        item.save()
+        self.assertEqual(self.board.total_score(), 120.0)
+        self.assertEqual(self.board.result_code(), MonthlyKpi.RESULT_EXCEED)
+
+
+@override_settings(ALLOWED_HOSTS=['testserver', 'localhost', '127.0.0.1'])
+@skip_if_kpi_hidden
+class MonthlyKpiImportTests(TestCase):
+    def setUp(self):
+        self.dept = Department.objects.create(name='KPI Import Dept', sort_order=2)
+        DepartmentMenuPermission.objects.create(department=self.dept, modules=['kpi'])
+        self.employee = User.objects.create_user(username='kpi_imp_emp', password='pass12345')
+        _profile(self.employee, full_name='NV Import', department=self.dept, role=ROLE_EMPLOYEE, is_employed=True)
+        self.manager = User.objects.create_user(username='kpi_imp_mgr', password='pass12345')
+        _profile(self.manager, full_name='Mgr Import', department=self.dept, role=ROLE_TEAM_LEADER, is_employed=True)
+        self.manager.profile.subordinates.add(self.employee)
+        self.client = Client(HTTP_HOST='testserver')
+        self.client.login(username='kpi_imp_mgr', password='pass12345')
+
+    def test_parse_sample_workbook(self):
+        raw = build_monthly_kpi_sample_xlsx()
+        parsed = parse_monthly_kpi_workbook(io.BytesIO(raw))
+        self.assertGreaterEqual(len(parsed.rows), 2)
+        self.assertTrue(parsed.rows[0].indicator)
+
+    def test_import_creates_monthly_board(self):
+        now = timezone.localdate()
+        raw = build_monthly_kpi_sample_xlsx()
+        upload = SimpleUploadedFile(
+            'kpi.xlsx',
+            raw,
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        )
+        response = self.client.post(reverse('kpi_import_excel'), {
+            'employee_id': self.employee.pk,
+            'year': str(now.year),
+            'month': str(now.month),
+            'excel_file': upload,
         })
         self.assertEqual(response.status_code, 302)
-        period = KpiPeriod.objects.get(year=2026, period_type='Q2')
-        self.assertTrue(period.is_active)
+        board = MonthlyKpi.objects.get(employee=self.employee, year=now.year, month=now.month)
+        self.assertGreaterEqual(board.items.count(), 2)
+        self.assertEqual(board.direct_manager_id, self.manager.pk)
 
-    def test_view_only_cannot_toggle_period(self):
-        self.client.force_login(self.employee)
-        self.client.post(reverse('kpi_list'), {
-            'toggle_period': '1',
-            'period_type': 'Q3',
-            'is_active': 'on',
-        })
-        self.assertFalse(KpiPeriod.objects.filter(year=2026, period_type='Q3').exists())
+    def test_list_filter_by_month(self):
+        MonthlyKpi.objects.create(employee=self.employee, direct_manager=self.manager, year=2026, month=1)
+        MonthlyKpi.objects.create(employee=self.employee, direct_manager=self.manager, year=2026, month=8)
+        response = self.client.get(reverse('kpi_list'), {'year': 2026, 'month': 8})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '08/2026')
+        self.assertNotContains(response, '01/2026')
 
-    def test_update_only_cannot_open_yearly_create(self):
-        self.client.force_login(self.updater)
-        response = self.client.get(reverse('yearly_kpi_create'))
-        self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, reverse('home_portal'))

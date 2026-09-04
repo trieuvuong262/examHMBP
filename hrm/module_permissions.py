@@ -41,7 +41,6 @@ MODULE_ODOO = 'odoo'
 
 # Tạm ẩn khỏi sidebar + màn hình phân quyền — gỡ khỏi set khi bật lại.
 HIDDEN_PORTAL_MODULES = frozenset({
-    MODULE_KPI,
     MODULE_RECRUITMENT,
 })
 
@@ -51,7 +50,7 @@ _ALL_MODULE_CHOICES = [
     (MODULE_TRAINING, 'Đào tạo'),
     (MODULE_ASSESSMENT, 'Kiểm tra'),
     (MODULE_HRM, 'Nhân sự'),
-    (MODULE_KPI, 'Hiệu suất (KPI)'),
+    (MODULE_KPI, 'KPI'),
     (MODULE_REPORTS, 'Báo cáo'),
     (MODULE_TASKS, 'Công việc'),
     (MODULE_DE_XUAT, 'Đề xuất mới'),
@@ -85,6 +84,7 @@ MODULE_LABELS = dict(_ALL_MODULE_CHOICES)
 DEPARTMENT_MODULE_LABELS = {
     MODULE_TRAINING: 'Bài học',
     MODULE_ASSESSMENT: 'Kiểm tra',
+    MODULE_KPI: 'KPI',
 }
 
 # Gộp hiển thị ma trận nhóm quyền — một nhóm «Đào tạo» như sidebar.
@@ -94,6 +94,15 @@ LEARNING_PERM_MATRIX_SUBMENUS = (
     (MODULE_ASSESSMENT, 'exams'),
     (MODULE_TRAINING, 'manage'),
     (MODULE_ASSESSMENT, 'manage'),
+)
+
+# Nhân sự + KPI — KPI là menu con trong nhóm Nhân sự (sidebar + ma trận quyền).
+HRM_PERM_MATRIX_MODULES = frozenset({MODULE_HRM, MODULE_KPI})
+HRM_PERM_MATRIX_SUBMENUS = (
+    (MODULE_HRM, 'users'),
+    (MODULE_HRM, 'locked_accounts'),
+    (MODULE_KPI, 'boards'),
+    (MODULE_KPI, 'summary'),
 )
 
 

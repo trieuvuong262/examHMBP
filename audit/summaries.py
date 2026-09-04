@@ -327,15 +327,11 @@ URL_DESCRIPTIONS: dict[str, dict[str, str] | str] = {
     # KPI
     'kpi_list': 'xem danh sách KPI',
     'kpi_detail': 'xem chi tiết KPI #{kpi_id}',
-    'yearly_kpi_create': {
-        'GET': 'mở form tạo KPI năm',
-        'POST': 'tạo KPI năm mới',
-    },
     'kpi_import_excel': {
-        'GET': 'mở form nhập KPI từ Excel',
-        'POST': 'nhập dữ liệu KPI từ Excel',
+        'GET': 'mở form giao / nhập KPI tháng từ Excel',
+        'POST': 'giao KPI tháng từ Excel',
     },
-    'download_kpi_sample_excel': 'tải file mẫu Excel KPI',
+    'download_kpi_sample_excel': 'tải file mẫu Excel KPI tháng',
 
     # Báo cáo
     'hub': 'xem trung tâm báo cáo',

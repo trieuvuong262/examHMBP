@@ -27,7 +27,7 @@ from assessment.models import (
     UserAnswer,
 )
 from hrm.models import Profile
-from kpi.models import KpiPeriod, YearlyKpi, YearlyKpiItem
+from kpi.models import MonthlyKpi, MonthlyKpiItem
 from recruitment.models import Candidate, Interview, JobPosting
 from reports.models import DailyWorkReport, DailyWorkReportLine
 from training.models import (
@@ -262,52 +262,45 @@ class Command(BaseCommand):
                     )
 
     def _seed_kpi(self, users):
-        year = timezone.now().year
-        period, _ = KpiPeriod.objects.update_or_create(
-            title=f'[DEMO] Quý 2/{year}',
-            year=year,
-            period_type='Q2',
-            defaults={'is_active': True},
-        )
-        period.is_active = True
-        period.save()
-
-        for emp_key, hod_key, eval_type in [
-            ('nv_may1', 'hod_may', 'QUARTER'),
-            ('nv_may2', 'hod_may', 'QUARTER'),
-            ('nv_cat1', 'hod_cat', 'HALF'),
+        now = timezone.localdate()
+        year, month = now.year, now.month
+        for emp_key, hod_key in [
+            ('nv_may1', 'hod_may'),
+            ('nv_may2', 'hod_may'),
+            ('nv_cat1', 'hod_cat'),
         ]:
-            ykpi, _ = YearlyKpi.objects.update_or_create(
+            board, _ = MonthlyKpi.objects.update_or_create(
                 employee=users[emp_key],
                 year=year,
+                month=month,
                 defaults={
-                    'eval_type': eval_type,
                     'direct_manager': users[hod_key],
-                    'general_manager': users['gm'],
-                    'q1_status': 'completed',
-                    'q2_status': 'manager_evaluating',
+                    'imported_by': users[hod_key],
+                    'imported_at': timezone.now(),
                 },
             )
-            ykpi.items.all().delete()
-            items = [
-                ('OPERATION', 'Đạt 98% đúng tiến độ chuyền may', 'Tỷ lệ hoàn thành PO đúng hạn', 40),
-                ('CUSTOMER', 'Tỷ lệ lỗi QC dưới 1.5%', 'Defect rate / lot', 30),
-                ('PEOPLE', 'Tham gia đào tạo an toàn 100%', 'Số buổi đào tạo bắt buộc', 30),
+            board.items.all().delete()
+            samples = [
+                ('Vận hành', 40, '1. Đạt tiến độ chuyền may', 'Chậm hạn', 'Đúng hạn', 'Sớm hạn'),
+                ('Chất lượng', 30, '2. Tỷ lệ lỗi QC', '>2%', '<=1.5%', '<1%'),
+                ('Con người', 30, '3. Đào tạo an toàn', 'Thiếu buổi', 'Đủ buổi', 'Vượt chỉ tiêu'),
             ]
-            for pillar, objective, indicator, weight in items:
-                YearlyKpiItem.objects.create(
-                    yearly_kpi=ykpi,
-                    pillar=pillar,
-                    personal_objective=objective,
-                    kpi_indicator=indicator,
+            MonthlyKpiItem.objects.bulk_create([
+                MonthlyKpiItem(
+                    monthly_kpi=board,
+                    sort_order=i,
+                    work_group=group,
                     weightage=weight,
-                    yearly_target=100,
-                    unit='%',
-                    q1_self=85,
-                    q1_mgr=88,
-                    q1_gm=90,
-                    q2_self=82,
+                    indicator=indicator,
+                    level_fail=fail,
+                    level_pass=ok,
+                    level_exceed=exc,
+                    self_score=8.5,
+                    mgr_score=9.0,
                 )
+                for i, (group, weight, indicator, fail, ok, exc) in enumerate(samples, start=1)
+            ])
+
 
     def _seed_assessment(self, users):
         comp, _ = Competency.objects.get_or_create(

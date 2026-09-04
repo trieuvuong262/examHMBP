@@ -1,6 +1,8 @@
 from django import template
 from hrm.permissions import get_profile
 
+from kpi.services.inline_images import actual_html_for_edit, render_actual_html
+
 register = template.Library()
 
 
@@ -13,10 +15,30 @@ def display_name(user):
 
 
 @register.filter
+def kpi_actual(value):
+    """Hiển thị Đánh giá thực tế (text hoặc HTML có ảnh)."""
+    return render_actual_html(value)
+
+
+@register.filter
+def kpi_actual_edit(value):
+    """Nội dung khởi tạo contenteditable."""
+    return actual_html_for_edit(value)
+
+
+@register.filter
 def direct_manager_id(user):
-    """User ID của HOD quản lý trực tiếp (Profile.subordinates M2M)."""
-    hod_profile = user.my_hod_managers.first()
-    return hod_profile.user_id if hod_profile else ''
+    """User ID của QL gần nhất theo Nhân sự (Profile.subordinates / kiêm nhiệm)."""
+    from hrm.permissions import primary_direct_manager
+    mgr = primary_direct_manager(user)
+    return mgr.pk if mgr else ''
+
+
+@register.filter
+def hr_managers_label(user):
+    """Nhãn QL theo Nhân sự (có thể nhiều người)."""
+    from hrm.permissions import format_direct_managers_label
+    return format_direct_managers_label(user) or ''
 
 
 @register.filter

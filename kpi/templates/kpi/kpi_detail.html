@@ -1,0 +1,294 @@
+{% extends "base.html" %}
+{% load static kpi_extras %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/kpi-monthly.css' %}?v=20260904m">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid jp-page jp-kpi-page jp-kpi-detail py-3 py-md-4 px-2 px-md-4 mb-5">
+    <div class="mb-3">
+        <a href="{% url 'kpi_list' %}?month={{ kpi.month }}&year={{ kpi.year }}" class="text-decoration-none small text-muted fw-semibold">
+            <i class="bi bi-arrow-left"></i> Danh sách KPI
+        </a>
+    </div>
+
+    <div class="jp-kpi-sheet-banner mb-3">
+        <div>
+            <h1 class="jp-kpi-sheet-banner__title">Bảng đánh giá KPI hàng tháng</h1>
+            <div class="jp-kpi-sheet-banner__meta mt-1">
+                Nhân viên: <strong class="text-dark">{{ kpi.employee|display_name }}</strong>
+                {% if kpi.employee.profile.employee_code %} · {{ kpi.employee.profile.employee_code }}{% endif %}
+                <span class="mx-1">·</span>
+                QL: <strong class="text-dark">{% if hr_manager_label %}{{ hr_manager_label }}{% else %}—{% endif %}</strong>
+            </div>
+        </div>
+        <div class="jp-kpi-sheet-banner__meta">
+            <div class="small text-muted fw-bold text-uppercase mb-1">Tháng</div>
+            <div class="fs-5 fw-bold text-dark">{{ kpi.period_label }}</div>
+        </div>
+        <div class="jp-kpi-sheet-banner__total" data-kpi-summary>
+            <div class="small text-muted fw-bold text-uppercase mb-1">Tổng điểm</div>
+            <div class="jp-kpi-sheet-banner__total-value" data-kpi-total>
+                {% if total_score is not None %}{{ total_score }}{% else %}—{% endif %}
+            </div>
+            <div class="mt-1">
+                <span class="jp-kpi-badge jp-kpi-badge--{{ result_code }}" data-kpi-result>{{ result_label }}</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="jp-kpi-rules mb-3">
+        <strong>Quy tắc:</strong>
+        Điểm TP = (Điểm / 10) × Trọng số ·
+        Tổng ưu tiên điểm <strong>Quản lý</strong> (chưa có thì dùng điểm NV) ·
+        0–89 Không đạt · 90–100 Đạt · ≥101 Vượt ·
+        Thang điểm tiêu chí thường 0–10 (có thể &gt;10 khi vượt).
+        Ô đánh giá thực tế hỗ trợ <strong>dán / chèn ảnh</strong> (lưu như báo cáo).
+        {% if can_edit_self and not can_edit_manager %}
+        <span class="ms-1">Bạn đang chấm cột <strong>Nhân viên</strong>.</span>
+        {% elif can_edit_manager and not can_edit_self %}
+        <span class="ms-1">Bạn đang chấm cột <strong>Quản lý</strong>.</span>
+        {% elif can_edit_self and can_edit_manager %}
+        <span class="ms-1">Bạn có thể chấm cả hai cột.</span>
+        {% endif %}
+    </div>
+
+    <form method="post" id="kpi-detail-form"
+          {% if can_edit_self or can_edit_manager %}data-kpi-upload-url="{{ kpi_image_upload_url }}"{% endif %}>
+        {% csrf_token %}
+        <div class="jp-kpi-table-shell">
+            <div class="jp-kpi-hscroll-top" data-kpi-hscroll-top aria-hidden="true">
+                <div class="jp-kpi-hscroll-top__spacer" data-kpi-hscroll-spacer></div>
+            </div>
+            <div class="jp-kpi-table-wrap" data-kpi-table-wrap>
+            <table class="table table-bordered jp-kpi-table mb-0" data-kpi-table>
+                <thead>
+                    <tr>
+                        <th class="jp-kpi-col-stt"><span class="jp-kpi-th-label">STT</span></th>
+                        <th class="jp-kpi-col-group"><span class="jp-kpi-th-label">Nhóm công việc</span></th>
+                        <th class="jp-kpi-col-weight"><span class="jp-kpi-th-label">Trọng số</span></th>
+                        <th class="jp-kpi-col-indicator"><span class="jp-kpi-th-label">Tiêu chí đo lường (KPI)</span></th>
+                        <th class="jp-kpi-col-level"><span class="jp-kpi-th-label">Mức chưa đạt (&lt;100%)</span></th>
+                        <th class="jp-kpi-col-level"><span class="jp-kpi-th-label">Mức đạt (100%)</span></th>
+                        <th class="jp-kpi-col-level"><span class="jp-kpi-th-label">Mức vượt (&gt;100%)</span></th>
+                        <th class="jp-kpi-col-nv jp-kpi-actual"><span class="jp-kpi-th-label">Đánh giá thực tế (NV)</span></th>
+                        <th class="jp-kpi-col-nv jp-kpi-col-score"><span class="jp-kpi-th-label">Điểm NV</span></th>
+                        <th class="jp-kpi-col-ql jp-kpi-actual"><span class="jp-kpi-th-label">Đánh giá thực tế (QL)</span></th>
+                        <th class="jp-kpi-col-ql jp-kpi-col-score"><span class="jp-kpi-th-label">Điểm QL</span></th>
+                        <th class="jp-kpi-col-tp"><span class="jp-kpi-th-label">Điểm TP</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr data-weight="{{ item.weightage }}">
+                        <td class="jp-kpi-col-stt fw-semibold">{{ item.sort_order }}</td>
+                        {% if item.group_rowspan %}
+                        <td class="jp-kpi-group" rowspan="{{ item.group_rowspan }}">{{ item.work_group|default:"—" }}</td>
+                        {% endif %}
+                        <td class="jp-kpi-col-weight fw-bold" data-kpi-weight>{{ item.weightage }}</td>
+                        <td class="jp-kpi-indicator">{{ item.indicator }}</td>
+                        <td class="jp-kpi-level">{{ item.level_fail }}</td>
+                        <td class="jp-kpi-level">{{ item.level_pass }}</td>
+                        <td class="jp-kpi-level">{{ item.level_exceed }}</td>
+                        <td class="jp-kpi-col-nv jp-kpi-actual">
+                            {% if can_edit_self %}
+                            <div class="jp-kpi-rich" data-kpi-rich>
+                                <div class="jp-kpi-rich__frame">
+                                    <div class="jp-kpi-rich__editor" contenteditable="true"
+                                         data-kpi-rich-editor
+                                         data-placeholder="Kết quả / bằng chứng…">{{ item.self_actual|kpi_actual_edit }}</div>
+                                    <label class="jp-kpi-rich__btn" title="Chèn ảnh">
+                                        <i class="bi bi-image"></i>
+                                        <span>Ảnh</span>
+                                        <input type="file" accept="image/*" hidden data-kpi-rich-file>
+                                    </label>
+                                </div>
+                                <textarea name="item_{{ item.id }}_self_actual" class="d-none" data-kpi-rich-input>{{ item.self_actual }}</textarea>
+                            </div>
+                            {% else %}
+                            <div class="jp-kpi-actual-text">{{ item.self_actual|kpi_actual }}</div>
+                            {% endif %}
+                        </td>
+                        <td class="jp-kpi-col-nv jp-kpi-col-score text-center">
+                            {% if can_edit_self %}
+                            <div class="jp-kpi-score-box">
+                            <input type="number" step="0.1" min="0" max="20"
+                                   name="item_{{ item.id }}_self_score"
+                                   class="form-control"
+                                   data-kpi-self-score
+                                   value="{% if item.self_score is not None %}{{ item.self_score }}{% endif %}">
+                            </div>
+                            {% else %}
+                            <div class="jp-kpi-score-box">
+                            <span class="jp-kpi-score-readonly">{% if item.self_score is not None %}{{ item.self_score }}{% else %}—{% endif %}</span>
+                            <input type="hidden" data-kpi-self-score value="{% if item.self_score is not None %}{{ item.self_score }}{% endif %}">
+                            </div>
+                            {% endif %}
+                        </td>
+                        <td class="jp-kpi-col-ql jp-kpi-actual">
+                            {% if can_edit_manager %}
+                            <div class="jp-kpi-rich" data-kpi-rich>
+                                <div class="jp-kpi-rich__frame">
+                                    <div class="jp-kpi-rich__editor" contenteditable="true"
+                                         data-kpi-rich-editor
+                                         data-placeholder="Kết quả / bằng chứng…">{{ item.mgr_actual|kpi_actual_edit }}</div>
+                                    <label class="jp-kpi-rich__btn" title="Chèn ảnh">
+                                        <i class="bi bi-image"></i>
+                                        <span>Ảnh</span>
+                                        <input type="file" accept="image/*" hidden data-kpi-rich-file>
+                                    </label>
+                                </div>
+                                <textarea name="item_{{ item.id }}_mgr_actual" class="d-none" data-kpi-rich-input>{{ item.mgr_actual }}</textarea>
+                            </div>
+                            {% else %}
+                            <div class="jp-kpi-actual-text">{{ item.mgr_actual|kpi_actual }}</div>
+                            {% endif %}
+                        </td>
+                        <td class="jp-kpi-col-ql jp-kpi-col-score text-center">
+                            {% if can_edit_manager %}
+                            <div class="jp-kpi-score-box">
+                            <input type="number" step="0.1" min="0" max="20"
+                                   name="item_{{ item.id }}_mgr_score"
+                                   class="form-control"
+                                   data-kpi-mgr-score
+                                   value="{% if item.mgr_score is not None %}{{ item.mgr_score }}{% endif %}">
+                            </div>
+                            {% else %}
+                            <div class="jp-kpi-score-box">
+                            <span class="jp-kpi-score-readonly">{% if item.mgr_score is not None %}{{ item.mgr_score }}{% else %}—{% endif %}</span>
+                            <input type="hidden" data-kpi-mgr-score value="{% if item.mgr_score is not None %}{{ item.mgr_score }}{% endif %}">
+                            </div>
+                            {% endif %}
+                        </td>
+                        <td class="jp-kpi-tp jp-kpi-col-tp" data-kpi-tp>
+                            {% if item.display_component is not None %}{{ item.display_component|floatformat:2 }}{% else %}—{% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="12" class="text-center text-muted py-5">Chưa có tiêu chí. Import Excel để giao KPI.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            </div>
+        </div>
+
+        {% if can_edit_self or can_edit_manager %}
+        <div class="jp-kpi-sticky-actions d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div class="small text-muted">
+                Tổng tạm tính: <strong class="text-dark" data-kpi-total-foot>{% if total_score is not None %}{{ total_score }}{% else %}—{% endif %}</strong>
+                · <span data-kpi-result-foot class="jp-kpi-result-{{ result_code }} fw-semibold">{{ result_label }}</span>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="{% url 'kpi_list' %}?month={{ kpi.month }}&year={{ kpi.year }}" class="btn btn-light fw-bold">Hủy</a>
+                <button type="submit" class="btn btn-hm text-white fw-bold px-4">
+                    <i class="bi bi-save me-1"></i>Lưu đánh giá
+                </button>
+            </div>
+        </div>
+        {% endif %}
+    </form>
+</div>
+
+<script src="{% static 'js/kpi-actual-rich.js' %}?v=20260904d"></script>
+<script>
+(function () {
+  const table = document.querySelector('[data-kpi-table]');
+  if (!table) return;
+
+  function num(v) {
+    if (v === null || v === undefined || String(v).trim() === '') return null;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  function resultOf(total) {
+    if (total === null) return { code: 'pending', label: 'Chưa chấm' };
+    if (total < 90) return { code: 'fail', label: 'Không đạt' };
+    if (total <= 100) return { code: 'pass', label: 'Đạt' };
+    return { code: 'exceed', label: 'Vượt' };
+  }
+
+  function paintResult(el, code, label) {
+    if (!el) return;
+    el.textContent = label;
+    el.className = el.className
+      .split(/\s+/)
+      .filter(c => c && !c.startsWith('jp-kpi-badge--') && !c.startsWith('jp-kpi-result-'))
+      .join(' ');
+    if (el.classList.contains('jp-kpi-badge') || el.hasAttribute('data-kpi-result')) {
+      el.classList.add('jp-kpi-badge', 'jp-kpi-badge--' + code);
+    } else {
+      el.classList.add('jp-kpi-result-' + code);
+    }
+  }
+
+  function recalc() {
+    let total = 0;
+    let has = false;
+    table.querySelectorAll('tbody tr[data-weight]').forEach(row => {
+      const weight = num(row.getAttribute('data-weight')) || 0;
+      const selfEl = row.querySelector('[data-kpi-self-score]');
+      const mgrEl = row.querySelector('[data-kpi-mgr-score]');
+      const selfScore = selfEl ? num(selfEl.value) : null;
+      const mgrScore = mgrEl ? num(mgrEl.value) : null;
+      const score = mgrScore !== null ? mgrScore : selfScore;
+      const tpEl = row.querySelector('[data-kpi-tp]');
+      if (score === null) {
+        if (tpEl) tpEl.textContent = '—';
+        return;
+      }
+      const part = (score / 10) * weight;
+      has = true;
+      total += part;
+      if (tpEl) tpEl.textContent = part.toFixed(2);
+    });
+    const display = has ? Math.round(total * 100) / 100 : null;
+    const res = resultOf(display);
+    const totalText = display === null ? '—' : String(display);
+    document.querySelectorAll('[data-kpi-total], [data-kpi-total-foot]').forEach(el => {
+      el.textContent = totalText;
+    });
+    paintResult(document.querySelector('[data-kpi-result]'), res.code, res.label);
+    const foot = document.querySelector('[data-kpi-result-foot]');
+    if (foot) {
+      foot.textContent = res.label;
+      foot.className = 'fw-semibold jp-kpi-result-' + res.code;
+    }
+  }
+
+  table.addEventListener('input', function (e) {
+    if (e.target.matches('[data-kpi-self-score], [data-kpi-mgr-score]')) recalc();
+  });
+
+  const wrap = document.querySelector('[data-kpi-table-wrap]');
+  const topScroll = document.querySelector('[data-kpi-hscroll-top]');
+  const spacer = document.querySelector('[data-kpi-hscroll-spacer]');
+  if (wrap && topScroll && spacer) {
+    let syncing = false;
+    function syncSpacer() {
+      const tableEl = wrap.querySelector('[data-kpi-table]');
+      spacer.style.width = (tableEl ? tableEl.scrollWidth : wrap.scrollWidth) + 'px';
+    }
+    function syncFromTop() {
+      if (syncing) return;
+      syncing = true;
+      wrap.scrollLeft = topScroll.scrollLeft;
+      syncing = false;
+    }
+    function syncFromWrap() {
+      if (syncing) return;
+      syncing = true;
+      topScroll.scrollLeft = wrap.scrollLeft;
+      syncing = false;
+    }
+    syncSpacer();
+    topScroll.addEventListener('scroll', syncFromTop);
+    wrap.addEventListener('scroll', syncFromWrap);
+    window.addEventListener('resize', syncSpacer);
+  }
+})();
+</script>
+{% endblock %}

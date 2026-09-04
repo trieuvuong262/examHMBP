@@ -28,7 +28,7 @@ from django.contrib.auth import logout
 from django.db.models import Q
 from PortalJustPlay.list_search import apply_term_search, get_search_query, search_terms
 from PortalJustPlay.pagination import paginate_queryset
-from kpi.models import YearlyKpi, KpiPeriod  # Import đúng Model mới
+from kpi.models import MonthlyKpi
 from hrm.permissions import is_manager, is_portal_admin
 from tools.catalog import get_portal_tool_groups
 from .portal_widgets import get_portal_dashboard
@@ -413,11 +413,10 @@ def exam_result(request, exam_id):
 def admin_dashboard(request):
     now = timezone.now()
     
-    # --- PHẦN KPI (CẬP NHẬT THEO MODEL MỚI) ---
-    # Đếm số kỳ đánh giá đang được Admin bật (Q1, Q2...)
-    active_kpi_periods = KpiPeriod.objects.filter(is_active=True).count()
-    # Đếm tổng số Bảng mục tiêu năm đã được thiết lập cho nhân viên
-    total_yearly_kpis = YearlyKpi.objects.count()
+    # --- PHẦN KPI (theo tháng) ---
+    now_kpi = timezone.localdate()
+    active_kpi_periods = MonthlyKpi.objects.filter(year=now_kpi.year, month=now_kpi.month).count()
+    total_yearly_kpis = MonthlyKpi.objects.count()
     
     # --- PHẦN ĐÀO TẠO & THI CỬ ---
     all_exams = Exam.objects.all().order_by('-id') 

@@ -73,12 +73,25 @@ def _build(*layers: dict) -> dict:
     return result
 
 
+def _kpi_menus(*, manager: bool) -> dict:
+    """KPI tháng: NV chỉ xem; QL giao/import + chấm. Tổng kết: chỉ xem (+ xuất nếu QL)."""
+    if manager:
+        return {
+            'boards': MGR,
+            'summary': _f(view=True, export=True),
+        }
+    return {
+        'boards': VIEW,
+        'summary': VIEW,
+    }
+
+
 def _portal_employee() -> dict:
     return _build({
         M['announcements']: VIEW,
         M['training']: VIEW,
         M['assessment']: VIEW,
-        M['kpi']: VIEW,
+        **_module_with_menus(M['kpi'], _kpi_menus(manager=False), module_perm=VIEW),
         M['reports']: VIEW,
         M['guide']: VIEW,
         M['documents']: VIEW,
@@ -95,7 +108,7 @@ def _portal_manager() -> dict:
         {
             M['training']: MGR,
             M['assessment']: MGR,
-            M['kpi']: MGR,
+            **_module_with_menus(M['kpi'], _kpi_menus(manager=True), module_perm=MGR),
             M['reports']: MGR,
             M['guide']: MGR,
             M['tasks']: EDIT,

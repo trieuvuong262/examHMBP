@@ -134,6 +134,72 @@ def is_global_report_viewer(user) -> bool:
     return user.username.lower() in GLOBAL_REPORT_VIEWER_USERNAMES
 
 
+def get_direct_manager_users(employee):
+    """QL trực tiếp theo Nhân sự: Profile.subordinates + slot kiêm nhiệm."""
+    if not employee or not getattr(employee, 'pk', None):
+        return User.objects.none()
+
+    from hrm.models import Profile, ProfileConcurrentPosition
+
+    manager_ids = set(
+        Profile.objects.filter(
+            subordinates=employee,
+            is_employed=True,
+            user__is_active=True,
+        ).values_list('user_id', flat=True),
+    )
+    manager_ids.update(
+        ProfileConcurrentPosition.objects.filter(
+            is_active=True,
+            subordinates=employee,
+            profile__is_employed=True,
+            profile__user__is_active=True,
+        ).values_list('profile__user_id', flat=True),
+    )
+    manager_ids.discard(employee.pk)
+    if not manager_ids:
+        return User.objects.none()
+
+    role_rank = {
+        ROLE_TEAM_LEADER: 1,
+        ROLE_DIVISION_HEAD: 2,
+        ROLE_DEPARTMENT_HEAD: 3,
+        ROLE_DIRECTOR: 4,
+    }
+    managers = list(
+        User.objects.filter(pk__in=manager_ids).select_related('profile'),
+    )
+
+    def _sort_key(mgr):
+        profile = getattr(mgr, 'profile', None)
+        role = getattr(profile, 'role', '') or ''
+        name = (getattr(profile, 'full_name', None) or mgr.username or '').lower()
+        return (role_rank.get(role, 99), name)
+
+    managers.sort(key=_sort_key)
+    # Giữ thứ tự đã sort (không reorder bằng queryset)
+    ordered_ids = [m.pk for m in managers]
+    preserved = {m.pk: m for m in managers}
+    return [preserved[i] for i in ordered_ids]
+
+
+def primary_direct_manager(employee):
+    """QL gần nhất theo Nhân sự (ưu tiên tổ trưởng → … → giám đốc)."""
+    managers = get_direct_manager_users(employee)
+    return managers[0] if managers else None
+
+
+def format_direct_managers_label(employee) -> str:
+    managers = get_direct_manager_users(employee)
+    if not managers:
+        return ''
+    labels = []
+    for mgr in managers:
+        profile = get_profile(mgr)
+        labels.append(profile.full_name if profile and profile.full_name else mgr.username)
+    return ', '.join(labels)
+
+
 def can_view_report_statistics(user) -> bool:
     """Menu Thống kê báo cáo — chỉ khi nhóm quyền bật rõ submenu (không kế thừa mặc định).
 
