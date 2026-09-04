@@ -577,3 +577,25 @@
 [data-theme="dark"] .jp-kpi-page .jp-kpi-table thead th.jp-kpi-col-ql {
   background: rgba(220, 38, 38, .12);
 }
+
+/* Tabs danh sách KPI */
+.jp-kpi-tabs {
+  border-bottom: 1px solid #e5e7eb;
+  gap: 0.25rem;
+}
+.jp-kpi-tabs .nav-link {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: #6b7280;
+  font-weight: 700;
+  padding: 0.65rem 1rem;
+}
+.jp-kpi-tabs .nav-link:hover {
+  color: #111827;
+  border-bottom-color: #d1d5db;
+}
+.jp-kpi-tabs .nav-link.active {
+  color: #c62828;
+  border-bottom-color: #c62828;
+  background: transparent;
+}

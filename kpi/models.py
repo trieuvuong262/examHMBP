@@ -99,9 +99,15 @@ class MonthlyKpi(models.Model):
         }.get(self.result_code(), 'Chưa chấm')
 
     def self_scored(self) -> bool:
+        cache = getattr(self, '_prefetched_objects_cache', None)
+        if cache is not None and 'items' in cache:
+            return any(item.self_score is not None for item in cache['items'])
         return self.items.exclude(self_score__isnull=True).exists()
 
     def manager_scored(self) -> bool:
+        cache = getattr(self, '_prefetched_objects_cache', None)
+        if cache is not None and 'items' in cache:
+            return any(item.mgr_score is not None for item in cache['items'])
         return self.items.exclude(mgr_score__isnull=True).exists()
 
 

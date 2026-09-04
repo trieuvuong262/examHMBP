@@ -13,7 +13,12 @@ from django.views.decorators.http import require_POST
 from PortalJustPlay.list_search import apply_combined_search, get_search_query
 from PortalJustPlay.pagination import paginate_queryset
 from assessment.decorators import module_perm_required
-from hrm.concurrent_positions import effective_roles, user_is_director
+from hrm.concurrent_positions import (
+    effective_department_ids,
+    effective_division_ids,
+    effective_roles,
+    user_is_director,
+)
 from hrm.menu_permissions import user_can_access_menu
 from hrm.module_permissions import (
     MODULE_KPI,
@@ -22,8 +27,11 @@ from hrm.module_permissions import (
     user_can_update_module,
 )
 from hrm.permissions import (
+    ROLE_DEPARTMENT_HEAD,
     ROLE_DIRECTOR,
+    ROLE_DIVISION_HEAD,
     ROLE_EMPLOYEE,
+    ROLE_TEAM_LEADER,
     SUBORDINATE_MANAGER_ROLES,
     can_manage_kpi_for_others,
     format_direct_managers_label,
@@ -88,21 +96,197 @@ def _sync_board_direct_manager(board: MonthlyKpi) -> MonthlyKpi:
     return board
 
 
-def _annotate_boards(boards):
-    """Gắn total_score / result / nhãn QL (Nhân sự) lên từng board."""
+def _score_item_prefetch():
+    """Prefetch tiêu chí chỉ lấy field cần tính điểm (list/summary)."""
+    return Prefetch(
+        'items',
+        queryset=MonthlyKpiItem.objects.only(
+            'id', 'monthly_kpi_id', 'sort_order', 'weightage', 'self_score', 'mgr_score',
+        ).order_by('sort_order', 'id'),
+    )
+
+
+def _apply_board_scores(board: MonthlyKpi) -> None:
+    """Tính điểm / trạng thái từ items đã prefetch — không query thêm."""
+    total = 0.0
+    has_any = False
+    has_self = False
+    has_mgr = False
+    for item in board.items.all():
+        if item.self_score is not None:
+            has_self = True
+        if item.mgr_score is not None:
+            has_mgr = True
+        part = item.component_score()
+        if part is None:
+            continue
+        has_any = True
+        total += part
+    board.display_total = round(total, 2) if has_any else None
+    if board.display_total is None:
+        code = MonthlyKpi.RESULT_PENDING
+    elif board.display_total < 90:
+        code = MonthlyKpi.RESULT_FAIL
+    elif board.display_total <= 100:
+        code = MonthlyKpi.RESULT_PASS
+    else:
+        code = MonthlyKpi.RESULT_EXCEED
+    board.display_result_code = code
+    board.display_result = {
+        MonthlyKpi.RESULT_FAIL: 'Không đạt',
+        MonthlyKpi.RESULT_PASS: 'Đạt',
+        MonthlyKpi.RESULT_EXCEED: 'Vượt',
+        MonthlyKpi.RESULT_PENDING: 'Chưa chấm',
+    }.get(code, 'Chưa chấm')
+    board.has_self = has_self
+    board.has_mgr = has_mgr
+
+
+def _bulk_hr_manager_labels(employees) -> dict[int, str]:
+    """Nhãn QL Nhân sự cho nhiều NV — 3 query thay vì N×3."""
+    from hrm.models import Profile, ProfileConcurrentPosition
+
+    emp_list = [e for e in employees if e and getattr(e, 'pk', None)]
+    if not emp_list:
+        return {}
+
+    emp_meta: dict[int, tuple] = {}
+    for emp in emp_list:
+        profile = get_profile(emp)
+        emp_meta[emp.pk] = (
+            getattr(profile, 'department_id', None) if profile else None,
+            getattr(profile, 'division_id', None) if profile else None,
+        )
+
+    emp_ids = list(emp_meta.keys())
+    # emp_id -> {mgr_user_id: meta}
+    by_emp: dict[int, dict[int, dict]] = {eid: {} for eid in emp_ids}
+
+    def _remember(emp_id: int, user_id: int, *, role: str, dept_id, div_id):
+        if not user_id or user_id == emp_id:
+            return
+        emp_dept_id, emp_div_id = emp_meta.get(emp_id, (None, None))
+        score = (
+            0 if (emp_dept_id and dept_id == emp_dept_id) else
+            1 if (emp_div_id and div_id == emp_div_id) else
+            2 if role == ROLE_DIRECTOR else
+            3
+        )
+        prev = by_emp[emp_id].get(user_id)
+        if prev is None or score < prev['score']:
+            by_emp[emp_id][user_id] = {
+                'role': role or '',
+                'score': score,
+            }
+
+    through = Profile.subordinates.through
+    profile_links = list(
+        through.objects.filter(user_id__in=emp_ids).values_list('user_id', 'profile_id'),
+    )
+    profiles_by_id = {
+        p.id: p
+        for p in Profile.objects.filter(
+            pk__in={pid for _, pid in profile_links},
+            is_employed=True,
+            user__is_active=True,
+        ).only('id', 'user_id', 'role', 'department_id', 'division_id')
+    }
+    for emp_id, profile_id in profile_links:
+        mgr_profile = profiles_by_id.get(profile_id)
+        if not mgr_profile:
+            continue
+        _remember(
+            emp_id,
+            mgr_profile.user_id,
+            role=mgr_profile.role,
+            dept_id=mgr_profile.department_id,
+            div_id=mgr_profile.division_id,
+        )
+
+    for slot in ProfileConcurrentPosition.objects.filter(
+        is_active=True,
+        subordinates__in=emp_ids,
+        profile__is_employed=True,
+        profile__user__is_active=True,
+    ).values_list(
+        'subordinates', 'role', 'department_id', 'division_id', 'profile__user_id',
+    ):
+        emp_id, role, dept_id, div_id, mgr_uid = slot
+        _remember(emp_id, mgr_uid, role=role, dept_id=dept_id, div_id=div_id)
+
+    chosen_mgr_ids: set[int] = set()
+    chosen_per_emp: dict[int, list[int]] = {}
+    role_rank = {
+        ROLE_TEAM_LEADER: 1,
+        ROLE_DIVISION_HEAD: 2,
+        ROLE_DEPARTMENT_HEAD: 3,
+        ROLE_DIRECTOR: 4,
+    }
+    for emp_id, mgr_map in by_emp.items():
+        if not mgr_map:
+            chosen_per_emp[emp_id] = []
+            continue
+        same_dept = [uid for uid, m in mgr_map.items() if m['score'] == 0]
+        same_div = [uid for uid, m in mgr_map.items() if m['score'] == 1]
+        directors = [uid for uid, m in mgr_map.items() if m['score'] == 2]
+        chosen = same_dept or same_div or directors
+        chosen_per_emp[emp_id] = chosen
+        chosen_mgr_ids.update(chosen)
+
+    managers = {
+        u.pk: u
+        for u in User.objects.filter(pk__in=chosen_mgr_ids).select_related('profile')
+    }
+
+    labels: dict[int, str] = {}
+    for emp_id, mgr_ids in chosen_per_emp.items():
+        if not mgr_ids:
+            labels[emp_id] = ''
+            continue
+        mgr_map = by_emp.get(emp_id, {})
+
+        def _sort_key(uid, _mgr_map=mgr_map):
+            mgr = managers.get(uid)
+            profile = getattr(mgr, 'profile', None) if mgr else None
+            role = _mgr_map.get(uid, {}).get('role') or getattr(profile, 'role', '') or ''
+            name = (getattr(profile, 'full_name', None) or (mgr.username if mgr else '') or '').lower()
+            return (role_rank.get(role, 99), name)
+
+        ordered = sorted(mgr_ids, key=_sort_key)
+        parts = []
+        for uid in ordered:
+            mgr = managers.get(uid)
+            if not mgr:
+                continue
+            profile = get_profile(mgr)
+            parts.append(profile.full_name if profile and profile.full_name else mgr.username)
+        labels[emp_id] = ', '.join(parts)
+    return labels
+
+
+def _annotate_boards(boards, *, with_managers: bool = True):
+    """Gắn total_score / result / (tuỳ chọn) nhãn QL lên từng board — tránh N+1."""
+    boards = list(boards)
+    if not boards:
+        return boards
+
     for board in boards:
-        board.display_total = board.total_score()
-        board.display_result = board.result_label()
-        board.display_result_code = board.result_code()
-        board.has_self = board.self_scored()
-        board.has_mgr = board.manager_scored()
-        board.hr_manager_label = format_direct_managers_label(board.employee)
-        if not board.hr_manager_label and board.direct_manager_id:
-            profile = get_profile(board.direct_manager)
-            board.hr_manager_label = (
-                profile.full_name if profile and profile.full_name
-                else board.direct_manager.username
-            )
+        _apply_board_scores(board)
+
+    if with_managers:
+        label_map = _bulk_hr_manager_labels([b.employee for b in boards])
+        for board in boards:
+            label = label_map.get(board.employee_id, '')
+            if not label and board.direct_manager_id:
+                profile = get_profile(board.direct_manager)
+                label = (
+                    profile.full_name if profile and profile.full_name
+                    else board.direct_manager.username
+                )
+            board.hr_manager_label = label
+    else:
+        for board in boards:
+            board.hr_manager_label = ''
     return boards
 
 
@@ -118,33 +302,127 @@ def _kpi_perm_context(user) -> dict:
     }
 
 
-def _can_edit_kpi_board(user, board: MonthlyKpi) -> bool:
+def _can_edit_kpi_board(
+    user,
+    board: MonthlyKpi,
+    *,
+    division_member_ids: set[int] | None = None,
+    subordinate_ids: set[int] | None = None,
+) -> bool:
     if not (user_can_create_module(user, MODULE_KPI) or user_can_update_module(user, MODULE_KPI)):
         return False
-    return user.is_superuser or _can_manage_employee(user, board.employee)
+    return user.is_superuser or _can_manage_employee(
+        user,
+        board.employee,
+        division_member_ids=division_member_ids,
+        subordinate_ids=subordinate_ids,
+    )
 
 
-def _can_delete_kpi_board(user, board: MonthlyKpi) -> bool:
+def _can_delete_kpi_board(
+    user,
+    board: MonthlyKpi,
+    *,
+    division_member_ids: set[int] | None = None,
+    subordinate_ids: set[int] | None = None,
+) -> bool:
     if board.employee_id == user.pk and user_can_create_module(user, MODULE_KPI):
         return True
     if not user_can_delete_module(user, MODULE_KPI):
         return False
-    return user.is_superuser or _can_manage_employee(user, board.employee)
+    return user.is_superuser or _can_manage_employee(
+        user,
+        board.employee,
+        division_member_ids=division_member_ids,
+        subordinate_ids=subordinate_ids,
+    )
 
 
-def _can_manage_employee(user, employee: User) -> bool:
+def _can_view_division_kpi(user) -> bool:
+    """Tab Bộ phận: TBP + QL cấp cao hơn (TP/GD/admin). NV / tổ trưởng thuần không thấy."""
+    if not getattr(user, 'is_authenticated', False):
+        return False
+    if user.is_superuser or user_is_director(user) or is_global_report_viewer(user):
+        return True
+    roles = effective_roles(user)
+    return bool(roles & {ROLE_DIVISION_HEAD, ROLE_DEPARTMENT_HEAD})
+
+
+def _can_import_division_kpi(user) -> bool:
+    """Giao KPI bộ phận — chỉ trưởng bộ phận (hoặc admin)."""
+    if not getattr(user, 'is_authenticated', False):
+        return False
+    if user.is_superuser:
+        return True
+    return ROLE_DIVISION_HEAD in effective_roles(user)
+
+
+def _division_member_user_ids(user) -> list[int]:
+    """NV thuộc phạm vi bộ phận mà user được xem/giao KPI."""
+    roles = effective_roles(user)
+    if user.is_superuser or user_is_director(user) or is_global_report_viewer(user):
+        return list(
+            User.objects.filter(is_active=True, profile__is_employed=True)
+            .exclude(pk=user.pk)
+            .values_list('pk', flat=True)
+        )
+
+    ids: set[int] = set()
+    if ROLE_DEPARTMENT_HEAD in roles:
+        dept_ids = effective_department_ids(user)
+        if dept_ids:
+            ids.update(
+                User.objects.filter(
+                    is_active=True,
+                    profile__is_employed=True,
+                    profile__department_id__in=dept_ids,
+                ).exclude(pk=user.pk).values_list('pk', flat=True)
+            )
+    if ROLE_DIVISION_HEAD in roles:
+        div_ids = effective_division_ids(user)
+        if div_ids:
+            ids.update(
+                User.objects.filter(
+                    is_active=True,
+                    profile__is_employed=True,
+                    profile__division_id__in=div_ids,
+                ).exclude(pk=user.pk).values_list('pk', flat=True)
+            )
+    return list(ids)
+
+
+def _can_manage_employee(
+    user,
+    employee: User,
+    *,
+    division_member_ids: set[int] | None = None,
+    subordinate_ids: set[int] | None = None,
+) -> bool:
     if user.is_superuser or user_is_director(user) or is_global_report_viewer(user):
         return True
     if employee.pk == user.pk:
         return True  # được giao KPI cho chính mình
+    if division_member_ids is None:
+        division_member_ids = set(_division_member_user_ids(user))
+    if employee.pk in division_member_ids and _can_import_division_kpi(user):
+        return True
     if not (effective_roles(user) & SUBORDINATE_MANAGER_ROLES):
         return False
+    if subordinate_ids is not None:
+        return employee.pk in subordinate_ids
     return get_report_team_users(user).filter(pk=employee.pk).exists()
 
 
 def _target_employees_for(user, *, scope: str = 'team'):
     if scope == 'self':
         return User.objects.filter(pk=user.pk).select_related('profile')
+    if scope == 'division':
+        member_ids = _division_member_user_ids(user)
+        if not member_ids:
+            return User.objects.none()
+        return User.objects.filter(pk__in=member_ids).select_related('profile').order_by(
+            'profile__full_name', 'username',
+        )
     if user_is_director(user) or user.is_superuser or is_global_report_viewer(user):
         return User.objects.filter(is_active=True).exclude(pk=user.pk).select_related('profile')
     if effective_roles(user) & SUBORDINATE_MANAGER_ROLES:
@@ -188,11 +466,10 @@ def _annotate_items_for_table(items: list[MonthlyKpiItem]) -> list[MonthlyKpiIte
 
 def _visible_boards_qs(user, year: int, month: int):
     """Bảng KPI tháng mà user được xem (cá nhân + team / toàn bộ nếu GD / admin+ductn)."""
-    item_prefetch = Prefetch('items', queryset=MonthlyKpiItem.objects.order_by('sort_order', 'id'))
     base = MonthlyKpi.objects.filter(year=year, month=month).select_related(
         'employee__profile',
         'direct_manager__profile',
-    ).prefetch_related(item_prefetch)
+    ).prefetch_related(_score_item_prefetch())
 
     if user_is_director(user) or user.is_superuser or is_global_report_viewer(user):
         return base.order_by('employee__profile__full_name', 'employee__username')
@@ -210,24 +487,31 @@ def _visible_boards_qs(user, year: int, month: int):
 def kpi_list_view(request):
     search_query = get_search_query(request)
     year, month = _parse_month_year(request)
-    item_prefetch = Prefetch('items', queryset=MonthlyKpiItem.objects.order_by('sort_order', 'id'))
+
+    show_subordinate_kpi = (
+        request.user.is_superuser
+        or user_is_director(request.user)
+        or is_global_report_viewer(request.user)
+        or bool(effective_roles(request.user) & SUBORDINATE_MANAGER_ROLES)
+    )
+    show_division_kpi = _can_view_division_kpi(request.user)
+    can_import_division = _can_import_division_kpi(request.user) and user_can_create_module(
+        request.user, MODULE_KPI,
+    )
+
+    tab = (request.GET.get('tab') or 'mine').strip().lower()
+    if tab not in ('mine', 'team', 'division'):
+        tab = 'mine'
+    if tab == 'team' and not show_subordinate_kpi:
+        tab = 'mine'
+    if tab == 'division' and not show_division_kpi:
+        tab = 'mine'
 
     base = MonthlyKpi.objects.filter(year=year, month=month).select_related(
         'employee__profile',
+        'employee__profile__division',
         'direct_manager__profile',
-    ).prefetch_related(item_prefetch)
-
-    my_kpis_qs = base.filter(employee=request.user).order_by('-year', '-month')
-
-    if user_is_director(request.user) or request.user.is_superuser or is_global_report_viewer(request.user):
-        team_kpis_qs = base.exclude(employee=request.user).order_by('employee__profile__full_name', 'employee__username')
-    elif effective_roles(request.user) & SUBORDINATE_MANAGER_ROLES:
-        subordinate_ids = list(get_report_team_users(request.user).values_list('pk', flat=True))
-        team_kpis_qs = base.filter(
-            Q(direct_manager=request.user) | Q(employee_id__in=subordinate_ids),
-        ).exclude(employee=request.user).order_by('employee__profile__full_name', 'employee__username')
-    else:
-        team_kpis_qs = MonthlyKpi.objects.none()
+    ).prefetch_related(_score_item_prefetch())
 
     def _kpi_search(qs):
         if not search_query:
@@ -243,44 +527,124 @@ def kpi_list_view(request):
             | Q(direct_manager__profile__full_name__icontains=term)
         ))
 
-    my_kpis_qs = _kpi_search(my_kpis_qs)
-    team_kpis_qs = _kpi_search(team_kpis_qs)
+    my_list: list = []
+    team_list: list = []
+    division_list: list = []
+    my_page = team_page = division_page = None
+    my_query_string = team_query_string = division_query_string = ''
 
-    my_page, my_query_string = paginate_queryset(request, my_kpis_qs, page_param='my_page')
-    team_page, team_query_string = paginate_queryset(request, team_kpis_qs, page_param='team_page')
-
-    my_list = _annotate_boards(list(my_page.object_list))
-    team_list = _annotate_boards(list(team_page.object_list))
-    for board in my_list:
-        board.can_edit_board = _can_edit_kpi_board(request.user, board)
-        board.can_delete_board = _can_delete_kpi_board(request.user, board)
-
-    years = list(range(timezone.localdate().year + 1, timezone.localdate().year - 5, -1))
-    show_subordinate_kpi = (
+    # Cache quyền — tránh gọi _division_member_user_ids / team users từng dòng
+    division_id_set: set[int] = set()
+    subordinate_id_set: set[int] = set()
+    is_company_wide = (
         request.user.is_superuser
         or user_is_director(request.user)
         or is_global_report_viewer(request.user)
-        or bool(effective_roles(request.user) & SUBORDINATE_MANAGER_ROLES)
     )
+    if tab in ('mine', 'division') and not is_company_wide:
+        if can_import_division or tab == 'division':
+            division_id_set = set(_division_member_user_ids(request.user))
+        if effective_roles(request.user) & SUBORDINATE_MANAGER_ROLES:
+            subordinate_id_set = set(
+                get_report_team_users(request.user).values_list('pk', flat=True),
+            )
+
+    if tab == 'mine':
+        my_kpis_qs = _kpi_search(base.filter(employee=request.user).order_by('-year', '-month'))
+        my_page, my_query_string = paginate_queryset(request, my_kpis_qs, page_param='my_page')
+        my_list = _annotate_boards(list(my_page.object_list), with_managers=True)
+        for board in my_list:
+            board.can_edit_board = _can_edit_kpi_board(
+                request.user, board,
+                division_member_ids=division_id_set,
+                subordinate_ids=subordinate_id_set,
+            )
+            board.can_delete_board = _can_delete_kpi_board(
+                request.user, board,
+                division_member_ids=division_id_set,
+                subordinate_ids=subordinate_id_set,
+            )
+    elif tab == 'team':
+        if is_company_wide:
+            team_kpis_qs = base.exclude(employee=request.user).order_by(
+                'employee__profile__full_name', 'employee__username',
+            )
+        elif effective_roles(request.user) & SUBORDINATE_MANAGER_ROLES:
+            subordinate_ids = list(get_report_team_users(request.user).values_list('pk', flat=True))
+            team_kpis_qs = base.filter(
+                Q(direct_manager=request.user) | Q(employee_id__in=subordinate_ids),
+            ).exclude(employee=request.user).order_by(
+                'employee__profile__full_name', 'employee__username',
+            )
+        else:
+            team_kpis_qs = MonthlyKpi.objects.none()
+        team_kpis_qs = _kpi_search(team_kpis_qs)
+        team_page, team_query_string = paginate_queryset(
+            request, team_kpis_qs, page_param='team_page',
+        )
+        # Tab cấp dưới không hiện nhãn QL / nút sửa
+        team_list = _annotate_boards(list(team_page.object_list), with_managers=False)
+    else:  # division
+        if not division_id_set:
+            division_id_set = set(_division_member_user_ids(request.user))
+        if division_id_set:
+            division_kpis_qs = base.filter(employee_id__in=division_id_set).order_by(
+                'employee__profile__full_name', 'employee__username',
+            )
+        else:
+            division_kpis_qs = MonthlyKpi.objects.none()
+        division_kpis_qs = _kpi_search(division_kpis_qs)
+        division_page, division_query_string = paginate_queryset(
+            request, division_kpis_qs, page_param='div_page',
+        )
+        division_list = _annotate_boards(list(division_page.object_list), with_managers=False)
+        for board in division_list:
+            board.can_edit_board = (
+                can_import_division and _can_edit_kpi_board(
+                    request.user, board,
+                    division_member_ids=division_id_set,
+                    subordinate_ids=subordinate_id_set,
+                )
+            )
+            board.can_delete_board = (
+                can_import_division and _can_delete_kpi_board(
+                    request.user, board,
+                    division_member_ids=division_id_set,
+                    subordinate_ids=subordinate_id_set,
+                )
+            )
+
+    years = list(range(timezone.localdate().year + 1, timezone.localdate().year - 5, -1))
     can_import_team = show_subordinate_kpi or can_manage_kpi_for_others(request.user)
     perm_ctx = _kpi_perm_context(request.user)
-    has_my_kpi_this_month = base.filter(employee=request.user).exists()
+    if tab == 'mine' and my_page is not None:
+        has_my_kpi_this_month = my_page.paginator.count > 0
+    else:
+        has_my_kpi_this_month = MonthlyKpi.objects.filter(
+            year=year, month=month, employee=request.user,
+        ).exists()
     can_create_self_kpi = perm_ctx['can_create'] and not has_my_kpi_this_month
 
     return render(request, 'kpi/kpi_list.html', {
+        'active_tab': tab,
         'my_kpis': my_list,
         'my_page': my_page,
         'my_query_string': my_query_string,
         'team_kpis': team_list,
         'team_page': team_page,
         'team_query_string': team_query_string,
+        'division_kpis': division_list,
+        'division_page': division_page,
+        'division_query_string': division_query_string,
         'search_query': search_query,
         'filter_year': year,
         'filter_month': month,
         'year_choices': years,
         'month_choices': list(range(1, 13)),
         'show_subordinate_kpi': show_subordinate_kpi,
+        'show_division_kpi': show_division_kpi,
         'can_import_team': can_import_team,
+        'can_import_division': can_import_division,
         'can_create_self_kpi': can_create_self_kpi,
         'can_view_summary': user_can_access_menu(request.user, MODULE_KPI, 'summary'),
         **perm_ctx,
@@ -309,11 +673,23 @@ def kpi_summary_view(request):
             | Q(direct_manager__profile__full_name__icontains=term)
         ))
 
-    page_obj, query_string = paginate_queryset(request, boards_qs, page_param='page')
-    boards = _annotate_boards(list(page_obj.object_list))
+    # Một lần load + prefetch; thống kê không gắn nhãn QL
+    all_boards = _annotate_boards(list(boards_qs), with_managers=False)
+    page_obj, query_string = paginate_queryset(request, all_boards, page_param='page')
+    boards = list(page_obj.object_list)
+    # Chỉ trang hiện tại cần nhãn QL
+    if boards:
+        label_map = _bulk_hr_manager_labels([b.employee for b in boards])
+        for board in boards:
+            label = label_map.get(board.employee_id, '')
+            if not label and board.direct_manager_id:
+                profile = get_profile(board.direct_manager)
+                label = (
+                    profile.full_name if profile and profile.full_name
+                    else board.direct_manager.username
+                )
+            board.hr_manager_label = label
 
-    # Thống kê trên toàn bộ kết quả lọc (không chỉ trang hiện tại)
-    all_boards = _annotate_boards(list(boards_qs))
     counts = {
         'total': len(all_boards),
         'pending': 0,
@@ -530,7 +906,9 @@ def _resolve_edit_board(request, scope: str):
         return None
     if scope == 'self' and board.employee_id != request.user.pk:
         return None
-    if scope == 'team' and board.employee_id == request.user.pk:
+    if scope in ('team', 'division') and board.employee_id == request.user.pk:
+        return None
+    if scope == 'division' and board.employee_id not in _division_member_user_ids(request.user):
         return None
     return board
 
@@ -543,7 +921,7 @@ def kpi_import_excel(request):
         return redirect('kpi_list')
 
     scope = (request.GET.get('scope') or request.POST.get('scope') or 'team').strip().lower()
-    if scope not in ('self', 'team'):
+    if scope not in ('self', 'team', 'division'):
         scope = 'team'
 
     can_import_team = (
@@ -554,7 +932,10 @@ def kpi_import_excel(request):
         or can_manage_kpi_for_others(request.user)
     )
     if scope == 'team' and not can_import_team:
-        messages.error(request, 'Chỉ quản lý mới được giao KPI cho team.')
+        messages.error(request, 'Chỉ quản lý mới được giao KPI cho cấp dưới.')
+        return redirect('kpi_list')
+    if scope == 'division' and not _can_import_division_kpi(request.user):
+        messages.error(request, 'Chỉ trưởng bộ phận được giao KPI bộ phận.')
         return redirect('kpi_list')
 
     edit_board = _resolve_edit_board(request, scope)
@@ -611,9 +992,12 @@ def kpi_import_excel(request):
             if scope == 'self' and employee.pk != request.user.pk:
                 messages.error(request, 'Chỉ được giao KPI cho chính bạn ở mục này.')
                 return redirect(f"{reverse('kpi_import_excel')}?scope=self")
-            if scope == 'team' and employee.pk == request.user.pk:
+            if scope in ('team', 'division') and employee.pk == request.user.pk:
                 messages.error(request, 'Giao KPI cá nhân dùng nút ở mục «KPI của tôi».')
-                return redirect(f"{reverse('kpi_import_excel')}?scope=team")
+                return redirect(f"{reverse('kpi_import_excel')}?scope={scope}")
+            if scope == 'division' and employee.pk not in set(_division_member_user_ids(request.user)):
+                messages.error(request, 'Nhân viên không thuộc bộ phận bạn quản lý.')
+                return redirect(f"{reverse('kpi_import_excel')}?scope=division")
             if not _can_manage_employee(request.user, employee) and not request.user.is_superuser:
                 messages.error(request, 'Bạn không có quyền giao KPI cho nhân viên này.')
                 return redirect(f"{reverse('kpi_import_excel')}?scope={scope}")

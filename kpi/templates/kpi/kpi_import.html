@@ -20,6 +20,8 @@
                 Sửa KPI tháng {{ edit_board.month|stringformat:"02d" }}/{{ edit_board.year }}
                 {% elif scope == 'self' %}
                 Tạo KPI cho bản thân
+                {% elif scope == 'division' %}
+                Giao KPI bộ phận
                 {% else %}
                 Giao KPI cấp dưới
                 {% endif %}
