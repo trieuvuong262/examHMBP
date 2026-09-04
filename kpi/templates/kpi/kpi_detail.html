@@ -6,9 +6,12 @@
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid jp-page jp-kpi-page jp-kpi-detail py-3 py-md-4 px-2 px-md-4 mb-5">
+<div class="container-fluid jp-page jp-kpi-page jp-kpi-detail py-3 py-md-4 px-2 px-md-4 mb-5"
+     data-loading-message="Đang tải bảng đánh giá KPI…">
     <div class="mb-3">
-        <a href="{% url 'kpi_list' %}?month={{ kpi.month }}&year={{ kpi.year }}" class="text-decoration-none small text-muted fw-semibold">
+        <a href="{% url 'kpi_list' %}?month={{ kpi.month }}&year={{ kpi.year }}"
+           class="text-decoration-none small text-muted fw-semibold"
+           data-loading-message="Đang tải danh sách KPI…">
             <i class="bi bi-arrow-left"></i> Danh sách KPI
         </a>
     </div>
@@ -56,6 +59,7 @@
 
     <form method="post" id="kpi-detail-form"
           data-kpi-id="{{ kpi.id }}"
+          data-loading-message="Đang lưu đánh giá KPI…"
           {% if can_edit_self or can_edit_manager %}data-kpi-upload-url="{{ kpi_image_upload_url }}"{% endif %}>
         {% csrf_token %}
         <div class="jp-kpi-table-shell">

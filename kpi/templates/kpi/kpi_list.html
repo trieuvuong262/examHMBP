@@ -6,7 +6,8 @@
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid jp-page jp-kpi-page jp-hrm-page py-3 py-md-4 px-2 px-md-4 mb-5">
+<div class="container-fluid jp-page jp-kpi-page jp-hrm-page py-3 py-md-4 px-2 px-md-4 mb-5"
+     data-loading-message="Đang tải danh sách KPI…">
     <div class="jp-page-header mb-3 mb-md-4">
         <div class="jp-page-header-main">
             <h2 class="jp-page-title fw-bold text-dark mb-1">KPI</h2>
@@ -14,7 +15,8 @@
         {% if can_view_summary %}
         <div class="d-flex flex-wrap gap-2">
             <a href="{% url 'kpi_summary' %}?month={{ filter_month }}&year={{ filter_year }}"
-               class="btn btn-outline-hm fw-bold">
+               class="btn btn-outline-hm fw-bold"
+               data-loading-message="Đang tải tổng kết KPI…">
                 <i class="bi bi-bar-chart-line me-1"></i>Tổng kết
             </a>
         </div>
@@ -23,7 +25,7 @@
 
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-body py-3">
-            <form method="get" class="row g-2 g-md-3 align-items-end">
+            <form method="get" class="row g-2 g-md-3 align-items-end" data-loading-message="Đang lọc KPI…">
                 <div class="col-6 col-md-2">
                     <label class="form-label small fw-bold text-muted mb-1">Tháng</label>
                     <select name="month" class="form-select">
@@ -62,7 +64,8 @@
             <h5 class="fw-bold text-dark mb-0">KPI của tôi · {{ filter_month|stringformat:"02d" }}/{{ filter_year }}</h5>
             {% if can_create_self_kpi %}
             <a href="{% url 'kpi_import_excel' %}?scope=self&month={{ filter_month }}&year={{ filter_year }}"
-               class="btn btn-hm text-white fw-bold btn-sm">
+               class="btn btn-hm text-white fw-bold btn-sm"
+               data-loading-message="Đang mở tạo KPI…">
                 <i class="bi bi-file-earmark-excel-fill me-1"></i>Tạo KPI cho bản thân
             </a>
             {% endif %}
@@ -87,21 +90,24 @@
                         </div>
                     </div>
                     <div class="d-flex flex-wrap align-items-center gap-2">
-                        <a href="{% url 'kpi_detail' kpi.id %}" class="btn btn-hm text-white fw-bold px-4">
+                        <a href="{% url 'kpi_detail' kpi.id %}" class="btn btn-hm text-white fw-bold px-4"
+                           data-loading-message="Đang tải bảng đánh giá KPI…">
                             Vào đánh giá <i class="bi bi-arrow-right ms-1"></i>
                         </a>
                         {% if kpi.can_edit_board %}
                         <a href="{% url 'kpi_import_excel' %}?scope=self&edit={{ kpi.id }}"
                            class="btn btn-outline-hm fw-bold px-3"
+                           data-loading-message="Đang mở sửa KPI…"
                            title="Import lại Excel tiêu chí">
                             <i class="bi bi-pencil-square me-1"></i>Sửa
                         </a>
                         {% endif %}
                         {% if kpi.can_delete_board %}
                         <form method="post" action="{% url 'kpi_delete' kpi.id %}" class="d-inline"
-                              onsubmit="return confirm('Xóa KPI tháng {{ kpi.period_label }}? Điểm đã chấm sẽ mất.');">
+                              data-loading-message="Đang xóa KPI…">
                             {% csrf_token %}
-                            <button type="submit" class="btn btn-outline-danger fw-bold px-3">
+                            <button type="submit" class="btn btn-outline-danger fw-bold px-3"
+                                    onclick="return confirm('Xóa KPI tháng {{ kpi.period_label }}? Điểm đã chấm sẽ mất.');">
                                 <i class="bi bi-trash3 me-1"></i>Xóa
                             </button>
                         </form>
@@ -130,7 +136,8 @@
                 <span class="small text-muted">{{ team_page.paginator.count }} bảng</span>
                 {% if can_import_team and can_create %}
                 <a href="{% url 'kpi_import_excel' %}?scope=team&month={{ filter_month }}&year={{ filter_year }}"
-                   class="btn btn-hm text-white fw-bold btn-sm">
+                   class="btn btn-hm text-white fw-bold btn-sm"
+                   data-loading-message="Đang mở giao KPI…">
                     <i class="bi bi-file-earmark-excel-fill me-1"></i>Giao KPI
                 </a>
                 {% endif %}
@@ -158,7 +165,8 @@
                         <td class="fw-bold">{% if tk.display_total is not None %}{{ tk.display_total }}{% else %}—{% endif %}</td>
                         <td><span class="jp-kpi-badge jp-kpi-badge--{{ tk.display_result_code }}">{{ tk.display_result }}</span></td>
                         <td class="pe-4 text-end">
-                            <a href="{% url 'kpi_detail' tk.id %}" class="btn btn-sm btn-outline-hm fw-bold">Mở</a>
+                            <a href="{% url 'kpi_detail' tk.id %}" class="btn btn-sm btn-outline-hm fw-bold"
+                               data-loading-message="Đang tải bảng đánh giá KPI…">Mở</a>
                         </td>
                     </tr>
                     {% empty %}

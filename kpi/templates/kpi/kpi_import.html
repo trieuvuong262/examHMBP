@@ -6,10 +6,13 @@
 {% endblock %}
 
 {% block content %}
-<div class="container jp-page jp-kpi-page py-3 py-md-4 px-3 mb-5" style="max-width: 720px;">
+<div class="container jp-page jp-kpi-page py-3 py-md-4 px-3 mb-5" style="max-width: 720px;"
+     data-loading-message="Đang mở trang giao KPI…">
     <div class="jp-page-header mb-3 mb-md-4">
         <div class="jp-page-header-main">
-            <a href="{% url 'kpi_list' %}?month={{ default_month }}&year={{ default_year }}" class="text-decoration-none small text-muted fw-semibold d-inline-block mb-1">
+            <a href="{% url 'kpi_list' %}?month={{ default_month }}&year={{ default_year }}"
+               class="text-decoration-none small text-muted fw-semibold d-inline-block mb-1"
+               data-loading-message="Đang tải danh sách KPI…">
                 <i class="bi bi-arrow-left"></i> Quay lại
             </a>
             <h2 class="jp-page-title fw-bold text-dark mb-1">
@@ -32,7 +35,8 @@
                 </a>
             </div>
 
-            <form method="post" enctype="multipart/form-data" class="row g-3">
+            <form method="post" enctype="multipart/form-data" class="row g-3"
+                  data-loading-message="{% if edit_board %}Đang cập nhật KPI…{% else %}Đang import KPI…{% endif %}">
                 {% csrf_token %}
                 <input type="hidden" name="scope" value="{{ scope }}">
                 {% if edit_board %}<input type="hidden" name="edit_id" value="{{ edit_board.id }}">{% endif %}

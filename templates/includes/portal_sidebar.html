@@ -188,7 +188,8 @@
                 {% if jp_can_kpi_boards %}
                 <li>
                     <a href="{% url 'kpi_list' %}"
-                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'kpi_list' or request.resolver_match.url_name == 'kpi_detail' or request.resolver_match.url_name == 'kpi_import_excel' or request.resolver_match.url_name == 'download_kpi_sample_excel' or request.resolver_match.url_name == 'kpi_summary' %}active{% endif %}">
+                       class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'kpi_list' or request.resolver_match.url_name == 'kpi_detail' or request.resolver_match.url_name == 'kpi_import_excel' or request.resolver_match.url_name == 'download_kpi_sample_excel' or request.resolver_match.url_name == 'kpi_summary' %}active{% endif %}"
+                       data-loading-message="Đang tải danh sách KPI…">
                         <i class="bi bi-graph-up-arrow"></i><span>KPI</span>
                     </a>
                 </li>

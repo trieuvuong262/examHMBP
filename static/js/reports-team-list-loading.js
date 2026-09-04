@@ -1,5 +1,5 @@
 /**
- * Popup loading — danh sách VP/SX, Nhân sự, sửa NV, reset MK.
+ * Popup loading — danh sách VP/SX, Nhân sự, sửa NV, reset MK, KPI.
  */
 (function () {
     'use strict';
@@ -43,8 +43,14 @@
         return /^\/dashboard\/users\/edit\/\d+\/?$/.test(url.pathname);
     }
 
+    function isKpiUrl(url) {
+        var path = url.pathname || '';
+        if (path.indexOf('/kpi/import-excel/sample') === 0) return false;
+        return path === '/kpi' || path.indexOf('/kpi/') === 0;
+    }
+
     function isNavListUrl(url) {
-        return isTeamListUrl(url) || isHrmListUrl(url);
+        return isTeamListUrl(url) || isHrmListUrl(url) || isKpiUrl(url);
     }
 
     function clearPending() {
@@ -109,12 +115,24 @@
         show(msg);
     }
 
+    function messageForKpiUrl(url, explicit) {
+        if (explicit) return explicit;
+        var path = url.pathname || '';
+        if (/\/kpi\/detail\//.test(path)) return 'Đang tải bảng đánh giá KPI…';
+        if (/\/kpi\/import-excel/.test(path)) return 'Đang mở trang giao KPI…';
+        if (/\/kpi\/tong-ket/.test(path)) return 'Đang tải tổng kết KPI…';
+        return 'Đang tải danh sách KPI…';
+    }
+
     function messageForLink(link, url) {
         if (link.hasAttribute('data-jp-team-list-nav')) {
             return link.getAttribute('data-loading-message') || 'Đang tải danh sách...';
         }
         if (isHrmUserEditUrl(url)) {
             return 'Đang tải thông tin nhân viên...';
+        }
+        if (isKpiUrl(url)) {
+            return messageForKpiUrl(url, link.getAttribute('data-loading-message'));
         }
         if (isNavListUrl(url)) {
             if (isHrmListUrl(url)) {
@@ -149,6 +167,15 @@
             if (!msg) return;
             markNavigating(msg);
         }, true);
+
+        document.addEventListener('submit', function (e) {
+            var form = e.target;
+            if (!form || form.tagName !== 'FORM') return;
+            if (form.getAttribute('data-skip-loading') === '1') return;
+            if (!(form.closest && form.closest('.jp-kpi-page'))) return;
+            var msg = form.getAttribute('data-loading-message') || 'Đang xử lý KPI…';
+            markNavigating(msg);
+        }, true);
     }
 
     function finishAfterPaint() {
@@ -158,7 +185,9 @@
     }
 
     function bootListPage() {
-        var page = document.querySelector('.jp-team-list-page, .jp-hrm-list-page, .jp-user-form-page');
+        var page = document.querySelector(
+            '.jp-team-list-page, .jp-hrm-list-page, .jp-user-form-page, .jp-kpi-page',
+        );
         if (!page) {
             if (pendingMessage()) {
                 hide(true);

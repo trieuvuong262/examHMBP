@@ -6,7 +6,8 @@
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid jp-page jp-kpi-page jp-hrm-page py-3 py-md-4 px-2 px-md-4 mb-5">
+<div class="container-fluid jp-page jp-kpi-page jp-hrm-page py-3 py-md-4 px-2 px-md-4 mb-5"
+     data-loading-message="Đang tải tổng kết KPI…">
     <div class="jp-page-header mb-3 mb-md-4">
         <div class="jp-page-header-main">
             <h2 class="jp-page-title fw-bold text-dark mb-1">Tổng kết KPI</h2>
@@ -16,7 +17,7 @@
 
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-body py-3">
-            <form method="get" class="row g-2 g-md-3 align-items-end">
+            <form method="get" class="row g-2 g-md-3 align-items-end" data-loading-message="Đang lọc tổng kết KPI…">
                 <div class="col-6 col-md-2">
                     <label class="form-label small fw-bold text-muted mb-1">Tháng</label>
                     <select name="month" class="form-select">
@@ -128,7 +129,8 @@
                             {% if board.has_mgr %}<span class="text-success">QL ✓</span>{% else %}QL —{% endif %}
                         </td>
                         <td class="pe-4 text-end">
-                            <a href="{% url 'kpi_detail' board.id %}" class="btn btn-sm btn-outline-hm fw-bold">Mở</a>
+                            <a href="{% url 'kpi_detail' board.id %}" class="btn btn-sm btn-outline-hm fw-bold"
+                               data-loading-message="Đang tải bảng đánh giá KPI…">Mở</a>
                         </td>
                     </tr>
                     {% empty %}
