@@ -14,8 +14,16 @@
   var saveTimer = null;
 
   function num(v) {
-    if (v === null || v === undefined || String(v).trim() === '') return null;
-    var n = Number(v);
+    if (v === null || v === undefined) return null;
+    var s = String(v).trim();
+    if (!s) return null;
+    // Locale vi: "5,0" → 5.0
+    if (s.indexOf(',') >= 0 && s.indexOf('.') < 0) {
+      s = s.replace(',', '.');
+    } else {
+      s = s.replace(/,/g, '');
+    }
+    var n = Number(s);
     return Number.isFinite(n) ? n : null;
   }
 
@@ -49,11 +57,24 @@
     return null;
   }
 
+  function rowWeight(row) {
+    var w = num(row.getAttribute('data-weight'));
+    if (w !== null) return w;
+    var cell = row.querySelector('[data-kpi-weight]');
+    if (cell) {
+      w = num(cell.getAttribute('data-kpi-weight'));
+      if (w !== null) return w;
+      w = num(cell.textContent);
+      if (w !== null) return w;
+    }
+    return 0;
+  }
+
   function recalc() {
     var total = 0;
     var has = false;
     table.querySelectorAll('tbody tr[data-weight]').forEach(function (row) {
-      var weight = num(row.getAttribute('data-weight')) || 0;
+      var weight = rowWeight(row);
       var selfEl = row.querySelector('[data-kpi-self-score]');
       var mgrEl = row.querySelector('[data-kpi-mgr-score]');
       var selfScore = selfEl ? num(selfEl.value) : null;

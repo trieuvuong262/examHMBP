@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static kpi_extras %}
+{% load static kpi_extras l10n %}
 
 {% block extra_head %}
 <link rel="stylesheet" href="{% static 'css/kpi-monthly.css' %}?v=20260904m">
@@ -82,12 +82,12 @@
                 </thead>
                 <tbody>
                     {% for item in items %}
-                    <tr data-weight="{{ item.weightage }}">
+                    <tr data-weight="{{ item.weightage|unlocalize }}">
                         <td class="jp-kpi-col-stt fw-semibold">{{ item.sort_order }}</td>
                         {% if item.group_rowspan %}
                         <td class="jp-kpi-group" rowspan="{{ item.group_rowspan }}">{{ item.work_group|default:"—" }}</td>
                         {% endif %}
-                        <td class="jp-kpi-col-weight fw-bold" data-kpi-weight>{{ item.weightage }}</td>
+                        <td class="jp-kpi-col-weight fw-bold" data-kpi-weight="{{ item.weightage|unlocalize }}">{{ item.weightage }}</td>
                         <td class="jp-kpi-indicator">{{ item.indicator }}</td>
                         <td class="jp-kpi-level">{{ item.level_fail }}</td>
                         <td class="jp-kpi-level">{{ item.level_pass }}</td>
@@ -118,12 +118,12 @@
                                    name="item_{{ item.id }}_self_score"
                                    class="form-control"
                                    data-kpi-self-score
-                                   value="{% if item.self_score is not None %}{{ item.self_score }}{% endif %}">
+                                   value="{% if item.self_score is not None %}{{ item.self_score|unlocalize }}{% endif %}">
                             </div>
                             {% else %}
                             <div class="jp-kpi-score-box">
                             <span class="jp-kpi-score-readonly">{% if item.self_score is not None %}{{ item.self_score }}{% else %}—{% endif %}</span>
-                            <input type="hidden" data-kpi-self-score value="{% if item.self_score is not None %}{{ item.self_score }}{% endif %}">
+                            <input type="hidden" data-kpi-self-score value="{% if item.self_score is not None %}{{ item.self_score|unlocalize }}{% endif %}">
                             </div>
                             {% endif %}
                         </td>
@@ -153,12 +153,12 @@
                                    name="item_{{ item.id }}_mgr_score"
                                    class="form-control"
                                    data-kpi-mgr-score
-                                   value="{% if item.mgr_score is not None %}{{ item.mgr_score }}{% endif %}">
+                                   value="{% if item.mgr_score is not None %}{{ item.mgr_score|unlocalize }}{% endif %}">
                             </div>
                             {% else %}
                             <div class="jp-kpi-score-box">
                             <span class="jp-kpi-score-readonly">{% if item.mgr_score is not None %}{{ item.mgr_score }}{% else %}—{% endif %}</span>
-                            <input type="hidden" data-kpi-mgr-score value="{% if item.mgr_score is not None %}{{ item.mgr_score }}{% endif %}">
+                            <input type="hidden" data-kpi-mgr-score value="{% if item.mgr_score is not None %}{{ item.mgr_score|unlocalize }}{% endif %}">
                             </div>
                             {% endif %}
                         </td>
@@ -195,7 +195,7 @@
 
 <script src="{% static 'js/kpi-actual-rich.js' %}?v=20260904d"></script>
 {% if can_edit_self or can_edit_manager %}
-<script src="{% static 'js/kpi-detail.js' %}?v=20260904a"></script>
+<script src="{% static 'js/kpi-detail.js' %}?v=20260904b"></script>
 {% else %}
 <script>
 (function () {
