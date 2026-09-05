@@ -75,8 +75,13 @@
                 <ul class="dropdown-menu dropdown-menu-end shadow border-0 jp-topbar-download-menu">
                     {% if jp_can_nas_installer %}
                     <li>
-                        <a class="dropdown-item" href="{% url 'documents:nas_download_setup' %}">
-                            <i class="bi bi-file-earmark-zip me-2"></i>Tải công cụ IT (.zip)
+                        <a class="dropdown-item" href="{% url 'documents:nas_download_setup' %}?os=win">
+                            <i class="bi bi-windows me-2"></i>Tải công cụ IT Windows (.zip)
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item" href="{% url 'documents:nas_download_setup' %}?os=linux">
+                            <i class="bi bi-ubuntu me-2"></i>Tải công cụ IT Ubuntu (.deb)
                         </a>
                     </li>
                     {% endif %}
@@ -173,8 +178,13 @@
                 <li><h6 class="dropdown-header">Tải bộ cài</h6></li>
                 {% if jp_can_nas_installer %}
                 <li>
-                    <a class="dropdown-item" href="{% url 'documents:nas_download_setup' %}">
-                        <i class="bi bi-file-earmark-zip me-2" aria-hidden="true"></i>Tải công cụ IT (.zip)
+                    <a class="dropdown-item" href="{% url 'documents:nas_download_setup' %}?os=win">
+                        <i class="bi bi-windows me-2" aria-hidden="true"></i>Tải công cụ IT Windows (.zip)
+                    </a>
+                </li>
+                <li>
+                    <a class="dropdown-item" href="{% url 'documents:nas_download_setup' %}?os=linux">
+                        <i class="bi bi-ubuntu me-2" aria-hidden="true"></i>Tải công cụ IT Ubuntu (.deb)
                     </a>
                 </li>
                 {% endif %}

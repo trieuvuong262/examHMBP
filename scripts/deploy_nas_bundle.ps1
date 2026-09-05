@@ -24,6 +24,7 @@ $files = @(
     'scripts/Mo-Ket-Noi-NAS.ps1',
     'scripts/Chay-Ket-Noi-NAS.bat',
     'scripts/KET-NOI-NAS.bat',
+    'scripts/JustPlay-Cong-Cu-IT-Ubuntu.sh',
     'scripts/JustPlay-RustDesk-Setup.ps1',
     'scripts/JustPlay-RustDesk-Setup.sh',
     'scripts/JustPlay-RaiDrive-Setup.sh',
@@ -32,6 +33,7 @@ $files = @(
     'scripts/JustPlay-NAS-Launcher.cs',
     'scripts/vps_test_nas_library.py',
     'nas_storage/views_nas_download.py',
+    'nas_storage/ubuntu_deb_packager.py',
     'nas_storage/templates/nas_storage/nas_download.html',
     'templates/includes/portal_header.html'
 )

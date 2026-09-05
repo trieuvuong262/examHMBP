@@ -211,14 +211,64 @@ install_rustdesk() {
     echo 'LOI: File .deb rong.' >&2
     exit 1
   fi
-  echo '[2/5] Cai dat (apt install -fy — Ubuntu 26.04)...'
-  # Khuyen nghi Ubuntu 26.04: apt install -fy giai quyet phu thuoc tot hon dpkg -i don le
+  echo '[2/5] Cai dat / cai de (apt install -fy)...'
+  # Sau clear_rustdesk_leftovers goi da bi go — cai lai .deb (force overwrite neu sot file)
   if ! apt-get install -y -f "$deb"; then
-    echo '      Thu lai: dpkg -i + apt-get -f...'
-    dpkg -i "$deb" || true
+    echo '      Thu lai: dpkg -i --force-overwrite + apt-get -f...'
+    dpkg -i --force-overwrite "$deb" || true
     apt-get install -f -y
   fi
   rm -f "$deb"
+}
+
+# Giong Windows Clear-RustDeskLeftovers: dung service + go goi cu truoc khi cai de
+clear_rustdesk_leftovers() {
+  echo '      Don dep RustDesk cu (neu co)...'
+  stop_rustdesk
+  if systemctl list-unit-files 'rustdesk.service' &>/dev/null 2>&1; then
+    systemctl stop rustdesk 2>/dev/null || true
+    systemctl disable rustdesk 2>/dev/null || true
+  fi
+  # Go goi .deb cu (giu config de giu ID neu duoc; purge neu can sach)
+  if dpkg -l rustdesk 2>/dev/null | grep -qE '^ii|^hi'; then
+    echo '      Go goi rustdesk cu (remove, giu config)...'
+    apt-get remove -y rustdesk >/dev/null 2>&1 || dpkg --remove rustdesk >/dev/null 2>&1 || true
+  fi
+  # Xoa binary/portable le neu con sot
+  for leftover in /usr/bin/rustdesk /usr/share/rustdesk; do
+    if [[ -e "$leftover" ]] && ! dpkg -S "$leftover" &>/dev/null; then
+      rm -rf "$leftover" 2>/dev/null || true
+    fi
+  done
+}
+
+# Luon cai de neu da co — dong bo Ensure-RustDeskInstalled (Windows)
+ensure_rustdesk_installed() {
+  local existing
+  existing="$(find_rustdesk_bin)"
+  if [[ -n "$existing" ]]; then
+    echo "      RustDesk da co: $existing — se cai de + dang ky lai Portal"
+    clear_rustdesk_leftovers
+  else
+    echo '      Chua co RustDesk — cai moi'
+  fi
+  install_rustdesk
+  existing="$(find_rustdesk_bin)"
+  if [[ -z "$existing" ]]; then
+    echo 'LOI: Khong tim thay rustdesk sau khi cai de.' >&2
+    exit 1
+  fi
+  echo "      Su dung: $existing"
+  # Cai / khoi dong service (giong Install-RustDeskService Windows)
+  if [[ -x "$existing" ]]; then
+    "$existing" --install-service 2>/dev/null || true
+  fi
+  if systemctl list-unit-files 'rustdesk.service' &>/dev/null 2>&1; then
+    systemctl enable rustdesk 2>/dev/null || true
+    systemctl restart rustdesk 2>/dev/null || systemctl start rustdesk 2>/dev/null || true
+    sleep 3
+    echo "      systemd: $(systemctl is-active rustdesk 2>/dev/null || echo unknown)"
+  fi
 }
 
 write_server_config() {
@@ -402,11 +452,13 @@ EOF
 
 register_portal() {
   local rd_id="$1"
-  local hostname ip payload http_code
+  local hostname ip mac payload http_code
   hostname="$(hostname -s 2>/dev/null || hostname)"
   ip="$(get_primary_lan_ip 2>/dev/null || true)"
   mac="$(get_primary_mac 2>/dev/null || true)"
-  echo '[5/5] Dang ky len Portal...'
+  echo '[5/5] Dang ky len Portal (giong Windows Register-PortalHost)...'
+  echo "      POST ${PORTAL_URL%/}/nhat-ky/rustdesk/api/dang-ky/"
+  echo "      ID=$rd_id hostname=$hostname ip=${ip:-?} mac=${mac:-?}"
   payload="$(
     export JP_ENROLL="$ENROLL_SECRET"
     export JP_RD_ID="$rd_id"
@@ -443,7 +495,7 @@ PY
   )"
   http_code="$(curl -sS -o /tmp/justplay-rustdesk-enroll.json -w '%{http_code}' -X POST \
     -H 'Content-Type: application/json; charset=utf-8' \
-    -H 'User-Agent: JustPlay-RustDesk-Setup-Ubuntu/1.0' \
+    -H 'User-Agent: JustPlay-RustDesk-Setup-Ubuntu/1.1' \
     -d "$payload" \
     "${PORTAL_URL%/}/nhat-ky/rustdesk/api/dang-ky/")"
   if [[ "$http_code" != '200' ]]; then
@@ -454,25 +506,30 @@ PY
     fi
     return 1
   fi
+  # Kiem tra status=success (giong Windows)
+  if command -v python3 >/dev/null 2>&1; then
+    if ! python3 -c "import json; d=json.load(open('/tmp/justplay-rustdesk-enroll.json')); raise SystemExit(0 if d.get('status')=='success' else 1)"; then
+      echo '      LOI: Portal khong tra status=success' >&2
+      cat /tmp/justplay-rustdesk-enroll.json >&2
+      return 1
+    fi
+  fi
+  echo '      Dang ky Portal: success'
   cat /tmp/justplay-rustdesk-enroll.json
+  echo
 }
 
 check_ubuntu_26
 ensure_apt_tools
 
+# Luon cai de neu da co + dang ky Portal (khong bo qua khi da cai san)
+ensure_rustdesk_installed
 BIN="$(find_rustdesk_bin)"
-if [[ -z "$BIN" ]]; then
-  install_rustdesk
-  BIN="$(find_rustdesk_bin)"
-else
-  echo "      RustDesk da co: $BIN — cap nhat cau hinh JustPlay"
-fi
 if [[ -z "$BIN" ]]; then
   echo 'Khong tim thay rustdesk sau khi cai.' >&2
   read -r -p 'Nhan Enter de thoat...' _ || true
   exit 1
 fi
-echo "      Su dung: $BIN"
 
 stop_rustdesk
 write_server_config
@@ -510,7 +567,7 @@ ensure_autostart "$BIN"
 
 echo ''
 echo '========================================'
-echo ' THANH CONG (Ubuntu)'
+echo ' THANH CONG (Ubuntu) — cai de + dang ky Portal'
 echo " RustDesk ID: $RD_ID"
 echo " Portal: $RESP"
 echo ' IT co the ket noi tai Quan tri -> RustDesk'

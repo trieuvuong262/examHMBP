@@ -160,7 +160,9 @@ def nas_download_page(request):
         **menu_perm_context(request.user, MODULE_DOCUMENTS, 'nas_download'),
         **rd_ctx,
         'bundle': bundle,
-        'has_it_tools': bundle.get('has_rustdesk') or bundle.get('has_equipment_scan'),
+        'has_it_tools': bundle.get('has_rustdesk') or bundle.get('has_equipment_scan') or bundle.get('has_raidrive'),
+        'windows_zip_url': reverse('documents:nas_download_setup') + '?os=win',
+        'ubuntu_deb_url': reverse('documents:nas_download_setup') + '?os=linux',
         'raidrive_linux_url': request.build_absolute_uri(
             reverse('documents:raidrive_download') + '?os=linux'
         ),
@@ -304,9 +306,18 @@ def _personalize_ps1(body: str, bundle: dict) -> str:
 @login_required
 @require_GET
 def nas_download_setup(request):
+    """Tải bộ cài: ?os=win → ZIP/.exe ; ?os=linux → .deb Ubuntu."""
     if not user_can_nas_download(request.user):
         return _download_forbidden(request)
 
+    platform = (request.GET.get('os') or 'win').lower()
+    if platform in ('linux', 'ubuntu', 'deb'):
+        return _nas_download_ubuntu_deb(request)
+    return _nas_download_windows_zip(request)
+
+
+def _nas_download_windows_zip(request):
+    """ZIP Windows: EXE launcher + script .ps1 (không gồm Ubuntu)."""
     base = Path(settings.BASE_DIR) / 'scripts'
     exe_path = base / 'Ket-Noi-NAS-JustPlay.exe'
     mo_ps1_path = base / 'Mo-Ket-Noi-NAS.ps1'
@@ -319,7 +330,7 @@ def nas_download_setup(request):
         or not ket_noi_bat_path.is_file()
     ):
         return HttpResponse(
-            'Không tìm thấy launcher Công cụ IT trên server.',
+            'Không tìm thấy launcher Windows trên server.',
             status=404,
             content_type='text/plain; charset=utf-8',
         )
@@ -327,29 +338,27 @@ def nas_download_setup(request):
     cfg = nas_download_config()
     bundle = nas_user_bundle_config(request, request.user, cfg)
     rustdesk_ps1 = _build_rustdesk_ps1(request.user)
-    rustdesk_ubuntu_sh = _build_rustdesk_ubuntu_sh(request.user)
     equipment_ps1 = _build_equipment_scan_ps1(request.user)
-    equipment_ubuntu_sh = _build_equipment_scan_ubuntu_sh(request.user)
-    raidrive_ubuntu_sh = _build_raidrive_ubuntu_sh()
-    if (
-        not rustdesk_ps1
-        and not rustdesk_ubuntu_sh
-        and not equipment_ps1
-        and not equipment_ubuntu_sh
-        and not raidrive_ubuntu_sh
-    ):
+    if not rustdesk_ps1 and not equipment_ps1 and not bundle.get('raidrive_download_url'):
         return HttpResponse(
-            'Chưa cấu hình RustDesk / quét thiết bị / RaiDrive trên Portal. Liên hệ IT.',
+            'Chưa cấu hình công cụ Windows trên Portal. Liên hệ IT.',
             status=404,
             content_type='text/plain; charset=utf-8',
         )
+
+    # Bundle Windows-only flags
+    win_bundle = {
+        **bundle,
+        'bundle_kind': 'it_tools_windows',
+        'platform': 'windows',
+    }
 
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as archive:
         archive.writestr('Ket-Noi-NAS-JustPlay.exe', exe_path.read_bytes())
         archive.writestr(
             'JustPlay-NAS-Config.json',
-            json.dumps(bundle, ensure_ascii=False, indent=2).encode('utf-8'),
+            json.dumps(win_bundle, ensure_ascii=False, indent=2).encode('utf-8'),
         )
         archive.writestr(
             'Mo-Ket-Noi-NAS.ps1',
@@ -365,15 +374,51 @@ def nas_download_setup(request):
         )
         if rustdesk_ps1:
             archive.writestr('JustPlay-RustDesk-Setup.ps1', rustdesk_ps1)
-        if rustdesk_ubuntu_sh:
-            archive.writestr('JustPlay-RustDesk-Setup.sh', rustdesk_ubuntu_sh)
         if equipment_ps1:
             archive.writestr('JustPlay-Equipment-Scan.ps1', equipment_ps1)
-        if equipment_ubuntu_sh:
-            archive.writestr('JustPlay-Equipment-Scan.sh', equipment_ubuntu_sh)
-        if raidrive_ubuntu_sh:
-            archive.writestr('JustPlay-RaiDrive-Setup.sh', raidrive_ubuntu_sh)
 
     response = HttpResponse(buf.getvalue(), content_type='application/zip')
-    response['Content-Disposition'] = 'attachment; filename="JustPlay-Cong-Cu-IT.zip"'
+    response['Content-Disposition'] = 'attachment; filename="JustPlay-Cong-Cu-IT-Windows.zip"'
+    return response
+
+
+def _nas_download_ubuntu_deb(request):
+    """Gói .deb Ubuntu: menu + script .sh (không gồm Windows EXE)."""
+    from nas_storage.ubuntu_deb_packager import build_ubuntu_it_deb, deb_filename, read_launcher_template
+
+    cfg = nas_download_config()
+    bundle = nas_user_bundle_config(request, request.user, cfg)
+    rustdesk_sh = _build_rustdesk_ubuntu_sh(request.user)
+    equipment_sh = _build_equipment_scan_ubuntu_sh(request.user)
+    raidrive_sh = _build_raidrive_ubuntu_sh()
+    if not rustdesk_sh and not equipment_sh and not raidrive_sh:
+        return HttpResponse(
+            'Chưa cấu hình công cụ Ubuntu trên Portal. Liên hệ IT.',
+            status=404,
+            content_type='text/plain; charset=utf-8',
+        )
+
+    ubuntu_bundle = {
+        **bundle,
+        'bundle_kind': 'it_tools_ubuntu',
+        'platform': 'ubuntu',
+    }
+    try:
+        launcher = read_launcher_template(Path(settings.BASE_DIR))
+    except FileNotFoundError:
+        return HttpResponse(
+            'Thiếu JustPlay-Cong-Cu-IT-Ubuntu.sh trên server.',
+            status=404,
+            content_type='text/plain; charset=utf-8',
+        )
+
+    deb_bytes = build_ubuntu_it_deb(
+        rustdesk_sh=rustdesk_sh,
+        equipment_sh=equipment_sh,
+        raidrive_sh=raidrive_sh,
+        launcher_sh=launcher,
+        config_json=json.dumps(ubuntu_bundle, ensure_ascii=False, indent=2).encode('utf-8'),
+    )
+    response = HttpResponse(deb_bytes, content_type='application/vnd.debian.binary-package')
+    response['Content-Disposition'] = f'attachment; filename="{deb_filename()}"'
     return response

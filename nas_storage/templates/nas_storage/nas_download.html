@@ -4,27 +4,46 @@
 <div class="container jp-page py-3 py-md-4 mb-5">
     <div class="jp-page-header mb-4">
         <h2 class="fw-bold text-hm mb-0">Tải bộ cài</h2>
-        <p class="text-muted mb-0 mt-2">Công cụ IT: RustDesk, cấu hình máy, RaiDrive (Windows / Ubuntu)</p>
+        <p class="text-muted mb-0 mt-2">Công cụ IT tách riêng: Windows (.exe / .zip) và Ubuntu (.deb)</p>
     </div>
 
     {% if not has_it_tools %}
     <div class="alert alert-warning border-0 shadow-sm mb-4">
-        Chưa cấu hình RustDesk / quét thiết bị trên Portal. Liên hệ IT.
+        Chưa cấu hình RustDesk / quét thiết bị / RaiDrive trên Portal. Liên hệ IT.
     </div>
     {% endif %}
 
-    <div class="card border-0 shadow-sm mb-4">
-        <div class="card-body p-4 p-md-5">
-            <div class="d-flex flex-column flex-lg-row align-items-stretch align-items-lg-center justify-content-between gap-4">
-                <div class="small text-muted">
-                    <p class="mb-2">Giải nén ZIP, chạy <code>Chay-Ket-Noi-NAS.bat</code> (Windows).</p>
-                    <p class="mb-0">Trong cửa sổ: RustDesk · <strong>Thêm Cấu hình (Windows / Ubuntu)</strong> · RaiDrive.</p>
-                </div>
-                <div class="d-flex flex-column flex-sm-row flex-wrap gap-2 flex-shrink-0">
+    <div class="row g-4">
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body p-4">
+                    <h3 class="h5 fw-bold mb-2"><i class="bi bi-windows me-2"></i>Windows</h3>
+                    <p class="small text-muted mb-3">
+                        Tải ZIP → giải nén → chạy <code>Chay-Ket-Noi-NAS.bat</code>.
+                        Cửa sổ EXE: <strong>Cài RustDesk</strong>, <strong>Thêm Cấu hình</strong>, <strong>Cài RaiDrive</strong>.
+                    </p>
                     {% if has_it_tools %}
-                    <a href="{% url 'documents:nas_download_setup' %}"
-                       class="btn btn-hm btn-lg rounded-pill px-4 fw-bold">
-                        <i class="bi bi-download me-2"></i>Tải bộ cài (.zip)
+                    <a href="{{ windows_zip_url }}"
+                       class="btn btn-hm rounded-pill px-4 fw-bold">
+                        <i class="bi bi-download me-2"></i>Tải Windows (.zip / .exe)
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body p-4">
+                    <h3 class="h5 fw-bold mb-2"><i class="bi bi-ubuntu me-2"></i>Ubuntu</h3>
+                    <p class="small text-muted mb-3">
+                        Tải gói <code>.deb</code> → cài:
+                        <code>sudo apt install -fy ./justplay-cong-cu-it_*.deb</code>
+                        rồi mở <strong>JustPlay Công cụ IT</strong> (menu: RustDesk · Cấu hình · RaiDrive).
+                    </p>
+                    {% if has_it_tools %}
+                    <a href="{{ ubuntu_deb_url }}"
+                       class="btn btn-outline-hm rounded-pill px-4 fw-bold">
+                        <i class="bi bi-box-seam me-2"></i>Tải Ubuntu (.deb)
                     </a>
                     {% endif %}
                 </div>
@@ -32,28 +51,20 @@
         </div>
     </div>
 
-    <div class="card border-0 shadow-sm">
+    {% if raidrive_share_url %}
+    <div class="card border-0 shadow-sm mt-4">
         <div class="card-body p-4">
-            <h3 class="h6 fw-bold text-muted mb-3">RaiDrive</h3>
-            <div class="d-flex flex-column flex-sm-row flex-wrap gap-2">
-                {% if raidrive_share_url %}
-                <a href="{{ raidrive_share_url }}"
-                   class="btn btn-outline-hm rounded-pill px-4 fw-semibold"
-                   title="{% if raidrive_file_name %}{{ raidrive_file_name }}{% else %}RaiDrive Windows{% endif %}">
-                    <i class="bi bi-windows me-2"></i>Cài RaiDrive (Windows)
+            <h3 class="h6 fw-bold text-muted mb-3">RaiDrive installer riêng (tuỳ chọn)</h3>
+            <div class="d-flex flex-wrap gap-2">
+                <a href="{{ raidrive_share_url }}" class="btn btn-outline-secondary btn-sm rounded-pill px-3">
+                    <i class="bi bi-windows me-1"></i>RaiDrive .exe
                 </a>
-                {% endif %}
-                <a href="{{ raidrive_linux_url }}"
-                   class="btn btn-outline-secondary rounded-pill px-4 fw-semibold">
-                    <i class="bi bi-ubuntu me-2"></i>Cài RaiDrive (Ubuntu)
+                <a href="{{ raidrive_linux_url }}" class="btn btn-outline-secondary btn-sm rounded-pill px-3">
+                    <i class="bi bi-ubuntu me-1"></i>RaiDrive script .sh
                 </a>
             </div>
-            <p class="small text-muted mb-0 mt-3">
-                Windows: tải file cài .exe từ Portal.
-                Ubuntu: script <code>JustPlay-RaiDrive-Setup.sh</code> (RaiDrive CLI) — chạy
-                <code>chmod +x … &amp;&amp; sudo ./JustPlay-RaiDrive-Setup.sh</code>.
-            </p>
         </div>
     </div>
+    {% endif %}
 </div>
 {% endblock %}

@@ -1,4 +1,4 @@
-# Gỡ chặn Windows và mở JustPlay Công cụ IT (EXE)
+# Gỡ chặn Windows và mở JustPlay Công cụ IT (EXE — chỉ Windows)
 # Chạy: double-click Chay-Ket-Noi-NAS.bat
 
 $ErrorActionPreference = 'Stop'
@@ -42,11 +42,10 @@ Clear-BundleMotw -Dir $dir
 
 $exe = Join-Path $dir 'Ket-Noi-NAS-JustPlay.exe'
 $hasRustdesk = Test-Path -LiteralPath (Join-Path $dir 'JustPlay-RustDesk-Setup.ps1')
-$hasRustdeskUbuntu = Test-Path -LiteralPath (Join-Path $dir 'JustPlay-RustDesk-Setup.sh')
 $hasEquipment = Test-Path -LiteralPath (Join-Path $dir 'JustPlay-Equipment-Scan.ps1')
 
-if (-not $hasRustdesk -and -not $hasRustdeskUbuntu -and -not $hasEquipment) {
-    Write-Host 'Thieu script Cong cu IT trong ZIP. Tai lai tu Portal.' -ForegroundColor Red
+if (-not $hasRustdesk -and -not $hasEquipment) {
+    Write-Host 'Thieu script Windows trong ZIP. Tai lai JustPlay-Cong-Cu-IT-Windows.zip tu Portal.' -ForegroundColor Red
     Read-Host 'Nhan Enter de dong'
     exit 1
 }
@@ -60,15 +59,8 @@ if (Test-Path -LiteralPath $exe) {
     }
 }
 
-Write-Host 'Khong mo duoc Ket-Noi-NAS-JustPlay.exe. Giai nen day du ZIP hoac chay script .ps1 bang quyen Administrator.' -ForegroundColor Red
-if ($hasRustdesk) {
-    Write-Host '  - JustPlay-RustDesk-Setup.ps1 (Windows)'
-}
-if ($hasRustdeskUbuntu) {
-    Write-Host '  - JustPlay-RustDesk-Setup.sh (Ubuntu 26.04)'
-}
-if ($hasEquipment) {
-    Write-Host '  - JustPlay-Equipment-Scan.ps1'
-}
+Write-Host 'Khong mo duoc Ket-Noi-NAS-JustPlay.exe.' -ForegroundColor Red
+if ($hasRustdesk) { Write-Host '  - JustPlay-RustDesk-Setup.ps1' }
+if ($hasEquipment) { Write-Host '  - JustPlay-Equipment-Scan.ps1' }
 Read-Host 'Nhan Enter de dong'
 exit 1

@@ -9,55 +9,38 @@ using System.Windows.Forms;
 namespace JustPlay.NasLauncher
 {
     /// <summary>
-    /// Launcher Công cụ IT: RustDesk, Thêm cấu hình, RaiDrive (Win/Ubuntu).
+    /// Launcher Công cụ IT — chỉ Windows (.exe). Ubuntu dùng gói .deb riêng.
     /// </summary>
     internal sealed class NasMainForm : Form
     {
         private readonly string _sourceDir;
-        private readonly bool _hasRustdeskWin;
-        private readonly bool _hasRustdeskUbuntu;
-        private readonly bool _hasEquipmentWin;
-        private readonly bool _hasEquipmentUbuntu;
-        private readonly bool _hasRaidriveWin;
-        private readonly bool _hasRaidriveUbuntu;
-        private readonly string _raidriveWinUrl;
-        private readonly string _raidriveLinuxPage;
+        private readonly bool _hasRustdesk;
+        private readonly bool _hasEquipment;
+        private readonly bool _hasRaidrive;
+        private readonly string _raidriveUrl;
 
         private Label _lblStatus;
-        private Button _btnRustdeskWin;
-        private Button _btnRustdeskUbuntu;
-        private Button _btnEquipmentWin;
-        private Button _btnEquipmentUbuntu;
-        private Button _btnRaidriveWin;
-        private Button _btnRaidriveUbuntu;
+        private Button _btnRustdesk;
+        private Button _btnEquipment;
+        private Button _btnRaidrive;
 
         internal NasMainForm(
             string sourceDir,
             string userHint,
-            bool hasRustdeskWin,
-            bool hasRustdeskUbuntu,
-            bool hasEquipmentWin,
-            bool hasEquipmentUbuntu,
-            bool hasRaidriveWin,
-            bool hasRaidriveUbuntu,
-            string raidriveWinUrl,
-            string raidriveLinuxPage)
+            bool hasRustdesk,
+            bool hasEquipment,
+            bool hasRaidrive,
+            string raidriveUrl)
         {
             _sourceDir = sourceDir;
-            _hasRustdeskWin = hasRustdeskWin;
-            _hasRustdeskUbuntu = hasRustdeskUbuntu;
-            _hasEquipmentWin = hasEquipmentWin;
-            _hasEquipmentUbuntu = hasEquipmentUbuntu;
-            _hasRaidriveWin = hasRaidriveWin;
-            _hasRaidriveUbuntu = hasRaidriveUbuntu;
-            _raidriveWinUrl = raidriveWinUrl ?? "";
-            _raidriveLinuxPage = string.IsNullOrEmpty(raidriveLinuxPage)
-                ? "https://www.raidrive.com/download/linux"
-                : raidriveLinuxPage;
+            _hasRustdesk = hasRustdesk;
+            _hasEquipment = hasEquipment;
+            _hasRaidrive = hasRaidrive;
+            _raidriveUrl = raidriveUrl ?? "";
 
-            Text = "JustPlay Công cụ IT";
+            Text = "JustPlay Công cụ IT (Windows)";
             Font = new Font("Segoe UI", 10F);
-            ClientSize = new Size(460, 460);
+            ClientSize = new Size(460, 340);
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;
             MinimizeBox = false;
@@ -74,7 +57,7 @@ namespace JustPlay.NasLauncher
 
             var lblTitle = new Label
             {
-                Text = "Công cụ IT JustPlay",
+                Text = "Công cụ IT — Windows",
                 Font = new Font("Segoe UI", 16F, FontStyle.Bold),
                 ForeColor = Color.White,
                 AutoSize = true,
@@ -83,7 +66,7 @@ namespace JustPlay.NasLauncher
             header.Controls.Add(lblTitle);
 
             var subText = string.IsNullOrEmpty(userHint)
-                ? "RustDesk · Cấu hình máy · RaiDrive"
+                ? "RustDesk · Cấu hình máy · RaiDrive (.exe)"
                 : "Tài khoản: " + userHint;
             var lblSub = new Label
             {
@@ -99,68 +82,44 @@ namespace JustPlay.NasLauncher
             var card = new Panel
             {
                 Location = new Point(24, 104),
-                Size = new Size(412, 276),
+                Size = new Size(412, 168),
                 BackColor = Color.White,
                 BorderStyle = BorderStyle.FixedSingle,
             };
             Controls.Add(card);
 
-            card.Controls.Add(MakeLabel("Công cụ IT", 20, 12));
+            card.Controls.Add(MakeLabel("Cài đặt Windows", 20, 14));
 
-            _btnRustdeskWin = MakeActionButton("Cài RustDesk (Windows)", Color.FromArgb(37, 99, 235), 20, 38, 180);
-            _btnRustdeskUbuntu = MakeActionButton("Cài RustDesk (Ubuntu)", Color.FromArgb(233, 84, 32), 212, 38, 180);
-            // Chỉ đổi tên nút Windows — vẫn chạy JustPlay-Equipment-Scan.ps1 như cũ
-            _btnEquipmentWin = MakeActionButton("Thêm Cấu hình (Windows)", Color.FromArgb(5, 150, 105), 20, 90, 180);
-            _btnEquipmentUbuntu = MakeActionButton("Thêm Cấu hình (Ubuntu)", Color.FromArgb(16, 185, 129), 212, 90, 180);
-            _btnRaidriveWin = MakeActionButton("Cài RaiDrive (Windows)", Color.FromArgb(79, 70, 229), 20, 142, 180);
-            _btnRaidriveUbuntu = MakeActionButton("Cài RaiDrive (Ubuntu)", Color.FromArgb(124, 58, 237), 212, 142, 180);
+            _btnRustdesk = MakeActionButton("Cài RustDesk", Color.FromArgb(37, 99, 235), 20, 42, 372);
+            _btnEquipment = MakeActionButton("Thêm Cấu hình", Color.FromArgb(5, 150, 105), 20, 90, 372);
+            _btnRaidrive = MakeActionButton("Cài RaiDrive", Color.FromArgb(79, 70, 229), 20, 138, 372);
 
-            _btnRustdeskWin.Enabled = _hasRustdeskWin;
-            _btnRustdeskUbuntu.Enabled = _hasRustdeskUbuntu;
-            _btnEquipmentWin.Enabled = _hasEquipmentWin;
-            _btnEquipmentUbuntu.Enabled = _hasEquipmentUbuntu;
-            _btnRaidriveWin.Enabled = _hasRaidriveWin;
-            _btnRaidriveUbuntu.Enabled = _hasRaidriveUbuntu;
+            _btnRustdesk.Enabled = _hasRustdesk;
+            _btnEquipment.Enabled = _hasEquipment;
+            _btnRaidrive.Enabled = _hasRaidrive;
 
-            _btnRustdeskWin.Click += async (s, e) => await RunCompanionScriptAsync(
+            _btnRustdesk.Click += async (s, e) => await RunCompanionScriptAsync(
                 "JustPlay-RustDesk-Setup.ps1",
                 "RustDesk-Setup",
-                "Đang cài RustDesk (Windows)...",
-                "Hoàn tất RustDesk Windows. Kiểm tra máy trong menu RustDesk trên Portal.");
-            _btnRustdeskUbuntu.Click += (s, e) => ShowUbuntuRustDeskHelp();
-            _btnEquipmentWin.Click += async (s, e) => await RunCompanionScriptAsync(
+                "Đang cài RustDesk...",
+                "Hoàn tất RustDesk. Kiểm tra máy trong menu RustDesk trên Portal.");
+            _btnEquipment.Click += async (s, e) => await RunCompanionScriptAsync(
                 "JustPlay-Equipment-Scan.ps1",
                 "Equipment-Scan",
-                "Đang quét cấu hình máy (Windows)...",
+                "Đang quét cấu hình máy...",
                 "Hoàn tất. Kiểm tra thiết bị trong Quản lý thiết bị IT trên Portal.");
-            _btnEquipmentUbuntu.Click += (s, e) => ShowUbuntuEquipmentHelp();
-            _btnRaidriveWin.Click += (s, e) => OpenRaidriveWindows();
-            _btnRaidriveUbuntu.Click += (s, e) => ShowUbuntuRaidriveHelp();
+            _btnRaidrive.Click += (s, e) => OpenRaidrive();
 
-            card.Controls.Add(_btnRustdeskWin);
-            card.Controls.Add(_btnRustdeskUbuntu);
-            card.Controls.Add(_btnEquipmentWin);
-            card.Controls.Add(_btnEquipmentUbuntu);
-            card.Controls.Add(_btnRaidriveWin);
-            card.Controls.Add(_btnRaidriveUbuntu);
-
-            var lblRdHint = new Label
-            {
-                Text = "Ubuntu: copy file .sh sang máy → chmod +x → chạy (sudo nếu cần).",
-                Font = new Font("Segoe UI", 8F),
-                ForeColor = Color.FromArgb(100, 116, 139),
-                AutoSize = false,
-                Size = new Size(372, 36),
-                Location = new Point(20, 196),
-            };
-            card.Controls.Add(lblRdHint);
+            card.Controls.Add(_btnRustdesk);
+            card.Controls.Add(_btnEquipment);
+            card.Controls.Add(_btnRaidrive);
 
             _lblStatus = new Label
             {
                 Text = ReadyStatusText(),
                 AutoSize = false,
-                Size = new Size(412, 40),
-                Location = new Point(24, 396),
+                Size = new Size(412, 36),
+                Location = new Point(24, 288),
                 ForeColor = Color.FromArgb(100, 116, 139),
             };
             Controls.Add(_lblStatus);
@@ -168,20 +127,20 @@ namespace JustPlay.NasLauncher
 
         private string ReadyStatusText()
         {
-            if (!_hasRustdeskWin && !_hasRustdeskUbuntu && !_hasEquipmentWin && !_hasEquipmentUbuntu && !_hasRaidriveWin && !_hasRaidriveUbuntu)
+            if (!_hasRustdesk && !_hasEquipment && !_hasRaidrive)
             {
-                return "Thiếu script IT trong ZIP. Tải lại từ Portal.";
+                return "Thiếu script Windows trong ZIP. Tải lại từ Portal.";
             }
-            return "Sẵn sàng.";
+            return "Sẵn sàng (Windows). Ubuntu: tải gói .deb riêng trên Portal.";
         }
 
-        private void OpenRaidriveWindows()
+        private void OpenRaidrive()
         {
-            if (string.IsNullOrWhiteSpace(_raidriveWinUrl))
+            if (string.IsNullOrWhiteSpace(_raidriveUrl))
             {
                 MessageBox.Show(
                     this,
-                    "Chưa có URL tải RaiDrive Windows trên Portal.\nLiên hệ IT hoặc mở trang Tải bộ cài.",
+                    "Chưa có URL tải RaiDrive trên Portal.\nLiên hệ IT.",
                     Text,
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Warning);
@@ -191,86 +150,15 @@ namespace JustPlay.NasLauncher
             {
                 Process.Start(new ProcessStartInfo
                 {
-                    FileName = _raidriveWinUrl,
+                    FileName = _raidriveUrl,
                     UseShellExecute = true,
                 });
-                _lblStatus.Text = "Đã mở tải RaiDrive (Windows) trên trình duyệt.";
+                _lblStatus.Text = "Đã mở tải RaiDrive (.exe) trên trình duyệt.";
             }
             catch (Exception ex)
             {
                 MessageBox.Show(this, ex.Message, Text, MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
-        }
-
-        private void ShowUbuntuRustDeskHelp()
-        {
-            ShowUbuntuScriptHelp(
-                "JustPlay-RustDesk-Setup.sh",
-                "Cài RustDesk (Ubuntu)",
-                "Cài RustDesk trên Ubuntu 26.04.1 LTS\n\n" +
-                "1) Copy file JustPlay-RustDesk-Setup.sh sang máy Ubuntu\n" +
-                "2) Chạy:\n\n" +
-                "   chmod +x JustPlay-RustDesk-Setup.sh\n" +
-                "   sudo ./JustPlay-RustDesk-Setup.sh");
-        }
-
-        private void ShowUbuntuEquipmentHelp()
-        {
-            ShowUbuntuScriptHelp(
-                "JustPlay-Equipment-Scan.sh",
-                "Thêm Cấu hình (Ubuntu)",
-                "Quét cấu hình máy Ubuntu → gửi lên Portal\n" +
-                "(cùng mục đích với Thêm Cấu hình Windows)\n\n" +
-                "1) Copy JustPlay-Equipment-Scan.sh sang máy Ubuntu\n" +
-                "2) Chạy (không bắt buộc sudo):\n\n" +
-                "   chmod +x JustPlay-Equipment-Scan.sh\n" +
-                "   ./JustPlay-Equipment-Scan.sh\n\n" +
-                "Script đọc MAC/IP/hostname rồi đăng ký thiết bị IT trên Portal.");
-        }
-
-        private void ShowUbuntuRaidriveHelp()
-        {
-            var shName = "JustPlay-RaiDrive-Setup.sh";
-            var shPath = Path.Combine(_sourceDir, shName);
-            if (File.Exists(shPath))
-            {
-                try { Process.Start("explorer.exe", "/select,\"" + shPath + "\""); } catch { }
-            }
-            try
-            {
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = _raidriveLinuxPage,
-                    UseShellExecute = true,
-                });
-            }
-            catch
-            {
-            }
-
-            var msg =
-                "Cài RaiDrive CLI trên Ubuntu 26.04\n\n" +
-                "Cách 1 — script JustPlay:\n" +
-                "   chmod +x JustPlay-RaiDrive-Setup.sh\n" +
-                "   sudo ./JustPlay-RaiDrive-Setup.sh\n\n" +
-                "Cách 2 — trang chính thức (đã mở trình duyệt):\n" +
-                "   " + _raidriveLinuxPage + "\n" +
-                "   Tải .deb → sudo apt install -fy ./raidrive-*.deb";
-            MessageBox.Show(this, msg, "Cài RaiDrive (Ubuntu)", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            _lblStatus.Text = "Đã mở hướng dẫn RaiDrive Ubuntu.";
-        }
-
-        private void ShowUbuntuScriptHelp(string shName, string title, string body)
-        {
-            var shPath = Path.Combine(_sourceDir, shName);
-            if (!File.Exists(shPath))
-            {
-                MessageBox.Show(this, "Thiếu file " + shName + ".\nTải lại ZIP từ Portal.", Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-            try { Process.Start("explorer.exe", "/select,\"" + shPath + "\""); } catch { }
-            MessageBox.Show(this, body + "\n\nFile đã được chọn trong Explorer.", title, MessageBoxButtons.OK, MessageBoxIcon.Information);
-            _lblStatus.Text = "Đã mở hướng dẫn " + title + ".";
         }
 
         private static Label MakeLabel(string text, int x, int y)
@@ -305,12 +193,9 @@ namespace JustPlay.NasLauncher
 
         private void SetBusy(bool busy, string status)
         {
-            _btnRustdeskWin.Enabled = !busy && _hasRustdeskWin;
-            _btnRustdeskUbuntu.Enabled = !busy && _hasRustdeskUbuntu;
-            _btnEquipmentWin.Enabled = !busy && _hasEquipmentWin;
-            _btnEquipmentUbuntu.Enabled = !busy && _hasEquipmentUbuntu;
-            _btnRaidriveWin.Enabled = !busy && _hasRaidriveWin;
-            _btnRaidriveUbuntu.Enabled = !busy && _hasRaidriveUbuntu;
+            _btnRustdesk.Enabled = !busy && _hasRustdesk;
+            _btnEquipment.Enabled = !busy && _hasEquipment;
+            _btnRaidrive.Enabled = !busy && _hasRaidrive;
             _lblStatus.Text = status;
             Cursor = busy ? Cursors.WaitCursor : Cursors.Default;
             Application.DoEvents();
@@ -321,7 +206,7 @@ namespace JustPlay.NasLauncher
             var sourcePs1 = Path.Combine(_sourceDir, fileName);
             if (!File.Exists(sourcePs1))
             {
-                MessageBox.Show(this, "Thiếu file " + fileName + ".\nTải lại ZIP từ Portal.", Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show(this, "Thiếu file " + fileName + ".\nTải lại ZIP Windows từ Portal.", Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
@@ -337,13 +222,13 @@ namespace JustPlay.NasLauncher
                 else
                 {
                     var hint = fileName.IndexOf("RustDesk", StringComparison.OrdinalIgnoreCase) >= 0
-                        ? "Cần chấp nhận UAC (quyền Administrator).\n\n• Bấm Có khi Windows hỏi\n• Nếu đã bấm Không: chạy lại «Cài RustDesk (Windows)»"
-                        : "Tải lại ZIP từ Portal hoặc chạy script bằng quyền Administrator.";
+                        ? "Cần chấp nhận UAC (Administrator).\nBấm Có khi Windows hỏi."
+                        : "Chạy lại với quyền Administrator.";
                     if (code == 1223)
                     {
-                        hint = "Đã hủy UAC. Chạy lại và bấm Có khi Windows hỏi.";
+                        hint = "Đã hủy UAC. Chạy lại và bấm Có.";
                     }
-                    MessageBox.Show(this, "Thao tác thất bại (mã lỗi " + code + ").\n\n" + hint, Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    MessageBox.Show(this, "Thao tác thất bại (mã " + code + ").\n\n" + hint, Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     _lblStatus.Text = "Thao tác thất bại.";
                 }
             }
@@ -420,30 +305,16 @@ namespace JustPlay.NasLauncher
                 UnblockDirectory(sourceDir);
 
                 string userHint;
-                bool hasRustdeskWin;
-                bool hasRustdeskUbuntu;
-                bool hasEquipmentWin;
-                bool hasEquipmentUbuntu;
-                bool hasRaidriveWin;
-                bool hasRaidriveUbuntu;
-                string raidriveWinUrl;
-                string raidriveLinuxPage;
-                ReadBundleMeta(
-                    sourceDir,
-                    out userHint,
-                    out hasRustdeskWin,
-                    out hasRustdeskUbuntu,
-                    out hasEquipmentWin,
-                    out hasEquipmentUbuntu,
-                    out hasRaidriveWin,
-                    out hasRaidriveUbuntu,
-                    out raidriveWinUrl,
-                    out raidriveLinuxPage);
+                bool hasRustdesk;
+                bool hasEquipment;
+                bool hasRaidrive;
+                string raidriveUrl;
+                ReadBundleMeta(sourceDir, out userHint, out hasRustdesk, out hasEquipment, out hasRaidrive, out raidriveUrl);
 
-                if (!hasRustdeskWin && !hasRustdeskUbuntu && !hasEquipmentWin && !hasEquipmentUbuntu && !hasRaidriveWin && !hasRaidriveUbuntu)
+                if (!hasRustdesk && !hasEquipment && !hasRaidrive)
                 {
                     MessageBox.Show(
-                        "Thiếu script Công cụ IT trong thư mục cài đặt.\nTải lại ZIP từ Portal và giải nén đủ file.",
+                        "Thiếu script Windows trong thư mục cài đặt.\nTải ZIP Windows từ Portal.",
                         "JustPlay Công cụ IT",
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Error);
@@ -453,14 +324,10 @@ namespace JustPlay.NasLauncher
                 Application.Run(new NasMainForm(
                     sourceDir,
                     userHint,
-                    hasRustdeskWin,
-                    hasRustdeskUbuntu,
-                    hasEquipmentWin,
-                    hasEquipmentUbuntu,
-                    hasRaidriveWin,
-                    hasRaidriveUbuntu,
-                    raidriveWinUrl,
-                    raidriveLinuxPage));
+                    hasRustdesk,
+                    hasEquipment,
+                    hasRaidrive,
+                    raidriveUrl));
                 return 0;
             }
             catch (Exception ex)
@@ -473,24 +340,16 @@ namespace JustPlay.NasLauncher
         private static void ReadBundleMeta(
             string sourceDir,
             out string userHint,
-            out bool hasRustdeskWin,
-            out bool hasRustdeskUbuntu,
-            out bool hasEquipmentWin,
-            out bool hasEquipmentUbuntu,
-            out bool hasRaidriveWin,
-            out bool hasRaidriveUbuntu,
-            out string raidriveWinUrl,
-            out string raidriveLinuxPage)
+            out bool hasRustdesk,
+            out bool hasEquipment,
+            out bool hasRaidrive,
+            out string raidriveUrl)
         {
             userHint = "";
-            raidriveWinUrl = "";
-            raidriveLinuxPage = "https://www.raidrive.com/download/linux";
-            hasRustdeskWin = File.Exists(Path.Combine(sourceDir, "JustPlay-RustDesk-Setup.ps1"));
-            hasRustdeskUbuntu = File.Exists(Path.Combine(sourceDir, "JustPlay-RustDesk-Setup.sh"));
-            hasEquipmentWin = File.Exists(Path.Combine(sourceDir, "JustPlay-Equipment-Scan.ps1"));
-            hasEquipmentUbuntu = File.Exists(Path.Combine(sourceDir, "JustPlay-Equipment-Scan.sh"));
-            hasRaidriveUbuntu = File.Exists(Path.Combine(sourceDir, "JustPlay-RaiDrive-Setup.sh"));
-            hasRaidriveWin = false;
+            raidriveUrl = "";
+            hasRustdesk = File.Exists(Path.Combine(sourceDir, "JustPlay-RustDesk-Setup.ps1"));
+            hasEquipment = File.Exists(Path.Combine(sourceDir, "JustPlay-Equipment-Scan.ps1"));
+            hasRaidrive = false;
 
             var cfgPath = Path.Combine(sourceDir, "JustPlay-NAS-Config.json");
             if (!File.Exists(cfgPath))
@@ -504,34 +363,18 @@ namespace JustPlay.NasLauncher
             var rd = Regex.Match(json, "\"has_rustdesk\"\\s*:\\s*(true|false)");
             if (rd.Success)
             {
-                var flag = rd.Groups[1].Value == "true";
-                hasRustdeskWin = flag && hasRustdeskWin;
-                hasRustdeskUbuntu = flag && hasRustdeskUbuntu;
+                hasRustdesk = rd.Groups[1].Value == "true" && hasRustdesk;
             }
             var eq = Regex.Match(json, "\"has_equipment_scan\"\\s*:\\s*(true|false)");
             if (eq.Success)
             {
-                var flag = eq.Groups[1].Value == "true";
-                hasEquipmentWin = flag && hasEquipmentWin;
-                hasEquipmentUbuntu = flag && hasEquipmentUbuntu;
+                hasEquipment = eq.Groups[1].Value == "true" && hasEquipment;
             }
-
             var url = Regex.Match(json, "\"raidrive_download_url\"\\s*:\\s*\"([^\"]*)\"");
             if (url.Success)
             {
-                raidriveWinUrl = url.Groups[1].Value.Replace("\\/", "/");
-                hasRaidriveWin = !string.IsNullOrWhiteSpace(raidriveWinUrl);
-            }
-            var page = Regex.Match(json, "\"raidrive_linux_page\"\\s*:\\s*\"([^\"]*)\"");
-            if (page.Success && !string.IsNullOrWhiteSpace(page.Groups[1].Value))
-            {
-                raidriveLinuxPage = page.Groups[1].Value.Replace("\\/", "/");
-            }
-            var hasRd = Regex.Match(json, "\"has_raidrive\"\\s*:\\s*(true|false)");
-            if (hasRd.Success && hasRd.Groups[1].Value == "false")
-            {
-                hasRaidriveWin = false;
-                hasRaidriveUbuntu = false;
+                raidriveUrl = url.Groups[1].Value.Replace("\\/", "/");
+                hasRaidrive = !string.IsNullOrWhiteSpace(raidriveUrl);
             }
         }
 
