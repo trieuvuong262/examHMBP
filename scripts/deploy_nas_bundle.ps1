@@ -1,4 +1,4 @@
-# Deploy nhanh goi NAS (EXE + PS1 + views) len VPS khi SSH hoat dong.
+# Deploy nhanh goi Cong cu IT (EXE + scripts + views) len VPS khi SSH hoat dong.
 # Chay: powershell -ExecutionPolicy Bypass -File scripts/deploy_nas_bundle.ps1
 $ErrorActionPreference = 'Stop'
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -21,17 +21,17 @@ if (Test-Path $envFile) {
 
 $files = @(
     'scripts/Ket-Noi-NAS-JustPlay.exe',
-    'scripts/JustPlay-NAS-RaiDrive-Setup.ps1',
-    'scripts/Prepare-JustPlay-WebClient.ps1',
     'scripts/Mo-Ket-Noi-NAS.ps1',
     'scripts/Chay-Ket-Noi-NAS.bat',
     'scripts/KET-NOI-NAS.bat',
     'scripts/JustPlay-RustDesk-Setup.ps1',
+    'scripts/JustPlay-RustDesk-Setup.sh',
     'scripts/JustPlay-Equipment-Scan.ps1',
     'scripts/JustPlay-NAS-Launcher.cs',
     'scripts/vps_test_nas_library.py',
     'nas_storage/views_nas_download.py',
-    'nas_storage/templates/nas_storage/nas_download.html'
+    'nas_storage/templates/nas_storage/nas_download.html',
+    'templates/includes/portal_header.html'
 )
 
 foreach ($rel in $files) {
@@ -41,8 +41,8 @@ foreach ($rel in $files) {
     }
 }
 
-Write-Host "==> Validate NAS PS1 local"
-& powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Root 'test_nas_ps1_validate.ps1')
+Write-Host "==> Build launcher EXE"
+& powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Root 'build_nas_launcher.ps1')
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 Write-Host "==> SSH ${user}@${host_}:${port} -> git pull + copy into web container + restart"
@@ -66,4 +66,4 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host ""
-Write-Host "OK: NAS bundle tren VPS. Tai ZIP: https://portal.justplay.vn/thu-muc-nas/cai-dat/tai/"
+Write-Host "OK: Cong cu IT tren VPS. Tai ZIP: https://portal.justplay.vn/tai-lieu/tai-nas/"

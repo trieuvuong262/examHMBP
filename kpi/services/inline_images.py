@@ -74,14 +74,32 @@ def can_view_kpi_inline_image(viewer, rel: str) -> bool:
         return False
     if viewer.is_superuser or user_is_director(viewer) or ROLE_DIRECTOR in effective_roles(viewer):
         return True
-    from hrm.permissions import is_global_report_viewer
+    from hrm.permissions import get_direct_manager_users, is_global_report_viewer
     if is_global_report_viewer(viewer):
         return True
+
+    # Không xem ảnh trong KPI của cấp trên
+    from hrm.models import Profile, ProfileConcurrentPosition
+    superior_ids = {m.pk for m in get_direct_manager_users(viewer)}
+    superior_ids.update(
+        Profile.objects.filter(
+            subordinates=viewer, is_employed=True, user__is_active=True,
+        ).values_list('user_id', flat=True)
+    )
+    superior_ids.update(
+        ProfileConcurrentPosition.objects.filter(
+            is_active=True,
+            subordinates=viewer,
+            profile__is_employed=True,
+            profile__user__is_active=True,
+        ).values_list('profile__user_id', flat=True)
+    )
+    if owner.pk in superior_ids:
+        return False
+
     if effective_roles(viewer) & SUBORDINATE_MANAGER_ROLES:
         return get_report_team_users(viewer).filter(pk=owner.pk).exists()
-    from kpi.models import MonthlyKpi
-    return MonthlyKpi.objects.filter(employee=owner, direct_manager=viewer).exists()
-
+    return False
 
 def sanitize_actual_html(raw: str | None) -> str:
     """Chuẩn hoá nội dung ô Đánh giá thực tế (text thuần hoặc HTML có ảnh)."""

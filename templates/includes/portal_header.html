@@ -73,20 +73,10 @@
                     <i class="bi bi-download" aria-hidden="true"></i>
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end shadow border-0 jp-topbar-download-menu">
-                    {% if raidrive_share_url %}
-                    <li>
-                        <a class="dropdown-item" href="{{ raidrive_share_url }}">
-                            <i class="bi bi-hdd-network me-2"></i>Tải RaiDrive
-                            {% if raidrive_file_name %}
-                            <span class="d-block small text-muted ms-4">{{ raidrive_file_name }}</span>
-                            {% endif %}
-                        </a>
-                    </li>
-                    {% endif %}
                     {% if jp_can_nas_installer %}
                     <li>
                         <a class="dropdown-item" href="{% url 'documents:nas_download_setup' %}">
-                            <i class="bi bi-file-earmark-zip me-2"></i>Tải bộ cài NAS (.zip)
+                            <i class="bi bi-file-earmark-zip me-2"></i>Tải công cụ IT (.zip)
                         </a>
                     </li>
                     {% endif %}
@@ -181,17 +171,10 @@
                 {% if jp_can_documents %}
                 <li><hr class="dropdown-divider"></li>
                 <li><h6 class="dropdown-header">Tải bộ cài</h6></li>
-                {% if raidrive_share_url %}
-                <li>
-                    <a class="dropdown-item" href="{{ raidrive_share_url }}">
-                        <i class="bi bi-hdd-network me-2" aria-hidden="true"></i>Tải RaiDrive
-                    </a>
-                </li>
-                {% endif %}
                 {% if jp_can_nas_installer %}
                 <li>
                     <a class="dropdown-item" href="{% url 'documents:nas_download_setup' %}">
-                        <i class="bi bi-file-earmark-zip me-2" aria-hidden="true"></i>Tải bộ cài NAS (.zip)
+                        <i class="bi bi-file-earmark-zip me-2" aria-hidden="true"></i>Tải công cụ IT (.zip)
                     </a>
                 </li>
                 {% endif %}

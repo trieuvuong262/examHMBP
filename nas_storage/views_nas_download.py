@@ -1,10 +1,9 @@
-"""Trang NAS — tải bộ cài kết nối WebDAV (Windows)."""
+"""Trang Tải bộ cài — Công cụ IT (RustDesk + quét thiết bị). Không đóng gói kết nối NAS."""
 
 from __future__ import annotations
 
 import io
 import json
-import re
 import zipfile
 from pathlib import Path
 
@@ -13,7 +12,6 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
 from django.shortcuts import redirect, render
-from django.urls import reverse
 from django.views.decorators.http import require_GET
 
 from audit.services.rustdesk_enroll import downloader_script_fields as rustdesk_downloader_fields
@@ -72,10 +70,7 @@ def _dept_webdav_share_for_user(user) -> str | None:
 
 
 def _order_shares_for_webdav_mount(shares: list[str], user) -> list[str]:
-    """
-    Gắn share phòng ban lên Z: trước (vd. KD-MKT → 05_MARKETING, SX → 07_SAN_XUAT).
-    Tránh user map share chung lên Z: rồi lỗi unavailable.
-    """
+    """Giữ helper cũ cho code/test gọi lại (ZIP hiện không mount NAS)."""
     if not shares:
         return []
     dept_share = _dept_webdav_share_for_user(user)
@@ -91,7 +86,7 @@ def _raidrive_installer_context(request) -> dict:
 @login_required
 @require_GET
 def nas_raidrive_download(request):
-    """Tải installer RaiDrive — quyền Thư viện, không cần menu NAS."""
+    """Tải installer RaiDrive — giữ route cũ; trang chính không còn nhấn mạnh NAS."""
     if not user_can_nas_download(request.user):
         return _download_forbidden(request)
 
@@ -128,18 +123,12 @@ def nas_raidrive_download(request):
 def nas_download_page(request):
     if not user_can_nas_download(request.user):
         return _download_forbidden(request)
-    cfg = nas_download_config()
-    shares = nas_shares_for_user(request.user)
-    drive_preview = [
-        {'letter': chr(ord('Z') - i), 'share': name}
-        for i, name in enumerate(shares)
-    ]
+    bundle = nas_user_bundle_config(request, request.user, nas_download_config())
     return render(request, 'nas_storage/nas_download.html', {
         **menu_perm_context(request.user, MODULE_DOCUMENTS, 'nas_download'),
         **_raidrive_installer_context(request),
-        'config': cfg,
-        'user_shares': shares,
-        'drive_preview': drive_preview,
+        'bundle': bundle,
+        'has_it_tools': bundle.get('has_rustdesk') or bundle.get('has_equipment_scan'),
     })
 
 
@@ -154,38 +143,30 @@ def _prepare_bat(body: str) -> bytes:
     return body.replace('\r\n', '\n').replace('\n', '\r\n').encode('utf-8')
 
 
-def _nas_script_version() -> str:
-    ps1 = Path(settings.BASE_DIR) / 'scripts' / 'JustPlay-NAS-RaiDrive-Setup.ps1'
-    if not ps1.is_file():
-        return ''
-    match = re.search(r"\$NasScriptVersion = '([^']+)'", ps1.read_text(encoding='utf-8-sig'))
-    return match.group(1) if match else ''
-
-
 def nas_user_bundle_config(request, user, cfg: dict) -> dict:
     portal_base = request.build_absolute_uri('/').rstrip('/')
-    shares = _order_shares_for_webdav_mount(nas_shares_for_user(user), user)
-    primary = shares[0] if shares else ''
     rustdesk_cfg = {**rustdesk_script_config(), **rustdesk_downloader_fields(user)}
     equipment_cfg = {**equipment_script_config(), **equipment_downloader_fields(user)}
     return {
-        'bundle_version': 4,
-        'script_version': _nas_script_version(),
-        'server': cfg['server'],
-        'webdav_port': cfg['webdav_port'],
-        'smb_port': cfg.get('smb_port', 445),
-        'port': cfg['webdav_port'],
-        'fallback_server': cfg.get('fallback_server', ''),
-        'ldap_domain': cfg['ldap_domain'],
+        'bundle_version': 5,
+        'bundle_kind': 'it_tools',
         'portal_password_url': f'{portal_base}/accounts/password/change/',
         'portal_username': user.username,
-        'shares': shares,
-        'primary_share': primary,
-        'webdav_share_aliases': dict(WEBDAV_SHARE_ALIASES),
         'dept_folder_code': user_department_folder_code(user) or '',
-        'drive_letter': 'Z',
         'has_rustdesk': bool(rustdesk_cfg.get('enroll_secret') and rustdesk_cfg.get('public_key')),
         'has_equipment_scan': bool(equipment_cfg.get('scan_secret')),
+        # Giữ khóa cũ (rỗng) để client cũ đọc JSON không lỗi
+        'server': cfg.get('server', ''),
+        'webdav_port': cfg.get('webdav_port', 5678),
+        'smb_port': cfg.get('smb_port', 445),
+        'port': cfg.get('webdav_port', 5678),
+        'fallback_server': cfg.get('fallback_server', ''),
+        'ldap_domain': cfg.get('ldap_domain', ''),
+        'shares': [],
+        'primary_share': '',
+        'webdav_share_aliases': dict(WEBDAV_SHARE_ALIASES),
+        'drive_letter': 'Z',
+        'script_version': '',
     }
 
 
@@ -200,6 +181,25 @@ def _build_rustdesk_ps1(user) -> bytes | None:
     return _prepare_ps1(body)
 
 
+def _build_rustdesk_ubuntu_sh(user) -> bytes | None:
+    """Script cài Ubuntu 26.04 — token bash; không đụng file Windows .ps1."""
+    cfg = {**rustdesk_script_config(), **rustdesk_downloader_fields(user)}
+    if not cfg.get('enroll_secret') or not cfg.get('public_key'):
+        return None
+    sh_path = Path(settings.BASE_DIR) / 'scripts' / 'JustPlay-RustDesk-Setup.sh'
+    if not sh_path.is_file():
+        return None
+    body = apply_rustdesk_script_tokens(
+        sh_path.read_text(encoding='utf-8'),
+        cfg,
+        bash=True,
+    )
+    body = body.replace('\r\n', '\n')
+    if not body.endswith('\n'):
+        body += '\n'
+    return body.encode('utf-8')
+
+
 def _build_equipment_scan_ps1(user) -> bytes | None:
     cfg = {**equipment_script_config(), **equipment_downloader_fields(user)}
     if not cfg.get('scan_secret'):
@@ -212,19 +212,20 @@ def _build_equipment_scan_ps1(user) -> bytes | None:
 
 
 def _personalize_ps1(body: str, bundle: dict) -> str:
+    """Giữ API cũ cho test/import; ZIP IT tools không dùng nữa."""
     replacements = {
-        '__NAS_SERVER__': str(bundle['server']),
-        '__NAS_PORT__': str(bundle['webdav_port']),
-        '__NAS_WEBDAV_PORT__': str(bundle['webdav_port']),
+        '__NAS_SERVER__': str(bundle.get('server', '')),
+        '__NAS_PORT__': str(bundle.get('webdav_port', '')),
+        '__NAS_WEBDAV_PORT__': str(bundle.get('webdav_port', '')),
         '__NAS_SMB_PORT__': str(bundle.get('smb_port', 445)),
         '__NAS_FALLBACK_SERVER__': str(bundle.get('fallback_server', '')),
-        '__NAS_LDAP_DOMAIN__': str(bundle['ldap_domain']),
-        '__PORTAL_PASSWORD_URL__': str(bundle['portal_password_url']),
-        '__PORTAL_USERNAME__': str(bundle['portal_username']),
-        '__NAS_SHARES__': ','.join(bundle['shares']),
-        '__NAS_PRIMARY_SHARE__': str(bundle.get('primary_share', '') or (bundle['shares'][0] if bundle['shares'] else '')),
-        '__NAS_DEPT_CODE__': str(bundle['dept_folder_code']),
-        '__NAS_DRIVE_LETTER__': str(bundle['drive_letter']),
+        '__NAS_LDAP_DOMAIN__': str(bundle.get('ldap_domain', '')),
+        '__PORTAL_PASSWORD_URL__': str(bundle.get('portal_password_url', '')),
+        '__PORTAL_USERNAME__': str(bundle.get('portal_username', '')),
+        '__NAS_SHARES__': ','.join(bundle.get('shares') or []),
+        '__NAS_PRIMARY_SHARE__': str(bundle.get('primary_share', '')),
+        '__NAS_DEPT_CODE__': str(bundle.get('dept_folder_code', '')),
+        '__NAS_DRIVE_LETTER__': str(bundle.get('drive_letter', 'Z')),
     }
     for key, value in replacements.items():
         body = body.replace(key, value)
@@ -238,43 +239,37 @@ def nas_download_setup(request):
         return _download_forbidden(request)
 
     base = Path(settings.BASE_DIR) / 'scripts'
-    ps1_path = base / 'JustPlay-NAS-RaiDrive-Setup.ps1'
-    prep_path = base / 'Prepare-JustPlay-WebClient.ps1'
     exe_path = base / 'Ket-Noi-NAS-JustPlay.exe'
     mo_ps1_path = base / 'Mo-Ket-Noi-NAS.ps1'
     mo_bat_path = base / 'Chay-Ket-Noi-NAS.bat'
     ket_noi_bat_path = base / 'KET-NOI-NAS.bat'
     if (
-        not ps1_path.is_file()
-        or not prep_path.is_file()
-        or not exe_path.is_file()
+        not exe_path.is_file()
         or not mo_ps1_path.is_file()
         or not mo_bat_path.is_file()
         or not ket_noi_bat_path.is_file()
     ):
         return HttpResponse(
-            'Không tìm thấy script cài NAS trên server.',
+            'Không tìm thấy launcher Công cụ IT trên server.',
             status=404,
             content_type='text/plain; charset=utf-8',
         )
 
     cfg = nas_download_config()
     bundle = nas_user_bundle_config(request, request.user, cfg)
-    ps1_body = _personalize_ps1(ps1_path.read_text(encoding='utf-8-sig'), bundle)
+    rustdesk_ps1 = _build_rustdesk_ps1(request.user)
+    rustdesk_ubuntu_sh = _build_rustdesk_ubuntu_sh(request.user)
+    equipment_ps1 = _build_equipment_scan_ps1(request.user)
+    if not rustdesk_ps1 and not rustdesk_ubuntu_sh and not equipment_ps1:
+        return HttpResponse(
+            'Chưa cấu hình RustDesk / quét thiết bị trên Portal. Liên hệ IT.',
+            status=404,
+            content_type='text/plain; charset=utf-8',
+        )
+
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as archive:
-        archive.writestr(
-            'Ket-Noi-NAS-JustPlay.exe',
-            exe_path.read_bytes(),
-        )
-        archive.writestr(
-            'JustPlay-NAS-RaiDrive-Setup.ps1',
-            _prepare_ps1(ps1_body),
-        )
-        archive.writestr(
-            'Prepare-JustPlay-WebClient.ps1',
-            _prepare_ps1(prep_path.read_text(encoding='utf-8-sig')),
-        )
+        archive.writestr('Ket-Noi-NAS-JustPlay.exe', exe_path.read_bytes())
         archive.writestr(
             'JustPlay-NAS-Config.json',
             json.dumps(bundle, ensure_ascii=False, indent=2).encode('utf-8'),
@@ -291,13 +286,13 @@ def nas_download_setup(request):
             'KET-NOI-NAS.bat',
             _prepare_bat(ket_noi_bat_path.read_text(encoding='utf-8-sig')),
         )
-        rustdesk_ps1 = _build_rustdesk_ps1(request.user)
         if rustdesk_ps1:
             archive.writestr('JustPlay-RustDesk-Setup.ps1', rustdesk_ps1)
-        equipment_ps1 = _build_equipment_scan_ps1(request.user)
+        if rustdesk_ubuntu_sh:
+            archive.writestr('JustPlay-RustDesk-Setup.sh', rustdesk_ubuntu_sh)
         if equipment_ps1:
             archive.writestr('JustPlay-Equipment-Scan.ps1', equipment_ps1)
 
     response = HttpResponse(buf.getvalue(), content_type='application/zip')
-    response['Content-Disposition'] = 'attachment; filename="JustPlay-NAS-RaiDrive-Setup.zip"'
+    response['Content-Disposition'] = 'attachment; filename="JustPlay-Cong-Cu-IT.zip"'
     return response

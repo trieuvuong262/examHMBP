@@ -1,4 +1,4 @@
-# Gỡ chặn Windows và mở JustPlay NAS (EXE hoặc PowerShell GUI nếu SmartScreen chặn EXE)
+# Gỡ chặn Windows và mở JustPlay Công cụ IT (EXE)
 # Chạy: double-click Chay-Ket-Noi-NAS.bat
 
 $ErrorActionPreference = 'Stop'
@@ -22,49 +22,6 @@ function Clear-BundleMotw {
     }
 }
 
-function Get-NasBundleWorkDir {
-    return Join-Path $env:LOCALAPPDATA 'JustPlay\NAS-Setup'
-}
-
-function Sync-NasBundleToWorkDir {
-    param(
-        [string]$SourceDir,
-        [string]$WorkDir
-    )
-    if (-not (Test-Path -LiteralPath $WorkDir)) {
-        New-Item -ItemType Directory -Path $WorkDir -Force | Out-Null
-    }
-    $names = @(
-        'JustPlay-NAS-RaiDrive-Setup.ps1',
-        'Prepare-JustPlay-WebClient.ps1',
-        'JustPlay-NAS-Config.json',
-        'JustPlay-RustDesk-Setup.ps1',
-        'JustPlay-Equipment-Scan.ps1'
-    )
-    foreach ($name in $names) {
-        $src = Join-Path $SourceDir $name
-        $dst = Join-Path $WorkDir $name
-        if (-not (Test-Path -LiteralPath $src)) {
-            if ($name -eq 'JustPlay-NAS-Config.json') { continue }
-            if ($name -match '^JustPlay-(RustDesk|Equipment)') { continue }
-            throw "Thieu file $name trong thu muc cai dat. Giai nen day du file ZIP."
-        }
-        Copy-Item -LiteralPath $src -Destination $dst -Force
-        Remove-MarkOfTheWeb -Path $dst
-    }
-    Clear-BundleMotw -Dir $WorkDir
-}
-
-function Start-JustPlayNasGui {
-    param([string]$WorkDir)
-    $main = Join-Path $WorkDir 'JustPlay-NAS-RaiDrive-Setup.ps1'
-    if (-not (Test-Path -LiteralPath $main)) {
-        throw 'Thieu JustPlay-NAS-RaiDrive-Setup.ps1'
-    }
-    $argLine = "powershell.exe -STA -NoProfile -ExecutionPolicy Bypass -File `"$main`""
-    Start-Process -FilePath 'explorer.exe' -ArgumentList $argLine | Out-Null
-}
-
 function Start-JustPlayNasExe {
     param(
         [string]$Dir,
@@ -84,7 +41,15 @@ if (-not $dir) {
 Clear-BundleMotw -Dir $dir
 
 $exe = Join-Path $dir 'Ket-Noi-NAS-JustPlay.exe'
-$mainPs1 = Join-Path $dir 'JustPlay-NAS-RaiDrive-Setup.ps1'
+$hasRustdesk = Test-Path -LiteralPath (Join-Path $dir 'JustPlay-RustDesk-Setup.ps1')
+$hasRustdeskUbuntu = Test-Path -LiteralPath (Join-Path $dir 'JustPlay-RustDesk-Setup.sh')
+$hasEquipment = Test-Path -LiteralPath (Join-Path $dir 'JustPlay-Equipment-Scan.ps1')
+
+if (-not $hasRustdesk -and -not $hasRustdeskUbuntu -and -not $hasEquipment) {
+    Write-Host 'Thieu script Cong cu IT trong ZIP. Tai lai tu Portal.' -ForegroundColor Red
+    Read-Host 'Nhan Enter de dong'
+    exit 1
+}
 
 if (Test-Path -LiteralPath $exe) {
     Remove-MarkOfTheWeb -Path $exe
@@ -95,23 +60,15 @@ if (Test-Path -LiteralPath $exe) {
     }
 }
 
-if (-not (Test-Path -LiteralPath $mainPs1)) {
-    Write-Host 'Thieu Ket-Noi-NAS-JustPlay.exe va script NAS. Giai nen day du file ZIP.' -ForegroundColor Red
-    Read-Host 'Nhan Enter de dong'
-    exit 1
+Write-Host 'Khong mo duoc Ket-Noi-NAS-JustPlay.exe. Giai nen day du ZIP hoac chay script .ps1 bang quyen Administrator.' -ForegroundColor Red
+if ($hasRustdesk) {
+    Write-Host '  - JustPlay-RustDesk-Setup.ps1 (Windows)'
 }
-
-try {
-    $workDir = Get-NasBundleWorkDir
-    Sync-NasBundleToWorkDir -SourceDir $dir -WorkDir $workDir
-    $prep = Join-Path $workDir 'Prepare-JustPlay-WebClient.ps1'
-    if (Test-Path -LiteralPath $prep) {
-        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $prep 2>$null | Out-Null
-    }
-    Start-JustPlayNasGui -WorkDir $workDir
-    exit 0
-} catch {
-    Write-Host $_.Exception.Message -ForegroundColor Red
-    Read-Host 'Nhan Enter de dong'
-    exit 1
+if ($hasRustdeskUbuntu) {
+    Write-Host '  - JustPlay-RustDesk-Setup.sh (Ubuntu 26.04)'
 }
+if ($hasEquipment) {
+    Write-Host '  - JustPlay-Equipment-Scan.ps1'
+}
+Read-Host 'Nhan Enter de dong'
+exit 1

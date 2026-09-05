@@ -35,6 +35,7 @@ from hrm.permissions import (
     SUBORDINATE_MANAGER_ROLES,
     can_manage_kpi_for_others,
     format_direct_managers_label,
+    get_direct_manager_users,
     get_profile,
     get_report_team_users,
     is_global_report_viewer,
@@ -69,20 +70,73 @@ _KPI_IMAGE_EXTS = frozenset({'.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'})
 _KPI_IMAGE_MAX_BYTES = 5 * 1024 * 1024
 
 
+def _superior_user_ids(viewer) -> set[int]:
+    """User IDs của cấp trên theo Nhân sự (QL trực tiếp + M2M subordinates ngược)."""
+    if not viewer or not getattr(viewer, 'pk', None):
+        return set()
+    from hrm.models import Profile, ProfileConcurrentPosition
+
+    ids: set[int] = set()
+    for mgr in get_direct_manager_users(viewer):
+        ids.add(mgr.pk)
+    ids.update(
+        Profile.objects.filter(
+            subordinates=viewer,
+            is_employed=True,
+            user__is_active=True,
+        ).values_list('user_id', flat=True)
+    )
+    ids.update(
+        ProfileConcurrentPosition.objects.filter(
+            is_active=True,
+            subordinates=viewer,
+            profile__is_employed=True,
+            profile__user__is_active=True,
+        ).values_list('profile__user_id', flat=True)
+    )
+    ids.discard(viewer.pk)
+    return ids
+
+
+_KPI_ROLE_RANK = {
+    ROLE_EMPLOYEE: 0,
+    ROLE_TEAM_LEADER: 1,
+    ROLE_DIVISION_HEAD: 2,
+    ROLE_DEPARTMENT_HEAD: 3,
+    ROLE_DIRECTOR: 4,
+}
+
+
+def _max_kpi_role_rank(user) -> int:
+    roles = effective_roles(user) if user else set()
+    if not roles:
+        return 0
+    return max(_KPI_ROLE_RANK.get(r, 0) for r in roles)
+
+
+def _is_hr_manager_of(viewer, employee: User) -> bool:
+    """QL thực sự theo Nhân sự (cấp dưới M2M) — không tin field direct_manager trên board."""
+    if not viewer or not employee or viewer.pk == employee.pk:
+        return False
+    if not (effective_roles(viewer) & SUBORDINATE_MANAGER_ROLES):
+        return False
+    return get_report_team_users(viewer).filter(pk=employee.pk).exists()
+
+
 def _kpi_detail_roles(user, kpi_board: MonthlyKpi):
-    is_owner = user == kpi_board.employee
-    is_manager = user == kpi_board.direct_manager
-    if effective_roles(user) & SUBORDINATE_MANAGER_ROLES:
-        is_manager = is_manager or get_report_team_users(user).filter(
-            pk=kpi_board.employee_id,
-        ).exists()
-    can_view = (
-        is_owner
-        or is_manager
-        or user.is_superuser
+    """Quyền xem/chấm: NV chỉ KPI của mình; không xem KPI cấp trên."""
+    is_owner = user.pk == kpi_board.employee_id
+    is_company_wide = (
+        user.is_superuser
         or ROLE_DIRECTOR in effective_roles(user)
         or is_global_report_viewer(user)
     )
+    # Không bao giờ cho xem KPI của cấp trên (trừ GD/admin/global viewer)
+    if not is_owner and not is_company_wide and kpi_board.employee_id in _superior_user_ids(user):
+        return False, False, False
+
+    is_manager = _is_hr_manager_of(user, kpi_board.employee)
+    can_view = is_owner or is_manager or is_company_wide
     return is_owner, is_manager, can_view
 
 
@@ -358,7 +412,7 @@ def _can_import_division_kpi(user) -> bool:
 
 
 def _division_member_user_ids(user) -> list[int]:
-    """NV thuộc phạm vi bộ phận mà user được xem/giao KPI."""
+    """NV thuộc phạm vi bộ phận mà user được xem/giao KPI (không gồm cấp trên)."""
     roles = effective_roles(user)
     if user.is_superuser or user_is_director(user) or is_global_report_viewer(user):
         return list(
@@ -388,6 +442,16 @@ def _division_member_user_ids(user) -> list[int]:
                     profile__division_id__in=div_ids,
                 ).exclude(pk=user.pk).values_list('pk', flat=True)
             )
+
+    # Loại cấp trên + người có cấp bậc HR cao hơn (không xem KPI cấp trên)
+    ids -= _superior_user_ids(user)
+    viewer_rank = _max_kpi_role_rank(user)
+    if ids and viewer_rank < _KPI_ROLE_RANK[ROLE_DIRECTOR]:
+        drop: set[int] = set()
+        for other in User.objects.filter(pk__in=ids).select_related('profile'):
+            if _max_kpi_role_rank(other) > viewer_rank:
+                drop.add(other.pk)
+        ids -= drop
     return list(ids)
 
 
@@ -511,7 +575,7 @@ def _annotate_items_for_table(items: list[MonthlyKpiItem]) -> list[MonthlyKpiIte
 
 
 def _visible_boards_qs(user, year: int, month: int):
-    """Bảng KPI tháng mà user được xem (cá nhân + team / toàn bộ nếu GD / admin+ductn)."""
+    """Bảng KPI tháng mà user được xem (cá nhân + cấp dưới; không gồm cấp trên)."""
     base = MonthlyKpi.objects.filter(year=year, month=month).select_related(
         'employee__profile',
         'employee__profile__division',
@@ -522,10 +586,11 @@ def _visible_boards_qs(user, year: int, month: int):
         return base.order_by('employee__profile__full_name', 'employee__username')
     if effective_roles(user) & SUBORDINATE_MANAGER_ROLES:
         subordinate_ids = list(get_report_team_users(user).values_list('pk', flat=True))
+        superior_ids = _superior_user_ids(user)
         return base.filter(
-            Q(employee=user)
-            | Q(direct_manager=user)
-            | Q(employee_id__in=subordinate_ids),
+            Q(employee=user) | Q(employee_id__in=subordinate_ids),
+        ).exclude(
+            employee_id__in=superior_ids,
         ).order_by('employee__profile__full_name', 'employee__username')
     return base.filter(employee=user).order_by('-year', '-month')
 
@@ -619,15 +684,19 @@ def kpi_list_view(request):
                 subordinate_ids=subordinate_id_set,
             )
     elif tab == 'team':
+        superior_ids = _superior_user_ids(request.user)
         if is_company_wide:
             team_kpis_qs = base.exclude(employee=request.user).order_by(
                 'employee__profile__full_name', 'employee__username',
             )
         elif effective_roles(request.user) & SUBORDINATE_MANAGER_ROLES:
             subordinate_ids = list(get_report_team_users(request.user).values_list('pk', flat=True))
+            # Chỉ cấp dưới theo Nhân sự — không tin field direct_manager trên board
             team_kpis_qs = base.filter(
-                Q(direct_manager=request.user) | Q(employee_id__in=subordinate_ids),
-            ).exclude(employee=request.user).order_by(
+                employee_id__in=subordinate_ids,
+            ).exclude(
+                employee_id__in=superior_ids,
+            ).order_by(
                 'employee__profile__full_name', 'employee__username',
             )
         else:
@@ -804,12 +873,14 @@ def kpi_detail_view(request, kpi_id):
     )
     items = list(kpi_board.items.all().order_by('sort_order', 'id'))
 
+    # Đồng bộ QL theo HR trước khi xét quyền — tránh tin field import sai
+    _sync_board_direct_manager(kpi_board)
+
     is_owner, is_manager, can_view_board = _kpi_detail_roles(request.user, kpi_board)
     if not can_view_board:
         messages.error(request, 'Bạn không có quyền xem bảng KPI này.')
         return redirect('kpi_list')
 
-    _sync_board_direct_manager(kpi_board)
     hr_manager_label = format_direct_managers_label(kpi_board.employee)
     if not hr_manager_label and kpi_board.direct_manager_id:
         mgr_profile = get_profile(kpi_board.direct_manager)

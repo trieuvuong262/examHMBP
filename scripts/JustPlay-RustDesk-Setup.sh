@@ -1,15 +1,16 @@
 #!/usr/bin/env bash
-# JustPlay - Cai RustDesk + dang ky Portal (Linux Mint / Ubuntu / Debian)
-# Chay trong terminal: chmod +x JustPlay-RustDesk-Setup.sh && sudo ./JustPlay-RustDesk-Setup.sh
+# JustPlay - Cai RustDesk + dang ky Portal cho Ubuntu 26.04 LTS (vd. 26.04.1)
+# Dong bo luong voi JustPlay-RustDesk-Setup.ps1 (Windows) — khong sua file Windows.
+# Chay: chmod +x JustPlay-RustDesk-Setup.sh && sudo ./JustPlay-RustDesk-Setup.sh
 
 echo '========================================'
-echo ' JustPlay - Cai dat RustDesk (Linux)'
+echo ' JustPlay - Cai RustDesk (Ubuntu 26.04)'
 echo '========================================'
 echo ''
 
 if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
   echo 'Can quyen root. Dang chay lai voi sudo...'
-  echo '(Neu hoi mat khau, nhap mat khau may tinh)'
+  echo '(Neu hoi mat khau, nhap mat khau may tinh Ubuntu)'
   echo ''
   exec sudo -E bash "$0" "$@"
 fi
@@ -25,6 +26,9 @@ APPROVE_MODE='__RUSTDESK_APPROVE_MODE__'
 INSTALLER_URL='__INSTALLER_URL_LINUX__'
 ASSIGNED_USER_TEXT='__ASSIGNED_USER_TEXT__'
 DEPARTMENT_TEXT='__DEPARTMENT_TEXT__'
+
+# Mac dinh .deb da kiem thu tren Ubuntu 26.04 LTS (amd64)
+DEFAULT_DEB_URL='https://github.com/rustdesk/rustdesk/releases/download/1.4.6/rustdesk-1.4.6-x86_64.deb'
 
 if [[ "$PORTAL_URL" == *'__PORTAL'* ]]; then
   PORTAL_URL='https://portal.justplay.vn'
@@ -43,7 +47,7 @@ if [[ "$ENROLL_SECRET" == *'__ENROLL'* ]]; then
   exit 1
 fi
 if [[ -z "$INSTALLER_URL" || "$INSTALLER_URL" == *'__INSTALLER'* ]]; then
-  INSTALLER_URL='https://github.com/rustdesk/rustdesk/releases/download/1.3.9/rustdesk-1.3.9-x86_64.deb'
+  INSTALLER_URL="$DEFAULT_DEB_URL"
 fi
 if [[ "$CLIENT_PASSWORD" == *'__CLIENT'* ]]; then
   CLIENT_PASSWORD=''
@@ -57,6 +61,34 @@ fi
 if [[ "$DEPARTMENT_TEXT" == *'__DEPARTMENT'* ]]; then
   DEPARTMENT_TEXT=''
 fi
+
+check_ubuntu_26() {
+  if [[ ! -f /etc/os-release ]]; then
+    echo 'Canh bao: Khong doc duoc /etc/os-release — tiep tuc (Ubuntu 26.04 khuyen nghi).'
+    return 0
+  fi
+  # shellcheck disable=SC1091
+  . /etc/os-release
+  local id_l="${ID:-}"
+  local ver="${VERSION_ID:-}"
+  local like="${ID_LIKE:-}"
+  echo "      He dieu hanh: ${PRETTY_NAME:-$NAME $ver}"
+  if [[ "$id_l" != "ubuntu" && " $like " != *" ubuntu "* && " $like " != *" debian "* ]]; then
+    echo "LOI: Script nay danh cho Ubuntu 26.04 LTS (deb). Hien tai: ${PRETTY_NAME:-unknown}" >&2
+    read -r -p 'Nhan Enter de thoat...' _ || true
+    exit 1
+  fi
+  if [[ "$id_l" == "ubuntu" && -n "$ver" ]]; then
+    local major="${ver%%.*}"
+    if [[ "$major" -lt 24 ]]; then
+      echo "Canh bao: Ubuntu $ver — da thiet ke cho 26.04.1 LTS; van thu cai..."
+    elif [[ "$major" -eq 26 ]]; then
+      echo "      OK: Ubuntu $ver (muc tieu 26.04 LTS)"
+    else
+      echo "      Ubuntu $ver — tiep tuc cai .deb"
+    fi
+  fi
+}
 
 is_lan_ip() {
   local ip="$1"
@@ -111,6 +143,32 @@ get_primary_mac() {
   return 1
 }
 
+detect_deb_arch() {
+  case "$(uname -m)" in
+    x86_64|amd64) echo 'x86_64' ;;
+    aarch64|arm64) echo 'aarch64' ;;
+    armv7l|armhf) echo 'armv7' ;;
+    *) echo 'x86_64' ;;
+  esac
+}
+
+resolve_installer_url() {
+  if [[ -n "$INSTALLER_URL" && "$INSTALLER_URL" != *'__INSTALLER'* ]]; then
+    echo "$INSTALLER_URL"
+    return 0
+  fi
+  local arch tag
+  arch="$(detect_deb_arch)"
+  tag="$(curl -fsSL https://api.github.com/repos/rustdesk/rustdesk/releases/latest 2>/dev/null \
+    | grep -oE '"tag_name":[[:space:]]*"[^"]+"' | head -1 | cut -d'"' -f4 || true)"
+  tag="${tag#v}"
+  if [[ -n "$tag" ]]; then
+    echo "https://github.com/rustdesk/rustdesk/releases/download/${tag}/rustdesk-${tag}-${arch}.deb"
+    return 0
+  fi
+  echo "$DEFAULT_DEB_URL"
+}
+
 RUN_USER="${SUDO_USER:-$USER}"
 CONFIG_DIR="${HOME}/.config/rustdesk"
 if [[ -n "${SUDO_USER:-}" ]]; then
@@ -129,12 +187,37 @@ run_as_user() {
   fi
 }
 
+ensure_apt_tools() {
+  echo '[0/5] Kiem tra goi phu thuoc (curl, libxdo3)...'
+  export DEBIAN_FRONTEND=noninteractive
+  apt-get update -qq >/dev/null 2>&1 || true
+  apt-get install -y -qq curl ca-certificates libxdo3 >/dev/null 2>&1 || \
+    apt-get install -y curl ca-certificates libxdo3 || true
+}
+
 install_rustdesk() {
+  local url deb
+  url="$(resolve_installer_url)"
+  INSTALLER_URL="$url"
   echo '[1/5] Tai RustDesk (.deb)...'
-  local deb="/tmp/justplay-rustdesk.deb"
-  curl -fsSL "$INSTALLER_URL" -o "$deb"
-  echo '[2/5] Cai dat...'
-  apt-get install -y -qq ./"$deb" 2>/dev/null || dpkg -i "$deb" || apt-get install -f -y -qq
+  echo "      URL: $url"
+  deb="/tmp/justplay-rustdesk.deb"
+  rm -f "$deb"
+  if ! curl -fL --retry 3 --retry-delay 2 "$url" -o "$deb"; then
+    echo "LOI: Tai .deb that bai. Kiem tra mang / RUSTDESK_INSTALLER_URL_LINUX." >&2
+    exit 1
+  fi
+  if [[ ! -s "$deb" ]]; then
+    echo 'LOI: File .deb rong.' >&2
+    exit 1
+  fi
+  echo '[2/5] Cai dat (apt install -fy — Ubuntu 26.04)...'
+  # Khuyen nghi Ubuntu 26.04: apt install -fy giai quyet phu thuoc tot hon dpkg -i don le
+  if ! apt-get install -y -f "$deb"; then
+    echo '      Thu lai: dpkg -i + apt-get -f...'
+    dpkg -i "$deb" || true
+    apt-get install -f -y
+  fi
   rm -f "$deb"
 }
 
@@ -161,18 +244,20 @@ EOF
   if [[ -n "${SUDO_USER:-}" ]]; then
     chown -R "${SUDO_USER}:${SUDO_USER}" "$(dirname "$CONFIG_DIR")" 2>/dev/null || true
   fi
-  if systemctl list-unit-files 'rustdesk.service' &>/dev/null 2>&1; then
-    mkdir -p "$root_cfg"
-    cp "$toml_path" "${root_cfg}/RustDesk2.toml"
-    echo "      Da ghi them: ${root_cfg}/RustDesk2.toml (systemd)"
-  fi
+  # Service chay nhu root — config hieu luc nam o /root/.config/rustdesk
+  mkdir -p "$root_cfg"
+  cp "$toml_path" "${root_cfg}/RustDesk2.toml"
+  echo "      Da ghi: ${root_cfg}/RustDesk2.toml (systemd)"
   local bin
   bin="$(find_rustdesk_bin)"
   if [[ -n "$bin" ]]; then
     local b64
     b64="$(python3 -c "import base64, pathlib; print(base64.b64encode(pathlib.Path('${toml_path}').read_bytes()).decode())")"
-    run_as_user "$bin" --config "$b64" 2>/dev/null || true
+    # --config can service dang chay (Ubuntu 26.04)
+    systemctl start rustdesk 2>/dev/null || true
+    sleep 2
     "$bin" --config "$b64" 2>/dev/null || true
+    run_as_user "$bin" --config "$b64" 2>/dev/null || true
   fi
 }
 
@@ -194,7 +279,8 @@ restart_rustdesk() {
   local bin="${1:-$(find_rustdesk_bin)}"
   stop_rustdesk
   if systemctl list-unit-files 'rustdesk.service' &>/dev/null; then
-    systemctl restart rustdesk 2>/dev/null || true
+    systemctl enable rustdesk 2>/dev/null || true
+    systemctl restart rustdesk 2>/dev/null || systemctl start rustdesk 2>/dev/null || true
     sleep 5
     return
   fi
@@ -207,13 +293,23 @@ get_rustdesk_id() {
   local bin id f
   bin="$(find_rustdesk_bin)"
   if [[ -n "$bin" ]]; then
+    id="$("$bin" --get-id 2>/dev/null | tr -cd '0-9')"
+    if [[ "$id" =~ ^[0-9]{6,12}$ ]]; then
+      echo "$id"
+      return 0
+    fi
     id="$(run_as_user "$bin" --get-id 2>/dev/null | tr -cd '0-9')"
     if [[ "$id" =~ ^[0-9]{6,12}$ ]]; then
       echo "$id"
       return 0
     fi
   fi
-  for f in "${CONFIG_DIR}/RustDesk.toml" "${CONFIG_DIR}/RustDesk2.toml"; do
+  for f in \
+    /root/.config/rustdesk/RustDesk.toml \
+    /root/.config/rustdesk/RustDesk2.toml \
+    "${CONFIG_DIR}/RustDesk.toml" \
+    "${CONFIG_DIR}/RustDesk2.toml"
+  do
     if [[ -f "$f" ]]; then
       id=$(grep -E "^id\s*=" "$f" | head -1 | sed -E "s/.*['\"]([0-9]+)['\"].*/\1/")
       if [[ -n "$id" ]]; then
@@ -293,7 +389,7 @@ ensure_autostart() {
 [Desktop Entry]
 Type=Application
 Name=RustDesk
-Comment=JustPlay remote desktop
+Comment=JustPlay remote desktop (Ubuntu)
 Exec=${bin}
 Hidden=false
 NoDisplay=false
@@ -347,7 +443,7 @@ PY
   )"
   http_code="$(curl -sS -o /tmp/justplay-rustdesk-enroll.json -w '%{http_code}' -X POST \
     -H 'Content-Type: application/json; charset=utf-8' \
-    -H 'User-Agent: JustPlay-RustDesk-Setup/1.0' \
+    -H 'User-Agent: JustPlay-RustDesk-Setup-Ubuntu/1.0' \
     -d "$payload" \
     "${PORTAL_URL%/}/nhat-ky/rustdesk/api/dang-ky/")"
   if [[ "$http_code" != '200' ]]; then
@@ -361,10 +457,15 @@ PY
   cat /tmp/justplay-rustdesk-enroll.json
 }
 
+check_ubuntu_26
+ensure_apt_tools
+
 BIN="$(find_rustdesk_bin)"
 if [[ -z "$BIN" ]]; then
   install_rustdesk
   BIN="$(find_rustdesk_bin)"
+else
+  echo "      RustDesk da co: $BIN — cap nhat cau hinh JustPlay"
 fi
 if [[ -z "$BIN" ]]; then
   echo 'Khong tim thay rustdesk sau khi cai.' >&2
@@ -386,7 +487,7 @@ for i in $(seq 1 20); do
   echo "      Cho RustDesk khoi tao ID... ($i/20)"
   sleep 5
   if (( i % 4 == 0 )); then
-    start_rustdesk
+    restart_rustdesk "$BIN"
   fi
 done
 if [[ -z "$RD_ID" ]]; then
@@ -409,7 +510,7 @@ ensure_autostart "$BIN"
 
 echo ''
 echo '========================================'
-echo ' THANH CONG'
+echo ' THANH CONG (Ubuntu)'
 echo " RustDesk ID: $RD_ID"
 echo " Portal: $RESP"
 echo ' IT co the ket noi tai Quan tri -> RustDesk'

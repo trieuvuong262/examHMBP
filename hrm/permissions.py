@@ -412,9 +412,13 @@ def can_edit_user_guide(user) -> bool:
 
 
 def can_manage_kpi_for_others(user) -> bool:
-    """Giao KPI mới / import Excel."""
-    from hrm.module_permissions import MODULE_KPI, user_can_create_module
-    return user_can_create_module(user, MODULE_KPI)
+    """Giao KPI cho người khác — chỉ QL / GD / admin (không chỉ vì có quyền create tự KPI)."""
+    if not getattr(user, 'is_authenticated', False):
+        return False
+    if user.is_superuser or is_director(user) or is_global_report_viewer(user):
+        return True
+    from hrm.concurrent_positions import effective_roles
+    return bool(effective_roles(user) & SUBORDINATE_MANAGER_ROLES)
 
 
 def portal_admin_denied_message() -> str:
