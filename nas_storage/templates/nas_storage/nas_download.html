@@ -36,9 +36,10 @@
                 <div class="card-body p-4">
                     <h3 class="h5 fw-bold mb-2"><i class="bi bi-ubuntu me-2"></i>Ubuntu</h3>
                     <p class="small text-muted mb-3">
-                        Tải gói <code>.deb</code> → cài:
+                        Tải <code>.deb</code>, mở Terminal trong thư mục tải về rồi chạy:
                         <code>sudo apt install -fy ./justplay-cong-cu-it_*.deb</code>
-                        rồi mở <strong>JustPlay Công cụ IT</strong> (menu: RustDesk · Cấu hình · RaiDrive).
+                        (nếu lỗi: <code>sudo dpkg -i ./justplay-cong-cu-it_*.deb</code>).
+                        Sau đó chạy <code>justplay-cong-cu-it</code> hoặc mở <strong>JustPlay Công cụ IT</strong>.
                     </p>
                     {% if has_it_tools %}
                     <a href="{{ ubuntu_deb_url }}"

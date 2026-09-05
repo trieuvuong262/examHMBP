@@ -49,13 +49,23 @@ Write-Host "==> Build launcher EXE"
 & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $Root 'build_nas_launcher.ps1')
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-Write-Host "==> SSH ${user}@${host_}:${port} -> git pull + copy into web container + restart"
+Write-Host "==> SCP file local -> ${user}@${host_}:${remote}"
+# scp tung file (giu dung path tren VPS)
+foreach ($rel in $files) {
+    $local = Join-Path $Project $rel
+    $remoteDir = Split-Path -Parent "$remote/$rel"
+    & ssh -p $port "${user}@${host_}" "mkdir -p '$remoteDir'"
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    & scp -P $port $local "${user}@${host_}:${remote}/$rel"
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    Write-Host "    OK $rel"
+}
+
+Write-Host "==> docker cp vao web container + restart + test"
 $copyLines = ($files | ForEach-Object { "docker cp '$remote/$_' portaljustplay-web-1:/app/$_" }) -join "`n"
 $remoteCmd = @"
 set -Eeuo pipefail
 cd '$remote'
-git fetch origin main
-git reset --hard origin/main
 $copyLines
 docker compose restart web
 sleep 3
@@ -65,9 +75,9 @@ docker compose exec -T web python scripts/vps_test_nas_library.py
 & ssh -p $port "${user}@${host_}" $remoteCmd
 if ($LASTEXITCODE -ne 0) {
     Write-Host ""
-    Write-Host "SSH that bai. Code da push len GitHub - khi VPS online chay lai script nay hoac ./deploy.sh tren VPS."
+    Write-Host "SSH that bai. Khi VPS online chay lai script nay."
     exit $LASTEXITCODE
 }
 
 Write-Host ""
-Write-Host "OK: Cong cu IT tren VPS. Tai ZIP: https://portal.justplay.vn/tai-lieu/tai-nas/"
+Write-Host "OK: Cong cu IT tren VPS. Tai DEB: https://portal.justplay.vn/tai-lieu/tai-nas/"
