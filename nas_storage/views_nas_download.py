@@ -1,4 +1,4 @@
-"""Trang Tải bộ cài — Công cụ IT (RustDesk + quét thiết bị). Không đóng gói kết nối NAS."""
+"""Trang Tải bộ cài — Công cụ IT (RustDesk + quét thiết bị + RaiDrive)."""
 
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
 from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.views.decorators.http import require_GET
 
 from audit.services.rustdesk_enroll import downloader_script_fields as rustdesk_downloader_fields
@@ -83,12 +84,42 @@ def _raidrive_installer_context(request) -> dict:
     return raidrive_installer_context(request)
 
 
+def _escape_bash_single_quoted(value: str) -> str:
+    return (value or '').replace("'", "'\"'\"'")
+
+
+def _apply_raidrive_linux_tokens(body: str) -> str:
+    url = getattr(settings, 'NAS_RAIDRIVE_INSTALLER_URL_LINUX', '').strip()
+    return body.replace('__RAIDRIVE_INSTALLER_URL_LINUX__', _escape_bash_single_quoted(url))
+
+
+def _build_raidrive_ubuntu_sh() -> bytes | None:
+    sh_path = Path(settings.BASE_DIR) / 'scripts' / 'JustPlay-RaiDrive-Setup.sh'
+    if not sh_path.is_file():
+        return None
+    body = _apply_raidrive_linux_tokens(sh_path.read_text(encoding='utf-8'))
+    body = body.replace('\r\n', '\n')
+    if not body.endswith('\n'):
+        body += '\n'
+    return body.encode('utf-8')
+
+
 @login_required
 @require_GET
 def nas_raidrive_download(request):
-    """Tải installer RaiDrive — giữ route cũ; trang chính không còn nhấn mạnh NAS."""
+    """Tải installer RaiDrive — Windows (.exe từ NAS) hoặc Ubuntu (.sh)."""
     if not user_can_nas_download(request.user):
         return _download_forbidden(request)
+
+    platform = (request.GET.get('os') or 'win').lower()
+    if platform in ('linux', 'ubuntu'):
+        data = _build_raidrive_ubuntu_sh()
+        if not data:
+            messages.error(request, 'Không tìm thấy script cài RaiDrive Ubuntu.')
+            return redirect('documents:nas_download')
+        response = HttpResponse(data, content_type='application/x-sh; charset=utf-8')
+        response['Content-Disposition'] = 'attachment; filename="JustPlay-RaiDrive-Setup.sh"'
+        return response
 
     token = getattr(settings, 'NAS_RAIDRIVE_INSTALLER_SHARE_TOKEN', '').strip()
     if not token:
@@ -124,11 +155,15 @@ def nas_download_page(request):
     if not user_can_nas_download(request.user):
         return _download_forbidden(request)
     bundle = nas_user_bundle_config(request, request.user, nas_download_config())
+    rd_ctx = _raidrive_installer_context(request)
     return render(request, 'nas_storage/nas_download.html', {
         **menu_perm_context(request.user, MODULE_DOCUMENTS, 'nas_download'),
-        **_raidrive_installer_context(request),
+        **rd_ctx,
         'bundle': bundle,
         'has_it_tools': bundle.get('has_rustdesk') or bundle.get('has_equipment_scan'),
+        'raidrive_linux_url': request.build_absolute_uri(
+            reverse('documents:raidrive_download') + '?os=linux'
+        ),
     })
 
 
@@ -147,15 +182,30 @@ def nas_user_bundle_config(request, user, cfg: dict) -> dict:
     portal_base = request.build_absolute_uri('/').rstrip('/')
     rustdesk_cfg = {**rustdesk_script_config(), **rustdesk_downloader_fields(user)}
     equipment_cfg = {**equipment_script_config(), **equipment_downloader_fields(user)}
+    rd_ctx = raidrive_installer_context(request)
+    raidrive_win_url = rd_ctx.get('raidrive_share_url') or ''
+    try:
+        raidrive_linux_url = request.build_absolute_uri(
+            reverse('documents:raidrive_download') + '?os=linux'
+        )
+    except Exception:
+        raidrive_linux_url = ''
     return {
-        'bundle_version': 5,
+        'bundle_version': 6,
         'bundle_kind': 'it_tools',
         'portal_password_url': f'{portal_base}/accounts/password/change/',
         'portal_username': user.username,
         'dept_folder_code': user_department_folder_code(user) or '',
         'has_rustdesk': bool(rustdesk_cfg.get('enroll_secret') and rustdesk_cfg.get('public_key')),
         'has_equipment_scan': bool(equipment_cfg.get('scan_secret')),
-        # Giữ khóa cũ (rỗng) để client cũ đọc JSON không lỗi
+        'has_raidrive': bool(raidrive_win_url) or bool(_build_raidrive_ubuntu_sh()),
+        'raidrive_download_url': raidrive_win_url,
+        'raidrive_linux_download_url': raidrive_linux_url,
+        'raidrive_linux_page': getattr(
+            settings,
+            'NAS_RAIDRIVE_LINUX_DOWNLOAD_PAGE',
+            'https://www.raidrive.com/download/linux',
+        ),
         'server': cfg.get('server', ''),
         'webdav_port': cfg.get('webdav_port', 5678),
         'smb_port': cfg.get('smb_port', 445),
@@ -211,6 +261,25 @@ def _build_equipment_scan_ps1(user) -> bytes | None:
     return _prepare_ps1(body)
 
 
+def _build_equipment_scan_ubuntu_sh(user) -> bytes | None:
+    """Script quét cấu hình máy Ubuntu — không đụng file Windows .ps1."""
+    cfg = {**equipment_script_config(), **equipment_downloader_fields(user)}
+    if not cfg.get('scan_secret'):
+        return None
+    sh_path = Path(settings.BASE_DIR) / 'scripts' / 'JustPlay-Equipment-Scan.sh'
+    if not sh_path.is_file():
+        return None
+    body = apply_equipment_script_tokens(
+        sh_path.read_text(encoding='utf-8'),
+        cfg,
+        bash=True,
+    )
+    body = body.replace('\r\n', '\n')
+    if not body.endswith('\n'):
+        body += '\n'
+    return body.encode('utf-8')
+
+
 def _personalize_ps1(body: str, bundle: dict) -> str:
     """Giữ API cũ cho test/import; ZIP IT tools không dùng nữa."""
     replacements = {
@@ -260,9 +329,17 @@ def nas_download_setup(request):
     rustdesk_ps1 = _build_rustdesk_ps1(request.user)
     rustdesk_ubuntu_sh = _build_rustdesk_ubuntu_sh(request.user)
     equipment_ps1 = _build_equipment_scan_ps1(request.user)
-    if not rustdesk_ps1 and not rustdesk_ubuntu_sh and not equipment_ps1:
+    equipment_ubuntu_sh = _build_equipment_scan_ubuntu_sh(request.user)
+    raidrive_ubuntu_sh = _build_raidrive_ubuntu_sh()
+    if (
+        not rustdesk_ps1
+        and not rustdesk_ubuntu_sh
+        and not equipment_ps1
+        and not equipment_ubuntu_sh
+        and not raidrive_ubuntu_sh
+    ):
         return HttpResponse(
-            'Chưa cấu hình RustDesk / quét thiết bị trên Portal. Liên hệ IT.',
+            'Chưa cấu hình RustDesk / quét thiết bị / RaiDrive trên Portal. Liên hệ IT.',
             status=404,
             content_type='text/plain; charset=utf-8',
         )
@@ -292,6 +369,10 @@ def nas_download_setup(request):
             archive.writestr('JustPlay-RustDesk-Setup.sh', rustdesk_ubuntu_sh)
         if equipment_ps1:
             archive.writestr('JustPlay-Equipment-Scan.ps1', equipment_ps1)
+        if equipment_ubuntu_sh:
+            archive.writestr('JustPlay-Equipment-Scan.sh', equipment_ubuntu_sh)
+        if raidrive_ubuntu_sh:
+            archive.writestr('JustPlay-RaiDrive-Setup.sh', raidrive_ubuntu_sh)
 
     response = HttpResponse(buf.getvalue(), content_type='application/zip')
     response['Content-Disposition'] = 'attachment; filename="JustPlay-Cong-Cu-IT.zip"'

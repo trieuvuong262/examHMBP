@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# JustPlay - Quet cau hinh may + dang ky Quan ly thiet bi IT (Linux)
+# JustPlay - Quet cau hinh may + dang ky Quan ly thiet bi IT (Ubuntu 26.04 / Linux)
+# Dong bo muc dich voi JustPlay-Equipment-Scan.ps1 (Windows) — khong sua file Windows.
 # Chay: chmod +x JustPlay-Equipment-Scan.sh && ./JustPlay-Equipment-Scan.sh
 
 echo '========================================'
-echo ' JustPlay - Quet cau hinh may (Linux)'
+echo ' JustPlay - Them cau hinh (Ubuntu)'
 echo '========================================'
 echo ''
 

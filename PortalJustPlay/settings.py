@@ -545,6 +545,15 @@ NAS_RAIDRIVE_INSTALLER_SHARE_TOKEN = os.getenv(
     'NAS_RAIDRIVE_INSTALLER_SHARE_TOKEN',
     'e9e15707-7552-46ad-8d8e-e9962f816753',
 ).strip()
+# RaiDrive CLI (.deb) cho Ubuntu / Debian — có thể ghi đè bằng .env
+NAS_RAIDRIVE_INSTALLER_URL_LINUX = os.getenv(
+    'NAS_RAIDRIVE_INSTALLER_URL_LINUX',
+    'https://app.raidrive.com/deb/raidrive-2025.12.0-linux.amd64.deb',
+).strip()
+NAS_RAIDRIVE_LINUX_DOWNLOAD_PAGE = os.getenv(
+    'NAS_RAIDRIVE_LINUX_DOWNLOAD_PAGE',
+    'https://www.raidrive.com/download/linux',
+).strip()
 # Share ẩn khỏi Duyệt thư mục Portal + Quét từ NAS (share hệ thống: docker, backup, log…)
 NAS_PORTAL_BROWSE_HIDDEN_SHARES = os.getenv(
     'NAS_PORTAL_BROWSE_HIDDEN_SHARES', 'docker,backup,log',

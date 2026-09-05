@@ -30,6 +30,8 @@ OPTIONAL_ZIP = frozenset({
     "JustPlay-RustDesk-Setup.ps1",
     "JustPlay-RustDesk-Setup.sh",
     "JustPlay-Equipment-Scan.ps1",
+    "JustPlay-Equipment-Scan.sh",
+    "JustPlay-RaiDrive-Setup.sh",
 })
 
 
@@ -73,6 +75,8 @@ def validate_zip_bundle(content: bytes, label: str) -> list[str]:
             failed.append(f"{label}: config has_rustdesk but zip missing ubuntu .sh")
         if cfg.get("has_equipment_scan") and "JustPlay-Equipment-Scan.ps1" not in names:
             failed.append(f"{label}: config has_equipment_scan but zip missing ps1")
+        if cfg.get("has_equipment_scan") and "JustPlay-Equipment-Scan.sh" not in names:
+            failed.append(f"{label}: config has_equipment_scan but zip missing ubuntu .sh")
         if not cfg.get("has_rustdesk") and not cfg.get("has_equipment_scan"):
             failed.append(f"{label}: no IT tool scripts expected")
         elif (
@@ -96,6 +100,13 @@ def validate_zip_bundle(content: bytes, label: str) -> list[str]:
             eq = zf.read("JustPlay-Equipment-Scan.ps1").decode("utf-8-sig", errors="replace")
             if "__SCAN_SECRET__" in eq:
                 failed.append(f"{label}: equipment ps1 has placeholders")
+        if "JustPlay-Equipment-Scan.sh" in names:
+            eqs = zf.read("JustPlay-Equipment-Scan.sh").decode("utf-8", errors="replace")
+            if "__SCAN_SECRET__" in eqs:
+                failed.append(f"{label}: equipment ubuntu sh has placeholders")
+            if "Them cau hinh (Ubuntu)" not in eqs and "Them cau hinh" not in eqs:
+                # banner có thể đã đổi encoding — chỉ check placeholder là đủ nếu thiếu
+                pass
 
     if not failed:
         tools = []

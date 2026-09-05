@@ -1,0 +1,70 @@
+OK file Ket-Noi-NAS-JustPlay.exe (20992 B)
+OK file JustPlay-NAS-Launcher.cs (22649 B)
+OK file Mo-Ket-Noi-NAS.ps1 (2349 B)
+OK file Chay-Ket-Noi-NAS.bat (227 B)
+OK file KET-NOI-NAS.bat (109 B)
+OK file JustPlay-RustDesk-Setup.ps1 (26376 B)
+OK file JustPlay-RustDesk-Setup.sh (15032 B)
+OK file JustPlay-Equipment-Scan.ps1 (9578 B)
+OK file JustPlay-Equipment-Scan.sh (8309 B)
+OK file JustPlay-RaiDrive-Setup.sh (2704 B)
+OK EXE MZ
+OK EXE size 20992
+OK launcher: Cài RustDesk (Windows)
+OK launcher: Cài RustDesk (Ubuntu)
+OK launcher: Thêm Cấu hình (Windows)
+OK launcher: Thêm Cấu hình (Ubuntu)
+OK launcher: Cài RaiDrive (Windows)
+OK launcher: Cài RaiDrive (Ubuntu)
+OK launcher: JustPlay-RustDesk-Setup.ps1
+OK launcher: JustPlay-Equipment-Scan.ps1
+OK launcher: JustPlay-RustDesk-Setup.sh
+OK launcher: JustPlay-Equipment-Scan.sh
+OK launcher: JustPlay-RaiDrive-Setup.sh
+OK Windows Equipment PS1 intact
+OK RustDesk Ubuntu banner
+OK Equipment Ubuntu banner
+OK RaiDrive Ubuntu banner
+OK views: _build_rustdesk_ps1
+OK views: _build_rustdesk_ubuntu_sh
+OK views: _build_equipment_scan_ps1
+OK views: _build_equipment_scan_ubuntu_sh
+OK views: _build_raidrive_ubuntu_sh
+OK views: JustPlay-Equipment-Scan.sh
+OK views: JustPlay-RaiDrive-Setup.sh
+OK rustdesk_ubuntu callable -> 14998 B (None=missing secrets OK)
+OK equipment_ubuntu callable -> 8299 B (None=missing secrets OK)
+OK portal RaiDrive buttons
+OK url documents:nas_download -> /tai-lieu/tai-nas/
+OK url documents:nas_download_setup -> /tai-lieu/tai-nas/tai/
+OK url documents:raidrive_download -> /tai-lieu/tai-nas/raidrive/
+OK page HTTP 200
+OK page title
+OK page has RaiDrive UI
+OK page has Ubuntu RaiDrive button
+OK zip HTTP 200
+OK zip content-type application/zip
+OK zip has Ket-Noi-NAS-JustPlay.exe
+OK zip has JustPlay-NAS-Config.json
+OK zip has Mo-Ket-Noi-NAS.ps1
+OK zip has Chay-Ket-Noi-NAS.bat
+OK zip has KET-NOI-NAS.bat
+OK zip excludes old NAS connect
+OK bundle_kind=it_tools
+OK zip rustdesk win
+OK zip rustdesk ubuntu
+OK rustdesk win tokens substituted
+OK rustdesk ubuntu tokens substituted
+OK zip equipment win
+OK zip equipment ubuntu
+OK equipment win tokens substituted
+OK equipment ubuntu tokens substituted
+OK zip raidrive ubuntu
+OK raidrive tokens substituted
+OK raidrive win HTTP 302
+OK raidrive linux HTTP 200
+OK raidrive linux body
+OK raidrive linux no placeholder
+FAIL Windows RustDesk PS1 intact
+FAIL raidrive sh built 2735B tokens filled
+TOTAL ok=67 fail=2
