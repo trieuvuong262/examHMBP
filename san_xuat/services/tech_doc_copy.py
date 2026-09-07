@@ -282,58 +282,81 @@ def paste_bom_and_ob(
     result = PasteResult(target_doc=target_doc, bom=target_bom, routing=target_routing)
     line_map: dict[int, SxRoutingLine] = {}
 
-    if source_bom is not None:
+    paste_bom = source_bom is not None
+    if paste_bom:
         if target_bom is None:
             target_bom = get_working_bom(target_doc)
-        if target_bom is None:
-            target_bom = create_bom_version(target_doc, user=user)
-            result.bom_new_version = True
-        elif is_bom_locked(target_bom):
-            target_bom = create_bom_version(target_doc, user=user)
-            result.bom_new_version = True
-        result.n_bom_lines = _copy_bom_lines(source_bom, target_bom)
-        result.bom = target_bom
+        if (
+            target_bom is not None
+            and not source_bom.lines.exists()
+            and target_bom.lines.exists()
+        ):
+            paste_bom = False
+            result.bom = target_bom
+        else:
+            if target_bom is None:
+                target_bom = create_bom_version(target_doc, user=user)
+                result.bom_new_version = True
+            elif is_bom_locked(target_bom):
+                target_bom = create_bom_version(target_doc, user=user)
+                result.bom_new_version = True
+            result.n_bom_lines = _copy_bom_lines(source_bom, target_bom)
+            result.bom = target_bom
 
-    if source_routing is not None:
+    paste_ob = source_routing is not None
+    if paste_ob:
         if target_routing is None:
-            target_routing = resolve_doc_routing(target_doc, bom=target_bom)
-        try:
-            if target_routing is None:
-                target_routing = create_blank_routing(tech_doc=target_doc, user=user)
-                result.routing_new_version = True
-            elif is_routing_locked(target_routing):
-                target_routing = create_blank_routing(tech_doc=target_doc, user=user)
-                result.routing_new_version = True
-            else:
-                if target_bom is not None:
-                    target_bom.process_steps.filter(routing_line__routing=target_routing).update(
-                        routing_line=None,
-                    )
-                target_routing.lines.all().delete()
-                _reset_routing_approval(target_routing)
-        except IeOpsError as exc:
-            raise TechDocCopyError(str(exc)) from exc
-        line_map = _copy_routing_lines(source_routing, target_routing)
-        result.n_ob_lines = len(line_map)
-        result.routing = target_routing
+            target_routing = resolve_doc_routing(target_doc, bom=result.bom or target_bom)
+        if (
+            target_routing is not None
+            and not source_routing.lines.exists()
+            and target_routing.lines.exists()
+        ):
+            paste_ob = False
+            result.routing = target_routing
+        else:
+            try:
+                if target_routing is None:
+                    target_routing = create_blank_routing(tech_doc=target_doc, user=user)
+                    result.routing_new_version = True
+                elif is_routing_locked(target_routing):
+                    target_routing = create_blank_routing(tech_doc=target_doc, user=user)
+                    result.routing_new_version = True
+                else:
+                    if result.bom is not None:
+                        result.bom.process_steps.filter(routing_line__routing=target_routing).update(
+                            routing_line=None,
+                        )
+                    target_routing.lines.all().delete()
+                    _reset_routing_approval(target_routing)
+            except IeOpsError as exc:
+                raise TechDocCopyError(str(exc)) from exc
+            line_map = _copy_routing_lines(source_routing, target_routing)
+            result.n_ob_lines = len(line_map)
+            result.routing = target_routing
+
+    if not paste_bom and not paste_ob:
+        raise TechDocCopyError(
+            'Bản copy không có NPL/công đoạn — không dán đè lên hồ sơ đang có dữ liệu.'
+        )
 
     target_bom = result.bom
     target_routing = result.routing
-    copied_ob = source_routing is not None and target_routing is not None
+    copied_ob = paste_ob and target_routing is not None
     if copied_ob and target_bom is not None and target_bom.routing_id != target_routing.pk:
         target_bom.routing = target_routing
         target_bom.save(update_fields=['routing', 'updated_at'])
 
-    if target_bom is not None:
+    if copied_ob and target_bom is not None:
         target_bom.process_steps.all().delete()
         if source_bom is not None:
             _copy_process_steps(
                 source_bom,
                 target_bom,
-                line_map=line_map if copied_ob else None,
-                target_routing=target_routing if copied_ob else None,
+                line_map=line_map,
+                target_routing=target_routing,
             )
-        elif copied_ob:
+        else:
             _rebuild_process_steps_from_routing(target_bom, target_routing)
 
     return result

@@ -806,18 +806,13 @@ def doc_detail(request, pk):
 
             routing = _doc_routing_for_action(doc, request, bom)
             try:
-                payload = write_clipboard(request, doc=doc, bom=bom, routing=routing)
+                write_clipboard(request, doc=doc, bom=bom, routing=routing)
             except TechDocCopyError as exc:
                 messages.error(request, str(exc))
             else:
-                bits = []
-                if payload.get('bom_id'):
-                    bits.append(f"BOM {payload.get('bom_label') or ''} ({payload.get('n_bom_lines') or 0} NPL)")
-                if payload.get('routing_id'):
-                    bits.append(f"OB {payload.get('routing_rev') or ''} ({payload.get('n_ob_lines') or 0} CĐ)")
                 messages.success(
                     request,
-                    'Đã sao chép ' + ' + '.join(bits) + '. Mở hồ sơ khác rồi bấm Dán đè, hoặc chọn Dán sang hồ sơ khác.',
+                    'Đã sao chép BOM + OB. Mở hồ sơ khác rồi bấm Dán đè.',
                 )
             return _doc_tab_redirect(
                 request,
