@@ -979,9 +979,26 @@ def mo_release(*, mo_id: int, user) -> SxProductionOrder:
     return mo
 
 
+_YCX_OPEN_STATUSES = ("draft", "submitted", "approved", "partial")
+
+
+def _reserve_ycx_safe(req: SxMaterialIssueRequest) -> None:
+    from san_xuat.services.sx_settings import sx_bool
+
+    if not sx_bool("ycx_auto_reserve_stock", True):
+        return
+    try:
+        from kho_npl.services.reservation import upsert_reservations_for_ycx
+
+        upsert_reservations_for_ycx(request=req)
+    except Exception:
+        # Giữ chỗ tồn không được chặn tạo/mở phiếu xuất VT.
+        return
+
+
 @transaction.atomic
-def build_material_issue_request(
-    *, production_order_id: int, code: str | None = None, user=None, notes: str = ""
+def _create_material_issue_request(
+    *, production_order_id: int, code: str | None = None, notes: str = ""
 ) -> SxMaterialIssueRequest:
     mo = (
         SxProductionOrder.objects.select_for_update()
@@ -995,6 +1012,15 @@ def build_material_issue_request(
     )
     if mo.status not in (SxProductionOrder.STATUS_RELEASED, SxProductionOrder.STATUS_IN_PROGRESS, SxProductionOrder.STATUS_DONE):
         raise DispatchError("Chỉ được tạo Yêu cầu xuất khi Lệnh sản xuất đã release.")
+
+    existing = (
+        SxMaterialIssueRequest.objects.select_for_update()
+        .filter(production_order=mo, is_demo=False, status__in=_YCX_OPEN_STATUSES)
+        .order_by("-pk")
+        .first()
+    )
+    if existing is not None:
+        return existing
 
     from san_xuat.services.bom_need import explode_for_mo, resolve_issue_material
 
@@ -1011,32 +1037,44 @@ def build_material_issue_request(
         notes=notes or "",
     )
 
-    # Nhu cầu = ĐM BOM đã chọn (hoặc ĐM áp dụng trên đơn) × SL lệnh / SL size
     lines = []
+    skipped_no_mat = 0
     for need in needs:
         if need.qty_total <= 0:
             continue
-        material = resolve_issue_material(need)
+        try:
+            material = resolve_issue_material(need)
+        except Exception:
+            material = None
         if material is None:
+            skipped_no_mat += 1
             continue
         lines.append(
             SxMaterialIssueRequestLine(
                 request=req,
                 material_code=material.code,
-                material_name=material.name,
+                material_name=material.name or need.material_name,
                 qty_requested=need.qty_total,
                 qty_issued=Decimal("0"),
             )
         )
     if not lines:
-        raise DispatchError("Không tính được nhu cầu NPL (ĐM × SL). Kiểm tra BOM đã chọn và số lượng lệnh.")
+        raise DispatchError(
+            "Không tính được nhu cầu NPL (ĐM × SL). "
+            "Kiểm tra BOM đã chọn, size trên lệnh"
+            + (" và mã NPL còn hoạt động." if skipped_no_mat else ".")
+        )
     SxMaterialIssueRequestLine.objects.bulk_create(lines)
-    from san_xuat.services.sx_settings import sx_bool
+    return req
 
-    if sx_bool("ycx_auto_reserve_stock", True):
-        from kho_npl.services.reservation import upsert_reservations_for_ycx
 
-        upsert_reservations_for_ycx(request=req)
+def build_material_issue_request(
+    *, production_order_id: int, code: str | None = None, user=None, notes: str = ""
+) -> SxMaterialIssueRequest:
+    req = _create_material_issue_request(
+        production_order_id=production_order_id, code=code, notes=notes,
+    )
+    _reserve_ycx_safe(req)
     return req
 
 

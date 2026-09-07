@@ -76,12 +76,19 @@ def explode_overrides(
             continue
         code = str(raw.get('material_code') or '').strip()
         name = str(raw.get('material_name') or '').strip()
-        if not code and not name:
-            continue
         try:
             bom_line_id = int(raw.get('bom_line_id') or raw.get('id') or 0) or None
         except (TypeError, ValueError):
             bom_line_id = None
+        if not code and not name and not bom_line_id:
+            continue
+        if bom_line_id and not code:
+            from san_xuat.models import BomLine
+
+            bl = BomLine.objects.select_related('material').filter(pk=bom_line_id).first()
+            if bl is not None and bl.material_id:
+                code = (bl.material.code or '').strip()
+                name = name or (bl.material.name or '').strip()
         size_code = str(raw.get('size_code') or '').strip()
         scrap = _q(raw.get('scrap_pct'))
         per = per_unit_with_scrap(raw.get('qty'), scrap)
@@ -181,11 +188,13 @@ def explode_for_mo(mo: SxProductionOrder, *, qty: Decimal | None = None) -> list
     so_sizes = (so_line.size_qtys if so_line is not None else None) or sizes
     if so_line is not None:
         if so_line.bom_line_overrides:
-            return explode_overrides(
+            rows = explode_overrides(
                 overrides=so_line.bom_line_overrides,
                 qty=scale,
                 size_qtys=so_sizes,
             )
+            if any(r.qty_total > 0 for r in rows):
+                return rows
         if so_line.bom_version_id:
             return explode_bom(bom=so_line.bom_version, qty=scale, size_qtys=so_sizes)
     return explode_bom(bom=mo.bom_version, qty=scale, size_qtys=sizes)

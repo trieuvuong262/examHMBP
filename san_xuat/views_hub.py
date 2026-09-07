@@ -2669,8 +2669,10 @@ def dispatch_mo_detail(request, pk: int):
                 )
             except DispatchError as exc:
                 messages.error(request, str(exc))
+            except Exception as exc:
+                messages.error(request, f'Không tạo được phiếu xuất VT. {exc}')
             else:
-                messages.success(request, f'Đã tạo yêu cầu xuất vật tư {req.code}.')
+                messages.success(request, f'Yêu cầu xuất vật tư {req.code}.')
                 return redirect('san_xuat:dispatch_material_issue_req_detail', pk=req.pk)
 
         elif action == 'approve_ycx' and can_update:
@@ -2695,6 +2697,8 @@ def dispatch_mo_detail(request, pk: int):
                         )
                     except DispatchError as exc:
                         messages.error(request, str(exc))
+                    except Exception as exc:
+                        messages.error(request, f'Không duyệt được phiếu xuất VT. {exc}')
                     else:
                         if res.request.status == 'partial':
                             messages.success(
@@ -2788,7 +2792,10 @@ def dispatch_mo_detail(request, pk: int):
     )
     from san_xuat.services.bom_need import explode_for_mo, needs_as_display_dicts
 
-    bom_lines = needs_as_display_dicts(explode_for_mo(mo))
+    try:
+        bom_lines = needs_as_display_dicts(explode_for_mo(mo))
+    except Exception:
+        bom_lines = []
 
     ob_lines = []
     ob_total_smv = Decimal('0')
