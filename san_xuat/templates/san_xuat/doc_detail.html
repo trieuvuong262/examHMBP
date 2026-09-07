@@ -91,6 +91,33 @@
         {% endif %}
       {% endif %}
       {% if tab == 'bom' or tab == 'process' %}
+      {% if can_update and bom or can_update and process_routing %}
+      <form method="post" class="d-inline">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="copy_bom_ob">
+        {% if process_routing %}<input type="hidden" name="routing_id" value="{{ process_routing.pk }}">{% endif %}
+        <button type="submit" class="btn btn-sm btn-outline-hm fw-bold"
+                title="Sao chép BOM + OB đang xem để dán đè sang hồ sơ khác">
+          <i class="bi bi-clipboard me-1"></i>Sao chép
+        </button>
+      </form>
+      <button type="button" class="btn btn-sm btn-outline-hm fw-bold"
+              data-bs-toggle="modal" data-bs-target="#jpPasteToDocModal"
+              title="Dán BOM + OB đang xem đè vào hồ sơ thiết kế khác">
+        <i class="bi bi-box-arrow-in-right me-1"></i>Dán sang hồ sơ
+      </button>
+      {% endif %}
+      {% if can_update and can_paste_clipboard %}
+      <form method="post" class="d-inline" onsubmit="return confirm('Dán đè BOM + OB từ {{ doc_clipboard.source_code|escapejs }} vào hồ sơ này? NPL và công đoạn phiên bản đang xem sẽ bị xóa và thay thế.');">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="paste_bom_ob">
+        {% if process_routing %}<input type="hidden" name="routing_id" value="{{ process_routing.pk }}">{% endif %}
+        <button type="submit" class="btn btn-sm btn-hm fw-bold"
+                title="Dán đè từ {{ doc_clipboard.source_code }} — BOM {{ doc_clipboard.bom_label }} / OB {{ doc_clipboard.routing_rev }}">
+          <i class="bi bi-clipboard-check me-1"></i>Dán đè
+        </button>
+      </form>
+      {% endif %}
       <button type="button" class="btn btn-sm btn-outline-secondary fw-bold"
               data-bs-toggle="modal" data-bs-target="#jpAuditModal">
         <i class="bi bi-clock-history me-1"></i>Lịch sử
@@ -133,6 +160,26 @@
                data-loading-message="Đang tải rập và tài liệu…">Rập và tài liệu</a>
         </li>
     </ul>
+
+  {% if tab == 'bom' or tab == 'process' %}
+  {% if doc_clipboard %}
+  <div class="alert alert-light border py-2 px-3 small mb-3 d-flex flex-wrap align-items-center gap-2">
+    <i class="bi bi-clipboard text-secondary"></i>
+    <span>
+      Đã copy từ <strong>{{ doc_clipboard.source_code }}</strong>
+      {% if doc_clipboard.source_name %} — {{ doc_clipboard.source_name }}{% endif %}:
+      {% if doc_clipboard.bom_id %}BOM {{ doc_clipboard.bom_label }} ({{ doc_clipboard.n_bom_lines }} NPL){% endif %}
+      {% if doc_clipboard.bom_id and doc_clipboard.routing_id %} · {% endif %}
+      {% if doc_clipboard.routing_id %}OB {{ doc_clipboard.routing_rev }} ({{ doc_clipboard.n_ob_lines }} CĐ){% endif %}
+    </span>
+    {% if can_paste_clipboard %}
+    <span class="text-muted">Bấm <strong>Dán đè</strong> để thay NPL + công đoạn phiên bản đang xem.</span>
+    {% else %}
+    <span class="text-muted">Mở hồ sơ thiết kế khác để dán đè.</span>
+    {% endif %}
+  </div>
+  {% endif %}
+  {% endif %}
 
   {% if tab == 'bom' or not versions %}
   <div class="jp-sx-bom-versions">
@@ -262,5 +309,115 @@
     </div>
   </div>
 </div>
+{% if can_update and bom or can_update and process_routing %}
+<div class="modal fade" id="jpPasteToDocModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form method="post" data-loading-message="Đang dán BOM + OB…">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="paste_bom_ob_to">
+        {% if process_routing %}<input type="hidden" name="routing_id" value="{{ process_routing.pk }}">{% endif %}
+        <div class="modal-header">
+          <div>
+            <h5 class="modal-title d-flex align-items-center gap-2 mb-0">
+              <i class="bi bi-clipboard-plus"></i>Dán BOM + OB sang hồ sơ khác
+            </h5>
+            <div class="small text-muted mt-1">
+              Nguồn: {{ doc.product_code }}
+              {% if bom %} · BOM {{ bom.version_label }}{% endif %}
+              {% if process_routing %} · OB {{ process_routing.routing_rev }}{% endif %}
+            </div>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p class="small text-danger mb-3">
+            Dán đè sẽ xóa NPL và công đoạn phiên bản đang dùng trên hồ sơ đích, rồi thay bằng bản đang xem.
+            Nếu BOM/OB đích đã gắn lệnh SX, hệ thống tạo phiên bản mới rồi dán vào.
+          </p>
+          <label class="form-label small fw-semibold">Hồ sơ thiết kế đích</label>
+          <select name="target_doc_id" id="jpPasteTargetDoc" class="form-select"
+                  data-placeholder="Gõ mã hoặc tên hồ sơ…" required>
+            <option value="">— Chọn hồ sơ —</option>
+          </select>
+          <div class="form-check mt-3">
+            <input class="form-check-input" type="checkbox" name="confirm_overwrite" value="1" id="jpPasteConfirm" required>
+            <label class="form-check-label small" for="jpPasteConfirm">
+              Tôi hiểu nội dung BOM/OB hiện tại của hồ sơ đích sẽ bị thay thế.
+            </label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Hủy</button>
+          <button type="submit" class="btn btn-hm btn-sm fw-bold">
+            <i class="bi bi-clipboard-check me-1"></i>Dán đè
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/css/tom-select.bootstrap5.min.css">
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.1/dist/js/tom-select.complete.min.js"></script>
+<style>
+body > .ts-dropdown { z-index: 2200; }
+</style>
+<script>
+(function () {
+  var modal = document.getElementById('jpPasteToDocModal');
+  var select = document.getElementById('jpPasteTargetDoc');
+  if (!modal || !select || typeof TomSelect === 'undefined') return;
+  var searchUrl = '{% url "san_xuat:tech_doc_search" %}?exclude={{ doc.pk }}';
+  var ts = null;
+  modal.addEventListener('shown.bs.modal', function () {
+    if (ts) {
+      ts.focus();
+      return;
+    }
+    ts = new TomSelect(select, {
+      maxOptions: 30,
+      maxItems: 1,
+      valueField: 'id',
+      labelField: 'text',
+      searchField: ['text', 'code', 'name'],
+      placeholder: select.dataset.placeholder || 'Gõ mã hoặc tên hồ sơ…',
+      dropdownParent: 'body',
+      openOnFocus: true,
+      preload: 'focus',
+      shouldLoad: function () { return true; },
+      loadThrottle: 220,
+      load: function (query, callback) {
+        fetch(searchUrl + '&q=' + encodeURIComponent(query || ''), {
+          headers: { 'Accept': 'application/json' },
+        })
+          .then(function (r) { return r.json(); })
+          .then(function (data) { callback(data.results || []); })
+          .catch(function () { callback(); });
+      },
+      render: {
+        option: function (data, escape) {
+          var name = escape(data.name || '');
+          var code = escape(data.code || '');
+          if (name && code) {
+            return '<div><div>' + code + '</div><div class="small text-muted">' + name + '</div></div>';
+          }
+          return '<div>' + escape(data.text || data.code || '') + '</div>';
+        },
+        item: function (data, escape) {
+          return '<div>' + escape(data.text || data.code || '') + '</div>';
+        },
+        no_results: function () {
+          return '<div class="px-2 py-2 text-muted small">Không tìm thấy hồ sơ — thử gõ mã SX</div>';
+        },
+        loading: function () {
+          return '<div class="px-2 py-2 text-muted small">Đang tải…</div>';
+        },
+      },
+    });
+    ts.focus();
+  });
+})();
+</script>
+{% endif %}
 {% endif %}
 {% endblock %}

@@ -200,6 +200,7 @@ urlpatterns = [
     path('cong-doan/thiet-lap/<slug:kind>/', views_ie.ie_ref_catalog, name='ie_ref_catalog'),
     path('thiet-lap/', views_hub.general_settings, name='general_settings'),
     path('api/tim-ma-sp/', views.product_code_search, name='product_code_search'),
+    path('api/tim-ho-so/', views.tech_doc_search, name='tech_doc_search'),
     path('api/tim-npl-btp/', views.gc_out_item_search, name='gc_out_item_search'),
     path('api/tim-nhan-vien/', views.employee_search, name='employee_search'),
     path('api/tim-khach-hang/', views.customer_search, name='customer_search'),

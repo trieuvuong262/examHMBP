@@ -286,6 +286,73 @@ def _get_bom_for_doc(doc: ProductTechDoc, bom_id: str | None) -> BomVersion | No
     return get_working_bom(doc)
 
 
+def _doc_routing_for_action(doc: ProductTechDoc, request, bom: BomVersion | None):
+    from san_xuat.services.tech_doc_copy import resolve_doc_routing
+
+    routing_id = (request.POST.get('routing_id') or request.GET.get('routing') or '').strip()
+    return resolve_doc_routing(doc, routing_id=routing_id, bom=bom)
+
+
+def _paste_bom_ob_message(result) -> str:
+    bits = []
+    if result.n_bom_lines or result.bom:
+        label = result.bom.version_label if result.bom else ''
+        extra = ' (phiên bản mới)' if result.bom_new_version else ''
+        bits.append(f'BOM {label}{extra}: {result.n_bom_lines} dòng NPL')
+    if result.n_ob_lines or result.routing:
+        rev = result.routing.routing_rev if result.routing else ''
+        extra = ' (phiên bản mới)' if result.routing_new_version else ''
+        bits.append(f'OB {rev}{extra}: {result.n_ob_lines} công đoạn')
+    target = result.target_doc.product_code
+    return f'Đã dán đè vào hồ sơ {target} — ' + '; '.join(bits)
+
+
+def _log_paste_bom_ob(*, result, source_doc, user) -> None:
+    from san_xuat.services.bom_audit import bom_snapshot, log_bom_event
+    from san_xuat.services.ie_audit import log_ie_event, routing_snapshot
+
+    src = source_doc.product_code
+    if result.bom:
+        snap = bom_snapshot(result.bom)
+        log_bom_event(
+            bom=result.bom,
+            action='update',
+            summary=(
+                f'Dán đè BOM {result.bom.version_label} từ {src} '
+                f'— {len(snap["lines"])} dòng NPL'
+            ),
+            changes={'snapshot': snap},
+            user=user,
+        )
+    if result.routing:
+        snap = routing_snapshot(result.routing)
+        log_ie_event(
+            action='update',
+            object_type='routing',
+            object_id=str(result.routing.pk),
+            object_repr=result.routing.routing_id,
+            summary=(
+                f'Dán đè OB {result.routing.routing_rev} từ {src} '
+                f'— {len(snap["lines"])} công đoạn'
+            ),
+            changes={'snapshot': snap},
+            user=user,
+        )
+
+
+def _redirect_after_paste(request, result, *, tab: str):
+    from django.urls import reverse
+
+    dest_tab = tab if tab in ('bom', 'process') else 'bom'
+    url = reverse('san_xuat:doc_detail', args=[result.target_doc.pk])
+    bits = [f'tab={dest_tab}']
+    if result.bom:
+        bits.append(f'bom={result.bom.pk}')
+    if result.routing:
+        bits.append(f'routing={result.routing.pk}')
+    return redirect(f'{url}?{"&".join(bits)}')
+
+
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def doc_detail(request, pk):
     doc = get_object_or_404(ProductTechDoc, pk=pk)
@@ -734,6 +801,99 @@ def doc_detail(request, pk):
             return _doc_tab_redirect(
                 request, 'process', bom=bom.pk if bom else None, routing=clone.pk,
             )
+        elif action == 'copy_bom_ob' and can_update:
+            from san_xuat.services.tech_doc_copy import TechDocCopyError, write_clipboard
+
+            routing = _doc_routing_for_action(doc, request, bom)
+            try:
+                payload = write_clipboard(request, doc=doc, bom=bom, routing=routing)
+            except TechDocCopyError as exc:
+                messages.error(request, str(exc))
+            else:
+                bits = []
+                if payload.get('bom_id'):
+                    bits.append(f"BOM {payload.get('bom_label') or ''} ({payload.get('n_bom_lines') or 0} NPL)")
+                if payload.get('routing_id'):
+                    bits.append(f"OB {payload.get('routing_rev') or ''} ({payload.get('n_ob_lines') or 0} CĐ)")
+                messages.success(
+                    request,
+                    'Đã sao chép ' + ' + '.join(bits) + '. Mở hồ sơ khác rồi bấm Dán đè, hoặc chọn Dán sang hồ sơ khác.',
+                )
+            return _doc_tab_redirect(
+                request,
+                tab if tab in ('bom', 'process') else 'bom',
+                bom=bom.pk if bom else None,
+                routing=routing.pk if routing else None,
+            )
+        elif action == 'paste_bom_ob' and can_update:
+            from san_xuat.services.tech_doc_copy import (
+                TechDocCopyError,
+                load_clipboard_sources,
+                paste_bom_and_ob,
+                read_clipboard,
+            )
+
+            routing = _doc_routing_for_action(doc, request, bom)
+            try:
+                source_doc, source_bom, source_routing = load_clipboard_sources(read_clipboard(request))
+                result = paste_bom_and_ob(
+                    source_doc=source_doc,
+                    source_bom=source_bom,
+                    source_routing=source_routing,
+                    target_doc=doc,
+                    target_bom=bom,
+                    target_routing=routing,
+                    user=request.user,
+                )
+            except TechDocCopyError as exc:
+                messages.error(request, str(exc))
+                return _doc_tab_redirect(
+                    request,
+                    tab if tab in ('bom', 'process') else 'bom',
+                    bom=bom.pk if bom else None,
+                    routing=routing.pk if routing else None,
+                )
+            _log_paste_bom_ob(result=result, source_doc=source_doc, user=request.user)
+            messages.success(request, _paste_bom_ob_message(result))
+            return _redirect_after_paste(request, result, tab=tab)
+        elif action == 'paste_bom_ob_to' and can_update:
+            from san_xuat.services.tech_doc_copy import TechDocCopyError, paste_bom_and_ob
+
+            routing = _doc_routing_for_action(doc, request, bom)
+            target_id = (request.POST.get('target_doc_id') or '').strip()
+            confirm = (request.POST.get('confirm_overwrite') or '').strip() in ('1', 'true', 'yes', 'on')
+            if not confirm:
+                messages.error(request, 'Xác nhận dán đè trước khi tiếp tục.')
+                return _doc_tab_redirect(
+                    request,
+                    tab if tab in ('bom', 'process') else 'bom',
+                    bom=bom.pk if bom else None,
+                    routing=routing.pk if routing else None,
+                )
+            try:
+                if not target_id.isdigit():
+                    raise TechDocCopyError('Chọn hồ sơ thiết kế đích.')
+                target_doc = ProductTechDoc.objects.filter(pk=int(target_id)).first()
+                if target_doc is None:
+                    raise TechDocCopyError('Không tìm thấy hồ sơ thiết kế đích.')
+                result = paste_bom_and_ob(
+                    source_doc=doc,
+                    source_bom=bom,
+                    source_routing=routing,
+                    target_doc=target_doc,
+                    user=request.user,
+                )
+            except TechDocCopyError as exc:
+                messages.error(request, str(exc))
+                return _doc_tab_redirect(
+                    request,
+                    tab if tab in ('bom', 'process') else 'bom',
+                    bom=bom.pk if bom else None,
+                    routing=routing.pk if routing else None,
+                )
+            _log_paste_bom_ob(result=result, source_doc=doc, user=request.user)
+            messages.success(request, _paste_bom_ob_message(result))
+            return _redirect_after_paste(request, result, tab=tab)
         elif action == 'restore_ob_snapshot' and can_update:
             from decimal import Decimal
 
@@ -1157,7 +1317,10 @@ def doc_detail(request, pk):
             ).order_by('-created_at')[:30]
         )
 
-    return render(request, 'san_xuat/doc_detail.html', {
+    from san_xuat.services.tech_doc_copy import read_clipboard
+
+    clip = read_clipboard(request)
+    ctx = {
         'doc': doc,
         'tab': tab,
         'bom': bom,
@@ -1196,8 +1359,11 @@ def doc_detail(request, pk):
         'ob_audit_logs': ob_audit_logs,
         'edit_mode': _edit_flag,
         'list_back_query': _doc_list_back_query(request),
+        'doc_clipboard': clip,
+        'can_paste_clipboard': bool(clip and clip.get('source_doc_id') != doc.pk),
         **_perm_ctx(request),
-    })
+    }
+    return render(request, 'san_xuat/doc_detail.html', ctx)
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
@@ -1284,6 +1450,30 @@ def design_file_preview(request, pk):
 def product_code_search(request):
     q = (request.GET.get('q') or '').strip()
     return JsonResponse({'results': search_products(q, limit=30)})
+
+
+@module_perm_required(MODULE_SAN_XUAT, 'view')
+@require_GET
+def tech_doc_search(request):
+    """TomSelect hồ sơ thiết kế — dùng khi dán BOM/OB sang hồ sơ khác."""
+    q = (request.GET.get('q') or '').strip()
+    exclude = (request.GET.get('exclude') or '').strip()
+    qs = ProductTechDoc.objects.all().order_by('product_code')
+    if exclude.isdigit():
+        qs = qs.exclude(pk=int(exclude))
+    if q:
+        qs = qs.filter(Q(product_code__icontains=q) | Q(product_name__icontains=q))
+    rows = []
+    for item in qs[:30]:
+        name = (item.product_name or '').strip()
+        code = item.product_code or ''
+        rows.append({
+            'id': str(item.pk),
+            'code': code,
+            'name': name,
+            'text': f'{code} — {name}' if name else code,
+        })
+    return JsonResponse({'results': rows})
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
