@@ -1,24 +1,5 @@
-{% if row.subcontract %}
-  {% if can_view_subcontract %}
+{% if row.subcontract and can_view_subcontract %}
   <a href="{% url 'san_xuat:subcontract_detail' row.subcontract.pk %}"
      class="btn btn-outline-secondary btn-sm fw-bold"
-     title="Phiếu thuê gia công {{ row.subcontract.code }}">Phiếu GC</a>
-  {% endif %}
-  {% if can_receive_gc and row.subcontract.status != 'done' and row.subcontract.status != 'received' and row.subcontract.status != 'cancelled' %}
-  <form method="post" class="d-inline"
-        onsubmit="return confirm('Nhận hàng gia công {{ row.subcontract.code }}?');">
-    {% csrf_token %}
-    <input type="hidden" name="mode" value="list">
-    <input type="hidden" name="tab" value="{{ tab }}">
-    {% if filter_date_from %}<input type="hidden" name="date_from" value="{{ filter_date_from|date:'Y-m-d' }}">{% endif %}
-    {% if filter_date_to %}<input type="hidden" name="date_to" value="{{ filter_date_to|date:'Y-m-d' }}">{% endif %}
-    <input type="hidden" name="action" value="receive_gc">
-    <input type="hidden" name="gc_id" value="{{ row.subcontract.pk }}">
-    <button type="submit" class="btn btn-outline-hm btn-sm fw-bold">Nhận hàng GC</button>
-  </form>
-  {% endif %}
-{% elif can_create_subcontract %}
-  <a href="{% url 'san_xuat:subcontract_create' %}?order={{ row.order.pk }}&amp;next=plan"
-     class="btn btn-outline-hm btn-sm fw-bold"
-     title="Thuê gia công cả đơn — không theo công đoạn">Thuê gia công</a>
+     title="Phiếu thuê gia công {{ row.subcontract.code }}{% if row.subcontract.team_label %} · {{ row.subcontract.team_label }}{% endif %}">Phiếu GC</a>
 {% endif %}

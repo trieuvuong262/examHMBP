@@ -24,12 +24,12 @@
           <div class="col-6"><div class="text-muted">Người lên đơn</div><div class="fw-semibold">{% if item.created_by %}{{ item.created_by.get_full_name|default:item.created_by.username }}{% else %}—{% endif %}</div></div>
           <div class="col-3"><div class="text-muted">SL đặt</div><div class="fs-5 fw-semibold">{{ item.qty|sx_num }}</div></div>
           <div class="col-3"><div class="text-muted">Số lượng nhận</div><div class="fs-5 fw-semibold">{{ item.qty_received|sx_num }}</div></div>
-          <div class="col-6"><div class="text-muted">Phạm vi</div><div>{{ item.team_label|default:"Cả lệnh" }}</div></div>
+          <div class="col-6"><div class="text-muted">Bộ phận</div><div>{{ item.team_label|default:"—" }}</div></div>
           <div class="col-6"><div class="text-muted">Đơn đặt hàng</div>
             <div>{% if item.sales_order %}<a href="{% url 'san_xuat:sales_order_detail' item.sales_order_id %}">{{ item.sales_order.code }}</a>{% else %}—{% endif %}</div>
           </div>
           <div class="col-6"><div class="text-muted">Lệnh sản xuất</div>
-            <div>{% if item.production_order %}<a href="{% url 'san_xuat:dispatch_mo_detail' item.production_order_id %}">{{ item.production_order.code }}</a>{% else %}Chưa có LSX{% endif %}</div>
+            <div>{% if item.production_order %}<a href="{% url 'san_xuat:dispatch_mo_detail' item.production_order_id %}">{{ item.production_order.code }}</a>{% else %}—{% endif %}</div>
           </div>
           <div class="col-12"><div class="text-muted">Ghi chú</div><div>{{ item.notes|default:"—" }}</div></div>
         </div>

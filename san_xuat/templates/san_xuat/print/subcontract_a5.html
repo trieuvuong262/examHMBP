@@ -9,7 +9,7 @@
   <div><span class="label">Lệnh sản xuất:</span> {% if mo %}{{ mo.code }}{% else %}Chưa có LSX{% endif %}</div>
   <div><span class="label">Trạng thái:</span> {{ item.get_status_display }}</div>
   <div><span class="label">Mã SP:</span> {{ item.product_code }}</div>
-  <div><span class="label">Phạm vi:</span> {{ item.team_label|default:"Cả lệnh" }}</div>
+  <div><span class="label">Bộ phận:</span> {{ item.team_label|default:"—" }}</div>
   <div class="full"><span class="label">Tên SP:</span> {{ item.product_name|default:"—" }}</div>
   <div><span class="label">SL đặt:</span> <strong>{{ item.qty|sx_num }}</strong></div>
   <div><span class="label">SL nhận lại:</span> {{ item.qty_received|sx_num }}</div>

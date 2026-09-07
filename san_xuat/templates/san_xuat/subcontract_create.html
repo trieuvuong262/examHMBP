@@ -78,13 +78,13 @@
             <div class="form-label small text-muted mb-1">{{ form.production_order.label }}</div>
             <div class="form-control-plaintext form-control-sm px-0">
               {% if source_mo %}{{ source_mo.code }} · {{ source_mo.product_code }}{% if source_mo.product_name %} — {{ source_mo.product_name }}{% endif %}
-              {% else %}Chưa có LSX — gắn khi Chuyển SX{% endif %}
+              {% else %}—{% endif %}
             </div>
             {% if form.production_order.errors %}<div class="text-danger small">{{ form.production_order.errors }}</div>{% endif %}
           </div>
           <div class="col-md-4">
-            <div class="form-label small text-muted mb-1">Phạm vi</div>
-            <div class="form-control-plaintext form-control-sm px-0">{{ source_team_label|default:"Cả lệnh" }}</div>
+            <div class="form-label small text-muted mb-1">Bộ phận</div>
+            <div class="form-control-plaintext form-control-sm px-0">{{ source_team_label|default:"—" }}</div>
             {% if form.team_slug.errors %}<div class="text-danger small">{{ form.team_slug.errors }}</div>{% endif %}
           </div>
           <div class="col-md-4">

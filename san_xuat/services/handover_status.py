@@ -284,34 +284,16 @@ def attach_gc_to_handover_rows(rows: list[MoHandoverRow]) -> list[MoHandoverRow]
         .order_by('-order_date', '-pk')
     )
     latest_team: dict[tuple[int, str], SxSubcontractOrder] = {}
-    latest_mo: dict[int, SxSubcontractOrder] = {}
-    latest_so: dict[int, SxSubcontractOrder] = {}
-    so_ids = {r.mo.sales_order_id for r in rows if r.mo.sales_order_id}
-    if so_ids:
-        extra = (
-            SxSubcontractOrder.objects.filter(
-                is_demo=False,
-                sales_order_id__in=so_ids,
-                production_order__isnull=True,
-            )
-            .exclude(status=SxSubcontractOrder.STATUS_CANCELLED)
-            .order_by('-order_date', '-pk')
-        )
-        qs = list(qs) + list(extra)
     for order in qs:
         team = (order.team_slug or '').strip().lower()
-        if order.production_order_id and not team and order.production_order_id not in latest_mo:
-            latest_mo[order.production_order_id] = order
-        if order.sales_order_id and not team and order.sales_order_id not in latest_so:
-            latest_so[order.sales_order_id] = order
-        if order.production_order_id and team:
-            key = (order.production_order_id, team)
-            if key not in latest_team:
-                latest_team[key] = order
+        if not order.production_order_id or not team:
+            continue
+        key = (order.production_order_id, team)
+        if key not in latest_team:
+            latest_team[key] = order
     for row in rows:
-        whole = latest_mo.get(row.mo.pk) or latest_so.get(row.mo.sales_order_id or 0)
         for c in row.cells:
-            c.subcontract = whole or latest_team.get((row.mo.pk, c.slug))
+            c.subcontract = latest_team.get((row.mo.pk, c.slug))
     return rows
 
 

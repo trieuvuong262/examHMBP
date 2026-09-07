@@ -302,7 +302,7 @@ def run_phase3_extras(user, mo):
             vendor_name="NCC FullCheck",
             product_code=mo.product_code,
             product_name=mo.product_name,
-            team_slug="",
+            team_slug="may",
             qty=Decimal("2"),
             due_date=timezone.localdate() + timedelta(days=5),
             out_lines=[{"material_code": "JP-CHI-PES40-WHT", "qty": Decimal("1")}],

@@ -356,7 +356,7 @@ def assign_team_work(
         )
     if active_subcontract_for_team(mo_id=mo.pk, team_slug=slug):
         raise PlanningError(
-            'Lệnh đang thuê gia công — không phân công nội bộ. Nhận hàng trên kế hoạch SX hoặc lệnh sản xuất.'
+            'Tổ này đang thuê gia công — không phân công nội bộ. Nhận hàng trên phiếu GC.'
         )
     step = ensure_mo_step_for_template(mo=mo, step_def=sd)
     User = get_user_model()
@@ -400,64 +400,41 @@ def _subcontract_open_qs():
 
 
 def latest_subcontract_for_sales_order(*, order_id: int):
-    """Phiếu GC mới nhất của ĐĐH (gắn đơn hoặc LSX thuộc đơn)."""
+    """Phiếu GC mới nhất gắn đơn hoặc LSX thuộc đơn — chỉ để xem, không coi là cả đơn."""
     if not order_id:
         return None
     return (
         _subcontract_open_qs()
         .filter(Q(sales_order_id=order_id) | Q(production_order__sales_order_id=order_id))
+        .exclude(team_slug='')
         .order_by('-order_date', '-pk')
         .first()
     )
 
 
 def latest_subcontract_for_mo(*, mo_id: int, sales_order_id: int | None = None):
-    """Phiếu GC của lệnh — ưu tiên gắn LSX, không thì ĐĐH."""
-    if mo_id:
-        hit = (
-            _subcontract_open_qs()
-            .filter(production_order_id=mo_id)
-            .order_by('-order_date', '-pk')
-            .first()
-        )
-        if hit:
-            return hit
-        if sales_order_id is None:
-            sales_order_id = (
-                SxProductionOrder.objects.filter(pk=mo_id).values_list('sales_order_id', flat=True).first()
-            )
-    return latest_subcontract_for_sales_order(order_id=sales_order_id or 0)
+    """Phiếu GC mới nhất của lệnh (theo tổ)."""
+    if not mo_id:
+        return None
+    return (
+        _subcontract_open_qs()
+        .filter(production_order_id=mo_id)
+        .exclude(team_slug='')
+        .order_by('-order_date', '-pk')
+        .first()
+    )
 
 
 def active_subcontract_for_team(*, mo_id: int, team_slug: str):
-    """Phiếu GC còn hiệu lực cho lệnh (cả lệnh hoặc đúng tổ cũ) — chặn phân công / tiến độ nội bộ."""
+    """Phiếu GC còn hiệu lực đúng tổ — chặn phân công / tiến độ nội bộ của tổ đó."""
     if not mo_id:
         return None
     slug = (team_slug or '').strip().lower()
-    so_id = (
-        SxProductionOrder.objects.filter(pk=mo_id).values_list('sales_order_id', flat=True).first()
-    )
-    qs = _subcontract_open_qs()
-    whole = None
-    if so_id:
-        whole = (
-            qs.filter(Q(production_order_id=mo_id) | Q(sales_order_id=so_id))
-            .filter(team_slug='')
-            .order_by('-order_date', '-pk')
-            .first()
-        )
-    else:
-        whole = (
-            qs.filter(production_order_id=mo_id, team_slug='')
-            .order_by('-order_date', '-pk')
-            .first()
-        )
-    if whole:
-        return whole
     if not slug:
-        return latest_subcontract_for_mo(mo_id=mo_id, sales_order_id=so_id)
+        return None
     return (
-        qs.filter(production_order_id=mo_id, team_slug=slug)
+        _subcontract_open_qs()
+        .filter(production_order_id=mo_id, team_slug=slug)
         .order_by('-order_date', '-pk')
         .first()
     )
@@ -592,31 +569,17 @@ def attach_team_job_closes(jobs: list[TeamWorkJob], *, slug: str) -> list[TeamWo
         job.qc_status_label = QC_STATUS_LABELS.get(job.qc_status, job.qc_status)
     if jobs:
         mo_ids = [j.mo.pk for j in jobs]
-        so_ids = [j.mo.sales_order_id for j in jobs if j.mo.sales_order_id]
         qs = (
             _subcontract_open_qs()
-            .filter(Q(production_order_id__in=mo_ids) | Q(sales_order_id__in=so_ids))
+            .filter(production_order_id__in=mo_ids, team_slug=slug)
             .order_by('-order_date', '-pk')
         )
         by_mo: dict[int, SxSubcontractOrder] = {}
-        by_so: dict[int, SxSubcontractOrder] = {}
-        by_team: dict[tuple[int, str], SxSubcontractOrder] = {}
         for row in qs:
-            team = (row.team_slug or '').strip().lower()
-            if row.production_order_id and not team and row.production_order_id not in by_mo:
+            if row.production_order_id not in by_mo:
                 by_mo[row.production_order_id] = row
-            if row.sales_order_id and not team and row.sales_order_id not in by_so:
-                by_so[row.sales_order_id] = row
-            if row.production_order_id and team:
-                key = (row.production_order_id, team)
-                if key not in by_team:
-                    by_team[key] = row
         for job in jobs:
-            job.subcontract = (
-                by_mo.get(job.mo.pk)
-                or by_so.get(job.mo.sales_order_id or 0)
-                or by_team.get((job.mo.pk, slug))
-            )
+            job.subcontract = by_mo.get(job.mo.pk)
     jobs.sort(
         key=lambda j: (
             0 if j.is_overdue else 1,

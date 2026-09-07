@@ -5173,7 +5173,7 @@ def team_work_board(request, slug: str):
             mo_id = 0
         if action == 'assign':
             if active_subcontract_for_team(mo_id=mo_id, team_slug=slug):
-                messages.error(request, 'Lệnh đang thuê gia công — không phân công nội bộ. Nhận hàng trên kế hoạch SX hoặc lệnh sản xuất.')
+                messages.error(request, 'Tổ này đang thuê gia công — không phân công nội bộ. Nhận hàng trên phiếu GC.')
                 return redirect(_board_qs())
             process_key = (request.POST.get('process_key') or '').strip()
             raw_ids = request.POST.getlist('assignee_ids')
@@ -5194,7 +5194,7 @@ def team_work_board(request, slug: str):
             return redirect(_board_qs())
         if action == 'accept' and mo_id:
             if active_subcontract_for_team(mo_id=mo_id, team_slug=slug):
-                messages.error(request, 'Lệnh đang thuê gia công — không nhận SX / tiến độ nội bộ.')
+                messages.error(request, 'Tổ này đang thuê gia công — không nhận SX / tiến độ nội bộ.')
                 return redirect(_board_qs())
             try:
                 accept_production(mo_id=mo_id, team_slug=slug, user=request.user)
@@ -5209,7 +5209,7 @@ def team_work_board(request, slug: str):
             return redirect(_board_qs())
         if action == 'complete' and mo_id:
             if active_subcontract_for_team(mo_id=mo_id, team_slug=slug):
-                messages.error(request, 'Lệnh đang thuê gia công — nhận hàng trên kế hoạch SX hoặc lệnh sản xuất.')
+                messages.error(request, 'Tổ này đang thuê gia công — nhận hàng trên phiếu GC.')
                 return redirect(_board_qs())
             try:
                 close_team_job(mo_id=mo_id, team_slug=slug, user=request.user)
@@ -5221,6 +5221,26 @@ def team_work_board(request, slug: str):
                 messages.error(request, str(exc))
             except Exception as exc:
                 messages.error(request, str(exc))
+            return redirect(_board_qs())
+        if action == 'receive_gc' and mo_id:
+            from san_xuat.services.phase3 import Phase3Error, receive_subcontract_goods
+
+            can_receive_gc = (
+                user_can_update_menu(request.user, MODULE_SAN_XUAT, 'subcontract')
+                or can_assign
+            )
+            gc = active_subcontract_for_team(mo_id=mo_id, team_slug=slug)
+            if not can_receive_gc:
+                messages.error(request, 'Bạn không có quyền nhận hàng gia công.')
+            elif not gc:
+                messages.error(request, 'Không có phiếu gia công đang mở cho tổ này.')
+            else:
+                try:
+                    gc = receive_subcontract_goods(order_id=gc.pk, user=request.user)
+                except Phase3Error as exc:
+                    messages.error(request, str(exc))
+                else:
+                    messages.success(request, f'Đã nhận hàng {gc.code}.')
             return redirect(_board_qs())
         if action == 'reopen' and mo_id:
             gc = active_subcontract_for_team(mo_id=mo_id, team_slug=slug)
@@ -5292,6 +5312,10 @@ def team_work_board(request, slug: str):
         'assignee_candidates': assignee_candidates,
         'can_view_subcontract': user_can_access_menu(request.user, MODULE_SAN_XUAT, 'subcontract'),
         'can_create_subcontract': user_can_create_menu(request.user, MODULE_SAN_XUAT, 'subcontract'),
+        'can_receive_gc': (
+            user_can_update_menu(request.user, MODULE_SAN_XUAT, 'subcontract')
+            or can_assign
+        ),
     })
 
 
@@ -6258,66 +6282,44 @@ def subcontract_list(request):
 
 @module_perm_required(MODULE_SAN_XUAT, 'create')
 def subcontract_create(request):
-    from san_xuat.hub_models import SxSalesOrder
     from san_xuat.services.phase3 import Phase3Error, create_subcontract_order, npl_lines_for_subcontract
-    from san_xuat.services.team_work import latest_subcontract_for_mo, latest_subcontract_for_sales_order
+    from san_xuat.services.progress_template import team_by_slug
+    from san_xuat.services.team_work import active_subcontract_for_team
 
     raw_mo = (request.GET.get('mo') or '').strip()
-    raw_order = (request.GET.get('order') or '').strip()
+    raw_team = (request.GET.get('team') or '').strip().lower()
     mo = (
         SxProductionOrder.objects.select_related('sales_order').filter(pk=int(raw_mo), is_demo=False).first()
         if raw_mo.isdigit() else None
     )
-    so = (
-        SxSalesOrder.objects.prefetch_related('lines').filter(pk=int(raw_order), is_demo=False).first()
-        if raw_order.isdigit() else None
-    )
-    if mo is not None and so is None:
-        so = mo.sales_order
-    if not mo and not so:
-        messages.info(request, 'Phiếu thuê gia công tạo từ kế hoạch sản xuất hoặc lệnh sản xuất.')
+    team = team_by_slug(raw_team) if raw_team else None
+    if not mo or mo.status == SxProductionOrder.STATUS_CANCELLED:
+        messages.info(request, 'Thuê gia công từng bộ phận sau khi chuyển sản xuất — mở từ bảng công việc tổ.')
         return redirect('san_xuat:subcontract_list')
+    if not team:
+        messages.info(request, 'Chọn tổ trên phân công để thuê gia công đúng bộ phận.')
+        return redirect('san_xuat:team_work_hub')
 
-    existing = None
-    if mo is not None:
-        existing = latest_subcontract_for_mo(mo_id=mo.pk, sales_order_id=so.pk if so else None)
-    elif so is not None:
-        existing = latest_subcontract_for_sales_order(order_id=so.pk)
+    existing = active_subcontract_for_team(mo_id=mo.pk, team_slug=team['slug'])
     if existing and existing.status in (
         SxSubcontractOrder.STATUS_DRAFT,
         SxSubcontractOrder.STATUS_SENT,
     ):
-        messages.info(request, f'Đã có phiếu {existing.code} đang mở.')
+        messages.info(request, f'Đã có phiếu {existing.code} đang mở cho tổ {team["label"]}.')
         return redirect('san_xuat:subcontract_detail', pk=existing.pk)
 
-    so_line = None
-    if so is not None:
-        lines = list(so.lines.all())
-        if mo is not None:
-            product = (mo.product_code or '').strip().casefold()
-            so_line = next(
-                (ln for ln in lines if (ln.product_code or '').strip().casefold() == product),
-                None,
-            )
-        if so_line is None and lines:
-            so_line = lines[0]
-
-    product_code = (mo.product_code if mo else '') or (so_line.product_code if so_line else '') or ''
-    product_name = (mo.product_name if mo else '') or (so_line.product_name if so_line else '') or ''
-    qty = (mo.qty if mo else None) or (so_line.qty_to_produce if so_line else None) or Decimal('0')
+    so = mo.sales_order
+    product_code = mo.product_code or ''
+    product_name = mo.product_name or ''
+    qty = mo.qty or Decimal('0')
     source_post = {
-        'production_order': str(mo.pk) if mo else '',
+        'production_order': str(mo.pk),
         'sales_order': str(so.pk) if so else '',
-        'team_slug': '',
+        'team_slug': team['slug'],
         'product_code': product_code,
         'product_name': product_name,
     }
-    create_qs = []
-    if so:
-        create_qs.append(f'order={so.pk}')
-    if mo:
-        create_qs.append(f'mo={mo.pk}')
-    form_action = ('?' + '&'.join(create_qs)) if create_qs else ''
+    form_action = f'?mo={mo.pk}&team={team["slug"]}'
 
     if request.method == 'POST':
         data = request.POST.copy()
@@ -6334,19 +6336,17 @@ def subcontract_create(request):
                 if cd.get('material_code') and cd.get('qty') and cd['qty'] > 0:
                     out_lines.append(cd)
             if not out_lines:
-                out_lines = npl_lines_for_subcontract(
-                    mo=mo, sales_order=so, qty=qty, product_code=product_code,
-                )
+                out_lines = npl_lines_for_subcontract(mo=mo, qty=qty, product_code=product_code)
             try:
                 item = create_subcontract_order(
                     vendor_name=form.cleaned_data['vendor_name'],
                     product_code=product_code,
                     product_name=product_name,
-                    team_slug='',
+                    team_slug=team['slug'],
                     qty=qty,
                     order_date=form.cleaned_data.get('order_date'),
                     due_date=form.cleaned_data.get('due_date'),
-                    production_order_id=mo.pk if mo else None,
+                    production_order_id=mo.pk,
                     sales_order_id=so.pk if so else None,
                     notes=form.cleaned_data.get('notes') or '',
                     out_lines=out_lines,
@@ -6355,7 +6355,7 @@ def subcontract_create(request):
             except Phase3Error as exc:
                 messages.error(request, str(exc))
             else:
-                messages.success(request, f'Đã tạo {item.code}.')
+                messages.success(request, f'Đã tạo {item.code} — tổ {team["label"]}.')
                 return redirect('san_xuat:subcontract_detail', pk=item.pk)
         messages.error(request, 'Không tạo được lệnh gia công.')
     else:
@@ -6365,31 +6365,27 @@ def subcontract_create(request):
             'sales_order': so,
             'product_code': product_code,
             'product_name': product_name,
-            'team_slug': '',
+            'team_slug': team['slug'],
         }
         form = SubcontractCreateForm(initial=initial, lock_source=True)
-        npl_initial = npl_lines_for_subcontract(
-            mo=mo, sales_order=so, qty=qty, product_code=product_code,
-        )
+        npl_initial = npl_lines_for_subcontract(mo=mo, qty=qty, product_code=product_code)
         out_formset = SubcontractOutLineFormSet(prefix='out', initial=npl_initial)
-    back_href = reverse('san_xuat:subcontract_list')
+    back_href = reverse('san_xuat:team_work_board', kwargs={'slug': team['slug']})
     next_to = (request.GET.get('next') or '').strip()
-    if next_to == 'plan':
-        back_href = reverse('san_xuat:plan_board')
-    elif next_to == 'mo' and mo:
-        back_href = reverse('san_xuat:dispatch_mo_detail', kwargs={'pk': mo.pk})
+    if next_to == 'list':
+        back_href = reverse('san_xuat:subcontract_list')
     return render(request, 'san_xuat/subcontract_create.html', {
         **_perm_ctx(request),
         'form': form,
         'out_formset': out_formset,
-        'title': 'Thuê gia công',
+        'title': f'Thuê gia công — {team["label"]}',
         'back_url': 'san_xuat:subcontract_list',
         'back_href': back_href,
         'form_action': form_action,
         'source_mo': mo,
         'source_so': so,
-        'source_team': '',
-        'source_team_label': 'Cả lệnh',
+        'source_team': team['slug'],
+        'source_team_label': team['label'],
         'order_creator_label': _order_creator_label(request.user),
     })
 

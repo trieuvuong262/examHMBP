@@ -445,10 +445,20 @@
             </form>
             {% endif %}
           {% elif job.subcontract %}
+            {% if can_receive_gc and job.subcontract.status != 'done' and job.subcontract.status != 'received' and job.subcontract.status != 'cancelled' %}
+            <form method="post" class="d-inline"
+                  onsubmit="return confirm('Nhận hàng gia công {{ job.subcontract.code }} — tổ {{ team.label }}?');">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="receive_gc">
+              <input type="hidden" name="mo_id" value="{{ job.mo.pk }}">
+              <input type="hidden" name="q" value="{{ search_query }}">
+              <button type="submit" class="btn btn-hm btn-sm fw-bold">Nhận hàng GC</button>
+            </form>
+            {% endif %}
             {% if can_view_subcontract %}
             <a href="{% url 'san_xuat:subcontract_detail' job.subcontract.pk %}"
                class="btn btn-outline-secondary btn-sm fw-bold"
-               title="Thuê GC — tạo/nhận trên kế hoạch SX hoặc lệnh sản xuất">Phiếu GC</a>
+               title="Phiếu thuê GC tổ {{ team.label }}">Phiếu GC</a>
             {% else %}
             <span class="jp-tw-status is-wait"><i class="bi bi-building"></i>Thuê gia công</span>
             {% endif %}
@@ -477,6 +487,11 @@
               <button type="submit" class="btn btn-outline-hm btn-sm fw-bold">Hoàn thành</button>
             </form>
           {% endif %}
+          {% endif %}
+          {% if not job.subcontract and not job.closed and can_create_subcontract %}
+          <a href="{% url 'san_xuat:subcontract_create' %}?mo={{ job.mo.pk }}&amp;team={{ team.slug }}"
+             class="btn btn-outline-hm btn-sm fw-bold"
+             title="Thuê gia công tổ {{ team.label }} — không thuê cả đơn">Thuê gia công</a>
           {% endif %}
           {% if not job.subcontract and not job.closed %}
           {% if job.run_count %}<span class="jp-tw-stat-pill">Đang làm <strong>{{ job.run_count }}</strong></span>{% endif %}

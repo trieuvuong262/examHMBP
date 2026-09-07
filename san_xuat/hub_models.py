@@ -2201,7 +2201,7 @@ class SxSubcontractOrder(DemoMarkedModel):
         default='',
         db_index=True,
         verbose_name='Tổ Ob thuê ngoài',
-        help_text='Để trống = cả lệnh. Phiếu cũ có thể còn gắn một tổ.',
+        help_text='Bắt buộc theo bộ phận. Phiếu cũ để trống không còn được coi là cả lệnh.',
     )
     qty = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
     qty_received = models.DecimalField(
@@ -2255,7 +2255,7 @@ class SxSubcontractOrder(DemoMarkedModel):
         meta = team_by_slug(self.team_slug) if self.team_slug else None
         if meta:
             return meta.get('label') or self.process_name or ''
-        return self.process_name or 'Cả lệnh'
+        return self.process_name or '—'
 
     @property
     def work_status_label(self) -> str:

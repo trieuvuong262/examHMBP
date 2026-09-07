@@ -847,6 +847,7 @@ def attach_subcontracts_to_plan_rows(rows: list[PlanBoardRow]) -> list[PlanBoard
         .select_related('production_order')
         .exclude(status=SxSubcontractOrder.STATUS_CANCELLED)
         .filter(Q(sales_order_id__in=order_ids) | Q(production_order__sales_order_id__in=order_ids))
+        .exclude(team_slug='')
         .order_by('-order_date', '-pk')
     )
     latest: dict[int, SxSubcontractOrder] = {}

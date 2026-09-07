@@ -564,25 +564,19 @@ def npl_lines_for_subcontract(
     return []
 
 
-def _open_subcontract_conflict(*, mo=None, sales_order=None):
-    qs = (
-        SxSubcontractOrder.objects.filter(is_demo=False)
+def _open_subcontract_conflict(*, mo, team_slug: str):
+    slug = (team_slug or "").strip().lower()
+    if mo is None or not slug:
+        return
+    hit = (
+        SxSubcontractOrder.objects.filter(is_demo=False, production_order=mo, team_slug=slug)
         .exclude(status=SxSubcontractOrder.STATUS_CANCELLED)
         .filter(status__in=[SxSubcontractOrder.STATUS_DRAFT, SxSubcontractOrder.STATUS_SENT])
+        .order_by("-order_date", "-pk")
+        .first()
     )
-    so = sales_order or (mo.sales_order if mo is not None else None)
-    if so is not None:
-        hit = (
-            qs.filter(Q(sales_order=so) | Q(production_order__sales_order=so))
-            .order_by("-order_date", "-pk")
-            .first()
-        )
-    elif mo is not None:
-        hit = qs.filter(production_order=mo).order_by("-order_date", "-pk").first()
-    else:
-        hit = None
     if hit:
-        raise Phase3Error(f"Đã có phiếu {hit.code} đang mở — nhận hàng hoặc hủy phiếu đó trước.")
+        raise Phase3Error(f"Đã có phiếu {hit.code} đang mở cho tổ này — nhận hàng hoặc hủy phiếu đó trước.")
 
 
 @transaction.atomic
@@ -611,56 +605,33 @@ def create_subcontract_order(
         raise Phase3Error("Thiếu mã sản phẩm.")
     if qty is None or qty <= 0:
         raise Phase3Error("Số lượng gia công phải > 0.")
-    if not production_order_id and not sales_order_id:
-        raise Phase3Error("Chọn đơn đặt hàng hoặc lệnh sản xuất nguồn.")
-
-    mo = None
-    so = None
-    if production_order_id:
-        mo = SxProductionOrder.objects.select_related("sales_order").get(pk=production_order_id)
-        so = mo.sales_order
-    if sales_order_id and so is None:
-        so = SxSalesOrder.objects.get(pk=sales_order_id)
-    if mo is None and so is not None:
-        match = so.production_orders.filter(is_demo=False).exclude(
-            status=SxProductionOrder.STATUS_CANCELLED,
-        )
-        if product_code:
-            mo = match.filter(product_code__iexact=product_code).first() or match.first()
-        else:
-            mo = match.first()
-    if mo is not None:
-        product_name = product_name or mo.product_name
-        product_code = product_code or mo.product_code
-    elif so is not None and not product_name:
-        line = next(
-            (
-                ln
-                for ln in so.lines.all()
-                if (ln.product_code or "").strip() == product_code
-            ),
-            so.lines.first(),
-        )
-        if line is not None:
-            product_name = line.product_name
-
+    if not production_order_id:
+        raise Phase3Error("Chỉ thuê gia công sau khi chuyển sản xuất — chọn lệnh sản xuất.")
     slug = (team_slug or "").strip().lower()
-    if slug and mo is not None:
-        from san_xuat.services.progress_template import team_by_slug
-        from san_xuat.services.qc import ob_qc_teams
+    if not slug:
+        raise Phase3Error("Chọn bộ phận / tổ thuê gia công.")
 
-        ob_teams = ob_qc_teams(mo=mo)
-        allowed = {t.slug: t for t in ob_teams}
-        if slug not in allowed:
-            labels = ", ".join(t.label for t in ob_teams) or "—"
-            raise Phase3Error(f"Tổ không có trên Ob của lệnh. Tổ Ob: {labels}.")
-        meta = team_by_slug(slug)
-        process_name = (process_name or "").strip() or (meta or {}).get("label") or allowed[slug].label
-    else:
-        slug = ""
-        process_name = (process_name or "").strip() or "Cả lệnh"
+    mo = SxProductionOrder.objects.select_related("sales_order").get(pk=production_order_id)
+    if mo.status == SxProductionOrder.STATUS_CANCELLED:
+        raise Phase3Error("Lệnh sản xuất đã hủy — không thuê gia công.")
+    so = mo.sales_order
+    if sales_order_id and so is None:
+        so = SxSalesOrder.objects.filter(pk=sales_order_id).first()
+    product_name = product_name or mo.product_name
+    product_code = product_code or mo.product_code
 
-    _open_subcontract_conflict(mo=mo, sales_order=so)
+    from san_xuat.services.progress_template import team_by_slug
+    from san_xuat.services.qc import ob_qc_teams
+
+    ob_teams = ob_qc_teams(mo=mo)
+    allowed = {t.slug: t for t in ob_teams}
+    if slug not in allowed:
+        labels = ", ".join(t.label for t in ob_teams) or "—"
+        raise Phase3Error(f"Tổ không có trên Ob của lệnh. Tổ Ob: {labels}.")
+    meta = team_by_slug(slug)
+    process_name = (process_name or "").strip() or (meta or {}).get("label") or allowed[slug].label
+
+    _open_subcontract_conflict(mo=mo, team_slug=slug)
     order = SxSubcontractOrder.objects.create(
         code=_code("subcontract", SxSubcontractOrder, code=code),
         sales_order=so,
@@ -815,15 +786,11 @@ def _mos_for_subcontract(order: SxSubcontractOrder) -> list[SxProductionOrder]:
 
 def _team_slugs_for_gc(*, order: SxSubcontractOrder, mo: SxProductionOrder) -> list[str]:
     slug = (order.team_slug or "").strip().lower()
-    if slug:
-        return [slug]
-    from san_xuat.services.qc import ob_qc_teams
-
-    return [t.slug for t in ob_qc_teams(mo=mo)]
+    return [slug] if slug else []
 
 
 def _close_ob_team_for_gc(*, order: SxSubcontractOrder, user=None) -> None:
-    """Nhận hàng GC = hoàn thành tổ trên lệnh (cả lệnh hoặc tổ cũ) — không cần phân công nội bộ."""
+    """Nhận hàng GC = hoàn thành đúng tổ thuê — không cần phân công nội bộ."""
     from san_xuat.services.planning import PlanningError
     from san_xuat.services.team_work import (
         accept_production,

@@ -369,9 +369,9 @@ class SubcontractCreateForm(forms.Form):
         widget=forms.HiddenInput(),
     )
     team_slug = forms.ChoiceField(
-        required=False,
+        required=True,
         label="Tổ Ob thuê ngoài",
-        choices=[("", "Cả lệnh")],
+        choices=[],
         widget=forms.Select(attrs={
             "class": "form-select form-select-sm",
             "id": "id_team_slug",
@@ -428,13 +428,16 @@ class SubcontractCreateForm(forms.Form):
         if mo is not None and so is None:
             so = mo.sales_order
         self.fields["product_code"].choices = _product_code_choices(extra_product)
-        self.fields["team_slug"].choices = [("", "Cả lệnh")]
-        if extra_team:
-            self.fields["team_slug"].choices.append((extra_team, extra_team))
+        from san_xuat.services.progress_template import team_by_slug
+
+        team_meta = team_by_slug(extra_team) if extra_team else None
+        self.fields["team_slug"].choices = (
+            [(extra_team, (team_meta or {}).get("label") or extra_team)] if extra_team else []
+        )
         self.fields["production_order"].queryset = (
             SxProductionOrder.objects.filter(is_demo=False).order_by("-order_date", "-pk")
         )
-        self.fields["production_order"].empty_label = "— Chưa có lệnh sản xuất —"
+        self.fields["production_order"].empty_label = "— Chọn lệnh sản xuất —"
         self.fields["production_order"].label_from_instance = (
             lambda row: f"{row.code} · {row.product_code}" + (f" — {row.product_name}" if row.product_name else "")
         )
@@ -476,10 +479,11 @@ class SubcontractCreateForm(forms.Form):
             if ref:
                 cleaned["product_name"] = ref.name
         mo = cleaned.get("production_order")
-        so = cleaned.get("sales_order")
-        if not mo and not so:
-            self.add_error(None, "Thiếu đơn đặt hàng hoặc lệnh sản xuất nguồn.")
         slug = cleaned.get("team_slug") or ""
+        if not mo:
+            self.add_error("production_order", "Chỉ thuê gia công sau khi chuyển sản xuất.")
+        if not slug:
+            self.add_error("team_slug", "Chọn bộ phận / tổ thuê gia công.")
         if mo and slug:
             from san_xuat.services.qc import ob_team_options
 
