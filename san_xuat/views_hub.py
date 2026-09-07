@@ -1333,7 +1333,6 @@ def plan_board(request):
         reschedule_order_team_start,
         save_plan_hops,
         set_plan_priority,
-        sync_plan_status,
         unhold_plan_order,
         unrelease_order_from_production,
     )
@@ -1593,8 +1592,6 @@ def plan_board(request):
 
     if tab == 'queue':
         queue_rows = build_plan_board_rows(statuses=QUEUE_STATUSES, search=q)
-        for row in queue_rows:
-            sync_plan_status(row.order)
         route_board = None
     elif tab == 'released':
         from san_xuat.list_filters import parse_sx_date
@@ -1635,16 +1632,12 @@ def plan_board(request):
             date_from=filter_date_from,
             date_to=filter_date_to,
         )
-        for row in released_rows:
-            sync_plan_status(row.order)
         route_board = None
     else:
         from san_xuat.list_filters import parse_sx_date
         from san_xuat.services.plan_board import _month_bounds
 
         route_rows = build_plan_board_rows(include_released=True, search=q)
-        for row in route_rows:
-            sync_plan_status(row.order)
         route_from = parse_sx_date((request.GET.get('route_from') or '').strip())
         route_to = parse_sx_date((request.GET.get('route_to') or '').strip())
         route_board = build_order_timeline(
@@ -2536,24 +2529,14 @@ def run_order_wizard(request, mo_id: int | None = None):
 
 @module_perm_required(MODULE_SAN_XUAT, 'view')
 def dispatch_mo_detail(request, pk: int):
-    mo = (
-        SxProductionOrder.objects        .select_related(
+    mo = get_object_or_404(
+        SxProductionOrder.objects.select_related(
             'bom_version__tech_doc',
             'bom_version__routing',
             'routing',
             'sales_order',
-        )
-        .prefetch_related(
-            'bom_version__lines__material',
-            'bom_version__process_steps__work_center',
-            'routing__lines',
-            'sales_order__lines__bom_version__tech_doc',
-            'sales_order__lines__bom_version__lines__material',
-            'sales_order__lines__routing',
-            'sales_order__lines__routing_lines',
-            'lines',
-        )
-        .get(pk=pk)
+        ),
+        pk=pk,
     )
     can_update = _perm_ctx(request).get('can_update')
     update_form = None
@@ -2736,6 +2719,23 @@ def dispatch_mo_detail(request, pk: int):
             else:
                 messages.success(request, f'Đã tạo yêu cầu nhập thành phẩm {fg_req.code}.')
                 return redirect('san_xuat:dispatch_fg_receipt_req_detail', pk=fg_req.pk)
+
+    mo = (
+        SxProductionOrder.objects.select_related(
+            'bom_version__tech_doc',
+            'bom_version__routing',
+            'routing',
+            'sales_order',
+        )
+        .prefetch_related(
+            'routing__lines',
+            'sales_order__lines__routing_lines__work_center',
+            'sales_order__lines__bom_version__tech_doc',
+            'sales_order__lines__routing',
+            'lines',
+        )
+        .get(pk=mo.pk)
+    )
 
     if update_form is None:
         update_form = ProductionOrderUpdateForm(

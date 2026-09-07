@@ -345,7 +345,9 @@ def sales_order_line_routing(order_line: SxSalesOrderLine):
     code = (order_line.product_code or '').strip()
     result = ProductRouting(product_code=code)
     rows: list[RoutingStep] = []
-    for line in order_line.routing_lines.select_related('work_center').order_by('seq_no', 'id'):
+    src_lines = list(order_line.routing_lines.all())
+    src_lines.sort(key=lambda ln: (ln.seq_no or 0, ln.pk or 0))
+    for line in src_lines:
         # Snapshot đơn lưu SMV giây → phút cho lịch/công suất.
         minutes = _q((line.total_operation_smv or Decimal('0')) / Decimal('60'), '0.0001')
         if minutes <= 0:

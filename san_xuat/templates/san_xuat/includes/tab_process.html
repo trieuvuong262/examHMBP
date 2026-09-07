@@ -15,7 +15,8 @@
 
       <div class="col-md-4">
         <label class="form-label small mb-1">Nhóm công đoạn <span class="text-danger">*</span></label>
-        <select name="group_code" class="form-select form-select-sm" required>
+        <select name="group_code" class="form-select form-select-sm jp-sx-process-group-select" required
+                data-placeholder="Gõ tìm nhóm công đoạn…">
           <option value="">— Chọn nhóm —</option>
           {% for group in operation_groups %}
           <option value="{{ group.code }}">{{ group.name }}</option>

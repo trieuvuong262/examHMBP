@@ -227,6 +227,22 @@
     });
   }
 
+  function initGroupPicker(sel) {
+    if (!sel || sel.tomselect || typeof TomSelect === 'undefined') return;
+    new TomSelect(sel, {
+      maxOptions: null,
+      maxItems: 1,
+      allowEmptyOption: true,
+      placeholder: sel.dataset.placeholder || 'Gõ tìm nhóm công đoạn…',
+      dropdownParent: 'body',
+      openOnFocus: true,
+      create: false,
+      sortField: { field: 'text', direction: 'asc' },
+      searchField: ['text', 'value'],
+    });
+  }
+
+  document.querySelectorAll('select.jp-sx-process-group-select').forEach(initGroupPicker);
   document.querySelectorAll('select.jp-ie-op-select').forEach(initOpPicker);
   document.querySelectorAll('select.jp-ie-machine-select').forEach(initMachinePicker);
 })();

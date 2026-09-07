@@ -6,6 +6,7 @@ import unicodedata
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
+from threading import local
 
 from django.db import transaction
 from django.db.models import Q
@@ -17,6 +18,7 @@ from san_xuat.hub_models import SxTeamHrMap, SxWorkCenter
 
 SX_DEPT_NAMES = ('SẢN XUẤT', 'SAN XUAT')
 CODE_PREFIX = 'HRD-'
+_tls = local()
 LEGACY_FAKE_CODES = frozenset({
     'TO-MAY-1', 'TO-MAY-2', 'TO-DG', 'TO-FULLCHECK', 'CHUYEN-01',
 })
@@ -83,6 +85,22 @@ def hr_work_centers_qs(*, include_inactive_ids: list[int] | None = None):
     return SxWorkCenter.objects.filter(is_active=True, is_demo=False).order_by('name', 'code')
 
 
+def _hr_work_centers_cached() -> list[SxWorkCenter]:
+    data = getattr(_tls, 'hr_wcs', None)
+    if data is None:
+        data = list(hr_work_centers_qs())
+        _tls.hr_wcs = data
+    return data
+
+
+def _wc_resolve_memo() -> dict[tuple[str, str], SxWorkCenter | None]:
+    cache = getattr(_tls, 'wc_resolve', None)
+    if cache is None:
+        cache = {}
+        _tls.wc_resolve = cache
+    return cache
+
+
 def _pick_hr_by_keys(hr_centers: list[SxWorkCenter], hr_keys: tuple[str, ...]) -> SxWorkCenter | None:
     """Ưu tiên tên khớp ngắn/gần đúng (MAY trước MAY (152A…))."""
     hits: list[tuple[int, SxWorkCenter]] = []
@@ -130,18 +148,29 @@ def resolve_work_center_code(code: str | None, *, name_hint: str = '') -> SxWork
     if not raw and not hint:
         return None
 
+    memo = _wc_resolve_memo()
+    memo_key = (raw.casefold(), hint.casefold())
+    if memo_key in memo:
+        return memo[memo_key]
+
+    def _store(value: SxWorkCenter | None) -> SxWorkCenter | None:
+        memo[memo_key] = value
+        return value
+
     if raw.upper().startswith(CODE_PREFIX):
-        return SxWorkCenter.objects.filter(
-            code__iexact=raw, is_active=True, is_demo=False,
-        ).first()
+        return _store(
+            SxWorkCenter.objects.filter(
+                code__iexact=raw, is_active=True, is_demo=False,
+            ).first()
+        )
 
     # Đã là HRD nhưng viết thường / đã tắt → thử theo mã
     direct = SxWorkCenter.objects.filter(code__iexact=raw).first() if raw else None
     if direct and (direct.code or '').upper().startswith(CODE_PREFIX) and direct.is_active:
-        return direct
+        return _store(direct)
 
     needle = _fold(f'{raw} {hint}')
-    hr_centers = list(hr_work_centers_qs())
+    hr_centers = _hr_work_centers_cached()
 
     if hr_centers:
         # Map theo bảng IE → HR
@@ -149,16 +178,16 @@ def resolve_work_center_code(code: str | None, *, name_hint: str = '') -> SxWork
             if any(_fold(k) and _fold(k) in needle for k in ie_keys):
                 hit = _pick_hr_by_keys(hr_centers, hr_keys)
                 if hit:
-                    return hit
+                    return _store(hit)
 
         # Khớp trực tiếp tên / mã bộ phận trong pool (HRD hoặc fallback IE)
         raw_fold = _fold(raw)
         for hc in hr_centers:
             folded = _fold(f'{hc.name} {hc.team_label} {hc.code}')
             if raw_fold and raw_fold == _fold(hc.code):
-                return hc
+                return _store(hc)
             if needle and (needle == folded or needle in folded or folded in needle):
-                return hc
+                return _store(hc)
 
     # Fallback: mã IE chuẩn trên form (IN-EP, CAT, MAY, …)
     if raw:
@@ -166,8 +195,8 @@ def resolve_work_center_code(code: str | None, *, name_hint: str = '') -> SxWork
             code__iexact=raw, is_active=True, is_demo=False,
         ).first()
         if ie:
-            return ie
-    return None
+            return _store(ie)
+    return _store(None)
 
 
 def remap_ie_master_to_hr() -> dict[str, int]:

@@ -29,6 +29,7 @@
         [/^\/kho-npl\/dieu-chinh\/\d+\/$/, 'Đang tải chi tiết kiểm kê…'],
     ];
 
+    const SX_ROUTE_PREFIX = '/san-xuat/';
     const DOC_DETAIL_ROUTE_PATTERNS = [
         [/^\/kho-npl\/danh-muc\/\d+\/$/, 'Đang tải chi tiết NPL…'],
         [/^\/san-xuat\/ho-so\/them\/$/, 'Đang mở form thêm hồ sơ…'],
@@ -77,6 +78,7 @@
             const pattern = DOC_DETAIL_ROUTE_PATTERNS[j];
             if (pattern[0].test(path)) return pattern[1];
         }
+        if (path.startsWith(SX_ROUTE_PREFIX)) return 'Đang tải sản xuất…';
         return null;
     }
 
@@ -211,6 +213,8 @@
                 return;
             }
             if (url.origin !== window.location.origin) return;
+            // Cùng hồ sơ, chỉ đổi tab/query — không chặn cả trang chờ overlay.
+            if (url.pathname === window.location.pathname) return;
 
             const msg = messageForLink(link, url);
             if (!msg) return;
@@ -220,12 +224,12 @@
         document.addEventListener('submit', function (e) {
             const form = e.target;
             if (!form || form.tagName !== 'FORM') return;
+            if (form.hasAttribute('data-skip-page-loading')) return;
             if (shouldIgnoreNav(form)) return;
             if (form.closest('.modal')) return;
             if (form.id === 'jp-npl-import-form') return;
-            const inCatalog = form.closest('.jp-npl-material-catalog-page');
             const inStocktake = form.closest('.jp-npl-stocktake-page');
-            if (!inCatalog && !inStocktake && !form.hasAttribute('data-loading-message')) return;
+            if (!form.hasAttribute('data-loading-message') && !inStocktake) return;
             const msg = form.getAttribute('data-loading-message') || pageMessage();
             markNavigating(msg);
         }, true);
@@ -252,13 +256,10 @@
         if (!page) return;
 
         const pending = pendingMessage();
-        show(pending || page.getAttribute('data-loading-message') || pageMessage());
-
-        if (document.readyState === 'complete') {
-            finishAfterPaint();
-        } else {
-            window.addEventListener('load', finishAfterPaint, { once: true });
-        }
+        if (!pending) return;
+        show(pending);
+        // Ẩn overlay khi DOM sẵn sàng — không chờ ảnh / CDN (window.load).
+        finishAfterPaint();
     }
 
     function bootLoadingPages() {
@@ -276,6 +277,7 @@
     const api = { show, hide, markNavigating };
 
     global.JpNplCatalogLoading = api;
+    global.jpShowToolLoading = markNavigating;
 
     wireGlobalNav();
 

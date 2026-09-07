@@ -621,16 +621,14 @@ def build_plan_board_rows(
         lines = list(order.lines.all())
         mos = list(order.production_orders.all())
         total_qty = sum((ln.qty_to_produce for ln in lines), Decimal('0'))
-        names, work_min, has_routing, routing_buffer = _enrich_routing(order, lines)
+        names: list[str] = []
+        work_min = Decimal('0')
+        has_routing = False
         hops = []
         flow_groups = []
         product_flows: list[PlanProductFlow] = []
-        buffer_min = routing_buffer
+        buffer_min = Decimal('0')
         plan_steps = list(order.plan_steps.all())
-        if not plan_steps and order.confirm_status == SxSalesOrder.CONFIRM_CONFIRMED:
-            from san_xuat.services.plan_route import ensure_order_plan_steps
-
-            plan_steps = ensure_order_plan_steps(order)
         if plan_steps:
             from san_xuat.services.inter_step_times import (
                 flow_groups_from_steps,
@@ -693,12 +691,20 @@ def build_plan_board_rows(
             flow_buf = sum((_buffer_from_flow_groups(pf.flow_groups) for pf in product_flows), Decimal('0'))
             buffer_min = _q(flow_buf)
             work_min = _q(sum((pf.work_minutes for pf in product_flows), Decimal('0')))
+            has_routing = any(
+                pf.flow_groups or pf.smv_minutes > 0 for pf in product_flows
+            )
         cycle_min = _q(work_min + buffer_min)
         score, days_to_due, is_overdue = compute_score(
             order=order, cycle_minutes=cycle_min, today=today,
         )
         mo_count, mo_open, qty_planned, qty_done, pct = _mo_progress(mos)
         derived = derive_plan_status(order, mos)
+        if (
+            order.plan_status != SxSalesOrder.PLAN_ON_HOLD
+            and derived != order.plan_status
+        ):
+            order.plan_status = derived
         from san_xuat.services.inter_step_times import schedule_span
 
         team_spans = team_khsx_spans(

@@ -181,7 +181,7 @@ def doc_list(request):
         Prefetch('design_files', queryset=gallery_qs, to_attr='gallery_images'),
     )
 
-    page_obj, query_string = paginate_queryset(request, qs, per_page=500)
+    page_obj, query_string = paginate_queryset(request, qs, per_page=50)
     page_obj.object_list = list(page_obj.object_list)
     fill_tech_doc_display_images(page_obj.object_list)
     return render(request, 'san_xuat/doc_list.html', {
@@ -272,18 +272,94 @@ def doc_create(request):
     })
 
 
+def _light_bom_for_doc(doc: ProductTechDoc, bom_id: str | None) -> BomVersion | None:
+    qs = doc.bom_versions.all()
+    if bom_id and str(bom_id).isdigit():
+        return qs.filter(pk=int(bom_id)).first()
+    return qs.order_by('-created_at', '-id').first()
+
+
+def _handle_doc_copy_paste(request, doc: ProductTechDoc, *, tab: str):
+    """Copy/dán BOM+OB — xử lý ngay, không prefetch cả trang hồ sơ."""
+    from san_xuat.services.tech_doc_copy import (
+        TechDocCopyError,
+        load_clipboard_sources,
+        paste_bom_and_ob,
+        read_clipboard,
+        write_clipboard,
+    )
+
+    action = (request.POST.get('action') or '').strip()
+    wants_json = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    dest_tab = tab if tab in ('bom', 'process') else 'bom'
+    bom = _light_bom_for_doc(doc, request.GET.get('bom') or request.POST.get('bom_id'))
+    routing = _doc_routing_for_action(doc, request, bom)
+
+    def _fail(message: str):
+        if wants_json:
+            return JsonResponse({'ok': False, 'error': message})
+        messages.error(request, message)
+        return _doc_tab_redirect(
+            request, dest_tab, bom=bom.pk if bom else None, routing=routing.pk if routing else None,
+        )
+
+    if action == 'copy_bom_ob':
+        try:
+            write_clipboard(request, doc=doc, bom=bom, routing=routing)
+        except TechDocCopyError as exc:
+            return _fail(str(exc))
+        if wants_json:
+            return JsonResponse({'ok': True, 'message': 'Đã sao chép BOM + OB.'})
+        messages.success(request, 'Đã sao chép BOM + OB. Mở hồ sơ khác rồi bấm Dán đè.')
+        return _doc_tab_redirect(
+            request, dest_tab, bom=bom.pk if bom else None, routing=routing.pk if routing else None,
+        )
+
+    if action == 'paste_bom_ob':
+        try:
+            source_doc, source_bom, source_routing = load_clipboard_sources(read_clipboard(request))
+            result = paste_bom_and_ob(
+                source_doc=source_doc,
+                source_bom=source_bom,
+                source_routing=source_routing,
+                target_doc=doc,
+                target_bom=bom,
+                target_routing=routing,
+                user=request.user,
+            )
+        except TechDocCopyError as exc:
+            return _fail(str(exc))
+        _log_paste_bom_ob(result=result, source_doc=source_doc, user=request.user)
+        messages.success(request, _paste_bom_ob_message(result))
+        return _redirect_after_paste(request, result, tab=tab)
+
+    return None
+
+
 def _get_bom_for_doc(doc: ProductTechDoc, bom_id: str | None) -> BomVersion | None:
+    qs = doc.bom_versions.all()
     if bom_id:
         try:
-            return doc.bom_versions.prefetch_related(
-                'lines__material__unit',
-                'lines__material__color',
-                'lines__material__specification',
-                'process_steps',
-            ).get(pk=int(bom_id))
+            return qs.get(pk=int(bom_id))
         except (ValueError, BomVersion.DoesNotExist):
             return None
-    return get_working_bom(doc)
+    return qs.order_by('-created_at', '-id').first()
+
+
+def _prefetch_doc_bom(bom: BomVersion | None) -> BomVersion | None:
+    if bom is None:
+        return None
+    return (
+        BomVersion.objects.filter(pk=bom.pk)
+        .prefetch_related(
+            'lines__material__unit',
+            'lines__material__color',
+            'lines__material__specification',
+            'process_steps__work_center',
+        )
+        .select_related('routing')
+        .first()
+    ) or bom
 
 
 def _doc_routing_for_action(doc: ProductTechDoc, request, bom: BomVersion | None):
@@ -360,31 +436,20 @@ def doc_detail(request, pk):
     if tab not in ('info', 'bom', 'process', 'costing', 'design', 'sku'):
         tab = 'info'
 
+    can_update = user_can_update_module(request.user, MODULE_SAN_XUAT)
+    if can_update and request.method == 'POST':
+        action = (request.POST.get('action') or '').strip()
+        if action in ('copy_bom_ob', 'paste_bom_ob'):
+            return _handle_doc_copy_paste(request, doc, tab=tab)
+
     bom = _get_bom_for_doc(doc, request.GET.get('bom'))
-    if bom:
-        # Prefetch bộ phận trên từng công đoạn
-        bom = (
-            BomVersion.objects.filter(pk=bom.pk)
-            .prefetch_related(
-                'lines__material__unit',
-                'lines__material__color',
-                'lines__material__specification',
-                'process_steps__work_center',
-            )
-            .select_related('routing')
-            .first()
-        )
-    versions = list(doc.bom_versions.order_by('-created_at'))
+    versions = []
     costing = None
     costing_routing_preview = False
-    snapshots = list(bom.costing_snapshots.all()[:10]) if bom else []
-    all_files = list(doc.design_files.select_related('uploaded_by').all())
-    design_files = [f for f in all_files if f.purpose != TechDocDesignFile.PURPOSE_GALLERY]
-    gallery_images = sorted(
-        [f for f in all_files if f.purpose == TechDocDesignFile.PURPOSE_GALLERY],
-        key=lambda f: (f.sort_order, f.uploaded_at, f.pk),
-    )
-    gallery_urls = [f.file_url for f in gallery_images if f.is_image and f.file_url]
+    snapshots = []
+    design_files = []
+    gallery_images = []
+    gallery_urls = []
 
     line_formset = None
     meta_form = None
@@ -392,7 +457,6 @@ def doc_detail(request, pk):
     design_form = None
     gallery_form = None
     desc_form = None
-    can_update = user_can_update_module(request.user, MODULE_SAN_XUAT)
     _edit_flag = bool(request.GET.get('edit'))
 
     if can_update and request.method == 'POST':
@@ -801,94 +865,6 @@ def doc_detail(request, pk):
             return _doc_tab_redirect(
                 request, 'process', bom=bom.pk if bom else None, routing=clone.pk,
             )
-        elif action == 'copy_bom_ob' and can_update:
-            from san_xuat.services.tech_doc_copy import TechDocCopyError, write_clipboard
-
-            routing = _doc_routing_for_action(doc, request, bom)
-            try:
-                write_clipboard(request, doc=doc, bom=bom, routing=routing)
-            except TechDocCopyError as exc:
-                messages.error(request, str(exc))
-            else:
-                messages.success(
-                    request,
-                    'Đã sao chép BOM + OB. Mở hồ sơ khác rồi bấm Dán đè.',
-                )
-            return _doc_tab_redirect(
-                request,
-                tab if tab in ('bom', 'process') else 'bom',
-                bom=bom.pk if bom else None,
-                routing=routing.pk if routing else None,
-            )
-        elif action == 'paste_bom_ob' and can_update:
-            from san_xuat.services.tech_doc_copy import (
-                TechDocCopyError,
-                load_clipboard_sources,
-                paste_bom_and_ob,
-                read_clipboard,
-            )
-
-            routing = _doc_routing_for_action(doc, request, bom)
-            try:
-                source_doc, source_bom, source_routing = load_clipboard_sources(read_clipboard(request))
-                result = paste_bom_and_ob(
-                    source_doc=source_doc,
-                    source_bom=source_bom,
-                    source_routing=source_routing,
-                    target_doc=doc,
-                    target_bom=bom,
-                    target_routing=routing,
-                    user=request.user,
-                )
-            except TechDocCopyError as exc:
-                messages.error(request, str(exc))
-                return _doc_tab_redirect(
-                    request,
-                    tab if tab in ('bom', 'process') else 'bom',
-                    bom=bom.pk if bom else None,
-                    routing=routing.pk if routing else None,
-                )
-            _log_paste_bom_ob(result=result, source_doc=source_doc, user=request.user)
-            messages.success(request, _paste_bom_ob_message(result))
-            return _redirect_after_paste(request, result, tab=tab)
-        elif action == 'paste_bom_ob_to' and can_update:
-            from san_xuat.services.tech_doc_copy import TechDocCopyError, paste_bom_and_ob
-
-            routing = _doc_routing_for_action(doc, request, bom)
-            target_id = (request.POST.get('target_doc_id') or '').strip()
-            confirm = (request.POST.get('confirm_overwrite') or '').strip() in ('1', 'true', 'yes', 'on')
-            if not confirm:
-                messages.error(request, 'Xác nhận dán đè trước khi tiếp tục.')
-                return _doc_tab_redirect(
-                    request,
-                    tab if tab in ('bom', 'process') else 'bom',
-                    bom=bom.pk if bom else None,
-                    routing=routing.pk if routing else None,
-                )
-            try:
-                if not target_id.isdigit():
-                    raise TechDocCopyError('Chọn hồ sơ thiết kế đích.')
-                target_doc = ProductTechDoc.objects.filter(pk=int(target_id)).first()
-                if target_doc is None:
-                    raise TechDocCopyError('Không tìm thấy hồ sơ thiết kế đích.')
-                result = paste_bom_and_ob(
-                    source_doc=doc,
-                    source_bom=bom,
-                    source_routing=routing,
-                    target_doc=target_doc,
-                    user=request.user,
-                )
-            except TechDocCopyError as exc:
-                messages.error(request, str(exc))
-                return _doc_tab_redirect(
-                    request,
-                    tab if tab in ('bom', 'process') else 'bom',
-                    bom=bom.pk if bom else None,
-                    routing=routing.pk if routing else None,
-                )
-            _log_paste_bom_ob(result=result, source_doc=doc, user=request.user)
-            messages.success(request, _paste_bom_ob_message(result))
-            return _redirect_after_paste(request, result, tab=tab)
         elif action == 'restore_ob_snapshot' and can_update:
             from decimal import Decimal
 
@@ -1139,6 +1115,14 @@ def doc_detail(request, pk):
                 routing=request.POST.get('routing_id') or (bom.routing_id or None),
             )
 
+    if tab == 'bom':
+        versions = list(doc.bom_versions.order_by('-created_at'))
+        bom = _prefetch_doc_bom(bom)
+    elif tab == 'costing':
+        versions = list(doc.bom_versions.order_by('-created_at'))
+        snapshots = list(bom.costing_snapshots.all()[:10]) if bom else []
+        bom = _prefetch_doc_bom(bom)
+
     if can_update:
         if tab == 'info' and desc_form is None:
             desc_form = ProductTechDocDescriptionForm(instance=doc)
@@ -1153,43 +1137,54 @@ def doc_detail(request, pk):
             gallery_form = TechDocGalleryUploadForm()
 
     from django.urls import reverse
-    from django.db.models import Sum
-    from hrm.module_permissions import MODULE_KHO_NPL, user_can_create_module
-    from kho_npl.models import StockBalance
-    from kho_npl.services.scrap_warehouse import exclude_scrap_locations
+    from san_xuat.ie_models import SxOperationGroup, SxRouting
 
-    issue_base_url = (
-        reverse('kho_npl:issue_create')
-        if user_can_create_module(request.user, MODULE_KHO_NPL)
-        else None
-    )
+    if tab in ('info', 'design'):
+        all_files = list(doc.design_files.select_related('uploaded_by').all())
+        design_files = [f for f in all_files if f.purpose != TechDocDesignFile.PURPOSE_GALLERY]
+        gallery_images = sorted(
+            [f for f in all_files if f.purpose == TechDocDesignFile.PURPOSE_GALLERY],
+            key=lambda f: (f.sort_order, f.uploaded_at, f.pk),
+        )
+        gallery_urls = [f.file_url for f in gallery_images if f.is_image and f.file_url]
+
+    issue_base_url = None
     issue_bom_url = None
     bom_stock_map = {}
     bom_stock_map_json = '{}'
-    if bom and issue_base_url and any(line.material_id for line in bom.lines.all()):
-        issue_bom_url = f'{issue_base_url}?bom={bom.pk}'
-    if bom:
-        import json
+    if tab == 'bom':
+        from django.db.models import Sum
         from decimal import Decimal
-        material_ids = [line.material_id for line in bom.lines.all() if line.material_id]
-        if material_ids:
-            for row in (
-                exclude_scrap_locations(StockBalance.objects.filter(material_id__in=material_ids))
-                .values('material_id')
-                .annotate(total=Sum('quantity'))
-            ):
-                bom_stock_map[row['material_id']] = row['total'] or Decimal('0')
-        for line in bom.lines.all():
-            line.stock_qty = bom_stock_map.get(line.material_id, Decimal('0'))
-        if line_formset is not None:
-            for f in line_formset:
-                mid = f.instance.material_id
-                f.instance.stock_qty = bom_stock_map.get(mid, Decimal('0')) if mid else None
-        bom_stock_map_json = json.dumps({
-            str(k): float(v) for k, v in bom_stock_map.items()
-        })
 
-    from san_xuat.ie_models import SxRouting
+        from hrm.module_permissions import MODULE_KHO_NPL, user_can_create_module
+        from kho_npl.models import StockBalance
+        from kho_npl.services.scrap_warehouse import exclude_scrap_locations
+
+        issue_base_url = (
+            reverse('kho_npl:issue_create')
+            if user_can_create_module(request.user, MODULE_KHO_NPL)
+            else None
+        )
+        if bom and issue_base_url and any(line.material_id for line in bom.lines.all()):
+            issue_bom_url = f'{issue_base_url}?bom={bom.pk}'
+        if bom:
+            material_ids = [line.material_id for line in bom.lines.all() if line.material_id]
+            if material_ids:
+                for row in (
+                    exclude_scrap_locations(StockBalance.objects.filter(material_id__in=material_ids))
+                    .values('material_id')
+                    .annotate(total=Sum('quantity'))
+                ):
+                    bom_stock_map[row['material_id']] = row['total'] or Decimal('0')
+            for line in bom.lines.all():
+                line.stock_qty = bom_stock_map.get(line.material_id, Decimal('0'))
+            if line_formset is not None:
+                for f in line_formset:
+                    mid = f.instance.material_id
+                    f.instance.stock_qty = bom_stock_map.get(mid, Decimal('0')) if mid else None
+            bom_stock_map_json = json.dumps({
+                str(k): float(v) for k, v in bom_stock_map.items()
+            })
 
     skus = []
     skus_active_count = 0
@@ -1243,37 +1238,43 @@ def doc_detail(request, pk):
     routing_lines = []
     operation_groups = []
     work_centers = []
-    from san_xuat.ie_models import SxOperationGroup, SxRouting
-    from san_xuat.services.capacity_from_hrm import hr_work_centers_qs
-
-    process_routings = list(
-        SxRouting.objects.filter(
-            Q(tech_doc=doc) | Q(bom_versions__tech_doc=doc)
-        ).distinct().annotate(n_lines=Count('lines', distinct=True)).order_by('routing_rev', 'pk')
-    )
+    routing_qs = SxRouting.objects.filter(
+        Q(tech_doc=doc) | Q(bom_versions__tech_doc=doc)
+    ).distinct()
     requested_routing = (request.GET.get('routing') or '').strip()
-    if requested_routing.isdigit():
-        process_routing = next(
-            (item for item in process_routings if item.pk == int(requested_routing)),
-            None,
-        )
-    if process_routing is None and bom and bom.routing_id:
-        process_routing = next(
-            (item for item in process_routings if item.pk == bom.routing_id),
-            None,
-        )
-    if process_routing is None and process_routings:
-        process_routing = process_routings[-1]
-
-    if bom:
-        if tab == 'costing' and process_routing is not None:
-            costing = compute_costing(bom, routing=process_routing)
-            costing_routing_preview = bom.routing_id != process_routing.pk
+    if tab in ('process', 'costing'):
+        if tab == 'process':
+            process_routings = list(
+                routing_qs.annotate(n_lines=Count('lines', distinct=True)).order_by('routing_rev', 'pk')
+            )
         else:
-            costing = compute_costing(bom)
-            costing_routing_preview = False
+            process_routings = list(routing_qs.order_by('routing_rev', 'pk'))
+        if requested_routing.isdigit():
+            process_routing = next(
+                (item for item in process_routings if item.pk == int(requested_routing)),
+                None,
+            )
+        if process_routing is None and bom and bom.routing_id:
+            process_routing = next(
+                (item for item in process_routings if item.pk == bom.routing_id),
+                None,
+            )
+        if process_routing is None and process_routings:
+            process_routing = process_routings[-1]
+    elif requested_routing.isdigit():
+        process_routing = routing_qs.filter(pk=int(requested_routing)).first()
+    elif bom and bom.routing_id:
+        process_routing = routing_qs.filter(pk=bom.routing_id).first()
+
+    if tab == 'costing' and bom:
+        costing = compute_costing(bom, routing=process_routing)
+        costing_routing_preview = bool(
+            process_routing and bom.routing_id != process_routing.pk
+        )
 
     if tab == 'process':
+        from san_xuat.services.capacity_from_hrm import hr_work_centers_qs
+
         if process_routing:
             routing_lines = list(
                 process_routing.lines.select_related('work_center').order_by('seq_no', 'pk')
@@ -1286,25 +1287,37 @@ def doc_detail(request, pk):
             }
             for line in routing_lines:
                 line.display_group_name = group_names.get((line.group_code or '').casefold(), '')
-        operation_groups = list(
-            SxOperationGroup.objects.filter(is_active=True).order_by('sort_order', 'code')
-        )
-        work_centers = list(hr_work_centers_qs())
+        if _edit_flag:
+            operation_groups = list(
+                SxOperationGroup.objects.filter(is_active=True).order_by('sort_order', 'code')
+            )
+            work_centers = list(hr_work_centers_qs())
 
     from san_xuat.services.products import fill_tech_doc_display_images
-    from tools.services import office_preview_available
 
     doc.gallery_images = gallery_images
-    fill_tech_doc_display_images([doc])
-    office_preview_ready = office_preview_available()
+    if tab in ('info', 'design'):
+        fill_tech_doc_display_images([doc])
+    else:
+        url = (doc.product_image_url or '').strip()
+        doc._display_image_url = url
+        doc._display_image_urls = [url] if url else []
 
-    from san_xuat.models import SxBomAuditLog
-    bom_audit_logs = list(SxBomAuditLog.objects.filter(bom=bom).order_by('-created_at')[:30]) if bom else []
+    office_preview_ready = False
+    if tab == 'design':
+        from tools.services import office_preview_available
 
-    # OB audit log
-    from san_xuat.ie_models import SxIeAuditLog
+        office_preview_ready = office_preview_available()
+
+    bom_audit_logs = []
     ob_audit_logs = []
-    if process_routing:
+    if tab == 'bom' and bom:
+        from san_xuat.models import SxBomAuditLog
+
+        bom_audit_logs = list(SxBomAuditLog.objects.filter(bom=bom).order_by('-created_at')[:30])
+    if tab == 'process' and process_routing:
+        from san_xuat.ie_models import SxIeAuditLog
+
         ob_audit_logs = list(
             SxIeAuditLog.objects.filter(
                 object_type='routing',
