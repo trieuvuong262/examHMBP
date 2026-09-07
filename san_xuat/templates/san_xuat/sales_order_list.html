@@ -11,7 +11,8 @@
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
       {% if can_create_order %}
-      <a href="{% url 'san_xuat:sales_order_create' %}" class="btn btn-hm btn-sm fw-bold">Lên đơn</a>
+      <a href="{% url 'san_xuat:sales_order_create' %}" class="btn btn-hm btn-sm fw-bold"
+         data-loading-message="Đang mở form lên đơn…">Lên đơn</a>
       {% endif %}
     </nav>
   </div>

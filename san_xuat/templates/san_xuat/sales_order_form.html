@@ -221,7 +221,8 @@
 {% endblock %}
 
 {% block content %}
-<div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
+<div class="container jp-page jp-sx-page jp-npl-material-catalog-page py-3 py-md-4 mb-5"
+     data-loading-message="{% if is_create %}Đang mở form lên đơn…{% else %}Đang mở form sửa đơn…{% endif %}">
   <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
     <div class="jp-sx-detail-title">
       <h2 class="jp-npl-mat-topbar-title w-100">{% if is_create %}Lên đơn đặt hàng{% else %}Sửa đơn {{ order.code }}{% endif %}</h2>
@@ -235,14 +236,17 @@
       </button>
       <span class="sep" aria-hidden="true"></span>
       {% if order %}
-      <a href="{% url 'san_xuat:sales_order_detail' order.pk %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại</a>
+      <a href="{% url 'san_xuat:sales_order_detail' order.pk %}" class="is-back"
+         data-loading-message="Đang tải đơn đặt hàng…"><i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại</a>
       {% else %}
-      <a href="{% url 'san_xuat:sales_order_list' %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại</a>
+      <a href="{% url 'san_xuat:sales_order_list' %}" class="is-back"
+         data-loading-message="Đang tải danh sách đơn…"><i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại</a>
       {% endif %}
     </nav>
   </div>
 
-  <form method="post" id="jp-so-form" enctype="multipart/form-data">
+  <form method="post" id="jp-so-form" enctype="multipart/form-data"
+        data-loading-message="Đang lưu đơn…">
     {% csrf_token %}
     <div class="card border-0 shadow-sm mb-3">
       <div class="card-body">
@@ -1423,10 +1427,27 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
     });
   }
 
-  function loadVersions(row, keepBom, keepRouting, keepSmv, keepBomQty) {
+  var soLoadN = 0;
+  function soLoadingApi() {
+    return window.JpNplCatalogLoading || null;
+  }
+  function beginSoLoad(message) {
+    soLoadN += 1;
+    var api = soLoadingApi();
+    if (api && api.show) api.show(message || 'Đang tải BOM / OB…');
+  }
+  function endSoLoad() {
+    soLoadN = Math.max(0, soLoadN - 1);
+    if (soLoadN > 0) return;
+    var api = soLoadingApi();
+    if (api && api.hide) api.hide(false);
+  }
+
+  function loadVersions(row, keepBom, keepRouting, keepSmv, keepBomQty, opts) {
     var code = productCodeOf(row);
     var bomSel = row.querySelector('.jp-so-bom-select, select[name$="-bom_version_id"]');
     var rtSel = row.querySelector('.jp-so-routing-select, select[name$="-routing_id"]');
+    var showLoad = !!(opts && opts.loading);
     if (!code) {
       fillSelect(bomSel, [], '— BOM —', '', '');
       fillSelect(rtSel, [], '— OB —', '', '');
@@ -1439,6 +1460,7 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
     var rtVal = keepRouting || (rtSel && rtSel.value) || '';
     if (bomVal) url += '&bom_version_id=' + encodeURIComponent(bomVal);
     if (rtVal && rtVal !== CREATE_VAL) url += '&routing_id=' + encodeURIComponent(rtVal);
+    if (showLoad) beginSoLoad((opts && opts.message) || 'Đang tải BOM / OB…');
     fetch(url, { headers: { 'Accept': 'application/json' } })
       .then(function (r) { return r.json(); })
       .then(function (data) {
@@ -1476,6 +1498,9 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
         fillSelect(rtSel, [], '— OB —', '', keepRouting);
         applyIeStatus(row, { routings: [], steps: [], bom_lines: [] });
         syncBoards(row, false, false);
+      })
+      .then(function () {
+        if (showLoad) endSoLoad();
       });
   }
 
@@ -1510,7 +1535,7 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
   document.addEventListener('jp-so-product-changed', function (e) {
     var row = e.target && e.target.closest ? e.target.closest('tr.jp-so-line-row') : null;
     if (!row) return;
-    loadVersions(row, '', '');
+    loadVersions(row, '', '', false, false, { loading: true, message: 'Đang tải BOM / OB…' });
   });
 
   document.addEventListener('change', function (e) {
@@ -1560,6 +1585,7 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
       rtSel ? rtSel.value : '',
       keepSmv,
       keepBomQty,
+      { loading: true, message: 'Đang tải BOM / OB…' },
     );
   });
 

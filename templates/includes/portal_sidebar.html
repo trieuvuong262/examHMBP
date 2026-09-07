@@ -684,7 +684,9 @@
                         {% if jp_can_san_xuat_orders %}
                         <li>
                             <a href="{% url 'san_xuat:sales_order_list' %}"
-                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'sales_order_list' or request.resolver_match.url_name == 'sales_order_detail' or request.resolver_match.url_name == 'redirect_orders' %}active{% endif %}">
+                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'sales_order_list' or request.resolver_match.url_name == 'sales_order_detail' or request.resolver_match.url_name == 'redirect_orders' %}active{% endif %}"
+                               data-jp-npl-catalog-nav
+                               data-loading-message="Đang tải danh sách đơn…">
                                 <i class="bi bi-list-ul"></i><span>Danh sách đơn</span>
                             </a>
                         </li>
@@ -692,7 +694,9 @@
                         {% if jp_can_san_xuat_order_create %}
                         <li>
                             <a href="{% url 'san_xuat:sales_order_create' %}"
-                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'sales_order_create' %}active{% endif %}">
+                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'sales_order_create' %}active{% endif %}"
+                               data-jp-npl-catalog-nav
+                               data-loading-message="Đang mở form lên đơn…">
                                 <i class="bi bi-cart-plus"></i><span>Lên đơn đặt hàng</span>
                             </a>
                         </li>
@@ -700,7 +704,9 @@
                         {% if jp_can_san_xuat_order_confirm %}
                         <li>
                             <a href="{% url 'san_xuat:sales_order_confirm_list' %}"
-                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'sales_order_confirm_list' %}active{% endif %}">
+                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'sales_order_confirm_list' %}active{% endif %}"
+                               data-jp-npl-catalog-nav
+                               data-loading-message="Đang tải xác nhận đơn…">
                                 <i class="bi bi-check2-square"></i><span>Xác nhận đơn đặt hàng</span>
                             </a>
                         </li>
