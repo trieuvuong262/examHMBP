@@ -10,7 +10,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 from django.db import transaction
-from django.db.models import Prefetch, Sum
+from django.db.models import Prefetch, Q, Sum
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 
@@ -119,6 +119,7 @@ class PlanBoardRow:
     product_flows: list = field(default_factory=list)
     can_unrelease: bool = False
     team_spans: list = field(default_factory=list)
+    subcontract: object | None = None
 
 
 @dataclass
@@ -830,7 +831,65 @@ def build_plan_board_rows(
             r.order.id or 0,
         )
     )
+    attach_subcontracts_to_plan_rows(rows)
     return rows
+
+
+def attach_subcontracts_to_plan_rows(rows: list[PlanBoardRow]) -> list[PlanBoardRow]:
+    """Gắn phiếu GC mới nhất lên từng đơn trên board."""
+    if not rows:
+        return rows
+    from san_xuat.hub_models import SxSubcontractOrder
+
+    order_ids = [r.order.pk for r in rows]
+    qs = (
+        SxSubcontractOrder.objects.filter(is_demo=False)
+        .select_related('production_order')
+        .exclude(status=SxSubcontractOrder.STATUS_CANCELLED)
+        .filter(Q(sales_order_id__in=order_ids) | Q(production_order__sales_order_id__in=order_ids))
+        .order_by('-order_date', '-pk')
+    )
+    latest: dict[int, SxSubcontractOrder] = {}
+    for gc in qs:
+        oid = gc.sales_order_id
+        if not oid and gc.production_order_id:
+            oid = getattr(gc.production_order, 'sales_order_id', None)
+        if oid and oid not in latest:
+            latest[oid] = gc
+    for row in rows:
+        row.subcontract = latest.get(row.order.pk)
+    return rows
+
+
+def attach_dangling_subcontracts(*, order: SxSalesOrder, mos: list[SxProductionOrder]) -> None:
+    """Sau Chuyển SX: gắn phiếu GC tạo từ hàng đợi vào LSX vừa phát hành."""
+    from san_xuat.hub_models import SxSubcontractOrder
+
+    if not mos:
+        return
+    dangling = list(
+        SxSubcontractOrder.objects.filter(
+            sales_order=order,
+            production_order__isnull=True,
+            is_demo=False,
+        ).exclude(status=SxSubcontractOrder.STATUS_CANCELLED)
+    )
+    if not dangling:
+        return
+    by_code: dict[str, SxProductionOrder] = {}
+    for mo in mos:
+        key = (mo.product_code or '').strip().casefold()
+        if key and key not in by_code:
+            by_code[key] = mo
+    from san_xuat.services.phase3 import _close_ob_team_for_gc
+
+    for gc in dangling:
+        key = (gc.product_code or '').strip().casefold()
+        mo = by_code.get(key) or mos[0]
+        gc.production_order = mo
+        gc.save(update_fields=['production_order'])
+        if gc.status in (SxSubcontractOrder.STATUS_DONE, SxSubcontractOrder.STATUS_RECEIVED):
+            _close_ob_team_for_gc(order=gc)
 
 
 def pipeline_counts() -> dict[str, int]:
@@ -1126,6 +1185,7 @@ def release_order_to_production(
     order.plan_status = SxSalesOrder.PLAN_RELEASED
     order.plan_hold_reason = ''
     order.save(update_fields=['plan_status', 'plan_hold_reason', 'updated_at'])
+    attach_dangling_subcontracts(order=order, mos=created)
     return created
 
 
@@ -1160,9 +1220,12 @@ def unrelease_order_from_production(*, order_id: int) -> tuple[SxSalesOrder, int
         mo.save(update_fields=['status'])
         cancelled += 1
 
-    from san_xuat.hub_models import SxTeamWorkClose
+    from san_xuat.hub_models import SxSubcontractOrder, SxTeamWorkClose
 
     SxTeamWorkClose.objects.filter(production_order_id__in=[m.pk for m in mos]).delete()
+    SxSubcontractOrder.objects.filter(production_order_id__in=[m.pk for m in mos]).update(
+        production_order=None,
+    )
 
     order.plan_status = SxSalesOrder.PLAN_QUEUED
     order.plan_rank = None

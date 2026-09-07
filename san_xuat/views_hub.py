@@ -230,11 +230,14 @@ from san_xuat.services.planning import (
 from san_xuat.services.qc import (
     QcError,
     CriteriaLineInput,
+    DefectLineInput,
     TeamQtyInput,
     acknowledge_alert,
     create_inspection_from_request,
     create_request_from_stat,
     finalize_inspection,
+    inspection_size_plan,
+    merge_size_rows,
     ob_qc_teams,
     save_inspection_detail_lines,
     save_inspection_team_results,
@@ -351,10 +354,8 @@ def _user_can_sales_order_page(user) -> bool:
 
 
 def _user_can_mutate_sales_order(user) -> bool:
-    return (
-        user_can_create_menu(user, MODULE_SAN_XUAT, 'order_create')
-        or user_can_update_menu(user, MODULE_SAN_XUAT, 'order_create')
-    )
+    """Màn Lên đơn: vào được thì lưu/sửa được — không tách Xem với Thêm/Sửa."""
+    return user_can_access_menu(user, MODULE_SAN_XUAT, 'order_create')
 
 
 def _sales_order_size_form_context() -> dict:
@@ -871,6 +872,7 @@ def sales_order_detail(request, pk: int):
     order = get_object_or_404(
         SxSalesOrder.objects.select_related('created_by', 'confirmed_by').prefetch_related(
             'lines__bom_version__tech_doc',
+            'lines__bom_version__lines__material__unit',
             'lines__routing',
             'lines__routing_lines__work_center',
             'lines__routing_lines__operation',
@@ -933,10 +935,12 @@ def sales_order_detail(request, pk: int):
             sales_order_line__order_id=order.pk,
         ).first()
 
+    from san_xuat.services.bom_need import explode_for_sales_line
     from san_xuat.services.order_routing import routings_for_product
 
     for ln in order.lines.all():
         ln.available_routings = routings_for_product(ln.product_code) if not ln.routing_id else []
+        ln.npl_needs = explode_for_sales_line(ln)
 
     return render(request, 'san_xuat/sales_order_detail.html', {
         **_perm_ctx(request),
@@ -1475,6 +1479,31 @@ def plan_board(request):
                     f'Đã hủy chuyển SX {order.code} — hủy {n} lệnh. Đơn về hàng đợi để sửa.',
                 )
                 return redirect(f"{reverse('san_xuat:plan_board')}?mode=list&tab=queue")
+            elif action == 'receive_gc':
+                from san_xuat.services.phase3 import Phase3Error, receive_subcontract_goods
+
+                can_receive_gc = (
+                    user_can_update_menu(request.user, MODULE_SAN_XUAT, 'subcontract')
+                    or _perm_ctx(request).get('can_update')
+                )
+                raw_gc = (request.POST.get('gc_id') or '').strip()
+                gc = (
+                    SxSubcontractOrder.objects.filter(pk=int(raw_gc), is_demo=False).first()
+                    if raw_gc.isdigit() else None
+                )
+                if not can_receive_gc:
+                    messages.error(request, 'Bạn không có quyền nhận hàng gia công.')
+                elif not gc:
+                    messages.error(request, 'Không tìm thấy phiếu gia công.')
+                else:
+                    try:
+                        gc = receive_subcontract_goods(order_id=gc.pk, user=request.user)
+                    except Phase3Error as exc:
+                        messages.error(request, str(exc))
+                    else:
+                        messages.success(request, f'Đã nhận hàng {gc.code}.')
+                tab_back = (request.POST.get('tab') or tab or 'released').strip()
+                return redirect(f"{reverse('san_xuat:plan_board')}?mode=list&tab={tab_back}")
             elif action == 'reschedule_route' and can_schedule and order_id:
                 from san_xuat.list_filters import parse_sx_date
 
@@ -1635,6 +1664,12 @@ def plan_board(request):
         'released_rows': released_rows,
         'can_schedule': can_schedule,
         'can_release': can_release,
+        'can_view_subcontract': user_can_access_menu(request.user, MODULE_SAN_XUAT, 'subcontract'),
+        'can_create_subcontract': user_can_create_menu(request.user, MODULE_SAN_XUAT, 'subcontract'),
+        'can_receive_gc': (
+            user_can_update_menu(request.user, MODULE_SAN_XUAT, 'subcontract')
+            or _perm_ctx(request).get('can_update')
+        ),
         'plan_status_labels': PLAN_STATUS_LABELS,
         'priority_labels': PRIORITY_LABELS,
         'priority_choices': SxSalesOrder.PRIORITY_CHOICES,
@@ -2595,6 +2630,33 @@ def dispatch_mo_detail(request, pk: int):
                 messages.error(request, str(exc))
             return redirect('san_xuat:dispatch_mo_detail', pk=mo.pk)
 
+        elif action == 'receive_gc':
+            from san_xuat.services.phase3 import Phase3Error, receive_subcontract_goods
+            from san_xuat.services.team_work import latest_subcontract_for_mo
+
+            can_receive_gc = (
+                user_can_update_menu(request.user, MODULE_SAN_XUAT, 'subcontract')
+                or can_update
+            )
+            raw_gc = (request.POST.get('gc_id') or '').strip()
+            gc = (
+                SxSubcontractOrder.objects.filter(pk=int(raw_gc), is_demo=False).first()
+                if raw_gc.isdigit()
+                else latest_subcontract_for_mo(mo_id=mo.pk, sales_order_id=mo.sales_order_id)
+            )
+            if not can_receive_gc:
+                messages.error(request, 'Bạn không có quyền nhận hàng gia công.')
+            elif not gc:
+                messages.error(request, 'Không tìm thấy phiếu gia công.')
+            else:
+                try:
+                    gc = receive_subcontract_goods(order_id=gc.pk, user=request.user)
+                except Phase3Error as exc:
+                    messages.error(request, str(exc))
+                else:
+                    messages.success(request, f'Đã nhận hàng {gc.code}.')
+            return redirect('san_xuat:dispatch_mo_detail', pk=mo.pk)
+
         elif action == 'create_ycx' and mo.status in (
             SxProductionOrder.STATUS_RELEASED,
             SxProductionOrder.STATUS_IN_PROGRESS,
@@ -2724,30 +2786,9 @@ def dispatch_mo_detail(request, pk: int):
         (so_line.bom_version if so_line is not None and so_line.bom_version_id else None)
         or mo.bom_version
     )
-    bom_lines = []
-    overrides = list((so_line.bom_line_overrides or []) if so_line is not None else [])
-    if overrides:
-        for row in overrides[:80]:
-            qty = Decimal(str(row.get('qty') or 0))
-            scrap = Decimal(str(row.get('scrap_pct') or 0))
-            per = (qty * (Decimal('1') + scrap / Decimal('100'))).quantize(Decimal('0.0001'))
-            bom_lines.append({
-                'material_code': row.get('material_code') or '',
-                'material_name': row.get('material_name') or '',
-                'qty_per_unit': per,
-                'qty_total': per * (mo.qty or 0),
-                'scrap_pct': scrap,
-            })
-    elif display_bom is not None:
-        for bl in display_bom.lines.all():
-            qty_per_unit = bl.qty_with_scrap
-            bom_lines.append({
-                'material_code': bl.material.code,
-                'material_name': bl.material.name,
-                'qty_per_unit': qty_per_unit,
-                'qty_total': qty_per_unit * (mo.qty or 0),
-                'scrap_pct': bl.scrap_pct,
-            })
+    from san_xuat.services.bom_need import explode_for_mo, needs_as_display_dicts
+
+    bom_lines = needs_as_display_dicts(explode_for_mo(mo))
 
     ob_lines = []
     ob_total_smv = Decimal('0')
@@ -2856,6 +2897,16 @@ def dispatch_mo_detail(request, pk: int):
                 'manager_label': '',
             })
 
+    from san_xuat.services.team_work import latest_subcontract_for_mo
+
+    mo_subcontract = latest_subcontract_for_mo(mo_id=mo.pk, sales_order_id=mo.sales_order_id)
+    can_create_subcontract = user_can_create_menu(request.user, MODULE_SAN_XUAT, 'subcontract')
+    can_receive_gc = (
+        user_can_update_menu(request.user, MODULE_SAN_XUAT, 'subcontract')
+        or can_update
+    )
+    can_view_subcontract = user_can_access_menu(request.user, MODULE_SAN_XUAT, 'subcontract')
+
     return render(request, 'san_xuat/dispatch_mo_detail.html', {
         **_perm_ctx(request),
         'mo': mo,
@@ -2882,6 +2933,10 @@ def dispatch_mo_detail(request, pk: int):
             mo_manager_options_with_team_defaults(team_options), ensure_ascii=False,
         ),
         'mo_process_steps_json': json.dumps(mo_process_steps, ensure_ascii=False),
+        'mo_subcontract': mo_subcontract,
+        'can_create_subcontract': can_create_subcontract,
+        'can_receive_gc': can_receive_gc,
+        'can_view_subcontract': can_view_subcontract,
     })
 
 
@@ -4290,9 +4345,57 @@ def _qc_inspection_qs():
         'qc_request', 'qc_request__production_order', 'standard_set',
     ).prefetch_related(
         'criteria_lines__criteria',
-        'defect_lines__defect',
+        'defect_lines__defect__group',
         'team_results',
     )
+
+
+def _qc_dec(raw) -> Decimal:
+    try:
+        return Decimal(str(raw or '').strip() or '0')
+    except Exception:
+        return Decimal('0')
+
+
+def _qc_size_rows_from_post(post, slug: str) -> list[dict]:
+    rows = []
+    prefix = f'size_label_{slug}__'
+    for key, val in post.items():
+        if not key.startswith(prefix):
+            continue
+        idx = key[len(prefix):]
+        size = (val or '').strip()
+        if not size:
+            continue
+        rows.append({
+            'size': size,
+            'qty_pass': _qc_dec(post.get(f'size_pass_{slug}__{idx}')),
+            'qty_fail': _qc_dec(post.get(f'size_fail_{slug}__{idx}')),
+        })
+    return rows
+
+
+def _qc_defect_inputs_from_post(post, *, team_slug: str = '') -> list[DefectLineInput]:
+    slug = (team_slug or '').strip().lower()
+    prefix = f'df_{slug or "all"}__'
+    idxs = set()
+    for key in post:
+        if key.startswith(prefix) and key.endswith('__defect'):
+            idxs.add(key[len(prefix):-len('__defect')])
+    out = []
+    for idx in sorted(idxs, key=lambda x: int(x) if str(x).isdigit() else 0):
+        raw_id = (post.get(f'{prefix}{idx}__defect') or '').strip()
+        qty = _qc_dec(post.get(f'{prefix}{idx}__qty'))
+        if not raw_id.isdigit() or qty <= 0:
+            continue
+        out.append(DefectLineInput(
+            defect_id=int(raw_id),
+            qty=qty,
+            notes=(post.get(f'{prefix}{idx}__notes') or '').strip(),
+            team_slug=slug,
+            size_label=(post.get(f'{prefix}{idx}__size') or '').strip(),
+        ))
+    return out
 
 
 def _qc_team_qty_from_post(request, slugs: list[str], only_slug: str | None = None) -> list[TeamQtyInput]:
@@ -4300,16 +4403,18 @@ def _qc_team_qty_from_post(request, slugs: list[str], only_slug: str | None = No
     for slug in slugs:
         if only_slug and slug != only_slug:
             continue
-        def _dec(name: str) -> Decimal:
-            raw = (request.POST.get(name) or '').strip()
-            try:
-                return Decimal(raw or '0')
-            except Exception:
-                return Decimal('0')
+        size_qtys = _qc_size_rows_from_post(request.POST, slug)
+        if size_qtys:
+            qty_pass = sum((r['qty_pass'] for r in size_qtys), Decimal('0'))
+            qty_fail = sum((r['qty_fail'] for r in size_qtys), Decimal('0'))
+        else:
+            qty_pass = _qc_dec(request.POST.get(f'team_qty_pass_{slug}'))
+            qty_fail = _qc_dec(request.POST.get(f'team_qty_fail_{slug}'))
         out.append(TeamQtyInput(
             slug=slug,
-            qty_pass=_dec(f'team_qty_pass_{slug}'),
-            qty_fail=_dec(f'team_qty_fail_{slug}'),
+            qty_pass=qty_pass,
+            qty_fail=qty_fail,
+            size_qtys=size_qtys,
         ))
     return out
 
@@ -4322,7 +4427,7 @@ def _qc_active_team_slug(request, teams) -> str:
     return slugs[0] if slugs else ''
 
 
-def _qc_team_tabs(inspection, criteria_forms, post=None):
+def _qc_team_tabs(inspection, criteria_forms, post=None, *, size_plan=None, defects=None):
     mo = getattr(getattr(inspection, 'qc_request', None), 'production_order', None)
     teams = ob_qc_teams(mo=mo) if mo else []
     if not teams:
@@ -4334,15 +4439,15 @@ def _qc_team_tabs(inspection, criteria_forms, post=None):
     lines_by: dict[str, list] = {}
     for line in inspection.criteria_lines.all():
         lines_by.setdefault(line.team_slug or '', []).append(line)
+    defects_by: dict[str, list] = {}
+    for line in defects or inspection.defect_lines.all():
+        defects_by.setdefault((line.team_slug or '').strip().lower(), []).append(line)
+    plan = size_plan if size_plan is not None else inspection_size_plan(mo)
 
     def _posted_qty(name: str, fallback):
         if post is None or name not in post:
             return fallback
-        raw = (post.get(name) or '').strip()
-        try:
-            return Decimal(raw or '0')
-        except Exception:
-            return fallback
+        return _qc_dec(post.get(name))
 
     mo_qty = getattr(mo, 'qty', None) or Decimal('0')
     tabs = []
@@ -4357,14 +4462,30 @@ def _qc_team_tabs(inspection, criteria_forms, post=None):
         )
         if untouched and post is None and not fallback_pass and mo_qty:
             fallback_pass = mo_qty
+        posted_sizes = _qc_size_rows_from_post(post, team.slug) if post is not None else []
+        saved_sizes = posted_sizes or (rec.size_qtys if rec else [])
+        size_rows = merge_size_rows(
+            plan,
+            saved_sizes,
+            fallback_pass=fallback_pass if untouched and post is None else None,
+            fallback_fail=fallback_fail if rec and not (rec.size_qtys or []) else None,
+        )
+        if posted_sizes:
+            qty_pass = sum((r['qty_pass'] for r in size_rows), Decimal('0'))
+            qty_fail = sum((r['qty_fail'] for r in size_rows), Decimal('0'))
+        else:
+            qty_pass = _posted_qty(f'team_qty_pass_{team.slug}', fallback_pass)
+            qty_fail = _posted_qty(f'team_qty_fail_{team.slug}', fallback_fail)
         tabs.append({
             'slug': team.slug,
             'label': team.label,
-            'qty_pass': _posted_qty(f'team_qty_pass_{team.slug}', fallback_pass),
-            'qty_fail': _posted_qty(f'team_qty_fail_{team.slug}', fallback_fail),
+            'qty_pass': qty_pass,
+            'qty_fail': qty_fail,
             'saved_pass': rec.qty_pass if rec else Decimal('0'),
             'saved_fail': rec.qty_fail if rec else Decimal('0'),
             'result': rec.result if rec else 'pending',
+            'size_rows': size_rows,
+            'defect_lines': defects_by.get(team.slug, []),
             'criteria_forms': forms_by.get(team.slug) or (ungrouped_forms if i == 0 else []),
             'criteria_lines': lines_by.get(team.slug) or (ungrouped_lines if i == 0 else []),
         })
@@ -4446,11 +4567,17 @@ def qc_sheet_detail(request, pk: int):
             criteria_valid = all(item['form'].is_valid() for item in (active_forms or criteria_forms))
             if finalize_form.is_valid() and criteria_valid:
                 crit_inputs = _qc_criteria_inputs(active_forms or criteria_forms)
+                defect_inputs = _qc_defect_inputs_from_post(
+                    request.POST, team_slug=active_team if has_team_tabs else '',
+                )
+                defect_team = active_team if has_team_tabs else ''
                 try:
                     if action == 'save':
                         inspection = save_inspection_detail_lines(
                             inspection_id=inspection.pk,
                             criteria_lines=crit_inputs,
+                            defect_lines=defect_inputs,
+                            defect_team_slug=defect_team,
                         )
                         if team_qty:
                             inspection = save_inspection_team_results(
@@ -4468,22 +4595,53 @@ def qc_sheet_detail(request, pk: int):
                                 Decimal('0'),
                             )
                         else:
-                            inspection.qty_pass = finalize_form.cleaned_data.get('qty_pass') or Decimal('0')
-                            inspection.qty_fail = finalize_form.cleaned_data.get('qty_fail') or Decimal('0')
+                            sheet_sizes = _qc_size_rows_from_post(request.POST, 'all')
+                            if sheet_sizes:
+                                inspection.qty_pass = sum((r['qty_pass'] for r in sheet_sizes), Decimal('0'))
+                                inspection.qty_fail = sum((r['qty_fail'] for r in sheet_sizes), Decimal('0'))
+                                inspection.size_qtys = [
+                                    {
+                                        'size': r['size'],
+                                        'qty_pass': str(r['qty_pass']),
+                                        'qty_fail': str(r['qty_fail']),
+                                    }
+                                    for r in sheet_sizes
+                                ]
+                            else:
+                                inspection.qty_pass = finalize_form.cleaned_data.get('qty_pass') or Decimal('0')
+                                inspection.qty_fail = finalize_form.cleaned_data.get('qty_fail') or Decimal('0')
                         inspection.notes = finalize_form.cleaned_data.get('notes') or ''
-                        inspection.save(update_fields=['qty_pass', 'qty_fail', 'notes'])
+                        inspection.save(update_fields=['qty_pass', 'qty_fail', 'notes', 'size_qtys'])
                         if active_team_label:
                             messages.success(request, f'Đã lưu QC tổ {active_team_label}.')
                         else:
                             messages.success(request, f'Đã lưu phiếu kiểm tra {inspection.code}.')
                         return _redirect_sheet()
+                    fin_pass = finalize_form.cleaned_data.get('qty_pass')
+                    fin_fail = finalize_form.cleaned_data.get('qty_fail')
+                    if not has_team_tabs:
+                        sheet_sizes = _qc_size_rows_from_post(request.POST, 'all')
+                        if sheet_sizes:
+                            inspection.size_qtys = [
+                                {
+                                    'size': r['size'],
+                                    'qty_pass': str(r['qty_pass']),
+                                    'qty_fail': str(r['qty_fail']),
+                                }
+                                for r in sheet_sizes
+                            ]
+                            inspection.save(update_fields=['size_qtys'])
+                            fin_pass = sum((r['qty_pass'] for r in sheet_sizes), Decimal('0'))
+                            fin_fail = sum((r['qty_fail'] for r in sheet_sizes), Decimal('0'))
                     inspection = finalize_inspection(
                         inspection_id=inspection.pk,
-                        qty_pass=finalize_form.cleaned_data.get('qty_pass'),
-                        qty_fail=finalize_form.cleaned_data.get('qty_fail'),
+                        qty_pass=fin_pass,
+                        qty_fail=fin_fail,
                         notes=finalize_form.cleaned_data.get('notes') or '',
                         criteria_lines=crit_inputs,
+                        defect_lines=defect_inputs,
                         team_qty=team_qty or None,
+                        defect_team_slug=defect_team,
                     )
                 except QcError as exc:
                     messages.error(request, str(exc))
@@ -4545,13 +4703,29 @@ def qc_sheet_detail(request, pk: int):
                 .order_by('-pk')[:5]
             )
 
+    size_plan = inspection_size_plan(mo)
+    qc_req = inspection.qc_request
+    sheet_size_rows = merge_size_rows(
+        size_plan,
+        _qc_size_rows_from_post(request.POST, 'all') if request.method == 'POST' else inspection.size_qtys,
+        fallback_pass=inspection.qty_pass,
+        fallback_fail=inspection.qty_fail,
+    )
+    defect_choices = list(
+        SxQcDefect.objects.filter(is_demo=False, is_active=True)
+        .select_related('group')
+        .order_by('group__name', 'code')
+    )
     return render(request, 'san_xuat/qc_sheet_detail.html', {
         **_perm_ctx(request),
         'inspection': inspection,
         'form': finalize_form,
         'criteria_forms': criteria_forms,
         'qc_team_tabs': _qc_team_tabs(
-            inspection, criteria_forms, post=request.POST if request.method == 'POST' else None,
+            inspection,
+            criteria_forms,
+            post=request.POST if request.method == 'POST' else None,
+            size_plan=size_plan,
         ),
         'active_team': active_team,
         'active_team_label': active_team_label,
@@ -4559,6 +4733,12 @@ def qc_sheet_detail(request, pk: int):
         'can_update': can_update,
         'fail_alert': fail_alert,
         'ncr_cases': ncr_cases,
+        'size_plan': size_plan,
+        'sheet_size_rows': sheet_size_rows,
+        'defect_choices': defect_choices,
+        'defect_extra_rows': range(3),
+        'qc_request': qc_req,
+        'mo': mo,
     })
 
 
@@ -4993,7 +5173,7 @@ def team_work_board(request, slug: str):
             mo_id = 0
         if action == 'assign':
             if active_subcontract_for_team(mo_id=mo_id, team_slug=slug):
-                messages.error(request, 'Tổ này đang thuê gia công — không phân công nội bộ. Nhận hàng trên phiếu GC.')
+                messages.error(request, 'Lệnh đang thuê gia công — không phân công nội bộ. Nhận hàng trên kế hoạch SX hoặc lệnh sản xuất.')
                 return redirect(_board_qs())
             process_key = (request.POST.get('process_key') or '').strip()
             raw_ids = request.POST.getlist('assignee_ids')
@@ -5014,7 +5194,7 @@ def team_work_board(request, slug: str):
             return redirect(_board_qs())
         if action == 'accept' and mo_id:
             if active_subcontract_for_team(mo_id=mo_id, team_slug=slug):
-                messages.error(request, 'Tổ này đang thuê gia công — không nhận SX / tiến độ nội bộ.')
+                messages.error(request, 'Lệnh đang thuê gia công — không nhận SX / tiến độ nội bộ.')
                 return redirect(_board_qs())
             try:
                 accept_production(mo_id=mo_id, team_slug=slug, user=request.user)
@@ -5029,7 +5209,7 @@ def team_work_board(request, slug: str):
             return redirect(_board_qs())
         if action == 'complete' and mo_id:
             if active_subcontract_for_team(mo_id=mo_id, team_slug=slug):
-                messages.error(request, 'Tổ này đang thuê gia công — hoàn thành bằng nút Nhận hàng trên phiếu GC.')
+                messages.error(request, 'Lệnh đang thuê gia công — nhận hàng trên kế hoạch SX hoặc lệnh sản xuất.')
                 return redirect(_board_qs())
             try:
                 close_team_job(mo_id=mo_id, team_slug=slug, user=request.user)
@@ -6044,7 +6224,7 @@ def packing_detail(request, pk: int):
 def subcontract_list(request):
     base_qs = (
         SxSubcontractOrder.objects.filter(is_demo=False)
-        .select_related('production_order')
+        .select_related('production_order', 'sales_order')
         .order_by('-order_date', '-pk')
     )
     team = (request.GET.get('team') or '').strip().lower()
@@ -6078,27 +6258,66 @@ def subcontract_list(request):
 
 @module_perm_required(MODULE_SAN_XUAT, 'create')
 def subcontract_create(request):
-    from san_xuat.services.phase3 import Phase3Error, create_subcontract_order
-    from san_xuat.services.progress_template import team_by_slug
+    from san_xuat.hub_models import SxSalesOrder
+    from san_xuat.services.phase3 import Phase3Error, create_subcontract_order, npl_lines_for_subcontract
+    from san_xuat.services.team_work import latest_subcontract_for_mo, latest_subcontract_for_sales_order
 
     raw_mo = (request.GET.get('mo') or '').strip()
-    raw_team = (request.GET.get('team') or '').strip().lower()
+    raw_order = (request.GET.get('order') or '').strip()
     mo = (
-        SxProductionOrder.objects.filter(pk=int(raw_mo), is_demo=False).first()
+        SxProductionOrder.objects.select_related('sales_order').filter(pk=int(raw_mo), is_demo=False).first()
         if raw_mo.isdigit() else None
     )
-    if not mo or not raw_team:
-        messages.info(request, 'Phiếu thuê gia công chỉ tạo từ từng đơn trên bảng công việc tổ.')
+    so = (
+        SxSalesOrder.objects.prefetch_related('lines').filter(pk=int(raw_order), is_demo=False).first()
+        if raw_order.isdigit() else None
+    )
+    if mo is not None and so is None:
+        so = mo.sales_order
+    if not mo and not so:
+        messages.info(request, 'Phiếu thuê gia công tạo từ kế hoạch sản xuất hoặc lệnh sản xuất.')
         return redirect('san_xuat:subcontract_list')
 
-    team_meta = team_by_slug(raw_team) or {}
-    team_label = team_meta.get('label') or raw_team
+    existing = None
+    if mo is not None:
+        existing = latest_subcontract_for_mo(mo_id=mo.pk, sales_order_id=so.pk if so else None)
+    elif so is not None:
+        existing = latest_subcontract_for_sales_order(order_id=so.pk)
+    if existing and existing.status in (
+        SxSubcontractOrder.STATUS_DRAFT,
+        SxSubcontractOrder.STATUS_SENT,
+    ):
+        messages.info(request, f'Đã có phiếu {existing.code} đang mở.')
+        return redirect('san_xuat:subcontract_detail', pk=existing.pk)
+
+    so_line = None
+    if so is not None:
+        lines = list(so.lines.all())
+        if mo is not None:
+            product = (mo.product_code or '').strip().casefold()
+            so_line = next(
+                (ln for ln in lines if (ln.product_code or '').strip().casefold() == product),
+                None,
+            )
+        if so_line is None and lines:
+            so_line = lines[0]
+
+    product_code = (mo.product_code if mo else '') or (so_line.product_code if so_line else '') or ''
+    product_name = (mo.product_name if mo else '') or (so_line.product_name if so_line else '') or ''
+    qty = (mo.qty if mo else None) or (so_line.qty_to_produce if so_line else None) or Decimal('0')
     source_post = {
-        'production_order': str(mo.pk),
-        'team_slug': raw_team,
-        'product_code': mo.product_code or '',
-        'product_name': mo.product_name or '',
+        'production_order': str(mo.pk) if mo else '',
+        'sales_order': str(so.pk) if so else '',
+        'team_slug': '',
+        'product_code': product_code,
+        'product_name': product_name,
     }
+    create_qs = []
+    if so:
+        create_qs.append(f'order={so.pk}')
+    if mo:
+        create_qs.append(f'mo={mo.pk}')
+    form_action = ('?' + '&'.join(create_qs)) if create_qs else ''
 
     if request.method == 'POST':
         data = request.POST.copy()
@@ -6115,19 +6334,20 @@ def subcontract_create(request):
                 if cd.get('material_code') and cd.get('qty') and cd['qty'] > 0:
                     out_lines.append(cd)
             if not out_lines:
-                from san_xuat.services.phase3 import npl_lines_for_subcontract
-
-                out_lines = npl_lines_for_subcontract(mo=mo)
+                out_lines = npl_lines_for_subcontract(
+                    mo=mo, sales_order=so, qty=qty, product_code=product_code,
+                )
             try:
                 item = create_subcontract_order(
                     vendor_name=form.cleaned_data['vendor_name'],
-                    product_code=mo.product_code or '',
-                    product_name=mo.product_name or '',
-                    team_slug=raw_team,
-                    qty=mo.qty or Decimal('0'),
+                    product_code=product_code,
+                    product_name=product_name,
+                    team_slug='',
+                    qty=qty,
                     order_date=form.cleaned_data.get('order_date'),
                     due_date=form.cleaned_data.get('due_date'),
-                    production_order_id=mo.pk,
+                    production_order_id=mo.pk if mo else None,
+                    sales_order_id=so.pk if so else None,
                     notes=form.cleaned_data.get('notes') or '',
                     out_lines=out_lines,
                     created_by=request.user,
@@ -6142,24 +6362,34 @@ def subcontract_create(request):
         initial = {
             'order_date': timezone.localdate(),
             'production_order': mo,
-            'product_code': mo.product_code,
-            'product_name': mo.product_name or '',
-            'team_slug': raw_team,
+            'sales_order': so,
+            'product_code': product_code,
+            'product_name': product_name,
+            'team_slug': '',
         }
         form = SubcontractCreateForm(initial=initial, lock_source=True)
-        from san_xuat.services.phase3 import npl_lines_for_subcontract
-
-        npl_initial = npl_lines_for_subcontract(mo=mo)
+        npl_initial = npl_lines_for_subcontract(
+            mo=mo, sales_order=so, qty=qty, product_code=product_code,
+        )
         out_formset = SubcontractOutLineFormSet(prefix='out', initial=npl_initial)
+    back_href = reverse('san_xuat:subcontract_list')
+    next_to = (request.GET.get('next') or '').strip()
+    if next_to == 'plan':
+        back_href = reverse('san_xuat:plan_board')
+    elif next_to == 'mo' and mo:
+        back_href = reverse('san_xuat:dispatch_mo_detail', kwargs={'pk': mo.pk})
     return render(request, 'san_xuat/subcontract_create.html', {
         **_perm_ctx(request),
         'form': form,
         'out_formset': out_formset,
         'title': 'Thuê gia công',
         'back_url': 'san_xuat:subcontract_list',
+        'back_href': back_href,
+        'form_action': form_action,
         'source_mo': mo,
-        'source_team': raw_team,
-        'source_team_label': team_label,
+        'source_so': so,
+        'source_team': '',
+        'source_team_label': 'Cả lệnh',
         'order_creator_label': _order_creator_label(request.user),
     })
 
@@ -6174,7 +6404,7 @@ def subcontract_detail(request, pk: int):
     )
 
     item = get_object_or_404(
-        SxSubcontractOrder.objects.select_related('production_order', 'created_by').prefetch_related('material_lines'),
+        SxSubcontractOrder.objects.select_related('production_order', 'sales_order', 'created_by').prefetch_related('material_lines'),
         pk=pk,
     )
     can_update = _perm_ctx(request).get('can_update')
@@ -6196,7 +6426,7 @@ def subcontract_detail(request, pk: int):
                 else:
                     messages.success(
                         request,
-                        f'Đã nhận hàng {item.code} — tổ {item.team_label or item.process_name} hoàn thành như tự SX.',
+                        f'Đã nhận hàng {item.code}.',
                     )
                     return redirect('san_xuat:subcontract_detail', pk=item.pk)
         else:

@@ -188,7 +188,7 @@ def apply_smv_overrides(order_line: SxSalesOrderLine, overrides) -> int:
     """Ghi đè SMV đơn hàng theo seq từ form lên đơn (không đụng SMV sản phẩm baseline)."""
     if not overrides:
         return 0
-    by_seq: dict[int, tuple[Decimal, str, str | None]] = {}
+    by_seq: dict[int, tuple[Decimal, str, str | None, Decimal | None]] = {}
     for row in overrides:
         if not isinstance(row, dict):
             continue
@@ -202,12 +202,21 @@ def apply_smv_overrides(order_line: SxSalesOrderLine, overrides) -> int:
             notes = None
             if 'notes' in row or 'description' in row:
                 notes = str(row.get('notes') or row.get('description') or '').strip()[:255]
-            by_seq[seq] = (smv, expl, notes)
+            pct = None
+            if row.get('smv_pct') is not None and str(row.get('smv_pct')).strip() != '':
+                try:
+                    pct = _q(row.get('smv_pct'))
+                except (TypeError, ValueError):
+                    pct = None
+            by_seq[seq] = (smv, expl, notes, pct)
     n = 0
     for line in order_line.routing_lines.all():
         if line.seq_no not in by_seq:
             continue
-        smv, expl, notes = by_seq[line.seq_no]
+        smv, expl, notes, pct = by_seq[line.seq_no]
+        if pct is not None:
+            std = line.library_unit_smv or Decimal('0')
+            smv = (std * pct / Decimal('100')).quantize(Decimal('0.0001'))
         line.applied_unit_smv = smv
         line.recompute()
         fields = ['applied_unit_smv', 'total_operation_smv', 'smv_variance_pct']

@@ -221,6 +221,57 @@
     </div>
   </div>
 
+  {% if order.lines.all %}
+  <div class="card border-0 shadow-sm mb-3">
+    <div class="card-body">
+      <h6 class="fw-bold mb-1">Nhu cầu NPL</h6>
+      <p class="text-muted small mb-3">Nhu cầu = định mức BOM đã chọn (ĐM áp dụng) × số lượng dòng / size.</p>
+      <div class="table-responsive">
+        <table class="table table-sm table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Sản phẩm</th>
+              <th>NPL</th>
+              <th class="text-end">ĐM/SP</th>
+              <th class="text-end">SL</th>
+              <th class="text-end">Nhu cầu</th>
+              <th>ĐVT</th>
+            </tr>
+          </thead>
+          <tbody>
+          {% for ln in order.lines.all %}
+            {% for need in ln.npl_needs %}
+            <tr>
+              {% if forloop.first %}
+              <td class="small fw-semibold align-middle" rowspan="{{ ln.npl_needs|length }}">
+                {{ ln.product_code }}
+              </td>
+              {% endif %}
+              <td class="small">
+                {{ need.material_name|default:need.material_code }}
+                {% if need.size_code %}
+                <span class="badge bg-light text-dark border">{{ need.size_code }}</span>
+                {% endif %}
+              </td>
+              <td class="text-end small">{{ need.qty_per_unit|sx_num }}</td>
+              <td class="text-end small text-muted">{{ need.scale_qty|sx_num }}</td>
+              <td class="text-end fw-semibold small">{{ need.qty_total|sx_num }}</td>
+              <td class="small text-muted">{{ need.unit|default:"—" }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td class="small fw-semibold">{{ ln.product_code }}</td>
+              <td colspan="5" class="text-muted small">Chưa chọn BOM hoặc BOM chưa có định mức.</td>
+            </tr>
+            {% endfor %}
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
   {% include 'san_xuat/includes/sales_order_routing.html' %}
 </div>
 {% endblock %}

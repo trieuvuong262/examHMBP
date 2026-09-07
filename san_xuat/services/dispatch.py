@@ -25,7 +25,7 @@ from kho_npl.services.batches import BatchWorkflowError, batches_with_stock
 from kho_npl.services.doc_numbers import next_issue_number
 from kho_npl.services.issues import IssueWorkflowError, post_stock_issue
 
-from san_xuat.models import BomLine, ProductTechDoc
+from san_xuat.models import ProductTechDoc
 from san_xuat.hub_models import (
     SxDetailPlan,
     SxDisassemblyOrder,
@@ -985,13 +985,22 @@ def build_material_issue_request(
 ) -> SxMaterialIssueRequest:
     mo = (
         SxProductionOrder.objects.select_for_update()
-        .prefetch_related("bom_version__lines__material")
+        .select_related("bom_version", "sales_order")
+        .prefetch_related(
+            "bom_version__lines__material",
+            "sales_order__lines",
+            "lines",
+        )
         .get(pk=production_order_id)
     )
     if mo.status not in (SxProductionOrder.STATUS_RELEASED, SxProductionOrder.STATUS_IN_PROGRESS, SxProductionOrder.STATUS_DONE):
         raise DispatchError("Chỉ được tạo Yêu cầu xuất khi Lệnh sản xuất đã release.")
-    if not mo.bom_version_id:
-        raise DispatchError("Lệnh sản xuất chưa có BOM.")
+
+    from san_xuat.services.bom_need import explode_for_mo, resolve_issue_material
+
+    needs = explode_for_mo(mo)
+    if not needs:
+        raise DispatchError("Lệnh sản xuất chưa có định mức NPL từ BOM đã chọn.")
 
     req_code = _code("ycx", SxMaterialIssueRequest, code=code)
     req = SxMaterialIssueRequest.objects.create(
@@ -1002,21 +1011,25 @@ def build_material_issue_request(
         notes=notes or "",
     )
 
-    # Explode BOM: qty_requested = BOM.qty_with_scrap × MO.qty (NVL thay thế nếu tồn chính thiếu)
+    # Nhu cầu = ĐM BOM đã chọn (hoặc ĐM áp dụng trên đơn) × SL lệnh / SL size
     lines = []
-    for bom_line in mo.bom_version.lines.select_related("material", "substitute_material").all():
-        assert isinstance(bom_line, BomLine)
-        qty_requested = (bom_line.qty_with_scrap * (mo.qty or Decimal("0"))).quantize(Decimal("0.001"))
-        material = bom_line.resolve_issue_material(needed_qty=qty_requested)
+    for need in needs:
+        if need.qty_total <= 0:
+            continue
+        material = resolve_issue_material(need)
+        if material is None:
+            continue
         lines.append(
             SxMaterialIssueRequestLine(
                 request=req,
                 material_code=material.code,
                 material_name=material.name,
-                qty_requested=qty_requested,
+                qty_requested=need.qty_total,
                 qty_issued=Decimal("0"),
             )
         )
+    if not lines:
+        raise DispatchError("Không tính được nhu cầu NPL (ĐM × SL). Kiểm tra BOM đã chọn và số lượng lệnh.")
     SxMaterialIssueRequestLine.objects.bulk_create(lines)
     from san_xuat.services.sx_settings import sx_bool
 

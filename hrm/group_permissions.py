@@ -190,6 +190,34 @@ def aggregate_module_from_menus(menus: dict, *, module_key: str) -> dict:
     return normalize_module_perm(result, module_key=module_key)
 
 
+def grant_supported_writes_on_viewed_menus(module_entry: dict, *, module_key: str) -> dict:
+    """Menu đã bật Xem thì cấp đủ Thêm/Sửa/Xóa/Excel/In mà màn hình thật sự hỗ trợ."""
+    from hrm.submenu_registry import get_module_submenus, submenu_supported_actions
+
+    entry = dict(module_entry or {})
+    menus_raw = entry.get('menus')
+    if not isinstance(menus_raw, dict) or not menus_raw:
+        return entry
+    known = {sm['key'] for sm in get_module_submenus(module_key)}
+    menus = {}
+    changed = False
+    for key, raw in menus_raw.items():
+        mp = dict(raw) if isinstance(raw, dict) else {}
+        if key in known and mp.get(PERM_VIEW):
+            for action in submenu_supported_actions(module_key, key):
+                if not mp.get(action):
+                    mp[action] = True
+                    changed = True
+        menus[key] = mp
+    if not changed:
+        return entry
+    entry['menus'] = menus
+    aggregated = aggregate_module_from_menus(menus, module_key=module_key)
+    for action in PERM_ACTIONS:
+        entry[action] = aggregated.get(action, False)
+    return entry
+
+
 def normalize_module_entry(raw, *, module_key: str) -> dict:
     """Chuẩn hoá một module — gồm menus con nếu có."""
     from hrm.submenu_registry import get_module_submenus

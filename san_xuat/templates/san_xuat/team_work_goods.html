@@ -297,14 +297,9 @@
                title="{{ c.label }}: {{ c.done|sx_num }}/{{ c.plan|sx_num }}{% if c.waiting %} · còn {{ c.waiting|sx_num }}{% endif %}">
               {{ c.done|sx_num }}<span class="dim">/{{ c.plan|sx_num }}</span>
             </a>
-            {% if c.subcontract %}
-              {% if can_view_subcontract %}
+            {% if c.subcontract and can_view_subcontract %}
               <a class="jp-tw-goods-gc" href="{% url 'san_xuat:subcontract_detail' c.subcontract.pk %}"
                  title="Phiếu thuê GC {{ c.subcontract.code }}">GC {{ c.subcontract.code }}</a>
-              {% endif %}
-            {% elif can_create_subcontract and c.qc_required %}
-              <a class="jp-tw-goods-gc" href="{% url 'san_xuat:subcontract_create' %}?mo={{ row.mo.pk }}&amp;team={{ c.slug }}"
-                 title="Thuê gia công tổ {{ c.label }}">Thuê GC</a>
             {% endif %}
           </td>
           {% endfor %}

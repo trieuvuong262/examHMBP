@@ -358,12 +358,20 @@ class SubcontractCreateForm(forms.Form):
     )
     production_order = forms.ModelChoiceField(
         queryset=None,
+        required=False,
         label="Lệnh sản xuất nguồn",
         widget=forms.Select(attrs={"class": "form-select form-select-sm", "id": "id_production_order"}),
     )
+    sales_order = forms.ModelChoiceField(
+        queryset=None,
+        required=False,
+        label="Đơn đặt hàng",
+        widget=forms.HiddenInput(),
+    )
     team_slug = forms.ChoiceField(
+        required=False,
         label="Tổ Ob thuê ngoài",
-        choices=[],
+        choices=[("", "Cả lệnh")],
         widget=forms.Select(attrs={
             "class": "form-select form-select-sm",
             "id": "id_team_slug",
@@ -386,8 +394,7 @@ class SubcontractCreateForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         from san_xuat.forms import _product_code_choices
-        from san_xuat.hub_models import SxProductionOrder
-        from san_xuat.services.qc import ob_team_options
+        from san_xuat.hub_models import SxProductionOrder, SxSalesOrder
 
         lock_source = kwargs.pop("lock_source", False)
         super().__init__(*args, **kwargs)
@@ -395,49 +402,55 @@ class SubcontractCreateForm(forms.Form):
         extra_product = ""
         extra_team = ""
         mo = None
+        so = None
         if data is not None:
             extra_product = data.get("product_code") or ""
             extra_team = (data.get("team_slug") or "").strip().lower()
             raw_mo = (data.get("production_order") or "").strip()
+            raw_so = (data.get("sales_order") or "").strip()
             if raw_mo.isdigit():
                 mo = SxProductionOrder.objects.filter(pk=int(raw_mo), is_demo=False).first()
+            if raw_so.isdigit():
+                so = SxSalesOrder.objects.filter(pk=int(raw_so), is_demo=False).first()
         elif self.initial:
             extra_product = self.initial.get("product_code") or ""
             extra_team = (self.initial.get("team_slug") or "").strip().lower()
             init_mo = self.initial.get("production_order")
+            init_so = self.initial.get("sales_order")
             if getattr(init_mo, "pk", None):
                 mo = init_mo
             elif str(init_mo or "").isdigit():
                 mo = SxProductionOrder.objects.filter(pk=int(init_mo), is_demo=False).first()
+            if getattr(init_so, "pk", None):
+                so = init_so
+            elif str(init_so or "").isdigit():
+                so = SxSalesOrder.objects.filter(pk=int(init_so), is_demo=False).first()
+        if mo is not None and so is None:
+            so = mo.sales_order
         self.fields["product_code"].choices = _product_code_choices(extra_product)
-        teams = ob_team_options(mo=mo) if mo is not None else []
-        choices = [("", "— Chọn lệnh để lấy tổ Ob —")]
-        if not mo:
-            pass
-        elif not teams:
-            choices = [("", "Lệnh chưa có Ob — không thuê GC được")]
-        else:
-            choices = [("", "— Chọn tổ trên Ob —")] + [(t["slug"], t["label"]) for t in teams]
-            if extra_team and extra_team not in {t["slug"] for t in teams}:
-                choices.append((extra_team, extra_team))
-        self.fields["team_slug"].choices = choices
+        self.fields["team_slug"].choices = [("", "Cả lệnh")]
+        if extra_team:
+            self.fields["team_slug"].choices.append((extra_team, extra_team))
         self.fields["production_order"].queryset = (
             SxProductionOrder.objects.filter(is_demo=False).order_by("-order_date", "-pk")
         )
-        self.fields["production_order"].empty_label = "— Chọn lệnh sản xuất —"
+        self.fields["production_order"].empty_label = "— Chưa có lệnh sản xuất —"
         self.fields["production_order"].label_from_instance = (
             lambda row: f"{row.code} · {row.product_code}" + (f" — {row.product_name}" if row.product_name else "")
         )
-        if lock_source and mo:
-            self.fields["production_order"].queryset = SxProductionOrder.objects.filter(pk=mo.pk)
-            self.fields["production_order"].empty_label = None
+        self.fields["sales_order"].queryset = SxSalesOrder.objects.filter(is_demo=False)
+        if lock_source:
+            if mo:
+                self.fields["production_order"].queryset = SxProductionOrder.objects.filter(pk=mo.pk)
+                self.fields["production_order"].empty_label = None
             self.fields["production_order"].widget = forms.HiddenInput()
-            code = (mo.product_code or extra_product or "").strip()
+            if so:
+                self.fields["sales_order"].queryset = SxSalesOrder.objects.filter(pk=so.pk)
+            self.fields["sales_order"].widget = forms.HiddenInput()
+            code = (extra_product or (mo.product_code if mo else "") or "").strip()
             self.fields["product_code"].choices = [(code, code)] if code else self.fields["product_code"].choices
             self.fields["product_code"].widget = forms.HiddenInput()
             self.fields["product_name"].widget = forms.HiddenInput()
-            slug = extra_team or ""
-            self.fields["team_slug"].choices = [(slug, slug)] if slug else choices
             self.fields["team_slug"].widget = forms.HiddenInput()
 
     def clean_product_code(self):
@@ -463,6 +476,9 @@ class SubcontractCreateForm(forms.Form):
             if ref:
                 cleaned["product_name"] = ref.name
         mo = cleaned.get("production_order")
+        so = cleaned.get("sales_order")
+        if not mo and not so:
+            self.add_error(None, "Thiếu đơn đặt hàng hoặc lệnh sản xuất nguồn.")
         slug = cleaned.get("team_slug") or ""
         if mo and slug:
             from san_xuat.services.qc import ob_team_options
@@ -471,10 +487,8 @@ class SubcontractCreateForm(forms.Form):
             if slug not in allowed:
                 self.add_error(
                     "team_slug",
-                    "Tổ không có trên Ob của lệnh này. Chỉ thuê GC đúng tổ Ob.",
+                    "Tổ không có trên Ob của lệnh này.",
                 )
-        elif mo and not slug:
-            self.add_error("team_slug", "Chọn tổ Ob thuê ngoài.")
         return cleaned
 
 

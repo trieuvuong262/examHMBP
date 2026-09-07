@@ -1700,6 +1700,12 @@ class SxQcInspection(DemoMarkedModel):
     qty_sample = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
     qty_pass = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
     qty_fail = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
+    size_qtys = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name='SL theo size',
+        help_text='[{size, qty_pass, qty_fail}] khi phiếu không tách tổ.',
+    )
     result = models.CharField(max_length=20, choices=RESULT_CHOICES, default=RESULT_PENDING)
     status = models.CharField(max_length=20, default='done')
     notes = models.TextField(blank=True, default='')
@@ -1757,6 +1763,12 @@ class SxQcInspectionTeamResult(models.Model):
     team_slug = models.CharField(max_length=20, db_index=True, verbose_name='Tổ')
     qty_pass = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
     qty_fail = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
+    size_qtys = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name='SL theo size',
+        help_text='[{size, qty_pass, qty_fail}]',
+    )
     result = models.CharField(max_length=20, choices=RESULT_CHOICES, default=RESULT_PENDING)
     notes = models.CharField(max_length=255, blank=True, default='')
 
@@ -1775,6 +1787,8 @@ class SxQcInspectionDefectLine(models.Model):
         SxQcInspection, on_delete=models.CASCADE, related_name='defect_lines',
     )
     defect = models.ForeignKey(SxQcDefect, on_delete=models.PROTECT, related_name='inspection_lines')
+    team_slug = models.CharField(max_length=20, blank=True, default='', db_index=True, verbose_name='Tổ')
+    size_label = models.CharField(max_length=40, blank=True, default='', verbose_name='Size')
     qty = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
     notes = models.CharField(max_length=255, blank=True, default='')
 
@@ -2162,6 +2176,14 @@ class SxSubcontractOrder(DemoMarkedModel):
     ]
 
     code = models.CharField(max_length=40, unique=True, verbose_name='Mã GC')
+    sales_order = models.ForeignKey(
+        SxSalesOrder,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='subcontract_orders',
+        verbose_name='Đơn đặt hàng',
+    )
     production_order = models.ForeignKey(
         SxProductionOrder,
         on_delete=models.SET_NULL,
@@ -2179,7 +2201,7 @@ class SxSubcontractOrder(DemoMarkedModel):
         default='',
         db_index=True,
         verbose_name='Tổ Ob thuê ngoài',
-        help_text='Tổ trên Ob của lệnh được thuê ngoài — không mặc định thêu.',
+        help_text='Để trống = cả lệnh. Phiếu cũ có thể còn gắn một tổ.',
     )
     qty = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
     qty_received = models.DecimalField(
@@ -2231,7 +2253,9 @@ class SxSubcontractOrder(DemoMarkedModel):
         from san_xuat.services.progress_template import team_by_slug
 
         meta = team_by_slug(self.team_slug) if self.team_slug else None
-        return (meta or {}).get('label') or self.process_name or ''
+        if meta:
+            return meta.get('label') or self.process_name or ''
+        return self.process_name or 'Cả lệnh'
 
     @property
     def work_status_label(self) -> str:

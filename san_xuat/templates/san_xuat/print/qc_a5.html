@@ -17,6 +17,31 @@
   <div><span class="label">SL lỗi:</span> {{ inspection.qty_fail|sx_num }}</div>
 </div>
 
+{% if size_rows %}
+<table class="lines">
+  <thead>
+    <tr>
+      <th>Size</th>
+      <th>Màu</th>
+      <th style="width:16%">Kế hoạch</th>
+      <th style="width:16%">Đạt</th>
+      <th style="width:16%">Lỗi</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for row in size_rows %}
+    <tr>
+      <td>{{ row.size }}</td>
+      <td>{{ row.colors|default:"—" }}</td>
+      <td class="text-end">{{ row.plan|sx_num }}</td>
+      <td class="text-end">{{ row.qty_pass|sx_num }}</td>
+      <td class="text-end">{{ row.qty_fail|sx_num }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
 {% if criteria_lines %}
 <table class="lines">
   <thead>
@@ -47,16 +72,18 @@
   <thead>
     <tr>
       <th style="width:8%">STT</th>
-      <th>Lỗi</th>
-      <th style="width:16%">Số lượng</th>
-      <th style="width:28%">Ghi chú</th>
+      <th>Size</th>
+      <th>Loại lỗi</th>
+      <th style="width:14%">Số lượng</th>
+      <th style="width:24%">Ghi chú</th>
     </tr>
   </thead>
   <tbody>
   {% for line in defect_lines %}
     <tr>
       <td class="text-center">{{ forloop.counter }}</td>
-      <td>{{ line.defect.name }}</td>
+      <td>{{ line.size_label|default:"—" }}</td>
+      <td>{% if line.defect.group %}{{ line.defect.group.name }} · {% endif %}{{ line.defect.name }}</td>
       <td class="text-end">{{ line.qty|sx_num }}</td>
       <td>{{ line.notes|default:"" }}</td>
     </tr>

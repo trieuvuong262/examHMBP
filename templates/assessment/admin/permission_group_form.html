@@ -279,7 +279,8 @@
     function setRowPerm(moduleKey, menuKey, perm) {
         actions.forEach(function (action) {
             var input = box(moduleKey, action, menuKey);
-            if (input) input.checked = !!(perm && perm[action]);
+            if (!input || input.disabled) return;
+            input.checked = !!(perm && perm[action]);
         });
         updateRowState(moduleKey, menuKey);
     }
@@ -291,7 +292,7 @@
             if (!moduleInput) return;
             var submenuInputs = Array.prototype.map.call(submenuRows(moduleKey), function (row) {
                 return box(moduleKey, action, row.getAttribute('data-menu'));
-            }).filter(Boolean);
+            }).filter(function (i) { return i && !i.disabled; });
             var allChecked = submenuInputs.length && submenuInputs.every(function (i) { return i.checked; });
             var anyChecked = submenuInputs.some(function (i) { return i.checked; });
             moduleInput.checked = allChecked;
@@ -324,7 +325,8 @@
             if (a === 'print' && !supportsPrint) return true;
             if (row.getAttribute('data-view-only') === '1' && a !== 'view') return true;
             var input = box(moduleKey, a, menuKey || null);
-            return input && input.checked;
+            if (!input || input.disabled) return true;
+            return input.checked;
         });
         row.classList.toggle('jp-perm-row-active', any);
         row.classList.toggle('jp-perm-row-full', full);

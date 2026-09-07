@@ -43,26 +43,18 @@ def _print_base_ctx(*, print_title: str, back_url: str, signature_key: str, doc_
 
 
 def _bom_lines_for_mo(mo: SxProductionOrder) -> list[dict]:
-    bom_lines = []
-    if not mo.bom_version_id:
-        return bom_lines
-    for bl in mo.bom_version.lines.all():
-        qty_per_unit = bl.qty_with_scrap
-        bom_lines.append({
-            'material_code': bl.material.code,
-            'material_name': bl.material.name,
-            'qty_per_unit': qty_per_unit,
-            'qty_total': qty_per_unit * (mo.qty or 0),
-            'scrap_pct': bl.scrap_pct,
-        })
-    return bom_lines
+    from san_xuat.services.bom_need import explode_for_mo, needs_as_display_dicts
+
+    return needs_as_display_dicts(explode_for_mo(mo))
 
 
 @module_perm_required(MODULE_SAN_XUAT, 'print')
 def print_mo(request, pk: int):
     mo = get_object_or_404(
-        SxProductionOrder.objects.select_related('bom_version').prefetch_related(
+        SxProductionOrder.objects.select_related('bom_version', 'sales_order').prefetch_related(
             'bom_version__lines__material',
+            'sales_order__lines',
+            'lines',
         ),
         pk=pk,
     )
@@ -113,12 +105,23 @@ def print_qc(request, pk: int):
             'standard_set',
         ).prefetch_related(
             'criteria_lines__criteria',
-            'defect_lines__defect',
+            'defect_lines__defect__group',
+            'team_results',
         ),
         pk=pk,
     )
     qc_request = inspection.qc_request
     mo = qc_request.production_order if qc_request else None
+    from san_xuat.services.qc import inspection_size_plan, load_size_qtys, merge_size_rows
+
+    saved_sizes = []
+    by_size: dict = {}
+    for rec in inspection.team_results.all():
+        for row in load_size_qtys(rec.size_qtys):
+            hit = by_size.setdefault(row['size'], {'size': row['size'], 'qty_pass': 0, 'qty_fail': 0})
+            hit['qty_pass'] += row['qty_pass']
+            hit['qty_fail'] += row['qty_fail']
+    saved_sizes = list(by_size.values()) or list(inspection.size_qtys or [])
     return render(request, 'san_xuat/print/qc_a5.html', {
         **_print_base_ctx(
             print_title=f'In phiếu kiểm tra {inspection.code}',
@@ -133,6 +136,12 @@ def print_qc(request, pk: int):
         'mo': mo,
         'criteria_lines': list(inspection.criteria_lines.all()),
         'defect_lines': list(inspection.defect_lines.all()),
+        'size_rows': merge_size_rows(
+            inspection_size_plan(mo),
+            saved_sizes,
+            fallback_pass=inspection.qty_pass,
+            fallback_fail=inspection.qty_fail,
+        ),
     })
 
 
@@ -209,7 +218,7 @@ def print_handover(request, pk: int):
 @module_perm_required(MODULE_SAN_XUAT, 'print')
 def print_subcontract(request, pk: int):
     item = get_object_or_404(
-        SxSubcontractOrder.objects.select_related('production_order').prefetch_related(
+        SxSubcontractOrder.objects.select_related('production_order', 'sales_order').prefetch_related(
             'material_lines',
         ),
         pk=pk,

@@ -315,33 +315,31 @@ def explode_material_plan(
 
     start_dates = product_start_dates(overall)
     prep_days = npl_prep_days()
+    from san_xuat.services.bom_need import explode_for_product
 
     for line in overall.lines.all():
         qty_planned = line.qty_planned or line.qty_required or Decimal("0")
         if qty_planned <= 0:
             continue
         product_code = (line.product_code or "").strip()
-        doc = ProductTechDoc.objects.filter(product_code__iexact=product_code, is_active=True).first()
-        if not doc:
-            skipped_products.append(product_code)
-            continue
-        bom = get_active_bom(doc)
-        if not bom:
-            skipped_products.append(product_code)
-            continue
         product_start = start_dates.get(product_code.casefold()) or overall.date_from
         need_date = _shift_days(product_start, prep_days)
-        for bl in bom.lines.select_related("material").all():
-            mat_code = bl.material.code
-            need = bl.qty_with_scrap * qty_planned
-            material_req[mat_code] = material_req.get(mat_code, Decimal("0")) + need
-            material_names[mat_code] = bl.material.name
+        rows = explode_for_product(product_code=product_code, qty=qty_planned)
+        if not rows:
+            skipped_products.append(product_code)
+            continue
+        for need in rows:
+            mat_code = (need.material_code or "").strip()
+            if not mat_code or need.qty_total <= 0:
+                continue
+            material_req[mat_code] = material_req.get(mat_code, Decimal("0")) + need.qty_total
+            material_names[mat_code] = need.material_name or mat_code
             current = material_need.get(mat_code)
             if need_date and (current is None or need_date < current):
                 material_need[mat_code] = need_date
 
     if not material_req:
-        raise PlanningError("Không explode được NVL — cần BOM active cho ít nhất một mã SP.")
+        raise PlanningError("Không explode được NVL — cần BOM đã chọn trên đơn hoặc BOM active cho ít nhất một mã SP.")
 
     mat_plan = (
         SxMaterialPlan.objects.filter(

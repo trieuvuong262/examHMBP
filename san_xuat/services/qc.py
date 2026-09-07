@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from decimal import Decimal, ROUND_HALF_UP
 
 from django.db import transaction
@@ -913,11 +913,111 @@ class CriteriaLineInput:
     notes: str = ""
 
 
+def _q_size(val, default: str = "0") -> Decimal:
+    try:
+        return Decimal(str(val if val is not None and str(val) != "" else default))
+    except Exception:
+        return Decimal(default)
+
+
+def inspection_size_plan(mo: SxProductionOrder | None) -> list[dict]:
+    """Size / màu / SL kế hoạch từ LSX — dùng trên phiếu kiểm tra."""
+    if mo is None:
+        return []
+    from san_xuat.services.order_progress_sheet import _size_plans
+
+    rows = []
+    for row in _size_plans(mo):
+        rows.append({
+            "size": row.size_label,
+            "plan": row.qty,
+            "colors": ", ".join(row.color_labels) if getattr(row, "color_labels", None) else "",
+        })
+    return rows
+
+
+def _dump_size_qtys(rows) -> list[dict]:
+    out = []
+    for raw in rows or []:
+        if not isinstance(raw, dict):
+            continue
+        size = str(raw.get("size") or "").strip()
+        if not size:
+            continue
+        out.append({
+            "size": size,
+            "qty_pass": str(_q_size(raw.get("qty_pass"))),
+            "qty_fail": str(_q_size(raw.get("qty_fail"))),
+        })
+    return out
+
+
+def load_size_qtys(raw) -> list[dict]:
+    out = []
+    for row in raw or []:
+        if not isinstance(row, dict):
+            continue
+        size = str(row.get("size") or "").strip()
+        if not size:
+            continue
+        out.append({
+            "size": size,
+            "qty_pass": _q_size(row.get("qty_pass")),
+            "qty_fail": _q_size(row.get("qty_fail")),
+        })
+    return out
+
+
+def merge_size_rows(plan: list[dict], saved: list[dict], *, fallback_pass=None, fallback_fail=None) -> list[dict]:
+    """Ghép kế hoạch LSX với SL đã lưu — size lạ vẫn hiện."""
+    by_size = {str(r.get("size") or ""): r for r in load_size_qtys(saved)}
+    rows = []
+    seen: set[str] = set()
+    for item in plan or []:
+        size = str(item.get("size") or "").strip()
+        if not size:
+            continue
+        seen.add(size)
+        hit = by_size.get(size) or {}
+        rows.append({
+            "size": size,
+            "plan": item.get("plan") or Decimal("0"),
+            "colors": item.get("colors") or "",
+            "qty_pass": hit.get("qty_pass", Decimal("0")),
+            "qty_fail": hit.get("qty_fail", Decimal("0")),
+        })
+    for size, hit in by_size.items():
+        if size in seen:
+            continue
+        rows.append({
+            "size": size,
+            "plan": Decimal("0"),
+            "colors": "",
+            "qty_pass": hit.get("qty_pass", Decimal("0")),
+            "qty_fail": hit.get("qty_fail", Decimal("0")),
+        })
+    if not rows and (fallback_pass or fallback_fail):
+        rows.append({
+            "size": "Tổng",
+            "plan": Decimal("0"),
+            "colors": "",
+            "qty_pass": fallback_pass or Decimal("0"),
+            "qty_fail": fallback_fail or Decimal("0"),
+        })
+    elif rows and not by_size and not any(r["qty_pass"] or r["qty_fail"] for r in rows):
+        if fallback_pass:
+            rows[0]["qty_pass"] = fallback_pass
+        if fallback_fail:
+            rows[0]["qty_fail"] = fallback_fail
+    return rows
+
+
 @dataclass(frozen=True)
 class TeamQtyInput:
     slug: str
     qty_pass: Decimal = Decimal("0")
     qty_fail: Decimal = Decimal("0")
+    size_qtys: list = field(default_factory=list)
 
 
 def _team_result_status(*, qty_pass: Decimal, qty_fail: Decimal, failed_criteria: bool) -> str:
@@ -959,6 +1059,7 @@ def save_inspection_team_results(
             defaults={
                 "qty_pass": item.qty_pass or Decimal("0"),
                 "qty_fail": item.qty_fail or Decimal("0"),
+                "size_qtys": _dump_size_qtys(item.size_qtys),
                 "result": status,
             },
         )
@@ -1006,6 +1107,8 @@ class DefectLineInput:
     defect_id: int
     qty: Decimal = Decimal("0")
     notes: str = ""
+    team_slug: str = ""
+    size_label: str = ""
 
 
 @transaction.atomic
@@ -1014,6 +1117,7 @@ def save_inspection_detail_lines(
     inspection_id: int,
     criteria_lines: list[CriteriaLineInput] | None = None,
     defect_lines: list[DefectLineInput] | None = None,
+    defect_team_slug: str | None = None,
 ) -> SxQcInspection:
     inspection = SxQcInspection.objects.select_for_update().get(pk=inspection_id)
     if inspection.status == "done":
@@ -1037,7 +1141,10 @@ def save_inspection_detail_lines(
             line.save(update_fields=["is_pass", "value_text", "value_number", "notes"])
 
     if defect_lines is not None:
-        inspection.defect_lines.all().delete()
+        qs = inspection.defect_lines.all()
+        if defect_team_slug is not None:
+            qs = qs.filter(team_slug=(defect_team_slug or "").strip().lower())
+        qs.delete()
         defect_ids = [item.defect_id for item in defect_lines if item.qty and item.qty > 0]
         defects = {
             defect.pk: defect
@@ -1054,6 +1161,8 @@ def save_inspection_detail_lines(
                 SxQcInspectionDefectLine(
                     inspection=inspection,
                     defect=defect,
+                    team_slug=(item.team_slug or "").strip().lower(),
+                    size_label=(item.size_label or "").strip(),
                     qty=item.qty,
                     notes=(item.notes or "").strip(),
                 )
@@ -1192,11 +1301,13 @@ def finalize_inspection(
     criteria_lines: list[CriteriaLineInput] | None = None,
     defect_lines: list[DefectLineInput] | None = None,
     team_qty: list[TeamQtyInput] | None = None,
+    defect_team_slug: str | None = None,
 ) -> SxQcInspection:
     inspection = save_inspection_detail_lines(
         inspection_id=inspection_id,
         criteria_lines=criteria_lines,
         defect_lines=defect_lines,
+        defect_team_slug=defect_team_slug,
     )
     if team_qty is not None:
         save_inspection_team_results(inspection_id=inspection.pk, team_qty=team_qty)
@@ -1234,6 +1345,8 @@ def finalize_inspection(
         else:
             pass_qty = Decimal("0")
 
+    if fail_qty > 0 and defect_total <= 0:
+        raise QcError("Có SL lỗi — ghi rõ size và loại lỗi trước khi chốt.")
     if fail_qty < 0:
         raise QcError("SL lỗi không được âm.")
     if pass_qty < 0:

@@ -202,36 +202,131 @@ def arrow_down(d, x, y):
 
 
 def build_workflow_drawing():
+    """Luồng Portal MTO thực tế (theo code hiện tại)."""
     w, h = 500, 500
     d = Drawing(w, h)
     d.add(
         String(
             w / 2,
             h - 12,
-            "LUỒNG NGHIỆP VỤ CHÍNH",
+            "LUỒNG PORTAL — MTO THEO ĐƠN (LIVE)",
             fontName="VN-B",
             fontSize=8.5,
             fillColor=PRIMARY,
             textAnchor="middle",
         )
     )
-    bw, bh = 155, 34
+    bw, bh = 168, 34
     cx = w / 2 - bw / 2
     steps = [
-        (h - 52, "0. Dữ liệu gốc\nĐịnh mức BOM · Kho NPL · KiotViet · Tổ/chuyền", HexColor("#e0f2fe"), BLUE),
-        (h - 102, "1. Kế hoạch tổng thể\nThêm sản phẩm → Xác nhận", BOX_BG, ACCENT),
-        (h - 152, "2. Kế hoạch nguyên phụ liệu\nTách định mức → Xác nhận / Mua hàng", BOX_BG, ACCENT),
-        (h - 202, "3. Kế hoạch chi tiết\nPhân bổ ngày/chuyền → Sinh lệnh", BOX_BG, ACCENT),
-        (h - 252, "4. Lệnh sản xuất\nLưu nháp → Phát hành", HexColor("#fef3c7"), AMBER),
-        (h - 302, "5. Xuất vật tư\nTạo yêu cầu → Duyệt → Phiếu xuất kho", HexColor("#fef3c7"), AMBER),
-        (h - 352, "6. Thống kê sản xuất\nGhi sản lượng công đoạn → Xác nhận", HexColor("#fef3c7"), AMBER),
-        (h - 402, "7. Kiểm tra chất lượng → Nhập thành phẩm → Đóng gói", HexColor("#fce7f3"), PINK),
-        (h - 452, "8. Truy xuất nguồn gốc\nTheo lệnh sản xuất hoặc mã lô", HexColor("#f3e8ff"), PURPLE),
+        (h - 52, "0. Master data\nBOM · Routing IE · Kho NPL · Map tổ", HexColor("#e0f2fe"), BLUE),
+        (h - 102, "1. Đơn đặt hàng\nTạo → Xác nhận → plan_status = Chờ xếp", BOX_BG, ACCENT),
+        (h - 152, "2. Bảng kế hoạch SX\nƯu tiên / Lộ trình → Chuyển xuống SX", BOX_BG, ACCENT),
+        (h - 202, "3. Lệnh SX tự phát hành\n+ đẩy việc lên Công việc tổ", HexColor("#fef3c7"), AMBER),
+        (h - 252, "4. Xưởng (Công việc tổ)\nNhận SX → Phân công → Tiến độ → Đóng tổ", HexColor("#fef3c7"), AMBER),
+        (h - 302, "5. Xuất NPL (YCX) → Thống kê (TKSX)\n(cổng: xuất trước khi xác nhận thống kê)", HexColor("#fef3c7"), AMBER),
+        (h - 352, "6. QC theo tổ Ob\nYCKT / PKT → Đạt · đóng cảnh báo", HexColor("#fce7f3"), PINK),
+        (h - 402, "7. Nhập TP (YCNTP) → Đóng gói\n→ Hoàn thành lệnh (checklist 100%)", HexColor("#fce7f3"), PINK),
+        (h - 452, "8. Truy xuất nguồn gốc\nTheo lệnh / lô / SKU", HexColor("#f3e8ff"), PURPLE),
     ]
     for i, (y, text, fill, stroke) in enumerate(steps):
         make_flow_box(d, cx, y, bw, bh, text, fill, stroke)
         if i < len(steps) - 1:
             arrow_down(d, w / 2, steps[i + 1][0] + bh)
+    return d
+
+
+def build_shopfloor_drawing():
+    """Sơ đồ riêng: các bước sản xuất trên xưởng (progress_template)."""
+    w, h = 520, 420
+    d = Drawing(w, h)
+    d.add(
+        String(
+            w / 2,
+            h - 14,
+            "SƠ ĐỒ RIÊNG — CÁC BƯỚC SẢN XUẤT TRÊN XƯỞNG",
+            fontName="VN-B",
+            fontSize=9,
+            fillColor=PRIMARY,
+            textAnchor="middle",
+        )
+    )
+    d.add(
+        String(
+            w / 2,
+            h - 28,
+            "Nguồn: progress_template (Công việc tổ) · tổ sau không bị chặn bởi tổ trước",
+            fontName="VN",
+            fontSize=6.5,
+            fillColor=MUTED,
+            textAnchor="middle",
+        )
+    )
+
+    # Horizontal team boxes
+    teams = [
+        ("1. CẮT", "Áo / Quần / Phối", HexColor("#e0f2fe"), BLUE),
+        ("2. IN - ÉP", "Lá cổ · Trụ · In giấy\nThân trước/sau · Tay", HexColor("#fef3c7"), AMBER),
+        ("3. THÊU", "TT áo · TT quần", HexColor("#fce7f3"), PINK),
+        ("4. MAY", "May áo · May quần\nCắt chỉ · Kiểm · Giao may", HexColor("#fff1f2"), ACCENT),
+        ("5. ỦI - GẤP", "Kiểm · Ủi · Gấp xếp", HexColor("#f3e8ff"), PURPLE),
+        ("6. GIAO TP", "Giao hàng\nthành phẩm", HexColor("#ecfdf5"), HexColor("#059669")),
+    ]
+    box_w, box_h = 72, 58
+    gap = 10
+    total = len(teams) * box_w + (len(teams) - 1) * gap
+    x0 = (w - total) / 2
+    y_team = h - 110
+    for i, (title, detail, fill, stroke) in enumerate(teams):
+        x = x0 + i * (box_w + gap)
+        make_flow_box(d, x, y_team, box_w, box_h, f"{title}\n{detail}", fill, stroke)
+        if i < len(teams) - 1:
+            ax = x + box_w
+            d.add(Line(ax + 1, y_team + box_h / 2, ax + gap - 1, y_team + box_h / 2, strokeColor=PRIMARY, strokeWidth=1.1))
+            d.add(
+                Polygon(
+                    [ax + gap - 1, y_team + box_h / 2, ax + gap - 5, y_team + box_h / 2 - 2.5, ax + gap - 5, y_team + box_h / 2 + 2.5],
+                    fillColor=PRIMARY,
+                    strokeColor=PRIMARY,
+                )
+            )
+
+    # Detail panels under May / supporting ops
+    d.add(
+        String(
+            w / 2,
+            y_team - 18,
+            "Song song với xưởng: Xuất NPL · Bàn giao BTP (tuỳ CD) · QC theo tổ · Nhập TP · Đóng gói",
+            fontName="VN",
+            fontSize=7,
+            fillColor=DARK,
+            textAnchor="middle",
+        )
+    )
+
+    detail_boxes = [
+        (30, 40, 145, 120, "CẮT (cat)\n• Áo TT+TS+Tay\n• Quần\n• Phối quần", HexColor("#e0f2fe"), BLUE),
+        (190, 40, 145, 120, "IN-ÉP (inep)\n• Lá cổ · Trụ · In giấy\n• Thân trước / sau\n• Tay", HexColor("#fef3c7"), AMBER),
+        (350, 40, 145, 120, "THÊU (theu)\n• TT áo\n• TT quần", HexColor("#fce7f3"), PINK),
+    ]
+    for x, y, bw, bh, text, fill, stroke in detail_boxes:
+        make_flow_box(d, x, y, bw, bh, text, fill, stroke)
+
+    may_text = (
+        "MAY (may) — nhóm chính\n"
+        "Áo: lá cổ · trụ · ráp vai · tra tay ·\n"
+        "  ráp sườn · kansai · khuy/nút · cắt chỉ\n"
+        "Quần: đáy · sườn · thun lưng · kansai ·\n"
+        "  khuy/dây · kiểm · cắt chỉ · giao may"
+    )
+    make_flow_box(d, 30, 175, 225, 95, may_text, HexColor("#fff1f2"), ACCENT)
+    ht_text = (
+        "ỦI - GẤP (ht) → GIAO TP (gh)\n"
+        "• Kiểm hàng → Ủi → Gấp xếp\n"
+        "• Giao hàng thành phẩm\n"
+        "• Sau đó: YCNTP / Đóng gói trên Portal"
+    )
+    make_flow_box(d, 275, 175, 220, 95, ht_text, HexColor("#ecfdf5"), HexColor("#059669"))
     return d
 
 
@@ -302,15 +397,14 @@ def build():
     story.append(Spacer(1, 0.25 * cm))
     story.append(
         P(
-            "Tài liệu mô tả luồng từ kế hoạch đến truy xuất nguồn gốc, "
-            "thao tác từng màn hình, cấu hình <b>Thiết lập chung</b>, "
-            "và <b>in phiếu giấy A5</b> mang ra xưởng / kho.",
+            "Tài liệu training: luồng MTO từ đơn đặt hàng đến truy xuất, "
+            "thao tác từng màn, <b>Thiết lập chung</b>, và <b>in phiếu A5</b> mang ra xưởng / kho.",
             styles["SmallVN"],
         )
     )
     story.append(
         P(
-            "Ngày cập nhật: 21/07/2026 · v2 (Kho NPL · danh sách · lọc ngày)",
+            "Ngày cập nhật: 07/09/2026 · v4 (khảo sát lại code live — bỏ KHTT/KHCT trên happy path)",
             styles["SmallVN"],
         )
     )
@@ -320,14 +414,17 @@ def build():
         [
             P("<b>Phạm vi</b>", c),
             P(
-                "Kế hoạch → Điều phối → Chất lượng → Nhập thành phẩm → Đóng gói → Truy xuất · "
-                "Thiết lập chung · In phiếu A5",
+                "Đơn ĐH → Bảng KH SX → Lệnh SX / Công việc tổ → Xuất NPL → Thống kê / QC → "
+                "Nhập TP → Đóng gói → Truy xuất · Thiết lập · In A5",
                 c,
             ),
         ],
         [
             P("<b>Đối tượng đọc</b>", c),
-            P("Điều phối sản xuất, kho nguyên phụ liệu, kiểm tra chất lượng, quản lý xưởng, admin cấu hình", c),
+            P(
+                "Lên đơn, kế hoạch, điều phối, tổ trưởng xưởng, kho NPL, QC, đóng gói, admin cấu hình",
+                c,
+            ),
         ],
         [
             P("<b>Hệ thống liên quan</b>", c),
@@ -363,10 +460,10 @@ def build():
     story.append(P("Mục lục", styles["H2VN"]))
     toc_items = [
         "1. Quy ước thuật ngữ & quyền thao tác",
-        "2. Tổng quan luồng nghiệp vụ",
+        "2. Tổng quan luồng Portal (MTO live) + sơ đồ xưởng",
         "3. Chuẩn bị dữ liệu gốc",
-        "4. Kế hoạch (tổng thể, nguyên phụ liệu, chi tiết, mua hàng)",
-        "5. Điều phối sản xuất (lệnh, xuất vật tư, thống kê, nhập thành phẩm…)",
+        "4. Đơn đặt hàng · Bảng kế hoạch · Công việc tổ",
+        "5. Điều phối (lệnh, xuất vật tư, thống kê, nhập thành phẩm…)",
         "6. Chất lượng",
         "7. Đóng gói, truy xuất, giao việc, năng lực, xưởng, gia công",
         "8. Giá thành (tóm tắt)",
@@ -473,12 +570,25 @@ def build():
     story.append(P("2. Tổng quan luồng nghiệp vụ", styles["H1VN"]))
     story.append(
         P(
-            "Module Sản xuất quản lý vòng đời từ lập kế hoạch đến thành phẩm nhập kho và truy xuất. "
-            "Luồng dưới đây là trình tự khuyến nghị khi vận hành thực tế.",
+            "Luồng <b>live</b> khảo sát từ code (09/2026): "
+            "<b>ĐĐH xác nhận</b> → <b>Bảng kế hoạch</b> (Chuyển xuống SX) → "
+            "LSX <b>tự phát hành</b> + Công việc tổ → YCX / TKSX → QC → YCNTP → Đóng gói → "
+            "Hoàn thành lệnh → Truy xuất. "
+            "<b>Không</b> còn bắt buộc KHTT / KHCT trên happy path (URL cũ redirect về bảng kế hoạch).",
             styles["BodyVN"],
         )
     )
     story.append(build_workflow_drawing())
+    story.append(Spacer(1, 0.25 * cm))
+    story.append(P("2.0. Sơ đồ riêng — các bước sản xuất trên xưởng", styles["H2VN"]))
+    story.append(
+        P(
+            "Thứ tự tổ chuẩn JustPlay. Tổ sau <b>không</b> bị hệ thống chặn vì tổ trước chưa đóng — "
+            "chỉ khóa công nhân của tổ đã <b>Đóng việc tổ</b>. QC theo tổ Ob; QC không chặn bàn giao BTP.",
+            styles["BodyVN"],
+        )
+    )
+    story.append(build_shopfloor_drawing())
     story.append(Spacer(1, 0.2 * cm))
 
     story.append(P("2.1. Màn Tổng quan (dashboard)", styles["H2VN"]))
@@ -547,109 +657,83 @@ def build():
     ]
     story.append(_table(master_rows, [4.2 * cm, 5.2 * cm, 6.6 * cm]))
 
-    # ========== 4. KẾ HOẠCH ==========
-    story.append(P("4. Kế hoạch", styles["H1VN"]))
+    # ========== 4. KẾ HOẠCH / ĐĐH ==========
+    story.append(P("4. Đơn đặt hàng · Bảng kế hoạch · Công việc tổ", styles["H1VN"]))
     story.append(
         P(
-            "Hub điều hướng: <b>/san-xuat/ke-hoach/</b> (chỉ liên kết danh mục, không gửi dữ liệu).",
+            "Đây là <b>luồng chính MTO</b> trên Portal. Hub: <b>/san-xuat/ke-hoach/</b> "
+            "(redirect về bảng theo đơn). Các màn KH tổng thể / NPL / mua hàng ở mục 4.4+ dùng khi bổ sung nhu cầu NPL.",
             styles["BodyVN"],
         )
     )
 
-    story.append(P("4.1. Kế hoạch tổng thể", styles["H2VN"]))
+    story.append(P("4.1. Đơn đặt hàng (SoT đơn SX)", styles["H2VN"]))
     screen_block(
         story,
         styles,
-        "Danh sách kế hoạch tổng thể",
-        "/san-xuat/ke-hoach/tong-the/",
-        None,
+        "Lên đơn / Danh sách / Xác nhận đơn",
+        "/san-xuat/don-hang/ · /them/ · /xac-nhan/",
+        "Nháp → Đã xác nhận | Từ chối · plan_status: Chờ xếp",
         [
-            "Xem / lọc danh sách (quyền Xem; bấm dòng mở chi tiết)",
-            "Nút <b>Tạo</b> kế hoạch mới (quyền Tạo) → /ke-hoach/tong-the/them/",
+            "Tạo đơn: khách, ngày DK, dòng SP + SL + % hao hụt, gắn <b>BOM</b>",
+            "Routing IE tự gắn bản duyệt; chỉnh <b>SMV áp dụng</b> trước xác nhận",
+            "Xác nhận → <b>plan_status = Chờ xếp</b> (vào hàng đợi bảng KH) — <b>không</b> tạo LSX ngay",
+            "Từ chối bị chặn nếu đơn đã gắn LSX",
         ],
-    )
-    screen_block(
-        story,
-        styles,
-        "Chi tiết kế hoạch tổng thể",
-        "/san-xuat/ke-hoach/tong-the/<mã>/",
-        "Nháp → Đã xác nhận → (Hoàn thành / Hủy)",
-        [
-            "Khi <b>Nháp</b> + quyền Sửa: <b>Thêm dòng sản phẩm</b>",
-            "Khi Nháp + quyền Sửa: <b>Import dòng từ đơn KiotViet</b>",
-            "Khi Nháp + quyền Sửa: <b>Xác nhận</b> kế hoạch tổng thể",
-            "Khi đã xác nhận: liên kết <b>Lập kế hoạch chi tiết</b> và nút <b>Tiếp theo</b> (bước kế tiếp)",
-            "Sau khi xác nhận: không còn thêm/sửa dòng như lúc nháp",
-        ],
+        "Happy path không đi qua KHTT/KHCT.",
     )
 
-    story.append(P("4.2. Kế hoạch nguyên phụ liệu", styles["H2VN"]))
+    story.append(P("4.2. Bảng kế hoạch sản xuất (theo đơn) — SoT kế hoạch", styles["H2VN"]))
     screen_block(
         story,
         styles,
-        "Tạo kế hoạch nguyên phụ liệu (tách định mức)",
-        "/san-xuat/ke-hoach/npl/them/",
-        None,
+        "Bảng kế hoạch — Hàng đợi / Đã chuyển SX / Lộ trình",
+        "/san-xuat/ke-hoach/bang/?tab=queue|released|route",
+        "Chờ xếp · Tạm giữ · Đã chuyển SX · Đang SX · Hoàn thành",
         [
-            "Chọn kế hoạch tổng thể đã có → nút <b>Explode → kế hoạch nguyên phụ liệu</b> (quyền Tạo)",
-            "Hệ thống tính nhu cầu nguyên phụ liệu theo định mức BOM",
+            "Tab <b>Hàng đợi</b>: ưu tiên 1–5, tạm giữ / bỏ giữ, phút trung gian giữa tổ",
+            "<b>Chuyển xuống SX</b>: mỗi dòng SP → tạo LSX + <b>tự phát hành</b> + đẩy Công việc tổ",
+            "Tab <b>Đã chuyển SX</b>: tiến độ / ETA (thay giám sát tiến độ cũ)",
+            "Tab <b>Lộ trình</b>: timeline theo tổ Ob",
+            "Hủy chuyển SX bị chặn nếu đã có TKSX / YCX / YCNTP / bàn giao / đang SX",
         ],
+        "/ke-hoach/, KHTT, KHCT, giám sát tiến độ, lộ trình cũ → redirect về board này.",
+    )
+
+    story.append(P("4.3. Công việc tổ (xưởng)", styles["H2VN"]))
+    screen_block(
+        story,
+        styles,
+        "Tiến độ hàng hoá · Bảng việc từng tổ",
+        "/san-xuat/cong-viec-to/ · /cong-viec-to/<slug>/",
+        "Chờ nhận · Đang làm · Đã đóng việc tổ",
+        [
+            "Thứ tự: <b>Cắt → In-Ép → Thêu → May → Ủi-Gấp → Giao TP</b>",
+            "<b>Nhận SX</b> (tổ bất kỳ nhận đầu) → LSX chuyển Đang SX",
+            "Phân công CD con cho NV → ghi tiến độ / TKSX (assignee) → <b>Đóng việc tổ</b>",
+            "Tổ sau không bị chặn vì tổ trước chưa đóng; GC active thì khóa assign nội bộ",
+        ],
+        "Chi tiết công đoạn con: xem sơ đồ xưởng mục 2.0.",
+    )
+
+    story.append(P("4.4. Kế hoạch NPL / mua hàng (nhánh phụ)", styles["H2VN"]))
+    story.append(
+        P(
+            "Không nằm trên happy path MTO. Dùng khi thiếu NPL: Kế hoạch NPL → Yêu cầu mua → Đơn mua. "
+            "UI KHTT/KHCT đã redirect; model còn cho explode NPL / bù tồn MTS nội bộ.",
+            styles["BodyVN"],
+        )
     )
     screen_block(
         story,
         styles,
-        "Chi tiết kế hoạch nguyên phụ liệu",
-        "/san-xuat/ke-hoach/npl/<mã>/",
+        "Kế hoạch nguyên phụ liệu",
+        "/san-xuat/ke-hoach/npl/",
         "Nháp → Đã xác nhận",
         [
-            "Khi Nháp + quyền Sửa: <b>Cập nhật tồn / số lượng thiếu</b> (refresh)",
-            "Khi Nháp + quyền Sửa: <b>Xác nhận</b> kế hoạch nguyên phụ liệu",
-            "Liên kết: <b>Tạo yêu cầu mua nguyên phụ liệu từ số lượng thiếu</b>",
-        ],
-        "Danh sách: /san-xuat/ke-hoach/npl/",
-    )
-
-    story.append(P("4.3. Kế hoạch chi tiết", styles["H2VN"]))
-    screen_block(
-        story,
-        styles,
-        "Chi tiết kế hoạch chi tiết",
-        "/san-xuat/ke-hoach/chi-tiet/<mã>/",
-        "Nháp → Đã xác nhận",
-        [
-            "Tạo bằng explode từ kế hoạch tổng thể (quyền Tạo) tại /ke-hoach/chi-tiet/them/",
-            "Khi Nháp + quyền Sửa: <b>Cập nhật phân bổ ngày</b>",
-            "Khi Nháp + quyền Sửa: <b>Xác nhận</b> kế hoạch chi tiết",
-            "Khi <b>Đã xác nhận</b> + quyền Sửa: <b>Sinh lệnh sản xuất</b> từ kế hoạch chi tiết",
-        ],
-    )
-
-    story.append(P("4.4. Yêu cầu mua nguyên phụ liệu", styles["H2VN"]))
-    screen_block(
-        story,
-        styles,
-        "Chi tiết yêu cầu mua nguyên phụ liệu",
-        "/san-xuat/ke-hoach/yeu-cau-mua-npl/<mã>/",
-        "Nháp → Đã gửi → Đã duyệt | Từ chối",
-        [
-            "Tạo mới (quyền Tạo) tại /yeu-cau-mua-npl/them/",
-            "Khi Nháp + quyền Sửa: <b>Gửi duyệt</b>",
-            "Khi Đã gửi + quyền Sửa: <b>Duyệt</b> hoặc <b>Từ chối</b>",
-            "Khi Đã duyệt: liên kết <b>Tạo đơn mua hàng</b>",
-        ],
-    )
-
-    story.append(P("4.5. Đơn mua hàng", styles["H2VN"]))
-    screen_block(
-        story,
-        styles,
-        "Chi tiết đơn mua hàng",
-        "/san-xuat/ke-hoach/don-mua-hang/<mã>/",
-        "Nháp → Đã xác nhận → Đã nhập",
-        [
-            "Tạo mới (quyền Tạo)",
-            "Khi Nháp + quyền Sửa: <b>Xác nhận</b> đơn mua hàng",
-            "Quyền Sửa: <b>Liên kết phiếu nhập KiotViet</b>",
+            "Tách định mức từ nguồn kế hoạch → xem tồn / thiếu → Xác nhận",
+            "Sinh <b>Yêu cầu mua NPL</b> từ số thiếu → Gửi → Duyệt",
+            "Đơn mua hàng: xác nhận + liên kết phiếu nhập (KiotViet / kho NPL)",
         ],
     )
 
@@ -1301,63 +1385,63 @@ def build():
         [P("<b>#</b>", h), P("<b>Việc cần làm</b>", h), P("<b>Màn hình / nút chính</b>", h), P("<b>Kết quả</b>", h)],
         [
             P("1", c),
-            P("Đủ định mức BOM + tồn nguyên phụ liệu + tổ/chuyền", c),
-            P("Hồ sơ · Kho NPL · Năng lực", c),
-            P("Đủ điều kiện mở lệnh", c),
+            P("Đủ BOM active + routing IE duyệt + tồn NPL + map tổ", c),
+            P("Hồ sơ · Công đoạn IE · Kho NPL", c),
+            P("Đủ điều kiện mở đơn", c),
         ],
         [
             P("2", c),
-            P("Tạo & xác nhận kế hoạch tổng thể", c),
-            P("Kế hoạch tổng thể → Xác nhận", c),
-            P("Trạng thái Đã xác nhận", c),
+            P("Tạo ĐĐH → Xác nhận (SMV áp dụng &gt; 0)", c),
+            P("Đơn đặt hàng → Xác nhận", c),
+            P("plan_status = Chờ xếp", c),
         ],
         [
             P("3", c),
-            P("Tách & xác nhận kế hoạch nguyên phụ liệu; mua nếu thiếu", c),
-            P("Kế hoạch NPL → Xác nhận · Yêu cầu mua · Đơn mua", c),
-            P("NPL đủ hoặc đã đặt mua", c),
+            P("Xếp ưu tiên / lộ trình → Chuyển xuống SX", c),
+            P("Kế hoạch SX (bảng) → Chuyển xuống SX", c),
+            P("LSX released + việc lên tổ", c),
         ],
         [
             P("4", c),
-            P("Tách & xác nhận kế hoạch chi tiết; sinh lệnh (nếu dùng)", c),
-            P("Kế hoạch chi tiết → Xác nhận → Sinh lệnh", c),
-            P("Có lệnh hoặc sẵn sàng tạo lệnh", c),
+            P("Tổ nhận SX → phân công → ghi tiến độ", c),
+            P("Công việc tổ /&lt;slug&gt;/", c),
+            P("LSX Đang SX", c),
         ],
         [
             P("5", c),
-            P("Tạo lệnh sản xuất → Phát hành", c),
-            P("Lệnh sản xuất → Phát hành", c),
-            P("Lệnh Đã phát hành", c),
-        ],
-        [
-            P("6", c),
-            P("Tạo yêu cầu xuất → Duyệt xuất kho", c),
-            P("Từ lệnh → Yêu cầu xuất → Duyệt", c),
+            P("Tạo YCX → Duyệt xuất kho NPL", c),
+            P("Yêu cầu xuất vật tư → Duyệt", c),
             P("Phiếu xuất đã ghi sổ", c),
         ],
         [
+            P("6", c),
+            P("Xác nhận thống kê (sau khi đã xuất NPL)", c),
+            P("Thống kê SX / tiến độ tổ", c),
+            P("Counters LSX + có thể sinh YCKT", c),
+        ],
+        [
             P("7", c),
-            P("Ghi thống kê theo công đoạn → Xác nhận", c),
-            P("Thống kê sản xuất hoặc Xưởng", c),
-            P("Có sản lượng trên lệnh", c),
+            P("QC theo tổ Ob → chốt Đạt; đóng cảnh báo", c),
+            P("Chất lượng", c),
+            P("qc_ready_for_fg = OK", c),
         ],
         [
             P("8", c),
-            P("Tạo yêu cầu kiểm tra → Chốt phiếu kiểm tra Đạt", c),
-            P("Chất lượng — yêu cầu / phiếu", c),
-            P("Kết quả Đạt", c),
+            P("YCNTP → nhập kho TP (có thể từng phần)", c),
+            P("Yêu cầu nhập thành phẩm", c),
+            P("TP vào kho", c),
         ],
         [
             P("9", c),
-            P("Tạo yêu cầu nhập thành phẩm → Gửi → Liên kết KiotViet", c),
-            P("Yêu cầu nhập thành phẩm", c),
-            P("Thành phẩm vào kho", c),
+            P("Xác nhận đóng gói → Hoàn thành lệnh", c),
+            P("Đóng gói · Chi tiết LSX → Hoàn thành", c),
+            P("LSX done · ĐĐH done (đồng bộ)", c),
         ],
         [
             P("10", c),
-            P("Xác nhận đóng gói → kiểm tra truy xuất", c),
-            P("Đóng gói · Truy xuất", c),
-            P("Có mã lô + timeline đủ", c),
+            P("Kiểm tra truy xuất theo LSX / lô", c),
+            P("Truy xuất", c),
+            P("Timeline đủ sự kiện", c),
         ],
     ]
     story.append(_table(check_rows, [0.9 * cm, 5.2 * cm, 5.2 * cm, 4.7 * cm]))

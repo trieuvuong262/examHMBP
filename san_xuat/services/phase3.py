@@ -23,6 +23,7 @@ from san_xuat.hub_models import (
     SxProductionStat,
     SxQcAlert,
     SxQcRequest,
+    SxSalesOrder,
     SxSubcontractMaterialLine,
     SxSubcontractOrder,
     SxWorkAssignment,
@@ -459,15 +460,23 @@ def confirm_packing_record(*, packing_id: int) -> SxPackingRecord:
 
 
 def _bom_for_production_order(mo: SxProductionOrder):
-    """BOM của lệnh: snapshot LSX → dòng ĐĐH → hồ sơ SX."""
+    """BOM của lệnh: snapshot LSX → dòng ĐĐH cùng mã → hồ sơ SX."""
     bom = getattr(mo, "bom_version", None)
     if bom is not None:
         return bom
     so = mo.sales_order if getattr(mo, "sales_order_id", None) else None
+    product = (mo.product_code or "").strip().casefold()
+    fallback = None
     if so is not None:
         for line in so.lines.all():
-            if getattr(line, "bom_version_id", None):
+            if not getattr(line, "bom_version_id", None):
+                continue
+            if product and (line.product_code or "").strip().casefold() == product:
                 return line.bom_version
+            if fallback is None:
+                fallback = line.bom_version
+        if fallback is not None:
+            return fallback
     code = (mo.product_code or "").strip()
     if not code:
         return None
@@ -483,38 +492,97 @@ def _bom_for_production_order(mo: SxProductionOrder):
     return get_working_bom(doc)
 
 
-def npl_lines_for_subcontract(*, mo: SxProductionOrder, qty: Decimal | None = None) -> list[dict]:
-    """Định mức BOM × SL thuê — gộp theo mã NPL. Tên/mã cố định, chỉ SL được sửa."""
-    bom = _bom_for_production_order(mo)
-    if bom is None:
-        return []
-    scale = qty if qty is not None and qty > 0 else (mo.qty or Decimal("0"))
-    if scale <= 0:
-        return []
+def _group_npl_needs(needs) -> list[dict]:
     grouped: dict[str, dict] = {}
-    lines = bom.lines.select_related("material", "material__unit")
-    for bom_line in lines:
-        mat = bom_line.material
-        if mat is None:
+    for need in needs:
+        total = need.qty_total.quantize(Decimal("0.01"))
+        if total <= 0:
             continue
-        need = (bom_line.qty_with_scrap * scale).quantize(Decimal("0.01"))
-        if need <= 0:
-            continue
-        code = (mat.code or "").strip()
+        code = (need.material_code or "").strip()
         if not code:
             continue
-        unit = getattr(mat, "unit", None)
-        uom = (getattr(unit, "name", None) or getattr(unit, "code", None) or "").strip() or "SP"
+        uom = (need.unit or "").strip() or "SP"
         if code not in grouped:
             grouped[code] = {
                 "material_code": code,
-                "material_name": (mat.name or "").strip(),
-                "qty": need,
+                "material_name": (need.material_name or "").strip(),
+                "qty": total,
                 "uom_label": uom,
             }
         else:
-            grouped[code]["qty"] = (grouped[code]["qty"] + need).quantize(Decimal("0.01"))
+            grouped[code]["qty"] = (grouped[code]["qty"] + total).quantize(Decimal("0.01"))
     return list(grouped.values())
+
+
+def npl_lines_for_sales_order(
+    order: SxSalesOrder,
+    *,
+    qty: Decimal | None = None,
+    product_code: str = "",
+) -> list[dict]:
+    """Định mức BOM trên ĐĐH × SL thuê — dùng khi chưa có LSX."""
+    from san_xuat.services.bom_need import explode_bom, explode_for_product, explode_overrides
+
+    lines = list(order.lines.all())
+    wanted = (product_code or "").strip()
+    if wanted:
+        match = [ln for ln in lines if (ln.product_code or "").strip() == wanted]
+        lines = match or lines
+    if not lines:
+        return []
+    ln = lines[0]
+    scale = qty if qty is not None and qty > 0 else (ln.qty_to_produce or ln.qty or Decimal("0"))
+    if scale <= 0:
+        return []
+    size_qtys = ln.size_qtys or None
+    if ln.bom_line_overrides:
+        needs = explode_overrides(overrides=ln.bom_line_overrides, qty=scale, size_qtys=size_qtys)
+    elif ln.bom_version_id:
+        needs = explode_bom(bom=ln.bom_version, qty=scale, size_qtys=size_qtys)
+    else:
+        needs = explode_for_product(product_code=ln.product_code, qty=scale, size_qtys=size_qtys)
+    return _group_npl_needs(needs)
+
+
+def npl_lines_for_subcontract(
+    *,
+    mo: SxProductionOrder | None = None,
+    sales_order: SxSalesOrder | None = None,
+    qty: Decimal | None = None,
+    product_code: str = "",
+) -> list[dict]:
+    """Định mức BOM đã chọn × SL thuê — gộp theo mã NPL. Tên/mã cố định, chỉ SL được sửa."""
+    from san_xuat.services.bom_need import explode_for_mo
+
+    if mo is not None:
+        scale = qty if qty is not None and qty > 0 else (mo.qty or Decimal("0"))
+        if scale <= 0:
+            return []
+        return _group_npl_needs(explode_for_mo(mo, qty=scale))
+    if sales_order is not None:
+        return npl_lines_for_sales_order(sales_order, qty=qty, product_code=product_code)
+    return []
+
+
+def _open_subcontract_conflict(*, mo=None, sales_order=None):
+    qs = (
+        SxSubcontractOrder.objects.filter(is_demo=False)
+        .exclude(status=SxSubcontractOrder.STATUS_CANCELLED)
+        .filter(status__in=[SxSubcontractOrder.STATUS_DRAFT, SxSubcontractOrder.STATUS_SENT])
+    )
+    so = sales_order or (mo.sales_order if mo is not None else None)
+    if so is not None:
+        hit = (
+            qs.filter(Q(sales_order=so) | Q(production_order__sales_order=so))
+            .order_by("-order_date", "-pk")
+            .first()
+        )
+    elif mo is not None:
+        hit = qs.filter(production_order=mo).order_by("-order_date", "-pk").first()
+    else:
+        hit = None
+    if hit:
+        raise Phase3Error(f"Đã có phiếu {hit.code} đang mở — nhận hàng hoặc hủy phiếu đó trước.")
 
 
 @transaction.atomic
@@ -528,6 +596,7 @@ def create_subcontract_order(
     process_name: str = "",
     team_slug: str = "",
     production_order_id: int | None = None,
+    sales_order_id: int | None = None,
     due_date=None,
     code: str | None = None,
     notes: str = "",
@@ -542,30 +611,59 @@ def create_subcontract_order(
         raise Phase3Error("Thiếu mã sản phẩm.")
     if qty is None or qty <= 0:
         raise Phase3Error("Số lượng gia công phải > 0.")
-    if not production_order_id:
-        raise Phase3Error("Chọn lệnh sản xuất nguồn.")
-    mo = SxProductionOrder.objects.get(pk=production_order_id)
-    if not product_name:
-        product_name = mo.product_name
-    if not product_code:
-        product_code = mo.product_code
-    from san_xuat.services.progress_template import team_by_slug
-    from san_xuat.services.qc import ob_qc_teams
+    if not production_order_id and not sales_order_id:
+        raise Phase3Error("Chọn đơn đặt hàng hoặc lệnh sản xuất nguồn.")
+
+    mo = None
+    so = None
+    if production_order_id:
+        mo = SxProductionOrder.objects.select_related("sales_order").get(pk=production_order_id)
+        so = mo.sales_order
+    if sales_order_id and so is None:
+        so = SxSalesOrder.objects.get(pk=sales_order_id)
+    if mo is None and so is not None:
+        match = so.production_orders.filter(is_demo=False).exclude(
+            status=SxProductionOrder.STATUS_CANCELLED,
+        )
+        if product_code:
+            mo = match.filter(product_code__iexact=product_code).first() or match.first()
+        else:
+            mo = match.first()
+    if mo is not None:
+        product_name = product_name or mo.product_name
+        product_code = product_code or mo.product_code
+    elif so is not None and not product_name:
+        line = next(
+            (
+                ln
+                for ln in so.lines.all()
+                if (ln.product_code or "").strip() == product_code
+            ),
+            so.lines.first(),
+        )
+        if line is not None:
+            product_name = line.product_name
 
     slug = (team_slug or "").strip().lower()
-    ob_teams = ob_qc_teams(mo=mo)
-    allowed = {t.slug: t for t in ob_teams}
-    if not allowed:
-        raise Phase3Error("Lệnh chưa có Ob — chỉ thuê GC cho tổ có trên Ob của lệnh.")
-    if not slug:
-        raise Phase3Error("Chọn tổ Ob thuê ngoài (không mặc định thêu).")
-    if slug not in allowed:
-        labels = ", ".join(t.label for t in ob_teams)
-        raise Phase3Error(f"Tổ không có trên Ob của lệnh. Tổ Ob: {labels}.")
-    meta = team_by_slug(slug)
-    process_name = (process_name or "").strip() or (meta or {}).get("label") or allowed[slug].label
+    if slug and mo is not None:
+        from san_xuat.services.progress_template import team_by_slug
+        from san_xuat.services.qc import ob_qc_teams
+
+        ob_teams = ob_qc_teams(mo=mo)
+        allowed = {t.slug: t for t in ob_teams}
+        if slug not in allowed:
+            labels = ", ".join(t.label for t in ob_teams) or "—"
+            raise Phase3Error(f"Tổ không có trên Ob của lệnh. Tổ Ob: {labels}.")
+        meta = team_by_slug(slug)
+        process_name = (process_name or "").strip() or (meta or {}).get("label") or allowed[slug].label
+    else:
+        slug = ""
+        process_name = (process_name or "").strip() or "Cả lệnh"
+
+    _open_subcontract_conflict(mo=mo, sales_order=so)
     order = SxSubcontractOrder.objects.create(
         code=_code("subcontract", SxSubcontractOrder, code=code),
+        sales_order=so,
         production_order=mo,
         vendor_name=vendor_name,
         product_code=product_code,
@@ -582,7 +680,9 @@ def create_subcontract_order(
     )
     rows = list(out_lines or [])
     if not rows:
-        rows = npl_lines_for_subcontract(mo=mo, qty=qty)
+        rows = npl_lines_for_subcontract(
+            mo=mo, sales_order=so, qty=qty, product_code=product_code,
+        )
     for row in rows:
         code_m = (row.get("material_code") or "").strip()
         q = row.get("qty")
@@ -701,12 +801,29 @@ def advance_subcontract_order(
     return order
 
 
-def _close_ob_team_for_gc(*, order: SxSubcontractOrder, user=None) -> None:
-    """Nhận hàng GC = hoàn thành tổ Ob trên lệnh — không cần phân công nội bộ."""
+def _mos_for_subcontract(order: SxSubcontractOrder) -> list[SxProductionOrder]:
+    if order.production_order_id and order.production_order is not None:
+        return [order.production_order]
+    if order.sales_order_id:
+        return list(
+            order.sales_order.production_orders.filter(is_demo=False).exclude(
+                status=SxProductionOrder.STATUS_CANCELLED,
+            )
+        )
+    return []
+
+
+def _team_slugs_for_gc(*, order: SxSubcontractOrder, mo: SxProductionOrder) -> list[str]:
     slug = (order.team_slug or "").strip().lower()
-    mo = order.production_order
-    if not slug or mo is None:
-        return
+    if slug:
+        return [slug]
+    from san_xuat.services.qc import ob_qc_teams
+
+    return [t.slug for t in ob_qc_teams(mo=mo)]
+
+
+def _close_ob_team_for_gc(*, order: SxSubcontractOrder, user=None) -> None:
+    """Nhận hàng GC = hoàn thành tổ trên lệnh (cả lệnh hoặc tổ cũ) — không cần phân công nội bộ."""
     from san_xuat.services.planning import PlanningError
     from san_xuat.services.team_work import (
         accept_production,
@@ -714,23 +831,25 @@ def _close_ob_team_for_gc(*, order: SxSubcontractOrder, user=None) -> None:
         is_team_job_closed,
     )
 
-    if mo.status == SxProductionOrder.STATUS_RELEASED:
-        try:
-            accept_production(mo_id=mo.pk, team_slug=slug, user=user)
-        except PlanningError:
-            pass
-    if is_team_job_closed(mo_id=mo.pk, team_slug=slug):
-        return
-    try:
-        close_team_job(
-            mo_id=mo.pk,
-            team_slug=slug,
-            user=user,
-            notes=f"Nhận hàng GC {order.code}",
-            require_accept=False,
-        )
-    except PlanningError:
-        return
+    for mo in _mos_for_subcontract(order):
+        for slug in _team_slugs_for_gc(order=order, mo=mo):
+            if mo.status == SxProductionOrder.STATUS_RELEASED:
+                try:
+                    accept_production(mo_id=mo.pk, team_slug=slug, user=user)
+                except PlanningError:
+                    pass
+            if is_team_job_closed(mo_id=mo.pk, team_slug=slug):
+                continue
+            try:
+                close_team_job(
+                    mo_id=mo.pk,
+                    team_slug=slug,
+                    user=user,
+                    notes=f"Nhận hàng GC {order.code}",
+                    require_accept=False,
+                )
+            except PlanningError:
+                continue
 
 
 @transaction.atomic
@@ -798,16 +917,15 @@ def undo_receive_subcontract_goods(*, order_id: int, user=None) -> SxSubcontract
     order.sent_at = None
     order.save(update_fields=["status", "qty_received", "received_at", "sent_at"])
 
-    slug = (order.team_slug or "").strip().lower()
-    mo = order.production_order
-    if slug and mo is not None:
-        from san_xuat.services.planning import PlanningError
-        from san_xuat.services.team_work import reopen_team_job
+    from san_xuat.services.planning import PlanningError
+    from san_xuat.services.team_work import reopen_team_job
 
-        try:
-            reopen_team_job(mo_id=mo.pk, team_slug=slug)
-        except PlanningError:
-            pass
+    for mo in _mos_for_subcontract(order):
+        for slug in _team_slugs_for_gc(order=order, mo=mo):
+            try:
+                reopen_team_job(mo_id=mo.pk, team_slug=slug)
+            except PlanningError:
+                pass
     return order
 
 

@@ -5,10 +5,11 @@
 
 <div class="meta-grid">
   <div class="full"><span class="label">Đơn vị GC:</span> <strong>{{ item.vendor_name }}</strong></div>
-  <div><span class="label">Lệnh sản xuất:</span> {% if mo %}{{ mo.code }}{% else %}—{% endif %}</div>
+  <div><span class="label">Đơn đặt hàng:</span> {% if item.sales_order %}{{ item.sales_order.code }}{% else %}—{% endif %}</div>
+  <div><span class="label">Lệnh sản xuất:</span> {% if mo %}{{ mo.code }}{% else %}Chưa có LSX{% endif %}</div>
   <div><span class="label">Trạng thái:</span> {{ item.get_status_display }}</div>
   <div><span class="label">Mã SP:</span> {{ item.product_code }}</div>
-  <div><span class="label">Tổ Ob:</span> {{ item.team_label|default:item.process_name|default:"—" }}</div>
+  <div><span class="label">Phạm vi:</span> {{ item.team_label|default:"Cả lệnh" }}</div>
   <div class="full"><span class="label">Tên SP:</span> {{ item.product_name|default:"—" }}</div>
   <div><span class="label">SL đặt:</span> <strong>{{ item.qty|sx_num }}</strong></div>
   <div><span class="label">SL nhận lại:</span> {{ item.qty_received|sx_num }}</div>

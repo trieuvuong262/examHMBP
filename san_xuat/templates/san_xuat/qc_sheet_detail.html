@@ -53,7 +53,14 @@
   height: 2.55rem;
   letter-spacing: -0.02em;
 }
-.jp-qc-sec { font-size: 0.72rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #64748b; margin: 0 0 .45rem; }
+.jp-qc-sec { font-size: 0.72rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #64748b; margin: 0.75rem 0 .45rem; }
+.jp-qc-grid { width: 100%; }
+.jp-qc-grid th { font-size: .72rem; color: #64748b; font-weight: 700; white-space: nowrap; }
+.jp-qc-grid td { font-size: .82rem; }
+.jp-qc-grid input, .jp-qc-grid select { min-width: 0; }
+.jp-qc-grid .is-num { width: 5.4rem; text-align: right; }
+.jp-qc-hint { font-size: .75rem; color: #64748b; margin: 0 0 .5rem; }
+.jp-qc-meta-span { grid-column: 1 / -1; }
 </style>
 {% endblock %}
 
@@ -79,18 +86,18 @@
   <div class="card border-0 shadow-sm jp-qc-panel mb-2">
     <div class="card-body">
       <div class="jp-qc-meta">
-        {% if inspection.qc_request %}
         <div>
           <div class="label">Sản phẩm</div>
-          <div class="value">{{ inspection.qc_request.product_name|default:inspection.qc_request.product_code|default:"—" }}</div>
+          <div class="value">{% if qc_request %}{{ qc_request.product_name|default:qc_request.product_code|default:"—" }}{% else %}—{% endif %}</div>
         </div>
-        {% if inspection.qc_request.production_order %}
+        <div>
+          <div class="label">Mã SP</div>
+          <div class="value">{% if qc_request %}{{ qc_request.product_code|default:"—" }}{% elif mo %}{{ mo.product_code|default:"—" }}{% else %}—{% endif %}</div>
+        </div>
         <div>
           <div class="label">Lệnh SX</div>
-          <div class="value">{{ inspection.qc_request.production_order.code }}</div>
+          <div class="value">{% if mo %}<a href="{% url 'san_xuat:dispatch_mo_detail' mo.pk %}">{{ mo.code }}</a>{% else %}—{% endif %}</div>
         </div>
-        {% endif %}
-        {% endif %}
         <div>
           <div class="label">Ngày kiểm</div>
           <div class="value">{{ inspection.inspected_at|date:"d/m/Y" }}</div>
@@ -98,6 +105,19 @@
         <div>
           <div class="label">Trạng thái</div>
           <div class="value">{% if inspection.status == 'done' %}Đã chốt{% else %}Đang kiểm{% endif %}</div>
+        </div>
+        <div>
+          <div class="label">SL đạt / lỗi</div>
+          <div class="value">{{ inspection.qty_pass|sx_num }} / {{ inspection.qty_fail|sx_num }}</div>
+        </div>
+        <div class="jp-qc-meta-span">
+          <div class="label">Size trên lệnh</div>
+          <div class="value">
+            {% for s in size_plan %}
+              {{ s.size }}{% if s.colors %} · {{ s.colors }}{% endif %}
+              <span class="text-muted">({{ s.plan|sx_num }})</span>{% if not forloop.last %} · {% endif %}
+            {% empty %}—{% endfor %}
+          </div>
         </div>
       </div>
     </div>
@@ -136,16 +156,118 @@
         <input type="hidden" name="active_team" id="id_active_team" value="{{ active_team }}">
         {% for tab in qc_team_tabs %}
         <div class="jp-qc-tab-panel" data-qc-panel="{{ tab.slug }}" {% if tab.slug != active_team %}hidden{% endif %} role="tabpanel">
-          <div class="jp-qc-qty">
-            <div class="jp-qc-qty-box is-done">
-              <label for="id_team_qty_pass_{{ tab.slug }}">Số lượng hoàn thành</label>
-              <input type="number" class="form-control" id="id_team_qty_pass_{{ tab.slug }}" name="team_qty_pass_{{ tab.slug }}" value="{{ tab.qty_pass|sx_num_input }}" step="0.01" min="0" placeholder="0" inputmode="decimal">
-            </div>
-            <div class="jp-qc-qty-box is-fail">
-              <label for="id_team_qty_fail_{{ tab.slug }}">Số lượng lỗi</label>
-              <input type="number" class="form-control" id="id_team_qty_fail_{{ tab.slug }}" name="team_qty_fail_{{ tab.slug }}" value="{{ tab.qty_fail|sx_num_input }}" step="0.01" min="0" placeholder="0" inputmode="decimal">
-            </div>
+          <p class="jp-qc-sec">Số lượng theo size</p>
+          <p class="jp-qc-hint">Nhập SL đạt / lỗi từng size. Tổng tổ: đạt {{ tab.qty_pass|sx_num }} · lỗi {{ tab.qty_fail|sx_num }}.</p>
+          <div class="table-responsive mb-2">
+            <table class="table table-sm align-middle mb-0 jp-qc-grid">
+              <thead>
+                <tr>
+                  <th>Size</th>
+                  <th>Màu</th>
+                  <th class="text-end">Kế hoạch</th>
+                  <th class="text-end">Đạt</th>
+                  <th class="text-end">Lỗi</th>
+                </tr>
+              </thead>
+              <tbody>
+              {% for row in tab.size_rows %}
+                <tr>
+                  <td>
+                    <input type="hidden" name="size_label_{{ tab.slug }}__{{ forloop.counter0 }}" value="{{ row.size }}">
+                    <strong>{{ row.size }}</strong>
+                  </td>
+                  <td class="text-muted">{{ row.colors|default:"—" }}</td>
+                  <td class="text-end">{{ row.plan|sx_num }}</td>
+                  <td class="text-end">
+                    <input type="number" class="form-control form-control-sm is-num" name="size_pass_{{ tab.slug }}__{{ forloop.counter0 }}" value="{{ row.qty_pass|sx_num_input }}" step="0.01" min="0" inputmode="decimal">
+                  </td>
+                  <td class="text-end">
+                    <input type="number" class="form-control form-control-sm is-num" name="size_fail_{{ tab.slug }}__{{ forloop.counter0 }}" value="{{ row.qty_fail|sx_num_input }}" step="0.01" min="0" inputmode="decimal">
+                  </td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="5" class="text-muted small">Lệnh chưa có size — nhập tổng ở ghi chú.</td></tr>
+              {% endfor %}
+              </tbody>
+            </table>
           </div>
+
+          <p class="jp-qc-sec">Chi tiết lỗi</p>
+          <p class="jp-qc-hint">Mỗi dòng một loại lỗi + size. Có SL lỗi thì phải ghi loại lỗi trước khi chốt.</p>
+          <div class="table-responsive mb-2">
+            <table class="table table-sm align-middle mb-0 jp-qc-grid">
+              <thead>
+                <tr>
+                  <th style="width:7rem">Size</th>
+                  <th>Loại lỗi</th>
+                  <th class="text-end" style="width:6rem">SL</th>
+                  <th>Ghi chú</th>
+                </tr>
+              </thead>
+              <tbody>
+              {% for line in tab.defect_lines %}
+                <tr>
+                  <td>
+                    <select class="form-select form-select-sm" name="df_{{ tab.slug }}__{{ forloop.counter0 }}__size">
+                      <option value="">—</option>
+                      {% for s in size_plan %}
+                      <option value="{{ s.size }}"{% if line.size_label == s.size %} selected{% endif %}>{{ s.size }}</option>
+                      {% endfor %}
+                      {% if line.size_label %}
+                        {% if size_plan|length == 0 or line.size_label not in size_plan|join:"," %}
+                        <option value="{{ line.size_label }}" selected>{{ line.size_label }}</option>
+                        {% endif %}
+                      {% endif %}
+                    </select>
+                  </td>
+                  <td>
+                    <select class="form-select form-select-sm" name="df_{{ tab.slug }}__{{ forloop.counter0 }}__defect">
+                      <option value="">— Chọn lỗi —</option>
+                      {% for d in defect_choices %}
+                      <option value="{{ d.pk }}"{% if line.defect_id == d.pk %} selected{% endif %}>{% if d.group %}{{ d.group.name }} · {% endif %}{{ d.name }}</option>
+                      {% endfor %}
+                    </select>
+                  </td>
+                  <td>
+                    <input type="number" class="form-control form-control-sm is-num" name="df_{{ tab.slug }}__{{ forloop.counter0 }}__qty" value="{{ line.qty|sx_num_input }}" step="0.01" min="0" inputmode="decimal">
+                  </td>
+                  <td>
+                    <input type="text" class="form-control form-control-sm" name="df_{{ tab.slug }}__{{ forloop.counter0 }}__notes" value="{{ line.notes }}" placeholder="Vị trí / mô tả">
+                  </td>
+                </tr>
+              {% endfor %}
+              {% for _ in defect_extra_rows %}
+                <tr>
+                  <td>
+                    <select class="form-select form-select-sm" name="df_{{ tab.slug }}__{{ tab.defect_lines|length|add:forloop.counter0 }}__size">
+                      <option value="">—</option>
+                      {% for s in size_plan %}
+                      <option value="{{ s.size }}">{{ s.size }}</option>
+                      {% endfor %}
+                    </select>
+                  </td>
+                  <td>
+                    <select class="form-select form-select-sm" name="df_{{ tab.slug }}__{{ tab.defect_lines|length|add:forloop.counter0 }}__defect">
+                      <option value="">— Chọn lỗi —</option>
+                      {% for d in defect_choices %}
+                      <option value="{{ d.pk }}">{% if d.group %}{{ d.group.name }} · {% endif %}{{ d.name }}</option>
+                      {% endfor %}
+                    </select>
+                  </td>
+                  <td>
+                    <input type="number" class="form-control form-control-sm is-num" name="df_{{ tab.slug }}__{{ tab.defect_lines|length|add:forloop.counter0 }}__qty" value="" step="0.01" min="0" inputmode="decimal" placeholder="0">
+                  </td>
+                  <td>
+                    <input type="text" class="form-control form-control-sm" name="df_{{ tab.slug }}__{{ tab.defect_lines|length|add:forloop.counter0 }}__notes" placeholder="Vị trí / mô tả">
+                  </td>
+                </tr>
+              {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% if not defect_choices %}
+          <p class="text-danger small mb-2">Chưa có danh mục lỗi. <a href="{% url 'san_xuat:qc_defect' %}">Thêm loại lỗi</a> rồi quay lại phiếu.</p>
+          {% endif %}
 
           {% if tab.criteria_forms %}
           <p class="jp-qc-sec">Tiêu chuẩn {{ tab.label }}</p>
@@ -204,18 +326,110 @@
 
     <div class="card border-0 shadow-sm jp-qc-panel mb-2">
       <div class="card-body">
-        <div class="jp-qc-qty">
-          <div class="jp-qc-qty-box is-done">
-            <label for="{{ form.qty_pass.id_for_label }}">Số lượng hoàn thành</label>
-            {{ form.qty_pass }}
-            {% if form.qty_pass.errors %}<div class="text-danger small">{{ form.qty_pass.errors }}</div>{% endif %}
-          </div>
-          <div class="jp-qc-qty-box is-fail">
-            <label for="{{ form.qty_fail.id_for_label }}">Số lượng lỗi</label>
-            {{ form.qty_fail }}
-            {% if form.qty_fail.errors %}<div class="text-danger small">{{ form.qty_fail.errors }}</div>{% endif %}
-          </div>
+        <p class="jp-qc-sec mt-0">Số lượng theo size</p>
+        <p class="jp-qc-hint">Nhập SL đạt / lỗi từng size. Có lỗi thì ghi loại lỗi bên dưới.</p>
+        <div class="table-responsive mb-2">
+          <table class="table table-sm align-middle mb-0 jp-qc-grid">
+            <thead>
+              <tr>
+                <th>Size</th>
+                <th>Màu</th>
+                <th class="text-end">Kế hoạch</th>
+                <th class="text-end">Đạt</th>
+                <th class="text-end">Lỗi</th>
+              </tr>
+            </thead>
+            <tbody>
+            {% for row in sheet_size_rows %}
+              <tr>
+                <td>
+                  <input type="hidden" name="size_label_all__{{ forloop.counter0 }}" value="{{ row.size }}">
+                  <strong>{{ row.size }}</strong>
+                </td>
+                <td class="text-muted">{{ row.colors|default:"—" }}</td>
+                <td class="text-end">{{ row.plan|sx_num }}</td>
+                <td>
+                  <input type="number" class="form-control form-control-sm is-num" name="size_pass_all__{{ forloop.counter0 }}" value="{{ row.qty_pass|sx_num_input }}" step="0.01" min="0" inputmode="decimal">
+                </td>
+                <td>
+                  <input type="number" class="form-control form-control-sm is-num" name="size_fail_all__{{ forloop.counter0 }}" value="{{ row.qty_fail|sx_num_input }}" step="0.01" min="0" inputmode="decimal">
+                </td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="5" class="text-muted small">Chưa có size trên lệnh.</td></tr>
+            {% endfor %}
+            </tbody>
+          </table>
         </div>
+        {{ form.qty_pass.as_hidden }}{{ form.qty_fail.as_hidden }}
+        <p class="jp-qc-sec">Chi tiết lỗi</p>
+        <div class="table-responsive mb-2">
+          <table class="table table-sm align-middle mb-0 jp-qc-grid">
+            <thead>
+              <tr>
+                <th style="width:7rem">Size</th>
+                <th>Loại lỗi</th>
+                <th class="text-end" style="width:6rem">SL</th>
+                <th>Ghi chú</th>
+              </tr>
+            </thead>
+            <tbody>
+            {% for line in inspection.defect_lines.all %}
+              <tr>
+                <td>
+                  <select class="form-select form-select-sm" name="df_all__{{ forloop.counter0 }}__size">
+                    <option value="">—</option>
+                    {% for s in size_plan %}
+                    <option value="{{ s.size }}"{% if line.size_label == s.size %} selected{% endif %}>{{ s.size }}</option>
+                    {% endfor %}
+                  </select>
+                </td>
+                <td>
+                  <select class="form-select form-select-sm" name="df_all__{{ forloop.counter0 }}__defect">
+                    <option value="">— Chọn lỗi —</option>
+                    {% for d in defect_choices %}
+                    <option value="{{ d.pk }}"{% if line.defect_id == d.pk %} selected{% endif %}>{% if d.group %}{{ d.group.name }} · {% endif %}{{ d.name }}</option>
+                    {% endfor %}
+                  </select>
+                </td>
+                <td>
+                  <input type="number" class="form-control form-control-sm is-num" name="df_all__{{ forloop.counter0 }}__qty" value="{{ line.qty|sx_num_input }}" step="0.01" min="0" inputmode="decimal">
+                </td>
+                <td>
+                  <input type="text" class="form-control form-control-sm" name="df_all__{{ forloop.counter0 }}__notes" value="{{ line.notes }}" placeholder="Vị trí / mô tả">
+                </td>
+              </tr>
+            {% endfor %}
+            {% for _ in defect_extra_rows %}
+              <tr>
+                <td>
+                  <select class="form-select form-select-sm" name="df_all__{{ inspection.defect_lines.all|length|add:forloop.counter0 }}__size">
+                    <option value="">—</option>
+                    {% for s in size_plan %}<option value="{{ s.size }}">{{ s.size }}</option>{% endfor %}
+                  </select>
+                </td>
+                <td>
+                  <select class="form-select form-select-sm" name="df_all__{{ inspection.defect_lines.all|length|add:forloop.counter0 }}__defect">
+                    <option value="">— Chọn lỗi —</option>
+                    {% for d in defect_choices %}
+                    <option value="{{ d.pk }}">{% if d.group %}{{ d.group.name }} · {% endif %}{{ d.name }}</option>
+                    {% endfor %}
+                  </select>
+                </td>
+                <td>
+                  <input type="number" class="form-control form-control-sm is-num" name="df_all__{{ inspection.defect_lines.all|length|add:forloop.counter0 }}__qty" step="0.01" min="0" placeholder="0">
+                </td>
+                <td>
+                  <input type="text" class="form-control form-control-sm" name="df_all__{{ inspection.defect_lines.all|length|add:forloop.counter0 }}__notes" placeholder="Vị trí / mô tả">
+                </td>
+              </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% if form.qty_pass.errors or form.qty_fail.errors %}
+        <div class="text-danger small">{{ form.qty_pass.errors }}{{ form.qty_fail.errors }}</div>
+        {% endif %}
         <div class="jp-qc-fields">
           <div class="field field-span-all">
             <label for="{{ form.notes.id_for_label }}">Ghi chú</label>
@@ -271,21 +485,65 @@
       </nav>
       {% for tab in qc_team_tabs %}
       <div class="jp-qc-tab-panel" data-qc-panel="{{ tab.slug }}" {% if tab.slug != active_team %}hidden{% endif %} role="tabpanel">
-        <div class="jp-qc-qty">
-          <div class="jp-qc-qty-box is-done">
-            <div class="label">Số lượng hoàn thành</div>
-            <div class="value" style="font-size:1.35rem;font-weight:800">{{ tab.saved_pass|sx_num }}</div>
-          </div>
-          <div class="jp-qc-qty-box is-fail">
-            <div class="label">Số lượng lỗi</div>
-            <div class="value" style="font-size:1.35rem;font-weight:800">{{ tab.saved_fail|sx_num }}</div>
-          </div>
+        <p class="jp-qc-sec">Số lượng theo size · tổng đạt {{ tab.saved_pass|sx_num }} / lỗi {{ tab.saved_fail|sx_num }}</p>
+        <div class="table-responsive mb-2">
+          <table class="table table-sm align-middle mb-0 jp-qc-grid">
+            <thead>
+              <tr>
+                <th>Size</th>
+                <th>Màu</th>
+                <th class="text-end">Kế hoạch</th>
+                <th class="text-end">Đạt</th>
+                <th class="text-end">Lỗi</th>
+              </tr>
+            </thead>
+            <tbody>
+            {% for row in tab.size_rows %}
+              <tr>
+                <td><strong>{{ row.size }}</strong></td>
+                <td class="text-muted">{{ row.colors|default:"—" }}</td>
+                <td class="text-end">{{ row.plan|sx_num }}</td>
+                <td class="text-end">{{ row.qty_pass|sx_num }}</td>
+                <td class="text-end{% if row.qty_fail %} text-danger fw-bold{% endif %}">{{ row.qty_fail|sx_num }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="5" class="text-muted small">Chưa nhập theo size.</td></tr>
+            {% endfor %}
+            </tbody>
+          </table>
         </div>
+        <p class="jp-qc-sec">Chi tiết lỗi</p>
+        {% if tab.defect_lines %}
+        <div class="table-responsive mb-2">
+          <table class="table table-sm align-middle mb-0 jp-qc-grid">
+            <thead>
+              <tr>
+                <th>Size</th>
+                <th>Loại lỗi</th>
+                <th class="text-end">SL</th>
+                <th>Ghi chú</th>
+              </tr>
+            </thead>
+            <tbody>
+            {% for line in tab.defect_lines %}
+              <tr>
+                <td>{{ line.size_label|default:"—" }}</td>
+                <td>{% if line.defect.group %}{{ line.defect.group.name }} · {% endif %}{{ line.defect.name }}</td>
+                <td class="text-end text-danger fw-bold">{{ line.qty|sx_num }}</td>
+                <td>{{ line.notes|default:"—" }}</td>
+              </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <p class="text-muted small mb-2">Không ghi loại lỗi.</p>
+        {% endif %}
         {% if tab.criteria_lines %}
         <p class="jp-qc-sec">Tiêu chuẩn {{ tab.label }}</p>
         <ul class="mb-0 small ps-3">
         {% for line in tab.criteria_lines %}
-          <li>{{ line.criteria.name }} — {% if line.is_pass == True %}Đạt{% elif line.is_pass == False %}Không đạt{% else %}—{% endif %}</li>
+          <li>{{ line.criteria.name }} — {% if line.is_pass == True %}Đạt{% elif line.is_pass == False %}Không đạt{% else %}—{% endif %}{% if line.notes %} · {{ line.notes }}{% endif %}</li>
         {% endfor %}
         </ul>
         {% endif %}
@@ -294,22 +552,72 @@
     </div>
   </div>
   {% else %}
-  <div class="row g-2">
-    <div class="col-md-6">
-      <div class="card border-0 shadow-sm jp-qc-panel h-100">
-        <div class="card-body">
-          <div class="small text-muted mb-2">Tiêu chuẩn</div>
-          {% if inspection.criteria_lines.all %}
-          <ul class="mb-0 small ps-3">
-          {% for line in inspection.criteria_lines.all %}
-            <li>{{ line.criteria.name }} — {% if line.is_pass == True %}Đạt{% elif line.is_pass == False %}Không đạt{% else %}—{% endif %}</li>
+  <div class="card border-0 shadow-sm jp-qc-panel mb-2">
+    <div class="card-body">
+      <p class="jp-qc-sec mt-0">Số lượng theo size · đạt {{ inspection.qty_pass|sx_num }} / lỗi {{ inspection.qty_fail|sx_num }}</p>
+      <div class="table-responsive mb-2">
+        <table class="table table-sm align-middle mb-0 jp-qc-grid">
+          <thead>
+            <tr>
+              <th>Size</th>
+              <th>Màu</th>
+              <th class="text-end">Kế hoạch</th>
+              <th class="text-end">Đạt</th>
+              <th class="text-end">Lỗi</th>
+            </tr>
+          </thead>
+          <tbody>
+          {% for row in sheet_size_rows %}
+            <tr>
+              <td><strong>{{ row.size }}</strong></td>
+              <td class="text-muted">{{ row.colors|default:"—" }}</td>
+              <td class="text-end">{{ row.plan|sx_num }}</td>
+              <td class="text-end">{{ row.qty_pass|sx_num }}</td>
+              <td class="text-end{% if row.qty_fail %} text-danger fw-bold{% endif %}">{{ row.qty_fail|sx_num }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="5" class="text-muted small">Chưa nhập theo size.</td></tr>
           {% endfor %}
-          </ul>
-          {% else %}
-          <div class="text-muted small">Không có tiêu chí.</div>
-          {% endif %}
-        </div>
+          </tbody>
+        </table>
       </div>
+      <p class="jp-qc-sec">Chi tiết lỗi</p>
+      {% if inspection.defect_lines.all %}
+      <div class="table-responsive mb-2">
+        <table class="table table-sm align-middle mb-0 jp-qc-grid">
+          <thead>
+            <tr>
+              <th>Size</th>
+              <th>Loại lỗi</th>
+              <th class="text-end">SL</th>
+              <th>Ghi chú</th>
+            </tr>
+          </thead>
+          <tbody>
+          {% for line in inspection.defect_lines.all %}
+            <tr>
+              <td>{{ line.size_label|default:"—" }}</td>
+              <td>{% if line.defect.group %}{{ line.defect.group.name }} · {% endif %}{{ line.defect.name }}</td>
+              <td class="text-end text-danger fw-bold">{{ line.qty|sx_num }}</td>
+              <td>{{ line.notes|default:"—" }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="text-muted small mb-2">Không ghi loại lỗi.</p>
+      {% endif %}
+      <div class="small text-muted mb-1">Tiêu chuẩn</div>
+      {% if inspection.criteria_lines.all %}
+      <ul class="mb-0 small ps-3">
+      {% for line in inspection.criteria_lines.all %}
+        <li>{{ line.criteria.name }} — {% if line.is_pass == True %}Đạt{% elif line.is_pass == False %}Không đạt{% else %}—{% endif %}{% if line.notes %} · {{ line.notes }}{% endif %}</li>
+      {% endfor %}
+      </ul>
+      {% else %}
+      <div class="text-muted small">Không có tiêu chí.</div>
+      {% endif %}
     </div>
   </div>
   {% endif %}

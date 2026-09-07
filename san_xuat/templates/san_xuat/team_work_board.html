@@ -447,10 +447,8 @@
           {% elif job.subcontract %}
             {% if can_view_subcontract %}
             <a href="{% url 'san_xuat:subcontract_detail' job.subcontract.pk %}"
-               class="btn btn-hm btn-sm fw-bold"
-               title="Thuê GC — nhận hàng trên phiếu">
-              {% if job.subcontract.status == 'done' or job.subcontract.status == 'received' %}Phiếu GC{% else %}Nhận hàng GC{% endif %}
-            </a>
+               class="btn btn-outline-secondary btn-sm fw-bold"
+               title="Thuê GC — tạo/nhận trên kế hoạch SX hoặc lệnh sản xuất">Phiếu GC</a>
             {% else %}
             <span class="jp-tw-status is-wait"><i class="bi bi-building"></i>Thuê gia công</span>
             {% endif %}
@@ -466,20 +464,10 @@
             {% else %}
             <span class="jp-tw-status is-wait"><i class="bi bi-hourglass-split"></i>Chờ nhận SX</span>
             {% endif %}
-            {% if can_create_subcontract %}
-            <a href="{% url 'san_xuat:subcontract_create' %}?mo={{ job.mo.pk }}&amp;team={{ team.slug }}"
-               class="btn btn-outline-hm btn-sm fw-bold"
-               title="Thuê ngoài tổ {{ team.label }} — không bắt buộc">Thuê gia công</a>
-            {% endif %}
           {% else %}
           <a href="{% url 'san_xuat:team_work_progress' team.slug job.mo.pk %}"
              class="btn btn-hm btn-sm fw-bold"
              title="Xem tiến độ tổ {{ team.label }}">Tiến độ</a>
-          {% if can_create_subcontract %}
-          <a href="{% url 'san_xuat:subcontract_create' %}?mo={{ job.mo.pk }}&amp;team={{ team.slug }}"
-             class="btn btn-outline-hm btn-sm fw-bold"
-             title="Thuê ngoài tổ {{ team.label }} — không bắt buộc">Thuê gia công</a>
-          {% endif %}
           {% if can_assign %}
             <form method="post" class="d-inline">
               {% csrf_token %}

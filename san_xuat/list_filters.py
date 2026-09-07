@@ -411,7 +411,7 @@ SX_FILTER_PACKING = SxFilterSpec(
     date_field='pack_date',
 )
 SX_FILTER_SUBCONTRACT = SxFilterSpec(
-    code_fields=('code', 'product_code'),
+    code_fields=('code', 'product_code', 'sales_order__code', 'production_order__code'),
     name_fields=('vendor_name', 'product_name', 'process_name', 'team_slug'),
     date_field='order_date',
 )
