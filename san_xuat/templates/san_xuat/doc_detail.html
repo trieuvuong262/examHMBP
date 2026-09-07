@@ -161,26 +161,6 @@
         </li>
     </ul>
 
-  {% if tab == 'bom' or tab == 'process' %}
-  {% if doc_clipboard %}
-  <div class="alert alert-light border py-2 px-3 small mb-3 d-flex flex-wrap align-items-center gap-2">
-    <i class="bi bi-clipboard text-secondary"></i>
-    <span>
-      Đã copy từ <strong>{{ doc_clipboard.source_code }}</strong>
-      {% if doc_clipboard.source_name %} — {{ doc_clipboard.source_name }}{% endif %}:
-      {% if doc_clipboard.bom_id %}BOM {{ doc_clipboard.bom_label }} ({{ doc_clipboard.n_bom_lines }} NPL){% endif %}
-      {% if doc_clipboard.bom_id and doc_clipboard.routing_id %} · {% endif %}
-      {% if doc_clipboard.routing_id %}OB {{ doc_clipboard.routing_rev }} ({{ doc_clipboard.n_ob_lines }} CĐ){% endif %}
-    </span>
-    {% if can_paste_clipboard %}
-    <span class="text-muted">Bấm <strong>Dán đè</strong> để thay NPL + công đoạn phiên bản đang xem.</span>
-    {% else %}
-    <span class="text-muted">Mở hồ sơ thiết kế khác để dán đè.</span>
-    {% endif %}
-  </div>
-  {% endif %}
-  {% endif %}
-
   {% if tab == 'bom' or not versions %}
   <div class="jp-sx-bom-versions">
     <span class="label">Phiên bản BOM</span>
