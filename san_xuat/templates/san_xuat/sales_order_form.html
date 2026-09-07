@@ -216,7 +216,6 @@
     padding-right: .1rem;
   }
   .jp-so-entry .jp-so-pct-input { margin-left: 0; width: 5.2rem; }
-  .jp-so-group-pct { max-width: 4.4rem; }
 </style>
 {% endblock %}
 
@@ -1160,7 +1159,6 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
       if (pctEl) pctEl.textContent = fmtPct(entry.pct);
       if (need) need.textContent = fmtNeed(nplNeedOf(inp, row));
     });
-    syncGroupPct('bom');
   }
 
   function refreshSmvApplied() {
@@ -1175,77 +1173,10 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
       if (el) el.textContent = fmtNeed(entry.applied);
       if (pctEl) pctEl.textContent = fmtPct(entry.pct);
     });
-    syncGroupPct('smv');
   }
 
-  function syncGroupPct(kind) {
-    var host = kind === 'smv' ? opsHost() : nplHost();
-    if (!host) return;
-    var rowCls = kind === 'smv' ? '.jp-so-smv-pct-input' : '.jp-so-bom-pct-input';
-    var groupCls = kind === 'smv' ? '.jp-so-smv-group-pct' : '.jp-so-bom-group-pct';
-    var groupModeCls = kind === 'smv' ? '.jp-so-smv-group-mode' : '.jp-so-bom-group-mode';
-    host.querySelectorAll(groupCls).forEach(function (groupInp) {
-      var key = groupInp.getAttribute('data-line-key') || '';
-      if (!key) return;
-      var wrap = groupInp.closest('td');
-      var modeSel = wrap ? wrap.querySelector(groupModeCls) : null;
-      var modes = [];
-      var vals = [];
-      host.querySelectorAll(rowCls + '[data-line-key="' + key + '"]').forEach(function (inp) {
-        var std = parseFloat(inp.getAttribute(kind === 'smv' ? 'data-smv-std' : 'data-qty-std')) || 0;
-        var entry = readEntry(inp, std);
-        if (modes.indexOf(entry.mode) === -1) modes.push(entry.mode);
-        var v = entry.mode === 'qty' ? entry.applied : entry.pct;
-        if (vals.indexOf(v) === -1) vals.push(v);
-      });
-      if (document.activeElement === groupInp || document.activeElement === modeSel) return;
-      if (modes.length === 1 && modeSel) modeSel.value = modes[0];
-      groupInp.value = (modes.length === 1 && vals.length === 1)
-        ? (modes[0] === 'qty' ? fmtNeed(vals[0]) : fmtPct(vals[0]))
-        : '';
-    });
-  }
-
-  function applyGroupValue(kind, key, mode, raw) {
-    var val = parseFloat(raw);
-    if (!Number.isFinite(val) || val < 0) return;
-    var host = kind === 'smv' ? opsHost() : nplHost();
-    var cls = kind === 'smv' ? '.jp-so-smv-pct-input' : '.jp-so-bom-pct-input';
-    if (!host || !key) return;
-    host.querySelectorAll(cls + '[data-line-key="' + key + '"]').forEach(function (inp) {
-      var sel = inp.closest('tr') && inp.closest('tr').querySelector('.jp-so-entry-mode');
-      if (sel) sel.value = mode;
-      inp.setAttribute('data-entry-mode', mode);
-      inp.step = mode === 'qty' ? '0.0001' : '0.1';
-      var std = parseFloat(inp.getAttribute(kind === 'smv' ? 'data-smv-std' : 'data-qty-std')) || 0;
-      inp.value = mode === 'qty' ? fmtNeed(val) : fmtPct(val);
-      if (mode === 'qty' && !Number.isFinite(val)) inp.value = fmtNeed(std);
-    });
-    var row = rowFromLineKey(key);
-    if (!row) return;
-    if (kind === 'smv') {
-      writeAppliedSmv(row);
-      refreshSmvApplied();
-    } else {
-      writeAppliedBom(row);
-      refreshNplNeed();
-    }
-  }
-
-  function groupPctCell(label, key, kind, rowspan) {
-    var cls = kind === 'smv' ? 'jp-so-smv-group-pct' : 'jp-so-bom-group-pct';
-    var modeCls = kind === 'smv' ? 'jp-so-smv-group-mode' : 'jp-so-bom-group-mode';
-    var title = kind === 'smv' ? 'Áp SMV cả dòng' : 'Áp ĐM cả dòng';
-    return '<td rowspan="' + rowspan + '" class="small fw-semibold align-middle">'
-      + escAttr(label)
-      + '<div class="mt-1 jp-so-entry">'
-      + '<select class="form-select form-select-sm jp-so-entry-mode ' + modeCls + '" data-line-key="' + escAttr(key) + '" aria-label="' + title + '">'
-      + '<option value="qty">Số lượng</option>'
-      + '<option value="pct" selected>%</option>'
-      + '</select>'
-      + '<input type="number" class="form-control form-control-sm text-end jp-so-group-pct ' + cls + '" min="0" step="0.1"'
-      + ' data-line-key="' + escAttr(key) + '" value="100" title="' + title + '" aria-label="' + title + '">'
-      + '</div></td>';
+  function productLabelCell(label, rowspan) {
+    return '<td rowspan="' + rowspan + '" class="small fw-semibold align-middle">' + escAttr(label) + '</td>';
   }
 
   function renderNplTable(groups) {
@@ -1287,7 +1218,7 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
           + ' data-qty-std="' + qtyStd + '"'
           + ' data-scrap-pct="' + scrap + '"';
         html += '<tr>'
-          + (i === 0 ? groupPctCell(g.label, g.key, 'bom', g.lines.length) : '')
+          + (i === 0 ? productLabelCell(g.label, g.lines.length) : '')
           + '<td>' + escAttr(name) + (size ? ' <span class="badge bg-light text-dark border">' + escAttr(size) + '</span>' : '') + '</td>'
           + '<td class="text-end text-muted">' + qtyStd + '</td>'
           + '<td>' + entryCellHtml('bom', g.key, bomAttrs, mode, applied, pct, 'ĐM ' + name) + '</td>'
@@ -1325,7 +1256,7 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
         var name = String(st.name || '').trim() || code || '—';
         var notes = String(st.notes || '').trim();
         html += '<tr>'
-          + (i === 0 ? groupPctCell(g.label, g.key, 'smv', g.steps.length) : '')
+          + (i === 0 ? productLabelCell(g.label, g.steps.length) : '')
           + '<td>' + (st.seq || '') + '</td><td>' + escAttr(name) + '</td>'
           + '<td class="text-end text-muted">' + parseFloat(std.toFixed(4)) + '</td>'
           + '<td>' + entryCellHtml('smv', g.key, 'data-smv-seq="' + (st.seq || '') + '" data-smv-std="' + std + '"', mode, applied, pct, 'SMV ' + name) + '</td>'
@@ -1541,13 +1472,7 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
   document.addEventListener('change', function (e) {
     var sel = e.target;
     if (!sel || !sel.matches) return;
-    if (sel.classList.contains('jp-so-bom-group-mode') || sel.classList.contains('jp-so-smv-group-mode')) {
-      var key = sel.getAttribute('data-line-key') || '';
-      var inp = sel.closest('td') && sel.closest('td').querySelector('.jp-so-group-pct');
-      applyGroupValue(sel.classList.contains('jp-so-smv-group-mode') ? 'smv' : 'bom', key, sel.value === 'qty' ? 'qty' : 'pct', inp ? inp.value : '');
-      return;
-    }
-    if (sel.classList.contains('jp-so-entry-mode') && !sel.classList.contains('jp-so-bom-group-mode') && !sel.classList.contains('jp-so-smv-group-mode')) {
+    if (sel.classList.contains('jp-so-entry-mode')) {
       switchEntryMode(sel);
       var lineKey = sel.getAttribute('data-line-key') || '';
       var lineRow = lineKey ? rowFromLineKey(lineKey) : null;
@@ -1605,16 +1530,6 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
     var key = t.getAttribute('data-line-key') || '';
     var row = key ? rowFromLineKey(key) : t.closest('tr.jp-so-line-row');
     if (!row || !row.classList.contains('jp-so-line-row')) return;
-    if (t.classList.contains('jp-so-bom-group-pct')) {
-      var bomMode = (t.closest('td') && t.closest('td').querySelector('.jp-so-bom-group-mode'));
-      applyGroupValue('bom', key, bomMode && bomMode.value === 'qty' ? 'qty' : 'pct', t.value);
-      return;
-    }
-    if (t.classList.contains('jp-so-smv-group-pct')) {
-      var smvMode = (t.closest('td') && t.closest('td').querySelector('.jp-so-smv-group-mode'));
-      applyGroupValue('smv', key, smvMode && smvMode.value === 'qty' ? 'qty' : 'pct', t.value);
-      return;
-    }
     if (t.classList.contains('jp-so-smv-pct-input') || t.classList.contains('jp-so-notes-input')) {
       writeAppliedSmv(row);
       refreshSmvApplied();
