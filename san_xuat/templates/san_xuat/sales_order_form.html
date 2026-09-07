@@ -200,7 +200,22 @@
   .jp-so-fold-body { margin-top: .4rem; }
   .jp-so-fold.is-collapsed .jp-so-fold-body { display: none; }
   .jp-so-fold.is-collapsed .jp-so-fold-btn .bi { transform: rotate(180deg); }
-  .jp-so-pct-input { max-width: 4.6rem; margin-left: auto; }
+  .jp-so-pct-input { max-width: 5.2rem; margin-left: auto; }
+  .jp-so-entry {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: .28rem;
+    min-width: 11.2rem;
+  }
+  .jp-so-entry-mode {
+    width: 6.4rem;
+    flex: 0 0 6.4rem;
+    font-size: .72rem;
+    padding-left: .35rem;
+    padding-right: .1rem;
+  }
+  .jp-so-entry .jp-so-pct-input { margin-left: 0; width: 5.2rem; }
   .jp-so-group-pct { max-width: 4.4rem; }
 </style>
 {% endblock %}
@@ -384,7 +399,7 @@
           </button>
         </div>
         <div class="jp-so-fold-body mt-2" id="jp-so-npl-board">
-          <p class="text-muted small mb-0">Nhập % so với ĐM gốc (100 = giữ nguyên). ĐM áp dụng và nhu cầu = ĐM gốc × % × SL.</p>
+          <p class="text-muted small mb-0">Chọn <strong>Số lượng</strong> hoặc <strong>%</strong> rồi nhập ĐM áp dụng. Nhu cầu = ĐM áp dụng × SL.</p>
         </div>
       </div>
     </div>
@@ -399,7 +414,7 @@
           </button>
         </div>
         <div class="jp-so-fold-body mt-2" id="jp-so-ops-board">
-          <p class="text-muted small mb-0">Nhập % so với SMV sản phẩm (100 = giữ nguyên). SMV đơn hàng tự tính.</p>
+          <p class="text-muted small mb-0">Chọn <strong>Số lượng</strong> hoặc <strong>%</strong> rồi nhập SMV đơn hàng.</p>
         </div>
       </div>
     </div>
@@ -857,9 +872,70 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
     return std * pct / 100;
   }
 
-  function readPct(inp, fallback) {
-    var pct = parseFloat(inp && inp.value);
-    return Number.isFinite(pct) ? pct : (fallback != null ? fallback : 100);
+  function entryModeOf(el) {
+    var wrap = el && el.closest ? el.closest('tr') : null;
+    var sel = wrap ? wrap.querySelector('.jp-so-entry-mode') : null;
+    return sel && sel.value === 'qty' ? 'qty' : 'pct';
+  }
+
+  function readEntry(inp, std) {
+    var mode = entryModeOf(inp);
+    var raw = parseFloat(inp && inp.value);
+    if (mode === 'qty') {
+      var applied = Number.isFinite(raw) ? raw : (Number.isFinite(std) ? std : 0);
+      return { mode: mode, applied: applied, pct: pctFromApplied(applied, std) };
+    }
+    var pct = Number.isFinite(raw) ? raw : 100;
+    return { mode: mode, pct: pct, applied: appliedFromPct(std, pct) };
+  }
+
+  function inputValueForMode(mode, applied, pct) {
+    return mode === 'qty' ? fmtNeed(applied) : fmtPct(pct);
+  }
+
+  function modeSelectHtml(kind, lineKey, mode) {
+    var qtyOn = mode === 'qty';
+    return '<select class="form-select form-select-sm jp-so-entry-mode jp-so-' + kind + '-entry-mode"'
+      + ' data-line-key="' + escAttr(lineKey) + '"'
+      + ' aria-label="Cách nhập ' + (kind === 'smv' ? 'SMV' : 'ĐM') + '">'
+      + '<option value="qty"' + (qtyOn ? ' selected' : '') + '>Số lượng</option>'
+      + '<option value="pct"' + (qtyOn ? '' : ' selected') + '>%</option>'
+      + '</select>';
+  }
+
+  function entryCellHtml(kind, lineKey, extraAttrs, mode, applied, pct, aria) {
+    var cls = kind === 'smv'
+      ? 'jp-so-pct-input jp-so-smv-pct-input jp-so-smv-input jp-so-smv-val-input'
+      : 'jp-so-pct-input jp-so-bom-pct-input jp-so-bom-val-input';
+    var step = mode === 'qty' ? '0.0001' : '0.1';
+    return '<div class="jp-so-entry">'
+      + modeSelectHtml(kind, lineKey, mode)
+      + '<input type="number" class="form-control form-control-sm text-end ' + cls + '" min="0" step="' + step + '"'
+      + ' data-line-key="' + escAttr(lineKey) + '" data-entry-mode="' + mode + '" ' + extraAttrs
+      + ' value="' + inputValueForMode(mode, applied, pct) + '" aria-label="' + escAttr(aria) + '">'
+      + '</div>';
+  }
+
+  function switchEntryMode(sel) {
+    var tr = sel.closest('tr');
+    if (!tr) return;
+    var inp = tr.querySelector('.jp-so-bom-val-input, .jp-so-smv-val-input');
+    if (!inp) return;
+    var std = parseFloat(inp.getAttribute(inp.classList.contains('jp-so-smv-val-input') ? 'data-smv-std' : 'data-qty-std')) || 0;
+    var prev = inp.getAttribute('data-entry-mode') || 'pct';
+    var next = sel.value === 'qty' ? 'qty' : 'pct';
+    var cur;
+    if (prev === 'pct') {
+      cur = { mode: 'pct', pct: parseFloat(inp.value), applied: appliedFromPct(std, parseFloat(inp.value)) };
+      if (!Number.isFinite(cur.pct)) cur = { mode: 'pct', pct: 100, applied: std };
+    } else {
+      var applied = parseFloat(inp.value);
+      if (!Number.isFinite(applied)) applied = std;
+      cur = { mode: 'qty', applied: applied, pct: pctFromApplied(applied, std) };
+    }
+    inp.setAttribute('data-entry-mode', next);
+    inp.step = next === 'qty' ? '0.0001' : '0.1';
+    inp.value = inputValueForMode(next, cur.applied, cur.pct);
   }
 
   function writeAppliedBom(row, onlyIfPresent) {
@@ -877,7 +953,7 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
     inps.forEach(function (inp) {
       var id = parseInt(inp.getAttribute('data-bom-line-id'), 10) || 0;
       var std = parseFloat(inp.getAttribute('data-qty-std')) || 0;
-      var pct = readPct(inp, 100);
+      var entry = readEntry(inp, std);
       var scrap = parseFloat(inp.getAttribute('data-scrap-pct'));
       rows.push({
         bom_line_id: id,
@@ -886,8 +962,9 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
         unit: inp.getAttribute('data-unit') || '',
         size_code: inp.getAttribute('data-size') || '',
         qty_std: std,
-        qty_pct: pct,
-        qty: appliedFromPct(std, pct),
+        qty_mode: entry.mode,
+        qty_pct: entry.pct,
+        qty: entry.applied,
         scrap_pct: Number.isFinite(scrap) ? scrap : 0,
       });
     });
@@ -910,16 +987,14 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
       var seq = parseInt(inp.getAttribute('data-smv-seq'), 10);
       if (!seq) return;
       var std = parseFloat(inp.getAttribute('data-smv-std')) || 0;
-      var pct = readPct(inp, 100);
+      var entry = readEntry(inp, std);
       var tr = inp.closest('tr');
       var notesInp = tr ? tr.querySelector('.jp-so-notes-input') : null;
       var notes = notesInp ? String(notesInp.value || '').trim() : '';
-      rows.push({
-        seq: seq,
-        smv_pct: pct,
-        smv: appliedFromPct(std, pct),
-        notes: notes,
-      });
+      var row = { seq: seq, smv_mode: entry.mode, smv: entry.applied, notes: notes };
+      if (entry.mode === 'pct') row.smv_pct = entry.pct;
+      else row.smv_pct = '';
+      rows.push(row);
     });
     hidden.value = JSON.stringify(rows);
   }
@@ -954,9 +1029,16 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
         var saved = bySeq[seq];
         if (!saved) return;
         var std = parseFloat(inp.getAttribute('data-smv-std')) || 0;
+        var applied = parseFloat(saved.smv);
         var pct = parseFloat(saved.smv_pct);
-        if (!Number.isFinite(pct)) pct = pctFromApplied(parseFloat(saved.smv), std);
-        inp.value = fmtPct(pct);
+        if (!Number.isFinite(applied)) applied = appliedFromPct(std, Number.isFinite(pct) ? pct : 100);
+        if (!Number.isFinite(pct)) pct = pctFromApplied(applied, std);
+        var mode = saved.smv_mode === 'qty' ? 'qty' : 'pct';
+        var sel = inp.closest('tr') && inp.closest('tr').querySelector('.jp-so-smv-entry-mode');
+        if (sel) sel.value = mode;
+        inp.setAttribute('data-entry-mode', mode);
+        inp.step = mode === 'qty' ? '0.0001' : '0.1';
+        inp.value = inputValueForMode(mode, applied, pct);
         var tr = inp.closest('tr');
         var notesInp = tr ? tr.querySelector('.jp-so-notes-input') : null;
         if (notesInp && saved.notes != null) notesInp.value = String(saved.notes);
@@ -996,9 +1078,16 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
         var r = byId[id];
         if (!r) return;
         var std = parseFloat(inp.getAttribute('data-qty-std')) || 0;
+        var applied = parseFloat(r.qty);
         var pct = parseFloat(r.qty_pct);
-        if (!Number.isFinite(pct)) pct = pctFromApplied(parseFloat(r.qty), std);
-        inp.value = fmtPct(pct);
+        if (!Number.isFinite(applied)) applied = appliedFromPct(std, Number.isFinite(pct) ? pct : 100);
+        if (!Number.isFinite(pct)) pct = pctFromApplied(applied, std);
+        var mode = r.qty_mode === 'qty' ? 'qty' : 'pct';
+        var sel = inp.closest('tr') && inp.closest('tr').querySelector('.jp-so-bom-entry-mode');
+        if (sel) sel.value = mode;
+        inp.setAttribute('data-entry-mode', mode);
+        inp.step = mode === 'qty' ? '0.0001' : '0.1';
+        inp.value = inputValueForMode(mode, applied, pct);
       });
     } catch (e) { /* ignore */ }
     writeAppliedBom(row);
@@ -1041,7 +1130,7 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
 
   function nplNeedOf(inp, row) {
     var std = parseFloat(inp.getAttribute('data-qty-std')) || 0;
-    var qty = appliedFromPct(std, readPct(inp, 100));
+    var qty = readEntry(inp, std).applied;
     var scrap = parseFloat(inp.getAttribute('data-scrap-pct')) || 0;
     var scale = lineScaleFor(row, inp.getAttribute('data-size'));
     return qty * (1 + scrap / 100) * scale;
@@ -1055,14 +1144,16 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
       var row = key ? rowFromLineKey(key) : null;
       var scale = lineScaleFor(row, inp.getAttribute('data-size'));
       var std = parseFloat(inp.getAttribute('data-qty-std')) || 0;
-      var applied = appliedFromPct(std, readPct(inp, 100));
+      var entry = readEntry(inp, std);
       var tr = inp.closest('tr');
       if (!tr) return;
       var sl = tr.querySelector('[data-role="npl-scale"]');
       var appliedEl = tr.querySelector('[data-role="npl-applied"]');
+      var pctEl = tr.querySelector('[data-role="npl-pct"]');
       var need = tr.querySelector('[data-role="npl-need"]');
       if (sl) sl.textContent = fmtNeed(scale);
-      if (appliedEl) appliedEl.textContent = fmtNeed(applied);
+      if (appliedEl) appliedEl.textContent = fmtNeed(entry.applied);
+      if (pctEl) pctEl.textContent = fmtPct(entry.pct);
       if (need) need.textContent = fmtNeed(nplNeedOf(inp, row));
     });
     syncGroupPct('bom');
@@ -1073,10 +1164,12 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
     if (!host) return;
     host.querySelectorAll('.jp-so-smv-pct-input').forEach(function (inp) {
       var std = parseFloat(inp.getAttribute('data-smv-std')) || 0;
-      var applied = appliedFromPct(std, readPct(inp, 100));
+      var entry = readEntry(inp, std);
       var tr = inp.closest('tr');
       var el = tr ? tr.querySelector('[data-role="smv-applied"]') : null;
-      if (el) el.textContent = fmtNeed(applied);
+      var pctEl = tr ? tr.querySelector('[data-role="smv-pct"]') : null;
+      if (el) el.textContent = fmtNeed(entry.applied);
+      if (pctEl) pctEl.textContent = fmtPct(entry.pct);
     });
     syncGroupPct('smv');
   }
@@ -1086,26 +1179,43 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
     if (!host) return;
     var rowCls = kind === 'smv' ? '.jp-so-smv-pct-input' : '.jp-so-bom-pct-input';
     var groupCls = kind === 'smv' ? '.jp-so-smv-group-pct' : '.jp-so-bom-group-pct';
+    var groupModeCls = kind === 'smv' ? '.jp-so-smv-group-mode' : '.jp-so-bom-group-mode';
     host.querySelectorAll(groupCls).forEach(function (groupInp) {
       var key = groupInp.getAttribute('data-line-key') || '';
       if (!key) return;
+      var wrap = groupInp.closest('td');
+      var modeSel = wrap ? wrap.querySelector(groupModeCls) : null;
+      var modes = [];
       var vals = [];
       host.querySelectorAll(rowCls + '[data-line-key="' + key + '"]').forEach(function (inp) {
-        var pct = readPct(inp, 100);
-        if (vals.indexOf(pct) === -1) vals.push(pct);
+        var std = parseFloat(inp.getAttribute(kind === 'smv' ? 'data-smv-std' : 'data-qty-std')) || 0;
+        var entry = readEntry(inp, std);
+        if (modes.indexOf(entry.mode) === -1) modes.push(entry.mode);
+        var v = entry.mode === 'qty' ? entry.applied : entry.pct;
+        if (vals.indexOf(v) === -1) vals.push(v);
       });
-      if (document.activeElement === groupInp) return;
-      groupInp.value = vals.length === 1 ? fmtPct(vals[0]) : '';
+      if (document.activeElement === groupInp || document.activeElement === modeSel) return;
+      if (modes.length === 1 && modeSel) modeSel.value = modes[0];
+      groupInp.value = (modes.length === 1 && vals.length === 1)
+        ? (modes[0] === 'qty' ? fmtNeed(vals[0]) : fmtPct(vals[0]))
+        : '';
     });
   }
 
-  function applyGroupPct(kind, key, pct) {
-    if (!Number.isFinite(pct) || pct < 0) return;
+  function applyGroupValue(kind, key, mode, raw) {
+    var val = parseFloat(raw);
+    if (!Number.isFinite(val) || val < 0) return;
     var host = kind === 'smv' ? opsHost() : nplHost();
     var cls = kind === 'smv' ? '.jp-so-smv-pct-input' : '.jp-so-bom-pct-input';
     if (!host || !key) return;
     host.querySelectorAll(cls + '[data-line-key="' + key + '"]').forEach(function (inp) {
-      inp.value = fmtPct(pct);
+      var sel = inp.closest('tr') && inp.closest('tr').querySelector('.jp-so-entry-mode');
+      if (sel) sel.value = mode;
+      inp.setAttribute('data-entry-mode', mode);
+      inp.step = mode === 'qty' ? '0.0001' : '0.1';
+      var std = parseFloat(inp.getAttribute(kind === 'smv' ? 'data-smv-std' : 'data-qty-std')) || 0;
+      inp.value = mode === 'qty' ? fmtNeed(val) : fmtPct(val);
+      if (mode === 'qty' && !Number.isFinite(val)) inp.value = fmtNeed(std);
     });
     var row = rowFromLineKey(key);
     if (!row) return;
@@ -1120,11 +1230,15 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
 
   function groupPctCell(label, key, kind, rowspan) {
     var cls = kind === 'smv' ? 'jp-so-smv-group-pct' : 'jp-so-bom-group-pct';
-    var title = kind === 'smv' ? 'Áp % SMV cả dòng' : 'Áp % ĐM cả dòng';
+    var modeCls = kind === 'smv' ? 'jp-so-smv-group-mode' : 'jp-so-bom-group-mode';
+    var title = kind === 'smv' ? 'Áp SMV cả dòng' : 'Áp ĐM cả dòng';
     return '<td rowspan="' + rowspan + '" class="small fw-semibold align-middle">'
       + escAttr(label)
-      + '<div class="mt-1 d-flex align-items-center justify-content-center gap-1">'
-      + '<span class="text-muted fw-normal" style="font-size:.65rem">% cả dòng</span>'
+      + '<div class="mt-1 jp-so-entry">'
+      + '<select class="form-select form-select-sm jp-so-entry-mode ' + modeCls + '" data-line-key="' + escAttr(key) + '" aria-label="' + title + '">'
+      + '<option value="qty">Số lượng</option>'
+      + '<option value="pct" selected>%</option>'
+      + '</select>'
       + '<input type="number" class="form-control form-control-sm text-end jp-so-group-pct ' + cls + '" min="0" step="0.1"'
       + ' data-line-key="' + escAttr(key) + '" value="100" title="' + title + '" aria-label="' + title + '">'
       + '</div></td>';
@@ -1135,8 +1249,9 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
       + '<thead class="table-light"><tr>'
       + '<th style="width:16%">Sản phẩm</th><th>NPL</th>'
       + '<th class="text-end" style="width:6rem">ĐM gốc</th>'
-      + '<th class="text-end" style="width:5.5rem" title="100 = giữ ĐM gốc">%</th>'
+      + '<th class="text-end" style="width:12.2rem" title="Chọn Số lượng hoặc % rồi nhập ĐM áp dụng">Nhập ĐM</th>'
       + '<th class="text-end" style="width:6.5rem">ĐM áp dụng</th>'
+      + '<th class="text-end" style="width:4.2rem">%</th>'
       + '<th class="text-end" style="width:5rem">SL</th>'
       + '<th class="text-end" style="width:7rem">Nhu cầu</th>'
       + '<th style="width:4rem">ĐVT</th>'
@@ -1152,27 +1267,28 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
         if (!Number.isFinite(qty)) qty = qtyStd;
         var pct = parseFloat(ln.qty_pct);
         if (!Number.isFinite(pct)) pct = pctFromApplied(qty, qtyStd);
+        var mode = ln.qty_mode === 'qty' ? 'qty' : 'pct';
         var scrap = parseFloat(ln.scrap_pct) || 0;
         var unit = String(ln.unit || '').trim();
         var size = String(ln.size_code || '').trim();
         var scale = lineScaleFor(row, size);
-        var applied = appliedFromPct(qtyStd, pct);
+        var applied = Number.isFinite(qty) ? qty : appliedFromPct(qtyStd, pct);
+        if (mode === 'pct') applied = appliedFromPct(qtyStd, pct);
         var need = applied * (1 + scrap / 100) * scale;
-        html += '<tr>'
-          + (i === 0 ? groupPctCell(g.label, g.key, 'bom', g.lines.length) : '')
-          + '<td>' + escAttr(name) + (size ? ' <span class="badge bg-light text-dark border">' + escAttr(size) + '</span>' : '') + '</td>'
-          + '<td class="text-end text-muted">' + qtyStd + '</td>'
-          + '<td><input type="number" class="form-control form-control-sm text-end jp-so-pct-input jp-so-bom-pct-input" min="0" step="0.1"'
-          + ' data-line-key="' + escAttr(g.key) + '"'
-          + ' data-bom-line-id="' + id + '"'
+        var bomAttrs = 'data-bom-line-id="' + id + '"'
           + ' data-mat-code="' + escAttr(code) + '"'
           + ' data-mat-name="' + escAttr(name) + '"'
           + ' data-unit="' + escAttr(unit) + '"'
           + ' data-size="' + escAttr(size) + '"'
           + ' data-qty-std="' + qtyStd + '"'
-          + ' data-scrap-pct="' + scrap + '"'
-          + ' value="' + fmtPct(pct) + '" aria-label="% ĐM ' + escAttr(name) + '"></td>'
+          + ' data-scrap-pct="' + scrap + '"';
+        html += '<tr>'
+          + (i === 0 ? groupPctCell(g.label, g.key, 'bom', g.lines.length) : '')
+          + '<td>' + escAttr(name) + (size ? ' <span class="badge bg-light text-dark border">' + escAttr(size) + '</span>' : '') + '</td>'
+          + '<td class="text-end text-muted">' + qtyStd + '</td>'
+          + '<td>' + entryCellHtml('bom', g.key, bomAttrs, mode, applied, pct, 'ĐM ' + name) + '</td>'
           + '<td class="text-end fw-semibold" data-role="npl-applied">' + fmtNeed(applied) + '</td>'
+          + '<td class="text-end text-muted" data-role="npl-pct">' + fmtPct(pct) + '</td>'
           + '<td class="text-end small text-muted" data-role="npl-scale">' + fmtNeed(scale) + '</td>'
           + '<td class="text-end fw-semibold" data-role="npl-need">' + fmtNeed(need) + '</td>'
           + '<td class="small text-muted">' + escAttr(unit || '—') + '</td></tr>';
@@ -1187,8 +1303,9 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
       + '<thead class="table-light"><tr>'
       + '<th style="width:16%">Sản phẩm</th><th style="width:3.5rem">Bước</th><th>Công đoạn</th>'
       + '<th class="text-end" style="width:7rem">SMV sản phẩm</th>'
-      + '<th class="text-end" style="width:5.5rem" title="100 = giữ SMV sản phẩm">%</th>'
+      + '<th class="text-end" style="width:12.2rem" title="Chọn Số lượng hoặc % rồi nhập SMV đơn hàng">Nhập SMV</th>'
       + '<th class="text-end" style="width:7.5rem">SMV đơn hàng</th>'
+      + '<th class="text-end" style="width:4.2rem">%</th>'
       + '<th>Mô tả</th></tr></thead><tbody>';
     groups.forEach(function (g) {
       g.steps.forEach(function (st, i) {
@@ -1197,6 +1314,9 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
         if (!Number.isFinite(smv)) smv = std;
         var pct = parseFloat(st.smv_pct);
         if (!Number.isFinite(pct)) pct = pctFromApplied(smv, std);
+        var mode = st.smv_mode === 'qty' ? 'qty' : 'pct';
+        var applied = Number.isFinite(smv) ? smv : appliedFromPct(std, pct);
+        if (mode === 'pct') applied = appliedFromPct(std, pct);
         var code = String(st.code || '').trim();
         var name = String(st.name || '').trim() || code || '—';
         var notes = String(st.notes || '').trim();
@@ -1204,10 +1324,9 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
           + (i === 0 ? groupPctCell(g.label, g.key, 'smv', g.steps.length) : '')
           + '<td>' + (st.seq || '') + '</td><td>' + escAttr(name) + '</td>'
           + '<td class="text-end text-muted">' + parseFloat(std.toFixed(4)) + '</td>'
-          + '<td><input type="number" class="form-control form-control-sm text-end jp-so-pct-input jp-so-smv-pct-input" min="0" step="0.1"'
-          + ' data-line-key="' + escAttr(g.key) + '" data-smv-seq="' + (st.seq || '') + '" data-smv-std="' + std + '"'
-          + ' value="' + fmtPct(pct) + '" aria-label="% SMV ' + escAttr(name) + '"></td>'
-          + '<td class="text-end fw-semibold" data-role="smv-applied">' + fmtNeed(appliedFromPct(std, pct)) + '</td>'
+          + '<td>' + entryCellHtml('smv', g.key, 'data-smv-seq="' + (st.seq || '') + '" data-smv-std="' + std + '"', mode, applied, pct, 'SMV ' + name) + '</td>'
+          + '<td class="text-end fw-semibold" data-role="smv-applied">' + fmtNeed(applied) + '</td>'
+          + '<td class="text-end text-muted" data-role="smv-pct">' + fmtPct(pct) + '</td>'
           + '<td><input type="text" class="form-control form-control-sm jp-so-notes-input" maxlength="255"'
           + ' data-line-key="' + escAttr(g.key) + '" data-smv-seq="' + (st.seq || '') + '"'
           + ' value="' + escAttr(notes) + '" placeholder="Mô tả" aria-label="Mô tả ' + escAttr(name) + '"></td></tr>';
@@ -1397,6 +1516,27 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
   document.addEventListener('change', function (e) {
     var sel = e.target;
     if (!sel || !sel.matches) return;
+    if (sel.classList.contains('jp-so-bom-group-mode') || sel.classList.contains('jp-so-smv-group-mode')) {
+      var key = sel.getAttribute('data-line-key') || '';
+      var inp = sel.closest('td') && sel.closest('td').querySelector('.jp-so-group-pct');
+      applyGroupValue(sel.classList.contains('jp-so-smv-group-mode') ? 'smv' : 'bom', key, sel.value === 'qty' ? 'qty' : 'pct', inp ? inp.value : '');
+      return;
+    }
+    if (sel.classList.contains('jp-so-entry-mode') && !sel.classList.contains('jp-so-bom-group-mode') && !sel.classList.contains('jp-so-smv-group-mode')) {
+      switchEntryMode(sel);
+      var lineKey = sel.getAttribute('data-line-key') || '';
+      var lineRow = lineKey ? rowFromLineKey(lineKey) : null;
+      if (lineRow) {
+        if (sel.classList.contains('jp-so-smv-entry-mode')) {
+          writeAppliedSmv(lineRow);
+          refreshSmvApplied();
+        } else {
+          writeAppliedBom(lineRow);
+          refreshNplNeed();
+        }
+      }
+      return;
+    }
     if (!sel.matches('.jp-so-bom-select, .jp-so-routing-select, select[name$="-bom_version_id"], select[name$="-routing_id"]')) {
       return;
     }
@@ -1440,11 +1580,13 @@ window.jpSoSizeLabels = {{ order_size_labels_json|safe }};
     var row = key ? rowFromLineKey(key) : t.closest('tr.jp-so-line-row');
     if (!row || !row.classList.contains('jp-so-line-row')) return;
     if (t.classList.contains('jp-so-bom-group-pct')) {
-      applyGroupPct('bom', key, parseFloat(t.value));
+      var bomMode = (t.closest('td') && t.closest('td').querySelector('.jp-so-bom-group-mode'));
+      applyGroupValue('bom', key, bomMode && bomMode.value === 'qty' ? 'qty' : 'pct', t.value);
       return;
     }
     if (t.classList.contains('jp-so-smv-group-pct')) {
-      applyGroupPct('smv', key, parseFloat(t.value));
+      var smvMode = (t.closest('td') && t.closest('td').querySelector('.jp-so-smv-group-mode'));
+      applyGroupValue('smv', key, smvMode && smvMode.value === 'qty' ? 'qty' : 'pct', t.value);
       return;
     }
     if (t.classList.contains('jp-so-smv-pct-input') || t.classList.contains('jp-so-notes-input')) {

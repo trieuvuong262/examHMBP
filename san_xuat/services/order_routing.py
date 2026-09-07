@@ -203,7 +203,8 @@ def apply_smv_overrides(order_line: SxSalesOrderLine, overrides) -> int:
             if 'notes' in row or 'description' in row:
                 notes = str(row.get('notes') or row.get('description') or '').strip()[:255]
             pct = None
-            if row.get('smv_pct') is not None and str(row.get('smv_pct')).strip() != '':
+            mode = str(row.get('smv_mode') or '').strip().lower()
+            if mode != 'qty' and row.get('smv_pct') is not None and str(row.get('smv_pct')).strip() != '':
                 try:
                     pct = _q(row.get('smv_pct'))
                 except (TypeError, ValueError):

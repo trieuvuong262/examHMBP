@@ -99,13 +99,19 @@ def _normalize_bom_overrides(raw) -> list[dict]:
         unit = str(row.get('unit') or '').strip()[:30]
         size_code = str(row.get('size_code') or '').strip()[:20]
         qty_std = _q(row.get('qty_std') if row.get('qty_std') is not None else row.get('qty'))
+        qty_mode = str(row.get('qty_mode') or '').strip().lower()
         qty_pct = row.get('qty_pct')
-        if qty_pct is not None and str(qty_pct).strip() != '':
+        if qty_mode == 'qty':
+            qty = _q(row.get('qty'))
+            qty_pct_val = float((qty / qty_std * Decimal('100')).quantize(Decimal('0.01'))) if qty_std > 0 else 100.0
+        elif qty_pct is not None and str(qty_pct).strip() != '':
             qty = (qty_std * _q(qty_pct) / Decimal('100')).quantize(Decimal('0.0001'))
             qty_pct_val = float(_q(qty_pct))
+            qty_mode = 'pct'
         else:
             qty = _q(row.get('qty'))
             qty_pct_val = float((qty / qty_std * Decimal('100')).quantize(Decimal('0.01'))) if qty_std > 0 else 100.0
+            qty_mode = 'qty' if row.get('qty') is not None else 'pct'
         if bom_line_id <= 0 and not code:
             continue
         out.append({
@@ -115,6 +121,7 @@ def _normalize_bom_overrides(raw) -> list[dict]:
             'qty': float(qty),
             'qty_std': float(qty_std),
             'qty_pct': qty_pct_val,
+            'qty_mode': qty_mode if qty_mode in ('qty', 'pct') else 'pct',
             'scrap_pct': float(scrap),
             'unit': unit,
             'size_code': size_code,
@@ -149,6 +156,7 @@ def bom_lines_snapshot(bom_id: int | None) -> list[dict]:
             'qty': float(qty),
             'qty_std': float(qty),
             'qty_pct': 100.0,
+            'qty_mode': 'pct',
             'scrap_pct': float(_q(line.scrap_pct)),
             'unit': unit,
             'size_code': (line.size_code or '')[:20],
