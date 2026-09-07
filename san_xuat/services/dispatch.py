@@ -1000,8 +1000,10 @@ def _reserve_ycx_safe(req: SxMaterialIssueRequest) -> None:
 def _create_material_issue_request(
     *, production_order_id: int, code: str | None = None, notes: str = ""
 ) -> SxMaterialIssueRequest:
+    # Khóa LSX trước, rồi mới join BOM/đơn — Postgres cấm FOR UPDATE trên LEFT JOIN (FK nullable).
+    SxProductionOrder.objects.select_for_update().get(pk=production_order_id)
     mo = (
-        SxProductionOrder.objects.select_for_update()
+        SxProductionOrder.objects
         .select_related("bom_version", "sales_order")
         .prefetch_related(
             "bom_version__lines__material",
