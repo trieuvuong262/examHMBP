@@ -566,12 +566,31 @@
   .jp-pb-product-head {
     display: flex;
     flex-wrap: wrap;
-    align-items: baseline;
+    align-items: center;
     gap: 0.35rem 0.65rem;
     padding: 0.45rem 0.75rem;
     background: var(--pb-soft);
     border-bottom: 1px solid var(--pb-line);
     font-size: 0.78rem;
+  }
+  .jp-pb-product-thumb { flex: 0 0 auto; line-height: 0; }
+  .jp-pb-product-image,
+  .jp-pb-product-image-placeholder {
+    width: 2.75rem;
+    height: 2.75rem;
+    flex: 0 0 2.75rem;
+    border: 1px solid var(--pb-line);
+    border-radius: 0.5rem;
+    background: #fff;
+  }
+  .jp-pb-product-image {
+    display: block;
+    object-fit: cover;
+  }
+  .jp-pb-product-image-placeholder {
+    display: grid;
+    place-items: center;
+    color: var(--pb-muted);
   }
   .jp-pb-product-code {
     font-weight: 800;
@@ -791,10 +810,7 @@
         <div class="jp-pb-products">
           {% for pf in row.product_flows %}
           <div class="jp-pb-product">
-            <div class="jp-pb-product-head">
-              <span class="jp-pb-product-code"{% if pf.product_name %} title="{{ pf.product_code }}"{% endif %}>{{ pf.product_name|default:pf.product_code }}</span>
-              <span class="jp-pb-product-qty">SL {{ pf.qty|sx_num }}</span>
-            </div>
+            {% include 'san_xuat/includes/plan_board_product_head.html' %}
             {% if can_schedule or can_release %}
               {% if row.order.plan_status != 'on_hold' %}
               {% include 'san_xuat/includes/plan_board_attach.html' %}
@@ -860,10 +876,7 @@
         <div class="jp-pb-products">
           {% for pf in row.product_flows %}
           <div class="jp-pb-product">
-            <div class="jp-pb-product-head">
-              <span class="jp-pb-product-code"{% if pf.product_name %} title="{{ pf.product_code }}"{% endif %}>{{ pf.product_name|default:pf.product_code }}</span>
-              <span class="jp-pb-product-qty">SL {{ pf.qty|sx_num }}</span>
-            </div>
+            {% include 'san_xuat/includes/plan_board_product_head.html' %}
             {% include 'san_xuat/includes/plan_board_flow.html' with flow_groups=pf.flow_groups empty_label='OB theo lệnh sản xuất' %}
           </div>
           {% endfor %}
@@ -930,6 +943,8 @@
     </div>
   </div>
 </div>
+
+{% include 'san_xuat/includes/product_image_gallery_modal.html' %}
 
 {% endblock %}
 

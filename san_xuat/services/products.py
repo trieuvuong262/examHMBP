@@ -246,6 +246,41 @@ def product_gallery_urls(*, product_code: str = '', tech_doc=None) -> list[str]:
     return []
 
 
+def product_gallery_map(codes) -> dict[str, list[str]]:
+    """Map mã SP (casefold) → URL ảnh kho SP / KiotViet, gom query một lần."""
+    from types import SimpleNamespace
+
+    unique: list[str] = []
+    seen: set[str] = set()
+    for code in codes:
+        value = (code or '').strip()
+        if not value:
+            continue
+        key = value.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(value)
+    if not unique:
+        return {}
+    stubs = [
+        SimpleNamespace(
+            product_code=code,
+            product_image_url='',
+            gallery_images=[],
+            kv_product_id=None,
+        )
+        for code in unique
+    ]
+    fill_tech_doc_display_images(stubs)
+    return {
+        (stub.product_code or '').casefold(): list(
+            getattr(stub, '_display_image_urls', None) or []
+        )
+        for stub in stubs
+    }
+
+
 def product_sx_code(product) -> str:
     """Mã SX chuẩn dùng cho hồ sơ / LSX (ưu tiên style_code)."""
     if product is None:

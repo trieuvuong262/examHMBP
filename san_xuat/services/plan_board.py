@@ -5,6 +5,7 @@ Phase 1: chỉ ĐĐH đã xác nhận. MTS/MPS swimlane sau.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from decimal import Decimal
@@ -218,6 +219,13 @@ class PlanProductFlow:
     available_routings: list = field(default_factory=list)
     bom_create_url: str = ''
     routing_create_url: str = ''
+    image_url: str = ''
+    image_urls: list = field(default_factory=list)
+
+    @property
+    def image_urls_json(self) -> str:
+        urls = self.image_urls or ([self.image_url] if self.image_url else [])
+        return json.dumps(urls, ensure_ascii=False)
 
 
 @dataclass
@@ -946,8 +954,22 @@ def build_plan_board_rows(
             r.order.id or 0,
         )
     )
+    _fill_product_flow_images(rows)
     attach_subcontracts_to_plan_rows(rows)
     return rows
+
+
+def _fill_product_flow_images(rows: list[PlanBoardRow]) -> None:
+    """Gắn ảnh hàng hoá (kho SP / KV) lên từng mã trên ticket KHSX."""
+    from san_xuat.services.products import product_gallery_map
+
+    codes = [pf.product_code for row in rows for pf in row.product_flows]
+    galleries = product_gallery_map(codes)
+    for row in rows:
+        for pf in row.product_flows:
+            urls = galleries.get((pf.product_code or '').casefold()) or []
+            pf.image_urls = urls
+            pf.image_url = urls[0] if urls else ''
 
 
 def attach_subcontracts_to_plan_rows(rows: list[PlanBoardRow]) -> list[PlanBoardRow]:

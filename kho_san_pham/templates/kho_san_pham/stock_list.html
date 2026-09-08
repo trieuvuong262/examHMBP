@@ -3,6 +3,39 @@
 
 {% block extra_head %}
 {% include 'kho_npl/includes/material_catalog_page_head.html' %}
+<style>
+.ksp-stock-thumb {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    line-height: 0;
+    cursor: zoom-in;
+}
+.ksp-stock-thumb:focus-visible {
+    outline: 2px solid #dc2626;
+    outline-offset: 2px;
+    border-radius: 0.4rem;
+}
+.ksp-stock-thumb img {
+    width: 40px;
+    height: 40px;
+    object-fit: cover;
+    display: block;
+    border-radius: 0.4rem;
+    border: 1px solid var(--bs-border-color);
+    background: #f8fafc;
+}
+.ksp-stock-thumb-empty {
+    width: 40px;
+    height: 40px;
+    display: grid;
+    place-items: center;
+    border-radius: 0.4rem;
+    border: 1px dashed var(--bs-border-color);
+    color: var(--bs-secondary-color);
+    background: #f8fafc;
+}
+</style>
 {% endblock %}
 
 {% block content %}
@@ -57,6 +90,7 @@
             <table class="table table-hover align-middle mb-0 jp-table-mobile-stack">
                 <thead class="table-light">
                     <tr>
+                        <th class="text-center" style="width:3.5rem;">Ảnh</th>
                         <th>SKU</th>
                         <th>Tên</th>
                         <th class="d-none d-md-table-cell">Màu</th>
@@ -73,6 +107,18 @@
                 <tbody>
                     {% for product in page_obj %}
                     <tr {% if not product.is_active %}class="table-secondary"{% endif %}>
+                        <td data-label="Ảnh" class="text-center">
+                            {% if product.display_image_url %}
+                            <button type="button" class="ksp-stock-thumb" data-sx-gallery
+                                    data-sx-gallery-title="{{ product.code }} — {{ product.name }}"
+                                    data-sx-gallery-image="{{ product.display_image_url }}"
+                                    aria-label="Phóng to ảnh {{ product.code }}">
+                                <img src="{{ product.display_image_url }}" alt="" loading="lazy">
+                            </button>
+                            {% else %}
+                            <span class="ksp-stock-thumb-empty" title="Chưa có ảnh"><i class="bi bi-image" aria-hidden="true"></i></span>
+                            {% endif %}
+                        </td>
                         <td data-label="SKU">
                             <a href="{% url 'kho_san_pham:product_detail' product.pk %}" class="text-decoration-none">
                                 <code>{{ product.code }}</code>
@@ -99,7 +145,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="7" class="text-center text-muted py-4">
+                        <td colspan="8" class="text-center text-muted py-4">
                             {% if has_filters %}Không có SKU khớp bộ lọc.{% else %}Chưa có sản phẩm.{% endif %}
                         </td>
                     </tr>
@@ -115,6 +161,7 @@
     </div>
     {% endif %}
 </div>
+{% include 'san_xuat/includes/product_image_gallery_modal.html' %}
 {% endblock %}
 
 {% block scripts %}
