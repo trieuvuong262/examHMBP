@@ -1,6 +1,32 @@
 services:
   db:
     image: postgres:15-alpine
+    # Tinh chỉnh cho VPS 6 core / 8 GB, DB ~650 MB (mặc định của image quá dè dặt:
+    # shared_buffers 128MB, work_mem 4MB, random_page_cost 4 kiểu ổ cứng quay).
+    #   shared_buffers 2GB           — 25% RAM, cả DB nằm trong bộ đệm
+    #   effective_cache_size 5GB     — báo cho planner biết OS còn ~5GB page cache
+    #   work_mem 16MB                — sort/hash của báo cáo không phải ghi ra đĩa
+    #   random_page_cost 1.1         — SSD, đọc ngẫu nhiên gần bằng đọc tuần tự
+    #   effective_io_concurrency 200 — SSD đọc song song được
+    #   jit off                      — workload nhiều truy vấn nhỏ, biên dịch JIT lỗ hơn lãi
+    #   pg_stat_statements           — thống kê theo từng câu truy vấn để tối ưu tiếp
+    command: >
+      postgres
+      -c shared_buffers=2GB
+      -c effective_cache_size=5GB
+      -c work_mem=16MB
+      -c maintenance_work_mem=512MB
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=200
+      -c wal_buffers=16MB
+      -c max_wal_size=2GB
+      -c min_wal_size=256MB
+      -c checkpoint_completion_target=0.9
+      -c default_statistics_target=200
+      -c jit=off
+      -c shared_preload_libraries=pg_stat_statements
+      -c pg_stat_statements.max=5000
+      -c pg_stat_statements.track=top
     # Chỉ bind localhost VPS — pgAdmin local kết nối qua SSH tunnel
     ports:
       - "127.0.0.1:5432:5432"
