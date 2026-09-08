@@ -11,6 +11,7 @@ from kho_npl.choices import (
 )
 from kho_npl.models import StockBalance, StockLedger, StockTransfer
 from kho_npl.services.batches import batch_effective_price, ledger_amount
+from kho_npl.services.uom import UomConversionError, apply_line_conversion
 
 
 class TransferWorkflowError(Exception):
@@ -47,35 +48,40 @@ def send_stock_transfer(transfer: StockTransfer, user) -> StockTransfer:
     for line in lines:
         if line.quantity <= Decimal('0'):
             raise TransferWorkflowError(f'Số lượng chuyển của {line.material.code} phải lớn hơn 0.')
+        try:
+            qty_base = apply_line_conversion(line, line.quantity)
+        except UomConversionError as exc:
+            raise TransferWorkflowError(f'{line.material.code}: {exc}') from exc
         balance = (
             StockBalance.objects.select_for_update()
             .filter(material=line.material, location=transfer.from_location)
             .first()
         )
         available = balance.quantity if balance else Decimal('0')
-        if available < line.quantity:
+        if available < qty_base:
             raise TransferWorkflowError(
                 f'Tồn không đủ tại {transfer.from_location.display_label()}: {line.material.code} '
-                f'(có {available}, cần {line.quantity}).'
+                f'(có {available}, cần {qty_base} {line.material.unit.name}).'
             )
-        balance.quantity -= line.quantity
+        balance.quantity -= qty_base
         balance.save(update_fields=['quantity', 'updated_at'])
         # Chuyển kho không đổi tồn theo lô (lô theo mã NPL); batch chỉ tham chiếu
         unit_price = batch_effective_price(line.batch) if line.batch_id else Decimal('0')
         StockLedger.objects.create(
             material=line.material,
             location=transfer.from_location,
-            qty_delta=-line.quantity,
+            qty_delta=-qty_base,
             balance_after=balance.quantity,
             batch=line.batch,
             unit_price=unit_price,
-            amount=ledger_amount(line.quantity, unit_price),
+            amount=ledger_amount(qty_base, unit_price),
             ref_type=StockLedger.REF_TRANSFER,
             ref_id=transfer.pk,
             ref_number=transfer.number,
             created_by=user,
             notes=f'Chuyển đi {transfer.number} → {transfer.to_location.display_label()}',
         )
+        line.save(update_fields=['line_unit', 'uom_factor', 'qty_base'])
 
     transfer.status = TRANSFER_STATUS_IN_TRANSIT
     transfer.sent_by = user
@@ -91,22 +97,23 @@ def receive_stock_transfer(transfer: StockTransfer, user) -> StockTransfer:
         raise TransferWorkflowError('Chỉ phiếu đang chuyển mới được nhận vào kho.')
 
     for line in transfer.lines.select_related('material', 'batch'):
+        qty_base = line.qty_base
         balance, _ = StockBalance.objects.select_for_update().get_or_create(
             material=line.material,
             location=transfer.to_location,
             defaults={'quantity': Decimal('0')},
         )
-        balance.quantity += line.quantity
+        balance.quantity += qty_base
         balance.save(update_fields=['quantity', 'updated_at'])
         unit_price = batch_effective_price(line.batch) if line.batch_id else Decimal('0')
         StockLedger.objects.create(
             material=line.material,
             location=transfer.to_location,
-            qty_delta=line.quantity,
+            qty_delta=qty_base,
             balance_after=balance.quantity,
             batch=line.batch,
             unit_price=unit_price,
-            amount=ledger_amount(line.quantity, unit_price),
+            amount=ledger_amount(qty_base, unit_price),
             ref_type=StockLedger.REF_TRANSFER,
             ref_id=transfer.pk,
             ref_number=transfer.number,

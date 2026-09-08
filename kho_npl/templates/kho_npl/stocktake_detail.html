@@ -117,7 +117,7 @@
                         <td class="npl-col" data-col="name">{{ line.material.name }}</td>
                         <td class="npl-col text-end" data-col="system_qty">{{ line.system_qty|npl_qty_with_unit:line.material.unit }}</td>
                         <td class="npl-col text-end" data-col="actual_qty">
-                            {% if line.actual_qty is not None %}{{ line.actual_qty|npl_qty_with_unit:line.material.unit }}{% else %}—{% endif %}
+                            {% if line.actual_qty is not None %}{{ line.actual_qty|npl_qty_with_unit:line.line_unit }}{% else %}—{% endif %}
                         </td>
                         <td class="npl-col text-end{% if line.variance and line.variance > 0 %} text-success{% elif line.variance and line.variance < 0 %} text-danger{% endif %}" data-col="variance">
                             {% if line.variance is not None %}{{ line.variance|npl_qty_with_unit:line.material.unit }}{% else %}—{% endif %}

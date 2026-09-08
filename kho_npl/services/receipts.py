@@ -12,6 +12,7 @@ from kho_npl.services.batches import (
     ledger_amount,
     resolve_or_create_receipt_batch,
 )
+from kho_npl.services.uom import UomConversionError, apply_line_conversion, price_to_base
 
 
 class ReceiptWorkflowError(Exception):
@@ -44,34 +45,39 @@ def post_stock_receipt(receipt: StockReceipt, user) -> StockReceipt:
         if line.unit_price <= 0:
             raise ReceiptWorkflowError(f'{line.material.code}: đơn giá nhập phải lớn hơn 0.')
         try:
+            qty_base = apply_line_conversion(line, line.received_qty)
+            base_unit_price = price_to_base(line.unit_price, line.uom_factor)
+        except UomConversionError as exc:
+            raise ReceiptWorkflowError(f'{line.material.code}: {exc}') from exc
+        try:
             batch = resolve_or_create_receipt_batch(
                 material=line.material,
                 batch_code=batch_code,
-                unit_price=line.unit_price,
+                unit_price=base_unit_price,
                 received_date=receipt.receipt_date,
             )
-            increase_batch_qty(batch, line.received_qty)
+            increase_batch_qty(batch, qty_base)
         except BatchWorkflowError as exc:
             raise ReceiptWorkflowError(str(exc)) from exc
 
         line.batch_code = batch.code
-        line.save(update_fields=['batch_code'])
+        line.save(update_fields=['batch_code', 'line_unit', 'uom_factor', 'qty_base'])
 
         balance, _ = StockBalance.objects.select_for_update().get_or_create(
             material=line.material,
             location=line.location,
             defaults={'quantity': Decimal('0')},
         )
-        balance.quantity += line.received_qty
+        balance.quantity += qty_base
         balance.save(update_fields=['quantity', 'updated_at'])
         StockLedger.objects.create(
             material=line.material,
             location=line.location,
-            qty_delta=line.received_qty,
+            qty_delta=qty_base,
             balance_after=balance.quantity,
             batch=batch,
-            unit_price=line.unit_price,
-            amount=ledger_amount(line.received_qty, line.unit_price),
+            unit_price=base_unit_price,
+            amount=ledger_amount(qty_base, base_unit_price),
             ref_type=StockLedger.REF_RECEIPT,
             ref_id=receipt.pk,
             ref_number=receipt.number,

@@ -69,7 +69,8 @@
                         {% if line_form.quantity.errors %}<div class="text-danger small">{{ line_form.quantity.errors }}</div>{% endif %}
                     </td>
                     <td class="jp-npl-line-unit-cell">
-                        <span class="jp-npl-line-unit text-muted small">{% if line_form.instance.material_id %}{{ line_form.instance.material.unit.name }}{% else %}—{% endif %}</span>
+                        {{ line_form.line_unit }}
+                        {% if line_form.line_unit.errors %}<div class="text-danger small">{{ line_form.line_unit.errors }}</div>{% endif %}
                     </td>
                     <td class="jp-npl-line-notes-cell">
                         {{ line_form.notes }}

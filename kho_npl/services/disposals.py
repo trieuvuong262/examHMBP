@@ -13,6 +13,7 @@ from kho_npl.services.batches import (
     resolve_outflow_batches,
 )
 from kho_npl.services.scrap_warehouse import get_scrap_location
+from kho_npl.services.uom import UomConversionError, apply_line_conversion
 
 
 class DisposalWorkflowError(Exception):
@@ -37,6 +38,10 @@ def post_stock_disposal(disposal: StockDisposal, user) -> StockDisposal:
     for line in lines:
         if line.quantity <= Decimal('0'):
             raise DisposalWorkflowError(f'Số lượng hủy của {line.material.code} phải lớn hơn 0.')
+        try:
+            qty_base = apply_line_conversion(line, line.quantity)
+        except UomConversionError as exc:
+            raise DisposalWorkflowError(f'{line.material.code}: {exc}') from exc
         if not line.location_id:
             raise DisposalWorkflowError(f'Dòng {line.material.code} chưa chọn vị trí kho.')
         if line.location_id == scrap_location.pk:
@@ -48,20 +53,20 @@ def post_stock_disposal(disposal: StockDisposal, user) -> StockDisposal:
             .first()
         )
         available = source_balance.quantity if source_balance else Decimal('0')
-        if available < line.quantity:
+        if available < qty_base:
             raise DisposalWorkflowError(
                 f'Tồn không đủ tại {line.location.display_label()}: {line.material.code} '
-                f'(có {available}, cần hủy {line.quantity}).'
+                f'(có {available}, cần hủy {qty_base} {line.material.unit.name}).'
             )
 
         try:
-            allocations = resolve_outflow_batches(line.material, line.quantity, line.batch)
+            allocations = resolve_outflow_batches(line.material, qty_base, line.batch)
         except BatchWorkflowError as exc:
             raise DisposalWorkflowError(str(exc)) from exc
 
         primary_batch = allocations[0][0]
         line.batch = primary_batch
-        line.save(update_fields=['batch'])
+        line.save(update_fields=['batch', 'line_unit', 'uom_factor', 'qty_base'])
 
         running_source = source_balance.quantity
         scrap_balance, _ = StockBalance.objects.select_for_update().get_or_create(

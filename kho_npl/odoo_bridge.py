@@ -574,7 +574,7 @@ def link_material_vendors(
 # ------------------------------- PRODUCTS ----------------------------------
 
 
-def build_material_vals(material: Material, categ_id, uom_id) -> dict:
+def build_material_vals(material: Material, categ_id, uom_id, purchase_uom_id=None) -> dict:
     """Pure-ish vals builder (uom_id có thể None ở dry-run)."""
     cost = material_avg_price(material)
     vals = {
@@ -592,7 +592,7 @@ def build_material_vals(material: Material, categ_id, uom_id) -> dict:
         vals['categ_id'] = categ_id
     if uom_id:
         vals['uom_id'] = uom_id
-        vals['uom_po_id'] = uom_id
+        vals['uom_po_id'] = purchase_uom_id or uom_id
     return vals
 
 
@@ -723,6 +723,19 @@ def push_materials(
         code = _norm_code(mat.code)
         categ_id = cat_map.get(mat.category_id) or root_id
         uom_id = resolve_uom_id(mat.unit, dry_run=dry_run)
+        highest_level = (
+            mat.specification.levels.select_related('unit').order_by('-level').first()
+            if mat.specification_id else None
+        )
+        purchase_unit = highest_level.unit if highest_level else mat.unit
+        # Odoo chỉ cho ĐVT mua và ĐVT tồn cùng nhóm đo. Portal chưa đồng bộ
+        # category/factor UoM sang Odoo nên chỉ dùng cấp chẵn khi map cùng UoM.
+        if map_uom_search_name(purchase_unit.code) != map_uom_search_name(mat.unit.code):
+            purchase_unit = mat.unit
+        purchase_uom_id = resolve_uom_id(
+            purchase_unit,
+            dry_run=dry_run,
+        )
         odoo_records = existing.get(code)
 
         if odoo_records:
@@ -732,7 +745,7 @@ def push_materials(
             if dry_run:
                 result.materials_updated += 1
                 continue
-            vals = build_material_vals(mat, categ_id, uom_id)
+            vals = build_material_vals(mat, categ_id, uom_id, purchase_uom_id)
             vals.pop('default_code', None)
             try:
                 tmpl = _execute(
@@ -750,7 +763,7 @@ def push_materials(
             result.materials_created += 1
             continue
 
-        to_create.append(build_material_vals(mat, categ_id, uom_id))
+        to_create.append(build_material_vals(mat, categ_id, uom_id, purchase_uom_id))
         if len(to_create) >= _PRODUCT_CREATE_BATCH:
             _create_products_batch(to_create, result)
             to_create = []

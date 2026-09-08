@@ -56,6 +56,7 @@
                             <th>NPL</th>
                             <th class="text-end">Tồn HT</th>
                             <th class="text-end" style="min-width:120px">Tồn TT</th>
+                            <th style="min-width:100px">ĐVT đếm</th>
                             <th>Ghi chú</th>
                         </tr>
                     </thead>
@@ -74,6 +75,7 @@
                             </td>
                             <td class="text-end">{{ line_form.instance.system_qty|npl_qty_with_unit:line_form.instance.material.unit }}</td>
                             <td>{{ line_form.actual_qty }}{% if line_form.actual_qty.errors %}<div class="text-danger small">{{ line_form.actual_qty.errors }}</div>{% endif %}</td>
+                            <td>{{ line_form.line_unit }}{% if line_form.line_unit.errors %}<div class="text-danger small">{{ line_form.line_unit.errors }}</div>{% endif %}</td>
                             <td>{{ line_form.notes }}{% if line_form.notes.errors %}<div class="text-danger small">{{ line_form.notes.errors }}</div>{% endif %}</td>
                         </tr>
                         {% endfor %}

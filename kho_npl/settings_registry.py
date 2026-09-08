@@ -64,6 +64,8 @@ SETTINGS_SECTIONS = {
         'list_columns': (
             ('name', 'Quy cách / khổ'),
             ('code', 'Mã'),
+            ('conversion_formula', 'Công thức quy đổi'),
+            ('level_count', 'Số cấp'),
             ('sort_order', 'Thứ tự'),
         ),
     },

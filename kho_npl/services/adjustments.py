@@ -11,6 +11,7 @@ from kho_npl.services.batches import (
     batch_effective_price,
     ledger_amount,
 )
+from kho_npl.services.uom import UomConversionError, apply_line_conversion
 
 
 class AdjustmentWorkflowError(Exception):
@@ -41,7 +42,11 @@ def approve_stock_adjustment(adjustment: StockAdjustment, user) -> StockAdjustme
     if not lines:
         raise AdjustmentWorkflowError('Phiếu chưa có dòng kiểm kê.')
     for line in lines:
-        variance = line.actual_qty - line.system_qty
+        try:
+            actual_base = apply_line_conversion(line, line.actual_qty)
+        except UomConversionError as exc:
+            raise AdjustmentWorkflowError(f'{line.material.code}: {exc}') from exc
+        variance = actual_base - line.system_qty
         applied = []
         if variance != 0:
             try:
@@ -55,14 +60,17 @@ def approve_stock_adjustment(adjustment: StockAdjustment, user) -> StockAdjustme
                 raise AdjustmentWorkflowError(str(exc)) from exc
             if applied:
                 line.batch = applied[0][0]
-                line.save(update_fields=['batch'])
+        update_fields = ['line_unit', 'uom_factor', 'qty_base']
+        if applied:
+            update_fields.append('batch')
+        line.save(update_fields=update_fields)
 
         balance, _ = StockBalance.objects.select_for_update().get_or_create(
             material=line.material,
             location=line.location,
             defaults={'quantity': Decimal('0')},
         )
-        balance.quantity = line.actual_qty
+        balance.quantity = actual_base
         balance.save(update_fields=['quantity', 'updated_at'])
         if variance != 0 and applied:
             note = line.notes or adjustment.reason

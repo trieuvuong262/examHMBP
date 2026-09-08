@@ -12,6 +12,7 @@ from kho_npl.services.batches import (
     ledger_amount,
     resolve_outflow_batches,
 )
+from kho_npl.services.uom import UomConversionError, apply_line_conversion
 
 
 class IssueWorkflowError(Exception):
@@ -35,6 +36,10 @@ def post_stock_issue(issue: StockIssue, user) -> StockIssue:
     for line in lines:
         if line.quantity <= Decimal('0'):
             raise IssueWorkflowError(f'Số lượng xuất của {line.material.code} phải lớn hơn 0.')
+        try:
+            qty_base = apply_line_conversion(line, line.quantity)
+        except UomConversionError as exc:
+            raise IssueWorkflowError(f'{line.material.code}: {exc}') from exc
 
         balance = (
             StockBalance.objects.select_for_update()
@@ -42,14 +47,14 @@ def post_stock_issue(issue: StockIssue, user) -> StockIssue:
             .first()
         )
         available = balance.quantity if balance else Decimal('0')
-        if available < line.quantity:
+        if available < qty_base:
             raise IssueWorkflowError(
                 f'Tồn không đủ: {line.material.code} tại {line.location.display_label()} '
-                f'(có {available}, cần xuất {line.quantity}).'
+                f'(có {available}, cần xuất {qty_base} {line.material.unit.name}).'
             )
 
         try:
-            allocations = resolve_outflow_batches(line.material, line.quantity, line.batch)
+            allocations = resolve_outflow_batches(line.material, qty_base, line.batch)
         except BatchWorkflowError as exc:
             raise IssueWorkflowError(str(exc)) from exc
 
@@ -57,7 +62,7 @@ def post_stock_issue(issue: StockIssue, user) -> StockIssue:
         primary_batch = allocations[0][0]
         line.batch = primary_batch
         line.unit_price = batch_effective_price(primary_batch)
-        line.save(update_fields=['batch', 'unit_price'])
+        line.save(update_fields=['batch', 'unit_price', 'line_unit', 'uom_factor', 'qty_base'])
 
         running = balance.quantity
         for batch, take in allocations:

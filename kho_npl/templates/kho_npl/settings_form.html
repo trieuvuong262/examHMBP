@@ -44,6 +44,13 @@
                     </div>
                     {% endfor %}
                 </div>
+                {% if section.key == 'quy-cach' %}
+                <div class="alert alert-light border mt-3 mb-0">
+                    <div class="fw-bold small mb-1">Công thức kiểm tra</div>
+                    <div id="jp-spec-preview" class="small">Chọn các cấp ĐVT để xem quy đổi.</div>
+                    <div class="form-text">Cấp 1 là đơn vị lẻ dùng cho BOM và tồn kho. Cấp 2–3 là đơn vị chẵn có thể chọn trên phiếu.</div>
+                </div>
+                {% endif %}
                 <div class="d-flex gap-2 mt-4 pt-2 border-top">
                     <button type="submit" class="btn btn-hm fw-bold px-4">{% if is_edit %}Cập nhật{% else %}Thêm{% endif %}</button>
                     <a href="{{ cancel_url }}" class="btn btn-outline-secondary">Huỷ</a>
@@ -52,4 +59,34 @@
         </div>
     </div>
 </div>
+{% if section.key == 'quy-cach' %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const get = id => document.getElementById(id);
+    const unitName = select => select && select.selectedIndex >= 0
+        ? select.options[select.selectedIndex].text.replace(/^—$|^— .* —$/g, '').trim()
+        : '';
+    const fields = [
+        get('id_level1_unit'), get('id_level2_unit'), get('id_level2_qty'),
+        get('id_level3_unit'), get('id_level3_qty')
+    ];
+    const preview = get('jp-spec-preview');
+    function render() {
+        const u1 = unitName(fields[0]), u2 = unitName(fields[1]), q2 = Number(fields[2]?.value);
+        const u3 = unitName(fields[3]), q3 = Number(fields[4]?.value);
+        const parts = [];
+        if (u1) parts.push('ĐVT lẻ: ' + u1);
+        if (u1 && u2 && q2 > 0) parts.push('1 ' + u2 + ' = ' + q2.toLocaleString('vi-VN') + ' ' + u1);
+        if (u1 && u2 && u3 && q2 > 0 && q3 > 0) {
+            parts.push('1 ' + u3 + ' = ' + q3.toLocaleString('vi-VN') + ' ' + u2
+                + ' = ' + (q2 * q3).toLocaleString('vi-VN') + ' ' + u1);
+        }
+        preview.textContent = parts.join(' · ') || 'Chọn các cấp ĐVT để xem quy đổi.';
+    }
+    fields.forEach(field => field && field.addEventListener('input', render));
+    fields.forEach(field => field && field.addEventListener('change', render));
+    render();
+});
+</script>
+{% endif %}
 {% endblock %}

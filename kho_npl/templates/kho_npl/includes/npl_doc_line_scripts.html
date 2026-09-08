@@ -167,7 +167,9 @@
         const price = resolveUnitPrice(row);
         const amountEl = row.querySelector('.jp-npl-line-amount');
         let amount = null;
-        if (qty != null && price != null) amount = qty * price;
+        const unitSelect = row.querySelector('select.jp-npl-line-unit-select');
+        const factor = Number(unitSelect?.options[unitSelect.selectedIndex]?.dataset.factor || 1);
+        if (qty != null && price != null) amount = qty * price * (priceMode === 'input' ? 1 : factor);
         if (amountEl) amountEl.textContent = amount == null ? '—' : formatMoney(amount);
         updateDocTotal();
     }
@@ -183,7 +185,9 @@
             if (del && del.checked) return;
             const qty = parseQty(rowQtyInput(row)?.value);
             const price = resolveUnitPrice(row);
-            if (qty != null && price != null) sum += qty * price;
+            const unitSelect = row.querySelector('select.jp-npl-line-unit-select');
+            const factor = Number(unitSelect?.options[unitSelect.selectedIndex]?.dataset.factor || 1);
+            if (qty != null && price != null) sum += qty * price * (priceMode === 'input' ? 1 : factor);
         });
         totalEl.textContent = formatMoney(sum);
     }
@@ -299,7 +303,11 @@
         }
         if (validateQtyStock && qty > 0) {
             const stock = rowStockQty(row);
-            if (stock !== null && qty > stock) {
+            const unitSelect = row.querySelector('select.jp-npl-line-unit-select');
+            const unitOption = unitSelect?.options[unitSelect.selectedIndex];
+            const factor = Number(unitOption?.dataset.factor || 1);
+            const qtyBase = qty * factor;
+            if (stock !== null && qtyBase > stock) {
                 const stockEl = row.querySelector('.jp-npl-stock-qty');
                 const stockText = stockEl && stockEl.textContent.trim() !== '—'
                     ? stockEl.textContent.trim()
@@ -407,8 +415,54 @@
         return row?.querySelector('.jp-npl-stock-qty');
     }
 
-    function setLineUnit(row, value) {
+    function updateConversionHint(row) {
+        const select = row?.querySelector('select.jp-npl-line-unit-select');
+        const qtyInput = rowQtyInput(row);
+        if (!select || !qtyInput) return;
+        let hint = row.querySelector('.jp-npl-uom-conversion');
+        if (!hint) {
+            hint = document.createElement('div');
+            hint.className = 'jp-npl-uom-conversion form-text text-nowrap';
+            select.parentElement.appendChild(hint);
+        }
+        const option = select.options[select.selectedIndex];
+        const factor = Number(option?.dataset.factor || 1);
+        const qty = Number(qtyInput.value || 0);
+        const baseName = select.dataset.baseUnit || '';
+        hint.textContent = factor !== 1 && qty > 0 && baseName
+            ? '= ' + (qty * factor).toLocaleString('vi-VN') + ' ' + baseName
+            : '';
+    }
+
+    function setLineUnit(row, value, units) {
         if (!showLineUnit || !row) return;
+        const select = row.querySelector('select.jp-npl-line-unit-select');
+        if (select) {
+            const previous = select.value;
+            if (Array.isArray(units) && units.length) {
+                select.innerHTML = '';
+                units.forEach(function (item) {
+                    const option = document.createElement('option');
+                    option.value = String(item.id);
+                    option.textContent = item.name;
+                    option.dataset.factor = item.factor || '1';
+                    option.dataset.isBase = item.is_base ? '1' : '0';
+                    select.appendChild(option);
+                });
+                const preferred = units.some(item => String(item.id) === previous)
+                    ? previous
+                    : String((units.find(item => item.is_base) || units[0]).id);
+                select.value = preferred;
+                select.disabled = units.length === 1;
+                select.dataset.baseUnit = (units.find(item => item.is_base) || units[0]).name || '';
+            } else if (!value) {
+                select.innerHTML = '<option value="">—</option>';
+                select.disabled = true;
+                select.dataset.baseUnit = '';
+            }
+            updateConversionHint(row);
+            return;
+        }
         const el = row.querySelector('.jp-npl-line-unit');
         if (!el) return;
         const text = (value || '').trim();
@@ -469,7 +523,7 @@
                     validateRowQty(row, true);
                 }
                 if (showLineUnit && (data.unit_name || data.unit)) {
-                    setLineUnit(row, data.unit_name || data.unit);
+                    setLineUnit(row, data.unit_name || data.unit, data.units || []);
                 }
             })
             .catch(function () {
@@ -763,7 +817,8 @@
                     const unit = materialId && this.options[materialId]
                         ? (this.options[materialId].unit_name || this.options[materialId].unit || '')
                         : '';
-                    setLineUnit(row, unit);
+                    const option = materialId ? this.options[materialId] : null;
+                    setLineUnit(row, unit, option?.units || []);
                 }
                 applyDefaultLocationOnMaterial(row, materialId ? this.options[materialId] : null);
                 applyDefaultQtyOnMaterial(row);
@@ -870,6 +925,7 @@
                 validateRowQty(row, showPopup);
                 syncTransferWarehouseLock();
             }
+            updateConversionHint(row);
             updateLineAmount(row);
         }
     });
@@ -885,6 +941,12 @@
         }
         if (e.target.matches(qtyInputSelector)) {
             const row = e.target.closest('tr');
+            validateRowQty(row, true);
+            updateLineAmount(row);
+        }
+        if (e.target.matches('select.jp-npl-line-unit-select')) {
+            const row = e.target.closest('tr');
+            updateConversionHint(row);
             validateRowQty(row, true);
             updateLineAmount(row);
         }

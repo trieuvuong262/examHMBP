@@ -168,7 +168,7 @@ def stocktake_detail(request, pk):
     )
     variance_lines = [
         line for line in stocktake.lines.all()
-        if line.actual_qty is not None and line.actual_qty != line.system_qty
+        if line.actual_qty is not None and line.variance != 0
     ]
     perms = perm_context(request.user, 'stocktakes')
     is_editable = stocktake_is_editable(stocktake)

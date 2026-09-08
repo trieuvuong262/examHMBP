@@ -39,8 +39,8 @@ def stocktake_detail_export_response(stocktake):
         'Ghi chú': stocktake.notes or '',
     }])
     line_rows = []
-    for line in stocktake.lines.select_related('material__unit').order_by('material__code'):
-        actual = line.actual_qty
+    for line in stocktake.lines.select_related('material__unit', 'line_unit').order_by('material__code'):
+        actual = line.qty_base if line.qty_base is not None else line.actual_qty
         variance = line.variance
         line_rows.append({
             'Mã NPL': line.material.code,
@@ -48,6 +48,8 @@ def stocktake_detail_export_response(stocktake):
             'ĐVT': line.material.unit.name if line.material.unit_id else '',
             'Tồn HT': float(line.system_qty),
             'Tồn TT': float(actual) if actual is not None else None,
+            'SL đếm': float(line.actual_qty) if line.actual_qty is not None else None,
+            'ĐVT đếm': line.line_unit.name if line.line_unit_id else line.material.unit.name,
             'Chênh': float(variance) if variance is not None else None,
             'Ghi chú dòng': line.notes or '',
         })

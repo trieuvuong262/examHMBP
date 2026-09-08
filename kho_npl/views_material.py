@@ -43,6 +43,7 @@ from kho_npl.services.material_import_export import (
 )
 from kho_npl.services.scrap_warehouse import filter_storage_location_ids, source_locations_qs
 from kho_npl.services.stock import material_stock_rows, summarize_stock_value
+from kho_npl.services.uom import material_units
 from kho_npl.services.variant_groups import (
     group_materials,
     group_stock_rows,
@@ -107,6 +108,7 @@ def material_search(request):
                 balances__quantity__gt=0,
             )
             .select_related('unit', 'color', 'specification', 'primary_location')
+            .prefetch_related('specification__levels__unit')
             .distinct()
         )
         if q:
@@ -125,7 +127,7 @@ def material_search(request):
     else:
         qs = Material.objects.filter(is_active=True).select_related(
             'unit', 'color', 'specification', 'category', 'primary_location',
-        )
+        ).prefetch_related('specification__levels__unit')
         if q:
             # Không theo kho (BOM): cùng cách tìm danh mục kho — tên, mã, nhóm hàng.
             qs = apply_material_search(qs, q) if not location_id else apply_material_search_strict(qs, q)
@@ -200,6 +202,7 @@ def material_search(request):
             'base_price': float(material.base_price or 0),
             'qty': qty_out,
             'qty_label': qty_label,
+            'units': material_units(material),
         })
     return JsonResponse({'results': rows})
 
@@ -211,7 +214,11 @@ def balance_lookup(request):
     if not material_id or not location_id:
         return JsonResponse({'error': 'Thiếu material_id hoặc location_id.'}, status=400)
     try:
-        material = Material.objects.select_related('unit').get(pk=material_id, is_active=True)
+        material = (
+            Material.objects.select_related('unit', 'specification')
+            .prefetch_related('specification__levels__unit')
+            .get(pk=material_id, is_active=True)
+        )
         location = WarehouseLocation.objects.get(pk=location_id, is_active=True)
     except (Material.DoesNotExist, WarehouseLocation.DoesNotExist):
         return JsonResponse({'error': 'NPL hoặc vị trí không hợp lệ.'}, status=404)
@@ -224,6 +231,7 @@ def balance_lookup(request):
         'qty_label': _material_qty_label(material, qty),
         'text': _material_stock_label(material, qty),
         'name': material.name,
+        'units': material_units(material),
     })
 
 

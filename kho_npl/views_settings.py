@@ -37,6 +37,8 @@ def settings_list(request, section):
     show_inactive = request.GET.get('inactive') == '1'
     model = config['model']
     qs = model.objects.all()
+    if config['key'] == 'quy-cach':
+        qs = qs.prefetch_related('levels__unit')
     if not show_inactive:
         qs = qs.filter(is_active=True)
     if search_query:

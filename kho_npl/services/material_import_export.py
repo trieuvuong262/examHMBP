@@ -3,11 +3,9 @@ from decimal import Decimal, InvalidOperation
 import pandas as pd
 from django.http import HttpResponse
 
-from kho_npl.models import Material, MaterialCategory, MaterialColor, MaterialSpecification, Supplier, Unit
+from kho_npl.models import Material, MaterialCategory, MaterialColor, MaterialSpecification, Supplier
 from kho_npl.services.excel_export import dataframe_to_xlsx_response
 from kho_npl.services.material_colors import resolve_material_color
-from kho_npl.catalog_labels import spec_label
-from kho_npl.services.material_specifications import resolve_material_specification
 from kho_npl.services.scrap_warehouse import is_usable_storage_location, source_locations_qs
 
 EXCEL_HEADERS = [
@@ -16,8 +14,7 @@ EXCEL_HEADERS = [
     'Tên nhóm hàng',
     'Mã nhóm',
     'Màu sắc',
-    'Quy cách',
-    'Mã ĐVT',
+    'Mã quy cách',
     'Mã NCC',
     'Mã vị trí',
     'Tồn tối thiểu',
@@ -38,6 +35,7 @@ _HEADER_ALIASES = {
     'mau sac': 'Màu sắc',
     'mau': 'Màu sắc',
     'quy cach': 'Quy cách',
+    'ma quy cach': 'Mã quy cách',
     'ma dvt': 'Mã ĐVT',
     'dvt': 'Mã ĐVT',
     'ma ncc': 'Mã NCC',
@@ -107,8 +105,7 @@ def material_to_row(material: Material) -> dict:
         'Tên nhóm hàng': material.variant_group or '',
         'Mã nhóm': material.category.code,
         'Màu sắc': material.color.name if material.color_id else '',
-        'Quy cách': spec_label(material.specification) if material.specification_id else '',
-        'Mã ĐVT': material.unit.code,
+        'Mã quy cách': material.specification.code if material.specification_id else '',
         'Mã NCC': material.supplier.code if material.supplier_id else '',
         'Mã vị trí': material.primary_location.code if material.primary_location_id else '',
         'Tồn tối thiểu': float(material.min_stock),
@@ -131,16 +128,22 @@ def export_materials_xlsx(qs) -> HttpResponse:
 
 
 def sample_template_xlsx() -> HttpResponse:
+    sample_category = MaterialCategory.objects.filter(is_active=True).order_by('sort_order', 'name').first()
+    sample_location = source_locations_qs().order_by('code').first()
+    sample_spec = (
+        MaterialSpecification.objects.filter(is_active=True, levels__level=1)
+        .order_by('sort_order', 'name')
+        .first()
+    )
     sample = pd.DataFrame([{
         'Mã NPL': 'VAI-001',
         'Tên NPL': 'Vải cotton trắng',
         'Tên nhóm hàng': 'COTTON',
-        'Mã nhóm': 'vai-chinh',
+        'Mã nhóm': sample_category.code if sample_category else '',
         'Màu sắc': 'Trắng',
-        'Quy cách': 'Khổ 1m6',
-        'Mã ĐVT': 'met',
+        'Mã quy cách': sample_spec.code if sample_spec else '',
         'Mã NCC': '',
-        'Mã vị trí': 'MAIN',
+        'Mã vị trí': sample_location.code if sample_location else '',
         'Tồn tối thiểu': 10,
         'Giá cơ bản': 15000,
         'Ghi chú': '',
@@ -164,17 +167,22 @@ def import_materials_from_excel(file_obj) -> dict:
         raise MaterialImportError('File Excel không có dữ liệu.')
 
     df = _normalize_columns(df)
-    missing = [h for h in ('Mã NPL', 'Tên NPL', 'Mã nhóm', 'Mã ĐVT') if h not in df.columns]
+    missing = [h for h in ('Mã NPL', 'Tên NPL', 'Mã nhóm') if h not in df.columns]
+    if 'Mã quy cách' not in df.columns and 'Quy cách' not in df.columns:
+        missing.append('Mã quy cách')
     if missing:
         raise MaterialImportError(f'Thiếu cột bắt buộc: {", ".join(missing)}')
 
     categories = {c.code.lower(): c for c in MaterialCategory.objects.all()}
-    units = {u.code.lower(): u for u in Unit.objects.all()}
     suppliers = {s.code.lower(): s for s in Supplier.objects.all()}
     locations_by_code = {loc.code.lower(): loc for loc in source_locations_qs()}
     locations_by_name = {loc.name.strip().lower(): loc for loc in source_locations_qs() if (loc.name or '').strip()}
     colors_by_name = {c.name.lower(): c for c in MaterialColor.objects.filter(is_active=True)}
-    specs_by_name = {s.name.lower(): s for s in MaterialSpecification.objects.filter(is_active=True)}
+    specs_by_code = {
+        s.code.lower(): s
+        for s in MaterialSpecification.objects.filter(is_active=True).prefetch_related('levels__unit')
+    }
+    specs_by_name = {s.name.strip().lower(): s for s in specs_by_code.values()}
 
     created = 0
     updated = 0
@@ -186,7 +194,6 @@ def import_materials_from_excel(file_obj) -> dict:
         code = str(row.get('Mã NPL', '')).strip().upper()
         name = str(row.get('Tên NPL', '')).strip()
         cat_code = str(row.get('Mã nhóm', '')).strip().lower()
-        unit_code = str(row.get('Mã ĐVT', '')).strip().lower()
 
         if not code and not name:
             skipped += 1
@@ -203,12 +210,6 @@ def import_materials_from_excel(file_obj) -> dict:
         category = categories.get(cat_code)
         if not category:
             errors.append(f'Dòng {line_no} ({code}): không tìm thấy nhóm "{cat_code}".')
-            skipped += 1
-            continue
-
-        unit = units.get(unit_code)
-        if not unit:
-            errors.append(f'Dòng {line_no} ({code}): không tìm thấy ĐVT "{unit_code}".')
             skipped += 1
             continue
 
@@ -241,14 +242,17 @@ def import_materials_from_excel(file_obj) -> dict:
                 skipped += 1
                 continue
 
-        specification = None
-        spec_name = str(row.get('Quy cách', '') or '').strip()
-        if spec_name and spec_name.lower() not in ('nan', 'none'):
-            specification = specs_by_name.get(spec_name.lower()) or resolve_material_specification(spec_name)
-            if not specification:
-                errors.append(f'Dòng {line_no} ({code}): không tìm thấy quy cách "{spec_name}".')
-                skipped += 1
-                continue
+        spec_code = _parse_text(row.get('Mã quy cách')).lower()
+        legacy_spec = _parse_text(row.get('Quy cách')).lower()
+        specification = specs_by_code.get(spec_code)
+        if specification is None and legacy_spec:
+            specification = specs_by_code.get(legacy_spec) or specs_by_name.get(legacy_spec)
+        base_level = specification.levels.filter(level=1).first() if specification else None
+        if not specification or not base_level:
+            requested_spec = spec_code or legacy_spec
+            errors.append(f'Dòng {line_no} ({code}): không tìm thấy quy cách hợp lệ "{requested_spec}".')
+            skipped += 1
+            continue
 
         defaults = {
             'name': name,
@@ -256,7 +260,7 @@ def import_materials_from_excel(file_obj) -> dict:
             'category': category,
             'color': color,
             'specification': specification,
-            'unit': unit,
+            'unit': base_level.unit,
             'supplier': supplier,
             'min_stock': _parse_decimal(row.get('Tồn tối thiểu')),
             'base_price': _parse_decimal(row.get('Giá cơ bản')),
@@ -269,6 +273,19 @@ def import_materials_from_excel(file_obj) -> dict:
         if not defaults['variant_group'] or defaults['variant_group'].lower() in ('nan', 'none'):
             from kho_npl.variant_group import infer_variant_group_from_code
             defaults['variant_group'] = infer_variant_group_from_code(code)
+
+        existing = Material.objects.filter(code=code).first()
+        if existing and existing.unit_id != base_level.unit_id:
+            has_stock = (
+                existing.balances.filter(quantity__gt=0).exists()
+                or existing.batches.filter(quantity__gt=0).exists()
+            )
+            if has_stock:
+                errors.append(
+                    f'Dòng {line_no} ({code}): không thể đổi ĐVT lẻ khi NPL còn tồn.'
+                )
+                skipped += 1
+                continue
 
         material, is_new = Material.objects.update_or_create(
             code=code,

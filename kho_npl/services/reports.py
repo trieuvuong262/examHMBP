@@ -118,6 +118,9 @@ def report_issue_by_lsx_rows(date_from: date | None, date_to: date | None, lsx: 
             'Tên NPL': line.material.name,
             'Vị trí': line.location.display_label(),
             'Số lượng': float(line.quantity),
+            'ĐVT': (line.line_unit or line.material.unit).name,
+            'SL ĐVT lẻ': float(line.qty_base),
+            'ĐVT lẻ': line.material.unit.name,
         })
     return rows
 
@@ -132,8 +135,8 @@ def report_stocktake_history_rows():
     )
     for adj in qs:
         lines = list(adj.lines.all())
-        variance_total = sum((line.actual_qty - line.system_qty) for line in lines)
-        diff_count = sum(1 for line in lines if line.actual_qty != line.system_qty)
+        variance_total = sum((line.variance for line in lines), Decimal('0'))
+        diff_count = sum(1 for line in lines if line.variance != 0)
         rows.append({
             'Số phiếu': adj.number,
             'Ngày kiểm': adj.adjust_date.strftime('%d/%m/%Y'),
@@ -160,7 +163,8 @@ def stocktake_variance_detail(stocktake_id: int):
     ).select_related('material', 'location', 'stocktake'):
         if line.actual_qty is None:
             continue
-        variance = line.actual_qty - line.system_qty
+        actual_base = line.qty_base if line.qty_base is not None else line.actual_qty
+        variance = actual_base - line.system_qty
         if variance == 0:
             continue
         rows.append({
@@ -169,7 +173,7 @@ def stocktake_variance_detail(stocktake_id: int):
             'Tên NPL': line.material.name,
             'Vị trí': line.location.display_label(),
             'Tồn HT': float(line.system_qty),
-            'Tồn TT': float(line.actual_qty),
+            'Tồn TT': float(actual_base),
             'Chênh': float(variance),
         })
     return rows

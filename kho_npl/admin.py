@@ -82,7 +82,7 @@ class MaterialColorAdmin(admin.ModelAdmin):
 
 @admin.register(MaterialSpecification)
 class MaterialSpecificationAdmin(admin.ModelAdmin):
-    list_display = ('code', 'name', 'sort_order', 'is_active')
+    list_display = ('code', 'name', 'conversion_formula', 'level_count', 'sort_order', 'is_active')
     list_filter = ('is_active',)
     search_fields = ('code', 'name')
 

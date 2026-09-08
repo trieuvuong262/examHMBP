@@ -5,16 +5,17 @@ import re
 from django import forms
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
-from django.db.models import Count, Min
+from django.db import transaction
+from django.db.models import Count, Min, Q
 from django.forms import BaseInlineFormSet, inlineformset_factory
 from django.utils import timezone
-from django.utils.text import slugify
 
 from kho_npl.models import (
     Material,
     MaterialCategory,
     MaterialColor,
     MaterialSpecification,
+    MaterialSpecificationLevel,
     StockAdjustment,
     StockAdjustmentLine,
     StockDisposal,
@@ -54,6 +55,7 @@ from kho_npl.services.scrap_warehouse import (
     source_locations_qs,
 )
 from kho_npl.services.adjustments import balance_qty
+from kho_npl.services.uom import UomConversionError, apply_line_conversion, to_base
 
 User = get_user_model()
 
@@ -197,6 +199,20 @@ class MaterialColorSelect(forms.Select):
         return option
 
 
+class MaterialSpecificationSelect(forms.Select):
+    """Gắn ĐVT lẻ vào option để form NPL cập nhật ngay khi chọn quy cách."""
+
+    def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
+        option = super().create_option(name, value, label, selected, index, subindex=subindex, attrs=attrs)
+        instance = getattr(value, 'instance', None)
+        if instance is not None:
+            base = next((row for row in instance.levels.all() if row.level == 1), None)
+            if base:
+                option['attrs']['data-base-unit-id'] = base.unit_id
+                option['attrs']['data-base-unit-name'] = base.unit.name
+        return option
+
+
 class MaterialForm(forms.ModelForm):
     NEW_VARIANT_GROUP_VALUE = '__new__'
 
@@ -209,17 +225,6 @@ class MaterialForm(forms.ModelForm):
             'autocomplete': 'off',
         }),
     )
-    new_specification = forms.CharField(
-        required=False,
-        max_length=120,
-        label='Quy cách / khổ mới',
-        widget=forms.TextInput(attrs={
-            **FORM_CONTROL,
-            'placeholder': 'VD: Khổ 1m6, 2 cm, 100 gói/thùng…',
-            'autocomplete': 'off',
-        }),
-    )
-
     class Meta:
         model = Material
         fields = [
@@ -248,7 +253,9 @@ class MaterialForm(forms.ModelForm):
                 'class': 'form-select jp-npl-search-select jp-npl-color-select',
                 'data-placeholder': 'Tìm màu...',
             }),
-            'specification': forms.Select(attrs={**FORM_SEARCH_SELECT, 'data-placeholder': 'Tìm quy cách / khổ...'}),
+            'specification': MaterialSpecificationSelect(attrs={
+                **FORM_SEARCH_SELECT, 'data-placeholder': 'Tìm quy cách / khổ...',
+            }),
             'unit': forms.Select(attrs=FORM_SELECT),
             'supplier': forms.Select(attrs={**FORM_SEARCH_SELECT, 'data-placeholder': 'Tìm NCC...'}),
             'primary_location': forms.Select(attrs={
@@ -302,12 +309,20 @@ class MaterialForm(forms.ModelForm):
         self.fields['color'].label_from_instance = lambda obj: f'{color_label(obj)} ({obj.hex_code})'
         self.fields['color'].required = False
         self.fields['color'].empty_label = '—'
-        self.fields['specification'].queryset = MaterialSpecification.objects.filter(is_active=True).order_by('sort_order', 'name')
+        self.fields['specification'].queryset = (
+            MaterialSpecification.objects.filter(is_active=True, levels__level=1)
+            .prefetch_related('levels__unit').distinct().order_by('sort_order', 'name')
+        )
         self.fields['specification'].label_from_instance = spec_label
-        self.fields['specification'].required = False
-        self.fields['specification'].empty_label = '—'
+        self.fields['specification'].required = True
+        self.fields['specification'].empty_label = '— Chọn quy cách —'
         self.fields['unit'].queryset = Unit.objects.filter(is_active=True)
         self.fields['unit'].label_from_instance = unit_label
+        self.fields['unit'].required = False
+        self.fields['unit'].disabled = True
+        self.fields['unit'].help_text = 'Tự động lấy ĐVT cấp 1 (đơn vị lẻ) của quy cách.'
+        if self.instance.pk:
+            self.initial['unit'] = self.instance.unit_id
         self.fields['supplier'].queryset = Supplier.objects.filter(is_active=True).order_by('name')
         self.fields['supplier'].label_from_instance = lambda obj: (
             f'{obj.name} ({obj.code})' + (f' — {obj.phone}' if obj.phone else '')
@@ -373,27 +388,29 @@ class MaterialForm(forms.ModelForm):
             code = (cleaned_data.get('code') or getattr(self.instance, 'code', '') or '').strip()
             group = infer_variant_group_from_code(code)
         cleaned_data['variant_group'] = group
+        specification = cleaned_data.get('specification')
+        if specification:
+            base_level = specification.levels.select_related('unit').filter(level=1).first()
+            if not base_level:
+                self.add_error('specification', 'Quy cách chưa có ĐVT cấp 1.')
+            else:
+                old_unit_id = self.instance.unit_id if self.instance.pk else None
+                if old_unit_id and old_unit_id != base_level.unit_id:
+                    has_stock = (
+                        self.instance.balances.filter(quantity__gt=0).exists()
+                        or self.instance.batches.filter(quantity__gt=0).exists()
+                    )
+                    if has_stock:
+                        self.add_error(
+                            'specification',
+                            'Không thể đổi ĐVT lẻ khi NPL còn tồn hoặc còn tồn lô.',
+                        )
+                cleaned_data['unit'] = base_level.unit
         return cleaned_data
 
     def save(self, commit=True):
         material = super().save(commit=False)
-        new_spec_name = (self.cleaned_data.get('new_specification') or '').strip()
-        if new_spec_name:
-            specification = MaterialSpecification.objects.filter(name__iexact=new_spec_name).first()
-            if specification is None:
-                base_code = slugify(new_spec_name)[:40] or 'quy-cach'
-                code = base_code
-                suffix = 2
-                while MaterialSpecification.objects.filter(code=code).exists():
-                    suffix_text = f'-{suffix}'
-                    code = f'{base_code[:40 - len(suffix_text)]}{suffix_text}'
-                    suffix += 1
-                specification = MaterialSpecification.objects.create(
-                    code=code,
-                    name=new_spec_name,
-                    is_active=True,
-                )
-            material.specification = specification
+        material.unit = self.cleaned_data['unit']
 
         if commit:
             material.save()
@@ -505,10 +522,76 @@ class StockReceiptForm(DocAttachmentsFormMixin, forms.ModelForm):
         super().full_clean()
 
 
-class StockReceiptLineForm(forms.ModelForm):
+class MultiLevelUomLineFormMixin:
+    uom_qty_field = 'quantity'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if 'line_unit' not in self.fields:
+            return
+        material_id = None
+        if self.instance.pk and self.instance.material_id:
+            material_id = self.instance.material_id
+        elif self.initial.get('material'):
+            material_id = getattr(self.initial['material'], 'pk', self.initial['material'])
+        elif self.is_bound:
+            material_id = self.data.get(self.add_prefix('material'))
+        material = (
+            Material.objects.select_related('specification', 'unit').filter(pk=material_id).first()
+            if str(material_id or '').isdigit() else None
+        )
+        unit_ids = []
+        if material:
+            unit_ids = list(
+                material.specification.levels.values_list('unit_id', flat=True)
+                if material.specification_id else [material.unit_id]
+            )
+        self.fields['line_unit'].queryset = (
+            Unit.objects.filter(Q(is_active=True) | Q(pk__in=unit_ids)).distinct().order_by('name')
+        )
+        self.fields['line_unit'].label_from_instance = unit_label
+        self.fields['line_unit'].required = False
+        self.fields['line_unit'].empty_label = '— ĐVT lẻ —'
+        if material:
+            self.fields['line_unit'].queryset = Unit.objects.filter(pk__in=unit_ids).order_by('name')
+            self.initial.setdefault('line_unit', material.unit_id)
+        if self.instance.pk and self.instance.line_unit_id:
+            self.initial.setdefault('line_unit', self.instance.line_unit_id)
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get('DELETE'):
+            return cleaned
+        material = cleaned.get('material') or getattr(self.instance, 'material', None)
+        qty = cleaned.get(self.uom_qty_field)
+        if material and qty is not None:
+            unit = cleaned.get('line_unit') or material.unit
+            try:
+                cleaned['qty_base'] = to_base(material, qty, unit)
+                cleaned['line_unit'] = unit
+            except UomConversionError as exc:
+                self.add_error('line_unit', str(exc))
+        return cleaned
+
+    def save(self, commit=True):
+        line = super().save(commit=False)
+        qty = self.cleaned_data.get(self.uom_qty_field)
+        if qty is not None:
+            apply_line_conversion(line, qty)
+        else:
+            line.qty_base = None
+        if commit:
+            line.save()
+            self.save_m2m()
+        return line
+
+
+class StockReceiptLineForm(MultiLevelUomLineFormMixin, forms.ModelForm):
+    uom_qty_field = 'received_qty'
+
     class Meta:
         model = StockReceiptLine
-        fields = ['material', 'received_qty', 'location', 'unit_price', 'notes']
+        fields = ['material', 'received_qty', 'line_unit', 'location', 'unit_price', 'notes']
         widgets = {
             'material': forms.Select(attrs={
                 **FORM_SELECT,
@@ -522,6 +605,7 @@ class StockReceiptLineForm(forms.ModelForm):
                 'inputmode': 'decimal',
                 'class': 'form-control jp-npl-line-qty',
             }),
+            'line_unit': forms.Select(attrs={'class': 'form-select jp-npl-line-unit-select'}),
             'location': forms.Select(attrs=LOCATION_ROW_SELECT),
             'unit_price': forms.NumberInput(attrs={
                 **FORM_CONTROL,
@@ -791,10 +875,10 @@ StockIssueLineNotesFormSet = inlineformset_factory(
 )
 
 
-class StockIssueLineForm(forms.ModelForm):
+class StockIssueLineForm(MultiLevelUomLineFormMixin, forms.ModelForm):
     class Meta:
         model = StockIssueLine
-        fields = ['material', 'quantity', 'location', 'notes']
+        fields = ['material', 'quantity', 'line_unit', 'location', 'notes']
         widgets = {
             'material': forms.Select(attrs={
                 **FORM_SELECT,
@@ -802,6 +886,7 @@ class StockIssueLineForm(forms.ModelForm):
                 'data-placeholder': 'Gõ tên NPL...',
             }),
             'quantity': forms.NumberInput(attrs={**FORM_CONTROL, 'step': '0.001', 'min': '0.001'}),
+            'line_unit': forms.Select(attrs={'class': 'form-select jp-npl-line-unit-select'}),
             'location': forms.Select(attrs=LOCATION_ROW_SELECT),
             'notes': forms.TextInput(attrs={**FORM_CONTROL, 'class': 'form-control jp-npl-line-notes'}),
         }
@@ -838,7 +923,7 @@ class StockIssueLineForm(forms.ModelForm):
             return cleaned_data
         material = cleaned_data.get('material')
         location = cleaned_data.get('location')
-        qty = cleaned_data.get('quantity')
+        qty = cleaned_data.get('qty_base')
         if material and location and qty is not None:
             available = balance_qty(material, location)
             if qty > available:
@@ -915,10 +1000,12 @@ class StockAdjustmentForm(DocAttachmentsFormMixin, forms.ModelForm):
         self.fields['adjust_date'].input_formats = DOC_DATE_INPUT_FORMATS
 
 
-class StockAdjustmentLineForm(forms.ModelForm):
+class StockAdjustmentLineForm(MultiLevelUomLineFormMixin, forms.ModelForm):
+    uom_qty_field = 'actual_qty'
+
     class Meta:
         model = StockAdjustmentLine
-        fields = ['material', 'location', 'system_qty', 'actual_qty', 'notes']
+        fields = ['material', 'location', 'system_qty', 'actual_qty', 'line_unit', 'notes']
         widgets = {
             'material': forms.Select(attrs={
                 **FORM_SELECT,
@@ -934,6 +1021,7 @@ class StockAdjustmentLineForm(forms.ModelForm):
                 'class': 'form-control jp-npl-system-qty',
             }),
             'actual_qty': forms.NumberInput(attrs={**FORM_CONTROL, 'step': '0.001', 'min': '0'}),
+            'line_unit': forms.Select(attrs={'class': 'form-select jp-npl-line-unit-select'}),
             'notes': forms.TextInput(attrs=FORM_CONTROL),
         }
 
@@ -1058,12 +1146,15 @@ class StocktakeForm(DocAttachmentsFormMixin, forms.ModelForm):
                 self.initial.setdefault('location', default.pk)
 
 
-class StocktakeLineForm(forms.ModelForm):
+class StocktakeLineForm(MultiLevelUomLineFormMixin, forms.ModelForm):
+    uom_qty_field = 'actual_qty'
+
     class Meta:
         model = StocktakeLine
-        fields = ['actual_qty', 'notes']
+        fields = ['actual_qty', 'line_unit', 'notes']
         widgets = {
             'actual_qty': forms.NumberInput(attrs={**FORM_CONTROL, 'step': '0.001', 'min': '0'}),
+            'line_unit': forms.Select(attrs={'class': 'form-select jp-npl-line-unit-select'}),
             'notes': forms.TextInput(attrs=FORM_CONTROL),
         }
 
@@ -1152,10 +1243,10 @@ class StockTransferForm(DocAttachmentsFormMixin, forms.ModelForm):
         return cleaned
 
 
-class StockTransferLineForm(forms.ModelForm):
+class StockTransferLineForm(MultiLevelUomLineFormMixin, forms.ModelForm):
     class Meta:
         model = StockTransferLine
-        fields = ['material', 'quantity', 'notes']
+        fields = ['material', 'quantity', 'line_unit', 'notes']
         widgets = {
             'material': forms.Select(attrs={
                 **FORM_SELECT,
@@ -1168,6 +1259,7 @@ class StockTransferLineForm(forms.ModelForm):
                 'min': '0.001',
                 'inputmode': 'decimal',
             }),
+            'line_unit': forms.Select(attrs={'class': 'form-select jp-npl-line-unit-select'}),
             'notes': forms.TextInput(attrs={**FORM_CONTROL, 'class': 'form-control jp-npl-line-notes'}),
         }
 
@@ -1201,7 +1293,7 @@ class StockTransferLineForm(forms.ModelForm):
         if cleaned.get('DELETE'):
             return cleaned
         material = cleaned.get('material')
-        qty = cleaned.get('quantity')
+        qty = cleaned.get('qty_base')
         from_location_id = self._from_location_id_for_stock()
         if material and qty is not None and from_location_id.isdigit():
             location = WarehouseLocation.objects.filter(
@@ -1296,10 +1388,10 @@ class StockDisposalForm(DocAttachmentsFormMixin, forms.ModelForm):
         self.fields['disposal_date'].input_formats = DOC_DATE_INPUT_FORMATS
 
 
-class StockDisposalLineForm(forms.ModelForm):
+class StockDisposalLineForm(MultiLevelUomLineFormMixin, forms.ModelForm):
     class Meta:
         model = StockDisposalLine
-        fields = ['material', 'quantity', 'location', 'notes']
+        fields = ['material', 'quantity', 'line_unit', 'location', 'notes']
         widgets = {
             'material': forms.Select(attrs={
                 **FORM_SELECT,
@@ -1307,6 +1399,7 @@ class StockDisposalLineForm(forms.ModelForm):
                 'data-placeholder': 'Gõ tên NPL...',
             }),
             'quantity': forms.NumberInput(attrs={**FORM_CONTROL, 'step': '0.001', 'min': '0.001'}),
+            'line_unit': forms.Select(attrs={'class': 'form-select jp-npl-line-unit-select'}),
             'location': forms.Select(attrs=LOCATION_ROW_SELECT),
             'notes': forms.TextInput(attrs={**FORM_CONTROL, 'class': 'form-control jp-npl-line-notes'}),
         }
@@ -1339,7 +1432,7 @@ class StockDisposalLineForm(forms.ModelForm):
             return cleaned_data
         material = cleaned_data.get('material')
         location = cleaned_data.get('location')
-        qty = cleaned_data.get('quantity')
+        qty = cleaned_data.get('qty_base')
         if material and location and qty is not None:
             available = balance_qty(material, location)
             if qty > available:
@@ -1456,11 +1549,37 @@ class MaterialColorForm(forms.ModelForm):
 
 
 class MaterialSpecificationForm(forms.ModelForm):
+    level1_unit = forms.ModelChoiceField(
+        queryset=Unit.objects.none(),
+        label='Cấp 1 — ĐVT lẻ (BOM và tồn kho)',
+        widget=forms.Select(attrs=FORM_SELECT),
+    )
+    level2_unit = forms.ModelChoiceField(
+        queryset=Unit.objects.none(), required=False,
+        label='Cấp 2 — ĐVT chẵn',
+        widget=forms.Select(attrs=FORM_SELECT),
+    )
+    level2_qty = forms.DecimalField(
+        required=False, min_value=Decimal('0.000001'), max_digits=18, decimal_places=6,
+        label='1 ĐVT cấp 2 bằng bao nhiêu cấp 1',
+        widget=forms.NumberInput(attrs={**FORM_CONTROL, 'step': '0.000001'}),
+    )
+    level3_unit = forms.ModelChoiceField(
+        queryset=Unit.objects.none(), required=False,
+        label='Cấp 3 — ĐVT chẵn lớn nhất',
+        widget=forms.Select(attrs=FORM_SELECT),
+    )
+    level3_qty = forms.DecimalField(
+        required=False, min_value=Decimal('0.000001'), max_digits=18, decimal_places=6,
+        label='1 ĐVT cấp 3 bằng bao nhiêu cấp 2',
+        widget=forms.NumberInput(attrs={**FORM_CONTROL, 'step': '0.000001'}),
+    )
+
     class Meta:
         model = MaterialSpecification
         fields = ['code', 'name', 'sort_order', 'is_active']
         widgets = {
-            'code': forms.TextInput(attrs={**FORM_CONTROL, 'placeholder': 'kho-1m6'}),
+            'code': forms.TextInput(attrs={**FORM_CONTROL, 'placeholder': 'thung-hop-cai'}),
             'name': forms.TextInput(attrs=FORM_CONTROL),
             'sort_order': forms.NumberInput(attrs={**FORM_CONTROL, 'min': '0'}),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
@@ -1468,11 +1587,86 @@ class MaterialSpecificationForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.order_fields([
+            'code', 'name',
+            'level1_unit',
+            'level2_unit', 'level2_qty',
+            'level3_unit', 'level3_qty',
+            'sort_order', 'is_active',
+        ])
         self.fields['is_active'].required = False
+        units = Unit.objects.filter(is_active=True).order_by('name')
+        for field_name in ('level1_unit', 'level2_unit', 'level3_unit'):
+            self.fields[field_name].queryset = units
+            self.fields[field_name].label_from_instance = unit_label
+            self.fields[field_name].empty_label = '—'
+        if self.instance.pk:
+            by_level = {
+                row.level: row
+                for row in self.instance.levels.select_related('unit').all()
+            }
+            for level in (1, 2, 3):
+                row = by_level.get(level)
+                if row:
+                    self.initial[f'level{level}_unit'] = row.unit_id
+                    if level > 1:
+                        self.initial[f'level{level}_qty'] = row.qty_in_next_lower
 
     def clean_code(self):
         code = (self.cleaned_data.get('code') or '').strip().lower()
         return _clean_unique_code(MaterialSpecification, 'code', code, self.instance)
+
+    def clean(self):
+        cleaned = super().clean()
+        level1 = cleaned.get('level1_unit')
+        level2 = cleaned.get('level2_unit')
+        level3 = cleaned.get('level3_unit')
+        qty2 = cleaned.get('level2_qty')
+        qty3 = cleaned.get('level3_qty')
+        if bool(level2) != bool(qty2):
+            self.add_error('level2_qty' if level2 else 'level2_unit', 'Phải nhập đủ ĐVT và hệ số cấp 2.')
+        if bool(level3) != bool(qty3):
+            self.add_error('level3_qty' if level3 else 'level3_unit', 'Phải nhập đủ ĐVT và hệ số cấp 3.')
+        if level3 and not level2:
+            self.add_error('level3_unit', 'Phải khai cấp 2 trước cấp 3.')
+        selected = [unit.pk for unit in (level1, level2, level3) if unit]
+        if len(selected) != len(set(selected)):
+            raise ValidationError('Mỗi cấp phải dùng một ĐVT khác nhau.')
+        if self.instance.pk and level1:
+            old_base = self.instance.levels.filter(level=1).values_list('unit_id', flat=True).first()
+            if old_base and old_base != level1.pk:
+                has_stock = (
+                    self.instance.materials.filter(balances__quantity__gt=0).exists()
+                    or self.instance.materials.filter(batches__quantity__gt=0).exists()
+                )
+                if has_stock:
+                    self.add_error('level1_unit', 'Không thể đổi ĐVT lẻ khi có NPL đang còn tồn.')
+        return cleaned
+
+    def save(self, commit=True):
+        if not commit:
+            return super().save(commit=False)
+        with transaction.atomic():
+            specification = super().save(commit=True)
+            levels = [
+                (1, self.cleaned_data['level1_unit'], Decimal('1')),
+            ]
+            if self.cleaned_data.get('level2_unit'):
+                levels.append((2, self.cleaned_data['level2_unit'], self.cleaned_data['level2_qty']))
+            if self.cleaned_data.get('level3_unit'):
+                levels.append((3, self.cleaned_data['level3_unit'], self.cleaned_data['level3_qty']))
+            specification.levels.all().delete()
+            MaterialSpecificationLevel.objects.bulk_create([
+                MaterialSpecificationLevel(
+                    specification=specification,
+                    level=level,
+                    unit=unit,
+                    qty_in_next_lower=qty,
+                )
+                for level, unit, qty in levels
+            ])
+            specification.materials.update(unit=self.cleaned_data['level1_unit'])
+        return specification
 
 
 class UnitForm(forms.ModelForm):

@@ -102,7 +102,7 @@
                             <td class="fw-semibold">{{ line.material.code }}</td>
                             <td>{{ line.material.name }}</td>
                             <td class="text-end">{{ line.received_qty|npl_qty }}</td>
-                            <td>{{ line.material.unit.name }}</td>
+                            <td>{{ line.line_unit.name|default:line.material.unit.name }}</td>
                             <td class="text-end" title="{{ line.unit_price|npl_money_exact }}">{{ line.unit_price|npl_money }}</td>
                             <td class="text-end" title="{{ line.amount|npl_money_exact }}">{{ line.amount|npl_money }}</td>
                             <td>{{ line.location.name }}</td>
@@ -152,7 +152,7 @@
                         <td class="fw-semibold">{{ line.material.code }}</td>
                         <td>{{ line.material.name }}</td>
                         <td class="text-end">{{ line.received_qty|npl_qty }}</td>
-                        <td>{{ line.material.unit.name }}</td>
+                        <td>{{ line.line_unit.name|default:line.material.unit.name }}</td>
                         <td class="text-end" title="{{ line.unit_price|npl_money_exact }}">{{ line.unit_price|npl_money }}</td>
                         <td class="text-end" title="{{ line.amount|npl_money_exact }}">{{ line.amount|npl_money }}</td>
                         <td>{{ line.location.name }}</td>

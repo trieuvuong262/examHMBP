@@ -55,7 +55,7 @@
                         <td class="fw-semibold">{{ line.material.code }} <span class="text-muted fw-normal">— {{ line.material.name }}</span></td>
                         <td>{{ line.location.name }}</td>
                         <td class="text-end">{{ line.system_qty|npl_qty_with_unit:line.material.unit }}</td>
-                        <td class="text-end">{{ line.actual_qty|npl_qty_with_unit:line.material.unit }}</td>
+                        <td class="text-end">{{ line.actual_qty|npl_qty_with_unit:line.line_unit }}</td>
                         <td class="text-end fw-bold {% if line.variance > 0 %}text-success{% elif line.variance < 0 %}text-danger{% endif %}">
                             {{ line.variance|npl_qty_with_unit:line.material.unit }}
                         </td>

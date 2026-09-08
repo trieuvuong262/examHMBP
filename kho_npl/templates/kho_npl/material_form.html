@@ -121,17 +121,9 @@
                     </div>
                     <div class="col-md-4">
                         <label class="form-label fw-bold small" for="{{ form.specification.id_for_label }}">Quy cách / khổ</label>
-                        <div class="d-flex align-items-start gap-2">
-                            <div class="flex-grow-1 min-w-0">{{ form.specification }}</div>
-                            <button type="button" class="btn btn-outline-secondary btn-sm text-nowrap" id="jp-npl-new-spec-toggle">
-                                <i class="bi bi-plus-lg me-1"></i>Thêm quy cách
-                            </button>
-                        </div>
+                        {{ form.specification }}
                         {% if form.specification.errors %}<div class="text-danger small">{{ form.specification.errors }}</div>{% endif %}
-                        <div id="jp-npl-new-spec-wrap" class="mt-2" hidden>
-                            {{ form.new_specification }}
-                            {% if form.new_specification.errors %}<div class="text-danger small">{{ form.new_specification.errors }}</div>{% endif %}
-                        </div>
+                        <div class="form-text">Quy cách được khai báo tại Thiết lập → Quy cách / khổ.</div>
                     </div>
                     <div class="col-md-6">
                         <label class="form-label fw-bold small" for="{{ form.supplier.id_for_label }}">NCC chính</label>
@@ -192,21 +184,18 @@ document.addEventListener('DOMContentLoaded', function () {
         toggleNewGroup();
     }
 
-    const newSpecToggle = document.getElementById('jp-npl-new-spec-toggle');
-    const newSpecWrap = document.getElementById('jp-npl-new-spec-wrap');
-    const newSpecInput = document.getElementById('{{ form.new_specification.id_for_label }}');
-    if (newSpecToggle && newSpecWrap && newSpecInput) {
-        newSpecToggle.addEventListener('click', function () {
-            if (newSpecWrap.hidden) {
-                newSpecWrap.hidden = false;
-                newSpecInput.focus();
-            } else {
-                newSpecWrap.hidden = true;
-                newSpecInput.value = '';
-            }
-        });
-        if (newSpecInput.value) newSpecWrap.hidden = false;
+    const specSelect = document.getElementById('{{ form.specification.id_for_label }}');
+    const unitSelect = document.getElementById('{{ form.unit.id_for_label }}');
+    if (specSelect && unitSelect) {
+        function syncBaseUnit() {
+            const option = specSelect.options[specSelect.selectedIndex];
+            const unitId = option ? option.dataset.baseUnitId : '';
+            if (unitId) unitSelect.value = unitId;
+        }
+        specSelect.addEventListener('change', syncBaseUnit);
+        syncBaseUnit();
     }
+
 });
 </script>
 {% endblock %}

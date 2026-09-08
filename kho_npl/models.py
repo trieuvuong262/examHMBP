@@ -4,6 +4,7 @@ from django.conf import settings
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.core.validators import MinValueValidator
+from django.core.exceptions import ValidationError
 from django.db import models
 
 from kho_npl.choices import (
@@ -80,6 +81,79 @@ class MaterialSpecification(models.Model):
 
     def __str__(self):
         return self.name
+
+    @property
+    def level_count(self):
+        return self.levels.count()
+
+    @property
+    def conversion_formula(self):
+        levels = sorted(self.levels.all(), key=lambda row: row.level)
+        if not levels:
+            return 'Chưa thiết lập cấp ĐVT'
+        parts = [levels[0].unit.name]
+        cumulative = Decimal('1')
+        for row in levels[1:]:
+            cumulative *= row.qty_in_next_lower
+            parts.append(
+                f'1 {row.unit.name} = {row.qty_in_next_lower:g} {levels[row.level - 2].unit.name}'
+            )
+        if len(levels) == 3:
+            parts.append(f'1 {levels[-1].unit.name} = {cumulative:g} {levels[0].unit.name}')
+        return ' · '.join(parts)
+
+
+class MaterialSpecificationLevel(models.Model):
+    """Một cấp đóng gói của quy cách; cấp 1 luôn là đơn vị tồn/BOM."""
+
+    specification = models.ForeignKey(
+        MaterialSpecification,
+        on_delete=models.CASCADE,
+        related_name='levels',
+        verbose_name='Quy cách',
+    )
+    level = models.PositiveSmallIntegerField(verbose_name='Cấp')
+    unit = models.ForeignKey(
+        'Unit',
+        on_delete=models.PROTECT,
+        related_name='specification_levels',
+        verbose_name='Đơn vị tính',
+    )
+    qty_in_next_lower = models.DecimalField(
+        max_digits=18,
+        decimal_places=6,
+        default=Decimal('1'),
+        validators=[MinValueValidator(Decimal('0.000001'))],
+        verbose_name='Số lượng cấp dưới',
+        help_text='Cấp 1 luôn bằng 1. Cấp trên nhập số đơn vị của cấp ngay dưới.',
+    )
+
+    class Meta:
+        ordering = ['level']
+        verbose_name = 'Cấp quy cách NPL'
+        verbose_name_plural = 'Cấp quy cách NPL'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['specification', 'level'],
+                name='uniq_npl_spec_level',
+            ),
+            models.UniqueConstraint(
+                fields=['specification', 'unit'],
+                name='uniq_npl_spec_unit',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(level__gte=1, level__lte=3),
+                name='npl_spec_level_between_1_3',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.specification.name} — cấp {self.level}: {self.unit.name}'
+
+    def clean(self):
+        super().clean()
+        if self.level == 1 and self.qty_in_next_lower != Decimal('1'):
+            raise ValidationError({'qty_in_next_lower': 'Hệ số cấp 1 phải bằng 1.'})
 
 
 class WarehouseLocation(models.Model):
@@ -158,7 +232,7 @@ class Material(models.Model):
     )
     specification = models.ForeignKey(
         MaterialSpecification,
-        on_delete=models.SET_NULL,
+        on_delete=models.PROTECT,
         null=True,
         blank=True,
         related_name='materials',
@@ -216,6 +290,23 @@ class Material(models.Model):
     def save(self, *args, **kwargs):
         from kho_npl.variant_group import infer_variant_group_from_code, normalize_variant_group
 
+        if self.specification_id:
+            base_level = (
+                MaterialSpecificationLevel.objects
+                .filter(specification_id=self.specification_id, level=1)
+                .select_related('unit')
+                .first()
+            )
+            if base_level:
+                if self.pk and self.unit_id and self.unit_id != base_level.unit_id:
+                    has_stock = (
+                        self.balances.filter(quantity__gt=0).exists()
+                        or self.batches.filter(quantity__gt=0).exists()
+                    )
+                    if has_stock:
+                        raise ValidationError('Không thể đổi ĐVT lẻ khi NPL còn tồn.')
+                self.unit = base_level.unit
+
         # Tên NPL luôn viết hoa, dù nhập từ form, import Excel hay admin
         self.name = (self.name or '').strip().upper()
         update_fields = kwargs.get('update_fields')
@@ -252,8 +343,8 @@ class MaterialBatch(models.Model):
     )
     code = models.CharField(max_length=60, verbose_name='Mã lô')
     unit_price = models.DecimalField(
-        max_digits=14,
-        decimal_places=2,
+        max_digits=18,
+        decimal_places=6,
         default=Decimal('0'),
         validators=[MinValueValidator(Decimal('0'))],
         verbose_name='Đơn giá nhập',
@@ -406,6 +497,28 @@ class StockReceiptLine(models.Model):
         validators=[MinValueValidator(Decimal('0'))],
         verbose_name='SL nhập',
     )
+    line_unit = models.ForeignKey(
+        Unit,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='+',
+        verbose_name='ĐVT nhập',
+    )
+    uom_factor = models.DecimalField(
+        max_digits=18,
+        decimal_places=6,
+        default=Decimal('1'),
+        validators=[MinValueValidator(Decimal('0.000001'))],
+        verbose_name='Hệ số về ĐVT lẻ',
+    )
+    qty_base = models.DecimalField(
+        max_digits=18,
+        decimal_places=3,
+        default=Decimal('0'),
+        validators=[MinValueValidator(Decimal('0'))],
+        verbose_name='SL theo ĐVT lẻ',
+    )
     location = models.ForeignKey(
         WarehouseLocation,
         on_delete=models.PROTECT,
@@ -414,8 +527,8 @@ class StockReceiptLine(models.Model):
     )
     batch_code = models.CharField(max_length=60, blank=True, default='', verbose_name='Mã lô')
     unit_price = models.DecimalField(
-        max_digits=14,
-        decimal_places=2,
+        max_digits=18,
+        decimal_places=6,
         default=Decimal('0'),
         validators=[MinValueValidator(Decimal('0'))],
         verbose_name='Đơn giá nhập',
@@ -510,6 +623,19 @@ class StockIssueLine(models.Model):
         validators=[MinValueValidator(Decimal('0.001'))],
         verbose_name='Số lượng',
     )
+    line_unit = models.ForeignKey(
+        Unit, on_delete=models.PROTECT, null=True, blank=True, related_name='+', verbose_name='ĐVT xuất',
+    )
+    uom_factor = models.DecimalField(
+        max_digits=18, decimal_places=6, default=Decimal('1'),
+        validators=[MinValueValidator(Decimal('0.000001'))],
+        verbose_name='Hệ số về ĐVT lẻ',
+    )
+    qty_base = models.DecimalField(
+        max_digits=18, decimal_places=3, default=Decimal('0'),
+        validators=[MinValueValidator(Decimal('0'))],
+        verbose_name='SL theo ĐVT lẻ',
+    )
     location = models.ForeignKey(
         WarehouseLocation,
         on_delete=models.PROTECT,
@@ -525,8 +651,8 @@ class StockIssueLine(models.Model):
         verbose_name='Lô hàng',
     )
     unit_price = models.DecimalField(
-        max_digits=14,
-        decimal_places=2,
+        max_digits=18,
+        decimal_places=6,
         default=Decimal('0'),
         validators=[MinValueValidator(Decimal('0'))],
         verbose_name='Đơn giá xuất',
@@ -539,7 +665,8 @@ class StockIssueLine(models.Model):
 
     @property
     def amount(self) -> Decimal:
-        return (self.quantity or Decimal('0')) * (self.unit_price or Decimal('0'))
+        quantity = self.qty_base if self.qty_base is not None else self.quantity
+        return (quantity or Decimal('0')) * (self.unit_price or Decimal('0'))
 
 
 class StockDisposal(models.Model):
@@ -617,6 +744,19 @@ class StockDisposalLine(models.Model):
         decimal_places=3,
         validators=[MinValueValidator(Decimal('0.001'))],
         verbose_name='Số lượng',
+    )
+    line_unit = models.ForeignKey(
+        Unit, on_delete=models.PROTECT, null=True, blank=True, related_name='+', verbose_name='ĐVT hủy',
+    )
+    uom_factor = models.DecimalField(
+        max_digits=18, decimal_places=6, default=Decimal('1'),
+        validators=[MinValueValidator(Decimal('0.000001'))],
+        verbose_name='Hệ số về ĐVT lẻ',
+    )
+    qty_base = models.DecimalField(
+        max_digits=18, decimal_places=3, default=Decimal('0'),
+        validators=[MinValueValidator(Decimal('0'))],
+        verbose_name='SL theo ĐVT lẻ',
     )
     location = models.ForeignKey(
         WarehouseLocation,
@@ -721,6 +861,19 @@ class StockTransferLine(models.Model):
         validators=[MinValueValidator(Decimal('0.001'))],
         verbose_name='Số lượng',
     )
+    line_unit = models.ForeignKey(
+        Unit, on_delete=models.PROTECT, null=True, blank=True, related_name='+', verbose_name='ĐVT chuyển',
+    )
+    uom_factor = models.DecimalField(
+        max_digits=18, decimal_places=6, default=Decimal('1'),
+        validators=[MinValueValidator(Decimal('0.000001'))],
+        verbose_name='Hệ số về ĐVT lẻ',
+    )
+    qty_base = models.DecimalField(
+        max_digits=18, decimal_places=3, default=Decimal('0'),
+        validators=[MinValueValidator(Decimal('0'))],
+        verbose_name='SL theo ĐVT lẻ',
+    )
     batch = models.ForeignKey(
         MaterialBatch,
         on_delete=models.PROTECT,
@@ -799,6 +952,19 @@ class StockAdjustmentLine(models.Model):
     )
     system_qty = models.DecimalField(max_digits=14, decimal_places=3, verbose_name='Tồn hệ thống')
     actual_qty = models.DecimalField(max_digits=14, decimal_places=3, verbose_name='Tồn thực tế')
+    line_unit = models.ForeignKey(
+        Unit, on_delete=models.PROTECT, null=True, blank=True, related_name='+', verbose_name='ĐVT kiểm kê',
+    )
+    uom_factor = models.DecimalField(
+        max_digits=18, decimal_places=6, default=Decimal('1'),
+        validators=[MinValueValidator(Decimal('0.000001'))],
+        verbose_name='Hệ số về ĐVT lẻ',
+    )
+    qty_base = models.DecimalField(
+        max_digits=18, decimal_places=3, default=Decimal('0'),
+        validators=[MinValueValidator(Decimal('0'))],
+        verbose_name='Tồn thực tế theo ĐVT lẻ',
+    )
     batch = models.ForeignKey(
         MaterialBatch,
         on_delete=models.PROTECT,
@@ -821,7 +987,8 @@ class StockAdjustmentLine(models.Model):
 
     @property
     def variance(self):
-        return self.actual_qty - self.system_qty
+        actual_base = self.qty_base if self.qty_base is not None else self.actual_qty
+        return actual_base - self.system_qty
 
     def __str__(self):
         return f'{self.material.code} @ {self.location.code}'
@@ -895,6 +1062,19 @@ class StocktakeLine(models.Model):
         blank=True,
         verbose_name='Tồn thực tế',
     )
+    line_unit = models.ForeignKey(
+        Unit, on_delete=models.PROTECT, null=True, blank=True, related_name='+', verbose_name='ĐVT kiểm kê',
+    )
+    uom_factor = models.DecimalField(
+        max_digits=18, decimal_places=6, default=Decimal('1'),
+        validators=[MinValueValidator(Decimal('0.000001'))],
+        verbose_name='Hệ số về ĐVT lẻ',
+    )
+    qty_base = models.DecimalField(
+        max_digits=18, decimal_places=3, null=True, blank=True,
+        validators=[MinValueValidator(Decimal('0'))],
+        verbose_name='Tồn thực tế theo ĐVT lẻ',
+    )
     batch = models.ForeignKey(
         MaterialBatch,
         on_delete=models.PROTECT,
@@ -913,7 +1093,8 @@ class StocktakeLine(models.Model):
     def variance(self):
         if self.actual_qty is None:
             return None
-        return self.actual_qty - self.system_qty
+        actual_base = self.qty_base if self.qty_base is not None else self.actual_qty
+        return actual_base - self.system_qty
 
 
 class StockLedger(models.Model):
@@ -947,8 +1128,8 @@ class StockLedger(models.Model):
         verbose_name='Lô hàng',
     )
     unit_price = models.DecimalField(
-        max_digits=14,
-        decimal_places=2,
+        max_digits=18,
+        decimal_places=6,
         default=Decimal('0'),
         validators=[MinValueValidator(Decimal('0'))],
         verbose_name='Đơn giá',

@@ -99,7 +99,7 @@
                             <th style="min-width:220px">Nguyên phụ liệu</th>
                             <th style="width:100px" class="text-end">SL nhập</th>
                             <th style="width:72px">ĐVT</th>
-                            <th style="width:110px" class="text-end">Đơn giá</th>
+                            <th style="width:130px" class="text-end">Đơn giá / ĐVT chọn</th>
                             <th style="width:110px" class="text-end">Thành tiền</th>
                             <th>Ghi chú</th>
                             <th style="width:40px"></th>
@@ -113,7 +113,8 @@
                             <td class="jp-npl-material-cell"><div class="jp-npl-material-field">{{ line_form.material }}{% if line_form.material.errors %}<div class="text-danger small">{{ line_form.material.errors }}</div>{% endif %}</div></td>
                             <td class="text-end">{{ line_form.received_qty }}{% if line_form.received_qty.errors %}<div class="text-danger small">{{ line_form.received_qty.errors }}</div>{% endif %}</td>
                             <td class="jp-npl-line-unit-cell">
-                                <span class="jp-npl-line-unit text-muted small">{% if line_form.instance.material_id %}{{ line_form.instance.material.unit.name }}{% else %}—{% endif %}</span>
+                                {{ line_form.line_unit }}
+                                {% if line_form.line_unit.errors %}<div class="text-danger small">{{ line_form.line_unit.errors }}</div>{% endif %}
                             </td>
                             <td class="text-end">{{ line_form.unit_price }}{% if line_form.unit_price.errors %}<div class="text-danger small">{{ line_form.unit_price.errors }}</div>{% endif %}</td>
                             <td class="text-end"><span class="jp-npl-line-amount text-muted small">—</span></td>
@@ -162,7 +163,7 @@
         <td>{{ line_form.location }}</td>
         <td class="jp-npl-material-cell"><div class="jp-npl-material-field">{{ line_form.material }}</div></td>
         <td class="text-end">{{ line_form.received_qty }}</td>
-        <td class="jp-npl-line-unit-cell"><span class="jp-npl-line-unit text-muted small">—</span></td>
+        <td class="jp-npl-line-unit-cell">{{ line_form.line_unit }}</td>
         <td class="text-end">{{ line_form.unit_price }}</td>
         <td class="text-end"><span class="jp-npl-line-amount text-muted small">—</span></td>
         <td>{{ line_form.notes }}</td>

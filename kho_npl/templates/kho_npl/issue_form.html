@@ -31,6 +31,7 @@
           data-stock-target="text"
           data-validate-qty-stock="1"
           data-validate-qty-zero="1"
+          data-show-line-unit="1"
 >
         {% csrf_token %}
         {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
@@ -79,6 +80,7 @@
                             <th style="min-width:130px">Vị trí</th>
                             <th style="min-width:220px">Nguyên phụ liệu</th>
                             <th style="width:100px" class="text-end">SL xuất</th>
+                            <th style="width:100px">ĐVT</th>
                             <th style="width:100px" class="text-end">Đơn giá</th>
                             <th style="width:110px" class="text-end">Thành tiền</th>
                             <th>Ghi chú</th>
@@ -92,6 +94,7 @@
                             <td>{{ line_form.location }}{% if line_form.location.errors %}<div class="text-danger small">{{ line_form.location.errors }}</div>{% endif %}</td>
                             <td class="jp-npl-material-cell"><div class="jp-npl-material-field">{{ line_form.material }}{% if line_form.material.errors %}<div class="text-danger small">{{ line_form.material.errors }}</div>{% endif %}</div></td>
                             <td class="text-end"><span class="jp-npl-stock-qty d-none">—</span>{{ line_form.quantity }}{% if line_form.quantity.errors %}<div class="text-danger small">{{ line_form.quantity.errors }}</div>{% endif %}</td>
+                            <td class="jp-npl-line-unit-cell">{{ line_form.line_unit }}{% if line_form.line_unit.errors %}<div class="text-danger small">{{ line_form.line_unit.errors }}</div>{% endif %}</td>
                             <td class="text-end"><span class="jp-npl-unit-price-display text-muted small">—</span></td>
                             <td class="text-end"><span class="jp-npl-line-amount text-muted small">—</span></td>
                             <td>{{ line_form.notes }}</td>
@@ -137,6 +140,7 @@
         <td>{{ line_form.location }}</td>
         <td class="jp-npl-material-cell"><div class="jp-npl-material-field">{{ line_form.material }}</div></td>
         <td class="text-end"><span class="jp-npl-stock-qty d-none">—</span>{{ line_form.quantity }}</td>
+        <td class="jp-npl-line-unit-cell">{{ line_form.line_unit }}</td>
         <td class="text-end"><span class="jp-npl-unit-price-display text-muted small">—</span></td>
         <td class="text-end"><span class="jp-npl-line-amount text-muted small">—</span></td>
         <td>{{ line_form.notes }}</td>
