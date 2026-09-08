@@ -37,12 +37,38 @@
         return Math.round(n).toLocaleString('vi-VN') + 'đ';
     }
 
+    function priceInputValue(n) {
+        if (!Number.isFinite(n)) return '';
+        const nearestInteger = Math.round(n);
+        if (Math.abs(n - nearestInteger) < 0.00001) return String(nearestInteger);
+        return String(Math.round(n * 1000000) / 1000000);
+    }
+
     function rowBatchSelect(row) {
         return row?.querySelector('select.jp-npl-batch-select, select[name$="-batch"]');
     }
 
     function rowUnitPriceInput(row) {
         return row?.querySelector('input.jp-npl-unit-price, input[name$="-unit_price"]');
+    }
+
+    function selectedUnitFactor(row) {
+        const select = row?.querySelector('select.jp-npl-line-unit-select');
+        return Number(select?.options[select.selectedIndex]?.dataset.factor || 1);
+    }
+
+    function renderSelectedUnitPrice(row) {
+        const display = row?.querySelector('.jp-npl-unit-price-display');
+        if (!display) return;
+        const basePrice = parseQty(display.dataset.baseUnitPrice);
+        if (basePrice == null) {
+            display.textContent = '—';
+            delete display.dataset.unitPrice;
+            return;
+        }
+        const selectedPrice = basePrice * selectedUnitFactor(row);
+        display.textContent = formatMoney(selectedPrice);
+        display.dataset.unitPrice = String(selectedPrice);
     }
 
     function clearBatchOptions(select, keepEmpty) {
@@ -140,9 +166,9 @@
     function setUnitPriceDisplay(row, price) {
         const display = row?.querySelector('.jp-npl-unit-price-display');
         if (display) {
-            display.textContent = price == null ? '—' : formatMoney(price);
-            if (price != null) display.dataset.unitPrice = String(price);
-            else delete display.dataset.unitPrice;
+            if (price != null) display.dataset.baseUnitPrice = String(price);
+            else delete display.dataset.baseUnitPrice;
+            renderSelectedUnitPrice(row);
         }
         if (priceMode === 'input') return;
         const input = rowUnitPriceInput(row);
@@ -167,9 +193,7 @@
         const price = resolveUnitPrice(row);
         const amountEl = row.querySelector('.jp-npl-line-amount');
         let amount = null;
-        const unitSelect = row.querySelector('select.jp-npl-line-unit-select');
-        const factor = Number(unitSelect?.options[unitSelect.selectedIndex]?.dataset.factor || 1);
-        if (qty != null && price != null) amount = qty * price * (priceMode === 'input' ? 1 : factor);
+        if (qty != null && price != null) amount = qty * price;
         if (amountEl) amountEl.textContent = amount == null ? '—' : formatMoney(amount);
         updateDocTotal();
     }
@@ -185,23 +209,42 @@
             if (del && del.checked) return;
             const qty = parseQty(rowQtyInput(row)?.value);
             const price = resolveUnitPrice(row);
-            const unitSelect = row.querySelector('select.jp-npl-line-unit-select');
-            const factor = Number(unitSelect?.options[unitSelect.selectedIndex]?.dataset.factor || 1);
-            if (qty != null && price != null) sum += qty * price * (priceMode === 'input' ? 1 : factor);
+            if (qty != null && price != null) sum += qty * price;
         });
         totalEl.textContent = formatMoney(sum);
     }
 
     function suggestBasePrice(row, option) {
-        // Phiếu nhập: gợi ý đơn giá từ giá cơ bản trong danh mục nếu chưa nhập
-        if (priceMode !== 'input') return;
+        if (priceMode !== 'input') {
+            const stockPrice = option ? parseQty(option.stock_unit_price) : null;
+            setUnitPriceDisplay(row, stockPrice);
+            return;
+        }
+        // Giá danh mục lưu theo ĐVT lẻ, ô phiếu nhập hiển thị theo ĐVT chọn.
         const input = rowUnitPriceInput(row);
         if (!input) return;
         const current = parseQty(input.value);
         if (current != null && current > 0) return;
         const base = option ? parseQty(option.base_price) : null;
         if (base == null || base <= 0) return;
-        input.value = String(base);
+        input.value = priceInputValue(base * selectedUnitFactor(row));
+    }
+
+    function onLineUnitChange(row) {
+        const select = row?.querySelector('select.jp-npl-line-unit-select');
+        if (!select) return;
+        const nextFactor = selectedUnitFactor(row);
+        const previousFactor = Number(select.dataset.priceFactor || 1);
+        if (priceMode === 'input') {
+            const input = rowUnitPriceInput(row);
+            const currentPrice = parseQty(input?.value);
+            if (input && currentPrice != null && previousFactor > 0) {
+                input.value = priceInputValue(currentPrice * nextFactor / previousFactor);
+            }
+        } else {
+            renderSelectedUnitPrice(row);
+        }
+        select.dataset.priceFactor = String(nextFactor);
     }
 
     function suggestReceiptBatchCode(row) {
@@ -455,6 +498,7 @@
                 select.value = preferred;
                 select.disabled = units.length === 1;
                 select.dataset.baseUnit = (units.find(item => item.is_base) || units[0]).name || '';
+                select.dataset.priceFactor = String(selectedUnitFactor(row));
             } else if (!value) {
                 select.innerHTML = '<option value="">—</option>';
                 select.disabled = true;
@@ -524,6 +568,10 @@
                 }
                 if (showLineUnit && (data.unit_name || data.unit)) {
                     setLineUnit(row, data.unit_name || data.unit, data.units || []);
+                }
+                if (priceMode !== 'input' && data.stock_unit_price != null) {
+                    setUnitPriceDisplay(row, parseQty(data.stock_unit_price));
+                    updateLineAmount(row);
                 }
             })
             .catch(function () {
@@ -912,6 +960,9 @@
     initAllBatchSelects(body);
     initAllMaterialSelects(body);
     initAllLocationSelects(body);
+    body.querySelectorAll('select.jp-npl-line-unit-select').forEach(function (select) {
+        select.dataset.priceFactor = String(selectedUnitFactor(select.closest('tr')));
+    });
     syncTransferWarehouseLock();
 
     const qtyInputSelector = 'input[name$="-' + qtyFieldSuffix + '"]';
@@ -946,6 +997,7 @@
         }
         if (e.target.matches('select.jp-npl-line-unit-select')) {
             const row = e.target.closest('tr');
+            onLineUnitChange(row);
             updateConversionHint(row);
             validateRowQty(row, true);
             updateLineAmount(row);

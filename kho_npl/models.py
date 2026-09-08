@@ -676,6 +676,12 @@ class StockIssueLine(models.Model):
         quantity = self.qty_base if self.qty_base is not None else self.quantity
         return (quantity or Decimal('0')) * (self.unit_price or Decimal('0'))
 
+    @property
+    def selected_unit_price(self) -> Decimal:
+        """Đơn giá hiển thị theo ĐVT người dùng chọn trên dòng phiếu."""
+        factor = self.uom_factor or Decimal('1')
+        return (self.unit_price or Decimal('0')) * factor
+
 
 class StockDisposal(models.Model):
     number = models.CharField(max_length=30, unique=True, verbose_name='Mã phiếu hủy')

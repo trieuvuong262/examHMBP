@@ -30,7 +30,13 @@ from kho_npl.material_list_columns import (
     MATERIAL_LIST_SORT_FIELDS,
     MATERIAL_LIST_TOTAL_COL_WEIGHT,
 )
-from kho_npl.models import Material, MaterialCategory, StockBalance, WarehouseLocation
+from kho_npl.models import (
+    Material,
+    MaterialBatch,
+    MaterialCategory,
+    StockBalance,
+    WarehouseLocation,
+)
 from kho_npl.services.adjustments import balance_qty
 from kho_npl.catalog_labels import color_label, spec_label, unit_label
 from kho_npl.templatetags.npl_extras import format_npl_qty
@@ -165,6 +171,18 @@ def material_search(request):
                 .annotate(total=Sum('quantity'))
             ):
                 balance_map[row['material_id']] = row['total'] or Decimal('0')
+    fifo_price_by_material = {}
+    if in_stock_only and materials:
+        for batch in (
+            MaterialBatch.objects.filter(
+                material_id__in=[material.pk for material in materials],
+                is_active=True,
+                quantity__gt=0,
+            )
+            .order_by('material_id', 'received_date', 'id')
+        ):
+            fifo_price_by_material.setdefault(batch.material_id, batch.unit_price)
+
     rows = []
     for material in materials:
         if location_id is not None:
@@ -200,6 +218,10 @@ def material_search(request):
             'primary_location_id': material.primary_location_id or '',
             'image_url': image_url,
             'base_price': float(material.base_price or 0),
+            # Phiếu xuất dùng FIFO; đây là đơn giá ĐVT lẻ của lô sẽ xuất đầu tiên.
+            'stock_unit_price': float(
+                fifo_price_by_material.get(material.pk) or material.base_price or 0
+            ),
             'qty': qty_out,
             'qty_label': qty_label,
             'units': material_units(material),
@@ -223,6 +245,19 @@ def balance_lookup(request):
     except (Material.DoesNotExist, WarehouseLocation.DoesNotExist):
         return JsonResponse({'error': 'NPL hoặc vị trí không hợp lệ.'}, status=404)
     qty = balance_qty(material, location)
+    fifo_batch = (
+        MaterialBatch.objects.filter(
+            material=material,
+            is_active=True,
+            quantity__gt=0,
+        )
+        .order_by('received_date', 'id')
+        .first()
+    )
+    stock_unit_price = (
+        fifo_batch.unit_price if fifo_batch and fifo_batch.unit_price > 0
+        else material.base_price
+    )
     return JsonResponse({
         'qty': format_npl_qty(qty),
         'qty_decimal': str(qty),
@@ -231,6 +266,7 @@ def balance_lookup(request):
         'qty_label': _material_qty_label(material, qty),
         'text': _material_stock_label(material, qty),
         'name': material.name,
+        'stock_unit_price': float(stock_unit_price or 0),
         'units': material_units(material),
     })
 
