@@ -74,6 +74,18 @@ def sx_num_input(value, max_decimals=4):
     return format_sx_num_input(value, decimals)
 
 
+@register.filter(name="sx_duration")
+def sx_duration(value):
+    """Đổi tổng số giây thành chuỗi giờ/phút/giây dễ đọc."""
+    seconds = _to_decimal(value)
+    if seconds is None:
+        return "—"
+    total_seconds = max(0, int(seconds.quantize(Decimal("1"), rounding=ROUND_HALF_UP)))
+    hours, remainder = divmod(total_seconds, 3600)
+    minutes, secs = divmod(remainder, 60)
+    return f"{hours} giờ {minutes:02d} phút {secs:02d} giây"
+
+
 @register.filter(name="sx_req_star")
 def sx_req_star(bound_field):
     """Append red * when a BoundField is required (for form labels)."""

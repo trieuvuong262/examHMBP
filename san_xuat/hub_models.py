@@ -232,6 +232,11 @@ class SxSalesOrderLine(models.Model):
         return total.quantize(Decimal('0.0001'))
 
     @property
+    def routing_order_total_smv(self) -> Decimal:
+        """Tổng SMV của dòng đơn = SMV một sản phẩm × số lượng sản phẩm."""
+        return (self.routing_total_smv * (self.qty or Decimal('0'))).quantize(Decimal('0.0001'))
+
+    @property
     def routing_std_smv(self) -> Decimal:
         total = Decimal('0')
         for ln in self.routing_lines.all():

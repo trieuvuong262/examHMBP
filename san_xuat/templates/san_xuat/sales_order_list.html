@@ -1,31 +1,228 @@
 {% extends 'base.html' %}
 
 {% load sx_format %}
-{% block extra_head %}{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}{% endblock %}
+{% block extra_head %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+<style>
+  .jp-so-list {
+    --so-ink: #172033;
+    --so-muted: #687386;
+    --so-border: #e6eaf0;
+    --so-soft: #f7f9fc;
+  }
+  .jp-so-list .jp-so-hero {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    overflow: hidden;
+    padding: 1.25rem 1.4rem;
+    margin-bottom: 1rem;
+    border: 1px solid #c81e2a;
+    border-radius: 1rem;
+    background:
+      radial-gradient(circle at 88% 15%, rgba(255, 255, 255, 0.18), transparent 28%),
+      linear-gradient(135deg, #b91c2b 0%, #dc2638 58%, #ef4050 100%);
+    box-shadow: 0 10px 28px rgba(185, 28, 43, 0.2);
+  }
+  .jp-so-list .jp-so-hero-title {
+    color: #fff;
+    font-size: clamp(1.35rem, 2vw, 1.75rem);
+    letter-spacing: -0.025em;
+  }
+  .jp-so-list .jp-so-create {
+    min-height: 2.25rem;
+    padding-inline: 0.9rem;
+    color: #b91c2b;
+    border-color: #fff;
+    border-radius: 0.55rem;
+    background: #fff;
+    box-shadow: 0 5px 14px rgba(92, 12, 24, 0.2);
+  }
+  .jp-so-list .jp-so-create:hover,
+  .jp-so-list .jp-so-create:focus {
+    color: #8f1420;
+    border-color: #fff;
+    background: #fff5f6;
+  }
+  .jp-so-list .jp-so-filter-card,
+  .jp-so-list .jp-so-table-card {
+    border: 1px solid var(--so-border) !important;
+    border-radius: 0.85rem;
+    box-shadow: 0 6px 20px rgba(23, 32, 51, 0.045) !important;
+  }
+  .jp-so-list .jp-so-filter-card .form-control,
+  .jp-so-list .jp-so-filter-card .form-select {
+    min-height: 2.4rem;
+    border-color: #dce1e8;
+    border-radius: 0.55rem;
+  }
+  .jp-so-list .jp-so-filter-card .form-control:focus,
+  .jp-so-list .jp-so-filter-card .form-select:focus {
+    border-color: rgba(220, 38, 38, 0.45);
+    box-shadow: 0 0 0 0.2rem rgba(220, 38, 38, 0.08);
+  }
+  .jp-so-list .jp-so-search {
+    position: relative;
+  }
+  .jp-so-list .jp-so-search > i {
+    position: absolute;
+    left: 0.8rem;
+    bottom: 0.65rem;
+    z-index: 2;
+    color: #8a94a5;
+  }
+  .jp-so-list .jp-so-search input {
+    padding-left: 2.25rem;
+  }
+  .jp-so-list .jp-so-table {
+    min-width: 850px;
+  }
+  .jp-so-list .jp-so-table thead th {
+    padding: 0.8rem 0.9rem;
+    color: #6b7484;
+    font-size: 0.69rem;
+    font-weight: 700;
+    letter-spacing: 0.055em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    border-bottom: 1px solid var(--so-border);
+    background: var(--so-soft);
+  }
+  .jp-so-list .jp-so-table tbody td {
+    padding: 0.85rem 0.9rem;
+    color: #3f4858;
+    border-color: #edf0f4;
+  }
+  .jp-so-list .jp-so-row {
+    transition: background-color 0.14s ease, box-shadow 0.14s ease;
+  }
+  .jp-so-list .jp-so-row:hover {
+    background: #fffafa;
+    box-shadow: inset 3px 0 0 var(--hm-red, #dc2626);
+  }
+  .jp-so-list .jp-so-code {
+    color: var(--so-ink);
+    font-size: 0.86rem;
+    font-weight: 750;
+    text-decoration: none;
+  }
+  .jp-so-list .jp-so-code:hover {
+    color: var(--hm-red, #dc2626);
+  }
+  .jp-so-list .jp-so-date {
+    color: #566173;
+    white-space: nowrap;
+  }
+  .jp-so-list .jp-so-number {
+    color: var(--so-ink);
+    font-variant-numeric: tabular-nums;
+    font-weight: 650;
+  }
+  .jp-so-list .jp-so-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.3rem 0.55rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
+    border: 1px solid transparent;
+    border-radius: 999px;
+  }
+  .jp-so-list .jp-so-status::before {
+    width: 0.38rem;
+    height: 0.38rem;
+    content: "";
+    border-radius: 50%;
+    background: currentColor;
+  }
+  .jp-so-list .is-draft,
+  .jp-so-list .is-pending {
+    color: #9a6700;
+    border-color: #f5d990;
+    background: #fff8df;
+  }
+  .jp-so-list .is-confirmed,
+  .jp-so-list .is-active {
+    color: #176b45;
+    border-color: #afe0c8;
+    background: #ebf8f1;
+  }
+  .jp-so-list .is-rejected {
+    color: #b42318;
+    border-color: #f3b8b3;
+    background: #fff0ef;
+  }
+  .jp-so-list .is-neutral {
+    color: #5d6675;
+    border-color: #dbe0e7;
+    background: #f5f7f9;
+  }
+  .jp-so-list .jp-so-open {
+    color: #a4acb9;
+    transition: color 0.14s ease, transform 0.14s ease;
+  }
+  .jp-so-list .jp-so-row:hover .jp-so-open {
+    color: var(--hm-red, #dc2626);
+    transform: translateX(2px);
+  }
+  .jp-so-list .jp-so-empty {
+    padding: 3.5rem 1rem !important;
+  }
+  .jp-so-list .jp-so-empty-icon {
+    display: grid;
+    width: 3rem;
+    height: 3rem;
+    margin: 0 auto 0.75rem;
+    color: #9aa3b1;
+    font-size: 1.25rem;
+    place-items: center;
+    border-radius: 50%;
+    background: #f1f3f6;
+  }
+  @media (max-width: 767.98px) {
+    .jp-so-list .jp-so-hero {
+      padding: 1rem;
+    }
+    .jp-so-list .jp-so-filter-actions {
+      width: 100%;
+    }
+    .jp-so-list .jp-so-filter-actions .btn {
+      flex: 1 1 auto;
+    }
+  }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
-  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
+<div class="container jp-page jp-sx-page jp-so-list py-3 py-md-4 mb-5">
+  <div class="jp-so-hero jp-sx-detail-topbar w-100">
     <div class="jp-sx-detail-title">
-      <h2 class="jp-npl-mat-topbar-title w-100">Đơn đặt hàng</h2>
+      <h2 class="jp-so-hero-title fw-bold mb-0">Đơn đặt hàng</h2>
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
       {% if can_create_order %}
-      <a href="{% url 'san_xuat:sales_order_create' %}" class="btn btn-hm btn-sm fw-bold"
-         data-loading-message="Đang mở form lên đơn…">Lên đơn</a>
+      <a href="{% url 'san_xuat:sales_order_create' %}" class="btn btn-hm btn-sm fw-bold jp-so-create"
+         data-loading-message="Đang mở form lên đơn…">
+        <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Lên đơn
+      </a>
       {% endif %}
     </nav>
   </div>
 
-  <form method="get" class="card border-0 shadow-sm mb-3">
-    <div class="card-body p-3 d-flex flex-wrap gap-2 align-items-end">
-      <div class="flex-grow-1" style="min-width:200px">
-        <label class="form-label small text-muted mb-1">Tìm kiếm</label>
+  <form method="get" class="card jp-so-filter-card mb-3">
+    <div class="card-body p-3 d-flex flex-wrap gap-3 align-items-end">
+      <div class="flex-grow-1 jp-so-search" style="min-width:220px">
+        <label class="form-label small fw-semibold text-muted mb-1">Tìm kiếm</label>
+        <i class="bi bi-search" aria-hidden="true"></i>
         <input type="search" name="q" value="{{ search_query }}" class="form-control form-control-sm"
                placeholder="Mã đơn / khách hàng…" autocomplete="off">
       </div>
-      <div style="min-width:160px">
-        <label class="form-label small text-muted mb-1">Xác nhận</label>
+      <div style="min-width:180px">
+        <label class="form-label small fw-semibold text-muted mb-1">Trạng thái xác nhận</label>
         <select name="confirm" class="form-select form-select-sm">
           <option value="">Tất cả</option>
           <option value="draft" {% if confirm_filter == 'draft' %}selected{% endif %}>Chưa xác nhận</option>
@@ -33,14 +230,23 @@
           <option value="rejected" {% if confirm_filter == 'rejected' %}selected{% endif %}>Từ chối</option>
         </select>
       </div>
-      <button type="submit" class="btn btn-hm btn-sm">Lọc</button>
+      <div class="d-flex gap-2 jp-so-filter-actions">
+        {% if search_query or confirm_filter %}
+        <a href="{% url 'san_xuat:sales_order_list' %}" class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center justify-content-center">
+          <i class="bi bi-x-lg me-1" aria-hidden="true"></i>Xóa lọc
+        </a>
+        {% endif %}
+        <button type="submit" class="btn btn-hm btn-sm px-3">
+          <i class="bi bi-funnel me-1" aria-hidden="true"></i>Lọc
+        </button>
+      </div>
     </div>
   </form>
 
-  <div class="card border-0 shadow-sm">
+  <div class="card jp-so-table-card overflow-hidden">
     <div class="table-responsive">
-      <table class="table table-sm table-hover align-middle mb-0">
-        <thead class="table-light">
+      <table class="table table-hover align-middle mb-0 jp-so-table">
+        <thead>
           <tr>
             <th>Số đơn</th>
             <th>Khách hàng</th>
@@ -50,22 +256,44 @@
             <th class="text-end">SL</th>
             <th>Xác nhận</th>
             <th>TT sản xuất</th>
+            <th aria-label="Mở"></th>
           </tr>
         </thead>
         <tbody>
         {% for row in rows %}
-          <tr style="cursor:pointer" onclick="location.href='{% url 'san_xuat:sales_order_detail' row.order.pk %}'">
-            <td><strong>{{ row.order.code }}</strong></td>
-            <td class="small">{{ row.order.customer_name|default:"—" }}</td>
-            <td class="small">{{ row.order.request_date|date:"d/m/Y" }}</td>
-            <td class="small">{% if row.order.due_date %}{{ row.order.due_date|date:"d/m/Y" }}{% else %}—{% endif %}</td>
-            <td class="text-end">{{ row.line_count }}</td>
-            <td class="text-end">{{ row.total_qty|sx_num }}</td>
-            <td class="small">{{ row.order.get_confirm_status_display }}</td>
-            <td class="small">{{ row.prod_label }}</td>
+          <tr class="jp-so-row" style="cursor:pointer" onclick="location.href='{% url 'san_xuat:sales_order_detail' row.order.pk %}'">
+            <td>
+              <a href="{% url 'san_xuat:sales_order_detail' row.order.pk %}" class="jp-so-code">
+                {{ row.order.code }}
+              </a>
+            </td>
+            <td class="small fw-semibold">{{ row.order.customer_name|default:"—" }}</td>
+            <td class="small jp-so-date">{{ row.order.request_date|date:"d/m/Y" }}</td>
+            <td class="small jp-so-date">{% if row.order.due_date %}{{ row.order.due_date|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+            <td class="text-end jp-so-number">{{ row.line_count }}</td>
+            <td class="text-end jp-so-number">{{ row.total_qty|sx_num }}</td>
+            <td>
+              <span class="jp-so-status {% if row.order.confirm_status == 'confirmed' %}is-confirmed{% elif row.order.confirm_status == 'rejected' %}is-rejected{% else %}is-draft{% endif %}">
+                {{ row.order.get_confirm_status_display }}
+              </span>
+            </td>
+            <td>
+              <span class="jp-so-status {% if row.prod_status == 'dang_sx' or row.prod_status == 'hoan_thanh' %}is-active{% elif row.prod_status == 'tu_choi' %}is-rejected{% elif row.prod_status == 'chua_xac_nhan' or row.prod_status == 'chua_du_lenh' %}is-pending{% else %}is-neutral{% endif %}">
+                {{ row.prod_label }}
+              </span>
+            </td>
+            <td class="text-end"><i class="bi bi-chevron-right jp-so-open" aria-hidden="true"></i></td>
           </tr>
         {% empty %}
-          <tr><td colspan="8" class="text-muted small p-4 text-center">Chưa có đơn đặt hàng. Bấm «Thêm đơn» để tạo.</td></tr>
+          <tr>
+            <td colspan="9" class="jp-so-empty text-center">
+              <span class="jp-so-empty-icon"><i class="bi bi-inbox" aria-hidden="true"></i></span>
+              <div class="fw-semibold text-dark">Chưa có đơn đặt hàng</div>
+              <div class="small text-muted mt-1">
+                {% if search_query or confirm_filter %}Không tìm thấy đơn phù hợp với bộ lọc.{% else %}Bấm “Lên đơn” để tạo đơn đầu tiên.{% endif %}
+              </div>
+            </td>
+          </tr>
         {% endfor %}
         </tbody>
       </table>

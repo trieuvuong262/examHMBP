@@ -3,20 +3,98 @@
   <div class="card-body">
     <h6 class="fw-bold mb-3">OB</h6>
 
-    {% if routing_locked %}
-    <div class="alert alert-secondary py-2 small mb-3">Đơn đã xác nhận — snapshot công đoạn đã khóa.</div>
-    {% endif %}
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Sản phẩm</th>
+            <th class="text-end">#</th>
+            <th>Mã CĐ</th>
+            <th>Tên</th>
+            <th class="text-end">SMV sản phẩm</th>
+            <th class="text-end">SMV đơn hàng</th>
+            <th>Bộ phận</th>
+            <th class="text-end">Tổng SMV đơn hàng</th>
+            {% if can_edit_order_routing %}<th></th>{% endif %}
+          </tr>
+        </thead>
+        <tbody>
+        {% for ln in order.lines.all %}
+          {% for l in ln.routing_lines.all %}
+          <tr>
+            {% if forloop.first %}
+            <td class="small fw-semibold align-middle" rowspan="{{ ln.routing_lines.all|length }}">
+              <div class="jp-so-product">
+                {% if ln.product_image_url %}
+                <button type="button" class="sx-doc-thumb flex-shrink-0" data-sx-gallery
+                        data-sx-gallery-title="{{ ln.product_name|default:'Ảnh sản phẩm' }}"
+                        data-sx-gallery-image="{{ ln.product_image_url }}"
+                        aria-label="Phóng to ảnh {{ ln.product_name|default:'sản phẩm' }}">
+                  <img src="{{ ln.product_image_url }}" alt="" class="jp-so-product-image">
+                </button>
+                {% else %}
+                <span class="jp-so-product-image-placeholder"><i class="bi bi-image" aria-hidden="true"></i></span>
+                {% endif %}
+                <span class="jp-so-product-name">{{ ln.product_name|default:"—" }}</span>
+              </div>
+            </td>
+            {% endif %}
+            <td class="text-end text-muted">{{ l.seq_no }}</td>
+            <td class="fw-semibold">{{ l.op_code }}</td>
+            <td class="small">{{ l.op_name_vi|default:"—" }}</td>
+            <td class="text-end">{{ l.library_unit_smv|sx_num }}</td>
+            <td class="text-end fw-semibold">{{ l.applied_unit_smv|sx_num }}</td>
+            <td class="small">{% if l.work_center %}{{ l.work_center.name }}{% elif l.work_center_code %}{{ l.work_center_code }}{% else %}—{% endif %}</td>
+            {% if forloop.first %}
+            <td class="text-end fw-bold align-middle" rowspan="{{ ln.routing_lines.all|length }}">
+              <div>{{ ln.routing_order_total_smv|sx_num }}</div>
+              <div class="small text-muted fw-normal text-nowrap">
+                ({{ ln.routing_order_total_smv|sx_duration }})
+              </div>
+            </td>
+            {% endif %}
+            {% if can_edit_order_routing %}
+            <td class="text-nowrap">
+              <a href="?edit_rt={{ l.pk }}#so-line-{{ ln.pk }}" class="btn btn-sm btn-outline-secondary py-0">Sửa</a>
+              <button type="submit" form="del-so-rt-{{ l.pk }}" class="btn btn-sm btn-outline-danger py-0"
+                      onclick="return confirm('Xóa công đoạn {{ l.op_code }} trên đơn?');">Xóa</button>
+            </td>
+            {% endif %}
+          </tr>
+          {% empty %}
+          <tr>
+            <td class="small fw-semibold">
+              <div class="jp-so-product">
+                {% if ln.product_image_url %}
+                <button type="button" class="sx-doc-thumb flex-shrink-0" data-sx-gallery
+                        data-sx-gallery-title="{{ ln.product_name|default:'Ảnh sản phẩm' }}"
+                        data-sx-gallery-image="{{ ln.product_image_url }}"
+                        aria-label="Phóng to ảnh {{ ln.product_name|default:'sản phẩm' }}">
+                  <img src="{{ ln.product_image_url }}" alt="" class="jp-so-product-image">
+                </button>
+                {% else %}
+                <span class="jp-so-product-image-placeholder"><i class="bi bi-image" aria-hidden="true"></i></span>
+                {% endif %}
+                <span class="jp-so-product-name">{{ ln.product_name|default:"—" }}</span>
+              </div>
+            </td>
+            <td colspan="6" class="text-muted small text-center py-2">Chưa có công đoạn trên đơn.</td>
+            <td class="text-end text-muted">—</td>
+            {% if can_edit_order_routing %}<td></td>{% endif %}
+          </tr>
+          {% endfor %}
+        {% empty %}
+          <tr>
+            <td colspan="{% if can_edit_order_routing %}9{% else %}8{% endif %}" class="text-muted small text-center py-3">Chưa có dòng sản phẩm.</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
 
+    {% if can_attach_routing or can_edit_order_routing %}
     {% for ln in order.lines.all %}
-    <div class="border rounded mb-3 p-3" id="so-line-{{ ln.pk }}">
-      <div class="d-flex flex-wrap align-items-baseline justify-content-between gap-2 mb-2">
-        <div>
-          <strong>{{ ln.product_code }}</strong>
-          <span class="text-muted small ms-1">{{ ln.product_name|default:"" }}</span>
-          <span class="badge bg-light text-dark border ms-1">SL</span>
-        </div>
-      </div>
-
+    <div class="border rounded mt-3 p-3" id="so-line-{{ ln.pk }}">
       {% if not ln.routing_id and can_attach_routing %}
       <form method="post" class="row g-2 align-items-end mb-2">
         {% csrf_token %}
@@ -74,57 +152,6 @@
       </form>
       <p class="small text-muted mb-2">SMV sản phẩm không đổi. % lệch nhân đều mọi công đoạn của đơn này — sửa từng CĐ bên dưới nếu cần.</p>
       {% endif %}
-
-      <div class="table-responsive mt-2">
-        <table class="table table-sm align-middle mb-0">
-          <thead class="table-light">
-            <tr>
-              <th class="text-end">#</th>
-              <th>Mã CĐ</th>
-              <th>Tên</th>
-              <th class="text-end">SL/SP</th>
-              <th class="text-end">SMV sản phẩm</th>
-              <th class="text-end">SMV đơn hàng</th>
-              <th>Mô tả</th>
-              <th class="text-end">Tổng SMV</th>
-              <th class="text-end" title="Sau CĐ này, trước CĐ sau">Kiểm đếm (phút)</th>
-              <th class="text-end" title="Chuyển hàng sang CĐ sau">Vận chuyển (phút)</th>
-              <th class="text-end">% lệch</th>
-              <th>Bộ phận</th>
-              <th>Giải trình</th>
-              {% if can_edit_order_routing %}<th></th>{% endif %}
-            </tr>
-          </thead>
-          <tbody>
-          {% for l in ln.routing_lines.all %}
-            <tr{% if l.is_high_variance %} class="table-danger"{% endif %}>
-              <td class="text-end text-muted">{{ l.seq_no }}</td>
-              <td class="fw-semibold">{{ l.op_code }}</td>
-              <td class="small">{{ l.op_name_vi|default:"—" }}</td>
-              <td class="text-end">{{ l.qty_per_garment|sx_num }}</td>
-              <td class="text-end">{{ l.library_unit_smv|sx_num }}</td>
-              <td class="text-end fw-semibold">{{ l.applied_unit_smv|sx_num }}</td>
-              <td class="small">{{ l.notes|default:"—" }}</td>
-              <td class="text-end">{{ l.total_operation_smv|sx_num }}</td>
-              <td class="text-end">{{ l.count_minutes|sx_num }}</td>
-              <td class="text-end">{{ l.transfer_minutes|sx_num }}</td>
-              <td class="text-end {% if l.is_high_variance %}text-danger{% endif %}">{{ l.smv_variance_pct|sx_num:1 }}</td>
-              <td class="small">{% if l.work_center %}{{ l.work_center.name }}{% elif l.work_center_code %}{{ l.work_center_code }}{% else %}—{% endif %}</td>
-              <td class="small">{{ l.variance_explanation|default:"—"|truncatechars:40 }}</td>
-              {% if can_edit_order_routing %}
-              <td class="text-nowrap">
-                <a href="?edit_rt={{ l.pk }}#so-line-{{ ln.pk }}" class="btn btn-sm btn-outline-secondary py-0">Sửa</a>
-                <button type="submit" form="del-so-rt-{{ l.pk }}" class="btn btn-sm btn-outline-danger py-0"
-                        onclick="return confirm('Xóa công đoạn {{ l.op_code }} trên đơn?');">Xóa</button>
-              </td>
-              {% endif %}
-            </tr>
-          {% empty %}
-            <tr><td colspan="{% if can_edit_order_routing %}14{% else %}13{% endif %}" class="text-muted small text-center py-2">Chưa có công đoạn trên đơn.</td></tr>
-          {% endfor %}
-          </tbody>
-        </table>
-      </div>
 
       {% if can_edit_order_routing %}
       {% for l in ln.routing_lines.all %}
@@ -267,8 +294,7 @@
       {% endif %}
       {% endif %}
     </div>
-    {% empty %}
-    <p class="text-muted small mb-0">Chưa có dòng sản phẩm.</p>
     {% endfor %}
+    {% endif %}
   </div>
 </div>

@@ -937,8 +937,11 @@ def sales_order_detail(request, pk: int):
 
     from san_xuat.services.bom_need import explode_for_sales_line
     from san_xuat.services.order_routing import routings_for_product
+    from san_xuat.services.products import resolve_product_ref
 
     for ln in order.lines.all():
+        product_ref = resolve_product_ref(ln.product_code)
+        ln.product_image_url = product_ref.image_url if product_ref else ''
         ln.available_routings = routings_for_product(ln.product_code) if not ln.routing_id else []
         ln.npl_needs = explode_for_sales_line(ln)
 
