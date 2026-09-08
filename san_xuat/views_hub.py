@@ -486,10 +486,6 @@ def sales_order_list(request):
         return handle_menu_access_denied(request, MODULE_SAN_XUAT, 'orders')
 
     from san_xuat.hub_models import SxSalesOrder
-    from san_xuat.services.sales_orders import (
-        PROD_STATUS_LABELS,
-        production_status_summary,
-    )
 
     q = (request.GET.get('q') or '').strip()
     confirm = (request.GET.get('confirm') or '').strip()
@@ -511,13 +507,10 @@ def sales_order_list(request):
     orders = list(qs.order_by('-request_date', '-id')[:300])
     rows = []
     for o in orders:
-        st = production_status_summary(o)
         rows.append({
             'order': o,
             'line_count': o.lines.count(),
             'total_qty': sum((ln.qty for ln in o.lines.all()), start=Decimal('0')),
-            'prod_status': st,
-            'prod_label': PROD_STATUS_LABELS.get(st, st),
         })
 
     can_create_order = user_can_create_menu(
