@@ -269,8 +269,8 @@ class Material(models.Model):
         verbose_name='Tồn tối thiểu',
     )
     base_price = models.DecimalField(
-        max_digits=14,
-        decimal_places=2,
+        max_digits=18,
+        decimal_places=6,
         default=Decimal('0'),
         validators=[MinValueValidator(Decimal('0'))],
         verbose_name='Giá cơ bản',
@@ -328,6 +328,14 @@ class Material(models.Model):
 
     def __str__(self):
         return f'{self.code} — {self.name}'
+
+    @property
+    def package_unit(self):
+        """Đơn vị chẵn lớn nhất; None nếu quy cách chỉ có ĐVT lẻ."""
+        if not self.specification_id:
+            return None
+        levels = sorted(self.specification.levels.all(), key=lambda row: row.level)
+        return levels[-1].unit if len(levels) > 1 else None
 
 
 class MaterialBatch(models.Model):

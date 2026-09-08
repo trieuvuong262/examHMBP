@@ -253,7 +253,11 @@ def _material_catalog_qs(request):
     search_query = get_search_query(request)
     category_parent_id, category_ids = parse_category_cascade_filter(request)
     show_inactive = request.GET.get('inactive') == '1'
-    qs = Material.objects.select_related('category', 'unit', 'supplier', 'color', 'specification', 'primary_location')
+    qs = (
+        Material.objects
+        .select_related('category', 'unit', 'supplier', 'color', 'specification', 'primary_location')
+        .prefetch_related('specification__levels__unit')
+    )
     if not show_inactive:
         qs = qs.filter(is_active=True)
     category_q = resolve_category_filter_q(category_parent_id, category_ids)
@@ -302,7 +306,11 @@ def material_list(request):
     search_query = get_search_query(request)
     category_ids = parse_int_ids(request, 'category')
     status = _material_list_status(request)
-    qs = Material.objects.select_related('category', 'unit', 'supplier', 'color', 'specification', 'primary_location')
+    qs = (
+        Material.objects
+        .select_related('category', 'unit', 'supplier', 'color', 'specification', 'primary_location')
+        .prefetch_related('specification__levels__unit')
+    )
     qs = _apply_material_usage_status(qs, status)
     if category_ids:
         qs = qs.filter(category_filter_q(category_ids))

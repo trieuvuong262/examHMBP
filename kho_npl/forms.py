@@ -206,10 +206,12 @@ class MaterialSpecificationSelect(forms.Select):
         option = super().create_option(name, value, label, selected, index, subindex=subindex, attrs=attrs)
         instance = getattr(value, 'instance', None)
         if instance is not None:
-            base = next((row for row in instance.levels.all() if row.level == 1), None)
+            levels = sorted(instance.levels.all(), key=lambda row: row.level)
+            base = next((row for row in levels if row.level == 1), None)
             if base:
                 option['attrs']['data-base-unit-id'] = base.unit_id
                 option['attrs']['data-base-unit-name'] = base.unit.name
+                option['attrs']['data-package-unit-name'] = levels[-1].unit.name if len(levels) > 1 else ''
         return option
 
 

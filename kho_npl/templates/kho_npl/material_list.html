@@ -124,7 +124,7 @@
                         <td class="npl-col" data-col="specification">
                             {% if group.can_expand %}<span class="text-muted">—</span>{% else %}{% include 'kho_npl/includes/material_spec_display.html' with spec=material.specification %}{% endif %}
                         </td>
-                        <td class="npl-col" data-col="unit">{{ group.unit|npl_unit }}</td>
+                        <td class="npl-col" data-col="unit">{{ group.package_unit_label|default:'—' }}</td>
                         <td class="npl-col" data-col="supplier" title="{{ group.supplier.name|default:'—' }}">{{ group.supplier.name|default:'—' }}</td>
                         <td class="npl-col" data-col="primary_location" title="{{ group.primary_location|default:'—' }}">{{ group.primary_location|default:'—' }}</td>
                         <td class="text-end npl-col jp-mat-code" data-col="min_stock">{{ group.min_stock|npl_qty_with_unit:group.unit }}</td>
@@ -164,7 +164,7 @@
                         <td class="npl-col" data-col="category" title="{{ material.category.name }}">{{ material.category.name }}</td>
                         <td class="npl-col" data-col="color">{% include 'kho_npl/includes/material_color_chip.html' with color=material.color %}</td>
                         <td class="npl-col" data-col="specification" title="{% if material.specification %}{{ material.specification|npl_spec }}{% endif %}">{% include 'kho_npl/includes/material_spec_display.html' with spec=material.specification %}</td>
-                        <td class="npl-col" data-col="unit">{{ material.unit|npl_unit }}</td>
+                        <td class="npl-col" data-col="unit">{{ material.package_unit.name|default:'—' }}</td>
                         <td class="npl-col" data-col="supplier" title="{{ material.supplier.name|default:'—' }}">{{ material.supplier.name|default:'—' }}</td>
                         <td class="npl-col" data-col="primary_location" title="{% if material.primary_location %}{{ material.primary_location }}{% endif %}">{% if material.primary_location %}{{ material.primary_location }}{% else %}—{% endif %}</td>
                         <td class="text-end npl-col jp-mat-code" data-col="min_stock">{{ material.min_stock|npl_qty_with_unit:material.unit }}</td>

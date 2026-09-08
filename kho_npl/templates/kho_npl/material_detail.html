@@ -51,7 +51,8 @@
                         <span class="badge text-bg-secondary">Ngừng dùng</span>
                         {% endif %}
                         <span class="jp-npl-mat-detail-pill">
-                            <i class="bi bi-rulers" aria-hidden="true"></i>{{ material.unit.name }}
+                            <i class="bi bi-rulers" aria-hidden="true"></i>
+                            Lẻ: {{ material.unit.name }}{% if material.package_unit %} · Chẵn: {{ material.package_unit.name }}{% endif %}
                         </span>
                         {% if material.color %}
                         <span class="jp-npl-mat-detail-pill">
@@ -97,8 +98,12 @@
                         <span class="jp-npl-mat-detail-value">{% include 'kho_npl/includes/material_color_chip.html' with color=material.color %}</span>
                     </div>
                     <div class="jp-npl-mat-detail-item">
-                        <span class="jp-npl-mat-detail-label">Đơn vị tính</span>
+                        <span class="jp-npl-mat-detail-label">ĐVT lẻ (BOM/tồn)</span>
                         <span class="jp-npl-mat-detail-value">{{ material.unit.name }}</span>
+                    </div>
+                    <div class="jp-npl-mat-detail-item">
+                        <span class="jp-npl-mat-detail-label">Đơn vị chẵn</span>
+                        <span class="jp-npl-mat-detail-value">{{ material.package_unit.name|default:'—' }}</span>
                     </div>
                     <div class="jp-npl-mat-detail-item">
                         <span class="jp-npl-mat-detail-label">Quy cách</span>

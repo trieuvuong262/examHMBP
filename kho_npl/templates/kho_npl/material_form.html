@@ -55,7 +55,7 @@
                         {% if form.category.errors %}<div class="text-danger small">{{ form.category.errors }}</div>{% endif %}
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label fw-bold small" for="{{ form.unit.id_for_label }}">Đơn vị tính</label>
+                        <label class="form-label fw-bold small" for="{{ form.unit.id_for_label }}">ĐVT lẻ (BOM và tồn)</label>
                         {{ form.unit }}
                         {% if form.unit.errors %}<div class="text-danger small">{{ form.unit.errors }}</div>{% endif %}
                     </div>
@@ -123,7 +123,10 @@
                         <label class="form-label fw-bold small" for="{{ form.specification.id_for_label }}">Quy cách / khổ</label>
                         {{ form.specification }}
                         {% if form.specification.errors %}<div class="text-danger small">{{ form.specification.errors }}</div>{% endif %}
-                        <div class="form-text">Quy cách được khai báo tại Thiết lập → Quy cách / khổ.</div>
+                        <div class="form-text">
+                            Quy cách được khai báo tại Thiết lập → Quy cách / khổ.
+                            Đơn vị chẵn: <strong id="jp-package-unit-name">—</strong>
+                        </div>
                     </div>
                     <div class="col-md-6">
                         <label class="form-label fw-bold small" for="{{ form.supplier.id_for_label }}">NCC chính</label>
@@ -186,11 +189,15 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const specSelect = document.getElementById('{{ form.specification.id_for_label }}');
     const unitSelect = document.getElementById('{{ form.unit.id_for_label }}');
+    const packageUnitName = document.getElementById('jp-package-unit-name');
     if (specSelect && unitSelect) {
         function syncBaseUnit() {
             const option = specSelect.options[specSelect.selectedIndex];
             const unitId = option ? option.dataset.baseUnitId : '';
             if (unitId) unitSelect.value = unitId;
+            if (packageUnitName) {
+                packageUnitName.textContent = (option && option.dataset.packageUnitName) || '—';
+            }
         }
         specSelect.addEventListener('change', syncBaseUnit);
         syncBaseUnit();

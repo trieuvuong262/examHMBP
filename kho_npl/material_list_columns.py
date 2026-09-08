@@ -8,7 +8,7 @@ MATERIAL_LIST_COLUMNS = [
     {'key': 'category', 'label': 'Nhóm', 'default': True, 'required': False, 'weight': 120},
     {'key': 'color', 'label': 'Màu', 'default': True, 'required': False, 'weight': 100},
     {'key': 'specification', 'label': 'Quy cách', 'default': True, 'required': False, 'weight': 100},
-    {'key': 'unit', 'label': 'ĐVT', 'default': True, 'required': False, 'weight': 50},
+    {'key': 'unit', 'label': 'Đơn vị chẵn', 'default': True, 'required': False, 'weight': 70},
     {'key': 'supplier', 'label': 'NCC', 'default': True, 'required': False, 'weight': 150},
     {'key': 'primary_location', 'label': 'Vị trí mặc định', 'default': True, 'required': False, 'weight': 120},
     {'key': 'min_stock', 'label': 'Tối thiểu', 'default': True, 'required': False, 'weight': 50},

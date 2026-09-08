@@ -835,8 +835,8 @@ class SxPurchaseOrderLine(models.Model):
     qty_ordered = models.DecimalField(max_digits=14, decimal_places=4, default=Decimal('0'))
     qty_received = models.DecimalField(max_digits=14, decimal_places=4, default=Decimal('0'))
     unit_price = models.DecimalField(
-        max_digits=14,
-        decimal_places=2,
+        max_digits=18,
+        decimal_places=6,
         default=Decimal('0'),
         validators=[MinValueValidator(Decimal('0'))],
         verbose_name='Đơn giá mua',
