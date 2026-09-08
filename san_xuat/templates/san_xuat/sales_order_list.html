@@ -10,42 +10,6 @@
     --so-border: #e6eaf0;
     --so-soft: #f7f9fc;
   }
-  .jp-so-list .jp-so-hero {
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    overflow: hidden;
-    padding: 1.25rem 1.4rem;
-    margin-bottom: 1rem;
-    border: 1px solid #c81e2a;
-    border-radius: 1rem;
-    background:
-      radial-gradient(circle at 88% 15%, rgba(255, 255, 255, 0.18), transparent 28%),
-      linear-gradient(135deg, #b91c2b 0%, #dc2638 58%, #ef4050 100%);
-    box-shadow: 0 10px 28px rgba(185, 28, 43, 0.2);
-  }
-  .jp-so-list .jp-so-hero-title {
-    color: #fff;
-    font-size: clamp(1.35rem, 2vw, 1.75rem);
-    letter-spacing: -0.025em;
-  }
-  .jp-so-list .jp-so-create {
-    min-height: 2.25rem;
-    padding-inline: 0.9rem;
-    color: #b91c2b;
-    border-color: #fff;
-    border-radius: 0.55rem;
-    background: #fff;
-    box-shadow: 0 5px 14px rgba(92, 12, 24, 0.2);
-  }
-  .jp-so-list .jp-so-create:hover,
-  .jp-so-list .jp-so-create:focus {
-    color: #8f1420;
-    border-color: #fff;
-    background: #fff5f6;
-  }
   .jp-so-list .jp-so-filter-card,
   .jp-so-list .jp-so-table-card {
     border: 1px solid var(--so-border) !important;
@@ -184,9 +148,6 @@
     background: #f1f3f6;
   }
   @media (max-width: 767.98px) {
-    .jp-so-list .jp-so-hero {
-      padding: 1rem;
-    }
     .jp-so-list .jp-so-filter-actions {
       width: 100%;
     }
@@ -199,13 +160,13 @@
 
 {% block content %}
 <div class="container jp-page jp-sx-page jp-so-list py-3 py-md-4 mb-5">
-  <div class="jp-so-hero jp-sx-detail-topbar w-100">
+  <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
     <div class="jp-sx-detail-title">
-      <h2 class="jp-so-hero-title fw-bold mb-0">Đơn đặt hàng</h2>
+      <h2 class="jp-npl-mat-topbar-title w-100">Đơn đặt hàng</h2>
     </div>
     <nav class="jp-sx-tools" aria-label="Công cụ">
       {% if can_create_order %}
-      <a href="{% url 'san_xuat:sales_order_create' %}" class="btn btn-hm btn-sm fw-bold jp-so-create"
+      <a href="{% url 'san_xuat:sales_order_create' %}" class="btn btn-hm btn-sm fw-bold"
          data-loading-message="Đang mở form lên đơn…">
         <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Lên đơn
       </a>
