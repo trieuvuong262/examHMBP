@@ -514,12 +514,6 @@
   }
   .jp-pb-empty a { font-weight: 700; }
   .jp-pb-hold-note { margin: 0.55rem 0 0; font-size: 0.78rem; color: var(--pb-muted); }
-  .jp-pb-release-warn {
-    margin: 0.55rem 0 0;
-    font-size: 0.78rem;
-    font-weight: 600;
-    color: #b45309;
-  }
   .jp-pb-attach {
     margin: 0.55rem 0.75rem 0.7rem;
     padding: 0.65rem 0.75rem;
@@ -812,12 +806,6 @@
         </div>
         {% else %}
         {% include 'san_xuat/includes/plan_board_flow.html' with flow_groups=row.flow_groups %}
-        {% endif %}
-        {% if row.missing_bom or row.missing_ops %}
-        <p class="jp-pb-release-warn">
-          Chưa gắn {% if row.missing_bom %}BOM{% endif %}{% if row.missing_bom and row.missing_ops %} và {% endif %}{% if row.missing_ops %}công đoạn{% endif %}
-          trên KHSX — gắn trên ticket này rồi mới Chuyển SX.
-        </p>
         {% endif %}
         {% if row.order.plan_hold_reason %}
         <p class="jp-pb-hold-note">Giữ: {{ row.order.plan_hold_reason }}</p>
