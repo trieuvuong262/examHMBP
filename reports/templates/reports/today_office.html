@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block extra_head %}
-<link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260706b">
+<link rel="stylesheet" href="{% static 'css/reports-office.css' %}?v=20260908a">
 {% endblock %}
 
 {% block content %}
@@ -109,6 +109,11 @@
         </div>
         {% endif %}
     </form>
+    {% if can_edit %}
+    <form method="post" id="office-attachment-delete-form" class="d-none">
+        {% csrf_token %}
+    </form>
+    {% endif %}
 </div>
 {% include 'reports/includes/report_submit_loading.html' %}
 {% endblock %}

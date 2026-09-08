@@ -7,10 +7,19 @@
                 <div class="jp-weekly-existing mb-2">
                     <div class="small fw-bold text-muted mb-1">File đã tải</div>
                     {% for att in files %}
-                    <label class="jp-weekly-existing-item">
-                        <input type="checkbox" name="delete_attachments" value="{{ att.pk }}" class="form-check-input">
-                        <a href="{{ att.file_url }}" target="_blank" rel="noopener" class="text-decoration-none">{{ att.display_name }}</a>
-                    </label>
+                    <div class="jp-weekly-existing-item">
+                        <a href="{{ att.file_url }}" target="_blank" rel="noopener"
+                           class="text-decoration-none flex-grow-1 text-break">{{ att.display_name }}</a>
+                        {% if can_edit %}
+                        <button type="submit"
+                                form="office-attachment-delete-form"
+                                formaction="{% url 'reports:daily_attachment_delete' att.pk %}"
+                                class="btn btn-sm btn-outline-danger flex-shrink-0"
+                                onclick="return confirm('Xóa file “{{ att.display_name|escapejs }}”?');">
+                            <i class="bi bi-trash me-1"></i>Xóa
+                        </button>
+                        {% endif %}
+                    </div>
                     {% endfor %}
                 </div>
                 {% endif %}
@@ -30,10 +39,15 @@
                                 <a href="{{ att.file_url }}" target="_blank" rel="noopener">
                                     <img src="{{ att.file_url }}" alt="{{ att.display_name }}" loading="lazy">
                                 </a>
-                                <label class="jp-weekly-thumb-delete">
-                                    <input type="checkbox" name="delete_attachments" value="{{ att.pk }}" class="form-check-input">
-                                    <span>Xóa</span>
-                                </label>
+                                {% if can_edit %}
+                                <button type="submit"
+                                        form="office-attachment-delete-form"
+                                        formaction="{% url 'reports:daily_attachment_delete' att.pk %}"
+                                        class="jp-weekly-thumb-delete jp-office-attachment-delete"
+                                        onclick="return confirm('Xóa ảnh “{{ att.display_name|escapejs }}”?');">
+                                    <i class="bi bi-trash"></i><span>Xóa</span>
+                                </button>
+                                {% endif %}
                             </div>
                         </div>
                         {% endfor %}

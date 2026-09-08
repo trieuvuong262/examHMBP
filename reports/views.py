@@ -607,6 +607,11 @@ def _delete_daily_attachments(report, attachment_ids):
     return count
 
 
+def _office_today_redirect(report):
+    query = urlencode(period_query_param(report.report_period, report.report_date))
+    return redirect(f'{reverse("reports:today_vp")}?{query}')
+
+
 def _weekly_context_common(request, week_start, *, report_profile: str):
     prev_week = week_start - timedelta(days=7)
     ctx = page_tools_context_for_profile(
@@ -3389,6 +3394,32 @@ def daily_attachment_preview(request, pk):
     if not path:
         raise Http404
     return serve_preview_response(path, att.display_name)
+
+
+@_reports_access_required
+@require_POST
+def daily_attachment_delete(request, pk):
+    att = get_object_or_404(
+        DailyWorkReportAttachment.objects.select_related('report__employee'),
+        pk=pk,
+        report__report_profile=REPORT_PROFILE_OFFICE,
+    )
+    report = att.report
+    can_submit = can_submit_daily_report(request.user)
+    if not can_edit_own_daily_report(request.user, report, can_submit=can_submit):
+        messages.error(request, report_edit_denied_message(report))
+        return _office_today_redirect(report)
+
+    display_name = att.display_name
+    try:
+        deleted = _delete_daily_attachments(report, [att.pk])
+    except OSError:
+        logger.exception('Daily report attachment delete failed: %s', att.pk)
+        messages.error(request, f'Không xóa được file “{display_name}”. Vui lòng thử lại.')
+    else:
+        if deleted:
+            messages.success(request, f'Đã xóa file “{display_name}”.')
+    return _office_today_redirect(report)
 
 
 @_reports_access_required

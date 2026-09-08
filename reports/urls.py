@@ -52,6 +52,7 @@ urlpatterns = [
     path('vp/<int:pk>/export/', views.report_detail_export_vp, name='detail_export_vp'),
     path('vp/<int:pk>/lich-su/', views.report_edit_history_vp, name='detail_vp_changelog'),
     path('vp/<int:pk>/', views.report_detail_vp, name='detail_vp'),
+    path('vp/file/<int:pk>/delete/', views.daily_attachment_delete, name='daily_attachment_delete'),
     path('vp/file/<int:pk>/', views.daily_attachment_serve, name='daily_attachment'),
     path('vp/file/<int:pk>/preview/', views.daily_attachment_preview, name='daily_attachment_preview'),
     path('doc-image/<int:report_pk>/<path:relpath>', views.document_image_serve, name='document_image'),

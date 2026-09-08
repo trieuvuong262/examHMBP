@@ -545,6 +545,18 @@
     cursor: pointer;
 }
 
+.jp-office-attachment-delete {
+    width: 100%;
+    justify-content: center;
+    color: #dc2626;
+    border: 0;
+    border-top: 1px solid #e8edf3;
+}
+
+.jp-office-attachment-delete:hover {
+    background: #fef2f2;
+}
+
 .jp-week-range-badge {
     display: inline-flex;
     align-items: center;
