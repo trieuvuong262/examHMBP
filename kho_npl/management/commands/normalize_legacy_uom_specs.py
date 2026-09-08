@@ -38,6 +38,9 @@ UNIT_NAMES = {
     'soi': 'Sợi',
     'to': 'Tờ',
     'bo': 'Bộ',
+    'can': 'Can',
+    'lit': 'Lít',
+    'thung': 'Thùng',
 }
 
 
@@ -66,6 +69,10 @@ def infer_levels(name, current_unit_code=''):
 
     direct_patterns = (
         (r'1cuộn=(\d+(?:[.,]\d+)?)c', 'cai', 'cuon'),
+        (r'1cuộn=(\d+(?:[.,]\d+)?)m$', 'met', 'cuon'),
+        (r'1cây=(\d+(?:[.,]\d+)?)tờ$', 'to', 'cay'),
+        (r'1thùng=(\d+(?:[.,]\d+)?)(?:cái|c)$', 'cai', 'thung'),
+        (r'1can=(\d+(?:[.,]\d+)?)lít$', 'lit', 'can'),
         (r'1gói=(\d+(?:[.,]\d+)?)cái', 'cai', 'goi'),
         (r'1hộp=(\d+(?:[.,]\d+)?)c', 'cai', 'hop'),
         (r'1kg=(\d+(?:[.,]\d+)?)cái', 'cai', 'kg'),
