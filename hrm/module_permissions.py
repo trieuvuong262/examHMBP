@@ -239,10 +239,18 @@ def bypass_department_modules(user) -> bool:
 
 
 def get_user_department(user):
+    """Phòng ban của user — memo hoá theo request.
+
+    ``profile.department`` là FK nên chỉ cache trên đúng instance Profile đó;
+    nhiều nhánh code lấy Profile mới nên vẫn query lại bảng phòng ban.
+    """
     profile = get_profile(user)
     if not profile:
         return None
-    return profile.department
+
+    from hrm.request_cache import get_or_set
+
+    return get_or_set(('user_dept', profile.pk), lambda: profile.department)
 
 
 def get_department_enabled_modules(department) -> set:

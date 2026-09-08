@@ -288,6 +288,33 @@ DB_DEFAULTS = {
 }
 _db = DB_DEFAULTS["production" if IS_PRODUCTION else "local"]
 
+# --- Cache ---
+# Mặc định LocMemCache (mỗi gunicorn worker một bản). Đủ cho badge/đếm số ngắn
+# hạn. Khai REDIS_URL trong .env để dùng cache dùng chung giữa các worker —
+# lúc đó session cached_db cũng hiệu quả hơn nhiều.
+_REDIS_URL = os.getenv("REDIS_URL", "").strip()
+if _REDIS_URL:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": _REDIS_URL,
+            "TIMEOUT": 300,
+        }
+    }
+else:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "portaljustplay-local",
+            "TIMEOUT": 300,
+            "OPTIONS": {"MAX_ENTRIES": 5000, "CULL_FREQUENCY": 4},
+        }
+    }
+
+# Session đọc từ cache trước, ghi cả cache + DB → bỏ được 1 query/request khi
+# cache còn nóng, vẫn an toàn vì DB luôn là nguồn thật.
+SESSION_ENGINE = "django.contrib.sessions.backends.cached_db"
+
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",

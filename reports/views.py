@@ -34,6 +34,7 @@ from hrm.permissions import (
     can_view_user_report,
     can_view_user_weekly_report,
     get_team_report_members,
+    is_director,
 )
 from hrm.user_search import filter_users_by_division
 from PortalJustPlay.list_search import apply_combined_search, apply_term_search, apply_user_search, get_search_query

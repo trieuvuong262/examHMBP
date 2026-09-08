@@ -646,6 +646,51 @@ def _report_comment_widgets(user):
     return widgets
 
 
+PORTAL_BADGE_CACHE_SECONDS = 60
+
+
+def portal_badge_counts(user) -> dict:
+    """Ba con số badge trên thanh tiêu đề — cache ngắn hạn.
+
+    ``jp_portal_todo_count`` trước đây được tính bằng cách chạy toàn bộ
+    ``get_portal_dashboard`` trên MỌI request (hàng chục truy vấn qua nhiều
+    module) chỉ để hiện một con số. Nay cache 60 giây theo user, nên badge có
+    thể chậm tối đa 1 phút — đổi lại mỗi trang tiết kiệm rất nhiều truy vấn.
+    Trang chủ vẫn gọi ``get_portal_dashboard`` trực tiếp nên danh sách việc
+    cần làm luôn là dữ liệu mới.
+    """
+    from django.core.cache import cache
+
+    pk = getattr(user, 'pk', None)
+    if not pk:
+        return {'todo': 0, 'training': 0, 'assessment': 0}
+
+    key = f'jp:badges:{pk}'
+    cached = cache.get(key)
+    if cached is not None:
+        return cached
+
+    try:
+        counts = {
+            'todo': len(get_portal_dashboard(user)),
+            'training': get_training_pending_count(user),
+            'assessment': get_assessment_pending_count(user),
+        }
+    except Exception:
+        counts = {'todo': 0, 'training': 0, 'assessment': 0}
+    cache.set(key, counts, PORTAL_BADGE_CACHE_SECONDS)
+    return counts
+
+
+def invalidate_portal_badges(user) -> None:
+    """Xoá cache badge — gọi khi vừa đổi trạng thái việc cần làm của user."""
+    from django.core.cache import cache
+
+    pk = getattr(user, 'pk', None)
+    if pk:
+        cache.delete(f'jp:badges:{pk}')
+
+
 def get_portal_dashboard(user):
     """Trả về danh sách widget nhắc việc (dict) cho trang chủ."""
     widgets = []
