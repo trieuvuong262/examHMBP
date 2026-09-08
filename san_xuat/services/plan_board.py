@@ -43,6 +43,27 @@ def _line_has_operations(order_line: SxSalesOrderLine, *, routing_id=None, bom=N
     return False
 
 
+def _tech_choices_for_code(product_code: str, cache: dict) -> tuple[list, list]:
+    """BOM / OB dropdown trên ticket KHSX — cache theo mã trong một lần build board."""
+    key = (product_code or '').strip().casefold()
+    if not key:
+        return [], []
+    if key in cache:
+        return cache[key]
+    from san_xuat.services.order_routing import boms_for_product, routings_for_product
+
+    boms = [
+        {'id': b.pk, 'label': (b.version_label or '').strip() or f'#{b.pk}'}
+        for b in boms_for_product(product_code)
+    ]
+    routings = [
+        {'id': r.pk, 'label': (r.routing_rev or '').strip() or f'#{r.pk}'}
+        for r in routings_for_product(product_code)
+    ]
+    cache[key] = (boms, routings)
+    return boms, routings
+
+
 PRIORITY_WEIGHT = {
     SxSalesOrder.PRIORITY_CRITICAL: Decimal('5000'),
     SxSalesOrder.PRIORITY_URGENT: Decimal('2000'),
@@ -155,6 +176,12 @@ class PlanProductFlow:
     smv_minutes: Decimal = field(default_factory=lambda: Decimal('0'))
     work_minutes: Decimal = field(default_factory=lambda: Decimal('0'))
     buffer_minutes: Decimal = field(default_factory=lambda: Decimal('0'))
+    has_bom: bool = False
+    has_ops: bool = False
+    bom_label: str = ''
+    routing_label: str = ''
+    available_boms: list = field(default_factory=list)
+    available_routings: list = field(default_factory=list)
 
 
 @dataclass
@@ -640,6 +667,7 @@ def build_plan_board_rows(
 
     today = timezone.localdate()
     rows: list[PlanBoardRow] = []
+    _tech_choice_cache: dict[str, tuple[list, list]] = {}
     for order in qs:
         lines = list(order.lines.all())
         mos = list(order.production_orders.all())
@@ -694,6 +722,10 @@ def build_plan_board_rows(
                         pnames.append(n)
             pbuf = _buffer_from_flow_groups(groups)
             psmv = _q(line_order_smv_seconds(ln) / Decimal('60'), '0.0001')
+            line_has_ops = _line_has_operations(ln)
+            bom_choices, rt_choices = _tech_choices_for_code(code, _tech_choice_cache)
+            bom_obj = getattr(ln, 'bom_version', None)
+            rt_obj = getattr(ln, 'routing', None)
             product_flows.append(PlanProductFlow(
                 product_code=code,
                 product_name=(ln.product_name or '').strip(),
@@ -704,6 +736,12 @@ def build_plan_board_rows(
                 smv_minutes=psmv,
                 work_minutes=_q(psmv * ln.qty_to_produce),
                 buffer_minutes=pbuf,
+                has_bom=bool(ln.bom_version_id),
+                has_ops=line_has_ops,
+                bom_label=(getattr(bom_obj, 'version_label', None) or '') if ln.bom_version_id else '',
+                routing_label=(getattr(rt_obj, 'routing_rev', None) or '') if ln.routing_id else '',
+                available_boms=bom_choices,
+                available_routings=rt_choices,
             ))
         if product_flows:
             # Ticket-level groups = mã đầu (fallback include cũ); UI ưu tiên product_flows
@@ -1111,6 +1149,47 @@ def _persist_line_tech(order_line: SxSalesOrderLine, *, bom_id: int, routing_id:
         order_line.save(update_fields=fields)
     if not order_line.routing_lines.exists():
         seed_order_line_routing(order_line, replace=True)
+
+
+@transaction.atomic
+def attach_plan_line_tech(
+    *,
+    order_id: int,
+    line_id: int,
+    bom_version_id: int | None = None,
+    routing_id: int | None = None,
+) -> SxSalesOrderLine:
+    """Gắn BOM / công đoạn ngay trên KHSX (hàng đợi), không sang màn đơn hàng."""
+    from san_xuat.services.order_routing import (
+        OrderRoutingError,
+        attach_order_line_bom,
+        attach_order_line_routing,
+    )
+    from san_xuat.services.plan_route import ensure_order_plan_steps
+
+    order = SxSalesOrder.objects.select_for_update().get(pk=order_id, is_demo=False)
+    if order.confirm_status != SxSalesOrder.CONFIRM_CONFIRMED:
+        raise PlanningError('Chỉ gắn BOM / công đoạn trên đơn đã xác nhận.')
+    if order.plan_status == SxSalesOrder.PLAN_ON_HOLD:
+        raise PlanningError('Đơn đang tạm giữ — bỏ giữ trước khi gắn.')
+    if order.plan_status not in (SxSalesOrder.PLAN_QUEUED, SxSalesOrder.PLAN_ON_HOLD):
+        raise PlanningError('Đơn đã chuyển SX — không gắn lại trên hàng đợi.')
+    ln = order.lines.filter(pk=line_id).first()
+    if ln is None:
+        raise PlanningError('Không tìm thấy dòng sản phẩm trên đơn.')
+    if not bom_version_id and not routing_id:
+        raise PlanningError('Chọn BOM hoặc công đoạn để gắn.')
+    try:
+        if bom_version_id:
+            attach_order_line_bom(ln, bom_version_id=bom_version_id)
+        if routing_id:
+            attach_order_line_routing(ln, routing_id=routing_id)
+    except OrderRoutingError as exc:
+        raise PlanningError(str(exc)) from exc
+    ln.refresh_from_db()
+    order.plan_steps.all().delete()
+    ensure_order_plan_steps(order)
+    return ln
 
 
 @transaction.atomic

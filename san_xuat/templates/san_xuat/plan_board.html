@@ -520,7 +520,47 @@
     font-weight: 600;
     color: #b45309;
   }
-  .jp-pb-release-warn a { font-weight: 700; }
+  .jp-pb-attach {
+    margin: 0.55rem 0.75rem 0.7rem;
+    padding: 0.65rem 0.75rem;
+    background: #fffbeb;
+    border: 1px dashed #f59e0b;
+    border-radius: 0.65rem;
+  }
+  .jp-pb-attach-title {
+    margin: 0 0 0.45rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #92400e;
+  }
+  .jp-pb-attach-grid {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 0.45rem 0.65rem;
+  }
+  .jp-pb-attach-grid label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #78716c;
+    min-width: 10rem;
+    flex: 1 1 10rem;
+  }
+  .jp-pb-attach-ok {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #166534;
+    padding: 0.28rem 0;
+  }
+  .jp-pb-attach-hint {
+    margin: 0.4rem 0 0;
+    font-size: 0.75rem;
+    color: #78716c;
+  }
+  .jp-pb-attach-hint a { font-weight: 700; }
   .jp-pb-steps { display: flex; flex-wrap: wrap; gap: 0.3rem; }
   .jp-pb-products { display: flex; flex-direction: column; gap: 0.65rem; }
   .jp-pb-product {
@@ -692,14 +732,13 @@
             </form>
           </div>
           {% endif %}
-          {% if can_release and row.order.plan_status != 'on_hold' %}
+          {% if can_release and row.order.plan_status != 'on_hold' and not row.missing_bom and not row.missing_ops %}
           {{ row.release_products|json_script:row.release_script_id }}
           <button type="button" class="btn btn-hm btn-sm fw-bold"
                   data-jp-release-open
                   data-order-id="{{ row.order.pk }}"
                   data-order-code="{{ row.order.code }}"
-                  data-products-id="{{ row.release_script_id }}"
-                  {% if row.missing_bom or row.missing_ops %}title="Cần gắn BOM và công đoạn trước khi Chuyển SX"{% endif %}>Chuyển SX</button>
+                  data-products-id="{{ row.release_script_id }}">Chuyển SX</button>
           {% endif %}
           {% include 'san_xuat/includes/plan_board_gc_actions.html' %}
           {% if can_schedule %}
@@ -762,6 +801,11 @@
               <span class="jp-pb-product-code"{% if pf.product_name %} title="{{ pf.product_code }}"{% endif %}>{{ pf.product_name|default:pf.product_code }}</span>
               <span class="jp-pb-product-qty">SL {{ pf.qty|sx_num }}</span>
             </div>
+            {% if can_schedule or can_release %}
+              {% if row.order.plan_status != 'on_hold' %}
+              {% include 'san_xuat/includes/plan_board_attach.html' %}
+              {% endif %}
+            {% endif %}
             {% include 'san_xuat/includes/plan_board_flow.html' with flow_groups=pf.flow_groups %}
           </div>
           {% endfor %}
@@ -772,9 +816,7 @@
         {% if row.missing_bom or row.missing_ops %}
         <p class="jp-pb-release-warn">
           Chưa gắn {% if row.missing_bom %}BOM{% endif %}{% if row.missing_bom and row.missing_ops %} và {% endif %}{% if row.missing_ops %}công đoạn{% endif %}
-          — gắn trên
-          <a href="{% url 'san_xuat:sales_order_detail' row.order.pk %}">đơn hàng</a>
-          hoặc chọn trong <strong>Chuyển SX</strong>.
+          trên KHSX — gắn trên ticket này rồi mới Chuyển SX.
         </p>
         {% endif %}
         {% if row.order.plan_hold_reason %}
@@ -873,7 +915,7 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
       </div>
       <div class="modal-body">
-        <p class="small text-muted mb-3">Mỗi mã phải có BOM và công đoạn (OB hoặc công đoạn trên BOM). Lên đơn được để trống; Chuyển SX thì bắt buộc.</p>
+        <p class="small text-muted mb-3">Xác nhận BOM và công đoạn đã gắn trên KHSX trước khi xuống xưởng.</p>
         <div id="jpReleaseBomRows" class="d-flex flex-column gap-3"></div>
         <div id="jpReleaseBomEmpty" class="text-muted small d-none">Không có dòng sản phẩm để chuyển.</div>
       </div>

@@ -1338,6 +1338,7 @@ def plan_board(request):
         PLAN_STATUS_LABELS,
         PRIORITY_LABELS,
         QUEUE_STATUSES,
+        attach_plan_line_tech,
         build_order_timeline,
         build_plan_board_rows,
         confirmed_order_qty_summary,
@@ -1460,6 +1461,29 @@ def plan_board(request):
                     })
                 save_plan_hops(order_id=order_id, hops=hops)
                 messages.success(request, 'Đã lưu thời gian kiểm đếm / vận chuyển.')
+            elif action == 'attach_tech' and (can_schedule or can_release) and order_id:
+                try:
+                    line_id = int(request.POST.get('so_line_id') or 0)
+                except (TypeError, ValueError):
+                    line_id = 0
+                raw_bom = (request.POST.get('bom_version_id') or '').strip()
+                raw_rt = (request.POST.get('routing_id') or '').strip()
+                ln = attach_plan_line_tech(
+                    order_id=order_id,
+                    line_id=line_id,
+                    bom_version_id=int(raw_bom) if raw_bom.isdigit() else None,
+                    routing_id=int(raw_rt) if raw_rt.isdigit() else None,
+                )
+                bits = []
+                if ln.bom_version_id:
+                    bits.append('BOM')
+                if ln.routing_id or ln.routing_lines.exists():
+                    bits.append('công đoạn')
+                messages.success(
+                    request,
+                    f'Đã gắn {" + ".join(bits) or "hồ sơ"} cho {ln.product_code} trên KHSX.',
+                )
+                return _board_redirect()
             elif action == 'release' and can_release and order_id:
                 bom_by_product: dict[str, int] = {}
                 routing_by_product: dict[str, int] = {}
