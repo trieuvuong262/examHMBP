@@ -42,13 +42,34 @@ def user_can_edit_order_routing(user) -> bool:
     )
 
 
-def assert_order_routing_editable(order: SxSalesOrder) -> None:
-    if order.confirm_status != SxSalesOrder.CONFIRM_DRAFT:
-        raise OrderRoutingError('Chỉ sửa công đoạn / SMV khi đơn còn nháp.')
-    if order.production_orders.filter(is_demo=False).exclude(
+def order_has_active_mo(order: SxSalesOrder) -> bool:
+    return order.production_orders.filter(is_demo=False).exclude(
         status=SxProductionOrder.STATUS_CANCELLED,
-    ).exists():
+    ).exists()
+
+
+def order_tech_is_editable(order: SxSalesOrder) -> bool:
+    """Gắn BOM / công đoạn được khi nháp, hoặc đã xác nhận nhưng chưa Chuyển SX."""
+    if order_has_active_mo(order):
+        return False
+    if order.confirm_status == SxSalesOrder.CONFIRM_DRAFT:
+        return True
+    if order.confirm_status == SxSalesOrder.CONFIRM_CONFIRMED and order.plan_status in (
+        SxSalesOrder.PLAN_QUEUED,
+        SxSalesOrder.PLAN_ON_HOLD,
+        '',
+    ):
+        return True
+    return False
+
+
+def assert_order_routing_editable(order: SxSalesOrder) -> None:
+    if order_has_active_mo(order):
         raise OrderRoutingError('Đơn đã có lệnh sản xuất — không sửa snapshot công đoạn.')
+    if not order_tech_is_editable(order):
+        raise OrderRoutingError(
+            'Chỉ gắn/sửa công đoạn khi đơn còn nháp hoặc đang chờ xếp trên KHSX (chưa Chuyển SX).'
+        )
 
 
 def _copy_from_routing_line(
@@ -371,7 +392,7 @@ def sales_order_line_routing(order_line: SxSalesOrderLine):
 
 
 def assert_order_ready_to_confirm(order: SxSalesOrder) -> None:
-    """BOM/OB không bắt buộc lúc xác nhận (chọn sau khi chuyển SX / sửa đơn).
+    """BOM/OB không bắt buộc lúc xác nhận — bắt buộc khi Chuyển SX trên KHSX.
 
     Nếu dòng đã có snapshot công đoạn thì SMV đơn hàng từng CĐ phải > 0.
     """
@@ -539,9 +560,47 @@ def delete_order_routing_line(*, order_line: SxSalesOrderLine, line_pk: int) -> 
     line.delete()
 
 
+def boms_for_product(product_code: str):
+    from san_xuat.services.products import find_tech_doc_for_code
+
+    code = (product_code or '').strip()
+    if not code:
+        return []
+    doc = find_tech_doc_for_code(code)
+    if doc is None:
+        return []
+    return list(doc.bom_versions.order_by('created_at', 'id'))
+
+
+@transaction.atomic
+def attach_order_line_bom(order_line: SxSalesOrderLine, *, bom_version_id: int) -> int:
+    """Gắn phiên bản BOM vào dòng đơn (nháp / chờ xếp KHSX)."""
+    from san_xuat.models import BomVersion
+    from san_xuat.services.sales_orders import bom_lines_snapshot
+
+    assert_order_routing_editable(order_line.order)
+    try:
+        bid = int(bom_version_id)
+    except (TypeError, ValueError):
+        raise OrderRoutingError('Chọn phiên bản BOM.') from None
+    bom = BomVersion.objects.filter(pk=bid).select_related('tech_doc').first()
+    if bom is None:
+        raise OrderRoutingError('Phiên bản BOM không tồn tại.')
+    code = (order_line.product_code or '').strip().casefold()
+    bom_code = ((getattr(bom.tech_doc, 'product_code', None) or '').strip().casefold())
+    if code and bom_code and code != bom_code:
+        raise OrderRoutingError('Phiên bản BOM không thuộc mã sản phẩm này.')
+    order_line.bom_version = bom
+    order_line.bom_line_overrides = bom_lines_snapshot(bom.pk)
+    order_line.save(update_fields=['bom_version', 'bom_line_overrides'])
+    if order_line.routing_lines.exists():
+        return order_line.routing_lines.count()
+    return seed_order_line_routing(order_line, replace=True)
+
+
 @transaction.atomic
 def attach_order_line_routing(order_line: SxSalesOrderLine, *, routing_id: int) -> int:
-    """Gắn routing mã hàng vào dòng đơn (nháp) rồi seed snapshot."""
+    """Gắn routing mã hàng vào dòng đơn rồi seed snapshot."""
     from san_xuat.ie_models import SxRouting
 
     assert_order_routing_editable(order_line.order)

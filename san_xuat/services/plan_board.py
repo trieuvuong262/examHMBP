@@ -25,6 +25,24 @@ _Q2 = Decimal('0.01')
 PLAN_SHIFT_MINUTES = Decimal('570')
 PLAN_SHIFT_LABEL = '9 giờ 30 phút'
 
+
+def _line_has_operations(order_line: SxSalesOrderLine, *, routing_id=None, bom=None) -> bool:
+    """True nếu dòng đã có công đoạn: snapshot đơn, OB/routing, hoặc CĐ trên BOM."""
+    if steps_dicts_from_order_line(order_line):
+        return True
+    from san_xuat.services.dispatch import steps_dicts_from_routing
+
+    rid = routing_id if routing_id is not None else order_line.routing_id
+    if steps_dicts_from_routing(rid):
+        return True
+    src_bom = bom if bom is not None else getattr(order_line, 'bom_version', None)
+    if src_bom is not None:
+        steps = getattr(src_bom, 'process_steps', None)
+        if steps is not None and steps.exists():
+            return True
+    return False
+
+
 PRIORITY_WEIGHT = {
     SxSalesOrder.PRIORITY_CRITICAL: Decimal('5000'),
     SxSalesOrder.PRIORITY_URGENT: Decimal('2000'),
@@ -120,6 +138,8 @@ class PlanBoardRow:
     can_unrelease: bool = False
     team_spans: list = field(default_factory=list)
     subcontract: object | None = None
+    missing_bom: bool = False
+    missing_ops: bool = False
 
 
 @dataclass
@@ -576,8 +596,11 @@ def build_plan_board_rows(
         .prefetch_related(
             Prefetch(
                 'lines',
-                queryset=SxSalesOrderLine.objects.order_by('sort_order', 'id').prefetch_related(
+                queryset=SxSalesOrderLine.objects.select_related(
+                    'bom_version', 'routing',
+                ).order_by('sort_order', 'id').prefetch_related(
                     'routing_lines__work_center',
+                    'bom_version__process_steps',
                 ),
             ),
             Prefetch(
@@ -776,6 +799,8 @@ def build_plan_board_rows(
         # Gom mã SP unique cho modal Chuyển SX (chọn BOM) — kèm mặc định từ ĐĐH
         release_products: list[dict] = []
         seen_codes: set[str] = set()
+        missing_bom = False
+        missing_ops = False
         for ln in lines:
             if (ln.qty or 0) <= 0:
                 continue
@@ -784,12 +809,18 @@ def build_plan_board_rows(
             if not code or key in seen_codes:
                 continue
             seen_codes.add(key)
+            line_has_ops = _line_has_operations(ln)
+            if not ln.bom_version_id:
+                missing_bom = True
+            if not line_has_ops:
+                missing_ops = True
             release_products.append({
                 'code': code,
                 'name': (ln.product_name or '').strip(),
                 'qty': format_sx_num_input(ln.qty_to_produce),
                 'bom_version_id': ln.bom_version_id or None,
                 'routing_id': ln.routing_id or None,
+                'has_ops': line_has_ops,
             })
 
         rows.append(PlanBoardRow(
@@ -827,6 +858,8 @@ def build_plan_board_rows(
             product_flows=product_flows,
             can_unrelease=mos_allow_unrelease(mos),
             team_spans=team_spans,
+            missing_bom=missing_bom,
+            missing_ops=missing_ops,
         ))
 
     rows.sort(
@@ -1030,6 +1063,56 @@ def unhold_plan_order(*, order_id: int) -> SxSalesOrder:
     return order
 
 
+def _assert_lines_ready_to_release(
+    lines: list[SxSalesOrderLine],
+    *,
+    bom_map: dict[str, int],
+    routing_map: dict[str, int],
+) -> None:
+    """KHSX: lên đơn không bắt BOM/OB, nhưng Chuyển SX thì phải có cả hai."""
+    from san_xuat.models import BomVersion
+
+    errors: list[str] = []
+    for ln in lines:
+        if (ln.qty or 0) <= 0:
+            continue
+        code = (ln.product_code or '').strip() or f'#{ln.pk}'
+        bom_id = bom_map.get(code.casefold()) or ln.bom_version_id
+        if not bom_id:
+            errors.append(f'{code}: chưa gắn BOM.')
+            continue
+        bom = BomVersion.objects.filter(pk=bom_id).prefetch_related('process_steps').first()
+        routing_id = routing_map.get(code.casefold()) or ln.routing_id
+        if not _line_has_operations(ln, routing_id=routing_id, bom=bom):
+            errors.append(
+                f'{code}: chưa gắn công đoạn. Chọn phiên bản công đoạn (OB) '
+                'hoặc thêm công đoạn trên hồ sơ BOM.'
+            )
+    if errors:
+        raise PlanningError('Không chuyển SX được. ' + ' '.join(errors))
+
+
+def _persist_line_tech(order_line: SxSalesOrderLine, *, bom_id: int, routing_id: int | None) -> None:
+    """Gắn BOM / OB đã chọn lúc Chuyển SX lên dòng đơn."""
+    from san_xuat.services.order_routing import seed_order_line_routing
+    from san_xuat.services.sales_orders import bom_lines_snapshot
+
+    fields: list[str] = []
+    if bom_id and order_line.bom_version_id != bom_id:
+        order_line.bom_version_id = bom_id
+        fields.append('bom_version')
+        if not order_line.bom_line_overrides:
+            order_line.bom_line_overrides = bom_lines_snapshot(bom_id)
+            fields.append('bom_line_overrides')
+    if routing_id and order_line.routing_id != routing_id:
+        order_line.routing_id = routing_id
+        fields.append('routing')
+    if fields:
+        order_line.save(update_fields=fields)
+    if not order_line.routing_lines.exists():
+        seed_order_line_routing(order_line, replace=True)
+
+
 @transaction.atomic
 def release_order_to_production(
     *,
@@ -1076,6 +1159,7 @@ def release_order_to_production(
 
     bom_map = _id_map(bom_by_product)
     routing_map = _id_map(routing_by_product)
+    _assert_lines_ready_to_release(lines, bom_map=bom_map, routing_map=routing_map)
 
     # planned_date + hop times từ snapshot kế hoạch — khớp theo tên công đoạn
     planned_by_name = {
@@ -1112,6 +1196,7 @@ def release_order_to_production(
         if not bom or (bom.tech_doc.product_code or '').strip().casefold() != code.casefold():
             raise PlanningError(f'{code}: hồ sơ thiết kế không thuộc mã này.')
         routing_id = routing_map.get(code.casefold()) or ln.routing_id
+        _persist_line_tech(ln, bom_id=bom_id, routing_id=routing_id)
 
         from san_xuat.services.inter_step_times import schedule_span
         from san_xuat.services.order_routing import sales_order_line_routing as _line_routing

@@ -514,6 +514,13 @@
   }
   .jp-pb-empty a { font-weight: 700; }
   .jp-pb-hold-note { margin: 0.55rem 0 0; font-size: 0.78rem; color: var(--pb-muted); }
+  .jp-pb-release-warn {
+    margin: 0.55rem 0 0;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #b45309;
+  }
+  .jp-pb-release-warn a { font-weight: 700; }
   .jp-pb-steps { display: flex; flex-wrap: wrap; gap: 0.3rem; }
   .jp-pb-products { display: flex; flex-direction: column; gap: 0.65rem; }
   .jp-pb-product {
@@ -691,7 +698,8 @@
                   data-jp-release-open
                   data-order-id="{{ row.order.pk }}"
                   data-order-code="{{ row.order.code }}"
-                  data-products-id="{{ row.release_script_id }}">Chuyển SX</button>
+                  data-products-id="{{ row.release_script_id }}"
+                  {% if row.missing_bom or row.missing_ops %}title="Cần gắn BOM và công đoạn trước khi Chuyển SX"{% endif %}>Chuyển SX</button>
           {% endif %}
           {% include 'san_xuat/includes/plan_board_gc_actions.html' %}
           {% if can_schedule %}
@@ -760,6 +768,14 @@
         </div>
         {% else %}
         {% include 'san_xuat/includes/plan_board_flow.html' with flow_groups=row.flow_groups %}
+        {% endif %}
+        {% if row.missing_bom or row.missing_ops %}
+        <p class="jp-pb-release-warn">
+          Chưa gắn {% if row.missing_bom %}BOM{% endif %}{% if row.missing_bom and row.missing_ops %} và {% endif %}{% if row.missing_ops %}công đoạn{% endif %}
+          — gắn trên
+          <a href="{% url 'san_xuat:sales_order_detail' row.order.pk %}">đơn hàng</a>
+          hoặc chọn trong <strong>Chuyển SX</strong>.
+        </p>
         {% endif %}
         {% if row.order.plan_hold_reason %}
         <p class="jp-pb-hold-note">Giữ: {{ row.order.plan_hold_reason }}</p>
@@ -857,6 +873,7 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
       </div>
       <div class="modal-body">
+        <p class="small text-muted mb-3">Mỗi mã phải có BOM và công đoạn (OB hoặc công đoạn trên BOM). Lên đơn được để trống; Chuyển SX thì bắt buộc.</p>
         <div id="jpReleaseBomRows" class="d-flex flex-column gap-3"></div>
         <div id="jpReleaseBomEmpty" class="text-muted small d-none">Không có dòng sản phẩm để chuyển.</div>
       </div>
@@ -943,11 +960,11 @@
 
   function renderSteps(steps, editUrl) {
     if (!steps || !steps.length) {
-      var html = '<div class="small text-muted mt-1">Chưa có công đoạn trên hồ sơ này.';
+      var html = '<div class="small text-danger mt-1">Chưa có công đoạn trên hồ sơ này.';
       if (editUrl) {
         html += ' <a href="' + escapeHtml(editUrl) + '" target="_blank" rel="noopener">＋ Thêm công đoạn</a>';
       }
-      html += '</div>';
+      html += ' Hoặc chọn phiên bản công đoạn (OB) bên phải.</div>';
       return html;
     }
     var out = '<div class="jp-pb-steps mt-2">';
@@ -958,6 +975,47 @@
     });
     out += '</div>';
     return out;
+  }
+
+  function bomStepsOf(selectEl) {
+    if (!selectEl || !selectEl.value || selectEl.value === CREATE_VAL) return [];
+    var opt = selectEl.options[selectEl.selectedIndex];
+    try { return JSON.parse((opt && opt.dataset.steps) || '[]'); } catch (e) { return []; }
+  }
+
+  function rowHasOps(wrap) {
+    if (!wrap) return false;
+    if (wrap.dataset.hasOps === '1') return true;
+    if (bomStepsOf(wrap.querySelector('.jp-release-bom-select')).length) return true;
+    var rtSel = wrap.querySelector('.jp-release-routing-select');
+    var rv = rtSel && rtSel.value;
+    return !!(rv && rv !== CREATE_VAL);
+  }
+
+  function syncRoutingRequirement(wrap) {
+    var rtSel = wrap.querySelector('.jp-release-routing-select');
+    if (!rtSel) return;
+    var hasSnap = wrap.dataset.hasOps === '1';
+    var hasBomSteps = bomStepsOf(wrap.querySelector('.jp-release-bom-select')).length > 0;
+    rtSel.required = !hasSnap && !hasBomSteps;
+    var empty = rtSel.querySelector('option[value=""]');
+    if (empty) {
+      empty.textContent = (hasSnap || hasBomSteps)
+        ? '— Theo BOM / công đoạn đã gắn —'
+        : '— Chọn công đoạn —';
+    }
+  }
+
+  function updateSubmitState() {
+    var wraps = rowsHost.querySelectorAll('.jp-release-row');
+    var ok = wraps.length > 0;
+    wraps.forEach(function (wrap) {
+      var bomSel = wrap.querySelector('.jp-release-bom-select');
+      var bomOk = bomSel && bomSel.value && bomSel.value !== CREATE_VAL;
+      if (!bomOk || !rowHasOps(wrap)) ok = false;
+      syncRoutingRequirement(wrap);
+    });
+    submitBtn.disabled = !ok;
   }
 
   function selectPreferred(selectEl, preferredId, fallbackLast) {
@@ -1008,6 +1066,7 @@
               ? '<a href="' + escapeHtml(createUrl) + '" target="_blank" rel="noopener">Tạo hồ sơ thiết kế</a> rồi mở lại Chuyển SX.'
               : 'Tạo hồ sơ thiết kế trước.') +
             '</div>';
+          updateSubmitState();
           return;
         }
         results.forEach(function (b) {
@@ -1022,10 +1081,12 @@
         var steps = [];
         try { steps = sel ? JSON.parse(sel.dataset.steps || '[]') : []; } catch (e) {}
         previewEl.innerHTML = renderSteps(steps, createUrl);
+        updateSubmitState();
       })
       .catch(function () {
         selectEl.innerHTML = '<option value="">Không tải được hồ sơ</option>';
         appendCreateOption(selectEl, hosocreateUrl(productCode, null), '＋ Tạo BOM / công đoạn → hồ sơ');
+        updateSubmitState();
       });
   }
 
@@ -1044,22 +1105,26 @@
         selectEl.innerHTML = '';
         var empty = document.createElement('option');
         empty.value = '';
-        empty.textContent = results.length ? '— Không chọn / theo BOM —' : '— Chưa có phiên bản công đoạn —';
+        empty.textContent = results.length ? '— Theo BOM / công đoạn đã gắn —' : '— Chưa có phiên bản công đoạn —';
         selectEl.appendChild(empty);
         results.forEach(function (rt) {
           var opt = document.createElement('option');
           opt.value = String(rt.id);
-          opt.textContent = rt.text || rt.label || ('#' + rt.id);
+          var n = rt.step_count || 0;
+          opt.textContent = (rt.text || rt.label || ('#' + rt.id)) + (n ? (' · ' + n + ' công đoạn') : '');
+          opt.dataset.stepCount = String(n);
           selectEl.appendChild(opt);
         });
         if (!results.length) {
           appendCreateOption(selectEl, createUrl, '＋ Tạo BOM / công đoạn → hồ sơ');
         }
         selectPreferred(selectEl, preferredRoutingId, false);
+        updateSubmitState();
       })
       .catch(function () {
         selectEl.innerHTML = '<option value="">— Không chọn —</option>';
         appendCreateOption(selectEl, hosocreateUrl(productCode, null), '＋ Tạo BOM / công đoạn → hồ sơ');
+        updateSubmitState();
       });
   }
 
@@ -1081,11 +1146,12 @@
         return;
       }
       emptyEl.classList.add('d-none');
-      submitBtn.disabled = false;
+      submitBtn.disabled = true;
       products.forEach(function (p) {
         var code = p.code || '';
         var wrap = document.createElement('div');
-        wrap.className = 'border rounded-3 p-3';
+        wrap.className = 'border rounded-3 p-3 jp-release-row';
+        wrap.dataset.hasOps = p.has_ops ? '1' : '0';
         wrap.innerHTML =
           '<div class="fw-semibold mb-1">' + escapeHtml(code) +
           (p.name ? ' <span class="text-muted fw-normal">— ' + escapeHtml(p.name) + '</span>' : '') +
@@ -1093,12 +1159,12 @@
           '<div class="small text-muted mb-2">SL ' + escapeHtml(p.qty || '') + '</div>' +
           '<div class="row g-2">' +
           '<div class="col-md-6">' +
-          '<label class="form-label small fw-bold mb-1">Phiên bản BOM</label>' +
+          '<label class="form-label small fw-bold mb-1">Phiên bản BOM <span class="text-danger">*</span></label>' +
           '<select class="form-select form-select-sm jp-release-bom-select" name="bom_for__' + escapeHtml(code) + '" required></select>' +
           '<div class="jp-release-bom-preview"></div>' +
           '</div>' +
           '<div class="col-md-6">' +
-          '<label class="form-label small fw-bold mb-1">Phiên bản công đoạn</label>' +
+          '<label class="form-label small fw-bold mb-1">Phiên bản công đoạn <span class="text-danger">*</span></label>' +
           '<select class="form-select form-select-sm jp-release-routing-select" name="routing_for__' + escapeHtml(code) + '"></select>' +
           '</div>' +
           '</div>';
@@ -1112,6 +1178,11 @@
           var steps = [];
           try { steps = JSON.parse((opt && opt.dataset.steps) || '[]'); } catch (e) {}
           previewEl.innerHTML = renderSteps(steps, selectEl.dataset.createUrl || '');
+          updateSubmitState();
+        });
+        routingEl.addEventListener('change', function () {
+          if (routingEl.value === CREATE_VAL) return;
+          updateSubmitState();
         });
         loadBoms(code, selectEl, previewEl, p.bom_version_id || '');
         loadRoutings(code, routingEl, p.routing_id || '');
@@ -1121,12 +1192,19 @@
   });
 
   form.addEventListener('submit', function (ev) {
-    var selects = form.querySelectorAll('.jp-release-bom-select');
-    for (var i = 0; i < selects.length; i++) {
-      var v = selects[i].value;
+    var wraps = form.querySelectorAll('.jp-release-row');
+    for (var i = 0; i < wraps.length; i++) {
+      var wrap = wraps[i];
+      var bomSel = wrap.querySelector('.jp-release-bom-select');
+      var v = bomSel ? bomSel.value : '';
       if (!v || v === CREATE_VAL) {
         ev.preventDefault();
-        alert('Chọn hồ sơ thiết kế cho mọi mã sản phẩm. Nếu chưa có, chọn «Tạo BOM / công đoạn» rồi tải lại.');
+        alert('Chọn hồ sơ thiết kế (BOM) cho mọi mã sản phẩm. Nếu chưa có, tạo hồ sơ rồi mở lại Chuyển SX.');
+        return;
+      }
+      if (!rowHasOps(wrap)) {
+        ev.preventDefault();
+        alert('Mỗi mã phải có công đoạn: chọn phiên bản công đoạn (OB) hoặc thêm công đoạn trên BOM.');
         return;
       }
     }

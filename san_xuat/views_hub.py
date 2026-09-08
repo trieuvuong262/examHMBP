@@ -763,7 +763,7 @@ def _handle_order_routing_post(request, order) -> bool:
     action = (request.POST.get('action') or '').strip()
     if action not in {
         'add_routing_line', 'edit_routing_line', 'delete_routing_line',
-        'reset_routing', 'attach_routing', 'scale_smv',
+        'reset_routing', 'attach_routing', 'attach_bom', 'scale_smv',
     }:
         return False
     can_pick = (
@@ -771,9 +771,9 @@ def _handle_order_routing_post(request, order) -> bool:
         or user_can_update_menu(request.user, MODULE_SAN_XUAT, 'order_create')
         or user_can_create_menu(request.user, MODULE_SAN_XUAT, 'order_create')
     )
-    if action == 'attach_routing':
+    if action in {'attach_routing', 'attach_bom'}:
         if not can_pick:
-            raise OrderRoutingError('Không có quyền gắn routing trên đơn.')
+            raise OrderRoutingError('Không có quyền gắn BOM / công đoạn trên đơn.')
     elif not user_can_edit_order_routing(request.user):
         raise OrderRoutingError('Chỉ IE / Kế hoạch được sửa SMV đơn hàng và thêm/bớt công đoạn trên đơn.')
 
@@ -792,6 +792,14 @@ def _handle_order_routing_post(request, order) -> bool:
 
         n = attach_order_line_routing(_line(), routing_id=request.POST.get('routing_id') or 0)
         messages.success(request, f'Đã gắn routing và copy {n} công đoạn lên đơn.')
+        return True
+
+    if action == 'attach_bom':
+        from san_xuat.services.order_routing import attach_order_line_bom
+
+        n = attach_order_line_bom(_line(), bom_version_id=request.POST.get('bom_version_id') or 0)
+        extra = f' — đã copy {n} công đoạn từ BOM.' if n else ''
+        messages.success(request, f'Đã gắn BOM lên đơn.{extra}')
         return True
 
     if action == 'reset_routing':
@@ -860,7 +868,7 @@ def sales_order_detail(request, pk: int):
     from san_xuat.hub_models import SxSalesOrder
     from san_xuat.ie_models import SxOperationGroup, ensure_skill_levels_abc
     from san_xuat.services.capacity_from_hrm import hr_work_centers_qs
-    from san_xuat.services.order_routing import OrderRoutingError, user_can_edit_order_routing
+    from san_xuat.services.order_routing import OrderRoutingError, order_tech_is_editable, user_can_edit_order_routing
     from san_xuat.services.sales_orders import (
         PROD_STATUS_LABELS,
         confirm_sales_order,
@@ -885,7 +893,8 @@ def sales_order_detail(request, pk: int):
     can_attach_routing = can_edit_routing or user_can_update_menu(
         request.user, MODULE_SAN_XUAT, 'order_create',
     ) or user_can_create_menu(request.user, MODULE_SAN_XUAT, 'order_create')
-    routing_locked = order.confirm_status != SxSalesOrder.CONFIRM_DRAFT
+    tech_editable = order_tech_is_editable(order)
+    routing_locked = not tech_editable
     reject_form = SalesOrderRejectForm()
 
     if request.method == 'POST':
@@ -936,21 +945,22 @@ def sales_order_detail(request, pk: int):
         ).first()
 
     from san_xuat.services.bom_need import explode_for_sales_line
-    from san_xuat.services.order_routing import routings_for_product
+    from san_xuat.services.order_routing import boms_for_product, routings_for_product
     from san_xuat.services.products import resolve_product_ref
 
     for ln in order.lines.all():
         product_ref = resolve_product_ref(ln.product_code)
         ln.product_image_url = product_ref.image_url if product_ref else ''
         ln.available_routings = routings_for_product(ln.product_code) if not ln.routing_id else []
+        ln.available_boms = boms_for_product(ln.product_code) if not ln.bom_version_id else []
         ln.npl_needs = explode_for_sales_line(ln)
 
     return render(request, 'san_xuat/sales_order_detail.html', {
         **_perm_ctx(request),
         'order': order,
         'can_confirm': can_confirm,
-        'can_edit_order_routing': False,
-        'can_attach_routing': False,
+        'can_edit_order_routing': can_edit_routing and tech_editable,
+        'can_attach_routing': can_attach_routing and tech_editable,
         'routing_locked': routing_locked,
         'edit_rt': edit_rt,
         'work_centers': list(hr_work_centers_qs()),

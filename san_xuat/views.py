@@ -1594,7 +1594,12 @@ def sales_order_line_versions_api(request):
 
     for rt in routings:
         rev = (rt.routing_rev or '').strip() or f'#{rt.pk}'
-        payload['routings'].append({'id': rt.pk, 'text': rev, 'label': rev})
+        payload['routings'].append({
+            'id': rt.pk,
+            'text': rev,
+            'label': rev,
+            'step_count': rt.lines.count(),
+        })
 
     default_rt = default_routing_for_product(product_code)
     if default_rt:

@@ -95,26 +95,50 @@
     {% if can_attach_routing or can_edit_order_routing %}
     {% for ln in order.lines.all %}
     <div class="border rounded mt-3 p-3" id="so-line-{{ ln.pk }}">
-      {% if not ln.routing_id and can_attach_routing %}
-      <form method="post" class="row g-2 align-items-end mb-2">
-        {% csrf_token %}
-        <input type="hidden" name="action" value="attach_routing">
-        <input type="hidden" name="so_line_id" value="{{ ln.pk }}">
-        <div class="col-md-6 col-lg-4">
-          <label class="form-label small mb-0">Gắn quy trình IE (routing)</label>
-          <select name="routing_id" class="form-select form-select-sm" required>
-            <option value="">— Chọn bản IE —</option>
-            {% for rt in ln.available_routings %}
-            <option value="{{ rt.pk }}">{{ rt.routing_rev }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="col-auto">
-          <button type="submit" class="btn btn-sm btn-hm" {% if not ln.available_routings %}disabled{% endif %}>Gắn routing</button>
-        </div>
-      </form>
-      {% if not ln.available_routings %}
-      <p class="small text-muted mb-2">Mã này chưa có routing IE — xác nhận sẽ dùng công đoạn BOM nếu đã có. Tạo routing ở Hồ sơ khi IE xong.</p>
+      {% if can_attach_routing %}
+      {% if not ln.bom_version_id or not ln.routing_id %}
+      <div class="row g-2 align-items-end mb-2">
+        {% if not ln.bom_version_id %}
+        <form method="post" class="col-md-6 col-lg-5">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="attach_bom">
+          <input type="hidden" name="so_line_id" value="{{ ln.pk }}">
+          <label class="form-label small mb-0">Gắn BOM</label>
+          <div class="d-flex gap-2">
+            <select name="bom_version_id" class="form-select form-select-sm" required>
+              <option value="">— Chọn BOM —</option>
+              {% for bom in ln.available_boms %}
+              <option value="{{ bom.pk }}">{{ bom.version_label|default:bom.pk }}</option>
+              {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-sm btn-hm" {% if not ln.available_boms %}disabled{% endif %}>Gắn BOM</button>
+          </div>
+          {% if not ln.available_boms %}
+          <p class="small text-muted mb-0 mt-1">Mã này chưa có BOM — tạo ở Hồ sơ thiết kế.</p>
+          {% endif %}
+        </form>
+        {% endif %}
+        {% if not ln.routing_id %}
+        <form method="post" class="col-md-6 col-lg-5">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="attach_routing">
+          <input type="hidden" name="so_line_id" value="{{ ln.pk }}">
+          <label class="form-label small mb-0">Gắn công đoạn (OB)</label>
+          <div class="d-flex gap-2">
+            <select name="routing_id" class="form-select form-select-sm" required>
+              <option value="">— Chọn bản IE —</option>
+              {% for rt in ln.available_routings %}
+              <option value="{{ rt.pk }}">{{ rt.routing_rev }}</option>
+              {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-sm btn-hm" {% if not ln.available_routings %}disabled{% endif %}>Gắn công đoạn</button>
+          </div>
+          {% if not ln.available_routings %}
+          <p class="small text-muted mb-0 mt-1">Chưa có routing IE — có thể dùng công đoạn trên BOM nếu đã gắn BOM.</p>
+          {% endif %}
+        </form>
+        {% endif %}
+      </div>
       {% endif %}
       {% endif %}
 
