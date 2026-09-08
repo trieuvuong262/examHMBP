@@ -32,10 +32,11 @@ def report_stock_current_rows():
             'Mã NPL': m.code,
             'Tên': m.name,
             'Nhóm': m.category.name,
-            'Đơn vị chẵn': m.package_unit.name if m.package_unit else '',
-            'Đơn vị lẻ': m.unit.name,
+            'Quy cách': m.specification.name if m.specification_id else '',
             'Tồn lẻ': float(row['total_qty']),
+            'ĐVT lẻ': m.unit.name,
             'Tồn chẵn': float(row['package_qty']) if row.get('package_qty') is not None else '',
+            'Đơn vị chẵn': m.package_unit.name if m.package_unit else '',
             'Đơn giá BQ': float(row.get('avg_unit_price') or 0),
             'Giá trị tồn': float(row.get('stock_value') or 0),
             'Tối thiểu': float(m.min_stock),
@@ -57,7 +58,10 @@ def report_alert_rows():
             'Mã NPL': m.code,
             'Tên': m.name,
             'Nhóm': m.category.name,
-            'Tồn': float(row['total_qty']),
+            'Tồn lẻ': float(row['total_qty']),
+            'ĐVT lẻ': m.unit.name,
+            'Tồn chẵn': float(row['package_qty']) if row.get('package_qty') is not None else '',
+            'Đơn vị chẵn': m.package_unit.name if m.package_unit else '',
             'Tối thiểu': float(m.min_stock),
             'Trạng thái': row['status_label'],
         })
@@ -65,7 +69,7 @@ def report_alert_rows():
 
 
 def report_movement_rows(date_from: date | None, date_to: date | None, material_code: str = ''):
-    qs = StockLedger.objects.select_related('material', 'location', 'created_by').order_by('-created_at')
+    qs = StockLedger.objects.select_related('material__unit', 'location', 'created_by').order_by('-created_at')
     if date_from:
         qs = qs.filter(created_at__date__gte=date_from)
     if date_to:
@@ -89,6 +93,7 @@ def report_movement_rows(date_from: date | None, date_to: date | None, material_
             'Số chứng từ': entry.ref_number,
             'Biến động': float(entry.qty_delta),
             'Tồn sau': float(entry.balance_after),
+            'ĐVT lẻ': entry.material.unit.name if entry.material.unit_id else '',
             'Người thực hiện': (
                 entry.created_by.get_full_name() or entry.created_by.username
             ) if entry.created_by else '',
@@ -98,7 +103,7 @@ def report_movement_rows(date_from: date | None, date_to: date | None, material_
 
 def report_issue_by_lsx_rows(date_from: date | None, date_to: date | None, lsx: str = ''):
     qs = StockIssueLine.objects.select_related(
-        'issue', 'material', 'location',
+        'issue', 'material__unit', 'line_unit', 'location',
     ).filter(issue__status=DOC_STATUS_POSTED)
     if date_from:
         qs = qs.filter(issue__issue_date__gte=date_from)
@@ -162,7 +167,7 @@ def stocktake_variance_detail(stocktake_id: int):
     rows = []
     for line in StocktakeLine.objects.filter(
         stocktake_id=stocktake_id,
-    ).select_related('material', 'location', 'stocktake'):
+    ).select_related('material__unit', 'location', 'stocktake'):
         if line.actual_qty is None:
             continue
         actual_base = line.qty_base if line.qty_base is not None else line.actual_qty
@@ -173,6 +178,7 @@ def stocktake_variance_detail(stocktake_id: int):
             'Mã kỳ': line.stocktake.number,
             'Mã NPL': line.material.code,
             'Tên NPL': line.material.name,
+            'ĐVT lẻ': line.material.unit.name if line.material.unit_id else '',
             'Vị trí': line.location.display_label(),
             'Tồn HT': float(line.system_qty),
             'Tồn TT': float(actual_base),

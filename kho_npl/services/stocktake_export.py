@@ -45,7 +45,7 @@ def stocktake_detail_export_response(stocktake):
         line_rows.append({
             'Mã NPL': line.material.code,
             'Tên NPL': line.material.name,
-            'ĐVT': line.material.unit.name if line.material.unit_id else '',
+            'ĐVT lẻ': line.material.unit.name if line.material.unit_id else '',
             'Tồn HT': float(line.system_qty),
             'Tồn TT': float(actual) if actual is not None else None,
             'SL đếm': float(line.actual_qty) if line.actual_qty is not None else None,

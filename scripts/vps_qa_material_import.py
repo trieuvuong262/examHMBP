@@ -12,7 +12,7 @@ from django.contrib.auth import get_user_model
 from django.test import Client
 from django.urls import reverse
 
-from kho_npl.models import Material, MaterialCategory, Unit
+from kho_npl.models import Material, MaterialCategory, MaterialSpecification, Unit
 from kho_npl.services.material_import_export import (
     EXCEL_HEADERS,
     import_materials_from_excel,
@@ -40,13 +40,49 @@ def section(title):
     print(f'\n=== {title} ===')
 
 
-def make_xlsx(rows):
-    df = pd.DataFrame(rows, columns=EXCEL_HEADERS)
+LEGACY_HEADERS = [
+    'Mã NPL',
+    'Tên NPL',
+    'Tên nhóm hàng',
+    'Mã nhóm',
+    'Màu sắc',
+    'Quy cách',
+    'Mã ĐVT',
+    'Mã NCC',
+    'Tồn tối thiểu',
+    'Giá cơ bản',
+    'Ghi chú',
+    'Đang dùng',
+]
+
+
+def make_xlsx(rows, columns=None):
+    df = pd.DataFrame(rows, columns=columns or EXCEL_HEADERS)
     buf = io.BytesIO()
     df.to_excel(buf, index=False)
     buf.seek(0)
     buf.name = 'qa_import.xlsx'
     return buf
+
+
+def catalog_row(**overrides):
+    row = {
+        'Mã NPL': TEST_CODE,
+        'Tên NPL': 'QA IMPORT TEMP V1',
+        'Tên nhóm hàng': 'QAIMP',
+        'Mã nhóm': category.code,
+        'Màu sắc': '',
+        'Mã quy cách': spec.code,
+        'ĐVT lẻ': unit.name,
+        'Đơn vị chẵn': '',
+        'Mã NCC': '',
+        'Tồn tối thiểu': 1.5,
+        'Giá cơ bản': 12345,
+        'Ghi chú': 'vps-qa-create',
+        'Đang dùng': 'Có',
+    }
+    row.update(overrides)
+    return row
 
 
 print(f'{PREFIX} bắt đầu')
@@ -55,12 +91,18 @@ print(f'{PREFIX} bắt đầu')
 section('0. Prerequisites')
 try:
     category = MaterialCategory.objects.filter(is_active=True).order_by('id').first()
-    unit = Unit.objects.filter(is_active=True).order_by('id').first()
-    if not category or not unit:
-        fail('Thiếu nhóm/ĐVT active', f'cat={category} unit={unit}')
+    spec = (
+        MaterialSpecification.objects.filter(is_active=True, levels__level=1)
+        .prefetch_related('levels__unit')
+        .order_by('id')
+        .first()
+    )
+    unit = spec.levels.filter(level=1).first().unit if spec else Unit.objects.filter(is_active=True).first()
+    if not category or not spec or not unit:
+        fail('Thiếu nhóm/quy cách/ĐVT active', f'cat={category} spec={spec} unit={unit}')
         print(f'\n{PREFIX} STOP — không đủ master data')
         sys.exit(1)
-    ok(f'Nhóm={category.code}, ĐVT={unit.code}')
+    ok(f'Nhóm={category.code}, quy cách={spec.code}, ĐVT lẻ={unit.code}')
     Material.objects.filter(code=TEST_CODE).delete()
     ok(f'Dọn mã test cũ {TEST_CODE}')
 except Exception as e:
@@ -74,6 +116,16 @@ try:
     resp = sample_template_xlsx()
     if resp.status_code == 200 and 'spreadsheet' in resp.get('Content-Type', ''):
         ok(f'Template OK ({len(resp.content)} bytes)')
+        xl = pd.ExcelFile(io.BytesIO(resp.content))
+        if {'Mau_NPL', 'Quy_cach'} <= set(xl.sheet_names):
+            ok(f'Template sheets={xl.sheet_names}')
+        else:
+            fail('Template sheets', str(xl.sheet_names))
+        mau_cols = list(pd.read_excel(io.BytesIO(resp.content), sheet_name='Mau_NPL').columns)
+        if 'Mã quy cách' in mau_cols and 'ĐVT lẻ' in mau_cols and 'Đơn vị chẵn' in mau_cols:
+            ok('Template cột Mã quy cách / ĐVT lẻ / Đơn vị chẵn')
+        else:
+            fail('Template cột ĐVT', str(mau_cols))
     else:
         fail('Template', f'status={resp.status_code} ct={resp.get("Content-Type")}')
 except Exception as e:
@@ -81,22 +133,9 @@ except Exception as e:
     traceback.print_exc()
 
 # --- 2. Import tạo mới ---
-section('2. Import tạo mới theo mã')
+section('2. Import tạo mới theo mã + Mã quy cách')
 try:
-    xlsx = make_xlsx([{
-        'Mã NPL': TEST_CODE,
-        'Tên NPL': 'QA IMPORT TEMP V1',
-        'Tên nhóm hàng': 'QAIMP',
-        'Mã nhóm': category.code,
-        'Màu sắc': '',
-        'Quy cách': '',
-        'Mã ĐVT': unit.code,
-        'Mã NCC': '',
-        'Tồn tối thiểu': 1.5,
-        'Giá cơ bản': 12345,
-        'Ghi chú': 'vps-qa-create',
-        'Đang dùng': 'Có',
-    }])
+    xlsx = make_xlsx([catalog_row()])
     result = import_materials_from_excel(xlsx)
     print(f'  result={result}')
     mat = Material.objects.filter(code=TEST_CODE).first()
@@ -108,6 +147,10 @@ try:
         ok('Tên được normalize uppercase')
     elif mat:
         fail('Tên uppercase', repr(mat.name))
+    if mat and mat.specification_id == spec.pk and mat.unit_id == unit.pk:
+        ok(f'Gắn quy cách={spec.code}, ĐVT lẻ={unit.code}')
+    elif mat:
+        fail('Quy cách/ĐVT lẻ', f'spec={mat.specification_id} unit={mat.unit_id}')
 except Exception as e:
     fail('Import tạo mới', str(e))
     traceback.print_exc()
@@ -117,20 +160,14 @@ section('3. Import cùng mã → cập nhật (đè), không tạo mã mới')
 try:
     before_count = Material.objects.filter(code=TEST_CODE).count()
     before_pk = Material.objects.get(code=TEST_CODE).pk
-    xlsx = make_xlsx([{
-        'Mã NPL': TEST_CODE,
-        'Tên NPL': 'QA IMPORT TEMP V2 UPDATED',
-        'Tên nhóm hàng': 'QAIMP',
-        'Mã nhóm': category.code,
-        'Màu sắc': '',
-        'Quy cách': '',
-        'Mã ĐVT': unit.code,
-        'Mã NCC': '',
-        'Tồn tối thiểu': 9,
-        'Giá cơ bản': 99999,
-        'Ghi chú': 'vps-qa-update',
-        'Đang dùng': 'Có',
-    }])
+    xlsx = make_xlsx([catalog_row(
+        **{
+            'Tên NPL': 'QA IMPORT TEMP V2 UPDATED',
+            'Tồn tối thiểu': 9,
+            'Giá cơ bản': 99999,
+            'Ghi chú': 'vps-qa-update',
+        }
+    )])
     result = import_materials_from_excel(xlsx)
     print(f'  result={result}')
     after_count = Material.objects.filter(code=TEST_CODE).count()
@@ -151,6 +188,39 @@ except Exception as e:
     fail('Import cập nhật', str(e))
     traceback.print_exc()
 
+# --- 3b. File cũ: Quy cách + Mã ĐVT ---
+section('3b. File cũ cột Mã ĐVT (không có Mã quy cách)')
+try:
+    before_pk = Material.objects.get(code=TEST_CODE).pk
+    xlsx = make_xlsx([{
+        'Mã NPL': TEST_CODE,
+        'Tên NPL': 'QA IMPORT LEGACY DVT',
+        'Tên nhóm hàng': 'QAIMP',
+        'Mã nhóm': category.code,
+        'Màu sắc': '',
+        'Quy cách': 'chu khong phai ma quy cach',
+        'Mã ĐVT': unit.code,
+        'Mã NCC': '',
+        'Tồn tối thiểu': 4,
+        'Giá cơ bản': 11111,
+        'Ghi chú': 'vps-qa-legacy-dvt',
+        'Đang dùng': 'Có',
+    }], columns=LEGACY_HEADERS)
+    result = import_materials_from_excel(xlsx)
+    print(f'  result={result}')
+    mat = Material.objects.get(code=TEST_CODE)
+    if result.get('created') == 0 and result.get('updated') == 1 and mat.pk == before_pk:
+        ok('Legacy Mã ĐVT: cập nhật cùng PK')
+    else:
+        fail('Legacy Mã ĐVT', str(result))
+    if mat.specification_id == spec.pk and mat.unit_id == unit.pk and 'LEGACY DVT' in mat.name:
+        ok(f'Legacy giữ quy cách={mat.specification.code}, ĐVT lẻ={mat.unit.code}')
+    else:
+        fail('Legacy map spec/unit', f'spec={getattr(mat.specification, "code", None)} unit={mat.unit_id}')
+except Exception as e:
+    fail('Import legacy Mã ĐVT', str(e))
+    traceback.print_exc()
+
 # --- 4. HTTP endpoint (CSRF + multipart) ---
 section('4. HTTP POST /kho-npl/danh-muc/import-excel/')
 try:
@@ -164,20 +234,14 @@ try:
         Material.objects.filter(code=TEST_CODE).delete()
         client = Client(HTTP_HOST='portal.justplay.vn')
         client.force_login(user)
-        xlsx = make_xlsx([{
-            'Mã NPL': TEST_CODE,
-            'Tên NPL': 'QA IMPORT HTTP',
-            'Tên nhóm hàng': 'QAIMP',
-            'Mã nhóm': category.code,
-            'Màu sắc': '',
-            'Quy cách': '',
-            'Mã ĐVT': unit.code,
-            'Mã NCC': '',
-            'Tồn tối thiểu': 0,
-            'Giá cơ bản': 1000,
-            'Ghi chú': 'vps-qa-http',
-            'Đang dùng': 'Có',
-        }])
+        xlsx = make_xlsx([catalog_row(
+            **{
+                'Tên NPL': 'QA IMPORT HTTP',
+                'Tồn tối thiểu': 0,
+                'Giá cơ bản': 1000,
+                'Ghi chú': 'vps-qa-http',
+            }
+        )])
         url = reverse('kho_npl:material_import')
         resp = client.post(url, {'excel_file': xlsx}, follow=True)
         mat = Material.objects.filter(code=TEST_CODE).first()
