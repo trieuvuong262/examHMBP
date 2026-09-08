@@ -234,6 +234,9 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    # Memo hoá phân quyền/thiết lập trong 1 request — phải đứng ngay sau Auth
+    # và trước mọi middleware kiểm tra quyền.
+    'hrm.request_cache.RequestCacheMiddleware',
     'PortalJustPlay.middleware.ZaloInAppBrowserMiddleware',
     'audit.middleware_spam.SpamIpGuardMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
@@ -293,6 +296,11 @@ DATABASES = {
         "PASSWORD": os.getenv("DB_PASSWORD", ""),
         "HOST": os.getenv("DB_HOST", _db["HOST"]),
         "PORT": os.getenv("DB_PORT", "5432"),
+        # Giữ kết nối giữa các request (persistent connection). Mặc định 0 =
+        # mở + đóng kết nối Postgres MỖI request, tốn vài ms và tải cho DB.
+        # CONN_HEALTH_CHECKS đảm bảo kết nối cũ đã chết sẽ được mở lại.
+        "CONN_MAX_AGE": int(os.getenv("DB_CONN_MAX_AGE", "60")),
+        "CONN_HEALTH_CHECKS": True,
     }
 }
 

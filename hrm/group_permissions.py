@@ -283,7 +283,20 @@ def permissions_from_legacy_role(role: str) -> dict:
 
 
 def get_user_group_permissions(user) -> dict:
-    """Ma trận quyền hiệu lực của user — {module: {view, create, ...}}."""
+    """Ma trận quyền hiệu lực của user — {module: {view, create, ...}}.
+
+    Memo hoá theo request: sidebar + context processor gọi hàm này hàng trăm
+    lần mỗi request, nếu không cache thì mỗi lần lại query PermissionGroup.
+    """
+    from hrm.request_cache import get_or_set, user_key
+
+    return get_or_set(
+        user_key('group_perms', user),
+        lambda: _compute_user_group_permissions(user),
+    )
+
+
+def _compute_user_group_permissions(user) -> dict:
     from hrm.module_permissions import bypass_department_modules
     from hrm.models import PermissionGroup, Profile
 

@@ -33,10 +33,16 @@ def get_active_concurrent_positions(profile):
         return []
     if hasattr(profile, '_prefetched_objects_cache') and 'concurrent_positions' in profile._prefetched_objects_cache:
         return [cp for cp in profile.concurrent_positions.all() if cp.is_active]
-    return list(
-        profile.concurrent_positions.filter(is_active=True).select_related(
-            'department', 'division',
-        ).order_by('sort_order', 'id'),
+
+    from hrm.request_cache import get_or_set
+
+    return get_or_set(
+        ('concurrent_pos', profile.pk),
+        lambda: list(
+            profile.concurrent_positions.filter(is_active=True).select_related(
+                'department', 'division',
+            ).order_by('sort_order', 'id'),
+        ),
     )
 
 
@@ -51,6 +57,13 @@ def prefetch_concurrent_positions(queryset):
 def effective_roles(user) -> set[str]:
     if not getattr(user, 'is_authenticated', False):
         return {ROLE_EMPLOYEE}
+
+    from hrm.request_cache import get_or_set, user_key
+
+    return get_or_set(user_key('eff_roles', user), lambda: _compute_effective_roles(user))
+
+
+def _compute_effective_roles(user) -> set[str]:
     roles = {ROLE_DIRECTOR} if user.is_superuser else {user_role(user)}
     profile = get_profile(user)
     if profile:

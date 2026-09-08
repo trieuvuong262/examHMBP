@@ -7,9 +7,11 @@ from decimal import Decimal, InvalidOperation
 
 
 def load_report_settings():
+    """Thiết lập chung báo cáo — memo hoá theo request (singleton 1 dòng)."""
+    from hrm.request_cache import get_or_set
     from reports.models import ReportsGeneralSettings
 
-    return ReportsGeneralSettings.load()
+    return get_or_set(('report_settings',), ReportsGeneralSettings.load)
 
 
 def report_bool(field: str, default: bool = True) -> bool:

@@ -34,9 +34,15 @@ _PREFIX_DEFAULTS = {
 
 
 def load_sx_settings():
+    """Thiết lập chung SX — memo hoá theo request.
+
+    Mỗi view sản xuất gọi sx_bool/sx_int/sx_prefix hàng chục lần; không cache
+    thì mỗi lần lại get_or_create(pk=1) trên bảng chỉ có 1 dòng.
+    """
+    from hrm.request_cache import get_or_set
     from san_xuat.hub_models import SxGeneralSettings
 
-    return SxGeneralSettings.load()
+    return get_or_set(('sx_settings',), SxGeneralSettings.load)
 
 
 def sx_gate(field: str, default: str = "block") -> str:

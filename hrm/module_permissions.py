@@ -250,6 +250,15 @@ def get_department_enabled_modules(department) -> set:
     if department is None:
         return set(ALL_MODULE_KEYS)
 
+    from hrm.request_cache import get_or_set
+
+    return get_or_set(
+        ('dept_modules', department.pk),
+        lambda: _compute_department_enabled_modules(department),
+    )
+
+
+def _compute_department_enabled_modules(department) -> set:
     from hrm.models import DepartmentMenuPermission
 
     try:
@@ -269,8 +278,13 @@ def get_department_enabled_modules(department) -> set:
 def get_user_enabled_modules(user) -> set:
     if bypass_department_modules(user):
         return set(ALL_MODULE_KEYS)
-    department = get_user_department(user)
-    return get_department_enabled_modules(department)
+
+    from hrm.request_cache import get_or_set, user_key
+
+    return get_or_set(
+        user_key('user_modules', user),
+        lambda: get_department_enabled_modules(get_user_department(user)),
+    )
 
 
 def user_can_access_module(user, module_key: str) -> bool:
