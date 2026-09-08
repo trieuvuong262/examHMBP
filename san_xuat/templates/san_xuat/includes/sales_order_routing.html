@@ -1,7 +1,7 @@
 {% load sx_format %}
 <div class="card border-0 shadow-sm mb-3">
   <div class="card-body">
-    <h6 class="fw-bold mb-3">Công đoạn theo đơn (SMV đơn hàng)</h6>
+    <h6 class="fw-bold mb-3">OB</h6>
 
     {% if routing_locked %}
     <div class="alert alert-secondary py-2 small mb-3">Đơn đã xác nhận — snapshot công đoạn đã khóa.</div>
@@ -13,7 +13,7 @@
         <div>
           <strong>{{ ln.product_code }}</strong>
           <span class="text-muted small ms-1">{{ ln.product_name|default:"" }}</span>
-          <span class="badge bg-light text-dark border ms-1">SL {{ ln.qty|sx_num }}</span>
+          <span class="badge bg-light text-dark border ms-1">SL</span>
         </div>
       </div>
 
