@@ -121,7 +121,7 @@
                 <thead class="table-light">
                     <tr>
                         {% for col in list_columns %}
-                        <th class="npl-col jp-mat-th{% if col.key == 'total_qty' or col.key == 'min_stock' or col.key == 'avg_unit_price' or col.key == 'stock_value' %} text-end{% elif col.key == 'detail' or col.key == 'image' %} text-center{% endif %}"
+                        <th class="npl-col jp-mat-th{% if col.key == 'total_qty' or col.key == 'package_qty' or col.key == 'min_stock' or col.key == 'avg_unit_price' or col.key == 'stock_value' %} text-end{% elif col.key == 'detail' or col.key == 'image' %} text-center{% endif %}"
                             data-col="{{ col.key }}" style="width:{% widthratio col.weight total_col_weight 100 %}%">
                             {% if col.sortable == False %}
                             <span class="jp-mat-th-label">{{ col.label }}</span>
@@ -178,6 +178,9 @@
                         <td class="text-end npl-col jp-mat-code fw-semibold" data-col="total_qty" title="{{ group.total_qty|npl_qty_with_unit:group.unit }}">
                             <span class="jp-npl-stock-cell-clip">{{ group.total_qty|npl_qty_with_unit:group.unit }}</span>
                         </td>
+                        <td class="text-end npl-col jp-mat-code fw-semibold" data-col="package_qty" title="{% if group.package_qty is not None %}{{ group.package_qty|npl_qty_with_unit:group.package_unit }}{% endif %}">
+                            <span class="jp-npl-stock-cell-clip">{% if group.package_qty is not None %}{{ group.package_qty|npl_qty_with_unit:group.package_unit }}{% else %}—{% endif %}</span>
+                        </td>
                         <td class="text-end npl-col jp-mat-code" data-col="avg_unit_price" title="{{ group.avg_unit_price|npl_money_exact }}">
                             <span class="jp-npl-stock-cell-clip">{% if group.avg_unit_price %}{{ group.avg_unit_price|npl_money }}{% else %}—{% endif %}</span>
                         </td>
@@ -211,6 +214,7 @@
                             <span class="jp-npl-stock-loc-name">{{ lb.location.name }}</span>
                         </td>
                         <td class="text-end npl-col jp-mat-code fw-semibold" data-col="total_qty">{{ lb.quantity|npl_qty_with_unit:material.unit }}</td>
+                        <td class="text-end npl-col jp-mat-code fw-semibold" data-col="package_qty">{% if lb.package_qty is not None %}{{ lb.package_qty|npl_qty_with_unit:material.package_unit }}{% else %}—{% endif %}</td>
                         <td class="npl-col" data-col="avg_unit_price"></td>
                         <td class="npl-col" data-col="stock_value"></td>
                         <td class="npl-col" data-col="min_stock"></td>
@@ -248,6 +252,9 @@
                         <td class="text-end npl-col jp-mat-code fw-semibold" data-col="total_qty" title="{{ row.total_qty|npl_qty_with_unit:row.material.unit }}">
                             <span class="jp-npl-stock-cell-clip">{{ row.total_qty|npl_qty_with_unit:row.material.unit }}</span>
                         </td>
+                        <td class="text-end npl-col jp-mat-code fw-semibold" data-col="package_qty" title="{% if row.package_qty is not None %}{{ row.package_qty|npl_qty_with_unit:row.material.package_unit }}{% endif %}">
+                            <span class="jp-npl-stock-cell-clip">{% if row.package_qty is not None %}{{ row.package_qty|npl_qty_with_unit:row.material.package_unit }}{% else %}—{% endif %}</span>
+                        </td>
                         <td class="text-end npl-col jp-mat-code" data-col="avg_unit_price" title="{{ row.avg_unit_price|npl_money_exact }}">
                             <span class="jp-npl-stock-cell-clip">{% if row.avg_unit_price %}{{ row.avg_unit_price|npl_money }}{% else %}—{% endif %}</span>
                         </td>
@@ -277,6 +284,7 @@
                             <span class="jp-npl-stock-loc-name">{{ lb.location.name }}</span>
                         </td>
                         <td class="text-end npl-col jp-mat-code fw-semibold" data-col="total_qty">{{ lb.quantity|npl_qty_with_unit:row.material.unit }}</td>
+                        <td class="text-end npl-col jp-mat-code fw-semibold" data-col="package_qty">{% if lb.package_qty is not None %}{{ lb.package_qty|npl_qty_with_unit:row.material.package_unit }}{% else %}—{% endif %}</td>
                         <td class="npl-col" data-col="avg_unit_price"></td>
                         <td class="npl-col" data-col="stock_value"></td>
                         <td class="npl-col" data-col="min_stock"></td>
@@ -374,6 +382,9 @@
             }
             if (set.has('unit') && !set.has('package_unit')) {
                 set.add('package_unit');
+            }
+            if (set.has('total_qty') && !set.has('package_qty')) {
+                set.add('package_qty');
             }
             REQUIRED.forEach(function (k) { set.add(k); });
             return set;

@@ -71,6 +71,26 @@ def to_base(material, qty, unit) -> Decimal:
     )
 
 
+def from_base(material, qty_base, unit) -> Decimal:
+    factor = factor_to_base(material, unit)
+    if factor <= 0:
+        raise UomConversionError('Hệ số quy đổi phải lớn hơn 0.')
+    return (Decimal(str(qty_base or 0)) / factor).quantize(
+        QTY_QUANT, rounding=ROUND_HALF_UP,
+    )
+
+
+def package_qty(material, qty_base):
+    """SL theo ĐVT chẵn lớn nhất. None nếu quy cách chỉ có ĐVT lẻ."""
+    unit = getattr(material, 'package_unit', None)
+    if unit is None:
+        return None
+    try:
+        return from_base(material, qty_base, unit)
+    except UomConversionError:
+        return None
+
+
 def price_to_base(price_entered, factor) -> Decimal:
     factor = Decimal(str(factor or 0))
     if factor <= 0:

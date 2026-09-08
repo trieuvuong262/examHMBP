@@ -13,6 +13,7 @@ from kho_npl.models import Material, StockBalance
 from kho_npl.material_search import apply_smart_search
 from kho_npl.services.batches import material_batch_totals
 from kho_npl.services.scrap_warehouse import exclude_scrap_locations
+from kho_npl.services.uom import package_qty
 
 
 def material_total_qty(material: Material) -> Decimal:
@@ -96,6 +97,7 @@ def material_stock_rows(queryset=None, location_ids: list[int] | None = None):
                 {
                     'location': b.location,
                     'quantity': b.quantity,
+                    'package_qty': package_qty(material, b.quantity),
                 }
                 for b in balances
             ],
@@ -117,6 +119,7 @@ def material_stock_rows(queryset=None, location_ids: list[int] | None = None):
         rows.append({
             'material': material,
             'total_qty': total,
+            'package_qty': package_qty(material, total),
             'avg_unit_price': avg_unit_price,
             'stock_value': stock_value,
             'status': status,

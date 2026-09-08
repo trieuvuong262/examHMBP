@@ -145,6 +145,8 @@ def group_stock_rows(stock_rows: list[dict]) -> list[dict]:
         rep = rows[0]['material']
 
         total_qty = sum((r['total_qty'] for r in rows), Decimal('0'))
+        package_qtys = [r.get('package_qty') for r in rows if r.get('package_qty') is not None]
+        package_qty_total = sum(package_qtys, Decimal('0')) if package_qtys else None
         stock_value = sum((r.get('stock_value') or Decimal('0') for r in rows), Decimal('0'))
         # Đơn giá BQ nhóm = trung bình cộng đơn giá BQ của các mã có giá trong nhóm
         member_prices = [r['avg_unit_price'] for r in rows if (r.get('avg_unit_price') or Decimal('0')) > 0]
@@ -176,6 +178,7 @@ def group_stock_rows(stock_rows: list[dict]) -> list[dict]:
             'can_expand': len(rows) >= 2,
             'representative': rep,
             'total_qty': total_qty,
+            'package_qty': package_qty_total,
             'avg_unit_price': avg_unit_price,
             'stock_value': stock_value,
             'min_stock': min_stock,
@@ -224,6 +227,7 @@ def sort_stock_groups(groups: list[dict], sort_key: str, sort_dir: str) -> list[
             'package_unit': (g.get('package_unit_label') or '').lower(),
             'unit': (g['unit'].name if g.get('unit') else '').lower(),
             'total_qty': g.get('total_qty') or Decimal('0'),
+            'package_qty': g.get('package_qty') or Decimal('0'),
             'avg_unit_price': g.get('avg_unit_price') or Decimal('0'),
             'stock_value': g.get('stock_value') or Decimal('0'),
             'min_stock': g.get('min_stock') or Decimal('0'),
