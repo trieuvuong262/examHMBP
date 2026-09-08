@@ -66,23 +66,40 @@ document.addEventListener('DOMContentLoaded', function () {
     const unitName = select => select && select.selectedIndex >= 0
         ? select.options[select.selectedIndex].text.replace(/^—$|^— .* —$/g, '').trim()
         : '';
+    const qtyInputs = [get('id_level2_qty'), get('id_level3_qty')];
     const fields = [
-        get('id_level1_unit'), get('id_level2_unit'), get('id_level2_qty'),
-        get('id_level3_unit'), get('id_level3_qty')
+        get('id_level1_unit'), get('id_level2_unit'), qtyInputs[0],
+        get('id_level3_unit'), qtyInputs[1]
     ];
     const preview = get('jp-spec-preview');
+    function compactQty(input) {
+        if (!input || input.value === '' || input.value.endsWith('.')) return;
+        const n = Number(input.value.replace(',', '.'));
+        if (!Number.isFinite(n)) return;
+        input.value = String(n);
+    }
+    function fmtQty(value) {
+        const n = Number(value);
+        if (!Number.isFinite(n) || n <= 0) return '';
+        return n.toLocaleString('vi-VN', { maximumFractionDigits: 6 });
+    }
     function render() {
         const u1 = unitName(fields[0]), u2 = unitName(fields[1]), q2 = Number(fields[2]?.value);
         const u3 = unitName(fields[3]), q3 = Number(fields[4]?.value);
         const parts = [];
         if (u1) parts.push('ĐVT lẻ: ' + u1);
-        if (u1 && u2 && q2 > 0) parts.push('1 ' + u2 + ' = ' + q2.toLocaleString('vi-VN') + ' ' + u1);
+        if (u1 && u2 && q2 > 0) parts.push('1 ' + u2 + ' = ' + fmtQty(q2) + ' ' + u1);
         if (u1 && u2 && u3 && q2 > 0 && q3 > 0) {
-            parts.push('1 ' + u3 + ' = ' + q3.toLocaleString('vi-VN') + ' ' + u2
-                + ' = ' + (q2 * q3).toLocaleString('vi-VN') + ' ' + u1);
+            parts.push('1 ' + u3 + ' = ' + fmtQty(q3) + ' ' + u2
+                + ' = ' + fmtQty(q2 * q3) + ' ' + u1);
         }
         preview.textContent = parts.join(' · ') || 'Chọn các cấp ĐVT để xem quy đổi.';
     }
+    qtyInputs.forEach(input => {
+        if (!input) return;
+        compactQty(input);
+        input.addEventListener('blur', function () { compactQty(input); render(); });
+    });
     fields.forEach(field => field && field.addEventListener('input', render));
     fields.forEach(field => field && field.addEventListener('change', render));
     render();

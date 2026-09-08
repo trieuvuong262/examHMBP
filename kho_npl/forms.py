@@ -1,4 +1,4 @@
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 import re
 
@@ -61,6 +61,29 @@ User = get_user_model()
 
 FORM_CONTROL = {'class': 'form-control'}
 FORM_SELECT = {'class': 'form-select'}
+
+
+def compact_decimal_display(value):
+    """Hiện 10 thay vì 10.000000; chỉ giữ phần thập phân khi có."""
+    if value in (None, ''):
+        return ''
+    try:
+        number = Decimal(str(value))
+    except (InvalidOperation, ValueError, TypeError):
+        return str(value)
+    text = format(number.normalize(), 'f')
+    if '.' in text:
+        text = text.rstrip('0').rstrip('.')
+    return text or '0'
+
+
+class CompactDecimalInput(forms.NumberInput):
+    def format_value(self, value):
+        if value in (None, ''):
+            return None
+        return compact_decimal_display(value)
+
+
 FORM_SEARCH_SELECT = {'class': 'form-select jp-npl-search-select'}
 ISSUE_EMPLOYEE_SELECT = {
     **FORM_SEARCH_SELECT,
@@ -1564,7 +1587,13 @@ class MaterialSpecificationForm(forms.ModelForm):
     level2_qty = forms.DecimalField(
         required=False, min_value=Decimal('0.000001'), max_digits=18, decimal_places=6,
         label='1 ĐVT cấp 2 bằng bao nhiêu cấp 1',
-        widget=forms.NumberInput(attrs={**FORM_CONTROL, 'step': '0.000001'}),
+        widget=CompactDecimalInput(attrs={
+            **FORM_CONTROL,
+            'step': 'any',
+            'min': '0.000001',
+            'inputmode': 'decimal',
+            'placeholder': 'VD: 10',
+        }),
     )
     level3_unit = forms.ModelChoiceField(
         queryset=Unit.objects.none(), required=False,
@@ -1574,7 +1603,13 @@ class MaterialSpecificationForm(forms.ModelForm):
     level3_qty = forms.DecimalField(
         required=False, min_value=Decimal('0.000001'), max_digits=18, decimal_places=6,
         label='1 ĐVT cấp 3 bằng bao nhiêu cấp 2',
-        widget=forms.NumberInput(attrs={**FORM_CONTROL, 'step': '0.000001'}),
+        widget=CompactDecimalInput(attrs={
+            **FORM_CONTROL,
+            'step': 'any',
+            'min': '0.000001',
+            'inputmode': 'decimal',
+            'placeholder': 'VD: 10',
+        }),
     )
 
     class Meta:
@@ -1612,7 +1647,9 @@ class MaterialSpecificationForm(forms.ModelForm):
                 if row:
                     self.initial[f'level{level}_unit'] = row.unit_id
                     if level > 1:
-                        self.initial[f'level{level}_qty'] = row.qty_in_next_lower
+                        self.initial[f'level{level}_qty'] = compact_decimal_display(
+                            row.qty_in_next_lower
+                        )
 
     def clean_code(self):
         code = (self.cleaned_data.get('code') or '').strip().lower()
