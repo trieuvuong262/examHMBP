@@ -105,6 +105,32 @@ def save_daily_uploads(
     return created
 
 
+def copy_daily_attachments_job(source_report_id: int, target_report_id: int) -> int:
+    """Sao chép file đính kèm giữa hai báo cáo — chạy trong worker nền.
+
+    Mỗi file phải đọc trọn từ NAS rồi ghi lại; với báo cáo nhiều ảnh việc này
+    từng chiếm hơn 80 giây của một gunicorn worker. Nội dung báo cáo (tiêu đề,
+    bảng, HTML) đã được sao chép đồng bộ trong request nên người dùng thấy
+    ngay, chỉ file đính kèm xuất hiện chậm vài giây.
+    """
+    import logging
+
+    from reports.models import DailyWorkReport
+
+    logger = logging.getLogger(__name__)
+    source = DailyWorkReport.objects.filter(pk=source_report_id).first()
+    target = DailyWorkReport.objects.filter(pk=target_report_id).first()
+    if not source or not target:
+        return 0
+    try:
+        return len(copy_daily_attachments(source, target))
+    except OSError:
+        logger.exception(
+            'Sao chép file đính kèm thất bại: %s -> %s', source_report_id, target_report_id,
+        )
+        return 0
+
+
 def copy_daily_attachments(source_report, target_report):
     copied = []
     for att in source_report.attachments.all():

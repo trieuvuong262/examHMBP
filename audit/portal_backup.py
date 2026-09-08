@@ -288,24 +288,35 @@ def start_backup_async(*, trigger: str, user) -> PortalBackupJob:
         started_by=user,
     )
 
-    def _worker():
-        from django.db import connection
+    from PortalJustPlay.background import QUEUE_NAS, enqueue
 
-        try:
-            run_portal_backup(job_id=job.pk, trigger=trigger, user=user)
-        except PortalBackupError:
-            pass
-        except Exception as exc:
-            PortalBackupJob.objects.filter(pk=job.pk).update(
-                status=PortalBackupJob.STATUS_FAILED,
-                finished_at=timezone.now(),
-                message=str(exc)[:2000],
-            )
-        finally:
-            connection.close()
-
-    threading.Thread(target=_worker, daemon=True).start()
+    enqueue(
+        run_portal_backup_safe, job.pk, trigger, user.pk if user else None,
+        queue=QUEUE_NAS, timeout=7200, description=f'Backup portal #{job.pk}',
+    )
     return job
+
+
+def run_portal_backup_safe(job_id: int, trigger: str, user_id: int | None) -> None:
+    """Wrapper cho job nền — backup ghi ra NAS nên xếp vào hàng đợi 'nas'."""
+    from django.contrib.auth.models import User
+    from django.db import connection
+
+    from audit.models import PortalBackupJob
+
+    user = User.objects.filter(pk=user_id).first() if user_id else None
+    try:
+        run_portal_backup(job_id=job_id, trigger=trigger, user=user)
+    except PortalBackupError:
+        pass
+    except Exception as exc:
+        PortalBackupJob.objects.filter(pk=job_id).update(
+            status=PortalBackupJob.STATUS_FAILED,
+            finished_at=timezone.now(),
+            message=str(exc)[:2000],
+        )
+    finally:
+        connection.close()
 
 
 def latest_backup_job():

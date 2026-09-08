@@ -107,19 +107,24 @@ def start_odoo_push_async(*, user, options: dict) -> KvSyncJob:
         started_by=user,
     )
 
-    def _worker():
-        try:
-            run_odoo_push_job(job_id=job.pk, options=options)
-        except Exception as exc:  # noqa: BLE001
-            logger.exception('Odoo push job %s crashed', job.pk)
-            KvSyncJob.objects.filter(pk=job.pk).update(
-                status=KvSyncJob.STATUS_FAILED,
-                finished_at=timezone.now(),
-                message=str(exc)[:2000],
-                progress_percent=100,
-            )
-        finally:
-            connection.close()
+    from PortalJustPlay.background import enqueue
 
-    threading.Thread(target=_worker, daemon=True).start()
+    enqueue(run_odoo_push_job_safe, job.pk, options, timeout=3600,
+            description=f'Odoo push #{job.pk}')
     return job
+
+
+def run_odoo_push_job_safe(job_id: int, options) -> None:
+    """Wrapper cho job nền — luôn đánh dấu thất bại thay vì chết im lặng."""
+    try:
+        run_odoo_push_job(job_id=job_id, options=options)
+    except Exception as exc:  # noqa: BLE001
+        logger.exception('Odoo push job %s crashed', job_id)
+        KvSyncJob.objects.filter(pk=job_id).update(
+            status=KvSyncJob.STATUS_FAILED,
+            finished_at=timezone.now(),
+            message=str(exc)[:2000],
+            progress_percent=100,
+        )
+    finally:
+        connection.close()

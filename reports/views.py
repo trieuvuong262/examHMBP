@@ -37,6 +37,7 @@ from hrm.permissions import (
     is_director,
 )
 from hrm.user_search import filter_users_by_division
+from PortalJustPlay.background import QUEUE_NAS, enqueue
 from PortalJustPlay.list_search import apply_combined_search, apply_term_search, apply_user_search, get_search_query
 from PortalJustPlay.pagination import paginate_queryset
 
@@ -177,7 +178,11 @@ from .daily_nas_storage import (
     daily_attachment_abs_path,
     open_daily_attachment,
 )
-from .daily_uploads import copy_daily_attachments, save_daily_uploads
+from .daily_uploads import (
+    copy_daily_attachments,
+    copy_daily_attachments_job,
+    save_daily_uploads,
+)
 from .weekly_nas_storage import open_weekly_attachment, weekly_attachment_abs_path
 from .weekly_uploads import copy_weekly_attachments, save_weekly_uploads, weekly_report_has_content
 
@@ -1498,12 +1503,21 @@ def copy_prev_vp(request):
     report.save()
     report.lines.all().delete()
     _delete_daily_attachments(report, list(report.attachments.values_list('pk', flat=True)))
-    try:
-        copy_daily_attachments(source, report)
-    except OSError as exc:
-        logger.exception('Copy daily attachments failed: %s', exc)
-        mark_storage_unavailable()
-    messages.success(request, 'Đã sao chép báo cáo kỳ trước. Kiểm tra và nộp lại.')
+    # File đính kèm nằm trên NAS — copy nền để không giữ worker (từng mất 84s)
+    attachment_count = source.attachments.count()
+    if attachment_count:
+        enqueue(
+            copy_daily_attachments_job, source.pk, report.pk,
+            queue=QUEUE_NAS, timeout=1800,
+            description=f'Copy đính kèm BC {source.pk}->{report.pk}',
+        )
+        messages.success(
+            request,
+            f'Đã sao chép nội dung báo cáo kỳ trước. {attachment_count} file đính kèm '
+            'đang được sao chép — tải lại trang sau ít giây để thấy.',
+        )
+    else:
+        messages.success(request, 'Đã sao chép báo cáo kỳ trước. Kiểm tra và nộp lại.')
     return redirect(f'{reverse("reports:today_vp")}?{urlencode(period_query_param(report_period, anchor))}')
 
 
@@ -1547,11 +1561,12 @@ def copy_yesterday(request, *, report_profile: str):
         report.save()
         report.lines.all().delete()
         _delete_daily_attachments(report, list(report.attachments.values_list('pk', flat=True)))
-        try:
-            copy_daily_attachments(source, report)
-        except OSError as exc:
-            logger.exception('Copy daily attachments failed: %s', exc)
-            mark_storage_unavailable()
+        if source.attachments.exists():
+            enqueue(
+                copy_daily_attachments_job, source.pk, report.pk,
+                queue=QUEUE_NAS, timeout=1800,
+                description=f'Copy đính kèm BC {source.pk}->{report.pk}',
+            )
     else:
         report.spreadsheet_json = None
         report.document_html = ''

@@ -100,12 +100,16 @@ def maybe_auto_sync() -> None:
         logger.exception('maybe_auto_sync: lỗi khi kiểm tra điều kiện')
         return
 
-    def _worker():
-        try:
-            result = sync_all_pending()
-            if result.get('synced'):
-                logger.info('Auto-sync NAS: đã đồng bộ %s file', result['synced'])
-        except Exception:  # noqa: BLE001
-            logger.exception('Auto-sync NAS thất bại')
+    from PortalJustPlay.background import QUEUE_NAS, enqueue
 
-    threading.Thread(target=_worker, name='reports-nas-auto-sync', daemon=True).start()
+    enqueue(run_auto_sync, queue=QUEUE_NAS, timeout=1800, description='Auto-sync NAS')
+
+
+def run_auto_sync() -> None:
+    """Đồng bộ file chờ lên NAS — chạy trong worker, không chặn request."""
+    try:
+        result = sync_all_pending()
+        if result.get('synced'):
+            logger.info('Auto-sync NAS: đã đồng bộ %s file', result['synced'])
+    except Exception:  # noqa: BLE001
+        logger.exception('Auto-sync NAS thất bại')

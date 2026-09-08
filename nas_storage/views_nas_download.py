@@ -126,6 +126,14 @@ def nas_raidrive_download(request):
         messages.error(request, 'Chưa cấu hình installer RaiDrive trên server.')
         return redirect('documents:nas_download')
 
+    # Ưu tiên bản đã lưu sẵn trên đĩa local — installer không đổi nên chỉ cần
+    # lấy từ NAS một lần. Trước đây mỗi lần tải đều đọc trọn file từ NAS
+    # (mount qua rclone/Tailscale) vào RAM: 8 lần tải = 250 giây/lần, giữ
+    # nguyên một gunicorn worker suốt 4 phút.
+    cached = _cached_raidrive_installer()
+    if cached is not None:
+        return _stream_file(cached, cached.name)
+
     share = get_active_share(token)
     if share:
         try:
@@ -135,18 +143,80 @@ def nas_raidrive_download(request):
             path = None
         if path and path.is_file():
             filename = share.item_name or 'RaiDrive_x64.exe'
-            response = HttpResponse(path.read_bytes(), content_type='application/octet-stream')
-            response['Content-Disposition'] = f'attachment; filename="{filename}"'
-            return response
+            # Nạp về đĩa local ở nền cho các lần tải sau
+            _warm_raidrive_cache(str(path), filename)
+            return _stream_file(path, filename)
 
     exe_path = Path(settings.BASE_DIR) / 'scripts' / 'installers' / 'RaiDrive_x64.exe'
     if exe_path.is_file():
-        response = HttpResponse(exe_path.read_bytes(), content_type='application/octet-stream')
-        response['Content-Disposition'] = 'attachment; filename="RaiDrive_x64.exe"'
-        return response
+        return _stream_file(exe_path, 'RaiDrive_x64.exe')
 
     messages.error(request, 'Không tìm thấy file cài RaiDrive. Liên hệ IT.')
     return redirect('documents:nas_download')
+
+
+def _installer_cache_dir() -> Path:
+    return Path(settings.MEDIA_ROOT) / 'installer-cache'
+
+
+def _cached_raidrive_installer() -> Path | None:
+    """Bản installer đã nằm trên đĩa local (nếu có)."""
+    folder = _installer_cache_dir()
+    if not folder.is_dir():
+        return None
+    for candidate in sorted(folder.glob('*.exe')):
+        if candidate.is_file() and candidate.stat().st_size > 0:
+            return candidate
+    return None
+
+
+def _stream_file(path: Path, filename: str):
+    """Trả file bằng FileResponse (stream theo khối, không nạp hết vào RAM)."""
+    from django.http import FileResponse
+
+    response = FileResponse(
+        open(path, 'rb'),
+        content_type='application/octet-stream',
+        as_attachment=True,
+        filename=filename,
+    )
+    try:
+        response['Content-Length'] = str(path.stat().st_size)
+    except OSError:
+        pass
+    return response
+
+
+def _warm_raidrive_cache(source_path: str, filename: str) -> None:
+    from PortalJustPlay.background import QUEUE_NAS, enqueue
+
+    enqueue(
+        cache_installer_from_nas, source_path, filename,
+        queue=QUEUE_NAS, timeout=3600, description=f'Nạp installer {filename}',
+    )
+
+
+def cache_installer_from_nas(source_path: str, filename: str) -> str | None:
+    """Copy installer từ NAS về đĩa local — chạy trong worker nền."""
+    import logging
+    import shutil
+
+    logger = logging.getLogger(__name__)
+    src = Path(source_path)
+    if not src.is_file():
+        return None
+    folder = _installer_cache_dir()
+    try:
+        folder.mkdir(parents=True, exist_ok=True)
+        target = folder / (filename if filename.lower().endswith('.exe') else f'{filename}.exe')
+        tmp = target.with_suffix('.part')
+        shutil.copyfile(src, tmp)
+        tmp.replace(target)
+        logger.info('Đã lưu installer %s về %s', filename, target)
+        return str(target)
+    except OSError:
+        logger.exception('Không nạp được installer %s từ NAS', filename)
+        return None
 
 
 @login_required

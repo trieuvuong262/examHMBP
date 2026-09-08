@@ -44,6 +44,25 @@ services:
       retries: 5
     restart: always
 
+  redis:
+    image: redis:7-alpine
+    # noeviction: hàng đợi job không được phép bị xoá khi đầy bộ nhớ.
+    # Dữ liệu cache đều có TTL ngắn nên không lo phình.
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory 384mb
+      --maxmemory-policy noeviction
+      --save 300 10
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: always
+
   web:
     build:
       context: .
@@ -71,6 +90,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     healthcheck:
       test:
         [
@@ -81,6 +102,33 @@ services:
       timeout: 10s
       retries: 5
       start_period: 30s
+    restart: always
+
+  # Worker chạy job nền (RQ). Cùng image, cùng mount NAS như web vì job phải
+  # đọc/ghi được file đính kèm trên NAS. Không mở port, không nhận HTTP.
+  worker:
+    build:
+      context: .
+      args:
+        PYTHON_BASE_IMAGE: ${DOCKER_PYTHON_IMAGE:-python:3.13-slim}
+    command: python manage.py rqworker default nas --with-scheduler
+    volumes:
+      - static_volume:/app/staticfiles
+      - media_volume:/app/media
+      - ./static/equipment:/app/static/equipment:ro
+      - ${HOST_PROJECT_DIR:-.}:/backup-source:ro
+      - /mnt/nas-portal:/mnt/nas-portal
+      - /root/.config/rclone:/root/.config/rclone:ro
+      - /root/.nas-cred:/root/.nas-cred:ro
+    environment:
+      NAS_RCLONE_CONFIG: /root/.config/rclone/rclone.conf
+      NAS_RCLONE_REMOTE: ${NAS_RCLONE_REMOTE:-synology:}
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: always
 
   migrate:
@@ -120,6 +168,7 @@ networks:
 
 volumes:
   postgres_data:
+  redis_data:
   static_volume:
   media_volume:
   certbot_webroot:

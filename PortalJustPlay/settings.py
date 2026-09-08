@@ -224,6 +224,7 @@ INSTALLED_APPS = [
     'san_xuat.apps.SanXuatConfig',
     'nas_storage.apps.NasStorageConfig',
     'tools.apps.ToolsConfig',
+    'django_rq',  # hàng đợi job nền — chỉ hoạt động khi có REDIS_URL
     'django_cleanup.apps.CleanupConfig', # 👉 Thêm dòng này vào cuối
 ]
 
@@ -314,6 +315,21 @@ else:
 # Session đọc từ cache trước, ghi cả cache + DB → bỏ được 1 query/request khi
 # cache còn nóng, vẫn an toàn vì DB luôn là nguồn thật.
 SESSION_ENGINE = "django.contrib.sessions.backends.cached_db"
+
+# --- Hàng đợi job nền (django-rq) ---
+# Có REDIS_URL thì việc nặng (copy file NAS, đồng bộ, backup) chạy ở container
+# worker riêng. Không có thì tự rơi về thread — xem PortalJustPlay/background.py.
+if _REDIS_URL:
+    RQ_QUEUES = {
+        "default": {"URL": _REDIS_URL, "DEFAULT_TIMEOUT": 900},
+        # Việc chạm NAS chậm và hay treo — hàng đợi riêng, timeout dài hơn
+        "nas": {"URL": _REDIS_URL, "DEFAULT_TIMEOUT": 3600},
+    }
+else:
+    RQ_QUEUES = {}
+
+# Bật khi chạy test / lệnh quản trị cần job chạy ngay và lỗi nổi lên
+BACKGROUND_TASKS_EAGER = env_bool("BACKGROUND_TASKS_EAGER", False)
 
 DATABASES = {
     "default": {

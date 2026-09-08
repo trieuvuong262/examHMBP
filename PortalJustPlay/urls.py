@@ -53,6 +53,10 @@ urlpatterns = [
     path('ckeditor/upload/', ckeditor_upload.upload, name='ckeditor_upload'),
     path('ckeditor/browse/', ckeditor_upload.browse, name='ckeditor_browse'),
 ]
+
+# Dashboard hàng đợi job nền — đặt dưới admin nên chỉ staff vào được.
+if settings.RQ_QUEUES:
+    urlpatterns += [path('admin-panel/hang-doi/', include('django_rq.urls'))]
 # Cách phục vụ Media và Static chuẩn của Django
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
