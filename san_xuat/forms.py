@@ -282,7 +282,12 @@ class BomLineForm(forms.ModelForm):
                 'class': 'form-select form-select-sm jp-npl-material-select',
                 'data-placeholder': 'Gõ tên NPL…',
             }),
-            'qty': forms.NumberInput(attrs={'class': 'form-control form-control-sm', 'step': '0.0001', 'min': '0'}),
+            'qty': CompactNumberInput(attrs={
+                'class': 'form-control form-control-sm',
+                'step': 'any',
+                'min': '0',
+                'inputmode': 'decimal',
+            }),
             'notes': forms.TextInput(attrs={'class': 'form-control form-control-sm'}),
             'sort_order': forms.NumberInput(attrs={'class': 'form-control form-control-sm', 'min': '0'}),
         }
@@ -304,6 +309,10 @@ class BomLineForm(forms.ModelForm):
         else:
             self.fields['material'].queryset = Material.objects.none()
         self.fields['material'].empty_label = None
+        qty_field = self.fields.get('qty')
+        if qty_field is not None:
+            qty_field.localize = False
+            qty_field.widget.is_localized = False
 
     def full_clean(self):
         if self.data:

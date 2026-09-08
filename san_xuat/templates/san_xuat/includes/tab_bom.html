@@ -48,7 +48,7 @@
                             <td class="text-end">
                                 <span class="jp-npl-stock-qty small{% if f.instance.material_id and f.instance.stock_qty == 0 %} text-danger{% elif not f.instance.material_id %} text-muted{% endif %}"
                                       data-material-id="{{ f.instance.material_id|default:'' }}">
-                                    {% if f.instance.material_id %}{{ f.instance.stock_qty|default:0 }}{% else %}—{% endif %}
+                                    {% if f.instance.material_id %}{{ f.instance.stock_qty|default:0|sx_num }}{% else %}—{% endif %}
                                 </span>
                             </td>
                             <td>{{ f.notes }}</td>
@@ -356,7 +356,7 @@
                         <td>{{ line.material.name }}</td>
                         <td class="text-end">{{ line.qty|sx_num }}</td>
                         <td class="text-muted small">{{ line.material.unit.name|default:"—" }}</td>
-                        <td class="text-end{% if line.stock_qty == 0 %} text-danger{% endif %}">{{ line.stock_qty|default:0 }}</td>
+                        <td class="text-end{% if line.stock_qty == 0 %} text-danger{% endif %}">{{ line.stock_qty|default:0|sx_num }}</td>
                     </tr>
                     {% empty %}
                     <tr><td colspan="5" class="text-muted text-center py-3">Chưa có dòng NPL.</td></tr>
