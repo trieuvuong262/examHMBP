@@ -1189,13 +1189,25 @@ def _slot_metrics_from_entry(
     }
 
 
+def _ordered_hourly_entries(product: ProductionShiftProduct) -> list:
+    """Khung giờ của một công đoạn, sắp theo slot_index.
+
+    Dùng ``.all()`` rồi sắp trong Python để tận dụng
+    ``prefetch_related('hourly_entries')``. Nếu gọi ``.order_by('slot_index')``
+    thì Django bỏ qua cache prefetch và bắn thêm một truy vấn cho mỗi công
+    đoạn — trang Quản lý báo cáo SX từng tốn gần 200 truy vấn chỉ vì việc này.
+    """
+    return sorted(product.hourly_entries.all(), key=lambda e: e.slot_index or 0)
+
+
 def _product_efficiency_pct(product: ProductionShiftProduct) -> float | None:
     """Hiệu suất chung theo mã hàng — khớp bảng Tổng hợp (Báo cáo năng suất)."""
     norm = product.norm_per_hour
     if not norm or norm <= 0:
         return None
+    entries = _ordered_hourly_entries(product)
     prod_qty = Decimal('0')
-    for entry in product.hourly_entries.order_by('slot_index'):
+    for entry in entries:
         if not _entry_is_filled(entry):
             continue
         if entry.slot_index < product.first_slot_index:
@@ -1209,7 +1221,7 @@ def _product_efficiency_pct(product: ProductionShiftProduct) -> float | None:
         product_hours = session_effective_hours(product)
     else:
         product_hours = Decimal('0')
-        for entry in product.hourly_entries.order_by('slot_index'):
+        for entry in entries:
             if not _entry_is_filled(entry):
                 continue
             if entry.slot_index < product.first_slot_index:
@@ -1570,7 +1582,7 @@ def build_productivity_report(report: DailyWorkReport) -> dict:
             reason = _product_zero_reason(product)
             prod_hours = _product_display_work_hours(product)
             started_display, ended_display = session_time_displays(product)
-            for entry in product.hourly_entries.order_by('slot_index'):
+            for entry in _ordered_hourly_entries(product):
                 if not _entry_is_filled(entry):
                     continue
                 if entry.slot_index < product.first_slot_index:
@@ -1620,7 +1632,7 @@ def build_productivity_report(report: DailyWorkReport) -> dict:
         prod_hours = Decimal('0')
         prod_expected = Decimal('0')
 
-        for entry in product.hourly_entries.order_by('slot_index'):
+        for entry in _ordered_hourly_entries(product):
             if not _entry_is_filled(entry):
                 continue
             if entry.slot_index < product.first_slot_index:
