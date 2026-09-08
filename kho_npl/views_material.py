@@ -574,8 +574,6 @@ def material_stock_export(request):
                 'Nhóm': mat.category.name if mat.category_id else '',
                 'Màu': mat.color.name if mat.color_id else '',
                 'Quy cách': spec_label(mat.specification) if mat.specification_id else '',
-                'Đơn vị chẵn': mat.package_unit.name if mat.package_unit else '',
-                'Đơn vị lẻ': mat.unit.name,
                 'Tồn lẻ': float(row['total_qty']),
                 'Tồn chẵn': float(row['package_qty']) if row.get('package_qty') is not None else '',
                 'Đơn giá BQ': float(row.get('avg_unit_price') or 0),

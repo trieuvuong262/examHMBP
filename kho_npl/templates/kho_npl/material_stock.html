@@ -169,12 +169,6 @@
                         <td class="npl-col" data-col="color">
                             {% if group.can_expand %}<span class="text-muted">—</span>{% else %}{% include 'kho_npl/includes/material_color_chip.html' with color=material.color %}{% endif %}
                         </td>
-                        <td class="npl-col" data-col="package_unit" title="{{ group.package_unit_label|default:'—' }}">
-                            <span class="jp-npl-stock-cell-clip">{{ group.package_unit_label|default:'—' }}</span>
-                        </td>
-                        <td class="npl-col" data-col="unit" title="{{ group.unit|npl_unit }}">
-                            <span class="jp-npl-stock-cell-clip">{{ group.unit|npl_unit }}</span>
-                        </td>
                         <td class="text-end npl-col jp-mat-code fw-semibold" data-col="total_qty" title="{{ group.total_qty|npl_qty_with_unit:group.unit }}">
                             <span class="jp-npl-stock-cell-clip">{{ group.total_qty|npl_qty_with_unit:group.unit }}</span>
                         </td>
@@ -210,7 +204,7 @@
                     {% for lb in single_row.location_balances %}
                     <tr class="jp-npl-stock-loc-row is-collapsed" data-loc-expand="{{ material.pk }}">
                         <td class="npl-col" data-col="image"></td>
-                        <td class="npl-col jp-npl-stock-loc-label" data-col="name" colspan="6" title="{{ lb.location.name }}">
+                        <td class="npl-col jp-npl-stock-loc-label" data-col="name" colspan="4" title="{{ lb.location.name }}">
                             <span class="jp-npl-stock-loc-name">{{ lb.location.name }}</span>
                         </td>
                         <td class="text-end npl-col jp-mat-code fw-semibold" data-col="total_qty">{{ lb.quantity|npl_qty_with_unit:material.unit }}</td>
@@ -243,12 +237,6 @@
                             <span class="jp-npl-stock-cell-clip">{{ row.material.category.name }}</span>
                         </td>
                         <td class="npl-col" data-col="color">{% include 'kho_npl/includes/material_color_chip.html' with color=row.material.color %}</td>
-                        <td class="npl-col" data-col="package_unit" title="{{ row.material.package_unit.name|default:'—' }}">
-                            <span class="jp-npl-stock-cell-clip">{{ row.material.package_unit.name|default:'—' }}</span>
-                        </td>
-                        <td class="npl-col" data-col="unit" title="{{ row.material.unit|npl_unit }}">
-                            <span class="jp-npl-stock-cell-clip">{{ row.material.unit|npl_unit }}</span>
-                        </td>
                         <td class="text-end npl-col jp-mat-code fw-semibold" data-col="total_qty" title="{{ row.total_qty|npl_qty_with_unit:row.material.unit }}">
                             <span class="jp-npl-stock-cell-clip">{{ row.total_qty|npl_qty_with_unit:row.material.unit }}</span>
                         </td>
@@ -280,7 +268,7 @@
                     {% for lb in row.location_balances %}
                     <tr class="jp-npl-stock-loc-row is-collapsed" data-loc-expand="{{ row.material.pk }}" data-group-parent="{{ group.key }}">
                         <td class="npl-col" data-col="image"></td>
-                        <td class="npl-col jp-npl-stock-loc-label jp-npl-stock-loc-label-nested" data-col="name" colspan="6" title="{{ lb.location.name }}">
+                        <td class="npl-col jp-npl-stock-loc-label jp-npl-stock-loc-label-nested" data-col="name" colspan="4" title="{{ lb.location.name }}">
                             <span class="jp-npl-stock-loc-name">{{ lb.location.name }}</span>
                         </td>
                         <td class="text-end npl-col jp-mat-code fw-semibold" data-col="total_qty">{{ lb.quantity|npl_qty_with_unit:row.material.unit }}</td>
@@ -380,12 +368,11 @@
                 set.delete('primary_location');
                 set.add('detail');
             }
-            if (set.has('unit') && !set.has('package_unit')) {
-                set.add('package_unit');
-            }
             if (set.has('total_qty') && !set.has('package_qty')) {
                 set.add('package_qty');
             }
+            set.delete('unit');
+            set.delete('package_unit');
             REQUIRED.forEach(function (k) { set.add(k); });
             return set;
         } catch (e) { return new Set(DEFAULT_COLS); }
