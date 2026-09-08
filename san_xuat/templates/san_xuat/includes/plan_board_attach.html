@@ -1,6 +1,7 @@
 {% if pf.line_id %}
 {% if not pf.has_bom or not pf.has_ops %}
 <form method="post" class="jp-pb-attach"
+      data-product-code="{{ pf.product_code }}"
       action="{% url 'san_xuat:plan_board' %}?mode={{ mode }}&tab={{ tab }}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}">
   {% csrf_token %}
   <input type="hidden" name="action" value="attach_tech">
@@ -16,11 +17,15 @@
       {% if pf.has_bom %}
       <span class="jp-pb-attach-ok">{{ pf.bom_label|default:"đã gắn" }}</span>
       {% else %}
-      <select name="bom_version_id" class="form-select form-select-sm" required>
-        <option value="">— Chọn BOM —</option>
+      <select name="bom_version_id" class="form-select form-select-sm jp-pb-attach-bom"
+              data-create-url="{{ pf.bom_create_url }}" required>
+        <option value="">— BOM —</option>
         {% for b in pf.available_boms %}
         <option value="{{ b.id }}">{{ b.label }}</option>
         {% endfor %}
+        {% if pf.bom_create_url %}
+        <option value="__create__" data-create-url="{{ pf.bom_create_url }}">{% if pf.available_boms %}＋ Tạo thêm BOM trên hồ sơ{% else %}＋ Tạo BOM trên hồ sơ{% endif %}</option>
+        {% endif %}
       </select>
       {% endif %}
     </label>
@@ -29,24 +34,20 @@
       {% if pf.has_ops %}
       <span class="jp-pb-attach-ok">{{ pf.routing_label|default:"đã gắn" }}</span>
       {% else %}
-      <select name="routing_id" class="form-select form-select-sm"{% if pf.has_bom %} required{% endif %}>
-        <option value="">— Chọn công đoạn (OB) —</option>
+      <select name="routing_id" class="form-select form-select-sm jp-pb-attach-rt"
+              data-create-url="{{ pf.routing_create_url }}"{% if pf.has_bom %} required{% endif %}>
+        <option value="">— OB —</option>
         {% for rt in pf.available_routings %}
         <option value="{{ rt.id }}">{{ rt.label }}</option>
         {% endfor %}
+        {% if pf.routing_create_url %}
+        <option value="__create__" data-create-url="{{ pf.routing_create_url }}">{% if pf.available_routings %}＋ Tạo thêm OB trên hồ sơ{% else %}＋ Tạo OB trên hồ sơ{% endif %}</option>
+        {% endif %}
       </select>
       {% endif %}
     </label>
     <button type="submit" class="btn btn-hm btn-sm fw-bold">Gắn</button>
   </div>
-  {% if not pf.has_bom and not pf.available_boms %}
-  <p class="jp-pb-attach-hint">Chưa có BOM cho mã này — tạo ở
-    <a href="{% url 'san_xuat:doc_create' %}?code={{ pf.product_code|urlencode }}" target="_blank" rel="noopener">Hồ sơ thiết kế</a>
-    rồi tải lại trang.
-  </p>
-  {% elif not pf.has_ops and not pf.available_routings %}
-  <p class="jp-pb-attach-hint">Chưa có OB. Gắn BOM có công đoạn trên hồ sơ, hoặc tạo routing rồi tải lại.</p>
-  {% endif %}
 </form>
 {% endif %}
 {% endif %}

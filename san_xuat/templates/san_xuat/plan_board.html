@@ -1523,5 +1523,123 @@
     });
   });
 })();
+
+(function () {
+  var versionsApi = "{% url 'san_xuat:sales_order_line_versions' %}";
+  var CREATE_VAL = '__create__';
+  var pendingCreateReload = false;
+  var reloadTimer = null;
+
+  function hosocreateUrl(productCode, data, kind) {
+    var docUrl = data && data.doc_url;
+    if (docUrl) {
+      var sep = String(docUrl).indexOf('?') >= 0 ? '&' : '?';
+      return docUrl + sep + (kind === 'ob' ? 'tab=process&edit=1' : 'tab=bom&edit=1');
+    }
+    if (kind === 'ob') return (data && (data.routing_create_url || data.create_url)) || '';
+    return (data && data.create_url) || '';
+  }
+
+  function fillSelect(sel, items, emptyLabel, createUrl, createLabel, keepValue) {
+    if (!sel) return;
+    var prev = keepValue != null && keepValue !== '' && keepValue !== CREATE_VAL
+      ? String(keepValue) : (sel.value && sel.value !== CREATE_VAL ? sel.value : '');
+    sel.innerHTML = '';
+    var opt0 = document.createElement('option');
+    opt0.value = '';
+    opt0.textContent = emptyLabel;
+    sel.appendChild(opt0);
+    (items || []).forEach(function (it) {
+      var opt = document.createElement('option');
+      opt.value = String(it.id);
+      opt.textContent = it.text || it.label || String(it.id);
+      sel.appendChild(opt);
+    });
+    if (createUrl) {
+      var createOpt = document.createElement('option');
+      createOpt.value = CREATE_VAL;
+      createOpt.textContent = (items || []).length
+        ? createLabel.replace(/^＋ Tạo /, '＋ Tạo thêm ')
+        : createLabel;
+      createOpt.dataset.createUrl = createUrl;
+      sel.appendChild(createOpt);
+      sel.dataset.createUrl = createUrl;
+    }
+    if (prev) {
+      var found = Array.prototype.some.call(sel.options, function (o) { return o.value === prev; });
+      if (found) sel.value = prev;
+    }
+  }
+
+  function reloadAttachForm(form) {
+    var code = form.getAttribute('data-product-code') || '';
+    var bomSel = form.querySelector('.jp-pb-attach-bom');
+    var rtSel = form.querySelector('.jp-pb-attach-rt');
+    if (!code || (!bomSel && !rtSel)) return;
+    fetch(versionsApi + '?product_code=' + encodeURIComponent(code), {
+      headers: { 'Accept': 'application/json' },
+      credentials: 'same-origin'
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        fillSelect(
+          bomSel,
+          data.bom_versions || [],
+          '— BOM —',
+          hosocreateUrl(code, data, 'bom'),
+          '＋ Tạo BOM trên hồ sơ',
+          bomSel ? bomSel.value : ''
+        );
+        fillSelect(
+          rtSel,
+          data.routings || [],
+          '— OB —',
+          hosocreateUrl(code, data, 'ob'),
+          '＋ Tạo OB trên hồ sơ',
+          rtSel ? rtSel.value : ''
+        );
+      })
+      .catch(function () {});
+  }
+
+  function scheduleReload() {
+    if (!pendingCreateReload) return;
+    pendingCreateReload = false;
+    if (reloadTimer) clearTimeout(reloadTimer);
+    reloadTimer = setTimeout(function () {
+      reloadTimer = null;
+      document.querySelectorAll('form.jp-pb-attach').forEach(reloadAttachForm);
+    }, 350);
+  }
+
+  document.addEventListener('change', function (e) {
+    var sel = e.target;
+    if (!sel || !sel.matches) return;
+    if (!sel.matches('.jp-pb-attach-bom, .jp-pb-attach-rt')) return;
+    if (sel.value !== CREATE_VAL) return;
+    var opt = sel.options[sel.selectedIndex];
+    var url = (opt && opt.dataset.createUrl) || sel.dataset.createUrl || '';
+    sel.value = '';
+    pendingCreateReload = true;
+    if (url) window.open(url, '_blank', 'noopener');
+  });
+
+  document.querySelectorAll('form.jp-pb-attach').forEach(function (form) {
+    form.addEventListener('submit', function (ev) {
+      var bom = form.querySelector('.jp-pb-attach-bom');
+      var rt = form.querySelector('.jp-pb-attach-rt');
+      if ((bom && bom.value === CREATE_VAL) || (rt && rt.value === CREATE_VAL)) {
+        ev.preventDefault();
+      }
+    });
+  });
+
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible') scheduleReload();
+  });
+  window.addEventListener('focus', function () {
+    scheduleReload();
+  });
+})();
 </script>
 {% endblock %}

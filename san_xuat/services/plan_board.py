@@ -43,25 +43,59 @@ def _line_has_operations(order_line: SxSalesOrderLine, *, routing_id=None, bom=N
     return False
 
 
-def _tech_choices_for_code(product_code: str, cache: dict) -> tuple[list, list]:
+def _tech_choices_for_code(product_code: str, cache: dict) -> dict:
     """BOM / OB dropdown trên ticket KHSX — cache theo mã trong một lần build board."""
+    from urllib.parse import urlencode
+
+    from django.urls import reverse
+
+    from san_xuat.services.order_routing import boms_for_product, routings_for_product
+    from san_xuat.services.products import find_tech_doc_for_code
+
     key = (product_code or '').strip().casefold()
+    empty = {
+        'boms': [],
+        'routings': [],
+        'bom_create_url': '',
+        'routing_create_url': '',
+    }
     if not key:
-        return [], []
+        return empty
     if key in cache:
         return cache[key]
-    from san_xuat.services.order_routing import boms_for_product, routings_for_product
-
-    boms = [
-        {'id': b.pk, 'label': (b.version_label or '').strip() or f'#{b.pk}'}
-        for b in boms_for_product(product_code)
-    ]
-    routings = [
-        {'id': r.pk, 'label': (r.routing_rev or '').strip() or f'#{r.pk}'}
-        for r in routings_for_product(product_code)
-    ]
-    cache[key] = (boms, routings)
-    return boms, routings
+    code = (product_code or '').strip()
+    create_url = reverse('san_xuat:doc_create') + (f'?code={code}' if code else '')
+    routing_qs = {'style_code': code} if code else {}
+    routing_create = reverse('san_xuat:ie_routing_create') + (
+        ('?' + urlencode(routing_qs)) if routing_qs else ''
+    )
+    doc = find_tech_doc_for_code(code)
+    if doc:
+        doc_url = reverse('san_xuat:doc_detail', kwargs={'pk': doc.pk})
+        bom_url = doc_url + ('&' if '?' in doc_url else '?') + 'tab=bom&edit=1'
+        rt_url = doc_url + ('&' if '?' in doc_url else '?') + 'tab=process&edit=1'
+        style = (doc.product_code or code).strip()
+        rq = {'style_code': style}
+        if (doc.product_name or '').strip():
+            rq['style_name'] = doc.product_name.strip()
+        routing_create = reverse('san_xuat:ie_routing_create') + '?' + urlencode(rq)
+    else:
+        bom_url = create_url
+        rt_url = routing_create
+    payload = {
+        'boms': [
+            {'id': b.pk, 'label': (b.version_label or '').strip() or f'#{b.pk}'}
+            for b in boms_for_product(product_code)
+        ],
+        'routings': [
+            {'id': r.pk, 'label': (r.routing_rev or '').strip() or f'#{r.pk}'}
+            for r in routings_for_product(product_code)
+        ],
+        'bom_create_url': bom_url,
+        'routing_create_url': rt_url,
+    }
+    cache[key] = payload
+    return payload
 
 
 PRIORITY_WEIGHT = {
@@ -182,6 +216,8 @@ class PlanProductFlow:
     routing_label: str = ''
     available_boms: list = field(default_factory=list)
     available_routings: list = field(default_factory=list)
+    bom_create_url: str = ''
+    routing_create_url: str = ''
 
 
 @dataclass
@@ -667,7 +703,7 @@ def build_plan_board_rows(
 
     today = timezone.localdate()
     rows: list[PlanBoardRow] = []
-    _tech_choice_cache: dict[str, tuple[list, list]] = {}
+    _tech_choice_cache: dict[str, dict] = {}
     for order in qs:
         lines = list(order.lines.all())
         mos = list(order.production_orders.all())
@@ -723,7 +759,7 @@ def build_plan_board_rows(
             pbuf = _buffer_from_flow_groups(groups)
             psmv = _q(line_order_smv_seconds(ln) / Decimal('60'), '0.0001')
             line_has_ops = _line_has_operations(ln)
-            bom_choices, rt_choices = _tech_choices_for_code(code, _tech_choice_cache)
+            tech = _tech_choices_for_code(code, _tech_choice_cache)
             bom_obj = getattr(ln, 'bom_version', None)
             rt_obj = getattr(ln, 'routing', None)
             product_flows.append(PlanProductFlow(
@@ -740,8 +776,10 @@ def build_plan_board_rows(
                 has_ops=line_has_ops,
                 bom_label=(getattr(bom_obj, 'version_label', None) or '') if ln.bom_version_id else '',
                 routing_label=(getattr(rt_obj, 'routing_rev', None) or '') if ln.routing_id else '',
-                available_boms=bom_choices,
-                available_routings=rt_choices,
+                available_boms=tech['boms'],
+                available_routings=tech['routings'],
+                bom_create_url=tech['bom_create_url'],
+                routing_create_url=tech['routing_create_url'],
             ))
         if product_flows:
             # Ticket-level groups = mã đầu (fallback include cũ); UI ưu tiên product_flows
