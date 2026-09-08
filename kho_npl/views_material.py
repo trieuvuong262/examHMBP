@@ -376,7 +376,11 @@ def _stock_filtered_rows(request):
     search_query = get_search_query(request)
     category_parent_id, category_ids = parse_category_cascade_filter(request)
     usage_status = _material_list_status(request, param='usage')
-    qs = Material.objects.select_related('category', 'unit', 'supplier', 'color', 'specification', 'primary_location')
+    qs = (
+        Material.objects
+        .select_related('category', 'unit', 'supplier', 'color', 'specification', 'primary_location')
+        .prefetch_related('specification__levels__unit', 'balances__location')
+    )
     qs = _apply_material_usage_status(qs, usage_status)
     if search_query:
         qs = apply_material_search(qs, search_query)
@@ -570,7 +574,8 @@ def material_stock_export(request):
                 'Nhóm': mat.category.name if mat.category_id else '',
                 'Màu': mat.color.name if mat.color_id else '',
                 'Quy cách': spec_label(mat.specification) if mat.specification_id else '',
-                'ĐVT': mat.unit.name,
+                'Đơn vị chẵn': mat.package_unit.name if mat.package_unit else '',
+                'Đơn vị lẻ': mat.unit.name,
                 'Tồn hiện tại': float(row['total_qty']),
                 'Đơn giá BQ': float(row.get('avg_unit_price') or 0),
                 'Giá trị tồn': float(row.get('stock_value') or 0),
