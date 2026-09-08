@@ -54,9 +54,11 @@ urlpatterns = [
     path('ckeditor/browse/', ckeditor_upload.browse, name='ckeditor_browse'),
 ]
 
-# Dashboard hàng đợi job nền — đặt dưới admin nên chỉ staff vào được.
+# Dashboard hàng đợi job nền. Không đặt dưới 'admin-panel/' vì prefix đó đã
+# thuộc admin.site.urls và sẽ chặn trước. Các view của django_rq đều có
+# @staff_member_required nên chỉ staff vào được.
 if settings.RQ_QUEUES:
-    urlpatterns += [path('admin-panel/hang-doi/', include('django_rq.urls'))]
+    urlpatterns += [path('hang-doi/', include('django_rq.urls'))]
 # Cách phục vụ Media và Static chuẩn của Django
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
