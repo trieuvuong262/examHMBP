@@ -19,6 +19,7 @@ from kho_san_pham.choices import (
 from kho_san_pham.forms import ProductForm
 from kho_san_pham.models import Product
 from kho_san_pham.product_list_columns import PRODUCT_LIST_SORT_FIELDS
+from kho_san_pham.sku_vocabulary import extract_sp_number
 from kho_san_pham.services.stock import StockMovementError, set_catalog_qty
 from kho_san_pham.services.product_import_export import (
     ProductImportError,
@@ -53,9 +54,10 @@ def _list_type(request) -> str:
 
 
 # Lựa chọn trên thanh lọc — value = "sort:dir" để một select đủ cả chiều.
+# SKU mặc định theo số SP (SP008484 trước SP008476), không theo tiền tố JP-SET-SC.
 PRODUCT_LIST_ORDER_CHOICES = (
-    ('code:asc', 'SKU A → Z'),
-    ('code:desc', 'SKU Z → A'),
+    ('code:desc', 'Số SP lớn → nhỏ'),
+    ('code:asc', 'Số SP nhỏ → lớn'),
     ('qty_on_hand:desc', 'Tồn xưởng nhiều → ít'),
     ('qty_on_hand:asc', 'Tồn xưởng ít → nhiều'),
     ('name:asc', 'Tên A → Z'),
@@ -77,8 +79,8 @@ def _list_sort(request):
     if sort_key not in PRODUCT_LIST_SORT_FIELDS:
         sort_key = 'code'
     if sort_dir not in ('asc', 'desc'):
-        # Tồn / giá: mặc định cao → thấp; còn lại A → Z.
-        sort_dir = 'desc' if sort_key in ('qty_on_hand', 'base_price') else 'asc'
+        # Tồn / giá / số SP: mặc định lớn → nhỏ; còn lại A → Z.
+        sort_dir = 'desc' if sort_key in ('qty_on_hand', 'base_price', 'code') else 'asc'
     return sort_key, sort_dir
 
 
@@ -111,11 +113,33 @@ def _product_list_qs(request):
             | Q(category_name__icontains=search_query)
         )
     sort_key, sort_dir = _list_sort(request)
-    order = PRODUCT_LIST_SORT_FIELDS[sort_key]
-    if sort_dir == 'desc':
-        order = f'-{order}'
-    qs = qs.order_by(order, 'code')
+    if sort_key == 'code':
+        from django.db.models import BigIntegerField
+        from django.db.models.expressions import RawSQL
+
+        qs = qs.annotate(
+            _sp_num=RawSQL(
+                "COALESCE((regexp_match(COALESCE(NULLIF(BTRIM(style_code), ''), code),"
+                " 'SP([0-9]+)'))[1]::bigint, -1)",
+                [],
+                output_field=BigIntegerField(),
+            )
+        )
+        sp_order = '-_sp_num' if sort_dir == 'desc' else '_sp_num'
+        qs = qs.order_by(sp_order, 'style_code', 'code')
+    else:
+        order = PRODUCT_LIST_SORT_FIELDS[sort_key]
+        if sort_dir == 'desc':
+            order = f'-{order}'
+        qs = qs.order_by(order, 'code')
     return qs, search_query, status, product_type, sort_key, sort_dir
+
+
+def _group_sp_sort_key(group: dict) -> tuple:
+    text = (group.get('style_code') or '').strip()
+    if not text or text == '—':
+        text = group.get('code') or ''
+    return (extract_sp_number(text), text.upper())
 
 
 def _apply_catalog_qty(product, form, *, user) -> None:
@@ -134,18 +158,19 @@ def hub_redirect(request):
 def product_list(request):
     qs, search_query, status, product_type, sort_key, sort_dir = _product_list_qs(request)
     # Gom theo Style trước khi phân trang (giống Bán hàng – Hàng hoá)
-    products = list(qs[:2000])
+    products = list(qs)
     groups = [format_style_group(g) for g in group_products_by_style(products)]
-    # Sau khi gom, sắp lại theo tổng tồn / giá của nhóm — không theo SKU đầu tiên.
-    if sort_key in ('qty_on_hand', 'base_price'):
-        reverse = sort_dir == 'desc'
-        if sort_key == 'qty_on_hand':
-            groups.sort(key=lambda g: g.get('qty_on_hand') or 0, reverse=reverse)
-        else:
-            groups.sort(
-                key=lambda g: g.get('min_price') if g.get('min_price') is not None else -1,
-                reverse=reverse,
-            )
+    # Sau khi gom, sắp lại theo số SP / tổng tồn / giá của nhóm — không theo SKU đầu tiên.
+    reverse = sort_dir == 'desc'
+    if sort_key == 'code':
+        groups.sort(key=_group_sp_sort_key, reverse=reverse)
+    elif sort_key == 'qty_on_hand':
+        groups.sort(key=lambda g: g.get('qty_on_hand') or 0, reverse=reverse)
+    elif sort_key == 'base_price':
+        groups.sort(
+            key=lambda g: g.get('min_price') if g.get('min_price') is not None else -1,
+            reverse=reverse,
+        )
     page_obj, query_string = paginate_queryset(request, groups, per_page=40)
 
     # Đánh dấu nhóm đã có hồ sơ thiết kế (theo mã SX / style)
@@ -207,7 +232,7 @@ def product_list(request):
         'sort_dir': sort_dir,
         'stock_sort_href': f'?{stock_sort_params.urlencode()}',
         'has_filters': bool(
-            search_query or status != 'all' or product_type or selected_order != 'code:asc'
+            search_query or status != 'all' or product_type or selected_order != 'code:desc'
         ),
         'expand_search_hits': bool(search_query),
     })

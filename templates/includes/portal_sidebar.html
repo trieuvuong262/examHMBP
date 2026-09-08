@@ -619,7 +619,7 @@
                     aria-expanded="{% if 'kho-san-pham' in request.path %}true{% else %}false{% endif %}"
                     aria-controls="jp-sidebar-kho-sp-submenu">
                 <span class="jp-sidebar-group-toggle-main">
-                    <i class="bi bi-box-seam"></i><span>Kho sản phẩm</span>
+                    <i class="bi bi-box-seam"></i><span>Danh mục sản phẩm</span>
                 </span>
                 <i class="bi bi-chevron-down jp-sidebar-group-chevron" aria-hidden="true"></i>
             </button>
@@ -715,7 +715,7 @@
                 </li>
                 {% endif %}
 
-                {# —— 2. Hồ sơ (master) — ẩn SP/NVL landing & quy trình read-only (vào từ hồ sơ) —— #}
+                {# —— 2. Hồ sơ sản phẩm (master) — ẩn SP/NVL landing & quy trình read-only (vào từ hồ sơ) —— #}
                 {% jp_can_menu 'san_xuat' 'docs' as jp_can_san_xuat_docs %}
                 {% jp_can_menu 'san_xuat' 'bom' as jp_can_san_xuat_bom %}
                 {% jp_can_menu 'san_xuat' 'ie' as jp_can_san_xuat_ie %}
@@ -724,7 +724,7 @@
                 {% jp_can_menu 'san_xuat' 'capacity' as jp_can_san_xuat_capacity %}
                 {% if jp_can_san_xuat_docs or jp_can_san_xuat_bom or jp_can_san_xuat_ie or jp_can_san_xuat_ie_settings or jp_can_san_xuat_ie_approve or jp_can_san_xuat_capacity %}
                 <li class="jp-sidebar-nested-group{% if '/san-xuat/ho-so' in request.path or '/san-xuat/bom' in request.path or '/san-xuat/nang-luc' in request.path or '/san-xuat/cong-doan' in request.path %} is-open{% endif %}"
-                    data-sx-area="docs" data-sx-icon="bi-journal-text" data-sx-label="Hồ sơ"
+                    data-sx-area="docs" data-sx-icon="bi-journal-text" data-sx-label="Hồ sơ sản phẩm"
                     data-sx-href="{% if jp_can_san_xuat_docs %}{% url 'san_xuat:doc_list' %}{% elif jp_can_san_xuat_ie %}{% url 'san_xuat:ie_operation_list' %}{% elif jp_can_san_xuat_ie_approve %}{% url 'san_xuat:ie_approve_hub' %}{% elif jp_can_san_xuat_ie_settings %}{% url 'san_xuat:ie_settings_hub' %}{% elif jp_can_san_xuat_bom %}{% url 'san_xuat:bom_list' %}{% else %}{% url 'san_xuat:capacity_list' %}{% endif %}">
                     <button type="button"
                             class="jp-sidebar-nested-toggle"
@@ -732,7 +732,7 @@
                             aria-expanded="{% if '/san-xuat/ho-so' in request.path or '/san-xuat/bom' in request.path or '/san-xuat/nang-luc' in request.path or '/san-xuat/cong-doan' in request.path %}true{% else %}false{% endif %}"
                             aria-controls="jp-sidebar-san-xuat-products-submenu">
                         <span class="jp-sidebar-nested-toggle-main">
-                            <i class="bi bi-box"></i><span>Hồ sơ</span>
+                            <i class="bi bi-box"></i><span>Hồ sơ sản phẩm</span>
                         </span>
                         <i class="bi bi-chevron-down jp-sidebar-nested-chevron" aria-hidden="true"></i>
                     </button>
@@ -1101,10 +1101,10 @@
 
                 {# —— 8. Đóng gói — tạm ẩn khỏi menu; URL /san-xuat/dong-goi/ vẫn mở được —— #}
 
-                {# —— 8b. Kho sản phẩm (sau nhập TP) —— #}
+                {# —— 8b. Danh mục sản phẩm (sau nhập TP) —— #}
                 {% if jp_can_kho_san_pham %}
                 <li class="jp-sidebar-nested-group{% if 'kho-san-pham' in request.path %} is-open{% endif %}"
-                    data-sx-area="kho_sp" data-sx-icon="bi-box-seam" data-sx-label="Kho sản phẩm"
+                    data-sx-area="kho_sp" data-sx-icon="bi-box-seam" data-sx-label="Danh mục sản phẩm"
                     data-sx-href="{% url 'kho_san_pham:product_list' %}">
                     <button type="button"
                             class="jp-sidebar-nested-toggle"
@@ -1112,7 +1112,7 @@
                             aria-expanded="{% if 'kho-san-pham' in request.path %}true{% else %}false{% endif %}"
                             aria-controls="jp-sidebar-san-xuat-kho-sp-submenu">
                         <span class="jp-sidebar-nested-toggle-main">
-                            <i class="bi bi-box-seam"></i><span>Kho sản phẩm</span>
+                            <i class="bi bi-box-seam"></i><span>Danh mục sản phẩm</span>
                         </span>
                         <i class="bi bi-chevron-down jp-sidebar-nested-chevron" aria-hidden="true"></i>
                     </button>

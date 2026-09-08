@@ -8,6 +8,40 @@ PRODUCT_TYPE_CHOICES = [
 
 PRODUCT_TYPE_LABELS = dict(PRODUCT_TYPE_CHOICES)
 
+# Nhóm hàng KV là phụ kiện mua vào — không phải thành phẩm sản xuất.
+HANG_HOA_CATEGORY_NAMES = frozenset({
+    'BĂNG THẤM MÔ HÔI',
+    'TÚI ĐỰNG GIÀY',
+    'BALO',
+    'NÓN/ MŨ',
+    'TẤT VỚ',
+})
+
+HANG_HOA_CATALOG_TYPE_CODES = frozenset({
+    'ACC',
+    'ACC-BALO',
+    'ACC-BAG',
+    'ACC-SHCK',
+    'ACC-HAT',
+})
+
+_HANG_HOA_CATEGORY_FOLD = frozenset(n.casefold() for n in HANG_HOA_CATEGORY_NAMES)
+
+
+def is_hang_hoa_category(category_name: str, catalog_type_code: str = '') -> bool:
+    """True nếu nhóm hàng / loại mã là phụ kiện → Loại = Hàng hoá."""
+    cat = (category_name or '').strip().casefold()
+    if cat and cat in _HANG_HOA_CATEGORY_FOLD:
+        return True
+    code = (catalog_type_code or '').strip().upper()
+    return code in HANG_HOA_CATALOG_TYPE_CODES
+
+
+def goods_product_type(*, category_name: str = '', catalog_type_code: str = '') -> str:
+    if is_hang_hoa_category(category_name, catalog_type_code):
+        return PRODUCT_TYPE_HANG_HOA
+    return PRODUCT_TYPE_THANH_PHAM
+
 SYNC_SOURCE_MANUAL = 'manual'
 SYNC_SOURCE_KIOTVIET = 'kiotviet'
 

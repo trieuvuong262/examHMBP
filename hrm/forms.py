@@ -1085,7 +1085,7 @@ PERM_GROUP_MODULE_ICONS = {
 SAN_XUAT_PERMISSION_SECTIONS = (
     ('Tổng quan', ('overview',)),
     ('Đơn đặt hàng', ('orders', 'order_create', 'order_confirm')),
-    ('Hồ sơ', ('docs', 'ie', 'ie_approve', 'ie_settings', 'capacity')),
+    ('Hồ sơ sản phẩm', ('docs', 'ie', 'ie_approve', 'ie_settings', 'capacity')),
     ('Kế hoạch SX', ('plan', 'plan_board', 'plan_inter_step', 'plan_npl', 'npl_pr')),
     (
         'Điều phối',

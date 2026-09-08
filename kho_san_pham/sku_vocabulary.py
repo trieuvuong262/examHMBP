@@ -93,6 +93,15 @@ NO_SIZE_NAME_HINTS = (
 # Size thực chất là kích thước vật lý, vd. "39X54CM" — cần xử lý tay, không tự đổi.
 DIMENSION_SIZE_RE = re.compile(r'^\d+\s*[X*]\s*\d+\s*(CM|MM|M)$', re.IGNORECASE)
 
+# Số SP trong mã Style/SKU — sắp danh mục theo số, không theo tiền tố JP-SET-SC.
+SP_NUMBER_RE = re.compile(r'SP(\d+)', re.IGNORECASE)
+
+
+def extract_sp_number(code: str) -> int:
+    """``JP-SET-SC-SP008484`` → 8484. Không có token SP → -1."""
+    match = SP_NUMBER_RE.search(code or '')
+    return int(match.group(1)) if match else -1
+
 # ---------------------------------------------------------------- màu
 
 # Tên màu (như dữ liệu KiotViet ghi) → mã màu. 8 mã đầu đã có trong san_xuat_sxcolor,

@@ -20,6 +20,7 @@ from kho_san_pham.choices import (
     DEFAULT_BRAND,
     PRODUCT_TYPE_THANH_PHAM,
     SYNC_SOURCE_KIOTVIET,
+    goods_product_type,
 )
 from kho_san_pham.models import Product
 
@@ -372,7 +373,10 @@ def _create_product_from_kv(kv, fields: dict, *, style_code: str, code: str, cat
         color_code=fields['color_code'],
         color_label=fields['color_label'],
         size_label=fields['size_label'],
-        product_type=PRODUCT_TYPE_THANH_PHAM,
+        product_type=goods_product_type(
+            category_name=fields.get('category_name') or '',
+            catalog_type_code=getattr(catalog_type, 'code', '') or '',
+        ),
         catalog_type=catalog_type,
         sync_source=SYNC_SOURCE_KIOTVIET,
         kiotviet_id=kv.kiotviet_id,

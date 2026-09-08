@@ -178,7 +178,7 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
         {'key': 'qc_standard_set', 'label': 'Bộ tiêu chuẩn kiểm tra chất lượng', 'icon': 'bi-journal-bookmark'},
         {'key': 'qc_defect', 'label': 'Lỗi kiểm tra chất lượng', 'icon': 'bi-exclamation-triangle'},
         {'key': 'qc_defect_group', 'label': 'Nhóm lỗi kiểm tra chất lượng', 'icon': 'bi-folder-x'},
-        {'key': 'fg_stock', 'label': 'Kho sản phẩm', 'icon': 'bi-box-seam'},
+        {'key': 'fg_stock', 'label': 'Danh mục sản phẩm', 'icon': 'bi-box-seam'},
         {'key': 'fg_products', 'label': 'Hàng hoá', 'icon': 'bi-box-seam'},
         {'key': 'fg_stock_list', 'label': 'Tồn kho thành phẩm', 'icon': 'bi-boxes'},
         {'key': 'fg_purchases', 'label': 'Phiếu nhập', 'icon': 'bi-box-arrow-in-down'},
