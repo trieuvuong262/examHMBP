@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <title>Đã tạo phiếu thuê sản xuất</title>
+</head>
+<body>
+  <p>Đã tạo phiếu {{ item.code }}.</p>
+  <script>
+    {% if print_url %}
+    window.open('{{ print_url|escapejs }}', 'jpSubcontractPrint');
+    {% endif %}
+    window.parent.postMessage({
+      type: 'jp-subcontract-created',
+      itemId: {{ item.pk }},
+      itemCode: '{{ item.code|escapejs }}'
+    }, window.location.origin);
+  </script>
+</body>
+</html>

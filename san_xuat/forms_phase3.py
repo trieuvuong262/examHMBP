@@ -479,19 +479,23 @@ class SubcontractCreateForm(forms.Form):
             if ref:
                 cleaned["product_name"] = ref.name
         mo = cleaned.get("production_order")
+        so = cleaned.get("sales_order")
         slug = cleaned.get("team_slug") or ""
-        if not mo:
-            self.add_error("production_order", "Chỉ thuê gia công sau khi chuyển sản xuất.")
+        if not mo and not so:
+            self.add_error("sales_order", "Chọn đơn đặt hàng hoặc lệnh sản xuất.")
         if not slug:
             self.add_error("team_slug", "Chọn bộ phận / tổ thuê gia công.")
-        if mo and slug:
+        if (mo or so) and slug:
             from san_xuat.services.qc import ob_team_options
 
-            allowed = {t["slug"] for t in ob_team_options(mo=mo)}
+            allowed = {
+                t["slug"]
+                for t in ob_team_options(mo=mo, order=so if mo is None else None)
+            }
             if slug not in allowed:
                 self.add_error(
                     "team_slug",
-                    "Tổ không có trên Ob của lệnh này.",
+                    "Tổ không có trên Ob của đơn hàng.",
                 )
         return cleaned
 
@@ -550,7 +554,7 @@ class SubcontractMaterialLineForm(forms.Form):
 SubcontractOutLineFormSet = formset_factory(
     SubcontractMaterialLineForm,
     extra=0,
-    can_delete=False,
+    can_delete=True,
 )
 
 

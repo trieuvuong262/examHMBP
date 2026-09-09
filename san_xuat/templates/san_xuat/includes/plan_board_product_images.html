@@ -1,0 +1,19 @@
+{% if row.product_flows %}
+<div class="jp-pb-ticket-products" aria-label="Hình ảnh sản phẩm">
+  {% for pf in row.product_flows %}
+    {% if pf.image_url %}
+    <button type="button" class="jp-pb-ticket-product-image" data-sx-gallery
+            data-sx-gallery-title="{{ pf.product_name|default:pf.product_code }}"
+            data-sx-gallery-images="{{ pf.image_urls_json }}"
+            title="{{ pf.product_name|default:pf.product_code }}">
+      <img src="{{ pf.image_url }}" alt="{{ pf.product_name|default:pf.product_code }}" loading="lazy">
+    </button>
+    {% else %}
+    <span class="jp-pb-ticket-product-image is-empty"
+          title="{{ pf.product_name|default:pf.product_code }}" aria-label="Sản phẩm chưa có ảnh">
+      <i class="bi bi-image" aria-hidden="true"></i>
+    </span>
+    {% endif %}
+  {% endfor %}
+</div>
+{% endif %}

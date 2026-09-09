@@ -6505,25 +6505,42 @@ def subcontract_list(request):
 
 @module_perm_required(MODULE_SAN_XUAT, 'create')
 def subcontract_create(request):
+    from san_xuat.hub_models import SxSalesOrder
     from san_xuat.services.phase3 import Phase3Error, create_subcontract_order, npl_lines_for_subcontract
     from san_xuat.services.progress_template import team_by_slug
     from san_xuat.services.team_work import active_subcontract_for_team
 
     raw_mo = (request.GET.get('mo') or '').strip()
+    raw_so = (request.GET.get('so') or '').strip()
+    raw_product = (request.GET.get('product') or '').strip()
     raw_team = (request.GET.get('team') or '').strip().lower()
+    embed = (request.GET.get('embed') or '').strip() == '1'
     mo = (
         SxProductionOrder.objects.select_related('sales_order').filter(pk=int(raw_mo), is_demo=False).first()
         if raw_mo.isdigit() else None
     )
+    so = mo.sales_order if mo else (
+        SxSalesOrder.objects.prefetch_related('lines').filter(pk=int(raw_so), is_demo=False).first()
+        if raw_so.isdigit() else None
+    )
     team = team_by_slug(raw_team) if raw_team else None
-    if not mo or mo.status == SxProductionOrder.STATUS_CANCELLED:
-        messages.info(request, 'Thuê gia công từng bộ phận sau khi chuyển sản xuất — mở từ bảng công việc tổ.')
+    if (mo and mo.status == SxProductionOrder.STATUS_CANCELLED) or (not mo and not so):
+        messages.info(request, 'Mở thuê sản xuất từ công đoạn trên bảng kế hoạch.')
         return redirect('san_xuat:subcontract_list')
     if not team:
         messages.info(request, 'Chọn tổ trên phân công để thuê gia công đúng bộ phận.')
         return redirect('san_xuat:team_work_hub')
 
-    existing = active_subcontract_for_team(mo_id=mo.pk, team_slug=team['slug'])
+    existing = active_subcontract_for_team(mo_id=mo.pk, team_slug=team['slug']) if mo else (
+        SxSubcontractOrder.objects.filter(
+            sales_order=so,
+            production_order__isnull=True,
+            product_code__iexact=raw_product,
+            team_slug=team['slug'],
+            status__in=(SxSubcontractOrder.STATUS_DRAFT, SxSubcontractOrder.STATUS_SENT),
+            is_demo=False,
+        ).order_by('-pk').first()
+    )
     if existing and existing.status in (
         SxSubcontractOrder.STATUS_DRAFT,
         SxSubcontractOrder.STATUS_SENT,
@@ -6531,18 +6548,38 @@ def subcontract_create(request):
         messages.info(request, f'Đã có phiếu {existing.code} đang mở cho tổ {team["label"]}.')
         return redirect('san_xuat:subcontract_detail', pk=existing.pk)
 
-    so = mo.sales_order
-    product_code = mo.product_code or ''
-    product_name = mo.product_name or ''
-    qty = mo.qty or Decimal('0')
+    source_line = None
+    if mo:
+        product_code = mo.product_code or ''
+        product_name = mo.product_name or ''
+        qty = mo.qty or Decimal('0')
+    else:
+        source_line = so.lines.filter(product_code__iexact=raw_product).first()
+        if source_line is None:
+            messages.error(request, 'Mã sản phẩm không thuộc đơn đặt hàng.')
+            return redirect('san_xuat:plan_board')
+        product_code = source_line.product_code or ''
+        product_name = source_line.product_name or ''
+        qty = source_line.qty_to_produce
     source_post = {
-        'production_order': str(mo.pk),
+        'production_order': str(mo.pk) if mo else '',
         'sales_order': str(so.pk) if so else '',
         'team_slug': team['slug'],
         'product_code': product_code,
         'product_name': product_name,
     }
-    form_action = f'?mo={mo.pk}&team={team["slug"]}'
+    if mo:
+        form_action = f'?mo={mo.pk}&team={team["slug"]}'
+    else:
+        from urllib.parse import urlencode
+
+        form_action = '?' + urlencode({
+            'so': so.pk,
+            'product': product_code,
+            'team': team['slug'],
+        })
+    if embed:
+        form_action += '&embed=1'
 
     if request.method == 'POST':
         data = request.POST.copy()
@@ -6556,10 +6593,10 @@ def subcontract_create(request):
                 cd = lf.cleaned_data
                 if not cd:
                     continue
+                if cd.get('DELETE'):
+                    continue
                 if cd.get('material_code') and cd.get('qty') and cd['qty'] > 0:
                     out_lines.append(cd)
-            if not out_lines:
-                out_lines = npl_lines_for_subcontract(mo=mo, qty=qty, product_code=product_code)
             try:
                 item = create_subcontract_order(
                     vendor_name=form.cleaned_data['vendor_name'],
@@ -6569,7 +6606,7 @@ def subcontract_create(request):
                     qty=qty,
                     order_date=form.cleaned_data.get('order_date'),
                     due_date=form.cleaned_data.get('due_date'),
-                    production_order_id=mo.pk,
+                    production_order_id=mo.pk if mo else None,
                     sales_order_id=so.pk if so else None,
                     notes=form.cleaned_data.get('notes') or '',
                     out_lines=out_lines,
@@ -6579,6 +6616,18 @@ def subcontract_create(request):
                 messages.error(request, str(exc))
             else:
                 messages.success(request, f'Đã tạo {item.code} — tổ {team["label"]}.')
+                print_after = (request.POST.get('print_after') or '').strip() == '1'
+                print_url = (
+                    reverse('san_xuat:print_subcontract', args=[item.pk]) + '?autoprint=1'
+                    if print_after else ''
+                )
+                if embed:
+                    return render(request, 'san_xuat/subcontract_modal_success.html', {
+                        'item': item,
+                        'print_url': print_url,
+                    })
+                if print_url:
+                    return redirect(print_url)
                 return redirect('san_xuat:subcontract_detail', pk=item.pk)
         messages.error(request, 'Không tạo được lệnh gia công.')
     else:
@@ -6591,9 +6640,17 @@ def subcontract_create(request):
             'team_slug': team['slug'],
         }
         form = SubcontractCreateForm(initial=initial, lock_source=True)
-        npl_initial = npl_lines_for_subcontract(mo=mo, qty=qty, product_code=product_code)
+        npl_initial = npl_lines_for_subcontract(
+            mo=mo,
+            sales_order=so,
+            qty=qty,
+            product_code=product_code,
+        )
         out_formset = SubcontractOutLineFormSet(prefix='out', initial=npl_initial)
-    back_href = reverse('san_xuat:team_work_board', kwargs={'slug': team['slug']})
+    back_href = (
+        reverse('san_xuat:team_work_board', kwargs={'slug': team['slug']})
+        if mo else reverse('san_xuat:plan_board')
+    )
     next_to = (request.GET.get('next') or '').strip()
     if next_to == 'list':
         back_href = reverse('san_xuat:subcontract_list')
@@ -6610,6 +6667,7 @@ def subcontract_create(request):
         'source_team': team['slug'],
         'source_team_label': team['label'],
         'order_creator_label': _order_creator_label(request.user),
+        'embed': embed,
     })
 
 

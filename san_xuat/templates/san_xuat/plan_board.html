@@ -93,6 +93,37 @@
     background: var(--pb-soft);
     border-bottom: 1px solid var(--pb-line);
   }
+  .jp-pb-ticket-products {
+    display: flex;
+    flex: 1 1 14rem;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    min-width: 0;
+  }
+  .jp-pb-ticket-product-image {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 3.2rem;
+    height: 3.2rem;
+    flex: 0 0 3.2rem;
+    padding: 0;
+    overflow: hidden;
+    border: 1px solid #dbe2ea;
+    border-radius: 0.55rem;
+    background: #fff;
+    color: #94a3b8;
+  }
+  button.jp-pb-ticket-product-image { cursor: zoom-in; }
+  .jp-pb-ticket-product-image:hover { border-color: #991b1b; }
+  .jp-pb-ticket-product-image img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
   .jp-pb-title-row {
     display: flex;
     flex-wrap: wrap;
@@ -242,18 +273,20 @@
   }
   .jp-pb-tl-track {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     align-items: stretch;
     gap: 0.4rem;
     padding: 0.4rem;
     background: #fff;
     border: 1px solid #fecaca;
     border-radius: 0.85rem;
+    overflow: visible;
   }
   .jp-pb-tl-npl-form {
     margin: 0;
     display: flex;
-    min-width: 10rem;
+    flex: 1 1 0;
+    min-width: 7rem;
   }
   .jp-pb-tl-npl-form .jp-pb-tl-seg { flex: 1; width: 100%; }
   .jp-pb-tl-seg {
@@ -261,9 +294,9 @@
     flex-direction: column;
     justify-content: center;
     gap: 0.25rem;
-    min-width: 8.5rem;
+    min-width: 7rem;
     min-height: 4.25rem;
-    flex: 1 1 8.5rem;
+    flex: 1 1 0;
     padding: 0.65rem 0.8rem;
     border: 1px solid #dc2626;
     border-radius: 0.65rem;
@@ -294,6 +327,243 @@
     font-weight: 650;
     color: var(--pb-muted);
     line-height: 1.2;
+  }
+  .jp-pb-stage-btn.is-active {
+    border-color: #991b1b;
+    box-shadow: 0 0 0 2px rgba(153, 27, 27, 0.08);
+  }
+  .jp-pb-stage-cell {
+    position: relative;
+    display: flex;
+    min-width: 7rem;
+  }
+  .jp-pb-stage-cell > .jp-pb-stage-btn {
+    width: 100%;
+    min-width: 0;
+    flex: 1 1 auto;
+    padding-bottom: 1.7rem;
+  }
+  .jp-pb-stage-gc {
+    position: absolute;
+    right: 0.35rem;
+    bottom: 0.35rem;
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    height: 1.2rem;
+    padding: 0 0.35rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 0.35rem;
+    background: #fff;
+    color: #475569;
+    font-size: 0.6rem;
+    font-weight: 800;
+    line-height: 1;
+  }
+  .jp-pb-stage-gc:hover {
+    border-color: #991b1b;
+    color: #991b1b;
+  }
+  .jp-pb-gc-frame {
+    display: block;
+    width: 100%;
+    height: min(76vh, 56rem);
+    border: 0;
+    background: #f8fafc;
+  }
+  #jpSubcontractModal .modal-dialog {
+    width: min(94vw, 72rem);
+    max-width: 72rem;
+    margin: 1.5rem auto;
+  }
+  #jpSubcontractModal .modal-content {
+    overflow: hidden;
+    border: 0;
+    border-radius: 0.9rem;
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.22);
+  }
+  #jpSubcontractModal .modal-header {
+    min-height: 4rem;
+    padding: 0.75rem 1rem;
+    border-bottom-color: #e2e8f0;
+  }
+  .jp-pb-gc-modal-heading {
+    min-width: 0;
+  }
+  .jp-pb-gc-modal-heading .modal-title {
+    font-size: 1rem;
+    font-weight: 800;
+    color: var(--pb-ink);
+  }
+  #jpSubcontractModalSubtitle {
+    margin-top: 0.12rem;
+    overflow: hidden;
+    color: #64748b;
+    font-size: 0.72rem;
+    font-weight: 650;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .jp-pb-stage-panel {
+    margin-top: 0.5rem;
+    border: 1px solid var(--pb-line);
+    border-radius: 0.75rem;
+    background: #fff;
+  }
+  .jp-pb-stage-panel-head,
+  .jp-pb-stage-product-head,
+  .jp-pb-stage-team-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+  .jp-pb-stage-panel-head {
+    padding: 0.6rem 0.75rem;
+    border-bottom: 1px solid var(--pb-line);
+    color: var(--pb-ink);
+    font-size: 0.82rem;
+  }
+  .jp-pb-stage-panel-head button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.65rem;
+    height: 1.65rem;
+    padding: 0;
+    border: 0;
+    border-radius: 0.4rem;
+    background: transparent;
+    color: #64748b;
+  }
+  .jp-pb-stage-panel-head button:hover { background: #f1f5f9; }
+  .jp-pb-stage-products {
+    display: grid;
+    gap: 0.65rem;
+    padding: 0.7rem;
+  }
+  .jp-pb-stage-product {
+    padding: 0.7rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.65rem;
+    background: #fff;
+  }
+  .jp-pb-stage-product-head {
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 0.78rem;
+  }
+  .jp-pb-stage-product-info {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    min-width: 0;
+  }
+  .jp-pb-stage-product-info img,
+  .jp-pb-stage-product-image-empty {
+    width: 2.75rem;
+    height: 2.75rem;
+    flex: 0 0 2.75rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.5rem;
+    background: #f8fafc;
+  }
+  .jp-pb-stage-product-info img {
+    display: block;
+    object-fit: cover;
+  }
+  .jp-pb-stage-product-image-empty {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #94a3b8;
+  }
+  .jp-pb-stage-product-info strong {
+    overflow-wrap: anywhere;
+  }
+  .jp-pb-stage-product-head > span {
+    flex: 0 0 auto;
+    color: #64748b;
+    font-size: 0.72rem;
+    font-weight: 700;
+  }
+  .jp-pb-stage-team-title {
+    justify-content: flex-start;
+    margin: 0.55rem 0 0.4rem;
+    font-size: 0.74rem;
+  }
+  .jp-pb-stage-team-title > span {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.3rem;
+    height: 1.3rem;
+    padding: 0 0.3rem;
+    border-radius: 999px;
+    background: #f1f5f9;
+    color: #475569;
+    font-size: 0.68rem;
+  }
+  .jp-pb-stage-ops {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+  .jp-pb-stage-ops > span {
+    padding: 0.28rem 0.45rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.4rem;
+    background: #f8fafc;
+    color: #475569;
+    font-size: 0.7rem;
+    line-height: 1.2;
+  }
+  .jp-pb-tl-plus,
+  .jp-pb-tl-plus-static {
+    flex: 0 0 1.45rem;
+    align-self: center;
+    justify-content: center;
+  }
+  .jp-pb-tl-plus-static {
+    display: inline-flex;
+    color: #94a3b8;
+    font-size: 1rem;
+    font-weight: 800;
+  }
+  .jp-pb-tl-plus .jp-pb-hop-add {
+    border-style: solid;
+    color: #475569;
+  }
+  .jp-pb-operation-details {
+    margin-top: 0.65rem;
+    border: 1px solid var(--pb-line);
+    border-radius: 0.7rem;
+    background: #fff;
+  }
+  .jp-pb-operation-details > summary {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    width: 100%;
+    padding: 0.6rem 0.75rem;
+    color: #475569;
+    font-size: 0.78rem;
+    font-weight: 800;
+    cursor: pointer;
+    list-style: none;
+  }
+  .jp-pb-operation-details > summary::-webkit-details-marker { display: none; }
+  .jp-pb-operation-details-chevron {
+    margin-left: auto;
+    transition: transform 0.2s ease;
+  }
+  .jp-pb-operation-details[open] .jp-pb-operation-details-chevron {
+    transform: rotate(180deg);
+  }
+  .jp-pb-operation-details-body {
+    padding: 0 0.75rem 0.75rem;
+    border-top: 1px solid var(--pb-line);
   }
   .jp-pb-tl-seg.is-npl.is-empty,
   .jp-pb-tl-seg.is-npl.is-draft,
@@ -476,6 +746,7 @@
     display: inline-flex;
     align-items: center;
   }
+  .jp-pb-hop-edit[open] { z-index: 30; }
   .jp-pb-hop-edit > summary {
     list-style: none;
     cursor: pointer;
@@ -509,7 +780,7 @@
   }
   .jp-pb-hop-pop {
     position: absolute;
-    z-index: 8;
+    z-index: 31;
     top: calc(100% + 0.35rem);
     left: 50%;
     transform: translateX(-50%);
@@ -994,6 +1265,7 @@
           </div>
           <div class="jp-pb-customer mt-1">{{ row.order.customer_name|default:"—" }}</div>
         </div>
+        {% include 'san_xuat/includes/plan_board_product_images.html' %}
         <div class="jp-pb-side">
           {% if row.subcontract or can_schedule and row.order.plan_status == 'on_hold' %}
           <div class="jp-pb-tools">
@@ -1040,23 +1312,8 @@
       </div>
       <div class="jp-pb-ticket-body">
         {% include 'san_xuat/includes/plan_board_ticket_timeline.html' %}
-
-        {% if row.product_flows %}
-        <div class="jp-pb-products">
-          {% for pf in row.product_flows %}
-          <div class="jp-pb-product">
-            {% include 'san_xuat/includes/plan_board_product_head.html' %}
-            {% if can_schedule or can_release %}
-              {% if row.order.plan_status != 'on_hold' %}
-              {% include 'san_xuat/includes/plan_board_attach.html' %}
-              {% endif %}
-            {% endif %}
-            {% include 'san_xuat/includes/plan_board_flow.html' with flow_groups=pf.flow_groups %}
-          </div>
-          {% endfor %}
-        </div>
-        {% else %}
-        {% include 'san_xuat/includes/plan_board_flow.html' with flow_groups=row.flow_groups %}
+        {% if row.missing_bom or row.missing_ops %}
+          {% include 'san_xuat/includes/plan_board_operation_details.html' with allow_attach=True %}
         {% endif %}
         {% if npl_open_id == row.order.pk %}
           {% include 'san_xuat/includes/plan_board_npl.html' %}
@@ -1084,6 +1341,7 @@
           </div>
           <div class="jp-pb-customer mt-1">{{ row.order.customer_name|default:"—" }}</div>
         </div>
+        {% include 'san_xuat/includes/plan_board_product_images.html' %}
         <div class="jp-pb-side">
           {% if row.mo_count %}
             <a href="{% url 'san_xuat:order_progress_order' row.order.pk %}" class="btn btn-hm btn-sm fw-bold">Tiến độ</a>
@@ -1107,18 +1365,7 @@
       </div>
       <div class="jp-pb-ticket-body">
         {{ row.duration_detail|json_script:row.duration_script_id }}
-        {% if row.product_flows %}
-        <div class="jp-pb-products">
-          {% for pf in row.product_flows %}
-          <div class="jp-pb-product">
-            {% include 'san_xuat/includes/plan_board_product_head.html' %}
-            {% include 'san_xuat/includes/plan_board_flow.html' with flow_groups=pf.flow_groups empty_label='OB theo lệnh sản xuất' %}
-          </div>
-          {% endfor %}
-        </div>
-        {% else %}
-        {% include 'san_xuat/includes/plan_board_flow.html' with flow_groups=row.flow_groups empty_label='OB theo lệnh sản xuất' %}
-        {% endif %}
+        {% include 'san_xuat/includes/plan_board_ticket_timeline.html' %}
       </div>
     </article>
     {% empty %}
@@ -1136,6 +1383,25 @@
   {% if tab == 'route' %}
   {% include 'san_xuat/includes/plan_order_timeline.html' %}
   {% endif %}
+  </div>
+</div>
+
+<div class="modal fade" id="jpSubcontractModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="jp-pb-gc-modal-heading">
+          <h5 class="modal-title" id="jpSubcontractModalTitle">Thuê sản xuất</h5>
+          <div id="jpSubcontractModalSubtitle"></div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+      </div>
+      <div class="modal-body p-0">
+        <div id="jpSubcontractChoices" class="p-3 d-none"></div>
+        <iframe id="jpSubcontractFrame" class="jp-pb-gc-frame d-none"
+                title="Tạo phiếu thuê sản xuất"></iframe>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1753,6 +2019,155 @@
       dragging = null;
       clearDragClass();
     }, 0);
+  });
+})();
+
+(function () {
+  var modalEl = document.getElementById('jpSubcontractModal');
+  var frame = document.getElementById('jpSubcontractFrame');
+  var choices = document.getElementById('jpSubcontractChoices');
+  var title = document.getElementById('jpSubcontractModalTitle');
+  var subtitle = document.getElementById('jpSubcontractModalSubtitle');
+  if (!modalEl || !frame || !choices || !subtitle || typeof bootstrap === 'undefined') return;
+  var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+
+  function fitFrameHeight() {
+    try {
+      var doc = frame.contentDocument;
+      if (!doc) return;
+      var contentHeight = Math.max(
+        doc.body ? doc.body.scrollHeight : 0,
+        doc.documentElement ? doc.documentElement.scrollHeight : 0
+      );
+      var maxHeight = Math.floor(window.innerHeight * 0.76);
+      if (contentHeight) frame.style.height = Math.min(contentHeight + 2, maxHeight) + 'px';
+    } catch (error) {
+      frame.style.height = '';
+    }
+  }
+
+  frame.addEventListener('load', function () {
+    // Reset the fixed fallback height before measuring; otherwise the iframe
+    // viewport itself is counted as content and leaves an empty block below.
+    frame.style.height = '1px';
+    window.setTimeout(fitFrameHeight, 0);
+  });
+
+  function loadForm(url, productLabel, stageLabel) {
+    title.textContent = 'Thuê sản xuất';
+    subtitle.textContent = stageLabel + (productLabel ? ' · ' + productLabel : '');
+    choices.classList.add('d-none');
+    frame.classList.remove('d-none');
+    frame.src = url;
+  }
+
+  document.addEventListener('click', function (event) {
+    var trigger = event.target.closest('[data-jp-gc-stage-open]');
+    if (!trigger) return;
+    event.preventDefault();
+    event.stopPropagation();
+    var panel = document.getElementById(trigger.getAttribute('data-stage-panel') || '');
+    if (!panel) return;
+    var stageLabel = trigger.getAttribute('data-stage-label') || '';
+    var optionMap = new Map();
+    panel.querySelectorAll('[data-jp-gc-option]').forEach(function (option) {
+      var url = option.getAttribute('data-gc-url') || '';
+      if (url && !optionMap.has(url)) optionMap.set(url, option);
+    });
+    var options = Array.from(optionMap.values());
+    frame.classList.add('d-none');
+    frame.removeAttribute('src');
+    choices.innerHTML = '';
+
+    if (!options.length) {
+      title.textContent = 'Thuê sản xuất';
+      subtitle.textContent = stageLabel;
+      choices.classList.remove('d-none');
+      choices.innerHTML =
+        '<div class="alert alert-info mb-0">Không có sản phẩm phù hợp để thuê ngoài công đoạn này.</div>';
+    } else if (options.length === 1) {
+      loadForm(
+        options[0].getAttribute('data-gc-url'),
+        options[0].getAttribute('data-product-label'),
+        stageLabel
+      );
+    } else {
+      title.textContent = 'Chọn sản phẩm thuê sản xuất';
+      subtitle.textContent = stageLabel;
+      choices.classList.remove('d-none');
+      var note = document.createElement('p');
+      note.className = 'small text-muted mb-2';
+      note.textContent = 'Chọn sản phẩm cần thuê ngoài cho tổ ' + stageLabel + '.';
+      choices.appendChild(note);
+      options.forEach(function (option) {
+        var button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'btn btn-light border btn-sm me-2 mb-2';
+        button.textContent = option.getAttribute('data-product-label') || 'Sản phẩm';
+        button.addEventListener('click', function () {
+          loadForm(
+            option.getAttribute('data-gc-url'),
+            option.getAttribute('data-product-label'),
+            stageLabel
+          );
+        });
+        choices.appendChild(button);
+      });
+    }
+    modal.show();
+  });
+
+  window.addEventListener('message', function (event) {
+    if (event.origin !== window.location.origin) return;
+    if (!event.data || event.data.type !== 'jp-subcontract-created') return;
+    modal.hide();
+    window.location.reload();
+  });
+  modalEl.addEventListener('hidden.bs.modal', function () {
+    frame.removeAttribute('src');
+    frame.style.height = '';
+    frame.classList.add('d-none');
+    choices.innerHTML = '';
+    subtitle.textContent = '';
+  });
+})();
+
+(function () {
+  document.addEventListener('click', function (event) {
+    var closeBtn = event.target.closest('[data-jp-stage-close]');
+    if (closeBtn) {
+      var closePanel = closeBtn.closest('[data-jp-stage-panel]');
+      var closeRoot = closeBtn.closest('.jp-pb-tl');
+      if (closePanel) closePanel.hidden = true;
+      if (closeRoot) {
+        closeRoot.querySelectorAll('[data-jp-stage-open]').forEach(function (button) {
+          button.classList.remove('is-active');
+          button.setAttribute('aria-expanded', 'false');
+        });
+      }
+      return;
+    }
+
+    var button = event.target.closest('[data-jp-stage-open]');
+    if (!button) return;
+    var root = button.closest('.jp-pb-tl');
+    var panelId = button.getAttribute('aria-controls');
+    var panel = panelId ? document.getElementById(panelId) : null;
+    if (!root || !panel) return;
+    var willOpen = panel.hidden;
+
+    root.querySelectorAll('[data-jp-stage-panel]').forEach(function (item) {
+      item.hidden = true;
+    });
+    root.querySelectorAll('[data-jp-stage-open]').forEach(function (item) {
+      item.classList.remove('is-active');
+      item.setAttribute('aria-expanded', 'false');
+    });
+    if (willOpen) {
+      panel.hidden = false;
+      button.classList.add('is-active');
+      button.setAttribute('aria-expanded', 'true');
+    }
   });
 })();
 

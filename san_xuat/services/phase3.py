@@ -564,12 +564,27 @@ def npl_lines_for_subcontract(
     return []
 
 
-def _open_subcontract_conflict(*, mo, team_slug: str):
+def _open_subcontract_conflict(
+    *,
+    mo=None,
+    sales_order=None,
+    product_code: str = "",
+    team_slug: str,
+):
     slug = (team_slug or "").strip().lower()
-    if mo is None or not slug:
+    if not slug or (mo is None and sales_order is None):
         return
+    qs = SxSubcontractOrder.objects.filter(is_demo=False, team_slug=slug)
+    if mo is not None:
+        qs = qs.filter(production_order=mo)
+    else:
+        qs = qs.filter(
+            production_order__isnull=True,
+            sales_order=sales_order,
+            product_code__iexact=(product_code or "").strip(),
+        )
     hit = (
-        SxSubcontractOrder.objects.filter(is_demo=False, production_order=mo, team_slug=slug)
+        qs
         .exclude(status=SxSubcontractOrder.STATUS_CANCELLED)
         .filter(status__in=[SxSubcontractOrder.STATUS_DRAFT, SxSubcontractOrder.STATUS_SENT])
         .order_by("-order_date", "-pk")
@@ -605,33 +620,52 @@ def create_subcontract_order(
         raise Phase3Error("Thiếu mã sản phẩm.")
     if qty is None or qty <= 0:
         raise Phase3Error("Số lượng gia công phải > 0.")
-    if not production_order_id:
-        raise Phase3Error("Chỉ thuê gia công sau khi chuyển sản xuất — chọn lệnh sản xuất.")
     slug = (team_slug or "").strip().lower()
     if not slug:
         raise Phase3Error("Chọn bộ phận / tổ thuê gia công.")
 
-    mo = SxProductionOrder.objects.select_related("sales_order").get(pk=production_order_id)
-    if mo.status == SxProductionOrder.STATUS_CANCELLED:
-        raise Phase3Error("Lệnh sản xuất đã hủy — không thuê gia công.")
-    so = mo.sales_order
-    if sales_order_id and so is None:
-        so = SxSalesOrder.objects.filter(pk=sales_order_id).first()
-    product_name = product_name or mo.product_name
-    product_code = product_code or mo.product_code
+    mo = None
+    so = None
+    if production_order_id:
+        mo = SxProductionOrder.objects.select_related("sales_order").get(pk=production_order_id)
+        if mo.status == SxProductionOrder.STATUS_CANCELLED:
+            raise Phase3Error("Lệnh sản xuất đã hủy — không thuê gia công.")
+        so = mo.sales_order
+        if sales_order_id and so is None:
+            so = SxSalesOrder.objects.filter(pk=sales_order_id).first()
+        product_name = product_name or mo.product_name
+        product_code = product_code or mo.product_code
+    elif sales_order_id:
+        so = SxSalesOrder.objects.prefetch_related("lines__routing_lines").filter(
+            pk=sales_order_id,
+            is_demo=False,
+        ).first()
+        if so is None:
+            raise Phase3Error("Đơn đặt hàng không tồn tại.")
+        source_line = so.lines.filter(product_code__iexact=product_code).first()
+        if source_line is None:
+            raise Phase3Error("Mã sản phẩm không thuộc đơn đặt hàng.")
+        product_name = product_name or source_line.product_name
+    else:
+        raise Phase3Error("Chọn đơn đặt hàng hoặc lệnh sản xuất.")
 
     from san_xuat.services.progress_template import team_by_slug
     from san_xuat.services.qc import ob_qc_teams
 
-    ob_teams = ob_qc_teams(mo=mo)
+    ob_teams = ob_qc_teams(mo=mo, order=so if mo is None else None)
     allowed = {t.slug: t for t in ob_teams}
     if slug not in allowed:
         labels = ", ".join(t.label for t in ob_teams) or "—"
-        raise Phase3Error(f"Tổ không có trên Ob của lệnh. Tổ Ob: {labels}.")
+        raise Phase3Error(f"Tổ không có trên Ob của đơn hàng. Tổ Ob: {labels}.")
     meta = team_by_slug(slug)
     process_name = (process_name or "").strip() or (meta or {}).get("label") or allowed[slug].label
 
-    _open_subcontract_conflict(mo=mo, team_slug=slug)
+    _open_subcontract_conflict(
+        mo=mo,
+        sales_order=so,
+        product_code=product_code,
+        team_slug=slug,
+    )
     order = SxSubcontractOrder.objects.create(
         code=_code("subcontract", SxSubcontractOrder, code=code),
         sales_order=so,
@@ -649,8 +683,8 @@ def create_subcontract_order(
         is_demo=False,
         created_by=created_by if getattr(created_by, "pk", None) else None,
     )
-    rows = list(out_lines or [])
-    if not rows:
+    rows = list(out_lines) if out_lines is not None else []
+    if out_lines is None:
         rows = npl_lines_for_subcontract(
             mo=mo, sales_order=so, qty=qty, product_code=product_code,
         )

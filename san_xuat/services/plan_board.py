@@ -231,6 +231,7 @@ class PlanProductFlow:
     smv_minutes: Decimal = field(default_factory=lambda: Decimal('0'))
     work_minutes: Decimal = field(default_factory=lambda: Decimal('0'))
     buffer_minutes: Decimal = field(default_factory=lambda: Decimal('0'))
+    production_order_id: int = 0
     has_bom: bool = False
     has_ops: bool = False
     bom_label: str = ''
@@ -279,6 +280,13 @@ class TicketTimelineStep:
     status: str = ''
     flex: int = 1
     is_late: bool = False
+    process_count: int = 0
+    product_groups: list[dict] = field(default_factory=list)
+    hop_step_id: int = 0
+    hop_process_name: str = ''
+    hop_count_minutes: Decimal = field(default_factory=lambda: Decimal('0'))
+    hop_transfer_minutes: Decimal = field(default_factory=lambda: Decimal('0'))
+    can_edit_hop: bool = False
 
     @property
     def date_label(self) -> str:
@@ -641,6 +649,7 @@ def _span_days(start: date | None, end: date | None) -> int:
 def build_ticket_timeline_steps(
     *,
     team_spans: list[TeamKhsxSpan],
+    product_flows: list[PlanProductFlow] | None = None,
     npl_status: str = '',
     npl_ready_date: date | None = None,
     npl_lead_days: int = 0,
@@ -653,9 +662,45 @@ def build_ticket_timeline_steps(
     npl_span = next((s for s in spans if s.slug == 'npl'), None)
     teams = [s for s in spans if s.slug != 'npl']
     steps: list[TicketTimelineStep] = []
+    team_meta: dict[str, dict] = {}
+    for product_flow in product_flows or []:
+        for group in product_flow.flow_groups:
+            slug = (getattr(group, 'team_slug', None) or '').strip().lower()
+            if not slug:
+                continue
+            meta = team_meta.setdefault(slug, {
+                'process_count': 0,
+                'product_groups': [],
+                'hop_step_id': 0,
+                'hop_process_name': '',
+                'hop_count_minutes': Decimal('0'),
+                'hop_transfer_minutes': Decimal('0'),
+            })
+            names = list(getattr(group, 'process_names', None) or [])
+            meta['process_count'] += len(names)
+            if names:
+                meta['product_groups'].append({
+                    'product_code': product_flow.product_code,
+                    'product_name': product_flow.product_name or product_flow.product_code,
+                    'qty': product_flow.qty,
+                    'image_url': product_flow.image_url,
+                    'production_order_id': product_flow.production_order_id,
+                    'process_names': names,
+                })
+            if not meta['hop_process_name'] and names:
+                meta['hop_process_name'] = names[-1]
+            if not meta['hop_step_id'] and getattr(group, 'hop_step_id', 0):
+                meta['hop_step_id'] = int(group.hop_step_id)
+            if not meta['hop_count_minutes'] and not meta['hop_transfer_minutes']:
+                meta['hop_count_minutes'] = _q(getattr(group, 'form_count_minutes', 0))
+                meta['hop_transfer_minutes'] = _q(getattr(group, 'form_transfer_minutes', 0))
 
     if npl_span:
-        days = _span_days(npl_span.start, npl_span.end)
+        days = max(
+            1,
+            int(npl_span.duration_work_days or 0)
+            or _span_days(npl_span.start, npl_span.end),
+        )
         npl_status_key = 'short' if npl_short_count else 'ready'
         steps.append(TicketTimelineStep(
             slug='npl',
@@ -694,8 +739,9 @@ def build_ticket_timeline_steps(
         ))
 
     if teams:
-        for s in teams:
+        for index, s in enumerate(teams):
             days = _span_days(s.start, s.end)
+            meta = team_meta.get((s.slug or '').strip().lower(), {})
             steps.append(TicketTimelineStep(
                 slug=s.slug,
                 kind='team',
@@ -707,6 +753,13 @@ def build_ticket_timeline_steps(
                 status='ok',
                 flex=days,
                 is_late=bool(due_date and s.end and s.end > due_date),
+                process_count=int(meta.get('process_count') or 0),
+                product_groups=list(meta.get('product_groups') or []),
+                hop_step_id=int(meta.get('hop_step_id') or 0),
+                hop_process_name=meta.get('hop_process_name') or '',
+                hop_count_minutes=_q(meta.get('hop_count_minutes') or 0),
+                hop_transfer_minutes=_q(meta.get('hop_transfer_minutes') or 0),
+                can_edit_hop=index < len(teams) - 1,
             ))
     else:
         steps.append(TicketTimelineStep(
@@ -938,6 +991,11 @@ def build_plan_board_rows(
             flow_groups_from_steps as _flow_groups,
         )
 
+        mo_by_code: dict[str, SxProductionOrder] = {}
+        for mo in mos:
+            key = (mo.product_code or '').strip().casefold()
+            if key and mo.status != SxProductionOrder.STATUS_CANCELLED and key not in mo_by_code:
+                mo_by_code[key] = mo
         active_lines = [ln for ln in lines if (ln.qty or 0) > 0 and (ln.product_code or '').strip()]
         single_product = len({(ln.product_code or '').strip().casefold() for ln in active_lines}) == 1
         for ln in active_lines:
@@ -977,6 +1035,9 @@ def build_plan_board_rows(
                 smv_minutes=psmv,
                 work_minutes=_q(psmv * ln.qty_to_produce),
                 buffer_minutes=pbuf,
+                production_order_id=int(
+                    getattr(mo_by_code.get(code.casefold()), 'pk', 0) or 0,
+                ),
                 has_bom=bool(ln.bom_version_id),
                 has_ops=line_has_ops,
                 bom_label=(getattr(bom_obj, 'version_label', None) or '') if ln.bom_version_id else '',
@@ -1116,6 +1177,7 @@ def build_plan_board_rows(
         npl_short = int(order.npl_short_count or 0)
         timeline_steps = build_ticket_timeline_steps(
             team_spans=team_spans,
+            product_flows=product_flows,
             npl_status=order.npl_status,
             npl_ready_date=order.npl_ready_date,
             npl_lead_days=int(order.npl_lead_days or 0),
@@ -1233,6 +1295,12 @@ def _fill_product_flow_images(rows: list[PlanBoardRow]) -> None:
             urls = galleries.get((pf.product_code or '').casefold()) or []
             pf.image_urls = urls
             pf.image_url = urls[0] if urls else ''
+        for step in row.timeline_steps:
+            for product_group in step.product_groups:
+                urls = galleries.get(
+                    (product_group.get('product_code') or '').casefold(),
+                ) or []
+                product_group['image_url'] = urls[0] if urls else ''
 
 
 def attach_subcontracts_to_plan_rows(rows: list[PlanBoardRow]) -> list[PlanBoardRow]:

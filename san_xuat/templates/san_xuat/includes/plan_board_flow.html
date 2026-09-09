@@ -36,7 +36,7 @@
         {% if g.form_transfer_minutes %}<span class="v">{{ g.form_transfer_minutes|sx_num }}′ VC</span>{% endif %}
       </span>
       {% endif %}
-      {% if can_schedule and row.order.plan_status != 'done' and g.process_names %}
+      {% if show_hop_edit != False and can_schedule and row.order.plan_status != 'done' and g.process_names %}
       <details class="jp-pb-hop-edit">
         <summary class="jp-pb-hop-add"
                  title="Điều chỉnh thời gian kiểm đếm / vận chuyển"

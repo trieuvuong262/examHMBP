@@ -488,11 +488,6 @@
             </form>
           {% endif %}
           {% endif %}
-          {% if not job.subcontract and not job.closed and can_create_subcontract %}
-          <a href="{% url 'san_xuat:subcontract_create' %}?mo={{ job.mo.pk }}&amp;team={{ team.slug }}"
-             class="btn btn-outline-hm btn-sm fw-bold"
-             title="Thuê gia công tổ {{ team.label }} — không thuê cả đơn">Thuê gia công</a>
-          {% endif %}
           {% if not job.subcontract and not job.closed %}
           {% if job.run_count %}<span class="jp-tw-stat-pill">Đang làm <strong>{{ job.run_count }}</strong></span>{% endif %}
           {% endif %}

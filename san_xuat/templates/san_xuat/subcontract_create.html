@@ -44,10 +44,70 @@
   }
   .ts-dropdown .jp-npl-material-option-name { flex: 1 1 auto; }
   .ts-dropdown .jp-npl-material-option-meta { flex: 0 0 auto; }
+  {% if embed %}
+  .jp-topbar,
+  .jp-sidebar,
+  .jp-site-footer,
+  .jp-sidebar-drawer { display: none !important; }
+  html,
+  body {
+    height: auto !important;
+    min-height: 0 !important;
+  }
+  .jp-app-body,
+  .jp-app-main {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  .jp-app-shell {
+    min-height: 0 !important;
+    background: #f8fafc !important;
+  }
+  .jp-main-content { padding: 0 !important; }
+  .jp-page {
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0.85rem !important;
+  }
+  .jp-page > .jp-npl-mat-topbar { display: none !important; }
+  #jp-gc-form > .card {
+    overflow: visible;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 0.7rem !important;
+    box-shadow: none !important;
+  }
+  #jp-gc-form > .d-flex:last-child {
+    position: sticky;
+    bottom: 0;
+    z-index: 5;
+    margin: 0 -0.85rem -0.85rem;
+    padding: 0.7rem 0.85rem;
+    border-top: 1px solid #e2e8f0;
+    background: rgba(255, 255, 255, 0.96);
+  }
+  {% endif %}
 </style>
 {% endblock %}
 
 {% block content %}
+{% if embed %}
+<style>
+  body.jp-sx-module .jp-app-main,
+  body.jp-sx-module .jp-main-content,
+  body.jp-sx-module .jp-page {
+    width: 100% !important;
+    max-width: none !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+</style>
+<script>
+  document.body.classList.remove('jp-has-sidebar', 'jp-has-amis-header');
+</script>
+{% endif %}
 <div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
   <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
     <div class="jp-sx-detail-title">
@@ -75,12 +135,9 @@
             </div>
           </div>
           <div class="col-md-4">
-            <div class="form-label small text-muted mb-1">{{ form.production_order.label }}</div>
-            <div class="form-control-plaintext form-control-sm px-0">
-              {% if source_mo %}{{ source_mo.code }} · {{ source_mo.product_code }}{% if source_mo.product_name %} — {{ source_mo.product_name }}{% endif %}
-              {% else %}—{% endif %}
-            </div>
-            {% if form.production_order.errors %}<div class="text-danger small">{{ form.production_order.errors }}</div>{% endif %}
+            <label class="form-label small text-muted mb-1" for="jp-gc-created-by">Người lên đơn</label>
+            <input type="text" class="form-control form-control-sm" id="jp-gc-created-by"
+                   value="{{ order_creator_label }}" readonly tabindex="-1">
           </div>
           <div class="col-md-4">
             <div class="form-label small text-muted mb-1">Bộ phận</div>
@@ -100,11 +157,6 @@
           <div class="col-md-4">
             <div class="form-label small text-muted mb-1">{{ form.product_name.label }}</div>
             <div class="form-control-plaintext form-control-sm px-0">{% if source_mo %}{{ source_mo.product_name|default:"—" }}{% elif source_so %}{{ form.product_name.value|default:"—" }}{% else %}—{% endif %}</div>
-          </div>
-          <div class="col-md-4">
-            <label class="form-label small text-muted mb-1" for="jp-gc-created-by">Người lên đơn</label>
-            <input type="text" class="form-control form-control-sm" id="jp-gc-created-by"
-                   value="{{ order_creator_label }}" readonly tabindex="-1">
           </div>
           <div class="col-md-4">
             <label class="form-label small text-muted mb-1" for="{{ form.order_date.id_for_label }}">{{ form.order_date.label }}{{ form.order_date|sx_req_star }}</label>
@@ -149,7 +201,14 @@
                 <td>{{ f.material_name }}</td>
                 <td>{{ f.uom_label }}</td>
                 <td class="jp-so-actions-col">
-                  <label class="jp-so-qty-total-wrap" for="{{ f.qty.id_for_label }}">{{ f.qty }}</label>
+                  <div class="jp-so-line-actions">
+                    <label class="jp-so-qty-total-wrap" for="{{ f.qty.id_for_label }}">{{ f.qty }}</label>
+                    <span class="d-none">{{ f.DELETE }}</span>
+                    <button type="button" class="btn btn-outline-danger btn-sm jp-so-remove-row"
+                            data-jp-gc-remove-row title="Xóa NPL" aria-label="Xóa NPL">
+                      <i class="bi bi-trash" aria-hidden="true"></i>
+                    </button>
+                  </div>
                   {% if f.qty.errors %}<div class="text-danger small">{{ f.qty.errors }}</div>{% endif %}
                 </td>
               </tr>
@@ -162,7 +221,10 @@
       </div>
     </div>
 
-    <div class="d-flex justify-content-end">
+    <div class="d-flex justify-content-end gap-2">
+      <button type="submit" name="print_after" value="1" class="btn btn-outline-secondary fw-bold">
+        <i class="bi bi-printer me-1" aria-hidden="true"></i>Lưu &amp; In A5 ngang
+      </button>
       <button type="submit" class="btn btn-hm fw-bold">Lưu phiếu</button>
     </div>
   </form>
@@ -178,7 +240,14 @@
     <td>{{ f.material_name }}</td>
     <td>{{ f.uom_label }}</td>
     <td class="jp-so-actions-col">
-      <label class="jp-so-qty-total-wrap">{{ f.qty }}</label>
+      <div class="jp-so-line-actions">
+        <label class="jp-so-qty-total-wrap">{{ f.qty }}</label>
+        <span class="d-none">{{ f.DELETE }}</span>
+        <button type="button" class="btn btn-outline-danger btn-sm jp-so-remove-row"
+                data-jp-gc-remove-row title="Xóa NPL" aria-label="Xóa NPL">
+          <i class="bi bi-trash" aria-hidden="true"></i>
+        </button>
+      </div>
     </td>
   </tr>
   {% endwith %}
@@ -236,6 +305,28 @@
     totalInput.value = String(lines.length);
     var initialInput = document.getElementById('id_out-INITIAL_FORMS');
     if (initialInput) initialInput.value = '0';
+  }
+
+  if (body) {
+    body.addEventListener('click', function (event) {
+      var button = event.target.closest('[data-jp-gc-remove-row]');
+      if (!button) return;
+      var row = button.closest('.jp-gc-line-row');
+      if (!row) return;
+      var deleteInput = row.querySelector('[name$="-DELETE"]');
+      if (deleteInput) deleteInput.checked = true;
+      row.hidden = true;
+    });
+  }
+
+  var form = document.getElementById('jp-gc-form');
+  if (form) {
+    form.addEventListener('submit', function (event) {
+      var submitter = event.submitter;
+      if (submitter && submitter.name === 'print_after') {
+        window.open('about:blank', 'jpSubcontractPrint');
+      }
+    });
   }
 })();
 </script>

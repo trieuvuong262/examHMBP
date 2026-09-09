@@ -1,0 +1,27 @@
+<details class="jp-pb-operation-details">
+  <summary>
+    <i class="bi bi-box-seam" aria-hidden="true"></i>
+    <span>Hồ sơ sản phẩm</span>
+    <i class="bi bi-chevron-down jp-pb-operation-details-chevron" aria-hidden="true"></i>
+  </summary>
+  <div class="jp-pb-operation-details-body">
+    {% if row.product_flows %}
+    <div class="jp-pb-products">
+      {% for pf in row.product_flows %}
+      <div class="jp-pb-product">
+        {% include 'san_xuat/includes/plan_board_product_head.html' %}
+        {% if allow_attach %}
+        {% if can_schedule or can_release %}
+          {% if row.order.plan_status != 'on_hold' %}
+          {% include 'san_xuat/includes/plan_board_attach.html' %}
+          {% endif %}
+        {% endif %}
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <span class="text-muted small">{{ empty_label|default:"Chưa có sản phẩm." }}</span>
+    {% endif %}
+  </div>
+</details>
