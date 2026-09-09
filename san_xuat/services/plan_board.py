@@ -833,7 +833,7 @@ def build_plan_board_rows(
     """Danh sách đơn trên board (MTO confirmed).
 
     ``date_from`` / ``date_to`` lọc theo neo KHSX (``plan_start_date`` hoặc
-    ``request_date``) — dùng tab Đã chuyển SX.
+    ``request_date``) trên các tab danh sách.
     """
     qs = (
         SxSalesOrder.objects.filter(
@@ -891,7 +891,11 @@ def build_plan_board_rows(
         qs = qs.filter(
             Q(code__icontains=term)
             | Q(customer_name__icontains=term)
-        )
+            | Q(lines__product_code__icontains=term)
+            | Q(lines__product_name__icontains=term)
+            | Q(npl_lines__material_code__icontains=term)
+            | Q(npl_lines__material_name__icontains=term)
+        ).distinct()
 
     if date_from or date_to:
         qs = qs.annotate(
@@ -1181,9 +1185,41 @@ def build_plan_board_rows(
             r.order.id or 0,
         )
     )
+    _fill_npl_supplier_names(rows)
     _fill_product_flow_images(rows)
     attach_subcontracts_to_plan_rows(rows)
     return rows
+
+
+def _fill_npl_supplier_names(rows: list[PlanBoardRow]) -> None:
+    """Gắn NCC chính từ danh mục kho lên dòng NPL để hiển thị trên KHSX."""
+    from kho_npl.models import Material
+
+    codes = {
+        (ln.material_code or '').strip()
+        for row in rows
+        for ln in row.order.npl_lines.all()
+        if (ln.material_code or '').strip()
+    }
+    materials = (
+        Material.objects.filter(code__in=codes)
+        .select_related('supplier')
+        .only('code', 'image', 'supplier__code', 'supplier__name')
+    )
+    material_info = {
+        material.code.casefold(): material
+        for material in materials
+    }
+    for row in rows:
+        for ln in row.order.npl_lines.all():
+            material = material_info.get((ln.material_code or '').strip().casefold())
+            supplier = material.supplier if material and material.supplier_id else None
+            ln.supplier_name = supplier.name if supplier else ''
+            ln.supplier_code = supplier.code if supplier else ''
+            try:
+                ln.material_image_url = material.image.url if material and material.image else ''
+            except (ValueError, OSError):
+                ln.material_image_url = ''
 
 
 def _fill_product_flow_images(rows: list[PlanBoardRow]) -> None:

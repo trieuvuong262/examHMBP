@@ -38,7 +38,11 @@
       {% endif %}
       {% if can_schedule and row.order.plan_status != 'done' and g.hop_step_id %}
       <details class="jp-pb-hop-edit">
-        <summary class="jp-pb-hop-add" title="Thêm thời gian kiểm đếm / vận chuyển">+</summary>
+        <summary class="jp-pb-hop-add"
+                 title="Điều chỉnh thời gian kiểm đếm / vận chuyển"
+                 aria-label="Điều chỉnh thời gian kiểm đếm / vận chuyển">
+          <i class="bi bi-pencil" aria-hidden="true"></i>
+        </summary>
         <form method="post"
               action="{% url 'san_xuat:plan_board' %}?mode={{ mode }}&tab={{ tab }}{% if search_query %}&q={{ search_query|urlencode }}{% endif %}"
               class="jp-pb-hop-pop">

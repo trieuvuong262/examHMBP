@@ -1349,12 +1349,27 @@ def plan_board(request):
     q = (request.GET.get('q') or request.POST.get('q') or '').strip()
     date_from_raw = (request.GET.get('date_from') or request.POST.get('date_from') or '').strip()
     date_to_raw = (request.GET.get('date_to') or request.POST.get('date_to') or '').strip()
+    priority_filter = (
+        request.GET.get('priority_filter') or request.POST.get('priority_filter') or ''
+    ).strip()
+    npl_filter = (request.GET.get('npl_status') or request.POST.get('npl_status') or '').strip()
+    tech_filter = (request.GET.get('tech') or request.POST.get('tech') or '').strip()
+    deadline_filter = (request.GET.get('deadline') or request.POST.get('deadline') or '').strip()
 
     def _board_redirect(**extra):
         params = {'mode': mode, 'tab': tab}
         if q:
             params['q'] = q
-        if tab == 'released':
+        if tab in {'queue', 'released'}:
+            if priority_filter:
+                params['priority_filter'] = priority_filter
+            if npl_filter:
+                params['npl_status'] = npl_filter
+            if tech_filter:
+                params['tech'] = tech_filter
+            if deadline_filter:
+                params['deadline'] = deadline_filter
+        if tab in {'queue', 'released'}:
             if date_from_raw:
                 params['date_from'] = date_from_raw
             if date_to_raw:
@@ -1675,8 +1690,59 @@ def plan_board(request):
     filter_month_label = ''
     filter_is_current_month = False
 
+    def _apply_board_filters(rows):
+        valid_priorities = {value for value, _label in SxSalesOrder.PRIORITY_CHOICES}
+        if priority_filter in valid_priorities:
+            rows = [row for row in rows if row.order.plan_priority == priority_filter]
+        if npl_filter == 'unplanned':
+            rows = [row for row in rows if row.npl_status == SxSalesOrder.NPL_NONE]
+        elif npl_filter == 'short':
+            rows = [row for row in rows if row.npl_short_count > 0]
+        elif npl_filter == 'ready':
+            rows = [
+                row for row in rows
+                if row.npl_status == SxSalesOrder.NPL_READY and row.npl_short_count == 0
+            ]
+        if tech_filter == 'missing_bom':
+            rows = [row for row in rows if row.missing_bom]
+        elif tech_filter == 'missing_ops':
+            rows = [row for row in rows if row.missing_ops]
+        elif tech_filter == 'ready':
+            rows = [row for row in rows if not row.missing_bom and not row.missing_ops]
+        if deadline_filter == 'overdue':
+            rows = [row for row in rows if row.is_overdue]
+        elif deadline_filter == 'due_soon':
+            rows = [
+                row for row in rows
+                if row.days_to_due is not None and 0 <= row.days_to_due <= 3
+            ]
+        elif deadline_filter == 'on_time':
+            rows = [row for row in rows if not row.is_overdue]
+        return rows
+
     if tab == 'queue':
-        queue_rows = build_plan_board_rows(statuses=QUEUE_STATUSES, search=q)
+        from san_xuat.list_filters import parse_sx_date
+        from san_xuat.services.plan_board import _month_bounds
+
+        today = timezone.localdate()
+        filter_date_from = parse_sx_date(date_from_raw)
+        filter_date_to = parse_sx_date(date_to_raw)
+        if not filter_date_from and not filter_date_to:
+            filter_date_from, filter_date_to = _month_bounds(today)
+        elif filter_date_from and not filter_date_to:
+            filter_date_from, filter_date_to = _month_bounds(filter_date_from)
+        elif filter_date_to and not filter_date_from:
+            filter_date_from, filter_date_to = _month_bounds(filter_date_to)
+        elif filter_date_from > filter_date_to:
+            filter_date_from, filter_date_to = filter_date_to, filter_date_from
+
+        queue_rows = build_plan_board_rows(
+            statuses=QUEUE_STATUSES,
+            search=q,
+            date_from=filter_date_from,
+            date_to=filter_date_to,
+        )
+        queue_rows = _apply_board_filters(queue_rows)
         route_board = None
     elif tab == 'released':
         from san_xuat.list_filters import parse_sx_date
@@ -1717,6 +1783,7 @@ def plan_board(request):
             date_from=filter_date_from,
             date_to=filter_date_to,
         )
+        released_rows = _apply_board_filters(released_rows)
         route_board = None
     else:
         from san_xuat.list_filters import parse_sx_date
@@ -1739,6 +1806,10 @@ def plan_board(request):
         'mode': mode,
         'tab': tab,
         'search_query': q,
+        'priority_filter': priority_filter,
+        'npl_filter': npl_filter,
+        'tech_filter': tech_filter,
+        'deadline_filter': deadline_filter,
         'qty_summary': qty_summary,
         'queue_rows': queue_rows,
         'released_rows': released_rows,

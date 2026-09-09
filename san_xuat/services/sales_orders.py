@@ -360,6 +360,9 @@ def confirm_sales_order(*, order_id: int, user=None) -> SxSalesOrder:
         'confirm_status', 'reject_reason', 'confirmed_at', 'confirmed_by',
         'plan_status', 'plan_queued_at', 'plan_hold_reason', 'updated_at',
     ])
+    from san_xuat.services.plan_route import ensure_order_plan_steps
+
+    ensure_order_plan_steps(order)
     return order
 
 

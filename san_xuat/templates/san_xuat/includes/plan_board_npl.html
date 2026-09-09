@@ -10,29 +10,15 @@
   <input type="hidden" name="npl_open" value="{{ row.order.pk }}">
 
   <div class="jp-pb-npl-toolbar">
-    <div class="jp-pb-stats">
-      <span class="jp-pb-stat{% if row.npl_short_count or row.npl_missing_buy %} is-late{% endif %}">
-        {% if row.npl_short_count %}
-          Thiếu <strong>{{ row.npl_short_count }}</strong>
-        {% elif row.npl_status == 'ready' %}
-          NPL <strong>đủ</strong>
-        {% else %}
-          NPL <strong>nháp</strong>
-        {% endif %}
-      </span>
-      {% if row.npl_ready_date %}
-      <span class="jp-pb-stat">Sẵn <strong>{{ row.npl_ready_date|date:"d/m/Y" }}</strong></span>
-      {% endif %}
-      {% if row.npl_lead_days %}
-      <span class="jp-pb-stat">Lead <strong>{{ row.npl_lead_days }}</strong> ngày</span>
-      {% endif %}
-    </div>
     <label class="jp-pb-npl-kit">
-      Kitting
+      Thời gian chuẩn bị
       <input type="number" name="npl_kit_days" min="0" max="120" class="form-control form-control-sm"
              value="{% if row.order.npl_kit_days is not None %}{{ row.order.npl_kit_days }}{% else %}{{ npl_kit_default }}{% endif %}"
              {% if not can_schedule or row.order.plan_status == 'on_hold' %}readonly{% endif %}>
     </label>
+    {% if can_schedule and row.order.plan_status != 'on_hold' %}
+    <button type="submit" name="action" value="apply_npl" class="btn btn-hm btn-sm fw-bold">Lưu</button>
+    {% endif %}
   </div>
 
   {% if row.order.npl_lines.all %}
@@ -40,13 +26,12 @@
     <table class="jp-pb-npl-table">
       <thead>
         <tr>
-          <th>NPL</th>
+          <th>Nguyên Phụ Liệu</th>
           <th class="num">Nhu cầu</th>
           <th class="num">Khả dụng</th>
-          <th class="num">Về</th>
+          <th>NCC</th>
           <th class="num">Thiếu</th>
-          <th class="num">Lead mua</th>
-          <th>Sẵn</th>
+          <th class="num">Thời gian mua (ngày)</th>
         </tr>
       </thead>
       <tbody>
@@ -54,21 +39,24 @@
         {% if ln.qty_shortfall > 0 %}
         <tr class="is-short">
           <td>
-            <div class="jp-pb-npl-code">{{ ln.material_code }}</div>
-            {% if ln.material_name and ln.material_name != ln.material_code %}
-            <div class="jp-pb-npl-name">{{ ln.material_name }}</div>
-            {% endif %}
+            <div class="jp-pb-npl-material">
+              {% if ln.material_image_url %}
+              <img src="{{ ln.material_image_url }}" alt="" class="jp-pb-npl-image" loading="lazy">
+              {% else %}
+              <span class="jp-pb-npl-image is-empty" aria-hidden="true"><i class="bi bi-image"></i></span>
+              {% endif %}
+              <span class="jp-pb-npl-name">{{ ln.material_name|default:"—" }}</span>
+            </div>
           </td>
           <td class="num">{{ ln.qty_required|sx_num }}{% if ln.unit %} {{ ln.unit }}{% endif %}</td>
           <td class="num">{{ ln.qty_available|sx_num }}</td>
-          <td class="num">{% if ln.qty_inbound %}{{ ln.qty_inbound|sx_num }}{% else %}—{% endif %}</td>
+          <td{% if ln.supplier_code %} title="{{ ln.supplier_code }}"{% endif %}>{{ ln.supplier_name|default:"—" }}</td>
           <td class="num"><strong>{{ ln.qty_shortfall|sx_num }}</strong></td>
           <td class="num">
             <input type="number" name="buy_for__{{ ln.pk }}" min="0" max="365" class="form-control form-control-sm"
                    value="{{ ln.buy_lead_days|default_if_none:'' }}"
                    {% if not can_schedule or row.order.plan_status == 'on_hold' %}readonly{% endif %}>
           </td>
-          <td>{% if ln.ready_date %}{{ ln.ready_date|date:"d/m/Y" }}{% else %}—{% endif %}</td>
         </tr>
         {% endif %}
         {% endfor %}
@@ -76,17 +64,20 @@
         {% if ln.qty_shortfall <= 0 %}
         <tr>
           <td>
-            <div class="jp-pb-npl-code">{{ ln.material_code }}</div>
-            {% if ln.material_name and ln.material_name != ln.material_code %}
-            <div class="jp-pb-npl-name">{{ ln.material_name }}</div>
-            {% endif %}
+            <div class="jp-pb-npl-material">
+              {% if ln.material_image_url %}
+              <img src="{{ ln.material_image_url }}" alt="" class="jp-pb-npl-image" loading="lazy">
+              {% else %}
+              <span class="jp-pb-npl-image is-empty" aria-hidden="true"><i class="bi bi-image"></i></span>
+              {% endif %}
+              <span class="jp-pb-npl-name">{{ ln.material_name|default:"—" }}</span>
+            </div>
           </td>
           <td class="num">{{ ln.qty_required|sx_num }}{% if ln.unit %} {{ ln.unit }}{% endif %}</td>
           <td class="num">{{ ln.qty_available|sx_num }}</td>
-          <td class="num">{% if ln.qty_inbound %}{{ ln.qty_inbound|sx_num }}{% else %}—{% endif %}</td>
+          <td{% if ln.supplier_code %} title="{{ ln.supplier_code }}"{% endif %}>{{ ln.supplier_name|default:"—" }}</td>
           <td class="num">—</td>
           <td class="num">—</td>
-          <td>{% if ln.ready_date %}{{ ln.ready_date|date:"d/m/Y" }}{% else %}—{% endif %}</td>
         </tr>
         {% endif %}
         {% endfor %}
@@ -97,35 +88,4 @@
   <p class="jp-pb-npl-empty">Chưa bung NPL.</p>
   {% endif %}
 
-  <div class="jp-pb-npl-foot">
-    {% if can_schedule and row.order.plan_status != 'on_hold' %}
-    <div class="jp-pb-npl-actions">
-      {% if row.npl_status != 'ready' %}
-      <button type="submit" name="action" value="apply_npl" class="btn btn-hm btn-sm fw-bold">Cộng lịch</button>
-      {% if can_create_npl_pr and row.npl_short_count %}
-      <button type="submit" name="action" value="create_npl_pr" class="btn btn-outline-secondary btn-sm">Tạo YCM</button>
-      {% endif %}
-      {% else %}
-      {% if can_create_npl_pr and row.npl_short_count and not row.npl_pr_id %}
-      <button type="submit" name="action" value="create_npl_pr" class="btn btn-hm btn-sm fw-bold">Tạo YCM</button>
-      {% elif can_create_npl_pr and row.npl_short_count %}
-      <button type="submit" name="action" value="create_npl_pr" class="btn btn-outline-secondary btn-sm">Tạo YCM</button>
-      {% endif %}
-      <button type="submit" name="action" value="apply_npl" class="btn btn-outline-secondary btn-sm">Cập nhật</button>
-      {% endif %}
-      <button type="submit" name="action" value="refresh_npl" class="btn btn-outline-secondary btn-sm">Làm mới</button>
-      <button type="submit" name="action" value="save_npl" class="btn btn-outline-secondary btn-sm">Lưu</button>
-    </div>
-    {% endif %}
-    {% if row.npl_plan_id or row.npl_pr_id %}
-    <div class="jp-pb-npl-links">
-      {% if row.npl_plan_id %}
-      <a href="{% url 'san_xuat:plan_npl_detail' row.npl_plan_id %}">{{ row.npl_plan_code }}</a>
-      {% endif %}
-      {% if row.npl_pr_id %}
-      <a href="{% url 'san_xuat:npl_purchase_request_detail' row.npl_pr_id %}">{{ row.npl_pr_code }}</a>
-      {% endif %}
-    </div>
-    {% endif %}
-  </div>
 </form>
