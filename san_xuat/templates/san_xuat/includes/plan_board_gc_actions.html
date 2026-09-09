@@ -1,5 +1,9 @@
-{% if row.subcontract and can_view_subcontract %}
-  <a href="{% url 'san_xuat:subcontract_detail' row.subcontract.pk %}"
+{% if row.subcontracts and can_view_subcontract %}
+  {% for item in row.subcontracts %}
+  <a href="{% url 'san_xuat:subcontract_detail' item.pk %}"
      class="btn btn-outline-secondary btn-sm fw-bold"
-     title="Phiếu thuê gia công {{ row.subcontract.code }}{% if row.subcontract.team_label %} · {{ row.subcontract.team_label }}{% endif %}">Phiếu GC</a>
+     title="{{ item.code }}{% if item.team_label %} · {{ item.team_label }}{% endif %}">
+    {% if forloop.first %}Phiếu Thuê SX ({{ row.subcontracts|length }}){% else %}{{ item.code }}{% endif %}
+  </a>
+  {% endfor %}
 {% endif %}

@@ -707,6 +707,59 @@ def create_subcontract_order(
 
 
 @transaction.atomic
+def update_subcontract_order(
+    *,
+    order_id: int,
+    vendor_name: str,
+    order_date,
+    due_date=None,
+    notes: str = "",
+    out_lines: list[dict] | None = None,
+) -> SxSubcontractOrder:
+    order = SxSubcontractOrder.objects.select_for_update().get(pk=order_id)
+    if order.status != SxSubcontractOrder.STATUS_DRAFT:
+        raise Phase3Error("Chỉ được sửa phiếu Thuê SX đang ở trạng thái nháp.")
+    vendor_name = (vendor_name or "").strip()
+    if not vendor_name:
+        raise Phase3Error("Thiếu đơn vị gia công.")
+    order.vendor_name = vendor_name
+    order.order_date = order_date or order.order_date
+    order.due_date = due_date
+    order.notes = notes or ""
+    order.save(update_fields=["vendor_name", "order_date", "due_date", "notes"])
+    if out_lines is not None:
+        order.material_lines.filter(
+            direction=SxSubcontractMaterialLine.DIRECTION_OUT,
+        ).delete()
+        for row in out_lines:
+            code_m = (row.get("material_code") or "").strip()
+            qty = row.get("qty")
+            if not code_m or qty is None or Decimal(str(qty)) <= 0:
+                continue
+            SxSubcontractMaterialLine.objects.create(
+                order=order,
+                direction=SxSubcontractMaterialLine.DIRECTION_OUT,
+                material_code=code_m,
+                material_name=(row.get("material_name") or "").strip(),
+                qty=Decimal(str(qty)).quantize(Decimal("0.01")),
+                uom_label=(row.get("uom_label") or "SP").strip() or "SP",
+                lot_code=(row.get("lot_code") or "").strip(),
+                notes=(row.get("notes") or "").strip(),
+            )
+    return order
+
+
+@transaction.atomic
+def delete_subcontract_order(*, order_id: int) -> None:
+    order = SxSubcontractOrder.objects.select_for_update().get(pk=order_id)
+    if order.status != SxSubcontractOrder.STATUS_DRAFT:
+        raise Phase3Error("Chỉ được xóa phiếu Thuê SX đang ở trạng thái nháp.")
+    if order.stock_issue_id or order.stock_adjustment_id:
+        raise Phase3Error("Phiếu đã phát sinh chứng từ kho nên không thể xóa.")
+    order.delete()
+
+
+@transaction.atomic
 def add_subcontract_material_line(
     *,
     order_id: int,

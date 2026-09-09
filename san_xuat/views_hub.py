@@ -7,6 +7,7 @@ from datetime import timedelta
 from decimal import Decimal
 
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django import forms
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -17,6 +18,7 @@ from hrm.menu_permissions import (
     handle_menu_access_denied,
     user_can_access_menu,
     user_can_create_menu,
+    user_can_print_menu,
     user_can_update_menu,
 )
 from hrm.module_permissions import MODULE_SAN_XUAT
@@ -126,6 +128,7 @@ from san_xuat.forms_phase3 import (
     SubcontractCreateForm,
     SubcontractOutLineFormSet,
     SubcontractReceiveForm,
+    SubcontractUpdateForm,
     TraceLookupForm,
     WorkCenterForm,
 )
@@ -1344,7 +1347,7 @@ def plan_board(request):
         if q_early := (request.GET.get('q') or '').strip():
             params['q'] = q_early
         return redirect(f"{reverse('san_xuat:plan_board')}?{urlencode(params)}")
-    if tab not in {'queue', 'released', 'route'}:
+    if tab not in {'queue', 'released', 'route', 'subcontract'}:
         tab = 'queue'
     q = (request.GET.get('q') or request.POST.get('q') or '').strip()
     date_from_raw = (request.GET.get('date_from') or request.POST.get('date_from') or '').strip()
@@ -1355,6 +1358,8 @@ def plan_board(request):
     npl_filter = (request.GET.get('npl_status') or request.POST.get('npl_status') or '').strip()
     tech_filter = (request.GET.get('tech') or request.POST.get('tech') or '').strip()
     deadline_filter = (request.GET.get('deadline') or request.POST.get('deadline') or '').strip()
+    gc_status_filter = (request.GET.get('gc_status') or request.POST.get('gc_status') or '').strip()
+    gc_team_filter = (request.GET.get('gc_team') or request.POST.get('gc_team') or '').strip().lower()
 
     def _board_redirect(**extra):
         params = {'mode': mode, 'tab': tab}
@@ -1369,11 +1374,16 @@ def plan_board(request):
                 params['tech'] = tech_filter
             if deadline_filter:
                 params['deadline'] = deadline_filter
-        if tab in {'queue', 'released'}:
+        if tab in {'queue', 'released', 'subcontract'}:
             if date_from_raw:
                 params['date_from'] = date_from_raw
             if date_to_raw:
                 params['date_to'] = date_to_raw
+            if tab == 'subcontract':
+                if gc_status_filter:
+                    params['gc_status'] = gc_status_filter
+                if gc_team_filter:
+                    params['gc_team'] = gc_team_filter
         elif tab == 'route':
             route_from_raw = (request.GET.get('route_from') or request.POST.get('route_from') or '').strip()
             route_to_raw = (request.GET.get('route_to') or request.POST.get('route_to') or '').strip()
@@ -1390,6 +1400,13 @@ def plan_board(request):
         npl_open_id = int(request.GET.get('npl') or request.POST.get('npl_open') or 0)
     except (TypeError, ValueError):
         npl_open_id = 0
+    gc_open_id = 0
+    try:
+        gc_open_id = int(request.GET.get('gc') or 0)
+    except (TypeError, ValueError):
+        gc_open_id = 0
+    if request.method == 'GET' and tab == 'subcontract' and gc_open_id:
+        return redirect('san_xuat:subcontract_detail', pk=gc_open_id)
 
     if request.method == 'POST':
         action = (request.POST.get('action') or '').strip()
@@ -1605,6 +1622,52 @@ def plan_board(request):
                         messages.success(request, f'Đã nhận hàng {gc.code}.')
                 tab_back = (request.POST.get('tab') or tab or 'released').strip()
                 return redirect(f"{reverse('san_xuat:plan_board')}?mode=list&tab={tab_back}")
+            elif action == 'delete_gc':
+                from san_xuat.services.phase3 import (
+                    Phase3Error,
+                    advance_subcontract_order,
+                    delete_subcontract_order,
+                )
+
+                can_delete_gc = can_release
+                raw_gc = (request.POST.get('gc_id') or '').strip()
+                gc = (
+                    SxSubcontractOrder.objects.filter(pk=int(raw_gc), is_demo=False).first()
+                    if raw_gc.isdigit() else None
+                )
+                if not can_delete_gc:
+                    messages.error(request, 'Bạn không có quyền xóa phiếu thuê gia công.')
+                elif not gc:
+                    messages.error(request, 'Không tìm thấy phiếu gia công.')
+                else:
+                    code = gc.code
+                    try:
+                        if gc.status == SxSubcontractOrder.STATUS_DRAFT:
+                            delete_subcontract_order(order_id=gc.pk)
+                            messages.success(
+                                request,
+                                f'Đã xóa phiếu {code}. Công đoạn trên KHSX trở lại Thuê GC.',
+                            )
+                        elif gc.status in (
+                            SxSubcontractOrder.STATUS_DONE,
+                            SxSubcontractOrder.STATUS_CANCELLED,
+                        ):
+                            messages.error(
+                                request,
+                                f'Không xóa được phiếu {code} ({gc.get_status_display()}).',
+                            )
+                        else:
+                            advance_subcontract_order(
+                                order_id=gc.pk,
+                                to_status=SxSubcontractOrder.STATUS_CANCELLED,
+                            )
+                            messages.success(
+                                request,
+                                f'Đã hủy phiếu {code}. Công đoạn trên KHSX trở lại Thuê GC.',
+                            )
+                    except Phase3Error as exc:
+                        messages.error(request, str(exc))
+                return _board_redirect()
             elif action == 'reschedule_route' and can_schedule and order_id:
                 from san_xuat.list_filters import parse_sx_date
 
@@ -1681,6 +1744,7 @@ def plan_board(request):
     qty_summary = confirmed_order_qty_summary()
     queue_rows = []
     released_rows = []
+    subcontract_items = []
     today_start = None
     today_end_month = None
     filter_date_from = None
@@ -1787,6 +1851,49 @@ def plan_board(request):
         )
         released_rows = _apply_board_filters(released_rows)
         route_board = None
+    elif tab == 'subcontract':
+        from django.db.models import Q
+        from san_xuat.list_filters import parse_sx_date
+        from san_xuat.services.team_division_map import team_slug_choices
+
+        filter_date_from = parse_sx_date(date_from_raw)
+        filter_date_to = parse_sx_date(date_to_raw)
+        if filter_date_from and filter_date_to and filter_date_from > filter_date_to:
+            filter_date_from, filter_date_to = filter_date_to, filter_date_from
+        gc_qs = (
+            SxSubcontractOrder.objects.filter(is_demo=False)
+            .select_related('sales_order', 'production_order', 'created_by')
+            .order_by('-order_date', '-pk')
+        )
+        if q:
+            gc_qs = gc_qs.filter(
+                Q(code__icontains=q)
+                | Q(vendor_name__icontains=q)
+                | Q(product_code__icontains=q)
+                | Q(product_name__icontains=q)
+                | Q(sales_order__code__icontains=q)
+            )
+        if filter_date_from:
+            gc_qs = gc_qs.filter(order_date__gte=filter_date_from)
+        if filter_date_to:
+            gc_qs = gc_qs.filter(order_date__lte=filter_date_to)
+        if gc_status_filter == SUBCONTRACT_WORK_STATUS_RUNNING:
+            gc_qs = gc_qs.filter(status__in=[
+                SxSubcontractOrder.STATUS_DRAFT, SxSubcontractOrder.STATUS_SENT,
+            ])
+        elif gc_status_filter == SUBCONTRACT_WORK_STATUS_DONE:
+            gc_qs = gc_qs.filter(status__in=[
+                SxSubcontractOrder.STATUS_RECEIVED, SxSubcontractOrder.STATUS_DONE,
+            ])
+        elif gc_status_filter == SxSubcontractOrder.STATUS_CANCELLED:
+            gc_qs = gc_qs.filter(status=SxSubcontractOrder.STATUS_CANCELLED)
+        else:
+            gc_qs = gc_qs.exclude(status=SxSubcontractOrder.STATUS_CANCELLED)
+        if gc_team_filter:
+            gc_qs = gc_qs.filter(team_slug=gc_team_filter)
+        subcontract_items = list(gc_qs[:500])
+        gc_team_choices = team_slug_choices()
+        route_board = None
     else:
         from san_xuat.list_filters import parse_sx_date
         from san_xuat.services.plan_board import _month_bounds
@@ -1815,14 +1922,17 @@ def plan_board(request):
         'qty_summary': qty_summary,
         'queue_rows': queue_rows,
         'released_rows': released_rows,
+        'subcontract_items': subcontract_items,
         'can_schedule': can_schedule,
         'can_release': can_release,
-        'can_view_subcontract': user_can_access_menu(request.user, MODULE_SAN_XUAT, 'subcontract'),
-        'can_create_subcontract': user_can_create_menu(request.user, MODULE_SAN_XUAT, 'subcontract'),
-        'can_receive_gc': (
-            user_can_update_menu(request.user, MODULE_SAN_XUAT, 'subcontract')
-            or _perm_ctx(request).get('can_update')
-        ),
+        'can_view_subcontract': True,
+        'can_create_subcontract': can_release,
+        'can_receive_gc': can_schedule,
+        'gc_status_filter': gc_status_filter,
+        'gc_team_filter': gc_team_filter,
+        'gc_status_choices': SUBCONTRACT_WORK_STATUS_CHOICES,
+        'gc_team_choices': locals().get('gc_team_choices', []),
+        'gc_open_id': gc_open_id,
         'plan_status_labels': PLAN_STATUS_LABELS,
         'priority_labels': PRIORITY_LABELS,
         'priority_choices': SxSalesOrder.PRIORITY_CHOICES,
@@ -6467,66 +6577,76 @@ def packing_detail(request, pk: int):
     })
 
 
-@module_perm_required(MODULE_SAN_XUAT, 'view')
+def _subcontract_next_url(request) -> str:
+    from django.utils.http import url_has_allowed_host_and_scheme
+
+    nxt = (request.GET.get('next') or request.POST.get('next') or '').strip()
+    if nxt == 'list':
+        return f"{reverse('san_xuat:plan_board')}?mode=list&tab=subcontract"
+    if nxt and url_has_allowed_host_and_scheme(
+        nxt, allowed_hosts={request.get_host()}, require_https=request.is_secure(),
+    ):
+        return nxt
+    return ''
+
+
+@login_required
 def subcontract_list(request):
-    base_qs = (
-        SxSubcontractOrder.objects.filter(is_demo=False)
-        .select_related('production_order', 'sales_order')
-        .order_by('-order_date', '-pk')
-    )
-    team = (request.GET.get('team') or '').strip().lower()
-    if team:
-        base_qs = base_qs.filter(team_slug=team)
-    work_status = (request.GET.get('status') or '').strip()
-    if work_status == SUBCONTRACT_WORK_STATUS_DONE:
-        base_qs = base_qs.filter(
-            status__in=[SxSubcontractOrder.STATUS_DONE, SxSubcontractOrder.STATUS_RECEIVED],
-        )
-    elif work_status == SUBCONTRACT_WORK_STATUS_RUNNING:
-        base_qs = base_qs.filter(
-            status__in=[SxSubcontractOrder.STATUS_DRAFT, SxSubcontractOrder.STATUS_SENT],
-        )
-    preserve = {'team': team} if team else None
-    items, fctx = prepare_hub_list(
-        request,
-        base_qs,
-        SX_FILTER_SUBCONTRACT,
-        list_key='subcontract',
-        preserve=preserve,
-        status_choices=SUBCONTRACT_WORK_STATUS_CHOICES,
-    )
-    return render(request, 'san_xuat/subcontract_list.html', {
-        **_perm_ctx(request),
-        'items': items,
-        'filter_team': team,
-        **fctx,
-    })
+    if not (
+        user_can_access_menu(request.user, MODULE_SAN_XUAT, 'plan_board')
+        or user_can_access_menu(request.user, MODULE_SAN_XUAT, 'plan')
+        or user_can_access_menu(request.user, MODULE_SAN_XUAT, 'subcontract')
+    ):
+        return handle_menu_access_denied(request, MODULE_SAN_XUAT, 'plan_board')
+    from urllib.parse import urlencode
 
+    params = {'mode': 'list', 'tab': 'subcontract'}
+    for source, target in (
+        ('q', 'q'), ('date_from', 'date_from'), ('date_to', 'date_to'),
+        ('status', 'gc_status'), ('team', 'gc_team'),
+    ):
+        value = (request.GET.get(source) or '').strip()
+        if value:
+            params[target] = value
+    return redirect(f"{reverse('san_xuat:plan_board')}?{urlencode(params)}")
 
-@module_perm_required(MODULE_SAN_XUAT, 'create')
+@login_required
 def subcontract_create(request):
     from san_xuat.hub_models import SxSalesOrder
     from san_xuat.services.phase3 import Phase3Error, create_subcontract_order, npl_lines_for_subcontract
     from san_xuat.services.progress_template import team_by_slug
     from san_xuat.services.team_work import active_subcontract_for_team
 
+    if not (
+        user_can_create_menu(request.user, MODULE_SAN_XUAT, 'plan_board')
+        or user_can_update_menu(request.user, MODULE_SAN_XUAT, 'plan_board')
+        or user_can_update_menu(request.user, MODULE_SAN_XUAT, 'plan')
+        or user_can_create_menu(request.user, MODULE_SAN_XUAT, 'subcontract')
+        or user_can_update_menu(request.user, MODULE_SAN_XUAT, 'subcontract')
+    ):
+        return handle_menu_access_denied(request, MODULE_SAN_XUAT, 'plan_board')
+
     raw_mo = (request.GET.get('mo') or '').strip()
     raw_so = (request.GET.get('so') or '').strip()
     raw_product = (request.GET.get('product') or '').strip()
     raw_team = (request.GET.get('team') or '').strip().lower()
     embed = (request.GET.get('embed') or '').strip() == '1'
+    next_url = _subcontract_next_url(request)
     mo = (
         SxProductionOrder.objects.select_related('sales_order').filter(pk=int(raw_mo), is_demo=False).first()
-        if raw_mo.isdigit() else None
+        if raw_mo.isdigit() and int(raw_mo) > 0 else None
     )
-    so = mo.sales_order if mo else (
-        SxSalesOrder.objects.prefetch_related('lines').filter(pk=int(raw_so), is_demo=False).first()
-        if raw_so.isdigit() else None
-    )
+    so = mo.sales_order if mo else None
+    if so is None and raw_so.isdigit() and int(raw_so) > 0:
+        so = (
+            SxSalesOrder.objects.prefetch_related('lines')
+            .filter(pk=int(raw_so), is_demo=False)
+            .first()
+        )
     team = team_by_slug(raw_team) if raw_team else None
     if (mo and mo.status == SxProductionOrder.STATUS_CANCELLED) or (not mo and not so):
         messages.info(request, 'Mở thuê sản xuất từ công đoạn trên bảng kế hoạch.')
-        return redirect('san_xuat:subcontract_list')
+        return redirect(f"{reverse('san_xuat:plan_board')}?mode=list&tab=subcontract")
     if not team:
         messages.info(request, 'Chọn tổ trên phân công để thuê gia công đúng bộ phận.')
         return redirect('san_xuat:team_work_hub')
@@ -6546,6 +6666,8 @@ def subcontract_create(request):
         SxSubcontractOrder.STATUS_SENT,
     ):
         messages.info(request, f'Đã có phiếu {existing.code} đang mở cho tổ {team["label"]}.')
+        if embed:
+            return redirect(f"{reverse('san_xuat:subcontract_detail', args=[existing.pk])}?embed=1")
         return redirect('san_xuat:subcontract_detail', pk=existing.pk)
 
     source_line = None
@@ -6555,6 +6677,10 @@ def subcontract_create(request):
         qty = mo.qty or Decimal('0')
     else:
         source_line = so.lines.filter(product_code__iexact=raw_product).first()
+        if source_line is None:
+            lines = list(so.lines.all())
+            if len(lines) == 1:
+                source_line = lines[0]
         if source_line is None:
             messages.error(request, 'Mã sản phẩm không thuộc đơn đặt hàng.')
             return redirect('san_xuat:plan_board')
@@ -6568,18 +6694,19 @@ def subcontract_create(request):
         'product_code': product_code,
         'product_name': product_name,
     }
-    if mo:
-        form_action = f'?mo={mo.pk}&team={team["slug"]}'
-    else:
-        from urllib.parse import urlencode
+    from urllib.parse import urlencode
 
-        form_action = '?' + urlencode({
-            'so': so.pk,
-            'product': product_code,
-            'team': team['slug'],
-        })
+    action_params = {'team': team['slug']}
+    if mo:
+        action_params['mo'] = str(mo.pk)
+    else:
+        action_params['so'] = str(so.pk)
+        action_params['product'] = product_code
     if embed:
-        form_action += '&embed=1'
+        action_params['embed'] = '1'
+    if next_url:
+        action_params['next'] = next_url
+    form_action = '?' + urlencode(action_params)
 
     if request.method == 'POST':
         data = request.POST.copy()
@@ -6651,9 +6778,8 @@ def subcontract_create(request):
         reverse('san_xuat:team_work_board', kwargs={'slug': team['slug']})
         if mo else reverse('san_xuat:plan_board')
     )
-    next_to = (request.GET.get('next') or '').strip()
-    if next_to == 'list':
-        back_href = reverse('san_xuat:subcontract_list')
+    if next_url:
+        back_href = next_url
     return render(request, 'san_xuat/subcontract_create.html', {
         **_perm_ctx(request),
         'form': form,
@@ -6671,25 +6797,101 @@ def subcontract_create(request):
     })
 
 
-@module_perm_required(MODULE_SAN_XUAT, 'view')
+@login_required
 def subcontract_detail(request, pk: int):
     from san_xuat.hub_models import SxSubcontractMaterialLine, SxSubcontractOrder as Sub
     from san_xuat.services.phase3 import (
         Phase3Error,
         advance_subcontract_order,
+        delete_subcontract_order,
         receive_subcontract_goods,
+        update_subcontract_order,
     )
+    if not (
+        user_can_access_menu(request.user, MODULE_SAN_XUAT, 'plan_board')
+        or user_can_access_menu(request.user, MODULE_SAN_XUAT, 'plan')
+        or user_can_access_menu(request.user, MODULE_SAN_XUAT, 'subcontract')
+    ):
+        return handle_menu_access_denied(request, MODULE_SAN_XUAT, 'plan_board')
 
     item = get_object_or_404(
         SxSubcontractOrder.objects.select_related('production_order', 'sales_order', 'created_by').prefetch_related('material_lines'),
         pk=pk,
     )
-    can_update = _perm_ctx(request).get('can_update')
+    embed = (request.GET.get('embed') or '').strip() == '1'
+    board_detail_url = f"{reverse('san_xuat:plan_board')}?mode=list&tab=subcontract"
+    can_update = (
+        user_can_update_menu(request.user, MODULE_SAN_XUAT, 'plan_board')
+        or user_can_update_menu(request.user, MODULE_SAN_XUAT, 'plan')
+    )
     receive_form = SubcontractReceiveForm(initial={'qty_received': item.qty or Decimal('0')})
+    update_form = SubcontractUpdateForm(initial={
+        'vendor_name': item.vendor_name,
+        'order_date': item.order_date,
+        'due_date': item.due_date,
+        'notes': item.notes,
+    })
+    out_initial = [
+        {
+            'material_code': ln.material_code,
+            'material_name': ln.material_name,
+            'uom_label': ln.uom_label,
+            'qty': ln.qty,
+            'lot_code': ln.lot_code,
+            'notes': ln.notes,
+        }
+        for ln in item.material_lines.all()
+        if ln.direction == 'out'
+    ]
+    edit_formset = SubcontractOutLineFormSet(prefix='out', initial=out_initial)
 
     if request.method == 'POST' and can_update:
         action = (request.POST.get('action') or '').strip()
-        if action == 'receive':
+        if action == 'delete':
+            deleted_code = item.code
+            try:
+                delete_subcontract_order(order_id=item.pk)
+            except Phase3Error as exc:
+                messages.error(request, str(exc))
+            else:
+                messages.success(request, f'Đã xóa phiếu {deleted_code}.')
+                if embed:
+                    return render(request, 'san_xuat/subcontract_modal_success.html', {
+                        'item': item,
+                        'success_message': f'Đã xóa phiếu {deleted_code}.',
+                    })
+                return redirect(f"{reverse('san_xuat:plan_board')}?mode=list&tab=subcontract")
+        elif action == 'update':
+            update_form = SubcontractUpdateForm(request.POST)
+            edit_formset = SubcontractOutLineFormSet(request.POST, prefix='out')
+            if update_form.is_valid() and edit_formset.is_valid():
+                out_rows = [
+                    form.cleaned_data for form in edit_formset
+                    if form.cleaned_data
+                    and not form.cleaned_data.get('DELETE')
+                    and form.cleaned_data.get('material_code')
+                    and form.cleaned_data.get('qty')
+                ]
+                try:
+                    item = update_subcontract_order(
+                        order_id=item.pk,
+                        vendor_name=update_form.cleaned_data['vendor_name'],
+                        order_date=update_form.cleaned_data['order_date'],
+                        due_date=update_form.cleaned_data.get('due_date'),
+                        notes=update_form.cleaned_data.get('notes') or '',
+                        out_lines=out_rows,
+                    )
+                except Phase3Error as exc:
+                    messages.error(request, str(exc))
+                else:
+                    messages.success(request, f'Đã cập nhật {item.code}.')
+                    if embed:
+                        return render(request, 'san_xuat/subcontract_modal_success.html', {
+                            'item': item,
+                            'success_message': f'Đã cập nhật phiếu {item.code}.',
+                        })
+                    return redirect('san_xuat:subcontract_detail', pk=item.pk)
+        elif action == 'receive':
             receive_form = SubcontractReceiveForm(request.POST)
             if receive_form.is_valid():
                 try:
@@ -6705,6 +6907,11 @@ def subcontract_detail(request, pk: int):
                         request,
                         f'Đã nhận hàng {item.code}.',
                     )
+                    if embed:
+                        return render(request, 'san_xuat/subcontract_modal_success.html', {
+                            'item': item,
+                            'success_message': f'Đã nhận hàng phiếu {item.code}.',
+                        })
                     return redirect('san_xuat:subcontract_detail', pk=item.pk)
         else:
             to_status = (request.POST.get('to_status') or '').strip()
@@ -6715,6 +6922,11 @@ def subcontract_detail(request, pk: int):
                     messages.error(request, str(exc))
                 else:
                     messages.success(request, f'{item.code} → {item.get_status_display()}.')
+                    if embed:
+                        return render(request, 'san_xuat/subcontract_modal_success.html', {
+                            'item': item,
+                            'success_message': f'{item.code} → {item.get_status_display()}.',
+                        })
                     return redirect('san_xuat:subcontract_detail', pk=item.pk)
 
     out_lines = [ln for ln in item.material_lines.all() if ln.direction == 'out']
@@ -6726,10 +6938,15 @@ def subcontract_detail(request, pk: int):
         **_perm_ctx(request),
         'item': item,
         'can_update': can_update,
+        'can_print': user_can_print_menu(request.user, MODULE_SAN_XUAT, 'plan_board'),
         'can_receive': can_receive,
         'out_lines': out_lines,
         'in_lines': in_lines,
         'receive_form': receive_form,
+        'update_form': update_form,
+        'edit_formset': edit_formset,
+        'embed': embed,
+        'board_detail_url': board_detail_url,
         'STATUS_SENT': Sub.STATUS_SENT,
         'STATUS_RECEIVED': Sub.STATUS_RECEIVED,
         'STATUS_DONE': Sub.STATUS_DONE,

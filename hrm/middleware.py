@@ -1,7 +1,7 @@
 from hrm.menu_permissions import (
     handle_menu_access_denied,
     resolve_menu_from_request,
-    user_can_access_menu,
+    user_can_access_resolved_menu,
 )
 from hrm.module_permissions import (
     handle_department_access_denied,
@@ -24,7 +24,7 @@ class DepartmentModuleAccessMiddleware:
             )
             if module_key and not user_can_access_module(user, module_key):
                 return handle_department_access_denied(request, module_key)
-            if module_key and menu_key and not user_can_access_menu(user, module_key, menu_key):
+            if module_key and menu_key and not user_can_access_resolved_menu(user, module_key, menu_key):
                 return handle_menu_access_denied(request, module_key, menu_key)
 
         return self.get_response(request)

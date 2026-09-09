@@ -163,7 +163,6 @@ MODULE_SUBMENUS: dict[str, list[dict]] = {
         {'key': 'team_work_may', 'label': 'Tổ may', 'icon': 'bi-grid-3x3-gap'},
         {'key': 'team_work_ht', 'label': 'Tổ ủi gấp xếp', 'icon': 'bi-layers'},
         {'key': 'team_work_gh', 'label': 'Tổ giao hàng', 'icon': 'bi-truck'},
-        {'key': 'subcontract', 'label': 'Thuê gia công', 'icon': 'bi-building'},
         {'key': 'work_assign', 'label': 'Giao việc sản xuất', 'icon': 'bi-person-workspace'},
         {'key': 'shop_floor', 'label': 'Shop floor', 'icon': 'bi-cpu'},
         {'key': 'downtime', 'label': 'Dừng chuyền', 'icon': 'bi-pause-circle'},
@@ -437,7 +436,7 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     ('/san-xuat/luong-san-pham', MODULE_SAN_XUAT, 'piece_rate'),
     ('/san-xuat/ncr', MODULE_SAN_XUAT, 'ncr'),
     ('/san-xuat/dong-goi', MODULE_SAN_XUAT, 'packing'),
-    ('/san-xuat/thue-gia-cong', MODULE_SAN_XUAT, 'subcontract'),
+    ('/san-xuat/thue-gia-cong', MODULE_SAN_XUAT, 'plan_board'),
     ('/san-xuat/truy-xuat', MODULE_SAN_XUAT, 'traceability'),
     ('/san-xuat/bao-cao-van-hanh', MODULE_SAN_XUAT, 'ops_report'),
     ('/san-xuat/catalog', MODULE_SAN_XUAT, 'unified_catalog'),
@@ -484,6 +483,11 @@ MENU_PATH_RULES: list[tuple[str, str, str]] = [
     ('/nhat-ky/', MODULE_AUDIT, 'logs'),
 ]
 
+# URL gắn menu A vẫn vào được nếu user có một trong các menu thay thế.
+MENU_PATH_ACCESS_ALIASES: dict[tuple[str, str], tuple[str, ...]] = {
+    (MODULE_SAN_XUAT, 'subcontract'): ('plan_board', 'plan'),
+}
+
 MENU_FIELD_SEP = '__'
 
 # Khả năng thao tác thực tế của từng menu Sản xuất.  Ma trận quyền dùng cấu
@@ -504,7 +508,7 @@ _SAN_XUAT_MENU_ACTIONS: dict[str, frozenset[str]] = {
     'capacity': frozenset({'view', 'create', 'update', 'delete', 'export'}),
     'capacity_load': frozenset({'view'}),
     'plan': frozenset({'view', 'create', 'update'}),
-    'plan_board': frozenset({'view', 'create', 'update', 'delete'}),
+    'plan_board': frozenset({'view', 'create', 'update', 'delete', 'print'}),
     'plan_route': frozenset({'view', 'update'}),
     'plan_inter_step': frozenset({'view', 'update'}),
     'plan_progress': frozenset({'view'}),

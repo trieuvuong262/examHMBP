@@ -500,6 +500,21 @@ class SubcontractCreateForm(forms.Form):
         return cleaned
 
 
+class SubcontractUpdateForm(forms.Form):
+    vendor_name = forms.CharField(
+        max_length=200,
+        label="Đơn vị gia công",
+        widget=forms.TextInput(attrs={"class": "form-control form-control-sm"}),
+    )
+    order_date = forms.DateField(label="Ngày", widget=forms.DateInput(attrs=_DATE_SM))
+    due_date = forms.DateField(required=False, label="Hạn", widget=forms.DateInput(attrs=_DATE_SM))
+    notes = forms.CharField(
+        required=False,
+        label="Ghi chú",
+        widget=forms.TextInput(attrs={"class": "form-control form-control-sm"}),
+    )
+
+
 class SubcontractMaterialLineForm(forms.Form):
     material_code = forms.CharField(
         max_length=60,

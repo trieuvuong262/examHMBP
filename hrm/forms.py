@@ -1086,7 +1086,7 @@ SAN_XUAT_PERMISSION_SECTIONS = (
     ('Tổng quan', ('overview',)),
     ('Đơn đặt hàng', ('orders', 'order_create', 'order_confirm')),
     ('Hồ sơ sản phẩm', ('docs', 'ie', 'ie_approve', 'ie_settings', 'capacity')),
-    ('Kế hoạch SX', ('plan', 'plan_board', 'plan_inter_step', 'plan_npl', 'npl_pr')),
+    ('Kế hoạch SX', ('plan', 'plan_board', 'plan_inter_step', 'plan_npl', 'npl_pr', 'subcontract')),
     (
         'Điều phối',
         ('dispatch', 'mo', 'material_issue_req', 'handover_status', 'fg_receipt_req'),
@@ -1096,7 +1096,6 @@ SAN_XUAT_PERMISSION_SECTIONS = (
         (
             'team_work', 'team_work_goods', 'team_work_cat', 'team_work_inep',
             'team_work_theu', 'team_work_may', 'team_work_ht', 'team_work_gh',
-            'subcontract',
         ),
     ),
     ('Kiểm tra chất lượng', ('qc_request', 'qc_sheet', 'qc', 'ncr', 'qc_criteria')),

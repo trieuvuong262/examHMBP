@@ -810,13 +810,13 @@
                 {% jp_can_menu 'san_xuat' 'plan_npl' as jp_can_san_xuat_plan_npl %}
                 {% jp_can_menu 'san_xuat' 'npl_pr' as jp_can_san_xuat_npl_pr %}
                 {% if jp_can_san_xuat_plan or jp_can_san_xuat_plan_board or jp_can_san_xuat_plan_inter or jp_can_san_xuat_plan_npl or jp_can_san_xuat_npl_pr %}
-                <li class="jp-sidebar-nested-group{% if '/san-xuat/ke-hoach' in request.path %} is-open{% endif %}"
+                <li class="jp-sidebar-nested-group{% if '/san-xuat/ke-hoach' in request.path or 'thue-gia-cong' in request.path %} is-open{% endif %}"
                     data-sx-area="plan" data-sx-icon="bi-calendar3" data-sx-label="Kế hoạch SX"
                     data-sx-href="{% if jp_can_san_xuat_plan_board or jp_can_san_xuat_plan %}{% url 'san_xuat:plan_board' %}{% elif jp_can_san_xuat_plan_npl %}{% url 'san_xuat:plan_npl' %}{% else %}{% url 'san_xuat:npl_purchase_request' %}{% endif %}">
                     <button type="button"
                             class="jp-sidebar-nested-toggle"
                             data-jp-sidebar-group-toggle
-                            aria-expanded="{% if '/san-xuat/ke-hoach' in request.path %}true{% else %}false{% endif %}"
+                            aria-expanded="{% if '/san-xuat/ke-hoach' in request.path or 'thue-gia-cong' in request.path %}true{% else %}false{% endif %}"
                             aria-controls="jp-sidebar-san-xuat-plan-submenu">
                         <span class="jp-sidebar-nested-toggle-main">
                             <i class="bi bi-calendar3"></i><span>Kế hoạch SX</span>
@@ -827,8 +827,14 @@
                         {% if jp_can_san_xuat_plan_board or jp_can_san_xuat_plan %}
                         <li>
                             <a href="{% url 'san_xuat:plan_board' %}"
-                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'plan_board' or request.resolver_match.url_name == 'plan_stub' or request.resolver_match.url_name == 'plan_progress_monitor' or request.resolver_match.url_name == 'order_progress_sheet' or request.resolver_match.url_name == 'order_progress_order' or 'plan_overall' in request.resolver_match.url_name or 'plan_detail' in request.resolver_match.url_name %}active{% endif %}">
+                               class="jp-sidebar-link jp-sidebar-sublink {% if request.resolver_match.url_name == 'plan_stub' or request.resolver_match.url_name == 'plan_progress_monitor' or request.resolver_match.url_name == 'order_progress_sheet' or request.resolver_match.url_name == 'order_progress_order' or 'plan_overall' in request.resolver_match.url_name or 'plan_detail' in request.resolver_match.url_name or request.resolver_match.url_name == 'plan_board' and request.GET.tab != 'subcontract' %}active{% endif %}">
                                 <i class="bi bi-kanban"></i><span>Kế hoạch sản xuất</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'san_xuat:plan_board' %}?mode=list&amp;tab=subcontract"
+                               class="jp-sidebar-link jp-sidebar-sublink {% if request.GET.tab == 'subcontract' or 'thue-gia-cong' in request.path %}active{% endif %}">
+                                <i class="bi bi-building"></i><span>Thuê gia công</span>
                             </a>
                         </li>
                         {% endif %}
@@ -947,15 +953,14 @@
                 {% jp_can_menu 'san_xuat' 'team_work_may' as jp_can_tw_may %}
                 {% jp_can_menu 'san_xuat' 'team_work_ht' as jp_can_tw_ht %}
                 {% jp_can_menu 'san_xuat' 'team_work_gh' as jp_can_tw_gh %}
-                {% jp_can_menu 'san_xuat' 'subcontract' as jp_can_san_xuat_sub %}
-                {% if jp_can_tw or jp_can_tw_goods or jp_can_tw_cat or jp_can_tw_inep or jp_can_tw_theu or jp_can_tw_may or jp_can_tw_ht or jp_can_tw_gh or jp_can_san_xuat_sub %}
-                <li class="jp-sidebar-nested-group{% if '/san-xuat/cong-viec-to' in request.path or 'thue-gia-cong' in request.path %} is-open{% endif %}"
+                {% if jp_can_tw or jp_can_tw_goods or jp_can_tw_cat or jp_can_tw_inep or jp_can_tw_theu or jp_can_tw_may or jp_can_tw_ht or jp_can_tw_gh %}
+                <li class="jp-sidebar-nested-group{% if '/san-xuat/cong-viec-to' in request.path %} is-open{% endif %}"
                     data-sx-area="team_work" data-sx-icon="bi-people" data-sx-label="Phân công SX"
-                    data-sx-href="{% if jp_can_tw or jp_can_tw_goods %}{% url 'san_xuat:team_work_goods' %}{% elif jp_can_tw_cat %}{% url 'san_xuat:team_work_board' 'cat' %}{% elif jp_can_tw_inep %}{% url 'san_xuat:team_work_board' 'inep' %}{% elif jp_can_tw_theu %}{% url 'san_xuat:team_work_board' 'theu' %}{% elif jp_can_tw_may %}{% url 'san_xuat:team_work_board' 'may' %}{% elif jp_can_tw_ht %}{% url 'san_xuat:team_work_board' 'ht' %}{% elif jp_can_tw_gh %}{% url 'san_xuat:team_work_board' 'gh' %}{% else %}{% url 'san_xuat:subcontract_list' %}{% endif %}">
+                    data-sx-href="{% if jp_can_tw or jp_can_tw_goods %}{% url 'san_xuat:team_work_goods' %}{% elif jp_can_tw_cat %}{% url 'san_xuat:team_work_board' 'cat' %}{% elif jp_can_tw_inep %}{% url 'san_xuat:team_work_board' 'inep' %}{% elif jp_can_tw_theu %}{% url 'san_xuat:team_work_board' 'theu' %}{% elif jp_can_tw_may %}{% url 'san_xuat:team_work_board' 'may' %}{% elif jp_can_tw_ht %}{% url 'san_xuat:team_work_board' 'ht' %}{% else %}{% url 'san_xuat:team_work_board' 'gh' %}{% endif %}">
                     <button type="button"
                             class="jp-sidebar-nested-toggle"
                             data-jp-sidebar-group-toggle
-                            aria-expanded="{% if '/san-xuat/cong-viec-to' in request.path or 'thue-gia-cong' in request.path %}true{% else %}false{% endif %}"
+                            aria-expanded="{% if '/san-xuat/cong-viec-to' in request.path %}true{% else %}false{% endif %}"
                             aria-controls="jp-sidebar-san-xuat-team-work-submenu">
                         <span class="jp-sidebar-nested-toggle-main">
                             <i class="bi bi-people"></i><span>Phân công SX</span>
@@ -1016,14 +1021,6 @@
                             <a href="{% url 'san_xuat:team_work_board' 'gh' %}"
                                class="jp-sidebar-link jp-sidebar-sublink {% if '/cong-viec-to/gh' in request.path %}active{% endif %}">
                                 <i class="bi bi-truck"></i><span>Tổ giao hàng</span>
-                            </a>
-                        </li>
-                        {% endif %}
-                        {% if jp_can_san_xuat_sub %}
-                        <li>
-                            <a href="{% url 'san_xuat:subcontract_list' %}"
-                               class="jp-sidebar-link jp-sidebar-sublink {% if 'thue-gia-cong' in request.path %}active{% endif %}">
-                                <i class="bi bi-building"></i><span>Thuê gia công</span>
                             </a>
                         </li>
                         {% endif %}

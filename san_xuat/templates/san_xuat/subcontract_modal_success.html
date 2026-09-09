@@ -5,14 +5,14 @@
   <title>Đã tạo phiếu thuê sản xuất</title>
 </head>
 <body>
-  <p>Đã tạo phiếu {{ item.code }}.</p>
+  <p>{% if success_message %}{{ success_message }}{% else %}Đã tạo phiếu {{ item.code }}.{% endif %}</p>
   <script>
     {% if print_url %}
     window.open('{{ print_url|escapejs }}', 'jpSubcontractPrint');
     {% endif %}
     window.parent.postMessage({
       type: 'jp-subcontract-created',
-      itemId: {{ item.pk }},
+      itemId: {% if item.pk %}{{ item.pk }}{% else %}null{% endif %},
       itemCode: '{{ item.code|escapejs }}'
     }, window.location.origin);
   </script>

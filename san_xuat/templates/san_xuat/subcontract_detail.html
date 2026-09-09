@@ -1,7 +1,20 @@
 {% extends 'base.html' %}
 
 {% load sx_format %}
-{% block extra_head %}{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}{% endblock %}
+{% block extra_head %}
+{% include 'san_xuat/includes/sx_detail_tools_styles.html' %}
+{% if embed %}
+<style>
+  .jp-topbar, .jp-sidebar, .jp-site-footer, .jp-sidebar-drawer { display:none !important; }
+  html, body, .jp-app-shell { height:auto !important; min-height:0 !important; }
+  .jp-app-body, .jp-app-main, .jp-main-content {
+    display:block !important; width:100% !important; margin:0 !important; padding:0 !important;
+  }
+  .jp-page { max-width:none !important; margin:0 !important; padding:.85rem !important; }
+  .jp-page > .jp-npl-mat-topbar { display:none !important; }
+</style>
+{% endif %}
+{% endblock %}
 
 {% block content %}
 <div class="container jp-page jp-sx-page py-3 py-md-4 mb-5">
@@ -13,7 +26,7 @@
       {% if can_print %}<a href="{% url 'san_xuat:print_subcontract' item.pk %}?autoprint=1" target="_blank" rel="noopener"><i class="bi bi-printer" aria-hidden="true"></i>In A5</a>{% endif %}
       <a href="{% url 'san_xuat:traceability' %}?query={{ item.code }}"><i class="bi bi-signpost-split" aria-hidden="true"></i>Truy vết</a>
       <span class="sep" aria-hidden="true"></span>
-      <a href="{% url 'san_xuat:subcontract_list' %}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại</a>
+      <a href="{{ board_detail_url }}" class="is-back"><i class="bi bi-arrow-left" aria-hidden="true"></i>Quay lại KHSX</a>
     </nav>
   </div>
   <div class="row g-3">
@@ -35,6 +48,54 @@
         </div>
       </div>
 
+      {% if can_update and item.status == STATUS_DRAFT %}
+      <form method="post" class="border rounded-3 p-3 mb-3">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="update">
+        <div class="fw-semibold mb-2">Sửa phiếu Thuê SX</div>
+        {% if update_form.non_field_errors %}<div class="alert alert-danger py-2">{{ update_form.non_field_errors }}</div>{% endif %}
+        <div class="row g-2 mb-3">
+          <div class="col-md-6">
+            <label class="form-label small">{{ update_form.vendor_name.label }}</label>{{ update_form.vendor_name }}
+          </div>
+          <div class="col-md-3">
+            <label class="form-label small">{{ update_form.order_date.label }}</label>{{ update_form.order_date }}
+          </div>
+          <div class="col-md-3">
+            <label class="form-label small">{{ update_form.due_date.label }}</label>{{ update_form.due_date }}
+          </div>
+          <div class="col-12">
+            <label class="form-label small">{{ update_form.notes.label }}</label>{{ update_form.notes }}
+          </div>
+        </div>
+        <div class="fw-semibold mb-2">NPL xuất đi gia công</div>
+        {{ edit_formset.management_form }}
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-2">
+            <thead><tr><th>Mã</th><th>Tên</th><th>ĐVT</th><th class="text-end">Số lượng</th></tr></thead>
+            <tbody>
+            {% for f in edit_formset %}
+              <tr data-jp-gc-edit-row>
+                <td>{{ f.material_code }}<strong>{{ f.material_code.value }}</strong></td>
+                <td>{{ f.material_name }}</td>
+                <td>{{ f.uom_label }}</td>
+                <td>
+                  <div class="d-flex justify-content-end gap-2">
+                    <span style="width:7rem">{{ f.qty }}</span>
+                    <span class="d-none">{{ f.DELETE }}</span>
+                    <button type="button" class="btn btn-outline-danger btn-sm" data-jp-gc-edit-remove aria-label="Xóa NPL"><i class="bi bi-trash"></i></button>
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <button type="submit" class="btn btn-hm fw-bold">Lưu thay đổi</button>
+      </form>
+      {% endif %}
+
+      {% if not can_update or item.status != STATUS_DRAFT %}
       <div class="border rounded-3 p-3 mb-3">
         <div class="fw-semibold mb-2">NPL xuất đi GC</div>
         <table class="table table-hover table-sm mb-0">
@@ -52,6 +113,7 @@
           </tbody>
         </table>
       </div>
+      {% endif %}
 
       {% if in_lines %}
       <div class="border rounded-3 p-3">
@@ -75,6 +137,16 @@
       <div class="border rounded-3 p-3">
         <div class="small text-muted mb-2">Trạng thái: <strong>{{ item.get_status_display }}</strong>
           · Đơn vị GC: {{ item.vendor_name }}</div>
+        {% if can_update and item.status == STATUS_DRAFT %}
+          <form method="post" class="mb-3"
+                onsubmit="return confirm('Xóa phiếu {{ item.code }}? Trạng thái thuê gia công trên KHSX sẽ được bỏ.');">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="delete">
+            <button class="btn btn-outline-danger btn-sm w-100" type="submit">
+              <i class="bi bi-trash me-1" aria-hidden="true"></i>Xóa phiếu
+            </button>
+          </form>
+        {% endif %}
         {% if can_receive %}
           <form method="post" class="mb-3">
             {% csrf_token %}
@@ -106,4 +178,17 @@
     </div>
   </div>
 </div>
+{% if embed %}
+<script>document.body.classList.remove('jp-has-sidebar', 'jp-has-amis-header');</script>
+{% endif %}
+<script>
+document.addEventListener('click', function (event) {
+  var button = event.target.closest('[data-jp-gc-edit-remove]');
+  if (!button) return;
+  var row = button.closest('[data-jp-gc-edit-row]');
+  var input = row ? row.querySelector('input[name$="-DELETE"]') : null;
+  if (input) input.checked = true;
+  if (row) row.hidden = true;
+});
+</script>
 {% endblock %}

@@ -1,0 +1,39 @@
+<div class="jp-pb-ticket-times" aria-label="Chi tiết thời gian KHSX">
+  {% if row.duration_script_id %}{{ row.duration_detail|json_script:row.duration_script_id }}{% endif %}
+  <div class="jp-pb-stats">
+    <span class="jp-pb-stat{% if row.khsx_overrun %} is-late{% endif %}"
+          title="Từ ngày dự kiến thực hiện, theo SMV × SL mọi mã + kiểm/VC">
+      KHSX
+      {% if row.khsx_start %}
+        <strong>{{ row.khsx_start|date:"d/m/Y" }}</strong>
+        {% if row.khsx_end and row.khsx_end != row.khsx_start %}
+          → <strong>{{ row.khsx_end|date:"d/m/Y" }}</strong>
+        {% endif %}
+      {% else %}<strong>—</strong>{% endif %}
+    </span>
+    {% if row.duration_label %}
+    <span class="jp-pb-stat" title="Tổng thời gian làm đơn (SMV × SL mọi mã + kiểm/VC)">
+      Làm trong <strong>{{ row.duration_label }}</strong>
+      {% if row.duration_script_id %}
+      <button type="button" class="jp-pb-dur-btn" data-jp-duration-open
+              data-detail-id="{{ row.duration_script_id }}">Chi tiết</button>
+      {% endif %}
+    </span>
+    {% elif row.duration_script_id %}
+    <span class="jp-pb-stat">
+      <button type="button" class="jp-pb-dur-btn" data-jp-duration-open
+              data-detail-id="{{ row.duration_script_id }}">Chi tiết</button>
+    </span>
+    {% endif %}
+    <span class="jp-pb-stat{% if row.is_overdue %} is-late{% endif %}">
+      Hạn
+      {% if row.order.due_date %}
+        <strong>{{ row.order.due_date|date:"d/m/Y" }}</strong>
+        {% if row.days_to_due is not None %}
+          {% if row.is_overdue %}trễ {{ row.days_to_due|stringformat:"d"|cut:"-" }} ngày
+          {% else %}còn {{ row.days_to_due }} ngày{% endif %}
+        {% endif %}
+      {% else %}<strong>—</strong>{% endif %}
+    </span>
+  </div>
+</div>

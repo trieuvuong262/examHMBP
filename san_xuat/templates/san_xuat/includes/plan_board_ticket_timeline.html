@@ -49,14 +49,43 @@
         </span>
         <span class="jp-pb-tl-date">{{ step.date_label|default:"—" }}</span>
       </button>
-      {% if can_create_subcontract and row.order.plan_status != 'done' %}
-      <button type="button" class="jp-pb-stage-gc"
-              data-jp-gc-stage-open
-              data-stage-panel="jpStage-{{ row.order.pk }}-{{ step.slug }}"
-              data-stage-label="{{ step.label }}"
-              title="Thuê sản xuất tổ {{ step.label }}">
-        <i class="bi bi-building" aria-hidden="true"></i> Thuê SX
-      </button>
+      {% if can_create_subcontract and row.order.plan_status != 'done' and step.unhired_product_groups %}
+        {% if step.product_groups|length == 1 %}
+          {% with pg=step.product_groups.0 %}
+          <a class="jp-pb-stage-gc"
+             href="{% url 'san_xuat:subcontract_create' %}?so={{ row.order.pk }}&amp;product={{ pg.product_code|urlencode }}&amp;team={{ step.slug }}{% if pg.production_order_id > 0 %}&amp;mo={{ pg.production_order_id }}{% endif %}&amp;next={{ request.get_full_path|urlencode }}"
+             title="Thuê gia công {{ pg.product_name }} — tổ {{ step.label }}">
+            <i class="bi bi-building" aria-hidden="true"></i> Thuê GC
+          </a>
+          {% endwith %}
+        {% else %}
+          <button type="button"
+                  class="jp-pb-stage-gc"
+                  data-jp-stage-open
+                  data-jp-gc-pick
+                  aria-controls="jpStage-{{ row.order.pk }}-{{ step.slug }}"
+                  aria-expanded="false"
+                  title="Chọn sản phẩm cần thuê gia công — tổ {{ step.label }}">
+            <i class="bi bi-building" aria-hidden="true"></i> Thuê GC
+          </button>
+        {% endif %}
+      {% elif step.subcontracts %}
+        {% if step.subcontracts|length == 1 %}
+          <a class="jp-pb-stage-gc is-hired"
+             href="{% url 'san_xuat:subcontract_detail' step.subcontracts.0.pk %}"
+             title="Xem phiếu {{ step.subcontracts.0.code }} — tổ {{ step.label }}">
+            <i class="bi bi-check-circle-fill" aria-hidden="true"></i> Đã thuê GC
+          </a>
+        {% else %}
+          <button type="button"
+                  class="jp-pb-stage-gc is-hired"
+                  data-jp-stage-open
+                  aria-controls="jpStage-{{ row.order.pk }}-{{ step.slug }}"
+                  aria-expanded="false"
+                  title="Chọn phiếu gia công — tổ {{ step.label }}">
+            <i class="bi bi-check-circle-fill" aria-hidden="true"></i> Đã thuê GC
+          </button>
+        {% endif %}
       {% endif %}
       </div>
       {% else %}
@@ -111,17 +140,19 @@
     <section id="jpStage-{{ row.order.pk }}-{{ step.slug }}"
              class="jp-pb-stage-panel" data-jp-stage-panel hidden>
       <div class="jp-pb-stage-panel-head">
-        <strong>{{ step.label }}</strong>
+        <div>
+          <strong>{{ step.label }}</strong>
+          {% if step.product_groups|length > 1 and step.unhired_product_groups %}
+          <p class="jp-pb-stage-pick-hint">Chọn sản phẩm cần thuê gia công.</p>
+          {% endif %}
+        </div>
         <button type="button" data-jp-stage-close aria-label="Đóng chi tiết">
           <i class="bi bi-x-lg" aria-hidden="true"></i>
         </button>
       </div>
       <div class="jp-pb-stage-products">
         {% for product_group in step.product_groups %}
-        <div class="jp-pb-stage-product">
-          <span hidden data-jp-gc-option
-                data-product-label="{{ product_group.product_name }}"
-                data-gc-url="{% url 'san_xuat:subcontract_create' %}?{% if product_group.production_order_id %}mo={{ product_group.production_order_id }}{% else %}so={{ row.order.pk }}&amp;product={{ product_group.product_code|urlencode }}{% endif %}&amp;team={{ step.slug }}&amp;embed=1"></span>
+        <div class="jp-pb-stage-product{% if not product_group.subcontracts %} is-pick{% endif %}">
           <div class="jp-pb-stage-product-head">
             <div class="jp-pb-stage-product-info">
               {% if product_group.image_url %}
@@ -133,7 +164,20 @@
               {% endif %}
               <strong title="{{ product_group.product_code }}">{{ product_group.product_name }}</strong>
             </div>
-            <span>SL {{ product_group.qty|sx_num }}</span>
+            <div class="jp-pb-stage-product-meta">
+              <span>SL {{ product_group.qty|sx_num }}</span>
+              {% for gc in product_group.subcontracts %}
+              <a class="jp-pb-stage-product-gc-link is-hired"
+                 href="{% url 'san_xuat:subcontract_detail' gc.pk %}"
+                 title="Xem phiếu {{ gc.code }}">{{ gc.code }}</a>
+              {% empty %}
+                {% if can_create_subcontract and row.order.plan_status != 'done' %}
+                <a class="jp-pb-stage-product-gc-link"
+                   href="{% url 'san_xuat:subcontract_create' %}?so={{ row.order.pk }}&amp;product={{ product_group.product_code|urlencode }}&amp;team={{ step.slug }}{% if product_group.production_order_id > 0 %}&amp;mo={{ product_group.production_order_id }}{% endif %}&amp;next={{ request.get_full_path|urlencode }}"
+                   title="Thuê gia công {{ product_group.product_name }}">Thuê GC</a>
+                {% endif %}
+              {% endfor %}
+            </div>
           </div>
           <div class="jp-pb-stage-team-title">
             <strong>{{ step.label }}</strong>

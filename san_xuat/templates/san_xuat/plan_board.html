@@ -93,14 +93,36 @@
     background: var(--pb-soft);
     border-bottom: 1px solid var(--pb-line);
   }
+  .jp-pb-ticket-lead {
+    display: flex;
+    flex: 0 1 auto;
+    flex-wrap: nowrap;
+    align-items: flex-start;
+    gap: 0.55rem 0.7rem;
+    min-width: 0;
+  }
   .jp-pb-ticket-products {
     display: flex;
-    flex: 1 1 14rem;
+    flex: 0 0 auto;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.3rem;
+    min-width: 0;
+    max-width: 7.2rem;
+  }
+  .jp-pb-ticket-times {
+    display: flex;
+    flex: 1 1 16rem;
     flex-wrap: wrap;
     align-items: center;
     justify-content: center;
     gap: 0.4rem;
     min-width: 0;
+  }
+  .jp-pb-ticket-times .jp-pb-stats {
+    margin: 0;
+    justify-content: center;
   }
   .jp-pb-ticket-product-image {
     display: inline-flex;
@@ -130,19 +152,6 @@
     align-items: center;
     gap: 0.4rem 0.65rem;
   }
-  .jp-pb-rank {
-    width: 1.85rem;
-    height: 1.85rem;
-    border-radius: 0.45rem;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 800;
-    font-size: 0.82rem;
-    background: #e0f2fe;
-    color: #0369a1;
-  }
-  .jp-pb-ticket.is-hold .jp-pb-rank { background: #e2e8f0; color: #64748b; }
   .jp-pb-code {
     font-weight: 800;
     font-size: 1.05rem;
@@ -333,21 +342,28 @@
     box-shadow: 0 0 0 2px rgba(153, 27, 27, 0.08);
   }
   .jp-pb-stage-cell {
+    isolation: isolate;
     position: relative;
     display: flex;
     min-width: 7rem;
   }
   .jp-pb-stage-cell > .jp-pb-stage-btn {
+    position: relative;
+    z-index: 1;
     width: 100%;
     min-width: 0;
     flex: 1 1 auto;
     padding-bottom: 1.7rem;
   }
   .jp-pb-stage-gc {
+    appearance: none;
+    font-family: inherit;
+    cursor: pointer;
     position: absolute;
     right: 0.35rem;
     bottom: 0.35rem;
-    z-index: 2;
+    z-index: 6;
+    pointer-events: auto;
     display: inline-flex;
     align-items: center;
     gap: 0.2rem;
@@ -360,50 +376,37 @@
     font-size: 0.6rem;
     font-weight: 800;
     line-height: 1;
+    text-decoration: none;
   }
   .jp-pb-stage-gc:hover {
     border-color: #991b1b;
     color: #991b1b;
   }
-  .jp-pb-gc-frame {
-    display: block;
-    width: 100%;
-    height: min(76vh, 56rem);
-    border: 0;
-    background: #f8fafc;
+  .jp-pb-stage-gc.is-hired {
+    border-color: #86efac;
+    color: #166534;
+    background: #f0fdf4;
   }
-  #jpSubcontractModal .modal-dialog {
-    width: min(94vw, 72rem);
-    max-width: 72rem;
-    margin: 1.5rem auto;
+  .jp-pb-stage-gc.is-active {
+    border-color: #991b1b;
+    color: #991b1b;
   }
-  #jpSubcontractModal .modal-content {
-    overflow: hidden;
-    border: 0;
-    border-radius: 0.9rem;
-    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.22);
-  }
-  #jpSubcontractModal .modal-header {
-    min-height: 4rem;
-    padding: 0.75rem 1rem;
-    border-bottom-color: #e2e8f0;
-  }
-  .jp-pb-gc-modal-heading {
-    min-width: 0;
-  }
-  .jp-pb-gc-modal-heading .modal-title {
-    font-size: 1rem;
-    font-weight: 800;
-    color: var(--pb-ink);
-  }
-  #jpSubcontractModalSubtitle {
-    margin-top: 0.12rem;
-    overflow: hidden;
-    color: #64748b;
+  .jp-pb-stage-pick-hint {
+    margin: 0.15rem 0 0;
     font-size: 0.72rem;
-    font-weight: 650;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    font-weight: 600;
+    color: var(--pb-muted);
+  }
+  .jp-pb-stage-product.is-pick {
+    border-color: #fecaca;
+    background: #fff7f7;
+  }
+  .jp-pb-gc-table tbody tr {
+    position: relative;
+  }
+  .jp-pb-gc-del {
+    margin: 0;
+    display: inline-flex;
   }
   .jp-pb-stage-panel {
     margin-top: 0.5rem;
@@ -482,11 +485,40 @@
   .jp-pb-stage-product-info strong {
     overflow-wrap: anywhere;
   }
-  .jp-pb-stage-product-head > span {
+  .jp-pb-stage-product-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.35rem;
     flex: 0 0 auto;
+  }
+  .jp-pb-stage-product-meta > span {
     color: #64748b;
     font-size: 0.72rem;
     font-weight: 700;
+  }
+  .jp-pb-stage-product-gc-link {
+    display: inline-flex;
+    align-items: center;
+    height: 1.35rem;
+    padding: 0 0.45rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 0.35rem;
+    background: #fff;
+    color: #475569;
+    font-size: 0.68rem;
+    font-weight: 800;
+    text-decoration: none;
+  }
+  .jp-pb-stage-product-gc-link:hover {
+    border-color: #991b1b;
+    color: #991b1b;
+  }
+  .jp-pb-stage-product-gc-link.is-hired {
+    border-color: #86efac;
+    color: #166534;
+    background: #f0fdf4;
   }
   .jp-pb-stage-team-title {
     justify-content: flex-start;
@@ -1108,8 +1140,9 @@
 <div class="container-fluid jp-page jp-sx-page jp-pb py-3 py-md-4 mb-5 px-3 px-lg-4">
   <div class="jp-npl-mat-topbar jp-sx-detail-topbar w-100">
     <div class="jp-sx-detail-title">
-      <h2 class="jp-npl-mat-topbar-title w-100">Kế hoạch sản xuất</h2>
+      <h2 class="jp-npl-mat-topbar-title w-100">{% if tab == 'subcontract' %}Thuê gia công{% else %}Kế hoạch sản xuất{% endif %}</h2>
     </div>
+    {% if tab != 'subcontract' %}
     <nav class="jp-sx-tools jp-pb-top-tabs" aria-label="Tab kế hoạch" role="tablist">
       <a role="tab"
          class="btn btn-sm fw-bold {% if tab == 'queue' %}btn-hm{% else %}btn-outline-secondary{% endif %}"
@@ -1124,6 +1157,7 @@
          href="{% url 'san_xuat:plan_board' %}?mode=list&tab=route{% if search_query %}&q={{ search_query|urlencode }}{% endif %}{% if tab == 'route' and route_board %}&route_from={{ route_board.range_start|date:'Y-m-d' }}&route_to={{ route_board.range_end|date:'Y-m-d' }}{% endif %}"
          aria-selected="{% if tab == 'route' %}true{% else %}false{% endif %}">Lộ trình</a>
     </nav>
+    {% endif %}
   </div>
 
   <div class="jp-sx-page-body">
@@ -1133,7 +1167,7 @@
     <div class="card-body p-3 jp-team-filter-body">
       <input type="hidden" name="mode" value="{{ mode }}">
       <input type="hidden" name="tab" value="{{ tab }}">
-      {% if tab == 'queue' or tab == 'released' %}
+      {% if tab == 'queue' or tab == 'released' or tab == 'subcontract' %}
       <div class="jp-team-filter-dates">
         <div>
           <label class="form-label fw-bold small mb-1" for="jp-pb-date-from">Từ ngày</label>
@@ -1191,6 +1225,27 @@
             <option value="overdue" {% if deadline_filter == 'overdue' %}selected{% endif %}>Đã quá hạn</option>
             <option value="due_soon" {% if deadline_filter == 'due_soon' %}selected{% endif %}>Còn tối đa 3 ngày</option>
             <option value="on_time" {% if deadline_filter == 'on_time' %}selected{% endif %}>Còn hạn</option>
+          </select>
+        </div>
+        {% endif %}
+        {% if tab == 'subcontract' %}
+        <div class="jp-team-filter-org">
+          <label class="form-label fw-bold small mb-1" for="jp-pb-gc-status">Trạng thái</label>
+          <select id="jp-pb-gc-status" name="gc_status" class="form-select form-select-sm">
+            <option value="">Tất cả trạng thái</option>
+            {% for value, label in gc_status_choices %}
+            <option value="{{ value }}"{% if gc_status_filter == value %} selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+            <option value="cancelled"{% if gc_status_filter == 'cancelled' %} selected{% endif %}>Đã hủy</option>
+          </select>
+        </div>
+        <div class="jp-team-filter-org">
+          <label class="form-label fw-bold small mb-1" for="jp-pb-gc-team">Bộ phận</label>
+          <select id="jp-pb-gc-team" name="gc_team" class="form-select form-select-sm">
+            <option value="">Tất cả bộ phận</option>
+            {% for value, label in gc_team_choices %}
+            <option value="{{ value }}"{% if gc_team_filter == value %} selected{% endif %}>{{ label }}</option>
+            {% endfor %}
           </select>
         </div>
         {% endif %}
@@ -1252,24 +1307,25 @@
     {% for row in queue_rows %}
     <article class="jp-pb-ticket is-{{ row.order.plan_priority }}{% if row.order.plan_status == 'on_hold' %} is-hold{% endif %}{% if row.is_overdue %} is-overdue{% endif %}">
       <div class="jp-pb-ticket-head">
-        <div>
-          <div class="jp-pb-title-row">
-            <span class="jp-pb-rank" title="Thứ tự xếp">{{ row.order.plan_rank|default:"·" }}</span>
-            <a class="jp-pb-code" href="{% url 'san_xuat:sales_order_detail' row.order.pk %}">{{ row.order.code }}</a>
-            {% if row.order.plan_status == 'on_hold' %}
-            <span class="jp-pb-status">{{ row.order.get_plan_status_display }}</span>
-            {% endif %}
-            {% if row.order.plan_status == 'on_hold' and row.order.plan_hold_reason %}
-            <span class="jp-pb-hold-chip" title="{{ row.order.plan_hold_reason }}">{{ row.order.plan_hold_reason }}</span>
-            {% endif %}
+        <div class="jp-pb-ticket-lead">
+          {% include 'san_xuat/includes/plan_board_product_images.html' %}
+          <div>
+            <div class="jp-pb-title-row">
+              <a class="jp-pb-code" href="{% url 'san_xuat:sales_order_detail' row.order.pk %}">{{ row.order.code }}</a>
+              {% if row.order.plan_status == 'on_hold' %}
+              <span class="jp-pb-status">{{ row.order.get_plan_status_display }}</span>
+              {% endif %}
+              {% if row.order.plan_status == 'on_hold' and row.order.plan_hold_reason %}
+              <span class="jp-pb-hold-chip" title="{{ row.order.plan_hold_reason }}">{{ row.order.plan_hold_reason }}</span>
+              {% endif %}
+            </div>
+            <div class="jp-pb-customer mt-1">{{ row.order.customer_name|default:"—" }}</div>
           </div>
-          <div class="jp-pb-customer mt-1">{{ row.order.customer_name|default:"—" }}</div>
         </div>
-        {% include 'san_xuat/includes/plan_board_product_images.html' %}
+        {% include 'san_xuat/includes/plan_board_ticket_times.html' %}
         <div class="jp-pb-side">
-          {% if row.subcontract or can_schedule and row.order.plan_status == 'on_hold' %}
+          {% if can_schedule and row.order.plan_status == 'on_hold' %}
           <div class="jp-pb-tools">
-            {% include 'san_xuat/includes/plan_board_gc_actions.html' %}
             {% if can_schedule and row.order.plan_status == 'on_hold' %}
               <form method="post">
                 {% csrf_token %}
@@ -1334,19 +1390,21 @@
     {% for row in released_rows %}
     <article class="jp-pb-ticket jp-pb-ticket-plain{% if row.is_overdue %} is-overdue{% endif %}">
       <div class="jp-pb-ticket-head">
-        <div>
-          <div class="jp-pb-title-row">
-            <a class="jp-pb-code" href="{% url 'san_xuat:sales_order_detail' row.order.pk %}">{{ row.order.code }}</a>
-            <span class="jp-pb-status">{{ row.order.get_plan_status_display }}</span>
+        <div class="jp-pb-ticket-lead">
+          {% include 'san_xuat/includes/plan_board_product_images.html' %}
+          <div>
+            <div class="jp-pb-title-row">
+              <a class="jp-pb-code" href="{% url 'san_xuat:sales_order_detail' row.order.pk %}">{{ row.order.code }}</a>
+              <span class="jp-pb-status">{{ row.order.get_plan_status_display }}</span>
+            </div>
+            <div class="jp-pb-customer mt-1">{{ row.order.customer_name|default:"—" }}</div>
           </div>
-          <div class="jp-pb-customer mt-1">{{ row.order.customer_name|default:"—" }}</div>
         </div>
-        {% include 'san_xuat/includes/plan_board_product_images.html' %}
+        {% include 'san_xuat/includes/plan_board_ticket_times.html' %}
         <div class="jp-pb-side">
           {% if row.mo_count %}
             <a href="{% url 'san_xuat:order_progress_order' row.order.pk %}" class="btn btn-hm btn-sm fw-bold">Tiến độ</a>
           {% endif %}
-          {% include 'san_xuat/includes/plan_board_gc_actions.html' %}
           {% if can_release and row.can_unrelease %}
           <form method="post" class="d-inline"
                 onsubmit="return confirm('Hủy chuyển SX {{ row.order.code }}?\nCác lệnh sản xuất sẽ bị hủy và đơn về hàng đợi để sửa.');">
@@ -1364,7 +1422,6 @@
         </div>
       </div>
       <div class="jp-pb-ticket-body">
-        {{ row.duration_detail|json_script:row.duration_script_id }}
         {% include 'san_xuat/includes/plan_board_ticket_timeline.html' %}
       </div>
     </article>
@@ -1383,25 +1440,55 @@
   {% if tab == 'route' %}
   {% include 'san_xuat/includes/plan_order_timeline.html' %}
   {% endif %}
-  </div>
-</div>
 
-<div class="modal fade" id="jpSubcontractModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-xl modal-dialog-scrollable">
-    <div class="modal-content">
-      <div class="modal-header">
-        <div class="jp-pb-gc-modal-heading">
-          <h5 class="modal-title" id="jpSubcontractModalTitle">Thuê sản xuất</h5>
-          <div id="jpSubcontractModalSubtitle"></div>
-        </div>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
-      </div>
-      <div class="modal-body p-0">
-        <div id="jpSubcontractChoices" class="p-3 d-none"></div>
-        <iframe id="jpSubcontractFrame" class="jp-pb-gc-frame d-none"
-                title="Tạo phiếu thuê sản xuất"></iframe>
-      </div>
+  {% if tab == 'subcontract' %}
+  <div class="card border-0 shadow-sm overflow-hidden">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0 jp-pb-gc-table">
+        <thead class="table-light">
+          <tr>
+            <th>Phiếu</th><th>Đơn hàng</th><th>Sản phẩm</th><th>Bộ phận</th>
+            <th>Đơn vị gia công</th><th class="text-end">Số lượng</th>
+            <th>Ngày / hạn</th><th>Trạng thái</th>{% if can_create_subcontract %}<th class="text-end">Thao tác</th>{% endif %}
+          </tr>
+        </thead>
+        <tbody>
+        {% for item in subcontract_items %}
+          <tr>
+            <td>
+              <a href="{% url 'san_xuat:subcontract_detail' item.pk %}" class="fw-bold">{{ item.code }}</a>
+            </td>
+            <td>{% if item.sales_order %}{{ item.sales_order.code }}{% else %}—{% endif %}</td>
+            <td><strong>{{ item.product_name|default:item.product_code }}</strong><br><span class="small text-muted">{{ item.product_code }}</span></td>
+            <td>{{ item.team_label|default:"—" }}</td>
+            <td>{{ item.vendor_name }}</td>
+            <td class="text-end">{{ item.qty|sx_num }}</td>
+            <td>{{ item.order_date|date:"d/m/Y" }}{% if item.due_date %}<br><span class="small text-muted">Hạn {{ item.due_date|date:"d/m/Y" }}</span>{% endif %}</td>
+            <td>{{ item.work_status_label }}</td>
+            {% if can_create_subcontract %}
+            <td class="text-end">
+              {% if item.status != 'done' and item.status != 'cancelled' %}
+              <form method="post" class="jp-pb-gc-del"
+                    onsubmit="return confirm('Xóa phiếu {{ item.code }}? Công đoạn trên KHSX sẽ trở lại Thuê GC.');">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="delete_gc">
+                <input type="hidden" name="gc_id" value="{{ item.pk }}">
+                <input type="hidden" name="tab" value="subcontract">
+                <input type="hidden" name="mode" value="list">
+                <button type="submit" class="btn btn-outline-danger btn-sm fw-bold">Xóa</button>
+              </form>
+              {% endif %}
+            </td>
+            {% endif %}
+          </tr>
+        {% empty %}
+          <tr><td colspan="{% if can_create_subcontract %}9{% else %}8{% endif %}" class="text-center text-muted p-4">Chưa có phiếu thuê gia công phù hợp.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
     </div>
+  </div>
+  {% endif %}
   </div>
 </div>
 
@@ -2022,115 +2109,6 @@
   });
 })();
 
-(function () {
-  var modalEl = document.getElementById('jpSubcontractModal');
-  var frame = document.getElementById('jpSubcontractFrame');
-  var choices = document.getElementById('jpSubcontractChoices');
-  var title = document.getElementById('jpSubcontractModalTitle');
-  var subtitle = document.getElementById('jpSubcontractModalSubtitle');
-  if (!modalEl || !frame || !choices || !subtitle || typeof bootstrap === 'undefined') return;
-  var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
-
-  function fitFrameHeight() {
-    try {
-      var doc = frame.contentDocument;
-      if (!doc) return;
-      var contentHeight = Math.max(
-        doc.body ? doc.body.scrollHeight : 0,
-        doc.documentElement ? doc.documentElement.scrollHeight : 0
-      );
-      var maxHeight = Math.floor(window.innerHeight * 0.76);
-      if (contentHeight) frame.style.height = Math.min(contentHeight + 2, maxHeight) + 'px';
-    } catch (error) {
-      frame.style.height = '';
-    }
-  }
-
-  frame.addEventListener('load', function () {
-    // Reset the fixed fallback height before measuring; otherwise the iframe
-    // viewport itself is counted as content and leaves an empty block below.
-    frame.style.height = '1px';
-    window.setTimeout(fitFrameHeight, 0);
-  });
-
-  function loadForm(url, productLabel, stageLabel) {
-    title.textContent = 'Thuê sản xuất';
-    subtitle.textContent = stageLabel + (productLabel ? ' · ' + productLabel : '');
-    choices.classList.add('d-none');
-    frame.classList.remove('d-none');
-    frame.src = url;
-  }
-
-  document.addEventListener('click', function (event) {
-    var trigger = event.target.closest('[data-jp-gc-stage-open]');
-    if (!trigger) return;
-    event.preventDefault();
-    event.stopPropagation();
-    var panel = document.getElementById(trigger.getAttribute('data-stage-panel') || '');
-    if (!panel) return;
-    var stageLabel = trigger.getAttribute('data-stage-label') || '';
-    var optionMap = new Map();
-    panel.querySelectorAll('[data-jp-gc-option]').forEach(function (option) {
-      var url = option.getAttribute('data-gc-url') || '';
-      if (url && !optionMap.has(url)) optionMap.set(url, option);
-    });
-    var options = Array.from(optionMap.values());
-    frame.classList.add('d-none');
-    frame.removeAttribute('src');
-    choices.innerHTML = '';
-
-    if (!options.length) {
-      title.textContent = 'Thuê sản xuất';
-      subtitle.textContent = stageLabel;
-      choices.classList.remove('d-none');
-      choices.innerHTML =
-        '<div class="alert alert-info mb-0">Không có sản phẩm phù hợp để thuê ngoài công đoạn này.</div>';
-    } else if (options.length === 1) {
-      loadForm(
-        options[0].getAttribute('data-gc-url'),
-        options[0].getAttribute('data-product-label'),
-        stageLabel
-      );
-    } else {
-      title.textContent = 'Chọn sản phẩm thuê sản xuất';
-      subtitle.textContent = stageLabel;
-      choices.classList.remove('d-none');
-      var note = document.createElement('p');
-      note.className = 'small text-muted mb-2';
-      note.textContent = 'Chọn sản phẩm cần thuê ngoài cho tổ ' + stageLabel + '.';
-      choices.appendChild(note);
-      options.forEach(function (option) {
-        var button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'btn btn-light border btn-sm me-2 mb-2';
-        button.textContent = option.getAttribute('data-product-label') || 'Sản phẩm';
-        button.addEventListener('click', function () {
-          loadForm(
-            option.getAttribute('data-gc-url'),
-            option.getAttribute('data-product-label'),
-            stageLabel
-          );
-        });
-        choices.appendChild(button);
-      });
-    }
-    modal.show();
-  });
-
-  window.addEventListener('message', function (event) {
-    if (event.origin !== window.location.origin) return;
-    if (!event.data || event.data.type !== 'jp-subcontract-created') return;
-    modal.hide();
-    window.location.reload();
-  });
-  modalEl.addEventListener('hidden.bs.modal', function () {
-    frame.removeAttribute('src');
-    frame.style.height = '';
-    frame.classList.add('d-none');
-    choices.innerHTML = '';
-    subtitle.textContent = '';
-  });
-})();
 
 (function () {
   document.addEventListener('click', function (event) {
@@ -2148,6 +2126,7 @@
       return;
     }
 
+    if (event.target.closest('a.jp-pb-stage-gc, a.jp-pb-stage-product-gc-link')) return;
     var button = event.target.closest('[data-jp-stage-open]');
     if (!button) return;
     var root = button.closest('.jp-pb-tl');

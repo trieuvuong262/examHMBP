@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
 from django.utils import timezone
 
 from assessment.decorators import module_perm_required
+from hrm.menu_permissions import handle_menu_access_denied, user_can_print_menu
 from hrm.module_permissions import MODULE_SAN_XUAT
 from san_xuat.hub_models import (
     SxFgReceiptRequest,
@@ -215,8 +217,13 @@ def print_handover(request, pk: int):
     })
 
 
-@module_perm_required(MODULE_SAN_XUAT, 'print')
+@login_required
 def print_subcontract(request, pk: int):
+    if not (
+        user_can_print_menu(request.user, MODULE_SAN_XUAT, 'plan_board')
+        or user_can_print_menu(request.user, MODULE_SAN_XUAT, 'subcontract')
+    ):
+        return handle_menu_access_denied(request, MODULE_SAN_XUAT, 'plan_board')
     item = get_object_or_404(
         SxSubcontractOrder.objects.select_related('production_order', 'sales_order').prefetch_related(
             'material_lines',

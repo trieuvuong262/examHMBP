@@ -26,6 +26,7 @@ from hrm.module_permissions import (
     get_user_enabled_modules,
 )
 from hrm.submenu_registry import (
+    MENU_PATH_ACCESS_ALIASES,
     MENU_PATH_RULES,
     get_menu_label,
     get_module_submenus,
@@ -144,6 +145,16 @@ def user_can_access_menu(user, module_key: str, menu_key: str) -> bool:
         from hrm.permissions import can_view_report_statistics
         return can_view_report_statistics(user)
     return user_can_menu_action(user, module_key, menu_key, PERM_VIEW)
+
+
+def user_can_access_resolved_menu(user, module_key: str, menu_key: str) -> bool:
+    """Quyền vào URL đã resolve — gồm menu chính và menu thay thế (alias)."""
+    if user_can_access_menu(user, module_key, menu_key):
+        return True
+    for alt in MENU_PATH_ACCESS_ALIASES.get((module_key, menu_key), ()):
+        if user_can_access_menu(user, module_key, alt):
+            return True
+    return False
 
 
 def user_can_create_menu(user, module_key: str, menu_key: str) -> bool:

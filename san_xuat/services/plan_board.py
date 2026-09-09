@@ -203,6 +203,7 @@ class PlanBoardRow:
     can_unrelease: bool = False
     team_spans: list = field(default_factory=list)
     subcontract: object | None = None
+    subcontracts: list = field(default_factory=list)
     missing_bom: bool = False
     missing_ops: bool = False
     npl_status: str = SxSalesOrder.NPL_NONE
@@ -282,11 +283,16 @@ class TicketTimelineStep:
     is_late: bool = False
     process_count: int = 0
     product_groups: list[dict] = field(default_factory=list)
+    subcontracts: list = field(default_factory=list)
     hop_step_id: int = 0
     hop_process_name: str = ''
     hop_count_minutes: Decimal = field(default_factory=lambda: Decimal('0'))
     hop_transfer_minutes: Decimal = field(default_factory=lambda: Decimal('0'))
     can_edit_hop: bool = False
+
+    @property
+    def unhired_product_groups(self) -> list[dict]:
+        return [pg for pg in self.product_groups if not pg.get('subcontracts')]
 
     @property
     def date_label(self) -> str:
@@ -1304,7 +1310,7 @@ def _fill_product_flow_images(rows: list[PlanBoardRow]) -> None:
 
 
 def attach_subcontracts_to_plan_rows(rows: list[PlanBoardRow]) -> list[PlanBoardRow]:
-    """Gắn phiếu GC mới nhất lên từng đơn trên board."""
+    """Gắn toàn bộ phiếu GC và phiếu mới nhất lên từng đơn trên board."""
     if not rows:
         return rows
     from san_xuat.hub_models import SxSubcontractOrder
@@ -1318,15 +1324,28 @@ def attach_subcontracts_to_plan_rows(rows: list[PlanBoardRow]) -> list[PlanBoard
         .exclude(team_slug='')
         .order_by('-order_date', '-pk')
     )
-    latest: dict[int, SxSubcontractOrder] = {}
+    grouped: dict[int, list[SxSubcontractOrder]] = {}
     for gc in qs:
         oid = gc.sales_order_id
         if not oid and gc.production_order_id:
             oid = getattr(gc.production_order, 'sales_order_id', None)
-        if oid and oid not in latest:
-            latest[oid] = gc
+        if oid:
+            grouped.setdefault(oid, []).append(gc)
     for row in rows:
-        row.subcontract = latest.get(row.order.pk)
+        row.subcontracts = grouped.get(row.order.pk, [])
+        row.subcontract = row.subcontracts[0] if row.subcontracts else None
+        for step in row.timeline_steps:
+            if step.kind == 'team':
+                step.subcontracts = [
+                    item for item in row.subcontracts
+                    if (item.team_slug or '').strip().lower() == (step.slug or '').strip().lower()
+                ]
+                for product_group in step.product_groups:
+                    code = (product_group.get('product_code') or '').strip().casefold()
+                    product_group['subcontracts'] = [
+                        item for item in step.subcontracts
+                        if (item.product_code or '').strip().casefold() == code
+                    ]
     return rows
 
 
